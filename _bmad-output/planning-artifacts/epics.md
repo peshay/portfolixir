@@ -189,7 +189,7 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | FR-8 | #316, #577, #563, #568 (ADR-0034) | IRR; TTWROR shipped. **#577 shipped 2026-08-04** — TTWROR/IRR for a bucket view now cover the deduplicated account union across all portfolios, so the header total and the return always speak about the same accounts; the multi-portfolio scope disclaimer is gone. **#563 shipped** — previous-year/any-year and custom from-to periods, pure re-chains. #568 (net invested, wealth multiple, XIRR) has its design note in ADR-0034 but is **not implemented** |
 | FR-9 | — | **future** (Phase 5; OQ-3 quote source). **Ungated 2026-08-12** — the scope ladder released it as level (b); the old advanced-reports gate no longer applies. Inherits the metric-basis rule |
 | FR-10 | #331 | income report |
-| FR-11 | #318, #329, #335, #334, #709 (ADR-0040), #712 (ADR-0041) | target hints, exclude flag, cash basis, classification view. **#709** — a target plan states its unallocated remainder explicitly and drifts against the allocated portion (ADR-0040, Accepted 2026-08-15). **#712** — a category row carries a money-weighted result roll-up, expandable to its member positions (ADR-0041, Accepted 2026-08-15); it is a statement about the *current composition*, so it needs no membership history and carries no restatement caveat |
+| FR-11 | #318, #329, #335, #334, #709 (ADR-0040), #712 (ADR-0041) | target hints, exclude flag, cash basis, classification view. **#709 shipped 2026-08-19 (Sprint 7, PR #716)** — a target plan states its unallocated remainder explicitly and drift is measured against the allocated portion (ADR-0040); the payload names its `drift_basis`. **#712 shipped 2026-08-19 (Sprint 7, PR #716)** — the per-category money-weighted result (ADR-0041 slice one), on the classifications tree, the API and MCP; a statement about the *current composition*, underivable rows excluded and named |
 | FR-12 | ADR-0023 | **partially landed** — display-only rebalancing hints (per-position drift share + indicative buy/sell quantity) shipped with the drift drill-down; the guidance-vs-action boundary is drawn in ADR-0023 + AGENTS.md. Ranked both-directions cash guidance remains open |
 | FR-13 | #349 | analytics over API/MCP |
 | FR-14 | **#355** | MCP data maintenance (new) |
@@ -209,7 +209,7 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | NFR-4–6 | — | foundational (security, self-hosted, single-user) |
 | NFR-7 | #313 | localization / docs site |
 | NFR-8 | #562 (ADR-0032), #619 (ADR-0035) | cross-cutting perf; watch in perf-sensitive stories. ADR-0032 accepted 2026-07-29 — the daily TTWROR walk is memoized in volatile memory with warm-up, targeted invalidation and a labelled stale-serve. **#619 shipped 2026-08-04** (ADR-0035): the redundancy was removed rather than cached — market data is preloaded once per read and threaded through every valuation and allocation, replacing six re-derivations and hundreds of per-row lookups. Measured A/B: the warm dashboard block 1,105 ms → 265 ms and 2,614 → 115 queries, output identical. Nothing is memoized by this change; ADR-0032's memo is untouched |
-| UX-DR1–20 | **#356** (tracker) + #414, #672 open, plus #701–#704, #707 filed 2026-08-15; #412, #491, #560, #565, #566 shipped | UX/a11y tracker. Rules are defined in `design-language/EXPERIENCE.md` and `DESIGN.md`, not in this document (ADR-0038). #336, #337, #339, #319 and #606 are closed. **#606 shipped 2026-08-04** — the impersonal microcopy voice rule, applied retroactively to all pre-rule UI strings and the EN/DE docs, and now part of DR11 rather than only an agent rule. DR15–DR20 were added by the 2026-08-05 design session; the alignment stories are cut from the spec |
+| UX-DR1–20 | **#356** (tracker) + #414, #672 open, plus #701–#704, #707 filed 2026-08-15; #412, #491, #560, #565, #566 shipped | UX/a11y tracker. Rules are defined in `design-language/EXPERIENCE.md` and `DESIGN.md`, not in this document (ADR-0038). **Sprint 7 (PR #716, merged 2026-08-19) closed #414, #672, #701–#704, #706 and #707**; the 2026-08-18 design engagement filed #717–#721 and #723, and the Sprint-7 walkthrough filed #729 and #730 — all attach here. #336, #337, #339, #319 and #606 are closed. **#606 shipped 2026-08-04** — the impersonal microcopy voice rule, applied retroactively to all pre-rule UI strings and the EN/DE docs, and now part of DR11 rather than only an agent rule. DR15–DR20 were added by the 2026-08-05 design session; the alignment stories are cut from the spec |
 | FR-30 | #582 | ISIN/WKN in holdings payloads (E6 DX batch, story 2) |
 | FR-31 | #581 | MCP create: all 13 kinds, deliveries + price guard in AC (E6 DX batch, story 1) |
 | FR-32 | #583 | booking-semantics docs incl. fix-it-hammer warnings (E6 DX batch, story 3) |
@@ -217,9 +217,9 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | FR-34 | #600, #601 | ADR-0029 accepted 2026-07-22 — identity ladder + alias record, risk-tier |
 | FR-35 | #602 | ADR-0029 §6 verdict: build the read-only reconcile endpoint |
 | FR-36 | #612 (gate), #621–#625 | recorded tax-statement snapshots — ADR-0031 accepted 2026-07-25. Stories 19.2–19.6 shipped: configuration layer, snapshot table, consistency engine, API/MCP parity, entry surface + EN/DE docs. Forward projection and `tax_bucket` (19.7) are deferred behind a separate gate |
-| FR-37 | #665 | read ergonomics — sparse fieldsets, roll-up-only aggregates, server-side threshold filters. **Shipped 2026-08-14 (Sprint 6, PR #688)** with the −70 % volume cut pinned by test. Supersedes FR-33's scope lock for this family only. Agent-only; **the human view is due by the next batch per the two-way rule and is three obligations, not one** (`human-view-debt-2026-08-17.md`): `fields=` lives on the **transactions and holdings** endpoints and neither list has a column picker — the securities picker predates FR-37 and sits on the one list with no `fields=`, so it does **not** discharge this; the roll-up half is discharged by #712 if it ships; the threshold half is partial, with no drift control on the allocation surface |
-| FR-38 | #666 | `?since=` delta reads. **Shipped 2026-08-14 (Sprint 6, PR #688)**, pull-only with the B3.7 boundary pinned by test; the push half stays gated at B3.7. Agent-only for now; the human view is due by the next batch per the two-way rule |
-| FR-39, FR-40 | — (mechanism: #710, #711) | derived metrics per security / per view (ladder (a)). **Ungated by the ladder**, no issue yet — depended on the derived-value ADR (gate B3.2) for where the values live; ADR-0039 accepted 2026-08-12 supplies that home, and **the mechanism landed 2026-08-14 (C1–C5, Sprint 6, PR #688)** — these are issue-ready now. **#710 and #711 are the mechanism, not these metrics:** #710 moves the refresh onto the invalidating write, coalesced (ADR-0039 amendment §§1–3, **risk-tier** — an uncoalesced refresher turns one import into thousands of full recomputations, so import is the acceptance scenario), and #711 measures and activates the figures the operator actually waits on (§2 + amendment §4). Filing FR-39/FR-40 themselves is still open |
+| FR-37 | #665 | read ergonomics — sparse fieldsets, roll-up-only aggregates, server-side threshold filters. **Shipped 2026-08-14 (Sprint 6, PR #688)** with the −70 % volume cut pinned by test. Supersedes FR-33's scope lock for this family only. Human-view status after Sprint 7 (PR #716): the **threshold half is discharged** — drift-threshold chips on the allocation table share one predicate (`Allocation.drift_at_least?/2`) with the API's `min_drift=`; the **roll-up half is discharged by #712** (shipped). The remaining obligation is the **`fields=` column picker** on the transactions and holdings lists, refiled as **#732** with the Sprint-8 deadline the two-way rule prescribes |
+| FR-38 | #666 | `?since=` delta reads. **Shipped 2026-08-14 (Sprint 6, PR #688)**, pull-only with the B3.7 boundary pinned by test; the push half stays gated at B3.7. Agent-only; the human view is refiled as **#731** (a changed-since surface that states the deletion gap), due by the end of the batch after Sprint 7 per the two-way rule |
+| FR-39, FR-40 | — (mechanism: #710, #711) | derived metrics per security / per view (ladder (a)). **Ungated by the ladder**, no issue yet — depended on the derived-value ADR (gate B3.2) for where the values live; ADR-0039 accepted 2026-08-12 supplies that home, and **the mechanism landed 2026-08-14 (C1–C5, Sprint 6, PR #688)** — these are issue-ready now. **#710 and #711 shipped 2026-08-19 (Sprint 7, PR #716)** — the refresh now runs on the invalidating write, coalesced (one refresh per basis on an import, mutation-verified), and the cross-portfolio walk is activated `:durable` on measured figures (recorded in ADR-0039). These were the mechanism, not the metrics: filing FR-39/FR-40 themselves is still open |
 | FR-41, FR-42 | — | contribution analysis; factor/sector/region exposure (ladder (b)). **Ungated by the ladder**, no issue yet |
 | FR-43 | — | policy rules as objects. **Gated: B3.6**, needs its own ADR (rules engine + rule-history retention) |
 | FR-44 | — | security events as objects. **Gated: B3.4**; automatic population is B3.3. Distinct from ADR-0028 corporate actions |
@@ -557,6 +557,30 @@ Ground truth: `main` at `1903913` (PR #631, squash-merged 2026-08-04).
   reference the two, or dissolve one) is still the owner's and still open.
   `#321` (roadmap index) remains stale; closing it needs its "working
   agreement" section preserved somewhere first.
+## Implementation Status — reconciled with code (2026-08-19, Sprint 7 close-out)
+
+Verification basis: the merge commits on `main` (bb3d728..80d3e7e, PR #716
+rebase-merged), the post-merge open-issue list, and the remote tag list.
+
+**Shipped by Sprint 7** — sixteen issues closed by the merge's keywords:
+the review conditions (#706), the five-defect UI set (#700–#704), the design
+engagement spec (#707), the transaction history rework (#414), the
+`/cashflow` parent (#672), the data-quality predicates (#705), refresh-on-
+write for derived values (#710, #711), the three signed decisions (#708,
+#709, #712), and the PerformanceTest flake (#722). #471 was closed by hand as
+invalidated (ADR-0024), #321 by hand as superseded (ADR-0042). Tag `0.7.0`
+(annotated) on `80d3e7e`.
+
+**The FR Coverage Map above is updated in this pass** (FR-11, FR-37, FR-38,
+FR-39/40, UX-DR row): the two-way-rule debt that survives Sprint 7 is exactly
+#731 (`?since=` human view) and #732 (`fields=` column picker), both due by
+the end of the next batch. The Sprint-7 walkthrough findings #729 and #730
+and the design-engagement issues #717–#721/#723 attach to #356.
+
+Retrospective: `sprint-7-retro-2026-08-19.md`. Close-out ledger and the
+process findings live there and in `sprint-status.yaml`'s log; this section
+records only what changed in the requirement registry.
+
 ## Implementation Status — structural migration (2026-08-18)
 
 **ADR-0042 executed (Sprint 7, Lane Z).** This document stops being a work

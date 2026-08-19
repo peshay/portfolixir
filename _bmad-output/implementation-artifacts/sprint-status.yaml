@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-08-17 (pre-Sprint-7 reconciliation; ADR-0042 accepted)
+# last_updated: 2026-08-19 (Sprint 7 close-out)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -42,7 +42,7 @@
 # requests, not assumed -- an issue's state lags the PR that fixes it.
 
 generated: 2026-07-25
-last_updated: 2026-08-17
+last_updated: 2026-08-19
 project: portfolixir
 project_key: NOKEY
 tracking_system: file-system
@@ -51,6 +51,48 @@ story_location: _bmad-output/implementation-artifacts
 # ---------------------------------------------------------------------------
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
+#
+# CLOSED OUT (2026-08-19, Sprint 7) -- PR #716 rebase-merged, `main` at 80d3e7e:
+# Verification basis: the merge commits on `main` (bb3d728..80d3e7e, 37 commits
+# linear per the ADR-0026 rebase-merge amendment), the Actions runs on those
+# commits, the open-issue list after the merge, and the remote tag list -- not
+# this file's prior claims.
+#
+# WHAT CLOSED: sixteen issues by the merge's keywords (#706 #702 #700 #701
+# #703 #704 #707 #414 #672 #705 #710 #711 #712 #709 #708 #722 -- verified
+# against the open-issue list, none remained open), #471 by hand on
+# 2026-08-18 (invalidated by ADR-0024, defect no longer exists), and #321 by
+# hand at this close-out (superseded by ADR-0042; its working agreement was
+# preserved into AGENTS.md by Lane Z). Sprint 7 had no dedicated epic
+# tracker; the standing trackers (#356, #417, #419, #420) stay open by
+# design.
+#
+# TAG: 0.7.0 is an OPEN OWNER ITEM, prepared but not pushed -- the session's
+# git proxy allows pushes to the designated branch only, the same block the
+# Sprint 6 close-out recorded for 0.5.0. Verified rather than assumed: a
+# dry-run push reports "[new tag]" and the remote tag list still ends at
+# 0.6.0. The prepared command (in sprint-7-retro-2026-08-19.md) creates it
+# ANNOTATED on 80d3e7e -- step 5 says annotated verbatim, and 0.5.0/0.6.0
+# are both lightweight (F4), so the -a is the part not to drop. The tag push
+# triggers the #659 Release workflow.
+#
+# RETROSPECTIVE: sprint-7-retro-2026-08-19.md. The one process finding worth
+# repeating here: the closing act ran TWICE, and the second pass found a
+# reachable LiveView crash (recovery_label/1 without a :not_comparable
+# clause) defended by a comment claiming unreachability -- verified against
+# the render guard's inputs, not against the state's producer. The habit to
+# keep: re-derive "unreachable" from the producer.
+#
+# DEBT WITH A DEADLINE (two-way coverage rule): #731 (?since= human view)
+# and #732 (fields= column picker) are due by the end of the NEXT batch;
+# their absence there is a close-out finding by the rule's own terms.
+# Walkthrough findings outside the batch's scope: #729, #730.
+#
+# LANE M: applied rows in their own commits (five Actions majors, zod 4,
+# TypeScript 7); the deliberately-not-updated list including the toolchain
+# and BMAD rows is version-report-2026-08-19.md -- written at close-out,
+# one step later than the lane intended (the done-list caught it, nothing
+# else did).
 #
 # MIGRATED (2026-08-18, Sprint 7 Lane Z) -- ADR-0042 executed:
 # The story rows are gone from `development_status` -- the five schema-invalid
