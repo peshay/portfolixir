@@ -750,8 +750,25 @@ church tax withheld at a zero church-tax rate.
   carries `as_of_value`, `current_value`, `snapshot_return`, `real_ttwror`, a
   daily `series` (`snapshot_value`, `snapshot_indexed`, `real_indexed`), a
   `gaps` list of securities excluded for missing quotes or FX at the as-of
-  date, and a self-describing `basis` (gross, price-return only in v1). All
-  financial values are Decimal strings.
+  date, and a self-describing `basis` (gross, price-return only in v1; it
+  carries the `window`, the `base_currency`, and `costs_removed` /
+  `costs_kept` naming which cost kinds left the return). All financial values
+  are Decimal strings.
+
+  **The two sides are not on one basis, and the payload says so** (#708,
+  ADR-0027 amendment): the frozen side pays nothing ever, while the real
+  TTWROR is net of the fees and taxes actually booked. The response therefore
+  also carries `real_ttwror_before_costs` (the same walk with the window's
+  **trade** fees and taxes reclassified as external flows — standalone
+  fee/tax bookings and dividend withholding deliberately stay inside the
+  return, because the frozen holder would have paid those too),
+  `transaction_costs` (their total in the base currency) and `cost_recovery`
+  with `state` one of `recovered`, `partly_recovered` (ahead before costs,
+  not yet after; `outstanding` states the gap), `not_recovered` (behind even
+  before costs, so the costs are not the reason) or `not_comparable` (the
+  frozen side has no value at the as-of date — an all-cash snapshot, for
+  example — so there is nothing to be ahead of; the costs still report).
+  Read the three together: `real_ttwror_before_costs` alone flatters.
 - `GET /api/v1/portfolios/:portfolio_id/category-results?classification_id=<id>` —
   per-category **result** (ADR-0041 slice one, #712): `invested` (the sum of the
   members' base-currency cost), `current_value`, `result_abs` and `result_pct`
