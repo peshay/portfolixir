@@ -188,12 +188,16 @@ defmodule PortfolixirWeb.SnapshotsLive do
   defp recovery_label(%{state: :not_recovered}),
     do: gettext("Behind even before costs")
 
-  # No clause for :not_comparable, and that is deliberate rather than an
-  # omission: the guard above renders this group only when a cost was paid AND
-  # a pre-cost return exists, and both are absent exactly when the comparison
-  # has no comparable pair. A catch-all here would be code that cannot run.
-  # A fourth state added later raises in the first test that renders it, which
-  # is the loud failure this repo prefers over a silent fallback label.
+  # Reachable, and by a natural flow rather than an exotic one: freeze a
+  # snapshot while the portfolio is still all cash ("before I restructure"),
+  # then buy in with fees. Costs and the pre-cost return then EXIST -- so the
+  # group above renders -- while the frozen side has no value at the as-of
+  # date, so there is no return to be behind or ahead of. An earlier revision
+  # omitted this clause on the claim that the render guard made it dead code,
+  # and the page crashed on exactly that snapshot; the regression test in
+  # snapshots_live_test.exs pins the flow.
+  defp recovery_label(%{state: :not_comparable}),
+    do: gettext("No comparable frozen value at the snapshot date")
 
   # -- comparison chart (server-rendered SVG, display boundary) ---------------
 

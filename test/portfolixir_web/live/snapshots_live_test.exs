@@ -115,6 +115,59 @@ defmodule PortfolixirWeb.SnapshotsLiveTest do
     assert Snapshots.list_snapshots() == []
   end
 
+  # User story (Sprint 7 closing act, second pass — #708 regression):
+  # As a local portfolio maintainer who froze a snapshot while the portfolio
+  # was still all cash ("before I start restructuring"), and then bought in
+  # with fees,
+  # I want the comparison page to say plainly that the frozen side has no
+  # value to measure against,
+  # so that the page renders instead of crashing on exactly the snapshot such
+  # a restructuring starts from.
+  #
+  # Acceptance criteria:
+  # - The engine reports cost_recovery state :not_comparable (frozen return is
+  #   nil) while still carrying the paid costs and the pre-cost return.
+  # - The page renders; the costs group shows the paid costs and states that
+  #   the recovery question has no comparable pair, rather than omitting the
+  #   costs or raising.
+  #
+  # Found by the review's second pass: recovery_label/1 had no clause for
+  # :not_comparable on the claim that the costs group never renders in that
+  # state — but the state arises precisely when costs and the pre-cost return
+  # EXIST and only the frozen side's value is missing, so the group rendered
+  # and the LiveView died with a FunctionClauseError.
+  test "an all-cash snapshot followed by a costly buy renders, not crashes", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Cash Snap", currency: "EUR")
+    sec = WorldFixtures.create_security!(name: "Later Stock", ticker: "LTR", currency: "EUR")
+
+    WorldFixtures.deposit!(world, "10000", ~D[2026-01-02], [])
+
+    {:ok, _} =
+      Snapshots.create_snapshot(Actor.owner_ui(), %{name: "All cash", as_of: ~D[2026-01-10]})
+
+    WorldFixtures.buy!(world, sec,
+      quantity: "10",
+      price: "100",
+      date: ~D[2026-02-01],
+      fees: "9.90"
+    )
+
+    WorldFixtures.put_quote!(sec, ~D[2026-03-10], "110")
+
+    {:ok, view, _html} = live(conn, "/snapshots")
+
+    view
+    |> element("[data-role=snapshot-row] button[phx-click=select_snapshot]")
+    |> render_click()
+
+    html = render(view)
+    assert html =~ ~s(data-role="cost-recovery")
+    assert html =~ ~s(data-role="transaction-costs")
+    assert html =~ "9.90"
+    # The state is named, never a crash and never a silently confident answer.
+    assert html =~ "No comparable frozen value"
+  end
+
   # Review finding: deleting a snapshot that vanished in another tab (or via
   # API/MCP) crashed the LiveView through a {:ok, _} match on :not_found.
   test "deleting an already-deleted snapshot does not crash", %{conn: conn} do
