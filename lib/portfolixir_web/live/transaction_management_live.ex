@@ -354,7 +354,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                   aria-pressed={to_string(to_string(account.id) in @filters["account_ids"])}
                   phx-click="toggle_filter"
                   phx-value-family="account"
-                  phx-value-value={account.id}
+                  phx-value-option={account.id}
                 >
                   <%= account.name %>
                 </button>
@@ -368,7 +368,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                   aria-pressed={to_string(type in @filters["types"])}
                   phx-click="toggle_filter"
                   phx-value-family="type"
-                  phx-value-value={type}
+                  phx-value-option={type}
                 >
                   <%= tx_type_label(type) %>
                 </button>
@@ -536,11 +536,18 @@ defmodule PortfolixirWeb.TransactionManagementLive do
      |> apply_current_filters()}
   end
 
-  def handle_event("toggle_filter", %{"family" => family, "value" => value}, socket)
+  # The payload key is `option`, NOT `value`: LiveView's client overwrites
+  # `meta.value` with the DOM element's own `value` property after collecting
+  # the `phx-value-*` attributes, and a <button> without a value attribute has
+  # `""`. `phx-value-value` on a button therefore always arrives empty --
+  # silently, and invisibly to `render_click`, which reads the attributes
+  # directly. Found by the Sprint 7 UAT walkthrough in a real browser; pinned
+  # by test/invariants/phx_value_value_test.exs.
+  def handle_event("toggle_filter", %{"family" => family, "option" => option}, socket)
       when family in ["type", "account"] do
     key = if family == "type", do: "types", else: "account_ids"
     active = Map.fetch!(socket.assigns.filters, key)
-    toggled = if value in active, do: List.delete(active, value), else: [value | active]
+    toggled = if option in active, do: List.delete(active, option), else: [option | active]
 
     {:noreply,
      socket

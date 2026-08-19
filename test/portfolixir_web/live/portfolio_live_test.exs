@@ -527,7 +527,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
       render_click(view, "select_segment", %{
         "name" => "Core",
         "percent" => "100.0",
-        "value" => "880.00",
+        "amount" => "880.00",
         "color" => "#2563eb"
       })
 
@@ -541,7 +541,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
       render_click(view, "select_segment", %{
         "name" => "X",
         "percent" => "1.0",
-        "value" => "1.00",
+        "amount" => "1.00",
         "color" => "red;background:url(x)"
       })
 

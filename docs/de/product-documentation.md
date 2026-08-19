@@ -717,7 +717,16 @@ Tabelle sagt das zusammen mit „wie viele von wie vielen Kategorien" an.
 Schließlich steht die Schwelle in der URL (`?drift=5`), ein gemerkter oder
 geteilter Link öffnet also wieder dieselbe gefilterte Ansicht; es ist derselbe
 Filter, den API und MCP als `min_drift=` anbieten (dort ein Gewichtsanteil:
-5 pp sind `min_drift=0.05`). Ein Umschalter **Baum |
+5 pp sind `min_drift=0.05`).
+
+Worauf sich die Prozentpunkte beziehen, ist wichtig, wenn ein Plan bewusst
+nicht auf 100 % summiert: Die Chips nutzen **dieselbe Drift** wie die
+Drift-Spalte und die Aufmerksamkeitsliste des Dashboards — und die wird nach
+ADR-0040 gegen den auf den zugeordneten Anteil normierten Plan gemessen, nicht
+gegen die rohe Soll-Spalte. Bei einem Plan mit 83 % Summe ist eine Kategorie
+mit 21,2 % Ist gegen 55 % gespeichertes Soll also 45 pp entfernt, nicht 34 —
+und Chips, Drift-Spalte, Dashboard und `min_drift=` sind sich über diese Zahl
+einig. Ein Umschalter **Baum |
 Positionen** tauscht die Hierarchie gegen eine flache Rebalancing-Arbeitsliste:
 eine Zeile je Wertpapier (inkl. Cash) mit der Kategorie als Kontext,
 standardmäßig nach vorzeichenbehafteter Drift sortiert (stärkstes Übergewicht

@@ -665,6 +665,14 @@ the table states along with how many of how many categories are showing.
 Finally, the threshold rides the URL (`?drift=5`), so a bookmarked or shared
 link reopens the same filtered view; it is the same filter the API and MCP
 offer as `min_drift=` (a weight fraction there: 5 pp is `min_drift=0.05`).
+
+What the pp is measured against matters when a plan deliberately does not sum
+to 100 %: the chips use the **same drift** as the Drift column and the
+dashboard's attention list, which under ADR-0040 is measured against the plan
+renormalised to the allocated portion — not against the raw Target column. So
+with a plan summing to 83 %, a category at 21.2 % actual against a stored 55 %
+target is 45 pp off, not 34, and the chips, the Drift column, the dashboard
+and `min_drift=` all agree on that number.
 A **Tree | Positions** switch swaps the hierarchy for a flat
 rebalancing worklist: one row per security (cash included) with its category
 as context, sorted by signed drift by default (most overweight first, most

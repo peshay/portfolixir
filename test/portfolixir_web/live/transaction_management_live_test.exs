@@ -624,7 +624,7 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
       {:ok, view, _html} = live(conn, "/transactions")
 
       view
-      |> element("#transaction-chips [phx-value-family='type'][phx-value-value='sell']")
+      |> element("#transaction-chips [phx-value-family='type'][phx-value-option='sell']")
       |> render_click()
 
       rows = view |> element("#transaction-list tbody") |> render()
@@ -706,7 +706,7 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
       # Filtering to sells leaves only the March section.
       view
-      |> element("#transaction-chips [phx-value-family='type'][phx-value-value='sell']")
+      |> element("#transaction-chips [phx-value-family='type'][phx-value-option='sell']")
       |> render_click()
 
       assert has_element?(view, "#transaction-list tr.tx-group-head[data-month-group='2026-03']")
@@ -780,9 +780,15 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
       %{world: world, cash_b: cash_b, depot_b: depot_b, opening: opening, buy: buy, other: other}
     end
 
-    defp toggle(view, family, value) do
+    # `phx-value-option`, not `phx-value-value`: the latter is overwritten by
+    # the button's own DOM value before the event leaves the browser, so the
+    # chips arrived with an empty payload while every test passed
+    # (invariants/phx_value_value_test.exs).
+    defp toggle(view, family, option) do
       view
-      |> element("#transaction-chips [phx-value-family='#{family}'][phx-value-value='#{value}']")
+      |> element(
+        "#transaction-chips [phx-value-family='#{family}'][phx-value-option='#{option}']"
+      )
       |> render_click()
     end
 
@@ -798,7 +804,7 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
       assert has_element?(
                view,
-               "#transaction-chips [phx-value-value='#{w.world.cash.id}'][aria-pressed='true']"
+               "#transaction-chips [phx-value-option='#{w.world.cash.id}'][aria-pressed='true']"
              )
 
       assert has_element?(view, "#transaction-summary [data-role='summary-total']", "2")
