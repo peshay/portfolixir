@@ -277,6 +277,14 @@ defmodule PortfolixirWeb.PortfolioLive do
   # The chips speak percentage points because that is how a plan is read
   # ("5 pp off target"); the predicate — and the API's `min_drift=` — speak the
   # weight fraction the drift itself is in. One conversion, here.
+  #
+  # Which drift: `drift_weight`, the one the Drift column and the dashboard's
+  # attention list use. Under ADR-0040 that is measured against the plan
+  # renormalised to the allocated portion, so on a plan summing to 83 % the pp
+  # a chip filters by is NOT what subtracting the table's raw Target column
+  # from its Actual column gives. Deliberate: one number across chips, column,
+  # dashboard and API beats a chip that agrees with the columns and with
+  # nothing else.
   defp min_drift_decimal(nil), do: nil
 
   defp min_drift_decimal(pp) when is_binary(pp),
@@ -2080,6 +2088,11 @@ defmodule PortfolixirWeb.PortfolioLive do
       phx-hook="SunburstTooltip"
     >
       <circle cx="70" cy="70" r="20" class="donut-center" />
+      <%!-- The click payload says `amount`, not `value`: LiveView's client
+           overwrites a `phx-value-value` with the element's own DOM value, so
+           the name is unusable on anything that has one. Kept uniform here
+           even though an SVG path has no `value`, so the rule stays absolute
+           and its meta-test needs no exception. --%>
       <%= for {segment, seg_index} <- Enum.with_index(@segments) do %>
         <path
           d={segment.path}
@@ -2093,7 +2106,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           phx-click="select_segment"
           phx-value-name={segment.name}
           phx-value-percent={segment.percent}
-          phx-value-value={segment.value}
+          phx-value-amount={segment.value}
           phx-value-color={segment.color}
         >
           <title><%= segment.name %> · <%= segment.percent %>%</title>
@@ -2227,7 +2240,7 @@ defmodule PortfolixirWeb.PortfolioLive do
     segment = %{
       name: to_string(params["name"] || ""),
       percent: to_string(params["percent"] || ""),
-      value: to_string(params["value"] || ""),
+      value: to_string(params["amount"] || ""),
       color: safe_color(params["color"])
     }
 
