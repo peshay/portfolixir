@@ -1,8 +1,10 @@
-# Sprint 8 — the design-language execution, and the debt with a deadline (DRAFT)
+# Sprint 8 — the design-language execution, and the debt with a deadline
 
-**Status: draft, awaiting owner adoption.** Written 2026-08-20 at the Sprint 7
-close-out (0.7.0 released). One open decision gates one lane (D-1 below); the
-rest is schedulable as filed. Verification basis: the post-0.7.0 open-issue
+**Status: ADOPTED 2026-08-20** — owner sign-off on the draft PR (#734,
+"passt"), which per this plan's own terms covers the adoption AND signs D-1
+as recommended: option 1, each sale converted at its booking date through
+the EUR hub, unresolvable rows excluded and named. No lane is gated any
+more. Written 2026-08-20 at the Sprint 7 close-out (0.7.0 released). Verification basis: the post-0.7.0 open-issue
 list (39 open), the FR Coverage Map as reconciled 2026-08-19, and the
 design-language spec as amended by the #707 engagement.
 
@@ -63,7 +65,7 @@ The spec is written; this lane builds it. Order by user impact:
 
 ### Lane C — Cash-flow facets (#672's cut children)
 
-- **#724 — Realized gains facet. Risk-tier, and gated on D-1 below.** Needs a
+- **#724 — Realized gains facet. Risk-tier; D-1 signed below.** Needs a
   cross-security closed-trades read (the matcher is per-security today) and a
   **stated FX basis** before it can draw one bar. The computation basis goes
   in the API/MCP payload per the AGENTS.md metric rule — review-blocking.
@@ -103,24 +105,19 @@ done-list below makes it checkable.
   soft with a note in the release body) when the pushed tag is lightweight,
   and the close-out checklist points at the prepared-command path.
 
-## D-1 — the one open decision (gates #724 only)
+## D-1 — SIGNED 2026-08-20 (owner, on PR #734)
 
-**FX basis for the realized-gains roll-up.** Two candidates recorded in
-#724; the recommendation is **option 1 — convert each sale at its booking
-date through the EUR hub**, as `Portfolios.Income` already does for
+**FX basis for the realized-gains roll-up: option 1 — convert each sale at
+its booking date through the EUR hub**, as `Portfolios.Income` already does for
 dividends, because the realized figure is a historical fact tied to its date
 and the sibling facet already speaks that basis. Rate-availability behavior,
 spelled out rather than left to the implementation: a sale whose
 booking-date rate is not stored is **excluded from the converted total and
 named on the surface** (count + securities), never converted at a
 neighboring date's rate and never silently dropped — the same
-excluded-and-named shape ADR-0041 uses. If the owner prefers option 2
-(per-currency totals, unconverted), the facet ships without the period chart
-and says why.
-
-A one-page ADR or a signed line on this draft both satisfy the gate
-(ADR-0026 step 1); the invariant either way is pinned by exact `Decimal`
-expectations before activation.
+excluded-and-named shape ADR-0041 uses. The signed line on this plan satisfies the gate (ADR-0026 step 1); the
+invariant is pinned by exact `Decimal` expectations before activation, and
+the basis travels in the API/MCP payload per the AGENTS.md metric rule.
 
 ## Sequencing
 
