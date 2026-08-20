@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-08-19 (Sprint 7 close-out)
+# last_updated: 2026-08-20 (0.7.0 released; #714 close-out recovered; Sprint 8 draft)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -42,7 +42,7 @@
 # requests, not assumed -- an issue's state lags the PR that fixes it.
 
 generated: 2026-07-25
-last_updated: 2026-08-19
+last_updated: 2026-08-20
 project: portfolixir
 project_key: NOKEY
 tracking_system: file-system
@@ -67,14 +67,18 @@ story_location: _bmad-output/implementation-artifacts
 # tracker; the standing trackers (#356, #417, #419, #420) stay open by
 # design.
 #
-# TAG: 0.7.0 is an OPEN OWNER ITEM, prepared but not pushed -- the session's
-# git proxy allows pushes to the designated branch only, the same block the
-# Sprint 6 close-out recorded for 0.5.0. Verified rather than assumed: a
-# dry-run push reports "[new tag]" and the remote tag list still ends at
-# 0.6.0. The prepared command (in sprint-7-retro-2026-08-19.md) creates it
-# ANNOTATED on 80d3e7e -- step 5 says annotated verbatim, and 0.5.0/0.6.0
-# are both lightweight (F4), so the -a is the part not to drop. The tag push
-# triggers the #659 Release workflow.
+# TAG: 0.7.0 RESOLVED 2026-08-20 -- the owner published the GitHub release
+# (19:32 UTC, notes as prepared), which created the tag via the release UI:
+# LIGHTWEIGHT, on d745712 (the #733 bookkeeping merge, a docs-only delta over
+# the batch head 80d3e7e -- the F4 pattern: the tag marks the right software).
+# That is the THIRD lightweight sprint tag against ADR-0026 step 5's
+# "annotated", and the failure mode is now identified as structural rather
+# than forgetfulness: the release UI's "create new tag" cannot produce an
+# annotated tag, and the agent's session proxy cannot push tags at all, so
+# the only path that satisfies the rule is the owner running the prepared
+# command BEFORE creating the release. Carried into the Sprint 8 draft as a
+# small Lane Z item (a release-workflow warning on lightweight tags) instead
+# of re-prescribing the same command a fourth time.
 #
 # RETROSPECTIVE: sprint-7-retro-2026-08-19.md. The one process finding worth
 # repeating here: the closing act ran TWICE, and the second pass found a
@@ -93,6 +97,39 @@ story_location: _bmad-output/implementation-artifacts
 # and BMAD rows is version-report-2026-08-19.md -- written at close-out,
 # one step later than the lane intended (the done-list caught it, nothing
 # else did).
+#
+# CLOSED OUT (2026-08-18, PR #714 planning layer; recovered 2026-08-20 from
+# PR #715, which was closed unmerged -- it was based on the pre-batch `main`
+# and edited the region this log rewrote twice since, so its CONTENT is
+# preserved here and the PR itself is closed with a pointer):
+#
+# PR #714 was squash-merged as bb3d728 (single-concern planning PR; the
+# rebase-merge rule of the ADR-0026 amendment applies to epic-batch PRs, not
+# to this). What landed: the 2026-08-17 reconciliation (F4-F8), ADR-0042
+# Accepted (one planning structure -- written once on the premise the tracker
+# set was authoritative because the work sits there, then REWRITTEN after the
+# owner disposed of that in one sentence: where data sits is not who reads
+# it), ADR-0043 Accepted (a gate-closing ADR names its asks; closes F8),
+# human-view-debt-2026-08-17.md CORRECTED (two unbuilt surfaces, not "mostly
+# discharged"), and the adopted Sprint 7 plan.
+#
+# Its closing act ran four roles (evidence, consistency, scope/privacy,
+# adversarial); thirteen confirmed findings, all fixed before promotion. It
+# closed no issue by design, and carried NO TAG, deliberately: step 5's
+# annotated X.Y.Z is a minor bump per sprint on the epic BATCH, and #714 is
+# the planning layer that precedes it, exactly as #685 preceded #688.
+#
+# RETROSPECTIVE (from that round, worth keeping):
+#   1. A document that asserts backlog state from another document is wrong
+#      twice a day -- F5 and the #672 re-ask were the same defect in two
+#      costumes, and the 2026-08-15 triage had already named the pattern.
+#   2. A self-audit that shrinks the auditor's own work needs an adversarial
+#      check before it is acted on -- the human-view analysis cut Sprint 7's
+#      scope on an inverted reading, written by the agent that would
+#      otherwise have had to schedule the work.
+#   3. A reviewer's finding is evidence, not a verdict -- the #672 exclusion
+#      quoted a section a later round of the same document had closed, and
+#      the consistency reviewer said exactly that, and it was missed.
 #
 # MIGRATED (2026-08-18, Sprint 7 Lane Z) -- ADR-0042 executed:
 # The story rows are gone from `development_status` -- the five schema-invalid
