@@ -945,9 +945,21 @@ because three of the analyses that belong here are not income at all —
 realized gains from sales, deposits and withdrawals, and costs — and putting
 them under one label reproduces exactly the ambiguity this app was built to
 avoid. Each analysis is its own named facet, and a facet appears only once its
-data exists; nothing renders as an empty shell. **Income** is the facet that
-exists today, and `/income` still resolves — it redirects here, so older links
-and bookmarks keep working.
+data exists; nothing renders as an empty shell. **Income** is the default
+facet, and `/income` still resolves — it redirects here, so older links
+and bookmarks keep working. Since issue #724 the area carries a second-level
+facet switcher.
+
+**Realized gains** (`/cashflow?tab=realized`, issue #724) answers "what did
+selling actually make": FIFO-matched realized P&L across all securities,
+grouped by each sale's **close date** into a year × month matrix. The FX
+basis is stated on the surface and travels in the API payload (decision D-1):
+each sale converts through the EUR hub at the most recent stored rate **on or
+before its close date** — the Income facet's basis, because a realized figure
+is a historical fact tied to its date. A sale with **no** stored rate at that
+date is **excluded from every total and named** in an attention note (count
+and securities) — never converted at a neighbouring date's rate, never
+silently dropped; storing the missing rate brings it into the totals.
 
 Every figure on the area says what it contains: the Income facet states that it
 covers *dividends and interest* and that it **excludes** realized gains,

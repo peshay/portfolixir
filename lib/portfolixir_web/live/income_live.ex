@@ -16,6 +16,7 @@ defmodule PortfolixirWeb.IncomeLive do
 
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Income
+  alias Portfolixir.Portfolios.RealizedGains
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
 
@@ -52,13 +53,21 @@ defmodule PortfolixirWeb.IncomeLive do
   # today; the others appear as second-level tabs when theirs does, never as an
   # empty shell — which is also why no tab ROW renders yet: a row of one tab
   # answers no question.
-  @facets ["income"]
+  @facets ["income", "realized"]
   @default_facet "income"
 
   @impl true
   def handle_params(params, _uri, socket) do
-    {:noreply, assign(socket, :facet, facet(params["tab"]))}
+    {:noreply, socket |> assign(:facet, facet(params["tab"])) |> load_facet()}
   end
+
+  # Each facet loads its own read once, on first visit (the income read stays
+  # eager in mount — it is the default facet).
+  defp load_facet(%{assigns: %{facet: "realized", portfolio: %{}}} = socket) do
+    assign_new(socket, :realized, fn -> RealizedGains.report() end)
+  end
+
+  defp load_facet(socket), do: socket
 
   defp facet(tab) when tab in @facets, do: tab
   defp facet(_tab), do: @default_facet
@@ -103,6 +112,102 @@ defmodule PortfolixirWeb.IncomeLive do
       <div class="workspace-page">
         <AppShell.area_tabs tabs={AppShell.wealth_tabs(:income)} />
 
+        <%!-- #724: with a second facet read the second-level tab row appears
+             (the #672 rule: never an empty shell, never a row of one). The
+             facets are query state on this one route. --%>
+        <nav
+          class="segmented-control"
+          data-role="cashflow-facets"
+          aria-label={gettext("Cash flow facet")}
+        >
+          <.link
+            patch="/cashflow"
+            class={["segmented-control__option", @facet == "income" && "is-active"]}
+            aria-current={if @facet == "income", do: "true"}
+          >
+            <%= gettext("Income") %>
+          </.link>
+          <.link
+            patch="/cashflow?tab=realized"
+            class={["segmented-control__option", @facet == "realized" && "is-active"]}
+            aria-current={if @facet == "realized", do: "true"}
+          >
+            <%= gettext("Realized gains") %>
+          </.link>
+        </nav>
+
+        <%= if @facet == "realized" do %>
+          <section class="workspace-section">
+            <p class="muted" data-role="facet-composition">
+              <%= gettext(
+                "Realized gains and losses from FIFO-matched sales booked in the ledger, by each sale's close date. Excludes dividends and interest, deposits and withdrawals, and costs — each has its own Cash flow facet."
+              ) %>
+            </p>
+            <div class="muted" data-role="realized-conversion">
+              <span><%= gettext("Amounts in %{currency}", currency: @realized.base_currency) %></span>
+              <details class="metric-tooltip metric-tooltip--inline">
+                <summary aria-label={gettext("Conversion info")}>ⓘ</summary>
+                <p role="tooltip">
+                  <%= gettext(
+                    "Each sale converted to %{currency} via the EUR hub at the most recent stored rate on or before its close date. A sale with no stored rate at that date is excluded from the totals and named here — never converted at a neighbouring date's rate.",
+                    currency: @realized.base_currency
+                  ) %>
+                </p>
+              </details>
+            </div>
+          </section>
+
+          <section id="realized-annual" class="workspace-section">
+            <h2><%= gettext("Realized per period") %></h2>
+            <%= if @realized.excluded.count > 0 do %>
+              <AppShell.data_note
+                severity={:attention}
+                id="realized-excluded"
+                data-role="realized-excluded"
+              >
+                <%= ngettext(
+                  "%{count} sale could not be converted — no stored rate at its close date — and is excluded from every total: %{securities}.",
+                  "%{count} sales could not be converted — no stored rate at their close dates — and are excluded from every total: %{securities}.",
+                  @realized.excluded.count,
+                  count: @realized.excluded.count,
+                  securities: Enum.join(@realized.excluded.securities, ", ")
+                ) %>
+                <a href="/portfolios"><%= gettext("Store the missing exchange rates.") %></a>
+              </AppShell.data_note>
+            <% end %>
+            <%= if @realized.annual == [] do %>
+              <p class="empty-state"><%= gettext("No closed sales booked yet.") %></p>
+            <% else %>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th><%= gettext("Year") %></th>
+                    <%= for month <- @months do %>
+                      <th class="num"><%= month_label(month) %></th>
+                    <% end %>
+                    <th class="num col-subject"><%= gettext("Total") %></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <%= for year <- @realized.annual do %>
+                    <tr>
+                      <td>
+                        <%= year.year %>
+                        <span class="muted">(<%= @realized.base_currency %>)</span>
+                      </td>
+                      <%= for month <- @months do %>
+                        <td class="num"><%= money(year.months[month]) %></td>
+                      <% end %>
+                      <td class="num col-subject"><%= money(year.total) %></td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            <% end %>
+          </section>
+        <% end %>
+
+        <%= if @facet == "income" do %>
         <section class="workspace-section">
           <%!-- The facet states its composition ONCE, in the operator's terms,
                and names what it leaves out (#672, EXPERIENCE.md "Every
@@ -412,6 +517,7 @@ defmodule PortfolixirWeb.IncomeLive do
             </table>
           <% end %>
         </section>
+        <% end %>
       </div>
     </AppShell.shell>
     """

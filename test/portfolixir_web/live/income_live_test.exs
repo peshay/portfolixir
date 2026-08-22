@@ -434,4 +434,85 @@ defmodule PortfolixirWeb.IncomeLiveTest do
     label = view |> element("#income-accumulated-chart svg") |> render()
     assert label =~ "Accumulated dividends and interest"
   end
+
+  # User story (issue #724):
+  # As a local portfolio maintainer,
+  # I want the Realized-gains facet on /cashflow,
+  # so that what selling actually made is readable by period — converted on
+  # a stated basis, with the unconvertible sales named instead of guessed.
+  #
+  # Acceptance criteria:
+  # - /cashflow?tab=realized renders the facet with its composition line
+  #   (UX-DR21) and the facet tab row (income stays the default).
+  # - The converted roll-up shows per period; a sale with no close-date rate
+  #   is excluded from the totals and named in an attention data note.
+  test "the realized facet shows the converted roll-up and names exclusions (#724)",
+       %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Realized", currency: "EUR")
+
+    eur = WorldFixtures.create_security!(name: "Euro Equity", ticker: "EEQ", currency: "EUR")
+    WorldFixtures.buy!(world, eur, quantity: "10", price: "100", date: ~D[2026-01-05])
+
+    WorldFixtures.sell!(world, eur,
+      quantity: "10",
+      price: "120",
+      fees: "9.90",
+      date: ~D[2026-03-10]
+    )
+
+    gbp = WorldFixtures.create_security!(name: "Pound Equity", ticker: "PGB", currency: "GBP")
+
+    gbp_world =
+      Map.merge(
+        world,
+        WorldFixtures.add_depot(world.portfolio,
+          currency: "GBP",
+          cash_name: "GBP Cash",
+          depot_name: "GBP Depot"
+        )
+      )
+
+    WorldFixtures.buy!(gbp_world, gbp,
+      quantity: "2",
+      price: "10",
+      date: ~D[2026-01-09],
+      currency: "GBP"
+    )
+
+    WorldFixtures.sell!(gbp_world, gbp,
+      quantity: "2",
+      price: "30",
+      date: ~D[2026-02-20],
+      currency: "GBP"
+    )
+
+    {:ok, view, html} = live(conn, "/cashflow?tab=realized")
+
+    # The facet tab row exists now that more than one facet has a read, and
+    # the active facet is marked.
+    assert has_element?(view, ~s([data-role="cashflow-facets"]))
+
+    assert view |> element(~s([data-role="cashflow-facets"] [aria-current])) |> render() =~
+             "Realized"
+
+    assert html =~ ~s(data-role="facet-composition")
+    composition = view |> element(~s([data-role="facet-composition"])) |> render()
+    assert composition =~ "Excludes dividends and interest"
+
+    # The EUR round-trip: 1190.10 proceeds − 1000 basis = 190.10.
+    table = view |> element("#realized-annual") |> render()
+    assert table =~ "190.10"
+
+    # The GBP sale has no stored rate at its close date: excluded and named.
+    note = view |> element(~s([data-role="realized-excluded"])) |> render()
+    assert note =~ "Pound Equity"
+    assert note =~ "data-note--attention"
+
+    # Income stays the default facet, and a garbled tab degrades to it.
+    {:ok, _view, default_html} = live(conn, "/cashflow")
+    assert default_html =~ ~s(id="income-annual")
+
+    {:ok, _view, garbled} = live(conn, "/cashflow?tab=nonsense")
+    assert garbled =~ ~s(id="income-annual")
+  end
 end
