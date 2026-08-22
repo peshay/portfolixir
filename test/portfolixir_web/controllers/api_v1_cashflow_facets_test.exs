@@ -115,4 +115,38 @@ defmodule PortfolixirWeb.ApiV1CashflowFacetsTest do
     assert basis["series"] =~ "deposit"
     assert basis["excludes"] =~ "invested-capital"
   end
+
+  # User story (issue #726):
+  # As the operating LLM agent,
+  # I want the fees-and-taxes roll-up over the API,
+  # so that the costs figure carries its basis — the legs-not-gross rule
+  # spelled out in the payload, not in a doc page.
+  test "GET /api/v1/costs serves the costs roll-up with its basis", %{conn: conn} do
+    world = WorldFixtures.base_world()
+    security = WorldFixtures.create_security!(name: "Charged ETF", ticker: "CHG")
+
+    WorldFixtures.buy!(world, security,
+      quantity: "10",
+      price: "100",
+      fees: "9.90",
+      taxes: "2.10",
+      date: ~D[2026-01-15]
+    )
+
+    response = get_json(conn, "/api/v1/costs")
+
+    assert %{"data" => data} = response
+    assert data["base_currency"] == "EUR"
+    assert [%{"year" => 2026} = year] = data["annual"]
+    assert year["fees_total"] == "9.9"
+    assert year["taxes_total"] == "2.1"
+    assert year["total"] == "12"
+    assert year["months"]["1"]["fees"] == "9.9"
+    assert data["excluded"] == %{"count" => 0, "currencies" => []}
+
+    basis = data["computation_basis"]
+    assert basis["series"] =~ "legs"
+    assert basis["series"] =~ "gross"
+    assert basis["gaps"] =~ "excluded"
+  end
 end

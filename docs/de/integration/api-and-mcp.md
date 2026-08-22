@@ -471,6 +471,18 @@ Beispiel-Payloads für Konten:
   EUR-Hub am oder vor dem Buchungsdatum, unkonvertierbare Flüsse
   ausgeschlossen und nach Verrechnungskonto benannt. Die menschliche Sicht
   ist `/cashflow?tab=flows`.
+- `GET /api/v1/costs` (Issue #726) liefert das Kosten-Rollup: Gebühren und
+  Steuern über alle Portfolios, **nur auf Übersichtsebene**, je Jahr und
+  Monat mit Jahressummen für Gebühren, Steuern und beides zusammen. Die
+  Serie summiert die Gebühren- und Steuer-**Nebenbeträge** jeder Transaktion
+  plus die eigenständigen `fee`-/`tax`-Buchungen; `tax_refund` wird gegen
+  die Steuern verrechnet. Bruttobeträge werden nie summiert — das Brutto
+  eines Kaufs **enthält** seine Nebenbeträge, das eines Verkaufs ist um sie
+  **gemindert**, eine Bruttosumme beschriebe also etwas anderes. Diese Regel
+  steht in `computation_basis.series`. FX-Basis wie in den
+  Schwester-Facetten: EUR-Hub am oder vor dem Buchungsdatum,
+  unkonvertierbare Kosten ausgeschlossen und nach **Währung** benannt. Die
+  menschliche Sicht ist `/cashflow?tab=costs`.
 - `GET /api/v1/holdings/by_security` liefert die **globale Bewertung je
   Wertpapier** über **alle** Portfolios hinweg: eine `holdings`-Zeile je aktuell
   gehaltenem Wertpapier mit `security_id` (eine Ganzzahl), Gesamt-`quantity` und
@@ -1078,6 +1090,8 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
   FX-Basis und Ausschluss-und-Benennung bei Kurslücken
 - `portfolixir.cashflow.external_flows` — das #725-Rollup mit erklärtem
   Unterschied zum investierten Kapital
+- `portfolixir.cashflow.costs` — das #726-Rollup mit erklärter
+  Nebenbeträge-statt-Brutto-Regel
 - `portfolixir.holdings.by_security`
 - `portfolixir.holdings.negative`
 - `portfolixir.holdings.reconcile` — rein lesender Vergleich einer

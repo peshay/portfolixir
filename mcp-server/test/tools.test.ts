@@ -41,6 +41,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.holdings.list",
       "portfolixir.cashflow.realized_gains",
       "portfolixir.cashflow.external_flows",
+      "portfolixir.cashflow.costs",
       "portfolixir.holdings.by_security",
       "portfolixir.holdings.negative",
       "portfolixir.holdings.reconcile",
@@ -506,6 +507,26 @@ describe("Portfolixir MCP tools", () => {
     const tool = tools.find((t) => t.name === "portfolixir.cashflow.external_flows");
     assert.ok(tool, "cashflow.external_flows tool missing");
     assert.match(tool!.description ?? "", /invested_capital/);
+    assert.match(tool!.description ?? "", /EUR hub/);
+    assert.match(tool!.description ?? "", /excluded/i);
+  });
+
+  // User story (issue #726):
+  // As the operating LLM agent,
+  // I want the fees-and-taxes roll-up as a tool,
+  // so that the costs figure carries its legs-not-gross basis where I
+  // reason, not in a doc page.
+  it("serves the costs roll-up and states the legs-not-gross basis", async () => {
+    const { client, requests } = createRecordingClient({ data: {} });
+
+    await callTool(client, "portfolixir.cashflow.costs", {});
+    assert.equal(requests[0].path, "/api/v1/costs");
+
+    const tools = listTools();
+    const tool = tools.find((t) => t.name === "portfolixir.cashflow.costs");
+    assert.ok(tool, "cashflow.costs tool missing");
+    assert.match(tool!.description ?? "", /legs/);
+    assert.match(tool!.description ?? "", /gross/i);
     assert.match(tool!.description ?? "", /EUR hub/);
     assert.match(tool!.description ?? "", /excluded/i);
   });

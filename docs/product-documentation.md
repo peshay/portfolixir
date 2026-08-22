@@ -971,6 +971,16 @@ states that difference instead of leaving two disagreeing figures to be
 discovered. Same FX basis and the same excluded-and-named rule as the
 sibling facets, with unconvertible flows named by their cash account.
 
+**Costs** (`/cashflow?tab=costs`, issue #726) is what the portfolio cost to
+run: fees and taxes per period, as two series with a yearly total — at
+**overview level only**, deliberately not a per-transaction cost ledger. It
+sums the fee and tax **legs** riding any transaction plus the standalone fee
+and tax bookings, and nets tax refunds against taxes; it never sums gross
+amounts, whose fee-inclusiveness differs between buys (inclusive) and sells
+(net) — the surface states that rule in its composition line. Same FX basis
+and the same excluded-and-named rule as the sibling facets, with
+unconvertible costs named by their currency.
+
 Every figure on the area says what it contains: the Income facet states that it
 covers *dividends and interest* and that it **excludes** realized gains,
 deposits and withdrawals, and costs. That is not decoration — those omissions

@@ -556,4 +556,54 @@ defmodule PortfolixirWeb.IncomeLiveTest do
     assert table =~ "200.00"
     assert table =~ "800.00"
   end
+
+  # User story (issue #726):
+  # As a local portfolio maintainer,
+  # I want the Costs facet on /cashflow,
+  # so that what the portfolio cost to run — fees and taxes per period —
+  # is one readable figure at overview level, not a per-transaction
+  # ledger.
+  #
+  # Acceptance criteria:
+  # - /cashflow?tab=costs renders the facet with its composition line
+  #   stating the legs-not-gross series.
+  # - Fees and taxes show as two series with a total; a tax refund nets
+  #   against taxes; an unconvertible cost is excluded and named by its
+  #   currency.
+  test "the costs facet shows fees and taxes on the stated legs basis (#726)",
+       %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Costs", currency: "EUR")
+    security = WorldFixtures.create_security!(name: "Charged ETF", ticker: "CHG")
+
+    WorldFixtures.buy!(world, security,
+      quantity: "10",
+      price: "100",
+      fees: "9.90",
+      taxes: "2.10",
+      date: ~D[2026-01-15]
+    )
+
+    {:ok, _} =
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        cash_account_id: world.cash.id,
+        type: "tax_refund",
+        date: ~D[2026-03-05],
+        gross_amount: "10.00",
+        currency_code: "EUR"
+      })
+
+    {:ok, view, _html} = live(conn, "/cashflow?tab=costs")
+
+    assert view |> element(~s([data-role="cashflow-facets"] [aria-current])) |> render() =~
+             "Costs"
+
+    composition = view |> element(~s([data-role="facet-composition"])) |> render()
+    assert composition =~ "gross"
+
+    table = view |> element("#costs-annual") |> render()
+    assert table =~ "9.90"
+    assert table =~ "-10.00"
+    assert table =~ "2.00"
+  end
 end

@@ -1236,6 +1236,29 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
+  def costs(report) do
+    %{
+      base_currency: report.base_currency,
+      conversion_note: report.conversion_note,
+      computation_basis: report.computation_basis,
+      excluded: report.excluded,
+      annual:
+        Enum.map(report.annual, fn year ->
+          %{
+            year: year.year,
+            fees_total: decimal(year.fees_total),
+            taxes_total: decimal(year.taxes_total),
+            total: decimal(year.total),
+            months:
+              Map.new(year.months, fn {month, series} ->
+                {Integer.to_string(month),
+                 %{fees: decimal(series.fees), taxes: decimal(series.taxes)}}
+              end)
+          }
+        end)
+    }
+  end
+
   def income(income) do
     %{
       portfolio_id: income.portfolio_id,
