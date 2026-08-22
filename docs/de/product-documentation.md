@@ -153,6 +153,9 @@ Ansicht lässt sich als Lesezeichen speichern oder verlinken:
   `?filter[]=asset_class:is_nil` (unklassifizierte Wertpapiere) oder
   `?filter[]=currency_code:eq:USD`. Die Operatoren entsprechen dem
   Filter-Popover; unbekannte Spalten oder Operatoren werden verworfen.
+- `?since=<ISO8601>` — der **Geändert-seit**-Schnitt (siehe unten); die Chips
+  *Heute / 7 Tage / 30 Tage* schreiben hier ein konkretes ISO-Datum, sodass
+  der Link bedeutet, was er beim Teilen bedeutete.
 - `?dq=stale_quote|missing_quote|missing_logo` — die
   Datenqualitäts-Schnellfilter: kein Kurs in den letzten 7 Tagen (inklusive
   „gar kein Kurs"), gar kein Kurs, und kein hinterlegtes Logo. Der aktive
@@ -168,6 +171,16 @@ Suchen, Bestandsstatus wechseln oder Filter anwenden aktualisiert die URL;
 die Auswahl eines Wertpapiers behält die aktiven Filter bei. Die
 Datenqualitätszeile der Übersicht verlinkt mit vorangewendetem Filter
 hierher.
+
+**Geändert seit** (Issue #731) beantwortet „was hat sich zuletzt bewegt?"
+aus demselben Schnitt, mit dem der Agent pollt: die Chips verengen die Liste
+auf Wertpapiere, die strikt nach dem Schnitt angelegt oder geändert wurden —
+nach dem Änderungszeitpunkt des Datensatzes. Die Seite nennt die Eigenschaft,
+die so ein Delta ehrlich macht: **Löschungen werden nicht angezeigt**; Filter
+entfernen für die vollständige Liste. Der URL-Parameter ist das `?since=` der
+API mit denselben akzeptierten Formen, ein Agenten-Link öffnet also genau die
+gelesene Scheibe; ein unlesbarer Wert degradiert zur ungefilterten Liste,
+statt sie stillschweigend zu verengen.
 
 ### Klassifikations-Spalten
 
@@ -332,6 +345,19 @@ die Zusammenfassung über der Tabelle nennen **eine Summe je Währung**. Die
 Beträge sind die gebuchten Bruttobeträge; sie werden nie umgerechnet oder über
 Währungen hinweg addiert — eine Umrechnung wäre eine andere Kennzahl und
 bräuchte ihre eigene Kursbasis.
+
+Neben den Konto- und Art-Chips sitzen die **Geändert-seit**-Chips (*Heute /
+7 Tage / 30 Tage*, Issue #731): sie verengen die Historie auf Transaktionen,
+die strikt nach dem Schnitt angelegt oder geändert wurden — **nach
+Datensatzänderung, nicht nach Buchungsdatum**: eine bearbeitete alte Buchung
+taucht auf, eine unberührte junge fällt heraus. Die Notiz unter den Chips
+nennt den Schnitt und die Eigenschaft, die ein Delta ehrlich macht:
+**Löschungen werden nicht angezeigt**. Der Schnitt liegt in der URL als
+`?since=<ISO8601>` — Parameter, Formen und Semantik des API-Delta-Reads, ein
+vom Agenten weitergegebener Link öffnet also genau die gelesene Scheibe; ein
+unlesbarer Wert degradiert zur vollständigen Historie. Die Spalte **Saldo**
+bleibt von diesem Filter wie von jedem anderen unberührt: sie wird immer über
+die gesamte Historie des Kontos gebildet.
 
 ### Bestandsberechnung
 

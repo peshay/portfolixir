@@ -26,6 +26,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Valuation
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.ChangedSince
   alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.Securities.ColumnPicker
@@ -131,6 +132,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
       )
       |> assign(:filters, parse_url_filters(params["filter"]))
       |> assign(:dq, safe_dq(params["dq"]))
+      |> assign(:since, ChangedSince.parse(params))
       |> clear_action_result_on_navigation()
       |> reset_logo_retry()
       |> load_securities()
@@ -219,7 +221,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
       query: assigns.query,
       holding_status: assigns.holding_status,
       filters: assigns.filters,
-      dq: assigns.dq
+      dq: assigns.dq,
+      since: assigns.since && assigns.since.raw
     }
   end
 
@@ -257,6 +260,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         state.holding_status != @default_holding_status && state.holding_status
       )
       |> maybe_put_param("dq", state.dq)
+      |> maybe_put_param("since", state.since)
       |> maybe_put_param(
         "filter",
         state.filters != [] && Enum.map(state.filters, &filter_param/1)
@@ -385,6 +389,21 @@ defmodule PortfolixirWeb.SecuritiesLive do
             </div>
           </div>
         </div>
+
+        <ChangedSince.chips id="changed-since-chips" since={@since} />
+
+        <p
+          :if={@since}
+          id="securities-since-note"
+          class="summary-basis"
+          role="status"
+          data-role="since-note"
+        >
+          <%= gettext(
+            "Changed since %{cut} (UTC): only securities created or changed after this instant are listed. Deletions are not shown; clear the filter for the complete list.",
+            cut: @since.raw
+          ) %>
+        </p>
 
         <%= if @filters != [] or @dq do %>
           <ul class="filter-chips" id="filter-chips" aria-label={gettext("Active filters")}>
@@ -2439,6 +2458,17 @@ defmodule PortfolixirWeb.SecuritiesLive do
      )}
   end
 
+  def handle_event("set_changed_since", %{"preset" => preset}, socket) do
+    {:noreply,
+     push_patch(socket,
+       to:
+         securities_path(socket.assigns,
+           tab: :current,
+           override: %{since: ChangedSince.toggle_value(socket.assigns.since, preset)}
+         )
+     )}
+  end
+
   def handle_event("toggle_popover", %{"popover" => name}, socket) do
     case safe_atom(name) do
       nil ->
@@ -3543,7 +3573,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
       query: socket.assigns.query,
       holding_status: socket.assigns.holding_status,
       filters: socket.assigns.filters,
-      sort: catalog_sort(socket.assigns.sort)
+      sort: catalog_sort(socket.assigns.sort),
+      # #731: the same `updated_at > cut` query the API's `?since=` runs —
+      # one semantics, two surfaces. nil passes straight through.
+      updated_since: socket.assigns.since && socket.assigns.since.cut
     ]
 
     opts = if dq == "missing_logo", do: Keyword.put(opts, :logo_status, :missing), else: opts

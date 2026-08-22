@@ -48,6 +48,14 @@ full read. An invalid `since` is a `422`. Delta reads are **pull-only**: push
 delivery (webhooks to a user-configured endpoint) is a separate, still-gated
 decision (B3.7) and deliberately not part of this surface.
 
+The **human view** of the same cut (issue #731) lives on
+`/transactions?since=` and `/securities?since=` as the *Changed since* chips:
+same parameter name, same accepted forms, same strictly-after-`updated_at`
+cut, so a link an agent hands over opens exactly the slice it read. The one
+divergence is deliberate: where the API rejects an invalid `since` with a
+`422`, the pages degrade to the unfiltered list — a stale bookmark must never
+silently narrow what the operator sees.
+
 ## Securities
 
 The `data_quality` predicates are the **same rule** the dashboard counts and

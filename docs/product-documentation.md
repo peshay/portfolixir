@@ -135,6 +135,9 @@ be bookmarked or linked to:
   `?filter[]=asset_class:is_nil` (unclassified securities) or
   `?filter[]=currency_code:eq:USD`. Operators match the filter popover's
   set; unknown columns or operators are dropped.
+- `?since=<ISO8601>` — the **Changed since** cut (see below); the *Today /
+  7 days / 30 days* chips write a concrete ISO date here, so the link keeps
+  meaning what it meant when it was shared.
 - `?dq=stale_quote|missing_quote|missing_logo` — the data-quality shortcut
   filters: no quote in the last 7 days (including none at all), no quote at
   all, and no stored logo. The active shortcut appears as a removable filter
@@ -148,6 +151,15 @@ be bookmarked or linked to:
 Searching, switching the holding status, or applying a filter updates the URL
 in place, and selecting a security keeps the active filters. The Overview
 data-quality line links here with the matching filter pre-applied.
+
+**Changed since** (issue #731) answers "what moved lately?" from the same cut
+the agent polls with: the chips narrow the list to securities created or
+changed strictly after the cut, judged by the record's change instant. The
+page states the property that makes such a delta honest — **deletions are not
+shown**; clear the filter for the complete list. The URL parameter is the
+API's `?since=` with the same accepted forms, so an agent's link opens
+exactly the slice it read; an unparseable value degrades to the unfiltered
+list rather than silently narrowing it.
 
 ### Classification columns
 
@@ -310,6 +322,18 @@ The rows are sectioned by month, and both the month subtotals and the summary
 above the table state **one total per currency**. Amounts are the gross booked
 amounts and are never converted or added across currencies; converting them
 would make them a different figure needing its own rate basis.
+
+Beside the account and type chips sit the **Changed since** chips (*Today /
+7 days / 30 days*, issue #731): they narrow the history to transactions
+created or changed strictly after the cut — **by record change, not booking
+date**, so an edited old booking shows up while an untouched recent one drops
+out. The note under the chips states the cut and the property that makes a
+delta honest: **deletions are not shown**. The cut rides the URL as
+`?since=<ISO8601>` — the same parameter, forms and semantics as the API's
+delta read, so a link the agent hands over opens exactly the slice it read; a
+garbled value degrades to the full history. The Balance column is unaffected
+by this filter, like by every other: it is always computed over the account's
+whole history.
 
 ### Holdings Calculation
 

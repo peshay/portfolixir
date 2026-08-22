@@ -50,6 +50,15 @@ sind **pull-only**: Push-Zustellung (Webhooks an einen konfigurierten
 Endpunkt) ist eine separate, weiterhin gegatete Entscheidung (B3.7) und
 bewusst nicht Teil dieser Oberfläche.
 
+Die **menschliche Sicht** desselben Schnitts (Issue #731) liegt auf
+`/transactions?since=` und `/securities?since=` als *Geändert-seit*-Chips:
+gleicher Parametername, gleiche akzeptierte Formen, gleicher
+Strikt-nach-`updated_at`-Schnitt — ein Link, den der Agent weitergibt, öffnet
+also genau die Scheibe, die er gelesen hat. Die eine Abweichung ist bewusst:
+wo die API ein ungültiges `since` mit `422` ablehnt, degradieren die Seiten
+zur ungefilterten Liste — ein veraltetes Lesezeichen darf nie stillschweigend
+verengen, was der Betreiber sieht.
+
 ## Wertpapiere
 
 - `GET /api/v1/securities` listet Wertpapiere. Zeilen kommen standardmäßig als
