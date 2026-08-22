@@ -15,6 +15,7 @@ defmodule PortfolixirWeb.IncomeLive do
   use PortfolixirWeb, :live_view
 
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.Costs
   alias Portfolixir.Portfolios.ExternalFlows
   alias Portfolixir.Portfolios.Income
   alias Portfolixir.Portfolios.RealizedGains
@@ -54,7 +55,7 @@ defmodule PortfolixirWeb.IncomeLive do
   # today; the others appear as second-level tabs when theirs does, never as an
   # empty shell — which is also why no tab ROW renders yet: a row of one tab
   # answers no question.
-  @facets ["income", "realized", "flows"]
+  @facets ["income", "realized", "flows", "costs"]
   @default_facet "income"
 
   @impl true
@@ -70,6 +71,10 @@ defmodule PortfolixirWeb.IncomeLive do
 
   defp load_facet(%{assigns: %{facet: "flows", portfolio: %{}}} = socket) do
     assign_new(socket, :flows, fn -> ExternalFlows.report() end)
+  end
+
+  defp load_facet(%{assigns: %{facet: "costs", portfolio: %{}}} = socket) do
+    assign_new(socket, :costs, fn -> Costs.report() end)
   end
 
   defp load_facet(socket), do: socket
@@ -145,6 +150,13 @@ defmodule PortfolixirWeb.IncomeLive do
             aria-current={if @facet == "flows", do: "true"}
           >
             <%= gettext("Deposits & withdrawals") %>
+          </.link>
+          <.link
+            patch="/cashflow?tab=costs"
+            class={["segmented-control__option", @facet == "costs" && "is-active"]}
+            aria-current={if @facet == "costs", do: "true"}
+          >
+            <%= gettext("Costs") %>
           </.link>
         </nav>
 
@@ -296,6 +308,91 @@ defmodule PortfolixirWeb.IncomeLive do
                       <td><%= gettext("Net") %></td>
                       <td class="num" colspan="12"></td>
                       <td class="num col-subject"><%= money(year.net_total) %></td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            <% end %>
+          </section>
+        <% end %>
+
+        <%= if @facet == "costs" do %>
+          <section class="workspace-section">
+            <p class="muted" data-role="facet-composition">
+              <%= gettext(
+                "What the portfolio cost to run — the fee and tax legs riding any transaction plus standalone fee and tax bookings, with tax refunds netted against taxes, by booking date. Gross amounts are never summed: a buy's gross includes its legs while a sell's is net of them. Excludes dividends and interest, realized gains, and deposits and withdrawals — each has its own Cash flow facet."
+              ) %>
+            </p>
+            <div class="muted" data-role="costs-conversion">
+              <span><%= gettext("Amounts in %{currency}", currency: @costs.base_currency) %></span>
+              <details class="metric-tooltip metric-tooltip--inline">
+                <summary aria-label={gettext("Conversion info")}>ⓘ</summary>
+                <p role="tooltip">
+                  <%= gettext(
+                    "Each cost converted to %{currency} via the EUR hub at the most recent stored rate on or before its booking date. A cost with no stored rate at that date is excluded from the totals and named here.",
+                    currency: @costs.base_currency
+                  ) %>
+                </p>
+              </details>
+            </div>
+          </section>
+
+          <section id="costs-annual" class="workspace-section">
+            <h2><%= gettext("Fees and taxes per period") %></h2>
+            <%= if @costs.excluded.count > 0 do %>
+              <AppShell.data_note
+                severity={:attention}
+                id="costs-excluded"
+                data-role="costs-excluded"
+              >
+                <%= ngettext(
+                  "%{count} cost could not be converted — no stored rate at its booking date — and is excluded from every total. Affected currency: %{currencies}.",
+                  "%{count} costs could not be converted — no stored rate at their booking dates — and are excluded from every total. Affected currencies: %{currencies}.",
+                  @costs.excluded.count,
+                  count: @costs.excluded.count,
+                  currencies: Enum.join(@costs.excluded.currencies, ", ")
+                ) %>
+                <a href="/portfolios"><%= gettext("Store the missing exchange rates.") %></a>
+              </AppShell.data_note>
+            <% end %>
+            <%= if @costs.annual == [] do %>
+              <p class="empty-state"><%= gettext("No fees or taxes booked yet.") %></p>
+            <% else %>
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th><%= gettext("Year") %></th>
+                    <th><%= gettext("Series") %></th>
+                    <%= for month <- @months do %>
+                      <th class="num"><%= month_label(month) %></th>
+                    <% end %>
+                    <th class="num col-subject"><%= gettext("Total") %></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <%= for year <- @costs.annual do %>
+                    <tr>
+                      <td rowspan="3">
+                        <%= year.year %>
+                        <span class="muted">(<%= @costs.base_currency %>)</span>
+                      </td>
+                      <td><%= gettext("Fees") %></td>
+                      <%= for month <- @months do %>
+                        <td class="num"><%= money(year.months[month].fees) %></td>
+                      <% end %>
+                      <td class="num col-subject"><%= money(year.fees_total) %></td>
+                    </tr>
+                    <tr>
+                      <td><%= gettext("Taxes") %></td>
+                      <%= for month <- @months do %>
+                        <td class="num"><%= money(year.months[month].taxes) %></td>
+                      <% end %>
+                      <td class="num col-subject"><%= money(year.taxes_total) %></td>
+                    </tr>
+                    <tr class="totals-row">
+                      <td><%= gettext("Total") %></td>
+                      <td class="num" colspan="12"></td>
+                      <td class="num col-subject"><%= money(year.total) %></td>
                     </tr>
                   <% end %>
                 </tbody>

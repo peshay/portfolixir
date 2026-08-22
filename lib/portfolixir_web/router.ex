@@ -93,6 +93,7 @@ defmodule PortfolixirWeb.Router do
     get("/holdings/by_security", HoldingsBySecurityController, :index)
     get("/realized_gains", RealizedGainsController, :index)
     get("/external_flows", ExternalFlowsController, :index)
+    get("/costs", CostsController, :index)
     get("/holdings/negative", NegativeHoldingsController, :index)
 
     # Read-only reconcile of a user-supplied external position list against

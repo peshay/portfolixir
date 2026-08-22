@@ -1052,6 +1052,18 @@ Entdecken zu lassen. Gleiche FX-Basis und gleiche
 Ausschluss-und-Benennungs-Regel wie die Schwester-Facetten; unkonvertierbare
 Flüsse werden nach Verrechnungskonto benannt.
 
+**Kosten** (`/cashflow?tab=costs`, Issue #726) ist, was das Portfolio im
+Betrieb gekostet hat: Gebühren und Steuern je Periode, als zwei Serien mit
+Jahressumme — **nur auf Übersichtsebene**, bewusst kein Kosten-Journal je
+Transaktion. Summiert werden die Gebühren- und Steuer-**Nebenbeträge** jeder
+Transaktion plus die eigenständigen Gebühren- und Steuerbuchungen;
+Steuererstattungen werden gegen die Steuern verrechnet. Bruttobeträge werden
+nie summiert — beim Kauf enthält das Brutto die Nebenbeträge, beim Verkauf
+ist es um sie gemindert — und die Oberfläche nennt diese Regel in ihrer
+Zusammensetzungszeile. Gleiche FX-Basis und gleiche
+Ausschluss-und-Benennungs-Regel wie die Schwester-Facetten; unkonvertierbare
+Kosten werden nach Währung benannt.
+
 Jede Kennzahl des Bereichs nennt, was sie enthält: der Income-Bereich schreibt,
 dass er *Dividenden und Zinsen* abdeckt und realisierte Gewinne, Ein- und
 Auszahlungen sowie Kosten **ausschließt**. Das ist keine Dekoration — genau
