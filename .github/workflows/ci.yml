@@ -181,6 +181,17 @@ jobs:
       # scripts, which are arbitrary code execution on the runner at install
       # time; nothing in this tree needs them (the deps are the MCP SDK,
       # express, zod, tsx and typescript), and both gates below pass without.
+      # Issue #728: the MCP gates ran on whatever Node ubuntu-latest shipped
+      # that week — the one unpinned toolchain in this workflow. Pinned to
+      # the 24 LTS line, the same major the companion's Dockerfile ships and
+      # `engines.node` in mcp-server/package.json records, so CI, the image
+      # and a local run agree — and `@types/node` has a runtime major to
+      # follow instead of the registry's latest.
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+
       - name: Install MCP server dependencies
         run: npm ci --ignore-scripts --prefix mcp-server
 
