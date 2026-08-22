@@ -164,7 +164,7 @@ defmodule PortfolixirWeb.IncomeLive do
           <section class="workspace-section">
             <p class="muted" data-role="facet-composition">
               <%= gettext(
-                "Realized gains and losses from FIFO-matched sales booked in the ledger, by each sale's close date. Excludes dividends and interest, deposits and withdrawals, and costs — each has its own Cash flow facet."
+                "Realized gains and losses from FIFO-matched sales booked in the ledger, across every portfolio, by each sale's close date. Excludes dividends and interest, deposits and withdrawals, and costs — each has its own Cash flow facet."
               ) %>
             </p>
             <div class="muted" data-role="realized-conversion">
@@ -209,31 +209,37 @@ defmodule PortfolixirWeb.IncomeLive do
             <%= if @realized.annual == [] do %>
               <p class="empty-state"><%= gettext("No closed sales booked yet.") %></p>
             <% else %>
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th><%= gettext("Year") %></th>
-                    <%= for month <- @months do %>
-                      <th class="num"><%= month_label(month) %></th>
-                    <% end %>
-                    <th class="num col-subject"><%= gettext("Total") %></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <%= for year <- @realized.annual do %>
+              <%!-- UX-DR15: the year x month matrix is wider than a phone, so it
+                   owns its scroller. Without one the months are clipped by
+                   .workspace-page and the sticky total column renders on top of
+                   them (design-critic finding, measured at 390 px). --%>
+              <div class="data-table-wrapper">
+                <table class="data-table">
+                  <thead>
                     <tr>
-                      <td>
-                        <%= year.year %>
-                        <span class="muted">(<%= @realized.base_currency %>)</span>
-                      </td>
+                      <th><%= gettext("Year") %></th>
                       <%= for month <- @months do %>
-                        <td class="num"><%= money(year.months[month]) %></td>
+                        <th class="num"><%= month_label(month) %></th>
                       <% end %>
-                      <td class="num col-subject"><%= money(year.total) %></td>
+                      <th class="num col-subject"><%= gettext("Total") %></th>
                     </tr>
-                  <% end %>
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    <%= for year <- @realized.annual do %>
+                      <tr>
+                        <td>
+                          <%= year.year %>
+                          <span class="muted">(<%= @realized.base_currency %>)</span>
+                        </td>
+                        <%= for month <- @months do %>
+                          <td class="num"><%= money(year.months[month]) %></td>
+                        <% end %>
+                        <td class="num col-subject"><%= money(year.total) %></td>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                </table>
+              </div>
             <% end %>
           </section>
         <% end %>
@@ -242,7 +248,7 @@ defmodule PortfolixirWeb.IncomeLive do
           <section class="workspace-section">
             <p class="muted" data-role="facet-composition">
               <%= gettext(
-                "Money paid in and taken out — the booked deposits and removals, by booking date. Excludes dividends and interest, realized gains, and costs — each has its own Cash flow facet. Securities delivered in or out and balance-snapshot jumps are not counted here; the performance's invested-capital figure includes them, which is why the two can differ."
+                "Money paid in and taken out — the booked deposits and removals across every portfolio, by booking date. Excludes dividends and interest, realized gains, and costs — each has its own Cash flow facet. Securities delivered in or out and balance-snapshot jumps are not counted here; the performance's invested-capital figure includes them, which is why the two can differ."
               ) %>
             </p>
             <div class="muted" data-role="flows-conversion">
@@ -280,45 +286,51 @@ defmodule PortfolixirWeb.IncomeLive do
             <%= if @flows.annual == [] do %>
               <p class="empty-state"><%= gettext("No deposits or withdrawals booked yet.") %></p>
             <% else %>
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th><%= gettext("Year") %></th>
-                    <th><%= gettext("Series") %></th>
-                    <%= for month <- @months do %>
-                      <th class="num"><%= month_label(month) %></th>
+              <%!-- UX-DR15: the year x month matrix is wider than a phone, so it
+                   owns its scroller. Without one the months are clipped by
+                   .workspace-page and the sticky total column renders on top of
+                   them (design-critic finding, measured at 390 px). --%>
+              <div class="data-table-wrapper">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th><%= gettext("Year") %></th>
+                      <th><%= gettext("Series") %></th>
+                      <%= for month <- @months do %>
+                        <th class="num"><%= month_label(month) %></th>
+                      <% end %>
+                      <th class="num col-subject"><%= gettext("Total") %></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <%= for year <- @flows.annual do %>
+                      <tr>
+                        <td rowspan="3">
+                          <%= year.year %>
+                          <span class="muted">(<%= @flows.base_currency %>)</span>
+                        </td>
+                        <td><%= gettext("Deposits") %></td>
+                        <%= for month <- @months do %>
+                          <td class="num"><%= money(year.months[month].deposits) %></td>
+                        <% end %>
+                        <td class="num col-subject"><%= money(year.deposits_total) %></td>
+                      </tr>
+                      <tr>
+                        <td><%= gettext("Withdrawals") %></td>
+                        <%= for month <- @months do %>
+                          <td class="num"><%= money(year.months[month].withdrawals) %></td>
+                        <% end %>
+                        <td class="num col-subject"><%= money(year.withdrawals_total) %></td>
+                      </tr>
+                      <tr class="totals-row">
+                        <td><%= gettext("Net") %></td>
+                        <td class="num" colspan="12"></td>
+                        <td class="num col-subject"><%= money(year.net_total) %></td>
+                      </tr>
                     <% end %>
-                    <th class="num col-subject"><%= gettext("Total") %></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <%= for year <- @flows.annual do %>
-                    <tr>
-                      <td rowspan="3">
-                        <%= year.year %>
-                        <span class="muted">(<%= @flows.base_currency %>)</span>
-                      </td>
-                      <td><%= gettext("Deposits") %></td>
-                      <%= for month <- @months do %>
-                        <td class="num"><%= money(year.months[month].deposits) %></td>
-                      <% end %>
-                      <td class="num col-subject"><%= money(year.deposits_total) %></td>
-                    </tr>
-                    <tr>
-                      <td><%= gettext("Withdrawals") %></td>
-                      <%= for month <- @months do %>
-                        <td class="num"><%= money(year.months[month].withdrawals) %></td>
-                      <% end %>
-                      <td class="num col-subject"><%= money(year.withdrawals_total) %></td>
-                    </tr>
-                    <tr class="totals-row">
-                      <td><%= gettext("Net") %></td>
-                      <td class="num" colspan="12"></td>
-                      <td class="num col-subject"><%= money(year.net_total) %></td>
-                    </tr>
-                  <% end %>
-                </tbody>
-              </table>
+                  </tbody>
+                </table>
+              </div>
             <% end %>
           </section>
         <% end %>
@@ -327,7 +339,7 @@ defmodule PortfolixirWeb.IncomeLive do
           <section class="workspace-section">
             <p class="muted" data-role="facet-composition">
               <%= gettext(
-                "What the portfolio cost to run — the fee and tax legs riding any transaction plus standalone fee and tax bookings, with tax refunds netted against taxes, by booking date. Gross amounts are never summed: a buy's gross includes its legs while a sell's is net of them. Excludes dividends and interest, realized gains, and deposits and withdrawals — each has its own Cash flow facet. This facet stays at overview level on purpose: totals per year, and no breakdown per security or per transaction."
+                "What the portfolios cost to run — the fee and tax legs riding any transaction plus standalone fee and tax bookings across every portfolio, with tax refunds netted against taxes, by booking date. Gross amounts are never summed: a buy's gross includes its legs while a sell's is net of them. Excludes dividends and interest, realized gains, and deposits and withdrawals — each has its own Cash flow facet. This facet stays at overview level on purpose: totals per year, and no breakdown per security or per transaction."
               ) %>
             </p>
             <div class="muted" data-role="costs-conversion">
@@ -365,45 +377,51 @@ defmodule PortfolixirWeb.IncomeLive do
             <%= if @costs.annual == [] do %>
               <p class="empty-state"><%= gettext("No fees or taxes booked yet.") %></p>
             <% else %>
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th><%= gettext("Year") %></th>
-                    <th><%= gettext("Series") %></th>
-                    <%= for month <- @months do %>
-                      <th class="num"><%= month_label(month) %></th>
+              <%!-- UX-DR15: the year x month matrix is wider than a phone, so it
+                   owns its scroller. Without one the months are clipped by
+                   .workspace-page and the sticky total column renders on top of
+                   them (design-critic finding, measured at 390 px). --%>
+              <div class="data-table-wrapper">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th><%= gettext("Year") %></th>
+                      <th><%= gettext("Series") %></th>
+                      <%= for month <- @months do %>
+                        <th class="num"><%= month_label(month) %></th>
+                      <% end %>
+                      <th class="num col-subject"><%= gettext("Total") %></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <%= for year <- @costs.annual do %>
+                      <tr>
+                        <td rowspan="3">
+                          <%= year.year %>
+                          <span class="muted">(<%= @costs.base_currency %>)</span>
+                        </td>
+                        <td><%= gettext("Fees") %></td>
+                        <%= for month <- @months do %>
+                          <td class="num"><%= money(year.months[month].fees) %></td>
+                        <% end %>
+                        <td class="num col-subject"><%= money(year.fees_total) %></td>
+                      </tr>
+                      <tr>
+                        <td><%= gettext("Taxes") %></td>
+                        <%= for month <- @months do %>
+                          <td class="num"><%= money(year.months[month].taxes) %></td>
+                        <% end %>
+                        <td class="num col-subject"><%= money(year.taxes_total) %></td>
+                      </tr>
+                      <tr class="totals-row">
+                        <td><%= gettext("Total") %></td>
+                        <td class="num" colspan="12"></td>
+                        <td class="num col-subject"><%= money(year.total) %></td>
+                      </tr>
                     <% end %>
-                    <th class="num col-subject"><%= gettext("Total") %></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <%= for year <- @costs.annual do %>
-                    <tr>
-                      <td rowspan="3">
-                        <%= year.year %>
-                        <span class="muted">(<%= @costs.base_currency %>)</span>
-                      </td>
-                      <td><%= gettext("Fees") %></td>
-                      <%= for month <- @months do %>
-                        <td class="num"><%= money(year.months[month].fees) %></td>
-                      <% end %>
-                      <td class="num col-subject"><%= money(year.fees_total) %></td>
-                    </tr>
-                    <tr>
-                      <td><%= gettext("Taxes") %></td>
-                      <%= for month <- @months do %>
-                        <td class="num"><%= money(year.months[month].taxes) %></td>
-                      <% end %>
-                      <td class="num col-subject"><%= money(year.taxes_total) %></td>
-                    </tr>
-                    <tr class="totals-row">
-                      <td><%= gettext("Total") %></td>
-                      <td class="num" colspan="12"></td>
-                      <td class="num col-subject"><%= money(year.total) %></td>
-                    </tr>
-                  <% end %>
-                </tbody>
-              </table>
+                  </tbody>
+                </table>
+              </div>
             <% end %>
           </section>
         <% end %>
@@ -417,7 +435,7 @@ defmodule PortfolixirWeb.IncomeLive do
                Cash-flow facets exist, and a reader who does not know them
                reads this page as "all the money that came in". --%>
           <p class="muted" data-role="facet-composition">
-            <%= gettext("Dividends and interest booked in the ledger. Excludes realized gains from sales, deposits and withdrawals, and costs — each has its own Cash flow facet.") %>
+            <%= gettext("Dividends and interest booked in the ledger for this portfolio. The other three facets cover every portfolio, so with more than one portfolio their figures are wider than this one. Excludes realized gains from sales, deposits and withdrawals, and costs — each has its own Cash flow facet.") %>
           </p>
           <%!-- UX-DR11 (Sprint 5 Lane D): terse basis line in the sightline,
                conversion methodology behind the ⓘ tooltip. --%>
@@ -513,47 +531,53 @@ defmodule PortfolixirWeb.IncomeLive do
               </div>
             </div>
 
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th><%= gettext("Year") %></th>
-                  <th><%= gettext("Series") %></th>
-                  <%= for month <- @months do %>
-                    <th class="num"><%= month_label(month) %></th>
+            <%!-- UX-DR15: the year x month matrix is wider than a phone, so it
+                 owns its scroller. Without one the months are clipped by
+                 .workspace-page and the sticky total column renders on top of
+                 them (design-critic finding, measured at 390 px). --%>
+            <div class="data-table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th><%= gettext("Year") %></th>
+                    <th><%= gettext("Series") %></th>
+                    <%= for month <- @months do %>
+                      <th class="num"><%= month_label(month) %></th>
+                    <% end %>
+                    <th class="num"><%= gettext("Total") %></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <%= for year <- @income.annual do %>
+                    <tr class="income-year-row">
+                      <td rowspan="2">
+                        <button
+                          type="button"
+                          class="link-button"
+                          phx-click="select_year"
+                          phx-value-year={year.year}
+                        >
+                          <%= year.year %>
+                        </button>
+                        <span class="muted">(<%= @income.base_currency %>)</span>
+                      </td>
+                      <td><%= gettext("Dividends") %></td>
+                      <%= for month <- @months do %>
+                        <td class="num"><%= money(year.months[month].dividends) %></td>
+                      <% end %>
+                      <td class="num"><%= money(year.dividends_total) %></td>
+                    </tr>
+                    <tr class="income-year-row">
+                      <td><%= gettext("Interest") %></td>
+                      <%= for month <- @months do %>
+                        <td class="num"><%= money(year.months[month].interest) %></td>
+                      <% end %>
+                      <td class="num"><%= money(year.interest_total) %></td>
+                    </tr>
                   <% end %>
-                  <th class="num"><%= gettext("Total") %></th>
-                </tr>
-              </thead>
-              <tbody>
-                <%= for year <- @income.annual do %>
-                  <tr class="income-year-row">
-                    <td rowspan="2">
-                      <button
-                        type="button"
-                        class="link-button"
-                        phx-click="select_year"
-                        phx-value-year={year.year}
-                      >
-                        <%= year.year %>
-                      </button>
-                      <span class="muted">(<%= @income.base_currency %>)</span>
-                    </td>
-                    <td><%= gettext("Dividends") %></td>
-                    <%= for month <- @months do %>
-                      <td class="num"><%= money(year.months[month].dividends) %></td>
-                    <% end %>
-                    <td class="num"><%= money(year.dividends_total) %></td>
-                  </tr>
-                  <tr class="income-year-row">
-                    <td><%= gettext("Interest") %></td>
-                    <%= for month <- @months do %>
-                      <td class="num"><%= money(year.months[month].interest) %></td>
-                    <% end %>
-                    <td class="num"><%= money(year.interest_total) %></td>
-                  </tr>
-                <% end %>
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            </div>
           <% end %>
         </section>
 
@@ -637,32 +661,38 @@ defmodule PortfolixirWeb.IncomeLive do
               </div>
             </div>
 
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th><%= gettext("Date") %></th>
-                  <th><%= gettext("Type") %></th>
-                  <th><%= gettext("Security") %></th>
-                  <th class="num"><%= gettext("Gross") %></th>
-                  <th class="num"><%= gettext("Tax") %></th>
-                  <th class="num"><%= gettext("Net") %></th>
-                  <th><%= gettext("Currency") %></th>
-                </tr>
-              </thead>
-              <tbody>
-                <%= for tx <- detail_for(@income, @selected_year) do %>
+            <%!-- UX-DR15: the year x month matrix is wider than a phone, so it
+                 owns its scroller. Without one the months are clipped by
+                 .workspace-page and the sticky total column renders on top of
+                 them (design-critic finding, measured at 390 px). --%>
+            <div class="data-table-wrapper">
+              <table class="data-table">
+                <thead>
                   <tr>
-                    <td><%= tx.date %></td>
-                    <td><%= kind_label(tx.kind) %></td>
-                    <td><%= tx.security_name || gettext("Interest") %></td>
-                    <td class="num"><%= money(tx.gross) %></td>
-                    <td class="num"><%= money(tx.tax) %></td>
-                    <td class="num"><%= money(tx.net) %></td>
-                    <td><%= tx.currency %></td>
+                    <th><%= gettext("Date") %></th>
+                    <th><%= gettext("Type") %></th>
+                    <th><%= gettext("Security") %></th>
+                    <th class="num"><%= gettext("Gross") %></th>
+                    <th class="num"><%= gettext("Tax") %></th>
+                    <th class="num"><%= gettext("Net") %></th>
+                    <th><%= gettext("Currency") %></th>
                   </tr>
-                <% end %>
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  <%= for tx <- detail_for(@income, @selected_year) do %>
+                    <tr>
+                      <td><%= tx.date %></td>
+                      <td><%= kind_label(tx.kind) %></td>
+                      <td><%= tx.security_name || gettext("Interest") %></td>
+                      <td class="num"><%= money(tx.gross) %></td>
+                      <td class="num"><%= money(tx.tax) %></td>
+                      <td class="num"><%= money(tx.net) %></td>
+                      <td><%= tx.currency %></td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
           </section>
         <% end %>
 
@@ -690,32 +720,38 @@ defmodule PortfolixirWeb.IncomeLive do
           <%= if @income.positions == [] do %>
             <p class="empty-state"><%= gettext("No dividends or interest booked yet.") %></p>
           <% else %>
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th><%= gettext("Security") %></th>
-                  <th><%= gettext("Currency") %></th>
-                  <th class="num"><%= gettext("Gross") %></th>
-                  <th class="num"><%= gettext("Withheld tax") %></th>
-                  <th class="num"><%= gettext("Net") %></th>
-                  <th class="num"><%= gettext("Payments") %></th>
-                  <th><%= gettext("Last payment") %></th>
-                </tr>
-              </thead>
-              <tbody>
-                <%= for row <- @income.positions do %>
+            <%!-- UX-DR15: the year x month matrix is wider than a phone, so it
+                 owns its scroller. Without one the months are clipped by
+                 .workspace-page and the sticky total column renders on top of
+                 them (design-critic finding, measured at 390 px). --%>
+            <div class="data-table-wrapper">
+              <table class="data-table">
+                <thead>
                   <tr>
-                    <td><%= row.security_name || gettext("Interest") %></td>
-                    <td><%= row.security_currency %></td>
-                    <td class="num"><%= money(row.gross) %></td>
-                    <td class="num"><%= money(row.tax) %></td>
-                    <td class="num"><%= money(row.net) %></td>
-                    <td class="num"><%= row.payment_count %></td>
-                    <td><%= row.last_payment %></td>
+                    <th><%= gettext("Security") %></th>
+                    <th><%= gettext("Currency") %></th>
+                    <th class="num"><%= gettext("Gross") %></th>
+                    <th class="num"><%= gettext("Withheld tax") %></th>
+                    <th class="num"><%= gettext("Net") %></th>
+                    <th class="num"><%= gettext("Payments") %></th>
+                    <th><%= gettext("Last payment") %></th>
                   </tr>
-                <% end %>
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  <%= for row <- @income.positions do %>
+                    <tr>
+                      <td><%= row.security_name || gettext("Interest") %></td>
+                      <td><%= row.security_currency %></td>
+                      <td class="num"><%= money(row.gross) %></td>
+                      <td class="num"><%= money(row.tax) %></td>
+                      <td class="num"><%= money(row.net) %></td>
+                      <td class="num"><%= row.payment_count %></td>
+                      <td><%= row.last_payment %></td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
           <% end %>
         </section>
         <% end %>

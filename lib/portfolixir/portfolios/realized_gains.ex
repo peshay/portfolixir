@@ -8,9 +8,8 @@ defmodule Portfolixir.Portfolios.RealizedGains do
   ## FX basis (D-1, signed 2026-08-20)
 
   Each sale converts into the base currency through the **EUR hub**
-  (`Portfolixir.Fx`) at the most recent stored rate **on or before its close
-  date** — the same basis the Income facet uses, because the realized figure
-  is a historical fact tied to its date. A sale whose close-date rate is not
+  (`Portfolixir.Fx`) at the rate stored on **its own close date**, because the
+  realized figure is a historical fact tied to its date. A sale whose close-date rate is not
   stored is **excluded from the converted totals and named** (count plus
   security names) — never converted at a neighbouring date's rate, never
   silently dropped. This is deliberately stricter than Income's
@@ -57,9 +56,9 @@ defmodule Portfolixir.Portfolios.RealizedGains do
         securities: excluded |> Enum.map(& &1.security_name) |> Enum.uniq() |> Enum.sort()
       },
       conversion_note:
-        "Each sale converted to #{base} via the EUR hub at the rate stored on its " <>
-          "rate on or before its close date; a sale with no stored rate path at " <>
-          "that date is excluded from the totals and named, never converted at a " <>
+        "Each sale converted to #{base} via the EUR hub at the rate stored on " <>
+          "its own close date; a sale with no stored rate for that day is " <>
+          "excluded from the totals and named, never converted at a " <>
           "neighbouring date's rate.",
       computation_basis: %{
         series:

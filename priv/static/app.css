@@ -820,6 +820,19 @@ textarea {
   width: 100%;
 }
 
+/* A grid item keeps `min-width: auto`, which refuses to shrink below its
+   max-content width. Combined with `.workspace-page`'s `overflow-x: clip`
+   that turns any row too wide for a narrow viewport into content that is
+   CLIPPED AND UNREACHABLE rather than one that wraps or scrolls — and it
+   defeats the per-block scrollers UX-DR15 requires, because a block that is
+   already wider than its track never engages its own `overflow-x: auto`.
+   Measured on /transactions at 390 px: the summary, its basis line, the
+   filter form and both chip rows sat at 558 px inside a 390 px track with
+   their right-hand content unreachable. */
+.workspace-section > * {
+  min-width: 0;
+}
+
 .workspace-page > :is(.alert-error, .alert-success) {
   margin: 12px clamp(14px, 2.4vw, 28px) 0;
 }
@@ -1849,6 +1862,16 @@ li + li {
   border-spacing: 0;
   font-size: 12px;
   background: var(--color-bg-elevated);
+}
+
+/* Inside its scroller a wide table must size to its CONTENT, not to the
+   wrapper: with `width: 100%` alone the table box shrinks to the viewport
+   while its cells keep their min-content width, so the cells overflow the
+   table, the wrapper has nothing to scroll (scrollWidth == clientWidth), and
+   a sticky column pins over the clipped cells instead of beside them.
+   Measured on the Cash-flow year x month matrices at 390 px. */
+.data-table-wrapper > .data-table {
+  min-width: max-content;
 }
 
 .data-table thead th {
