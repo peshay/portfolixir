@@ -48,7 +48,10 @@ Gemeinschaftskonto je doppelt zählt.
    überlappende Etiketten, ein Gemeinschaftskonto darf `Meins` und `Partner`
    zugleich tragen.
 4. Öffne **Ansichten** (Seitenleiste, Bereich Administration — dieselbe
-   Seite, die der **Verwalten…**-Link des Sicht-Umschalters öffnet). Tippe
+   Seite, die der Link **Ansichten** des Sicht-Umschalters öffnet; Issue
+   #720 hat ihn von „Verwalten…" umbenannt und die Auslassungspunkte
+   entfernt, die diese App für dialogöffnende Bedienelemente reserviert).
+   Tippe
    unter **2. Ansichten** `Mein Vermögen` in **Neue Ansicht** und klicke
    **Neu anlegen**.
 5. Klicke auf der neuen Zeile **Ansichts-Buckets bearbeiten**. Hake im Dialog

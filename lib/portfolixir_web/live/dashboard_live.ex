@@ -281,8 +281,11 @@ defmodule PortfolixirWeb.DashboardLive do
            alerts (ADR-0023 sign: positive = overweight) link straight into
            the Allocation & targets tab; the audit journal keeps the forensic
            detail that the old activity feed restated. --%>
+      <%!-- #718 (UX-DR21 — a surface names what it aggregates): the card is
+           named for its content, categories off their target weight, not for
+           an urgency or the reaction it hopes to cause. --%>
       <section id="dashboard-attention" class="workspace-section">
-        <h2><%= gettext("Needs attention") %></h2>
+        <h2><%= gettext("Off target") %></h2>
         <%!-- Say WHY these items surface (UAT fix round): the threshold rule,
              derived from the same @drift_threshold the filter uses — and
              WHAT they are computed against (#673, {components.needs-

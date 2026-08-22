@@ -656,7 +656,8 @@ wizard (the ordered workflow path plus entity counts). Once transactions
 exist it shows one **value card scoped to the default view** — **Everything**
 when none is set (ADR-0024: views, not portfolios, are what the dashboard
 aggregates over) — with the total incl. cash, the **YTD TTWROR** as the
-change signal and the cash quote, a **Needs attention** list — every targeted category whose
+change signal and the cash quote, an **Off target** list (issue #718 — the
+card is named for what it contains, per UX-DR21) — every targeted category whose
 allocation drift exceeds **±5 percentage points** (ADR-0023 sign: positive =
 overweight), worst first, each linking into the Wealth area's Allocation &
 targets tab, under a basis line naming the view, classification tree and
@@ -773,7 +774,9 @@ booking individual transactions.
 section follow the **active view across all portfolios** — **Everything**
 (German *Alles*) is the built-in default and shows every holding, each account
 counted exactly once. Pick a view in the **view switcher** at the top of the
-page — its **Manage…** link opens the Views page where views and their
+page — its **Views** link (issue #720: renamed from "Manage…", ellipsis
+dropped because it navigates rather than opening a dialog) opens the Views
+page where views and their
 buckets are edited; **Set as default** (*Als Standard festlegen*) remembers the choice
 server-side, so the Wealth page and the Overview page open on that view
 whenever no other view has been explicitly picked (an explicit pick — including
@@ -1352,7 +1355,7 @@ naming the already-booked event) stays inline in the dialog.
   placeholders. Cash flow is a tab of the Wealth area and Import a tab of the
   Transactions area, not separate menu entries. Buckets have no sidebar entry
   of their own (ADR-0024): they are managed as chips on the Accounts & depots
-  rows and on the Views page, which the view switcher's **Manage…** link
+  rows and on the Views page, which the view switcher's **Views** link
   opens.
 - Theme: system, light, and dark modes are supported.
 - Accent: violet, teal, and coral logo accent choices are supported.

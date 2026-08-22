@@ -709,7 +709,8 @@ eingegrenzt auf die Standard-Ansicht** — **Alles**, wenn keine gesetzt ist
 (ADR-0024: Ansichten, nicht Portfolios, sind das, worüber die Übersicht
 aggregiert) — mit dem Gesamtwert inkl. Cash, der **YTD-TTWROR** als
 Änderungssignal und der Cash-Quote, eine Liste
-**Braucht Aufmerksamkeit** — jede Kategorie mit Ziel, deren Allokations-Drift
+**Ziel-Abweichungen** (Issue #718 — die Karte ist nach ihrem Inhalt benannt,
+gemäß UX-DR21) — jede Kategorie mit Ziel, deren Allokations-Drift
 **±5 Prozentpunkte** überschreitet (ADR-0023-Vorzeichen: positiv =
 übergewichtet), schlimmste zuerst, jeweils verlinkt in den Tab „Allokation &
 Ziele" des Vermögens-Bereichs, unter einer Basiszeile, die Ansicht,
@@ -839,7 +840,9 @@ einzelner Transaktionen erfasst.
 der Cash-Abschnitt folgen der **aktiven Ansicht über alle Portfolios hinweg** —
 **Alles** (englisch *Everything*) ist die eingebaute Voreinstellung und zeigt
 jede Position, jedes Konto genau einmal gezählt. Wähle eine Ansicht im
-**Sicht-Umschalter** oben auf der Seite — sein **Verwalten…**-Link öffnet die
+**Sicht-Umschalter** oben auf der Seite — sein Link **Ansichten** (Issue
+#720: umbenannt von „Verwalten…", die Auslassungspunkte entfallen, weil er
+navigiert statt einen Dialog zu öffnen) öffnet die
 Ansichten-Seite, auf der Ansichten und ihre Buckets bearbeitet werden;
 **Als Standard festlegen** merkt sich
 die Wahl serverseitig, sodass Vermögensseite und Übersicht mit dieser Ansicht
@@ -1452,7 +1455,7 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
   Vermögens-Bereichs und der Import ein Tab des Transaktions-Bereichs, keine
   eigenen Menüeinträge. Buckets haben keinen eigenen Seitenleisten-Eintrag
   (ADR-0024): sie werden als Chips auf den Zeilen von Konten & Depots und auf
-  der Ansichten-Seite verwaltet, die der **Verwalten…**-Link des
+  der Ansichten-Seite verwaltet, die der Link **Ansichten** des
   Sicht-Umschalters öffnet.
 - Theme: System-, hell- und dunkel-Modus werden unterstützt.
 - Akzent: violette, türkise und korallenfarbene Logo-Akzentwahlen werden

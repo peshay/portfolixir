@@ -742,7 +742,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           role="status"
         >
           <%= gettext(
-            "This view matches no accounts — its included buckets are empty or no longer assigned. Edit the view under Manage… or tag accounts into its buckets."
+            "This view matches no accounts — its included buckets are empty or no longer assigned. Edit the view under Views or tag accounts into its buckets."
           ) %>
         </p>
 
