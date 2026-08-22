@@ -86,6 +86,59 @@ defmodule PortfolixirWeb.PerformancePeriodControlTest do
       assert disclosure =~ ~s(id="performance-year")
     end
 
+    # User story (issue #721, D5):
+    # As a local portfolio maintainer picking a custom period,
+    # I want a labelled from/to pair that validates as a range and shows the
+    # applied range in the period control,
+    # so that the surface can always answer "what am I looking at" and a
+    # mistake is reported against the field that can fix it.
+    #
+    # Acceptance criteria:
+    # - The from/to inputs carry visible labels (not two anonymous fields).
+    # - An applied range echoes into the segmented period group as an active
+    #   chip carrying the resolved dates.
+    # - from > to is refused with the violation on the `to` field; an
+    #   unparsable date is flagged on its own field. The shown period keeps.
+    test "the custom range is labelled, validates as a range, and echoes as a chip",
+         %{conn: conn} do
+      seed_accounts()
+
+      {:ok, view, _html} = live(conn, "/portfolio")
+
+      disclosure =
+        view |> element(~s(#portfolio-performance details[data-role="period-custom"])) |> render()
+
+      assert disclosure =~ ~s(<label for="performance-from")
+      assert disclosure =~ ~s(<label for="performance-to")
+      refute disclosure =~ ~s(class="visually-hidden" for="performance-from")
+
+      view
+      |> element(~s(form[data-role="period-range"]))
+      |> render_submit(%{"from" => "2026-01-01", "to" => "2026-03-31"})
+
+      chip = view |> element(~s([data-role="custom-period-chip"])) |> render()
+      assert chip =~ "2026-01-01"
+      assert chip =~ "2026-03-31"
+      assert chip =~ ~s(aria-pressed="true")
+
+      # Backwards range: refused, reported on the field that can fix it,
+      # and the applied period keeps (the chip stays).
+      view
+      |> element(~s(form[data-role="period-range"]))
+      |> render_submit(%{"from" => "2026-03-31", "to" => "2026-01-01"})
+
+      assert view |> element("#performance-to") |> render() =~ ~s(aria-invalid="true")
+      assert has_element?(view, ~s([data-role="range-error"]))
+      assert has_element?(view, ~s([data-role="custom-period-chip"]))
+
+      # An unparsable from is the from field's error.
+      view
+      |> element(~s(form[data-role="period-range"]))
+      |> render_submit(%{"from" => "not-a-date", "to" => "2026-03-31"})
+
+      assert view |> element("#performance-from") |> render() =~ ~s(aria-invalid="true")
+    end
+
     test "the stylesheet gives segmented options focus and the coarse floor" do
       app_css = File.read!("priv/static/app.css")
 

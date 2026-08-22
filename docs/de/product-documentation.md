@@ -895,7 +895,13 @@ Zeitraumwechsel verkettet die zwischengespeicherte Reihe neu, sodass die
 Zeitraumauswahl sofort reagiert. Die Zeitraum-Tokens (YTD, 1Y, 3Y, 5Y, Max)
 und der %/Wert-Umschalter sind segmentierte Controls; die Wahl eines früheren
 Jahres und ein Von/Bis-Zeitraum (ISO-Daten, `YYYY-MM-DD`) liegen hinter der
-Aufklappung **Benutzerdefinierter Zeitraum …** daneben. Der Chart wird auf
+Aufklappung **Benutzerdefinierter Zeitraum …** daneben. Das Von/Bis-Paar ist
+beschriftet und validiert als Zeitraum (Issue #721): eine verdrehte oder
+unlesbare Eingabe wird mit der Meldung am korrigierbaren Feld abgelehnt, und
+ein angewendeter Zeitraum zeigt sich als aktiver Chip mit den aufgelösten
+Daten in der Zeitraumauswahl — das Bedienelement beantwortet immer „was sehe
+ich gerade". Der Custom-Zeitraum des Wertpapier-Detailcharts verhält sich
+genauso. Der Chart wird auf
 eine begrenzte Punktzahl
 heruntergerechnet, sodass ein Jahrzehnt täglicher Historie im Browser leicht
 bleibt. Die Aufklappung **Daten als Tabelle** unter dem Chart enthält

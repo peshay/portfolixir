@@ -91,6 +91,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:detail_fullscreen?, false)
      |> assign(:detail_range, @default_range)
      |> assign(:detail_custom_range, nil)
+     |> assign(:detail_range_error, nil)
      |> assign(:detail_percent_mode?, false)
      |> assign(:detail_log_scale?, false)
      |> assign(:detail_show_transactions?, true)
@@ -875,8 +876,24 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   <%= range %>
                 </button>
               <% end %>
+              <%!-- #721 (D5): an applied custom range shows itself in the
+                   range group, in the same active treatment as a preset. --%>
+              <button
+                :if={@detail_custom_range}
+                type="button"
+                class="range-button is-active"
+                data-role="custom-range-chip"
+                aria-pressed="true"
+              >
+                <%= Date.to_iso8601(@detail_custom_range.from) %> – <%= Date.to_iso8601(
+                  @detail_custom_range.to
+                ) %>
+              </button>
             </div>
 
+            <%!-- #721 (D5): a labelled pair that validates as a range —
+                 the violation lands on the field that can fix it, never on a
+                 silently unchanged chart. --%>
             <form
               id="detail-custom-range"
               phx-submit="set_detail_custom_range"
@@ -884,28 +901,42 @@ defmodule PortfolixirWeb.SecuritiesLive do
               data-active={if @detail_custom_range, do: "true", else: "false"}
               aria-label={gettext("Custom range")}
             >
+              <label for="detail-range-from"><%= gettext("From") %></label>
               <input
                 type="text"
                 placeholder="YYYY-MM-DD"
                 pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
                 maxlength="10"
+                id="detail-range-from"
                 name="from"
                 value={@detail_custom_range && Date.to_iso8601(@detail_custom_range.from)}
-                aria-label={gettext("From")}
+                aria-invalid={@detail_range_error == :from && "true"}
+                aria-describedby={@detail_range_error == :from && "detail-range-error"}
               />
-              <span aria-hidden="true">→</span>
+              <label for="detail-range-to"><%= gettext("To") %></label>
               <input
                 type="text"
                 placeholder="YYYY-MM-DD"
                 pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
                 maxlength="10"
+                id="detail-range-to"
                 name="to"
                 value={@detail_custom_range && Date.to_iso8601(@detail_custom_range.to)}
-                aria-label={gettext("To")}
+                aria-invalid={@detail_range_error in [:to, :order] && "true"}
+                aria-describedby={@detail_range_error in [:to, :order] && "detail-range-error"}
               />
               <button type="submit" class="chart-toggle">
                 <%= gettext("Apply") %>
               </button>
+              <p
+                :if={@detail_range_error}
+                id="detail-range-error"
+                class="hint"
+                data-role="detail-range-error"
+                role="alert"
+              >
+                <%= detail_range_error_message(@detail_range_error) %>
+              </p>
             </form>
 
             <div class="chart-toggles">
@@ -2809,29 +2840,51 @@ defmodule PortfolixirWeb.SecuritiesLive do
        socket
        |> assign(:detail_range, range)
        |> assign(:detail_custom_range, nil)
+       |> assign(:detail_range_error, nil)
        |> load_detail_data()}
     else
       {:noreply, socket}
     end
   end
 
+  # #721 (D5): a backwards or unparsable range is refused with the violation
+  # on the field that can fix it (UX-DR13) — never silently ignored. The
+  # shown range keeps.
   def handle_event(
         "set_detail_custom_range",
         %{"from" => from_str, "to" => to_str},
         socket
       ) do
     with %Security{} <- socket.assigns.selected_security,
-         {:ok, from} <- Date.from_iso8601(from_str),
-         {:ok, to} <- Date.from_iso8601(to_str),
-         true <- Date.compare(from, to) != :gt do
+         {:ok, from, to} <- parse_detail_range(from_str, to_str) do
       {:noreply,
        socket
        |> assign(:detail_custom_range, %{from: from, to: to})
+       |> assign(:detail_range_error, nil)
        |> load_detail_data()}
     else
-      _ -> {:noreply, socket}
+      {:error, field} -> {:noreply, assign(socket, :detail_range_error, field)}
+      _no_selection -> {:noreply, socket}
     end
   end
+
+  defp parse_detail_range(from_str, to_str) do
+    with {:from, {:ok, from}} <- {:from, Date.from_iso8601(to_string(from_str))},
+         {:to, {:ok, to}} <- {:to, Date.from_iso8601(to_string(to_str))},
+         {:order, false} <- {:order, Date.compare(from, to) == :gt} do
+      {:ok, from, to}
+    else
+      {:from, _} -> {:error, :from}
+      {:to, _} -> {:error, :to}
+      {:order, _} -> {:error, :order}
+    end
+  end
+
+  defp detail_range_error_message(:order),
+    do: gettext("The end date is before the start date.")
+
+  defp detail_range_error_message(_field),
+    do: gettext("Not a date — use YYYY-MM-DD.")
 
   def handle_event("toggle_detail_percent_mode", _params, socket) do
     {:noreply, update(socket, :detail_percent_mode?, &(!&1))}
@@ -2881,6 +2934,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
       {:noreply,
        socket
        |> assign(:detail_custom_range, nil)
+       |> assign(:detail_range_error, nil)
        |> load_detail_data()}
     else
       {:noreply, socket}

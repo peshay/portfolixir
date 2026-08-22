@@ -766,6 +766,43 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       end
     end
 
+    # User story (issue #721, D5 — the second surface carrying a custom range):
+    # As a local portfolio maintainer reading a security chart,
+    # I want the custom from/to pair labelled, validated as a range, and the
+    # applied range shown in the range control,
+    # so that a mistake is reported against the field that can fix it and the
+    # control always answers "what am I looking at".
+    #
+    # Acceptance criteria:
+    # - The from/to inputs carry visible labels.
+    # - A backwards range is refused with the violation on the `to` field —
+    #   never silently ignored.
+    # - The applied range echoes into the range group as an active chip
+    #   carrying the resolved dates.
+    test "the detail chart's custom range is labelled, validates, and shows itself",
+         %{conn: conn, apple: apple} do
+      {:ok, view, _html} = live(conn, "/securities/#{apple.id}?tab=chart")
+
+      form = view |> element("#detail-custom-range") |> render()
+      assert form =~ "<label"
+
+      view
+      |> element("#detail-custom-range")
+      |> render_submit(%{"from" => "2026-03-31", "to" => "2026-01-01"})
+
+      assert has_element?(view, ~s([data-role="detail-range-error"]))
+      assert view |> element("#detail-range-to") |> render() =~ ~s(aria-invalid="true")
+
+      view
+      |> element("#detail-custom-range")
+      |> render_submit(%{"from" => "2026-01-01", "to" => "2026-03-31"})
+
+      chip = view |> element(~s([data-role="custom-range-chip"])) |> render()
+      assert chip =~ "2026-01-01"
+      assert chip =~ "2026-03-31"
+      refute has_element?(view, ~s([data-role="detail-range-error"]))
+    end
+
     test "patching to a row id opens the pane without a full navigation",
          %{conn: conn, apple: apple} do
       {:ok, view, html_before} = live(conn, "/securities")
