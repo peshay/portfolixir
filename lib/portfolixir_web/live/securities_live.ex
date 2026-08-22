@@ -2868,24 +2868,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
     end
   end
 
-  defp parse_detail_range(from_str, to_str) do
-    with {:from, {:ok, from}} <- {:from, Date.from_iso8601(to_string(from_str))},
-         {:to, {:ok, to}} <- {:to, Date.from_iso8601(to_string(to_str))},
-         {:order, false} <- {:order, Date.compare(from, to) == :gt} do
-      {:ok, from, to}
-    else
-      {:from, _} -> {:error, :from}
-      {:to, _} -> {:error, :to}
-      {:order, _} -> {:error, :order}
-    end
-  end
-
-  defp detail_range_error_message(:order),
-    do: gettext("The end date is before the start date.")
-
-  defp detail_range_error_message(_field),
-    do: gettext("Not a date — use YYYY-MM-DD.")
-
   def handle_event("toggle_detail_percent_mode", _params, socket) do
     {:noreply, update(socket, :detail_percent_mode?, &(!&1))}
   end
@@ -3906,6 +3888,24 @@ defmodule PortfolixirWeb.SecuritiesLive do
       a, b -> a >= b
     end
   end
+
+  defp parse_detail_range(from_str, to_str) do
+    with {:from, {:ok, from}} <- {:from, Date.from_iso8601(to_string(from_str))},
+         {:to, {:ok, to}} <- {:to, Date.from_iso8601(to_string(to_str))},
+         {:order, false} <- {:order, Date.compare(from, to) == :gt} do
+      {:ok, from, to}
+    else
+      {:from, _} -> {:error, :from}
+      {:to, _} -> {:error, :to}
+      {:order, _} -> {:error, :order}
+    end
+  end
+
+  defp detail_range_error_message(:order),
+    do: gettext("The end date is before the start date.")
+
+  defp detail_range_error_message(_field),
+    do: gettext("Not a date — use YYYY-MM-DD.")
 
   defp dq_label("stale_quote"),
     do: gettext("No quote in %{days} days", days: DataQuality.stale_days())

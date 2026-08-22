@@ -1309,6 +1309,60 @@ defmodule PortfolixirWeb.PortfolioLive do
               </ul>
             </div>
 
+            <%!-- #719 (D3): findings are {components.data-note} rows above
+                 the table, never pills inside data cells — over-100 % sums at
+                 attention, position-vs-category conflicts at problem, stale
+                 position targets at attention. One status region wraps the
+                 list (data-note aria rule). --%>
+            <div
+              :if={
+                @allocation.has_plan and
+                  (conflicted_categories(@allocation) != [] or
+                     stale_categories(@allocation) != [] or plan_overshoot(@allocation))
+              }
+              role="status"
+              class="allocation-findings"
+            >
+              <AppShell.data_note
+                :if={plan_overshoot(@allocation)}
+                severity={:attention}
+                id="plan-overshoot-note"
+                data-role="plan-overshoot-note"
+              >
+                <%= gettext(
+                  "The plan's top-level targets sum to %{sum} % — more than 100 %. Drift keeps steering against the stored weights;",
+                  sum: Format.percent(plan_overshoot(@allocation))
+                ) %>
+                <a href="/classifications"><%= gettext("trim the plan on the Classifications page.") %></a>
+              </AppShell.data_note>
+              <AppShell.data_note
+                :if={conflicted_categories(@allocation) != []}
+                severity={:problem}
+                id="target-conflict-note"
+                data-role="target-conflict-note"
+              >
+                <%= gettext(
+                  "The position targets steer in %{categories}: their sum overrides the stored category weight.",
+                  categories: Enum.join(conflicted_categories(@allocation), ", ")
+                ) %>
+                <a href="/classifications">
+                  <%= gettext("Align the position targets and the category weight on the Classifications page.") %>
+                </a>
+              </AppShell.data_note>
+              <AppShell.data_note
+                :if={stale_categories(@allocation) != []}
+                severity={:attention}
+                id="stale-target-note"
+                data-role="stale-target-note"
+              >
+                <%= gettext(
+                  "A position target filed in %{categories} is stale: its security was moved or unassigned. It keeps counting there",
+                  categories: Enum.join(stale_categories(@allocation), ", ")
+                ) %>
+                <a href="/classifications"><%= gettext("until re-filed on the Classifications page.") %></a>
+              </AppShell.data_note>
+            </div>
+
             <%!-- One expand/collapse toggle directly above the table (UAT fix
                  round): the label states the action it will perform next.
                  Beside it the drift threshold — the human half of the API's
@@ -1443,30 +1497,9 @@ defmodule PortfolixirWeb.PortfolioLive do
                           <%= Format.percent(row.target_weight) %>%
                         <% end %>
                       </span>
-                      <%!-- ADR-0030 slice 2a: badge a category whose SOLL is
-                           position-steered against a diverging explicit weight
-                           (conflict) or carries a stale position row. Focusable
-                           text badge with microcopy (UX-DR7/UX-DR11); the
-                           details/summary pattern matches the drift tooltip. --%>
-                      <details
-                        :if={@allocation.has_plan and (row.conflict or row.has_stale)}
-                        class="metric-tooltip target-plan-badge"
-                        data-role="category-target-badge"
-                      >
-                        <summary aria-label={gettext("Position-target notice")}>
-                          <%= category_badge_label(row) %>
-                        </summary>
-                        <p role="tooltip">
-                          <%!-- Position-sum-wins rule per ADR-0030; the ADR
-                               reference stays out of user-facing copy. --%>
-                          <%= if row.conflict do %>
-                            <%= gettext("The category's position targets steer here: their sum overrides the stored category weight. Align the position targets and the category weight on the Classifications page.") %>
-                          <% end %>
-                          <%= if row.has_stale do %>
-                            <%= gettext("A position target filed here is stale: its security was moved or unassigned. It keeps counting here until re-filed on the Classifications page.") %>
-                          <% end %>
-                        </p>
-                      </details>
+                      <%!-- #719 (D3): the category-cell pill is retired —
+                           conflict and stale findings render as data notes
+                           above the table (UX-DR17). --%>
                     </td>
                     <td class="num"><%= Format.money(row.market_value) %></td>
                     <td class="num"><%= Format.percent(row.actual_weight) %>%</td>
@@ -2205,18 +2238,6 @@ defmodule PortfolixirWeb.PortfolioLive do
     {:noreply, assign(socket, :range_error, :from)}
   end
 
-  defp parse_range(from_str, to_str) do
-    with {:from, {:ok, from}} <- {:from, Date.from_iso8601(to_string(from_str))},
-         {:to, {:ok, to}} <- {:to, Date.from_iso8601(to_string(to_str))},
-         {:order, false} <- {:order, Date.compare(from, to) == :gt} do
-      {:ok, from, to}
-    else
-      {:from, _} -> {:error, :from}
-      {:to, _} -> {:error, :to}
-      {:order, _} -> {:error, :order}
-    end
-  end
-
   # Switching the chart series (% TTWROR ↔ € value) is pure presentation — the
   # same cached analysis feeds both lines, so it never recomputes and the choice
   # survives period switches (select_period leaves :chart_mode untouched).
@@ -2649,11 +2670,20 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # The compact text label of the category's position-target badge (UX-DR7:
   # words, never hue alone). Both conditions can hold at once.
-  defp category_badge_label(%{conflict: true, has_stale: true}),
-    do: gettext("Σ conflict · stale")
+  # #719 (D3): the note helpers that replaced the category-cell pill. The
+  # "Σ-Konflikt" label died with it — the notes state the consequence in a
+  # sentence and name the categories.
+  defp conflicted_categories(allocation),
+    do: for(row <- allocation.categories, row.conflict, do: row.name)
 
-  defp category_badge_label(%{conflict: true}), do: gettext("Σ conflict")
-  defp category_badge_label(_row), do: gettext("stale target")
+  defp stale_categories(allocation),
+    do: for(row <- allocation.categories, row.has_stale, do: row.name)
+
+  defp plan_overshoot(%{has_plan: true, top_level_target_sum: %Decimal{} = sum}) do
+    if Decimal.gt?(sum, 1), do: sum
+  end
+
+  defp plan_overshoot(_allocation), do: nil
 
   defp rebalance_hint_parts(nil), do: nil
 
@@ -3251,6 +3281,18 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # Prefill for the range inputs: the picked range, else the shown period's
   # effective bounds (honest clamping included), else blank.
+  defp parse_range(from_str, to_str) do
+    with {:from, {:ok, from}} <- {:from, Date.from_iso8601(to_string(from_str))},
+         {:to, {:ok, to}} <- {:to, Date.from_iso8601(to_string(to_str))},
+         {:order, false} <- {:order, Date.compare(from, to) == :gt} do
+      {:ok, from, to}
+    else
+      {:from, _} -> {:error, :from}
+      {:to, _} -> {:error, :to}
+      {:order, _} -> {:error, :order}
+    end
+  end
+
   defp custom_period_label({:range, from, to}),
     do: "#{Date.to_iso8601(from)} – #{Date.to_iso8601(to)}"
 

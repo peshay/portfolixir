@@ -758,8 +758,10 @@ hidden only when its SOLL is 0 or absent **and** its holdings are zero. The
 category's Target column then shows the **effective** target — the sum of its
 position targets (positions are the source of truth); if the stored category
 weight disagrees, or a position target has gone stale (its security was moved
-or unassigned), a small badge on the category row explains it and the
-affected position row itself carries a *stale target* chip. A
+or unassigned), a **data note above the table** states it and names the
+categories (issue #719 — findings render as notes, never as pills inside
+data cells; a conflict at problem severity, a stale target at attention),
+and the affected position row itself carries a *stale target* chip. A
 held-but-unassigned security with a (stale) position target shows that target
 on its row in the *Unassigned* bucket too. When no top-level category carries
 a target but deeper categories do, the Σ header adds the deeper targets'
