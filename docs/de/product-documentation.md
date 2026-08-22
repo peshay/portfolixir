@@ -1034,7 +1034,7 @@ Bereich einen zweistufigen Facetten-Umschalter.
 alle Wertpapiere, gruppiert nach dem **Schlussdatum** jedes Verkaufs in eine
 Jahres-/Monatsmatrix. Die FX-Basis steht auf der Oberfläche und reist in der
 API-Payload mit (Entscheidung D-1): jeder Verkauf konvertiert über den
-EUR-Hub zum jüngsten gespeicherten Kurs **am oder vor seinem Schlussdatum** —
+EUR-Hub zum Kurs **seines eigenen Schlusstags** —
 die Basis des Income-Bereichs, denn eine realisierte Zahl ist ein historischer
 Fakt an ihrem Datum. Ein Verkauf **ohne** gespeicherten Kurs zu diesem Datum
 wird **aus jeder Summe ausgeschlossen und benannt** (Achtung-Notiz mit Anzahl

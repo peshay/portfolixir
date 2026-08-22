@@ -1139,6 +1139,74 @@ Concretely, per surface:
 Pinned by `portfolio_live_test.exs` ("the computing cue marks the seconds
 class only") over the deterministic dead render.
 
+## Amendment 2026-08-22 — the facet family and its two notices (issues 724, 725, 726)
+
+The Cash-flow area went from one facet to four in one batch. Two of the
+shapes that came out of it are area-agnostic and belong here rather than in
+one LiveView; the third is a note about which component the facets use.
+
+### Facet navigation uses the segmented control, not a second tab level
+
+A facet is a **`?tab=` URL** (`/cashflow?tab=realized`), rendered as `patch`
+links inside a `segmented-control` marked `data-role="cashflow-facets"`, with
+`aria-current` on the active one. Links, not client state: a facet a reader
+can send to someone, bookmark and reload is worth more than one that
+animates.
+
+The segmented control rather than a second tab row, because the four facets
+are **four framings of one area's data**, which is what UX-DR16 class 2
+already describes — the same relationship the period control has to a chart.
+A second tab *level* would claim these are sub-destinations of the Cash-flow
+page; they are alternative readings of it. `/portfolio?tab=allocation` uses
+first-level area tabs for a genuinely different information architecture and
+is not the precedent here.
+
+**A row of one facet does not render.** A single option answers no question
+and reads as a promise of siblings that may never arrive.
+
+### UX-DR25 (new) — an excluded row is named where the total is read
+
+When an aggregate cannot include a row, the surface states **how many** and
+**which** — beside the figure, not in a tooltip and not only in the payload.
+This generalises the excluded-and-named shape of ADR-0041 into an appearance
+rule, because Sprint 8 built it three times: a sale with no rate for its
+close date, a flow with none for its booking date, a cost with none for its.
+The component is the `attention` data note (UX-DR17), so the severity says
+"your figure is incomplete", not "something is broken".
+
+Three clauses:
+
+1. **The count and the identifying names both render.** A count alone tells a
+   reader something is missing without saying what; names alone hide the size
+   of the gap.
+2. **The excluded row keeps its native figure and never shows a converted
+   one.** Printing the native number in a base-currency column is the
+   currency-mixing the exclusion exists to prevent.
+3. **No call to action that cannot act.** The realized-gains note carries no
+   link. Rate sync fetches the ECB *daily* feed, so it cannot fill a past
+   booking date, and there is no path today for entering a historical rate by
+   hand (issue #737) — so the note says that instead. A control that would
+   not help converts a stated limit into a failed attempt, which is worse
+   than no control. The note said "Store the missing exchange rates." and
+   pointed at a page with no rate control at all until this batch removed it.
+
+### UX-DR26 (new) — a deliberate limit is stated on the surface that lacks it
+
+Where a surface stops short **by decision**, it says so where a reader would
+otherwise look for the missing part. The Costs facet's composition line ends
+with the sentence that it stays at overview level on purpose, with no
+per-security or per-transaction breakdown (issue #726's requirement, where
+the "only" *is* the requirement). Without it the facet reads as unfinished,
+and the next reader — human or agent — offers to finish it.
+
+The same clause covers a **stated difference** between two figures a reader
+could otherwise reconcile by subtracting.
+
+**Built state.** Both rules ship across the three new facets. The rules are
+written to be surface-agnostic; nothing outside the Cash-flow area has been
+audited against them yet, which is a named remainder rather than a claim of
+completeness.
+
 ## Amendment 2026-08-22 — the subject column stays reachable (#730)
 
 The Sprint 7 walkthrough at 390 px found both wide tables putting the figure
