@@ -1429,7 +1429,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                   <th class="num"><%= gettext("Actual") %></th>
                   <%= if @allocation.has_plan do %>
                     <th class="num"><%= gettext("Target") %></th>
-                    <th class="num">
+                    <th class="num col-subject">
                       <%= gettext("Drift") %>
                       <details class="metric-tooltip">
                         <summary aria-label={gettext("Target/actual drift info")}>ⓘ</summary>
@@ -1514,6 +1514,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                       </td>
                       <td class={[
                         "num",
+                        "col-subject",
                         Decimal.compare(row.drift_value, 0) == :lt && "is-negative"
                       ]}>
                         <%= if Decimal.equal?(row.target_weight, 0) do %>
@@ -1554,6 +1555,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                           </td>
                           <td class={[
                             "num",
+                            "col-subject",
                             position.drift_value &&
                               Decimal.compare(position.drift_value, 0) == :lt &&
                               "is-negative"
@@ -1600,6 +1602,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                       </td>
                       <td class={[
                         "num",
+                        "col-subject",
                         Decimal.compare(@allocation.cash.drift_value, 0) == :lt && "is-negative"
                       ]}>
                         <%= if Decimal.equal?(@allocation.cash.target_weight, 0) do %>
@@ -1665,6 +1668,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                           </td>
                           <td class={[
                             "num",
+                            "col-subject",
                             position.drift_value &&
                               Decimal.compare(position.drift_value, 0) == :lt &&
                               "is-negative"
@@ -1784,6 +1788,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                     <%= if @allocation.has_plan do %>
                       <td class={[
                         "num",
+                        "col-subject",
                         entry.drift_value && Decimal.compare(entry.drift_value, 0) == :lt &&
                           "is-negative"
                       ]}>

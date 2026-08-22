@@ -4482,6 +4482,24 @@ details[open] > .disclosure-summary .disclosure-chevron {
   margin-bottom: var(--space-3);
 }
 
+/* Issue 730 (UX-DR15 companion): the SUBJECT column — the figure the
+   surface's interaction is about (the drift table's Drift, the history's
+   summoned Saldo) — pins to the right edge of its own scroller, so it is on
+   screen at the moment it is asked for; the context columns scroll beneath
+   it. Sticky is inert while the table fits, so no media query: the rule is
+   about the scroller, not the viewport. An opaque background covers the
+   scrolled-under cells; the border marks the seam (no hue-only signal,
+   UX-DR7). */
+.col-subject {
+  position: sticky;
+  right: 0;
+  background: var(--color-bg-elevated);
+  border-left: 1px solid var(--color-border);
+}
+thead .col-subject {
+  z-index: 2;
+}
+
 /* Issue 717 (D2): the demoted builder's entry point — a quiet text control at
    the end of the securities chip row, deliberately NOT a chip so it never
    reads as a tenth filter. Carries the funnel glyph per the 2026-08-05
