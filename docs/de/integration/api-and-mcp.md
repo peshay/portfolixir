@@ -450,6 +450,17 @@ Beispiel-Payloads für Konten:
   `fields=` (FR-37, kommagetrennt) wählt eine schlanke Feldauswahl je Zeile,
   validiert gegen die Feldliste des Serializers; ein unbekannter Name ist
   ein `422`.
+- `GET /api/v1/realized_gains` (Issue #724) liefert das Realisiert-Rollup des
+  Cash-flow-Bereichs: FIFO-gematchte realisierte G&V über **alle** Wertpapiere
+  und Portfolios, gruppiert nach dem **Schlussdatum** jedes Verkaufs in eine
+  Jahres-/Monatsmatrix in der Basiswährung. FX-Basis ist D-1 (signiert
+  2026-08-20): jeder Verkauf konvertiert über den **EUR-Hub** zum jüngsten
+  gespeicherten Kurs am oder vor seinem Schlussdatum; ein Verkauf **ohne**
+  gespeicherten Kurs zu diesem Datum wird **aus jeder konvertierten Summe
+  ausgeschlossen und benannt** (`excluded`: `count` + `securities`) — nie zum
+  Kurs eines Nachbardatums konvertiert, nie still verworfen. Die Payload
+  trägt `computation_basis` (Serie, Fenster, Referenz, Lücken) und eine
+  `conversion_note`; die menschliche Sicht ist `/cashflow?tab=realized`.
 - `GET /api/v1/holdings/by_security` liefert die **globale Bewertung je
   Wertpapier** über **alle** Portfolios hinweg: eine `holdings`-Zeile je aktuell
   gehaltenem Wertpapier mit `security_id` (eine Ganzzahl), Gesamt-`quantity` und
@@ -1053,6 +1064,8 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
 - `portfolixir.splits.preview`
 - `portfolixir.splits.create`
 - `portfolixir.holdings.list`
+- `portfolixir.cashflow.realized_gains` — das #724-Rollup mit erklärter
+  FX-Basis und Ausschluss-und-Benennung bei Kurslücken
 - `portfolixir.holdings.by_security`
 - `portfolixir.holdings.negative`
 - `portfolixir.holdings.reconcile` — rein lesender Vergleich einer

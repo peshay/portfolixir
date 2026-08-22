@@ -1187,6 +1187,28 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
+  # #724: the realized-gains roll-up. The FX basis (D-1) travels in the
+  # payload — computation_basis per the AGENTS.md metric rule.
+  def realized_gains(report) do
+    %{
+      base_currency: report.base_currency,
+      conversion_note: report.conversion_note,
+      computation_basis: report.computation_basis,
+      excluded: report.excluded,
+      annual:
+        Enum.map(report.annual, fn year ->
+          %{
+            year: year.year,
+            total: decimal(year.total),
+            months:
+              Map.new(year.months, fn {month, total} ->
+                {Integer.to_string(month), decimal(total)}
+              end)
+          }
+        end)
+    }
+  end
+
   def income(income) do
     %{
       portfolio_id: income.portfolio_id,

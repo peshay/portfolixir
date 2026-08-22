@@ -448,6 +448,17 @@ Example account payloads:
   `securities_account_id`. An optional `fields=` (FR-37, comma-separated)
   selects a sparse fieldset per row, validated against the serializer's own
   field list; an unknown name is a `422`.
+- `GET /api/v1/realized_gains` (issue #724) returns the Cash-flow
+  Realized-gains roll-up: FIFO-matched realized P&L across **all** securities
+  and portfolios, grouped by each sale's **close date** into an annual
+  `year → month` matrix in the base currency. The FX basis is D-1 (signed
+  2026-08-20): each sale converts through the **EUR hub** at the most recent
+  stored rate on or before its close date; a sale with **no** stored rate at
+  that date is **excluded from every converted total and named** in
+  `excluded` (`count` + `securities`) — never converted at a neighbouring
+  date's rate, never silently dropped. The payload carries
+  `computation_basis` (series, window, reference, gaps) and a
+  `conversion_note`; the human view is `/cashflow?tab=realized`.
 - `GET /api/v1/holdings/by_security` returns the **global per-security
   valuation** across **all** portfolios: one `holdings` row per currently held
   security with its `security_id` (an integer), total `quantity`, and current
@@ -1238,6 +1249,8 @@ in MCP schemas are strings.
 - `portfolixir.splits.preview`
 - `portfolixir.splits.create`
 - `portfolixir.holdings.list`
+- `portfolixir.cashflow.realized_gains` — the #724 roll-up with its stated
+  FX basis and the excluded-and-named gap treatment
 - `portfolixir.holdings.by_security`
 - `portfolixir.holdings.negative`
 - `portfolixir.holdings.reconcile` — read-only compare of a pasted external

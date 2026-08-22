@@ -1024,9 +1024,22 @@ sind — realisierte Gewinne aus Verkäufen, Ein- und Auszahlungen sowie Kosten 
 und sie unter ein Label zu stellen genau die Mehrdeutigkeit reproduziert, die
 diese Anwendung vermeiden soll. Jede Auswertung ist ein eigener benannter
 Bereich, und ein Bereich erscheint erst, wenn seine Daten existieren; nichts
-wird als leere Hülle gezeigt. **Income** ist der heute vorhandene Bereich, und
+wird als leere Hülle gezeigt. **Income** ist der Standard-Bereich, und
 `/income` funktioniert weiterhin — die Adresse leitet hierher weiter, sodass
-ältere Links und Lesezeichen erhalten bleiben.
+ältere Links und Lesezeichen erhalten bleiben. Seit Issue #724 trägt der
+Bereich einen zweistufigen Facetten-Umschalter.
+
+**Realisierte Gewinne** (`/cashflow?tab=realized`, Issue #724) beantwortet
+„was hat Verkaufen tatsächlich gebracht": FIFO-gematchte realisierte G&V über
+alle Wertpapiere, gruppiert nach dem **Schlussdatum** jedes Verkaufs in eine
+Jahres-/Monatsmatrix. Die FX-Basis steht auf der Oberfläche und reist in der
+API-Payload mit (Entscheidung D-1): jeder Verkauf konvertiert über den
+EUR-Hub zum jüngsten gespeicherten Kurs **am oder vor seinem Schlussdatum** —
+die Basis des Income-Bereichs, denn eine realisierte Zahl ist ein historischer
+Fakt an ihrem Datum. Ein Verkauf **ohne** gespeicherten Kurs zu diesem Datum
+wird **aus jeder Summe ausgeschlossen und benannt** (Achtung-Notiz mit Anzahl
+und Wertpapieren) — nie zum Kurs eines Nachbardatums konvertiert, nie still
+verworfen; das Nachpflegen des Kurses holt ihn in die Summen.
 
 Jede Kennzahl des Bereichs nennt, was sie enthält: der Income-Bereich schreibt,
 dass er *Dividenden und Zinsen* abdeckt und realisierte Gewinne, Ein- und

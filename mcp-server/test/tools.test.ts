@@ -39,6 +39,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.splits.preview",
       "portfolixir.splits.create",
       "portfolixir.holdings.list",
+      "portfolixir.cashflow.realized_gains",
       "portfolixir.holdings.by_security",
       "portfolixir.holdings.negative",
       "portfolixir.holdings.reconcile",
@@ -463,6 +464,30 @@ describe("Portfolixir MCP tools", () => {
       requests[3].path,
       "/api/v1/portfolios/3/allocation?classification_id=2&include_positions=false&min_drift=0.05"
     );
+  });
+
+  // User story (issue #724):
+  // As the operating LLM agent,
+  // I want the realized-gains roll-up as a tool,
+  // so that the figure the operator reads on the Cash-flow facet is the
+  // same figure I reason over — FX basis and exclusions included.
+  //
+  // Acceptance criteria:
+  // - cashflow.realized_gains reads GET /api/v1/realized_gains.
+  // - The description states the D-1 basis: close-date EUR-hub conversion,
+  //   unconvertible sales excluded and named.
+  it("serves the realized-gains roll-up with its stated FX basis", async () => {
+    const { client, requests } = createRecordingClient({ data: {} });
+
+    await callTool(client, "portfolixir.cashflow.realized_gains", {});
+    assert.equal(requests[0].path, "/api/v1/realized_gains");
+
+    const tools = listTools();
+    const tool = tools.find((t) => t.name === "portfolixir.cashflow.realized_gains");
+    assert.ok(tool, "cashflow.realized_gains tool missing");
+    assert.match(tool!.description ?? "", /EUR hub/);
+    assert.match(tool!.description ?? "", /excluded/i);
+    assert.match(tool!.description ?? "", /close date/i);
   });
 
   // User story (issue #732, extending FR-37):
