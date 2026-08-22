@@ -1925,13 +1925,16 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
     render_async(view)
 
-    # The category row shows the effective target (70%) and the conflict badge
-    # with its focusable UX-DR11 microcopy.
+    # The category row shows the effective target (70%); the conflict is a
+    # data note above the table (#719, D3) — the pill in the data cell is
+    # retired.
     drift_table = view |> element(".drift-table") |> render()
     assert drift_table =~ "70.0"
-    assert has_element?(view, ~s([data-role="category-target-badge"]))
-    badge = view |> element(~s([data-role="category-target-badge"])) |> render()
-    assert badge =~ "position targets"
+    refute has_element?(view, ~s([data-role="category-target-badge"]))
+    note = view |> element(~s([data-role="target-conflict-note"])) |> render()
+    assert note =~ "position targets"
+    assert note =~ "Core"
+    assert note =~ "data-note--problem"
 
     view
     |> element(~s(.drift-table [data-role="toggle-positions"]))
@@ -1970,6 +1973,70 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert flat_table =~ "not held"
     assert flat_table =~ "216.00"
     assert flat_table =~ "4.32"
+  end
+
+  # User story (issue #719, D3):
+  # As the portfolio owner reading the drift table,
+  # I want findings rendered as data notes above the table, not as pills
+  # inside data cells,
+  # so that a finding reads as a finding (UX-DR17) and the "Σ-Konflikt"
+  # jargon dies with the pill.
+  #
+  # Acceptance criteria:
+  # - A stale position target renders an attention-severity note naming the
+  #   category; the category-cell pill is gone.
+  # - An over-100 % plan renders an attention-severity note stating the sum.
+  # - No surface says "Σ conflict" any more.
+  test "stale targets and over-100% plans render as data notes, not pills", %{conn: conn} do
+    world = seed_world()
+
+    {:ok, edge} =
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: world.classification.id,
+        name: "Edge",
+        color: "#dc2626"
+      })
+
+    {:ok, _} =
+      Targets.set_targets(Actor.owner_ui(), world.portfolio.id, world.classification.id, [
+        %{
+          "category_id" => world.core.id,
+          "security_id" => world.security.id,
+          "target_weight" => "0.5"
+        }
+      ])
+
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        world.security.id,
+        world.classification.id,
+        edge.id
+      )
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+    html = render_async(view)
+
+    refute has_element?(view, ~s([data-role="category-target-badge"]))
+    refute html =~ "Σ conflict"
+
+    note = view |> element(~s([data-role="stale-target-note"])) |> render()
+    assert note =~ "Core"
+    assert note =~ "data-note--attention"
+
+    # An over-100 % plan: explicit category weights summing to 130 %.
+    {:ok, _} =
+      Targets.set_targets(Actor.owner_ui(), world.portfolio.id, world.classification.id, [
+        %{"category_id" => world.core.id, "target_weight" => "0.7"},
+        %{"category_id" => edge.id, "target_weight" => "0.6"}
+      ])
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+    render_async(view)
+
+    overshoot = view |> element(~s([data-role="plan-overshoot-note"])) |> render()
+    assert overshoot =~ "more than 100"
+    assert overshoot =~ "data-note--attention"
   end
 
   test "hides a position only when its SOLL is zero and it is not held", %{conn: conn} do

@@ -822,9 +822,11 @@ wenn ihr Soll 0 oder nicht gesetzt ist **und** ihr Bestand null ist. Die
 Ziel-Spalte der Kategorie zeigt dann das **effektive** Ziel — die Summe ihrer
 Positions-Ziele (Positionen sind die Quelle der Wahrheit); weicht das
 gespeicherte Kategorien-Gewicht ab oder ist ein Positions-Ziel veraltet (sein
-Wertpapier wurde verschoben oder die Zuordnung entfernt), erklärt ein kleines
-Badge an der Kategorie-Zeile den Grund, und die betroffene Positions-Zeile
-selbst trägt einen Chip *veraltetes Soll*. Ein gehaltenes, aber nicht
+Wertpapier wurde verschoben oder die Zuordnung entfernt), nennt eine
+**Datennotiz über der Tabelle** den Befund und die betroffenen Kategorien
+(Issue #719 — Befunde erscheinen als Notizen, nie als Pillen in Datenzellen;
+ein Konflikt mit Schweregrad Problem, ein veraltetes Ziel mit Achtung), und
+die betroffene Positions-Zeile selbst trägt einen Chip *veraltetes Soll*. Ein gehaltenes, aber nicht
 zugeordnetes Wertpapier mit einem (veralteten) Positions-Ziel zeigt dieses
 Ziel auch an seiner Zeile im Bereich *Nicht zugeordnet*. Trägt keine
 Top-Level-Kategorie ein Ziel, wohl aber tiefere Kategorien, ergänzt die
