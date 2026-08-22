@@ -3319,4 +3319,52 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert Process.alive?(view.pid)
     assert has_element?(view, "#portfolio-allocation")
   end
+
+  # User story (issue #723):
+  # As a local portfolio maintainer,
+  # I want the "computing" cue reserved for work in the seconds class (the
+  # daily performance walks),
+  # so that a sub-second figure's placeholder is the silent skeleton — at
+  # that latency a spinner-and-text cue cannot be read before it is
+  # replaced and only registers as flicker.
+  #
+  # Acceptance criteria (the measured classes are ADR-0039's 2026-08-18
+  # amendment: valuation/allocation are 100–400 ms, the walk is seconds):
+  # - Valuation-waiting slots and the allocation skeleton render pending
+  #   with NO "computing" cue.
+  # - Performance-waiting slots and the performance chart skeleton keep it.
+  test "the computing cue marks the seconds class only", %{conn: conn} do
+    seed_world()
+
+    # The dead render never starts the async loads (connected? is false), so
+    # every placeholder renders deterministically — no race with the result.
+    pending = conn |> get("/portfolio") |> html_response(200)
+
+    valuation_slots = Regex.scan(~r/<strong[^>]*data-waits="valuation".*?<\/strong>/s, pending)
+
+    performance_slots =
+      Regex.scan(~r/<strong[^>]*data-waits="performance".*?<\/strong>/s, pending)
+
+    assert valuation_slots != []
+    assert performance_slots != []
+
+    for [slot] <- valuation_slots, do: refute(slot =~ "computing")
+    for [slot] <- performance_slots, do: assert(slot =~ "computing")
+
+    assert [performance_skeleton] =
+             Regex.run(~r/<div[^>]*data-role="performance-skeleton".*?<\/div>/s, pending)
+
+    assert performance_skeleton =~ "computing"
+
+    allocation_pending =
+      Phoenix.ConnTest.build_conn() |> get("/portfolio?tab=allocation") |> html_response(200)
+
+    assert [allocation_skeleton] =
+             Regex.run(
+               ~r/<div[^>]*data-role="allocation-skeleton".*?<\/div>/s,
+               allocation_pending
+             )
+
+    refute allocation_skeleton =~ "computing"
+  end
 end
