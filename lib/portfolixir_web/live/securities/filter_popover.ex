@@ -211,6 +211,7 @@ defmodule PortfolixirWeb.Securities.FilterPopover do
 
   defp dq_label("missing_quote"), do: gettext("No quote at all")
   defp dq_label("missing_logo"), do: gettext("No logo")
+  defp dq_label("missing_fx"), do: gettext("Missing FX rate")
 
   defp operator_label(:eq), do: gettext("equals")
   defp operator_label(:neq), do: gettext("not equal")

@@ -132,6 +132,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
       )
       |> assign(:filters, parse_url_filters(params["filter"]))
       |> assign(:dq, safe_dq(params["dq"]))
+      |> assign(:cur, safe_currency_list(params["cur"]))
+      |> assign(:class, safe_class_list(params["class"]))
       |> assign(:since, ChangedSince.parse(params))
       |> clear_action_result_on_navigation()
       |> reset_logo_retry()
@@ -154,6 +156,29 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp safe_tab(tab) when is_binary(tab) and tab in @tabs, do: tab
   defp safe_tab(_), do: @default_tab
+
+  # #717 chip families: whitelisted so query params never mint atoms and
+  # junk degrades to "no chip". Currencies are matched against the catalog's
+  # own set at load time; here only the shape is enforced.
+  defp safe_currency_list(nil), do: []
+
+  defp safe_currency_list(values) do
+    values
+    |> List.wrap()
+    |> Enum.filter(&(is_binary(&1) and Regex.match?(~r/^[A-Z]{3}$/, &1)))
+    |> Enum.uniq()
+  end
+
+  defp safe_class_list(nil), do: []
+
+  defp safe_class_list(values) do
+    codes = AssetClasses.codes()
+
+    values
+    |> List.wrap()
+    |> Enum.filter(&(is_binary(&1) and &1 in codes))
+    |> Enum.uniq()
+  end
 
   defp safe_dq(dq) when dq in @dq_filters, do: dq
   defp safe_dq(_), do: nil
@@ -222,6 +247,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
       holding_status: assigns.holding_status,
       filters: assigns.filters,
       dq: assigns.dq,
+      cur: assigns.cur,
+      class: assigns.class,
       since: assigns.since && assigns.since.raw
     }
   end
@@ -260,6 +287,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
         state.holding_status != @default_holding_status && state.holding_status
       )
       |> maybe_put_param("dq", state.dq)
+      |> maybe_put_param("cur", state.cur != [] && state.cur)
+      |> maybe_put_param("class", state.class != [] && state.class)
       |> maybe_put_param("since", state.since)
       |> maybe_put_param(
         "filter",
@@ -300,25 +329,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
             />
           </form>
 
-          <div
-            id="holding-status-filter"
-            class="segmented-control"
-            role="group"
-            aria-label={gettext("Holding status")}
-          >
-            <%= for {status, label} <- holding_status_options() do %>
-              <button
-                type="button"
-                class={["segmented-control__option", @holding_status == status && "is-active"]}
-                phx-click="set_holding_status"
-                phx-value-status={status}
-                aria-pressed={@holding_status == status}
-              >
-                <%= label %>
-              </button>
-            <% end %>
-          </div>
-
           <div class="toolbar-actions">
             <button
               type="button"
@@ -346,19 +356,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
             <button
               type="button"
-              id="toggle-filter-popover"
-              class={["icon-button", @open_popover == :filter && "is-active"]}
-              phx-click="toggle_popover"
-              phx-value-popover="filter"
-              aria-label={gettext("Filter")}
-              aria-expanded={@open_popover == :filter}
-              title={gettext("Filter")}
-            >
-              <AppShell.icon name={:filter} />
-            </button>
-
-            <button
-              type="button"
               id="toggle-column-popover"
               class={["icon-button", @open_popover == :columns && "is-active"]}
               phx-click="toggle_popover"
@@ -371,13 +368,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
             </button>
 
             <div class="popover-container">
-              <%= if @open_popover == :filter do %>
-                <.live_component
-                  module={FilterPopover}
-                  id="filter-popover"
-                  dq={@dq}
-                />
-              <% end %>
               <%= if @open_popover == :columns do %>
                 <.live_component
                   module={ColumnPicker}
@@ -388,6 +378,124 @@ defmodule PortfolixirWeb.SecuritiesLive do
               <% end %>
             </div>
           </div>
+        </div>
+
+        <%!-- #717 (D2): the common filters as one-tap toggle chips; the
+             builder is demoted behind "More filters" at the end of the row.
+             Families compose AND; chips within the currency and class
+             families compose OR (the family label marks the either/or
+             groups). Every chip state rides the URL. --%>
+        <div
+          id="securities-filter-chips"
+          class="filter-chips"
+          role="group"
+          aria-label={gettext("Filter the list")}
+        >
+          <button
+            type="button"
+            id="sec-chip-held"
+            class={["filter-chip", @holding_status == "held" && "is-active"]}
+            aria-pressed={to_string(@holding_status == "held")}
+            phx-click="set_holding_status"
+            phx-value-status={if @holding_status == "held", do: "all", else: "held"}
+          >
+            <%= gettext("Held") %>
+          </button>
+          <button
+            type="button"
+            id="sec-chip-not_held"
+            class={["filter-chip", @holding_status == "not_held" && "is-active"]}
+            aria-pressed={to_string(@holding_status == "not_held")}
+            phx-click="set_holding_status"
+            phx-value-status={if @holding_status == "not_held", do: "all", else: "not_held"}
+          >
+            <%= gettext("Not held") %>
+          </button>
+          <%!-- Keyed on the STORED class (#700): the one-tap form of the
+               canonical filter[]=asset_class:is_nil URL. --%>
+          <button
+            type="button"
+            id="sec-chip-unclassified"
+            class={["filter-chip", unclassified_active?(@filters) && "is-active"]}
+            aria-pressed={to_string(unclassified_active?(@filters))}
+            phx-click="toggle_unclassified"
+          >
+            <%= gettext("Unclassified") %>
+          </button>
+          <%= for {id, label} <- dq_chip_options() do %>
+            <button
+              type="button"
+              id={"sec-chip-#{id}"}
+              class={["filter-chip", @dq == id && "is-active"]}
+              aria-pressed={to_string(@dq == id)}
+              phx-click="set_dq_chip"
+              phx-value-dq={id}
+            >
+              <%= label %>
+            </button>
+          <% end %>
+          <%= if length(@chip_currencies) > 1 do %>
+            <span class="filter-chips__family"><%= gettext("Currency") %></span>
+            <%= for currency <- @chip_currencies do %>
+              <button
+                type="button"
+                id={"sec-chip-cur-#{currency}"}
+                class={["filter-chip", currency in @cur && "is-active"]}
+                aria-pressed={to_string(currency in @cur)}
+                phx-click="toggle_chip_family"
+                phx-value-family="cur"
+                phx-value-option={currency}
+              >
+                <%= currency %>
+              </button>
+            <% end %>
+          <% end %>
+          <%= if @chip_classes != [] do %>
+            <span class="filter-chips__family"><%= gettext("Asset class") %></span>
+            <%= for code <- @chip_classes do %>
+              <button
+                type="button"
+                id={"sec-chip-class-#{code}"}
+                class={["filter-chip", code in @class && "is-active"]}
+                aria-pressed={to_string(code in @class)}
+                phx-click="toggle_chip_family"
+                phx-value-family="class"
+                phx-value-option={code}
+              >
+                <%= AssetClasses.label(code) %>
+              </button>
+            <% end %>
+          <% end %>
+          <%!-- The demoted builder (D2): a quiet control, not a tenth chip;
+               the count keeps demotion from hiding active state. --%>
+          <button
+            type="button"
+            id="more-filters-toggle"
+            class={["more-filters-link", @open_popover == :filter && "is-active"]}
+            phx-click="toggle_popover"
+            phx-value-popover="filter"
+            aria-expanded={@open_popover == :filter}
+          >
+            <AppShell.icon name={:filter} />
+            <%= gettext("More filters") %>
+            <span
+              :if={more_filters_count(@filters, @dq) > 0}
+              class="badge"
+              data-role="more-filters-count"
+            >
+              <%= more_filters_count(@filters, @dq) %>
+            </span>
+          </button>
+        </div>
+
+        <div class="popover-container">
+          <%= if @open_popover == :filter do %>
+            <.live_component
+              module={FilterPopover}
+              id="filter-popover"
+              dq={@dq}
+            />
+          <% end %>
         </div>
 
         <ChangedSince.chips id="changed-since-chips" since={@since} />
@@ -405,9 +513,15 @@ defmodule PortfolixirWeb.SecuritiesLive do
           ) %>
         </p>
 
-        <%= if @filters != [] or @dq do %>
+        <%!-- #717: only the conditions with no one-tap chip render as
+             removable chips — a condition a chip expresses (unclassified,
+             the dq trio) shows its state on that chip instead of twice.
+             `missing_logo` has no one-tap chip, so its dq state keeps the
+             removable form. The index into @filters is kept from before the
+             exclusion so removal stays exact. --%>
+        <%= if builder_filter_count(@filters) > 0 or removable_dq?(@dq) do %>
           <ul class="filter-chips" id="filter-chips" aria-label={gettext("Active filters")}>
-            <%= if @dq do %>
+            <%= if removable_dq?(@dq) do %>
               <li class="chip">
                 <span><%= dq_label(@dq) %></span>
                 <button
@@ -420,7 +534,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 </button>
               </li>
             <% end %>
-            <%= for {filter, idx} <- Enum.with_index(@filters) do %>
+            <%= for {filter, idx} <- Enum.with_index(@filters), not chip_expressible?(filter) do %>
               <li class="chip">
                 <span><%= chip_label(filter) %></span>
                 <button
@@ -2036,14 +2150,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp tab_param(tab) when tab == @default_tab, do: nil
   defp tab_param(tab), do: tab
 
-  defp holding_status_options do
-    [
-      {"all", gettext("All")},
-      {"held", gettext("Held")},
-      {"not_held", gettext("Not held")}
-    ]
-  end
-
   defp selected?(nil, _row), do: false
   defp selected?(%Security{id: id}, row), do: id == security_id(row)
 
@@ -2466,6 +2572,43 @@ defmodule PortfolixirWeb.SecuritiesLive do
            tab: :current,
            override: %{since: ChangedSince.toggle_value(socket.assigns.since, preset)}
          )
+     )}
+  end
+
+  # #717 chip handlers. Each patches the URL — the chips are one-tap forms
+  # of URL state, never socket-only state.
+  def handle_event("set_dq_chip", %{"dq" => dq}, socket) do
+    next = if socket.assigns.dq == dq, do: nil, else: safe_dq(dq)
+
+    {:noreply,
+     push_patch(socket,
+       to: securities_path(socket.assigns, tab: :current, override: %{dq: next})
+     )}
+  end
+
+  def handle_event("toggle_unclassified", _params, socket) do
+    filters =
+      if unclassified_active?(socket.assigns.filters) do
+        Enum.reject(socket.assigns.filters, &unclassified_filter?/1)
+      else
+        socket.assigns.filters ++ [%{key: :asset_class, op: :is_nil, value: false}]
+      end
+
+    {:noreply,
+     push_patch(socket,
+       to: securities_path(socket.assigns, tab: :current, override: %{filters: filters})
+     )}
+  end
+
+  def handle_event("toggle_chip_family", %{"family" => family, "option" => option}, socket)
+      when family in ["cur", "class"] do
+    key = String.to_existing_atom(family)
+    active = Map.fetch!(socket.assigns, key)
+    toggled = if option in active, do: List.delete(active, option), else: active ++ [option]
+
+    {:noreply,
+     push_patch(socket,
+       to: securities_path(socket.assigns, tab: :current, override: %{key => toggled})
      )}
   end
 
@@ -3574,6 +3717,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
       holding_status: socket.assigns.holding_status,
       filters: socket.assigns.filters,
       sort: catalog_sort(socket.assigns.sort),
+      # #717: the currency chip family — OR within the family, in the query.
+      currencies: socket.assigns.cur,
       # #731: the same `updated_at > cut` query the API's `?since=` runs —
       # one semantics, two surfaces. nil passes straight through.
       updated_since: socket.assigns.since && socket.assigns.since.cut
@@ -3590,11 +3735,25 @@ defmodule PortfolixirWeb.SecuritiesLive do
       # with the dashboard's count, so a count of N links to a list of N by
       # construction rather than by agreement.
       |> DataQuality.refine(dq)
+      # #717: the class chips filter on the EFFECTIVE class — the same value
+      # the list displays — while the Unclassified chip stays a stored-column
+      # filter (#700). In memory because the effective class is derived.
+      |> refine_by_class(socket.assigns.class)
 
     socket
     |> assign(:securities, securities)
+    |> assign(:chip_currencies, Catalog.currencies_in_use())
+    |> assign(:chip_classes, Catalog.effective_asset_classes_in_use())
     |> attach_classification_columns()
     |> apply_classification_sort()
+  end
+
+  defp refine_by_class(rows, []), do: rows
+
+  defp refine_by_class(rows, classes) do
+    Enum.filter(rows, fn row ->
+      Security.effective_asset_class(security_from_row(row)) in classes
+    end)
   end
 
   # Classification columns (#565) are resolved outside the catalog query: the
@@ -3699,4 +3858,36 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp dq_label("missing_quote"), do: gettext("No quote at all")
   defp dq_label("missing_logo"), do: gettext("No logo")
+  defp dq_label("missing_fx"), do: gettext("Missing FX rate")
+
+  # -- #717 chip helpers ------------------------------------------------------
+
+  # The chip row's data-quality trio, with the spec's short chip names
+  # (missing_logo stays a builder condition — it has its own overview entry
+  # and is not in the fixed chip set).
+  defp dq_chip_options do
+    [
+      {"stale_quote", gettext("Stale quote")},
+      {"missing_quote", gettext("No price")},
+      {"missing_fx", gettext("Missing FX")}
+    ]
+  end
+
+  defp unclassified_filter?(%{key: :asset_class, op: :is_nil}), do: true
+  defp unclassified_filter?(_filter), do: false
+
+  defp unclassified_active?(filters), do: Enum.any?(filters, &unclassified_filter?/1)
+
+  # A condition a one-tap chip expresses; everything else is the builder's,
+  # and is what the "More filters" count counts.
+  defp chip_expressible?(filter), do: unclassified_filter?(filter)
+
+  defp builder_filter_count(filters), do: Enum.count(filters, &(not chip_expressible?(&1)))
+
+  # A dq id without a one-tap chip (missing_logo) keeps the removable-chip
+  # form and counts toward "More filters" — demotion never hides state.
+  defp removable_dq?(dq), do: dq != nil and dq not in ~w(stale_quote missing_quote missing_fx)
+
+  defp more_filters_count(filters, dq),
+    do: builder_filter_count(filters) + if(removable_dq?(dq), do: 1, else: 0)
 end

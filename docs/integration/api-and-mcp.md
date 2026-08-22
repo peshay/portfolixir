@@ -81,9 +81,16 @@ full list.
   excludes rows explicitly set to no logo), `data_quality`
   (`stale_quote` — no quote newer than 7 days, **including** securities never
   priced at all; `missing_quote` — no quote at all, the narrower set inside it;
-  `missing_logo`), `projection` (`slim`/`full`), and
+  `missing_logo`; `missing_fx` — issue #717: priced, but with no stored rate
+  from its currency to the EUR hub, so storing the rate empties the set),
+  `projection` (`slim`/`full`), and
   `limit`/`offset` for pagination (both non-negative integers). Use these to
-  page large catalogs instead of fetching the whole table at once.
+  page large catalogs instead of fetching the whole table at once. The
+  **human view** of these narrowings is the one-tap filter-chip row on the
+  securities page (issue #717): its chips ride the same URL state
+  (`holding=`, `dq=`, `filter[]=asset_class:is_nil`, plus `cur[]=` and
+  `class[]=` for the currency and effective-class families), so a
+  pre-filtered link and an API read describe the same set.
 - `POST /api/v1/securities` creates a security with a `security` object.
   `asset_class` is a stable string code: `equity`, `etf`, `fund`,
   `government_bond`, `bond`, `crypto`, `commodity`, `index`, `other`, plus the

@@ -53,7 +53,9 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
       assert has_element?(view, "#securities-search-form input[name='query']")
       assert has_element?(view, "button#open-new-dialog")
-      assert has_element?(view, "button#toggle-filter-popover")
+      # #717: the builder is demoted behind "More filters" at the end of the
+      # chip row; the columns popover keeps its toolbar button.
+      assert has_element?(view, "button#more-filters-toggle")
       assert has_element?(view, "button#toggle-column-popover")
     end
 
@@ -244,23 +246,24 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       conn = put_req_header(conn, "accept-language", "de")
       {:ok, view, _html} = live(conn, "/securities")
 
-      assert has_element?(view, "#holding-status-filter button", "Alle")
-      assert has_element?(view, "#holding-status-filter button", "Im Bestand")
-      assert has_element?(view, "#holding-status-filter button", "Ohne Bestand")
+      # #717: the holding status is a pair of one-tap chips; "all" is the
+      # rest state (no chip active), reached by clicking the active chip.
+      assert has_element?(view, "#sec-chip-held", "Im Bestand")
+      assert has_element?(view, "#sec-chip-not_held", "Ohne Bestand")
 
-      view |> element("#holding-status-filter button", "Im Bestand") |> render_click()
+      view |> element("#sec-chip-held") |> render_click()
 
       assert has_element?(view, "td", "Active ETF")
       refute has_element?(view, "td", "Sold Out ETF")
       refute has_element?(view, "td", "Never Held ETF")
 
-      view |> element("#holding-status-filter button", "Ohne Bestand") |> render_click()
+      view |> element("#sec-chip-not_held") |> render_click()
 
       refute has_element?(view, "td", "Active ETF")
       assert has_element?(view, "td", "Sold Out ETF")
       assert has_element?(view, "td", "Never Held ETF")
 
-      view |> element("#holding-status-filter button", "Alle") |> render_click()
+      view |> element("#sec-chip-not_held") |> render_click()
 
       assert has_element?(view, "td", "Active ETF")
       assert has_element?(view, "td", "Sold Out ETF")
@@ -1787,7 +1790,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
         })
 
       {:ok, view, _html} = live(conn, "/securities")
-      view |> element("#toggle-filter-popover") |> render_click()
+      view |> element("#more-filters-toggle") |> render_click()
 
       view
       |> element("#securities-filter-form")
@@ -1809,7 +1812,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
     test "filter popover renders is_nil operator for asset_class field", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/securities")
-      view |> element("#toggle-filter-popover") |> render_click()
+      view |> element("#more-filters-toggle") |> render_click()
 
       html =
         view
@@ -1837,7 +1840,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       assert has_element?(view, "td", "Apple Inc.")
       assert has_element?(view, "td", "Amazon")
 
-      view |> element("#toggle-filter-popover") |> render_click()
+      view |> element("#more-filters-toggle") |> render_click()
 
       view
       |> element("#securities-filter-form")
@@ -1846,7 +1849,9 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
         "operator" => "is_nil"
       })
 
-      assert has_element?(view, "#filter-chips .chip")
+      # #717: the is_nil condition is chip-expressible — its state shows on
+      # the one-tap Unclassified chip, not as a removable chip.
+      assert view |> element("#sec-chip-unclassified") |> render() =~ ~s(aria-pressed="true")
       refute has_element?(view, "td", "Apple Inc.")
       assert has_element?(view, "td", "Amazon")
     end
@@ -2449,7 +2454,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     WorldFixtures.put_quote!(stale, Date.add(today, -30), "100")
 
     {:ok, view, _html} = live(conn, "/securities")
-    view |> element("#toggle-filter-popover") |> render_click()
+    view |> element("#more-filters-toggle") |> render_click()
 
     # Every predicate the engine defines is offered -- not a hand-kept copy.
     for id <- DataQuality.ids() do
@@ -2460,7 +2465,8 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     |> element("#securities-dq-form")
     |> render_change(%{"dq" => "stale_quote"})
 
-    assert has_element?(view, "#filter-chips .chip")
+    # #717: stale_quote has a one-tap chip; the state shows there.
+    assert view |> element("#sec-chip-stale_quote") |> render() =~ ~s(aria-pressed="true")
     assert has_element?(view, "td", "Stale AG")
     refute has_element?(view, "td", "Fresh AG")
   end

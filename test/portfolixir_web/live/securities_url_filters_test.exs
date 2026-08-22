@@ -61,7 +61,9 @@ defmodule PortfolixirWeb.SecuritiesUrlFiltersTest do
 
       assert has_element?(view, "td", "Mystery Instrument")
       refute has_element?(view, "td", "Classified Co.")
-      assert has_element?(view, "#filter-chips .chip")
+      # #717: asset_class:is_nil is chip-expressible, so its state shows on
+      # the one-tap Unclassified chip rather than as a removable chip.
+      assert view |> element("#sec-chip-unclassified") |> render() =~ ~s(aria-pressed="true")
     end
 
     test "?filter[]= with a value applies an equality filter", %{conn: conn} do
@@ -165,7 +167,8 @@ defmodule PortfolixirWeb.SecuritiesUrlFiltersTest do
       assert has_element?(view, "td", "Stale Quote Co.")
       assert has_element?(view, "td", "No Quote Co.")
       refute has_element?(view, "td", "Fresh Quote Co.")
-      assert has_element?(view, "#filter-chips .chip", "No quote in 7 days")
+      # #717: the dq trio's state shows on its one-tap chip.
+      assert view |> element("#sec-chip-stale_quote") |> render() =~ ~s(aria-pressed="true")
     end
 
     test "?dq=missing_quote lists securities with no quote at all", %{conn: conn} do

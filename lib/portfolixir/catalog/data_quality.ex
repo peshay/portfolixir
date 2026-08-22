@@ -18,6 +18,7 @@ defmodule Portfolixir.Catalog.DataQuality do
   | `stale_quote` | no quote newer than #{7} days — **including no quote at all** |
   | `missing_quote` | no quote at all |
   | `missing_logo` | no stored logo, and not deliberately locked to "no logo" |
+  | `missing_fx` | priced, but no stored rate from its currency to the base (EUR hub) |
 
   `missing_quote` is a strict subset of `stale_quote`, and that is deliberate
   rather than an oversight: the dashboard's finding has always read "without a
@@ -37,9 +38,10 @@ defmodule Portfolixir.Catalog.DataQuality do
 
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.SecurityWithMetrics
+  alias Portfolixir.Fx
 
   @stale_days 7
-  @ids ~w(stale_quote missing_quote missing_logo)
+  @ids ~w(stale_quote missing_quote missing_logo missing_fx)
 
   @doc "Every predicate id."
   @spec ids() :: [String.t()]
@@ -115,6 +117,22 @@ defmodule Portfolixir.Catalog.DataQuality do
   # this module exists to remove.
   def refine(rows, "missing_logo", _today), do: rows
 
+  # #717: "Missing FX" is about the RATE, not the currency — a priced row
+  # whose currency has no stored path to the EUR hub. The rated set is loaded
+  # once per call; `Fx.hub_rates/1` answers the hub itself with 1, so EUR
+  # rows are never in this set.
+  def refine(rows, "missing_fx", _today) do
+    rated =
+      rows
+      |> Enum.map(&currency_of/1)
+      |> Enum.uniq()
+      |> Fx.hub_rates()
+
+    Enum.filter(rows, fn row ->
+      not is_nil(latest_price_date(row)) and not Map.has_key?(rated, currency_of(row))
+    end)
+  end
+
   def refine(rows, id, today) when id in @ids do
     today = today || Date.utc_today()
     Enum.filter(rows, &matches?(&1, id, today))
@@ -131,4 +149,8 @@ defmodule Portfolixir.Catalog.DataQuality do
 
   defp latest_price_date(%{metrics: %{latest_price_date: date}}), do: date
   defp latest_price_date(_row), do: nil
+
+  defp currency_of(%{security: %{currency_code: currency}}), do: currency
+  defp currency_of(%{currency_code: currency}), do: currency
+  defp currency_of(_row), do: nil
 end

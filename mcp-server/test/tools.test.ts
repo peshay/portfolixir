@@ -278,7 +278,9 @@ describe("Portfolixir MCP tools", () => {
   // told how many there are.
   //
   // Acceptance criteria:
-  // - The tool exposes exactly the three predicates the engine defines.
+  // - The tool exposes exactly the predicates the engine defines — since
+  //   #717 that includes missing_fx (priced, but no stored rate to the
+  //   base currency).
   // - It forwards the choice to the API rather than filtering client-side.
   // - Its description says what "stale" means, so an agent needs no second
   //   call to find out.
@@ -289,7 +291,8 @@ describe("Portfolixir MCP tools", () => {
     assert.deepEqual(securitiesList?.inputSchema.properties.data_quality.enum, [
       "stale_quote",
       "missing_quote",
-      "missing_logo"
+      "missing_logo",
+      "missing_fx"
     ]);
 
     // The threshold and the stale/missing distinction travel with the tool.

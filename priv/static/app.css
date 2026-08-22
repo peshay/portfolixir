@@ -4482,6 +4482,30 @@ details[open] > .disclosure-summary .disclosure-chevron {
   margin-bottom: var(--space-3);
 }
 
+/* Issue 717 (D2): the demoted builder's entry point — a quiet text control at
+   the end of the securities chip row, deliberately NOT a chip so it never
+   reads as a tenth filter. Carries the funnel glyph per the 2026-08-05
+   naming decision, and a count badge whenever the builder holds conditions
+   the chips cannot express. */
+.more-filters-link {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 4px 8px;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  scroll-snap-align: start;
+}
+.more-filters-link:hover,
+.more-filters-link.is-active {
+  color: var(--color-text);
+}
+
 /* Transaction overview: filter row + per-type summary header (issue 414). */
 .transaction-filters {
   display: flex;
