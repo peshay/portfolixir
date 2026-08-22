@@ -148,26 +148,50 @@ Der Filterzustand der Wertpapierliste liegt in der URL; jede gefilterte
 Ansicht lässt sich als Lesezeichen speichern oder verlinken:
 
 - `?q=…` — der Suchbegriff.
-- `?holding=held|not_held` — der Bestandsstatus-Umschalter.
+- `?holding=held|not_held` — der Bestandsstatus (die Chips *Im Bestand* /
+  *Ohne Bestand*).
 - `?filter[]=spalte:operator[:wert]` — ein oder mehrere Spaltenfilter, z. B.
   `?filter[]=asset_class:is_nil` (unklassifizierte Wertpapiere) oder
   `?filter[]=currency_code:eq:USD`. Die Operatoren entsprechen dem
   Filter-Popover; unbekannte Spalten oder Operatoren werden verworfen.
+- `?cur[]=EUR&cur[]=USD` — die Währungs-Chips; mehrere kombinieren als
+  Entweder-oder.
+- `?class[]=etf` — die Anlageklassen-Chips, geschlüsselt auf die
+  **effektive** Klasse (gespeichert oder abgeleitet), sie wählen also, was
+  die Liste anzeigt.
 - `?since=<ISO8601>` — der **Geändert-seit**-Schnitt (siehe unten); die Chips
   *Heute / 7 Tage / 30 Tage* schreiben hier ein konkretes ISO-Datum, sodass
   der Link bedeutet, was er beim Teilen bedeutete.
-- `?dq=stale_quote|missing_quote|missing_logo` — die
+- `?dq=stale_quote|missing_quote|missing_logo|missing_fx` — die
   Datenqualitäts-Schnellfilter: kein Kurs in den letzten 7 Tagen (inklusive
-  „gar kein Kurs"), gar kein Kurs, und kein hinterlegtes Logo. Der aktive
-  Schnellfilter erscheint als entfernbarer Filter-Chip, und dieselben drei
-  Bedingungen sind im Filter-Bedienelement unter **Datenqualität** direkt
-  wählbar — der Link von der Übersicht ist eine Abkürzung dorthin, nicht der
-  einzige Weg. Der Agent fragt genau dieselben Mengen über
+  „gar kein Kurs"), gar kein Kurs, kein hinterlegtes Logo, und — Issue #717 —
+  *Kein Wechselkurs*: bepreist, aber ohne gespeicherten Kurs von seiner
+  Währung zur Basiswährung; das Speichern des Kurses leert die Menge.
+  Dieselben Bedingungen sind im Filter-Bedienelement unter **Datenqualität**
+  direkt wählbar — der Link von der Übersicht ist eine Abkürzung dorthin,
+  nicht der einzige Weg. Der Agent fragt genau dieselben Mengen über
   `GET /api/v1/securities?data_quality=…` und das Werkzeug
   `portfolixir.securities.list` ab; alle beruhen auf einer Definition, sodass
   eine Zahl N immer eine Liste von N adressiert.
 
-Suchen, Bestandsstatus wechseln oder Filter anwenden aktualisiert die URL;
+**Die häufigen Filter sind One-Tap-Chips** (Issue #717): eine feste, benannte
+Zeile über der Tabelle — *Im Bestand · Ohne Bestand · Ohne Anlageklasse ·
+Kurs veraltet · Kein Kurs · Kein Wechselkurs*, dazu je ein Chip pro genutzter
+Währung und Anlageklasse. Chips sind Schalter; verschiedene Familien
+kombinieren als UND, mehrere Chips der Währungs- oder Klassenfamilie als
+Entweder-oder. Zwei davon tragen eine bewusste Unterscheidung: **Ohne
+Anlageklasse** ist auf die *gespeicherte* Klasse geschlüsselt (eine nur
+abgeleitete Klasse zählt weiter als unklassifiziert, denn eine Ableitung ist
+eine Vermutung, kein festgehaltener Fakt), während die
+**Anlageklassen-Chips** auf die *effektive* Klasse geschlüsselt sind — sie
+wählen genau, was die Liste anzeigt. Der generische
+Spalte/Operator/Wert-Baukasten ist hinter **Weitere Filter** am Ende der
+Zeile zurückgestuft; er kann weiterhin alles ausdrücken, was er vorher
+konnte, und trägt eine Anzahl, sobald er Bedingungen hält, die die Chips
+nicht ausdrücken können — ein zurückgestuftes Bedienelement verbirgt nie
+aktiven Zustand.
+
+Suchen, einen Chip schalten oder Filter anwenden aktualisiert die URL;
 die Auswahl eines Wertpapiers behält die aktiven Filter bei. Die
 Datenqualitätszeile der Übersicht verlinkt mit vorangewendetem Filter
 hierher.

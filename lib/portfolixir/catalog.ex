@@ -6,6 +6,7 @@ defmodule Portfolixir.Catalog do
 
   alias Ecto.Multi
   alias Portfolixir.Actor
+  alias Portfolixir.Catalog.AssetClasses
   alias Portfolixir.Catalog.IdentifierAlias
   alias Portfolixir.Catalog.IdentifierAliases
   alias Portfolixir.Catalog.LogoDiscovery
@@ -44,10 +45,53 @@ defmodule Portfolixir.Catalog do
     |> apply_holding_status(opts[:holding_status])
     |> apply_logo_status(opts[:logo_status])
     |> apply_updated_since(opts[:updated_since])
+    |> apply_currencies(opts[:currencies])
     |> apply_sort(db_sort_or_default(sort))
     |> apply_limit(opts[:limit])
     |> apply_offset(opts[:offset])
     |> Repo.all()
+  end
+
+  # #717: the currency chips compose OR within their family, which a list of
+  # `currency_code:eq` filters cannot express (filters AND together).
+  defp apply_currencies(query, nil), do: query
+  defp apply_currencies(query, []), do: query
+
+  defp apply_currencies(query, currencies) when is_list(currencies),
+    do: from(s in query, where: s.currency_code in ^currencies)
+
+  @doc "The distinct currencies the catalog uses, sorted (#717 chip family)."
+  def currencies_in_use do
+    Repo.all(
+      from(s in Security, distinct: true, select: s.currency_code, order_by: s.currency_code)
+    )
+  end
+
+  @doc """
+  The distinct EFFECTIVE asset classes in use, in the classes' canonical
+  order (#717 chip family). Effective — stored or inferred — because the
+  chips must agree with what the list displays (`effective_asset_class/1`),
+  while the Unclassified chip stays keyed on the stored column (#700).
+  """
+  def effective_asset_classes_in_use do
+    in_use =
+      Repo.all(
+        from(s in Security,
+          select: %Security{
+            id: s.id,
+            name: s.name,
+            isin: s.isin,
+            ticker_symbol: s.ticker_symbol,
+            asset_class: s.asset_class,
+            attributes: s.attributes
+          }
+        )
+      )
+      |> Enum.map(&Security.effective_asset_class/1)
+      |> Enum.reject(&is_nil/1)
+      |> MapSet.new()
+
+    Enum.filter(AssetClasses.codes(), &(&1 in in_use))
   end
 
   # Delta reads (FR-38, #666): rows created or updated strictly after the

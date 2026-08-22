@@ -130,27 +130,47 @@ The securities list's filter state lives in the URL, so any filtered view can
 be bookmarked or linked to:
 
 - `?q=…` — the search query.
-- `?holding=held|not_held` — the holding-status toggle.
+- `?holding=held|not_held` — the holding status (the *Held* / *Not held*
+  chips).
 - `?filter[]=column:operator[:value]` — one or more column filters, e.g.
   `?filter[]=asset_class:is_nil` (unclassified securities) or
   `?filter[]=currency_code:eq:USD`. Operators match the filter popover's
   set; unknown columns or operators are dropped.
+- `?cur[]=EUR&cur[]=USD` — the currency chips; several compose as
+  either/or.
+- `?class[]=etf` — the asset-class chips, keyed on the **effective** class
+  (stored or inferred), so they select what the list displays.
 - `?since=<ISO8601>` — the **Changed since** cut (see below); the *Today /
   7 days / 30 days* chips write a concrete ISO date here, so the link keeps
   meaning what it meant when it was shared.
-- `?dq=stale_quote|missing_quote|missing_logo` — the data-quality shortcut
-  filters: no quote in the last 7 days (including none at all), no quote at
-  all, and no stored logo. The active shortcut appears as a removable filter
-  chip, and the same three conditions can be picked directly in the filter
+- `?dq=stale_quote|missing_quote|missing_logo|missing_fx` — the data-quality
+  shortcut filters: no quote in the last 7 days (including none at all), no
+  quote at all, no stored logo, and — issue #717 — *Missing FX*: priced, but
+  with no stored rate from its currency to the base currency, so storing the
+  rate empties the set. The same conditions can be picked in the filter
   control under **Data quality** — the dashboard link is a shortcut to them,
   not the only way in. The agent asks for the identical sets over
   `GET /api/v1/securities?data_quality=…` and the `portfolixir.securities.list`
   tool; all of them are one definition, so a count of N always addresses a list
   of N.
 
-Searching, switching the holding status, or applying a filter updates the URL
-in place, and selecting a security keeps the active filters. The Overview
-data-quality line links here with the matching filter pre-applied.
+**The common filters are one-tap chips** (issue #717): a fixed, named row
+above the table — *Held · Not held · Unclassified · Stale quote · No price ·
+Missing FX*, then one chip per currency and per asset class in use. Chips
+are toggles; different families combine as AND, several chips within the
+currency or class family combine as either/or. Two of them encode a
+deliberate distinction: **Unclassified** is keyed on the *stored* class (a
+row whose class is merely inferred still counts as unclassified, because an
+inference is a guess, not a stated fact), while the **asset-class chips**
+are keyed on the *effective* class, so they select exactly what the list
+displays. The generic column/operator/value builder is demoted behind
+**More filters** at the end of the row; it still expresses everything it
+could before, and it carries a count whenever it holds conditions the chips
+cannot express — a demoted control never hides active state.
+
+Searching, toggling a chip, or applying a filter updates the URL in place,
+and selecting a security keeps the active filters. The Overview data-quality
+line links here with the matching filter pre-applied.
 
 **Changed since** (issue #731) answers "what moved lately?" from the same cut
 the agent polls with: the chips narrow the list to securities created or

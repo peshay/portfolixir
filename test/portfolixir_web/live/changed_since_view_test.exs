@@ -129,8 +129,9 @@ defmodule PortfolixirWeb.ChangedSinceViewTest do
     assert note =~ "2026-02-01"
     assert note =~ "Deletions are not shown"
 
-    # The cut is URL state: another patching interaction keeps it.
-    view |> element("#holding-status-filter button", "All") |> render_click()
+    # The cut is URL state: another patching interaction (a #717 filter
+    # chip) keeps it.
+    view |> element("#sec-chip-held") |> render_click()
     path = assert_patch(view)
     assert path =~ "since=2026-02-01"
   end

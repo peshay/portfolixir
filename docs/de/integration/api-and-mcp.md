@@ -73,9 +73,18 @@ verengen, was der Betreiber sieht.
   unbekannter Name ist ein `422`, nie ein stiller Fallback.
   Optionale Query-Parameter:
   `query`, `sort`, `direction`, holding_status (`all`, `held` oder `not_held`),
-  `projection` (`slim`/`full`) und `limit`/`offset` zur Paginierung (beides
-  nichtnegative Ganzzahlen). Nutze diese, um große Kataloge zu paginieren,
-  statt die ganze Tabelle auf einmal zu holen.
+  `data_quality` (`stale_quote` — kein Kurs neuer als 7 Tage, **einschließlich**
+  nie bepreister Wertpapiere; `missing_quote` — gar kein Kurs, die engere Menge
+  darin; `missing_logo`; `missing_fx` — Issue #717: bepreist, aber ohne
+  gespeicherten Kurs von seiner Währung zum EUR-Hub, das Speichern des Kurses
+  leert also die Menge), `projection` (`slim`/`full`) und `limit`/`offset` zur
+  Paginierung (beides nichtnegative Ganzzahlen). Nutze diese, um große
+  Kataloge zu paginieren, statt die ganze Tabelle auf einmal zu holen. Die
+  **menschliche Sicht** dieser Verengungen ist die One-Tap-Chipzeile auf der
+  Wertpapierseite (Issue #717): ihre Chips fahren auf demselben URL-Zustand
+  (`holding=`, `dq=`, `filter[]=asset_class:is_nil`, plus `cur[]=` und
+  `class[]=` für die Währungs- und Effektivklassen-Familien), sodass ein
+  vorgefilterter Link und ein API-Read dieselbe Menge beschreiben.
 - `POST /api/v1/securities` legt ein Wertpapier mit einem `security`-Objekt an.
   `asset_class` ist ein stabiler String-Code: `equity`, `etf`, `fund`,
   `government_bond`, `bond`, `crypto`, `commodity`, `index`, `other`, plus die

@@ -1805,7 +1805,7 @@ const reconcileZ = z.object({
 });
 
 const toolDefinitions: ToolDefinition[] = [
-  tool("portfolixir.securities.list", "List securities", "List local securities. Rows default to a slim projection (id, name, ticker_symbol, isin, wkn, currency_code, asset_class) to keep responses small; pass projection=full only when you need notes, feed config, attributes or timestamps. Optional fields (#732, extending FR-37) selects a sparse fieldset from the FULL projection's field list — each row then carries exactly those fields, and a present fields supersedes projection entirely (a sparse fieldset IS a projection). Use limit/offset to page large catalogs. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only rows created or updated strictly after that instant return, and the response carries as_of (use it as the next since) plus a delta_note — deletions are NOT represented, so a sync that must detect deletions does a full read. Pull-only; there is no push delivery. Optional data_quality narrows to one of the catalog's data-quality sets — stale_quote (no quote newer than 7 days, INCLUDING never-priced securities), missing_quote (no quote at all, the narrower set inside it), missing_logo (no stored logo and not deliberately locked to none). These are the same predicates the dashboard counts and the securities page links to, so a count of N addresses a list of N; combine with query/holding_status to narrow further.", {
+  tool("portfolixir.securities.list", "List securities", "List local securities. Rows default to a slim projection (id, name, ticker_symbol, isin, wkn, currency_code, asset_class) to keep responses small; pass projection=full only when you need notes, feed config, attributes or timestamps. Optional fields (#732, extending FR-37) selects a sparse fieldset from the FULL projection's field list — each row then carries exactly those fields, and a present fields supersedes projection entirely (a sparse fieldset IS a projection). Use limit/offset to page large catalogs. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only rows created or updated strictly after that instant return, and the response carries as_of (use it as the next since) plus a delta_note — deletions are NOT represented, so a sync that must detect deletions does a full read. Pull-only; there is no push delivery. Optional data_quality narrows to one of the catalog's data-quality sets — stale_quote (no quote newer than 7 days, INCLUDING never-priced securities), missing_quote (no quote at all, the narrower set inside it), missing_logo (no stored logo and not deliberately locked to none), missing_fx (#717: priced, but no stored rate from its currency to the EUR hub — storing the rate empties the set). These are the same predicates the dashboard counts and the securities page links to, so a count of N addresses a list of N; combine with query/holding_status to narrow further.", {
     type: "object",
     additionalProperties: false,
     properties: {
@@ -1813,7 +1813,7 @@ const toolDefinitions: ToolDefinition[] = [
       sort: { type: "string" },
       direction: { type: "string", enum: ["asc", "desc"] },
       holding_status: { type: "string", enum: ["held", "not_held", "all"] },
-      data_quality: { type: "string", enum: ["stale_quote", "missing_quote", "missing_logo"] },
+      data_quality: { type: "string", enum: ["stale_quote", "missing_quote", "missing_logo", "missing_fx"] },
       projection: { type: "string", enum: ["slim", "full"] },
       fields: { type: "array", items: { type: "string", enum: [...securityFieldNames] } },
       limit: { type: "integer", minimum: 0 },
@@ -1825,7 +1825,7 @@ const toolDefinitions: ToolDefinition[] = [
     sort: optionalString(),
     direction: z.enum(["asc", "desc"]).optional(),
     holding_status: z.enum(["held", "not_held", "all"]).optional(),
-    data_quality: z.enum(["stale_quote", "missing_quote", "missing_logo"]).optional(),
+    data_quality: z.enum(["stale_quote", "missing_quote", "missing_logo", "missing_fx"]).optional(),
     projection: z.enum(["slim", "full"]).optional(),
     fields: z.array(z.enum(securityFieldNames)).optional(),
     limit: z.number().int().min(0).optional(),
