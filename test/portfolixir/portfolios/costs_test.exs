@@ -98,13 +98,14 @@ defmodule Portfolixir.Portfolios.CostsTest do
     assert report.excluded.count == 1
     assert report.excluded.currencies == ["GBP"]
 
-    # Storing the rate brings it in.
+    # Storing the rate FOR THAT COST'S OWN DATE brings it in; a rate stored
+    # for 2026-04-01 would not, which is the point of the basis.
     {:ok, _} =
       Fx.upsert_many([
         %{
           base_currency: "EUR",
           quote_currency: "GBP",
-          date: ~D[2026-04-01],
+          date: ~D[2026-04-02],
           rate: "0.80",
           source: "manual"
         }

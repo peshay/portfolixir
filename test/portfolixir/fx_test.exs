@@ -143,4 +143,50 @@ defmodule Portfolixir.FxTest do
   test "upsert_many/1 is a no-op for an empty batch" do
     assert {:ok, 0} = Fx.upsert_many([])
   end
+
+  # User story (#724, D-1 signed 2026-08-20 -- risk-tier verification pass on
+  # the invariant at stake, per ADR-0036 step 2):
+  # As a local portfolio maintainer reading a realized-gains figure,
+  # I want a conversion that refuses a neighbouring date's rate,
+  # so that a historical fact tied to its booking date is either converted at
+  # that date or excluded and named -- never quietly valued at another day's
+  # rate, which is a wrong number wearing the right units.
+  #
+  # Acceptance criteria:
+  # - convert_on/4 uses the rate stored on exactly that date.
+  # - convert_on/4 returns {:error, :no_rate} for a date with no stored row,
+  #   even when an earlier row exists (where convert/4 would succeed).
+  # - rate_on/3 is the identity for a same-currency pair with no stored rate.
+  # - GBX still resolves as GBP x 100 on the exact-date path.
+  test "convert_on/4 uses the rate of exactly that date" do
+    {:ok, _} = Fx.upsert_many([rate("USD", "1.25", ~D[2026-06-04])])
+
+    assert {:ok, converted} = Fx.convert_on(d("100"), "EUR", "USD", ~D[2026-06-04])
+    assert Decimal.equal?(converted, d("125.00"))
+  end
+
+  test "convert_on/4 refuses a neighbouring date's rate where convert/4 accepts it" do
+    {:ok, _} = Fx.upsert_many([rate("USD", "1.25", ~D[2026-06-04])])
+
+    # convert/4 values at the most recent rate on or before -- right for a
+    # valuation, wrong for a booking-date figure.
+    assert {:ok, fallback} = Fx.convert(d("100"), "EUR", "USD", ~D[2026-06-05])
+    assert Decimal.equal?(fallback, d("125.00"))
+
+    assert {:error, :no_rate} = Fx.convert_on(d("100"), "EUR", "USD", ~D[2026-06-05])
+    assert {:error, :no_rate} = Fx.rate_on("EUR", "USD", ~D[2026-06-03])
+  end
+
+  test "rate_on/3 is the identity for a same-currency pair and handles GBX" do
+    assert {:ok, identity} = Fx.rate_on("USD", "USD", ~D[2026-06-04])
+    assert Decimal.equal?(identity, d("1"))
+
+    {:ok, _} = Fx.upsert_many([rate("GBP", "0.8", ~D[2026-06-04])])
+
+    # 1 EUR = 0.8 GBP = 80 GBX.
+    assert {:ok, gbx} = Fx.rate_on("EUR", "GBX", ~D[2026-06-04])
+    assert Decimal.equal?(gbx, d("80.0"))
+
+    assert {:error, :no_rate} = Fx.rate_on("EUR", "GBX", ~D[2026-06-05])
+  end
 end

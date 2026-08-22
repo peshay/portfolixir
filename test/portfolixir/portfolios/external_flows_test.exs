@@ -65,13 +65,15 @@ defmodule Portfolixir.Portfolios.ExternalFlowsTest do
         currency_code: "USD"
       })
 
-    # 1 EUR = 1.25 USD stored before the booking date → 125 USD = 100 EUR.
+    # 1 EUR = 1.25 USD stored on the flow's OWN booking date → 125 USD =
+    # 100 EUR. A rate from an earlier day would leave the flow excluded and
+    # named: the Cash-flow area converts on the date itself or not at all.
     {:ok, _} =
       Fx.upsert_many([
         %{
           base_currency: "EUR",
           quote_currency: "USD",
-          date: ~D[2026-02-01],
+          date: ~D[2026-02-10],
           rate: "1.25",
           source: "manual"
         }

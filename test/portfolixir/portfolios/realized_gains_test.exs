@@ -1,8 +1,8 @@
 defmodule Portfolixir.Portfolios.RealizedGainsTest do
   # Issue #724 (risk-tier; FX basis D-1, signed 2026-08-20 on PR #734):
   # the Realized-gains facet's cross-security read. Each sale converts to the
-  # base currency through the EUR hub at the most recent stored rate ON OR
-  # BEFORE its close date (the Income facet's basis); a sale whose
+  # base currency through the EUR hub at the rate stored on ITS OWN close
+  # date; a sale whose
   # booking-date rate is not stored is EXCLUDED from the converted totals
   # and NAMED — never converted at a neighbouring date's rate, never
   # silently dropped (the ADR-0041 excluded-and-named shape).
@@ -65,13 +65,15 @@ defmodule Portfolixir.Portfolios.RealizedGainsTest do
       currency: "USD"
     )
 
-    # 1 EUR = 1.25 USD, stored BEFORE the close date — at-or-before applies.
+    # 1 EUR = 1.25 USD, stored on the sale's OWN close date. D-1 admits no
+    # other date: a rate from 2026-03-15 would leave this sale excluded and
+    # named rather than valued at a neighbouring day's rate.
     {:ok, _} =
       Fx.upsert_many([
         %{
           base_currency: "EUR",
           quote_currency: "USD",
-          date: ~D[2026-03-15],
+          date: ~D[2026-03-20],
           rate: "1.25",
           source: "manual"
         }
@@ -157,5 +159,56 @@ defmodule Portfolixir.Portfolios.RealizedGainsTest do
 
     assert report.excluded.count == 1
     assert report.excluded.securities == ["Pound Equity"]
+  end
+
+  # D-1 (signed 2026-08-20), the rate-availability clause verbatim:
+  # "a sale whose booking-date rate is not stored is excluded from the
+  # converted total and named on the surface (count + securities), NEVER
+  # converted at a neighboring date's rate and never silently dropped."
+  test "a sale whose OWN booking date has no stored rate is excluded, not valued at an earlier rate" do
+    world = WorldFixtures.base_world(currency: "EUR")
+    today = Date.utc_today()
+
+    {:ok, _} =
+      Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: Date.add(today, -10),
+          rate: "2",
+          source: "manual"
+        }
+      ])
+
+    dollar = WorldFixtures.create_security!(name: "Dollar ETF", ticker: "USE", currency: "USD")
+
+    usd =
+      WorldFixtures.add_depot(world.portfolio,
+        currency: "USD",
+        cash_name: "USD Cash",
+        depot_name: "USD Depot"
+      )
+
+    usd_world = %{portfolio: world.portfolio, depot: usd.depot, cash: usd.cash}
+
+    WorldFixtures.buy!(usd_world, dollar,
+      quantity: "10",
+      price: "100",
+      date: Date.add(today, -100),
+      currency: "USD"
+    )
+
+    # Sold on a date with NO stored rate. The only stored rate is 10 days ago.
+    WorldFixtures.sell!(usd_world, dollar,
+      quantity: "10",
+      price: "120",
+      date: Date.add(today, -5),
+      currency: "USD"
+    )
+
+    report = RealizedGains.report(base_currency: "EUR")
+
+    assert report.excluded.count == 1,
+           "D-1: the sale must be excluded and named, not converted at the -10d rate"
   end
 end

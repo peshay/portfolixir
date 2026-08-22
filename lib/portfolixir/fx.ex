@@ -236,6 +236,55 @@ defmodule Portfolixir.Fx do
     end
   end
 
+  @doc """
+  Converts `amount` using the rate stored on **exactly** `date`.
+
+  `convert/4` values at the most recent rate on or before the date, which is
+  right for a valuation: yesterday's rate is the best estimate of today's when
+  today has none. It is wrong for a figure that must be *auditable against its
+  own booking date* — realized gains (#724, D-1): valuing a sale at a
+  neighbouring date's rate produces a wrong number wearing the right units.
+  A caller that must not do that asks for this one and handles `:no_rate` by
+  excluding and naming the row.
+  """
+  @spec convert_on(Decimal.t(), String.t(), String.t(), Date.t()) ::
+          {:ok, Decimal.t()} | {:error, :no_rate}
+  def convert_on(%Decimal{} = amount, from, to, %Date{} = date) do
+    with {:ok, rate} <- rate_on(from, to, date) do
+      {:ok, Decimal.mult(amount, rate)}
+    end
+  end
+
+  @doc """
+  The rate on **exactly** `date`, triangulated through EUR. Never falls back
+  to an earlier date; `{:error, :no_rate}` when either leg has no row for
+  that day.
+  """
+  @spec rate_on(String.t(), String.t(), Date.t()) :: {:ok, Decimal.t()} | {:error, :no_rate}
+  def rate_on(from, to, %Date{} = _date) when from == to, do: {:ok, @one}
+
+  def rate_on(from, to, %Date{} = date) do
+    with {:ok, from_rate} <- eur_rate_on(from, date),
+         {:ok, to_rate} <- eur_rate_on(to, date) do
+      {:ok, Decimal.div(to_rate, from_rate)}
+    end
+  end
+
+  defp eur_rate_on(@hub, _date), do: {:ok, @one}
+
+  defp eur_rate_on("GBX", date) do
+    with {:ok, gbp} <- eur_rate_on("GBP", date) do
+      {:ok, Decimal.mult(gbp, @gbx_per_gbp)}
+    end
+  end
+
+  defp eur_rate_on(ccy, date) do
+    case Repo.get_by(ExchangeRate, base_currency: @hub, quote_currency: ccy, date: date) do
+      %ExchangeRate{rate: rate} -> {:ok, rate}
+      nil -> {:error, :no_rate}
+    end
+  end
+
   # Units of `ccy` per 1 EUR, the hub-relative rate everything triangulates on.
   defp eur_rate(@hub, _date), do: {:ok, @one}
 
