@@ -561,7 +561,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                             account, so the column appears exactly when the
                             chips narrow to one and not before — never via the
                             picker. --%>
-                      <th :if={@balance_account}>
+                      <th :if={@balance_account} class="col-subject">
                         <%= gettext("Balance") %>
                         <small><%= @balance_account.currency_code %></small>
                       </th>
@@ -607,7 +607,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                                 <td><%= tx_cell(transaction, key) %></td>
                             <% end %>
                           <% end %>
-                          <td :if={@balance_account} class="numeric" data-role="running-balance">
+                          <td :if={@balance_account} class="numeric col-subject" data-role="running-balance">
                             <%!-- Absent, never repeated: a row that does not
                                   move this account carries no balance, because
                                   the previous row's figure would read as

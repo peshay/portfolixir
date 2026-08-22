@@ -1975,6 +1975,32 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert flat_table =~ "4.32"
   end
 
+  # User story (issue #730, Sprint 7 UAT walkthrough at 390 px):
+  # As a phone user who just summoned a column,
+  # I want that column on screen at the moment I asked for it,
+  # so that the drift table's Drift — and the history's Saldo — never sit
+  # 300 px of sideways scrolling away.
+  #
+  # Acceptance criteria:
+  # - The Drift header and cells carry `col-subject`, whose stylesheet rule
+  #   pins them to the right edge of the table's own scroller.
+  test "the drift column is the pinned subject column (col-subject)", %{conn: conn} do
+    seed_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+    render_async(view)
+
+    table = view |> element(".drift-table") |> render()
+    assert table =~ ~s(class="num col-subject")
+    assert table =~ "col-subject"
+
+    app_css = File.read!("priv/static/app.css")
+    rule = Regex.run(~r/\.col-subject \{[^}]*\}/s, app_css) |> hd()
+    assert rule =~ "position: sticky"
+    assert rule =~ "right: 0"
+    assert rule =~ "background"
+  end
+
   # User story (issue #719, D3):
   # As the portfolio owner reading the drift table,
   # I want findings rendered as data notes above the table, not as pills

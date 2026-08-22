@@ -1138,3 +1138,30 @@ Concretely, per surface:
 
 Pinned by `portfolio_live_test.exs` ("the computing cue marks the seconds
 class only") over the deterministic dead render.
+
+## Amendment 2026-08-22 — the subject column stays reachable (#730)
+
+The Sprint 7 walkthrough at 390 px found both wide tables putting the figure
+the operator just asked for at the far right of their own scroller: narrowing
+to one account summons the history's **Saldo** column as the seventh of
+seven; picking a drift chip narrows rows by **Drift**, the last column.
+Containment was correct (each table owns its scroller, UX-DR15); priority
+was not.
+
+**Decided (designer): a surface's SUBJECT column — the one the surface's
+interaction is about — pins to the right edge of its own scroller**
+(`.col-subject`: `position: sticky; right: 0`, opaque background, a border
+for the seam). The middle columns scroll beneath it, so the summoned figure
+is on screen at the moment it is asked for, at every width — sticky is inert
+while the table fits, which is why the rule needs no media query.
+
+The issue's draft wording ("the subject column *sorts before* its context
+columns under narrow width") was deliberately not taken: CSS cannot reorder
+table columns, so a sort-order fix would mean markup that reshuffles when a
+chip toggles — a jumping table — or a second, narrow-width column set that
+hides data. Pinning keeps one column order and hides nothing.
+
+Applied to: the transaction history's Balance column (when summoned) and the
+allocation drift table's Drift column (header, category, position, cash and
+unassigned cells). The flat positions table keeps its order — its Drift is
+followed by the Hint column, which is part of the same subject.
