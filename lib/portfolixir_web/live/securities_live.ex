@@ -27,6 +27,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Portfolios.Valuation
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.ChangedSince
+  alias PortfolixirWeb.ClassificationName
   alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.Securities.ColumnPicker
@@ -1745,7 +1746,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         <%= for entry <- @classifications do %>
           <li class="security-classification">
             <div class="sc-head">
-              <span class="sc-name"><%= entry.classification.name %></span>
+              <span class="sc-name"><%= ClassificationName.display(entry.classification) %></span>
               <%= unless entry.editable do %>
                 <span class="badge"><%= gettext("Built-in") %></span>
               <% end %>
@@ -2219,10 +2220,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
     end
   end
 
-  defp classification_column_label(classification, _level, 1), do: classification.name
+  defp classification_column_label(classification, _level, 1),
+    do: ClassificationName.display(classification)
 
   defp classification_column_label(classification, level, _levels) do
-    gettext("%{name} (level %{level})", name: classification.name, level: level)
+    gettext("%{name} (level %{level})",
+      name: ClassificationName.display(classification),
+      level: level
+    )
   end
 
   defp column_key_string(key) when is_atom(key), do: Atom.to_string(key)

@@ -28,6 +28,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias Portfolixir.Portfolios.Valuation
   alias Portfolixir.Settings
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.ClassificationName
   alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.Format
   import PortfolixirWeb.ViewSwitcher
@@ -1234,7 +1235,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                 <select id="allocation-classification" name="classification_id">
                   <%= for classification <- @classifications do %>
                     <option value={classification.id} selected={classification.id == @classification_id}>
-                      <%= classification.name %>
+                      <%= ClassificationName.display(classification) %>
                     </option>
                   <% end %>
                 </select>

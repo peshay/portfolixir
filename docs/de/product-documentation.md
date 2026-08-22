@@ -434,6 +434,10 @@ historische Importe ab, sobald Kurse für die Buchungstage gespeichert sind.
 Wertpapiere können in **Klassifizierungsbäume** geordnet werden. Eigene Bäume
 sind frei gestaltbare Ordner mit Farben; integrierte Bäume für **Anlageklasse**
 und **Währung** werden aus jedem Wertpapier abgeleitet und sind immer vorhanden.
+Die Namen der integrierten Bäume werden über die Locale angezeigt (Issue #729 —
+englisch *Asset class* / *Currency*), geschlüsselt auf den stabilen Key des
+Baums; eigene Bäume behalten in jeder Sprache den Namen, den du ihnen gegeben
+hast.
 Der Anlageklassen-Baum ist eine editierbare Taxonomie: die Klasse eines
 Wertpapiers wird aus einem inferierten Standard vorbelegt und durch Ziehen
 zwischen Kategorien korrigiert.

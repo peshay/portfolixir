@@ -15,6 +15,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias Portfolixir.Portfolios.Valuation
   alias Portfolixir.Settings
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.ClassificationName
   alias PortfolixirWeb.Format
 
   # A category counts as "needs attention" when its drift exceeds ±5 pp of the
@@ -418,13 +419,17 @@ defmodule PortfolixirWeb.DashboardLive do
       |> Enum.map(& &1.name)
       |> Enum.uniq()
 
-    %{view_name: view && view.name, tree: classification.name, plan_names: plan_names}
+    %{
+      view_name: view && view.name,
+      tree: %{key: classification.key, name: classification.name},
+      plan_names: plan_names
+    }
   end
 
   defp basis_phrase(%{plan_names: []} = basis) do
     gettext("View %{view} — no active plan on %{tree}",
       view: basis_view(basis),
-      tree: basis.tree
+      tree: ClassificationName.display(basis.tree)
     )
   end
 
@@ -432,14 +437,14 @@ defmodule PortfolixirWeb.DashboardLive do
     gettext("View %{view} · plan “%{plan}” on %{tree}",
       view: basis_view(basis),
       plan: name,
-      tree: basis.tree
+      tree: ClassificationName.display(basis.tree)
     )
   end
 
   defp basis_phrase(basis) do
     gettext("View %{view} · several active plans on %{tree}",
       view: basis_view(basis),
-      tree: basis.tree
+      tree: ClassificationName.display(basis.tree)
     )
   end
 

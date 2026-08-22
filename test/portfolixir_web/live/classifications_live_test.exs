@@ -149,6 +149,60 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     refute html =~ "on the left"
   end
 
+  # User story (issue #729, Sprint 7 UAT walkthrough finding):
+  # As a German-speaking maintainer,
+  # I want the built-in classification trees to speak my locale,
+  # so that "Asset class" and "Currency" — app-generated system data, not
+  # my own names — read as "Anlageklasse" and "Währung" like every other
+  # built-in label.
+  #
+  # Acceptance criteria:
+  # - The display localizes at render time keyed on the stored `key`, so
+  #   the seed stays idempotent and the stored (English) name remains the
+  #   stable identifier the API serves.
+  # - A custom tree keeps its user-entered name in every locale.
+  test "built-in trees speak the locale; custom trees keep their names", %{conn: conn} do
+    Classifications.ensure_builtins()
+
+    {:ok, custom} =
+      Classifications.create_classification(Actor.owner_ui(), %{name: "Meine Strategie"})
+
+    de_conn = put_req_header(conn, "accept-language", "de")
+    {:ok, _view, html} = live_drained(de_conn, "/classifications")
+
+    assert html =~ "Anlageklasse"
+    assert html =~ "Währung"
+    assert html =~ "Meine Strategie"
+    refute html =~ ">Asset class<"
+    refute html =~ ">Currency<"
+
+    asset = Classifications.get_classification_by_key("asset_class")
+
+    {:ok, _view, detail} =
+      live_drained(
+        Phoenix.ConnTest.build_conn() |> put_req_header("accept-language", "de"),
+        "/classifications/#{asset.id}"
+      )
+
+    assert detail =~ "Anlageklasse"
+
+    # The Wealth allocation tree selector speaks the locale too.
+    world = base_world()
+    security = create_security!(name: "Locale ETF", ticker: "LOC")
+    buy!(world, security)
+
+    {:ok, wealth_view, _} =
+      live(
+        Phoenix.ConnTest.build_conn() |> put_req_header("accept-language", "de"),
+        "/portfolio?tab=allocation"
+      )
+
+    wealth = render_async(wealth_view)
+    assert wealth =~ "Anlageklasse"
+
+    _ = custom
+  end
+
   test "shows a built-in tree as read-only with an Unsorted folder", %{conn: conn} do
     security!()
     Classifications.ensure_builtins()

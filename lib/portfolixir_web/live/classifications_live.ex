@@ -10,6 +10,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Portfolios.Valuation
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.ClassificationName
   alias PortfolixirWeb.Format
 
   @zero Decimal.new("0")
@@ -136,7 +137,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
     ~H"""
     <AppShell.shell
       current_path={@current_path}
-      page_title={@tree.classification.name}
+      page_title={ClassificationName.display(@tree.classification)}
       page_subtitle={gettext("Organise securities by dragging them between categories")}
     >
       <div
@@ -154,7 +155,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
         <header class="detail-head">
           <h2>
-            <%= @tree.classification.name %>
+            <%= ClassificationName.display(@tree.classification) %>
             <%= if @tree.classification.built_in do %>
               <span class="badge"><%= gettext("Built-in") %></span>
             <% end %>
@@ -352,7 +353,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
           <ul class="classification-index" data-role="classification-index">
             <li :for={classification <- @classifications}>
               <.link navigate={"/classifications/#{classification.id}"}>
-                <%= classification.name %>
+                <%= ClassificationName.display(classification) %>
               </.link>
               <span :if={classification.built_in} class="badge"><%= gettext("Built-in") %></span>
             </li>

@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.Securities.ColumnPicker do
   use Gettext, backend: PortfolixirWeb.Gettext
 
   alias Portfolixir.Catalog.SecurityFields
+  alias PortfolixirWeb.ClassificationName
 
   @impl true
   def render(assigns) do
@@ -75,10 +76,13 @@ defmodule PortfolixirWeb.Securities.ColumnPicker do
   end
 
   defp classification_label(%{classification: classification, levels: 1}, _level),
-    do: classification.name
+    do: ClassificationName.display(classification)
 
   defp classification_label(%{classification: classification}, level) do
-    gettext("%{name} (level %{level})", name: classification.name, level: level)
+    gettext("%{name} (level %{level})",
+      name: ClassificationName.display(classification),
+      level: level
+    )
   end
 
   defp group_fields do
