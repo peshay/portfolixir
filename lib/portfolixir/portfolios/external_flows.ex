@@ -19,7 +19,7 @@ defmodule Portfolixir.Portfolios.ExternalFlows do
   ## FX basis
 
   Each flow converts into the base currency through the **EUR hub** at the
-  most recent stored rate on or before its booking date; a flow with no
+  rate stored on its own booking date; a flow with no
   stored rate at that date is **excluded from the totals and named** by its
   cash account — the same excluded-and-named rule as the Realized-gains
   facet (D-1's shape, applied uniformly across the Cash-flow facets).
@@ -54,13 +54,13 @@ defmodule Portfolixir.Portfolios.ExternalFlows do
         accounts: excluded |> Enum.map(& &1.account_name) |> Enum.uniq() |> Enum.sort()
       },
       conversion_note:
-        "Each flow converted to #{base} via the EUR hub at the most recent stored " <>
-          "rate on or before its booking date; a flow with no stored rate path at " <>
+        "Each flow converted to #{base} via the EUR hub at the rate stored on its " <>
+          "own booking date; a flow with no stored rate for " <>
           "that date is excluded from the totals and named by its cash account.",
       computation_basis: %{
         series: "gross_amount of booked deposit and removal transactions",
         window: "full ledger history, grouped by booking date",
-        reference: "EUR hub rates at or before each booking date",
+        reference: "EUR hub rates on each booking date itself",
         gaps: "a flow with no stored booking-date rate is excluded from the totals and named",
         excludes:
           "securities delivered in or out and balance-snapshot residuals — the " <>
@@ -85,7 +85,7 @@ defmodule Portfolixir.Portfolios.ExternalFlows do
       amount: tx.gross_amount
     }
 
-    case Fx.convert(tx.gross_amount, tx.currency_code, base, tx.date) do
+    case Fx.convert_on(tx.gross_amount, tx.currency_code, base, tx.date) do
       {:ok, converted} -> {:ok, Map.put(flow, :amount_base, converted)}
       {:error, :no_rate} -> {:excluded, flow}
     end

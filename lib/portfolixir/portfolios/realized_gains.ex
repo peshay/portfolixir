@@ -57,7 +57,7 @@ defmodule Portfolixir.Portfolios.RealizedGains do
         securities: excluded |> Enum.map(& &1.security_name) |> Enum.uniq() |> Enum.sort()
       },
       conversion_note:
-        "Each sale converted to #{base} via the EUR hub at the most recent stored " <>
+        "Each sale converted to #{base} via the EUR hub at the rate stored on its " <>
           "rate on or before its close date; a sale with no stored rate path at " <>
           "that date is excluded from the totals and named, never converted at a " <>
           "neighbouring date's rate.",
@@ -108,8 +108,13 @@ defmodule Portfolixir.Portfolios.RealizedGains do
     end)
   end
 
+  # D-1's rate-availability clause is the reason this is `convert_on/4` and
+  # not `convert/4`: the latter values at the most recent rate ON OR BEFORE the
+  # date, so a sale on an unpriced day would be converted at a neighbouring
+  # date's rate -- exactly what the signed decision forbids -- and would be
+  # excluded only when no rate path existed at all.
   defp convert_trade(trade, base) do
-    case Fx.convert(trade.realized_pnl_abs, trade.currency_code, base, trade.close_date) do
+    case Fx.convert_on(trade.realized_pnl_abs, trade.currency_code, base, trade.close_date) do
       {:ok, converted} -> {:ok, Map.put(trade, :realized_base, converted)}
       {:error, :no_rate} -> {:excluded, trade}
     end
