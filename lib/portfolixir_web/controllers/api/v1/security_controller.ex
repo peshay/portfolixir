@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.DataQuality
   alias Portfolixir.Catalog.SecurityFields
+  alias PortfolixirWeb.Api.V1.FieldSelection
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.SinceParam
 
@@ -11,11 +12,19 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
                      {Atom.to_string(field.key), field.key}
                    end)
 
+  # #732 (extending FR-37): the sparse fieldset resolves against the FULL
+  # projection's field list and, when present, supersedes `projection=` — a
+  # sparse fieldset IS a projection, chosen field by field.
+  @fields_whitelist FieldSelection.whitelist(JSON.security_fields())
+
   def index(conn, params) do
     with {:ok, opts} <- list_opts(params),
          {:ok, data_quality} <- data_quality_param(params),
          {:ok, serializer} <- listing_serializer(params),
+         {:ok, fields} <- FieldSelection.parse(params, @fields_whitelist),
          {:ok, since} <- SinceParam.parse(params) do
+      serializer = fields_serializer(fields, serializer)
+
       securities =
         opts
         |> put_updated_since(since)
@@ -33,6 +42,11 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
 
   defp put_updated_since(opts, nil), do: opts
   defp put_updated_since(opts, %{cut: cut}), do: Keyword.put(opts, :updated_since, cut)
+
+  defp fields_serializer(nil, serializer), do: serializer
+
+  defp fields_serializer(fields, _serializer),
+    do: &(&1 |> JSON.security() |> FieldSelection.take(fields))
 
   # The data-quality predicates (#705). Routed through `Catalog.DataQuality` so
   # the agent's set is the SAME set the dashboard counts and the securities page

@@ -65,7 +65,13 @@ verengen, was der Betreiber sieht.
   schlanke Projektion — die feste Whitelist `id`, `name`, `ticker_symbol`,
   `isin`, `wkn`, `currency_code`, `asset_class` — damit Routineabfragen klein
   bleiben; `projection=full` liefert den vollständigen Datensatz (Notizen,
-  Feed-Konfiguration, Attribute, Zeitstempel). Optionale Query-Parameter:
+  Feed-Konfiguration, Attribute, Zeitstempel). Ein optionales `fields=`
+  (Issue #732, erweitert FR-37, kommagetrennt) wählt eine schlanke
+  Feldauswahl, aufgelöst gegen die Feldliste der **vollen** Projektion; ein
+  gesetztes `fields=` **ersetzt `projection=`**, denn eine schlanke
+  Feldauswahl ist selbst eine Projektion, Feld für Feld gewählt. Ein
+  unbekannter Name ist ein `422`, nie ein stiller Fallback.
+  Optionale Query-Parameter:
   `query`, `sort`, `direction`, holding_status (`all`, `held` oder `not_held`),
   `projection` (`slim`/`full`) und `limit`/`offset` zur Paginierung (beides
   nichtnegative Ganzzahlen). Nutze diese, um große Kataloge zu paginieren,
@@ -304,7 +310,11 @@ Beispiel-Payloads für Konten:
   Ein optionales `fields=` (FR-37, kommagetrennt) wählt eine schlanke
   Feldauswahl: Jede Zeile trägt dann genau die angefragten Felder. Die Namen
   werden gegen die Feldliste des Serializers validiert — ein unbekannter Name
-  ist ein `422`, nie ein stiller Fallback.
+  ist ein `422`, nie ein stiller Fallback. Die **menschliche Sicht** von
+  `fields=` (Issue #732) ist die Spaltenwahl auf der Transaktionshistorie und
+  dem Bestände-Panel: dieselben Projektionen, Spalte für Spalte auf der Seite
+  gewählt — und die Wertpapierliste, deren Spaltenwahl älter als FR-37 ist,
+  bekam die Gegenrichtung als eigenes `fields=` (siehe Wertpapiere).
   Ein optionales `running_balance_for=<cash_account_id>` ergänzt jede Zeile um
   einen `running_balance` — den Saldo dieses Verrechnungskontos nach der
   Buchung, als Decimal-String in der Kontowährung — plus ein `running_balance_basis`

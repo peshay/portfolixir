@@ -324,10 +324,48 @@ defmodule PortfolixirWeb.ApiV1ReadErgonomicsTest do
     end
   end
 
-  # The field inventory (issue #665 acceptance): the whitelists offer every
-  # field the full serializers emit, so nothing load-bearing was cut from
-  # what a caller can select — the slim read is a subset by choice, never by
-  # omission.
+  # User story (issue #732):
+  # As the operating LLM agent syncing the catalog,
+  # I want `fields=` on the securities read too,
+  # so that the one list that already had the operator's column picker stops
+  # being the one list without the agent's sparse fieldset.
+  #
+  # Acceptance criteria:
+  # - `fields=` resolves against the FULL projection's whitelist and, when
+  #   present, supersedes `projection=` — a sparse fieldset IS a projection.
+  # - Each returned row carries exactly the requested fields.
+  # - An unknown field is a 422 naming the parameter.
+  test "securities fields= returns exactly the requested row fields", %{conn: conn} do
+    {:ok, _} = Catalog.create_security(owner(), %{name: "Sparse AG", currency_code: "EUR"})
+
+    response = get_json(conn, "/api/v1/securities?fields=id,name,exchange_code")
+
+    assert [row | _] = response["data"]
+    assert Map.keys(row) |> Enum.sort() == ["exchange_code", "id", "name"]
+
+    # fields= supersedes projection=: exchange_code is a full-only field and
+    # still comes back under projection=slim.
+    slim = get_json(conn, "/api/v1/securities?projection=slim&fields=name,exchange_code")
+    assert [slim_row | _] = slim["data"]
+    assert Map.keys(slim_row) |> Enum.sort() == ["exchange_code", "name"]
+  end
+
+  test "securities fields= rejects an unknown field with a 422", %{conn: conn} do
+    {:ok, _} = Catalog.create_security(owner(), %{name: "Sparse AG", currency_code: "EUR"})
+
+    response =
+      conn
+      |> api_conn()
+      |> get("/api/v1/securities?fields=name,drop%20table")
+      |> json_response(422)
+
+    assert %{"errors" => %{"fields" => ["is invalid"]}} = response
+  end
+
+  # The field inventory (issue #665 acceptance, extended by #732): the
+  # whitelists offer every field the full serializers emit, so nothing
+  # load-bearing was cut from what a caller can select — the slim read is a
+  # subset by choice, never by omission.
   test "the fields whitelists cover the full serializer output exactly" do
     holding_sample =
       Map.new(JSON.holding_fields(), fn field -> {field, nil} end)
@@ -339,5 +377,10 @@ defmodule PortfolixirWeb.ApiV1ReadErgonomicsTest do
 
     assert JSON.transaction(transaction_sample) |> Map.keys() |> Enum.sort() ==
              Enum.sort(JSON.transaction_fields())
+
+    security_sample = %Portfolixir.Catalog.Security{}
+
+    assert JSON.security(security_sample) |> Map.keys() |> Enum.sort() ==
+             Enum.sort(JSON.security_fields())
   end
 end

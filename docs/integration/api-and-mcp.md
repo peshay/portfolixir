@@ -70,7 +70,12 @@ full list.
   projection — the fixed whitelist `id`, `name`, `ticker_symbol`, `isin`,
   `wkn`, `currency_code`, `asset_class` — so routine listings stay small;
   `projection=full` returns the complete record (notes, feed config, attributes,
-  timestamps). Optional query params: `query`, `sort`, `direction`,
+  timestamps). An optional `fields=` (issue #732, extending FR-37,
+  comma-separated) selects a sparse fieldset resolved against the **full**
+  projection's field list; a present `fields=` **supersedes `projection=`**,
+  because a sparse fieldset is itself a projection, chosen field by field. An
+  unknown name is a `422`, never a silent fallback.
+  Optional query params: `query`, `sort`, `direction`,
   holding_status (`all`, `held`, or `not_held`), `logo_status` (`missing` or
   `present` — `missing` powers the "securities without a logo" overview and
   excludes rows explicitly set to no logo), `data_quality`
@@ -319,7 +324,11 @@ Example account payloads:
   An optional `fields=` (FR-37, comma-separated) selects a sparse fieldset:
   each row then carries exactly the requested fields. The names are validated
   against the serializer's own field list — an unknown name is a `422`, never
-  a silent fallback.
+  a silent fallback. The **human view** of `fields=` (issue #732) is the
+  column picker on the transaction history and on the holdings panel: the
+  same projections, chosen column by column on the page — and the securities
+  list, whose picker predates FR-37, gained the reverse half as its own
+  `fields=` (see Securities).
   An optional `running_balance_for=<cash_account_id>` adds a
   `running_balance` to each row — the balance of that cash account after the
   booking, as a Decimal string in the account's own currency — plus a

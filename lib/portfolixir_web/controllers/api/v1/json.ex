@@ -42,6 +42,35 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
+  # The selectable security fields (#732, extending FR-37) — kept in lockstep
+  # with `security/1` by the read-ergonomics inventory test, so the whitelist
+  # can never silently offer less than the full serializer emits.
+  @security_fields [
+    :id,
+    :name,
+    :ticker_symbol,
+    :isin,
+    :wkn,
+    :currency_code,
+    :exchange_code,
+    :asset_class,
+    :note,
+    :feed,
+    :feed_url,
+    :latest_feed,
+    :latest_feed_url,
+    :is_retired,
+    :treat_quotes_as_raw,
+    :online_id,
+    :provider,
+    :attributes,
+    :identifier_aliases,
+    :inserted_at,
+    :updated_at
+  ]
+
+  def security_fields, do: @security_fields
+
   def security(%Security{} = security) do
     %{
       id: security.id,

@@ -15,6 +15,28 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # with the disclosure.
   @chip_families ["types", "account_ids"]
 
+  # #732: the pickable columns — the human half of the API's `fields=` sparse
+  # fieldset (FR-37). Keys follow the serializers' field names where a field
+  # exists there; `depot`/`security` are the human joins over the id fields.
+  # The running-balance column is deliberately NOT here: it stays governed by
+  # its own rule (exactly one account narrowed), because a picker that can
+  # summon it outside that narrowing would fake a meaningless balance.
+  @tx_column_defaults ["date", "type", "security", "quantity", "price", "currency"]
+  @tx_column_keys @tx_column_defaults ++ ["gross_amount", "fees", "taxes", "notes"]
+
+  @holdings_column_defaults ["depot", "security", "quantity"]
+  @holdings_column_keys @holdings_column_defaults ++
+                          [
+                            "isin",
+                            "wkn",
+                            "currency",
+                            "avg_cost",
+                            "latest_price",
+                            "market_value",
+                            "unrealized_pnl_abs",
+                            "unrealized_pnl_pct"
+                          ]
+
   @transaction_form %{
     "type" => "buy",
     "date" => "",
@@ -37,6 +59,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
      |> assign(:success, nil)
      |> assign(:form_errors, %{})
      |> assign(:sell_preview, nil)
+     |> assign(:tx_columns, @tx_column_defaults)
+     |> assign(:holdings_columns, @holdings_column_defaults)
      |> load_state()}
   end
 
@@ -315,29 +339,61 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         <div class="transaction-secondary">
         <section id="holdings-panel" class="workspace-section">
           <h2><%= gettext("Current holdings") %></h2>
-          <%= if Enum.empty?(@position_rows) do %>
+          <%= if Enum.empty?(@holding_rows) do %>
             <div id="no-holdings" class="empty-state" role="status">
               <%= gettext("No holdings yet") %>
             </div>
           <% else %>
-            <table id="holdings-table">
-              <thead>
-                <tr>
-                  <th><%= gettext("Depot") %></th>
-                  <th><%= gettext("Security") %></th>
-                  <th><%= gettext("Quantity") %></th>
-                </tr>
-              </thead>
-              <tbody>
-                <%= for row <- @position_rows do %>
-                  <tr>
-                    <td><%= row.securities_account_name %></td>
-                    <td><%= row.security_name %></td>
-                    <td><%= format_decimal(row.quantity) %></td>
-                  </tr>
+            <%!-- #732: the panel renders the API's own holdings projection
+                  (Ledger.holdings_for_portfolio/1), so the picker can offer
+                  the valuation columns the agent reads over fields= — one
+                  projection, two surfaces. --%>
+            <details id="holdings-column-picker" class="more-filters">
+              <summary>
+                <AppShell.icon name={:columns} />
+                <%= gettext("Columns") %>
+              </summary>
+              <form id="holdings-column-form" phx-change="set_holdings_columns">
+                <%= for key <- holdings_column_keys() do %>
+                  <label class="checkbox-row">
+                    <input
+                      type="checkbox"
+                      name="columns[]"
+                      value={key}
+                      checked={key in @holdings_columns}
+                    />
+                    <span><%= holdings_column_label(key) %></span>
+                  </label>
                 <% end %>
-              </tbody>
-            </table>
+                <input type="hidden" name="columns[]" value="" />
+              </form>
+            </details>
+            <div
+              id="holdings-table-wrapper"
+              phx-hook="ColumnPrefs"
+              data-storage-key="transactions.holdings.columns"
+              data-restore-event="set_holdings_columns"
+              data-current-columns={Jason.encode!(@holdings_columns)}
+            >
+              <table id="holdings-table">
+                <thead>
+                  <tr>
+                    <%= for key <- @holdings_columns do %>
+                      <th><%= holdings_column_label(key) %></th>
+                    <% end %>
+                  </tr>
+                </thead>
+                <tbody>
+                  <%= for row <- @holding_rows do %>
+                    <tr>
+                      <%= for key <- @holdings_columns do %>
+                        <td><%= holdings_cell(row, key) %></td>
+                      <% end %>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
           <% end %>
         </section>
 
@@ -467,63 +523,103 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                 <%= gettext("No transactions match the current filter.") %>
               </div>
             <% else %>
-              <table id="transaction-list">
-                <thead>
-                  <tr>
-                    <th><%= gettext("Date") %></th>
-                    <th><%= gettext("Type") %></th>
-                    <th><%= gettext("Security") %></th>
-                    <th><%= gettext("Quantity") %></th>
-                    <th><%= gettext("Price") %></th>
-                    <th><%= gettext("Currency") %></th>
-                    <%!-- The running balance is only meaningful for ONE
-                          account, so the column appears exactly when the chips
-                          narrow to one and not before. --%>
-                    <th :if={@balance_account}>
-                      <%= gettext("Balance") %>
-                      <small><%= @balance_account.currency_code %></small>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <%= for group <- grouped_by_month(@filtered_transactions) do %>
-                    <tr class="tx-group-head" data-month-group={group.id}>
-                      <th colspan={if @balance_account, do: "7", else: "6"} scope="colgroup">
-                        <span class="tx-group-month"><%= group.label %></span>
-                        <span class="tx-group-subtotal">
-                          <%= ngettext("%{count} transaction", "%{count} transactions", group.count,
-                            count: group.count) %> · <.currency_totals totals={group.totals} />
-                        </span>
+              <%!-- #732: the pickable columns are the human half of the
+                    API's fields= sparse fieldset — fees, taxes, gross amount
+                    and notes exist in every row and were never showable. --%>
+              <details id="tx-column-picker" class="more-filters">
+                <summary>
+                  <AppShell.icon name={:columns} />
+                  <%= gettext("Columns") %>
+                </summary>
+                <form id="tx-column-form" phx-change="set_tx_columns">
+                  <%= for key <- tx_column_keys() do %>
+                    <label class="checkbox-row">
+                      <input
+                        type="checkbox"
+                        name="columns[]"
+                        value={key}
+                        checked={key in @tx_columns}
+                      />
+                      <span><%= tx_column_label(key) %></span>
+                    </label>
+                  <% end %>
+                  <input type="hidden" name="columns[]" value="" />
+                </form>
+              </details>
+              <div
+                id="transaction-table-wrapper"
+                phx-hook="ColumnPrefs"
+                data-storage-key="transactions.columns"
+                data-restore-event="set_tx_columns"
+                data-current-columns={Jason.encode!(@tx_columns)}
+              >
+                <table id="transaction-list">
+                  <thead>
+                    <tr>
+                      <th :for={key <- @tx_columns}><%= tx_column_label(key) %></th>
+                      <%!-- The running balance is only meaningful for ONE
+                            account, so the column appears exactly when the
+                            chips narrow to one and not before — never via the
+                            picker. --%>
+                      <th :if={@balance_account}>
+                        <%= gettext("Balance") %>
+                        <small><%= @balance_account.currency_code %></small>
                       </th>
                     </tr>
-                    <%= for transaction <- group.transactions do %>
-                      <tr data-transaction={transaction.id}>
-                        <td><%= transaction.date %></td>
-                        <td><%= tx_type_label(transaction.type) %></td>
-                        <td><%= transaction.security && transaction.security.name %></td>
-                        <%= if transaction.type == "split" do %>
-                          <%!-- A split carries no quantity/price of its own:
-                                show the ratio where the quantity would be
-                                (E17 review, finding 7). --%>
-                          <td data-role="split-ratio"><%= split_ratio_label(transaction) %></td>
-                          <td>—</td>
-                        <% else %>
-                          <td><%= format_decimal(transaction.quantity) %></td>
-                          <td><%= format_decimal(transaction.price) %></td>
-                        <% end %>
-                        <td><%= transaction.currency_code %></td>
-                        <td :if={@balance_account} class="numeric" data-role="running-balance">
-                          <%!-- Absent, never repeated: a row that does not move
-                                this account carries no balance, because the
-                                previous row's figure would read as "nothing
-                                happened here". --%>
-                          <%= running_balance(@running_balances, transaction) %>
-                        </td>
+                  </thead>
+                  <tbody>
+                    <%= for group <- grouped_by_month(@filtered_transactions) do %>
+                      <tr class="tx-group-head" data-month-group={group.id}>
+                        <th
+                          colspan={length(@tx_columns) + if(@balance_account, do: 1, else: 0)}
+                          scope="colgroup"
+                        >
+                          <span class="tx-group-month"><%= group.label %></span>
+                          <span class="tx-group-subtotal">
+                            <%= ngettext("%{count} transaction", "%{count} transactions", group.count,
+                              count: group.count) %> · <.currency_totals totals={group.totals} />
+                          </span>
+                        </th>
                       </tr>
+                      <%= for transaction <- group.transactions do %>
+                        <tr data-transaction={transaction.id}>
+                          <%= for key <- @tx_columns do %>
+                            <%= case key do %>
+                              <% "quantity" -> %>
+                                <%= if transaction.type == "split" do %>
+                                  <%!-- A split carries no quantity/price of
+                                        its own: show the ratio where the
+                                        quantity would be (E17 review,
+                                        finding 7). --%>
+                                  <td data-role="split-ratio">
+                                    <%= split_ratio_label(transaction) %>
+                                  </td>
+                                <% else %>
+                                  <td><%= format_decimal(transaction.quantity) %></td>
+                                <% end %>
+                              <% "price" -> %>
+                                <%= if transaction.type == "split" do %>
+                                  <td>—</td>
+                                <% else %>
+                                  <td><%= format_decimal(transaction.price) %></td>
+                                <% end %>
+                              <% _other -> %>
+                                <td><%= tx_cell(transaction, key) %></td>
+                            <% end %>
+                          <% end %>
+                          <td :if={@balance_account} class="numeric" data-role="running-balance">
+                            <%!-- Absent, never repeated: a row that does not
+                                  move this account carries no balance, because
+                                  the previous row's figure would read as
+                                  "nothing happened here". --%>
+                            <%= running_balance(@running_balances, transaction) %>
+                          </td>
+                        </tr>
+                      <% end %>
                     <% end %>
-                  <% end %>
-                </tbody>
-              </table>
+                  </tbody>
+                </table>
+              </div>
             <% end %>
           <% end %>
         </section>
@@ -590,6 +686,36 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     end
   end
 
+  # #732: raw key strings from the picker form or the ColumnPrefs hook's
+  # restore; validated against the registry, registry order kept. An empty
+  # selection is a broken table rather than a preference, so it falls back to
+  # the defaults (the securities picker's precedent).
+  def handle_event("set_tx_columns", %{"columns" => columns}, socket) when is_list(columns) do
+    chosen = safe_columns(columns, @tx_column_keys, @tx_column_defaults)
+
+    {:noreply,
+     socket
+     |> assign(:tx_columns, chosen)
+     |> push_event("column-prefs-changed", %{key: "transactions.columns", columns: chosen})}
+  end
+
+  def handle_event("set_tx_columns", _params, socket), do: {:noreply, socket}
+
+  def handle_event("set_holdings_columns", %{"columns" => columns}, socket)
+      when is_list(columns) do
+    chosen = safe_columns(columns, @holdings_column_keys, @holdings_column_defaults)
+
+    {:noreply,
+     socket
+     |> assign(:holdings_columns, chosen)
+     |> push_event("column-prefs-changed", %{
+       key: "transactions.holdings.columns",
+       columns: chosen
+     })}
+  end
+
+  def handle_event("set_holdings_columns", _params, socket), do: {:noreply, socket}
+
   def handle_event("save_transaction", %{"transaction" => params}, socket) do
     # The currency is authoritative from the chosen depot's cash account, never a
     # free-text field the user could mistype (#473).
@@ -631,10 +757,14 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     cash_accounts = Portfolios.list_cash_accounts()
     transactions = Ledger.list_transactions()
 
-    position_rows =
+    # #732: the panel shows the API's own holdings projection
+    # (Ledger.holdings_for_portfolio/1) — one projection, two surfaces — so
+    # the picker's valuation columns are the figures the agent reads, not a
+    # second calculation.
+    holding_rows =
       Portfolios.list_portfolios()
-      |> Enum.flat_map(&Map.to_list(Ledger.positions_for_portfolio(&1.id)))
-      |> position_rows(securities_accounts, securities)
+      |> Enum.flat_map(&Ledger.holdings_for_portfolio(&1.id))
+      |> holding_rows(securities_accounts)
 
     socket
     |> assign(
@@ -642,7 +772,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       cash_accounts: cash_accounts,
       securities: securities,
       transactions: transactions,
-      position_rows: position_rows
+      holding_rows: holding_rows
     )
     |> apply_current_filters()
   end
@@ -904,21 +1034,75 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     end
   end
 
-  defp position_rows(positions, securities_accounts, securities) do
-    securities_account_names = Map.new(securities_accounts, &{&1.id, &1.name})
-    security_names = Map.new(securities, &{&1.id, "#{&1.name} (#{&1.ticker_symbol})"})
+  defp holding_rows(holdings, securities_accounts) do
+    names = Map.new(securities_accounts, &{&1.id, &1.name})
 
-    positions
-    |> Enum.map(fn {{securities_account_id, security_id}, quantity} ->
-      %{
-        securities_account_name:
-          Map.get(securities_account_names, securities_account_id, gettext("Unknown depot")),
-        security_name: Map.get(security_names, security_id, gettext("Unknown security")),
-        quantity: quantity
-      }
+    holdings
+    |> Enum.map(fn row ->
+      Map.put(
+        row,
+        :securities_account_name,
+        Map.get(names, row.securities_account_id, gettext("Unknown depot"))
+      )
     end)
     |> Enum.sort_by(fn row -> {row.securities_account_name, row.security_name} end)
   end
+
+  # -- #732 column registries -------------------------------------------------
+
+  defp tx_column_keys, do: @tx_column_keys
+  defp holdings_column_keys, do: @holdings_column_keys
+
+  defp safe_columns(requested, all_keys, defaults) do
+    case Enum.filter(all_keys, &(&1 in requested)) do
+      [] -> defaults
+      chosen -> chosen
+    end
+  end
+
+  defp tx_column_label("date"), do: gettext("Date")
+  defp tx_column_label("type"), do: gettext("Type")
+  defp tx_column_label("security"), do: gettext("Security")
+  defp tx_column_label("quantity"), do: gettext("Quantity")
+  defp tx_column_label("price"), do: gettext("Price")
+  defp tx_column_label("currency"), do: gettext("Currency")
+  defp tx_column_label("gross_amount"), do: gettext("Gross amount")
+  defp tx_column_label("fees"), do: gettext("Fees")
+  defp tx_column_label("taxes"), do: gettext("Taxes")
+  defp tx_column_label("notes"), do: gettext("Notes")
+
+  defp tx_cell(transaction, "date"), do: transaction.date
+  defp tx_cell(transaction, "type"), do: tx_type_label(transaction.type)
+  defp tx_cell(transaction, "security"), do: transaction.security && transaction.security.name
+  defp tx_cell(transaction, "currency"), do: transaction.currency_code
+  defp tx_cell(transaction, "gross_amount"), do: format_decimal(transaction.gross_amount)
+  defp tx_cell(transaction, "fees"), do: format_decimal(transaction.fees)
+  defp tx_cell(transaction, "taxes"), do: format_decimal(transaction.taxes)
+  defp tx_cell(transaction, "notes"), do: transaction.notes
+
+  defp holdings_column_label("depot"), do: gettext("Depot")
+  defp holdings_column_label("security"), do: gettext("Security")
+  defp holdings_column_label("quantity"), do: gettext("Quantity")
+  defp holdings_column_label("isin"), do: gettext("ISIN")
+  defp holdings_column_label("wkn"), do: gettext("WKN")
+  defp holdings_column_label("currency"), do: gettext("Currency")
+  defp holdings_column_label("avg_cost"), do: gettext("Avg cost")
+  defp holdings_column_label("latest_price"), do: gettext("Latest price")
+  defp holdings_column_label("market_value"), do: gettext("Market value")
+  defp holdings_column_label("unrealized_pnl_abs"), do: gettext("P&L")
+  defp holdings_column_label("unrealized_pnl_pct"), do: gettext("P&L %")
+
+  defp holdings_cell(row, "depot"), do: row.securities_account_name
+  defp holdings_cell(row, "security"), do: row.security_name
+  defp holdings_cell(row, "quantity"), do: format_decimal(row.quantity)
+  defp holdings_cell(row, "isin"), do: row.isin
+  defp holdings_cell(row, "wkn"), do: row.wkn
+  defp holdings_cell(row, "currency"), do: row.currency_code
+  defp holdings_cell(row, "avg_cost"), do: format_decimal(row.avg_cost)
+  defp holdings_cell(row, "latest_price"), do: format_decimal(row.latest_price)
+  defp holdings_cell(row, "market_value"), do: format_decimal(row.market_value)
+  defp holdings_cell(row, "unrealized_pnl_abs"), do: format_decimal(row.unrealized_pnl_abs)
+  defp holdings_cell(row, "unrealized_pnl_pct"), do: format_decimal(row.unrealized_pnl_pct)
 
   # Human, localized labels for the stored type enum; the form value and the
   # ledger keep the machine "buy"/"sell". Mirrors securities_live.ex so the two
