@@ -787,9 +787,15 @@ defmodule PortfolixirWeb.PortfolioLive do
               ><span data-count-digits><%= Format.money(@valuation.total_with_cash) %></span></span>
               <%= @valuation.base_currency %>
             </strong>
-            <strong :if={is_nil(@valuation)} class="value-slot-pending" aria-busy="true">
+            <strong
+              :if={is_nil(@valuation)}
+              class="value-slot-pending"
+              aria-busy="true"
+              data-waits="valuation"
+            >
+              <%!-- #723: a sub-second figure (ADR-0039 measurement) keeps
+                   the silent skeleton — the cue is for the seconds class. --%>
               <span class="value-skeleton" aria-hidden="true"></span>
-              <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
             </strong>
             <%!-- Overlap badge (ADR-0024 modification 2): the active view's
                  buckets share at least one account. Purely informational —
@@ -817,9 +823,15 @@ defmodule PortfolixirWeb.PortfolioLive do
               ><span data-count-digits><%= Format.money(@valuation.total_value) %></span></span>
               <%= @valuation.base_currency %>
             </strong>
-            <strong :if={is_nil(@valuation)} class="value-slot-pending" aria-busy="true">
+            <strong
+              :if={is_nil(@valuation)}
+              class="value-slot-pending"
+              aria-busy="true"
+              data-waits="valuation"
+            >
+              <%!-- #723: a sub-second figure (ADR-0039 measurement) keeps
+                   the silent skeleton — the cue is for the seconds class. --%>
               <span class="value-skeleton" aria-hidden="true"></span>
-              <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
             </strong>
           </article>
           <article id="kpi-cash" class="stat" role="group" aria-describedby="tip-cash-quote">
@@ -828,9 +840,15 @@ defmodule PortfolixirWeb.PortfolioLive do
               <%= Format.money(@valuation.total_cash) %> <%= @valuation.base_currency %>
               · <%= Format.percent(@valuation.cash_quote) %>%
             </strong>
-            <strong :if={is_nil(@valuation)} class="value-slot-pending" aria-busy="true">
+            <strong
+              :if={is_nil(@valuation)}
+              class="value-slot-pending"
+              aria-busy="true"
+              data-waits="valuation"
+            >
+              <%!-- #723: a sub-second figure (ADR-0039 measurement) keeps
+                   the silent skeleton — the cue is for the seconds class. --%>
               <span class="value-skeleton" aria-hidden="true"></span>
-              <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
             </strong>
             <details class="metric-tooltip">
               <summary aria-label={gettext("Cash quote info")}>ⓘ</summary>
@@ -850,6 +868,7 @@ defmodule PortfolixirWeb.PortfolioLive do
               :if={is_nil(@performance) and not @performance_failed}
               class="value-slot-pending"
               aria-busy="true"
+              data-waits="performance"
             >
               <span class="value-skeleton" aria-hidden="true"></span>
               <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
@@ -875,6 +894,7 @@ defmodule PortfolixirWeb.PortfolioLive do
               :if={is_nil(@performance) and not @performance_failed}
               class="value-slot-pending"
               aria-busy="true"
+              data-waits="performance"
             >
               <span class="value-skeleton" aria-hidden="true"></span>
               <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
@@ -906,6 +926,7 @@ defmodule PortfolixirWeb.PortfolioLive do
               :if={is_nil(@performance) and not @performance_failed}
               class="value-slot-pending"
               aria-busy="true"
+              data-waits="performance"
             >
               <span class="value-skeleton" aria-hidden="true"></span>
               <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
@@ -930,6 +951,7 @@ defmodule PortfolixirWeb.PortfolioLive do
               :if={is_nil(@performance) and not @performance_failed}
               class="value-slot-pending"
               aria-busy="true"
+              data-waits="performance"
             >
               <span class="value-skeleton" aria-hidden="true"></span>
               <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
@@ -1754,14 +1776,13 @@ defmodule PortfolixirWeb.PortfolioLive do
               </table>
             <% end %>
           <% else %>
+            <%!-- #723: allocation is a sub-second figure — the block
+                 skeleton (UX-DR20) carries the wait without the cue. --%>
             <div
               class="section-skeleton section-skeleton--allocation"
               data-role="allocation-skeleton"
-              role="status"
+              aria-busy="true"
             >
-              <span class="recomputing-cue">
-                <span class="spinner"></span> <%= gettext("computing") %>
-              </span>
             </div>
           <% end %>
         </section>
@@ -1832,9 +1853,8 @@ defmodule PortfolixirWeb.PortfolioLive do
               </p>
             </div>
           <% else %>
-            <p class="hint loading-hint recomputing-cue" role="status">
-              <span class="spinner"></span> <%= gettext("computing") %>
-            </p>
+            <%!-- #723: the valuation is sub-second — silent skeleton. --%>
+            <div class="section-skeleton" data-role="cash-skeleton" aria-busy="true"></div>
           <% end %>
         </section>
         <% end %>

@@ -1103,3 +1103,38 @@ components invented for it:
   so the filter vocabulary is learned once and applies in two places;
 - **no view switcher** (see EXPERIENCE.md for why); the depot select is the
   control that determines where a booking lands, and it is labelled as such.
+
+## Amendment 2026-08-22 — the computing cue marks the seconds class (#723)
+
+The #711 activation measurement (recorded in ADR-0039's 2026-08-18 amendment)
+split the "computing cues across the app" report into two causes: the daily
+performance walks cost **seconds** (~9.5 s at 200 securities / 4,000
+bookings), while everything else a surface waits on is **20–400 ms** — those
+figures showed a cue not because they are slow but because `start_async`
+renders a placeholder while they load. The cue was the loading pattern, not
+the cost.
+
+**Decided (designer): the spinner-and-"computing" cue is reserved for work in
+the seconds class — today, only the walks.** A sub-second figure still loads
+asynchronously (the first frame must never block on a read), but its
+placeholder is the **silent block or value skeleton** (UX-DR20) with
+`aria-busy` and no cue: at that latency the cue cannot be read before it is
+replaced, so it only registers as flicker.
+
+Concretely, per surface:
+
+- **Wealth header** — the valuation slots (total, cash quote) wait silently
+  (`data-waits="valuation"`); the TTWROR/period slots keep the cue
+  (`data-waits="performance"`).
+- **Wealth performance chart** — keeps the cue (it waits on the walk).
+- **Wealth allocation table and cash section** — silent skeletons.
+- **Dashboard "Off target" card** — silent skeleton. (Its report is
+  allocation-class; that its arrival can today be delayed by sharing one
+  async task with the walk-backed value card is a loading-architecture
+  observation, not a cue question — noted, not reshaped here.)
+- **ADR-0032 §6 stale-serve labels** ("recomputing" beside a served stale
+  figure) are untouched: they label a VISIBLE value's freshness, which is a
+  different statement than a placeholder.
+
+Pinned by `portfolio_live_test.exs` ("the computing cue marks the seconds
+class only") over the deterministic dead render.

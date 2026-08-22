@@ -303,11 +303,10 @@ defmodule PortfolixirWeb.DashboardLive do
         <%= if is_nil(@drift_alerts) do %>
           <%!-- A whole absent section keeps its block skeleton (UX-DR20);
                the cue is the substance, the shimmer stays gated. --%>
-          <p class="section-skeleton" aria-busy="true" data-role="attention-skeleton">
-            <span class="recomputing-cue">
-              <span class="spinner"></span> <%= gettext("computing") %>
-            </span>
-          </p>
+          <%!-- #723: the drift report is a sub-second figure — the block
+               skeleton (UX-DR20) carries the wait without the cue, which at
+               that latency only registers as flicker. --%>
+          <p class="section-skeleton" aria-busy="true" data-role="attention-skeleton"></p>
         <% else %>
           <%= if @drift_alerts == [] do %>
             <p class="hint" data-role="all-clear">
