@@ -29,7 +29,7 @@ jobs:
       - name: Setup Elixir
         uses: erlef/setup-beam@v1
         with:
-          elixir-version: '1.20.3'
+          elixir-version: '1.18.3'
           otp-version: '27'
 
       - name: Install dependencies
@@ -68,7 +68,7 @@ jobs:
       - name: Setup Elixir
         uses: erlef/setup-beam@v1
         with:
-          elixir-version: '1.20.3'
+          elixir-version: '1.18.3'
           otp-version: '27'
 
       - name: Install dependencies
@@ -117,7 +117,7 @@ jobs:
       - name: Setup Elixir
         uses: erlef/setup-beam@v1
         with:
-          elixir-version: '1.20.3'
+          elixir-version: '1.18.3'
           otp-version: '27'
 
       - name: Install dependencies
@@ -218,9 +218,9 @@ jobs:
         id: plt-cache
         with:
           path: priv/plts
-          key: ${{ runner.os }}-plt-otp27-elixir1.20.3-${{ hashFiles('**/mix.lock') }}
+          key: ${{ runner.os }}-plt-otp27-elixir1.18.3-${{ hashFiles('**/mix.lock') }}
           restore-keys: |
-            ${{ runner.os }}-plt-otp27-elixir1.20.3-
+            ${{ runner.os }}-plt-otp27-elixir1.18.3-
 
       - name: Build PLT
         if: steps.plt-cache.outputs.cache-hit != 'true'
@@ -286,7 +286,7 @@ jobs:
       - name: Setup Elixir
         uses: erlef/setup-beam@v1
         with:
-          elixir-version: '1.20.3'
+          elixir-version: '1.18.3'
           otp-version: '27'
 
       - name: Install dependencies

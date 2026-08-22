@@ -1,4 +1,4 @@
-FROM elixir:1.20.3-otp-27
+FROM elixir:1.18.3-otp-27
 
 ENV DEBIAN_FRONTEND=noninteractive \
     MIX_HOME=/opt/mix \
