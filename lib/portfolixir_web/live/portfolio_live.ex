@@ -98,7 +98,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           # 1y default (UAT fix round): "max" grows unreadable as history
           # accumulates; the period buttons still offer it.
           |> assign(:period, "1y")
-          |> assign(:range_error, false)
+          |> assign(:range_error, nil)
           |> assign(:chart_mode, "ttwror")
           # The classification tree and the tree/positions mode round-trip
           # through the URL (mobile-reconnect fix): a socket reconnect remounts
@@ -1003,6 +1003,18 @@ defmodule PortfolixirWeb.PortfolioLive do
                     <%= period_label(period) %>
                   </button>
                 <% end %>
+                <%!-- #721 (D5): an applied custom range shows itself here,
+                     in the same active treatment as a preset token — the
+                     control must answer "what am I looking at". --%>
+                <button
+                  :if={match?({:range, _, _}, @period)}
+                  type="button"
+                  class="segmented-control__option is-active"
+                  data-role="custom-period-chip"
+                  aria-pressed="true"
+                >
+                  <%= custom_period_label(@period) %>
+                </button>
               </div>
               <details class="period-disclosure" data-role="period-custom">
                 <summary class="disclosure-summary">
@@ -1037,8 +1049,11 @@ defmodule PortfolixirWeb.PortfolioLive do
                       </option>
                     </select>
                   </form>
+                  <%!-- #721 (D5): a labelled pair that validates as a
+                       range — the violation lands on the field that can fix
+                       it, never on a silently empty chart. --%>
                   <form class="period-range" phx-submit="select_range" data-role="period-range">
-                    <label class="visually-hidden" for="performance-from"><%= gettext("From") %></label>
+                    <label for="performance-from"><%= gettext("From") %></label>
                     <input
                       type="text"
                       placeholder="YYYY-MM-DD"
@@ -1047,8 +1062,10 @@ defmodule PortfolixirWeb.PortfolioLive do
                       id="performance-from"
                       name="from"
                       value={range_from(@period, @performance)}
+                      aria-invalid={@range_error == :from && "true"}
+                      aria-describedby={@range_error == :from && "performance-range-error"}
                     />
-                    <label class="visually-hidden" for="performance-to"><%= gettext("To") %></label>
+                    <label for="performance-to"><%= gettext("To") %></label>
                     <input
                       type="text"
                       placeholder="YYYY-MM-DD"
@@ -1057,6 +1074,8 @@ defmodule PortfolixirWeb.PortfolioLive do
                       id="performance-to"
                       name="to"
                       value={range_to(@period, @performance)}
+                      aria-invalid={@range_error in [:to, :order] && "true"}
+                      aria-describedby={@range_error in [:to, :order] && "performance-range-error"}
                     />
                     <button type="submit"><%= gettext("Apply") %></button>
                   </form>
@@ -1066,8 +1085,14 @@ defmodule PortfolixirWeb.PortfolioLive do
           </header>
           <%!-- #563: a backwards or unparsable range is refused with a terse
                note; the shown period keeps. --%>
-          <p :if={@range_error} class="hint" data-role="range-error" role="alert">
-            <%= gettext("Invalid range — from must be on or before to.") %>
+          <p
+            :if={@range_error}
+            id="performance-range-error"
+            class="hint"
+            data-role="range-error"
+            role="alert"
+          >
+            <%= range_error_message(@range_error) %>
           </p>
           <%!-- ADR-0032 §6: a superseded series never renders unlabelled. The
                banner names the data it CONTAINS (booking count, newest booking,
@@ -2146,20 +2171,30 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   def handle_event("select_year", _params, socket), do: {:noreply, socket}
 
-  # #563: a custom from/to range. A backwards or unparsable range is refused
-  # with a terse inline note; the shown period keeps.
+  # #563 / #721 (D5): a custom from/to range. A backwards or unparsable
+  # range is refused with the violation reported against the field that can
+  # fix it (UX-DR13); the shown period keeps.
   def handle_event("select_range", %{"from" => from, "to" => to}, socket) do
-    with {:ok, from} <- Date.from_iso8601(from),
-         {:ok, to} <- Date.from_iso8601(to),
-         false <- Date.compare(from, to) == :gt do
-      apply_period(socket, {:range, from, to})
-    else
-      _invalid -> {:noreply, assign(socket, :range_error, true)}
+    case parse_range(from, to) do
+      {:ok, from, to} -> apply_period(socket, {:range, from, to})
+      {:error, field} -> {:noreply, assign(socket, :range_error, field)}
     end
   end
 
   def handle_event("select_range", _params, socket) do
-    {:noreply, assign(socket, :range_error, true)}
+    {:noreply, assign(socket, :range_error, :from)}
+  end
+
+  defp parse_range(from_str, to_str) do
+    with {:from, {:ok, from}} <- {:from, Date.from_iso8601(to_string(from_str))},
+         {:to, {:ok, to}} <- {:to, Date.from_iso8601(to_string(to_str))},
+         {:order, false} <- {:order, Date.compare(from, to) == :gt} do
+      {:ok, from, to}
+    else
+      {:from, _} -> {:error, :from}
+      {:to, _} -> {:error, :to}
+      {:order, _} -> {:error, :order}
+    end
   end
 
   # Switching the chart series (% TTWROR ↔ € value) is pure presentation — the
@@ -3145,7 +3180,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   # range): re-chain the cached analysis instantly, or — while the walk is
   # still computing — remember the choice for the async completion.
   defp apply_period(socket, period) do
-    socket = assign(socket, :range_error, false)
+    socket = assign(socket, :range_error, nil)
 
     if socket.assigns.analysis do
       # The analysis is cached — re-chaining a period is pure and instant.
@@ -3196,6 +3231,15 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # Prefill for the range inputs: the picked range, else the shown period's
   # effective bounds (honest clamping included), else blank.
+  defp custom_period_label({:range, from, to}),
+    do: "#{Date.to_iso8601(from)} – #{Date.to_iso8601(to)}"
+
+  defp range_error_message(:order),
+    do: gettext("The end date is before the start date.")
+
+  defp range_error_message(_field),
+    do: gettext("Not a date — use YYYY-MM-DD.")
+
   defp range_from({:range, from, _to}, _performance), do: from
   defp range_from(_period, %{start_date: %Date{} = start_date}), do: start_date
   defp range_from(_period, _performance), do: nil
