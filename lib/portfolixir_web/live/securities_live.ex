@@ -3135,7 +3135,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      socket
      |> assign(:visible_columns, columns)
      |> load_securities()
-     |> push_event("column-prefs-changed", %{columns: column_strs})}
+     |> push_event("column-prefs-changed", %{key: "securities.columns", columns: column_strs})}
   end
 
   def handle_info({:dq_selected, dq}, socket) do

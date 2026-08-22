@@ -335,6 +335,20 @@ garbled value degrades to the full history. The Balance column is unaffected
 by this filter, like by every other: it is always computed over the account's
 whole history.
 
+**Columns** (issue #732) opens the history's column picker — the human half
+of the API's `fields=` sparse fieldset. Beyond the default set (date, type,
+security, quantity, price, currency) it offers the fields every booking
+already carries but the table never showed: gross amount, fees, taxes and
+notes. The choice is stored in the browser and survives a reload. The
+Balance column is deliberately not in the picker: it stays governed by its
+own rule — it appears exactly when the chips narrow to one account — because
+a picker that could summon it outside that narrowing would show a
+meaningless figure. The **Current holdings** panel beside the history has
+the same picker: its default Depot / Security / Quantity view expands to the
+valuation columns the agent reads over the holdings API — ISIN, WKN,
+currency, average cost, latest price, market value and unrealized P&L — and
+the figures are that projection's own numbers, not a second calculation.
+
 ### Holdings Calculation
 
 Current holdings are not entered manually. They are derived from all

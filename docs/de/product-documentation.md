@@ -359,6 +359,21 @@ unlesbarer Wert degradiert zur vollständigen Historie. Die Spalte **Saldo**
 bleibt von diesem Filter wie von jedem anderen unberührt: sie wird immer über
 die gesamte Historie des Kontos gebildet.
 
+**Spalten** (Issue #732) öffnet die Spaltenwahl der Historie — die
+menschliche Hälfte der schlanken `fields=`-Feldauswahl der API. Jenseits des
+Standardsatzes (Datum, Art, Wertpapier, Menge, Kurs, Währung) bietet sie die
+Felder an, die jede Buchung schon trägt, die die Tabelle aber nie zeigte:
+Bruttobetrag, Gebühren, Steuern und Notizen. Die Wahl wird im Browser
+gespeichert und übersteht ein Neuladen. Die Spalte **Saldo** steht bewusst
+nicht in der Auswahl: sie folgt weiter ihrer eigenen Regel — sie erscheint
+genau dann, wenn die Chips auf ein Konto verengen —, denn eine Auswahl, die
+sie außerhalb dieser Verengung herbeiholen könnte, zeigte eine bedeutungslose
+Zahl. Das Panel **Aktuelle Bestände** neben der Historie hat dieselbe
+Spaltenwahl: seine Standardansicht Depot / Wertpapier / Menge erweitert sich
+um die Bewertungsspalten, die der Agent über die Bestände-API liest — ISIN,
+WKN, Währung, Ø Kosten, letzter Kurs, Marktwert und unrealisierte G&V — und
+die Zahlen sind die dieser Projektion, keine zweite Rechnung.
+
 ### Bestandsberechnung
 
 Aktuelle Bestände werden nicht manuell erfasst. Sie werden aus allen

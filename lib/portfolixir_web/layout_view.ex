@@ -154,6 +154,7 @@ defmodule PortfolixirWeb.LayoutView do
             Hooks.ColumnPrefs = {
               mounted: function () {
                 var key = this.el.dataset.storageKey || "securities.columns";
+                var restoreEvent = this.el.dataset.restoreEvent || "set_columns";
                 var raw = null;
                 try { raw = window.localStorage && window.localStorage.getItem(key); } catch (_) {}
 
@@ -161,12 +162,17 @@ defmodule PortfolixirWeb.LayoutView do
                   try {
                     var stored = JSON.parse(raw);
                     if (Array.isArray(stored) && stored.length > 0) {
-                      this.pushEvent("set_columns", { columns: stored });
+                      this.pushEvent(restoreEvent, { columns: stored });
                     }
                   } catch (_) {}
                 }
 
+                // handleEvent listens page-wide, so on a page with more than
+                // one picked table (#732: transactions) the payload names its
+                // storage key and each hook stores only its own set. A
+                // payload without a key keeps the pre-#732 behavior.
                 this.handleEvent("column-prefs-changed", function (payload) {
+                  if (payload && payload.key && payload.key !== key) { return; }
                   try {
                     if (window.localStorage && payload && Array.isArray(payload.columns)) {
                       window.localStorage.setItem(key, JSON.stringify(payload.columns));

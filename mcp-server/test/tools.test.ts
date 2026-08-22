@@ -462,6 +462,39 @@ describe("Portfolixir MCP tools", () => {
     );
   });
 
+  // User story (issue #732, extending FR-37):
+  // As the operating LLM agent syncing the catalog,
+  // I want `fields` on securities.list too,
+  // so that the one list that already had the operator's column picker stops
+  // being the one list without the agent's sparse fieldset.
+  //
+  // Acceptance criteria:
+  // - securities.list forwards `fields` as a comma list.
+  // - The enum mirrors the API's full-projection whitelist (spot-checked on
+  //   full-only fields), and the description states that fields supersedes
+  //   projection.
+  it("forwards fields on securities.list and documents that it supersedes projection", async () => {
+    const { client, requests } = createRecordingClient({ data: [] });
+
+    await callTool(client, "portfolixir.securities.list", {
+      fields: ["id", "name", "exchange_code"]
+    });
+    assert.equal(requests[0].path, "/api/v1/securities?fields=id%2Cname%2Cexchange_code");
+
+    const tools = await listTools(client);
+    const list = tools.find((t) => t.name === "portfolixir.securities.list");
+    assert.ok(list, "securities.list tool missing");
+    const fieldsSchema = (list!.inputSchema as any).properties.fields;
+    assert.ok(fieldsSchema, "securities.list has no fields property");
+    for (const fullOnly of ["exchange_code", "note", "attributes", "updated_at"]) {
+      assert.ok(
+        fieldsSchema.items.enum.includes(fullOnly),
+        `fields enum misses full-projection field ${fullOnly}`
+      );
+    }
+    assert.match(list!.description ?? "", /supersedes projection/i);
+  });
+
   // User story (issue #667):
   // As the operating LLM agent deciding a trim from the allocation drift,
   // I want tax_context=true on the allocation tool and the activity-aware
