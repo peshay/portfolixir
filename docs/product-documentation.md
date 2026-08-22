@@ -401,7 +401,10 @@ for historic imports once rates for the booking dates are stored.
 
 Securities can be organised into **classification trees**. Custom trees are
 free-form folders with colours; built-in trees for **asset class** and
-**currency** are derived from each security and always present. The asset-class
+**currency** are derived from each security and always present. Built-in
+tree names display through the locale (issue #729 — DE *Anlageklasse* /
+*Währung*), keyed on the tree's stable key; your own trees keep the name you
+gave them in every language. The asset-class
 tree is an editable taxonomy: a security's class is seeded from an inferred
 default and corrected by dragging it between categories.
 
