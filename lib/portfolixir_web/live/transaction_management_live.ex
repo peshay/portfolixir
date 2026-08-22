@@ -7,6 +7,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   alias Portfolixir.Ledger.Projection
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.ChangedSince
 
   # Two chip families (#707 D2, Part 4) plus the conditions the "More filters"
   # disclosure holds. Chips within a family compose as OR -- two accounts means
@@ -37,6 +38,18 @@ defmodule PortfolixirWeb.TransactionManagementLive do
      |> assign(:form_errors, %{})
      |> assign(:sell_preview, nil)
      |> load_state()}
+  end
+
+  # `since` is the one URL-driven filter on this page (#731): it mirrors the
+  # API's `?since=` parameter so a link an agent hands over opens the exact
+  # slice it read. The other filters stay socket state deliberately — they
+  # have no agent-side counterpart to mirror.
+  @impl true
+  def handle_params(params, _uri, socket) do
+    {:noreply,
+     socket
+     |> assign(:since, ChangedSince.parse(params))
+     |> apply_current_filters()}
   end
 
   @impl true
@@ -375,6 +388,21 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               <% end %>
             </div>
 
+            <ChangedSince.chips id="changed-since-chips" since={@since} />
+
+            <p
+              :if={@since}
+              id="transaction-since-note"
+              class="summary-basis"
+              role="status"
+              data-role="since-note"
+            >
+              <%= gettext(
+                "Changed since %{cut} (UTC): only transactions created or changed after this instant are shown — by record change, not booking date. Deletions are not shown; clear the filter for the complete history.",
+                cut: @since.raw
+              ) %>
+            </p>
+
             <details id="transaction-more-filters" class="more-filters">
               <summary>
                 <AppShell.icon name={:filter} />
@@ -555,6 +583,13 @@ defmodule PortfolixirWeb.TransactionManagementLive do
      |> apply_current_filters()}
   end
 
+  def handle_event("set_changed_since", %{"preset" => preset}, socket) do
+    case ChangedSince.toggle_value(socket.assigns.since, preset) do
+      nil -> {:noreply, push_patch(socket, to: "/transactions")}
+      iso -> {:noreply, push_patch(socket, to: "/transactions?since=#{iso}")}
+    end
+  end
+
   def handle_event("save_transaction", %{"transaction" => params}, socket) do
     # The currency is authoritative from the chosen depot's cash account, never a
     # free-text field the user could mistype (#473).
@@ -627,7 +662,11 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   defp apply_current_filters(socket) do
     filters = Map.merge(default_filters(), socket.assigns[:filters] || %{})
-    filtered = filter_transactions(socket.assigns.transactions, filters)
+
+    filtered =
+      socket.assigns.transactions
+      |> filter_transactions(filters)
+      |> filter_changed_since(socket.assigns[:since])
 
     assign(socket,
       filters: filters,
@@ -664,6 +703,17 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     |> Enum.filter(&to_match?(&1, filters["to"]))
     |> Enum.filter(&query_match?(&1, filters["query"]))
   end
+
+  # The in-memory mirror of the contexts' `updated_at > cut` delta cut
+  # (`updated_since:` in Ledger/Catalog): strictly after, by record change.
+  # Mirrored rather than re-queried because the running balance folds over
+  # the FULL history (see assign_running_balances) — narrowing the load
+  # would restate opening balances as zero. Parity with the query is pinned
+  # in changed_since_view_test.exs.
+  defp filter_changed_since(transactions, nil), do: transactions
+
+  defp filter_changed_since(transactions, %{cut: cut}),
+    do: Enum.filter(transactions, &(NaiveDateTime.compare(&1.updated_at, cut) == :gt))
 
   defp type_match?(_tx, []), do: true
   defp type_match?(tx, types), do: tx.type in types
