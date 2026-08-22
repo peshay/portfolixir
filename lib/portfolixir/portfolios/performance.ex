@@ -956,8 +956,6 @@ defmodule Portfolixir.Portfolios.Performance do
     %{state | qty: qty_map}
   end
 
-  defp add_cash(state, nil, _delta), do: state
-
   defp add_cash(state, account_id, delta) do
     %{state | cash: Map.update(state.cash, account_id, delta, &Decimal.add(&1, delta))}
   end

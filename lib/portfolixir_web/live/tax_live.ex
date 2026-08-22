@@ -299,8 +299,6 @@ defmodule PortfolixirWeb.TaxLive do
   defp invalid?(nil, _field), do: false
   defp invalid?(errors, field), do: Map.has_key?(errors, field)
 
-  defp error_text(nil), do: nil
-
   defp error_text(errors) do
     Enum.map_join(errors, "; ", fn {field, messages} ->
       "#{field_label_or_name(field)}: #{Enum.join(messages, ", ")}"

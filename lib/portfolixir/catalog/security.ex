@@ -258,8 +258,6 @@ defmodule Portfolixir.Catalog.Security do
     )
   end
 
-  defp structured_product_name?(_), do: false
-
   defp equity_name?(name) when is_binary(name) do
     Regex.match?(
       ~r/(Registered\s+Shares?|Registered\s+Part\.?\s*Shares?|Reg\.?\s*Shares?|Inhaber-Aktien|Namens-Aktien|Vorzugsaktien|Actions|Aandelen|Common\s+Stock|\bInc\.?\b|\bCorp\.?\b|\bCorporation\b|\bCompany\b|\bCo\.|\bLtd\.?\b|\bAG\b|\bSE\b|\bPLC\b|S\.p\.A\.|S\.?A\.?|SA\/NV|\bAktiengesellschaft\b|\bA\/S\b|\bASA\b|\bKGaA\b|\bAzioni\b|\bAcciones\b|\bAktier\b|\b(?:Sp\.)?ADR(?:s)?\b|\bGDR(?:s)?\b|Depos\.?\s*Receipts?|\bINH\.ON\b)/i,
