@@ -119,6 +119,37 @@ defmodule Portfolixir.CITest do
            |> String.contains?("mix deps.get")
   end
 
+  # User story (#728):
+  # As a maintainer whose MCP gates decide whether an MCP change may land,
+  # I want the Node version those gates run under pinned, and pinned in the
+  # SAME place local runs, the container and the type definitions read,
+  # so that the runtime cannot change under the project with no commit, no PR
+  # and no failing check -- which is why `@types/node` had nothing to agree
+  # with and stayed parked in Sprint 7.
+  #
+  # Acceptance criteria:
+  # - The job running the MCP gates sets up Node explicitly.
+  # - `mcp-server/package.json` declares the same major in `engines.node`.
+  # - The MCP container image names the same major.
+  # - `@types/node` follows that major rather than the registry's latest.
+  test "the MCP gates, the container and the type definitions name one Node major" do
+    ci_workflow = File.read!(".github/workflows/ci.yml")
+    package_json = File.read!("mcp-server/package.json")
+    dockerfile = File.read!("mcp-server/Dockerfile")
+
+    assert ci_workflow =~ "actions/setup-node",
+           "the MCP gates would otherwise run on whatever Node ubuntu-latest ships"
+
+    assert [[_, ci_major]] = Regex.scan(~r/node-version: ['"](\d+)['"]/, ci_workflow)
+
+    # The pinned line is an Active LTS major, not the newest release: type
+    # definitions describe the runtime, and the runtime is the one the
+    # container ships.
+    assert package_json =~ ~s("node": ">=#{ci_major} <#{String.to_integer(ci_major) + 1}")
+    assert dockerfile =~ "FROM node:#{ci_major}-"
+    assert package_json =~ ~s("@types/node": "^#{ci_major}.)
+  end
+
   # User story:
   # As a maintainer whose test suite is the mechanical guard behind money math,
   # I want async LiveView assertions to have a wall-clock budget that survives
