@@ -24,11 +24,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Lightweight-tag guard (Sprint 8 Lane Z): 0.5.0, 0.6.0 and 0.7.0 all
+      # landed lightweight against ADR-0026 step 5's "annotated", because the
+      # GitHub release UI cannot create annotated tags and the agent session's
+      # git proxy cannot push tags at all. The release still happens (a
+      # lightweight tag marks the right commit), but the miss is made loud: a
+      # workflow warning plus a note prepended to the release body, both
+      # pointing at the prepared-command path the close-out ledger carries.
       - name: Create GitHub release with generated notes
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >-
-          gh release create "$GITHUB_REF_NAME"
-          --repo "$GITHUB_REPOSITORY"
-          --verify-tag
-          --generate-notes
+        run: |
+          object_type=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$GITHUB_REF_NAME" --jq '.object.type')
+          if [ "$object_type" = "tag" ]; then
+            gh release create "$GITHUB_REF_NAME" \
+              --repo "$GITHUB_REPOSITORY" \
+              --verify-tag \
+              --generate-notes
+          else
+            echo "::warning title=Lightweight tag::$GITHUB_REF_NAME is a lightweight tag; ADR-0026 step 5 asks for an annotated one. Recreate it with the prepared command from the sprint retrospective's close-out ledger (git tag -a ... && git push origin <tag>)."
+            gh release create "$GITHUB_REF_NAME" \
+              --repo "$GITHUB_REPOSITORY" \
+              --verify-tag \
+              --generate-notes \
+              --notes "> **Note:** this release was created from a *lightweight* tag. ADR-0026 step 5 asks for an annotated tag; the sprint retrospective's close-out ledger carries the prepared \`git tag -a\` command for the maintainer."
+          fi
