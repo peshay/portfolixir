@@ -15,7 +15,7 @@ the latest one.
 
 | Dependency | From | To | Where |
 | --- | --- | --- | --- |
-| Elixir (CI, Dockerfile, PLT key) | 1.18.3 | 1.20.3 | Lane D, #727 (partial — see below) |
+| Elixir (CI, Dockerfile, PLT key) | 1.18.3 | 1.20.3 | **attempted and reverted, blocked upstream**: under 1.20.3 the `test` job dies before any test runs — `:cover.do_compile_beam2` returns `:error` and excoveralls raises `MatchError` — so `mix coveralls.json`, and with it the coverage gate, cannot run at all. CI is the evidence: `594f452` (the last pre-bump commit) is green, `7ec41fa` (the bump) is the first red, and every commit after it inherits the failure. excoveralls 0.18.5 (2025-01-26) is the newest release, so no dependency update clears it, and disabling coverage to get green would weaken a quality gate. Re-check trigger: an excoveralls release naming Elixir 1.20 cover support. Recorded on #727, which now carries BOTH halves again |
 | Node (CI `setup-node`, `engines`, Dockerfile) | unpinned / node:22 | 24 LTS | Lane D, #728 |
 | phoenix | 1.8.11 | 1.8.12 | maintenance commit |
 | phoenix_live_view | 1.2.9 | 1.2.10 | maintenance commit |
