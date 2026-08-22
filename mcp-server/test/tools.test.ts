@@ -40,6 +40,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.splits.create",
       "portfolixir.holdings.list",
       "portfolixir.cashflow.realized_gains",
+      "portfolixir.cashflow.external_flows",
       "portfolixir.holdings.by_security",
       "portfolixir.holdings.negative",
       "portfolixir.holdings.reconcile",
@@ -488,6 +489,25 @@ describe("Portfolixir MCP tools", () => {
     assert.match(tool!.description ?? "", /EUR hub/);
     assert.match(tool!.description ?? "", /excluded/i);
     assert.match(tool!.description ?? "", /close date/i);
+  });
+
+  // User story (issue #725):
+  // As the operating LLM agent,
+  // I want the deposits-and-withdrawals roll-up as a tool,
+  // so that the "Ersparnis" figure and its stated difference from
+  // invested_capital are readable where I reason.
+  it("serves the external-flows roll-up and states the invested-capital difference", async () => {
+    const { client, requests } = createRecordingClient({ data: {} });
+
+    await callTool(client, "portfolixir.cashflow.external_flows", {});
+    assert.equal(requests[0].path, "/api/v1/external_flows");
+
+    const tools = listTools();
+    const tool = tools.find((t) => t.name === "portfolixir.cashflow.external_flows");
+    assert.ok(tool, "cashflow.external_flows tool missing");
+    assert.match(tool!.description ?? "", /invested_capital/);
+    assert.match(tool!.description ?? "", /EUR hub/);
+    assert.match(tool!.description ?? "", /excluded/i);
   });
 
   // User story (issue #732, extending FR-37):

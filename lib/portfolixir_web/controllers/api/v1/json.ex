@@ -1209,6 +1209,33 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
+  # #725: the deposits-and-withdrawals roll-up.
+  def external_flows(report) do
+    %{
+      base_currency: report.base_currency,
+      conversion_note: report.conversion_note,
+      computation_basis: report.computation_basis,
+      excluded: report.excluded,
+      annual:
+        Enum.map(report.annual, fn year ->
+          %{
+            year: year.year,
+            deposits_total: decimal(year.deposits_total),
+            withdrawals_total: decimal(year.withdrawals_total),
+            net_total: decimal(year.net_total),
+            months:
+              Map.new(year.months, fn {month, series} ->
+                {Integer.to_string(month),
+                 %{
+                   deposits: decimal(series.deposits),
+                   withdrawals: decimal(series.withdrawals)
+                 }}
+              end)
+          }
+        end)
+    }
+  end
+
   def income(income) do
     %{
       portfolio_id: income.portfolio_id,

@@ -461,6 +461,16 @@ Beispiel-Payloads für Konten:
   Kurs eines Nachbardatums konvertiert, nie still verworfen. Die Payload
   trägt `computation_basis` (Serie, Fenster, Referenz, Lücken) und eine
   `conversion_note`; die menschliche Sicht ist `/cashflow?tab=realized`.
+- `GET /api/v1/external_flows` (Issue #725) liefert das
+  Ein-/Auszahlungs-Rollup: die gebuchten externen **Cash**-Flüsse (`deposit`
+  und `removal`) über alle Portfolios, je Jahr und Monat mit Einzahlungen,
+  Auszahlungen und Netto. Bewusst enger als das `invested_capital` des
+  Performance-Laufs, das zusätzlich ein-/ausgelieferte Wertpapiere zum
+  Marktwert und Saldo-Snapshot-Residuen zählt — der Unterschied steht in
+  `computation_basis.excludes`. FX-Basis wie in der Schwester-Facette:
+  EUR-Hub am oder vor dem Buchungsdatum, unkonvertierbare Flüsse
+  ausgeschlossen und nach Verrechnungskonto benannt. Die menschliche Sicht
+  ist `/cashflow?tab=flows`.
 - `GET /api/v1/holdings/by_security` liefert die **globale Bewertung je
   Wertpapier** über **alle** Portfolios hinweg: eine `holdings`-Zeile je aktuell
   gehaltenem Wertpapier mit `security_id` (eine Ganzzahl), Gesamt-`quantity` und
@@ -1066,6 +1076,8 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
 - `portfolixir.holdings.list`
 - `portfolixir.cashflow.realized_gains` — das #724-Rollup mit erklärter
   FX-Basis und Ausschluss-und-Benennung bei Kurslücken
+- `portfolixir.cashflow.external_flows` — das #725-Rollup mit erklärtem
+  Unterschied zum investierten Kapital
 - `portfolixir.holdings.by_security`
 - `portfolixir.holdings.negative`
 - `portfolixir.holdings.reconcile` — rein lesender Vergleich einer

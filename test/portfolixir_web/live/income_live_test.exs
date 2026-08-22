@@ -515,4 +515,45 @@ defmodule PortfolixirWeb.IncomeLiveTest do
     {:ok, _view, garbled} = live(conn, "/cashflow?tab=nonsense")
     assert garbled =~ ~s(id="income-annual")
   end
+
+  # User story (issue #725):
+  # As a local portfolio maintainer,
+  # I want the Deposits & withdrawals facet on /cashflow,
+  # so that what I put in and took out is readable per period, separate
+  # from what the portfolio earned — with the invested-capital difference
+  # stated instead of discoverable.
+  #
+  # Acceptance criteria:
+  # - /cashflow?tab=flows renders the facet with its composition line
+  #   naming what it excludes (deliveries, balance snapshots).
+  # - Deposits and withdrawals show as two series with a net; an
+  #   unconvertible flow is excluded and named by its account.
+  test "the flows facet shows deposits and withdrawals with the stated difference (#725)",
+       %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Flows", currency: "EUR")
+    WorldFixtures.deposit!(world, "1000.00", ~D[2026-01-10])
+
+    {:ok, _} =
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        cash_account_id: world.cash.id,
+        type: "removal",
+        date: ~D[2026-02-20],
+        gross_amount: "200.00",
+        currency_code: "EUR"
+      })
+
+    {:ok, view, _html} = live(conn, "/cashflow?tab=flows")
+
+    assert view |> element(~s([data-role="cashflow-facets"] [aria-current])) |> render() =~
+             "Deposits"
+
+    composition = view |> element(~s([data-role="facet-composition"])) |> render()
+    assert composition =~ "delivered"
+
+    table = view |> element("#flows-annual") |> render()
+    assert table =~ "1,000.00"
+    assert table =~ "200.00"
+    assert table =~ "800.00"
+  end
 end

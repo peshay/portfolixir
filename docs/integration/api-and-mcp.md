@@ -459,6 +459,15 @@ Example account payloads:
   date's rate, never silently dropped. The payload carries
   `computation_basis` (series, window, reference, gaps) and a
   `conversion_note`; the human view is `/cashflow?tab=realized`.
+- `GET /api/v1/external_flows` (issue #725) returns the Deposits &
+  withdrawals roll-up: the booked external **cash** flows (`deposit` and
+  `removal`) across all portfolios, per year and month with deposits,
+  withdrawals and a net. Deliberately narrower than the performance walk's
+  `invested_capital`, which additionally counts securities delivered in/out
+  at market value and balance-snapshot residuals — the difference is stated
+  in `computation_basis.excludes`. FX basis as in the sibling facet: EUR hub
+  at or before each booking date, unconvertible flows excluded and named by
+  their cash account. The human view is `/cashflow?tab=flows`.
 - `GET /api/v1/holdings/by_security` returns the **global per-security
   valuation** across **all** portfolios: one `holdings` row per currently held
   security with its `security_id` (an integer), total `quantity`, and current
@@ -1251,6 +1260,8 @@ in MCP schemas are strings.
 - `portfolixir.holdings.list`
 - `portfolixir.cashflow.realized_gains` — the #724 roll-up with its stated
   FX basis and the excluded-and-named gap treatment
+- `portfolixir.cashflow.external_flows` — the #725 roll-up with the stated
+  invested-capital difference
 - `portfolixir.holdings.by_security`
 - `portfolixir.holdings.negative`
 - `portfolixir.holdings.reconcile` — read-only compare of a pasted external

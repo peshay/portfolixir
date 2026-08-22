@@ -1041,6 +1041,17 @@ wird **aus jeder Summe ausgeschlossen und benannt** (Achtung-Notiz mit Anzahl
 und Wertpapieren) — nie zum Kurs eines Nachbardatums konvertiert, nie still
 verworfen; das Nachpflegen des Kurses holt ihn in die Summen.
 
+**Ein- & Auszahlungen** (`/cashflow?tab=flows`, Issue #725) ist die
+„Ersparnis": was eingezahlt und entnommen wurde, je Periode, als zwei Serien
+mit Jahresnetto — getrennt von dem, was das Portfolio erwirtschaftet hat.
+Gezählt werden nur die **gebuchten** Ein- und Auszahlungen, und das steht
+dort: ein-/ausgelieferte Wertpapiere und Saldo-Snapshot-Sprünge stecken nicht
+in dieser Zahl, wohl aber im investierten Kapital der Performance — die
+Oberfläche nennt den Unterschied, statt zwei widersprechende Zahlen zum
+Entdecken zu lassen. Gleiche FX-Basis und gleiche
+Ausschluss-und-Benennungs-Regel wie die Schwester-Facetten; unkonvertierbare
+Flüsse werden nach Verrechnungskonto benannt.
+
 Jede Kennzahl des Bereichs nennt, was sie enthält: der Income-Bereich schreibt,
 dass er *Dividenden und Zinsen* abdeckt und realisierte Gewinne, Ein- und
 Auszahlungen sowie Kosten **ausschließt**. Das ist keine Dekoration — genau

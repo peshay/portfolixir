@@ -91,4 +91,28 @@ defmodule PortfolixirWeb.ApiV1CashflowFacetsTest do
     assert basis["reference"] =~ "EUR hub"
     assert basis["gaps"] =~ "excluded"
   end
+
+  # User story (issue #725):
+  # As the operating LLM agent,
+  # I want the deposits-and-withdrawals roll-up over the API,
+  # so that the "Ersparnis" figure carries its basis — including the stated
+  # difference from the invested-capital figure.
+  test "GET /api/v1/external_flows serves the flows roll-up with its basis", %{conn: conn} do
+    world = WorldFixtures.base_world()
+    WorldFixtures.deposit!(world, "1000.00", ~D[2026-01-10])
+
+    response = get_json(conn, "/api/v1/external_flows")
+
+    assert %{"data" => data} = response
+    assert data["base_currency"] == "EUR"
+    assert [%{"year" => 2026} = year] = data["annual"]
+    assert year["deposits_total"] == "1000"
+    assert year["net_total"] == "1000"
+    assert year["months"]["1"]["deposits"] == "1000"
+    assert data["excluded"] == %{"count" => 0, "accounts" => []}
+
+    basis = data["computation_basis"]
+    assert basis["series"] =~ "deposit"
+    assert basis["excludes"] =~ "invested-capital"
+  end
 end

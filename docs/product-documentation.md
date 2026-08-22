@@ -961,6 +961,16 @@ date is **excluded from every total and named** in an attention note (count
 and securities) — never converted at a neighbouring date's rate, never
 silently dropped; storing the missing rate brings it into the totals.
 
+**Deposits & withdrawals** (`/cashflow?tab=flows`, issue #725) is the
+owner's "Ersparnis": what was put in and taken out, per period, as two
+series with a yearly net — separate from what the portfolio earned. It
+counts the **booked** deposits and removals only, and says so: securities
+delivered in or out and balance-snapshot jumps are not in this number, while
+the performance's invested-capital figure does count them — the surface
+states that difference instead of leaving two disagreeing figures to be
+discovered. Same FX basis and the same excluded-and-named rule as the
+sibling facets, with unconvertible flows named by their cash account.
+
 Every figure on the area says what it contains: the Income facet states that it
 covers *dividends and interest* and that it **excludes** realized gains,
 deposits and withdrawals, and costs. That is not decoration — those omissions
