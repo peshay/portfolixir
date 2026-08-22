@@ -2546,7 +2546,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp decimal_for_display(_), do: nil
 
-  defp display_value(:asset_class, value), do: AssetClasses.label(value)
   defp display_value(:feed, value), do: Feeds.label(value)
   defp display_value(:latest_feed, value), do: Feeds.label(value)
   defp display_value(_key, value), do: to_string(value)

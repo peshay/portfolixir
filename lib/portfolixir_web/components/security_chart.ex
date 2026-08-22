@@ -188,8 +188,6 @@ defmodule PortfolixirWeb.Components.SecurityChart do
 
   # The zero line (gain/loss boundary) on the raw value scale; only rendered
   # when 0 actually sits inside the padded range.
-  defp zero_in_range?(:empty), do: false
-
   defp zero_in_range?(geometry) do
     geometry.y_min < 0.0 and geometry.y_max > 0.0
   end
@@ -295,16 +293,12 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   defp safe_log(value) when value > 0, do: :math.log10(value)
   defp safe_log(_), do: 0.0
 
-  defp polyline_points(:empty, _, _, _, _), do: ""
-
   defp polyline_points(geometry, x0, y0, x1, y1) do
     geometry
     |> point_coords(x0, y0, x1, y1)
     |> Enum.map(fn {x, y} -> "#{format_coord(x)},#{format_coord(y)}" end)
     |> Enum.join(" ")
   end
-
-  defp area_path(:empty, _, _, _, _), do: ""
 
   defp area_path(geometry, x0, y0, x1, y1) do
     case point_coords(geometry, x0, y0, x1, y1) do
@@ -456,8 +450,6 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   end
 
   defp chart_decimal(_), do: nil
-
-  defp overlay_points(_overlay, :empty, _, _, _, _), do: ""
 
   defp overlay_points(%{points: points}, geometry, x0, y0, x1, y1) do
     plot_w = x1 - x0

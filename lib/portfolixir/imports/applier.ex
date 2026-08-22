@@ -1245,10 +1245,9 @@ defmodule Portfolixir.Imports.Applier do
   end
 
   # Increment one counter field on the Result struct inside `state`.
-  # Pattern-matching `%Result{} = r` here keeps dialyzer happy.
   defp bump_result(state, field) when is_atom(field) do
     Map.update!(state, :result, fn %Result{} = r ->
-      Map.update!(r, field, &(&1 + 1))
+      Map.put(r, field, Map.fetch!(r, field) + 1)
     end)
   end
 

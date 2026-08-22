@@ -145,8 +145,6 @@ defmodule PortfolixirWeb.SnapshotsLive do
     end)
   end
 
-  defp form_error_text(nil), do: nil
-
   defp form_error_text(errors) do
     Enum.map_join(errors, "; ", fn {field, messages} ->
       "#{field} #{Enum.join(messages, ", ")}"
