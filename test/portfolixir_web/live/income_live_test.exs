@@ -606,4 +606,57 @@ defmodule PortfolixirWeb.IncomeLiveTest do
     assert table =~ "-10.00"
     assert table =~ "2.00"
   end
+
+  # User story (#724 D-1 / #726, and the two rules the Sprint 8 design
+  # amendment records as UX-DR25 and UX-DR26):
+  # As a local portfolio maintainer whose figure is incomplete,
+  # I want the exclusion named WITHOUT a control that cannot help, and a
+  # deliberate limit stated where I would look for the missing detail,
+  # so that the page never turns a stated limit into a failed attempt, and
+  # never reads as unfinished when it is finished by decision.
+  #
+  # Acceptance criteria:
+  # - The realized-gains exclusion note names the gap and offers no link:
+  #   rate sync fetches the daily feed and cannot fill a past booking date
+  #   (issue #737), so a "store the missing rates" control would fail.
+  # - The Costs facet states that overview level is on purpose.
+  test "an exclusion names the gap without a control that cannot act", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Depot", currency: "EUR")
+    today = Date.utc_today()
+
+    dollar = WorldFixtures.create_security!(name: "Dollar ETF", ticker: "USE", currency: "USD")
+
+    usd =
+      WorldFixtures.add_depot(world.portfolio,
+        currency: "USD",
+        cash_name: "USD Cash",
+        depot_name: "USD Depot"
+      )
+
+    usd_world = %{portfolio: world.portfolio, depot: usd.depot, cash: usd.cash}
+
+    WorldFixtures.buy!(usd_world, dollar,
+      quantity: "10",
+      price: "100",
+      date: Date.add(today, -100),
+      currency: "USD"
+    )
+
+    WorldFixtures.sell!(usd_world, dollar,
+      quantity: "10",
+      price: "120",
+      date: Date.add(today, -5),
+      currency: "USD"
+    )
+
+    {:ok, view, _html} = live(conn, "/cashflow?tab=realized")
+
+    note = view |> element(~s([data-role="realized-excluded"])) |> render()
+    assert note =~ "Dollar ETF"
+    refute note =~ "<a ", "the note must not offer a control that cannot fill a past date"
+
+    {:ok, view, _html} = live(conn, "/cashflow?tab=costs")
+    composition = view |> element(~s([data-role="facet-composition"])) |> render()
+    assert composition =~ "on purpose"
+  end
 end

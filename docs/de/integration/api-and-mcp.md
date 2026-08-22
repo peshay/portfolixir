@@ -455,7 +455,7 @@ Beispiel-Payloads für Konten:
   und Portfolios, gruppiert nach dem **Schlussdatum** jedes Verkaufs in eine
   Jahres-/Monatsmatrix in der Basiswährung. FX-Basis ist D-1 (signiert
   2026-08-20): jeder Verkauf konvertiert über den **EUR-Hub** zum jüngsten
-  gespeicherten Kurs am oder vor seinem Schlussdatum; ein Verkauf **ohne**
+  gespeicherten Kurs seines eigenen Schlusstags; ein Verkauf **ohne**
   gespeicherten Kurs zu diesem Datum wird **aus jeder konvertierten Summe
   ausgeschlossen und benannt** (`excluded`: `count` + `securities`) — nie zum
   Kurs eines Nachbardatums konvertiert, nie still verworfen. Die Payload
@@ -468,7 +468,7 @@ Beispiel-Payloads für Konten:
   Performance-Laufs, das zusätzlich ein-/ausgelieferte Wertpapiere zum
   Marktwert und Saldo-Snapshot-Residuen zählt — der Unterschied steht in
   `computation_basis.excludes`. FX-Basis wie in der Schwester-Facette:
-  EUR-Hub am oder vor dem Buchungsdatum, unkonvertierbare Flüsse
+  EUR-Hub zum Kurs des eigenen Buchungstags, unkonvertierbare Flüsse
   ausgeschlossen und nach Verrechnungskonto benannt. Die menschliche Sicht
   ist `/cashflow?tab=flows`.
 - `GET /api/v1/costs` (Issue #726) liefert das Kosten-Rollup: Gebühren und
@@ -480,7 +480,7 @@ Beispiel-Payloads für Konten:
   eines Kaufs **enthält** seine Nebenbeträge, das eines Verkaufs ist um sie
   **gemindert**, eine Bruttosumme beschriebe also etwas anderes. Diese Regel
   steht in `computation_basis.series`. FX-Basis wie in den
-  Schwester-Facetten: EUR-Hub am oder vor dem Buchungsdatum,
+  Schwester-Facetten: EUR-Hub zum Kurs des eigenen Buchungstags,
   unkonvertierbare Kosten ausgeschlossen und nach **Währung** benannt. Die
   menschliche Sicht ist `/cashflow?tab=costs`.
 - `GET /api/v1/holdings/by_security` liefert die **globale Bewertung je

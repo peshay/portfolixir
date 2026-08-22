@@ -452,9 +452,9 @@ Example account payloads:
   Realized-gains roll-up: FIFO-matched realized P&L across **all** securities
   and portfolios, grouped by each sale's **close date** into an annual
   `year → month` matrix in the base currency. The FX basis is D-1 (signed
-  2026-08-20): each sale converts through the **EUR hub** at the most recent
-  stored rate on or before its close date; a sale with **no** stored rate at
-  that date is **excluded from every converted total and named** in
+  2026-08-20): each sale converts through the **EUR hub** at the rate stored on
+  its own close date; a sale with **no** stored rate for that day is
+  **excluded from every converted total and named** in
   `excluded` (`count` + `securities`) — never converted at a neighbouring
   date's rate, never silently dropped. The payload carries
   `computation_basis` (series, window, reference, gaps) and a

@@ -173,7 +173,7 @@ defmodule PortfolixirWeb.IncomeLive do
                 <summary aria-label={gettext("Conversion info")}>ⓘ</summary>
                 <p role="tooltip">
                   <%= gettext(
-                    "Each sale converted to %{currency} via the EUR hub at the most recent stored rate on or before its close date. A sale with no stored rate at that date is excluded from the totals and named here — never converted at a neighbouring date's rate.",
+                    "Each sale converted to %{currency} via the EUR hub at the rate stored on its own close date. A sale with no stored rate for that day is excluded from the totals and named here — never converted at a neighbouring date's rate.",
                     currency: @realized.base_currency
                   ) %>
                 </p>
@@ -196,7 +196,14 @@ defmodule PortfolixirWeb.IncomeLive do
                   count: @realized.excluded.count,
                   securities: Enum.join(@realized.excluded.securities, ", ")
                 ) %>
-                <a href="/portfolios"><%= gettext("Store the missing exchange rates.") %></a>
+                <%!-- No link, deliberately: rate sync fetches the ECB DAILY
+                      feed, so it cannot fill a past booking date, and there
+                      is no path today for entering a historical rate by hand
+                      (issue #737). A control that would not help turns a
+                      stated limit into a failed attempt. --%>
+                <span class="muted">
+                  <%= gettext("Rate sync fetches current rates only, so it cannot fill a past date.") %>
+                </span>
               </AppShell.data_note>
             <% end %>
             <%= if @realized.annual == [] do %>
@@ -244,7 +251,7 @@ defmodule PortfolixirWeb.IncomeLive do
                 <summary aria-label={gettext("Conversion info")}>ⓘ</summary>
                 <p role="tooltip">
                   <%= gettext(
-                    "Each flow converted to %{currency} via the EUR hub at the most recent stored rate on or before its booking date. A flow with no stored rate at that date is excluded from the totals and named here.",
+                    "Each flow converted to %{currency} via the EUR hub at the rate stored on its own booking date. A flow with no stored rate for that day is excluded from the totals and named here — never converted at a neighbouring date's rate.",
                     currency: @flows.base_currency
                   ) %>
                 </p>
@@ -320,7 +327,7 @@ defmodule PortfolixirWeb.IncomeLive do
           <section class="workspace-section">
             <p class="muted" data-role="facet-composition">
               <%= gettext(
-                "What the portfolio cost to run — the fee and tax legs riding any transaction plus standalone fee and tax bookings, with tax refunds netted against taxes, by booking date. Gross amounts are never summed: a buy's gross includes its legs while a sell's is net of them. Excludes dividends and interest, realized gains, and deposits and withdrawals — each has its own Cash flow facet."
+                "What the portfolio cost to run — the fee and tax legs riding any transaction plus standalone fee and tax bookings, with tax refunds netted against taxes, by booking date. Gross amounts are never summed: a buy's gross includes its legs while a sell's is net of them. Excludes dividends and interest, realized gains, and deposits and withdrawals — each has its own Cash flow facet. This facet stays at overview level on purpose: totals per year, and no breakdown per security or per transaction."
               ) %>
             </p>
             <div class="muted" data-role="costs-conversion">
@@ -329,7 +336,7 @@ defmodule PortfolixirWeb.IncomeLive do
                 <summary aria-label={gettext("Conversion info")}>ⓘ</summary>
                 <p role="tooltip">
                   <%= gettext(
-                    "Each cost converted to %{currency} via the EUR hub at the most recent stored rate on or before its booking date. A cost with no stored rate at that date is excluded from the totals and named here.",
+                    "Each cost converted to %{currency} via the EUR hub at the rate stored on its own booking date. A cost with no stored rate for that day is excluded from the totals and named here — never converted at a neighbouring date's rate.",
                     currency: @costs.base_currency
                   ) %>
                 </p>

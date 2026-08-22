@@ -954,12 +954,14 @@ facet switcher.
 selling actually make": FIFO-matched realized P&L across all securities,
 grouped by each sale's **close date** into a year × month matrix. The FX
 basis is stated on the surface and travels in the API payload (decision D-1):
-each sale converts through the EUR hub at the most recent stored rate **on or
-before its close date** — the Income facet's basis, because a realized figure
-is a historical fact tied to its date. A sale with **no** stored rate at that
-date is **excluded from every total and named** in an attention note (count
-and securities) — never converted at a neighbouring date's rate, never
-silently dropped; storing the missing rate brings it into the totals.
+each sale converts through the EUR hub at the rate stored on **its own close
+date**, because a realized figure is a historical fact tied to its date. A
+sale with **no** stored rate for that day is **excluded from every total and
+named** in an attention note (count and securities) — never converted at a
+neighbouring date's rate, never silently dropped. Note what that means in
+practice: rate sync fetches *current* rates, so it cannot fill a past date,
+and there is no path today for entering a historical rate by hand — which is
+why the note offers no button that would fail.
 
 **Deposits & withdrawals** (`/cashflow?tab=flows`, issue #725) is the
 owner's "Ersparnis": what was put in and taken out, per period, as two
