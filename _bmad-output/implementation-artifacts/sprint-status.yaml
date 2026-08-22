@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-08-20 (0.7.0 released; #714 close-out recovered; Sprint 8 draft)
+# last_updated: 2026-08-22 (Sprint 8 closed out; PR #735 rebase-merged)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -42,7 +42,7 @@
 # requests, not assumed -- an issue's state lags the PR that fixes it.
 
 generated: 2026-07-25
-last_updated: 2026-08-20
+last_updated: 2026-08-22
 project: portfolixir
 project_key: NOKEY
 tracking_system: file-system
@@ -51,6 +51,51 @@ story_location: _bmad-output/implementation-artifacts
 # ---------------------------------------------------------------------------
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
+#
+# CLOSED OUT (2026-08-22, Sprint 8) -- PR #735 rebase-merged, `main` at 125d656:
+# Verification basis: the merge commits on `main` (5fe43f6..125d656, 24
+# commits linear per the ADR-0026 rebase-merge amendment), the Actions run on
+# the merge push (1445, verified green before this entry was pushed), and the
+# post-merge open-issue list -- not this file's prior claims.
+#
+# WHAT CLOSED: fourteen issues by the merge's keywords (#731 #732 #717 #718
+# #719 #720 #721 #723 #729 #730 #724 #725 #726 #728 -- verified against the
+# open-issue list, none remained open). Nothing needed closing by hand.
+# Sprint 8 had no dedicated epic tracker; the standing trackers (#356, #417,
+# #418, #419, #420, #470) stay open by design. Stays open with a reason:
+# #727 (BOTH toolchain halves blocked upstream -- the OTP move on dialyzer
+# opaqueness, the Elixir move on :cover being unable to instrument 1.20.3
+# BEAMs so the coverage gate cannot run; evidence and re-check triggers on
+# the issue), #737 (no path to store a historical FX rate; filed from Lane
+# C), #738 (README predates Snapshots/Tax/performance; filed at close-out).
+#
+# TWO-WAY COVERAGE CHECK: the Sprint-6 debt (#731 ?since= human view, #732
+# fields= column picker) is DISCHARGED inside its deadline. The batch's new
+# agent-visible capabilities (three Cash-flow facet endpoints + MCP tools,
+# fields= on securities) shipped WITH their human views in the same batch --
+# no new debt enters this ledger.
+#
+# TAG: 0.8.0 is an OPEN OWNER ITEM, prepared but not pushed (the session's
+# git proxy allows pushes to the designated branch only). The prepared
+# command (in the retro) creates it ANNOTATED on 125d656. First sprint under
+# the Lane Z guard: a lightweight tag now announces itself in the release
+# body instead of being discovered at the next close-out.
+#
+# RETROSPECTIVE: sprint-8-retro-2026-08-22.md. The process finding worth
+# repeating here: "green" means CI on the branch, never a local run -- the
+# Elixir 1.20.3 bump broke the coverage gate and stayed invisible for six
+# and a half hours because the local toolchain (1.18.3) kept passing while
+# every CI run failed. A session joining a branch checks that branch's CI
+# state before building on it. Second finding: two sessions built the same
+# sprint in parallel (#735/#736); an open PR claiming the same closing
+# keywords is a stop sign at session start.
+#
+# LANE M: version-report-2026-08-22.md, written AT LANE TIME (Sprint 7's
+# miss, not repeated). Applied rows in their own commits (phoenix,
+# phoenix_live_view, req; the Node 24 pin); deliberately not updated, with
+# reasons: both toolchain halves (#727), @types/node 24->26 (declined --
+# types follow the pinned runtime; 26 is not LTS until October), tea/cis/bmb
+# and cowlib per the report.
 #
 # CLOSED OUT (2026-08-19, Sprint 7) -- PR #716 rebase-merged, `main` at 80d3e7e:
 # Verification basis: the merge commits on `main` (bb3d728..80d3e7e, 37 commits
