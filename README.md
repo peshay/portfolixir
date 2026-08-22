@@ -87,6 +87,16 @@ _All screenshots use the synthetic demo dataset in
 - Import a Portfolio Performance CSV or JSON export: drag in the file, preview
   the records, then apply them atomically.
 - Open a security detail chart from local quote history.
+- Read the Cash-flow area's four facets — income (dividends and interest),
+  realized gains from closed sales, deposits and withdrawals, and costs (fees
+  and taxes) — each stating on the page what it counts, what it excludes, and
+  the exchange-rate basis behind every converted figure.
+- Ask "what changed since I last looked?": the transactions and securities
+  lists take a `?since=` cut with one-tap windows, mirroring the API's delta
+  reads, and say plainly that deletions are not represented.
+- Narrow the securities list with one-tap filter chips (unclassified, stale
+  quote, missing rate, and more — the same predicates the dashboard counts),
+  and pick the columns the transaction history and holdings tables show.
 - Use `/api/v1` and the MCP companion for the same supported local actions,
   including update/delete and live portfolio valuation with cash.
 
