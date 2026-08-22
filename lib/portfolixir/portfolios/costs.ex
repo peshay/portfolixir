@@ -18,8 +18,8 @@ defmodule Portfolixir.Portfolios.Costs do
   ## FX basis
 
   Each cost converts into the base currency through the **EUR hub** at the
-  most recent stored rate on or before its booking date; a cost with no
-  stored rate at that date is **excluded from the totals and named** by its
+  rate stored on its own booking date; a cost with no
+  stored rate for that day is **excluded from the totals and named** by its
   currency — the same excluded-and-named rule as the sibling facets.
   """
 

@@ -466,8 +466,8 @@ Example account payloads:
   `invested_capital`, which additionally counts securities delivered in/out
   at market value and balance-snapshot residuals — the difference is stated
   in `computation_basis.excludes`. FX basis as in the sibling facet: EUR hub
-  at or before each booking date, unconvertible flows excluded and named by
-  their cash account. The human view is `/cashflow?tab=flows`.
+  at the rate stored on each flow's own booking date, unconvertible flows
+  excluded and named by their cash account. The human view is `/cashflow?tab=flows`.
 - `GET /api/v1/costs` (issue #726) returns the Costs roll-up: fees and taxes
   across all portfolios at **overview level only**, per year and month with
   yearly fee, tax and combined totals. The series sums the fee and tax
@@ -476,8 +476,8 @@ Example account payloads:
   a buy's gross **includes** its legs while a sell's is **net** of them, so
   a gross sum would describe something else. The legs-not-gross rule is
   stated in `computation_basis.series`. FX basis as in the sibling facets:
-  EUR hub at or before each booking date, unconvertible costs excluded and
-  named by their **currency**. The human view is `/cashflow?tab=costs`.
+  EUR hub at the rate stored on each booking's own date, unconvertible costs
+  excluded and named by their **currency**. The human view is `/cashflow?tab=costs`.
 - `GET /api/v1/holdings/by_security` returns the **global per-security
   valuation** across **all** portfolios: one `holdings` row per currently held
   security with its `security_id` (an integer), total `quantity`, and current

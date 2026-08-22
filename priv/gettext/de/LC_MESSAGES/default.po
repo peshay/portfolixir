@@ -5409,11 +5409,6 @@ msgstr "Kumulierte Dividenden und Zinsen im Jahr %{year}"
 msgid "Cash flow"
 msgstr "Cashflow"
 
-#: lib/portfolixir_web/live/income_live.ex:420
-#, elixir-autogen, elixir-format
-msgid "Dividends and interest booked in the ledger. Excludes realized gains from sales, deposits and withdrawals, and costs — each has its own Cash flow facet."
-msgstr "Im Buchungsjournal erfasste Dividenden und Zinsen. Ohne realisierte Gewinne aus Verkäufen, ohne Ein- und Auszahlungen und ohne Kosten — jedes davon hat einen eigenen Cashflow-Bereich."
-
 #: lib/portfolixir_web/live/income_live.ex:462
 #, elixir-autogen, elixir-format
 msgid "Dividends and interest per year"
@@ -5645,11 +5640,6 @@ msgstr "Noch keine abgeschlossenen Verkäufe gebucht."
 msgid "Realized gains"
 msgstr "Realisierte Gewinne"
 
-#: lib/portfolixir_web/live/income_live.ex:166
-#, elixir-autogen, elixir-format
-msgid "Realized gains and losses from FIFO-matched sales booked in the ledger, by each sale's close date. Excludes dividends and interest, deposits and withdrawals, and costs — each has its own Cash flow facet."
-msgstr "Realisierte Gewinne und Verluste aus FIFO-gematchten, im Ledger gebuchten Verkäufen, nach dem Schlussdatum jedes Verkaufs. Ohne Dividenden und Zinsen, Ein- und Auszahlungen sowie Kosten — jede hat ihre eigene Cashflow-Facette."
-
 #: lib/portfolixir_web/live/income_live.ex:185
 #, elixir-autogen, elixir-format
 msgid "Realized per period"
@@ -5682,11 +5672,6 @@ msgstr "Ein- & Auszahlungen"
 #, elixir-autogen, elixir-format
 msgid "Deposits and withdrawals per period"
 msgstr "Ein- und Auszahlungen je Periode"
-
-#: lib/portfolixir_web/live/income_live.ex:244
-#, elixir-autogen, elixir-format
-msgid "Money paid in and taken out — the booked deposits and removals, by booking date. Excludes dividends and interest, realized gains, and costs — each has its own Cash flow facet. Securities delivered in or out and balance-snapshot jumps are not counted here; the performance's invested-capital figure includes them, which is why the two can differ."
-msgstr "Eingezahltes und entnommenes Geld — die gebuchten Ein- und Auszahlungen, nach Buchungsdatum. Ohne Dividenden und Zinsen, realisierte Gewinne und Kosten — jede hat ihre eigene Cashflow-Facette. Ein- und ausgelieferte Wertpapiere sowie Sprünge aus Saldo-Snapshots zählen hier nicht; die Kennzahl „Investiertes Kapital“ der Performance zählt sie mit, weshalb beide Zahlen abweichen können."
 
 #: lib/portfolixir_web/live/income_live.ex:281
 #, elixir-autogen, elixir-format
@@ -5740,7 +5725,22 @@ msgstr "Jeder Verkauf wird über den EUR-Hub zum Kurs seines eigenen Schlusstags
 msgid "Rate sync fetches current rates only, so it cannot fill a past date."
 msgstr "Die Kurssynchronisation holt nur aktuelle Kurse und kann einen vergangenen Tag daher nicht nachtragen."
 
+#: lib/portfolixir_web/live/income_live.ex:420
+#, elixir-autogen, elixir-format
+msgid "Dividends and interest booked in the ledger for this portfolio. The other three facets cover every portfolio, so with more than one portfolio their figures are wider than this one. Excludes realized gains from sales, deposits and withdrawals, and costs — each has its own Cash flow facet."
+msgstr "Im Ledger gebuchte Dividenden und Zinsen dieses Portfolios. Die drei anderen Facetten umfassen alle Portfolios — bei mehr als einem Portfolio sind ihre Zahlen also weiter gefasst als diese. Ohne realisierte Gewinne aus Verkäufen, Ein- und Auszahlungen sowie Kosten — jede hat ihre eigene Cashflow-Facette."
+
+#: lib/portfolixir_web/live/income_live.ex:244
+#, elixir-autogen, elixir-format
+msgid "Money paid in and taken out — the booked deposits and removals across every portfolio, by booking date. Excludes dividends and interest, realized gains, and costs — each has its own Cash flow facet. Securities delivered in or out and balance-snapshot jumps are not counted here; the performance's invested-capital figure includes them, which is why the two can differ."
+msgstr "Eingezahltes und entnommenes Geld — die gebuchten Ein- und Auszahlungen über alle Portfolios, nach Buchungsdatum. Ohne Dividenden und Zinsen, realisierte Gewinne und Kosten — jede hat ihre eigene Cashflow-Facette. Ein- und ausgelieferte Wertpapiere sowie Sprünge aus Saldo-Snapshots zählen hier nicht; die Kennzahl „Investiertes Kapital“ der Performance zählt sie mit, weshalb beide Zahlen abweichen können."
+
+#: lib/portfolixir_web/live/income_live.ex:166
+#, elixir-autogen, elixir-format
+msgid "Realized gains and losses from FIFO-matched sales booked in the ledger, across every portfolio, by each sale's close date. Excludes dividends and interest, deposits and withdrawals, and costs — each has its own Cash flow facet."
+msgstr "Realisierte Gewinne und Verluste aus FIFO-gematchten, im Ledger gebuchten Verkäufen über alle Portfolios, nach dem Schlussdatum jedes Verkaufs. Ohne Dividenden und Zinsen, Ein- und Auszahlungen sowie Kosten — jede hat ihre eigene Cashflow-Facette."
+
 #: lib/portfolixir_web/live/income_live.ex:329
 #, elixir-autogen, elixir-format
-msgid "What the portfolio cost to run — the fee and tax legs riding any transaction plus standalone fee and tax bookings, with tax refunds netted against taxes, by booking date. Gross amounts are never summed: a buy's gross includes its legs while a sell's is net of them. Excludes dividends and interest, realized gains, and deposits and withdrawals — each has its own Cash flow facet. This facet stays at overview level on purpose: totals per year, and no breakdown per security or per transaction."
-msgstr "Was das Portfolio im Betrieb gekostet hat — die Gebühren- und Steuer-Nebenbeträge jeder Transaktion plus die eigenständigen Gebühren- und Steuerbuchungen, Steuererstattungen gegen die Steuern verrechnet, nach Buchungsdatum. Bruttobeträge werden nie summiert: beim Kauf enthält das Brutto die Nebenbeträge, beim Verkauf ist es um sie gemindert. Ohne Dividenden und Zinsen, realisierte Gewinne sowie Ein- und Auszahlungen — jede hat ihre eigene Cashflow-Facette. Diese Facette bleibt bewusst auf Überblicksebene: Summen pro Jahr, keine Aufschlüsselung je Wertpapier oder je Transaktion."
+msgid "What the portfolios cost to run — the fee and tax legs riding any transaction plus standalone fee and tax bookings across every portfolio, with tax refunds netted against taxes, by booking date. Gross amounts are never summed: a buy's gross includes its legs while a sell's is net of them. Excludes dividends and interest, realized gains, and deposits and withdrawals — each has its own Cash flow facet. This facet stays at overview level on purpose: totals per year, and no breakdown per security or per transaction."
+msgstr "Was die Portfolios im Betrieb gekostet haben — die Gebühren- und Steuer-Nebenbeträge jeder Transaktion plus die eigenständigen Gebühren- und Steuerbuchungen über alle Portfolios, Steuererstattungen gegen die Steuern verrechnet, nach Buchungsdatum. Bruttobeträge werden nie summiert: beim Kauf enthält das Brutto die Nebenbeträge, beim Verkauf ist es um sie gemindert. Ohne Dividenden und Zinsen, realisierte Gewinne sowie Ein- und Auszahlungen — jede hat ihre eigene Cashflow-Facette. Diese Facette bleibt bewusst auf Überblicksebene: Summen pro Jahr, keine Aufschlüsselung je Wertpapier oder je Transaktion."

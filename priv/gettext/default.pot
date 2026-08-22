@@ -5408,11 +5408,6 @@ msgstr ""
 msgid "Cash flow"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:420
-#, elixir-autogen, elixir-format
-msgid "Dividends and interest booked in the ledger. Excludes realized gains from sales, deposits and withdrawals, and costs — each has its own Cash flow facet."
-msgstr ""
-
 #: lib/portfolixir_web/live/income_live.ex:462
 #, elixir-autogen, elixir-format
 msgid "Dividends and interest per year"
@@ -5644,11 +5639,6 @@ msgstr ""
 msgid "Realized gains"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:166
-#, elixir-autogen, elixir-format
-msgid "Realized gains and losses from FIFO-matched sales booked in the ledger, by each sale's close date. Excludes dividends and interest, deposits and withdrawals, and costs — each has its own Cash flow facet."
-msgstr ""
-
 #: lib/portfolixir_web/live/income_live.ex:185
 #, elixir-autogen, elixir-format
 msgid "Realized per period"
@@ -5680,11 +5670,6 @@ msgstr ""
 #: lib/portfolixir_web/live/income_live.ex:263
 #, elixir-autogen, elixir-format
 msgid "Deposits and withdrawals per period"
-msgstr ""
-
-#: lib/portfolixir_web/live/income_live.ex:244
-#, elixir-autogen, elixir-format
-msgid "Money paid in and taken out — the booked deposits and removals, by booking date. Excludes dividends and interest, realized gains, and costs — each has its own Cash flow facet. Securities delivered in or out and balance-snapshot jumps are not counted here; the performance's invested-capital figure includes them, which is why the two can differ."
 msgstr ""
 
 #: lib/portfolixir_web/live/income_live.ex:281
@@ -5739,7 +5724,22 @@ msgstr ""
 msgid "Rate sync fetches current rates only, so it cannot fill a past date."
 msgstr ""
 
+#: lib/portfolixir_web/live/income_live.ex:420
+#, elixir-autogen, elixir-format
+msgid "Dividends and interest booked in the ledger for this portfolio. The other three facets cover every portfolio, so with more than one portfolio their figures are wider than this one. Excludes realized gains from sales, deposits and withdrawals, and costs — each has its own Cash flow facet."
+msgstr ""
+
+#: lib/portfolixir_web/live/income_live.ex:244
+#, elixir-autogen, elixir-format
+msgid "Money paid in and taken out — the booked deposits and removals across every portfolio, by booking date. Excludes dividends and interest, realized gains, and costs — each has its own Cash flow facet. Securities delivered in or out and balance-snapshot jumps are not counted here; the performance's invested-capital figure includes them, which is why the two can differ."
+msgstr ""
+
+#: lib/portfolixir_web/live/income_live.ex:166
+#, elixir-autogen, elixir-format
+msgid "Realized gains and losses from FIFO-matched sales booked in the ledger, across every portfolio, by each sale's close date. Excludes dividends and interest, deposits and withdrawals, and costs — each has its own Cash flow facet."
+msgstr ""
+
 #: lib/portfolixir_web/live/income_live.ex:329
 #, elixir-autogen, elixir-format
-msgid "What the portfolio cost to run — the fee and tax legs riding any transaction plus standalone fee and tax bookings, with tax refunds netted against taxes, by booking date. Gross amounts are never summed: a buy's gross includes its legs while a sell's is net of them. Excludes dividends and interest, realized gains, and deposits and withdrawals — each has its own Cash flow facet. This facet stays at overview level on purpose: totals per year, and no breakdown per security or per transaction."
+msgid "What the portfolios cost to run — the fee and tax legs riding any transaction plus standalone fee and tax bookings across every portfolio, with tax refunds netted against taxes, by booking date. Gross amounts are never summed: a buy's gross includes its legs while a sell's is net of them. Excludes dividends and interest, realized gains, and deposits and withdrawals — each has its own Cash flow facet. This facet stays at overview level on purpose: totals per year, and no breakdown per security or per transaction."
 msgstr ""
