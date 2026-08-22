@@ -40,10 +40,10 @@ defmodule PortfolixirWeb.ViewSwitcher do
   def view_switcher(assigns) do
     ~H"""
     <div class="view-switcher" role="group" aria-label={gettext("Active view")}>
-      <span class="view-switcher__label" id="view-switcher-label">
-        <%= gettext("View:") %>
-      </span>
-      <nav class="view-switcher__options" aria-labelledby="view-switcher-label">
+      <%!-- #720 (D4): no visible "View:" prefix — the group's aria-label
+           keeps the accessible name, and the active chip is what tells a
+           sighted reader what the row is for. --%>
+      <nav class="view-switcher__options" aria-label={gettext("Active view")}>
         <a
           id="view-switch-total"
           class={["view-chip", is_nil(@active_view) && "is-active"]}
@@ -80,13 +80,18 @@ defmodule PortfolixirWeb.ViewSwitcher do
           </a>
         <% end %>
       </nav>
+      <%!-- #720 (D4): a navigation named for its destination, as a quiet
+           link — no trailing ellipsis, because in this app's convention an
+           ellipsis means "opens a dialog for further input" and this
+           navigates to /buckets. --%>
       <a
         class="view-switcher__manage"
         data-role="manage-views"
         href="/buckets"
         title={gettext("Create, rename, and edit views and their buckets")}
       >
-        <%= gettext("Manage…") %>
+        <PortfolixirWeb.AppShell.icon name={:settings} size={13} />
+        <%= gettext("Views") %>
       </a>
       <%= if @show_default_control do %>
         <%= if (@active_view && @active_view.id) == @default_view_id do %>

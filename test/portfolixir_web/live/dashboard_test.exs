@@ -451,4 +451,31 @@ defmodule PortfolixirWeb.DashboardTest do
     refute has_element?(view, "#dashboard-data-quality")
     refute has_element?(view, "[data-role='data-quality-line']")
   end
+
+  # User story (issue #718, D1 / UX-DR21):
+  # As a local portfolio maintainer,
+  # I want the drift card named for what it contains,
+  # so that a heading states a content, not an urgency or an intended
+  # reaction — the card holds exactly one thing: categories off their
+  # target weight.
+  #
+  # Acceptance criteria:
+  # - The card heading is "Off target" (DE "Ziel-Abweichungen"), and the
+  #   anthropomorphic "Needs attention" is gone from the surface.
+  # - The basis line #673 added stays.
+  test "the drift card is named for what it contains (UX-DR21)", %{conn: conn} do
+    seed_holding()
+
+    {:ok, view, html} = live(conn, "/")
+    render_async(view)
+
+    assert has_element?(view, "#dashboard-attention h2", "Off target")
+    refute html =~ "Needs attention"
+    assert has_element?(view, "[data-role='attention-explainer']")
+
+    de_conn = Phoenix.ConnTest.build_conn() |> put_req_header("accept-language", "de")
+    {:ok, _view, de_html} = live(de_conn, "/")
+    assert de_html =~ "Ziel-Abweichungen"
+    refute de_html =~ "Braucht Aufmerksamkeit"
+  end
 end

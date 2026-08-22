@@ -84,23 +84,33 @@ defmodule PortfolixirWeb.ViewScopeTest do
   test "the switcher prompts to create a view when none exist", %{conn: conn} do
     world()
 
-    {:ok, view, html} = live(conn, "/portfolio")
+    {:ok, view, _html} = live(conn, "/portfolio")
 
-    assert html =~ "View:"
     assert has_element?(view, "[data-role='no-views'] a[href='/buckets']")
   end
 
-  # User story (ADR-0024 modification 6):
+  # User story (ADR-0024 modification 6, reshaped by issue #720 / D4):
   # As a local portfolio maintainer,
-  # I want a "Manage…" link on the Wealth view picker,
-  # so that the views management page is reachable from where views are used
-  # instead of needing a dedicated buckets sidebar entry.
-  test "the switcher links to the views management page", %{conn: conn} do
+  # I want the views management page reachable from where views are used,
+  # so that no dedicated buckets sidebar entry is needed — and I want the
+  # control to read like what it is: a navigation named "Views", not a
+  # "Manage…" whose ellipsis promises a dialog this link never opens.
+  #
+  # Acceptance criteria:
+  # - The manage control is labelled "Views" with no trailing ellipsis and
+  #   links to /buckets.
+  # - The visible "View:" label prefix is gone; the group keeps its
+  #   accessible name ("Active view"), so the row's meaning is unchanged
+  #   for AT while the active chip carries it for sighted readers.
+  test "the switcher links to the views management page as a named control", %{conn: conn} do
     world()
 
-    {:ok, view, _html} = live(conn, "/portfolio")
+    {:ok, view, html} = live(conn, "/portfolio")
 
-    assert has_element?(view, "[data-role='manage-views'][href='/buckets']")
+    assert has_element?(view, "[data-role='manage-views'][href='/buckets']", "Views")
+    refute view |> element("[data-role='manage-views']") |> render() =~ "…"
+    refute html =~ "View:"
+    assert html =~ ~s(aria-label="Active view")
   end
 
   # User story:

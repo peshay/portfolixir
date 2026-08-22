@@ -45,7 +45,9 @@ counting twice.
    accounts with **both** — buckets are free overlapping labels, so a joint
    account may carry `Mine` and `Partner` at once.
 4. Open **Views** (sidebar, Administration area — the same page the view
-   switcher's **Manage…** link opens). Under **2. Views**, type `My wealth`
+   switcher's **Views** link opens; issue #720 renamed it from "Manage…" and
+   dropped the ellipsis, which this app reserves for dialog-opening
+   controls). Under **2. Views**, type `My wealth`
    into **New view** and click **Add view**.
 5. Click **Edit view buckets** on the new row. In the **Buckets for My
    wealth** dialog, check `Mine` under **Include buckets** and press
