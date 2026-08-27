@@ -17,8 +17,12 @@ instrument; the retraction and mis-scaled-figure examples are kept only as
 and call counts are system metrics, not financial data, and are kept. The
 source document is not committed.
 
-Status: triaged. Nothing here is a committed scope decision — issue creation
-awaits owner confirmation, as in the two preceding rounds.
+Status: triaged. **Amended the same day** (Part 5): the two items that complete
+already-shipped work are filed as #740 and #741 rather than held for
+confirmation — completing a shipped requirement and documenting an existing
+guarantee are bookkeeping, not new scope. New scope is untouched and still
+needs its signed gate; what is left for the owner is one signature on ADR-0044,
+not a list of questions.
 
 ---
 
@@ -235,16 +239,20 @@ next scheduled act; this is the shape I would give Sprint 9.
 
 **Immediately, no gate, small:**
 
-1. **Close the FR-37 surface gap** (§0.3): `include_positions` on the
-   view-scoped valuation, API and MCP together, and a drift threshold on
-   `targets.list_positions`. This is what stands between the agent's acceptance
-   criterion 1 (≤ 5 calls for the weekly run) and reality for a view-scoped
-   operator. It is also a close-out finding by the standard of the rule that
-   shipped FR-37.
-2. **Decide whether "the agent cannot learn what changed" is ours** (§0.1). If
-   yes, the cheapest honest version is a capability/contract-version read the
-   agent can poll — not a changelog document. Framed as a question in Part 5
-   because it is a scope question, not a story.
+1. **Close the FR-37 surface gap** (§0.3) — **filed as #740**:
+   `include_positions` on the view-scoped valuation, API and MCP together, and
+   a drift threshold on `targets.list_positions`. This is what stands between
+   the agent's acceptance criterion 1 (≤ 5 calls for the weekly run) and
+   reality for a view-scoped operator. It is also a close-out finding by the
+   standard of the rule that shipped FR-37.
+2. **Document the re-import guarantee** — **filed as #741**. It is the reason a
+   refuted claim survived into a second edition, and it costs a documentation
+   pass.
+3. **Agent discoverability** (§0.1): the cheapest honest version is a
+   contract-version read the agent can poll — not a changelog document. It is
+   specified inside the gate below rather than filed separately, because
+   deciding what an agent may ask about the surface belongs with deciding what
+   the agent may store on it.
 
 **The gate, in parallel and with no code:**
 
@@ -314,17 +322,71 @@ Still unusually good, and now partly measurable against reality:
 
 ---
 
-## Part 5 — What needs an owner decision
+## Part 5 — Decided here, and the one thing that is not mine to decide
 
-1. **P0-6 + B4.1 as one gate for the next batch?** The recommendation is yes,
-   with the journal dependency inside the gate. It is the first genuinely new
-   requirement in this edition and the agent rates it highest.
-2. **Limit suggestions: is an ADR-0023 amendment wanted at all?** If not, the
-   answer should be recorded once so the request stops returning each edition.
-3. **File the FR-37 surface gap now** (view-scoped roll-up, position-target
-   threshold) as ordinary issues, or hold it for the Sprint 9 plan?
-4. **Is "an agent cannot discover what shipped" a problem this product owns?**
-   Three shipped features in this round were invisible to the consumer they
-   were built for. If the answer is yes, it needs a small decision about the
-   shape; if no, it should be stated, because the next round will otherwise
-   re-ask for what exists.
+The first version of this section put four questions to the owner. Three of
+them were not owner questions — they were decisions this role is supposed to
+make and hand over finished. They are made below, each with the rule it follows,
+and any of them is overrulable by one sentence.
+
+**Decided — the FR-37 surface gap is filed, not asked about.** Completing a
+shipped requirement on the endpoints it skipped is not new scope; it is a
+close-out finding by the standard of the rule that shipped FR-37, and
+`AGENTS.md` says an idea discovered while working is filed immediately.
+**#740.**
+
+**Decided — the documentation gap is filed too.** A guarantee that exists only
+as a test did not reach the consumer whose behaviour it should have changed:
+that is what let the refuted re-import claim survive into a second edition.
+**#741.**
+
+**Decided — limit suggestions stay out, and the reason is recorded so the
+request stops returning.** A limit placed on the spread side is an instruction
+for *how* a trade is executed, which is what ADR-0023 and the permanent
+non-goals in `AGENTS.md` draw the line against; the agent's own correction makes
+that clearer, not less clear. This needs no new decision because the existing
+one already covers it. If the owner wants it anyway, it is an ADR-0023
+amendment argued on its own merits — never a field that arrives inside a digest
+story.
+
+**Decided — agent discoverability is ours, and it rides the gate below rather
+than becoming a fifth question.** Three capabilities shipped in this round were
+invisible to the consumer they were built for. For a product whose first user
+is an agent, that is a product defect, and the smallest honest fix is a
+contract-version read the agent can poll — the same shape as `?since=`, applied
+to the surface instead of the rows. It is specified inside the ADR below.
+
+**Not mine: the signature.** ADR-0026 step 1 requires an owner-signed decision
+gate before a batch starts, and P0-6 + B4.1 is new scope — a portfolio tracker
+storing investment theses is a product-identity commitment, even though the
+identity gate already settled the principle (FR-45/FR-46 are in the requirements
+inventory as decided in principle). So the ask is not a question in a chat: it
+is **ADR-0044, drafted for signature**, carrying the object family, the journal
+dependency, the human timeline, the v1 scope cut (the four list queries in,
+full-text search out) and the discoverability read. Sign it, amend it, or reject
+it — that is the whole owner action.
+
+## Part 6 — What goes back to the agent
+
+The appendix-B questions in the source document are the agent's questions to
+*us*; Part 4 answers them. Those answers do not reach the agent by being
+committed here — it does not read this repository, which is the same failure
+mode as §0.1 one level up. The following is what has to travel back, and it is
+worth sending before the next weekly run rather than after:
+
+1. **P0-1 is built.** `fields=`, `projection=`, `include_positions=false` and
+   `min_drift=` exist on the endpoints listed in Part 0, over API and MCP, and
+   the measured saving is already the one it asked for. Two reads are still
+   missing them (#740) — those two, not the family.
+2. **`?since=` exists** on securities and transactions, pull-only, with
+   deletions deliberately unrepresented and that stated in the payload.
+3. **The re-import claim is false** and has been since 2026-08-14, with the
+   detail in Part 4. It should stop being carried as a premise — in particular
+   it is not a blocker for P0-6.
+4. **The tax-staleness warning it asked for is built** (#667), including the
+   activity-aware condition, and the allowance-order object exists and is
+   simply unfilled.
+5. **Limit suggestions are out**, with the reason in Part 5, so the next edition
+   need not re-argue it.
+6. **P0-6 is accepted in principle** and is going to a signed decision as
+   ADR-0044; the `retraction` requirement is the part that carried the case.
