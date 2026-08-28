@@ -188,7 +188,7 @@ jobs:
       # and a local run agree — and `@types/node` has a runtime major to
       # follow instead of the registry's latest.
       - name: Setup Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: "24"
 
