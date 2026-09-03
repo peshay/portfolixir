@@ -75,17 +75,36 @@ _All screenshots use the synthetic demo dataset in
 ## What works today
 
 - Create securities, one portfolio, and linked cash/depot accounts.
-- Record manual buy and sell transactions.
+- Group depots, accounts and positions with buckets and read every figure
+  under a bucket view — the household or strategy scope of your choice.
+- Record manual buy and sell transactions, plus the other Portfolio
+  Performance transaction kinds (dividends, interest, deposits, removals,
+  fees, taxes, transfers, deliveries) and stock splits as ledger events.
 - Review derived holdings, cash balances, and stored quote history.
-- See each holding's moving-average cost basis and unrealized P&L.
+- See each holding's moving-average cost basis and unrealized P&L, split into
+  the price effect and the currency effect.
+- Read the holdings performance summary — true time-weighted return, IRR,
+  invested capital and wealth multiple — per portfolio and per bucket view,
+  with the computation basis stated next to the figure.
 - Organise securities into classification trees (custom, plus built-in
   asset-class and currency trees); the asset-class tree is an editable taxonomy
   seeded from an inferred default and corrected by dragging.
-- Set per-category target weights and read a target/actual allocation breakdown with
-  per-category drift.
-- Value multi-currency portfolios by converting through stored exchange rates.
+- Set per-category and per-position target weights in versioned plans, and
+  read a target/actual allocation breakdown with per-category drift and
+  display-only rebalancing hints.
+- Freeze a snapshot of the current holdings and later compare against it:
+  would keeping exactly those holdings have done better?
+- Record the tax block of a broker statement (loss pots, allowance) and read
+  the tax-free trim budget off it — recorded, never derived.
+- Keep a research log per security: dated, sourced entries that are never
+  edited or removed, with the current thesis state derived from them and a
+  retraction as the way to be wrong on the record.
+- Value multi-currency portfolios by converting through stored exchange rates,
+  including a one-shot backfill of the historical ECB series for past booking
+  dates.
 - Import a Portfolio Performance CSV or JSON export: drag in the file, preview
-  the records, then apply them atomically.
+  the records, then apply them atomically; re-applying the same export is a
+  no-op that preserves everything maintained in the app.
 - Open a security detail chart from local quote history.
 - Read the Cash-flow area's four facets — income (dividends and interest),
   realized gains from closed sales, deposits and withdrawals, and costs (fees
@@ -98,7 +117,9 @@ _All screenshots use the synthetic demo dataset in
   quote, missing rate, and more — the same predicates the dashboard counts),
   and pick the columns the transaction history and holdings tables show.
 - Use `/api/v1` and the MCP companion for the same supported local actions,
-  including update/delete and live portfolio valuation with cash.
+  including update/delete, live portfolio valuation with cash, and a
+  contract-version read that says what the surface offers and when it last
+  changed.
 
 ## Quick start
 

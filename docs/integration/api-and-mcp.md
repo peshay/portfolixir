@@ -1296,6 +1296,40 @@ decimals are involved.
   view id returns `404` (nothing is written); a malformed `view_id` returns
   `422`. The response mirrors the `GET` shape.
 
+## Imports
+
+Portfolio Performance imports (CSV/JSON v1) run through the **Imports view**
+only: there is no import endpoint under `/api/v1` and no MCP tool for it, by
+design — the preview-then-apply step with its mapping decisions is an
+operator action (ADR-0029). What the API and MCP consumer needs to know is
+the **re-import preservation guarantee**, because everything an agent writes
+through this API lives next to the imported history:
+
+- **Re-applying the same export is a content-hash no-op.** Every transaction
+  row that already exists is skipped as a duplicate; no security is created
+  twice; the response of the apply reports the skipped count.
+- **What survives a re-import, unchanged, same ids, exact `Decimal` values:**
+  classification assignments; every target plan version with its category and
+  position targets and the cash target; each security's `note` and
+  `attributes` including custom keys; the **security research log**
+  (`/api/v1/securities/:id/notes` — the append-only entries and the
+  `thesis_state` derived from them, ADR-0044); security ids and `updated_at`.
+  Pinned by `test/portfolixir/imports/reimport_preservation_test.exs` since
+  issue #664 (research log added by #748).
+- **A mutated re-import** (a rename, a recorded ISIN change resolved through
+  an alias or an explicit mapping) keeps the same guarantee for the matched
+  securities; only the genuinely new bookings land.
+- **Not covered:** a booking that changed in the source. An edited
+  transaction hashes differently and is imported as a new row beside the old
+  one; the old booking is removed or corrected through
+  `PATCH`/`DELETE /api/v1/transactions/:id`. The guarantee is about what
+  Portfolixir maintains around the history, not about reconciling two
+  versions of the history itself.
+
+A research log, a plan or an assignment therefore never "disappears at the
+next import"; an agent that observes otherwise has found a defect, not a
+documented limitation.
+
 ## Audit Journal
 
 Every financial write (create, update, delete) is recorded in an append-only

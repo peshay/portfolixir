@@ -1213,6 +1213,33 @@ uses stable `Row N: message` lines so the diagnostics can be kept with the
 source export. Applying the import is atomic and uses content hashes to skip
 duplicates on re-run.
 
+### What a re-import preserves
+
+Re-applying the **same** Portfolio Performance export is a **content-hash
+no-op**: every transaction row that already exists is skipped as a duplicate,
+no security is created twice, and nothing that was maintained in Portfolixir
+after the first import is touched. Verified on synthetic fixtures and pinned
+as a permanent regression test, the following survive a re-import unchanged,
+with the same ids and exact values:
+
+- classification assignments (custom trees and the categories a security sits
+  in);
+- every target plan version with its category and position target weights,
+  and the cash target;
+- each security's note and its attributes, including custom attribute keys;
+- the security research log (the Research tab's entries and the thesis state
+  derived from them);
+- security ids and their `updated_at` — nothing is silently rewritten.
+
+A **mutated** re-import (a renamed security, a recorded ISIN change) keeps the
+same guarantee for the matched securities; the one genuinely new booking
+lands, nothing else changes. The one thing this guarantee does **not** cover
+is a booking that changed in the source: an edited transaction hashes
+differently and is imported as a new row next to the old one — remove or
+correct the old booking by hand. The same statement lives in the
+[API and MCP](integration/api-and-mcp.html) reference so an agent reads it
+where it reads the endpoints.
+
 ### Security matching and the mapping step
 
 Securities in the file resolve against existing records through a

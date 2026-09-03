@@ -1115,6 +1115,44 @@ Finanzielle Decimals kommen hier nicht vor.
   Alles. Eine unbekannte View-id liefert `404` (nichts wird geschrieben); eine
   fehlerhafte `view_id` liefert `422`. Die Antwort entspricht dem `GET`-Format.
 
+## Importe
+
+Portfolio-Performance-Importe (CSV/JSON v1) laufen ausschließlich über die
+**Import-Ansicht**: Es gibt absichtlich keinen Import-Endpunkt unter
+`/api/v1` und kein MCP-Tool dafür — der Vorschau-dann-Anwenden-Schritt mit
+seinen Zuordnungsentscheidungen ist eine Betreiber-Handlung (ADR-0029). Was
+API- und MCP-Konsumenten wissen müssen, ist die **Bewahrungsgarantie beim
+erneuten Import**, denn alles, was ein Agent über diese API schreibt, liegt
+neben der importierten Historie:
+
+- **Dasselbe Export erneut anwenden ist ein No-op per Inhalts-Hash.** Jede
+  bereits vorhandene Transaktionszeile wird als Duplikat übersprungen; kein
+  Wertpapier wird doppelt angelegt; die Antwort des Anwendens meldet die
+  übersprungene Anzahl.
+- **Was einen erneuten Import unverändert übersteht, gleiche ids, exakte
+  `Decimal`-Werte:** Klassifizierungs-Zuordnungen; jede Zielplan-Version mit
+  ihren Kategorie- und Positionszielen sowie dem Cash-Ziel; `note` und
+  `attributes` jedes Wertpapiers einschließlich eigener Schlüssel; das
+  **Research-Log** (`/api/v1/securities/:id/notes` — die nur anhängbaren
+  Einträge und der daraus abgeleitete `thesis_state`, ADR-0044);
+  Wertpapier-ids und `updated_at`. Festgehalten in
+  `test/portfolixir/imports/reimport_preservation_test.exs` seit Issue #664
+  (Research-Log ergänzt durch #748).
+- **Ein veränderter erneuter Import** (eine Umbenennung, ein erfasster
+  ISIN-Wechsel, der über einen Alias oder eine explizite Zuordnung aufgelöst
+  wird) hält dieselbe Garantie für die zugeordneten Wertpapiere; nur die
+  wirklich neuen Buchungen landen.
+- **Nicht abgedeckt:** eine in der Quelle geänderte Buchung. Eine bearbeitete
+  Transaktion hasht anders und wird als neue Zeile neben der alten importiert;
+  die alte Buchung wird über `PATCH`/`DELETE /api/v1/transactions/:id`
+  entfernt oder korrigiert. Die Garantie betrifft, was Portfolixir rund um
+  die Historie pflegt, nicht den Abgleich zweier Versionen der Historie
+  selbst.
+
+Ein Research-Log, ein Plan oder eine Zuordnung „verschwindet“ also nie beim
+nächsten Import; ein Agent, der etwas anderes beobachtet, hat einen Defekt
+gefunden, keine dokumentierte Grenze.
+
 ## Audit-Journal
 
 Jeder finanzielle Schreibvorgang (Anlegen, Ändern, Löschen) wird in einem
