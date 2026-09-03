@@ -62,6 +62,10 @@ defmodule PortfolixirWeb.Router do
 
     get("/journal", JournalController, :index)
 
+    # The contract-version read (ADR-0044 §8): what this surface offers and
+    # when it last changed, pollable with ?since=.
+    get("/contract", ContractController, :show)
+
     get("/securities/search", SecuritySearchController, :index)
     get("/securities", SecurityController, :index)
     post("/securities", SecurityController, :create)
