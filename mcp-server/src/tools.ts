@@ -1938,6 +1938,18 @@ const notesExpiringZ = z.object({
   security_id: z.number().int().positive().optional()
 });
 
+// Issue #737: the daily sync and the one-shot historical backfill share one
+// tool; scope picks the feed.
+const exchangeRateSyncSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    scope: { type: "string", enum: ["latest", "history"] }
+  }
+};
+
+const exchangeRateSyncZ = z.object({ scope: z.enum(["latest", "history"]).optional() });
+
 const toolDefinitions: ToolDefinition[] = [
   tool("portfolixir.securities.list", "List securities", "List local securities. Rows default to a slim projection (id, name, ticker_symbol, isin, wkn, currency_code, asset_class) to keep responses small; pass projection=full only when you need notes, feed config, attributes or timestamps. Optional fields (#732, extending FR-37) selects a sparse fieldset from the FULL projection's field list — each row then carries exactly those fields, and a present fields supersedes projection entirely (a sparse fieldset IS a projection). Use limit/offset to page large catalogs. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only rows created or updated strictly after that instant return, and the response carries as_of (use it as the next since) plus a delta_note — deletions are NOT represented, so a sync that must detect deletions does a full read. Pull-only; there is no push delivery. Optional data_quality narrows to one of the catalog's data-quality sets — stale_quote (no quote newer than 7 days, INCLUDING never-priced securities), missing_quote (no quote at all, the narrower set inside it), missing_logo (no stored logo and not deliberately locked to none), missing_fx (#717: priced, but no stored rate from its currency to the EUR hub — storing the rate empties the set). These are the same predicates the dashboard counts and the securities page links to, so a count of N addresses a list of N; combine with query/holding_status to narrow further.", {
     type: "object",
@@ -2156,7 +2168,7 @@ const toolDefinitions: ToolDefinition[] = [
     include_positions: z.boolean().optional()
   })),
   tool("portfolixir.exchange_rates.list", "List exchange rates", "List stored EUR-hub exchange rates.", emptyObjectSchema, emptyObjectZ),
-  tool("portfolixir.exchange_rates.sync", "Sync exchange rates", "Fetch and store the latest exchange rates from the configured provider.", emptyObjectSchema, emptyObjectZ),
+  tool("portfolixir.exchange_rates.sync", "Sync exchange rates", "Fetch and store exchange rates from the configured provider (ECB, EUR hub). scope=latest (default) fetches the daily feed — today's rates, nothing in the past. scope=history (issue #737) runs the one-shot BACKFILL of the historical ECB series through the same path: every published day at once, so a dated conversion (a realized gain, a cost, a flow excluded and named for a missing close-date rate) can find its rate; run it when a cashflow facet reports excluded rows. The rate-availability rule is unchanged: a day the ECB did not publish (a weekend, an unlisted currency) stays excluded and named. Returns {provider, status, upserted, scope}; a provider without a history answers 422.", exchangeRateSyncSchema, exchangeRateSyncZ),
   tool("portfolixir.classifications.list", "List classifications", "List classification trees with categories and security assignments.", emptyObjectSchema, emptyObjectZ),
   tool("portfolixir.classifications.create", "Create classification", "Create a custom classification tree.", classificationSchema, classificationZ),
   tool("portfolixir.classifications.categories.create", "Create category", "Create a category in a custom classification.", categorySchema, categoryZ),
@@ -2764,7 +2776,11 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
     case "portfolixir.exchange_rates.list":
       return client.request("GET", "/api/v1/exchange_rates");
     case "portfolixir.exchange_rates.sync":
-      return client.request("POST", "/api/v1/exchange_rates/sync", {});
+      return client.request(
+        "POST",
+        "/api/v1/exchange_rates/sync",
+        args.scope === undefined ? {} : { scope: args.scope }
+      );
     case "portfolixir.classifications.list":
       return client.request("GET", "/api/v1/classifications");
     case "portfolixir.classifications.create":

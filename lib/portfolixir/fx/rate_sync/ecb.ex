@@ -5,6 +5,11 @@ defmodule Portfolixir.Fx.RateSync.Ecb do
 
       GET https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml
 
+  and, for the one-shot historical backfill (issue #737, Sprint 9 D-1), the
+  full published series:
+
+      GET https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.xml
+
   The feed is EUR-based (`1 EUR = rate <currency>`) — exactly Portfolixir's hub
   convention — and publishes one `<Cube currency=.. rate=..>` per currency under
   a dated `<Cube time=..>`. Currencies outside `Catalog.Currencies` are dropped
@@ -16,6 +21,7 @@ defmodule Portfolixir.Fx.RateSync.Ecb do
   alias Portfolixir.Catalog.Currencies
 
   @endpoint "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"
+  @history_endpoint "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.xml"
   @hub "EUR"
   @source "ecb"
 
@@ -30,6 +36,38 @@ defmodule Portfolixir.Fx.RateSync.Ecb do
       {:error, reason} -> {:error, reason}
     end
   end
+
+  @impl true
+  def fetch_history(opts) do
+    # The series is a few MB; give it more room than the daily feed.
+    case Req.get(req(Keyword.put_new(opts, :req, receive_timeout: 60_000)),
+           url: @history_endpoint
+         ) do
+      {:ok, %Req.Response{status: 200, body: body}} -> {:ok, parse_history(body)}
+      {:ok, %Req.Response{status: status}} -> {:error, {:http_status, status}}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Parses the ECB historical XML — one dated `<Cube time=..>` block per
+  published day, each carrying its currency rows — into EUR-hub rate rows.
+  Public for tests. Unsupported currency codes are dropped like in `parse/1`;
+  a date the ECB did not publish (a weekend, a holiday) is simply absent, so
+  a booking on such a day stays excluded and named downstream.
+  """
+  def parse_history(body) when is_binary(body) do
+    ~r/<Cube\s+time=['"](\d{4}-\d{2}-\d{2})['"]\s*>(.*?)<\/Cube>/s
+    |> Regex.scan(body)
+    |> Enum.flat_map(fn [_, iso, block] ->
+      case Date.from_iso8601(iso) do
+        {:ok, date} -> block |> pairs() |> Enum.flat_map(&row(&1, date))
+        _ -> []
+      end
+    end)
+  end
+
+  def parse_history(_body), do: []
 
   @doc "Parses the ECB daily XML into EUR-hub rate rows. Public for tests."
   def parse(body) when is_binary(body) do

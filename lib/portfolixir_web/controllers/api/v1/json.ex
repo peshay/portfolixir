@@ -1534,8 +1534,15 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
-  def fx_sync_result(%{provider: provider, status: status, upserted: upserted}) do
-    %{provider: to_string(provider), status: to_string(status), upserted: upserted}
+  def fx_sync_result(%{provider: provider, status: status, upserted: upserted} = result) do
+    %{
+      provider: Atom.to_string(provider),
+      status: Atom.to_string(status),
+      upserted: upserted,
+      # `latest` = the daily feed; `history` = the one-shot backfill of the
+      # provider's historical series (issue #737).
+      scope: result |> Map.get(:scope, :latest) |> Atom.to_string()
+    }
   end
 
   def journal_entry(%JournalEntry{} = entry) do

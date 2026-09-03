@@ -952,9 +952,24 @@ Beispiel-Payloads für Konten:
   gegen den EUR-Hub gehalten (`1 base_currency = rate quote_currency`); andere
   Paare werden durch Triangulation abgeleitet, und `GBX` (Pence) wird als
   `GBP × 100` behandelt.
-- `POST /api/v1/exchange_rates/sync` holt die neuesten Kurse vom konfigurierten
-  Anbieter (standardmäßig die täglichen EZB-Referenzkurse) und liefert
-  `{provider, status, upserted}`. Ein Anbieterfehler liefert `502 Bad Gateway`.
+- `POST /api/v1/exchange_rates/sync` holt Kurse vom konfigurierten Anbieter
+  (standardmäßig EZB) und liefert `{provider, status, upserted, scope}`.
+  `scope=latest` (Standard) holt den **täglichen** Feed — die heutigen Kurse,
+  nichts aus der Vergangenheit. `scope=history` (Issue #737, Sprint-9-D-1)
+  führt das **einmalige Backfill** der historischen EZB-Reihe
+  (`eurofxref-hist.xml`) über denselben Upsert-Pfad aus: jeden
+  veröffentlichten Tag auf einmal, sodass eine datierte Umrechnung (ein
+  realisierter Gewinn, eine Kosten- oder Flussbuchung, die die
+  Cashflow-Facetten wegen eines fehlenden Buchungstagskurses ausgeschlossen
+  und benannt haben) ihren Kurs findet. Die Regel zur Kursverfügbarkeit
+  bleibt unverändert — ein Tag, den die EZB nicht veröffentlicht hat (ein
+  Wochenende, eine nicht gelistete Währung), bleibt ausgeschlossen und
+  benannt; das Backfill füllt Daten, es lockert die Basis „exakter
+  Buchungstagskurs“ nicht. Ein unbekannter `scope` ist ein `422`, ein
+  Anbieter ohne Historie antwortet mit `422` und benennt `scope`, ein
+  Anbieterfehler liefert `502 Bad Gateway`. Die menschliche Sicht ist die
+  Schaltfläche **Historische Kurse nachladen** in den Ausschluss-Hinweisen
+  auf `/cashflow`.
 
 ## Klassifizierungen
 
@@ -1242,7 +1257,8 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
   buchen statt Saldo-Snapshots oder unbepreiste Einlieferungen zu nutzen.
 - `portfolixir.portfolios.valuation`
 - `portfolixir.exchange_rates.list`
-- `portfolixir.exchange_rates.sync`
+- `portfolixir.exchange_rates.sync` — `scope=latest` (täglicher Feed) oder
+  `scope=history` (das einmalige historische Backfill, Issue #737).
 - `portfolixir.classifications.list`
 - `portfolixir.classifications.create`
 - `portfolixir.classifications.categories.create`

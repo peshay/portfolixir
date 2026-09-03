@@ -990,10 +990,16 @@ each sale converts through the EUR hub at the rate stored on **its own close
 date**, because a realized figure is a historical fact tied to its date. A
 sale with **no** stored rate for that day is **excluded from every total and
 named** in an attention note (count and securities) — never converted at a
-neighbouring date's rate, never silently dropped. Note what that means in
-practice: rate sync fetches *current* rates, so it cannot fill a past date,
-and there is no path today for entering a historical rate by hand — which is
-why the note offers no button that would fail.
+neighbouring date's rate, never silently dropped. The daily rate sync fetches
+*current* rates and cannot fill a past date, so the note carries the remedy
+that can: **Backfill historical rates** fetches the historical ECB series
+once, stores every published day, and re-reads the facet — the excluded sale
+converts at its own close-date rate the moment that date has one (issue
+#737). The limit that remains is stated next to the control: a day the ECB
+did not publish (a weekend, a currency it does not list) stays excluded and
+named. The same backfill is `scope=history` on the exchange-rate sync
+endpoint and MCP tool; the deposits-and-withdrawals and costs facets carry
+the same control in their exclusion notes.
 
 **Deposits & withdrawals** (`/cashflow?tab=flows`, issue #725) is the
 owner's "Ersparnis": what was put in and taken out, per period, as two

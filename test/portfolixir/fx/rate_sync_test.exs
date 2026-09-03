@@ -84,4 +84,76 @@ defmodule Portfolixir.Fx.RateSyncTest do
     assert Enum.any?(rows, &(&1.quote_currency == "GBP"))
     refute Enum.any?(rows, &(&1.quote_currency == "XYZ"))
   end
+
+  # User story (issue #737, Sprint 9 D-1):
+  # As a local portfolio maintainer whose realized gain was excluded for a
+  # missing close-date rate,
+  # I want a one-shot backfill of the historical ECB series through the same
+  # sync path,
+  # so that every past published date gains its rate at once — and a date the
+  # ECB never published stays absent, exactly as the exclusion rule requires.
+  #
+  # Acceptance criteria:
+  # - parse_history/1 reads every dated <Cube time> block into EUR-hub rows,
+  #   dropping unsupported currencies.
+  # - backfill/1 fetches the provider's history and upserts it; the result
+  #   states scope: :history.
+  # - A provider without a history answers {:error, :history_unsupported}.
+  test "parses the ECB historical XML into one row per published day and currency" do
+    xml = """
+    <gesmes:Envelope>
+      <Cube>
+        <Cube time='2026-02-20'>
+          <Cube currency='USD' rate='1.0812'/>
+          <Cube currency='GBP' rate='0.8500'/>
+        </Cube>
+        <Cube time='2026-02-19'>
+          <Cube currency='USD' rate='1.0790'/>
+          <Cube currency='XYZ' rate='9.9'/>
+        </Cube>
+      </Cube>
+    </gesmes:Envelope>
+    """
+
+    rows = Ecb.parse_history(xml)
+
+    assert row("GBP", "0.8500", ~D[2026-02-20]) in rows
+    assert row("USD", "1.0812", ~D[2026-02-20]) in rows
+    assert row("USD", "1.0790", ~D[2026-02-19]) in rows
+    refute Enum.any?(rows, &(&1.quote_currency == "XYZ"))
+    assert length(rows) == 3
+  end
+
+  test "backfill/1 upserts the provider's historical series and says so" do
+    Fake.put_history_response(
+      {:ok, [row("GBP", "0.85", ~D[2026-02-20]), row("GBP", "0.86", ~D[2026-02-19])]}
+    )
+
+    assert {:ok, %{provider: :fake, status: :ok, upserted: 2, scope: :history}} =
+             RateSync.backfill(provider: Fake)
+
+    # The exact booking-date rate is now stored — the strict rate_on/3 finds it.
+    assert {:ok, rate} = Fx.rate_on("GBP", "EUR", ~D[2026-02-20])
+    assert Decimal.equal?(rate, Decimal.div(Decimal.new(1), Decimal.new("0.85")))
+
+    # A date the series does not carry stays absent: the rule is unchanged.
+    assert {:error, :no_rate} = Fx.rate_on("GBP", "EUR", ~D[2026-02-21])
+
+    # The daily sync's own result says which feed it ran.
+    Fake.put_response({:ok, [row("USD", "1.25")]})
+    assert {:ok, %{scope: :latest}} = RateSync.sync(provider: Fake)
+  end
+
+  defmodule NoHistory do
+    @moduledoc false
+    @behaviour Portfolixir.Fx.RateSync.Provider
+    @impl true
+    def id, do: :no_history
+    @impl true
+    def fetch(_opts), do: {:ok, []}
+  end
+
+  test "backfill/1 names a provider without a history" do
+    assert {:error, :history_unsupported} = RateSync.backfill(provider: NoHistory)
+  end
 end

@@ -2228,4 +2228,27 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(viewValuation?.inputSchema.properties.include_positions.type, "boolean");
     assert.match(viewValuation?.description ?? "", /positions_included/);
   });
+
+  // User story (issue #737): the one-shot historical backfill rides the
+  // existing sync tool as scope=history; the default stays the daily feed.
+  it("passes scope=history to exchange_rates.sync and keeps the empty body by default", async () => {
+    const { client, requests } = createRecordingClient({ data: { scope: "history" } });
+
+    await callTool(client, "portfolixir.exchange_rates.sync", { scope: "history" });
+    await callTool(client, "portfolixir.exchange_rates.sync", {});
+
+    assert.deepEqual(requests[0].method, "POST");
+    assert.deepEqual(requests[0].path, "/api/v1/exchange_rates/sync");
+    assert.deepEqual(requests[0].body, { scope: "history" });
+    assert.deepEqual(requests[1].body, {});
+
+    const sync = listTools().find((tool) => tool.name === "portfolixir.exchange_rates.sync");
+    assert.deepEqual(sync?.inputSchema.properties.scope.enum, ["latest", "history"]);
+    assert.match(sync?.description ?? "", /BACKFILL/);
+    assert.match(sync?.description ?? "", /stays excluded/);
+
+    await assert.rejects(
+      callTool(client, "portfolixir.exchange_rates.sync", { scope: "everything" })
+    );
+  });
 });
