@@ -14,6 +14,7 @@ defmodule Portfolixir.Imports.ReimportPreservationTest do
   alias Portfolixir.Classifications
   alias Portfolixir.Imports
   alias Portfolixir.Imports.Applier.Result
+  alias Portfolixir.Knowledge
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Targets
@@ -59,6 +60,9 @@ defmodule Portfolixir.Imports.ReimportPreservationTest do
   # - `note` and `attributes` on both imported securities: byte-for-byte
   #   identical, including operator-added custom attribute keys.
   # - Security ids and `updated_at` unchanged (no silent rewrite).
+  # - The research log (ADR-0044, #748): every entry appended before the
+  #   re-import is still there, unchanged, in the same order — the guarantee
+  #   #741 documents, pinned for the new table.
   test "re-importing the identical export preserves classification, targets, cash target, notes and attributes" do
     portfolio = setup_portfolio()
     owner = Actor.owner_ui()
@@ -116,13 +120,40 @@ defmodule Portfolixir.Imports.ReimportPreservationTest do
         attributes: Map.put(acme.attributes || %{}, "review_after", "2026-12-31")
       })
 
+    # The research log (ADR-0044): a thesis and a retraction on the imported
+    # securities — the entries an agent would have written between two
+    # imports of the same bookkeeping history.
+    {:ok, thesis} =
+      Knowledge.append_note(owner, %{
+        security_id: acme.id,
+        author: "agent",
+        kind: "thesis",
+        body: "core holding; pricing power intact",
+        conviction: "high",
+        source_quality: "primary",
+        as_of: ~D[2026-07-01]
+      })
+
+    {:ok, _retraction} =
+      Knowledge.append_note(owner, %{
+        security_id: btc.id,
+        author: "agent",
+        kind: "evidence",
+        body: "custody provider audit pending",
+        source_quality: "awareness",
+        as_of: ~D[2026-07-02]
+      })
+
     snapshot = %{
       plans: plan_snapshot(portfolio.id),
       targets: target_snapshot(portfolio.id),
       assignments: assignment_snapshot([btc.id, acme.id], classification.id),
       securities: security_snapshot([btc.id, acme.id]),
-      transaction_count: Ledger.count_transactions()
+      transaction_count: Ledger.count_transactions(),
+      research_log: research_log_snapshot([btc.id, acme.id])
     }
+
+    assert length(snapshot.research_log) == 2
 
     assert snapshot.securities |> Enum.map(& &1.note) |> Enum.all?(&is_binary/1)
 
@@ -145,6 +176,12 @@ defmodule Portfolixir.Imports.ReimportPreservationTest do
     assert Ledger.count_transactions() == snapshot.transaction_count
     assert Decimal.equal?(Targets.get_cash_target(portfolio.id), Decimal.new("0.10"))
     assert Catalog.count_securities() == 2
+
+    # The research log survives untouched: same rows, same ids, same bodies,
+    # and the derived thesis state still reads from the same entry.
+    assert research_log_snapshot([btc.id, acme.id]) == snapshot.research_log
+    assert Knowledge.count_notes() == 2
+    assert Knowledge.thesis_state(acme.id).derived_from_entry_id == thesis.id
   end
 
   # User story (issue #664 companion — the mutated re-import keeps notes and
@@ -206,6 +243,20 @@ defmodule Portfolixir.Imports.ReimportPreservationTest do
     assert strip_isin(securities_after) == strip_isin(securities_before)
     assert Catalog.get_security!(acme.id).isin == "DE000ACME119"
     assert Catalog.get_security!(btc.id).name == "Bitcoin"
+  end
+
+  defp research_log_snapshot(security_ids) do
+    for id <- security_ids, note <- Knowledge.list_notes(id) do
+      %{
+        id: note.id,
+        security_id: note.security_id,
+        kind: note.kind,
+        body: note.body,
+        as_of: note.as_of,
+        source_quality: note.source_quality,
+        inserted_at: note.inserted_at
+      }
+    end
   end
 
   defp plan_snapshot(portfolio_id) do

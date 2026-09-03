@@ -90,6 +90,12 @@ defmodule Portfolixir.Catalog.Security do
       name: :security_quotes_security_id_fkey,
       message: "is referenced by existing records"
     )
+    # ADR-0044 §3: research-log entries never vanish, so a security carrying
+    # any is not deletable (the FK restricts; the API answers 409).
+    |> foreign_key_constraint(:id,
+      name: :security_notes_security_id_fkey,
+      message: "is referenced by existing records"
+    )
   end
 
   def asset_classes, do: AssetClasses.codes()

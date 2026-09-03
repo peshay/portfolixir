@@ -72,6 +72,90 @@ defmodule Portfolixir.Journal.AppendOnlyTest do
     end
   end
 
+  # ADR-0044 §§1, 3, 5 (issue #748, risk-tier attention label): the research
+  # log is append-only AT THE DATABASE, and journal-armed from its first
+  # migration. Runs unboxed like the journal's own test, so the triggers fire
+  # exactly as in production.
+  describe "security_notes append-only enforcement (ADR-0044)" do
+    test "UPDATE, DELETE and TRUNCATE of research-log rows raise" do
+      Sandbox.unboxed_run(Repo, fn ->
+        marker = "notes_append_only_#{System.unique_integer([:positive])}"
+        actor = Actor.system_job(marker)
+
+        {:ok, security} = Catalog.create_security(actor, %{name: marker, currency_code: "EUR"})
+
+        {:ok, note} =
+          Portfolixir.Knowledge.append_note(actor, %{
+            security_id: security.id,
+            author: "agent",
+            kind: "evidence",
+            body: "a finding that must never vanish",
+            source_quality: "primary",
+            as_of: ~D[2026-08-01]
+          })
+
+        assert_raise Postgrex.Error, ~r/security_notes is append-only/, fn ->
+          Repo.query!("UPDATE security_notes SET body = 'tampered' WHERE id = $1", [note.id])
+        end
+
+        assert_raise Postgrex.Error, ~r/security_notes is append-only/, fn ->
+          Repo.query!("DELETE FROM security_notes WHERE id = $1", [note.id])
+        end
+
+        assert_raise Postgrex.Error, ~r/security_notes is append-only/, fn ->
+          Repo.query!("TRUNCATE security_notes")
+        end
+
+        # The row is still there, byte for byte.
+        %{rows: [[body]]} =
+          Repo.query!("SELECT body FROM security_notes WHERE id = $1", [note.id])
+
+        assert body == "a finding that must never vanish"
+
+        # A security carrying log entries cannot be deleted either: the log
+        # would vanish with it (ADR-0044 §3), so the FK restricts.
+        assert {:error, %Ecto.Changeset{}} = Catalog.delete_security(actor, security)
+
+        # Test hygiene only: the append-only triggers are dropped for THIS
+        # connection's cleanup and re-created — production never does this.
+        cleanup_notes_and_security(note.id, security.id)
+        cleanup_journal_for_resource(to_string(security.id))
+        cleanup_journal_for_resource(to_string(note.id))
+      end)
+    end
+
+    test "a raw insert without a journal actor is rejected (armed at creation)" do
+      Sandbox.unboxed_run(Repo, fn ->
+        assert_raise Postgrex.Error, ~r/requires a journal actor/, fn ->
+          Repo.query!(
+            "INSERT INTO security_notes (security_id, author, kind, body, source_quality, as_of, inserted_at) " <>
+              "VALUES (1, 'agent', 'evidence', 'probe', 'primary', '2026-08-01', now())"
+          )
+        end
+      end)
+    end
+  end
+
+  defp cleanup_notes_and_security(note_id, security_id) do
+    Repo.transaction(fn ->
+      Repo.query!("ALTER TABLE security_notes DISABLE TRIGGER security_notes_no_delete")
+
+      Repo.query!(
+        "ALTER TABLE security_notes DISABLE TRIGGER security_notes_require_journal_actor"
+      )
+
+      Repo.query!("DELETE FROM security_notes WHERE id = $1", [note_id])
+
+      Repo.query!(
+        "ALTER TABLE security_notes ENABLE TRIGGER security_notes_require_journal_actor"
+      )
+
+      Repo.query!("ALTER TABLE security_notes ENABLE TRIGGER security_notes_no_delete")
+    end)
+
+    cleanup_security(security_id)
+  end
+
   # audit_journal is not itself guard-armed (only business tables are), so a raw
   # insert is allowed; the append-only triggers fire only on UPDATE/DELETE/TRUNCATE.
   defp insert_journal_row!(marker) do
