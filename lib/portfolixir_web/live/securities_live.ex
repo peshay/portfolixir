@@ -21,6 +21,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Catalog.SecurityFields.Field
   alias Portfolixir.Catalog.SecurityWithMetrics
   alias Portfolixir.Classifications
+  alias Portfolixir.Knowledge
+  alias Portfolixir.Knowledge.SecurityNote
+  alias Portfolixir.Knowledge.ThesisState
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Projection
   alias Portfolixir.Portfolios
@@ -40,7 +43,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   @ranges ~w(1M 3M 6M YTD 1Y 3Y 5Y MAX)
   @default_range "1Y"
 
-  @tabs ~w(overview chart transactions trades quotes holdings classifications)
+  @tabs ~w(overview chart transactions trades quotes holdings classifications research)
   @default_tab "overview"
   @holding_statuses ~w(all held not_held)
   @default_holding_status "all"
@@ -110,6 +113,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:detail_metrics, SecurityWithMetrics.empty_metrics())
      |> assign(:detail_classifications, [])
      |> assign(:detail_new_category_for, nil)
+     |> assign(:detail_notes, [])
+     |> assign(:detail_thesis_state, ThesisState.none())
+     |> assign(:research_form_kind, "evidence")
+     |> assign(:research_form_errors, [])
      |> assign(:row_menu_id, nil)
      |> assign(:editing_security, nil)
      |> assign(:delete_blocked, nil)
@@ -1094,7 +1101,17 @@ defmodule PortfolixirWeb.SecuritiesLive do
         />
       <% end %>
 
-      <%= if @detail_tab not in ~w(overview chart transactions trades quotes holdings classifications) do %>
+      <%= if @detail_tab == "research" do %>
+        <.research_tab_panel
+          security={@selected_security}
+          notes={@detail_notes}
+          thesis_state={@detail_thesis_state}
+          form_kind={@research_form_kind}
+          form_errors={@research_form_errors}
+        />
+      <% end %>
+
+      <%= if @detail_tab not in ~w(overview chart transactions trades quotes holdings classifications research) do %>
         <section
           id={"detail-tab-panel-#{@detail_tab}"}
           role="tabpanel"
@@ -1796,6 +1813,290 @@ defmodule PortfolixirWeb.SecuritiesLive do
     """
   end
 
+  attr(:security, :map, required: true)
+  attr(:notes, :list, required: true)
+  attr(:thesis_state, :map, required: true)
+  attr(:form_kind, :string, required: true)
+  attr(:form_errors, :list, default: [])
+
+  # ADR-0044 §6: the research timeline. Newest first; kind and source quality
+  # visible; a superseded entry stays in the list marked as superseded; a
+  # retraction is legible as such and names what it retracts; the derived
+  # thesis state reads on top. Nothing here edits or removes an entry.
+  defp research_tab_panel(assigns) do
+    assigns =
+      assigns
+      |> assign(:today, Date.to_iso8601(Portfolixir.Clock.today()))
+      |> assign(:retraction, retraction_for(assigns.thesis_state, assigns.notes))
+
+    ~H"""
+    <section
+      id="detail-tab-panel-research"
+      role="tabpanel"
+      aria-labelledby="detail-tab-research"
+      class="detail-tab-panel detail-tab-panel--research"
+    >
+      <p class="detail-tab-hint">
+        <%= gettext(
+          "Dated, sourced entries about this security. Entries are never edited or removed; a wrong finding is withdrawn by a retraction that supersedes it, and both stay visible."
+        ) %>
+      </p>
+
+      <section class="research-thesis" data-role="thesis-state" aria-label={gettext("Thesis state")}>
+        <div class="research-thesis__head">
+          <h3><%= gettext("Thesis") %></h3>
+          <span class={["badge", "badge--thesis-#{@thesis_state.status}"]}>
+            <%= thesis_status_label(@thesis_state.status) %>
+          </span>
+        </div>
+        <%= if @thesis_state.status == :none do %>
+          <p class="detail-tab-empty"><%= gettext("No thesis recorded yet.") %></p>
+        <% else %>
+          <p class="research-thesis__text"><%= @thesis_state.thesis %></p>
+          <dl class="research-thesis__facts">
+            <div>
+              <dt><%= gettext("Conviction") %></dt>
+              <dd><%= conviction_label(@thesis_state.conviction) %></dd>
+            </div>
+            <div>
+              <dt><%= gettext("Invalidation condition") %></dt>
+              <dd><%= @thesis_state.invalidation_condition || "—" %></dd>
+            </div>
+            <div>
+              <dt><%= gettext("Time stop") %></dt>
+              <dd><%= Format.date(@thesis_state.time_stop) %></dd>
+            </div>
+            <div>
+              <dt><%= gettext("As of") %></dt>
+              <dd><%= Format.date(@thesis_state.as_of) %></dd>
+            </div>
+            <div>
+              <dt><%= gettext("Last reviewed") %></dt>
+              <dd>
+                <%= Format.date(@thesis_state.last_reviewed_at) %>
+                <%= if @thesis_state.last_reviewed_by do %>
+                  · <%= author_label(@thesis_state.last_reviewed_by) %>
+                <% end %>
+              </dd>
+            </div>
+            <div>
+              <dt><%= gettext("Derived from") %></dt>
+              <dd>#<%= @thesis_state.derived_from_entry_id %></dd>
+            </div>
+          </dl>
+          <%= if @retraction do %>
+            <AppShell.data_note severity={:attention} id="thesis-retracted">
+              <%= gettext("Retracted by #%{id}: %{reason}",
+                id: @retraction.id,
+                reason: @retraction.body
+              ) %>
+            </AppShell.data_note>
+          <% end %>
+        <% end %>
+      </section>
+
+      <form
+        id="research-entry-form"
+        class="research-entry-form"
+        phx-change="research_entry_changed"
+        phx-submit="append_research_entry"
+        aria-label={gettext("Append an entry")}
+      >
+        <h3><%= gettext("Append an entry") %></h3>
+        <div class="research-entry-form__grid">
+          <label>
+            <span><%= gettext("Kind") %></span>
+            <select name="note[kind]">
+              <%= for kind <- SecurityNote.kinds() do %>
+                <option value={kind} selected={@form_kind == kind}><%= kind_label(kind) %></option>
+              <% end %>
+            </select>
+          </label>
+          <label>
+            <span><%= gettext("Source quality") %></span>
+            <select name="note[source_quality]">
+              <%= for quality <- SecurityNote.source_qualities() do %>
+                <option value={quality}><%= source_quality_label(quality) %></option>
+              <% end %>
+            </select>
+          </label>
+          <label>
+            <span><%= gettext("As of") %></span>
+            <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="note[as_of]" value={@today} required />
+          </label>
+          <label>
+            <span><%= gettext("Supersedes") %></span>
+            <select name="note[supersedes_id]">
+              <option value=""><%= gettext("— nothing —") %></option>
+              <%= for note <- @notes do %>
+                <option value={note.id}>
+                  #<%= note.id %> · <%= kind_label(note.kind) %> · <%= Format.date(note.as_of) %>
+                </option>
+              <% end %>
+            </select>
+          </label>
+          <label class="research-entry-form__full">
+            <span><%= gettext("Entry") %></span>
+            <textarea name="note[body]" rows="3" required></textarea>
+          </label>
+          <label class="research-entry-form__full">
+            <span><%= gettext("Source link") %></span>
+            <input type="url" name="note[source_url]" inputmode="url" />
+          </label>
+          <label>
+            <span><%= gettext("Valid until") %></span>
+            <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="note[valid_until]" />
+          </label>
+          <%= if @form_kind == "thesis" do %>
+            <label>
+              <span><%= gettext("Conviction") %></span>
+              <select name="note[conviction]">
+                <option value=""><%= gettext("— not stated —") %></option>
+                <%= for tier <- SecurityNote.convictions() do %>
+                  <option value={tier}><%= conviction_label(tier) %></option>
+                <% end %>
+              </select>
+            </label>
+            <label class="research-entry-form__full">
+              <span><%= gettext("Invalidation condition") %></span>
+              <input type="text" name="note[invalidation_condition]" />
+            </label>
+            <label>
+              <span><%= gettext("Time stop") %></span>
+              <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="note[time_stop]" />
+            </label>
+          <% end %>
+        </div>
+        <%= if @form_errors != [] do %>
+          <ul class="research-entry-form__errors" role="alert">
+            <%= for error <- @form_errors do %>
+              <li><%= error %></li>
+            <% end %>
+          </ul>
+        <% end %>
+        <button type="submit" class="button"><%= gettext("Append entry") %></button>
+      </form>
+
+      <%= if @notes == [] do %>
+        <p class="detail-tab-empty"><%= gettext("No entries yet.") %></p>
+      <% else %>
+        <ol class="research-timeline" aria-label={gettext("Research timeline")}>
+          <%= for note <- @notes do %>
+            <li
+              id={"research-entry-#{note.id}"}
+              data-entry-id={note.id}
+              data-kind={note.kind}
+              class={[
+                "research-entry",
+                "research-entry--#{note.kind}",
+                note.superseded_by_ids != [] && "research-entry--superseded"
+              ]}
+            >
+              <div class="research-entry__head">
+                <span class={["badge", "badge--kind-#{note.kind}"]}><%= kind_label(note.kind) %></span>
+                <span class={["badge", "badge--quality-#{note.source_quality}"]}>
+                  <%= source_quality_label(note.source_quality) %>
+                </span>
+                <span class="research-entry__meta">
+                  #<%= note.id %> · <%= Format.date(note.as_of) %> · <%= author_label(note.author) %>
+                  <%= if note.machine_generated do %>
+                    · <%= gettext("machine-generated proposal") %>
+                  <% end %>
+                </span>
+              </div>
+              <%= if note.kind == :retraction and note.supersedes_id do %>
+                <p class="research-entry__marker"><%= gettext("Retracts #%{id}", id: note.supersedes_id) %></p>
+              <% end %>
+              <%= if note.kind != :retraction and note.supersedes_id do %>
+                <p class="research-entry__marker"><%= gettext("Replaces #%{id}", id: note.supersedes_id) %></p>
+              <% end %>
+              <%= if note.superseded_by_ids != [] do %>
+                <p class="research-entry__marker research-entry__marker--superseded">
+                  <%= gettext("Superseded by #%{ids}", ids: Enum.join(note.superseded_by_ids, ", #")) %>
+                </p>
+              <% end %>
+              <p class="research-entry__body"><%= note.body %></p>
+              <dl class="research-entry__facts">
+                <%= if note.source_url do %>
+                  <div>
+                    <dt><%= gettext("Source link") %></dt>
+                    <dd><a href={note.source_url} rel="noopener noreferrer" target="_blank"><%= note.source_url %></a></dd>
+                  </div>
+                <% end %>
+                <%= if note.valid_until do %>
+                  <div>
+                    <dt><%= gettext("Valid until") %></dt>
+                    <dd><%= Format.date(note.valid_until) %></dd>
+                  </div>
+                <% end %>
+                <%= if note.conviction do %>
+                  <div>
+                    <dt><%= gettext("Conviction") %></dt>
+                    <dd><%= conviction_label(note.conviction) %></dd>
+                  </div>
+                <% end %>
+                <%= if note.invalidation_condition do %>
+                  <div>
+                    <dt><%= gettext("Invalidation condition") %></dt>
+                    <dd><%= note.invalidation_condition %></dd>
+                  </div>
+                <% end %>
+                <%= if note.time_stop do %>
+                  <div>
+                    <dt><%= gettext("Time stop") %></dt>
+                    <dd><%= Format.date(note.time_stop) %></dd>
+                  </div>
+                <% end %>
+              </dl>
+            </li>
+          <% end %>
+        </ol>
+      <% end %>
+    </section>
+    """
+  end
+
+  defp retraction_for(%{status: :retracted, retracted_by_entry_id: id}, notes)
+       when is_integer(id),
+       do: Enum.find(notes, &(&1.id == id))
+
+  defp retraction_for(_state, _notes), do: nil
+
+  defp thesis_status_label(:none), do: gettext("None")
+  defp thesis_status_label(:intact), do: gettext("Intact")
+  defp thesis_status_label(:retracted), do: gettext("Retracted")
+
+  defp kind_label(kind) when is_atom(kind), do: kind_label(Atom.to_string(kind))
+  defp kind_label("thesis"), do: gettext("Thesis")
+  defp kind_label("evidence"), do: gettext("Evidence")
+  defp kind_label("invalidation_check"), do: gettext("Invalidation check")
+  defp kind_label("event_result"), do: gettext("Event result")
+  defp kind_label("risk"), do: gettext("Risk")
+  defp kind_label("retraction"), do: gettext("Retraction")
+  defp kind_label("decision"), do: gettext("Decision")
+  defp kind_label(other), do: other
+
+  defp source_quality_label(quality) when is_atom(quality),
+    do: source_quality_label(Atom.to_string(quality))
+
+  defp source_quality_label("primary"), do: gettext("Primary source")
+  defp source_quality_label("secondary_multi"), do: gettext("Several secondary sources")
+  defp source_quality_label("awareness"), do: gettext("Awareness")
+  defp source_quality_label("unverified"), do: gettext("Unverified")
+  defp source_quality_label(other), do: other
+
+  defp author_label(:operator), do: gettext("Operator")
+  defp author_label(:agent), do: gettext("Agent")
+  defp author_label(:local_model), do: gettext("Local model")
+  defp author_label(other), do: to_string(other)
+
+  defp conviction_label(nil), do: "—"
+  defp conviction_label(tier) when is_atom(tier), do: conviction_label(Atom.to_string(tier))
+  defp conviction_label("low"), do: gettext("Low")
+  defp conviction_label("medium"), do: gettext("Medium")
+  defp conviction_label("high"), do: gettext("High")
+  defp conviction_label(other), do: other
+
   defp classification_indent(0), do: ""
   defp classification_indent(depth), do: String.duplicate("— ", depth)
 
@@ -2175,7 +2476,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
       {"trades", gettext("Trades")},
       {"quotes", gettext("Quotes")},
       {"holdings", gettext("Holdings")},
-      {"classifications", gettext("Classifications")}
+      {"classifications", gettext("Classifications")},
+      {"research", gettext("Research")}
     ]
   end
 
@@ -2757,6 +3059,46 @@ defmodule PortfolixirWeb.SecuritiesLive do
   def handle_event("cancel_new_category", _params, socket) do
     {:noreply, assign(socket, :detail_new_category_for, nil)}
   end
+
+  # ADR-0044 §6: the operator appends from the pane; author is the operator,
+  # never guessed from the form. Nothing here edits or removes an entry.
+  def handle_event("append_research_entry", %{"note" => params}, socket) do
+    case socket.assigns.selected_security do
+      %Security{id: id} ->
+        attrs =
+          params
+          |> Map.put("security_id", id)
+          |> Map.put("author", "operator")
+          |> drop_blank_values()
+
+        case Knowledge.append_note(Actor.owner_ui(), attrs) do
+          {:ok, _note} ->
+            {:noreply,
+             socket
+             |> assign(:research_form_errors, [])
+             |> assign(:research_form_kind, "evidence")
+             |> load_research_log()
+             |> put_action_result(:note, gettext("Entry appended."))}
+
+          {:error, changeset} ->
+            {:noreply,
+             socket
+             |> assign(:research_form_errors, research_form_errors(changeset))
+             |> put_action_result(:problem, gettext("Could not append the entry."))}
+        end
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
+  # The thesis-only fields show up when the kind is a thesis (phx-change).
+  def handle_event("research_entry_changed", %{"note" => %{"kind" => kind}}, socket) do
+    kind = if kind in SecurityNote.kinds(), do: kind, else: "evidence"
+    {:noreply, assign(socket, :research_form_kind, kind)}
+  end
+
+  def handle_event("research_entry_changed", _params, socket), do: {:noreply, socket}
 
   def handle_event("save_detail_note", %{"security" => %{"note" => note}}, socket) do
     case socket.assigns.selected_security do
@@ -3451,6 +3793,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:detail_status, nil)
     |> assign(:detail_classifications, [])
     |> assign(:detail_new_category_for, nil)
+    |> assign(:detail_notes, [])
+    |> assign(:detail_thesis_state, ThesisState.none())
+    |> assign(:research_form_errors, [])
   end
 
   defp load_detail_data(%{assigns: %{selected_security: nil}} = socket), do: socket
@@ -3513,7 +3858,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
     # without any stored rate).
     |> assign(:detail_status, Valuation.security_status(id, holding_base_currencies(holdings)))
     |> assign(:detail_classifications, load_security_classifications(id))
+    |> load_research_log()
   end
+
+  # ADR-0044 §6: the research log newest first and the thesis state derived
+  # from it — one read, the projection computed over the rows just loaded.
+  defp load_research_log(%{assigns: %{selected_security: %Security{id: id}}} = socket) do
+    notes = Knowledge.list_notes(id)
+
+    socket
+    |> assign(:detail_notes, notes)
+    |> assign(:detail_thesis_state, ThesisState.project(notes))
+  end
+
+  defp load_research_log(socket), do: socket
 
   defp holding_base_currencies(holdings) do
     holdings
@@ -3596,6 +3954,36 @@ defmodule PortfolixirWeb.SecuritiesLive do
       other -> other
     end
   end
+
+  defp drop_blank_values(params) do
+    params
+    |> Enum.reject(fn {_key, value} -> value in [nil, ""] end)
+    |> Map.new()
+  end
+
+  defp research_form_errors(changeset) do
+    changeset
+    |> Ecto.Changeset.traverse_errors(fn {message, opts} ->
+      Enum.reduce(opts, message, fn {key, value}, acc ->
+        String.replace(acc, "%{#{key}}", to_string(value))
+      end)
+    end)
+    |> Enum.flat_map(fn {field, messages} ->
+      Enum.map(messages, &"#{research_field_label(field)}: #{&1}")
+    end)
+  end
+
+  defp research_field_label(:body), do: gettext("Entry")
+  defp research_field_label(:kind), do: gettext("Kind")
+  defp research_field_label(:source_quality), do: gettext("Source quality")
+  defp research_field_label(:source_url), do: gettext("Source link")
+  defp research_field_label(:as_of), do: gettext("As of")
+  defp research_field_label(:supersedes_id), do: gettext("Supersedes")
+  defp research_field_label(:valid_until), do: gettext("Valid until")
+  defp research_field_label(:conviction), do: gettext("Conviction")
+  defp research_field_label(:invalidation_condition), do: gettext("Invalidation condition")
+  defp research_field_label(:time_stop), do: gettext("Time stop")
+  defp research_field_label(field), do: Atom.to_string(field)
 
   defp put_action_result(socket, severity, message) do
     assign(socket, :action_result, {severity, message})
