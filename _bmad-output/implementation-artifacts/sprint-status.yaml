@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-08-22 (Sprint 8 closed out; PR #735 rebase-merged)
+# last_updated: 2026-09-03 (0.8.0 tag resolved; Sprint 9 plan drafted)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -42,7 +42,7 @@
 # requests, not assumed -- an issue's state lags the PR that fixes it.
 
 generated: 2026-07-25
-last_updated: 2026-08-22
+last_updated: 2026-09-03
 project: portfolixir
 project_key: NOKEY
 tracking_system: file-system
@@ -51,6 +51,24 @@ story_location: _bmad-output/implementation-artifacts
 # ---------------------------------------------------------------------------
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
+#
+# TAG 0.8.0 RESOLVED (2026-09-03): the owner ran the prepared command -- the
+# tag is an ANNOTATED tag object on ea6617a (the ADR-0044 draft commit, a
+# docs-only delta over the batch head 125d656: the F4 pattern, it marks the
+# right software), and the tag push created release 0.8.0 through the Release
+# workflow (published 2026-09-03 12:24 UTC). First annotated sprint tag under
+# ADR-0026 step 5; the Lane Z guard shipped in Sprint 8 had nothing to say,
+# which is the point. Verified against the remote tag object type and the
+# release list, not against this file's prior claim.
+#
+# SPRINT 9 PLANNED (2026-09-03): sprint-plan-2026-09-03-sprint9.md, drafted
+# the day ADR-0044 was signed (4c4cc9e). Lanes: the knowledge batch (#747
+# tracker, #748-#752), the agent-round debt (#740, #741, #738), the historical
+# FX gap (#737, D-1 on the plan), maintenance (the npm audit finding that
+# turned `main` red on run 1460, fixed in the plan PR's first commit; the
+# Dependabot rows; #727 triggers), and the E20 registry row, which lands when
+# the batch branch opens -- no epic-20 key yet, so this file does not claim a
+# batch that has not started.
 #
 # CLOSED OUT (2026-08-22, Sprint 8) -- PR #735 rebase-merged, `main` at 125d656:
 # Verification basis: the merge commits on `main` (5fe43f6..125d656, 24
