@@ -6,9 +6,9 @@ description: What an agent knows about a security is recorded as entries that ar
 
 # ADR-0044: security knowledge as an append-only log, with the thesis state as its projection
 
-- **Status:** Proposed — owner sign-off pending (decision gate per
+- **Status:** Accepted (owner sign-off 2026-09-03, decision gate per
   [ADR-0026](0026-epic-batch-workflow.html) step 1)
-- **Date:** 2026-08-27
+- **Date:** 2026-08-27 (signed 2026-09-03)
 - **Closes gate:** B4.1 (theses and conviction as structured fields), together
   with the agent's P0-6 (an append-only research log). The two were opened
   separately and are decided together here, for the reason in "Why one
@@ -235,12 +235,17 @@ and gate B4.1 as recorded in the 2026-08-12 triage.
 | Predictions with a calibration report (P1-2 / B4.2) | **Deferred** — adjacent gate, specified separately; this ADR neither blocks nor presumes it |
 | Multi-tenancy for household members | **Deferred** — answered outside this gate: buckets and views are the mechanism, true multi-user is parked (#340) |
 
-## Notes for the signature
+## The signature
 
-Three things are worth a deliberate yes rather than a skim, because each is a
-place where a later objection would be expensive:
+**Signed by the owner on 2026-09-03**, on the ask list above and on the three
+clauses put to him explicitly, because each is a place where a later objection
+would be expensive:
 
-1. **§3** — that entries are never removed, including by a future convenience.
-2. **§5** — that this table is journaled from its first migration.
-3. **§6** — that the human timeline is in the same batch, not promised for the
+1. **§3** — entries are never removed, including by a future convenience.
+2. **§5** — the table is journaled from its first migration.
+3. **§6** — the human timeline lands in the same batch, not promised for the
    next one.
+
+The signature closes gate B4.1 and settles the object; it does not schedule the
+work. Which batch builds it is a separate decision, and stories may now be cut
+against this ADR.
