@@ -62,7 +62,9 @@ defmodule Portfolixir.Knowledge do
 
   # The superseded entry must belong to the same security — a cross-table
   # invariant the FK alone cannot express, checked inside the write transaction.
-  defp supersedes_guard(repo, %Ecto.Changeset{valid?: true} = changeset) do
+  # (An invalid changeset never reaches this step: `Repo.transaction/1` fails an
+  # `Ecto.Multi` carrying one before running any step.)
+  defp supersedes_guard(repo, %Ecto.Changeset{} = changeset) do
     case Ecto.Changeset.get_field(changeset, :supersedes_id) do
       nil ->
         {:ok, :none}
@@ -84,8 +86,6 @@ defmodule Portfolixir.Knowledge do
         end
     end
   end
-
-  defp supersedes_guard(_repo, %Ecto.Changeset{} = changeset), do: {:error, changeset}
 
   @doc """
   All entries of one security, **newest first** (by `as_of`, then write time,

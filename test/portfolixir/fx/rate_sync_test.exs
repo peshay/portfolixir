@@ -156,4 +156,58 @@ defmodule Portfolixir.Fx.RateSyncTest do
   test "backfill/1 names a provider without a history" do
     assert {:error, :history_unsupported} = RateSync.backfill(provider: NoHistory)
   end
+
+  defmodule GarbageHistory do
+    @moduledoc false
+    @behaviour Portfolixir.Fx.RateSync.Provider
+    @impl true
+    def id, do: :garbage
+    @impl true
+    def fetch(_opts), do: {:ok, []}
+    @impl true
+    def fetch_history(_opts), do: :not_a_tuple
+  end
+
+  defmodule RaisingHistory do
+    @moduledoc false
+    @behaviour Portfolixir.Fx.RateSync.Provider
+    @impl true
+    def id, do: :raising
+    @impl true
+    def fetch(_opts), do: {:ok, []}
+    @impl true
+    def fetch_history(_opts), do: raise("boom")
+  end
+
+  # Review round: the backfill degrades like the daily sync — an unexpected
+  # value or a raising adapter is an error, never a crash; the ECB history
+  # fetch is exercised through Req's plug adapter, no network.
+  test "backfill/1 degrades on garbage and on a raising adapter" do
+    assert {:error, {:unexpected_response, :not_a_tuple}} =
+             RateSync.backfill(provider: GarbageHistory)
+
+    assert {:error, {:adapter_exception, "boom"}} = RateSync.backfill(provider: RaisingHistory)
+  end
+
+  test "fetch_history/1 parses a 200, names a bad status and passes a transport error" do
+    xml = "<Cube><Cube time='2026-02-20'><Cube currency='USD' rate='1.08'/></Cube></Cube>"
+
+    ok_plug = fn conn -> Plug.Conn.send_resp(conn, 200, xml) end
+    assert {:ok, [row]} = Ecb.fetch_history(req: [plug: ok_plug])
+    assert row == row("USD", "1.08", ~D[2026-02-20])
+
+    bad_plug = fn conn -> Plug.Conn.send_resp(conn, 503, "") end
+    assert {:error, {:http_status, 503}} = Ecb.fetch_history(req: [plug: bad_plug])
+
+    down_plug = fn conn -> Req.Test.transport_error(conn, :econnrefused) end
+
+    assert {:error, %Req.TransportError{reason: :econnrefused}} =
+             Ecb.fetch_history(req: [plug: down_plug])
+
+    # A malformed date block is skipped; a non-binary body parses to nothing.
+    assert Ecb.parse_history("<Cube time='not-a-date'><Cube currency='USD' rate='1'/></Cube>") ==
+             []
+
+    assert Ecb.parse_history(nil) == []
+  end
 end
