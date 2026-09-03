@@ -21,7 +21,8 @@ defmodule Portfolixir.WriteActorTest do
     Portfolixir.Classifications => "lib/portfolixir/classifications.ex",
     Portfolixir.Imports => "lib/portfolixir/imports.ex",
     Portfolixir.Buckets => "lib/portfolixir/buckets.ex",
-    Portfolixir.Tax => "lib/portfolixir/tax.ex"
+    Portfolixir.Tax => "lib/portfolixir/tax.ex",
+    Portfolixir.Knowledge => "lib/portfolixir/knowledge.ex"
   }
 
   # Contexts whose actor-first refactor + table arming has landed (leaf-first:
@@ -33,7 +34,8 @@ defmodule Portfolixir.WriteActorTest do
     Portfolixir.Portfolios,
     Portfolixir.Ledger,
     Portfolixir.Classifications,
-    Portfolixir.Tax
+    Portfolixir.Tax,
+    Portfolixir.Knowledge
   ]
 
   # Migration-only data backfills: arity locked by immutable migrations (which run
@@ -78,7 +80,11 @@ defmodule Portfolixir.WriteActorTest do
                   "tax_parameters",
                   "tax_profiles",
                   "allowance_orders",
-                  "tax_statement_snapshots"
+                  "tax_statement_snapshots",
+                  # ADR-0044 §5: the research log is armed in the migration
+                  # that creates it (a signed clause), so the agent's write
+                  # path adds nothing to the rollout debt.
+                  "security_notes"
                 ])
 
   # Derived-value tables (ADR-0039): materializations of ledger-derived reads,
