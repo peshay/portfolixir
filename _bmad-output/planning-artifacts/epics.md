@@ -223,7 +223,7 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | FR-41, FR-42 | — | contribution analysis; factor/sector/region exposure (ladder (b)). **Ungated by the ladder**, no issue yet |
 | FR-43 | — | policy rules as objects. **Gated: B3.6**, needs its own ADR (rules engine + rule-history retention) |
 | FR-44 | — | security events as objects. **Gated: B3.4**; automatic population is B3.3. Distinct from ADR-0028 corporate actions |
-| FR-45, FR-46 | — (gate: **ADR-0044**, Accepted) | thesis/conviction (**B4.1**) and prediction (**B4.2**) objects. Decided in principle by the identity gate. **FR-45's gate is signed**: ADR-0044 (2026-08-27, owner sign-off 2026-09-03) decides the thesis state and the append-only research log behind it as one object family — the log is the truth, the state is its projection, a retraction is an entry rather than a deletion. Gate B4.1 is closed and stories may be cut against the ADR; which batch builds it is a separate decision. FR-46 stays at B4.2, adjacent and deliberately separate |
+| FR-45, FR-46 | **#747** (E20 tracker; #748–#752), gate **ADR-0044** Accepted | thesis/conviction (**B4.1**) and prediction (**B4.2**) objects. Decided in principle by the identity gate. **FR-45's gate is signed**: ADR-0044 (2026-08-27, owner sign-off 2026-09-03) decides the thesis state and the append-only research log behind it as one object family — the log is the truth, the state is its projection, a retraction is an entry rather than a deletion. **Scheduled as Sprint 9 Lane A (E20)**: #748 the `security_notes` table and context, journal-armed at creation; #749 the thesis state as a projection in the security read; #750 API and MCP append plus the four reads; #751 the research timeline on the security detail pane (the signed same-batch clause); #752 the contract-version read. FR-46 stays at B4.2, adjacent and deliberately separate |
 | FR-47, FR-48 | — | calibration report (needs FR-46); rule evaluation (needs FR-43). Ladder (c) — scores what was recorded before the outcome was known, never a replayed counterfactual, which is level (d) |
 | NFR-9 | — | mechanical scope backstop — guarded set revised 2026-08-12. **Unbuilt requirement, not inventory:** only `mcp_dependency_allowlist_test` exists of the three named backstops |
 | NFR-10 | — | machine-extracted data is a proposal until confirmed; first binding use is ADR-0021 PDF intake |
@@ -798,3 +798,16 @@ issue state and the merge commits on `main`.
   block as a dated snapshot and validates it against the closed § 32d Abs. 1
   EStG formula — a self-checking transcription. Forward projection and the
   `tax_bucket` attribute it needs sit behind their own gate. FR-36.
+- **E20 — Security knowledge log** — *phase 3 (agent-first).* Tracker **#747**
+  (#748–#752); decision in **ADR-0044** (signed 2026-09-03), scheduled by the
+  Sprint 9 plan as Lane A. What an agent knows about a security is recorded as
+  an **append-only** research log — dated, sourced, typed entries that are
+  never updated and never deleted; a refuted finding is withdrawn by a
+  retraction that supersedes it and both stay readable — and the B4.1 thesis
+  state (thesis, status, conviction, invalidation condition, time stop, last
+  reviewed) is a **projection** over that log, never maintained beside it.
+  Four reads are the acceptance criteria (a security's log, positions
+  unreviewed for N days, uncorroborated entries, blocks expiring within N
+  days), the human timeline lands in the same batch, the table is journaled
+  from its first migration, and the surface gains a contract-version read so
+  an agent can notice the contract changed. FR-45 (FR-46 stays at B4.2).

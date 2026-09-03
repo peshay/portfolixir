@@ -37,6 +37,9 @@ Keep the product focused on auditable local records:
     balances through stored exchange rates (EUR hub).
 12. Store per-category target weights and report the target/actual allocation
     breakdown with per-category drift.
+13. Keep a per-security research log of dated, sourced, typed entries that are
+    never updated or deleted (a retraction is an entry), and derive the thesis
+    state from it (ADR-0044).
 
 New functionality must stay small, reviewed, locally tested, and documented.
 
@@ -161,6 +164,7 @@ Portfolixir.Catalog      # securities and security quotes
 Portfolixir.Portfolios   # portfolios, cash accounts, depots
 Portfolixir.Ledger       # transactions (13 PP kinds + balance snapshot) and holdings
 Portfolixir.Tax          # recorded tax-statement snapshots and consistency checks
+Portfolixir.Knowledge    # append-only security research log and the thesis-state projection
 PortfolixirWeb           # LiveViews, router, JSON API, components
 mcp-server/              # TypeScript MCP server wrapping the JSON API only
 ```
@@ -444,6 +448,16 @@ reviews decisions and behavior, agents review code:
    human view. A capability whose view has not landed by the end of the next
    batch is a finding recorded here — which is what gives the deadline in "API
    And MCP Coverage" a place to be enforced instead of a place to be intended.
+
+   **Surface check (owner decision 2026-09-03, from the 2026-08-27 triage
+   §0.3).** When a read-ergonomics parameter lands (`include_positions`,
+   `min_drift`, `fields=`, `since=`, or a successor), the close-out names
+   **every endpoint of that parameter's family** and states which of them
+   carry it. A coverage rule stated per requirement lets a requirement be done
+   while its surface is half-done — FR-37 shipped on the portfolio scope and
+   skipped the view scope (#740) — and the sentence in the close-out is what
+   makes the gap visible before the agent's next requirements edition carries
+   it a third time. One sentence, in the close-out; not a new step.
 
 **Risk-tier work rides the batch (ADR-0036, 2026-08-04).** Ledger/money-domain
 math and invariants, security-relevant changes, dependency updates, and
