@@ -116,6 +116,15 @@ defmodule Portfolixir.Knowledge do
   end
 
   @doc """
+  Attaches the thesis state to a security's virtual `thesis_state` field, for
+  the detail read (#749: "the state is part of the security read").
+  """
+  @spec with_thesis_state(Security.t()) :: Security.t()
+  def with_thesis_state(%Security{id: id} = security) when is_integer(id) do
+    %{security | thesis_state: thesis_state(id)}
+  end
+
+  @doc """
   Held securities with **no entry for N days** (§7.2, review hygiene): every
   security whose ledger quantity is non-zero and whose newest `as_of` is older
   than `days` (default #{@default_days}) — or absent. Rows carry the security,

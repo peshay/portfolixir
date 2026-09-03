@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.DataQuality
   alias Portfolixir.Catalog.SecurityFields
+  alias Portfolixir.Knowledge
   alias PortfolixirWeb.Api.V1.FieldSelection
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.SinceParam
@@ -89,8 +90,14 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
         not_found(conn)
 
       security ->
-        # The detail carries the recorded former-ISIN aliases (ADR-0029 §3).
-        json(conn, %{data: JSON.security(Catalog.with_identifier_aliases(security))})
+        # The detail carries the recorded former-ISIN aliases (ADR-0029 §3)
+        # and the thesis state derived from the research log (ADR-0044 §1).
+        detail =
+          security
+          |> Catalog.with_identifier_aliases()
+          |> Knowledge.with_thesis_state()
+
+        json(conn, %{data: JSON.security(detail)})
     end
   end
 

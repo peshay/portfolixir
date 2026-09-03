@@ -33,6 +33,12 @@ defmodule Portfolixir.Catalog.Security do
 
     has_many(:identifier_aliases, Portfolixir.Catalog.IdentifierAlias)
 
+    # ADR-0044 §1 (#749): the current thesis state, a projection over the
+    # security's research log, attached to the detail read by
+    # `Portfolixir.Knowledge.with_thesis_state/1`. Virtual — never stored,
+    # never journaled; `nil` on reads that did not compute it.
+    field(:thesis_state, :map, virtual: true)
+
     timestamps()
   end
 

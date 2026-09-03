@@ -191,6 +191,7 @@ const securityFieldNames = [
   "provider",
   "attributes",
   "identifier_aliases",
+  "thesis_state",
   "inserted_at",
   "updated_at"
 ] as const;
@@ -1804,6 +1805,117 @@ const reconcileZ = z.object({
   view: z.number().int().positive().optional()
 });
 
+// ADR-0044: the security research log. Closed sets mirror
+// Portfolixir.Knowledge.SecurityNote exactly, so an agent reads the accepted
+// values from the schema instead of guessing a free-form string.
+const noteKinds = [
+  "thesis",
+  "evidence",
+  "invalidation_check",
+  "event_result",
+  "risk",
+  "retraction",
+  "decision"
+] as const;
+const noteSourceQualities = ["primary", "secondary_multi", "awareness", "unverified"] as const;
+const noteAuthors = ["operator", "agent", "local_model"] as const;
+const noteConvictions = ["low", "medium", "high"] as const;
+
+const notesListSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["security_id"],
+  properties: {
+    security_id: { type: "integer", minimum: 1 }
+  }
+};
+
+const notesListZ = z.object({ security_id: z.number().int().positive() });
+
+const noteAppendSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["security_id", "note"],
+  properties: {
+    security_id: { type: "integer", minimum: 1 },
+    note: {
+      type: "object",
+      additionalProperties: false,
+      required: ["kind", "body", "source_quality", "as_of"],
+      properties: {
+        kind: { type: "string", enum: [...noteKinds] },
+        body: { type: "string", minLength: 1 },
+        source_quality: { type: "string", enum: [...noteSourceQualities] },
+        source_url: { type: "string" },
+        as_of: { type: "string", description: "ISO date: the statement's cut-off date, not the write time" },
+        author: { type: "string", enum: [...noteAuthors], description: "defaults to agent" },
+        machine_generated: { type: "boolean", description: "an extracted entry (proposal until confirmed); requires source_url" },
+        supersedes_id: { type: "integer", minimum: 1, description: "the earlier entry this one replaces (same security); required for a retraction" },
+        valid_until: { type: "string", description: "ISO date of a dated block (lockup, self-imposed buying block)" },
+        conviction: { type: "string", enum: [...noteConvictions], description: "thesis entries only" },
+        invalidation_condition: { type: "string", description: "thesis entries only" },
+        time_stop: { type: "string", description: "ISO date; thesis entries only" }
+      }
+    }
+  }
+};
+
+const noteAppendZ = z.object({
+  security_id: z.number().int().positive(),
+  note: z.object({
+    kind: z.enum(noteKinds),
+    body: z.string().min(1),
+    source_quality: z.enum(noteSourceQualities),
+    source_url: optionalString(),
+    as_of: z.string(),
+    author: z.enum(noteAuthors).optional(),
+    machine_generated: z.boolean().optional(),
+    supersedes_id: z.number().int().positive().optional(),
+    valid_until: optionalString(),
+    conviction: z.enum(noteConvictions).optional(),
+    invalidation_condition: optionalString(),
+    time_stop: optionalString()
+  })
+});
+
+const notesUnreviewedSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    days: { type: "integer", minimum: 0, description: "review window in days (default 90)" }
+  }
+};
+
+const notesUnreviewedZ = z.object({ days: z.number().int().nonnegative().optional() });
+
+const notesUncorroboratedSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    security_id: { type: "integer", minimum: 1 },
+    include_superseded: { type: "boolean" }
+  }
+};
+
+const notesUncorroboratedZ = z.object({
+  security_id: z.number().int().positive().optional(),
+  include_superseded: z.boolean().optional()
+});
+
+const notesExpiringSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    days: { type: "integer", minimum: 0, description: "horizon in days (default 30)" },
+    security_id: { type: "integer", minimum: 1 }
+  }
+};
+
+const notesExpiringZ = z.object({
+  days: z.number().int().nonnegative().optional(),
+  security_id: z.number().int().positive().optional()
+});
+
 const toolDefinitions: ToolDefinition[] = [
   tool("portfolixir.securities.list", "List securities", "List local securities. Rows default to a slim projection (id, name, ticker_symbol, isin, wkn, currency_code, asset_class) to keep responses small; pass projection=full only when you need notes, feed config, attributes or timestamps. Optional fields (#732, extending FR-37) selects a sparse fieldset from the FULL projection's field list — each row then carries exactly those fields, and a present fields supersedes projection entirely (a sparse fieldset IS a projection). Use limit/offset to page large catalogs. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only rows created or updated strictly after that instant return, and the response carries as_of (use it as the next since) plus a delta_note — deletions are NOT represented, so a sync that must detect deletions does a full read. Pull-only; there is no push delivery. Optional data_quality narrows to one of the catalog's data-quality sets — stale_quote (no quote newer than 7 days, INCLUDING never-priced securities), missing_quote (no quote at all, the narrower set inside it), missing_logo (no stored logo and not deliberately locked to none), missing_fx (#717: priced, but no stored rate from its currency to the EUR hub — storing the rate empties the set). These are the same predicates the dashboard counts and the securities page links to, so a count of N addresses a list of N; combine with query/holding_status to narrow further.", {
     type: "object",
@@ -1832,7 +1944,7 @@ const toolDefinitions: ToolDefinition[] = [
     offset: z.number().int().min(0).optional(),
     since: optionalString()
   })),
-  tool("portfolixir.securities.get", "Get security", "Read one security's full record, including its identifier_aliases — the former ISINs recorded via portfolixir.securities.isin_change that keep old exports matching this security.", idSchema, idZ),
+  tool("portfolixir.securities.get", "Get security", "Read one security's full record, including its identifier_aliases — the former ISINs recorded via portfolixir.securities.isin_change that keep old exports matching this security — and its thesis_state (ADR-0044): the current thesis derived from the research log (status none|intact|retracted, thesis text, conviction tier, invalidation_condition, time_stop, as_of, last_reviewed_at/by, the derived_from_entry_id and, when retracted, the retracted_by_entry_id whose body carries the reason). The state is a projection over portfolixir.notes.list entries, never stored; read the log itself for the evidence.", idSchema, idZ),
   tool("portfolixir.securities.create", "Create security", "Create a local security. To keep a position (e.g. Bitcoin) in the totals and performance but out of the allocation steering basis (the 100%) and drift, tag it with a bucket and exclude that bucket from the active view.", securitySchema, securityZ),
   tool("portfolixir.securities.update", "Update security", "Patch a local security's master data. To keep a position visible in totals/performance but out of the allocation steering basis and drift, tag it with a bucket and exclude that bucket from the active view. Do NOT use this to change an ISIN after a corporate action — use portfolixir.securities.isin_change instead, which keeps the former ISIN as an import-matching alias; a plain rename is just a name edit here.", securityUpdateSchema, securityUpdateZ),
   tool("portfolixir.securities.delete", "Delete security", "Delete a local security when no transactions or quotes reference it.", idSchema, idZ),
@@ -1847,6 +1959,41 @@ const toolDefinitions: ToolDefinition[] = [
       type: { type: "string", enum: ["security", "crypto"] }
     }
   }, z.object({ query: z.string(), type: z.enum(["security", "crypto"]).optional() })),
+  tool(
+    "portfolixir.notes.list",
+    "Research log of a security",
+    "The security's research log (ADR-0044), newest first: dated, typed entries (thesis, evidence, invalidation_check, event_result, risk, retraction, decision) with author, source_url, source_quality (primary | secondary_multi | awareness | unverified), as_of (the statement's cut-off date, distinct from inserted_at), valid_until for dated blocks and the thesis fields (conviction, invalidation_condition, time_stop). Entries NEVER vanish: nothing updates or deletes one; a refuted finding is withdrawn by appending a retraction that supersedes it, and the superseded entry stays in the list with superseded_by_ids naming what superseded it — read the retraction first, then the finding, and do not re-investigate a premise a retraction already settled. The response also carries thesis_state, the current thesis derived from these entries (status none | intact | retracted, naming derived_from_entry_id and retracted_by_entry_id). This is the starting point of a research run: one call instead of a re-read of old conversations.",
+    notesListSchema,
+    notesListZ
+  ),
+  tool(
+    "portfolixir.notes.append",
+    "Append a research-log entry",
+    "Append one entry to a security's research log (ADR-0044) — the ONLY write the log admits. kind is one of thesis | evidence | invalidation_check | event_result | risk | retraction | decision; source_quality is SET, not guessed (primary = the primary source itself, secondary_multi = several independent secondary sources, awareness = heard of, unverified); as_of is the statement's cut-off date (an entry written today about last quarter carries last quarter's date). To withdraw an earlier finding append kind=retraction with supersedes_id pointing at it and the reason in body — never try to edit or delete (there is no such tool, by design). To replace a thesis append a new thesis with supersedes_id on the old one; the thesis fields (conviction low|medium|high, invalidation_condition, time_stop) belong to thesis entries only. valid_until carries a dated block (lockup, self-imposed buying block) and feeds portfolixir.notes.expiring. author defaults to agent; an entry extracted by a model rather than judged carries machine_generated=true and MUST carry source_url — it is a proposal until confirmed. The write is journaled under the API token.",
+    noteAppendSchema,
+    noteAppendZ
+  ),
+  tool(
+    "portfolixir.notes.unreviewed",
+    "Held positions with no research-log entry for N days",
+    "Review hygiene (ADR-0044 §7): every HELD security (net quantity <> 0 across all depots) whose newest research-log entry (by as_of) is older than days (default 90) — or that has no entry at all (last_entry_as_of null, days_since_last_entry null). Rows carry security_id, security_name, isin, ticker_symbol; the response echoes days, as_of and its basis. Unheld securities are not listed, however stale their log.",
+    notesUnreviewedSchema,
+    notesUnreviewedZ
+  ),
+  tool(
+    "portfolixir.notes.uncorroborated",
+    "Research-log entries that still need corroboration",
+    "Entries whose source_quality is not primary (secondary_multi, awareness, unverified), newest first, across all securities or one security_id — what a run should try to confirm against a primary source. Superseded entries (a rumour already confirmed or retracted by a later entry) are skipped unless include_superseded=true. Confirming one means appending a primary entry with supersedes_id on it, not editing it.",
+    notesUncorroboratedSchema,
+    notesUncorroboratedZ
+  ),
+  tool(
+    "portfolixir.notes.expiring",
+    "Dated blocks expiring within N days",
+    "Research-log entries whose valid_until falls between today and today + days (default 30), soonest first, across all securities or one security_id — lockups and self-imposed buying blocks about to lapse. Each row carries days_until_expiry; the response echoes days and as_of. A block lifted by a later entry (supersedes_id on it) is skipped; a block already past is not listed.",
+    notesExpiringSchema,
+    notesExpiringZ
+  ),
   tool("portfolixir.quotes.sync", "Sync quotes", "Sync quote history for one security.", {
     type: "object",
     additionalProperties: false,
@@ -2481,6 +2628,24 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       return client.request(
         "GET",
         withQuery("/api/v1/securities/search", args, ["query", "type"])
+      );
+    case "portfolixir.notes.list":
+      return client.request("GET", `/api/v1/securities/${args.security_id}/notes`);
+    case "portfolixir.notes.append":
+      return client.request("POST", `/api/v1/securities/${args.security_id}/notes`, {
+        note: args.note
+      });
+    case "portfolixir.notes.unreviewed":
+      return client.request("GET", withQuery("/api/v1/notes/unreviewed", args, ["days"]));
+    case "portfolixir.notes.uncorroborated":
+      return client.request(
+        "GET",
+        withQuery("/api/v1/notes/uncorroborated", args, ["security_id", "include_superseded"])
+      );
+    case "portfolixir.notes.expiring":
+      return client.request(
+        "GET",
+        withQuery("/api/v1/notes/expiring", args, ["days", "security_id"])
       );
     case "portfolixir.quotes.sync":
       return client.request("POST", `/api/v1/securities/${args.security_id}/sync_quotes`, {});

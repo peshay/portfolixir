@@ -13,6 +13,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   alias Portfolixir.Classifications.Classification
   alias Portfolixir.Fx.ExchangeRate
   alias Portfolixir.Journal.Entry, as: JournalEntry
+  alias Portfolixir.Knowledge.SecurityNote
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.Allocation
   alias Portfolixir.Portfolios.{CashAccount, Portfolio, SecuritiesAccount, Target}
@@ -65,6 +66,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     :provider,
     :attributes,
     :identifier_aliases,
+    :thesis_state,
     :inserted_at,
     :updated_at
   ]
@@ -96,10 +98,71 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       # Recorded former-ISIN aliases (ADR-0029 §3); a list only when preloaded
       # (the detail route), `null` on responses that did not load them.
       identifier_aliases: identifier_aliases_field(security),
+      # ADR-0044 §1 (#749): the thesis state derived from the research log —
+      # a map only on the detail read (which computes it), `null` on
+      # listings, which never do.
+      thesis_state: thesis_state_field(security),
       inserted_at: timestamp(security.inserted_at),
       updated_at: timestamp(security.updated_at)
     }
   end
+
+  defp thesis_state_field(%Security{thesis_state: %{status: _} = state}), do: thesis_state(state)
+  defp thesis_state_field(_security), do: nil
+
+  @doc """
+  The B4.1 thesis state (ADR-0044 §1) as a projection over the research log:
+  `status` (`none` | `intact` | `retracted`), the thesis fields of the
+  current thesis entry, the entry it derives from, the retraction that
+  flipped it, last reviewed and by whom, and `basis` stating the derivation.
+  """
+  def thesis_state(%{status: status} = state) do
+    %{
+      status: Atom.to_string(status),
+      thesis: state.thesis,
+      conviction: enum_string(state.conviction),
+      invalidation_condition: state.invalidation_condition,
+      time_stop: date(state.time_stop),
+      as_of: date(state.as_of),
+      derived_from_entry_id: state.derived_from_entry_id,
+      retracted_by_entry_id: state.retracted_by_entry_id,
+      last_reviewed_at: date(state.last_reviewed_at),
+      last_reviewed_by: enum_string(state.last_reviewed_by),
+      basis: state.basis
+    }
+  end
+
+  @doc """
+  One research-log entry (ADR-0044 §2). Closed-set fields are strings, dates
+  ISO-8601; `superseded_by_ids` (newest first) and the `superseded` flag come
+  from the read-side annotation, so a superseded entry is shown as superseded
+  rather than hidden (§6).
+  """
+  def security_note(%SecurityNote{} = note) do
+    %{
+      id: note.id,
+      security_id: note.security_id,
+      author: enum_string(note.author),
+      machine_generated: note.machine_generated,
+      kind: enum_string(note.kind),
+      body: note.body,
+      source_url: note.source_url,
+      source_quality: enum_string(note.source_quality),
+      as_of: date(note.as_of),
+      supersedes_id: note.supersedes_id,
+      superseded_by_ids: note.superseded_by_ids || [],
+      superseded: (note.superseded_by_ids || []) != [],
+      valid_until: date(note.valid_until),
+      conviction: enum_string(note.conviction),
+      invalidation_condition: note.invalidation_condition,
+      time_stop: date(note.time_stop),
+      inserted_at: timestamp(note.inserted_at)
+    }
+  end
+
+  defp enum_string(nil), do: nil
+  defp enum_string(value) when is_atom(value), do: Atom.to_string(value)
+  defp enum_string(value) when is_binary(value), do: value
 
   defp identifier_aliases_field(%Security{identifier_aliases: aliases}) when is_list(aliases) do
     Enum.map(aliases, &identifier_alias/1)

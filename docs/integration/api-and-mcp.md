@@ -104,7 +104,10 @@ full list.
   view.
 - `GET /api/v1/securities/:id` returns one security, including its
   `identifier_aliases` — the former ISINs recorded via the ISIN-change
-  endpoint below (each with `id`, `former_isin`, `changed_on`, `note`).
+  endpoint below (each with `id`, `former_isin`, `changed_on`, `note`) — and
+  its `thesis_state`, the current thesis derived from the research log (see
+  below). Listings carry `thesis_state` as `null`; only the detail read
+  computes it.
 - `PATCH /api/v1/securities/:id` updates a security with a `security` object.
   The boolean `treat_quotes_as_raw` (default `false`) is the ADR-0028 escape
   hatch for providers that never back-adjust their history after a stock
@@ -152,6 +155,80 @@ Example ISIN-change payload:
   }
 }
 ```
+
+### Research log (ADR-0044)
+
+What the operator or the agent knows about a security is recorded as
+**append-only** dated entries — the security research log — and the current
+thesis state is **derived** from them, never maintained beside them. Entries
+are never updated and never deleted: a refuted finding is withdrawn by
+appending a `retraction` that supersedes it, and both stay readable, so the
+next run sees the retraction first instead of re-investigating a settled
+premise. There is deliberately no `PATCH` and no `DELETE` for an entry.
+
+Each entry carries `kind` (`thesis`, `evidence`, `invalidation_check`,
+`event_result`, `risk`, `retraction`, `decision`), `body`, `source_url`,
+`source_quality` (`primary`, `secondary_multi`, `awareness`, `unverified` —
+**set, not guessed**), `as_of` (the statement's cut-off date, distinct from
+`inserted_at`: an entry written today about last quarter carries last
+quarter's date), `author` (`operator`, `agent`, `local_model`; the API
+defaults to `agent`), `machine_generated` (an extracted entry is a proposal
+until confirmed and must carry its `source_url`), `supersedes_id` (the earlier
+entry of the same security this one replaces; required for a retraction),
+`valid_until` (a dated block such as a lockup or a self-imposed buying block),
+and — on `thesis` entries only — `conviction` (`low`, `medium`, `high`),
+`invalidation_condition` and `time_stop`. Every entry in a response also
+carries `superseded_by_ids` and a `superseded` flag, so a superseded entry is
+shown as superseded rather than hidden. All closed sets are validated; an
+unknown value is a `422` naming the field, and no atom is ever created from
+input.
+
+- `GET /api/v1/securities/:security_id/notes` — the log, newest first (by
+  `as_of`, then write time), with the derived `thesis_state` and a `log_note`
+  stating the append-only contract.
+- `POST /api/v1/securities/:security_id/notes` — appends one entry from a
+  `note` object (`201`); journaled under the API-token actor.
+- `GET /api/v1/notes/unreviewed?days=N` — held securities (net quantity
+  non-zero across all depots) whose newest entry is older than `N` days
+  (default 90) or that have none; rows carry `last_entry_as_of` and
+  `days_since_last_entry` (`null` when never reviewed).
+- `GET /api/v1/notes/uncorroborated` — entries whose `source_quality` is not
+  `primary`, newest first; superseded entries are skipped unless
+  `include_superseded=true`; optional `security_id`.
+- `GET /api/v1/notes/expiring?days=N` — entries whose `valid_until` falls
+  within the next `N` days (default 30), soonest first, with
+  `days_until_expiry`; lifted (superseded) blocks are skipped; optional
+  `security_id`.
+
+The **thesis state** (`thesis_state` on the security detail and on the log
+read) is the B4.1 projection: `status` (`none`, `intact`, `retracted`), the
+current thesis text, `conviction`, `invalidation_condition`, `time_stop`,
+`as_of`, `last_reviewed_at` and `last_reviewed_by` (the newest `thesis` or
+`invalidation_check` entry), `derived_from_entry_id` (the thesis entry it
+reads from) and `retracted_by_entry_id` (the retraction whose body carries
+the reason), plus a `basis` sentence stating the derivation. The newest
+thesis no other thesis supersedes is the current one; a retraction
+superseding it sets `retracted`.
+
+Example append payload:
+
+```json
+{
+  "note": {
+    "kind": "retraction",
+    "body": "Checked the 10-Q on 2026-08-02: no supplier dispute disclosed. Withdrawn.",
+    "source_url": "https://example.invalid/sec/10-q",
+    "source_quality": "primary",
+    "as_of": "2026-08-02",
+    "supersedes_id": 41
+  }
+}
+```
+
+The human view is the **Research** tab of the security detail pane on
+`/securities/:id`: the thesis state on top, the entries newest first with
+kind and source quality visible, superseded entries marked as such,
+retractions legible, and a form that appends an entry as the operator.
 
 ### Logos
 
@@ -1236,7 +1313,8 @@ in MCP schemas are strings.
 
 - `portfolixir.securities.list`
 - `portfolixir.securities.get` — one security's full record including its
-  `identifier_aliases` (recorded former ISINs).
+  `identifier_aliases` (recorded former ISINs) and its derived
+  `thesis_state` (ADR-0044).
 - `portfolixir.securities.create`
 - `portfolixir.securities.update`
 - `portfolixir.securities.delete`
@@ -1245,6 +1323,15 @@ in MCP schemas are strings.
 - `portfolixir.securities.delete_isin_alias` — journaled delete of one
   recorded former-ISIN alias.
 - `portfolixir.securities.search_online`
+- `portfolixir.notes.list` — a security's research log newest first with the
+  derived thesis state; the description states that entries never vanish
+  (ADR-0044).
+- `portfolixir.notes.append` — the only write the log admits; a retraction
+  with `supersedes_id` is how a finding is withdrawn.
+- `portfolixir.notes.unreviewed` — held positions with no entry for N days.
+- `portfolixir.notes.uncorroborated` — entries whose source quality is not
+  primary.
+- `portfolixir.notes.expiring` — dated blocks expiring within N days.
 - `portfolixir.quotes.sync`
 - `portfolixir.quotes.list`
 - `portfolixir.quotes.upsert`
