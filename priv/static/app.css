@@ -4064,6 +4064,187 @@ details[open] > .cat-summary::before {
   font-size: 0.85rem;
 }
 
+/* Research timeline (ADR-0044 §6, issue 751). Second-level content inside
+   the detail pane: a stacked layout that holds at 390 px, tokens only, and
+   every state carried by real text (the marker lines) before colour. */
+.detail-tab-panel--research {
+  gap: var(--space-4);
+}
+.research-thesis {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-muted);
+}
+.research-thesis__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.research-thesis__head h3,
+.research-entry-form h3 {
+  margin: 0;
+  font-size: var(--text-h3-size);
+  font-weight: var(--text-h3-weight);
+}
+.research-thesis__text {
+  margin: 0;
+}
+.research-thesis__facts,
+.research-entry__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+}
+.research-thesis__facts dt,
+.research-entry__facts dt {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  /* A long uppercase label ("Invalidierungsbedingung") must wrap inside its
+     column rather than run into the neighbour's (design-critic pass, 390 px). */
+  overflow-wrap: anywhere;
+}
+/* Below a phone width the fact grids stack: two columns of uppercase labels
+   do not fit 390 px minus the pane's padding. */
+@media (max-width: 480px) {
+  .research-thesis__facts,
+  .research-entry__facts {
+    grid-template-columns: 1fr;
+  }
+}
+.research-thesis__facts dd,
+.research-entry__facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.badge--thesis-intact {
+  background: transparent;
+  border: 1px solid var(--color-positive);
+  color: var(--color-positive);
+}
+.badge--thesis-retracted {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+.badge--thesis-none,
+.badge--quality-awareness,
+.badge--quality-unverified,
+.badge--quality-secondary_multi {
+  background: var(--color-bg-muted);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+.badge--kind-retraction {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+.research-entry-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.research-entry-form__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-2) var(--space-3);
+}
+.research-entry-form__grid label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.research-entry-form__grid label > span {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.research-entry-form__grid input,
+.research-entry-form__grid select,
+.research-entry-form__grid textarea {
+  min-width: 0;
+  width: 100%;
+  padding: var(--space-2);
+  font: inherit;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+.research-entry-form__grid textarea {
+  resize: vertical;
+}
+.research-entry-form__full {
+  grid-column: 1 / -1;
+}
+.research-entry-form__errors {
+  margin: 0;
+  padding-left: var(--space-4);
+  color: var(--color-danger);
+  font-size: 12px;
+}
+.research-entry-form button {
+  align-self: flex-start;
+}
+.research-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.research-entry {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elevated);
+}
+.research-entry--retraction {
+  border-left-color: var(--color-warning);
+}
+.research-entry--superseded {
+  border-left-style: dashed;
+  border-left-color: var(--color-border-strong);
+  color: var(--color-text-muted);
+}
+.research-entry__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.research-entry__meta {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.research-entry__marker {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+.research-entry__marker--superseded {
+  color: var(--color-text-muted);
+}
+.research-entry__body {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 /* Classification category descriptions */
 .cat-description {
   margin: 0.1rem 0 0.35rem;

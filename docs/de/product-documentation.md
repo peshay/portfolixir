@@ -237,6 +237,42 @@ Wertpapier-Detail (`GET /api/v1/securities/:id`) gelistet und können
 Eine bloße Umbenennung braucht keinen ISIN-Wechsel — sie ist nur eine
 Namensänderung.
 
+### Tab „Research“ (das Research-Log des Wertpapiers)
+
+Der Tab **Research** im Detailbereich ist die menschliche Sicht auf das
+Research-Log des Wertpapiers (ADR-0044): was Betreiber oder Agent über ein
+Wertpapier wissen, als datierte, belegte Einträge, die **nie geändert und nie
+entfernt** werden. Oben steht der abgeleitete **Thesenstand** — Status
+(*Keine*, *Intakt*, *Zurückgezogen*), der aktuelle Thesentext, die
+Überzeugungsstufe, die Invalidierungsbedingung, der Zeitstopp, wann und von
+wem zuletzt geprüft wurde und aus welchem Eintrag er abgeleitet ist —,
+darunter die Zeitleiste **neueste zuerst**. Jeder Eintrag zeigt seine Art
+(These, Beleg, Invalidierungsprüfung, Ereignisergebnis, Risiko, Widerruf,
+Entscheidung), seine Quellenqualität (Primärquelle, mehrere Sekundärquellen,
+Wahrnehmung, ungeprüft), sein Stichdatum und seinen Autor (Betreiber, Agent
+oder lokales Modell; ein maschinell erzeugter Vorschlag ist als solcher
+markiert).
+
+Ein falscher Befund wird zurückgezogen, indem ein **Widerruf** angehängt
+wird, der ihn ersetzt: Der Widerruf liest sich als „Widerruft #n“ mit der
+Begründung, der ersetzte Eintrag bleibt in der Liste mit „Ersetzt durch #n“
+markiert, und eine zurückgezogene These wird über der Zeitleiste mit dem
+Grund des Widerrufs hervorgehoben. Nichts auf der Oberfläche ändert oder
+löscht einen Eintrag — absichtlich, denn die Aufzeichnung des Irrtums ist der
+Zweck des Logs.
+
+Das Formular **Eintrag anhängen** schreibt einen Eintrag als Betreiber: Art
+wählen, Quellenqualität angeben (sie wird gesetzt, nie geraten), das
+Stichdatum eintragen (den Stand der Aussage, nicht das heutige Datum, wenn
+beide auseinanderfallen) und optional den Quellenlink, ein „Gültig bis“ für
+eine datierte Sperre und den Eintrag, den dieser ersetzt. Die Art *These*
+blendet die Thesenfelder ein (Überzeugung, Invalidierungsbedingung,
+Zeitstopp). Dasselbe Log ist über API und MCP lesbar und beschreibbar
+(`/api/v1/securities/:id/notes` und die `portfolixir.notes.*`-Tools),
+einschließlich der drei Hygiene-Reads — gehaltene Positionen ohne Eintrag
+seit N Tagen, Einträge, die noch bestätigt werden müssen, und datierte
+Sperren, die in N Tagen ablaufen.
+
 ## Konten und Depots
 
 Die Buchhaltungs-Entitäten sind Geldkonten und Depots:

@@ -218,6 +218,38 @@ Aliases are correctable: they are listed on the security detail
 (`GET /api/v1/securities/:id`) and can be deleted (journaled) when recorded
 by mistake. A plain rename needs no ISIN change — it is just a name edit.
 
+### Research tab (the security research log)
+
+The detail pane's **Research** tab is the human view of the security
+research log (ADR-0044): what the operator or the agent knows about a
+security, as dated, sourced entries that are **never edited and never
+removed**. The tab shows the derived **thesis state** on top — status
+(*None*, *Intact*, *Retracted*), the current thesis text, conviction tier,
+invalidation condition, time stop, when it was last reviewed and by whom, and
+the entry it derives from — then the timeline **newest first**. Every entry
+shows its kind (thesis, evidence, invalidation check, event result, risk,
+retraction, decision), its source quality (primary source, several secondary
+sources, awareness, unverified), its as-of date and its author (operator,
+agent or local model; a machine-generated proposal is marked as such).
+
+A wrong finding is withdrawn by appending a **retraction** that supersedes
+it: the retraction reads "Retracts #n" with the reason, the superseded entry
+stays in the list marked "Superseded by #n", and a retracted thesis is called
+out above the timeline with the retraction's reason. Nothing on the surface
+edits or deletes an entry, by design — the record of having been wrong is the
+point of the log.
+
+The **Append an entry** form writes an entry as the operator: choose the
+kind, state the source quality (it is set, never guessed), give the as-of
+date (the statement's cut-off, not today's date, when they differ), and
+optionally the source link, a *valid until* date for a dated block, and the
+entry it supersedes. Choosing the *Thesis* kind reveals the thesis fields
+(conviction, invalidation condition, time stop). The same log is readable and
+writable over the API and MCP (`/api/v1/securities/:id/notes` and the
+`portfolixir.notes.*` tools), including the three hygiene reads — held
+positions with no entry for N days, entries that still need corroboration,
+and dated blocks expiring within N days.
+
 ## Accounts and Depots
 
 The bookkeeping entities are cash accounts and depots:
