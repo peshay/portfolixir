@@ -778,8 +778,10 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   data (which depots/cash accounts carry more than one of the view's included
   buckets — badge data; the totals are already deduplicated).
   """
-  def view_valuation(%{positions: positions} = valuation) do
-    %{
+  def view_valuation(%{positions: positions} = valuation, opts \\ []) do
+    include_positions? = Keyword.get(opts, :include_positions, true)
+
+    base = %{
       view_id: valuation.view_id,
       base_currency: valuation.base_currency,
       # FR-13: `as_of` documents the read date (no stored snapshot exists) and
@@ -797,9 +799,17 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       # Whether the view's resolution matches no account at all (fix round):
       # clients can hint "matches no accounts" instead of a silent 0 total.
       matches_no_accounts: Map.get(valuation, :matches_no_accounts, false),
-      positions: Enum.map(positions, &valuation_position/1),
+      # FR-37 reaching the view scope (#740): the roll-up-only shape omits the
+      # position rows and says so, exactly like the portfolio valuation.
+      positions_included: include_positions?,
       cash_balances: Enum.map(valuation.cash_balances, &valuation_cash/1)
     }
+
+    if include_positions? do
+      Map.put(base, :positions, Enum.map(positions, &valuation_position/1))
+    else
+      base
+    end
   end
 
   defp view_valuation_note(base_currency) do
@@ -878,6 +888,18 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     |> target()
     |> Map.put(:security_name, position_security_name(target))
     |> Map.put(:stale, target.stale == true)
+  end
+
+  @doc """
+  A position-target row with its `drift_weight` (FR-37 reaching the position
+  level, #740): the security's actual weight minus its position SOLL as the
+  allocation read computes it, or `null` when the allocation carries no row
+  for the security.
+  """
+  def position_target(%Target{} = target, drift_weight) do
+    target
+    |> position_target()
+    |> Map.put(:drift_weight, decimal(drift_weight))
   end
 
   # The association is batch-preloaded by `Targets.list_position_targets/2`;

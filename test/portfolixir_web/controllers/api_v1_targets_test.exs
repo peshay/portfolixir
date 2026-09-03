@@ -696,9 +696,9 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
 
     assert deleted == %{"data" => %{"deleted" => 1}}
 
-    assert get_json(conn, "/api/v1/portfolios/#{portfolio.id}/position_targets")
-           |> json_response(200) ==
-             %{"data" => %{"position_targets" => [], "effective_targets" => []}}
+    assert %{"data" => %{"position_targets" => [], "effective_targets" => []}} =
+             get_json(conn, "/api/v1/portfolios/#{portfolio.id}/position_targets")
+             |> json_response(200)
 
     assert %{"data" => %{"targets" => [_]}} =
              get_json(
