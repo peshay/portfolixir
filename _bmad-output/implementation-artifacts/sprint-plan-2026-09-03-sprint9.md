@@ -4,8 +4,8 @@
 "passt"), which per this plan's own terms covers the adoption AND signs
 **D-1** (the fix shape for #737, below) as recommended. No lane is gated.
 Written the day ADR-0044 was signed (4c4cc9e). Verification basis: the merge
-commits on `main` since the Sprint 8 close-out (02fa716..4c4cc9e — triage, ADR-0044 draft and signature,
-registry catch-up), CI run 1460 on `main`'s head, the open-issue list before
+commits on `main` since the Sprint 8 close-out (02fa716..4c4cc9e — triage,
+ADR-0044 draft and signature, registry catch-up), CI run 1460 on `main`'s head, the open-issue list before
 this plan filed anything (28 open), the open pull requests (four Dependabot
 PRs, no batch PR — the stop-sign check the Sprint 8 retro prescribed came back
 clear), the tag list (0.8.0 **annotated** on ea6617a, the first annotated
