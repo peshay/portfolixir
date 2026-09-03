@@ -2,8 +2,10 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
   use PortfolixirWeb, :controller
 
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.Allocation
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.Targets
+  alias PortfolixirWeb.Api.V1.DriftParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ViewParam
 
@@ -58,16 +60,28 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
   # security under a category) plus each affected category's effective roll-up
   # (explicit-or-sum, with the conflict flag). Position targets are written
   # through the same `set` endpoint by adding a `security_id` to a target entry.
+  #
+  # FR-37 reaching the position level (#740): `min_drift=` (the allocation
+  # read's spelling, one parser) keeps only the position rows whose
+  # |drift_weight| meets the threshold, where drift is the security's actual
+  # weight minus its position SOLL exactly as the allocation computes it —
+  # one predicate (`Allocation.drift_at_least?/2`), two surfaces. Kept rows
+  # carry `drift_weight`; the response states the applied `min_drift`,
+  # `position_targets_total` (the pre-filter count) and the drift basis.
   def index_positions(conn, %{"portfolio_id" => portfolio_id} = params) do
     with {:ok, pid} <- parse_id(portfolio_id),
          %Portfolio{} <- Portfolios.get_portfolio(pid),
-         {:ok, view} <- ViewParam.resolve(params) do
+         {:ok, view} <- ViewParam.resolve(params),
+         {:ok, min_drift} <- DriftParam.parse(params) do
       opts = list_opts(params, view)
+      rows = Targets.list_position_targets(pid, opts)
 
       json(conn, %{
         data: %{
-          position_targets:
-            Enum.map(Targets.list_position_targets(pid, opts), &JSON.position_target/1),
+          position_targets: position_rows(rows, pid, view, min_drift),
+          position_targets_total: length(rows),
+          min_drift: JSON.decimal(min_drift),
+          drift_basis: drift_basis(min_drift),
           effective_targets:
             Enum.map(Targets.effective_targets(pid, opts), &JSON.effective_target/1)
         }
@@ -76,9 +90,58 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
       :error -> not_found(conn)
       nil -> not_found(conn)
       {:error, :view} -> invalid_view(conn)
+      {:error, :min_drift} -> unprocessable(conn, %{min_drift: ["is invalid"]})
       :view_not_found -> not_found(conn)
     end
   end
+
+  defp position_rows(rows, _pid, _view, nil), do: Enum.map(rows, &JSON.position_target/1)
+
+  defp position_rows(rows, pid, view, %Decimal{} = min_drift) do
+    drifts = position_drifts(rows, pid, view)
+
+    rows
+    |> Enum.map(&{&1, Map.get(drifts, {&1.classification_id, &1.security_id})})
+    |> Enum.filter(fn {_row, drift} ->
+      Allocation.drift_at_least?(%{drift_weight: drift}, min_drift)
+    end)
+    |> Enum.map(fn {row, drift} -> JSON.position_target(row, drift) end)
+  end
+
+  # The allocation's own position rows, per classification the listing spans,
+  # keyed by `{classification_id, security_id}` — categories and the
+  # unassigned pot alike, so a stale row (filed under a category its security
+  # left) still finds its drift where the allocation counts it.
+  defp position_drifts(rows, pid, view) do
+    rows
+    |> Enum.map(& &1.classification_id)
+    |> Enum.uniq()
+    |> Enum.flat_map(fn cid ->
+      case Allocation.for_portfolio(pid, cid, ViewParam.opts(view)) do
+        {:ok, breakdown} -> allocation_position_drifts(breakdown, cid)
+        _other -> []
+      end
+    end)
+    |> Map.new()
+  end
+
+  defp allocation_position_drifts(breakdown, cid) do
+    category_positions = Enum.flat_map(breakdown.categories, &(&1.positions || []))
+    unassigned_positions = (breakdown.unassigned && breakdown.unassigned.positions) || []
+
+    for position <- category_positions ++ unassigned_positions,
+        not is_nil(position.drift_weight) do
+      {{cid, position.security_id}, position.drift_weight}
+    end
+  end
+
+  defp drift_basis(nil), do: nil
+
+  defp drift_basis(%Decimal{}),
+    do:
+      "drift_weight = actual weight of the security in the steering basis (securities + counting cash, " <>
+        "view-scoped) minus its position target, as the allocation read computes it; rows without a " <>
+        "drift (no allocation row for the security) are filtered out; the comparison is on |drift_weight|, inclusive"
 
   def delete_position(
         conn,

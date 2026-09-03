@@ -2197,4 +2197,35 @@ describe("Portfolixir MCP tools", () => {
     const list = listTools().find((tool) => tool.name === "portfolixir.securities.list");
     assert.ok(list?.inputSchema.properties.fields.items.enum.includes("thesis_state"));
   });
+
+  // User story (issue #740): FR-37's read-ergonomics parameters on the two
+  // reads that skipped them — the view-scoped valuation and the
+  // position-target listing — with the spelling the shipped tools use.
+  it("passes include_positions to views.valuation and min_drift to targets.list_positions", async () => {
+    const { client, requests } = createRecordingClient({ data: {} });
+
+    await callTool(client, "portfolixir.views.valuation", { id: 2, include_positions: false });
+    await callTool(client, "portfolixir.views.valuation", { id: 2 });
+    await callTool(client, "portfolixir.targets.list_positions", {
+      portfolio_id: 3,
+      min_drift: "0.02"
+    });
+
+    assert.deepEqual(
+      requests.map((request) => request.path),
+      [
+        "/api/v1/views/2/valuation?include_positions=false",
+        "/api/v1/views/2/valuation",
+        "/api/v1/portfolios/3/position_targets?min_drift=0.02"
+      ]
+    );
+
+    const positions = listTools().find((tool) => tool.name === "portfolixir.targets.list_positions");
+    assert.equal(positions?.inputSchema.properties.min_drift.type, "string");
+    assert.match(positions?.description ?? "", /min_drift/);
+
+    const viewValuation = listTools().find((tool) => tool.name === "portfolixir.views.valuation");
+    assert.equal(viewValuation?.inputSchema.properties.include_positions.type, "boolean");
+    assert.match(viewValuation?.description ?? "", /positions_included/);
+  });
 });

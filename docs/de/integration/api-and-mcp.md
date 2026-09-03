@@ -849,7 +849,16 @@ Beispiel-Payloads für Konten:
   denselben Filter als Abweichungs-Chips (ein gemeinsames Prädikat, die
   beiden Oberflächen können also keine unterschiedlichen Kategorien
   auswählen); die Chips sprechen Prozentpunkte, `≥ 5 pp` auf dem Bildschirm
-  ist hier also `min_drift=0.05`. `tax_context=true` (#667) hängt
+  ist hier also `min_drift=0.05`. Dieselbe Schwelle, gleich geschrieben,
+  gilt eine Ebene tiefer (#740): `GET
+  /api/v1/portfolios/:portfolio_id/position_targets?min_drift=<decimal>`
+  liefert nur die Positions-Ziel-Zeilen, deren `|drift_weight|` sie erreicht
+  — `drift_weight` ist das tatsächliche Gewicht des Wertpapiers in der
+  Steuerbasis minus sein Positionsziel, genau wie die Allokation es rechnet;
+  behaltene Zeilen tragen `drift_weight`, Zeilen ohne Drift werden
+  mitgefiltert, und die Antwort benennt `min_drift`, `position_targets_total`
+  (die Zeilenzahl vor dem Filter) und `drift_basis`. Ohne `min_drift` ist die
+  Form unverändert. `tax_context=true` (#667) hängt
   zusätzlich die steuerfreien Trim-Budgets des laufenden Jahres an — ein
   Eintrag je Inhaber mit erfassten Auszügen, jeweils mit seiner
   aktivitätsbewussten `staleness` — sodass der Steuer-Spielraum dort lesbar
@@ -1037,6 +1046,14 @@ View-Definitions-Schreibvorgänge bewusst nicht (ADR-0018 §5).
 - `PUT /api/v1/views/:id/buckets` ersetzt die Include-/Exclude-Bucket-Sets einer
   View. Body: `{"include": [..], "exclude": [..]}` (beide optional, Standard
   `[]`, Listen von Bucket-ids). Eine fehlerhafte id-Liste ergibt `422`.
+- `GET /api/v1/views/:view_id/valuation` liefert die Live-Bewertung einer View
+  **über alle Portfolios** (ADR-0024) in der Form der Portfolio-Bewertung mit
+  `view_id` statt `portfolio_id`; jedes zur View passende Konto zählt genau
+  einmal, `overlap` nennt die Konten mit mehreren eingeschlossenen Buckets.
+  `include_positions=false` (FR-37, #740 — derselbe Parameter wie bei der
+  Portfolio-Bewertung) liefert nur den Roll-up: Summen, Cash-Salden und
+  Cash-Quote ohne die Positionszeilen; die Antwort benennt
+  `positions_included`. Ein ungültiger Wert ist ein `422`.
 - `GET /api/v1/views/:view_id/performance` liefert TTWROR und geldgewichtete
   Rendite (IRR) der View **über alle Portfolios**: exakt der deduplizierte
   Konten-Scope, den auch die View-Bewertung abdeckt, sodass Gesamtwert und

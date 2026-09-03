@@ -756,7 +756,17 @@ Example account payloads:
   `stale` (`true` when its security no longer sits under the stored category —
   reclassified or unassigned; the row still counts where it was filed, re-filing
   is the remedy) and each roll-up `has_stale`. Weights are Decimal strings.
-  Optional `classification_id` / `view` scope as above.
+  Optional `classification_id` / `view` scope as above. Read ergonomics
+  (FR-37, issue #740): `min_drift=` — the allocation read's threshold, same
+  spelling (a non-negative Decimal string on `|drift_weight|`) — returns only
+  the position rows whose drift meets it, where `drift_weight` is the
+  security's actual weight in the steering basis minus its position target
+  exactly as the allocation computes it (one predicate, two surfaces). Kept
+  rows carry `drift_weight`; rows without a drift are filtered out; the
+  response states the applied `min_drift`, `position_targets_total` (the
+  pre-filter count) and a `drift_basis` sentence. Without `min_drift` the rows
+  carry no `drift_weight` and the shape is unchanged. An invalid threshold is
+  a `422`.
 - `DELETE /api/v1/portfolios/:portfolio_id/position_targets/:category_id/:security_id`
   removes one position target and returns `{deleted}`. The category row and the
   category's other positions are untouched. Optional `view` selects the plan.
@@ -1220,6 +1230,10 @@ writes are deliberately not journaled (ADR-0018 §5).
   `securities_account_ids`/`cash_account_ids` carrying more than one included
   bucket — the totals are already deduplicated). The active view is echoed as
   `view: {id, name}`. Unknown and malformed view ids return `404`.
+  `include_positions=false` (FR-37, issue #740 — the same parameter the
+  portfolio valuation has) returns the roll-up only: totals, cash balances
+  and cash quote without the per-position rows, and the response states
+  `positions_included`. An invalid value is a `422`.
 - `GET /api/v1/views/:view_id/performance` returns the view's TTWROR and
   money-weighted IRR **across all portfolios**: exactly the deduplicated
   account scope the view valuation covers, so the total and the return always

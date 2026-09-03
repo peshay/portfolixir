@@ -5,6 +5,7 @@ defmodule PortfolixirWeb.Api.V1.AllocationController do
   alias Portfolixir.Portfolios.Allocation
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Tax
+  alias PortfolixirWeb.Api.V1.DriftParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ViewParam
 
@@ -14,7 +15,7 @@ defmodule PortfolixirWeb.Api.V1.AllocationController do
          {:ok, cid} <- classification_id(Map.get(params, "classification_id")),
          {:ok, view} <- ViewParam.resolve(params),
          {:ok, include_positions} <- include_positions_param(params),
-         {:ok, min_drift} <- min_drift_param(params),
+         {:ok, min_drift} <- DriftParam.parse(params),
          {:ok, tax_context} <- tax_context_param(params) do
       case Allocation.for_portfolio(pid, cid, ViewParam.opts(view)) do
         {:ok, allocation} ->
@@ -90,35 +91,6 @@ defmodule PortfolixirWeb.Api.V1.AllocationController do
       value when value in ["true", ""] -> {:ok, true}
       "false" -> {:ok, false}
       _other -> {:error, :include_positions}
-    end
-  end
-
-  # FR-37 (#665): `min_drift` is a non-negative Decimal-string threshold on
-  # |drift_weight|; parsing is exact (no float detour) and anything that is
-  # not a full clean Decimal is a 422.
-  defp min_drift_param(params) do
-    case Map.get(params, "min_drift") do
-      nil ->
-        {:ok, nil}
-
-      "" ->
-        {:ok, nil}
-
-      value when is_binary(value) ->
-        case Decimal.parse(value) do
-          {%Decimal{} = threshold, ""} ->
-            if Decimal.compare(threshold, 0) == :lt do
-              {:error, :min_drift}
-            else
-              {:ok, threshold}
-            end
-
-          _other ->
-            {:error, :min_drift}
-        end
-
-      _other ->
-        {:error, :min_drift}
     end
   end
 

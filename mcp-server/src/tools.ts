@@ -890,14 +890,36 @@ const positionTargetsListSchema = {
   properties: {
     portfolio_id: { type: "integer", minimum: 1 },
     classification_id: { type: "integer", minimum: 1 },
-    view: { type: "integer", minimum: 1 }
+    view: { type: "integer", minimum: 1 },
+    // #740: the allocation read's threshold, same spelling, one level down.
+    min_drift: {
+      type: "string",
+      description: "absolute drift-weight threshold as a Decimal string, e.g. \"0.02\""
+    }
   }
 };
 
 const positionTargetsListZ = z.object({
   portfolio_id: z.number().int().positive(),
   classification_id: z.number().int().positive().optional(),
-  view: z.number().int().positive().optional()
+  view: z.number().int().positive().optional(),
+  min_drift: optionalString()
+});
+
+// #740: the view valuation takes the same roll-up switch as the portfolio one.
+const viewValuationSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id"],
+  properties: {
+    id: { type: "integer", minimum: 1 },
+    include_positions: { type: "boolean" }
+  }
+};
+
+const viewValuationZ = z.object({
+  id: z.number().int().positive(),
+  include_positions: z.boolean().optional()
 });
 
 const positionTargetDeleteSchema = {
@@ -2189,7 +2211,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.targets.list_positions",
     "List position targets",
-    "List a portfolio's position-level SOLL targets (ADR-0030, #481): a target_weight (string fraction in [0,1]) per individual security under a category, plus each affected category's effective roll-up (explicit weight, position sum, effective steering weight and a conflict flag surfacing an explicit/position mismatch). Sums are NOT enforced in this slice (the 100%-per-level check is a later slice), so a category's position sum may not match its explicit weight or 1. Each position row carries security_id, security_name and a stale flag — true when its security no longer sits under the stored category (reclassified or unassigned); the row still counts where it was filed, so react to stale rows by re-filing them (delete_position + set under the current category). The roll-up carries has_stale per category. Optional classification_id scopes to one tree; optional view (a view id) selects that view's plan.",
+    "List a portfolio's position-level SOLL targets (ADR-0030, #481): a target_weight (string fraction in [0,1]) per individual security under a category, plus each affected category's effective roll-up (explicit weight, position sum, effective steering weight and a conflict flag surfacing an explicit/position mismatch). Sums are NOT enforced in this slice (the 100%-per-level check is a later slice), so a category's position sum may not match its explicit weight or 1. Each position row carries security_id, security_name and a stale flag — true when its security no longer sits under the stored category (reclassified or unassigned); the row still counts where it was filed, so react to stale rows by re-filing them (delete_position + set under the current category). The roll-up carries has_stale per category. Optional classification_id scopes to one tree; optional view (a view id) selects that view's plan. Read ergonomics (FR-37, #740): min_drift (an absolute drift-weight threshold as a Decimal string, e.g. \"0.02\" — the same spelling as portfolixir.portfolios.allocation) returns only the position rows whose |drift_weight| meets it, where drift_weight is the security's actual weight in the steering basis minus its position target exactly as the allocation computes it; kept rows carry drift_weight, rows without a drift are filtered out, and the response states min_drift, position_targets_total (the pre-filter count) and drift_basis. Without min_drift the rows carry no drift_weight and the shape is unchanged.",
     positionTargetsListSchema,
     positionTargetsListZ
   ),
@@ -2343,9 +2365,9 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.views.valuation",
     "Value view (cross-portfolio)",
-    "Live valuation of a bucket view across ALL portfolios (id is the view id): the deduplicated union of every depot, position and cash account matching the view — an account tagged into several included buckets counts exactly once. Totals, weights, cash balances and the cash quote are in EUR (converted via the EUR hub); the valued/price_source flags mark stale or unpriceable positions and unvalued_reason distinguishes no_price from missing_fx, exactly as in portfolixir.portfolios.valuation. The overlap object lists the depots/cash accounts carrying more than one included bucket (badge data — the totals are already deduplicated). matches_no_accounts is true when the view's resolution matches no account at all (an empty include set or orphaned buckets), explaining a 0 total. All financial values are Decimal strings. Use this, not a client-side sum of portfolio valuations, for a view's total wealth.",
-    idSchema,
-    idZ
+    "Live valuation of a bucket view across ALL portfolios (id is the view id): the deduplicated union of every depot, position and cash account matching the view — an account tagged into several included buckets counts exactly once. Totals, weights, cash balances and the cash quote are in EUR (converted via the EUR hub); the valued/price_source flags mark stale or unpriceable positions and unvalued_reason distinguishes no_price from missing_fx, exactly as in portfolixir.portfolios.valuation. The overlap object lists the depots/cash accounts carrying more than one included bucket (badge data — the totals are already deduplicated). matches_no_accounts is true when the view's resolution matches no account at all (an empty include set or orphaned buckets), explaining a 0 total. All financial values are Decimal strings. Use this, not a client-side sum of portfolio valuations, for a view's total wealth. Pass include_positions=false (FR-37, #740) for a roll-up-only read — totals, cash balances and cash quote without the per-position rows; the response states positions_included. Prefer it for the routine cross-portfolio total.",
+    viewValuationSchema,
+    viewValuationZ
   ),
   tool(
     "portfolixir.views.performance",
@@ -2822,7 +2844,8 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         "GET",
         withQuery(`/api/v1/portfolios/${args.portfolio_id}/position_targets`, args, [
           "classification_id",
-          "view"
+          "view",
+          "min_drift"
         ])
       );
     case "portfolixir.targets.delete_position":
@@ -2917,7 +2940,10 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
     case "portfolixir.views.delete":
       return client.request("DELETE", `/api/v1/views/${args.id}`);
     case "portfolixir.views.valuation":
-      return client.request("GET", `/api/v1/views/${args.id}/valuation`);
+      return client.request(
+        "GET",
+        withQuery(`/api/v1/views/${args.id}/valuation`, args, ["include_positions"])
+      );
     case "portfolixir.views.performance":
       return client.request(
         "GET",
