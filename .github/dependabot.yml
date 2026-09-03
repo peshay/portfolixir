@@ -17,6 +17,14 @@ updates:
     directory: "/mcp-server"
     schedule:
       interval: "weekly"
+    # Types follow the pinned runtime major (#728: Node 24 LTS in CI, the
+    # companion's Dockerfile and engines.node). A @types/node major beyond it
+    # is declined, not deferred -- it becomes a candidate when the runtime pin
+    # moves. Sprint 8 ignored one version (24 -> 26.2.0) and the bot reopened
+    # the same major as 26.3.0 (#744); the ignore is now major-wide.
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
