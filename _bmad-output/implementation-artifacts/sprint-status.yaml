@@ -61,8 +61,9 @@ story_location: _bmad-output/implementation-artifacts
 # which is the point. Verified against the remote tag object type and the
 # release list, not against this file's prior claim.
 #
-# SPRINT 9 PLANNED (2026-09-03): sprint-plan-2026-09-03-sprint9.md, drafted
-# the day ADR-0044 was signed (4c4cc9e). Lanes: the knowledge batch (#747
+# SPRINT 9 ADOPTED (2026-09-03): sprint-plan-2026-09-03-sprint9.md, drafted
+# the day ADR-0044 was signed (4c4cc9e) and adopted by the owner on PR #753
+# the same day, D-1 (#737 fix shape) signed with it. Lanes: the knowledge batch (#747
 # tracker, #748-#752), the agent-round debt (#740, #741, #738), the historical
 # FX gap (#737, D-1 on the plan), maintenance (the npm audit finding that
 # turned `main` red on run 1460, fixed in the plan PR's first commit; the

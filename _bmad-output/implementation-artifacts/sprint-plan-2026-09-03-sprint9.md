@@ -1,10 +1,10 @@
 # Sprint 9 — the knowledge batch, and the debt the agent round left behind
 
-**Status: DRAFT 2026-09-03 — awaiting owner adoption on the PR.** Adoption
-per this plan's own terms also signs **D-1** (the fix shape for #737, below)
-as recommended, unless the owner amends it on the PR. Written the day ADR-0044
-was signed (4c4cc9e). Verification basis: the merge commits on `main` since the
-Sprint 8 close-out (02fa716..4c4cc9e — triage, ADR-0044 draft and signature,
+**Status: ADOPTED 2026-09-03** — owner sign-off on the draft PR (#753,
+"passt"), which per this plan's own terms covers the adoption AND signs
+**D-1** (the fix shape for #737, below) as recommended. No lane is gated.
+Written the day ADR-0044 was signed (4c4cc9e). Verification basis: the merge
+commits on `main` since the Sprint 8 close-out (02fa716..4c4cc9e — triage, ADR-0044 draft and signature,
 registry catch-up), CI run 1460 on `main`'s head, the open-issue list before
 this plan filed anything (28 open), the open pull requests (four Dependabot
 PRs, no batch PR — the stop-sign check the Sprint 8 retro prescribed came back
@@ -122,8 +122,8 @@ this so nobody re-derives it.
 
 The Sprint 8 facets exclude and name a sale whose booking date has no stored
 rate, and the exclusion notice deliberately carries no call to action because
-the only sync there is fetches the daily feed. D-1 picks the fix shape. The
-lane: the historical ECB series as a one-shot backfill through the existing
+the only sync there is fetches the daily feed. D-1 (signed) picks the fix
+shape. The lane: the historical ECB series as a one-shot backfill through the existing
 `Fx.RateSync` path, on demand from the existing sync endpoint and button,
 fake provider in tests, no network. Acceptance: on the Sprint 8 D-1 fixture
 (a USD sale whose close date has no stored rate) the facet's `excluded.count`
@@ -171,7 +171,7 @@ rule.
   Lands in AGENTS.md step 5 as a clause, not a new step (the numbering is
   shared state with three other documents). #740 is the first use.
 
-## D-1 — the fix shape for #737 (recommended; signed by adoption)
+## D-1 — the fix shape for #737 — SIGNED 2026-09-03 (owner, on PR #753)
 
 **Fetch the historical ECB series (`eurofxref-hist.xml`) as a one-shot,
 on-demand backfill through the existing rate-sync path; no manual dated-rate
