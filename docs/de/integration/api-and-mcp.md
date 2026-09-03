@@ -1168,6 +1168,35 @@ Ein Research-Log, ein Plan oder eine Zuordnung „verschwindet“ also nie beim
 nächsten Import; ein Agent, der etwas anderes beobachtet, hat einen Defekt
 gefunden, keine dokumentierte Grenze.
 
+## Kontraktversion
+
+Die Oberfläche sagt, was sie ist, damit ein Konsument bemerkt, wenn sie sich
+ändert (ADR-0044 §8). Eine Tool-Beschreibung wird einmal beim Verbinden
+gelesen; dieser Read ist der Weg, auf dem ein Agent erfährt, dass die Liste
+oder die Beschreibungen sich bewegt haben.
+
+- `GET /api/v1/contract` liefert das **Kontrakt-Manifest**: `version` (eine
+  ganze Zahl, die des neuesten Eintrags), `last_changed_at` (ISO-Datum),
+  `endpoints_total`, `tools_total` und `entries` neueste zuerst — jeder mit
+  `version`, `date`, `summary`, den `endpoints` (`"VERB /api/v1/pfad"`) und
+  `tools`, die die Änderung hinzugefügt hat, `parameters` (ein Satz je
+  Parameter, der zu einem bestehenden Read kam) sowie etwaigen
+  `removed_endpoints` / `removed_tools`. Optionales `since=JJJJ-MM-TT`
+  verengt die Einträge auf die **streng nach** diesem Tag datierten und
+  beantwortet `changed` — die `?since=`-Idee auf den Kontrakt statt auf die
+  Zeilen angewandt: `last_changed_at` speichern, damit abfragen und Tool-Liste
+  und Beschreibungen neu lesen, wenn `changed` `true` ist. Ein ungültiges
+  `since` ist ein `422`.
+- Das Manifest wird **im Code gepflegt** (`PortfolixirWeb.Api.V1.Contract`),
+  und ein Meta-Test bindet das `/api/v1`-Inventar des Routers und das
+  Tool-Inventar des MCP-Begleitdienstes in beiden Richtungen daran, sodass
+  eine ohne Manifest-Eintrag hinzugefügte, umbenannte oder entfernte Route
+  oder ein solches Tool den Build scheitern lässt. Der erste Eintrag hält die
+  Sprint-9-Ergänzungen fest — das Research-Log, den Thesenstand, die
+  Parameter `include_positions` / `min_drift` auf View-Ebene und
+  Positionsebene (#740), den historischen Backfill-Scope (#737) und diesen
+  Read.
+
 ## Audit-Journal
 
 Jeder finanzielle Schreibvorgang (Anlegen, Ändern, Löschen) wird in einem
@@ -1197,6 +1226,9 @@ die übrigen Schreibkontexte werden nacheinander scharfgeschaltet.
 Der MCP-Begleitdienst stellt denselben lokalen Kontrakt als Tool-Aufrufe bereit.
 Decimal-Eingaben in MCP-Schemata sind Strings.
 
+- `portfolixir.contract.get` — der Kontraktversions-Read (ADR-0044 §8): was
+  die Oberfläche bietet und wann sie sich zuletzt geändert hat, abfragbar mit
+  `since=`.
 - `portfolixir.securities.list`
 - `portfolixir.securities.get` — vollständiger Datensatz eines Wertpapiers
   einschließlich seiner `identifier_aliases` (aufgezeichnete frühere ISINs)

@@ -1342,6 +1342,32 @@ A research log, a plan or an assignment therefore never "disappears at the
 next import"; an agent that observes otherwise has found a defect, not a
 documented limitation.
 
+## Contract Version
+
+The surface says what it is, so a consumer can notice it changed
+(ADR-0044 §8). A tool description is read once at connect time; this read is
+how an agent learns that the list or the descriptions moved.
+
+- `GET /api/v1/contract` returns the **contract manifest**: `version` (an
+  integer, the newest entry's), `last_changed_at` (ISO date),
+  `endpoints_total`, `tools_total`, and `entries` newest first — each with
+  `version`, `date`, `summary`, the `endpoints` (`"VERB /api/v1/path"`) and
+  `tools` the change added, `parameters` (one sentence per parameter added to
+  an existing read) and any `removed_endpoints` / `removed_tools`. Optional
+  `since=YYYY-MM-DD` narrows the entries to those dated **strictly after**
+  that day and answers `changed` — the `?since=` idea applied to the contract
+  instead of the rows: store `last_changed_at`, poll with it, and re-read the
+  tool list and descriptions when `changed` is `true`. An invalid `since` is
+  a `422`.
+- The manifest is **code-maintained** (`PortfolixirWeb.Api.V1.Contract`) and
+  a meta-test ties the router's `/api/v1` inventory and the MCP companion's
+  tool inventory to it in both directions, so a route or tool added, renamed
+  or removed without a manifest entry fails the build. Its first entry
+  records the Sprint 9 additions — the research log, the thesis state, the
+  `include_positions` / `min_drift` parameters that reached the view scope
+  and the position level (#740), the historical backfill scope (#737), and
+  this read.
+
 ## Audit Journal
 
 Every financial write (create, update, delete) is recorded in an append-only
@@ -1371,6 +1397,8 @@ writes); the remaining write contexts are armed in sequence.
 The MCP companion exposes the same local contract as tool calls. Decimal inputs
 in MCP schemas are strings.
 
+- `portfolixir.contract.get` — the contract-version read (ADR-0044 §8):
+  what the surface offers and when it last changed, pollable with `since=`.
 - `portfolixir.securities.list`
 - `portfolixir.securities.get` — one security's full record including its
   `identifier_aliases` (recorded former ISINs) and its derived

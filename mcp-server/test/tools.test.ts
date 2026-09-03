@@ -11,6 +11,7 @@ describe("Portfolixir MCP tools", () => {
     const names = tools.map((tool) => tool.name);
 
     assert.deepEqual(names, [
+      "portfolixir.contract.get",
       "portfolixir.securities.list",
       "portfolixir.securities.get",
       "portfolixir.securities.create",
@@ -2250,5 +2251,29 @@ describe("Portfolixir MCP tools", () => {
     await assert.rejects(
       callTool(client, "portfolixir.exchange_rates.sync", { scope: "everything" })
     );
+  });
+
+  // User story (ADR-0044 §8, issue #752): the contract-version read as a tool,
+  // so an agent that cached the tool list can notice the surface moved.
+  it("issues a GET to /contract for portfolixir.contract.get, with since=", async () => {
+    const { client, requests } = createRecordingClient({
+      data: { version: 2, last_changed_at: "2026-09-03", changed: true, entries: [] }
+    });
+
+    const result = await callTool(client, "portfolixir.contract.get", {});
+    await callTool(client, "portfolixir.contract.get", { since: "2026-09-01" });
+
+    assert.deepEqual(
+      requests.map((request) => [request.method, request.path]),
+      [
+        ["GET", "/api/v1/contract"],
+        ["GET", "/api/v1/contract?since=2026-09-01"]
+      ]
+    );
+    assert.equal((result.structuredContent as any).data.version, 2);
+
+    const contract = listTools().find((tool) => tool.name === "portfolixir.contract.get");
+    assert.match(contract?.description ?? "", /last_changed_at/);
+    assert.match(contract?.description ?? "", /re-read the tool list/);
   });
 });

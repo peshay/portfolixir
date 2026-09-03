@@ -1950,7 +1950,25 @@ const exchangeRateSyncSchema = {
 
 const exchangeRateSyncZ = z.object({ scope: z.enum(["latest", "history"]).optional() });
 
+// ADR-0044 §8 (#752): the contract-version read; since= is an ISO date.
+const contractGetSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    since: { type: "string", description: "ISO date; only entries dated strictly after it return" }
+  }
+};
+
+const contractGetZ = z.object({ since: optionalString() });
+
 const toolDefinitions: ToolDefinition[] = [
+  tool(
+    "portfolixir.contract.get",
+    "Contract version of this surface",
+    "What the API and MCP surface offers and when it last changed (ADR-0044 §8): version, last_changed_at, endpoints_total, tools_total and the manifest entries newest first — each naming the endpoints, tools and parameters a change touched. Tool descriptions are read once at connect time; this read is how you notice they moved. Poll it with since=<the last_changed_at you stored>: changed=true with the entries that moved means re-read the tool list and descriptions; changed=false means nothing on the surface changed. A meta-test ties the router and this tool inventory to the manifest, so a change without an entry cannot ship.",
+    contractGetSchema,
+    contractGetZ
+  ),
   tool("portfolixir.securities.list", "List securities", "List local securities. Rows default to a slim projection (id, name, ticker_symbol, isin, wkn, currency_code, asset_class) to keep responses small; pass projection=full only when you need notes, feed config, attributes or timestamps. Optional fields (#732, extending FR-37) selects a sparse fieldset from the FULL projection's field list — each row then carries exactly those fields, and a present fields supersedes projection entirely (a sparse fieldset IS a projection). Use limit/offset to page large catalogs. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only rows created or updated strictly after that instant return, and the response carries as_of (use it as the next since) plus a delta_note — deletions are NOT represented, so a sync that must detect deletions does a full read. Pull-only; there is no push delivery. Optional data_quality narrows to one of the catalog's data-quality sets — stale_quote (no quote newer than 7 days, INCLUDING never-priced securities), missing_quote (no quote at all, the narrower set inside it), missing_logo (no stored logo and not deliberately locked to none), missing_fx (#717: priced, but no stored rate from its currency to the EUR hub — storing the rate empties the set). These are the same predicates the dashboard counts and the securities page links to, so a count of N addresses a list of N; combine with query/holding_status to narrow further.", {
     type: "object",
     additionalProperties: false,
@@ -2625,6 +2643,8 @@ export async function callTool(
 
 async function apiCall(client: ApiClient, name: string, args: Record<string, any>): Promise<unknown> {
   switch (name) {
+    case "portfolixir.contract.get":
+      return client.request("GET", withQuery("/api/v1/contract", args, ["since"]));
     case "portfolixir.securities.list":
       return client.request(
         "GET",
