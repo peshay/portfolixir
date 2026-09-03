@@ -40,9 +40,9 @@ defmodule Portfolixir.Fx.RateSync.Ecb do
   @impl true
   def fetch_history(opts) do
     # The series is a few MB; give it more room than the daily feed.
-    case Req.get(req(Keyword.put_new(opts, :req, receive_timeout: 60_000)),
-           url: @history_endpoint
-         ) do
+    overrides = Keyword.put_new(Keyword.get(opts, :req, []), :receive_timeout, 60_000)
+
+    case Req.get(req(Keyword.put(opts, :req, overrides)), url: @history_endpoint) do
       {:ok, %Req.Response{status: 200, body: body}} -> {:ok, parse_history(body)}
       {:ok, %Req.Response{status: status}} -> {:error, {:http_status, status}}
       {:error, reason} -> {:error, reason}

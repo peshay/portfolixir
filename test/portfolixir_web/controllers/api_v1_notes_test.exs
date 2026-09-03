@@ -247,4 +247,61 @@ defmodule PortfolixirWeb.ApiV1NotesTest do
     %{"data" => none_expiring} = get_json(conn, "/api/v1/notes/expiring?days=2")
     assert none_expiring["entries"] == []
   end
+
+  # Review round: parameter edge cases answer 422 or the default, never a 500;
+  # unknown securities are a 404 on both the list and the append.
+  test "parameter edge cases degrade to defaults or 422s", %{conn: conn} do
+    assert %{"errors" => %{"detail" => "not found"}} =
+             get_json(conn, "/api/v1/securities/999999/notes", 404)
+
+    security = WorldFixtures.create_security!(name: "Edge Co.", ticker: "EDGE")
+
+    # A non-object note body is a 422 naming the required fields, not a crash.
+    %{"errors" => errors} =
+      post_json(conn, "/api/v1/securities/#{security.id}/notes", %{"note" => "garbage"}, 422)
+
+    assert "can't be blank" in errors["body"]
+
+    # Blank days means the default; garbage and negative are 422.
+    assert get_json(conn, "/api/v1/notes/unreviewed?days=")["data"]["days"] == 90
+    assert get_json(conn, "/api/v1/notes/unreviewed")["data"]["days"] == 90
+
+    assert %{"errors" => %{"days" => _}} =
+             get_json(conn, "/api/v1/notes/unreviewed?days=abc", 422)
+
+    assert %{"errors" => %{"days" => _}} =
+             get_json(conn, "/api/v1/notes/expiring?days[]=1", 422)
+
+    assert get_json(conn, "/api/v1/notes/expiring?days=")["data"]["days"] == 30
+
+    # security_id: blank is unscoped, garbage and zero are 422, a filter narrows.
+    assert get_json(conn, "/api/v1/notes/uncorroborated?security_id=")["data"]["security_id"] ==
+             nil
+
+    assert %{"errors" => %{"security_id" => _}} =
+             get_json(conn, "/api/v1/notes/uncorroborated?security_id=abc", 422)
+
+    assert %{"errors" => %{"security_id" => _}} =
+             get_json(conn, "/api/v1/notes/expiring?security_id=0", 422)
+
+    append!(security, %{source_quality: "unverified"})
+    other = WorldFixtures.create_security!(name: "Other Co.", ticker: "OTHR")
+    append!(other, %{source_quality: "unverified"})
+
+    scoped = get_json(conn, "/api/v1/notes/uncorroborated?security_id=#{security.id}")["data"]
+    assert scoped["security_id"] == security.id
+    assert Enum.map(scoped["entries"], & &1["security_id"]) == [security.id]
+
+    # include_superseded: blank is false, garbage is 422, "true" widens.
+    assert get_json(conn, "/api/v1/notes/uncorroborated?include_superseded=")["data"][
+             "include_superseded"
+           ] == false
+
+    assert %{"errors" => %{"include_superseded" => _}} =
+             get_json(conn, "/api/v1/notes/uncorroborated?include_superseded=maybe", 422)
+
+    assert get_json(conn, "/api/v1/notes/uncorroborated?include_superseded=true")["data"][
+             "include_superseded"
+           ] == true
+  end
 end

@@ -65,4 +65,11 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert %{"errors" => %{"since" => ["is invalid"]}} =
              get_json(conn, "/api/v1/contract?since=yesterday", 422)
   end
+
+  test "a blank since means the full manifest and a non-string since is a 422", %{conn: conn} do
+    assert get_json(conn, "/api/v1/contract?since=")["data"]["since"] == nil
+
+    assert %{"errors" => %{"since" => ["is invalid"]}} =
+             get_json(conn, "/api/v1/contract?since[]=x", 422)
+  end
 end

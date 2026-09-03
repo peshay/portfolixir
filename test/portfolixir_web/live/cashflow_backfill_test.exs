@@ -8,6 +8,7 @@ defmodule PortfolixirWeb.CashflowBackfillTest do
 
   import Phoenix.LiveViewTest
 
+  alias Portfolixir.Actor
   alias Portfolixir.Fx.RateSync.Fake
   alias Portfolixir.Portfolios.RealizedGains
   alias Portfolixir.WorldFixtures
@@ -114,5 +115,68 @@ defmodule PortfolixirWeb.CashflowBackfillTest do
     assert result =~ "Backfill failed"
     assert has_element?(view, ~s([data-role="realized-excluded"]))
     assert RealizedGains.report().excluded.count == 1
+  end
+
+  # Review round: a backfill that stores rates but not the missing date keeps
+  # the note and reports what it stored; the flows and costs facets carry the
+  # same control in their exclusion notes.
+  test "a backfill that misses the date keeps the note and reports the count", %{conn: conn} do
+    d1_fixture()
+
+    Fake.put_shared_history_response(
+      {:ok,
+       [
+         %{
+           base_currency: "EUR",
+           quote_currency: "GBP",
+           date: ~D[2026-02-19],
+           rate: "0.90",
+           source: "ecb"
+         }
+       ]}
+    )
+
+    {:ok, view, _html} = live(conn, "/cashflow?tab=realized")
+    view |> element("#fx-backfill-button") |> render_click()
+    render_async(view)
+
+    note = view |> element(~s([data-role="realized-excluded"])) |> render()
+    assert note =~ "Pound Equity"
+    assert note =~ "Backfill stored 1 rate."
+    assert RealizedGains.report().excluded.count == 1
+  end
+
+  test "the flows and costs exclusion notes carry the backfill control", %{conn: conn} do
+    world = WorldFixtures.base_world(name: "Flows", currency: "EUR")
+
+    gbp_world =
+      Map.merge(
+        world,
+        WorldFixtures.add_depot(world.portfolio,
+          currency: "GBP",
+          cash_name: "GBP Cash",
+          depot_name: "GBP Depot"
+        )
+      )
+
+    # A GBP deposit and a GBP fee on a day with no stored rate: excluded on
+    # both facets.
+    WorldFixtures.deposit!(gbp_world, "100", ~D[2026-02-20], currency: "GBP")
+
+    {:ok, _} =
+      Portfolixir.Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        cash_account_id: gbp_world.cash.id,
+        type: "fee",
+        date: ~D[2026-02-20],
+        gross_amount: "5",
+        currency_code: "GBP"
+      })
+
+    {:ok, flows, _} = live(conn, "/cashflow?tab=flows")
+    assert flows |> element(~s([data-role="flows-excluded"])) |> render() =~ "fx-backfill-button"
+
+    {:ok, costs, _} = live(conn, "/cashflow?tab=costs")
+    assert costs |> element(~s([data-role="costs-excluded"])) |> render() =~ "fx-backfill-button"
   end
 end

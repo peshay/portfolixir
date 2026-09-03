@@ -186,4 +186,72 @@ defmodule PortfolixirWeb.SecuritiesResearchTabTest do
     assert render(view) =~ "a retraction must supersede an entry"
     assert length(Knowledge.list_notes(security.id)) == 1
   end
+
+  # Review round: the retracted thesis state names the retraction with its
+  # reason; a superseding entry says what it replaces; a machine-generated
+  # proposal is marked; source links and dated blocks render; a rejected form
+  # names the offending field.
+  test "retracted state, replacement markers, proposals and facts render", %{conn: conn} do
+    security = security!()
+
+    thesis =
+      append!(security, %{kind: "thesis", body: "turnaround by 2027", as_of: ~D[2026-05-01]})
+
+    retraction =
+      append!(security, %{
+        kind: "retraction",
+        body: "management guided down twice",
+        supersedes_id: thesis.id,
+        as_of: ~D[2026-08-20]
+      })
+
+    old_risk = append!(security, %{kind: "risk", body: "FX exposure", as_of: ~D[2026-06-01]})
+
+    _new_risk =
+      append!(security, %{
+        kind: "risk",
+        body: "FX exposure now hedged",
+        supersedes_id: old_risk.id,
+        as_of: ~D[2026-07-01]
+      })
+
+    proposal =
+      append!(security, %{
+        author: "local_model",
+        machine_generated: true,
+        source_url: "https://example.invalid/filing",
+        source_quality: "unverified",
+        body: "extracted: dividend raised",
+        valid_until: ~D[2026-12-31],
+        as_of: ~D[2026-08-25]
+      })
+
+    {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=research")
+
+    state = view |> element(~s([data-role="thesis-state"])) |> render()
+    assert state =~ "Retracted"
+    assert state =~ "Retracted by ##{retraction.id}: management guided down twice"
+    # A thesis without a conviction tier shows the dash, not a crash.
+    assert state =~ "—"
+
+    replacement = view |> element("#research-entry-#{old_risk.id + 1}") |> render()
+    assert replacement =~ "Replaces ##{old_risk.id}"
+
+    proposal_row = view |> element("#research-entry-#{proposal.id}") |> render()
+    assert proposal_row =~ "machine-generated proposal"
+    assert proposal_row =~ "Local model"
+    assert proposal_row =~ ~s(href="https://example.invalid/filing")
+    assert proposal_row =~ "2026-12-31"
+
+    # A change on another field leaves the kind alone; an unknown kind falls
+    # back to the default.
+    view |> form("#research-entry-form", note: %{body: "typing"}) |> render_change()
+    assert has_element?(view, "#research-entry-form option[value='evidence'][selected]")
+
+    view
+    |> form("#research-entry-form", note: %{kind: "thesis", body: "x", source_quality: "primary"})
+    |> render_submit(%{note: %{as_of: "not-a-date"}})
+
+    assert render(view) =~ "As of: is invalid"
+  end
 end

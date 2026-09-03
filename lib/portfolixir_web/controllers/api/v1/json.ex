@@ -162,7 +162,6 @@ defmodule PortfolixirWeb.Api.V1.JSON do
 
   defp enum_string(nil), do: nil
   defp enum_string(value) when is_atom(value), do: Atom.to_string(value)
-  defp enum_string(value) when is_binary(value), do: value
 
   defp identifier_aliases_field(%Security{identifier_aliases: aliases}) when is_list(aliases) do
     Enum.map(aliases, &identifier_alias/1)

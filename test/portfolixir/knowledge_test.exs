@@ -330,4 +330,108 @@ defmodule Portfolixir.KnowledgeTest do
       assert hd(rows).days_until_expiry == 5
     end
   end
+
+  # Review round: the closed-set resolution accepts atoms and strings, skips
+  # blanks (validate_required speaks), and rejects everything else; the
+  # thesis-only fields are refused on other kinds; get_note/1 and the
+  # security_id narrowing of the corroboration read.
+  describe "input shapes" do
+    test "closed sets accept atoms, skip blanks, reject other types" do
+      security = security!()
+
+      assert {:ok, note} =
+               Knowledge.append_note(owner(), %{
+                 security_id: security.id,
+                 author: :operator,
+                 kind: :thesis,
+                 body: "  trimmed thesis  ",
+                 source_quality: :primary,
+                 conviction: :low,
+                 source_url: "   ",
+                 as_of: ~D[2026-08-01]
+               })
+
+      assert note.author == :operator and note.kind == :thesis and note.conviction == :low
+      assert note.body == "trimmed thesis"
+      assert note.source_url == nil
+      assert Knowledge.get_note(note.id).id == note.id
+
+      assert {:error, changeset} =
+               Knowledge.append_note(owner(), %{
+                 security_id: security.id,
+                 author: :nobody,
+                 kind: 42,
+                 body: "x",
+                 source_quality: "",
+                 as_of: ~D[2026-08-01]
+               })
+
+      errors = errors_on(changeset)
+      assert errors.author == ["is invalid"]
+      assert errors.kind == ["is invalid"]
+      assert "can't be blank" in errors.source_quality
+
+      assert SecurityNote.authors() == ~w(operator agent local_model)
+      assert SecurityNote.convictions() == ~w(low medium high)
+    end
+
+    test "thesis-only fields are refused on other kinds" do
+      security = security!()
+
+      assert {:error, changeset} =
+               Knowledge.append_note(owner(), %{
+                 security_id: security.id,
+                 author: "agent",
+                 kind: "evidence",
+                 body: "x",
+                 source_quality: "primary",
+                 as_of: ~D[2026-08-01],
+                 conviction: "high",
+                 time_stop: ~D[2027-01-01]
+               })
+
+      assert errors_on(changeset).conviction == ["is only recorded on a thesis entry"]
+      assert errors_on(changeset).time_stop == ["is only recorded on a thesis entry"]
+    end
+
+    test "uncorroborated_notes/1 narrows to one security" do
+      a = security!(name: "A Co.", ticker: "AAA")
+      b = security!(name: "B Co.", ticker: "BBB")
+      append!(a, %{source_quality: "awareness"})
+      append!(b, %{source_quality: "awareness"})
+
+      assert Knowledge.uncorroborated_notes(security_id: a.id) |> Enum.map(& &1.security_id) ==
+               [a.id]
+    end
+
+    test "source_url must be an http(s) URL — a script or data scheme is refused" do
+      security = security!()
+
+      for bad <- ["javascript:alert(1)", "data:text/html,x", "ftp://x", "not a url"] do
+        assert {:error, changeset} =
+                 Knowledge.append_note(owner(), %{
+                   security_id: security.id,
+                   author: "agent",
+                   kind: "evidence",
+                   body: "x",
+                   source_quality: "primary",
+                   as_of: ~D[2026-08-01],
+                   source_url: bad
+                 })
+
+        assert errors_on(changeset).source_url == ["must be an http(s) URL"], bad
+      end
+
+      assert {:ok, _} =
+               Knowledge.append_note(owner(), %{
+                 security_id: security.id,
+                 author: "agent",
+                 kind: "evidence",
+                 body: "x",
+                 source_quality: "primary",
+                 as_of: ~D[2026-08-01],
+                 source_url: "HTTPS://example.invalid/ir?q=1"
+               })
+    end
+  end
 end

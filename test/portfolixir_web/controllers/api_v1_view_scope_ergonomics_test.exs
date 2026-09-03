@@ -143,4 +143,16 @@ defmodule PortfolixirWeb.ApiV1ViewScopeErgonomicsTest do
     assert %{"errors" => %{"min_drift" => ["is invalid"]}} =
              get_json(conn, base <> "?min_drift=-0.1", 422)
   end
+
+  # Review round: the shared threshold parser treats a blank as "no filter"
+  # and a non-string as invalid, like the allocation read always did.
+  test "min_drift blank means no filter and a non-string is a 422", %{conn: conn} do
+    world = base_world(name: "Blank", cash_name: "Blank Cash", depot_name: "Blank Depot")
+    base = "/api/v1/portfolios/#{world.portfolio.id}/position_targets"
+
+    assert get_json(conn, base <> "?min_drift=")["data"]["min_drift"] == nil
+
+    assert %{"errors" => %{"min_drift" => ["is invalid"]}} =
+             get_json(conn, base <> "?min_drift[]=0.1", 422)
+  end
 end

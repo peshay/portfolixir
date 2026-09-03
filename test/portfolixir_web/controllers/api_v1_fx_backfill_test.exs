@@ -2,7 +2,7 @@ defmodule PortfolixirWeb.ApiV1FxBackfillTest do
   # Issue #737 (Sprint 9 D-1): the historical ECB series as a one-shot backfill
   # through the existing sync endpoint — `scope=history` — on the Sprint 8 D-1
   # fixture (a GBP sale whose close date has no stored rate).
-  use PortfolixirWeb.ConnCase
+  use PortfolixirWeb.ConnCase, async: false
 
   alias Portfolixir.Fx.RateSync.Fake
   alias Portfolixir.WorldFixtures
@@ -135,5 +135,43 @@ defmodule PortfolixirWeb.ApiV1FxBackfillTest do
              |> api_conn()
              |> post("/api/v1/exchange_rates/sync", Jason.encode!(%{"scope" => "everything"}))
              |> json_response(422)
+  end
+
+  defmodule NoHistoryProvider do
+    @moduledoc false
+    @behaviour Portfolixir.Fx.RateSync.Provider
+    @impl true
+    def id, do: :no_history
+    @impl true
+    def fetch(_opts), do: {:ok, []}
+  end
+
+  # Review round: a provider failure is a 502 and a provider without a history
+  # is a 422 naming scope — the sync endpoint's error contract carries over.
+  test "scope=history answers 502 on a provider failure and 422 without a history", %{conn: conn} do
+    Fake.put_history_response({:error, :boom})
+
+    assert %{"errors" => %{"detail" => ":boom"}} =
+             conn
+             |> api_conn()
+             |> post("/api/v1/exchange_rates/sync", Jason.encode!(%{"scope" => "history"}))
+             |> json_response(502)
+
+    previous = Application.get_env(:portfolixir, Portfolixir.Fx.RateSync, [])
+    on_exit(fn -> Application.put_env(:portfolixir, Portfolixir.Fx.RateSync, previous) end)
+
+    Application.put_env(
+      :portfolixir,
+      Portfolixir.Fx.RateSync,
+      Keyword.put(previous, :provider, NoHistoryProvider)
+    )
+
+    assert %{"errors" => %{"scope" => [message]}} =
+             conn
+             |> api_conn()
+             |> post("/api/v1/exchange_rates/sync", Jason.encode!(%{"scope" => "history"}))
+             |> json_response(422)
+
+    assert message =~ "publishes no history"
   end
 end

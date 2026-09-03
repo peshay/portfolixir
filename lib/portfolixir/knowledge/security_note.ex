@@ -92,6 +92,9 @@ defmodule Portfolixir.Knowledge.SecurityNote do
     |> update_change(:invalidation_condition, &blank_to_nil/1)
     |> validate_required([:security_id, :author, :kind, :body, :source_quality, :as_of])
     |> validate_length(:body, min: 1)
+    # The link is rendered as an anchor on the timeline and handed to an agent
+    # as a source: only http(s) — never javascript:, data: or a bare path.
+    |> validate_format(:source_url, ~r{\Ahttps?://\S+\z}i, message: "must be an http(s) URL")
     |> validate_machine_generated_source()
     |> validate_retraction_supersedes()
     |> validate_thesis_fields()
