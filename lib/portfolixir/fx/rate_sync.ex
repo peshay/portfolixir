@@ -13,6 +13,13 @@ defmodule Portfolixir.Fx.RateSync do
   When enabled it also runs one sync shortly after startup (`startup_delay_ms`),
   so foreign-currency value is available promptly instead of `interval_ms` later.
   Use `sync_now/0` from the UI, API, or REPL to trigger an immediate sync.
+
+  `backfill/1` (issue #737, Sprint 9 D-1) is the one-shot, on-demand fetch of
+  the provider's **historical** series through the same upsert path — it
+  fills every past date the provider publishes at once, so a dated
+  conversion (a realized gain at its own close date) can find its rate. It
+  does not change the rate-availability rule: a date the provider never
+  published stays absent, and the consumer keeps excluding and naming it.
   """
 
   use GenServer
@@ -72,6 +79,38 @@ defmodule Portfolixir.Fx.RateSync do
     end
   end
 
+  @doc """
+  Synchronously fetch and persist the provider's **historical** series (the
+  one-shot backfill, issue #737).
+
+  Returns `{:ok, %{provider: atom, status: :ok, upserted: integer, scope: :history}}`,
+  `{:error, :history_unsupported}` when the provider publishes no history, or
+  `{:error, reason}`.
+
+  Options:
+    * `:provider` – adapter module, overrides config.
+  """
+  def backfill(opts \\ []) do
+    provider = Keyword.get(opts, :provider, runtime_provider())
+
+    if function_exported?(provider, :fetch_history, 1) do
+      case safe_fetch_history(provider, opts) do
+        {:ok, rows} when is_list(rows) ->
+          persist(provider, rows, :history)
+
+        {:error, reason} ->
+          Logger.warning("fx history fetch failed via #{inspect(provider)}: #{inspect(reason)}")
+          {:error, reason}
+
+        other ->
+          Logger.warning("fx history fetch returned unexpected value: #{inspect(other)}")
+          {:error, {:unexpected_response, other}}
+      end
+    else
+      {:error, :history_unsupported}
+    end
+  end
+
   # -- GenServer callbacks ---------------------------------------------------
 
   @impl true
@@ -124,10 +163,20 @@ defmodule Portfolixir.Fx.RateSync do
       {:error, {:adapter_exit, {kind, reason}}}
   end
 
-  defp persist(provider, rows) do
+  defp safe_fetch_history(provider, opts) do
+    provider.fetch_history(opts)
+  rescue
+    exception ->
+      {:error, {:adapter_exception, Exception.message(exception)}}
+  catch
+    kind, reason ->
+      {:error, {:adapter_exit, {kind, reason}}}
+  end
+
+  defp persist(provider, rows, scope \\ :latest) do
     case Fx.upsert_many(rows) do
       {:ok, count} ->
-        {:ok, %{provider: provider.id(), status: :ok, upserted: count}}
+        {:ok, %{provider: provider.id(), status: :ok, upserted: count, scope: scope}}
 
       {:error, reason} ->
         Logger.warning("fx rate upsert failed: #{inspect(reason)}")

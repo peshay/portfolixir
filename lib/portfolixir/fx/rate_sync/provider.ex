@@ -17,4 +17,14 @@ defmodule Portfolixir.Fx.RateSync.Provider do
 
   @callback id() :: atom()
   @callback fetch(opts :: keyword()) :: {:ok, [rate_row()]} | {:error, term()}
+
+  @doc """
+  The provider's **historical series** — every published date, not only the
+  latest — for the one-shot backfill (issue #737, Sprint 9 D-1). Optional: a
+  provider without a history returns `{:error, :history_unsupported}` through
+  `Portfolixir.Fx.RateSync.backfill/1`.
+  """
+  @callback fetch_history(opts :: keyword()) :: {:ok, [rate_row()]} | {:error, term()}
+
+  @optional_callbacks fetch_history: 1
 end

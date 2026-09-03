@@ -14,6 +14,7 @@ defmodule PortfolixirWeb.IncomeLive do
 
   use PortfolixirWeb, :live_view
 
+  alias Portfolixir.Fx.RateSync
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Costs
   alias Portfolixir.Portfolios.ExternalFlows
@@ -26,7 +27,11 @@ defmodule PortfolixirWeb.IncomeLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    socket = assign(socket, :current_path, "/cashflow")
+    socket =
+      socket
+      |> assign(:current_path, "/cashflow")
+      |> assign(:fx_backfilling, false)
+      |> assign(:fx_backfill_result, nil)
 
     # ADR-0024: the empty state keys on the bookkeeping entities, not on the
     # internal portfolio compatibility record. Accounts always carry a
@@ -79,6 +84,64 @@ defmodule PortfolixirWeb.IncomeLive do
 
   defp load_facet(socket), do: socket
 
+  attr(:backfilling, :boolean, required: true)
+  attr(:result, :any, default: nil)
+
+  # The remedy control inside the exclusion note (UX-DR25: no dead control;
+  # UX-DR26: the limit that remains is stated). The daily sync cannot fill a
+  # past date; the backfill fetches the whole published ECB series once. A
+  # date the ECB never published (a weekend, an unlisted currency) stays
+  # excluded and named — the rule is unchanged, only the dates are filled.
+  defp fx_backfill_control(assigns) do
+    ~H"""
+    <div class="fx-backfill" data-role="fx-backfill">
+      <span class="muted">
+        <%= gettext(
+          "The daily rate sync cannot fill a past date. The backfill fetches the historical ECB series once and stores every published day; a day the ECB did not publish stays excluded."
+        ) %>
+      </span>
+      <button
+        type="button"
+        id="fx-backfill-button"
+        class="button-mini"
+        phx-click="backfill_rates"
+        disabled={@backfilling}
+        phx-disable-with={gettext("Backfilling…")}
+      >
+        <%= if @backfilling do %>
+          <span class="spinner" aria-hidden="true"></span> <%= gettext("Backfilling…") %>
+        <% else %>
+          <%= gettext("Backfill historical rates") %>
+        <% end %>
+      </button>
+      <span :if={@backfilling} class="hint" data-role="fx-backfill-status" role="status">
+        <%= gettext("Fetching the historical series…") %>
+      </span>
+      <span
+        :if={match?({:ok, _}, @result)}
+        class="hint"
+        data-role="fx-backfill-result"
+        role="status"
+      >
+        <%= ngettext(
+          "Backfill stored %{count} rate.",
+          "Backfill stored %{count} rates.",
+          elem(@result, 1),
+          count: elem(@result, 1)
+        ) %>
+      </span>
+      <span
+        :if={@result == :error}
+        class="hint fx-sync-error"
+        data-role="fx-backfill-result"
+        role="status"
+      >
+        <%= gettext("Backfill failed — the provider did not answer.") %>
+      </span>
+    </div>
+    """
+  end
+
   defp facet(tab) when tab in @facets, do: tab
   defp facet(_tab), do: @default_facet
 
@@ -89,6 +152,52 @@ defmodule PortfolixirWeb.IncomeLive do
 
   def handle_event("clear_year", _params, socket) do
     {:noreply, assign(socket, :selected_year, nil)}
+  end
+
+  # Issue #737 (Sprint 9 D-1): the exclusion notices regain a live control —
+  # the one-shot backfill of the historical ECB series through the existing
+  # rate-sync path. It runs in the background like the Wealth page's sync;
+  # the result lands inline in the note, and every loaded facet is re-read so
+  # a sale whose close date just gained its rate leaves the exclusion at once.
+  def handle_event("backfill_rates", _params, socket) do
+    socket =
+      socket
+      |> assign(fx_backfilling: true, fx_backfill_result: nil)
+      |> start_async(:backfill_rates, fn -> RateSync.backfill() end)
+
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_async(:backfill_rates, {:ok, {:ok, %{upserted: count}}}, socket) do
+    {:noreply,
+     socket
+     |> assign(fx_backfilling: false, fx_backfill_result: {:ok, count})
+     |> reload_facets()}
+  end
+
+  def handle_async(:backfill_rates, {:ok, {:error, _reason}}, socket) do
+    {:noreply, assign(socket, fx_backfilling: false, fx_backfill_result: :error)}
+  end
+
+  def handle_async(:backfill_rates, {:exit, _reason}, socket) do
+    {:noreply, assign(socket, fx_backfilling: false, fx_backfill_result: :error)}
+  end
+
+  # Re-reads whatever this session already loaded (the facets are lazy), so the
+  # figures on screen reflect the rates that just landed.
+  defp reload_facets(%{assigns: %{portfolio: %{id: portfolio_id}}} = socket) do
+    socket
+    |> assign(:income, Income.for_portfolio(portfolio_id))
+    |> reload_if_loaded(:realized, &RealizedGains.report/0)
+    |> reload_if_loaded(:flows, &ExternalFlows.report/0)
+    |> reload_if_loaded(:costs, &Costs.report/0)
+  end
+
+  defp reload_facets(socket), do: socket
+
+  defp reload_if_loaded(socket, key, loader) do
+    if Map.has_key?(socket.assigns, key), do: assign(socket, key, loader.()), else: socket
   end
 
   @impl true
@@ -196,14 +305,10 @@ defmodule PortfolixirWeb.IncomeLive do
                   count: @realized.excluded.count,
                   securities: Enum.join(@realized.excluded.securities, ", ")
                 ) %>
-                <%!-- No link, deliberately: rate sync fetches the ECB DAILY
-                      feed, so it cannot fill a past booking date, and there
-                      is no path today for entering a historical rate by hand
-                      (issue #737). A control that would not help turns a
-                      stated limit into a failed attempt. --%>
-                <span class="muted">
-                  <%= gettext("Rate sync fetches current rates only, so it cannot fill a past date.") %>
-                </span>
+                <.fx_backfill_control
+                  backfilling={@fx_backfilling}
+                  result={@fx_backfill_result}
+                />
               </AppShell.data_note>
             <% end %>
             <%= if @realized.annual == [] do %>
@@ -280,7 +385,10 @@ defmodule PortfolixirWeb.IncomeLive do
                   count: @flows.excluded.count,
                   accounts: Enum.join(@flows.excluded.accounts, ", ")
                 ) %>
-                <a href="/portfolios"><%= gettext("Store the missing exchange rates.") %></a>
+                <.fx_backfill_control
+                  backfilling={@fx_backfilling}
+                  result={@fx_backfill_result}
+                />
               </AppShell.data_note>
             <% end %>
             <%= if @flows.annual == [] do %>
@@ -371,7 +479,10 @@ defmodule PortfolixirWeb.IncomeLive do
                   count: @costs.excluded.count,
                   currencies: Enum.join(@costs.excluded.currencies, ", ")
                 ) %>
-                <a href="/portfolios"><%= gettext("Store the missing exchange rates.") %></a>
+                <.fx_backfill_control
+                  backfilling={@fx_backfilling}
+                  result={@fx_backfill_result}
+                />
               </AppShell.data_note>
             <% end %>
             <%= if @costs.annual == [] do %>

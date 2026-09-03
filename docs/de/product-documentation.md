@@ -1075,7 +1075,17 @@ die Basis des Income-Bereichs, denn eine realisierte Zahl ist ein historischer
 Fakt an ihrem Datum. Ein Verkauf **ohne** gespeicherten Kurs zu diesem Datum
 wird **aus jeder Summe ausgeschlossen und benannt** (Achtung-Notiz mit Anzahl
 und Wertpapieren) — nie zum Kurs eines Nachbardatums konvertiert, nie still
-verworfen; das Nachpflegen des Kurses holt ihn in die Summen.
+verworfen. Die tägliche Kurssynchronisation holt *aktuelle* Kurse und kann
+einen vergangenen Tag nicht nachtragen; die Notiz trägt daher die Abhilfe, die
+es kann: **Historische Kurse nachladen** holt die historische EZB-Reihe
+einmalig, speichert jeden veröffentlichten Tag und liest die Facette neu — der
+ausgeschlossene Verkauf konvertiert zum Kurs seines eigenen Schlusstags,
+sobald dieses Datum einen hat (Issue #737). Die verbleibende Grenze steht
+neben der Schaltfläche: Ein Tag, den die EZB nicht veröffentlicht hat (ein
+Wochenende, eine nicht gelistete Währung), bleibt ausgeschlossen und benannt.
+Dasselbe Backfill ist `scope=history` am Wechselkurs-Sync-Endpunkt und
+MCP-Tool; die Facetten Ein- & Auszahlungen und Kosten tragen dieselbe
+Schaltfläche in ihren Ausschluss-Hinweisen.
 
 **Ein- & Auszahlungen** (`/cashflow?tab=flows`, Issue #725) ist die
 „Ersparnis": was eingezahlt und entnommen wurde, je Periode, als zwei Serien

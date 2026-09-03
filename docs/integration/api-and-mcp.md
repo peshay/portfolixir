@@ -1122,9 +1122,21 @@ church tax withheld at a zero church-tax rate.
 - `GET /api/v1/exchange_rates` lists stored exchange rates. Rates are kept
   against the EUR hub (`1 base_currency = rate quote_currency`); other pairs are
   derived by triangulation, and `GBX` (pence) is handled as `GBP × 100`.
-- `POST /api/v1/exchange_rates/sync` fetches the latest rates from the configured
-  provider (ECB daily reference rates by default) and returns `{provider,
-  status, upserted}`. A provider failure returns `502 Bad Gateway`.
+- `POST /api/v1/exchange_rates/sync` fetches rates from the configured
+  provider (ECB by default) and returns `{provider, status, upserted, scope}`.
+  `scope=latest` (the default) fetches the **daily** feed — today's rates,
+  nothing in the past. `scope=history` (issue #737, Sprint 9 D-1) runs the
+  **one-shot backfill** of the historical ECB series (`eurofxref-hist.xml`)
+  through the same upsert path: every published day at once, so a dated
+  conversion (a realized gain, a cost or a flow the Cash-flow facets excluded
+  and named for a missing booking-date rate) can find its rate. The
+  rate-availability rule is unchanged — a day the ECB did not publish (a
+  weekend, a currency it does not list) stays excluded and named; the
+  backfill fills dates, it does not relax the "exact booking-date rate"
+  basis. An unknown `scope` is a `422`, a provider without a history answers
+  `422` naming `scope`, and a provider failure returns `502 Bad Gateway`. The
+  human view is the **Backfill historical rates** control inside the
+  exclusion notes on `/cashflow`.
 
 ## Classifications
 
@@ -1417,7 +1429,8 @@ in MCP schemas are strings.
   snapshots or unpriced deliveries.
 - `portfolixir.portfolios.valuation`
 - `portfolixir.exchange_rates.list`
-- `portfolixir.exchange_rates.sync`
+- `portfolixir.exchange_rates.sync` — `scope=latest` (daily feed) or
+  `scope=history` (the one-shot historical backfill, issue #737).
 - `portfolixir.classifications.list`
 - `portfolixir.classifications.create`
 - `portfolixir.classifications.categories.create`

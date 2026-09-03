@@ -77,9 +77,10 @@ _All screenshots use the synthetic demo dataset in
 - Create securities, one portfolio, and linked cash/depot accounts.
 - Group depots, accounts and positions with buckets and read every figure
   under a bucket view — the household or strategy scope of your choice.
-- Record manual buy and sell transactions, plus the other Portfolio
-  Performance transaction kinds (dividends, interest, deposits, removals,
-  fees, taxes, transfers, deliveries) and stock splits as ledger events.
+- Record manual buy and sell transactions.
+- Book the other Portfolio Performance transaction kinds (dividends, interest,
+  deposits, removals, fees, taxes, transfers, deliveries) and stock splits as
+  ledger events.
 - Review derived holdings, cash balances, and stored quote history.
 - See each holding's moving-average cost basis and unrealized P&L, split into
   the price effect and the currency effect.
