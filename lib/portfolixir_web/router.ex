@@ -90,6 +90,15 @@ defmodule PortfolixirWeb.Router do
 
     get("/securities/:security_id/trades", TradeController, :index)
 
+    # The security research log (ADR-0044): append, and the four reads of §7.
+    # Deliberately no PATCH and no DELETE — entries never vanish (§3); a
+    # retraction is appended.
+    get("/securities/:security_id/notes", NoteController, :index)
+    post("/securities/:security_id/notes", NoteController, :create)
+    get("/notes/unreviewed", NoteController, :unreviewed)
+    get("/notes/uncorroborated", NoteController, :uncorroborated)
+    get("/notes/expiring", NoteController, :expiring)
+
     get("/holdings/by_security", HoldingsBySecurityController, :index)
     get("/realized_gains", RealizedGainsController, :index)
     get("/external_flows", ExternalFlowsController, :index)

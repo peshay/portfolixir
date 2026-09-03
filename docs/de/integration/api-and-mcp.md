@@ -164,6 +164,82 @@ Beispiel-Payload zum Anlegen:
 }
 ```
 
+### Research-Log (ADR-0044)
+
+Was Betreiber oder Agent über ein Wertpapier wissen, wird als **nur
+anhängbare** datierte Einträge festgehalten — das Research-Log des
+Wertpapiers — und der aktuelle Thesenstand wird daraus **abgeleitet**, nie
+daneben gepflegt. Einträge werden nie geändert und nie gelöscht: Ein
+widerlegter Befund wird zurückgezogen, indem eine `retraction` angehängt
+wird, die ihn ersetzt; beide bleiben lesbar, sodass der nächste Lauf zuerst
+den Widerruf sieht statt eine erledigte Prämisse erneut zu prüfen. Es gibt
+absichtlich kein `PATCH` und kein `DELETE` für einen Eintrag.
+
+Jeder Eintrag trägt `kind` (`thesis`, `evidence`, `invalidation_check`,
+`event_result`, `risk`, `retraction`, `decision`), `body`, `source_url`,
+`source_quality` (`primary`, `secondary_multi`, `awareness`, `unverified` —
+**gesetzt, nicht geraten**), `as_of` (das Stichdatum der Aussage, getrennt
+von `inserted_at`: ein heute geschriebener Eintrag über das letzte Quartal
+trägt das Datum des Quartals), `author` (`operator`, `agent`, `local_model`;
+die API setzt standardmäßig `agent`), `machine_generated` (ein extrahierter
+Eintrag ist ein Vorschlag bis zur Bestätigung und muss seine `source_url`
+tragen), `supersedes_id` (der frühere Eintrag desselben Wertpapiers, den
+dieser ersetzt; Pflicht bei einem Widerruf), `valid_until` (eine datierte
+Sperre wie ein Lock-up oder eine selbst auferlegte Kaufsperre) und — nur
+bei `thesis`-Einträgen — `conviction` (`low`, `medium`, `high`),
+`invalidation_condition` und `time_stop`. Jeder Eintrag in einer Antwort
+trägt zudem `superseded_by_ids` und ein `superseded`-Flag, sodass ein
+ersetzter Eintrag als ersetzt gezeigt statt verborgen wird. Alle festen
+Wertemengen werden geprüft; ein unbekannter Wert ist ein `422` mit dem
+Feldnamen, und aus Eingaben entsteht nie ein Atom.
+
+- `GET /api/v1/securities/:security_id/notes` — das Log, neueste zuerst
+  (nach `as_of`, dann Schreibzeit), mit dem abgeleiteten `thesis_state` und
+  einer `log_note`, die den Nur-anhängen-Kontrakt benennt.
+- `POST /api/v1/securities/:security_id/notes` — hängt einen Eintrag aus
+  einem `note`-Objekt an (`201`); journalisiert unter dem API-Token-Akteur.
+- `GET /api/v1/notes/unreviewed?days=N` — gehaltene Wertpapiere
+  (Nettostückzahl ungleich null über alle Depots), deren neuester Eintrag
+  älter als `N` Tage ist (Standard 90) oder die keinen haben; Zeilen tragen
+  `last_entry_as_of` und `days_since_last_entry` (`null`, wenn nie geprüft).
+- `GET /api/v1/notes/uncorroborated` — Einträge, deren `source_quality`
+  nicht `primary` ist, neueste zuerst; ersetzte Einträge werden übersprungen,
+  sofern nicht `include_superseded=true`; optional `security_id`.
+- `GET /api/v1/notes/expiring?days=N` — Einträge, deren `valid_until` in die
+  nächsten `N` Tage fällt (Standard 30), früheste zuerst, mit
+  `days_until_expiry`; aufgehobene (ersetzte) Sperren werden übersprungen;
+  optional `security_id`.
+
+Der **Thesenstand** (`thesis_state` im Wertpapier-Detail und im Log-Read) ist
+die B4.1-Projektion: `status` (`none`, `intact`, `retracted`), der aktuelle
+Thesentext, `conviction`, `invalidation_condition`, `time_stop`, `as_of`,
+`last_reviewed_at` und `last_reviewed_by` (der neueste `thesis`- oder
+`invalidation_check`-Eintrag), `derived_from_entry_id` (der Thesen-Eintrag,
+aus dem er liest) und `retracted_by_entry_id` (der Widerruf, dessen `body`
+den Grund trägt), dazu ein `basis`-Satz, der die Ableitung benennt. Die
+neueste These, die keine andere These ersetzt, ist die aktuelle; ein
+Widerruf, der sie ersetzt, setzt `retracted`.
+
+Beispiel-Payload zum Anhängen:
+
+```json
+{
+  "note": {
+    "kind": "retraction",
+    "body": "10-Q am 2026-08-02 geprüft: kein Lieferantenstreit offengelegt. Zurückgezogen.",
+    "source_url": "https://example.invalid/sec/10-q",
+    "source_quality": "primary",
+    "as_of": "2026-08-02",
+    "supersedes_id": 41
+  }
+}
+```
+
+Die menschliche Sicht ist der Tab **Research** im Wertpapier-Detailbereich
+auf `/securities/:id`: der Thesenstand oben, die Einträge neueste zuerst mit
+sichtbarer Art und Quellenqualität, ersetzte Einträge als ersetzt markiert,
+Widerrufe lesbar und ein Formular, das einen Eintrag als Betreiber anhängt.
+
 ## Kurse
 
 - `GET /api/v1/securities/:security_id/quotes` listet die Kurshistorie eines
@@ -1053,7 +1129,8 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
 
 - `portfolixir.securities.list`
 - `portfolixir.securities.get` — vollständiger Datensatz eines Wertpapiers
-  einschließlich seiner `identifier_aliases` (aufgezeichnete frühere ISINs).
+  einschließlich seiner `identifier_aliases` (aufgezeichnete frühere ISINs)
+  und seines abgeleiteten `thesis_state` (ADR-0044).
 - `portfolixir.securities.create`
 - `portfolixir.securities.update`
 - `portfolixir.securities.delete`
@@ -1063,6 +1140,16 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
 - `portfolixir.securities.delete_isin_alias` — journalisiertes Löschen eines
   aufgezeichneten Früher-ISIN-Alias.
 - `portfolixir.securities.search_online`
+- `portfolixir.notes.list` — das Research-Log eines Wertpapiers, neueste
+  zuerst, mit dem abgeleiteten Thesenstand; die Beschreibung benennt, dass
+  Einträge nie verschwinden (ADR-0044).
+- `portfolixir.notes.append` — der einzige Schreibzugriff auf das Log; ein
+  Widerruf mit `supersedes_id` zieht einen Befund zurück.
+- `portfolixir.notes.unreviewed` — gehaltene Positionen ohne Eintrag seit N
+  Tagen.
+- `portfolixir.notes.uncorroborated` — Einträge, deren Quellenqualität nicht
+  `primary` ist.
+- `portfolixir.notes.expiring` — datierte Sperren, die in N Tagen ablaufen.
 - `portfolixir.quotes.sync`
 - `portfolixir.quotes.list`
 - `portfolixir.quotes.upsert`

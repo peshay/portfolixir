@@ -19,6 +19,11 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.securities.isin_change",
       "portfolixir.securities.delete_isin_alias",
       "portfolixir.securities.search_online",
+      "portfolixir.notes.list",
+      "portfolixir.notes.append",
+      "portfolixir.notes.unreviewed",
+      "portfolixir.notes.uncorroborated",
+      "portfolixir.notes.expiring",
       "portfolixir.quotes.sync",
       "portfolixir.quotes.list",
       "portfolixir.quotes.upsert",
@@ -2090,5 +2095,106 @@ describe("Portfolixir MCP tools", () => {
     );
 
     assert.equal(requests.length, 0);
+  });
+
+  // User story (ADR-0044 §7, issue #750):
+  // As the operating agent starting a research run,
+  // I want the security's research log, the append tool and the three
+  // hygiene reads as MCP tools wrapping the JSON API 1:1,
+  // so that a run starts from one call and a refuted finding is withdrawn
+  // by appending — the tool set has no update and no delete, by design.
+  it("wraps the research log: list, append and the three hygiene reads", async () => {
+    const { client, requests } = createRecordingClient({ data: { entries: [] } });
+
+    await callTool(client, "portfolixir.notes.list", { security_id: 7 });
+    await callTool(client, "portfolixir.notes.append", {
+      security_id: 7,
+      note: {
+        kind: "retraction",
+        body: "checked the 10-Q; withdrawn",
+        source_quality: "primary",
+        as_of: "2026-08-02",
+        supersedes_id: 41
+      }
+    });
+    await callTool(client, "portfolixir.notes.unreviewed", { days: 90 });
+    await callTool(client, "portfolixir.notes.uncorroborated", {
+      security_id: 7,
+      include_superseded: true
+    });
+    await callTool(client, "portfolixir.notes.expiring", { days: 7 });
+
+    assert.deepEqual(
+      requests.map((request) => [request.method, request.path]),
+      [
+        ["GET", "/api/v1/securities/7/notes"],
+        ["POST", "/api/v1/securities/7/notes"],
+        ["GET", "/api/v1/notes/unreviewed?days=90"],
+        ["GET", "/api/v1/notes/uncorroborated?security_id=7&include_superseded=true"],
+        ["GET", "/api/v1/notes/expiring?days=7"]
+      ]
+    );
+
+    assert.deepEqual(requests[1].body, {
+      note: {
+        kind: "retraction",
+        body: "checked the 10-Q; withdrawn",
+        source_quality: "primary",
+        as_of: "2026-08-02",
+        supersedes_id: 41
+      }
+    });
+
+    const names = listTools().map((tool) => tool.name);
+    assert.ok(!names.includes("portfolixir.notes.update"));
+    assert.ok(!names.includes("portfolixir.notes.delete"));
+
+    // The descriptions carry the contract: entries never vanish, retraction
+    // is the withdrawal, source quality is set rather than guessed.
+    const list = listTools().find((tool) => tool.name === "portfolixir.notes.list");
+    assert.match(list?.description ?? "", /NEVER vanish/);
+    assert.match(list?.description ?? "", /retraction/);
+    assert.match(list?.description ?? "", /thesis_state/);
+
+    const append = listTools().find((tool) => tool.name === "portfolixir.notes.append");
+    assert.match(append?.description ?? "", /SET, not guessed/);
+    assert.deepEqual(append?.inputSchema.properties.note.properties.kind.enum, [
+      "thesis",
+      "evidence",
+      "invalidation_check",
+      "event_result",
+      "risk",
+      "retraction",
+      "decision"
+    ]);
+    assert.deepEqual(append?.inputSchema.properties.note.properties.source_quality.enum, [
+      "primary",
+      "secondary_multi",
+      "awareness",
+      "unverified"
+    ]);
+  });
+
+  it("rejects a research-log entry outside the closed sets before any API request", async () => {
+    const { client, requests } = createRecordingClient({ data: {} });
+
+    await assert.rejects(
+      callTool(client, "portfolixir.notes.append", {
+        security_id: 7,
+        note: { kind: "hunch", body: "x", source_quality: "vibes", as_of: "2026-08-01" }
+      })
+    );
+
+    assert.equal(requests.length, 0);
+  });
+
+  // #749: the security detail carries the derived thesis state, and the
+  // sparse-fieldset whitelist can select it.
+  it("exposes thesis_state on securities.get and in the fields whitelist", () => {
+    const get = listTools().find((tool) => tool.name === "portfolixir.securities.get");
+    assert.match(get?.description ?? "", /thesis_state/);
+
+    const list = listTools().find((tool) => tool.name === "portfolixir.securities.list");
+    assert.ok(list?.inputSchema.properties.fields.items.enum.includes("thesis_state"));
   });
 });
