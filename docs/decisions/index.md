@@ -72,4 +72,4 @@ already in force in the codebase.
 | [0041](0041-per-category-performance.html) | Category result — the positions in a category, rolled up and decomposable | Accepted |
 | [0042](0042-one-planning-structure.html) | One planning structure — the requirement registry and the work breakdown stop competing | Accepted |
 | [0043](0043-a-gate-closing-adr-names-its-asks.html) | A gate-closing ADR names the asks it answers — and the ones it does not | Accepted (amends 0026) |
-| [0044](0044-security-knowledge-as-an-append-only-log.html) | Security knowledge as an append-only log — the thesis state is its projection, retractions never vanish | Proposed (gate B4.1 + P0-6, owner sign-off pending) |
+| [0044](0044-security-knowledge-as-an-append-only-log.html) | Security knowledge as an append-only log — the thesis state is its projection, retractions never vanish | Accepted (gate B4.1 + P0-6) |
