@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-09-03 (0.8.0 tag resolved; Sprint 9 plan adopted; E20 row opened with the batch branch)
+# last_updated: 2026-09-03 (Sprint 9 closed out; 0.9.0 tag prepared as an owner item)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -60,6 +60,51 @@ story_location: _bmad-output/implementation-artifacts
 # ADR-0026 step 5; the Lane Z guard shipped in Sprint 8 had nothing to say,
 # which is the point. Verified against the remote tag object type and the
 # release list, not against this file's prior claim.
+#
+# CLOSED OUT (2026-09-03, Sprint 9) -- PR #754 rebase-merged, `main` at 6de32ff:
+# Verification basis: the merge commits on `main` (8771702..6de32ff, 17
+# commits linear per the ADR-0026 rebase-merge amendment), the Actions runs
+# on the merge push (CI 1467, Commit authorship 481, verified green before
+# this entry was pushed), and the post-merge open-issue list -- not this
+# file's prior claims. Planned, built, reviewed and merged on the day
+# ADR-0044 was signed.
+#
+# WHAT CLOSED: ten issues by the merge's keywords (#747 #748 #749 #750 #751
+# #752 #740 #741 #738 #737 -- verified against the open-issue list, none
+# remained open). Nothing needed closing by hand. E20 is DONE: every
+# ADR-0044 scope item shipped (entry, derived state, four reads, timeline,
+# journal arming, contract read), nothing in the shrink order was cut. Stays
+# open with a reason: #727 (both toolchain halves blocked upstream; the
+# triggers re-checked against excoveralls 0.18.5, Elixir 1.20.4 and ecto
+# 3.14.2 -- none fired).
+#
+# TWO-WAY COVERAGE CHECK: every agent-visible capability of this batch (the
+# research log and its four reads, the contract read, the backfill scope,
+# include_positions on the view valuation, min_drift on position targets)
+# shipped WITH its human view in the same batch. The ledger stays empty.
+#
+# SURFACE CHECK (AGENTS.md step 5 clause, first use): include_positions is
+# carried by GET /portfolios/:id/valuation, /allocation and /views/:id/
+# valuation; min_drift by /allocation and /position_targets; fields= by
+# transactions, holdings, securities; since= by transactions, securities and
+# the contract read. Every endpoint of these families carries its parameter.
+#
+# TAG: 0.9.0 is an OPEN OWNER ITEM, created locally as an ANNOTATED tag on
+# 6de32ff and refused by the session's git proxy (third sprint in a row --
+# recorded in the retro as a pattern, with two follow-up options). The
+# prepared command is in sprint-9-retro-2026-09-03.md.
+#
+# RETROSPECTIVE: sprint-9-retro-2026-09-03.md. Process findings: the three
+# parallel review agents died on a session limit before reporting and the
+# closing act ran as a stated self-review -- check the budget before fanning
+# out; the codecov patch check was the only red check and pinned edge cases
+# worth having; the demo strategies seed assumes a portfolio name.
+#
+# LANE M: version-report-2026-09-03.md, written at lane time. Applied rows in
+# their own commits (phoenix 1.8.13, telemetry_metrics 1.2.0, setup-node v7,
+# phoenix_live_view/req/ecto patches, tsx/zod in range); deliberately not
+# updated, with reasons: both toolchain halves (#727), @types/node 24->26
+# (declined major-wide in dependabot.yml), cowlib, the BMAD externals.
 #
 # SPRINT 9 BATCH OPENED (2026-09-03): the Lane Z registry row -- epic-20 above,
 # the E20 Tracker Index line and the FR-45 issue column in epics.md -- lands
@@ -683,5 +728,7 @@ development_status:
   # with #748-#752 as the work ledger; Sprint 9 Lane A, batch branch opened
   # 2026-09-03. The row exists so the close-out reconciles against it instead
   # of inventing one (Sprint 9 plan, Lane Z).
-  epic-20: in-progress
-  epic-20-retrospective: optional
+  # Closed out 2026-09-03 (PR #754, main at 6de32ff): every ADR-0044 scope
+  # item shipped; retrospective sprint-9-retro-2026-09-03.md.
+  epic-20: done
+  epic-20-retrospective: done
