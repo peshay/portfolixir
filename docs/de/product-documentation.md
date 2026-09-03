@@ -1311,6 +1311,36 @@ kopierte Text nutzt stabile `Row N: message`-Zeilen, sodass die Diagnose beim
 Quell-Export verbleiben kann. Das Anwenden des Imports ist atomar und nutzt
 Inhalts-Hashes, um Duplikate bei erneutem Lauf zu überspringen.
 
+### Was ein erneuter Import bewahrt
+
+Das erneute Anwenden **desselben** Portfolio-Performance-Exports ist ein
+**No-op per Inhalts-Hash**: Jede bereits vorhandene Transaktionszeile wird
+als Duplikat übersprungen, kein Wertpapier wird doppelt angelegt, und nichts,
+was nach dem ersten Import in Portfolixir gepflegt wurde, wird angefasst.
+Auf synthetischen Fixtures verifiziert und als dauerhafter Regressionstest
+festgehalten, überstehen die folgenden Dinge einen erneuten Import
+unverändert, mit denselben ids und exakten Werten:
+
+- Klassifizierungs-Zuordnungen (eigene Bäume und die Kategorien, in denen ein
+  Wertpapier sitzt);
+- jede Zielplan-Version mit ihren Kategorie- und Positionszielgewichten sowie
+  das Cash-Ziel;
+- die Notiz und die Attribute jedes Wertpapiers, einschließlich eigener
+  Attributschlüssel;
+- das Research-Log des Wertpapiers (die Einträge des Tabs „Research“ und der
+  daraus abgeleitete Thesenstand);
+- Wertpapier-ids und ihr `updated_at` — nichts wird stillschweigend
+  überschrieben.
+
+Ein **veränderter** erneuter Import (ein umbenanntes Wertpapier, ein erfasster
+ISIN-Wechsel) hält dieselbe Garantie für die zugeordneten Wertpapiere; die eine
+wirklich neue Buchung landet, sonst ändert sich nichts. Was diese Garantie
+**nicht** abdeckt, ist eine in der Quelle geänderte Buchung: Eine bearbeitete
+Transaktion hasht anders und wird als neue Zeile neben der alten importiert —
+die alte Buchung von Hand entfernen oder korrigieren. Dieselbe Aussage steht
+in der [API- und MCP-Referenz](integration/api-and-mcp.html), damit ein Agent
+sie dort liest, wo er die Endpunkte liest.
+
 ### Wertpapier-Matching und der Zuordnungsschritt
 
 Wertpapiere in der Datei werden über eine deterministische **Leiter stabiler
