@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-09-03 (0.8.0 tag resolved; Sprint 9 plan drafted)
+# last_updated: 2026-09-03 (0.8.0 tag resolved; Sprint 9 plan adopted; E20 row opened with the batch branch)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -60,6 +60,11 @@ story_location: _bmad-output/implementation-artifacts
 # ADR-0026 step 5; the Lane Z guard shipped in Sprint 8 had nothing to say,
 # which is the point. Verified against the remote tag object type and the
 # release list, not against this file's prior claim.
+#
+# SPRINT 9 BATCH OPENED (2026-09-03): the Lane Z registry row -- epic-20 above,
+# the E20 Tracker Index line and the FR-45 issue column in epics.md -- lands
+# with the batch branch, as the plan prescribes. The close-out entry follows
+# the merge; nothing here claims the batch is done.
 #
 # SPRINT 9 ADOPTED (2026-09-03): sprint-plan-2026-09-03-sprint9.md, drafted
 # the day ADR-0044 was signed (4c4cc9e) and adopted by the owner on PR #753
@@ -673,3 +678,10 @@ development_status:
   epic-19: in-progress
   # combined E17-E19 retrospective 2026-07-31 (epic-17-18-19-retro-2026-07-31.md)
   epic-19-retrospective: done
+
+  # E20 -- Security knowledge log (ADR-0044, signed 2026-09-03). Tracker #747
+  # with #748-#752 as the work ledger; Sprint 9 Lane A, batch branch opened
+  # 2026-09-03. The row exists so the close-out reconciles against it instead
+  # of inventing one (Sprint 9 plan, Lane Z).
+  epic-20: in-progress
+  epic-20-retrospective: optional
