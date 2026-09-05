@@ -89,3 +89,20 @@ Harder / accepted trade-offs (explicitly owned):
 Related: ADR-0004 (holdings from transactions), ADR-0017 (audit journal),
 ADR-0002 (thin MCP over JSON API); issues #333 (PP XML), #354 (backup/restore +
 export), #355 (MCP write tools), #482 (import hardening).
+
+## Implementation note (2026-09-05, from the security review triage)
+
+Recorded before the first line of the importer is written, because these are
+the properties the review would otherwise find missing afterwards:
+
+- invoke the extractor with an argv list (`System.cmd/3` or
+  `Port.open({:spawn_executable, path}, args: [...])`), never a shell string
+  that contains the client file name;
+- copy the upload into a fresh private temporary directory and pass that
+  path; never use the client file name for anything but display;
+- enforce byte and page limits before extraction, and cap the bytes read
+  back from the port (decompression bombs);
+- run the extraction in a task with a hard timeout that kills the OS process
+  (`System.cmd/3` alone has none), under a namespace or seccomp sandbox with
+  no network;
+- delete the temporary directory in an `after`, on every path.

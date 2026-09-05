@@ -17,8 +17,9 @@ Start the project with either:
 
 - Docker Compose:
 
-  - `docker compose up --build`
-  - `docker compose down -v` to reset local data
+  - `docker compose -f docker-compose.dev.yml up --build` (the development
+    stack; the root `docker-compose.yml` is the production release)
+  - `docker compose -f docker-compose.dev.yml down -v` to reset local data
 
 - Phoenix from source:
 

@@ -12,6 +12,19 @@ Portfolixir handles sensitive financial data. Treat it as a private finance syst
 - Do not implement trading, broker order placement, wallet signing or bank payment flows.
 - Do not use `String.to_atom/1` on external input.
 
+## Perimeter
+
+Since the E21 hardening batch (ADR-0045, 2026-09): production binds loopback
+unless `PHX_BIND_ALL` is set; requests under a `Host` outside `PHX_HOST`,
+`localhost`, `127.0.0.1` and `PORTFOLIXIR_ALLOWED_HOSTS` are refused; the web
+UI is locked by `PORTFOLIXIR_UI_PASSWORD` when set; the bearer tokens must be
+at least 32 bytes and are throttled per source after repeated failures; every
+server-side fetch of a caller- or provider-supplied URL passes a
+deny-by-default policy (https only, public addresses only, provider hosts
+only); and the documented deployment is a production release with no secret
+defaults. What the instance still expects of the operator: a reverse proxy
+that terminates TLS and forwards `X-Forwarded-Proto`, and backups.
+
 ## Sensitive data examples
 
 Never commit:

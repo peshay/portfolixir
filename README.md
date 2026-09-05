@@ -51,10 +51,11 @@ it never calls an LLM itself: agents call Portfolixir, not the other way round.
 Supported functions are also available through a local JSON API and an MCP
 companion that wraps that API.
 
-**Before you run it anywhere but a trusted network:** the web UI is
-unauthenticated by design — an instance must sit behind reverse-proxy
-authentication or on a network you control. There is no release, versioning or
-upgrade guarantee yet, and no claim of production readiness. See
+**Before you run it anywhere but your own machine:** the web UI is open by
+default and locked by one variable (`PORTFOLIXIR_UI_PASSWORD`); the instance
+binds loopback unless told otherwise, refuses requests under a foreign
+`Host`, and expects your own reverse proxy in front of it. There is no
+upgrade guarantee and no claim of production readiness. See
 [home deployment](docs/home-deployment.md) for what that means in practice.
 
 ## See it in action
@@ -132,6 +133,8 @@ _All screenshots use the synthetic demo dataset in
 
 ### Run with Docker Compose
 
+Copy `.env.example` to `.env`, set the secrets, then:
+
 ```sh
 docker compose up --build
 ```
@@ -139,9 +142,12 @@ docker compose up --build
 Open the app and MCP companion at:
 
 ```text
-http://localhost:4000
+http://127.0.0.1:4000
 http://127.0.0.1:4001/mcp
 ```
+
+The development stack (source mounted, Mix present) is
+`docker compose -f docker-compose.dev.yml up --build`.
 
 Stop and remove local volumes:
 

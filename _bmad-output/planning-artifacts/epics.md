@@ -114,7 +114,7 @@ Cross-cutting rule for FR-39 through FR-42, FR-47 and FR-48, from the identity g
 - NFR-1: Correctness over features — Decimal-only persistence, exact-value tests, invariant meta-tests, quality-gate roadmap are release-blocking.
 - NFR-2: Auditability — every number reproducible from immutable inputs; editing allowed, hidden state not; enforced by FR-28.
 - NFR-3: AI-agentic development guards — CI gates incl. invisible-Unicode/Trojan-Source rejection (#350); scope changes only via ADR + AGENTS.md amendment.
-- NFR-4: Security boundaries — no in-app LLM calls; no trading/payment/order; read-only sync only; API/MCP via local bearer tokens; no secrets in source; web UI unauthenticated by design (trusted network / reverse-proxy; optional built-in auth OQ-8).
+- NFR-4: Security boundaries — no in-app LLM calls; no trading/payment/order; read-only sync only; API/MCP via local bearer tokens; no secrets in source; web UI unauthenticated by default, authenticated by one variable (`PORTFOLIXIR_UI_PASSWORD`); loopback by default; Host-validated (ADR-0045 answered OQ-8, 2026-09-05).
 - NFR-5: Self-hosted operations — docker-compose, PostgreSQL only store, always-on; MCP companion installable separately.
 - NFR-6: Single-user tenancy — one instance, one operator; portfolio-scoped filtered views.
 - NFR-7: Localization — UI de/en via gettext; repository artifacts in English.
