@@ -81,10 +81,10 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
     |> Map.put("security_id", id)
   end
 
+  defp note_attrs(_attrs, security, actor), do: note_attrs(%{}, security, actor)
+
   defp author_for(%Actor{type: :owner_ui}), do: "operator"
   defp author_for(%Actor{}), do: "agent"
-
-  defp note_attrs(_attrs, security, actor), do: note_attrs(%{}, security, actor)
 
   def unreviewed(conn, params) do
     with {:ok, days} <- days_param(params, @default_unreviewed_days) do
