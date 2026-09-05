@@ -80,11 +80,20 @@ defmodule Portfolixir.Catalog.Quotes do
   end
 
   @doc "Quotes between `from` and `to` inclusive, ascending by date."
-  def range(security_id, %Date{} = from, %Date{} = to) when is_integer(security_id) do
-    SecurityQuote
-    |> where([q], q.security_id == ^security_id and q.date >= ^from and q.date <= ^to)
-    |> order_by([q], asc: q.date)
-    |> Repo.all()
+  def range(security_id, %Date{} = from, %Date{} = to, opts \\ [])
+      when is_integer(security_id) do
+    query =
+      SecurityQuote
+      |> where([q], q.security_id == ^security_id and q.date >= ^from and q.date <= ^to)
+      |> order_by([q], asc: q.date)
+
+    query =
+      case Keyword.get(opts, :limit) do
+        n when is_integer(n) and n > 0 -> limit(query, ^n)
+        _ -> query
+      end
+
+    Repo.all(query)
   end
 
   @doc """

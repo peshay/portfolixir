@@ -52,9 +52,11 @@ defmodule PortfolixirWeb.Endpoint do
   plug(Plug.RequestId)
   plug(Plug.Telemetry, event_prefix: [:phoenix, :endpoint])
 
+  # Explicit body bound (#771): the default, stated so it is a decision.
   plug(Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],
     pass: ["*/*"],
+    length: 8_000_000,
     json_decoder: Phoenix.json_library()
   )
 

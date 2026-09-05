@@ -8,10 +8,15 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
   alias Portfolixir.Portfolios.CashAccount
   alias PortfolixirWeb.Api.V1.FieldSelection
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.ListLimit
   alias PortfolixirWeb.Api.V1.SinceParam
 
   # FR-37 (#665): sparse fieldsets over the serializer's own field list.
   @fields_whitelist FieldSelection.whitelist(JSON.transaction_fields())
+
+  # #771: sized above a realistic ledger (NFR-8), a bound rather than a page.
+  @default_limit 10_000
+  @max_limit 50_000
 
   def index(conn, params) do
     with {:ok, opts} <- list_opts(params),
@@ -177,7 +182,8 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
          {:ok, portfolio_id} <- int_param(params, "portfolio_id", :portfolio_id),
          {:ok, security_id} <- int_param(params, "security_id", :security_id),
          {:ok, securities_account_id} <-
-           int_param(params, "securities_account_id", :securities_account_id) do
+           int_param(params, "securities_account_id", :securities_account_id),
+         {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit) do
       opts =
         []
         |> put_present(:from, from)
@@ -185,6 +191,7 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
         |> put_present(:portfolio_id, portfolio_id)
         |> put_present(:security_id, security_id)
         |> put_present(:securities_account_id, securities_account_id)
+        |> put_present(:limit, limit)
 
       {:ok, opts}
     end

@@ -7,6 +7,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
   alias Portfolixir.Knowledge
   alias PortfolixirWeb.Api.V1.FieldSelection
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.ListLimit
   alias PortfolixirWeb.Api.V1.SinceParam
 
   @sortable_fields Map.new(SecurityFields.sortable(), fn field ->
@@ -16,6 +17,10 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
   # #732 (extending FR-37): the sparse fieldset resolves against the FULL
   # projection's field list and, when present, supersedes `projection=` — a
   # sparse fieldset IS a projection, chosen field by field.
+  # #771: sized above a realistic catalog, a bound rather than a page.
+  @default_limit 5_000
+  @max_limit 20_000
+
   @fields_whitelist FieldSelection.whitelist(JSON.security_fields())
 
   def index(conn, params) do
@@ -147,7 +152,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
     with {:ok, sort} <- sort_param(params),
          {:ok, holding_status} <- holding_status_param(params),
          {:ok, logo_status} <- logo_status_param(params),
-         {:ok, limit} <- int_param(params, "limit", :limit),
+         {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit),
          {:ok, offset} <- int_param(params, "offset", :offset) do
       opts =
         []
