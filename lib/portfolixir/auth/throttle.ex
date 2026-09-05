@@ -49,7 +49,7 @@ defmodule Portfolixir.Auth.Throttle do
     now = Keyword.get(opts, :now, now())
 
     case :ets.lookup(@table, {scope, key}) do
-      [{_, _count, locked_until}] when locked_until > now -> {:locked, locked_until - now}
+      [{_, _count, locked_until, _seen}] when locked_until > now -> {:locked, locked_until - now}
       _ -> :ok
     end
   end
@@ -61,12 +61,12 @@ defmodule Portfolixir.Auth.Throttle do
 
     count =
       case :ets.lookup(@table, {scope, key}) do
-        [{_, count, _}] -> count + 1
+        [{_, count, _, _}] -> count + 1
         [] -> 1
       end
 
     locked_until = if count >= @max_failures, do: now + lock_seconds(count), else: 0
-    :ets.insert(@table, {{scope, key}, count, locked_until})
+    :ets.insert(@table, {{scope, key}, count, locked_until, now})
     :ok
   end
 
@@ -98,12 +98,14 @@ defmodule Portfolixir.Auth.Throttle do
     {:ok, :no_state}
   end
 
-  # Forgets sources whose lock has long expired, so the table does not keep
-  # every address that ever failed once.
+  # Forgets sources whose last failure is older than the longest lock, so the
+  # table does not keep every address that ever failed once. Keyed on the last
+  # failure, not the lock: a source below the threshold has no lock yet, and
+  # forgetting it would hand back its remaining attempts every sweep.
   @impl true
   def handle_info(:sweep, state) do
     cutoff = now() - @max_lock_seconds
-    :ets.select_delete(@table, [{{:_, :_, :"$1"}, [{:<, :"$1", cutoff}], [true]}])
+    :ets.select_delete(@table, [{{:_, :_, :_, :"$1"}, [{:<, :"$1", cutoff}], [true]}])
     Process.send_after(self(), :sweep, @sweep_ms)
     {:noreply, state}
   end
