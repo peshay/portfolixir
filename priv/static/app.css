@@ -6573,6 +6573,8 @@ select:disabled {
 
 /* Login page (ADR-0045 section 1, issue 764): one card, one field, the app tokens. */
 .login-page {
+  box-sizing: border-box;
+  width: 100%;
   min-height: 100vh;
   display: grid;
   place-items: center;
@@ -6580,7 +6582,9 @@ select:disabled {
   background: var(--color-bg);
 }
 .login-card {
+  box-sizing: border-box;
   width: min(100%, 360px);
+  max-width: 100%;
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -6604,6 +6608,8 @@ select:disabled {
   gap: var(--space-2);
 }
 .login-form input[type="password"] {
+  box-sizing: border-box;
+  width: 100%;
   font: inherit;
   padding: 8px 10px;
   border: 1px solid var(--color-border-strong);
@@ -6612,7 +6618,8 @@ select:disabled {
   color: inherit;
 }
 .login-form .button-primary,
-.login-card > .button-primary {
+.login-card > .button-primary,
+.login-card > .button-ghost {
   justify-self: start;
   text-decoration: none;
 }
