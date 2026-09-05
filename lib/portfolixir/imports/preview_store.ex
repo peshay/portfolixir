@@ -28,6 +28,9 @@ defmodule Portfolixir.Imports.PreviewStore do
   # memory accumulation from abandoned browser tabs.
   @ttl_seconds 7_200
 
+  # At most this many parked previews (#768); the oldest-touched is evicted.
+  @default_max_entries 32
+
   ## Client API
 
   @doc "Starts the store, normally called from `Portfolixir.Application`."
@@ -35,26 +38,56 @@ defmodule Portfolixir.Imports.PreviewStore do
     GenServer.start_link(__MODULE__, :ok, Keyword.put_new(opts, :name, __MODULE__))
   end
 
-  @doc """
-  Stores `preview` and `mapping` for the given `session_token`.
+  @doc "The budget: how many previews the store keeps at once (`:import_preview_max_entries`)."
+  @spec max_entries() :: pos_integer()
+  def max_entries,
+    do: Application.get_env(:portfolixir, :import_preview_max_entries, @default_max_entries)
 
-  If an entry already exists it is replaced.
+  @doc """
+  The store key for a browser session (#768): a hash of the session token, so
+  the raw CSRF secret never sits in a public table. `nil` for a missing token,
+  which `put/3` refuses.
   """
-  @spec put(String.t(), term(), term()) :: :ok
-  def put(session_token, preview, mapping) do
-    :ets.insert(@table, {session_token, preview, mapping, now()})
+  @spec key_for(String.t() | nil) :: String.t() | nil
+  def key_for(token) when is_binary(token) and token != "" do
+    :sha256 |> :crypto.hash(token) |> Base.encode16(case: :lower)
+  end
+
+  def key_for(_missing), do: nil
+
+  @doc """
+  Stores `preview` and `mapping` under `key`. An existing entry is replaced;
+  past the budget the oldest-touched entry is evicted first. An empty key is
+  refused (`:ignored`).
+  """
+  @spec put(String.t() | nil, term(), term(), keyword()) :: :ok | :ignored
+  def put(key, preview, mapping, opts \\ [])
+
+  def put(key, preview, mapping, opts) when is_binary(key) and key != "" do
+    unless :ets.member(@table, key), do: evict_past_budget()
+    :ets.insert(@table, {key, preview, mapping, Keyword.get(opts, :touched_at, now())})
     :ok
   end
+
+  def put(_key, _preview, _mapping, _opts), do: :ignored
+
+  @doc "Replaces only the mapping of an existing entry (#768); `:ignored` when absent."
+  @spec put_mapping(String.t() | nil, term()) :: :ok | :ignored
+  def put_mapping(key, mapping) when is_binary(key) and key != "" do
+    if :ets.update_element(@table, key, [{3, mapping}, {4, now()}]), do: :ok, else: :ignored
+  end
+
+  def put_mapping(_key, _mapping), do: :ignored
 
   @doc """
   Returns `{preview, mapping}` for `session_token`, or `nil` when absent or
   expired.
   """
-  @spec get(String.t()) :: {term(), term()} | nil
-  def get(session_token) do
-    case :ets.lookup(@table, session_token) do
-      [{^session_token, preview, mapping, _touched_at}] ->
-        :ets.update_element(@table, session_token, {4, now()})
+  @spec get(String.t() | nil) :: {term(), term()} | nil
+  def get(key) when is_binary(key) and key != "" do
+    case :ets.lookup(@table, key) do
+      [{^key, preview, mapping, _touched_at}] ->
+        :ets.update_element(@table, key, {4, now()})
         {preview, mapping}
 
       [] ->
@@ -62,11 +95,35 @@ defmodule Portfolixir.Imports.PreviewStore do
     end
   end
 
-  @doc "Removes the entry for `session_token` (e.g. after a confirmed or discarded import)."
-  @spec delete(String.t()) :: :ok
-  def delete(session_token) do
-    :ets.delete(@table, session_token)
+  def get(_key), do: nil
+
+  @doc "Empties the store. For tests that reason about the budget on the shared table."
+  @spec clear() :: :ok
+  def clear do
+    :ets.delete_all_objects(@table)
     :ok
+  end
+
+  @doc "Removes the entry for `key` (e.g. after a confirmed or discarded import)."
+  @spec delete(String.t() | nil) :: :ok
+  def delete(key) when is_binary(key) do
+    :ets.delete(@table, key)
+    :ok
+  end
+
+  def delete(_key), do: :ok
+
+  # Drops the oldest-touched entries until one slot is free.
+  defp evict_past_budget do
+    overflow = :ets.info(@table, :size) - max_entries() + 1
+
+    if overflow > 0 do
+      @table
+      |> :ets.tab2list()
+      |> Enum.sort_by(&elem(&1, 3))
+      |> Enum.take(overflow)
+      |> Enum.each(fn {key, _preview, _mapping, _touched} -> :ets.delete(@table, key) end)
+    end
   end
 
   ## GenServer callbacks

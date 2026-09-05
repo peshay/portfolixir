@@ -91,7 +91,8 @@ defmodule Portfolixir.Imports.Applier do
               created_securities_account_ids: [],
               created_transactions: 0,
               skipped_duplicates: 0,
-              skipped_entries: []
+              skipped_entries: [],
+              duplicate_entries: []
 
     @type t :: %__MODULE__{}
   end
@@ -1123,8 +1124,11 @@ defmodule Portfolixir.Imports.Applier do
     run_key = {key, entry.time}
 
     cond do
-      hash_already_imported?(attrs.import_hash) or MapSet.member?(state.existing_dedup_keys, key) ->
-        {:ok, bump_result(state, :skipped_duplicates)}
+      hash_already_imported?(attrs.import_hash) ->
+        {:ok, state |> bump_result(:skipped_duplicates) |> record_duplicate(entry, :hash)}
+
+      MapSet.member?(state.existing_dedup_keys, key) ->
+        {:ok, state |> bump_result(:skipped_duplicates) |> record_duplicate(entry, :economics)}
 
       MapSet.member?(state.seen_run_keys, run_key) ->
         {:ok, state |> bump_result(:skipped_duplicates) |> record_collapsed(entry)}
@@ -1132,6 +1136,27 @@ defmodule Portfolixir.Imports.Applier do
       true ->
         insert_new_transaction(entry, attrs, run_key, state)
     end
+  end
+
+  # #769: a skipped duplicate names its source row and the layer that skipped
+  # it, next to the unimportable rows, so a silent skip is visible where the
+  # operator reads the result.
+  defp record_duplicate(state, %Entry{} = entry, layer) do
+    reason =
+      case layer do
+        :hash ->
+          "already booked: an identical row was imported before (stored content hash)"
+
+        :economics ->
+          "already booked: an existing booking has the same date, security, quantity and amount"
+      end
+
+    Map.update!(state, :result, fn %Result{} = r ->
+      %Result{
+        r
+        | duplicate_entries: r.duplicate_entries ++ [%{row: entry.source_row, reason: reason}]
+      }
+    end)
   end
 
   defp record_collapsed(state, %Entry{} = entry) do

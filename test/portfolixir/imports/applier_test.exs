@@ -309,6 +309,14 @@ defmodule Portfolixir.Imports.ApplierTest do
         assert second.created_transactions == 0
         assert second.skipped_duplicates == 13
 
+        # #769: every skipped duplicate names its source row and the layer that
+        # skipped it, so a silent skip is visible where the operator reads.
+        assert length(second.duplicate_entries) == 13
+
+        assert Enum.all?(second.duplicate_entries, fn %{row: row, reason: reason} ->
+                 not is_nil(row) and is_binary(reason) and reason =~ "already"
+               end)
+
         assert wait_until(fn ->
                  ids
                  |> Enum.map(&Catalog.get_security!/1)

@@ -668,7 +668,8 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     })
 
     # Verify PreviewStore holds the entry under our session token.
-    assert {_preview, mapping} = PreviewStore.get(session_token)
+    # The store is keyed by a hash of the session token (#768), never the token.
+    assert {_preview, mapping} = PreviewStore.get(PreviewStore.key_for(session_token))
     assert mapping.bucket_tag == "My Preserved Tag"
 
     # Simulate locale switch: remount the LiveView on the same session.
@@ -701,7 +702,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     html3 = render_async(view2, 1_000)
 
     assert html3 =~ "Import complete"
-    assert PreviewStore.get(session_token) == nil
+    assert PreviewStore.get(PreviewStore.key_for(session_token)) == nil
   end
 
   # User story:
