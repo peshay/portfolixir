@@ -495,19 +495,24 @@ defmodule PortfolixirWeb.LayoutView do
                 return null;
               },
               renderTooltip: function (iso, close, currency, tx) {
-                var parts = [
-                  '<div class="chart-tooltip__date">' + iso + "</div>",
-                  '<div class="chart-tooltip__price">' + close + (currency ? " " + currency : "") + "</div>"
-                ];
+                // Built through the DOM API (#770): every value is text, never markup.
+                var tooltip = this.tooltip;
+                tooltip.textContent = "";
+                var line = function (className, text) {
+                  var node = document.createElement("div");
+                  node.className = className;
+                  node.textContent = text;
+                  tooltip.appendChild(node);
+                };
+                line("chart-tooltip__date", String(iso));
+                line("chart-tooltip__price", String(close) + (currency ? " " + currency : ""));
                 if (tx) {
-                  parts.push(
-                    '<div class="chart-tooltip__tx chart-tooltip__tx--' + tx.type + '">' +
-                      tx.type + " " + tx.quantity + " @ " + tx.price +
-                    "</div>"
+                  line(
+                    "chart-tooltip__tx chart-tooltip__tx--" + String(tx.type).replace(/[^a-z_]/g, ""),
+                    tx.type + " " + tx.quantity + " @ " + tx.price
                   );
                 }
-                this.tooltip.innerHTML = parts.join("");
-                this.tooltip.hidden = false;
+                tooltip.hidden = false;
               },
               positionTooltip: function (cssX, cssY, frameWidth) {
                 var tipWidth = this.tooltip.offsetWidth || 120;

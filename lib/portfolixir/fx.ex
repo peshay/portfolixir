@@ -194,13 +194,20 @@ defmodule Portfolixir.Fx do
     |> Map.new()
   end
 
-  @doc "All stored rates, most recent first."
-  def list_rates do
-    Repo.all(
+  @doc "Stored rates, most recent first; `limit:` bounds the read (#771)."
+  def list_rates(opts \\ []) do
+    query =
       from(r in ExchangeRate,
         order_by: [desc: r.date, asc: r.base_currency, asc: r.quote_currency]
       )
-    )
+
+    query =
+      case Keyword.get(opts, :limit) do
+        n when is_integer(n) and n > 0 -> limit(query, ^n)
+        _ -> query
+      end
+
+    Repo.all(query)
   end
 
   @doc """

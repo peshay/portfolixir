@@ -4,22 +4,44 @@ defmodule PortfolixirWeb.ApiAuthPlug do
   import Plug.Conn
   import Phoenix.Controller, only: [json: 2]
 
+  alias Portfolixir.Auth.Throttle
+
   def init(opts), do: opts
 
+  # A locked-out source (#771) is answered 429 before the token is even
+  # compared, right token or wrong; a wrong token counts against the source
+  # and a right one clears it.
   def call(conn, _opts) do
-    configured_token = api_token()
-    provided_token = bearer_token(conn)
+    source = Throttle.source_key(conn.remote_ip)
 
-    if valid_token?(provided_token, configured_token) do
+    case Throttle.check(:api, source) do
+      {:locked, seconds} -> locked(conn, seconds)
+      :ok -> authenticate(conn, source)
+    end
+  end
+
+  defp authenticate(conn, source) do
+    if valid_token?(bearer_token(conn), api_token()) do
+      Throttle.success(:api, source)
       # The single configured bearer token is read-write (FR-28 / ADR-0017).
       # A future read-only token (D4) assigns :api_token_ro here instead.
       assign(conn, :actor, Portfolixir.Actor.api_token_rw())
     else
+      Throttle.failure(:api, source)
+
       conn
       |> put_status(:unauthorized)
       |> json(%{errors: %{detail: "unauthorized"}})
       |> halt()
     end
+  end
+
+  defp locked(conn, seconds) do
+    conn
+    |> put_resp_header("retry-after", Integer.to_string(seconds))
+    |> put_status(:too_many_requests)
+    |> json(%{errors: %{detail: "too many failed attempts; retry later"}})
+    |> halt()
   end
 
   defp api_token do

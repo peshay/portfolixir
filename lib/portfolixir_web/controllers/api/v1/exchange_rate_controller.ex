@@ -4,9 +4,22 @@ defmodule PortfolixirWeb.Api.V1.ExchangeRateController do
   alias Portfolixir.Fx
   alias Portfolixir.Fx.RateSync
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.ListLimit
 
-  def index(conn, _params) do
-    json(conn, %{data: Enum.map(Fx.list_rates(), &JSON.exchange_rate/1)})
+  require Logger
+
+  # #771: sized above a realistic rate table, a bound rather than a page.
+  @default_limit 50_000
+  @max_limit 200_000
+
+  def index(conn, params) do
+    case ListLimit.parse(params, @default_limit, @max_limit) do
+      {:ok, limit} ->
+        json(conn, %{data: Enum.map(Fx.list_rates(limit: limit), &JSON.exchange_rate/1)})
+
+      {:error, :limit} ->
+        unprocessable(conn, %{limit: ["is invalid"]})
+    end
   end
 
   # `scope` (issue #737, Sprint 9 D-1): `latest` (default) runs the daily
@@ -26,10 +39,13 @@ defmodule PortfolixirWeb.Api.V1.ExchangeRateController do
   defp respond(conn, {:error, :history_unsupported}),
     do: unprocessable(conn, %{scope: ["the configured provider publishes no history"]})
 
+  # A fixed message (#770): the provider's error term is logged, not echoed.
   defp respond(conn, {:error, reason}) do
+    Logger.warning("exchange-rate sync failed: #{inspect(reason)}")
+
     conn
     |> put_status(:bad_gateway)
-    |> json(%{errors: %{detail: inspect(reason)}})
+    |> json(%{errors: %{detail: "the rate provider could not be reached"}})
   end
 
   defp unprocessable(conn, errors) do

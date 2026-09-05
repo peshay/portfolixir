@@ -32,6 +32,7 @@ defmodule Portfolixir.Application do
       Portfolixir.Repo,
       {Phoenix.PubSub, name: Portfolixir.PubSub},
       {Task.Supervisor, name: Portfolixir.LogoSupervisor},
+      Portfolixir.Auth.Throttle,
       {Portfolixir.Catalog.LogoDiscovery, []},
       {Portfolixir.Catalog.QuoteSync,
        Application.get_env(:portfolixir, Portfolixir.Catalog.QuoteSync, [])},

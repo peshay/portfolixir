@@ -43,6 +43,8 @@ defmodule Portfolixir.Buckets.Bucket do
     |> normalize_name()
     |> validate_required([:name, :dimension])
     |> validate_length(:name, max: 100)
+    # The colour lands in a style attribute (#770): six hex digits or nothing.
+    |> validate_format(:color, ~r/\A#[0-9a-fA-F]{6}\z/, message: "must be a #RRGGBB colour")
     |> validate_inclusion(:dimension, @dimensions)
     |> forbid_dimension_change()
     |> unique_constraint(:name)

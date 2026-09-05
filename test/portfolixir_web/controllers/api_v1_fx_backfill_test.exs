@@ -151,7 +151,7 @@ defmodule PortfolixirWeb.ApiV1FxBackfillTest do
   test "scope=history answers 502 on a provider failure and 422 without a history", %{conn: conn} do
     Fake.put_history_response({:error, :boom})
 
-    assert %{"errors" => %{"detail" => ":boom"}} =
+    assert %{"errors" => %{"detail" => "the rate provider could not be reached"}} =
              conn
              |> api_conn()
              |> post("/api/v1/exchange_rates/sync", Jason.encode!(%{"scope" => "history"}))
