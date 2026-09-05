@@ -2,6 +2,8 @@ defmodule Portfolixir.Application do
   @moduledoc false
   use Application
 
+  require Logger
+
   alias Portfolixir.Portfolios.Performance.Warmup
 
   @impl true
@@ -14,6 +16,7 @@ defmodule Portfolixir.Application do
       # read path (#529). Idempotent + config-gated (off in tests); see
       # Classifications.seed_builtins_on_boot/0.
       Portfolixir.Classifications.seed_builtins_on_boot()
+      warn_if_exposed()
       {:ok, pid}
     end
   end
@@ -46,6 +49,24 @@ defmodule Portfolixir.Application do
        |> Keyword.put_new(:refresh, &Warmup.warm_basis/1)},
       PortfolixirWeb.Endpoint
     ]
+  end
+
+  # ADR-0045 §2 (#758): bound beyond loopback with no UI password is named in
+  # the log at startup. The decision is a pure function so it is unit-tested;
+  # this is only the wiring.
+  defp warn_if_exposed do
+    ip =
+      :portfolixir
+      |> Application.get_env(PortfolixirWeb.Endpoint, [])
+      |> get_in([:http, :ip])
+
+    password =
+      Application.get_env(:portfolixir, :ui_password) || System.get_env("PORTFOLIXIR_UI_PASSWORD")
+
+    case Portfolixir.RuntimeConfig.exposure_warning(ip || {127, 0, 0, 1}, password) do
+      :ok -> :ok
+      {:warn, message} -> Logger.warning(message)
+    end
   end
 
   @impl true

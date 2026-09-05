@@ -9,6 +9,10 @@ defmodule PortfolixirWeb.Endpoint do
 
   socket("/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]])
 
+  # Ahead of everything, including static files: a request under a foreign
+  # Host never reaches the router (ADR-0045 §2, #758).
+  plug(PortfolixirWeb.HostGuard)
+
   plug(Plug.Static,
     at: "/",
     from: :portfolixir,

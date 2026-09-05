@@ -26,6 +26,22 @@ config :portfolixir, PortfolixirWeb.Endpoint,
     "dev_secret_key_base_which_should_be_changed_in_production_and_is_long_enough_for_sessions",
   watchers: []
 
+# The Host allow-list (ADR-0045 §2, #758): PHX_HOST, the loopback names, and
+# PORTFOLIXIR_ALLOWED_HOSTS for a LAN address or a proxy name.
+# Inlined rather than delegated to Portfolixir.RuntimeConfig because this file
+# is evaluated before the application is compiled; runtime.exs uses the helper.
+dev_extra_hosts =
+  "PORTFOLIXIR_ALLOWED_HOSTS"
+  |> System.get_env("")
+  |> String.split(",")
+
+config :portfolixir, PortfolixirWeb.HostGuard,
+  hosts:
+    ([System.get_env("PHX_HOST", "localhost"), "localhost", "127.0.0.1"] ++ dev_extra_hosts)
+    |> Enum.map(&(&1 |> String.trim() |> String.downcase()))
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.uniq()
+
 # Try to fetch a logo for new securities locally as well so the dev
 # experience matches prod.
 config :portfolixir, :enable_logo_discovery, true
