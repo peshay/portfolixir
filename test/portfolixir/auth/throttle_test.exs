@@ -57,4 +57,41 @@ defmodule Portfolixir.Auth.ThrottleTest do
     Throttle.success(:api, source)
     assert Throttle.check(:api, source, now: 5) == :ok
   end
+
+  # User story:
+  # As the operator,
+  # I want the throttle table to forget sources that have been quiet for longer
+  # than the longest lock, and nothing else,
+  # so that memory stays bounded without handing a slow guesser fresh attempts.
+  #
+  # Acceptance criteria:
+  # - A source whose last failure is older than the longest lock is dropped by the sweep.
+  # - A source that failed recently keeps its count, locked or not.
+  # - A non-address source key is still a string.
+  test "the sweep forgets only sources quiet for longer than the longest lock" do
+    assert Throttle.source_key({127, 0, 0, 1}) == "127.0.0.1"
+    assert Throttle.source_key(:unknown) == ":unknown"
+
+    stale = key("stale")
+    recent = key("recent")
+    now = System.os_time(:second)
+
+    Enum.each(1..Throttle.max_failures(), fn _ ->
+      Throttle.failure(:api, stale, now: now - 4 * Throttle.max_lock_seconds())
+    end)
+
+    Enum.each(1..(Throttle.max_failures() - 1), fn _ ->
+      Throttle.failure(:api, recent, now: now)
+    end)
+
+    send(Process.whereis(Throttle), :sweep)
+    :sys.get_state(Throttle)
+
+    assert :ets.lookup(Throttle, {:api, stale}) == []
+    assert [{_, count, 0, _}] = :ets.lookup(Throttle, {:api, recent})
+    assert count == Throttle.max_failures() - 1
+
+    Throttle.failure(:api, recent, now: now)
+    assert {:locked, _} = Throttle.check(:api, recent, now: now)
+  end
 end
