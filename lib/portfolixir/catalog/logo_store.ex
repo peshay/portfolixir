@@ -22,6 +22,7 @@ defmodule Portfolixir.Catalog.LogoStore do
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Net.Http
   alias Portfolixir.Net.UrlPolicy
 
   # Logo bytes are operational, machine-discovered assets that happen to live on
@@ -60,13 +61,14 @@ defmodule Portfolixir.Catalog.LogoStore do
       when is_binary(url) and is_atom(source) do
     max_bytes = Keyword.get(opts, :max_bytes, @default_max_bytes)
     storage_dir = Keyword.get(opts, :storage_dir) || default_storage_dir()
-    req = build_req(opts)
+    req = build_req(opts, max_bytes)
     policy = [allowed_hosts: allowed_hosts_for(source)]
 
     with :ok <- UrlPolicy.check(url, policy),
          {:ok, response} <- fetch(req, url, policy, @max_redirects),
          {:ok, ext} <- content_type_extension(response),
          :ok <- size_ok(response.body, max_bytes),
+         :ok <- image_bytes_ok(response.body, ext),
          :ok <- File.mkdir_p(storage_dir),
          file_path = Path.join(storage_dir, "#{security.id}.#{ext}"),
          :ok <- File.write(file_path, response.body),
@@ -104,6 +106,7 @@ defmodule Portfolixir.Catalog.LogoStore do
 
     with {:ok, ext} <- extension_for_type(content_type),
          :ok <- size_ok(body, max_bytes),
+         :ok <- image_bytes_ok(body, ext),
          :ok <- File.mkdir_p(storage_dir),
          file_path = Path.join(storage_dir, "#{security.id}.#{ext}"),
          :ok <- File.write(file_path, body),
@@ -174,7 +177,7 @@ defmodule Portfolixir.Catalog.LogoStore do
   # every hop is re-checked against the policy the first URL passed, so a
   # redirect can never reach what a direct URL may not (#762).
   defp fetch(req, url, policy, hops_left) do
-    case Req.get(req, url: url) do
+    case Http.get(req, url: url) do
       {:ok, %Req.Response{status: 200} = response} ->
         {:ok, response}
 
@@ -183,6 +186,11 @@ defmodule Portfolixir.Catalog.LogoStore do
 
       {:ok, %Req.Response{status: status}} ->
         {:error, {:http_status, status}}
+
+      # The bounded client cuts the body at the cap (#763); callers keep the
+      # store's own error atom.
+      {:error, %Http.BodyTooLarge{}} ->
+        {:error, :too_large}
 
       {:error, reason} ->
         {:error, reason}
@@ -225,6 +233,12 @@ defmodule Portfolixir.Catalog.LogoStore do
   defp size_ok(body, max_bytes) when byte_size(body) <= max_bytes, do: :ok
   defp size_ok(_body, _max_bytes), do: {:error, :too_large}
 
+  # The header is the upstream's claim; the leading bytes are the file's (#763).
+  defp image_bytes_ok(<<137, 80, 78, 71, 13, 10, 26, 10, _::binary>>, "png"), do: :ok
+  defp image_bytes_ok(<<0xFF, 0xD8, 0xFF, _::binary>>, "jpg"), do: :ok
+  defp image_bytes_ok(<<"RIFF", _::binary-size(4), "WEBP", _::binary>>, "webp"), do: :ok
+  defp image_bytes_ok(_body, _ext), do: {:error, :unsupported_content_type}
+
   defp update_security_attributes(security, ext, source, opts) do
     base = %{
       "logo_path" => "/security_logos/#{security.id}.#{ext}",
@@ -238,14 +252,15 @@ defmodule Portfolixir.Catalog.LogoStore do
     Catalog.update_security(@logo_actor, security, attrs)
   end
 
-  defp build_req(opts) do
+  defp build_req(opts, max_bytes) do
     base =
-      Req.new(
+      Http.new(
         headers: [{"user-agent", "portfolixir/0.1 (logo-store)"}],
         receive_timeout: 5_000,
-        retry: false,
         redirect: false,
-        decode_body: false
+        decode_body: false,
+        max_bytes: max_bytes,
+        deadline_ms: 15_000
       )
 
     case opts[:req] do

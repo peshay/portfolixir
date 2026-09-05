@@ -18,6 +18,8 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
   `plug:` stub) so tests never reach the public internet.
   """
 
+  alias Portfolixir.Net.Http
+
   @endpoint "https://en.wikipedia.org/api/rest_v1/page/summary"
   @search_endpoint "https://en.wikipedia.org/w/rest.php/v1/search/page"
   @wikidata_endpoint "https://www.wikidata.org/wiki/Special:EntityData"
@@ -41,7 +43,7 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
     url = @endpoint <> "/" <> URI.encode(title, &URI.char_unreserved?/1)
     req = build_req(opts)
 
-    case Req.get(req, url: url) do
+    case Http.get(req, url: url) do
       {:ok, %Req.Response{status: 200, body: body}} ->
         image_from_summary(body, opts)
 
@@ -68,7 +70,7 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
   def search_logo(query, opts \\ []) when is_binary(query) do
     req = build_req(opts)
 
-    case Req.get(req, url: @search_endpoint, params: [q: query, limit: 5]) do
+    case Http.get(req, url: @search_endpoint, params: [q: query, limit: 5]) do
       {:ok, %Req.Response{status: 200, body: %{"pages" => pages}}} when is_list(pages) ->
         pages
         |> Enum.filter(&company_like?/1)
@@ -146,10 +148,11 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
 
   defp build_req(opts) do
     base =
-      Req.new(
+      Http.new(
         headers: [{"user-agent", "portfolixir/0.1 (logo-lookup)"}],
         receive_timeout: 5_000,
-        retry: false
+        max_bytes: 2 * 1024 * 1024,
+        deadline_ms: 15_000
       )
 
     case opts[:req] do
@@ -187,7 +190,7 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
     url = @wikidata_endpoint <> "/" <> URI.encode(id, &URI.char_unreserved?/1) <> ".json"
     req = build_req(opts)
 
-    case Req.get(req, url: url) do
+    case Http.get(req, url: url) do
       {:ok, %Req.Response{status: 200, body: body}} ->
         logo_url_from_entity(body, id)
 

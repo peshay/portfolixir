@@ -17,6 +17,8 @@ defmodule Portfolixir.Catalog.LogoLookup.CompaniesLogo do
   `plug:` stub) so tests never reach the public internet.
   """
 
+  alias Portfolixir.Net.Http
+
   @base_url "https://companieslogo.com"
 
   @og_image ~r/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i
@@ -47,7 +49,7 @@ defmodule Portfolixir.Catalog.LogoLookup.CompaniesLogo do
   defp fetch_slug(slug, opts) do
     url = @base_url <> "/" <> slug <> "/logo/"
 
-    case Req.get(build_req(opts), url: url) do
+    case Http.get(build_req(opts), url: url) do
       {:ok, %Req.Response{status: 200, body: body}} when is_binary(body) ->
         extract_og_image(body)
 
@@ -88,11 +90,12 @@ defmodule Portfolixir.Catalog.LogoLookup.CompaniesLogo do
 
   defp build_req(opts) do
     base =
-      Req.new(
+      Http.new(
         headers: [{"user-agent", "portfolixir/0.1 (logo-lookup)"}],
         receive_timeout: 5_000,
-        retry: false,
-        decode_body: false
+        decode_body: false,
+        max_bytes: 2 * 1024 * 1024,
+        deadline_ms: 15_000
       )
 
     case opts[:req] do

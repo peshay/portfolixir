@@ -29,6 +29,7 @@ defmodule PortfolixirWeb.Endpoint do
     at: "/",
     from: :portfolixir,
     gzip: false,
+    headers: [{"x-content-type-options", "nosniff"}],
     only: ~w(app.css favicon.ico favicon.svg images security_logos)
   )
 
@@ -36,6 +37,7 @@ defmodule PortfolixirWeb.Endpoint do
     at: "/vendor",
     from: {:phoenix, "priv/static"},
     gzip: false,
+    headers: [{"x-content-type-options", "nosniff"}],
     only: ~w(phoenix.min.js)
   )
 
@@ -43,6 +45,7 @@ defmodule PortfolixirWeb.Endpoint do
     at: "/vendor",
     from: {:phoenix_live_view, "priv/static"},
     gzip: false,
+    headers: [{"x-content-type-options", "nosniff"}],
     only: ~w(phoenix_live_view.min.js)
   )
 

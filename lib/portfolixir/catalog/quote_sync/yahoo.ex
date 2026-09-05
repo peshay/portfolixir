@@ -23,6 +23,7 @@ defmodule Portfolixir.Catalog.QuoteSync.Yahoo do
   @behaviour Portfolixir.Catalog.QuoteSync.Provider
 
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Net.Http
 
   @endpoint "https://query1.finance.yahoo.com/v8/finance/chart"
   @interval "1d"
@@ -42,9 +43,11 @@ defmodule Portfolixir.Catalog.QuoteSync.Yahoo do
 
       {:ok, symbol} ->
         req = req(opts)
-        url = "#{@endpoint}/#{URI.encode(symbol)}"
+        # One unreserved path segment (#763): a ticker can neither change
+        # the endpoint nor the query.
+        url = "#{@endpoint}/#{URI.encode(symbol, &URI.char_unreserved?/1)}"
 
-        case Req.get(req,
+        case Http.get(req,
                url: url,
                params: [
                  period1: 0,
@@ -103,10 +106,11 @@ defmodule Portfolixir.Catalog.QuoteSync.Yahoo do
 
   defp req(opts) do
     base =
-      Req.new(
+      Http.new(
         headers: [{"user-agent", "portfolixir/0.1 (+https://github.com/portfolixir)"}],
         receive_timeout: 10_000,
-        retry: false
+        max_bytes: 8 * 1024 * 1024,
+        deadline_ms: 30_000
       )
 
     case opts[:req] do
