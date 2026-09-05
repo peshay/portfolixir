@@ -39,6 +39,29 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 3,
+      date: ~D[2026-09-05],
+      summary:
+        "Sprint 10 (ADR-0045, E21 security hardening): provenance fields are system-set — " <>
+          "notes.append no longer takes author or machine_generated and transactions refuse " <>
+          "import_hash (#766); every list read takes a bounded limit and the quote upsert a row " <>
+          "cap (#771); the logo endpoint validates its URL and answers fixed messages (#762); " <>
+          "repeated wrong bearer tokens are answered 429 with Retry-After (#771).",
+      endpoints: [],
+      tools: [],
+      parameters: [
+        "POST /api/v1/securities/:security_id/notes and portfolixir.notes.append: author is derived from the credential and machine_generated is reserved; both are ignored in the body (#766)",
+        "POST and PATCH /api/v1/transactions and the MCP transaction writes refuse import_hash with 422 (#766)",
+        "PATCH /api/v1/securities/:id and portfolixir.securities.update: attributes merge into the stored map, a null removes a key, logo_* keys are dropped (#766)",
+        "GET /api/v1/transactions, /securities, /exchange_rates and /securities/:id/quotes and their MCP twins take limit= (defaults 10000 / 5000 / 50000 / 20000, maxima 50000 / 20000 / 200000 / 50000); a malformed limit is 422 (#771)",
+        "PUT /api/v1/securities/:id/quotes and portfolixir.quotes.upsert refuse more than 10000 rows per request (#771)",
+        "PUT /api/v1/securities/:id/logo: the URL must be https to a public address; refusals and download failures carry fixed messages (#762)",
+        "Every /api/v1 route answers 429 with Retry-After after repeated wrong bearer tokens from one source (#771)"
+      ],
+      removed_endpoints: [],
+      removed_tools: []
+    },
+    %{
       version: 2,
       date: ~D[2026-09-03],
       summary:
