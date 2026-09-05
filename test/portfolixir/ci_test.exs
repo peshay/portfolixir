@@ -146,7 +146,9 @@ defmodule Portfolixir.CITest do
     # definitions describe the runtime, and the runtime is the one the
     # container ships.
     assert package_json =~ ~s("node": ">=#{ci_major} <#{String.to_integer(ci_major) + 1}")
-    assert dockerfile =~ "FROM node:#{ci_major}-"
+    # An exact tag (24.x.y-alpine, #761) or the floating major both name the
+    # same major; the invariant is the major, not the tag shape.
+    assert dockerfile =~ ~r/FROM node:#{ci_major}[.-]/
     assert package_json =~ ~s("@types/node": "^#{ci_major}.)
   end
 
