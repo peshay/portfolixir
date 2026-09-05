@@ -1213,4 +1213,23 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     [_, rule] = Regex.run(~r/#{escaped_selector}\s*\{([^}]*)\}/, css)
     rule
   end
+
+  # User story (#768):
+  # As an operator who drops a file larger than the import is sized for,
+  # I want the page to say so in words, with the cap,
+  # so that I know to split the export rather than wonder why nothing happened.
+  #
+  # Acceptance criteria:
+  # - Over the row cap the view stays on the intake stage and names the cap.
+  test "names the row cap when a file is larger than the import is sized for", %{conn: conn} do
+    Application.put_env(:portfolixir, :import_max_rows, 1)
+    on_exit(fn -> Application.delete_env(:portfolixir, :import_max_rows) end)
+
+    {:ok, view, _html} = live(conn, "/imports")
+    upload_sample(view)
+
+    html = render(view)
+    assert html =~ "sized for at most 1"
+    refute html =~ "pp-mapping-form"
+  end
 end

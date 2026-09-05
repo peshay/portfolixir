@@ -77,7 +77,7 @@ defmodule Portfolixir.Imports.ParserRobustnessTest do
              label
 
       assert length(entries) + length(errors) == 2, label
-      assert length(entries) >= 1, label
+      assert entries != [], label
     end
   end
 

@@ -81,4 +81,33 @@ defmodule Portfolixir.Net.HttpTest do
     assert get_in(req.options, [:connect_options, :timeout]) == 5_000
     assert req.options[:retry] == false
   end
+
+  # User story:
+  # As a caller of a bounded client,
+  # I want a failure inside the adapter returned as a value,
+  # so that a scheduler tick never crashes on one upstream.
+  #
+  # Acceptance criteria:
+  # - An exception or an exit inside the request is {:error, term}.
+  # - A Content-Length that is not a number is ignored; the streamed cap still applies.
+  # - The cap error names both sizes.
+  test "returns adapter failures as values and ignores a malformed Content-Length" do
+    req = Http.new(max_bytes: 100)
+
+    assert {:error, %RuntimeError{message: "boom"}} =
+             Http.get(req, plug: fn _conn -> raise "boom" end)
+
+    assert {:error, {:exit, :boom}} = Http.get(req, plug: fn _conn -> exit(:boom) end)
+
+    plug = fn conn ->
+      conn
+      |> Plug.Conn.put_resp_header("content-length", "not-a-number")
+      |> Plug.Conn.send_resp(200, "ok")
+    end
+
+    assert {:ok, %Req.Response{body: "ok"}} = Http.get(req, plug: plug)
+
+    assert Exception.message(%Http.BodyTooLarge{limit: 10, size: 20}) ==
+             "upstream body of 20 bytes exceeds the 10-byte cap"
+  end
 end

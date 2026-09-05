@@ -5,8 +5,8 @@ defmodule PortfolixirWeb.ImportsLive do
   alias Portfolixir.Catalog
   alias Portfolixir.Imports
   alias Portfolixir.Imports.Mapping
-  alias Portfolixir.Imports.Preview
   alias Portfolixir.Imports.PortfolioPerformance
+  alias Portfolixir.Imports.Preview
   alias Portfolixir.Imports.PreviewStore
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.AppShell

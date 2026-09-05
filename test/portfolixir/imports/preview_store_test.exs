@@ -8,7 +8,7 @@ defmodule Portfolixir.Imports.PreviewStoreTest do
 
   # Use per-test unique tokens to prevent cross-test interference on the
   # shared ETS table.
-  defp token(label \\ "default"),
+  defp token(label),
     do: "test-token-#{label}-#{System.unique_integer([:positive])}"
 
   # User story:
@@ -155,6 +155,9 @@ defmodule Portfolixir.Imports.PreviewStoreTest do
       assert {:preview, :m2} = PreviewStore.get(key)
 
       assert :ignored = PreviewStore.put_mapping(token("absent"), :m3)
+      assert :ignored = PreviewStore.put_mapping(nil, :m3)
+      assert :ok = PreviewStore.delete(nil)
+      assert :ok = PreviewStore.delete(token("absent"))
     end
 
     test "key_for/1 derives a fixed-length key that is not the token" do

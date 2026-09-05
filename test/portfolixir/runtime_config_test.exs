@@ -68,4 +68,26 @@ defmodule Portfolixir.RuntimeConfigTest do
     assert RuntimeConfig.exposure_warning({127, 0, 0, 1}, nil) == :ok
     assert RuntimeConfig.exposure_warning({0, 0, 0, 0}, "a-long-enough-password") == :ok
   end
+
+  test "the IPv6 loopback is loopback too" do
+    assert RuntimeConfig.exposure_warning({0, 0, 0, 0, 0, 0, 0, 1}, nil) == :ok
+  end
+
+  # The zero-arity forms read the environment; each must agree with the
+  # explicit form fed the same variable, so the wiring cannot drift.
+  test "the environment-reading defaults agree with the explicit forms" do
+    assert RuntimeConfig.database_ssl?() ==
+             RuntimeConfig.database_ssl?(System.get_env("DATABASE_SSL", "false"))
+
+    assert RuntimeConfig.bind_ip() == RuntimeConfig.bind_ip(System.get_env("PHX_BIND_ALL"))
+
+    assert RuntimeConfig.force_ssl_opts() ==
+             RuntimeConfig.force_ssl_opts(System.get_env("PHX_FORCE_SSL"))
+
+    assert RuntimeConfig.allowed_hosts() ==
+             RuntimeConfig.allowed_hosts(
+               System.get_env("PHX_HOST"),
+               System.get_env("PORTFOLIXIR_ALLOWED_HOSTS")
+             )
+  end
 end

@@ -131,4 +131,11 @@ defmodule Portfolixir.Net.UrlPolicyTest do
     assert {:error, {:url_not_allowed, :private_address}} =
              UrlPolicy.check("https://internal.test/x.png", @opts ++ [allowed_hosts: :any])
   end
+
+  test "refuses a non-string URL and the IPv6 site-local range" do
+    assert {:error, {:url_not_allowed, :scheme}} = UrlPolicy.check(nil, @opts)
+
+    assert {:error, {:url_not_allowed, :private_address}} =
+             UrlPolicy.check("https://[fec0::1]/x.png", @opts)
+  end
 end

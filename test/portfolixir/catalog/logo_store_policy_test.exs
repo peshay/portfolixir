@@ -218,4 +218,66 @@ defmodule Portfolixir.Catalog.LogoStorePolicyTest do
       refute_received {:fetched, _}
     end
   end
+
+  # User story (#763):
+  # As the discovery job,
+  # I want every upstream misbehaviour named as an error value,
+  # so that a redirect loop, a bad status or a body without a type never
+  # writes a file or crashes the job.
+  #
+  # Acceptance criteria:
+  # - A redirect loop stops after a few hops; a non-2xx status is named.
+  # - A body without a Content-Type is refused; a JPEG under its own header is stored.
+  test "names a redirect loop, a bad status and a missing type; stores a JPEG",
+       %{tmp: tmp, security: sec} do
+    respond = fn fun -> [plug: fun] end
+
+    loop =
+      respond.(fn conn ->
+        conn
+        |> Plug.Conn.put_resp_header("location", "https://wikipedia/loop.png")
+        |> Plug.Conn.send_resp(302, "")
+      end)
+
+    assert {:error, :too_many_redirects} =
+             LogoStore.download_and_store(sec, "https://wikipedia/loop.png", :wikipedia,
+               storage_dir: tmp,
+               req: loop
+             )
+
+    missing = respond.(fn conn -> Plug.Conn.send_resp(conn, 404, "") end)
+
+    assert {:error, {:http_status, 404}} =
+             LogoStore.download_and_store(sec, "https://wikipedia/x.png", :wikipedia,
+               storage_dir: tmp,
+               req: missing
+             )
+
+    untyped = respond.(fn conn -> Plug.Conn.send_resp(conn, 200, @png) end)
+
+    assert {:error, :unsupported_content_type} =
+             LogoStore.download_and_store(sec, "https://wikipedia/x.png", :wikipedia,
+               storage_dir: tmp,
+               req: untyped
+             )
+
+    assert File.ls!(tmp) == []
+
+    jpeg = <<0xFF, 0xD8, 0xFF, 0xE0>> <> :binary.copy(<<0>>, 16)
+
+    jpeg_stub =
+      respond.(fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("image/jpeg")
+        |> Plug.Conn.send_resp(200, jpeg)
+      end)
+
+    assert {:ok, updated} =
+             LogoStore.download_and_store(sec, "https://wikipedia/x.jpg", :wikipedia,
+               storage_dir: tmp,
+               req: jpeg_stub
+             )
+
+    assert updated.attributes["logo_path"] == "/security_logos/#{sec.id}.jpg"
+  end
 end

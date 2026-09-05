@@ -38,6 +38,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
 
   alias Portfolixir.Imports.Decimals
   alias Portfolixir.Imports.Entry
+  alias Portfolixir.Imports.PortfolioPerformance
   alias Portfolixir.Imports.Preview
 
   @kind_map %{
@@ -64,7 +65,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
 
   @spec parse(binary(), keyword()) :: {:ok, Preview.t()} | {:error, term()}
   def parse(body, opts \\ []) when is_binary(body) do
-    max_rows = Portfolixir.Imports.PortfolioPerformance.max_rows()
+    max_rows = PortfolioPerformance.max_rows()
 
     case Jason.decode(body, floats: :decimals) do
       {:ok, %{"version" => 1, "transactions" => txs}} when is_list(txs) ->

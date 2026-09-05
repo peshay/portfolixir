@@ -7,6 +7,7 @@ defmodule PortfolixirWeb.UiAuthTest do
   import Phoenix.LiveViewTest
 
   alias Portfolixir.Auth.Throttle
+  alias PortfolixirWeb.UiAuth
 
   @password "correct-horse-battery-staple"
 
@@ -36,6 +37,13 @@ defmodule PortfolixirWeb.UiAuthTest do
     html = conn |> get("/login") |> html_response(200)
     refute html =~ ~s(name="session[password]")
     assert html =~ "PORTFOLIXIR_UI_PASSWORD"
+
+    # With nothing configured no candidate is valid, and a session that is
+    # not a map carries no flag.
+    refute UiAuth.valid_password?("anything")
+    refute UiAuth.valid_password?(nil)
+    refute UiAuth.authenticated?(nil)
+    assert UiAuth.safe_return_path(nil) == "/"
   end
 
   describe "with a password configured" do
