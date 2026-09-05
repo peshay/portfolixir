@@ -16,9 +16,10 @@ read side by side.
 This is the PM triage per ADR-0038: dedup against the pipeline, the decisions
 the owner has to make, a batch, and the issues to file once it is adopted.
 
-**Status: proposed.** Owner action: sign or overrule D-1 to D-4 in Part 2
-(D-1 is drafted as ADR-0045 for signature), and adopt or reshape the batch in
-Part 3. Nothing is filed until then.
+**Status: ADOPTED 2026-09-05** — owner sign-off on PR #756 ("mach es so"),
+which per this document's own terms signs **ADR-0045** (D-1 and D-2) and
+accepts **D-3** and **D-4** as recommended. The tracker and the issues in
+Part 4 were filed the same day: **#757** (E21 tracker) and **#758–#772**.
 
 ---
 
@@ -93,7 +94,8 @@ Nothing else in the review duplicates an open issue. #354, #328, #330, #332,
 Four, each with a recommendation. D-1 is a decision gate under ADR-0026 step 1
 and is drafted as **ADR-0045** for signature; D-2 rides inside it as a
 section, because it is the same conversation. D-3 and D-4 are recorded here
-and are overrulable by one sentence on the PR.
+and are overrulable by one sentence on the PR. **All four signed 2026-09-05**
+(owner, on PR #756); ADR-0045 is Accepted.
 
 ### D-1 — Optional built-in authentication for the web UI (OQ-8). **Recommend: yes, opt-in.**
 
@@ -151,7 +153,7 @@ own order — the perimeter first, because every later item's severity depends
 on it. Sizes are rough agent-days; the total is about seven, which is one
 sprint with Lane C and Lane D deliberately pushed to the next.
 
-### Lane P — the perimeter (no gate; H2, H3, M1, M5, L4, L8) — ~1.5 days
+### Lane P — the perimeter (no gate; H2, H3, M1, M5, L4, L8) — ~1.5 days — #758, #759, #760, #761
 
 - **Host guard.** A plug before the router that accepts only the configured
   hosts (`PHX_HOST`, `localhost`, `127.0.0.1`, extendable by environment) and
@@ -179,7 +181,7 @@ sprint with Lane C and Lane D deliberately pushed to the next.
 places a wrong value locks the operator out. The briefing shows the exact
 environment an operator behind a reverse proxy needs.
 
-### Lane S — outbound requests (no gate; H4, L5) — ~1 day
+### Lane S — outbound requests (no gate; H4, L5) — ~1 day — #762, #763
 
 - **URL validation in `LogoStore`**, where both the API and the UI paths
   meet: `https` only, no userinfo, the host resolved and every address checked
@@ -202,7 +204,7 @@ environment an operator behind a reverse proxy needs.
 **Risk-tier callout:** the validator is deny-by-default; the test table is the
 invariant.
 
-### Lane A — optional UI authentication (gated by D-1 / ADR-0045; H1) — ~1 day
+### Lane A — optional UI authentication (ADR-0045 signed; H1) — ~1 day — #764, #765
 
 - The plug, the `on_mount`, the login form, the logout, the session flag the
   socket inherits; `ConnCase` and `LiveViewTest` coverage for unset, wrong and
@@ -215,7 +217,7 @@ invariant.
 - Documentation: `docs/home-deployment.md` and the docs index sentence that
   today says "unauthenticated by design".
 
-### Lane V — provenance (gated by D-4; M3, L7) — ~1 day
+### Lane V — provenance (D-4 signed; M3, L7) — ~1 day — #766, #767
 
 - `Transaction.import_changeset/2` for the applier; the public changeset
   drops `import_hash` and rejects it on update. Pinned by an API test that
@@ -234,7 +236,7 @@ invariant.
 **Risk-tier callout:** import idempotency. The applier suite plus the new
 rejection test are the invariant.
 
-### Lane I — import robustness (no gate; M4, L9, the import half of L3) — ~1 day
+### Lane I — import robustness (no gate; M4, L9, the import half of L3) — ~1 day — #768, #769
 
 - Non-finite decimals rejected in `Imports.Decimals`; catch-all clauses for
   the JSON parser's date, time, security and unit shapes; the parser
@@ -249,7 +251,7 @@ rejection test are the invariant.
   them, next to `skipped_entries`.
 - The two `inspect` fallbacks in the import view replaced by named messages.
 
-### Lane W — web and API hygiene (no gate; L1, L2, L3, L6) — ~1 day
+### Lane W — web and API hygiene (no gate; L1, L2, L3, L6) — ~1 day — #770, #771
 
 - Bucket colour validated like category colour.
 - The chart tooltip built with `textContent`, the way the sunburst tooltip
@@ -268,7 +270,7 @@ The three inline scripts into one static file, inline handlers into hooks,
 because it touches every page's boot path and deserves the closing act's
 full browser conditions on its own, not at the tail of a perimeter batch.
 
-### Lane D — dependencies (gated by D-3; M6, L11) — ~1 day, **next batch**
+### Lane D — dependencies (D-3 signed; M6, L11) — ~1 day, **next batch** — #772
 
 Bandit for Cowboy as its own commit group with the browser-verified closing
 act; the Hex pin and its CI comment removed; Actions pinned to SHAs with the
@@ -293,15 +295,15 @@ Lane D's SHA pinning can ride here if Lane D is cut.
 ```
 Lane P: Compose/prod ──▶ Host guard, loopback, cookies ──▶ token hygiene
 Lane S: validator + tests ──▶ discovery allow-list ──▶ bounds, encoding, bytes
-Lane A: ADR-0045 signed ──▶ plug + on_mount ──▶ confirmations, docs
-Lane V: D-4 signed ──▶ import changeset ──▶ author from actor ──▶ attributes ──▶ journal guard
+Lane A: #764 plug + on_mount ──▶ #765 confirmations, docs
+Lane V: #766 import changeset ──▶ author from actor ──▶ attributes ──▶ #767 journal guard
 Lane I, Lane W: independent, any time
 Lane Z: registry row when the branch opens; NFR-4 wording after D-1
 Next batch: Lane C (#382), Lane D (D-3)
 ```
 
-Lanes P and S never wait on a signature; they can start the day the batch is
-adopted. Lanes A and V wait on D-1 and D-4, which this PR asks for.
+No lane waits on a signature any more: D-1 to D-4 were signed on adoption,
+so every lane can start the day the batch branch opens.
 
 ### Shrink order (cut from the bottom, name the cut in the briefing)
 
@@ -349,33 +351,36 @@ report can be filed as an internal note or discarded.
 
 ---
 
-## Part 4 — Issues to file when the batch is adopted
+## Part 4 — The work ledger (filed 2026-09-05 on adoption)
 
-A tracker plus thin pointers, filed together on the day the branch opens so
-the public window between naming a weakness and fixing it is one batch, not
-a backlog age. Titles only; each body is one paragraph and a link to the
-lane above.
+A tracker plus thin pointers, filed together on the day of adoption so the
+public window between naming a weakness and fixing it is one batch, not a
+backlog age. Each body is one paragraph and a link to its lane above.
 
-- **Epic — Security hardening: perimeter, egress, provenance (tracking)** —
-  E21's tracker, `tracking` label.
-- Lane P: *Host header guard and loopback-by-default in production*; *Session
-  cookie attributes, derived salts, opt-in HSTS behind a proxy*; *Production
-  Compose file and image hardening*; *Bearer-token hygiene on both surfaces*.
-- Lane S: *Validate operator-supplied and discovered logo URLs before
-  fetching*; *Bounds, encoding and byte checks on outbound clients*.
-- Lane A (after ADR-0045): *Optional single-password authentication for the
-  web UI*; *Confirmations on the four bare destructive events*.
-- Lane V (after D-4): *Provenance fields set by the system, not the caller*;
-  *Journal guard coverage of the view, bucket and snapshot tables*.
-- Lane I: *Import parser robustness against malformed exports, row cap and
-  preview-store budget*; *Report skipped import rows with their reason*.
-- Lane W: *Bucket colour validation, tooltip construction, API error
-  messages*; *Default and maximum limits on list reads and the quote upsert*.
-- #382 is amended (Lane C shape), not refiled. Lane D becomes an issue when
-  D-3 is signed: *Replace Cowboy with Bandit*.
+- **#757 — Epic — Security hardening: perimeter, egress, provenance
+  (tracking)**, E21's tracker.
+- Lane P: **#758** Host header guard and loopback-by-default in production;
+  **#759** session cookie attributes, derived salts, opt-in HSTS behind a
+  proxy; **#760** production Compose file and image hardening; **#761**
+  bearer-token hygiene on both surfaces.
+- Lane S: **#762** validate operator-supplied and discovered logo URLs before
+  fetching; **#763** bounds, encoding and byte checks on outbound clients.
+- Lane A: **#764** optional single-password authentication for the web UI
+  (ADR-0045); **#765** confirmations on the four bare destructive events.
+- Lane V: **#766** provenance fields set by the system, never by the caller;
+  **#767** journal guard coverage of the view, bucket-assignment and snapshot
+  tables.
+- Lane I: **#768** import parser robustness, row cap and preview-store
+  budget; **#769** report skipped import rows with their reason.
+- Lane W: **#770** bucket colour validation, tooltip construction, API error
+  messages; **#771** default and maximum limits on list reads, the quote
+  upsert and the API auth pipeline.
+- Lane D (next batch): **#772** replace Cowboy with Bandit. #382 is amended
+  in place with the Lane C shape, not refiled.
 
 All `agentic`. None `needs-uat`: the closing act's browser conditions cover
-the two lanes with visible surface (A and P's cookie change).
+the two lanes with visible surface (A and P's cookie change). Lane Z adds the
+E21 Tracker Index line and the `epic-21` key when the batch branch opens.
 
 ---
 
@@ -400,9 +405,9 @@ per lane.
 changes what the product says about itself in README, docs and NFR-4, and it
 is the answer to an open question the owner has kept open since June for a
 reason. The deployment contract rides with it because the two are one
-conversation: what an adopter gets, and what they have to do. Sign it, amend
-it, or reject it.
+conversation: what an adopter gets, and what they have to do. **Signed
+2026-09-05.**
 
 **Not mine, but small: D-3 and D-4.** One is a dependency change, which the
 project context makes a reviewed decision; the other narrows a signed ADR's
-surface. Both are recommended, both are one sentence to overrule.
+surface. **Both accepted as recommended, 2026-09-05.**

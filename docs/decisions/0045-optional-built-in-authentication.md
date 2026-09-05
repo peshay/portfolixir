@@ -6,9 +6,9 @@ description: The web UI stays unauthenticated by default and becomes authenticat
 
 # ADR-0045: optional built-in authentication for the web UI, and the deployment contract that goes with it
 
-- **Status:** Proposed (drafted 2026-09-05 for owner signature, decision gate
+- **Status:** Accepted (owner sign-off 2026-09-05 on PR #756, decision gate
   per [ADR-0026](0026-epic-batch-workflow.html) step 1)
-- **Date:** 2026-09-05
+- **Date:** 2026-09-05 (signed the same day)
 - **Answers:** OQ-8 (built-in auth as a deployment assumption, open since the
   2026-06-12 PRD) and D-1/D-2 of the 2026-09-05 security review triage
   (`_bmad-output/planning-artifacts/security-review-triage-2026-09-05.md`).
