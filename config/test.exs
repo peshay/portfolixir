@@ -22,6 +22,10 @@ config :portfolixir, PortfolixirWeb.Endpoint,
     "test_secret_key_base_which_should_be_changed_in_production_and_is_long_enough_for_sessions",
   server: server_enabled
 
+# Plug.Test builds every conn with host "www.example.com" (#758).
+config :portfolixir, PortfolixirWeb.HostGuard,
+  hosts: ["www.example.com", "localhost", "127.0.0.1"]
+
 config :logger, level: :warning
 
 config :phoenix, :plug_init_mode, :runtime
