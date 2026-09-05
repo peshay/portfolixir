@@ -93,6 +93,42 @@ defmodule Portfolixir.RuntimeConfig do
 
   def force_ssl_opts(_value), do: false
 
+  @min_token_bytes 32
+  @placeholder_prefixes ~w(dev-api-token dev-mcp-token test-api-token replace change secret token password example)
+
+  @doc """
+  The bearer token a production instance boots with (#761): at least 32 bytes
+  and not one of the placeholders the example files ship. Raises with the
+  variable's name so the fix is obvious from the log.
+  """
+  @spec validate_api_token!(String.t() | nil) :: String.t()
+  def validate_api_token!(token) when is_binary(token) do
+    cond do
+      byte_size(token) < @min_token_bytes ->
+        raise ArgumentError,
+              "PORTFOLIXIR_API_TOKEN must be at least #{@min_token_bytes} bytes " <>
+                "(got #{byte_size(token)}); generate one with `openssl rand -base64 48`"
+
+      placeholder?(token) ->
+        raise ArgumentError,
+              "PORTFOLIXIR_API_TOKEN is a placeholder value; generate a real token " <>
+                "with `openssl rand -base64 48`"
+
+      true ->
+        token
+    end
+  end
+
+  def validate_api_token!(_missing) do
+    raise ArgumentError,
+          "PORTFOLIXIR_API_TOKEN is required; generate one with `openssl rand -base64 48`"
+  end
+
+  defp placeholder?(token) do
+    lowered = String.downcase(token)
+    Enum.any?(@placeholder_prefixes, &String.starts_with?(lowered, &1))
+  end
+
   defp truthy?(value) do
     value
     |> String.trim()

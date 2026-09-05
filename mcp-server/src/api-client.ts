@@ -4,6 +4,8 @@ export interface ApiClientOptions {
   baseUrl: string;
   token: string;
   fetch?: FetchLike;
+  /** Upstream deadline per request in milliseconds (#761); default 30 s. */
+  timeoutMs?: number;
 }
 
 export interface ApiClient {
@@ -13,9 +15,12 @@ export interface ApiClient {
 export function createApiClient(options: ApiClientOptions): ApiClient {
   const fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
   const baseUrl = options.baseUrl.replace(/\/+$/, "");
+  const timeoutMs = options.timeoutMs ?? 30_000;
 
   return {
     async request(method: string, path: string, body?: unknown): Promise<unknown> {
+      // A hung upstream must not hang the tool call: every request carries a
+      // deadline (#761).
       const response = await fetchImpl(`${baseUrl}${path}`, {
         method,
         headers: {
@@ -23,7 +28,8 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
           "content-type": "application/json",
           authorization: `Bearer ${options.token}`
         },
-        body: body === undefined ? undefined : JSON.stringify(body)
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal: AbortSignal.timeout(timeoutMs)
       });
 
       const payload = await parseJson(response);

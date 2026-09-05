@@ -31,6 +31,12 @@ if config_env() == :prod do
   # instance without TLS keeps working.
   config :portfolixir, :force_ssl, Portfolixir.RuntimeConfig.force_ssl_opts()
 
+  # The agent's credential is checked at boot (#761): length and no
+  # placeholder, with the variable named in the failure.
+  config :portfolixir,
+         :api_token,
+         Portfolixir.RuntimeConfig.validate_api_token!(System.get_env("PORTFOLIXIR_API_TOKEN"))
+
   config :portfolixir, Portfolixir.Repo,
     url: System.fetch_env!("DATABASE_URL"),
     ssl: Portfolixir.RuntimeConfig.database_ssl?(),
