@@ -217,13 +217,13 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | FR-34 | #600, #601 | ADR-0029 accepted 2026-07-22 — identity ladder + alias record, risk-tier |
 | FR-35 | #602 | ADR-0029 §6 verdict: build the read-only reconcile endpoint |
 | FR-36 | #612 (gate), #621–#625 | recorded tax-statement snapshots — ADR-0031 accepted 2026-07-25. Stories 19.2–19.6 shipped: configuration layer, snapshot table, consistency engine, API/MCP parity, entry surface + EN/DE docs. Forward projection and `tax_bucket` (19.7) are deferred behind a separate gate |
-| FR-37 | #665 | read ergonomics — sparse fieldsets, roll-up-only aggregates, server-side threshold filters. **Shipped 2026-08-14 (Sprint 6, PR #688)** with the −70 % volume cut pinned by test. Supersedes FR-33's scope lock for this family only. Human-view status after Sprint 7 (PR #716): the **threshold half is discharged** — drift-threshold chips on the allocation table share one predicate (`Allocation.drift_at_least?/2`) with the API's `min_drift=`; the **roll-up half is discharged by #712** (shipped). The last obligation — the `fields=` column picker on the transactions and holdings lists (#732) — **shipped 2026-08-22 (Sprint 8, PR #735)**: key-scoped pickers on both tables, `fields=` on `GET /api/v1/securities` and the MCP tool, a sparse fieldset superseding `projection`. FR-37 is fully discharged in both directions on the endpoints it reached — and the 2026-08-27 agent round found that it did not reach all of them: `views.valuation` takes no `include_positions` in either half, and `targets.list_positions` has no threshold filter (**#740**). The requirement is done; its surface is not, which is the same shape as the human-view debt on a second axis |
+| FR-37 | #665 | read ergonomics — sparse fieldsets, roll-up-only aggregates, server-side threshold filters. **Shipped 2026-08-14 (Sprint 6, PR #688)** with the −70 % volume cut pinned by test. Supersedes FR-33's scope lock for this family only. Human-view status after Sprint 7 (PR #716): the **threshold half is discharged** — drift-threshold chips on the allocation table share one predicate (`Allocation.drift_at_least?/2`) with the API's `min_drift=`; the **roll-up half is discharged by #712** (shipped). The last obligation — the `fields=` column picker on the transactions and holdings lists (#732) — **shipped 2026-08-22 (Sprint 8, PR #735)**: key-scoped pickers on both tables, `fields=` on `GET /api/v1/securities` and the MCP tool, a sparse fieldset superseding `projection`. FR-37 is fully discharged in both directions on the endpoints it reached — and the 2026-08-27 agent round found that it did not reach all of them: `views.valuation` takes no `include_positions` in either half, and `targets.list_positions` has no threshold filter (**#740**). The requirement is done; its surface is not, which is the same shape as the human-view debt on a second axis. **#740 shipped 2026-09-03 (Sprint 9, PR #754)**: `include_positions` on `GET /views/:id/valuation` and `min_drift` on `GET /portfolios/:id/position_targets`, both halves, through one parser and the allocation's own drift predicate; the close-out's surface check names every endpoint of both families as carrying its parameter. FR-37 is discharged on every read it applies to |
 | FR-38 | #666 | `?since=` delta reads. **Shipped 2026-08-14 (Sprint 6, PR #688)**, pull-only with the B3.7 boundary pinned by test; the push half stays gated at B3.7. The human view (#731) **shipped 2026-08-22 (Sprint 8, PR #735)**: `?since=` on the transactions and securities lists with one-tap windows, sharing the API's own `SinceParam`, the deletions clause stated on the surface. FR-38's pull half is discharged in both directions; the push half stays gated at B3.7 |
 | FR-39, FR-40 | — (mechanism: #710, #711) | derived metrics per security / per view (ladder (a)). **Ungated by the ladder**, no issue yet — depended on the derived-value ADR (gate B3.2) for where the values live; ADR-0039 accepted 2026-08-12 supplies that home, and **the mechanism landed 2026-08-14 (C1–C5, Sprint 6, PR #688)** — these are issue-ready now. **#710 and #711 shipped 2026-08-19 (Sprint 7, PR #716)** — the refresh now runs on the invalidating write, coalesced (one refresh per basis on an import, mutation-verified), and the cross-portfolio walk is activated `:durable` on measured figures (recorded in ADR-0039). These were the mechanism, not the metrics: filing FR-39/FR-40 themselves is still open |
 | FR-41, FR-42 | — | contribution analysis; factor/sector/region exposure (ladder (b)). **Ungated by the ladder**, no issue yet |
 | FR-43 | — | policy rules as objects. **Gated: B3.6**, needs its own ADR (rules engine + rule-history retention) |
 | FR-44 | — | security events as objects. **Gated: B3.4**; automatic population is B3.3. Distinct from ADR-0028 corporate actions |
-| FR-45, FR-46 | **#747** (E20 tracker; #748–#752), gate **ADR-0044** Accepted | thesis/conviction (**B4.1**) and prediction (**B4.2**) objects. Decided in principle by the identity gate. **FR-45's gate is signed**: ADR-0044 (2026-08-27, owner sign-off 2026-09-03) decides the thesis state and the append-only research log behind it as one object family — the log is the truth, the state is its projection, a retraction is an entry rather than a deletion. **Scheduled as Sprint 9 Lane A (E20)**: #748 the `security_notes` table and context, journal-armed at creation; #749 the thesis state as a projection in the security read; #750 API and MCP append plus the four reads; #751 the research timeline on the security detail pane (the signed same-batch clause); #752 the contract-version read. FR-46 stays at B4.2, adjacent and deliberately separate |
+| FR-45, FR-46 | **#747** (E20 tracker; #748–#752), gate **ADR-0044** Accepted | thesis/conviction (**B4.1**) and prediction (**B4.2**) objects. Decided in principle by the identity gate. **FR-45's gate is signed**: ADR-0044 (2026-08-27, owner sign-off 2026-09-03) decides the thesis state and the append-only research log behind it as one object family — the log is the truth, the state is its projection, a retraction is an entry rather than a deletion. **Shipped 2026-09-03 (Sprint 9, PR #754, E20 done)**: #748 the `security_notes` table and context, journal-armed at creation; #749 the thesis state as a projection in the security read; #750 API and MCP append plus the four reads; #751 the research timeline on the security detail pane (the signed same-batch clause); #752 the contract-version read. FR-46 stays at B4.2, adjacent and deliberately separate |
 | FR-47, FR-48 | — | calibration report (needs FR-46); rule evaluation (needs FR-43). Ladder (c) — scores what was recorded before the outcome was known, never a replayed counterfactual, which is level (d) |
 | NFR-9 | — | mechanical scope backstop — guarded set revised 2026-08-12. **Unbuilt requirement, not inventory:** only `mcp_dependency_allowlist_test` exists of the three named backstops |
 | NFR-10 | — | machine-extracted data is a proposal until confirmed; first binding use is ADR-0021 PDF intake |
@@ -608,6 +608,36 @@ and the design-engagement issues #717–#721/#723 attach to #356.
 Retrospective: `sprint-7-retro-2026-08-19.md`. Close-out ledger and the
 process findings live there and in `sprint-status.yaml`'s log; this section
 records only what changed in the requirement registry.
+
+## Implementation Status — reconciled with code (2026-09-03, Sprint 9 close-out)
+
+Verification basis: the merge commits on `main` (8771702..6de32ff, PR #754
+rebase-merged, 17 commits linear), the Actions runs on the merge push
+(verified green), and the post-merge open-issue list.
+
+**Shipped by Sprint 9** — ten issues closed by the merge's keywords: the
+E20 knowledge batch under ADR-0044 (#748 the append-only `security_notes`
+log journal-armed at creation, #749 the thesis state as a projection in the
+security read, #750 append and the four reads over API and MCP, #751 the
+Research tab on the detail pane in the same batch, #752 the contract-version
+read with its inventory meta-test; tracker #747), the agent-round debt (#740
+FR-37 on the view and position scopes, #741 the re-import guarantee
+documented, #738 the README levelled), and the historical FX gap (#737, D-1:
+the ECB series as a one-shot backfill, `scope=history`, a live control in the
+Cash-flow exclusion notes). Sprint 9's Lane Z added the **surface check**
+clause to AGENTS.md step 5 and `Portfolixir.Knowledge` to the architecture.
+
+**The FR Coverage Map above is updated in this pass** (FR-37 row: #740
+shipped, the family discharged on every read; FR-45 row: shipped, E20 done).
+The two-way-coverage ledger stays **empty**: every agent-visible capability
+of the batch shipped with its human view. Deliberately not closed: #727
+(both toolchain halves blocked upstream; triggers re-checked, none fired).
+FR-46 stays at gate B4.2; FR-39/FR-40 remain issue-ready and unfiled — the
+research log now gives derived metrics a place to be cited from.
+
+Retrospective: `sprint-9-retro-2026-09-03.md`. Close-out ledger and process
+findings live there and in `sprint-status.yaml`'s log; this section records
+only what changed in the requirement registry.
 
 ## Implementation Status — reconciled with code (2026-08-22, Sprint 8 close-out)
 
