@@ -206,7 +206,7 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | NFR-1 | #347, #348, #314, #344 | correctness suites + gates |
 | NFR-2 | #353 | auditability = audit journal |
 | NFR-3 | #346, #347, #350 | AI-agentic guards |
-| NFR-4–6 | — | foundational (security, self-hosted, single-user) |
+| NFR-4–6 | **#757** (E21 tracker; #758–#772), gate **ADR-0045** Accepted 2026-09-05 | foundational (security, self-hosted, single-user). **NFR-4's perimeter is E21's scope** (Sprint 10): Host guard, loopback by default, session hardening, production Compose, optional built-in UI authentication (OQ-8 answered by ADR-0045), outbound request bounds, system-set provenance |
 | NFR-7 | #313 | localization / docs site |
 | NFR-8 | #562 (ADR-0032), #619 (ADR-0035) | cross-cutting perf; watch in perf-sensitive stories. ADR-0032 accepted 2026-07-29 — the daily TTWROR walk is memoized in volatile memory with warm-up, targeted invalidation and a labelled stale-serve. **#619 shipped 2026-08-04** (ADR-0035): the redundancy was removed rather than cached — market data is preloaded once per read and threaded through every valuation and allocation, replacing six re-derivations and hundreds of per-row lookups. Measured A/B: the warm dashboard block 1,105 ms → 265 ms and 2,614 → 115 queries, output identical. Nothing is memoized by this change; ADR-0032's memo is untouched |
 | UX-DR1–20 | **#356** (tracker) + #414, #672 open, plus #701–#704, #707 filed 2026-08-15; #412, #491, #560, #565, #566 shipped | UX/a11y tracker. Rules are defined in `design-language/EXPERIENCE.md` and `DESIGN.md`, not in this document (ADR-0038). **Sprint 7 (PR #716, merged 2026-08-19) closed #414, #672, #701–#704, #706 and #707**; the 2026-08-18 design engagement filed #717–#721 and #723, and the Sprint-7 walkthrough filed #729 and #730 — all attach here. **Sprint 8 (PR #735, merged 2026-08-22) closed all eight** (#717–#721, #723, #729, #730) and added UX-DR25 (an excluded row is named where the total is read) and UX-DR26 (a deliberate limit is stated on the surface that lacks it) to the living spec. #336, #337, #339, #319 and #606 are closed. **#606 shipped 2026-08-04** — the impersonal microcopy voice rule, applied retroactively to all pre-rule UI strings and the EN/DE docs, and now part of DR11 rather than only an agent rule. DR15–DR20 were added by the 2026-08-05 design session; the alignment stories are cut from the spec |
@@ -841,3 +841,15 @@ issue state and the merge commits on `main`.
   days), the human timeline lands in the same batch, the table is journaled
   from its first migration, and the surface gains a contract-version read so
   an agent can notice the contract changed. FR-45 (FR-46 stays at B4.2).
+- **E21 — Security hardening: perimeter, egress, provenance** — *cross-cutting,
+  now.* Tracker **#757** (#758–#772); decisions in **ADR-0045** (signed
+  2026-09-05) and the 2026-09-05 security review triage (D-3, D-4), scheduled
+  by the Sprint 10 plan. The 2026-09-03 whole-system review found the system
+  sound inside its trust boundary and the boundary itself unenforced: prod
+  binds every interface, the documented deployment is the development
+  configuration, nothing validates the request's Host, and an operator-supplied
+  URL is fetched unchecked. The epic makes the perimeter real (Host guard,
+  loopback by default, hardened session, production Compose, optional
+  single-password UI authentication), bounds every outbound request, makes
+  provenance fields system-set, and hardens the import parsers. CSP (#382) and
+  the Bandit swap (#772) follow in the next batch. NFR-4, NFR-2, NFR-10.
