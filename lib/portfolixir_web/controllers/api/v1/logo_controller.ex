@@ -94,8 +94,14 @@ defmodule PortfolixirWeb.Api.V1.LogoController do
     |> json(%{errors: %{logo: [to_string_reason(reason)]}})
   end
 
+  # Fixed messages only (#762): the endpoint must be neither a way into the
+  # operator's network nor an oracle for what answers there, so no status, no
+  # address and no inspected term leaves this function.
   defp to_string_reason(:unsupported_content_type), do: "unsupported image type"
   defp to_string_reason(:too_large), do: "image is too large"
-  defp to_string_reason({:http_status, status}), do: "download failed (HTTP #{status})"
-  defp to_string_reason(reason), do: "could not store logo: #{inspect(reason)}"
+
+  defp to_string_reason({:url_not_allowed, _reason}),
+    do: "image URL not allowed: use a public https address"
+
+  defp to_string_reason(_reason), do: "could not download the image"
 end

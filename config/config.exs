@@ -32,6 +32,18 @@ config :portfolixir, Portfolixir.Catalog.QuoteSync,
     "portfolio_performance" => Portfolixir.Catalog.QuoteSync.Yahoo
   }
 
+# Every server-side fetch of a caller- or provider-supplied URL passes
+# Portfolixir.Net.UrlPolicy (#762): https only, public addresses only, and for
+# the discovery sources the provider's own image hosts only. `.domain` entries
+# match subdomains; `:any` skips the host check but never the address check.
+config :portfolixir, Portfolixir.Catalog.LogoStore,
+  allowed_hosts: %{
+    coingecko: [".coingecko.com"],
+    wikipedia: ["upload.wikimedia.org", "commons.wikimedia.org", ".wikipedia.org"],
+    companieslogo: ["companieslogo.com", ".companieslogo.com"],
+    manual: :any
+  }
+
 config :portfolixir, Portfolixir.Fx.RateSync,
   enabled?: false,
   interval_ms: 12 * 60 * 60 * 1000,
