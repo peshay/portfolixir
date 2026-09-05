@@ -83,6 +83,7 @@ defmodule PortfolixirWeb.Securities.LogoOverrideDialog do
             phx-click="remove_logo_override"
             phx-value-id={@security.id}
             disabled={not @status.has_logo and @status.locked}
+            data-confirm={gettext("Remove the logo and lock the security to none?")}
           >
             <%= gettext("Remove logo") %>
           </button>

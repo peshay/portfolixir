@@ -4,7 +4,9 @@ defmodule PortfolixirWeb.LayoutView do
   def render("root.html", assigns) do
     conn = assigns[:conn]
     locale = assigns[:locale] || (conn && conn.assigns[:locale]) || "en"
-    assigns = assign(assigns, :locale, locale)
+    # A plain Map.put: the root layout is rendered both by LiveView (tracked
+    # assigns) and by the session controller (a plain map, #764).
+    assigns = Map.put(assigns, :locale, locale)
 
     ~H"""
     <!DOCTYPE html>
@@ -963,7 +965,10 @@ defmodule PortfolixirWeb.LayoutView do
                     }
                     return;
                   }
-                  if (event.target.closest("[data-unassign-selected]")) {
+                  var unassignButton = event.target.closest("[data-unassign-selected]");
+                  if (unassignButton) {
+                    var confirmText = unassignButton.getAttribute("data-confirm");
+                    if (confirmText && !window.confirm(confirmText)) { return; }
                     var uids = selectedIds();
                     if (uids.length) {
                       self.pushEvent("unassign_many", {

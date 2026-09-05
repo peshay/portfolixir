@@ -140,6 +140,7 @@ defmodule PortfolixirWeb.Securities.RowContextMenu do
         phx-click="row_action"
         phx-value-action="delete"
         phx-value-id={@security.id}
+        data-confirm={gettext("Delete this security? Its bookings block the deletion; its notes and logo do not survive it.")}
       >
         <AppShell.icon name={:trash} />
         <span><%= gettext("Delete") %></span>

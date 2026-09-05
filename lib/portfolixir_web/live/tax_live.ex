@@ -533,6 +533,7 @@ defmodule PortfolixirWeb.TaxLive do
                 class="button button-secondary"
                 phx-click="delete_allowance_order"
                 phx-value-id={order.id}
+                data-confirm={gettext("Delete this allowance order?")}
               >
                 <%= gettext("Delete") %>
               </button>

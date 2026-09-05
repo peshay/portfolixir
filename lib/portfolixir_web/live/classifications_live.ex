@@ -261,7 +261,12 @@ defmodule PortfolixirWeb.ClassificationsLive do
             <button type="button" class="button" data-move-selected>
               <%= gettext("Move to category") %>
             </button>
-            <button type="button" class="button-danger" data-unassign-selected>
+            <button
+              type="button"
+              class="button-danger"
+              data-unassign-selected
+              data-confirm={gettext("Unassign the selected securities from this classification?")}
+            >
               <%= gettext("Unassign") %>
             </button>
             <button type="button" data-clear-selection><%= gettext("Clear") %></button>

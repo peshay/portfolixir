@@ -154,6 +154,10 @@ defmodule PortfolixirWeb.AppShell do
               </div>
             </details>
 
+            <a :if={PortfolixirWeb.UiAuth.enabled?()} class="button-ghost logout-link" href="/logout">
+              <%= gettext("Log out") %>
+            </a>
+
             <nav class="locale-switcher" aria-label={gettext("Language")}>
               <%= for locale <- [{"en", "EN"}, {"de", "DE"}] do %>
                 <a

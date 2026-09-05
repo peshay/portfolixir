@@ -10,6 +10,19 @@ defmodule PortfolixirWeb.Router do
     plug(:put_root_layout, html: {PortfolixirWeb.LayoutView, :root})
     plug(:protect_from_forgery)
     plug(:put_secure_browser_headers)
+    # Optional UI login (ADR-0045 §1, #764): a no-op until a password is set.
+    plug(PortfolixirWeb.RequireUiAuth)
+  end
+
+  # The login and logout routes: the browser pipeline without the login gate.
+  pipeline :browser_open do
+    plug(:accepts, ["html"])
+    plug(:fetch_session)
+    plug(:fetch_cookies)
+    plug(PortfolixirWeb.Locale)
+    plug(:put_root_layout, html: {PortfolixirWeb.LayoutView, :root})
+    plug(:protect_from_forgery)
+    plug(:put_secure_browser_headers)
   end
 
   pipeline :api do
@@ -25,7 +38,11 @@ defmodule PortfolixirWeb.Router do
     pipe_through(:browser)
 
     live_session :browser,
-      on_mount: [PortfolixirWeb.LiveLocale, PortfolixirWeb.LiveViewScope] do
+      on_mount: [
+        PortfolixirWeb.LiveUiAuth,
+        PortfolixirWeb.LiveLocale,
+        PortfolixirWeb.LiveViewScope
+      ] do
       live("/", DashboardLive)
       live("/portfolio", PortfolioLive)
       live("/securities", SecuritiesLive)
@@ -49,6 +66,15 @@ defmodule PortfolixirWeb.Router do
     # UX-DR4, #672: Income was promoted to the Cash-flow area. The old route
     # keeps working so existing links and bookmarks survive the rename.
     get("/income", RedirectController, :cashflow)
+  end
+
+  scope "/", PortfolixirWeb do
+    pipe_through(:browser_open)
+
+    get("/login", SessionController, :new)
+    post("/login", SessionController, :create)
+    get("/logout", SessionController, :delete)
+    post("/logout", SessionController, :delete)
   end
 
   scope "/", PortfolixirWeb do
