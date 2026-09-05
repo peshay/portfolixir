@@ -43,6 +43,10 @@ defmodule PortfolixirWeb.SessionController do
     end
   end
 
+  # A GET never changes state: the logout link opens this one-button page,
+  # and the button posts (with its CSRF token) to `delete/2`.
+  def confirm_logout(conn, _params), do: render(conn, :confirm_logout)
+
   def delete(conn, _params) do
     conn
     |> configure_session(drop: true)

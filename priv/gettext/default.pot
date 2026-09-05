@@ -433,6 +433,7 @@ msgstr ""
 msgid "Apply filter"
 msgstr ""
 
+#: lib/portfolixir_web/controllers/session_html.ex:16
 #: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:196
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:251
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:418
@@ -2410,7 +2411,7 @@ msgstr ""
 msgid "is unclassified"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:1277
+#: lib/portfolixir_web/live/imports_live.ex:1275
 #, elixir-autogen, elixir-format
 msgid "Row %{row}: %{errors}"
 msgstr ""
@@ -3655,7 +3656,7 @@ msgstr ""
 msgid "August"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:1288
+#: lib/portfolixir_web/live/imports_live.ex:1286
 #, elixir-autogen, elixir-format
 msgid "Bucket tag: %{errors}"
 msgstr ""
@@ -4295,7 +4296,7 @@ msgstr ""
 msgid "A likely match differs on a stronger identifier — possibly an ISIN change that has not been recorded yet. Map it explicitly (optionally recording the ISIN change) or create a new security."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:1293
+#: lib/portfolixir_web/live/imports_live.ex:1291
 #, elixir-autogen, elixir-format
 msgid "A selected security no longer exists — review the security mapping and confirm again."
 msgstr ""
@@ -4346,7 +4347,7 @@ msgstr ""
 msgid "Record %{isin} as an ISIN change (the current ISIN %{current} becomes a former-ISIN alias)"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:1299
+#: lib/portfolixir_web/live/imports_live.ex:1297
 #, elixir-autogen, elixir-format
 msgid "Recording the ISIN change failed: %{errors}"
 msgstr ""
@@ -4410,12 +4411,12 @@ msgid_plural "%{count} securities match existing records"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/imports_live.ex:1308
+#: lib/portfolixir_web/live/imports_live.ex:1306
 #, elixir-autogen, elixir-format
 msgid "Creating the security failed: %{errors}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:1341
+#: lib/portfolixir_web/live/imports_live.ex:1339
 #, elixir-autogen, elixir-format
 msgid "Row %{row}: %{message}"
 msgstr ""
@@ -6021,17 +6022,17 @@ msgstr ""
 msgid "The daily rate sync cannot fill a past date. The backfill fetches the historical ECB series once and stores every published day; a day the ECB did not publish stays excluded."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:1313
+#: lib/portfolixir_web/live/imports_live.ex:1311
 #, elixir-autogen, elixir-format
 msgid "Creating the account %{name} failed: %{errors}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:1320
+#: lib/portfolixir_web/live/imports_live.ex:1318
 #, elixir-autogen, elixir-format
 msgid "Creating the portfolio failed: %{errors}"
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:1324
+#: lib/portfolixir_web/live/imports_live.ex:1322
 #, elixir-autogen, elixir-format
 msgid "Import failed. Nothing was written."
 msgstr ""
@@ -6039,11 +6040,6 @@ msgstr ""
 #: lib/portfolixir_web/live/imports_live.ex:511
 #, elixir-autogen, elixir-format
 msgid "Skipped %{n} record(s) already booked:"
-msgstr ""
-
-#: lib/portfolixir_web/live/imports_live.ex:1270
-#, elixir-autogen, elixir-format
-msgid "The file could not be imported."
 msgstr ""
 
 #: lib/portfolixir_web/live/imports_live.ex:1261
@@ -6071,7 +6067,7 @@ msgstr ""
 msgid "invalid unit amount %{amount}"
 msgstr ""
 
-#: lib/portfolixir_web/controllers/session_html.ex:44
+#: lib/portfolixir_web/controllers/session_html.ex:60
 #, elixir-autogen, elixir-format
 msgid "Continue"
 msgstr ""
@@ -6087,16 +6083,18 @@ msgid "Delete this security? Its bookings block the deletion; its notes and logo
 msgstr ""
 
 #: lib/portfolixir_web/components/app_shell.ex:158
+#: lib/portfolixir_web/controllers/session_html.ex:11
+#: lib/portfolixir_web/controllers/session_html.ex:14
 #, elixir-autogen, elixir-format
 msgid "Log out"
 msgstr ""
 
-#: lib/portfolixir_web/controllers/session_html.ex:40
+#: lib/portfolixir_web/controllers/session_html.ex:56
 #, elixir-autogen, elixir-format
 msgid "No password is configured; the UI is open. Set PORTFOLIXIR_UI_PASSWORD to require one."
 msgstr ""
 
-#: lib/portfolixir_web/controllers/session_html.ex:24
+#: lib/portfolixir_web/controllers/session_html.ex:40
 #, elixir-autogen, elixir-format
 msgid "Password"
 msgstr ""
@@ -6106,8 +6104,8 @@ msgstr ""
 msgid "Remove the logo and lock the security to none?"
 msgstr ""
 
-#: lib/portfolixir_web/controllers/session_html.ex:15
-#: lib/portfolixir_web/controllers/session_html.ex:36
+#: lib/portfolixir_web/controllers/session_html.ex:31
+#: lib/portfolixir_web/controllers/session_html.ex:52
 #, elixir-autogen, elixir-format
 msgid "Sign in"
 msgstr ""
@@ -6122,7 +6120,7 @@ msgstr ""
 msgid "Unassign the selected securities from this classification?"
 msgstr ""
 
-#: lib/portfolixir_web/controllers/session_controller.ex:68
+#: lib/portfolixir_web/controllers/session_controller.ex:72
 #, elixir-autogen, elixir-format
 msgid "Wrong password."
 msgstr ""

@@ -3,6 +3,22 @@ defmodule PortfolixirWeb.SessionHTML do
   use Phoenix.Component
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  def confirm_logout(assigns) do
+    ~H"""
+    <main class="login-page" aria-labelledby="logout-title">
+      <section class="login-card">
+        <p class="login-brand" aria-hidden="true">Portfolixir</p>
+        <h1 id="logout-title"><%= gettext("Log out") %></h1>
+        <form action="/logout" method="post" class="login-form">
+          <input type="hidden" name="_csrf_token" value={Plug.CSRFProtection.get_csrf_token()} />
+          <button type="submit" class="button-primary"><%= gettext("Log out") %></button>
+        </form>
+        <a class="button-ghost" href="/"><%= gettext("Back") %></a>
+      </section>
+    </main>
+    """
+  end
+
   attr(:enabled, :boolean, required: true)
   attr(:return_to, :string, required: true)
   attr(:error, :string, default: nil)
