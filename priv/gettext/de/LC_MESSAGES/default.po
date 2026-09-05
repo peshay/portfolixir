@@ -433,6 +433,7 @@ msgstr "Neu anlegen"
 msgid "Apply filter"
 msgstr "Filter anwenden"
 
+#: lib/portfolixir_web/controllers/session_html.ex:16
 #: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:196
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:251
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:418
@@ -2411,7 +2412,7 @@ msgstr "Logo entfernt"
 msgid "is unclassified"
 msgstr "ist nicht klassifiziert"
 
-#: lib/portfolixir_web/live/imports_live.ex:1277
+#: lib/portfolixir_web/live/imports_live.ex:1275
 #, elixir-autogen, elixir-format
 msgid "Row %{row}: %{errors}"
 msgstr "Zeile %{row}: %{errors}"
@@ -3656,7 +3657,7 @@ msgstr "April"
 msgid "August"
 msgstr "August"
 
-#: lib/portfolixir_web/live/imports_live.ex:1288
+#: lib/portfolixir_web/live/imports_live.ex:1286
 #, elixir-autogen, elixir-format
 msgid "Bucket tag: %{errors}"
 msgstr "Bucket-Tag: %{errors}"
@@ -4296,7 +4297,7 @@ msgstr "%{n} Wertpapiere wurden manuell zugeordnet."
 msgid "A likely match differs on a stronger identifier — possibly an ISIN change that has not been recorded yet. Map it explicitly (optionally recording the ISIN change) or create a new security."
 msgstr "Ein wahrscheinlicher Treffer weicht bei einem stärkeren Identifikator ab — möglicherweise ein noch nicht erfasster ISIN-Wechsel. Ausdrücklich zuordnen (optional mit Erfassen des ISIN-Wechsels) oder ein neues Wertpapier anlegen."
 
-#: lib/portfolixir_web/live/imports_live.ex:1293
+#: lib/portfolixir_web/live/imports_live.ex:1291
 #, elixir-autogen, elixir-format
 msgid "A selected security no longer exists — review the security mapping and confirm again."
 msgstr "Ein ausgewähltes Wertpapier existiert nicht mehr — Wertpapier-Zuordnung prüfen und erneut bestätigen."
@@ -4347,7 +4348,7 @@ msgstr "PP-Wertpapier"
 msgid "Record %{isin} as an ISIN change (the current ISIN %{current} becomes a former-ISIN alias)"
 msgstr "%{isin} als ISIN-Wechsel erfassen (die aktuelle ISIN %{current} wird ein Alt-ISIN-Alias)"
 
-#: lib/portfolixir_web/live/imports_live.ex:1299
+#: lib/portfolixir_web/live/imports_live.ex:1297
 #, elixir-autogen, elixir-format
 msgid "Recording the ISIN change failed: %{errors}"
 msgstr "Das Erfassen des ISIN-Wechsels ist fehlgeschlagen: %{errors}"
@@ -4411,12 +4412,12 @@ msgid_plural "%{count} securities match existing records"
 msgstr[0] "%{count} Wertpapier passt zu bestehenden Einträgen"
 msgstr[1] "%{count} Wertpapiere passen zu bestehenden Einträgen"
 
-#: lib/portfolixir_web/live/imports_live.ex:1308
+#: lib/portfolixir_web/live/imports_live.ex:1306
 #, elixir-autogen, elixir-format
 msgid "Creating the security failed: %{errors}"
 msgstr "Anlegen des Wertpapiers fehlgeschlagen: %{errors}"
 
-#: lib/portfolixir_web/live/imports_live.ex:1341
+#: lib/portfolixir_web/live/imports_live.ex:1339
 #, elixir-autogen, elixir-format
 msgid "Row %{row}: %{message}"
 msgstr "Zeile %{row}: %{message}"
@@ -6022,17 +6023,17 @@ msgstr "Historische Reihe wird geholt…"
 msgid "The daily rate sync cannot fill a past date. The backfill fetches the historical ECB series once and stores every published day; a day the ECB did not publish stays excluded."
 msgstr "Die tägliche Kurssynchronisation kann einen vergangenen Tag nicht nachtragen. Das Nachladen holt die historische EZB-Reihe einmalig und speichert jeden veröffentlichten Tag; ein Tag, den die EZB nicht veröffentlicht hat, bleibt ausgeschlossen."
 
-#: lib/portfolixir_web/live/imports_live.ex:1313
+#: lib/portfolixir_web/live/imports_live.ex:1311
 #, elixir-autogen, elixir-format, fuzzy
 msgid "Creating the account %{name} failed: %{errors}"
 msgstr "Anlegen des Wertpapiers fehlgeschlagen: %{errors}"
 
-#: lib/portfolixir_web/live/imports_live.ex:1320
+#: lib/portfolixir_web/live/imports_live.ex:1318
 #, elixir-autogen, elixir-format, fuzzy
 msgid "Creating the portfolio failed: %{errors}"
 msgstr "Anlegen des Wertpapiers fehlgeschlagen: %{errors}"
 
-#: lib/portfolixir_web/live/imports_live.ex:1324
+#: lib/portfolixir_web/live/imports_live.ex:1322
 #, elixir-autogen, elixir-format
 msgid "Import failed. Nothing was written."
 msgstr "Import fehlgeschlagen. Nichts wurde geschrieben."
@@ -6041,11 +6042,6 @@ msgstr "Import fehlgeschlagen. Nichts wurde geschrieben."
 #, elixir-autogen, elixir-format
 msgid "Skipped %{n} record(s) already booked:"
 msgstr "%{n} bereits gebuchte(r) Datensatz/Datensätze übersprungen:"
-
-#: lib/portfolixir_web/live/imports_live.ex:1270
-#, elixir-autogen, elixir-format
-msgid "The file could not be imported."
-msgstr "Die Datei konnte nicht importiert werden."
 
 #: lib/portfolixir_web/live/imports_live.ex:1261
 #, elixir-autogen, elixir-format
@@ -6072,7 +6068,7 @@ msgstr "ungültige Position %{unit}"
 msgid "invalid unit amount %{amount}"
 msgstr "ungültiger Positionsbetrag %{amount}"
 
-#: lib/portfolixir_web/controllers/session_html.ex:44
+#: lib/portfolixir_web/controllers/session_html.ex:60
 #, elixir-autogen, elixir-format
 msgid "Continue"
 msgstr "Weiter"
@@ -6088,16 +6084,18 @@ msgid "Delete this security? Its bookings block the deletion; its notes and logo
 msgstr "Dieses Wertpapier löschen? Vorhandene Buchungen blockieren das Löschen; Notizen und Logo gehen verloren."
 
 #: lib/portfolixir_web/components/app_shell.ex:158
+#: lib/portfolixir_web/controllers/session_html.ex:11
+#: lib/portfolixir_web/controllers/session_html.ex:14
 #, elixir-autogen, elixir-format, fuzzy
 msgid "Log out"
 msgstr "Abmelden"
 
-#: lib/portfolixir_web/controllers/session_html.ex:40
+#: lib/portfolixir_web/controllers/session_html.ex:56
 #, elixir-autogen, elixir-format
 msgid "No password is configured; the UI is open. Set PORTFOLIXIR_UI_PASSWORD to require one."
 msgstr "Kein Passwort konfiguriert; die Oberfläche ist offen. PORTFOLIXIR_UI_PASSWORD setzen, um eines zu verlangen."
 
-#: lib/portfolixir_web/controllers/session_html.ex:24
+#: lib/portfolixir_web/controllers/session_html.ex:40
 #, elixir-autogen, elixir-format
 msgid "Password"
 msgstr "Passwort"
@@ -6107,8 +6105,8 @@ msgstr "Passwort"
 msgid "Remove the logo and lock the security to none?"
 msgstr "Logo entfernen und das Wertpapier auf „kein Logo“ festlegen?"
 
-#: lib/portfolixir_web/controllers/session_html.ex:15
-#: lib/portfolixir_web/controllers/session_html.ex:36
+#: lib/portfolixir_web/controllers/session_html.ex:31
+#: lib/portfolixir_web/controllers/session_html.ex:52
 #, elixir-autogen, elixir-format
 msgid "Sign in"
 msgstr "Anmelden"
@@ -6123,7 +6121,7 @@ msgstr "Zu viele Versuche. %{seconds} Sekunden warten."
 msgid "Unassign the selected securities from this classification?"
 msgstr "Die ausgewählten Wertpapiere aus dieser Klassifikation entfernen?"
 
-#: lib/portfolixir_web/controllers/session_controller.ex:68
+#: lib/portfolixir_web/controllers/session_controller.ex:72
 #, elixir-autogen, elixir-format
 msgid "Wrong password."
 msgstr "Falsches Passwort."

@@ -108,6 +108,10 @@ defmodule PortfolixirWeb.UiAuthTest do
       conn = recycle_session(conn, login(conn, @password))
       assert conn |> get("/") |> html_response(200) =~ "Log out"
 
+      # The link opens a one-button page; only the POST changes state.
+      assert conn |> get("/logout") |> html_response(200) =~ ~s(action="/logout" method="post")
+      assert conn |> get("/") |> html_response(200) =~ "Log out"
+
       logged_out = post(conn, "/logout")
       assert redirected_to(logged_out) == "/login"
       # The session is dropped at send time; a fresh browser carries nothing.

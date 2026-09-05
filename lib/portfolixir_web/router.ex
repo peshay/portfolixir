@@ -73,7 +73,7 @@ defmodule PortfolixirWeb.Router do
 
     get("/login", SessionController, :new)
     post("/login", SessionController, :create)
-    get("/logout", SessionController, :delete)
+    get("/logout", SessionController, :confirm_logout)
     post("/logout", SessionController, :delete)
   end
 
