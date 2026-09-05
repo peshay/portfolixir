@@ -1,10 +1,16 @@
 import Config
 
 if config_env() == :prod do
+  secret_key_base = System.fetch_env!("SECRET_KEY_BASE")
+
   config :portfolixir, PortfolixirWeb.Endpoint,
     server: true,
     url: [host: System.fetch_env!("PHX_HOST")],
-    secret_key_base: System.fetch_env!("SECRET_KEY_BASE"),
+    secret_key_base: secret_key_base,
+    # Derived per installation rather than the literal in config.exs (#759).
+    live_view: [
+      signing_salt: Portfolixir.RuntimeConfig.derived_salt(secret_key_base, "live_view")
+    ],
     check_origin: [System.fetch_env!("PHX_HOST")],
     http: [
       port: String.to_integer(System.get_env("PORT") || "4000"),
@@ -19,6 +25,11 @@ if config_env() == :prod do
   # names, and PORTFOLIXIR_ALLOWED_HOSTS (comma-separated) for a reverse-proxy
   # name or a LAN address.
   config :portfolixir, PortfolixirWeb.HostGuard, hosts: Portfolixir.RuntimeConfig.allowed_hosts()
+
+  # PHX_FORCE_SSL=true redirects plain HTTP and sets HSTS, reading the scheme
+  # from the proxy's x-forwarded-proto (#759). Off by default so a loopback
+  # instance without TLS keeps working.
+  config :portfolixir, :force_ssl, Portfolixir.RuntimeConfig.force_ssl_opts()
 
   config :portfolixir, Portfolixir.Repo,
     url: System.fetch_env!("DATABASE_URL"),

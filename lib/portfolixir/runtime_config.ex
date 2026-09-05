@@ -66,6 +66,33 @@ defmodule Portfolixir.RuntimeConfig do
        "(ADR-0045)."}
   end
 
+  @doc """
+  A signing salt derived from `SECRET_KEY_BASE` for one named purpose (#759):
+  no installation shares a salt printed in the repository, and the two salts
+  (session, LiveView) never coincide. URL-safe base64 of an HMAC, 43 bytes.
+  """
+  @spec derived_salt(String.t(), String.t()) :: String.t()
+  def derived_salt(secret_key_base, purpose)
+      when is_binary(secret_key_base) and is_binary(purpose) do
+    :hmac
+    |> :crypto.mac(:sha256, secret_key_base, "portfolixir." <> purpose <> ".signing_salt")
+    |> Base.url_encode64(padding: false)
+  end
+
+  @doc """
+  The `Plug.SSL` options behind `PHX_FORCE_SSL` (#759): off unless asked for;
+  on, plain HTTP is redirected and HSTS is set, with the scheme read from the
+  proxy's `x-forwarded-proto`.
+  """
+  @spec force_ssl_opts(String.t() | nil) :: false | keyword()
+  def force_ssl_opts(value \\ System.get_env("PHX_FORCE_SSL"))
+
+  def force_ssl_opts(value) when is_binary(value) do
+    if truthy?(value), do: [rewrite_on: [:x_forwarded_proto], hsts: true], else: false
+  end
+
+  def force_ssl_opts(_value), do: false
+
   defp truthy?(value) do
     value
     |> String.trim()
