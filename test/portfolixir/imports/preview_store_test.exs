@@ -112,4 +112,58 @@ defmodule Portfolixir.Imports.PreviewStoreTest do
   end
 
   defp wait_until(_fun, 0), do: false
+
+  # User story (#768):
+  # As an operator whose instance is reachable by more than one browser,
+  # I want the preview store bounded and keyed by a derived value,
+  # so that parked previews cannot grow without limit and the raw session
+  # secret never sits in a public table.
+  #
+  # Acceptance criteria:
+  # - put/3 with a nil or empty key stores nothing.
+  # - The store keeps at most `max_entries/0` previews; the oldest-touched
+  #   entry is evicted when a new one arrives.
+  # - put_mapping/2 replaces only the mapping of an existing entry and is a
+  #   no-op for an absent key.
+  # - key_for/1 derives a fixed-length key that is not the token itself.
+  describe "budget and keying" do
+    test "refuses empty keys" do
+      assert :ignored = PreviewStore.put(nil, :preview, :mapping)
+      assert :ignored = PreviewStore.put("", :preview, :mapping)
+      assert PreviewStore.get("") == nil
+    end
+
+    test "evicts the oldest-touched entry past the budget" do
+      PreviewStore.clear()
+      keys = for i <- 1..(PreviewStore.max_entries() + 1), do: token("budget-#{i}")
+
+      keys
+      |> Enum.with_index()
+      |> Enum.each(fn {key, index} ->
+        assert :ok = PreviewStore.put(key, {:preview, index}, :mapping, touched_at: index)
+      end)
+
+      [oldest | rest] = keys
+      assert PreviewStore.get(oldest) == nil
+      assert Enum.all?(rest, &(PreviewStore.get(&1) != nil))
+    end
+
+    test "put_mapping/2 replaces only the mapping" do
+      key = token("mapping")
+      assert :ok = PreviewStore.put(key, :preview, :m1)
+      assert :ok = PreviewStore.put_mapping(key, :m2)
+      assert {:preview, :m2} = PreviewStore.get(key)
+
+      assert :ignored = PreviewStore.put_mapping(token("absent"), :m3)
+    end
+
+    test "key_for/1 derives a fixed-length key that is not the token" do
+      key = PreviewStore.key_for("csrf-secret")
+      assert key != "csrf-secret"
+      assert String.length(key) == 64
+      assert key == PreviewStore.key_for("csrf-secret")
+      assert PreviewStore.key_for(nil) == nil
+      assert PreviewStore.key_for("") == nil
+    end
+  end
 end

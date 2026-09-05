@@ -61,7 +61,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
         {:error, :empty_csv}
 
       [header_row | data_rows] ->
-        with :ok <- validate_header(header_row) do
+        with :ok <- validate_header(header_row),
+             :ok <- validate_row_count(data_rows) do
           {entries, errors} =
             data_rows
             |> Enum.with_index(1)
@@ -89,6 +90,13 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
   end
 
   @required_columns ~w(Datum Typ Wertpapier Stück Kurs Betrag Gebühren Steuern Konto)
+
+  # #768: a bound on how much of one file the preview holds in memory.
+  defp validate_row_count(rows) do
+    max = Portfolixir.Imports.PortfolioPerformance.max_rows()
+    count = length(rows)
+    if count > max, do: {:error, {:too_many_rows, count}}, else: :ok
+  end
 
   defp validate_header(header_row) do
     missing = @required_columns -- header_row

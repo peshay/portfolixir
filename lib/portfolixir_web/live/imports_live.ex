@@ -6,6 +6,7 @@ defmodule PortfolixirWeb.ImportsLive do
   alias Portfolixir.Imports
   alias Portfolixir.Imports.Mapping
   alias Portfolixir.Imports.Preview
+  alias Portfolixir.Imports.PortfolioPerformance
   alias Portfolixir.Imports.PreviewStore
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.AppShell
@@ -20,7 +21,8 @@ defmodule PortfolixirWeb.ImportsLive do
     # parsed preview in PreviewStore (keyed by the CSRF token, which is stable
     # across locale changes within the same browser session) lets us jump
     # straight back to the :preview step so the user does not have to re-upload.
-    session_token = Map.get(session, "_csrf_token", "")
+    # The store key is a hash of the session token (#768), never the token.
+    session_token = PreviewStore.key_for(Map.get(session, "_csrf_token"))
 
     {stage, preview, mapping} =
       case PreviewStore.get(session_token) do
@@ -503,6 +505,19 @@ defmodule PortfolixirWeb.ImportsLive do
         </div>
       <% end %>
 
+      <%= if @result.duplicate_entries != [] do %>
+        <div class="import-skipped" data-role="duplicate-entries">
+          <p class="muted">
+            <%= gettext("Skipped %{n} record(s) already booked:", n: length(@result.duplicate_entries)) %>
+          </p>
+          <ul>
+            <%= for dup <- @result.duplicate_entries do %>
+              <li><%= gettext("Row %{row}: %{reason}", row: dup.row, reason: dup.reason) %></li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+
       <%= if @result.skipped_entries != [] do %>
         <div class="import-skipped" data-role="skipped-entries">
           <p class="muted">
@@ -571,7 +586,7 @@ defmodule PortfolixirWeb.ImportsLive do
 
   def handle_event("mapping_changed", params, socket) do
     mapping = mapping_from_params(params, socket.assigns.mapping)
-    PreviewStore.put(socket.assigns.session_token, socket.assigns.preview, mapping)
+    PreviewStore.put_mapping(socket.assigns.session_token, mapping)
     {:noreply, assign(socket, :mapping, mapping)}
   end
 
@@ -1242,7 +1257,17 @@ defmodule PortfolixirWeb.ImportsLive do
 
   defp parse_error_message(:empty_csv), do: gettext("The CSV file is empty.")
 
-  defp parse_error_message(other), do: inspect(other)
+  defp parse_error_message(:malformed_payload),
+    do: gettext("The file could not be read as a Portfolio Performance export.")
+
+  defp parse_error_message({:too_many_rows, n}),
+    do:
+      gettext("The file has %{n} rows; the import is sized for at most %{max}.",
+        n: n,
+        max: PortfolioPerformance.max_rows()
+      )
+
+  defp parse_error_message(_other), do: gettext("The file could not be imported.")
 
   # A per-row insert rejection (e.g. a currency that does not match the
   # resolved cash account, issue #343) carries the rejecting changeset.
@@ -1283,7 +1308,20 @@ defmodule PortfolixirWeb.ImportsLive do
     gettext("Creating the security failed: %{errors}", errors: changeset_error_text(changeset))
   end
 
-  defp apply_error_message(reason), do: inspect(reason)
+  defp apply_error_message({failed, name, %Ecto.Changeset{} = changeset})
+       when failed in [:cash_create_failed, :depot_create_failed] do
+    gettext("Creating the account %{name} failed: %{errors}",
+      name: name,
+      errors: changeset_error_text(changeset)
+    )
+  end
+
+  defp apply_error_message({:portfolio_create_failed, %Ecto.Changeset{} = changeset}) do
+    gettext("Creating the portfolio failed: %{errors}", errors: changeset_error_text(changeset))
+  end
+
+  # Named messages only (#769): no reason is shown as an inspected term.
+  defp apply_error_message(_reason), do: gettext("Import failed. Nothing was written.")
 
   defp changeset_error_text(%Ecto.Changeset{} = changeset) do
     changeset

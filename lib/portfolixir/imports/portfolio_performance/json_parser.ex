@@ -64,25 +64,15 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
 
   @spec parse(binary(), keyword()) :: {:ok, Preview.t()} | {:error, term()}
   def parse(body, opts \\ []) when is_binary(body) do
+    max_rows = Portfolixir.Imports.PortfolioPerformance.max_rows()
+
     case Jason.decode(body, floats: :decimals) do
       {:ok, %{"version" => 1, "transactions" => txs}} when is_list(txs) ->
-        {entries, errors} =
-          txs
-          |> Enum.with_index(1)
-          |> Enum.reduce({[], []}, fn {raw, row}, {acc_entries, acc_errors} ->
-            case to_entry(raw, row) do
-              {:ok, entry} -> {[entry | acc_entries], acc_errors}
-              {:error, message} -> {acc_entries, [%{row: row, message: message} | acc_errors]}
-            end
-          end)
-
-        {:ok,
-         %Preview{
-           format: :json,
-           source_filename: Keyword.get(opts, :filename),
-           entries: Enum.reverse(entries),
-           errors: Enum.reverse(errors)
-         }}
+        if length(txs) > max_rows do
+          {:error, {:too_many_rows, length(txs)}}
+        else
+          {:ok, preview(txs, opts)}
+        end
 
       {:ok, %{"version" => other}} ->
         {:error, {:unsupported_version, other}}
@@ -93,6 +83,25 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
       {:error, %Jason.DecodeError{} = e} ->
         {:error, {:invalid_json, Exception.message(e)}}
     end
+  end
+
+  defp preview(txs, opts) do
+    {entries, errors} =
+      txs
+      |> Enum.with_index(1)
+      |> Enum.reduce({[], []}, fn {raw, row}, {acc_entries, acc_errors} ->
+        case to_entry(raw, row) do
+          {:ok, entry} -> {[entry | acc_entries], acc_errors}
+          {:error, message} -> {acc_entries, [%{row: row, message: message} | acc_errors]}
+        end
+      end)
+
+    %Preview{
+      format: :json,
+      source_filename: Keyword.get(opts, :filename),
+      entries: Enum.reverse(entries),
+      errors: Enum.reverse(errors)
+    }
   end
 
   defp to_entry(%{"type" => pp_type} = raw, row) do
@@ -112,7 +121,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
          {:ok, time} <- parse_time(Map.get(raw, "time")),
          {:ok, amount} <- Decimals.parse(Map.get(raw, "amount")),
          {:ok, shares} <- Decimals.parse(Map.get(raw, "shares")),
-         {fees, taxes, refund_amounts} <- sum_units(Map.get(raw, "units", [])) do
+         {:ok, {fees, taxes, refund_amounts}} <- sum_units(Map.get(raw, "units", [])) do
       currency = normalize_currency(Map.get(raw, "currency"))
       security = parse_security(Map.get(raw, "security"))
       pp_portfolio = present_string(Map.get(raw, "portfolio"))
@@ -186,6 +195,9 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
     end
   end
 
+  # A date that is not even a string (#768).
+  defp parse_date(other), do: {:error, gettext("invalid date %{date}", date: inspect(other))}
+
   defp parse_time(nil), do: {:ok, nil}
 
   defp parse_time(value) when is_binary(value) do
@@ -202,37 +214,52 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
     end
   end
 
+  defp parse_time(_other), do: {:ok, nil}
+
   # Folds the `units` array. Negative TAX units are extracted into a
   # `refunds` list — the parent entry takes `Decimal.abs/1` of every
   # value, and each negative TAX becomes a companion `tax_refund`
   # entry created in `build_entry/3`. FEE units are always summed by
   # absolute value (PP has no "fee refund" kind).
+  # A unit that is not a map, or whose amount is not a finite decimal, fails
+  # the row instead of the process (#768).
   defp sum_units(units) when is_list(units) do
-    Enum.reduce(units, {Decimal.new(0), Decimal.new(0), []}, fn unit, {fees, taxes, refunds} ->
-      {:ok, amount} = Decimals.parse(Map.get(unit, "amount", 0))
-      abs_amount = Decimal.abs(amount)
-      negative? = Decimal.compare(amount, 0) == :lt
+    Enum.reduce_while(units, {:ok, {Decimal.new(0), Decimal.new(0), []}}, fn
+      %{} = unit, {:ok, {fees, taxes, refunds}} ->
+        case Decimals.parse(Map.get(unit, "amount", 0)) do
+          {:ok, nil} ->
+            {:cont, {:ok, {fees, taxes, refunds}}}
 
-      case Map.get(unit, "type") do
-        "FEE" ->
-          {Decimal.add(fees, abs_amount), taxes, refunds}
+          {:ok, amount} ->
+            {:cont, {:ok, fold_unit(Map.get(unit, "type"), amount, fees, taxes, refunds)}}
 
-        "TAX" when negative? ->
-          {fees, taxes, [abs_amount | refunds]}
+          {:error, _} ->
+            {:halt,
+             {:error, gettext("invalid unit amount %{amount}", amount: inspect(unit["amount"]))}}
+        end
 
-        "TAX" ->
-          {fees, Decimal.add(taxes, abs_amount), refunds}
-
-        _ ->
-          {fees, taxes, refunds}
-      end
+      other, _acc ->
+        {:halt, {:error, gettext("invalid unit %{unit}", unit: inspect(other))}}
     end)
-    |> then(fn {fees, taxes, refunds} -> {fees, taxes, Enum.reverse(refunds)} end)
+    |> case do
+      {:ok, {fees, taxes, refunds}} -> {:ok, {fees, taxes, Enum.reverse(refunds)}}
+      {:error, _} = error -> error
+    end
   end
 
-  defp sum_units(_), do: {Decimal.new(0), Decimal.new(0), []}
+  defp sum_units(_), do: {:ok, {Decimal.new(0), Decimal.new(0), []}}
 
-  defp parse_security(nil), do: nil
+  defp fold_unit(type, amount, fees, taxes, refunds) do
+    abs_amount = Decimal.abs(amount)
+    negative? = Decimal.compare(amount, 0) == :lt
+
+    case type do
+      "FEE" -> {Decimal.add(fees, abs_amount), taxes, refunds}
+      "TAX" when negative? -> {fees, taxes, [abs_amount | refunds]}
+      "TAX" -> {fees, Decimal.add(taxes, abs_amount), refunds}
+      _ -> {fees, taxes, refunds}
+    end
+  end
 
   defp parse_security(%{} = sec) do
     %{
@@ -243,6 +270,9 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
       currency: normalize_currency(Map.get(sec, "currency"))
     }
   end
+
+  # Absent, or not a map at all (#768): no security on the row.
+  defp parse_security(_other), do: nil
 
   # PP sometimes exports letter-spaced names: "I b e r d r o l a S . A . A c c i o n e s".
   # When the strict majority of whitespace-separated tokens are single characters

@@ -31,11 +31,7 @@ defmodule Portfolixir.Imports.Decimals do
         {:ok, nil}
 
       other ->
-        try do
-          {:ok, Decimal.new(other)}
-        rescue
-          Decimal.Error -> {:error, {:invalid_decimal, value}}
-        end
+        finite(other, value)
     end
   end
 
@@ -49,11 +45,21 @@ defmodule Portfolixir.Imports.Decimals do
   def parse(%Decimal{} = d), do: {:ok, d}
   def parse(value) when is_integer(value), do: {:ok, Decimal.new(value)}
 
-  def parse(value) when is_binary(value) do
-    {:ok, Decimal.new(String.trim(value))}
-  rescue
-    Decimal.Error -> {:error, {:invalid_decimal, value}}
-  end
+  def parse(value) when is_binary(value), do: finite(String.trim(value), value)
 
   def parse(other), do: {:error, {:invalid_decimal, other}}
+
+  # `Decimal.new/1` accepts "NaN" and "Infinity", and the first arithmetic on
+  # them raises inside the parser (#768). A money value is finite or invalid.
+  defp finite(text, original) do
+    decimal = Decimal.new(text)
+
+    if Decimal.nan?(decimal) or Decimal.inf?(decimal) do
+      {:error, {:invalid_decimal, original}}
+    else
+      {:ok, decimal}
+    end
+  rescue
+    Decimal.Error -> {:error, {:invalid_decimal, original}}
+  end
 end
