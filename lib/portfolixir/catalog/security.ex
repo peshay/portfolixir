@@ -48,9 +48,30 @@ defmodule Portfolixir.Catalog.Security do
     treat_quotes_as_raw online_id provider attributes
   )a
 
+  @logo_keys ~w(logo_path logo_source logo_locked)
+
+  @doc """
+  The logo bookkeeping (`logo_path`, `logo_source`, `logo_locked`) is written
+  only by `Portfolixir.Catalog.LogoStore` through this changeset (#766). A nil
+  value removes the key. Every other attribute is left untouched.
+  """
+  def logo_changeset(security, logo_attrs) when is_map(logo_attrs) do
+    existing = security.attributes || %{}
+    logo = Map.take(logo_attrs, @logo_keys)
+
+    merged =
+      existing
+      |> Map.merge(logo)
+      |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+      |> Map.new()
+
+    change(security, attributes: merged)
+  end
+
   def changeset(security, attrs) do
     security
     |> cast(attrs, @castable)
+    |> protect_attributes()
     |> normalize_text(:ticker_symbol, &String.upcase/1)
     |> normalize_text(:currency_code, &String.upcase/1)
     |> normalize_text(:exchange_code, &String.upcase/1)
@@ -296,6 +317,29 @@ defmodule Portfolixir.Catalog.Security do
   end
 
   defp fund_name?(_), do: false
+
+  # An attributes update merges into the stored map rather than replacing it,
+  # a nil value removes a key, and the logo bookkeeping is never taken from
+  # the caller: the incoming logo keys are dropped and the stored ones kept
+  # (#766). Only `logo_changeset/2` writes them.
+  defp protect_attributes(changeset) do
+    case fetch_change(changeset, :attributes) do
+      {:ok, incoming} when is_map(incoming) ->
+        existing = changeset.data.attributes || %{}
+
+        merged =
+          existing
+          |> Map.merge(Map.drop(incoming, @logo_keys))
+          |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+          |> Map.new()
+          |> Map.merge(Map.take(existing, @logo_keys))
+
+        put_change(changeset, :attributes, merged)
+
+      _no_change ->
+        changeset
+    end
+  end
 
   defp normalize_text(changeset, field, fun) do
     update_change(changeset, field, fn

@@ -41,11 +41,9 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
       })
 
     {:ok, _updated} =
-      Catalog.update_security(Portfolixir.Actor.owner_ui(), sec, %{
-        attributes: %{
-          "logo_path" => "/security_logos/#{sec.id}.png",
-          "logo_source" => "wikipedia"
-        }
+      Catalog.put_logo_attributes(sec, %{
+        "logo_path" => "/security_logos/#{sec.id}.png",
+        "logo_source" => "wikipedia"
       })
 
     {:ok, view, _html} = live(conn, "/securities")
@@ -148,11 +146,9 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
       })
 
     {:ok, _updated} =
-      Catalog.update_security(Portfolixir.Actor.owner_ui(), sec, %{
-        attributes: %{
-          "logo_path" => "/security_logos/#{sec.id}.png",
-          "logo_source" => "coingecko"
-        }
+      Catalog.put_logo_attributes(sec, %{
+        "logo_path" => "/security_logos/#{sec.id}.png",
+        "logo_source" => "coingecko"
       })
 
     {:ok, view, _html} = live(conn, "/securities?id=#{sec.id}")

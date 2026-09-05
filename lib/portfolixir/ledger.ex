@@ -1089,11 +1089,11 @@ defmodule Portfolixir.Ledger do
   its audit-journal entry commit in one transaction (ADR-0017); the table is
   guard-armed, so every ledger write is attributable.
   """
-  def create_transaction(%Actor{} = actor, attrs) when is_map(attrs) do
+  def create_transaction(%Actor{} = actor, attrs, opts \\ []) when is_map(attrs) do
     with {:ok, attrs} <- maybe_derive_linked_cash_account(attrs) do
       changeset =
         %Transaction{}
-        |> Transaction.changeset(derive_settlement_fx_rate(attrs))
+        |> transaction_changeset(derive_settlement_fx_rate(attrs), opts)
         |> validate_cash_account_currency()
 
       Multi.new()
@@ -1105,6 +1105,15 @@ defmodule Portfolixir.Ledger do
       )
       |> Repo.transaction()
       |> transaction_write_result()
+    end
+  end
+
+  # The public changeset unless the caller is an importer passing the content
+  # hash explicitly (`import_hash:` in `opts`, #766). The API never passes opts.
+  defp transaction_changeset(transaction, attrs, opts) do
+    case Keyword.get(opts, :import_hash) do
+      nil -> Transaction.changeset(transaction, attrs)
+      hash -> Transaction.import_changeset(transaction, Map.put(attrs, :import_hash, hash))
     end
   end
 

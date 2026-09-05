@@ -2571,11 +2571,26 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp security_from_row(%SecurityWithMetrics{security: security}), do: security
   defp security_from_row(%Security{} = security), do: security
 
+  # A logo is only ever served from this instance (#766): a stored path with a
+  # scheme or a protocol-relative prefix is not rendered.
+  defp local_logo_path(path) when is_binary(path) do
+    lowered = String.downcase(path)
+
+    if String.contains?(lowered, "://") or String.starts_with?(lowered, "//") or
+         String.starts_with?(lowered, "data:") or String.starts_with?(lowered, "javascript:") do
+      nil
+    else
+      path
+    end
+  end
+
+  defp local_logo_path(_path), do: nil
+
   attr(:security, :any, required: true)
   attr(:variant, :string, default: "row")
 
   defp security_logo(assigns) do
-    path = get_in(assigns.security.attributes || %{}, ["logo_path"])
+    path = local_logo_path(get_in(assigns.security.attributes || %{}, ["logo_path"]))
     fallback = security_logo_fallback(assigns.security)
 
     assigns =

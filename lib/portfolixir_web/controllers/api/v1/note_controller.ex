@@ -11,6 +11,7 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
   """
   use PortfolixirWeb, :controller
 
+  alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Knowledge
@@ -51,7 +52,7 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
         attrs =
           params
           |> Map.get("note", %{})
-          |> note_attrs(security)
+          |> note_attrs(security, conn.assigns.actor)
 
         case Knowledge.append_note(conn.assigns.actor, attrs) do
           {:ok, note} ->
@@ -68,16 +69,22 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
     end
   end
 
-  # The API is the agent's surface: an entry without an explicit author is the
-  # agent's (ADR-0044 §4 distinguishes operator, agent and local model).
+  # Provenance is the system's to state (#766, a precision of ADR-0044 §4):
+  # the author is derived from the authenticated actor, never taken from the
+  # body, and the machine-generated marker is reserved for a local-model path
+  # that does not exist yet, so a body cannot claim it either way.
   # `security_id` comes from the path, never from the body.
-  defp note_attrs(attrs, %Security{id: id}) when is_map(attrs) do
+  defp note_attrs(attrs, %Security{id: id}, %Actor{} = actor) when is_map(attrs) do
     attrs
-    |> Map.put_new("author", "agent")
+    |> Map.drop(["author", "machine_generated", :author, :machine_generated])
+    |> Map.put("author", author_for(actor))
     |> Map.put("security_id", id)
   end
 
-  defp note_attrs(_attrs, security), do: note_attrs(%{}, security)
+  defp author_for(%Actor{type: :owner_ui}), do: "operator"
+  defp author_for(%Actor{}), do: "agent"
+
+  defp note_attrs(_attrs, security, actor), do: note_attrs(%{}, security, actor)
 
   def unreviewed(conn, params) do
     with {:ok, days} <- days_param(params, @default_unreviewed_days) do

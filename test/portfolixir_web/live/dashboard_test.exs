@@ -439,11 +439,10 @@ defmodule PortfolixirWeb.DashboardTest do
     %{security: security} = seed_holding()
 
     # Close every gap: quote is fresh (seed), add class and logo.
-    {:ok, _} =
-      Catalog.update_security(Actor.owner_ui(), security, %{
-        asset_class: "equity",
-        attributes: %{"logo_path" => "logos/acme.png"}
-      })
+    {:ok, security} =
+      Catalog.update_security(Actor.owner_ui(), security, %{asset_class: "equity"})
+
+    {:ok, _} = Catalog.put_logo_attributes(security, %{"logo_path" => "logos/acme.png"})
 
     {:ok, view, _html} = live(conn, "/")
     render_async(view)
