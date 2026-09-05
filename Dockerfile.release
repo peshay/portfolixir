@@ -1,0 +1,63 @@
+# The production image (ADR-0045 §2, #760): a Mix release built in one stage
+# and run in a slim stage as a non-root user. This is the operator's local
+# build behind `docker compose up --build`; it is never published anywhere.
+#
+# The development image stays in `Dockerfile` (source mounted, Mix present,
+# used by docker-compose.dev.yml).
+
+# --- build stage -----------------------------------------------------------
+FROM elixir:1.18.3-otp-27-slim AS build
+
+ENV MIX_ENV=prod \
+    MIX_HOME=/opt/mix \
+    HEX_HOME=/opt/hex \
+    HEX_VERSION=2.4.2 \
+    LANG=C.UTF-8
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends build-essential git ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN mix local.hex ${HEX_VERSION} --force && mix local.rebar --force
+
+WORKDIR /app
+
+COPY mix.exs mix.lock ./
+COPY config config
+RUN mix deps.get --only prod && mix deps.compile
+
+COPY lib lib
+COPY priv priv
+RUN mix compile && mix phx.digest && mix release
+
+# --- runtime stage ---------------------------------------------------------
+FROM debian:bookworm-slim
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      libstdc++6 openssl libncurses6 locales ca-certificates curl && \
+    sed -i '/C.UTF-8/s/^# //g' /etc/locale.gen && locale-gen && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV LANG=C.UTF-8 \
+    LC_ALL=C.UTF-8 \
+    MIX_ENV=prod \
+    PHX_SERVER=true
+
+# The release is installed where config/runtime.exs expects its static
+# manifest (/opt/app/priv/static/cache_manifest.json).
+WORKDIR /opt/app
+
+RUN groupadd --system portfolixir && \
+    useradd --system --gid portfolixir --home /opt/app --shell /usr/sbin/nologin portfolixir
+
+COPY --from=build --chown=portfolixir:portfolixir /app/_build/prod/rel/portfolixir ./
+COPY --chown=portfolixir:portfolixir docker/release-entrypoint.sh /usr/local/bin/release-entrypoint.sh
+RUN chmod +x /usr/local/bin/release-entrypoint.sh
+
+USER portfolixir
+
+EXPOSE 4000
+
+ENTRYPOINT ["/usr/local/bin/release-entrypoint.sh"]
+CMD ["start"]

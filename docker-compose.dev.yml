@@ -1,0 +1,77 @@
+# The DEVELOPMENT configuration (#760): source mounted, Mix present, debug
+# pages, origin checks off. Never the documented deployment — that is
+# docker-compose.yml (a production release). Run with:
+#   docker compose -f docker-compose.dev.yml up --build
+# The database port is published for local tooling; the tokens have no
+# fallback so a development stack never authenticates with a public string.
+
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: portfolixir_dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      PGDATA: /var/lib/postgresql/18/docker
+    volumes:
+      - portfolixir-postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d portfolixir_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    ports:
+      - "5432:5432"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MIX_ENV: dev
+      DATABASE_HOST: db
+      DATABASE_NAME: portfolixir_dev
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: postgres
+      PHX_BIND_ALL: true
+      PORTFOLIXIR_API_TOKEN: ${PORTFOLIXIR_API_TOKEN:?set PORTFOLIXIR_API_TOKEN in .env}
+      PORT: 4000
+    ports:
+      - "4000:4000"
+    command: ["mix", "phx.server"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:4000/health | grep -q '\"status\":\"ok\"' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    volumes:
+      - .:/app
+      - app-deps:/app/deps
+      - app-build:/app/_build
+
+  mcp:
+    build:
+      context: ./mcp-server
+      dockerfile: Dockerfile
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      PORTFOLIXIR_API_BASE_URL: http://app:4000
+      PORTFOLIXIR_API_TOKEN: ${PORTFOLIXIR_API_TOKEN:?set PORTFOLIXIR_API_TOKEN in .env}
+      PORTFOLIXIR_MCP_TOKEN: ${PORTFOLIXIR_MCP_TOKEN:?set PORTFOLIXIR_MCP_TOKEN in .env}
+      PORTFOLIXIR_MCP_TRANSPORT: http
+      PORTFOLIXIR_MCP_HOST: 0.0.0.0
+      PORTFOLIXIR_MCP_PORT: 4001
+    ports:
+      - "127.0.0.1:4001:4001"
+
+volumes:
+  portfolixir-postgres-data:
+  app-deps:
+  app-build:
