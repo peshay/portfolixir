@@ -13,6 +13,7 @@ defmodule Portfolixir.Catalog.SecuritySearch.CoinGecko do
   @behaviour Portfolixir.Catalog.SecuritySearch.Provider
 
   alias Portfolixir.Catalog.SecuritySearch.SearchResult
+  alias Portfolixir.Net.Http
 
   @endpoint "https://api.coingecko.com/api/v3/search"
   @coins_endpoint "https://api.coingecko.com/api/v3/coins"
@@ -25,7 +26,7 @@ defmodule Portfolixir.Catalog.SecuritySearch.CoinGecko do
   def search(query, opts \\ []) when is_binary(query) do
     req = req(opts)
 
-    case Req.get(req, url: @endpoint, params: [query: query]) do
+    case Http.get(req, url: @endpoint, params: [query: query]) do
       {:ok, %Req.Response{status: 200, body: %{"coins" => coins}}} when is_list(coins) ->
         {:ok, Enum.map(coins, &to_result/1) |> Enum.reject(&is_nil/1)}
 
@@ -52,7 +53,7 @@ defmodule Portfolixir.Catalog.SecuritySearch.CoinGecko do
     req = req(opts)
     url = @coins_endpoint <> "/" <> URI.encode(coin_id, &URI.char_unreserved?/1)
 
-    case Req.get(req,
+    case Http.get(req,
            url: url,
            params: [
              localization: "false",
@@ -81,7 +82,13 @@ defmodule Portfolixir.Catalog.SecuritySearch.CoinGecko do
     headers =
       [{"user-agent", "portfolixir/0.1"}] ++ api_key_header()
 
-    base = Req.new(headers: headers, receive_timeout: 5_000, retry: false)
+    base =
+      Http.new(
+        headers: headers,
+        receive_timeout: 5_000,
+        max_bytes: 2 * 1024 * 1024,
+        deadline_ms: 15_000
+      )
 
     case opts[:req] do
       nil -> base

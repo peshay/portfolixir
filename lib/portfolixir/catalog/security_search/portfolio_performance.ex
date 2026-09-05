@@ -20,6 +20,8 @@ defmodule Portfolixir.Catalog.SecuritySearch.PortfolioPerformance do
   @behaviour Portfolixir.Catalog.SecuritySearch.Provider
 
   alias Portfolixir.Catalog.SecuritySearch.{Market, SearchResult}
+  alias Portfolixir.Catalog.SecuritySearch.Properties
+  alias Portfolixir.Net.Http
 
   @endpoint "https://api.portfolio-performance.info/v1/search"
   @feed_id "PORTFOLIO_PERFORMANCE"
@@ -31,7 +33,7 @@ defmodule Portfolixir.Catalog.SecuritySearch.PortfolioPerformance do
   def search(query, opts \\ []) when is_binary(query) do
     req = req(opts)
 
-    case Req.get(req, url: @endpoint, params: [q: query]) do
+    case Http.get(req, url: @endpoint, params: [q: query]) do
       {:ok, %Req.Response{status: 200, body: body}} ->
         {:ok, decode(body)}
 
@@ -45,10 +47,11 @@ defmodule Portfolixir.Catalog.SecuritySearch.PortfolioPerformance do
 
   defp req(opts) do
     base =
-      Req.new(
+      Http.new(
         headers: [{"user-agent", "portfolixir/0.1 (+https://github.com/portfolixir)"}],
         receive_timeout: 5_000,
-        retry: false
+        max_bytes: 2 * 1024 * 1024,
+        deadline_ms: 15_000
       )
 
     case opts[:req] do
@@ -103,7 +106,7 @@ defmodule Portfolixir.Catalog.SecuritySearch.PortfolioPerformance do
       exchange_code: nilify(Map.get(entry, "exchange")),
       exchange_name: nilify(Map.get(entry, "exchangeName") || Map.get(entry, "exchange_name")),
       url: nilify(Map.get(entry, "url") || Map.get(entry, "marketUrl")),
-      properties: Map.get(entry, "properties") || %{}
+      properties: Properties.sanitize(Map.get(entry, "properties"))
     }
   end
 

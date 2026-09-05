@@ -109,6 +109,50 @@ defmodule Portfolixir.Catalog.LogoStorePolicyTest do
     assert_received {:fetched, "coingecko/btc.png"}
   end
 
+  # User story (#763):
+  # As an operator,
+  # I want stored logo bytes checked by their magic bytes, not only by the
+  # upstream Content-Type header,
+  # so that an HTML or script body labelled image/png is never written next to the app's assets.
+  #
+  # Acceptance criteria:
+  # - A body whose leading bytes are not PNG, JPEG or WebP is refused as an
+  #   unsupported type even when the header says image/png; nothing is written.
+  test "refuses bytes that are not an image whatever the header says", %{tmp: tmp, security: sec} do
+    stub = fn content_type, body ->
+      [
+        plug: fn conn ->
+          conn
+          |> Plug.Conn.put_resp_content_type(content_type)
+          |> Plug.Conn.send_resp(200, body)
+        end
+      ]
+    end
+
+    assert {:error, :unsupported_content_type} =
+             LogoStore.download_and_store(sec, "https://example.test/x.png", :wikipedia,
+               storage_dir: tmp,
+               req: stub.("image/png", "<html><script>alert(1)</script></html>")
+             )
+
+    # PNG bytes under a WebP header are a mismatch too.
+    assert {:error, :unsupported_content_type} =
+             LogoStore.download_and_store(sec, "https://example.test/x.webp", :wikipedia,
+               storage_dir: tmp,
+               req: stub.("image/webp", @png)
+             )
+
+    assert File.ls!(tmp) == []
+
+    webp = "RIFF" <> <<0, 0, 0, 0>> <> "WEBPVP8 " <> :binary.copy(<<0>>, 16)
+
+    assert {:ok, _} =
+             LogoStore.download_and_store(sec, "https://example.test/x.webp", :wikipedia,
+               storage_dir: tmp,
+               req: stub.("image/webp", webp)
+             )
+  end
+
   # User story:
   # As the discovery job following a Commons file redirect,
   # I want a redirect followed only when its target passes the same policy,

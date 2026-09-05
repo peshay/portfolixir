@@ -73,6 +73,11 @@ defmodule Portfolixir.Catalog.Security do
     |> default_attributes()
     |> infer_asset_class()
     |> validate_required([:name, :currency_code])
+    # A ticker travels in provider request paths (#763): no whitespace, no URL
+    # syntax, bounded length. Real shapes (BRK-B, ^GDAXI, EURUSD=X, 0005.HK) pass.
+    |> validate_format(:ticker_symbol, ~r/\A[^\s\/?#%]{1,64}\z/,
+      message: "is not a ticker symbol"
+    )
     |> validate_length(:currency_code, is: 3)
     |> validate_inclusion(:currency_code, Currencies.codes(), message: "is invalid")
     |> validate_inclusion(:asset_class, AssetClasses.codes(), message: "is invalid")

@@ -19,6 +19,7 @@ defmodule Portfolixir.Fx.RateSync.Ecb do
   @behaviour Portfolixir.Fx.RateSync.Provider
 
   alias Portfolixir.Catalog.Currencies
+  alias Portfolixir.Net.Http
 
   @endpoint "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"
   @history_endpoint "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.xml"
@@ -30,7 +31,7 @@ defmodule Portfolixir.Fx.RateSync.Ecb do
 
   @impl true
   def fetch(opts) do
-    case Req.get(req(opts), url: @endpoint) do
+    case Http.get(req(opts), url: @endpoint) do
       {:ok, %Req.Response{status: 200, body: body}} -> {:ok, parse(body)}
       {:ok, %Req.Response{status: status}} -> {:error, {:http_status, status}}
       {:error, reason} -> {:error, reason}
@@ -42,7 +43,12 @@ defmodule Portfolixir.Fx.RateSync.Ecb do
     # The series is a few MB; give it more room than the daily feed.
     overrides = Keyword.put_new(Keyword.get(opts, :req, []), :receive_timeout, 60_000)
 
-    case Req.get(req(Keyword.put(opts, :req, overrides)), url: @history_endpoint) do
+    history_req =
+      opts
+      |> Keyword.put(:req, overrides)
+      |> req(max_bytes: 32 * 1024 * 1024, deadline_ms: 120_000)
+
+    case Http.get(history_req, url: @history_endpoint) do
       {:ok, %Req.Response{status: 200, body: body}} -> {:ok, parse_history(body)}
       {:ok, %Req.Response{status: status}} -> {:error, {:http_status, status}}
       {:error, reason} -> {:error, reason}
@@ -106,12 +112,13 @@ defmodule Portfolixir.Fx.RateSync.Ecb do
     end
   end
 
-  defp req(opts) do
+  defp req(opts, bounds \\ [max_bytes: 2 * 1024 * 1024, deadline_ms: 30_000]) do
     base =
-      Req.new(
-        headers: [{"user-agent", "portfolixir/0.1 (+https://github.com/portfolixir)"}],
-        receive_timeout: 10_000,
-        retry: false
+      Http.new(
+        [
+          headers: [{"user-agent", "portfolixir/0.1 (+https://github.com/portfolixir)"}],
+          receive_timeout: 10_000
+        ] ++ bounds
       )
 
     case opts[:req] do
