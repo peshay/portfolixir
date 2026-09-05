@@ -1148,7 +1148,7 @@ defmodule Portfolixir.Imports.Applier do
   defp insert_new_transaction(entry, attrs, run_key, state) do
     changeset =
       %Transaction{}
-      |> Transaction.changeset(attrs)
+      |> Transaction.import_changeset(attrs)
       |> Transaction.validate_cash_account_currency(cash_currencies_for(attrs))
 
     # The transactions table is journal-armed (ADR-0017): each imported booking

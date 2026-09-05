@@ -384,6 +384,30 @@ defmodule Portfolixir.Catalog do
   end
 
   @doc """
+  Writes the logo bookkeeping on a security (#766): the only path that sets
+  `logo_path`, `logo_source` and `logo_locked`. Journaled under the fixed logo
+  system actor like every other logo write; a nil value removes the key.
+  """
+  def put_logo_attributes(%Security{} = security, logo_attrs) when is_map(logo_attrs) do
+    changeset = Security.logo_changeset(security, logo_attrs)
+
+    multi =
+      Multi.new()
+      |> Multi.update(:security, changeset)
+      |> Journal.record(Actor.system_job("logo"),
+        resource_type: "security",
+        operation: :update,
+        source: :security,
+        before: security
+      )
+
+    case Repo.transaction(multi) do
+      {:ok, %{security: updated}} -> {:ok, updated}
+      {:error, _step, %Ecto.Changeset{} = changeset, _changes} -> {:error, changeset}
+    end
+  end
+
+  @doc """
   Deletes a security on behalf of `actor` (FR-28). The deletion is journaled
   with the full `before` snapshot, so a removed security stays traceable in the
   audit journal.

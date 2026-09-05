@@ -2404,9 +2404,11 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
           name: "Nordwind Beteiligungen",
           ticker_symbol: "NRD",
           isin: "DE000NORDWI1",
-          currency_code: "EUR",
-          attributes: %{"logo_path" => "/logos/nordwind.png"}
+          currency_code: "EUR"
         })
+
+      {:ok, derived} =
+        Catalog.put_logo_attributes(derived, %{"logo_path" => "/logos/nordwind.png"})
 
       # The fixture only means anything if it really is the stored-NULL,
       # effective-non-NULL state; assert it rather than assume it.

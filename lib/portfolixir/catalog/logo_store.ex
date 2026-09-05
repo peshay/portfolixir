@@ -19,7 +19,6 @@ defmodule Portfolixir.Catalog.LogoStore do
     * Body must be at most `:max_bytes` (default 256 KiB).
   """
 
-  alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Net.Http
@@ -27,9 +26,9 @@ defmodule Portfolixir.Catalog.LogoStore do
 
   # Logo bytes are operational, machine-discovered assets that happen to live on
   # the guard-armed `securities` table (ADR-0017). They are journaled like any
-  # other security write, attributed to a fixed system actor rather than threaded
-  # from the UI/API caller — logos are not financial records authored by a user.
-  @logo_actor Actor.system_job("logo")
+  # other security write, attributed to a fixed system actor inside
+  # `Catalog.put_logo_attributes/2` rather than threaded from the caller —
+  # logos are not financial records authored by a user.
 
   @pubsub Portfolixir.PubSub
   @topic "security_logos"
@@ -131,16 +130,9 @@ defmodule Portfolixir.Catalog.LogoStore do
     storage_dir = Keyword.get(opts, :storage_dir) || default_storage_dir()
     delete_existing_logo_file(security, storage_dir)
 
-    attributes = security.attributes || %{}
+    logo_attrs = %{"logo_path" => nil, "logo_source" => nil, "logo_locked" => true}
 
-    attrs = %{
-      attributes:
-        attributes
-        |> Map.drop(["logo_path", "logo_source"])
-        |> Map.put("logo_locked", true)
-    }
-
-    case Catalog.update_security(@logo_actor, security, attrs) do
+    case Catalog.put_logo_attributes(security, logo_attrs) do
       {:ok, updated} ->
         broadcast_logo_change(updated.id)
         {:ok, updated}
@@ -247,9 +239,7 @@ defmodule Portfolixir.Catalog.LogoStore do
 
     base = if Keyword.get(opts, :lock, false), do: Map.put(base, "logo_locked", true), else: base
 
-    attrs = %{attributes: Map.merge(security.attributes || %{}, base)}
-
-    Catalog.update_security(@logo_actor, security, attrs)
+    Catalog.put_logo_attributes(security, base)
   end
 
   defp build_req(opts, max_bytes) do

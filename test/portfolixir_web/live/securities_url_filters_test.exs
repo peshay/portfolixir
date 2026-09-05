@@ -189,10 +189,7 @@ defmodule PortfolixirWeb.SecuritiesUrlFiltersTest do
     test "?dq=missing_logo lists securities without a stored logo", %{conn: conn} do
       with_logo = create_security(%{name: "Logo Co.", ticker_symbol: "LOGO"})
 
-      {:ok, _} =
-        Catalog.update_security(Actor.owner_ui(), with_logo, %{
-          attributes: %{"logo_path" => "logos/logo-co.png"}
-        })
+      {:ok, _} = Catalog.put_logo_attributes(with_logo, %{"logo_path" => "logos/logo-co.png"})
 
       create_security(%{name: "Logoless Co.", ticker_symbol: "NLGO"})
 

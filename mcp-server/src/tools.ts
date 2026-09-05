@@ -1870,8 +1870,6 @@ const noteAppendSchema = {
         source_quality: { type: "string", enum: [...noteSourceQualities] },
         source_url: { type: "string" },
         as_of: { type: "string", description: "ISO date: the statement's cut-off date, not the write time" },
-        author: { type: "string", enum: [...noteAuthors], description: "defaults to agent" },
-        machine_generated: { type: "boolean", description: "an extracted entry (proposal until confirmed); requires source_url" },
         supersedes_id: { type: "integer", minimum: 1, description: "the earlier entry this one replaces (same security); required for a retraction" },
         valid_until: { type: "string", description: "ISO date of a dated block (lockup, self-imposed buying block)" },
         conviction: { type: "string", enum: [...noteConvictions], description: "thesis entries only" },
@@ -1890,8 +1888,6 @@ const noteAppendZ = z.object({
     source_quality: z.enum(noteSourceQualities),
     source_url: optionalString(),
     as_of: z.string(),
-    author: z.enum(noteAuthors).optional(),
-    machine_generated: z.boolean().optional(),
     supersedes_id: z.number().int().positive().optional(),
     valid_until: optionalString(),
     conviction: z.enum(noteConvictions).optional(),
@@ -2021,7 +2017,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.notes.append",
     "Append a research-log entry",
-    "Append one entry to a security's research log (ADR-0044) — the ONLY write the log admits. kind is one of thesis | evidence | invalidation_check | event_result | risk | retraction | decision; source_quality is SET, not guessed (primary = the primary source itself, secondary_multi = several independent secondary sources, awareness = heard of, unverified); as_of is the statement's cut-off date (an entry written today about last quarter carries last quarter's date). To withdraw an earlier finding append kind=retraction with supersedes_id pointing at it and the reason in body — never try to edit or delete (there is no such tool, by design). To replace a thesis append a new thesis with supersedes_id on the old one; the thesis fields (conviction low|medium|high, invalidation_condition, time_stop) belong to thesis entries only. valid_until carries a dated block (lockup, self-imposed buying block) and feeds portfolixir.notes.expiring. author defaults to agent; an entry extracted by a model rather than judged carries machine_generated=true and MUST carry source_url — it is a proposal until confirmed. The write is journaled under the API token.",
+    "Append one entry to a security's research log (ADR-0044) — the ONLY write the log admits. kind is one of thesis | evidence | invalidation_check | event_result | risk | retraction | decision; source_quality is SET, not guessed (primary = the primary source itself, secondary_multi = several independent secondary sources, awareness = heard of, unverified); as_of is the statement's cut-off date (an entry written today about last quarter carries last quarter's date). To withdraw an earlier finding append kind=retraction with supersedes_id pointing at it and the reason in body — never try to edit or delete (there is no such tool, by design). To replace a thesis append a new thesis with supersedes_id on the old one; the thesis fields (conviction low|medium|high, invalidation_condition, time_stop) belong to thesis entries only. valid_until carries a dated block (lockup, self-imposed buying block) and feeds portfolixir.notes.expiring. The author is derived from the credential (an entry appended over MCP is the agent's) and machine_generated is reserved for a local-model path — neither is accepted in the body. The write is journaled under the API token.",
     noteAppendSchema,
     noteAppendZ
   ),

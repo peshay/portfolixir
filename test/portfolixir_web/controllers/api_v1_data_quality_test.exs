@@ -30,10 +30,7 @@ defmodule PortfolixirWeb.ApiV1DataQualityTest do
 
     _unpriced = create_security!(name: "Unpriced AG", ticker: "UNP")
 
-    {:ok, _} =
-      Catalog.update_security(Actor.owner_ui(), fresh, %{
-        attributes: Map.put(fresh.attributes || %{}, "logo_path", "/logos/frs.png")
-      })
+    {:ok, _} = Catalog.put_logo_attributes(fresh, %{"logo_path" => "/logos/frs.png"})
 
     :ok
   end

@@ -384,14 +384,18 @@ defmodule Portfolixir.Ledger.TransactionKindsTest do
           type: "dividend",
           security_id: w.security.id,
           cash_account_id: w.cash.id,
-          gross_amount: Decimal.new("12.34"),
-          import_hash: "sha256-test-fixture"
+          gross_amount: Decimal.new("12.34")
         })
 
-      assert {:ok, _} = Ledger.create_transaction(Portfolixir.Actor.owner_ui(), base_attrs)
+      # The hash is the importer's to set (#766): it travels as an option the
+      # public surfaces never pass, not as a field of the attrs.
+      import_opts = [import_hash: "sha256-test-fixture"]
+
+      assert {:ok, _} =
+               Ledger.create_transaction(Portfolixir.Actor.owner_ui(), base_attrs, import_opts)
 
       assert {:error, changeset} =
-               Ledger.create_transaction(Portfolixir.Actor.owner_ui(), base_attrs)
+               Ledger.create_transaction(Portfolixir.Actor.owner_ui(), base_attrs, import_opts)
 
       assert %{import_hash: ["has already been taken"]} = errors_on(changeset)
     end

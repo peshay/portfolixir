@@ -154,7 +154,9 @@ defmodule PortfolixirWeb.ApiV1NotesTest do
 
     assert errors["kind"] == ["is invalid"]
     assert errors["source_quality"] == ["is invalid"]
-    assert errors["source_url"] == ["is required for a machine-generated entry"]
+    # The body's machine_generated claim is dropped at the boundary (#766), so
+    # the source-url rule for machine-generated entries is not what fires here.
+    refute Map.has_key?(errors, "source_url")
 
     assert %{"errors" => %{"detail" => "not found"}} =
              post_json(conn, "/api/v1/securities/999999/notes", %{"note" => %{}}, 404)

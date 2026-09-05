@@ -170,31 +170,62 @@ defmodule Portfolixir.Ledger.Transaction do
     end
   end
 
+  @public_fields [
+    :portfolio_id,
+    :securities_account_id,
+    :cash_account_id,
+    :counter_cash_account_id,
+    :counter_securities_account_id,
+    :security_id,
+    :type,
+    :date,
+    :quantity,
+    :price,
+    :fees,
+    :taxes,
+    :gross_amount,
+    :currency_code,
+    :security_amount,
+    :settlement_amount,
+    :settlement_fx_rate,
+    :notes,
+    :split_ratio_numerator,
+    :split_ratio_denominator
+  ]
+
+  @doc """
+  The public changeset: what the UI and the API may set. `import_hash` is not
+  among the fields and is refused when present (#766): it says "this row came
+  from an import", and only the importer may say so — a caller-set hash could
+  make a later import skip a row or fail its unique index.
+  """
   def changeset(transaction, attrs) do
     transaction
-    |> cast(attrs, [
-      :portfolio_id,
-      :securities_account_id,
-      :cash_account_id,
-      :counter_cash_account_id,
-      :counter_securities_account_id,
-      :security_id,
-      :type,
-      :date,
-      :quantity,
-      :price,
-      :fees,
-      :taxes,
-      :gross_amount,
-      :currency_code,
-      :security_amount,
-      :settlement_amount,
-      :settlement_fx_rate,
-      :notes,
-      :import_hash,
-      :split_ratio_numerator,
-      :split_ratio_denominator
-    ])
+    |> cast(attrs, @public_fields)
+    |> refuse_import_hash(attrs)
+    |> validate_changeset()
+  end
+
+  @doc """
+  The importer's changeset (#766): the public fields plus `import_hash`, the
+  SHA-256 content hash `Portfolixir.Imports.Applier` computes.
+  """
+  def import_changeset(transaction, attrs) do
+    transaction
+    |> cast(attrs, [:import_hash | @public_fields])
+    |> validate_changeset()
+  end
+
+  defp refuse_import_hash(changeset, attrs) do
+    if Map.has_key?(attrs, :import_hash) or Map.has_key?(attrs, "import_hash") do
+      add_error(changeset, :import_hash, "is set by the importer")
+    else
+      changeset
+    end
+  end
+
+  defp validate_changeset(changeset) do
+    changeset
     |> normalize_currency_code()
     |> put_decimal_default(:fees)
     |> put_decimal_default(:taxes)
