@@ -1976,7 +1976,7 @@ const toolDefinitions: ToolDefinition[] = [
       data_quality: { type: "string", enum: ["stale_quote", "missing_quote", "missing_logo", "missing_fx"] },
       projection: { type: "string", enum: ["slim", "full"] },
       fields: { type: "array", items: { type: "string", enum: [...securityFieldNames] } },
-      limit: { type: "integer", minimum: 0 },
+      limit: { type: "integer", minimum: 1 },
       offset: { type: "integer", minimum: 0 },
       since: { type: "string" }
     }
@@ -1988,7 +1988,7 @@ const toolDefinitions: ToolDefinition[] = [
     data_quality: z.enum(["stale_quote", "missing_quote", "missing_logo", "missing_fx"]).optional(),
     projection: z.enum(["slim", "full"]).optional(),
     fields: z.array(z.enum(securityFieldNames)).optional(),
-    limit: z.number().int().min(0).optional(),
+    limit: z.number().int().min(1).optional(),
     offset: z.number().int().min(0).optional(),
     since: optionalString()
   })),
@@ -2055,9 +2055,10 @@ const toolDefinitions: ToolDefinition[] = [
     properties: {
       security_id: { type: "integer", minimum: 1 },
       from: { type: "string", format: "date" },
-      to: { type: "string", format: "date" }
+      to: { type: "string", format: "date" },
+      limit: { type: "integer", minimum: 1 }
     }
-  }, z.object({ security_id: z.number().int().positive(), from: optionalString(), to: optionalString() })),
+  }, z.object({ security_id: z.number().int().positive(), from: optionalString(), to: optionalString(), limit: z.number().int().min(1).optional() })),
   tool("portfolixir.quotes.upsert", "Upsert quotes", "Upsert manual quote history.", quoteUpsertSchema, quoteUpsertZ),
   tool("portfolixir.portfolios.list", "List portfolios", "List local portfolios. Deprecated (ADR-0024): portfolios are internal compatibility records, not the user-facing grouping — use portfolixir.buckets.list and portfolixir.views.list to group and scope holdings.", emptyObjectSchema, emptyObjectZ),
   tool("portfolixir.portfolios.create", "Create portfolio", "Create a portfolio. Deprecated (ADR-0024, compatibility only — the API answers with a Deprecation header): grouping happens through buckets and views, so prefer portfolixir.buckets.create and portfolixir.views.create; depots and cash accounts no longer need a portfolio_id (a deterministic internal default is bound automatically).", portfolioSchema, portfolioZ),
@@ -2116,7 +2117,8 @@ const toolDefinitions: ToolDefinition[] = [
       securities_account_id: { type: "integer", minimum: 1 },
       fields: { type: "array", items: { type: "string", enum: [...transactionFieldNames] } },
       since: { type: "string" },
-      running_balance_for: { type: "integer", minimum: 1 }
+      running_balance_for: { type: "integer", minimum: 1 },
+      limit: { type: "integer", minimum: 1 }
     }
   }, z.object({
     from: optionalString(),
@@ -2126,7 +2128,8 @@ const toolDefinitions: ToolDefinition[] = [
     securities_account_id: z.number().int().positive().optional(),
     fields: z.array(z.enum(transactionFieldNames)).optional(),
     since: optionalString(),
-    running_balance_for: z.number().int().positive().optional()
+    running_balance_for: z.number().int().positive().optional(),
+    limit: z.number().int().min(1).optional()
   })),
   tool("portfolixir.transactions.create", "Create transaction", "Create a transaction of any bookable kind: buy, sell, dividend, interest, deposit, removal, fee, tax, tax_refund, cash_transfer, inbound_delivery, outbound_delivery, security_transfer (absolute balance anchors are set via set_balance instead). Required fields depend on the kind: buy/sell need securities_account_id, security_id, quantity and price; dividend needs security_id, cash_account_id and gross_amount; interest/deposit/removal/fee/tax/tax_refund need cash_account_id and gross_amount; cash_transfer needs cash_account_id, counter_cash_account_id and gross_amount; deliveries need securities_account_id, security_id and quantity — inbound_delivery additionally REQUIRES price (an unpriced inbound delivery enters the cost basis at zero), while outbound_delivery removes cost at the position's running average and treats price as informational; security_transfer needs securities_account_id, counter_securities_account_id, security_id and quantity. For buy/sell, omit cash_account_id — it is derived from the depot's linked account. Amounts are positive magnitudes; the kind implies the direction (removal/fee/tax debit, deposit/dividend/interest/tax_refund credit) — never send negative values: a refunded tax (e.g. from a loss sale) is a separate tax_refund transaction with a positive gross_amount, never a negative taxes field (set_balance is the only negative-capable amount). Semantics: for dividend/interest/tax_refund bookings, gross_amount is the NET cash credited to the account — record withheld taxes in the taxes field; the income report reconstructs gross as net plus withheld tax. For a security settled through a different-currency cash account (e.g. a USD security via a EUR account), book it in the security currency and supply the cross-currency settlement fields: security_amount (trade amount in the security currency), settlement_amount (cash amount in the account currency) and settlement_fx_rate (account units per 1 security unit; derived from the two amounts when omitted). All Decimal strings.", transactionSchema, transactionZ),
   tool("portfolixir.transactions.update", "Update transaction", "Patch a transaction (e.g. fix a mis-imported booking). Semantics as on create: a dividend's gross_amount is the NET cash credited (withheld taxes ride in the taxes field), and an unpriced inbound delivery enters the cost basis at zero (changing a type to inbound_delivery therefore requires a price).", transactionUpdateSchema, transactionUpdateZ),
@@ -2181,7 +2184,11 @@ const toolDefinitions: ToolDefinition[] = [
     view: z.number().int().positive().optional(),
     include_positions: z.boolean().optional()
   })),
-  tool("portfolixir.exchange_rates.list", "List exchange rates", "List stored EUR-hub exchange rates.", emptyObjectSchema, emptyObjectZ),
+  tool("portfolixir.exchange_rates.list", "List exchange rates", "List stored EUR-hub exchange rates, most recent first. Optional limit bounds the read (default 50000, at most 200000).", {
+    type: "object",
+    additionalProperties: false,
+    properties: { limit: { type: "integer", minimum: 1 } }
+  }, z.object({ limit: z.number().int().min(1).optional() })),
   tool("portfolixir.exchange_rates.sync", "Sync exchange rates", "Fetch and store exchange rates from the configured provider (ECB, EUR hub). scope=latest (default) fetches the daily feed — today's rates, nothing in the past. scope=history (issue #737) runs the one-shot BACKFILL of the historical ECB series through the same path: every published day at once, so a dated conversion (a realized gain, a cost, a flow excluded and named for a missing close-date rate) can find its rate; run it when a cashflow facet reports excluded rows. The rate-availability rule is unchanged: a day the ECB did not publish (a weekend, an unlisted currency) stays excluded and named. Returns {provider, status, upserted, scope}; a provider without a history answers 422.", exchangeRateSyncSchema, exchangeRateSyncZ),
   tool("portfolixir.classifications.list", "List classifications", "List classification trees with categories and security assignments.", emptyObjectSchema, emptyObjectZ),
   tool("portfolixir.classifications.create", "Create classification", "Create a custom classification tree.", classificationSchema, classificationZ),
@@ -2702,7 +2709,7 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
     case "portfolixir.quotes.list":
       return client.request(
         "GET",
-        withQuery(`/api/v1/securities/${args.security_id}/quotes`, args, ["from", "to"])
+        withQuery(`/api/v1/securities/${args.security_id}/quotes`, args, ["from", "to", "limit"])
       );
     case "portfolixir.quotes.upsert":
       return client.request("PUT", `/api/v1/securities/${args.security_id}/quotes`, {
@@ -2745,7 +2752,8 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
           "securities_account_id",
           "fields",
           "since",
-          "running_balance_for"
+          "running_balance_for",
+          "limit"
         ])
       );
     case "portfolixir.transactions.create":
@@ -2790,7 +2798,7 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         ])
       );
     case "portfolixir.exchange_rates.list":
-      return client.request("GET", "/api/v1/exchange_rates");
+      return client.request("GET", withQuery("/api/v1/exchange_rates", args, ["limit"]));
     case "portfolixir.exchange_rates.sync":
       return client.request(
         "POST",

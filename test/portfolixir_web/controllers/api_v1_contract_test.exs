@@ -40,13 +40,17 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     [newest | _] = data["entries"]
     assert newest["version"] == Contract.version()
-    assert "GET /api/v1/securities/:security_id/notes" in newest["endpoints"]
-    assert "GET /api/v1/contract" in newest["endpoints"]
-    assert "portfolixir.notes.append" in newest["tools"]
-    assert "portfolixir.contract.get" in newest["tools"]
-    assert Enum.any?(newest["parameters"], &(&1 =~ "include_positions"))
-    assert Enum.any?(newest["parameters"], &(&1 =~ "min_drift"))
-    assert Enum.any?(newest["parameters"], &(&1 =~ "scope=latest|history"))
+    # Version 3 (E21) moved parameters, not routes; the Sprint 9 entry behind
+    # it is where the research-log routes were introduced.
+    assert Enum.any?(newest["parameters"], &(&1 =~ "limit="))
+    sprint9 = Enum.at(data["entries"], 1)
+    assert "GET /api/v1/securities/:security_id/notes" in sprint9["endpoints"]
+    assert "GET /api/v1/contract" in sprint9["endpoints"]
+    assert "portfolixir.notes.append" in sprint9["tools"]
+    assert "portfolixir.contract.get" in sprint9["tools"]
+    assert Enum.any?(sprint9["parameters"], &(&1 =~ "include_positions"))
+    assert Enum.any?(sprint9["parameters"], &(&1 =~ "min_drift"))
+    assert Enum.any?(sprint9["parameters"], &(&1 =~ "scope=latest|history"))
 
     # Strictly after the last change: nothing moved.
     last = Contract.last_changed_at()

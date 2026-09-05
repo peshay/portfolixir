@@ -1267,8 +1267,6 @@ defmodule PortfolixirWeb.ImportsLive do
         max: PortfolioPerformance.max_rows()
       )
 
-  defp parse_error_message(_other), do: gettext("The file could not be imported.")
-
   # A per-row insert rejection (e.g. a currency that does not match the
   # resolved cash account, issue #343) carries the rejecting changeset.
   # Surface its validation messages instead of an opaque struct dump so the

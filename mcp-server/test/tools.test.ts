@@ -2276,4 +2276,34 @@ describe("Portfolixir MCP tools", () => {
     assert.match(contract?.description ?? "", /last_changed_at/);
     assert.match(contract?.description ?? "", /re-read the tool list/);
   });
+
+  // Issue #771: the bounded list reads take limit on both halves, spelled once.
+  it("passes limit through on the bounded list reads", async () => {
+    const { client, requests } = createRecordingClient({ data: [] });
+
+    await callTool(client, "portfolixir.exchange_rates.list", { limit: 5 });
+    await callTool(client, "portfolixir.quotes.list", { security_id: 3, limit: 7 });
+    await callTool(client, "portfolixir.transactions.list", { limit: 9 });
+
+    assert.deepEqual(
+      requests.map((request) => request.path),
+      [
+        "/api/v1/exchange_rates?limit=5",
+        "/api/v1/securities/3/quotes?limit=7",
+        "/api/v1/transactions?limit=9"
+      ]
+    );
+
+    await assert.rejects(callTool(client, "portfolixir.securities.list", { limit: 0 }));
+  });
+
+  // Issue #766: the research-log append no longer accepts provenance claims.
+  it("rejects author and machine_generated on notes.append", () => {
+    const append = listTools().find((tool) => tool.name === "portfolixir.notes.append");
+    const noteProperties = append?.inputSchema.properties.note.properties ?? {};
+
+    assert.ok(!("author" in noteProperties));
+    assert.ok(!("machine_generated" in noteProperties));
+  });
+
 });
