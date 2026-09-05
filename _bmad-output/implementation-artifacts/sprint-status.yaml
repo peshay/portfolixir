@@ -732,3 +732,10 @@ development_status:
   # item shipped; retrospective sprint-9-retro-2026-09-03.md.
   epic-20: done
   epic-20-retrospective: done
+
+  # E21 -- Security hardening (ADR-0045 signed 2026-09-05; triage
+  # security-review-triage-2026-09-05.md adopted the same day). Tracker #757
+  # with #758-#772 as the work ledger; Sprint 10, batch branch opened
+  # 2026-09-05. #382 (CSP) and #772 (Bandit) are the next batch's lanes.
+  epic-21: in-progress
+  epic-21-retrospective: optional
