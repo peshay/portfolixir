@@ -64,6 +64,20 @@ config :portfolixir, :seed_builtins_on_boot, false
 # outbound HTTP calls. Tests that need it call LogoLookup.run/2 directly
 # with a Req plug stub.
 config :portfolixir, :enable_logo_discovery, false
+
+# The URL policy (#762) resolves through a fake so no test touches DNS, and
+# the discovery sources are confined to the fake hosts the stubs answer for.
+config :portfolixir, Portfolixir.Net.UrlPolicy,
+  resolver: {Portfolixir.Net.FakeResolver, :resolve, []}
+
+config :portfolixir, Portfolixir.Catalog.LogoStore,
+  allowed_hosts: %{
+    coingecko: ["coingecko"],
+    wikipedia: ["wikipedia", "example.test"],
+    companieslogo: ["logos"],
+    manual: :any
+  }
+
 # Drain immediately and never auto-rescan in tests, so the discovery suite is
 # fast and deterministic (the queue is driven explicitly).
 config :portfolixir, :logo_discovery_drain_ms, 0
