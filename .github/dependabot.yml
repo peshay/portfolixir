@@ -30,3 +30,15 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+
+  # The image tags (#760, #761): exact tags rather than floating majors, kept
+  # current here instead of by hand.
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "docker"
+    directory: "/mcp-server"
+    schedule:
+      interval: "weekly"

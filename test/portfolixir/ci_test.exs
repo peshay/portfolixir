@@ -13,7 +13,8 @@ defmodule Portfolixir.CITest do
   # - mix coveralls is configured to run in the test environment by default.
   # - The test dependencies include excoveralls.
   # - No image build or deploy workflow remains.
-  # - Release-image and runtime-deploy files are absent.
+  # - Runtime-deploy automation files are absent; the local release image
+  #   exists per ADR-0045 §2.
   test "ci keeps coverage while deployment automation stays out" do
     ci_workflow = File.read!(".github/workflows/ci.yml")
     mix_file = File.read!("mix.exs")
@@ -25,11 +26,16 @@ defmodule Portfolixir.CITest do
 
     refute File.exists?(".github/workflows/build-image.yml")
     refute File.exists?(".github/workflows/deploy.yml")
-    refute File.exists?("Dockerfile.release")
     refute File.exists?("deploy")
     refute File.exists?("docs/deployment.md")
-    refute File.exists?("lib/portfolixir/release.ex")
     refute File.exists?(".github/CODEOWNERS")
+
+    # ADR-0045 §2 (D-2, signed 2026-09-05): the documented home deployment is a
+    # production configuration built from a release. The release image and the
+    # migration entrypoint are the operator's local build, never a published
+    # artifact; the deploy-automation refutes above are unchanged.
+    assert File.exists?("Dockerfile.release")
+    assert File.exists?("lib/portfolixir/release.ex")
   end
 
   # User story:

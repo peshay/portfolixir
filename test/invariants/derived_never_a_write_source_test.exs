@@ -36,7 +36,11 @@ defmodule Portfolixir.Invariants.DerivedNeverAWriteSourceTest do
     "lib/portfolixir/application.ex" => [
       [:Portfolixir, :Derived, :Memo],
       [:Portfolixir, :Derived, :Refresher]
-    ]
+    ],
+    # The release twin of `mix portfolixir.derived.rebuild` (ADR-0045 §2,
+    # #760): the same drop-and-rebuild call the Mix task makes, reachable
+    # from an image without Mix. Rebuilding is not reading a derived value.
+    "lib/portfolixir/release.ex" => [[:Portfolixir, :Derived]]
   }
 
   # The derived layer itself: its facade and its internals.
