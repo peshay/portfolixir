@@ -189,6 +189,23 @@ defmodule Portfolixir.Fx.RateSyncTest do
     assert {:error, {:adapter_exception, "boom"}} = RateSync.backfill(provider: RaisingHistory)
   end
 
+  test "fetch/1 parses the daily feed through the bounded client, no network" do
+    assert Ecb.id() == :ecb
+
+    xml = "<Cube><Cube time='2026-06-04'><Cube currency='USD' rate='1.25'/></Cube></Cube>"
+    ok_plug = fn conn -> Plug.Conn.send_resp(conn, 200, xml) end
+    assert {:ok, [row]} = Ecb.fetch(req: [plug: ok_plug])
+    assert row == row("USD", "1.25")
+
+    bad_plug = fn conn -> Plug.Conn.send_resp(conn, 503, "") end
+    assert {:error, {:http_status, 503}} = Ecb.fetch(req: [plug: bad_plug])
+
+    down_plug = fn conn -> Req.Test.transport_error(conn, :econnrefused) end
+
+    assert {:error, %Req.TransportError{reason: :econnrefused}} =
+             Ecb.fetch(req: [plug: down_plug])
+  end
+
   test "fetch_history/1 parses a 200, names a bad status and passes a transport error" do
     xml = "<Cube><Cube time='2026-02-20'><Cube currency='USD' rate='1.08'/></Cube></Cube>"
 

@@ -6,6 +6,7 @@ defmodule PortfolixirWeb.ApiV1ListLimitsTest do
 
   import Portfolixir.WorldFixtures, only: [create_security!: 1]
 
+  alias Portfolixir.Catalog.Quotes
   alias PortfolixirWeb.Api.V1.ListLimit
 
   setup %{conn: conn} do
@@ -89,6 +90,6 @@ defmodule PortfolixirWeb.ApiV1ListLimitsTest do
 
     assert %{"errors" => %{"quotes" => [message]}} = response
     assert message =~ Integer.to_string(cap)
-    assert Portfolixir.Catalog.Quotes.range(security.id, ~D[1990-01-01], ~D[2100-01-01]) == []
+    assert Quotes.range(security.id, ~D[1990-01-01], ~D[2100-01-01]) == []
   end
 end

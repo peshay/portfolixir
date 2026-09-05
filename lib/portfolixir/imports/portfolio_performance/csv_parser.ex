@@ -28,6 +28,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
 
   alias Portfolixir.Imports.Decimals
   alias Portfolixir.Imports.Entry
+  alias Portfolixir.Imports.PortfolioPerformance
   alias Portfolixir.Imports.Preview
 
   NimbleCSV.define(__MODULE__.Parser, separator: ";", escape: "\"")
@@ -93,7 +94,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
 
   # #768: a bound on how much of one file the preview holds in memory.
   defp validate_row_count(rows) do
-    max = Portfolixir.Imports.PortfolioPerformance.max_rows()
+    max = PortfolioPerformance.max_rows()
     count = length(rows)
     if count > max, do: {:error, {:too_many_rows, count}}, else: :ok
   end

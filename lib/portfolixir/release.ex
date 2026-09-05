@@ -14,6 +14,9 @@ defmodule Portfolixir.Release do
   database backup taken before the upgrade (`docs/home-deployment.md`).
   """
 
+  alias Portfolixir.Derived
+  alias Portfolixir.Portfolios.Performance.Warmup
+
   @app :portfolixir
 
   @doc "Runs every pending migration of every configured repo."
@@ -38,7 +41,7 @@ defmodule Portfolixir.Release do
     load_app()
     {:ok, _} = Application.ensure_all_started(@app)
 
-    Portfolixir.Derived.rebuild(&Portfolixir.Portfolios.Performance.Warmup.warm/0)
+    Derived.rebuild(&Warmup.warm/0)
   end
 
   defp repos, do: Application.fetch_env!(@app, :ecto_repos)

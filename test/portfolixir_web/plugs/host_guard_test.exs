@@ -51,5 +51,6 @@ defmodule PortfolixirWeb.HostGuardTest do
     assert HostGuard.allowed?("localhost", ["localhost"])
     assert HostGuard.allowed?("LocalHost", ["localhost"])
     refute HostGuard.allowed?("localhost.evil", ["localhost"])
+    refute HostGuard.allowed?(nil, ["localhost"])
   end
 end
