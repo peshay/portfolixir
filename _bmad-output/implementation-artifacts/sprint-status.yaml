@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-09-03 (Sprint 9 closed out; 0.9.0 tag prepared as an owner item)
+# last_updated: 2026-09-06 (Sprint 10 closed out; 0.10.0 tag prepared as an owner item)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -42,7 +42,7 @@
 # requests, not assumed -- an issue's state lags the PR that fixes it.
 
 generated: 2026-07-25
-last_updated: 2026-09-03
+last_updated: 2026-09-06
 project: portfolixir
 project_key: NOKEY
 tracking_system: file-system
@@ -51,6 +51,73 @@ story_location: _bmad-output/implementation-artifacts
 # ---------------------------------------------------------------------------
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
+#
+# CLOSED OUT (2026-09-06, Sprint 10) -- PR #773 rebase-merged, `main` at
+# b701613a:
+# Verification basis: the merge commits on `main` (22913af..b701613a, 25
+# commits linear per the ADR-0026 rebase-merge amendment), the Actions runs
+# on the merge push (CI 1483, Commit authorship 497, verified green before
+# this entry was pushed), and the post-merge open-issue list -- not this
+# file's prior claims. Adopted, planned, built, reviewed and merged inside
+# 14 hours of the triage's adoption.
+#
+# WHAT CLOSED: fourteen issues by the merge's keywords (#758 #759 #760 #761
+# #762 #763 #764 #765 #766 #767 #768 #769 #770 #771 -- verified against the
+# open-issue list, none remained open). Closed by hand: #757, the E21
+# tracker. E21 is DONE: every lane of the triage's Part 3 that the batch
+# claimed shipped -- perimeter, egress bounds, provenance, import
+# robustness, web/API hygiene, the optional UI login of ADR-0045. Stays
+# open with a reason: #382 (CSP) and #772 (Bandit, which removes cowlib and
+# its three advisories) are the next batch by the triage's own ruling;
+# #727 (both toolchain halves blocked upstream, triggers re-checked at lane
+# time, none fired).
+#
+# TWO-WAY COVERAGE CHECK: the batch's agent-visible capabilities (the list
+# limits, the contract manifest v3 entry, the provenance refusals, the token
+# policy) shipped on API and MCP together; the UI login, the confirmations
+# and the imports skip report are human-only by nature and say so in the
+# briefing. No capability shipped agent-only. The ledger stays empty, and
+# no earlier batch's capability is overdue a human view.
+#
+# SURFACE CHECK (AGENTS.md step 5 clause, second use -- and the first time
+# it caught something): `limit` is carried by GET /transactions,
+# /securities, /exchange_rates and /securities/:id/quotes plus their four
+# MCP tools; /journal carries its own older bound. It is NOT carried by
+# /securities/:id/notes, /notes/expiring, /notes/uncorroborated,
+# /notes/unreviewed, /securities/:id/trades, /realized_gains, /snapshots,
+# /external_flows or /costs, whose collections grow with the ledger. The PR
+# briefing claimed the family was complete; checked against `mix phx.routes`
+# at close-out it was not. Filed as #776. Second read-ergonomics family to
+# ship half-done after FR-37 (#740).
+#
+# TAG: 0.10.0 is an OPEN OWNER ITEM, created locally as an ANNOTATED tag on
+# the merged head b701613a and refused by the session's git proxy with HTTP
+# 403 on the push -- the fourth sprint in a row, and the proxy's own status
+# shows no relay failure, so the refusal is the session credential's branch
+# scope rather than an egress block. No create-tag or create-release call
+# exists on the session's GitHub API surface either. The prepared command
+# is in sprint-10-retro-2026-09-06.md, with the standing question of
+# whether ADR-0026 step 5 should name the tag an owner action.
+#
+# RETROSPECTIVE: sprint-10-retro-2026-09-06.md. Process findings: an
+# invariant test that pinned an attribute rather than the behaviour left
+# every destructive confirmation inert for the life of the feature, found
+# only by a browser probe; the new Host guard refused our own MCP companion
+# inside Compose; the review agents died on a session limit again (Sprint
+# 9's recorded lesson, unacted); the codecov patch check was the only red
+# check and was right twice; a URL written into a PR body through the API
+# comes back escaped, so closing-act screenshots belong in a comment; the
+# demo strategies seed still assumes a portfolio name; the session's own
+# check-in disabled itself after firing and the PR watch lapsed silently.
+#
+# LANE M: version-report-2026-09-05.md, written at lane time. Nothing
+# applied -- every Hex row was current two days after the Sprint 9 lane and
+# no Dependabot PR was open. Deliberately not updated, with reasons: both
+# toolchain halves (#727), cowlib (no fixed release; the Bandit swap is
+# #772), the PostgreSQL image, @types/node (major-wide ignore), the BMAD
+# externals. Not a dependency but owned by the lane: the MCP image moved
+# from the floating node:24-alpine to an exact tag, the new production image
+# pins its bases, and Dependabot's docker ecosystem now covers both.
 #
 # TAG 0.8.0 RESOLVED (2026-09-03): the owner ran the prepared command -- the
 # tag is an ANNOTATED tag object on ea6617a (the ADR-0044 draft commit, a
@@ -737,5 +804,9 @@ development_status:
   # security-review-triage-2026-09-05.md adopted the same day). Tracker #757
   # with #758-#772 as the work ledger; Sprint 10, batch branch opened
   # 2026-09-05. #382 (CSP) and #772 (Bandit) are the next batch's lanes.
-  epic-21: in-progress
-  epic-21-retrospective: optional
+  # Closed out 2026-09-06 (PR #773, main at b701613a): every lane of the
+  # triage's Part 3 that the batch claimed shipped; #382 and #772 are the
+  # next batch by the triage's own ruling. Retrospective
+  # sprint-10-retro-2026-09-06.md; the surface check filed #776.
+  epic-21: done
+  epic-21-retrospective: done

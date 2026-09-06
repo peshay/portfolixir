@@ -206,7 +206,7 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | NFR-1 | #347, #348, #314, #344 | correctness suites + gates |
 | NFR-2 | #353 | auditability = audit journal |
 | NFR-3 | #346, #347, #350 | AI-agentic guards |
-| NFR-4–6 | **#757** (E21 tracker; #758–#772), gate **ADR-0045** Accepted 2026-09-05 | foundational (security, self-hosted, single-user). **NFR-4's perimeter is E21's scope** (Sprint 10): Host guard, loopback by default, session hardening, production Compose, optional built-in UI authentication (OQ-8 answered by ADR-0045), outbound request bounds, system-set provenance |
+| NFR-4–6 | **#757** (E21 tracker; #758–#772), gate **ADR-0045** Accepted 2026-09-05 | foundational (security, self-hosted, single-user). **NFR-4's perimeter shipped with E21** (Sprint 10, PR #773 merged 2026-09-06, #758–#771 closed): Host guard answering 421, loopback by default with a startup warning, session cookie attributes and derived salts, opt-in `PHX_FORCE_SSL`, a production release image with no secret defaults, the deny-by-default URL policy and bounded HTTP client on every outbound fetch, constant-time token comparison with a per-source throttle, system-set provenance, and the optional built-in UI authentication of ADR-0045 (OQ-8 answered). Open in the family: #382 (CSP) and #772 (Bandit, which removes cowlib's advisories), both the next batch; #776, the `limit` surface gap the close-out's surface check found |
 | NFR-7 | #313 | localization / docs site |
 | NFR-8 | #562 (ADR-0032), #619 (ADR-0035) | cross-cutting perf; watch in perf-sensitive stories. ADR-0032 accepted 2026-07-29 — the daily TTWROR walk is memoized in volatile memory with warm-up, targeted invalidation and a labelled stale-serve. **#619 shipped 2026-08-04** (ADR-0035): the redundancy was removed rather than cached — market data is preloaded once per read and threaded through every valuation and allocation, replacing six re-derivations and hundreds of per-row lookups. Measured A/B: the warm dashboard block 1,105 ms → 265 ms and 2,614 → 115 queries, output identical. Nothing is memoized by this change; ADR-0032's memo is untouched |
 | UX-DR1–20 | **#356** (tracker) + #414, #672 open, plus #701–#704, #707 filed 2026-08-15; #412, #491, #560, #565, #566 shipped | UX/a11y tracker. Rules are defined in `design-language/EXPERIENCE.md` and `DESIGN.md`, not in this document (ADR-0038). **Sprint 7 (PR #716, merged 2026-08-19) closed #414, #672, #701–#704, #706 and #707**; the 2026-08-18 design engagement filed #717–#721 and #723, and the Sprint-7 walkthrough filed #729 and #730 — all attach here. **Sprint 8 (PR #735, merged 2026-08-22) closed all eight** (#717–#721, #723, #729, #730) and added UX-DR25 (an excluded row is named where the total is read) and UX-DR26 (a deliberate limit is stated on the surface that lacks it) to the living spec. #336, #337, #339, #319 and #606 are closed. **#606 shipped 2026-08-04** — the impersonal microcopy voice rule, applied retroactively to all pre-rule UI strings and the EN/DE docs, and now part of DR11 rather than only an agent rule. DR15–DR20 were added by the 2026-08-05 design session; the alignment stories are cut from the spec |
@@ -608,6 +608,54 @@ and the design-engagement issues #717–#721/#723 attach to #356.
 Retrospective: `sprint-7-retro-2026-08-19.md`. Close-out ledger and the
 process findings live there and in `sprint-status.yaml`'s log; this section
 records only what changed in the requirement registry.
+
+## Implementation Status — reconciled with code (2026-09-06, Sprint 10 close-out)
+
+Verification basis: the merge commits on `main` (22913af..b701613a, PR #773
+rebase-merged, 25 commits linear), the Actions runs on the merge push (CI 1483
+and Commit authorship 497, verified green), and the post-merge open-issue list.
+
+**Shipped by Sprint 10** — fourteen issues closed by the merge's keywords, the
+E21 hardening batch under ADR-0045 and the 2026-09-05 security-review triage:
+the perimeter (#758 Host guard, loopback by default, exposure warning; #759
+session cookie attributes, per-installation derived salts, opt-in force_ssl;
+#760 the production Compose file and release image with no secret defaults;
+#761 bearer-token hygiene on API and companion), egress (#762 a deny-by-default
+URL policy before every server-side fetch of a caller- or provider-supplied
+URL, with per-source host lists and every redirect hop re-checked; #763 a
+single bounded HTTP client — streamed byte cap, connect timeout, request
+deadline — plus magic-byte checks on stored images), provenance (#766 the
+import hash, note author and logo bookkeeping are system-set and refused from
+a request; #767 the unarmed tables as one closed named list), imports (#768
+parser robustness, a row cap and a bounded preview store; #769 the skipped-row
+report), web/API hygiene (#770 generic errors and input validation; #771
+`limit` on four list reads, an upsert cap, and a per-source auth throttle), and
+authentication (#764 the optional single-password UI login; #765 confirmations
+on the four bare destructive controls). Tracker #757 closed by hand.
+
+**The FR Coverage Map above is updated in this pass** (NFR-4–6 row: the
+perimeter shipped, with what is still open named). The two-way-coverage ledger
+stays **empty**: the batch's agent-visible capabilities shipped on API and MCP
+together, and its human-only surfaces (the login, the confirmations, the
+imports skip report) are human-only by nature. Deliberately not closed: #382
+(CSP) and #772 (Bandit — the swap that removes cowlib and its three
+advisories), both the next batch by the triage's own ruling; #727 (both
+toolchain halves blocked upstream, triggers re-checked, none fired).
+
+**The surface check caught its first gap.** `limit` reached
+`GET /transactions`, `/securities`, `/exchange_rates` and
+`/securities/:id/quotes` with their four MCP tools, and `/journal` has an
+older bound of its own — but `/securities/:id/notes`, the three note-hygiene
+reads, `/securities/:id/trades`, `/realized_gains`, `/snapshots`,
+`/external_flows` and `/costs` grow with the ledger and carry none. The PR
+briefing claimed the family was complete; checked against `mix phx.routes` at
+close-out it was not. Filed as **#776** — the second read-ergonomics family to
+ship half-done after FR-37 (#740), which is the pattern the clause was added
+to catch.
+
+Retrospective: `sprint-10-retro-2026-09-06.md`. Close-out ledger and process
+findings live there and in `sprint-status.yaml`'s log; this section records
+only what changed in the requirement registry.
 
 ## Implementation Status — reconciled with code (2026-09-03, Sprint 9 close-out)
 
