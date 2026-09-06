@@ -43,6 +43,19 @@ defmodule PortfolixirWeb.LayoutView do
         </script>
         <script id="live-view-client-script">
           (function () {
+            // Every destructive control carries data-confirm (#765). The page
+            // loads no phoenix_html script, so the attribute is honoured here:
+            // one capture-phase listener ahead of LiveView's own, cancelling
+            // the click before phx-click can see it.
+            document.addEventListener("click", function (event) {
+              var target = event.target && event.target.closest && event.target.closest("[data-confirm]");
+              if (!target) { return; }
+              if (!window.confirm(target.getAttribute("data-confirm"))) {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+              }
+            }, true);
+
             var csrfTokenElement = document.querySelector("meta[name='csrf-token']");
             var csrfToken = csrfTokenElement && csrfTokenElement.getAttribute("content");
 
@@ -967,8 +980,6 @@ defmodule PortfolixirWeb.LayoutView do
                   }
                   var unassignButton = event.target.closest("[data-unassign-selected]");
                   if (unassignButton) {
-                    var confirmText = unassignButton.getAttribute("data-confirm");
-                    if (confirmText && !window.confirm(confirmText)) { return; }
                     var uids = selectedIds();
                     if (uids.length) {
                       self.pushEvent("unassign_many", {

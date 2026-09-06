@@ -60,9 +60,13 @@ defmodule PortfolixirWeb.UiAuth do
   @spec safe_return_path(term()) :: String.t()
   def safe_return_path(path) when is_binary(path) do
     cond do
+      not String.starts_with?(path, "/") -> "/"
       String.starts_with?(path, "//") -> "/"
-      String.starts_with?(path, "/") and not String.contains?(path, "://") -> path
-      true -> "/"
+      String.contains?(path, ["://", "\\", "%09", "%0a", "%0d", "%0A", "%0D"]) -> "/"
+      # Whitespace and control characters: what Phoenix's redirect refuses,
+      # returned as "/" here rather than raised after a correct password.
+      Regex.match?(~r/[\x00-\x20\x7f]/, path) -> "/"
+      true -> path
     end
   end
 

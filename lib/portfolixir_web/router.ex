@@ -66,6 +66,9 @@ defmodule PortfolixirWeb.Router do
     # UX-DR4, #672: Income was promoted to the Cash-flow area. The old route
     # keeps working so existing links and bookmarks survive the rename.
     get("/income", RedirectController, :cashflow)
+
+    # Stored logos, behind the UI login like the pages that show them (#764).
+    get("/security_logos/:file", LogoFileController, :show)
   end
 
   scope "/", PortfolixirWeb do

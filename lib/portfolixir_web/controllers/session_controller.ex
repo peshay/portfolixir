@@ -5,7 +5,8 @@ defmodule PortfolixirWeb.SessionController do
   `new` renders the one-field form (or, with no password configured, the
   sentence saying the UI is open); `create` checks the source's throttle, then
   the password in constant time, and stores the flag in a renewed session;
-  `delete` drops the session. The password is never logged.
+  `delete` drops the session and disconnects the LiveView sockets it opened.
+  The password is never logged.
   """
   use Phoenix.Controller, formats: [:html]
   use Gettext, backend: PortfolixirWeb.Gettext
@@ -19,7 +20,8 @@ defmodule PortfolixirWeb.SessionController do
     render(conn, :new,
       enabled: UiAuth.enabled?(),
       return_to: UiAuth.safe_return_path(params["to"]),
-      error: nil
+      error: nil,
+      lockout: nil
     )
   end
 
@@ -35,11 +37,17 @@ defmodule PortfolixirWeb.SessionController do
         |> render(:new,
           enabled: UiAuth.enabled?(),
           return_to: return_to,
-          error: gettext("Too many attempts. Wait %{seconds} seconds.", seconds: seconds)
+          error: nil,
+          lockout:
+            ngettext(
+              "Too many attempts. Wait one second.",
+              "Too many attempts. Wait %{count} seconds.",
+              seconds
+            )
         )
 
       :ok ->
-        attempt(conn, get_in(params, ["session", "password"]), source, return_to)
+        attempt(conn, submitted_password(params), source, return_to)
     end
   end
 
@@ -48,10 +56,23 @@ defmodule PortfolixirWeb.SessionController do
   def confirm_logout(conn, _params), do: render(conn, :confirm_logout)
 
   def delete(conn, _params) do
+    # An open LiveView keeps its socket after the cookie is gone; the
+    # session's socket id lets the logout close it (#764).
+    case get_session(conn, "live_socket_id") do
+      nil -> :ok
+      live_socket_id -> PortfolixirWeb.Endpoint.broadcast(live_socket_id, "disconnect", %{})
+    end
+
     conn
     |> configure_session(drop: true)
     |> redirect(to: "/login")
   end
+
+  # Only the shape the form sends; anything else is a wrong password.
+  defp submitted_password(%{"session" => %{"password" => password}}) when is_binary(password),
+    do: password
+
+  defp submitted_password(_params), do: nil
 
   defp attempt(conn, password, source, return_to) do
     if UiAuth.enabled?() and UiAuth.valid_password?(password) do
@@ -60,6 +81,10 @@ defmodule PortfolixirWeb.SessionController do
       conn
       |> configure_session(renew: true)
       |> put_session(UiAuth.session_key(), true)
+      |> put_session(
+        "live_socket_id",
+        "ui_sessions:" <> Base.url_encode64(:crypto.strong_rand_bytes(16))
+      )
       |> redirect(to: return_to)
     else
       Throttle.failure(:ui, source)
@@ -69,7 +94,8 @@ defmodule PortfolixirWeb.SessionController do
       |> render(:new,
         enabled: UiAuth.enabled?(),
         return_to: return_to,
-        error: gettext("Wrong password.")
+        error: gettext("Wrong password."),
+        lockout: nil
       )
     end
   end
