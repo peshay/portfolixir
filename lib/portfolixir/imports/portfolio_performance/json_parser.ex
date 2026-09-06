@@ -75,6 +75,10 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
           {:ok, preview(txs, opts)}
         end
 
+      # Version 1 with a transactions value that is not a list (#768).
+      {:ok, %{"version" => 1}} ->
+        {:error, :malformed_payload}
+
       {:ok, %{"version" => other}} ->
         {:error, {:unsupported_version, other}}
 

@@ -508,11 +508,15 @@ defmodule PortfolixirWeb.ImportsLive do
       <%= if @result.duplicate_entries != [] do %>
         <div class="import-skipped" data-role="duplicate-entries">
           <p class="muted">
-            <%= gettext("Skipped %{n} record(s) already booked:", n: length(@result.duplicate_entries)) %>
+            <%= ngettext(
+              "Skipped one record already booked:",
+              "Skipped %{count} records already booked:",
+              length(@result.duplicate_entries)
+            ) %>
           </p>
           <ul>
             <%= for dup <- @result.duplicate_entries do %>
-              <li><%= gettext("Row %{row}: %{reason}", row: dup.row, reason: dup.reason) %></li>
+              <li><%= gettext("Row %{row}: %{reason}", row: dup.row, reason: duplicate_reason(dup)) %></li>
             <% end %>
           </ul>
         </div>
@@ -1234,6 +1238,16 @@ defmodule PortfolixirWeb.ImportsLive do
 
   defp parse_depot_cash("pp:" <> name), do: {:ok, name}
   defp parse_depot_cash(_), do: :error
+
+  # The applier names the layer that caught the duplicate; the words are the
+  # page's (#769), so the German page is German here too.
+  defp duplicate_reason(%{layer: :hash}),
+    do: gettext("an identical row was imported before (stored content hash)")
+
+  defp duplicate_reason(%{layer: :economics}),
+    do: gettext("an existing booking has the same date, security, quantity and amount")
+
+  defp duplicate_reason(%{reason: reason}), do: reason
 
   defp error_to_string(:too_large), do: gettext("File too large.")
   defp error_to_string(:not_accepted), do: gettext("File type not accepted.")

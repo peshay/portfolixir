@@ -57,6 +57,9 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
 
   @spec parse(binary(), keyword()) :: {:ok, Preview.t()} | {:error, term()}
   def parse(body, opts \\ []) when is_binary(body) do
+    # A UTF-8 byte-order mark ahead of "Datum" is not part of the header.
+    body = String.replace_prefix(body, "\uFEFF", "")
+
     case __MODULE__.Parser.parse_string(body, skip_headers: false) do
       [] ->
         {:error, :empty_csv}

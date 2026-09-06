@@ -324,6 +324,10 @@ defmodule Portfolixir.Catalog.Security do
   # (#766). Only `logo_changeset/2` writes them.
   defp protect_attributes(changeset) do
     case fetch_change(changeset, :attributes) do
+      # A nil replaces nothing either: the logo keys survive it (#766).
+      {:ok, nil} ->
+        protect_attributes(put_change(changeset, :attributes, %{}))
+
       {:ok, incoming} when is_map(incoming) ->
         existing = changeset.data.attributes || %{}
 

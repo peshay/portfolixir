@@ -138,4 +138,23 @@ defmodule Portfolixir.Net.UrlPolicyTest do
     assert {:error, {:url_not_allowed, :private_address}} =
              UrlPolicy.check("https://[fec0::1]/x.png", @opts)
   end
+
+  test "judges the other IPv4-embedding IPv6 forms and the remaining reserved IPv4 blocks" do
+    for host <- [
+          "[::7f00:1]",
+          "[64:ff9b::7f00:1]",
+          "[2002:7f00:1::]",
+          "[2002:c0a8:101::1]",
+          "192.0.0.8",
+          "198.18.0.1",
+          "198.19.255.255"
+        ] do
+      assert {:error, {:url_not_allowed, :private_address}} =
+               UrlPolicy.check("https://#{host}/x.png", @opts),
+             host
+    end
+
+    assert UrlPolicy.check("https://[64:ff9b::5db8:d822]/x.png", @opts) == :ok
+    assert UrlPolicy.check("https://198.17.0.1/x.png", @opts) == :ok
+  end
 end

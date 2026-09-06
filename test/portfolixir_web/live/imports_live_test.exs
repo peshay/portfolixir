@@ -1232,4 +1232,36 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     assert html =~ "sized for at most 1"
     refute html =~ "pp-mapping-form"
   end
+
+  # User story (#769):
+  # As an operator who drops the same export twice,
+  # I want the second run to list the rows it skipped in the page's own words,
+  # so that "already booked" is a sentence in my language, not an internal reason.
+  #
+  # Acceptance criteria:
+  # - The result stage lists every skipped row with a translated reason.
+  test "the second import of one file lists the skipped rows in words", %{conn: conn} do
+    mapping = %{
+      "cash" => %{"Test-Cash" => "create:Test-Cash", "Test-Cash-2" => "create:Test-Cash-2"},
+      "depot" => %{
+        "Test-Depot" => %{"target" => "create:Test-Depot", "cash" => "pp:Test-Cash"},
+        "Test-Depot-2" => %{"target" => "create:Test-Depot-2", "cash" => "pp:Test-Cash"}
+      }
+    }
+
+    {:ok, view, _html} = live(conn, "/imports")
+    upload_sample(view)
+    view |> element("form#pp-import-apply") |> render_submit(mapping)
+    assert render_async(view, 1_000) =~ "Created transactions: 13"
+
+    {:ok, view, _html} = live(conn, "/imports")
+    upload_sample(view)
+    view |> element("form#pp-import-apply") |> render_change(mapping)
+    html = view |> element("form#pp-import-apply") |> render_submit()
+    html = if html =~ "Import complete", do: html, else: render_async(view, 1_000)
+
+    assert html =~ "Skipped 13 records already booked:"
+    assert html =~ "Row 1: an identical row was imported before (stored content hash)"
+    refute html =~ "already booked: an"
+  end
 end

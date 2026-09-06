@@ -1154,7 +1154,8 @@ defmodule Portfolixir.Imports.Applier do
     Map.update!(state, :result, fn %Result{} = r ->
       %Result{
         r
-        | duplicate_entries: r.duplicate_entries ++ [%{row: entry.source_row, reason: reason}]
+        | duplicate_entries:
+            r.duplicate_entries ++ [%{row: entry.source_row, reason: reason, layer: layer}]
       }
     end)
   end

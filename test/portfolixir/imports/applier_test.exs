@@ -313,6 +313,8 @@ defmodule Portfolixir.Imports.ApplierTest do
         # skipped it, so a silent skip is visible where the operator reads.
         assert length(second.duplicate_entries) == 13
 
+        assert Enum.all?(second.duplicate_entries, &(&1.layer in [:hash, :economics]))
+
         assert Enum.all?(second.duplicate_entries, fn %{row: row, reason: reason} ->
                  not is_nil(row) and is_binary(reason) and reason =~ "already"
                end)

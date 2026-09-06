@@ -16,6 +16,12 @@ defmodule Portfolixir.Net.UrlPolicy do
   The resolver is injectable (`:resolver` option or application config as an
   MFA) so the test suite never touches DNS. The default resolves both address
   families through `:inet`.
+
+  Known limit: the check resolves the name and the client resolves it again
+  when it connects, so a name whose answer changes between the two (DNS
+  rebinding with a very short TTL) can pass. The redirect re-check, the byte
+  cap and the deadline bound what such a fetch can do; pinning the connection
+  to the checked address is the fix, and it needs the client's connect step.
   """
 
   @type reason ::
@@ -68,6 +74,9 @@ defmodule Portfolixir.Net.UrlPolicy do
   def public_address?({169, 254, _, _}), do: false
   def public_address?({172, b, _, _}) when b >= 16 and b <= 31, do: false
   def public_address?({192, 168, _, _}), do: false
+  # IETF protocol assignments and the benchmarking range are not on the internet.
+  def public_address?({192, 0, 0, _}), do: false
+  def public_address?({198, b, _, _}) when b in [18, 19], do: false
   def public_address?({a, _, _, _}) when a >= 224, do: false
   def public_address?({_, _, _, _}), do: true
 
@@ -77,12 +86,22 @@ defmodule Portfolixir.Net.UrlPolicy do
 
   def public_address?({0, 0, 0, 0, 0, 0, 0, 0}), do: false
   def public_address?({0, 0, 0, 0, 0, 0, 0, 1}), do: false
+  # The other IPv4-embedding forms are judged by the embedded address too:
+  # IPv4-compatible (::a.b.c.d), NAT64 (64:ff9b::/96) and 6to4 (2002::/16).
+  def public_address?({0, 0, 0, 0, 0, 0, hi, lo}), do: public_address?(embedded_ipv4(hi, lo))
+
+  def public_address?({0x64, 0xFF9B, 0, 0, 0, 0, hi, lo}),
+    do: public_address?(embedded_ipv4(hi, lo))
+
+  def public_address?({0x2002, hi, lo, _, _, _, _, _}), do: public_address?(embedded_ipv4(hi, lo))
   # fc00::/7 unique local, fe80::/10 link-local, fec0::/10 site-local, ff00::/8 multicast.
   def public_address?({a, _, _, _, _, _, _, _}) when Bitwise.band(a, 0xFE00) == 0xFC00, do: false
   def public_address?({a, _, _, _, _, _, _, _}) when Bitwise.band(a, 0xFFC0) == 0xFE80, do: false
   def public_address?({a, _, _, _, _, _, _, _}) when Bitwise.band(a, 0xFFC0) == 0xFEC0, do: false
   def public_address?({a, _, _, _, _, _, _, _}) when Bitwise.band(a, 0xFF00) == 0xFF00, do: false
   def public_address?({_, _, _, _, _, _, _, _}), do: true
+
+  defp embedded_ipv4(hi, lo), do: {div(hi, 256), rem(hi, 256), div(lo, 256), rem(lo, 256)}
 
   @doc "The default resolver: both address families through `:inet`."
   @spec resolve_host(String.t()) :: {:ok, [:inet.ip_address()]} | {:error, term()}
