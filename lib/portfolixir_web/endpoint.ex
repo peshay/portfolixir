@@ -68,8 +68,14 @@ defmodule PortfolixirWeb.Endpoint do
 
   plug(Plug.MethodOverride)
   plug(Plug.Head)
-  plug(Plug.Session, @session_options)
+  # The lifetime is runtime configuration, so the options are built per
+  # request rather than baked in at compile time (#777).
+  plug(PortfolixirWeb.SessionLifetime)
   plug(PortfolixirWeb.Router)
+
+  @doc "The session options, without the lifetime `PortfolixirWeb.SessionLifetime` adds."
+  @spec session_options() :: keyword()
+  def session_options, do: @session_options
 
   @doc "The session cookie's signing salt, derived from the secret key base (#759)."
   @spec session_signing_salt() :: String.t()

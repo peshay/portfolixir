@@ -130,4 +130,28 @@ defmodule Portfolixir.RuntimeConfigTest do
     assert RuntimeConfig.trusted_proxies() ==
              RuntimeConfig.trusted_proxies(System.get_env("PORTFOLIXIR_TRUSTED_PROXIES"))
   end
+
+  # User story (#777):
+  # As an operator who does not want to type the password every day,
+  # I want the session lifetime to be a setting with a sensible default,
+  # so that a home instance asks about once a month and a stricter setup can say otherwise.
+  #
+  # Acceptance criteria:
+  # - Unset, blank or nonsense means the 30-day default.
+  # - A positive number of days becomes that many seconds.
+  # - Zero means no lifetime at all: the browser-session cookie of before.
+  test "parses the session lifetime in days, defaulting to 30" do
+    day = 24 * 60 * 60
+
+    assert RuntimeConfig.session_max_age(nil) == 30 * day
+    assert RuntimeConfig.session_max_age("") == 30 * day
+    assert RuntimeConfig.session_max_age("  ") == 30 * day
+    assert RuntimeConfig.session_max_age("nope") == 30 * day
+    assert RuntimeConfig.session_max_age("-7") == 30 * day
+    assert RuntimeConfig.session_max_age("7") == 7 * day
+    assert RuntimeConfig.session_max_age(" 90 ") == 90 * day
+    assert RuntimeConfig.session_max_age(1) == day
+    assert RuntimeConfig.session_max_age("0") == nil
+    assert RuntimeConfig.session_max_age(0) == nil
+  end
 end

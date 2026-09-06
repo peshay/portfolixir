@@ -80,7 +80,7 @@ defmodule PortfolixirWeb.SessionController do
 
       conn
       |> configure_session(renew: true)
-      |> put_session(UiAuth.session_key(), true)
+      |> UiAuth.put_authenticated()
       |> put_session(
         "live_socket_id",
         "ui_sessions:" <> Base.url_encode64(:crypto.strong_rand_bytes(16))

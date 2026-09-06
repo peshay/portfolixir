@@ -47,6 +47,7 @@ services:
       SECRET_KEY_BASE: ${SECRET_KEY_BASE:?set SECRET_KEY_BASE in .env (openssl rand -base64 48)}
       PORTFOLIXIR_API_TOKEN: ${PORTFOLIXIR_API_TOKEN:?set PORTFOLIXIR_API_TOKEN in .env}
       PORTFOLIXIR_UI_PASSWORD: ${PORTFOLIXIR_UI_PASSWORD:-}
+      PORTFOLIXIR_SESSION_DAYS: ${PORTFOLIXIR_SESSION_DAYS:-}
       PHX_HOST: ${PHX_HOST:-localhost}
       # "app" is the name the MCP companion reaches the app under.
       PORTFOLIXIR_ALLOWED_HOSTS: app,${PORTFOLIXIR_ALLOWED_HOSTS:-}
