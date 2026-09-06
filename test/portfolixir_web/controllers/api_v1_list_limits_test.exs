@@ -53,6 +53,21 @@ defmodule PortfolixirWeb.ApiV1ListLimitsTest do
     end
   end
 
+  test "a quote limit keeps the newest rows of the window, ascending", %{conn: conn} do
+    security = create_security!(name: "Newest Co", ticker: "NEW")
+
+    rows =
+      for day <- 1..5,
+          do: %{date: Date.new!(2026, 1, day), close: Decimal.new("1#{day}"), source: "manual"}
+
+    assert {:ok, 5} = Quotes.upsert_many(security.id, rows)
+
+    %{"data" => data} =
+      conn |> get("/api/v1/securities/#{security.id}/quotes?limit=2") |> json_response(200)
+
+    assert Enum.map(data, & &1["date"]) == ["2026-01-04", "2026-01-05"]
+  end
+
   test "the four list reads accept a limit and answer as before", %{conn: conn} do
     security = create_security!(name: "Limit Co", ticker: "LIM")
 

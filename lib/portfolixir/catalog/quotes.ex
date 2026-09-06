@@ -85,15 +85,16 @@ defmodule Portfolixir.Catalog.Quotes do
     query =
       SecurityQuote
       |> where([q], q.security_id == ^security_id and q.date >= ^from and q.date <= ^to)
-      |> order_by([q], asc: q.date)
 
-    query =
-      case Keyword.get(opts, :limit) do
-        n when is_integer(n) and n > 0 -> limit(query, ^n)
-        _ -> query
-      end
+    # A limit keeps the newest rows of the window (#771), like the transaction
+    # and rate lists; the result stays ascending.
+    case Keyword.get(opts, :limit) do
+      n when is_integer(n) and n > 0 ->
+        query |> order_by([q], desc: q.date) |> limit(^n) |> Repo.all() |> Enum.reverse()
 
-    Repo.all(query)
+      _ ->
+        query |> order_by([q], asc: q.date) |> Repo.all()
+    end
   end
 
   @doc """
