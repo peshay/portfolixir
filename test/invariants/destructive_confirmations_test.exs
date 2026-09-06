@@ -33,4 +33,28 @@ defmodule Portfolixir.Invariants.DestructiveConfirmationsTest do
       assert element =~ "data-confirm=", "#{file}: #{marker} has no data-confirm"
     end
   end
+
+  # User story:
+  # As the operator,
+  # I want data-confirm to be honoured on a phx-click, not just present,
+  # so that the attribute is a prompt and not a decoration.
+  #
+  # Acceptance criteria:
+  # - The page loads no phoenix_html script, so the root layout's own script
+  #   carries one capture-phase click listener that asks before any
+  #   [data-confirm] and cancels the click on "cancel".
+  # - No hook keeps a second prompt of its own for the same control.
+  test "the root layout honours data-confirm ahead of LiveView" do
+    layout = File.read!("lib/portfolixir_web/layout_view.ex")
+    refute layout =~ "phoenix_html.js"
+
+    [_, listener] = String.split(layout, ~s|closest("[data-confirm]")|, parts: 2)
+    assert listener =~ "window.confirm(target.getAttribute(\"data-confirm\"))"
+    assert listener =~ "event.preventDefault();"
+    assert listener =~ "event.stopImmediatePropagation();"
+    assert String.slice(listener, 0, 400) =~ "}, true);"
+
+    # The classifications hook no longer prompts by itself.
+    assert length(String.split(layout, "window.confirm(")) == 2
+  end
 end

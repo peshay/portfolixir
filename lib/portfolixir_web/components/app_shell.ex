@@ -50,6 +50,12 @@ defmodule PortfolixirWeb.AppShell do
             </div>
           <% end %>
         </nav>
+
+        <a :if={PortfolixirWeb.UiAuth.enabled?()} id="sidebar-logout" class="nav-link sidebar-logout" href="/logout">
+          <span class="nav-marker" aria-hidden="true"></span>
+          <span class="nav-ico" aria-hidden="true"><%= nav_icon(:logout) %></span>
+          <span class="nav-label"><%= gettext("Log out") %></span>
+        </a>
       </aside>
 
       <label class="sidebar-backdrop" for="app-sidebar-toggle" aria-hidden="true"></label>
@@ -153,10 +159,6 @@ defmodule PortfolixirWeb.AppShell do
                 <% end %>
               </div>
             </details>
-
-            <a :if={PortfolixirWeb.UiAuth.enabled?()} class="button-ghost logout-link" href="/logout">
-              <%= gettext("Log out") %>
-            </a>
 
             <nav class="locale-switcher" aria-label={gettext("Language")}>
               <%= for locale <- [{"en", "EN"}, {"de", "DE"}] do %>
@@ -672,6 +674,10 @@ defmodule PortfolixirWeb.AppShell do
   defp icon_paths(:alert_octagon),
     do:
       ~s(<path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z"/><path d="M12 8v4"/><circle cx="12" cy="16" r=".6"/>)
+
+  defp icon_paths(:logout),
+    do:
+      ~s(<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/>)
 
   defp icon_paths(_), do: ~s(<circle cx="12" cy="12" r="5"/>)
 end

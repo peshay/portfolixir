@@ -6398,6 +6398,8 @@ select:disabled {
   .button,
   .button-danger,
   .button-primary,
+  .button-ghost,
+  .login-form input,
   .snapshot-create > summary,
   .workspace-section > details > summary,
   .soll-plan-versions select,
@@ -6592,30 +6594,30 @@ select:disabled {
   display: grid;
   gap: var(--space-3);
 }
+/* The brand line speaks in the nav-group-head voice, the one small-caps
+   voice the sidebar already has; the heading is the h2 scale. */
 .login-brand {
   margin: 0;
-  font-size: 12px;
+  font-size: 10.5px;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--color-accent);
+  color: var(--color-text-subtle);
 }
 .login-card h1 {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--text-h2-size);
+  font-weight: var(--text-h2-weight);
 }
 .login-form {
   display: grid;
   gap: var(--space-2);
 }
-.login-form input[type="password"] {
+.login-form input {
   box-sizing: border-box;
-  width: 100%;
-  font: inherit;
-  padding: 8px 10px;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  background: var(--color-bg);
-  color: inherit;
+}
+.login-locale {
+  justify-self: start;
 }
 .login-form .button-primary,
 .login-card > .button-primary,
@@ -6626,6 +6628,6 @@ select:disabled {
 .login-open {
   margin: 0;
 }
-.logout-link {
-  text-decoration: none;
+.sidebar-logout {
+  margin-top: auto;
 }

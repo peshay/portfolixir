@@ -259,6 +259,10 @@ defmodule Portfolixir.Catalog.LogoStore do
     end
   end
 
+  @doc "The directory stored logos are written to and served from."
+  @spec storage_dir() :: Path.t()
+  def storage_dir, do: default_storage_dir()
+
   defp default_storage_dir do
     Application.app_dir(:portfolixir, "priv/static/security_logos")
   end

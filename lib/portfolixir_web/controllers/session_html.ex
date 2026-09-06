@@ -14,6 +14,7 @@ defmodule PortfolixirWeb.SessionHTML do
           <button type="submit" class="button-primary"><%= gettext("Log out") %></button>
         </form>
         <a class="button-ghost" href="/"><%= gettext("Back") %></a>
+        <.locale_switcher path="/logout" query={%{}} />
       </section>
     </main>
     """
@@ -22,15 +23,17 @@ defmodule PortfolixirWeb.SessionHTML do
   attr(:enabled, :boolean, required: true)
   attr(:return_to, :string, required: true)
   attr(:error, :string, default: nil)
+  attr(:lockout, :string, default: nil)
 
   def new(assigns) do
     ~H"""
     <main class="login-page" aria-labelledby="login-title">
       <section class="login-card">
         <p class="login-brand" aria-hidden="true">Portfolixir</p>
-        <h1 id="login-title"><%= gettext("Sign in") %></h1>
+        <h1 id="login-title"><%= gettext("Log in") %></h1>
 
         <%= if @enabled do %>
+          <p :if={@lockout} id="login-lockout" class="field-error" role="alert"><%= @lockout %></p>
           <form
             action={"/login?" <> URI.encode_query(%{"to" => @return_to})}
             method="post"
@@ -49,7 +52,7 @@ defmodule PortfolixirWeb.SessionHTML do
               aria-describedby={if @error, do: "login-error", else: nil}
             />
             <p :if={@error} id="login-error" class="field-error" role="alert"><%= @error %></p>
-            <button type="submit" class="button-primary"><%= gettext("Sign in") %></button>
+            <button type="submit" class="button-primary"><%= gettext("Log in") %></button>
           </form>
         <% else %>
           <p class="login-open">
@@ -59,8 +62,34 @@ defmodule PortfolixirWeb.SessionHTML do
           </p>
           <a class="button-primary" href={@return_to}><%= gettext("Continue") %></a>
         <% end %>
+        <.locale_switcher path="/login" query={%{"to" => @return_to}} />
       </section>
     </main>
+    """
+  end
+
+  # The locale is a top-bar primitive everywhere else; the session pages
+  # render outside the shell, so they carry their own copy of the switcher.
+  attr(:path, :string, required: true)
+  attr(:query, :map, required: true)
+
+  defp locale_switcher(assigns) do
+    current = Gettext.get_locale(PortfolixirWeb.Gettext)
+    assigns = assign(assigns, :current, current)
+
+    ~H"""
+    <nav class="locale-switcher login-locale" aria-label={gettext("Language")}>
+      <%= for {code, label} <- [{"en", "EN"}, {"de", "DE"}] do %>
+        <a
+          class={["locale-link", @current == code && "is-active"]}
+          href={@path <> "?" <> URI.encode_query(Map.put(@query, "locale", code))}
+          hreflang={code}
+          aria-current={if @current == code, do: "true", else: nil}
+        >
+          <%= label %>
+        </a>
+      <% end %>
+    </nav>
     """
   end
 end
