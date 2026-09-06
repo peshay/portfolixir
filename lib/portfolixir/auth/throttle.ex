@@ -59,14 +59,10 @@ defmodule Portfolixir.Auth.Throttle do
   def failure(scope, key, opts \\ []) do
     now = Keyword.get(opts, :now, now())
 
-    count =
-      case :ets.lookup(@table, {scope, key}) do
-        [{_, count, _, _}] -> count + 1
-        [] -> 1
-      end
-
+    # The count is bumped atomically so concurrent failures never lose one.
+    count = :ets.update_counter(@table, {scope, key}, {2, 1}, {{scope, key}, 0, 0, now})
     locked_until = if count >= @max_failures, do: now + lock_seconds(count), else: 0
-    :ets.insert(@table, {{scope, key}, count, locked_until, now})
+    :ets.update_element(@table, {scope, key}, [{3, locked_until}, {4, now}])
     :ok
   end
 

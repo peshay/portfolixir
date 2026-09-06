@@ -19,6 +19,10 @@ defmodule PortfolixirWeb.Endpoint do
   # Host never reaches the router (ADR-0045 §2, #758).
   plug(PortfolixirWeb.HostGuard)
 
+  # Behind a proxy the operator has named, the throttle sees the client the
+  # proxy vouches for rather than the proxy (#771).
+  plug(PortfolixirWeb.TrustedProxy)
+
   # Behind a TLS-terminating proxy the scheme arrives in x-forwarded-proto;
   # rewriting it here is what lets the session cookie carry Secure and the
   # opt-in SSL plug see https (#759).
@@ -30,7 +34,9 @@ defmodule PortfolixirWeb.Endpoint do
     from: :portfolixir,
     gzip: false,
     headers: [{"x-content-type-options", "nosniff"}],
-    only: ~w(app.css favicon.ico favicon.svg images security_logos)
+    # Stored logos are named by security id and say which companies the
+    # operator holds; they are served by a route behind the UI login (#764).
+    only: ~w(app.css favicon.ico favicon.svg images)
   )
 
   plug(Plug.Static,

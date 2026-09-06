@@ -94,4 +94,14 @@ defmodule Portfolixir.Auth.ThrottleTest do
     Throttle.failure(:api, recent, now: now)
     assert {:locked, _} = Throttle.check(:api, recent, now: now)
   end
+
+  test "concurrent failures are all counted" do
+    source = key("concurrent")
+
+    1..50
+    |> Task.async_stream(fn _ -> Throttle.failure(:api, source, now: 7) end, max_concurrency: 50)
+    |> Stream.run()
+
+    assert [{_, 50, _, _}] = :ets.lookup(Throttle, {:api, source})
+  end
 end
