@@ -61,6 +61,31 @@ for a trusted network but a tool for no network.
 - The `/api/v1` routes are untouched: the bearer tokens remain the agent's
   credential, and the UI password is never accepted there.
 
+**Amendment, 2026-09-06 (#777): how long a login lasts.** The decision above
+chose a session flag but never said what a session's lifetime is, and the
+implementation inherited Plug's default — a cookie that dies with the browser,
+which asked the operator for the password several times a day. The lifetime is
+now `PORTFOLIXIR_SESSION_DAYS`, **default 30**, `0` keeping the
+browser-session behaviour for anyone who wants it. Two properties matter more
+than the number:
+
+- **The server decides, not the browser.** `Plug.Session` keeps `:max_age`
+  among the cookie options and hands the store none, so a signed session
+  cookie verifies for as long as `SECRET_KEY_BASE` is unchanged, whatever
+  expiry the browser was told. The authoritative check is a timestamp in the
+  session, verified on every browser request and at every LiveView mount; the
+  cookie's `max_age` is browser hygiene beside it.
+- **The window slides on use.** A session is re-stamped once its stamp has
+  aged past half the lifetime, capped at a day, so an operator who uses the
+  instance regularly is never asked again, while an instance left alone for
+  the full lifetime asks once. A fixed window would have asked every 30 days
+  regardless of use, which is the same annoyance on a longer fuse.
+
+Revocation stays what it was: a logout drops the cookie and disconnects that
+session's LiveViews, and rotating `SECRET_KEY_BASE` invalidates every session
+everywhere. With longer-lived cookies that second lever is the one to
+document, and `SECURITY.md` now does.
+
 ### 2. The deployment contract
 
 - **Production binds loopback by default.** `config/runtime.exs` gains the

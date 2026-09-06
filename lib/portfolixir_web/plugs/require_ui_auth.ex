@@ -18,7 +18,8 @@ defmodule PortfolixirWeb.RequireUiAuth do
   @impl Plug
   def call(conn, _opts) do
     if UiAuth.allowed?(get_session(conn)) do
-      conn
+      # Continued use slides the window (#777); a recent session is untouched.
+      UiAuth.refresh(conn)
     else
       conn
       |> redirect(to: "/login?" <> URI.encode_query(%{"to" => return_path(conn)}))

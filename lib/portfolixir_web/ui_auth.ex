@@ -14,11 +14,33 @@ defmodule PortfolixirWeb.UiAuth do
   agent's credential, and the UI password is never accepted there.
   """
 
+  alias Portfolixir.RuntimeConfig
+
   @session_key "ui_authenticated"
+  @stamp_key "ui_authenticated_at"
+  @max_refresh_interval 86_400
 
   @doc "The session key the plug and the `on_mount` read."
   @spec session_key() :: String.t()
   def session_key, do: @session_key
+
+  @doc "The session key carrying when the login happened (#777)."
+  @spec stamp_key() :: String.t()
+  def stamp_key, do: @stamp_key
+
+  @doc """
+  How long a login stays valid, in seconds, or `nil` for "until the browser
+  closes" (`PORTFOLIXIR_SESSION_DAYS=0`).
+  """
+  @spec session_max_age() :: pos_integer() | nil
+  def session_max_age do
+    RuntimeConfig.session_max_age(
+      case Application.get_env(:portfolixir, :session_days) do
+        nil -> System.get_env("PORTFOLIXIR_SESSION_DAYS")
+        configured -> configured
+      end
+    )
+  end
 
   @doc "Whether a UI password is configured (non-empty)."
   @spec enabled?() :: boolean()
@@ -29,10 +51,58 @@ defmodule PortfolixirWeb.UiAuth do
     end
   end
 
-  @doc "Whether the (plain or LiveView) session carries the authenticated flag."
+  @doc """
+  Whether the (plain or LiveView) session carries the authenticated flag AND is
+  still inside its lifetime.
+
+  The freshness check is the boundary, not the cookie's `max_age`: `Plug.Session`
+  hands the cookie store no expiry, so a signed cookie verifies for as long as
+  `SECRET_KEY_BASE` is unchanged. A session with no timestamp — one issued before
+  #777 — is past its lifetime by definition.
+  """
   @spec authenticated?(map()) :: boolean()
-  def authenticated?(session) when is_map(session), do: Map.get(session, @session_key) == true
+  def authenticated?(session) when is_map(session) do
+    Map.get(session, @session_key) == true and fresh?(Map.get(session, @stamp_key))
+  end
+
   def authenticated?(_session), do: false
+
+  @doc "Marks the session authenticated, now."
+  @spec put_authenticated(Plug.Conn.t()) :: Plug.Conn.t()
+  def put_authenticated(%Plug.Conn{} = conn) do
+    conn
+    |> Plug.Conn.put_session(@session_key, true)
+    |> Plug.Conn.put_session(@stamp_key, now())
+  end
+
+  @doc """
+  Slides the window: re-stamps a session whose stamp has aged past the refresh
+  interval, so continued use never expires. Recent sessions are left alone, so
+  the ordinary request writes no cookie.
+  """
+  @spec refresh(Plug.Conn.t()) :: Plug.Conn.t()
+  def refresh(%Plug.Conn{} = conn) do
+    with max_age when is_integer(max_age) <- session_max_age(),
+         stamp when is_integer(stamp) <- Plug.Conn.get_session(conn, @stamp_key),
+         true <- now() - stamp >= refresh_interval(max_age) do
+      Plug.Conn.put_session(conn, @stamp_key, now())
+    else
+      _ -> conn
+    end
+  end
+
+  # Half the lifetime, and at most a day: a short lifetime still gets renewed
+  # well before it lapses, a long one writes a cookie at most once a day.
+  defp refresh_interval(max_age), do: min(div(max_age, 2), @max_refresh_interval)
+
+  defp fresh?(stamp) do
+    case session_max_age() do
+      nil -> true
+      max_age -> is_integer(stamp) and now() - stamp <= max_age
+    end
+  end
+
+  defp now, do: System.os_time(:second)
 
   @doc "Whether the browser may proceed: no password configured, or the session is authenticated."
   @spec allowed?(map()) :: boolean()

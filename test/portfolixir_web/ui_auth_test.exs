@@ -188,6 +188,86 @@ defmodule PortfolixirWeb.UiAuthTest do
     end
   end
 
+  describe "session lifetime (#777)" do
+    setup :with_password
+
+    # User story:
+    # As the operator of a home instance,
+    # I want my login to survive a browser restart and to be renewed while I keep
+    # using the app,
+    # so that I am asked for the password about once a month rather than every day.
+    #
+    # Acceptance criteria:
+    # - The login cookie carries the configured lifetime as max_age (default 30 days).
+    # - A session older than the lifetime is refused although its signature still
+    #   verifies — the server decides, not the browser.
+    # - A session with no timestamp at all (issued before this change) is refused.
+    # - Using the app slides the window: a stamp older than the refresh interval is
+    #   rewritten, a recent one is left alone so most requests write no cookie.
+    # - PORTFOLIXIR_SESSION_DAYS=0 keeps the old behaviour: no max_age and no
+    #   server-side expiry, so the login dies with the browser.
+    test "the login cookie carries the configured lifetime", %{conn: conn} do
+      Throttle.success(:ui, Throttle.source_key(conn.remote_ip))
+
+      logged_in = login(conn, @password)
+
+      assert %{max_age: max_age} = logged_in.resp_cookies["_portfolixir_key"]
+      assert max_age == 30 * 24 * 60 * 60
+    end
+
+    test "a session past the lifetime is refused, a fresh one is not", %{conn: conn} do
+      now = System.os_time(:second)
+
+      stale = authenticated_at(conn, now - (30 * 24 * 60 * 60 + 60))
+      assert redirected_to(get(stale, "/portfolio")) =~ "/login"
+      assert {:error, {:redirect, %{to: "/login" <> _}}} = live(stale, "/portfolio")
+
+      fresh = authenticated_at(conn, now - 60)
+      assert fresh |> get("/portfolio") |> html_response(200)
+    end
+
+    test "a session issued before this change carries no timestamp and is refused",
+         %{conn: conn} do
+      unstamped = Plug.Test.init_test_session(conn, %{UiAuth.session_key() => true})
+
+      assert redirected_to(get(unstamped, "/portfolio")) =~ "/login"
+    end
+
+    test "using the app slides the window, but not on every request", %{conn: conn} do
+      now = System.os_time(:second)
+
+      renewed = conn |> authenticated_at(now - 2 * 24 * 60 * 60) |> get("/")
+      assert html_response(renewed, 200)
+      assert Plug.Conn.get_session(renewed, UiAuth.stamp_key()) >= now
+
+      recent = now - 60
+      untouched = conn |> authenticated_at(recent) |> get("/")
+      assert html_response(untouched, 200)
+      assert Plug.Conn.get_session(untouched, UiAuth.stamp_key()) == recent
+    end
+
+    test "zero days keeps the browser-session behaviour", %{conn: conn} do
+      Application.put_env(:portfolixir, :session_days, 0)
+      on_exit(fn -> Application.delete_env(:portfolixir, :session_days) end)
+      Throttle.success(:ui, Throttle.source_key(conn.remote_ip))
+
+      logged_in = login(conn, @password)
+      refute Map.has_key?(logged_in.resp_cookies["_portfolixir_key"], :max_age)
+
+      # No server-side expiry either: an ancient session still passes, because the
+      # browser is the one that forgets it.
+      ancient = authenticated_at(conn, System.os_time(:second) - 3 * 365 * 24 * 60 * 60)
+      assert ancient |> get("/portfolio") |> html_response(200)
+    end
+
+    defp authenticated_at(conn, stamp) do
+      Plug.Test.init_test_session(conn, %{
+        UiAuth.session_key() => true,
+        UiAuth.stamp_key() => stamp
+      })
+    end
+  end
+
   @png <<137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8,
          6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 120, 156, 99, 250, 207, 0, 0,
          0, 3, 0, 1, 5, 12, 60, 192, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130>>

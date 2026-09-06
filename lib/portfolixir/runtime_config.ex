@@ -162,6 +162,29 @@ defmodule Portfolixir.RuntimeConfig do
 
   defp ensure_bracket(host), do: if(String.ends_with?(host, "]"), do: host, else: host <> "]")
 
+  @default_session_days 30
+
+  @doc """
+  How long a UI login stays valid, in seconds, from `PORTFOLIXIR_SESSION_DAYS`
+  (#777, ADR-0045 §1). A positive number of days becomes seconds; `0` means no
+  lifetime at all, the browser-session cookie of before; anything absent or
+  unreadable falls back to #{@default_session_days} days rather than to a
+  surprise.
+  """
+  @spec session_max_age(String.t() | integer() | nil) :: pos_integer() | nil
+  def session_max_age(0), do: nil
+  def session_max_age(days) when is_integer(days) and days > 0, do: days * 86_400
+
+  def session_max_age(value) when is_binary(value) do
+    case value |> String.trim() |> Integer.parse() do
+      {0, ""} -> nil
+      {days, ""} when days > 0 -> days * 86_400
+      _ -> @default_session_days * 86_400
+    end
+  end
+
+  def session_max_age(_value), do: @default_session_days * 86_400
+
   @doc """
   The proxies whose `x-forwarded-for` the throttle may believe (#771):
   `PORTFOLIXIR_TRUSTED_PROXIES`, comma-separated addresses or CIDR blocks
