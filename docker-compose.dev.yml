@@ -38,6 +38,8 @@ services:
       DATABASE_USER: postgres
       DATABASE_PASSWORD: postgres
       PHX_BIND_ALL: true
+      # "app" is the name the MCP companion reaches the app under.
+      PORTFOLIXIR_ALLOWED_HOSTS: app
       PORTFOLIXIR_API_TOKEN: ${PORTFOLIXIR_API_TOKEN:?set PORTFOLIXIR_API_TOKEN in .env}
       PORT: 4000
     ports:

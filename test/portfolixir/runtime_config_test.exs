@@ -90,4 +90,44 @@ defmodule Portfolixir.RuntimeConfigTest do
                System.get_env("PORTFOLIXIR_ALLOWED_HOSTS")
              )
   end
+
+  # User story:
+  # As an operator who writes PHX_HOST the way a browser shows it,
+  # I want a port or an IPv6 literal to match the Host the request carries,
+  # so that "example.com:8443" or "::1" does not refuse every request.
+  test "normalises a port and an IPv6 literal in the Host list" do
+    assert RuntimeConfig.allowed_hosts("Example.com:8443", nil) ==
+             ["example.com", "localhost", "127.0.0.1"]
+
+    assert RuntimeConfig.allowed_hosts("::1", "[fd00::1]:4000, [2001:db8::1]") ==
+             ["[::1]", "localhost", "127.0.0.1", "[fd00::1]", "[2001:db8::1]"]
+  end
+
+  # User story:
+  # As an operator naming the proxy in front of the instance,
+  # I want addresses and CIDR blocks accepted and anything else dropped,
+  # so that a typo cannot widen the set of proxies whose header is believed.
+  test "parses trusted proxies as addresses and blocks" do
+    blocks =
+      RuntimeConfig.trusted_proxies(
+        "127.0.0.1, 172.16.0.0/12,::1, 2001:db8::/32, nope, 10.0.0.0/33"
+      )
+
+    assert blocks == [
+             {{127, 0, 0, 1}, 32},
+             {{172, 16, 0, 0}, 12},
+             {{0, 0, 0, 0, 0, 0, 0, 1}, 128},
+             {{0x2001, 0xDB8, 0, 0, 0, 0, 0, 0}, 32}
+           ]
+
+    assert RuntimeConfig.trusted_proxies(nil) == []
+    assert RuntimeConfig.trusted_proxy?({172, 31, 255, 254}, blocks)
+    refute RuntimeConfig.trusted_proxy?({172, 32, 0, 1}, blocks)
+    assert RuntimeConfig.trusted_proxy?({0x2001, 0xDB8, 1, 2, 3, 4, 5, 6}, blocks)
+    refute RuntimeConfig.trusted_proxy?({0x2001, 0xDB9, 0, 0, 0, 0, 0, 1}, blocks)
+    refute RuntimeConfig.trusted_proxy?({127, 0, 0, 1}, [])
+
+    assert RuntimeConfig.trusted_proxies() ==
+             RuntimeConfig.trusted_proxies(System.get_env("PORTFOLIXIR_TRUSTED_PROXIES"))
+  end
 end

@@ -22,8 +22,10 @@ on the host's loopback interface only and never publishes the database.
 
 Copy `.env.example` to `.env`. The stack refuses to start while a secret is
 missing, and the application refuses to boot with a token shorter than 32
-bytes or equal to a placeholder. Generate each secret with
-`openssl rand -base64 48`.
+bytes or equal to a placeholder. Generate each token with
+`openssl rand -base64 48`, and `POSTGRES_PASSWORD` with `openssl rand -hex 32`:
+the Compose file splices it into the database URL, where a `/` or `#` from
+base64 would break the connection string.
 
 | Variable | Required | What it does |
 |---|---|---|
@@ -33,8 +35,10 @@ bytes or equal to a placeholder. Generate each secret with
 | `PORTFOLIXIR_MCP_TOKEN` | yes | The bearer token an MCP client presents to the companion. |
 | `PORTFOLIXIR_UI_PASSWORD` | no | Set it to require a login on the web UI (ADR-0045). Unset, the UI is open — acceptable only behind reverse-proxy authentication. |
 | `PHX_HOST` | no | The name the reverse proxy serves (default `localhost`). Requests under any other `Host` are refused with 421. |
-| `PORTFOLIXIR_ALLOWED_HOSTS` | no | Further names, comma-separated (a LAN address, a second proxy name). |
+| `PORTFOLIXIR_ALLOWED_HOSTS` | no | Further names, comma-separated (a LAN address, a second proxy name). The Compose file adds `app`, the name the MCP companion reaches the application under. |
 | `PHX_FORCE_SSL` | no | `true` redirects plain HTTP and sets HSTS when TLS is terminated for this instance. |
+| `PORTFOLIXIR_TRUSTED_PROXIES` | no | Addresses or CIDR blocks, comma-separated, whose `X-Forwarded-For` the login and token throttle believes. Empty, the throttle counts the connecting address, which behind a proxy is the proxy. |
+| `PORTFOLIXIR_MCP_ALLOWED_HOSTS` | no | Further `Host` names the MCP companion answers under (a proxy name), comma-separated. |
 
 Without a UI password and with the port opened beyond loopback, the
 application logs a warning at startup naming this table.
@@ -65,8 +69,14 @@ The application listens on loopback; a reverse proxy on the same host (Caddy,
 nginx, Traefik) terminates TLS and forwards to `127.0.0.1:4000`. It must pass
 the original `Host` header (set `PHX_HOST` to that name) and
 `X-Forwarded-Proto: https`, which is what marks the session cookie `Secure`
-and what `PHX_FORCE_SSL` reads. Reverse-proxy authentication and the built-in
-UI password compose: keep either, or both.
+and what `PHX_FORCE_SSL` reads, and `X-Forwarded-For`. Name the address the
+proxy connects from in `PORTFOLIXIR_TRUSTED_PROXIES` — through the published
+port that is the Docker bridge gateway (`docker network inspect` shows it, a
+block such as `172.16.0.0/12` covers it) — so that the throttle counts the
+client behind the proxy rather than the proxy: without it, ten wrong passwords
+from anyone the proxy admits lock the login for everyone behind it, the
+operator included. Reverse-proxy authentication and the built-in UI password
+compose: keep either, or both.
 
 ## Development stack
 

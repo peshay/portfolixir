@@ -44,8 +44,6 @@ ENV LANG=C.UTF-8 \
     MIX_ENV=prod \
     PHX_SERVER=true
 
-# The release is installed where config/runtime.exs expects its static
-# manifest (/opt/app/priv/static/cache_manifest.json).
 WORKDIR /opt/app
 
 RUN groupadd --system portfolixir && \

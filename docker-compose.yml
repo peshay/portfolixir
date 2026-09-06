@@ -3,7 +3,8 @@
 #
 # - Every secret is required; there is no fallback value. Copy .env.example
 #   to .env and set SECRET_KEY_BASE, POSTGRES_PASSWORD, PORTFOLIXIR_API_TOKEN
-#   and PORTFOLIXIR_MCP_TOKEN (openssl rand -base64 48 for each).
+#   and PORTFOLIXIR_MCP_TOKEN (openssl rand -base64 48; POSTGRES_PASSWORD
+#   with openssl rand -hex 32, because it is spliced into a URL below).
 # - The database is not published; the application reaches it over the
 #   Compose network only.
 # - The application and the MCP companion are published on loopback. A
@@ -47,8 +48,12 @@ services:
       PORTFOLIXIR_API_TOKEN: ${PORTFOLIXIR_API_TOKEN:?set PORTFOLIXIR_API_TOKEN in .env}
       PORTFOLIXIR_UI_PASSWORD: ${PORTFOLIXIR_UI_PASSWORD:-}
       PHX_HOST: ${PHX_HOST:-localhost}
-      PORTFOLIXIR_ALLOWED_HOSTS: ${PORTFOLIXIR_ALLOWED_HOSTS:-}
+      # "app" is the name the MCP companion reaches the app under.
+      PORTFOLIXIR_ALLOWED_HOSTS: app,${PORTFOLIXIR_ALLOWED_HOSTS:-}
       PHX_FORCE_SSL: ${PHX_FORCE_SSL:-false}
+      # The reverse proxy reaches the container through the Docker bridge;
+      # name that address (or block) so the throttle sees the client behind it.
+      PORTFOLIXIR_TRUSTED_PROXIES: ${PORTFOLIXIR_TRUSTED_PROXIES:-}
       # The container must listen on its own interface for the port mapping;
       # the mapping below keeps it on the host's loopback.
       PHX_BIND_ALL: "true"
@@ -77,6 +82,8 @@ services:
       PORTFOLIXIR_MCP_TRANSPORT: http
       PORTFOLIXIR_MCP_HOST: 0.0.0.0
       PORTFOLIXIR_MCP_PORT: 4001
+      # Further Host names the companion answers under (a proxy name).
+      PORTFOLIXIR_MCP_ALLOWED_HOSTS: ${PORTFOLIXIR_MCP_ALLOWED_HOSTS:-}
     ports:
       - "127.0.0.1:4001:4001"
     restart: unless-stopped
