@@ -193,4 +193,35 @@ defmodule Portfolixir.CITest do
     # Set centrally, so a new async test does not have to know about this.
     assert File.read!("test/test_helper.exs") =~ "assert_receive_timeout"
   end
+
+  # User story (ADR-0045 §2, closing-act findings):
+  # As an operator starting the documented Compose deployment,
+  # I want the companion to reach the app under its Compose name, the socket
+  # handshake to accept every allowed Host, the release to find its static
+  # manifest, and the throttle's proxy list to be settable,
+  # so that the first `docker compose up` works instead of answering 421.
+  test "the Compose deployment agrees with the runtime perimeter" do
+    compose = File.read!("docker-compose.yml")
+    dev_compose = File.read!("docker-compose.dev.yml")
+    runtime = File.read!("config/runtime.exs")
+    env_example = File.read!(".env.example")
+
+    assert compose =~ ~s(PORTFOLIXIR_ALLOWED_HOSTS: app,)
+    assert dev_compose =~ ~s(PORTFOLIXIR_ALLOWED_HOSTS: app)
+    assert compose =~ "PORTFOLIXIR_TRUSTED_PROXIES:"
+    assert compose =~ "PORTFOLIXIR_MCP_ALLOWED_HOSTS:"
+    assert compose =~ "openssl rand -hex 32"
+
+    assert runtime =~ ~s(cache_static_manifest: "priv/static/cache_manifest.json")
+    refute runtime =~ "/opt/app/priv"
+    assert runtime =~ "check_origin: Enum.map(Portfolixir.RuntimeConfig.allowed_hosts()"
+    assert runtime =~ "Portfolixir.RuntimeConfig.trusted_proxies()"
+
+    for variable <-
+          ~w(PORTFOLIXIR_TRUSTED_PROXIES PORTFOLIXIR_MCP_ALLOWED_HOSTS POSTGRES_PASSWORD) do
+      assert env_example =~ variable <> "="
+    end
+
+    assert env_example =~ "rand-hex-32"
+  end
 end

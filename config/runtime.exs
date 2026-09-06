@@ -11,7 +11,8 @@ if config_env() == :prod do
     live_view: [
       signing_salt: Portfolixir.RuntimeConfig.derived_salt(secret_key_base, "live_view")
     ],
-    check_origin: [System.fetch_env!("PHX_HOST")],
+    # The socket handshake accepts the same names the Host guard does (#758).
+    check_origin: Enum.map(Portfolixir.RuntimeConfig.allowed_hosts(), &("//" <> &1)),
     http: [
       port: String.to_integer(System.get_env("PORT") || "4000"),
       # Loopback unless PHX_BIND_ALL says otherwise (ADR-0045 §2, #758): an
@@ -19,7 +20,8 @@ if config_env() == :prod do
       # opens it deliberately — the same default config/dev.exs has.
       ip: Portfolixir.RuntimeConfig.bind_ip()
     ],
-    cache_static_manifest: "/opt/app/priv/static/cache_manifest.json"
+    # Relative: Phoenix resolves it inside the release's own priv directory.
+    cache_static_manifest: "priv/static/cache_manifest.json"
 
   # The Host allow-list behind PortfolixirWeb.HostGuard: PHX_HOST, the loopback
   # names, and PORTFOLIXIR_ALLOWED_HOSTS (comma-separated) for a reverse-proxy
@@ -30,6 +32,9 @@ if config_env() == :prod do
   # from the proxy's x-forwarded-proto (#759). Off by default so a loopback
   # instance without TLS keeps working.
   config :portfolixir, :force_ssl, Portfolixir.RuntimeConfig.force_ssl_opts()
+
+  # The proxies whose x-forwarded-for names the throttle's source (#771).
+  config :portfolixir, :trusted_proxies, Portfolixir.RuntimeConfig.trusted_proxies()
 
   # The agent's credential is checked at boot (#761): length and no
   # placeholder, with the variable named in the failure.

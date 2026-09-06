@@ -9,6 +9,12 @@ defmodule PortfolixirWeb.HostGuard do
   operator's own browser. The guard runs ahead of `Plug.Static` and the router,
   answers 421 (Misdirected Request) and halts.
 
+  One request the guard does not see: the `/live` WebSocket handshake is
+  dispatched by the endpoint before its plugs run. It rests on `check_origin`,
+  which production builds from the same allow-list, and a browser always sends
+  an `Origin` on that handshake; the LiveView it opens also needs a session
+  token from a page this guard did serve.
+
   The allow-list comes from application config
   (`config :portfolixir, PortfolixirWeb.HostGuard, hosts: [...]`), built by
   `Portfolixir.RuntimeConfig.allowed_hosts/2` at release time. An empty or

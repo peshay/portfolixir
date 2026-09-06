@@ -23,7 +23,17 @@ server-side fetch of a caller- or provider-supplied URL passes a
 deny-by-default policy (https only, public addresses only, provider hosts
 only); and the documented deployment is a production release with no secret
 defaults. What the instance still expects of the operator: a reverse proxy
-that terminates TLS and forwards `X-Forwarded-Proto`, and backups.
+that terminates TLS and forwards `X-Forwarded-Proto` and `X-Forwarded-For`,
+the proxy's address named in `PORTFOLIXIR_TRUSTED_PROXIES` (without it the
+throttle counts the proxy as the one source, and a guesser behind it locks
+everyone behind it out), and backups.
+
+Known limits, recorded rather than hidden: the outbound URL policy resolves a
+name once for the check and the client resolves it again to connect, so a name
+whose answer changes in between can pass (the byte cap, the deadline and the
+redirect re-check bound what such a fetch can do); and the WebSocket handshake
+is dispatched ahead of the Host guard and rests on `check_origin`, built from
+the same allow-list.
 
 ## Sensitive data examples
 

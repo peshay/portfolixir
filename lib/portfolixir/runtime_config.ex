@@ -139,5 +139,88 @@ defmodule Portfolixir.RuntimeConfig do
   defp split_hosts(nil), do: []
   defp split_hosts(extra) when is_binary(extra), do: String.split(extra, ",")
 
-  defp normalize_host(host), do: host |> String.trim() |> String.downcase()
+  # A Host header carries no port by the time Plug hands it over, and an IPv6
+  # literal carries its brackets; the operator writes `example.com:8443` or
+  # `::1` and both must match. Port stripped, a bare IPv6 literal bracketed.
+  defp normalize_host(host) do
+    host = host |> String.trim() |> String.downcase()
+
+    cond do
+      host == "" ->
+        ""
+
+      String.starts_with?(host, "[") ->
+        host |> String.split("]:") |> hd() |> ensure_bracket()
+
+      match?({:ok, {_, _, _, _, _, _, _, _}}, :inet.parse_strict_address(to_charlist(host))) ->
+        "[" <> host <> "]"
+
+      true ->
+        host |> String.split(":") |> hd()
+    end
+  end
+
+  defp ensure_bracket(host), do: if(String.ends_with?(host, "]"), do: host, else: host <> "]")
+
+  @doc """
+  The proxies whose `x-forwarded-for` the throttle may believe (#771):
+  `PORTFOLIXIR_TRUSTED_PROXIES`, comma-separated addresses or CIDR blocks
+  (`127.0.0.1`, `172.16.0.0/12`, `::1`). Empty by default: a header nobody
+  vouches for is never a source. Entries that do not parse are dropped.
+  """
+  @spec trusted_proxies(String.t() | nil) :: [{:inet.ip_address(), non_neg_integer()}]
+  def trusted_proxies(value \\ System.get_env("PORTFOLIXIR_TRUSTED_PROXIES"))
+
+  def trusted_proxies(value) when is_binary(value) do
+    value
+    |> String.split(",")
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.flat_map(&parse_cidr/1)
+  end
+
+  def trusted_proxies(_value), do: []
+
+  @doc "Whether `ip` lies inside one of the trusted blocks."
+  @spec trusted_proxy?(:inet.ip_address(), [{:inet.ip_address(), non_neg_integer()}]) :: boolean()
+  def trusted_proxy?(ip, blocks) when is_tuple(ip) and is_list(blocks) do
+    Enum.any?(blocks, fn {network, prefix} -> in_block?(ip, network, prefix) end)
+  end
+
+  defp parse_cidr(entry) do
+    {address, prefix} =
+      case String.split(entry, "/", parts: 2) do
+        [address, prefix] -> {address, Integer.parse(prefix)}
+        [address] -> {address, :whole}
+      end
+
+    with {:ok, ip} <- :inet.parse_strict_address(to_charlist(address)),
+         {:ok, bits} <- prefix_for(ip, prefix) do
+      [{ip, bits}]
+    else
+      _ -> []
+    end
+  end
+
+  defp prefix_for({_, _, _, _}, :whole), do: {:ok, 32}
+  defp prefix_for({_, _, _, _, _, _, _, _}, :whole), do: {:ok, 128}
+  defp prefix_for({_, _, _, _}, {bits, ""}) when bits in 0..32, do: {:ok, bits}
+  defp prefix_for({_, _, _, _, _, _, _, _}, {bits, ""}) when bits in 0..128, do: {:ok, bits}
+  defp prefix_for(_ip, _prefix), do: :error
+
+  defp in_block?(ip, network, prefix) when tuple_size(ip) == tuple_size(network) do
+    width = if tuple_size(ip) == 4, do: 8, else: 16
+    total = width * tuple_size(ip)
+    shift = total - prefix
+
+    Bitwise.bsr(to_integer(ip, width), shift) == Bitwise.bsr(to_integer(network, width), shift)
+  end
+
+  defp in_block?(_ip, _network, _prefix), do: false
+
+  defp to_integer(address, width) do
+    address
+    |> Tuple.to_list()
+    |> Enum.reduce(0, fn part, acc -> Bitwise.bsl(acc, width) + part end)
+  end
 end
