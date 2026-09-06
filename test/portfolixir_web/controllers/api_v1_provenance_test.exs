@@ -142,4 +142,25 @@ defmodule PortfolixirWeb.ApiV1ProvenanceTest do
     assert attributes["logo_source"] == "wikipedia"
     refute Map.has_key?(attributes, "logo_locked")
   end
+
+  test "attributes null keeps the logo bookkeeping too", %{conn: conn} do
+    security = create_security!(name: "Null Co", ticker: "NULL")
+
+    {:ok, security} =
+      Catalog.put_logo_attributes(security, %{
+        "logo_path" => "/security_logos/#{security.id}.png",
+        "logo_source" => "manual",
+        "logo_locked" => true
+      })
+
+    response =
+      conn
+      |> patch("/api/v1/securities/#{security.id}", %{"security" => %{"attributes" => nil}})
+      |> json_response(200)
+
+    attributes = response["data"]["attributes"]
+    assert attributes["logo_path"] == "/security_logos/#{security.id}.png"
+    assert attributes["logo_source"] == "manual"
+    assert attributes["logo_locked"] == true
+  end
 end

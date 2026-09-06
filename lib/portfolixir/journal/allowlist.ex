@@ -23,9 +23,11 @@ defmodule Portfolixir.Journal.Allowlist do
   # tables themselves are deliberately not guard-armed. Recorded here (#767,
   # E21) so the exemption is a closed list under the same meta-test as the
   # market-data set instead of a comment in a migration.
+  # `settings` holds the operator's default view (a preference, scope again),
+  # written by PUT /api/v1/settings/default_view without an actor.
   @unarmed_scope_tables ~w(views view_include_buckets view_exclude_buckets
                            securities_account_buckets cash_account_buckets
-                           position_bucket_overrides depot_snapshots)
+                           position_bucket_overrides depot_snapshots settings)
 
   @doc "Table names whose writes are intentionally exempt from journaling."
   @spec non_journaled_tables() :: [String.t()]

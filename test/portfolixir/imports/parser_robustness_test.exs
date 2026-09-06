@@ -120,4 +120,12 @@ defmodule Portfolixir.Imports.ParserRobustnessTest do
     assert {:error, {:too_many_rows, _}} =
              PortfolioPerformance.parse(json(txs), filename: "big.json")
   end
+
+  test "a version-1 payload whose transactions are not a list is malformed, and a BOM is not a column" do
+    assert {:error, :malformed_payload} =
+             PortfolioPerformance.parse(~s({"version":1,"transactions":"x"}), filename: "x.json")
+
+    assert {:ok, %Preview{entries: [_ | _]}} =
+             PortfolioPerformance.parse("\uFEFF" <> csv([@csv_ok]), filename: "bom.csv")
+  end
 end

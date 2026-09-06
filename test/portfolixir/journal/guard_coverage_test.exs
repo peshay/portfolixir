@@ -12,7 +12,7 @@ defmodule Portfolixir.Journal.GuardCoverageTest do
   # set (arming a table) is fine; growing it is an ADR amendment.
   @expected_unarmed MapSet.new(
                       ~w(views view_include_buckets view_exclude_buckets securities_account_buckets
-                         cash_account_buckets position_bucket_overrides depot_snapshots)
+                         cash_account_buckets position_bucket_overrides depot_snapshots settings)
                     )
 
   # User story:
