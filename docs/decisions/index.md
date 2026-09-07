@@ -54,7 +54,7 @@ already in force in the codebase.
 | [0023](0023-drift-sign-and-display-only-rebalancing-hints.html) | Drift sign convention and display-only rebalancing hints | Accepted |
 | [0024](0024-buckets-and-views-replace-portfolios-in-the-ui.html) | Buckets and views replace portfolios as the user-facing grouping | Accepted |
 | [0025](0025-automation-recipes-boundary.html) | Automation recipes — docs in the repo, broker scripts outside | Accepted |
-| [0026](0026-epic-batch-workflow.html) | Epic-batch workflow — humans review decisions and behavior | Accepted (risk-tier clause amended by 0036) |
+| [0026](0026-epic-batch-workflow.html) | Epic-batch workflow — humans review decisions and behavior | Accepted (risk-tier clause amended by 0036; merge-is-signature and owner-tag amendments 2026-09-07) |
 | [0027](0027-plan-versions-and-depot-snapshots.html) | Named plan versions and ledger-marker depot snapshots | Accepted (transaction-cost amendment 2026-08-15) |
 | [0028](0028-corporate-actions-as-ledger-events.html) | Corporate actions as ledger events — splits as a first-class kind | Accepted |
 | [0029](0029-stable-identities-and-reimport-survival.html) | Stable identities and re-import survival — identity ladder with ISIN-change aliases | Accepted |
@@ -74,4 +74,4 @@ already in force in the codebase.
 | [0043](0043-a-gate-closing-adr-names-its-asks.html) | A gate-closing ADR names the asks it answers — and the ones it does not | Accepted (amends 0026) |
 | [0044](0044-security-knowledge-as-an-append-only-log.html) | Security knowledge as an append-only log — the thesis state is its projection, retractions never vanish | Accepted (gate B4.1 + P0-6) |
 | [0045](0045-optional-built-in-authentication.html) | Optional built-in authentication for the web UI, and the deployment contract that goes with it — one password by one variable, loopback and Host-validated by default | Accepted (answers OQ-8) |
-| [0046](0046-benchmark-comparison.html) | Benchmark comparison — a fixed rate or a flagged catalog security, replayed "bought once" and as the portfolio's own savings plan | Proposed (Sprint 11 decision gate) |
+| [0046](0046-benchmark-comparison.html) | Benchmark comparison — a fixed rate or a flagged catalog security, replayed "bought once" and as the portfolio's own savings plan | Accepted (owner sign-off = the merge of PR #780) |

@@ -270,7 +270,9 @@ These are owner rules of 2026-08-12. Their rationale is recorded with the
 decisions themselves; this section states only what an agent must do.
 
 **Open the PR with the first commit, as a draft.** A branch without a PR is
-invisible to the owner and CI does not run on it.
+invisible to the owner and CI does not run on it. **Exception: a planning PR
+is opened ready for review** — it carries no closing act, its content is the
+decision, and the merge is the signature (Epic-Batch Workflow step 1).
 
 **Promote it yourself** once all four hold — the conditions are the permission,
 so do not ask:
@@ -380,7 +382,14 @@ reviews decisions and behavior, agents review code:
    carries the list of questions the gate was opened on, each marked answered
    or deferred **with a reason**, and the list is checked at the signature. A
    deferred ask is filed as an issue in the same pass, so "closed" never
-   silently means "the parts nobody re-read".
+   silently means "the parts nobody re-read". **The merge is the signature
+   (owner decision 2026-09-07, PR #780):** a planning PR — the sprint plan,
+   the gate-closing ADR and the decisions it carries — is written as
+   *adopted*, its status naming the PR whose merge adopts it. No `DRAFT` or
+   `Proposed` status in the documents, no GitHub draft flag on the PR: the
+   owner reads and merges to adopt, or comments to change, and nothing has
+   to be edited between "passt" and the merge. A decision the owner rejects
+   is removed on the PR before the merge, never merged as "proposed".
 2. **Batch:** the feature tree is worked on ONE epic branch
    (`agent/<provider>/<epic-slug>`), one commit or small commit group per
    issue, every commit passing the local gates, the branch rebased onto
@@ -417,10 +426,13 @@ reviews decisions and behavior, agents review code:
    story row — closes the issues the merge's keywords did not and the epic
    tracker, records a short
    retrospective section, confirms the merge's own CI runs — required
-   checks included — are green, and **creates and pushes an annotated
-   `X.Y.Z` tag on the merged head commit** (minor bump per sprint, patch
-   reserved for hotfixes; bare-number scheme per the owner's first release,
-   the Release workflow accepts `vX.Y.Z` too). The tag push triggers the
+   checks included — are green, and **prepares the annotated `X.Y.Z` tag
+   command for the owner to run** (minor bump per sprint, patch reserved for
+   hotfixes; bare-number scheme per the owner's first release, the Release
+   workflow accepts `vX.Y.Z` too). The tag is an **owner action** (decision
+   2026-09-07, PR #780): the agent's credential cannot push tags, and four
+   sprints of a refused push are the process, not a finding — the close-out
+   records the command, the owner runs it. The tag push triggers the
    Release workflow,
    which creates the GitHub Release with generated notes — the release is
    a rollback point for self-hosted instances plus a communicable

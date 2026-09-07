@@ -1,14 +1,14 @@
 ---
 layout: docs
 title: "ADR-0046: benchmark comparison — a benchmark is a price series the portfolio's own flows are replayed into"
-description: Design decision for issue #572 (FR-9), drafted for the Sprint 11 decision gate. Two benchmark kinds behind one interface (a fixed annual rate, and a catalog security flagged as a benchmark whose quotes come through the existing sync), two comparisons that are both Portfolio Performance's ("bought once" as a rebased overlay next to TTWROR, and "savings plan" as the portfolio's own external flows invested into the benchmark, giving an end-value delta and two IRRs on identical flows). Portfolio-wide and per view, API and MCP first. Inflation is a fixed rate in v1; the after-tax dimension (OQ-9) and a dated CPI table are deferred and named.
+description: Design decision for issue #572 (FR-9), written for the Sprint 11 decision gate. Two benchmark kinds behind one interface (a fixed annual rate, and a catalog security flagged as a benchmark whose quotes come through the existing sync), two comparisons that are both Portfolio Performance's ("bought once" as a rebased overlay next to TTWROR, and "savings plan" as the portfolio's own external flows invested into the benchmark, giving an end-value delta and two IRRs on identical flows). Portfolio-wide and per view, API and MCP first. Inflation is a fixed rate in v1; the after-tax dimension (OQ-9) and a dated CPI table are deferred and named.
 ---
 
 # ADR-0046: benchmark comparison — a benchmark is a price series the portfolio's own flows are replayed into
 
-- **Status:** Proposed — drafted 2026-09-07 for the Sprint 11 decision gate
-  ([ADR-0026](0026-epic-batch-workflow.html) step 1); owner sign-off is
-  recorded on the planning PR and turns this into Accepted.
+- **Status:** Accepted — owner sign-off is the merge of PR #780, the Sprint
+  11 planning PR ([ADR-0026](0026-epic-batch-workflow.html) step 1 as
+  amended on that PR: the merge is the signature).
 - **Date:** 2026-09-07
 - **Answers:** FR-9 (PRD 2026-06-12, released from the advanced-reports gate
   on 2026-08-12 as scope-ladder level (b)), OQ-3 (the quote source), and the

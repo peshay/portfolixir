@@ -1,10 +1,10 @@
 # Sprint 11 — the perimeter's remainder, and the founding question
 
-**Status: DRAFT 2026-09-07 — awaiting owner adoption on the planning PR.**
-Per this plan's own terms, adoption ("passt") covers the lane cut AND signs
-**D-1** (ADR-0046), **D-2**, **D-3** and **D-4** below as recommended; a
-"nein" on any one of them removes that lane or reshapes it and leaves the
-rest standing. Verification basis: `main` at 8d178e35 (the Sprint 10
+**Status: ADOPTED by the merge of PR #780 (2026-09-07).** The merge is the
+signature (ADR-0026 step 1, amended on the same PR): it adopts the lane cut
+AND signs **D-1** (ADR-0046), **D-2**, **D-3** and **D-4** below. A decision
+the owner does not want is removed on the PR before the merge and its lane
+with it; the rest stands. Verification basis: `main` at 8d178e35 (the Sprint 10
 close-out plus #777), the open-issue list before this plan filed anything
 (26 open), the open pull requests (two Dependabot PRs, #774 and #775, no batch
 PR), and the tag list (`0.10.0` annotated on 8d178e35, release published
@@ -184,9 +184,10 @@ positions with a quote older than the sync horizon.
 
 ### D-4 — the sprint tag is an owner action (recommended)
 
-One sentence amending ADR-0026 step 5 (and its AGENTS.md mirror), landed as the batch's first commit once signed: **the
-agent prepares the annotated tag command in the close-out; the owner runs
-it.** Four sprints of a 403 on the tag push are the process, not a finding;
+Landed on this PR as an amendment to ADR-0026 step 5 and its AGENTS.md
+mirror, together with the "merge is the signature" rule the owner asked for
+on the same day: **the agent prepares the annotated tag command in the
+close-out; the owner runs it.** Four sprints of a 403 on the tag push are the process, not a finding;
 writing it down stops every retrospective from re-discovering it. Reversible
 the day the session credential gains tag-push rights.
 
@@ -250,5 +251,5 @@ place is the batch not being done.
 7. The closing act runs the ADR-0026 roles plus the risk-tier verification
    pass on Lanes X and B, and the briefing carries screenshots in a
    comment, not the PR body (Sprint 10's finding).
-8. ADR-0026 step 5 carries D-4's sentence, and the `0.11.0` command is in
-   the close-out for the owner to run.
+8. The `0.11.0` command is in the close-out for the owner to run (D-4,
+   landed with this plan).

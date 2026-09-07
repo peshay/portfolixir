@@ -69,8 +69,10 @@ defmodule Portfolixir.CITest do
   #   for compatibility — and creates the release with generated notes
   #   from a verified tag.
   # - It builds no installable artifacts and needs only contents: write.
-  # - AGENTS.md step 5 carries the tag duty, so the close-out creates the
-  #   tag that feeds this workflow.
+  # - AGENTS.md step 5 carries the tag duty: the close-out prepares the
+  #   annotated-tag command and the owner runs it (owner action since
+  #   2026-09-07, PR #780 -- the agent credential cannot push tags), and that
+  #   push is what feeds this workflow.
   test "a tag push creates the GitHub release with generated notes" do
     release = File.read!(".github/workflows/release.yml")
 
@@ -80,7 +82,9 @@ defmodule Portfolixir.CITest do
     assert release =~ "contents: write"
     refute release =~ "upload-artifact"
 
-    assert File.read!("AGENTS.md") =~ "creates and pushes an annotated"
+    agents = File.read!("AGENTS.md")
+    assert agents =~ "prepares the annotated `X.Y.Z` tag"
+    assert agents =~ "The tag is an **owner action**"
   end
 
   # User story:
