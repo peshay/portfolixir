@@ -74,3 +74,4 @@ already in force in the codebase.
 | [0043](0043-a-gate-closing-adr-names-its-asks.html) | A gate-closing ADR names the asks it answers — and the ones it does not | Accepted (amends 0026) |
 | [0044](0044-security-knowledge-as-an-append-only-log.html) | Security knowledge as an append-only log — the thesis state is its projection, retractions never vanish | Accepted (gate B4.1 + P0-6) |
 | [0045](0045-optional-built-in-authentication.html) | Optional built-in authentication for the web UI, and the deployment contract that goes with it — one password by one variable, loopback and Host-validated by default | Accepted (answers OQ-8) |
+| [0046](0046-benchmark-comparison.html) | Benchmark comparison — a fixed rate or a flagged catalog security, replayed "bought once" and as the portfolio's own savings plan | Proposed (Sprint 11 decision gate) |
