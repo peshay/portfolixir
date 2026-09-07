@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-09-06 (Sprint 10 closed out; 0.10.0 tag prepared as an owner item)
+# last_updated: 2026-09-07 (Sprint 11 planned; 0.10.0 tagged and released by the owner)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -42,7 +42,7 @@
 # requests, not assumed -- an issue's state lags the PR that fixes it.
 
 generated: 2026-07-25
-last_updated: 2026-09-06
+last_updated: 2026-09-07
 project: portfolixir
 project_key: NOKEY
 tracking_system: file-system
@@ -51,6 +51,22 @@ story_location: _bmad-output/implementation-artifacts
 # ---------------------------------------------------------------------------
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
+#
+# PLANNED (2026-09-07, Sprint 11) -- sprint-plan-2026-09-07-sprint11.md, a
+# draft awaiting owner adoption on the planning PR. Lanes: D (#772 Bandit),
+# C (#382 CSP + HTTPS posture, D-2), W (#776 limit surface), X (#779 + #610,
+# performance on retired securities, D-3, risk-tier), B (#572 benchmark per
+# ADR-0046, D-1, risk-tier), M (#727 triggers; Dependabot #774/#775), Z (no
+# new epic -- E21 remainder, E1/E5 correctness, E10's first item). D-4 makes
+# the sprint tag an owner action in ADR-0026 step 5. Filed by the plan: #779.
+#
+# TAG 0.10.0 RESOLVED (2026-09-07): annotated tag on 8d178e35 (one commit past
+# the close-out's b701613a -- #777, the session-lifetime amendment to
+# ADR-0045 -- the F4 pattern: it marks the right software), release published
+# 2026-09-07 17:24 UTC through the Release workflow. Verified against the
+# remote tag object and the release list. #777 is not in the Sprint 10 retro's
+# closed-issue ledger because it merged after the retro was written; it is
+# recorded here instead of by editing the retro.
 #
 # CLOSED OUT (2026-09-06, Sprint 10) -- PR #773 rebase-merged, `main` at
 # b701613a:
