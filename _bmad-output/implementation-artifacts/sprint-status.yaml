@@ -52,12 +52,13 @@ story_location: _bmad-output/implementation-artifacts
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
 #
-# PLANNED (2026-09-07, Sprint 11) -- sprint-plan-2026-09-07-sprint11.md, a
-# draft awaiting owner adoption on the planning PR. Lanes: D (#772 Bandit),
+# PLANNED (2026-09-07, Sprint 11) -- sprint-plan-2026-09-07-sprint11.md,
+# adopted by the merge of PR #780 (the merge is the signature -- ADR-0026
+# amended on the same PR; the sprint tag became an owner action). Lanes: D (#772 Bandit),
 # C (#382 CSP + HTTPS posture, D-2), W (#776 limit surface), X (#779 + #610,
 # performance on retired securities, D-3, risk-tier), B (#572 benchmark per
 # ADR-0046, D-1, risk-tier), M (#727 triggers; Dependabot #774/#775), Z (no
-# new epic -- E21 remainder, E1/E5 correctness, E10's first item). D-4 makes
+# new epic -- E21 remainder, E1/E5 correctness, E10's first item). D-4 made
 # the sprint tag an owner action in ADR-0026 step 5. Filed by the plan: #779.
 #
 # TAG 0.10.0 RESOLVED (2026-09-07): annotated tag on 8d178e35 (one commit past

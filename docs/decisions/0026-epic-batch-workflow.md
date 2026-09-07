@@ -109,3 +109,27 @@ Therefore:
 The "Revert unit = one squash-merged epic" consequence above is superseded:
 the revert unit is the per-issue commit, and the sprint rollback point is
 the tag.
+
+## Amendment: the merge is the signature, and the tag is the owner's (2026-09-07, owner decision on PR #780)
+
+Two touchpoints had grown a round trip each that the workflow never asked
+for.
+
+1. **Step 1 — the merge is the signature.** Planning PRs were written with a
+   `DRAFT` / `Proposed` status and opened as GitHub drafts, so adoption took
+   three moves: the owner says "passt", the agent edits the status and
+   promotes the PR, the owner merges. The decision was already made at
+   "passt"; the other two moves were paperwork. From now on a planning PR —
+   the sprint plan, a gate-closing ADR, the decisions it carries — is written
+   as adopted, its status naming the PR whose merge adopts it, and is opened
+   ready for review. The owner merges to adopt or comments to change; a
+   rejected decision is removed on the PR, never merged as "proposed". The
+   promotion conditions in AGENTS.md ("You own the PR") do not apply to a
+   planning PR, which has no closing act.
+2. **Step 5 — the tag is an owner action.** The session credential has
+   refused every tag push since 0.8.0 and the owner has run the prepared
+   command every time. Step 5 now reads that way: the close-out prepares the
+   annotated-tag command, the owner runs it. Reversible the day the
+   credential gains tag-push rights.
+
+Both are recorded in AGENTS.md at the step they change.
