@@ -1,10 +1,15 @@
 # Issue bodies with their pictures
 
 The GitHub MCP tool that filed issues #784–#808 neutralises every URL that
-points at an image (it wraps the URL in backticks), so the issues carry a
-pointer to the rendered gallery in `ux-review-2026-09-12.md` → Part 7 instead
-of the pictures themselves. These files are the intended bodies, pictures
-embedded, one per issue. To put them on the issues, run once with the
+points at an image (it wraps the URL in backticks) and, as observed, every
+URL beyond roughly 150 characters, so the issues cannot carry the pictures
+themselves. These files are the intended bodies, pictures embedded, one per
+issue — and they double as the per-issue picture pages: each issue links to
+its file here under `blob/<short sha>/…/NNN.md` (and the same path on `main`
+for after the merge), which GitHub renders with the pictures. The picture
+lines in the issue bodies name what the page shows.
+
+To put the pictures into the issue bodies themselves, run once with the
 GitHub CLI logged in as the owner:
 
 ```bash
