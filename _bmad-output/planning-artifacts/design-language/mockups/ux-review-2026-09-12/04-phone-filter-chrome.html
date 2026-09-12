@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — phone filter chrome on the Securities list</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  body { padding: 12px; }
+  .search { display: flex; gap: 8px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--color-border); }
+  .search input { flex: 1; min-width: 0; }
+  .search .icon-button { flex: none; }
+  .strip-wrap { padding: 8px 0 8px 12px; border-bottom: 1px solid var(--color-border); }
+  .family { display: inline-flex; align-items: center; gap: 4px; margin-right: 6px; }
+  .family .u-caps { padding-right: 4px; }
+  .filter-chip { white-space: nowrap; }
+  .filter-chip.is-active { background: var(--color-accent); color: var(--color-on-accent); border-color: var(--color-accent); }
+  .count { display: inline-grid; place-items: center; min-width: 18px; height: 18px; border-radius: 999px; background: var(--color-accent); color: #fff; font-size: 11px; font-weight: 700; margin-left: 6px; }
+  .sheet-mock .fam { margin-bottom: 12px; }
+  .sheet-mock .fam .u-caps { display: block; margin-bottom: 6px; }
+  .sheet-mock .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .sheet-mock .foot { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+  .backdrop { background: rgb(15 23 42 / .35); padding: 120px 0 0; }
+  .rows { border-top: 1px solid var(--color-border); }
+</style>
+</head>
+<body data-widths="390">
+
+<section class="mock-board">
+  <h2>Variante A — eine wischbare Chip-Zeile <small>Familien als Präfix, Kantenfade, Liste beginnt nach zwei Zeilen Chrome</small></h2>
+  <p class="mock-note">Suche und Werkzeuge in einer Zeile; darunter genau eine Chip-Zeile, die seitwärts wischt (dieselbe Mechanik wie die Tab-Zeile, D6). „Geändert seit“ wird eine Familie in derselben Zeile statt einer eigenen Leiste.</p>
+  <div class="mock-frame">
+    <div class="search"><input type="search" placeholder="Name, ISIN, WKN, Ticker…"><button class="icon-button" aria-label="Neu">+</button><button class="icon-button" aria-label="Kurse">↻</button><button class="icon-button" aria-label="Spalten">▥</button></div>
+    <div class="strip-wrap fade-right">
+      <div class="chip-strip">
+        <span class="family"><span class="filter-chip is-active">Im Bestand</span><span class="filter-chip">Ohne Bestand</span></span>
+        <span class="family"><span class="u-caps">Qualität</span><span class="filter-chip">Ohne Anlageklasse</span><span class="filter-chip">Kurs veraltet</span><span class="filter-chip">Kein Kurs</span></span>
+        <span class="family"><span class="u-caps">Klasse</span><span class="filter-chip">Aktie</span><span class="filter-chip">ETF</span></span>
+        <span class="family"><span class="u-caps">Geändert</span><span class="filter-chip">Heute</span><span class="filter-chip">7 Tage</span></span>
+        <span class="filter-chip">▽ Weitere</span>
+      </div>
+    </div>
+    <div class="rows">
+      <div class="row2"><span class="avatar">A</span><span class="t">Allianz SE vinkulierte Namens-Aktien o.N.</span><span class="r">116,86<small class="u-neg">−1,40 %</small></span><span class="s">ALV · Aktie</span></div>
+      <div class="row2"><span class="avatar">A</span><span class="t">Apple Inc. Registered Shares o.N.</span><span class="r">188,87<small class="u-pos">+1,42 %</small></span><span class="s">AAPL · Aktie</span></div>
+      <div class="row2"><span class="avatar">B</span><span class="t">Bitcoin</span><span class="r">51.393,52<small class="u-pos">+0,75 %</small></span><span class="s">BTC · Kryptowährung</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="mock-board">
+  <h2>Variante B — Chips hinter „Filter (n)“, als Bottom Sheet <small>eine Zeile Chrome, aktive Filter als Zähler</small></h2>
+  <p class="mock-note">Die Liste beginnt direkt unter der Suche. Der Filter-Knopf trägt die Zahl der aktiven Chips; das Sheet zeigt alle Familien untereinander, wie der Kebab unter 720 px schon heute zum Sheet wird.</p>
+  <div class="mock-frame">
+    <div class="search"><input type="search" placeholder="Name, ISIN, WKN, Ticker…"><button class="button button-secondary" style="flex:none">▽ Filter<span class="count">2</span></button><button class="icon-button" aria-label="Neu">+</button></div>
+    <div class="rows">
+      <div class="row2"><span class="avatar">A</span><span class="t">Allianz SE vinkulierte Namens-Aktien o.N.</span><span class="r">116,86<small class="u-neg">−1,40 %</small></span><span class="s">ALV · Aktie</span></div>
+      <div class="row2"><span class="avatar">A</span><span class="t">Apple Inc. Registered Shares o.N.</span><span class="r">188,87<small class="u-pos">+1,42 %</small></span><span class="s">AAPL · Aktie</span></div>
+    </div>
+    <div class="backdrop">
+      <div class="sheet-mock">
+        <div class="grip"></div>
+        <div class="fam"><span class="u-caps">Bestand</span><div class="chips"><span class="filter-chip is-active">Im Bestand</span><span class="filter-chip">Ohne Bestand</span></div></div>
+        <div class="fam"><span class="u-caps">Datenqualität</span><div class="chips"><span class="filter-chip">Ohne Anlageklasse</span><span class="filter-chip is-active">Kurs veraltet</span><span class="filter-chip">Kein Kurs</span><span class="filter-chip">Kein Wechselkurs</span></div></div>
+        <div class="fam"><span class="u-caps">Anlageklasse</span><div class="chips"><span class="filter-chip">Aktie</span><span class="filter-chip">ETF</span><span class="filter-chip">Kryptowährung</span></div></div>
+        <div class="fam"><span class="u-caps">Geändert seit</span><div class="chips"><span class="filter-chip">Heute</span><span class="filter-chip">7 Tage</span><span class="filter-chip">30 Tage</span></div></div>
+        <div class="foot"><button class="button button-ghost">Zurücksetzen</button><button class="button button-primary">2 Filter anwenden</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

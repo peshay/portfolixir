@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Overview: three compositions for the half-empty home</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  .hero { display: grid; grid-template-columns: 1fr 360px; gap: 24px; align-items: center; }
+  .hero .stat { min-height: 0; }
+  .hero .stat strong { font-size: 34px; }
+  .hero .change { font-size: 13px; color: var(--color-text-muted); }
+  .hero .change b { color: var(--color-positive); }
+  .drift { display: grid; gap: 10px; }
+  .drift .r { display: grid; grid-template-columns: 140px 1fr 260px; gap: 14px; align-items: center; font-size: 13px; }
+  .drift .r a { color: inherit; text-decoration: none; font-weight: 600; }
+  .drift .r .v { text-align: right; font-variant-numeric: tabular-nums; }
+  .drift .bar { height: 8px; }
+  .drift .bar > i { left: 50%; }
+  .drift .bar.neg > i { right: 50%; left: auto; }
+  .drift .bar::after { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--color-border-strong); }
+  .cols { display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px; }
+  .strip { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg-elevated); }
+  .strip > div { padding: 12px 14px; border-right: 1px solid var(--color-border); }
+  .strip > div:last-child { border-right: 0; }
+  .strip .u-caps { display: block; margin-bottom: 4px; }
+  .strip b { font-size: 18px; font-variant-numeric: tabular-nums; }
+  .strip i { display: block; font-style: normal; font-size: 11px; color: var(--color-text-muted); }
+  h3.sec { margin: 0 0 8px; font-size: 16px; }
+  p.basis { margin: 0 0 10px; font-size: 12px; color: var(--color-text-muted); }
+</style>
+</head>
+<body>
+
+<section class="mock-board">
+  <h2>Variante A — Verlauf in der Wertkarte, Driftbalken in den Zeilen <small>bleibt innerhalb von UX-DR2 (Wert + Veränderung, Ziel-Abweichungen, Datenqualität)</small></h2>
+  <p class="mock-note">Die Karte zeigt, wohin es geht, nicht nur wo es steht: 90-Tage-Verlauf als stille Linie, Veränderung mit Basis. Jede Abweichungszeile bekommt einen Balken um die Null, damit Richtung und Größe vor dem Lesen da sind — und die Zeile ist sichtbar ein Link.</p>
+  <div class="mock-frame">
+    <div class="workspace-section">
+      <article class="stat hero">
+        <div>
+          <span>Alles</span>
+          <strong>49.654,08<small>EUR</small></strong>
+          <div class="sub change">Seit Jahresbeginn <b>+5,2 %</b> · +2.451,90 EUR · Cash 25,1 % · Stand 2026-09-12</div>
+        </div>
+        <svg class="spark" viewBox="0 0 360 44" preserveAspectRatio="none" aria-label="Wertverlauf 90 Tage">
+          <path d="M0 34 L18 33 L36 31 L54 32 L72 28 L90 27 L108 29 L126 24 L144 22 L162 23 L180 19 L198 18 L216 20 L234 15 L252 14 L270 12 L288 13 L306 9 L324 10 L342 8 L360 9" fill="none" stroke="var(--color-accent)" stroke-width="1.6"/>
+          <path d="M0 34 L18 33 L36 31 L54 32 L72 28 L90 27 L108 29 L126 24 L144 22 L162 23 L180 19 L198 18 L216 20 L234 15 L252 14 L270 12 L288 13 L306 9 L324 10 L342 8 L360 9 L360 44 L0 44 Z" fill="var(--color-accent)" opacity=".12"/>
+        </svg>
+      </article>
+    </div>
+    <div class="workspace-section">
+      <h3 class="sec">Ziel-Abweichungen</h3>
+      <p class="basis">Ansicht Alles · Plan „Plan“ auf Strategies · Kategorien, die mehr als ±5 pp von ihrem Soll-Gewicht abweichen.</p>
+      <div class="drift">
+        <div class="r"><a href="#">Growth</a><div class="bar neg"><i style="width:36%"></i></div><div class="v u-neg">12,0 pp unter dem Soll · −5.954,55 EUR</div></div>
+        <div class="r"><a href="#">Global Core</a><div class="bar neg"><i style="width:32%"></i></div><div class="v u-neg">10,6 pp unter dem Soll · −5.248,13 EUR</div></div>
+        <div class="r"><a href="#">Cash</a><div class="bar pos"><i style="width:30%"></i></div><div class="v">10,1 pp über dem Soll · +5.024,89 EUR</div></div>
+      </div>
+    </div>
+    <div class="workspace-section">
+      <h3 class="sec">Datenqualität</h3>
+      <div class="data-note data-note--attention"><span class="data-note__icon" aria-hidden="true">⚠</span><span class="data-note__word">Achtung</span><div class="data-note__body"><a href="#">3 Wertpapiere ohne Kurs seit 7 Tagen</a> · <a href="#">eins ohne Anlageklasse</a> · <a href="#">10 ohne Logo</a></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="mock-board">
+  <h2>Variante B — Kennzahlenleiste unter der Wertkarte <small>braucht eine UX-DR2-Ergänzung: die Übersicht trägt vier Kennzahlen</small></h2>
+  <p class="mock-note">Die vier Fragen des Morgens auf einer Zeile: Rendite, Cashquote, letzte Buchung, Kursstand. Die Karte bleibt wie gebaut; die Leiste ist Variante B aus dem KPI-Band-Mockup, auf vier Zellen gekürzt. Führt zum Vermögen, ersetzt es nicht.</p>
+  <div class="mock-frame">
+    <div class="workspace-section u-gap">
+      <article class="stat"><span>Alles</span><strong>49.654,08<small>EUR</small></strong><div class="sub">Seit Jahresbeginn <b class="u-pos">+5,2 %</b> · Cash 25,1 %</div></article>
+      <div class="strip">
+        <div><span class="u-caps">TTWROR 1J</span><b class="u-pos">+10,5 %</b><i>IRR +10,5 %</i></div>
+        <div><span class="u-caps">Cashquote</span><b>25,1 %</b><i>12.473,00 EUR</i></div>
+        <div><span class="u-caps">Letzte Buchung</span><b>2026-09-09</b><i>Saldo USD Settlement</i></div>
+        <div><span class="u-caps">Kurse</span><b>Stand heute</b><i>3 veraltet</i></div>
+      </div>
+    </div>
+    <div class="workspace-section">
+      <h3 class="sec">Ziel-Abweichungen</h3>
+      <p class="basis">Ansicht Alles · Plan „Plan“ auf Strategies · ±5 pp</p>
+      <div class="drift">
+        <div class="r"><a href="#">Growth</a><div class="bar neg"><i style="width:36%"></i></div><div class="v u-neg">12,0 pp unter dem Soll · −5.954,55 EUR</div></div>
+        <div class="r"><a href="#">Global Core</a><div class="bar neg"><i style="width:32%"></i></div><div class="v u-neg">10,6 pp unter dem Soll · −5.248,13 EUR</div></div>
+        <div class="r"><a href="#">Cash</a><div class="bar pos"><i style="width:30%"></i></div><div class="v">10,1 pp über dem Soll · +5.024,89 EUR</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="mock-board">
+  <h2>Variante C — zweispaltig <small>Wert und Verlauf links, Abweichungen und Datenqualität rechts; die Seite füllt den Bildschirm</small></h2>
+  <p class="mock-note">Gleicher Inhalt wie A, andere Verteilung: die rechte Spalte ist die Inbox („braucht mich etwas?“), die linke der Stand. Auf dem Telefon stapeln die Spalten in dieser Reihenfolge.</p>
+  <div class="mock-frame">
+    <div class="workspace-section cols">
+      <div>
+        <article class="stat"><span>Alles</span><strong>49.654,08<small>EUR</small></strong>
+          <svg class="spark" viewBox="0 0 360 44" preserveAspectRatio="none" aria-label="Wertverlauf 90 Tage"><path d="M0 34 L36 31 L72 28 L108 29 L144 22 L180 19 L216 20 L252 14 L288 13 L324 10 L360 9" fill="none" stroke="var(--color-accent)" stroke-width="1.6"/></svg>
+          <div class="sub">Seit Jahresbeginn <b class="u-pos">+5,2 %</b> · +2.451,90 EUR · Stand 2026-09-12</div>
+        </article>
+      </div>
+      <div class="u-gap">
+        <div>
+          <h3 class="sec">Ziel-Abweichungen</h3>
+          <p class="basis">Ansicht Alles · Plan „Plan“ auf Strategies · ±5 pp</p>
+          <div class="drift" style="--c:1">
+            <div class="r" style="grid-template-columns: 100px 1fr;"><a href="#">Growth</a><div class="v u-neg">−12,0 pp · −5.954,55 EUR</div></div>
+            <div class="r" style="grid-template-columns: 100px 1fr;"><a href="#">Global Core</a><div class="v u-neg">−10,6 pp · −5.248,13 EUR</div></div>
+            <div class="r" style="grid-template-columns: 100px 1fr;"><a href="#">Cash</a><div class="v">+10,1 pp · +5.024,89 EUR</div></div>
+          </div>
+        </div>
+        <div>
+          <h3 class="sec">Datenqualität</h3>
+          <div class="data-note data-note--attention"><span class="data-note__icon" aria-hidden="true">⚠</span><span class="data-note__word">Achtung</span><div class="data-note__body"><a href="#">3 ohne Kurs seit 7 Tagen</a> · <a href="#">1 ohne Anlageklasse</a> · <a href="#">10 ohne Logo</a></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

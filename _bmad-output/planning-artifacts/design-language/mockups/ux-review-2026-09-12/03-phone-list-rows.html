@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — phone list rows for Securities and Transactions</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  body { padding: 12px; }
+  .mock-board { margin-bottom: 20px; }
+  .list { border-top: 1px solid var(--color-border); }
+  .row2 .k { grid-row: span 2; align-self: center; color: var(--color-text-muted); font-size: 18px; }
+  .stale { color: var(--color-warning); font-size: 11px; font-weight: 600; }
+  .group { padding: 6px 12px; background: var(--color-bg-muted); font-size: 12px; color: var(--color-text-muted); font-weight: 600; }
+  .group b { color: var(--color-text); }
+  /* B — table with sticky first column */
+  .scroller { overflow-x: auto; }
+  table.data-table.sticky th:first-child, table.data-table.sticky td:first-child { position: sticky; left: 0; background: var(--color-bg-elevated); z-index: 1; box-shadow: 1px 0 0 var(--color-border); max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  table.data-table.sticky td, table.data-table.sticky th { padding: 8px 10px; white-space: nowrap; }
+</style>
+</head>
+<body data-widths="390">
+
+<section class="mock-board">
+  <h2>Variante A — zweizeilige Zeilen <small>Wertpapiere</small></h2>
+  <p class="mock-note">Unter 560 px wird die breite Tabelle zur Liste: Name und Kennung links, Kurs und Tagesänderung rechts, Datenqualität als Wort in der Zeile. Nichts scrollt seitwärts; die Spaltenwahl bleibt der Desktop-Ansicht.</p>
+  <div class="mock-frame">
+    <div class="list">
+      <div class="row2"><span class="avatar">A</span><span class="t">Allianz SE vinkulierte Namens-Aktien o.N.</span><span class="r">116,86<small class="u-neg">−1,40 %</small></span><span class="s">ALV · DE0008404005 · Aktie</span></div>
+      <div class="row2"><span class="avatar">A</span><span class="t">Apple Inc. Registered Shares o.N.</span><span class="r">188,87<small class="u-pos">+1,42 %</small></span><span class="s">AAPL · US0378331005 · Aktie</span></div>
+      <div class="row2"><span class="avatar">N</span><span class="t">Nordic Timber Holdings AB</span><span class="r">42,64<small class="stale">⚠ veraltet · 2026-08-08</small></span><span class="s">NTHB · SE0000000012 · Aktie</span></div>
+      <div class="row2"><span class="avatar">P</span><span class="t">Placeholder Anleihe 2031 3,25%</span><span class="r"><span class="u-muted">kein Kurs</span><small class="u-muted">—</small></span><span class="s">EUR · <a href="#">Anlageklasse zuordnen</a></span></div>
+      <div class="row2"><span class="avatar">V</span><span class="t">Vanguard FTSE All-World UCITS ETF USD Acc</span><span class="r">87,21<small class="u-pos">+1,00 %</small></span><span class="s">VWCE · IE00BK5BQT80 · ETF</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="mock-board">
+  <h2>Variante A — zweizeilige Zeilen <small>Transaktionen</small></h2>
+  <p class="mock-note">Datum und Art links oben, Wertpapier darunter, der Betrag rechts — die Größe, die im Journal fehlt. Monatsköpfe bleiben.</p>
+  <div class="mock-frame">
+    <div class="list">
+      <div class="group">September 2026 · <b>2 Transaktionen</b> · 12,50 EUR · 1.850,00 USD</div>
+      <div class="row2"><span class="k">⋮</span><span class="t">2026-09-09 · Saldo gesetzt</span><span class="r">1.850,00<small>USD</small></span><span class="s">USD Settlement</span></div>
+      <div class="row2"><span class="k">⋮</span><span class="t">2026-09-03 · Dividende</span><span class="r u-pos">+12,50<small>50 Stück</small></span><span class="s">Apple Inc. Registered Shares o.N.</span></div>
+      <div class="group">August 2026 · <b>2 Transaktionen</b> · 1.500,00 EUR</div>
+      <div class="row2"><span class="k">⋮</span><span class="t">2026-08-31 · Einlage</span><span class="r u-pos">+1.500,00<small>EUR</small></span><span class="s">Demo Cash</span></div>
+      <div class="row2"><span class="k">⋮</span><span class="t">2026-08-03 · Einlieferung</span><span class="r"><small>5 Stück</small></span><span class="s">Placeholder Anleihe 2031 3,25%</span></div>
+      <div class="group">Februar 2026 · <b>1 Transaktion</b> · 1.263,00 EUR</div>
+      <div class="row2"><span class="k">⋮</span><span class="t">2026-02-24 · Kauf</span><span class="r">−1.263,00<small>30 × 42,10</small></span><span class="s">Nordic Timber Holdings AB</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="mock-board">
+  <h2>Variante B — Tabelle bleibt, erste Spalte haftet <small>Wertpapiere</small></h2>
+  <p class="mock-note">Weniger Umbau: die Tabelle scrollt wie heute, aber der Name bleibt stehen, und die Zahlenspalten sind so schmal, dass Kurs und Änderung ohne Wischen sichtbar sind. Die Spaltenwahl gilt weiter.</p>
+  <div class="mock-frame">
+    <div class="scroller">
+      <table class="data-table sticky">
+        <thead><tr><th>Name</th><th class="u-num">Kurs</th><th class="u-num">Tag %</th><th>Ticker</th><th>ISIN</th><th>Klasse</th></tr></thead>
+        <tbody>
+          <tr><td>Allianz SE vinkulierte Namens-Aktien o.N.</td><td class="u-num">116,86</td><td class="u-num u-neg">−1,40</td><td>ALV</td><td>DE0008404005</td><td>Aktie</td></tr>
+          <tr><td>Apple Inc. Registered Shares o.N.</td><td class="u-num">188,87</td><td class="u-num u-pos">+1,42</td><td>AAPL</td><td>US0378331005</td><td>Aktie</td></tr>
+          <tr><td>Nordic Timber Holdings AB</td><td class="u-num">42,64 <span class="stale">⚠</span></td><td class="u-num u-muted">—</td><td>NTHB</td><td>SE0000000012</td><td>Aktie</td></tr>
+          <tr><td>Placeholder Anleihe 2031 3,25%</td><td class="u-num u-muted">—</td><td class="u-num u-muted">—</td><td></td><td></td><td>—</td></tr>
+          <tr><td>Vanguard FTSE All-World UCITS ETF USD Acc</td><td class="u-num">87,21</td><td class="u-num u-pos">+1,00</td><td>VWCE</td><td>IE00BK5BQT80</td><td>ETF</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

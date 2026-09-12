@@ -1233,3 +1233,41 @@ Applied to: the transaction history's Balance column (when summoned) and the
 allocation drift table's Drift column (header, category, position, cash and
 unassigned cells). The flat positions table keeps its order — its Drift is
 followed by the Hint column, which is part of the same subject.
+
+## Amendment 2026-09-12 — appearance decisions from the whole-surface UX review
+
+Rules are in `EXPERIENCE.md` → Amendment 2026-09-12; the evidence and the
+variants in `../ux-review-2026-09-12.md`. Appearance decided here:
+
+- **Top bar title:** `.topbar-page h1` takes `line-height: 1.3` and loses
+  `overflow: hidden`; the ellipsis clip moves to the `.topbar-page` container
+  as `overflow-x: clip`. The line box must clear a capital umlaut at 1× DPR —
+  "Übersicht" rendered as "Ubersicht" on every Overview shot since the top bar
+  was built, including the committed docs screenshots.
+- **Value suffix:** inside {components.value-slot} the currency renders as a
+  `<small>` at {typography.stat-label} size and {colors.text-muted}, 4 px
+  after the digits. The digits keep tabular numerals and never wrap.
+- **Matrix zero:** "–" (en dash) centred, {colors.text-subtle}, in the cell
+  where a sum is 0,00.
+- **Stale marker in a value cell:** the `:alert_triangle` glyph at 12 px in
+  {colors.warning}, the word "veraltet" and the quote date in
+  {typography.table-cell}, on the line under the price. A clock glyph
+  (`:clock`, 24×24 house idiom: a circle with hour and minute strokes) is
+  added to the icon set for the State Patterns freshness note; the list row
+  uses the triangle because it is the attention severity's glyph and the row
+  has no room for a second one.
+- **Two-line phone rows (UX-DR27):** `grid-template-columns: auto 1fr auto`,
+  10 px column gap, 10 px block padding, 1 px {colors.border} between rows;
+  name at {typography.table-cell} weight 600, the identifier line at 12 px
+  {colors.text-muted}, the figures right-aligned with tabular numerals and
+  the second figure (change, quantity) as a 12 px line under the first.
+- **Sunburst centre:** three lines — the category in {typography.stat-label},
+  the value at 20 px weight 700, the actual/target pair at 11 px muted; the
+  centre never paints a colour of its own.
+- **Facet control and view switcher:** placed inside `.workspace-section`, so
+  they take its padding; no negative margins.
+- The mockups under `mockups/ux-review-2026-09-12/` are rendered from
+  `priv/static/app.css` itself (linked relatively) with a thin `mock.css`
+  frame, so every proposal already uses the shipped tokens and components.
+  They illustrate; the spines specify (the clause in `EXPERIENCE.md` → Visual
+  references holds).

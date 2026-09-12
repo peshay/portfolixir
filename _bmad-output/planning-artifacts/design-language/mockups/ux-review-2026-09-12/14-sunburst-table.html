@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Allocation sunburst: data-as-table, no tutorial prose, a centre that reads</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  .wrap { display: grid; grid-template-columns: 340px 1fr; gap: 24px; align-items: center; }
+  .donut { position: relative; width: 300px; height: 300px; margin: 0 auto; }
+  .donut svg { width: 100%; height: 100%; }
+  .centre { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; pointer-events: none; }
+  .centre b { font-size: 20px; font-variant-numeric: tabular-nums; }
+  .centre i { font-style: normal; font-size: 11px; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: .05em; }
+  .legend { display: grid; gap: 8px; font-size: 13px; }
+  .legend div { display: flex; align-items: center; gap: 8px; }
+  .legend i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .legend b { margin-left: auto; font-variant-numeric: tabular-nums; }
+  .basis { font-size: 12px; color: var(--color-text-muted); }
+  .basis.sum { display: flex; gap: 12px; }
+</style>
+</head>
+<body>
+
+<section class="mock-board">
+  <h2>Ziel-Zustand — Sunburst mit Tabellen-Aufklappen, ohne Bedienhinweis, mit lesbarer Mitte <small>UX-DR10 (Pflicht unter jeder Diagrammfläche), UX-DR11 (Prosa entfällt), UX-DR7 (Werte in der Legende)</small></h2>
+  <p class="mock-note">„Tippe auf ein Segment oder fahre mit der Maus darüber“ ist ein Bedienhinweis, kein Inhalt, und die Sunburst ist die einzige Diagrammfläche ohne „Daten als Tabelle“. Die Mitte trägt den Bezugswert — oder das gerade berührte Segment, was auf dem Telefon den Tooltip ersetzt. Die Σ-Zeile wird die Basiszeile des Plans.</p>
+  <div class="mock-frame"><div class="workspace-section u-gap">
+    <div class="basis sum"><span>Plan „Plan“ auf Strategies</span><span>Soll oberste Ebene <b>100,0 %</b></span><span>Ansicht Alles</span><span>Stand 2026-09-12</span></div>
+    <div class="wrap">
+      <div class="donut">
+        <svg viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="30" fill="none" stroke="#16a34a" stroke-width="14" stroke-dasharray="26.6 188.5" transform="rotate(-90 50 50)"/>
+          <circle cx="50" cy="50" r="30" fill="none" stroke="#2563eb" stroke-width="14" stroke-dasharray="99.9 188.5" stroke-dashoffset="-26.6" transform="rotate(-90 50 50)"/>
+          <circle cx="50" cy="50" r="30" fill="none" stroke="#ffab01" stroke-width="14" stroke-dasharray="9.8 188.5" stroke-dashoffset="-126.5" transform="rotate(-90 50 50)"/>
+          <circle cx="50" cy="50" r="30" fill="none" stroke="#94a0b4" stroke-width="14" stroke-dasharray="4.9 188.5" stroke-dashoffset="-136.3" transform="rotate(-90 50 50)"/>
+          <circle cx="50" cy="50" r="30" fill="none" stroke="#0ea5e9" stroke-width="14" stroke-dasharray="47.3 188.5" stroke-dashoffset="-141.2" transform="rotate(-90 50 50)"/>
+          <circle cx="50" cy="50" r="44" fill="none" stroke="#22c55e" stroke-width="8" stroke-dasharray="39 276.5" transform="rotate(-90 50 50)" opacity=".85"/>
+          <circle cx="50" cy="50" r="44" fill="none" stroke="#1e40af" stroke-width="8" stroke-dasharray="67 276.5" stroke-dashoffset="-39" transform="rotate(-90 50 50)" opacity=".85"/>
+          <circle cx="50" cy="50" r="44" fill="none" stroke="#3b82f6" stroke-width="8" stroke-dasharray="79 276.5" stroke-dashoffset="-106" transform="rotate(-90 50 50)" opacity=".85"/>
+        </svg>
+        <div class="centre"><i>Growth</i><b>26.320,60 EUR</b><i>53,0 % · Soll 65,0 %</i></div>
+      </div>
+      <div class="legend">
+        <div><i style="background:#16a34a"></i>Stability <b>14,1 % · 7.011,60</b></div>
+        <div><i style="background:#2563eb"></i>Growth <b>53,0 % · 26.320,60</b></div>
+        <div><i style="background:#ffab01"></i>Crypto <b>5,2 % · 2.569,68</b></div>
+        <div><i style="background:#94a0b4"></i>Nicht zugeordnet <b>2,6 % · 1.279,20</b></div>
+        <div><i style="background:#0ea5e9"></i>Cash <b>25,1 % · 12.473,00</b></div>
+      </div>
+    </div>
+    <div class="basis">▸ Daten als Tabelle — Kategorie, Wert, Ist, Soll, Drift; die Drift-Tabelle darunter ist diese Tabelle und erhält den Aufklapp-Kopf</div>
+  </div></div>
+</section>
+
+</body>
+</html>

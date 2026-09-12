@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Snapshots: the comparison is the surface</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  .head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .head h2.ws { margin-right: auto; }
+  .seg { display: inline-flex; border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+  .seg span { padding: 5px 10px; font-size: 12px; border-right: 1px solid var(--color-border); color: var(--color-text-muted); }
+  .seg span:last-child { border-right: 0; }
+  .seg span.on { background: var(--color-accent); color: #fff; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .kpis .stat { min-height: 0; padding: 12px 14px; gap: 4px; }
+  .kpis .stat strong { font-size: 22px; }
+  .chart { position: relative; height: 240px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); }
+  .chart svg { width: 100%; height: 100%; }
+  .legend { display: flex; gap: 16px; font-size: 12px; color: var(--color-text-muted); }
+  .legend i { display: inline-block; width: 14px; height: 2px; vertical-align: middle; margin-right: 6px; background: var(--color-accent); }
+  .legend i.f { background: var(--color-text-subtle); }
+  .basis { font-size: 12px; color: var(--color-text-muted); }
+  table.data-table td, table.data-table th { padding: 8px 10px; }
+</style>
+</head>
+<body>
+
+<section class="mock-board">
+  <h2>Ziel-Zustand — Vergleich zuerst, Liste darunter, Anlegen hinter Aufklappen <small>Component Patterns → Snapshots comparison; Erklärsatz wird ⓘ</small></h2>
+  <p class="mock-note">Die Seite beantwortet „hätte Halten gewonnen?“ — also steht der Vergleich des zuletzt angelegten Snapshots sofort da: vier Kennzahlen (real, eingefroren, vor Transaktionskosten, Kosten mit Rückverdient-Zustand), das Diagramm, die Basiszeile. Die Snapshot-Liste wählt den Vergleich; Löschen wandert ins Zeilenmenü.</p>
+  <div class="mock-frame">
+    <div class="workspace-section u-gap">
+      <div class="head"><h2 class="ws">Vergleich gegen „Vor Umschichtung“ <span class="u-muted" style="font-weight:500;font-size:13px">ⓘ</span></h2><span class="seg"><span class="on">Vor Umschichtung · 2026-06-14</span></span><button class="button button-secondary">▸ Neuer Snapshot</button></div>
+      <div class="kpis">
+        <article class="stat"><span>Real (TTWROR seit Stichtag)</span><strong class="u-pos">+6,1 %</strong><div class="sub">netto, alle Kosten enthalten</div></article>
+        <article class="stat"><span>Eingefroren (Halten)</span><strong class="u-pos">+4,8 %</strong><div class="sub">Buy-and-hold der Bestände vom 2026-06-14</div></article>
+        <article class="stat"><span>Real vor Transaktionskosten</span><strong class="u-pos">+6,4 %</strong><div class="sub">Gebühren/Steuern auf Kauf/Verkauf extern</div></article>
+        <article class="stat"><span>Transaktionskosten</span><strong>142,30<small>EUR</small></strong><div class="sub"><b class="u-pos">Rückverdient</b> — real liegt vor eingefroren</div></article>
+      </div>
+      <div class="legend"><span><i></i>Real</span><span><i class="f"></i>Eingefroren</span></div>
+      <div class="chart"><svg viewBox="0 0 800 240" preserveAspectRatio="none"><path d="M0 200 L80 190 L160 180 L240 184 L320 170 L400 160 L480 150 L560 155 L640 140 L720 128 L800 122" fill="none" stroke="var(--color-accent)" stroke-width="1.8"/><path d="M0 200 L80 194 L160 188 L240 186 L320 178 L400 172 L480 168 L560 166 L640 160 L720 152 L800 148" fill="none" stroke="var(--color-text-subtle)" stroke-width="1.6" stroke-dasharray="4 3"/></svg></div>
+      <div class="basis">▸ Daten als Tabelle · seit 2026-06-14 · Brutto, nur Kursentwicklung — Dividenden noch nicht enthalten · Kosten = Gebühren und Steuern auf Kauf/Verkauf im Fenster</div>
+    </div>
+    <div class="workspace-section u-gap">
+      <h2 class="ws" style="font-size:16px">Snapshots</h2>
+      <table class="data-table">
+        <thead><tr><th>Name</th><th>Geltungsbereich</th><th>Stichtag</th><th class="u-num">Real vs. eingefroren</th><th></th></tr></thead>
+        <tbody>
+          <tr><td><b>Vor Umschichtung</b> <span class="mock-pill">im Vergleich</span></td><td>Alles</td><td>2026-06-14</td><td class="u-num u-pos">+1,3 pp</td><td>⋮</td></tr>
+          <tr><td>Jahresanfang</td><td>Ohne Krypto</td><td>2026-01-02</td><td class="u-num u-neg">−0,4 pp</td><td>⋮</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

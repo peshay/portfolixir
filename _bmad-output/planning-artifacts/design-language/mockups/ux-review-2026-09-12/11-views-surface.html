@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Views: read-first rows, the tutorial becomes ⓘ, forms behind +</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  .head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .head h2.ws { margin-right: auto; font-size: 16px; }
+  .rows { display: grid; gap: 6px; }
+  .vrow { display: grid; grid-template-columns: 1fr auto 40px; gap: 12px; align-items: center; padding: 10px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); font-size: 13px; }
+  .vrow .n { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+  .vrow .rule { font-size: 12px; color: var(--color-text-muted); }
+  .vrow .rule .filter-chip { min-height: 22px; padding: 1px 8px; font-size: 11px; margin: 0 2px; }
+  .vrow .sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .vrow .use { font-size: 12px; color: var(--color-text-muted); }
+  .vrow .use b { color: var(--color-text); font-weight: 600; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .basis { font-size: 12px; color: var(--color-text-muted); }
+</style>
+</head>
+<body>
+
+<section class="mock-board">
+  <h2>Ziel-Zustand — Ansichten und Buckets als Lesefläche <small>UX-DR11-Triage für den „So funktioniert's“-Block; UX-DR1-Muster (Liste zuerst, + öffnet das Formular)</small></h2>
+  <p class="mock-note">Der Zweischritt-Tutorialtext wird ein ⓘ am Titel. Jede Ansicht sagt in ihrer Zeile, was sie tut („alles außer Crypto“) und wo sie gilt; jeder Bucket trägt seine Farbe und seine Verwendung. Die Standard-Zuordnung ist keine dritte Sektion mehr, sondern die Verwendungsspalte des Buckets — bearbeitet wird sie dort, wo sie gilt: an der Kontozeile in Konten & Depots.</p>
+  <div class="mock-frame">
+    <div class="workspace-section u-gap">
+      <div class="head"><h2 class="ws">Ansichten <span class="u-muted" style="font-weight:500;font-size:13px">ⓘ</span></h2><span class="basis">Gespeicherte Ein-/Ausschlussfilter über Buckets · gelten im Ansichtsumschalter auf Vermögen</span><button class="button button-primary">+ Ansicht</button></div>
+      <div class="rows">
+        <div class="vrow"><div><div class="n">Alles <span class="mock-pill">Standard</span></div><div class="rule">Alle Depots, Konten und Positionen · keine Filter</div></div><span class="use"><b>49.654,08 EUR</b> · 9 Positionen · 2 Konten</span><span></span></div>
+        <div class="vrow"><div><div class="n">Ohne Krypto</div><div class="rule">Alles außer <span class="filter-chip">Crypto</span></div></div><span class="use"><b>47.084,40 EUR</b> · 8 Positionen · 2 Konten</span><span>⋮</span></div>
+      </div>
+    </div>
+    <div class="workspace-section u-gap">
+      <div class="head"><h2 class="ws">Buckets <span class="u-muted" style="font-weight:500;font-size:13px">ⓘ</span></h2><span class="basis">Überlappende Tags an Depots, Konten und Positionen · Werte je Bucket sind keine Summe</span><button class="button button-secondary">+ Bucket</button></div>
+      <div class="rows">
+        <div class="vrow"><div class="n"><span class="sw" style="background:#7c3aed"></span>Household</div><span class="use">Standard auf <b>Demo Depot</b>, <b>Demo Cash</b> · 8 Positionen erben</span><span>⋮</span></div>
+        <div class="vrow"><div class="n"><span class="sw" style="background:#f59e0b"></span>Crypto</div><span class="use">1 Position direkt: <b>Bitcoin</b> · kein Standard</span><span>⋮</span></div>
+      </div>
+      <div class="basis">Standard-Buckets werden an der Kontozeile gesetzt → <a href="#">Konten &amp; Depots</a>. USD Settlement hat keinen Standard-Bucket.</div>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Realized gains facet: the closed trades, not only a year matrix</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  .facets { display: inline-flex; border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+  .facets span { padding: 6px 12px; font-size: 13px; border-right: 1px solid var(--color-border); color: var(--color-text-muted); }
+  .facets span:last-child { border-right: 0; }
+  .facets span.on { background: var(--color-accent); color: #fff; }
+  .basis { font-size: 12px; color: var(--color-text-muted); }
+  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .kpis .stat { min-height: 0; padding: 12px 14px; gap: 4px; }
+  .kpis .stat strong { font-size: 22px; }
+  table.data-table td, table.data-table th { padding: 8px 10px; }
+  .hold { color: var(--color-text-muted); font-size: 12px; }
+</style>
+</head>
+<body>
+
+<section class="mock-board">
+  <h2>Ziel-Zustand — Realisierte Gewinne zeigt die Trades <small>eine Basiszeile statt vier Zeilen Prosa; Jahresmatrix bleibt als Aufklappen</small></h2>
+  <p class="mock-note">Die Facette heißt „Realisierte Gewinne“ und zeigt heute nur eine Jahr×Monat-Matrix mit einer Zahl. Der Trade-Matcher liefert die geschlossenen Round-Trips längst (API, Wertpapier-Detail „Trades“). Hier stehen sie als Liste: Kauf → Verkauf, Haltedauer, Ergebnis absolut und in Prozent — die PP-„Trades“-Ansicht, die der Owner benannt hat. Der Untertitel der Seite folgt der Facette.</p>
+  <div class="mock-frame">
+    <div class="workspace-section u-gap">
+      <div class="u-flex"><span class="facets"><span>Erträge</span><span class="on">Realisierte Gewinne</span><span>Ein- &amp; Auszahlungen</span><span>Kosten</span></span><span class="basis" style="margin-left:auto">Beträge in EUR · FIFO-gematchte Verkäufe, alle Portfolios, nach Schlussdatum ⓘ</span></div>
+      <div class="kpis">
+        <article class="stat"><span>Realisiert gesamt</span><strong class="u-neg">−1.400,00<small>EUR</small></strong><div class="sub">1 geschlossener Trade · Max</div></article>
+        <article class="stat"><span>Trefferquote</span><strong>0 von 1</strong><div class="sub">Trades mit Gewinn</div></article>
+        <article class="stat"><span>Ø Haltedauer</span><strong>207<small>Tage</small></strong><div class="sub">geschlossene Trades</div></article>
+      </div>
+      <table class="data-table">
+        <thead><tr><th>Wertpapier</th><th>Kauf → Verkauf</th><th>Haltedauer</th><th class="u-num">Stück</th><th class="u-num">Einstand</th><th class="u-num">Erlös</th><th class="u-num">Ergebnis</th></tr></thead>
+        <tbody>
+          <tr><td>Microsoft Corporation Registered Shares DL-,00000625</td><td>2023-02-15 → 2023-09-10</td><td class="hold">207 Tage</td><td class="u-num">10</td><td class="u-num">3.600,00</td><td class="u-num">2.200,00</td><td class="u-num u-neg">−1.400,00 · −38,9 %</td></tr>
+        </tbody>
+      </table>
+      <div class="basis">▸ Realisiert je Periode (Jahr × Monat)</div>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Classifications index: rows that say what a tree holds</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  .head { display: flex; align-items: center; gap: 12px; }
+  .head h2.ws { margin-right: auto; }
+  .rows { display: grid; gap: 6px; }
+  .trow { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr 40px; gap: 12px; align-items: center; padding: 12px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); font-size: 13px; }
+  .trow.hd { background: var(--color-bg-muted); border-color: transparent; padding: 6px 14px; }
+  .trow .n { font-weight: 600; display: flex; gap: 8px; align-items: center; }
+  .trow .n a { color: inherit; text-decoration: none; }
+  .trow .kf b { font-size: 14px; }
+  .trow .warn { color: var(--color-warning); font-size: 12px; }
+  .mini-bar { display: flex; height: 6px; border-radius: 999px; overflow: hidden; width: 120px; margin-top: 4px; }
+  .mini-bar i { display: block; height: 100%; }
+</style>
+</head>
+<body>
+
+<section class="mock-board">
+  <h2>Ziel-Zustand — Bäume als Zeilen mit Zusammensetzung <small>Anzahl Kategorien, Zuordnungsgrad, verwendete Pläne; „+“ statt Vollbreiten-Knopf; kein „Wähle …“-Satz</small></h2>
+  <p class="mock-note">Der Index ist heute eine Aufzählung mit drei Namen. Ein Baum hat aber eine Größe, einen Zuordnungsgrad und eine Rolle (trägt er einen Plan?). Diese drei Antworten stehen in der Zeile, die Farbverteilung der obersten Ebene als kleiner Balken.</p>
+  <div class="mock-frame"><div class="workspace-section u-gap">
+    <div class="head"><h2 class="ws">Klassifizierungen</h2><button class="button button-primary">+ Klassifizierung</button></div>
+    <div class="rows">
+      <div class="trow hd"><span class="u-caps">Baum</span><span class="u-caps">Kategorien</span><span class="u-caps">Zugeordnet</span><span class="u-caps">Pläne</span><span></span></div>
+      <div class="trow"><div class="n"><a href="#">Anlageklasse</a> <span class="mock-pill">Vordefiniert</span><div class="mini-bar" style="margin-left:6px"><i style="width:60%;background:#2563eb"></i><i style="width:33%;background:#0ea5e9"></i><i style="width:7%;background:#f59e0b"></i></div></div><div class="kf"><b>11</b><i>1 Ebene</i></div><div class="kf"><b>9 von 10</b><span class="warn">1 ohne Kategorie</span></div><div class="kf"><i>—</i></div><span>⋮</span></div>
+      <div class="trow"><div class="n"><a href="#">Währung</a> <span class="mock-pill">Vordefiniert</span><div class="mini-bar" style="margin-left:6px"><i style="width:100%;background:#7c3aed"></i></div></div><div class="kf"><b>1</b><i>EUR</i></div><div class="kf"><b>10 von 10</b></div><div class="kf"><i>—</i></div><span>⋮</span></div>
+      <div class="trow"><div class="n"><a href="#">Strategies</a><div class="mini-bar" style="margin-left:6px"><i style="width:14%;background:#16a34a"></i><i style="width:53%;background:#2563eb"></i><i style="width:5%;background:#ffab01"></i><i style="width:28%;background:#e4e8ef"></i></div></div><div class="kf"><b>6</b><i>2 Ebenen</i></div><div class="kf"><b>8 von 10</b><span class="warn">2 ohne Kategorie</span></div><div class="kf"><b>Plan „Plan“</b><i>aktiv · Soll 100 %</i></div><span>⋮</span></div>
+    </div>
+  </div></div>
+</section>
+
+</body>
+</html>

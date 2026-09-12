@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Wealth KPI band, three compositions</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  /* A — two tiers */
+  .tierA-primary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .tierA-secondary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .tierA-secondary .stat { min-height: 0; padding: 12px 14px; gap: 4px; }
+  .tierA-secondary .stat strong { font-size: 20px; }
+  .tierA-secondary .stat::before { display: none; }
+  .stat strong small { font-size: 13px; font-weight: 600; color: var(--color-text-muted); margin-left: 4px; letter-spacing: 0; }
+  .stat .sub { font-size: 12px; color: var(--color-text-muted); }
+  .stat .sub b { color: var(--color-text); font-weight: 600; font-variant-numeric: tabular-nums; }
+  /* B — one strip */
+  .strip { display: grid; grid-template-columns: repeat(7, 1fr); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg-elevated); box-shadow: var(--shadow-panel); overflow-x: auto; }
+  .strip > div { padding: 12px 14px; border-right: 1px solid var(--color-border); min-width: 0; }
+  .strip > div:last-child { border-right: 0; }
+  .strip .u-caps { display: block; margin-bottom: 4px; white-space: nowrap; }
+  .strip b { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .strip b small { font-size: 11px; font-weight: 600; color: var(--color-text-muted); margin-left: 3px; }
+  .strip i { display: block; font-style: normal; font-size: 11px; color: var(--color-text-muted); white-space: nowrap; }
+  /* C — 4+3 grid, smaller value */
+  .gridC { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .gridC .stat { min-height: 96px; padding: 14px 16px; gap: 6px; }
+  .gridC .stat strong { font-size: 24px; white-space: nowrap; }
+  /* allocation-tab summary line (all variants) */
+  .summary-line { display: flex; gap: 18px; flex-wrap: wrap; align-items: baseline; padding: 10px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); font-size: 13px; }
+  .summary-line b { font-variant-numeric: tabular-nums; }
+  .summary-line a { color: var(--color-accent); margin-left: auto; font-size: 12px; }
+  @media (max-width: 560px) {
+    body { padding: 12px; }
+    .tierA-primary { grid-template-columns: 1fr; gap: 10px; }
+    .tierA-secondary { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .gridC { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .gridC .stat strong { font-size: 20px; }
+    .strip { display: flex; scroll-snap-type: x proximity; }
+    .strip > div { flex: 0 0 46%; scroll-snap-align: start; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<section class="mock-board">
+  <h2>Variante A — zwei Ebenen <small>3 Leitkennzahlen groß, 4 Nebenkennzahlen kompakt, nichts bricht um</small></h2>
+  <p class="mock-note">Die Frage „wie viel ist es, und wie hat es sich entwickelt“ steht oben; Zusammensetzung und Basiswerte darunter in halber Höhe. Währung und Zusatzwert wandern in eine Unterzeile, die Zahl bleibt einzeilig.</p>
+  <div class="mock-frame"><div class="workspace-section u-gap">
+    <div class="tierA-primary">
+      <article class="stat"><span>Gesamt inkl. Cash</span><strong>49.654,08<small>EUR</small></strong><div class="sub">Wertpapiere <b>37.181,08</b> · Cash <b>12.473,00</b></div></article>
+      <article class="stat"><span>TTWROR (1J) <span class="u-muted">ⓘ</span></span><strong class="u-pos">+10,5 %</strong><div class="sub">+4.593,33 EUR im Zeitraum</div></article>
+      <article class="stat"><span>IRR (1J) <span class="u-muted">ⓘ</span></span><strong class="u-pos">+10,5 %</strong><div class="sub">annualisiert, Stand 2026-09-12</div></article>
+    </div>
+    <div class="tierA-secondary">
+      <article class="stat"><span>Wertpapiere</span><strong>37.181,08<small>EUR</small></strong></article>
+      <article class="stat"><span>Cashquote <span class="u-muted">ⓘ</span></span><strong>25,1 %</strong><div class="sub"><b>12.473,00</b> EUR Cash</div></article>
+      <article class="stat"><span>Anfangswert · Nettoflüsse (1J) <span class="u-muted">ⓘ</span></span><strong>43.560,75<small>EUR</small></strong><div class="sub">Nettoflüsse <b class="u-pos">+1.500,00</b> EUR</div></article>
+      <article class="stat"><span>Vermögensmultiplikator (1J) <span class="u-muted">ⓘ</span></span><strong>×1,10</strong></article>
+    </div>
+  </div></div>
+</section>
+
+<section class="mock-board">
+  <h2>Variante B — eine Kennzahlenleiste <small>sieben Zellen in einer Zeile, auf dem Telefon horizontal wischbar</small></h2>
+  <p class="mock-note">Dichteste Form: eine Leiste unter dem Ansichtsumschalter, die auf dem Telefon nicht 840 px hoch stapelt, sondern wischt (mit Kantenfade wie die Tab-Zeile, UX-DR22-Mechanik).</p>
+  <div class="mock-frame"><div class="workspace-section">
+    <div class="strip">
+      <div><span class="u-caps">Gesamt inkl. Cash</span><b>49.654,08<small>EUR</small></b><i>Stand 2026-09-12</i></div>
+      <div><span class="u-caps">Wertpapiere</span><b>37.181,08<small>EUR</small></b><i>9 Positionen</i></div>
+      <div><span class="u-caps">Cash · Quote</span><b>12.473,00<small>EUR</small></b><i>25,1 % Cashquote</i></div>
+      <div><span class="u-caps">TTWROR 1J ⓘ</span><b class="u-pos">+10,5 %</b><i>+4.593,33 EUR</i></div>
+      <div><span class="u-caps">IRR 1J ⓘ</span><b class="u-pos">+10,5 %</b><i>annualisiert</i></div>
+      <div><span class="u-caps">Anfangswert 1J ⓘ</span><b>43.560,75<small>EUR</small></b><i>Nettoflüsse <span class="u-pos">+1.500,00</span></i></div>
+      <div><span class="u-caps">Multiplikator ⓘ</span><b>×1,10</b><i>1J</i></div>
+    </div>
+  </div></div>
+</section>
+
+<section class="mock-board">
+  <h2>Variante C — 4+3-Raster, kleinere Werte <small>alle Karten gleichwertig, Wert 24 px, Zusatzwert als Unterzeile</small></h2>
+  <p class="mock-note">Die konservative Korrektur: Kartenanatomie bleibt, aber die Zahl bekommt eine Zeile, die sie nicht bricht, und die Reihe hat keinen verwaisten Rest von zwei Karten.</p>
+  <div class="mock-frame"><div class="workspace-section">
+    <div class="gridC">
+      <article class="stat"><span>Gesamt inkl. Cash</span><strong>49.654,08<small>EUR</small></strong></article>
+      <article class="stat"><span>Wertpapiere</span><strong>37.181,08<small>EUR</small></strong></article>
+      <article class="stat"><span>Cash · Cashquote <span class="u-muted">ⓘ</span></span><strong>12.473,00<small>EUR</small></strong><div class="sub">Cashquote <b>25,1 %</b></div></article>
+      <article class="stat"><span>TTWROR (1J) <span class="u-muted">ⓘ</span></span><strong class="u-pos">+10,5 %</strong></article>
+      <article class="stat"><span>IRR (1J) <span class="u-muted">ⓘ</span></span><strong class="u-pos">+10,5 %</strong></article>
+      <article class="stat"><span>Anfangswert · Nettoflüsse (1J) <span class="u-muted">ⓘ</span></span><strong>43.560,75<small>EUR</small></strong><div class="sub">Nettoflüsse <b class="u-pos">+1.500,00 EUR</b></div></article>
+      <article class="stat"><span>Vermögensmultiplikator (1J) <span class="u-muted">ⓘ</span></span><strong>×1,10</strong></article>
+    </div>
+  </div></div>
+</section>
+
+<section class="mock-board">
+  <h2>In allen Varianten: der Reiter „Allokation &amp; Ziele“ wiederholt das Band nicht <small>eine Zeile statt sieben Karten</small></h2>
+  <p class="mock-note">Der Allokations-Reiter beginnt mit der Allokation. Was er vom Band braucht, ist der Bezugswert und die Cashquote — eine Zeile, mit Link zurück zu Bestände.</p>
+  <div class="mock-frame"><div class="workspace-section">
+    <div class="summary-line"><span>Gesamt inkl. Cash <b>49.654,08 EUR</b></span><span>Cashquote <b>25,1 %</b></span><span>TTWROR 1J <b class="u-pos">+10,5 %</b></span><a href="#">Alle Kennzahlen → Bestände</a></div>
+  </div></div>
+</section>
+
+</body>
+</html>
