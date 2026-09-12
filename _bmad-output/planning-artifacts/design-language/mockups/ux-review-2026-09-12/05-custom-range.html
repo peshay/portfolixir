@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — custom period range without reflowing the section header</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  .head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .head h2.ws { margin-right: auto; }
+  .seg { display: inline-flex; border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+  .seg span { padding: 5px 10px; font-size: 12px; border-right: 1px solid var(--color-border); color: var(--color-text-muted); }
+  .seg span:last-child { border-right: 0; }
+  .seg span.on { background: var(--color-accent); color: #fff; }
+  .toggle { font-size: 13px; color: var(--color-accent); }
+  .anchor { position: relative; display: inline-block; }
+  .pop { position: absolute; right: 0; top: 34px; z-index: 2; }
+  .pop .fields { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; }
+  .pop input { width: 120px; }
+  .pop .presets { display: flex; gap: 6px; flex-wrap: wrap; }
+  .pop .foot { display: flex; justify-content: flex-end; gap: 8px; }
+  .inline { display: grid; grid-template-columns: auto 1fr auto 1fr auto auto; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); font-size: 13px; }
+  .inline input { width: 130px; }
+  .basis { font-size: 12px; color: var(--color-text-muted); }
+  .chart { height: 160px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); display: grid; place-items: center; color: var(--color-text-subtle); font-size: 12px; }
+  .spacer { height: 130px; }
+</style>
+</head>
+<body>
+
+<section class="mock-board">
+  <h2>Variante A — Popover am Auslöser <small>Von/Bis in einer Zeile, Schnellwahl, die Überschrift bleibt stehen</small></h2>
+  <p class="mock-note">Der Zeitraum ist eine Eigenschaft des Steuerelements, nicht der Sektion. Ein Popover unter „Benutzerdefiniert“ hält die beiden Felder, die Jahres-Schnellwahl und „Anwenden“; der Kopf der Sektion verschiebt sich nicht, das Diagramm bleibt an Ort und Stelle.</p>
+  <div class="mock-frame"><div class="workspace-section">
+    <div class="head">
+      <h2 class="ws">Performance</h2>
+      <span class="seg"><span class="on">% (TTWROR)</span><span>Wert (EUR)</span></span>
+      <span class="seg"><span>YTD</span><span class="on">1J</span><span>3J</span><span>5J</span><span>Max</span></span>
+      <span class="anchor"><span class="toggle">▾ Benutzerdefiniert</span>
+        <div class="popover-mock pop">
+          <div class="fields"><label class="u-caps">Von</label><span></span><label class="u-caps">Bis</label><input type="text" value="2025-09-12"><span class="u-muted">–</span><input type="text" value="2026-09-12"></div>
+          <div class="presets"><span class="filter-chip">2026</span><span class="filter-chip">2025</span><span class="filter-chip">2024</span><span class="filter-chip">Letzte 90 Tage</span></div>
+          <div class="foot"><button class="button button-ghost">Abbrechen</button><button class="button button-primary">Anwenden</button></div>
+        </div>
+      </span>
+    </div>
+    <div class="spacer"></div>
+    <div class="basis"><b class="u-pos">+10,5 %</b> · +4.593,33 EUR (1J) · 2025-09-12 – 2026-09-12</div>
+    <div class="chart">Diagramm bleibt an Ort und Stelle</div>
+  </div></div>
+</section>
+
+<section class="mock-board">
+  <h2>Variante B — eigene Zeile unter der Periodenwahl <small>volle Breite, immer sichtbar wenn offen, kein Popover</small></h2>
+  <p class="mock-note">Ohne Overlay: die Zeile klappt unter dem Kopf auf und schiebt nur das Diagramm nach unten, nicht die Überschrift und die Umschalter. Von, Bis, Jahr-Schnellwahl und Anwenden auf einer Linie.</p>
+  <div class="mock-frame"><div class="workspace-section">
+    <div class="head">
+      <h2 class="ws">Performance</h2>
+      <span class="seg"><span class="on">% (TTWROR)</span><span>Wert (EUR)</span></span>
+      <span class="seg"><span>YTD</span><span>1J</span><span>3J</span><span>5J</span><span>Max</span><span class="on">Benutzerdefiniert</span></span>
+    </div>
+    <div class="inline"><label class="u-caps">Von</label><input type="text" value="2025-09-12"><label class="u-caps">Bis</label><input type="text" value="2026-09-12"><span class="seg"><span>2026</span><span>2025</span><span>2024</span></span><button class="button button-primary">Anwenden</button></div>
+    <div class="basis"><b class="u-pos">+10,5 %</b> · +4.593,33 EUR · 2025-09-12 – 2026-09-12 · berechnet 2026-09-12 17:44 UTC</div>
+    <div class="chart">Diagramm</div>
+  </div></div>
+</section>
+
+</body>
+</html>

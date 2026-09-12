@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Security detail: read first, edit one intent away</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  .pane { border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg-elevated); }
+  .pane .hd { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--color-border); }
+  .pane .hd .avatar { width: 40px; height: 40px; font-size: 14px; border-radius: 8px; }
+  .pane .hd h3 { margin: 0; font-size: 17px; }
+  .pane .hd .meta { font-size: 12px; color: var(--color-text-muted); }
+  .pane .hd .act { margin-left: auto; display: flex; gap: 8px; }
+  .tabs { display: flex; gap: 2px; padding: 0 18px; border-bottom: 1px solid var(--color-border); }
+  .tabs span { padding: 8px 10px; font-size: 13px; color: var(--color-text-muted); }
+  .tabs span.on { color: var(--color-accent); font-weight: 700; box-shadow: inset 0 -2px 0 var(--color-accent); }
+  .body { padding: 16px 18px; display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; }
+  .facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 16px; }
+  .facts .kf i { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; font-weight: 700; }
+  .facts .kf b { font-size: 15px; }
+  .mini { height: 90px; border: 1px solid var(--color-border); border-radius: var(--radius-md); display: grid; place-items: center; color: var(--color-text-subtle); font-size: 12px; background: var(--color-bg); }
+  .thesis { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 10px 12px; font-size: 13px; background: var(--color-bg); }
+  .thesis .u-caps { display: block; margin-bottom: 4px; }
+  .quiet { font-size: 12px; color: var(--color-text-muted); }
+  .form { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 16px 18px; }
+  .form label { display: grid; gap: 4px; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); }
+</style>
+</head>
+<body>
+
+<section class="mock-board">
+  <h2>Variante A — „Übersicht“ wird eine Lesefläche <small>Kennzahlen, Mini-Verlauf, Thesenstand; „Bearbeiten“ öffnet die Stammdaten</small></h2>
+  <p class="mock-note">Der erste Reiter beantwortet „was ist das, wie steht es, was denke ich darüber“ — ohne ein Eingabefeld. Stammdaten sind einen Klick entfernt (Bearbeiten → Dialog wie „Neu anlegen“). Der Feed-Wert erscheint als Wort, nicht als Konstante.</p>
+  <div class="mock-frame"><div class="workspace-section">
+    <div class="pane">
+      <div class="hd"><span class="avatar">A</span><div><h3>Allianz SE vinkulierte Namens-Aktien o.N.</h3><div class="meta">DE0008404005 · ALV · EUR · Aktie · Letzter 116,86 (2026-09-12)</div></div><div class="act"><button class="button button-secondary">Bearbeiten</button><button class="button button-secondary">Split erfassen</button><button class="icon-button">⤢</button><button class="icon-button">×</button></div></div>
+      <div class="tabs"><span class="on">Übersicht</span><span>Diagramm</span><span>Transaktionen</span><span>Trades</span><span>Kurse</span><span>Bestände</span><span>Klassifizierungen</span><span>Research</span></div>
+      <div class="body">
+        <div class="u-gap">
+          <div class="facts">
+            <div class="kf"><i>Letzter Kurs</i><b>116,86<small>EUR</small></b><span class="quiet">2026-09-12</span></div>
+            <div class="kf"><i>Tag</i><b class="u-neg">−1,40 %</b></div>
+            <div class="kf"><i>1 Jahr</i><b class="u-pos">+31,41 %</b></div>
+            <div class="kf"><i>Bestand</i><b>60<small>Stück</small></b><span class="quiet">Demo Depot</span></div>
+            <div class="kf"><i>Wert</i><b>7.011,60<small>EUR</small></b></div>
+            <div class="kf"><i>Unrealisiert</i><b class="u-pos">+1.011,60</b><span class="quiet">+16,9 % · FIFO</span></div>
+          </div>
+          <div class="mini">Kursverlauf 1J (das Diagramm des Reiters, klein)</div>
+          <div class="quiet">Kurse: Portfolio Performance · Anlageklasse Aktie · Klassifizierung Strategies → Quality · WKN 840400</div>
+        </div>
+        <div class="u-gap">
+          <div class="thesis"><span class="u-caps">These · aktuell</span>Services-Mix hält die Marge über 40 % durch den Zyklus; halten, solange Capex flach bleibt.<div class="quiet" style="margin-top:6px">Stand 2026-05-15 · 4 Einträge · letzter Widerruf 2026-09-08 → Research</div></div>
+          <div class="thesis"><span class="u-caps">Notiz</span><span class="quiet">Keine persönliche Notiz.</span> <a href="#" style="font-size:12px">Hinzufügen</a></div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+<section class="mock-board">
+  <h2>Variante B — Diagramm wird Standardreiter, das Formular heißt „Stammdaten“ <small>kleinster Eingriff</small></h2>
+  <p class="mock-note">Nichts wird neu gebaut: der Reiter mit dem Formular bekommt den ehrlichen Namen und rückt ans Ende; das Diagramm öffnet zuerst. Die Helfertexte im Formular werden ⓘ.</p>
+  <div class="mock-frame"><div class="workspace-section">
+    <div class="pane">
+      <div class="hd"><span class="avatar">A</span><div><h3>Allianz SE vinkulierte Namens-Aktien o.N.</h3><div class="meta">DE0008404005 · ALV · EUR · Letzter 116,86 (2026-09-12)</div></div><div class="act"><button class="button button-secondary">Split erfassen</button><button class="icon-button">⤢</button><button class="icon-button">×</button></div></div>
+      <div class="tabs"><span class="on">Diagramm</span><span>Transaktionen</span><span>Trades</span><span>Kurse</span><span>Bestände</span><span>Klassifizierungen</span><span>Research</span><span>Stammdaten</span></div>
+      <div class="mini" style="margin:16px 18px;height:180px">Kursdiagramm 1J mit Perioden-Steuerung — wie heute im Reiter „Diagramm“</div>
+    </div>
+    <p class="mock-note" style="margin-top:12px">Reiter „Stammdaten“ (nicht Standard):</p>
+    <div class="pane">
+      <div class="tabs"><span>Diagramm</span><span>Transaktionen</span><span>Trades</span><span>Kurse</span><span>Bestände</span><span>Klassifizierungen</span><span>Research</span><span class="on">Stammdaten</span></div>
+      <div class="form">
+        <label>Name<input type="text" value="Allianz SE vinkulierte Namens-Aktien o.N."></label><label>ISIN<input type="text" value="DE0008404005"></label><label>WKN<input type="text" value="840400"></label>
+        <label>Ticker<input type="text" value="ALV"></label><label>Börse<input type="text"></label><label>Währung<input type="text" value="EUR"></label>
+        <label>Anlageklasse<select><option>Aktie</option></select></label><label>Kursquelle<input type="text" value="Portfolio Performance" disabled></label><label style="align-self:end"><span class="u-flex" style="text-transform:none;font-weight:500"><input type="checkbox"> Synchronisierte Kurse als roh behandeln <span class="u-muted">ⓘ</span></span></label>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+</body>
+</html>

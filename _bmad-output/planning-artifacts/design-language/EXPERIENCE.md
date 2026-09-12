@@ -1082,3 +1082,74 @@ PP's unclear "Erträge" vs. "Dividenden" split.
 - **Anything about what is computed.** Every rule above is about naming, control
   vocabulary and layout. No metric, basis or predicate changes here except by
   citing a decision already signed (#700, ADR-0040).
+
+## Amendment 2026-09-12 — the whole surface, walked (UX review)
+
+Source: `../ux-review-2026-09-12.md` (the review document carries the
+evidence, the variants and the issue map; this amendment carries only the
+rules). Conditions: DE locale, 1440 px and 390 px, light and dark, seed data
+firing every alarm surface — the #706 conditions, run for the first time
+across every built route. Adopted by the merge of the planning PR that
+carries both files.
+
+### UX-DR27 (new) — under 560 px a list of entities is two-line rows
+
+A wide table of entities (securities, transactions, holdings) does not scroll
+sideways on a phone; below 560 px it renders as two-line rows — the name over
+its identifiers, the figures the row exists for right-aligned, row states
+(stale quote, no price, unclassified) as words in the row. UX-DR15's scroller
+stays the rule for matrices (year × month, the drift table) and for tables
+inside dialogs. The desktop column picker keeps its meaning on the desktop;
+the phone row is a fixed composition per surface, stated in the surface's
+story.
+
+### Rules that extend existing ones
+
+- **UX-DR21, extended:** a facet's page subtitle names the facet. Realized
+  gains, Flows and Costs each carry their own subtitle; the parent's first
+  facet is never the subtitle of its siblings.
+- **IA → every aggregate names what it aggregates, sharpened:** a Cash-flow
+  facet opens with one basis line — currency · what is aggregated · scope —
+  and one ⓘ carrying exclusions and method. No facet opens with a paragraph.
+- **Component Patterns → Stat card, extended:** a KPI band renders on one tab
+  of an area; a sibling tab carries a one-line summary linking to it, never
+  the band again.
+- **Value slot:** a value never wraps inside its slot. The currency is a small
+  suffix of the value; a combined figure is a value plus a sub-line, never two
+  values in one `<strong>`.
+- **Tables:** zero cells in a matrix render as a quiet "–" in
+  {colors.text-subtle}. A destructive row action lives in the row menu, never
+  as a standing button on every row.
+- **Voice and Tone:** a raw enum value (a transaction kind, a feed name, a
+  source, a status) never reaches a user-facing string; a fallback clause that
+  prints the value is a defect, and the story that fixes it adds the meta-test
+  that keeps it fixed.
+- **State Patterns → Stale data, call sites named:** the securities list row
+  (price cell), the securities detail header, the Wealth holdings valuation.
+  The clock glyph joins the icon set with the first of these stories.
+- **Allocation visuals:** the sunburst's centre carries the touched segment —
+  name, value, actual against target — which is the touch device's tooltip;
+  the plan's Σ line is the chart's basis line, not a floating sentence.
+- **App shell:** every control row (the view switcher, a facet control) sits
+  inside the content grid with the section's horizontal padding. Nothing is
+  flush with the sidebar edge or the screen edge.
+
+### Alignment inventory — the rows this review re-opens
+
+The 2026-08-05 inventory was cut into stories only in part. Still open, with
+the row each points at: UX-DR17 → the Wealth data-quality list (six
+conditions, `#portfolio-data-quality`); UX-DR10 → the sunburst and both income
+charts; UX-DR11 → Tax (`tax_live.ex:343/355/389/502`), Views
+(`div.hint[data-role="how-it-works"]`), the sunburst tip, the securities
+Kurse-tab sentence and the detail-form checkbox helper; UX-DR15 → the
+`.drift-table` tail. The Tax surface, the Snapshots comparison and the Views
+page have their target shape in Component Patterns and no build; the review
+filed them as alignment stories with a target mockup each.
+
+### What this amendment deliberately does not decide
+
+The composition choices (KPI band tiers, the Overview's trend, phone filter
+chrome, the transactions form's home, the detail pane's first tab, the tree
+rows' labelling, the bucket cell) are variant picks for the owner, recorded in
+the review document with a recommended variant first. The picked variant is
+written into `DESIGN.md` by the story that builds it.

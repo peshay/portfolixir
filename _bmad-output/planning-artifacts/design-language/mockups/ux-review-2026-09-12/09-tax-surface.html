@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Tax surface as specified: budget meter, check list, forms behind disclosure</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  .head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .head h2.ws { margin-right: auto; }
+  .seg { display: inline-flex; border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+  .seg span { padding: 5px 10px; font-size: 12px; border-right: 1px solid var(--color-border); color: var(--color-text-muted); }
+  .seg span:last-child { border-right: 0; }
+  .seg span.on { background: var(--color-accent); color: #fff; }
+  .budget { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .meter { border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 16px 18px; background: var(--color-bg-elevated); display: grid; gap: 10px; }
+  .meter .big { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+  .meter .big small { font-size: 13px; color: var(--color-text-muted); font-weight: 600; margin-left: 4px; }
+  .meter .bar { height: 10px; }
+  .meter .legend { display: flex; justify-content: space-between; font-size: 12px; color: var(--color-text-muted); }
+  .comp { display: grid; gap: 6px; font-size: 13px; }
+  .comp div { display: flex; justify-content: space-between; }
+  .comp b { font-variant-numeric: tabular-nums; }
+  .stmt { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px 14px; display: grid; gap: 8px; background: var(--color-bg-elevated); }
+  .stmt .top { display: flex; gap: 10px; align-items: center; }
+  .stmt .top b { font-size: 14px; }
+  .stmt .top .u-muted { font-size: 12px; }
+  .stmt .top .act { margin-left: auto; }
+  .stmt .kv { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px 14px; font-size: 12px; }
+  .stmt .kv span { display: grid; }
+  .stmt .kv i { font-style: normal; color: var(--color-text-muted); font-size: 11px; }
+  .disc-row { display: flex; gap: 12px; }
+</style>
+</head>
+<body>
+
+<section class="mock-board">
+  <h2>Ziel-Zustand — Budget-Anzeige plus Prüfliste <small>Component Patterns → Tax surface; Formulare hinter Aufklappen, Prosa wird Basiszeile oder ⓘ</small></h2>
+  <p class="mock-note">Oben die eine Zahl, die die Seite beantwortet — der steuerfreie Verkaufsspielraum — als Füllstand mit Stand und Zusammensetzung. Darunter die erfassten Abrechnungen als Liste, jede mit ihrem Prüfbefund als Datennotiz. Beide Formulare (Abrechnung, Freistellungsauftrag) klappen auf; kein 13-Felder-Block im Sichtfeld.</p>
+  <div class="mock-frame">
+    <div class="workspace-section u-gap">
+      <div class="head"><h2 class="ws">Steuern</h2><span class="seg"><span class="on">Owner</span></span><span class="seg"><span>2024</span><span class="on">2025</span><span>2026</span></span></div>
+      <div class="budget">
+        <div class="meter">
+          <span class="u-caps">Steuerfreier Verkaufsspielraum</span>
+          <div class="big">2.860,00<small>EUR</small></div>
+          <div class="bar"><i style="width:64%"></i></div>
+          <div class="legend"><span>Freistellungsauftrag 640,00 von 1.000,00 verbraucht</span><span>Stand 31.12.2025 · Example Bank</span></div>
+          <div class="data-note data-note--attention"><span class="data-note__icon" aria-hidden="true">⚠</span><span class="data-note__word">Achtung</span><div class="data-note__body">Veraltet — 1 steuerrelevante Buchung seit dem Abrechnungsdatum. <a href="#">Neue Abrechnung erfassen</a></div></div>
+        </div>
+        <div class="meter">
+          <span class="u-caps">Zusammensetzung <span style="text-transform:none;font-weight:500">ⓘ</span></span>
+          <div class="comp">
+            <div><span>Verlusttopf Aktien</span><b>2.500,00</b></div>
+            <div><span>Verbleibender Freistellungsauftrag</span><b>360,00</b></div>
+            <div style="border-top:1px solid var(--color-border);padding-top:6px"><span>Spielraum</span><b>2.860,00</b></div>
+            <div class="u-muted" style="font-size:12px"><span>Gesetzlicher Höchstbetrag 2025</span><b>1.000,00</b></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="workspace-section u-gap">
+      <div class="head"><h2 class="ws" style="font-size:16px">Erfasste Abrechnungen</h2><span class="disc-row"><button class="button button-secondary">▸ Abrechnung erfassen</button><button class="button button-secondary">▸ Freistellungsauftrag hinterlegen</button></span></div>
+      <div class="stmt">
+        <div class="top"><b>Example Bank</b><span class="u-muted">31.12.2025 · Steuerjahr 2025 · manuell erfasst</span><span class="act">⋮</span></div>
+        <div class="kv">
+          <span><i>Steuerpflichtige Kapitalerträge</i>4.200,00</span><span><i>Freistellungsauftrag erteilt / verbraucht</i>1.000,00 / −640,00</span><span><i>Verlusttopf Aktien / Sonstige</i>−2.500,00 / −300,00</span><span><i>Abgeführte KapESt / Soli / KiSt</i>−800,00 / −44,00 / 0,00</span>
+        </div>
+        <div class="data-note data-note--attention"><span class="data-note__icon" aria-hidden="true">⚠</span><span class="data-note__word">Achtung</span><div class="data-note__body">Abgeführte Kapitalertragsteuer 800,00 gegen 878,00 rekonstruiert — Abweichung 78,00. <a href="#">Gegen die Abrechnung prüfen</a></div></div>
+      </div>
+      <div class="u-muted" style="font-size:12px">Hinterlegte Freistellungsaufträge: Example Bank 1.000,00 · <a href="#">Alle anzeigen</a></div>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

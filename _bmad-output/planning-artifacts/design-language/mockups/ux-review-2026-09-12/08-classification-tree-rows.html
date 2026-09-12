@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Classification tree rows: figures with names</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  .tree { display: grid; gap: 6px; }
+  .cat { display: grid; grid-template-columns: 1fr 70px 120px 120px 130px 40px; gap: 12px; align-items: center; padding: 10px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); font-size: 13px; }
+  .cat.hd { background: var(--color-bg-muted); border-color: transparent; padding: 6px 14px; }
+  .cat .n { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+  .cat .sw { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .cat .u-num { text-align: right; }
+  .cat .res b { display: block; }
+  .cat .res small { display: block; font-size: 11px; }
+  .cat .nh { font-size: 11px; color: var(--color-text-muted); font-weight: 500; }
+  .catB { display: grid; grid-template-columns: 1fr auto 40px; gap: 12px; align-items: center; padding: 10px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); font-size: 13px; }
+  .catB .n { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+  .catB .micro { display: flex; gap: 14px; font-variant-numeric: tabular-nums; }
+  .catB .micro span { display: grid; text-align: right; }
+  .catB .micro i { font-style: normal; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--color-text-muted); }
+  .head { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .head input { min-width: 260px; }
+  .note-line { font-size: 12px; color: var(--color-text-muted); }
+</style>
+</head>
+<body>
+
+<section class="mock-board">
+  <h2>Variante A — Spaltenkopf über dem Baum <small>die Zahlen stehen in benannten, rechtsbündigen Spalten; leere Kategorien zeigen nur „—“</small></h2>
+  <p class="mock-note">Heute reiht jede Kategoriezeile sieben unbeschriftete Zahlen aneinander („5 5 22.480,60 21.863,00 +617,60 2,8 % +1 ohne Bestand“). Ein Kopf macht daraus eine Tabelle: Positionen · Wert · Einstand · Ergebnis. Der Hinweisbanner wird eine Datennotiz mit Link; der „Tipp“ entfällt (Auswahl + Leiste sind selbsterklärend, Drag ist der Beschleuniger).</p>
+  <div class="mock-frame"><div class="workspace-section u-gap">
+    <div class="head"><input type="search" placeholder="Wertpapiere in diesem Baum suchen…"><label class="u-flex" style="font-size:13px"><input type="checkbox" checked> Nur aktuelle Positionen</label><span class="note-line" style="margin-left:auto">Ergebnis: heutige Zusammensetzung, keine Periodenrendite ⓘ</span></div>
+    <div class="data-note data-note--attention"><span class="data-note__icon" aria-hidden="true">⚠</span><span class="data-note__word">Achtung</span><div class="data-note__body">1 Wertpapier ohne Kategorie — fließt nicht in die Soll/Ist-Allokation ein. <a href="#">Nicht zugeordnet öffnen</a></div></div>
+    <div class="tree">
+      <div class="cat hd"><span class="u-caps">Kategorie</span><span class="u-caps u-num">Pos.</span><span class="u-caps u-num">Wert</span><span class="u-caps u-num">Einstand</span><span class="u-caps u-num">Ergebnis</span><span></span></div>
+      <div class="cat"><span class="n">▸ <span class="sw" style="background:#2563eb"></span>Equity <span class="nh">+1 ohne Bestand</span></span><span class="u-num">5</span><span class="u-num">22.480,60</span><span class="u-num">21.863,00</span><span class="u-num res u-pos"><b>+617,60</b><small>+2,8 %</small></span><span class="u-num">✎</span></div>
+      <div class="cat"><span class="n">▸ <span class="sw" style="background:#0ea5e9"></span>ETF</span><span class="u-num">2</span><span class="u-num">12.130,80</span><span class="u-num">13.000,00</span><span class="u-num res u-neg"><b>−869,20</b><small>−6,7 %</small></span><span class="u-num">✎</span></div>
+      <div class="cat"><span class="n">▸ <span class="sw" style="background:#f59e0b"></span>Cryptocurrency</span><span class="u-num">1</span><span class="u-num">2.569,68</span><span class="u-num">3.000,00</span><span class="u-num res u-neg"><b>−430,32</b><small>−14,3 %</small></span><span class="u-num">✎</span></div>
+      <div class="cat"><span class="n">▸ <span class="sw" style="background:#8b5cf6"></span>Fund</span><span class="u-num u-muted">—</span><span class="u-num u-muted">—</span><span class="u-num u-muted">—</span><span class="u-num u-muted">—</span><span class="u-num">✎</span></div>
+      <div class="cat"><span class="n">▸ <span class="sw" style="background:#16a34a"></span>Government bond</span><span class="u-num u-muted">—</span><span class="u-num u-muted">—</span><span class="u-num u-muted">—</span><span class="u-num u-muted">—</span><span class="u-num">✎</span></div>
+      <div class="cat"><span class="n">▸ <span class="sw" style="background:#94a0b4;border:1px dashed #64748b"></span>Nicht zugeordnet</span><span class="u-num">1</span><span class="u-num">1.279,20</span><span class="u-num u-muted">—</span><span class="u-num u-muted">—</span><span></span></div>
+    </div>
+  </div></div>
+</section>
+
+<section class="mock-board">
+  <h2>Variante B — Mikro-Beschriftung in der Zeile <small>kein Kopf; jede Zahl trägt ihr Wort, leere Kategorien bleiben still</small></h2>
+  <p class="mock-note">Für einen Baum, der auf dem Telefon lesbar bleiben soll: die Zahlen stehen als beschriftete Paare rechts, leere Kategorien zeigen nichts statt „0 0 0,00“. Unterkategorien erben dieselbe Zeile, eingerückt.</p>
+  <div class="mock-frame"><div class="workspace-section u-gap">
+    <div class="tree">
+      <div class="catB"><span class="n">▸ <span class="sw" style="background:#2563eb"></span>Equity</span><span class="micro"><span><i>Positionen</i>5 <small class="u-muted">+1 ohne Bestand</small></span><span><i>Wert</i>22.480,60</span><span><i>Ergebnis</i><b class="u-pos">+617,60 · 2,8 %</b></span></span><span class="u-num">✎</span></div>
+      <div class="catB"><span class="n">▸ <span class="sw" style="background:#0ea5e9"></span>ETF</span><span class="micro"><span><i>Positionen</i>2</span><span><i>Wert</i>12.130,80</span><span><i>Ergebnis</i><b class="u-neg">−869,20 · −6,7 %</b></span></span><span class="u-num">✎</span></div>
+      <div class="catB"><span class="n">▸ <span class="sw" style="background:#f59e0b"></span>Cryptocurrency</span><span class="micro"><span><i>Positionen</i>1</span><span><i>Wert</i>2.569,68</span><span><i>Ergebnis</i><b class="u-neg">−430,32 · −14,3 %</b></span></span><span class="u-num">✎</span></div>
+      <div class="catB"><span class="n">▸ <span class="sw" style="background:#8b5cf6"></span>Fund</span><span class="micro u-muted" style="font-size:12px">leer</span><span class="u-num">✎</span></div>
+      <div class="catB"><span class="n">▸ <span class="sw" style="background:#16a34a"></span>Government bond</span><span class="micro u-muted" style="font-size:12px">leer</span><span class="u-num">✎</span></div>
+      <div class="catB"><span class="n">▸ <span class="sw" style="background:#94a0b4;border:1px dashed #64748b"></span>Nicht zugeordnet</span><span class="micro"><span><i>Positionen</i>1</span><span><i>Wert</i>1.279,20</span></span><span></span></div>
+    </div>
+  </div></div>
+</section>
+
+</body>
+</html>

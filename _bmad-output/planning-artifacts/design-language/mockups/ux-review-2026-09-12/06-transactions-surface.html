@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Transactions: the booking form leaves the primary sightline</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  .head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .head h2.ws { margin-right: auto; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .chips .u-caps { margin-right: 2px; }
+  .sum { font-size: 13px; color: var(--color-text-muted); }
+  .sum b { color: var(--color-text); font-variant-numeric: tabular-nums; }
+  table.data-table th, table.data-table td { padding: 8px 10px; }
+  table.data-table tr.g td { background: var(--color-bg-muted); font-weight: 600; color: var(--color-text-muted); font-size: 12px; }
+  .u-num { text-align: right; }
+  /* A — disclosure panel */
+  .disc { border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); padding: 10px 14px; display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--color-text-muted); }
+  .disc .button { margin-left: auto; }
+  .form-open { border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); padding: 14px; display: grid; gap: 12px; }
+  .grid6 { display: grid; grid-template-columns: 1.1fr 1fr 1.4fr 2fr 1fr 1fr; gap: 10px; }
+  .grid6 label { display: grid; gap: 4px; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); }
+  .grid6 input, .grid6 select { width: 100%; }
+  .form-open .foot { display: flex; gap: 8px; align-items: center; }
+  .form-open .foot .hint { margin-right: auto; font-size: 12px; }
+  /* B — compact one-row form */
+  .oneline { display: grid; grid-template-columns: 1fr 1fr 1.4fr 2fr 1fr 1fr auto; gap: 8px; align-items: end; padding: 12px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); }
+  .oneline label { display: grid; gap: 3px; font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); }
+  .oneline .more { grid-column: 1 / -1; font-size: 12px; color: var(--color-accent); }
+  /* C — drawer */
+  .stage { position: relative; min-height: 420px; }
+  .drawer { position: absolute; top: 0; right: 0; bottom: 0; width: 400px; background: var(--color-bg-elevated); border-left: 1px solid var(--color-border); box-shadow: var(--shadow-panel); padding: 18px; display: grid; gap: 12px; align-content: start; }
+  .drawer h3 { margin: 0; font-size: 16px; }
+  .drawer label { display: grid; gap: 4px; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); }
+  .drawer .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .dim { opacity: .55; }
+</style>
+</head>
+<body>
+
+<section class="mock-board">
+  <h2>Variante A — Formular als Aufklapp-Panel über der Historie <small>Lesen ist Standard, Erfassen ist einen Klick entfernt (Forms-behind-disclosure)</small></h2>
+  <p class="mock-note">Die Seite öffnet mit dem Journal. „Buchung erfassen“ klappt das Panel auf — mit denselben sechs Feldern in einer Zeile, Kosten und Notiz dahinter. Das Depot-Feld sagt, wohin gebucht wird (Part 4). Die Bestände-Tabelle verlässt die Seite: sie ist Vermögen → Bestände.</p>
+  <div class="mock-frame">
+    <div class="workspace-section">
+      <div class="head"><h2 class="ws">Transaktionen</h2><span class="sum"><b>17</b> Buchungen · Stand 2026-09-12</span><button class="button button-primary">+ Buchung erfassen</button></div>
+      <div class="form-open">
+        <div class="grid6">
+          <label>Art<select><option>Kauf</option></select></label>
+          <label>Datum<input type="text" placeholder="YYYY-MM-DD"></label>
+          <label>Bucht auf Depot<select><option>Demo Depot · Demo Cash (EUR)</option></select></label>
+          <label>Wertpapier<select><option>Wertpapier auswählen</option></select></label>
+          <label>Stückzahl<input type="text"></label>
+          <label>Preis (EUR)<input type="text"></label>
+        </div>
+        <div class="foot"><span class="hint">▸ Kosten und Notiz</span><button class="button button-ghost">Abbrechen</button><button class="button button-primary">Erfassen</button></div>
+      </div>
+    </div>
+    <div class="workspace-section">
+      <div class="chips"><span class="u-caps">Konto</span><span class="filter-chip">Demo Cash</span><span class="filter-chip">USD Settlement</span><span class="u-caps" style="margin-left:8px">Art</span><span class="filter-chip">Kauf</span><span class="filter-chip">Verkauf</span><span class="filter-chip">Dividende</span><span class="filter-chip">Einlage</span><span class="filter-chip">▽ Weitere</span></div>
+      <div class="sum"><b>17</b> Transaktionen · Kauf <b>8 · 41.463,00 EUR</b> · Einlage <b>2 · 51.500,00 EUR</b> · Dividende <b>3 · 151,00 EUR</b> · Verkauf <b>1 · 2.200,00 EUR</b> <span class="u-muted">· Bruttobeträge je Währung, nicht umgerechnet ⓘ</span></div>
+      <table class="data-table">
+        <thead><tr><th>Datum</th><th>Art</th><th>Wertpapier / Konto</th><th class="u-num">Stück</th><th class="u-num">Preis</th><th class="u-num">Betrag</th><th></th></tr></thead>
+        <tbody>
+          <tr class="g"><td colspan="7">September 2026 · 2 Transaktionen · 12,50 EUR · 1.850,00 USD</td></tr>
+          <tr><td>2026-09-09</td><td>Saldo gesetzt</td><td>USD Settlement</td><td class="u-num"></td><td class="u-num"></td><td class="u-num">1.850,00 USD</td><td>⋮</td></tr>
+          <tr><td>2026-09-03</td><td>Dividende</td><td>Apple Inc. Registered Shares o.N.</td><td class="u-num">50</td><td class="u-num"></td><td class="u-num u-pos">+12,50 EUR</td><td>⋮</td></tr>
+          <tr class="g"><td colspan="7">Februar 2026 · 1 Transaktion · 1.263,00 EUR</td></tr>
+          <tr><td>2026-02-24</td><td>Kauf</td><td>Nordic Timber Holdings AB</td><td class="u-num">30</td><td class="u-num">42,10</td><td class="u-num">−1.263,00 EUR</td><td>⋮</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="mock-board">
+  <h2>Variante B — kompaktes Einzeilen-Formular, immer offen <small>das „eine Panel“ aus Part 4, ohne die dritte Sektion und ohne das große Notizfeld</small></h2>
+  <p class="mock-note">Wer täglich bucht, will das Formular sehen. Es bleibt oben, wird aber eine Zeile hoch: sechs Felder, Erfassen rechts, Kosten/Notiz als Textlink darunter. Die Historie beginnt direkt darunter; die Bestände-Tabelle entfällt hier ebenfalls.</p>
+  <div class="mock-frame">
+    <div class="workspace-section">
+      <div class="oneline">
+        <label>Art<select><option>Kauf</option></select></label>
+        <label>Datum<input type="text" placeholder="YYYY-MM-DD"></label>
+        <label>Bucht auf Depot<select><option>Demo Depot · EUR</option></select></label>
+        <label>Wertpapier<select><option>auswählen…</option></select></label>
+        <label>Stück<input type="text"></label>
+        <label>Preis<input type="text"></label>
+        <button class="button button-primary">Erfassen</button>
+        <span class="more">▸ Kosten und Notiz hinzufügen</span>
+      </div>
+    </div>
+    <div class="workspace-section">
+      <div class="chips"><span class="u-caps">Konto</span><span class="filter-chip">Demo Cash</span><span class="filter-chip">USD Settlement</span><span class="u-caps" style="margin-left:8px">Art</span><span class="filter-chip">Kauf</span><span class="filter-chip">Verkauf</span><span class="filter-chip">Dividende</span><span class="filter-chip">▽ Weitere</span></div>
+      <table class="data-table">
+        <thead><tr><th>Datum</th><th>Art</th><th>Wertpapier / Konto</th><th class="u-num">Stück</th><th class="u-num">Preis</th><th class="u-num">Betrag</th><th></th></tr></thead>
+        <tbody>
+          <tr class="g"><td colspan="7">September 2026 · 2 Transaktionen · 12,50 EUR · 1.850,00 USD</td></tr>
+          <tr><td>2026-09-09</td><td>Saldo gesetzt</td><td>USD Settlement</td><td class="u-num"></td><td class="u-num"></td><td class="u-num">1.850,00 USD</td><td>⋮</td></tr>
+          <tr><td>2026-09-03</td><td>Dividende</td><td>Apple Inc. Registered Shares o.N.</td><td class="u-num">50</td><td class="u-num"></td><td class="u-num u-pos">+12,50 EUR</td><td>⋮</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="mock-board">
+  <h2>Variante C — Erfassen in einem Seitenpanel <small>wie der Detailbereich der Wertpapiere: die Liste bleibt sichtbar, das Formular schiebt sich rechts ein</small></h2>
+  <p class="mock-note">Die Historie füllt die Seite; „+“ öffnet ein Panel rechts, gestapelt statt in einer Zeile — gut für Tastatur-Eingabe von oben nach unten und für das Telefon, wo es zum Bottom Sheet wird. Bearbeiten einer Buchung nutzt dasselbe Panel.</p>
+  <div class="mock-frame">
+    <div class="workspace-section stage">
+      <div class="dim">
+        <div class="head"><h2 class="ws">Transaktionen</h2><button class="button button-primary">+</button></div>
+        <table class="data-table" style="margin-top:12px">
+          <thead><tr><th>Datum</th><th>Art</th><th>Wertpapier / Konto</th><th class="u-num">Betrag</th></tr></thead>
+          <tbody>
+            <tr><td>2026-09-09</td><td>Saldo gesetzt</td><td>USD Settlement</td><td class="u-num">1.850,00 USD</td></tr>
+            <tr><td>2026-09-03</td><td>Dividende</td><td>Apple Inc.</td><td class="u-num u-pos">+12,50 EUR</td></tr>
+            <tr><td>2026-08-31</td><td>Einlage</td><td>Demo Cash</td><td class="u-num u-pos">+1.500,00 EUR</td></tr>
+            <tr><td>2026-02-24</td><td>Kauf</td><td>Nordic Timber Holdings AB</td><td class="u-num">−1.263,00 EUR</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <aside class="drawer">
+        <h3>Buchung erfassen</h3>
+        <div class="two"><label>Art<select><option>Kauf</option></select></label><label>Datum<input type="text" placeholder="YYYY-MM-DD"></label></div>
+        <label>Bucht auf Depot<select><option>Demo Depot · Demo Cash (EUR)</option></select></label>
+        <label>Wertpapier<select><option>Wertpapier auswählen</option></select></label>
+        <div class="two"><label>Stückzahl<input type="text"></label><label>Preis (EUR)<input type="text"></label></div>
+        <span class="u-muted" style="font-size:12px">▸ Kosten und Notiz</span>
+        <div class="u-flex"><button class="button button-primary">Erfassen</button><button class="button button-ghost">Abbrechen</button></div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

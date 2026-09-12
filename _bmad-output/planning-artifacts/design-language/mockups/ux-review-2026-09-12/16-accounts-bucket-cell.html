@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Accounts &amp; depots: the bucket cell and the redundant role label</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  table.data-table td, table.data-table th { padding: 10px 12px; vertical-align: middle; }
+  .chipsm { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .chipsm .chip { display: inline-flex; align-items: center; gap: 6px; min-height: 24px; padding: 2px 8px 2px 6px; border-radius: 999px; background: var(--color-accent-soft); color: var(--color-accent); font-size: 12px; font-weight: 600; }
+  .chipsm .chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--color-accent); display: inline-block; }
+  .chipsm .add { width: 24px; height: 24px; border-radius: 50%; border: 1px dashed var(--color-border-strong); display: inline-grid; place-items: center; font-size: 14px; color: var(--color-text-muted); }
+  .scope { display: block; font-size: 11px; color: var(--color-text-muted); margin-top: 2px; }
+  .sub { padding-left: 22px; color: var(--color-text-muted); }
+  .u-num { text-align: right; }
+  .stand { display: block; font-size: 11px; color: var(--color-text-muted); }
+  .child td:first-child::before { content: "⌞ "; color: var(--color-border-strong); }
+</style>
+</head>
+<body>
+
+<section class="mock-board">
+  <h2>Variante A — Buckets als Chips mit Geltungsbereich, „getrennt taggen“ im Zeilenmenü <small>die Rollen-Spalte trägt ihr Wort nur im Kopf</small></h2>
+  <p class="mock-note">„BEIDE · Household × · + · Getrennt taggen“ sind vier Steuerelemente für eine Frage. Die Chips bleiben; ihr Geltungsbereich steht als Unterzeile („Depot und Konto“), und der Sonderfall „getrennt taggen“ wandert in das Zeilenmenü. Der zweite „Liquiditätsrolle“-Text in jeder Zelle entfällt — der Spaltenkopf trägt ihn.</p>
+  <div class="mock-frame"><div class="workspace-section">
+    <table class="data-table">
+      <thead><tr><th>Name</th><th>Währung</th><th>Liquiditätsrolle</th><th class="u-num">Saldo</th><th>Buckets</th><th></th></tr></thead>
+      <tbody>
+        <tr><td><b>Demo Depot</b></td><td>EUR</td><td></td><td class="u-num"></td><td><span class="chipsm"><span class="chip"><i></i>Household</span><span class="add">+</span></span><span class="scope">gilt für Depot und Konto</span></td><td>⋮</td></tr>
+        <tr class="child"><td>Demo Cash</td><td>EUR</td><td><select><option>Verfügbares Cash</option></select></td><td class="u-num">12.473,00 EUR<span class="stand">Stand 2026-09-03</span></td><td class="u-muted" style="font-size:12px">erbt vom Depot</td><td>⋮</td></tr>
+        <tr><td><b>USD Settlement</b> <span class="u-caps">Verrechnungskonto</span></td><td>USD</td><td><select><option>Verfügbares Cash</option></select></td><td class="u-num">1.850,00 USD<span class="stand">Stand 2026-09-09</span></td><td><span class="chipsm"><span class="add">+</span></span><span class="scope">kein Bucket</span></td><td>⋮</td></tr>
+      </tbody>
+    </table>
+    <div class="u-muted" style="font-size:12px;margin-top:8px">Zeilenmenü ⋮: Saldo setzen · Buckets getrennt taggen · Umbenennen · Löschen</div>
+  </div></div>
+</section>
+
+<section class="mock-board">
+  <h2>Variante B — Buckets nur lesen, bearbeiten im Zeilendialog <small>die Tabelle wird ruhig; jede Änderung ist einen Klick entfernt</small></h2>
+  <p class="mock-note">Die Zelle zeigt Chips ohne Steuerelemente; „Bearbeiten“ öffnet den bestehenden Konto-Dialog mit einem Bucket-Abschnitt (Standard für Depot, für Konto, getrennt). Gleiche Regel wie die Wertpapiere: Lesen ist der Standard, Bearbeiten eine Absicht.</p>
+  <div class="mock-frame"><div class="workspace-section">
+    <table class="data-table">
+      <thead><tr><th>Name</th><th>Währung</th><th>Liquiditätsrolle</th><th class="u-num">Saldo</th><th>Buckets</th><th></th></tr></thead>
+      <tbody>
+        <tr><td><b>Demo Depot</b></td><td>EUR</td><td></td><td class="u-num"></td><td><span class="chipsm"><span class="chip"><i></i>Household</span></span></td><td><button class="button button-ghost">Bearbeiten</button></td></tr>
+        <tr class="child"><td>Demo Cash</td><td>EUR</td><td>Verfügbares Cash</td><td class="u-num">12.473,00 EUR<span class="stand">Stand 2026-09-03</span></td><td><span class="chipsm"><span class="chip"><i></i>Household</span></span></td><td><button class="button button-ghost">Bearbeiten</button></td></tr>
+        <tr><td><b>USD Settlement</b> <span class="u-caps">Verrechnungskonto</span></td><td>USD</td><td>Verfügbares Cash</td><td class="u-num">1.850,00 USD<span class="stand">Stand 2026-09-09</span></td><td class="u-muted" style="font-size:12px">—</td><td><button class="button button-ghost">Bearbeiten</button></td></tr>
+      </tbody>
+    </table>
+  </div></div>
+</section>
+
+</body>
+</html>

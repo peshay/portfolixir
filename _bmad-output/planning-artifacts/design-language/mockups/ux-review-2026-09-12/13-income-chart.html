@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Income chart: legend, continuous years, quiet zeros, data-as-table</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  .basis { font-size: 12px; color: var(--color-text-muted); }
+  .chart { border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); padding: 14px; }
+  .legend { display: flex; gap: 16px; font-size: 12px; color: var(--color-text-muted); margin-bottom: 8px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: middle; margin-right: 6px; }
+  .bars { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; align-items: end; height: 150px; padding: 0 20px; }
+  .bar-col { display: grid; align-content: end; justify-items: center; gap: 4px; height: 100%; }
+  .bar-col .stack { width: 70%; display: grid; align-content: end; }
+  .bar-col .seg { position: relative; }
+  .bar-col .seg span { position: absolute; left: 50%; transform: translateX(-50%); top: 50%; margin-top: -7px; font-size: 11px; font-weight: 600; color: #fff; }
+  .bar-col .lbl { font-size: 12px; font-weight: 700; }
+  .bar-col .tot { font-size: 11px; color: var(--color-text-muted); }
+  .bar-col.empty .stack { height: 2px; background: var(--color-border); }
+  table.data-table td, table.data-table th { padding: 6px 8px; }
+  table.data-table td.z { color: var(--color-text-subtle); text-align: center; }
+  table.data-table td.u-num { text-align: right; }
+  .line { position: relative; }
+</style>
+</head>
+<body>
+
+<section class="mock-board">
+  <h2>Ziel-Zustand — das Ertragsdiagramm sagt, was es stapelt <small>UX-DR7 (Legende und Direktbeschriftung), lückenlose Zeitachse, stille Nullen, „Daten als Tabelle“ (UX-DR10)</small></h2>
+  <p class="mock-note">Heute stapelt der Balken Dividenden und Zinsen ohne Legende, die Achse springt von 2023 auf 2026, und die Matrix ist eine Wand aus „0,00“. Hier: Legende plus Beschriftung im Segment, jedes Jahr ein Platz (auch leere), die Tabelle als Aufklappen unter dem Diagramm, Nullen als stilles „–“. Die kumulierte Monatslinie (vom Owner gewünscht) liegt als Linie über den Monatsbalken im Jahresdrill.</p>
+  <div class="mock-frame">
+    <div class="workspace-section u-gap">
+      <div class="basis">Dividenden und Zinsen · Beträge in EUR · nur dieses Portfolio ⓘ</div>
+      <div class="chart">
+        <div class="legend"><span><i style="background:var(--color-accent)"></i>Dividenden</span><span><i style="background:color-mix(in srgb, var(--color-accent) 45%, white)"></i>Zinsen</span></div>
+        <div class="bars">
+          <div class="bar-col"><div class="stack"><div class="seg" style="height:66px;background:var(--color-accent)"><span>138,50</span></div><div class="seg" style="height:40px;background:color-mix(in srgb, var(--color-accent) 45%, white)"><span style="color:var(--color-text)">85,00</span></div></div><span class="lbl">2023</span><span class="tot">223,50</span></div>
+          <div class="bar-col empty"><div class="stack"></div><span class="lbl u-muted">2024</span><span class="tot">–</span></div>
+          <div class="bar-col empty"><div class="stack"></div><span class="lbl u-muted">2025</span><span class="tot">–</span></div>
+          <div class="bar-col"><div class="stack"><div class="seg" style="height:8px;background:var(--color-accent)"></div></div><span class="lbl">2026</span><span class="tot">12,50</span></div>
+        </div>
+      </div>
+      <div class="basis">▸ Daten als Tabelle — Jahr × Monat, Dividenden und Zinsen getrennt</div>
+      <table class="data-table">
+        <thead><tr><th>Jahr</th><th>Reihe</th><th>Jan</th><th>Feb</th><th>Mär</th><th>Apr</th><th>Mai</th><th>Jun</th><th>Jul</th><th>Aug</th><th>Sep</th><th>Okt</th><th>Nov</th><th>Dez</th><th class="u-num">Gesamt</th></tr></thead>
+        <tbody>
+          <tr><td rowspan="2"><b>2026</b></td><td>Dividenden</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="u-num">12,50</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="u-num"><b>12,50</b></td></tr>
+          <tr><td>Zinsen</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="z">–</td></tr>
+          <tr><td rowspan="2"><b>2023</b></td><td>Dividenden</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="u-num">120,00</td><td class="z">–</td><td class="z">–</td><td class="u-num">18,50</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="u-num"><b>138,50</b></td></tr>
+          <tr><td>Zinsen</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="z">–</td><td class="u-num">85,00</td><td class="u-num"><b>85,00</b></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

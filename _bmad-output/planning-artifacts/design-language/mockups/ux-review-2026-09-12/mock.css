@@ -1,0 +1,61 @@
+/* Mockup frame for the 2026-09-12 UX review. Everything visual comes from
+   priv/static/app.css (linked relatively); this file only adds the artboard
+   chrome and a few layout helpers the proposals need. Not a build target. */
+:root { --mock-ink: #5a6577; }
+body { margin: 0; padding: 24px; background: var(--color-bg); color: var(--color-text); font-family: var(--font-sans); }
+.mock-board { max-width: 1120px; margin: 0 auto 32px; }
+.mock-board > h2 { margin: 0 0 4px; font-size: 15px; font-weight: 760; letter-spacing: .01em; }
+.mock-board > h2 small { font-weight: 500; color: var(--mock-ink); margin-left: 8px; }
+.mock-board > p.mock-note { margin: 0 0 12px; font-size: 12px; color: var(--mock-ink); max-width: 72ch; }
+.mock-frame { border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-bg-elevated); overflow: hidden; box-shadow: var(--shadow-panel); }
+.mock-frame .workspace-section:last-child { border-bottom: 0; }
+.mock-frame .workspace-section { padding: 20px 24px; }
+.mock-frame h2.ws { margin: 0; font-size: 20px; font-weight: 700; }
+.mock-phone { width: 390px; }
+.mock-row { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+.mock-pill { display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--color-accent-soft); color: var(--color-accent); font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; vertical-align: middle; }
+.mock-before { border-color: var(--color-danger); }
+.mock-before > .mock-tag, .mock-after > .mock-tag { display: block; padding: 4px 10px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.mock-before > .mock-tag { color: var(--color-danger); background: var(--color-danger-soft); }
+.mock-after > .mock-tag { color: var(--color-positive); background: #ecfdf5; }
+.u-muted { color: var(--color-text-muted); }
+.u-pos { color: var(--color-positive); }
+.u-neg { color: var(--color-danger); }
+.u-num { font-variant-numeric: tabular-nums; text-align: right; }
+.u-mono { font-family: var(--font-mono); }
+.u-caps { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted); }
+.u-flex { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.u-grow { flex: 1 1 auto; }
+.u-gap { display: grid; gap: 12px; }
+/* generic key figure used by several proposals */
+.kf { display: grid; gap: 2px; }
+.kf b { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.kf b small { font-size: 12px; font-weight: 600; color: var(--color-text-muted); margin-left: 3px; }
+.kf i { font-style: normal; font-size: 12px; color: var(--color-text-muted); }
+/* mini bars used for drift / budget */
+.bar { position: relative; height: 6px; border-radius: 999px; background: var(--color-bg-muted); overflow: hidden; }
+.bar > i { position: absolute; top: 0; bottom: 0; background: var(--color-accent); border-radius: 999px; }
+.bar.neg > i { background: var(--color-danger); }
+.bar.pos > i { background: var(--color-positive); }
+.spark { display: block; width: 100%; height: 44px; }
+/* two-line list rows for the phone proposals */
+.row2 { display: grid; grid-template-columns: auto 1fr auto; column-gap: 10px; row-gap: 2px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--color-border); font-size: 13px; }
+.row2 .t { font-weight: 600; }
+.row2 .s { grid-column: 2; font-size: 12px; color: var(--color-text-muted); }
+.row2 .r { text-align: right; font-variant-numeric: tabular-nums; }
+.row2 .r small { display: block; font-size: 12px; }
+.avatar { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 6px; background: var(--color-bg-muted); font: 700 11px/1 var(--font-mono); color: var(--color-text-muted); grid-row: span 2; }
+/* calibration after the first render */
+.stat strong.u-pos, .strip b.u-pos { color: var(--color-positive); }
+.stat strong.u-neg { color: var(--color-danger); }
+.stat div.sub { font-size: 12px; color: var(--color-text-muted); text-transform: none; letter-spacing: 0; font-weight: 500; }
+.stat div.sub b { color: var(--color-text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.stat { min-width: 0; }
+.stat strong { overflow-wrap: anywhere; }
+@media (max-width: 560px) { .stat strong { font-size: 22px; } }
+.popover-mock { display: inline-grid; gap: 10px; padding: 14px; min-width: 320px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); box-shadow: var(--shadow-md); }
+.sheet-mock { border: 1px solid var(--color-border); border-radius: 16px 16px 0 0; background: var(--color-bg-elevated); box-shadow: var(--shadow-md); padding: 12px 14px 16px; }
+.sheet-mock .grip { width: 36px; height: 4px; border-radius: 999px; background: var(--color-border-strong); margin: 0 auto 10px; }
+.fade-right { position: relative; }
+.fade-right::after { content: ""; position: absolute; top: 0; right: 0; bottom: 0; width: 28px; background: linear-gradient(to right, transparent, var(--color-bg-elevated)); pointer-events: none; }
+.chip-strip { display: flex; gap: 6px; overflow: hidden; white-space: nowrap; padding: 2px 0; }

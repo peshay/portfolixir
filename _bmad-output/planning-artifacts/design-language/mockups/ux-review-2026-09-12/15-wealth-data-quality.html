@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Wealth data quality as data notes with the remedy inside</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  .notes { display: grid; gap: 8px; }
+  .data-note--note { border-color: var(--color-border); background: var(--color-bg-muted); color: var(--color-text-muted); }
+  .data-note .button { margin-left: 10px; min-height: 26px; padding: 2px 10px; font-size: 12px; }
+  table.data-table td, table.data-table th { padding: 8px 10px; }
+  .u-num { text-align: right; }
+  .stale { color: var(--color-warning); font-size: 12px; }
+  .link { color: var(--color-accent); text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<section class="mock-board">
+  <h2>Ziel-Zustand — Datenqualität als Datennotizen, Abhilfe in der Notiz <small>UX-DR17 (Wealth list story), Placement-Regel: Abhilfe im selben Element wie der Befund</small></h2>
+  <p class="mock-note">Heute: zwei Aufzählungspunkte unter einer nackten Überschrift, und der Knopf „Wechselkurse synchronisieren“ steht 900 px tiefer unter einem Erklärsatz. Hier trägt jede Zeile ihre Schwere (Hinweis / Achtung / Problem) mit Glyphe und Wort, und die Abhilfe ist ein Knopf in der Zeile. Die Verrechnungskonten-Tabelle markiert das unbewertete Konto selbst.</p>
+  <div class="mock-frame">
+    <div class="workspace-section u-gap">
+      <h2 class="ws" style="font-size:16px">Datenqualität</h2>
+      <div class="notes">
+        <div class="data-note data-note--attention"><span class="data-note__icon" aria-hidden="true">⚠</span><span class="data-note__word">Achtung</span><div class="data-note__body">Eine Position ohne Preis fehlt in den Summen: <a class="link" href="#">Placeholder Anleihe 2031 3,25 %</a> <button class="button button-secondary">Kurs erfassen</button></div></div>
+        <div class="data-note data-note--attention"><span class="data-note__icon" aria-hidden="true">⚠</span><span class="data-note__word">Achtung</span><div class="data-note__body">Ein Verrechnungskonto ohne Wechselkurs zu EUR zählt nicht in die Summen: <b>USD Settlement</b> (1.850,00 USD) <button class="button button-secondary">Wechselkurse synchronisieren</button></div></div>
+        <div class="data-note data-note--note"><span class="data-note__icon" aria-hidden="true">✳</span><span class="data-note__word">Hinweis</span><div class="data-note__body">Eine Position ist zum letzten Handelspreis bewertet: <a class="link" href="#">Nordic Timber Holdings AB</a> — letzter Kurs 2026-08-08</div></div>
+      </div>
+    </div>
+    <div class="workspace-section u-gap">
+      <h2 class="ws" style="font-size:16px">Verrechnungskonten</h2>
+      <table class="data-table">
+        <thead><tr><th>Konto</th><th class="u-num">Saldo</th><th class="u-num">In EUR</th><th>Stand</th></tr></thead>
+        <tbody>
+          <tr><td>Demo Cash</td><td class="u-num">12.473,00 EUR</td><td class="u-num">12.473,00</td><td>2026-09-03</td></tr>
+          <tr><td>USD Settlement</td><td class="u-num">1.850,00 USD</td><td class="u-num stale">⚠ kein Wechselkurs</td><td>2026-09-09</td></tr>
+        </tbody>
+      </table>
+      <div class="u-muted" style="font-size:12px">Salden werden an der Kontozeile gesetzt → <a class="link" href="#">Konten &amp; Depots</a></div>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>
