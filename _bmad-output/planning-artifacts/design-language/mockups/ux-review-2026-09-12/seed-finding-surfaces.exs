@@ -14,7 +14,9 @@ today = Date.utc_today()
 portfolio =
   case Enum.find(Portfolios.list_portfolios(), &(&1.name == "Demo Depot")) do
     nil ->
-      {:ok, p} = Portfolios.create_portfolio(owner, %{name: "Demo Depot", base_currency_code: "EUR"})
+      {:ok, p} =
+        Portfolios.create_portfolio(owner, %{name: "Demo Depot", base_currency_code: "EUR"})
+
       p
 
     p ->
@@ -22,9 +24,15 @@ portfolio =
   end
 
 body = File.read!("priv/demo/portfolio_performance_demo.json")
-{:ok, preview} = Imports.parse_portfolio_performance(body, filename: "portfolio_performance_demo.json")
+
+{:ok, preview} =
+  Imports.parse_portfolio_performance(body, filename: "portfolio_performance_demo.json")
+
 {:ok, result} = Imports.apply(preview, %{portfolio_id: portfolio.id})
-IO.puts("import: #{result.created_securities} securities, #{result.created_transactions} transactions")
+
+IO.puts(
+  "import: #{result.created_securities} securities, #{result.created_transactions} transactions"
+)
 
 # Offline quote history for every imported security.
 Code.eval_file("priv/demo/quotes_seed.exs")
@@ -62,7 +70,11 @@ unless depot && cash, do: raise("demo depot/cash not found")
 
 stale_rows =
   for back <- 60..5//-1 do
-    %{date: Date.add(today, -back * 7), close: Float.to_string(Float.round(38.0 + :rand.uniform() * 8, 2)), source: "manual"}
+    %{
+      date: Date.add(today, -back * 7),
+      close: Float.to_string(Float.round(38.0 + :rand.uniform() * 8, 2)),
+      source: "manual"
+    }
   end
 
 {:ok, _} = Quotes.upsert_many(timber.id, stale_rows)
@@ -97,7 +109,11 @@ stale_rows =
 
 # 4. A USD cash account with a balance and no FX rate (fires "cash with no FX").
 {:ok, usd} =
-  Portfolios.create_cash_account(owner, %{portfolio_id: portfolio.id, name: "USD Settlement", currency_code: "USD"})
+  Portfolios.create_cash_account(owner, %{
+    portfolio_id: portfolio.id,
+    name: "USD Settlement",
+    currency_code: "USD"
+  })
 
 {:ok, _} = Ledger.set_cash_balance(owner, usd, %{date: Date.add(today, -3), amount: "1850.00"})
 
@@ -138,10 +154,16 @@ btc = Enum.find(Catalog.list_securities(), &(&1.name == "Bitcoin"))
 :ok = Buckets.set_view_buckets(owner, view, [], [crypto_b.id])
 
 # 7. A depot snapshot 90 days back.
-{:ok, _snap} = Snapshots.create_snapshot(owner, %{name: "Vor Umschichtung", as_of: Date.add(today, -90)})
+{:ok, _snap} =
+  Snapshots.create_snapshot(owner, %{name: "Vor Umschichtung", as_of: Date.add(today, -90)})
 
 # 8. A tax profile and a recorded statement for the prior tax year.
-{:ok, _} = Tax.create_profile(owner, %{holder: "Owner", valid_from: ~D[2024-01-01], church_tax_liable: false})
+{:ok, _} =
+  Tax.create_profile(owner, %{
+    holder: "Owner",
+    valid_from: ~D[2024-01-01],
+    church_tax_liable: false
+  })
 
 {:ok, _} =
   Tax.create_snapshot(
@@ -169,14 +191,28 @@ btc = Enum.find(Catalog.list_securities(), &(&1.name == "Bitcoin"))
 # 9. Research log on Apple: thesis, evidence, a risk and the retraction that
 #    supersedes it (a retraction must name the entry it withdraws).
 notes = [
-  {"thesis", "Services mix keeps margins above 40% through the cycle; hold while capex stays flat.", Date.add(today, -120), "primary", nil},
-  {"evidence", "Q2 filing: services revenue +14% y/y, hardware flat.", Date.add(today, -60), "primary", nil},
-  {"risk", "Regulatory case on the app store fee could compress services margin.", Date.add(today, -30), "secondary_multi", :risk},
-  {"retraction", "The margin-compression forecast is withdrawn: the ruling did not touch fee levels.", Date.add(today, -4), "primary", :supersedes_risk}
+  {"thesis",
+   "Services mix keeps margins above 40% through the cycle; hold while capex stays flat.",
+   Date.add(today, -120), "primary", nil},
+  {"evidence", "Q2 filing: services revenue +14% y/y, hardware flat.", Date.add(today, -60),
+   "primary", nil},
+  {"risk", "Regulatory case on the app store fee could compress services margin.",
+   Date.add(today, -30), "secondary_multi", :risk},
+  {"retraction",
+   "The margin-compression forecast is withdrawn: the ruling did not touch fee levels.",
+   Date.add(today, -4), "primary", :supersedes_risk}
 ]
 
 Enum.reduce(notes, nil, fn {kind, body, as_of, q, tag}, risk_id ->
-  attrs = %{security_id: apple.id, author: "agent", kind: kind, body: body, source_quality: q, as_of: as_of}
+  attrs = %{
+    security_id: apple.id,
+    author: "agent",
+    kind: kind,
+    body: body,
+    source_quality: q,
+    as_of: as_of
+  }
+
   attrs = if tag == :supersedes_risk, do: Map.put(attrs, :supersedes_id, risk_id), else: attrs
   {:ok, note} = Knowledge.append_note(owner, attrs)
   if tag == :risk, do: note.id, else: risk_id
