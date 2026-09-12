@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-09-07 (Sprint 11 planned; 0.10.0 tagged and released by the owner)
+# last_updated: 2026-09-12 (Sprint 12 planned from the whole-surface UX review; Sprint 11 adopted, batch not yet opened)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -42,7 +42,7 @@
 # requests, not assumed -- an issue's state lags the PR that fixes it.
 
 generated: 2026-07-25
-last_updated: 2026-09-07
+last_updated: 2026-09-12
 project: portfolixir
 project_key: NOKEY
 tracking_system: file-system
@@ -51,6 +51,22 @@ story_location: _bmad-output/implementation-artifacts
 # ---------------------------------------------------------------------------
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
+#
+# PLANNED (2026-09-12, Sprint 12) -- sprint-plan-2026-09-12-sprint12.md,
+# adopted by the merge of PR #783 (the planning PR that also carries the
+# whole-surface UX review ux-review-2026-09-12.md, the 2026-09-12 spine
+# amendment with UX-DR27, and seventeen mockups). E11's second alignment
+# pass under tracker #356, twenty-five sub-issues #784-#808. Lanes: F
+# (defect sweep #784 #785 #786 #788 #790 #791), N (data notes + freshness
+# #792 #789 #787), S (Tax #795, Snapshots #796, Views #802, sunburst #793,
+# income chart #794), K (#797 #798, picks), P (#799 #800, picks), T (#803,
+# pick), D (#804 #805 #801, picks), M (#781 apply, #782 close with the LTS
+# reason), Z (registry rows when the branch opens). D-1: Sprint 11's batch
+# runs first, Sprint 12's branch opens on its merge (Lane F may go ahead as
+# a small PR by owner comment). D-2: silence = the recommended variant.
+# D-3: #806 #807 #808 and #798-B are Sprint 13 candidates. D-4: the closing
+# act runs under the #706 conditions with the review's seed script, which
+# moves into priv/demo/ in the batch. D-5: 0.12.0 command in the close-out.
 #
 # PLANNED (2026-09-07, Sprint 11) -- sprint-plan-2026-09-07-sprint11.md,
 # adopted by the merge of PR #780 (the merge is the signature -- ADR-0026
