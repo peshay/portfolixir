@@ -8,13 +8,12 @@ on PR #783; **silence is the recommended variant** (D-2). **Picks received
 2026-09-14** (owner, in session; recorded on PR #783 and on each issue):
 #797 A, #798 B, #799 A, #800 B, #801 A, #803 C, #804 A, #805 A, #806 A —
 D-2's silence clause did not have to fire, and each lane below names its
-picked variant. Verification basis:
-`main` at 1e78853 (the Sprint 11 planning merged 2026-09-07; no Sprint 11
-batch branch or PR exists yet), the open-issue list before the review filed
-anything (27 open) and after (52), the open pull requests (three Dependabot
-PRs — #775, #781, #782 — and #783 itself), the review document
-`planning-artifacts/ux-review-2026-09-12.md` and its twenty-five issues
-#784–#808.
+picked variant. Verification basis: `main` at 1e78853 (the Sprint 11
+planning merged 2026-09-07; no Sprint 11 batch branch or PR exists yet), the
+open-issue list before the review filed anything (27 open) and after (52),
+the open pull requests (three Dependabot PRs — #775, #781, #782 — and #783
+itself), the review document `planning-artifacts/ux-review-2026-09-12.md`
+and its twenty-five issues #784–#808.
 
 ## State of play, in four lines
 
@@ -34,7 +33,7 @@ PRs — #775, #781, #782 — and #783 itself), the review document
    adopted on 2026-08-15 and this review is the first pass that ran them on
    every route. D-4 makes them the closing act's conditions for good.
 4. **Twenty-five issues are two batches, not one.** Eight defects (agentic,
-   small), nine alignment stories (rule exists, no pick), eight compositions
+   small), nine alignment stories (rule exists, no pick), nine compositions
    (owner picks a variant, `needs-uat`). Sprints 7 and 8 closed eight UX issues
    each; this plan takes twenty-two and states the shrink order that turns
    it back into one batch if the closing act says so.
@@ -57,19 +56,21 @@ PRs — #775, #781, #782 — and #783 itself), the review document
 - **The phone work is one lane** (K's phone half, P) because it shares one
   new rule (UX-DR27) and one verification pass at 390 px. It was also to share
   the D6 strip mechanism (overflow, snap, fade); with #800 picked as the sheet
-  on 2026-09-14 the strip is built once, for the Wealth tab row (#790, Lane
-  F), and verified here.
+  on 2026-09-14 no story builds a new chip strip — the mechanism shipped with
+  #702, #790 (Lane F) adds the Wealth tab row's missing right-edge fade, and
+  the phone pass verifies it at 390 px.
 - **Transactions is one lane** because #470's earlier stories landed on the
   pre-language screen and the 2026-08-15 triage ruled the UI dimension must
   land with the design engagement, not before it. #786 (numbers, amount
-  column) rides Lane F so the table is right whichever form home wins.
+  column) rides Lane F so the table is right before the drawer (C) lands.
 - **What waits, and why:** #807 is `needs-decision` (the Trades reconciliation
-  the 2026-08-15 triage deferred — the owner signs it by comment, Sprint 13
-  builds it); #798-B was "built only if picked" — picked on 2026-09-14, it
-  rides Lane K with the rule amended on PR #783; #806 and #808 are
-  low-traffic administration surfaces and are the first thing a closing act
-  should not spend its day on; #809 (edit a booking, the human view for the
-  update API) is the follow-up the #803 drawer is shaped for.
+  the 2026-08-15 triage deferred — per the issue, leaving it as filed signs
+  it and a comment moves the list elsewhere; the label comes off at Sprint 13
+  planning, and Sprint 13 builds it); #806 and #808 are low-traffic
+  administration surfaces and are the first thing a closing act should not
+  spend its day on; #809 (edit a booking, the human view for the update API)
+  is the follow-up the #803 drawer is shaped for. (#798-B waited here until
+  it was picked on 2026-09-14; it rides Lane K.)
 
 ## Lanes
 
@@ -116,10 +117,14 @@ TTWROR with its period, cash quote, last booking, quote freshness, each cell
 stating its basis and linking to the surface that owns the figure — plus the
 drift bars in the off-target rows. UX-DR2 is amended on PR #783
 (`EXPERIENCE.md` → UX-DR2, amended 2026-09-14); the story builds the amended
-rule and writes the strip's anatomy into `DESIGN.md`. The four figures are
-existing reads (the Wealth KPI walk, the holdings valuation, the ledger's
-newest booking, the data-quality count) — no new metric, so no new payload
-basis is owed; a figure exposed anew on the API states its basis there.
+rule and writes the strip's anatomy into `DESIGN.md`. The amendment decides
+what the mockup left open — the strip's period, the freshness cell, the
+card's sub-line, the drift bars — so the story does not. Three of the four
+figures are existing reads (the Wealth KPI walk, the holdings valuation, the
+ledger's newest booking); the freshness date is the thin read the State
+Patterns → *Stale data* row already owes — a context function plus its
+API/MCP field, basis stated there — and the stale count is the data-quality
+count. Nothing else is new.
 **The design critic verifies the value-slot states after the
 re-composition** — pending, settling, the count-up hook, width reservation
 (UX-DR18/20) — because a re-composed card is where those regress silently.
@@ -131,9 +136,9 @@ Securities and Transactions (UX-DR27); the filter chips behind a "Filter (n)"
 control as a bottom sheet — the mechanism the row menu already uses under
 720 px — with the active-chip count on the control, the families stacked in
 the sheet, focus moved in and returned (`<dialog>` or `role="dialog"`). Above
-560 px the D2 chip row is unchanged. #788 (the drift table's scroller) rides
-Lane F but its verification is here, at 390 px, with the rest of the phone
-pass.
+560 px the D2 chip row is unchanged. #788 (the drift table's scroller) and
+#790's tab-row fade ride Lane F, but their verification is here, at 390 px,
+with the rest of the phone pass.
 
 ### Lane T — Transactions (#803; pick)
 
@@ -146,8 +151,10 @@ editing", and the fact behind that is that the update API exists
 (`PATCH /api/v1/transactions/:id`, `portfolixir.transactions.update`) with no
 human view; that view is #809, filed 2026-09-14, a Sprint 13 candidate the
 drawer must be shaped for (one panel, stacked fields, pre-fillable) without
-#803 growing an edit path of its own (Scope Lock). C is the largest single
-story of the sprint, which the shrink order already reflects. The lane
+#803 growing an edit path of its own (Scope Lock; the history has no row menu
+today either — #809 adds it, or reuses one #803 lands). C is the larger
+build of the three variants; Lane T's place in the shrink order (second to
+go) stands. The lane
 touches the oldest LiveView in the app; its closing-act condition is the
 booking walkthrough (one transaction of each of buy, dividend, deposit) on
 desktop and phone, through the drawer.
@@ -174,11 +181,17 @@ and the first to go under the shrink order.
 ### Lane Z — registry (small)
 
 No new epic: this sprint is **E11's second alignment pass**, tracker #356
-(twenty-five sub-issues attached on 2026-09-12). When the branch opens: the
-FR Coverage Map's UX-DR row gains #784–#808 and UX-DR27; the Tracker Index's
-E11 line gains the 2026-09-12 review as its second reference; this file's
-planning entry is already in `sprint-status.yaml`; the close-out reconciles
-against the existing rows.
+(twenty-five sub-issues attached on 2026-09-12, #809 on 2026-09-14). When the
+branch opens: the FR Coverage Map's UX-DR row gains #784–#809, UX-DR27 and
+UX-DR2 as amended 2026-09-14; the Tracker Index's E11 line gains the
+2026-09-12 review as its second reference; this file's planning entry is
+already in `sprint-status.yaml`; the close-out reconciles against the
+existing rows. The close-out's two-way coverage check opens its ledger with
+the transaction update API (`PATCH /api/v1/transactions/:id`,
+`portfolixir.transactions.update`): a capability without a human view, its
+view #809. The API predates the 2026-08-12 rule, so no earlier close-out
+could have named it; the intent of the rule — both users see everything —
+names it now.
 
 ## Decisions
 
@@ -219,8 +232,9 @@ still takes each picked variant's anatomy from the story that builds it.
 Sprint 12 takes Lanes F, N, S, K, P, T and D — twenty-two issues — with the
 shrink order below. #806, #807, #808 and #809 are named as Sprint 13
 candidates now, so their absence from the closing act is a plan, not a
-surprise, and the gate #807 needs (the owner's comment on Q2) can be taken
-in the meantime. (#798-B was a candidate here until it was picked on
+surprise, and the Q2 decision #807 carries (leaving it as filed signs it; a
+comment moves the list) settles in the meantime, the label coming off at
+Sprint 13 planning. (#798-B was a candidate here until it was picked on
 2026-09-14; it rides Lane K.)
 
 ### D-4 — the closing act's conditions are the review's conditions (recommended)
@@ -266,11 +280,10 @@ complete E11 pass.
 
 ## What is deliberately not in this sprint
 
-- **#807 (C10 — realized gains as the Trades view):** `needs-decision`; the
-  owner signs Q2 of the review by comment, Sprint 13 builds it.
-- **#798-B (a KPI strip on the Overview)** was listed here as "built only if
-  picked"; picked on 2026-09-14, it is in Lane K and the rule is amended on
-  PR #783.
+- **#807 (C10 — realized gains as the Trades view):** `needs-decision`; per
+  the issue, leaving it as filed signs Q2 and a comment moves the list;
+  Sprint 13 builds it. (#798-B stood here as "built only if picked" until it
+  was picked on 2026-09-14; it is in Lane K.)
 - **#806 (C9, the bucket cell) and #808 (C11, the classifications index):**
   low-traffic administration; Sprint 13 candidates. #806's pick (A) stands
   whenever it is built.
