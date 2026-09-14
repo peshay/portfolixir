@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-09-12 (Sprint 12 planned from the whole-surface UX review; Sprint 11 adopted, batch not yet opened)
+# last_updated: 2026-09-14 (Sprint 12 planned from the whole-surface UX review, picks recorded 2026-09-14; Sprint 11 adopted, batch not yet opened)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -42,7 +42,7 @@
 # requests, not assumed -- an issue's state lags the PR that fixes it.
 
 generated: 2026-07-25
-last_updated: 2026-09-12
+last_updated: 2026-09-14
 project: portfolixir
 project_key: NOKEY
 tracking_system: file-system
@@ -63,7 +63,9 @@ story_location: _bmad-output/implementation-artifacts
 # pick), D (#804 #805 #801, picks), M (#781 apply, #782 close with the LTS
 # reason), Z (registry rows when the branch opens). D-1: Sprint 11's batch
 # runs first, Sprint 12's branch opens on its merge (Lane F may go ahead as
-# a small PR by owner comment). D-2: silence = the recommended variant.
+# a small PR by owner comment). D-2: silence = the recommended variant;
+# picks made 2026-09-14: K A/B, P A/B, T C, D A/A/A (#798-B rides Lane K,
+# UX-DR2 amended on PR #783); #809 filed the same day (Sprint 13 candidate).
 # D-3: #806 #807 #808 and #798-B are Sprint 13 candidates. D-4: the closing
 # act runs under the #706 conditions with the review's seed script, which
 # moves into priv/demo/ in the batch. D-5: 0.12.0 command in the close-out.
