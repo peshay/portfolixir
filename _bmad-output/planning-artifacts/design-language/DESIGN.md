@@ -1266,6 +1266,14 @@ variants in `../ux-review-2026-09-12.md`. Appearance decided here:
   centre never paints a colour of its own.
 - **Facet control and view switcher:** placed inside `.workspace-section`, so
   they take its padding; no negative margins.
+- **Picked variants (owner, 2026-09-14):** C1 **A** (two tiers), C2 **B**
+  (a four-cell KPI strip under the value card; the rule is UX-DR2 as amended
+  2026-09-14), C3 **A** (two-line rows), C4 **B** (chips behind "Filter (n)"
+  as a bottom sheet), C5 **A** (popover on the trigger), C6 **C** (a side
+  drawer, a bottom sheet on the phone), C7 **A** (reading overview), C8 **A**
+  (column head), C9 **A** (chips with a scope line). The anatomy of each is
+  written into Components by the story that builds it (D-2 of the Sprint 12
+  plan); until then the mockup named in the review's Part 3 is the reference.
 - The mockups under `mockups/ux-review-2026-09-12/` are rendered from
   `priv/static/app.css` itself (linked relatively) with a thin `mock.css`
   frame, so every proposal already uses the shipped tokens and components.

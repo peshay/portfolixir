@@ -388,7 +388,7 @@ Rules whose nature is **visual** are defined in `DESIGN.md` and only summarised 
 | Rule | One line | Defined in |
 |---|---|---|
 | UX-DR1 | Decluttered Classifications — the tree IS the surface | here |
-| UX-DR2 | Analysis-dashboard home: value, needs-attention, data quality | here — **rewritten** |
+| UX-DR2 | Analysis-dashboard home: value, KPI strip (amended 2026-09-14), needs-attention, data quality | here — **rewritten**; amended 2026-09-14 |
 | UX-DR3 | Progressive-disclosure pass across all surfaces | here |
 | UX-DR4 | Every shipped surface has a stated path, and its area lights up | here — **rewritten** |
 | UX-DR5 | Chart build-in motion: one-shot, polish only, reduced-motion gated | `DESIGN.md` → **`## Motion`** |
@@ -412,7 +412,7 @@ Rules whose nature is **visual** are defined in `DESIGN.md` and only summarised 
 
 The tree is the surface. The New-category form sits behind the `+` affordance; the multiselect toolbar appears only with an active selection; edit/recolor/delete are disclosed per node; search stays permanent because it serves reading. The worst-rated screen of 2026-06-12 and the exemplar every other `.inline-form` removal is measured against.
 
-### UX-DR2 — Analysis-dashboard home *(rewritten 2026-08-05)*
+### UX-DR2 — Analysis-dashboard home *(rewritten 2026-08-05; amended 2026-09-14)*
 
 The Overview is an analysis home, not a landing page: the total wealth value with its change, a **"Needs attention"** card listing target deviations, and a **data-quality** section. Each block navigates to the surface that owns it. Density is deliberate — multiple figures at a glance beat one number and a curve.
 
@@ -427,6 +427,8 @@ One clause cannot be closed by design alone and the implementing story must carr
 The Wealth data-quality section is a different block: one `{components.data-note}` per finding at its own severity, not one line. Severity per condition is in the Alignment inventory → UX-DR17.
 
 *Superseded original (2026-06-13):* a hero of total value plus performance curve with a €/% toggle, and four fixed metric cards — cash quote, TTWROR vs. period, top drift, transactions recency. Confirmed by the owner then, never built, and contradicted by the shipped Overview since June. Ruled 2026-08-05: **the rule follows the build.** Consequences: `DESIGN.md`'s `{components.hero}` anatomy and the `key-dashboard.html` mock are downstream of the superseded rule and are stale; Component Patterns carries no Hero row.
+
+*Amended 2026-09-14 (owner decision — pick C2-B of the 2026-09-12 review; built by #798):* the Overview carries a **four-cell KPI strip** under the value card — TTWROR with its period (IRR as the sub-line), cash quote with its amount, last booking with its date and kind, quote freshness with the stale count. Four fixed cells, not configurable cards; each cell **states its basis** and navigates to the surface that owns the figure (Wealth for the return and the cash quote, Transactions for the last booking, the securities list for freshness — pre-filtered once #651 lands, the same shortfall the data-quality line carries). The other blocks are unchanged: the value card as built, the "Needs attention" card (its rows now carry a drift bar around zero beside the text — sign, colour and the direction word, UX-DR7), the data-quality line. This returns three of the 2026-06-13 metrics under a new shape; top drift does not return as a cell, because the "Needs attention" card *is* that figure. The hero stays retired and `key-dashboard.html` stays stale. Appearance: `DESIGN.md` → Components, written by #798.
 
 ### UX-DR3 — Progressive disclosure
 
@@ -811,7 +813,7 @@ Recorded because the rejects are load-bearing: three of them were live options t
 - **An agent-oversight UI** — diff/confirm, a review feed for MCP writes. Rejected: MCP writes are the operator's own commands executed faster, not a third party's proposals.
 - **Loading combination P1 + S3 + F3** — typographic skeleton, marker, fade-in-place. Typed as a first pick and corrected in session to **P2 + S1 + F1**. Recorded so the superseded combination is not later mistaken for a parallel option.
 - **Income treatments I1, I3, I4** — a sparkline column per instrument, an instrument filter control, and keeping the flat top-contributors list. Rejected in favour of **I2**, stacked segments, because only I2 answers "who contributes how much, *over time*".
-- **The four fixed metric cards** of the 2026-06-13 UX-DR2 — cash quote, TTWROR vs. period, top drift, transactions recency. Confirmed by the owner then, never built, contradicted by the shipped Overview since June. Ruled 2026-08-05: the rule follows the build.
+- **The four fixed metric cards** of the 2026-06-13 UX-DR2 — cash quote, TTWROR vs. period, top drift, transactions recency. Confirmed by the owner then, never built, contradicted by the shipped Overview since June. Ruled 2026-08-05: the rule follows the build. *Partly returned 2026-09-14* as the four-cell KPI strip of UX-DR2 (amended), by owner pick C2-B of the 2026-09-12 review: three of the four figures, top drift excluded because the "Needs attention" card is that figure.
 - **A bottom tab bar on mobile** — rejected 2026-06-12 by the owner ("keep current behavior"); the off-canvas sidebar is the same navigation on every form factor.
 
 ## Key Flows
@@ -1153,3 +1155,12 @@ chrome, the transactions form's home, the detail pane's first tab, the tree
 rows' labelling, the bucket cell) are variant picks for the owner, recorded in
 the review document with a recommended variant first. The picked variant is
 written into `DESIGN.md` by the story that builds it.
+
+*Picks made 2026-09-14 (owner):* KPI band **A** (two tiers); Overview **B**
+(the four-cell KPI strip — the one pick that changes a rule, written as the
+UX-DR2 amendment of 2026-09-14 above); phone list rows **A** (two-line rows);
+phone filter chrome **B** (chips behind "Filter (n)" as a bottom sheet); custom
+range **A** (popover); transactions form **C** (a side drawer, a bottom sheet on
+the phone); detail pane **A** (reading overview); tree rows **A** (column head);
+bucket cell **A** (chips with a scope line). The eight that change appearance
+only land in `DESIGN.md` → Components with their stories.

@@ -4,7 +4,11 @@
 signature (ADR-0026 step 1 as amended on PR #780): it adopts the lane cut AND
 signs **D-1** to **D-5** below. The variant picks the review leaves to the
 owner (issues #797–#801, #803–#806) are made by one comment on the issue or
-on PR #783; **silence is the recommended variant** (D-2). Verification basis:
+on PR #783; **silence is the recommended variant** (D-2). **Picks received
+2026-09-14** (owner, in session; recorded on PR #783 and on each issue):
+#797 A, #798 B, #799 A, #800 B, #801 A, #803 C, #804 A, #805 A, #806 A —
+D-2's silence clause did not have to fire, and each lane below names its
+picked variant. Verification basis:
 `main` at 1e78853 (the Sprint 11 planning merged 2026-09-07; no Sprint 11
 batch branch or PR exists yet), the open-issue list before the review filed
 anything (27 open) and after (52), the open pull requests (three Dependabot
@@ -47,19 +51,25 @@ PRs — #775, #781, #782 — and #783 itself), the review document
   The review lists the recommended variant first and D-2 makes silence the
   pick, so the lanes do not block on a session; the picked variant is written
   into `DESIGN.md` by the story that builds it, which is how the spine stays
-  the authority (ADR-0038 §3).
+  the authority (ADR-0038 §3). The picks came on 2026-09-14, three of them off
+  the recommendation (#798 B, #800 B, #803 C); what each changes is stated in
+  its lane.
 - **The phone work is one lane** (K's phone half, P) because it shares one
-  new rule (UX-DR27) and one mechanism (the D6 strip: overflow, snap, fade).
-  Splitting it would have two stories invent the strip twice.
+  new rule (UX-DR27) and one verification pass at 390 px. It was also to share
+  the D6 strip mechanism (overflow, snap, fade); with #800 picked as the sheet
+  on 2026-09-14 the strip is built once, for the Wealth tab row (#790, Lane
+  F), and verified here.
 - **Transactions is one lane** because #470's earlier stories landed on the
   pre-language screen and the 2026-08-15 triage ruled the UI dimension must
   land with the design engagement, not before it. #786 (numbers, amount
   column) rides Lane F so the table is right whichever form home wins.
 - **What waits, and why:** #807 is `needs-decision` (the Trades reconciliation
   the 2026-08-15 triage deferred — the owner signs it by comment, Sprint 13
-  builds it); #798-B changes UX-DR2 and is built only if picked; #806 and
-  #808 are low-traffic administration surfaces and are the first thing a
-  closing act should not spend its day on.
+  builds it); #798-B was "built only if picked" — picked on 2026-09-14, it
+  rides Lane K with the rule amended on PR #783; #806 and #808 are
+  low-traffic administration surfaces and are the first thing a closing act
+  should not spend its day on; #809 (edit a booking, the human view for the
+  update API) is the follow-up the #803 drawer is shaped for.
 
 ## Lanes
 
@@ -99,32 +109,52 @@ in the chart's `aria-label`.
 
 ### Lane K — the Wealth KPI band and the Overview (#797, #798; picks)
 
-Recommended A and A. The band re-composes into two tiers with no value
-wrapping and does not repeat on the Allocation tab; the Overview gains the
-90-day trend in the value card and drift bars in the rows. **The design
-critic verifies the value-slot states after the re-composition** — pending,
-settling, the count-up hook, width reservation (UX-DR18/20) — because a
-re-composed card is where those regress silently. If B is picked for #798,
-UX-DR2 is amended in the same PR.
+Picked A and B (owner, 2026-09-14). The band re-composes into two tiers with
+no value wrapping and does not repeat on the Allocation tab; the Overview
+keeps its value card as built and gains the four-cell KPI strip under it —
+TTWROR with its period, cash quote, last booking, quote freshness, each cell
+stating its basis and linking to the surface that owns the figure — plus the
+drift bars in the off-target rows. UX-DR2 is amended on PR #783
+(`EXPERIENCE.md` → UX-DR2, amended 2026-09-14); the story builds the amended
+rule and writes the strip's anatomy into `DESIGN.md`. The four figures are
+existing reads (the Wealth KPI walk, the holdings valuation, the ledger's
+newest booking, the data-quality count) — no new metric, so no new payload
+basis is owed; a figure exposed anew on the API states its basis there.
+**The design critic verifies the value-slot states after the
+re-composition** — pending, settling, the count-up hook, width reservation
+(UX-DR18/20) — because a re-composed card is where those regress silently.
 
 ### Lane P — the phone (#799, #800; picks)
 
-Recommended A and A: two-line rows under 560 px for Securities and
-Transactions (UX-DR27), one swipeable chip strip with the D6 fade for the
-filter chrome. #788 (the drift table's scroller) rides Lane F but its
-verification is here, at 390 px, with the rest of the phone pass.
+Picked A and B (owner, 2026-09-14): two-line rows under 560 px for
+Securities and Transactions (UX-DR27); the filter chips behind a "Filter (n)"
+control as a bottom sheet — the mechanism the row menu already uses under
+720 px — with the active-chip count on the control, the families stacked in
+the sheet, focus moved in and returned (`<dialog>` or `role="dialog"`). Above
+560 px the D2 chip row is unchanged. #788 (the drift table's scroller) rides
+Lane F but its verification is here, at 390 px, with the rest of the phone
+pass.
 
 ### Lane T — Transactions (#803; pick)
 
-Recommended A: the form as a disclosure panel above the history, the
-holdings section gone from the route, the amount column from #786. The lane
+Picked C (owner, 2026-09-14): the booking form as a side drawer in the
+securities detail pane's shape — the history fills the page, "+" slides the
+panel in on the right with the fields stacked, a bottom sheet on the phone —
+the holdings section gone from the route, the amount column from #786. The
+drawer is built for creating a booking. Its variant text says "reused for
+editing", and the fact behind that is that the update API exists
+(`PATCH /api/v1/transactions/:id`, `portfolixir.transactions.update`) with no
+human view; that view is #809, filed 2026-09-14, a Sprint 13 candidate the
+drawer must be shaped for (one panel, stacked fields, pre-fillable) without
+#803 growing an edit path of its own (Scope Lock). C is the largest single
+story of the sprint, which the shrink order already reflects. The lane
 touches the oldest LiveView in the app; its closing-act condition is the
 booking walkthrough (one transaction of each of buy, dividend, deposit) on
-desktop and phone.
+desktop and phone, through the drawer.
 
 ### Lane D — the detail pane, the tree rows, the custom range (#804, #805, #801; picks)
 
-Recommended A, A, A: the securities detail's first tab reads, the
+Picked A, A, A (owner, 2026-09-14): the securities detail's first tab reads, the
 classification tree rows get a column head, the custom range opens in a
 popover on its trigger. Last in order because each is a contained surface
 and the first to go under the shrink order.
@@ -177,13 +207,21 @@ decision afterwards. This is "the merge is the signature" applied one level
 down: the owner reads and comments to change, and nothing has to be edited
 between silence and the build.
 
+**Applied 2026-09-14.** The owner picked on all nine issues in one message —
+#797 A, #798 B, #799 A, #800 B, #801 A, #803 C, #804 A, #805 A, #806 A — so
+the silence clause did not fire. The picks are recorded in the review's
+Part 3, on each issue, and, for the one pick that changes a rule (#798-B), as
+the UX-DR2 amendment in `EXPERIENCE.md` on this PR. `DESIGN.md` → Components
+still takes each picked variant's anatomy from the story that builds it.
+
 ### D-3 — two batches, declared (recommended)
 
 Sprint 12 takes Lanes F, N, S, K, P, T and D — twenty-two issues — with the
-shrink order below. #806, #807, #808 and #798-B are named as Sprint 13
+shrink order below. #806, #807, #808 and #809 are named as Sprint 13
 candidates now, so their absence from the closing act is a plan, not a
 surprise, and the gate #807 needs (the owner's comment on Q2) can be taken
-in the meantime.
+in the meantime. (#798-B was a candidate here until it was picked on
+2026-09-14; it rides Lane K.)
 
 ### D-4 — the closing act's conditions are the review's conditions (recommended)
 
@@ -209,7 +247,7 @@ Sprint 11 batch ──▶ merge ──▶ agent/claude/ux-alignment-2 opens (D-1
 Lane F ── first: #785 labels and #786 table are what N and T build on
 Lane N ── after F (#789 adds the glyph; #787 independent)
 Lane S ── independent of every pick; Tax + Snapshots UAT at the closing act
-Lanes K ▶ P ▶ T ▶ D ── after the picks (D-2: silence = recommended), in that order
+Lanes K ▶ P ▶ T ▶ D ── picks made 2026-09-14 (K: A, B · P: A, B · T: C · D: A, A, A), in that order
 Lane M ── #781 at lane time; #782 closed with reason; report before the closing act
 Lane Z ── registry rows when the branch opens; close-out reconciles
 ```
@@ -230,10 +268,15 @@ complete E11 pass.
 
 - **#807 (C10 — realized gains as the Trades view):** `needs-decision`; the
   owner signs Q2 of the review by comment, Sprint 13 builds it.
-- **#798-B (a KPI strip on the Overview):** a UX-DR2 change; built only if
-  picked, in Lane K, with the rule amended in the same PR.
+- **#798-B (a KPI strip on the Overview)** was listed here as "built only if
+  picked"; picked on 2026-09-14, it is in Lane K and the rule is amended on
+  PR #783.
 - **#806 (C9, the bucket cell) and #808 (C11, the classifications index):**
-  low-traffic administration; Sprint 13 candidates.
+  low-traffic administration; Sprint 13 candidates. #806's pick (A) stands
+  whenever it is built.
+- **#809 (edit a booking from the history):** the human view for the
+  transaction update API, filed 2026-09-14 from the #803-C pick; it needs
+  the drawer first, so Sprint 13.
 - **Anything computed.** Every rule the review adds is about naming, control
   vocabulary, layout and state rendering; no metric, basis or predicate
   changes, and no lane carries the risk-tier attention label. The one
@@ -252,8 +295,8 @@ complete E11 pass.
 3. Tax, Snapshots and Views render their Component-Patterns shape; the
    sunburst and both income charts carry "Daten als Tabelle"; the income
    years are continuous and the matrix zeros are quiet.
-4. The picked variants of K, P, T and D are built, and `DESIGN.md` names
-   each pick — or the briefing names the lane as the shrink.
+4. The picked variants of K, P, T and D (A/B, A/B, C, A/A/A) are built, and
+   `DESIGN.md` names each pick — or the briefing names the lane as the shrink.
 5. The closing act ran under D-4's conditions on the committed seed script,
    the walkthrough is in a PR comment with its shots, and `priv/demo/`
    carries `finding_surfaces_seed.exs`.
