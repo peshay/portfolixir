@@ -157,7 +157,10 @@ Changes made when the rules moved, so nobody reads a stale number here:
 
 - **DR2 was rewritten** to the Overview as built (value + change, "Needs
   attention", data quality). The four metric cards confirmed on 2026-06-13 were
-  never built, and the rule had contradicted the app since June.
+  never built, and the rule had contradicted the app since June. **Amended
+  2026-09-14** by the owner's pick C2-B of the 2026-09-12 UX review: the
+  Overview also carries a four-cell KPI strip (three of the 2026-06-13 metrics
+  return under a new shape, plus quote freshness); built by #798.
 - **DR4 was rewritten** from "which Soon items are hidden" to "which shipped
   surfaces are reachable only by a path the sidebar does not show".
 - **DR5's mechanism note is corrected:** the `@property` count-up it named
