@@ -1030,9 +1030,20 @@ defmodule Portfolixir.Portfolios.Performance do
     carried = carried_seed(security_id, walk_start, currency, security, events)
     # `measured?` records whether a **quote** has ever landed on an earlier
     # day: `carried_seed/5` only ever returns a quote, so seeding it from the
-    # carried price is exact. It gates the basis step (issue #545).
-    %{price: carried, upcoming: points, measured?: not is_nil(carried)}
+    # carried price is exact. It gates the basis step (issue #545). `retired?`
+    # is the catalog's flag, read by `stale_retired?/1` (issue #610).
+    %{
+      price: carried,
+      upcoming: points,
+      measured?: not is_nil(carried),
+      retired?: security_retired?(security)
+    }
   end
+
+  defp security_retired?(%Portfolixir.Catalog.Security{is_retired: retired?}),
+    do: retired? == true
+
+  defp security_retired?(_security), do: false
 
   # The seed close (last close before the walk) converted into the basis era
   # of the day before the walk starts: as-traded at its own date, then
@@ -1114,10 +1125,25 @@ defmodule Portfolixir.Portfolios.Performance do
   # day's own points are consumed, so the transition from a fabricated trade
   # price to the security's first quote ever is itself a basis step.
   defp advance_entry(entry, day) do
-    measured? = entry.measured?
+    measured? = entry.measured? and not stale_retired?(entry)
     {entry, opening} = consume_points(entry, day, :none)
     {entry, basis_step(measured?, opening, entry.price)}
   end
+
+  # Issue #610 (ADR-0010 amendment 2026-09-15, D-3 (b) of the Sprint 11
+  # plan): a retired security's carried quote is not a measurement while no
+  # newer quote row exists — the feed has stopped, and the price the walk
+  # carries is the last close, however old — so the trade point that replaces
+  # it emits the basis step like a never-quoted position's would. A quote row
+  # anywhere ahead (`upcoming` holds every row from the walk start on) keeps
+  # the security measured, and the next row re-latches it. The catalog flag,
+  # never a day count, is the signal: an actively quoted portfolio is never
+  # reclassified, which keeps the #545 byte-identical guarantee by
+  # construction.
+  defp stale_retired?(%{retired?: true, upcoming: upcoming}),
+    do: not Enum.any?(upcoming, &match?(%{price_source: :quote}, &1))
+
+  defp stale_retired?(_entry), do: false
 
   # A rescale point (ADR-0028 §2) moves the *carried* price across a split's
   # effective date (divide by the ratio) instead of setting an absolute close.
