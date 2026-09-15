@@ -4,9 +4,12 @@ defmodule PortfolixirWeb.ApiV1ListLimitsTest do
   # instance to materialise an unbounded table.
   use PortfolixirWeb.ConnCase
 
-  import Portfolixir.WorldFixtures, only: [create_security!: 1]
+  import Portfolixir.WorldFixtures, only: [base_world: 0, buy!: 3, create_security!: 1]
 
+  alias Portfolixir.Actor
   alias Portfolixir.Catalog.Quotes
+  alias Portfolixir.Knowledge
+  alias Portfolixir.Portfolios.Snapshots
   alias PortfolixirWeb.Api.V1.ListLimit
 
   setup %{conn: conn} do
@@ -106,5 +109,164 @@ defmodule PortfolixirWeb.ApiV1ListLimitsTest do
     assert %{"errors" => %{"quotes" => [message]}} = response
     assert message =~ Integer.to_string(cap)
     assert Quotes.range(security.id, ~D[1990-01-01], ~D[2100-01-01]) == []
+  end
+
+  # User story (#776 — Sprint 11 Lane W, the surface check's first catch):
+  # As the operator whose agent reads the research log, the snapshot list and
+  # the three cash-flow roll-ups over the API,
+  # I want every collection read of that family to take a bounded limit, spelled
+  # the same way as the four #771 reads, or to record why its period is the bound,
+  # so that an agent reading a collection has a way to ask for less, and the
+  # family is not half-done a third time.
+  #
+  # Acceptance criteria:
+  # - The four research-log reads, the snapshot list and the three roll-ups
+  #   accept limit and answer as before without it; a malformed limit is 422.
+  # - A limit keeps the most relevant rows of each read's own order: the newest
+  #   entries of a security's log and of the uncorroborated read, the most
+  #   overdue positions of the unreviewed read, the soonest-expiring entries of
+  #   the expiring read, the newest snapshots, and the newest years of a
+  #   roll-up's annual matrix — the matrix rows a year keeps are unchanged.
+  # - The trades read keeps from/to as its bound: the FIFO matcher needs the
+  #   whole history, and each leg is filtered by its own date.
+  test "the eight further collection reads refuse a malformed limit", %{conn: conn} do
+    security = create_security!(name: "Limit Co", ticker: "LIM")
+
+    for path <- [
+          "/api/v1/securities/#{security.id}/notes?limit=abc",
+          "/api/v1/notes/unreviewed?limit=0",
+          "/api/v1/notes/uncorroborated?limit=-1",
+          "/api/v1/notes/expiring?limit=x",
+          "/api/v1/snapshots?limit=0",
+          "/api/v1/realized_gains?limit=abc",
+          "/api/v1/external_flows?limit=0",
+          "/api/v1/costs?limit=-2"
+        ] do
+      response = conn |> get(path) |> json_response(422)
+      assert %{"errors" => %{"limit" => [_ | _]}} = response, path
+    end
+  end
+
+  test "the eight further collection reads accept a limit and answer as before", %{conn: conn} do
+    security = create_security!(name: "Limit Co", ticker: "LIM")
+
+    for path <- [
+          "/api/v1/securities/#{security.id}/notes?limit=10",
+          "/api/v1/notes/unreviewed?limit=10",
+          "/api/v1/notes/uncorroborated?limit=10",
+          "/api/v1/notes/expiring?limit=10",
+          "/api/v1/snapshots?limit=10",
+          "/api/v1/realized_gains?limit=10",
+          "/api/v1/external_flows?limit=10",
+          "/api/v1/costs?limit=10"
+        ] do
+      assert %{"data" => data} = conn |> get(path) |> json_response(200), path
+      assert is_map(data), path
+    end
+  end
+
+  test "a note limit keeps the newest entries and the thesis state still reads the whole log",
+       %{conn: conn} do
+    security = create_security!(name: "Noted Co", ticker: "NOT")
+
+    for {day, kind} <- [{1, "evidence"}, {2, "evidence"}, {3, "decision"}] do
+      {:ok, _} =
+        Knowledge.append_note(Actor.owner_ui(), %{
+          security_id: security.id,
+          author: "agent",
+          kind: kind,
+          body: "entry #{day}",
+          source_quality: "primary",
+          as_of: Date.new!(2026, 3, day)
+        })
+    end
+
+    %{"data" => data} =
+      conn |> get("/api/v1/securities/#{security.id}/notes?limit=2") |> json_response(200)
+
+    assert Enum.map(data["entries"], & &1["as_of"]) == ["2026-03-03", "2026-03-02"]
+    assert data["limit"] == 2
+    assert data["thesis_state"] == unlimited_thesis_state(conn, security)
+  end
+
+  defp unlimited_thesis_state(conn, security) do
+    %{"data" => data} =
+      conn |> get("/api/v1/securities/#{security.id}/notes") |> json_response(200)
+
+    data["thesis_state"]
+  end
+
+  test "an expiring limit keeps the soonest entries, a snapshot limit the newest",
+       %{conn: conn} do
+    security = create_security!(name: "Expiring Co", ticker: "EXP")
+    today = Portfolixir.Clock.today()
+
+    for days <- [20, 5, 12] do
+      {:ok, _} =
+        Knowledge.append_note(Actor.owner_ui(), %{
+          security_id: security.id,
+          author: "agent",
+          kind: "decision",
+          body: "block for #{days} days",
+          source_quality: "primary",
+          as_of: today,
+          valid_until: Date.add(today, days)
+        })
+    end
+
+    %{"data" => expiring} = conn |> get("/api/v1/notes/expiring?limit=2") |> json_response(200)
+    assert Enum.map(expiring["entries"], & &1["days_until_expiry"]) == [5, 12]
+    assert expiring["limit"] == 2
+
+    for {name, date} <- [
+          {"older", ~D[2026-01-05]},
+          {"newest", ~D[2026-03-01]},
+          {"middle", ~D[2026-02-01]}
+        ] do
+      {:ok, _} =
+        Snapshots.create_snapshot(Actor.owner_ui(), %{name: name, as_of: date, view_id: nil})
+    end
+
+    %{"data" => snapshots} = conn |> get("/api/v1/snapshots?limit=2") |> json_response(200)
+    assert Enum.map(snapshots["snapshots"], & &1["name"]) == ["newest", "middle"]
+    assert snapshots["limit"] == 2
+  end
+
+  test "a roll-up limit keeps the newest years and says so in its basis", %{conn: conn} do
+    world = base_world()
+    security = create_security!(name: "Charged ETF", ticker: "CHG")
+
+    for year <- [2024, 2025, 2026] do
+      buy!(world, security,
+        quantity: "1",
+        price: "100",
+        fees: "1.50",
+        taxes: "0.50",
+        date: Date.new!(year, 3, 1)
+      )
+    end
+
+    %{"data" => costs} = conn |> get("/api/v1/costs?limit=2") |> json_response(200)
+    assert Enum.map(costs["annual"], & &1["year"]) == [2026, 2025]
+    assert costs["limit"] == 2
+    assert costs["computation_basis"]["window"] =~ "newest 2 years"
+
+    %{"data" => unlimited} = conn |> get("/api/v1/costs") |> json_response(200)
+    assert Enum.map(unlimited["annual"], & &1["year"]) == [2026, 2025, 2024]
+
+    assert unlimited["computation_basis"]["window"] ==
+             "full ledger history, grouped by booking date"
+
+    assert is_nil(unlimited["limit"]) or unlimited["limit"] == 100
+  end
+
+  test "the trades read keeps from and to as its bound and takes no limit", %{conn: conn} do
+    security = create_security!(name: "Traded Co", ticker: "TRD")
+
+    %{"data" => data} =
+      conn |> get("/api/v1/securities/#{security.id}/trades?limit=1") |> json_response(200)
+
+    assert Map.has_key?(data, "open_lots")
+    assert data["basis"]["bound"] =~ "from/to"
   end
 end

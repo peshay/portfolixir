@@ -78,7 +78,8 @@ verengen, was der Betreiber sieht.
   darin; `missing_logo`; `missing_fx` — Issue #717: bepreist, aber ohne
   gespeicherten Kurs von seiner Währung zum EUR-Hub, das Speichern des Kurses
   leert also die Menge), `projection` (`slim`/`full`) und `limit`/`offset` zur
-  Paginierung (beides nichtnegative Ganzzahlen). Nutze diese, um große
+  Paginierung (`limit` eine positive Ganzzahl, Standard 5000, max. 20000, seit
+  #771; `offset` nichtnegativ). Nutze diese, um große
   Kataloge zu paginieren, statt die ganze Tabelle auf einmal zu holen. Die
   **menschliche Sicht** dieser Verengungen ist die One-Tap-Chipzeile auf der
   Wertpapierseite (Issue #717): ihre Chips fahren auf demselben URL-Zustand
@@ -197,19 +198,27 @@ Feldnamen, und aus Eingaben entsteht nie ein Atom.
 - `GET /api/v1/securities/:security_id/notes` — das Log, neueste zuerst
   (nach `as_of`, dann Schreibzeit), mit dem abgeleiteten `thesis_state` und
   einer `log_note`, die den Nur-anhängen-Kontrakt benennt.
+  `limit` behält die neuesten Einträge (Standard 1000, max. 10000);
+  `thesis_state` leitet sich immer aus dem ganzen Log ab, und die Antwort
+  nennt das angewandte `limit`.
 - `POST /api/v1/securities/:security_id/notes` — hängt einen Eintrag aus
   einem `note`-Objekt an (`201`); journalisiert unter dem API-Token-Akteur.
 - `GET /api/v1/notes/unreviewed?days=N` — gehaltene Wertpapiere
   (Nettostückzahl ungleich null über alle Depots), deren neuester Eintrag
   älter als `N` Tage ist (Standard 90) oder die keinen haben; Zeilen tragen
   `last_entry_as_of` und `days_since_last_entry` (`null`, wenn nie geprüft).
+  `limit` behält die am längsten überfälligen Positionen (Standard 1000, max.
+  10000).
 - `GET /api/v1/notes/uncorroborated` — Einträge, deren `source_quality`
   nicht `primary` ist, neueste zuerst; ersetzte Einträge werden übersprungen,
   sofern nicht `include_superseded=true`; optional `security_id`.
+  `limit` behält die neuesten Einträge (Standard 1000, max. 10000).
 - `GET /api/v1/notes/expiring?days=N` — Einträge, deren `valid_until` in die
   nächsten `N` Tage fällt (Standard 30), früheste zuerst, mit
   `days_until_expiry`; aufgehobene (ersetzte) Sperren werden übersprungen;
   optional `security_id`.
+  `limit` behält die am frühesten ablaufenden Einträge (Standard 1000, max.
+  10000).
 
 Der **Thesenstand** (`thesis_state` im Wertpapier-Detail und im Log-Read) ist
 die B4.1-Projektion: `status` (`none`, `intact`, `retracted`), der aktuelle
@@ -256,6 +265,9 @@ Widerrufe lesbar und ein Formular, das einen Eintrag als Betreiber anhängt.
   Anbieter nie rückwirkend anpasst, lässt sich mit `treat_quotes_as_raw`
   markieren (siehe Wertpapiere), was die Roh-Basis für seine
   synchronisierten Zeilen erzwingt.
+  `limit` behält die neuesten Zeilen des Fensters, weiterhin aufsteigend
+  (Standard 20000, max. 50000; null, negativ oder nicht numerisch ist ein
+  `422`).
 - `PUT /api/v1/securities/:security_id/quotes` führt manuelle Kurszeilen ein
   (Upsert).
 - `POST /api/v1/securities/:security_id/sync_quotes` löst die
@@ -413,6 +425,8 @@ Beispiel-Payloads für Konten:
   oder nicht-numerisches Konto ist ein `422` mit dem Feld
   `running_balance_for`. Das ist das API- und MCP-Gegenstück zur Saldospalte
   auf der Transaktionsseite.
+  `limit` behält die neuesten Zeilen (Standard 10000, max. 50000; null,
+  negativ oder nicht numerisch ist ein `422`).
 - `POST /api/v1/transactions` legt eine Transaktion beliebiger buchbarer Art mit
   einem `transaction`-Objekt an (die pro Buchungsart erforderlichen Felder werden
   serverseitig validiert). Die buchbaren `type`-Werte sind `buy`, `sell`,
@@ -538,6 +552,9 @@ Beispiel-Payloads für Konten:
   Kurs eines Nachbardatums konvertiert, nie still verworfen. Die Payload
   trägt `computation_basis` (Serie, Fenster, Referenz, Lücken) und eine
   `conversion_note`; die menschliche Sicht ist `/cashflow?tab=realized`.
+  `limit` begrenzt die Jahresmatrix auf ihre neuesten Jahre (Standard 100,
+  max. 1000); `computation_basis.window` nennt den Schnitt, wenn Jahre
+  wegfielen, und die Antwort nennt das angewandte `limit`.
 - `GET /api/v1/external_flows` (Issue #725) liefert das
   Ein-/Auszahlungs-Rollup: die gebuchten externen **Cash**-Flüsse (`deposit`
   und `removal`) über alle Portfolios, je Jahr und Monat mit Einzahlungen,
@@ -548,6 +565,9 @@ Beispiel-Payloads für Konten:
   EUR-Hub zum Kurs des eigenen Buchungstags, unkonvertierbare Flüsse
   ausgeschlossen und nach Verrechnungskonto benannt. Die menschliche Sicht
   ist `/cashflow?tab=flows`.
+  `limit` begrenzt die Jahresmatrix auf ihre neuesten Jahre (Standard 100,
+  max. 1000); `computation_basis.window` nennt den Schnitt, wenn Jahre
+  wegfielen, und die Antwort nennt das angewandte `limit`.
 - `GET /api/v1/costs` (Issue #726) liefert das Kosten-Rollup: Gebühren und
   Steuern über alle Portfolios, **nur auf Übersichtsebene**, je Jahr und
   Monat mit Jahressummen für Gebühren, Steuern und beides zusammen. Die
@@ -560,6 +580,9 @@ Beispiel-Payloads für Konten:
   Schwester-Facetten: EUR-Hub zum Kurs des eigenen Buchungstags,
   unkonvertierbare Kosten ausgeschlossen und nach **Währung** benannt. Die
   menschliche Sicht ist `/cashflow?tab=costs`.
+  `limit` begrenzt die Jahresmatrix auf ihre neuesten Jahre (Standard 100,
+  max. 1000); `computation_basis.window` nennt den Schnitt, wenn Jahre
+  wegfielen, und die Antwort nennt das angewandte `limit`.
 - `GET /api/v1/holdings/by_security` liefert die **globale Bewertung je
   Wertpapier** über **alle** Portfolios hinweg: eine `holdings`-Zeile je aktuell
   gehaltenem Wertpapier mit `security_id` (eine Ganzzahl), Gesamt-`quantity` und
@@ -946,6 +969,21 @@ Beispiel-Payloads für Konten:
   (ISO-Daten) filtert jedes Bein nach seinem eigenen Datum: offene Lots nach
   Eröffnungsdatum, geschlossene Round-Trips nach Schlussdatum, verwaiste Verkäufe
   nach Verkaufsdatum.
+  Es gibt kein `limit`: `from`/`to` sind die Grenze (der FIFO-Matcher braucht
+  die ganze Historie, und jedes Bein wird danach nach seinem eigenen Datum
+  gefiltert), genannt im `basis` der Antwort.
+- `GET /api/v1/snapshots` listet Depot-**Snapshot-Marker** (ADR-0027): jeder
+  ist ein `name`, ein Geltungsbereich (`view_id`, `null` = alles) und ein
+  `as_of`-Datum. Ein Snapshot kopiert keine Finanzdaten — die Bestände, die er
+  repräsentiert, werden bei Bedarf aus dem Buchungsjournal abgeleitet.
+  `limit` behält die neuesten Snapshots (Standard 1000, max. 10000); die
+  Antwort nennt das angewandte `limit`.
+- `POST /api/v1/snapshots` legt einen Marker an
+  (`{"name": "...", "as_of": "2026-02-15", "view_id": 3}`; `view_id`
+  optional). Ein `as_of` in der Zukunft oder ein doppelter Name im selben
+  Geltungsbereich liefert `422 Unprocessable Entity`.
+- `DELETE /api/v1/snapshots/:id` löscht einen Marker; Transaktionen und
+  Bestände bleiben unberührt.
 
 ## Wechselkurse
 
@@ -953,6 +991,7 @@ Beispiel-Payloads für Konten:
   gegen den EUR-Hub gehalten (`1 base_currency = rate quote_currency`); andere
   Paare werden durch Triangulation abgeleitet, und `GBX` (Pence) wird als
   `GBP × 100` behandelt.
+  `limit` behält die jüngsten Kurse (Standard 50000, max. 200000).
 - `POST /api/v1/exchange_rates/sync` holt Kurse vom konfigurierten Anbieter
   (standardmäßig EZB) und liefert `{provider, status, upserted, scope}`.
   `scope=latest` (Standard) holt den **täglichen** Feed — die heutigen Kurse,

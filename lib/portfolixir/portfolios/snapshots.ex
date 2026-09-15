@@ -40,13 +40,18 @@ defmodule Portfolixir.Portfolios.Snapshots do
   @doc """
   Lists snapshots, newest as-of first. Pass `view:` (a `%View{}`, view id, or
   `nil` for the "everything" scope) to filter — omitting the key lists all.
+  `limit:` keeps the newest `limit` snapshots (#776).
   """
   def list_snapshots(opts \\ []) do
     from(s in Snapshot)
     |> filter_view(opts)
     |> order_by([s], desc: s.as_of, desc: s.id)
+    |> maybe_limit(Keyword.get(opts, :limit))
     |> Repo.all()
   end
+
+  defp maybe_limit(query, nil), do: query
+  defp maybe_limit(query, n) when is_integer(n) and n > 0, do: limit(query, ^n)
 
   @doc "Fetches one snapshot, or `{:error, :not_found}`."
   def fetch_snapshot(%Snapshot{} = snapshot), do: {:ok, snapshot}

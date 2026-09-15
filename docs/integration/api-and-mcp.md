@@ -187,19 +187,25 @@ input.
 - `GET /api/v1/securities/:security_id/notes` — the log, newest first (by
   `as_of`, then write time), with the derived `thesis_state` and a `log_note`
   stating the append-only contract.
+  `limit` keeps the newest entries (default 1000, max 10000); `thesis_state`
+  always derives from the whole log, and the answer echoes the applied
+  `limit`.
 - `POST /api/v1/securities/:security_id/notes` — appends one entry from a
   `note` object (`201`); journaled under the API-token actor.
 - `GET /api/v1/notes/unreviewed?days=N` — held securities (net quantity
   non-zero across all depots) whose newest entry is older than `N` days
   (default 90) or that have none; rows carry `last_entry_as_of` and
   `days_since_last_entry` (`null` when never reviewed).
+  `limit` keeps the most overdue positions (default 1000, max 10000).
 - `GET /api/v1/notes/uncorroborated` — entries whose `source_quality` is not
   `primary`, newest first; superseded entries are skipped unless
   `include_superseded=true`; optional `security_id`.
+  `limit` keeps the newest entries (default 1000, max 10000).
 - `GET /api/v1/notes/expiring?days=N` — entries whose `valid_until` falls
   within the next `N` days (default 30), soonest first, with
   `days_until_expiry`; lifted (superseded) blocks are skipped; optional
   `security_id`.
+  `limit` keeps the soonest-expiring entries (default 1000, max 10000).
 
 The **thesis state** (`thesis_state` on the security detail and on the log
 read) is the B4.1 projection: `status` (`none`, `intact`, `retracted`), the
@@ -278,6 +284,8 @@ Example create payload:
   audit against `close`. A security whose provider never back-adjusts can be
   flagged with `treat_quotes_as_raw` (see Securities), which forces the raw
   basis for its synced rows.
+  `limit` keeps the newest rows of the window, still ascending (default 20000,
+  max 50000; zero, negative or non-numeric is a `422`).
 - `PUT /api/v1/securities/:security_id/quotes` upserts manual quote rows.
 - `POST /api/v1/securities/:security_id/sync_quotes` triggers quote sync for
   one security. The response includes `status` (`ok`, `skipped`, or `error`);
@@ -425,6 +433,8 @@ Example account payloads:
   which would read as "nothing happened here". An unknown or non-numeric
   account id is a `422` naming `running_balance_for`. This is the API and MCP
   counterpart of the balance column on the Transactions page.
+  `limit` keeps the newest rows (default 10000, max 50000; zero, negative or
+  non-numeric is a `422`).
 - `POST /api/v1/transactions` creates a transaction of any bookable kind with a
   `transaction` object (per-kind required fields are validated server-side).
   The bookable `type` values are `buy`, `sell`, `dividend`, `interest`,
@@ -537,6 +547,9 @@ Example account payloads:
   date's rate, never silently dropped. The payload carries
   `computation_basis` (series, window, reference, gaps) and a
   `conversion_note`; the human view is `/cashflow?tab=realized`.
+  `limit` bounds the annual matrix to its newest years (default 100, max
+  1000); `computation_basis.window` names the cut when years were dropped, and
+  the answer echoes the applied `limit`.
 - `GET /api/v1/external_flows` (issue #725) returns the Deposits &
   withdrawals roll-up: the booked external **cash** flows (`deposit` and
   `removal`) across all portfolios, per year and month with deposits,
@@ -546,6 +559,9 @@ Example account payloads:
   in `computation_basis.excludes`. FX basis as in the sibling facet: EUR hub
   at the rate stored on each flow's own booking date, unconvertible flows
   excluded and named by their cash account. The human view is `/cashflow?tab=flows`.
+  `limit` bounds the annual matrix to its newest years (default 100, max
+  1000); `computation_basis.window` names the cut when years were dropped, and
+  the answer echoes the applied `limit`.
 - `GET /api/v1/costs` (issue #726) returns the Costs roll-up: fees and taxes
   across all portfolios at **overview level only**, per year and month with
   yearly fee, tax and combined totals. The series sums the fee and tax
@@ -556,6 +572,9 @@ Example account payloads:
   stated in `computation_basis.series`. FX basis as in the sibling facets:
   EUR hub at the rate stored on each booking's own date, unconvertible costs
   excluded and named by their **currency**. The human view is `/cashflow?tab=costs`.
+  `limit` bounds the annual matrix to its newest years (default 100, max
+  1000); `computation_basis.window` names the cut when years were dropped, and
+  the answer echoes the applied `limit`.
 - `GET /api/v1/holdings/by_security` returns the **global per-security
   valuation** across **all** portfolios: one `holdings` row per currently held
   security with its `security_id` (an integer), total `quantity`, and current
@@ -792,6 +811,8 @@ Example account payloads:
   `name`, a scope (`view_id`, `null` = everything) and an `as_of` date. A
   snapshot copies no financial data — the holdings it represents derive from
   the transaction ledger on demand.
+  `limit` keeps the newest snapshots (default 1000, max 10000); the answer
+  echoes the applied `limit`.
 - `POST /api/v1/snapshots` creates a marker
   (`{"name": "...", "as_of": "2026-02-15", "view_id": 3}`; `view_id` optional).
   A future `as_of` or a duplicate name within the scope returns
@@ -1117,12 +1138,16 @@ church tax withheld at a zero church-tax rate.
   paired against sells. Optional `from`/`to` (ISO dates) filter each leg by its
   own date: open lots by open date, closed round-trips by close date, orphan
   sells by sell date.
+  There is no `limit`: `from`/`to` are the bound (the FIFO matcher needs the
+  whole history, and each leg is filtered by its own date afterwards), stated
+  in the payload's `basis`.
 
 ## Exchange Rates
 
 - `GET /api/v1/exchange_rates` lists stored exchange rates. Rates are kept
   against the EUR hub (`1 base_currency = rate quote_currency`); other pairs are
   derived by triangulation, and `GBX` (pence) is handled as `GBP × 100`.
+  `limit` keeps the most recent rates (default 50000, max 200000).
 - `POST /api/v1/exchange_rates/sync` fetches rates from the configured
   provider (ECB by default) and returns `{provider, status, upserted, scope}`.
   `scope=latest` (the default) fetches the **daily** feed — today's rates,

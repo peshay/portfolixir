@@ -385,6 +385,17 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       # FR-13: state the matching method so a consumer never has to assume how
       # lots were paired against sells. Trades are matched first-in, first-out.
       method: "fifo",
+      # #776: the bound of this read is the date window, never a row count —
+      # the matcher needs the whole history, and each leg is filtered by its
+      # own date afterwards. Recorded here so the decision travels with the
+      # payload.
+      basis: %{
+        bound:
+          "from/to: each leg is filtered by its own date (open lots by open date, " <>
+            "closed trades by close date, orphan sells by sell date); there is no " <>
+            "limit, the FIFO matcher needs the whole history",
+        method: "fifo"
+      },
       open_lots: Enum.map(lots, &open_lot/1),
       closed_trades: Enum.map(closed, &closed_trade/1),
       orphan_sells: Enum.map(orphans, &orphan_sell/1)
@@ -1276,6 +1287,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   def realized_gains(report) do
     %{
       base_currency: report.base_currency,
+      limit: report.limit,
       conversion_note: report.conversion_note,
       computation_basis: report.computation_basis,
       excluded: report.excluded,
@@ -1297,6 +1309,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   def external_flows(report) do
     %{
       base_currency: report.base_currency,
+      limit: report.limit,
       conversion_note: report.conversion_note,
       computation_basis: report.computation_basis,
       excluded: report.excluded,
@@ -1323,6 +1336,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   def costs(report) do
     %{
       base_currency: report.base_currency,
+      limit: report.limit,
       conversion_note: report.conversion_note,
       computation_basis: report.computation_basis,
       excluded: report.excluded,

@@ -17,6 +17,7 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
   alias Portfolixir.Knowledge
   alias Portfolixir.Knowledge.SecurityNote
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.ListLimit
 
   @log_note "Entries are append-only: never updated, never deleted. A refuted finding is " <>
               "withdrawn by appending a retraction that supersedes it; both stay readable " <>
@@ -29,20 +30,30 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
   @default_unreviewed_days 90
   @default_expiring_days 30
 
-  def index(conn, %{"security_id" => security_id}) do
-    case Catalog.get_security(security_id) do
-      %Security{} = security ->
-        json(conn, %{
-          data: %{
-            security_id: security.id,
-            entries: security.id |> Knowledge.list_notes() |> Enum.map(&JSON.security_note/1),
-            thesis_state: security.id |> Knowledge.thesis_state() |> JSON.thesis_state(),
-            log_note: @log_note
-          }
-        })
+  # #776: the bound of the four reads, sized above a realistic log (hundreds
+  # of securities, a few entries each) so a routine read never sees it.
+  @default_limit 1_000
+  @max_limit 10_000
 
-      nil ->
-        not_found(conn)
+  def index(conn, %{"security_id" => security_id} = params) do
+    with {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit),
+         %Security{} = security <- Catalog.get_security(security_id) do
+      json(conn, %{
+        data: %{
+          security_id: security.id,
+          entries:
+            security.id
+            |> Knowledge.list_notes(limit: limit)
+            |> Enum.map(&JSON.security_note/1),
+          # The projection reads the whole log, whatever the page shows.
+          thesis_state: security.id |> Knowledge.thesis_state() |> JSON.thesis_state(),
+          limit: limit,
+          log_note: @log_note
+        }
+      })
+    else
+      {:error, field} -> unprocessable(conn, %{field => ["is invalid"]})
+      nil -> not_found(conn)
     end
   end
 
@@ -87,16 +98,18 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
   defp author_for(%Actor{}), do: "agent"
 
   def unreviewed(conn, params) do
-    with {:ok, days} <- days_param(params, @default_unreviewed_days) do
+    with {:ok, days} <- days_param(params, @default_unreviewed_days),
+         {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit) do
       today = Portfolixir.Clock.today()
-      rows = Knowledge.unreviewed_positions(days: days, today: today)
+      rows = Knowledge.unreviewed_positions(days: days, today: today, limit: limit)
 
       json(conn, %{
         data: %{
           days: days,
           as_of: JSON.date(today),
+          limit: limit,
           positions: Enum.map(rows, &unreviewed_row/1),
-          basis: @unreviewed_basis
+          basis: @unreviewed_basis <> " A limit keeps the most overdue positions."
         }
       })
     else
@@ -117,22 +130,26 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
 
   def uncorroborated(conn, params) do
     with {:ok, security_id} <- optional_id_param(params, "security_id"),
-         {:ok, include_superseded} <- bool_param(params, "include_superseded", false) do
+         {:ok, include_superseded} <- bool_param(params, "include_superseded", false),
+         {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit) do
       entries =
         Knowledge.uncorroborated_notes(
           security_id: security_id,
-          include_superseded: include_superseded
+          include_superseded: include_superseded,
+          limit: limit
         )
 
       json(conn, %{
         data: %{
           security_id: security_id,
           include_superseded: include_superseded,
+          limit: limit,
           entries: Enum.map(entries, &JSON.security_note/1),
           basis:
             "Entries whose source_quality is not primary (" <>
               Enum.join(SecurityNote.source_qualities() -- ["primary"], ", ") <>
-              "); superseded entries are skipped unless include_superseded=true."
+              "); superseded entries are skipped unless include_superseded=true. " <>
+              "A limit keeps the newest entries."
         }
       })
     else
@@ -142,15 +159,24 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
 
   def expiring(conn, params) do
     with {:ok, days} <- days_param(params, @default_expiring_days),
-         {:ok, security_id} <- optional_id_param(params, "security_id") do
+         {:ok, security_id} <- optional_id_param(params, "security_id"),
+         {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit) do
       today = Portfolixir.Clock.today()
-      entries = Knowledge.expiring_notes(days: days, today: today, security_id: security_id)
+
+      entries =
+        Knowledge.expiring_notes(
+          days: days,
+          today: today,
+          security_id: security_id,
+          limit: limit
+        )
 
       json(conn, %{
         data: %{
           days: days,
           as_of: JSON.date(today),
           security_id: security_id,
+          limit: limit,
           entries:
             Enum.map(entries, fn note ->
               note
@@ -159,7 +185,8 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
             end),
           basis:
             "Entries with as_of <= valid_until <= as_of + days, soonest first; " <>
-              "superseded entries (a lifted block) are skipped."
+              "superseded entries (a lifted block) are skipped. A limit keeps the " <>
+              "soonest-expiring entries."
         }
       })
     else

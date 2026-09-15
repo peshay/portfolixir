@@ -14,10 +14,21 @@ defmodule PortfolixirWeb.Api.V1.SnapshotController do
   alias Portfolixir.Portfolios.SnapshotComparison
   alias Portfolixir.Portfolios.Snapshots
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.ListLimit
 
-  def index(conn, _params) do
-    snapshots = Snapshots.list_snapshots()
-    json(conn, %{data: %{snapshots: Enum.map(snapshots, &JSON.snapshot/1)}})
+  # #776: newest first, so a limit keeps the newest snapshots.
+  @default_limit 1_000
+  @max_limit 10_000
+
+  def index(conn, params) do
+    case ListLimit.parse(params, @default_limit, @max_limit) do
+      {:ok, limit} ->
+        snapshots = Snapshots.list_snapshots(limit: limit)
+        json(conn, %{data: %{snapshots: Enum.map(snapshots, &JSON.snapshot/1), limit: limit}})
+
+      {:error, :limit} ->
+        unprocessable(conn, %{limit: ["is invalid"]})
+    end
   end
 
   def create(conn, params) do

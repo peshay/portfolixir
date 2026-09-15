@@ -35,9 +35,12 @@ defmodule Portfolixir.Portfolios.RealizedGains do
 
     * `:base_currency` — overrides the default (the first portfolio's base
       currency, `"EUR"` when none exists).
+    * `:limit` — keeps the newest `limit` years of the annual matrix (#776);
+      `computation_basis.window` names the cut when years were dropped.
   """
   def report(opts \\ []) do
     base = Keyword.get_lazy(opts, :base_currency, &default_base/0)
+    limit = Keyword.get(opts, :limit)
 
     {converted, excluded} =
       traded_securities()
@@ -48,9 +51,13 @@ defmodule Portfolixir.Portfolios.RealizedGains do
     converted = Enum.map(converted, fn {:ok, trade} -> trade end)
     excluded = Enum.map(excluded, fn {:excluded, trade} -> trade end)
 
+    full = annual_matrix(converted)
+    annual = newest_years(full, limit)
+
     %{
       base_currency: base,
-      annual: annual_matrix(converted),
+      annual: annual,
+      limit: limit,
       excluded: %{
         count: length(excluded),
         securities: excluded |> Enum.map(& &1.security_name) |> Enum.uniq() |> Enum.sort()
@@ -63,13 +70,24 @@ defmodule Portfolixir.Portfolios.RealizedGains do
       computation_basis: %{
         series:
           "realized_pnl_abs per FIFO-matched closed trade (proceeds net of sell fees and taxes, minus consumed basis)",
-        window: "full ledger history, grouped by each trade's close date",
+        window: window(full, annual, "grouped by each trade's close date"),
         reference: "EUR hub rates at or before each close date (D-1, issue #724)",
         gaps:
           "a sale with no stored close-date rate is excluded from the converted totals and named in excluded"
       }
     }
   end
+
+  # #776: a limit keeps the newest years of the matrix (sorted newest first);
+  # the window names the cut when one happened, so a shorter answer never
+  # reads as a shorter history.
+  defp newest_years(annual, nil), do: annual
+  defp newest_years(annual, n) when is_integer(n) and n > 0, do: Enum.take(annual, n)
+
+  defp window(full, kept, grouping) when length(kept) < length(full),
+    do: "the newest #{length(kept)} years of the full ledger history, #{grouping}"
+
+  defp window(_full, _kept, grouping), do: "full ledger history, #{grouping}"
 
   defp default_base do
     case Portfolios.first_portfolio() do
