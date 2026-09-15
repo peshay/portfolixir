@@ -648,92 +648,94 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
       <%= if @soll.exists do %>
         <form id="soll-plan-form" phx-change="soll_sum" phx-submit="save_soll_plan">
-          <table class="soll-table">
-            <thead>
-              <tr>
-                <th scope="col"><%= gettext("Category") %></th>
-                <th scope="col" class="num"><%= gettext("Target %") %></th>
-              </tr>
-            </thead>
-            <tbody>
-              <%= for {category, depth} <- @flat do %>
-                <tr class={["soll-row", child_mismatch_class(@soll, category.id)]}>
-                  <th scope="row" class="soll-row__name">
-                    <span aria-hidden="true"><%= indent(depth) %></span><%= category.name %>
-                    <span
-                      :if={child_hint(@soll, category.id)}
-                      class={[
-                        "hint",
-                        "target-consistency",
-                        child_mismatch_class(@soll, category.id)
-                      ]}
-                      data-role="soll-child-hint"
-                    >
-                      <%= gettext("children Σ") %> <%= child_hint(@soll, category.id) %>%
-                    </span>
-                    <span
-                      :if={empty_target?(@soll, @assigned, category.id)}
-                      class="hint target-consistency is-mismatch"
-                      data-role="empty-category-warning"
-                    >
-                      <%= gettext("no assigned positions") %>
-                    </span>
-                  </th>
+          <div class="data-table-wrapper">
+            <table class="soll-table">
+              <thead>
+                <tr>
+                  <th scope="col"><%= gettext("Category") %></th>
+                  <th scope="col" class="num"><%= gettext("Target %") %></th>
+                </tr>
+              </thead>
+              <tbody>
+                <%= for {category, depth} <- @flat do %>
+                  <tr class={["soll-row", child_mismatch_class(@soll, category.id)]}>
+                    <th scope="row" class="soll-row__name">
+                      <span aria-hidden="true"><%= indent(depth) %></span><%= category.name %>
+                      <span
+                        :if={child_hint(@soll, category.id)}
+                        class={[
+                          "hint",
+                          "target-consistency",
+                          child_mismatch_class(@soll, category.id)
+                        ]}
+                        data-role="soll-child-hint"
+                      >
+                        <%= gettext("children Σ") %> <%= child_hint(@soll, category.id) %>%
+                      </span>
+                      <span
+                        :if={empty_target?(@soll, @assigned, category.id)}
+                        class="hint target-consistency is-mismatch"
+                        data-role="empty-category-warning"
+                      >
+                        <%= gettext("no assigned positions") %>
+                      </span>
+                    </th>
+                    <td class="num">
+                      <label class="sr-only" for={"soll-weight-#{category.id}"}>
+                        <%= gettext("Target weight for %{name}", name: category.name) %>
+                      </label>
+                      <input
+                        type="number"
+                        id={"soll-weight-#{category.id}"}
+                        name={"weights[#{category.id}]"}
+                        value={Map.get(@soll.weights, category.id, "")}
+                        min="0"
+                        max="100"
+                        step="0.1"
+                        inputmode="decimal"
+                      />
+                    </td>
+                  </tr>
+                <% end %>
+                <tr class="soll-row soll-row--cash">
+                  <th scope="row" class="soll-row__name"><%= gettext("Cash") %></th>
                   <td class="num">
-                    <label class="sr-only" for={"soll-weight-#{category.id}"}>
-                      <%= gettext("Target weight for %{name}", name: category.name) %>
-                    </label>
+                    <label class="sr-only" for="soll-cash-target"><%= gettext("Cash target") %></label>
                     <input
                       type="number"
-                      id={"soll-weight-#{category.id}"}
-                      name={"weights[#{category.id}]"}
-                      value={Map.get(@soll.weights, category.id, "")}
+                      id="soll-cash-target"
+                      name="cash_target"
+                      value={@soll.cash_target || ""}
                       min="0"
                       max="100"
                       step="0.1"
                       inputmode="decimal"
+                      disabled={@soll.editing_version?}
+                      aria-describedby={@soll.editing_version? && "soll-cash-lock-hint"}
                     />
+                    <span
+                      :if={@soll.editing_version?}
+                      class="hint"
+                      id="soll-cash-lock-hint"
+                      data-role="soll-cash-lock-hint"
+                    >
+                      <%= gettext("Follows the active plan until this version is activated") %>
+                    </span>
                   </td>
                 </tr>
-              <% end %>
-              <tr class="soll-row soll-row--cash">
-                <th scope="row" class="soll-row__name"><%= gettext("Cash") %></th>
-                <td class="num">
-                  <label class="sr-only" for="soll-cash-target"><%= gettext("Cash target") %></label>
-                  <input
-                    type="number"
-                    id="soll-cash-target"
-                    name="cash_target"
-                    value={@soll.cash_target || ""}
-                    min="0"
-                    max="100"
-                    step="0.1"
-                    inputmode="decimal"
-                    disabled={@soll.editing_version?}
-                    aria-describedby={@soll.editing_version? && "soll-cash-lock-hint"}
-                  />
-                  <span
-                    :if={@soll.editing_version?}
-                    class="hint"
-                    id="soll-cash-lock-hint"
-                    data-role="soll-cash-lock-hint"
-                  >
-                    <%= gettext("Follows the active plan until this version is activated") %>
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-            <tfoot>
-              <tr class={["soll-row", "soll-row--sum", @soll.mismatch? && "is-target-mismatch"]}>
-                <th scope="row"><%= gettext("Σ") %></th>
-                <td class="num" data-role="soll-sum">
-                  <%= @soll.sum %>%
-                  <span :if={not @soll.mismatch?} class="soll-ok" aria-hidden="true">✓</span>
-                  <span :if={@soll.mismatch?} class="soll-bad" aria-hidden="true">✗</span>
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+              </tbody>
+              <tfoot>
+                <tr class={["soll-row", "soll-row--sum", @soll.mismatch? && "is-target-mismatch"]}>
+                  <th scope="row"><%= gettext("Σ") %></th>
+                  <td class="num" data-role="soll-sum">
+                    <%= @soll.sum %>%
+                    <span :if={not @soll.mismatch?} class="soll-ok" aria-hidden="true">✓</span>
+                    <span :if={@soll.mismatch?} class="soll-bad" aria-hidden="true">✗</span>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
 
           <div class="soll-editor__actions">
             <button type="submit" class="button-primary"><%= gettext("Save plan") %></button>

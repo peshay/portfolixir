@@ -1585,276 +1585,278 @@ defmodule PortfolixirWeb.PortfolioLive do
               <% end %>
             </p>
 
-            <table class="drift-table" aria-describedby="tip-soll-ist">
-              <thead>
-                <tr>
-                  <th><%= gettext("Category") %></th>
-                  <th class="num"><%= gettext("Value") %></th>
-                  <th class="num"><%= gettext("Actual") %></th>
-                  <%= if @allocation.has_plan do %>
-                    <th class="num"><%= gettext("Target") %></th>
-                    <th class="num col-subject">
-                      <%= gettext("Drift") %>
-                      <details class="metric-tooltip">
-                        <summary aria-label={gettext("Target/actual drift info")}>ⓘ</summary>
-                        <p id="tip-soll-ist" role="tooltip">
-                          <%= gettext("Target vs. actual: drift is actual weight minus target weight. Positive = overweight (reduce to reach the target), negative = underweight (add to reach it).") %>
-                        </p>
-                      </details>
-                    </th>
-                  <% end %>
-                </tr>
-              </thead>
-              <tbody>
-                <%= for row <- visible_category_rows(
-                      @allocation.categories,
-                      min_drift_decimal(@min_drift_pp),
-                      @expanded_categories,
-                      @category_parent_map
-                    ) do %>
-                  <tr class={row.depth > 0 && "is-child"}>
-                    <%!-- The whole name cell toggles the subtree (UAT fix
-                         round): the chevron alone is too small a target. --%>
-                    <td
-                      style={"padding-left:#{0.75 + row.depth * 1.25}rem"}
-                      class={has_subtree?(row, @category_parents_with_children) && "is-clickable"}
-                      phx-click={
-                        has_subtree?(row, @category_parents_with_children) &&
-                          "toggle_category_positions"
-                      }
-                      phx-value-category-id={row.category_id}
-                    >
-                      <button
-                        :if={has_subtree?(row, @category_parents_with_children)}
-                        type="button"
-                        class="positions-toggle"
-                        data-role="toggle-positions"
-                        phx-click="toggle_category_positions"
+            <div class="data-table-wrapper">
+              <table class="drift-table" aria-describedby="tip-soll-ist">
+                <thead>
+                  <tr>
+                    <th><%= gettext("Category") %></th>
+                    <th class="num"><%= gettext("Value") %></th>
+                    <th class="num"><%= gettext("Actual") %></th>
+                    <%= if @allocation.has_plan do %>
+                      <th class="num"><%= gettext("Target") %></th>
+                      <th class="num col-subject">
+                        <%= gettext("Drift") %>
+                        <details class="metric-tooltip">
+                          <summary aria-label={gettext("Target/actual drift info")}>ⓘ</summary>
+                          <p id="tip-soll-ist" role="tooltip">
+                            <%= gettext("Target vs. actual: drift is actual weight minus target weight. Positive = overweight (reduce to reach the target), negative = underweight (add to reach it).") %>
+                          </p>
+                        </details>
+                      </th>
+                    <% end %>
+                  </tr>
+                </thead>
+                <tbody>
+                  <%= for row <- visible_category_rows(
+                        @allocation.categories,
+                        min_drift_decimal(@min_drift_pp),
+                        @expanded_categories,
+                        @category_parent_map
+                      ) do %>
+                    <tr class={row.depth > 0 && "is-child"}>
+                      <%!-- The whole name cell toggles the subtree (UAT fix
+                           round): the chevron alone is too small a target. --%>
+                      <td
+                        style={"padding-left:#{0.75 + row.depth * 1.25}rem"}
+                        class={has_subtree?(row, @category_parents_with_children) && "is-clickable"}
+                        phx-click={
+                          has_subtree?(row, @category_parents_with_children) &&
+                            "toggle_category_positions"
+                        }
                         phx-value-category-id={row.category_id}
-                        aria-expanded={to_string(expanded?(@expanded_categories, row))}
-                        aria-label={gettext("Toggle the category's securities")}
                       >
-                        <%= if expanded?(@expanded_categories, row), do: "▾", else: "▸" %>
-                      </button>
-                      <span
-                        :if={row.color}
-                        class="cat-swatch"
-                        style={"background:#{row.color}"}
-                        aria-hidden="true"
-                      >
-                      </span>
-                      <%= row.name %>
-                      <%!-- A parent without an own weight gets an honest hint
-                           (fix round): its children's Σ is stated without
-                           the nonsensical "of 0.0%" comparison. --%>
-                      <span
-                        :if={@allocation.has_plan and row.child_target_sum}
-                        class={["hint", "target-consistency", subcategory_mismatch?(row) && "is-target-mismatch"]}
-                        data-role="target-consistency-hint"
-                      >
-                        <%= if Decimal.equal?(row.target_weight, 0) do %>
-                          <%= gettext("subcategories Σ") %>
-                          <%= Format.percent(row.child_target_sum) %>%
-                          <%= gettext("(no own weight)") %>
-                        <% else %>
-                          <%= gettext("subcategories:") %>
-                          <%= Format.percent(row.child_target_sum) %>% <%= gettext("of") %>
-                          <%= Format.percent(row.target_weight) %>%
-                        <% end %>
-                      </span>
-                      <%!-- #719 (D3): the category-cell pill is retired —
-                           conflict and stale findings render as data notes
-                           above the table (UX-DR17). --%>
-                    </td>
-                    <td class="num"><%= Format.money(row.market_value) %></td>
-                    <td class="num"><%= Format.percent(row.actual_weight) %>%</td>
-                    <%= if @allocation.has_plan do %>
-                      <td class="num">
-                        <%= if Decimal.equal?(row.target_weight, 0) do %>
-                          —
-                        <% else %>
-                          <%= Format.percent(row.target_weight) %>%
-                        <% end %>
+                        <button
+                          :if={has_subtree?(row, @category_parents_with_children)}
+                          type="button"
+                          class="positions-toggle"
+                          data-role="toggle-positions"
+                          phx-click="toggle_category_positions"
+                          phx-value-category-id={row.category_id}
+                          aria-expanded={to_string(expanded?(@expanded_categories, row))}
+                          aria-label={gettext("Toggle the category's securities")}
+                        >
+                          <%= if expanded?(@expanded_categories, row), do: "▾", else: "▸" %>
+                        </button>
+                        <span
+                          :if={row.color}
+                          class="cat-swatch"
+                          style={"background:#{row.color}"}
+                          aria-hidden="true"
+                        >
+                        </span>
+                        <%= row.name %>
+                        <%!-- A parent without an own weight gets an honest hint
+                             (fix round): its children's Σ is stated without
+                             the nonsensical "of 0.0%" comparison. --%>
+                        <span
+                          :if={@allocation.has_plan and row.child_target_sum}
+                          class={["hint", "target-consistency", subcategory_mismatch?(row) && "is-target-mismatch"]}
+                          data-role="target-consistency-hint"
+                        >
+                          <%= if Decimal.equal?(row.target_weight, 0) do %>
+                            <%= gettext("subcategories Σ") %>
+                            <%= Format.percent(row.child_target_sum) %>%
+                            <%= gettext("(no own weight)") %>
+                          <% else %>
+                            <%= gettext("subcategories:") %>
+                            <%= Format.percent(row.child_target_sum) %>% <%= gettext("of") %>
+                            <%= Format.percent(row.target_weight) %>%
+                          <% end %>
+                        </span>
+                        <%!-- #719 (D3): the category-cell pill is retired —
+                             conflict and stale findings render as data notes
+                             above the table (UX-DR17). --%>
                       </td>
-                      <td class={[
-                        "num",
-                        "col-subject",
-                        Decimal.compare(row.drift_value, 0) == :lt && "is-negative"
-                      ]}>
-                        <%= if Decimal.equal?(row.target_weight, 0) do %>
-                          —
-                        <% else %>
-                          <%= Format.money(row.drift_value) %>
-                          <%= if @valuation, do: @valuation.base_currency %>
-                        <% end %>
-                      </td>
-                    <% end %>
-                  </tr>
-                  <%!-- Drill-down (ADR-0023): the expanded category's member
-                       securities, each with its share of the drift and a
-                       display-only rebalancing hint. No order is created,
-                       stored, or transmitted. --%>
-                  <%= if expanded?(@expanded_categories, row) do %>
-                    <%= for position <- row.positions do %>
-                      <tr class="is-position is-muted" data-role="allocation-position">
-                        <td style={"padding-left:#{2.0 + row.depth * 1.25}rem"}>
-                          <%= position.security_name %>
-                          <%!-- ADR-0030 slice 2a: a SOLL-only row (IST 0) is
-                               marked with text, never hue alone (UX-DR7);
-                               scope-aware inside a view (fix round). --%>
-                          <span :if={not position.held} class="not-held-chip" data-role="not-held">
-                            <%= not_held_label(@active_view_id) %>
-                          </span>
-                          <.position_soll_chips position={position} />
+                      <td class="num"><%= Format.money(row.market_value) %></td>
+                      <td class="num"><%= Format.percent(row.actual_weight) %>%</td>
+                      <%= if @allocation.has_plan do %>
+                        <td class="num">
+                          <%= if Decimal.equal?(row.target_weight, 0) do %>
+                            —
+                          <% else %>
+                            <%= Format.percent(row.target_weight) %>%
+                          <% end %>
                         </td>
-                        <td class="num"><%= Format.money(position.market_value) %></td>
-                        <td class="num"><%= Format.percent(position.weight) %>%</td>
-                        <%= if @allocation.has_plan do %>
-                          <td class="num">
-                            <%!-- The position's own SOLL (ADR-0030 slice 2a);
-                                 blank without one, as before. --%>
-                            <%= if position.target_weight do %>
-                              <%= Format.percent(position.target_weight) %>%
-                            <% end %>
+                        <td class={[
+                          "num",
+                          "col-subject",
+                          Decimal.compare(row.drift_value, 0) == :lt && "is-negative"
+                        ]}>
+                          <%= if Decimal.equal?(row.target_weight, 0) do %>
+                            —
+                          <% else %>
+                            <%= Format.money(row.drift_value) %>
+                            <%= if @valuation, do: @valuation.base_currency %>
+                          <% end %>
+                        </td>
+                      <% end %>
+                    </tr>
+                    <%!-- Drill-down (ADR-0023): the expanded category's member
+                         securities, each with its share of the drift and a
+                         display-only rebalancing hint. No order is created,
+                         stored, or transmitted. --%>
+                    <%= if expanded?(@expanded_categories, row) do %>
+                      <%= for position <- row.positions do %>
+                        <tr class="is-position is-muted" data-role="allocation-position">
+                          <td style={"padding-left:#{2.0 + row.depth * 1.25}rem"}>
+                            <%= position.security_name %>
+                            <%!-- ADR-0030 slice 2a: a SOLL-only row (IST 0) is
+                                 marked with text, never hue alone (UX-DR7);
+                                 scope-aware inside a view (fix round). --%>
+                            <span :if={not position.held} class="not-held-chip" data-role="not-held">
+                              <%= not_held_label(@active_view_id) %>
+                            </span>
+                            <.position_soll_chips position={position} />
                           </td>
-                          <td class={[
-                            "num",
-                            "col-subject",
-                            position.drift_value &&
-                              Decimal.compare(position.drift_value, 0) == :lt &&
-                              "is-negative"
-                          ]}>
-                            <%= if position_drift_shown?(position, row) do %>
-                              <%= Format.money(position.drift_value) %>
-                              <%= if @valuation, do: @valuation.base_currency %>
-                              <.rebalance_hint
-                                quantity={position.rebalance_quantity}
-                                quote_date={position.quote_date}
-                              />
-                            <% else %>
-                              —
-                            <% end %>
-                          </td>
-                        <% end %>
-                      </tr>
+                          <td class="num"><%= Format.money(position.market_value) %></td>
+                          <td class="num"><%= Format.percent(position.weight) %>%</td>
+                          <%= if @allocation.has_plan do %>
+                            <td class="num">
+                              <%!-- The position's own SOLL (ADR-0030 slice 2a);
+                                   blank without one, as before. --%>
+                              <%= if position.target_weight do %>
+                                <%= Format.percent(position.target_weight) %>%
+                              <% end %>
+                            </td>
+                            <td class={[
+                              "num",
+                              "col-subject",
+                              position.drift_value &&
+                                Decimal.compare(position.drift_value, 0) == :lt &&
+                                "is-negative"
+                            ]}>
+                              <%= if position_drift_shown?(position, row) do %>
+                                <%= Format.money(position.drift_value) %>
+                                <%= if @valuation, do: @valuation.base_currency %>
+                                <.rebalance_hint
+                                  quantity={position.rebalance_quantity}
+                                  quote_date={position.quote_date}
+                                />
+                              <% else %>
+                                —
+                              <% end %>
+                            </td>
+                          <% end %>
+                        </tr>
+                      <% end %>
                     <% end %>
                   <% end %>
-                <% end %>
-                <%!-- In the currency classification cash is distributed into
-                     currency buckets (issue #407), so the separate Cash row
-                     is suppressed. All other classifications keep it. --%>
-                <%= unless @allocation.cash.distributed do %>
-                  <tr id="allocation-cash" data-role="allocation-cash">
-                    <td>
-                      <span
-                        class="cat-swatch"
-                        style={"background:#{cash_color()}"}
-                        aria-hidden="true"
-                      >
-                      </span>
-                      <%= gettext("Cash") %>
-                    </td>
-                    <td class="num"><%= Format.money(@allocation.cash.market_value) %></td>
-                    <td class="num"><%= Format.percent(@allocation.cash.actual_weight) %>%</td>
-                    <%= if @allocation.has_plan do %>
-                      <td class="num">
-                        <%= if Decimal.equal?(@allocation.cash.target_weight, 0) do %>
-                          —
-                        <% else %>
-                          <%= Format.percent(@allocation.cash.target_weight) %>%
-                        <% end %>
+                  <%!-- In the currency classification cash is distributed into
+                       currency buckets (issue #407), so the separate Cash row
+                       is suppressed. All other classifications keep it. --%>
+                  <%= unless @allocation.cash.distributed do %>
+                    <tr id="allocation-cash" data-role="allocation-cash">
+                      <td>
+                        <span
+                          class="cat-swatch"
+                          style={"background:#{cash_color()}"}
+                          aria-hidden="true"
+                        >
+                        </span>
+                        <%= gettext("Cash") %>
                       </td>
-                      <td class={[
-                        "num",
-                        "col-subject",
-                        Decimal.compare(@allocation.cash.drift_value, 0) == :lt && "is-negative"
-                      ]}>
-                        <%= if Decimal.equal?(@allocation.cash.target_weight, 0) do %>
-                          —
-                        <% else %>
-                          <%= Format.money(@allocation.cash.drift_value) %>
-                          <%= if @valuation, do: @valuation.base_currency %>
-                        <% end %>
-                      </td>
-                    <% end %>
-                  </tr>
-                <% end %>
-                <%= if @allocation.unassigned do %>
-                  <%!-- The unassigned bucket expands like a category row (UAT
-                       fix round), keyed by the "unassigned" sentinel id. An
-                       unassigned position can still carry a (stale) position
-                       SOLL (fix round) — that SOLL steers its filed
-                       category's Σ, so the row shows it instead of a dash. --%>
-                  <tr class="is-muted">
-                    <td
-                      class="is-clickable"
-                      phx-click="toggle_category_positions"
-                      phx-value-category-id="unassigned"
-                    >
-                      <button
-                        type="button"
-                        class="positions-toggle"
-                        data-role="toggle-positions"
+                      <td class="num"><%= Format.money(@allocation.cash.market_value) %></td>
+                      <td class="num"><%= Format.percent(@allocation.cash.actual_weight) %>%</td>
+                      <%= if @allocation.has_plan do %>
+                        <td class="num">
+                          <%= if Decimal.equal?(@allocation.cash.target_weight, 0) do %>
+                            —
+                          <% else %>
+                            <%= Format.percent(@allocation.cash.target_weight) %>%
+                          <% end %>
+                        </td>
+                        <td class={[
+                          "num",
+                          "col-subject",
+                          Decimal.compare(@allocation.cash.drift_value, 0) == :lt && "is-negative"
+                        ]}>
+                          <%= if Decimal.equal?(@allocation.cash.target_weight, 0) do %>
+                            —
+                          <% else %>
+                            <%= Format.money(@allocation.cash.drift_value) %>
+                            <%= if @valuation, do: @valuation.base_currency %>
+                          <% end %>
+                        </td>
+                      <% end %>
+                    </tr>
+                  <% end %>
+                  <%= if @allocation.unassigned do %>
+                    <%!-- The unassigned bucket expands like a category row (UAT
+                         fix round), keyed by the "unassigned" sentinel id. An
+                         unassigned position can still carry a (stale) position
+                         SOLL (fix round) — that SOLL steers its filed
+                         category's Σ, so the row shows it instead of a dash. --%>
+                    <tr class="is-muted">
+                      <td
+                        class="is-clickable"
                         phx-click="toggle_category_positions"
                         phx-value-category-id="unassigned"
-                        aria-expanded={to_string(MapSet.member?(@expanded_categories, :unassigned))}
-                        aria-label={gettext("Toggle the category's securities")}
                       >
-                        <%= if MapSet.member?(@expanded_categories, :unassigned), do: "▾", else: "▸" %>
-                      </button>
-                      <%= gettext("Unassigned") %>
-                    </td>
-                    <td class="num"><%= Format.money(@allocation.unassigned.market_value) %></td>
-                    <td class="num">
-                      <%= Format.percent(@allocation.unassigned.actual_weight) %>%
-                    </td>
-                    <%= if @allocation.has_plan do %>
-                      <td class="num">—</td>
-                      <td class="num">—</td>
-                    <% end %>
-                  </tr>
-                  <%= if MapSet.member?(@expanded_categories, :unassigned) do %>
-                    <%= for position <- @allocation.unassigned.positions do %>
-                      <tr class="is-position is-muted" data-role="allocation-position">
-                        <td style="padding-left:2.0rem">
-                          <%= position.security_name %>
-                          <.position_soll_chips position={position} />
-                        </td>
-                        <td class="num"><%= Format.money(position.market_value) %></td>
-                        <td class="num"><%= Format.percent(position.weight) %>%</td>
-                        <%= if @allocation.has_plan do %>
-                          <td class="num">
-                            <%= if position.target_weight do %>
-                              <%= Format.percent(position.target_weight) %>%
-                            <% else %>
-                              —
-                            <% end %>
+                        <button
+                          type="button"
+                          class="positions-toggle"
+                          data-role="toggle-positions"
+                          phx-click="toggle_category_positions"
+                          phx-value-category-id="unassigned"
+                          aria-expanded={to_string(MapSet.member?(@expanded_categories, :unassigned))}
+                          aria-label={gettext("Toggle the category's securities")}
+                        >
+                          <%= if MapSet.member?(@expanded_categories, :unassigned), do: "▾", else: "▸" %>
+                        </button>
+                        <%= gettext("Unassigned") %>
+                      </td>
+                      <td class="num"><%= Format.money(@allocation.unassigned.market_value) %></td>
+                      <td class="num">
+                        <%= Format.percent(@allocation.unassigned.actual_weight) %>%
+                      </td>
+                      <%= if @allocation.has_plan do %>
+                        <td class="num">—</td>
+                        <td class="num">—</td>
+                      <% end %>
+                    </tr>
+                    <%= if MapSet.member?(@expanded_categories, :unassigned) do %>
+                      <%= for position <- @allocation.unassigned.positions do %>
+                        <tr class="is-position is-muted" data-role="allocation-position">
+                          <td style="padding-left:2.0rem">
+                            <%= position.security_name %>
+                            <.position_soll_chips position={position} />
                           </td>
-                          <td class={[
-                            "num",
-                            "col-subject",
-                            position.drift_value &&
-                              Decimal.compare(position.drift_value, 0) == :lt &&
-                              "is-negative"
-                          ]}>
-                            <%= if position.drift_value do %>
-                              <%= Format.money(position.drift_value) %>
-                              <%= if @valuation, do: @valuation.base_currency %>
-                              <.rebalance_hint
-                                quantity={position.rebalance_quantity}
-                                quote_date={position.quote_date}
-                              />
-                            <% else %>
-                              —
-                            <% end %>
-                          </td>
-                        <% end %>
-                      </tr>
+                          <td class="num"><%= Format.money(position.market_value) %></td>
+                          <td class="num"><%= Format.percent(position.weight) %>%</td>
+                          <%= if @allocation.has_plan do %>
+                            <td class="num">
+                              <%= if position.target_weight do %>
+                                <%= Format.percent(position.target_weight) %>%
+                              <% else %>
+                                —
+                              <% end %>
+                            </td>
+                            <td class={[
+                              "num",
+                              "col-subject",
+                              position.drift_value &&
+                                Decimal.compare(position.drift_value, 0) == :lt &&
+                                "is-negative"
+                            ]}>
+                              <%= if position.drift_value do %>
+                                <%= Format.money(position.drift_value) %>
+                                <%= if @valuation, do: @valuation.base_currency %>
+                                <.rebalance_hint
+                                  quantity={position.rebalance_quantity}
+                                  quote_date={position.quote_date}
+                                />
+                              <% else %>
+                                —
+                              <% end %>
+                            </td>
+                          <% end %>
+                        </tr>
+                      <% end %>
                     <% end %>
                   <% end %>
-                <% end %>
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            </div>
 
             <%= if @allocation.unassigned && Decimal.compare(@allocation.unassigned.actual_weight, 0) == :gt do %>
               <p class="hint" data-role="unassigned-hint">
@@ -1874,109 +1876,111 @@ defmodule PortfolixirWeb.PortfolioLive do
                  unassigned positions carry no drift (nudging toward
                  assignment). --%>
             <%= if @allocation_mode == :flat do %>
-              <table class="drift-table" data-role="flat-positions">
-                <thead>
-                  <tr>
-                    <th><%= gettext("Security") %></th>
-                    <th>
-                      <button
-                        type="button"
-                        class="table-sort"
-                        data-role="flat-sort-category"
-                        phx-click="sort_flat_positions"
-                        phx-value-key="category"
-                      >
-                        <%= gettext("Category") %><%= flat_sort_marker(@flat_sort, :category) %>
-                      </button>
-                    </th>
-                    <th class="num">
-                      <button
-                        type="button"
-                        class="table-sort"
-                        data-role="flat-sort-value"
-                        phx-click="sort_flat_positions"
-                        phx-value-key="value"
-                      >
-                        <%= gettext("Value") %><%= flat_sort_marker(@flat_sort, :value) %>
-                      </button>
-                    </th>
-                    <th class="num"><%= gettext("Actual") %></th>
-                    <%= if @allocation.has_plan do %>
+              <div class="data-table-wrapper">
+                <table class="drift-table" data-role="flat-positions">
+                  <thead>
+                    <tr>
+                      <th><%= gettext("Security") %></th>
+                      <th>
+                        <button
+                          type="button"
+                          class="table-sort"
+                          data-role="flat-sort-category"
+                          phx-click="sort_flat_positions"
+                          phx-value-key="category"
+                        >
+                          <%= gettext("Category") %><%= flat_sort_marker(@flat_sort, :category) %>
+                        </button>
+                      </th>
                       <th class="num">
                         <button
                           type="button"
                           class="table-sort"
-                          data-role="flat-sort-drift"
+                          data-role="flat-sort-value"
                           phx-click="sort_flat_positions"
-                          phx-value-key="drift"
+                          phx-value-key="value"
                         >
-                          <%= gettext("Drift") %><%= flat_sort_marker(@flat_sort, :drift) %>
+                          <%= gettext("Value") %><%= flat_sort_marker(@flat_sort, :value) %>
                         </button>
                       </th>
-                      <th class="num"><%= gettext("Hint") %></th>
-                    <% end %>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    :for={entry <- flat_positions(@allocation, @flat_sort)}
-                    class={entry.cash? && "is-muted"}
-                    data-role={if entry.cash?, do: "flat-cash", else: "flat-position"}
-                  >
-                    <td>
-                      <%= entry.security_name %>
-                      <%!-- ADR-0030 slice 2a: SOLL-only rows are marked with
-                           text, never hue alone (UX-DR7); scope-aware inside
-                           a view (fix round). --%>
-                      <span :if={not entry.held} class="not-held-chip" data-role="not-held">
-                        <%= not_held_label(@active_view_id) %>
-                      </span>
-                      <.position_soll_chips position={entry} />
-                    </td>
-                    <td>
-                      <%= if entry.category_name do %>
-                        <span
-                          :if={entry.category_color}
-                          class="cat-swatch"
-                          style={"background:#{entry.category_color}"}
-                          aria-hidden="true"
-                        >
-                        </span>
-                        <%= entry.category_name %>
-                      <% else %>
-                        <span class="hint"><%= gettext("Unassigned") %></span>
+                      <th class="num"><%= gettext("Actual") %></th>
+                      <%= if @allocation.has_plan do %>
+                        <th class="num">
+                          <button
+                            type="button"
+                            class="table-sort"
+                            data-role="flat-sort-drift"
+                            phx-click="sort_flat_positions"
+                            phx-value-key="drift"
+                          >
+                            <%= gettext("Drift") %><%= flat_sort_marker(@flat_sort, :drift) %>
+                          </button>
+                        </th>
+                        <th class="num"><%= gettext("Hint") %></th>
                       <% end %>
-                    </td>
-                    <td class="num"><%= Format.money(entry.market_value) %></td>
-                    <td class="num"><%= Format.percent(entry.weight) %>%</td>
-                    <%= if @allocation.has_plan do %>
-                      <td class={[
-                        "num",
-                        "col-subject",
-                        entry.drift_value && Decimal.compare(entry.drift_value, 0) == :lt &&
-                          "is-negative"
-                      ]}>
-                        <%= if entry.drift_value do %>
-                          <%= Format.money(entry.drift_value) %>
-                          <%= if @valuation, do: @valuation.base_currency %>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      :for={entry <- flat_positions(@allocation, @flat_sort)}
+                      class={entry.cash? && "is-muted"}
+                      data-role={if entry.cash?, do: "flat-cash", else: "flat-position"}
+                    >
+                      <td>
+                        <%= entry.security_name %>
+                        <%!-- ADR-0030 slice 2a: SOLL-only rows are marked with
+                             text, never hue alone (UX-DR7); scope-aware inside
+                             a view (fix round). --%>
+                        <span :if={not entry.held} class="not-held-chip" data-role="not-held">
+                          <%= not_held_label(@active_view_id) %>
+                        </span>
+                        <.position_soll_chips position={entry} />
+                      </td>
+                      <td>
+                        <%= if entry.category_name do %>
+                          <span
+                            :if={entry.category_color}
+                            class="cat-swatch"
+                            style={"background:#{entry.category_color}"}
+                            aria-hidden="true"
+                          >
+                          </span>
+                          <%= entry.category_name %>
                         <% else %>
-                          —
+                          <span class="hint"><%= gettext("Unassigned") %></span>
                         <% end %>
                       </td>
-                      <td class="num">
-                        <%= if rebalance_hint_parts(entry.rebalance_quantity) do %>
-                          <.rebalance_hint
-                            quantity={entry.rebalance_quantity}
-                            quote_date={Map.get(entry, :quote_date)}
-                          />
-                        <% else %>
-                          —
-                        <% end %>
-                      </td>
-                    <% end %>
-                  </tr>
-                </tbody>
-              </table>
+                      <td class="num"><%= Format.money(entry.market_value) %></td>
+                      <td class="num"><%= Format.percent(entry.weight) %>%</td>
+                      <%= if @allocation.has_plan do %>
+                        <td class={[
+                          "num",
+                          "col-subject",
+                          entry.drift_value && Decimal.compare(entry.drift_value, 0) == :lt &&
+                            "is-negative"
+                        ]}>
+                          <%= if entry.drift_value do %>
+                            <%= Format.money(entry.drift_value) %>
+                            <%= if @valuation, do: @valuation.base_currency %>
+                          <% else %>
+                            —
+                          <% end %>
+                        </td>
+                        <td class="num">
+                          <%= if rebalance_hint_parts(entry.rebalance_quantity) do %>
+                            <.rebalance_hint
+                              quantity={entry.rebalance_quantity}
+                              quote_date={Map.get(entry, :quote_date)}
+                            />
+                          <% else %>
+                            —
+                          <% end %>
+                        </td>
+                      <% end %>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             <% end %>
           <% else %>
             <%!-- #723: allocation is a sub-second figure — the block
@@ -1995,27 +1999,29 @@ defmodule PortfolixirWeb.PortfolioLive do
         <section id="portfolio-cash" class="workspace-section">
           <h2><%= gettext("Cash accounts") %></h2>
           <%= if @valuation do %>
-            <table class="cash-table">
-              <thead>
-                <tr>
-                  <th><%= gettext("Account") %></th>
-                  <th><%= gettext("Balance") %></th>
-                </tr>
-              </thead>
-              <tbody>
-                <%= for cash <- @valuation.cash_balances do %>
-                  <tr class={if cash.deployable, do: nil, else: "is-muted"}>
-                    <td>
-                      <%= cash.name %>
-                      <%= if not cash.deployable do %>
-                        <span class="hint"><%= liquidity_role_hint(cash.liquidity_role) %></span>
-                      <% end %>
-                    </td>
-                    <td><%= Format.money(cash.balance) %> <%= cash.currency %></td>
+            <div class="data-table-wrapper">
+              <table class="cash-table">
+                <thead>
+                  <tr>
+                    <th><%= gettext("Account") %></th>
+                    <th><%= gettext("Balance") %></th>
                   </tr>
-                <% end %>
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  <%= for cash <- @valuation.cash_balances do %>
+                    <tr class={if cash.deployable, do: nil, else: "is-muted"}>
+                      <td>
+                        <%= cash.name %>
+                        <%= if not cash.deployable do %>
+                          <span class="hint"><%= liquidity_role_hint(cash.liquidity_role) %></span>
+                        <% end %>
+                      </td>
+                      <td><%= Format.money(cash.balance) %> <%= cash.currency %></td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
 
             <%!-- Issue 670 (UX-DR3/UX-DR11): setting a balance moved into the
                  account row on Accounts & depots, where the account is
@@ -2272,45 +2278,47 @@ defmodule PortfolixirWeb.PortfolioLive do
         <p class="muted" data-role="perf-table-purpose">
           <%= gettext("Start/end value, return and flows per period — the chart, summarised.") %>
         </p>
-        <table class="perf-data-table" data-role="perf-summary-table">
-          <caption class="sr-only"><%= gettext("Performance by period") %></caption>
-          <thead>
-            <tr>
-              <th scope="col">
-                <%= if @summary.unit == :year, do: gettext("Year"), else: gettext("Month") %>
-              </th>
-              <th scope="col" class="num">
-                <%= gettext("Start value (%{currency})", currency: @currency) %>
-              </th>
-              <th scope="col" class="num">
-                <%= gettext("End value (%{currency})", currency: @currency) %>
-              </th>
-              <th scope="col" class="num"><%= gettext("TTWROR") %></th>
-              <th scope="col" class="num">
-                <%= gettext("Net flows (%{currency})", currency: @currency) %>
-              </th>
-              <%!-- One column per drawn overlay: the benchmark's cumulative
-                   return at the slice's end, as plotted (UX-DR10). --%>
-              <th :for={{label, _lookup} <- @overlay_lookups} scope="col" class="num">
-                <%= label %>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr :for={row <- @summary.rows}>
-              <td><%= row.label %></td>
-              <td class="num"><%= Format.money(row.start_value) %></td>
-              <td class="num"><%= Format.money(row.end_value) %></td>
-              <td class="num">
-                <%= if row.ttwror, do: "#{signed_percent(row.ttwror)}%", else: "—" %>
-              </td>
-              <td class="num"><%= Format.money(row.net_flows) %></td>
-              <td :for={{_label, lookup} <- @overlay_lookups} class="num">
-                <%= overlay_cell(lookup, row.end_date) %>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="data-table-wrapper">
+          <table class="perf-data-table" data-role="perf-summary-table">
+            <caption class="sr-only"><%= gettext("Performance by period") %></caption>
+            <thead>
+              <tr>
+                <th scope="col">
+                  <%= if @summary.unit == :year, do: gettext("Year"), else: gettext("Month") %>
+                </th>
+                <th scope="col" class="num">
+                  <%= gettext("Start value (%{currency})", currency: @currency) %>
+                </th>
+                <th scope="col" class="num">
+                  <%= gettext("End value (%{currency})", currency: @currency) %>
+                </th>
+                <th scope="col" class="num"><%= gettext("TTWROR") %></th>
+                <th scope="col" class="num">
+                  <%= gettext("Net flows (%{currency})", currency: @currency) %>
+                </th>
+                <%!-- One column per drawn overlay: the benchmark's cumulative
+                     return at the slice's end, as plotted (UX-DR10). --%>
+                <th :for={{label, _lookup} <- @overlay_lookups} scope="col" class="num">
+                  <%= label %>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr :for={row <- @summary.rows}>
+                <td><%= row.label %></td>
+                <td class="num"><%= Format.money(row.start_value) %></td>
+                <td class="num"><%= Format.money(row.end_value) %></td>
+                <td class="num">
+                  <%= if row.ttwror, do: "#{signed_percent(row.ttwror)}%", else: "—" %>
+                </td>
+                <td class="num"><%= Format.money(row.net_flows) %></td>
+                <td :for={{_label, lookup} <- @overlay_lookups} class="num">
+                  <%= overlay_cell(lookup, row.end_date) %>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </details>
     </figure>
     """

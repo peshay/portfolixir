@@ -205,6 +205,22 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
       Map.merge(world, %{classification: classification, core: core, satellite: satellite})
     end
 
+    # User story (#788, UX-DR15 — the tail of the inventory):
+    # As a local portfolio maintainer reading the drift table on a phone,
+    # I want the table to scroll inside its own wrapper,
+    # so that its value columns are readable instead of clipped ("7.(").
+    #
+    # Acceptance criteria:
+    # - The drift table sits in the shared `.data-table-wrapper`.
+    test "the drift table owns its scroller", %{conn: conn} do
+      _world = drift_world()
+
+      {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+      render_async(view)
+
+      assert has_element?(view, ".data-table-wrapper > table.drift-table")
+    end
+
     test "a threshold keeps only the categories that deviate by at least that much",
          %{conn: conn} do
       world = drift_world()
