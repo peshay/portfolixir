@@ -148,4 +148,15 @@ defmodule Portfolixir.Catalog.DataQualityTest do
     assert DataQuality.stale_quote?(Date.add(today, -(days + 1)), today)
     refute DataQuality.stale_quote?(nil, today)
   end
+
+  # "Is this price old by now?" is a local-calendar question, so `today` is the
+  # caller's to supply from `Portfolixir.Clock`. A one-argument form would
+  # answer it in UTC — the wrong day east of UTC, per #609 — and would read the
+  # host clock from inside the domain, leaving callers untestable against a
+  # frozen date. This pins the absence of that form the way the enum-label
+  # meta-tests pin the absence of a raw-value fallback.
+  test "stale_quote? has no one-argument form that would answer in UTC" do
+    refute function_exported?(DataQuality, :stale_quote?, 1)
+    assert function_exported?(DataQuality, :stale_quote?, 2)
+  end
 end

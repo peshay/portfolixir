@@ -60,13 +60,19 @@ defmodule Portfolixir.Catalog.DataQuality do
   a marker under a price (issue 789), the filter chip and the Wealth finding
   can never disagree. `nil` — never priced — is not stale: there is no price
   to mark (the never-priced case is `missing_quote`'s).
+
+  `today` is required rather than defaulted: "is this price old by now?" is a
+  local-calendar question, so the caller passes `Portfolixir.Clock.today/0`
+  (see that module on why `Date.utc_today/0` is the wrong day east of UTC).
+  A default here would answer it in UTC and read the host clock from inside
+  the domain, which is also what makes a caller untestable against a frozen
+  date.
   """
-  @spec stale_quote?(Date.t() | nil, Date.t() | nil) :: boolean()
-  def stale_quote?(date, today \\ nil)
+  @spec stale_quote?(Date.t() | nil, Date.t()) :: boolean()
   def stale_quote?(nil, _today), do: false
 
-  def stale_quote?(%Date{} = date, today),
-    do: Date.diff(today || Date.utc_today(), date) > @stale_days
+  def stale_quote?(%Date{} = date, %Date{} = today),
+    do: Date.diff(today, date) > @stale_days
 
   @doc """
   Whether `id` names a predicate.
