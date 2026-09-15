@@ -1,6 +1,7 @@
 defmodule Portfolixir.Portfolios.Performance.RetiredSecuritiesTest do
   # Sprint 11 Lane X (D-3 of the plan): the daily walk on securities whose
-  # quote feed has stopped — a delivery carrying a booked price (#779). Risk-tier (ADR-0036): every figure
+  # quote feed has stopped — a delivery carrying a booked price (#779) and a
+  # retired security's stale quote (#610). Risk-tier (ADR-0036): every figure
   # below is an exact Decimal, derived by hand in the comments.
   use Portfolixir.DataCase, async: true
 
@@ -176,5 +177,102 @@ defmodule Portfolixir.Portfolios.Performance.RetiredSecuritiesTest do
     assert Decimal.equal?(day(result, ~D[2026-01-10]).flow, Decimal.new("0"))
     assert Decimal.equal?(day(result, ~D[2026-01-10]).basis, Decimal.new("2400"))
     assert Decimal.equal?(r6(result.ttwror), Decimal.new("-0.117647"))
+  end
+
+  # User story (#610):
+  # As a local portfolio maintainer whose delisted holding keeps its last
+  # quote for months,
+  # I want a trade that re-prices the retired position to restate the basis
+  # instead of booking the difference to a stale quote as return,
+  # so that the gap between the feed's last close and the next booking shows
+  # zero return — the same rule #545 applies to never-quoted positions.
+  #
+  # Acceptance criteria:
+  # - is_retired set and no newer quote row: the trade point emits the basis
+  #   step; the day reads zero.
+  # - The same walk with the flag unset keeps booking the re-pricing as return
+  #   (the byte-identical guarantee for actively quoted portfolios).
+  # - A quote row anywhere after the trade keeps the security measured: the
+  #   carried quote is then not stale, and the trade day stays return.
+  test "a retired security's stale quote is not a measurement: the re-pricing is a basis step" do
+    world = base_world(name: "RET", cash_name: "RET Cash", depot_name: "RET Depot")
+    security = create_security!(name: "Delisted Co", ticker: "DLS")
+
+    deposit!(world, "1000", ~D[2026-01-01])
+    put_quote!(security, ~D[2026-01-01], "100")
+    buy!(world, security, quantity: "10", price: "100", date: ~D[2026-01-01])
+    retire!(security)
+
+    deposit!(world, "50", ~D[2026-01-20])
+    buy!(world, security, quantity: "1", price: "50", date: ~D[2026-01-20])
+
+    {:ok, result} = Performance.for_portfolio(world.portfolio.id, today: ~D[2026-01-21])
+
+    # V_19 = 1000, F_20 = 50, B_20 = 10 x (50 - 100) = -500, V_20 = 11 x 50 = 550
+    # = 1000 + 50 - 500: zero return across the gap.
+    assert Decimal.equal?(day(result, ~D[2026-01-20]).basis, Decimal.new("-500"))
+    assert Decimal.equal?(result.ttwror, Decimal.new("0"))
+    assert Decimal.equal?(result.end_value, Decimal.new("550"))
+  end
+
+  test "the same walk with the flag unset keeps the re-pricing as return" do
+    world = base_world(name: "NRET", cash_name: "NRET Cash", depot_name: "NRET Depot")
+    security = create_security!(name: "Still Listed Co", ticker: "STL")
+
+    deposit!(world, "1000", ~D[2026-01-01])
+    put_quote!(security, ~D[2026-01-01], "100")
+    buy!(world, security, quantity: "10", price: "100", date: ~D[2026-01-01])
+
+    deposit!(world, "50", ~D[2026-01-20])
+    buy!(world, security, quantity: "1", price: "50", date: ~D[2026-01-20])
+
+    {:ok, result} = Performance.for_portfolio(world.portfolio.id, today: ~D[2026-01-21])
+
+    # r_20 = 550 / (1000 + 50) - 1 = -0.476190...: the trade re-prices the
+    # measured position, and that stays return (ADR-0010, 2026-07-24).
+    assert Decimal.equal?(day(result, ~D[2026-01-20]).basis, Decimal.new("0"))
+    assert Decimal.equal?(r6(result.ttwror), Decimal.new("-0.476190"))
+  end
+
+  test "a quote row after the trade keeps a retired security measured" do
+    world = base_world(name: "RLQ", cash_name: "RLQ Cash", depot_name: "RLQ Depot")
+    security = create_security!(name: "Relisted Co", ticker: "RLS")
+
+    deposit!(world, "1000", ~D[2026-01-01])
+    put_quote!(security, ~D[2026-01-01], "100")
+    buy!(world, security, quantity: "10", price: "100", date: ~D[2026-01-01])
+    retire!(security)
+
+    deposit!(world, "50", ~D[2026-01-10])
+    buy!(world, security, quantity: "1", price: "50", date: ~D[2026-01-10])
+    put_quote!(security, ~D[2026-01-20], "60")
+
+    {:ok, result} = Performance.for_portfolio(world.portfolio.id, today: ~D[2026-01-21])
+
+    # A newer quote row exists, so the carried quote is not stale: day 10 is
+    # return (550 / 1050 - 1), day 20 is the quote move 50 -> 60 (+20 %);
+    # chained: 0.523809... x 1.2 - 1 = -0.371428...
+    assert Decimal.equal?(day(result, ~D[2026-01-10]).basis, Decimal.new("0"))
+    assert Decimal.equal?(r6(result.ttwror), Decimal.new("-0.371429"))
+  end
+
+  test "a partial sale of a retired position realises the sold slice and restates the rest" do
+    world = base_world(name: "RPS", cash_name: "RPS Cash", depot_name: "RPS Depot")
+    security = create_security!(name: "Partly Sold Co", ticker: "PSD")
+
+    deposit!(world, "1000", ~D[2026-01-01])
+    put_quote!(security, ~D[2026-01-01], "100")
+    buy!(world, security, quantity: "10", price: "100", date: ~D[2026-01-01])
+    retire!(security)
+
+    sell!(world, security, quantity: "2", price: "50", date: ~D[2026-01-20])
+
+    {:ok, result} = Performance.for_portfolio(world.portfolio.id, today: ~D[2026-01-21])
+
+    # The sale consumes 2 of the sleeve and contributes nothing (real cash);
+    # B_20 = 8 x (50 - 100) = -400; V_20 = 8 x 50 + 100 = 500 against
+    # 1000 - 400 = 600: the sold slice's loss, -0.166666...
+    assert Decimal.equal?(day(result, ~D[2026-01-20]).basis, Decimal.new("-400"))
+    assert Decimal.equal?(r6(result.ttwror), Decimal.new("-0.166667"))
   end
 end
