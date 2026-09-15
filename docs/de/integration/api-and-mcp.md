@@ -74,7 +74,8 @@ verengen, was der Betreiber sieht.
   Optionale Query-Parameter:
   `query`, `sort`, `direction`, holding_status (`all`, `held` oder `not_held`),
   `data_quality` (`stale_quote` — kein Kurs neuer als 7 Tage, **einschließlich**
-  nie bepreister Wertpapiere; `missing_quote` — gar kein Kurs, die engere Menge
+  nie bepreister Wertpapiere, stillgelegte ausgenommen, weil ihr versiegter
+  Kurs erwartet ist; `missing_quote` — gar kein Kurs, die engere Menge
   darin; `missing_logo`; `missing_fx` — Issue #717: bepreist, aber ohne
   gespeicherten Kurs von seiner Währung zum EUR-Hub, das Speichern des Kurses
   leert also die Menge), `projection` (`slim`/`full`) und `limit`/`offset` zur

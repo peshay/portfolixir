@@ -310,10 +310,14 @@ defmodule Portfolixir.Ledger.Transaction do
         |> validate_required([:cash_account_id, :counter_cash_account_id, :gross_amount])
         |> validate_distinct_accounts(:cash_account_id, :counter_cash_account_id)
 
+      # Since #779 a delivery's booked price drives the day's external flow
+      # and the lot queue, so it is bounded like a trade's: never negative
+      # (0 is a write-off).
       kind when kind in ["inbound_delivery", "outbound_delivery"] ->
         changeset
         |> validate_required([:security_id, :securities_account_id, :quantity])
         |> validate_number(:quantity, greater_than: 0)
+        |> validate_number(:price, greater_than_or_equal_to: 0)
 
       "security_transfer" ->
         changeset
