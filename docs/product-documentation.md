@@ -647,7 +647,8 @@ date its price is from (`price_date` in the API), the valuation counts the
 held positions whose quote is older than the data-quality threshold
 (`stale_priced_count`), and the Wealth page's data-quality section names
 them with that date and the remedy: mark the security **retired** if its
-listing ended, or sync its quotes. The retired flag is also what the
+listing ended, or sync its quotes — and once retired, the holding leaves the
+count and the finding, because its stale close is then expected. The retired flag is also what the
 performance figure keys on — a retired position's stale quote no longer
 counts as a market observation, so a later booking restates the basis
 instead of reporting the gap as return (ADR-0010, amendment of 2026-09-15).

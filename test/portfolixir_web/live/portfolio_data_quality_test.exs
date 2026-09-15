@@ -358,4 +358,21 @@ defmodule PortfolixirWeb.PortfolioDataQualityTest do
              ~s([data-role="dq-stale-priced"] a[href="/securities?dq=stale_quote&holding=held"])
            )
   end
+
+  # Closing-act finding (UAT persona, Sprint 11): the remedy the finding
+  # names must clear it — a retired holding's stale quote is expected.
+  test "retiring the stale-quoted holding clears the finding", %{conn: conn} do
+    world = seed_world()
+    old = WorldFixtures.create_security!(name: "Old Quote Co.", ticker: "OLDQ")
+    WorldFixtures.buy!(world, old, quantity: "3", price: "20")
+    WorldFixtures.put_quote!(old, Date.add(Date.utc_today(), -40), "21")
+
+    {:ok, _retired} =
+      Portfolixir.Catalog.update_security(Portfolixir.Actor.owner_ui(), old, %{is_retired: true})
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    refute has_element?(view, ~s([data-role="dq-stale-priced"]))
+  end
 end

@@ -3140,8 +3140,9 @@ defmodule PortfolixirWeb.PortfolioLive do
     names =
       valuation.positions
       |> Enum.filter(fn position ->
-        position.price_source == :quote and match?(%Date{}, position.price_date) and
-          Date.diff(today, position.price_date) > days
+        # A retired holding is left out: the finding's own remedy (#610).
+        not Map.get(position, :retired, false) and position.price_source == :quote and
+          match?(%Date{}, position.price_date) and Date.diff(today, position.price_date) > days
       end)
       |> Enum.map(&"#{&1.security_name || gettext("Unsorted")} (#{Format.date(&1.price_date)})")
       |> Enum.uniq()
