@@ -112,7 +112,7 @@ defmodule PortfolixirWeb.IncomeLiveTest do
 
     {:ok, view, _html} = live(conn, "/cashflow")
 
-    note = view |> element(~s([data-role="income-conversion"])) |> render()
+    note = view |> element(~s([data-role="facet-basis"])) |> render()
     assert note =~ "ⓘ"
     assert note =~ ~s(role="tooltip")
     assert note =~ "original currency retained"
