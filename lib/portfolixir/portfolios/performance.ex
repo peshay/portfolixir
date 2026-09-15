@@ -426,15 +426,18 @@ defmodule Portfolixir.Portfolios.Performance do
     end
   end
 
-  defp validate_period(period) when period in @periods, do: :ok
+  # Public for the benchmark comparison (ADR-0046), which validates the
+  # period before it walks; the accepted terms are `summarise/2`'s.
+  @doc false
+  def validate_period(period) when period in @periods, do: :ok
 
-  defp validate_period({:year, year}) when is_integer(year) and year >= 1970, do: :ok
+  def validate_period({:year, year}) when is_integer(year) and year >= 1970, do: :ok
 
-  defp validate_period({:range, %Date{} = from, %Date{} = to}) do
+  def validate_period({:range, %Date{} = from, %Date{} = to}) do
     if Date.compare(from, to) == :gt, do: {:error, :invalid_period}, else: :ok
   end
 
-  defp validate_period(_period), do: {:error, :invalid_period}
+  def validate_period(_period), do: {:error, :invalid_period}
 
   defp do_summarise(%{daily: []} = analysis, period) do
     empty_result(analysis, period)
