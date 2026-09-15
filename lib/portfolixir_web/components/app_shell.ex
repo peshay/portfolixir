@@ -511,6 +511,38 @@ defmodule PortfolixirWeb.AppShell do
   end
 
   @doc """
+  The row menu's shell (Part 4 rule 11 of the 2026-09-12 review): a row's
+  actions — a destructive one above all — live behind its kebab, never as
+  standing buttons on every row. The same popover-or-bottom-sheet markup the
+  securities list introduced (`.row-context-menu`, positioned on its trigger
+  by the PositionedMenu hook; a bottom sheet under 720 px by CSS), with the
+  items as the caller's `row-context-menu__item` buttons. Click-away and
+  Escape send `close_row_menu` to the owning LiveView.
+  """
+  attr(:id, :string, required: true)
+  attr(:trigger, :string, required: true, doc: "the DOM id of the kebab that opened it")
+  attr(:label, :string, required: true)
+  slot(:inner_block, required: true)
+
+  def row_menu(assigns) do
+    ~H"""
+    <div
+      class="row-context-menu"
+      role="menu"
+      aria-label={@label}
+      phx-click-away="close_row_menu"
+      phx-window-keydown="close_row_menu"
+      phx-key="Escape"
+      id={@id}
+      phx-hook="PositionedMenu"
+      data-trigger={@trigger}
+    >
+      <%= render_slot(@inner_block) %>
+    </div>
+    """
+  end
+
+  @doc """
   The freshness marker of a price read (issue 789): attention tone, the
   triangle glyph `aria-hidden`, the word and the quote date as real text, so
   a linear read hears "stale · 2026-08-08" where the eye sees the tone. It

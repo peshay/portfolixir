@@ -43,12 +43,7 @@ defmodule PortfolixirWeb.TaxLiveTest do
   end
 
   test "records a statement and reads the trim budget off it", %{conn: conn} do
-    {:ok, live, _html} = live(conn, "/tax")
-
-    html =
-      live
-      |> form("#tax-scope-form", %{"scope" => %{"holder" => "Owner", "tax_year" => "2025"}})
-      |> render_change()
+    {:ok, live, html} = live(conn, "/tax?holder=Owner&year=2025")
 
     assert html =~ "No statement recorded for this year."
 
@@ -79,11 +74,7 @@ defmodule PortfolixirWeb.TaxLiveTest do
   end
 
   test "an empty money field is recorded as zero, not as a cast error", %{conn: conn} do
-    {:ok, live, _html} = live(conn, "/tax")
-
-    live
-    |> form("#tax-scope-form", %{"scope" => %{"holder" => "Owner", "tax_year" => "2025"}})
-    |> render_change()
+    {:ok, live, _html} = live(conn, "/tax?holder=Owner&year=2025")
 
     live
     |> form("#tax-statement-form", %{
@@ -103,12 +94,7 @@ defmodule PortfolixirWeb.TaxLiveTest do
   test "the pots render with the statement's printed sign", %{conn: conn} do
     record!(%{})
 
-    {:ok, live, _html} = live(conn, "/tax")
-
-    html =
-      live
-      |> form("#tax-scope-form", %{"scope" => %{"holder" => "Owner", "tax_year" => "2025"}})
-      |> render_change()
+    {:ok, _live, html} = live(conn, "/tax?holder=Owner&year=2025")
 
     # Loss pots print negative on the paper; the taxable income does not.
     assert html =~ "-2.500,00" or html =~ "-2,500.00"
@@ -119,12 +105,7 @@ defmodule PortfolixirWeb.TaxLiveTest do
   test "the trim budget carries its as-of date and a stale marker", %{conn: conn} do
     record!(%{})
 
-    {:ok, live, _html} = live(conn, "/tax")
-
-    html =
-      live
-      |> form("#tax-scope-form", %{"scope" => %{"holder" => "Owner", "tax_year" => "2025"}})
-      |> render_change()
+    {:ok, _live, html} = live(conn, "/tax?holder=Owner&year=2025")
 
     assert html =~ "as of"
     assert html =~ "31.12.2025" or html =~ "2025-12-31"
@@ -164,14 +145,8 @@ defmodule PortfolixirWeb.TaxLiveTest do
         today: today
       )
 
-    {:ok, live, _html} = live(conn, "/tax")
-
-    html =
-      live
-      |> form("#tax-scope-form", %{
-        "scope" => %{"holder" => "Owner", "tax_year" => Integer.to_string(today.year)}
-      })
-      |> render_change()
+    scope = "/tax?holder=Owner&year=#{today.year}"
+    {:ok, live, html} = live(conn, scope)
 
     refute html =~ "Stale"
 
@@ -199,12 +174,9 @@ defmodule PortfolixirWeb.TaxLiveTest do
         currency_code: "EUR"
       })
 
-    html =
-      live
-      |> form("#tax-scope-form", %{
-        "scope" => %{"holder" => "Owner", "tax_year" => Integer.to_string(today.year)}
-      })
-      |> render_change()
+    # The same scope re-read after the booking (the segmented control
+    # patches the URL; a patch to the current scope reloads it).
+    html = render_patch(live, scope)
 
     assert html =~ "Stale"
     assert html =~ "tax-relevant booking"
@@ -216,12 +188,7 @@ defmodule PortfolixirWeb.TaxLiveTest do
       solidarity_surcharge_withheld: Decimal.new("288.75")
     })
 
-    {:ok, live, _html} = live(conn, "/tax")
-
-    html =
-      live
-      |> form("#tax-scope-form", %{"scope" => %{"holder" => "Owner", "tax_year" => "2025"}})
-      |> render_change()
+    {:ok, _live, html} = live(conn, "/tax?holder=Owner&year=2025")
 
     assert html =~ "reconstructed from the statement"
     assert html =~ "Re-check the figure against the statement."
@@ -240,12 +207,7 @@ defmodule PortfolixirWeb.TaxLiveTest do
         amount_granted: Decimal.new("500.00")
       })
 
-    {:ok, live, _html} = live(conn, "/tax")
-
-    html =
-      live
-      |> form("#tax-scope-form", %{"scope" => %{"holder" => "Owner", "tax_year" => "2025"}})
-      |> render_change()
+    {:ok, _live, html} = live(conn, "/tax?holder=Owner&year=2025")
 
     assert html =~ "Incomplete"
     assert html =~ "Other Bank"
@@ -263,11 +225,7 @@ defmodule PortfolixirWeb.TaxLiveTest do
   end
 
   test "a hard rule blocks the save and says which figure contradicts which", %{conn: conn} do
-    {:ok, live, _html} = live(conn, "/tax")
-
-    live
-    |> form("#tax-scope-form", %{"scope" => %{"holder" => "Owner", "tax_year" => "2025"}})
-    |> render_change()
+    {:ok, live, _html} = live(conn, "/tax?holder=Owner&year=2025")
 
     html =
       live
@@ -286,11 +244,7 @@ defmodule PortfolixirWeb.TaxLiveTest do
   end
 
   test "a negative input is rejected with the magnitude convention", %{conn: conn} do
-    {:ok, live, _html} = live(conn, "/tax")
-
-    live
-    |> form("#tax-scope-form", %{"scope" => %{"holder" => "Owner", "tax_year" => "2025"}})
-    |> render_change()
+    {:ok, live, _html} = live(conn, "/tax?holder=Owner&year=2025")
 
     html =
       live
@@ -309,13 +263,10 @@ defmodule PortfolixirWeb.TaxLiveTest do
   test "a recorded statement can be corrected and deleted", %{conn: conn} do
     snapshot = record!(%{})
 
-    {:ok, live, _html} = live(conn, "/tax")
+    {:ok, live, _html} = live(conn, "/tax?holder=Owner&year=2025")
 
-    live
-    |> form("#tax-scope-form", %{"scope" => %{"holder" => "Owner", "tax_year" => "2025"}})
-    |> render_change()
-
-    live |> element("button[phx-click=edit_statement]") |> render_click()
+    live |> element("button.row-actions__kebab") |> render_click()
+    live |> element(~s([role="menu"] button[phx-click=edit_statement])) |> render_click()
 
     live
     |> form("#tax-statement-form", %{
@@ -332,16 +283,13 @@ defmodule PortfolixirWeb.TaxLiveTest do
     assert Decimal.equal?(corrected.loss_pot_equities, Decimal.new("3000.00"))
     assert corrected.note == "page 4"
 
-    live |> element("button[phx-click=delete_statement]") |> render_click()
+    live |> element("button.row-actions__kebab") |> render_click()
+    live |> element(~s([role="menu"] button[phx-click=delete_statement])) |> render_click()
     assert Tax.list_snapshots(holder: "Owner", tax_year: 2025) == []
   end
 
   test "a configured Freistellungsauftrag can be recorded and removed", %{conn: conn} do
-    {:ok, live, _html} = live(conn, "/tax")
-
-    live
-    |> form("#tax-scope-form", %{"scope" => %{"holder" => "Owner", "tax_year" => "2025"}})
-    |> render_change()
+    {:ok, live, _html} = live(conn, "/tax?holder=Owner&year=2025")
 
     html =
       live
@@ -354,7 +302,8 @@ defmodule PortfolixirWeb.TaxLiveTest do
     assert [order] = Tax.list_allowance_orders(holder: "Owner", tax_year: 2025)
     assert Decimal.equal?(order.amount_granted, Decimal.new("1000.00"))
 
-    live |> element("button[phx-click=delete_allowance_order]") |> render_click()
+    live |> element(~s(button.row-actions__kebab[phx-value-kind="order"])) |> render_click()
+    live |> element(~s([role="menu"] button[phx-click=delete_allowance_order])) |> render_click()
     assert Tax.list_allowance_orders(holder: "Owner", tax_year: 2025) == []
   end
 
@@ -392,12 +341,7 @@ defmodule PortfolixirWeb.TaxLiveTest do
         })
     end
 
-    {:ok, live, _html} = live(conn, "/tax")
-
-    html =
-      live
-      |> form("#tax-scope-form", %{"scope" => %{"holder" => "Owner", "tax_year" => "2025"}})
-      |> render_change()
+    {:ok, _live, html} = live(conn, "/tax?holder=Owner&year=2025")
 
     # C5 church tax, C6 monotonicity, C8 allowance budget across institutions.
     assert html =~ "church-tax rate of the profile in force"
@@ -410,5 +354,179 @@ defmodule PortfolixirWeb.TaxLiveTest do
 
     assert html =~ "No statement recorded for this year."
     assert html =~ "No statement recorded for this taxpayer and year."
+  end
+
+  # User story (#795):
+  # As a local portfolio maintainer reading the Tax page,
+  # I want the budget as a fill level with its composition beside it, the
+  # recorded statements as a list whose findings are data notes with the
+  # check control inside, and the entry forms behind a disclosure,
+  # so that the page answers "how much can be sold tax-free" first and asks
+  # for input only on demand.
+  #
+  # Acceptance criteria:
+  # - Taxpayer and year are segmented controls; the budget renders as a
+  #   meter (track, fill, remaining amount, as-of basis line, no threshold
+  #   colouring) with the composition beside it and its ⓘ.
+  # - The staleness state is a data note with the "Record a new statement"
+  #   control inside; the incomplete roll-up is a data note.
+  # - Statements are a list; each finding is a data note at attention
+  #   severity with the check control inside; "Correct" and "Delete" live in
+  #   the row menu, never as standing buttons.
+  # - Both forms are closed disclosures; the orders list sits behind a
+  #   disclosure carrying its purpose line; no free-standing paragraph
+  #   remains.
+
+  defp doc(html), do: Floki.parse_document!(html)
+
+  defp text(nodes),
+    do: nodes |> Floki.text(sep: " ") |> String.replace(~r/\s+/, " ") |> String.trim()
+
+  test "the budget is a meter with its composition beside it and the scope is segmented", %{
+    conn: conn
+  } do
+    record!(%{allowance_used: Decimal.new("640.00")})
+    record!(%{holder: "Partner", tax_year: 2024, as_of: ~D[2024-12-31]})
+
+    {:ok, live, html} = live(conn, "/tax?holder=Owner&year=2025")
+    doc = doc(html)
+
+    # Segmented scope: the holders and the years, the selected one current.
+    assert text(Floki.find(doc, ~s([data-role="tax-holders"] a[aria-current="true"]))) == "Owner"
+    assert "Partner" in Enum.map(Floki.find(doc, ~s([data-role="tax-holders"] a)), &text([&1]))
+    assert text(Floki.find(doc, ~s([data-role="tax-years"] a[aria-current="true"]))) == "2025"
+    refute Floki.find(doc, "#tax-scope-form") != []
+
+    # The meter: 640 of 1.000 used, the remaining 2.860 (2.500 + 360) as the value.
+    meter = Floki.find(doc, ~s([data-role="budget-meter"]))
+    assert [fill] = Floki.find(meter, ".budget-meter__fill")
+    assert Floki.attribute(fill, "style") == ["width: 64%"]
+    assert text(Floki.find(meter, ~s([data-role="budget-value"]))) =~ "2,860.00"
+    basis = text(Floki.find(meter, ~s([data-role="budget-basis"])))
+    assert basis =~ "640.00"
+    assert basis =~ "1,000.00"
+    assert basis =~ "2025-12-31"
+    assert basis =~ "Example Bank"
+
+    # The composition beside it, with the recorded-not-derived ⓘ.
+    composition = Floki.find(doc, ~s([data-role="budget-composition"]))
+    assert text(composition) =~ "Loss pot, equities"
+    assert text(composition) =~ "Remaining allowance"
+    assert text(composition) =~ "360.00"
+    assert [_] = Floki.find(composition, "details")
+    assert text(composition) =~ "not tax advice"
+
+    # No free-standing paragraph remains.
+    assert Floki.find(doc, ".workspace-page p.muted") == []
+
+    # Switching the taxpayer patches the scope.
+    live |> element(~s([data-role="tax-holders"] a), "Partner") |> render_click()
+    assert_patch(live, "/tax?holder=Partner&year=2025")
+    assert render(live) =~ "No statement recorded for this year."
+  end
+
+  test "the stale state and the incomplete roll-up are data notes with the remedy inside", %{
+    conn: conn
+  } do
+    record!(%{})
+
+    {:ok, _} =
+      Tax.put_allowance_order(Actor.owner_ui(), %{
+        holder: "Owner",
+        institution: "Other Bank",
+        tax_year: 2025,
+        amount_granted: "500.00"
+      })
+
+    {:ok, live, html} = live(conn, "/tax?holder=Owner&year=2025")
+    doc = doc(html)
+
+    stale = Floki.find(doc, ~s([data-role="budget-stale"]))
+    assert [_] = Floki.find(doc, ~s([data-role="budget-stale"].data-note--attention))
+    assert text(stale) =~ "Stale"
+    assert [_] = Floki.find(stale, "button[phx-click=open_statement_form]")
+    assert [_] = Floki.find(doc, ~s([data-role="budget-incomplete"].data-note--attention))
+    assert text(Floki.find(doc, ~s([data-role="budget-incomplete"]))) =~ "Other Bank"
+    refute Floki.find(doc, ".alert-warning") != []
+    refute Floki.find(doc, ".badge-warning") != []
+
+    # The control inside the note opens the closed statement form.
+    assert [_] = Floki.find(doc, "#tax-statement-panel[hidden]")
+
+    live
+    |> element(~s([data-role="budget-stale"] button[phx-click=open_statement_form]))
+    |> render_click()
+
+    assert Floki.find(doc(render(live)), "#tax-statement-panel[hidden]") == []
+  end
+
+  test "a finding is a data note with the check control inside; correct and delete sit in the row menu",
+       %{
+         conn: conn
+       } do
+    record!(%{capital_gains_tax_withheld: Decimal.new("2000.00")})
+
+    {:ok, live, html} = live(conn, "/tax?holder=Owner&year=2025")
+    doc = doc(html)
+
+    findings = Floki.find(doc, ~s([data-role="statement-finding"]))
+    assert findings != []
+
+    assert length(Floki.find(doc, ~s([data-role="statement-finding"].data-note--attention))) ==
+             length(findings)
+
+    assert text(findings) =~ "reconstructed from the statement"
+    assert Enum.all?(findings, &(Floki.find(&1, "button[phx-click]") != []))
+    assert Floki.find(doc, ".tax-findings") == []
+
+    # No standing Correct / Delete buttons on the row; the kebab opens the menu.
+    assert Floki.find(doc, ~s(.tax-statement > * > button[phx-click=delete_statement])) == []
+    assert Floki.find(doc, ~s([role="menu"])) == []
+    live |> element("button.row-actions__kebab") |> render_click()
+    menu = Floki.find(doc(render(live)), ~s([role="menu"]))
+    assert text(menu) =~ "Correct"
+    assert text(menu) =~ "Delete"
+    assert [_] = Floki.find(menu, "button[phx-click=delete_statement][data-confirm]")
+  end
+
+  test "both forms are closed disclosures and the orders sit behind one with their purpose", %{
+    conn: conn
+  } do
+    record!(%{})
+
+    {:ok, _} =
+      Tax.put_allowance_order(Actor.owner_ui(), %{
+        holder: "Owner",
+        institution: "Example Bank",
+        tax_year: 2025,
+        amount_granted: "1000.00"
+      })
+
+    {:ok, live, html} = live(conn, "/tax?holder=Owner&year=2025")
+    doc = doc(html)
+
+    assert [_] = Floki.find(doc, "#tax-statement-panel[hidden]")
+    assert [_] = Floki.find(doc, "#tax-order-panel[hidden]")
+    assert [toggle] = Floki.find(doc, ~s(button[aria-controls="tax-statement-panel"]))
+    assert Floki.attribute(toggle, "aria-expanded") == ["false"]
+
+    live |> element(~s(button[aria-controls="tax-statement-panel"])) |> render_click()
+    opened = doc(render(live))
+    assert Floki.find(opened, "#tax-statement-panel[hidden]") == []
+
+    assert [_] =
+             Floki.find(
+               opened,
+               ~s(button[aria-controls="tax-statement-panel"][aria-expanded="true"])
+             )
+
+    # The sign convention is field help on the amounts, not a paragraph.
+    assert [_] = Floki.find(opened, "#tax-amount-help")
+    assert [_ | _] = Floki.find(opened, ~s(input[aria-describedby~="tax-amount-help"]))
+    refute html =~ "Enter every amount without its sign."
+
+    orders = Floki.find(doc, ~s(details[data-role="orders"]))
+    assert text(orders) =~ "Example Bank"
+    assert text(orders) =~ "What was instructed per institution"
   end
 end

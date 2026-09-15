@@ -6667,16 +6667,105 @@ select:disabled {
   color: var(--color-text-muted);
 }
 
-/* Recorded tax statements (ADR-0031): the entry surface for the broker's tax
-   block, the trim budget read off it, and the configured Freistellungsauftraege. */
-.tax-scope {
-  display: flex;
-  flex-wrap: wrap;
+/* Recorded tax statements (ADR-0031), reshaped per issue 795: the budget as
+   a meter with its composition beside it, the statements as a list carrying
+   their findings as data notes, the forms behind disclosures. */
+.tax-budget-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
   gap: var(--space-4);
-  align-items: end;
+}
+.stat.tax-budget,
+.stat.tax-composition {
+  min-height: 0;
+  align-content: start;
+}
+.tax-budget > strong {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 1.6rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.tax-budget .value-suffix {
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+/* components.budget-meter: track and accent fill, no threshold colouring. */
+.budget-meter {
+  height: var(--space-2);
+  border-radius: 999px;
+  background: var(--color-bg-muted);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+.budget-meter__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-accent);
+}
+.tax-budget__notes {
+  display: grid;
+  gap: var(--space-2);
+}
+.tax-budget__notes:empty {
+  display: none;
+}
+.tax-composition__rows {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+.tax-composition__rows > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+.tax-composition__rows dt {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+.tax-composition__rows dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.tax-composition__rows .is-total {
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+.tax-composition__rows .is-total dt {
+  color: var(--color-text);
+  font-weight: 600;
+}
+.disclosure-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.disclosure-button[aria-expanded="true"] .disclosure-chevron {
+  transform: rotate(90deg);
+}
+.tax-panel {
+  margin: var(--space-3) 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-muted);
+}
+.tax-panel > .data-note {
   margin-bottom: var(--space-3);
 }
-.tax-scope label,
+.tax-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-3) var(--space-4);
+  align-items: end;
+}
 .tax-form label,
 .tax-order-form label {
   display: flex;
@@ -6685,35 +6774,25 @@ select:disabled {
   font-size: 12px;
   color: var(--color-text-muted);
 }
-.tax-budget {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-3);
-  margin: var(--space-3) 0 var(--space-2);
-}
-.tax-budget__value {
-  font-size: 1.6rem;
-  font-variant-numeric: tabular-nums;
-}
-.badge-warning {
-  background: var(--color-warning-soft);
-  color: var(--color-warning);
-}
-.tax-explainer {
-  margin-top: var(--space-3);
-}
-.tax-explainer > summary {
-  cursor: pointer;
-  color: var(--color-accent);
-  font-size: 12px;
-}
-.tax-form {
+.tax-form__amounts {
+  grid-column: 1 / -1;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: var(--space-3) var(--space-4);
   align-items: end;
-  margin-top: var(--space-3);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.tax-form__amounts legend {
+  padding: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.tax-form__amounts .field-help {
+  grid-column: 1 / -1;
+  margin: 0;
 }
 .tax-form__wide,
 .tax-form__actions {
@@ -6726,11 +6805,17 @@ select:disabled {
 .button-secondary {
   color: var(--color-text-muted);
 }
+.tax-statements {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-3) 0 0;
+  display: grid;
+  gap: var(--space-3);
+}
 .tax-statement {
   border: 1px solid var(--color-border);
-  border-radius: 0.5rem;
-  padding: var(--space-3);
-  margin-top: var(--space-3);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
 }
 .tax-statement__head {
   display: flex;
@@ -6740,11 +6825,15 @@ select:disabled {
 }
 .tax-statement__head h3 {
   margin: 0;
+  font-size: 15px;
+}
+.tax-statement__head .row-actions__kebab {
+  margin-left: auto;
 }
 .tax-statement__figures {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: var(--space-1) var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-2) var(--space-4);
   margin: var(--space-3) 0;
 }
 .tax-statement__figures dt {
@@ -6752,35 +6841,52 @@ select:disabled {
   color: var(--color-text-muted);
 }
 .tax-statement__figures dd {
-  margin: 0 0 var(--space-2);
+  margin: 0;
   font-variant-numeric: tabular-nums;
 }
-.tax-findings {
-  list-style: none;
-  padding: 0;
-  margin: var(--space-3) 0 0;
-  display: flex;
-  flex-direction: column;
+.tax-statement__notes {
+  display: grid;
   gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+.tax-orders-disclosure {
+  margin-top: var(--space-4);
 }
 .tax-orders {
   list-style: none;
   padding: 0;
-  margin: var(--space-3) 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  margin: var(--space-2) 0 0;
+  display: grid;
+  gap: var(--space-1);
 }
 .tax-orders li {
   display: flex;
   align-items: center;
   gap: var(--space-3);
 }
+.tax-orders li .num {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
 .tax-order-form {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-4);
   align-items: end;
+}
+/* A remedy control inside a data note reads as a link in the note's text. */
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--color-accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.badge-warning {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
 }
 
 /* ADR-0032 §6: the superseded-series banner. Visibly provisional, never a
