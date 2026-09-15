@@ -860,7 +860,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                 <span class="value-skeleton" aria-hidden="true"></span>
                 <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
               </strong>
-              <strong :if={is_nil(@performance) and @performance_failed}>—</strong>
+              <strong :if={is_nil(@performance) and @performance_failed} class="stat-empty">—</strong>
               <%!-- The absolute result beside the rate: (end − start) − net
                    external flows, so a deposit never reads as performance. --%>
               <small :if={@performance} class="stat__sub" data-role="period-gain">
@@ -886,7 +886,12 @@ defmodule PortfolixirWeb.PortfolioLive do
               >
                 <%= signed_percent(money_weighted_value(@performance)) %>%
               </strong>
-              <strong :if={@performance && is_nil(money_weighted_value(@performance))}>—</strong>
+              <strong
+                :if={@performance && is_nil(money_weighted_value(@performance))}
+                class="stat-empty"
+              >
+                —
+              </strong>
               <strong
                 :if={is_nil(@performance) and not @performance_failed}
                 class="value-slot-pending"
@@ -896,8 +901,12 @@ defmodule PortfolixirWeb.PortfolioLive do
                 <span class="value-skeleton" aria-hidden="true"></span>
                 <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
               </strong>
-              <strong :if={is_nil(@performance) and @performance_failed}>—</strong>
-              <small :if={@performance} class="stat__sub" data-role="money-weighted-basis">
+              <strong :if={is_nil(@performance) and @performance_failed} class="stat-empty">—</strong>
+              <small
+                :if={@performance && money_weighted_value(@performance)}
+                class="stat__sub"
+                data-role="money-weighted-basis"
+              >
                 <%= money_weighted_basis(@performance) %>
               </small>
             </article>
@@ -976,7 +985,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                 <span class="value-skeleton" aria-hidden="true"></span>
                 <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
               </strong>
-              <strong :if={is_nil(@performance) and @performance_failed}>—</strong>
+              <strong :if={is_nil(@performance) and @performance_failed} class="stat-empty">—</strong>
               <small :if={@performance} class="stat__sub" data-role="net-flows">
                 <%= gettext("net flows") %>
                 <b class={perf_sign_class(@performance.net_external_flows)}><%= Format.signed_decimal(
@@ -998,7 +1007,7 @@ defmodule PortfolixirWeb.PortfolioLive do
               <strong :if={@performance && @performance.wealth_multiple}>
                 ×<%= Format.decimal(@performance.wealth_multiple, 2) %>
               </strong>
-              <strong :if={@performance && is_nil(@performance.wealth_multiple)}>
+              <strong :if={@performance && is_nil(@performance.wealth_multiple)} class="stat-empty">
                 <%= gettext("n/a") %>
               </strong>
               <strong
@@ -1010,7 +1019,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                 <span class="value-skeleton" aria-hidden="true"></span>
                 <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
               </strong>
-              <strong :if={is_nil(@performance) and @performance_failed}>—</strong>
+              <strong :if={is_nil(@performance) and @performance_failed} class="stat-empty">—</strong>
             </article>
           </div>
           <%!-- ADR-0046 §4: the comparison block next to TTWROR/IRR — one row
@@ -1122,7 +1131,7 @@ defmodule PortfolixirWeb.PortfolioLive do
               aria-hidden="true"
             >
             </span>
-            <strong :if={is_nil(@performance) and @performance_failed}>—</strong>
+            <strong :if={is_nil(@performance) and @performance_failed} class="stat-empty">—</strong>
           </span>
           <a class="kpi-summary__link" href={holdings_path(@current_path)}>
             <%= gettext("All key figures → Holdings") %>
@@ -1272,7 +1281,13 @@ defmodule PortfolixirWeb.PortfolioLive do
                     <%!-- #563: a single previous year is a pure re-chain of
                          the cached analysis, exactly like the buttons — no
                          new walk. --%>
-                    <div class="period-years" data-role="period-year" role="group" aria-label={gettext("Year")}>
+                    <div
+                      :if={available_years(@analysis) != []}
+                      class="period-years"
+                      data-role="period-year"
+                      role="group"
+                      aria-label={gettext("Year")}
+                    >
                       <button
                         :for={year <- available_years(@analysis)}
                         type="button"
@@ -1289,7 +1304,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                         type="button"
                         id="period-custom-cancel"
                         class="button-ghost"
-                        phx-click={Phoenix.LiveView.JS.remove_attribute("open", to: "#period-custom")}
+                        phx-click="cancel_period_popover"
                       >
                         <%= gettext("Cancel") %>
                       </button>
@@ -1519,7 +1534,7 @@ defmodule PortfolixirWeb.PortfolioLive do
             <p class="summary-basis allocation-basis" data-role="allocation-basis">
               <%= if @allocation.has_plan do %>
                 <%= gettext("Plan on %{classification}",
-                  classification: @allocation.classification_name
+                  classification: allocation_tree_name(@allocation)
                 ) %>
                 · <span
                   class={[
@@ -1537,11 +1552,11 @@ defmodule PortfolixirWeb.PortfolioLive do
                 </span>
               <% else %>
                 <%= gettext("Actual allocation on %{classification}",
-                  classification: @allocation.classification_name
+                  classification: allocation_tree_name(@allocation)
                 ) %>
               <% end %>
               · <%= gettext("View %{name}", name: active_view_name(@active_view)) %>
-              · <%= gettext("as of %{date}", date: Date.to_iso8601(Portfolixir.Clock.today())) %>
+              · <%= gettext("as of %{date}", date: Format.date(Portfolixir.Clock.today())) %>
             </p>
             <%= if not @allocation.has_plan do %>
               <%!-- Scope-aware copy (fix round): only a named view may talk
@@ -2820,6 +2835,13 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # #563: a single calendar year, offered for every year with data. The picked
   # year is validated against the cached analysis' own range.
+  # #801: Cancel closes the popover through the same event the apply path
+  # uses, so the hook's closeAndFocus returns focus to the summary. Removing
+  # the `open` attribute client-side would leave focus on a button that has
+  # just been hidden.
+  def handle_event("cancel_period_popover", _params, socket),
+    do: {:noreply, push_event(socket, "close-popover", %{id: "period-custom"})}
+
   def handle_event("select_year", %{"year" => raw}, socket) do
     with {year, ""} <- Integer.parse(raw),
          true <- year in available_years(socket.assigns.analysis) do
@@ -3914,6 +3936,16 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp liquidity_role_hint("credit_line"), do: gettext("credit line")
   defp liquidity_role_hint("reserve"), do: gettext("reserve")
   defp liquidity_role_hint(_role), do: gettext("not in cash quote")
+
+  # The basis line names the tree the way the picker above it does: a
+  # built-in tree's stored name is English by design (#729), so it localizes
+  # at render time rather than reaching the screen as data.
+  defp allocation_tree_name(allocation) do
+    ClassificationName.display(%{
+      key: Map.get(allocation, :classification_key),
+      name: allocation.classification_name
+    })
+  end
 
   # One landing spot for a validated period term (a button string, a year or a
   # range): re-chain the cached analysis instantly, or — while the walk is

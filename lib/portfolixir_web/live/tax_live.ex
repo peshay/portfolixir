@@ -544,7 +544,7 @@ defmodule PortfolixirWeb.TaxLive do
                     used: Format.money(@summary.allowance_used),
                     granted: Format.money(@summary.allowance_granted)
                   ) %>
-                  · <%= gettext("as of %{date}", date: Date.to_iso8601(@summary.as_of)) %>
+                  · <%= gettext("as of %{date}", date: Format.date(@summary.as_of)) %>
                   <span :if={@summary.institutions != []}>
                     · <%= Enum.join(@summary.institutions, ", ") %>
                   </span>
@@ -770,7 +770,7 @@ defmodule PortfolixirWeb.TaxLive do
               <div class="tax-statement__head">
                 <h3><%= entry.row.institution %></h3>
                 <span class="hint">
-                  <%= Date.to_iso8601(entry.row.as_of) %>
+                  <%= Format.date(entry.row.as_of) %>
                   · <%= gettext("Tax year %{year}", year: entry.row.tax_year) %>
                   · <%= source_label(entry.row.source) %>
                 </span>

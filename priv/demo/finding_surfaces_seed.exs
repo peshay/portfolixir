@@ -75,9 +75,21 @@ end
 # idempotent in their own right (the quote upsert replaces, the Strategies tree
 # is dropped and rebuilt).
 Code.eval_file("priv/demo/quotes_seed.exs")
-# Strategies tree + target weights (sums to 85 % at the top level on purpose —
-# an unallocated remainder, one of the review's finding surfaces).
+# Strategies tree + target weights.
 Code.eval_file("priv/demo/strategies_seed.exs")
+
+# The demo seed's plan is complete: 85 % across the categories plus a 15 %
+# cash target. The review instance needs the other state — a plan that does
+# not add up — because the walkthrough conditions name it as one of the three
+# alarms that must fire (pr-review-checklist.md → G). Lowering the cash target
+# leaves five points unallocated and renders the sum warning, without touching
+# the demo seed the README screenshots come from.
+:ok =
+  Portfolixir.Portfolios.Targets.set_cash_target(
+    owner,
+    portfolio.id,
+    Decimal.new("0.10")
+  )
 
 depot = Enum.find(Portfolios.list_securities_accounts(), &(&1.name == "Demo Depot"))
 cash = Enum.find(Portfolios.list_cash_accounts(), &(&1.name == "Demo Cash"))

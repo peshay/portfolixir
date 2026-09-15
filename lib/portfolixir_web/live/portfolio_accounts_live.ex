@@ -250,7 +250,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                 <tr :for={record <- @portfolio_records}>
                   <td><%= record.name %></td>
                   <td><%= record.base_currency_code %></td>
-                  <td><%= record.inserted_at |> NaiveDateTime.to_date() |> Date.to_iso8601() %></td>
+                  <td><%= record.inserted_at |> NaiveDateTime.to_date() |> Format.date() %></td>
                   <td><%= source_label(record.source) %></td>
                   <td class="num"><%= record.depot_count %></td>
                   <td class="num"><%= record.cash_account_count %></td>
@@ -358,7 +358,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
             <%= Format.money(balance) %> <%= @cash.currency_code %>
           </span>
           <span :if={@dates[@cash.id]} class="cash-balance__asof">
-            <%= gettext("as of %{date}", date: Date.to_iso8601(@dates[@cash.id])) %>
+            <%= gettext("as of %{date}", date: Format.date(@dates[@cash.id])) %>
           </span>
       <% end %>
     </span>

@@ -2255,7 +2255,9 @@ dialog.modal::backdrop {
     background: rgb(255 255 255 / 0.04);
   }
 
-  dialog.modal::backdrop {
+  dialog.modal::backdrop,
+  dialog.filter-sheet::backdrop,
+  dialog.booking-drawer::backdrop {
     background: rgba(0, 0, 0, 0.55);
   }
 
@@ -7001,8 +7003,10 @@ select:disabled {
 
 /* The value suffix (DESIGN.md → Amendment 2026-09-12): stat-label size and
    muted colour, 4 px after the digits; the digits never wrap, the suffix
-   may drop to its own line on a narrow card. */
-.stat .value-suffix {
+   may drop to its own line on a narrow card. The rule is a property of the
+   value slot, not of the stat card, so the selector carries no ancestor —
+   a table cell and the Overview's value card use the same suffix. */
+.value-suffix {
   display: inline-block;
   margin-left: 4px;
   color: var(--color-text-muted);
@@ -7145,6 +7149,19 @@ select:disabled {
   font-weight: 500;
 }
 
+/* Not-computable inside a stat card or the summary line (DESIGN.md → Value
+   slot): the quiet muted dash, never at value weight, so "cannot be computed"
+   is told apart from "still computing" at a glance. The selectors carry the
+   element because `.stat strong` and `.kpi-summary strong` would otherwise
+   win on specificity — the same shape `.kpi-strip__na` above uses. */
+.stat strong.stat-empty,
+.kpi-summary strong.stat-empty {
+  color: var(--color-text-muted);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1;
+}
+
 .kpi-strip__sub {
   color: var(--color-text-muted);
   font-size: 12px;
@@ -7246,6 +7263,15 @@ select:disabled {
   column-gap: 10px;
   padding: 10px 0;
   border-top: 1px solid var(--color-border);
+}
+
+/* The transactions row carries two children, not four: the body has no logo
+   beside it and the row has no kebab. Without its own tracks the body would
+   land in the logo's `auto` column and the un-wrappable figures in the
+   elastic one, which is the wrong way round — a long subject would then
+   push the figures into the clipped edge. */
+#transaction-phone-rows .phone-row {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .phone-rows > li:first-child {
@@ -7465,6 +7491,13 @@ dialog.filter-sheet::backdrop {
     display: none;
   }
 
+  /* The column pickers configure tables that are not on the phone: the rows
+     are a fixed composition (UX-DR27), so the controls would do nothing. */
+  #toggle-column-popover,
+  #tx-column-picker {
+    display: none;
+  }
+
   .filter-sheet-toggle {
     display: inline-flex;
   }
@@ -7565,7 +7598,7 @@ dialog.booking-drawer {
   column-gap: 0.45rem;
   margin-top: 0.75rem;
   padding: 0.35rem calc(0.5rem + 1px) 0.35rem calc(0.5rem + 1px + 0.7rem + 0.45rem);
-  border-radius: 0.6rem;
+  border-radius: var(--radius-md);
   background: var(--color-bg-muted);
   color: var(--color-text-muted);
   font-size: 11px;
@@ -7598,6 +7631,7 @@ dialog.booking-drawer {
 }
 
 .cat-without-holdings {
+  flex: 0 0 auto;
   color: var(--color-text-muted);
   font-size: 0.72rem;
   font-weight: 500;

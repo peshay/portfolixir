@@ -427,6 +427,10 @@ defmodule Portfolixir.Portfolios.Allocation do
       portfolio_id: valuation.portfolio_id,
       classification_id: classification.id,
       classification_name: classification.name,
+      # The stored key travels with the name so a display can localize a
+      # built-in tree's English seed name (#729); the API keeps serialising
+      # the stored name, which is what an agent addresses it by.
+      classification_key: classification.key,
       base_currency: valuation.base_currency,
       total_value: total,
       unvalued_count: valuation.unvalued_count,

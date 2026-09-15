@@ -332,7 +332,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                                     <td class="num" data-role="amount">—</td>
                                   <% amount -> %>
                                     <td class="num" data-role="amount">
-                                      <%= signed_money(transaction.type, amount) %><small><%= transaction.currency_code %></small>
+                                      <%= signed_money(transaction.type, amount) %><small class="value-suffix"><%= transaction.currency_code %></small>
                                     </td>
                                 <% end %>
                               <% _other -> %>
@@ -391,7 +391,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                         class="phone-row__figure2"
                         data-role="running-balance"
                       >
-                        <%= gettext("Balance") %> <%= running_balance(@running_balances, transaction) %>
+                        <%= gettext("Balance") %> <%= running_balance(@running_balances, transaction) %><small class="value-suffix"><%= @balance_account.currency_code %></small>
                       </span>
                     </span>
                   </li>
@@ -834,7 +834,10 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp tx_column_label("taxes"), do: gettext("Taxes")
   defp tx_column_label("notes"), do: gettext("Notes")
 
-  defp tx_cell(transaction, "date"), do: transaction.date
+  # The date reads under the locale like every other figure in this table
+  # (#786 localized the numbers and left this one; the phone row beside it has
+  # read German since #799, so the two disagreed on one route).
+  defp tx_cell(transaction, "date"), do: PortfolixirWeb.Format.date(transaction.date)
   defp tx_cell(transaction, "type"), do: tx_type_label(transaction.type)
   defp tx_cell(transaction, "security"), do: transaction.security && transaction.security.name
   defp tx_cell(transaction, "currency"), do: transaction.currency_code
@@ -1182,7 +1185,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                     value={security.id}
                     selected={to_string(security.id) == @transaction_form["security_id"]}
                   >
-                    <%= security.name %> (<%= security.ticker_symbol %>)
+                    <%= security.name %><%= if security.ticker_symbol not in [nil, ""], do: " (#{security.ticker_symbol})" %>
                   </option>
                 <% end %>
               </select>
@@ -1225,7 +1228,10 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         </p>
 
         <details id="transaction-costs" class="transaction-costs">
-          <summary><%= gettext("Costs and note") %></summary>
+          <summary class="disclosure-summary">
+            <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
+            <%= gettext("Costs and note") %>
+          </summary>
           <div class="form-grid">
             <label>
               <span><%= gettext("Fees") %></span>

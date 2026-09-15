@@ -371,7 +371,7 @@ defmodule PortfolixirWeb.SnapshotsLive do
               </h2>
               <span class="badge" data-role="comparison-scope">
                 <%= view_name(@views, @comparison.snapshot.view_id) %>
-                · <%= Date.to_iso8601(@comparison.as_of) %>
+                · <%= Format.date(@comparison.as_of) %>
               </span>
             </header>
 
@@ -405,7 +405,7 @@ defmodule PortfolixirWeb.SnapshotsLive do
                 <small class="hint">
                   <%= gettext(
                     "Buy-and-hold of the holdings frozen on %{date}: %{then} → %{today} %{currency}",
-                    date: Date.to_iso8601(@comparison.as_of),
+                    date: Format.date(@comparison.as_of),
                     then: Format.money(@comparison.as_of_value),
                     today: Format.money(@comparison.current_value),
                     currency: @comparison.base_currency
@@ -432,8 +432,7 @@ defmodule PortfolixirWeb.SnapshotsLive do
                 <article class="stat">
                   <span><%= gettext("Transaction costs") %></span>
                   <strong data-role="transaction-costs">
-                    <%= Format.money(@comparison.transaction_costs) %>
-                    <small><%= @comparison.base_currency %></small>
+                    <%= Format.money(@comparison.transaction_costs) %><small class="value-suffix"><%= @comparison.base_currency %></small>
                   </strong>
                   <small class="hint" data-role="cost-recovery">
                     <%= gettext("Earned back?") %> <%= recovery_label(@comparison.cost_recovery) %>
@@ -494,7 +493,7 @@ defmodule PortfolixirWeb.SnapshotsLive do
               <p class="summary-basis" data-role="comparison-basis">
                 <%= gettext(
                   "since %{date} · in %{currency} · gross, price development only · Transaction costs = fees and taxes booked on trades since then; standalone fees, taxes and dividend withholding stay inside the return on both sides",
-                  date: Date.to_iso8601(@comparison.as_of),
+                  date: Format.date(@comparison.as_of),
                   currency: @comparison.base_currency
                 ) %>
               </p>

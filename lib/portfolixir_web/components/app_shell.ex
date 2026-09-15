@@ -555,7 +555,7 @@ defmodule PortfolixirWeb.AppShell do
     ~H"""
     <span class="quote-stale" data-role="quote-stale">
       <.icon name={:alert_triangle} size={12} class="quote-stale__icon" />
-      <span><%= pgettext("price freshness", "stale") %> · <%= Date.to_iso8601(@date) %></span>
+      <span><%= pgettext("price freshness", "stale") %> · <%= PortfolixirWeb.Format.date(@date) %></span>
     </span>
     """
   end

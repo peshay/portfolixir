@@ -45,5 +45,16 @@ defmodule Portfolixir.Catalog.AssetClasses do
   def label("leverage_products"), do: gettext("Leverage products")
   def label("investment_products"), do: gettext("Investment products")
   def label(nil), do: ""
-  def label(other), do: to_string(other)
+
+  # A code outside the closed set (an import can carry one in): read as words,
+  # never as the slug — the same answer Feeds.label/1 gives, and the shape the
+  # voice rule on enum values requires (#785; EXPERIENCE.md → Voice and Tone:
+  # "a fallback clause that prints the value is a defect").
+  def label(other) do
+    other
+    |> to_string()
+    |> String.replace("_", " ")
+    |> String.downcase()
+    |> String.capitalize()
+  end
 end
