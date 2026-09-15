@@ -659,4 +659,131 @@ defmodule PortfolixirWeb.IncomeLiveTest do
     composition = view |> element(~s([data-role="facet-composition"])) |> render()
     assert composition =~ "on purpose"
   end
+
+  # User story (#794):
+  # As a local portfolio maintainer reading the Income facet's chart,
+  # I want the stacked bars to say what they stack, every year to have its
+  # slot, zero cells to stay quiet, and both charts to carry their table,
+  # so that the chart never misrepresents time or hides a split in hue.
+  #
+  # Acceptance criteria:
+  # - A legend names dividends and interest; a segment tall enough carries
+  #   its value as text; the chart's aria-label names both kinds.
+  # - Years are continuous between the first and the last booking; a year
+  #   without bookings shows "–".
+  # - Zero matrix cells render "–"; totals and non-zero cells unchanged.
+  # - Two disclosures, one per chart, same label and control as the
+  #   performance chart's.
+  describe "the income chart says what it stacks (#794)" do
+    defp text(nodes),
+      do: nodes |> Floki.text(sep: " ") |> String.replace(~r/\s+/, " ") |> String.trim()
+
+    test "legend and direct labels on the stacked bars", %{conn: conn} do
+      world = WorldFixtures.base_world(name: "Stack", currency: "EUR")
+      payer = WorldFixtures.create_security!(name: "Payer Inc", ticker: "PAY")
+
+      # 2024: 800 dividends + 200 interest; 2025: 1,000 dividends + 10 interest.
+      dividend!(world, payer, date: ~D[2024-05-15], net: "800", tax: "0")
+      interest!(world, date: ~D[2024-06-01], amount: "200")
+      dividend!(world, payer, date: ~D[2025-05-15], net: "1000", tax: "0")
+      interest!(world, date: ~D[2025-06-01], amount: "10")
+
+      {:ok, view, html} = live(conn, "/cashflow")
+      doc = Floki.parse_document!(html)
+
+      legend = Floki.find(doc, ~s(#income-chart [data-role="income-legend"] li))
+      assert length(legend) == 2
+      assert text(legend) =~ "Dividends"
+      assert text(legend) =~ "Interest"
+
+      assert view |> element("#income-chart svg.income-bars") |> render() =~
+               "Dividends and interest"
+
+      # 800 of 1,010 max → 111 px, 200 → 28 px: both labelled; 10 → 1 px: not.
+      labels = Floki.find(doc, "#income-chart .income-bar-value")
+
+      assert text(
+               Floki.find(
+                 doc,
+                 ~s(#income-chart .income-bar-value[data-year="2024"][data-series="dividends"])
+               )
+             ) == "800.00"
+
+      assert text(
+               Floki.find(
+                 doc,
+                 ~s(#income-chart .income-bar-value[data-year="2024"][data-series="interest"])
+               )
+             ) == "200.00"
+
+      assert Floki.find(
+               doc,
+               ~s(#income-chart .income-bar-value[data-year="2025"][data-series="interest"])
+             ) == []
+
+      assert length(labels) == 3
+    end
+
+    test "years are continuous and an empty year shows a dash", %{conn: conn} do
+      world = WorldFixtures.base_world(name: "Gap", currency: "EUR")
+      payer = WorldFixtures.create_security!(name: "Payer Inc", ticker: "PAY")
+
+      dividend!(world, payer, date: ~D[2023-05-15], net: "120", tax: "0")
+      dividend!(world, payer, date: ~D[2026-05-15], net: "12.50", tax: "0")
+
+      {:ok, _view, html} = live(conn, "/cashflow")
+      doc = Floki.parse_document!(html)
+
+      years =
+        Floki.find(doc, "#income-chart button.income-bar-label")
+        |> Enum.map(&Floki.attribute(&1, "data-year"))
+
+      assert years == [["2023"], ["2024"], ["2025"], ["2026"]]
+      assert [_] = Floki.find(doc, ~s(#income-chart [data-year="2024"][data-empty="true"]))
+
+      assert text(Floki.find(doc, ~s(#income-chart button.income-bar-label[data-year="2024"]))) =~
+               "–"
+
+      assert text(Floki.find(doc, ~s(#income-chart button.income-bar-label[data-year="2023"]))) =~
+               "120.00"
+    end
+
+    test "zero matrix cells are a quiet dash; totals stay figures", %{conn: conn} do
+      world = WorldFixtures.base_world(name: "Quiet", currency: "EUR")
+      payer = WorldFixtures.create_security!(name: "Payer Inc", ticker: "PAY")
+
+      dividend!(world, payer, date: ~D[2026-02-10], net: "100", tax: "0")
+
+      {:ok, _view, html} = live(conn, "/cashflow")
+      doc = Floki.parse_document!(html)
+
+      cells = Floki.find(doc, "#income-annual tbody td.num:not(.is-total)")
+      assert Enum.count(cells, &(Floki.find(&1, ".matrix-zero") != [])) == 23
+      refute Enum.any?(cells, &(text([&1]) == "0.00"))
+      totals = Floki.find(doc, "#income-annual tbody td.is-total") |> Enum.map(&text([&1]))
+      assert totals == ["100.00", "0.00"]
+    end
+
+    test "both charts carry the data-as-table disclosure", %{conn: conn} do
+      world = WorldFixtures.base_world(name: "Disclose", currency: "EUR")
+      payer = WorldFixtures.create_security!(name: "Payer Inc", ticker: "PAY")
+
+      dividend!(world, payer, date: ~D[2026-02-10], net: "100", tax: "0")
+
+      {:ok, view, html} = live(conn, "/cashflow")
+      doc = Floki.parse_document!(html)
+
+      annual = Floki.find(doc, ~s(details[data-role="income-annual-disclosure"]))
+      assert text(Floki.find(annual, "> summary")) =~ "Data as table"
+      assert [_] = Floki.find(annual, "summary .disclosure-chevron")
+      assert [_] = Floki.find(annual, ~s([data-role="disclosure-purpose"]))
+      assert [_] = Floki.find(annual, "table")
+
+      view |> element("#income-chart button[data-year='2026']") |> render_click()
+      drilled = Floki.parse_document!(render(view))
+      payments = Floki.find(drilled, ~s(details[data-role="income-payments-disclosure"]))
+      assert text(Floki.find(payments, "> summary")) =~ "Data as table"
+      assert [_] = Floki.find(payments, "table")
+    end
+  end
 end

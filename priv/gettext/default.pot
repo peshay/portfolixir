@@ -28,7 +28,7 @@ msgid "Cash accounts"
 msgstr ""
 
 #: lib/portfolixir_web/live/buckets_live.ex:429
-#: lib/portfolixir_web/live/income_live.ex:682
+#: lib/portfolixir_web/live/income_live.ex:748
 #: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:58
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:290
 #: lib/portfolixir_web/live/securities/logo_override_dialog.ex:34
@@ -51,8 +51,8 @@ msgstr ""
 
 #: lib/portfolixir/catalog/security_fields.ex:67
 #: lib/portfolixir_web/classification_name.ex:15
-#: lib/portfolixir_web/live/income_live.ex:771
-#: lib/portfolixir_web/live/income_live.ex:825
+#: lib/portfolixir_web/live/income_live.ex:843
+#: lib/portfolixir_web/live/income_live.ex:898
 #: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:154
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:90
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:359
@@ -75,7 +75,7 @@ msgstr ""
 msgid "Dark"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:765
+#: lib/portfolixir_web/live/income_live.ex:837
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:307
 #: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:189
 #: lib/portfolixir_web/live/securities_live.ex:1357
@@ -292,8 +292,8 @@ msgstr ""
 msgid "Securities"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:767
-#: lib/portfolixir_web/live/income_live.ex:824
+#: lib/portfolixir_web/live/income_live.ex:839
+#: lib/portfolixir_web/live/income_live.ex:897
 #: lib/portfolixir_web/live/portfolio_live.ex:1915
 #: lib/portfolixir_web/live/transaction_management_live.ex:157
 #: lib/portfolixir_web/live/transaction_management_live.ex:483
@@ -359,7 +359,7 @@ msgstr ""
 msgid "Transactions"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:766
+#: lib/portfolixir_web/live/income_live.ex:838
 #: lib/portfolixir_web/live/securities_live.ex:1358
 #: lib/portfolixir_web/live/transaction_management_live.ex:110
 #: lib/portfolixir_web/live/transaction_management_live.ex:441
@@ -393,8 +393,9 @@ msgstr ""
 msgid "Classifications"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:588
-#: lib/portfolixir_web/live/income_live.ex:657
+#: lib/portfolixir_web/live/income_live.ex:566
+#: lib/portfolixir_web/live/income_live.ex:616
+#: lib/portfolixir_web/live/income_live.ex:722
 #, elixir-autogen, elixir-format
 msgid "Dividends"
 msgstr ""
@@ -1231,8 +1232,8 @@ msgstr ""
 msgid "From"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:768
-#: lib/portfolixir_web/live/income_live.ex:826
+#: lib/portfolixir_web/live/income_live.ex:840
+#: lib/portfolixir_web/live/income_live.ex:899
 #: lib/portfolixir_web/live/securities_live.ex:1363
 #, elixir-autogen, elixir-format
 msgid "Gross"
@@ -1367,7 +1368,7 @@ msgstr ""
 #: lib/portfolixir_web/live/income_live.ex:402
 #: lib/portfolixir_web/live/income_live.ex:491
 #: lib/portfolixir_web/live/income_live.ex:515
-#: lib/portfolixir_web/live/income_live.ex:640
+#: lib/portfolixir_web/live/income_live.ex:705
 #: lib/portfolixir_web/live/securities_live.ex:1669
 #: lib/portfolixir_web/live/transaction_management_live.ex:316
 #, elixir-autogen, elixir-format
@@ -1606,19 +1607,20 @@ msgid "The CSV file is empty."
 msgstr ""
 
 #: lib/portfolixir_web/live/imports_live.ex:569
-#: lib/portfolixir_web/live/income_live.ex:971
+#: lib/portfolixir_web/live/income_live.ex:1091
 #: lib/portfolixir_web/transaction_kind_label.ex:19
 #, elixir-autogen, elixir-format
 msgid "Dividend"
 msgstr ""
 
 #: lib/portfolixir_web/live/imports_live.ex:570
-#: lib/portfolixir_web/live/income_live.ex:603
-#: lib/portfolixir_web/live/income_live.ex:664
-#: lib/portfolixir_web/live/income_live.ex:779
-#: lib/portfolixir_web/live/income_live.ex:798
-#: lib/portfolixir_web/live/income_live.ex:836
-#: lib/portfolixir_web/live/income_live.ex:972
+#: lib/portfolixir_web/live/income_live.ex:571
+#: lib/portfolixir_web/live/income_live.ex:632
+#: lib/portfolixir_web/live/income_live.ex:729
+#: lib/portfolixir_web/live/income_live.ex:851
+#: lib/portfolixir_web/live/income_live.ex:871
+#: lib/portfolixir_web/live/income_live.ex:909
+#: lib/portfolixir_web/live/income_live.ex:1092
 #: lib/portfolixir_web/transaction_kind_label.ex:20
 #, elixir-autogen, elixir-format
 msgid "Interest"
@@ -1644,7 +1646,7 @@ msgstr ""
 
 #: lib/portfolixir_web/components/app_shell.ex:257
 #: lib/portfolixir_web/live/imports_live.ex:574
-#: lib/portfolixir_web/live/income_live.ex:769
+#: lib/portfolixir_web/live/income_live.ex:841
 #: lib/portfolixir_web/live/tax_live.ex:479
 #: lib/portfolixir_web/transaction_kind_label.ex:24
 #, elixir-autogen, elixir-format
@@ -1807,7 +1809,7 @@ msgid "TTWROR"
 msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_live.ex:2511
-#: lib/portfolixir_web/live/portfolio_live.ex:3856
+#: lib/portfolixir_web/live/portfolio_live.ex:3857
 #, elixir-autogen
 msgid "IRR"
 msgstr ""
@@ -1888,27 +1890,27 @@ msgstr ""
 
 #: lib/portfolixir_web/live/dashboard_live.ex:228
 #: lib/portfolixir_web/live/dashboard_live.ex:271
-#: lib/portfolixir_web/live/portfolio_live.ex:3870
+#: lib/portfolixir_web/live/portfolio_live.ex:3871
 #, elixir-autogen
 msgid "YTD"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3871
+#: lib/portfolixir_web/live/portfolio_live.ex:3872
 #, elixir-autogen
 msgid "1Y"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3872
+#: lib/portfolixir_web/live/portfolio_live.ex:3873
 #, elixir-autogen
 msgid "3Y"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3873
+#: lib/portfolixir_web/live/portfolio_live.ex:3874
 #, elixir-autogen
 msgid "5Y"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3874
+#: lib/portfolixir_web/live/portfolio_live.ex:3875
 #, elixir-autogen
 msgid "Max"
 msgstr ""
@@ -2193,17 +2195,17 @@ msgstr[1] ""
 msgid "Unsorted"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3826
+#: lib/portfolixir_web/live/portfolio_live.ex:3827
 #, elixir-autogen, elixir-format
 msgid "not in cash quote"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3824
+#: lib/portfolixir_web/live/portfolio_live.ex:3825
 #, elixir-autogen, elixir-format
 msgid "credit line"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3825
+#: lib/portfolixir_web/live/portfolio_live.ex:3826
 #, elixir-autogen, elixir-format
 msgid "reserve"
 msgstr ""
@@ -2256,7 +2258,7 @@ msgstr ""
 msgid "Income"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:979
+#: lib/portfolixir_web/live/income_live.ex:1099
 #, elixir-autogen
 msgid "Received dividends and interest"
 msgstr ""
@@ -2267,7 +2269,7 @@ msgid "Annual overview"
 msgstr ""
 
 #: lib/portfolixir_web/live/income_live.ex:552
-#: lib/portfolixir_web/live/income_live.ex:814
+#: lib/portfolixir_web/live/income_live.ex:887
 #, elixir-autogen
 msgid "No dividends or interest booked yet."
 msgstr ""
@@ -2275,7 +2277,7 @@ msgstr ""
 #: lib/portfolixir_web/live/income_live.ex:322
 #: lib/portfolixir_web/live/income_live.ex:397
 #: lib/portfolixir_web/live/income_live.ex:486
-#: lib/portfolixir_web/live/income_live.ex:635
+#: lib/portfolixir_web/live/income_live.ex:700
 #: lib/portfolixir_web/live/portfolio_live.ex:1153
 #: lib/portfolixir_web/live/portfolio_live.ex:2318
 #, elixir-autogen
@@ -2284,39 +2286,39 @@ msgstr ""
 
 #: lib/portfolixir_web/live/income_live.ex:398
 #: lib/portfolixir_web/live/income_live.ex:487
-#: lib/portfolixir_web/live/income_live.ex:636
+#: lib/portfolixir_web/live/income_live.ex:701
 #, elixir-autogen
 msgid "Series"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:680
+#: lib/portfolixir_web/live/income_live.ex:746
 #, elixir-autogen, elixir-format
 msgid "Payments in %{year}"
 msgstr ""
 
 #: lib/portfolixir_web/live/income_live.ex:426
-#: lib/portfolixir_web/live/income_live.ex:770
-#: lib/portfolixir_web/live/income_live.ex:828
+#: lib/portfolixir_web/live/income_live.ex:842
+#: lib/portfolixir_web/live/income_live.ex:901
 #, elixir-autogen
 msgid "Net"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:827
+#: lib/portfolixir_web/live/income_live.ex:900
 #, elixir-autogen
 msgid "Withheld tax"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:829
+#: lib/portfolixir_web/live/income_live.ex:902
 #, elixir-autogen
 msgid "Payments"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:830
+#: lib/portfolixir_web/live/income_live.ex:903
 #, elixir-autogen
 msgid "Last payment"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:812
+#: lib/portfolixir_web/live/income_live.ex:885
 #, elixir-autogen
 msgid "Per position"
 msgstr ""
@@ -2447,7 +2449,7 @@ msgstr ""
 msgid "TTWROR — time-weighted return for the selected period (not annualized). Deposits and withdrawals are neutralised so only investment performance counts."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3867
+#: lib/portfolixir_web/live/portfolio_live.ex:3868
 #, elixir-autogen
 msgid "IRR info"
 msgstr ""
@@ -2933,12 +2935,12 @@ msgstr ""
 msgid "transactions"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:794
+#: lib/portfolixir_web/live/income_live.ex:867
 #, elixir-autogen, elixir-format
 msgid "Top contributors"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:803
+#: lib/portfolixir_web/live/income_live.ex:876
 #, elixir-autogen, elixir-format
 msgid "net %{net}"
 msgstr ""
@@ -2950,7 +2952,7 @@ msgid_plural "%{count} transactions"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/income_live.ex:695
+#: lib/portfolixir_web/live/income_live.ex:761
 #, elixir-autogen, elixir-format
 msgid "Income per month in %{year}"
 msgstr ""
@@ -3023,12 +3025,12 @@ msgstr ""
 msgid "% (TTWROR)"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:961
+#: lib/portfolixir_web/live/income_live.ex:1081
 #, elixir-autogen, elixir-format
 msgid "Apr"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:965
+#: lib/portfolixir_web/live/income_live.ex:1085
 #, elixir-autogen, elixir-format
 msgid "Aug"
 msgstr ""
@@ -3038,53 +3040,53 @@ msgstr ""
 msgid "Balance snapshot"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:969
+#: lib/portfolixir_web/live/income_live.ex:1089
 #, elixir-autogen, elixir-format
 msgid "Dec"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:959
+#: lib/portfolixir_web/live/income_live.ex:1079
 #, elixir-autogen, elixir-format
 msgid "Feb"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:958
+#: lib/portfolixir_web/live/income_live.ex:1078
 #, elixir-autogen, elixir-format
 msgid "Jan"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:964
+#: lib/portfolixir_web/live/income_live.ex:1084
 #, elixir-autogen, elixir-format
 msgid "Jul"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:963
+#: lib/portfolixir_web/live/income_live.ex:1083
 #, elixir-autogen, elixir-format
 msgid "Jun"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:960
+#: lib/portfolixir_web/live/income_live.ex:1080
 #, elixir-autogen, elixir-format
 msgid "Mar"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:962
+#: lib/portfolixir_web/live/income_live.ex:1082
 #: lib/portfolixir_web/live/transaction_management_live.ex:977
 #, elixir-autogen, elixir-format
 msgid "May"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:968
+#: lib/portfolixir_web/live/income_live.ex:1088
 #, elixir-autogen, elixir-format
 msgid "Nov"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:967
+#: lib/portfolixir_web/live/income_live.ex:1087
 #, elixir-autogen, elixir-format
 msgid "Oct"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:966
+#: lib/portfolixir_web/live/income_live.ex:1086
 #, elixir-autogen, elixir-format
 msgid "Sep"
 msgstr ""
@@ -3631,6 +3633,8 @@ msgstr ""
 msgid "Could not rename the plan"
 msgstr ""
 
+#: lib/portfolixir_web/live/income_live.ex:691
+#: lib/portfolixir_web/live/income_live.ex:828
 #: lib/portfolixir_web/live/portfolio_live.ex:1561
 #: lib/portfolixir_web/live/portfolio_live.ex:2307
 #: lib/portfolixir_web/live/snapshots_live.ex:507
@@ -4447,7 +4451,7 @@ msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:361
 #: lib/portfolixir_web/live/portfolio_live.ex:1455
-#: lib/portfolixir_web/live/portfolio_live.ex:3954
+#: lib/portfolixir_web/live/portfolio_live.ex:3955
 #: lib/portfolixir_web/live/tax_live.ex:535
 #, elixir-autogen, elixir-format
 msgid "as of %{date}"
@@ -4473,7 +4477,7 @@ msgstr ""
 msgid "Recomputation failed. The shown series is superseded: %{basis}. Reload retries."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3937
+#: lib/portfolixir_web/live/portfolio_live.ex:3938
 #, elixir-autogen, elixir-format
 msgid "Superseded series — %{basis}. Recomputing."
 msgstr ""
@@ -4699,7 +4703,7 @@ msgid "Invested capital info"
 msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_live.ex:2507
-#: lib/portfolixir_web/live/portfolio_live.ex:3856
+#: lib/portfolixir_web/live/portfolio_live.ex:3857
 #, elixir-autogen, elixir-format
 msgid "MWR"
 msgstr ""
@@ -4734,7 +4738,7 @@ msgstr ""
 msgid "net flows"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3867
+#: lib/portfolixir_web/live/portfolio_live.ex:3868
 #, elixir-autogen, elixir-format
 msgid "MWR info"
 msgstr ""
@@ -4767,7 +4771,7 @@ msgid_plural "Last known: %{ttwror}% YTD — %{count} bookings through %{last}, 
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3943
+#: lib/portfolixir_web/live/portfolio_live.ex:3944
 #, elixir-autogen, elixir-format
 msgid "One booking through %{last}, computed %{at}, as of %{date}"
 msgid_plural "%{count} bookings through %{last}, computed %{at}, as of %{date}"
@@ -5112,7 +5116,7 @@ msgstr ""
 msgid "No quote in %{days} days"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:732
+#: lib/portfolixir_web/live/income_live.ex:798
 #, elixir-autogen, elixir-format
 msgid "Accumulated dividends and interest through %{year}"
 msgstr ""
@@ -5124,7 +5128,7 @@ msgstr ""
 msgid "Cash flow"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:573
+#: lib/portfolixir_web/live/income_live.ex:588
 #, elixir-autogen, elixir-format
 msgid "Dividends and interest per year"
 msgstr ""
@@ -5276,13 +5280,13 @@ msgstr ""
 msgid "This view matches no accounts — its included buckets are empty or no longer assigned. Edit the view under Views or tag accounts into its buckets."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3906
+#: lib/portfolixir_web/live/portfolio_live.ex:3907
 #: lib/portfolixir_web/live/securities_live.ex:4413
 #, elixir-autogen, elixir-format
 msgid "Not a date — use YYYY-MM-DD."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3903
+#: lib/portfolixir_web/live/portfolio_live.ex:3904
 #: lib/portfolixir_web/live/securities_live.ex:4410
 #, elixir-autogen, elixir-format
 msgid "The end date is before the start date."
@@ -6016,7 +6020,7 @@ msgstr ""
 msgid "Amounts in %{currency} · fees and taxes at overview level · all portfolios"
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:977
+#: lib/portfolixir_web/live/income_live.ex:1097
 #, elixir-autogen, elixir-format
 msgid "Deposits and withdrawals"
 msgstr ""
@@ -6026,7 +6030,7 @@ msgstr ""
 msgid "Dividends and interest booked in the ledger for this portfolio; the other three facets cover every portfolio, so with more than one portfolio their figures are wider than this one. Excludes realized gains from sales, deposits and withdrawals, and costs — each has its own Cash flow facet. Amounts converted to %{currency} via the EUR hub at each booking date's stored rate; original currency retained."
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:978
+#: lib/portfolixir_web/live/income_live.ex:1098
 #, elixir-autogen, elixir-format
 msgid "Fees and taxes"
 msgstr ""
@@ -6041,7 +6045,7 @@ msgstr ""
 msgid "Realized gains and losses from FIFO-matched sales booked in the ledger, across every portfolio, by each sale's close date. Excludes dividends and interest, deposits and withdrawals, and costs — each has its own Cash flow facet. Each sale converted to %{currency} via the EUR hub at the rate stored on its own close date; a sale with no stored rate for that day is excluded from the totals and named here — never converted at a neighbouring date's rate."
 msgstr ""
 
-#: lib/portfolixir_web/live/income_live.ex:976
+#: lib/portfolixir_web/live/income_live.ex:1096
 #, elixir-autogen, elixir-format
 msgid "Realized gains and losses from sales"
 msgstr ""
@@ -6447,4 +6451,14 @@ msgstr ""
 #: lib/portfolixir_web/live/portfolio_live.ex:2701
 #, elixir-autogen, elixir-format
 msgid "target"
+msgstr ""
+
+#: lib/portfolixir_web/live/income_live.ex:831
+#, elixir-autogen, elixir-format
+msgid "Every payment of the year with gross, tax and net."
+msgstr ""
+
+#: lib/portfolixir_web/live/income_live.ex:694
+#, elixir-autogen, elixir-format
+msgid "Year × month, dividends and interest apart — the chart data without the chart."
 msgstr ""

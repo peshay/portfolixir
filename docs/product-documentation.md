@@ -1112,7 +1112,12 @@ opens the per-transaction detail for that year.
 
 The year bars above the matrix are **stacked**, not summed: dividends and
 interest are two segments, so the chart and the table can never disagree about
-what the number is. Drilling a year adds an **accumulated** series across its
+what the number is. A legend names the two series and a segment tall enough
+carries its value as text; every year between the first and the last booking
+has its slot, an empty one drawn as a baseline tick with "–"; zero cells in
+the matrix read as a quiet "–" so the non-zero cells are what the eye finds;
+and both the matrix and a drilled year's payments sit behind the **Data as
+table** disclosure every chart carries. Drilling a year adds an **accumulated** series across its
 months — the running total, so a quiet month reads as a plateau rather than as
 a gap, and the shape answers "where did the year stand by April" instead of
 "what came in in April".
