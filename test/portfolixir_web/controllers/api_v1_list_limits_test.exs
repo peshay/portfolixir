@@ -4,7 +4,8 @@ defmodule PortfolixirWeb.ApiV1ListLimitsTest do
   # instance to materialise an unbounded table.
   use PortfolixirWeb.ConnCase
 
-  import Portfolixir.WorldFixtures, only: [base_world: 0, buy!: 3, create_security!: 1]
+  import Portfolixir.WorldFixtures,
+    only: [base_world: 0, buy!: 3, create_security!: 1, deposit!: 3, sell!: 3]
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog.Quotes
@@ -258,6 +259,37 @@ defmodule PortfolixirWeb.ApiV1ListLimitsTest do
              "full ledger history, grouped by booking date"
 
     assert is_nil(unlimited["limit"]) or unlimited["limit"] == 100
+  end
+
+  # The two other roll-ups name the cut the same way (#776): a shorter answer
+  # never reads as a shorter history.
+  test "the realized-gains and external-flows roll-ups name the cut in their basis",
+       %{conn: conn} do
+    world = base_world()
+    security = create_security!(name: "Cut Co", ticker: "CUT")
+
+    for year <- [2025, 2026] do
+      deposit!(world, "100", Date.new!(year, 1, 10))
+      buy!(world, security, quantity: "1", price: "100", date: Date.new!(year, 2, 1))
+      sell!(world, security, quantity: "1", price: "110", date: Date.new!(year, 3, 1))
+    end
+
+    for {path, grouping} <- [
+          {"/api/v1/realized_gains", "grouped by each trade's close date"},
+          {"/api/v1/external_flows", "grouped by booking date"}
+        ] do
+      %{"data" => cut} = conn |> get(path <> "?limit=1") |> json_response(200)
+      assert Enum.map(cut["annual"], & &1["year"]) == [2026], path
+      assert cut["limit"] == 1, path
+
+      assert cut["computation_basis"]["window"] ==
+               "the newest 1 years of the full ledger history, " <> grouping,
+             path
+
+      %{"data" => whole} = conn |> get(path) |> json_response(200)
+      assert Enum.map(whole["annual"], & &1["year"]) == [2026, 2025], path
+      assert whole["computation_basis"]["window"] == "full ledger history, " <> grouping, path
+    end
   end
 
   test "the trades read keeps from and to as its bound and takes no limit", %{conn: conn} do

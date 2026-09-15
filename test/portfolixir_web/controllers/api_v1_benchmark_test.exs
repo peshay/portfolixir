@@ -197,6 +197,39 @@ defmodule PortfolixirWeb.ApiV1BenchmarkTest do
 
     assert %{"errors" => %{"period" => ["is invalid"]}} = json_response(conn, 422)
 
+    for params <- [%{"year" => "abc"}, %{"from" => "2026-01-01"}] do
+      conn =
+        get(
+          api_conn(conn),
+          "/api/v1/portfolios/#{world.portfolio.id}/performance/benchmark",
+          Map.put(params, "benchmark", "rate:0")
+        )
+
+      assert %{"errors" => %{"period" => ["is invalid"]}} = json_response(conn, 422)
+    end
+
+    conn =
+      get(api_conn(conn), "/api/v1/portfolios/#{world.portfolio.id}/performance/benchmark", %{
+        "benchmark" => "rate:0",
+        "view" => "bogus"
+      })
+
+    assert %{"errors" => %{"view" => ["is invalid"]}} = json_response(conn, 422)
+
+    conn =
+      get(api_conn(conn), "/api/v1/portfolios/#{world.portfolio.id}/performance/benchmark", %{
+        "benchmark" => ""
+      })
+
+    assert %{"errors" => %{"benchmark" => ["can't be blank"]}} = json_response(conn, 422)
+
+    conn =
+      get(api_conn(conn), "/api/v1/portfolios/abc/performance/benchmark", %{
+        "benchmark" => "rate:0"
+      })
+
+    assert json_response(conn, 404)
+
     conn =
       get(api_conn(conn), "/api/v1/portfolios/999999/performance/benchmark", %{
         "benchmark" => "rate:0"
@@ -279,5 +312,18 @@ defmodule PortfolixirWeb.ApiV1BenchmarkTest do
 
     conn = get(api_conn(conn), "/api/v1/views/#{view.id}/performance/benchmark")
     assert %{"errors" => %{"benchmark" => ["can't be blank"]}} = json_response(conn, 422)
+
+    conn =
+      get(api_conn(conn), "/api/v1/views/abc/performance/benchmark", %{"benchmark" => "rate:0"})
+
+    assert json_response(conn, 404)
+
+    conn =
+      get(api_conn(conn), "/api/v1/views/#{view.id}/performance/benchmark", %{
+        "benchmark" => "rate:0",
+        "year" => Integer.to_string(world.today.year)
+      })
+
+    assert %{"data" => %{"window" => %{}}} = json_response(conn, 200)
   end
 end

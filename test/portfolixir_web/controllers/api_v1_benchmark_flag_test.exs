@@ -47,6 +47,11 @@ defmodule PortfolixirWeb.ApiV1BenchmarkFlagTest do
     assert plain.id in Enum.map(rest, & &1["id"])
     refute bench.id in Enum.map(rest, & &1["id"])
 
+    # A blank filter is no filter: both are listed.
+    %{"data" => all} = conn |> get("/api/v1/securities?is_benchmark=") |> json_response(200)
+    assert bench.id in Enum.map(all, & &1["id"])
+    assert plain.id in Enum.map(all, & &1["id"])
+
     assert %{"errors" => %{"is_benchmark" => [_ | _]}} =
              conn |> get("/api/v1/securities?is_benchmark=maybe") |> json_response(422)
 
