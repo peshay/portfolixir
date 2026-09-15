@@ -738,11 +738,19 @@ forensic detail.
 The **Wealth** entry in the navigation opens the wealth overview, organised
 into tabs (ADR-0022): **Holdings** (value, performance, data quality, cash),
 **Allocation & targets** (the sunburst and drift table), and **Cash flow**
-(the received dividends and interest report). The Holdings tab shows the
-total value including cash, the cash quote, the TTWROR and the
-money-weighted **IRR** for a selectable period (year-to-date, one/three/five
-years, or since the first transaction; one year is the default) with the
-cumulative performance chart. Beside them sit the **invested capital** —
+(the received dividends and interest report). The Holdings tab opens with
+the **key-figure band in two tiers** (issue #797): three lead figures at
+full size — the total value including cash with its securities/cash
+composition, the TTWROR with the period's absolute result, and the
+money-weighted **IRR** with its basis line — over four supporting figures
+at half height: the securities value, the cash quote with the cash amount,
+the opening value with the net flows, and the wealth multiple. The currency
+is a small suffix after the digits, so no value wraps. The return figures
+cover a selectable period (year-to-date, one/three/five years, or since the
+first transaction; one year is the default) with the cumulative performance
+chart. The Allocation & targets tab does not repeat the band: it carries one
+summary line — total, cash quote, TTWROR — with a link back to Holdings.
+Among the supporting figures sit the **invested capital** —
 always two labeled numbers, the value at the period start and the net
 external flows (deposits minus withdrawals, deliveries at transaction
 value), never one merged figure — and the **wealth multiple**: end value ÷

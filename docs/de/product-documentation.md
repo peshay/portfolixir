@@ -803,12 +803,20 @@ Audit-Journal.
 Der Eintrag **Vermögen** in der Navigation öffnet die Vermögensübersicht,
 organisiert in Tabs (ADR-0022): **Bestände** (Wert, Performance, Datenqualität,
 Cash), **Allokation & Ziele** (Sunburst und Drift-Tabelle) und **Cashflow**
-(der Bericht über erhaltene Dividenden und Zinsen). Der Bestände-Tab zeigt den
-Gesamtwert inklusive Cash, die Cash-Quote sowie sowohl die TTWROR als auch den
-geldgewichteten **IRR** für einen wählbaren Zeitraum (laufendes Jahr, ein/drei/fünf
-Jahre oder seit der ersten Transaktion; ein Jahr ist die Voreinstellung) mit
-dem kumulativen Performance-Chart. Daneben stehen das **eingesetzte
-Kapital** — immer zwei beschriftete Zahlen, der Wert zum Periodenbeginn und
+(der Bericht über erhaltene Dividenden und Zinsen). Der Bestände-Tab beginnt
+mit dem **Kennzahlen-Band in zwei Ebenen** (Issue #797): drei Leitkennzahlen
+in voller Größe — der Gesamtwert inklusive Cash mit seiner Zusammensetzung
+aus Wertpapieren und Cash, die TTWROR mit dem absoluten Ergebnis des
+Zeitraums und der geldgewichtete **IRR** mit seiner Basiszeile — über vier
+Nebenkennzahlen in halber Höhe: Wertpapierwert, Cashquote mit dem
+Cash-Betrag, Anfangswert mit den Nettoflüssen und Vermögens-Multiplikator.
+Die Währung steht als kleines Suffix hinter den Ziffern, sodass keine Zahl
+umbricht. Die Renditen gelten für einen wählbaren Zeitraum (laufendes Jahr,
+ein/drei/fünf Jahre oder seit der ersten Transaktion; ein Jahr ist die
+Voreinstellung) mit dem kumulativen Performance-Chart. Der Tab „Allokation &
+Ziele" wiederholt das Band nicht: er trägt eine Zeile — Gesamt, Cashquote,
+TTWROR — mit Link zurück zu Bestände. Unter den Nebenkennzahlen stehen das
+**eingesetzte Kapital** — immer zwei beschriftete Zahlen, der Wert zum Periodenbeginn und
 die externen Nettoflüsse (Einzahlungen minus Entnahmen, Einlieferungen zum
 Transaktionswert), nie eine zusammengelegte Zahl — und der
 **Vermögens-Multiplikator**: Endwert ÷ eingesetztes Kapital, das ehrliche

@@ -789,196 +789,230 @@ defmodule PortfolixirWeb.PortfolioLive do
           </button>
         </section>
 
-        <section class="workspace-section grid" aria-label={gettext("Wealth key figures")}>
-          <article id="kpi-total" class="stat">
-            <span><%= gettext("Total incl. cash") %></span>
-            <strong :if={@valuation}>
-              <span
-                id="count-kpi-total"
-                class="count-up"
-                phx-hook="CountUp"
-                data-count-to={Decimal.to_string(@valuation.total_with_cash, :normal)}
-                data-decimals="2"
-              ><span data-count-digits><%= Format.money(@valuation.total_with_cash) %></span></span>
-              <%= @valuation.base_currency %>
-            </strong>
-            <strong
-              :if={is_nil(@valuation)}
-              class="value-slot-pending"
-              aria-busy="true"
-              data-waits="valuation"
-            >
-              <%!-- #723: a sub-second figure (ADR-0039 measurement) keeps
-                   the silent skeleton — the cue is for the seconds class. --%>
-              <span class="value-skeleton" aria-hidden="true"></span>
-            </strong>
-            <%!-- Overlap badge (ADR-0024 modification 2): the active view's
-                 buckets share at least one account. Purely informational —
-                 the total already counts each account exactly once. --%>
-            <small
-              :if={@valuation && overlapping?(@valuation)}
-              class="hint"
-              data-role="overlap-badge"
-              title={gettext(
-                "This view's buckets share accounts. Each account is counted once, so per-bucket figures may overlap and must not be summed."
-              )}
-            >
-              <%= gettext("Overlapping buckets — accounts counted once") %>
-            </small>
-          </article>
-          <article id="kpi-securities" class="stat">
-            <span><%= gettext("Securities") %></span>
-            <strong :if={@valuation}>
-              <span
-                id="count-kpi-securities"
-                class="count-up"
-                phx-hook="CountUp"
-                data-count-to={Decimal.to_string(@valuation.total_value, :normal)}
-                data-decimals="2"
-              ><span data-count-digits><%= Format.money(@valuation.total_value) %></span></span>
-              <%= @valuation.base_currency %>
-            </strong>
-            <strong
-              :if={is_nil(@valuation)}
-              class="value-slot-pending"
-              aria-busy="true"
-              data-waits="valuation"
-            >
-              <%!-- #723: a sub-second figure (ADR-0039 measurement) keeps
-                   the silent skeleton — the cue is for the seconds class. --%>
-              <span class="value-skeleton" aria-hidden="true"></span>
-            </strong>
-          </article>
-          <article id="kpi-cash" class="stat" role="group" aria-describedby="tip-cash-quote">
-            <span><%= gettext("Cash") %> · <%= gettext("cash quote") %></span>
-            <strong :if={@valuation}>
-              <%= Format.money(@valuation.total_cash) %> <%= @valuation.base_currency %>
-              · <%= Format.percent(@valuation.cash_quote) %>%
-            </strong>
-            <strong
-              :if={is_nil(@valuation)}
-              class="value-slot-pending"
-              aria-busy="true"
-              data-waits="valuation"
-            >
-              <%!-- #723: a sub-second figure (ADR-0039 measurement) keeps
-                   the silent skeleton — the cue is for the seconds class. --%>
-              <span class="value-skeleton" aria-hidden="true"></span>
-            </strong>
-            <details class="metric-tooltip">
-              <summary aria-label={gettext("Cash quote info")}>ⓘ</summary>
-              <p id="tip-cash-quote" role="tooltip">
-                <%= gettext("Cash quote: deployable cash ÷ (securities value + deployable cash). Reserve and credit-line accounts are excluded.") %>
-              </p>
-            </details>
-          </article>
-          <article id="kpi-ttwror" class="stat" role="group" aria-describedby="tip-ttwror">
-            <span><%= gettext("TTWROR") %> (<%= period_label(@period) %>)</span>
-            <%!-- Signed metric: gain/loss colour plus sign, never the accent
-                 (UX-DR7, issue 637). --%>
-            <strong :if={@performance} class={perf_sign_class(@performance.ttwror)}>
-              <%= signed_percent(@performance.ttwror) %>%
-            </strong>
-            <strong
-              :if={is_nil(@performance) and not @performance_failed}
-              class="value-slot-pending"
-              aria-busy="true"
-              data-waits="performance"
-            >
-              <span class="value-skeleton" aria-hidden="true"></span>
-              <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
-            </strong>
-            <strong :if={is_nil(@performance) and @performance_failed}>—</strong>
-            <details class="metric-tooltip">
-              <summary aria-label={gettext("TTWROR info")}>ⓘ</summary>
-              <p id="tip-ttwror" role="tooltip">
-                <%= gettext("TTWROR — time-weighted return for the selected period (not annualized). Deposits and withdrawals are neutralised so only investment performance counts.") %>
-              </p>
-            </details>
-          </article>
-          <article id="kpi-irr" class="stat" role="group" aria-describedby="tip-irr">
-            <span><%= money_weighted_label(@performance) %> (<%= period_label(@period) %>)</span>
-            <strong
-              :if={@performance && money_weighted_value(@performance)}
-              class={perf_sign_class(money_weighted_value(@performance))}
-            >
-              <%= signed_percent(money_weighted_value(@performance)) %>%
-            </strong>
-            <strong :if={@performance && is_nil(money_weighted_value(@performance))}>—</strong>
-            <strong
-              :if={is_nil(@performance) and not @performance_failed}
-              class="value-slot-pending"
-              aria-busy="true"
-              data-waits="performance"
-            >
-              <span class="value-skeleton" aria-hidden="true"></span>
-              <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
-            </strong>
-            <strong :if={is_nil(@performance) and @performance_failed}>—</strong>
-            <details class="metric-tooltip">
-              <summary aria-label={money_weighted_info_label(@performance)}>ⓘ</summary>
-              <p id="tip-irr" role="tooltip">
-                <%= gettext("IRR — money-weighted return, annualized. Discounts the timing and size of cashflows over the period. Windows shorter than a year show the period MWR — the same figure, not annualized.") %>
-              </p>
-            </details>
-          </article>
-          <%!-- Invested capital as two labeled numbers — opening value and
-               net period flows, never one merged figure (ADR-0034 §3). --%>
-          <article id="kpi-invested" class="stat" role="group" aria-describedby="tip-invested">
-            <span>
-              <%= gettext("Opening value") %> · <%= gettext("net flows") %> (<%= period_label(
-                @period
-              ) %>)
-            </span>
-            <strong :if={@performance}>
-              <%= Format.money(@performance.start_value) %>
-              · <span class={perf_sign_class(@performance.net_external_flows)}><%= Format.signed_decimal(
-                  @performance.net_external_flows,
-                  2
-                ) %></span> <%= @performance.base_currency %>
-            </strong>
-            <strong
-              :if={is_nil(@performance) and not @performance_failed}
-              class="value-slot-pending"
-              aria-busy="true"
-              data-waits="performance"
-            >
-              <span class="value-skeleton" aria-hidden="true"></span>
-              <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
-            </strong>
-            <strong :if={is_nil(@performance) and @performance_failed}>—</strong>
-            <details class="metric-tooltip">
-              <summary aria-label={gettext("Invested capital info")}>ⓘ</summary>
-              <p id="tip-invested" role="tooltip">
-                <%= gettext("Invested capital for the period: value at the period start plus net external flows (deposits minus withdrawals, deliveries at transaction value). Basis of the wealth multiple.") %>
-              </p>
-            </details>
-          </article>
-          <article id="kpi-multiple" class="stat" role="group" aria-describedby="tip-multiple">
-            <span><%= gettext("Wealth multiple") %> (<%= period_label(@period) %>)</span>
-            <strong :if={@performance && @performance.wealth_multiple}>
-              ×<%= Format.decimal(@performance.wealth_multiple, 2) %>
-            </strong>
-            <strong :if={@performance && is_nil(@performance.wealth_multiple)}>
-              <%= gettext("n/a") %>
-            </strong>
-            <strong
-              :if={is_nil(@performance) and not @performance_failed}
-              class="value-slot-pending"
-              aria-busy="true"
-              data-waits="performance"
-            >
-              <span class="value-skeleton" aria-hidden="true"></span>
-              <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
-            </strong>
-            <strong :if={is_nil(@performance) and @performance_failed}>—</strong>
-            <details class="metric-tooltip">
-              <summary aria-label={gettext("Wealth multiple info")}>ⓘ</summary>
-              <p id="tip-multiple" role="tooltip">
-                <%= gettext("Wealth multiple — end value ÷ invested capital: what the money put in has become. n/a when net invested capital is zero or negative.") %>
-              </p>
-            </details>
-          </article>
+        <%!-- #797 (review C1, variant A): two tiers — three lead figures at
+             full size, four supporting figures at half height, the currency
+             as a small suffix so a value never wraps, a card's second figure
+             on its sub-line. Holdings only: the Allocation tab carries one
+             summary line linking back here instead of repeating the band. --%>
+        <%= if @wealth_tab == :holdings do %>
+        <section class="workspace-section kpi-band" aria-label={gettext("Wealth key figures")}>
+          <div class="kpi-band__lead">
+            <article id="kpi-total" class="stat stat--lead">
+              <span><%= gettext("Total incl. cash") %></span>
+              <strong :if={@valuation}>
+                <span
+                  id="count-kpi-total"
+                  class="count-up"
+                  phx-hook="CountUp"
+                  data-count-to={Decimal.to_string(@valuation.total_with_cash, :normal)}
+                  data-decimals="2"
+                ><span data-count-digits><%= Format.money(@valuation.total_with_cash) %></span></span><small class="value-suffix"><%= @valuation.base_currency %></small>
+              </strong>
+              <strong
+                :if={is_nil(@valuation)}
+                class="value-slot-pending"
+                aria-busy="true"
+                data-waits="valuation"
+              >
+                <%!-- #723: a sub-second figure (ADR-0039 measurement) keeps
+                     the silent skeleton — the cue is for the seconds class. --%>
+                <span class="value-skeleton" aria-hidden="true"></span>
+              </strong>
+              <small :if={@valuation} class="stat__sub" data-role="total-composition">
+                <%= gettext("Securities") %> <b><%= Format.money(@valuation.total_value) %></b>
+                · <%= gettext("Cash") %> <b><%= Format.money(@valuation.total_cash) %></b>
+              </small>
+              <%!-- Overlap badge (ADR-0024 modification 2): the active view's
+                   buckets share at least one account. Purely informational —
+                   the total already counts each account exactly once. --%>
+              <small
+                :if={@valuation && overlapping?(@valuation)}
+                class="hint"
+                data-role="overlap-badge"
+                title={gettext(
+                  "This view's buckets share accounts. Each account is counted once, so per-bucket figures may overlap and must not be summed."
+                )}
+              >
+                <%= gettext("Overlapping buckets — accounts counted once") %>
+              </small>
+            </article>
+            <article id="kpi-ttwror" class="stat stat--lead" role="group" aria-describedby="tip-ttwror">
+              <div class="stat__head">
+                <span><%= gettext("TTWROR") %> (<%= period_label(@period) %>)</span>
+                <details class="metric-tooltip metric-tooltip--inline">
+                  <summary aria-label={gettext("TTWROR info")}>ⓘ</summary>
+                  <p id="tip-ttwror" role="tooltip">
+                    <%= gettext("TTWROR — time-weighted return for the selected period (not annualized). Deposits and withdrawals are neutralised so only investment performance counts.") %>
+                  </p>
+                </details>
+              </div>
+              <%!-- Signed metric: gain/loss colour plus sign, never the accent
+                   (UX-DR7, issue 637). --%>
+              <strong :if={@performance} class={perf_sign_class(@performance.ttwror)}>
+                <%= signed_percent(@performance.ttwror) %>%
+              </strong>
+              <strong
+                :if={is_nil(@performance) and not @performance_failed}
+                class="value-slot-pending"
+                aria-busy="true"
+                data-waits="performance"
+              >
+                <span class="value-skeleton" aria-hidden="true"></span>
+                <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
+              </strong>
+              <strong :if={is_nil(@performance) and @performance_failed}>—</strong>
+              <%!-- The absolute result beside the rate: (end − start) − net
+                   external flows, so a deposit never reads as performance. --%>
+              <small :if={@performance} class="stat__sub" data-role="period-gain">
+                <b class={perf_sign_class(period_value_gain(@performance))}><%= signed_money(
+                    period_value_gain(@performance)
+                  ) %></b>
+                <%= @performance.base_currency %> <%= gettext("in the period") %>
+              </small>
+            </article>
+            <article id="kpi-irr" class="stat stat--lead" role="group" aria-describedby="tip-irr">
+              <div class="stat__head">
+                <span><%= money_weighted_label(@performance) %> (<%= period_label(@period) %>)</span>
+                <details class="metric-tooltip metric-tooltip--inline">
+                  <summary aria-label={money_weighted_info_label(@performance)}>ⓘ</summary>
+                  <p id="tip-irr" role="tooltip">
+                    <%= gettext("IRR — money-weighted return, annualized. Discounts the timing and size of cashflows over the period. Windows shorter than a year show the period MWR — the same figure, not annualized.") %>
+                  </p>
+                </details>
+              </div>
+              <strong
+                :if={@performance && money_weighted_value(@performance)}
+                class={perf_sign_class(money_weighted_value(@performance))}
+              >
+                <%= signed_percent(money_weighted_value(@performance)) %>%
+              </strong>
+              <strong :if={@performance && is_nil(money_weighted_value(@performance))}>—</strong>
+              <strong
+                :if={is_nil(@performance) and not @performance_failed}
+                class="value-slot-pending"
+                aria-busy="true"
+                data-waits="performance"
+              >
+                <span class="value-skeleton" aria-hidden="true"></span>
+                <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
+              </strong>
+              <strong :if={is_nil(@performance) and @performance_failed}>—</strong>
+              <small :if={@performance} class="stat__sub" data-role="money-weighted-basis">
+                <%= money_weighted_basis(@performance) %>
+              </small>
+            </article>
+          </div>
+          <div class="kpi-band__support">
+            <article id="kpi-securities" class="stat stat--compact">
+              <span><%= gettext("Securities") %></span>
+              <strong :if={@valuation}>
+                <span
+                  id="count-kpi-securities"
+                  class="count-up"
+                  phx-hook="CountUp"
+                  data-count-to={Decimal.to_string(@valuation.total_value, :normal)}
+                  data-decimals="2"
+                ><span data-count-digits><%= Format.money(@valuation.total_value) %></span></span><small class="value-suffix"><%= @valuation.base_currency %></small>
+              </strong>
+              <strong
+                :if={is_nil(@valuation)}
+                class="value-slot-pending"
+                aria-busy="true"
+                data-waits="valuation"
+              >
+                <span class="value-skeleton" aria-hidden="true"></span>
+              </strong>
+            </article>
+            <article id="kpi-cash" class="stat stat--compact" role="group" aria-describedby="tip-cash-quote">
+              <div class="stat__head">
+                <span><%= gettext("Cash quote") %></span>
+                <details class="metric-tooltip metric-tooltip--inline">
+                  <summary aria-label={gettext("Cash quote info")}>ⓘ</summary>
+                  <p id="tip-cash-quote" role="tooltip">
+                    <%= gettext("Cash quote: deployable cash ÷ (securities value + deployable cash). Reserve and credit-line accounts are excluded.") %>
+                  </p>
+                </details>
+              </div>
+              <strong :if={@valuation}><%= Format.percent(@valuation.cash_quote) %>%</strong>
+              <strong
+                :if={is_nil(@valuation)}
+                class="value-slot-pending"
+                aria-busy="true"
+                data-waits="valuation"
+              >
+                <span class="value-skeleton" aria-hidden="true"></span>
+              </strong>
+              <small :if={@valuation} class="stat__sub" data-role="cash-amount">
+                <b><%= Format.money(@valuation.total_cash) %></b> <%= @valuation.base_currency %> <%= gettext(
+                  "cash"
+                ) %>
+              </small>
+            </article>
+            <%!-- Invested capital as two labeled numbers — opening value and
+                 net period flows, never one merged figure (ADR-0034 §3). --%>
+            <article id="kpi-invested" class="stat stat--compact" role="group" aria-describedby="tip-invested">
+              <div class="stat__head">
+                <span>
+                  <%= gettext("Opening value") %> · <%= gettext("net flows") %> (<%= period_label(
+                    @period
+                  ) %>)
+                </span>
+                <details class="metric-tooltip metric-tooltip--inline">
+                  <summary aria-label={gettext("Invested capital info")}>ⓘ</summary>
+                  <p id="tip-invested" role="tooltip">
+                    <%= gettext("Invested capital for the period: value at the period start plus net external flows (deposits minus withdrawals, deliveries at transaction value). Basis of the wealth multiple.") %>
+                  </p>
+                </details>
+              </div>
+              <strong :if={@performance}>
+                <%= Format.money(@performance.start_value) %><small class="value-suffix"><%= @performance.base_currency %></small>
+              </strong>
+              <strong
+                :if={is_nil(@performance) and not @performance_failed}
+                class="value-slot-pending"
+                aria-busy="true"
+                data-waits="performance"
+              >
+                <span class="value-skeleton" aria-hidden="true"></span>
+                <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
+              </strong>
+              <strong :if={is_nil(@performance) and @performance_failed}>—</strong>
+              <small :if={@performance} class="stat__sub" data-role="net-flows">
+                <%= gettext("net flows") %>
+                <b class={perf_sign_class(@performance.net_external_flows)}><%= Format.signed_decimal(
+                    @performance.net_external_flows,
+                    2
+                  ) %></b> <%= @performance.base_currency %>
+              </small>
+            </article>
+            <article id="kpi-multiple" class="stat stat--compact" role="group" aria-describedby="tip-multiple">
+              <div class="stat__head">
+                <span><%= gettext("Wealth multiple") %> (<%= period_label(@period) %>)</span>
+                <details class="metric-tooltip metric-tooltip--inline">
+                  <summary aria-label={gettext("Wealth multiple info")}>ⓘ</summary>
+                  <p id="tip-multiple" role="tooltip">
+                    <%= gettext("Wealth multiple — end value ÷ invested capital: what the money put in has become. n/a when net invested capital is zero or negative.") %>
+                  </p>
+                </details>
+              </div>
+              <strong :if={@performance && @performance.wealth_multiple}>
+                ×<%= Format.decimal(@performance.wealth_multiple, 2) %>
+              </strong>
+              <strong :if={@performance && is_nil(@performance.wealth_multiple)}>
+                <%= gettext("n/a") %>
+              </strong>
+              <strong
+                :if={is_nil(@performance) and not @performance_failed}
+                class="value-slot-pending"
+                aria-busy="true"
+                data-waits="performance"
+              >
+                <span class="value-skeleton" aria-hidden="true"></span>
+                <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
+              </strong>
+              <strong :if={is_nil(@performance) and @performance_failed}>—</strong>
+            </article>
+          </div>
           <%!-- ADR-0046 §4: the comparison block next to TTWROR/IRR — one row
                per active benchmark, the savings-plan delta as the figure with
                the bought-once and IRR pairs beside it. The definition lives
@@ -1055,6 +1089,46 @@ defmodule PortfolixirWeb.PortfolioLive do
             </details>
           </article>
         </section>
+        <% else %>
+        <%!-- The Allocation tab begins with the allocation; what it needs from
+             the band is the reference value and the cash quote — one line,
+             with a link back to Holdings that keeps the picked view (#797). --%>
+        <section
+          class="workspace-section kpi-summary"
+          aria-label={gettext("Wealth key figures")}
+          aria-busy={summary_busy(@valuation, @performance, @performance_failed)}
+          data-role="kpi-summary"
+        >
+          <span class="kpi-summary__item">
+            <%= gettext("Total incl. cash") %>
+            <strong :if={@valuation}>
+              <%= Format.money(@valuation.total_with_cash) %> <%= @valuation.base_currency %>
+            </strong>
+            <span :if={is_nil(@valuation)} class="value-skeleton" aria-hidden="true"></span>
+          </span>
+          <span class="kpi-summary__item">
+            <%= gettext("Cash quote") %>
+            <strong :if={@valuation}><%= Format.percent(@valuation.cash_quote) %>%</strong>
+            <span :if={is_nil(@valuation)} class="value-skeleton" aria-hidden="true"></span>
+          </span>
+          <span class="kpi-summary__item">
+            <%= gettext("TTWROR") %> <%= period_label(@period) %>
+            <strong :if={@performance} class={perf_sign_class(@performance.ttwror)}>
+              <%= signed_percent(@performance.ttwror) %>%
+            </strong>
+            <span
+              :if={is_nil(@performance) and not @performance_failed}
+              class="value-skeleton"
+              aria-hidden="true"
+            >
+            </span>
+            <strong :if={is_nil(@performance) and @performance_failed}>—</strong>
+          </span>
+          <a class="kpi-summary__link" href={holdings_path(@current_path)}>
+            <%= gettext("All key figures → Holdings") %>
+          </a>
+        </section>
+        <% end %>
 
         <%!-- Wealth tabs (ADR-0022): Holdings carries the performance chart,
              data quality and cash; Allocation & targets carries the sunburst
@@ -3866,6 +3940,42 @@ defmodule PortfolixirWeb.PortfolioLive do
   # screen reader must not hear "IRR info" on a card labeled MWR.
   defp money_weighted_info_label(performance) do
     if short_window?(performance), do: gettext("MWR info"), else: gettext("IRR info")
+  end
+
+  # The money-weighted card's sub-line states its basis (#797): annualized or
+  # the period figure, and the walk's as-of date.
+  defp money_weighted_basis(performance) do
+    basis =
+      if short_window?(performance),
+        do: gettext("not annualized"),
+        else: gettext("annualized")
+
+    case performance.as_of do
+      %DateTime{} = as_of ->
+        gettext("%{basis} · as of %{date}",
+          basis: basis,
+          date: Format.date(DateTime.to_date(as_of))
+        )
+
+      _none ->
+        basis
+    end
+  end
+
+  # The Allocation tab's summary line is busy while either figure it carries
+  # is still computing (UX-DR20); a failed walk is not "busy".
+  defp summary_busy(valuation, performance, performance_failed) do
+    if is_nil(valuation) or (is_nil(performance) and not performance_failed),
+      do: "true",
+      else: nil
+  end
+
+  # The summary line's way back to Holdings keeps the picked view (#797).
+  defp holdings_path(current_path) do
+    case current_view_param(current_path) do
+      nil -> "/portfolio"
+      view -> "/portfolio?" <> URI.encode_query(%{"view" => view})
+    end
   end
 
   defp period_label("ytd"), do: gettext("YTD")
