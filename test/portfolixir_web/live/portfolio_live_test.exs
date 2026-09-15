@@ -537,21 +537,27 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
     html = render_async(view)
 
-    # Nothing selected: no detail, and no coaching sentence in its place
-    # (UX-DR11, #791 — the centre's job is the sunburst story's).
+    # Nothing selected: the centre carries the reference value (issue 793),
+    # no detail line and no coaching sentence (UX-DR11, #791).
     refute html =~ ~s(class="sunburst-detail")
+    centre = view |> element(~s([data-role="sunburst-centre"])) |> render()
+    refute centre =~ "Core"
+    assert centre =~ "100"
 
     html =
       render_click(view, "select_segment", %{
         "name" => "Core",
         "percent" => "100.0",
         "amount" => "880.00",
-        "color" => "#2563eb"
+        "color" => "#2563eb",
+        "target" => "60.0"
       })
 
-    assert html =~ ~s(class="sunburst-detail")
-    assert html =~ "Core"
-    assert html =~ "880.00"
+    refute html =~ ~s(class="sunburst-detail")
+    centre = view |> element(~s([data-role="sunburst-centre"])) |> render()
+    assert centre =~ "Core"
+    assert centre =~ "880.00"
+    assert centre =~ "60.0"
 
     # A non-hex colour cannot reach the style attribute.
     html =
@@ -1362,6 +1368,53 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert html =~ ~s(phx-hook="CountUp")
     assert [_, raw] = Regex.run(~r/data-count-to="([0-9.]+)"/, html)
     assert Decimal.new(raw)
+  end
+
+  # User story (#793):
+  # As a local portfolio maintainer reading the allocation sunburst,
+  # I want the chart to carry its basis line, a centre that reads, values in
+  # the legend and the "Data as table" disclosure the other charts have,
+  # so that the sunburst is a chart of record, not a picture with prose.
+  #
+  # Acceptance criteria:
+  # - The basis line carries the plan (classification), the Σ of the top
+  #   level, the view and the as-of date; the Σ keeps its mismatch marking.
+  # - The centre is a polite live region carrying the reference value, or the
+  #   touched segment's name, value and actual against target.
+  # - The legend shows the value next to the share.
+  # - "Data as table" renders under the sunburst with the same control and
+  #   label as the performance chart's; opening it reveals the drift table.
+  test "the sunburst carries basis line, centre, legend values and the disclosure (#793)", %{
+    conn: conn
+  } do
+    seed_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+    render_async(view)
+
+    basis = view |> element(~s([data-role="allocation-basis"])) |> render()
+    assert basis =~ "Strategy"
+    assert basis =~ "Σ"
+    assert basis =~ "60.0"
+    assert basis =~ "Everything"
+    assert basis =~ Date.to_iso8601(Date.utc_today())
+    assert basis =~ ~s(data-role="target-sum-top-level")
+    assert basis =~ "is-target-mismatch"
+
+    centre = view |> element(~s([data-role="sunburst-centre"])) |> render()
+    assert centre =~ ~s(aria-live="polite")
+    assert centre =~ "EUR"
+    assert centre =~ "100"
+
+    legend = view |> element(".donut-legend") |> render()
+    assert legend =~ "880.00"
+
+    disclosure = view |> element(~s(details[data-role="allocation-disclosure"])) |> render()
+    assert disclosure =~ "disclosure-summary"
+    assert disclosure =~ "Data as table"
+    assert disclosure =~ ~s(data-role="allocation-table-purpose")
+    assert disclosure =~ ~s(class="drift-table")
+    refute has_element?(view, ".sunburst-detail")
   end
 
   # User story:

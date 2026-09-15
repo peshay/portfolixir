@@ -829,10 +829,15 @@ schattierte Bögen in der Farbe ihrer Kategorie (der Portfolio-Performance-Stil)
 mit einem grauen Segment für nicht zugeordnete Bestände. Kategorien ohne
 gewählte Farbe erhalten automatisch unterscheidbare Palettenfarben, sodass
 auch ein ungestylter Baum lesbar bleibt. Wie bei PP tragen die
-Segmente keinen Text im Chart: das Überfahren eines Segments zeigt seinen Namen,
-Anteil und Wert in einem **sofortigen, eigenen Tooltip**, der dem Zeiger folgt
-(keine Browser-Hover-Verzögerung), und ein Segment kann **angetippt** werden, um
-dasselbe unter dem Chart wiederzugeben (der mobile Ersatz für Hover). Mit
+Segmente keinen Text im Chart: die **Mitte** des Charts trägt den Bezugswert
+(die allokierte Summe) oder, beim Überfahren oder Antippen, Name, Wert und
+Ist-Anteil gegen Soll des berührten Segments — der Tooltip des
+Touch-Geräts — während ein Zeiger zusätzlich einen **sofortigen, eigenen
+Tooltip** erhält, der ihm folgt (keine Browser-Hover-Verzögerung). Die
+Legende zeigt zu jedem Anteil seinen Wert, und die Basiszeile des Charts
+nennt den Plan, die Σ seiner obersten Soll-Ebene, die Ansicht und den
+Stichtag. Die Drift-Tabelle darunter sitzt hinter dem Aufklappen **Daten als
+Tabelle**, das jedes Chart trägt. Mit
 deaktiviertem JavaScript fallen die Segmente auf den nativen Browser-Tooltip
 zurück. Der Chart skaliert auf die verfügbare Breite. Wähle einen beliebigen
 Klassifizierungsbaum aus dem Selektor. Die Drift-Tabelle darunter listet jede

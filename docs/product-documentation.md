@@ -762,12 +762,16 @@ as shaded arcs of their category's colour (the Portfolio Performance style) —
 with a grey slice for unassigned holdings. Categories without a chosen
 colour are assigned distinct palette colours automatically, so an unstyled
 tree stays readable. Like PP the slices carry no
-in-chart text: hovering a slice shows its name, share and value in an
-**instant custom tooltip** that follows the pointer (no browser hover delay),
-and a slice can be **tapped** to echo the same below the chart (the mobile
-substitute for hover). With JavaScript disabled the slices fall back to the
-native browser tooltip. The chart scales to the available width. Pick any
-classification tree from the selector. The drift table beneath it lists every category in tree
+in-chart text: the chart's **centre** carries the reference value (the
+allocated total) or, on hover or tap, the touched slice's name, value and
+actual share against its target — the touch device's tooltip — while a
+pointer also gets an **instant custom tooltip** that follows it (no browser
+hover delay). The legend shows each share's value next to its percentage,
+and the chart's basis line names the plan, the top-level Σ of its targets,
+the view and the as-of date. With JavaScript disabled the slices fall back
+to the native browser tooltip. The chart scales to the available width. Pick
+any classification tree from the selector. The drift table beneath it sits
+behind the **Data as table** disclosure every chart carries and lists every category in tree
 order with **sub-categories indented** under their parent, comparing the
 rolled-up actual weight against the stored target and restating the drift in
 the base currency. The tree starts collapsed at the
