@@ -34,4 +34,16 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
       nil -> flunk("no top-level rule for #{selector}")
     end
   end
+
+  # Issue 796 (found at 390 px): an absolutely positioned descendant of a
+  # scrolling table wrapper — the visually hidden "Actions" header label —
+  # takes the page as its containing block unless the wrapper is positioned,
+  # and then sits beyond the viewport and widens the document. The wrapper is
+  # the containing block.
+  test "the table scroller is the containing block of its hidden labels" do
+    css = File.read!("priv/static/app.css")
+    [rule] = Regex.run(~r/\n\.data-table-wrapper \{[^}]*\}/, css)
+    assert rule =~ ~r/position:\s*relative/
+    assert rule =~ ~r/overflow-x:\s*auto/
+  end
 end
