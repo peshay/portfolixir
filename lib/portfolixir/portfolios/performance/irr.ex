@@ -297,9 +297,14 @@ defmodule Portfolixir.Portfolios.Performance.IRR do
     end
   end
 
+  # A root a hair below zero rounds to a signed zero (`-0.000000`), which
+  # reads as "-0" on the wire and is not a return: a zero is a zero.
   defp finalize(rate) do
-    rate
-    |> Decimal.from_float()
-    |> Decimal.round(@scale)
+    rounded =
+      rate
+      |> Decimal.from_float()
+      |> Decimal.round(@scale)
+
+    if Decimal.equal?(rounded, @zero), do: Decimal.round(@zero, @scale), else: rounded
   end
 end

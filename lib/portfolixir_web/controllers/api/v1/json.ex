@@ -1560,8 +1560,16 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
-  defp benchmark_window(%{start_date: start_date, end_date: end_date}),
-    do: %{start_date: date(start_date), end_date: date(end_date)}
+  # The covered window also names the day the benchmark is rebased to; the
+  # requested window has none.
+  defp benchmark_window(%{start_date: start_date, end_date: end_date} = window) do
+    base = %{start_date: date(start_date), end_date: date(end_date)}
+
+    case Map.fetch(window, :rebase_day) do
+      {:ok, rebase_day} -> Map.put(base, :rebase_day, date(rebase_day))
+      :error -> base
+    end
+  end
 
   defp benchmark_basis(basis) do
     %{

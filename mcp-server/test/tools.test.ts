@@ -233,6 +233,8 @@ describe("Portfolixir MCP tools", () => {
       assert.match(description, /savings_plan/);
       assert.match(description, /end_value_delta/);
       assert.match(description, /excluded_flows/);
+      assert.match(description, /rebase_day/);
+      assert.match(description, /benchmark_mwr/);
       assert.match(description, /frictionless/);
       assert.match(description, /as_of/);
       assert.match(description, /stale/);

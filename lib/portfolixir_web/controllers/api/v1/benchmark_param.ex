@@ -7,15 +7,19 @@ defmodule PortfolixirWeb.Api.V1.BenchmarkParam do
 
   Returns `{:ok, {:rate, Decimal.t()} | {:security, Security.t()}}` or
   `{:error, {:benchmark, message}}` with the message the 422 carries: the
-  parameter is required, a rate must be a finite decimal above -1, and a
-  security must exist and be flagged — any other security is refused rather
-  than silently compared against.
+  parameter is required, a rate must be a finite decimal inside the engine's
+  bound (`Portfolixir.Portfolios.Performance.Benchmark.valid_rate?/1`:
+  -99.9999 % to 1000 % p.a.), and a security must exist and be flagged — any
+  other security is refused rather than silently compared against.
   """
 
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Portfolios.Performance.Benchmark
 
-  @minus_one Decimal.new("-1")
+  # The largest id the securities table can hold (int8); anything above it
+  # cannot name a security and must not reach the database encoder.
+  @max_id 9_223_372_036_854_775_807
 
   @spec resolve(map()) ::
           {:ok, {:rate, Decimal.t()} | {:security, Security.t()}}
@@ -33,9 +37,10 @@ defmodule PortfolixirWeb.Api.V1.BenchmarkParam do
   defp rate(raw) when is_binary(raw) do
     case Decimal.parse(raw) do
       {%Decimal{} = rate, ""} ->
-        if Decimal.nan?(rate) or Decimal.inf?(rate) or Decimal.compare(rate, @minus_one) != :gt,
-          do: invalid(),
-          else: {:ok, {:rate, rate}}
+        # One bound, the engine's (the IRR solver's domain, -99.9999 % to
+        # 1000 % p.a.): a rate outside it crashed the arithmetic before the
+        # comparison could refuse it (closing-act finding).
+        if Benchmark.valid_rate?(rate), do: {:ok, {:rate, rate}}, else: invalid()
 
       _malformed ->
         invalid()
@@ -43,7 +48,7 @@ defmodule PortfolixirWeb.Api.V1.BenchmarkParam do
   end
 
   defp security(raw) when is_binary(raw) do
-    with {id, ""} <- Integer.parse(raw),
+    with {id, ""} when id > 0 and id <= @max_id <- Integer.parse(raw),
          %Security{is_benchmark: true} = security <- Catalog.get_security(id) do
       {:ok, {:security, security}}
     else

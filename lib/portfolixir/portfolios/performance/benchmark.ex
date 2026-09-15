@@ -60,7 +60,11 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
 
   @zero Decimal.new("0")
   @one Decimal.new("1")
-  @minus_one Decimal.new("-1")
+  # The accepted rate lives inside the IRR solver's own domain (ADR-0034 §2:
+  # the bisection bracket (-0.999999, 10]); beyond it the daily factor either
+  # collapses to 0 (a rate a hair above -100 %) or leaves the float range.
+  @min_rate Decimal.new("-0.999999")
+  @max_rate Decimal.new("10")
   @hub "EUR"
   @gbx_per_gbp Decimal.new(100)
   @days_per_year 365
@@ -110,19 +114,30 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
   `opts` may carry the `:view` a scoped portfolio walk was computed under —
   it is part of the memo identity, because the walk itself does not record
   it. Freshness (`as_of`, `stale`) is the analysis's own, annotated outside
-  the memoised value (ADR-0039 C4).
+  the memoised value (ADR-0039 C4). A comparison built from a **superseded**
+  walk (the one a surface renders while the fresh walk computes) is never
+  memoised: stored under the current data version it would be served as
+  fresh after the write it does not contain (closing-act finding). The
+  walk's own compute instant is part of the key for the same reason.
   """
   @spec compare(map(), term(), benchmark(), keyword()) :: {:ok, map()} | {:error, atom()}
   def compare(analysis, period, benchmark, opts \\ []) do
     with {:ok, benchmark} <- validate_benchmark(benchmark),
          :ok <- Performance.validate_period(period) do
-      {:fresh, comparison} =
-        Derived.fetch(
-          :benchmark_comparison,
-          Derived.global_basis(),
-          entry_key(analysis, period, benchmark, opts),
-          fn -> build(analysis, period, benchmark) end
-        )
+      comparison =
+        if Map.get(analysis, :stale, false) do
+          build(analysis, period, benchmark)
+        else
+          {:fresh, comparison} =
+            Derived.fetch(
+              :benchmark_comparison,
+              Derived.global_basis(),
+              entry_key(analysis, period, benchmark, opts),
+              fn -> build(analysis, period, benchmark) end
+            )
+
+          comparison
+        end
 
       {:ok,
        Map.merge(comparison, %{
@@ -134,12 +149,22 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
 
   # -- validation --------------------------------------------------------------
 
+  @doc """
+  Whether `rate` is a fixed annual rate the engine accepts: finite and
+  between #{@min_rate} and #{@max_rate} (-99.9999 % to 1000 % p.a.), the IRR
+  solver's own domain. The API parser and the page's selection plug share
+  this one bound, so no stored selector can reach the arithmetic outside it.
+  """
+  @spec valid_rate?(term()) :: boolean()
+  def valid_rate?(%Decimal{} = rate) do
+    not Decimal.nan?(rate) and not Decimal.inf?(rate) and
+      Decimal.compare(rate, @min_rate) != :lt and Decimal.compare(rate, @max_rate) != :gt
+  end
+
+  def valid_rate?(_other), do: false
+
   defp validate_benchmark({:rate, %Decimal{} = rate}) do
-    if Decimal.nan?(rate) or Decimal.inf?(rate) or Decimal.compare(rate, @minus_one) != :gt do
-      {:error, :invalid_benchmark}
-    else
-      {:ok, {:rate, rate}}
-    end
+    if valid_rate?(rate), do: {:ok, {:rate, rate}}, else: {:error, :invalid_benchmark}
   end
 
   defp validate_benchmark({:security, %Security{} = security}), do: {:ok, {:security, security}}
@@ -154,6 +179,7 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
         else: "portfolio:#{analysis.portfolio_id}|view=#{Keyword.get(opts, :view) || "unscoped"}"
 
     "scope=#{scope}|base=#{analysis.base_currency}|today=#{analysis.today}" <>
+      "|walk=#{analysis.basis.computed_at}" <>
       "|period=#{period_key(period)}|benchmark=#{benchmark_key(benchmark)}"
   end
 
@@ -230,9 +256,12 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
         shifted
       end
 
+    # A flow dated on the rebase day is invested at that day's close — it is
+    # inside the opening value the plan buys at that price — so only the
+    # flows before the rebase day lose their own day and are named.
     excluded =
       requested.series
-      |> Enum.filter(&(Date.compare(&1.date, covered_start) == :lt))
+      |> Enum.filter(&(Date.compare(&1.date, rebase_day) == :lt))
       |> flows_of()
 
     # Every day from the rebase day on is priced: the close carries forward
@@ -258,6 +287,8 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
       end)
 
     benchmark_end_value = Decimal.mult(units, Map.fetch!(prices, summary.end_date))
+    window = Map.put(window(summary), :rebase_day, rebase_day)
+    benchmark_irr = IRR.for_summary(%{summary | end_value: benchmark_end_value})
 
     %{
       portfolio_id: analysis.portfolio_id,
@@ -266,7 +297,7 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
       base_currency: analysis.base_currency,
       benchmark: describe(benchmark),
       requested_window: window(requested),
-      window: window(summary),
+      window: window,
       excluded_flows: excluded,
       bought_once: %{
         benchmark_return: List.last(series).cumulative_return,
@@ -278,20 +309,24 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
         portfolio_end_value: summary.end_value,
         benchmark_end_value: benchmark_end_value,
         end_value_delta: Decimal.sub(summary.end_value, benchmark_end_value),
-        portfolio_irr: no_negative_zero(summary.irr),
+        portfolio_irr: summary.irr,
         # The same dated flows and opening value, the synthetic end value in
         # place of the real one: identical vectors, so an identical benchmark
         # solves to an identical rate.
-        benchmark_irr:
-          no_negative_zero(IRR.for_summary(%{summary | end_value: benchmark_end_value})),
+        benchmark_irr: benchmark_irr,
+        # The non-annualized period pair (ADR-0034 §2), what a window shorter
+        # than a year displays instead of the annualized rate.
+        portfolio_mwr: summary.mwr,
+        benchmark_mwr:
+          IRR.period_rate(benchmark_irr, Date.diff(summary.end_date, summary.start_date)),
         benchmark_units: units
       },
-      computation_basis: computation_basis(benchmark, window(summary), excluded)
+      computation_basis: computation_basis(benchmark, window, excluded)
     }
   end
 
   defp empty(analysis, period, requested, benchmark, excluded) do
-    window = %{start_date: nil, end_date: requested.end_date}
+    window = %{start_date: nil, end_date: requested.end_date, rebase_day: nil}
 
     %{
       portfolio_id: analysis.portfolio_id,
@@ -310,19 +345,13 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
         end_value_delta: nil,
         portfolio_irr: nil,
         benchmark_irr: nil,
+        portfolio_mwr: nil,
+        benchmark_mwr: nil,
         benchmark_units: nil
       },
       computation_basis: computation_basis(benchmark, window, excluded)
     }
   end
-
-  # The solver rounds a rate of exactly 0 % to a signed zero (-0.000000 from
-  # a float just below zero); on the wire that reads "-0", which is not a
-  # return. A zero is a zero.
-  defp no_negative_zero(%Decimal{} = rate),
-    do: if(Decimal.equal?(rate, @zero), do: @zero, else: rate)
-
-  defp no_negative_zero(nil), do: nil
 
   defp window(%{start_date: start_date, end_date: end_date}),
     do: %{start_date: start_date, end_date: end_date}
@@ -356,15 +385,20 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
       window: window,
       reference: reference_text(benchmark),
       gaps:
-        "the benchmark carries the most recent close on or before each day forward, " <>
-          "converted at the most recent stored EUR-hub rate on or before the day; a flow " <>
-          "dated before the benchmark's first close is excluded from the replay and listed " <>
-          "in excluded_flows (#{length(excluded)} excluded), and window states the days the " <>
-          "comparison covers — the portfolio figures are chained over the same window",
+        "the benchmark carries the most recent positive close on or before each day forward " <>
+          "(a stored close of 0 is not a price), converted at the most recent stored EUR-hub " <>
+          "rate on or before the day; a day without a close or without a rate path to the base " <>
+          "currency is unpriced. The benchmark is rebased at window.rebase_day — the close " <>
+          "before the window, or the window's first day when it opens with no value — and a " <>
+          "flow dated before the benchmark's first priced day is not replayed on its own day: " <>
+          "it enters through the window's opening value and is listed in excluded_flows " <>
+          "(#{length(excluded)} listed); window states the days the comparison covers and the " <>
+          "portfolio figures are chained over the same window",
       assumptions:
         "the synthetic portfolio is frictionless — no fees, no taxes, every flow invested " <>
           "at that day's close (a fixed rate: at par) — which biases the comparison against " <>
-          "the real portfolio",
+          "the real portfolio; a fixed rate compounds by a daily factor derived once as a " <>
+          "float, (1 + rate)^(1/365), then compounded in decimal arithmetic",
       frictionless: true
     }
   end
@@ -448,13 +482,21 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
     end
   end
 
+  # A stored close of 0 (or below) is not a price: the previous positive
+  # close carries forward past it, and a benchmark whose history opens with
+  # one is unpriced there (closing-act finding: 0 / 0 on the rebase day).
   defp advance_close(close, [%{date: date, close: next} | rest] = rows, day) do
-    if Date.compare(date, day) in [:lt, :eq],
-      do: advance_close(next, rest, day),
-      else: {close, rows}
+    cond do
+      Date.compare(date, day) == :gt -> {close, rows}
+      positive?(next) -> advance_close(next, rest, day)
+      true -> advance_close(close, rest, day)
+    end
   end
 
   defp advance_close(close, [], _day), do: {close, []}
+
+  defp positive?(%Decimal{} = close), do: Decimal.compare(close, @zero) == :gt
+  defp positive?(_close), do: false
 
   defp priced(nil, _currency, _base, _fx), do: nil
 

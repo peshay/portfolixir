@@ -2347,7 +2347,7 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp resolve_benchmark_rate(rate) do
     case Decimal.parse(rate) do
-      {%Decimal{} = rate, ""} -> [{:rate, rate}]
+      {%Decimal{} = rate, ""} -> if Benchmark.valid_rate?(rate), do: [{:rate, rate}], else: []
       _malformed -> []
     end
   end

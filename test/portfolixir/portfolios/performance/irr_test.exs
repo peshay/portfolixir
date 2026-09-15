@@ -178,4 +178,15 @@ defmodule Portfolixir.Portfolios.Performance.IRRTest do
 
     assert IRR.for_summary(summary) |> Decimal.equal?(dec("0.1"))
   end
+
+  # Closing-act finding (risk-tier pass): a rate of exactly 0 % solved from
+  # a float a hair below zero rounded to a signed zero and read "-0" on the
+  # wire. A zero is a zero.
+  test "a zero rate is never a signed zero" do
+    rate =
+      IRR.compute([{~D[2026-01-01], Decimal.new("-1000")}, {~D[2026-01-11], Decimal.new("1000")}])
+
+    assert Decimal.to_string(rate, :normal) == "0.000000"
+    assert Decimal.to_string(IRR.period_rate(rate, 10), :normal) == "0.000000"
+  end
 end
