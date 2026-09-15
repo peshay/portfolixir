@@ -92,25 +92,30 @@ defmodule PortfolixirWeb.SecuritiesSplitBasisTest do
 
   # User story (ADR-0028 §2 escape hatch, issue #590):
   # As a maintainer of a security whose provider never back-adjusts,
-  # I want a "treat synced quotes as raw" toggle on the security's overview,
-  # so that I can force the raw basis for its synced rows.
-  test "the overview form toggles treat_quotes_as_raw", %{conn: conn} do
+  # I want a "treat synced quotes as raw" toggle in the security's master
+  # data, so that I can force the raw basis for its synced rows.
+  # (#804: the master data moved from the overview tab into the dialog the
+  # detail header's Edit control opens; the toggle moved with it.)
+  test "the master-data dialog toggles treat_quotes_as_raw", %{conn: conn} do
     {_world, security} = world_with_split()
 
     {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=overview")
 
+    view |> element("#detail-edit") |> render_click()
     assert has_element?(view, "input[name='security[treat_quotes_as_raw]'][type='checkbox']")
 
     view
-    |> form("#overview-details-form", %{
+    |> form("#security-dialog-form", %{
       "security" => %{"name" => security.name, "treat_quotes_as_raw" => "true"}
     })
     |> render_submit()
 
     assert Catalog.get_security(security.id).treat_quotes_as_raw
 
+    view |> element("#detail-edit") |> render_click()
+
     view
-    |> form("#overview-details-form", %{
+    |> form("#security-dialog-form", %{
       "security" => %{"name" => security.name, "treat_quotes_as_raw" => "false"}
     })
     |> render_submit()

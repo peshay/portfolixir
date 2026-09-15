@@ -116,6 +116,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:detail_new_category_for, nil)
      |> assign(:detail_notes, [])
      |> assign(:detail_thesis_state, ThesisState.none())
+     |> assign(:detail_note_editing?, false)
      |> assign(:research_form_kind, "evidence")
      |> assign(:research_form_errors, [])
      |> assign(:row_menu_id, nil)
@@ -852,6 +853,19 @@ defmodule PortfolixirWeb.SecuritiesLive do
           </div>
         </div>
         <div class="detail-pane-head__actions">
+          <%!-- #804 (review C7/A8): the master data is one intent away. The
+               control reuses the row action, so the list's kebab and this
+               button open the same dialog on the same step. --%>
+          <button
+            type="button"
+            id="detail-edit"
+            class="button-ghost"
+            phx-click="row_action"
+            phx-value-action="edit"
+            phx-value-id={@selected_security.id}
+          >
+            <%= gettext("Edit") %>
+          </button>
           <button
             type="button"
             id="detail-record-split"
@@ -1142,6 +1156,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
           security={@selected_security}
           latest={@detail_latest}
           metrics={@detail_metrics}
+          holdings={@detail_holdings}
+          quotes={@detail_quotes}
+          classifications={@detail_classifications}
+          thesis_state={@detail_thesis_state}
+          note_editing?={@detail_note_editing?}
         />
       <% end %>
 
@@ -1258,162 +1277,313 @@ defmodule PortfolixirWeb.SecuritiesLive do
   attr(:security, :map, required: true)
   attr(:latest, :map, default: nil)
   attr(:metrics, :map, required: true)
+  attr(:holdings, :list, required: true)
+  attr(:quotes, :list, required: true)
+  attr(:classifications, :list, required: true)
+  attr(:thesis_state, :map, required: true)
+  attr(:note_editing?, :boolean, default: false)
 
+  # #804 (review C7/A8, owner's pick 2026-09-14): the first tab answers "what
+  # is this, how does it stand, what do I think about it" — six figures, the
+  # price history, the thesis state and the personal note. The master data
+  # left for the dialog behind "Edit"; nothing here renders an input until an
+  # edit affordance is used (EXPERIENCE.md → progressive-disclosure).
   defp overview_tab_panel(assigns) do
+    assigns = assign(assigns, :position, position_summary(assigns.holdings))
+
     ~H"""
     <section
       id="detail-tab-panel-overview"
       role="tabpanel"
+      aria-labelledby="detail-tab-overview"
       class="detail-tab-panel detail-tab-panel--overview"
     >
-      <form id="overview-details-form" phx-submit="save_security_details" class="overview-form">
-        <div class="overview-grid">
-          <label class="overview-edit-field">
-            <span><%= gettext("Name") %></span>
-            <input name="security[name]" value={@security.name} required />
-          </label>
-          <label class="overview-edit-field">
-            <span><%= gettext("ISIN") %></span>
-            <input name="security[isin]" value={@security.isin} class="mono" />
-          </label>
-          <label class="overview-edit-field">
-            <span><%= gettext("WKN") %></span>
-            <input name="security[wkn]" value={@security.wkn} class="mono" />
-          </label>
-          <label class="overview-edit-field">
-            <span><%= gettext("Ticker") %></span>
-            <input name="security[ticker_symbol]" value={@security.ticker_symbol} class="mono" />
-          </label>
-          <label class="overview-edit-field">
-            <span><%= gettext("Exchange") %></span>
-            <input name="security[exchange_code]" value={@security.exchange_code} class="mono" />
-          </label>
-          <label class="overview-edit-field">
-            <span><%= gettext("Currency") %></span>
-            <input name="security[currency_code]" value={@security.currency_code} maxlength="3" class="mono" />
-          </label>
-          <label class="overview-edit-field">
-            <span><%= gettext("Asset class") %></span>
-            <select name="security[asset_class]">
-              <option value=""><%= gettext("Automatic") %></option>
-              <%= for {label, code} <- AssetClasses.options() do %>
-                <option value={code} selected={@security.asset_class == code}><%= label %></option>
+      <div class="overview-reading">
+        <div class="overview-reading__main">
+          <dl class="overview-metrics">
+            <div class="overview-metric" data-role="overview-latest-price">
+              <dt><%= gettext("Latest price") %></dt>
+              <dd>
+                <%= if @metrics[:latest_price] do %>
+                  <%= Format.decimal(@metrics.latest_price, 2) %>
+                  <small class="overview-metric__unit"><%= @security.currency_code %></small>
+                  <%!-- A stale close says so under the price (issue 789); the
+                       marker carries the date, so the sub-line is not doubled. --%>
+                  <%= cond do %>
+                    <% stale_quote?(@security, @metrics) -> %>
+                      <small class="overview-metric__sub">
+                        <AppShell.quote_stale date={@metrics.latest_price_date} />
+                      </small>
+                    <% @metrics[:latest_price_date] -> %>
+                      <small class="overview-metric__sub">
+                        (<%= Date.to_iso8601(@metrics.latest_price_date) %>)
+                      </small>
+                    <% true -> %>
+                  <% end %>
+                <% else %>
+                  —
+                <% end %>
+              </dd>
+            </div>
+            <%!-- Signed metrics carry gain/loss colour at every level, not only
+                 totals (UX-DR7, issue 637). A change from a stale close is no
+                 day change (issue 789). --%>
+            <div class="overview-metric" data-role="overview-day-change">
+              <dt><%= gettext("Day change") %></dt>
+              <%= if stale_quote?(@security, @metrics) do %>
+                <dd>—</dd>
+              <% else %>
+                <dd class={pnl_class(@metrics[:day_change_pct])}>
+                  <%= signed_percent_or_dash(@metrics[:day_change_pct]) %>
+                </dd>
               <% end %>
-            </select>
-          </label>
-          <label class="overview-edit-field">
-            <span><%= gettext("Treat synced quotes as raw") %></span>
-            <%!-- ADR-0028 §2 escape hatch for providers that never back-adjust
-                  after a split: forces the raw basis (split factors apply) for
-                  this security's synced rows. Hidden false + checkbox true is
-                  the standard unchecked-submits-false pattern. --%>
-            <input type="hidden" name="security[treat_quotes_as_raw]" value="false" />
-            <input
-              type="checkbox"
-              name="security[treat_quotes_as_raw]"
-              value="true"
-              checked={@security.treat_quotes_as_raw}
-            />
-          </label>
-          <%!-- The helper as a ⓘ (UX-DR11), outside the label so the toggle
-               is the checkbox's alone. --%>
-          <details class="metric-tooltip metric-tooltip--inline" data-role="raw-quotes-info">
-            <summary aria-label={gettext("About raw quotes")}>ⓘ</summary>
-            <p role="tooltip">
-              <%= gettext(
-                "For providers that never back-adjust pre-split quotes — the display applies the split factors instead."
-              ) %>
-            </p>
-          </details>
-        </div>
-        <button type="submit" class="button"><%= gettext("Save changes") %></button>
-      </form>
+            </div>
+            <div class="overview-metric" data-role="overview-1y">
+              <dt>1Y</dt>
+              <dd class={pnl_class(@metrics[:performance_1y])}>
+                <%= signed_percent_or_dash(@metrics[:performance_1y]) %>
+                <small class="overview-metric__sub"><%= gettext("price only") %></small>
+              </dd>
+            </div>
+            <div class="overview-metric" data-role="overview-holding">
+              <dt><%= gettext("Holding") %></dt>
+              <dd>
+                <%= if @position.quantity do %>
+                  <%= Format.decimal(@position.quantity, 4) %>
+                  <small class="overview-metric__unit"><%= gettext("units") %></small>
+                  <small class="overview-metric__sub"><%= @position.where %></small>
+                <% else %>
+                  —
+                <% end %>
+              </dd>
+            </div>
+            <div class="overview-metric" data-role="overview-value">
+              <dt><%= gettext("Value") %></dt>
+              <dd>
+                <%= if @position.value do %>
+                  <%= Format.decimal(@position.value, 2) %>
+                  <small class="overview-metric__unit"><%= @security.currency_code %></small>
+                <% else %>
+                  —
+                <% end %>
+              </dd>
+            </div>
+            <div class="overview-metric" data-role="overview-unrealised">
+              <dt><%= gettext("Unrealised") %></dt>
+              <dd class={pnl_class(@position.unrealised_abs)}>
+                <%= signed_decimal_or_dash(@position.unrealised_abs, 2) %>
+                <small class="overview-metric__sub">
+                  <%= if @position.unrealised_abs do %>
+                    <%= signed_percent_or_dash(@position.unrealised_pct) %> ·
+                  <% end %>
+                  <%= gettext("against average cost") %>
+                </small>
+              </dd>
+            </div>
+          </dl>
 
-      <dl class="overview-grid overview-grid--readonly">
-        <.overview_field label={gettext("Feed")} value={Portfolixir.Catalog.Feeds.label(@security.feed)} />
-        <.overview_field
-          label={gettext("Latest quote feed")}
-          value={Portfolixir.Catalog.Feeds.label(@security.latest_feed)}
-        />
-        <%= if @security.is_retired do %>
-          <div class="overview-field overview-field--full">
-            <dt><%= gettext("Status") %></dt>
-            <dd><span class="badge badge--retired"><%= gettext("Retired") %></span></dd>
-          </div>
-        <% end %>
-      </dl>
-
-      <dl class="overview-metrics">
-        <div class="overview-metric">
-          <dt><%= gettext("Latest price") %></dt>
-          <dd>
-            <%= if @metrics[:latest_price] do %>
-              <%= Format.decimal(@metrics.latest_price, 2) %>
-              <small class="overview-metric__unit"><%= @security.currency_code %></small>
-              <%!-- A stale close says so under the price (issue 789); the
-                   marker carries the date, so the sub-line is not doubled. --%>
-              <%= cond do %>
-                <% stale_quote?(@security, @metrics) -> %>
-                  <small class="overview-metric__sub">
-                    <AppShell.quote_stale date={@metrics.latest_price_date} />
-                  </small>
-                <% @metrics[:latest_price_date] -> %>
-                  <small class="overview-metric__sub">
-                    (<%= Date.to_iso8601(@metrics.latest_price_date) %>)
-                  </small>
-                <% true -> %>
-              <% end %>
+          <%!-- The chart of the tab beside it, small and without its toolbar:
+               the shape of the history, not a second chart surface. --%>
+          <div class="overview-chart">
+            <%= if @quotes == [] do %>
+              <p class="detail-tab-empty"><%= gettext("No quotes stored yet.") %></p>
             <% else %>
-              —
+              <SecurityChart.chart
+                quotes={@quotes}
+                show_transactions?={false}
+                currency_code={@security.currency_code}
+                aria_label={gettext("Price history")}
+              />
             <% end %>
-          </dd>
-        </div>
-        <%!-- Signed metrics carry gain/loss colour at every level, not only
-             totals (UX-DR7, issue 637). A change from a stale close is no
-             day change (issue 789). --%>
-        <div class="overview-metric">
-          <dt><%= gettext("Day change") %></dt>
-          <%= if stale_quote?(@security, @metrics) do %>
-            <dd>—</dd>
-          <% else %>
-            <dd class={pnl_class(@metrics[:day_change_pct])}>
-              <%= signed_percent_or_dash(@metrics[:day_change_pct]) %>
-            </dd>
-          <% end %>
-        </div>
-        <div class="overview-metric">
-          <dt>1M</dt>
-          <dd class={pnl_class(@metrics[:performance_1m])}>
-            <%= signed_percent_or_dash(@metrics[:performance_1m]) %>
-          </dd>
-        </div>
-        <div class="overview-metric">
-          <dt>1Y</dt>
-          <dd class={pnl_class(@metrics[:performance_1y])}>
-            <%= signed_percent_or_dash(@metrics[:performance_1y]) %>
-          </dd>
-        </div>
-      </dl>
+          </div>
 
-      <form
-        id="overview-notes-form"
-        phx-submit="save_detail_note"
-        class="overview-notes"
-        aria-label={gettext("Notes")}
-      >
-        <label for="overview-notes-input"><%= gettext("Notes") %></label>
-        <textarea
-          id="overview-notes-input"
-          name="security[note]"
-          rows="3"
-          placeholder={gettext("Add a personal note for this security…")}
-        ><%= @security.note %></textarea>
-        <button type="submit" class="button">
-          <%= gettext("Save notes") %>
-        </button>
-      </form>
+          <p class="summary-basis" data-role="overview-basis">
+            <%= overview_basis(@security, @classifications) %>
+            <span :if={@security.is_retired} class="badge badge--retired">
+              <%= gettext("Retired") %>
+            </span>
+          </p>
+        </div>
+
+        <div class="overview-reading__side">
+          <%!-- ADR-0044 §7: the thesis state is a read of the research log,
+               derived, never edited here — the log's own tab records it. --%>
+          <section class="overview-card" data-role="overview-thesis">
+            <div class="overview-card__head">
+              <h3><%= gettext("Thesis") %></h3>
+              <span class={["badge", "badge--thesis-#{@thesis_state.status}"]}>
+                <%= thesis_status_label(@thesis_state.status) %>
+              </span>
+            </div>
+            <%= if @thesis_state.status == :none do %>
+              <p class="detail-tab-empty"><%= gettext("No thesis recorded yet.") %></p>
+            <% else %>
+              <p class="overview-card__text"><%= @thesis_state.thesis %></p>
+              <p class="overview-card__meta">
+                <%= gettext("As of %{date}", date: Format.date(@thesis_state.as_of)) %>
+              </p>
+            <% end %>
+            <button
+              type="button"
+              id="overview-thesis-open"
+              class="button-ghost"
+              phx-click="select_detail_tab"
+              phx-value-tab="research"
+            >
+              <%= gettext("Research log") %>
+            </button>
+          </section>
+
+          <section class="overview-card" data-role="overview-note">
+            <div class="overview-card__head">
+              <h3><%= gettext("Note") %></h3>
+              <button
+                :if={not @note_editing?}
+                type="button"
+                id="overview-note-edit"
+                class="button-ghost"
+                phx-click="edit_detail_note"
+              >
+                <%= if @security.note in [nil, ""],
+                  do: gettext("Add"),
+                  else: gettext("Edit") %>
+              </button>
+            </div>
+            <%= if @note_editing? do %>
+              <form
+                id="overview-notes-form"
+                phx-submit="save_detail_note"
+                class="overview-notes"
+                aria-label={gettext("Note")}
+              >
+                <label class="visually-hidden" for="overview-notes-input">
+                  <%= gettext("Note") %>
+                </label>
+                <textarea
+                  id="overview-notes-input"
+                  name="security[note]"
+                  rows="3"
+                  placeholder={gettext("Add a personal note for this security…")}
+                ><%= @security.note %></textarea>
+                <div class="overview-notes__foot">
+                  <button
+                    type="button"
+                    id="overview-note-cancel"
+                    class="button-ghost"
+                    phx-click="cancel_detail_note"
+                  >
+                    <%= gettext("Cancel") %>
+                  </button>
+                  <button type="submit" class="button-primary"><%= gettext("Save") %></button>
+                </div>
+              </form>
+            <% else %>
+              <%= if @security.note in [nil, ""] do %>
+                <p class="detail-tab-empty"><%= gettext("No personal note yet.") %></p>
+              <% else %>
+                <p class="overview-card__text"><%= @security.note %></p>
+              <% end %>
+            <% end %>
+          </section>
+        </div>
+      </div>
     </section>
     """
+  end
+
+  # The position as the overview states it: one quantity, where it is held,
+  # its value and the unrealised result against the moving-average cost the
+  # ledger keeps. A security with no open position reports nils, which the
+  # surface prints as dashes rather than as zeros.
+  defp position_summary([]),
+    do: %{quantity: nil, where: nil, value: nil, unrealised_abs: nil, unrealised_pct: nil}
+
+  defp position_summary(holdings) do
+    quantity = Enum.reduce(holdings, Decimal.new(0), &Decimal.add(&2, &1.quantity))
+    value = sum_known(holdings, :current_value)
+    cost = sum_known(holdings, :cost_basis)
+
+    unrealised_abs = value && cost && Decimal.sub(value, cost)
+
+    unrealised_pct =
+      if unrealised_abs && cost && not Decimal.equal?(cost, 0),
+        do: Decimal.div(unrealised_abs, cost)
+
+    %{
+      quantity: quantity,
+      where: holding_places(holdings),
+      value: value,
+      unrealised_abs: unrealised_abs,
+      unrealised_pct: unrealised_pct
+    }
+  end
+
+  # A total is only a total when every row carries the figure; one unpriced
+  # depot makes the sum a dash, never a silently smaller number.
+  defp sum_known(holdings, key) do
+    if Enum.all?(holdings, &(not is_nil(Map.get(&1, key)))) do
+      Enum.reduce(holdings, Decimal.new(0), &Decimal.add(&2, Map.get(&1, key)))
+    end
+  end
+
+  defp holding_places([%{depot: %{name: name}}]), do: name
+
+  defp holding_places(holdings) do
+    count = holdings |> Enum.map(& &1.depot) |> Enum.reject(&is_nil/1) |> Enum.uniq() |> length()
+    ngettext("%{count} depot", "%{count} depots", count, count: count)
+  end
+
+  # The reading surface's basis line: where the quotes come from, what the
+  # security is, where it is classified, and the identifier the header does
+  # not carry. Every value reads as a word (#785), never as a stored constant.
+  defp overview_basis(security, classifications) do
+    [
+      feed_clause(security),
+      latest_feed_clause(security),
+      class_clause(security),
+      classification_clause(classifications),
+      security.wkn && security.wkn != "" && gettext("WKN %{wkn}", wkn: security.wkn),
+      security.exchange_code && security.exchange_code != "" &&
+        gettext("Exchange %{code}", code: security.exchange_code)
+    ]
+    |> Enum.filter(&is_binary/1)
+    |> Enum.join(" · ")
+  end
+
+  defp feed_clause(%Security{feed: feed}) when feed not in [nil, ""],
+    do: gettext("Quotes: %{feed}", feed: Feeds.label(feed))
+
+  defp feed_clause(_security), do: nil
+
+  # The feed that actually delivered the newest close, named only when it is
+  # not the configured one — otherwise the line would repeat itself.
+  defp latest_feed_clause(%Security{feed: feed, latest_feed: latest})
+       when latest not in [nil, ""] and latest != feed,
+       do: gettext("Last quote from %{feed}", feed: Feeds.label(latest))
+
+  defp latest_feed_clause(_security), do: nil
+
+  defp class_clause(security) do
+    case Security.effective_asset_class(security) do
+      nil -> nil
+      code -> gettext("Asset class %{label}", label: AssetClasses.label(code))
+    end
+  end
+
+  # Only a tree the operator built says something the line does not already
+  # carry: the built-in asset-class and currency trees derive themselves from
+  # the security's own data, which the clause beside this one already states.
+  defp classification_clause(classifications) do
+    classifications
+    |> Enum.filter(& &1.editable)
+    |> Enum.find_value(fn entry ->
+      case Enum.find(entry.categories, fn {category, _depth} ->
+             category.id == entry.selected_category_id
+           end) do
+        {category, _depth} -> "#{entry.classification.name} → #{category.name}"
+        nil -> nil
+      end
+    end)
   end
 
   attr(:transactions, :list, required: true)
@@ -2361,21 +2531,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # Rows without a depot (e.g. splits) render an em dash like the money
   # columns instead of an empty cell (E17 UX review, finding 8).
   defp depot_name(_), do: "—"
-
-  attr(:label, :string, required: true)
-  attr(:value, :any, default: nil)
-  attr(:mono, :boolean, default: false)
-
-  defp overview_field(assigns) do
-    ~H"""
-    <%= if @value not in [nil, ""] do %>
-      <div class={["overview-field", @mono && "overview-field--mono"]}>
-        <dt><%= @label %></dt>
-        <dd><%= @value %></dd>
-      </div>
-    <% end %>
-    """
-  end
 
   defp signed_percent_or_dash(value) do
     case decimal_for_display(value) do
@@ -3554,6 +3709,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   def handle_event("research_entry_changed", _params, socket), do: {:noreply, socket}
 
+  # #804: the note card reads by default; its field exists only while the
+  # operator is writing one.
+  def handle_event("edit_detail_note", _params, socket),
+    do: {:noreply, assign(socket, :detail_note_editing?, true)}
+
+  def handle_event("cancel_detail_note", _params, socket),
+    do: {:noreply, assign(socket, :detail_note_editing?, false)}
+
   def handle_event("save_detail_note", %{"security" => %{"note" => note}}, socket) do
     case socket.assigns.selected_security do
       %Security{} = security ->
@@ -3562,6 +3725,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
             {:noreply,
              socket
              |> assign(:selected_security, updated)
+             |> assign(:detail_note_editing?, false)
              |> load_securities()
              |> put_action_result(:note, gettext("Notes saved."))}
 
@@ -3569,29 +3733,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
             {:noreply,
              socket
              |> put_action_result(:problem, gettext("Could not save notes."))}
-        end
-
-      _ ->
-        {:noreply, socket}
-    end
-  end
-
-  def handle_event("save_security_details", %{"security" => params}, socket) do
-    case socket.assigns.selected_security do
-      %Security{} = security ->
-        case Catalog.update_security(Actor.owner_ui(), security, params) do
-          {:ok, updated} ->
-            {:noreply,
-             socket
-             |> assign(:selected_security, updated)
-             |> load_detail_data()
-             |> load_securities()
-             |> put_action_result(:note, gettext("Security updated."))}
-
-          {:error, _changeset} ->
-            {:noreply,
-             socket
-             |> put_action_result(:problem, gettext("Could not save changes."))}
         end
 
       _ ->
@@ -4269,6 +4410,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:detail_new_category_for, nil)
     |> assign(:detail_notes, [])
     |> assign(:detail_thesis_state, ThesisState.none())
+    |> assign(:detail_note_editing?, false)
     |> assign(:research_form_errors, [])
   end
 

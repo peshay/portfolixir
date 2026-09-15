@@ -1680,9 +1680,27 @@ Bestände, Bewertungen, Performance-Serien, Snapshot-Vergleiche und die
 Kennzahlen der Wertpapierliste preisen über dieselbe basisbewusste Engine,
 sodass ein alter Vor-Split-Kurs (oder der Rückgriff auf den letzten eigenen
 Handelspreis) eine Nach-Split-Position nie zum unbereinigten Preis bewertet.
-Für Anbieter, die ihre Historie nie rückwirkend anpassen, bietet der
-Overview-Tab des Wertpapiers den Schalter **Synchronisierte Kurse als roh
-behandeln**, der die Roh-Basis für dessen synchronisierte Zeilen erzwingt.
+Für Anbieter, die ihre Historie nie rückwirkend anpassen, bieten die
+Stammdaten des Wertpapiers (hinter **Bearbeiten** in der Kopfzeile der
+Detailansicht) den Schalter **Synchronisierte Kurse als roh behandeln**, der
+die Roh-Basis für dessen synchronisierte Zeilen erzwingt.
+
+**Der Reiter Übersicht liest, Bearbeiten schreibt.** Die Detailansicht
+öffnet auf **Übersicht**, einer Lesefläche (Issue #804): sechs Kennzahlen —
+letzter Kurs mit Datum oder Veraltet-Marker, Tagesänderung, die
+Ein-Jahres-Kursrendite, die gehaltene Stückzahl mit dem Depot, der Wert der
+Position und das unrealisierte Ergebnis mit seinem Prozentsatz gegen den
+Durchschnittseinstand — darunter der Kursverlauf als kleiner Chart und eine
+Basiszeile mit Kursquelle, Anlageklasse, der zugeordneten Kategorie eines
+eigenen Klassifizierungsbaums sowie WKN und Börse, die die Kopfzeile nicht
+trägt. Der aus dem Research-Log abgeleitete Thesenstand (ADR-0044) und die
+persönliche Notiz stehen als Karten daneben; die Thesenkarte führt zum
+Reiter Research, und die Notiz zeigt erst nach **Hinzufügen** oder
+**Bearbeiten** ein Feld. Vorher rendert der Reiter kein Eingabefeld. Die
+Stammdaten — Name, Identifikatoren, Währung, Börse, Anlageklasse,
+Kursquelle und deren URL, der Roh-Kurse-Schalter und die Notiz — liegen im
+Dialog, den **Bearbeiten** in der Kopfzeile öffnet; es ist derselbe Dialog
+wie im Zeilenmenü der Liste.
 
 **Einen Split erfassen.** Der Button **Split erfassen** in der Detailansicht
 öffnet einen geführten Assistenten: Verhältnis als neu:alt eingeben (2:1

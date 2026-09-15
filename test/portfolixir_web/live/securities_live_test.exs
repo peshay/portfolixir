@@ -1366,7 +1366,9 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       assert has_element?(view, "#detail-tab-panel-overview .badge", "Retired")
     end
 
-    test "renders 1M / 1Y performance metrics when quotes are present",
+    # #804: the overview's period figure is the one-year return; 1M left with
+    # the master-data form when the tab became a reading surface.
+    test "renders the 1Y performance metric when quotes are present",
          %{conn: conn, apple: apple} do
       today = Date.utc_today()
 
@@ -1380,7 +1382,6 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
 
       panel = element(view, "#detail-tab-panel-overview") |> render()
-      assert panel =~ "1M"
       assert panel =~ "1Y"
       # The latest price appears in both the header and overview body.
       assert panel =~ "150"
@@ -1390,6 +1391,8 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
          %{conn: conn, apple: apple} do
       {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
 
+      view |> element("#overview-note-edit") |> render_click()
+
       view
       |> form("#overview-notes-form", %{"security" => %{"note" => "Long-term core position."}})
       |> render_submit()
@@ -1397,12 +1400,16 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       assert Catalog.get_security(apple.id).note == "Long-term core position."
     end
 
-    test "saving the details form persists master data via Catalog.update_security/2",
+    # #804: master data is saved through the dialog the header's Edit control
+    # opens — the overview no longer carries a form of its own.
+    test "saving the dialog persists master data via Catalog.update_security/2",
          %{conn: conn, apple: apple} do
       {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
 
+      view |> element("#detail-edit") |> render_click()
+
       view
-      |> form("#overview-details-form", %{
+      |> form("#security-dialog-form", %{
         "security" => %{"name" => "Apple Inc. (edited)", "ticker_symbol" => "AAPL2"}
       })
       |> render_submit()

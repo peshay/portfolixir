@@ -1445,6 +1445,26 @@ booking and shaped — one panel, stacked, pre-fillable fields — for the edit
 view (#809) to reuse. The holdings table left the route: it duplicated
 Wealth → Holdings.
 
+### Securities detail overview — a reading surface *(C7-A / A8, issue 804)*
+
+The detail pane's first tab reads. Its main column carries the six figures in
+a `{components.stat-card}`-quiet grid of three by two (latest price with its
+date or the stale marker, day change, the one-year price return, then the
+held quantity with its depot, the position's value and the unrealised result
+with its percentage), the neighbouring tab's price chart at 200 px without
+its toolbar, and a `.summary-basis` line naming the quote feed, the asset
+class, the assigned category of a custom tree and the WKN and exchange the
+pane's header does not carry — every one of them a word, never a stored
+constant (#785). Beside it, two `{components.panel}` cards: the thesis state
+derived from the research log (ADR-0044 §7) with its status badge and a
+control that opens the Research tab, and the personal note, which shows a
+field only after **Add** or **Edit**. Under 900 px the cards fall under the
+main column. **The tab renders no input element until an edit affordance is
+used** — the progressive-disclosure rule stated as a testable property. The
+master data moved whole into the existing security dialog, opened by an
+**Edit** control in the pane's header (which wraps rather than overflowing on
+a phone), so creating and editing a security are one form in one place.
+
 ### Custom range popover *(C5-A, issue 801)*
 
 `{components.period-control}`'s "Custom range…" stays the D5 disclosure —
