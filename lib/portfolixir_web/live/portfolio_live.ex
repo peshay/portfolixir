@@ -17,6 +17,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   use PortfolixirWeb, :live_view
 
   alias Portfolixir.Buckets
+  alias Portfolixir.Catalog.DataQuality
   alias Portfolixir.Classifications
   alias Portfolixir.Fx.RateSync
   alias Portfolixir.Ledger
@@ -1916,6 +1917,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       |> assign(:no_price, unvalued_entries(assigns.valuation, :no_price))
       |> assign(:missing_fx, unvalued_entries(assigns.valuation, :missing_fx))
       |> assign(:trade_priced, trade_priced_entries(assigns.valuation))
+      |> assign(:stale_priced, stale_priced_entries(assigns.valuation))
       |> assign(:suspect_dates, suspect_dates(assigns.analysis))
       |> assign(:unvalued_cash, unvalued_cash(assigns.valuation))
       |> assign(:negative_entries, negative_entries(assigns.negative))
@@ -1924,7 +1926,8 @@ defmodule PortfolixirWeb.PortfolioLive do
     <section
       :if={
         @no_price.count > 0 or @missing_fx.count > 0 or @trade_priced.count > 0 or
-          @suspect_dates != [] or @unvalued_cash != [] or @negative_entries != []
+          @stale_priced.count > 0 or @suspect_dates != [] or @unvalued_cash != [] or
+          @negative_entries != []
       }
       id="portfolio-data-quality"
       class="workspace-section data-quality"
@@ -1950,6 +1953,21 @@ defmodule PortfolixirWeb.PortfolioLive do
             ) %>
           </a>
           <%= Enum.join(@trade_priced.names, ", ") %>
+        </li>
+        <li :if={@stale_priced.count > 0} data-role="dq-stale-priced">
+          <%!-- #779 / #610 (Sprint 11 Lane X): a quoted position whose feed
+               has stopped reads as live without this row. It names the
+               positions with the date each price is from and the remedy —
+               the retired flag is what the performance walk keys on. --%>
+          <a href="/securities?dq=stale_quote&holding=held">
+            <%= ngettext(
+              "One held position is valued at a quote older than %{days} days, so the total may be stale — mark it retired if its listing ended, or sync its quotes:",
+              "%{count} held positions are valued at quotes older than %{days} days, so the total may be stale — mark them retired if their listings ended, or sync their quotes:",
+              @stale_priced.count,
+              days: @stale_priced.days
+            ) %>
+          </a>
+          <%= Enum.join(@stale_priced.names, ", ") %>
         </li>
         <li :if={@no_price.count > 0} data-role="dq-no-price">
           <a href="/securities?dq=missing_quote">
@@ -2785,6 +2803,26 @@ defmodule PortfolixirWeb.PortfolioLive do
       |> Enum.uniq()
 
     %{count: length(names), names: shorten_list(names)}
+  end
+
+  # The stale-quoted positions (#779 / #610), each named with the date its
+  # price is from, under the one staleness threshold DataQuality states.
+  defp stale_priced_entries(nil), do: %{count: 0, names: [], days: DataQuality.stale_days()}
+
+  defp stale_priced_entries(valuation) do
+    today = Portfolixir.Clock.today()
+    days = DataQuality.stale_days()
+
+    names =
+      valuation.positions
+      |> Enum.filter(fn position ->
+        position.price_source == :quote and match?(%Date{}, position.price_date) and
+          Date.diff(today, position.price_date) > days
+      end)
+      |> Enum.map(&"#{&1.security_name || gettext("Unsorted")} (#{Format.date(&1.price_date)})")
+      |> Enum.uniq()
+
+    %{count: length(names), names: shorten_list(names), days: days}
   end
 
   # Whether the active view's buckets share at least one account (ADR-0024

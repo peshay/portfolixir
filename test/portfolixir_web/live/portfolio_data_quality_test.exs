@@ -321,4 +321,41 @@ defmodule PortfolixirWeb.PortfolioDataQualityTest do
     # The alarm stays a count: the Overview does not name positions.
     refute html =~ "not current"
   end
+
+  # User story (#779 and #610, Lane X step 3 — the human half):
+  # As a local portfolio maintainer,
+  # I want the Wealth page's data-quality section to name the held positions
+  # whose quote is older than the staleness threshold, with the date each
+  # price is from and the remedy,
+  # so that I learn which holdings to mark retired — the flag the walk keys
+  # on — instead of reading a stale close as today's value.
+  #
+  # Acceptance criteria:
+  # - A held position with a quote older than the threshold is listed under
+  #   its own row, named with the date of its price.
+  # - The row names the remedy (retire, or sync quotes) and links to the
+  #   securities list pre-filtered to held, stale-quoted securities.
+  # - A freshly quoted position is not listed.
+  test "the stale-quote finding names held positions with the date of their price",
+       %{conn: conn} do
+    world = seed_world()
+    old = WorldFixtures.create_security!(name: "Old Quote Co.", ticker: "OLDQ")
+    old_day = Date.add(Date.utc_today(), -40)
+    WorldFixtures.buy!(world, old, quantity: "3", price: "20")
+    WorldFixtures.put_quote!(old, old_day, "21")
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    html = render_async(view)
+
+    assert has_element?(view, ~s([data-role="dq-stale-priced"]))
+    assert html =~ "Old Quote Co."
+    assert html =~ Date.to_iso8601(old_day)
+    assert html =~ "retired"
+    refute html =~ ~r/dq-stale-priced.*World ETF/s
+
+    assert has_element?(
+             view,
+             ~s([data-role="dq-stale-priced"] a[href="/securities?dq=stale_quote&holding=held"])
+           )
+  end
 end

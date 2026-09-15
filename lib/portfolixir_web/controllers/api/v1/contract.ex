@@ -42,10 +42,11 @@ defmodule PortfolixirWeb.Api.V1.Contract do
       version: 4,
       date: ~D[2026-09-15],
       summary:
-        "Sprint 11 (#776, the limit surface finished): the four research-log reads, the " <>
+        "Sprint 11: the limit surface finished (#776) — the four research-log reads, the " <>
           "snapshot list and the three cash-flow roll-ups take a bounded limit on the API and " <>
-          "their MCP twins; the trades read records from/to as its bound; every bounded payload " <>
-          "of the family echoes the limit it applied.",
+          "their MCP twins, the trades read records from/to as its bound, every bounded payload " <>
+          "of the family echoes the limit it applied; the valuations carry price_date per " <>
+          "position and stale_priced_count (#779, #610).",
       endpoints: [],
       tools: [],
       parameters: [
@@ -54,7 +55,8 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "GET /api/v1/snapshots and portfolixir.snapshots.list take limit= (default 1000, maximum 10000): the newest snapshots (#776)",
         "GET /api/v1/realized_gains, /external_flows and /costs and the portfolixir.cashflow.* twins take limit= as a number of years (default 100, maximum 1000): the newest years of the annual matrix, computation_basis.window naming a cut (#776)",
         "GET /api/v1/securities/:security_id/trades and portfolixir.trades.list take no limit: from/to is the bound, stated in the payload's basis (#776)",
-        "The eight bounded reads answer the limit they applied as limit in the data envelope; a malformed limit is 422 (#776)"
+        "The eight bounded reads answer the limit they applied as limit in the data envelope; a malformed limit is 422 (#776)",
+        "GET /api/v1/portfolios/:portfolio_id/valuation, /views/:view_id/valuation and /holdings/by_security and their MCP twins: every position carries price_date, and the two valuations carry stale_priced_count — quoted positions whose quote is older than the data-quality threshold (#779, #610)"
       ],
       removed_endpoints: [],
       removed_tools: []

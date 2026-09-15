@@ -596,6 +596,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       quantity: decimal(row.quantity),
       market_value: decimal(row.market_value),
       valued: row.valued,
+      price_date: date(row.price_date),
       # #406: the resolved native price and the honest unvalued reason
       # ("no_price" | "missing_fx" | null) — a missing-FX security keeps its
       # price visible instead of being reported as priceless.
@@ -762,6 +763,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       cash_quote: decimal(valuation.cash_quote),
       unvalued_count: valuation.unvalued_count,
       trade_priced_count: valuation.trade_priced_count,
+      stale_priced_count: valuation.stale_priced_count,
       positions_included: include_positions?,
       cash_balances: Enum.map(valuation.cash_balances, &valuation_cash/1)
     }
@@ -775,8 +777,10 @@ defmodule PortfolixirWeb.Api.V1.JSON do
 
   defp valuation_note(base_currency) do
     "Totals are in #{base_currency} (base_currency), converted via the EUR " <>
-      "hub at each position's stored rate; `price_source` and `valued` " <>
-      "indicate per-position price staleness, and `unvalued_reason` says " <>
+      "hub at each position's stored rate; `price_source`, `price_date` and " <>
+      "`valued` indicate per-position price staleness (stale_priced_count " <>
+      "counts quoted positions whose quote is older than the data-quality " <>
+      "threshold), and `unvalued_reason` says " <>
       "why a position is unvalued (no_price: nothing resolves; missing_fx: " <>
       "latest_price/price_currency are known but no stored rate path " <>
       "reaches the base currency)."
@@ -805,6 +809,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       cash_quote: decimal(valuation.cash_quote),
       unvalued_count: valuation.unvalued_count,
       trade_priced_count: valuation.trade_priced_count,
+      stale_priced_count: valuation.stale_priced_count,
       overlap: view_overlap(valuation.overlap),
       # Whether the view's resolution matches no account at all (fix round):
       # clients can hint "matches no accounts" instead of a silent 0 total.
@@ -861,6 +866,9 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       security_currency: position.security_currency,
       quantity: decimal(position.quantity),
       latest_price: decimal(position.latest_price),
+      # #779: when the price is from — a stale quote reads as a live one
+      # without it.
+      price_date: date(position.price_date),
       # #406: the currency the resolved price is denominated in, and the
       # honest unvalued reason ("no_price" | "missing_fx" | null) — a
       # missing-FX position keeps its native price visible.
