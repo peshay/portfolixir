@@ -919,7 +919,17 @@ jede Position, jedes Konto genau einmal gezählt. Wähle eine Ansicht im
 **Sicht-Umschalter** oben auf der Seite — sein Link **Ansichten** (Issue
 #720: umbenannt von „Verwalten…", die Auslassungspunkte entfallen, weil er
 navigiert statt einen Dialog zu öffnen) öffnet die
-Ansichten-Seite, auf der Ansichten und ihre Buckets bearbeitet werden;
+Ansichten-Seite, auf der Ansichten und ihre Buckets bearbeitet werden. Diese
+Seite liest sich listenorientiert: jede Ansichten-Zeile sagt, was sie tut
+(ihre Ein-/Ausschluss-Buckets als Chips) und was sie umfasst (Summe,
+Positionen und Konten im Geltungsbereich), die eingebaute Zeile **Alles**
+ist als Standard markiert; jede Bucket-Zeile trägt ihre Farbe und ihre
+Verwendung (die Konten, auf denen sie Standard ist, die erbenden
+Positionen, die direkt getaggten Positionen). Zeilenaktionen sitzen im
+Zeilenmenü, die Anlegen-Formulare öffnen sich über **+**, die Zwei-Schritte-
+Erklärung ist das ⓘ an jeder Überschrift, und Standard-Buckets werden an der
+Kontozeile von Konten & Depots gesetzt, auf die die Basiszeile des
+Bucket-Abschnitts verlinkt.
 **Als Standard festlegen** merkt sich
 die Wahl serverseitig, sodass Vermögensseite und Übersicht mit dieser Ansicht
 öffnen, solange keine andere ausdrücklich gewählt ist (eine ausdrückliche

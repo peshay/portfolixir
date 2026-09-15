@@ -842,8 +842,16 @@ section follow the **active view across all portfolios** — **Everything**
 counted exactly once. Pick a view in the **view switcher** at the top of the
 page — its **Views** link (issue #720: renamed from "Manage…", ellipsis
 dropped because it navigates rather than opening a dialog) opens the Views
-page where views and their
-buckets are edited; **Set as default** (*Als Standard festlegen*) remembers the choice
+page where views and their buckets are edited. That page reads list-first:
+each view's row says what it does (its include/exclude buckets as chips) and
+what it covers (the scoped total, positions and accounts), with the built-in
+**Everything** row marked as the default; each bucket's row carries its
+colour and where it is used (the accounts it is the default on, the
+positions inheriting it, the positions tagged directly). Row actions sit in
+the row menu, the create forms open from **+**, the two-step explanation is
+the ⓘ on each heading, and default buckets are set on the account row of
+Accounts & depots, which the buckets section's basis line links to.
+**Set as default** (*Als Standard festlegen*) remembers the choice
 server-side, so the Wealth page and the Overview page open on that view
 whenever no other view has been explicitly picked (an explicit pick — including
 Everything — always wins). When the active view's buckets share an account, a
