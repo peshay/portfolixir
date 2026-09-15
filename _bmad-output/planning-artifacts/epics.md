@@ -212,7 +212,7 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | NFR-4–6 | **#757** (E21 tracker; #758–#772), gate **ADR-0045** Accepted 2026-09-05 | foundational (security, self-hosted, single-user). **NFR-4's perimeter shipped with E21** (Sprint 10, PR #773 merged 2026-09-06, #758–#771 closed): Host guard answering 421, loopback by default with a startup warning, session cookie attributes and derived salts, opt-in `PHX_FORCE_SSL`, a production release image with no secret defaults, the deny-by-default URL policy and bounded HTTP client on every outbound fetch, constant-time token comparison with a per-source throttle, system-set provenance, and the optional built-in UI authentication of ADR-0045 (OQ-8 answered). **The family closed with Sprint 11 (PR #810, merged 2026-09-15):** #772 (Bandit serves the endpoint, cowlib and its three advisories out of the tree, the Hex pin gone from CI, every Action pinned to a SHA), #382 (the per-request CSP nonce, no inline handler left, `force_ssl` off by default and opt-in through `PHX_FORCE_SSL` — D-2 — so Sobelow runs with no ignore) and #776 (`limit` on the nine remaining collection reads and their MCP tools; the journal read's own parser is #811). Nothing in the family stays open |
 | NFR-7 | #313 | localization / docs site |
 | NFR-8 | #562 (ADR-0032), #619 (ADR-0035) | cross-cutting perf; watch in perf-sensitive stories. ADR-0032 accepted 2026-07-29 — the daily TTWROR walk is memoized in volatile memory with warm-up, targeted invalidation and a labelled stale-serve. **#619 shipped 2026-08-04** (ADR-0035): the redundancy was removed rather than cached — market data is preloaded once per read and threaded through every valuation and allocation, replacing six re-derivations and hundreds of per-row lookups. Measured A/B: the warm dashboard block 1,105 ms → 265 ms and 2,614 → 115 queries, output identical. Nothing is memoized by this change; ADR-0032's memo is untouched |
-| UX-DR1–20 | **#356** (tracker) + #414, #672 open, plus #701–#704, #707 filed 2026-08-15; #412, #491, #560, #565, #566 shipped | UX/a11y tracker. Rules are defined in `design-language/EXPERIENCE.md` and `DESIGN.md`, not in this document (ADR-0038). **Sprint 7 (PR #716, merged 2026-08-19) closed #414, #672, #701–#704, #706 and #707**; the 2026-08-18 design engagement filed #717–#721 and #723, and the Sprint-7 walkthrough filed #729 and #730 — all attach here. **Sprint 8 (PR #735, merged 2026-08-22) closed all eight** (#717–#721, #723, #729, #730) and added UX-DR25 (an excluded row is named where the total is read) and UX-DR26 (a deliberate limit is stated on the surface that lacks it) to the living spec. #336, #337, #339, #319 and #606 are closed. **#606 shipped 2026-08-04** — the impersonal microcopy voice rule, applied retroactively to all pre-rule UI strings and the EN/DE docs, and now part of DR11 rather than only an agent rule. DR15–DR20 were added by the 2026-08-05 design session; the alignment stories are cut from the spec. **Sprint 12 (branch opened 2026-09-15 on the Sprint 11 merge; plan adopted by the merge of PR #783): the second E11 alignment pass** — the 2026-09-12 whole-surface review (`planning-artifacts/ux-review-2026-09-12.md`) filed #784–#808 and #809 followed on 2026-09-14; twenty-two are in the batch (Lanes F, N, S, K, P, T, D), #806, #807, #808 and #809 are Sprint 13 candidates by D-3; UX-DR27 (phone list rows) was added by the 2026-09-12 spine amendment and UX-DR2 amended 2026-09-14 for the Overview strip (#798-B); the owner's variant picks of 2026-09-14 are recorded on each issue |
+| UX-DR1–20 | **#356** (tracker) + #414, #672 open, plus #701–#704, #707 filed 2026-08-15; #412, #491, #560, #565, #566 shipped | UX/a11y tracker. Rules are defined in `design-language/EXPERIENCE.md` and `DESIGN.md`, not in this document (ADR-0038). **Sprint 7 (PR #716, merged 2026-08-19) closed #414, #672, #701–#704, #706 and #707**; the 2026-08-18 design engagement filed #717–#721 and #723, and the Sprint-7 walkthrough filed #729 and #730 — all attach here. **Sprint 8 (PR #735, merged 2026-08-22) closed all eight** (#717–#721, #723, #729, #730) and added UX-DR25 (an excluded row is named where the total is read) and UX-DR26 (a deliberate limit is stated on the surface that lacks it) to the living spec. #336, #337, #339, #319 and #606 are closed. **#606 shipped 2026-08-04** — the impersonal microcopy voice rule, applied retroactively to all pre-rule UI strings and the EN/DE docs, and now part of DR11 rather than only an agent rule. DR15–DR20 were added by the 2026-08-05 design session; the alignment stories are cut from the spec. **Sprint 12 (PR #813, rebase-merged 2026-09-15, `main` at `5ea57ea3`) shipped the second E11 alignment pass and closed all twenty-two of its issues, #784–#805 contiguous** — cut from the 2026-09-12 whole-surface review (`planning-artifacts/ux-review-2026-09-12.md`), which filed #784–#808 with #809 following on 2026-09-14, across Lanes F (defect sweep), N (data notes and freshness), S (Tax, Snapshots, Views, sunburst, income chart), K (Wealth KPI band, Overview strip), P (phone rows, filter sheet), T (booking drawer) and D (detail pane, tree rows, custom range). UX-DR27 (phone list rows) was added by the 2026-09-12 spine amendment and UX-DR2 amended 2026-09-14 for the Overview strip (#798-B); `DESIGN.md` names all eight owner picks (C1-A, C2-B, C3-A, C4-B, C5-A, C6-C, C7-A, C8-A). **Still open under #356:** #806, #807, #808, #809 (Sprint 13 candidates declared by D-3 before the batch started) and the closing act's three findings #815 (the `/classifications` index is a bare bullet list), #816 (the transaction history needs the phone filter sheet the securities list got) and #817 (the detail pane's tab row is held to none of the D6 shipped form) |
 | FR-30 | #582 | ISIN/WKN in holdings payloads (E6 DX batch, story 2) |
 | FR-31 | #581 | MCP create: all 13 kinds, deliveries + price guard in AC (E6 DX batch, story 1) |
 | FR-32 | #583 | booking-semantics docs incl. fix-it-hammer warnings (E6 DX batch, story 3) |
@@ -612,6 +612,76 @@ Retrospective: `sprint-7-retro-2026-08-19.md`. Close-out ledger and the
 process findings live there and in `sprint-status.yaml`'s log; this section
 records only what changed in the requirement registry.
 
+## Implementation Status — reconciled with code (2026-09-15, Sprint 12 close-out)
+
+Verification basis: the merge commits on `main` (d6466f7d..5ea57ea3, PR #813
+rebase-merged, 28 commits linear, no merge commits), the Actions runs on the
+merge push (CI 1525 and Commit authorship 539, verified green), the post-merge
+issue list (30 open, each of the batch's twenty-two verified closed/completed),
+and the diff of the merged tree against the pre-merge head `ceef8665` (empty).
+The rebase-merge replayed the commits, so `main`'s SHAs differ from the
+branch's; tree equality is the check that holds.
+
+**Shipped by Sprint 12** — twenty-two issues closed by the merge's keywords,
+`#784`–`#805` contiguous, under the Sprint 12 plan adopted by the merge of PR
+#783 and its five decisions. E11's **second alignment pass**, cut from the
+2026-09-12 whole-surface UX review: the defect sweep (Lane F — the top bar's
+diacritics, one localized label per transaction kind with no raw-value
+fallback, the history's numbers under the locale, the UX-DR15 scroller tail,
+the layout sweep, sixteen strings that stopped addressing the reader), data
+notes and freshness (Lane N — Wealth's data quality as data notes with the
+remedy inside, a stale quote marked at all three call sites where a price is
+read, every Cash-flow facet naming itself), the four specified surfaces and
+both chart gaps (Lane S — Tax as a budget meter plus check list, Snapshots
+where the comparison *is* the surface, Views list-first, the allocation
+sunburst's basis line and readable centre, the income chart's legend and direct
+labels), and the six picked variants: the Wealth two-tier KPI band and the
+Overview key-figure strip (Lane K, picks A and B, `newest_quote_date` joining
+both valuation reads on the API and in MCP), two-line phone rows and the filter
+bottom sheet under 560 px (Lane P, picks A and B, UX-DR27), Transactions
+opening on its history with the booking form as a side drawer (Lane T, pick C),
+and the detail pane's reading surface, the tree's column rows and the custom
+range popover (Lane D, picks A, A, A).
+
+**Registry rows this batch moves:** the **UX-DR1–20** row records the second
+alignment pass as shipped and names what remains under #356. No FR or NFR row
+changes state — every issue in the batch is a UX-DR alignment item, which is
+why the FR Coverage Map is otherwise untouched.
+
+**Two-way coverage — the rule fired for the first time, on this batch's own
+removal.** #803 removed the Transactions "Current holdings" panel as a
+duplicate of Wealth → Holdings; that panel carried the column picker #732 added
+as the human half of the holdings API's `fields=` sparse fieldset. The
+projection's valuation fields are now readable over the API and MCP with no
+human view. That is allowed for the batch that creates the gap provided the PR
+says why (#813's briefing does), with the human view due in the same or the
+next epic batch. This batch is the "same"; **Sprint 13 is the "next", and its
+close-out must find #814 shipped or record a finding.** #814 was filed the day
+the gap was created. Nothing else in the batch is agent-only: #798's
+`newest_quote_date` shipped with its human view in the same commit.
+
+**Surface check:** no new read-ergonomics parameter landed, so there is no
+parameter family to enumerate. The one payload field added passes on both
+scopes rather than one — `newest_quote_date` is on the portfolio scope and the
+view scope, in the API and in both MCP tools. That is the same family FR-37
+shipped half of (portfolio scope only, which became #740); not repeated here.
+The surface gap the batch did leave is human and filed: the phone filter sheet
+landed on the securities list (#800) and not on the transaction history
+(#816).
+
+**Filed by the batch, open:** #814 (the `fields=` human half, due Sprint 13),
+#815 (the `/classifications` index is still a bare bullet list), #816 (the
+transaction history needs the phone filter sheet), #817 (the detail pane's tab
+row is held to none of the D6 shipped form). **Declared out by D-3 before the
+batch started:** #806, #807, #808, #809 — Sprint 13 candidates.
+
+E11's tracker **#356 stays open**: the review's remainder and the closing act's
+three findings attach to it, so the epic is not finished.
+
+Retrospective: `sprint-12-retro-2026-09-15.md`. Close-out ledger and the
+process findings live there and in `sprint-status.yaml`'s log; this section
+records only what changed in the requirement registry.
+
 ## Implementation Status — reconciled with code (2026-09-15, Sprint 11 close-out)
 
 Verification basis: the merge commits on `main` (cc70b9f..c2164f54, PR #810
@@ -887,10 +957,12 @@ issue state and the merge commits on `main`.
   Held against the living design-language spec (`design-language/DESIGN.md` +
   `EXPERIENCE.md`), which since ADR-0038 is the authority the design-critic
   review holds every user-visible batch against. UX-DR1–20; DR15–DR20 name the
-  drift families the alignment stories are cut from. The second alignment pass
-  is Sprint 12 (branch opened 2026-09-15 on the Sprint 11 merge), cut from the
-  2026-09-12 whole-surface review (`planning-artifacts/ux-review-2026-09-12.md`,
-  #784–#809 under this tracker).
+  drift families the alignment stories are cut from. The first alignment pass
+  was Sprints 7–8; **the second shipped with Sprint 12 (PR #813, merged
+  2026-09-15), closing #784–#805**, cut from the 2026-09-12 whole-surface review
+  (`planning-artifacts/ux-review-2026-09-12.md`, #784–#809 under this tracker).
+  The tracker stays open on the remainder: #806–#809 (Sprint 13 candidates) and
+  #815, #816, #817 (the Sprint 12 closing act's findings).
 - **E12 — Localization & docs** — *cross-cutting.* No tracker (#313, closed).
   Multilingual docs site (NFR-7); the UI's de/en gettext coverage is shipped and
   enforced by `localization_test.exs`.

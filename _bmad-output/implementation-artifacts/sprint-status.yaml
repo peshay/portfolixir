@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-09-15 (Sprint 11 closed out, 0.11.0 prepared for the owner; Sprint 12 planned from the whole-surface UX review, picks recorded 2026-09-14, its batch branch opened on that merge per D-1 and rebased over the close-out)
+# last_updated: 2026-09-15 (Sprint 11 and Sprint 12 both closed out, 0.11.0 and 0.12.0 prepared for the owner; E11's second alignment pass shipped, its tracker #356 stays open on the Sprint 13 remainder)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -51,6 +51,95 @@ story_location: _bmad-output/implementation-artifacts
 # ---------------------------------------------------------------------------
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
+#
+# CLOSED OUT (2026-09-15, Sprint 12) -- PR #813 rebase-merged 19:46 UTC,
+# `main` at 5ea57ea3:
+# Verification basis: the merge commits on `main` (d6466f7d..5ea57ea3, 28
+# commits linear, no merge commits), the Actions runs on the merge push (CI
+# 1525 and Commit authorship 539, both verified green before this entry was
+# written), the post-merge issue list (30 open; each of the batch's
+# twenty-two verified closed/completed), and the diff of the merged tree
+# against the pre-merge head ceef8665 (empty) -- not this file's prior
+# claims. The rebase-merge replayed the commits, so main's SHAs differ from
+# the branch's; tree equality is the check that holds.
+#
+# WHAT CLOSED: twenty-two issues by the merge's keywords -- #784-#805, the
+# whole contiguous run, across Lanes F (defect sweep), N (data notes and
+# freshness), S (Tax, Snapshots, Views, sunburst, income chart), K (Wealth
+# KPI band, Overview strip), P (phone rows, filter sheet), T (booking
+# drawer) and D (detail pane, tree rows, custom range). Closed by hand:
+# none. E11's tracker #356 stays OPEN deliberately -- the 2026-09-12
+# review's remainder (#806-#809) is declared Sprint 13 work by D-3 and the
+# closing act's three findings (#815 #816 #817) attach to the same tracker,
+# so the epic is not finished and closing it would lose the thread.
+#
+# TWO-WAY COVERAGE -- the rule fired for the first time, on this batch's own
+# removal. #803 removed the Transactions "Current holdings" panel as a
+# duplicate of Wealth -> Holdings; that panel carried the column picker #732
+# added as the human half of the holdings API's `fields=` sparse fieldset
+# (verified in the diff: @holdings_column_defaults, @holdings_column_keys and
+# the #holdings-panel section with its #732 comment all left with it). The
+# projection's valuation fields are now API/MCP-only. Allowed for the batch
+# that creates the gap provided the PR says why -- #813's briefing does --
+# with the human view due in the same or the NEXT epic batch. This batch is
+# the "same"; SPRINT 13 IS THE "NEXT", and its close-out must find #814
+# shipped or record a finding. #814 was filed the day the gap was created
+# (15:48 UTC), under the scope-lock rule. Nothing else is agent-only:
+# #798's newest_quote_date shipped with its human view in the same commit.
+#
+# SURFACE CHECK: no new read-ergonomics parameter landed this batch, so the
+# parameter-family sentence has nothing to enumerate. The one payload field
+# it added passes the check's spirit on both scopes rather than one:
+# newest_quote_date is on the portfolio scope AND the view scope, in the API
+# (json.ex:772 and json.ex:821) and in both MCP tools
+# (portfolixir.portfolios.valuation and the bucket-view valuation) -- the
+# same family FR-37 shipped half of, on the portfolio scope only, which
+# became #740. Not repeated here. The surface gap the batch did leave is a
+# human one and is filed: the phone filter sheet landed on the securities
+# list (#800) and not on the transaction history (#816).
+#
+# CLOSING ACT: three adversarial roles (correctness hunter, edge-case
+# hunter, design critic) plus the UAT persona walkthrough under D-4's
+# conditions -- DE, 1440 px and 390 px, light and dark, on the committed
+# seed script, a booking walked end to end through the drawer at 390 px.
+# Thirty-nine route renders, no horizontal overflow, no console or page
+# errors. Twenty-nine confirmed findings fixed on the branch in one commit
+# (9a3abc20); three recorded as issues rather than widened (#815 #816 #817).
+# The findings that mattered: the Overview strip's stale count disagreed
+# with the list it links to; a retired security's old close was still
+# becoming a day change on three surfaces; the tree printed 0.00 while
+# holdings loaded and summed an unpriceable position as zero; the note
+# editor survived a change of security; seven date renders printed ISO in
+# German; the not-computable dash rendered at value weight.
+#
+# PROCESS FINDINGS (detail in sprint-12-retro-2026-09-15.md): the
+# patch-coverage listing earned its place as a review input the first batch
+# it was one -- it found a missing meta-test (714d2126) and a defaulted
+# `today` whose Date.utc_today() fallback would have answered a
+# local-calendar question in UTC (5ea57ea3, #609), the second a wrong path
+# rather than an untested one. Both landed AFTER promotion, as Sprint 11's
+# did: the listing arrives with the CI run on the promotion commit, so the
+# fix is ordering (read the last pre-promotion run while the closing act is
+# open), not more discipline. The rebase over the sibling close-out worked
+# as the plan predicted; writing a log entry's closing clause in the future
+# tense is what made an edit necessary at resolution time.
+#
+# LANE M: nothing applied -- every Hex and npm dependency at its latest
+# release, both audits clean, and the three Dependabot PRs the plan named
+# (#781, #782, #775) already resolved by Sprint 11's lane the same morning.
+# Six rows deliberately not updated with reasons (Elixir/OTP #727, the Node
+# runtime image #782, the @types/node major, the Dockerfile HEX_VERSION, the
+# PostgreSQL image, the BMAD module SHAs) in
+# version-report-2026-09-15-sprint12.md.
+#
+# TAG: 0.12.0 is an OWNER ACTION (D-5) -- the agent's credential cannot push
+# tags. The annotated tag command on the merged head 5ea57ea3 is in the
+# retrospective's close-out ledger.
+#
+# NEXT: Sprint 13 is unplanned. Its gate has four declared candidates
+# (#806-#809), one coverage debt with a deadline (#814, due this batch), the
+# Sprint 11 surface-check outlier (#811) and this batch's three findings
+# (#815 #816 #817).
 #
 # BATCH OPENED (2026-09-15, Sprint 12) -- branch agent/claude/ux-alignment-2
 # from main at c2164f54 (the commit that merged Sprint 11's batch, PR #810 --
@@ -889,8 +978,18 @@ development_status:
   epic-10: in-progress
   epic-10-retrospective: optional
 
-  # E11 -- open: #356 tracker + #412 #414 #491 #561 #564 #565 #566 #651 and the
-  # six filed 2026-08-12 (#668 #669 #670 #671 #672 #673)
+  # E11 -- open: #356 tracker + the 2026-09-12 review's remainder (#806 #807
+  # #808 #809, Sprint 13 candidates declared by D-3) and the Sprint 12 closing
+  # act's three findings (#815 #816 #817). The August list this row used to
+  # carry is closed.
+  # First alignment pass: Sprints 7-8 (#414 #672 #701-#704 #706 #707, then
+  # #717-#721 #723 #729 #730), which added UX-DR25 and UX-DR26 to the spec.
+  # Second alignment pass shipped 2026-09-15 (Sprint 12, PR #813, main at
+  # 5ea57ea3): twenty-two issues closed, #784-#805 contiguous, across Lanes F,
+  # N, S, K, P, T and D; UX-DR27 (phone list rows) and the UX-DR2 amendment
+  # for the Overview strip came with it, and DESIGN.md names all eight owner
+  # picks (C1-A C2-B C3-A C4-B C5-A C6-C C7-A C8-A).
+  # Stays in-progress: the tracker's remainder is declared Sprint 13 work.
   epic-11: in-progress
   epic-11-retrospective: optional
 
