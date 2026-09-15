@@ -203,6 +203,41 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
     _ = world
   end
 
+  # User story (#572, UX-DR13 — the basis line):
+  # As a local portfolio maintainer comparing against an index whose history
+  # starts after my first deposit,
+  # I want the card to say from which day the comparison runs and that the
+  # earlier flow enters through the opening value, and the overlay to start
+  # from my own chain's level on that day,
+  # so that a shorter benchmark history never reads as a shorter portfolio.
+  #
+  # Acceptance criteria:
+  # - The row carries "from <date> — 1 earlier flow enters through the
+  #   opening value" with the covered window's first day.
+  # - The overlay is drawn, with its legend entry and its table column.
+  test "a benchmark quoted late shows the covered-window note and an anchored overlay",
+       %{conn: conn} do
+    world = seed_world()
+    late = WorldFixtures.create_security!(name: "Late Bench", ticker: "LATE")
+    {:ok, late} = Catalog.update_security(Actor.owner_ui(), late, %{is_benchmark: true})
+    first_quote = Date.add(world.today, -15)
+    WorldFixtures.put_quotes!(late, [{first_quote, "50"}, {Date.add(world.today, -1), "55"}])
+
+    conn = get(conn, "/portfolio?benchmark[]=security:#{late.id}")
+    {:ok, view, _html} = live(conn, "/portfolio?benchmark[]=security:#{late.id}")
+    html = render_async(view)
+
+    assert has_element?(
+             view,
+             "#kpi-benchmark [data-role='benchmark-coverage']",
+             "from #{Date.add(first_quote, 1)} — 1 earlier flow enters through the opening value"
+           )
+
+    assert html =~ ~s(class="chart-benchmark-1")
+    assert has_element?(view, "[data-role='benchmark-legend']", "Late Bench")
+    assert has_element?(view, "[data-role='perf-summary-table'] th", "Late Bench")
+  end
+
   describe "BenchmarkScope plug" do
     defp run_plug(conn) do
       conn
@@ -257,6 +292,11 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
         conn = query |> with_query() |> run_plug()
         assert get_session(conn, BenchmarkScope.session_key()) == [], query
       end
+    end
+
+    test "a single selector without the array brackets is one selector" do
+      conn = "benchmark=security:7" |> with_query() |> run_plug()
+      assert get_session(conn, BenchmarkScope.session_key()) == ["security:7"]
     end
 
     test "one spelling per rate: 2 and 2.0 are the same selector" do

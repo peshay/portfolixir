@@ -92,4 +92,35 @@ defmodule PortfolixirWeb.ContentSecurityPolicyTest do
       assert byte_size(bytes) >= 16
     end
   end
+
+  # User story:
+  # As the operator reaching the instance under the host name I typed,
+  # I want connect-src to name that host's own WebSocket origin, port
+  # included, and never a character that did not come from a host name,
+  # so that the LiveView client connects and the header stays a policy.
+  test "connect-src names the host as the browser sent it, or falls back to the parsed host" do
+    policy = fn conn ->
+      conn
+      |> ContentSecurityPolicy.call([])
+      |> get_resp_header("content-security-policy")
+      |> hd()
+    end
+
+    sent = build_conn() |> host_header("portfolio.local:4000") |> policy.()
+    assert sent =~ "connect-src 'self' ws://portfolio.local:4000 wss://portfolio.local:4000;"
+
+    # Not a host name: the parsed host and its non-standard port instead.
+    fallback = %{build_conn() | port: 4000} |> host_header("evil host/;") |> policy.()
+    assert fallback =~ "connect-src 'self' ws://www.example.com:4000 wss://www.example.com:4000;"
+    refute fallback =~ "evil"
+
+    # A standard port is not spelled out.
+    standard = %{build_conn() | port: 443} |> policy.()
+    assert standard =~ "connect-src 'self' ws://www.example.com wss://www.example.com;"
+  end
+
+  # The raw header as a browser sends it; Plug.Conn.put_req_header/3 refuses
+  # the host header in tests, and the plug reads the header, not the field.
+  defp host_header(conn, value),
+    do: %{conn | req_headers: [{"host", value} | conn.req_headers]}
 end

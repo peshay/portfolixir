@@ -23,9 +23,17 @@ defmodule PortfolixirWeb.BenchmarkFlagLiveTest do
 
     {:ok, view, _html} = live(conn, "/securities")
 
+    # The row menu offers the flag, and names the reverse once it is set.
+    render_click(view, "open_row_menu", %{"id" => "#{security.id}"})
+    assert has_element?(view, "[role='menuitem']", "Mark as benchmark")
+    refute has_element?(view, "[role='menuitem']", "Unmark benchmark")
+
     html = render_click(view, "row_action", %{"action" => "benchmark", "id" => "#{security.id}"})
     assert html =~ "Index Proxy ETF"
     assert Catalog.get_security(security.id).is_benchmark
+
+    render_click(view, "open_row_menu", %{"id" => "#{security.id}"})
+    assert has_element?(view, "[role='menuitem']", "Unmark benchmark")
 
     render_click(view, "row_action", %{"action" => "benchmark", "id" => "#{security.id}"})
     refute Catalog.get_security(security.id).is_benchmark

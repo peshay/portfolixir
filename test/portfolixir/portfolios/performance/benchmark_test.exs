@@ -37,12 +37,12 @@ defmodule Portfolixir.Portfolios.Performance.BenchmarkTest do
     tx
   end
 
-  defp rate!(date, rate) do
+  defp rate!(date, rate, quote_currency \\ "USD") do
     {:ok, 1} =
       Fx.upsert_many([
         %{
           base_currency: "EUR",
-          quote_currency: "USD",
+          quote_currency: quote_currency,
           date: date,
           rate: rate,
           source: "manual"
@@ -475,5 +475,100 @@ defmodule Portfolixir.Portfolios.Performance.BenchmarkTest do
                today: ~D[2026-01-21],
                period: "bogus"
              )
+  end
+
+  # A benchmark quoted in pence follows the walk's own rule: GBX is GBP / 100,
+  # and a GBP rate stored before the window carries into it like a close does.
+  test "a pence-quoted benchmark is priced through GBP at the carried rate" do
+    world = base_world(name: "B5g", cash_name: "B5g Cash", depot_name: "B5g Depot")
+    deposit!(world, "1000", ~D[2026-01-01])
+    bench = benchmark_security!(name: "UK Bench", ticker: "UKB", currency: "GBX")
+    put_quotes!(bench, [{~D[2026-01-01], "1000"}, {~D[2026-01-11], "1200"}])
+    rate!(~D[2025-12-20], "0.8", "GBP")
+
+    {:ok, cmp} =
+      Benchmark.for_portfolio(world.portfolio.id, {:security, bench}, today: ~D[2026-01-11])
+
+    # 1 EUR = 0.8 GBP = 80 GBX: 1000 GBX is 12.5 EUR and 1200 GBX is 15 EUR,
+    # +20 %. 1000 EUR at 12.5 is 80 units; 80 x 15 = 1200 against 1000 in cash.
+    assert Decimal.equal?(cmp.bought_once.benchmark_return, d("0.2"))
+    assert Decimal.equal?(cmp.savings_plan.benchmark_units, d("80"))
+    assert Decimal.equal?(cmp.savings_plan.benchmark_end_value, d("1200"))
+    assert Decimal.equal?(cmp.savings_plan.end_value_delta, d("-200"))
+  end
+
+  # A day without a stored rate is a day without a price: the foreign
+  # benchmark is unpriced until its first rate, the window opens after that
+  # day and the earlier flow enters through the opening value, named.
+  test "a foreign benchmark without a stored rate is unpriced until its first rate" do
+    world = base_world(name: "B5x", cash_name: "B5x Cash", depot_name: "B5x Depot")
+    deposit!(world, "1000", ~D[2026-01-01])
+    bench = benchmark_security!(name: "Late Rate", ticker: "LTR", currency: "USD")
+    put_quotes!(bench, [{~D[2026-01-01], "100"}, {~D[2026-01-11], "100"}])
+    rate!(~D[2026-01-06], "1.0")
+    rate!(~D[2026-01-11], "1.25")
+
+    {:ok, cmp} =
+      Benchmark.for_portfolio(world.portfolio.id, {:security, bench}, today: ~D[2026-01-11])
+
+    assert cmp.window == %{
+             start_date: ~D[2026-01-07],
+             end_date: ~D[2026-01-11],
+             rebase_day: ~D[2026-01-06]
+           }
+
+    assert [%{date: ~D[2026-01-01], flow: flow}] = cmp.excluded_flows
+    assert Decimal.equal?(flow, d("1000"))
+    # V(01-06) = 1000 at 100 USD = 100 EUR: 10 units; 100 USD is 80 EUR at 1.25.
+    assert Decimal.equal?(cmp.savings_plan.benchmark_units, d("10"))
+    assert Decimal.equal?(cmp.savings_plan.benchmark_end_value, d("800"))
+    assert Decimal.equal?(cmp.savings_plan.end_value_delta, d("200"))
+    assert Decimal.equal?(cmp.bought_once.benchmark_return, d("-0.2"))
+  end
+
+  # The calendar-year period the API's ?year= resolves to (#563) bounds the
+  # comparison like the range it spans.
+  test "a calendar-year period bounds the comparison like the range it spans" do
+    world = base_world(name: "B4y", cash_name: "B4y Cash", depot_name: "B4y Depot")
+    bench = benchmark_security!(name: "Year Bench", ticker: "YRB")
+    put_quotes!(bench, [{~D[2026-01-01], "100"}, {~D[2026-01-20], "121"}])
+    deposit!(world, "1000", ~D[2026-01-01])
+    buy!(world, bench, quantity: "10", price: "100", date: ~D[2026-01-01])
+
+    {:ok, by_year} =
+      Benchmark.for_portfolio(world.portfolio.id, {:security, bench},
+        today: ~D[2026-01-21],
+        period: {:year, 2026}
+      )
+
+    {:ok, by_range} =
+      Benchmark.for_portfolio(world.portfolio.id, {:security, bench},
+        today: ~D[2026-01-21],
+        period: {:range, ~D[2026-01-01], ~D[2026-01-21]}
+      )
+
+    assert by_year.period == {:year, 2026}
+    assert by_year.window == by_range.window
+    assert Decimal.equal?(by_year.bought_once.benchmark_return, d("0.21"))
+
+    assert Decimal.equal?(
+             by_year.savings_plan.end_value_delta,
+             by_range.savings_plan.end_value_delta
+           )
+  end
+
+  # The engine's own refusal: its API parser and the page's plug refuse
+  # earlier, but the engine is what an Elixir caller reaches.
+  test "the engine refuses a benchmark term that is neither a rate nor a security" do
+    world = base_world(name: "B9", cash_name: "B9 Cash", depot_name: "B9 Depot")
+    deposit!(world, "1000", ~D[2026-01-01])
+
+    for term <- [:bogus, {:rate, "0.02"}, {:rate, 0.02}, {:security, nil}] do
+      assert {:error, :invalid_benchmark} =
+               Benchmark.for_portfolio(world.portfolio.id, term, today: ~D[2026-01-11])
+    end
+
+    refute Benchmark.valid_rate?("0.02")
+    refute Benchmark.valid_rate?(0.02)
   end
 end
