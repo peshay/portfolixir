@@ -473,7 +473,29 @@ defmodule PortfolixirWeb.ViewScopeTest do
     # - An event after the deletion reloads the figures under Everything.
     # - A small notice explains the fallback; the error toast never shows.
     test "an event after view deletion degrades to Everything with a notice", %{conn: conn} do
-      world()
+      world = world()
+      # Issue 792: the sync control sits inside the missing-FX note, so the
+      # event needs a USD position with no stored rate on the page.
+      {:ok, spacey} =
+        Portfolixir.Catalog.create_security(Actor.owner_ui(), %{
+          name: "Space Exploration Co.",
+          ticker_symbol: "SPACE",
+          currency_code: "USD",
+          asset_class: "equity"
+        })
+
+      {:ok, _} =
+        Portfolixir.Ledger.create_transaction(Actor.owner_ui(), %{
+          portfolio_id: world.portfolio.id,
+          securities_account_id: world.depot.id,
+          security_id: spacey.id,
+          type: "inbound_delivery",
+          date: Date.add(Date.utc_today(), -5),
+          quantity: "5",
+          currency_code: "USD"
+        })
+
+      Portfolixir.WorldFixtures.put_quote!(spacey, Date.add(Date.utc_today(), -1), "120")
       {:ok, doomed} = Buckets.create_view(Actor.owner_ui(), %{name: "Doomed"})
 
       conn = get(conn, "/portfolio?view=#{doomed.id}")
@@ -488,7 +510,7 @@ defmodule PortfolixirWeb.ViewScopeTest do
       # balance form left this page (#670), so the FX sync stands in — its
       # success path re-loads the overview under the (now deleted) view.
       lv
-      |> element(~s(#portfolio-cash button[phx-click="sync_rates"]))
+      |> element(~s(#portfolio-data-quality button[phx-click="sync_rates"]))
       |> render_click()
 
       render_async(lv)

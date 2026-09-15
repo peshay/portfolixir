@@ -90,6 +90,99 @@ defmodule PortfolixirWeb.PortfolioDataQualityTest do
     refute missing_fx =~ "Delivered Co."
   end
 
+  # User story (#792, UX-DR17 — the Wealth list; Component Patterns → Data
+  # quality — Wealth):
+  # As a local portfolio maintainer reading the Wealth data-quality block,
+  # I want each finding as a data note at its own severity with its remedy
+  # inside the note,
+  # so that the exchange-rate sync sits next to the finding that needs it and
+  # not 900 px lower under a tutorial sentence.
+  #
+  # Acceptance criteria:
+  # - One role="status" region holds the notes; each condition is a data note
+  #   at its inventory severity (no price, missing FX and unvalued cash at
+  #   attention), glyph and word included.
+  # - The FX-sync control lives inside the missing-FX note; the standalone
+  #   button and the helper paragraph under the cash table are gone.
+  # - The cash table marks the unvalued account in its own row, and the
+  #   balances pointer is a plain link.
+  test "the findings are data notes at their severity with the remedy inside", %{conn: conn} do
+    world = seed_world()
+
+    {:ok, dark} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Delivered Co.",
+        ticker_symbol: "DLVR",
+        currency_code: "EUR",
+        asset_class: "equity"
+      })
+
+    deliver!(world, dark, "3", "EUR")
+
+    {:ok, spacey} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Space Exploration Co.",
+        ticker_symbol: "SPACE",
+        currency_code: "USD",
+        asset_class: "equity"
+      })
+
+    deliver!(world, spacey, "5", "USD")
+    WorldFixtures.put_quote!(spacey, Date.add(Date.utc_today(), -1), "120")
+
+    {:ok, usd_cash} =
+      Portfolixir.Portfolios.create_cash_account(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        name: "USD Cash",
+        currency_code: "USD"
+      })
+
+    {:ok, _} =
+      Ledger.set_cash_balance(Actor.owner_ui(), usd_cash, %{
+        date: Date.add(Date.utc_today(), -2),
+        amount: "500"
+      })
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    html = render_async(view)
+
+    region = "#portfolio-data-quality [role='status']"
+
+    assert has_element?(
+             view,
+             "#{region} .data-note--attention[data-role='dq-no-price'] a[href='/securities?dq=missing_quote']"
+           )
+
+    assert has_element?(
+             view,
+             "#{region} .data-note--attention[data-role='dq-missing-fx'] button[phx-click='sync_rates']",
+             "Sync exchange rates"
+           )
+
+    assert has_element?(
+             view,
+             "#{region} .data-note--attention[data-role='dq-unvalued-cash']",
+             "USD Cash"
+           )
+
+    assert has_element?(view, "#{region} .data-note .data-note__word", "Attention")
+    refute has_element?(view, "#portfolio-cash button[phx-click='sync_rates']")
+    refute html =~ "Fetch the latest exchange rates"
+
+    assert has_element?(
+             view,
+             "#portfolio-cash table.cash-table [data-role='cash-unvalued']",
+             "no exchange rate"
+           )
+
+    assert has_element?(
+             view,
+             "#portfolio-cash [data-role='cash-edit-pointer'] a[href='/portfolios']"
+           )
+
+    refute has_element?(view, "#portfolio-cash p.hint[data-role='cash-edit-pointer']")
+  end
+
   # User story (#561):
   # As a local portfolio maintainer reading the Wealth data-quality list,
   # I want each finding to link to the surface where it can be fixed,

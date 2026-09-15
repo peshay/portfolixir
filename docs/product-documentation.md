@@ -913,7 +913,12 @@ listed per depot with the security's total across all depots and linked to
 the security's transactions so the history can be repaired (nothing is
 repaired automatically; the split wizard remains the only guided repair),
 and bookings with implausible dates (before 1970) that were applied on the
-first plausible day instead. Negative-quantity positions are also marked
+first plausible day instead. Each finding is a note at its own severity — a
+hint for the trade-price fallback, attention for excluded and stale
+positions, a problem for negative holdings — and carries its remedy inside
+the note: the **Sync exchange rates** control sits in the missing-rate
+finding, and a cash account left out for want of a rate is also marked
+*no exchange rate* in the cash table. Negative-quantity positions are also marked
 with a "negative quantity" chip wherever they appear: in the allocation
 table, in the classification tree and on the security's holdings tab.
 
