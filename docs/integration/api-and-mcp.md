@@ -654,7 +654,8 @@ Example account payloads:
   price is from, and the top-level `stale_priced_count` counts the quoted
   positions whose quote is older than the data-quality staleness threshold
   (the same `?dq=stale_quote` day count) — the remedy is the security's
-  `is_retired` flag, which the performance walk keys on, or a quote sync.
+  `is_retired` flag, which the performance walk keys on, or a quote sync; a
+  retired holding is therefore not counted, its stale close is expected.
   A position with neither price **or** no
   exchange-rate path to the base currency is returned with `valued: false`,
   `price_source: null` and `null` market value and weight, so a missing price

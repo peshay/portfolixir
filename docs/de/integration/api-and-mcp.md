@@ -667,7 +667,8 @@ Beispiel-Payloads für Konten:
   Positionen, deren Kurs älter ist als die Datenqualitäts-Schwelle (dieselbe
   Tageszahl wie `?dq=stale_quote`) — das Mittel ist das `is_retired`-Kennzeichen
   des Wertpapiers, auf das der Performance-Lauf reagiert, oder eine
-  Kurssynchronisation. Eine Position mit weder Preis **oder** ohne
+  Kurssynchronisation; eine eingestellte Position wird deshalb nicht gezählt,
+  ihr alter Schlusskurs ist erwartet. Eine Position mit weder Preis **oder** ohne
   Wechselkurspfad zur Basiswährung wird mit `valued: false`, `price_source: null`
   und `null` für Marktwert und Gewicht zurückgegeben, sodass ein fehlender Preis
   oder Kurs den Gesamtwert nie verzerrt. Unbekannte Portfolios liefern

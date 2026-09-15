@@ -702,7 +702,9 @@ Jede Position trägt deshalb das Datum, von dem ihr Preis stammt
 deren Kurs älter ist als die Datenqualitäts-Schwelle (`stale_priced_count`),
 und der Datenqualitäts-Abschnitt der Vermögensseite nennt sie mit diesem
 Datum und dem Mittel: das Wertpapier als **eingestellt** markieren, wenn
-seine Notierung endete, oder seine Kurse synchronisieren. Das
+seine Notierung endete, oder seine Kurse synchronisieren — und einmal
+eingestellt, verlässt die Position Zählung und Befund, weil ihr alter
+Schlusskurs dann erwartet ist. Das
 Eingestellt-Kennzeichen ist zugleich das, worauf die Performance-Zahl
 reagiert — der veraltete Kurs einer eingestellten Position gilt nicht mehr
 als Marktbeobachtung, eine spätere Buchung stellt also die Basis neu fest,

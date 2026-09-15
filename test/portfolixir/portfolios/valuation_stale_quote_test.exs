@@ -57,6 +57,32 @@ defmodule Portfolixir.Portfolios.ValuationStaleQuoteTest do
     assert rows[unquoted.id].price_date == trade_day
   end
 
+  # Closing-act finding (UAT persona, Sprint 11): the finding names the
+  # remedy — mark the holding retired — so the remedy must clear it. A
+  # retired holding's stale quote is expected: the listing ended, and the
+  # walk already stops measuring it (#610).
+  test "a retired holding's stale quote is not counted" do
+    world = base_world(name: "SQR", cash_name: "SQR Cash", depot_name: "SQR Depot")
+    retired = create_security!(name: "Delisted Co", ticker: "DLS")
+    today = Date.utc_today()
+
+    deposit!(world, "1000", Date.add(today, -100))
+    buy!(world, retired, quantity: "1", price: "10", date: Date.add(today, -50))
+    put_quote!(retired, Date.add(today, -(DataQuality.stale_days() + 1)), "9")
+
+    assert Valuation.for_portfolio(world.portfolio.id).stale_priced_count == 1
+
+    {:ok, _retired} =
+      Portfolixir.Catalog.update_security(Portfolixir.Actor.owner_ui(), retired, %{
+        is_retired: true
+      })
+
+    valuation = Valuation.for_portfolio(world.portfolio.id)
+    assert valuation.stale_priced_count == 0
+    # The position itself keeps its price and its date: only the count moves.
+    assert Map.new(valuation.positions, &{&1.security_id, &1})[retired.id].price_source == :quote
+  end
+
   test "a quote exactly at the threshold is not stale" do
     world = base_world(name: "SQT", cash_name: "SQT Cash", depot_name: "SQT Depot")
     edge = create_security!(name: "Edge Co", ticker: "EDG")

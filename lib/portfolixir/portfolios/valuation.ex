@@ -514,6 +514,10 @@ defmodule Portfolixir.Portfolios.Valuation do
       securities_account_id: securities_account_id,
       security_id: security_id,
       security_name: security && security.name,
+      # The catalog's retired flag rides along so the stale-quote count can
+      # leave a retired holding out: its listing ended, the stale close is
+      # expected, and the walk already stops measuring it (#610).
+      retired: security != nil and security.is_retired == true,
       asset_class: security && Security.effective_asset_class(security),
       security_currency: security_currency,
       quantity: quantity,
@@ -533,11 +537,14 @@ defmodule Portfolixir.Portfolios.Valuation do
   # securities page's "No quote in N days" filter states (DataQuality), not a
   # second horizon. Trade-priced positions are `trade_priced_count`'s and are
   # not counted twice; the operator's remedy is the `is_retired` flag the
-  # walk keys on, or a quote sync.
+  # walk keys on, or a quote sync — and a retired holding is therefore not
+  # counted (closing-act finding: the remedy must clear the finding).
   defp stale_priced_count(positions) do
     today = Portfolixir.Clock.today()
     Enum.count(positions, &stale_quote?(&1, today))
   end
+
+  defp stale_quote?(%{retired: true}, _today), do: false
 
   defp stale_quote?(%{price_source: :quote, price_date: %Date{} = date}, today),
     do: Date.diff(today, date) > DataQuality.stale_days()

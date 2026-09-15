@@ -54,4 +54,33 @@ defmodule PortfolixirWeb.ApiV1ValuationStaleQuoteTest do
     assert [row] = global["holdings"]
     assert row["price_date"] == Date.to_iso8601(stale_day)
   end
+
+  # Closing-act finding (UAT persona, Sprint 11): the count leaves a retired
+  # holding out — the remedy the finding names clears it, on every scope.
+  test "a retired holding is not in stale_priced_count", %{conn: conn} do
+    world = base_world(name: "SQR", cash_name: "SQR Cash", depot_name: "SQR Depot")
+    retired = create_security!(name: "Delisted Co", ticker: "DLS")
+    today = Date.utc_today()
+
+    deposit!(world, "1000", Date.add(today, -100))
+    buy!(world, retired, quantity: "1", price: "10", date: Date.add(today, -50))
+    put_quote!(retired, Date.add(today, -(DataQuality.stale_days() + 1)), "9")
+
+    {:ok, _} = Portfolixir.Catalog.update_security(Actor.owner_ui(), retired, %{is_retired: true})
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "All"})
+
+    assert %{"data" => %{"stale_priced_count" => 0}} =
+             json_response(get(conn, "/api/v1/portfolios/#{world.portfolio.id}/valuation"), 200)
+
+    assert %{"data" => %{"stale_priced_count" => 0}} =
+             json_response(
+               get(
+                 recycle(conn)
+                 |> put_req_header("accept", "application/json")
+                 |> put_req_header("authorization", "Bearer test-api-token"),
+                 "/api/v1/views/#{view.id}/valuation"
+               ),
+               200
+             )
+  end
 end
