@@ -48,5 +48,26 @@ assigns each holding to a category, and sets target weights plus a cash target,
 so the portfolio allocation view (classification "Strategies") shows
 per-category drift.
 
+## Review walkthrough surfaces (agentic review, UAT)
+
+The closing act of an epic batch walks the app on data that fires every alarm
+surface. `finding_surfaces_seed.exs` builds exactly that instance: it imports
+the demo dataset, seeds the quote history and the Strategies tree, and adds a
+held position whose quote went stale, a delivered position with no price and
+no asset class, a watch-list security with no classification, a USD cash
+account with a balance and no exchange rate, recent bookings, buckets and a
+view, a depot snapshot, a tax profile with a recorded statement, and a
+research log whose risk entry is superseded by a retraction.
+
+```bash
+DATABASE_NAME=portfolixir_review PORT=4003 mix ecto.create
+DATABASE_NAME=portfolixir_review PORT=4003 mix ecto.migrate
+DATABASE_NAME=portfolixir_review PORT=4003 mix run priv/demo/finding_surfaces_seed.exs
+```
+
+It is **idempotent**: every step asks whether its rows are already there, so a
+second run adds nothing. Synthetic all the way down — no real holdings, no
+real institution, no real person.
+
 The screenshots and the tour GIF under `docs/screenshots/` were produced from
 this dataset.

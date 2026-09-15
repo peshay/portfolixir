@@ -607,3 +607,28 @@ Frontmatter completeness: `name`, `description`, `colors`, `typography`,
 `rgb()`-with-alpha deviation is declared, which is the right handling. No Mermaid
 diagrams in either file. EXPERIENCE.md's `sources` list resolves — all ten paths
 exist.
+
+## Walkthrough conditions and their seed *(added 2026-09-15, Sprint 12 D-4)*
+
+Every design-critic and UAT walkthrough of a batch with user-visible surface
+runs under the #706 conditions: DE locale, 1440 px and one full pass at
+390 px, light and dark, on seed data that fires every alarm surface — a
+position with a stale quote, a position with no price at all, an unclassified
+security, a foreign-currency cash account with no FX rate, an unallocated
+target remainder, a snapshot, a recorded tax statement, and a research log
+carrying a retraction.
+
+Those conditions are a script: **`priv/demo/finding_surfaces_seed.exs`**. It
+seeds the synthetic `priv/demo` dataset and the finding-triggering rows on top
+of it, and it is idempotent — a re-run on a seeded database adds nothing, so a
+walkthrough can re-seed after a migration rather than dropping the database:
+
+```bash
+DATABASE_NAME=portfolixir_review PORT=4003 mix ecto.create
+DATABASE_NAME=portfolixir_review PORT=4003 mix ecto.migrate
+DATABASE_NAME=portfolixir_review PORT=4003 mix run priv/demo/finding_surfaces_seed.exs
+```
+
+It lives under `priv/demo/` rather than beside one review's mockups so every
+later walkthrough exercises it, which is what keeps it from rotting the way
+the Sprint 5 retrospective found the other two demo seeds rotting.
