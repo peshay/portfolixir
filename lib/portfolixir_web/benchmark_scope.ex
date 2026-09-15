@@ -12,8 +12,11 @@ defmodule PortfolixirWeb.BenchmarkScope do
   given, securities first and the rate last.
 
   The plug validates only the **shape** of a selector — a positive integer
-  security id, or a finite rate above -100 % — and stores the rate as the
-  decimal fraction the comparison engine reads (`rate:0.02` for 2 %).
+  security id, or a finite rate inside the engine's own bound
+  (`Portfolixir.Portfolios.Performance.Benchmark.valid_rate?/1`, -99.9999 %
+  to 1000 % p.a.) — and stores the rate as the normalised decimal fraction
+  the comparison engine reads (`rate:0.02` for 2 %, whether typed as `2` or
+  `2.0`).
   Whether an id still names a flagged benchmark is decided where the
   selection is used, so an unflagged or deleted security degrades to
   "not selected". An explicit choice with no valid selector (the form
@@ -22,13 +25,16 @@ defmodule PortfolixirWeb.BenchmarkScope do
 
   import Plug.Conn
 
+  alias Portfolixir.Portfolios.Performance.Benchmark
+
   @cookie "portfolixir_benchmarks"
   @session_key "active_benchmarks"
   # 1 year, same horizon as the view and locale cookies.
   @max_age 60 * 60 * 24 * 365
   @max_benchmarks 2
   @hundred Decimal.new(100)
-  @minus_one Decimal.new("-1")
+  # The largest id the securities table can hold (int8).
+  @max_id 9_223_372_036_854_775_807
 
   def init(opts), do: opts
 
@@ -79,16 +85,8 @@ defmodule PortfolixirWeb.BenchmarkScope do
   # fraction the engine reads.
   defp rate_selector(raw) when is_binary(raw) do
     case Decimal.parse(String.trim(raw)) do
-      {%Decimal{} = percent, ""} ->
-        fraction = Decimal.div(percent, @hundred)
-
-        if Decimal.nan?(fraction) or Decimal.inf?(fraction) or
-             Decimal.compare(fraction, @minus_one) != :gt,
-           do: [],
-           else: ["rate:" <> Decimal.to_string(fraction, :normal)]
-
-      _malformed ->
-        []
+      {%Decimal{} = percent, ""} -> rate_fraction(Decimal.div(percent, @hundred))
+      _malformed -> []
     end
   end
 
@@ -96,25 +94,27 @@ defmodule PortfolixirWeb.BenchmarkScope do
 
   defp normalize_selector("security:" <> id) do
     case Integer.parse(String.trim(id)) do
-      {id, ""} when id > 0 -> ["security:#{id}"]
+      {id, ""} when id > 0 and id <= @max_id -> ["security:#{id}"]
       _ -> []
     end
   end
 
   defp normalize_selector("rate:" <> rate) do
     case Decimal.parse(String.trim(rate)) do
-      {%Decimal{} = fraction, ""} ->
-        if Decimal.nan?(fraction) or Decimal.inf?(fraction) or
-             Decimal.compare(fraction, @minus_one) != :gt,
-           do: [],
-           else: ["rate:" <> Decimal.to_string(fraction, :normal)]
-
-      _ ->
-        []
+      {%Decimal{} = fraction, ""} -> rate_fraction(fraction)
+      _ -> []
     end
   end
 
   defp normalize_selector(_other), do: []
+
+  # The engine's bound, and one spelling per rate so `2` and `2.0` cannot
+  # fill both slots with the same benchmark.
+  defp rate_fraction(fraction) do
+    if Benchmark.valid_rate?(fraction),
+      do: ["rate:" <> Decimal.to_string(Decimal.normalize(fraction), :normal)],
+      else: []
+  end
 
   defp apply_choice(conn, []) do
     conn

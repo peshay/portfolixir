@@ -70,10 +70,15 @@ defmodule PortfolixirWeb.ApiV1BenchmarkTest do
 
     assert data["window"] == %{
              "start_date" => Date.to_iso8601(Date.add(world.today, -20)),
-             "end_date" => Date.to_iso8601(world.today)
+             "end_date" => Date.to_iso8601(world.today),
+             "rebase_day" => Date.to_iso8601(Date.add(world.today, -20))
            }
 
-    assert data["requested_window"] == data["window"]
+    assert data["requested_window"] == %{
+             "start_date" => data["window"]["start_date"],
+             "end_date" => data["window"]["end_date"]
+           }
+
     assert data["excluded_flows"] == []
     # Identity 1 on the wire: the 0 % plan ends at the net invested capital.
     assert data["savings_plan"]["invested_capital"] == "1500"
@@ -83,6 +88,9 @@ defmodule PortfolixirWeb.ApiV1BenchmarkTest do
     assert is_binary(data["savings_plan"]["portfolio_irr"])
     assert is_binary(data["savings_plan"]["benchmark_irr"])
     assert is_binary(data["savings_plan"]["benchmark_units"])
+    # The non-annualized period pair rides along for windows under a year.
+    assert is_binary(data["savings_plan"]["portfolio_mwr"])
+    assert is_binary(data["savings_plan"]["benchmark_mwr"])
     assert data["bought_once"]["benchmark_return"] == "0"
     assert is_binary(data["bought_once"]["portfolio_ttwror"])
     refute Map.has_key?(data["bought_once"], "series")
@@ -164,7 +172,11 @@ defmodule PortfolixirWeb.ApiV1BenchmarkTest do
           "security:abc",
           "security:",
           "rate:NaN",
-          "rate:Infinity"
+          "rate:Infinity",
+          "rate:-0.99999999999999999999",
+          "rate:1e309",
+          "rate:11",
+          "security:99999999999999999999"
         ] do
       conn =
         get(api_conn(conn), "/api/v1/portfolios/#{world.portfolio.id}/performance/benchmark", %{

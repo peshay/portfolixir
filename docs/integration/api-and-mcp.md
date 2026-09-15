@@ -726,26 +726,33 @@ Example account payloads:
   worth it". `benchmark=` is required — `rate:<decimal>` for a fixed
   effective annual rate compounding daily from a base of 1 (Act/365;
   `rate:0.02` is 2 % p.a., the savings-account baseline and, in v1, how
-  inflation is expressed) or `security:<id>` for a catalog security flagged
+  inflation is expressed; accepted between `-0.999999` and `10`, the IRR
+  solver's own domain) or `security:<id>` for a catalog security flagged
   `is_benchmark` (list them with `GET /api/v1/securities?is_benchmark=true`;
   any other security answers `422`). `period`, `year`, `from`/`to`, `view=`
   and `series=true` behave like the performance read. The response carries
   `benchmark` (`kind`, then `annual_rate` or `security_id`/`name`/
   `currency_code`), `requested_window` and `window` — the days the
-  comparison actually covers: a flow dated before the benchmark's first
-  quote is excluded from the replay and listed in `excluded_flows` (`date`,
-  `flow`), and both sides are chained over the covered window — then the two
-  comparisons Portfolio Performance shows. `bought_once` is flow-neutral:
-  `benchmark_return`, the benchmark rebased to the close before the window
-  (or to the window's first day when it opens with no value), next to
-  `portfolio_ttwror` over the same window; with `series=true` it also
-  carries the daily `cumulative_return` points for a chart overlay.
-  `savings_plan` is flow-matched: `invested_capital`, `portfolio_end_value`
-  and `benchmark_end_value` — the window's opening value and every external
-  flow invested into the benchmark at that day's price (a fixed rate: at
-  par) — `end_value_delta` (real minus synthetic, the figure that answers
-  the question), `portfolio_irr` and `benchmark_irr` (ADR-0034's XIRR on
-  identical dated flows) and `benchmark_units`. All financial values are
+  comparison actually covers, `window.rebase_day` naming the close the
+  benchmark is rebased to (the close before the window, or the window's
+  first day when it opens with no value): a flow dated before the
+  benchmark's first *priced* day (a close and a rate path to the base
+  currency; a stored close of 0 is not a price) is not replayed on its own
+  day — it enters through the window's opening value and is listed in
+  `excluded_flows` (`date`, `flow`) — and both sides are chained over the
+  covered window — then the two comparisons Portfolio Performance shows.
+  `bought_once` is flow-neutral: `benchmark_return`, the benchmark rebased
+  at `rebase_day`, next to `portfolio_ttwror` over the same window; with
+  `series=true` it also carries the daily `cumulative_return` points for a
+  chart overlay. `savings_plan` is flow-matched: `invested_capital`,
+  `portfolio_end_value` and `benchmark_end_value` — the window's opening
+  value and every external flow invested into the benchmark at that day's
+  price (a fixed rate: at par) — `end_value_delta` (real minus synthetic,
+  the figure that answers the question), `portfolio_irr` and
+  `benchmark_irr` (ADR-0034's XIRR on identical dated flows),
+  `portfolio_mwr` and `benchmark_mwr` (the non-annualized period rates a
+  window shorter than a year reads instead) and `benchmark_units`. All
+  financial values are
   Decimal strings; `as_of`/`stale` carry the walk's freshness (ADR-0039) and
   `computation_basis` states the input series, the window, the reference,
   the treatment of gaps and the `assumptions` — the synthetic portfolio is

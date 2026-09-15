@@ -190,11 +190,25 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
       assert get_session(conn, BenchmarkScope.session_key()) == ["rate:0.02", "security:3"]
     end
 
-    test "a rate at or below -100 % and a non-numeric rate are dropped" do
-      for query <- ["benchmark_rate=-100", "benchmark_rate=abc", "benchmark_rate=NaN"] do
+    test "a rate outside the engine's bound, a non-numeric rate and an id beyond int8 are dropped" do
+      for query <- [
+            "benchmark_rate=-100",
+            "benchmark_rate=abc",
+            "benchmark_rate=NaN",
+            "benchmark_rate=-99.99999999999999999999",
+            "benchmark_rate=1001",
+            "benchmark[]=rate:1e309",
+            "benchmark[]=rate:-0.9999999999999999999999",
+            "benchmark[]=security:99999999999999999999"
+          ] do
         conn = query |> with_query() |> run_plug()
         assert get_session(conn, BenchmarkScope.session_key()) == [], query
       end
+    end
+
+    test "one spelling per rate: 2 and 2.0 are the same selector" do
+      conn = "benchmark[]=rate:0.020&benchmark_rate=2.0" |> with_query() |> run_plug()
+      assert get_session(conn, BenchmarkScope.session_key()) == ["rate:0.02"]
     end
   end
 end

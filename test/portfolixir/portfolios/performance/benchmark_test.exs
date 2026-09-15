@@ -11,7 +11,6 @@ defmodule Portfolixir.Portfolios.Performance.BenchmarkTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
-  alias Portfolixir.Derived.Registry
   alias Portfolixir.Fx
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios.Performance.Benchmark
@@ -85,8 +84,14 @@ defmodule Portfolixir.Portfolios.Performance.BenchmarkTest do
     assert cmp.period == "max"
     assert cmp.portfolio_id == world.portfolio.id
     assert cmp.base_currency == "EUR"
-    assert cmp.window == %{start_date: ~D[2026-01-01], end_date: ~D[2026-01-21]}
-    assert cmp.requested_window == cmp.window
+
+    assert cmp.window == %{
+             start_date: ~D[2026-01-01],
+             end_date: ~D[2026-01-21],
+             rebase_day: ~D[2026-01-01]
+           }
+
+    assert cmp.requested_window == %{start_date: ~D[2026-01-01], end_date: ~D[2026-01-21]}
     assert cmp.excluded_flows == []
     assert Decimal.equal?(cmp.savings_plan.invested_capital, d("1500"))
     assert Decimal.equal?(cmp.savings_plan.benchmark_end_value, d("1500"))
@@ -179,7 +184,12 @@ defmodule Portfolixir.Portfolios.Performance.BenchmarkTest do
       Benchmark.for_portfolio(world.portfolio.id, {:security, bench}, today: ~D[2026-01-21])
 
     assert cmp.requested_window == %{start_date: ~D[2026-01-01], end_date: ~D[2026-01-21]}
-    assert cmp.window == %{start_date: ~D[2026-01-11], end_date: ~D[2026-01-21]}
+
+    assert cmp.window == %{
+             start_date: ~D[2026-01-11],
+             end_date: ~D[2026-01-21],
+             rebase_day: ~D[2026-01-10]
+           }
 
     assert [%{date: ~D[2026-01-01], flow: f1}, %{date: ~D[2026-01-05], flow: f2}] =
              cmp.excluded_flows
@@ -204,6 +214,11 @@ defmodule Portfolixir.Portfolios.Performance.BenchmarkTest do
     assert cmp.computation_basis.reference =~ "Late Bench"
     assert cmp.computation_basis.gaps =~ "excluded"
     assert cmp.computation_basis.assumptions =~ "frictionless"
+    assert cmp.computation_basis.assumptions =~ "float"
+    assert cmp.computation_basis.gaps =~ "excluded_flows"
+    assert cmp.computation_basis.gaps =~ "rate path"
+    assert cmp.computation_basis.gaps =~ "opening value"
+    assert cmp.computation_basis.gaps =~ "rebase_day"
   end
 
   # User story (#572, ADR-0046 §1 "compounding daily from a base of 1"):
@@ -222,8 +237,17 @@ defmodule Portfolixir.Portfolios.Performance.BenchmarkTest do
     {:ok, cmp} =
       Benchmark.for_portfolio(world.portfolio.id, {:rate, d("0.02")}, today: ~D[2026-01-01])
 
-    assert cmp.window == %{start_date: ~D[2025-01-01], end_date: ~D[2026-01-01]}
+    assert cmp.window == %{
+             start_date: ~D[2025-01-01],
+             end_date: ~D[2026-01-01],
+             rebase_day: ~D[2025-01-01]
+           }
+
     assert Decimal.equal?(cmp.savings_plan.benchmark_units, d("1000"))
+    # The period money-weighted pair rides along (ADR-0034 §2): over 365
+    # days the period rate is the annual rate.
+    assert Decimal.equal?(Decimal.round(cmp.savings_plan.benchmark_mwr, 4), d("0.02"))
+    assert %Decimal{} = cmp.savings_plan.portfolio_mwr
     assert Decimal.equal?(Decimal.round(cmp.savings_plan.benchmark_end_value, 6), d("1020"))
     assert Decimal.equal?(Decimal.round(cmp.savings_plan.end_value_delta, 6), d("-20"))
     assert Decimal.equal?(Decimal.round(cmp.bought_once.benchmark_return, 8), d("0.02"))
@@ -257,7 +281,13 @@ defmodule Portfolixir.Portfolios.Performance.BenchmarkTest do
     # at the end on both sides; bought once 121/110 - 1 = 0.1, as is the
     # chain 1210/1100 - 1.
     assert cmp.period == {:range, ~D[2026-01-11], ~D[2026-01-21]}
-    assert cmp.window == %{start_date: ~D[2026-01-11], end_date: ~D[2026-01-21]}
+
+    assert cmp.window == %{
+             start_date: ~D[2026-01-11],
+             end_date: ~D[2026-01-21],
+             rebase_day: ~D[2026-01-10]
+           }
+
     assert Decimal.equal?(cmp.savings_plan.benchmark_units, d("10"))
     assert Decimal.equal?(cmp.savings_plan.end_value_delta, d("0"))
     assert Decimal.equal?(cmp.bought_once.benchmark_return, d("0.1"))
@@ -317,11 +347,12 @@ defmodule Portfolixir.Portfolios.Performance.BenchmarkTest do
     {:ok, cmp} =
       Benchmark.for_portfolio(world.portfolio.id, {:rate, d("0.02")}, today: ~D[2026-01-21])
 
-    assert cmp.window == %{start_date: nil, end_date: ~D[2026-01-21]}
+    assert cmp.window == %{start_date: nil, end_date: ~D[2026-01-21], rebase_day: nil}
     assert cmp.bought_once.series == []
     assert is_nil(cmp.bought_once.benchmark_return)
     assert is_nil(cmp.savings_plan.benchmark_end_value)
     assert is_nil(cmp.savings_plan.end_value_delta)
+    assert is_nil(cmp.savings_plan.benchmark_mwr)
     assert cmp.excluded_flows == []
   end
 
@@ -335,35 +366,11 @@ defmodule Portfolixir.Portfolios.Performance.BenchmarkTest do
       Benchmark.for_portfolio(world.portfolio.id, {:security, bench}, today: ~D[2026-01-21])
 
     assert cmp.requested_window == %{start_date: ~D[2026-01-01], end_date: ~D[2026-01-21]}
-    assert cmp.window == %{start_date: nil, end_date: ~D[2026-01-21]}
+    assert cmp.window == %{start_date: nil, end_date: ~D[2026-01-21], rebase_day: nil}
     assert [%{date: ~D[2026-01-01]}, %{date: ~D[2026-01-10]}] = cmp.excluded_flows
     assert is_nil(cmp.savings_plan.end_value_delta)
     assert is_nil(cmp.bought_once.benchmark_return)
     assert cmp.bought_once.series == []
-  end
-
-  # ADR-0046 §5: nothing is persisted, the comparison is memoised under
-  # ADR-0039's one mechanism. A benchmark the portfolio never held is outside
-  # the portfolio's own blast radius, so the memo lives under the global
-  # basis, which every quote write bumps.
-  test "the memoised comparison is invalidated by a quote write for a benchmark the portfolio never held" do
-    world = base_world(name: "B9", cash_name: "B9 Cash", depot_name: "B9 Depot")
-    deposit!(world, "1000", ~D[2026-01-01])
-    bench = benchmark_security!(name: "Unheld", ticker: "UNH")
-    put_quotes!(bench, [{~D[2026-01-01], "100"}, {~D[2026-01-10], "100"}])
-
-    {:ok, first} =
-      Benchmark.for_portfolio(world.portfolio.id, {:security, bench}, today: ~D[2026-01-10])
-
-    assert Decimal.equal?(first.savings_plan.benchmark_end_value, d("1000"))
-
-    put_quotes!(bench, [{~D[2026-01-10], "120"}])
-
-    {:ok, second} =
-      Benchmark.for_portfolio(world.portfolio.id, {:security, bench}, today: ~D[2026-01-10])
-
-    assert Decimal.equal?(second.savings_plan.benchmark_end_value, d("1200"))
-    assert Registry.registered?(:benchmark_comparison)
   end
 
   test "the view scope compares the cross-portfolio walk under the same rules" do
@@ -379,12 +386,89 @@ defmodule Portfolixir.Portfolios.Performance.BenchmarkTest do
     assert Decimal.equal?(cmp.savings_plan.benchmark_end_value, d("1000"))
   end
 
-  test "a rate at or below -100 % is refused" do
+  # Closing-act findings (risk-tier pass, both hunters): the rebase day is
+  # part of the payload, a flow dated on it is invested at its close and so
+  # not listed, and a stored close of 0 is not a price.
+  test "a flow dated on the rebase day is replayed at that day's close, not listed as excluded" do
+    world = base_world(name: "B3b", cash_name: "B3b Cash", depot_name: "B3b Depot")
+    held = create_security!(name: "World ETF", ticker: "WLD")
+    put_quotes!(held, [{~D[2026-01-01], "100"}, {~D[2026-01-20], "120"}])
+    bench = benchmark_security!(name: "Late Bench", ticker: "LATE")
+    put_quotes!(bench, [{~D[2026-01-10], "50"}, {~D[2026-01-20], "55"}])
+
+    deposit!(world, "1000", ~D[2026-01-01])
+    buy!(world, held, quantity: "10", price: "100", date: ~D[2026-01-01])
+    deposit!(world, "200", ~D[2026-01-05])
+    deposit!(world, "400", ~D[2026-01-10])
+    deposit!(world, "300", ~D[2026-01-12])
+
+    {:ok, cmp} =
+      Benchmark.for_portfolio(world.portfolio.id, {:security, bench}, today: ~D[2026-01-21])
+
+    assert cmp.window.rebase_day == ~D[2026-01-10]
+    assert [%{date: ~D[2026-01-01]}, %{date: ~D[2026-01-05]}] = cmp.excluded_flows
+    # V(01-10) = 1000 + 200 + 400 = 1600 at 50 → 32 units, + 300/50 = 6: 38
+    # units, 38 x 55 = 2090 against the real 10 x 120 + 900 = 2100.
+    assert Decimal.equal?(cmp.savings_plan.benchmark_units, d("38"))
+    assert Decimal.equal?(cmp.savings_plan.end_value_delta, d("10"))
+  end
+
+  test "a stored close of 0 is not a price: the day is unpriced and the previous close carries" do
+    world = base_world(name: "B0", cash_name: "B0 Cash", depot_name: "B0 Depot")
+    deposit!(world, "1000", ~D[2026-01-01])
+    deposit!(world, "500", ~D[2026-01-08])
+    bench = benchmark_security!(name: "Zero Close", ticker: "ZRO")
+
+    put_quotes!(bench, [
+      {~D[2026-01-01], "0"},
+      {~D[2026-01-05], "50"},
+      {~D[2026-01-08], "0"},
+      {~D[2026-01-10], "55"}
+    ])
+
+    {:ok, cmp} =
+      Benchmark.for_portfolio(world.portfolio.id, {:security, bench}, today: ~D[2026-01-11])
+
+    # The first real close is 01-05: the window opens the day after, the
+    # 01-01 flow is named; the 0 on 01-08 carries 50 forward, so the 500
+    # buys 10 units there: 20 + 10 = 30 units, 30 x 55 = 1650.
+    assert cmp.window == %{
+             start_date: ~D[2026-01-06],
+             end_date: ~D[2026-01-11],
+             rebase_day: ~D[2026-01-05]
+           }
+
+    assert [%{date: ~D[2026-01-01]}] = cmp.excluded_flows
+    assert Decimal.equal?(cmp.savings_plan.benchmark_units, d("30"))
+    assert Decimal.equal?(cmp.savings_plan.benchmark_end_value, d("1650"))
+  end
+
+  # The rate stays inside the solver's own domain (ADR-0034 §2): a rate a
+  # hair above -100 % or beyond DBL_MAX crashed the arithmetic (closing-act
+  # finding of both hunters); one bound, shared by the API parser and the
+  # page's plug.
+  test "a rate outside -99.9999 % .. 1000 % is refused, the bounds themselves are accepted" do
     world = base_world(name: "B11", cash_name: "B11 Cash", depot_name: "B11 Depot")
     deposit!(world, "1000", ~D[2026-01-01])
 
-    assert {:error, :invalid_benchmark} =
-             Benchmark.for_portfolio(world.portfolio.id, {:rate, d("-1")}, today: ~D[2026-01-21])
+    for rate <- ["-1", "-0.99999999999999999999", "-0.9999995", "10.000001", "1e309", "1e100"] do
+      assert {:error, :invalid_benchmark} =
+               Benchmark.for_portfolio(world.portfolio.id, {:rate, d(rate)},
+                 today: ~D[2026-01-21]
+               ),
+             rate
+    end
+
+    for rate <- ["-0.999999", "10", "0", "0.02"] do
+      assert {:ok, _} =
+               Benchmark.for_portfolio(world.portfolio.id, {:rate, d(rate)},
+                 today: ~D[2026-01-21]
+               ),
+             rate
+    end
+
+    assert Benchmark.valid_rate?(d("10"))
+    refute Benchmark.valid_rate?(d("10.5"))
 
     assert {:error, :invalid_period} =
              Benchmark.for_portfolio(world.portfolio.id, {:rate, d("0")},

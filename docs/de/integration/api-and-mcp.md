@@ -741,28 +741,34 @@ Beispiel-Payloads für Konten:
   Aufwand das wert?". `benchmark=` ist Pflicht — `rate:<decimal>` für einen
   festen effektiven Jahreszins, der täglich von Basis 1 aufzinst (Act/365;
   `rate:0.02` sind 2 % p. a., die Tagesgeld-Baseline und in v1 auch die
-  Ausdrucksform der Inflation), oder `security:<id>` für ein
+  Ausdrucksform der Inflation; akzeptiert zwischen `-0.999999` und `10`, dem
+  Definitionsbereich des IRR-Solvers), oder `security:<id>` für ein
   Katalog-Wertpapier mit gesetztem `is_benchmark` (Liste über
   `GET /api/v1/securities?is_benchmark=true`; jedes andere Wertpapier
   liefert `422`). `period`, `year`, `from`/`to`, `view=` und `series=true`
   verhalten sich wie beim Performance-Endpunkt. Die Antwort trägt
   `benchmark` (`kind`, dann `annual_rate` oder `security_id`/`name`/
   `currency_code`), `requested_window` und `window` — die Tage, die der
-  Vergleich tatsächlich abdeckt: ein Fluss vor dem ersten Kurs der
-  Benchmark wird aus der Nachbuchung ausgeschlossen und in `excluded_flows`
-  (`date`, `flow`) benannt, und beide Seiten werden über das abgedeckte
-  Fenster verkettet — und dann die beiden Vergleiche, die Portfolio
-  Performance zeigt. `bought_once` ist flussneutral: `benchmark_return`, die
-  Benchmark auf den Schlusskurs vor dem Fenster rebasiert (oder auf den
-  ersten Tag des Fensters, wenn es ohne Wert beginnt), neben
-  `portfolio_ttwror` über dasselbe Fenster; mit `series=true` zusätzlich
-  die täglichen `cumulative_return`-Punkte für ein Chart-Overlay.
-  `savings_plan` ist flussgleich: `invested_capital`, `portfolio_end_value`
-  und `benchmark_end_value` — Eröffnungswert des Fensters und jeder externe
-  Fluss zum Kurs jenes Tages in die Benchmark investiert (fester Zins: zu
-  pari) — `end_value_delta` (real minus synthetisch, die Zahl, die die Frage
-  beantwortet), `portfolio_irr` und `benchmark_irr` (der XIRR von ADR-0034
-  auf identischen datierten Flüssen) und `benchmark_units`. Alle Finanzwerte
+  Vergleich tatsächlich abdeckt, mit `window.rebase_day`, dem Schlusskurs,
+  auf den die Benchmark rebasiert wird (der Schlusskurs vor dem Fenster oder
+  der erste Tag des Fensters, wenn es ohne Wert beginnt): ein Fluss vor dem
+  ersten *bepreisten* Tag der Benchmark (ein Schlusskurs und ein Kurspfad
+  zur Basiswährung; ein gespeicherter Schlusskurs von 0 ist kein Preis) wird
+  nicht an seinem eigenen Tag nachgebucht — er geht über den Anfangswert des
+  Fensters ein und wird in `excluded_flows` (`date`, `flow`) benannt — und
+  beide Seiten werden über das abgedeckte Fenster verkettet — und dann die
+  beiden Vergleiche, die Portfolio Performance zeigt. `bought_once` ist
+  flussneutral: `benchmark_return`, die Benchmark auf `rebase_day`
+  rebasiert, neben `portfolio_ttwror` über dasselbe Fenster; mit
+  `series=true` zusätzlich die täglichen `cumulative_return`-Punkte für ein
+  Chart-Overlay. `savings_plan` ist flussgleich: `invested_capital`,
+  `portfolio_end_value` und `benchmark_end_value` — Anfangswert des Fensters
+  und jeder externe Fluss zum Kurs jenes Tages in die Benchmark investiert
+  (fester Zins: zu pari) — `end_value_delta` (real minus synthetisch, die
+  Zahl, die die Frage beantwortet), `portfolio_irr` und `benchmark_irr` (der
+  XIRR von ADR-0034 auf identischen datierten Flüssen), `portfolio_mwr` und
+  `benchmark_mwr` (die nicht annualisierten Periodenraten, die ein Fenster
+  unter einem Jahr stattdessen liest) und `benchmark_units`. Alle Finanzwerte
   sind Decimal-Strings; `as_of`/`stale` tragen die Frische des Walks
   (ADR-0039) und `computation_basis` nennt Eingangsreihe, Fenster, Referenz,
   Lückenbehandlung und die `assumptions` — das synthetische Portfolio ist
