@@ -68,6 +68,19 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
     assert has_element?(view, "#kpi-benchmark [data-role='benchmark-delta']", "+50.00")
     assert has_element?(view, "#kpi-benchmark [data-role='benchmark-bought-once']")
     assert has_element?(view, "#kpi-benchmark [data-role='benchmark-irr']")
+    # The figure is named (design critic): the card says what it compares
+    # and the money figure says which comparison it is.
+    assert has_element?(view, "#kpi-benchmark", "Benchmark comparison")
+    assert has_element?(view, "#kpi-benchmark [data-role='benchmark-delta']", "savings plan")
+    # A twenty-day history is a short window: the period MWR pair, labelled
+    # like the sibling card (ADR-0034 §2), never an annualized IRR beside it.
+    assert has_element?(view, "#kpi-benchmark [data-role='benchmark-irr']", "MWR")
+    refute has_element?(view, "#kpi-benchmark [data-role='benchmark-irr']", "IRR")
+    # The chart's data is reachable as a table (UX-DR10): one column per
+    # overlay, and the accessible name of the chart names the benchmarks.
+    assert has_element?(view, "[data-role='perf-summary-table'] th", "Bench ETF")
+    assert has_element?(view, "[data-role='perf-summary-table'] th", "2.00 % p.a.")
+    assert has_element?(view, "#performance-figure svg[aria-label*='Bench ETF']")
     assert has_element?(view, "#tip-benchmark", "Savings plan")
 
     # The overlays and their legend on the TTWROR chart.
@@ -81,6 +94,11 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
              "[data-role='benchmark-picker'] [data-role='benchmark-active']",
              "Bench ETF"
            )
+
+    # One chip per active benchmark, carrying the legend swatch, so picker,
+    # legend and card share one identity per benchmark.
+    assert length(Regex.scan(~r/data-role="benchmark-chip"/, html)) == 2
+    refute has_element?(view, "[data-role='benchmark-value-hint']")
 
     # A period switch re-chains the comparison with the period label.
     render_click(view, "select_period", %{"period" => "ytd"})
@@ -106,6 +124,9 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
     html = render_click(view, "set_chart_mode", %{"mode" => "value"})
     refute html =~ ~s(class="chart-benchmark-1")
     refute has_element?(view, "[data-role='benchmark-legend']")
+    refute has_element?(view, "[data-role='perf-summary-table'] th", "Bench ETF")
+    # The deliberate limit is stated where the overlay is missing (UX-DR26).
+    assert has_element?(view, "[data-role='benchmark-value-hint']", "TTWROR")
 
     conn = get(conn, "/portfolio?benchmark[]=")
     {:ok, cleared, _html} = live(conn, "/portfolio?benchmark[]=")
@@ -145,9 +166,41 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
     {:ok, view, _html} = live(conn, "/portfolio?locale=de&benchmark[]=security:#{world.bench.id}")
     render_async(view)
 
-    assert has_element?(view, "#kpi-benchmark", "Benchmark")
+    assert has_element?(view, "#kpi-benchmark", "Benchmark-Vergleich")
+    assert has_element?(view, "#kpi-benchmark [data-role='benchmark-delta']", "Sparplan")
+
+    assert has_element?(
+             view,
+             "#kpi-benchmark [data-role='benchmark-bought-once']",
+             "Einmalanlage"
+           )
+
     assert has_element?(view, "#tip-benchmark", "Sparplan")
     assert has_element?(view, "[data-role='benchmark-picker']", "Fester Zins")
+  end
+
+  # Closing-act finding (correctness hunter): a benchmark without a quote
+  # covers no window, and the row said "from  — 1 earlier flow left out" with
+  # a blank date. Nothing is covered, and the row says so.
+  test "a benchmark without a quote shows the uncovered note, never a blank date", %{conn: conn} do
+    world = seed_world()
+    silent = WorldFixtures.create_security!(name: "Silent Bench", ticker: "SLNT")
+    {:ok, silent} = Catalog.update_security(Actor.owner_ui(), silent, %{is_benchmark: true})
+
+    conn = get(conn, "/portfolio?benchmark[]=security:#{silent.id}")
+    {:ok, view, _html} = live(conn, "/portfolio?benchmark[]=security:#{silent.id}")
+    render_async(view)
+
+    assert has_element?(view, "#kpi-benchmark [data-role='benchmark-delta']", "—")
+
+    assert has_element?(
+             view,
+             "#kpi-benchmark [data-role='benchmark-coverage']",
+             "no covered window — 2 flows before the benchmark's first priced day"
+           )
+
+    refute has_element?(view, "#kpi-benchmark [data-role='benchmark-coverage']", "from ")
+    _ = world
   end
 
   describe "BenchmarkScope plug" do
