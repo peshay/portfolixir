@@ -1,6 +1,7 @@
 defmodule PortfolixirWeb.TransactionKindLabelTest do
   use ExUnit.Case, async: true
 
+  alias Portfolixir.Catalog.AssetClasses
   alias Portfolixir.Catalog.Feeds
   alias Portfolixir.Ledger.Transaction
   alias PortfolixirWeb.TransactionKindLabel
@@ -44,6 +45,24 @@ defmodule PortfolixirWeb.TransactionKindLabelTest do
 
     for code <- Feeds.codes() do
       refute Feeds.label(code) == code, code
+    end
+  end
+
+  # The third slug the rule covers, closed in the Sprint 12 closing act: an
+  # asset-class code outside the catalog's own set reached the screen as the
+  # stored value through a catch-all clause. The clause is unreachable through
+  # a validated write, so this is the meta-test the rule asks for rather than
+  # a regression test for a live defect.
+  test "an asset-class code never reads as its slug" do
+    Gettext.put_locale(PortfolixirWeb.Gettext, "en")
+
+    assert AssetClasses.label("equity") == "Equity"
+    assert AssetClasses.label(nil) == ""
+    assert AssetClasses.label("some_new_kind") == "Some new kind"
+    refute AssetClasses.label("some_new_kind") == "some_new_kind"
+
+    for {_label, code} <- AssetClasses.options() do
+      refute AssetClasses.label(code) == code, code
     end
   end
 end
