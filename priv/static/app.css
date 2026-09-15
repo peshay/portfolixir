@@ -3302,6 +3302,9 @@ input[pattern]:invalid:not(:placeholder-shown) {
 }
 .chart-legend__swatch.chart-benchmark-2 {
   color: var(--color-chart-benchmark-2);
+  /* Slot 2 is dotted on the plot (2 3); its swatches say so too, so the
+     two slots are told apart without their hue (UX-DR7). */
+  border-top-style: dotted;
 }
 .chart-legend__swatch--portfolio {
   border-top-style: solid;
@@ -3353,7 +3356,35 @@ input[pattern]:invalid:not(:placeholder-shown) {
   width: 6rem;
 }
 .benchmark-picker__active {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
   color: var(--color-text);
+}
+/* One chip per active benchmark, carrying the legend swatch: picker,
+   legend and card share one identity per benchmark. */
+.benchmark-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-size: 12px;
+  letter-spacing: 0;
+}
+.benchmark-row__figure-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin-right: var(--space-1);
+}
+/* Narrow screens: every row is the same three-line composition — name,
+   figure, detail — instead of two compositions in one card. */
+@media (max-width: 560px) {
+  .benchmark-row__name {
+    flex-basis: 100%;
+  }
 }
 /* Thumb-sized controls in the picker on a coarse pointer (UX-DR12): the
    checkbox rows, the rate field and the Apply button reach 44 px. */

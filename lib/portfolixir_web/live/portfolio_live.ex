@@ -986,7 +986,7 @@ defmodule PortfolixirWeb.PortfolioLive do
             role="group"
             aria-describedby="tip-benchmark"
           >
-            <span><%= gettext("Benchmark") %> (<%= period_label(@period) %>)</span>
+            <span><%= gettext("Benchmark comparison") %> (<%= period_label(@period) %>)</span>
             <ul :if={@comparisons != []} class="benchmark-rows" data-role="benchmark-rows">
               <li
                 :for={{comparison, index} <- Enum.with_index(@comparisons, 1)}
@@ -1006,10 +1006,11 @@ defmodule PortfolixirWeb.PortfolioLive do
                   class={perf_sign_class(comparison.savings_plan.end_value_delta)}
                   data-role="benchmark-delta"
                 >
+                  <span class="benchmark-row__figure-label"><%= gettext("savings plan") %>:</span>
                   <%= signed_money(comparison.savings_plan.end_value_delta) %> <%= comparison.base_currency %>
                 </strong>
                 <strong :if={is_nil(comparison.savings_plan.end_value_delta)} data-role="benchmark-delta">
-                  —
+                  <span class="benchmark-row__figure-label"><%= gettext("savings plan") %>:</span> —
                 </strong>
                 <span class="benchmark-row__detail">
                   <span data-role="benchmark-bought-once">
@@ -1019,12 +1020,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                     ) %>
                   </span>
                   <span class="perf-badge-sep">·</span>
-                  <span data-role="benchmark-irr">
-                    <%= gettext("IRR") %>: <%= return_pair(
-                      comparison.savings_plan.portfolio_irr,
-                      comparison.savings_plan.benchmark_irr
-                    ) %>
-                  </span>
+                  <span data-role="benchmark-irr"><%= money_weighted_pair(comparison) %></span>
                 </span>
                 <span
                   :if={comparison.excluded_flows != []}
@@ -1049,7 +1045,7 @@ defmodule PortfolixirWeb.PortfolioLive do
               <summary aria-label={gettext("Benchmark comparison info")}>ⓘ</summary>
               <p id="tip-benchmark" role="tooltip">
                 <%= gettext(
-                  "Savings plan: the period's opening value and every deposit or withdrawal invested into the benchmark on the same days at that day's price, without fees or taxes — the figure is the real end value minus that. Bought once compares the period's TTWROR with the benchmark held throughout. Flows before the benchmark's first quote are left out and the covered window is named."
+                  "Savings plan: the period's opening value and every deposit or withdrawal invested into the benchmark on the same days at that day's price, without fees or taxes; the figure is the actual end value minus that. Bought once: the period's TTWROR against the benchmark held throughout. Pairs read portfolio vs benchmark; flows before the benchmark's first priced day enter through the opening value."
                 ) %>
               </p>
             </details>
@@ -1207,7 +1203,18 @@ defmodule PortfolixirWeb.PortfolioLive do
                     class="benchmark-picker__active"
                     data-role="benchmark-active"
                   >
-                    <%= Enum.map_join(@benchmarks, " · ", &benchmark_name/1) %>
+                    <span
+                      :for={{benchmark, index} <- Enum.with_index(@benchmarks, 1)}
+                      class="benchmark-chip"
+                      data-role="benchmark-chip"
+                    >
+                      <span
+                        class={["chart-legend__swatch", "chart-benchmark-#{index}"]}
+                        aria-hidden="true"
+                      >
+                      </span>
+                      <%= benchmark_name(benchmark) %>
+                    </span>
                   </span>
                 </summary>
                 <form
@@ -1244,7 +1251,9 @@ defmodule PortfolixirWeb.PortfolioLive do
                     value={active_rate_percent(@benchmarks)}
                   />
                   <button type="submit"><%= gettext("Apply") %></button>
-                  <span class="hint"><%= gettext("Up to two benchmarks.") %></span>
+                  <span class="hint">
+                    <%= gettext("Up to two benchmarks — the first two ticked apply.") %>
+                  </span>
                 </form>
               </details>
             </div>
@@ -1310,6 +1319,17 @@ defmodule PortfolixirWeb.PortfolioLive do
               currency={@performance.base_currency}
               overlays={benchmark_overlays(@chart_mode, @comparisons, @performance.series)}
             />
+            <%!-- UX-DR26: a deliberate limit is stated where the overlay is
+                 missing — a rebased return has no € axis. --%>
+            <p
+              :if={@chart_mode == "value" and @benchmarks != []}
+              class="hint"
+              data-role="benchmark-value-hint"
+            >
+              <%= gettext("Benchmarks are drawn in the %% (TTWROR) view only — they have no value in %{currency}.",
+                currency: @performance.base_currency
+              ) %>
+            </p>
             <%!-- UX-DR11 (Sprint 5 Lane D, decided outcome: split, then
                  delete half): the TTWROR definition lives ONLY in the
                  kpi-ttwror ⓘ tooltip; the chart keeps the period basis. --%>
@@ -2104,8 +2124,8 @@ defmodule PortfolixirWeb.PortfolioLive do
                the retired flag is what the performance walk keys on. --%>
           <a href="/securities?dq=stale_quote&holding=held">
             <%= ngettext(
-              "One held position is valued at a quote older than %{days} days, so the total may be stale — mark it retired if its listing ended, or sync its quotes:",
-              "%{count} held positions are valued at quotes older than %{days} days, so the total may be stale — mark them retired if their listings ended, or sync their quotes:",
+              "One held position is valued at a quote older than %{days} days, so the totals may be stale — mark it retired if its listing ended, or sync its quotes:",
+              "%{count} held positions are valued at quotes older than %{days} days, so the totals may be stale — mark them retired if their listings ended, or sync their quotes:",
               @stale_priced.count,
               days: @stale_priced.days
             ) %>
@@ -2197,7 +2217,7 @@ defmodule PortfolixirWeb.PortfolioLive do
 
         _ ->
           {chart_series(assigns.series, assigns.currency, :ttwror, assigns.overlays),
-           :percent_values, true, gettext("Cumulative TTWROR over time"), ""}
+           :percent_values, true, overlay_aria_label(assigns.overlays), ""}
       end
 
     assigns =
@@ -2206,7 +2226,13 @@ defmodule PortfolixirWeb.PortfolioLive do
         value_mode: value_mode,
         zero_line?: zero_line?,
         aria_label: aria_label,
-        currency_code: currency_code
+        currency_code: currency_code,
+        # The table's benchmark columns read the full overlays (UX-DR10).
+        overlay_lookups:
+          Enum.map(
+            assigns.overlays,
+            &{&1.label, Map.new(&1.points, fn p -> {p.date, p.fraction} end)}
+          )
       )
 
     ~H"""
@@ -2263,6 +2289,11 @@ defmodule PortfolixirWeb.PortfolioLive do
               <th scope="col" class="num">
                 <%= gettext("Net flows (%{currency})", currency: @currency) %>
               </th>
+              <%!-- One column per drawn overlay: the benchmark's cumulative
+                   return at the slice's end, as plotted (UX-DR10). --%>
+              <th :for={{label, _lookup} <- @overlay_lookups} scope="col" class="num">
+                <%= label %>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -2274,6 +2305,9 @@ defmodule PortfolixirWeb.PortfolioLive do
                 <%= if row.ttwror, do: "#{signed_percent(row.ttwror)}%", else: "—" %>
               </td>
               <td class="num"><%= Format.money(row.net_flows) %></td>
+              <td :for={{_label, lookup} <- @overlay_lookups} class="num">
+                <%= overlay_cell(lookup, row.end_date) %>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -2405,14 +2439,56 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp percent_or_dash(_nil), do: "—"
 
   # The covered window as a basis line (UX-DR13) when it is narrower than the
-  # period: where the comparison starts and how many earlier flows it names.
+  # period: where the comparison starts and how many earlier flows enter
+  # through its opening value instead of on their own day — or, when the
+  # benchmark has no priced day at all, that nothing is covered.
+  defp coverage_note(%{window: %{start_date: nil}, excluded_flows: excluded}) do
+    ngettext(
+      "no covered window — %{count} flow before the benchmark's first priced day",
+      "no covered window — %{count} flows before the benchmark's first priced day",
+      length(excluded)
+    )
+  end
+
   defp coverage_note(%{window: %{start_date: start_date}, excluded_flows: excluded}) do
     ngettext(
-      "from %{date} — %{count} earlier flow left out",
-      "from %{date} — %{count} earlier flows left out",
+      "from %{date} — %{count} earlier flow enters through the opening value",
+      "from %{date} — %{count} earlier flows enter through the opening value",
       length(excluded),
       date: start_date
     )
+  end
+
+  # The money-weighted pair, labelled and chosen like the sibling card's
+  # figure (ADR-0034 §2): the non-annualized period MWR for a window shorter
+  # than a year, the annualized IRR otherwise — over the comparison's own
+  # window, which can be narrower than the period.
+  defp money_weighted_pair(comparison) do
+    if short_window?(comparison.window) do
+      gettext("MWR") <>
+        ": " <>
+        return_pair(comparison.savings_plan.portfolio_mwr, comparison.savings_plan.benchmark_mwr)
+    else
+      gettext("IRR") <>
+        ": " <>
+        return_pair(comparison.savings_plan.portfolio_irr, comparison.savings_plan.benchmark_irr)
+    end
+  end
+
+  defp overlay_cell(lookup, date) do
+    case Map.get(lookup, date) do
+      %Decimal{} = fraction -> signed_percent(fraction) <> "%"
+      nil -> "—"
+    end
+  end
+
+  # The chart's accessible name carries the drawn benchmarks: the overlay
+  # `<title>`s are unreachable inside `role="img"`.
+  defp overlay_aria_label([]), do: gettext("Cumulative TTWROR over time")
+
+  defp overlay_aria_label(overlays) do
+    gettext("Cumulative TTWROR over time") <>
+      " · " <> gettext("benchmarks: %{names}", names: Enum.map_join(overlays, ", ", & &1.label))
   end
 
   # The bought-once overlays for the TTWROR chart (ADR-0046 §2): each
@@ -3144,7 +3220,9 @@ defmodule PortfolixirWeb.PortfolioLive do
         not Map.get(position, :retired, false) and position.price_source == :quote and
           match?(%Date{}, position.price_date) and Date.diff(today, position.price_date) > days
       end)
-      |> Enum.map(&"#{&1.security_name || gettext("Unsorted")} (#{Format.date(&1.price_date)})")
+      |> Enum.map(
+        &"#{&1.security_name || gettext("Unsorted")} (#{Date.to_iso8601(&1.price_date)})"
+      )
       |> Enum.uniq()
 
     %{count: length(names), names: shorten_list(names), days: days}
@@ -3530,6 +3608,7 @@ defmodule PortfolixirWeb.PortfolioLive do
 
         row = %{
           label: slice_label(chunk_first.date, unit),
+          end_date: chunk_last.date,
           start_value: start_value,
           end_value: chunk_last.value,
           ttwror: slice_ttwror(start_cum, chunk_last.cumulative_ttwror),

@@ -494,6 +494,7 @@ WCAG 2.5.8 Target Size (Minimum) (AA, 24×24) is met by these controls in isolat
 | **Value slot — settling** *(added 2026-08-05)* | the accent bar while it runs; under `reduce` the state does not occur, and under forced colors its loss is accepted — the value is already final |
 | **Value slot — not-computable** *(added 2026-08-05)* | the em dash **and** its note-severity data note stating why |
 | **Data-quality severities on one surface** *(added 2026-08-05)* | see data-note severity — the three severities must be separable from each other, not merely from the surrounding text |
+| **Benchmark overlays — slot 1 / slot 2** *(added 2026-09-15, Sprint 11 closing act)* | dash pattern on the plot line (`5 3` dashed vs `2 3` dotted) **and** the same pattern on the legend, picker-chip and card swatches, **and** the named legend entry — never the teal/coral hue alone |
 
 Semantic colour reinforces meaning, never carries it. **Violated today** on the Wealth KPI cards, where negatives render in the accent colour with no sign emphasis — which breaks `DESIGN.md`'s "money semantics outrank brand" at the same time — and on the buy/sell markers, which are the rule's own first example.
 
