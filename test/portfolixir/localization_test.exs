@@ -19,7 +19,8 @@ defmodule Portfolixir.LocalizationTest do
     "Create securities",
     "Create one cash account",
     "Record manual buy and sell transactions",
-    "Add costs"
+    "Costs and note",
+    "Books to depot"
   ]
 
   # User story:

@@ -53,6 +53,7 @@ defmodule PortfolixirWeb.BenchmarkFlagLiveTest do
       })
 
     {:ok, view, _html} = live(conn, "/transactions")
+    view |> element("#open-booking") |> render_click()
 
     select =
       view |> element("#transaction-form select[name='transaction[security_id]']") |> render()

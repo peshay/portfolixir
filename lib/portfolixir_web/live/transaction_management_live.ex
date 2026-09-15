@@ -29,19 +29,6 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   @tx_column_keys @tx_column_defaults ++ ["currency", "fees", "taxes", "notes"]
   @numeric_columns ["quantity", "price", "gross_amount", "fees", "taxes"]
 
-  @holdings_column_defaults ["depot", "security", "quantity"]
-  @holdings_column_keys @holdings_column_defaults ++
-                          [
-                            "isin",
-                            "wkn",
-                            "currency",
-                            "avg_cost",
-                            "latest_price",
-                            "market_value",
-                            "unrealized_pnl_abs",
-                            "unrealized_pnl_pct"
-                          ]
-
   @transaction_form %{
     "type" => "buy",
     "date" => "",
@@ -65,7 +52,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
      |> assign(:form_errors, %{})
      |> assign(:sell_preview, nil)
      |> assign(:tx_columns, @tx_column_defaults)
-     |> assign(:holdings_columns, @holdings_column_defaults)
+     |> assign(:booking_open?, false)
      |> load_state()}
   end
 
@@ -101,313 +88,37 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
         <%!-- ADR-0024: no portfolio strip — the depot choice alone decides
              where a transaction books; every depot is offered together. --%>
-        <%= if @securities_accounts != [] do %>
-          <section id="transaction-create" class="workspace-section">
-            <h2><%= gettext("Record transaction") %></h2>
-            <form id="transaction-form" phx-change="form_changed" phx-submit="save_transaction">
-              <div class="form-grid">
-                <label>
-                  <span><%= gettext("Type") %></span>
-                  <select name="transaction[type]">
-                    <%= for type <- ["buy", "sell"] do %>
-                      <option value={type} selected={type == @transaction_form["type"]}>
-                        <%= tx_type_label(type) %>
-                      </option>
-                    <% end %>
-                  </select>
-                </label>
-                <label>
-                  <span><%= gettext("Date") %></span>
-                  <input
-                    type="text"
-                    placeholder="YYYY-MM-DD"
-                    pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
-                    maxlength="10"
-                    name="transaction[date]"
-                    value={@transaction_form["date"]}
-                    required
-                    aria-invalid={@form_errors["date"] && "true"}
-                    aria-describedby={@form_errors["date"] && "tx-error-date"}
-                  />
-                  <.field_error errors={@form_errors} field="date" />
-                </label>
-                <label>
-                  <span><%= gettext("Depot") %></span>
-                  <select
-                    name="transaction[securities_account_id]"
-                    required
-                    aria-invalid={@form_errors["securities_account_id"] && "true"}
-                    aria-describedby={
-                      @form_errors["securities_account_id"] && "tx-error-securities_account_id"
-                    }
-                  >
-                    <option value=""><%= gettext("Select depot") %></option>
-                    <%= for account <- bookable_depots(@securities_accounts) do %>
-                      <option
-                        value={account.id}
-                        selected={to_string(account.id) == @transaction_form["securities_account_id"]}
-                      >
-                        <%= depot_option_label(account) %>
-                      </option>
-                    <% end %>
-                  </select>
-                  <.field_error errors={@form_errors} field="securities_account_id" />
-                </label>
-                <label>
-                  <span><%= gettext("Security") %></span>
-                  <%= if @securities == [] do %>
-                    <%!-- A security must exist before any transaction can be
-                          booked. Rather than a dead, unselectable dropdown that
-                          silently blocks submit, name the missing prerequisite
-                          at the point of pain and link to where it is fixed. --%>
-                    <p id="transaction-no-securities" class="form-help" role="status">
-                      <%= gettext("No securities yet.") %>
-                      <.link navigate="/securities"><%= gettext("Create a security first") %></.link>
-                    </p>
-                  <% else %>
-                    <select name="transaction[security_id]" required>
-                      <option value=""><%= gettext("Select security") %></option>
-                      <%= for security <- @securities do %>
-                        <option
-                          value={security.id}
-                          selected={to_string(security.id) == @transaction_form["security_id"]}
-                        >
-                          <%= security.name %> (<%= security.ticker_symbol %>)
-                        </option>
-                      <% end %>
-                    </select>
-                  <% end %>
-                  <.field_error errors={@form_errors} field="security_id" />
-                </label>
-                <label>
-                  <span><%= gettext("Quantity") %></span>
-                  <input
-                    name="transaction[quantity]"
-                    value={@transaction_form["quantity"]}
-                    inputmode="decimal"
-                    required
-                    aria-invalid={@form_errors["quantity"] && "true"}
-                    aria-describedby={@form_errors["quantity"] && "tx-error-quantity"}
-                  />
-                  <.field_error errors={@form_errors} field="quantity" />
-                </label>
-                <label>
-                  <span><%= gettext("Price") %></span>
-                  <input
-                    name="transaction[price]"
-                    value={@transaction_form["price"]}
-                    inputmode="decimal"
-                    required
-                    aria-invalid={@form_errors["price"] && "true"}
-                    aria-describedby={@form_errors["price"] && "tx-error-price"}
-                  />
-                  <.field_error errors={@form_errors} field="price" />
-                </label>
-              </div>
-
-              <p class="form-help" data-role="derived-currency">
-                <%= case derived_currency(@securities_accounts, @transaction_form["securities_account_id"]) do %>
-                  <% nil -> %>
-                    <%= gettext("Currency is set by the selected depot.") %>
-                  <% currency -> %>
-                    <%= gettext("Currency: %{currency}", currency: currency) %>
-                <% end %>
-              </p>
-
-              <details id="transaction-costs" class="transaction-costs">
-                <summary><%= gettext("Add costs") %></summary>
-                <div class="form-grid">
-                  <label>
-                    <span><%= gettext("Fees") %></span>
-                    <input name="transaction[fees]" value={@transaction_form["fees"]} inputmode="decimal" />
-                  </label>
-                  <label>
-                    <span><%= gettext("Taxes") %></span>
-                    <input name="transaction[taxes]" value={@transaction_form["taxes"]} inputmode="decimal" />
-                  </label>
-                </div>
-              </details>
-
-              <label>
-                <span><%= gettext("Notes") %></span>
-                <textarea name="transaction[notes]"><%= @transaction_form["notes"] %></textarea>
-              </label>
-              <button type="submit"><%= gettext("Record transaction") %></button>
-            </form>
-
-            <%!-- Issue #620: which FIFO purchase tranches this sale would
-                 consume, shown where the sale is decided. A GROSS gain —
-                 deliberately never a tax figure (ADR-0031 correction 1) —
-                 on the ADR-0033 currency basis, so this panel and the
-                 trades surface cannot disagree. --%>
-            <section
-              :if={@sell_preview && @sell_preview.lots != []}
-              id="sell-lot-preview"
-              class="workspace-section"
-              data-role="sell-lot-preview"
-            >
-              <h3><%= gettext("Lots consumed by this sale (FIFO)") %></h3>
-              <details class="metric-tooltip metric-tooltip--inline metric-tooltip--labelled" data-role="gross-gain-info">
-                <summary aria-label={gettext("About the gross gain")}>ⓘ <%= gettext("Gross gain") %></summary>
-                <p role="tooltip">
-                  <%= gettext(
-                    "Gross gain if the sale executes at the given price: sale proceeds minus the FIFO purchase cost of the consumed lots, before fees. Lots are matched first-in, first-out across all depots. Indicative only — not a net figure; the stored cost basis does not change."
-                  ) %>
-                </p>
-              </details>
-              <p
-                :if={@sell_preview.price_source == :latest}
-                class="form-help"
-                data-role="preview-price-hint"
-              >
-                <%= gettext("Priced at the latest stored price: %{price}.",
-                  price: format_decimal(@sell_preview.sell_price)
-                ) %>
-              </p>
-              <div class="data-table-wrapper">
-                <table id="sell-lot-preview-table">
-                  <thead>
-                    <tr>
-                      <th><%= gettext("Open date") %></th>
-                      <th><%= gettext("Quantity used") %></th>
-                      <th><%= gettext("Buy price") %></th>
-                      <th><%= gettext("Gross gain") %></th>
-                      <%= if sell_preview_cross_currency?(@sell_preview) do %>
-                        <th><%= gettext("Price return") %></th>
-                        <th><%= gettext("Currency return") %></th>
-                        <th><%= gettext("Total (base)") %></th>
-                      <% end %>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <%= for lot <- @sell_preview.lots do %>
-                      <tr>
-                        <td><%= Date.to_iso8601(lot.open_date) %></td>
-                        <td><%= format_decimal(lot.quantity) %></td>
-                        <td data-role="preview-buy-price">
-                          <%= if lot.buy_price_native do %>
-                            <%= format_decimal(lot.buy_price_native) %>
-                            <small><%= @sell_preview.security_currency %></small>
-                          <% else %>
-                            —
-                          <% end %>
-                        </td>
-                        <td class={gain_class(lot.gross_gain)} title={sell_preview_hint(lot)}>
-                          <%= signed_or_dash(lot.gross_gain) %>
-                          <small :if={lot.gross_gain}><%= @sell_preview.security_currency %></small>
-                        </td>
-                        <%= if sell_preview_cross_currency?(@sell_preview) do %>
-                          <td class={gain_class(lot.price_return_abs)}>
-                            <%= signed_or_dash(lot.price_return_abs) %>
-                          </td>
-                          <td class={gain_class(lot.currency_return_abs)}>
-                            <%= signed_or_dash(lot.currency_return_abs) %>
-                          </td>
-                          <td class={gain_class(lot.total_return_base_abs)}>
-                            <%= signed_or_dash(lot.total_return_base_abs) %>
-                            <small :if={lot.decomposed}><%= lot.base_currency %></small>
-                          </td>
-                        <% end %>
-                      </tr>
-                    <% end %>
-                  </tbody>
-                  <tfoot>
-                    <tr class="totals-row">
-                      <td colspan="3"><%= gettext("Total") %></td>
-                      <td class={gain_class(@sell_preview.total_gross_gain)} data-role="preview-total">
-                        <%= signed_or_dash(@sell_preview.total_gross_gain) %>
-                        <small :if={@sell_preview.total_gross_gain}>
-                          <%= @sell_preview.security_currency %>
-                        </small>
-                      </td>
-                      <td :if={sell_preview_cross_currency?(@sell_preview)} colspan="3"></td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-              <p
-                :if={Decimal.compare(@sell_preview.shortfall, 0) == :gt}
-                class="alert-error"
-                role="alert"
-                data-role="sell-shortfall"
-              >
-                <%= gettext("%{quantity} of the entered quantity is not covered by open lots.",
-                  quantity: format_decimal(@sell_preview.shortfall)
-                ) %>
-              </p>
-            </section>
-          </section>
-        <% else %>
+        <%= if @securities_accounts == [] do %>
           <section id="transaction-setup-empty" class="empty-state" role="status">
             <p><%= gettext("Bookings need a depot with a cash account.") %></p>
             <.link navigate="/portfolios" class="button"><%= gettext("Create a depot and cash account") %></.link>
           </section>
         <% end %>
 
-        <div class="transaction-secondary">
-        <section id="holdings-panel" class="workspace-section">
-          <h2><%= gettext("Current holdings") %></h2>
-          <%= if Enum.empty?(@holding_rows) do %>
-            <div id="no-holdings" class="empty-state" role="status">
-              <%= gettext("No holdings yet") %>
-            </div>
-          <% else %>
-            <%!-- #732: the panel renders the API's own holdings projection
-                  (Ledger.holdings_for_portfolio/1), so the picker can offer
-                  the valuation columns the agent reads over fields= — one
-                  projection, two surfaces. --%>
-            <details id="holdings-column-picker" class="more-filters">
-              <summary>
-                <AppShell.icon name={:columns} />
-                <%= gettext("Columns") %>
-              </summary>
-              <form id="holdings-column-form" phx-change="set_holdings_columns">
-                <%= for key <- holdings_column_keys() do %>
-                  <label class="checkbox-row">
-                    <input
-                      type="checkbox"
-                      name="columns[]"
-                      value={key}
-                      checked={key in @holdings_columns}
-                    />
-                    <span><%= holdings_column_label(key) %></span>
-                  </label>
-                <% end %>
-                <input type="hidden" name="columns[]" value="" />
-              </form>
-            </details>
-            <div
-              id="holdings-table-wrapper"
-              class="data-table-wrapper"
-              phx-hook="ColumnPrefs"
-              data-storage-key="transactions.holdings.columns"
-              data-restore-event="set_holdings_columns"
-              data-current-columns={Jason.encode!(@holdings_columns)}
-            >
-              <table id="holdings-table">
-                <thead>
-                  <tr>
-                    <%= for key <- @holdings_columns do %>
-                      <th><%= holdings_column_label(key) %></th>
-                    <% end %>
-                  </tr>
-                </thead>
-                <tbody>
-                  <%= for row <- @holding_rows do %>
-                    <tr>
-                      <%= for key <- @holdings_columns do %>
-                        <td><%= holdings_cell(row, key) %></td>
-                      <% end %>
-                    </tr>
-                  <% end %>
-                </tbody>
-              </table>
-            </div>
-          <% end %>
-        </section>
-
+        <%!-- #803 (review C6, variant C): the page opens on the history; the
+             booking form lives in a side drawer opened from the section
+             head — a bottom sheet under 720 px — and the holdings table left
+             the route (it is Wealth → Holdings). --%>
+        <div class={["transactions-columns", @booking_open? && "transactions-columns--drawer"]}>
         <section id="transaction-list-panel" class="workspace-section">
-          <h2><%= gettext("Transaction history") %></h2>
+          <header class="section-head">
+            <h2><%= gettext("Transaction history") %></h2>
+            <div class="section-head-controls">
+              <button
+                :if={@securities_accounts != []}
+                type="button"
+                id="open-booking"
+                class="button-primary"
+                phx-click="open_booking"
+                aria-haspopup="dialog"
+                aria-expanded={to_string(@booking_open?)}
+                aria-controls={@booking_open? && "booking-drawer"}
+              >
+                <AppShell.icon name={:plus} size={14} />
+                <%= gettext("Record transaction") %>
+              </button>
+            </div>
+          </header>
           <%= if Enum.empty?(@transactions) do %>
             <div id="no-transactions" class="empty-state" role="status">
               <%= gettext("No transactions yet") %>
@@ -689,6 +400,14 @@ defmodule PortfolixirWeb.TransactionManagementLive do
             <% end %>
           <% end %>
         </section>
+        <.booking_drawer
+          :if={@booking_open?}
+          transaction_form={@transaction_form}
+          form_errors={@form_errors}
+          securities_accounts={@securities_accounts}
+          securities={@securities}
+          sell_preview={@sell_preview}
+        />
         </div>
       </div>
     </AppShell.shell>
@@ -702,6 +421,21 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         %{assigns: %{securities_accounts: []}} = socket
       ) do
     {:noreply, failure(socket, gettext("A booking needs a depot with a cash account."))}
+  end
+
+  # #803: the drawer's state is socket state; Cancel and the hook's close
+  # event discard the draft, and a recorded booking closes it.
+  def handle_event("open_booking", _params, socket) do
+    {:noreply, assign(socket, :booking_open?, true)}
+  end
+
+  def handle_event("close_booking", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(:booking_open?, false)
+     |> assign(:transaction_form, @transaction_form)
+     |> assign(:form_errors, %{})
+     |> assign(:sell_preview, nil)}
   end
 
   def handle_event("form_changed", %{"transaction" => params}, socket) do
@@ -767,21 +501,6 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   def handle_event("set_tx_columns", _params, socket), do: {:noreply, socket}
 
-  def handle_event("set_holdings_columns", %{"columns" => columns}, socket)
-      when is_list(columns) do
-    chosen = safe_columns(columns, @holdings_column_keys, @holdings_column_defaults)
-
-    {:noreply,
-     socket
-     |> assign(:holdings_columns, chosen)
-     |> push_event("column-prefs-changed", %{
-       key: "transactions.holdings.columns",
-       columns: chosen
-     })}
-  end
-
-  def handle_event("set_holdings_columns", _params, socket), do: {:noreply, socket}
-
   def handle_event("save_transaction", %{"transaction" => params}, socket) do
     # The currency is authoritative from the chosen depot's cash account, never a
     # free-text field the user could mistype (#473).
@@ -801,6 +520,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
          |> assign(:transaction_form, @transaction_form)
          |> assign(:form_errors, %{})
          |> assign(:sell_preview, nil)
+         |> assign(:booking_open?, false)
          |> success(gettext("Transaction recorded"))
          |> load_state()}
 
@@ -825,22 +545,12 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     cash_accounts = Portfolios.list_cash_accounts()
     transactions = Ledger.list_transactions()
 
-    # #732: the panel shows the API's own holdings projection
-    # (Ledger.holdings_for_portfolio/1) — one projection, two surfaces — so
-    # the picker's valuation columns are the figures the agent reads, not a
-    # second calculation.
-    holding_rows =
-      Portfolios.list_portfolios()
-      |> Enum.flat_map(&Ledger.holdings_for_portfolio(&1.id))
-      |> holding_rows(securities_accounts)
-
     socket
     |> assign(
       securities_accounts: securities_accounts,
       cash_accounts: cash_accounts,
       securities: securities,
-      transactions: transactions,
-      holding_rows: holding_rows
+      transactions: transactions
     )
     |> apply_current_filters()
   end
@@ -1102,24 +812,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     end
   end
 
-  defp holding_rows(holdings, securities_accounts) do
-    names = Map.new(securities_accounts, &{&1.id, &1.name})
-
-    holdings
-    |> Enum.map(fn row ->
-      Map.put(
-        row,
-        :securities_account_name,
-        Map.get(names, row.securities_account_id, gettext("Unknown depot"))
-      )
-    end)
-    |> Enum.sort_by(fn row -> {row.securities_account_name, row.security_name} end)
-  end
-
   # -- #732 column registries -------------------------------------------------
 
   defp tx_column_keys, do: @tx_column_keys
-  defp holdings_column_keys, do: @holdings_column_keys
 
   defp safe_columns(requested, all_keys, defaults) do
     case Enum.filter(all_keys, &(&1 in requested)) do
@@ -1146,30 +841,6 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp tx_cell(transaction, "fees"), do: PortfolixirWeb.Format.money(transaction.fees)
   defp tx_cell(transaction, "taxes"), do: PortfolixirWeb.Format.money(transaction.taxes)
   defp tx_cell(transaction, "notes"), do: transaction.notes
-
-  defp holdings_column_label("depot"), do: gettext("Depot")
-  defp holdings_column_label("security"), do: gettext("Security")
-  defp holdings_column_label("quantity"), do: gettext("Quantity")
-  defp holdings_column_label("isin"), do: gettext("ISIN")
-  defp holdings_column_label("wkn"), do: gettext("WKN")
-  defp holdings_column_label("currency"), do: gettext("Currency")
-  defp holdings_column_label("avg_cost"), do: gettext("Avg cost")
-  defp holdings_column_label("latest_price"), do: gettext("Latest price")
-  defp holdings_column_label("market_value"), do: gettext("Market value")
-  defp holdings_column_label("unrealized_pnl_abs"), do: gettext("P&L")
-  defp holdings_column_label("unrealized_pnl_pct"), do: gettext("P&L %")
-
-  defp holdings_cell(row, "depot"), do: row.securities_account_name
-  defp holdings_cell(row, "security"), do: row.security_name
-  defp holdings_cell(row, "quantity"), do: format_decimal(row.quantity)
-  defp holdings_cell(row, "isin"), do: row.isin
-  defp holdings_cell(row, "wkn"), do: row.wkn
-  defp holdings_cell(row, "currency"), do: row.currency_code
-  defp holdings_cell(row, "avg_cost"), do: format_decimal(row.avg_cost)
-  defp holdings_cell(row, "latest_price"), do: format_decimal(row.latest_price)
-  defp holdings_cell(row, "market_value"), do: format_decimal(row.market_value)
-  defp holdings_cell(row, "unrealized_pnl_abs"), do: format_decimal(row.unrealized_pnl_abs)
-  defp holdings_cell(row, "unrealized_pnl_pct"), do: format_decimal(row.unrealized_pnl_pct)
 
   # Human, localized labels for the stored type enum; the form value and the
   # ledger keep the machine "buy"/"sell". One shared table for both
@@ -1397,6 +1068,290 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     else
       Gettext.dgettext(PortfolixirWeb.Gettext, "errors", msg, opts)
     end
+  end
+
+  # The booking drawer (#803, review C6 pick C): the securities detail pane's
+  # shape — an elevated panel headed by its title with a close control — as a
+  # native dialog the ModalDialog hook opens beside the history on the desktop
+  # and as a bottom sheet under 720 px (`data-sheet-below`). Built for creating
+  # a booking; shaped as one panel of stacked, pre-fillable fields so the edit
+  # view (#809) can reuse it without a second form.
+  attr(:transaction_form, :map, required: true)
+  attr(:form_errors, :map, required: true)
+  attr(:securities_accounts, :list, required: true)
+  attr(:securities, :list, required: true)
+  attr(:sell_preview, :any, required: true)
+
+  defp booking_drawer(assigns) do
+    ~H"""
+    <dialog
+      id="booking-drawer"
+      class="detail-pane booking-drawer"
+      phx-hook="ModalDialog"
+      data-close-event="close_booking"
+      data-sheet-below="720"
+      aria-labelledby="booking-drawer-title"
+    >
+      <header class="detail-pane-head">
+        <div class="detail-pane-head__title">
+          <div>
+            <h2 id="booking-drawer-title"><%= gettext("Record transaction") %></h2>
+            <p class="detail-pane-sub">
+              <%= gettext("Books against the chosen depot; the currency follows its cash account.") %>
+            </p>
+          </div>
+        </div>
+        <div class="detail-pane-head__actions">
+          <button
+            type="button"
+            class="icon-button"
+            aria-label={gettext("Close")}
+            phx-click="close_booking"
+          >
+            <AppShell.icon name={:x} />
+          </button>
+        </div>
+      </header>
+      <form id="transaction-form" phx-change="form_changed" phx-submit="save_transaction">
+        <div class="form-grid">
+          <label>
+            <span><%= gettext("Type") %></span>
+            <select name="transaction[type]">
+              <%= for type <- ["buy", "sell"] do %>
+                <option value={type} selected={type == @transaction_form["type"]}>
+                  <%= tx_type_label(type) %>
+                </option>
+              <% end %>
+            </select>
+          </label>
+          <label>
+            <span><%= gettext("Date") %></span>
+            <input
+              type="text"
+              placeholder="YYYY-MM-DD"
+              pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+              maxlength="10"
+              name="transaction[date]"
+              value={@transaction_form["date"]}
+              required
+              aria-invalid={@form_errors["date"] && "true"}
+              aria-describedby={@form_errors["date"] && "tx-error-date"}
+            />
+            <.field_error errors={@form_errors} field="date" />
+          </label>
+          <label>
+            <%!-- Part 4 of the 2026-08-18 amendment: the depot select
+                 says where a booking lands, and is labelled as such. --%>
+            <span><%= gettext("Books to depot") %></span>
+            <select
+              name="transaction[securities_account_id]"
+              required
+              aria-invalid={@form_errors["securities_account_id"] && "true"}
+              aria-describedby={
+                @form_errors["securities_account_id"] && "tx-error-securities_account_id"
+              }
+            >
+              <option value=""><%= gettext("Select depot") %></option>
+              <%= for account <- bookable_depots(@securities_accounts) do %>
+                <option
+                  value={account.id}
+                  selected={to_string(account.id) == @transaction_form["securities_account_id"]}
+                >
+                  <%= depot_option_label(account) %>
+                </option>
+              <% end %>
+            </select>
+            <.field_error errors={@form_errors} field="securities_account_id" />
+          </label>
+          <label>
+            <span><%= gettext("Security") %></span>
+            <%= if @securities == [] do %>
+              <%!-- A security must exist before any transaction can be
+                    booked. Rather than a dead, unselectable dropdown that
+                    silently blocks submit, name the missing prerequisite
+                    at the point of pain and link to where it is fixed. --%>
+              <p id="transaction-no-securities" class="form-help" role="status">
+                <%= gettext("No securities yet.") %>
+                <.link navigate="/securities"><%= gettext("Create a security first") %></.link>
+              </p>
+            <% else %>
+              <select name="transaction[security_id]" required>
+                <option value=""><%= gettext("Select security") %></option>
+                <%= for security <- @securities do %>
+                  <option
+                    value={security.id}
+                    selected={to_string(security.id) == @transaction_form["security_id"]}
+                  >
+                    <%= security.name %> (<%= security.ticker_symbol %>)
+                  </option>
+                <% end %>
+              </select>
+            <% end %>
+            <.field_error errors={@form_errors} field="security_id" />
+          </label>
+          <label>
+            <span><%= gettext("Quantity") %></span>
+            <input
+              name="transaction[quantity]"
+              value={@transaction_form["quantity"]}
+              inputmode="decimal"
+              required
+              aria-invalid={@form_errors["quantity"] && "true"}
+              aria-describedby={@form_errors["quantity"] && "tx-error-quantity"}
+            />
+            <.field_error errors={@form_errors} field="quantity" />
+          </label>
+          <label>
+            <span><%= gettext("Price") %></span>
+            <input
+              name="transaction[price]"
+              value={@transaction_form["price"]}
+              inputmode="decimal"
+              required
+              aria-invalid={@form_errors["price"] && "true"}
+              aria-describedby={@form_errors["price"] && "tx-error-price"}
+            />
+            <.field_error errors={@form_errors} field="price" />
+          </label>
+        </div>
+
+        <p class="form-help" data-role="derived-currency">
+          <%= case derived_currency(@securities_accounts, @transaction_form["securities_account_id"]) do %>
+            <% nil -> %>
+              <%= gettext("Currency is set by the selected depot.") %>
+            <% currency -> %>
+              <%= gettext("Currency: %{currency}", currency: currency) %>
+          <% end %>
+        </p>
+
+        <details id="transaction-costs" class="transaction-costs">
+          <summary><%= gettext("Costs and note") %></summary>
+          <div class="form-grid">
+            <label>
+              <span><%= gettext("Fees") %></span>
+              <input name="transaction[fees]" value={@transaction_form["fees"]} inputmode="decimal" />
+            </label>
+            <label>
+              <span><%= gettext("Taxes") %></span>
+              <input name="transaction[taxes]" value={@transaction_form["taxes"]} inputmode="decimal" />
+            </label>
+          </div>
+        <label>
+          <span><%= gettext("Notes") %></span>
+          <textarea name="transaction[notes]"><%= @transaction_form["notes"] %></textarea>
+        </label>
+        </details>
+
+        <div class="booking-drawer__foot">
+          <button type="submit" class="button-primary"><%= gettext("Record transaction") %></button>
+          <button type="button" id="booking-cancel" class="button-ghost" phx-click="close_booking">
+            <%= gettext("Cancel") %>
+          </button>
+        </div>
+      </form>
+      <%!-- Issue #620: which FIFO purchase tranches this sale would
+           consume, shown where the sale is decided. A GROSS gain —
+           deliberately never a tax figure (ADR-0031 correction 1) —
+           on the ADR-0033 currency basis, so this panel and the
+           trades surface cannot disagree. --%>
+      <section
+        :if={@sell_preview && @sell_preview.lots != []}
+        id="sell-lot-preview"
+        class="workspace-section"
+        data-role="sell-lot-preview"
+      >
+        <h3><%= gettext("Lots consumed by this sale (FIFO)") %></h3>
+        <details class="metric-tooltip metric-tooltip--inline metric-tooltip--labelled" data-role="gross-gain-info">
+          <summary aria-label={gettext("About the gross gain")}>ⓘ <%= gettext("Gross gain") %></summary>
+          <p role="tooltip">
+            <%= gettext(
+              "Gross gain if the sale executes at the given price: sale proceeds minus the FIFO purchase cost of the consumed lots, before fees. Lots are matched first-in, first-out across all depots. Indicative only — not a net figure; the stored cost basis does not change."
+            ) %>
+          </p>
+        </details>
+        <p
+          :if={@sell_preview.price_source == :latest}
+          class="form-help"
+          data-role="preview-price-hint"
+        >
+          <%= gettext("Priced at the latest stored price: %{price}.",
+            price: format_decimal(@sell_preview.sell_price)
+          ) %>
+        </p>
+        <div class="data-table-wrapper">
+          <table id="sell-lot-preview-table">
+            <thead>
+              <tr>
+                <th><%= gettext("Open date") %></th>
+                <th><%= gettext("Quantity used") %></th>
+                <th><%= gettext("Buy price") %></th>
+                <th><%= gettext("Gross gain") %></th>
+                <%= if sell_preview_cross_currency?(@sell_preview) do %>
+                  <th><%= gettext("Price return") %></th>
+                  <th><%= gettext("Currency return") %></th>
+                  <th><%= gettext("Total (base)") %></th>
+                <% end %>
+              </tr>
+            </thead>
+            <tbody>
+              <%= for lot <- @sell_preview.lots do %>
+                <tr>
+                  <td><%= Date.to_iso8601(lot.open_date) %></td>
+                  <td><%= format_decimal(lot.quantity) %></td>
+                  <td data-role="preview-buy-price">
+                    <%= if lot.buy_price_native do %>
+                      <%= format_decimal(lot.buy_price_native) %>
+                      <small><%= @sell_preview.security_currency %></small>
+                    <% else %>
+                      —
+                    <% end %>
+                  </td>
+                  <td class={gain_class(lot.gross_gain)} title={sell_preview_hint(lot)}>
+                    <%= signed_or_dash(lot.gross_gain) %>
+                    <small :if={lot.gross_gain}><%= @sell_preview.security_currency %></small>
+                  </td>
+                  <%= if sell_preview_cross_currency?(@sell_preview) do %>
+                    <td class={gain_class(lot.price_return_abs)}>
+                      <%= signed_or_dash(lot.price_return_abs) %>
+                    </td>
+                    <td class={gain_class(lot.currency_return_abs)}>
+                      <%= signed_or_dash(lot.currency_return_abs) %>
+                    </td>
+                    <td class={gain_class(lot.total_return_base_abs)}>
+                      <%= signed_or_dash(lot.total_return_base_abs) %>
+                      <small :if={lot.decomposed}><%= lot.base_currency %></small>
+                    </td>
+                  <% end %>
+                </tr>
+              <% end %>
+            </tbody>
+            <tfoot>
+              <tr class="totals-row">
+                <td colspan="3"><%= gettext("Total") %></td>
+                <td class={gain_class(@sell_preview.total_gross_gain)} data-role="preview-total">
+                  <%= signed_or_dash(@sell_preview.total_gross_gain) %>
+                  <small :if={@sell_preview.total_gross_gain}>
+                    <%= @sell_preview.security_currency %>
+                  </small>
+                </td>
+                <td :if={sell_preview_cross_currency?(@sell_preview)} colspan="3"></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <p
+          :if={Decimal.compare(@sell_preview.shortfall, 0) == :gt}
+          class="alert-error"
+          role="alert"
+          data-role="sell-shortfall"
+        >
+          <%= gettext("%{quantity} of the entered quantity is not covered by open lots.",
+            quantity: format_decimal(@sell_preview.shortfall)
+          ) %>
+        </p>
+      </section>
+    </dialog>
+    """
   end
 
   attr(:errors, :map, required: true)

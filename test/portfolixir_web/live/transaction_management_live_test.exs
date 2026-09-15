@@ -30,7 +30,8 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
     security = WorldFixtures.create_security!(name: "Switch Co", ticker: "SWC")
 
-    {:ok, view, html} = live(conn, "/transactions")
+    {:ok, view, _html} = live(conn, "/transactions")
+    html = open_booking(view)
 
     # No portfolio strip and no switch chips.
     refute has_element?(view, "#transaction-portfolio-strip")
@@ -43,7 +44,7 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
     # Booking against Beta's depot lands in Beta's internal portfolio.
     view
-    |> element("#transaction-form")
+    |> booking_form()
     |> render_submit(%{
       "transaction" => %{
         "type" => "buy",
@@ -73,7 +74,8 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
        %{conn: conn} do
     WorldFixtures.base_world(name: "Solo", depot_name: "Main Depot", cash_name: "Local Cash")
 
-    {:ok, _view, html} = live(conn, "/transactions")
+    {:ok, view, _html} = live(conn, "/transactions")
+    html = open_booking(view)
 
     assert html =~ "Main Depot (Local Cash)"
     refute html =~ "Main Depot -&gt;"
@@ -103,11 +105,12 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
     {:ok, view, _html} = live(conn, "/transactions")
 
+    open_booking(view)
     refute has_element?(view, "input[name='transaction[currency_code]']")
     assert has_element?(view, "details#transaction-costs")
 
     view
-    |> element("#transaction-form")
+    |> booking_form()
     |> render_submit(%{
       "transaction" => %{
         "type" => "buy",
@@ -134,7 +137,7 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
     html =
       view
-      |> element("#transaction-form")
+      |> booking_form()
       |> render_change(%{
         "transaction" => %{"securities_account_id" => to_string(world.depot.id)}
       })
@@ -157,7 +160,7 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     {:ok, view, _html} = live(conn, "/transactions")
 
     view
-    |> element("#transaction-form")
+    |> booking_form()
     |> render_submit(%{
       "transaction" => %{
         "type" => "buy",
@@ -183,7 +186,9 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
   # - The default form shows exactly the 6 core fields plus the costs disclosure.
   # - Holdings/history render as a secondary region but keep their DOM ids and
   #   still show their data after a transaction is recorded.
-  test "shows the 6 core fields and keeps holdings/history panels (#474)", %{conn: conn} do
+  test "shows the 6 core fields in the drawer and keeps the history panel (#474, #803)", %{
+    conn: conn
+  } do
     world =
       WorldFixtures.base_world(
         name: "Solo",
@@ -195,18 +200,19 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     security = WorldFixtures.create_security!(name: "Globex", ticker: "GLB", currency: "EUR")
 
     {:ok, view, _html} = live(conn, "/transactions")
+    open_booking(view)
 
     for field <- ~w(type date securities_account_id security_id quantity price) do
       assert has_element?(view, "#transaction-form [name='transaction[#{field}]']")
     end
 
     assert has_element?(view, "details#transaction-costs")
-    # The holdings/history panels are grouped as a secondary region.
-    assert has_element?(view, ".transaction-secondary #holdings-panel")
-    assert has_element?(view, ".transaction-secondary #transaction-list-panel")
+    # The holdings table left the route with #803 (it is Wealth → Holdings).
+    refute has_element?(view, "#holdings-panel")
+    assert has_element?(view, "#transaction-list-panel")
 
     view
-    |> element("#transaction-form")
+    |> booking_form()
     |> render_submit(%{
       "transaction" => %{
         "type" => "buy",
@@ -218,8 +224,7 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
       }
     })
 
-    # The preserved ids still resolve and render their data.
-    assert has_element?(view, "#holdings-panel #holdings-table")
+    # The preserved id still resolves and renders its data.
     assert has_element?(view, "#transaction-list-panel #transaction-list")
   end
 
@@ -239,6 +244,7 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     security = WorldFixtures.create_security!(name: "Localize Co", ticker: "LOC")
 
     {:ok, view, _html} = live(conn, "/transactions")
+    open_booking(view)
 
     # The option keeps its machine value but renders a human, localized label.
     assert has_element?(
@@ -255,7 +261,7 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
     # A recorded buy shows the localized label in the history, not raw "buy".
     view
-    |> element("#transaction-form")
+    |> booking_form()
     |> render_submit(%{
       "transaction" => %{
         "type" => "buy",
@@ -286,7 +292,7 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     {:ok, view, _html} = live(conn, "/transactions")
 
     view
-    |> element("#transaction-form")
+    |> booking_form()
     |> render_submit(%{
       "transaction" => %{
         "type" => "buy",
@@ -318,7 +324,7 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
     html =
       view
-      |> element("#transaction-form")
+      |> booking_form()
       |> render_submit(%{
         "transaction" => %{
           "type" => "buy",
@@ -413,7 +419,7 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
     html =
       view
-      |> element("#transaction-form")
+      |> booking_form()
       |> render_submit(%{
         "transaction" => %{
           "type" => "buy",
@@ -522,6 +528,7 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     _world = WorldFixtures.base_world(name: "Solo")
 
     {:ok, view, _html} = live(conn, "/transactions")
+    open_booking(view)
 
     # The dead, unselectable security dropdown is gone...
     refute has_element?(view, "#transaction-form select[name='transaction[security_id]']")
@@ -534,6 +541,7 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     WorldFixtures.create_security!(name: "Has Sec", ticker: "HAS")
 
     {:ok, view, _html} = live(conn, "/transactions")
+    open_booking(view)
 
     assert has_element?(view, "#transaction-form select[name='transaction[security_id]']")
     refute has_element?(view, "#transaction-no-securities")
@@ -985,7 +993,7 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     {:ok, view, _html} = live(conn, "/transactions")
 
     view
-    |> element("#transaction-form")
+    |> booking_form()
     |> render_submit(%{
       "transaction" => %{
         "type" => "buy",
@@ -1071,5 +1079,14 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     assert html =~ "Split"
     refute html =~ ~r/>\s*split\s*</
     assert html =~ "10:1"
+  end
+
+  # #803: the booking form lives in a drawer opened from the history's head;
+  # the tests that book open it first. Opening is idempotent.
+  defp open_booking(view), do: view |> element("#open-booking") |> render_click()
+
+  defp booking_form(view) do
+    open_booking(view)
+    element(view, "#transaction-form")
   end
 end

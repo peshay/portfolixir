@@ -260,6 +260,12 @@ components:
     sheet: 'native <dialog> at the viewport bottom (the row menu mechanism): full width, 85vh max, 12/16px padding plus the safe-area inset, top corners {rounded.md}, the modal backdrop tints'
     families: 'stacked blocks headed by their names ({typography.stat-label} voice), chips wrapping; the builder in flow; Reset and Done at the foot'
     focus: 'the ModalDialog hook — showModal on open, Esc closes, focus returns to the control'
+  booking-drawer:
+    shape: '{components.panel} in the detail pane\'s dress (.detail-pane): 1px {colors.border}, {rounded.lg}, {shadows.md}, {spacing.3} padding; a head with the title and a close control'
+    placement: 'a native <dialog> opened non-modally beside the history (grid minmax(0,1fr) minmax(320px, 380px)), sticky under the top bar; under 720px a modal bottom sheet (fixed, full width, 88vh max, the modal backdrop tints)'
+    fields: 'stacked {components.native-control}s — type, date, the depot it books to, security — then quantity and price paired; costs and note behind one disclosure; the sell-lot preview beneath'
+    foot: 'Record transaction as {components.button}.primary, Cancel as the ghost button'
+    focus: 'the ModalDialog hook with data-sheet-below="720": show() or showModal() by width, Esc closes both, focus returns to the control'
   hero:
     composition: 'headline value + as-of basis line above the curve; €/% series toggle and period control on the chart toolbar row'
     value: '{typography.stat-value}'
@@ -1117,7 +1123,9 @@ components invented for it:
 - the **workspace layout** (`workspace-section` blocks, top-bar title, no nested
   panel chrome) that every other area already uses;
 - the booking form as **one `{components.panel}`**, its fields as
-  `{components.native-control}`;
+  `{components.native-control}` — since issue 803 that panel is the
+  **booking drawer** (Components → Booking drawer): opened from the history's
+  head, a bottom sheet under 720 px;
 - the history as a **data table** with the D2 chip row above it — the same chips,
   so the filter vocabulary is learned once and applies in two places;
 - **no view switcher** (see EXPERIENCE.md for why); the depot select is the
@@ -1412,3 +1420,22 @@ chips are the row's own markup rendered a second time, so a chip in the
 sheet applies at once and the count follows; the ModalDialog hook moves
 focus in, closes on Esc and returns focus to the control. Above 560 px the
 control is absent and the row is unchanged.
+
+### Booking drawer *(C6-C, issue 803)*
+
+`{components.booking-drawer}`: the Transactions page opens on the history;
+**Record transaction** in the history's section head opens the booking form
+as a side drawer in the securities detail pane's shape — `.detail-pane`'s
+panel with a head (title, one-line basis, close control) — placed beside the
+history as the second column of a `minmax(0, 1fr) minmax(320px, 380px)`
+grid, sticky under the top bar, opened non-modally so the history stays
+readable and scrollable. Under 720 px the same dialog opens modally as a
+bottom sheet (full width, 88 vh maximum, the modal backdrop tints). The
+fields stack — type, date, the depot the booking books to, security — with
+quantity and price paired on one row, costs and note behind one disclosure,
+the sell-lot preview beneath; the foot carries **Record transaction**
+(primary) and **Cancel** (ghost). Recording closes the drawer; Cancel and
+Esc discard the draft; focus returns to the control. Built for creating a
+booking and shaped — one panel, stacked, pre-fillable fields — for the edit
+view (#809) to reuse. The holdings table left the route: it duplicated
+Wealth → Holdings.

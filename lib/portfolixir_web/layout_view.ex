@@ -703,11 +703,24 @@ defmodule PortfolixirWeb.LayoutView do
                 // on close because the server removes the dialog from the DOM,
                 // which forfeits the native focus-restore (UX-DR9).
                 this.opener = document.activeElement;
+                // A dialog that is a sheet only on the phone (#803, the
+                // booking drawer): `data-sheet-below="720"` opens it modally
+                // up to that width and non-modally — in flow, beside the
+                // content — above it. Esc closes both; the non-modal branch
+                // handles the key itself, because only showModal() fires
+                // `cancel`.
+                this.sheetBelow = parseInt(this.el.getAttribute("data-sheet-below") || "0", 10);
                 this.showModal();
                 var self = this;
                 this.onCancel = function (e) {
                   e.preventDefault();
                   self.close();
+                };
+                this.onKeydown = function (e) {
+                  if (e.key === "Escape" && !self.modal()) {
+                    e.preventDefault();
+                    self.close();
+                  }
                 };
                 // A browser may force-close a modal without a cancelable
                 // cancel (Chromium CloseWatcher). Tell the server, so client
@@ -719,6 +732,7 @@ defmodule PortfolixirWeb.LayoutView do
                 };
                 this.el.addEventListener("cancel", this.onCancel);
                 this.el.addEventListener("close", this.onClose);
+                this.el.addEventListener("keydown", this.onKeydown);
               },
               // morphdom strips the client-set `open` attribute on every
               // server patch (the template never renders it), which would
@@ -729,6 +743,7 @@ defmodule PortfolixirWeb.LayoutView do
               destroyed: function () {
                 this.el.removeEventListener("cancel", this.onCancel);
                 this.el.removeEventListener("close", this.onClose);
+                this.el.removeEventListener("keydown", this.onKeydown);
                 if (this.el.open && typeof this.el.close === "function") {
                   this.el.close();
                 }
@@ -737,9 +752,16 @@ defmodule PortfolixirWeb.LayoutView do
                   this.opener.focus();
                 }
               },
+              modal: function () {
+                return !this.sheetBelow ||
+                  window.matchMedia("(max-width: " + this.sheetBelow + "px)").matches;
+              },
               showModal: function () {
-                if (typeof this.el.showModal === "function" && !this.el.open) {
-                  this.el.showModal();
+                if (this.el.open) return;
+                if (this.modal()) {
+                  if (typeof this.el.showModal === "function") this.el.showModal();
+                } else if (typeof this.el.show === "function") {
+                  this.el.show();
                 }
               },
               close: function () {

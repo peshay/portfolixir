@@ -72,6 +72,30 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
     end
   end
 
+  # User story (#803 C6-C; DESIGN.md → Components → Booking drawer):
+  # As a local portfolio maintainer recording a booking,
+  # I want the drawer to sit beside the history on the desktop and to be a
+  # bottom sheet on the phone,
+  # so that the two placements are rules of the stylesheet, not accidents of
+  # the dialog's user-agent styles.
+  test "the booking drawer is a sticky side panel on the desktop and a sheet under 720 px" do
+    assert block("dialog.booking-drawer") =~ ~r/position:\s*sticky/
+    assert drawer_block() =~ ~r/dialog\.booking-drawer \{\s*position: fixed;/
+
+    assert drawer_block() =~
+             ~r/\.transactions-columns--drawer \{\s*grid-template-columns: minmax\(0, 1fr\);/
+  end
+
+  defp drawer_block do
+    case Regex.run(
+           ~r/@media \(max-width: 720px\) \{\n  \/\* booking drawer[^\n]*\n(.*?)\n\}\n/s,
+           @css
+         ) do
+      [_, body] -> body
+      nil -> flunk("no 720 px booking-drawer block")
+    end
+  end
+
   # Issue 796 (found at 390 px): an absolutely positioned descendant of a
   # scrolling table wrapper — the visually hidden "Actions" header label —
   # takes the page as its containing block unless the wrapper is positioned,

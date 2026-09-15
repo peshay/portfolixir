@@ -7,7 +7,6 @@ defmodule PortfolixirWeb.ColumnPickerViewTest do
 
   import Phoenix.LiveViewTest
 
-  alias Portfolixir.Ledger
   alias Portfolixir.WorldFixtures
 
   defp seed_history do
@@ -91,48 +90,12 @@ defmodule PortfolixirWeb.ColumnPickerViewTest do
 
   # User story (issue #732):
   # As a local portfolio maintainer,
-  # I want the holdings panel to offer the valuation columns the agent reads
-  # over the holdings API — cost, latest price, market value, P&L —
-  # so that the holdings list is the human view of the same projection, not a
-  # poorer cousin of it.
-  #
-  # Acceptance criteria:
-  # - The default column set stays Depot / Security / Quantity.
-  # - Picking market value and average cost renders the figures of the API's
-  #   own holdings projection (`Ledger.holdings_for_portfolio/1`).
-  test "the holdings panel's picker surfaces the API projection's columns", %{conn: conn} do
-    %{world: world} = seed_history()
-
-    {:ok, view, _html} = live(conn, "/transactions")
-
-    head = view |> element("#holdings-table thead") |> render()
-    assert head =~ "Depot"
-    assert head =~ "Security"
-    assert head =~ "Quantity"
-    refute head =~ "Market value"
-
-    view
-    |> element("#holdings-column-form")
-    |> render_change(%{
-      "columns" => ["depot", "security", "quantity", "avg_cost", "market_value"]
-    })
-
-    assert view |> element("#holdings-table thead") |> render() =~ "Market value"
-
-    [holding] = Ledger.holdings_for_portfolio(world.portfolio.id)
-    body = view |> element("#holdings-table tbody") |> render()
-    assert body =~ Decimal.to_string(Decimal.normalize(holding.market_value), :normal)
-    assert body =~ Decimal.to_string(Decimal.normalize(holding.avg_cost), :normal)
-  end
-
-  # User story (issue #732):
-  # As a local portfolio maintainer,
   # I want my column choices to survive a reload,
   # so that a table I shaped once stays shaped.
   #
   # Acceptance criteria:
-  # - Both tables carry the ColumnPrefs hook with distinct storage keys and
-  #   their own restore events, so the stored sets cannot cross-write.
+  # - The history table carries the ColumnPrefs hook with its own storage key
+  #   and restore event (the holdings table left the route with #803).
   # - The hook's restore event applies a stored selection.
   test "column choices persist through the ColumnPrefs hook wiring", %{conn: conn} do
     seed_history()
@@ -140,9 +103,7 @@ defmodule PortfolixirWeb.ColumnPickerViewTest do
     {:ok, view, html} = live(conn, "/transactions")
 
     assert html =~ ~s(data-storage-key="transactions.columns")
-    assert html =~ ~s(data-storage-key="transactions.holdings.columns")
     assert html =~ ~s(data-restore-event="set_tx_columns")
-    assert html =~ ~s(data-restore-event="set_holdings_columns")
 
     view
     |> element("[data-storage-key='transactions.columns']")

@@ -585,6 +585,8 @@ defmodule PortfolixirWeb.NavigationTest do
       })
 
     {:ok, view, _html} = live(conn, "/transactions")
+    # #803: the form lives in the drawer the history's head opens.
+    view |> element("#open-booking") |> render_click()
 
     refute has_element?(view, "#transaction-form select[name='transaction[cash_account_id]']")
     refute has_element?(view, "#transaction-form input[name='transaction[currency_code]']")

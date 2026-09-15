@@ -386,6 +386,19 @@ oder lege eines an. Hier findet keine Wechselkursumrechnung gespeicherter Beträ
 statt — Wechselkurse werden nur angewendet, wenn ein Portfolio in seiner
 Basiswährung bewertet wird.
 
+**Eine Buchung erfassen** (Issue #803; C6 des Reviews vom 2026-09-12,
+Variante C): die Seite öffnet auf der Historie, und **Transaktion erfassen**
+im Kopf der Historie öffnet eine seitliche Schublade in der Form des
+Wertpapier-Detailbereichs — Art, Datum, das Depot, auf das die Buchung
+**bucht** (sein Geldkonto setzt die Währung), Wertpapier, Stückzahl und
+Preis, Kosten und Notiz hinter einer Aufklappung, darunter die
+Lot-Vorschau — auf dem Telefon ein Bottom Sheet. Das Erfassen schließt die
+Schublade und zeigt das Ergebnis über der Historie; Abbrechen oder Esc
+verwirft den Entwurf und gibt den Fokus an das Steuerelement zurück. Die
+Schublade ist zum Anlegen einer Buchung gebaut und als ein Panel gestapelter,
+vorbefüllbarer Felder geformt, damit die Bearbeitungsansicht der bestehenden
+Update-API sie wiederverwenden kann.
+
 Während ein **Verkauf** erfasst wird, zeigt das Formular eine Vorschau,
 welche FIFO-Kauftranchen (Lots) der Verkauf verbrauchen würde und den
 **Bruttogewinn** je Tranche und in Summe — Verkaufserlös minus
@@ -452,11 +465,10 @@ gespeichert und übersteht ein Neuladen. Die Spalte **Saldo** steht bewusst
 nicht in der Auswahl: sie folgt weiter ihrer eigenen Regel — sie erscheint
 genau dann, wenn die Chips auf ein Konto verengen —, denn eine Auswahl, die
 sie außerhalb dieser Verengung herbeiholen könnte, zeigte eine bedeutungslose
-Zahl. Das Panel **Aktuelle Bestände** neben der Historie hat dieselbe
-Spaltenwahl: seine Standardansicht Depot / Wertpapier / Menge erweitert sich
-um die Bewertungsspalten, die der Agent über die Bestände-API liest — ISIN,
-WKN, Währung, Ø Kosten, letzter Kurs, Marktwert und unrealisierte G&V — und
-die Zahlen sind die dieser Projektion, keine zweite Rechnung.
+Zahl. Das frühere Panel **Aktuelle Bestände** hat diese Seite mit Issue #803
+verlassen: es doppelte Vermögen → Bestände, und die Bewertungsfelder der
+Bestände-Projektion bleiben über die schlanke `fields=`-Feldauswahl der
+Bestände-API lesbar.
 
 **Auf dem Telefon** (Issue #799, UX-DR27): unter 560 px weicht die Historie
 zweizeiligen Zeilen unter denselben Monatsköpfen — Datum und Art über dem

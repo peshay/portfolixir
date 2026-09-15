@@ -30,6 +30,9 @@ defmodule PortfolixirWeb.TransactionSellPreviewTest do
       "notes" => ""
     }
 
+    # #803: the form lives in the drawer the history's head opens.
+    view |> element("#open-booking") |> render_click()
+
     view
     |> element("#transaction-form")
     |> render_change(%{"transaction" => Map.merge(base, params)})
