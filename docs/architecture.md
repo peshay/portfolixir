@@ -104,7 +104,7 @@ The OTP application supervises (`lib/portfolixir/application.ex`):
   configurable interval.
 - `Portfolixir.Fx.RateSync` — opt-in scheduler that refreshes exchange rates
   (ECB) on a configurable interval.
-- `PortfolixirWeb.Endpoint` — HTTP, LiveView, and JSON API.
+- `PortfolixirWeb.Endpoint` — HTTP (served by Bandit), LiveView, and JSON API.
 
 ### Level 2 — domain contexts
 

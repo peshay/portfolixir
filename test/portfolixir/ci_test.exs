@@ -288,4 +288,23 @@ defmodule Portfolixir.CITest do
              "#{path}: not pinned to a commit SHA with a version comment: #{line}"
     end
   end
+
+  # User story (#382 — Sprint 11 Lane C; D-2 of the Sprint 11 plan):
+  # As a maintainer whose security gate used to ignore two of its own findings,
+  # I want Sobelow to run with no --ignore,
+  # so that the CSP and the HTTPS posture are checked rather than waived.
+  #
+  # Acceptance criteria:
+  # - The Sobelow step is `mix sobelow --skip --exit` with no --ignore.
+  # - config/prod.exs states the HTTPS posture: the force_ssl key is present
+  #   and off by default, the runtime opt-in PHX_FORCE_SSL switching it on.
+  test "sobelow runs with no ignore and prod.exs states the HTTPS posture" do
+    ci_workflow = File.read!(".github/workflows/ci.yml")
+    prod_config = File.read!("config/prod.exs")
+
+    assert ci_workflow =~ "run: mix sobelow --skip --exit\n"
+    refute ci_workflow =~ "sobelow --skip --exit --ignore"
+    assert prod_config =~ "force_ssl: false"
+    assert prod_config =~ "PHX_FORCE_SSL"
+  end
 end

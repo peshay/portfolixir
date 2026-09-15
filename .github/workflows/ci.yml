@@ -187,16 +187,17 @@ jobs:
         run: npm run build --prefix mcp-server
 
       # Credo, Sobelow and Dialyzer are blocking quality gates. Sobelow skips
-      # are per-function `# sobelow_skip` annotations with a written reason;
-      # Config.CSP and Config.HTTPS are ignored deliberately: TLS is the
-      # operator's reverse-proxy concern for a self-hosted app, and a CSP
-      # needs nonce support for the inline theme/LiveView boot scripts first
-      # (tracked as a follow-up story).
+      # are per-function `# sobelow_skip` annotations with a written reason,
+      # and since Sprint 11 (#382) there is no --ignore: the browser
+      # pipelines carry a nonce-bearing Content-Security-Policy
+      # (PortfolixirWeb.ContentSecurityPolicy), and config/prod.exs states
+      # the HTTPS posture — TLS at the operator's reverse proxy,
+      # PHX_FORCE_SSL as the runtime opt-in (D-2 of the Sprint 11 plan).
       - name: Credo
         run: mix credo --strict
 
       - name: Sobelow (security)
-        run: mix sobelow --skip --exit --ignore Config.CSP,Config.HTTPS
+        run: mix sobelow --skip --exit
 
       - name: Restore PLT cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

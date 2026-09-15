@@ -2,6 +2,9 @@
 layout: docs
 title: Home Deployment
 description: Local Docker Compose setup for running Portfolixir at home.
+lang: en
+lang_en: /home-deployment.html
+lang_de: /de/home-deployment.html
 ---
 
 # Home Deployment
@@ -37,7 +40,7 @@ base64 would break the connection string.
 | `PORTFOLIXIR_SESSION_DAYS` | no | How many days a UI login stays valid (default 30). The window slides: using the instance renews it, so you are asked again only after a full period of not using it. `0` ends the login when the browser closes. |
 | `PHX_HOST` | no | The name the reverse proxy serves (default `localhost`). Requests under any other `Host` are refused with 421. |
 | `PORTFOLIXIR_ALLOWED_HOSTS` | no | Further names, comma-separated (a LAN address, a second proxy name). The Compose file adds `app`, the name the MCP companion reaches the application under. |
-| `PHX_FORCE_SSL` | no | `true` redirects plain HTTP and sets HSTS when TLS is terminated for this instance. |
+| `PHX_FORCE_SSL` | no | `true` redirects plain HTTP to HTTPS and sets HSTS. Set it once the reverse proxy terminates TLS and forwards `X-Forwarded-Proto`; off by default, because a loopback instance has no TLS to redirect to and the application never terminates TLS itself. |
 | `PORTFOLIXIR_TRUSTED_PROXIES` | no | Addresses or CIDR blocks, comma-separated, whose `X-Forwarded-For` the login and token throttle believes. Empty, the throttle counts the connecting address, which behind a proxy is the proxy. |
 | `PORTFOLIXIR_MCP_ALLOWED_HOSTS` | no | Further `Host` names the MCP companion answers under (a proxy name), comma-separated. |
 
@@ -78,6 +81,52 @@ client behind the proxy rather than the proxy: without it, ten wrong passwords
 from anyone the proxy admits lock the login for everyone behind it, the
 operator included. Reverse-proxy authentication and the built-in UI password
 compose: keep either, or both.
+
+### The TLS contract
+
+TLS is the proxy's job, in full. The application never terminates TLS and
+never redirects to HTTPS on its own, because its safe default is a loopback
+instance that has no certificate; what it offers is the opt-in. The contract,
+in four lines:
+
+1. The proxy terminates TLS and forwards plain HTTP to `127.0.0.1:4000`.
+2. It forwards `Host`, `X-Forwarded-Proto` and `X-Forwarded-For` unchanged,
+   and it forwards WebSocket upgrades on `/live/websocket` (Caddy does by
+   default; nginx needs `proxy_set_header Upgrade $http_upgrade;` and
+   `proxy_set_header Connection "upgrade";`) — the live pages run over that
+   socket.
+3. Once that is in place, `PHX_FORCE_SSL=true` makes the application redirect
+   any plain-HTTP request it still sees to HTTPS and send
+   `Strict-Transport-Security` on the HTTPS answers. Without the variable the
+   application serves what it is given; with it, a proxy that forgets
+   `X-Forwarded-Proto` produces a redirect loop, which is the variable telling
+   you the header is missing.
+4. The proxy passes the application's response headers through unchanged and
+   injects nothing into the pages. Every page carries a Content-Security-Policy
+   (next section); a proxy that adds a script or a stylesheet — a banner, an
+   analytics tag — sees it blocked in the browser, and one that rewrites the
+   header disables the protection.
+
+## Content Security Policy
+
+Every browser page is served with a `Content-Security-Policy` header, built
+per request. Scripts run only from the instance itself and from the three
+boot scripts in the page's own `<head>` and `<body>`, each admitted by a
+nonce minted for that request; there is no inline event handler anywhere,
+no `eval`, and no script from any other origin. Styles come from the
+instance's stylesheet plus inline `style` attributes (the pages colour
+swatches and indent tree rows with them); images from the instance plus
+`data:` URLs, which the chart export uses to draw its picture; connections
+go to the instance and to its own WebSocket origin under the name the
+browser addressed it by; nothing is embedded, nothing frames the pages from
+another site, and forms post only to the instance.
+
+Nothing needs configuring. Two things follow from it for an operator: the
+proxy must pass the `Host` header the browser sent (the socket origin in the
+policy is that name, so a proxy that rewrites `Host` leaves the live pages
+unable to connect), and a page that renders but does not update, with
+`Content-Security-Policy` errors in the browser console, means a proxy or a
+browser extension injected script into it — the policy did its job.
 
 ## Development stack
 

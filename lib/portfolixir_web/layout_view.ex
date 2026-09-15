@@ -4,9 +4,12 @@ defmodule PortfolixirWeb.LayoutView do
   def render("root.html", assigns) do
     conn = assigns[:conn]
     locale = assigns[:locale] || (conn && conn.assigns[:locale]) || "en"
+    # The request's CSP nonce (#382) reaches the layout the same two ways the
+    # locale does; PortfolixirWeb.ContentSecurityPolicy assigns it.
+    csp_nonce = assigns[:csp_nonce] || (conn && conn.assigns[:csp_nonce])
     # A plain Map.put: the root layout is rendered both by LiveView (tracked
     # assigns) and by the session controller (a plain map, #764).
-    assigns = Map.put(assigns, :locale, locale)
+    assigns = assigns |> Map.put(:locale, locale) |> Map.put(:csp_nonce, csp_nonce)
 
     ~H"""
     <!DOCTYPE html>
@@ -18,7 +21,7 @@ defmodule PortfolixirWeb.LayoutView do
         <meta name="csrf-token" content={Phoenix.Controller.get_csrf_token()} />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="alternate icon" href="/favicon.ico" />
-        <script id="theme-boot">
+        <script id="theme-boot" nonce={@csp_nonce}>
           (function () {
             var mode = window.localStorage && window.localStorage.getItem("portfolixir-theme");
             if (["system", "light", "dark"].indexOf(mode) === -1) {
@@ -41,7 +44,7 @@ defmodule PortfolixirWeb.LayoutView do
         </script>
         <script src="/vendor/phoenix_live_view.min.js">
         </script>
-        <script id="live-view-client-script">
+        <script id="live-view-client-script" nonce={@csp_nonce}>
           (function () {
             // Every destructive control carries data-confirm (#765). The page
             // loads no phoenix_html script, so the attribute is honoured here:
@@ -1145,11 +1148,47 @@ defmodule PortfolixirWeb.LayoutView do
               window.Portfolixir.osNotify(event.detail || {});
             });
 
+            // Content-Security-Policy (#382): the pages carry no inline event
+            // handlers. The controls that used to call into window.Portfolixir
+            // from an inline click attribute say what they want with a data
+            // attribute and are served by these two listeners; both sit on the
+            // document, so they run ahead of LiveView's own window listeners.
+            document.addEventListener("click", function (event) {
+              var target = event.target;
+              if (!target || !target.closest) { return; }
+
+              var exportButton = target.closest("[data-chart-export]");
+              if (exportButton) {
+                window.Portfolixir.exportChart(exportButton, exportButton.getAttribute("data-chart-export"));
+              }
+
+              if (target.closest("[data-notify-permission]")) {
+                window.Portfolixir.ensureNotifyPermission();
+              }
+
+              // A control inside a clickable row (the quick-assign form in the
+              // securities list) keeps its click to itself.
+              if (target.closest("[data-swallow-click]")) {
+                event.stopPropagation();
+              }
+            });
+
+            // A phx-change form with no phx-submit would be submitted natively
+            // on Enter (LiveView's external-submit path); data-no-submit keeps
+            // it on the page, the way the inline return-false handler used to.
+            document.addEventListener("submit", function (event) {
+              var form = event.target;
+              if (form && form.matches && form.matches("[data-no-submit]")) {
+                event.preventDefault();
+                event.stopPropagation();
+              }
+            }, true);
+
             liveSocket.connect();
             window.liveSocket = liveSocket;
           })();
         </script>
-        <script id="theme-control-script">
+        <script id="theme-control-script" nonce={@csp_nonce}>
           (function () {
             var allowedModes = ["system", "light", "dark"];
             var allowedAccents = ["violet", "teal", "coral"];
