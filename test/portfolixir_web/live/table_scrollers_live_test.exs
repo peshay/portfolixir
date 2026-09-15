@@ -12,8 +12,9 @@ defmodule PortfolixirWeb.TableScrollersLiveTest do
   # so that the next wide column never clips a value again.
   #
   # Acceptance criteria:
-  # - The history, the holdings table, the cash table and the performance
-  #   summary table sit in the shared `.data-table-wrapper`.
+  # - The history, the cash table and the performance summary table sit in
+  #   the shared `.data-table-wrapper` (the holdings table left the
+  #   Transactions route with #803).
   test "the transactions tables sit in the shared wrapper", %{conn: conn} do
     world = WorldFixtures.base_world()
     share = WorldFixtures.create_security!(name: "Share Co", ticker: "SHR")
@@ -23,7 +24,6 @@ defmodule PortfolixirWeb.TableScrollersLiveTest do
     {:ok, view, _html} = live(conn, "/transactions")
 
     assert has_element?(view, "#transaction-table-wrapper.data-table-wrapper > #transaction-list")
-    assert has_element?(view, "#holdings-table-wrapper.data-table-wrapper > #holdings-table")
   end
 
   test "the Wealth cash and performance tables sit in the shared wrapper", %{conn: conn} do

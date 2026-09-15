@@ -1051,6 +1051,9 @@ The target, stated so #414 can be cut from it:
   title, `workspace-section` blocks, no nested panel chrome;
 - the booking form is one panel; the history is a **data table** with the D2 chip
   vocabulary above it — the same chips, so the filter language is learned once;
+  *(built state 2026-09-15, #803, review C6 pick C: the panel is a side drawer
+  opened from the history's head, a bottom sheet under 720 px, and the
+  holdings table left the route — it is Wealth → Holdings);*
 - the summary states its basis (UX-DR13 freshness) and what it aggregates
   (UX-DR21);
 - **the surface states its scope and does not scope the form.** This answers the

@@ -356,6 +356,17 @@ the same currency, or add one. No exchange-rate conversion of stored amounts
 happens here — exchange rates are only applied when valuing a portfolio in its
 base currency.
 
+**Recording a booking** (issue #803; the 2026-09-12 review's C6, variant C):
+the page opens on the history, and **Record transaction** in the history's
+head opens a side drawer in the securities detail pane's shape — the type,
+the date, the depot the booking **books to** (its cash account sets the
+currency), the security, quantity and price, costs and note behind one
+disclosure, the sell-lot preview beneath — a bottom sheet on the phone.
+Recording closes the drawer and shows the result above the history; Cancel
+or Esc discards the draft and returns focus to the control. The drawer is
+built for creating a booking and shaped as one panel of stacked, pre-fillable
+fields, so the edit view of the existing update API can reuse it.
+
 While entering a **sell**, the form previews which FIFO purchase tranches
 (lots) the sale would consume and the resulting **gross gain** per tranche
 and in total — sale proceeds minus the FIFO purchase cost of the consumed
@@ -417,11 +428,10 @@ notes. The choice is stored in the browser and survives a reload. The
 Balance column is deliberately not in the picker: it stays governed by its
 own rule — it appears exactly when the chips narrow to one account — because
 a picker that could summon it outside that narrowing would show a
-meaningless figure. The **Current holdings** panel beside the history has
-the same picker: its default Depot / Security / Quantity view expands to the
-valuation columns the agent reads over the holdings API — ISIN, WKN,
-currency, average cost, latest price, market value and unrealized P&L — and
-the figures are that projection's own numbers, not a second calculation.
+meaningless figure. The former **Current holdings** panel left this page
+with issue #803: it duplicated Wealth → Holdings, and the holdings
+projection's valuation fields stay readable over the holdings API's
+`fields=` sparse fieldset.
 
 **On the phone** (issue #799, UX-DR27): under 560 px the history gives way
 to two-line rows under the same month heads — the date and the kind over the
