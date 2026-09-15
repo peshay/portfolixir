@@ -226,7 +226,7 @@ defmodule PortfolixirWeb.IncomeLive do
     <AppShell.shell
       current_path={@current_path}
       page_title={gettext("Cash flow")}
-      page_subtitle={gettext("Received dividends and interest")}
+      page_subtitle={facet_subtitle(@facet)}
     >
       <div class="workspace-page">
         <AppShell.area_tabs tabs={AppShell.wealth_tabs(:income)} />
@@ -273,18 +273,13 @@ defmodule PortfolixirWeb.IncomeLive do
 
         <%= if @facet == "realized" do %>
           <section class="workspace-section">
-            <p class="muted" data-role="facet-composition">
-              <%= gettext(
-                "Realized gains and losses from FIFO-matched sales booked in the ledger, across every portfolio, by each sale's close date. Excludes dividends and interest, deposits and withdrawals, and costs — each has its own Cash flow facet."
-              ) %>
-            </p>
-            <div class="muted" data-role="realized-conversion">
-              <span><%= gettext("Amounts in %{currency}", currency: @realized.base_currency) %></span>
-              <details class="metric-tooltip metric-tooltip--inline">
-                <summary aria-label={gettext("Conversion info")}>ⓘ</summary>
-                <p role="tooltip">
+            <div class="summary-basis" data-role="facet-basis">
+              <%= gettext("Amounts in %{currency} · FIFO-matched sales · all portfolios", currency: @realized.base_currency) %>
+              <details class="metric-tooltip metric-tooltip--inline" data-role="facet-info">
+                <summary aria-label={gettext("About this facet")}>ⓘ</summary>
+                <p role="tooltip" data-role="facet-composition">
                   <%= gettext(
-                    "Each sale converted to %{currency} via the EUR hub at the rate stored on its own close date. A sale with no stored rate for that day is excluded from the totals and named here — never converted at a neighbouring date's rate.",
+                    "Realized gains and losses from FIFO-matched sales booked in the ledger, across every portfolio, by each sale's close date. Excludes dividends and interest, deposits and withdrawals, and costs — each has its own Cash flow facet. Each sale converted to %{currency} via the EUR hub at the rate stored on its own close date; a sale with no stored rate for that day is excluded from the totals and named here — never converted at a neighbouring date's rate.",
                     currency: @realized.base_currency
                   ) %>
                 </p>
@@ -353,18 +348,13 @@ defmodule PortfolixirWeb.IncomeLive do
 
         <%= if @facet == "flows" do %>
           <section class="workspace-section">
-            <p class="muted" data-role="facet-composition">
-              <%= gettext(
-                "Money paid in and taken out — the booked deposits and removals across every portfolio, by booking date. Excludes dividends and interest, realized gains, and costs — each has its own Cash flow facet. Securities delivered in or out and balance-snapshot jumps are not counted here; the performance's invested-capital figure includes them, which is why the two can differ."
-              ) %>
-            </p>
-            <div class="muted" data-role="flows-conversion">
-              <span><%= gettext("Amounts in %{currency}", currency: @flows.base_currency) %></span>
-              <details class="metric-tooltip metric-tooltip--inline">
-                <summary aria-label={gettext("Conversion info")}>ⓘ</summary>
-                <p role="tooltip">
+            <div class="summary-basis" data-role="facet-basis">
+              <%= gettext("Amounts in %{currency} · external deposits and withdrawals · all portfolios", currency: @flows.base_currency) %>
+              <details class="metric-tooltip metric-tooltip--inline" data-role="facet-info">
+                <summary aria-label={gettext("About this facet")}>ⓘ</summary>
+                <p role="tooltip" data-role="facet-composition">
                   <%= gettext(
-                    "Each flow converted to %{currency} via the EUR hub at the rate stored on its own booking date. A flow with no stored rate for that day is excluded from the totals and named here — never converted at a neighbouring date's rate.",
+                    "Money paid in and taken out — the booked deposits and removals across every portfolio, by booking date. Excludes dividends and interest, realized gains, and costs — each has its own Cash flow facet. Securities delivered in or out and balance-snapshot jumps are not counted here; the performance's invested-capital figure includes them, which is why the two can differ. Each flow converted to %{currency} via the EUR hub at the rate stored on its own booking date; a flow with no stored rate for that day is excluded from the totals and named here — never converted at a neighbouring date's rate.",
                     currency: @flows.base_currency
                   ) %>
                 </p>
@@ -447,18 +437,13 @@ defmodule PortfolixirWeb.IncomeLive do
 
         <%= if @facet == "costs" do %>
           <section class="workspace-section">
-            <p class="muted" data-role="facet-composition">
-              <%= gettext(
-                "What the portfolios cost to run — the fee and tax legs riding any transaction plus standalone fee and tax bookings across every portfolio, with tax refunds netted against taxes, by booking date. Gross amounts are never summed: a buy's gross includes its legs while a sell's is net of them. Excludes dividends and interest, realized gains, and deposits and withdrawals — each has its own Cash flow facet. This facet stays at overview level on purpose: totals per year, and no breakdown per security or per transaction."
-              ) %>
-            </p>
-            <div class="muted" data-role="costs-conversion">
-              <span><%= gettext("Amounts in %{currency}", currency: @costs.base_currency) %></span>
-              <details class="metric-tooltip metric-tooltip--inline">
-                <summary aria-label={gettext("Conversion info")}>ⓘ</summary>
-                <p role="tooltip">
+            <div class="summary-basis" data-role="facet-basis">
+              <%= gettext("Amounts in %{currency} · fees and taxes at overview level · all portfolios", currency: @costs.base_currency) %>
+              <details class="metric-tooltip metric-tooltip--inline" data-role="facet-info">
+                <summary aria-label={gettext("About this facet")}>ⓘ</summary>
+                <p role="tooltip" data-role="facet-composition">
                   <%= gettext(
-                    "Each cost converted to %{currency} via the EUR hub at the rate stored on its own booking date. A cost with no stored rate for that day is excluded from the totals and named here — never converted at a neighbouring date's rate.",
+                    "The fee and tax legs riding any transaction plus standalone fee and tax bookings across every portfolio, with tax refunds netted against taxes, by booking date. Gross amounts are never summed: a buy's gross includes its legs while a sell's is net of them. Excludes dividends and interest, realized gains, and deposits and withdrawals — each has its own Cash flow facet. This facet stays at overview level on purpose: totals per year, and no breakdown per security or per transaction. Each cost converted to %{currency} via the EUR hub at the rate stored on its own booking date; a cost with no stored rate for that day is excluded from the totals and named here — never converted at a neighbouring date's rate.",
                     currency: @costs.base_currency
                   ) %>
                 </p>
@@ -547,23 +532,18 @@ defmodule PortfolixirWeb.IncomeLive do
                omissions are not trivia: they are the reason the sibling
                Cash-flow facets exist, and a reader who does not know them
                reads this page as "all the money that came in". --%>
-          <p class="muted" data-role="facet-composition">
-            <%= gettext("Dividends and interest booked in the ledger for this portfolio. The other three facets cover every portfolio, so with more than one portfolio their figures are wider than this one. Excludes realized gains from sales, deposits and withdrawals, and costs — each has its own Cash flow facet.") %>
-          </p>
-          <%!-- UX-DR11 (Sprint 5 Lane D): terse basis line in the sightline,
-               conversion methodology behind the ⓘ tooltip. --%>
-          <div class="muted" data-role="income-conversion">
-            <span><%= gettext("Amounts in %{currency}", currency: @income.base_currency) %></span>
-            <details class="metric-tooltip metric-tooltip--inline">
-              <summary aria-label={gettext("Conversion info")}>ⓘ</summary>
-              <p role="tooltip">
-                <%= gettext(
-                  "Amounts converted to %{currency} via the EUR hub at each booking date's stored rate; original currency retained.",
-                  currency: @income.base_currency
-                ) %>
-              </p>
-            </details>
-          </div>
+          <div class="summary-basis" data-role="facet-basis">
+              <%= gettext("Amounts in %{currency} · dividends and interest · this portfolio", currency: @income.base_currency) %>
+              <details class="metric-tooltip metric-tooltip--inline" data-role="facet-info">
+                <summary aria-label={gettext("About this facet")}>ⓘ</summary>
+                <p role="tooltip" data-role="facet-composition">
+                  <%= gettext(
+                    "Dividends and interest booked in the ledger for this portfolio; the other three facets cover every portfolio, so with more than one portfolio their figures are wider than this one. Excludes realized gains from sales, deposits and withdrawals, and costs — each has its own Cash flow facet. Amounts converted to %{currency} via the EUR hub at each booking date's stored rate; original currency retained.",
+                    currency: @income.base_currency
+                  ) %>
+                </p>
+              </details>
+            </div>
         </section>
 
         <section id="income-annual" class="workspace-section">
@@ -990,4 +970,11 @@ defmodule PortfolixirWeb.IncomeLive do
 
   defp kind_label("dividend"), do: gettext("Dividend")
   defp kind_label("interest"), do: gettext("Interest")
+
+  # The subtitle names the facet (UX-DR21 extended, 2026-09-12): the parent's
+  # first facet is never the subtitle of its siblings.
+  defp facet_subtitle("realized"), do: gettext("Realized gains and losses from sales")
+  defp facet_subtitle("flows"), do: gettext("Deposits and withdrawals")
+  defp facet_subtitle("costs"), do: gettext("Fees and taxes")
+  defp facet_subtitle(_income), do: gettext("Received dividends and interest")
 end
