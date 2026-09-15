@@ -7639,3 +7639,118 @@ dialog.booking-drawer {
     background: rgba(0, 0, 0, 0.55);
   }
 }
+
+/* ===== Classification tree rows in columns (issue 805, review C8 variant A) ===== */
+/* One head above the tree; every category row is the same grid, so the
+   figures line up under their names at any depth (the name column absorbs
+   the indent). An empty category prints "—" in each figure column. */
+.cat-summary {
+  display: grid;
+  grid-template-columns: 0.7rem minmax(0, 1fr) 4.5rem 7rem 7rem 7rem 3.6rem;
+  align-items: center;
+  column-gap: 0.45rem;
+}
+
+.tree-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 4.5rem 7rem 7rem 7rem 3.6rem;
+  align-items: center;
+  column-gap: 0.45rem;
+  margin-top: 0.75rem;
+  padding: 0.35rem calc(0.5rem + 1px) 0.35rem calc(0.5rem + 1px + 0.7rem + 0.45rem);
+  border-radius: 0.6rem;
+  background: var(--color-bg-muted);
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tree-head + .tree {
+  margin-top: 0.4rem;
+}
+
+.cat-summary::before {
+  width: 0.7rem;
+  text-align: center;
+}
+
+.cat-summary .cat-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.cat-name__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cat-without-holdings {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.tree-head__num,
+.cat-positions,
+.cat-value,
+.cat-invested,
+.cat-result {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.cat-positions,
+.cat-value,
+.cat-invested {
+  font-weight: 500;
+}
+
+.cat-result {
+  display: inline-grid;
+  justify-items: end;
+  line-height: 1.15;
+}
+
+.cat-result small {
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+.cat-summary .cat-actions {
+  justify-content: flex-end;
+}
+
+.tree-basis {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-1);
+  margin: 0.5rem 0 0;
+}
+
+@media (max-width: 560px) {
+  /* The phone keeps the name, the value and the result; positions and cost
+     read in the row's title and on the desktop. */
+  .cat-summary {
+    grid-template-columns: 0.7rem minmax(0, 1fr) 6rem 6rem 2.6rem;
+  }
+
+  .tree-head {
+    grid-template-columns: minmax(0, 1fr) 6rem 6rem 2.6rem;
+  }
+
+  .cat-positions,
+  .cat-invested,
+  .tree-head__num:nth-child(2),
+  .tree-head__num:nth-child(4) {
+    display: none;
+  }
+}
