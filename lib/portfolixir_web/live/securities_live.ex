@@ -507,7 +507,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
             />
           <% end %>
         </div>
-
         <p
           :if={@since}
           id="securities-since-note"
@@ -700,6 +699,68 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 </tbody>
               </table>
             </div>
+            <%!-- #799 (UX-DR27): under 560 px the table gives way to these
+                 two-line rows — a fixed composition independent of the
+                 column picker: the name over its identifiers, the price and
+                 the day change right-aligned, the row's states as words
+                 (the stale marker, "no price", the class remedy). The kebab
+                 and the row menu are the table row's. --%>
+            <ul id="securities-phone-rows" class="phone-rows" aria-label={gettext("Securities")}>
+              <li :if={@securities == []} class="phone-rows__empty" data-role="phone-empty">
+                <%= if String.trim(@query) != "" or @filters != [] or @holding_status != "all" or @dq do %>
+                  <%= gettext("No matches for the active filters.") %>
+                <% else %>
+                  <%= gettext("No securities yet — click + to add one.") %>
+                <% end %>
+              </li>
+              <%= for row <- @securities do %>
+                <% sec_id = security_id(row) %>
+                <% inner_security = security_from_row(row) %>
+                <% row_path = securities_path(assigns, id: sec_id) %>
+                <li
+                  id={"security-phone-#{sec_id}"}
+                  class={[
+                    "phone-row",
+                    selected?(@selected_security, row) && "is-selected",
+                    inner_security.is_retired && "is-retired"
+                  ]}
+                  data-role="phone-row"
+                  phx-click={Phoenix.LiveView.JS.patch(row_path)}
+                  phx-contextmenu="open_row_menu"
+                  phx-value-id={sec_id}
+                >
+                  <.security_logo security={inner_security} variant="row" />
+                  <span class="phone-row__body">
+                    <.link patch={row_path} class="phone-row__target">
+                      <span class="phone-row__name"><%= inner_security.name %></span>
+                    </.link>
+                    <span class="phone-row__ids">
+                      <%= phone_identifiers(inner_security) %> · <%= asset_class_cell(
+                        SecurityFields.get!(:asset_class),
+                        row,
+                        "phone-quick-assign"
+                      ) %>
+                    </span>
+                  </span>
+                  <span class="phone-row__figures">
+                    <span class="phone-row__figure"><%= phone_price(row) %></span>
+                    <span class="phone-row__figure2"><%= phone_change(row) %></span>
+                  </span>
+                  <button
+                    type="button"
+                    id={"phone-kebab-#{sec_id}"}
+                    class="row-actions__kebab"
+                    phx-click="open_row_menu"
+                    phx-value-id={sec_id}
+                    aria-label={gettext("Open actions menu")}
+                    aria-haspopup="menu"
+                    aria-expanded={@row_menu_id == sec_id}
+                  >
+                    <AppShell.icon name={:ellipsis_vertical} />
+                  </button>
+                </li>
+              <% end %>
+            </ul>
           </div>
 
           <%= if @selected_security do %>
@@ -2714,38 +2775,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # the value in document order plus a data attribute, so it survives
   # `forced-colors: active` (DESIGN.md → Value slot, binding since 2026-08-05).
   #
-  # options_html is constructed entirely from AssetClasses.options() (compile-time
-  # constants) with every value passed through html_escape/1 — no user input.
-  # sobelow_skip ["XSS.Raw"]
-  defp render_cell(%Field{key: :asset_class} = field, row) do
-    case {security_from_row(row).asset_class, SecurityFields.value(field, row)} do
-      # Stated by the operator: a plain badge, and no remediation prompt.
-      {stored, _effective} when is_binary(stored) ->
-        Phoenix.HTML.raw(
-          ~s(<span class="badge" data-asset-class="stated">) <>
-            escaped(AssetClasses.label(stored)) <>
-            ~s(</span>)
-        )
-
-      # Not stated, but derivable: show what we derived, say that we derived it,
-      # and still offer the control that turns it into a stated value.
-      {nil, effective} when is_binary(effective) ->
-        Phoenix.HTML.raw(
-          ~s(<span class="badge badge--derived" data-asset-class="derived">) <>
-            ~s(<span class="visually-hidden">) <>
-            escaped(gettext("Derived:")) <>
-            ~s( </span>) <>
-            ~s(<span class="badge-derived-marker" aria-hidden="true">≈</span>) <>
-            escaped(AssetClasses.label(effective)) <>
-            ~s(</span>) <>
-            quick_assign_form(row)
-        )
-
-      # Neither stated nor derivable.
-      {nil, nil} ->
-        Phoenix.HTML.raw(quick_assign_form(row))
-    end
-  end
+  defp render_cell(%Field{key: :asset_class} = field, row),
+    do: asset_class_cell(field, row, "quick-assign")
 
   defp render_cell(%Field{render_hint: :badge, key: key} = field, security) do
     case SecurityFields.value(field, security) do
@@ -2888,7 +2919,80 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp stale_change?(_field, _row), do: false
 
-  defp quick_assign_form(row) do
+  # The phone row's identifier line (#799): ticker · ISIN, the currency
+  # where a security carries neither.
+  defp phone_identifiers(%Security{} = security) do
+    case Enum.reject([security.ticker_symbol, security.isin], &(&1 in [nil, ""])) do
+      [] -> security.currency_code
+      parts -> Enum.join(parts, " · ")
+    end
+  end
+
+  # The phone row's figures (#799): the price, and under it the day change —
+  # or the stale marker instead of a change computed from a stale close
+  # (issue 789), or "—" where nothing prices the row.
+  defp phone_price(row) do
+    case SecurityFields.value(SecurityFields.get!(:latest_price), row) do
+      nil -> gettext("no price")
+      value -> Format.decimal(decimal_for_display(value), 2)
+    end
+  end
+
+  defp phone_change(row) do
+    if stale_quote_row?(row) do
+      assigns = %{date: row.metrics.latest_price_date}
+
+      ~H"""
+      <AppShell.quote_stale date={@date} />
+      """
+    else
+      case render_cell(SecurityFields.get!(:day_change_pct), row) do
+        "" -> "—"
+        change -> change
+      end
+    end
+  end
+
+  # The class cell, shared by the table and the phone row (#799): the two
+  # render the same badge or remedy, under distinct form ids.
+  #
+  # Every interpolated value goes through escaped/1 (html_escape |>
+  # safe_to_string) and the quick-assign form's options are built from
+  # AssetClasses.options() — compile-time constants — so no unescaped input
+  # reaches the markup. The annotation rides with the raw calls: it sat on
+  # render_cell/2 until issue 799 moved them here.
+  # sobelow_skip ["XSS.Raw"]
+  defp asset_class_cell(field, row, form_prefix) do
+    case {security_from_row(row).asset_class, SecurityFields.value(field, row)} do
+      # Stated by the operator: a plain badge, and no remediation prompt.
+      {stored, _effective} when is_binary(stored) ->
+        Phoenix.HTML.raw(
+          ~s(<span class="badge" data-asset-class="stated">) <>
+            escaped(AssetClasses.label(stored)) <>
+            ~s(</span>)
+        )
+
+      # Not stated, but derivable: show what we derived, say that we derived it,
+      # and still offer the control that turns it into a stated value.
+      {nil, effective} when is_binary(effective) ->
+        Phoenix.HTML.raw(
+          ~s(<span class="badge badge--derived" data-asset-class="derived">) <>
+            ~s(<span class="visually-hidden">) <>
+            escaped(gettext("Derived:")) <>
+            ~s( </span>) <>
+            ~s(<span class="badge-derived-marker" aria-hidden="true">≈</span>) <>
+            escaped(AssetClasses.label(effective)) <>
+            ~s(</span>) <>
+            quick_assign_form(row, form_prefix)
+        )
+
+      # Neither stated nor derivable.
+      {nil, nil} ->
+        Phoenix.HTML.raw(quick_assign_form(row, form_prefix))
+    end
+  end
+
+  defp quick_assign_form(row, form_prefix) do
     sec_id = to_string(security_id(row))
 
     options_html =
@@ -2897,7 +3001,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         ~s(<option value="#{escaped(code)}">#{escaped(label)}</option>)
       end)
 
-    ~s[<form id="quick-assign-#{sec_id}" phx-change="quick_assign_asset_class" phx-value-id="#{sec_id}" data-swallow-click class="quick-assign-form">] <>
+    ~s[<form id="#{form_prefix}-#{sec_id}" phx-change="quick_assign_asset_class" phx-value-id="#{sec_id}" data-swallow-click class="quick-assign-form">] <>
       ~s[<select name="asset_class" class="quick-assign-select" aria-label="#{escaped(gettext("Assign asset class"))}">] <>
       ~s[<option value="">—</option>] <>
       options_html <>

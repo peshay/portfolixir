@@ -182,6 +182,14 @@ API's `?since=` with the same accepted forms, so an agent's link opens
 exactly the slice it read; an unparseable value degrades to the unfiltered
 list rather than silently narrowing it.
 
+**On the phone** (issue #799, UX-DR27): under 560 px the table
+gives way to two-line rows — the name over its ticker, ISIN and asset class
+(the assign-class control where the class is missing), the latest price over
+the day change on the right, the stale marker under the price, "no price"
+where nothing prices the row — so nothing scrolls sideways; the row still
+opens the detail, its kebab still opens the row menu, and the column picker
+keeps its meaning above 560 px.
+
 ### Classification columns
 
 Next to the attribute and price columns, the securities list's column picker
@@ -410,6 +418,14 @@ the same picker: its default Depot / Security / Quantity view expands to the
 valuation columns the agent reads over the holdings API — ISIN, WKN,
 currency, average cost, latest price, market value and unrealized P&L — and
 the figures are that projection's own numbers, not a second calculation.
+
+**On the phone** (issue #799, UX-DR27): under 560 px the history gives way
+to two-line rows under the same month heads — the date and the kind over the
+security or account the booking touched, the signed amount with its
+currency over the size (quantity × price, the quantity alone, a split's
+ratio) on the right, the running balance beneath it while the chips narrow
+to one account — so nothing scrolls sideways; the column picker keeps its
+meaning above 560 px.
 
 ### Holdings Calculation
 

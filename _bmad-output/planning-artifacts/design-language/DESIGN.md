@@ -248,6 +248,13 @@ components:
     stale-sub-line: '{colors.warning}, weight 600, :alert_triangle at 12px before the count; rendered only when the count is > 0'
     basis-line: 'view · period to date · currency · what the quotes cell measures'
     pending: 'label stays, value skeleton at the value footprint, aria-busy; the strip is absent in the empty state'
+  phone-row:
+    grid: 'auto minmax(0, 1fr) auto auto — logo, body, figures, kebab; 10px column gap; 10px block padding; 1px {colors.border} between rows'
+    name: '{typography.table-cell} weight 600, wraps'
+    identifiers: '12px {colors.text-muted}: ticker · ISIN · class badge (or the quick-assign control); date · kind over the subject on the history'
+    figures: 'right-aligned tabular; the first at 14px/600, the second at 12px muted (the change, the stale marker, quantity × price)'
+    states: 'is-selected paints {colors.selected}; is-retired dims like the table row; "no price" and "—" as words'
+    shown: 'under 560px only — the table wrapper is display none there, the rows display none above'
   hero:
     composition: 'headline value + as-of basis line above the curve; €/% series toggle and period control on the chart toolbar row'
     value: '{typography.stat-value}'
@@ -1363,3 +1370,27 @@ when under, the worst drift listed filling 45 % of the track so the rows
 read against each other. Decorative and `aria-hidden`: the row's text keeps
 the sign, the colour and the direction word (UX-DR7). Hidden under 560 px,
 where the row is its text.
+
+### Phone lists — two-line rows *(UX-DR27, issue 799; C3-A)*
+
+`{components.phone-row}`: under 560 px the securities list and the
+transactions history render as rows beside their tables (the table wrapper
+is `display: none` there, the rows `display: none` above), a fixed
+composition per surface that the column picker does not touch.
+
+- **Securities:** logo, the name (600, wrapping) over ticker · ISIN · the
+  class badge — the derived badge with the quick-assign control, or the
+  control alone, where the class is not stated — the currency where the
+  security carries no identifier; on the right the latest price (14 px/600)
+  over the day change (12 px, signed colour), the stale marker under the
+  price instead of a change computed from a stale close, "no price" over
+  "—" where nothing prices the row; the kebab at the row's end. Selection
+  paints {colors.selected}; a retired row dims like the table row.
+- **Transactions:** the month group heads stay (bg-muted band, the count
+  and the per-currency totals); each row is the date · kind label over the
+  subject (security, else cash account, else depot), the signed amount with
+  its currency over the size — quantity × price, the quantity alone, a
+  split's ratio — and the running balance beneath while the chips narrow to
+  one account.
+- **Rules kept:** nothing scrolls sideways; matrices and dialog tables keep
+  UX-DR15's scroller; the desktop tables are unchanged.
