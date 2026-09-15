@@ -4909,6 +4909,23 @@ thead .col-subject {
   white-space: nowrap;
 }
 /* Month section headers in the grouped transaction list (issue 414 follow-up). */
+/* The history's numeric cells (issue 786, DESIGN.md → Data tables): right
+   aligned, tabular numerals, the currency as a small muted suffix of the
+   amount (EXPERIENCE.md → Amendment 2026-09-12 → Value slot). */
+#transaction-list th.num,
+#transaction-list td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+#transaction-list td.num small {
+  margin-left: 4px;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
 .tx-group-head th {
   text-align: left;
   background: var(--color-bg-muted);

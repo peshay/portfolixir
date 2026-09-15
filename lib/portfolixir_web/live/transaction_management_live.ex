@@ -22,8 +22,12 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # The running-balance column is deliberately NOT here: it stays governed by
   # its own rule (exactly one account narrowed), because a picker that can
   # summon it outside that narrowing would fake a meaningless balance.
-  @tx_column_defaults ["date", "type", "security", "quantity", "price", "currency"]
-  @tx_column_keys @tx_column_defaults ++ ["gross_amount", "fees", "taxes", "notes"]
+  # The amount rides in the defaults (#786): a dividend row shows what was
+  # paid, not only its quantity. The currency is the amount's suffix, so its
+  # own column stays in the picker rather than in the defaults.
+  @tx_column_defaults ["date", "type", "security", "quantity", "price", "gross_amount"]
+  @tx_column_keys @tx_column_defaults ++ ["currency", "fees", "taxes", "notes"]
+  @numeric_columns ["quantity", "price", "gross_amount", "fees", "taxes"]
 
   @holdings_column_defaults ["depot", "security", "quantity"]
   @holdings_column_keys @holdings_column_defaults ++
@@ -557,7 +561,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                 <table id="transaction-list">
                   <thead>
                     <tr>
-                      <th :for={key <- @tx_columns}><%= tx_column_label(key) %></th>
+                      <th :for={key <- @tx_columns} {num_attrs(key)}><%= tx_column_label(key) %></th>
                       <%!-- The running balance is only meaningful for ONE
                             account, so the column appears exactly when the
                             chips narrow to one and not before — never via the
@@ -596,16 +600,28 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                                     <%= split_ratio_label(transaction) %>
                                   </td>
                                 <% else %>
-                                  <td><%= format_decimal(transaction.quantity) %></td>
+                                  <td class="num"><%= format_quantity(transaction.quantity) %></td>
                                 <% end %>
                               <% "price" -> %>
                                 <%= if transaction.type == "split" do %>
-                                  <td>—</td>
+                                  <td class="num">—</td>
                                 <% else %>
-                                  <td><%= format_decimal(transaction.price) %></td>
+                                  <td class="num"><%= PortfolixirWeb.Format.decimal(transaction.price, 2) %></td>
+                                <% end %>
+                              <% "gross_amount" -> %>
+                                <%!-- The booking's money as the cash account sees it,
+                                      the currency as the value's suffix (value-slot
+                                      rule, 2026-09-12). --%>
+                                <%= case tx_money(transaction) do %>
+                                  <% nil -> %>
+                                    <td class="num" data-role="amount">—</td>
+                                  <% amount -> %>
+                                    <td class="num" data-role="amount">
+                                      <%= signed_money(transaction.type, amount) %><small><%= transaction.currency_code %></small>
+                                    </td>
                                 <% end %>
                               <% _other -> %>
-                                <td><%= tx_cell(transaction, key) %></td>
+                                <td {num_attrs(key)}><%= tx_cell(transaction, key) %></td>
                             <% end %>
                           <% end %>
                           <td :if={@balance_account} class="numeric col-subject" data-role="running-balance">
@@ -1069,7 +1085,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp tx_column_label("quantity"), do: gettext("Quantity")
   defp tx_column_label("price"), do: gettext("Price")
   defp tx_column_label("currency"), do: gettext("Currency")
-  defp tx_column_label("gross_amount"), do: gettext("Gross amount")
+  defp tx_column_label("gross_amount"), do: gettext("Amount")
   defp tx_column_label("fees"), do: gettext("Fees")
   defp tx_column_label("taxes"), do: gettext("Taxes")
   defp tx_column_label("notes"), do: gettext("Notes")
@@ -1078,9 +1094,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp tx_cell(transaction, "type"), do: tx_type_label(transaction.type)
   defp tx_cell(transaction, "security"), do: transaction.security && transaction.security.name
   defp tx_cell(transaction, "currency"), do: transaction.currency_code
-  defp tx_cell(transaction, "gross_amount"), do: format_decimal(transaction.gross_amount)
-  defp tx_cell(transaction, "fees"), do: format_decimal(transaction.fees)
-  defp tx_cell(transaction, "taxes"), do: format_decimal(transaction.taxes)
+  defp tx_cell(transaction, "fees"), do: PortfolixirWeb.Format.money(transaction.fees)
+  defp tx_cell(transaction, "taxes"), do: PortfolixirWeb.Format.money(transaction.taxes)
   defp tx_cell(transaction, "notes"), do: transaction.notes
 
   defp holdings_column_label("depot"), do: gettext("Depot")
@@ -1194,6 +1209,40 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     do: gettext("No price is available for this security.")
 
   defp sell_preview_hint(_lot), do: nil
+
+  defp num_attrs(key) when key in @numeric_columns, do: %{class: "num"}
+  defp num_attrs(_key), do: %{}
+
+  # The quantity in its own scale under the locale's separators (#786):
+  # "0,05", "30", "1.000" — never the stored twelve-place scale.
+  defp format_quantity(nil), do: ""
+
+  defp format_quantity(%Decimal{} = quantity) do
+    normalized = Decimal.normalize(quantity)
+    places = normalized.exp |> Kernel.-() |> max(0) |> min(8)
+    PortfolixirWeb.Format.decimal(normalized, places)
+  end
+
+  @outflow_kinds ~w(buy removal fee tax cash_transfer)
+
+  # The booking's money on the same basis as the month subtotal (the stored
+  # gross amount, else quantity × price); a split or a transfer without a
+  # price has none.
+  defp tx_money(%{type: "split"}), do: nil
+  defp tx_money(%{gross_amount: %Decimal{} = gross}), do: gross
+
+  defp tx_money(%{quantity: %Decimal{} = quantity, price: %Decimal{} = price}),
+    do: Decimal.mult(quantity, price)
+
+  defp tx_money(_transaction), do: nil
+
+  # Signed as the cash account sees it: what leaves the account is negative,
+  # what arrives is positive. A balance snapshot is a level, not a flow, and
+  # keeps its stored sign.
+  defp signed_money(type, %Decimal{} = amount) when type in @outflow_kinds,
+    do: PortfolixirWeb.Format.money(Decimal.negate(amount))
+
+  defp signed_money(_type, %Decimal{} = amount), do: PortfolixirWeb.Format.money(amount)
 
   # Normalized, so holdings show "200" instead of the stored scale
   # ("200.000000000000"); nil stays blank.
