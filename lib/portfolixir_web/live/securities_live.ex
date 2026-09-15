@@ -86,6 +86,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:visible_columns, SecurityFields.visible_default())
      |> assign(:classification_columns, Classifications.column_specs())
      |> assign(:open_popover, nil)
+     |> assign(:filter_sheet_open?, false)
      |> assign(:dialog_open?, false)
      |> assign(:split_dialog_open?, false)
      |> assign(:action_result, nil)
@@ -338,6 +339,29 @@ defmodule PortfolixirWeb.SecuritiesLive do
             />
           </form>
 
+          <%!-- #800 (C4-B): under 560 px the chip families sit behind this
+               control in a bottom sheet; above it the D2 row renders and the
+               control is hidden (CSS). The count is the active chips'. --%>
+          <button
+            type="button"
+            id="filter-sheet-toggle"
+            class="filter-sheet-toggle"
+            phx-click="open_filter_sheet"
+            aria-haspopup="dialog"
+            aria-expanded={to_string(@filter_sheet_open?)}
+            aria-controls={@filter_sheet_open? && "securities-filter-sheet"}
+          >
+            <AppShell.icon name={:filter} />
+            <%= gettext("Filter") %>
+            <span
+              :if={active_chip_count(assigns) > 0}
+              class="badge"
+              data-role="filter-sheet-count"
+            >
+              <%= active_chip_count(assigns) %>
+            </span>
+          </button>
+
           <div class="toolbar-actions">
             <button
               type="button"
@@ -393,113 +417,24 @@ defmodule PortfolixirWeb.SecuritiesLive do
              builder is demoted behind "More filters" at the end of the row.
              Families compose AND; chips within the currency and class
              families compose OR (the family label marks the either/or
-             groups). Every chip state rides the URL. --%>
-        <div
-          id="securities-filter-chips"
-          class="filter-chips"
-          role="group"
-          aria-label={gettext("Filter the list")}
-        >
-          <button
-            type="button"
-            id="sec-chip-held"
-            class={["filter-chip", @holding_status == "held" && "is-active"]}
-            aria-pressed={to_string(@holding_status == "held")}
-            phx-click="set_holding_status"
-            phx-value-status={if @holding_status == "held", do: "all", else: "held"}
-          >
-            <%= gettext("Held") %>
-          </button>
-          <button
-            type="button"
-            id="sec-chip-not_held"
-            class={["filter-chip", @holding_status == "not_held" && "is-active"]}
-            aria-pressed={to_string(@holding_status == "not_held")}
-            phx-click="set_holding_status"
-            phx-value-status={if @holding_status == "not_held", do: "all", else: "not_held"}
-          >
-            <%= gettext("Not held") %>
-          </button>
-          <%!-- Keyed on the STORED class (#700): the one-tap form of the
-               canonical filter[]=asset_class:is_nil URL. --%>
-          <button
-            type="button"
-            id="sec-chip-unclassified"
-            class={["filter-chip", unclassified_active?(@filters) && "is-active"]}
-            aria-pressed={to_string(unclassified_active?(@filters))}
-            phx-click="toggle_unclassified"
-          >
-            <%= gettext("Unclassified") %>
-          </button>
-          <%= for {id, label} <- dq_chip_options() do %>
-            <button
-              type="button"
-              id={"sec-chip-#{id}"}
-              class={["filter-chip", @dq == id && "is-active"]}
-              aria-pressed={to_string(@dq == id)}
-              phx-click="set_dq_chip"
-              phx-value-dq={id}
-            >
-              <%= label %>
-            </button>
-          <% end %>
-          <%= if length(@chip_currencies) > 1 do %>
-            <span class="filter-chips__family"><%= gettext("Currency") %></span>
-            <%= for currency <- @chip_currencies do %>
-              <button
-                type="button"
-                id={"sec-chip-cur-#{currency}"}
-                class={["filter-chip", currency in @cur && "is-active"]}
-                aria-pressed={to_string(currency in @cur)}
-                phx-click="toggle_chip_family"
-                phx-value-family="cur"
-                phx-value-option={currency}
-              >
-                <%= currency %>
-              </button>
-            <% end %>
-          <% end %>
-          <%= if @chip_classes != [] do %>
-            <span class="filter-chips__family"><%= gettext("Asset class") %></span>
-            <%= for code <- @chip_classes do %>
-              <button
-                type="button"
-                id={"sec-chip-class-#{code}"}
-                class={["filter-chip", code in @class && "is-active"]}
-                aria-pressed={to_string(code in @class)}
-                phx-click="toggle_chip_family"
-                phx-value-family="class"
-                phx-value-option={code}
-              >
-                <%= AssetClasses.label(code) %>
-              </button>
-            <% end %>
-          <% end %>
-          <ChangedSince.chips id="changed-since-chips" since={@since} />
-          <%!-- The demoted builder (D2): a quiet control, not a tenth chip;
-               the count keeps demotion from hiding active state. --%>
-          <button
-            type="button"
-            id="more-filters-toggle"
-            class={["more-filters-link", @open_popover == :filter && "is-active"]}
-            phx-click="toggle_popover"
-            phx-value-popover="filter"
-            aria-expanded={@open_popover == :filter}
-          >
-            <AppShell.icon name={:filter} />
-            <%= gettext("More filters") %>
-            <span
-              :if={more_filters_count(@filters, @dq) > 0}
-              class="badge"
-              data-role="more-filters-count"
-            >
-              <%= more_filters_count(@filters, @dq) %>
-            </span>
-          </button>
-        </div>
+             groups). Every chip state rides the URL. The same families
+             render in the phone sheet below (#800). --%>
+        <.filter_families
+          prefix="sec"
+          layout={:row}
+          holding_status={@holding_status}
+          filters={@filters}
+          dq={@dq}
+          chip_currencies={@chip_currencies}
+          cur={@cur}
+          chip_classes={@chip_classes}
+          class={@class}
+          since={@since}
+          open_popover={@open_popover}
+        />
 
         <div class="popover-container">
-          <%= if @open_popover == :filter do %>
+          <%= if @open_popover == :filter and not @filter_sheet_open? do %>
             <.live_component
               module={FilterPopover}
               id="filter-popover"
@@ -507,6 +442,63 @@ defmodule PortfolixirWeb.SecuritiesLive do
             />
           <% end %>
         </div>
+
+        <%!-- #800 (C4-B): the chip families behind the Filter control, in a
+             bottom sheet — a native dialog opened by the ModalDialog hook
+             (focus moved in, Esc closes, focus returned), the families
+             stacked under their names, the same chips and events as the
+             row above the table. --%>
+        <%= if @filter_sheet_open? do %>
+          <dialog
+            id="securities-filter-sheet"
+            class="filter-sheet"
+            phx-hook="ModalDialog"
+            data-close-event="close_filter_sheet"
+            aria-labelledby="filter-sheet-title"
+          >
+            <header class="filter-sheet__head">
+              <h2 id="filter-sheet-title"><%= gettext("Filter") %></h2>
+              <button
+                type="button"
+                class="icon-button"
+                aria-label={gettext("Close")}
+                phx-click="close_filter_sheet"
+              >
+                <AppShell.icon name={:x} />
+              </button>
+            </header>
+            <.filter_families
+              prefix="sheet"
+              layout={:sheet}
+              holding_status={@holding_status}
+              filters={@filters}
+              dq={@dq}
+              chip_currencies={@chip_currencies}
+              cur={@cur}
+              chip_classes={@chip_classes}
+              class={@class}
+              since={@since}
+              open_popover={@open_popover}
+            />
+            <div :if={@open_popover == :filter} class="filter-sheet__builder">
+              <.live_component module={FilterPopover} id="filter-popover" dq={@dq} />
+            </div>
+            <footer class="filter-sheet__foot">
+              <button type="button" id="filter-sheet-reset" class="button" phx-click="reset_filters">
+                <%= gettext("Reset") %>
+              </button>
+              <button
+                type="button"
+                id="filter-sheet-done"
+                class="button-primary"
+                phx-click="close_filter_sheet"
+              >
+                <%= gettext("Done") %>
+              </button>
+            </footer>
+          </dialog>
+        <% end %>
+
         <p
           :if={@since}
           id="securities-since-note"
@@ -2919,6 +2911,203 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp stale_change?(_field, _row), do: false
 
+  # The chip families (#717 D2), one markup rendered twice: as the row above
+  # the table (prefix "sec", layout :row — the ids the tests and the docs
+  # know) and inside the phone sheet (#800: prefix "sheet", layout :sheet —
+  # every family stacked under its name). One source, so the two cannot
+  # drift apart.
+  attr(:prefix, :string, required: true)
+  attr(:layout, :atom, required: true)
+  attr(:holding_status, :string, required: true)
+  attr(:filters, :list, required: true)
+  attr(:dq, :any, required: true)
+  attr(:chip_currencies, :list, required: true)
+  attr(:cur, :list, required: true)
+  attr(:chip_classes, :list, required: true)
+  attr(:class, :list, required: true)
+  attr(:since, :any, required: true)
+  attr(:open_popover, :any, required: true)
+
+  defp filter_families(assigns) do
+    assigns =
+      assigns
+      |> assign(:since_id, family_id(assigns.prefix, "changed-since-chips"))
+      |> assign(:more_id, family_id(assigns.prefix, "more-filters-toggle"))
+
+    ~H"""
+    <%= if @layout == :row do %>
+      <div
+        id="securities-filter-chips"
+        class="filter-chips"
+        role="group"
+        aria-label={gettext("Filter the list")}
+      >
+        <.family_chips {assigns} />
+      </div>
+    <% else %>
+      <div class="filter-sheet__families" role="group" aria-label={gettext("Filter the list")}>
+        <.family_chips {assigns} />
+      </div>
+    <% end %>
+    """
+  end
+
+  defp family_chips(assigns) do
+    ~H"""
+    <.family layout={@layout} label={gettext("Holding")}>
+      <button
+        type="button"
+        id={"#{@prefix}-chip-held"}
+        class={["filter-chip", @holding_status == "held" && "is-active"]}
+        aria-pressed={to_string(@holding_status == "held")}
+        phx-click="set_holding_status"
+        phx-value-status={if @holding_status == "held", do: "all", else: "held"}
+      >
+        <%= gettext("Held") %>
+      </button>
+      <button
+        type="button"
+        id={"#{@prefix}-chip-not_held"}
+        class={["filter-chip", @holding_status == "not_held" && "is-active"]}
+        aria-pressed={to_string(@holding_status == "not_held")}
+        phx-click="set_holding_status"
+        phx-value-status={if @holding_status == "not_held", do: "all", else: "not_held"}
+      >
+        <%= gettext("Not held") %>
+      </button>
+    </.family>
+    <.family layout={@layout} label={gettext("Data quality")}>
+      <%!-- Keyed on the STORED class (#700): the one-tap form of the
+           canonical filter[]=asset_class:is_nil URL. --%>
+      <button
+        type="button"
+        id={"#{@prefix}-chip-unclassified"}
+        class={["filter-chip", unclassified_active?(@filters) && "is-active"]}
+        aria-pressed={to_string(unclassified_active?(@filters))}
+        phx-click="toggle_unclassified"
+      >
+        <%= gettext("Unclassified") %>
+      </button>
+      <%= for {id, label} <- dq_chip_options() do %>
+        <button
+          type="button"
+          id={"#{@prefix}-chip-#{id}"}
+          class={["filter-chip", @dq == id && "is-active"]}
+          aria-pressed={to_string(@dq == id)}
+          phx-click="set_dq_chip"
+          phx-value-dq={id}
+        >
+          <%= label %>
+        </button>
+      <% end %>
+    </.family>
+    <.family :if={length(@chip_currencies) > 1} layout={@layout} label={gettext("Currency")} labelled>
+      <%= for currency <- @chip_currencies do %>
+        <button
+          type="button"
+          id={"#{@prefix}-chip-cur-#{currency}"}
+          class={["filter-chip", currency in @cur && "is-active"]}
+          aria-pressed={to_string(currency in @cur)}
+          phx-click="toggle_chip_family"
+          phx-value-family="cur"
+          phx-value-option={currency}
+        >
+          <%= currency %>
+        </button>
+      <% end %>
+    </.family>
+    <.family :if={@chip_classes != []} layout={@layout} label={gettext("Asset class")} labelled>
+      <%= for code <- @chip_classes do %>
+        <button
+          type="button"
+          id={"#{@prefix}-chip-class-#{code}"}
+          class={["filter-chip", code in @class && "is-active"]}
+          aria-pressed={to_string(code in @class)}
+          phx-click="toggle_chip_family"
+          phx-value-family="class"
+          phx-value-option={code}
+        >
+          <%= AssetClasses.label(code) %>
+        </button>
+      <% end %>
+    </.family>
+    <%= if @layout == :row do %>
+      <ChangedSince.chips id={@since_id} since={@since} />
+    <% else %>
+      <div class="filter-sheet__family" data-role="filter-family">
+        <div class="filter-chips filter-chips--wrap">
+          <ChangedSince.chips id={@since_id} since={@since} />
+        </div>
+      </div>
+    <% end %>
+    <%!-- The demoted builder (D2): a quiet control, not a tenth chip;
+         the count keeps demotion from hiding active state. --%>
+    <.family layout={@layout} label={gettext("More filters")} heading={false}>
+      <button
+        type="button"
+        id={@more_id}
+        class={["more-filters-link", @open_popover == :filter && "is-active"]}
+        phx-click="toggle_popover"
+        phx-value-popover="filter"
+        aria-expanded={@open_popover == :filter}
+      >
+        <AppShell.icon name={:filter} />
+        <%= gettext("More filters") %>
+        <span
+          :if={more_filters_count(@filters, @dq) > 0}
+          class="badge"
+          data-role="more-filters-count"
+        >
+          <%= more_filters_count(@filters, @dq) %>
+        </span>
+      </button>
+    </.family>
+    """
+  end
+
+  # One family of chips: in the row, the chips in flow with the family's
+  # name only where the row had one (currency, asset class); in the sheet,
+  # a block headed by its name.
+  attr(:layout, :atom, required: true)
+  attr(:label, :string, required: true)
+  attr(:labelled, :boolean, default: false)
+  attr(:heading, :boolean, default: true)
+  slot(:inner_block, required: true)
+
+  defp family(assigns) do
+    ~H"""
+    <%= if @layout == :sheet do %>
+      <div class="filter-sheet__family" data-role="filter-family">
+        <span :if={@heading} class="filter-sheet__label"><%= @label %></span>
+        <div class="filter-chips filter-chips--wrap"><%= render_slot(@inner_block) %></div>
+      </div>
+    <% else %>
+      <span :if={@labelled} class="filter-chips__family"><%= @label %></span>
+      <%= render_slot(@inner_block) %>
+    <% end %>
+    """
+  end
+
+  # The row keeps the ids it has had since #717; the sheet's copies carry
+  # the prefix.
+  defp family_id("sec", base), do: base
+  defp family_id(prefix, base), do: "#{prefix}-#{base}"
+
+  # The Filter control's count (#800): every active chip, family by family,
+  # plus the builder's conditions.
+  defp active_chip_count(assigns) do
+    Enum.count(
+      [
+        assigns.holding_status != @default_holding_status,
+        unclassified_active?(assigns.filters),
+        assigns.dq != nil,
+        assigns.since != nil
+      ],
+      & &1
+    ) +
+      length(assigns.cur) + length(assigns.class) + builder_filter_count(assigns.filters)
+  end
+
   # The phone row's identifier line (#799): ticker · ISIN, the currency
   # where a security carries neither.
   defp phone_identifiers(%Security{} = security) do
@@ -3085,6 +3274,44 @@ defmodule PortfolixirWeb.SecuritiesLive do
      push_patch(socket,
        to: securities_path(socket.assigns, tab: :current, override: %{query: query}),
        replace: true
+     )}
+  end
+
+  # #800: the phone sheet's state is socket state, not URL state — the chips
+  # inside it patch the URL exactly as the row's do, and the sheet stays open
+  # across those patches.
+  def handle_event("open_filter_sheet", _params, socket) do
+    {:noreply, assign(socket, :filter_sheet_open?, true)}
+  end
+
+  def handle_event("close_filter_sheet", _params, socket) do
+    # A builder opened inside the sheet closes with it, so the desktop
+    # container does not pop it up behind the list.
+    open_popover =
+      if socket.assigns.open_popover == :filter, do: nil, else: socket.assigns.open_popover
+
+    {:noreply,
+     socket
+     |> assign(:filter_sheet_open?, false)
+     |> assign(:open_popover, open_popover)}
+  end
+
+  # Every family cleared at once; the search and the selection stay.
+  def handle_event("reset_filters", _params, socket) do
+    {:noreply,
+     push_patch(socket,
+       to:
+         securities_path(socket.assigns,
+           tab: :current,
+           override: %{
+             holding_status: @default_holding_status,
+             filters: [],
+             dq: nil,
+             cur: [],
+             class: [],
+             since: nil
+           }
+         )
      )}
   end
 

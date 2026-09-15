@@ -182,13 +182,17 @@ API's `?since=` with the same accepted forms, so an agent's link opens
 exactly the slice it read; an unparseable value degrades to the unfiltered
 list rather than silently narrowing it.
 
-**On the phone** (issue #799, UX-DR27): under 560 px the table
+**On the phone** (issue #799, UX-DR27; issue #800): under 560 px the table
 gives way to two-line rows — the name over its ticker, ISIN and asset class
 (the assign-class control where the class is missing), the latest price over
 the day change on the right, the stale marker under the price, "no price"
 where nothing prices the row — so nothing scrolls sideways; the row still
 opens the detail, its kebab still opens the row menu, and the column picker
-keeps its meaning above 560 px.
+keeps its meaning above 560 px. The chip families move behind one
+**Filter (n)** control that carries the count of active chips and opens a
+bottom sheet — a dialog with the families stacked under their names, the
+More-filters builder, **Reset** and **Done**; a chip in the sheet applies at
+once, exactly as in the row.
 
 ### Classification columns
 

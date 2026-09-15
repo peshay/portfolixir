@@ -207,13 +207,18 @@ API mit denselben akzeptierten Formen, ein Agenten-Link öffnet also genau die
 gelesene Scheibe; ein unlesbarer Wert degradiert zur ungefilterten Liste,
 statt sie stillschweigend zu verengen.
 
-**Auf dem Telefon** (Issue #799, UX-DR27): unter 560 px weicht
+**Auf dem Telefon** (Issue #799, UX-DR27; Issue #800): unter 560 px weicht
 die Tabelle zweizeiligen Zeilen — der Name über Ticker, ISIN und
 Anlageklasse (das Zuordnen-Steuerelement, wo die Klasse fehlt), rechts der
 letzte Kurs über der Tagesänderung, die Veraltet-Markierung unter dem Kurs,
 „kein Kurs", wo nichts die Zeile bepreist — sodass nichts seitwärts scrollt;
 die Zeile öffnet weiterhin das Detail, ihr Kebab weiterhin das Zeilenmenü,
-und die Spaltenauswahl behält oberhalb von 560 px ihre Bedeutung.
+und die Spaltenauswahl behält oberhalb von 560 px ihre Bedeutung. Die
+Chip-Familien wandern hinter ein **Filter (n)**-Steuerelement, das die Zahl
+der aktiven Chips trägt und ein Bottom Sheet öffnet — einen Dialog mit den
+Familien untereinander unter ihren Namen, dem Weitere-Filter-Builder,
+**Zurücksetzen** und **Fertig**; ein Chip im Sheet wirkt sofort, genau wie
+in der Zeile.
 
 ### Klassifikations-Spalten
 

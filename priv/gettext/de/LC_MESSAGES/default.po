@@ -6550,6 +6550,16 @@ msgstr "nicht annualisiert"
 msgid "%{quantity} units"
 msgstr "%{quantity} Stück"
 
+#: lib/portfolixir_web/live/securities_live.ex:2992
+#, elixir-autogen, elixir-format
+msgid "Holding"
+msgstr "Bestand"
+
+#: lib/portfolixir_web/live/securities_live.ex:488
+#, elixir-autogen, elixir-format
+msgid "Reset"
+msgstr "Zurücksetzen"
+
 #: lib/portfolixir_web/live/securities_live.ex:3160
 #, elixir-autogen, elixir-format
 msgid "no price"
