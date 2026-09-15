@@ -78,6 +78,103 @@ from the host:
   `script-src` and no `unsafe-inline` for scripts; `GET /app.css` →
   `x-content-type-options: nosniff`.
 
+- ADR-0037 boot check on every main route (`/`, `/portfolio`, both tabs,
+  `/securities`, a security detail with its chart, `/transactions`,
+  `/imports`, `/buckets`, `/classifications`, `/cashflow`, `/snapshots`,
+  `/tax`, and `/portfolio` with two benchmarks selected): each renders,
+  connects its LiveView socket, survives a forced disconnect and reconnects,
+  under the nonce CSP, with no console error and no CSP violation.
+
 ## Findings and what was done
 
-(filled in after the four review roles reported — see below)
+The four review roles (correctness hunter, edge-case hunter, risk-tier
+verification pass on Lanes X and B, design critic against the living
+design-language spec) and the UAT persona pass reported together
+thirty-odd confirmed items; every one in the batch's scope was fixed on the
+branch in the review-round commits, tests first. The ones a reviewer should
+know about:
+
+1. **Fixed (blocking, correctness hunter, edge-case hunter, risk-tier
+   pass):** a benchmark comparison built from the *superseded* walk — the
+   one the Wealth page renders while the fresh walk computes — was
+   memoised under the current data version and then served as fresh, so
+   after any write the delta ignored what the TTWROR beside it already
+   showed. The engine never memoises from a stale analysis and keys on the
+   walk's own compute instant; the memo suite now runs with the derived
+   layer on, which the async engine suite never did (the test config keeps
+   the layer off).
+2. **Fixed (blocking, both hunters):** a rate a hair above −100 % or beyond
+   the float range crashed the daily factor — 500 on the API and, stored in
+   the year-long cookie, a Wealth page that died on every mount. One bound,
+   the IRR solver's own domain (−0.999999 .. 10), is shared by the engine,
+   the API parser and the selection plug; the plug also keeps one spelling
+   per rate and refuses an id beyond int8, which the database encoder used
+   to raise on.
+3. **Fixed (high, risk-tier pass):** a priced delivery entered `F_d` at its
+   booked price but was no price observation, so a security with no price
+   yet was valued at 0 the same day and a delivery as a portfolio's first
+   booking read as a total loss for ever. A delivery now seeds the price of
+   a security that has none — and re-prices a retired one whose carried
+   quote is no measurement, as a basis step like a trade — while an
+   already priced position keeps the day's price. Three exact fixtures pin
+   it; ADR-0010's amendment records the refinement.
+4. **Fixed (UAT persona, first take):** retiring the stale-quoted holding
+   through the row menu left the Wealth finding standing and the count
+   unchanged, although retiring is the remedy the finding names. A retired
+   holding leaves the count, the finding and the securities list's
+   `stale_quote` predicate (which the finding links to; the edge-case
+   hunter found the count and the list disagreeing once one was retired).
+5. **Fixed (should-fix, design critic, edge-case hunter):** the card
+   hard-coded "IRR" next to a sibling card that switches to the period MWR
+   for windows under a year; the payload now carries `portfolio_mwr` and
+   `benchmark_mwr` and the row picks and labels the pair over the
+   comparison's own window.
+6. **Fixed (should-fix, design critic):** the headline figure had no name
+   ("Benchmark comparison", "savings plan: …"); the two overlays existed
+   only in the SVG (UX-DR10 — one table column per drawn benchmark, and the
+   chart's accessible name lists them); the legend and card swatches
+   differed by hue only (UX-DR7 — slot 2 is dotted everywhere; the rule's
+   table gained the row); the value chart dropped the overlays silently
+   (UX-DR26 — a hint says they are drawn in the % view only); the picker's
+   active echo was plain text (chips carrying the swatch, and the limit
+   states that the first two ticked apply); at 390 px the two rows had two
+   compositions (one three-line composition now).
+7. **Fixed (should-fix, design critic, DE):** "einmal gekauft" → the broker
+   vocabulary's "Einmalanlage"; the stale finding named an action the app
+   calls something else ("als eingestellt markieren" → "stilllegen … Kurse
+   aktualisieren"), said "Gesamtsumme" where its siblings say "Summen", and
+   wrote a locale date where its siblings write ISO; the ⓘ text reworded in
+   both languages ("Anfangswert" like the sibling card, the pair order
+   stated); "auf der Seite Wertpapiere" like the classifications hint.
+8. **Fixed (small, correctness hunter):** a benchmark without a quote
+   rendered "from  — 1 earlier flow left out" with a blank date; the row
+   now says nothing is covered and how many flows lie before the
+   benchmark's first priced day, and the covered case says the earlier
+   flows enter through the opening value (the risk-tier pass showed a flow
+   dated *on* the rebase day was listed although it is invested at that
+   day's close; only the flows before it are named now).
+9. **Fixed (small):** a stored close of 0 divided by zero on the rebase day
+   (it is not a price now; the previous positive close carries past it); a
+   delivery accepted a negative price (refused like a trade's); the
+   computation basis did not disclose the rebase rule, the float-derived
+   daily factor, that a missing rate path makes a day unpriced, or that an
+   excluded flow enters through the opening value (it does, and
+   `window.rebase_day` is on the wire); the IRR solver returned a signed
+   zero (`-0.000000`) for a rate of exactly 0 %; the picker's checkbox rows,
+   rate field and Apply measured under 44 px on a coarse pointer (44 px
+   now, measured live).
+10. **Recorded, not changed:** the identity "benchmark = the single
+    holding with the same flows" is exact when the base-currency price
+    terminates; with a foreign-currency benchmark the valuation's
+    `(qty × close) × rate` and the engine's `units × (close × rate)` can
+    differ by one unit in the 34th significant digit — in the engine's
+    moduledoc as a precision statement. A benchmark's memo key composes its
+    own computation version, not the walk's; a future bump of the walk's
+    version must bump the comparison's too (noted in the registry). Money
+    figures on the wire are unrounded Decimals like the walk's own values
+    (the page rounds). The UX-DR17 data-note treatment the Wealth
+    data-quality list still owes is inherited, not new.
+11. **Not exercised live:** the release image was not built in this session
+    (no Docker daemon); the walkthrough ran against the development server.
+    The API token and UI password used were generated for the session and
+    never left the sandbox.
