@@ -1,6 +1,16 @@
 defmodule PortfolixirWeb.Router do
   use PortfolixirWeb, :router
 
+  # The static half of the browser Content-Security-Policy (#382): the text
+  # Sobelow reads, and the fail-closed header a page would carry if the
+  # nonce plug below were ever dropped — its inline boot scripts blocked,
+  # never a foreign script admitted. PortfolixirWeb.ContentSecurityPolicy
+  # replaces it per request with the same text plus the nonce and the
+  # socket origin.
+  @secure_headers %{
+    "content-security-policy" => PortfolixirWeb.ContentSecurityPolicy.static_policy()
+  }
+
   pipeline :browser do
     plug(:accepts, ["html"])
     plug(:fetch_session)
@@ -9,7 +19,8 @@ defmodule PortfolixirWeb.Router do
     plug(PortfolixirWeb.ViewScope)
     plug(:put_root_layout, html: {PortfolixirWeb.LayoutView, :root})
     plug(:protect_from_forgery)
-    plug(:put_secure_browser_headers)
+    plug(:put_secure_browser_headers, @secure_headers)
+    plug(PortfolixirWeb.ContentSecurityPolicy)
     # Optional UI login (ADR-0045 §1, #764): a no-op until a password is set.
     plug(PortfolixirWeb.RequireUiAuth)
   end
@@ -22,7 +33,8 @@ defmodule PortfolixirWeb.Router do
     plug(PortfolixirWeb.Locale)
     plug(:put_root_layout, html: {PortfolixirWeb.LayoutView, :root})
     plug(:protect_from_forgery)
-    plug(:put_secure_browser_headers)
+    plug(:put_secure_browser_headers, @secure_headers)
+    plug(PortfolixirWeb.ContentSecurityPolicy)
   end
 
   pipeline :api do

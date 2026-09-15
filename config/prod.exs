@@ -18,3 +18,12 @@ config :portfolixir, Portfolixir.Fx.RateSync, enabled?: true
 # Try to fetch a logo for new securities (CoinGecko for crypto, Wikipedia
 # for equities/ETFs/funds). Disabled in tests to keep them hermetic.
 config :portfolixir, :enable_logo_discovery, true
+
+# The HTTPS posture (D-2 of the Sprint 11 plan, #382): TLS is terminated by
+# the operator's reverse proxy (ADR-0045 §2), which forwards
+# X-Forwarded-Proto; the in-app redirect and HSTS are the runtime opt-in
+# PHX_FORCE_SSL (config/runtime.exs, PortfolixirWeb.OptionalSsl), off here
+# by default because a loopback instance without TLS is the safe baseline.
+# Stated in prod.exs so the posture is visible where Sobelow's Config.HTTPS
+# check reads it: configured, not forced.
+config :portfolixir, force_ssl: false

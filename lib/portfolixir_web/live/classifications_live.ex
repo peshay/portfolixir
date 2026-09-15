@@ -191,7 +191,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
           </p>
         <% end %>
 
-        <form id="tree-search-form" phx-change="filter_tree" class="tree-search" onsubmit="return false">
+        <form id="tree-search-form" phx-change="filter_tree" class="tree-search" data-no-submit>
           <input
             id="tree-search-input"
             type="search"
@@ -203,7 +203,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
           />
         </form>
 
-        <form id="current-only-form" phx-change="toggle_current_only" class="tree-toggle" onsubmit="return false">
+        <form id="current-only-form" phx-change="toggle_current_only" class="tree-toggle" data-no-submit>
           <input type="hidden" name="current_only" value="false" />
           <label class="current-only-label">
             <input
@@ -575,7 +575,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
     <section id="soll-editor" class="workspace-section soll-editor">
       <header class="soll-editor__head">
         <h2><%= gettext("Target plan") %></h2>
-        <form id="soll-view-form" phx-change="select_soll_view" class="soll-view-picker" onsubmit="return false">
+        <form id="soll-view-form" phx-change="select_soll_view" class="soll-view-picker" data-no-submit>
           <label class="soll-view-picker__label" for="soll-view-select">
             <%= gettext("Target plan for view:") %>
           </label>
@@ -598,7 +598,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
       <%= if length(@soll.plans) > 0 do %>
         <div class="soll-plan-versions">
           <%= if length(@soll.plans) > 1 do %>
-            <form id="soll-plan-picker-form" phx-change="select_soll_plan" class="soll-plan-picker" onsubmit="return false">
+            <form id="soll-plan-picker-form" phx-change="select_soll_plan" class="soll-plan-picker" data-no-submit>
               <label class="soll-view-picker__label" for="soll-plan-select">
                 <%= gettext("Plan version:") %>
               </label>
@@ -749,7 +749,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
         </form>
 
         <%= if @soll.copy_sources != [] do %>
-          <form id="soll-copy-form" phx-change="copy_soll_plan" class="soll-copy" onsubmit="return false">
+          <form id="soll-copy-form" phx-change="copy_soll_plan" class="soll-copy" data-no-submit>
             <label class="soll-copy__label" for="soll-copy-from">
               <%= gettext("Copy from another view…") %>
             </label>
@@ -772,7 +772,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
             </button>
           </div>
           <%= if @soll.copy_sources != [] do %>
-            <form id="soll-copy-form-empty" phx-change="copy_soll_plan" class="soll-copy" onsubmit="return false">
+            <form id="soll-copy-form-empty" phx-change="copy_soll_plan" class="soll-copy" data-no-submit>
               <label class="soll-copy__label" for="soll-copy-from-empty">
                 <%= gettext("Copy from another view…") %>
               </label>

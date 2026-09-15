@@ -355,7 +355,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
               id="sync-prices"
               class={["icon-button", @sync_running? && "is-busy"]}
               phx-click="sync_now"
-              onclick="Portfolixir.ensureNotifyPermission()"
+              data-notify-permission
               aria-label={gettext("Sync prices")}
               title={gettext("Sync prices")}
               disabled={@sync_running?}
@@ -1001,7 +1001,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 type="button"
                 id="detail-sync"
                 phx-click="sync_now"
-                onclick="Portfolixir.ensureNotifyPermission()"
+                data-notify-permission
                 class={["chart-toggle", @sync_running? && "is-busy"]}
                 disabled={@sync_running?}
               >
@@ -1011,7 +1011,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 type="button"
                 id="chart-export-svg"
                 class="chart-toggle"
-                onclick="Portfolixir.exportChart(this, 'svg')"
+                data-chart-export="svg"
               >
                 <%= gettext("Export SVG") %>
               </button>
@@ -1019,7 +1019,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 type="button"
                 id="chart-export-png"
                 class="chart-toggle"
-                onclick="Portfolixir.exportChart(this, 'png')"
+                data-chart-export="png"
               >
                 <%= gettext("Export PNG") %>
               </button>
@@ -2818,7 +2818,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         ~s(<option value="#{escaped(code)}">#{escaped(label)}</option>)
       end)
 
-    ~s[<form id="quick-assign-#{sec_id}" phx-change="quick_assign_asset_class" phx-value-id="#{sec_id}" onclick="event.stopPropagation()" class="quick-assign-form">] <>
+    ~s[<form id="quick-assign-#{sec_id}" phx-change="quick_assign_asset_class" phx-value-id="#{sec_id}" data-swallow-click class="quick-assign-form">] <>
       ~s[<select name="asset_class" class="quick-assign-select" aria-label="#{escaped(gettext("Assign asset class"))}">] <>
       ~s[<option value="">—</option>] <>
       options_html <>
