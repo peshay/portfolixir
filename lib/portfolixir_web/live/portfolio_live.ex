@@ -1958,7 +1958,10 @@ defmodule PortfolixirWeb.PortfolioLive do
                           <span class="hint"><%= gettext("Unassigned") %></span>
                         <% end %>
                       </td>
-                      <td class="num"><%= Format.money(entry.market_value) %></td>
+                      <td class="num">
+                        <%= Format.money(entry.market_value) %>
+                        <AppShell.quote_stale :if={stale_flat_entry?(entry)} date={entry.price_date} />
+                      </td>
                       <td class="num"><%= Format.percent(entry.weight) %>%</td>
                       <%= if @allocation.has_plan do %>
                         <td class={[
@@ -2936,6 +2939,15 @@ defmodule PortfolixirWeb.PortfolioLive do
       end
 
     sort_flat(from_categories ++ unassigned ++ flat_cash_entry(allocation), sort)
+  end
+
+  # A held entry valued at a stale close is marked beside its value (issue
+  # 789) under the one threshold the data-quality finding uses; a retired
+  # holding's stopped feed is expected. Trade-priced entries are the
+  # finding's own note, not this marker.
+  defp stale_flat_entry?(entry) do
+    Map.get(entry, :price_source) == :quote and not Map.get(entry, :retired, false) and
+      DataQuality.stale_quote?(Map.get(entry, :price_date), Portfolixir.Clock.today())
   end
 
   defp flat_cash_entry(%{cash: %{distributed: true}}), do: []

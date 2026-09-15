@@ -553,7 +553,14 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
           online_id: "us0378331005"
         })
 
-      [%{date: ~D[2026-05-14], close: "120.00"}, %{date: ~D[2026-05-15], close: "126.00"}]
+      # Two recent closes: a day change only renders from a fresh close
+      # (issue 789 blanks it under a stale one).
+      today = Date.utc_today()
+
+      [
+        %{date: Date.add(today, -2), close: "120.00"},
+        %{date: Date.add(today, -1), close: "126.00"}
+      ]
       |> Enum.each(fn row ->
         %SecurityQuote{}
         |> SecurityQuote.changeset(Map.merge(row, %{security_id: apple.id, source: "manual"}))

@@ -129,4 +129,23 @@ defmodule Portfolixir.Catalog.DataQualityTest do
     refute "Retired Unpriced AG" in names(DataQuality.list("stale_quote"))
     assert "Retired Unpriced AG" in names(DataQuality.list("missing_quote"))
   end
+
+  # User story (#789):
+  # As a maintainer reading a price on any surface,
+  # I want the "stale" question answered by the one predicate the filter and
+  # the Wealth finding already use,
+  # so that the marker under a price, the chip and the count can never
+  # disagree about what stale means.
+  #
+  # Acceptance criteria:
+  # - A date exactly `stale_days` old is not stale; one day older is.
+  # - No date (never priced) is not stale — there is no price to mark.
+  test "stale_quote?/2 is the filter's threshold applied to one date" do
+    today = ~D[2026-09-15]
+    days = DataQuality.stale_days()
+
+    refute DataQuality.stale_quote?(Date.add(today, -days), today)
+    assert DataQuality.stale_quote?(Date.add(today, -(days + 1)), today)
+    refute DataQuality.stale_quote?(nil, today)
+  end
 end

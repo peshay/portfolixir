@@ -1268,10 +1268,18 @@ defmodule PortfolixirWeb.SecuritiesLive do
             <%= if @metrics[:latest_price] do %>
               <%= Format.decimal(@metrics.latest_price, 2) %>
               <small class="overview-metric__unit"><%= @security.currency_code %></small>
-              <%= if @metrics[:latest_price_date] do %>
-                <small class="overview-metric__sub">
-                  (<%= Date.to_iso8601(@metrics.latest_price_date) %>)
-                </small>
+              <%!-- A stale close says so under the price (issue 789); the
+                   marker carries the date, so the sub-line is not doubled. --%>
+              <%= cond do %>
+                <% stale_quote?(@security, @metrics) -> %>
+                  <small class="overview-metric__sub">
+                    <AppShell.quote_stale date={@metrics.latest_price_date} />
+                  </small>
+                <% @metrics[:latest_price_date] -> %>
+                  <small class="overview-metric__sub">
+                    (<%= Date.to_iso8601(@metrics.latest_price_date) %>)
+                  </small>
+                <% true -> %>
               <% end %>
             <% else %>
               —
@@ -1279,12 +1287,17 @@ defmodule PortfolixirWeb.SecuritiesLive do
           </dd>
         </div>
         <%!-- Signed metrics carry gain/loss colour at every level, not only
-             totals (UX-DR7, issue 637). --%>
+             totals (UX-DR7, issue 637). A change from a stale close is no
+             day change (issue 789). --%>
         <div class="overview-metric">
           <dt><%= gettext("Day change") %></dt>
-          <dd class={pnl_class(@metrics[:day_change_pct])}>
-            <%= signed_percent_or_dash(@metrics[:day_change_pct]) %>
-          </dd>
+          <%= if stale_quote?(@security, @metrics) do %>
+            <dd>—</dd>
+          <% else %>
+            <dd class={pnl_class(@metrics[:day_change_pct])}>
+              <%= signed_percent_or_dash(@metrics[:day_change_pct]) %>
+            </dd>
+          <% end %>
         </div>
         <div class="overview-metric">
           <dt>1M</dt>
@@ -2765,6 +2778,28 @@ defmodule PortfolixirWeb.SecuritiesLive do
     end
   end
 
+  # A stale close is marked where it is read (issue 789): the price keeps its
+  # cell and the marker takes the line under it.
+  defp render_cell(%Field{key: :latest_price} = field, %SecurityWithMetrics{} = row) do
+    case SecurityFields.value(field, row) do
+      nil ->
+        ""
+
+      value ->
+        price = Format.decimal(decimal_for_display(value), 2)
+
+        if stale_quote_row?(row) do
+          assigns = %{price: price, date: row.metrics.latest_price_date}
+
+          ~H"""
+          <span class="quote-stale-cell"><%= @price %><AppShell.quote_stale date={@date} /></span>
+          """
+        else
+          price
+        end
+    end
+  end
+
   defp render_cell(%Field{render_hint: :money} = field, security) do
     case SecurityFields.value(field, security) do
       nil -> ""
@@ -2778,11 +2813,15 @@ defmodule PortfolixirWeb.SecuritiesLive do
         ""
 
       value ->
-        formatted = Format.signed_decimal(decimal_for_display(value), 2)
+        if stale_change?(field, security) do
+          "—"
+        else
+          formatted = Format.signed_decimal(decimal_for_display(value), 2)
 
-        Phoenix.HTML.raw(
-          ~s(<span class="#{decimal_class(value)}">#{Phoenix.HTML.html_escape(formatted) |> safe_to_string()}</span>)
-        )
+          Phoenix.HTML.raw(
+            ~s(<span class="#{decimal_class(value)}">#{Phoenix.HTML.html_escape(formatted) |> safe_to_string()}</span>)
+          )
+        end
     end
   end
 
@@ -2797,13 +2836,17 @@ defmodule PortfolixirWeb.SecuritiesLive do
             ""
 
           decimal ->
-            # value is a fractional decimal (0.05 → +5.00 %)
-            as_percent = Decimal.mult(decimal, Decimal.new(100))
-            formatted = Format.signed_decimal(as_percent, 2) <> " %"
+            if stale_change?(field, security) do
+              "—"
+            else
+              # value is a fractional decimal (0.05 → +5.00 %)
+              as_percent = Decimal.mult(decimal, Decimal.new(100))
+              formatted = Format.signed_decimal(as_percent, 2) <> " %"
 
-            Phoenix.HTML.raw(
-              ~s(<span class="#{decimal_class(decimal)}">#{Phoenix.HTML.html_escape(formatted) |> safe_to_string()}</span>)
-            )
+              Phoenix.HTML.raw(
+                ~s(<span class="#{decimal_class(decimal)}">#{Phoenix.HTML.html_escape(formatted) |> safe_to_string()}</span>)
+              )
+            end
         end
     end
   end
@@ -2824,6 +2867,26 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   defp escaped(value), do: Phoenix.HTML.html_escape(value) |> safe_to_string()
+
+  # The one staleness rule (issue 789): the catalog's threshold on the row's
+  # newest close, as of the host's day; a retired security's stopped feed is
+  # expected and carries no marker (the same exception the filter makes).
+  defp stale_quote_row?(%SecurityWithMetrics{security: security, metrics: metrics}),
+    do: stale_quote?(security, metrics)
+
+  defp stale_quote_row?(_row), do: false
+
+  defp stale_quote?(%{is_retired: true}, _metrics), do: false
+
+  defp stale_quote?(_security, metrics),
+    do: DataQuality.stale_quote?(metrics[:latest_price_date], Portfolixir.Clock.today())
+
+  # A change computed from a stale close is no day change (issue 789).
+  defp stale_change?(%Field{key: key}, %SecurityWithMetrics{} = row)
+       when key in [:day_change_abs, :day_change_pct],
+       do: stale_quote_row?(row)
+
+  defp stale_change?(_field, _row), do: false
 
   defp quick_assign_form(row) do
     sec_id = to_string(security_id(row))

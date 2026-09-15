@@ -5179,6 +5179,23 @@ button.income-bar-label.is-active {
 .donut-legend .legend-value {
   color: var(--color-text-muted);
 }
+/* Issue 789: a stale close is marked where the price is read — attention
+   tone, the triangle glyph, the word and the quote date on the line under
+   the price. Real text; the glyph is aria-hidden. */
+.quote-stale {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-warning);
+  white-space: nowrap;
+}
+
+.quote-stale__icon {
+  vertical-align: -1px;
+  margin-right: 3px;
+}
+
 /* Issue 792: the account the totals leave out says so in its own row, and
    the rate sync sits inside the finding's note as its remedy. */
 .cash-unvalued {

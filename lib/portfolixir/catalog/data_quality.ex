@@ -55,6 +55,20 @@ defmodule Portfolixir.Catalog.DataQuality do
   def stale_days, do: @stale_days
 
   @doc """
+  Whether a price from `date` is stale as of `today`: older than
+  `stale_days/0`. This is the threshold `stale_quote` applies to one date, so
+  a marker under a price (issue 789), the filter chip and the Wealth finding
+  can never disagree. `nil` — never priced — is not stale: there is no price
+  to mark (the never-priced case is `missing_quote`'s).
+  """
+  @spec stale_quote?(Date.t() | nil, Date.t() | nil) :: boolean()
+  def stale_quote?(date, today \\ nil)
+  def stale_quote?(nil, _today), do: false
+
+  def stale_quote?(%Date{} = date, today),
+    do: Date.diff(today || Date.utc_today(), date) > @stale_days
+
+  @doc """
   Whether `id` names a predicate.
 
   String-keyed on purpose: these ids arrive from query strings and MCP
@@ -152,7 +166,7 @@ defmodule Portfolixir.Catalog.DataQuality do
 
   defp matches?(row, "stale_quote", today) do
     case latest_price_date(row) do
-      %Date{} = date -> Date.diff(today, date) > @stale_days
+      %Date{} = date -> stale_quote?(date, today)
       _never_priced -> true
     end
   end

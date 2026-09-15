@@ -510,6 +510,24 @@ defmodule PortfolixirWeb.AppShell do
     """
   end
 
+  @doc """
+  The freshness marker of a price read (issue 789): attention tone, the
+  triangle glyph `aria-hidden`, the word and the quote date as real text, so
+  a linear read hears "stale · 2026-08-08" where the eye sees the tone. It
+  sits on the line under the price in a value cell; the caller decides
+  whether the row is stale (`Catalog.DataQuality.stale_quote?/2`).
+  """
+  attr(:date, Date, required: true)
+
+  def quote_stale(assigns) do
+    ~H"""
+    <span class="quote-stale" data-role="quote-stale">
+      <.icon name={:alert_triangle} size={12} class="quote-stale__icon" />
+      <span><%= pgettext("price freshness", "stale") %> · <%= Date.to_iso8601(@date) %></span>
+    </span>
+    """
+  end
+
   defp severity_glyph(:note), do: :asterisk
   defp severity_glyph(:attention), do: :alert_triangle
   defp severity_glyph(:problem), do: :alert_octagon
@@ -674,6 +692,10 @@ defmodule PortfolixirWeb.AppShell do
   defp icon_paths(:alert_octagon),
     do:
       ~s(<path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z"/><path d="M12 8v4"/><circle cx="12" cy="16" r=".6"/>)
+
+  # Freshness (State Patterns → Stale data, issue 789): a circle with hour
+  # and minute strokes, the house 24×24 idiom.
+  defp icon_paths(:clock), do: ~s(<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>)
 
   defp icon_paths(:logout),
     do:
