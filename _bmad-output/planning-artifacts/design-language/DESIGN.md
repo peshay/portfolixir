@@ -1439,3 +1439,20 @@ Esc discard the draft; focus returns to the control. Built for creating a
 booking and shaped — one panel, stacked, pre-fillable fields — for the edit
 view (#809) to reuse. The holdings table left the route: it duplicated
 Wealth → Holdings.
+
+### Classification tree rows — columns *(C8-A, issue 805)*
+
+One head above the tree (`.tree-head`: {colors.bg-muted} band, 11 px
+weight-650 uppercase in {colors.text-muted}) names the figure columns —
+Category · Positions · Value · Cost · Result — and every category row
+(`.cat-summary`) is the same grid: the disclosure marker, the name cell
+(swatch, name, description, and the "+N without holdings" count as a muted
+0.72 rem suffix), then four right-aligned tabular columns of 4.5 / 7 / 7 /
+7 rem and the actions. The name column absorbs the indent of nested
+categories, so the figures line up at any depth. An empty category prints
+"—" in each figure column; the result cell stacks the signed amount over
+its signed percentage, in the sign colours. Under 560 px the row keeps the
+name, the value and the result; positions and cost stay in the cells' titles
+and on the desktop. The unassigned notice is the attention data note it
+became with issue 791; the result's basis is a `.summary-basis` line with
+the full ADR-0041 sentence behind its ⓘ.

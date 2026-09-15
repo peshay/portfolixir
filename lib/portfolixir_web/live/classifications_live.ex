@@ -280,12 +280,31 @@ defmodule PortfolixirWeb.ClassificationsLive do
         <% end %>
 
         <%!-- ADR-0041 §1: the basis is one line, stated once for the surface
-              rather than repeated per row or left for the reader to assume. --%>
-        <p :if={@results} class="hint" data-role="category-result-basis">
-          <%= gettext(
-            "Cost and result cover the positions filed here today — a statement about the current composition, not a period return."
-          ) %>
-        </p>
+              rather than repeated per row or left for the reader to assume —
+              the short statement in the line, the full rule behind its ⓘ
+              (UX-DR11, issue 805). --%>
+        <div :if={@results} class="summary-basis tree-basis" data-role="category-result-basis">
+          <%= gettext("Result: today's composition, not a period return") %>
+          <details class="metric-tooltip metric-tooltip--inline" data-role="category-result-info">
+            <summary aria-label={gettext("About the result")}>ⓘ</summary>
+            <p role="tooltip">
+              <%= gettext(
+                "Cost and result cover the positions filed here today — a statement about the current composition, not a period return."
+              ) %>
+            </p>
+          </details>
+        </div>
+        <%!-- #805 (review C8, variant A): the row figures stand in named,
+             right-aligned columns under one head; an empty category prints
+             "—", never a row of zeros. --%>
+        <div class="tree-head" data-role="tree-head">
+          <span class="tree-head__name"><%= gettext("Category") %></span>
+          <span class="tree-head__num"><%= gettext("Positions") %></span>
+          <span class="tree-head__num"><%= gettext("Value") %></span>
+          <span class="tree-head__num"><%= gettext("Cost") %></span>
+          <span class="tree-head__num"><%= gettext("Result") %></span>
+          <span class="tree-head__actions" aria-hidden="true"></span>
+        </div>
         <section class="tree">
           <%= for node <- @tree.nodes do %>
             <.category_node
@@ -308,9 +327,17 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
         <details id="unsorted" class="cat-node unsorted-node" open={@tree.filtering?} {unsorted_attrs(@tree)}>
           <summary class="cat-summary">
-            <span class="cat-swatch is-empty" aria-hidden="true"></span>
-            <span class="cat-name"><%= gettext("Unsorted") %></span>
-            <span class="cat-count"><%= length(@tree.unsorted) %></span>
+            <span class="cat-name">
+              <span class="cat-swatch is-empty" aria-hidden="true"></span>
+              <span class="cat-name__text"><%= gettext("Unsorted") %></span>
+            </span>
+            <span class="cat-positions" data-role="unsorted-positions">
+              <%= count_or_dash(length(@tree.unsorted)) %>
+            </span>
+            <span class="cat-value" data-role="unsorted-value"><%= unsorted_value(@tree.unsorted) %></span>
+            <span class="cat-invested">—</span>
+            <span class="cat-result">—</span>
+            <span class="cat-actions" aria-hidden="true"></span>
           </summary>
           <div class="cat-body">
             <ul class="cat-securities">
@@ -416,47 +443,53 @@ defmodule PortfolixirWeb.ClassificationsLive do
     ~H"""
     <details class="cat-node" open={@filtering} {category_attrs(@assignable, @classification_id, @node.category.id)}>
       <summary class="cat-summary">
-        <span class="cat-swatch" style={swatch(@node.category.color)} aria-hidden="true"></span>
         <span class="cat-name">
-          <%= @node.category.name %>
+          <span class="cat-swatch" style={swatch(@node.category.color)} aria-hidden="true"></span>
+          <span class="cat-name__text"><%= @node.category.name %></span>
           <%= if @node.category.description not in [nil, ""] do %>
             <small class="cat-description-inline"><%= @node.category.description %></small>
           <% end %>
+          <%!-- The hidden-positions count is a suffix of the name (#805),
+               not a seventh figure in the row. --%>
+          <%= if hidden_count(@node) > 0 do %>
+            <span
+              class="cat-without-holdings"
+              data-role="without-holdings"
+              title={gettext("Assigned securities no longer held, hidden by the filter")}
+            >+<%= hidden_count(@node) %> <%= gettext("without holdings") %></span>
+          <% end %>
         </span>
-        <span class="cat-count" title={gettext("Securities in this category and its sub-categories")}><%= total_count(@node) %></span>
         <span
           class="cat-positions"
           data-role="category-positions"
           title={gettext("Visible positions in this category and its sub-categories")}
-        ><%= total_count(@node) %></span>
+        ><%= count_or_dash(total_count(@node)) %></span>
         <span class="cat-value" data-role="category-value" title={gettext("EUR value of the visible positions")}>
-          <%= Format.money(visible_value(@node)) %>
+          <%= if total_count(@node) > 0, do: Format.money(visible_value(@node)), else: "—" %>
         </span>
-        <%!-- Per-category result (ADR-0041 slice one, #712). Absent until the
-              async load lands, and absent for a category with nothing invested:
-              a category with no cost has no result to state, and a zero would
+        <%!-- Per-category result (ADR-0041 slice one, #712). A dash until the
+              async load lands and for a category with nothing invested: a
+              category with no cost has no result to state, and a zero would
               claim it is flat. --%>
-        <%= if result = category_result(@results, @node.category.id) do %>
-          <%= if Decimal.gt?(result.invested, Decimal.new("0")) do %>
-            <span
-              class="cat-invested"
-              data-role="category-invested"
-              title={gettext("What the positions filed here cost, in EUR")}
-            >
-              <%= Format.money(result.invested) %>
-            </span>
-            <span
-              class={["cat-result", result_tone(result.result_abs)]}
-              data-role="category-result"
-              title={
-                gettext(
-                  "Current value minus cost, over the positions filed here today. Money-weighted: the sum of results divided by the sum invested."
-                )
-              }
-            >
-              <%= Format.signed_decimal(result.result_abs, 2) %>
-              <small><%= Format.percent(result.result_pct) %>%</small>
-            </span>
+        <%= if result = stated_result(@results, @node.category.id) do %>
+          <span
+            class="cat-invested"
+            data-role="category-invested"
+            title={gettext("What the positions filed here cost, in EUR")}
+          >
+            <%= Format.money(result.invested) %>
+          </span>
+          <span
+            class={["cat-result", result_tone(result.result_abs)]}
+            data-role="category-result"
+            title={
+              gettext(
+                "Current value minus cost, over the positions filed here today. Money-weighted: the sum of results divided by the sum invested."
+              )
+            }
+          >
+            <b><%= Format.signed_decimal(result.result_abs, 2) %></b>
+            <small><%= signed_percent_points(result.result_pct) %></small>
             <%!-- ADR-0041 §4: a partial sum never presents itself as complete. --%>
             <span
               :if={result.covered_count < result.member_count}
@@ -468,14 +501,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
                 )
               }
             ><%= result.covered_count %>/<%= result.member_count %></span>
-          <% end %>
-        <% end %>
-        <%= if hidden_count(@node) > 0 do %>
-          <span
-            class="cat-without-holdings"
-            data-role="without-holdings"
-            title={gettext("Assigned securities no longer held, hidden by the filter")}
-          >+<%= hidden_count(@node) %> <%= gettext("without holdings") %></span>
+          </span>
+        <% else %>
+          <span class="cat-invested" data-role="category-invested">—</span>
+          <span class="cat-result" data-role="category-result">—</span>
         <% end %>
         <span class="cat-actions" data-no-toggle>
           <button
@@ -1393,6 +1422,38 @@ defmodule PortfolixirWeb.ClassificationsLive do
       Decimal.lt?(result_abs, Decimal.new("0")) -> "is-negative"
       true -> nil
     end
+  end
+
+  # The row's result cell (#805): the result only where something is
+  # invested — a category with no cost has no result to state.
+  defp stated_result(results, category_id) do
+    case category_result(results, category_id) do
+      %{invested: invested} = result ->
+        if Decimal.gt?(invested, Decimal.new("0")), do: result, else: nil
+
+      nil ->
+        nil
+    end
+  end
+
+  defp signed_percent_points(pct), do: Format.signed_decimal(Decimal.mult(pct, 100), 1) <> " %"
+
+  # A count of nothing is a dash, not a zero (#805).
+  defp count_or_dash(0), do: "—"
+  defp count_or_dash(count), do: Integer.to_string(count)
+
+  # The Unsorted row's value: the visible unsorted positions, or a dash.
+  defp unsorted_value([]), do: "—"
+
+  defp unsorted_value(securities) do
+    securities
+    |> Enum.reduce(@zero, fn security, acc ->
+      case security.market_value do
+        %Decimal{} = value -> Decimal.add(acc, value)
+        _ -> acc
+      end
+    end)
+    |> Format.money()
   end
 
   defp category_result(nil, _category_id), do: nil

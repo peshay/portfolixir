@@ -1601,7 +1601,13 @@ naming the already-booked event) stays inline in the dialog.
   toggle off reveals them again.
 - Each category row aggregates the **value** and the **position count** of the
   securities currently visible in it and its sub-categories, so the totals
-  follow the toggle.
+  follow the toggle. Since issue #805 (the 2026-09-12 review's C8, variant A)
+  the figures stand in named, right-aligned columns under one head —
+  **Positions · Value · Cost · Result** — an empty category prints "—" in
+  each column instead of a row of zeros, the hidden-positions count is a
+  muted suffix of the category name, and the result's basis ("today's
+  composition, not a period return") is a basis line with an ⓘ; on the phone
+  the row keeps the value and the result.
 - The sidebar is organised into task-oriented areas (ADR-0022): **Overview**,
   **Wealth**, **Securities**, and **Transactions** at the top level, plus an
   **Administration** group with **Accounts & depots**, **Views**, and

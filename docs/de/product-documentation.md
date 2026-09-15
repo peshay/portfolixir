@@ -1728,7 +1728,14 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
   verborgenen Wertpapiere, und das Ausschalten des Schalters zeigt sie wieder.
 - Jede Kategoriezeile aggregiert den **Wert** und die **Positionsanzahl** der
   aktuell in ihr und ihren Unterkategorien sichtbaren Wertpapiere, sodass die
-  Summen dem Schalter folgen.
+  Summen dem Schalter folgen. Seit Issue #805 (C8 des Reviews vom 2026-09-12,
+  Variante A) stehen die Zahlen in benannten, rechtsbündigen Spalten unter
+  einem Kopf — **Positionen · Wert · Einstand · Ergebnis** — eine leere
+  Kategorie zeigt in jeder Spalte „—" statt einer Reihe Nullen, der Zähler
+  der verborgenen Positionen ist ein gedämpftes Suffix des Kategorienamens,
+  und die Basis des Ergebnisses („heutige Zusammensetzung, keine
+  Periodenrendite") ist eine Basiszeile mit ⓘ; auf dem Telefon behält die
+  Zeile Wert und Ergebnis.
 - Die Seitenleiste ist in aufgabenorientierte Bereiche organisiert (ADR-0022):
   **Übersicht**, **Vermögen**, **Wertpapiere** und **Transaktionen** auf der
   obersten Ebene, plus eine Gruppe **Verwaltung** mit **Konten & Depots**,
