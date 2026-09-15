@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-09-15 (Sprint 11 batch branch opened; Sprint 12 planned from the whole-surface UX review, picks recorded 2026-09-14)
+# last_updated: 2026-09-15 (Sprint 11 closed out, 0.11.0 prepared for the owner; Sprint 12 planned from the whole-surface UX review, picks recorded 2026-09-14, its branch opens on this merge per D-1)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -51,6 +51,86 @@ story_location: _bmad-output/implementation-artifacts
 # ---------------------------------------------------------------------------
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
+#
+# CLOSED OUT (2026-09-15, Sprint 11) -- PR #810 rebase-merged 12:16 UTC,
+# `main` at c2164f54:
+# Verification basis: the merge commits on `main` (cc70b9f..c2164f54, 23
+# commits linear per the ADR-0026 rebase-merge amendment), the Actions runs
+# on the merge push (CI 1506, Commit authorship 520, verified green before
+# this entry was written), and the post-merge open-issue list (48 open) --
+# not this file's prior claims. Branch opened, built, reviewed, promoted and
+# merged inside six hours; the plan had been adopted eight days earlier.
+#
+# WHAT CLOSED: six issues by the merge's keywords (#772 Bandit, #382 CSP and
+# the HTTPS posture, #776 the limit surface, #779 and #610 performance on
+# retired securities, #572 the benchmark comparison per ADR-0046) --
+# verified against the open-issue list, none remained open. Closed by hand:
+# none -- the sprint had no tracker of its own (Lane Z: no new epic), and
+# E21's tracker #757 was closed in Sprint 10. E21's remainder is shipped:
+# nothing in the family stays open. E10 moves to in-progress on its first
+# shipped item. Stays open with a reason: #727 (both toolchain halves still
+# blocked upstream; triggers re-checked 2026-09-15 at lane time, none fired,
+# #775 closed with the reason); #811 (the journal read's own limit parser
+# clamps where ListLimit refuses -- filed by the surface check, a Sprint 13
+# candidate); #314 (the ratchet rides every batch: patch coverage 96.7 % on
+# the merged head, project 91.64 %).
+#
+# TWO-WAY COVERAGE CHECK: Lane B shipped both halves in one batch (the two
+# API reads and their MCP tools, then the Wealth page's picker, overlays and
+# comparison block, DE and EN); Lane X's price_date and stale_priced_count
+# are on the valuation read and the Wealth finding names the holdings on the
+# page; Lane W's bounds are a machine-read parameter with no human view by
+# nature, as #771 was treated in Sprint 10; Lanes C and D add no capability
+# surface. The ledger stays empty, and no earlier batch's capability is
+# overdue a human view.
+#
+# SURFACE CHECK (AGENTS.md step 5 clause, third use): `limit` is carried by
+# GET /transactions, /securities, /exchange_rates and
+# /securities/:id/quotes (Sprint 10) and, since this batch, by
+# /securities/:security_id/notes, /notes/unreviewed, /notes/uncorroborated,
+# /notes/expiring, /snapshots, /realized_gains, /external_flows and /costs,
+# each echoing the limit it applied, their MCP twins the same;
+# /securities/:security_id/trades is bounded by from/to and says so in its
+# basis; /journal parses its own limit and clamps instead of refusing --
+# the one outlier, filed as #811, not changed in the batch. Checked against
+# the route table, not the briefing.
+#
+# AFTER PROMOTION: one tests-only commit rode the PR (c01aa83, rebased as
+# c2164f54) after the Codecov report on the promoted head listed 45 changed
+# lines without a test -- above the 90 % patch target, so no gate was red,
+# but half of the lines were documented behaviour paths, several in
+# risk-tier code (the engine's GBX pricing, its unpriced days before the
+# first stored FX rate), that four review roles had not asked for. Pinned
+# with exact figures; the retrospective carries the process finding.
+#
+# TAG: 0.11.0 is an OWNER ACTION (D-4, ADR-0026 step 5 as amended on PR
+# #780): the annotated tag command on the merged head c2164f54 is in
+# sprint-11-retro-2026-09-15.md under "Close-out ledger". Not attempted from
+# the session.
+#
+# RETROSPECTIVE: sprint-11-retro-2026-09-15.md. Process findings: the
+# closing act's inputs did not include the patch-coverage listing, and the
+# untested risk-tier paths it named after promotion are the cost (standing
+# rule from here: the listing is an input to the hunters, the briefing names
+# what stays uncovered); the check-in was re-armed on every firing and its
+# prompt updated after promotion, so the watch never lapsed (Sprint 10's
+# finding, acted on); the history cleanup for the rebase-merge folded three
+# fix-ups into their commits with a byte-identical tree; the screenshots
+# went into a PR comment from the start (Sprint 10's finding, acted on);
+# nothing died on a session limit; Codecov's check runs appeared on the
+# second head only, so heads are verified from the check runs, never from
+# the comment.
+#
+# LANE M: version-report-2026-09-15.md, written at lane time. Applied, each
+# its own commit: the Bandit swap's dependency moves (cowboy, cowlib and
+# plug_cowboy removed), mint 1.10.0 (two advisories the unpinned Hex
+# surfaced), phoenix 1.8.14, dialyxir 1.4.8 (supersedes #781), the MCP
+# lockfile (hono 4.13.8 for three moderate advisories). Deliberately left,
+# with reasons: Elixir/OTP (#727; #775 closed), the Node 26 image (#782
+# closed -- Current, not LTS, until October), the @types/node major, the
+# Dockerfile Hex pin, the PostgreSQL image, the BMAD modules. Audit state at
+# lane time: hex.audit, deps.audit, npm audit, sobelow (no ignore) and
+# dialyzer clean.
 #
 # BATCH OPENED (2026-09-15, Sprint 11) -- branch
 # agent/claude/perimeter-remainder-benchmark from main at cc70b9f, the draft
@@ -787,8 +867,14 @@ development_status:
   # E10 -- planning & simulation. #332 (what-if) still gated, now on level-(d)
   # grounds. FR-9 benchmark comparison was UNGATED 2026-08-12 by the scope
   # ladder (level (b)); its filed issue is #572, which the Sprint 5 plan called
-  # E5 work -- the Epic List assigns FR-9 to E10. Sprint 6 front-runner.
-  epic-10: backlog
+  # E5 work -- the Epic List assigns FR-9 to E10.
+  # First shipped item 2026-09-15 (Sprint 11 Lane B, PR #810, main at
+  # c2164f54): #572 closed -- ADR-0046 executed as signed, two benchmark
+  # kinds, both comparisons, API and MCP first and the Wealth page in the
+  # same batch. Deferred by ADR-0046 section 6 with reasons: a dated CPI
+  # table, the after-tax dimension, a stored per-view default. FR-26 stays
+  # discovery-first; #332 stays gated.
+  epic-10: in-progress
   epic-10-retrospective: optional
 
   # E11 -- open: #356 tracker + #412 #414 #491 #561 #564 #565 #566 #651 and the
@@ -852,5 +938,10 @@ development_status:
   # triage's Part 3 that the batch claimed shipped; #382 and #772 are the
   # next batch by the triage's own ruling. Retrospective
   # sprint-10-retro-2026-09-06.md; the surface check filed #776.
+  # Remainder shipped 2026-09-15 (Sprint 11 Lanes D, C, W; PR #810, main at
+  # c2164f54): #772 Bandit with cowlib's advisories gone and every Action
+  # pinned to a SHA, #382 the per-request CSP nonce and the HTTPS posture
+  # (Sobelow with no ignore), #776 the limit surface complete but for the
+  # journal read's own parser (#811). Nothing in the family stays open.
   epic-21: done
   epic-21-retrospective: done

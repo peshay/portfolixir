@@ -189,8 +189,8 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | FR-5 | #333 | XML import **gated**; CSV/JSON shipped |
 | FR-6 | — | shipped (preview/idempotent/atomic) |
 | FR-7 | #326 | import gaps surfaced (logos) |
-| FR-8 | #316, #577, #563, #568 (ADR-0034) | IRR; TTWROR shipped. **#577 shipped 2026-08-04** — TTWROR/IRR for a bucket view now cover the deduplicated account union across all portfolios, so the header total and the return always speak about the same accounts; the multi-portfolio scope disclaimer is gone. **#563 shipped** — previous-year/any-year and custom from-to periods, pure re-chains. #568 (net invested, wealth multiple, XIRR) has its design note in ADR-0034 but is **not implemented** |
-| FR-9 | #572 (ADR-0046) | **in the Sprint 11 batch** (branch opened 2026-09-15; gate ADR-0046 Accepted 2026-09-07 by the merge of PR #780). **Ungated 2026-08-12** — the scope ladder released it as level (b); the old advanced-reports gate no longer applies. Two benchmark kinds (fixed rate, `is_benchmark` security through the existing sync — OQ-3 answered: no new quote source), two comparisons ("bought once" rebased next to TTWROR, "savings plan" replay of ADR-0034 §1's flows with an end-value delta and two IRRs), portfolio-wide and per view, API and MCP first. Deferred by ADR-0046 §6: a dated CPI table, the after-tax dimension (OQ-9), a stored per-view default. Inherits the metric-basis rule |
+| FR-8 | #316, #577, #563, #568 (ADR-0034) | IRR; TTWROR shipped. **#577 shipped 2026-08-04** — TTWROR/IRR for a bucket view now cover the deduplicated account union across all portfolios, so the header total and the return always speak about the same accounts; the multi-portfolio scope disclaimer is gone. **#563 shipped** — previous-year/any-year and custom from-to periods, pure re-chains. #568 (net invested, wealth multiple, XIRR) has its design note in ADR-0034 but is **not implemented**. **Sprint 11 Lane X (PR #810, merged 2026-09-15; #779 and #610 closed; D-3, risk-tier):** a priced delivery enters F_d and the lot queue at its booked price and seeds an unpriced security's price, a retired security's stale quote is not a measurement (its next own trade restates the basis), `price_date` per position and `stale_priced_count` on the valuation with the Wealth page naming the holdings to retire; ADR-0010 amended 2026-09-15, registry computation version 3 |
+| FR-9 | #572 (ADR-0046) | **Shipped 2026-09-15 (Sprint 11 Lane B, PR #810; #572 closed)** — ADR-0046 executed as signed (gate Accepted 2026-09-07 by the merge of PR #780): two benchmark kinds (a fixed effective annual rate compounding daily Act/365, or an `is_benchmark` security through the existing sync — OQ-3 answered: no new quote source), two comparisons ("bought once" rebased next to TTWROR, "savings plan" replay of ADR-0034 §1's flows with an end-value delta, two IRRs and the period MWR pair), portfolio-wide and per view, on `GET /portfolios/:id/performance/benchmark` and `GET /views/:id/performance/benchmark` with their MCP tools first and the Wealth page's picker, overlays and comparison block in the same batch (DE and EN). The three identities of ADR-0046 are pinned by exact-Decimal tests; the computation basis is in the payload (metric-basis rule). **Ungated 2026-08-12** — the scope ladder released it as level (b). Deferred by ADR-0046 §6: a dated CPI table, the after-tax dimension (OQ-9), a stored per-view default |
 | FR-10 | #331 | income report |
 | FR-11 | #318, #329, #335, #334, #709 (ADR-0040), #712 (ADR-0041) | target hints, exclude flag, cash basis, classification view. **#709 shipped 2026-08-19 (Sprint 7, PR #716)** — a target plan states its unallocated remainder explicitly and drift is measured against the allocated portion (ADR-0040); the payload names its `drift_basis`. **#712 shipped 2026-08-19 (Sprint 7, PR #716)** — the per-category money-weighted result (ADR-0041 slice one), on the classifications tree, the API and MCP; a statement about the *current composition*, underivable rows excluded and named |
 | FR-12 | ADR-0023 | **partially landed** — display-only rebalancing hints (per-position drift share + indicative buy/sell quantity) shipped with the drift drill-down; the guidance-vs-action boundary is drawn in ADR-0023 + AGENTS.md. Ranked both-directions cash guidance remains open |
@@ -209,7 +209,7 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | NFR-1 | #347, #348, #314, #344 | correctness suites + gates |
 | NFR-2 | #353 | auditability = audit journal |
 | NFR-3 | #346, #347, #350 | AI-agentic guards |
-| NFR-4–6 | **#757** (E21 tracker; #758–#772), gate **ADR-0045** Accepted 2026-09-05 | foundational (security, self-hosted, single-user). **NFR-4's perimeter shipped with E21** (Sprint 10, PR #773 merged 2026-09-06, #758–#771 closed): Host guard answering 421, loopback by default with a startup warning, session cookie attributes and derived salts, opt-in `PHX_FORCE_SSL`, a production release image with no secret defaults, the deny-by-default URL policy and bounded HTTP client on every outbound fetch, constant-time token comparison with a per-source throttle, system-set provenance, and the optional built-in UI authentication of ADR-0045 (OQ-8 answered). Open in the family: #382 (CSP) and #772 (Bandit, which removes cowlib's advisories), both the next batch; #776, the `limit` surface gap the close-out's surface check found |
+| NFR-4–6 | **#757** (E21 tracker; #758–#772), gate **ADR-0045** Accepted 2026-09-05 | foundational (security, self-hosted, single-user). **NFR-4's perimeter shipped with E21** (Sprint 10, PR #773 merged 2026-09-06, #758–#771 closed): Host guard answering 421, loopback by default with a startup warning, session cookie attributes and derived salts, opt-in `PHX_FORCE_SSL`, a production release image with no secret defaults, the deny-by-default URL policy and bounded HTTP client on every outbound fetch, constant-time token comparison with a per-source throttle, system-set provenance, and the optional built-in UI authentication of ADR-0045 (OQ-8 answered). **The family closed with Sprint 11 (PR #810, merged 2026-09-15):** #772 (Bandit serves the endpoint, cowlib and its three advisories out of the tree, the Hex pin gone from CI, every Action pinned to a SHA), #382 (the per-request CSP nonce, no inline handler left, `force_ssl` off by default and opt-in through `PHX_FORCE_SSL` — D-2 — so Sobelow runs with no ignore) and #776 (`limit` on the nine remaining collection reads and their MCP tools; the journal read's own parser is #811). Nothing in the family stays open |
 | NFR-7 | #313 | localization / docs site |
 | NFR-8 | #562 (ADR-0032), #619 (ADR-0035) | cross-cutting perf; watch in perf-sensitive stories. ADR-0032 accepted 2026-07-29 — the daily TTWROR walk is memoized in volatile memory with warm-up, targeted invalidation and a labelled stale-serve. **#619 shipped 2026-08-04** (ADR-0035): the redundancy was removed rather than cached — market data is preloaded once per read and threaded through every valuation and allocation, replacing six re-derivations and hundreds of per-row lookups. Measured A/B: the warm dashboard block 1,105 ms → 265 ms and 2,614 → 115 queries, output identical. Nothing is memoized by this change; ADR-0032's memo is untouched |
 | UX-DR1–20 | **#356** (tracker) + #414, #672 open, plus #701–#704, #707 filed 2026-08-15; #412, #491, #560, #565, #566 shipped | UX/a11y tracker. Rules are defined in `design-language/EXPERIENCE.md` and `DESIGN.md`, not in this document (ADR-0038). **Sprint 7 (PR #716, merged 2026-08-19) closed #414, #672, #701–#704, #706 and #707**; the 2026-08-18 design engagement filed #717–#721 and #723, and the Sprint-7 walkthrough filed #729 and #730 — all attach here. **Sprint 8 (PR #735, merged 2026-08-22) closed all eight** (#717–#721, #723, #729, #730) and added UX-DR25 (an excluded row is named where the total is read) and UX-DR26 (a deliberate limit is stated on the surface that lacks it) to the living spec. #336, #337, #339, #319 and #606 are closed. **#606 shipped 2026-08-04** — the impersonal microcopy voice rule, applied retroactively to all pre-rule UI strings and the EN/DE docs, and now part of DR11 rather than only an agent rule. DR15–DR20 were added by the 2026-08-05 design session; the alignment stories are cut from the spec |
@@ -612,6 +612,70 @@ Retrospective: `sprint-7-retro-2026-08-19.md`. Close-out ledger and the
 process findings live there and in `sprint-status.yaml`'s log; this section
 records only what changed in the requirement registry.
 
+## Implementation Status — reconciled with code (2026-09-15, Sprint 11 close-out)
+
+Verification basis: the merge commits on `main` (cc70b9f..c2164f54, PR #810
+rebase-merged, 23 commits linear), the Actions runs on the merge push (CI 1506
+and Commit authorship 520, verified green), and the post-merge open-issue list
+(48 open).
+
+**Shipped by Sprint 11** — six issues closed by the merge's keywords, under
+the Sprint 11 plan adopted by the merge of PR #780 and its four decisions:
+E21's remainder (#772 Bandit serves the endpoint, cowlib and its three
+advisories leave the tree, CI installs the current Hex with `mix deps.audit`
+unignored, every Action pinned to a SHA; #382 a per-request CSP nonce with no
+inline handler left in any template and `connect-src` naming the validated
+Host's socket, the HTTPS posture configured and opt-in — D-2 — so Sobelow runs
+with no ignore; #776 `limit` on the nine remaining collection reads and their
+MCP tools, every bounded payload echoing the limit it applied), the walk on
+retired securities (#779 a priced delivery enters F_d and the lot queue at its
+booked price and seeds an unpriced security's price; #610 a retired security's
+stale quote is not a measurement, `price_date` per position and
+`stale_priced_count` on the valuation, the Wealth page naming the holdings to
+retire — D-3, risk-tier, ADR-0010 amended 2026-09-15, registry computation
+version 3), and the founding question (#572 the benchmark comparison per
+ADR-0046 — D-1, risk-tier, executed as signed: the `is_benchmark` flag, the
+engine with its three identities pinned by exact-Decimal tests, the two API
+reads with their MCP tools and the contract manifest v4 entry, the Wealth
+page's picker, overlays and comparison block, DE and EN). Lane M's report
+(`version-report-2026-09-15.md`) applied the Bandit swap's dependency moves,
+mint 1.10.0, phoenix 1.8.14, dialyxir 1.4.8 and the MCP lockfile, and left the
+toolchain, the Node image, the Hex image pin, PostgreSQL and BMAD with reasons.
+No tracker to close by hand: the sprint had no epic of its own.
+
+**The FR Coverage Map above is updated in this pass** (FR-9 row: shipped;
+FR-8 row: Lane X; NFR-4–6 row: the family closed; Tracker Index E10 and E21
+lines). The two-way-coverage ledger stays **empty**: Lane B shipped API and
+MCP first and the human view in the same batch, Lane X's fields ship with the
+Wealth finding that names them, and Lane W's bounds are a machine-read
+parameter with no human view by nature (as #771 was treated at the Sprint 10
+close-out). Deliberately not closed: #727 (both toolchain halves blocked
+upstream; triggers re-checked 2026-09-15, none fired; #775 closed with the
+reason), #811 (filed by the surface check, a Sprint 13 candidate), #314 (the
+ratchet rides every batch: patch coverage 96.7 % on the merged head).
+
+**The surface check, third use, names the `limit` family complete but for one
+read.** Carried by `GET /transactions`, `/securities`, `/exchange_rates`,
+`/securities/:id/quotes` (Sprint 10) and `/securities/:security_id/notes`,
+`/notes/unreviewed`, `/notes/uncorroborated`, `/notes/expiring`, `/snapshots`,
+`/realized_gains`, `/external_flows`, `/costs` (this batch), MCP twins alike;
+`/securities/:security_id/trades` is bounded by `from`/`to` and says so in its
+basis; `/journal` parses its own `limit` and clamps where `ListLimit` refuses —
+filed as **#811**, checked against the route table rather than the briefing.
+
+**One finding of the close-out's own:** the Codecov report on the promoted
+head listed 45 changed lines without a test, above the 90 % patch target and
+therefore no red gate — and half of them were documented behaviour paths,
+several in risk-tier code (the engine's GBX pricing through GBP, its unpriced
+days before the first stored FX rate, the year period, the covered-window note
+on the page), that the four review roles had not asked for. Pinned in one
+tests-only commit before the merge (`c2164f54`); the closing act's inputs gain
+the patch-coverage listing (retrospective).
+
+Retrospective: `sprint-11-retro-2026-09-15.md`. Close-out ledger and process
+findings live there and in `sprint-status.yaml`'s log; this section records
+only what changed in the requirement registry.
+
 ## Implementation Status — reconciled with code (2026-09-06, Sprint 10 close-out)
 
 Verification basis: the merge commits on `main` (22913af..b701613a, PR #773
@@ -816,8 +880,8 @@ issue state and the merge commits on `main`.
   What-if simulator (FR-27, gated at ladder level (d) since 2026-08-12),
   benchmark comparison (FR-9 — the founding "was it worth it?" question,
   ungated 2026-08-12 as ladder level (b), filed as #572; **its first shipped
-  item**: the quote-source decision is ADR-0046, signed 2026-09-07, and the
-  comparison is Lane B of the Sprint 11 batch opened 2026-09-15), retirement
+  item**: the benchmark comparison, ADR-0046 signed 2026-09-07 and executed
+  as signed in Sprint 11 — PR #810 merged 2026-09-15, #572 closed), retirement
   projection (FR-26, backs Success Metric 3, discovery-first).
 - **E11 — UX & accessibility** — *cross-cutting, priority 3.* Tracker **#356**.
   Held against the living design-language spec (`design-language/DESIGN.md` +
@@ -903,5 +967,6 @@ issue state and the merge commits on `main`.
   URL is fetched unchecked. The epic makes the perimeter real (Host guard,
   loopback by default, hardened session, production Compose, optional
   single-password UI authentication), bounds every outbound request, makes
-  provenance fields system-set, and hardens the import parsers. CSP (#382) and
-  the Bandit swap (#772) follow in the next batch. NFR-4, NFR-2, NFR-10.
+  provenance fields system-set, and hardens the import parsers. CSP (#382),
+  the Bandit swap (#772) and the `limit` surface (#776) shipped in Sprint 11
+  (PR #810, merged 2026-09-15); the family is closed. NFR-4, NFR-2, NFR-10.
