@@ -242,6 +242,12 @@ components:
     variants: 'lead (.stat--lead, 132px min, sub-line) and compact (.stat--compact, 96px min, 22px value) on the Wealth band since issue 797 — Components → KPI band'
     value-suffix: '<small class="value-suffix"> after the digits, {typography.stat-label} size, {colors.text-muted}, 4px gap; digits never wrap'
     sub-line: '.stat__sub — 12px/500 {colors.text-muted}, its figures 650 {colors.text}, signed ones in their sign colour'
+  kpi-strip:
+    frame: '1px solid {colors.border}, {rounded.lg}, {shadows.panel}; cells divided by 1px {colors.border}; two by two under 560px'
+    cell: 'a link, 84px min, 14/16px padding; label {typography.stat-label}; value 20px/700 {colors.text} (signed: {colors.positive}/{colors.danger}); sub-line 12px {colors.text-muted}'
+    stale-sub-line: '{colors.warning}, weight 600, :alert_triangle at 12px before the count; rendered only when the count is > 0'
+    basis-line: 'view · period to date · currency · what the quotes cell measures'
+    pending: 'label stays, value skeleton at the value footprint, aria-busy; the strip is absent in the empty state'
   hero:
     composition: 'headline value + as-of basis line above the curve; €/% series toggle and period control on the chart toolbar row'
     value: '{typography.stat-value}'
@@ -766,9 +772,7 @@ The phrase "data quality" names two different blocks and they are not the same c
 
 > Data quality on the dashboard is **ONE line**, rendered **only when N > 0**, with **no green all-clear badge**, linking to a **pre-filtered** securities list.
 
-**Adopted 2026-08-05, unchanged.** The built form contradicts it on every clause: `dashboard_live.ex` renders a three-card `.grid` (`data-role="dq-quotes"`, `dq-class`, `dq-logo`), renders it whether or not any count is non-zero, and links all three cards to an unfiltered `/securities`. The build carries the defect; this file is the target.
-
-One clause cannot be satisfied by a design change alone. **"Pre-filtered securities list" has no URL to link to**: `securities_live.ex` `handle_params/3` reads only `tab` and `id`, and the filter state lives in a LiveComponent popover, so there is no addressable filter. The story that implements the one-line form carries URL-addressable filter params, or the link degrades to the unfiltered index and the shortfall is stated in the issue rather than silently shipped.
+**Adopted 2026-08-05, unchanged; built state re-verified 2026-09-15 (issue 798).** `dashboard_live.ex` renders the line as specified: one `{components.data-note}` (`data-role="data-quality-line"`) at the highest severity present, only when a count is non-zero, each count linking to the pre-filtered list — the URL-addressable `dq` and filter params landed with issues 651 and 688 on 2026-08-14. The Overview's KPI strip (Components → Overview KPI strip) carries the freshness *fact* in its quotes cell; this line stays the *finding*.
 
 **Wealth → data quality is a list of {components.data-note} rows**, one per finding, at the finding's own severity. Six conditions render there today, all as identical `<li>` bullets under a bare `<h2>` (`portfolio_live.ex`, `#portfolio-data-quality`): trade-priced positions, positions with no price, positions with no FX rate, pre-1970 booking dates, cash accounts with no FX rate, and impossible negative holdings. The first is a note; the last is a problem; today they are the same bullet. Severity assignment for all six is in EXPERIENCE.md → Alignment inventory → UX-DR17.
 
@@ -896,8 +900,8 @@ The checkbox is one control: box and label sit on one line, the label is the hit
 - **Area tabs** (`.area-tabs`, `.detail-pane-tabs`) — the Wealth areas are Holdings · Allocation & targets · Cash flow · Snapshots · Tax; Cash flow's second level is Income · Realized gains · Deposits & withdrawals · Costs. Both levels per {components.selected-nav}.
 - **Stat card** (`.stat`) — {components.stat-card}: three-color gradient hairline, uppercase label, 30px value. Signed values take semantic colour, not the accent (see Colors). Two tiers on the Wealth band since issue 797 — `.stat--lead` and `.stat--compact`, the currency as `.value-suffix`, a card's second figure as `.stat__sub` (Components → KPI band — two tiers).
 - **Hero** — **retired 2026-08-05.** {components.hero} was specified for the four-metric-card Overview of the superseded UX-DR2. That rule now follows the build (EXPERIENCE.md UX-DR2): the Overview is value + change, "Off target" (UX-DR21), and data quality — plus the four-cell KPI strip since UX-DR2's 2026-09-14 amendment — and no hero component was ever built. The anatomy stays in the frontmatter as a record, unreferenced by any surface. [mockups/key-dashboard.html](mockups/key-dashboard.html) is downstream of the superseded rule and is **stale** — it illustrates a composition this document no longer specifies. Re-render or retire it before the mock is used as a reference again. (The spines-win-on-conflict clause is stated once, in EXPERIENCE.md → IA; it is not repeated here.)
-- **"Needs attention" card** (`#dashboard-attention`) — {components.needs-attention-card}: heading, basis line, up to five drift rows, each a link into Wealth → Allocation & targets. The basis line is half-built today: the threshold clause ships (`data-role="attention-explainer"`), the view and the plan it is computed against do not. The empty case is a plain muted line (`data-role="all-clear"`), which is correct and stays.
-- **Overview data quality** (`#dashboard-data-quality`) — {components.data-quality-line}: one line, only when N > 0, no all-clear badge, remedy link pre-filtered. Built as a three-card grid; see Components → Data quality.
+- **"Needs attention" card** (`#dashboard-attention`) — {components.needs-attention-card}: heading, basis line, up to five drift rows, each a link into Wealth → Allocation & targets. The basis line ships in full (`data-role="attention-basis"` names the view, the plan and the tree beside the threshold clause, issue 673); since issue 798 each row also carries the decorative `.drift-bar` (Components → Drift bars). The empty case is a plain muted line (`data-role="all-clear"`), which is correct and stays.
+- **Overview data quality** (`#dashboard-data-quality`) — {components.data-quality-line}: one line, only when N > 0, no all-clear badge, remedy link pre-filtered. Built as specified since issue 688 (re-verified 2026-09-15, issue 798); see Components → Data quality.
 - **Wealth data quality** (`#portfolio-data-quality`) — six findings as {components.data-note} rows at their own severities. Built as one bare `<h2>` plus six identical `<li>` bullets.
 - **Inline results** — {components.inline-result}: in-flow feedback beside its trigger, reusing the data-note severities, no timer. Replaces `.status-toast` and the `AutoDismissToast` hook (issue #566).
 - **Connection state** — {components.connection-state}: one band under the top bar for a lost or reconnecting LiveView socket. Nothing is built and nothing is styled; LiveView 1.2.8 already applies the classes.
@@ -1323,3 +1327,39 @@ extended).
   colour) — with the "All key figures → Holdings" link in the accent at the
   right end, keeping the picked view. `aria-busy` while either figure
   computes; a failed walk shows "—".
+
+### Overview KPI strip *(C2-B, issue 798; the rule is UX-DR2 as amended 2026-09-14)*
+
+`{components.kpi-strip}`: four fixed cells of the stat anatomy in one framed
+row under the value card — TTWROR 1Y with the IRR/MWR sub-line, the cash
+quote with the cash amount, the last booking with its kind label and
+subject, the quotes with the newest stored quote date and the "n stale"
+sub-line only when n > 0.
+
+- **Frame** (`.kpi-strip__cells`): one {colors.border} frame with
+  {rounded.lg} and {shadows.panel}, the cells divided by 1 px
+  {colors.border}; two by two under 560 px (the third cell loses its left
+  border, the second row gains a top border).
+- **Cell** (`.kpi-strip__cell`): a link, 84 px minimum, 14/16 px padding;
+  {typography.stat-label} label, 20 px weight-700 value in {colors.text}
+  (signed values in their sign colour, a not-computable value as a muted
+  "—"), 12 px muted sub-line. Hover paints {colors.hover}; focus is the 2 px
+  accent ring inside the cell.
+- **Stale sub-line** (`.kpi-strip__sub--attention`): {colors.warning},
+  weight 600, the `:alert_triangle` glyph at 12 px before the count — the
+  attention severity's glyph, as on the list row's stale marker.
+- **Basis line** under the strip (`.summary-basis`): the view, the period to
+  its date, the currency, and what the quotes cell measures.
+- **Pending:** each cell keeps its label and shows the value skeleton with
+  `aria-busy` at the value's footprint; the strip is absent in the empty
+  state, where the Overview is the wizard.
+
+### Drift bars in the off-target rows *(issue 798)*
+
+`.drift-bar`: a 6 px track in {colors.bg-muted} with {rounded.full} and a
+1 px {colors.border} zero line at its centre; the fill grows right of the
+zero line in {colors.positive} when over target and left in {colors.danger}
+when under, the worst drift listed filling 45 % of the track so the rows
+read against each other. Decorative and `aria-hidden`: the row's text keeps
+the sign, the colour and the direction word (UX-DR7). Hidden under 560 px,
+where the row is its text.

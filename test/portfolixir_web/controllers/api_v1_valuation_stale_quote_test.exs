@@ -44,9 +44,15 @@ defmodule PortfolixirWeb.ApiV1ValuationStaleQuoteTest do
     assert position["price_date"] == Date.to_iso8601(stale_day)
     assert position["price_source"] == "quote"
     assert portfolio["valuation_note"] =~ "price_date"
+    # #798: the freshness read — the newest stored quote across the quoted
+    # positions — rides the same payloads, its basis stated in the note.
+    assert portfolio["newest_quote_date"] == Date.to_iso8601(stale_day)
+    assert portfolio["valuation_note"] =~ "newest_quote_date"
 
     %{"data" => scoped} = conn |> get("/api/v1/views/#{view.id}/valuation") |> json_response(200)
     assert scoped["stale_priced_count"] == 1
+    assert scoped["newest_quote_date"] == Date.to_iso8601(stale_day)
+    assert scoped["valuation_note"] =~ "newest_quote_date"
     assert [scoped_position] = scoped["positions"]
     assert scoped_position["price_date"] == Date.to_iso8601(stale_day)
 
@@ -69,10 +75,12 @@ defmodule PortfolixirWeb.ApiV1ValuationStaleQuoteTest do
     {:ok, _} = Portfolixir.Catalog.update_security(Actor.owner_ui(), retired, %{is_retired: true})
     {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "All"})
 
-    assert %{"data" => %{"stale_priced_count" => 0}} =
+    # A retired holding is out of the freshness read too: with no other
+    # quoted position the newest quote date is null, not the stopped feed's.
+    assert %{"data" => %{"stale_priced_count" => 0, "newest_quote_date" => nil}} =
              json_response(get(conn, "/api/v1/portfolios/#{world.portfolio.id}/valuation"), 200)
 
-    assert %{"data" => %{"stale_priced_count" => 0}} =
+    assert %{"data" => %{"stale_priced_count" => 0, "newest_quote_date" => nil}} =
              json_response(
                get(
                  recycle(conn)
@@ -82,5 +90,25 @@ defmodule PortfolixirWeb.ApiV1ValuationStaleQuoteTest do
                ),
                200
              )
+  end
+
+  # #798: the freshness cell's value is the newest quote across the held,
+  # quoted positions — the max, not the first row's date.
+  test "newest_quote_date is the newest quote across the quoted positions", %{conn: conn} do
+    world = base_world(name: "NQD", cash_name: "NQD Cash", depot_name: "NQD Depot")
+    today = Date.utc_today()
+    older = create_security!(name: "Older Co", ticker: "OLD")
+    newer = create_security!(name: "Newer Co", ticker: "NEW")
+
+    deposit!(world, "1000", Date.add(today, -100))
+    buy!(world, older, quantity: "1", price: "10", date: Date.add(today, -50))
+    buy!(world, newer, quantity: "1", price: "10", date: Date.add(today, -50))
+    put_quote!(older, Date.add(today, -3), "9")
+    put_quote!(newer, Date.add(today, -1), "11")
+
+    assert %{"data" => %{"newest_quote_date" => date}} =
+             json_response(get(conn, "/api/v1/portfolios/#{world.portfolio.id}/valuation"), 200)
+
+    assert date == Date.to_iso8601(Date.add(today, -1))
   end
 end

@@ -301,7 +301,8 @@ defmodule Portfolixir.Portfolios.Valuation do
       positions: positions,
       unvalued_count: Enum.count(positions, &(not &1.valued)),
       trade_priced_count: Enum.count(positions, &(&1.price_source == :trade)),
-      stale_priced_count: stale_priced_count(positions)
+      stale_priced_count: stale_priced_count(positions),
+      newest_quote_date: newest_quote_date(positions)
     }
   end
 
@@ -406,6 +407,7 @@ defmodule Portfolixir.Portfolios.Valuation do
       unvalued_count: Enum.count(positions, &(not &1.valued)),
       trade_priced_count: Enum.count(positions, &(&1.price_source == :trade)),
       stale_priced_count: stale_priced_count(positions),
+      newest_quote_date: newest_quote_date(positions),
       overlap: Buckets.scope_overlap(scope),
       # "Matches no accounts" hint data (fix round): a view whose resolution
       # matches nothing should say so instead of showing a silent 0 total.
@@ -542,6 +544,19 @@ defmodule Portfolixir.Portfolios.Valuation do
   defp stale_priced_count(positions) do
     today = Portfolixir.Clock.today()
     Enum.count(positions, &stale_quote?(&1, today))
+  end
+
+  # The freshness read (#798; EXPERIENCE.md → State Patterns → stale data):
+  # the newest stored quote date across the quoted positions — the date the
+  # Overview's freshness cell shows — or nil when no held position is
+  # quote-priced. A retired holding is left out for the reason it leaves the
+  # stale count: its stopped feed is expected, not a freshness fact.
+  defp newest_quote_date(positions) do
+    positions
+    |> Enum.reject(&Map.get(&1, :retired, false))
+    |> Enum.filter(&match?(%{price_source: :quote, price_date: %Date{}}, &1))
+    |> Enum.map(& &1.price_date)
+    |> Enum.max(Date, fn -> nil end)
   end
 
   defp stale_quote?(%{retired: true}, _today), do: false
