@@ -17,6 +17,7 @@ defmodule PortfolixirWeb.Router do
     plug(:fetch_cookies)
     plug(PortfolixirWeb.Locale)
     plug(PortfolixirWeb.ViewScope)
+    plug(PortfolixirWeb.BenchmarkScope)
     plug(:put_root_layout, html: {PortfolixirWeb.LayoutView, :root})
     plug(:protect_from_forgery)
     plug(:put_secure_browser_headers, @secure_headers)
@@ -53,7 +54,8 @@ defmodule PortfolixirWeb.Router do
       on_mount: [
         PortfolixirWeb.LiveUiAuth,
         PortfolixirWeb.LiveLocale,
-        PortfolixirWeb.LiveViewScope
+        PortfolixirWeb.LiveViewScope,
+        PortfolixirWeb.LiveBenchmarkScope
       ] do
       live("/", DashboardLive)
       live("/portfolio", PortfolioLive)

@@ -991,6 +991,30 @@ series happens in one update, and if the recomputation fails the label becomes
 an error instead of letting the old number stand. The overview page's wealth
 card serves its last known YTD figure the same way. (ADR-0032.)
 
+**Benchmark comparison**
+([ADR-0046](decisions/0046-benchmark-comparison.html), FR-9) — *was the
+effort worth it?* Under **Benchmark…** in the performance section, pick up
+to two benchmarks: a security marked as a benchmark on the Securities page
+(an index proxied by an ETF, gold by an ETC, quoted through the ordinary
+sync) or a fixed annual rate typed as a percentage (the savings-account
+alternative; in this version also how inflation is expressed). The choice
+rides in the URL and is remembered like the active view. Two comparisons
+appear, both the ones Portfolio Performance shows. **Bought once** — the
+benchmark rebased to the period start, drawn as a dashed overlay on the
+TTWROR chart with its own legend and in the chart tooltip — answers whether
+the selection beat the index. **Savings plan** — the period's opening value
+and every deposit or withdrawal invested into the benchmark on the same day
+at that day's price, without fees or taxes — gives an end value; the
+comparison block next to TTWROR/IRR shows the real end value minus it as the
+figure, beside the bought-once pair and the two IRRs on identical flows. A
+flow dated before the benchmark's first quote is left out and the block
+names the covered window. The synthetic portfolio is frictionless, which
+biases the comparison against the real portfolio — the conservative
+direction. Nothing is stored: both comparisons are derived on read, per
+period and per view, and available over the API
+(`…/performance/benchmark`) and the MCP tools
+`portfolixir.portfolios.benchmark` and `portfolixir.views.benchmark`.
+
 ## Cash flow
 
 The **Cash flow** area (`/cashflow`) is where money movements are read
