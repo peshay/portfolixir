@@ -781,7 +781,7 @@ One clause cannot be satisfied by a design change alone. **"Pre-filtered securit
 
 **Why note is not an info circle:** ⓘ (the literal character, in use at eight call sites — `portfolio_live.ex:751/762/776/1077`, `securities_live.ex:993/1147`, `tax_live.ex:369`, `transaction_management_live.ex:199`, `view_switcher.ex:121`) is the metric-**definition** affordance. A note-severity data note states a fact about *this data*, which UX-DR11 explicitly separates from a definition. One mark for both jobs is the funnel problem again.
 
-**Also missing, flagged not solved here:** the stale-data rule (EXPERIENCE State Patterns) requires a clock glyph, and the set has none. It rides the same icon-set story.
+**Also missing, flagged not solved here:** the stale-data rule (EXPERIENCE State Patterns) requires a clock glyph, and the set has none. It rides the same icon-set story. *(Closed 2026-09-15 by #789: `:clock` — a circle with hour and minute strokes — is in `icon_paths/1`; the value-cell marker uses `:alert_triangle` per the 2026-09-12 amendment.)*
 
 **Naming collision resolved (2026-08-05, designer): the funnel keeps "filter"; "Views" takes `:bookmark`.** `:filter` is the funnel (`app_shell.ex:488-489`), used for the sidebar "Views" entry (`nav_groups/0`) and for the securities toolbar filter. A funnel means "narrow this list down" to essentially every user, and the toolbar is the literal case, so it keeps the glyph. The sidebar's Views entry takes `:bookmark` — an existing, otherwise unused glyph whose meaning ("a saved, named selection") is what a view is. No addition needed for this half.
 

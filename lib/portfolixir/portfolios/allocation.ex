@@ -603,12 +603,17 @@ defmodule Portfolixir.Portfolios.Allocation do
   # `target_weight`/`drift_weight`/`stale` (ADR-0030 slice 2a) stay nil/false
   # until a position SOLL row attaches; `held` is true by construction here and
   # `quote_date` (the unheld hint's price basis, fix round) stays nil — held
-  # entries price at the valuation.
+  # entries price at the valuation, and carry that price's basis
+  # (`price_source`, `price_date`, the catalog's `retired` flag) so the
+  # freshness marker (issue 789) reads the same date the valuation does. A
+  # security held in several depots shares one price, so the first row's is
+  # the entry's.
   defp position_entries(positions, total) do
     positions
     |> Enum.group_by(&{&1.security_id, &1.security_name})
     |> Enum.map(fn {{security_id, security_name}, grouped} ->
       value = sum_values(grouped)
+      first = hd(grouped)
 
       %{
         security_id: security_id,
@@ -622,7 +627,10 @@ defmodule Portfolixir.Portfolios.Allocation do
         rebalance_quantity: nil,
         held: true,
         stale: false,
-        quote_date: nil
+        quote_date: nil,
+        price_source: Map.get(first, :price_source),
+        price_date: Map.get(first, :price_date),
+        retired: Map.get(first, :retired, false)
       }
     end)
     |> Enum.sort_by(& &1.market_value, {:desc, Decimal})

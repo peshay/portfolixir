@@ -705,7 +705,12 @@ und der Datenqualitäts-Abschnitt der Vermögensseite nennt sie mit diesem
 Datum und dem Mittel: das Wertpapier als **eingestellt** markieren, wenn
 seine Notierung endete, oder seine Kurse synchronisieren — und einmal
 eingestellt, verlässt die Position Zählung und Befund, weil ihr alter
-Schlusskurs dann erwartet ist. Das
+Schlusskurs dann erwartet ist. Dieselbe Schwelle markiert den Kurs überall
+dort, wo er gelesen wird: ein älterer Kurs zeigt „veraltet · Datum" unter
+dem Kurs in der Zeile der Wertpapierliste und im Kopf des Wertpapiers sowie
+neben dem Wert in der Positionstabelle der Vermögensseite, in Achtung-Ton
+mit Glyphe und Wort, und die Tagesänderung zeigt „—" statt einer aus einem
+veralteten Schlusskurs berechneten Änderung. Das
 Eingestellt-Kennzeichen ist zugleich das, worauf die Performance-Zahl
 reagiert — der veraltete Kurs einer eingestellten Position gilt nicht mehr
 als Marktbeobachtung, eine spätere Buchung stellt also die Basis neu fest,
