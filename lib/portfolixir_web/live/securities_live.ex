@@ -1232,12 +1232,17 @@ defmodule PortfolixirWeb.SecuritiesLive do
               value="true"
               checked={@security.treat_quotes_as_raw}
             />
-            <small class="dialog-help">
+          </label>
+          <%!-- The helper as a ⓘ (UX-DR11), outside the label so the toggle
+               is the checkbox's alone. --%>
+          <details class="metric-tooltip metric-tooltip--inline" data-role="raw-quotes-info">
+            <summary aria-label={gettext("About raw quotes")}>ⓘ</summary>
+            <p role="tooltip">
               <%= gettext(
                 "For providers that never back-adjust pre-split quotes — the display applies the split factors instead."
               ) %>
-            </small>
-          </label>
+            </p>
+          </details>
         </div>
         <button type="submit" class="button"><%= gettext("Save changes") %></button>
       </form>
@@ -1737,7 +1742,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
               <span><%= bucket.name %></span>
             </label>
           <% end %>
-          <p :if={@buckets == []} class="hint"><%= gettext("Create a bucket first.") %></p>
+          <p :if={@buckets == []} class="hint">
+            <%= gettext("No buckets yet.") %> <.link navigate="/buckets"><%= gettext("Views") %></.link>
+          </p>
         </fieldset>
 
         <button type="submit" class="button"><%= gettext("Save buckets") %></button>
@@ -1757,9 +1764,17 @@ defmodule PortfolixirWeb.SecuritiesLive do
       role="tabpanel"
       class="detail-tab-panel detail-tab-panel--classifications"
     >
-      <p class="detail-tab-hint">
-        <%= gettext("Set how this security is classified in each custom tree. Built-in trees are filled in automatically.") %>
-      </p>
+      <h3 class="detail-section-title">
+        <%= gettext("Classification per tree") %>
+        <details class="metric-tooltip metric-tooltip--inline" data-role="classification-info">
+          <summary aria-label={gettext("About classification per tree")}>ⓘ</summary>
+          <p role="tooltip">
+            <%= gettext(
+              "One category per custom tree; the built-in trees fill themselves from the security's own data."
+            ) %>
+          </p>
+        </details>
+      </h3>
 
       <ul class="security-classifications">
         <%= for entry <- @classifications do %>
@@ -2128,9 +2143,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
           <%= gettext("No price history yet for the selected range.") %>
         </p>
       <% else %>
-        <p class="detail-tab-hint">
-          <%= gettext("Showing range %{range}. Adjust the Chart tab to change which quotes appear here.",
-            range: @range || gettext("default")) %>
+        <p class="summary-basis" data-role="quotes-range-basis">
+          <%= gettext("Range %{range} · as on the Chart tab", range: @range || gettext("default")) %>
         </p>
         <p
           :if={series_basis_label(@series_basis, @split_events)}

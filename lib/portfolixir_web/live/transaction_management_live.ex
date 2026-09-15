@@ -339,7 +339,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           </section>
         <% else %>
           <section id="transaction-setup-empty" class="empty-state" role="status">
-            <%= gettext("Create a depot and its cash account before recording transactions.") %>
+            <p><%= gettext("Bookings need a depot with a cash account.") %></p>
+            <.link navigate="/portfolios" class="button"><%= gettext("Create a depot and cash account") %></.link>
           </section>
         <% end %>
 
@@ -655,7 +656,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         %{"transaction" => _params},
         %{assigns: %{securities_accounts: []}} = socket
       ) do
-    {:noreply, failure(socket, gettext("Create a depot and its cash account first"))}
+    {:noreply, failure(socket, gettext("A booking needs a depot with a cash account."))}
   end
 
   def handle_event("form_changed", %{"transaction" => params}, socket) do

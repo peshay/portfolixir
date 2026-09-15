@@ -215,7 +215,7 @@ defmodule PortfolixirWeb.SnapshotsLiveTest do
 
   test "shows the empty state until accounts exist", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/snapshots")
-    assert html =~ "Create a depot and cash account first"
+    assert html =~ "Snapshots need a depot with a cash account."
   end
 
   test "ignores crafted non-integer event payloads instead of crashing", %{conn: conn} do
