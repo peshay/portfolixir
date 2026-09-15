@@ -207,6 +207,14 @@ API mit denselben akzeptierten Formen, ein Agenten-Link öffnet also genau die
 gelesene Scheibe; ein unlesbarer Wert degradiert zur ungefilterten Liste,
 statt sie stillschweigend zu verengen.
 
+**Auf dem Telefon** (Issue #799, UX-DR27): unter 560 px weicht
+die Tabelle zweizeiligen Zeilen — der Name über Ticker, ISIN und
+Anlageklasse (das Zuordnen-Steuerelement, wo die Klasse fehlt), rechts der
+letzte Kurs über der Tagesänderung, die Veraltet-Markierung unter dem Kurs,
+„kein Kurs", wo nichts die Zeile bepreist — sodass nichts seitwärts scrollt;
+die Zeile öffnet weiterhin das Detail, ihr Kebab weiterhin das Zeilenmenü,
+und die Spaltenauswahl behält oberhalb von 560 px ihre Bedeutung.
+
 ### Klassifikations-Spalten
 
 Neben den Attribut- und Kursspalten bietet die Spaltenauswahl der
@@ -444,6 +452,14 @@ Spaltenwahl: seine Standardansicht Depot / Wertpapier / Menge erweitert sich
 um die Bewertungsspalten, die der Agent über die Bestände-API liest — ISIN,
 WKN, Währung, Ø Kosten, letzter Kurs, Marktwert und unrealisierte G&V — und
 die Zahlen sind die dieser Projektion, keine zweite Rechnung.
+
+**Auf dem Telefon** (Issue #799, UX-DR27): unter 560 px weicht die Historie
+zweizeiligen Zeilen unter denselben Monatsköpfen — Datum und Art über dem
+Wertpapier oder Konto, das die Buchung berührt hat, rechts der Betrag mit
+Vorzeichen und Währung über der Größe (Stückzahl × Kurs, die Stückzahl
+allein, das Verhältnis eines Splits), darunter der laufende Saldo, solange
+die Chips auf ein Konto eingrenzen — sodass nichts seitwärts scrollt; die
+Spaltenauswahl behält oberhalb von 560 px ihre Bedeutung.
 
 ### Bestandsberechnung
 

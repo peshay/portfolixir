@@ -1772,7 +1772,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       assert has_element?(view, "form.quick-assign-form")
 
       view
-      |> element("form.quick-assign-form")
+      |> element("#securities-table form.quick-assign-form")
       |> render_change(%{"asset_class" => "equity", "id" => to_string(security.id)})
 
       refute has_element?(view, "form.quick-assign-form")
@@ -1792,7 +1792,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       {:ok, view, _html} = live(conn, "/securities")
 
       view
-      |> element("form.quick-assign-form")
+      |> element("#securities-table form.quick-assign-form")
       |> render_change(%{"asset_class" => ""})
 
       assert has_element?(view, "form.quick-assign-form")
@@ -1808,7 +1808,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       {:ok, view, _html} = live(conn, "/securities")
 
       view
-      |> element("form.quick-assign-form")
+      |> element("#securities-table form.quick-assign-form")
       |> render_change(%{"asset_class" => "equity", "id" => "0"})
 
       assert has_element?(view, "form.quick-assign-form")

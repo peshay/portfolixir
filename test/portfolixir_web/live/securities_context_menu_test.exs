@@ -87,13 +87,15 @@ defmodule PortfolixirWeb.SecuritiesContextMenuTest do
     assert has_element?(view, ~s(button[phx-click="open_row_menu"][phx-value-id="#{sec.id}"]))
   end
 
+  # The kebab is scoped to the table: the phone row (#799) carries a second
+  # kebab for the same security, hidden above 560 px by the stylesheet.
   test "clicking the kebab opens the row context menu with the expected actions",
        %{conn: conn} do
     sec = create_security!()
     {:ok, view, _html} = live(conn, "/securities")
 
     view
-    |> element(~s(button[phx-click="open_row_menu"][phx-value-id="#{sec.id}"]))
+    |> element(~s(#securities-table button[phx-click="open_row_menu"][phx-value-id="#{sec.id}"]))
     |> render_click()
 
     html = render(view)
@@ -126,7 +128,7 @@ defmodule PortfolixirWeb.SecuritiesContextMenuTest do
     {:ok, view, _html} = live(conn, "/securities")
 
     view
-    |> element(~s(button[phx-click="open_row_menu"][phx-value-id="#{sec.id}"]))
+    |> element(~s(#securities-table button[phx-click="open_row_menu"][phx-value-id="#{sec.id}"]))
     |> render_click()
 
     view
@@ -147,7 +149,7 @@ defmodule PortfolixirWeb.SecuritiesContextMenuTest do
     {:ok, view, _html} = live(conn, "/securities")
 
     view
-    |> element(~s(button[phx-click="open_row_menu"][phx-value-id="#{sec.id}"]))
+    |> element(~s(#securities-table button[phx-click="open_row_menu"][phx-value-id="#{sec.id}"]))
     |> render_click()
 
     view
@@ -158,7 +160,7 @@ defmodule PortfolixirWeb.SecuritiesContextMenuTest do
 
     # Calling it again reactivates.
     view
-    |> element(~s(button[phx-click="open_row_menu"][phx-value-id="#{sec.id}"]))
+    |> element(~s(#securities-table button[phx-click="open_row_menu"][phx-value-id="#{sec.id}"]))
     |> render_click()
 
     view
@@ -173,7 +175,7 @@ defmodule PortfolixirWeb.SecuritiesContextMenuTest do
     {:ok, view, _html} = live(conn, "/securities")
 
     view
-    |> element(~s(button[phx-click="open_row_menu"][phx-value-id="#{sec.id}"]))
+    |> element(~s(#securities-table button[phx-click="open_row_menu"][phx-value-id="#{sec.id}"]))
     |> render_click()
 
     view
@@ -188,7 +190,7 @@ defmodule PortfolixirWeb.SecuritiesContextMenuTest do
     {:ok, view, _html} = live(conn, "/securities")
 
     view
-    |> element(~s(button[phx-click="open_row_menu"][phx-value-id="#{sec.id}"]))
+    |> element(~s(#securities-table button[phx-click="open_row_menu"][phx-value-id="#{sec.id}"]))
     |> render_click()
 
     view
@@ -203,7 +205,7 @@ defmodule PortfolixirWeb.SecuritiesContextMenuTest do
     {:ok, view, _html} = live(conn, "/securities")
 
     view
-    |> element(~s(button[phx-click="open_row_menu"][phx-value-id="#{sec.id}"]))
+    |> element(~s(#securities-table button[phx-click="open_row_menu"][phx-value-id="#{sec.id}"]))
     |> render_click()
 
     view
@@ -221,7 +223,7 @@ defmodule PortfolixirWeb.SecuritiesContextMenuTest do
     {:ok, view, _html} = live(conn, "/securities")
 
     view
-    |> element(~s(button[phx-click="open_row_menu"][phx-value-id="#{sec.id}"]))
+    |> element(~s(#securities-table button[phx-click="open_row_menu"][phx-value-id="#{sec.id}"]))
     |> render_click()
 
     view
@@ -246,7 +248,7 @@ defmodule PortfolixirWeb.SecuritiesContextMenuTest do
     {:ok, view, _html} = live(conn, "/securities")
 
     view
-    |> element(~s(button[phx-click="open_row_menu"][phx-value-id="#{sec.id}"]))
+    |> element(~s(#securities-table button[phx-click="open_row_menu"][phx-value-id="#{sec.id}"]))
     |> render_click()
 
     assert has_element?(view, ".row-context-menu")

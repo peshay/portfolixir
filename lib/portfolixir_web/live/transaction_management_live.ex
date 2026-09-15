@@ -641,6 +641,51 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                   </tbody>
                 </table>
               </div>
+              <%!-- #799 (UX-DR27): under 560 px the history gives way to
+                   these two-line rows — the month heads stay; date · kind
+                   over the subject, the signed amount over the size the
+                   journal never showed. --%>
+              <ul id="transaction-phone-rows" class="phone-rows" aria-label={gettext("Transactions")}>
+                <%= for group <- grouped_by_month(@filtered_transactions) do %>
+                  <li class="phone-rows__group" data-month-group={group.id}>
+                    <span class="tx-group-month"><%= group.label %></span>
+                    <span class="tx-group-subtotal">
+                      <%= ngettext("%{count} transaction", "%{count} transactions", group.count,
+                        count: group.count) %> · <.currency_totals totals={group.totals} />
+                    </span>
+                  </li>
+                  <li
+                    :for={transaction <- group.transactions}
+                    class="phone-row"
+                    data-role="phone-row"
+                    data-transaction={transaction.id}
+                  >
+                    <span class="phone-row__body">
+                      <span class="phone-row__name">
+                        <%= PortfolixirWeb.Format.date(transaction.date) %> · <%= tx_type_label(
+                          transaction.type
+                        ) %>
+                      </span>
+                      <span :if={phone_subject(transaction)} class="phone-row__ids">
+                        <%= phone_subject(transaction) %>
+                      </span>
+                    </span>
+                    <span class="phone-row__figures">
+                      <span class="phone-row__figure"><%= phone_amount(transaction) %></span>
+                      <span :if={phone_size(transaction)} class="phone-row__figure2">
+                        <%= phone_size(transaction) %>
+                      </span>
+                      <span
+                        :if={@balance_account}
+                        class="phone-row__figure2"
+                        data-role="running-balance"
+                      >
+                        <%= gettext("Balance") %> <%= running_balance(@running_balances, transaction) %>
+                      </span>
+                    </span>
+                  </li>
+                <% end %>
+              </ul>
             <% end %>
           <% end %>
         </section>
@@ -1228,6 +1273,31 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   end
 
   @outflow_kinds ~w(buy removal fee tax cash_transfer)
+
+  # The phone row's lines (#799): the subject the booking touched, the money
+  # as the cash account sees it with its currency, and the size — quantity ×
+  # price, the quantity alone, a split's ratio — where the booking has one.
+  defp phone_subject(%{security: %{name: name}}) when is_binary(name), do: name
+  defp phone_subject(%{cash_account: %{name: name}}) when is_binary(name), do: name
+  defp phone_subject(%{securities_account: %{name: name}}) when is_binary(name), do: name
+  defp phone_subject(_transaction), do: nil
+
+  defp phone_amount(transaction) do
+    case tx_money(transaction) do
+      nil -> "—"
+      amount -> signed_money(transaction.type, amount) <> " " <> transaction.currency_code
+    end
+  end
+
+  defp phone_size(%{type: "split"} = transaction), do: split_ratio_label(transaction)
+
+  defp phone_size(%{quantity: %Decimal{} = quantity, price: %Decimal{} = price}),
+    do: "#{format_quantity(quantity)} × #{PortfolixirWeb.Format.decimal(price, 2)}"
+
+  defp phone_size(%{quantity: %Decimal{} = quantity}),
+    do: gettext("%{quantity} units", quantity: format_quantity(quantity))
+
+  defp phone_size(_transaction), do: nil
 
   # The booking's money on the same basis as the month subtotal (the stored
   # gross amount, else quantity × price); a split or a transfer without a
