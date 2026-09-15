@@ -3355,6 +3355,15 @@ input[pattern]:invalid:not(:placeholder-shown) {
 .benchmark-picker__active {
   color: var(--color-text);
 }
+/* Thumb-sized controls in the picker on a coarse pointer (UX-DR12): the
+   checkbox rows, the rate field and the Apply button reach 44 px. */
+@media (pointer: coarse) {
+  .benchmark-form__option,
+  .benchmark-form input[type="number"],
+  .benchmark-form button {
+    min-height: 44px;
+  }
+}
 
 .chart-zoom-rect {
   position: absolute;
