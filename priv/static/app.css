@@ -5014,8 +5014,61 @@ thead .col-subject {
 }
 .income-chart-track {
   /* Never compress below the labels' intrinsic width; defaults to the
-     container's full width when that is wider. */
+     container's full width when that is wider. The direct labels are
+     positioned against it (issue 794). */
+  position: relative;
   min-width: max-content;
+}
+/* The stack's legend (UX-DR7, issue 794): the two tints named, as filled
+   swatches — the shared legend's swatch is a line, the bar is an area. */
+.income-legend {
+  margin-bottom: var(--space-2);
+}
+.income-legend .chart-legend__swatch {
+  height: 10px;
+  border: 0;
+  border-radius: 2px;
+}
+.income-legend__swatch--dividends {
+  background: var(--color-accent);
+}
+.income-legend__swatch--interest {
+  background: var(--color-accent);
+  opacity: 0.55;
+}
+/* Direct labels over the stretched SVG (issue 794): HTML, so the digits keep
+   their shape; the layer matches the plot's 140 px. */
+.income-bar-values {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 140px;
+  pointer-events: none;
+}
+.income-bar-value {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.income-bar-value--dividends {
+  color: var(--color-bg);
+}
+.income-bar-value--interest {
+  color: var(--color-text);
+}
+/* A year without bookings keeps its slot as a baseline tick (issue 794). */
+.income-bar--empty {
+  fill: var(--color-border);
+}
+/* Matrix zero (DESIGN.md → Matrix zero): an en dash, centred, subtle. */
+.matrix-zero {
+  display: block;
+  text-align: center;
+  color: var(--color-text-subtle);
 }
 .income-bars {
   width: 100%;

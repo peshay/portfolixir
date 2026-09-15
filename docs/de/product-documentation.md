@@ -1212,7 +1212,13 @@ ein Jahr öffnet das Detail je Transaktion für dieses Jahr.
 
 Die Jahresbalken über der Matrix sind **gestapelt**, nicht summiert:
 Dividenden und Zinsen sind zwei Segmente, sodass Chart und Tabelle sich nie
-darüber uneinig sein können, was die Zahl ist. Beim Aufklappen eines Jahres
+darüber uneinig sein können, was die Zahl ist. Eine Legende benennt die
+beiden Reihen, ein ausreichend hohes Segment trägt seinen Wert als Text;
+jedes Jahr zwischen der ersten und der letzten Buchung hat seinen Platz, ein
+leeres als Grundlinien-Strich mit „–"; Null-Zellen der Matrix lesen sich als
+stilles „–", damit die Zellen mit Werten das sind, was das Auge findet; und
+sowohl die Matrix als auch die Zahlungen eines aufgeklappten Jahres sitzen
+hinter dem Aufklappen **Daten als Tabelle**, das jedes Chart trägt. Beim Aufklappen eines Jahres
 kommt eine **kumulierte** Reihe über dessen Monate hinzu — der laufende
 Gesamtstand, sodass ein ruhiger Monat als Plateau statt als Lücke gelesen wird
 und die Kurve „wo stand das Jahr im April" beantwortet statt „was kam im April

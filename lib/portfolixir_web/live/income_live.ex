@@ -556,6 +556,21 @@ defmodule PortfolixirWeb.IncomeLive do
                   bars are plain server-rendered SVG with no animation, so
                   prefers-reduced-motion needs nothing extra (UX-DR5). --%>
             <div id="income-chart" class="income-chart">
+              <%!-- The stack says what it stacks (UX-DR7, issue 794): a legend
+                    names the two series, and a segment tall enough carries its
+                    value as text. --%>
+              <ul class="chart-legend income-legend" data-role="income-legend">
+                <li class="chart-legend__item">
+                  <span class="chart-legend__swatch income-legend__swatch--dividends" aria-hidden="true">
+                  </span>
+                  <%= gettext("Dividends") %>
+                </li>
+                <li class="chart-legend__item">
+                  <span class="chart-legend__swatch income-legend__swatch--interest" aria-hidden="true">
+                  </span>
+                  <%= gettext("Interest") %>
+                </li>
+              </ul>
               <%!-- Track keeps the labels' intrinsic width so the container
                     scrolls on narrow viewports instead of clipping (#560,
                     UX-DR15). --%>
@@ -573,7 +588,20 @@ defmodule PortfolixirWeb.IncomeLive do
                 aria-label={gettext("Dividends and interest per year")}
               >
                 <g :for={{bar, index} <- Enum.with_index(@income_bars)}>
+                  <%!-- A year without bookings keeps its slot (issue 794):
+                        a baseline tick, so time is not misrepresented. --%>
                   <rect
+                    :if={bar.empty?}
+                    class="income-bar income-bar--empty"
+                    data-year={bar.year}
+                    data-empty="true"
+                    x={index + 0.1}
+                    y="99.4"
+                    width="0.8"
+                    height="0.6"
+                  />
+                  <rect
+                    :if={not bar.empty?}
                     class="income-bar income-bar--dividends"
                     data-series="dividends"
                     data-year={bar.year}
@@ -589,6 +617,7 @@ defmodule PortfolixirWeb.IncomeLive do
                     </title>
                   </rect>
                   <rect
+                    :if={not bar.empty?}
                     class="income-bar income-bar--interest"
                     data-series="interest"
                     data-year={bar.year}
@@ -605,6 +634,32 @@ defmodule PortfolixirWeb.IncomeLive do
                   </rect>
                 </g>
               </svg>
+              <%!-- Direct labels (UX-DR7, issue 794): the value inside a
+                    segment at least 24 px tall, as HTML over the stretched SVG
+                    so the digits never distort. Decorative — the table and
+                    the year labels carry the numbers. --%>
+              <div class="income-bar-values" aria-hidden="true">
+                <%= for {bar, index} <- Enum.with_index(@income_bars) do %>
+                  <span
+                    :if={bar.dividends_label?}
+                    class="income-bar-value income-bar-value--dividends"
+                    data-year={bar.year}
+                    data-series="dividends"
+                    style={"left: #{value_x(index, length(@income_bars))}%; top: #{Float.round(100 - bar.height + bar.dividends_height / 2, 2)}%"}
+                  >
+                    <%= money(bar.dividends) %>
+                  </span>
+                  <span
+                    :if={bar.interest_label?}
+                    class="income-bar-value income-bar-value--interest"
+                    data-year={bar.year}
+                    data-series="interest"
+                    style={"left: #{value_x(index, length(@income_bars))}%; top: #{Float.round(100 - bar.interest_height / 2, 2)}%"}
+                  >
+                    <%= money(bar.interest) %>
+                  </span>
+                <% end %>
+              </div>
               <%!-- The year labels are drill buttons: clicking one opens that
                     year's detail + per-month breakdown below (#415 follow-up). --%>
               <div class="income-bar-labels">
@@ -618,16 +673,26 @@ defmodule PortfolixirWeb.IncomeLive do
                   aria-pressed={to_string(@selected_year == bar.year)}
                 >
                   <strong><%= bar.year %></strong>
-                  <span><%= money(bar.total) %></span>
+                  <span><%= if bar.empty?, do: "–", else: money(bar.total) %></span>
                 </button>
               </div>
               </div>
             </div>
 
-            <%!-- UX-DR15: the year x month matrix is wider than a phone, so it
-                 owns its scroller. Without one the months are clipped by
-                 .workspace-page and the sticky total column renders on top of
-                 them (design-critic finding, measured at 390 px). --%>
+            <%!-- The one uniform chart-as-table disclosure (UX-DR10, issue
+                 794): adjacency was not the disclosure. UX-DR15: the year x
+                 month matrix is wider than a phone, so it owns its scroller.
+                 Without one the months are clipped by .workspace-page and the
+                 sticky total column renders on top of them (design-critic
+                 finding, measured at 390 px). --%>
+            <details class="perf-table-disclosure" data-role="income-annual-disclosure">
+            <summary class="disclosure-summary">
+              <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
+              <%= gettext("Data as table") %>
+            </summary>
+            <p class="hint" data-role="disclosure-purpose">
+              <%= gettext("Year × month, dividends and interest apart — the chart data without the chart.") %>
+            </p>
             <div class="data-table-wrapper">
               <table class="data-table">
                 <thead>
@@ -656,21 +721,22 @@ defmodule PortfolixirWeb.IncomeLive do
                       </td>
                       <td><%= gettext("Dividends") %></td>
                       <%= for month <- @months do %>
-                        <td class="num"><%= money(year.months[month].dividends) %></td>
+                        <td class="num"><%= matrix_cell(year.months[month].dividends) %></td>
                       <% end %>
-                      <td class="num"><%= money(year.dividends_total) %></td>
+                      <td class="num is-total"><%= money(year.dividends_total) %></td>
                     </tr>
                     <tr class="income-year-row">
                       <td><%= gettext("Interest") %></td>
                       <%= for month <- @months do %>
-                        <td class="num"><%= money(year.months[month].interest) %></td>
+                        <td class="num"><%= matrix_cell(year.months[month].interest) %></td>
                       <% end %>
-                      <td class="num"><%= money(year.interest_total) %></td>
+                      <td class="num is-total"><%= money(year.interest_total) %></td>
                     </tr>
                   <% end %>
                 </tbody>
               </table>
             </div>
+            </details>
           <% end %>
         </section>
 
@@ -754,10 +820,16 @@ defmodule PortfolixirWeb.IncomeLive do
               </div>
             </div>
 
-            <%!-- UX-DR15: the year x month matrix is wider than a phone, so it
-                 owns its scroller. Without one the months are clipped by
-                 .workspace-page and the sticky total column renders on top of
-                 them (design-critic finding, measured at 390 px). --%>
+            <%!-- The drilled year's table behind the same disclosure (UX-DR10,
+                 issue 794); the wrapper owns its scroller (UX-DR15). --%>
+            <details class="perf-table-disclosure" data-role="income-payments-disclosure">
+            <summary class="disclosure-summary">
+              <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
+              <%= gettext("Data as table") %>
+            </summary>
+            <p class="hint" data-role="disclosure-purpose">
+              <%= gettext("Every payment of the year with gross, tax and net.") %>
+            </p>
             <div class="data-table-wrapper">
               <table class="data-table">
                 <thead>
@@ -786,6 +858,7 @@ defmodule PortfolixirWeb.IncomeLive do
                 </tbody>
               </table>
             </div>
+            </details>
           </section>
         <% end %>
 
@@ -853,30 +926,77 @@ defmodule PortfolixirWeb.IncomeLive do
     """
   end
 
+  # The plot is 140 px tall (`.income-bars` in app.css); a segment carries its
+  # value as text from 24 px (issue 794). The two constants are the pixel
+  # arithmetic behind the label flags below.
+  @chart_height_px 140
+  @label_min_px 24
+
   # Year bars for the income overview (#415): height as a 0–100 percentage of
   # the biggest year, so the tallest bar fills the plot and the rest scale to
-  # it. Sorted chronologically so the trend reads left-to-right.
+  # it. Every year between the first and the last booking gets a slot (issue
+  # 794), an empty one marked, so the axis never skips time.
   defp income_bars([]), do: []
 
   defp income_bars(annual) do
     max = annual |> Enum.map(& &1.total) |> Enum.reduce(Decimal.new(0), &Decimal.max/2)
+    by_year = Map.new(annual, &{&1.year, &1})
+    {first, last} = annual |> Enum.map(& &1.year) |> Enum.min_max()
 
-    annual
-    |> Enum.sort_by(& &1.year)
-    |> Enum.map(fn year ->
-      # The segment heights are computed against the SAME max as the whole bar,
-      # so the two stack to exactly the bar's height and the visual sum is the
-      # table's total rather than a re-scaled approximation of it.
-      %{
-        year: year.year,
-        total: year.total,
-        dividends: year.dividends_total,
-        interest: year.interest_total,
-        height: bar_height(year.total, max),
-        dividends_height: bar_height(year.dividends_total, max),
-        interest_height: bar_height(year.interest_total, max)
-      }
-    end)
+    for year <- first..last do
+      case Map.get(by_year, year) do
+        nil ->
+          %{
+            year: year,
+            empty?: true,
+            total: Decimal.new(0),
+            dividends: Decimal.new(0),
+            interest: Decimal.new(0),
+            height: 0.0,
+            dividends_height: 0.0,
+            interest_height: 0.0,
+            dividends_label?: false,
+            interest_label?: false
+          }
+
+        row ->
+          # The segment heights are computed against the SAME max as the whole
+          # bar, so the two stack to exactly the bar's height and the visual
+          # sum is the table's total rather than a re-scaled approximation.
+          dividends_height = bar_height(row.dividends_total, max)
+          interest_height = bar_height(row.interest_total, max)
+
+          %{
+            year: year,
+            empty?: false,
+            total: row.total,
+            dividends: row.dividends_total,
+            interest: row.interest_total,
+            height: bar_height(row.total, max),
+            dividends_height: dividends_height,
+            interest_height: interest_height,
+            dividends_label?: labelled?(dividends_height),
+            interest_label?: labelled?(interest_height)
+          }
+      end
+    end
+  end
+
+  defp labelled?(height_percent), do: height_percent / 100 * @chart_height_px >= @label_min_px
+
+  # The label's horizontal centre over bar `index` of `count`, in percent of
+  # the plot width — the same slot the stretched SVG gives the bar.
+  defp value_x(index, count), do: Float.round((index + 0.5) / count * 100, 2)
+
+  # A zero cell in the matrix is a quiet dash (Part 4 rule 6 of the 2026-09-12
+  # review), so the non-zero cells are what the eye finds; totals stay
+  # figures.
+  defp matrix_cell(value) do
+    if Decimal.equal?(value, 0) do
+      Phoenix.HTML.raw(~s(<span class="matrix-zero">–</span>))
+    else
+      money(value)
+    end
   end
 
   # Per-month income totals (dividends + interest) for one drilled year, scaled
