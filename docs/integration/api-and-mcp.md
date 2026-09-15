@@ -91,6 +91,10 @@ full list.
   (`holding=`, `dq=`, `filter[]=asset_class:is_nil`, plus `cur[]=` and
   `class[]=` for the currency and effective-class families), so a
   pre-filtered link and an API read describe the same set.
+  `is_benchmark=true` narrows the read to the securities flagged as benchmarks
+  (ADR-0046: the reference series of the benchmark comparison),
+  `is_benchmark=false` leaves them out; the flag is a field of the full
+  projection and of `fields=`, and `POST`/`PATCH` accept it.
 - `POST /api/v1/securities` creates a security with a `security` object.
   `asset_class` is a stable string code: `equity`, `etf`, `fund`,
   `government_bond`, `bond`, `crypto`, `commodity`, `index`, `other`, plus the

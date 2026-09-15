@@ -80,6 +80,11 @@ defmodule Portfolixir.Catalog.SecurityFields do
         label: gettext("Retired"),
         render_hint: :checkbox
       ),
+      # ADR-0046 §1: the benchmark flag, a column and a filter like Retired.
+      build(:is_benchmark, :boolean, :column, :stammdaten,
+        label: gettext("Benchmark"),
+        render_hint: :checkbox
+      ),
       # Derived from quote history (see Portfolixir.Catalog.Quotes.attach_metrics/1).
       # Not filterable in v1 — sorting client-side after enrichment.
       build(:latest_price, :decimal, :metric, :kurse,

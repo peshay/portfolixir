@@ -67,8 +67,12 @@ defmodule Portfolixir.Catalog.DataQuality do
   over the quote history the way `filter/3` expresses them.
   """
   @spec list_opts(String.t()) :: keyword()
-  def list_opts("missing_logo"), do: [logo_status: :missing]
-  def list_opts(id) when id in @ids, do: []
+  # ADR-0046 §1: a benchmark security is a reference, not a holding, so the
+  # catalog-hygiene checks leave it alone. The FX check keeps it — a missing
+  # rate path breaks the very comparison the benchmark exists for.
+  def list_opts("missing_logo"), do: [logo_status: :missing, is_benchmark: false]
+  def list_opts("missing_fx"), do: []
+  def list_opts(id) when id in @ids, do: [is_benchmark: false]
 
   @doc """
   The rows matching `id`, applying both halves of the predicate.

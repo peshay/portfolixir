@@ -86,6 +86,10 @@ verengen, was der Betreiber sieht.
   (`holding=`, `dq=`, `filter[]=asset_class:is_nil`, plus `cur[]=` und
   `class[]=` für die Währungs- und Effektivklassen-Familien), sodass ein
   vorgefilterter Link und ein API-Read dieselbe Menge beschreiben.
+  `is_benchmark=true` beschränkt die Abfrage auf die als Benchmark markierten
+  Wertpapiere (ADR-0046: die Referenzreihen des Benchmark-Vergleichs),
+  `is_benchmark=false` lässt sie weg; das Kennzeichen ist ein Feld der vollen
+  Projektion und von `fields=`, und `POST`/`PATCH` nehmen es an.
 - `POST /api/v1/securities` legt ein Wertpapier mit einem `security`-Objekt an.
   `asset_class` ist ein stabiler String-Code: `equity`, `etf`, `fund`,
   `government_bond`, `bond`, `crypto`, `commodity`, `index`, `other`, plus die

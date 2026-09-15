@@ -151,6 +151,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
   defp list_opts(params) do
     with {:ok, sort} <- sort_param(params),
          {:ok, holding_status} <- holding_status_param(params),
+         {:ok, is_benchmark} <- benchmark_flag_param(params),
          {:ok, logo_status} <- logo_status_param(params),
          {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit),
          {:ok, offset} <- int_param(params, "offset", :offset) do
@@ -159,6 +160,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
         |> put_if_present(:query, params["query"])
         |> put_if_present(:sort, sort)
         |> put_if_present(:holding_status, holding_status)
+        |> put_if_present(:is_benchmark, is_benchmark)
         |> put_if_present(:logo_status, logo_status)
         |> put_if_present(:limit, limit)
         |> put_if_present(:offset, offset)
@@ -196,6 +198,14 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
         {:error, field}
     end
   end
+
+  # ADR-0046 §4: the benchmark flag as a filter — "true" narrows to the
+  # flagged securities, "false" leaves them out.
+  defp benchmark_flag_param(%{"is_benchmark" => "true"}), do: {:ok, true}
+  defp benchmark_flag_param(%{"is_benchmark" => "false"}), do: {:ok, false}
+  defp benchmark_flag_param(%{"is_benchmark" => ""}), do: {:ok, nil}
+  defp benchmark_flag_param(%{"is_benchmark" => _}), do: {:error, :is_benchmark}
+  defp benchmark_flag_param(_params), do: {:ok, nil}
 
   defp holding_status_param(%{"holding_status" => status})
        when status in ["all", "held", "not_held"] do

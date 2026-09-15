@@ -763,7 +763,8 @@ defmodule PortfolixirWeb.ImportsLive do
     |> assign(:security_resolutions, resolutions)
     |> assign(:unmatched_config, unmatched)
     |> assign(:unmatched_config_scope, scope)
-    |> assign(:existing_securities, Catalog.list_securities())
+    # A benchmark is not an import target (ADR-0046 §1).
+    |> assign(:existing_securities, Catalog.list_securities(is_benchmark: false))
   end
 
   defp blank_mapping do

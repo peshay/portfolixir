@@ -59,6 +59,7 @@ const securityZ = z.object({
     feed_url: optionalString(),
     provider: optionalString(),
     online_id: optionalString(),
+    is_benchmark: z.boolean().optional(),
     attributes: z.record(z.string(), z.unknown()).optional()
   })
 });
@@ -202,6 +203,7 @@ const securityFieldNames = [
   "latest_feed",
   "latest_feed_url",
   "is_retired",
+  "is_benchmark",
   "treat_quotes_as_raw",
   "online_id",
   "provider",
@@ -667,6 +669,11 @@ const securityUpdateSchema = {
           description:
             "ADR-0028 escape hatch: treat this security's provider-synced quote history as raw (as-traded). Set it when the provider never back-adjusts closes after a stock split, so the split-adjustment factors apply to its synced rows too. Default false (synced rows are trusted as an already-adjusted provider mirror)."
         },
+        is_benchmark: {
+          type: "boolean",
+          description:
+            "ADR-0046: mark this security as a benchmark — a price series the portfolio is compared against (an index proxied by an ETF, gold by an ETC), fed by the ordinary quote sync. A benchmark is never offered for booking and is left alone by the catalog-hygiene data-quality checks; it may still be held."
+        },
         attributes: { type: "object", additionalProperties: true }
       }
     }
@@ -689,6 +696,7 @@ const securityUpdateZ = z.object({
     provider: optionalString(),
     online_id: optionalString(),
     treat_quotes_as_raw: z.boolean().optional(),
+    is_benchmark: z.boolean().optional(),
     attributes: z.record(z.string(), z.unknown()).optional()
   })
 });
@@ -1995,7 +2003,7 @@ const toolDefinitions: ToolDefinition[] = [
     contractGetSchema,
     contractGetZ
   ),
-  tool("portfolixir.securities.list", "List securities", "List local securities. Rows default to a slim projection (id, name, ticker_symbol, isin, wkn, currency_code, asset_class) to keep responses small; pass projection=full only when you need notes, feed config, attributes or timestamps. Optional fields (#732, extending FR-37) selects a sparse fieldset from the FULL projection's field list — each row then carries exactly those fields, and a present fields supersedes projection entirely (a sparse fieldset IS a projection). Use limit/offset to page large catalogs. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only rows created or updated strictly after that instant return, and the response carries as_of (use it as the next since) plus a delta_note — deletions are NOT represented, so a sync that must detect deletions does a full read. Pull-only; there is no push delivery. Optional data_quality narrows to one of the catalog's data-quality sets — stale_quote (no quote newer than 7 days, INCLUDING never-priced securities), missing_quote (no quote at all, the narrower set inside it), missing_logo (no stored logo and not deliberately locked to none), missing_fx (#717: priced, but no stored rate from its currency to the EUR hub — storing the rate empties the set). These are the same predicates the dashboard counts and the securities page links to, so a count of N addresses a list of N; combine with query/holding_status to narrow further.", {
+  tool("portfolixir.securities.list", "List securities", "List local securities. Rows default to a slim projection (id, name, ticker_symbol, isin, wkn, currency_code, asset_class) to keep responses small; pass projection=full only when you need notes, feed config, attributes or timestamps. Optional fields (#732, extending FR-37) selects a sparse fieldset from the FULL projection's field list — each row then carries exactly those fields, and a present fields supersedes projection entirely (a sparse fieldset IS a projection). Use limit/offset to page large catalogs. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only rows created or updated strictly after that instant return, and the response carries as_of (use it as the next since) plus a delta_note — deletions are NOT represented, so a sync that must detect deletions does a full read. Pull-only; there is no push delivery. Optional data_quality narrows to one of the catalog's data-quality sets — stale_quote (no quote newer than 7 days, INCLUDING never-priced securities), missing_quote (no quote at all, the narrower set inside it), missing_logo (no stored logo and not deliberately locked to none), missing_fx (#717: priced, but no stored rate from its currency to the EUR hub — storing the rate empties the set). These are the same predicates the dashboard counts and the securities page links to, so a count of N addresses a list of N; combine with query/holding_status to narrow further. Optional is_benchmark=true lists only the securities flagged as benchmarks (ADR-0046 — the reference series for portfolixir.portfolios.benchmark and portfolixir.views.benchmark), is_benchmark=false leaves them out; the flag itself is a field of the full projection and is settable through securities.create and securities.update.", {
     type: "object",
     additionalProperties: false,
     properties: {
@@ -2003,6 +2011,7 @@ const toolDefinitions: ToolDefinition[] = [
       sort: { type: "string" },
       direction: { type: "string", enum: ["asc", "desc"] },
       holding_status: { type: "string", enum: ["held", "not_held", "all"] },
+      is_benchmark: { type: "boolean" },
       data_quality: { type: "string", enum: ["stale_quote", "missing_quote", "missing_logo", "missing_fx"] },
       projection: { type: "string", enum: ["slim", "full"] },
       fields: { type: "array", items: { type: "string", enum: [...securityFieldNames] } },
@@ -2015,6 +2024,7 @@ const toolDefinitions: ToolDefinition[] = [
     sort: optionalString(),
     direction: z.enum(["asc", "desc"]).optional(),
     holding_status: z.enum(["held", "not_held", "all"]).optional(),
+    is_benchmark: z.boolean().optional(),
     data_quality: z.enum(["stale_quote", "missing_quote", "missing_logo", "missing_fx"]).optional(),
     projection: z.enum(["slim", "full"]).optional(),
     fields: z.array(z.enum(securityFieldNames)).optional(),
@@ -2686,6 +2696,7 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
           "sort",
           "direction",
           "holding_status",
+          "is_benchmark",
           "data_quality",
           "projection",
           "fields",

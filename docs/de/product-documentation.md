@@ -273,6 +273,16 @@ einschließlich der drei Hygiene-Reads — gehaltene Positionen ohne Eintrag
 seit N Tagen, Einträge, die noch bestätigt werden müssen, und datierte
 Sperren, die in N Tagen ablaufen.
 
+**Benchmark-Wertpapiere.** Ein Wertpapier lässt sich aus seinem Zeilenmenü
+als Benchmark markieren („Als Benchmark markieren“): eine Referenzreihe, mit
+der das Portfolio verglichen wird — ein Index über einen ETF, Gold über einen
+ETC —, gespeist aus der gewöhnlichen Kurssynchronisation, es gibt also keine
+zweite Kursquelle. Eine Benchmark wird in keinem Buchungsformular angeboten,
+und die Datenqualitäts-Hinweise des Katalogs (veralteter oder fehlender
+Kurs, fehlendes Logo) lassen sie in Ruhe; sie kann trotzdem gehalten werden
+und ist dann einfach beides. Die API listet Benchmarks mit
+`is_benchmark=true`. Was der Vergleich zeigt, steht unter Performance.
+
 ## Konten und Depots
 
 Die Buchhaltungs-Entitäten sind Geldkonten und Depots:

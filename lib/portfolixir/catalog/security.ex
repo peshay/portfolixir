@@ -24,6 +24,9 @@ defmodule Portfolixir.Catalog.Security do
     field(:latest_feed, :string)
     field(:latest_feed_url, :string)
     field(:is_retired, :boolean, default: false)
+    # ADR-0046 §1 (#572): a benchmark security — a price series the portfolio
+    # is compared against, never offered in a booking form; it may be held.
+    field(:is_benchmark, :boolean, default: false)
     # ADR-0028 §2 escape hatch: force the raw quote basis for this security's
     # provider-synced rows (providers that never back-adjust after a split).
     field(:treat_quotes_as_raw, :boolean, default: false)
@@ -44,7 +47,7 @@ defmodule Portfolixir.Catalog.Security do
 
   @castable ~w(
     name ticker_symbol isin wkn currency_code exchange_code asset_class
-    note feed feed_url latest_feed latest_feed_url is_retired
+    note feed feed_url latest_feed latest_feed_url is_retired is_benchmark
     treat_quotes_as_raw online_id provider attributes
   )a
 
