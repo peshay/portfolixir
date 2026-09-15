@@ -67,7 +67,7 @@ defmodule PortfolixirWeb.SnapshotsLiveTest do
 
     html =
       view
-      |> element("[data-role=snapshot-row] button[phx-click=select_snapshot]")
+      |> element("[data-role=snapshot-row] a[data-role=snapshot-select]")
       |> render_click()
 
     # KPI values: frozen 5 × 110 = 550 at as-of; 5 × 120 = 600 today.
@@ -92,7 +92,7 @@ defmodule PortfolixirWeb.SnapshotsLiveTest do
 
     html =
       view
-      |> element("[data-role=snapshot-row] button[phx-click=select_snapshot]")
+      |> element("[data-role=snapshot-row] a[data-role=snapshot-select]")
       |> render_click()
 
     assert html =~ "Unquoted"
@@ -108,7 +108,11 @@ defmodule PortfolixirWeb.SnapshotsLiveTest do
     {:ok, view, _html} = live(conn, "/snapshots")
 
     view
-    |> element("button[phx-click=delete_snapshot][phx-value-id='#{snapshot.id}']")
+    |> element("button.row-actions__kebab[phx-value-id='#{snapshot.id}']")
+    |> render_click()
+
+    view
+    |> element("[role=menu] button[phx-click=delete_snapshot][phx-value-id='#{snapshot.id}']")
     |> render_click()
 
     refute render(view) =~ "Old marker"
@@ -157,7 +161,7 @@ defmodule PortfolixirWeb.SnapshotsLiveTest do
     {:ok, view, _html} = live(conn, "/snapshots")
 
     view
-    |> element("[data-role=snapshot-row] button[phx-click=select_snapshot]")
+    |> element("[data-role=snapshot-row] a[data-role=snapshot-select]")
     |> render_click()
 
     html = render(view)
@@ -180,9 +184,13 @@ defmodule PortfolixirWeb.SnapshotsLiveTest do
 
     {:ok, _} = Snapshots.delete_snapshot(Actor.owner_ui(), snapshot.id)
 
+    view
+    |> element("button.row-actions__kebab[phx-value-id='#{snapshot.id}']")
+    |> render_click()
+
     html =
       view
-      |> element("button[phx-click=delete_snapshot][phx-value-id='#{snapshot.id}']")
+      |> element("[role=menu] button[phx-click=delete_snapshot][phx-value-id='#{snapshot.id}']")
       |> render_click()
 
     refute html =~ "Racy"
@@ -504,7 +512,7 @@ defmodule PortfolixirWeb.SnapshotsLiveTest do
       {:ok, view, _html} = live(conn, "/snapshots")
 
       view
-      |> element("[data-role=snapshot-row] button[phx-click=select_snapshot]")
+      |> element("[data-role=snapshot-row] a[data-role=snapshot-select]")
       |> render_click()
 
       view
@@ -613,6 +621,142 @@ defmodule PortfolixirWeb.SnapshotsLiveTest do
       assert basis =~ "Transaction costs"
       assert basis =~ "standalone"
       assert basis =~ "dividend withholding"
+    end
+  end
+
+  # User story (#796):
+  # As a local portfolio maintainer opening the Snapshots tab,
+  # I want the newest snapshot's comparison on screen at once — the four
+  # ADR-0027 figures, the shared chart with its disclosure and basis line —
+  # with the list beneath selecting which snapshot is compared,
+  # so that the page answers "would holding have won?" without a click.
+  #
+  # Acceptance criteria:
+  # - With ≥ 1 snapshot the page opens on the comparison of the most recent
+  #   one; the list row in comparison is marked; selecting another row swaps
+  #   the comparison and the URL carries `?snapshot=`.
+  # - The comparison uses the shared chart component (no hand-rolled
+  #   polylines), with "Data as table" and the basis line "since <as-of> ·
+  #   gross, price development only · costs = …".
+  # - The frozen figure carries the frozen values then and today; "Delete"
+  #   is in the row menu with the confirmation; the create form is a closed
+  #   disclosure; the paragraph is an ⓘ on the heading, no paragraph remains.
+  describe "the comparison is the surface (#796)" do
+    defp text(nodes),
+      do: nodes |> Floki.text(sep: " ") |> String.replace(~r/\s+/, " ") |> String.trim()
+
+    test "opens on the newest snapshot, marks its row, and swaps by URL", %{conn: conn} do
+      seeded_world()
+
+      {:ok, older} =
+        Snapshots.create_snapshot(Actor.owner_ui(), %{name: "Year start", as_of: ~D[2026-01-15]})
+
+      {:ok, newer} =
+        Snapshots.create_snapshot(Actor.owner_ui(), %{
+          name: "Before restructuring",
+          as_of: ~D[2026-02-15]
+        })
+
+      {:ok, view, html} = live(conn, "/snapshots")
+      doc = Floki.parse_document!(html)
+
+      # Newest first, without a click.
+      assert text(Floki.find(doc, ~s([data-role="snapshot-comparison"] h2))) =~
+               "Before restructuring"
+
+      marked = Floki.find(doc, ~s(tr[data-role="snapshot-row"].is-selected))
+      assert text(marked) =~ "Before restructuring"
+      assert [_] = Floki.find(marked, ~s([data-role="in-comparison"]))
+
+      refute Floki.find(
+               doc,
+               ~s|tr[data-role="snapshot-row"]:not(.is-selected) [data-role="in-comparison"]|
+             ) !=
+               []
+
+      # Selecting the older row patches the URL and swaps the comparison.
+      view
+      |> element(~s(a[data-role="snapshot-select"][href$="snapshot=#{older.id}"]))
+      |> render_click()
+
+      assert_patch(view, "/snapshots?snapshot=#{older.id}")
+      swapped = Floki.parse_document!(render(view))
+      assert text(Floki.find(swapped, ~s([data-role="snapshot-comparison"] h2))) =~ "Year start"
+
+      assert text(Floki.find(swapped, ~s(tr[data-role="snapshot-row"].is-selected))) =~
+               "Year start"
+
+      # The URL is the address: mounting on it opens that comparison.
+      {:ok, _view, html} = live(conn, "/snapshots?snapshot=#{newer.id}")
+
+      assert text(
+               Floki.find(Floki.parse_document!(html), ~s([data-role="snapshot-comparison"] h2))
+             ) =~
+               "Before restructuring"
+    end
+
+    test "renders the shared chart with its disclosure, the basis line and the four figures", %{
+      conn: conn
+    } do
+      seeded_world()
+
+      {:ok, _} =
+        Snapshots.create_snapshot(Actor.owner_ui(), %{name: "Marker", as_of: ~D[2026-02-15]})
+
+      {:ok, view, html} = live(conn, "/snapshots")
+      doc = Floki.parse_document!(html)
+
+      # The shared chart, not the hand-rolled two-polyline SVG.
+      assert has_element?(view, ~s([data-role="snapshot-comparison"] svg[role="img"] .quote-line))
+      refute has_element?(view, ".snapshot-chart")
+      assert [_] = Floki.find(doc, ~s([data-role="comparison-legend"]))
+
+      basis = text(Floki.find(doc, ~s([data-role="comparison-basis"])))
+      assert basis =~ "since 2026-02-15"
+      assert basis =~ "gross, price development only"
+      assert basis =~ "Transaction costs ="
+
+      disclosure = Floki.find(doc, ~s(details[data-role="comparison-disclosure"]))
+      assert text(Floki.find(disclosure, "summary")) =~ "Data as table"
+
+      # The two figures always there; the frozen one carries its values.
+      assert text(Floki.find(doc, ~s([data-role="kpi-real"]))) =~ "Real"
+      frozen = text(Floki.find(doc, ~s([data-role="kpi-frozen"])))
+      assert frozen =~ "Frozen"
+      assert frozen =~ "550.00"
+      assert frozen =~ "600.00"
+
+      # No free-standing paragraph remains; the explanation is an ⓘ.
+      assert Floki.find(doc, ".workspace-page p.muted") == []
+      assert [_] = Floki.find(doc, ~s(details[data-role="snapshots-info"]))
+      assert text(Floki.find(doc, ~s([data-role="snapshots-info"] p))) =~ "freezes the holdings"
+    end
+
+    test "delete sits in the row menu and the create form is a closed disclosure", %{conn: conn} do
+      seeded_world()
+
+      {:ok, snapshot} =
+        Snapshots.create_snapshot(Actor.owner_ui(), %{name: "Marker", as_of: ~D[2026-02-15]})
+
+      {:ok, view, html} = live(conn, "/snapshots")
+      doc = Floki.parse_document!(html)
+
+      assert Floki.find(doc, ~s([data-role="snapshot-row"] button[phx-click="delete_snapshot"])) ==
+               []
+
+      assert Floki.find(doc, ~s([data-role="snapshot-row"] button[phx-click="select_snapshot"])) ==
+               []
+
+      assert Floki.find(doc, "details.snapshot-create[open]") == []
+      assert [_] = Floki.find(doc, "details.snapshot-create")
+
+      view
+      |> element(~s(button.row-actions__kebab[phx-value-id="#{snapshot.id}"]))
+      |> render_click()
+
+      menu = Floki.parse_document!(render(view)) |> Floki.find(~s([role="menu"]))
+      assert [_] = Floki.find(menu, ~s(button[phx-click="delete_snapshot"][data-confirm]))
+      assert text(menu) =~ "Delete"
     end
   end
 end

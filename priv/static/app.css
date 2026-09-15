@@ -1875,6 +1875,12 @@ li + li {
 }
 
 .data-table-wrapper {
+  /* The wrapper is the containing block of anything absolutely positioned
+     inside its table — a visually hidden header label, say — so it stays
+     clipped by the scroller instead of widening the page (issue 796 at
+     390 px: a `.sr-only` span in the fourth column stretched the document
+     to the table's width). */
+  position: relative;
   overflow-x: auto;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -6557,43 +6563,25 @@ select:disabled {
   color: var(--color-danger);
   margin-top: var(--space-2);
 }
-.snapshot-chart {
-  margin: var(--space-5) 0 var(--space-3);
+/* The comparison's cost group (issue 796): two more cards in the same
+   band, wrapped for the issue-708 guarantee that they render together. */
+.kpi-group {
+  display: contents;
 }
-.snapshot-chart svg {
-  width: 100%;
-  height: 220px;
-  display: block;
+/* The snapshot in comparison (issue 796): the tinted row of UX-DR16. */
+.snapshot-row.is-selected td {
+  background: var(--color-selected);
 }
-.snapshot-chart .chart-axis {
-  stroke: var(--color-border-strong);
-  stroke-width: 1;
+.snapshot-row .row-target {
+  color: inherit;
+  font-weight: 600;
+  text-decoration: none;
 }
-.snapshot-chart .snapshot-series {
-  stroke: var(--color-accent);
-  stroke-width: 2;
+.snapshot-row .row-target:hover {
+  text-decoration: underline;
 }
-.snapshot-chart .real-series {
-  stroke: var(--color-text-muted);
-  stroke-width: 2;
-}
-.snapshot-chart__legend {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-  margin-top: var(--space-2);
-  font-size: 12px;
-  color: var(--color-text);
-}
-.legend-swatch {
-  display: inline-block;
-  width: 22px;
-  border-top: 2px solid var(--color-accent);
-}
-.legend-swatch--dashed {
-  border-top: 2px dashed var(--color-text-muted);
-  margin-left: var(--space-3);
+.snapshot-row .badge {
+  margin-left: var(--space-2);
 }
 .table-scroll {
   overflow-x: auto;
@@ -6645,28 +6633,6 @@ select:disabled {
 
 /* Chart scale/date labels live in HTML beside the stretched SVG (text inside
    a preserveAspectRatio:none viewBox would distort). */
-.snapshot-chart {
-  position: relative;
-}
-.snapshot-chart__scale {
-  position: absolute;
-  top: 0;
-  bottom: 46px;
-  left: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  font-size: 11px;
-  color: var(--color-text-muted);
-  pointer-events: none;
-}
-.snapshot-chart__dates {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  color: var(--color-text-muted);
-}
-
 /* Recorded tax statements (ADR-0031), reshaped per issue 795: the budget as
    a meter with its composition beside it, the statements as a list carrying
    their findings as data notes, the forms behind disclosures. */

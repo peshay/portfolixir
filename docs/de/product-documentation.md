@@ -1226,19 +1226,22 @@ von den Daten abweichen, und ihn zu löschen berührt nie eine Transaktion.
 Namen sind je Geltungsbereich eindeutig; der Stichtag darf nicht in der
 Zukunft liegen.
 
-**Vergleichen** zeigt das Kontrafaktual:
+**Der Vergleich ist die Oberfläche.** Mit mindestens einem Snapshot öffnet
+die Seite auf dem Vergleich des neuesten; die Liste darunter wählt, welcher
+Snapshot verglichen wird (die verglichene Zeile ist markiert, die URL trägt
+`?snapshot=`). Der Vergleich zeigt das Kontrafaktual:
 
-- **Eingefrorener Wert damals / heute** — die Positionen des Snapshots zum
-  Stichtag und heute bewertet, buy-and-hold über die echte gespeicherte
-  Kurshistorie (tägliche Schlusskurse, EUR-Hub-Wechselkurse des jeweiligen
-  Tags).
-- **Snapshot-Rendite (Kurs)** gegen **Echte TTWROR seitdem** — die
-  Kursrendite des eingefrorenen Bestands gegen die echte zeitgewichtete
-  Performance seit dem Stichtag. TTWROR neutralisiert Ein- und Auszahlungen,
-  frisches Geld verzerrt den Vergleich also nicht.
-- Ein Chart mit beiden Serien, **indexiert auf 100 %** am Stichtag
-  (durchgezogen = Snapshot, gestrichelt = echt), und dieselben Daten als
-  Tabelle.
+- **Real (TTWROR seit Stichtag)** gegen **Eingefroren (Halten)** — die echte
+  zeitgewichtete Performance seit dem Stichtag gegen die Kursrendite des
+  eingefrorenen Bestands; die eingefrorene Kennzahl trägt die Positionen des
+  Snapshots zum Stichtag und heute bewertet, buy-and-hold über die echte
+  gespeicherte Kurshistorie (tägliche Schlusskurse, EUR-Hub-Wechselkurse des
+  jeweiligen Tags). TTWROR neutralisiert Ein- und Auszahlungen, frisches
+  Geld verzerrt den Vergleich also nicht.
+- Das gemeinsame Chart mit beiden Serien als **prozentuale Veränderung seit
+  dem Stichtag** (durchgezogen = eingefroren, gestrichelt = real) mit
+  Legende, einer Basiszeile, die nennt, was auf welcher Basis verglichen
+  wird, und denselben Daten hinter dem Aufklappen **Daten als Tabelle**.
 
 **Die beiden Seiten werden nicht auf derselben Basis gemessen, und die Seite
 sagt das.** Die eingefrorene Seite handelt nicht und hat keine Flüsse: sie
@@ -1269,9 +1272,10 @@ eine Depotgebühr wird nicht von einem Handel verursacht und der eingefrorene
 Halter hätte sie ebenso gezahlt; die Quellensteuer auf Dividenden bleibt
 ebenfalls drin, sie gehört zur Dividendenlücke unten und nicht hierher.
 
-Der **Vergleich ist die Oberfläche**: einmal gewählt, erscheint er zuerst und
-groß, die Snapshot-Liste darunter und das Anlegen-Formular hinter der
-Aufklappung **Neuer Snapshot**. Der Vergleich ist in v1 **brutto und nur
+Der Vergleich erscheint zuerst und groß, die Snapshot-Liste darunter mit
+**Löschen** im Zeilenmenü jeder Zeile, das Anlegen-Formular hinter dem
+geschlossenen Aufklappen **Neuer Snapshot** und die Erklärung hinter dem ⓘ
+an der Überschrift. Der Vergleich ist in v1 **brutto und nur
 Kursentwicklung** — Ausschüttungen, die die eingefrorenen Positionen gezahlt
 hätten, sind noch nicht enthalten; die Seite sagt das als Hinweis neben den
 Zahlen. Wertpapiere ohne verwendbaren Kurs oder Wechselkurs zum Stichtag

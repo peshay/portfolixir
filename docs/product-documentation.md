@@ -1126,17 +1126,22 @@ demand, so a snapshot can never drift from the data, and deleting one never
 touches a transaction. Names are unique per scope and the as-of date cannot
 lie in the future.
 
-**Compare** shows the counterfactual:
+**The comparison is the surface.** With at least one snapshot the page opens
+on the newest one's comparison; the list beneath selects which snapshot is
+compared (the row in comparison is marked, and the URL carries
+`?snapshot=`). The comparison shows the counterfactual:
 
-- **Frozen value then / today** — the snapshot's position set valued at the
-  as-of date and valued today, buy-and-hold over the real stored quote history
-  (daily closes, EUR-hub exchange rates of each day).
-- **Snapshot return (price)** vs. **Real TTWROR since** — the frozen set's
-  price return against the real time-weighted performance since the as-of
-  date. TTWROR neutralises deposits and withdrawals, so fresh money does not
-  distort the comparison.
-- A chart with both series **indexed to 100%** on the as-of date (solid =
-  snapshot, dashed = real), and the same data as a table.
+- **Real (TTWROR since the as-of date)** vs. **Frozen (hold)** — the real
+  time-weighted performance since the as-of date against the frozen set's
+  price return; the frozen figure carries the snapshot's position set valued
+  at the as-of date and valued today, buy-and-hold over the real stored quote
+  history (daily closes, EUR-hub exchange rates of each day). TTWROR
+  neutralises deposits and withdrawals, so fresh money does not distort the
+  comparison.
+- The shared chart with both series as **percent change since the as-of
+  date** (solid = frozen, dashed = real) with its legend, a basis line
+  stating what is compared and on what basis, and the same data behind the
+  **Data as table** disclosure.
 
 **The two sides are not measured on one basis, and the page says so.** The
 frozen side takes no trades and no flows: it pays nothing, ever. The real side
@@ -1163,9 +1168,10 @@ both sides, because a custody charge is not caused by a trade and the frozen
 holder would have paid it too; dividend withholding stays in as well, since it
 belongs to the dividend gap below rather than to this one.
 
-The **comparison is the surface**: once selected it renders first and large,
-with the snapshot list beneath it and the create form behind the **New
-snapshot** disclosure. The comparison is **gross and price-return only** in
+The comparison renders first and large, the snapshot list beneath it with
+**Delete** in each row's menu, the create form behind the closed **New
+snapshot** disclosure and the explanation behind the ⓘ on the heading. The
+comparison is **gross and price-return only** in
 v1 — dividends the frozen positions would have paid are not yet included; the
 page states this as a note beside the figures. Securities without a usable
 quote or exchange rate at the as-of date are **excluded and listed** in an
