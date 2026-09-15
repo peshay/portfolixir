@@ -432,7 +432,7 @@ defmodule PortfolixirWeb.BucketsLiveTest do
   test "with no accounts the assignment section shows the create-first hint", %{conn: conn} do
     {:ok, view, html} = live(conn, "/buckets")
 
-    assert html =~ "Create a depot and a cash account to assign buckets."
+    assert html =~ "Bucket assignment needs a depot or a cash account."
     refute html =~ "Create a portfolio"
     refute has_element?(view, "#depot-assignment-list")
   end

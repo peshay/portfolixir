@@ -207,7 +207,7 @@ defmodule PortfolixirWeb.IncomeLive do
       <div class="workspace-page">
         <section class="workspace-section empty-state">
           <h2><%= gettext("Income") %></h2>
-          <p><%= gettext("Create a depot and cash account first to see received dividends and interest.") %></p>
+          <p><%= gettext("Income needs a depot with a cash account.") %></p>
           <.link navigate="/portfolios" class="button"><%= gettext("Create a depot and cash account") %></.link>
         </section>
       </div>

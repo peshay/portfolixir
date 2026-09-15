@@ -537,7 +537,9 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
     html = render_async(view)
 
-    assert html =~ "Tap or hover a slice for details."
+    # Nothing selected: no detail, and no coaching sentence in its place
+    # (UX-DR11, #791 — the centre's job is the sunburst story's).
+    refute html =~ ~s(class="sunburst-detail")
 
     html =
       render_click(view, "select_segment", %{
@@ -550,7 +552,6 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert html =~ ~s(class="sunburst-detail")
     assert html =~ "Core"
     assert html =~ "880.00"
-    refute html =~ "Tap or hover a slice for details."
 
     # A non-hex colour cannot reach the style attribute.
     html =

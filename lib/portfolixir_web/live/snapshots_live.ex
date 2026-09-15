@@ -285,7 +285,7 @@ defmodule PortfolixirWeb.SnapshotsLive do
       <div class="workspace-page">
         <section class="workspace-section empty-state">
           <h2><%= gettext("Snapshots") %></h2>
-          <p><%= gettext("Create a depot and cash account first to freeze and compare a depot state.") %></p>
+          <p><%= gettext("Snapshots need a depot with a cash account.") %></p>
           <.link navigate="/portfolios" class="button"><%= gettext("Create a depot and cash account") %></.link>
         </section>
       </div>

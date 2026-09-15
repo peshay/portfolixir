@@ -182,13 +182,18 @@ defmodule PortfolixirWeb.ClassificationsLive do
         <% end %>
 
         <%= if @tree.assignable and @tree.flat != [] and @tree.unsorted != [] do %>
-          <p class="alert-info" role="status" data-role="assignment-nudge">
-            <%= ngettext(
-              "%{count} security isn't in any category yet — drag it from Unsorted below into a category so it counts toward the target/actual allocation.",
-              "%{count} securities aren't in any category yet — drag them from Unsorted below into categories so they count toward the target/actual allocation.",
-              length(@tree.unsorted)
-            ) %>
-          </p>
+          <%!-- A finding is a data note, not an accent banner (UX-DR17); the
+               remedy — the Unsorted list below — is the link inside it. --%>
+          <div role="status">
+            <AppShell.data_note severity={:attention} id="assignment-nudge" data-role="assignment-nudge">
+              <%= ngettext(
+                "%{count} security is in no category yet and does not count toward the target/actual allocation.",
+                "%{count} securities are in no category yet and do not count toward the target/actual allocation.",
+                length(@tree.unsorted)
+              ) %>
+              <a href="#unsorted"><%= gettext("Unsorted") %></a>
+            </AppShell.data_note>
+          </div>
         <% end %>
 
         <form id="tree-search-form" phx-change="filter_tree" class="tree-search" data-no-submit>
@@ -272,9 +277,6 @@ defmodule PortfolixirWeb.ClassificationsLive do
             <button type="button" data-clear-selection><%= gettext("Clear") %></button>
           </div>
 
-          <p class="hint multiselect-hint">
-            <%= gettext("Tip: click rows to select several, then drag or use the toolbar to move them together.") %>
-          </p>
         <% end %>
 
         <%!-- ADR-0041 §1: the basis is one line, stated once for the surface
@@ -304,7 +306,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
           <% end %>
         </section>
 
-        <details class="cat-node unsorted-node" open={@tree.filtering?} {unsorted_attrs(@tree)}>
+        <details id="unsorted" class="cat-node unsorted-node" open={@tree.filtering?} {unsorted_attrs(@tree)}>
           <summary class="cat-summary">
             <span class="cat-swatch is-empty" aria-hidden="true"></span>
             <span class="cat-name"><%= gettext("Unsorted") %></span>
@@ -354,7 +356,6 @@ defmodule PortfolixirWeb.ClassificationsLive do
       <div class="workspace-page">
         <section class="workspace-section">
           <h2><%= gettext("Classifications") %></h2>
-          <p><%= gettext("Pick a classification tree, or create a new one.") %></p>
           <ul class="classification-index" data-role="classification-index">
             <li :for={classification <- @classifications}>
               <.link navigate={"/classifications/#{classification.id}"}>
@@ -766,7 +767,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
       <% else %>
         <div class="soll-empty" data-role="soll-empty">
           <p class="hint">
-            <%= gettext("No plan for this view yet. Create one, or copy another view's plan for this classification.") %>
+            <%= gettext("No plan for this view.") %>
           </p>
           <div class="soll-editor__actions">
             <button type="button" class="button-primary" phx-click="create_soll_plan">

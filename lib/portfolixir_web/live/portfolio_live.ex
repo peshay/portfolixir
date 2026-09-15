@@ -690,7 +690,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       <div class="workspace-page">
         <section class="workspace-section empty-state">
           <h2><%= gettext("Wealth") %></h2>
-          <p><%= gettext("Create a depot and cash account first to see value, performance and allocation.") %></p>
+          <p><%= gettext("Wealth needs a depot with a cash account.") %></p>
           <.link navigate="/portfolios" class="button"><%= gettext("Create a depot and cash account") %></.link>
         </section>
       </div>
@@ -773,7 +773,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           <h2><%= gettext("Portfolios are now views") %></h2>
           <p>
             <%= gettext(
-              "The one-time migration turned each portfolio into a bucket and a view of the same name — fully editable, nothing was deleted. Pick a view above to scope this page."
+              "The one-time migration turned each portfolio into a bucket and a view of the same name — fully editable, nothing was deleted."
             ) %>
           </p>
           <ul data-role="migration-views">
@@ -1461,9 +1461,6 @@ defmodule PortfolixirWeb.PortfolioLive do
                   · <%= @selected_segment.percent %>%
                   · <%= @selected_segment.value %>
                   <%= if @valuation, do: @valuation.base_currency %>
-                </p>
-                <p :if={is_nil(@selected_segment)} class="hint">
-                  <%= gettext("Tap or hover a slice for details.") %>
                 </p>
               </div>
               <ul class="donut-legend">

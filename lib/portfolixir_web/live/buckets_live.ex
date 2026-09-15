@@ -233,8 +233,10 @@ defmodule PortfolixirWeb.BucketsLive do
         <section id="assignment-section" class="workspace-section">
           <h2><%= gettext("Default bucket assignment") %></h2>
           <%= if @depots != [] or @cash_accounts != [] do %>
-            <p class="hint">
-              <%= gettext("Set the default buckets a depot's positions and a cash account inherit.") %>
+            <p class="summary-basis" data-role="assignment-basis">
+              <%= gettext(
+                "Default buckets per depot and cash account — inherited by their positions and balances."
+              ) %>
             </p>
 
             <div class="grid">
@@ -302,8 +304,9 @@ defmodule PortfolixirWeb.BucketsLive do
             </div>
           <% else %>
             <p class="hint">
-              <%= gettext("Create a depot and a cash account to assign buckets.") %>
+              <%= gettext("Bucket assignment needs a depot or a cash account.") %>
             </p>
+            <.link navigate="/portfolios" class="button"><%= gettext("Create a depot and cash account") %></.link>
           <% end %>
         </section>
 
@@ -333,7 +336,7 @@ defmodule PortfolixirWeb.BucketsLive do
     ~H"""
     <fieldset class="bucket-fieldset">
       <%= if @buckets == [] do %>
-        <p class="hint"><%= gettext("Create a bucket first.") %></p>
+        <p class="hint"><%= gettext("No buckets yet.") %></p>
       <% end %>
       <%= for bucket <- @buckets do %>
         <label class="bucket-checkbox" for={"#{@id_prefix}-#{bucket.id}"}>

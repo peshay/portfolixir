@@ -227,7 +227,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
     assigns = assign(assigns, recommended: recommended, rest: rest)
 
     ~H"""
-    <p class="dialog-help"><%= gettext("Pick the market to import for") %> <strong><%= @selected_result.name %></strong>:</p>
+    <p class="dialog-help"><%= gettext("Market for %{name}", name: @selected_result.name) %></p>
     <div data-role="market-recommended">
       <.market_button market={elem(@recommended, 0)} idx={elem(@recommended, 1)} myself={@myself}>
         <span class="provider-badge"><%= gettext("Recommended") %></span>
