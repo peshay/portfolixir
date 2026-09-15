@@ -944,7 +944,9 @@ under "Transactions and Holdings" above.)
   `(institution, holder, tax_year, as_of)` is a `422`, not a silent duplicate.
 - `GET /api/v1/tax/trim_budget` rolls the latest statement per institution up
   to one holder and year (required `holder` and `tax_year`). It reports which
-  `institutions` it covers, the `as_of` of its **oldest** component, and
+  `institutions` it covers, the `as_of` of its **oldest** component, the
+  summed `allowance_granted` and `allowance_used` the fill level on the Tax
+  page is read from (beside `allowance_remaining`), and
   `complete: false` with `missing_institutions` when a configured allowance
   order has no recorded statement for the year — the total is then a partial
   picture and says so. The response carries the same `staleness` assessment,

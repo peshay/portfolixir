@@ -1210,9 +1210,23 @@ and Kirchensteuer.
 loss available for offsetting*, not as the negative number the statement
 prints. A negative input is rejected with a message saying so rather than
 silently flipped — silent sign normalisation is how a transcription error
-becomes a permanently wrong number. The list view then renders the pots with
-the statement's printed sign, so a recorded row stays visually comparable to
-the paper.
+becomes a permanently wrong number. The statement list then renders the pots
+with the statement's printed sign, so a recorded row stays visually comparable
+to the paper.
+
+**The page is a budget dashboard plus a check list.** Taxpayer and tax year
+are segmented controls (the scope is in the URL, `?holder=…&year=…`). The
+budget renders as a meter: the remaining amount as the value, the allowance
+utilisation as a fill level with no threshold colouring, the as-of date and
+the covered institutions on the basis line, and the composition — equity loss
+pot, remaining allowance, the statutory ceiling — beside it with an ⓘ for the
+recorded-not-derived rule. A stale or incomplete budget is a data note beside
+the meter with its remedy inside ("Record a new statement"). The recorded
+statements are a list; each consistency finding is a data note on its row
+with the check control inside, and "Correct" and "Delete" sit in the row
+menu. Both entry forms open from a disclosure and are closed by default; the
+sign convention is field help on the amount inputs, and the configured
+Freistellungsaufträge sit behind a disclosure that states their purpose.
 
 **The trim budget** is the equity loss pot plus the remaining allowance
 (`granted − used`). It is always shown **with its as-of date** and warns

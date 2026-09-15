@@ -1318,9 +1318,25 @@ Solidaritätszuschlag und die Kirchensteuer.
 *verrechenbares Verlustvolumen* gespeichert, nicht als die negative Zahl auf
 dem Papier. Eine negative Eingabe wird mit einem entsprechenden Hinweis
 abgelehnt statt still gedreht — stilles Umdrehen eines Vorzeichens macht aus
-einem Übertragungsfehler eine dauerhaft falsche Zahl. Die Übersicht stellt die
-Töpfe anschließend mit dem gedruckten Vorzeichen dar, damit eine erfasste Zeile
-mit dem Papier vergleichbar bleibt.
+einem Übertragungsfehler eine dauerhaft falsche Zahl. Die Liste der
+Abrechnungen stellt die Töpfe anschließend mit dem gedruckten Vorzeichen dar,
+damit eine erfasste Zeile mit dem Papier vergleichbar bleibt.
+
+**Die Seite ist eine Budget-Anzeige plus Prüfliste.** Steuerpflichtige Person
+und Steuerjahr sind segmentierte Steuerelemente (der Bereich steht in der
+URL, `?holder=…&year=…`). Das Budget erscheint als Füllstandsanzeige: der
+verbleibende Betrag als Wert, die Ausschöpfung des Freistellungsauftrags als
+Füllstand ohne Schwellenfärbung, Stichtag und erfasste Institute auf der
+Basiszeile, daneben die Zusammensetzung — Verlusttopf Aktien, verbleibender
+Freistellungsauftrag, gesetzlicher Höchstbetrag — mit einem ⓘ zur Regel
+„erfasst, nicht berechnet". Ein veraltetes oder unvollständiges Budget ist
+eine Datennotiz neben der Anzeige mit dem Mittel darin („Neue Abrechnung
+erfassen"). Die erfassten Abrechnungen sind eine Liste; jeder Prüfbefund ist
+eine Datennotiz an seiner Zeile mit dem Prüf-Bedienelement darin, und
+„Korrigieren" und „Löschen" sitzen im Zeilenmenü. Beide Eingabeformulare
+öffnen sich aus einem Aufklappen und sind standardmäßig geschlossen; die
+Vorzeichenregel ist Feldhilfe an den Betragsfeldern, und die hinterlegten
+Freistellungsaufträge sitzen hinter einem Aufklappen, das ihren Zweck nennt.
 
 **Der Verkaufsspielraum** ist der Verlusttopf Aktien plus der verbleibende
 Freistellungsauftrag (`erteilt − verbraucht`). Er wird immer **mit seinem

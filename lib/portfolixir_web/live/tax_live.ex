@@ -4,18 +4,32 @@ defmodule PortfolixirWeb.TaxLive do
 
   The maintainer transcribes the Verlustverrechnungstöpfe /
   Freistellungsauftrag block of a broker statement once a year and reads the
-  tax-free trim budget off it. Three display rules bind this surface:
+  tax-free trim budget off it. The surface is a budget dashboard plus a check
+  list (EXPERIENCE.md → Component Patterns → Tax surface, built by issue 795):
 
-  - the pots render with the **statement's printed sign** so a row is visually
-    comparable to the paper, while storage stays positive magnitudes (§2);
-  - the trim budget is always stated **with its as-of date** and marked stale
-    once a later day exists in which investment income can have landed (§5);
-  - consistency advisories are fact plus remedy, terse and impersonal, and
-    domain terms sit behind ⓘ tooltips (UX-DR11) rather than permanently in
-    the sightline.
+  - the budget renders as a **meter** — allowance utilisation as a fill level
+    with the remaining amount, its as-of date and the institutions it covers
+    on the basis line, and its composition beside it; no threshold colouring,
+    because a used-up allowance is a tax year's normal end state;
+  - what is wrong with the budget — a stale as-of, a missing institution — is
+    a **data note** beside the meter with the remedy control inside;
+  - the recorded statements are a **list**, each carrying its consistency
+    findings as data notes with the check control inside, and the row's
+    actions (correct, delete) in its row menu;
+  - both entry forms sit behind a **disclosure**, closed by default; the
+    configured allowance orders sit behind one carrying their purpose line.
 
-  Nothing here is derived from holdings, and nothing here is tax advice — the
-  recorded statement remains the authority.
+  Three display rules bind the figures: the pots render with the
+  **statement's printed sign** so a row is visually comparable to the paper
+  while storage stays positive magnitudes (§2); the trim budget is always
+  stated **with its as-of date** and marked stale once a later day exists in
+  which investment income can have landed (§5); advisories are fact plus
+  remedy, terse and impersonal, and domain terms sit behind ⓘ tooltips
+  (UX-DR11) rather than permanently in the sightline.
+
+  The scope — taxpayer and tax year — is URL-addressable (`?holder=…&year=…`);
+  the segmented controls patch it. Nothing here is derived from holdings, and
+  nothing here is tax advice — the recorded statement remains the authority.
   """
 
   use PortfolixirWeb, :live_view
@@ -34,6 +48,9 @@ defmodule PortfolixirWeb.TaxLive do
                         allowance_used capital_gains_tax_withheld
                         solidarity_surcharge_withheld church_tax_withheld)a
 
+  # ADR-0031 records German broker statements; every figure is a euro amount.
+  @currency "EUR"
+
   @impl true
   def mount(_params, _session, socket) do
     today = Date.utc_today()
@@ -42,32 +59,64 @@ defmodule PortfolixirWeb.TaxLive do
       socket
       |> assign(:current_path, "/tax")
       |> assign(:today, today)
-      |> assign(:holder, default_holder())
-      |> assign(:tax_year, today.year - 1)
+      |> assign(:currency, @currency)
       |> assign(:form_errors, nil)
       |> assign(:order_errors, nil)
       |> assign(:editing_id, nil)
-      |> load_year()
+      |> assign(:statement_form_open?, false)
+      |> assign(:order_form_open?, false)
+      |> assign(:row_menu, nil)
 
     {:ok, socket}
   end
 
+  # The scope is URL-addressable (issue 795): the segmented controls patch
+  # `?holder=…&year=…`, and a patch to the current scope re-reads it.
   @impl true
-  def handle_event("select_scope", %{"scope" => params}, socket) do
+  def handle_params(params, _uri, socket) do
     socket =
       socket
-      |> assign(:holder, String.trim(params["holder"] || ""))
-      |> assign(:tax_year, parse_int(params["tax_year"]) || socket.assigns.tax_year)
+      |> assign(:holder, scope_holder(params["holder"]))
+      |> assign(:tax_year, parse_int(params["year"]) || socket.assigns.today.year - 1)
       |> assign(:editing_id, nil)
+      |> assign(:row_menu, nil)
       |> load_year()
 
     {:noreply, socket}
   end
 
+  @impl true
+  def handle_event("open_statement_form", _params, socket) do
+    {:noreply,
+     assign(socket, statement_form_open?: true, editing_id: nil, form_errors: nil)
+     |> load_editing()}
+  end
+
+  def handle_event("toggle_form", %{"form" => "statement"}, socket) do
+    open? = not socket.assigns.statement_form_open?
+
+    {:noreply,
+     socket
+     |> assign(:statement_form_open?, open?)
+     |> assign(:editing_id, if(open?, do: socket.assigns.editing_id))
+     |> assign(:form_errors, nil)
+     |> load_editing()}
+  end
+
+  def handle_event("toggle_form", %{"form" => "order"}, socket) do
+    {:noreply,
+     assign(socket, order_form_open?: not socket.assigns.order_form_open?, order_errors: nil)}
+  end
+
   def handle_event("record_statement", %{"statement" => params}, socket) do
     case save_statement(socket, params) do
-      {:ok, _snapshot} ->
-        {:noreply, socket |> assign(form_errors: nil, editing_id: nil) |> load_year()}
+      {:ok, snapshot} ->
+        socket =
+          socket
+          |> assign(form_errors: nil, editing_id: nil, statement_form_open?: false)
+          |> push_patch(to: scope_path(snapshot.holder, snapshot.tax_year))
+
+        {:noreply, socket}
 
       {:error, changeset} ->
         {:noreply, assign(socket, :form_errors, changeset_errors(changeset))}
@@ -75,11 +124,18 @@ defmodule PortfolixirWeb.TaxLive do
   end
 
   def handle_event("edit_statement", %{"id" => id}, socket) do
-    {:noreply, assign(socket, editing_id: parse_int(id), form_errors: nil)}
+    {:noreply,
+     socket
+     |> assign(editing_id: parse_int(id), form_errors: nil)
+     |> assign(statement_form_open?: true, row_menu: nil)
+     |> load_editing()}
   end
 
   def handle_event("cancel_edit", _params, socket) do
-    {:noreply, assign(socket, editing_id: nil, form_errors: nil)}
+    {:noreply,
+     socket
+     |> assign(editing_id: nil, form_errors: nil, statement_form_open?: false)
+     |> load_editing()}
   end
 
   def handle_event("delete_statement", %{"id" => id}, socket) do
@@ -90,7 +146,7 @@ defmodule PortfolixirWeb.TaxLive do
       {:error, :not_found} -> :ok
     end
 
-    {:noreply, socket |> assign(:editing_id, nil) |> load_year()}
+    {:noreply, socket |> assign(editing_id: nil, row_menu: nil) |> load_year()}
   end
 
   def handle_event("put_allowance_order", %{"order" => params}, socket) do
@@ -103,7 +159,7 @@ defmodule PortfolixirWeb.TaxLive do
 
     case Tax.put_allowance_order(Actor.owner_ui(), attrs) do
       {:ok, _order} ->
-        {:noreply, socket |> assign(:order_errors, nil) |> load_year()}
+        {:noreply, socket |> assign(order_errors: nil, order_form_open?: false) |> load_year()}
 
       {:error, changeset} ->
         {:noreply, assign(socket, :order_errors, changeset_errors(changeset))}
@@ -116,7 +172,29 @@ defmodule PortfolixirWeb.TaxLive do
       {:error, :not_found} -> :ok
     end
 
-    {:noreply, load_year(socket)}
+    {:noreply, socket |> assign(:row_menu, nil) |> load_year()}
+  end
+
+  # The row menu (Part 4 rule 11 of the 2026-09-12 review): correct and
+  # delete for a statement, delete for an order; one menu open at a time.
+  def handle_event("open_row_menu", %{"kind" => kind, "id" => id}, socket) do
+    menu =
+      case {kind, parse_int(id)} do
+        {"statement", id} when is_integer(id) ->
+          if Enum.any?(socket.assigns.snapshots, &(&1.row.id == id)), do: {:statement, id}
+
+        {"order", id} when is_integer(id) ->
+          if Enum.any?(socket.assigns.orders, &(&1.id == id)), do: {:order, id}
+
+        _other ->
+          nil
+      end
+
+    {:noreply, assign(socket, :row_menu, menu)}
+  end
+
+  def handle_event("close_row_menu", _params, socket) do
+    {:noreply, assign(socket, :row_menu, nil)}
   end
 
   defp save_statement(socket, params) do
@@ -133,6 +211,9 @@ defmodule PortfolixirWeb.TaxLive do
     end
   end
 
+  # The form carries its own taxpayer and year (defaulting to the scope), so
+  # a first statement for a new taxpayer or an older year is recordable
+  # without a scope control that lists it.
   defp statement_attrs(socket, params) do
     money =
       Map.new(StatementSnapshot.money_fields(), fn field ->
@@ -141,8 +222,8 @@ defmodule PortfolixirWeb.TaxLive do
 
     Map.merge(money, %{
       institution: params["institution"],
-      holder: socket.assigns.holder,
-      tax_year: socket.assigns.tax_year,
+      holder: form_holder(params["holder"]) || socket.assigns.holder,
+      tax_year: parse_int(params["tax_year"]) || socket.assigns.tax_year,
       as_of: params["as_of"],
       note: params["note"]
     })
@@ -160,23 +241,88 @@ defmodule PortfolixirWeb.TaxLive do
   end
 
   defp load_year(socket) do
-    %{holder: holder, tax_year: tax_year} = socket.assigns
+    %{holder: holder, tax_year: tax_year, today: today} = socket.assigns
 
     snapshots = Tax.list_snapshots(holder: holder, tax_year: tax_year)
-
     summary = Tax.holder_summary(holder, tax_year)
 
     socket
     |> assign(:snapshots, Enum.map(snapshots, &%{row: &1, findings: Tax.findings_for(&1)}))
     |> assign(:summary, summary)
+    |> assign(:utilisation, utilisation(summary))
     # Activity-aware staleness (issue #667): warns on age over the threshold
     # OR tax-relevant bookings since the statement — never on the mere
     # passage of a day.
-    |> assign(:staleness, Tax.staleness(summary.as_of, socket.assigns.today))
+    |> assign(:staleness, Tax.staleness(summary.as_of, today))
     |> assign(:orders, Tax.list_allowance_orders(holder: holder, tax_year: tax_year))
-    |> assign(:holders, Tax.list_snapshot_holders())
-    |> assign(:editing, editing_row(snapshots, socket.assigns.editing_id))
+    |> assign(:holders, holders(holder))
+    |> assign(:years, years(holder, tax_year, today))
+    |> load_editing()
   end
+
+  defp load_editing(socket) do
+    editing =
+      case socket.assigns.editing_id do
+        nil -> nil
+        id -> Enum.find_value(socket.assigns.snapshots, &(&1.row.id == id && &1.row))
+      end
+
+    assign(socket, :editing, editing)
+  end
+
+  # The meter's fill: allowance used over allowance granted, in whole
+  # percent, clamped — no threshold colouring, the fill level is the fact.
+  defp utilisation(%{allowance_granted: granted, allowance_used: used}) do
+    if Decimal.compare(granted, 0) == :gt do
+      used
+      |> Decimal.div(granted)
+      |> Decimal.mult(100)
+      |> Decimal.round(0)
+      |> Decimal.to_integer()
+      |> max(0)
+      |> min(100)
+    else
+      0
+    end
+  end
+
+  # The taxpayers with a recorded statement, plus the one in scope.
+  defp holders(holder) do
+    [holder | Tax.list_snapshot_holders()] |> Enum.uniq() |> Enum.sort()
+  end
+
+  # The years with a recorded statement for the taxpayer, the two years a
+  # statement can currently arrive for, and the one in scope.
+  defp years(holder, tax_year, today) do
+    recorded = Tax.list_snapshots(holder: holder) |> Enum.map(& &1.tax_year)
+
+    ([tax_year, today.year - 1, today.year] ++ recorded)
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
+  # The form's taxpayer field: a blank one means "the scope's holder", which
+  # the caller supplies — unlike the URL scope, which falls back to the
+  # default holder.
+  defp form_holder(holder) when is_binary(holder) do
+    case String.trim(holder) do
+      "" -> nil
+      trimmed -> trimmed
+    end
+  end
+
+  defp form_holder(_holder), do: nil
+
+  defp scope_holder(nil), do: default_holder()
+
+  defp scope_holder(holder) when is_binary(holder) do
+    case String.trim(holder) do
+      "" -> default_holder()
+      trimmed -> trimmed
+    end
+  end
+
+  defp scope_path(holder, year), do: "/tax?holder=#{URI.encode_www_form(holder)}&year=#{year}"
 
   # The warning names its reason: activity first (the substantive condition),
   # age as the fallback.
@@ -192,9 +338,6 @@ defmodule PortfolixirWeb.TaxLive do
   defp staleness_message(%{age_days: age_days}) do
     gettext("Stale — the statement is %{days} days old.", days: age_days)
   end
-
-  defp editing_row(_snapshots, nil), do: nil
-  defp editing_row(snapshots, id), do: Enum.find(snapshots, &(&1.id == id))
 
   defp default_holder do
     case Tax.list_snapshot_holders() do
@@ -232,6 +375,11 @@ defmodule PortfolixirWeb.TaxLive do
     end
   end
 
+  # Several figures of one kind on one line, each with its printed sign.
+  defp printed_group(row, fields) do
+    Enum.map_join(fields, " / ", &printed(&1, Map.fetch!(row, &1)))
+  end
+
   defp field_label(:taxable_income), do: gettext("Taxable investment income")
   defp field_label(:allowance_granted), do: gettext("Allowance granted")
   defp field_label(:allowance_used), do: gettext("Allowance used")
@@ -243,6 +391,12 @@ defmodule PortfolixirWeb.TaxLive do
   defp field_label(:capital_gains_tax_withheld), do: gettext("Capital-gains tax withheld")
   defp field_label(:solidarity_surcharge_withheld), do: gettext("Solidarity surcharge withheld")
   defp field_label(:church_tax_withheld), do: gettext("Church tax withheld")
+
+  # Every recorded source has a label; a raw value never reaches the row
+  # (Part 4 rule 7 of the 2026-09-12 review).
+  defp source_label("manual"), do: gettext("recorded manually")
+  defp source_label("pdf_import"), do: gettext("from a PDF import")
+  defp source_label(_other), do: gettext("recorded")
 
   # Fact plus remedy, impersonal and terse: what disagrees, by how much, and
   # what closes it. Never a proposed "corrected" value.
@@ -296,8 +450,19 @@ defmodule PortfolixirWeb.TaxLive do
     }
   end
 
+  # The remedy control inside a finding's note: the statement's own figures
+  # are checked on the correction form; an order finding (c7, c8) is settled
+  # on the orders form.
+  defp order_finding?(%{code: code}), do: code in [:c7, :c8]
+
   defp invalid?(nil, _field), do: false
   defp invalid?(errors, field), do: Map.has_key?(errors, field)
+
+  # A money input is described by the sign convention, and by the error
+  # note while it is invalid.
+  defp amount_describedby(errors, field) do
+    if invalid?(errors, field), do: "tax-amount-help tax-form-error", else: "tax-amount-help"
+  end
 
   defp error_text(errors) do
     Enum.map_join(errors, "; ", fn {field, messages} ->
@@ -312,6 +477,12 @@ defmodule PortfolixirWeb.TaxLive do
   defp value_of(nil, _field), do: nil
   defp value_of(row, field), do: Decimal.to_string(Map.fetch!(row, field), :normal)
 
+  defp orders_summary([]), do: gettext("none configured")
+
+  defp orders_summary(orders) do
+    Enum.map_join(orders, " · ", &"#{&1.institution} #{Format.money(&1.amount_granted)}")
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -323,237 +494,472 @@ defmodule PortfolixirWeb.TaxLive do
       <div class="workspace-page">
         <AppShell.area_tabs tabs={AppShell.wealth_tabs(:tax)} />
 
-        <section class="workspace-section">
+        <section class="workspace-section" id="tax-budget">
           <header class="section-head">
             <h2><%= gettext("Tax-free trim budget") %></h2>
-          </header>
-
-          <form id="tax-scope-form" phx-change="select_scope" class="tax-scope">
-            <label>
-              <%= gettext("Taxpayer") %>
-              <input type="text" name="scope[holder]" value={@holder} list="tax-holders" required />
-              <datalist id="tax-holders">
-                <option :for={holder <- @holders} value={holder}></option>
-              </datalist>
-            </label>
-            <label>
-              <%= gettext("Tax year") %>
-              <input type="number" name="scope[tax_year]" value={@tax_year} min="1990" max="2200" />
-            </label>
-          </form>
-
-          <p class="tax-budget">
-            <strong class="tax-budget__value"><%= Format.money(@summary.tax_free_trim_budget) %></strong>
-            <span class="muted">
-              <%= if @summary.as_of do %>
-                <%= gettext("as of %{date}", date: Format.date(@summary.as_of)) %>
-              <% else %>
-                <%= gettext("No statement recorded for this year.") %>
-              <% end %>
-            </span>
-            <span :if={@staleness && @staleness.warning} class="badge badge-warning">
-              <%= staleness_message(@staleness) %>
-            </span>
-          </p>
-
-          <p class="muted">
-            <%= gettext("Equity loss pot %{pot} plus remaining allowance %{allowance}.",
-              pot: Format.money(@summary.loss_pot_equities),
-              allowance: Format.money(@summary.allowance_remaining)
-            ) %>
-            <span :if={@summary.allowance_ceiling}>
-              <%= gettext("Statutory ceiling for this year: %{ceiling}.",
-                ceiling: Format.money(@summary.allowance_ceiling)
-              ) %>
-            </span>
-          </p>
-
-          <p :if={@summary.institutions != []} class="muted">
-            <%= gettext("Covers: %{institutions}.",
-              institutions: Enum.join(@summary.institutions, ", ")
-            ) %>
-          </p>
-
-          <p :if={not @summary.complete?} class="alert-warning" role="status">
-            <%= gettext(
-              "Incomplete: no statement recorded for %{institutions}. The total covers the listed institutions only.",
-              institutions: Enum.join(@summary.missing_institutions, ", ")
-            ) %>
-          </p>
-
-          <details class="tax-explainer">
-            <summary aria-label={gettext("About this figure")}>ⓘ <%= gettext("About this figure") %></summary>
-            <p>
-              <%= gettext(
-                "These pots are transcribed from the broker statement, never computed from the ledger. Not for want of FIFO — lots are matched FIFO already, on the trade list — but that yields a gross gain, and a gross gain is not a tax pot. Teilfreistellung, Vorabpauschale, chronological allowance consumption and prior-year carry-forward are absent from transaction data, and the pots are kept per institution. The statement remains the authority. This is not tax advice."
-              ) %>
-            </p>
-          </details>
-        </section>
-
-        <section class="workspace-section">
-          <header class="section-head">
-            <h2>
-              <%= if @editing, do: gettext("Correct statement"), else: gettext("Record a statement") %>
-            </h2>
-          </header>
-
-          <p :if={@form_errors} id="tax-form-error" class="alert-error" role="alert">
-            <%= error_text(@form_errors) %>
-          </p>
-
-          <p class="muted">
-            <%= gettext(
-              "Enter every amount without its sign. A loss pot is the volume of loss available for offsetting."
-            ) %>
-          </p>
-
-          <form id="tax-statement-form" phx-submit="record_statement" class="tax-form">
-            <label>
-              <%= gettext("Institution") %>
-              <input
-                type="text"
-                name="statement[institution]"
-                value={@editing && @editing.institution}
-                required
-                aria-invalid={invalid?(@form_errors, :institution) && "true"}
-                aria-describedby={invalid?(@form_errors, :institution) && "tax-form-error"}
-              />
-            </label>
-            <label>
-              <%= gettext("Statement date") %>
-              <input
-                type="text"
-                placeholder="YYYY-MM-DD"
-                pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
-                maxlength="10"
-                name="statement[as_of]"
-                value={@editing && Date.to_iso8601(@editing.as_of)}
-                required
-                aria-invalid={invalid?(@form_errors, :as_of) && "true"}
-                aria-describedby={invalid?(@form_errors, :as_of) && "tax-form-error"}
-              />
-            </label>
-
-            <label :for={field <- StatementSnapshot.money_fields()}>
-              <%= field_label(field) %>
-              <input
-                type="text"
-                inputmode="decimal"
-                name={"statement[#{field}]"}
-                value={value_of(@editing, field)}
-                aria-invalid={invalid?(@form_errors, field) && "true"}
-                aria-describedby={invalid?(@form_errors, field) && "tax-form-error"}
-              />
-            </label>
-
-            <label class="tax-form__wide">
-              <%= gettext("Note") %>
-              <input type="text" name="statement[note]" value={@editing && @editing.note} />
-            </label>
-
-            <div class="tax-form__actions">
-              <button type="submit" class="button">
-                <%= if @editing, do: gettext("Save correction"), else: gettext("Record statement") %>
-              </button>
-              <button :if={@editing} type="button" class="button button-secondary" phx-click="cancel_edit">
-                <%= gettext("Cancel") %>
-              </button>
+            <%!-- Taxpayer and year as segmented controls (UX-DR16 class 2,
+                 issue 795); each option patches the URL-addressable scope. --%>
+            <div class="section-head-controls" data-role="tax-scope">
+              <nav class="segmented-control" data-role="tax-holders" aria-label={gettext("Taxpayer")}>
+                <.link
+                  :for={holder <- @holders}
+                  patch={scope_path(holder, @tax_year)}
+                  class={["segmented-control__option", holder == @holder && "is-active"]}
+                  aria-current={if holder == @holder, do: "true"}
+                >
+                  <%= holder %>
+                </.link>
+              </nav>
+              <nav class="segmented-control" data-role="tax-years" aria-label={gettext("Tax year")}>
+                <.link
+                  :for={year <- @years}
+                  patch={scope_path(@holder, year)}
+                  class={["segmented-control__option", year == @tax_year && "is-active"]}
+                  aria-current={if year == @tax_year, do: "true"}
+                >
+                  <%= year %>
+                </.link>
+              </nav>
             </div>
-          </form>
+          </header>
+
+          <div class="tax-budget-grid">
+            <%!-- The budget meter (DESIGN.md → components.budget-meter): the
+                 remaining amount as the value, the allowance fill level as a
+                 decorative track, the as-of and the institutions on the basis
+                 line. No threshold colouring — a used-up allowance is a tax
+                 year's normal end state, not a warning. --%>
+            <article class="stat tax-budget" data-role="budget-meter">
+              <span><%= gettext("Tax-free trim budget") %></span>
+              <strong data-role="budget-value">
+                <%= Format.money(@summary.tax_free_trim_budget) %>
+                <small class="value-suffix"><%= @currency %></small>
+              </strong>
+              <div class="budget-meter" aria-hidden="true">
+                <div class="budget-meter__fill" style={"width: #{@utilisation}%"}></div>
+              </div>
+              <p class="summary-basis" data-role="budget-basis">
+                <%= if @summary.as_of do %>
+                  <%= gettext("Allowance %{used} of %{granted} used",
+                    used: Format.money(@summary.allowance_used),
+                    granted: Format.money(@summary.allowance_granted)
+                  ) %>
+                  · <%= gettext("as of %{date}", date: Date.to_iso8601(@summary.as_of)) %>
+                  <span :if={@summary.institutions != []}>
+                    · <%= Enum.join(@summary.institutions, ", ") %>
+                  </span>
+                <% else %>
+                  <%= gettext("No statement recorded for this year.") %>
+                <% end %>
+              </p>
+              <%!-- What is wrong with the budget is a data note beside the
+                   meter with its remedy inside (UX-DR17); one status region
+                   for both. --%>
+              <div class="tax-budget__notes" role="status">
+                <AppShell.data_note
+                  :if={@staleness && @staleness.warning}
+                  severity={:attention}
+                  data-role="budget-stale"
+                >
+                  <%= staleness_message(@staleness) %>
+                  <button type="button" class="link-button" phx-click="open_statement_form">
+                    <%= gettext("Record a new statement") %>
+                  </button>
+                </AppShell.data_note>
+                <AppShell.data_note
+                  :if={not @summary.complete?}
+                  severity={:attention}
+                  data-role="budget-incomplete"
+                >
+                  <%= gettext(
+                    "Incomplete: no statement recorded for %{institutions}. The total covers the listed institutions only.",
+                    institutions: Enum.join(@summary.missing_institutions, ", ")
+                  ) %>
+                </AppShell.data_note>
+              </div>
+            </article>
+
+            <article class="stat tax-composition" data-role="budget-composition">
+              <span>
+                <%= gettext("Composition") %>
+                <details class="metric-tooltip metric-tooltip--inline" data-role="budget-info">
+                  <summary aria-label={gettext("About this figure")}>ⓘ</summary>
+                  <p role="tooltip">
+                    <%= gettext(
+                      "These pots are transcribed from the broker statement, never computed from the ledger. Not for want of FIFO — lots are matched FIFO already, on the trade list — but that yields a gross gain, and a gross gain is not a tax pot. Teilfreistellung, Vorabpauschale, chronological allowance consumption and prior-year carry-forward are absent from transaction data, and the pots are kept per institution. The statement remains the authority. This is not tax advice."
+                    ) %>
+                  </p>
+                </details>
+              </span>
+              <dl class="tax-composition__rows">
+                <div>
+                  <dt><%= gettext("Loss pot, equities") %></dt>
+                  <dd><%= Format.money(@summary.loss_pot_equities) %></dd>
+                </div>
+                <div>
+                  <dt><%= gettext("Remaining allowance") %></dt>
+                  <dd><%= Format.money(@summary.allowance_remaining) %></dd>
+                </div>
+                <div class="is-total">
+                  <dt><%= gettext("Trim budget") %></dt>
+                  <dd><%= Format.money(@summary.tax_free_trim_budget) %></dd>
+                </div>
+                <div :if={@summary.allowance_ceiling}>
+                  <dt><%= gettext("Statutory ceiling %{year}", year: @tax_year) %></dt>
+                  <dd><%= Format.money(@summary.allowance_ceiling) %></dd>
+                </div>
+              </dl>
+            </article>
+          </div>
         </section>
 
-        <section class="workspace-section">
+        <section class="workspace-section" id="tax-statements">
           <header class="section-head">
             <h2><%= gettext("Recorded statements") %></h2>
+            <%!-- Both forms behind a disclosure, closed by default. --%>
+            <div class="section-head-controls" data-role="tax-disclosures">
+              <button
+                type="button"
+                class="button-ghost disclosure-button"
+                phx-click="toggle_form"
+                phx-value-form="statement"
+                aria-expanded={to_string(@statement_form_open?)}
+                aria-controls="tax-statement-panel"
+              >
+                <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
+                <%= if @editing, do: gettext("Correct statement"), else: gettext("Record a statement") %>
+              </button>
+              <button
+                type="button"
+                class="button-ghost disclosure-button"
+                phx-click="toggle_form"
+                phx-value-form="order"
+                aria-expanded={to_string(@order_form_open?)}
+                aria-controls="tax-order-panel"
+              >
+                <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
+                <%= gettext("Record an allowance order") %>
+              </button>
+            </div>
           </header>
 
-          <p :if={@snapshots == []} class="muted">
+          <div id="tax-statement-panel" class="tax-panel" hidden={not @statement_form_open?}>
+            <AppShell.data_note :if={@form_errors} severity={:problem} id="tax-form-error" role="alert">
+              <%= error_text(@form_errors) %>
+            </AppShell.data_note>
+
+            <form id="tax-statement-form" phx-submit="record_statement" class="tax-form">
+              <label>
+                <%= gettext("Taxpayer") %>
+                <input
+                  type="text"
+                  name="statement[holder]"
+                  value={(@editing && @editing.holder) || @holder}
+                  list="tax-holders"
+                  required
+                />
+                <datalist id="tax-holders">
+                  <option :for={holder <- @holders} value={holder}></option>
+                </datalist>
+              </label>
+              <label>
+                <%= gettext("Tax year") %>
+                <input
+                  type="number"
+                  name="statement[tax_year]"
+                  value={(@editing && @editing.tax_year) || @tax_year}
+                  min="1990"
+                  max="2200"
+                  required
+                />
+              </label>
+              <label>
+                <%= gettext("Institution") %>
+                <input
+                  type="text"
+                  name="statement[institution]"
+                  value={@editing && @editing.institution}
+                  required
+                  aria-invalid={invalid?(@form_errors, :institution) && "true"}
+                  aria-describedby={invalid?(@form_errors, :institution) && "tax-form-error"}
+                />
+              </label>
+              <label>
+                <%= gettext("Statement date") %>
+                <input
+                  type="text"
+                  placeholder="YYYY-MM-DD"
+                  pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                  maxlength="10"
+                  name="statement[as_of]"
+                  value={@editing && Date.to_iso8601(@editing.as_of)}
+                  required
+                  aria-invalid={invalid?(@form_errors, :as_of) && "true"}
+                  aria-describedby={invalid?(@form_errors, :as_of) && "tax-form-error"}
+                />
+              </label>
+
+              <%!-- The sign convention is field help on the amounts; the
+                   term sits behind its ⓘ (UX-DR11 inventory, tax_live rows). --%>
+              <fieldset class="tax-form__amounts">
+                <legend>
+                  <%= gettext("Figures on the statement") %>
+                  <details class="metric-tooltip metric-tooltip--inline" data-role="loss-pot-info">
+                    <summary aria-label={gettext("About loss pots")}>ⓘ</summary>
+                    <p role="tooltip">
+                      <%= gettext("A loss pot is the volume of loss available for offsetting.") %>
+                    </p>
+                  </details>
+                </legend>
+                <p id="tax-amount-help" class="hint field-help">
+                  <%= gettext("Amounts without their sign; an empty field counts as zero.") %>
+                </p>
+                <label :for={field <- StatementSnapshot.money_fields()}>
+                  <%= field_label(field) %>
+                  <input
+                    type="text"
+                    inputmode="decimal"
+                    name={"statement[#{field}]"}
+                    value={value_of(@editing, field)}
+                    aria-invalid={invalid?(@form_errors, field) && "true"}
+                    aria-describedby={amount_describedby(@form_errors, field)}
+                  />
+                </label>
+              </fieldset>
+
+              <label class="tax-form__wide">
+                <%= gettext("Note") %>
+                <input type="text" name="statement[note]" value={@editing && @editing.note} />
+              </label>
+
+              <div class="tax-form__actions">
+                <button type="submit" class="button">
+                  <%= if @editing, do: gettext("Save correction"), else: gettext("Record statement") %>
+                </button>
+                <button type="button" class="button button-secondary" phx-click="cancel_edit">
+                  <%= gettext("Cancel") %>
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div id="tax-order-panel" class="tax-panel" hidden={not @order_form_open?}>
+            <AppShell.data_note :if={@order_errors} severity={:problem} role="alert">
+              <%= error_text(@order_errors) %>
+            </AppShell.data_note>
+
+            <form id="tax-order-form" phx-submit="put_allowance_order" class="tax-order-form">
+              <label>
+                <%= gettext("Institution") %>
+                <input type="text" name="order[institution]" required />
+              </label>
+              <label>
+                <%= gettext("Amount granted") %>
+                <input type="text" inputmode="decimal" name="order[amount_granted]" required />
+              </label>
+              <button type="submit" class="button"><%= gettext("Record order") %></button>
+            </form>
+          </div>
+
+          <p :if={@snapshots == []} class="hint" data-role="statements-empty">
             <%= gettext("No statement recorded for this taxpayer and year.") %>
           </p>
 
-          <article :for={entry <- @snapshots} class="tax-statement" id={"tax-statement-#{entry.row.id}"}>
-            <header class="tax-statement__head">
-              <h3><%= entry.row.institution %></h3>
-              <span class="muted"><%= Format.date(entry.row.as_of) %></span>
-              <button type="button" class="button button-secondary" phx-click="edit_statement" phx-value-id={entry.row.id}>
-                <%= gettext("Correct") %>
-              </button>
-              <button
-                type="button"
-                class="button button-danger"
-                phx-click="delete_statement"
-                phx-value-id={entry.row.id}
-                data-confirm={gettext("Delete this recorded statement?")}
-              >
-                <%= gettext("Delete") %>
-              </button>
-            </header>
-
-            <dl class="tax-statement__figures">
-              <div :for={field <- StatementSnapshot.money_fields()}>
-                <dt><%= field_label(field) %></dt>
-                <dd><%= printed(field, Map.fetch!(entry.row, field)) %></dd>
+          <ul :if={@snapshots != []} class="tax-statements" role="list">
+            <li :for={entry <- @snapshots} class="tax-statement" id={"tax-statement-#{entry.row.id}"}>
+              <div class="tax-statement__head">
+                <h3><%= entry.row.institution %></h3>
+                <span class="hint">
+                  <%= Date.to_iso8601(entry.row.as_of) %>
+                  · <%= gettext("Tax year %{year}", year: entry.row.tax_year) %>
+                  · <%= source_label(entry.row.source) %>
+                </span>
+                <button
+                  type="button"
+                  id={"tax-row-kebab-statement-#{entry.row.id}"}
+                  class="row-actions__kebab"
+                  phx-click="open_row_menu"
+                  phx-value-kind="statement"
+                  phx-value-id={entry.row.id}
+                  aria-label={gettext("Open actions menu")}
+                  aria-haspopup="menu"
+                  aria-expanded={@row_menu == {:statement, entry.row.id}}
+                >
+                  <AppShell.icon name={:ellipsis_vertical} />
+                </button>
               </div>
-            </dl>
 
-            <p class="muted">
-              <%= gettext("Tax-free trim budget at this institution: %{value}.",
-                value: Format.money(Budget.tax_free_trim_budget(entry.row))
-              ) %>
-            </p>
+              <dl class="tax-statement__figures">
+                <div>
+                  <dt><%= field_label(:taxable_income) %></dt>
+                  <dd><%= printed(:taxable_income, entry.row.taxable_income) %></dd>
+                </div>
+                <div>
+                  <dt><%= gettext("Allowance granted / used") %></dt>
+                  <dd><%= printed_group(entry.row, [:allowance_granted, :allowance_used]) %></dd>
+                </div>
+                <div>
+                  <dt><%= gettext("Loss pots: equities / other / carry-forward") %></dt>
+                  <dd>
+                    <%= printed_group(entry.row, [
+                      :loss_pot_equities,
+                      :loss_pot_other,
+                      :loss_carryforward_prior_years
+                    ]) %>
+                  </dd>
+                </div>
+                <div>
+                  <dt><%= gettext("Foreign withholding: pot / credited") %></dt>
+                  <dd>
+                    <%= printed_group(entry.row, [:withholding_tax_pot, :withholding_tax_credited]) %>
+                  </dd>
+                </div>
+                <div>
+                  <dt><%= gettext("Withheld: capital-gains tax / solidarity surcharge / church tax") %></dt>
+                  <dd>
+                    <%= printed_group(entry.row, [
+                      :capital_gains_tax_withheld,
+                      :solidarity_surcharge_withheld,
+                      :church_tax_withheld
+                    ]) %>
+                  </dd>
+                </div>
+              </dl>
 
-            <ul :if={entry.findings != []} class="tax-findings">
-              <li :for={finding <- entry.findings} class="alert-warning"><%= finding_text(finding) %></li>
-            </ul>
+              <p class="summary-basis">
+                <%= gettext("Tax-free trim budget at this institution: %{value}.",
+                  value: Format.money(Budget.tax_free_trim_budget(entry.row))
+                ) %>
+              </p>
 
-            <p :if={entry.row.note} class="muted"><%= entry.row.note %></p>
-          </article>
-        </section>
+              <%!-- Each consistency finding is a data note with the check
+                   control inside (UX-DR17); one status region per row. --%>
+              <div :if={entry.findings != []} class="tax-statement__notes" role="status">
+                <AppShell.data_note
+                  :for={finding <- entry.findings}
+                  severity={:attention}
+                  data-role="statement-finding"
+                >
+                  <%= finding_text(finding) %>
+                  <%= if order_finding?(finding) do %>
+                    <button type="button" class="link-button" phx-click="toggle_form" phx-value-form="order">
+                      <%= gettext("Adjust the allowance orders") %>
+                    </button>
+                  <% else %>
+                    <button
+                      type="button"
+                      class="link-button"
+                      phx-click="edit_statement"
+                      phx-value-id={entry.row.id}
+                    >
+                      <%= gettext("Check against the statement") %>
+                    </button>
+                  <% end %>
+                </AppShell.data_note>
+              </div>
 
-        <section class="workspace-section">
-          <header class="section-head">
-            <h2><%= gettext("Configured Freistellungsaufträge") %></h2>
-          </header>
-
-          <p :if={@order_errors} class="alert-error" role="alert"><%= error_text(@order_errors) %></p>
-
-          <p class="muted">
-            <%= gettext(
-              "What was instructed per institution, for comparison against what the bank applied."
-            ) %>
-          </p>
-
-          <ul class="tax-orders">
-            <li :for={order <- @orders}>
-              <span><%= order.institution %></span>
-              <span><%= Format.money(order.amount_granted) %></span>
-              <button
-                type="button"
-                class="button button-secondary"
-                phx-click="delete_allowance_order"
-                phx-value-id={order.id}
-                data-confirm={gettext("Delete this allowance order?")}
-              >
-                <%= gettext("Delete") %>
-              </button>
+              <p :if={entry.row.note} class="hint"><%= entry.row.note %></p>
             </li>
           </ul>
 
-          <form id="tax-order-form" phx-submit="put_allowance_order" class="tax-order-form">
-            <label>
-              <%= gettext("Institution") %>
-              <input type="text" name="order[institution]" required />
-            </label>
-            <label>
-              <%= gettext("Amount granted") %>
-              <input type="text" inputmode="decimal" name="order[amount_granted]" required />
-            </label>
-            <button type="submit" class="button"><%= gettext("Record order") %></button>
-          </form>
+          <%!-- The configured orders behind a disclosure carrying their
+               purpose line (UX-DR11 inventory, tax_live.ex:502). --%>
+          <details class="tax-orders-disclosure" data-role="orders">
+            <summary class="disclosure-summary">
+              <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
+              <%= gettext("Configured allowance orders") %> · <%= orders_summary(@orders) %>
+            </summary>
+            <p class="summary-basis">
+              <%= gettext(
+                "What was instructed per institution, for comparison against what the bank applied."
+              ) %>
+            </p>
+            <ul :if={@orders != []} class="tax-orders" role="list">
+              <li :for={order <- @orders} id={"tax-order-#{order.id}"}>
+                <span><%= order.institution %></span>
+                <span class="num"><%= Format.money(order.amount_granted) %></span>
+                <button
+                  type="button"
+                  id={"tax-row-kebab-order-#{order.id}"}
+                  class="row-actions__kebab"
+                  phx-click="open_row_menu"
+                  phx-value-kind="order"
+                  phx-value-id={order.id}
+                  aria-label={gettext("Open actions menu")}
+                  aria-haspopup="menu"
+                  aria-expanded={@row_menu == {:order, order.id}}
+                >
+                  <AppShell.icon name={:ellipsis_vertical} />
+                </button>
+              </li>
+            </ul>
+          </details>
         </section>
       </div>
+
+      <.row_menu :if={@row_menu} menu={@row_menu} />
     </AppShell.shell>
+    """
+  end
+
+  # The row menu: the shared shell, positioned on its kebab.
+  attr(:menu, :any, required: true)
+
+  defp row_menu(%{menu: {:statement, id}} = assigns) do
+    assigns = assign(assigns, :id, id)
+
+    ~H"""
+    <AppShell.row_menu
+      id={"tax-row-menu-statement-#{@id}"}
+      trigger={"tax-row-kebab-statement-#{@id}"}
+      label={gettext("Statement actions")}
+    >
+      <button
+        type="button"
+        class="row-context-menu__item"
+        role="menuitem"
+        phx-click="edit_statement"
+        phx-value-id={@id}
+      >
+        <AppShell.icon name={:edit} />
+        <span><%= gettext("Correct") %></span>
+      </button>
+      <button
+        type="button"
+        class="row-context-menu__item row-context-menu__item--danger"
+        role="menuitem"
+        phx-click="delete_statement"
+        phx-value-id={@id}
+        data-confirm={gettext("Delete this recorded statement?")}
+      >
+        <AppShell.icon name={:trash} />
+        <span><%= gettext("Delete") %></span>
+      </button>
+    </AppShell.row_menu>
+    """
+  end
+
+  defp row_menu(%{menu: {:order, id}} = assigns) do
+    assigns = assign(assigns, :id, id)
+
+    ~H"""
+    <AppShell.row_menu
+      id={"tax-row-menu-order-#{@id}"}
+      trigger={"tax-row-kebab-order-#{@id}"}
+      label={gettext("Allowance order actions")}
+    >
+      <button
+        type="button"
+        class="row-context-menu__item row-context-menu__item--danger"
+        role="menuitem"
+        phx-click="delete_allowance_order"
+        phx-value-id={@id}
+        data-confirm={gettext("Delete this allowance order?")}
+      >
+        <AppShell.icon name={:trash} />
+        <span><%= gettext("Delete") %></span>
+      </button>
+    </AppShell.row_menu>
     """
   end
 end

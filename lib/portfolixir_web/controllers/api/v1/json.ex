@@ -1843,6 +1843,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       as_of: date(summary.as_of),
       loss_pot_equities: decimal(summary.loss_pot_equities),
       loss_pot_other: decimal(summary.loss_pot_other),
+      allowance_granted: decimal(summary.allowance_granted),
+      allowance_used: decimal(summary.allowance_used),
       allowance_remaining: decimal(summary.allowance_remaining),
       tax_free_trim_budget: decimal(summary.tax_free_trim_budget),
       allowance_ceiling: decimal(summary.allowance_ceiling),

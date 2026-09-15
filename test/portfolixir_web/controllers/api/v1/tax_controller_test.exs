@@ -258,6 +258,10 @@ defmodule PortfolixirWeb.Api.V1.TaxControllerTest do
       get_json(conn, "/api/v1/tax/trim_budget?holder=Owner&tax_year=2025") |> json_response(200)
 
     assert body["data"]["tax_free_trim_budget"] == "3100"
+    # The allowance totals the fill level is read from (issue 795): sums over
+    # the latest statement per institution, like the remaining amount.
+    assert body["data"]["allowance_granted"] == "1000"
+    assert body["data"]["allowance_used"] == "400"
     assert body["data"]["as_of"] == "2025-12-31"
     assert body["data"]["institutions"] == ["Bank A"]
     assert body["data"]["complete"] == false
