@@ -1200,7 +1200,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                      in the same active treatment as a preset token — the
                      control must answer "what am I looking at". --%>
                 <button
-                  :if={match?({:range, _, _}, @period)}
+                  :if={custom_period?(@period)}
                   type="button"
                   class="segmented-control__option is-active"
                   data-role="custom-period-chip"
@@ -1209,68 +1209,92 @@ defmodule PortfolixirWeb.PortfolioLive do
                   <%= custom_period_label(@period) %>
                 </button>
               </div>
-              <details class="period-disclosure" data-role="period-custom">
+              <%!-- #801 (review C5, variant A): the custom range is a popover
+                   on its trigger — from/to in one row, the walked years as
+                   chips, Cancel and Apply — so the heading and the chart
+                   stay put; Esc closes it and returns focus; an applied year
+                   or range closes it through the close-popover event. --%>
+              <details
+                id="period-custom"
+                class="period-disclosure"
+                data-role="period-custom"
+                phx-hook="PopoverDisclosure"
+              >
                 <summary class="disclosure-summary">
                   <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
                   <%= gettext("Custom range…") %>
                 </summary>
-                <div class="period-disclosure__body">
-                  <%!-- #563: a single previous year and a custom range are
-                       pure re-chains of the cached analysis, exactly like
-                       the buttons — no new walk. --%>
-                  <form
-                    id="period-year-form"
-                    class="period-year"
-                    phx-change="select_year"
-                    data-role="period-year"
-                  >
-                    <label class="visually-hidden" for="performance-year"><%= gettext("Year") %></label>
-                    <select
-                      id="performance-year"
-                      name="year"
-                      disabled={available_years(@analysis) == []}
-                    >
-                      <option value="" selected={not match?({:year, _year}, @period)}>
-                        <%= gettext("Year…") %>
-                      </option>
-                      <option
-                        :for={year <- available_years(@analysis)}
-                        value={year}
-                        selected={@period == {:year, year}}
-                      >
-                        <%= year %>
-                      </option>
-                    </select>
-                  </form>
+                <div class="period-disclosure__body period-popover">
                   <%!-- #721 (D5): a labelled pair that validates as a
                        range — the violation lands on the field that can fix
                        it, never on a silently empty chart. --%>
                   <form class="period-range" phx-submit="select_range" data-role="period-range">
-                    <label for="performance-from"><%= gettext("From") %></label>
-                    <input
-                      type="text"
-                      placeholder="YYYY-MM-DD"
-                      pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
-                      maxlength="10"
-                      id="performance-from"
-                      name="from"
-                      value={range_from(@period, @performance)}
-                      aria-invalid={@range_error == :from && "true"}
-                      aria-describedby={@range_error == :from && "performance-range-error"}
-                    />
-                    <label for="performance-to"><%= gettext("To") %></label>
-                    <input
-                      type="text"
-                      placeholder="YYYY-MM-DD"
-                      pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
-                      maxlength="10"
-                      id="performance-to"
-                      name="to"
-                      value={range_to(@period, @performance)}
-                      aria-invalid={@range_error in [:to, :order] && "true"}
-                      aria-describedby={@range_error in [:to, :order] && "performance-range-error"}
-                    />
-                    <button type="submit"><%= gettext("Apply") %></button>
+                    <div class="period-range__pair">
+                      <div class="period-range__field">
+                        <label for="performance-from"><%= gettext("From") %></label>
+                        <input
+                          type="text"
+                          placeholder="YYYY-MM-DD"
+                          pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                          maxlength="10"
+                          id="performance-from"
+                          name="from"
+                          value={range_from(@period, @performance)}
+                          aria-invalid={@range_error == :from && "true"}
+                          aria-describedby={@range_error == :from && "performance-range-error"}
+                        />
+                      </div>
+                      <span class="period-range__dash" aria-hidden="true">–</span>
+                      <div class="period-range__field">
+                        <label for="performance-to"><%= gettext("To") %></label>
+                        <input
+                          type="text"
+                          placeholder="YYYY-MM-DD"
+                          pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                          maxlength="10"
+                          id="performance-to"
+                          name="to"
+                          value={range_to(@period, @performance)}
+                          aria-invalid={@range_error in [:to, :order] && "true"}
+                          aria-describedby={@range_error in [:to, :order] && "performance-range-error"}
+                        />
+                      </div>
+                    </div>
+                      <p
+                      :if={@range_error}
+                      id="performance-range-error"
+                      class="hint"
+                      data-role="range-error"
+                      role="alert"
+                      >
+                      <%= range_error_message(@range_error) %>
+                      </p>
+                    <%!-- #563: a single previous year is a pure re-chain of
+                         the cached analysis, exactly like the buttons — no
+                         new walk. --%>
+                    <div class="period-years" data-role="period-year" role="group" aria-label={gettext("Year")}>
+                      <button
+                        :for={year <- available_years(@analysis)}
+                        type="button"
+                        class={["filter-chip", @period == {:year, year} && "is-active"]}
+                        aria-pressed={to_string(@period == {:year, year})}
+                        phx-click="select_year"
+                        phx-value-year={year}
+                      >
+                        <%= year %>
+                      </button>
+                    </div>
+                    <div class="period-popover__foot">
+                      <button
+                        type="button"
+                        id="period-custom-cancel"
+                        class="button-ghost"
+                        phx-click={Phoenix.LiveView.JS.remove_attribute("open", to: "#period-custom")}
+                      >
+                        <%= gettext("Cancel") %>
+                      </button>
+                      <button type="submit" class="button-primary"><%= gettext("Apply") %></button>
+                    </div>
                   </form>
                 </div>
               </details>
@@ -1345,15 +1369,6 @@ defmodule PortfolixirWeb.PortfolioLive do
           </header>
           <%!-- #563: a backwards or unparsable range is refused with a terse
                note; the shown period keeps. --%>
-          <p
-            :if={@range_error}
-            id="performance-range-error"
-            class="hint"
-            data-role="range-error"
-            role="alert"
-          >
-            <%= range_error_message(@range_error) %>
-          </p>
           <%!-- ADR-0032 §6: a superseded series never renders unlabelled. The
                banner names the data it CONTAINS (booking count, newest booking,
                compute time), not just its age; a failed recomputation flips to
@@ -3913,9 +3928,13 @@ defmodule PortfolixirWeb.PortfolioLive do
       {:noreply,
        socket
        |> assign(period: period, performance: performance)
-       |> assign_comparisons()}
+       |> assign_comparisons()
+       |> push_event("close-popover", %{id: "period-custom"})}
     else
-      {:noreply, assign(socket, :period, period)}
+      {:noreply,
+       socket
+       |> assign(:period, period)
+       |> push_event("close-popover", %{id: "period-custom"})}
     end
   end
 
@@ -4007,8 +4026,16 @@ defmodule PortfolixirWeb.PortfolioLive do
     end
   end
 
+  # #801: a picked year is a custom period too — it lives in the popover, so
+  # the segmented group has to echo it the way it echoes a range.
+  defp custom_period?({:range, _from, _to}), do: true
+  defp custom_period?({:year, _year}), do: true
+  defp custom_period?(_period), do: false
+
   defp custom_period_label({:range, from, to}),
     do: "#{Date.to_iso8601(from)} – #{Date.to_iso8601(to)}"
+
+  defp custom_period_label({:year, year}), do: Integer.to_string(year)
 
   defp range_error_message(:order),
     do: gettext("The end date is before the start date.")

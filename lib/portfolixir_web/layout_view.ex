@@ -772,6 +772,51 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
+            // #801: a <details> popover on its trigger. Esc closes it and
+            // returns focus to the summary; the server closes it with
+            // "close-popover" (naming the details id) once a choice applied.
+            Hooks.PopoverDisclosure = {
+              mounted: function () {
+                var self = this;
+                this.open = this.el.open;
+                // The native summary toggle is the user's choice; a server
+                // patch of the popover's body (a refused range reporting
+                // its violation) must not close it. LiveView removes every
+                // attribute the server did not render — `open` included —
+                // so the hook remembers the toggle and restores it after
+                // each patch.
+                this.onToggle = function () {
+                  self.open = self.el.open;
+                };
+                this.onKeydown = function (e) {
+                  if (e.key === "Escape" && self.el.open) {
+                    e.preventDefault();
+                    self.closeAndFocus();
+                  }
+                };
+                this.el.addEventListener("toggle", this.onToggle);
+                this.el.addEventListener("keydown", this.onKeydown);
+                this.handleEvent("close-popover", function (payload) {
+                  if (payload && payload.id === self.el.id && self.el.open) {
+                    self.closeAndFocus();
+                  }
+                });
+              },
+              updated: function () {
+                if (this.open && !this.el.open) this.el.setAttribute("open", "");
+              },
+              destroyed: function () {
+                this.el.removeEventListener("toggle", this.onToggle);
+                this.el.removeEventListener("keydown", this.onKeydown);
+              },
+              closeAndFocus: function () {
+                this.open = false;
+                this.el.removeAttribute("open");
+                var summary = this.el.querySelector("summary");
+                if (summary && typeof summary.focus === "function") summary.focus();
+              }
+            };
+
             // The ninth inline hook (owner decision 2026-08-05, DESIGN.md →
             // Motion): a cosmetic count-up to an already-known final value.
             // requestAnimationFrame drives the count, Intl.NumberFormat

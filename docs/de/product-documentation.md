@@ -1036,15 +1036,21 @@ Abschnitt füllt sich, sobald seine Daten bereit sind. Der teure tägliche
 Performance-Lauf läuft einmal und wird auf der Seite zwischengespeichert — ein
 Zeitraumwechsel verkettet die zwischengespeicherte Reihe neu, sodass die
 Zeitraumauswahl sofort reagiert. Die Zeitraum-Tokens (YTD, 1Y, 3Y, 5Y, Max)
-und der %/Wert-Umschalter sind segmentierte Controls; die Wahl eines früheren
-Jahres und ein Von/Bis-Zeitraum (ISO-Daten, `YYYY-MM-DD`) liegen hinter der
-Aufklappung **Benutzerdefinierter Zeitraum …** daneben. Das Von/Bis-Paar ist
-beschriftet und validiert als Zeitraum (Issue #721): eine verdrehte oder
-unlesbare Eingabe wird mit der Meldung am korrigierbaren Feld abgelehnt, und
-ein angewendeter Zeitraum zeigt sich als aktiver Chip mit den aufgelösten
-Daten in der Zeitraumauswahl — das Bedienelement beantwortet immer „was sehe
-ich gerade". Der Custom-Zeitraum des Wertpapier-Detailcharts verhält sich
-genauso. Der Chart wird auf
+und der %/Wert-Umschalter sind segmentierte Controls; ein Von/Bis-Zeitraum
+(ISO-Daten, `YYYY-MM-DD`) und die durchlaufenen Kalenderjahre liegen hinter
+dem Bedienelement **Benutzerdefinierter Zeitraum …** daneben. Es öffnet ein
+kleines Popover am Bedienelement selbst (Issue #801): das Von/Bis-Paar in
+einer Zeile, je ein Chip pro Jahr mit Daten, **Abbrechen** und **Anwenden**
+— die Abschnittsüberschrift und der Chart bleiben, wo sie sind. Ein
+Jahres-Chip wendet beim Klick an; Esc oder Abbrechen schließt das Popover und
+gibt den Fokus an das Bedienelement zurück. Das Von/Bis-Paar ist beschriftet
+und validiert als Zeitraum (Issue #721): eine verdrehte oder unlesbare
+Eingabe wird mit der Meldung am korrigierbaren Feld abgelehnt, und das
+Popover bleibt offen, bis sie korrigiert ist; ein angewendeter Zeitraum oder
+ein Jahr schließt es und zeigt sich als aktiver Chip mit den aufgelösten
+Daten (oder dem Jahr) in der Zeitraumauswahl — das Bedienelement beantwortet
+immer „was sehe ich gerade". Der Custom-Zeitraum des Wertpapier-Detailcharts
+verhält sich genauso. Der Chart wird auf
 eine begrenzte Punktzahl
 heruntergerechnet, sodass ein Jahrzehnt täglicher Historie im Browser leicht
 bleibt. Die Aufklappung **Daten als Tabelle** unter dem Chart enthält

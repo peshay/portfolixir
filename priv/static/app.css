@@ -2667,8 +2667,7 @@ img.security-logo {
   }
 
   .detail-pane-toolbar .range-buttons,
-  .detail-pane-toolbar .chart-toggles,
-  .detail-custom-range {
+  .detail-pane-toolbar .chart-toggles {
     flex-wrap: wrap;
   }
 
@@ -3233,28 +3232,6 @@ input[pattern]:invalid:not(:placeholder-shown) {
   background: var(--color-selected);
   color: var(--color-accent);
   font-weight: 600;
-}
-
-.detail-custom-range {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: 12px;
-}
-
-.detail-custom-range input[type="date"] {
-  padding: 4px 6px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-bg);
-  color: var(--color-text);
-  font: inherit;
-}
-
-.detail-custom-range[data-active="true"] {
-  outline: 1px dashed var(--color-accent-soft);
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
 }
 
 .chart-ma-30 {
@@ -7752,5 +7729,82 @@ dialog.booking-drawer {
   .tree-head__num:nth-child(2),
   .tree-head__num:nth-child(4) {
     display: none;
+  }
+}
+
+/* ===== Custom range popover (issue 801, review C5 variant A) ===== */
+/* The disclosure body floats on its trigger, so the section heading and the
+   chart stay put; from/to in one row, the walked years as chips, Cancel and
+   Apply at the foot. The benchmark picker keeps the in-flow body. */
+.period-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  display: grid;
+  gap: var(--space-2);
+  min-width: 300px;
+  max-width: min(380px, calc(100vw - 32px));
+  margin: 0;
+  padding: 14px;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+}
+
+.period-popover .period-range {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.period-range__pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  gap: var(--space-2);
+}
+
+.period-range__field {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.period-range__field label {
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.period-range__field input {
+  width: 100%;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.period-range__dash {
+  padding-bottom: 8px;
+  color: var(--color-text-muted);
+}
+
+.period-years {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.period-popover__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+@media (max-width: 720px) {
+  .period-popover {
+    right: auto;
+    left: 0;
   }
 }
