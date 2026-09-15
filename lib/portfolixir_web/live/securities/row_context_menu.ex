@@ -133,6 +133,26 @@ defmodule PortfolixirWeb.Securities.RowContextMenu do
         </span>
       </button>
 
+      <%!-- ADR-0046 §1 (#572): the benchmark flag — a reference series the
+           Wealth page compares against; never offered for booking. --%>
+      <button
+        type="button"
+        class="row-context-menu__item"
+        role="menuitem"
+        phx-click="row_action"
+        phx-value-action="benchmark"
+        phx-value-id={@security.id}
+      >
+        <AppShell.icon name={:compass} />
+        <span>
+          <%= if @security.is_benchmark do %>
+            <%= gettext("Unmark benchmark") %>
+          <% else %>
+            <%= gettext("Mark as benchmark") %>
+          <% end %>
+        </span>
+      </button>
+
       <button
         type="button"
         class="row-context-menu__item row-context-menu__item--danger"

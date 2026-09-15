@@ -3471,6 +3471,25 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:action_result, nil)}
   end
 
+  # ADR-0046 §1 (#572): the benchmark flag from the row menu.
+  defp dispatch_row_action(socket, "benchmark", %Security{} = sec) do
+    case Catalog.update_security(Actor.owner_ui(), sec, %{is_benchmark: !sec.is_benchmark}) do
+      {:ok, _updated} ->
+        flash =
+          if sec.is_benchmark,
+            do: gettext("%{name} is no longer a benchmark", name: sec.name),
+            else: gettext("Marked %{name} as benchmark", name: sec.name)
+
+        {:noreply,
+         socket
+         |> put_action_result(:note, flash)
+         |> load_securities()}
+
+      {:error, _changeset} ->
+        {:noreply, put_action_result(socket, :problem, gettext("Could not change status."))}
+    end
+  end
+
   defp dispatch_row_action(socket, "retire", %Security{} = sec) do
     case Catalog.update_security(Actor.owner_ui(), sec, %{is_retired: !sec.is_retired}) do
       {:ok, _updated} ->

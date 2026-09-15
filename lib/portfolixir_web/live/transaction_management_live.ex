@@ -752,7 +752,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # portfolio-bound positions read; depot ids are globally unique, so the
   # concatenated position keys never collide.
   defp load_state(socket) do
-    securities = Catalog.list_securities()
+    # A benchmark security is never offered for booking (ADR-0046 §1); the
+    # history filter builds its own list from the transactions present.
+    securities = Catalog.list_securities(is_benchmark: false)
     securities_accounts = Portfolios.list_securities_accounts()
     cash_accounts = Portfolios.list_cash_accounts()
     transactions = Ledger.list_transactions()

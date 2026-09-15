@@ -34,6 +34,8 @@ defmodule Portfolixir.Catalog do
     * `:sort` – `{field_key, :asc | :desc}`, default `{:name, :asc}`
     * `:limit` – cap the number of rows returned (for pagination)
     * `:offset` – skip this many rows (for pagination)
+    * `:is_benchmark` – `true` lists only the benchmark securities
+      (ADR-0046 §1), `false` leaves them out; absent lists both
   """
   def list_securities(opts \\ []) when is_list(opts) do
     sort = opts[:sort] || {:name, :asc}
@@ -43,6 +45,7 @@ defmodule Portfolixir.Catalog do
     |> apply_query(opts[:query])
     |> apply_filters(opts[:filters] || [])
     |> apply_holding_status(opts[:holding_status])
+    |> apply_is_benchmark(opts[:is_benchmark])
     |> apply_logo_status(opts[:logo_status])
     |> apply_updated_since(opts[:updated_since])
     |> apply_currencies(opts[:currencies])
@@ -665,8 +668,8 @@ defmodule Portfolixir.Catalog do
 
   defp string_to_security_key do
     ~w(name ticker_symbol isin wkn currency_code exchange_code asset_class
-       note feed feed_url latest_feed latest_feed_url is_retired
-       online_id provider)a
+       note feed feed_url latest_feed latest_feed_url is_retired is_benchmark
+       treat_quotes_as_raw online_id provider)a
     |> Enum.map(fn key -> {Atom.to_string(key), key} end)
     |> Map.new()
   end
@@ -735,6 +738,12 @@ defmodule Portfolixir.Catalog do
         )
     end
   end
+
+  # ADR-0046 §1: the booking forms, the import mapping and the catalog-hygiene
+  # checks ask for `false`; the securities read offers both directions.
+  defp apply_is_benchmark(query, nil), do: query
+  defp apply_is_benchmark(query, true), do: from(s in query, where: s.is_benchmark == true)
+  defp apply_is_benchmark(query, false), do: from(s in query, where: s.is_benchmark == false)
 
   defp normalize_holding_status(nil), do: :all
   defp normalize_holding_status(""), do: :all

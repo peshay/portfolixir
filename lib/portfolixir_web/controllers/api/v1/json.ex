@@ -61,6 +61,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     :latest_feed,
     :latest_feed_url,
     :is_retired,
+    :is_benchmark,
     :treat_quotes_as_raw,
     :online_id,
     :provider,
@@ -89,6 +90,10 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       latest_feed: security.latest_feed,
       latest_feed_url: security.latest_feed_url,
       is_retired: security.is_retired,
+      # ADR-0046 §1: a benchmark security — listable with is_benchmark=,
+      # never offered in a booking form, compared against by the performance
+      # benchmark reads.
+      is_benchmark: security.is_benchmark,
       # ADR-0028 §2 escape hatch: forces the raw quote basis for this
       # security's provider-synced rows (providers that never back-adjust).
       treat_quotes_as_raw: security.treat_quotes_as_raw,

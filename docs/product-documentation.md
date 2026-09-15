@@ -250,6 +250,15 @@ writable over the API and MCP (`/api/v1/securities/:id/notes` and the
 positions with no entry for N days, entries that still need corroboration,
 and dated blocks expiring within N days.
 
+**Benchmark securities.** A security can be marked as a benchmark from its
+row menu ("Mark as benchmark"): a reference series the portfolio is compared
+against — an index proxied by an ETF, gold by an ETC — fed by the ordinary
+quote sync, so there is no second quote source. A benchmark is never offered
+in a booking form and the catalog's data-quality reminders (stale or missing
+quote, missing logo) leave it alone; it may still be held, and then it is
+simply both. The API lists benchmarks with `is_benchmark=true`. What the
+comparison shows is described under Performance.
+
 ## Accounts and Depots
 
 The bookkeeping entities are cash accounts and depots:

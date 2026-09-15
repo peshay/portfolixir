@@ -2297,6 +2297,38 @@ describe("Portfolixir MCP tools", () => {
     await assert.rejects(callTool(client, "portfolixir.securities.list", { limit: 0 }));
   });
 
+  // ADR-0046 §1/§4: the benchmark flag rides the securities read as a filter
+  // and the writes as a field.
+  it("forwards is_benchmark on the securities read and the writes", async () => {
+    const { client, requests } = createRecordingClient({ data: [] });
+
+    await callTool(client, "portfolixir.securities.list", { is_benchmark: true });
+    await callTool(client, "portfolixir.securities.list", { is_benchmark: false, limit: 5 });
+    await callTool(client, "portfolixir.securities.create", {
+      security: { name: "World Index ETF", currency_code: "EUR", is_benchmark: true }
+    });
+    await callTool(client, "portfolixir.securities.update", {
+      id: 7,
+      security: { is_benchmark: false }
+    });
+
+    assert.deepEqual(
+      requests.map((request) => request.path),
+      [
+        "/api/v1/securities?is_benchmark=true",
+        "/api/v1/securities?is_benchmark=false&limit=5",
+        "/api/v1/securities",
+        "/api/v1/securities/7"
+      ]
+    );
+    assert.deepEqual(requests[2].body, {
+      security: { name: "World Index ETF", currency_code: "EUR", is_benchmark: true }
+    });
+    assert.deepEqual(requests[3].body, { security: { is_benchmark: false } });
+
+    await assert.rejects(callTool(client, "portfolixir.securities.list", { is_benchmark: "yes" }));
+  });
+
   // Issue #776: the limit surface finished — the four research-log reads, the
   // snapshot list and the three cash-flow roll-ups take limit on both halves;
   // the trades read keeps from/to as its bound and carries no limit.

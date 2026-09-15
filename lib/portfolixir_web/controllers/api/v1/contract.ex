@@ -56,7 +56,8 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "GET /api/v1/realized_gains, /external_flows and /costs and the portfolixir.cashflow.* twins take limit= as a number of years (default 100, maximum 1000): the newest years of the annual matrix, computation_basis.window naming a cut (#776)",
         "GET /api/v1/securities/:security_id/trades and portfolixir.trades.list take no limit: from/to is the bound, stated in the payload's basis (#776)",
         "The eight bounded reads answer the limit they applied as limit in the data envelope; a malformed limit is 422 (#776)",
-        "GET /api/v1/portfolios/:portfolio_id/valuation, /views/:view_id/valuation and /holdings/by_security and their MCP twins: every position carries price_date, and the two valuations carry stale_priced_count — quoted positions whose quote is older than the data-quality threshold (#779, #610)"
+        "GET /api/v1/portfolios/:portfolio_id/valuation, /views/:view_id/valuation and /holdings/by_security and their MCP twins: every position carries price_date, and the two valuations carry stale_priced_count — quoted positions whose quote is older than the data-quality threshold (#779, #610)",
+        "GET /api/v1/securities and portfolixir.securities.list take is_benchmark=true|false; the securities read, create and update carry the is_benchmark field (ADR-0046 §1, #572)"
       ],
       removed_endpoints: [],
       removed_tools: []
