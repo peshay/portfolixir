@@ -781,13 +781,24 @@ Datenbank ist sie der Onboarding-Assistent (der geordnete Workflow-Pfad plus
 Zähler). Sobald Transaktionen existieren, zeigt sie eine **Wert-Karte,
 eingegrenzt auf die Standard-Ansicht** — **Alles**, wenn keine gesetzt ist
 (ADR-0024: Ansichten, nicht Portfolios, sind das, worüber die Übersicht
-aggregiert) — mit dem Gesamtwert inkl. Cash, der **YTD-TTWROR** als
-Änderungssignal und der Cash-Quote, eine Liste
+aggregiert) — mit dem Gesamtwert inkl. Cash und der **YTD-TTWROR** als
+Änderungssignal — darunter die **Kennzahlenleiste** (UX-DR2 in der Fassung
+vom 2026-09-14, Issue #798): vier Zellen, jede verlinkt auf die Oberfläche,
+der die Zahl gehört — die **TTWROR 1J** mit ihrem IRR (bei kürzerer
+Historie die Perioden-MWR) führt zum Vermögen, die **Cashquote** mit dem
+Cash-Betrag zum Vermögen, die **letzte Buchung** mit Datum, Art und Konto
+oder Wertpapier zu den Transaktionen, und die **Kursaktualität**, das Datum
+des neuesten gespeicherten Kurses über die gehaltenen Positionen, zur auf
+veraltete Kurse vorgefilterten Wertpapierliste; ihre Unterzeile „n veraltet"
+erscheint nur, wenn es veraltete Kurse gibt (sonst das Datum allein — ein
+Fakt, kein „alles in Ordnung"), und eine Basiszeile unter der Leiste nennt
+Ansicht, Zeitraum und Währung — eine Liste
 **Ziel-Abweichungen** (Issue #718 — die Karte ist nach ihrem Inhalt benannt,
 gemäß UX-DR21) — jede Kategorie mit Ziel, deren Allokations-Drift
 **±5 Prozentpunkte** überschreitet (ADR-0023-Vorzeichen: positiv =
-übergewichtet), schlimmste zuerst, jeweils verlinkt in den Tab „Allokation &
-Ziele" des Vermögens-Bereichs, unter einer Basiszeile, die Ansicht,
+übergewichtet), schlimmste zuerst, jede Zeile mit einem dekorativen
+Drift-Balken um die Null neben ihrem Text und verlinkt in den Tab
+„Allokation & Ziele" des Vermögens-Bereichs, unter einer Basiszeile, die Ansicht,
 Klassifikationsbaum und aktiven Plan nennt, gegen den die Drift gerechnet
 wird (oder dass mehrere Pläne aktiv sind oder keiner) — und die
 **Datenqualitätszeile**: ein Hinweis,

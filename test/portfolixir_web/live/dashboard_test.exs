@@ -73,6 +73,8 @@ defmodule PortfolixirWeb.DashboardTest do
 
     assert has_element?(view, "#workflow-path")
     refute has_element?(view, "#dashboard-overview")
+    # The KPI strip is absent in the empty state (UX-DR2 as amended 2026-09-14).
+    refute has_element?(view, "#dashboard-kpi-strip")
   end
 
   # User story (Steve UAT #337, reshaped by ADR-0022 and ADR-0024):
@@ -335,6 +337,17 @@ defmodule PortfolixirWeb.DashboardTest do
     assert alert =~ "40.0"
     assert alert =~ "above target"
     assert alert =~ "480.00"
+
+    # #798 (UX-DR2 as amended 2026-09-14): each row also carries a decorative
+    # drift bar around zero — sign, colour and the direction word stay the
+    # accessible channels, so the bar is aria-hidden.
+    assert alert =~ ~s(class="drift-bar" aria-hidden="true")
+    assert alert =~ ~s(drift-bar__fill is-over)
+
+    under =
+      view |> element(~s(#dashboard-attention [data-role="drift-alert"]), "Cash") |> render()
+
+    assert under =~ ~s(drift-bar__fill is-under)
 
     # ADR-0024: the internal portfolio iterated as the drift mechanism is not
     # surfaced as a grouping label on the alert.

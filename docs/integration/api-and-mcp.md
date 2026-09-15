@@ -657,6 +657,10 @@ Example account payloads:
   (the same `?dq=stale_quote` day count) — the remedy is the security's
   `is_retired` flag, which the performance walk keys on, or a quote sync; a
   retired holding is therefore not counted, its stale close is expected.
+  The top-level `newest_quote_date` is the newest stored quote date across
+  the quoted, non-retired positions (`null` when none is quote-priced) — the
+  freshness fact the Overview's key-figure strip shows; the view valuation
+  carries both fields as well.
   A position with neither price **or** no
   exchange-rate path to the base currency is returned with `valued: false`,
   `price_source: null` and `null` market value and weight, so a missing price

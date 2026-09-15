@@ -769,6 +769,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       unvalued_count: valuation.unvalued_count,
       trade_priced_count: valuation.trade_priced_count,
       stale_priced_count: valuation.stale_priced_count,
+      newest_quote_date: newest_quote_date(valuation),
       positions_included: include_positions?,
       cash_balances: Enum.map(valuation.cash_balances, &valuation_cash/1)
     }
@@ -785,7 +786,9 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       "hub at each position's stored rate; `price_source`, `price_date` and " <>
       "`valued` indicate per-position price staleness (stale_priced_count " <>
       "counts quoted positions whose quote is older than the data-quality " <>
-      "threshold), and `unvalued_reason` says " <>
+      "threshold; newest_quote_date is the newest stored quote date across " <>
+      "the quoted, non-retired positions, null when none is quote-priced), " <>
+      "and `unvalued_reason` says " <>
       "why a position is unvalued (no_price: nothing resolves; missing_fx: " <>
       "latest_price/price_currency are known but no stored rate path " <>
       "reaches the base currency)."
@@ -815,6 +818,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       unvalued_count: valuation.unvalued_count,
       trade_priced_count: valuation.trade_priced_count,
       stale_priced_count: valuation.stale_priced_count,
+      newest_quote_date: newest_quote_date(valuation),
       overlap: view_overlap(valuation.overlap),
       # Whether the view's resolution matches no account at all (fix round):
       # clients can hint "matches no accounts" instead of a silent 0 total.
@@ -836,10 +840,18 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     "Totals are in #{base_currency} across ALL portfolios, converted via the " <>
       "EUR hub; each account matching the view counts exactly once, however " <>
       "many included buckets it carries (`overlap` lists the multi-bucket " <>
-      "accounts). `price_source` and `valued` indicate per-position price " <>
-      "staleness, and `unvalued_reason` says why a position is unvalued " <>
-      "(no_price | missing_fx)."
+      "accounts). `price_source`, `price_date` and `valued` indicate " <>
+      "per-position price staleness (stale_priced_count counts quoted " <>
+      "positions whose quote is older than the data-quality threshold; " <>
+      "newest_quote_date is the newest stored quote date across the quoted, " <>
+      "non-retired positions, null when none is quote-priced), and " <>
+      "`unvalued_reason` says why a position is unvalued (no_price | missing_fx)."
   end
+
+  # #798: the freshness read, ISO-dated; absent or nil when no held position
+  # is quote-priced.
+  defp newest_quote_date(%{newest_quote_date: %Date{} = date}), do: Date.to_iso8601(date)
+  defp newest_quote_date(_valuation), do: nil
 
   defp view_overlap(overlap) do
     %{

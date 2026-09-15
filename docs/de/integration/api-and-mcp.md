@@ -669,7 +669,11 @@ Beispiel-Payloads für Konten:
   Tageszahl wie `?dq=stale_quote`) — das Mittel ist das `is_retired`-Kennzeichen
   des Wertpapiers, auf das der Performance-Lauf reagiert, oder eine
   Kurssynchronisation; eine eingestellte Position wird deshalb nicht gezählt,
-  ihr alter Schlusskurs ist erwartet. Eine Position mit weder Preis **oder** ohne
+  ihr alter Schlusskurs ist erwartet. Das Top-Level `newest_quote_date` ist
+  das Datum des neuesten gespeicherten Kurses über die bepreisten, nicht
+  eingestellten Positionen (`null`, wenn keine per Kurs bepreist ist) — der
+  Aktualitäts-Fakt, den die Kennzahlenleiste der Übersicht zeigt; die
+  View-Bewertung trägt beide Felder ebenfalls. Eine Position mit weder Preis **oder** ohne
   Wechselkurspfad zur Basiswährung wird mit `valued: false`, `price_source: null`
   und `null` für Marktwert und Gewicht zurückgegeben, sodass ein fehlender Preis
   oder Kurs den Gesamtwert nie verzerrt. Unbekannte Portfolios liefern

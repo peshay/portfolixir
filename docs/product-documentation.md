@@ -719,12 +719,23 @@ anything need me?" (ADR-0022). With an empty database it is the onboarding
 wizard (the ordered workflow path plus entity counts). Once transactions
 exist it shows one **value card scoped to the default view** — **Everything**
 when none is set (ADR-0024: views, not portfolios, are what the dashboard
-aggregates over) — with the total incl. cash, the **YTD TTWROR** as the
-change signal and the cash quote, an **Off target** list (issue #718 — the
+aggregates over) — with the total incl. cash and the **YTD TTWROR** as the
+change signal — under it the **key-figure strip** (UX-DR2 as amended
+2026-09-14, issue #798): four cells, each linking to the surface that owns
+its figure — the **1Y TTWROR** with its IRR (the period MWR for a shorter
+history) leading to Wealth, the **cash quote** with the cash amount leading
+to Wealth, the **last booking** with its date, kind and account or security
+leading to Transactions, and the **quote freshness**, the newest stored
+quote date across the held positions, leading to the securities list
+pre-filtered to stale quotes; its "n stale" sub-line appears only when
+stale quotes exist (with none, the date alone — a fact, not an all-clear
+badge), and a basis line under the strip names the view, the period and
+the currency — an **Off target** list (issue #718 — the
 card is named for what it contains, per UX-DR21) — every targeted category whose
 allocation drift exceeds **±5 percentage points** (ADR-0023 sign: positive =
-overweight), worst first, each linking into the Wealth area's Allocation &
-targets tab, under a basis line naming the view, classification tree and
+overweight), worst first, each row carrying a decorative drift bar around
+zero beside its text and linking into the Wealth area's Allocation & targets
+tab, under a basis line naming the view, classification tree and
 active plan the drift steers against (or that several plans are active, or
 none) — and the **data-quality line**: one note listing the securities
 without a recent quote, asset class, or logo, each count linking to the

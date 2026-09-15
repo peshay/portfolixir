@@ -17,6 +17,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.ClassificationName
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.TransactionKindLabel
 
   # A category counts as "needs attention" when its drift exceeds ±5 pp of the
   # steering basis (ADR-0022 dashboard; drift per ADR-0023: actual − target).
@@ -29,6 +30,7 @@ defmodule PortfolixirWeb.DashboardLive do
       socket
       |> assign_counts()
       |> assign(:wealth_card, nil)
+      |> assign(:last_booking, nil)
       |> assign(:drift_alerts, nil)
       |> assign(:attention_basis, nil)
       |> assign(:data_quality, nil)
@@ -63,7 +65,7 @@ defmodule PortfolixirWeb.DashboardLive do
         context = PricingContext.for_all_portfolios(base_currency)
 
         {wealth_card(view_id, base_currency, context), attention_report(view_id, context),
-         data_quality_report()}
+         data_quality_report(), last_booking()}
       end)
     else
       socket
@@ -110,6 +112,10 @@ defmodule PortfolixirWeb.DashboardLive do
     # round): degrade to the Everything scope instead of crashing the async.
     view_id = view && view.id
 
+    # One daily walk serves both periods (#798): the card's YTD change signal
+    # and the strip's 1Y return chain the same series.
+    analysis = view_analysis(view_id, base_currency)
+
     %{
       # `name: nil` renders as the localized "Everything" label at render time
       # (fix round): this function runs inside `start_async`'s task process,
@@ -117,7 +123,8 @@ defmodule PortfolixirWeb.DashboardLive do
       # always came out English ("EVERYTHING" after the card's CSS uppercase).
       name: view && view.name,
       valuation: everything_or_view_valuation(view_id, base_currency, context),
-      ttwror: ytd_ttwror(view_id, base_currency)
+      ttwror: ttwror_of(summarise(analysis, "ytd")),
+      one_year: summarise(analysis, "1y")
     }
   end
 
@@ -139,10 +146,11 @@ defmodule PortfolixirWeb.DashboardLive do
   end
 
   @impl true
-  def handle_async(:overview, {:ok, {wealth_card, attention, data_quality}}, socket) do
+  def handle_async(:overview, {:ok, {wealth_card, attention, data_quality, last_booking}}, socket) do
     {:noreply,
      assign(socket,
        wealth_card: wealth_card,
+       last_booking: last_booking,
        drift_alerts: attention.alerts,
        attention_basis: attention.basis,
        data_quality: data_quality
@@ -266,16 +274,107 @@ defmodule PortfolixirWeb.DashboardLive do
               ><span data-count-digits><%= Format.money(@wealth_card.valuation.total_with_cash) %></span></span>
               <%= @wealth_card.valuation.base_currency %>
             </strong>
+            <%!-- The sub-line keeps the YTD change; the cash quote moved to
+                 the strip's own cell (UX-DR2 as amended 2026-09-14). --%>
             <small :if={@wealth_card.ttwror} data-role="card-ttwror">
               <span class={sign_class(@wealth_card.ttwror)}><%= signed_percent(@wealth_card.ttwror) %>%</span>
               <%= gettext("YTD") %>
-              · <%= gettext("Cash") %> <%= Format.percent(@wealth_card.valuation.cash_quote) %>%
             </small>
-            <small :if={is_nil(@wealth_card.ttwror)}>
-              <%= gettext("Cash") %> <%= Format.percent(@wealth_card.valuation.cash_quote) %>%
+            <small :if={is_nil(@wealth_card.ttwror)} data-role="card-ttwror">
+              <%= gettext("YTD") %> —
             </small>
           </a>
         <% end %>
+      </section>
+
+      <%!-- #798 (UX-DR2 as amended 2026-09-14): the four questions of the
+           morning on one strip — return, cash quote, last booking, quote
+           freshness — each cell stating its basis and linking to the surface
+           that owns the figure. The Overview's own block, not the Wealth band
+           repeated; absent in the empty state (this component renders only
+           once a transaction exists). --%>
+      <section id="dashboard-kpi-strip" class="workspace-section kpi-strip" aria-label={gettext("Key figures")}>
+        <div class="kpi-strip__cells">
+          <a href="/portfolio" class="kpi-strip__cell" data-role="kpi-ttwror">
+            <span class="kpi-strip__label"><%= gettext("TTWROR") %> <%= gettext("1Y") %></span>
+            <%= if @wealth_card do %>
+              <strong
+                :if={one_year_ttwror(@wealth_card)}
+                class={sign_class(one_year_ttwror(@wealth_card))}
+              >
+                <%= signed_percent(one_year_ttwror(@wealth_card)) %>%
+              </strong>
+              <strong :if={is_nil(one_year_ttwror(@wealth_card))} class="kpi-strip__na">—</strong>
+              <small class="kpi-strip__sub"><%= money_weighted_line(@wealth_card.one_year) %></small>
+            <% else %>
+              <.strip_pending />
+            <% end %>
+          </a>
+          <a href="/portfolio" class="kpi-strip__cell" data-role="kpi-cash-quote">
+            <span class="kpi-strip__label"><%= gettext("Cash quote") %></span>
+            <%= if @wealth_card do %>
+              <strong><%= Format.percent(@wealth_card.valuation.cash_quote) %>%</strong>
+              <small class="kpi-strip__sub">
+                <%= Format.money(@wealth_card.valuation.total_cash) %> <%= @wealth_card.valuation.base_currency %> <%= gettext(
+                  "cash"
+                ) %>
+              </small>
+            <% else %>
+              <.strip_pending />
+            <% end %>
+          </a>
+          <%!-- The ledger's newest booking, kind label localized here at
+               render time (the async task has no user locale). --%>
+          <a href="/transactions" class="kpi-strip__cell" data-role="kpi-last-booking">
+            <span class="kpi-strip__label"><%= gettext("Last booking") %></span>
+            <%= if @wealth_card do %>
+              <strong :if={@last_booking}><%= Format.date(@last_booking.date) %></strong>
+              <strong :if={is_nil(@last_booking)} class="kpi-strip__na">—</strong>
+              <small :if={@last_booking} class="kpi-strip__sub">
+                <%= TransactionKindLabel.label(@last_booking.type) %><%= if @last_booking.subject,
+                  do: " · #{@last_booking.subject}" %>
+              </small>
+            <% else %>
+              <.strip_pending />
+            <% end %>
+          </a>
+          <%!-- Freshness: the newest stored quote across the held positions is
+               the fact; the stale count is the finding, shown only when it
+               exists (no all-clear badge) and linking where the data-quality
+               line links. --%>
+          <a href="/securities?dq=stale_quote" class="kpi-strip__cell" data-role="kpi-freshness">
+            <span class="kpi-strip__label"><%= gettext("Quotes") %></span>
+            <%= if @wealth_card do %>
+              <strong :if={@wealth_card.valuation.newest_quote_date}>
+                <%= Format.date(@wealth_card.valuation.newest_quote_date) %>
+              </strong>
+              <strong :if={is_nil(@wealth_card.valuation.newest_quote_date)} class="kpi-strip__na">
+                —
+              </strong>
+              <small
+                :if={@wealth_card.valuation.stale_priced_count > 0}
+                class="kpi-strip__sub kpi-strip__sub--attention"
+              >
+                <AppShell.icon name={:alert_triangle} size={12} />
+                <%= ngettext(
+                  "%{count} stale",
+                  "%{count} stale",
+                  @wealth_card.valuation.stale_priced_count
+                ) %>
+              </small>
+            <% else %>
+              <.strip_pending />
+            <% end %>
+          </a>
+        </div>
+        <p :if={@wealth_card} class="summary-basis kpi-strip__basis" data-role="kpi-strip-basis">
+          <%= gettext("View %{view} · return over %{period} to %{date} · in %{currency} · quotes: the newest across held positions",
+            view: @wealth_card.name || gettext("Everything"),
+            period: gettext("1Y"),
+            date: Format.date(strip_as_of(@wealth_card)),
+            currency: @wealth_card.valuation.base_currency
+          ) %>
+        </p>
       </section>
 
       <%!-- ADR-0022: the dashboard answers "does anything need me?". Drift
@@ -319,6 +418,16 @@ defmodule PortfolixirWeb.DashboardLive do
                 <a href="/portfolio?tab=allocation" data-role="drift-alert" class="attention-item">
                   <span class="attention-name">
                     <%= alert.name %>
+                  </span>
+                  <%!-- #798: a decorative drift bar around zero — aria-hidden;
+                       sign, colour and the direction word stay the accessible
+                       channels (UX-DR7). Scaled to the worst drift listed. --%>
+                  <span class="drift-bar" aria-hidden="true">
+                    <span
+                      class={["drift-bar__fill", drift_bar_side(alert.drift_weight)]}
+                      style={"width: #{drift_bar_width(alert.drift_weight, @drift_alerts)}%"}
+                    >
+                    </span>
                   </span>
                   <span class={["num", drift_sign_class(alert.drift_weight)]}>
                     <%= drift_phrase(alert.drift_weight) %>
@@ -365,13 +474,111 @@ defmodule PortfolixirWeb.DashboardLive do
     """
   end
 
-  # The YTD TTWROR as the card's "did anything change" signal, scoped to the
-  # same cross-portfolio view as the valuation (#577, ADR-0019 at the view
-  # boundary); nil (hidden) when the period cannot be computed yet.
-  defp ytd_ttwror(view_id, base_currency) do
-    case Performance.for_view(view_id, period: "ytd", base_currency: base_currency) do
-      {:ok, %{ttwror: %Decimal{} = ttwror}} -> ttwror
-      _ -> nil
+  # The pending footprint of a strip cell (UX-DR20): the value-sized
+  # placeholder, aria-busy, no cue — the strip is a sub-second figure (#723).
+  defp strip_pending(assigns) do
+    ~H"""
+    <strong class="value-slot-pending" aria-busy="true">
+      <span class="value-skeleton" aria-hidden="true"></span>
+    </strong>
+    """
+  end
+
+  # The cross-portfolio view walk the card and the strip chain their periods
+  # from (#577, ADR-0019 at the view boundary); nil when it cannot run yet.
+  defp view_analysis(view_id, base_currency) do
+    case Performance.view_analysis(view_id, base_currency: base_currency) do
+      %{} = analysis -> analysis
+      _error -> nil
+    end
+  end
+
+  defp summarise(nil, _period), do: nil
+
+  defp summarise(analysis, period) do
+    case Performance.summarise(analysis, period) do
+      {:ok, summary} -> summary
+      _error -> nil
+    end
+  end
+
+  # The YTD TTWROR as the card's "did anything change" signal; nil (hidden)
+  # when the period cannot be computed yet.
+  defp ttwror_of(%{ttwror: %Decimal{} = ttwror}), do: ttwror
+  defp ttwror_of(_summary), do: nil
+
+  defp one_year_ttwror(%{one_year: summary}), do: ttwror_of(summary)
+
+  # The strip's money-weighted sub-line follows the Wealth band's rule
+  # (ADR-0034 §2): the annualized IRR for a full year of history, the period
+  # MWR for a shorter window — labelled as what it is.
+  defp money_weighted_line(nil), do: gettext("IRR") <> " —"
+
+  defp money_weighted_line(summary) do
+    {label, value} =
+      if short_window?(summary),
+        do: {gettext("MWR"), summary.mwr},
+        else: {gettext("IRR"), summary.irr}
+
+    case value do
+      %Decimal{} -> "#{label} #{signed_percent(value)}%"
+      _none -> label <> " —"
+    end
+  end
+
+  defp short_window?(%{start_date: %Date{} = start_date, end_date: %Date{} = end_date}),
+    do: Date.diff(end_date, start_date) + 1 < 365
+
+  defp short_window?(_summary), do: false
+
+  # The strip's as-of date: the walk's end, else the read date.
+  defp strip_as_of(%{one_year: %{end_date: %Date{} = end_date}}), do: end_date
+  defp strip_as_of(_card), do: Portfolixir.Clock.today()
+
+  # The ledger's newest booking (#798): newest date, newest id — the order
+  # the history opens on. Raw record; the kind label is localized at render
+  # time, because this runs in the async task, which has no user locale.
+  defp last_booking do
+    case Ledger.list_transactions(limit: 1) do
+      [transaction] ->
+        %{
+          date: transaction.date,
+          type: transaction.type,
+          subject: booking_subject(transaction)
+        }
+
+      [] ->
+        nil
+    end
+  end
+
+  defp booking_subject(%{security: %{name: name}}) when is_binary(name), do: name
+  defp booking_subject(%{cash_account: %{name: name}}) when is_binary(name), do: name
+  defp booking_subject(%{securities_account: %{name: name}}) when is_binary(name), do: name
+  defp booking_subject(_transaction), do: nil
+
+  # The drift bar's side and length (#798): over target grows right of the
+  # zero line, under target grows left; the worst drift listed fills 45 % of
+  # the track, so the rows read against each other.
+  defp drift_bar_side(drift_weight) do
+    if Decimal.compare(drift_weight, 0) == :lt, do: "is-under", else: "is-over"
+  end
+
+  defp drift_bar_width(drift_weight, alerts) do
+    worst =
+      alerts
+      |> Enum.map(&Decimal.abs(&1.drift_weight))
+      |> Enum.max(Decimal, fn -> Decimal.new(0) end)
+
+    if Decimal.compare(worst, 0) == :gt do
+      drift_weight
+      |> Decimal.abs()
+      |> Decimal.div(worst)
+      |> Decimal.mult(45)
+      |> Decimal.round(1)
+      |> Decimal.to_string(:normal)
+    else
+      "0"
     end
   end
 
