@@ -950,14 +950,18 @@ section fills in when its data is ready. The expensive daily performance walk
 runs once and is cached on the page — switching the period re-chains the
 cached series, so the period control responds instantly. The period tokens
 (YTD, 1Y, 3Y, 5Y, Max) and the %/value series toggle render as segmented
-controls; a previous-year pick and a from/to custom range (ISO dates,
-`YYYY-MM-DD`) sit behind the **Custom range…** disclosure next to them. The
+controls; a from/to custom range (ISO dates, `YYYY-MM-DD`) and the walked
+calendar years sit behind the **Custom range…** control next to them. Opening
+it shows a small popover on the control itself (issue #801): the from/to pair
+on one row, one chip per year with data, **Cancel** and **Apply** — the
+section heading and the chart stay where they are. A year chip applies on
+click; Esc or Cancel closes the popover and returns focus to the control. The
 range pair is labelled and validates as a range (issue #721): a backwards or
 unparsable entry is refused with the message on the field that can fix it,
-and an applied custom range shows itself as an active chip carrying the
-resolved dates in the period control — the control always answers "what am
-I looking at". The security detail chart's custom range behaves the same
-way.
+and the popover stays open until it is corrected; an applied range or year
+closes it and shows itself as an active chip carrying the resolved dates (or
+the year) in the period control — the control always answers "what am I
+looking at". The security detail chart's custom range behaves the same way.
 The chart is
 downsampled to a bounded number of points, so a decade of daily history stays
 light in the browser. The chart's **Data as table** disclosure holds

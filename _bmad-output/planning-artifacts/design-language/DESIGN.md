@@ -321,7 +321,7 @@ components:
   period-control:
     appearance: '{components.selected-segment}'
     tokens: '1M 3M 6M YTD 1Y 3Y 5Y Max — one vocabulary app-wide; each surface declares the subset it offers'
-    custom-range: 'behind a disclosure ({components.disclosure}), never permanent chrome'
+    custom-range: 'behind a disclosure ({components.disclosure}), never permanent chrome; its body is a popover on the trigger (issue 801, C5-A) — the heading and the chart do not move when it opens'
     date-fields: '{components.native-control} — ISO in the input, not only in the display'
   disclosure:
     scope: 'data-as-table under every chart; custom range; entry forms out of the reading sightline'
@@ -1092,6 +1092,11 @@ than on the tint (UX-DR7). No new colour, no new radius, no new type size.
   preset token. Today a custom range leaves the group with nothing selected, so
   the control cannot answer the only question it exists to answer.
 
+*Amended by issue 801 (C5-A, 2026-09-15):* the disclosure keeps its shape and
+its contents, but its body no longer sits in the flow — it is a popover on the
+trigger (see "Custom range popover" below), so opening it moves neither the
+section heading nor the chart.
+
 ### Tab row overflow — the shipped form is the specification *(D6, UX-DR22)*
 
 Shipped as #702; recorded here so every tab row is held to it.
@@ -1439,6 +1444,24 @@ Esc discard the draft; focus returns to the control. Built for creating a
 booking and shaped — one panel, stacked, pre-fillable fields — for the edit
 view (#809) to reuse. The holdings table left the route: it duplicated
 Wealth → Holdings.
+
+### Custom range popover *(C5-A, issue 801)*
+
+`{components.period-control}`'s "Custom range…" stays the D5 disclosure —
+same summary, same chevron, same labelled ISO pair, same validation — but
+its body is a popover anchored to the trigger (`.period-popover`: absolutely
+positioned below the summary, right-aligned to it, 300 px,
+{colors.bg-elevated} on a 1 px {colors.border} with {shadows.md}; under
+720 px it left-aligns to the trigger). Inside: the
+from/to pair on one row with an en dash between the fields, the walked
+calendar years as `{components.filter-chip}` chips (one per year with data;
+a chip applies on click), then a foot with **Cancel** (ghost) and **Apply**
+(primary). Opening it changes nothing in the flow: the section heading, the
+period tokens and the chart keep their bounding boxes. Esc and Cancel close
+it and return focus to the summary; an applied range or year closes it and
+echoes into the segmented group as the D5 custom chip (a year reads as its
+number); a refused range keeps it open with the violation on its field. The
+securities detail chart's custom range takes the same treatment.
 
 ### Classification tree rows — columns *(C8-A, issue 805)*
 

@@ -763,9 +763,10 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     render_async(view)
 
     # The year dropdown offers exactly the years with data.
-    assert has_element?(view, "#performance-year option[value='#{last_year}']")
-    assert has_element?(view, "#performance-year option[value='#{today.year}']")
-    refute has_element?(view, "#performance-year option[value='#{last_year - 1}']")
+    # #801: the walked years are chips in the custom-range popover.
+    assert has_element?(view, "#period-custom button[phx-value-year='#{last_year}']")
+    assert has_element?(view, "#period-custom button[phx-value-year='#{today.year}']")
+    refute has_element?(view, "#period-custom button[phx-value-year='#{last_year - 1}']")
 
     # Picking last year re-chains that calendar year: +10%.
     html = render_change(view, "select_year", %{"year" => Integer.to_string(last_year)})

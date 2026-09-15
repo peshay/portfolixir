@@ -951,53 +951,82 @@ defmodule PortfolixirWeb.SecuritiesLive do
               </button>
             </div>
 
-            <%!-- #721 (D5): a labelled pair that validates as a range —
-                 the violation lands on the field that can fix it, never on a
-                 silently unchanged chart. --%>
-            <form
-              id="detail-custom-range"
-              phx-submit="set_detail_custom_range"
-              class="detail-custom-range"
-              data-active={if @detail_custom_range, do: "true", else: "false"}
-              aria-label={gettext("Custom range")}
+            <%!-- #801 (review C5, variant A): the same popover as the Wealth
+                 chart — the range on its trigger, the toolbar and the chart
+                 stay put. #721 (D5): a labelled pair that validates as a
+                 range — the violation lands on the field that can fix it,
+                 never on a silently unchanged chart. --%>
+            <details
+              id="detail-period-custom"
+              class="period-disclosure"
+              data-role="detail-period-custom"
+              phx-hook="PopoverDisclosure"
             >
-              <label for="detail-range-from"><%= gettext("From") %></label>
-              <input
-                type="text"
-                placeholder="YYYY-MM-DD"
-                pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
-                maxlength="10"
-                id="detail-range-from"
-                name="from"
-                value={@detail_custom_range && Date.to_iso8601(@detail_custom_range.from)}
-                aria-invalid={@detail_range_error == :from && "true"}
-                aria-describedby={@detail_range_error == :from && "detail-range-error"}
-              />
-              <label for="detail-range-to"><%= gettext("To") %></label>
-              <input
-                type="text"
-                placeholder="YYYY-MM-DD"
-                pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
-                maxlength="10"
-                id="detail-range-to"
-                name="to"
-                value={@detail_custom_range && Date.to_iso8601(@detail_custom_range.to)}
-                aria-invalid={@detail_range_error in [:to, :order] && "true"}
-                aria-describedby={@detail_range_error in [:to, :order] && "detail-range-error"}
-              />
-              <button type="submit" class="chart-toggle">
-                <%= gettext("Apply") %>
-              </button>
-              <p
-                :if={@detail_range_error}
-                id="detail-range-error"
-                class="hint"
-                data-role="detail-range-error"
-                role="alert"
-              >
-                <%= detail_range_error_message(@detail_range_error) %>
-              </p>
-            </form>
+              <summary class="disclosure-summary">
+                <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
+                <%= gettext("Custom range…") %>
+              </summary>
+              <div class="period-disclosure__body period-popover">
+                <form
+                  id="detail-custom-range"
+                  phx-submit="set_detail_custom_range"
+                  class="period-range"
+                  data-active={to_string(not is_nil(@detail_custom_range))}
+                  aria-label={gettext("Custom range")}
+                >
+                  <div class="period-range__pair">
+                    <div class="period-range__field">
+                      <label for="detail-range-from"><%= gettext("From") %></label>
+                      <input
+                        type="text"
+                        placeholder="YYYY-MM-DD"
+                        pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                        maxlength="10"
+                        id="detail-range-from"
+                        name="from"
+                        value={@detail_custom_range && Date.to_iso8601(@detail_custom_range.from)}
+                        aria-invalid={@detail_range_error == :from && "true"}
+                        aria-describedby={@detail_range_error == :from && "detail-range-error"}
+                      />
+                    </div>
+                    <span class="period-range__dash" aria-hidden="true">–</span>
+                    <div class="period-range__field">
+                      <label for="detail-range-to"><%= gettext("To") %></label>
+                      <input
+                        type="text"
+                        placeholder="YYYY-MM-DD"
+                        pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+                        maxlength="10"
+                        id="detail-range-to"
+                        name="to"
+                        value={@detail_custom_range && Date.to_iso8601(@detail_custom_range.to)}
+                        aria-invalid={@detail_range_error in [:to, :order] && "true"}
+                        aria-describedby={@detail_range_error in [:to, :order] && "detail-range-error"}
+                      />
+                    </div>
+                  </div>
+                  <p
+                    :if={@detail_range_error}
+                    id="detail-range-error"
+                    class="hint"
+                    data-role="detail-range-error"
+                    role="alert"
+                  >
+                    <%= detail_range_error_message(@detail_range_error) %>
+                  </p>
+                  <div class="period-popover__foot">
+                    <button
+                      type="button"
+                      class="button-ghost"
+                      phx-click={Phoenix.LiveView.JS.remove_attribute("open", to: "#detail-period-custom")}
+                    >
+                      <%= gettext("Cancel") %>
+                    </button>
+                    <button type="submit" class="button-primary"><%= gettext("Apply") %></button>
+                  </div>
+                </form>
+              </div>
+            </details>
 
             <div class="chart-toggles">
               <button
@@ -3632,7 +3661,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
        socket
        |> assign(:detail_custom_range, %{from: from, to: to})
        |> assign(:detail_range_error, nil)
-       |> load_detail_data()}
+       |> load_detail_data()
+       |> push_event("close-popover", %{id: "detail-period-custom"})}
     else
       {:error, field} -> {:noreply, assign(socket, :detail_range_error, field)}
       _no_selection -> {:noreply, socket}

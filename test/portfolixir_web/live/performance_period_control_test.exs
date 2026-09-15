@@ -83,7 +83,7 @@ defmodule PortfolixirWeb.PerformancePeriodControlTest do
       assert disclosure =~ ~s(pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}")
 
       # The year re-chain stays available inside the disclosure.
-      assert disclosure =~ ~s(id="performance-year")
+      assert disclosure =~ ~s(data-role="period-year")
     end
 
     # User story (issue #721, D5):

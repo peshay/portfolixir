@@ -96,6 +96,15 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
     end
   end
 
+  # User story (#801 C5-A; DESIGN.md → Components → Custom range popover):
+  # As a local portfolio maintainer opening the custom range,
+  # I want the from/to popover positioned on its trigger,
+  # so that the section heading and the chart never move when it opens.
+  test "the custom range popover is positioned on its trigger" do
+    assert block(".period-disclosure") =~ ~r/position:\s*relative/
+    assert block(".period-popover") =~ ~r/position:\s*absolute/
+  end
+
   # Issue 796 (found at 390 px): an absolutely positioned descendant of a
   # scrolling table wrapper — the visually hidden "Actions" header label —
   # takes the page as its containing block unless the wrapper is positioned,
