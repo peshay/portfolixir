@@ -2297,6 +2297,45 @@ describe("Portfolixir MCP tools", () => {
     await assert.rejects(callTool(client, "portfolixir.securities.list", { limit: 0 }));
   });
 
+  // Issue #776: the limit surface finished — the four research-log reads, the
+  // snapshot list and the three cash-flow roll-ups take limit on both halves;
+  // the trades read keeps from/to as its bound and carries no limit.
+  it("passes limit through on the eight further bounded reads and not on trades", async () => {
+    const { client, requests } = createRecordingClient({ data: {} });
+
+    await callTool(client, "portfolixir.notes.list", { security_id: 7, limit: 3 });
+    await callTool(client, "portfolixir.notes.unreviewed", { days: 90, limit: 4 });
+    await callTool(client, "portfolixir.notes.uncorroborated", { limit: 6 });
+    await callTool(client, "portfolixir.notes.expiring", { limit: 8 });
+    await callTool(client, "portfolixir.snapshots.list", { limit: 2 });
+    await callTool(client, "portfolixir.cashflow.realized_gains", { limit: 1 });
+    await callTool(client, "portfolixir.cashflow.external_flows", { limit: 1 });
+    await callTool(client, "portfolixir.cashflow.costs", { limit: 1 });
+    await callTool(client, "portfolixir.trades.list", { security_id: 42 });
+
+    assert.deepEqual(
+      requests.map((request) => request.path),
+      [
+        "/api/v1/securities/7/notes?limit=3",
+        "/api/v1/notes/unreviewed?days=90&limit=4",
+        "/api/v1/notes/uncorroborated?limit=6",
+        "/api/v1/notes/expiring?limit=8",
+        "/api/v1/snapshots?limit=2",
+        "/api/v1/realized_gains?limit=1",
+        "/api/v1/external_flows?limit=1",
+        "/api/v1/costs?limit=1",
+        "/api/v1/securities/42/trades"
+      ]
+    );
+
+    await assert.rejects(callTool(client, "portfolixir.notes.list", { security_id: 7, limit: 0 }));
+    await assert.rejects(callTool(client, "portfolixir.cashflow.costs", { limit: -1 }));
+
+    const trades = listTools().find((tool) => tool.name === "portfolixir.trades.list");
+    assert.match(trades?.description ?? "", /no limit/i);
+    assert.equal("limit" in (trades?.inputSchema as { properties: object }).properties, false);
+  });
+
   // Issue #766: the research-log append no longer accepts provenance claims.
   it("rejects author and machine_generated on notes.append", () => {
     const append = listTools().find((tool) => tool.name === "portfolixir.notes.append");

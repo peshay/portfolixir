@@ -39,6 +39,27 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 4,
+      date: ~D[2026-09-15],
+      summary:
+        "Sprint 11 (#776, the limit surface finished): the four research-log reads, the " <>
+          "snapshot list and the three cash-flow roll-ups take a bounded limit on the API and " <>
+          "their MCP twins; the trades read records from/to as its bound; every bounded payload " <>
+          "of the family echoes the limit it applied.",
+      endpoints: [],
+      tools: [],
+      parameters: [
+        "GET /api/v1/securities/:security_id/notes and portfolixir.notes.list take limit= (default 1000, maximum 10000): the newest entries; thesis_state still derives from the whole log (#776)",
+        "GET /api/v1/notes/unreviewed, /notes/uncorroborated and /notes/expiring and their MCP twins take limit= (default 1000, maximum 10000): the most overdue positions, the newest entries, the soonest-expiring entries (#776)",
+        "GET /api/v1/snapshots and portfolixir.snapshots.list take limit= (default 1000, maximum 10000): the newest snapshots (#776)",
+        "GET /api/v1/realized_gains, /external_flows and /costs and the portfolixir.cashflow.* twins take limit= as a number of years (default 100, maximum 1000): the newest years of the annual matrix, computation_basis.window naming a cut (#776)",
+        "GET /api/v1/securities/:security_id/trades and portfolixir.trades.list take no limit: from/to is the bound, stated in the payload's basis (#776)",
+        "The eight bounded reads answer the limit they applied as limit in the data envelope; a malformed limit is 422 (#776)"
+      ],
+      removed_endpoints: [],
+      removed_tools: []
+    },
+    %{
       version: 3,
       date: ~D[2026-09-05],
       summary:

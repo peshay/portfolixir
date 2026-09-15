@@ -23,6 +23,22 @@ const emptyObjectSchema = {
 };
 
 const emptyObjectZ = z.object({});
+
+// #776: the three cash-flow roll-ups bound their answer by years of the annual
+// matrix, newest first (default 100, at most 1000).
+const yearsLimitSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    limit: {
+      type: "integer",
+      minimum: 1,
+      description: "newest years of the annual matrix to keep (default 100, at most 1000)"
+    }
+  }
+};
+
+const yearsLimitZ = z.object({ limit: z.number().int().min(1).optional() });
 const idZ = z.object({ id: z.number().int().positive() });
 // A factory (not a shared instance): reusing one Zod instance across fields
 // makes the generated JSON schema dedupe the repeats into a `$ref`, which some
@@ -1413,10 +1429,12 @@ const planRenameZ = z.object({
 const snapshotsListSchema = {
   type: "object",
   additionalProperties: false,
-  properties: {}
+  properties: {
+    limit: { type: "integer", minimum: 1, description: "newest snapshots to keep (default 1000, at most 10000)" }
+  }
 };
 
-const snapshotsListZ = z.object({});
+const snapshotsListZ = z.object({ limit: z.number().int().min(1).optional() });
 
 // -- tax (ADR-0031) ---------------------------------------------------------
 // The pots are RECORDED, never derived. Not for want of FIFO - the ledger has
@@ -1848,11 +1866,15 @@ const notesListSchema = {
   additionalProperties: false,
   required: ["security_id"],
   properties: {
-    security_id: { type: "integer", minimum: 1 }
+    security_id: { type: "integer", minimum: 1 },
+    limit: { type: "integer", minimum: 1, description: "newest entries to keep (default 1000, at most 10000)" }
   }
 };
 
-const notesListZ = z.object({ security_id: z.number().int().positive() });
+const notesListZ = z.object({
+  security_id: z.number().int().positive(),
+  limit: z.number().int().min(1).optional()
+});
 
 const noteAppendSchema = {
   type: "object",
@@ -1900,24 +1922,30 @@ const notesUnreviewedSchema = {
   type: "object",
   additionalProperties: false,
   properties: {
-    days: { type: "integer", minimum: 0, description: "review window in days (default 90)" }
+    days: { type: "integer", minimum: 0, description: "review window in days (default 90)" },
+    limit: { type: "integer", minimum: 1, description: "most overdue positions to keep (default 1000, at most 10000)" }
   }
 };
 
-const notesUnreviewedZ = z.object({ days: z.number().int().nonnegative().optional() });
+const notesUnreviewedZ = z.object({
+  days: z.number().int().nonnegative().optional(),
+  limit: z.number().int().min(1).optional()
+});
 
 const notesUncorroboratedSchema = {
   type: "object",
   additionalProperties: false,
   properties: {
     security_id: { type: "integer", minimum: 1 },
-    include_superseded: { type: "boolean" }
+    include_superseded: { type: "boolean" },
+    limit: { type: "integer", minimum: 1, description: "newest entries to keep (default 1000, at most 10000)" }
   }
 };
 
 const notesUncorroboratedZ = z.object({
   security_id: z.number().int().positive().optional(),
-  include_superseded: z.boolean().optional()
+  include_superseded: z.boolean().optional(),
+  limit: z.number().int().min(1).optional()
 });
 
 const notesExpiringSchema = {
@@ -1925,13 +1953,15 @@ const notesExpiringSchema = {
   additionalProperties: false,
   properties: {
     days: { type: "integer", minimum: 0, description: "horizon in days (default 30)" },
-    security_id: { type: "integer", minimum: 1 }
+    security_id: { type: "integer", minimum: 1 },
+    limit: { type: "integer", minimum: 1, description: "soonest-expiring entries to keep (default 1000, at most 10000)" }
   }
 };
 
 const notesExpiringZ = z.object({
   days: z.number().int().nonnegative().optional(),
-  security_id: z.number().int().positive().optional()
+  security_id: z.number().int().positive().optional(),
+  limit: z.number().int().min(1).optional()
 });
 
 // Issue #737: the daily sync and the one-shot historical backfill share one
@@ -2010,7 +2040,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.notes.list",
     "Research log of a security",
-    "The security's research log (ADR-0044), newest first: dated, typed entries (thesis, evidence, invalidation_check, event_result, risk, retraction, decision) with author, source_url, source_quality (primary | secondary_multi | awareness | unverified), as_of (the statement's cut-off date, distinct from inserted_at), valid_until for dated blocks and the thesis fields (conviction, invalidation_condition, time_stop). Entries NEVER vanish: nothing updates or deletes one; a refuted finding is withdrawn by appending a retraction that supersedes it, and the superseded entry stays in the list with superseded_by_ids naming what superseded it — read the retraction first, then the finding, and do not re-investigate a premise a retraction already settled. The response also carries thesis_state, the current thesis derived from these entries (status none | intact | retracted, naming derived_from_entry_id and retracted_by_entry_id). This is the starting point of a research run: one call instead of a re-read of old conversations.",
+    "The security's research log (ADR-0044), newest first: dated, typed entries (thesis, evidence, invalidation_check, event_result, risk, retraction, decision) with author, source_url, source_quality (primary | secondary_multi | awareness | unverified), as_of (the statement's cut-off date, distinct from inserted_at), valid_until for dated blocks and the thesis fields (conviction, invalidation_condition, time_stop). Entries NEVER vanish: nothing updates or deletes one; a refuted finding is withdrawn by appending a retraction that supersedes it, and the superseded entry stays in the list with superseded_by_ids naming what superseded it — read the retraction first, then the finding, and do not re-investigate a premise a retraction already settled. The response also carries thesis_state, the current thesis derived from these entries (status none | intact | retracted, naming derived_from_entry_id and retracted_by_entry_id). This is the starting point of a research run: one call instead of a re-read of old conversations. Optional limit keeps the newest entries (default 1000, at most 10000); thesis_state always derives from the whole log, and the answer echoes the limit it applied.",
     notesListSchema,
     notesListZ
   ),
@@ -2024,21 +2054,21 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.notes.unreviewed",
     "Held positions with no research-log entry for N days",
-    "Review hygiene (ADR-0044 §7): every HELD security (net quantity <> 0 across all depots) whose newest research-log entry (by as_of) is older than days (default 90) — or that has no entry at all (last_entry_as_of null, days_since_last_entry null). Rows carry security_id, security_name, isin, ticker_symbol; the response echoes days, as_of and its basis. Unheld securities are not listed, however stale their log.",
+    "Review hygiene (ADR-0044 §7): every HELD security (net quantity <> 0 across all depots) whose newest research-log entry (by as_of) is older than days (default 90) — or that has no entry at all (last_entry_as_of null, days_since_last_entry null). Rows carry security_id, security_name, isin, ticker_symbol; the response echoes days, as_of and its basis. Unheld securities are not listed, however stale their log. Optional limit keeps the most overdue positions (default 1000, at most 10000).",
     notesUnreviewedSchema,
     notesUnreviewedZ
   ),
   tool(
     "portfolixir.notes.uncorroborated",
     "Research-log entries that still need corroboration",
-    "Entries whose source_quality is not primary (secondary_multi, awareness, unverified), newest first, across all securities or one security_id — what a run should try to confirm against a primary source. Superseded entries (a rumour already confirmed or retracted by a later entry) are skipped unless include_superseded=true. Confirming one means appending a primary entry with supersedes_id on it, not editing it.",
+    "Entries whose source_quality is not primary (secondary_multi, awareness, unverified), newest first, across all securities or one security_id — what a run should try to confirm against a primary source. Superseded entries (a rumour already confirmed or retracted by a later entry) are skipped unless include_superseded=true. Confirming one means appending a primary entry with supersedes_id on it, not editing it. Optional limit keeps the newest entries (default 1000, at most 10000).",
     notesUncorroboratedSchema,
     notesUncorroboratedZ
   ),
   tool(
     "portfolixir.notes.expiring",
     "Dated blocks expiring within N days",
-    "Research-log entries whose valid_until falls between today and today + days (default 30), soonest first, across all securities or one security_id — lockups and self-imposed buying blocks about to lapse. Each row carries days_until_expiry; the response echoes days and as_of. A block lifted by a later entry (supersedes_id on it) is skipped; a block already past is not listed.",
+    "Research-log entries whose valid_until falls between today and today + days (default 30), soonest first, across all securities or one security_id — lockups and self-imposed buying blocks about to lapse. Each row carries days_until_expiry; the response echoes days and as_of. A block lifted by a later entry (supersedes_id on it) is skipped; a block already past is not listed. Optional limit keeps the soonest-expiring entries (default 1000, at most 10000).",
     notesExpiringSchema,
     notesExpiringZ
   ),
@@ -2164,9 +2194,9 @@ const toolDefinitions: ToolDefinition[] = [
     securities_account_id: z.number().int().positive().optional(),
     fields: z.array(z.enum(holdingFieldNames)).optional()
   })),
-  tool("portfolixir.cashflow.realized_gains", "Realized gains roll-up", "The Cash-flow Realized-gains facet's roll-up (issue #724): FIFO-matched realized P&L across ALL securities and portfolios, grouped by each sale's close date into a year -> month matrix. FX basis (D-1): each sale converts to the base currency via the EUR hub at the rate stored on ITS OWN close date; a sale with NO stored rate for that day is excluded from every converted total and named in `excluded` (count + security names) — never converted at a neighbouring date's rate, never silently dropped. The payload carries computation_basis (series, window, reference, gaps) and conversion_note; financial values are Decimal strings.", emptyObjectSchema, emptyObjectZ),
-  tool("portfolixir.cashflow.external_flows", "Deposits & withdrawals roll-up", "The Cash-flow Deposits-&-withdrawals facet's roll-up (issue #725): the booked external CASH flows — deposit and removal transactions — across all portfolios, grouped by booking date into a year -> month matrix with deposits, withdrawals and a net per year. Deliberately narrower than the performance walk's invested_capital, which additionally counts securities delivered in/out at market value and balance-snapshot residuals; that difference is stated in computation_basis.excludes so the two figures can differ without either lying. FX basis: each flow converts via the EUR hub at the rate stored on ITS OWN booking date; a flow with no stored rate for that day is excluded from every total and named by its cash account in `excluded`. Financial values are Decimal strings.", emptyObjectSchema, emptyObjectZ),
-  tool("portfolixir.cashflow.costs", "Fees & taxes roll-up", "The Cash-flow Costs facet's roll-up (issue #726): what the portfolio cost to run, at OVERVIEW level only — fees and taxes across all portfolios, grouped by booking date into a year -> month matrix with fees, taxes and a total per year. The series sums the fee and tax LEGS riding any transaction plus the standalone fee/tax bookings, with tax_refund netted against taxes; gross amounts are never summed (a buy's gross includes its legs while a sell's is net of them — summing gross would describe something else). FX basis: each cost converts via the EUR hub at the rate stored on ITS OWN booking date; a cost with no stored rate for that day is excluded from every total and named by its currency in `excluded`. Financial values are Decimal strings.", emptyObjectSchema, emptyObjectZ),
+  tool("portfolixir.cashflow.realized_gains", "Realized gains roll-up", "The Cash-flow Realized-gains facet's roll-up (issue #724): FIFO-matched realized P&L across ALL securities and portfolios, grouped by each sale's close date into a year -> month matrix. FX basis (D-1): each sale converts to the base currency via the EUR hub at the rate stored on ITS OWN close date; a sale with NO stored rate for that day is excluded from every converted total and named in `excluded` (count + security names) — never converted at a neighbouring date's rate, never silently dropped. The payload carries computation_basis (series, window, reference, gaps) and conversion_note; financial values are Decimal strings. Optional limit keeps the newest years of the matrix (default 100, at most 1000); computation_basis.window names the cut when years were dropped.", yearsLimitSchema, yearsLimitZ),
+  tool("portfolixir.cashflow.external_flows", "Deposits & withdrawals roll-up", "The Cash-flow Deposits-&-withdrawals facet's roll-up (issue #725): the booked external CASH flows — deposit and removal transactions — across all portfolios, grouped by booking date into a year -> month matrix with deposits, withdrawals and a net per year. Deliberately narrower than the performance walk's invested_capital, which additionally counts securities delivered in/out at market value and balance-snapshot residuals; that difference is stated in computation_basis.excludes so the two figures can differ without either lying. FX basis: each flow converts via the EUR hub at the rate stored on ITS OWN booking date; a flow with no stored rate for that day is excluded from every total and named by its cash account in `excluded`. Financial values are Decimal strings. Optional limit keeps the newest years of the matrix (default 100, at most 1000); computation_basis.window names the cut when years were dropped.", yearsLimitSchema, yearsLimitZ),
+  tool("portfolixir.cashflow.costs", "Fees & taxes roll-up", "The Cash-flow Costs facet's roll-up (issue #726): what the portfolio cost to run, at OVERVIEW level only — fees and taxes across all portfolios, grouped by booking date into a year -> month matrix with fees, taxes and a total per year. The series sums the fee and tax LEGS riding any transaction plus the standalone fee/tax bookings, with tax_refund netted against taxes; gross amounts are never summed (a buy's gross includes its legs while a sell's is net of them — summing gross would describe something else). FX basis: each cost converts via the EUR hub at the rate stored on ITS OWN booking date; a cost with no stored rate for that day is excluded from every total and named by its currency in `excluded`. Financial values are Decimal strings. Optional limit keeps the newest years of the matrix (default 100, at most 1000); computation_basis.window names the cut when years were dropped.", yearsLimitSchema, yearsLimitZ),
   tool("portfolixir.holdings.by_security", "Holdings by security (global EUR)", "Global per-security valuation across ALL portfolios: each held security's total quantity and current market value converted to the EUR hub, with a valued flag (false when a quote, trade price or EUR rate path is missing) and an unvalued_reason (no_price: nothing resolves at all; missing_fx: latest_price/price_currency are known but no stored rate path reaches EUR; null when valued). Each row also carries latest_price, price_currency and price_source. Self-describing: currency EUR, an as_of read date and a note; financial values are Decimal strings. Differs from portfolixir.holdings.list (per-portfolio holdings in the security's own currency, no FX) and from portfolixir.portfolios.valuation (one portfolio's totals/weights in its base currency).", emptyObjectSchema, emptyObjectZ),
   tool("portfolixir.holdings.negative", "Negative holdings (data quality)", "Data-quality report of impossible negative holdings (#570): every (depot, security) position whose derived quantity is below zero — import debris from unmodeled corporate actions or rename chains, listed per depot with depot/security names plus each listed security's total quantity across ALL depots (so transfer debris, negative in one depot but positive in another, is distinguishable from a truly negative total). Quantities are Decimal strings. Self-describing: an as_of read date and a note. Repair the security's transaction history via portfolixir.transactions.*; there is no repair wizard beyond splits and nothing is changed automatically.", emptyObjectSchema, emptyObjectZ),
   tool("portfolixir.holdings.reconcile", "Reconcile external position list (read-only)", "Compare a user-supplied external position list (broker statement, depot overview) against the ledger-derived holdings — strictly read-only, nothing is stored. Each row's identifier is matched through the stable-identity ladder (ISIN incl. recorded former ISINs, then WKN / ticker+currency / name+currency with an exactly-one rule across those tiers); the response reports per matched security the matched_via tier, the exact ledger quantity, external quantity and delta as Decimal strings, plus ambiguous rows with candidates, unmatched rows, and held ledger positions absent from the list. Rows resolving to the same security are aggregated so there is never more than one delta per position. Resolve a difference by booking the missing transaction of the correct kind (buy, sell, delivery with price, transfer, dividend, tax_refund for a tax credited back after a loss sale, ...) via portfolixir.transactions.create — balance snapshots (set_balance) and unpriced deliveries are last resorts that distort cost basis; do NOT reach for them just to make numbers match. Weak (ticker/name) matches carry a caveat: confirm the security before booking anything. Quantities must be canonical dot-decimal strings — parse locale formats (comma decimals, thousands separators) client-side before calling. Optional scope: portfolio_id or view (mutually exclusive); default is the whole instance, and the response states its basis (as_of, scope).", reconcileSchema, reconcileZ),
@@ -2203,7 +2233,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.trades.list",
     "List trades",
-    "List FIFO-matched trades for a security: open lots, closed round-trips and orphan sells, with realized P&L per FIFO-matched round-trip. Each open lot carries buy_price (as recorded, transaction currency) plus buy_price_native — the security-currency basis its unrealized P&L is computed against (ADR-0033) — and the same base-currency decomposition fields as portfolixir.holdings.list (base_cost, price_return_*, currency_return_*, total_return_base_*, decomposed/undecomposed_reason, against the EUR hub). A lot with no derivable native leg reports null P&L instead of a blind cross-currency figure. For unrealized P&L on current positions use portfolixir.holdings.list. Optional from/to (ISO dates) filter each leg by its own date.",
+    "List FIFO-matched trades for a security: open lots, closed round-trips and orphan sells, with realized P&L per FIFO-matched round-trip. Each open lot carries buy_price (as recorded, transaction currency) plus buy_price_native — the security-currency basis its unrealized P&L is computed against (ADR-0033) — and the same base-currency decomposition fields as portfolixir.holdings.list (base_cost, price_return_*, currency_return_*, total_return_base_*, decomposed/undecomposed_reason, against the EUR hub). A lot with no derivable native leg reports null P&L instead of a blind cross-currency figure. For unrealized P&L on current positions use portfolixir.holdings.list. Optional from/to (ISO dates) filter each leg by its own date. There is no limit: from/to is the bound, because the FIFO matcher needs the whole history (the payload's basis says so).",
     {
       type: "object",
       additionalProperties: false,
@@ -2489,7 +2519,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.snapshots.list",
     "List depot snapshots",
-    "List depot snapshot markers (ADR-0027): each is a name, a view scope (view_id null = everything) and an as-of date. A snapshot copies no data - the holdings it represents derive from the transaction ledger on demand.",
+    "List depot snapshot markers (ADR-0027): each is a name, a view scope (view_id null = everything) and an as-of date. A snapshot copies no data - the holdings it represents derive from the transaction ledger on demand. Optional limit keeps the newest snapshots (default 1000, at most 10000).",
     snapshotsListSchema,
     snapshotsListZ
   ),
@@ -2687,22 +2717,32 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         withQuery("/api/v1/securities/search", args, ["query", "type"])
       );
     case "portfolixir.notes.list":
-      return client.request("GET", `/api/v1/securities/${args.security_id}/notes`);
+      return client.request(
+        "GET",
+        withQuery(`/api/v1/securities/${args.security_id}/notes`, args, ["limit"])
+      );
     case "portfolixir.notes.append":
       return client.request("POST", `/api/v1/securities/${args.security_id}/notes`, {
         note: args.note
       });
     case "portfolixir.notes.unreviewed":
-      return client.request("GET", withQuery("/api/v1/notes/unreviewed", args, ["days"]));
+      return client.request(
+        "GET",
+        withQuery("/api/v1/notes/unreviewed", args, ["days", "limit"])
+      );
     case "portfolixir.notes.uncorroborated":
       return client.request(
         "GET",
-        withQuery("/api/v1/notes/uncorroborated", args, ["security_id", "include_superseded"])
+        withQuery("/api/v1/notes/uncorroborated", args, [
+          "security_id",
+          "include_superseded",
+          "limit"
+        ])
       );
     case "portfolixir.notes.expiring":
       return client.request(
         "GET",
-        withQuery("/api/v1/notes/expiring", args, ["days", "security_id"])
+        withQuery("/api/v1/notes/expiring", args, ["days", "security_id", "limit"])
       );
     case "portfolixir.quotes.sync":
       return client.request("POST", `/api/v1/securities/${args.security_id}/sync_quotes`, {});
@@ -2778,11 +2818,11 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         ])
       );
     case "portfolixir.cashflow.realized_gains":
-      return client.request("GET", "/api/v1/realized_gains");
+      return client.request("GET", withQuery("/api/v1/realized_gains", args, ["limit"]));
     case "portfolixir.cashflow.external_flows":
-      return client.request("GET", "/api/v1/external_flows");
+      return client.request("GET", withQuery("/api/v1/external_flows", args, ["limit"]));
     case "portfolixir.cashflow.costs":
-      return client.request("GET", "/api/v1/costs");
+      return client.request("GET", withQuery("/api/v1/costs", args, ["limit"]));
     case "portfolixir.holdings.by_security":
       return client.request("GET", "/api/v1/holdings/by_security");
     case "portfolixir.holdings.negative":
@@ -3043,7 +3083,7 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
     case "portfolixir.plans.delete":
       return client.request("DELETE", `/api/v1/plans/${args.plan_id}`);
     case "portfolixir.snapshots.list":
-      return client.request("GET", "/api/v1/snapshots");
+      return client.request("GET", withQuery("/api/v1/snapshots", args, ["limit"]));
     case "portfolixir.snapshots.create":
       return client.request("POST", "/api/v1/snapshots", {
         name: args.name,

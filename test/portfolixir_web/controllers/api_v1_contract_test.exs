@@ -43,7 +43,8 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     # Version 3 (E21) moved parameters, not routes; the Sprint 9 entry behind
     # it is where the research-log routes were introduced.
     assert Enum.any?(newest["parameters"], &(&1 =~ "limit="))
-    sprint9 = Enum.at(data["entries"], 1)
+    # Found by version, not by position: a newer entry must not move it.
+    sprint9 = Enum.find(data["entries"], &(&1["version"] == 2))
     assert "GET /api/v1/securities/:security_id/notes" in sprint9["endpoints"]
     assert "GET /api/v1/contract" in sprint9["endpoints"]
     assert "portfolixir.notes.append" in sprint9["tools"]

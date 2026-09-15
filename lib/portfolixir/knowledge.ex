@@ -92,12 +92,17 @@ defmodule Portfolixir.Knowledge do
   then id), each annotated with `superseded_by_ids` — the ids of the entries
   that supersede it, so a superseded entry is shown as superseded rather than
   hidden (§6).
+
+  Option `:limit` keeps the newest `limit` entries (#776); the superseder
+  annotation still looks beyond the page. The thesis projection never passes
+  one — it reads the whole log.
   """
-  @spec list_notes(integer()) :: [SecurityNote.t()]
-  def list_notes(security_id) when is_integer(security_id) do
+  @spec list_notes(integer(), keyword()) :: [SecurityNote.t()]
+  def list_notes(security_id, opts \\ []) when is_integer(security_id) do
     SecurityNote
     |> where([n], n.security_id == ^security_id)
     |> order_by([n], desc: n.as_of, desc: n.inserted_at, desc: n.id)
+    |> maybe_limit(Keyword.get(opts, :limit))
     |> Repo.all()
     |> annotate_superseded()
   end
@@ -130,7 +135,8 @@ defmodule Portfolixir.Knowledge do
   than `days` (default #{@default_days}) — or absent. Rows carry the security,
   `last_entry_as_of` (nil when none) and `days_since_last_entry`.
 
-  Options: `:days`, `:today` (defaults to the host date).
+  Options: `:days`, `:today` (defaults to the host date), `:limit` — the most
+  overdue rows first, so a limit keeps the most urgent ones (#776).
   """
   @spec unreviewed_positions(keyword()) :: [map()]
   def unreviewed_positions(opts \\ []) do
@@ -154,6 +160,7 @@ defmodule Portfolixir.Knowledge do
       order_by: [asc_nulls_first: l.last_as_of, asc: s.name],
       select: {s, l.last_as_of}
     )
+    |> maybe_limit(Keyword.get(opts, :limit))
     |> Repo.all()
     |> Enum.map(fn {security, last_as_of} ->
       %{
@@ -167,7 +174,8 @@ defmodule Portfolixir.Knowledge do
   @doc """
   Entries whose `source_quality` is not `primary` (§7.3 — what still needs
   corroboration), newest first, superseded entries skipped unless
-  `include_superseded: true`. Option `:security_id` narrows to one security.
+  `include_superseded: true`. Option `:security_id` narrows to one security;
+  `:limit` keeps the newest entries (#776).
   """
   @spec uncorroborated_notes(keyword()) :: [SecurityNote.t()]
   def uncorroborated_notes(opts \\ []) do
@@ -176,6 +184,7 @@ defmodule Portfolixir.Knowledge do
     |> maybe_security(Keyword.get(opts, :security_id))
     |> maybe_exclude_superseded(Keyword.get(opts, :include_superseded, false))
     |> order_by([n], desc: n.as_of, desc: n.inserted_at, desc: n.id)
+    |> maybe_limit(Keyword.get(opts, :limit))
     |> Repo.all()
     |> annotate_superseded()
   end
@@ -185,7 +194,8 @@ defmodule Portfolixir.Knowledge do
   blocks): `today <= valid_until <= today + days`, soonest first, superseded
   entries skipped. Rows carry `days_until_expiry`.
 
-  Options: `:days` (default 30), `:today`, `:security_id`.
+  Options: `:days` (default 30), `:today`, `:security_id`, `:limit` — soonest
+  first, so a limit keeps the entries closest to expiry (#776).
   """
   @spec expiring_notes(keyword()) :: [SecurityNote.t()]
   def expiring_notes(opts \\ []) do
@@ -199,6 +209,7 @@ defmodule Portfolixir.Knowledge do
     |> maybe_security(Keyword.get(opts, :security_id))
     |> maybe_exclude_superseded(false)
     |> order_by([n], asc: n.valid_until, desc: n.as_of, desc: n.id)
+    |> maybe_limit(Keyword.get(opts, :limit))
     |> Repo.all()
     |> annotate_superseded()
     |> Enum.map(&Map.put(&1, :days_until_expiry, Date.diff(&1.valid_until, today)))
@@ -206,6 +217,10 @@ defmodule Portfolixir.Knowledge do
 
   @doc "Number of entries in the log (all securities)."
   def count_notes, do: Repo.aggregate(SecurityNote, :count, :id)
+
+  # #776: a bound on the rows one read materialises, in each read's own order.
+  defp maybe_limit(query, nil), do: query
+  defp maybe_limit(query, n) when is_integer(n) and n > 0, do: limit(query, ^n)
 
   defp maybe_security(query, nil), do: query
   defp maybe_security(query, id) when is_integer(id), do: where(query, [n], n.security_id == ^id)

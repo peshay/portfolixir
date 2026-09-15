@@ -708,4 +708,45 @@ defmodule Portfolixir.DocsTest do
     |> Regex.scan(tools)
     |> Enum.map(fn [_, tool] -> tool end)
   end
+
+  # User story (#776 — Sprint 11 Lane W):
+  # As the operator's agent reading the API reference in either language,
+  # I want every collection read of the limit family to name its bound,
+  # so that the surface check of the close-out can point at the sentence
+  # instead of at a promise.
+  #
+  # Acceptance criteria:
+  # - Each of the twelve reads (the four #771 reads, the four research-log
+  #   reads, the snapshot list, the three roll-ups, the trades read) has a
+  #   bullet in the English and the German reference that mentions `limit`
+  #   — as its bound, or as the bound it deliberately does not carry.
+  test "every collection read of the limit family names its bound, in English and German" do
+    en = File.read!("docs/integration/api-and-mcp.md")
+    de = File.read!("docs/de/integration/api-and-mcp.md")
+
+    endpoints = [
+      "GET /api/v1/securities/:security_id/notes",
+      "GET /api/v1/notes/unreviewed",
+      "GET /api/v1/notes/uncorroborated",
+      "GET /api/v1/notes/expiring",
+      "GET /api/v1/securities/:security_id/quotes",
+      "GET /api/v1/transactions",
+      "GET /api/v1/realized_gains",
+      "GET /api/v1/external_flows",
+      "GET /api/v1/costs",
+      "GET /api/v1/snapshots",
+      "GET /api/v1/securities/:security_id/trades",
+      "GET /api/v1/exchange_rates"
+    ]
+
+    for endpoint <- endpoints, {language, text} <- [{"en", en}, {"de", de}] do
+      bullet =
+        text
+        |> String.split("\n- ")
+        |> Enum.find(&String.starts_with?(&1, "`" <> endpoint))
+
+      assert bullet, "#{language}: no bullet for #{endpoint}"
+      assert bullet =~ "`limit`", "#{language}: #{endpoint} does not name its bound"
+    end
+  end
 end

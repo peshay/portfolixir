@@ -30,9 +30,15 @@ defmodule Portfolixir.Portfolios.Costs do
   @zero Decimal.new("0")
   @months 1..12
 
-  @doc "Builds the costs report across all portfolios."
+  @doc """
+  Builds the costs report across all portfolios.
+
+  Options: `:base_currency`; `:limit` keeps the newest `limit` years of the
+  annual matrix (#776), `computation_basis.window` naming the cut.
+  """
   def report(opts \\ []) do
     base = Keyword.get_lazy(opts, :base_currency, &default_base/0)
+    limit = Keyword.get(opts, :limit)
 
     {converted, excluded} =
       Ledger.list_transactions()
@@ -43,9 +49,13 @@ defmodule Portfolixir.Portfolios.Costs do
     converted = Enum.map(converted, fn {:ok, cost} -> cost end)
     excluded = Enum.map(excluded, fn {:excluded, cost} -> cost end)
 
+    full = annual_matrix(converted)
+    annual = newest_years(full, limit)
+
     %{
       base_currency: base,
-      annual: annual_matrix(converted),
+      annual: annual,
+      limit: limit,
       excluded: %{
         count: length(excluded),
         currencies: excluded |> Enum.map(& &1.currency_code) |> Enum.uniq() |> Enum.sort()
@@ -59,12 +69,23 @@ defmodule Portfolixir.Portfolios.Costs do
           "fee and tax legs riding any transaction plus standalone fee/tax bookings, " <>
             "with tax_refund netted against taxes; gross amounts are never summed " <>
             "(a buy's gross includes its legs, a sell's is net of them)",
-        window: "full ledger history, grouped by booking date",
+        window: window(full, annual, "grouped by booking date"),
         reference: "EUR hub rates on each booking date itself",
         gaps: "a cost with no stored booking-date rate is excluded from the totals and named"
       }
     }
   end
+
+  # #776: a limit keeps the newest years of the matrix (sorted newest first);
+  # the window names the cut when one happened, so a shorter answer never
+  # reads as a shorter history.
+  defp newest_years(annual, nil), do: annual
+  defp newest_years(annual, n) when is_integer(n) and n > 0, do: Enum.take(annual, n)
+
+  defp window(full, kept, grouping) when length(kept) < length(full),
+    do: "the newest #{length(kept)} years of the full ledger history, #{grouping}"
+
+  defp window(_full, _kept, grouping), do: "full ledger history, #{grouping}"
 
   defp default_base do
     case Portfolios.first_portfolio() do
