@@ -264,65 +264,67 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                   price: format_decimal(@sell_preview.sell_price)
                 ) %>
               </p>
-              <table id="sell-lot-preview-table">
-                <thead>
-                  <tr>
-                    <th><%= gettext("Open date") %></th>
-                    <th><%= gettext("Quantity used") %></th>
-                    <th><%= gettext("Buy price") %></th>
-                    <th><%= gettext("Gross gain") %></th>
-                    <%= if sell_preview_cross_currency?(@sell_preview) do %>
-                      <th><%= gettext("Price return") %></th>
-                      <th><%= gettext("Currency return") %></th>
-                      <th><%= gettext("Total (base)") %></th>
-                    <% end %>
-                  </tr>
-                </thead>
-                <tbody>
-                  <%= for lot <- @sell_preview.lots do %>
+              <div class="data-table-wrapper">
+                <table id="sell-lot-preview-table">
+                  <thead>
                     <tr>
-                      <td><%= Date.to_iso8601(lot.open_date) %></td>
-                      <td><%= format_decimal(lot.quantity) %></td>
-                      <td data-role="preview-buy-price">
-                        <%= if lot.buy_price_native do %>
-                          <%= format_decimal(lot.buy_price_native) %>
-                          <small><%= @sell_preview.security_currency %></small>
-                        <% else %>
-                          —
-                        <% end %>
-                      </td>
-                      <td class={gain_class(lot.gross_gain)} title={sell_preview_hint(lot)}>
-                        <%= signed_or_dash(lot.gross_gain) %>
-                        <small :if={lot.gross_gain}><%= @sell_preview.security_currency %></small>
-                      </td>
+                      <th><%= gettext("Open date") %></th>
+                      <th><%= gettext("Quantity used") %></th>
+                      <th><%= gettext("Buy price") %></th>
+                      <th><%= gettext("Gross gain") %></th>
                       <%= if sell_preview_cross_currency?(@sell_preview) do %>
-                        <td class={gain_class(lot.price_return_abs)}>
-                          <%= signed_or_dash(lot.price_return_abs) %>
-                        </td>
-                        <td class={gain_class(lot.currency_return_abs)}>
-                          <%= signed_or_dash(lot.currency_return_abs) %>
-                        </td>
-                        <td class={gain_class(lot.total_return_base_abs)}>
-                          <%= signed_or_dash(lot.total_return_base_abs) %>
-                          <small :if={lot.decomposed}><%= lot.base_currency %></small>
-                        </td>
+                        <th><%= gettext("Price return") %></th>
+                        <th><%= gettext("Currency return") %></th>
+                        <th><%= gettext("Total (base)") %></th>
                       <% end %>
                     </tr>
-                  <% end %>
-                </tbody>
-                <tfoot>
-                  <tr class="totals-row">
-                    <td colspan="3"><%= gettext("Total") %></td>
-                    <td class={gain_class(@sell_preview.total_gross_gain)} data-role="preview-total">
-                      <%= signed_or_dash(@sell_preview.total_gross_gain) %>
-                      <small :if={@sell_preview.total_gross_gain}>
-                        <%= @sell_preview.security_currency %>
-                      </small>
-                    </td>
-                    <td :if={sell_preview_cross_currency?(@sell_preview)} colspan="3"></td>
-                  </tr>
-                </tfoot>
-              </table>
+                  </thead>
+                  <tbody>
+                    <%= for lot <- @sell_preview.lots do %>
+                      <tr>
+                        <td><%= Date.to_iso8601(lot.open_date) %></td>
+                        <td><%= format_decimal(lot.quantity) %></td>
+                        <td data-role="preview-buy-price">
+                          <%= if lot.buy_price_native do %>
+                            <%= format_decimal(lot.buy_price_native) %>
+                            <small><%= @sell_preview.security_currency %></small>
+                          <% else %>
+                            —
+                          <% end %>
+                        </td>
+                        <td class={gain_class(lot.gross_gain)} title={sell_preview_hint(lot)}>
+                          <%= signed_or_dash(lot.gross_gain) %>
+                          <small :if={lot.gross_gain}><%= @sell_preview.security_currency %></small>
+                        </td>
+                        <%= if sell_preview_cross_currency?(@sell_preview) do %>
+                          <td class={gain_class(lot.price_return_abs)}>
+                            <%= signed_or_dash(lot.price_return_abs) %>
+                          </td>
+                          <td class={gain_class(lot.currency_return_abs)}>
+                            <%= signed_or_dash(lot.currency_return_abs) %>
+                          </td>
+                          <td class={gain_class(lot.total_return_base_abs)}>
+                            <%= signed_or_dash(lot.total_return_base_abs) %>
+                            <small :if={lot.decomposed}><%= lot.base_currency %></small>
+                          </td>
+                        <% end %>
+                      </tr>
+                    <% end %>
+                  </tbody>
+                  <tfoot>
+                    <tr class="totals-row">
+                      <td colspan="3"><%= gettext("Total") %></td>
+                      <td class={gain_class(@sell_preview.total_gross_gain)} data-role="preview-total">
+                        <%= signed_or_dash(@sell_preview.total_gross_gain) %>
+                        <small :if={@sell_preview.total_gross_gain}>
+                          <%= @sell_preview.security_currency %>
+                        </small>
+                      </td>
+                      <td :if={sell_preview_cross_currency?(@sell_preview)} colspan="3"></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
               <p
                 :if={Decimal.compare(@sell_preview.shortfall, 0) == :gt}
                 class="alert-error"
@@ -375,6 +377,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
             </details>
             <div
               id="holdings-table-wrapper"
+              class="data-table-wrapper"
               phx-hook="ColumnPrefs"
               data-storage-key="transactions.holdings.columns"
               data-restore-event="set_holdings_columns"
@@ -553,6 +556,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               </details>
               <div
                 id="transaction-table-wrapper"
+                class="data-table-wrapper"
                 phx-hook="ColumnPrefs"
                 data-storage-key="transactions.columns"
                 data-restore-event="set_tx_columns"

@@ -234,28 +234,30 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
               "Internal compatibility records kept for the deprecated API surface. Grouping happens through buckets and views."
             ) %>
           </p>
-          <table class="data-table" data-role="portfolio-admin-table">
-            <thead>
-              <tr>
-                <th><%= gettext("Name") %></th>
-                <th><%= gettext("Base currency") %></th>
-                <th><%= gettext("Created") %></th>
-                <th><%= gettext("Source") %></th>
-                <th class="num"><%= gettext("Depots") %></th>
-                <th class="num"><%= gettext("Cash accounts") %></th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr :for={record <- @portfolio_records}>
-                <td><%= record.name %></td>
-                <td><%= record.base_currency_code %></td>
-                <td><%= record.inserted_at |> NaiveDateTime.to_date() |> Date.to_iso8601() %></td>
-                <td><%= source_label(record.source) %></td>
-                <td class="num"><%= record.depot_count %></td>
-                <td class="num"><%= record.cash_account_count %></td>
-              </tr>
-            </tbody>
-          </table>
+          <div class="data-table-wrapper">
+            <table class="data-table" data-role="portfolio-admin-table">
+              <thead>
+                <tr>
+                  <th><%= gettext("Name") %></th>
+                  <th><%= gettext("Base currency") %></th>
+                  <th><%= gettext("Created") %></th>
+                  <th><%= gettext("Source") %></th>
+                  <th class="num"><%= gettext("Depots") %></th>
+                  <th class="num"><%= gettext("Cash accounts") %></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr :for={record <- @portfolio_records}>
+                  <td><%= record.name %></td>
+                  <td><%= record.base_currency_code %></td>
+                  <td><%= record.inserted_at |> NaiveDateTime.to_date() |> Date.to_iso8601() %></td>
+                  <td><%= source_label(record.source) %></td>
+                  <td class="num"><%= record.depot_count %></td>
+                  <td class="num"><%= record.cash_account_count %></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </details>
 
         <%= if @account_dialog? do %>

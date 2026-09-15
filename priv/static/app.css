@@ -1882,8 +1882,10 @@ li + li {
    while its cells keep their min-content width, so the cells overflow the
    table, the wrapper has nothing to scroll (scrollWidth == clientWidth), and
    a sticky column pins over the clipped cells instead of beside them.
-   Measured on the Cash-flow year x month matrices at 390 px. */
-.data-table-wrapper > .data-table {
+   Measured on the Cash-flow year x month matrices at 390 px. Any table
+   inside the wrapper, not only .data-table: the UX-DR15 tail (issue 788)
+   put the drift, cash, plan and history tables in the same scroller. */
+.data-table-wrapper > table {
   min-width: max-content;
 }
 
