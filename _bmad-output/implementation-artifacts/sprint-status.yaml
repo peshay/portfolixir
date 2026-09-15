@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-09-14 (Sprint 12 planned from the whole-surface UX review, picks recorded 2026-09-14; Sprint 11 adopted, batch not yet opened)
+# last_updated: 2026-09-15 (Sprint 11 batch branch opened; Sprint 12 planned from the whole-surface UX review, picks recorded 2026-09-14)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -42,7 +42,7 @@
 # requests, not assumed -- an issue's state lags the PR that fixes it.
 
 generated: 2026-07-25
-last_updated: 2026-09-14
+last_updated: 2026-09-15
 project: portfolixir
 project_key: NOKEY
 tracking_system: file-system
@@ -51,6 +51,15 @@ story_location: _bmad-output/implementation-artifacts
 # ---------------------------------------------------------------------------
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
+#
+# BATCH OPENED (2026-09-15, Sprint 11) -- branch
+# agent/claude/perimeter-remainder-benchmark from main at cc70b9f, the draft
+# PR opened with this commit (ADR-0026 step 2; the plan's Lane Z: registry
+# rows when the branch opens). Sprint 12's D-1 holds: its branch
+# agent/claude/ux-alignment-2 opens on this batch's merge. Rows touched here:
+# the FR Coverage Map's FR-9 row now names #572 and ADR-0046, and the Tracker
+# Index's E10 line names the benchmark comparison as its first shipped item;
+# the close-out reconciles the rest against the merge, not against this note.
 #
 # PLANNED (2026-09-12, Sprint 12) -- sprint-plan-2026-09-12-sprint12.md,
 # adopted by the merge of PR #783 (the planning PR that also carries the

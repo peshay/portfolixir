@@ -190,7 +190,7 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | FR-6 | — | shipped (preview/idempotent/atomic) |
 | FR-7 | #326 | import gaps surfaced (logos) |
 | FR-8 | #316, #577, #563, #568 (ADR-0034) | IRR; TTWROR shipped. **#577 shipped 2026-08-04** — TTWROR/IRR for a bucket view now cover the deduplicated account union across all portfolios, so the header total and the return always speak about the same accounts; the multi-portfolio scope disclaimer is gone. **#563 shipped** — previous-year/any-year and custom from-to periods, pure re-chains. #568 (net invested, wealth multiple, XIRR) has its design note in ADR-0034 but is **not implemented** |
-| FR-9 | — | **future** (Phase 5; OQ-3 quote source). **Ungated 2026-08-12** — the scope ladder released it as level (b); the old advanced-reports gate no longer applies. Inherits the metric-basis rule |
+| FR-9 | #572 (ADR-0046) | **in the Sprint 11 batch** (branch opened 2026-09-15; gate ADR-0046 Accepted 2026-09-07 by the merge of PR #780). **Ungated 2026-08-12** — the scope ladder released it as level (b); the old advanced-reports gate no longer applies. Two benchmark kinds (fixed rate, `is_benchmark` security through the existing sync — OQ-3 answered: no new quote source), two comparisons ("bought once" rebased next to TTWROR, "savings plan" replay of ADR-0034 §1's flows with an end-value delta and two IRRs), portfolio-wide and per view, API and MCP first. Deferred by ADR-0046 §6: a dated CPI table, the after-tax dimension (OQ-9), a stored per-view default. Inherits the metric-basis rule |
 | FR-10 | #331 | income report |
 | FR-11 | #318, #329, #335, #334, #709 (ADR-0040), #712 (ADR-0041) | target hints, exclude flag, cash basis, classification view. **#709 shipped 2026-08-19 (Sprint 7, PR #716)** — a target plan states its unallocated remainder explicitly and drift is measured against the allocated portion (ADR-0040); the payload names its `drift_basis`. **#712 shipped 2026-08-19 (Sprint 7, PR #716)** — the per-category money-weighted result (ADR-0041 slice one), on the classifications tree, the API and MCP; a statement about the *current composition*, underivable rows excluded and named |
 | FR-12 | ADR-0023 | **partially landed** — display-only rebalancing hints (per-position drift share + indicative buy/sell quantity) shipped with the drift drill-down; the guidance-vs-action boundary is drawn in ADR-0023 + AGENTS.md. Ranked both-directions cash guidance remains open |
@@ -815,9 +815,10 @@ issue state and the merge commits on `main`.
 - **E10 — Planning & simulation** — *phase 5, later.* No single tracker (#332).
   What-if simulator (FR-27, gated at ladder level (d) since 2026-08-12),
   benchmark comparison (FR-9 — the founding "was it worth it?" question,
-  ungated 2026-08-12 as ladder level (b), filed as #572, needs a quote source
-  decision), retirement projection (FR-26, backs Success Metric 3,
-  discovery-first).
+  ungated 2026-08-12 as ladder level (b), filed as #572; **its first shipped
+  item**: the quote-source decision is ADR-0046, signed 2026-09-07, and the
+  comparison is Lane B of the Sprint 11 batch opened 2026-09-15), retirement
+  projection (FR-26, backs Success Metric 3, discovery-first).
 - **E11 — UX & accessibility** — *cross-cutting, priority 3.* Tracker **#356**.
   Held against the living design-language spec (`design-language/DESIGN.md` +
   `EXPERIENCE.md`), which since ADR-0038 is the authority the design-critic
