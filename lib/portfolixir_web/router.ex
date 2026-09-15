@@ -160,6 +160,7 @@ defmodule PortfolixirWeb.Router do
     get("/portfolios/:portfolio_id/holdings", HoldingController, :index)
     get("/portfolios/:portfolio_id/valuation", ValuationController, :index)
     get("/portfolios/:portfolio_id/performance", PerformanceController, :index)
+    get("/portfolios/:portfolio_id/performance/benchmark", BenchmarkController, :index)
     get("/portfolios/:portfolio_id/income", IncomeController, :index)
     get("/portfolios/:portfolio_id/allocation", AllocationController, :index)
 
@@ -287,6 +288,7 @@ defmodule PortfolixirWeb.Router do
     put("/views/:id/buckets", ViewController, :set_buckets)
     get("/views/:view_id/valuation", ViewValuationController, :show)
     get("/views/:view_id/performance", ViewPerformanceController, :show)
+    get("/views/:view_id/performance/benchmark", ViewBenchmarkController, :show)
 
     get("/settings/default_view", SettingsController, :show_default_view)
     put("/settings/default_view", SettingsController, :set_default_view)

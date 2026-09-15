@@ -278,11 +278,12 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
         portfolio_end_value: summary.end_value,
         benchmark_end_value: benchmark_end_value,
         end_value_delta: Decimal.sub(summary.end_value, benchmark_end_value),
-        portfolio_irr: summary.irr,
+        portfolio_irr: no_negative_zero(summary.irr),
         # The same dated flows and opening value, the synthetic end value in
         # place of the real one: identical vectors, so an identical benchmark
         # solves to an identical rate.
-        benchmark_irr: IRR.for_summary(%{summary | end_value: benchmark_end_value}),
+        benchmark_irr:
+          no_negative_zero(IRR.for_summary(%{summary | end_value: benchmark_end_value})),
         benchmark_units: units
       },
       computation_basis: computation_basis(benchmark, window(summary), excluded)
@@ -314,6 +315,14 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
       computation_basis: computation_basis(benchmark, window, excluded)
     }
   end
+
+  # The solver rounds a rate of exactly 0 % to a signed zero (-0.000000 from
+  # a float just below zero); on the wire that reads "-0", which is not a
+  # return. A zero is a zero.
+  defp no_negative_zero(%Decimal{} = rate),
+    do: if(Decimal.equal?(rate, @zero), do: @zero, else: rate)
+
+  defp no_negative_zero(nil), do: nil
 
   defp window(%{start_date: start_date, end_date: end_date}),
     do: %{start_date: start_date, end_date: end_date}

@@ -1180,6 +1180,44 @@ const viewPerformanceZ = z.object({
   series: z.boolean().optional()
 });
 
+// Benchmark comparison (ADR-0046, #572): the portfolio's own flows replayed
+// into a benchmark — `rate:<decimal>` (a fixed effective annual rate
+// compounding daily; rate:0.02 is 2 % p.a.) or `security:<id>` (a security
+// flagged is_benchmark). Same period, view and series parameters as the
+// performance reads.
+const benchmarkSelector = {
+  type: "string",
+  pattern: "^(security:[0-9]+|rate:-?[0-9]+(\\.[0-9]+)?)$",
+  description:
+    "`rate:<decimal>` for a fixed effective annual rate compounding daily from a base of 1 (rate:0.02 is 2 % p.a.; also how inflation is expressed), or `security:<id>` for a catalog security flagged is_benchmark (any other security is refused with 422)."
+};
+
+const benchmarkSelectorZ = z.string().regex(/^(security:\d+|rate:-?\d+(\.\d+)?)$/);
+
+const benchmarkSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["portfolio_id", "benchmark"],
+  properties: {
+    ...performanceSchema.properties,
+    benchmark: benchmarkSelector
+  }
+};
+
+const benchmarkZ = performanceZ.extend({ benchmark: benchmarkSelectorZ });
+
+const viewBenchmarkSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "benchmark"],
+  properties: {
+    ...viewPerformanceSchema.properties,
+    benchmark: benchmarkSelector
+  }
+};
+
+const viewBenchmarkZ = viewPerformanceZ.extend({ benchmark: benchmarkSelectorZ });
+
 // -- buckets & views (ADR-0018) --------------------------------------------
 
 const bucketSchema = objectWith("bucket", {
@@ -2352,6 +2390,13 @@ const toolDefinitions: ToolDefinition[] = [
     performanceZ
   ),
   tool(
+    "portfolixir.portfolios.benchmark",
+    "Portfolio benchmark comparison",
+    "The benchmark comparison of a portfolio (ADR-0046, FR-9): the portfolio's own external flows replayed into a benchmark, answering 'was the effort worth it'. benchmark is required: rate:<decimal> for a fixed effective annual rate compounding daily from a base of 1 (rate:0.02 is 2 % p.a. — the savings-account or inflation baseline) or security:<id> for a catalog security flagged is_benchmark (list them with portfolixir.securities.list is_benchmark=true; any other security is refused with 422). Two comparisons ride the response, both Portfolio Performance's: bought_once — benchmark_return, the benchmark rebased to the close before the window, next to portfolio_ttwror over the same window (series=true adds the daily cumulative_return points for a chart overlay) — and savings_plan — invested_capital, portfolio_end_value, benchmark_end_value (the window's opening value and every external flow invested at that day's price; a fixed rate at par), end_value_delta = real minus synthetic (the figure that answers the question), portfolio_irr and benchmark_irr solved on identical dated flows, and benchmark_units. requested_window and window state the days the comparison covers: a flow dated before the benchmark's first quote is excluded from the replay and listed in excluded_flows, and both sides are chained over the covered window. period (ytd|1y|3y|5y|max, default max), year, from/to and view behave like portfolixir.portfolios.performance. All financial values are Decimal strings; as_of and stale carry the walk's freshness (ADR-0039) and computation_basis states input series, window, reference, gaps and assumptions — the synthetic portfolio is frictionless (no fees, no taxes; frictionless: true), which biases the comparison against the real portfolio. A portfolio with nothing to walk, or a benchmark without a quote in the window, answers null figures with window.start_date null and every flow named.",
+    benchmarkSchema,
+    benchmarkZ
+  ),
+  tool(
     "portfolixir.journal.list",
     "List audit journal",
     "List append-only audit-journal entries (FR-28), newest first: who (actor_type/label), what (operation on resource_type/resource_id) and the before/after snapshots of every financial write, including deletions. Optional filters: resource_type, resource_id, actor_type, operation, limit. Real writes only unless include_scenarios=true. The response echoes as_of, the filters applied and the ordering.",
@@ -2448,6 +2493,13 @@ const toolDefinitions: ToolDefinition[] = [
     "True time-weighted return (TTWROR) and money-weighted IRR of a bucket view across ALL portfolios (id is the view id): the same deduplicated account scope as portfolixir.views.valuation, so the view's total and its return always cover the same accounts. Money crossing the view boundary counts as an external flow (a deposit/withdrawal to the slice); money moving between two in-scope accounts nets out. The response also carries invested_capital (start_value plus net_external_flows), wealth_multiple (end_value / invested_capital; null when net invested is zero or negative) and mwr, the non-annualized period money-weighted return — read mwr instead of irr for windows shorter than a year (ADR-0034). period is ytd|1y|3y|5y|max (default max), or year=YYYY for one calendar year, or from/to ISO dates for a custom range; series=true adds the daily points. All financial values are Decimal strings. The response also carries as_of (the walk's compute instant), a stale flag (a superseded value served while a fresh one computes) and computation_basis (input series, window, reference, gap treatment) — ADR-0039.",
     viewPerformanceSchema,
     viewPerformanceZ
+  ),
+  tool(
+    "portfolixir.views.benchmark",
+    "View benchmark comparison (cross-portfolio)",
+    "The benchmark comparison of a bucket view across ALL portfolios (id is the view id; ADR-0046 §3): the same deduplicated account scope as portfolixir.views.valuation and portfolixir.views.performance, so the view's total, its return and its benchmark speak about the same accounts. benchmark is required — rate:<decimal> or security:<id> — and the response is the portfolixir.portfolios.benchmark shape keyed by view_id: bought_once (benchmark_return next to portfolio_ttwror; series=true adds the daily cumulative_return points), savings_plan (invested_capital, portfolio_end_value, benchmark_end_value, end_value_delta, portfolio_irr, benchmark_irr, benchmark_units), requested_window and window with the flows before the benchmark's first quote listed in excluded_flows, all financial values as Decimal strings, as_of and stale (ADR-0039) and computation_basis with the frictionless assumption stated (frictionless: true). period, year, from/to and series behave like portfolixir.views.performance.",
+    viewBenchmarkSchema,
+    viewBenchmarkZ
   ),
   tool(
     "portfolixir.securities_accounts.set_buckets",
@@ -2998,6 +3050,19 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
           "view"
         ])
       );
+    case "portfolixir.portfolios.benchmark":
+      return client.request(
+        "GET",
+        withQuery(`/api/v1/portfolios/${args.portfolio_id}/performance/benchmark`, args, [
+          "benchmark",
+          "period",
+          "year",
+          "from",
+          "to",
+          "series",
+          "view"
+        ])
+      );
     case "portfolixir.journal.list":
       return client.request(
         "GET",
@@ -3039,6 +3104,18 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       return client.request(
         "GET",
         withQuery(`/api/v1/views/${args.id}/performance`, args, [
+          "period",
+          "year",
+          "from",
+          "to",
+          "series"
+        ])
+      );
+    case "portfolixir.views.benchmark":
+      return client.request(
+        "GET",
+        withQuery(`/api/v1/views/${args.id}/performance/benchmark`, args, [
+          "benchmark",
           "period",
           "year",
           "from",

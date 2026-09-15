@@ -46,9 +46,17 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "snapshot list and the three cash-flow roll-ups take a bounded limit on the API and " <>
           "their MCP twins, the trades read records from/to as its bound, every bounded payload " <>
           "of the family echoes the limit it applied; the valuations carry price_date per " <>
-          "position and stale_priced_count (#779, #610).",
-      endpoints: [],
-      tools: [],
+          "position and stale_priced_count (#779, #610); the benchmark comparison — the " <>
+          "portfolio's own flows replayed into a fixed rate or a flagged security — on both " <>
+          "performance scopes (#572, ADR-0046).",
+      endpoints: [
+        "GET /api/v1/portfolios/:portfolio_id/performance/benchmark",
+        "GET /api/v1/views/:view_id/performance/benchmark"
+      ],
+      tools: [
+        "portfolixir.portfolios.benchmark",
+        "portfolixir.views.benchmark"
+      ],
       parameters: [
         "GET /api/v1/securities/:security_id/notes and portfolixir.notes.list take limit= (default 1000, maximum 10000): the newest entries; thesis_state still derives from the whole log (#776)",
         "GET /api/v1/notes/unreviewed, /notes/uncorroborated and /notes/expiring and their MCP twins take limit= (default 1000, maximum 10000): the most overdue positions, the newest entries, the soonest-expiring entries (#776)",

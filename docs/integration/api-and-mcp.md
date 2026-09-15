@@ -719,6 +719,41 @@ Example account payloads:
   states the metric's **computation basis** (`computation_basis`): the input
   series, the effective window, the reference series (`null` — TTWROR/IRR
   have none) and the treatment of gaps.
+- `GET /api/v1/portfolios/:portfolio_id/performance/benchmark` returns the
+  **benchmark comparison** (ADR-0046, FR-9): the portfolio's own external
+  flows replayed into a benchmark, the read that answers "was the effort
+  worth it". `benchmark=` is required — `rate:<decimal>` for a fixed
+  effective annual rate compounding daily from a base of 1 (Act/365;
+  `rate:0.02` is 2 % p.a., the savings-account baseline and, in v1, how
+  inflation is expressed) or `security:<id>` for a catalog security flagged
+  `is_benchmark` (list them with `GET /api/v1/securities?is_benchmark=true`;
+  any other security answers `422`). `period`, `year`, `from`/`to`, `view=`
+  and `series=true` behave like the performance read. The response carries
+  `benchmark` (`kind`, then `annual_rate` or `security_id`/`name`/
+  `currency_code`), `requested_window` and `window` — the days the
+  comparison actually covers: a flow dated before the benchmark's first
+  quote is excluded from the replay and listed in `excluded_flows` (`date`,
+  `flow`), and both sides are chained over the covered window — then the two
+  comparisons Portfolio Performance shows. `bought_once` is flow-neutral:
+  `benchmark_return`, the benchmark rebased to the close before the window
+  (or to the window's first day when it opens with no value), next to
+  `portfolio_ttwror` over the same window; with `series=true` it also
+  carries the daily `cumulative_return` points for a chart overlay.
+  `savings_plan` is flow-matched: `invested_capital`, `portfolio_end_value`
+  and `benchmark_end_value` — the window's opening value and every external
+  flow invested into the benchmark at that day's price (a fixed rate: at
+  par) — `end_value_delta` (real minus synthetic, the figure that answers
+  the question), `portfolio_irr` and `benchmark_irr` (ADR-0034's XIRR on
+  identical dated flows) and `benchmark_units`. All financial values are
+  Decimal strings; `as_of`/`stale` carry the walk's freshness (ADR-0039) and
+  `computation_basis` states the input series, the window, the reference,
+  the treatment of gaps and the `assumptions` — the synthetic portfolio is
+  frictionless (`frictionless: true`: no fees, no taxes), which biases the
+  comparison against the real portfolio. A missing or malformed `benchmark`
+  is `422`; a portfolio with nothing to walk, or a benchmark without a quote
+  in the window, answers `null` figures with `window.start_date: null` and
+  every flow named in `excluded_flows`. Nothing is persisted: the comparison
+  is derived on read and memoised like the walk it depends on.
 - `GET /api/v1/portfolios/:portfolio_id/income` returns the **retrospective
   income report**: the dividends and interest already booked in the ledger,
   aggregated three ways (no forecast — the dividend calendar is a separate
@@ -1291,6 +1326,14 @@ writes are deliberately not journaled (ADR-0018 §5).
   performance endpoint; the shape mirrors it with `view_id` in place of
   `portfolio_id`, and all financial values are Decimal strings. Unknown and
   malformed view ids return `404`; a bad period `422`.
+- `GET /api/v1/views/:view_id/performance/benchmark` returns the view's
+  benchmark comparison **across all portfolios** (ADR-0046 §3): the same
+  deduplicated account scope the view valuation and the view performance
+  cover, so the view's total, its return and its benchmark speak about the
+  same accounts. `benchmark=` is required and `period`, `year`, `from`/`to`
+  and `series=true` behave like the portfolio benchmark read; the shape
+  mirrors it with `view_id` in place of `portfolio_id`. Unknown and
+  malformed view ids return `404`; a bad period or benchmark `422`.
 - `PUT /api/v1/securities_accounts/:id/buckets` replaces a depot's default
   bucket set (the buckets each position inherits unless overridden). Body:
   `{"bucket_ids": [..]}`. At most one of the ids may be a scope-dimension
@@ -1516,6 +1559,7 @@ in MCP schemas are strings.
 - `portfolixir.portfolios.set_cash_target`
 - `portfolixir.portfolios.income`
 - `portfolixir.portfolios.performance`
+- `portfolixir.portfolios.benchmark`
 - `portfolixir.journal.list`
 - `portfolixir.buckets.list`
 - `portfolixir.buckets.get`
@@ -1530,6 +1574,7 @@ in MCP schemas are strings.
 - `portfolixir.views.set_buckets`
 - `portfolixir.views.valuation`
 - `portfolixir.views.performance`
+- `portfolixir.views.benchmark`
 - `portfolixir.securities_accounts.set_buckets`
 - `portfolixir.cash_accounts.set_buckets`
 - `portfolixir.securities_accounts.set_position_buckets`
@@ -1574,6 +1619,13 @@ as an external flow (ADR-0019).
 `portfolixir.settings.get_default_view` / `portfolixir.settings.set_default_view`
 read and set the default-view preference (ADR-0024): pass a `view_id` to pin a
 view, or `null`/omit it to clear back to the built-in Everything scope.
+
+`portfolixir.portfolios.benchmark` and `portfolixir.views.benchmark` are
+the twins of the two benchmark reads (ADR-0046): `benchmark` is
+`rate:<decimal>` or `security:<id>`, the period, view and series parameters
+are the performance tools', and the response carries both comparisons,
+the covered window, the excluded flows and the computation basis with the
+frictionless assumption stated.
 
 Since ADR-0020 the target tools (`portfolixir.targets.list`,
 `portfolixir.targets.set`, `portfolixir.targets.delete`) and the cash-target

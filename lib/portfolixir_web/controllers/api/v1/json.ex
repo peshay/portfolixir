@@ -1496,6 +1496,84 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     |> Map.put(:view_id, result.view_id)
   end
 
+  @doc """
+  The benchmark comparison (ADR-0046 §4, #572): both comparisons with every
+  financial value a string, the requested and the covered window, the flows
+  excluded from the replay, and the computation basis with the frictionless
+  assumption stated in the payload. The bought-once series rides along only
+  on request, like the performance series.
+  """
+  def benchmark_comparison(result, include_series? \\ false) do
+    bought_once = %{
+      benchmark_return: decimal(result.bought_once.benchmark_return),
+      portfolio_ttwror: decimal(result.bought_once.portfolio_ttwror)
+    }
+
+    bought_once =
+      if include_series? do
+        Map.put(
+          bought_once,
+          :series,
+          Enum.map(
+            result.bought_once.series,
+            &%{date: date(&1.date), cumulative_return: decimal(&1.cumulative_return)}
+          )
+        )
+      else
+        bought_once
+      end
+
+    %{
+      portfolio_id: result.portfolio_id,
+      period: period_field(result.period),
+      base_currency: result.base_currency,
+      benchmark: benchmark_reference(result.benchmark),
+      requested_window: benchmark_window(result.requested_window),
+      window: benchmark_window(result.window),
+      excluded_flows:
+        Enum.map(result.excluded_flows, &%{date: date(&1.date), flow: decimal(&1.flow)}),
+      bought_once: bought_once,
+      savings_plan: Map.new(result.savings_plan, fn {key, value} -> {key, decimal(value)} end),
+      as_of: datetime(result.as_of),
+      stale: result.stale,
+      computation_basis: benchmark_basis(result.computation_basis)
+    }
+  end
+
+  @doc "The view twin of `benchmark_comparison/2`: keyed by `view_id`."
+  def view_benchmark_comparison(result, include_series? \\ false) do
+    result
+    |> benchmark_comparison(include_series?)
+    |> Map.delete(:portfolio_id)
+    |> Map.put(:view_id, result.view_id)
+  end
+
+  defp benchmark_reference(%{kind: :rate, annual_rate: rate}),
+    do: %{kind: "rate", annual_rate: decimal(rate)}
+
+  defp benchmark_reference(%{kind: :security} = benchmark) do
+    %{
+      kind: "security",
+      security_id: benchmark.security_id,
+      name: benchmark.name,
+      currency_code: benchmark.currency_code
+    }
+  end
+
+  defp benchmark_window(%{start_date: start_date, end_date: end_date}),
+    do: %{start_date: date(start_date), end_date: date(end_date)}
+
+  defp benchmark_basis(basis) do
+    %{
+      input_series: basis.input_series,
+      window: benchmark_window(basis.window),
+      reference: basis.reference,
+      gaps: basis.gaps,
+      assumptions: basis.assumptions,
+      frictionless: basis.frictionless
+    }
+  end
+
   defp performance_point(point) do
     %{
       date: date(point.date),
