@@ -3190,7 +3190,7 @@ msgstr "Aug"
 #: lib/portfolixir_web/live/transaction_management_live.ex:1128
 #, elixir-autogen, elixir-format
 msgid "Balance snapshot"
-msgstr "Saldo-Snapshot"
+msgstr "Saldo gesetzt"
 
 #: lib/portfolixir_web/live/income_live.ex:987
 #, elixir-autogen, elixir-format

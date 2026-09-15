@@ -30,5 +30,11 @@ defmodule Portfolixir.Catalog.Feeds do
   def label("PORTFOLIO_PERFORMANCE"), do: gettext("Portfolio Performance")
   def label("COINGECKO"), do: gettext("CoinGecko")
   def label(nil), do: ""
-  def label(other), do: to_string(other)
+  def label(""), do: ""
+
+  # An identifier outside the closed set (an import can carry one in): read as
+  # words, never as the slug (#785, the voice rule on enum values).
+  def label(other) when is_binary(other) do
+    other |> String.replace("_", " ") |> String.downcase() |> String.capitalize()
+  end
 end

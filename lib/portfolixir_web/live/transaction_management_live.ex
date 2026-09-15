@@ -8,6 +8,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.ChangedSince
+  alias PortfolixirWeb.TransactionKindLabel
 
   # Two chip families (#707 D2, Part 4) plus the conditions the "More filters"
   # disclosure holds. Chips within a family compose as OR -- two accounts means
@@ -1107,27 +1108,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp holdings_cell(row, "unrealized_pnl_pct"), do: format_decimal(row.unrealized_pnl_pct)
 
   # Human, localized labels for the stored type enum; the form value and the
-  # ledger keep the machine "buy"/"sell". Mirrors securities_live.ex so the two
-  # transaction surfaces read identically.
-  # Every PP transaction kind gets a translated label, so the summary strip
-  # never mixes raw type keys into the localized UI (Steve UAT,
-  # reconsolidation).
-  defp tx_type_label("buy"), do: gettext("Buy")
-  defp tx_type_label("sell"), do: gettext("Sell")
-  defp tx_type_label("deposit"), do: gettext("Deposit")
-  defp tx_type_label("removal"), do: gettext("Removal")
-  defp tx_type_label("dividend"), do: gettext("Dividend")
-  defp tx_type_label("interest"), do: gettext("Interest")
-  defp tx_type_label("fee"), do: gettext("Fee")
-  defp tx_type_label("tax"), do: gettext("Tax")
-  defp tx_type_label("tax_refund"), do: gettext("Tax refund")
-  defp tx_type_label("cash_transfer"), do: gettext("Cash transfer")
-  defp tx_type_label("inbound_delivery"), do: gettext("Inbound delivery")
-  defp tx_type_label("outbound_delivery"), do: gettext("Outbound delivery")
-  defp tx_type_label("security_transfer"), do: gettext("Security transfer")
-  defp tx_type_label("balance"), do: gettext("Balance snapshot")
-  defp tx_type_label("split"), do: gettext("Split")
-  defp tx_type_label(other), do: to_string(other)
+  # ledger keep the machine "buy"/"sell". One shared table for both
+  # transaction surfaces, every kind covered, no fallback (#785).
+  defp tx_type_label(kind), do: TransactionKindLabel.label(kind)
 
   defp split_ratio_label(%{split_ratio_numerator: p, split_ratio_denominator: q})
        when is_integer(p) and is_integer(q),
