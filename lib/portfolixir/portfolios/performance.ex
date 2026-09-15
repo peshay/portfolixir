@@ -737,11 +737,14 @@ defmodule Portfolixir.Portfolios.Performance do
   end
 
   # One quantity leg as the basis walk sees it. A buy or a sell moved cash at
-  # its own booked price; every other kind (deliveries, depot transfers) moved
-  # quantity only and is valued at the day's price wherever it shows up — in
-  # the day's external flow, or in the counter depot.
+  # its own booked price, and since #779 a delivery carrying a booked price
+  # moved its units at that price too (ADR-0010 amendment 2026-09-15: F_d
+  # values it there, so the lot queue must agree); every other kind — a
+  # price-less delivery, a depot transfer — moved quantity only and is valued
+  # at the day's price wherever it shows up, in the day's external flow or in
+  # the counter depot.
   defp quantity_leg(%{type: type, price: %Decimal{} = price} = tx, delta)
-       when type in ["buy", "sell"],
+       when type in ["buy", "sell", "inbound_delivery", "outbound_delivery"],
        do: {:trade, delta, %{close: price, currency: tx.currency_code}}
 
   defp quantity_leg(_tx, delta), do: {:mark, delta}
@@ -795,7 +798,7 @@ defmodule Portfolixir.Portfolios.Performance do
     flow =
       cond do
         effect.external ->
-          Decimal.add(kept_cash_base, kept_qty_market_value(kept_qty, context))
+          Decimal.add(kept_cash_base, kept_qty_market_value(kept_qty, tx, context))
 
         straddles?(effect, kept_cash, kept_qty) ->
           Decimal.add(kept_cash_base, kept_qty_booked_value(effect, kept_qty, tx, context))
@@ -836,10 +839,11 @@ defmodule Portfolixir.Portfolios.Performance do
     kept > 0 and kept < total
   end
 
-  # External quantity legs (deliveries) are valued at market, like the unscoped path.
-  defp kept_qty_market_value(kept_qty, context) do
+  # External quantity legs (deliveries) are valued like the unscoped path: at
+  # the booked price when the delivery carries one, else at market (#779).
+  defp kept_qty_market_value(kept_qty, tx, context) do
     Enum.reduce(kept_qty, @zero, fn {_acct, security_id, delta}, acc ->
-      Decimal.add(acc, security_value(security_id, delta, context))
+      Decimal.add(acc, leg_value(tx, security_id, delta, context))
     end)
   end
 
@@ -847,8 +851,8 @@ defmodule Portfolixir.Portfolios.Performance do
   # (the transaction also moves cash) the quantity side is worth the negated total
   # cash delta, apportioned by quantity, so a fully-in-view trade nets to zero. For
   # a cashless transfer the moved quantity is valued at market.
-  defp kept_qty_booked_value(%{cash: []} = _effect, kept_qty, _tx, context),
-    do: kept_qty_market_value(kept_qty, context)
+  defp kept_qty_booked_value(%{cash: []} = _effect, kept_qty, tx, context),
+    do: kept_qty_market_value(kept_qty, tx, context)
 
   defp kept_qty_booked_value(effect, kept_qty, tx, context) do
     total_cash_base = total_add_cash_base(effect.cash, tx, context)
@@ -919,7 +923,7 @@ defmodule Portfolixir.Portfolios.Performance do
         {_account_id, security_id, delta}, {state, flow, booked} ->
           flow =
             if external? do
-              Decimal.add(flow, security_value(security_id, delta, context))
+              Decimal.add(flow, leg_value(tx, security_id, delta, context))
             else
               flow
             end
@@ -1320,6 +1324,25 @@ defmodule Portfolixir.Portfolios.Performance do
         @zero
     end
   end
+
+  # A quantity leg's value in the day's external flow (#779, ADR-0010
+  # amendment 2026-09-15, aligned with ADR-0034 §1): a delivery carrying a
+  # booked price is valued at that price — a total loss booked out at 0 is
+  # an outflow of 0, so the loss stays in the return — and every other
+  # external quantity leg, a price-less delivery included, keeps the day's
+  # carried price. Holdings themselves are always valued at the day's price
+  # (`security_value/3`), whatever price they arrived at.
+  defp leg_value(
+         %{type: type, price: %Decimal{} = price, currency_code: currency},
+         _security_id,
+         delta,
+         context
+       )
+       when type in ["inbound_delivery", "outbound_delivery"] and is_binary(currency),
+       do: to_base(Decimal.mult(delta, price), currency, context)
+
+  defp leg_value(_tx, security_id, delta, context),
+    do: security_value(security_id, delta, context)
 
   # -- in-memory FX ------------------------------------------------------------
 

@@ -30,9 +30,15 @@ defmodule Portfolixir.Derived.Registry do
   # at v1 has points without it, and the snapshot comparison's pre-cost chain
   # would read those as a silent zero -- a cost figure of zero is exactly the
   # wrong answer, because it claims the changes were free.
+  #
+  # v3 (2026-09-15, #779 and #610, Sprint 11 Lane X): a delivery carrying a
+  # booked price enters the day's flow and the lot queue at that price, and a
+  # retired security's stale quote no longer counts as a measurement. Both
+  # move `flow` and `basis` on stored points, so rows computed at v2 must not
+  # be served.
   @analytics %{
-    performance_analysis: %{computation_version: 2, default_lifetime: :request},
-    performance_view_analysis: %{computation_version: 2, default_lifetime: :request}
+    performance_analysis: %{computation_version: 3, default_lifetime: :request},
+    performance_view_analysis: %{computation_version: 3, default_lifetime: :request}
   }
 
   @doc "All registered analytic ids."
