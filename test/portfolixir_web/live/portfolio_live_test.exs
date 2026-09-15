@@ -1550,9 +1550,10 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
        %{conn: conn} do
     seed_world()
 
-    # The Allocation & targets tab (ADR-0022) carries the drift table; the KPI
-    # cards render on both Wealth tabs.
-    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
+    # The KPI band renders on Holdings only since #797 (the Allocation tab
+    # carries a summary line instead); the drift table lives on the
+    # Allocation & targets tab (ADR-0022).
+    {:ok, view, _html} = live(conn, "/portfolio")
     html = render_async(view)
 
     # TTWROR tooltip: basis must state "selected period", not annualized.
@@ -1577,7 +1578,9 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert cash_kpi =~ "aria-describedby"
 
     # SOLL-IST tooltip on the drift table: mentions target and actual weights.
-    drift_section = view |> element(~s(#portfolio-allocation)) |> render()
+    {:ok, allocation_view, _html} = live(conn, "/portfolio?tab=allocation")
+    render_async(allocation_view)
+    drift_section = allocation_view |> element(~s(#portfolio-allocation)) |> render()
     assert drift_section =~ "ⓘ"
     assert drift_section =~ "target"
     assert drift_section =~ "actual"

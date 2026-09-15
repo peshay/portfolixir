@@ -239,6 +239,9 @@ components:
     value-color: 'accent (active variant) — EXCEPT signed money, which takes {colors.positive}/{colors.danger}'
     label: '{typography.stat-label}'
     min-height: 120px
+    variants: 'lead (.stat--lead, 132px min, sub-line) and compact (.stat--compact, 96px min, 22px value) on the Wealth band since issue 797 — Components → KPI band'
+    value-suffix: '<small class="value-suffix"> after the digits, {typography.stat-label} size, {colors.text-muted}, 4px gap; digits never wrap'
+    sub-line: '.stat__sub — 12px/500 {colors.text-muted}, its figures 650 {colors.text}, signed ones in their sign colour'
   hero:
     composition: 'headline value + as-of basis line above the curve; €/% series toggle and period control on the chart toolbar row'
     value: '{typography.stat-value}'
@@ -891,7 +894,7 @@ The checkbox is one control: box and label sit on one line, the label is the hit
 - **App shell** (`.app-shell`) — fixed sidebar with grouped nav (`.nav-group`, uppercase group heads, icon + label rows), active link per {components.selected-nav}. The Classifications group is **one static entry** (`nav_groups/0`, `app_shell.ex:266-294`); the per-tree list and its `+` affordance live on `/classifications` itself — corrected 2026-08-05 against the build, per ADR-0024 (a tree is an entity, not a task). The sidebar background is viewport-height rather than page-height, leaving a cut edge on long pages — a defect. Nav entries follow ADR-0024: navigation reflects user tasks, not the storage model; a new entity does not get a sidebar entry by default.
 - **Top bar** (`.topbar`) — burger toggle, brand, page title + subtitle, then theme menu, accent menu, EN/DE locale switcher (pill text ≥ 11px, pinned by the spacing-scale test).
 - **Area tabs** (`.area-tabs`, `.detail-pane-tabs`) — the Wealth areas are Holdings · Allocation & targets · Cash flow · Snapshots · Tax; Cash flow's second level is Income · Realized gains · Deposits & withdrawals · Costs. Both levels per {components.selected-nav}.
-- **Stat card** (`.stat`) — {components.stat-card}: three-color gradient hairline, uppercase label, 30px value. Signed values take semantic colour, not the accent (see Colors).
+- **Stat card** (`.stat`) — {components.stat-card}: three-color gradient hairline, uppercase label, 30px value. Signed values take semantic colour, not the accent (see Colors). Two tiers on the Wealth band since issue 797 — `.stat--lead` and `.stat--compact`, the currency as `.value-suffix`, a card's second figure as `.stat__sub` (Components → KPI band — two tiers).
 - **Hero** — **retired 2026-08-05.** {components.hero} was specified for the four-metric-card Overview of the superseded UX-DR2. That rule now follows the build (EXPERIENCE.md UX-DR2): the Overview is value + change, "Off target" (UX-DR21), and data quality — plus the four-cell KPI strip since UX-DR2's 2026-09-14 amendment — and no hero component was ever built. The anatomy stays in the frontmatter as a record, unreferenced by any surface. [mockups/key-dashboard.html](mockups/key-dashboard.html) is downstream of the superseded rule and is **stale** — it illustrates a composition this document no longer specifies. Re-render or retire it before the mock is used as a reference again. (The spines-win-on-conflict clause is stated once, in EXPERIENCE.md → IA; it is not repeated here.)
 - **"Needs attention" card** (`#dashboard-attention`) — {components.needs-attention-card}: heading, basis line, up to five drift rows, each a link into Wealth → Allocation & targets. The basis line is half-built today: the threshold clause ships (`data-role="attention-explainer"`), the view and the plan it is computed against do not. The empty case is a plain muted line (`data-role="all-clear"`), which is correct and stays.
 - **Overview data quality** (`#dashboard-data-quality`) — {components.data-quality-line}: one line, only when N > 0, no all-clear badge, remedy link pre-filtered. Built as a three-card grid; see Components → Data quality.
@@ -1280,3 +1283,43 @@ variants in `../ux-review-2026-09-12.md`. Appearance decided here:
   frame, so every proposal already uses the shipped tokens and components.
   They illustrate; the spines specify (the clause in `EXPERIENCE.md` → Visual
   references holds).
+
+### KPI band — two tiers *(C1-A, issue 797)*
+
+`{components.stat-card}` in two variants on the Wealth Holdings tab; one
+band per area, so the Allocation & targets tab carries the summary line
+below instead of the band (EXPERIENCE.md → Amendment 2026-09-12 → Stat card,
+extended).
+
+- **Lead card** (`.stat--lead`): the stat anatomy at full size — label, 30 px
+  value, a sub-line (`.stat__sub`) at {typography.stat-label} size in
+  {colors.text-muted} with its figures at weight 650 in {colors.text}. Three
+  in one row (`.kpi-band__lead`, three equal columns; one column under
+  720 px): the total incl. cash with its securities/cash composition, the
+  TTWROR with the period's absolute result, the IRR/MWR with its basis
+  ("annualized · as of …", "not annualized · as of …").
+- **Compact card** (`.stat--compact`): the same anatomy at half height —
+  96 px minimum, 22 px value, 14/16 px padding. Four in one row
+  (`.kpi-band__support`, four equal columns; two under 720 px): securities,
+  cash quote with the cash amount, opening value with the net flows, wealth
+  multiple.
+- **Value suffix** in both: the currency as `<small class="value-suffix">`
+  after the digits (the Value suffix rule above). The digits keep
+  `white-space: nowrap`; the suffix may drop to its own line on a narrow
+  card, the digits never break.
+- **Label row** (`.stat__head`): the label and its ⓘ side by side, the
+  tooltip in its inline variant (`.metric-tooltip--inline`), so it reads
+  with the label instead of pinning to the corner where the sub-line now
+  sits.
+- **States:** the value-slot rules are unchanged — the skeleton at the
+  value's footprint with `aria-busy` while pending, the cue on the
+  seconds-class figures, the count-up bar while settling — and the tiers
+  reserve their height (132 px / 96 px) so nothing reflows when a value
+  lands. Signed values take semantic colour; the sub-line's signed figure
+  too.
+- **Summary line** (`.kpi-summary`, the Allocation & targets tab): one 13 px
+  line in {colors.text-muted} — "Total incl. cash", "Cash quote", "TTWROR
+  1Y", each figure at weight 700 in {colors.text} (signed ones in their sign
+  colour) — with the "All key figures → Holdings" link in the accent at the
+  right end, keeping the picked view. `aria-busy` while either figure
+  computes; a failed walk shows "—".

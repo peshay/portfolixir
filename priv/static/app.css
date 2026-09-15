@@ -999,8 +999,11 @@ textarea {
 
 /* Direct child only: the label. Nested spans (count-up digits, sign spans,
    the recomputing cue) carry their own typography — the descendant form
-   painted the KPI values themselves as 12px uppercase labels. */
-.stat > span {
+   painted the KPI values themselves as 12px uppercase labels. The label row
+   of a card with an inline ⓘ (`.stat__head`, issue 797) carries the same
+   label voice. */
+.stat > span,
+.stat__head > span {
   color: var(--color-text-muted);
   font-size: 12px;
   font-weight: 650;
@@ -7037,4 +7040,142 @@ select:disabled {
 }
 .sidebar-logout {
   margin-top: auto;
+}
+
+/* ===== Wealth KPI band — two tiers (issue 797, review C1 variant A) ===== */
+/* Three lead figures at full size over four supporting figures at half
+   height; the currency is a small suffix so a value never wraps, and a
+   card's second figure is a sub-line (DESIGN.md → Amendment 2026-09-12 →
+   Value suffix; Components → KPI band). Under 720 px the lead cards stack
+   and the supporting cards pair up, as the 390 px mockup shows. */
+.kpi-band {
+  gap: var(--space-4);
+}
+
+.kpi-band__lead {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.kpi-band__support {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+@media (max-width: 720px) {
+  .kpi-band__lead {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .kpi-band__support {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* The tiers reserve their footprint (UX-DR20): a lead card fits label,
+   value and sub-line while the value is still pending. */
+.stat--lead {
+  min-height: 132px;
+  align-content: start;
+}
+
+.stat--compact {
+  min-height: 96px;
+  padding: 14px 16px;
+  gap: 6px;
+  align-content: start;
+}
+
+.stat--compact strong {
+  font-size: 22px;
+}
+
+/* The label row: label and inline ⓘ side by side, so the tooltip reads with
+   the label instead of pinning to the corner where the sub-line now sits. */
+.stat__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.stat__head .metric-tooltip--inline {
+  margin-left: 0;
+}
+
+/* The value suffix (DESIGN.md → Amendment 2026-09-12): stat-label size and
+   muted colour, 4 px after the digits; the digits never wrap, the suffix
+   may drop to its own line on a narrow card. */
+.stat .value-suffix {
+  display: inline-block;
+  margin-left: 4px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.stat strong .count-up,
+.stat strong [data-count-digits] {
+  white-space: nowrap;
+}
+
+/* A card's sub-line: the second figure at label size, not label voice. */
+.stat__sub {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.stat__sub b {
+  color: var(--color-text);
+  font-weight: 650;
+}
+
+/* The Allocation tab's one-line stand-in for the band: value, cash quote and
+   return in a row, the way back to Holdings at the right end. */
+.kpi-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
+  padding-block: 12px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.kpi-summary strong {
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.kpi-summary strong.is-positive {
+  color: var(--color-positive);
+}
+
+.kpi-summary strong.is-negative {
+  color: var(--color-danger);
+}
+
+.kpi-summary .value-skeleton {
+  vertical-align: middle;
+}
+
+.kpi-summary__link {
+  margin-left: auto;
+  color: var(--color-accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.kpi-summary__link:hover,
+.kpi-summary__link:focus-visible {
+  text-decoration: underline;
 }
