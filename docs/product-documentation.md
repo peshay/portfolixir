@@ -144,7 +144,8 @@ be bookmarked or linked to:
   7 days / 30 days* chips write a concrete ISO date here, so the link keeps
   meaning what it meant when it was shared.
 - `?dq=stale_quote|missing_quote|missing_logo|missing_fx` — the data-quality
-  shortcut filters: no quote in the last 7 days (including none at all), no
+  shortcut filters: no quote in the last 7 days (including none at all;
+  retired securities are left out, their stopped feed is expected), no
   quote at all, no stored logo, and — issue #717 — *Missing FX*: priced, but
   with no stored rate from its currency to the base currency, so storing the
   rate empties the set. The same conditions can be picked in the filter

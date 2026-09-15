@@ -80,7 +80,8 @@ full list.
   `present` — `missing` powers the "securities without a logo" overview and
   excludes rows explicitly set to no logo), `data_quality`
   (`stale_quote` — no quote newer than 7 days, **including** securities never
-  priced at all; `missing_quote` — no quote at all, the narrower set inside it;
+  priced at all, retired securities left out because their stopped feed is
+  expected; `missing_quote` — no quote at all, the narrower set inside it;
   `missing_logo`; `missing_fx` — issue #717: priced, but with no stored rate
   from its currency to the EUR hub, so storing the rate empties the set),
   `projection` (`slim`/`full`), and

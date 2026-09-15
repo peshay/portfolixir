@@ -267,8 +267,14 @@ and the same units leave or join the day's lot queue at that price, like a
 sale or a buy would, so `B_d` and `F_d` never disagree about them. A
 price-less delivery keeps the day's-quote rule, unchanged. Holdings
 themselves are always valued at the day's price, whatever price they arrived
-at. The money-weighted set inherits the same flow, which is the alignment
-with ADR-0034 §1.
+at — with one refinement from the batch's own review round: for a security
+that has no price yet, or a retired one whose carried quote is no
+measurement (below), the booked price of a delivery **seeds** the price the
+walk carries, exactly as the first own trade does; otherwise `V_d` would
+value the delivered units at 0 while `F_d` carried them at the booked
+price, and the day would read as a loss that never recovers. An already
+priced position keeps the day's price. The money-weighted set inherits the
+same flow, which is the alignment with ADR-0034 §1.
 
 **A retired security's stale quote is not a measurement.** The gate above
 treats a security as measured once any quote has landed, so a holding whose

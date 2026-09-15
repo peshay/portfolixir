@@ -1076,15 +1076,25 @@ defmodule Portfolixir.Portfolios.Performance do
   defp security_struct(%{security: %Portfolixir.Catalog.Security{} = security}), do: security
   defp security_struct(_tx), do: nil
 
+  # A buy or a sell is a price observation (rank 0, consumed like a quote
+  # but never a measurement). A priced delivery (#779) is a weaker one: its
+  # point seeds a security that has no price yet — or a retired one whose
+  # carried quote is no measurement (#610) — and is dropped otherwise, so an
+  # already priced position keeps the day's price (closing-act finding: F_d
+  # carried the delivered units at the booked price while V_d valued them
+  # at 0, a loss that never recovered).
   defp trade_points(transactions, walk_start) do
     transactions
-    |> Enum.filter(&(&1.type in ["buy", "sell"] and match?(%Decimal{}, &1.price)))
+    |> Enum.filter(
+      &(&1.type in ["buy", "sell", "inbound_delivery", "outbound_delivery"] and
+          match?(%Decimal{}, &1.price))
+    )
     |> Enum.map(
       &%{
         date: effective_date(&1, walk_start),
         close: &1.price,
         currency: &1.currency_code,
-        price_source: :trade,
+        price_source: if(&1.type in ["buy", "sell"], do: :trade, else: :delivery),
         rank: 0
       }
     )
@@ -1160,6 +1170,27 @@ defmodule Portfolixir.Portfolios.Performance do
       consume_points(entry, day, open)
     else
       {entry, open}
+    end
+  end
+
+  # A delivery point seeds only an unpriced security, or a retired one whose
+  # stale quote is no measurement; otherwise it is consumed without effect.
+  defp consume_points(
+         %{upcoming: [%{date: date, price_source: :delivery} = point | rest]} = entry,
+         day,
+         open
+       ) do
+    cond do
+      Date.compare(date, day) == :gt ->
+        {entry, open}
+
+      is_nil(entry.price) or stale_retired?(entry) ->
+        open = opening(open, entry.price)
+        price = %{close: point.close, currency: point.currency, price_source: :trade}
+        consume_points(%{entry | price: price, upcoming: rest}, day, open)
+
+      true ->
+        consume_points(%{entry | upcoming: rest}, day, open)
     end
   end
 

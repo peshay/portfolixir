@@ -15,17 +15,20 @@ defmodule Portfolixir.Catalog.DataQuality do
 
   | id | means |
   |---|---|
-  | `stale_quote` | no quote newer than #{7} days — **including no quote at all** |
+  | `stale_quote` | no quote newer than #{7} days — **including no quote at all**; a retired security is left out, its stopped feed is expected |
   | `missing_quote` | no quote at all |
   | `missing_logo` | no stored logo, and not deliberately locked to "no logo" |
   | `missing_fx` | priced, but no stored rate from its currency to the base (EUR hub) |
 
-  `missing_quote` is a strict subset of `stale_quote`, and that is deliberate
-  rather than an oversight: the dashboard's finding has always read "without a
-  quote in 7 days" and has always counted the never-priced rows in it, because
-  a security nobody has ever priced is not in better shape than one priced a
+  `missing_quote` is a subset of `stale_quote`, and that is deliberate rather
+  than an oversight: the dashboard's finding has always read "without a quote
+  in 7 days" and has always counted the never-priced rows in it, because a
+  security nobody has ever priced is not in better shape than one priced a
   month ago. The narrower set exists so the two can be told apart when working
-  them.
+  them. The one exception is a retired security: its stale quote is expected
+  and leaves `stale_quote` (the remedy the Wealth finding names is the retired
+  flag, so the remedy must clear the finding and the list it links to), while
+  a retired security that was never priced still shows under `missing_quote`.
 
   ## Two halves, and why a caller must apply both
 
@@ -141,6 +144,11 @@ defmodule Portfolixir.Catalog.DataQuality do
     today = today || Date.utc_today()
     Enum.filter(rows, &matches?(&1, id, today))
   end
+
+  # A retired security's stopped feed is expected: it leaves this predicate
+  # so the count the Wealth finding shows links to a list of the same rows
+  # (closing-act finding; the finding's own remedy is the retired flag).
+  defp matches?(%{security: %{is_retired: true}}, "stale_quote", _today), do: false
 
   defp matches?(row, "stale_quote", today) do
     case latest_price_date(row) do

@@ -275,4 +275,66 @@ defmodule Portfolixir.Portfolios.Performance.RetiredSecuritiesTest do
     assert Decimal.equal?(day(result, ~D[2026-01-20]).basis, Decimal.new("-400"))
     assert Decimal.equal?(r6(result.ttwror), Decimal.new("-0.166667"))
   end
+
+  # Closing-act finding (risk-tier verification pass, #779): a priced
+  # delivery entered F_d at its booked price but was no price observation, so
+  # a security with no price yet was valued at 0 the same day — V_d and F_d
+  # disagreed about the very units #779 aligned, and the day read as a loss
+  # that never recovered. A priced delivery now seeds the price of a security
+  # that has none; an already priced position keeps the day's price.
+  test "a priced delivery seeds the price of a security that has none yet" do
+    world = base_world(name: "PDS", cash_name: "PDS Cash", depot_name: "PDS Depot")
+    security = create_security!(name: "Seeded Co", ticker: "SEED")
+
+    deposit!(world, "1000", ~D[2026-01-01])
+    delivery!(world, security, "inbound_delivery", "5", ~D[2026-01-10], price: "80")
+    put_quote!(security, ~D[2026-01-20], "80")
+
+    {:ok, result} = Performance.for_portfolio(world.portfolio.id, today: ~D[2026-01-21])
+
+    # 01-10: V = 1000 cash + 5 x 80 = 1400, F = 400: r = 1400 / (1000 + 400) - 1 = 0.
+    # 01-20: the first quote at the same 80 is a basis step of 0 — nothing moves.
+    assert Decimal.equal?(day(result, ~D[2026-01-10]).value, Decimal.new("1400"))
+    assert Decimal.equal?(day(result, ~D[2026-01-10]).flow, Decimal.new("400"))
+    assert Decimal.equal?(result.ttwror, Decimal.new("0"))
+    assert Decimal.equal?(result.end_value, Decimal.new("1400"))
+    assert Decimal.equal?(result.invested_capital, Decimal.new("1400"))
+  end
+
+  test "a priced delivery as the portfolio's first booking, and one never quoted, are not a total loss" do
+    world = base_world(name: "PDF", cash_name: "PDF Cash", depot_name: "PDF Depot")
+    security = create_security!(name: "First Delivered Co", ticker: "FDL")
+
+    delivery!(world, security, "inbound_delivery", "5", ~D[2026-01-01], price: "80")
+
+    {:ok, result} = Performance.for_portfolio(world.portfolio.id, today: ~D[2026-01-21])
+
+    # 01-01: V = 5 x 80 = 400, F = 400: r = 400 / (0 + 400) - 1 = 0, and the
+    # holding stays visible at its booked price with no quote ever.
+    assert Decimal.equal?(day(result, ~D[2026-01-01]).value, Decimal.new("400"))
+    assert Decimal.equal?(result.ttwror, Decimal.new("0"))
+    assert Decimal.equal?(result.end_value, Decimal.new("400"))
+  end
+
+  test "a priced delivery re-prices a retired security's stale quote as a basis step, like a trade" do
+    world = base_world(name: "PDR", cash_name: "PDR Cash", depot_name: "PDR Depot")
+    security = create_security!(name: "Retired Delivered Co", ticker: "RDL")
+
+    deposit!(world, "1000", ~D[2026-01-01])
+    put_quote!(security, ~D[2026-01-01], "100")
+    buy!(world, security, quantity: "10", price: "100", date: ~D[2026-01-01])
+    retire!(security)
+    delivery!(world, security, "inbound_delivery", "5", ~D[2026-01-10], price: "80")
+
+    {:ok, result} = Performance.for_portfolio(world.portfolio.id, today: ~D[2026-01-21])
+
+    # 01-10: the stale 100 is not a measurement, so the booked 80 re-prices
+    # the held 10 as basis (-200); F = 5 x 80 = 400; V = 15 x 80 = 1200:
+    # r = 1200 / (1000 + 400 - 200) - 1 = 0 — no phantom return on the
+    # delivered units, no return on the re-pricing of the held ones.
+    assert Decimal.equal?(day(result, ~D[2026-01-10]).value, Decimal.new("1200"))
+    assert Decimal.equal?(day(result, ~D[2026-01-10]).flow, Decimal.new("400"))
+    assert Decimal.equal?(day(result, ~D[2026-01-10]).basis, Decimal.new("-200"))
+    assert Decimal.equal?(result.ttwror, Decimal.new("0"))
+  end
 end

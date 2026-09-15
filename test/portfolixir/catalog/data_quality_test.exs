@@ -113,4 +113,20 @@ defmodule Portfolixir.Catalog.DataQualityTest do
 
     assert names(DataQuality.list("stale_quote", query: "Unpriced")) == ["Unpriced AG"]
   end
+
+  # Closing-act finding (edge-case hunter): the Wealth finding leaves a
+  # retired holding out of the stale-quote count, so the list it links to —
+  # this predicate — must leave it out too, or a count of N links to a list
+  # of N + 1. A retired security's stopped feed is expected.
+  test "stale_quote leaves a retired security out; missing_quote still names it when never priced" do
+    stale = create_security!(name: "Retired Stale AG", ticker: "RSA")
+    put_quote!(stale, Date.add(Date.utc_today(), -40), "9")
+    {:ok, _} = Catalog.update_security(Actor.owner_ui(), stale, %{is_retired: true})
+    unpriced = create_security!(name: "Retired Unpriced AG", ticker: "RUA")
+    {:ok, _} = Catalog.update_security(Actor.owner_ui(), unpriced, %{is_retired: true})
+
+    refute "Retired Stale AG" in names(DataQuality.list("stale_quote"))
+    refute "Retired Unpriced AG" in names(DataQuality.list("stale_quote"))
+    assert "Retired Unpriced AG" in names(DataQuality.list("missing_quote"))
+  end
 end
