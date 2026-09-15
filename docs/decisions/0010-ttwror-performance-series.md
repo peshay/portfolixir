@@ -39,8 +39,10 @@ geometrically, the way Portfolio Performance computes TTWROR.
   positions (quote close on or before the day, converted at that day's rates)
   plus cash, in the base currency.
 - Each day's **external flow** is neutralised: deposits and removals, security
-  deliveries in and out (valued at that day's quote), and the residual jump of
-  a cash **balance snapshot** ([ADR-0009](0009-cash-as-balance-snapshots.html))
+  deliveries in and out (valued at their booked price when the delivery
+  carries one, else at that day's quote — amendment of 2026-09-15), and the
+  residual jump of a cash **balance snapshot**
+  ([ADR-0009](0009-cash-as-balance-snapshots.html))
   — stating a balance is money appearing or leaving outside the recorded
   bookings. Dividends, interest, fees and taxes are **internal** (they are
   return); buys, sells, cash transfers and security transfers only move money
@@ -224,7 +226,9 @@ follow-up rather than special-cased:
 
 - A security that *was* quoted and later loses its feed keeps booking its
   trade-price steps as return. Forced by the byte-identical guarantee for
-  quoted portfolios.
+  quoted portfolios. *Closed by the amendment of 2026-09-15 for securities
+  the operator marks retired; it still holds for a stopped feed nobody has
+  marked, by the same guarantee.*
 - On the day a security's first quote ever lands, quantity bought that same day
   is marked to the quote and that difference is neutralised with the rest. The
   whole day is the transition from unmeasured to measured, and the day's own
@@ -239,3 +243,58 @@ follow-up rather than special-cased:
   between return and basis according to the order the bookings were recorded in.
   The order is stable and re-import-idempotent, but it is an ordering
   convention, not a law.
+
+## Amendment (2026-09-15): deliveries at their booked price, retired securities unmeasured
+
+Issues #779 and #610, D-3 of the Sprint 11 plan (signed by the merge of
+PR #780). Two rules that share one cause — a quote feed that has stopped —
+and one signal the catalog already carries.
+
+**A delivery carrying a booked price is valued at that price.** The Decision
+above valued a security delivery in or out "at that day's quote", and the
+walk did exactly that: the quantity leg entered `F_d` at the carried price,
+however old. For the ordinary end of a failed holding — the position booked
+out of the depot as an `outbound_delivery` after a bankruptcy or a delisting,
+which is how brokers and Portfolio Performance record it — the walk therefore
+saw an outflow worth the last stale quote on the day the units left, the
+return base absorbed it as a withdrawal, and the total loss never entered
+TTWROR. [ADR-0034](0034-money-weighted-metrics.html) §1 already valued
+deliveries at full transaction value; the two records disagreed on the same
+booking, and for a write-off the disagreement was the whole loss. Now: a
+delivery whose row carries a `price` enters `F_d` at `quantity × price` (a
+total loss booked out at 0 is an outflow of 0, so `r_d` carries the −100 %),
+and the same units leave or join the day's lot queue at that price, like a
+sale or a buy would, so `B_d` and `F_d` never disagree about them. A
+price-less delivery keeps the day's-quote rule, unchanged. Holdings
+themselves are always valued at the day's price, whatever price they arrived
+at. The money-weighted set inherits the same flow, which is the alignment
+with ADR-0034 §1.
+
+**A retired security's stale quote is not a measurement.** The gate above
+treats a security as measured once any quote has landed, so a holding whose
+feed stopped kept booking every later trade-price re-pricing as return — the
+#545 pathology on the tail of the series (#610). The rule that closes it is
+the catalog's `is_retired` flag, not a day count: while the flag is set and
+**no newer quote row exists**, the carried quote is not a measurement, the
+trade point that replaces it emits the basis step like a never-quoted
+position's would, and a quote row anywhere after it — the feed resumed, or
+a manual close entered — keeps the security measured across the gap and
+re-latches it. A day count would have to decide how old is stale and would
+re-classify legitimate off-quote days in quoted portfolios; the flag is an
+operator statement, so an actively quoted portfolio is never reclassified
+and the byte-identical guarantee of the 2026-07-24 amendment holds by
+construction. A sale still realises: selling a retired position at a price
+below its stale quote is a loss on the sold slice, and only the retained
+sleeve's mark-down restates the base (the partial-write-off asymmetry above,
+unchanged).
+
+**What tells the operator to set the flag.** The valuation names the date of
+every position's price (`price_date`) and counts the held positions whose
+quote is older than the data-quality staleness threshold
+(`stale_priced_count`); the Wealth page lists them in its data-quality
+section with the remedy. A holding the operator marks retired stops booking
+stale-quote return from the next walk on; nothing is reclassified silently.
+
+Derived performance rows computed before this amendment are superseded by
+the computation-version bump of ADR-0039's registry (v3): `flow` and `basis`
+moved on stored points, so no v2 row is served again.
