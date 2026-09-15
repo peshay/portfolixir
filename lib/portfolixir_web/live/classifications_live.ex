@@ -445,7 +445,9 @@ defmodule PortfolixirWeb.ClassificationsLive do
       <summary class="cat-summary">
         <span class="cat-name">
           <span class="cat-swatch" style={swatch(@node.category.color)} aria-hidden="true"></span>
-          <span class="cat-name__text"><%= @node.category.name %></span>
+          <%!-- A clipped name stays recoverable: the ellipsis is CSS, the
+               full name is the title (issue 805 fix round). --%>
+          <span class="cat-name__text" title={@node.category.name}><%= @node.category.name %></span>
           <%= if @node.category.description not in [nil, ""] do %>
             <small class="cat-description-inline"><%= @node.category.description %></small>
           <% end %>
@@ -465,7 +467,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
           title={gettext("Visible positions in this category and its sub-categories")}
         ><%= count_or_dash(total_count(@node)) %></span>
         <span class="cat-value" data-role="category-value" title={gettext("EUR value of the visible positions")}>
-          <%= if total_count(@node) > 0, do: Format.money(visible_value(@node)), else: "—" %>
+          <%= money_or_dash(visible_value(@node)) %>
         </span>
         <%!-- Per-category result (ADR-0041 slice one, #712). A dash until the
               async load lands and for a category with nothing invested: a
@@ -1446,15 +1448,17 @@ defmodule PortfolixirWeb.ClassificationsLive do
   defp unsorted_value([]), do: "—"
 
   defp unsorted_value(securities) do
-    securities
-    |> Enum.reduce(@zero, fn security, acc ->
-      case security.market_value do
-        %Decimal{} = value -> Decimal.add(acc, value)
-        _ -> acc
-      end
-    end)
-    |> Format.money()
+    if Enum.all?(securities, &match?(%Decimal{}, &1.market_value)) do
+      securities
+      |> Enum.reduce(@zero, &Decimal.add(&2, &1.market_value))
+      |> Format.money()
+    else
+      "—"
+    end
   end
+
+  defp money_or_dash(%Decimal{} = value), do: Format.money(value)
+  defp money_or_dash(_absent), do: "—"
 
   defp category_result(nil, _category_id), do: nil
 
@@ -1623,19 +1627,21 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   # EUR value of the VISIBLE securities directly in this node and below; an
   # unvalued holding contributes nothing rather than distorting the total.
+  # A total is only a total when every row carries the figure: while the
+  # holdings are still loading every market value is nil, and afterwards a
+  # position the app cannot price is still nil. Either way the sum is a dash,
+  # never a silently smaller number presented as the category's value (the
+  # same rule the securities detail's sum_known/2 states).
   defp visible_value(node) do
-    direct =
-      Enum.reduce(node.securities, @zero, fn security, acc ->
-        case security.market_value do
-          %Decimal{} = value -> Decimal.add(acc, value)
-          _ -> acc
-        end
-      end)
+    rows = node_securities(node)
 
-    Enum.reduce(node.children, direct, fn child, acc ->
-      Decimal.add(acc, visible_value(child))
-    end)
+    if rows != [] and Enum.all?(rows, &match?(%Decimal{}, &1.market_value)) do
+      Enum.reduce(rows, @zero, &Decimal.add(&2, &1.market_value))
+    end
   end
+
+  defp node_securities(node),
+    do: node.securities ++ Enum.flat_map(node.children, &node_securities/1)
 
   # Flat, depth-tagged list of categories for the parent <select>.
   defp flatten(categories) do

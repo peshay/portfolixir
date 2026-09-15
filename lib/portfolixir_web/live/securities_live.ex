@@ -733,10 +733,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
                         row,
                         "phone-quick-assign"
                       ) %>
+                      <%!-- A row state is a word, never the dimming alone
+                           (#799, UX-DR27). --%>
+                      <span :if={inner_security.is_retired} class="badge">
+                        <%= gettext("Retired") %>
+                      </span>
                     </span>
                   </span>
                   <span class="phone-row__figures">
-                    <span class="phone-row__figure"><%= phone_price(row) %></span>
+                    <span class="phone-row__figure">
+                      <%= phone_price(row) %><small
+                        :if={phone_priced?(row)}
+                        class="value-suffix"
+                      ><%= inner_security.currency_code %></small>
+                    </span>
                     <span class="phone-row__figure2"><%= phone_change(row) %></span>
                   </span>
                   <button
@@ -747,7 +757,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                     phx-value-id={sec_id}
                     aria-label={gettext("Open actions menu")}
                     aria-haspopup="menu"
-                    aria-expanded={@row_menu_id == sec_id}
+                    aria-expanded={to_string(@row_menu_id == sec_id)}
                   >
                     <AppShell.icon name={:ellipsis_vertical} />
                   </button>
@@ -863,6 +873,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
             phx-click="row_action"
             phx-value-action="edit"
             phx-value-id={@selected_security.id}
+            aria-label={gettext("Edit master data")}
           >
             <%= gettext("Edit") %>
           </button>
@@ -1032,7 +1043,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                     <button
                       type="button"
                       class="button-ghost"
-                      phx-click={Phoenix.LiveView.JS.remove_attribute("open", to: "#detail-period-custom")}
+                      phx-click="cancel_detail_period_popover"
                     >
                       <%= gettext("Cancel") %>
                     </button>
@@ -1330,7 +1341,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                  day change (issue 789). --%>
             <div class="overview-metric" data-role="overview-day-change">
               <dt><%= gettext("Day change") %></dt>
-              <%= if stale_quote?(@security, @metrics) do %>
+              <%= if stale_close?(@metrics) do %>
                 <dd>—</dd>
               <% else %>
                 <dd class={pnl_class(@metrics[:day_change_pct])}>
@@ -1373,7 +1384,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
               <dd class={pnl_class(@position.unrealised_abs)}>
                 <%= signed_decimal_or_dash(@position.unrealised_abs, 2) %>
                 <small class="overview-metric__sub">
-                  <%= if @position.unrealised_abs do %>
+                  <%= if @position.unrealised_pct do %>
                     <%= signed_percent_or_dash(@position.unrealised_pct) %> ·
                   <% end %>
                   <%= gettext("against average cost") %>
@@ -1397,7 +1408,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
             <% end %>
           </div>
 
-          <p class="summary-basis" data-role="overview-basis">
+          <p
+            :if={overview_basis(@security, @classifications) != "" or @security.is_retired}
+            class="summary-basis"
+            data-role="overview-basis"
+          >
             <%= overview_basis(@security, @classifications) %>
             <span :if={@security.is_retired} class="badge badge--retired">
               <%= gettext("Retired") %>
@@ -1443,6 +1458,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 id="overview-note-edit"
                 class="button-ghost"
                 phx-click="edit_detail_note"
+                aria-label={
+                  if @security.note in [nil, ""],
+                    do: gettext("Add a note"),
+                    else: gettext("Edit the note")
+                }
               >
                 <%= if @security.note in [nil, ""],
                   do: gettext("Add"),
@@ -2356,7 +2376,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp kind_label("risk"), do: gettext("Risk")
   defp kind_label("retraction"), do: gettext("Retraction")
   defp kind_label("decision"), do: gettext("Decision")
-  defp kind_label(other), do: other
+  # A kind outside the closed set cannot come from a validated write (the
+  # schema's Ecto.Enum refuses it), but printing the stored value is the shape
+  # the voice rule bans, so an unknown kind reads as words too (#785).
+  defp kind_label(other) do
+    other
+    |> to_string()
+    |> String.replace("_", " ")
+    |> String.downcase()
+    |> String.capitalize()
+  end
 
   defp source_quality_label(quality) when is_atom(quality),
     do: source_quality_label(Atom.to_string(quality))
@@ -3075,9 +3104,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp escaped(value), do: Phoenix.HTML.html_escape(value) |> safe_to_string()
 
-  # The one staleness rule (issue 789): the catalog's threshold on the row's
-  # newest close, as of the host's day; a retired security's stopped feed is
-  # expected and carries no marker (the same exception the filter makes).
+  # The one staleness rule (issue 789), in two readings that must not be
+  # confused. The *marker* is a finding, and a retired security's stopped feed
+  # is expected, so it carries none (the same exception the filter makes). The
+  # *close* is either old or it is not, retired or otherwise — and a day change
+  # computed from an old close is not a day change on any row, which is the
+  # figure #789 set out to suppress.
   defp stale_quote_row?(%SecurityWithMetrics{security: security, metrics: metrics}),
     do: stale_quote?(security, metrics)
 
@@ -3085,13 +3117,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp stale_quote?(%{is_retired: true}, _metrics), do: false
 
-  defp stale_quote?(_security, metrics),
+  defp stale_quote?(_security, metrics), do: stale_close?(metrics)
+
+  defp stale_close?(metrics),
     do: DataQuality.stale_quote?(metrics[:latest_price_date], Portfolixir.Clock.today())
 
-  # A change computed from a stale close is no day change (issue 789).
-  defp stale_change?(%Field{key: key}, %SecurityWithMetrics{} = row)
+  # A change computed from a stale close is no day change (issue 789) — on a
+  # retired row too, which has no marker but does have an old close.
+  defp stale_change?(%Field{key: key}, %SecurityWithMetrics{metrics: metrics})
        when key in [:day_change_abs, :day_change_pct],
-       do: stale_quote_row?(row)
+       do: stale_close?(metrics)
 
   defp stale_change?(_field, _row), do: false
 
@@ -3296,7 +3331,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # where a security carries neither.
   defp phone_identifiers(%Security{} = security) do
     case Enum.reject([security.ticker_symbol, security.isin], &(&1 in [nil, ""])) do
-      [] -> security.currency_code
+      # The currency is the price's suffix on every row, so a security with
+      # neither identifier says so rather than borrowing it.
+      [] -> gettext("no identifier")
       parts -> Enum.join(parts, " · ")
     end
   end
@@ -3311,18 +3348,30 @@ defmodule PortfolixirWeb.SecuritiesLive do
     end
   end
 
-  defp phone_change(row) do
-    if stale_quote_row?(row) do
-      assigns = %{date: row.metrics.latest_price_date}
+  defp phone_priced?(row),
+    do: not is_nil(SecurityFields.value(SecurityFields.get!(:latest_price), row))
 
-      ~H"""
-      <AppShell.quote_stale date={@date} />
-      """
-    else
-      case render_cell(SecurityFields.get!(:day_change_pct), row) do
-        "" -> "—"
-        change -> change
-      end
+  defp phone_change(row) do
+    cond do
+      # A stale close on a row that carries the finding: the marker replaces
+      # the change it would otherwise be computed from.
+      stale_quote_row?(row) ->
+        assigns = %{date: row.metrics.latest_price_date}
+
+        ~H"""
+        <AppShell.quote_stale date={@date} />
+        """
+
+      # A retired row carries no marker, but its old close is still no basis
+      # for a day change.
+      stale_close?(row.metrics) ->
+        "—"
+
+      true ->
+        case render_cell(SecurityFields.get!(:day_change_pct), row) do
+          "" -> "—"
+          change -> change
+        end
     end
   end
 
@@ -3852,6 +3901,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
          put_action_result(socket, :problem, gettext("Could not save position buckets"))}
     end
   end
+
+  # #801: as on Wealth — Cancel closes through the hook, which returns focus
+  # to the summary rather than dropping it to the document.
+  def handle_event("cancel_detail_period_popover", _params, socket),
+    do: {:noreply, push_event(socket, "close-popover", %{id: "detail-period-custom"})}
 
   def handle_event("clear_detail_custom_range", _params, socket) do
     if socket.assigns.selected_security do
@@ -4418,6 +4472,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp load_detail_data(socket) do
     %Security{id: id} = socket.assigns.selected_security
+
+    # #804: the note editor belongs to the security it was opened on. Every
+    # selection path goes through here, so resetting it here is what keeps the
+    # next security's overview a reading surface (and keeps a stray Save from
+    # writing the previous security's draft to it).
+    socket = assign(socket, :detail_note_editing?, false)
 
     {from, to} =
       case socket.assigns[:detail_custom_range] do

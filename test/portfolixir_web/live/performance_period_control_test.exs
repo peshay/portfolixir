@@ -30,6 +30,12 @@ defmodule PortfolixirWeb.PerformancePeriodControlTest do
     portfolio
   end
 
+  defp cash_account_id(portfolio) do
+    Portfolios.list_cash_accounts()
+    |> Enum.find(&(&1.portfolio_id == portfolio.id))
+    |> Map.fetch!(:id)
+  end
+
   # User story (#669, DESIGN.md → Components → segmented control /
   # {components.period-control}):
   # As a local portfolio maintainer picking a performance period,
@@ -66,7 +72,7 @@ defmodule PortfolixirWeb.PerformancePeriodControlTest do
     end
 
     test "the custom range sits behind a disclosure with ISO date fields", %{conn: conn} do
-      seed_accounts()
+      portfolio = seed_accounts()
 
       {:ok, view, _html} = live(conn, "/portfolio")
 
@@ -82,8 +88,26 @@ defmodule PortfolixirWeb.PerformancePeriodControlTest do
       assert disclosure =~ ~s(placeholder="YYYY-MM-DD")
       assert disclosure =~ ~s(pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}")
 
-      # The year re-chain stays available inside the disclosure.
-      assert disclosure =~ ~s(data-role="period-year")
+      # The year re-chain stays available inside the disclosure — as a group
+      # of chips, and only where the walk has a calendar year to offer (a
+      # labelled group with nothing in it says nothing).
+      refute disclosure =~ ~s(data-role="period-year")
+
+      Portfolixir.Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash_account_id(portfolio),
+        type: "deposit",
+        date: ~D[2026-01-05],
+        gross_amount: "1000",
+        currency_code: "EUR"
+      })
+
+      {:ok, view, _html} = live(conn, "/portfolio")
+      render_async(view)
+
+      assert view
+             |> element(~s(#portfolio-performance details[data-role="period-custom"]))
+             |> render() =~ ~s(data-role="period-year")
     end
 
     # User story (issue #721, D5):

@@ -227,6 +227,24 @@ defmodule PortfolixirWeb.SecurityDetailOverviewTest do
       refute has_element?(view, "#overview-notes-form")
       assert panel(view) =~ "Core position, hold."
     end
+
+    # The editor belongs to the security it was opened on: selecting another
+    # one must not hand the operator a form they never opened, pre-filled with
+    # the other security's note.
+    test "the open editor does not follow a change of security", %{conn: conn} do
+      %{security: first} = world()
+      second = WorldFixtures.create_security!(name: "Second AG", ticker: "SEC2")
+
+      {:ok, view, _html} = live(conn, "/securities/#{first.id}")
+
+      view |> element("#overview-note-edit") |> render_click()
+      assert has_element?(view, "#overview-notes-form")
+
+      view |> render_patch("/securities/#{second.id}")
+
+      refute has_element?(view, "#overview-notes-form")
+      assert has_element?(view, "#overview-note-edit")
+    end
   end
 
   # User story:

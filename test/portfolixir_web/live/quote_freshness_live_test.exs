@@ -94,6 +94,31 @@ defmodule PortfolixirWeb.QuoteFreshnessLiveTest do
     assert text(fresh_row) =~ "+1.01"
   end
 
+  # A retired security carries no stale marker — its stopped feed is expected —
+  # but its old close is still no basis for a day change, which is the figure
+  # the marker exists to suppress.
+  test "a retired security shows no marker and no day change from its old close",
+       %{conn: conn} do
+    %{old: old} = world()
+
+    # Two closes, so a day change is computable — and both of them old.
+    stopped = WorldFixtures.create_security!(name: "Stopped AG", ticker: "STOP")
+    WorldFixtures.put_quotes!(stopped, [{Date.add(old, -1), "50"}, {old, "52"}])
+
+    {:ok, _} =
+      Catalog.update_security(Actor.owner_ui(), stopped, %{is_retired: true})
+
+    {:ok, view, _html} = live(conn, "/securities")
+    doc = view |> render() |> Floki.parse_document!()
+
+    row = row_for(doc, "#securities-table tbody tr", "Stopped AG")
+
+    assert Floki.find(row, ~s([data-role="quote-stale"])) == []
+    assert text(row) =~ "52.00"
+    assert text(row) =~ "—"
+    refute text(row) =~ "+4.00"
+  end
+
   test "the marker is German where the page is", %{conn: conn} do
     %{old: old} = world()
 
@@ -102,8 +127,10 @@ defmodule PortfolixirWeb.QuoteFreshnessLiveTest do
 
     stale_row = row_for(doc, "#securities-table tbody tr", "Stale AG")
 
+    # The date reads under the locale too (the marker is prose, not an input
+    # value): German renders 11.08.2026, not the ISO form.
     assert text(Floki.find(stale_row, ~s([data-role="quote-stale"]))) ==
-             "veraltet · #{Date.to_iso8601(old)}"
+             "veraltet · #{Calendar.strftime(old, "%d.%m.%Y")}"
   end
 
   test "the detail header marks the latest price and blanks the day change", %{conn: conn} do

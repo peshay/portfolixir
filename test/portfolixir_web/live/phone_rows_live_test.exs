@@ -101,14 +101,15 @@ defmodule PortfolixirWeb.PhoneRowsLiveTest do
     fresh_row = row_for(rows, "Fresh AG")
     assert text(Floki.find(fresh_row, ".phone-row__name")) == "Fresh AG"
     assert text(Floki.find(fresh_row, ".phone-row__ids")) == "FRS · DE000FRESH019 · Equity"
-    assert text(Floki.find(fresh_row, ".phone-row__figure")) == "100.00"
+    # The price carries its currency as the value slot's suffix.
+    assert text(Floki.find(fresh_row, ".phone-row__figure")) == "100.00 EUR"
     assert text(Floki.find(fresh_row, ".phone-row__figure2")) == "+1.01 %"
     assert [_logo] = Floki.find(fresh_row, ".security-logo")
 
     # A stale close is marked under the price; the change computed from it
     # is not shown.
     stale_row = row_for(rows, "Stale AG")
-    assert text(Floki.find(stale_row, ".phone-row__figure")) == "42.64"
+    assert text(Floki.find(stale_row, ".phone-row__figure")) == "42.64 EUR"
 
     assert text(Floki.find(stale_row, ~s([data-role="quote-stale"]))) ==
              "stale · #{Date.to_iso8601(old)}"
@@ -120,10 +121,14 @@ defmodule PortfolixirWeb.PhoneRowsLiveTest do
     assert text(Floki.find(mystery_row, ".phone-row__figure")) == "no price"
     assert text(Floki.find(mystery_row, ".phone-row__figure2")) == "—"
     assert [_select] = Floki.find(mystery_row, "select.quick-assign-select")
-    assert text(Floki.find(mystery_row, ".phone-row__ids")) =~ "EUR"
+    # No ticker and no ISIN: the line says so rather than borrowing the
+    # currency, which now rides with the price.
+    assert text(Floki.find(mystery_row, ".phone-row__ids")) =~ "no identifier"
 
     retired_row = row_for(rows, "Retired AG")
     assert "is-retired" in classes(retired_row)
+    # The state is a word, not the dimming alone.
+    assert text(Floki.find(retired_row, ".phone-row__ids")) =~ "Retired"
 
     # The kebab opens the same row menu the table row opens.
     assert [_] = Floki.find(fresh_row, ~s(button.row-actions__kebab[phx-click="open_row_menu"]))

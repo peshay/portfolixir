@@ -91,7 +91,9 @@ defmodule PortfolixirWeb.DashboardKpiStripTest do
 
     basis = text(Floki.find(doc, ~s([data-role="kpi-strip-basis"])))
     assert basis =~ "Everything"
-    assert basis =~ "1Y"
+    # The window the figure walked: a ledger younger than a year names its
+    # start date instead of claiming a full year.
+    assert basis =~ "2026-01-05" or basis =~ "1Y"
     assert basis =~ "EUR"
 
     # The value card keeps its YTD change and drops the cash quote.

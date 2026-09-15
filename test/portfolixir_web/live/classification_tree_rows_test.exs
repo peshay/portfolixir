@@ -106,6 +106,27 @@ defmodule PortfolixirWeb.ClassificationTreeRowsTest do
     assert text(basis) =~ "not a period return"
   end
 
+  # A value is a value only when every visible row carries one: while the
+  # holdings load, every market value is nil, and a zero there would read as
+  # "this category is worth nothing" rather than "not known yet".
+  test "the value cell is a dash until the holdings land", %{conn: conn} do
+    %{classification: classification} = tree()
+
+    {:ok, view, html} = live(conn, "/classifications/#{classification.id}")
+
+    refute html =~ "1,100.00"
+    doc = Floki.parse_document!(html)
+    assert text(Floki.find(row_for(doc, "Core"), ~s([data-role="category-value"]))) == "—"
+
+    loaded = view |> render_async() |> Floki.parse_document!()
+
+    assert text(Floki.find(row_for(loaded, "Core"), ~s([data-role="category-value"]))) ==
+             "1,100.00"
+
+    # The empty category keeps its dash after the load, not a zero.
+    assert text(Floki.find(row_for(loaded, "Empty"), ~s([data-role="category-value"]))) == "—"
+  end
+
   test "the head and the dashes are German where the page is", %{conn: conn} do
     %{classification: classification} = tree()
 

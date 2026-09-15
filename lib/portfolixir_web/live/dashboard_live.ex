@@ -271,8 +271,7 @@ defmodule PortfolixirWeb.DashboardLive do
                 phx-hook="CountUp"
                 data-count-to={Decimal.to_string(@wealth_card.valuation.total_with_cash, :normal)}
                 data-decimals="2"
-              ><span data-count-digits><%= Format.money(@wealth_card.valuation.total_with_cash) %></span></span>
-              <%= @wealth_card.valuation.base_currency %>
+              ><span data-count-digits><%= Format.money(@wealth_card.valuation.total_with_cash) %></span></span><small class="value-suffix"><%= @wealth_card.valuation.base_currency %></small>
             </strong>
             <%!-- The sub-line keeps the YTD change; the cash quote moved to
                  the strip's own cell (UX-DR2 as amended 2026-09-14). --%>
@@ -351,15 +350,21 @@ defmodule PortfolixirWeb.DashboardLive do
               <strong :if={is_nil(@wealth_card.valuation.newest_quote_date)} class="kpi-strip__na">
                 —
               </strong>
+              <%!-- The count is the one the link resolves to: the catalog-wide
+                   stale_quote predicate, the same rule that produces the
+                   data-quality finding below and the list the href opens
+                   (#705). The valuation's own view-scoped count answers a
+                   different question and would put two numbers for one
+                   finding on one page. --%>
               <small
-                :if={@wealth_card.valuation.stale_priced_count > 0}
+                :if={@data_quality && @data_quality.without_quote > 0}
                 class="kpi-strip__sub kpi-strip__sub--attention"
               >
                 <AppShell.icon name={:alert_triangle} size={12} />
                 <%= ngettext(
                   "%{count} stale",
                   "%{count} stale",
-                  @wealth_card.valuation.stale_priced_count
+                  @data_quality.without_quote
                 ) %>
               </small>
             <% else %>
@@ -367,14 +372,27 @@ defmodule PortfolixirWeb.DashboardLive do
             <% end %>
           </a>
         </div>
-        <p :if={@wealth_card} class="summary-basis kpi-strip__basis" data-role="kpi-strip-basis">
+        <%!-- The strip's three domain metrics carry their definition here
+             rather than per cell: a cell is a link, and a <details> inside a
+             link is invalid interactive nesting. One ⓘ on the basis line, the
+             same sentences the Wealth band uses (EXPERIENCE.md → Voice and
+             Tone: one explanation, in one place, in one form). --%>
+        <div :if={@wealth_card} class="summary-basis kpi-strip__basis" data-role="kpi-strip-basis">
           <%= gettext("View %{view} · return over %{period} to %{date} · in %{currency} · quotes: the newest across held positions",
             view: @wealth_card.name || gettext("Everything"),
-            period: gettext("1Y"),
+            period: strip_period(@wealth_card),
             date: Format.date(strip_as_of(@wealth_card)),
             currency: @wealth_card.valuation.base_currency
           ) %>
-        </p>
+          <details class="metric-tooltip metric-tooltip--inline" data-role="kpi-strip-info">
+            <summary aria-label={gettext("About these key figures")}>ⓘ</summary>
+            <p role="tooltip">
+              <%= gettext("TTWROR — time-weighted return for the selected period (not annualized). Deposits and withdrawals are neutralised so only investment performance counts.") %>
+              <%= gettext("IRR — money-weighted return, annualized. Discounts the timing and size of cashflows over the period. Windows shorter than a year show the period MWR — the same figure, not annualized.") %>
+              <%= gettext("Cash quote: deployable cash ÷ (securities value + deployable cash). Reserve and credit-line accounts are excluded.") %>
+            </p>
+          </details>
+        </div>
       </section>
 
       <%!-- ADR-0022: the dashboard answers "does anything need me?". Drift
@@ -532,6 +550,18 @@ defmodule PortfolixirWeb.DashboardLive do
   defp short_window?(_summary), do: false
 
   # The strip's as-of date: the walk's end, else the read date.
+  # The window the one-year figure actually walked. A ledger younger than a
+  # year gives a shorter window, and the basis line names its start instead of
+  # asserting a year the figure does not cover — the sentence then reads
+  # "return over <start> to <as-of>".
+  defp strip_period(%{one_year: %{start_date: %Date{} = start, end_date: %Date{} = stop}}) do
+    if Date.diff(stop, start) + 1 < 365,
+      do: Format.date(start),
+      else: gettext("1Y")
+  end
+
+  defp strip_period(_card), do: gettext("1Y")
+
   defp strip_as_of(%{one_year: %{end_date: %Date{} = end_date}}), do: end_date
   defp strip_as_of(_card), do: Portfolixir.Clock.today()
 
