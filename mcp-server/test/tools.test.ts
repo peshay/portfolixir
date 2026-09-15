@@ -78,6 +78,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.cash_accounts.set_balance",
       "portfolixir.portfolios.income",
       "portfolixir.portfolios.performance",
+      "portfolixir.portfolios.benchmark",
       "portfolixir.journal.list",
       "portfolixir.buckets.list",
       "portfolixir.buckets.get",
@@ -92,6 +93,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.views.set_buckets",
       "portfolixir.views.valuation",
       "portfolixir.views.performance",
+      "portfolixir.views.benchmark",
       "portfolixir.securities_accounts.set_buckets",
       "portfolixir.cash_accounts.set_buckets",
       "portfolixir.securities_accounts.set_position_buckets",
@@ -214,6 +216,24 @@ describe("Portfolixir MCP tools", () => {
       // ADR-0039 C4 (I4): freshness and the computation basis ride every
       // performance payload; the tool descriptions must say so, so the agent
       // reads as_of/stale instead of assuming a just-computed figure.
+      assert.match(description, /as_of/);
+      assert.match(description, /stale/);
+      assert.match(description, /computation_basis/);
+    }
+
+    // ADR-0046 (#572): the two benchmark tools require the benchmark selector
+    // and document both comparisons, the excluded flows, the freshness pair,
+    // the computation basis and the frictionless assumption.
+    for (const name of ["portfolixir.portfolios.benchmark", "portfolixir.views.benchmark"]) {
+      const benchmarkTool = tools.find((tool) => tool.name === name);
+      const description = benchmarkTool?.description ?? "";
+      assert.ok(benchmarkTool?.inputSchema.required.includes("benchmark"), name);
+      assert.equal(benchmarkTool?.inputSchema.properties.benchmark.type, "string");
+      assert.match(description, /bought_once/);
+      assert.match(description, /savings_plan/);
+      assert.match(description, /end_value_delta/);
+      assert.match(description, /excluded_flows/);
+      assert.match(description, /frictionless/);
       assert.match(description, /as_of/);
       assert.match(description, /stale/);
       assert.match(description, /computation_basis/);
@@ -1592,6 +1612,48 @@ describe("Portfolixir MCP tools", () => {
     // The money-weighted IRR is surfaced alongside TTWROR, unchanged.
     assert.match(result.content[0].text, /0\.0791/);
     assert.equal((result.structuredContent as any).data.irr, "0.0791");
+  });
+
+  // ADR-0046 (#572): the benchmark twins forward the selector and the period
+  // parameters to the two benchmark reads; a malformed selector never leaves
+  // the companion.
+  it("issues a GET to /performance/benchmark for the two benchmark tools", async () => {
+    const { client, requests } = createRecordingClient({
+      data: {
+        portfolio_id: 3,
+        period: "ytd",
+        savings_plan: { end_value_delta: "200", benchmark_end_value: "1500" }
+      }
+    });
+
+    const result = await callTool(client, "portfolixir.portfolios.benchmark", {
+      portfolio_id: 3,
+      benchmark: "rate:0.02",
+      period: "ytd",
+      series: true,
+      view: 5
+    });
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(
+      requests[0].path,
+      "/api/v1/portfolios/3/performance/benchmark?benchmark=rate%3A0.02&period=ytd&series=true&view=5"
+    );
+    assert.equal((result.structuredContent as any).data.savings_plan.end_value_delta, "200");
+
+    await callTool(client, "portfolixir.views.benchmark", {
+      id: 2,
+      benchmark: "security:7",
+      year: 2025
+    });
+
+    assert.equal(requests[1].method, "GET");
+    assert.equal(requests[1].path, "/api/v1/views/2/performance/benchmark?benchmark=security%3A7&year=2025");
+
+    await assert.rejects(
+      callTool(client, "portfolixir.portfolios.benchmark", { portfolio_id: 3, benchmark: "index:7" })
+    );
+    assert.equal(requests.length, 2);
   });
 
   it("issues a GET to /journal with filters for portfolixir.journal.list", async () => {

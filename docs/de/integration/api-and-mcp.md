@@ -734,6 +734,44 @@ Beispiel-Payloads für Konten:
   **Berechnungsbasis** der Metrik (`computation_basis`): Eingangsreihe,
   wirksames Fenster, Referenzreihe (`null` — TTWROR/IRR haben keine) und den
   Umgang mit Lücken.
+- `GET /api/v1/portfolios/:portfolio_id/performance/benchmark` liefert den
+  **Benchmark-Vergleich** (ADR-0046, FR-9): die eigenen externen Flüsse des
+  Portfolios in eine Benchmark nachgebucht — die Antwort auf „war der
+  Aufwand das wert?". `benchmark=` ist Pflicht — `rate:<decimal>` für einen
+  festen effektiven Jahreszins, der täglich von Basis 1 aufzinst (Act/365;
+  `rate:0.02` sind 2 % p. a., die Tagesgeld-Baseline und in v1 auch die
+  Ausdrucksform der Inflation), oder `security:<id>` für ein
+  Katalog-Wertpapier mit gesetztem `is_benchmark` (Liste über
+  `GET /api/v1/securities?is_benchmark=true`; jedes andere Wertpapier
+  liefert `422`). `period`, `year`, `from`/`to`, `view=` und `series=true`
+  verhalten sich wie beim Performance-Endpunkt. Die Antwort trägt
+  `benchmark` (`kind`, dann `annual_rate` oder `security_id`/`name`/
+  `currency_code`), `requested_window` und `window` — die Tage, die der
+  Vergleich tatsächlich abdeckt: ein Fluss vor dem ersten Kurs der
+  Benchmark wird aus der Nachbuchung ausgeschlossen und in `excluded_flows`
+  (`date`, `flow`) benannt, und beide Seiten werden über das abgedeckte
+  Fenster verkettet — und dann die beiden Vergleiche, die Portfolio
+  Performance zeigt. `bought_once` ist flussneutral: `benchmark_return`, die
+  Benchmark auf den Schlusskurs vor dem Fenster rebasiert (oder auf den
+  ersten Tag des Fensters, wenn es ohne Wert beginnt), neben
+  `portfolio_ttwror` über dasselbe Fenster; mit `series=true` zusätzlich
+  die täglichen `cumulative_return`-Punkte für ein Chart-Overlay.
+  `savings_plan` ist flussgleich: `invested_capital`, `portfolio_end_value`
+  und `benchmark_end_value` — Eröffnungswert des Fensters und jeder externe
+  Fluss zum Kurs jenes Tages in die Benchmark investiert (fester Zins: zu
+  pari) — `end_value_delta` (real minus synthetisch, die Zahl, die die Frage
+  beantwortet), `portfolio_irr` und `benchmark_irr` (der XIRR von ADR-0034
+  auf identischen datierten Flüssen) und `benchmark_units`. Alle Finanzwerte
+  sind Decimal-Strings; `as_of`/`stale` tragen die Frische des Walks
+  (ADR-0039) und `computation_basis` nennt Eingangsreihe, Fenster, Referenz,
+  Lückenbehandlung und die `assumptions` — das synthetische Portfolio ist
+  reibungsfrei (`frictionless: true`: keine Gebühren, keine Steuern), was
+  den Vergleich gegen das reale Portfolio verzerrt. Ein fehlendes oder
+  fehlerhaftes `benchmark` ist `422`; ein Portfolio ohne Buchungen oder eine
+  Benchmark ohne Kurs im Fenster antwortet mit `null`-Werten,
+  `window.start_date: null` und jedem Fluss in `excluded_flows`. Nichts wird
+  gespeichert: der Vergleich wird beim Lesen abgeleitet und wie der Walk
+  memoisiert, von dem er abhängt.
 - `GET /api/v1/portfolios/:portfolio_id/income` liefert den **retrospektiven
   Ertragsbericht**: die bereits im Ledger gebuchten Dividenden und Zinsen, auf drei
   Arten aggregiert (keine Prognose — der Dividendenkalender ist eine separate
@@ -1129,6 +1167,16 @@ View-Definitions-Schreibvorgänge bewusst nicht (ADR-0018 §5).
   dessen Form mit `view_id` statt `portfolio_id`, alle Finanzwerte sind
   Decimal-Strings. Unbekannte und fehlerhafte View-ids liefern `404`, ein
   fehlerhafter Zeitraum `422`.
+- `GET /api/v1/views/:view_id/performance/benchmark` liefert den
+  Benchmark-Vergleich der View **über alle Portfolios** (ADR-0046 §3):
+  derselbe deduplizierte Konten-Scope, den View-Bewertung und
+  View-Performance abdecken, sodass Gesamtwert, Rendite und Benchmark der
+  View über dieselben Konten sprechen. `benchmark=` ist Pflicht, `period`,
+  `year`, `from`/`to` und `series=true` verhalten sich wie beim
+  Portfolio-Benchmark-Endpunkt; die Antwort spiegelt dessen Form mit
+  `view_id` statt `portfolio_id`. Unbekannte und fehlerhafte View-ids
+  liefern `404`, ein fehlerhafter Zeitraum oder eine fehlerhafte Benchmark
+  `422`.
 - `PUT /api/v1/securities_accounts/:id/buckets` ersetzt das Standard-Bucket-Set
   eines Depots (die Buckets, die jede Position erbt, sofern nicht überschrieben).
   Body: `{"bucket_ids": [..]}`.
@@ -1360,6 +1408,7 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
 - `portfolixir.portfolios.set_cash_target`
 - `portfolixir.portfolios.income`
 - `portfolixir.portfolios.performance`
+- `portfolixir.portfolios.benchmark`
 - `portfolixir.journal.list`
 - `portfolixir.buckets.list`
 - `portfolixir.buckets.get`
@@ -1373,6 +1422,7 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
 - `portfolixir.views.delete`
 - `portfolixir.views.set_buckets`
 - `portfolixir.views.performance`
+- `portfolixir.views.benchmark`
 - `portfolixir.securities_accounts.set_buckets`
 - `portfolixir.cash_accounts.set_buckets`
 - `portfolixir.securities_accounts.set_position_buckets`
@@ -1383,6 +1433,13 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
 `portfolixir.views.performance` berechnet die passende portfolioübergreifende
 TTWROR/IRR für denselben Konten-Scope; Geld, das die View-Grenze überquert,
 wird als externer Fluss behandelt (ADR-0019).
+
+`portfolixir.portfolios.benchmark` und `portfolixir.views.benchmark` sind
+die Zwillinge der beiden Benchmark-Endpunkte (ADR-0046): `benchmark` ist
+`rate:<decimal>` oder `security:<id>`, die Zeitraum-, View- und
+Series-Parameter sind die der Performance-Tools, und die Antwort trägt
+beide Vergleiche, das abgedeckte Fenster, die ausgeschlossenen Flüsse und
+die Berechnungsbasis mit der benannten Reibungsfreiheits-Annahme.
 
 `portfolixir.settings.get_default_view` /
 `portfolixir.settings.set_default_view` lesen und setzen die
