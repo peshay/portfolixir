@@ -14,7 +14,8 @@ defmodule Portfolixir.Invariants.DerivedNeverAWriteSourceTest do
   # - No source file under lib/portfolixir/ or lib/portfolixir_web/ references
   #   the derived layer, except:
   #   * the derived layer itself (lib/portfolixir/derived/**),
-  #   * the registered readers (the performance walk and its warm-up),
+  #   * the registered readers (the performance walk, its warm-up and the
+  #     benchmark comparison that reads through the same mechanism),
   #   * the write seams, which may reference ONLY the Invalidation announcer —
   #     writes announce, they never read.
   # - The scan is AST-based and resolves aliases, so "Derived" in a comment or
@@ -27,6 +28,10 @@ defmodule Portfolixir.Invariants.DerivedNeverAWriteSourceTest do
   @allowed %{
     "lib/portfolixir/portfolios/performance.ex" => [[:Portfolixir, :Derived]],
     "lib/portfolixir/portfolios/performance/warmup.ex" => [[:Portfolixir, :Derived]],
+    # The benchmark comparison (ADR-0046 §5): a registered read model over
+    # a walk and a benchmark price series, memoised through the same
+    # facade the walk uses. It has no write path.
+    "lib/portfolixir/portfolios/performance/benchmark.ex" => [[:Portfolixir, :Derived]],
     "lib/portfolixir/journal.ex" => [[:Portfolixir, :Derived, :Invalidation]],
     "lib/portfolixir/fx.ex" => [[:Portfolixir, :Derived, :Invalidation]],
     "lib/portfolixir/catalog/quotes.ex" => [[:Portfolixir, :Derived, :Invalidation]],

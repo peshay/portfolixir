@@ -38,7 +38,12 @@ defmodule Portfolixir.Derived.Registry do
   # be served.
   @analytics %{
     performance_analysis: %{computation_version: 3, default_lifetime: :request},
-    performance_view_analysis: %{computation_version: 3, default_lifetime: :request}
+    performance_view_analysis: %{computation_version: 3, default_lifetime: :request},
+    # The benchmark comparison (ADR-0046 §5, Sprint 11 Lane B): a read model
+    # over a walk and a benchmark's price series, keyed under the global
+    # basis because a benchmark the portfolio never held is outside the
+    # portfolio's own blast radius.
+    benchmark_comparison: %{computation_version: 1, default_lifetime: :request}
   }
 
   @doc "All registered analytic ids."
