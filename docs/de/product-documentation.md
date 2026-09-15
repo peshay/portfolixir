@@ -994,7 +994,13 @@ Wertpapiers über alle Depots und verlinkt auf die Transaktionen des
 Wertpapiers, damit sich die Historie reparieren lässt (nichts wird
 automatisch repariert; der Split-Assistent bleibt die einzige geführte
 Reparatur), sowie Buchungen mit unplausiblen Daten (vor 1970), die
-stattdessen am ersten plausiblen Tag angewendet wurden. Positionen mit
+stattdessen am ersten plausiblen Tag angewendet wurden. Jeder Befund ist
+eine Notiz in seiner eigenen Stufe — Hinweis für den Handelspreis-Rückfall,
+Achtung für ausgenommene und veraltete Positionen, Problem für negative
+Bestände — und trägt sein Mittel in der Notiz: das Bedienelement
+**Wechselkurse synchronisieren** steht im Befund zum fehlenden Wechselkurs,
+und ein Verrechnungskonto, das mangels Kurs ausgenommen ist, ist auch in der
+Cash-Tabelle mit *kein Wechselkurs* markiert. Positionen mit
 negativer Menge sind zusätzlich überall dort mit einem Chip „negative
 Menge" markiert, wo sie auftauchen: in der Allokationstabelle, im
 Klassifikationsbaum und im Bestände-Tab des Wertpapiers.

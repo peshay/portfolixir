@@ -800,8 +800,34 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   #   normal label.
   # - The result line is compact: "N rates updated" plus a local HH:MM time,
   #   not a verbose sentence, and no status toast.
+  # Issue 792: the sync control lives inside the missing-FX finding's note,
+  # so the tests below hold a USD position with no stored rate.
+  defp seed_missing_fx!(world) do
+    {:ok, spacey} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Space Exploration Co.",
+        ticker_symbol: "SPACE",
+        currency_code: "USD",
+        asset_class: "equity"
+      })
+
+    {:ok, _} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        security_id: spacey.id,
+        type: "inbound_delivery",
+        date: Date.add(Date.utc_today(), -5),
+        quantity: "5",
+        currency_code: "USD"
+      })
+
+    WorldFixtures.put_quote!(spacey, Date.add(Date.utc_today(), -1), "120")
+    world
+  end
+
   test "syncs exchange rates in the background with inline status", %{conn: conn} do
-    seed_world()
+    seed_world() |> seed_missing_fx!()
 
     {:ok, view, _html} = live(conn, "/portfolio")
     html = render_async(view)
@@ -810,7 +836,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
     syncing =
       view
-      |> element("#portfolio-cash button", "Sync exchange rates")
+      |> element("#portfolio-data-quality button", "Sync exchange rates")
       |> render_click()
 
     # While the background run is in flight: disabled button with an inline
@@ -826,7 +852,9 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     html = render_async(view)
 
     # During the flash window the button stays disabled and confirms inline.
-    button = view |> element(~s(#portfolio-cash button[phx-click="sync_rates"])) |> render()
+    button =
+      view |> element(~s(#portfolio-data-quality button[phx-click="sync_rates"])) |> render()
+
     assert button =~ "Up to date"
     assert button =~ "✓"
     assert button =~ ~r/<button[^>]*\sdisabled/
@@ -840,15 +868,18 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
     # The flash timer clears the confirmation and re-arms the button.
     send(view.pid, :clear_fx_flash)
-    cleared = view |> element(~s(#portfolio-cash button[phx-click="sync_rates"])) |> render()
+
+    cleared =
+      view |> element(~s(#portfolio-data-quality button[phx-click="sync_rates"])) |> render()
+
     assert cleared =~ "Sync exchange rates"
     refute cleared =~ "Up to date"
     refute cleared =~ ~r/<button[^>]*\sdisabled/
-    refute has_element?(view, ~s(#portfolio-cash button[disabled]), "Sync exchange rates")
+    refute has_element?(view, ~s(#portfolio-data-quality button[disabled]), "Sync exchange rates")
   end
 
   test "shows an inline error when the exchange-rate sync fails", %{conn: conn} do
-    seed_world()
+    seed_world() |> seed_missing_fx!()
 
     previous = Application.get_env(:portfolixir, Portfolixir.Fx.RateSync)
     Application.put_env(:portfolixir, Portfolixir.Fx.RateSync, provider: UnreachableFx)
@@ -858,7 +889,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     render_async(view)
 
     view
-    |> element("#portfolio-cash button", "Sync exchange rates")
+    |> element("#portfolio-data-quality button", "Sync exchange rates")
     |> render_click()
 
     html = render_async(view)
@@ -868,7 +899,9 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     refute html =~ "status-toast--error"
 
     # No success flash on failure: the button re-arms immediately.
-    button = view |> element(~s(#portfolio-cash button[phx-click="sync_rates"])) |> render()
+    button =
+      view |> element(~s(#portfolio-data-quality button[phx-click="sync_rates"])) |> render()
+
     assert button =~ "Sync exchange rates"
     refute button =~ "Up to date"
     refute button =~ ~r/<button[^>]*\sdisabled/

@@ -1060,7 +1060,14 @@ defmodule PortfolixirWeb.PortfolioLive do
              data quality and cash; Allocation & targets carries the sunburst
              and drift table. KPIs and the view switcher head both. --%>
         <%= if @wealth_tab == :holdings do %>
-          <.data_quality valuation={@valuation} analysis={@analysis} negative={@negative_report} />
+          <.data_quality
+            valuation={@valuation}
+            analysis={@analysis}
+            negative={@negative_report}
+            fx_syncing={@fx_syncing}
+            fx_sync_flash={@fx_sync_flash}
+            fx_sync_result={@fx_sync_result}
+          />
         <% end %>
 
         <%= if @wealth_tab == :holdings do %>
@@ -2017,7 +2024,16 @@ defmodule PortfolixirWeb.PortfolioLive do
                           <span class="hint"><%= liquidity_role_hint(cash.liquidity_role) %></span>
                         <% end %>
                       </td>
-                      <td><%= Format.money(cash.balance) %> <%= cash.currency %></td>
+                      <td>
+                        <%= Format.money(cash.balance) %> <%= cash.currency %>
+                        <span
+                          :if={not cash.valued}
+                          class="cash-unvalued"
+                          data-role="cash-unvalued"
+                        >
+                          ⚠ <%= gettext("no exchange rate") %>
+                        </span>
+                      </td>
                     </tr>
                   <% end %>
                 </tbody>
@@ -2027,41 +2043,10 @@ defmodule PortfolixirWeb.PortfolioLive do
             <%!-- Issue 670 (UX-DR3/UX-DR11): setting a balance moved into the
                  account row on Accounts & depots, where the account is
                  already chosen. This surface keeps the read-only table. --%>
-            <p class="hint" data-role="cash-edit-pointer">
+            <p data-role="cash-edit-pointer">
               <a href="/portfolios"><%= gettext("Set balances on Accounts & depots") %></a>
             </p>
 
-            <div class="cash-actions">
-              <button
-                type="button"
-                phx-click="sync_rates"
-                disabled={@fx_syncing or @fx_sync_flash}
-                phx-disable-with={gettext("Syncing…")}
-              >
-                <%= cond do %>
-                  <% @fx_syncing -> %>
-                    <span class="spinner" aria-hidden="true"></span> <%= gettext("Syncing…") %>
-                  <% @fx_sync_flash -> %>
-                    ✓ <%= gettext("Up to date") %>
-                  <% true -> %>
-                    <%= gettext("Sync exchange rates") %>
-                <% end %>
-              </button>
-              <span :if={@fx_syncing} class="hint" data-role="fx-sync-status" role="status">
-                <%= gettext("Syncing exchange rates…") %>
-              </span>
-              <p
-                :if={@fx_sync_result}
-                class={["hint", @fx_sync_result == :error && "fx-sync-error"]}
-                data-role="fx-sync-result"
-                role={if @fx_sync_result == :error, do: "alert", else: "status"}
-              >
-                <%= fx_sync_result_message(@fx_sync_result) %>
-              </p>
-              <p class="hint">
-                <%= gettext("Fetch the latest exchange rates so foreign-currency cash is valued in the totals.") %>
-              </p>
-            </div>
           <% else %>
             <%!-- #723: the valuation is sub-second — silent skeleton. --%>
             <div class="section-skeleton" data-role="cash-skeleton" aria-busy="true"></div>
@@ -2103,8 +2088,11 @@ defmodule PortfolixirWeb.PortfolioLive do
       class="workspace-section data-quality"
     >
       <h2><%= gettext("Data quality") %></h2>
-      <ul>
-        <li :if={@trade_priced.count > 0} data-role="dq-trade-priced">
+      <%!-- UX-DR17 (issue 792): one data note per finding at its own severity,
+           glyph and word included, the remedy inside the note; one status
+           region for the list, never a role per note. --%>
+      <div role="status" data-role="dq-notes">
+        <AppShell.data_note :if={@trade_priced.count > 0} severity={:note} data-role="dq-trade-priced">
           <%!-- The finding links to where it is fixed (#561): the securities
                list pre-filtered to stale quotes.
 
@@ -2123,8 +2111,12 @@ defmodule PortfolixirWeb.PortfolioLive do
             ) %>
           </a>
           <%= Enum.join(@trade_priced.names, ", ") %>
-        </li>
-        <li :if={@stale_priced.count > 0} data-role="dq-stale-priced">
+        </AppShell.data_note>
+        <AppShell.data_note
+          :if={@stale_priced.count > 0}
+          severity={:attention}
+          data-role="dq-stale-priced"
+        >
           <%!-- #779 / #610 (Sprint 11 Lane X): a quoted position whose feed
                has stopped reads as live without this row. It names the
                positions with the date each price is from and the remedy —
@@ -2138,8 +2130,8 @@ defmodule PortfolixirWeb.PortfolioLive do
             ) %>
           </a>
           <%= Enum.join(@stale_priced.names, ", ") %>
-        </li>
-        <li :if={@no_price.count > 0} data-role="dq-no-price">
+        </AppShell.data_note>
+        <AppShell.data_note :if={@no_price.count > 0} severity={:attention} data-role="dq-no-price">
           <a href="/securities?dq=missing_quote">
             <%= ngettext(
               "One held position has no price at all and is missing from the totals:",
@@ -2148,32 +2140,43 @@ defmodule PortfolixirWeb.PortfolioLive do
             ) %>
           </a>
           <%= Enum.join(@no_price.names, ", ") %>
-        </li>
-        <li :if={@missing_fx.count > 0} data-role="dq-missing-fx">
+        </AppShell.data_note>
+        <AppShell.data_note :if={@missing_fx.count > 0} severity={:attention} data-role="dq-missing-fx">
           <%= ngettext(
-            "One held position has a price but no exchange rate to %{base} stored, so it is missing from the totals: %{entries}. Sync exchange rates to include it.",
-            "%{count} held positions have a price but no exchange rate to %{base} stored, so they are missing from the totals: %{entries}. Sync exchange rates to include them.",
+            "One held position has a price but no exchange rate to %{base} stored, so it is missing from the totals: %{entries}.",
+            "%{count} held positions have a price but no exchange rate to %{base} stored, so they are missing from the totals: %{entries}.",
             @missing_fx.count,
             base: @valuation.base_currency,
             entries: Enum.join(@missing_fx.names, ", ")
           ) %>
-        </li>
-        <li :if={@suspect_dates != []}>
+          <.fx_sync_control syncing={@fx_syncing} flash={@fx_sync_flash} result={@fx_sync_result} />
+        </AppShell.data_note>
+        <AppShell.data_note :if={@suspect_dates != []} severity={:attention} data-role="dq-suspect-dates">
           <%= gettext(
             "Bookings dated before 1970 (%{dates}) are applied on the first plausible day — fix those dates in the source and re-import.",
             dates: Enum.map_join(@suspect_dates, ", ", &Date.to_iso8601/1)
           ) %>
-        </li>
-        <li :if={@unvalued_cash != []}>
+        </AppShell.data_note>
+        <AppShell.data_note :if={@unvalued_cash != []} severity={:attention} data-role="dq-unvalued-cash">
           <%= ngettext(
-            "One cash account is not counted in the totals because there is no exchange rate to %{base}: %{names}. Sync exchange rates to include it.",
-            "%{count} cash accounts are not counted in the totals because there is no exchange rate to %{base}: %{names}. Sync exchange rates to include them.",
+            "One cash account is not counted in the totals because there is no exchange rate to %{base}: %{names}.",
+            "%{count} cash accounts are not counted in the totals because there is no exchange rate to %{base}: %{names}.",
             length(@unvalued_cash),
             base: @valuation.base_currency,
             names: Enum.map_join(@unvalued_cash, ", ", &"#{&1.name} (#{&1.currency})")
           ) %>
-        </li>
-        <li :if={@negative_entries != []} data-role="dq-negative-holdings">
+          <.fx_sync_control
+            :if={@missing_fx.count == 0}
+            syncing={@fx_syncing}
+            flash={@fx_sync_flash}
+            result={@fx_sync_result}
+          />
+        </AppShell.data_note>
+        <AppShell.data_note
+          :if={@negative_entries != []}
+          severity={:problem}
+          data-role="dq-negative-holdings"
+        >
           <%= ngettext(
             "One security has an impossible negative holding quantity — likely an unmodeled corporate action from an imported history. Repair the transaction history:",
             "%{count} securities have an impossible negative holding quantity — likely an unmodeled corporate action from an imported history. Repair the transaction history:",
@@ -2189,8 +2192,8 @@ defmodule PortfolixirWeb.PortfolioLive do
               &"#{&1.depot_name}: #{Format.decimal(&1.quantity, 2)}"
             ) %> · <%= gettext("total across depots") %> <%= Format.decimal(entry.total, 2) %>)
           </span>
-        </li>
-      </ul>
+        </AppShell.data_note>
+      </div>
     </section>
     """
   end
@@ -3131,8 +3134,49 @@ defmodule PortfolixirWeb.PortfolioLive do
   # On-demand exchange-rate sync (issue #432): the rate provider only refreshes
   # on a 12 h timer, so a foreign-currency cash account stays unvalued until a
   # rate arrives. This lets the user pull rates now and re-value the figures.
-  # The success line is compact — count plus the local wall-clock time of the
-  # run (display-only formatting; domain data stays day-granular).
+  # Since issue 792 the control is the remedy inside the finding that needs it
+  # (the missing-rate note), with the same background run, busy state and
+  # inline result the standalone button under the cash table carried before.
+  # The confirmation flashes in the button while the note stands; the result
+  # line stays compact — count plus the local wall-clock time of the run
+  # (display-only formatting; domain data stays day-granular).
+  attr(:syncing, :boolean, required: true)
+  attr(:flash, :boolean, required: true)
+  attr(:result, :any, required: true)
+
+  defp fx_sync_control(assigns) do
+    ~H"""
+    <span class="fx-sync" data-role="fx-sync">
+      <button
+        type="button"
+        phx-click="sync_rates"
+        disabled={@syncing or @flash}
+        phx-disable-with={gettext("Syncing…")}
+      >
+        <%= cond do %>
+          <% @syncing -> %>
+            <span class="spinner" aria-hidden="true"></span> <%= gettext("Syncing…") %>
+          <% @flash -> %>
+            ✓ <%= gettext("Up to date") %>
+          <% true -> %>
+            <%= gettext("Sync exchange rates") %>
+        <% end %>
+      </button>
+      <span :if={@syncing} class="hint" data-role="fx-sync-status">
+        <%= gettext("Syncing exchange rates…") %>
+      </span>
+      <span
+        :if={@result}
+        class={["hint", @result == :error && "fx-sync-error"]}
+        data-role="fx-sync-result"
+        role={if @result == :error, do: "alert"}
+      >
+        <%= fx_sync_result_message(@result) %>
+      </span>
+    </span>
+    """
+  end
+
   defp fx_sync_result_message({:ok, count, synced_at}) do
     ngettext("One rate updated", "%{count} rates updated", count) <>
       " · " <> Calendar.strftime(synced_at, "%H:%M")
