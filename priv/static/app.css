@@ -2657,11 +2657,6 @@ img.security-logo {
     height: min(320px, 45vh);
   }
 
-  .overview-grid {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
-
   .overview-metrics {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -2681,6 +2676,8 @@ img.security-logo {
 
 .detail-pane-head__actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 6px;
   align-items: center;
 }
@@ -2813,43 +2810,6 @@ img.security-logo {
   gap: 18px;
 }
 
-.overview-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px 18px;
-  margin: 0;
-}
-
-.overview-field {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.overview-field dt {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
-  margin: 0;
-}
-
-.overview-field dd {
-  margin: 0;
-  font-size: 14px;
-  color: var(--color-text);
-}
-
-.overview-field--mono dd {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 13px;
-}
-
-.overview-field--full {
-  grid-column: 1 / -1;
-}
-
 .overview-metrics {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -2902,14 +2862,6 @@ img.security-logo {
   gap: 6px;
 }
 
-.overview-notes label {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
-}
-
 .overview-notes textarea {
   resize: vertical;
   min-height: 60px;
@@ -2921,8 +2873,10 @@ img.security-logo {
   color: var(--color-text);
 }
 
-.overview-notes button {
-  align-self: flex-start;
+.overview-notes__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
 }
 
 .badge--retired {
@@ -4442,30 +4396,6 @@ details[open] > .cat-summary::before {
   border-radius: 0.45rem;
   background: var(--color-bg);
   color: inherit;
-}
-
-/* Editable overview (inline security master-data editor) */
-.overview-form > .button {
-  margin-top: 0.7rem;
-}
-.overview-edit-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-.overview-edit-field > span {
-  font-size: 0.72rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--color-text-muted);
-}
-.overview-edit-field input,
-.overview-edit-field select {
-  width: 100%;
-  padding: 0.35rem 0.5rem;
-}
-.overview-grid--readonly {
-  margin-top: 0.9rem;
 }
 
 /* Compact, editable category rows (PP-style density) */
@@ -7806,5 +7736,123 @@ dialog.booking-drawer {
   .period-popover {
     right: auto;
     left: 0;
+  }
+}
+
+/* The securities detail overview as a reading surface (issue 804, review
+   C7-A). Figures, the price history and the basis line read down the main
+   column; the thesis state and the personal note stand beside them as cards,
+   so the tab answers "what is this, how does it stand, what do I think about
+   it" without a single input in the sightline. The master data lives in the
+   dialog the header's Edit control opens. */
+.overview-reading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  gap: var(--space-3);
+  align-items: start;
+}
+
+/* Three by two, as the mockup reads them: price, day, year over holding,
+   value, result — not "as many as fit", which strands the last figure on a
+   row of its own. */
+.overview-reading .overview-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.overview-reading__main,
+.overview-reading__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* The chart of the neighbouring tab, small: the shape of the history, not a
+   second chart surface. */
+.overview-chart .chart-frame {
+  aspect-ratio: auto;
+}
+
+.overview-chart svg {
+  max-height: 200px;
+}
+
+.detail-tab-panel--overview .summary-basis {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.overview-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+}
+
+.overview-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.overview-card__head h3 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.overview-card__text {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.overview-card__meta {
+  margin: 0;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.overview-card .button-ghost {
+  align-self: flex-start;
+  padding-inline: 0;
+}
+
+.overview-card__head .button-ghost {
+  align-self: center;
+}
+
+/* The master data's raw-quotes toggle, which followed the rest of it into the
+   dialog: the control and its ⓘ on one row (UX-DR11). */
+.dialog-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.dialog-toggle__control {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+@media (max-width: 900px) {
+  /* overview reading — the cards fall under the figures rather than
+     squeezing the chart into a column. */
+  .overview-reading {
+    grid-template-columns: 1fr;
   }
 }

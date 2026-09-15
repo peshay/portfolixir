@@ -1555,8 +1555,25 @@ series, snapshot comparisons and the securities-list metrics all price
 through the same basis-aware engine, so a stale pre-split close (or the
 latest-own-trade-price fallback) never values a post-split position at the
 unsplit price. For providers that never back-adjust their history, the
-security's Overview tab offers a **Treat synced quotes as raw** toggle that
-forces the raw basis for its synced rows.
+security's master data (behind **Edit** in the detail header) offers a
+**Treat synced quotes as raw** toggle that forces the raw basis for its
+synced rows.
+
+**The Overview tab reads; Edit writes.** The detail pane opens on
+**Overview**, a reading surface (issue #801's sibling, issue #804): six
+figures — latest price with its date or stale marker, day change, the
+one-year price return, the held quantity with the depot holding it, the
+position's value and the unrealised result with its percentage against the
+average cost — then the price history as a small chart, then a basis line
+naming the quote feed, the asset class, the assigned category of a custom
+classification tree and the WKN and exchange the header does not carry. The
+thesis state derived from the research log (ADR-0044) and the personal note
+stand beside them as cards; the thesis card leads to the Research tab, and
+the note shows a field only after **Add** or **Edit** is used. No input
+renders on the tab before that. The master data — name, identifiers,
+currency, exchange, asset class, quote feed and its URL, the raw-quotes
+toggle and the note — lives in the dialog the header's **Edit** button
+opens, the same dialog the list's row menu opens.
 
 **Recording a split.** The detail pane's **Record split** button opens a
 guided wizard: enter the ratio as new:old shares (2:1 doubles the share

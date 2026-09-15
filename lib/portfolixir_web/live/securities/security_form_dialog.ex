@@ -62,6 +62,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
       "asset_class" => Security.effective_asset_class(security) || "",
       "feed" => security.feed || "",
       "feed_url" => security.feed_url || "",
+      "treat_quotes_as_raw" => to_string(security.treat_quotes_as_raw == true),
       "note" => security.note || ""
     }
   end
@@ -388,6 +389,34 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
           value={@form["feed_url"]}
           errors={@errors}
         />
+      </div>
+
+      <%!-- ADR-0028 §2 escape hatch for providers that never back-adjust
+           after a split: forces the raw basis (split factors apply) for this
+           security's synced rows. It followed the rest of the master data
+           here when issue 804 turned the overview tab into a reading
+           surface. Hidden false + checkbox true is the standard
+           unchecked-submits-false pattern; the helper is a ⓘ (UX-DR11), not
+           three lines under the control. --%>
+      <div class="dialog-toggle">
+        <label class="dialog-toggle__control">
+          <input type="hidden" name="security[treat_quotes_as_raw]" value="false" />
+          <input
+            type="checkbox"
+            name="security[treat_quotes_as_raw]"
+            value="true"
+            checked={@form["treat_quotes_as_raw"] == "true"}
+          />
+          <span><%= gettext("Treat synced quotes as raw") %></span>
+        </label>
+        <details class="metric-tooltip metric-tooltip--inline" data-role="raw-quotes-info">
+          <summary aria-label={gettext("About raw quotes")}>ⓘ</summary>
+          <p role="tooltip">
+            <%= gettext(
+              "For providers that never back-adjust pre-split quotes — the display applies the split factors instead."
+            ) %>
+          </p>
+        </details>
       </div>
 
       <label class="full-width">

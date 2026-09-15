@@ -79,7 +79,7 @@ IA covers **every built route**. The unit matters, because three different numbe
 | Cash flow — Costs | `/cashflow?tab=costs` | Cash flow tab | Fees and taxes, overview level only | **specified, unbuilt** |
 | Wealth — Snapshots | `/snapshots` | Wealth tab | Frozen depot markers and the ADR-0027 counterfactual comparison | built |
 | Wealth — Tax | `/tax` | Wealth tab | Recorded tax-statement snapshots, allowance-order budget, consistency findings (ADR-0031) | built |
-| Securities | `/securities`, `/securities/:id` | Sidebar, table rows | Security list + split detail pane: price chart, trades, quotes, classification tabs | built |
+| Securities | `/securities`, `/securities/:id` | Sidebar, table rows | Security list + split detail pane opening on a reading overview (figures, price history, thesis state, note; master data behind the header's Edit dialog — issue 804), then chart, transactions, trades, quotes, holdings, classification and research tabs | built |
 | Transactions — History | `/transactions` | Sidebar, tab | Full ledger: record, review, filter | built |
 | Transactions — Import | `/imports` | Transactions tab | PP export intake: drop zone → preview → idempotent apply | built |
 | Accounts & depots | `/portfolios` | Sidebar (Administration) | Depots and cash accounts, bucket chips, balances | built |
