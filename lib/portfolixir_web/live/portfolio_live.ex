@@ -1422,25 +1422,39 @@ defmodule PortfolixirWeb.PortfolioLive do
             <%!-- The SOLL side follows the active view's plan (ADR-0020). With a
                  plan the Σ-vs-100% header shows; without one the allocation is
                  IST-only and a hint deep-links into the per-view plan editor. --%>
-            <%= if @allocation.has_plan do %>
-              <p
-                class={[
-                  "hint",
-                  "target-sum",
-                  target_mismatch?(@allocation.top_level_target_sum, 1) && "is-target-mismatch"
-                ]}
-                data-role="target-sum-top-level"
-              >
-                <%= gettext("Σ target top level:") %>
-                <%= Format.percent(@allocation.top_level_target_sum) %>%
-                <%!-- A 0% top level over a plan steered deeper in the tree is
-                     explained, not left as a contradiction (fix round). --%>
-                <%= if deep_targets_below?(@allocation) do %>
-                  — <%= gettext("targets deeper in the tree:") %>
-                  <%= Format.percent(@allocation.deep_target_sum) %>%
-                <% end %>
-              </p>
-            <% else %>
+            <%!-- The chart's basis line (issue 793, Part 4 rule 9): the plan
+                 with its top-level Σ — the sentence that floated above the
+                 chart, folded in — the view and the as-of date. A 0% top
+                 level over a plan steered deeper in the tree is explained,
+                 not left as a contradiction (fix round). --%>
+            <p class="summary-basis allocation-basis" data-role="allocation-basis">
+              <%= if @allocation.has_plan do %>
+                <%= gettext("Plan on %{classification}",
+                  classification: @allocation.classification_name
+                ) %>
+                · <span
+                  class={[
+                    "target-sum",
+                    target_mismatch?(@allocation.top_level_target_sum, 1) && "is-target-mismatch"
+                  ]}
+                  data-role="target-sum-top-level"
+                >
+                  <%= gettext("Σ target top level:") %>
+                  <%= Format.percent(@allocation.top_level_target_sum) %>%
+                  <%= if deep_targets_below?(@allocation) do %>
+                    — <%= gettext("targets deeper in the tree:") %>
+                    <%= Format.percent(@allocation.deep_target_sum) %>%
+                  <% end %>
+                </span>
+              <% else %>
+                <%= gettext("Actual allocation on %{classification}",
+                  classification: @allocation.classification_name
+                ) %>
+              <% end %>
+              · <%= gettext("View %{name}", name: active_view_name(@active_view)) %>
+              · <%= gettext("as of %{date}", date: Date.to_iso8601(Portfolixir.Clock.today())) %>
+            </p>
+            <%= if not @allocation.has_plan do %>
               <%!-- Scope-aware copy (fix round): only a named view may talk
                    about "this view"; the Gesamt scope speaks plainly. --%>
               <p class="hint no-plan-hint" data-role="no-plan-hint" role="status">
@@ -1461,14 +1475,10 @@ defmodule PortfolixirWeb.PortfolioLive do
             <%= if @allocation_mode == :tree do %>
             <div class="donut-wrap">
               <div class="sunburst-pane">
-                <.allocation_sunburst segments={sunburst_segments(@allocation)} />
-                <p :if={@selected_segment} class="sunburst-detail" role="status">
-                  <span class="cat-swatch" style={"background:#{@selected_segment.color}"}></span>
-                  <strong><%= @selected_segment.name %></strong>
-                  · <%= @selected_segment.percent %>%
-                  · <%= @selected_segment.value %>
-                  <%= if @valuation, do: @valuation.base_currency %>
-                </p>
+                <div class="sunburst-figure">
+                  <.allocation_sunburst segments={sunburst_segments(@allocation)} />
+                  <.sunburst_centre centre={sunburst_centre(@selected_segment, @allocation)} />
+                </div>
               </div>
               <ul class="donut-legend">
                 <%= for segment <- legend_segments(@allocation) do %>
@@ -1476,7 +1486,9 @@ defmodule PortfolixirWeb.PortfolioLive do
                     <span class="cat-swatch" style={"background:#{segment.color}"} aria-hidden="true">
                     </span>
                     <span class="legend-name"><%= segment.name %></span>
-                    <span class="legend-value"><%= segment.percent %>%</span>
+                    <span class="legend-value">
+                      <%= segment.percent %>%<%= if segment[:value], do: " · #{segment.value}" %>
+                    </span>
                   </li>
                 <% end %>
               </ul>
@@ -1540,6 +1552,17 @@ defmodule PortfolixirWeb.PortfolioLive do
                  round): the label states the action it will perform next.
                  Beside it the drift threshold — the human half of the API's
                  `min_drift=`, same predicate, same rows. --%>
+            <%!-- The one uniform chart-as-table disclosure (UX-DR10, issue
+                 793): the drift table beneath IS the sunburst's table and
+                 gains the disclosure head. --%>
+            <details class="perf-table-disclosure" data-role="allocation-disclosure">
+            <summary class="disclosure-summary">
+              <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
+              <%= gettext("Data as table") %>
+            </summary>
+            <p class="hint" data-role="allocation-table-purpose">
+              <%= gettext("Category, value, actual, target and drift — the sunburst as rows.") %>
+            </p>
             <div class="drift-table-actions">
               <button
                 type="button"
@@ -1876,6 +1899,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                 </.link>
               </p>
             <% end %>
+            </details>
             <% end %>
 
             <%!-- The flat rebalancing worklist: one row per position, ranked
@@ -2604,7 +2628,6 @@ defmodule PortfolixirWeb.PortfolioLive do
       aria-label={gettext("Allocation")}
       phx-hook="SunburstTooltip"
     >
-      <circle cx="70" cy="70" r="20" class="donut-center" />
       <%!-- The click payload says `amount`, not `value`: LiveView's client
            overwrites a `phx-value-value` with the element's own DOM value, so
            the name is unusable on anything that has one. Kept uniform here
@@ -2620,10 +2643,12 @@ defmodule PortfolixirWeb.PortfolioLive do
           data-label={segment.name}
           data-percent={segment.percent}
           data-value={segment.value}
+          data-target={segment.target}
           phx-click="select_segment"
           phx-value-name={segment.name}
           phx-value-percent={segment.percent}
           phx-value-amount={segment.value}
+          phx-value-target={segment.target}
           phx-value-color={segment.color}
         >
           <title><%= segment.name %> · <%= segment.percent %>%</title>
@@ -2632,6 +2657,60 @@ defmodule PortfolixirWeb.PortfolioLive do
     </svg>
     """
   end
+
+  # The centre of the sunburst (issue 793, DESIGN.md → Sunburst centre): the
+  # touched segment — name, value, actual against target — or, untouched,
+  # the reference value the shares are of. A polite live region of real
+  # text, so a tap reads out on a touch device where there is no hover; the
+  # SunburstTooltip hook paints the hovered slice into it and restores the
+  # server's text from the data attributes on leave.
+  attr(:centre, :map, required: true)
+
+  defp sunburst_centre(assigns) do
+    ~H"""
+    <div
+      class="sunburst-centre"
+      data-role="sunburst-centre"
+      aria-live="polite"
+      data-label={@centre.label}
+      data-value={@centre.value}
+      data-sub={@centre.sub}
+      data-currency={@centre.currency}
+      data-target-word={gettext("target")}
+    >
+      <span class="sunburst-centre__label"><%= @centre.label %></span>
+      <strong class="sunburst-centre__value"><%= @centre.value %></strong>
+      <span class="sunburst-centre__sub"><%= @centre.sub %></span>
+    </div>
+    """
+  end
+
+  defp sunburst_centre(nil, allocation) do
+    %{
+      label: gettext("Allocated"),
+      value: "#{Format.money(allocation.total_value)} #{allocation.base_currency}",
+      sub: "#{Format.percent(Decimal.new(1))} %",
+      currency: allocation.base_currency
+    }
+  end
+
+  defp sunburst_centre(segment, allocation) do
+    target =
+      case segment.target do
+        "" -> ""
+        target -> " · #{gettext("target")} #{target} %"
+      end
+
+    %{
+      label: segment.name,
+      value: "#{segment.value} #{allocation.base_currency}",
+      sub: "#{segment.percent} %#{target}",
+      currency: allocation.base_currency
+    }
+  end
+
+  defp active_view_name(nil), do: gettext("Everything")
+  defp active_view_name(%{name: name}), do: name
 
   # Progressive fill (owner pick F1, DESIGN.md → Motion): reveals spread
   # across 1.2s, so with each 0.3s fade the whole build lands at ~1.5s.
@@ -2756,6 +2835,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       name: to_string(params["name"] || ""),
       percent: to_string(params["percent"] || ""),
       value: to_string(params["amount"] || ""),
+      target: to_string(params["target"] || ""),
       color: safe_color(params["color"])
     }
 
@@ -3347,7 +3427,9 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # -- sunburst geometry -------------------------------------------------------
 
-  @sunburst_inner 22
+  # The hole is the centre's reading room (issue 793): wide enough for a
+  # value at 16 px, so the rings start at 42 % of the outer radius.
+  @sunburst_inner 28
   @sunburst_outer 66
 
   # One annular-sector path per node, ring radii derived from the actual tree
@@ -3466,6 +3548,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           color: row.color || @fallback_color,
           percent: Format.percent(row.actual_weight),
           value: Format.money(row.market_value),
+          target: row.target_weight && Format.percent(row.target_weight),
           depth: depth,
           opacity: "1.0",
           category_id: row.category_id,
@@ -3544,6 +3627,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       color: node.color,
       percent: node.percent,
       value: node.value,
+      target: Map.get(node, :target),
       opacity: node.opacity,
       path: sector_path(r_in, r_out, node.fraction_start, node.fraction_end)
     }
@@ -3584,7 +3668,8 @@ defmodule PortfolixirWeb.PortfolioLive do
         %{
           name: row.name,
           color: row.color || @fallback_color,
-          percent: Format.percent(row.actual_weight)
+          percent: Format.percent(row.actual_weight),
+          value: Format.money(row.market_value)
         }
       end)
 
@@ -3599,7 +3684,8 @@ defmodule PortfolixirWeb.PortfolioLive do
                 %{
                   name: gettext("Unassigned"),
                   color: @unassigned_color,
-                  percent: Format.percent(weight)
+                  percent: Format.percent(weight),
+                  value: Format.money(value)
                 }
               ]
           else
@@ -3613,14 +3699,15 @@ defmodule PortfolixirWeb.PortfolioLive do
     # Cash distributed into currency buckets (issue #407): no separate Cash
     # legend entry; the currency category slices already include the cash.
     case allocation.cash do
-      %{actual_weight: weight, distributed: false} ->
+      %{actual_weight: weight, market_value: value, distributed: false} ->
         if Decimal.compare(weight, 0) == :gt do
           with_unassigned ++
             [
               %{
                 name: gettext("Cash"),
                 color: @cash_color,
-                percent: Format.percent(weight)
+                percent: Format.percent(weight),
+                value: Format.money(value)
               }
             ]
         else

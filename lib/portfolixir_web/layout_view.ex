@@ -616,10 +616,45 @@ defmodule PortfolixirWeb.LayoutView do
                 if (to && this.segmentFrom(to)) return;
                 this.hide();
               },
+              centre: function () {
+                var figure = this.el.closest(".sunburst-figure");
+                return figure ? figure.querySelector("[data-role='sunburst-centre']") : null;
+              },
+              // Issue 793: the hovered slice reads in the centre too — the
+              // touch device's tooltip — and the server's text comes back
+              // from the centre's own data attributes on leave.
+              paintCentre: function (label, value, percent, target) {
+                var centre = this.centre();
+                if (!centre) return;
+                var currency = centre.getAttribute("data-currency") || "";
+                var word = centre.getAttribute("data-target-word") || "target";
+                var sub = percent + " %" + (target ? " · " + word + " " + target + " %" : "");
+                this.writeCentre(centre, label, value + (currency ? " " + currency : ""), sub);
+              },
+              restoreCentre: function () {
+                var centre = this.centre();
+                if (!centre) return;
+                this.writeCentre(
+                  centre,
+                  centre.getAttribute("data-label") || "",
+                  centre.getAttribute("data-value") || "",
+                  centre.getAttribute("data-sub") || ""
+                );
+              },
+              writeCentre: function (centre, label, value, sub) {
+                var l = centre.querySelector(".sunburst-centre__label");
+                var v = centre.querySelector(".sunburst-centre__value");
+                var s = centre.querySelector(".sunburst-centre__sub");
+                if (l) l.textContent = label;
+                if (v) v.textContent = value;
+                if (s) s.textContent = sub;
+              },
               render: function (seg) {
                 var label = seg.getAttribute("data-label") || "";
                 var value = seg.getAttribute("data-value") || "";
                 var percent = seg.getAttribute("data-percent") || "";
+                var target = seg.getAttribute("data-target") || "";
+                this.paintCentre(label, value, percent, target);
                 this.tooltip.textContent = "";
 
                 var name = document.createElement("div");
@@ -653,6 +688,7 @@ defmodule PortfolixirWeb.LayoutView do
               },
               hide: function () {
                 if (this.tooltip) this.tooltip.hidden = true;
+                this.restoreCentre();
               }
             };
 
