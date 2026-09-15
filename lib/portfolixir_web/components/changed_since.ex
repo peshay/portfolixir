@@ -62,7 +62,7 @@ defmodule PortfolixirWeb.ChangedSince do
     assigns = assign(assigns, :presets, presets())
 
     ~H"""
-    <div id={@id} class="filter-chips" role="group" aria-label={gettext("Changed since")}>
+    <span id={@id} class="filter-chips__group" role="group" aria-label={gettext("Changed since")}>
       <span class="filter-chips__family"><%= gettext("Changed since") %></span>
       <%= for {key, label, iso} <- @presets do %>
         <button
@@ -76,7 +76,7 @@ defmodule PortfolixirWeb.ChangedSince do
           <%= label %>
         </button>
       <% end %>
-    </div>
+    </span>
     """
   end
 end
