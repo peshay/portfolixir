@@ -35,6 +35,18 @@ defmodule PortfolixirWeb.BucketsLiveTest do
     %{portfolio: portfolio, cash: cash, depot: depot, security: security}
   end
 
+  # Row actions live in the row menu (issue 802): open the kebab of the row
+  # of `kind` ("view" or "bucket") with `id`, then click the menu item.
+  defp menu_click(view, kind, id, event) do
+    view
+    |> element(~s(button.row-actions__kebab[phx-value-kind="#{kind}"][phx-value-id="#{id}"]))
+    |> render_click()
+
+    view
+    |> element(~s([role="menu"] button[phx-click="#{event}"][phx-value-id="#{id}"]))
+    |> render_click()
+  end
+
   # User story:
   # As a local portfolio maintainer,
   # I want a views management page to create and manage buckets,
@@ -85,9 +97,7 @@ defmodule PortfolixirWeb.BucketsLiveTest do
     assert created
 
     # Open the bucket picker modal for the view.
-    view
-    |> element("button[phx-value-id='#{created.id}'][phx-click='edit_view_buckets']")
-    |> render_click()
+    menu_click(view, "view", created.id, "edit_view_buckets")
 
     assert has_element?(view, "#view-bucket-modal")
 
@@ -148,9 +158,7 @@ defmodule PortfolixirWeb.BucketsLiveTest do
 
     {:ok, view, _html} = live(conn, "/buckets")
 
-    view
-    |> element("button[phx-value-id='#{bucket.id}'][phx-click='edit_bucket']")
-    |> render_click()
+    menu_click(view, "bucket", bucket.id, "edit_bucket")
 
     view
     |> form("#bucket-#{bucket.id} form", bucket: %{name: "Foundation"})
@@ -158,9 +166,7 @@ defmodule PortfolixirWeb.BucketsLiveTest do
 
     assert Buckets.get_bucket(bucket.id).name == "Foundation"
 
-    view
-    |> element("button[phx-value-id='#{bucket.id}'][phx-click='delete_bucket']")
-    |> render_click()
+    menu_click(view, "bucket", bucket.id, "delete_bucket")
 
     assert Buckets.get_bucket(bucket.id) == nil
   end
@@ -171,7 +177,7 @@ defmodule PortfolixirWeb.BucketsLiveTest do
 
     {:ok, view, _html} = live(conn, "/buckets")
 
-    view |> element("button[phx-value-id='#{v.id}'][phx-click='edit_view']") |> render_click()
+    menu_click(view, "view", v.id, "edit_view")
 
     view
     |> form("#view-#{v.id} form", view: %{name: "New"})
@@ -179,41 +185,8 @@ defmodule PortfolixirWeb.BucketsLiveTest do
 
     assert Buckets.get_view(v.id).name == "New"
 
-    view |> element("button[phx-value-id='#{v.id}'][phx-click='delete_view']") |> render_click()
+    menu_click(view, "view", v.id, "delete_view")
     assert Buckets.get_view(v.id) == nil
-  end
-
-  test "assigns a bucket set to a cash account", %{conn: conn} do
-    %{cash: cash} = world()
-    {:ok, reserve} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Reserve"})
-
-    {:ok, view, _html} = live(conn, "/buckets")
-
-    view
-    |> form("#cash-assignment-#{cash.id} form", %{"bucket_ids" => ["#{reserve.id}"]})
-    |> render_submit()
-
-    assert Buckets.cash_account_bucket_ids(cash.id) == [reserve.id]
-  end
-
-  # User story:
-  # As a local portfolio maintainer,
-  # I want to set a default bucket set on a depot,
-  # so that positions in that depot inherit a sensible scope.
-  #
-  # Acceptance criteria:
-  # - Submitting the depot form writes the depot's default bucket ids.
-  test "assigns a default bucket set to a depot", %{conn: conn} do
-    %{depot: depot} = world()
-    {:ok, core} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Core"})
-
-    {:ok, view, _html} = live(conn, "/buckets")
-
-    view
-    |> form("#depot-assignment-#{depot.id} form", %{"bucket_ids" => ["#{core.id}"]})
-    |> render_submit()
-
-    assert Buckets.depot_default_bucket_ids(depot.id) == [core.id]
   end
 
   # User story:
@@ -252,9 +225,7 @@ defmodule PortfolixirWeb.BucketsLiveTest do
 
     {:ok, view, _html} = live(conn, "/buckets")
 
-    view
-    |> element("button[phx-value-id='#{bucket.id}'][phx-click='edit_bucket']")
-    |> render_click()
+    menu_click(view, "bucket", bucket.id, "edit_bucket")
 
     html =
       view
@@ -273,7 +244,7 @@ defmodule PortfolixirWeb.BucketsLiveTest do
 
     {:ok, view, _html} = live(conn, "/buckets")
 
-    view |> element("button[phx-value-id='#{v.id}'][phx-click='edit_view']") |> render_click()
+    menu_click(view, "view", v.id, "edit_view")
 
     html =
       view
@@ -291,16 +262,14 @@ defmodule PortfolixirWeb.BucketsLiveTest do
 
     {:ok, view, _html} = live(conn, "/buckets")
 
-    view
-    |> element("button[phx-value-id='#{bucket.id}'][phx-click='edit_bucket']")
-    |> render_click()
+    menu_click(view, "bucket", bucket.id, "edit_bucket")
 
     assert has_element?(view, "#bucket-#{bucket.id} form[phx-submit='rename_bucket']")
 
     view |> element("button[phx-click='cancel_edit_bucket']") |> render_click()
     refute has_element?(view, "#bucket-#{bucket.id} form[phx-submit='rename_bucket']")
 
-    view |> element("button[phx-value-id='#{v.id}'][phx-click='edit_view']") |> render_click()
+    menu_click(view, "view", v.id, "edit_view")
     assert has_element?(view, "#view-#{v.id} form[phx-submit='rename_view']")
 
     view |> element("button[phx-click='cancel_edit_view']") |> render_click()
@@ -313,9 +282,7 @@ defmodule PortfolixirWeb.BucketsLiveTest do
 
     {:ok, view, _html} = live(conn, "/buckets")
 
-    view
-    |> element("button[phx-value-id='#{v.id}'][phx-click='edit_view_buckets']")
-    |> render_click()
+    menu_click(view, "view", v.id, "edit_view_buckets")
 
     assert has_element?(view, "#view-bucket-modal")
 
@@ -341,9 +308,7 @@ defmodule PortfolixirWeb.BucketsLiveTest do
 
     {:ok, view, _html} = live(conn, "/buckets")
 
-    view
-    |> element("button[phx-value-id='#{v.id}'][phx-click='edit_view_buckets']")
-    |> render_click()
+    menu_click(view, "view", v.id, "edit_view_buckets")
 
     # Reveal the include checklist so its input name exists.
     view |> form("#view-bucket-form", %{"include_all" => "false"}) |> render_change()
@@ -364,41 +329,6 @@ defmodule PortfolixirWeb.BucketsLiveTest do
     assert filter.exclude == []
   end
 
-  test "saving depot defaults with a stale bucket id surfaces a friendly error", %{conn: conn} do
-    %{depot: depot} = world()
-    {:ok, core} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Core"})
-
-    {:ok, view, _html} = live(conn, "/buckets")
-
-    {:ok, _} = Buckets.delete_bucket(Actor.owner_ui(), core)
-
-    html =
-      view
-      |> form("#depot-assignment-#{depot.id} form", %{"bucket_ids" => ["#{core.id}"]})
-      |> render_submit()
-
-    assert html =~ "That bucket no longer exists"
-    assert Buckets.depot_default_bucket_ids(depot.id) == []
-  end
-
-  test "saving cash-account buckets with a stale bucket id surfaces a friendly error",
-       %{conn: conn} do
-    %{cash: cash} = world()
-    {:ok, core} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Core"})
-
-    {:ok, view, _html} = live(conn, "/buckets")
-
-    {:ok, _} = Buckets.delete_bucket(Actor.owner_ui(), core)
-
-    html =
-      view
-      |> form("#cash-assignment-#{cash.id} form", %{"bucket_ids" => ["#{core.id}"]})
-      |> render_submit()
-
-    assert html =~ "That bucket no longer exists"
-    assert Buckets.cash_account_bucket_ids(cash.id) == []
-  end
-
   test "the include-all toggle live-previews the include checklist", %{conn: conn} do
     world()
     {:ok, _core} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Core"})
@@ -406,9 +336,7 @@ defmodule PortfolixirWeb.BucketsLiveTest do
 
     {:ok, view, _html} = live(conn, "/buckets")
 
-    view
-    |> element("button[phx-value-id='#{v.id}'][phx-click='edit_view_buckets']")
-    |> render_click()
+    menu_click(view, "view", v.id, "edit_view_buckets")
 
     # include_all defaults on, so the include checklist is hidden.
     refute has_element?(view, "#view-bucket-form legend", "Include buckets")
@@ -418,44 +346,6 @@ defmodule PortfolixirWeb.BucketsLiveTest do
     |> render_change()
 
     assert has_element?(view, "#view-bucket-form legend", "Include buckets")
-  end
-
-  # User story:
-  # As a local portfolio maintainer with no accounts yet,
-  # I want the assignment section to explain what to create first,
-  # so that an empty install does not look broken (and never asks for a
-  # portfolio — ADR-0024).
-  #
-  # Acceptance criteria:
-  # - With no depots/cash accounts the assignment section shows the
-  #   create-first hint, pointing at depot + cash account.
-  test "with no accounts the assignment section shows the create-first hint", %{conn: conn} do
-    {:ok, view, html} = live(conn, "/buckets")
-
-    assert html =~ "Bucket assignment needs a depot or a cash account."
-    refute html =~ "Create a portfolio"
-    refute has_element?(view, "#depot-assignment-list")
-  end
-
-  test "a cash account without any depot shows the depot list's empty state",
-       %{conn: conn} do
-    {:ok, portfolio} =
-      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
-        name: "Empty",
-        base_currency_code: "EUR"
-      })
-
-    {:ok, _cash} =
-      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
-        portfolio_id: portfolio.id,
-        name: "Solo Cash",
-        currency_code: "EUR"
-      })
-
-    {:ok, view, _html} = live(conn, "/buckets")
-
-    assert has_element?(view, "#depot-assignment-list .hint", "No depots yet.")
-    assert has_element?(view, "#cash-assignment-list", "Solo Cash")
   end
 
   # User story:
@@ -474,11 +364,9 @@ defmodule PortfolixirWeb.BucketsLiveTest do
     {:ok, view, _html} = live(conn, "/buckets")
 
     # Enter edit mode while the records still exist, so the inline forms render.
-    view
-    |> element("button[phx-value-id='#{bucket.id}'][phx-click='edit_bucket']")
-    |> render_click()
+    menu_click(view, "bucket", bucket.id, "edit_bucket")
 
-    view |> element("button[phx-value-id='#{v.id}'][phx-click='edit_view']") |> render_click()
+    menu_click(view, "view", v.id, "edit_view")
 
     # They vanish behind the open page.
     {:ok, _} = Buckets.delete_bucket(Actor.owner_ui(), bucket)
@@ -514,13 +402,9 @@ defmodule PortfolixirWeb.BucketsLiveTest do
     {:ok, _} = Buckets.delete_bucket(Actor.owner_ui(), bucket)
     {:ok, _} = Buckets.delete_view(Actor.owner_ui(), v)
 
-    view
-    |> element("button[phx-value-id='#{bucket.id}'][phx-click='delete_bucket']")
-    |> render_click()
+    menu_click(view, "bucket", bucket.id, "delete_bucket")
 
-    view
-    |> element("button[phx-value-id='#{v.id}'][phx-click='edit_view_buckets']")
-    |> render_click()
+    menu_click(view, "view", v.id, "edit_view_buckets")
 
     refute has_element?(view, "#view-bucket-modal")
     assert has_element?(view, "#buckets-workspace")
@@ -532,9 +416,7 @@ defmodule PortfolixirWeb.BucketsLiveTest do
 
     {:ok, view, _html} = live(conn, "/buckets")
 
-    view
-    |> element("button[phx-value-id='#{v.id}'][phx-click='edit_view_buckets']")
-    |> render_click()
+    menu_click(view, "view", v.id, "edit_view_buckets")
 
     assert has_element?(view, "#view-bucket-modal")
 
@@ -562,5 +444,204 @@ defmodule PortfolixirWeb.BucketsLiveTest do
     plain = Enum.find(Buckets.list_buckets(), &(&1.name == "Plain"))
     assert plain
     assert plain.color == nil
+  end
+
+  # User story (#802):
+  # As a local portfolio maintainer opening the Views page,
+  # I want the page to read list-first — each view's row saying what it does
+  # and what it covers, each bucket's row carrying its colour and where it is
+  # used — with the explanation behind an ⓘ and the forms behind "+",
+  # so that the page is a reading surface, not a tutorial with forms.
+  #
+  # Acceptance criteria:
+  # - No paragraph above the first section; each heading carries a basis line
+  #   and an ⓘ holding the two-step explanation.
+  # - View rows show the rule (include/exclude buckets as chips) and the
+  #   covered total / positions / accounts; the "Everything" row is marked
+  #   as the default; bucket rows show swatch and usage.
+  # - Row actions sit in the row menu; both create forms are closed
+  #   disclosures opened by "+"; the assignment section is gone and its edit
+  #   path is the account row on Accounts & depots (link in the basis line).
+  describe "read-first rows (#802)" do
+    alias Portfolixir.WorldFixtures
+
+    defp text(nodes),
+      do: nodes |> Floki.text(sep: " ") |> String.replace(~r/\s+/, " ") |> String.trim()
+
+    # Two depots on one cash account: "Depot" holds ACME (100) and BETA (50),
+    # "Crypto Depot" holds COIN (30) under the Crypto bucket; 1,000 cash.
+    defp seeded do
+      world = WorldFixtures.base_world(name: "Main", cash_name: "Giro", depot_name: "Depot")
+      acme = WorldFixtures.create_security!(name: "ACME", ticker: "ACME")
+      beta = WorldFixtures.create_security!(name: "BETA", ticker: "BETA")
+      coin = WorldFixtures.create_security!(name: "COIN", ticker: "COIN")
+      WorldFixtures.deposit!(world, "1000", ~D[2026-01-02], [])
+      WorldFixtures.buy!(world, acme, quantity: "1", price: "90", date: ~D[2026-01-05])
+      WorldFixtures.buy!(world, beta, quantity: "1", price: "40", date: ~D[2026-01-05])
+      WorldFixtures.put_quote!(acme, Date.utc_today(), "100")
+      WorldFixtures.put_quote!(beta, Date.utc_today(), "50")
+      WorldFixtures.put_quote!(coin, Date.utc_today(), "30")
+
+      %{depot: crypto_depot} =
+        WorldFixtures.add_depot(world.portfolio,
+          depot_name: "Crypto Depot",
+          cash_name: "Crypto Cash"
+        )
+
+      {:ok, _} =
+        Portfolixir.Ledger.create_transaction(Actor.owner_ui(), %{
+          portfolio_id: world.portfolio.id,
+          securities_account_id: crypto_depot.id,
+          security_id: coin.id,
+          type: "inbound_delivery",
+          date: ~D[2026-01-06],
+          quantity: "1",
+          currency_code: "EUR"
+        })
+
+      {:ok, crypto} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Crypto", color: "#f59e0b"})
+      {:ok, household} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Household"})
+      :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), crypto_depot, [crypto.id])
+
+      {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Without crypto"})
+      :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [], [crypto.id])
+
+      Map.merge(world, %{
+        crypto: crypto,
+        household: household,
+        view: view,
+        crypto_depot: crypto_depot,
+        acme: acme
+      })
+    end
+
+    test "list-first: no paragraph, basis lines and ⓘ per heading, forms behind +", %{
+      conn: conn
+    } do
+      seeded()
+      {:ok, live, html} = live(conn, "/buckets")
+      doc = Floki.parse_document!(html)
+
+      assert Floki.find(doc, ~s([data-role="how-it-works"])) == []
+      assert Floki.find(doc, ".workspace-page p.section-hint") == []
+      assert Floki.find(doc, ".workspace-page p.muted") == []
+      assert Floki.find(doc, "#assignment-section") == []
+
+      assert text(Floki.find(doc, ~s([data-role="views-info"] p))) =~ "Create buckets"
+      assert [_] = Floki.find(doc, ~s([data-role="buckets-info"] [data-role="overlap-hint"]))
+      assert text(Floki.find(doc, ~s([data-role="views-basis"]))) =~ "view switcher"
+      assert text(Floki.find(doc, ~s([data-role="buckets-basis"]))) =~ "not a sum"
+
+      # Views before buckets: the list the switcher shows comes first.
+      assert :binary.match(html, ~s(id="views-section")) |> elem(0) <
+               :binary.match(html, ~s(id="buckets-section")) |> elem(0)
+
+      # Both forms behind "+", closed by default.
+      assert [_] = Floki.find(doc, "#view-form-panel[hidden] #view-form")
+      assert [_] = Floki.find(doc, "#bucket-form-panel[hidden] #bucket-form")
+      live |> element(~s(button[aria-controls="view-form-panel"])) |> render_click()
+      opened = Floki.parse_document!(render(live))
+      assert Floki.find(opened, "#view-form-panel[hidden]") == []
+
+      assert [_] =
+               Floki.find(
+                 opened,
+                 ~s(button[aria-controls="view-form-panel"][aria-expanded="true"])
+               )
+    end
+
+    test "view rows say what they do and what they cover; Everything is the default", %{
+      conn: conn
+    } do
+      %{view: view} = seeded()
+      {:ok, _live, html} = live(conn, "/buckets")
+      doc = Floki.parse_document!(html)
+
+      everything = Floki.find(doc, "#view-everything")
+      assert [_] = Floki.find(everything, ~s([data-role="view-default"]))
+      assert text(Floki.find(everything, ~s([data-role="view-rule"]))) =~ "no filters"
+      figures = text(Floki.find(everything, ~s([data-role="view-figures"])))
+      # 870 cash left after the two buys + 100 + 50 + 30; three positions in
+      # two depots plus two cash accounts.
+      assert figures =~ "1,050.00"
+      assert figures =~ "3 positions"
+      assert figures =~ "4 accounts"
+
+      row = Floki.find(doc, "#view-#{view.id}")
+      rule = Floki.find(row, ~s([data-role="view-rule"]))
+      assert text(rule) =~ "except"
+      assert text(Floki.find(rule, ".badge")) == "Crypto"
+      figures = text(Floki.find(row, ~s([data-role="view-figures"])))
+      assert figures =~ "1,020.00"
+      assert figures =~ "2 positions"
+      assert figures =~ "3 accounts"
+      assert Floki.find(row, ~s([data-role="view-default"])) == []
+    end
+
+    test "bucket rows carry swatch and usage; the basis line points at the account row", %{
+      conn: conn
+    } do
+      %{
+        crypto: crypto,
+        household: household,
+        crypto_depot: crypto_depot,
+        depot: depot,
+        acme: acme
+      } =
+        seeded()
+
+      # A direct override: ACME in the main depot tagged Household by hand.
+      :ok = Buckets.set_position_override(Actor.owner_ui(), depot, acme, [household.id])
+
+      {:ok, _live, html} = live(conn, "/buckets")
+      doc = Floki.parse_document!(html)
+
+      crypto_row = Floki.find(doc, "#bucket-#{crypto.id}")
+      assert [swatch] = Floki.find(crypto_row, ".cat-swatch")
+      assert Floki.attribute(swatch, "style") == ["background:#f59e0b"]
+      usage = text(Floki.find(crypto_row, ~s([data-role="bucket-usage"])))
+      assert usage =~ "Default on Crypto Depot"
+      assert usage =~ "1 position inherits"
+
+      household_row = Floki.find(doc, "#bucket-#{household.id}")
+      usage = text(Floki.find(household_row, ~s([data-role="bucket-usage"])))
+      assert usage =~ "1 position directly: ACME"
+      assert usage =~ "no default"
+
+      basis = Floki.find(doc, ~s([data-role="assignment-basis"]))
+      assert [_] = Floki.find(basis, ~s(a[href="/portfolios"]))
+      # The accounts without a default bucket are named; the crypto depot is not.
+      assert text(basis) =~ "Depot"
+      assert text(basis) =~ "Giro"
+      refute text(basis) =~ crypto_depot.name <> ","
+    end
+
+    test "row actions sit in the row menu", %{conn: conn} do
+      %{view: view, crypto: crypto} = seeded()
+      {:ok, live, html} = live(conn, "/buckets")
+      doc = Floki.parse_document!(html)
+
+      assert Floki.find(doc, ~s(#view-#{view.id} button[phx-click="delete_view"])) == []
+      assert Floki.find(doc, ~s(#bucket-#{crypto.id} button[phx-click="delete_bucket"])) == []
+
+      live
+      |> element(~s(button.row-actions__kebab[phx-value-kind="view"][phx-value-id="#{view.id}"]))
+      |> render_click()
+
+      menu = Floki.parse_document!(render(live)) |> Floki.find(~s([role="menu"]))
+      assert text(menu) =~ "Edit buckets"
+      assert text(menu) =~ "Rename"
+      assert [_] = Floki.find(menu, ~s(button[phx-click="delete_view"][data-confirm]))
+
+      live
+      |> element(
+        ~s(button.row-actions__kebab[phx-value-kind="bucket"][phx-value-id="#{crypto.id}"])
+      )
+      |> render_click()
+
+      menu = Floki.parse_document!(render(live)) |> Floki.find(~s([role="menu"]))
+      assert text(menu) =~ "Rename"
+      assert [_] = Floki.find(menu, ~s(button[phx-click="delete_bucket"][data-confirm]))
+    end
   end
 end

@@ -18,7 +18,6 @@ msgstr "Basiswährung"
 msgid "Cash account created"
 msgstr "Verrechnungskonto angelegt"
 
-#: lib/portfolixir_web/live/buckets_live.ex:275
 #: lib/portfolixir_web/live/dashboard_live.ex:591
 #: lib/portfolixir_web/live/imports_live.ex:154
 #: lib/portfolixir_web/live/imports_live.ex:546
@@ -28,7 +27,7 @@ msgstr "Verrechnungskonto angelegt"
 msgid "Cash accounts"
 msgstr "Verrechnungskonten"
 
-#: lib/portfolixir_web/live/buckets_live.ex:391
+#: lib/portfolixir_web/live/buckets_live.ex:431
 #: lib/portfolixir_web/live/income_live.ex:682
 #: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:58
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:290
@@ -98,7 +97,6 @@ msgstr "Datum"
 msgid "Depot"
 msgstr "Depot"
 
-#: lib/portfolixir_web/live/buckets_live.ex:244
 #: lib/portfolixir_web/live/dashboard_live.ex:595
 #: lib/portfolixir_web/live/imports_live.ex:158
 #: lib/portfolixir_web/live/imports_live.ex:550
@@ -568,8 +566,8 @@ msgstr "Kursquelle-URL"
 msgid "Remove filter"
 msgstr "Filter entfernen"
 
-#: lib/portfolixir_web/live/buckets_live.ex:108
-#: lib/portfolixir_web/live/buckets_live.ex:180
+#: lib/portfolixir_web/live/buckets_live.ex:144
+#: lib/portfolixir_web/live/buckets_live.ex:259
 #: lib/portfolixir_web/live/classifications_live.ex:524
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:421
 #, elixir-autogen, elixir-format
@@ -950,9 +948,9 @@ msgstr "Kurse"
 msgid "%{name} is referenced by existing transactions or quote history and cannot be deleted. Retire it instead to hide it from the active list while keeping the historical record intact."
 msgstr "%{name} wird von bestehenden Transaktionen oder Kursdaten referenziert und kann nicht gelöscht werden. Stilllegen verbirgt das Wertpapier aus der aktiven Liste, der historische Eintrag bleibt erhalten."
 
-#: lib/portfolixir_web/live/buckets_live.ex:110
-#: lib/portfolixir_web/live/buckets_live.ex:182
-#: lib/portfolixir_web/live/buckets_live.ex:444
+#: lib/portfolixir_web/live/buckets_live.ex:146
+#: lib/portfolixir_web/live/buckets_live.ex:261
+#: lib/portfolixir_web/live/buckets_live.ex:484
 #: lib/portfolixir_web/live/classifications_live.ex:525
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:208
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:406
@@ -990,6 +988,8 @@ msgstr "Ticker kopieren"
 msgid "Could not change status."
 msgstr "Status konnte nicht geändert werden."
 
+#: lib/portfolixir_web/live/buckets_live.ex:535
+#: lib/portfolixir_web/live/buckets_live.ex:569
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:166
 #: lib/portfolixir_web/live/snapshots_live.ex:690
 #: lib/portfolixir_web/live/tax_live.ex:924
@@ -1018,6 +1018,8 @@ msgstr "Wertpapier bearbeiten"
 msgid "ISIN copied"
 msgstr "ISIN kopiert"
 
+#: lib/portfolixir_web/live/buckets_live.ex:179
+#: lib/portfolixir_web/live/buckets_live.ex:287
 #: lib/portfolixir_web/live/securities_live.ex:679
 #: lib/portfolixir_web/live/snapshots_live.ex:659
 #: lib/portfolixir_web/live/tax_live.ex:772
@@ -1981,8 +1983,8 @@ msgstr "Klassifizierung nicht gefunden"
 msgid "Clear"
 msgstr "Aufheben"
 
-#: lib/portfolixir_web/live/buckets_live.ex:83
-#: lib/portfolixir_web/live/buckets_live.ex:106
+#: lib/portfolixir_web/live/buckets_live.ex:229
+#: lib/portfolixir_web/live/buckets_live.ex:257
 #: lib/portfolixir_web/live/classifications_live.ex:242
 #: lib/portfolixir_web/live/classifications_live.ex:522
 #: lib/portfolixir_web/live/classifications_live.ex:532
@@ -2180,6 +2182,7 @@ msgid_plural "Unassigned %{count} securities"
 msgstr[0] "Zuordnung von %{count} Wertpapier entfernt"
 msgstr[1] "Zuordnung von %{count} Wertpapieren entfernt"
 
+#: lib/portfolixir_web/live/buckets_live.ex:890
 #: lib/portfolixir_web/live/classifications_live.ex:194
 #: lib/portfolixir_web/live/classifications_live.ex:312
 #: lib/portfolixir_web/live/portfolio_live.ex:3225
@@ -2206,7 +2209,7 @@ msgstr "Kreditlinie"
 msgid "reserve"
 msgstr "Reserve"
 
-#: lib/portfolixir_web/live/buckets_live.ex:83
+#: lib/portfolixir_web/live/buckets_live.ex:229
 #: lib/portfolixir_web/live/classifications_live.ex:246
 #, elixir-autogen, elixir-format
 msgid "optional"
@@ -2466,15 +2469,10 @@ msgstr "Synchronisiere…"
 msgid "Couldn't reach the exchange-rate provider. Please check the connection and try again."
 msgstr "Wechselkurs-Anbieter nicht erreichbar. Bitte Verbindung prüfen und erneut versuchen."
 
-#: lib/portfolixir_web/live/buckets_live.ex:428
+#: lib/portfolixir_web/live/buckets_live.ex:468
 #, elixir-autogen, elixir-format
 msgid "(exclude wins)"
 msgstr "(Ausschluss gewinnt)"
-
-#: lib/portfolixir_web/live/buckets_live.ex:158
-#, elixir-autogen, elixir-format
-msgid "A view includes some buckets and excludes others. Exclude always wins."
-msgstr "Eine Ansicht bezieht einige Buckets ein und schließt andere aus. Ausschluss gewinnt immer."
 
 #: lib/portfolixir_web/components/view_switcher.ex:128
 #, elixir-autogen, elixir-format
@@ -2482,6 +2480,7 @@ msgid "A view narrows every figure on this page to the holdings it matches. Per-
 msgstr "Eine Ansicht grenzt jede Kennzahl auf dieser Seite auf die passenden Positionen ein. Werte je Bucket sind überlappende Facetten, keine Aufteilung – eine Position kann mehreren Buckets angehören, daher können sich ihre Werte überschneiden und dürfen nicht als Summe gelesen werden."
 
 #: lib/portfolixir_web/components/view_switcher.ex:126
+#: lib/portfolixir_web/live/buckets_live.ex:77
 #, elixir-autogen, elixir-format
 msgid "About views"
 msgstr "Über Ansichten"
@@ -2492,14 +2491,14 @@ msgstr "Über Ansichten"
 msgid "Active view"
 msgstr "Aktive Filter"
 
-#: lib/portfolixir_web/live/buckets_live.ex:86
+#: lib/portfolixir_web/live/buckets_live.ex:232
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:456
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:457
 #, elixir-autogen, elixir-format
 msgid "Add bucket"
 msgstr "Bucket hinzufügen"
 
-#: lib/portfolixir_web/live/buckets_live.ex:165
+#: lib/portfolixir_web/live/buckets_live.ex:108
 #, elixir-autogen, elixir-format
 msgid "Add view"
 msgstr "Neu anlegen"
@@ -2509,26 +2508,27 @@ msgstr "Neu anlegen"
 msgid "Bucket assignment mode"
 msgstr "Bucket-Zuordnungsmodus"
 
-#: lib/portfolixir_web/live/buckets_live.ex:459
+#: lib/portfolixir_web/live/buckets_live.ex:614
 #, elixir-autogen, elixir-format
 msgid "Bucket created"
 msgstr "Bucket angelegt"
 
-#: lib/portfolixir_web/live/buckets_live.ex:499
+#: lib/portfolixir_web/live/buckets_live.ex:657
 #, elixir-autogen, elixir-format
 msgid "Bucket deleted"
 msgstr "Bucket gelöscht"
 
-#: lib/portfolixir_web/live/buckets_live.ex:98
+#: lib/portfolixir_web/live/buckets_live.ex:249
 #, elixir-autogen, elixir-format
 msgid "Bucket name"
 msgstr "Bucket-Name"
 
-#: lib/portfolixir_web/live/buckets_live.ex:484
+#: lib/portfolixir_web/live/buckets_live.ex:640
 #, elixir-autogen, elixir-format
 msgid "Bucket updated"
 msgstr "Saldo aktualisiert"
 
+#: lib/portfolixir_web/live/buckets_live.ex:195
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:93
 #: lib/portfolixir_web/live/securities_live.ex:1705
 #: lib/portfolixir_web/live/securities_live.ex:1745
@@ -2536,90 +2536,47 @@ msgstr "Saldo aktualisiert"
 msgid "Buckets"
 msgstr "Buckets"
 
-#: lib/portfolixir_web/live/buckets_live.ex:66
+#: lib/portfolixir_web/live/buckets_live.ex:199
 #, elixir-autogen, elixir-format
 msgid "Buckets are overlapping tags, not a partition: a holding can carry several buckets at once. Per-bucket figures may overlap and must never be read as a sum."
 msgstr "Buckets sind überlappende Tags, keine Aufteilung: Eine Position kann mehreren Buckets gleichzeitig angehören. Werte je Bucket können sich überschneiden und dürfen niemals als Summe gelesen werden."
 
-#: lib/portfolixir_web/live/buckets_live.ex:386
+#: lib/portfolixir_web/live/buckets_live.ex:426
 #, elixir-autogen, elixir-format
 msgid "Buckets for %{name}"
 msgstr "Buckets für %{name}"
-
-#: lib/portfolixir_web/live/buckets_live.ex:652
-#, elixir-autogen, elixir-format
-msgid "Cash account buckets saved"
-msgstr "Verrechnungskonto angelegt"
 
 #: lib/portfolixir_web/live/securities_live.ex:1740
 #, elixir-autogen, elixir-format
 msgid "Choose specific buckets"
 msgstr "Bestimmte Buckets wählen"
 
-#: lib/portfolixir_web/live/buckets_live.ex:659
-#, elixir-autogen, elixir-format
-msgid "Could not save cash account buckets"
-msgstr "Verrechnungskonto konnte nicht aktualisiert werden"
-
-#: lib/portfolixir_web/live/buckets_live.ex:639
-#, elixir-autogen, elixir-format
-msgid "Could not save depot defaults"
-msgstr "Notizen konnten nicht gespeichert werden."
-
 #: lib/portfolixir_web/live/securities_live.ex:3350
 #, elixir-autogen, elixir-format
 msgid "Could not save position buckets"
 msgstr "Notizen konnten nicht gespeichert werden."
 
-#: lib/portfolixir_web/live/buckets_live.ex:234
-#, elixir-autogen, elixir-format
-msgid "Default bucket assignment"
-msgstr "Standard-Bucket-Zuordnung"
-
-#: lib/portfolixir_web/live/buckets_live.ex:139
-#: lib/portfolixir_web/live/buckets_live.ex:140
-#, elixir-autogen, elixir-format
-msgid "Delete bucket"
-msgstr "Löschen"
-
-#: lib/portfolixir_web/live/buckets_live.ex:138
+#: lib/portfolixir_web/live/buckets_live.ex:566
 #, elixir-autogen, elixir-format
 msgid "Delete this bucket? It is removed from every assignment and view."
 msgstr "Diesen Bucket löschen? Er wird aus jeder Zuordnung und Ansicht entfernt."
 
-#: lib/portfolixir_web/live/buckets_live.ex:219
+#: lib/portfolixir_web/live/buckets_live.ex:532
 #, elixir-autogen, elixir-format
 msgid "Delete this view?"
 msgstr "Diese Kategorie löschen?"
 
-#: lib/portfolixir_web/live/buckets_live.ex:220
-#: lib/portfolixir_web/live/buckets_live.ex:221
-#, elixir-autogen, elixir-format
-msgid "Delete view"
-msgstr "Löschen"
-
-#: lib/portfolixir_web/live/buckets_live.ex:632
-#, elixir-autogen, elixir-format
-msgid "Depot defaults saved"
-msgstr "Depot-Standards gespeichert"
-
-#: lib/portfolixir_web/live/buckets_live.ex:203
-#: lib/portfolixir_web/live/buckets_live.ex:204
-#, elixir-autogen, elixir-format
-msgid "Edit view buckets"
-msgstr "Ansichts-Buckets bearbeiten"
-
-#: lib/portfolixir_web/live/buckets_live.ex:428
+#: lib/portfolixir_web/live/buckets_live.ex:468
 #, elixir-autogen, elixir-format
 msgid "Exclude buckets"
 msgstr "Buckets ausschließen"
 
-#: lib/portfolixir_web/live/buckets_live.ex:406
+#: lib/portfolixir_web/live/buckets_live.ex:446
 #, elixir-autogen, elixir-format
 msgid "Include all buckets"
 msgstr "Alle Buckets einbeziehen"
 
-#: lib/portfolixir_web/live/buckets_live.ex:411
+#: lib/portfolixir_web/live/buckets_live.ex:451
 #, elixir-autogen, elixir-format
 msgid "Include buckets"
 msgstr "Buckets einbeziehen"
@@ -2634,12 +2591,12 @@ msgstr "Vom Depot erben"
 msgid "Manage logo…"
 msgstr "Logo verwalten"
 
-#: lib/portfolixir_web/live/buckets_live.ex:79
+#: lib/portfolixir_web/live/buckets_live.ex:225
 #, elixir-autogen, elixir-format
 msgid "New bucket"
 msgstr "Neuer Bucket"
 
-#: lib/portfolixir_web/live/buckets_live.ex:162
+#: lib/portfolixir_web/live/buckets_live.ex:105
 #, elixir-autogen, elixir-format
 msgid "New view"
 msgstr "Neue Ansicht"
@@ -2649,24 +2606,13 @@ msgstr "Neue Ansicht"
 msgid "No buckets (excluded)"
 msgstr "Keine Buckets (ausgeschlossen)"
 
-#: lib/portfolixir_web/live/buckets_live.ex:147
-#: lib/portfolixir_web/live/buckets_live.ex:339
+#: lib/portfolixir_web/live/buckets_live.ex:297
 #: lib/portfolixir_web/live/securities_live.ex:1759
 #, elixir-autogen, elixir-format
 msgid "No buckets yet."
 msgstr "Noch keine Buckets."
 
-#: lib/portfolixir_web/live/buckets_live.ex:300
-#, elixir-autogen, elixir-format
-msgid "No cash accounts yet."
-msgstr "Noch keine Klassifizierungen."
-
-#: lib/portfolixir_web/live/buckets_live.ex:269
-#, elixir-autogen, elixir-format
-msgid "No depots yet."
-msgstr "Noch keine Depots."
-
-#: lib/portfolixir_web/live/buckets_live.ex:228
+#: lib/portfolixir_web/live/buckets_live.ex:189
 #, elixir-autogen, elixir-format
 msgid "No views yet."
 msgstr "Noch keine Ansichten."
@@ -2676,30 +2622,12 @@ msgstr "Noch keine Ansichten."
 msgid "Position buckets saved"
 msgstr "Positions-Buckets gespeichert"
 
-#: lib/portfolixir_web/live/buckets_live.ex:130
-#: lib/portfolixir_web/live/buckets_live.ex:131
-#, elixir-autogen, elixir-format
-msgid "Rename bucket"
-msgstr "Bucket umbenennen"
-
-#: lib/portfolixir_web/live/buckets_live.ex:211
-#: lib/portfolixir_web/live/buckets_live.ex:212
-#, elixir-autogen, elixir-format
-msgid "Rename view"
-msgstr "Ansicht umbenennen"
-
-#: lib/portfolixir_web/live/buckets_live.ex:294
 #: lib/portfolixir_web/live/securities_live.ex:1763
 #, elixir-autogen, elixir-format
 msgid "Save buckets"
 msgstr "Buckets speichern"
 
-#: lib/portfolixir_web/live/buckets_live.ex:263
-#, elixir-autogen, elixir-format
-msgid "Save defaults"
-msgstr "Standards speichern"
-
-#: lib/portfolixir_web/live/buckets_live.ex:445
+#: lib/portfolixir_web/live/buckets_live.ex:485
 #, elixir-autogen, elixir-format
 msgid "Save view"
 msgstr "Speichern"
@@ -2709,36 +2637,34 @@ msgstr "Speichern"
 msgid "Scoped to view: %{name}"
 msgstr "Eingegrenzt auf Ansicht: %{name}"
 
-#: lib/portfolixir_web/live/buckets_live.ex:611
-#: lib/portfolixir_web/live/buckets_live.ex:636
-#: lib/portfolixir_web/live/buckets_live.ex:656
+#: lib/portfolixir_web/live/buckets_live.ex:777
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:762
 #: lib/portfolixir_web/live/securities_live.ex:3335
 #, elixir-autogen, elixir-format
 msgid "That bucket no longer exists. Refresh and try again."
 msgstr "Dieser Bucket existiert nicht mehr. Aktualisiere die Seite und versuche es erneut."
 
-#: lib/portfolixir_web/live/buckets_live.ex:606
+#: lib/portfolixir_web/live/buckets_live.ex:772
 #, elixir-autogen, elixir-format
 msgid "View buckets saved"
 msgstr "Ansichts-Buckets gespeichert"
 
-#: lib/portfolixir_web/live/buckets_live.ex:510
+#: lib/portfolixir_web/live/buckets_live.ex:671
 #, elixir-autogen, elixir-format
 msgid "View created"
 msgstr "Ansicht angelegt"
 
-#: lib/portfolixir_web/live/buckets_live.ex:550
+#: lib/portfolixir_web/live/buckets_live.ex:714
 #, elixir-autogen, elixir-format
 msgid "View deleted"
 msgstr "Ansicht gelöscht"
 
-#: lib/portfolixir_web/live/buckets_live.ex:177
+#: lib/portfolixir_web/live/buckets_live.ex:141
 #, elixir-autogen, elixir-format
 msgid "View name"
 msgstr "Ansichtsname"
 
-#: lib/portfolixir_web/live/buckets_live.ex:535
+#: lib/portfolixir_web/live/buckets_live.ex:697
 #, elixir-autogen, elixir-format
 msgid "View updated"
 msgstr "Ansicht aktualisiert"
@@ -2753,12 +2679,6 @@ msgstr "vom Depot geerbt"
 msgid "no buckets (excluded)"
 msgstr "keine Buckets (ausgeschlossen)"
 
-#: lib/portfolixir_web/live/buckets_live.ex:702
-#: lib/portfolixir_web/live/buckets_live.ex:710
-#, elixir-autogen, elixir-format
-msgid "no default buckets"
-msgstr "keine Standard-Buckets"
-
 #: lib/portfolixir_web/live/securities_live.ex:4109
 #: lib/portfolixir_web/live/securities_live.ex:4117
 #, elixir-autogen, elixir-format
@@ -2769,21 +2689,6 @@ msgstr "Keine"
 #, elixir-autogen, elixir-format
 msgid "specific buckets"
 msgstr "bestimmte Buckets"
-
-#: lib/portfolixir_web/live/buckets_live.ex:73
-#, elixir-autogen, elixir-format
-msgid "1. Buckets"
-msgstr "1. Buckets"
-
-#: lib/portfolixir_web/live/buckets_live.ex:153
-#, elixir-autogen, elixir-format
-msgid "2. Views"
-msgstr "2. Ansichten"
-
-#: lib/portfolixir_web/live/buckets_live.ex:60
-#, elixir-autogen, elixir-format
-msgid "How it works — two steps:"
-msgstr "So funktioniert's — in zwei Schritten:"
 
 #: lib/portfolixir_web/components/view_switcher.ex:115
 #, elixir-autogen, elixir-format
@@ -3069,6 +2974,7 @@ msgid "Toggle the category's securities"
 msgstr "Wertpapiere der Kategorie ein-/ausblenden"
 
 #: lib/portfolixir_web/components/app_shell.ex:319
+#: lib/portfolixir_web/live/buckets_live.ex:303
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:56
 #, elixir-autogen, elixir-format
 msgid "Accounts & depots"
@@ -3251,6 +3157,8 @@ msgstr "Standard-Ansicht"
 
 #: lib/portfolixir_web/components/view_switcher.ex:52
 #: lib/portfolixir_web/components/view_switcher.ex:56
+#: lib/portfolixir_web/live/buckets_live.ex:117
+#: lib/portfolixir_web/live/buckets_live.ex:363
 #: lib/portfolixir_web/live/dashboard_live.ex:258
 #: lib/portfolixir_web/live/dashboard_live.ex:451
 #: lib/portfolixir_web/live/snapshots_live.ex:216
@@ -3305,7 +3213,6 @@ msgstr "API"
 msgid "Couldn't load the wealth figures."
 msgstr "Die Vermögens-Kennzahlen konnten nicht geladen werden."
 
-#: lib/portfolixir_web/live/buckets_live.ex:309
 #: lib/portfolixir_web/live/income_live.ex:211
 #: lib/portfolixir_web/live/portfolio_live.ex:694
 #: lib/portfolixir_web/live/snapshots_live.ex:338
@@ -3526,7 +3433,8 @@ msgstr "Der neue Tag konnte nicht angelegt werden."
 
 #: lib/portfolixir_web/components/app_shell.ex:329
 #: lib/portfolixir_web/components/view_switcher.ex:94
-#: lib/portfolixir_web/live/buckets_live.ex:47
+#: lib/portfolixir_web/live/buckets_live.ex:59
+#: lib/portfolixir_web/live/buckets_live.ex:73
 #: lib/portfolixir_web/live/securities_live.ex:1759
 #, elixir-autogen, elixir-format
 msgid "Views"
@@ -3649,7 +3557,7 @@ msgstr "Der Bucket-Tag benennt einen bestehenden Scope-Bucket. Scope-Buckets sin
 msgid "The selected view no longer exists — showing Everything."
 msgstr "Die gewählte Ansicht existiert nicht mehr — es wird Alles angezeigt."
 
-#: lib/portfolixir_web/live/buckets_live.ex:195
+#: lib/portfolixir_web/live/buckets_live.ex:164
 #, elixir-autogen, elixir-format
 msgid "matches no accounts"
 msgstr "trifft keine Konten"
@@ -3845,6 +3753,8 @@ msgstr "Neuer Planname"
 msgid "Real return"
 msgstr "Echte Rendite"
 
+#: lib/portfolixir_web/live/buckets_live.ex:524
+#: lib/portfolixir_web/live/buckets_live.ex:558
 #: lib/portfolixir_web/live/classifications_live.ex:624
 #, elixir-autogen, elixir-format
 msgid "Rename"
@@ -4751,15 +4661,10 @@ msgstr "Keine Wertpapiere passen zur Suche."
 msgid "Portfolios are now views"
 msgstr "Portfolios sind jetzt Views"
 
-#: lib/portfolixir_web/live/buckets_live.ex:48
+#: lib/portfolixir_web/live/buckets_live.ex:60
 #, elixir-autogen, elixir-format
 msgid "Saved filters that scope the analytics, built from bucket tags"
 msgstr "Gespeicherte Filter, die die Analysen eingrenzen, gebaut aus Bucket-Tags"
-
-#: lib/portfolixir_web/live/buckets_live.ex:155
-#, elixir-autogen, elixir-format
-msgid "Saved include/exclude filters over buckets, selectable in the view switcher on the Wealth page."
-msgstr "Gespeicherte Include/Exclude-Filter über Buckets, wählbar im View-Umschalter der Vermögensseite."
 
 #: lib/portfolixir_web/live/securities_live.ex:323
 #, elixir-autogen, elixir-format
@@ -4770,11 +4675,6 @@ msgstr "Suchen, filtern und pflegen des investierbaren Universums."
 #, elixir-autogen, elixir-format
 msgid "State the balance the bank shows; only later bookings adjust it."
 msgstr "Den Kontostand angeben, den die Bank anzeigt; nur spätere Buchungen passen ihn an."
-
-#: lib/portfolixir_web/live/buckets_live.ex:75
-#, elixir-autogen, elixir-format
-msgid "Tags assigned to depots, cash accounts and individual positions."
-msgstr "Tags an Depots, Konten und einzelnen Positionen."
 
 #: lib/portfolixir_web/live/portfolio_live.ex:3038
 #, elixir-autogen, elixir-format
@@ -4902,11 +4802,6 @@ msgstr "Keine Treffer für \"%{query}\"."
 #, elixir-autogen, elixir-format
 msgid "No matches for the active filters."
 msgstr "Keine Treffer für die aktiven Filter."
-
-#: lib/portfolixir_web/live/buckets_live.ex:61
-#, elixir-autogen, elixir-format
-msgid "1. Create buckets — tags on depots, cash accounts and positions. 2. Create a view — a saved include/exclude filter over buckets. A view is what appears in the view switcher on the Wealth page, so both are needed."
-msgstr "1. Buckets anlegen — Tags auf Depots, Verrechnungskonten und Positionen. 2. Eine Ansicht anlegen — ein gespeicherter Einschluss-/Ausschlussfilter über Buckets. Die Ansicht erscheint im Ansichtsumschalter auf der Vermögensseite, es braucht also beides."
 
 #: lib/portfolixir_web/live/portfolio_live.ex:1314
 #, elixir-autogen, elixir-format
@@ -6046,20 +5941,10 @@ msgstr "Zu Rohkursen"
 msgid "Bookings need a depot with a cash account."
 msgstr "Buchungen brauchen ein Depot mit Verrechnungskonto."
 
-#: lib/portfolixir_web/live/buckets_live.ex:307
-#, elixir-autogen, elixir-format
-msgid "Bucket assignment needs a depot or a cash account."
-msgstr "Die Bucket-Zuweisung braucht ein Depot oder ein Verrechnungskonto."
-
 #: lib/portfolixir_web/live/securities_live.ex:1781
 #, elixir-autogen, elixir-format
 msgid "Classification per tree"
 msgstr "Klassifizierung je Baum"
-
-#: lib/portfolixir_web/live/buckets_live.ex:237
-#, elixir-autogen, elixir-format
-msgid "Default buckets per depot and cash account — inherited by their positions and balances."
-msgstr "Standard-Buckets je Depot und Verrechnungskonto — vererbt an deren Positionen und Salden."
 
 #: lib/portfolixir_web/live/income_live.ex:210
 #, elixir-autogen, elixir-format
@@ -6403,3 +6288,130 @@ msgstr "netto, alle Kosten enthalten"
 #, elixir-autogen, elixir-format
 msgid "since %{date} · in %{currency} · gross, price development only · Transaction costs = fees and taxes booked on trades since then; standalone fees, taxes and dividend withholding stay inside the return on both sides"
 msgstr "seit %{date} · in %{currency} · brutto, nur Kursentwicklung · Transaktionskosten = seitdem auf Handelsgeschäften gebuchte Gebühren und Steuern; eigenständige Gebühren, Steuern und Quellensteuer auf Dividenden bleiben auf beiden Seiten in der Rendite"
+
+#: lib/portfolixir_web/live/buckets_live.ex:349
+#, elixir-autogen, elixir-format
+msgid "%{count} account"
+msgid_plural "%{count} accounts"
+msgstr[0] "%{count} Konto"
+msgstr[1] "%{count} Konten"
+
+#: lib/portfolixir_web/live/buckets_live.ex:348
+#, elixir-autogen, elixir-format
+msgid "%{count} position"
+msgid_plural "%{count} positions"
+msgstr[0] "%{count} Position"
+msgstr[1] "%{count} Positionen"
+
+#: lib/portfolixir_web/live/buckets_live.ex:397
+#, elixir-autogen, elixir-format
+msgid "%{count} position directly:"
+msgid_plural "%{count} positions directly:"
+msgstr[0] "%{count} Position direkt:"
+msgstr[1] "%{count} Positionen direkt:"
+
+#: lib/portfolixir_web/live/buckets_live.ex:392
+#, elixir-autogen, elixir-format
+msgid "%{count} position inherits"
+msgid_plural "%{count} positions inherit"
+msgstr[0] "%{count} Position erbt"
+msgstr[1] "%{count} Positionen erben"
+
+#: lib/portfolixir_web/live/buckets_live.ex:305
+#, elixir-autogen, elixir-format
+msgid "%{names} has no default bucket."
+msgid_plural "%{names} have no default bucket."
+msgstr[0] "%{names} hat keinen Standard-Bucket."
+msgstr[1] "%{names} haben keinen Standard-Bucket."
+
+#: lib/portfolixir_web/live/buckets_live.ex:197
+#, elixir-autogen, elixir-format
+msgid "About buckets"
+msgstr "Zu den Buckets"
+
+#: lib/portfolixir_web/live/buckets_live.ex:123
+#: lib/portfolixir_web/live/buckets_live.ex:361
+#, elixir-autogen, elixir-format
+msgid "All depots, cash accounts and positions · no filters"
+msgstr "Alle Depots, Verrechnungskonten und Positionen · keine Filter"
+
+#: lib/portfolixir_web/live/buckets_live.ex:217
+#, elixir-autogen, elixir-format
+msgid "Bucket"
+msgstr "Bucket"
+
+#: lib/portfolixir_web/live/buckets_live.ex:548
+#, elixir-autogen, elixir-format
+msgid "Bucket actions"
+msgstr "Aktionen zum Bucket"
+
+#: lib/portfolixir_web/live/buckets_live.ex:119
+#: lib/portfolixir_web/live/buckets_live.ex:154
+#, elixir-autogen, elixir-format
+msgid "Default"
+msgstr "Standard"
+
+#: lib/portfolixir_web/live/buckets_live.ex:302
+#, elixir-autogen, elixir-format
+msgid "Default buckets are set on the account row →"
+msgstr "Standard-Buckets werden an der Kontozeile gesetzt →"
+
+#: lib/portfolixir_web/live/buckets_live.ex:387
+#, elixir-autogen, elixir-format
+msgid "Default on"
+msgstr "Standard auf"
+
+#: lib/portfolixir_web/live/buckets_live.ex:514
+#, elixir-autogen, elixir-format
+msgid "Edit buckets"
+msgstr "Buckets bearbeiten"
+
+#: lib/portfolixir_web/live/buckets_live.ex:366
+#, elixir-autogen, elixir-format
+msgid "Only"
+msgstr "Nur"
+
+#: lib/portfolixir_web/live/buckets_live.ex:207
+#, elixir-autogen, elixir-format
+msgid "Overlapping tags on depots, cash accounts and positions · per-bucket figures are not a sum"
+msgstr "Überlappende Tags an Depots, Verrechnungskonten und Positionen · Werte je Bucket sind keine Summe"
+
+#: lib/portfolixir_web/live/buckets_live.ex:87
+#, elixir-autogen, elixir-format
+msgid "Saved include/exclude filters over buckets · applied in the view switcher on Wealth"
+msgstr "Gespeicherte Ein-/Ausschlussfilter über Buckets · gelten im Ansichtsumschalter auf Vermögen"
+
+#: lib/portfolixir_web/live/buckets_live.ex:79
+#, elixir-autogen, elixir-format
+msgid "Two steps: 1. Create buckets — tags on depots, cash accounts and positions. 2. Create a view — a saved include/exclude filter over buckets; exclude always wins. A view is what the view switcher on the Wealth page offers, so both are needed."
+msgstr "Zwei Schritte: 1. Buckets anlegen — Tags an Depots, Verrechnungskonten und Positionen. 2. Eine Ansicht anlegen — ein gespeicherter Ein-/Ausschlussfilter über Buckets; Ausschluss gewinnt immer. Eine Ansicht ist, was der Ansichtsumschalter auf der Vermögensseite anbietet, also braucht es beides."
+
+#: lib/portfolixir_web/live/buckets_live.ex:97
+#, elixir-autogen, elixir-format
+msgid "View"
+msgstr "Ansicht"
+
+#: lib/portfolixir_web/live/buckets_live.ex:504
+#, elixir-autogen, elixir-format
+msgid "View actions"
+msgstr "Aktionen zur Ansicht"
+
+#: lib/portfolixir_web/live/buckets_live.ex:371
+#, elixir-autogen, elixir-format
+msgid "except"
+msgstr "außer"
+
+#: lib/portfolixir_web/live/buckets_live.ex:401
+#, elixir-autogen, elixir-format
+msgid "no default"
+msgstr "kein Standard"
+
+#: lib/portfolixir_web/live/buckets_live.ex:368
+#, elixir-autogen, elixir-format
+msgid "nothing included"
+msgstr "nichts eingeschlossen"
+
+#: lib/portfolixir_web/live/buckets_live.ex:384
+#, elixir-autogen, elixir-format
+msgid "unused"
+msgstr "unbenutzt"

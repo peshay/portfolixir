@@ -368,6 +368,30 @@ defmodule Portfolixir.BucketsTest do
   # in a chosen view, with no view meaning "everything",
   # so that analytics can restrict to a view over the single-count universe
   # without re-querying per holding (ADR-0018, #444).
+  # User story (#802):
+  # As the Views page composing each bucket's "where it is used" line,
+  # I want the instance-wide assignment maps in one read,
+  # so that usage is derived from the same data the scope resolution uses.
+  describe "global_assignments/0" do
+    test "returns depot defaults, cash assignments and overrides instance-wide", %{
+      depot: depot,
+      cash: cash,
+      security: security
+    } do
+      {:ok, core} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Core"})
+      {:ok, tag} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Tag"})
+      :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [core.id])
+      :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), cash, [core.id, tag.id])
+      :ok = Buckets.set_position_override(Actor.owner_ui(), depot, security, [tag.id])
+
+      assignments = Buckets.global_assignments()
+
+      assert assignments.depot_defaults == %{depot.id => [core.id]}
+      assert Enum.sort(assignments.cash[cash.id]) == Enum.sort([core.id, tag.id])
+      assert assignments.overrides == %{{depot.id, security.id} => {:explicit, [tag.id]}}
+    end
+  end
+
   describe "load_scope/2 + membership" do
     test "nil view yields :unscoped and everything is in scope", %{
       depot: depot,

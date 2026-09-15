@@ -5919,33 +5919,78 @@ button.income-bar-label.is-active {
   list-style: none;
 }
 
+/* Views page (issue 802): read-first rows. A view's row says what it does
+   (the rule as chips) and what it covers; a bucket's row carries its
+   swatch and where it is used; the row's actions sit behind its kebab. */
 .bucket-list {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: var(--space-2);
   padding: 0;
-  margin: 0.75rem 0 0;
+  margin: var(--space-3) 0 0;
   list-style: none;
 }
 
 .bucket-list__item {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 6px 4px;
-  border-bottom: 1px solid var(--color-border);
+  gap: var(--space-2) var(--space-3);
+  padding: 10px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+}
+
+.bucket-list__item.is-editing {
+  display: block;
+}
+
+.bucket-list__main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 240px;
+  min-width: 0;
 }
 
 .bucket-list__name {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
+  font-weight: 600;
 }
 
-.bucket-list__actions {
+.bucket-list__rule,
+.bucket-list__usage {
   display: inline-flex;
-  gap: 0.25rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.bucket-list__usage strong {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.bucket-list__figures {
+  margin-left: auto;
+  text-align: right;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.bucket-list__figures strong {
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.bucket-list__item .row-actions__kebab {
+  flex: 0 0 auto;
 }
 
 .bucket-fieldset {
@@ -5962,28 +6007,6 @@ button.income-bar-label.is-active {
   align-items: center;
   gap: 0.5rem;
   min-height: 28px;
-}
-
-.assignment-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  padding: 0;
-  margin: 0;
-  list-style: none;
-}
-
-.assignment-list__item summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: baseline;
-  cursor: pointer;
-}
-
-.assignment-list__chips {
-  font-size: 0.85rem;
-  color: var(--color-text-muted);
 }
 
 .position-buckets summary {
@@ -6716,14 +6739,16 @@ select:disabled {
 .disclosure-button[aria-expanded="true"] .disclosure-chevron {
   transform: rotate(90deg);
 }
-.tax-panel {
+.tax-panel,
+.disclosure-panel {
   margin: var(--space-3) 0;
   padding: var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-bg-muted);
 }
-.tax-panel > .data-note {
+.tax-panel > .data-note,
+.disclosure-panel > .data-note {
   margin-bottom: var(--space-3);
 }
 .tax-form {

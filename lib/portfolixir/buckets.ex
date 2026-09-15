@@ -494,6 +494,28 @@ defmodule Portfolixir.Buckets do
   end
 
   @doc """
+  The instance-wide assignment maps a surface composes "where is this bucket
+  used" from (issue 802): `depot_defaults` and `cash` map an account id to
+  its bucket ids, `overrides` maps `{securities_account_id, security_id}` to
+  `:inherit`, `:explicit_empty` or `{:explicit, bucket_ids}` — the same data
+  `load_global_scope/1` hands the membership resolution, without a view.
+  """
+  @spec global_assignments() :: %{
+          depot_defaults: %{integer() => [integer()]},
+          cash: %{integer() => [integer()]},
+          overrides: %{
+            {integer(), integer()} => :inherit | :explicit_empty | {:explicit, [integer()]}
+          }
+        }
+  def global_assignments do
+    %{
+      depot_defaults: all_depot_defaults(),
+      overrides: all_overrides(),
+      cash: all_cash_assignments()
+    }
+  end
+
+  @doc """
   Reports whether the scope's **included** buckets overlap on any account: a
   depot or cash account carrying more than one included bucket (exclude wins,
   so excluded buckets never count). Returned as data for UI badges — computed
