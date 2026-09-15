@@ -475,6 +475,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
               </button>
             <% end %>
           <% end %>
+          <ChangedSince.chips id="changed-since-chips" since={@since} />
           <%!-- The demoted builder (D2): a quiet control, not a tenth chip;
                the count keeps demotion from hiding active state. --%>
           <button
@@ -506,8 +507,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
             />
           <% end %>
         </div>
-
-        <ChangedSince.chips id="changed-since-chips" since={@since} />
 
         <p
           :if={@since}
@@ -1409,7 +1408,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         <h3 class="detail-section-title"><%= gettext("Open positions (FIFO)") %></h3>
         <%!-- ADR-0033: lots carry the same decomposition as the holdings —
              the committed copy sits behind the ⓘ tooltip. --%>
-        <details class="metric-tooltip" data-role="lot-decomposition-info">
+        <details class="metric-tooltip metric-tooltip--inline metric-tooltip--labelled" data-role="lot-decomposition-info">
           <summary aria-label={gettext("About price and currency return")}>ⓘ <%= gettext("Price & currency return") %></summary>
           <p role="tooltip">
             <%= gettext(
@@ -1563,7 +1562,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
       <% else %>
         <%!-- ADR-0033: the committed decomposition explanation lives in the
              ⓘ tooltip, not inline. --%>
-        <details class="metric-tooltip" data-role="pnl-decomposition-info">
+        <details class="metric-tooltip metric-tooltip--inline metric-tooltip--labelled" data-role="pnl-decomposition-info">
           <summary aria-label={gettext("About price and currency return")}>ⓘ <%= gettext("Price & currency return") %></summary>
           <p role="tooltip">
             <%= gettext(

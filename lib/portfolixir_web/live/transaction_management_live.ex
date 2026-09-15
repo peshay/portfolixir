@@ -247,7 +247,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               data-role="sell-lot-preview"
             >
               <h3><%= gettext("Lots consumed by this sale (FIFO)") %></h3>
-              <details class="metric-tooltip" data-role="gross-gain-info">
+              <details class="metric-tooltip metric-tooltip--inline metric-tooltip--labelled" data-role="gross-gain-info">
                 <summary aria-label={gettext("About the gross gain")}>ⓘ <%= gettext("Gross gain") %></summary>
                 <p role="tooltip">
                   <%= gettext(
@@ -450,9 +450,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                   <%= tx_type_label(type) %>
                 </button>
               <% end %>
+              <ChangedSince.chips id="changed-since-chips" since={@since} />
             </div>
-
-            <ChangedSince.chips id="changed-since-chips" since={@since} />
 
             <p
               :if={@since}

@@ -717,14 +717,18 @@ defmodule PortfolixirWeb.PortfolioLive do
 
         <AppShell.area_tabs tabs={AppShell.wealth_tabs(@wealth_tab)} />
 
-        <.view_switcher
-          current_path={@current_path}
-          views={@views}
-          active_view={@active_view}
-          planned_view_ids={@planned_view_ids}
-          show_default_control={true}
-          default_view_id={@default_view_id}
-        />
+        <%!-- Issue 790: a control row sits inside the content grid, with the
+             section's horizontal padding and none of its band. --%>
+        <div class="workspace-section workspace-section--controls">
+          <.view_switcher
+            current_path={@current_path}
+            views={@views}
+            active_view={@active_view}
+            planned_view_ids={@planned_view_ids}
+            show_default_control={true}
+            default_view_id={@default_view_id}
+          />
+        </div>
 
         <%!-- The picked view was deleted (another tab, fix round): the page
              degraded to the Everything scope instead of a dead error toast. --%>

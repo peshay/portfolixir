@@ -234,6 +234,7 @@ defmodule PortfolixirWeb.IncomeLive do
         <%!-- #724: with a second facet read the second-level tab row appears
              (the #672 rule: never an empty shell, never a row of one). The
              facets are query state on this one route. --%>
+        <div class="workspace-section workspace-section--controls">
         <nav
           class="segmented-control"
           data-role="cashflow-facets"
@@ -268,6 +269,7 @@ defmodule PortfolixirWeb.IncomeLive do
             <%= gettext("Costs") %>
           </.link>
         </nav>
+        </div>
 
         <%= if @facet == "realized" do %>
           <section class="workspace-section">
