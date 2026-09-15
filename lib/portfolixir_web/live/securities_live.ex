@@ -1244,8 +1244,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
       </form>
 
       <dl class="overview-grid overview-grid--readonly">
-        <.overview_field label={gettext("Feed")} value={@security.feed} />
-        <.overview_field label={gettext("Latest quote feed")} value={@security.latest_feed} />
+        <.overview_field label={gettext("Feed")} value={Portfolixir.Catalog.Feeds.label(@security.feed)} />
+        <.overview_field
+          label={gettext("Latest quote feed")}
+          value={Portfolixir.Catalog.Feeds.label(@security.latest_feed)}
+        />
         <%= if @security.is_retired do %>
           <div class="overview-field overview-field--full">
             <dt><%= gettext("Status") %></dt>
@@ -2222,10 +2225,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp undecomposed_hint(_row), do: nil
 
-  defp tx_type_label("buy"), do: gettext("Buy")
-  defp tx_type_label("sell"), do: gettext("Sell")
-  defp tx_type_label("split"), do: gettext("Split")
-  defp tx_type_label(other), do: to_string(other)
+  # Every kind through the shared table (#785): the detail's transaction list
+  # carries dividends, deliveries and transfers too, which the old three-clause
+  # copy printed as slugs.
+  defp tx_type_label(kind), do: PortfolixirWeb.TransactionKindLabel.label(kind)
 
   defp split_ratio_label(%{split_ratio_numerator: p, split_ratio_denominator: q})
        when is_integer(p) and is_integer(q),

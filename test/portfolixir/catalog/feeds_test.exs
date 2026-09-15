@@ -45,7 +45,7 @@ defmodule Portfolixir.Catalog.FeedsTest do
     refute Feeds.supported?(:not_a_string)
   end
 
-  test "label/1 maps codes to non-empty strings, nil to empty, unknown to string" do
+  test "label/1 maps codes to non-empty strings, nil to empty, an unknown identifier to words" do
     for code <- Feeds.codes() do
       label = Feeds.label(code)
       assert is_binary(label)
@@ -53,6 +53,8 @@ defmodule Portfolixir.Catalog.FeedsTest do
     end
 
     assert Feeds.label(nil) == ""
-    assert Feeds.label("WEIRD") == "WEIRD"
+    # Never the raw slug (#785): an identifier from outside the set reads as words.
+    assert Feeds.label("WEIRD") == "Weird"
+    assert Feeds.label("SOME_OTHER_FEED") == "Some other feed"
   end
 end
