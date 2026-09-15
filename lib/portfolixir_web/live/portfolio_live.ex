@@ -24,6 +24,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Allocation
   alias Portfolixir.Portfolios.Performance
+  alias Portfolixir.Portfolios.Performance.Benchmark
   alias Portfolixir.Portfolios.PricingContext
   alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Portfolios.Valuation
@@ -116,6 +117,11 @@ defmodule PortfolixirWeb.PortfolioLive do
           |> assign(:performance, nil)
           |> assign(:performance_stale, false)
           |> assign(:performance_failed, false)
+          # ADR-0046 §4: the remembered benchmark selection, resolved against
+          # the catalog; the comparisons follow the performance summary.
+          |> assign(:benchmarks, resolve_benchmarks(socket.assigns[:active_benchmark_selectors]))
+          |> assign(:benchmark_options, Portfolixir.Catalog.list_securities(is_benchmark: true))
+          |> assign(:comparisons, [])
           |> assign(:selected_segment, nil)
           |> assign(:expanded_categories, MapSet.new())
           |> assign(:allocation_mode, param_allocation_mode(params))
@@ -464,6 +470,7 @@ defmodule PortfolixirWeb.PortfolioLive do
         |> assign(:performance, performance)
         |> assign(:performance_stale, true)
         |> assign(:performance_failed, false)
+        |> assign_comparisons()
 
       _none ->
         socket
@@ -568,12 +575,14 @@ defmodule PortfolixirWeb.PortfolioLive do
     {:ok, performance} = Performance.summarise(analysis, socket.assigns.period)
 
     {:noreply,
-     assign(socket,
+     socket
+     |> assign(
        analysis: analysis,
        performance: performance,
        performance_stale: false,
        performance_failed: false
-     )}
+     )
+     |> assign_comparisons()}
   end
 
   # The background rate sync (issue #432, UAT fix rounds): the outcome lands
@@ -966,6 +975,85 @@ defmodule PortfolixirWeb.PortfolioLive do
               </p>
             </details>
           </article>
+          <%!-- ADR-0046 §4: the comparison block next to TTWROR/IRR — one row
+               per active benchmark, the savings-plan delta as the figure with
+               the bought-once and IRR pairs beside it. The definition lives
+               in the ⓘ (UX-DR11); the covered window is a basis line. --%>
+          <article
+            :if={@benchmarks != []}
+            id="kpi-benchmark"
+            class="stat stat--wide"
+            role="group"
+            aria-describedby="tip-benchmark"
+          >
+            <span><%= gettext("Benchmark") %> (<%= period_label(@period) %>)</span>
+            <ul :if={@comparisons != []} class="benchmark-rows" data-role="benchmark-rows">
+              <li
+                :for={{comparison, index} <- Enum.with_index(@comparisons, 1)}
+                class="benchmark-row"
+                data-role="benchmark-row"
+              >
+                <span class="benchmark-row__name">
+                  <span
+                    class={["chart-legend__swatch", "chart-benchmark-#{index}"]}
+                    aria-hidden="true"
+                  >
+                  </span>
+                  <%= comparison_name(comparison.benchmark) %>
+                </span>
+                <strong
+                  :if={comparison.savings_plan.end_value_delta}
+                  class={perf_sign_class(comparison.savings_plan.end_value_delta)}
+                  data-role="benchmark-delta"
+                >
+                  <%= signed_money(comparison.savings_plan.end_value_delta) %> <%= comparison.base_currency %>
+                </strong>
+                <strong :if={is_nil(comparison.savings_plan.end_value_delta)} data-role="benchmark-delta">
+                  —
+                </strong>
+                <span class="benchmark-row__detail">
+                  <span data-role="benchmark-bought-once">
+                    <%= gettext("bought once") %>: <%= return_pair(
+                      comparison.bought_once.portfolio_ttwror,
+                      comparison.bought_once.benchmark_return
+                    ) %>
+                  </span>
+                  <span class="perf-badge-sep">·</span>
+                  <span data-role="benchmark-irr">
+                    <%= gettext("IRR") %>: <%= return_pair(
+                      comparison.savings_plan.portfolio_irr,
+                      comparison.savings_plan.benchmark_irr
+                    ) %>
+                  </span>
+                </span>
+                <span
+                  :if={comparison.excluded_flows != []}
+                  class="benchmark-row__coverage hint"
+                  data-role="benchmark-coverage"
+                >
+                  <%= coverage_note(comparison) %>
+                </span>
+              </li>
+            </ul>
+            <strong
+              :if={@comparisons == [] and is_nil(@performance) and not @performance_failed}
+              class="value-slot-pending"
+              aria-busy="true"
+              data-waits="performance"
+            >
+              <span class="value-skeleton" aria-hidden="true"></span>
+              <span class="recomputing-cue"><span class="spinner"></span> <%= gettext("computing") %></span>
+            </strong>
+            <strong :if={@comparisons == [] and (@performance || @performance_failed)}>—</strong>
+            <details class="metric-tooltip">
+              <summary aria-label={gettext("Benchmark comparison info")}>ⓘ</summary>
+              <p id="tip-benchmark" role="tooltip">
+                <%= gettext(
+                  "Savings plan: the period's opening value and every deposit or withdrawal invested into the benchmark on the same days at that day's price, without fees or taxes — the figure is the real end value minus that. Bought once compares the period's TTWROR with the benchmark held throughout. Flows before the benchmark's first quote are left out and the covered window is named."
+                ) %>
+              </p>
+            </details>
+          </article>
         </section>
 
         <%!-- Wealth tabs (ADR-0022): Holdings carries the performance chart,
@@ -1105,6 +1193,60 @@ defmodule PortfolixirWeb.PortfolioLive do
                   </form>
                 </div>
               </details>
+              <%!-- ADR-0046 §4: the benchmark selection is explicit per
+                   request — a plain GET form the BenchmarkScope plug
+                   remembers in the session and a cookie, like the active
+                   view. Up to two, the same disclosure the custom range
+                   uses ({components.period-control}). --%>
+              <details class="period-disclosure" data-role="benchmark-picker">
+                <summary class="disclosure-summary">
+                  <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
+                  <%= gettext("Benchmark…") %>
+                  <span
+                    :if={@benchmarks != []}
+                    class="benchmark-picker__active"
+                    data-role="benchmark-active"
+                  >
+                    <%= Enum.map_join(@benchmarks, " · ", &benchmark_name/1) %>
+                  </span>
+                </summary>
+                <form
+                  method="get"
+                  action="/portfolio"
+                  class="period-disclosure__body benchmark-form"
+                  data-role="benchmark-form"
+                >
+                  <%!-- The empty entry marks an explicit choice, so a form
+                       submitted with nothing ticked clears the selection. --%>
+                  <input type="hidden" name="benchmark[]" value="" />
+                  <label :for={option <- @benchmark_options} class="benchmark-form__option">
+                    <input
+                      type="checkbox"
+                      name="benchmark[]"
+                      value={"security:#{option.id}"}
+                      checked={benchmark_selected?(@benchmarks, option)}
+                    />
+                    <%= option.name %>
+                  </label>
+                  <span :if={@benchmark_options == []} class="hint" data-role="benchmark-none">
+                    <%= gettext("No benchmark securities yet — mark one on the Securities page.") %>
+                  </span>
+                  <label class="benchmark-form__rate" for="benchmark-rate">
+                    <%= gettext("Fixed rate % p.a.") %>
+                  </label>
+                  <input
+                    type="number"
+                    id="benchmark-rate"
+                    name="benchmark_rate"
+                    step="0.01"
+                    min="-99.99"
+                    max="1000"
+                    value={active_rate_percent(@benchmarks)}
+                  />
+                  <button type="submit"><%= gettext("Apply") %></button>
+                  <span class="hint"><%= gettext("Up to two benchmarks.") %></span>
+                </form>
+              </details>
             </div>
           </header>
           <%!-- #563: a backwards or unparsable range is refused with a terse
@@ -1166,6 +1308,7 @@ defmodule PortfolixirWeb.PortfolioLive do
               summary={table_summary(@performance.series)}
               mode={@chart_mode}
               currency={@performance.base_currency}
+              overlays={benchmark_overlays(@chart_mode, @comparisons, @performance.series)}
             />
             <%!-- UX-DR11 (Sprint 5 Lane D, decided outcome: split, then
                  delete half): the TTWROR definition lives ONLY in the
@@ -2041,17 +2184,20 @@ defmodule PortfolixirWeb.PortfolioLive do
   # regardless of the displayed line (Steve UAT #336/#411); the data table
   # below stays the accessible fallback (UX-DR10).
   defp performance_chart(assigns) do
-    assigns = assign_new(assigns, :mode, fn -> "ttwror" end)
+    assigns =
+      assigns
+      |> assign_new(:mode, fn -> "ttwror" end)
+      |> assign_new(:overlays, fn -> [] end)
 
     {quotes, value_mode, zero_line?, aria_label, currency_code} =
       case assigns.mode do
         "value" ->
-          {chart_series(assigns.series, assigns.currency, :value), :absolute, false,
+          {chart_series(assigns.series, assigns.currency, :value, []), :absolute, false,
            gettext("Value over time"), assigns.currency}
 
         _ ->
-          {chart_series(assigns.series, assigns.currency, :ttwror), :percent_values, true,
-           gettext("Cumulative TTWROR over time"), ""}
+          {chart_series(assigns.series, assigns.currency, :ttwror, assigns.overlays),
+           :percent_values, true, gettext("Cumulative TTWROR over time"), ""}
       end
 
     assigns =
@@ -2072,7 +2218,22 @@ defmodule PortfolixirWeb.PortfolioLive do
         zero_line?={@zero_line?}
         aria_label={@aria_label}
         currency_code={@currency_code}
+        overlays={Enum.map(@overlays, &%{&1 | points: downsample(&1.points)})}
+        overlays_extend_range?={true}
       />
+      <%!-- ADR-0046 §2: the bought-once overlays, named — a dashed line
+           without a legend is a guess. --%>
+      <ul :if={@overlays != []} class="chart-legend" data-role="benchmark-legend">
+        <li class="chart-legend__item">
+          <span class="chart-legend__swatch chart-legend__swatch--portfolio" aria-hidden="true">
+          </span>
+          <%= gettext("Portfolio (TTWROR)") %>
+        </li>
+        <li :for={overlay <- @overlays} class="chart-legend__item">
+          <span class={["chart-legend__swatch", overlay.class]} aria-hidden="true"></span>
+          <%= overlay.label %> · <%= gettext("bought once") %>
+        </li>
+      </ul>
       <%!-- Insight-level summaries instead of a downsampled daily dump
            (#564): one row per year — per month for short periods — with
            start/end value, the slice's TTWROR and net external flows. The
@@ -2124,7 +2285,10 @@ defmodule PortfolixirWeb.PortfolioLive do
   # Maps the performance series onto the shared chart's quote shape. The
   # tooltip label always carries both series (% and €), so the hover answers
   # "how much am I up" in both units whichever line is displayed.
-  defp chart_series(series, currency, mode) do
+  defp chart_series(series, currency, mode, overlays) do
+    lookups =
+      Enum.map(overlays, &{&1.label, Map.new(&1.points, fn p -> {p.date, p.fraction} end)})
+
     Enum.map(series, fn point ->
       close =
         case mode do
@@ -2136,7 +2300,167 @@ defmodule PortfolixirWeb.PortfolioLive do
         date: point.date,
         close: close,
         label:
-          "#{signed_percent(point.cumulative_ttwror)}% · #{Format.money(point.value)} #{currency}"
+          "#{signed_percent(point.cumulative_ttwror)}% · #{Format.money(point.value)} #{currency}" <>
+            overlay_labels(lookups, point.date)
+      }
+    end)
+  end
+
+  # The crosshair tooltip names each benchmark's bought-once return on the
+  # hovered day, after the portfolio's own pair (ADR-0046 §4).
+  defp overlay_labels(lookups, date) do
+    Enum.map_join(lookups, "", fn {name, by_date} ->
+      case Map.get(by_date, date) do
+        %Decimal{} = fraction -> " · #{name} #{signed_percent(fraction)}%"
+        nil -> ""
+      end
+    end)
+  end
+
+  # -- benchmark comparison (ADR-0046 §4) ---------------------------------------
+
+  # The selectors the BenchmarkScope plug remembered, resolved against the
+  # catalog: a flagged security or a fixed rate. Anything else — an unflagged
+  # or vanished security, a malformed selector — is dropped silently, so the
+  # picker shows what is actually active.
+  defp resolve_benchmarks(selectors) when is_list(selectors) do
+    selectors
+    |> Enum.flat_map(fn
+      "security:" <> id -> resolve_benchmark_security(id)
+      "rate:" <> rate -> resolve_benchmark_rate(rate)
+      _other -> []
+    end)
+    |> Enum.take(2)
+  end
+
+  defp resolve_benchmarks(_selectors), do: []
+
+  defp resolve_benchmark_security(id) do
+    with {id, ""} <- Integer.parse(id),
+         %Portfolixir.Catalog.Security{is_benchmark: true} = security <-
+           Portfolixir.Catalog.get_security(id) do
+      [{:security, security}]
+    else
+      _unflagged_or_missing -> []
+    end
+  end
+
+  defp resolve_benchmark_rate(rate) do
+    case Decimal.parse(rate) do
+      {%Decimal{} = rate, ""} -> [{:rate, rate}]
+      _malformed -> []
+    end
+  end
+
+  # One comparison per active benchmark over the shown period, re-chained
+  # from the cached analysis exactly like the performance summary (memoised,
+  # ADR-0046 §5) — a period switch is instant here too.
+  defp assign_comparisons(
+         %{assigns: %{analysis: %{} = analysis, period: period, benchmarks: benchmarks}} = socket
+       ) do
+    comparisons =
+      for benchmark <- benchmarks,
+          {:ok, comparison} <- [Benchmark.compare(analysis, period, benchmark)],
+          do: comparison
+
+    assign(socket, :comparisons, comparisons)
+  end
+
+  defp assign_comparisons(socket), do: assign(socket, :comparisons, [])
+
+  defp benchmark_name({:security, security}), do: security.name
+
+  defp benchmark_name({:rate, rate}),
+    do: gettext("%{rate} % p.a.", rate: Format.decimal(Decimal.mult(rate, 100), 2))
+
+  defp comparison_name(%{kind: :security, name: name}), do: name
+  defp comparison_name(%{kind: :rate, annual_rate: rate}), do: benchmark_name({:rate, rate})
+
+  defp benchmark_selected?(benchmarks, option) do
+    Enum.any?(benchmarks, fn
+      {:security, %{id: id}} -> id == option.id
+      _rate -> false
+    end)
+  end
+
+  defp active_rate_percent(benchmarks) do
+    Enum.find_value(benchmarks, fn
+      {:rate, rate} ->
+        rate |> Decimal.mult(100) |> Decimal.normalize() |> Decimal.to_string(:normal)
+
+      _security ->
+        nil
+    end)
+  end
+
+  # "portfolio vs benchmark", each a signed percent or a dash.
+  defp return_pair(portfolio, benchmark) do
+    gettext("%{portfolio} vs %{benchmark}",
+      portfolio: percent_or_dash(portfolio),
+      benchmark: percent_or_dash(benchmark)
+    )
+  end
+
+  defp percent_or_dash(%Decimal{} = value), do: signed_percent(value) <> "%"
+  defp percent_or_dash(_nil), do: "—"
+
+  # The covered window as a basis line (UX-DR13) when it is narrower than the
+  # period: where the comparison starts and how many earlier flows it names.
+  defp coverage_note(%{window: %{start_date: start_date}, excluded_flows: excluded}) do
+    ngettext(
+      "from %{date} — %{count} earlier flow left out",
+      "from %{date} — %{count} earlier flows left out",
+      length(excluded),
+      date: start_date
+    )
+  end
+
+  # The bought-once overlays for the TTWROR chart (ADR-0046 §2): each
+  # benchmark's cumulative return, anchored to the portfolio's own chain at
+  # the day before the comparison's covered window — when the benchmark's
+  # history starts inside the period, the overlay starts where the portfolio
+  # then stood instead of pretending both began at zero. The value chart
+  # carries no overlay: a rebased return has no € axis.
+  defp benchmark_overlays("ttwror", comparisons, series) do
+    comparisons
+    |> Enum.with_index(1)
+    |> Enum.flat_map(fn {comparison, index} ->
+      case anchored_returns(comparison, series) do
+        [] ->
+          []
+
+        points ->
+          [
+            %{
+              class: "chart-benchmark-#{index}",
+              label: comparison_name(comparison.benchmark),
+              points: points
+            }
+          ]
+      end
+    end)
+  end
+
+  defp benchmark_overlays(_mode, _comparisons, _series), do: []
+
+  defp anchored_returns(%{bought_once: %{series: []}}, _series), do: []
+
+  defp anchored_returns(%{bought_once: %{series: points}, window: %{start_date: start}}, series) do
+    anchor_day = Date.add(start, -1)
+
+    anchor =
+      case Enum.find(series, &(Date.compare(&1.date, anchor_day) == :eq)) do
+        %{cumulative_ttwror: cumulative} -> Decimal.add(1, cumulative)
+        nil -> Decimal.new(1)
+      end
+
+    Enum.map(points, fn point ->
+      fraction = anchor |> Decimal.mult(Decimal.add(1, point.cumulative_return)) |> Decimal.sub(1)
+
+      %{
+        date: point.date,
+        fraction: fraction,
+        value: Decimal.to_float(Decimal.mult(fraction, 100))
       }
     end)
   end
@@ -3279,7 +3603,11 @@ defmodule PortfolixirWeb.PortfolioLive do
     if socket.assigns.analysis do
       # The analysis is cached — re-chaining a period is pure and instant.
       {:ok, performance} = Performance.summarise(socket.assigns.analysis, period)
-      {:noreply, assign(socket, period: period, performance: performance)}
+
+      {:noreply,
+       socket
+       |> assign(period: period, performance: performance)
+       |> assign_comparisons()}
     else
       {:noreply, assign(socket, :period, period)}
     end

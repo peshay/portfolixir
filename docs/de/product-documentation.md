@@ -1077,6 +1077,31 @@ Neuberechnung fehl, wird die Beschriftung zum Fehler statt die alte Zahl stehen
 zu lassen. Die Vermögens-Kachel der Übersicht zeigt ihre zuletzt bekannte
 YTD-Zahl auf dieselbe Weise. (ADR-0032.)
 
+**Benchmark-Vergleich**
+([ADR-0046](/decisions/0046-benchmark-comparison.html), FR-9) — *war der
+Aufwand das wert?* Unter **Benchmark…** im Performance-Abschnitt lassen
+sich bis zu zwei Benchmarks wählen: ein auf der Wertpapierseite als
+Benchmark markiertes Wertpapier (ein Index über einen ETF, Gold über einen
+ETC, per gewöhnlichem Kurs-Sync) oder ein fester Jahreszins als Prozentwert
+(die Tagesgeld-Alternative; in dieser Version auch die Ausdrucksform der
+Inflation). Die Wahl steht in der URL und wird wie die aktive View gemerkt.
+Zwei Vergleiche erscheinen, beide so, wie Portfolio Performance sie zeigt.
+**Einmal gekauft** — die auf den Periodenbeginn rebasierte Benchmark als
+gestrichelte Linie über dem TTWROR-Chart, mit eigener Legende und im
+Chart-Tooltip — beantwortet, ob die Auswahl den Index geschlagen hat.
+**Sparplan** — Eröffnungswert des Zeitraums und jede Einzahlung oder Entnahme
+am selben Tag zum Kurs jenes Tages in die Benchmark investiert, ohne Gebühren
+und Steuern — ergibt einen Endwert; der Vergleichsblock neben TTWROR/IRR
+zeigt den realen Endwert minus diesem Wert als Kennzahl, daneben das
+Einmal-gekauft-Paar und die beiden IRRs auf identischen Flüssen. Ein Fluss
+vor dem ersten Kurs der Benchmark bleibt außen vor, und der Block nennt das
+abgedeckte Fenster. Das synthetische Portfolio ist reibungsfrei, was den
+Vergleich gegen das reale Portfolio verzerrt — die konservative Richtung.
+Nichts wird gespeichert: beide Vergleiche werden beim Lesen abgeleitet, je
+Zeitraum und je View, und stehen über die API (`…/performance/benchmark`)
+und die MCP-Tools `portfolixir.portfolios.benchmark` und
+`portfolixir.views.benchmark` bereit.
+
 ## Cashflow
 
 Der Bereich **Cashflow** (`/cashflow`) ist der Ort, an dem Geldbewegungen

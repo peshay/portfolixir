@@ -40,6 +40,10 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   attr(:quotes, :list, required: true)
   attr(:transactions, :list, default: [])
   attr(:overlays, :list, default: [])
+  # When true, the overlays' values widen the Y range (a benchmark that
+  # outruns the portfolio stays on the plot); off by default so the moving
+  # averages keep the price series' own range.
+  attr(:overlays_extend_range?, :boolean, default: false)
   attr(:log_scale?, :boolean, default: false)
   attr(:percent_mode?, :boolean, default: false)
   attr(:value_mode, :atom, default: :absolute, values: [:absolute, :percent_values])
@@ -52,7 +56,10 @@ defmodule PortfolixirWeb.Components.SecurityChart do
 
   def chart(assigns) do
     geometry =
-      build_geometry(assigns.quotes, assigns.log_scale?, percent_mode?: assigns.percent_mode?)
+      build_geometry(assigns.quotes, assigns.log_scale?,
+        percent_mode?: assigns.percent_mode?,
+        extra_values: range_extending_values(assigns)
+      )
 
     plot_left = @padding_left
     plot_top = @padding_top
@@ -259,7 +266,16 @@ defmodule PortfolixirWeb.Components.SecurityChart do
         Enum.map(quotes, &chart_float(&1.close))
       end
 
-    {y_min, y_max} = Enum.min_max(raw_values)
+    extra_values =
+      opts
+      |> Keyword.get(:extra_values, [])
+      |> Enum.map(fn value ->
+        if percent_mode? and first_close != 0.0,
+          do: (value - first_close) / first_close * 100.0,
+          else: value
+      end)
+
+    {y_min, y_max} = Enum.min_max(raw_values ++ extra_values)
     {y_min, y_max} = pad_range(y_min, y_max)
 
     log_scale? = log_scale? and not percent_mode?
@@ -278,6 +294,12 @@ defmodule PortfolixirWeb.Components.SecurityChart do
       percent_mode?: percent_mode?
     }
   end
+
+  defp range_extending_values(%{overlays_extend_range?: true, overlays: overlays}) do
+    for overlay <- overlays, point <- overlay.points, is_number(point.value), do: point.value
+  end
+
+  defp range_extending_values(_assigns), do: []
 
   defp pad_range(min, max) when min == max do
     pad = if min == 0.0, do: 1.0, else: abs(min) * 0.05

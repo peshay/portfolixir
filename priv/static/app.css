@@ -16,6 +16,11 @@
   --color-accent-coral-soft: #ffe4e6;
   --color-accent: var(--color-accent-violet);
   --color-accent-soft: var(--color-accent-violet-soft);
+  /* The two benchmark overlay slots of the Wealth performance chart
+     (ADR-0046 §4): semantic aliases of two accent variants, dash-
+     distinguished in the rules that use them, never hue-only. */
+  --color-chart-benchmark-1: var(--color-accent-teal);
+  --color-chart-benchmark-2: var(--color-accent-coral);
   --color-positive: #047857;
   --color-danger: #b91c1c;
   --color-warning: #b45309;
@@ -3256,6 +3261,99 @@ input[pattern]:invalid:not(:placeholder-shown) {
   stroke: var(--color-warning);
   stroke-dasharray: 1 3;
   stroke-width: 1.5;
+}
+
+/* Benchmark overlays on the Wealth performance chart (ADR-0046 §4): two
+   slots, told apart from the moving averages by colour and dash, with a
+   legend that names them. */
+.chart-benchmark-1 {
+  stroke: var(--color-chart-benchmark-1);
+  stroke-dasharray: 5 3;
+  opacity: 0.9;
+}
+.chart-benchmark-2 {
+  stroke: var(--color-chart-benchmark-2);
+  stroke-dasharray: 2 3;
+  opacity: 0.9;
+}
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+.chart-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.chart-legend__swatch {
+  display: inline-block;
+  width: 18px;
+  height: 0;
+  border-top: 2px dashed currentColor;
+}
+.chart-legend__swatch.chart-benchmark-1 {
+  color: var(--color-chart-benchmark-1);
+}
+.chart-legend__swatch.chart-benchmark-2 {
+  color: var(--color-chart-benchmark-2);
+}
+.chart-legend__swatch--portfolio {
+  border-top-style: solid;
+  color: var(--color-accent);
+}
+
+/* The benchmark comparison block next to TTWROR/IRR and its picker
+   (ADR-0046 §4). */
+.stat--wide {
+  grid-column: 1 / -1;
+  min-height: 0;
+}
+.benchmark-rows {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.benchmark-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-3);
+}
+.stat .benchmark-row strong {
+  font-size: 22px;
+}
+.benchmark-row__name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-weight: 600;
+}
+.benchmark-row__detail {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.benchmark-row__coverage {
+  flex-basis: 100%;
+}
+.benchmark-form__option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.benchmark-form input[type="number"] {
+  width: 6rem;
+}
+.benchmark-picker__active {
+  color: var(--color-text);
 }
 
 .chart-zoom-rect {
