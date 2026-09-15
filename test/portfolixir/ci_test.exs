@@ -228,4 +228,64 @@ defmodule Portfolixir.CITest do
 
     assert env_example =~ "rand-hex-32"
   end
+
+  # User story (#772 — Sprint 11 Lane D; D-3 of the 2026-09-05 security triage):
+  # As a maintainer whose dependency tree carried three cowlib advisories
+  # with no fixed release,
+  # I want the HTTP server to be Bandit, Phoenix 1.8's default,
+  # so that cowlib leaves the tree and the advisory gates run on the current
+  # Hex with no pin and no ignore list.
+  #
+  # Acceptance criteria:
+  # - mix.exs declares bandit and no plug_cowboy; the endpoint's adapter is
+  #   Bandit.PhoenixAdapter.
+  # - mix.lock carries no cowboy, cowlib, plug_cowboy, cowboy_telemetry or
+  #   ranch entry.
+  # - ci.yml no longer pins Hex ahead of `mix hex.audit`, and `mix deps.audit`
+  #   runs with no --ignore-advisory-ids.
+  test "the HTTP server is Bandit and the advisory gates run unpinned" do
+    mix_file = File.read!("mix.exs")
+    lock = File.read!("mix.lock")
+    ci_workflow = File.read!(".github/workflows/ci.yml")
+
+    assert mix_file =~ "{:bandit,"
+    refute mix_file =~ ":plug_cowboy"
+
+    assert Application.get_env(:portfolixir, PortfolixirWeb.Endpoint)[:adapter] ==
+             Bandit.PhoenixAdapter
+
+    for package <- ~w(cowboy cowlib plug_cowboy cowboy_telemetry ranch) do
+      refute lock =~ ~s("#{package}":), "#{package} is still in mix.lock"
+    end
+
+    refute ci_workflow =~ "mix local.hex"
+    assert ci_workflow =~ "run: mix hex.audit"
+    assert ci_workflow =~ "run: mix deps.audit"
+    refute ci_workflow =~ "--ignore-advisory-ids"
+  end
+
+  # User story (#772 — the triage's L11, same lane):
+  # As a maintainer whose CI runs third-party actions,
+  # I want every action pinned to a commit SHA with its version tag in a
+  # comment,
+  # so that a moved or compromised tag cannot change what runs on the runner,
+  # and Dependabot's github-actions ecosystem still sees the version to bump.
+  #
+  # Acceptance criteria:
+  # - Every `uses:` line in every workflow names a 40-hex-digit commit and
+  #   carries a `# vX.Y.Z` comment.
+  test "every GitHub Actions step is pinned to a commit SHA" do
+    uses_lines =
+      for path <- Path.wildcard(".github/workflows/*.yml"),
+          line <- String.split(File.read!(path), "\n"),
+          String.contains?(line, "uses:"),
+          do: {path, String.trim(line)}
+
+    assert uses_lines != []
+
+    for {path, line} <- uses_lines do
+      assert Regex.match?(~r|^uses: [\w.-]+/[\w.-]+@[0-9a-f]{40} # v\d+(\.\d+)*$|, line),
+             "#{path}: not pinned to a commit SHA with a version comment: #{line}"
+    end
+  end
 end
