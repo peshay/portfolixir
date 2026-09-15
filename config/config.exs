@@ -9,6 +9,9 @@ config :portfolixir,
 config :phoenix, :filter_parameters, ["password", "rows"]
 
 config :portfolixir, PortfolixirWeb.Endpoint,
+  # Bandit serves HTTP and the LiveView socket (#772); the http: options in
+  # dev.exs, test.exs and runtime.exs (ip, port) are passed through unchanged.
+  adapter: Bandit.PhoenixAdapter,
   render_errors: [
     formats: [html: PortfolixirWeb.ErrorView, json: PortfolixirWeb.ErrorView],
     layout: false

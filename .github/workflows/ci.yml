@@ -13,21 +13,26 @@ on:
 permissions:
   contents: read
 
+# Every action below is pinned to a commit SHA with its version tag in the
+# comment (#772, the 2026-09-05 triage's L11): a tag can be moved, a commit
+# cannot, and Dependabot's github-actions ecosystem bumps the SHA and the
+# comment together.
+
 jobs:
   pre-commit:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
 
       - name: Setup Elixir
-        uses: erlef/setup-beam@v1
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
           elixir-version: '1.18.3'
           otp-version: '27'
@@ -63,10 +68,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Elixir
-        uses: erlef/setup-beam@v1
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
           elixir-version: '1.18.3'
           otp-version: '27'
@@ -94,13 +99,13 @@ jobs:
 
       - name: Upload test output artifact
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-output
           path: test-output.log
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@0b35c9ecc4f0529d0eb674914510c22f85b196b4 # v7.1.0
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./cover/excoveralls.json
@@ -112,10 +117,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Elixir
-        uses: erlef/setup-beam@v1
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
           elixir-version: '1.18.3'
           otp-version: '27'
@@ -129,44 +134,24 @@ jobs:
       - name: Compile (warnings as errors)
         run: mix compile --force --warnings-as-errors
 
-      # Hex 2.5's `mix hex.audit` gained advisory gating (hex.pm EEF feed)
-      # with NO ignore mechanism, so unpatched-upstream advisories would
-      # hard-fail CI with no recourse. Advisory gating with a documented ignore
-      # list lives in the mix_audit step below; this step's unique job is the
-      # RETIREMENT check, so Hex is pinned to 2.4.1 (the last retirement-only
-      # hex.audit). Revisit when hex.audit learns ignores or a fixed cowlib
-      # ships.
-      #
-      # Outstanding against cowlib 2.19.0, re-checked 2026-08-18 (Sprint 7
-      # Lane M) — THREE, not the two this comment used to name:
-      #   EEF-CVE-2026-43966 MEDIUM  HTTP response splitting
-      #   EEF-CVE-2026-43971 MEDIUM  Link header directive smuggling (NEW)
-      #   EEF-CVE-2026-43969 LOW     Cookie request-header injection
-      # 2.19.0 (2026-07-28) is still the newest release, so there is still no
-      # fixed version to move to. Only the LOW appears in mix_audit's database
-      # and therefore in the ignore list below; the two MEDIUMs are visible to
-      # `mix hex.audit` alone, which is precisely why this step stays pinned.
-      - name: Pin Hex for the retirement-only audit
-        run: mix local.hex 2.4.1 --force
-
-      - name: Audit retired Hex packages
+      # `mix hex.audit` on the current Hex: retirements plus the hex.pm EEF
+      # advisory feed, which Hex 2.5 gates on with no ignore mechanism. Until
+      # Sprint 11 this step pinned Hex 2.4.1 (the last retirement-only
+      # hex.audit) because cowlib carried three advisories with no fixed
+      # release; Bandit replaced Cowboy (#772), cowlib left the tree, and the
+      # pin and its exception went with it. An advisory that appears here
+      # again is cleared by an upgrade, not by a pin.
+      - name: Audit Hex packages (retirements and advisories)
         run: mix hex.audit
 
       # Fails the build on known security advisories in the Hex dependency
-      # tree (mix_audit). Enabled together with the upgrades that cleared the
-      # then-active HIGH advisories (cowlib, cowboy, plug_cowboy, postgrex) in
-      # issue #359.
-      #
-      # cowlib EEF-CVE-2026-43969 / CVE-2026-43969 / GHSA-g2wm-735q-3f56 (low;
-      # cookie-encoder CRLF injection) is ignored under all its ids: the
-      # advisory has NO fixed release — 2.18.0 is still inside the vulnerable
-      # range (2.16.1 was additionally retired on hex.pm, which the separate
-      # `mix hex.audit` step catches; we run the newest cowlib regardless).
-      # This mirrors the HIGH-gated posture of the npm audit
-      # (`--audit-level=high`); all HIGH/moderate Hex advisories are cleared
-      # by upgrades, not by ignores. Revisit when a fixed cowlib ships.
+      # tree (mix_audit), with no ignore list: the cowlib advisory the list
+      # used to carry (GHSA-g2wm-735q-3f56, no fixed release) left the tree
+      # with the Bandit swap (#772, Sprint 11). This mirrors the HIGH-gated
+      # posture of the npm audit (`--audit-level=high`); advisories are
+      # cleared by upgrades, not by ignores.
       - name: Audit Hex dependencies
-        run: mix deps.audit --ignore-advisory-ids GHSA-g2wm-735q-3f56,EEF-CVE-2026-43969,CVE-2026-43969
+        run: mix deps.audit
 
       - name: Audit MCP server dependencies (npm)
         run: npm audit --audit-level=high --prefix mcp-server
@@ -188,7 +173,7 @@ jobs:
       # and a local run agree — and `@types/node` has a runtime major to
       # follow instead of the registry's latest.
       - name: Setup Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
 
@@ -214,7 +199,7 @@ jobs:
         run: mix sobelow --skip --exit --ignore Config.CSP,Config.HTTPS
 
       - name: Restore PLT cache
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: plt-cache
         with:
           path: priv/plts
@@ -238,7 +223,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Full history so the diff against the base branch resolves.
           fetch-depth: 0
@@ -281,10 +266,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Elixir
-        uses: erlef/setup-beam@v1
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
           elixir-version: '1.18.3'
           otp-version: '27'

@@ -65,7 +65,10 @@ defmodule Portfolixir.MixProject do
       {:lazy_html, ">= 0.1.0", only: :test},
       {:jason, "~> 1.4"},
       {:nimble_csv, "~> 1.2"},
-      {:plug_cowboy, "~> 2.7"},
+      # Phoenix 1.8's default HTTP server (#772, Sprint 11 Lane D): Bandit
+      # replaced plug_cowboy, which took cowlib and its unfixed advisories
+      # out of the tree.
+      {:bandit, "~> 1.12"},
       {:req, "~> 0.5"},
       {:telemetry_metrics, "~> 1.0"},
       {:telemetry_poller, "~> 1.0"}
