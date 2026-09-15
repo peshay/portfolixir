@@ -632,6 +632,19 @@ the API and are counted in `trade_priced_count`; the Wealth page flags them
 as a data-quality hint and the security detail states the trade price it is
 valued at.
 
+A quoted position whose feed has stopped is the quieter case: its last close
+keeps valuing it as if it were today's. Every position therefore carries the
+date its price is from (`price_date` in the API), the valuation counts the
+held positions whose quote is older than the data-quality threshold
+(`stale_priced_count`), and the Wealth page's data-quality section names
+them with that date and the remedy: mark the security **retired** if its
+listing ended, or sync its quotes. The retired flag is also what the
+performance figure keys on — a retired position's stale quote no longer
+counts as a market observation, so a later booking restates the basis
+instead of reporting the gap as return (ADR-0010, amendment of 2026-09-15).
+A delivery that carries a booked price is valued at that price in the
+performance walk, so a total loss booked out at 0 shows as the loss it is.
+
 A position with neither a quote nor a trade price, or with no rate path to
 the base currency, is reported as unvalued, so a missing price or rate never
 silently distorts the total or the weights. The two cases are reported

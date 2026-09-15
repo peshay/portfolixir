@@ -646,7 +646,12 @@ Example account payloads:
   `security_currency` shows the native currency. A security without any quote
   is priced at the latest own trade price (`price_source: "trade"`, counted in
   the top-level `trade_priced_count`); a quoted position carries
-  `price_source: "quote"`. A position with neither price **or** no
+  `price_source: "quote"`. Every position carries `price_date`, the date its
+  price is from, and the top-level `stale_priced_count` counts the quoted
+  positions whose quote is older than the data-quality staleness threshold
+  (the same `?dq=stale_quote` day count) — the remedy is the security's
+  `is_retired` flag, which the performance walk keys on, or a quote sync.
+  A position with neither price **or** no
   exchange-rate path to the base currency is returned with `valued: false`,
   `price_source: null` and `null` market value and weight, so a missing price
   or rate never distorts the total. Unknown portfolios return `404 Not Found`.

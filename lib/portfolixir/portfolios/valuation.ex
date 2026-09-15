@@ -46,6 +46,7 @@ defmodule Portfolixir.Portfolios.Valuation do
 
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.DataQuality
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Ledger
@@ -219,6 +220,7 @@ defmodule Portfolixir.Portfolios.Valuation do
       latest_price: price,
       price_currency: price_currency,
       price_source: price_source,
+      price_date: price_date(security_id, price_source, context),
       unvalued_reason: unvalued_reason
     }
   end
@@ -298,7 +300,8 @@ defmodule Portfolixir.Portfolios.Valuation do
       cash_balances: cash.balances,
       positions: positions,
       unvalued_count: Enum.count(positions, &(not &1.valued)),
-      trade_priced_count: Enum.count(positions, &(&1.price_source == :trade))
+      trade_priced_count: Enum.count(positions, &(&1.price_source == :trade)),
+      stale_priced_count: stale_priced_count(positions)
     }
   end
 
@@ -402,6 +405,7 @@ defmodule Portfolixir.Portfolios.Valuation do
       positions: positions,
       unvalued_count: Enum.count(positions, &(not &1.valued)),
       trade_priced_count: Enum.count(positions, &(&1.price_source == :trade)),
+      stale_priced_count: stale_priced_count(positions),
       overlap: Buckets.scope_overlap(scope),
       # "Matches no accounts" hint data (fix round): a view whose resolution
       # matches nothing should say so instead of showing a silent 0 total.
@@ -516,12 +520,29 @@ defmodule Portfolixir.Portfolios.Valuation do
       latest_price: price,
       price_currency: price_currency,
       price_source: price_source,
+      price_date: price_date(security_id, price_source, context),
       market_value: market_value,
       weight: nil,
       valued: valued?,
       unvalued_reason: unvalued_reason
     }
   end
+
+  # #779 / #610 (Sprint 11 Lane X): the held positions whose quote is older
+  # than the data-quality staleness threshold — the one day count the
+  # securities page's "No quote in N days" filter states (DataQuality), not a
+  # second horizon. Trade-priced positions are `trade_priced_count`'s and are
+  # not counted twice; the operator's remedy is the `is_retired` flag the
+  # walk keys on, or a quote sync.
+  defp stale_priced_count(positions) do
+    today = Portfolixir.Clock.today()
+    Enum.count(positions, &stale_quote?(&1, today))
+  end
+
+  defp stale_quote?(%{price_source: :quote, price_date: %Date{} = date}, today),
+    do: Date.diff(today, date) > DataQuality.stale_days()
+
+  defp stale_quote?(_position, _today), do: false
 
   defp market_value(quantity, %Decimal{} = price, from, base, context)
        when is_binary(from) and is_binary(base) do

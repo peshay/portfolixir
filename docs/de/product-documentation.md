@@ -685,6 +685,22 @@ werden in `trade_priced_count` gezählt; die Vermögensseite markiert sie als
 Datenqualitäts-Hinweis und die Detailansicht nennt den Handelspreis, mit dem
 bewertet wird.
 
+Eine bepreiste Position, deren Kursquelle versiegt ist, ist der leisere
+Fall: ihr letzter Schlusskurs bewertet sie weiter, als wäre er von heute.
+Jede Position trägt deshalb das Datum, von dem ihr Preis stammt
+(`price_date` in der API), die Bewertung zählt die gehaltenen Positionen,
+deren Kurs älter ist als die Datenqualitäts-Schwelle (`stale_priced_count`),
+und der Datenqualitäts-Abschnitt der Vermögensseite nennt sie mit diesem
+Datum und dem Mittel: das Wertpapier als **eingestellt** markieren, wenn
+seine Notierung endete, oder seine Kurse synchronisieren. Das
+Eingestellt-Kennzeichen ist zugleich das, worauf die Performance-Zahl
+reagiert — der veraltete Kurs einer eingestellten Position gilt nicht mehr
+als Marktbeobachtung, eine spätere Buchung stellt also die Basis neu fest,
+statt die Lücke als Rendite zu melden (ADR-0010, Ergänzung vom 2026-09-15).
+Eine Einlieferung oder Auslieferung mit gebuchtem Preis wird im
+Performance-Lauf zu diesem Preis bewertet, sodass ein Totalverlust, der zu 0
+ausgebucht wurde, als der Verlust erscheint, der er ist.
+
 Eine Position mit weder Kurs noch Handelspreis oder ohne Kurspfad zur
 Basiswährung wird als unbewertet gemeldet, sodass ein fehlender Preis oder
 Kurs nie still den Gesamtwert oder die Gewichte verzerrt. Die beiden Fälle

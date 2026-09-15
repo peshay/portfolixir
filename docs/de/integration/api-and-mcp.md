@@ -658,7 +658,12 @@ Beispiel-Payloads für Konten:
   je Position zeigt `security_currency` die native Währung. Ein Wertpapier ohne
   jeden Kurs wird mit dem zuletzt eigenen Handelspreis bepreist (`price_source:
   "trade"`, gezählt im Top-Level `trade_priced_count`); eine bepreiste Position
-  trägt `price_source: "quote"`. Eine Position mit weder Preis **oder** ohne
+  trägt `price_source: "quote"`. Jede Position trägt `price_date`, das Datum,
+  von dem ihr Preis stammt, und das Top-Level `stale_priced_count` zählt die
+  Positionen, deren Kurs älter ist als die Datenqualitäts-Schwelle (dieselbe
+  Tageszahl wie `?dq=stale_quote`) — das Mittel ist das `is_retired`-Kennzeichen
+  des Wertpapiers, auf das der Performance-Lauf reagiert, oder eine
+  Kurssynchronisation. Eine Position mit weder Preis **oder** ohne
   Wechselkurspfad zur Basiswährung wird mit `valued: false`, `price_source: null`
   und `null` für Marktwert und Gewicht zurückgegeben, sodass ein fehlender Preis
   oder Kurs den Gesamtwert nie verzerrt. Unbekannte Portfolios liefern
