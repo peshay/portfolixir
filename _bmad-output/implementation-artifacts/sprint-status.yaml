@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-09-15 (Sprint 11 closed out, 0.11.0 prepared for the owner; Sprint 12 planned from the whole-surface UX review, picks recorded 2026-09-14, its branch opens on this merge per D-1)
+# last_updated: 2026-09-15 (Sprint 11 closed out, 0.11.0 prepared for the owner; Sprint 12 planned from the whole-surface UX review, picks recorded 2026-09-14, its batch branch opened on that merge per D-1 and rebased over the close-out)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -51,6 +51,18 @@ story_location: _bmad-output/implementation-artifacts
 # ---------------------------------------------------------------------------
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
+#
+# BATCH OPENED (2026-09-15, Sprint 12) -- branch agent/claude/ux-alignment-2
+# from main at c2164f54 (the commit that merged Sprint 11's batch, PR #810 --
+# D-1 satisfied), the draft PR opened with this commit (ADR-0026 step 2; the
+# plan's Lane Z: registry rows when the branch opens). Rows touched here: the
+# FR Coverage Map's UX-DR row names #784-#809, UX-DR27 and UX-DR2 as amended
+# 2026-09-14, and the Tracker Index's E11 line names the 2026-09-12 review as
+# its second reference; the close-out reconciles the rest against the merge,
+# not against this note. Lane order per the plan: F, N, S, K, P, T, D, with
+# M at lane time and the shrink order cutting from D upward. The Sprint 11
+# close-out (PR #812) carries its own entry below, merged 2026-09-15 19:38
+# UTC; this branch was rebased over it then, which is why its rows sit above.
 #
 # CLOSED OUT (2026-09-15, Sprint 11) -- PR #810 rebase-merged 12:16 UTC,
 # `main` at c2164f54:
