@@ -255,6 +255,11 @@ components:
     figures: 'right-aligned tabular; the first at 14px/600, the second at 12px muted (the change, the stale marker, quantity × price)'
     states: 'is-selected paints {colors.selected}; is-retired dims like the table row; "no price" and "—" as words'
     shown: 'under 560px only — the table wrapper is display none there, the rows display none above'
+  filter-sheet:
+    control: '.filter-sheet-toggle — a pill (1px {colors.border}, 999px) with the filter glyph, the word Filter and the active-chip count as a badge; inline-flex under 560px, display none above'
+    sheet: 'native <dialog> at the viewport bottom (the row menu mechanism): full width, 85vh max, 12/16px padding plus the safe-area inset, top corners {rounded.md}, the modal backdrop tints'
+    families: 'stacked blocks headed by their names ({typography.stat-label} voice), chips wrapping; the builder in flow; Reset and Done at the foot'
+    focus: 'the ModalDialog hook — showModal on open, Esc closes, focus returns to the control'
   hero:
     composition: 'headline value + as-of basis line above the curve; €/% series toggle and period control on the chart toolbar row'
     value: '{typography.stat-value}'
@@ -1394,3 +1399,16 @@ composition per surface that the column picker does not touch.
   one account.
 - **Rules kept:** nothing scrolls sideways; matrices and dialog tables keep
   UX-DR15's scroller; the desktop tables are unchanged.
+
+### Phone filter sheet *(C4-B, issue 800)*
+
+`{components.filter-sheet}`: under 560 px the D2 chip row is hidden and one
+**Filter (n)** pill in the toolbar carries the count of active chips; it
+opens a native `<dialog>` at the viewport bottom — the row menu's
+bottom-sheet mechanism — with the families stacked under their names
+(Holding, Data quality, Currency, Asset class, Changed since), the
+More-filters builder in flow, and **Reset** / **Done** at the foot. The
+chips are the row's own markup rendered a second time, so a chip in the
+sheet applies at once and the count follows; the ModalDialog hook moves
+focus in, closes on Esc and returns focus to the control. Above 560 px the
+control is absent and the row is unchanged.

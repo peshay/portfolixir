@@ -6549,6 +6549,16 @@ msgstr ""
 msgid "%{quantity} units"
 msgstr ""
 
+#: lib/portfolixir_web/live/securities_live.ex:2992
+#, elixir-autogen, elixir-format
+msgid "Holding"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex:488
+#, elixir-autogen, elixir-format
+msgid "Reset"
+msgstr ""
+
 #: lib/portfolixir_web/live/securities_live.ex:3160
 #, elixir-autogen, elixir-format
 msgid "no price"

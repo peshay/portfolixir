@@ -35,11 +35,12 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
     end
   end
 
-  # User story (#799 UX-DR27; DESIGN.md → Amendment 2026-09-12 →
+  # User story (#799 UX-DR27, #800 C4-B; DESIGN.md → Amendment 2026-09-12 →
   # Two-line phone rows and Components → Phone lists):
   # As a local portfolio maintainer on a 390 px phone,
-  # I want the entity tables to give way to two-line rows under 560 px, and
-  # the rows to stay out of the desktop layout above it,
+  # I want the entity tables to give way to two-line rows and the chip row
+  # to the Filter control under 560 px, and both to stay out of the desktop
+  # layout above it,
   # so that the phone composition is a rule of the stylesheet, not a
   # coincidence of the viewport.
   test "under 560 px the entity tables give way to the two-line rows" do
@@ -49,8 +50,14 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
              ~r/#securities-table,\s*#transaction-table-wrapper \{\s*display: none;/
   end
 
-  test "the phone rows stay out of the desktop layout" do
+  test "under 560 px the chip row yields to the Filter control" do
+    assert phone_block() =~ ~r/#securities-filter-chips \{\s*display: none;/
+    assert phone_block() =~ ~r/\.filter-sheet-toggle \{\s*display: inline-flex;/
+  end
+
+  test "the phone rows and the Filter control stay out of the desktop layout" do
     assert block(".phone-rows") =~ ~r/display:\s*none/
+    assert block(".filter-sheet-toggle") =~ ~r/display:\s*none/
   end
 
   # The one 560 px block that carries the phone list rules, found by its
