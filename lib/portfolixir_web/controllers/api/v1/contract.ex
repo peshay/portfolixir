@@ -71,6 +71,7 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "portfolixir.events.stale"
       ],
       parameters: [
+        "GET /api/v1/realized_gains and portfolixir.cashflow.realized_gains carry trades (the closed round-trips themselves, newest close first) and summary (realized_total, hit_rate, average_holding_period_days, trade_count) beside the annual matrix; the three figures are derived from the same converted set, and computation_basis.summary states their rules — limit= still cuts only the matrix's years (#807)",
         "GET /api/v1/journal and portfolixir.journal.list take limit= through the family's shared parser (#811): absent is the default 100, an oversized value is capped at 1000 and echoed in meta.filters.limit, and zero, a negative or a non-number is a 422 naming the field — the read carried its own identical copy of that parser until now"
       ],
       removed_endpoints: [],

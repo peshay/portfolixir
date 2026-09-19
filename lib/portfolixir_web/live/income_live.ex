@@ -287,8 +287,109 @@ defmodule PortfolixirWeb.IncomeLive do
             </div>
           </section>
 
+          <%!-- #807 (review C10, Part 5 Q2, signed by Sprint 13's D-3): the
+               facet IS the Trades view. It opens with the three figures and
+               the closed round-trips it aggregates; the year x month matrix
+               it used to open with is the disclosure beneath. --%>
+          <section id="realized-trades" class="workspace-section kpi-band">
+            <%!-- Three lead figures in the built band (DESIGN.md → stat,
+                 kpi-band__lead), not a new component. --%>
+            <div id="realized-figures" class="kpi-band__lead" data-role="realized-figures">
+              <article class="stat stat--lead">
+                <span><%= gettext("Realized total") %></span>
+                <strong data-role="realized-total">
+                  <%= money(@realized.summary.realized_total) %><small class="value-suffix"><%= @realized.base_currency %></small>
+                </strong>
+              </article>
+              <article class="stat stat--lead">
+                <span><%= gettext("Hit rate") %></span>
+                <strong data-role="realized-hit-rate">
+                  <%= if @realized.summary.hit_rate do %>
+                    <%= PortfolixirWeb.Format.percent(@realized.summary.hit_rate) %>%
+                  <% else %>
+                    —
+                  <% end %>
+                </strong>
+                <small :if={@realized.summary.trade_count > 0} class="stat__sub">
+                  <%= ngettext("over %{count} closed trade", "over %{count} closed trades",
+                    @realized.summary.trade_count,
+                    count: @realized.summary.trade_count
+                  ) %>
+                </small>
+              </article>
+              <article class="stat stat--lead">
+                <span><%= gettext("Average holding period") %></span>
+                <strong data-role="realized-holding-period">
+                  <%= if @realized.summary.average_holding_period_days do %>
+                    <%= ngettext(
+                      "%{count} day",
+                      "%{count} days",
+                      @realized.summary.average_holding_period_days,
+                      count: @realized.summary.average_holding_period_days
+                    ) %>
+                  <% else %>
+                    —
+                  <% end %>
+                </strong>
+              </article>
+            </div>
+
+            <%= if @realized.trades == [] do %>
+              <p class="empty-state"><%= gettext("No closed sales booked yet.") %></p>
+            <% else %>
+              <div class="data-table-wrapper">
+                <table id="realized-trades-table" class="data-table">
+                  <thead>
+                    <tr>
+                      <th><%= gettext("Security") %></th>
+                      <th><%= gettext("Bought → sold") %></th>
+                      <th class="num"><%= gettext("Holding period") %></th>
+                      <th class="num"><%= gettext("Quantity") %></th>
+                      <th class="num"><%= gettext("Cost") %></th>
+                      <th class="num"><%= gettext("Proceeds") %></th>
+                      <th class="num col-subject"><%= gettext("Result") %></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr :for={trade <- @realized.trades} data-role="realized-trade">
+                      <td>
+                        <.link navigate={"/securities/#{trade.security_id}?tab=trades"}>
+                          <%= trade.security_name %>
+                        </.link>
+                      </td>
+                      <td>
+                        <%= PortfolixirWeb.Format.date(trade.open_date) %> → <%= PortfolixirWeb.Format.date(
+                          trade.close_date
+                        ) %>
+                      </td>
+                      <td class="num">
+                        <%= ngettext("%{count} day", "%{count} days", trade.holding_period_days,
+                          count: trade.holding_period_days
+                        ) %>
+                      </td>
+                      <td class="num"><%= PortfolixirWeb.Format.decimal(trade.quantity, 4) %></td>
+                      <td class="num">
+                        <%= money(trade.basis) %><small class="value-suffix"><%= trade.currency_code %></small>
+                      </td>
+                      <td class="num">
+                        <%= money(trade.proceeds) %><small class="value-suffix"><%= trade.currency_code %></small>
+                      </td>
+                      <td class="num col-subject" data-role="trade-result">
+                        <%= money(trade.realized_base) %><small class="value-suffix"><%= @realized.base_currency %></small>
+                        <span class="kpi__sub">
+                          <%= PortfolixirWeb.Format.percent(trade.realized_pnl_pct) %>
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            <% end %>
+          </section>
+
           <section id="realized-annual" class="workspace-section">
-            <h2><%= gettext("Realized per period") %></h2>
+            <details id="realized-annual-disclosure" class="more-filters">
+              <summary><%= gettext("Realized per period") %></summary>
             <%= if @realized.excluded.count > 0 do %>
               <AppShell.data_note
                 severity={:attention}
@@ -343,6 +444,7 @@ defmodule PortfolixirWeb.IncomeLive do
                 </table>
               </div>
             <% end %>
+            </details>
           </section>
         <% end %>
 

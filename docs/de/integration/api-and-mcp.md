@@ -658,6 +658,18 @@ Beispiel-Payloads für Konten:
   `limit` begrenzt die Jahresmatrix auf ihre neuesten Jahre (Standard 100,
   max. 1000); `computation_basis.window` nennt den Schnitt, wenn Jahre
   wegfielen, und die Antwort nennt das angewandte `limit`.
+
+  Seit Issue #807 trägt die Payload zusätzlich **`trades`** — die
+  abgeschlossenen Rundläufe selbst, neuester Schluss zuerst, je mit
+  `security_id`, `security_name`, `open_date`, `close_date`,
+  `holding_period_days`, `quantity`, `basis`, `proceeds`,
+  `realized_pnl_abs`/`_pct` in der Währung des Trades und `realized_base` in
+  der Basiswährung — und **`summary`**: `realized_total`, `hit_rate` (der
+  Anteil der Trades mit streng positivem Ergebnis; ein Nullergebnis zählt
+  nicht als Treffer) und `average_holding_period_days`. Die drei Zahlen
+  stammen aus **derselben** konvertierten Menge wie die Matrix; ohne
+  abgeschlossene Trades sind `hit_rate` und `average_holding_period_days`
+  `null` statt `0`. `limit` schneidet nur die Jahre der Matrix.
 - `GET /api/v1/external_flows` (Issue #725) liefert das
   Ein-/Auszahlungs-Rollup: die gebuchten externen **Cash**-Flüsse (`deposit`
   und `removal`) über alle Portfolios, je Jahr und Monat mit Einzahlungen,

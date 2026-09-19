@@ -678,6 +678,21 @@ Example account payloads:
   `limit` bounds the annual matrix to its newest years (default 100, max
   1000); `computation_basis.window` names the cut when years were dropped, and
   the answer echoes the applied `limit`.
+
+  Since issue #807 the payload also carries **`trades`** — the closed
+  round-trips themselves, newest close first, each with `security_id`,
+  `security_name`, `open_date`, `close_date`, `holding_period_days`,
+  `quantity`, `basis`, `proceeds`, `realized_pnl_abs` and `realized_pnl_pct`
+  in the trade's own currency and `realized_base` in the base currency — and
+  **`summary`**: `realized_total`, `hit_rate` (the share of closed trades
+  whose result is strictly positive; a break-even trade counts as a miss) and
+  `average_holding_period_days`. The three figures are derived from the
+  **same** converted set as the matrix and the list, so an excluded sale is in
+  none of the three; with no closed trades `hit_rate` and
+  `average_holding_period_days` are `null` rather than `0`, because the
+  average of nothing is not zero. `limit` cuts only the matrix's years — the
+  figures and the list always read the full history, and
+  `computation_basis.summary` states all of this in the payload.
 - `GET /api/v1/external_flows` (issue #725) returns the Deposits &
   withdrawals roll-up: the booked external **cash** flows (`deposit` and
   `removal`) across all portfolios, per year and month with deposits,

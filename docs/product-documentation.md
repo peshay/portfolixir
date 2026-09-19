@@ -1112,9 +1112,21 @@ facet, and `/income` still resolves — it redirects here, so older links
 and bookmarks keep working. Since issue #724 the area carries a second-level
 facet switcher.
 
-**Realized gains** (`/cashflow?tab=realized`, issue #724) answers "what did
-selling actually make": FIFO-matched realized P&L across all securities,
-grouped by each sale's **close date** into a year × month matrix. The FX
+**Realized gains** (`/cashflow?tab=realized`, issues #724 and #807) answers
+"what did selling actually make", and since issue #807 it **is the Trades
+view**: the facet opens with three figures — the realised total, the **hit
+rate** (the share of closed trades that realised a gain; a break-even trade
+counts as a miss) and the **average holding period** — followed by the closed
+round-trips themselves, newest close first, each row naming the security
+(linked to its Trades tab), bought → sold, how long it was held, the quantity,
+the cost, the proceeds and the result in both money and percent. The year ×
+month matrix the facet used to open with keeps every number, now behind the
+**Realized per period** disclosure beneath the list.
+
+With no closed trades the hit rate and the average holding period read as
+absent rather than as 0 % and 0 days — the average of nothing is not zero.
+All three figures are derived from FIFO-matched realized P&L across all
+securities, grouped by each sale's **close date**. The FX
 basis is stated on the surface and travels in the API payload (decision D-1):
 each sale converts through the EUR hub at the rate stored on **its own close
 date**, because a realized figure is a historical fact tied to its date. A
