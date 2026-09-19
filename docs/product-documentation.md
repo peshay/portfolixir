@@ -231,6 +231,50 @@ Aliases are correctable: they are listed on the security detail
 (`GET /api/v1/securities/:id`) and can be deleted (journaled) when recorded
 by mistake. A plain rename needs no ISIN change — it is just a name edit.
 
+### Derived metrics on the chart tab (issue #814's sibling, ADR-0047)
+
+The detail pane's **Chart** tab carries the security's derived metrics under
+the price history they describe: **SMA-50** and **SMA-200** with the latest
+close's distance to each — drawn as the chart's second and third series, so a
+crossing is visible and not something to be reconstructed from two numbers —
+plus **volatility**, the **maximum drawdown**, **momentum** and the distance
+to the **52-week** high and low.
+
+One period control: the metrics follow the chart's own range buttons. The
+stored windows are 30, 90 and 365 days, so a range snaps to the nearest at or
+below it and **each cell names the window it was measured over** together with
+its **observation count**. Below its minimum a metric reads *not computable*
+and still shows how many observations it had — the average of too little data
+is not a small number, it is no number.
+
+The figures are over this security's **own** split-adjusted closes, in its
+**own** currency, never converted: a price metric is a statement about the
+instrument. A day without a stored close produces no return observation, so
+nothing is carried forward and then differenced. **The block reports; it does
+not evaluate** — there is no signal, rating or recommendation anywhere in it.
+
+### Termine tab (the security's calendar, ADR-0048)
+
+The **Termine** tab lists the dated calendar facts recorded for the security
+— an earnings report, an ex-dividend or payment date, a lockup expiry, an
+index review, a shareholder meeting, a regulatory decision, a guidance update
+— in the research timeline's shape. Each row says how well the date is known
+(*confirmed date*, *estimated*, *within a period*, *month known, day not*),
+where it came from with the research log's own source-quality vocabulary,
+whether it has been *confirmed*, and the day it was last re-read.
+
+An event **books nothing**: when a dividend is actually paid it is booked
+through the ledger as always and the event is marked confirmed. It is never
+converted into a transaction.
+
+What is due across the **whole catalog** — held securities and purchase
+candidates alike — appears as the **Due** card on the Overview, beside *Off
+target* and the data-quality line. A security with no position is marked
+*no position* rather than filtered out: a calendar built from the position
+list cannot hold a date for something not yet owned, which is exactly the
+date worth not missing. A date given as a range or a month counts as due when
+any day it could fall on is inside the horizon.
+
 ### Research tab (the security research log)
 
 The detail pane's **Research** tab is the human view of the security

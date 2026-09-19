@@ -271,6 +271,22 @@ defmodule Portfolixir.Knowledge.Events do
 
   defp maybe_kind(query, kind) when is_atom(kind), do: where(query, [e], e.kind == ^kind)
 
+  @doc """
+  The security ids with a non-zero net ledger quantity — the same predicate
+  `held_only: true` narrows by. Exposed so a surface can MARK an unheld
+  security rather than filter it away (ADR-0048 §2, design pick D3-A).
+  """
+  @spec held_security_ids() :: [integer()]
+  def held_security_ids do
+    from(s in Security,
+      join: h in subquery(holding_totals_query()),
+      on: h.security_id == s.id,
+      where: fragment("? <> 0", h.quantity),
+      select: s.id
+    )
+    |> Repo.all()
+  end
+
   defp maybe_held_only(query, false), do: query
 
   defp maybe_held_only(query, true) do

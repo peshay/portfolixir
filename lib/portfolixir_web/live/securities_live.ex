@@ -19,9 +19,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Catalog.SecurityFields
   alias Portfolixir.Catalog.SecurityFields.Field
+  alias Portfolixir.Catalog.SecurityMetrics
   alias Portfolixir.Catalog.SecurityWithMetrics
   alias Portfolixir.Classifications
   alias Portfolixir.Knowledge
+  alias Portfolixir.Knowledge.Events
+  alias Portfolixir.Knowledge.SecurityEvent
   alias Portfolixir.Knowledge.SecurityNote
   alias Portfolixir.Knowledge.ThesisState
   alias Portfolixir.Ledger
@@ -39,11 +42,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias PortfolixirWeb.Securities.RowContextMenu
   alias PortfolixirWeb.Securities.SecurityFormDialog
   alias PortfolixirWeb.Securities.SplitWizardDialog
+  alias PortfolixirWeb.SecurityEventLabel
 
   @ranges ~w(1M 3M 6M YTD 1Y 3Y 5Y MAX)
   @default_range "1Y"
 
-  @tabs ~w(overview chart transactions trades quotes holdings classifications research)
+  @tabs ~w(overview chart transactions trades quotes holdings classifications research events)
   @default_tab "overview"
   @holding_statuses ~w(all held not_held)
   @default_holding_status "all"
@@ -100,7 +104,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:detail_percent_mode?, false)
      |> assign(:detail_log_scale?, false)
      |> assign(:detail_show_transactions?, true)
-     |> assign(:detail_ma, %{30 => false, 50 => false, 200 => false})
+     # #824 (design pick D1-A): SMA-50 and SMA-200 are the chart's second and
+     # third series, because a moving average's meaning is its distance to the
+     # price (a number, in the grid) and its crossing with the other average
+     # (a picture, here). Both toggles stay, so a reader can turn them off.
+     |> assign(:detail_ma, %{30 => false, 50 => true, 200 => true})
      |> assign(:detail_cost_basis?, false)
      |> assign(:detail_quotes, [])
      |> assign(:detail_series_basis, :empty)
@@ -112,6 +120,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:buckets, [])
      |> assign(:detail_latest, nil)
      |> assign(:detail_metrics, SecurityWithMetrics.empty_metrics())
+     |> assign(:detail_metric_block, nil)
+     |> assign(:detail_events, [])
      |> assign(:detail_classifications, [])
      |> assign(:detail_new_category_for, nil)
      |> assign(:detail_notes, [])
@@ -1089,7 +1099,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   phx-click="toggle_detail_ma"
                   phx-value-window={window}
                   class={["chart-toggle", @detail_ma[window] && "is-active"]}
-                  aria-pressed={@detail_ma[window]}
+                  aria-pressed={to_string(@detail_ma[window])}
                 >
                   MA<%= window %>
                 </button>
@@ -1159,6 +1169,19 @@ defmodule PortfolixirWeb.SecuritiesLive do
               basis: series_basis_label(@detail_series_basis, @detail_split_events)
             ) %>
           </p>
+
+          <%!-- #824 (ADR-0047 §9, design pick D1-A): the derived metrics
+               beside the series they describe. One period control — these
+               follow the chart's own range buttons — and every cell carries
+               the window it was measured over and its observation count,
+               which is the part of the basis that varies (§6). The shared
+               part sits once in the basis line beneath. --%>
+          <.metric_grid
+            :if={@detail_metric_block}
+            block={@detail_metric_block}
+            range={@detail_range}
+            custom_range={@detail_custom_range}
+          />
         </section>
       <% end %>
 
@@ -1222,7 +1245,60 @@ defmodule PortfolixirWeb.SecuritiesLive do
         />
       <% end %>
 
-      <%= if @detail_tab not in ~w(overview chart transactions trades quotes holdings classifications research) do %>
+      <%!-- #828 (ADR-0048, design pick D2-B): the security's calendar, in the
+           research timeline's shape and with ADR-0044's source-quality
+           vocabulary. The Research tab keeps exactly what it had. --%>
+      <%= if @detail_tab == "events" do %>
+        <section
+          id="detail-tab-panel-events"
+          role="tabpanel"
+          aria-labelledby="detail-tab-events"
+          class="detail-tab-panel"
+        >
+          <p class="detail-tab-hint" data-role="events-basis">
+            <%= gettext(
+              "Dated calendar facts about this security. An event books nothing: when a dividend is actually paid it is booked through the ledger as always and the event is marked confirmed."
+            ) %>
+          </p>
+          <%= if @detail_events == [] do %>
+            <p class="empty-state"><%= gettext("No dates recorded for this security.") %></p>
+          <% else %>
+            <ol class="research-timeline" data-role="event-timeline">
+              <li :for={event <- @detail_events} class="research-entry" data-role="event-entry">
+                <div class="research-entry__head">
+                  <span class="badge"><%= SecurityEventLabel.kind(event.kind) %></span>
+                  <time datetime={Date.to_iso8601(event.date)}>
+                    <%= event_date_label(event) %>
+                  </time>
+                  <span class="badge badge--derived" data-role="event-timing">
+                    <%= SecurityEventLabel.timing(event.timing) %>
+                  </span>
+                  <span
+                    class={["badge", "badge--quality-#{event.source_quality}"]}
+                    data-role="event-quality"
+                  >
+                    <%= source_quality_label(event.source_quality) %>
+                  </span>
+                  <span :if={event.confirmed} class="badge" data-role="event-confirmed">
+                    <%= gettext("Confirmed") %>
+                  </span>
+                </div>
+                <p :if={event.note} class="research-entry__body"><%= event.note %></p>
+                <p class="research-entry__meta">
+                  <a :if={event.source_url} href={event.source_url} rel="noopener noreferrer" target="_blank">
+                    <%= gettext("Source") %>
+                  </a>
+                  <span :if={event.checked_at} data-role="event-checked">
+                    <%= gettext("Last checked %{date}", date: Date.to_iso8601(event.checked_at)) %>
+                  </span>
+                </p>
+              </li>
+            </ol>
+          <% end %>
+        </section>
+      <% end %>
+
+      <%= if @detail_tab not in ~w(overview chart transactions trades quotes holdings classifications research events) do %>
         <section
           id={"detail-tab-panel-#{@detail_tab}"}
           role="tabpanel"
@@ -2763,6 +2839,158 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp apply_cost_basis_point(_tx, acc), do: acc
 
+  # #824 (ADR-0047, design pick D1-A): the metric grid under the chart.
+  #
+  # ONE period control: the windowed metrics follow the chart's own range
+  # buttons, snapped to the nearest stored window at or below the range —
+  # the engine's windows are fixed by ADR-0047 §3 and a fourth one would be a
+  # change to that record, not to this screen. Each cell says which window it
+  # used, so the snap is disclosed rather than hidden.
+  attr(:block, :map, required: true)
+  attr(:range, :string, required: true)
+  attr(:custom_range, :any, default: nil)
+
+  defp metric_grid(assigns) do
+    {day_window, month_window} = metric_windows(assigns.range, assigns.custom_range)
+
+    assigns =
+      assigns
+      |> assign(:day_window, day_window)
+      |> assign(:month_window, month_window)
+
+    ~H"""
+    <dl id="detail-metrics" class="overview-metrics" data-role="detail-metrics">
+      <.metric_cell label={gettext("SMA 50")} metric={@block.metrics.sma_50} kind={:average} />
+      <.metric_cell label={gettext("SMA 200")} metric={@block.metrics.sma_200} kind={:average} />
+      <.metric_cell
+        label={gettext("Volatility")}
+        metric={@block.metrics.volatility[@day_window]}
+        kind={:ratio}
+      />
+      <.metric_cell
+        label={gettext("Max drawdown")}
+        metric={@block.metrics.max_drawdown[@day_window]}
+        kind={:ratio}
+      />
+      <.metric_cell
+        label={gettext("Momentum")}
+        metric={@block.metrics.momentum[@month_window]}
+        kind={:ratio}
+      />
+      <.extremes_cell metric={@block.metrics.distance_to_extremes} />
+    </dl>
+    <p class="detail-tab-hint" data-role="metrics-basis">
+      <%= gettext(
+        "Over this security's own split-adjusted closes in %{currency}, never converted. A day without a stored close produces no return observation, so nothing is carried forward and differenced. Volatility is the population standard deviation of the window's daily returns, annualized by the square root of 252. Reported, not evaluated: no signal, rating or recommendation is derived here.",
+        currency: @block.currency_code
+      ) %>
+    </p>
+    """
+  end
+
+  attr(:label, :string, required: true)
+  attr(:metric, :map, required: true)
+  attr(:kind, :atom, required: true)
+
+  defp metric_cell(assigns) do
+    ~H"""
+    <div class="overview-metric" data-role="metric-cell">
+      <dt><%= @label %></dt>
+      <dd>
+        <%= if @metric.insufficient_data do %>
+          <span data-role="metric-na"><%= gettext("not computable") %></span>
+        <% else %>
+          <%= metric_value(@metric.value, @kind) %>
+          <small :if={@kind == :average and @metric[:distance_pct]} class="overview-metric__unit">
+            <%= signed_ratio(@metric.distance_pct) %>
+          </small>
+        <% end %>
+        <small class="overview-metric__sub">
+          <span data-role="metric-window"><%= metric_window_label(@metric.window) %></span>
+          ·
+          <span data-role="metric-observations">
+            <%= ngettext("%{count} observation", "%{count} observations", @metric.observations,
+              count: @metric.observations
+            ) %>
+          </span>
+        </small>
+      </dd>
+    </div>
+    """
+  end
+
+  attr(:metric, :map, required: true)
+
+  defp extremes_cell(assigns) do
+    ~H"""
+    <div class="overview-metric" data-role="metric-cell">
+      <dt><%= gettext("52-week range") %></dt>
+      <dd>
+        <%= if @metric.insufficient_data do %>
+          <span data-role="metric-na"><%= gettext("not computable") %></span>
+        <% else %>
+          <%= signed_ratio(@metric.distance_to_high_pct) %>
+          <small class="overview-metric__unit">
+            <%= gettext("to high") %> · <%= signed_ratio(@metric.distance_to_low_pct) %> <%= gettext(
+              "to low"
+            ) %>
+          </small>
+        <% end %>
+        <small class="overview-metric__sub">
+          <span data-role="metric-window"><%= metric_window_label(@metric.window) %></span>
+          ·
+          <span data-role="metric-observations">
+            <%= ngettext("%{count} observation", "%{count} observations", @metric.observations,
+              count: @metric.observations
+            ) %>
+          </span>
+        </small>
+      </dd>
+    </div>
+    """
+  end
+
+  defp load_metric_block(security_id) do
+    case SecurityMetrics.for_security(security_id) do
+      {:ok, block} -> block
+      {:error, :not_found} -> nil
+    end
+  end
+
+  # A custom range has no stored counterpart, so it falls to the widest
+  # window rather than pretending to follow it.
+  defp metric_windows(_range, %{} = _custom), do: {"365d", "12m"}
+  defp metric_windows("1M", _custom), do: {"30d", "3m"}
+  defp metric_windows("3M", _custom), do: {"90d", "3m"}
+  defp metric_windows("6M", _custom), do: {"90d", "6m"}
+  defp metric_windows(_range, _custom), do: {"365d", "12m"}
+
+  defp metric_window_label(nil), do: gettext("no window measured")
+
+  defp metric_window_label(%{start_date: from, end_date: to}),
+    do: "#{Date.to_iso8601(from)} – #{Date.to_iso8601(to)}"
+
+  defp metric_value(nil, _kind), do: "—"
+  defp metric_value(value, :average), do: Format.decimal(value, 2)
+  defp metric_value(value, :ratio), do: signed_ratio(value)
+
+  defp signed_ratio(nil), do: "—"
+
+  defp signed_ratio(%Decimal{} = value) do
+    sign = if Decimal.compare(value, 0) == :lt, do: "", else: "+"
+    "#{sign}#{Format.percent(value)}%"
+  end
+
+  # The date a calendar fact could fall on, said the way it is known: a single
+  # day, a range, or a month.
+  defp event_date_label(%SecurityEvent{timing: :window, date: from, date_end: to}),
+    do: "#{Date.to_iso8601(from)} – #{Date.to_iso8601(to)}"
+
+  defp event_date_label(%SecurityEvent{timing: :month, date: date}),
+    do: date |> Date.beginning_of_month() |> Date.to_iso8601() |> String.slice(0, 7)
+
+  defp event_date_label(%SecurityEvent{date: date}), do: Date.to_iso8601(date)
+
   defp detail_tabs do
     [
       {"overview", gettext("Overview")},
@@ -2772,7 +3000,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
       {"quotes", gettext("Quotes")},
       {"holdings", gettext("Holdings")},
       {"classifications", gettext("Classifications")},
-      {"research", gettext("Research")}
+      {"research", gettext("Research")},
+      # #828 (design pick D2-B): the ninth tab, and the one new tab the
+      # sprint's budget allowed. #817 landed first so the D6 scroll-snap and
+      # edge fade keep it reachable in a ~360 px pane.
+      {"events", gettext("Termine")}
     ]
   end
 
@@ -4459,6 +4691,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:detail_holdings, [])
     |> assign(:detail_latest, nil)
     |> assign(:detail_metrics, SecurityWithMetrics.empty_metrics())
+    |> assign(:detail_metric_block, nil)
+    |> assign(:detail_events, [])
     |> assign(:detail_status, nil)
     |> assign(:detail_classifications, [])
     |> assign(:detail_new_category_for, nil)
@@ -4527,6 +4761,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:detail_latest, Quotes.adjusted_latest(id))
     |> assign(:detail_series_basis, QuoteAdjustment.series_basis(quotes))
     |> assign(:detail_metrics, metrics)
+    # #824 / #828: the derived metrics (ADR-0047) and the calendar (ADR-0048)
+    # of the security this pane is open on.
+    |> assign(:detail_metric_block, load_metric_block(id))
+    |> assign(:detail_events, Events.list_for_security(id))
     # The shared price-resolution status (#406): computed by the valuation's
     # own semantics, against the base currencies of the portfolios actually
     # holding the security, so this pane and those portfolios' totals cannot

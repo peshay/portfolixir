@@ -251,6 +251,44 @@ Wertpapier-Detail (`GET /api/v1/securities/:id`) gelistet und können
 Eine bloße Umbenennung braucht keinen ISIN-Wechsel — sie ist nur eine
 Namensänderung.
 
+### Abgeleitete Kennzahlen im Chart-Tab (ADR-0047)
+
+Der **Chart**-Tab des Detailbereichs trägt die abgeleiteten Kennzahlen des
+Wertpapiers unter der Kurshistorie, die sie beschreiben: **SMA-50** und
+**SMA-200** mit dem Abstand des letzten Schlusskurses zu beiden — als zweite
+und dritte Serie im Chart gezeichnet, damit eine Kreuzung sichtbar ist —
+sowie **Volatilität**, **maximaler Drawdown**, **Momentum** und der Abstand
+zum **52-Wochen**-Hoch und -Tief.
+
+Ein Zeitraum-Steuerelement: die Kennzahlen folgen den Bereichs-Buttons des
+Charts. Die gespeicherten Fenster sind 30, 90 und 365 Tage; ein Bereich
+rastet auf das nächstkleinere, und **jede Zelle nennt das verwendete Fenster**
+samt **Beobachtungszahl**. Unterhalb ihres Minimums liest sich eine Kennzahl
+als *nicht berechenbar* und zeigt trotzdem, wie viele Beobachtungen vorlagen.
+
+Die Zahlen stehen über den **eigenen** splitbereinigten Schlusskursen in der
+**eigenen** Währung, nie umgerechnet. Ein Tag ohne gespeicherten Schlusskurs
+erzeugt keine Renditebeobachtung. **Der Block berichtet, er bewertet nicht** —
+es gibt kein Signal, kein Rating und keine Empfehlung darin.
+
+### Tab „Termine" (der Kalender des Wertpapiers, ADR-0048)
+
+Der Tab **Termine** listet die datierten Kalenderfakten des Wertpapiers —
+Geschäftszahlen, Ex-Dividenden- und Zahltag, Ende einer Haltefrist,
+Indexüberprüfung, Hauptversammlung, Behördenentscheidung, Prognoseanpassung —
+in der Form der Research-Zeitleiste. Jede Zeile sagt, wie gut das Datum
+bekannt ist, woher es stammt (mit dem Quellenqualitäts-Vokabular des
+Research-Logs), ob es *bestätigt* ist und wann es zuletzt geprüft wurde.
+
+Ein Termin **bucht nichts**: wird eine Dividende tatsächlich gezahlt, läuft
+die Buchung wie immer über das Ledger und der Termin wird als bestätigt
+markiert.
+
+Was im **gesamten Katalog** ansteht — gehaltene Wertpapiere und Kandidaten
+gleichermaßen — erscheint als Karte **Fällig** auf der Übersicht, neben
+*Abweichung vom Ziel* und der Datenqualität. Ein Wertpapier ohne Position
+wird mit *ohne Bestand* markiert statt herausgefiltert.
+
 ### Tab „Research“ (das Research-Log des Wertpapiers)
 
 Der Tab **Research** im Detailbereich ist die menschliche Sicht auf das
