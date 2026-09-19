@@ -225,7 +225,7 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | FR-39, FR-40 | — (mechanism: #710, #711) | derived metrics per security / per view (ladder (a)). **Ungated by the ladder**, no issue yet — depended on the derived-value ADR (gate B3.2) for where the values live; ADR-0039 accepted 2026-08-12 supplies that home, and **the mechanism landed 2026-08-14 (C1–C5, Sprint 6, PR #688)** — these are issue-ready now. **#710 and #711 shipped 2026-08-19 (Sprint 7, PR #716)** — the refresh now runs on the invalidating write, coalesced (one refresh per basis on an import, mutation-verified), and the cross-portfolio walk is activated `:durable` on measured figures (recorded in ADR-0039). These were the mechanism, not the metrics. **The decision landed 2026-09-19: [ADR-0047](../../docs/decisions/0047-derived-metrics-per-security-and-per-view.md), signed by the merge of the Sprint 13 planning PR** — two input series that are never mixed (a security's split-adjusted closes in its own currency; the portfolio's daily valuation walk in the base currency), the portfolio figures read off the TTWROR chain's flow-adjusted factors so an external flow cannot read as a return, a gap producing no observation rather than a zero, a stated minimum below which a metric refuses with a gap marker, the float island widened by exactly `:math.sqrt/1` (AR-3 amended in the same PR), and no signal, rating or action in either payload (pinned by a key-set meta-test). The metrics are E22 and are scheduled as Sprint 13's Lane A; **the story issues are filed at branch opening, after the signature**, and their numbers land in this column then |
 | FR-41, FR-42 | — | contribution analysis; factor/sector/region exposure (ladder (b)). **Ungated by the ladder**, no issue yet |
 | FR-43 | — | policy rules as objects. **Gated: B3.6**, needs its own ADR (rules engine + rule-history retention) |
-| FR-44 | — | security events as objects. **Gated: B3.4**; automatic population is B3.3. Distinct from ADR-0028 corporate actions |
+| FR-44 | ADR-0048 | security events as objects. **Gate B3.4 CLOSED 2026-09-19** by [ADR-0048](../../docs/decisions/0048-security-events-as-first-class-objects.md), signed by the merge of the Sprint 13 planning PR, on the 2026-09-19 agent round's P0-4 — the agent's calendar is built out of the holdings, so a security not yet owned has nowhere to keep a date, and a purchase candidate's reporting date came close to being missed. The decision: a dated calendar fact in its own table that books nothing (never a ledger effect, distinct from ADR-0028), keyed on `security_id` alone so the **catalog is the default scope and `held_only` is the opt-in**, a four-value timing qualifier so a guess is never stored as a filing, **mutable and journaled rather than append-only** (a fact's history is an audit trail, and ADR-0017 is the audit trail — the argued difference from ADR-0044), `source_quality` reusing ADR-0044's vocabulary, four reads as the acceptance criteria, and the re-import guarantee extended in the same batch. **Automatic population stays at B3.3**, alerting and push at B3.7, rules over events at B3.6 — §8 names each. Scheduled as Sprint 13 Lane E; issues filed at branch opening |
 | FR-45, FR-46 | **#747** (E20 tracker; #748–#752), gate **ADR-0044** Accepted | thesis/conviction (**B4.1**) and prediction (**B4.2**) objects. Decided in principle by the identity gate. **FR-45's gate is signed**: ADR-0044 (2026-08-27, owner sign-off 2026-09-03) decides the thesis state and the append-only research log behind it as one object family — the log is the truth, the state is its projection, a retraction is an entry rather than a deletion. **Shipped 2026-09-03 (Sprint 9, PR #754, E20 done)**: #748 the `security_notes` table and context, journal-armed at creation; #749 the thesis state as a projection in the security read; #750 API and MCP append plus the four reads; #751 the research timeline on the security detail pane (the signed same-batch clause); #752 the contract-version read. FR-46 stays at B4.2, adjacent and deliberately separate |
 | FR-47, FR-48 | — | calibration report (needs FR-46); rule evaluation (needs FR-43). Ladder (c) — scores what was recorded before the outcome was known, never a replayed counterfactual, which is level (d) |
 | NFR-9 | — | mechanical scope backstop — guarded set revised 2026-08-12. **Unbuilt requirement, not inventory:** only `mcp_dependency_allowlist_test` exists of the three named backstops |
@@ -305,6 +305,42 @@ suggestions stay out, already answered by ADR-0023 and the permanent non-goals;
 agent discoverability is a product defect this system owns and rides ADR-0044 §8
 as a contract-version read. **One item is the owner's alone:** the signature on
 ADR-0044.
+
+### Backlog beyond the FR set — the 2026-09-19 agent round
+
+The owner's portfolio agent submitted the **third edition** of its
+requirements document (`feedback-triage-2026-09-19.md`), reading Contract v4
+against its own list of 2026-08-27. Five shipped items are correctly ticked
+off. What is left sorts by **what stands between the request and the work**,
+which is the only ordering a plan can act on — and on that reading only one
+item needed anything from this round.
+
+| Item | What | Attaches to | Verdict |
+|---|---|---|---|
+| P0-4 | security events as objects — the agent's calendar is built out of the holdings, so an unheld purchase candidate has nowhere to keep a date | FR-44 / E23 | **Gate closed here.** [ADR-0048](../../docs/decisions/0048-security-events-as-first-class-objects.md) signed 2026-09-19; Sprint 13 Lane E builds it. The agent's own ranking — the only gap that hides risk rather than costing tokens — is adopted |
+| P1-6 (delta half) | `?since=` delta reads | FR-38 / #419 | **Half refuted, half filed.** `?since=` shipped 2026-08-14; it exists on `GET /securities` and `GET /transactions` only (verified: `SinceParam` is aliased in those two controllers and nowhere else). The complaint is really that it is missing from the reads a scheduled run polls — **the #740 shape again**, filed as the FR-38 surface gap, Sprint 14 candidate |
+| P1-6 (trigger half) | threshold alarms | FR-43 / B3.7 | **Gated.** A retrievable alarm list is FR-43's output (B3.6); outbound delivery is B3.7 |
+| P0-2 | rebalancing digest | B3.5 | **Gated**, and additionally dependent on the policy rules having something to evaluate |
+| P0-3 | policy rules — caps and floors live as prose in scheduled prompts, and the agent reports observed drift | FR-43 / B3.6 | **Gated.** The round supplies a *second independent observation* of the drift FR-43 already names, which is the strongest argument yet for opening B3.6 — recorded as evidence for Sprint 14 planning, not opened here. Two gates in one planning PR is the limit of what an owner reads and signs in one sitting |
+| P1-5 | derived metrics and indicators | FR-39/FR-40 / E22 | **Already in flight** — ADR-0047 signed on the same PR; Sprint 13 builds the per-security half. The agent's list and the pipeline moved past each other again |
+| P1-2 | prediction calibration | FR-47 / B4.2 | **Gated** behind FR-46: calibration with no recorded predictions has nothing to score |
+| P1-3 | collector / signals | B3.3 | **Gated** — acquisition beyond quotes and FX |
+| P2-2 | backtesting | ladder (d) | **Out** — a boundary, not a backlog item |
+| Appendix B, Q1 | "does the research log survive a PP re-import?" | — | **Refuted, third consecutive edition.** It survives, identical and mutated, pinned by `reimport_preservation_test.exs` (which asserts the research-log snapshot, the note count and the derived `thesis_state`) and documented in `docs/integration/api-and-mcp.md` → Imports, which names the research log and closes with "an agent that observes otherwise has found a defect, not a documented limitation". #664 refuted the classification/targets half on 2026-08-14; #741 documented it |
+
+**The finding worth carrying:** *a machine-readable "what changed" is not the
+same as a machine-read "what is guaranteed".* The contract-version read of
+ADR-0044 §8 was built after the 2026-08-27 round found an agent had no way to
+learn the surface changed, and it works — this edition cites Contract v4 and
+ticks off five shipped items. Yet the document's most expensive claim is
+false for the third time, because the agent re-derives its list from its own
+previous edition rather than from the integration documentation. A guarantee
+a consumer must not get wrong belongs **where the consumer reads by
+construction** — in the tool description or the payload — which is the same
+rule the metric-basis requirement already states for metrics ("a doc page
+does not satisfy it"). Filed as a Sprint 14 candidate: the re-import
+preservation guarantee gains a sentence in the MCP tool descriptions of the
+reads it protects.
 
 ## Implementation Status — reconciled with code (2026-06-18)
 
@@ -1032,6 +1068,21 @@ issue state and the merge commits on `main`.
   days), the human timeline lands in the same batch, the table is journaled
   from its first migration, and the surface gains a contract-version read so
   an agent can notice the contract changed. FR-45 (FR-46 stays at B4.2).
+- **E23 — Security events** — *phase 3 (agent-first), now.* Tracker **filed at
+  branch opening** (Sprint 13 Lane Z); decision in **ADR-0048** (gate B3.4,
+  signed 2026-09-19 by the merge of the Sprint 13 planning PR), scheduled by
+  the Sprint 13 plan as Lane E. A dated calendar fact about a security —
+  earnings, ex-dividend and payment dates, lockup expiries, index reviews,
+  shareholder meetings, regulatory decisions, guidance — that **books
+  nothing**, and is therefore its own table rather than a ledger event
+  (ADR-0028 is the other thing: a split changes a position). Two boundaries
+  are structural: it covers **every security in the catalog by default**,
+  because a purchase candidate with zero holdings is exactly the security
+  whose dates matter, and entry is **manual or agent only** — nothing fetches
+  a calendar (B3.3 stays shut), nothing alerts (B3.7) and nothing evaluates
+  rules over it (B3.6). Four reads are the acceptance criteria; the table is
+  journaled from its first migration and survives a PP re-import, pinned in
+  the same batch. FR-44.
 - **E22 — Derived metrics per security and per view** — *phase 2, now.* Tracker
   **filed at branch opening** (Sprint 13 Lane Z); decision in **ADR-0047**
   (signed 2026-09-19 by the merge of the Sprint 13 planning PR), scheduled by
