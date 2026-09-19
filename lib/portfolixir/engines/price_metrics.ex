@@ -303,22 +303,20 @@ defmodule Portfolixir.Engines.PriceMetrics do
     start_date = Date.shift(as_of, month: -months)
     opening = newest_on_or_before(series, start_date)
 
-    cond do
-      is_nil(latest) or is_nil(opening) or not positive?(opening.close) ->
-        %{
-          value: nil,
-          window: requested_window(as_of, start_date),
-          observations: resolved_endpoints(latest, opening),
-          insufficient_data: true
-        }
-
-      true ->
-        %{
-          value: ratio(latest.close, opening.close),
-          window: %{start_date: opening.date, end_date: latest.date},
-          observations: 2,
-          insufficient_data: false
-        }
+    if is_nil(latest) or is_nil(opening) or not positive?(opening.close) do
+      %{
+        value: nil,
+        window: requested_window(as_of, start_date),
+        observations: resolved_endpoints(latest, opening),
+        insufficient_data: true
+      }
+    else
+      %{
+        value: ratio(latest.close, opening.close),
+        window: %{start_date: opening.date, end_date: latest.date},
+        observations: 2,
+        insufficient_data: false
+      }
     end
   end
 

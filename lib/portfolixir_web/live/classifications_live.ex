@@ -93,6 +93,32 @@ defmodule PortfolixirWeb.ClassificationsLive do
     )
   end
 
+  defp apply_action(socket, :new, _params) do
+    assign(socket, selected_id: nil, tree: nil)
+  end
+
+  defp apply_action(socket, :show, %{"id" => id} = params) do
+    case Integer.parse(id) do
+      {classification_id, ""} ->
+        # The portfolio page's no-plan hint deep-links here with `?soll_view=`
+        # so the editor opens on the right `(view, classification)` plan
+        # (ADR-0020, #468). Without the param the editor defaults to Gesamt.
+        socket
+        |> assign(:query, "")
+        |> assign(:editing_id, nil)
+        |> assign(:soll_view_id, soll_view_from_params(params))
+        |> load_show(classification_id)
+        |> load_soll()
+        # Started here rather than in load_show/2: reload/1 also calls that, so
+        # putting it there recomputed the roll-up on every holdings arrival and
+        # every edit. It depends on the SELECTION, which changes here.
+        |> start_results(classification_id)
+
+      _ ->
+        push_navigate(socket, to: "/classifications")
+    end
+  end
+
   # #808: one row per tree, built from the reads that already exist —
   # `list_trees/0` carries the categories and the assignments in one pass, and
   # the plan comes from the plan list the SOLL editor already reads. Nothing
@@ -144,36 +170,6 @@ defmodule PortfolixirWeb.ClassificationsLive do
     case Map.get(parents, id) do
       nil -> level
       parent_id -> category_level(parent_id, parents, level + 1)
-    end
-  end
-
-  defp plan_status_label("active"), do: gettext("active")
-  defp plan_status_label("draft"), do: gettext("draft")
-  defp plan_status_label("archived"), do: gettext("archived")
-
-  defp apply_action(socket, :new, _params) do
-    assign(socket, selected_id: nil, tree: nil)
-  end
-
-  defp apply_action(socket, :show, %{"id" => id} = params) do
-    case Integer.parse(id) do
-      {classification_id, ""} ->
-        # The portfolio page's no-plan hint deep-links here with `?soll_view=`
-        # so the editor opens on the right `(view, classification)` plan
-        # (ADR-0020, #468). Without the param the editor defaults to Gesamt.
-        socket
-        |> assign(:query, "")
-        |> assign(:editing_id, nil)
-        |> assign(:soll_view_id, soll_view_from_params(params))
-        |> load_show(classification_id)
-        |> load_soll()
-        # Started here rather than in load_show/2: reload/1 also calls that, so
-        # putting it there recomputed the roll-up on every holdings arrival and
-        # every edit. It depends on the SELECTION, which changes here.
-        |> start_results(classification_id)
-
-      _ ->
-        push_navigate(socket, to: "/classifications")
     end
   end
 
