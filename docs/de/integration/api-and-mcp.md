@@ -255,6 +255,62 @@ auf `/securities/:id`: der Thesenstand oben, die Einträge neueste zuerst mit
 sichtbarer Art und Quellenqualität, ersetzte Einträge als ersetzt markiert,
 Widerrufe lesbar und ein Formular, das einen Eintrag als Betreiber anhängt.
 
+### Wertpapier-Termine (ADR-0048)
+
+Ein **Wertpapier-Termin** ist eine datierte Aussage darüber, dass einem
+Wertpapier etwas bevorsteht oder zugestoßen ist: Geschäftszahlen, ein
+Ex-Dividenden- oder Zahltag, das Ende einer Haltefrist, eine Indexüberprüfung,
+eine Hauptversammlung, eine Behördenentscheidung, eine Prognoseanpassung.
+
+Es ist **keine** Kapitalmaßnahme. Ein Split *verändert eine Position* und ist
+deshalb ein Ledger-Ereignis (ADR-0028); ein Termin für Geschäftszahlen
+verändert nichts, bis sich ein Kurs bewegt — und eine Kursbewegung ist bereits
+ein Kurs. `security_events` ist eine eigene Tabelle, und die Ledger-Projektion
+sieht keine dieser Zeilen. Wird aus dem Termin eine Buchung — die Dividende
+wird tatsächlich gezahlt —, läuft die Buchung wie immer über das Ledger und der
+Termin wird als `confirmed` markiert: **ein Termin wird nie in eine Transaktion
+umgewandelt.**
+
+**Der Katalog, nicht der Bestand.** Termine hängen an `security_id` und an
+nichts sonst, und die katalogweiten Reads umfassen standardmäßig **jedes**
+Wertpapier. `held_only=true` grenzt ein und ist nie die Voreinstellung: ein aus
+der Positionsliste abgeleiteter Kalender kann für ein noch nicht gehaltenes
+Wertpapier keinen Termin führen — und das ist genau das Wertpapier, dessen
+Termine zählen.
+
+**Ein Datum wird qualifiziert.** `timing` ist `exact`, `estimated`, `window`
+(zwischen `date` und `date_end`, nur hier erlaubt) oder `month` (der Monat ist
+bekannt, der Tag nicht). Eine Schätzung darf nicht wie eine Meldung aussehen.
+
+**Änderbar und journalisiert**, bewusst nicht append-only: ein verschobener
+Termin macht das alte Datum nicht zu einem zweiten Fakt, sondern falsch. Eine
+Korrektur ist ein `PATCH` auf derselben Zeile; die Änderungshistorie liegt im
+Audit-Journal.
+
+Die Reads:
+
+- `GET /api/v1/securities/:security_id/events` — die Termine eines
+  Wertpapiers, die nächsten zuerst, mit `limit`.
+- `GET /api/v1/events/upcoming?days=N` — alles, was in den nächsten `N` Tagen
+  (Standard 30) im **gesamten Katalog** ansteht. Ein `window`- oder
+  `month`-Termin ist fällig, sobald **irgendein** Tag, auf den er fallen kann,
+  im Horizont liegt. Optional `kind`, `held_only`, `limit`.
+- `GET /api/v1/events/unconfirmed` — Termine, deren Zeitraum vorbei ist und
+  die niemand bestätigt hat.
+- `GET /api/v1/events/stale?days=N` — Termine, deren `checked_at` älter als
+  `N` Tage ist oder die nie geprüft wurden (`days_since_checked` ist dann
+  `null`).
+
+Die Writes: `POST /api/v1/securities/:security_id/events` (`201`),
+`PATCH /api/v1/security_events/:id` und `DELETE /api/v1/security_events/:id`
+(`204`). `source_quality` verwendet dieselben vier Werte wie das Research-Log.
+Ein Termin trägt **kein Geld**.
+
+**Was diese Fläche nicht ist.** Nichts ruft einen Kalender ab — Eintrag von
+Hand oder durch den Agenten. Der Fälligkeits-Read wird **abgefragt**: es gibt
+keine Benachrichtigung und keine Zustellung nach außen, und keine Regel liest
+diese Zeilen.
+
 ### Abgeleitete Kennzahlen (ADR-0047)
 
 Stufe **(a)** der Scope-Leiter: die Preiskennzahlen eines Wertpapiers, beim
@@ -1300,10 +1356,12 @@ neben der importierten Historie:
   ihren Kategorie- und Positionszielen sowie dem Cash-Ziel; `note` und
   `attributes` jedes Wertpapiers einschließlich eigener Schlüssel; das
   **Research-Log** (`/api/v1/securities/:id/notes` — die nur anhängbaren
-  Einträge und der daraus abgeleitete `thesis_state`, ADR-0044);
-  Wertpapier-ids und `updated_at`. Festgehalten in
+  Einträge und der daraus abgeleitete `thesis_state`, ADR-0044); die
+  **Wertpapier-Termine** (`/api/v1/securities/:id/events` — jeder datierte
+  Kalenderfakt mit seiner Qualifizierung, seiner Bestätigung und seinem
+  `checked_at`, ADR-0048 §7); Wertpapier-ids und `updated_at`. Festgehalten in
   `test/portfolixir/imports/reimport_preservation_test.exs` seit Issue #664
-  (Research-Log ergänzt durch #748).
+  (Research-Log ergänzt durch #748, Wertpapier-Termine durch #829).
 - **Ein veränderter erneuter Import** (eine Umbenennung, ein erfasster
   ISIN-Wechsel, der über einen Alias oder eine explizite Zuordnung aufgelöst
   wird) hält dieselbe Garantie für die zugeordneten Wertpapiere; nur die
@@ -1315,8 +1373,8 @@ neben der importierten Historie:
   die Historie pflegt, nicht den Abgleich zweier Versionen der Historie
   selbst.
 
-Ein Research-Log, ein Plan oder eine Zuordnung „verschwindet“ also nie beim
-nächsten Import; ein Agent, der etwas anderes beobachtet, hat einen Defekt
+Ein Research-Log, ein Kalender, ein Plan oder eine Zuordnung „verschwindet“
+also nie beim nächsten Import; ein Agent, der etwas anderes beobachtet, hat einen Defekt
 gefunden, keine dokumentierte Grenze.
 
 ## Kontraktversion
@@ -1393,6 +1451,15 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
 - `portfolixir.securities.delete_isin_alias` — journalisiertes Löschen eines
   aufgezeichneten Früher-ISIN-Alias.
 - `portfolixir.securities.search_online`
+- `portfolixir.events.list`, `portfolixir.events.create`,
+  `portfolixir.events.update`, `portfolixir.events.delete` — der Kalender
+  eines Wertpapiers und seine drei Schreibzugriffe (ADR-0048).
+- `portfolixir.events.upcoming` — was in den nächsten N Tagen im **gesamten
+  Katalog** ansteht; `held_only` grenzt ein und ist nie die Voreinstellung.
+- `portfolixir.events.unconfirmed` — vergangene Termine, die niemand bestätigt
+  hat.
+- `portfolixir.events.stale` — Termine, die niemand seit N Tagen erneut
+  geprüft hat.
 - `portfolixir.securities.metrics` — die abgeleiteten Preiskennzahlen eines
   Wertpapiers (ADR-0047) über seine eigene splitbereinigte Kursreihe:
   gleitende Durchschnitte, Volatilität, maximaler Drawdown, Momentum und der

@@ -21,6 +21,13 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.securities.delete_isin_alias",
       "portfolixir.securities.search_online",
       "portfolixir.securities.metrics",
+      "portfolixir.events.list",
+      "portfolixir.events.create",
+      "portfolixir.events.update",
+      "portfolixir.events.delete",
+      "portfolixir.events.upcoming",
+      "portfolixir.events.unconfirmed",
+      "portfolixir.events.stale",
       "portfolixir.notes.list",
       "portfolixir.notes.append",
       "portfolixir.notes.unreviewed",
@@ -2202,6 +2209,64 @@ describe("Portfolixir MCP tools", () => {
     assert.match(metrics?.description ?? "", /insufficient_data/);
     assert.match(metrics?.description ?? "", /NOT a reason to retry/);
     assert.match(metrics?.description ?? "", /no signal, recommendation, rating, score or action/);
+  });
+
+  // ADR-0048 (FR-44): security events, agent-first. The whole point of the
+  // object is the DEFAULT SCOPE — the catalog, not the holdings — so the
+  // upcoming tool's description has to say so where the agent reads it.
+  it("wraps the security-events surface and defaults to the whole catalog", async () => {
+    const { client, requests } = createRecordingClient({ data: { events: [] } });
+
+    await callTool(client, "portfolixir.events.list", { security_id: 7 });
+    await callTool(client, "portfolixir.events.create", {
+      security_id: 7,
+      event: {
+        kind: "earnings",
+        date: "2026-11-04",
+        timing: "exact",
+        source_quality: "primary"
+      }
+    });
+    await callTool(client, "portfolixir.events.update", {
+      id: 3,
+      event: { confirmed: true, checked_at: "2026-09-19" }
+    });
+    await callTool(client, "portfolixir.events.delete", { id: 3 });
+    await callTool(client, "portfolixir.events.upcoming", { days: 14 });
+    await callTool(client, "portfolixir.events.unconfirmed", {});
+    await callTool(client, "portfolixir.events.stale", { days: 90 });
+
+    assert.deepEqual(
+      requests.map((request) => `${request.method} ${request.path}`),
+      [
+        "GET /api/v1/securities/7/events",
+        "POST /api/v1/securities/7/events",
+        "PATCH /api/v1/security_events/3",
+        "DELETE /api/v1/security_events/3",
+        "GET /api/v1/events/upcoming?days=14",
+        "GET /api/v1/events/unconfirmed",
+        "GET /api/v1/events/stale?days=90"
+      ]
+    );
+
+    const upcoming = listTools().find((tool) => tool.name === "portfolixir.events.upcoming");
+    assert.match(upcoming?.description ?? "", /WHOLE CATALOG/);
+    assert.match(upcoming?.description ?? "", /NEVER the default/);
+    assert.match(upcoming?.description ?? "", /ANY day it could fall on/);
+    assert.match(upcoming?.description ?? "", /PULL ONLY/);
+
+    // The two queues are deliberately different questions, and the
+    // descriptions have to keep them apart.
+    const stale = listTools().find((tool) => tool.name === "portfolixir.events.stale");
+    assert.match(stale?.description ?? "", /different read/);
+
+    const create = listTools().find((tool) => tool.name === "portfolixir.events.create");
+    assert.match(create?.description ?? "", /HOW WELL YOU KNOW THE DATE/);
+
+    // An event is never converted into a transaction, and the tool set says
+    // so rather than leaving an agent to invent the reconciliation.
+    const list = listTools().find((tool) => tool.name === "portfolixir.events.list");
+    assert.match(list?.description ?? "", /never converted into a transaction/);
   });
 
   it("wraps the research log: list, append and the three hygiene reads", async () => {

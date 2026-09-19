@@ -46,12 +46,29 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "realized volatility, maximum drawdown, momentum and the distance to the 52-week " <>
           "extremes over the security's own split-adjusted close series, every metric " <>
           "carrying its window and observation count and the payload its computation basis; " <>
-          "level (a) reports and carries no signal, rating or action.",
+          "level (a) reports and carries no signal, rating or action. Security events " <>
+          "(ADR-0048, FR-44) — a dated calendar fact that books nothing, tracked for the " <>
+          "WHOLE CATALOG rather than the holdings, with the four reads of §5 and the three " <>
+          "writes that keep them current.",
       endpoints: [
-        "GET /api/v1/securities/:security_id/metrics"
+        "GET /api/v1/securities/:security_id/metrics",
+        "GET /api/v1/securities/:security_id/events",
+        "POST /api/v1/securities/:security_id/events",
+        "PATCH /api/v1/security_events/:id",
+        "DELETE /api/v1/security_events/:id",
+        "GET /api/v1/events/upcoming",
+        "GET /api/v1/events/unconfirmed",
+        "GET /api/v1/events/stale"
       ],
       tools: [
-        "portfolixir.securities.metrics"
+        "portfolixir.securities.metrics",
+        "portfolixir.events.list",
+        "portfolixir.events.create",
+        "portfolixir.events.update",
+        "portfolixir.events.delete",
+        "portfolixir.events.upcoming",
+        "portfolixir.events.unconfirmed",
+        "portfolixir.events.stale"
       ],
       parameters: [],
       removed_endpoints: [],
