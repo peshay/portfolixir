@@ -75,3 +75,4 @@ already in force in the codebase.
 | [0044](0044-security-knowledge-as-an-append-only-log.html) | Security knowledge as an append-only log — the thesis state is its projection, retractions never vanish | Accepted (gate B4.1 + P0-6) |
 | [0045](0045-optional-built-in-authentication.html) | Optional built-in authentication for the web UI, and the deployment contract that goes with it — one password by one variable, loopback and Host-validated by default | Accepted (answers OQ-8) |
 | [0046](0046-benchmark-comparison.html) | Benchmark comparison — a fixed rate or a flagged catalog security, replayed "bought once" and as the portfolio's own savings plan | Accepted (owner sign-off = the merge of PR #780) |
+| [0047](0047-derived-metrics-per-security-and-per-view.html) | Derived metrics — a metric names the series it describes, and carries no verdict | Accepted (design gate for FR-39/FR-40, ladder level (a); owner sign-off = the merge of the Sprint 13 planning PR) |
