@@ -3,7 +3,9 @@ defmodule PortfolixirWeb.TransactionKindLabelTest do
 
   alias Portfolixir.Catalog.AssetClasses
   alias Portfolixir.Catalog.Feeds
+  alias Portfolixir.Knowledge.SecurityEvent
   alias Portfolixir.Ledger.Transaction
+  alias PortfolixirWeb.SecurityEventLabel
   alias PortfolixirWeb.TransactionKindLabel
 
   # User story (#785, EXPERIENCE.md → Amendment 2026-09-12 → Voice and Tone):
@@ -31,6 +33,35 @@ defmodule PortfolixirWeb.TransactionKindLabelTest do
     Gettext.put_locale(PortfolixirWeb.Gettext, "de")
     assert TransactionKindLabel.label("balance_adjustment") == "Saldo gesetzt"
     assert TransactionKindLabel.label("inbound_delivery") != "inbound_delivery"
+  end
+
+  # The same rule, applied to a NEW enum from its first commit rather than
+  # after a review finds a slug on a screen (ADR-0048 §6: "the enum-label
+  # meta-test Sprint 12 added for transaction kinds applies here from the
+  # first commit").
+  test "every security-event kind and timing has a localized label and an unknown value is refused" do
+    Gettext.put_locale(PortfolixirWeb.Gettext, "en")
+
+    for kind <- SecurityEvent.kinds() do
+      label = SecurityEventLabel.kind(kind)
+      assert is_binary(label) and label != "", kind
+      refute label == kind, kind
+      refute label =~ "_", kind
+    end
+
+    for timing <- SecurityEvent.timings() do
+      label = SecurityEventLabel.timing(timing)
+      assert is_binary(label) and label != "", timing
+      refute label == timing, timing
+      refute label =~ "_", timing
+    end
+
+    assert_raise FunctionClauseError, fn -> SecurityEventLabel.kind("bogus_kind") end
+    assert_raise FunctionClauseError, fn -> SecurityEventLabel.timing("soonish") end
+
+    Gettext.put_locale(PortfolixirWeb.Gettext, "de")
+    assert SecurityEventLabel.kind("earnings") == "Geschäftszahlen"
+    assert SecurityEventLabel.timing("estimated") == "Geschätzt"
   end
 
   # The feed identifier is the second slug the review saw on a page: the
