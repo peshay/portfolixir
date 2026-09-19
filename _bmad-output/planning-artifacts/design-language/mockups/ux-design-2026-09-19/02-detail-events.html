@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Termine am Wertpapier (ADR-0048, Lane E3)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  .pane { border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg-elevated); }
+  .pane .hd { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--color-border); }
+  .pane .hd .avatar { width: 40px; height: 40px; font-size: 14px; border-radius: 8px; grid-row: auto; }
+  .pane .hd h3 { margin: 0; font-size: 17px; }
+  .pane .hd .meta { font-size: 12px; color: var(--color-text-muted); }
+  .tabs { display: flex; gap: 2px; padding: 0 18px; border-bottom: 1px solid var(--color-border); overflow-x: auto; }
+  .tabs span { padding: 8px 10px; font-size: 13px; color: var(--color-text-muted); white-space: nowrap; flex: none; }
+  .tabs span.on { color: var(--color-accent); font-weight: 700; box-shadow: inset 0 -2px 0 var(--color-accent); }
+  .body { padding: 16px 18px; display: grid; gap: 16px; }
+  .sec-head { display: flex; align-items: baseline; gap: 10px; }
+  .sec-head h4 { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--color-text-muted); }
+  .sec-head .add { margin-left: auto; font-size: 12px; color: var(--color-accent); }
+  /* event row — the research-entry shape */
+  .ev { display: grid; grid-template-columns: 5.6rem 1fr auto; gap: 2px 12px; padding: 9px 11px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); align-items: baseline; }
+  .ev + .ev { margin-top: 6px; }
+  .ev .d { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 13px; }
+  .ev .d em { display: block; font-style: normal; font-size: 11px; font-weight: 500; color: var(--color-text-subtle); }
+  .ev .t { font-size: 13px; }
+  .ev .t .k { font-weight: 600; }
+  .ev .f { grid-column: 2 / 4; font-size: 11.5px; color: var(--color-text-muted); }
+  .ev .s { font-size: 11px; }
+  .ev.past { background: var(--color-bg-muted); }
+  .pill { display: inline-block; padding: 0 7px; border-radius: 999px; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+  .pill.ok { background: var(--color-accent-soft); color: var(--color-accent); }
+  .pill.est { background: var(--color-bg-muted); color: var(--color-text-muted); }
+  .pill.due { background: var(--color-danger-soft); color: var(--color-danger); }
+  .thesis { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 10px 12px; font-size: 13px; background: var(--color-bg); }
+  .thesis .u-caps { display: block; margin-bottom: 4px; }
+  .quiet { font-size: 12px; color: var(--color-text-muted); }
+  .basis { font-size: 11.5px; color: var(--color-text-muted); margin: 0; }
+</style>
+</head>
+<body>
+
+<!-- ============================ VARIANTE A ============================ -->
+<section class="mock-board">
+  <h2>Variante A — ein Abschnitt „Termine“ im bestehenden Reiter „Research“ <small>empfohlen · kostet keinen Reiter</small></h2>
+  <p class="mock-note">Der Research-Reiter beantwortet heute „was weiß ich über dieses Papier“. Ein Termin, den ich erfasst habe, ist Wissen derselben Art: gleiche Herkunft (ich oder der Agent trägt ihn ein), gleiche Quellenqualität-Skala (ADR-0044s vier Werte, von ADR-0048 §6 wiederverwendet), gleiche Zeilenform wie die Research-Einträge. Der Reiter wird damit „was ich weiß und was kommt“ — und der Reiterstreifen, den #817 gerade repariert, bleibt bei acht.</p>
+  <div class="mock-frame"><div class="workspace-section">
+    <div class="pane">
+      <div class="hd"><span class="avatar">NT</span><div><h3>Nordic Timber Holdings AB</h3><div class="meta">SE0000000012 · NTHB · SEK · Aktie</div></div></div>
+      <div class="tabs"><span>Übersicht</span><span>Diagramm</span><span>Transaktionen</span><span>Trades</span><span>Kurse</span><span>Bestände</span><span>Klassifizierungen</span><span class="on">Research</span></div>
+      <div class="body">
+        <div>
+          <div class="sec-head"><h4>Termine</h4><span class="quiet">3 anstehend · 1 unbestätigt überfällig</span><a href="#" class="add">+ Termin</a></div>
+          <div class="ev">
+            <span class="d">2026-10-28<em>in 39 Tagen</em></span>
+            <span class="t"><span class="k">Quartalszahlen</span> <span class="pill ok">bestätigt</span></span>
+            <span class="s u-muted">geprüft 2026-09-14</span>
+            <span class="f">Quelle: Finanzkalender des Emittenten · primär · „Q3, vorbörslich“</span>
+          </div>
+          <div class="ev">
+            <span class="d">2026-11-14<em>in 56 Tagen</em></span>
+            <span class="t"><span class="k">Ende Lock-up</span> <span class="pill est">geschätzt</span></span>
+            <span class="s u-muted">geprüft 2026-08-30</span>
+            <span class="f">Quelle: Prospekt · primär · 180 Tage nach Erstnotiz, Datum abgeleitet</span>
+          </div>
+          <div class="ev">
+            <span class="d">2026-12<em>Monat bekannt, Tag nicht</em></span>
+            <span class="t"><span class="k">Indexüberprüfung</span> <span class="pill est">geschätzt</span></span>
+            <span class="s u-muted">geprüft 2026-09-01</span>
+            <span class="f">Quelle: Indexanbieter, Regelwerk · sekundär, mehrfach</span>
+          </div>
+          <div class="ev past">
+            <span class="d">2026-09-05<em>vor 14 Tagen</em></span>
+            <span class="t"><span class="k">Hauptversammlung</span> <span class="pill due">unbestätigt, fällig</span></span>
+            <span class="s u-muted">geprüft 2026-07-02</span>
+            <span class="f">Datum liegt zurück und der Termin ist nicht als bestätigt markiert — stattgefunden? Eintrag öffnen und bestätigen oder korrigieren.</span>
+          </div>
+          <p class="basis" style="margin-top:8px">Termine sind Kalenderfakten und buchen nichts (ADR-0048 §1). Ein Zeitfenster gilt als fällig, sobald <em>irgendein</em> Tag darin im Horizont liegt. <span class="u-muted">ⓘ</span></p>
+        </div>
+
+        <div>
+          <div class="sec-head"><h4>These</h4><a href="#" class="add">+ Eintrag</a></div>
+          <div class="thesis"><span class="u-caps">These · intakt</span>Der Sägewerk-Mix trägt die Marge durch den Zyklus; halten, solange die Kapazitätsauslastung über 80 % bleibt.<div class="quiet" style="margin-top:6px">Stand 2026-05-15 · Überzeugung mittel · Zeitstopp 2027-03-31</div></div>
+        </div>
+
+        <div>
+          <div class="sec-head"><h4>Forschungsprotokoll</h4><span class="quiet">4 Einträge</span></div>
+          <div class="ev"><span class="d">2026-09-08</span><span class="t"><span class="k">Widerruf</span></span><span class="s u-muted">Agent</span><span class="f">Ersetzt den Belegeintrag vom 2026-06-02 — die Kapazitätszahl stammte aus einer Präsentation, nicht dem Bericht.</span></div>
+          <div class="ev"><span class="d">2026-06-02</span><span class="t"><span class="k">Beleg</span> <span class="quiet">· überholt</span></span><span class="s u-muted">unbestätigt</span><span class="f">Kapazitätsauslastung 84 % im Q1-Bericht.</span></div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ VARIANTE B ============================ -->
+<section class="mock-board">
+  <h2>Variante B — ein eigener Reiter „Termine“ <small>ehrliche Trennung, Preis: der neunte Reiter</small></h2>
+  <p class="mock-note">Sauberste Trennung der Begriffe: ein Termin ist keine Recherche. UX-DR22 verbietet das nicht — die Reiterzeile scrollt, das ist die Regel seit #702 — aber sie tut es in einem Panel von rund 360 px, in dem schon acht Reiter überlaufen, und Lane A3 hätte gern denselben Platz. Wenn genau <em>ein</em> neuer Reiter vergeben wird, ist das die Frage, die der Owner entscheidet, nicht zwei Stories unabhängig voneinander.</p>
+  <div class="mock-frame"><div class="workspace-section">
+    <div class="pane">
+      <div class="hd"><span class="avatar">NT</span><div><h3>Nordic Timber Holdings AB</h3><div class="meta">SE0000000012 · NTHB · SEK</div></div></div>
+      <div class="tabs"><span>Übersicht</span><span>Diagramm</span><span>Transaktionen</span><span>Trades</span><span>Kurse</span><span>Bestände</span><span>Klassifizierungen</span><span>Research</span><span class="on">Termine</span></div>
+      <div class="body">
+        <div class="sec-head"><h4>Termine</h4><span class="quiet">3 anstehend · 1 unbestätigt überfällig</span><a href="#" class="add">+ Termin</a></div>
+        <div class="ev"><span class="d">2026-10-28<em>in 39 Tagen</em></span><span class="t"><span class="k">Quartalszahlen</span> <span class="pill ok">bestätigt</span></span><span class="s u-muted">geprüft 2026-09-14</span><span class="f">Quelle: Finanzkalender des Emittenten · primär</span></div>
+        <div class="ev"><span class="d">2026-11-14<em>in 56 Tagen</em></span><span class="t"><span class="k">Ende Lock-up</span> <span class="pill est">geschätzt</span></span><span class="s u-muted">geprüft 2026-08-30</span><span class="f">Quelle: Prospekt · primär</span></div>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ VARIANTE C ============================ -->
+<section class="mock-board">
+  <h2>Variante C — ein Block auf dem Reiter „Übersicht“, neben These und Notiz</h2>
+  <p class="mock-note">Die Übersicht ist seit #804 die Lesefläche: „was ist das, wie steht es, was denke ich darüber“ — „was kommt“ passt in diese Reihe. Kostet ebenfalls keinen Reiter und ist die kürzeste Strecke zum Termin. Der Preis: die Übersicht trägt bereits sechs Kennzahlen, ein Diagramm, eine Basiszeile und zwei Karten; unter 900 px fallen die Karten untereinander, und ein vierter Block schiebt alles weiter nach unten. Die Terminliste ist außerdem die einzige der drei, die <em>wachsen</em> kann.</p>
+  <div class="mock-frame"><div class="workspace-section">
+    <div class="pane">
+      <div class="hd"><span class="avatar">NT</span><div><h3>Nordic Timber Holdings AB</h3><div class="meta">SE0000000012 · NTHB · SEK</div></div></div>
+      <div class="tabs"><span class="on">Übersicht</span><span>Diagramm</span><span>Transaktionen</span><span>Trades</span><span>Kurse</span><span>Bestände</span><span>Klassifizierungen</span><span>Research</span></div>
+      <div class="body" style="grid-template-columns:1.2fr 1fr; display:grid">
+        <div class="u-gap">
+          <div class="quiet">Sechs Kennzahlen · Kursverlauf · Basiszeile <span class="u-muted">(wie #804 gebaut)</span></div>
+          <div style="height:96px;border:1px solid var(--color-border);border-radius:var(--radius-md);display:grid;place-items:center;color:var(--color-text-subtle);font-size:12px;background:var(--color-bg)">Kursverlauf 1J</div>
+        </div>
+        <div class="u-gap">
+          <div class="thesis"><span class="u-caps">These · intakt</span>Der Sägewerk-Mix trägt die Marge durch den Zyklus.</div>
+          <div class="thesis"><span class="u-caps">Termine · 3 anstehend</span><span style="font-size:12.5px">28.10. Quartalszahlen · 14.11. Ende Lock-up · Dez. Indexüberprüfung</span><div class="quiet" style="margin-top:6px">1 unbestätigt überfällig → Research</div></div>
+          <div class="thesis"><span class="u-caps">Notiz</span><span class="quiet">Keine persönliche Notiz.</span></div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+</body>
+</html>

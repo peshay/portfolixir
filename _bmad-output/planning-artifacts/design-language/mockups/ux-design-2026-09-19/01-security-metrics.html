@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Kennzahlen am Wertpapier (ADR-0047, Lane A3)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  .pane { border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg-elevated); }
+  .pane .hd { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--color-border); }
+  .pane .hd .avatar { width: 40px; height: 40px; font-size: 14px; border-radius: 8px; grid-row: auto; }
+  .pane .hd h3 { margin: 0; font-size: 17px; }
+  .pane .hd .meta { font-size: 12px; color: var(--color-text-muted); }
+  .tabs { display: flex; gap: 2px; padding: 0 18px; border-bottom: 1px solid var(--color-border); overflow-x: auto; }
+  .tabs span { padding: 8px 10px; font-size: 13px; color: var(--color-text-muted); white-space: nowrap; flex: none; }
+  .tabs span.on { color: var(--color-accent); font-weight: 700; box-shadow: inset 0 -2px 0 var(--color-accent); }
+  .body { padding: 16px 18px; display: grid; gap: 14px; }
+  .toolbar { display: flex; gap: 6px; align-items: center; font-size: 12px; }
+  .rb { padding: 3px 9px; border: 1px solid var(--color-border); border-radius: 999px; color: var(--color-text-muted); }
+  .rb.on { border-color: var(--color-accent); color: var(--color-accent); font-weight: 700; }
+  .chartbox { border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); padding: 8px; }
+  /* the metric strip */
+  .mx { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 18px; }
+  .mx .m { display: grid; gap: 1px; padding: 8px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); }
+  .mx .m i { font-style: normal; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); }
+  .mx .m b { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .mx .m b small { font-size: 11px; font-weight: 600; color: var(--color-text-muted); margin-left: 3px; }
+  .mx .m span.w { font-size: 11px; color: var(--color-text-subtle); }
+  .mx .m.nd b { font-size: 14px; font-weight: 600; color: var(--color-text-subtle); }
+  .legend { display: flex; gap: 14px; font-size: 11px; color: var(--color-text-muted); align-items: center; }
+  .legend i { display: inline-block; width: 16px; height: 0; border-top: 2px solid var(--color-accent); margin-right: 5px; vertical-align: middle; }
+  .legend i.d1 { border-top-style: dashed; border-top-color: #7a5cc4; }
+  .legend i.d2 { border-top-style: dotted; border-top-color: #b07a2a; }
+  .disc { font-size: 12px; color: var(--color-text-muted); }
+  .basis { font-size: 11.5px; color: var(--color-text-muted); }
+</style>
+</head>
+<body>
+
+<!-- ============================ VARIANTE A ============================ -->
+<section class="mock-board">
+  <h2>Variante A — Kennzahlenstreifen unter dem Diagramm, gleitende Durchschnitte <em>im</em> Diagramm <small>empfohlen</small></h2>
+  <p class="mock-note">Der Reiter „Diagramm“ behält Werkzeugleiste und Kursverlauf; SMA-50 und SMA-200 werden als zweite und dritte Serie gezeichnet (Slot 2 gestrichelt, Slot 3 gepunktet — UX-DR7), darunter sechs Kennzahlen für <strong>genau den Zeitraum, den die Bereichsschaltflächen setzen</strong>. Kein zweites Periodensteuerelement. Der Abstand zum Durchschnitt steht als Zahl, die Kreuzung sieht man — beides zusammen ist die Aussage, einzeln ist keines davon eine. Die „Daten als Tabelle“-Disclosure (UX-DR10) deckt Kurs <em>und</em> beide Durchschnitte ab.</p>
+  <div class="mock-frame"><div class="workspace-section">
+    <div class="pane">
+      <div class="hd"><span class="avatar">NT</span><div><h3>Nordic Timber Holdings AB</h3><div class="meta">SE0000000012 · NTHB · SEK · Aktie</div></div></div>
+      <div class="tabs"><span>Übersicht</span><span class="on">Diagramm</span><span>Transaktionen</span><span>Trades</span><span>Kurse</span><span>Bestände</span><span>Klassifizierungen</span><span>Research</span></div>
+      <div class="body">
+        <div class="toolbar"><span class="rb">1M</span><span class="rb">6M</span><span class="rb on">1J</span><span class="rb">3J</span><span class="rb">Max</span><span class="u-muted" style="margin-left:6px">Eigener Zeitraum…</span></div>
+        <div class="chartbox">
+          <svg viewBox="0 0 760 150" width="100%" height="150" role="img" aria-label="Kursverlauf 1 Jahr mit SMA-50 und SMA-200, Nordic Timber Holdings AB, SEK">
+            <polyline fill="none" stroke="var(--color-accent)" stroke-width="2" points="0,108 55,96 110,112 165,84 220,92 275,66 330,74 385,52 440,63 495,40 550,49 605,33 660,44 715,28 760,36"/>
+            <polyline fill="none" stroke="#7a5cc4" stroke-width="1.6" stroke-dasharray="6 4" points="0,112 55,107 110,104 165,99 220,95 275,89 330,84 385,78 440,73 495,67 550,61 605,55 660,50 715,44 760,40"/>
+            <polyline fill="none" stroke="#b07a2a" stroke-width="1.6" stroke-dasharray="2 3" points="0,120 55,118 110,116 165,113 220,111 275,108 330,105 385,102 440,99 495,95 550,92 605,88 660,85 715,81 760,78"/>
+          </svg>
+        </div>
+        <div class="legend"><span><i></i>Kurs</span><span><i class="d1"></i>SMA 50</span><span><i class="d2"></i>SMA 200</span></div>
+        <div class="mx">
+          <div class="m"><i>SMA 50</i><b>104,22<small>SEK</small></b><span class="w">Abstand +12,1 % · 50 von 50 Kursen</span></div>
+          <div class="m"><i>SMA 200</i><b>96,80<small>SEK</small></b><span class="w">Abstand +20,7 % · 200 von 200 Kursen</span></div>
+          <div class="m"><i>Volatilität, annualisiert</i><b>24,8<small>%</small></b><span class="w">1 Jahr · 248 Beobachtungen</span></div>
+          <div class="m"><i>Max. Rückgang</i><b class="u-neg">−18,4<small>%</small></b><span class="w">2026-02-11 → 2026-04-03 · erholt 2026-06-20</span></div>
+          <div class="m"><i>Momentum 3M / 6M / 12M</i><b class="u-pos">+6,1 / +14,9 / +31,4<small>%</small></b><span class="w">Schlusskurs zu Schlusskurs</span></div>
+          <div class="m"><i>Abstand Hoch / Tief 52W</i><b>−3,8 / +37,2<small>%</small></b><span class="w">Hoch 121,40 (2026-09-02) · Tief 79,10 (2025-11-14)</span></div>
+        </div>
+        <p class="basis">Berechnungsgrundlage: eigene Schlusskursreihe, splitbereinigt (ADR-0028 §2), in SEK — der Währung des Wertpapiers, nicht der Depotwährung. Ein Tag ohne gespeicherten Schlusskurs erzeugt <strong>keine</strong> Beobachtung, keine Null. Annualisiert mit √252. <span class="u-muted">ⓘ</span></p>
+        <p class="disc">▸ Daten als Tabelle <span class="u-muted">— Kurs, SMA 50 und SMA 200 je Handelstag; die Zugänglichkeitsalternative zum Diagramm.</span></p>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ VARIANTE B ============================ -->
+<section class="mock-board">
+  <h2>Variante B — nur Zahlen, das Diagramm bleibt einserig</h2>
+  <p class="mock-note">Derselbe Streifen, aber der Kursverlauf behält eine Linie. Die gleitenden Durchschnitte erscheinen ausschließlich als Wert plus Abstand. Billiger, ruhiger, und bei 360 px Panelbreite das lesbarere Diagramm — der Preis ist, dass die Kreuzung (SMA 50 über SMA 200) nirgends sichtbar wird, sondern aus zwei Zahlen erschlossen werden muss.</p>
+  <div class="mock-frame"><div class="workspace-section">
+    <div class="pane">
+      <div class="hd"><span class="avatar">NT</span><div><h3>Nordic Timber Holdings AB</h3><div class="meta">SE0000000012 · NTHB · SEK · Aktie</div></div></div>
+      <div class="tabs"><span>Übersicht</span><span class="on">Diagramm</span><span>Transaktionen</span><span>Trades</span><span>Kurse</span><span>Bestände</span><span>Klassifizierungen</span><span>Research</span></div>
+      <div class="body">
+        <div class="toolbar"><span class="rb">1M</span><span class="rb">6M</span><span class="rb on">1J</span><span class="rb">3J</span><span class="rb">Max</span><span class="u-muted" style="margin-left:6px">Eigener Zeitraum…</span></div>
+        <div class="chartbox">
+          <svg viewBox="0 0 760 150" width="100%" height="150" role="img" aria-label="Kursverlauf 1 Jahr, Nordic Timber Holdings AB, SEK">
+            <polyline fill="none" stroke="var(--color-accent)" stroke-width="2" points="0,108 55,96 110,112 165,84 220,92 275,66 330,74 385,52 440,63 495,40 550,49 605,33 660,44 715,28 760,36"/>
+          </svg>
+        </div>
+        <div class="mx">
+          <div class="m"><i>SMA 50</i><b>104,22<small>SEK</small></b><span class="w">Abstand +12,1 %</span></div>
+          <div class="m"><i>SMA 200</i><b>96,80<small>SEK</small></b><span class="w">Abstand +20,7 %</span></div>
+          <div class="m"><i>Volatilität, annualisiert</i><b>24,8<small>%</small></b><span class="w">1 Jahr · 248 Beobachtungen</span></div>
+          <div class="m"><i>Max. Rückgang</i><b class="u-neg">−18,4<small>%</small></b><span class="w">2026-02-11 → 2026-04-03 · erholt 2026-06-20</span></div>
+          <div class="m"><i>Momentum 3M / 6M / 12M</i><b class="u-pos">+6,1 / +14,9 / +31,4<small>%</small></b><span class="w">Schlusskurs zu Schlusskurs</span></div>
+          <div class="m"><i>Abstand Hoch / Tief 52W</i><b>−3,8 / +37,2<small>%</small></b><span class="w">Hoch 121,40 · Tief 79,10</span></div>
+        </div>
+        <p class="basis">Berechnungsgrundlage: eigene Schlusskursreihe, splitbereinigt, in SEK. Lücken erzeugen keine Beobachtung. Annualisiert mit √252. <span class="u-muted">ⓘ</span></p>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ======================= DER ZUSTAND, DER ZÄHLT ======================= -->
+<section class="mock-board">
+  <h2>Beide Varianten: der Zustand „nicht genug Daten“ <small>ein junges Papier mit 41 gespeicherten Kursen</small></h2>
+  <p class="mock-note">Der Fall, an dem sich ein Kennzahlenblock entscheidet. ADR-0047 §5 nennt Mindestbeobachtungen je Kennzahl und verlangt, dass darunter <code>null</code> mit <code>insufficient_data: true</code> und der Beobachtungszahl zurückkommt — also kann die Oberfläche sagen, <em>was fehlt</em>, statt „—“ zu zeigen. Die nicht berechenbaren Zellen tragen den Nicht-berechenbar-Zustand des <code>{components.value-slot}</code> (kleiner, gedämpft, <strong>nie</strong> in Wertgewichtung — der Befund aus dem Sprint-12-Closing-Act).</p>
+  <div class="mock-frame"><div class="workspace-section">
+    <div class="pane">
+      <div class="hd"><span class="avatar">HL</span><div><h3>Helios Solar Systems SE</h3><div class="meta">DE000HLSO0001 · HLSO · EUR · Aktie · seit 2026-07-24 im Katalog</div></div></div>
+      <div class="tabs"><span>Übersicht</span><span class="on">Diagramm</span><span>Transaktionen</span><span>Trades</span><span>Kurse</span><span>Bestände</span><span>Klassifizierungen</span><span>Research</span></div>
+      <div class="body">
+        <div class="mx">
+          <div class="m nd"><i>SMA 50</i><b>nicht berechenbar</b><span class="w">braucht 50 Kurse, hat 41</span></div>
+          <div class="m nd"><i>SMA 200</i><b>nicht berechenbar</b><span class="w">braucht 200 Kurse, hat 41</span></div>
+          <div class="m"><i>Volatilität, annualisiert</i><b>31,6<small>%</small></b><span class="w">40 Beobachtungen · Mindestmaß 20</span></div>
+          <div class="m"><i>Max. Rückgang</i><b class="u-neg">−9,2<small>%</small></b><span class="w">2026-08-19 → 2026-09-04 · nicht erholt</span></div>
+          <div class="m"><i>Momentum 3M / 6M / 12M</i><b class="u-pos">+4,8<small>%</small></b><span class="w" style="color:var(--color-text-subtle)">6M und 12M nicht berechenbar — Reihe beginnt 2026-07-24</span></div>
+          <div class="m"><i>Abstand Hoch / Tief 52W</i><b>−2,1 / +11,7<small>%</small></b><span class="w">seit Reihenbeginn, nicht 52 Wochen</span></div>
+        </div>
+        <p class="basis">Fünf von sechs Kennzahlen tragen ihre Fenstergrenze im Text. Keine Zelle ist leer, keine zeigt eine Zahl, die sie nicht hat.</p>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ VARIANTE C ============================ -->
+<section class="mock-board">
+  <h2>Variante C — eigener Reiter „Kennzahlen“ <small>hier abgebildet, um den Preis zu zeigen</small></h2>
+  <p class="mock-note">Der Reiterstreifen ist die knappste horizontale Ressource der App: acht Reiter in einem Panel von rund 360 px Standardbreite, und #817 repariert diesen Streifen gerade, <em>weil</em> er überläuft. UX-DR22 erlaubt einen neunten (die Zeile scrollt), aber Sprint 13 will an derselben Stelle auch die Termine unterbringen — zwei neue Reiter sind das Budget zweimal ausgegeben. Dazu trennt ein eigener Reiter die Zahlen von der Reihe, die sie beschreiben: „SMA 200 = 96,80“ ohne den Kurs daneben ist keine Aussage.</p>
+  <div class="mock-frame"><div class="workspace-section">
+    <div class="pane">
+      <div class="hd"><span class="avatar">NT</span><div><h3>Nordic Timber Holdings AB</h3><div class="meta">SE0000000012 · NTHB · SEK</div></div></div>
+      <div class="tabs"><span>Übersicht</span><span>Diagramm</span><span class="on">Kennzahlen</span><span>Transaktionen</span><span>Trades</span><span>Kurse</span><span>Bestände</span><span>Klassifizierungen</span><span>Research</span></div>
+      <div class="body"><p class="u-muted" style="font-size:13px;margin:0">Neunter Reiter — derselbe Streifen, ohne die Reihe daneben.</p></div>
+    </div>
+  </div></div>
+</section>
+
+</body>
+</html>
