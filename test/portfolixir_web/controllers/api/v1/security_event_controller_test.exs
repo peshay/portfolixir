@@ -312,6 +312,49 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventControllerTest do
              |> json_response(404)
   end
 
+  # User story (the patch-coverage listing of the pre-promotion CI run, which
+  # D-5 requires read BEFORE promotion):
+  # As the agent calling the event surface with a malformed request,
+  # I want every malformed shape to answer a 4xx naming what is wrong,
+  # so that a parameter sent as a list, or a body sent as a string, is a
+  # error I can correct rather than a 500 I cannot.
+  #
+  # Acceptance criteria:
+  # - A closed-set or boolean parameter sent as a list is a 422 naming it.
+  # - An `event` body that is not an object is a 422, not a crash.
+  # - A non-numeric `security_id` filter is a 422.
+  # - Deleting an event that has since vanished is a 404 at the route, not
+  #   only at the context.
+  test "every malformed shape answers a 4xx naming the field", %{conn: conn} do
+    security = create_security!(name: "Malformed Co", ticker: "MFC")
+
+    assert %{"errors" => %{"held_only" => [_ | _]}} =
+             conn |> get("/api/v1/events/upcoming?held_only[]=yes") |> json_response(422)
+
+    assert %{"errors" => %{"kind" => [_ | _]}} =
+             conn |> get("/api/v1/events/stale?kind[]=earnings") |> json_response(422)
+
+    assert %{"errors" => %{"security_id" => [_ | _]}} =
+             conn
+             |> get("/api/v1/events/unconfirmed", %{"security_id" => "abc"})
+             |> json_response(422)
+
+    # An `event` that is not an object: the required fields are simply
+    # absent, which is a changeset error rather than a crash.
+    assert %{"errors" => errors} =
+             conn
+             |> post("/api/v1/securities/#{security.id}/events", %{"event" => "nonsense"})
+             |> json_response(422)
+
+    assert Map.has_key?(errors, "kind")
+
+    event = event!(security, %{})
+    {:ok, _} = Events.delete_event(Actor.owner_ui(), event)
+
+    assert %{"errors" => _} =
+             conn |> delete("/api/v1/security_events/#{event.id}") |> json_response(404)
+  end
+
   # Acceptance criteria (AR-11):
   # - Every event surface is behind the local bearer token.
   test "requires the bearer token", %{conn: conn} do
