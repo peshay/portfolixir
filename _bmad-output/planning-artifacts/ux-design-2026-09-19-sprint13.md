@@ -15,11 +15,21 @@ approximation. Data is the committed synthetic seed's (`Nordic Timber Holdings
 AB`, `Helios Solar Systems SE`) plus two further invented names in the same
 style; no real instrument appears.
 
-| Surface | Mockup | Variants | Recommended |
-|---|---|---|---|
-| D1 — per-security metrics (ADR-0047, Lane A3) | `01-security-metrics` | strip + chart overlay · strip only · own tab | **A** |
-| D2 — events on the detail pane (ADR-0048, Lane E3) | `02-detail-events` | in Research · own tab · on Overview | **A** |
-| D3 — upcoming events across the catalog (ADR-0048 §5.2) | `03-upcoming-surface` | Overview card · + Securities facet · own route | **A**, with B named as the upgrade |
+**Picked by the owner on 2026-09-19: D1-A, D2-B, D3-A.** Recorded here, on the
+planning PR, and in the plan's D-8; the stories write each picked anatomy into
+`DESIGN.md`.
+
+| Surface | Mockup | Variants | Recommended | **Picked** |
+|---|---|---|---|---|
+| D1 — per-security metrics (ADR-0047, Lane A3) | `01-security-metrics` | strip + chart overlay · strip only · own tab | A | **A** |
+| D2 — events on the detail pane (ADR-0048, Lane E3) | `02-detail-events` | in Research · own tab · on Overview | A | **B** |
+| D3 — upcoming events across the catalog (ADR-0048 §5.2) | `03-upcoming-surface` | Overview card · + Securities facet · own route | A | **A** |
+
+**The picked set spends exactly one tab, and that is within the budget Part 0
+sets.** D1-A puts the metrics where the chart already is and spends none; D2-B
+spends the one available tab on "Termine", which is the use Part 2 named for
+it. The combination Part 0 advises against — D1-C together with D2-B, two tabs
+— did not occur.
 
 ---
 
@@ -39,13 +49,21 @@ with a budget rather than a layout:
 > **At most one new tab on the detail pane this sprint, and the recommended
 > set spends none.**
 
+**Outcome (2026-09-19): the owner spent the one tab, on D2-B.** The budget did
+its job — it made the choice explicit and singular instead of letting two
+stories each take one. **A consequence rides with it: #817 stops being a
+nicety.** The tab row now carries nine tabs in that ~360 px panel, so the D6
+treatment #817 is applying — scroll-snap, the right-edge fade, no wrapping —
+is what keeps the ninth tab reachable. #817 and Lane E3 should land in that
+order.
+
 UX-DR22 is not violated by a ninth tab — the rule is explicit that a
 within-area tab row *scrolls*, never collapses and never wraps, and scrolling
-is what it would do. The cost is not a rule breach; it is that every tab after
-the fifth is found by scrolling a row most readers do not know scrolls, and
-the two candidates here have better homes anyway. Both recommendations below
-are argued on their own merits; the budget is what makes the *combination*
-coherent.
+is what it does. The cost is not a rule breach; it is that every tab after the
+fifth is found by scrolling a row most readers do not know scrolls. That is a
+price worth paying once, for the surface a reader goes looking for by name,
+and not twice. Each variant below is argued on its own merits; the budget is
+what makes the *combination* coherent.
 
 ---
 
@@ -65,7 +83,7 @@ difference between a figure that means something and a figure that does not.
 average (a picture). A design that prints the value and omits both has shipped
 a row of digits.
 
-### Variant A — strip under the chart, moving averages drawn in it *(recommended)*
+### Variant A — strip under the chart, moving averages drawn in it *(recommended · **PICKED**)*
 
 The chart tab keeps its toolbar and price series; SMA-50 and SMA-200 render as
 the second and third series — dashed and dotted, the UX-DR7 colour-independence
@@ -133,7 +151,7 @@ ADR-0048's Consequences place the per-security list "on the securities detail
 pane" and §7's shape note says the research timeline's form. Where exactly is
 open.
 
-### Variant A — a "Termine" section inside the existing Research tab *(recommended)*
+### Variant A — a "Termine" section inside the existing Research tab *(recommended, **not picked**)*
 
 The Research tab answers *what do I know about this security*. A date the
 operator or the agent recorded is knowledge of the same kind, and the record
@@ -151,12 +169,26 @@ The honest cost: the Research tab now holds two kinds of thing, and its label
 says one of them. If that bothers the owner more than a scrolled tab row does,
 B is the answer and the document says so rather than defending A to the end.
 
-### Variant B — a ninth tab, "Termine"
+### Variant B — a ninth tab, "Termine" *(**PICKED**, owner 2026-09-19)*
 
 Cleanest separation of concepts; costs the tab budget. Legitimate under
 UX-DR22. **If the owner wants exactly one new tab this sprint, this is the one
 to spend it on** — the events list is the thing a reader goes looking for by
-name, while the metrics are found where the chart already is.
+name, while the metrics are found where the chart already is. That is the
+pick, and it is the use the budget was being kept for.
+
+What the pick changes, concretely:
+
+- `detail_tabs/0` in `securities_live.ex` gains an `events` entry, and
+  `@tabs` with it; the Research tab keeps exactly what it has today.
+- **#817 becomes load-bearing rather than tidy** — nine tabs in a ~360 px
+  panel means the D6 scroll-snap and edge fade are what make the last tab
+  reachable at all. Land #817 before Lane E3.
+- The events row shape still reuses the research timeline's
+  (`.research-entry__facts`) and ADR-0044's source-quality vocabulary; only
+  the container changes. Nothing in the row design is discarded by the pick.
+- `DESIGN.md` gains the tab itself in the D2 anatomy (Part 6), not only the
+  row.
 
 ### Variant C — a block on the Overview tab, beside thesis and note
 
@@ -183,7 +215,7 @@ security. The precedent is one document down: Cash flow became a **tab under
 Wealth** rather than a sidebar entry, because "a second entry would make Cash
 flow compete with its own parent".
 
-### Variant A — a "Fällig" attention card on the Overview *(recommended)*
+### Variant A — a "Fällig" attention card on the Overview *(recommended · **PICKED**)*
 
 UX-DR2 makes the Overview the analysis home that carries "Off target" and data
 quality — the surface that answers *what needs attention today*. An upcoming
@@ -259,6 +291,13 @@ Three picks: **D1**, **D2**, **D3**. One dependency worth stating: picking
 **D1-C and D2-B together** spends two tabs and Part 0 advises against it; every
 other combination is coherent.
 
+**Received 2026-09-19 (owner, in session): D1-A, D2-B, D3-A.** The silence
+clause did not have to fire. One pick is off the recommendation — D2-B, the
+dedicated "Termine" tab — and it is the alternative Part 2 named as the
+legitimate use of the single available tab, so the budget holds. Every section
+above carries its pick, and each surface's obligations to `DESIGN.md` follow
+in Part 6.
+
 ## Part 6 — What the stories owe `DESIGN.md`
 
 Whichever letters are picked, the lane that builds a surface writes its
@@ -268,9 +307,10 @@ Sprint 12's eight picks did. Specifically:
 - **D1** — the metric cell (label, value, window-and-observations sub-line),
   the not-computable and partly-computable appearances, and, under A, the
   SMA series' dash pattern in the UX-DR7 swatch table.
-- **D2** — the event row (date with its relative distance, kind, timing pill,
-  checked-at, source line), the four timing-qualifier appearances, and the
-  unconfirmed-and-past treatment.
+- **D2** — **the "Termine" tab itself** (its place in `detail_tabs/0`, and the
+  D6 treatment the now-nine-wide row depends on), plus the event row (date
+  with its relative distance, kind, timing pill, checked-at, source line), the
+  four timing-qualifier appearances, and the unconfirmed-and-past treatment.
 - **D3** — the "Fällig" card's anatomy, the horizon control as a UX-DR16
   class-2 period control, and the *"ohne Bestand"* marker.
 
