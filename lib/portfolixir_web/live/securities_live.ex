@@ -1142,24 +1142,44 @@ defmodule PortfolixirWeb.SecuritiesLive do
             </div>
           </div>
 
+          <% chart_overlays =
+            build_chart_overlays(
+              @detail_quotes,
+              @detail_transaction_rows,
+              @detail_ma,
+              @detail_cost_basis?,
+              @detail_split_events,
+              @selected_security.currency_code
+            ) %>
           <SecurityChart.chart
             quotes={@detail_quotes}
             transactions={@detail_transactions}
-            overlays={
-              build_chart_overlays(
-                @detail_quotes,
-                @detail_transaction_rows,
-                @detail_ma,
-                @detail_cost_basis?,
-                @detail_split_events,
-                @selected_security.currency_code
-              )
-            }
+            overlays={chart_overlays}
             log_scale?={@detail_log_scale? and not @detail_percent_mode?}
             percent_mode?={@detail_percent_mode?}
             show_transactions?={@detail_show_transactions?}
             currency_code={@selected_security.currency_code}
           />
+          <%!-- #824: the overlays are named where they are drawn. Two of
+               them are on by default now, so "which dashed line is which"
+               had no answer but the toggle pills' tint — colour only, and
+               gone under `forced-colors: active`. Same legend the Wealth
+               chart ships, the swatch carrying each series' own stroke
+               class. --%>
+          <ul :if={chart_overlays != []} class="chart-legend" data-role="detail-chart-legend">
+            <li :for={overlay <- chart_overlays} class="chart-legend__item">
+              <svg
+                class="chart-legend__swatch--line"
+                viewBox="0 0 18 2"
+                width="18"
+                height="2"
+                aria-hidden="true"
+              >
+                <line x1="0" y1="1" x2="18" y2="1" class={overlay.class} stroke-width="2" />
+              </svg>
+              <%= overlay.label %>
+            </li>
+          </ul>
           <p
             :if={series_basis_label(@detail_series_basis, @detail_split_events)}
             class="detail-tab-hint"
