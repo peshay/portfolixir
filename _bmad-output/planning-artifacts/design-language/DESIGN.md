@@ -266,6 +266,20 @@ components:
     scope: 'a sub-line under the chips saying what the set applies to — depot and cash account, the depot, or the cash account — readable without interacting; it replaces the "Both" micro-label whose meaning lived in a title attribute (issue 806, variant A)'
     actions: 'row actions behind the kebab of the Tables pattern, never as a fourth control in the cell: "Tag separately" sits there'
     role: 'the Liquidity role select carries its label visually-hidden — the column head states it once for the whole table'
+  security-metric-grid:
+    placement: 'under the price chart on the securities detail chart tab, never on a tab of its own — a moving average means its distance to the price and its crossing with the other average, and separating the figures from the series makes both unreadable (issue 824, pick D1-A)'
+    cells: 'the shipped {components.overview-metric} grid of issue 804 — label over value, the distance as the unit slot, the window and the observation count as the sub-line; six cells: SMA-50, SMA-200, volatility, maximum drawdown, momentum, the 52-week range'
+    series: 'SMA-50 and SMA-200 draw as the chart second and third series by default, their toggles unchanged so a reader can turn them off'
+    period: 'ONE control: the chart own range buttons. The engine windows are fixed (30/90/365 days), so a range snaps to the nearest at or below it and the cell names the window it used'
+    refusal: 'a metric below its minimum reads "not computable" and still shows its observation count — the reader learns how far short the series falls, not that the figure is zero'
+    basis: 'one line under the grid: the series, the currency, the gap rule, the annualization, and that the block reports rather than evaluates'
+  security-events-tab:
+    placement: 'the ninth tab of the detail pane, "Termine" (issue 828, pick D2-B); the Research tab keeps exactly what it has'
+    rows: 'the {components.research-timeline} shape — the kind as a badge, the date said the way it is known (a day, a range, a month), the timing qualifier and the ADR-0044 source quality as words, the note as the body, the source link and the last-checked day as the meta line'
+  due-card:
+    placement: 'the Overview attention column beside Off target and data quality (issue 828, pick D3-A) — no route, no sidebar entry, per ADR-0024'
+    scope: 'the WHOLE CATALOG by default; a security with no position carries a "no position" badge and is kept, because filtering it away is the defect the object exists to prevent'
+    rows: 'security, kind, the date and its timing qualifier, each row linking to that security Termine tab; absent entirely when nothing is due, never an empty card'
   booking-drawer:
     shape: '{components.panel} in the detail pane\'s dress (.detail-pane): 1px {colors.border}, {rounded.lg}, {shadows.md}, {spacing.3} padding; a head with the title and a close control'
     placement: 'a native <dialog> opened non-modally beside the history (grid minmax(0,1fr) minmax(320px, 380px)), sticky under the top bar; under 720px a modal bottom sheet (fixed, full width, 88vh max, the modal backdrop tints)'

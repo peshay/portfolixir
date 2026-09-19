@@ -6,6 +6,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.DataQuality
   alias Portfolixir.Classifications
+  alias Portfolixir.Knowledge.Events
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Allocation
@@ -17,6 +18,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.ClassificationName
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.SecurityEventLabel
   alias PortfolixirWeb.TransactionKindLabel
 
   # A category counts as "needs attention" when its drift exceeds ±5 pp of the
@@ -34,6 +36,10 @@ defmodule PortfolixirWeb.DashboardLive do
       |> assign(:drift_alerts, nil)
       |> assign(:attention_basis, nil)
       |> assign(:data_quality, nil)
+      # #828 (design pick D3-A): the due dates, read synchronously — the
+      # calendar is a small table and the card must not depend on the
+      # async overview read that carries the drift alerts.
+      |> assign(:upcoming_events, upcoming_events())
       |> assign_stale_ttwror()
       |> start_loading()
 
@@ -458,6 +464,50 @@ defmodule PortfolixirWeb.DashboardLive do
         <% end %>
       </section>
 
+      <%!-- #828 (ADR-0048, design pick D3-A): what is due, in the attention
+           column that already answers "does anything need me?". THE DEFAULT
+           SCOPE IS THE WHOLE CATALOG, not the holdings — a row for a security
+           with no position is marked and kept, never filtered away, because a
+           calendar derived from the position list is exactly how a purchase
+           candidate's reporting date became invisible (§2). No new route and
+           no sidebar entry: ADR-0024 keeps entities as attributes. --%>
+      <section
+        :if={@upcoming_events != []}
+        id="dashboard-upcoming"
+        class="workspace-section"
+      >
+        <h2><%= gettext("Due") %></h2>
+        <p class="hint" data-role="upcoming-basis">
+          <%= gettext(
+            "Dated facts about any security in the catalog — held or not — falling in the next %{days} days. A date given as a range or a month counts as due when any day it could fall on is inside the horizon.",
+            days: upcoming_days()
+          ) %>
+        </p>
+        <ul class="attention-list">
+          <li :for={row <- @upcoming_events}>
+            <a
+              href={"/securities/#{row.event.security_id}?tab=events"}
+              data-role="upcoming-event"
+              class="attention-item"
+            >
+              <span class="attention-name">
+                <%= row.security_name %>
+                <span :if={not row.held} class="badge badge--derived" data-role="upcoming-unheld">
+                  <%= gettext("no position") %>
+                </span>
+              </span>
+              <span class="attention-name">
+                <%= SecurityEventLabel.kind(row.event.kind) %>
+              </span>
+              <span class="num">
+                <%= Date.to_iso8601(row.event.date) %>
+                · <%= SecurityEventLabel.timing(row.event.timing) %>
+              </span>
+            </a>
+          </li>
+        </ul>
+      </section>
+
       <%!-- Data quality is ONE line (UX-DR2, decided 2026-07-12, adopted
            2026-08-05): rendered only when a count is non-zero, no green
            all-clear badge, each count linking to the securities list
@@ -735,6 +785,29 @@ defmodule PortfolixirWeb.DashboardLive do
   end
 
   # The ±5 pp threshold as a plain "5" for the explainer copy.
+  # #828 (ADR-0048 §2, §5.2): due within the horizon across the WHOLE
+  # CATALOG. Each row carries whether the security is held, so the card can
+  # mark a candidate rather than hide it — the default is the requirement.
+  @upcoming_days 30
+
+  defp upcoming_days, do: @upcoming_days
+
+  defp upcoming_events do
+    events = Events.upcoming(days: @upcoming_days, limit: 8)
+    securities = Map.new(Catalog.list_securities(), &{&1.id, &1})
+    held = MapSet.new(Events.held_security_ids())
+
+    for event <- events,
+        security = Map.get(securities, event.security_id),
+        not is_nil(security) do
+      %{
+        event: event,
+        security_name: security.name,
+        held: MapSet.member?(held, security.id)
+      }
+    end
+  end
+
   defp threshold_pp do
     @drift_threshold
     |> Decimal.mult(100)
