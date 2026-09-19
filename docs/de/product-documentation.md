@@ -307,8 +307,9 @@ Die Buchhaltungs-Entitäten sind Geldkonten und Depots:
 Die Seite **Konten & Depots** (Bereich Verwaltung) zeigt beide in **einer
 Tabelle, ein Eintrag je Zeile**: jedes Depot bildet eine Zeile, sein
 verknüpftes Verrechnungskonto sitzt eingerückt direkt darunter — mit der
-Kontowährung und dem beschrifteten **Liquiditätsrollen**-Selektor je Konto
-(freies Cash, Kreditlinie, Reserve); ein Geldkonto ohne verknüpftes Depot
+Kontowährung und dem **Liquiditätsrollen**-Selektor je Konto (freies Cash,
+Kreditlinie, Reserve) — die Spaltenüberschrift beschriftet ihn einmal für die
+ganze Tabelle, statt in jeder Zeile daneben zu stehen (Issue #806); ein Geldkonto ohne verknüpftes Depot
 bekommt eine eigene Zeile. Ein von mehreren Depots geteiltes Konto trägt
 seine Bedienelemente nur unter seinem ersten Depot — spätere Zeilen zeigen
 *geteilt — oben verwaltet*.
@@ -316,6 +317,12 @@ seine Bedienelemente nur unter seinem ersten Depot — spätere Zeilen zeigen
 **Bucket-Chips (#559).** Jede Zeile zeigt ihre Bucket-Zugehörigkeiten als
 Chips — den exklusiven **Scope**-Bucket als gefüllten Chip, freie **Tags**
 als Umriss-Chips, eingefärbt mit der Bucket-Farbe, wenn eine gesetzt ist.
+Seit Issue #806 nennt jede Gruppe ihren **Geltungsbereich** als Unterzeile
+unter den Chips — *Gilt für Depot und Verrechnungskonto*, *Gilt für das
+Depot*, *Gilt für das Verrechnungskonto* —, sodass eine Zelle gelesen werden
+kann, ohne sie anzufassen; eine leere Menge liest sich als *Kein Bucket*
+statt als leere Zelle. **Getrennt taggen** ist aus der Zelle in das
+**Kebab-Menü** der Zeile gewandert.
 Tragen Depot und Verrechnungskonto dieselben Buckets, zeigt das Paar **eine
 zusammengeführte Chip-Gruppe mit der Marke „Beide"** über beide Zeilen; der
 Link **Getrennt taggen** daneben teilt die Gruppe, sodass jede Seite eigene

@@ -261,6 +261,11 @@ components:
     families: 'stacked blocks headed by their names ({typography.stat-label} voice), chips wrapping; the builder in flow; Reset and Done at the foot'
     focus: 'the ModalDialog hook — showModal on open, Esc closes, focus returns to the control'
     surfaces: 'both list surfaces that carry a chip row — the securities toolbar (issue 800) and the transaction history (issue 816). The history sheet stacks the account, type and changed-since families and takes the demoted "More filters" conditions in with them, so the phone has ONE filter entry point; above 560px each page renders its own unchanged chip row and the control is hidden'
+  bucket-cell:
+    chips: 'the assigned buckets as {components.chips}, the + control after them, a +N overflow chip past four; an empty set reads as the word "no bucket" in muted italic, never as a blank cell'
+    scope: 'a sub-line under the chips saying what the set applies to — depot and cash account, the depot, or the cash account — readable without interacting; it replaces the "Both" micro-label whose meaning lived in a title attribute (issue 806, variant A)'
+    actions: 'row actions behind the kebab of the Tables pattern, never as a fourth control in the cell: "Tag separately" sits there'
+    role: 'the Liquidity role select carries its label visually-hidden — the column head states it once for the whole table'
   booking-drawer:
     shape: '{components.panel} in the detail pane\'s dress (.detail-pane): 1px {colors.border}, {rounded.lg}, {shadows.md}, {spacing.3} padding; a head with the title and a close control'
     placement: 'a native <dialog> opened non-modally beside the history (grid minmax(0,1fr) minmax(320px, 380px)), sticky under the top bar; under 720px a modal bottom sheet (fixed, full width, 88vh max, the modal backdrop tints)'

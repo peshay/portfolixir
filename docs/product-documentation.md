@@ -290,10 +290,14 @@ later rows read *shared — managed above*.
 **Bucket chips (#559).** Each row shows its bucket memberships as chips —
 the exclusive **scope** bucket as a filled chip, free **tags** as outline
 chips, tinted with the bucket's color when one is set. When a depot and its
-cash account carry the same buckets, the pair shows **one merged chip group
-marked "Both"** spanning both rows; the **Tag separately** link next to it
-splits the group so each side can be tagged on its own (differing sets always
-render split). At most four chips are shown per group — further chips
+cash account carry the same buckets, the pair shows **one merged chip group**
+spanning both rows. Since issue #806 every group states its **scope** as a
+sub-line under the chips — *applies to depot and cash account*, *applies to
+the depot*, *applies to the cash account* — so a cell can be read without
+touching it, and an empty set reads as the words *no bucket* rather than as a
+blank cell. **Tag separately** moved out of the cell into the row's **kebab
+menu**, which splits the group so each side can be tagged on its own
+(differing sets always render split). At most four chips are shown per group — further chips
 collapse into a **+N** chip, and the picker carries the full set. Long names
 (for example date-stamped import tags) are truncated; hovering a chip reveals
 the full name. The chips are the grouping UI: the **+** affordance opens a
