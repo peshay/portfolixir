@@ -1,9 +1,10 @@
-# Sprint 13 — the numbers the price history already holds, and E11 closed
+# Sprint 13 — the dates that were invisible, the numbers the history already holds, and E11 closed
 
 **Status: ADOPTED by the merge of the Sprint 13 planning PR (2026-09-19).**
 The merge is the signature (ADR-0026 step 1 as amended on PR #780): it adopts
-the lane cut AND signs **[ADR-0047](../../docs/decisions/0047-derived-metrics-per-security-and-per-view.md)**
-(derived metrics, FR-39/FR-40) together with **D-1** to **D-6** below. Nothing
+the lane cut AND signs two decision gates — **[ADR-0047](../../docs/decisions/0047-derived-metrics-per-security-and-per-view.md)**
+(derived metrics, FR-39/FR-40) and **[ADR-0048](../../docs/decisions/0048-security-events-as-first-class-objects.md)**
+(security events, gate **B3.4**, FR-44) — together with **D-1** to **D-7** below. Nothing
 in this PR is `DRAFT` or `Proposed`; a decision the owner rejects is removed
 on the PR before the merge.
 
@@ -11,10 +12,11 @@ on the PR before the merge.
 CI run 1527 green on it; the open-issue list of 2026-09-19 (30 open); the open
 pull requests (one — Dependabot #819, the Node 26.8.2 image, opened
 2026-09-18); the published releases (latest **0.10.0**, 2026-09-07); the
-Sprint 11 and Sprint 12 retrospectives; and the code, read for ADR-0047 rather
-than summarized from prior claims.
+Sprint 11 and Sprint 12 retrospectives; the 2026-09-19 agent round
+(`planning-artifacts/feedback-triage-2026-09-19.md`); and the code, read for
+both ADRs and for that triage's claims rather than summarized from them.
 
-## State of play, in four lines
+## State of play, in five lines
 
 1. **Sprint 12 merged and closed out.** PR #813 rebase-merged 2026-09-15,
    twenty-two issues closed, the retrospective written. E11's second alignment
@@ -34,6 +36,14 @@ than summarized from prior claims.
    mechanism landed in Sprint 7. What was missing was a decision on what a
    metric is measured over, which is what ADR-0047 supplies and what this
    planning PR signs.
+5. **The agent round of 2026-09-19 named one gap that hides risk rather than
+   costing tokens**, and it was gated rather than unspecified: security
+   events (FR-44, gate B3.4). Its calendar is built out of the holdings, so a
+   security not yet owned has nowhere to keep a date. ADR-0048 closes that
+   gate on this PR and Lane E builds it. The triage also refuted the round's
+   most expensive claim for the third time (the research log does survive a
+   re-import) and turned its `?since=` complaint into a precise, filable
+   surface gap.
 
 ## Why this cut
 
@@ -45,10 +55,16 @@ than summarized from prior claims.
   and #808 as contained surfaces. Closing them closes tracker #356 and ends
   the review cycle the 2026-09-12 whole-surface pass opened, rather than
   carrying a third alignment pass into the next quarter.
-- **The metrics lane is the batch's substance, and it is gated properly.** It
-  ships behind a signed ADR with seven pinned identities, carries the
-  **risk-tier attention label** (money math on the analytics surface), and
-  extends two surfaces that already exist rather than inventing a third.
+- **The events lane is the one item that hides risk, and it is now gated.**
+  A dated calendar fact about a security that books nothing, tracked for the
+  **whole catalog** rather than the holdings, entered by hand or by the agent
+  and fetched by nobody. ADR-0048 closes B3.4 and says no, with reasons, to
+  the three things such a table invites and nobody asked for.
+- **The metrics lane is gated properly too, and it gives up half its scope to
+  make room** (D-7). It ships behind a signed ADR with seven pinned
+  identities, carries the **risk-tier attention label** (money math on the
+  analytics surface), and extends surfaces that already exist rather than
+  inventing new ones.
 - **The two do not fight over files.** The metrics engine work is in
   `catalog/`, `portfolios/risk.ex`, the API layer and the MCP companion; Lane
   C is in LiveViews and `app.css`. They meet in exactly two files, and the
@@ -78,22 +94,24 @@ records the numbers in the FR Coverage Map.
   (ADR-0047 §1). `GET /api/v1/securities/:security_id/metrics` and
   `portfolixir.securities.metrics`. TDD first with exact-`Decimal` fixtures;
   I2, I5 and I7 land here.
-- **A2 — the portfolio and view figures on the risk read.** Volatility,
-  maximum drawdown with its window, risk-adjusted return (risk-free as an
-  explicit parameter defaulting to 0), and the Top-N correlation matrix in
-  the base currency. **Additive** on `GET /api/v1/portfolios/:portfolio_id/risk`
-  and `portfolixir.portfolios.risk`, both honouring the existing `?view=`.
-  **I1 is this lane's reason to exist and its first test:** the figures read
-  the TTWROR chain's flow-adjusted factors, so a portfolio with unchanging
-  prices and any number of deposits has volatility exactly `0`.
-- **A3 — the two human views.** The per-security figures on the securities
-  detail's **chart tab**, beside the price history it already renders; the
-  portfolio figures on the **Wealth risk surface**. Both after Lane C
-  (sequencing below).
+- **A2 — the portfolio and view figures on the risk read: MOVED TO SPRINT 14**
+  by D-7, to make room for Lane E. Volatility, maximum drawdown with its
+  window, risk-adjusted return and the Top-N correlation matrix, additive on
+  `GET /api/v1/portfolios/:portfolio_id/risk` and `portfolixir.portfolios.risk`.
+  It is the heavier half — it needs the TTWROR chain's flow-adjusted factors —
+  and nobody is blocked on it. **ADR-0047 stays signed whole; only the build
+  order moves**, and with A2 goes **I1**, the identity the record exists for
+  (a deposit is not a return). I1 is pinned when A2 lands, not before, and
+  Sprint 14's plan names it.
+- **A3 — the human view, now one.** The per-security figures on the securities
+  detail's **chart tab**, beside the price history it already renders. After
+  Lane C (sequencing below), and on the same screen Lane E's event list
+  lands on, so both go in one pass over one surface.
 - **A4 — the boundary, mechanically.** The key-set meta-test of ADR-0047 §7:
-  neither metric payload carries a signal, recommendation, rating, score or
-  action key. Rides A1/A2 rather than trailing them, because a boundary test
-  written after the payload tends to describe the payload.
+  the metrics payload carries no signal, recommendation, rating, score or
+  action key. Rides A1 rather than trailing it, because a boundary test
+  written after the payload tends to describe the payload; it is extended to
+  the portfolio payload when A2 lands.
 
 **Named and filed, not built:** the per-security invalidation basis
 (ADR-0047 §8). `BlastRadius.for_quote/1` answers *the portfolios that ever
@@ -152,6 +170,44 @@ Six issues, one commit group each, closing tracker #356.
 422 with the applied bound instead of clamping silently. The refusal is a
 visible behaviour change, so it is recorded in the contract manifest (#752).
 
+### Lane E — security events (FR-44; ADR-0048; gate B3.4; new)
+
+The object the 2026-09-19 agent round ranks above everything else it asks
+for, and the only one of its open items that hides risk rather than costing
+tokens. Issues filed at branch opening with Lane A's, after the signature.
+
+- **E1 — the table and its context.** `security_events` keyed on
+  `security_id` and nothing else, **journaled from its first migration**
+  (the ADR-0044 precedent — an agent writes these rows). `kind` as a fixed
+  `Ecto.Enum` with a gettext label clause per member and no `to_string`
+  fallback, the way Sprint 12's meta-test now requires; `timing` as the
+  four-value qualifier (`exact`, `estimated`, `window`, `month`) so a guess
+  is never stored as a filing; `source_quality` reusing ADR-0044's four-value
+  vocabulary rather than inventing a second scale. No `Decimal` anywhere —
+  an event carries no money.
+- **E2 — the four reads, on API and MCP.** One security's events; **upcoming
+  across the catalog within N days** (the read the agent is missing, whole
+  catalog by default, `held_only=true` as an opt-in); unconfirmed events
+  whose date has passed; events whose `checked_at` is older than N days. A
+  `window` or `month` event is due when **any** day it could fall on is
+  inside the horizon — conservative, because the failure being prevented is
+  a missed date.
+- **E3 — the per-security list on the detail pane**, in the shape the
+  research timeline already uses. The catalog-wide upcoming surface is the
+  half that may slip; if it does, **the close-out records the coverage
+  deadline** rather than letting it inherit one quietly (ADR-0048
+  Consequences).
+- **E4 — the re-import guarantee, extended before anyone asks.**
+  `reimport_preservation_test.exs` gains the event assertions and the
+  integration documentation's Imports section gains the sentence. Cheap to
+  hold, expensive to discover missing — and the round that prompted this lane
+  spent three editions worrying about exactly this for the research log,
+  where it was already true.
+
+**Not risk-tier** (no money math, no projection semantics, no import
+idempotency), but the journaling seam and the enum boundary are where the
+review reads carefully.
+
 ### Lane M — maintenance (always present)
 
 - **Dependabot #819 (Node 26.8.2-alpine3.24):** close with the reason Sprint
@@ -184,6 +240,15 @@ visible behaviour change, so it is recorded in the contract manifest (#752).
   benchmark's daily factor, plus `:math.sqrt/1` for the new deviation and
   correlation figures. The requirement said "single named exception" while the
   code already had two.
+- **E23 — Security events** gets the same treatment as E22: the Tracker Index
+  line and the `epic-23` keys are written on this planning PR, its tracker
+  issue and stories are filed at branch opening, and FR-44's coverage row
+  moves from **gated** to those numbers.
+- **The 2026-09-19 triage's two filed items** are filed here as declared
+  Sprint 14 candidates: FR-38's surface gap (`?since=` on the reads a
+  scheduled run polls — it exists on two today) and the delivery finding
+  (the re-import preservation guarantee belongs in the MCP tool descriptions
+  of the reads it protects, not only in a documentation page).
 - The close-out reconciles against these rows; **E11 closes here** if Lane C
   ships whole, and #356 is closed by hand with the evidence, since a tracker
   takes no closing keyword.
@@ -200,15 +265,23 @@ finishes with `securities_live.ex` and the Wealth surface before Lane A's
 human views open them. Rebased onto `main` at least daily (ADR-0026 step 2);
 the branch lives days, not weeks.
 
-### D-2 — the metrics' human views ride this batch (recommended)
+### D-2 — what ships agent-first still gets its human view here (recommended)
 
-ADR-0047 §9 says the two views land in the same batch as the API and MCP
-surface rather than taking the grace period the coverage rule allows. The
-reason is #814 sitting in Lane B: an agent-only capability whose view is
-"due next batch" is exactly the debt this sprint is paying off, and creating
-a second one in the same sprint would be the rule being satisfied on paper.
-If the shrink order takes A3's portfolio half, **the close-out records the
-deadline** — it does not quietly inherit one.
+ADR-0047 §9 and ADR-0048's Consequences both say the human views land in the
+same batch as the API and MCP surface rather than taking the grace period
+the coverage rule allows. The reason is #814 sitting in Lane B: an
+agent-only capability whose view is "due next batch" is exactly the debt
+this sprint is paying off, and creating two more in the same sprint would be
+the rule satisfied on paper.
+
+Concretely, after D-7 that means **two views, both on the securities detail
+pane** — A3's per-security metrics on the chart tab, E3's event list in the
+research timeline's shape — which is why the sequencing puts them in one
+pass. The two that are allowed to slip are named rather than assumed: Lane
+A2's portfolio figures go to Sprint 14 **with their API surface** (D-7), so
+no gap is created; and Lane E3's catalog-wide upcoming surface is the one
+place where API may land without its view, in which case **the close-out
+records the deadline** rather than letting it inherit one quietly.
 
 ### D-3 — #807's decision is signed; the label comes off (recommended)
 
@@ -253,14 +326,43 @@ instances. The tag is an owner action by the 2026-09-07 decision and the
 agent's credential cannot push one; the Sprint 13 close-out restates all
 three commands in one block rather than adding a fourth in a new place.
 
+### D-7 — Lane E goes in, and Lane A2 goes to Sprint 14 (recommended)
+
+The agent round arrived after this sprint was cut, and taking its P0-4
+seriously means the branch would carry **two new object families plus an epic
+close** — more than "epic branches live days, not weeks" survives. So the
+trade is made here rather than discovered by the shrink order halfway
+through:
+
+- **In:** Lane E (security events), whole — the table, the four reads on API
+  and MCP, the per-security view, the re-import guarantee.
+- **Out to Sprint 14:** Lane A2, the portfolio-scope metrics.
+
+The argument is the agent's own and this plan adopts it: **a missing date
+hides risk, a missing volatility figure costs tokens.** A2 is also the
+heavier half of ADR-0047 and nobody is blocked on it, while A1 is the half
+the agent's P1-5 actually asks for and it lands on the same screen as Lane
+E's event list. ADR-0047 is signed whole either way; what moves is the build
+order, and **I1 moves with A2** — the identity that a deposit is not a return
+is pinned when the figures that could violate it exist, which is the right
+time for it and the wrong time to forget it. Sprint 14's plan names it.
+
+**To flip this by comment:** keeping A2 in means cutting Lane C to #807,
+#809, #816 and #817 and moving #806 and #808 out. Either shape is a batch;
+both in one is not.
+
 ## Sequencing
 
 ```
-branch opens on main @ 1dc63d0 ──▶ Lane Z files the issues and the E22 row
-Lane A1/A2 ── first: the engine, the reads, the MCP tools, the meta-test (A4)
-Lane C ───── in parallel: LiveViews and app.css, no overlap with A1/A2
+branch opens on main @ 1dc63d0 ──▶ Lane Z files the issues, the E22/E23 rows
+Lane A1 ──── first: the per-security engine, its read, the MCP tool, A4
+Lane E1/E2 ─ in parallel with A1: the table, the journaling, the four reads
+Lane C ───── in parallel: LiveViews and app.css, no overlap with A1 or E1/E2
 Lane B ───── #814 after C touches the Wealth surface
-Lane A3 ──── the human views, AFTER C is done with securities_live.ex
+Lane A3 + E3 ─ ONE pass over the securities detail pane, AFTER C is done
+              with securities_live.ex — the metrics on the chart tab, the
+              events list in the research timeline's shape
+Lane E4 ──── the re-import assertions and the docs sentence, any time after E1
 Lane D ───── #811, independent, any time
 Lane M ───── at lane time; the version report before the closing act
 closing act ─ D-5's conditions, the risk-tier pass on Lane A, then promotion
@@ -268,25 +370,49 @@ closing act ─ D-5's conditions, the risk-tier pass on Lane A, then promotion
 
 ## Shrink order (cut from the bottom, name the cut in the briefing)
 
+D-7 already spent the first cut (Lane A2 is out). What is left to give, in
+order:
+
 1. **#806** (the bucket cell) → Sprint 14; pick A stands whenever it is built.
 2. **#808** (the classifications index) → Sprint 14; #815 then stays open
    rather than being closed as its duplicate.
-3. **A3's portfolio half** (the Wealth risk figures' human view) → Sprint 14,
-   and the close-out records the coverage deadline (D-2).
+3. **Lane E3's catalog-wide upcoming surface** → Sprint 14, and **the
+   close-out records the coverage deadline** (ADR-0048 Consequences, D-2).
+   The per-security list stays: it is the cheap half and it rides A3's pass.
+4. **A3** (the per-security metrics view) → Sprint 14 with the same recorded
+   deadline. Last, because it costs one screen and discharges ADR-0047's
+   same-batch clause.
 
-**Lanes A1/A2/A4, B, D and the rest of C do not shrink.** #814's deadline is
-this batch by rule. #807 has been deferred once already, by a triage that
-deferred it so it could be specified once — deferring it a second time would
-reproduce exactly the "the spec has been ahead of the build for four sprints"
-finding Sprint 12 was cut to fix. #816, #817 and #811 are single-file reuses
-of mechanisms that already shipped; if they do not fit, nothing does.
+**Lanes A1, A4, B, E1/E2/E4, D and the rest of C do not shrink.** #814's
+deadline is this batch by rule. E1/E2 are the point of Lane E — an event
+table nobody can read is not half a feature, it is none. E4 is four
+assertions and a sentence. #807 has been deferred once already, by a triage
+that deferred it so it could be specified once; deferring it a second time
+would reproduce exactly the "the spec has been ahead of the build for four
+sprints" finding Sprint 12 was cut to fix. #816, #817 and #811 are
+single-file reuses of mechanisms that already shipped; if they do not fit,
+nothing does.
 
 ## What is deliberately not in this sprint
 
+- **ADR-0047's portfolio-scope metrics (Lane A2)** — moved to Sprint 14 by
+  D-7, with I1. Named here so its absence is the plan and not an oversight.
 - **FR-41 (contribution) and FR-42 (exposure decomposition)** — level (b),
   ungated, unfiled, and each needs its own argument. FR-42 in particular has a
   boundary to draw against partial-weight advanced classifications, which is a
   decision and not a story.
+- **Everything else the 2026-09-19 agent round asks for**, each for a reason
+  in the triage: the rebalancing digest (B3.5, and it needs the rules first),
+  policy rules (**B3.6** — the round supplied a second independent
+  observation of prose-rule drift, which is the strongest argument yet for
+  opening that gate and is recorded as evidence for Sprint 14's planning),
+  a collector or signal feed (**B3.3**), prediction calibration (FR-47, needs
+  FR-46 at **B4.2**), and backtesting (ladder level **(d)**, a boundary
+  rather than a backlog item). Two gates in one planning PR is the limit of
+  what can be read and signed in one sitting; a rules engine deserves the
+  care ADR-0047 and ADR-0048 got.
+- **FR-38's surface gap and the triage's delivery finding** — filed by Lane
+  Z as declared Sprint 14 candidates, not built here.
 - **Durable activation of either new analytic** — a measurement decision
   (ADR-0039 C3), and for `security_metrics` blocked behind the invalidation
   basis Lane A files.
@@ -299,24 +425,31 @@ of mechanisms that already shipped; if they do not fit, nothing does.
 
 ## What "done" means for this sprint
 
-1. The per-security metrics read and the portfolio/view figures ship on the
-   API **and** MCP, every metric carrying its window and observation count
-   over a payload-level `computation_basis`, and ADR-0047's I1–I7 are pinned
-   by tests — I1 (a deposit is not a return) by an exact-`Decimal` fixture.
-2. The two human views render, or the close-out names the one that was shrunk
-   and the deadline it inherits.
-3. **#814 is shipped** — or the close-out records it as a finding, which is
+1. The **per-security** metrics read ships on the API **and** MCP, every
+   metric carrying its window and observation count over a payload-level
+   `computation_basis`, and ADR-0047's I2, I5, I6 and I7 are pinned by tests.
+   I1, I3 and I4's portfolio half ride A2 into Sprint 14 by D-7, and the
+   close-out says so rather than letting the ADR look half-built.
+2. **Security events exist as an object**: the journaled table with its enum
+   label coverage and its timing qualifier, the four reads on API and MCP
+   with the catalog — not the holdings — as the default scope, and the
+   re-import guarantee extended and pinned (E4).
+3. The human views render on the securities detail pane, or the close-out
+   names the one that was shrunk and the deadline it inherits.
+4. **#814 is shipped** — or the close-out records it as a finding, which is
    the rule working, not the rule being waived.
-4. #807, #809, #816, #817, #808 and #806 are closed by the merge's keywords;
+5. #807, #809, #816, #817, #808 and #806 are closed by the merge's keywords;
    #815 is closed by hand as #808's duplicate; **tracker #356 is closed** with
    the evidence, and E11 is done.
-5. #811 is on the shared limit parser and the contract manifest records the
+6. #811 is on the shared limit parser and the contract manifest records the
    refusal.
-6. Lane M's report exists; #819 is closed with the LTS reason or applied if
+7. Lane M's report exists; #819 is closed with the LTS reason or applied if
    the promotion landed; #727's triggers are re-checked and the result
    recorded either way.
-7. The closing act ran under D-5's conditions, the patch-coverage listing was
+8. The closing act ran under D-5's conditions, the patch-coverage listing was
    read **before** promotion, and the risk-tier pass on Lane A is in the
    briefing.
-8. The `0.13.0` command is in the close-out, together with the still-unpushed
-   `0.11.0` and `0.12.0`.
+9. The contract-version read reports both new surfaces, and the answers the
+   triage's Part 6 owes the agent have gone back to it.
+10. The `0.13.0` command is in the close-out, together with the still-unpushed
+    `0.11.0` and `0.12.0`.

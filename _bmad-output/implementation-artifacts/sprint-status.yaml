@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-09-19 (Sprint 13 planned: ADR-0047 signs derived metrics FR-39/FR-40 as a new epic E22, and E11 closes on the 2026-09-12 review's remainder plus the #814 coverage deadline)
+# last_updated: 2026-09-19 (Sprint 13 planned: ADR-0047 signs derived metrics FR-39/FR-40 as E22 and ADR-0048 closes gate B3.4 for security events as E23, on the 2026-09-19 agent round; E11 closes on the 2026-09-12 review's remainder plus the #814 coverage deadline)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -249,15 +249,19 @@ story_location: _bmad-output/implementation-artifacts
 # Verification basis: `main` at 1dc63d0 with CI 1527 green, 30 open issues, one
 # open PR (Dependabot #819), latest published release 0.10.0.
 # Two epics on ONE branch (D-1): `agent/claude/derived-metrics-and-e11-close`.
-# Lanes: A (metrics -- A1 per-security read + MCP, A2 the figures added to the
-# existing risk read, A3 the two human views, A4 the no-verdict key-set
-# meta-test; risk-tier, issues filed at branch opening once the ADR is signed),
+# Lanes: A (metrics -- A1 per-security read + MCP, A3 its human view, A4 the
+# no-verdict key-set meta-test; risk-tier, issues filed at branch opening once
+# the ADR is signed), E (security events per ADR-0048 -- E1 the journaled table
+# with its enum labels and timing qualifier, E2 the four reads on API and MCP
+# with the CATALOG as the default scope, E3 the per-security list on the detail
+# pane, E4 the re-import guarantee extended and pinned; not risk-tier),
 # B (#814, the holdings column picker -- the two-way coverage deadline, does
 # not shrink), C (E11's close: #807 #809 #816 #817 #808 #806), D (#811, the
 # journal limit parser onto the shared ListLimit), M (#819 closed with the LTS
 # reason or applied if the promotion landed, #727 triggers re-checked, version
-# report before the closing act), Z (registry: the new E22 row and tracker, the
-# FR-39/FR-40 issue numbers, #356 closed by hand when Lane C ships whole).
+# report before the closing act), Z (registry: the E22 and E23 rows and their
+# trackers, the FR-39/FR-40/FR-44 issue numbers, the 2026-09-19 triage's two
+# Sprint 14 candidates, #356 closed by hand when Lane C ships whole).
 # D-2: the metrics' human views ride this batch rather than taking the
 # coverage rule's grace period, because #814 is what that grace period cost
 # last time. D-3: #807's needs-decision label comes off -- the issue's own rule
@@ -268,7 +272,13 @@ story_location: _bmad-output/implementation-artifacts
 # the last PRE-promotion CI run) and a risk-tier verification pass on ADR-0047
 # I1-I7. D-6: 0.13.0 prepared -- and the close-out restates the still-unpushed
 # 0.11.0 and 0.12.0 commands in the same block rather than adding a fourth
-# place to look.
+# place to look. D-7 (added when the 2026-09-19 agent round arrived after the
+# cut): Lane E goes in WHOLE and ADR-0047's portfolio-scope metrics (Lane A2)
+# move to Sprint 14 with identity I1 -- two new object families plus an epic
+# close is more than a days-not-weeks branch survives, and the agent's own
+# ranking decides which half waits (a missing date hides risk, a missing
+# volatility figure costs tokens). ADR-0047 stays signed whole; only the build
+# order moves. To flip it: keep A2 and cut #806 and #808 from Lane C.
 #
 # PLANNED (2026-09-12, Sprint 12) -- sprint-plan-2026-09-12-sprint12.md,
 # adopted by the merge of PR #783 (the planning PR that also carries the
@@ -1103,3 +1113,25 @@ development_status:
   # opening, after the signature.
   epic-22: backlog
   epic-22-retrospective: optional
+
+  # E23 -- Security events (FR-44); decision gate B3.4 CLOSED by ADR-0048,
+  # signed 2026-09-19 by the merge of the Sprint 13 planning PR, scheduled by
+  # that plan as Lane E. Opened by the 2026-09-19 agent round's P0-4: the
+  # agent's event calendar is built out of the holdings, so a security not yet
+  # owned has nowhere to keep a date, and a purchase candidate's reporting date
+  # came close to being missed. A dated calendar fact that books nothing, in
+  # its own table (never a ledger effect -- ADR-0028 is the other thing),
+  # keyed on security_id alone so the CATALOG is the default scope and
+  # held_only is the opt-in, with a four-value timing qualifier so a guess is
+  # never stored as a filing. Mutable and journaled rather than append-only,
+  # and the ADR argues the difference from ADR-0044 rather than assuming it: a
+  # research entry is an argument whose history is its meaning, an event is a
+  # fact whose history is an audit trail, and ADR-0017 is the audit trail.
+  # Four reads are the acceptance criteria; the re-import guarantee is extended
+  # and pinned in the same batch. Nothing fetches a calendar (B3.3), nothing
+  # alerts (B3.7), no rules run over it (B3.6) -- each named in the ADR.
+  # The row exists from the planning so the close-out reconciles against it;
+  # the tracker and story issues are filed at branch opening, after the
+  # signature.
+  epic-23: backlog
+  epic-23-retrospective: optional
