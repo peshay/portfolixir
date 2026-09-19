@@ -1317,6 +1317,15 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       conversion_note: report.conversion_note,
       computation_basis: report.computation_basis,
       excluded: report.excluded,
+      # #807: the three figures and the closed round-trips they are derived
+      # from — the same converted set the matrix sums, never a wider one.
+      summary: %{
+        realized_total: decimal(report.summary.realized_total),
+        hit_rate: decimal(report.summary.hit_rate),
+        average_holding_period_days: report.summary.average_holding_period_days,
+        trade_count: report.summary.trade_count
+      },
+      trades: Enum.map(report.trades, &realized_trade/1),
       annual:
         Enum.map(report.annual, fn year ->
           %{
@@ -1328,6 +1337,23 @@ defmodule PortfolixirWeb.Api.V1.JSON do
               end)
           }
         end)
+    }
+  end
+
+  defp realized_trade(trade) do
+    %{
+      security_id: trade.security_id,
+      security_name: trade.security_name,
+      open_date: date(trade.open_date),
+      close_date: date(trade.close_date),
+      quantity: decimal(trade.quantity),
+      basis: decimal(trade.basis),
+      proceeds: decimal(trade.proceeds),
+      holding_period_days: trade.holding_period_days,
+      currency_code: trade.currency_code,
+      realized_pnl_abs: decimal(trade.realized_pnl_abs),
+      realized_pnl_pct: decimal(trade.realized_pnl_pct),
+      realized_base: decimal(trade.realized_base)
     }
   end
 

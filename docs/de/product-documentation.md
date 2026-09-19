@@ -1209,10 +1209,22 @@ wird als leere Hülle gezeigt. **Income** ist der Standard-Bereich, und
 ältere Links und Lesezeichen erhalten bleiben. Seit Issue #724 trägt der
 Bereich einen zweistufigen Facetten-Umschalter.
 
-**Realisierte Gewinne** (`/cashflow?tab=realized`, Issue #724) beantwortet
-„was hat Verkaufen tatsächlich gebracht": FIFO-gematchte realisierte G&V über
-alle Wertpapiere, gruppiert nach dem **Schlussdatum** jedes Verkaufs in eine
-Jahres-/Monatsmatrix. Die FX-Basis steht auf der Oberfläche und reist in der
+**Realisierte Gewinne** (`/cashflow?tab=realized`, Issues #724 und #807)
+beantwortet „was hat Verkaufen tatsächlich gebracht" — und ist seit Issue #807
+**die Trades-Ansicht**: die Facette öffnet mit drei Zahlen — der realisierten
+Summe, der **Trefferquote** (dem Anteil der abgeschlossenen Trades mit Gewinn;
+ein Nullergebnis zählt nicht als Treffer) und der **durchschnittlichen
+Haltedauer** — gefolgt von den abgeschlossenen Rundläufen selbst, neuester
+Schluss zuerst, je Zeile das Wertpapier (verlinkt auf seinen Trades-Tab),
+gekauft → verkauft, die Haltedauer, die Stückzahl, die Kosten, der Erlös und
+das Ergebnis in Geld und Prozent. Die Jahres-/Monatsmatrix, mit der die
+Facette früher öffnete, behält jede Zahl — jetzt hinter der Aufklappung
+**Realisiert je Periode** unter der Liste.
+
+Ohne abgeschlossene Trades lesen sich Trefferquote und Haltedauer als
+abwesend statt als 0 % und 0 Tage. Alle drei Zahlen stammen aus
+FIFO-gematchter realisierter G&V über alle Wertpapiere, gruppiert nach dem
+**Schlussdatum** jedes Verkaufs. Die FX-Basis steht auf der Oberfläche und reist in der
 API-Payload mit (Entscheidung D-1): jeder Verkauf konvertiert über den
 EUR-Hub zum Kurs **seines eigenen Schlusstags** —
 die Basis des Income-Bereichs, denn eine realisierte Zahl ist ein historischer

@@ -18,6 +18,20 @@ defmodule Portfolixir.Portfolios.RealizedGains do
 
   The basis travels in the payload (`computation_basis`, `conversion_note`)
   per the AGENTS.md metric rule.
+
+  ## The trades, and the three figures over them (#807)
+
+  Since Sprint 13 the report also carries the closed round-trips themselves —
+  the list the facet's name promises — and three figures derived from exactly
+  the same converted set: the **realised total**, the **hit rate** (the share
+  of closed trades that realised a gain) and the **average holding period**.
+
+  Derived, not stored, and derived from the SAME set as the matrix: a sale
+  whose close-date rate is not stored is excluded from the figures, the list
+  and the matrix alike, and stays named in `excluded`. With no closed trades
+  the hit rate and the average holding period are `nil` rather than `0` —
+  the average of nothing is not zero, and a rate over an empty set is not
+  0 %.
   """
 
   alias Portfolixir.Catalog
@@ -53,10 +67,13 @@ defmodule Portfolixir.Portfolios.RealizedGains do
 
     full = annual_matrix(converted)
     annual = newest_years(full, limit)
+    trades = Enum.sort_by(converted, & &1.close_date, {:desc, Date})
 
     %{
       base_currency: base,
       annual: annual,
+      trades: trades,
+      summary: summary(trades),
       limit: limit,
       excluded: %{
         count: length(excluded),
@@ -73,7 +90,17 @@ defmodule Portfolixir.Portfolios.RealizedGains do
         window: window(full, annual, "grouped by each trade's close date"),
         reference: "EUR hub rates at or before each close date (D-1, issue #724)",
         gaps:
-          "a sale with no stored close-date rate is excluded from the converted totals and named in excluded"
+          "a sale with no stored close-date rate is excluded from the converted totals and named in excluded",
+        summary:
+          "The three figures are derived from the SAME converted trades as the matrix and the " <>
+            "list, never from a wider set: realized_total is their sum in #{base}; hit_rate is " <>
+            "the share of them whose realised result is strictly positive (a break-even trade " <>
+            "counts as a miss), at scale 4; average_holding_period_days is the unweighted mean " <>
+            "of holding_period_days, rounded to a whole day. A sale excluded for a missing " <>
+            "close-date rate is in none of the three. With no closed trades the hit rate and " <>
+            "the average holding period are null rather than zero — the average of nothing is " <>
+            "not zero. The matrix is unaffected by limit= here: the figures always read the " <>
+            "full history, while limit= cuts only the years the matrix shows."
       }
     }
   end
@@ -116,13 +143,53 @@ defmodule Portfolixir.Portfolios.RealizedGains do
     |> Ledger.list_trades_for_security()
     |> Map.get(:closed_trades, [])
     |> Enum.map(fn trade ->
+      # #807: the row the facet lists, beside the figure the matrix sums.
+      # `security_id` rides along so each row can link to that security's
+      # Trades tab, where the same round-trip is shown with its lots.
       %{
+        security_id: security.id,
         security_name: security.name,
+        open_date: trade.open_date,
         close_date: trade.close_date,
+        quantity: trade.quantity,
+        basis: trade.basis,
+        proceeds: trade.proceeds,
+        holding_period_days: trade.holding_period_days,
+        realized_pnl_pct: trade.realized_pnl_pct,
         currency_code: trade.currency_code || security.currency_code,
         realized_pnl_abs: trade.realized_pnl_abs
       }
     end)
+  end
+
+  # #807: the three figures, over the converted trades and nothing wider.
+  defp summary([]) do
+    %{
+      realized_total: @zero,
+      hit_rate: nil,
+      average_holding_period_days: nil,
+      trade_count: 0
+    }
+  end
+
+  defp summary(trades) do
+    count = length(trades)
+    total = Enum.reduce(trades, @zero, &Decimal.add(&2, &1.realized_base))
+    winners = Enum.count(trades, &(Decimal.compare(&1.realized_base, @zero) == :gt))
+
+    %{
+      realized_total: total,
+      # A break-even trade counts as a miss: it did not realise a gain, and
+      # rounding it into the hit rate would flatter the figure.
+      hit_rate: winners |> Decimal.new() |> Decimal.div(Decimal.new(count)) |> Decimal.round(4),
+      average_holding_period_days:
+        trades
+        |> Enum.map(& &1.holding_period_days)
+        |> Enum.sum()
+        |> Kernel./(count)
+        |> round(),
+      trade_count: count
+    }
   end
 
   # D-1's rate-availability clause is the reason this is `convert_on/4` and
