@@ -5,6 +5,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   alias Portfolixir.Catalog
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Projection
+  alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.ChangedSince
@@ -53,6 +54,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
      |> assign(:sell_preview, nil)
      |> assign(:tx_columns, @tx_column_defaults)
      |> assign(:booking_open?, false)
+     |> assign(:editing_id, nil)
+     |> assign(:row_menu_id, nil)
      |> assign(:filter_sheet_open?, false)
      |> load_state()}
   end
@@ -181,6 +184,29 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               more_filters_count={@more_filters_count}
             />
 
+            <%!-- #809: one open menu at a time, rendered outside the table
+                 so the popover is never clipped by the scroller. --%>
+            <% open_menu_transaction =
+              @row_menu_id && Enum.find(@filtered_transactions, &(&1.id == @row_menu_id)) %>
+            <AppShell.row_menu
+              :if={open_menu_transaction}
+              id={"tx-row-menu-#{open_menu_transaction.id}"}
+              trigger={"tx-kebab-#{open_menu_transaction.id}"}
+              label={gettext("Transaction actions")}
+            >
+              <button
+                type="button"
+                id={"tx-edit-#{open_menu_transaction.id}"}
+                class="row-context-menu__item"
+                role="menuitem"
+                phx-click="edit_transaction"
+                phx-value-id={open_menu_transaction.id}
+              >
+                <AppShell.icon name={:edit} />
+                <%= gettext("Edit") %>
+              </button>
+            </AppShell.row_menu>
+
             <%!-- #816: under 560 px the three chip families and the "More
                  filters" disclosure sit behind this control in a bottom
                  sheet — the mechanism #800 built for the securities toolbar,
@@ -308,13 +334,18 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                         <%= gettext("Balance") %>
                         <small><%= @balance_account.currency_code %></small>
                       </th>
+                      <%!-- #809: row actions behind the kebab, never as
+                            standing buttons on every row (Tables pattern). --%>
+                      <th class="col-actions">
+                        <span class="visually-hidden"><%= gettext("Actions") %></span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     <%= for group <- grouped_by_month(@filtered_transactions) do %>
                       <tr class="tx-group-head" data-month-group={group.id}>
                         <th
-                          colspan={length(@tx_columns) + if(@balance_account, do: 1, else: 0)}
+                          colspan={length(@tx_columns) + if(@balance_account, do: 2, else: 1)}
                           scope="colgroup"
                         >
                           <span class="tx-group-month"><%= group.label %></span>
@@ -369,6 +400,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                                   "nothing happened here". --%>
                             <%= running_balance(@running_balances, transaction) %>
                           </td>
+                          <td class="row-actions">
+                            <.row_kebab id={"tx-kebab-#{transaction.id}"} transaction={transaction} open?={@row_menu_id == transaction.id} />
+                          </td>
                         </tr>
                       <% end %>
                     <% end %>
@@ -417,6 +451,11 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                         <%= gettext("Balance") %> <%= running_balance(@running_balances, transaction) %><small class="value-suffix"><%= @balance_account.currency_code %></small>
                       </span>
                     </span>
+                    <.row_kebab
+                      id={"tx-phone-kebab-#{transaction.id}"}
+                      transaction={transaction}
+                      open?={@row_menu_id == transaction.id}
+                    />
                   </li>
                 <% end %>
               </ul>
@@ -425,6 +464,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         </section>
         <.booking_drawer
           :if={@booking_open?}
+          editing?={@editing_id != nil}
           transaction_form={@transaction_form}
           form_errors={@form_errors}
           securities_accounts={@securities_accounts}
@@ -456,6 +496,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     {:noreply,
      socket
      |> assign(:booking_open?, false)
+     |> assign(:editing_id, nil)
      |> assign(:transaction_form, @transaction_form)
      |> assign(:form_errors, %{})
      |> assign(:sell_preview, nil)}
@@ -500,6 +541,39 @@ defmodule PortfolixirWeb.TransactionManagementLive do
      socket
      |> assign(:filters, Map.put(socket.assigns.filters, key, Enum.sort(toggled)))
      |> apply_current_filters()}
+  end
+
+  # #809: one row menu open at a time; click-away and Escape close it.
+  def handle_event("open_row_menu", %{"id" => id_str}, socket) do
+    case Integer.parse(to_string(id_str)) do
+      {id, ""} -> {:noreply, assign(socket, :row_menu_id, id)}
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("close_row_menu", _params, socket) do
+    {:noreply, assign(socket, :row_menu_id, nil)}
+  end
+
+  # #809: the human view for `Ledger.update_transaction/3`, which has existed
+  # since before the two-way coverage rule. The drawer #803 built for
+  # recording is the same drawer: same fields, same validation, same sell-lot
+  # preview — only pre-filled, and `editing_id` is what tells the save which
+  # of the two ledger calls to make.
+  def handle_event("edit_transaction", %{"id" => id_str}, socket) do
+    with {id, ""} <- Integer.parse(to_string(id_str)),
+         %Transaction{} = transaction <- Ledger.get_transaction(id) do
+      {:noreply,
+       socket
+       |> assign(:row_menu_id, nil)
+       |> assign(:editing_id, id)
+       |> assign(:transaction_form, form_from_transaction(transaction))
+       |> assign(:form_errors, %{})
+       |> assign(:sell_preview, nil)
+       |> assign(:booking_open?, true)}
+    else
+      _ -> {:noreply, assign(socket, :row_menu_id, nil)}
+    end
   end
 
   # #816: the phone sheet, reusing #800's mechanism as it stands. The chips
@@ -561,7 +635,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       |> put_portfolio_from_depot(socket.assigns.securities_accounts)
       |> maybe_put_currency(currency)
 
-    case Ledger.create_transaction(Actor.owner_ui(), params) do
+    case book(socket.assigns.editing_id, params) do
       {:ok, _transaction} ->
         {:noreply,
          socket
@@ -569,7 +643,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
          |> assign(:form_errors, %{})
          |> assign(:sell_preview, nil)
          |> assign(:booking_open?, false)
-         |> success(gettext("Transaction recorded"))
+         |> success(saved_message(socket.assigns.editing_id))
+         |> assign(:editing_id, nil)
          |> load_state()}
 
       {:error, changeset} ->
@@ -578,8 +653,58 @@ defmodule PortfolixirWeb.TransactionManagementLive do
          |> assign(:transaction_form, params)
          |> assign(:form_errors, field_errors(changeset))
          |> failure(changeset_error(changeset))}
+
+      :gone ->
+        {:noreply,
+         socket
+         |> assign(:booking_open?, false)
+         |> assign(:editing_id, nil)
+         |> failure(gettext("That transaction no longer exists."))
+         |> load_state()}
     end
   end
+
+  # #809: the one place the two ledger calls diverge. A booking that vanished
+  # between opening the drawer and saving is a plain message, never a crash.
+  defp book(nil, params), do: Ledger.create_transaction(Actor.owner_ui(), params)
+
+  defp book(id, params) do
+    case Ledger.get_transaction(id) do
+      %Transaction{} = transaction ->
+        Ledger.update_transaction(Actor.owner_ui(), transaction, params)
+
+      nil ->
+        :gone
+    end
+  end
+
+  defp saved_message(nil), do: gettext("Transaction recorded")
+  defp saved_message(_id), do: gettext("Transaction updated")
+
+  # The drawer's fields, filled from a stored booking. Decimals travel as the
+  # strings the inputs carry; a nil field is the empty string the form uses,
+  # never "nil" on the screen.
+  defp form_from_transaction(%Transaction{} = transaction) do
+    %{
+      "type" => transaction.type,
+      "date" => transaction.date && Date.to_iso8601(transaction.date),
+      "securities_account_id" => to_form_value(transaction.securities_account_id),
+      "security_id" => to_form_value(transaction.security_id),
+      "quantity" => to_form_value(transaction.quantity),
+      "price" => to_form_value(transaction.price),
+      "fees" => to_form_value(transaction.fees),
+      "taxes" => to_form_value(transaction.taxes),
+      "currency_code" => transaction.currency_code || "EUR",
+      "notes" => transaction.notes || ""
+    }
+  end
+
+  defp to_form_value(nil), do: ""
+
+  defp to_form_value(%Decimal{} = value),
+    do: value |> Decimal.normalize() |> Decimal.to_string(:normal)
+
+  defp to_form_value(value), do: to_string(value)
 
   # ADR-0024: the ledger surface spans every depot at once. The internal
   # portfolio records are only iterated as the mechanism behind the
@@ -727,6 +852,30 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # Section the (already date-desc) history into month chunks with a subtotal
   # each (#414 follow-up). chunk_by works because the list is pre-sorted, so
   # consecutive same-month rows are adjacent and order is preserved.
+  # #809: the row's kebab, on the table row and on the phone row. The menu
+  # itself is rendered once at the page level so its popover is never clipped
+  # by the table scroller.
+  attr(:id, :string, required: true)
+  attr(:transaction, :map, required: true)
+  attr(:open?, :boolean, required: true)
+
+  defp row_kebab(assigns) do
+    ~H"""
+    <button
+      type="button"
+      id={@id}
+      class="row-actions__kebab"
+      phx-click="open_row_menu"
+      phx-value-id={@transaction.id}
+      aria-label={gettext("Open actions menu")}
+      aria-haspopup="menu"
+      aria-expanded={to_string(@open?)}
+    >
+      <AppShell.icon name={:ellipsis_vertical} />
+    </button>
+    """
+  end
+
   # #816: the three chip families, rendered twice — once as the desktop row
   # and once stacked inside the phone sheet. `prefix` keeps the two copies'
   # ids apart; both drive the same `toggle_filter` event, so the filter
@@ -1286,6 +1435,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   attr(:securities_accounts, :list, required: true)
   attr(:securities, :list, required: true)
   attr(:sell_preview, :any, required: true)
+  attr(:editing?, :boolean, default: false)
 
   defp booking_drawer(assigns) do
     ~H"""
@@ -1300,9 +1450,19 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       <header class="detail-pane-head">
         <div class="detail-pane-head__title">
           <div>
-            <h2 id="booking-drawer-title"><%= gettext("Record transaction") %></h2>
+            <h2 id="booking-drawer-title">
+              <%= if @editing?,
+                do: gettext("Edit transaction"),
+                else: gettext("Record transaction") %>
+            </h2>
             <p class="detail-pane-sub">
-              <%= gettext("Books against the chosen depot; the currency follows its cash account.") %>
+              <%= if @editing?,
+                do:
+                  gettext(
+                    "Corrects the booking in place; the derived holdings follow and the change is journaled."
+                  ),
+                else:
+                  gettext("Books against the chosen depot; the currency follows its cash account.") %>
             </p>
           </div>
         </div>
@@ -1451,7 +1611,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         </details>
 
         <div class="booking-drawer__foot">
-          <button type="submit" class="button-primary"><%= gettext("Record transaction") %></button>
+          <button type="submit" class="button-primary">
+            <%= if @editing?, do: gettext("Save changes"), else: gettext("Record transaction") %>
+          </button>
           <button type="button" id="booking-cancel" class="button-ghost" phx-click="close_booking">
             <%= gettext("Cancel") %>
           </button>
