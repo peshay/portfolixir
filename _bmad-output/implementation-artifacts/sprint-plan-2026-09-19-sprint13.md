@@ -4,17 +4,21 @@
 The merge is the signature (ADR-0026 step 1 as amended on PR #780): it adopts
 the lane cut AND signs two decision gates — **[ADR-0047](../../docs/decisions/0047-derived-metrics-per-security-and-per-view.md)**
 (derived metrics, FR-39/FR-40) and **[ADR-0048](../../docs/decisions/0048-security-events-as-first-class-objects.md)**
-(security events, gate **B3.4**, FR-44) — together with **D-1** to **D-7** below. Nothing
-in this PR is `DRAFT` or `Proposed`; a decision the owner rejects is removed
-on the PR before the merge.
+(security events, gate **B3.4**, FR-44) — together with **D-1** to **D-8**
+below and the three design picks D-8 carries. Nothing in this PR is `DRAFT` or
+`Proposed`; a decision the owner rejects is removed on the PR before the
+merge.
 
 **Verification basis:** `main` at `1dc63d0` (the Sprint 12 close-out commit),
 CI run 1527 green on it; the open-issue list of 2026-09-19 (30 open); the open
 pull requests (one — Dependabot #819, the Node 26.8.2 image, opened
 2026-09-18); the published releases (latest **0.10.0**, 2026-09-07); the
 Sprint 11 and Sprint 12 retrospectives; the 2026-09-19 agent round
-(`planning-artifacts/feedback-triage-2026-09-19.md`); and the code, read for
-both ADRs and for that triage's claims rather than summarized from them.
+(`planning-artifacts/feedback-triage-2026-09-19.md`); the design pass over the
+three surfaces the ADRs place but do not design
+(`planning-artifacts/ux-design-2026-09-19-sprint13.md`, with its mockups); and
+the code, read for both ADRs and for that triage's claims rather than
+summarized from them.
 
 ## State of play, in five lines
 
@@ -104,9 +108,13 @@ records the numbers in the FR Coverage Map.
   (a deposit is not a return). I1 is pinned when A2 lands, not before, and
   Sprint 14's plan names it.
 - **A3 — the human view, now one.** The per-security figures on the securities
-  detail's **chart tab**, beside the price history it already renders. After
-  Lane C (sequencing below), and on the same screen Lane E's event list
-  lands on, so both go in one pass over one surface.
+  detail's **chart tab**, beside the price history it already renders, in the
+  shape the design pass's **D1** picks — recommended **A**: a three-by-two
+  metric grid under the chart with SMA-50 and SMA-200 drawn as the second and
+  third series, one period control (the chart's own), and the not-computable
+  state carrying its observation count. After Lane C (sequencing below), and
+  on the same screen Lane E's event list lands on, so both go in one pass over
+  one surface.
 - **A4 — the boundary, mechanically.** The key-set meta-test of ADR-0047 §7:
   the metrics payload carries no signal, recommendation, rating, score or
   action key. Rides A1 rather than trailing it, because a boundary test
@@ -192,11 +200,16 @@ tokens. Issues filed at branch opening with Lane A's, after the signature.
   `window` or `month` event is due when **any** day it could fall on is
   inside the horizon — conservative, because the failure being prevented is
   a missed date.
-- **E3 — the per-security list on the detail pane**, in the shape the
-  research timeline already uses. The catalog-wide upcoming surface is the
-  half that may slip; if it does, **the close-out records the coverage
-  deadline** rather than letting it inherit one quietly (ADR-0048
-  Consequences).
+- **E3 — the per-security list on the detail pane**, in the shape the design
+  pass's **D2** picks — recommended **A**: a "Termine" section inside the
+  existing **Research** tab, above the thesis and the research log, reusing
+  that tab's row shape and ADR-0044's source-quality vocabulary, so the tab
+  row #817 is repairing stays at eight. The catalog-wide upcoming surface is
+  the design pass's **D3** — recommended **A**, a "Fällig" attention card on
+  the Overview beside "Off target" and data quality, whole catalog by default
+  with an "ohne Bestand" marker rather than a filter. It is still the half
+  that may slip; if it does, **the close-out records the coverage deadline**
+  rather than letting it inherit one quietly (ADR-0048 Consequences).
 - **E4 — the re-import guarantee, extended before anyone asks.**
   `reimport_preservation_test.exs` gains the event assertions and the
   integration documentation's Imports section gains the sentence. Cheap to
@@ -351,6 +364,34 @@ time for it and the wrong time to forget it. Sprint 14's plan names it.
 #809, #816 and #817 and moving #806 and #808 out. Either shape is a batch;
 both in one is not.
 
+### D-8 — three design picks, recommendation first (recommended)
+
+The two ADRs *place* three human surfaces and design none of them, so a design
+pass ran before the batch opens:
+`planning-artifacts/ux-design-2026-09-19-sprint13.md`, with variant boards in
+`design-language/mockups/ux-design-2026-09-19/`. Same mechanism as the
+2026-09-12 review and Sprint 12's D-2: **the recommendation is the default
+pick, a comment naming another letter changes it, and the story writes the
+picked anatomy into `DESIGN.md`.**
+
+| Pick | Surface | Recommended | The alternative, in one line |
+|---|---|---|---|
+| **D1** | Per-security metrics (A3) | **A** — strip under the chart, SMA-50/200 drawn as series | **B** prints the averages as numbers only and keeps the chart one series |
+| **D2** | Events on the detail pane (E3) | **A** — a section in the existing Research tab | **B** spends the one available new tab on "Termine" |
+| **D3** | Upcoming across the catalog | **A** — a "Fällig" card on the Overview | **B** adds a Securities facet (`?tab=events`) as well; **C** (own route) breaks ADR-0024 and is rejected |
+
+**The finding that makes this a pass rather than three layouts:** the detail
+pane carries eight tabs in a ~360 px panel, and both A3 and E3 would naturally
+add one — in the same sprint in which **#817 is repairing that row because it
+already overflows**. So: **at most one new tab this sprint, and the
+recommended set spends none.** Picking D1-C and D2-B together spends two and
+is advised against; every other combination is coherent.
+
+Six of the batch's nine user-visible items are **not** reopened — #806, #807
+and #808 have mockups and a target from the 2026-09-12 review (#806's variant
+A picked 2026-09-14), and #814, #816 and #817 reuse mechanisms whose anatomy
+is already in `DESIGN.md`.
+
 ## Sequencing
 
 ```
@@ -434,8 +475,12 @@ nothing does.
    label coverage and its timing qualifier, the four reads on API and MCP
    with the catalog — not the holdings — as the default scope, and the
    re-import guarantee extended and pinned (E4).
-3. The human views render on the securities detail pane, or the close-out
-   names the one that was shrunk and the deadline it inherits.
+3. The human views render on the securities detail pane in the picked
+   variants, and **`DESIGN.md` names each pick's anatomy** (D-8, Part 6 of the
+   design pass) — or the close-out names the one that was shrunk and the
+   deadline it inherits. The one thing the mockups could not settle is D1-A's
+   three series inside a 360 px pane: the design critic checks it on a real
+   render at 390 px before the lane closes.
 4. **#814 is shipped** — or the close-out records it as a finding, which is
    the rule working, not the rule being waived.
 5. #807, #809, #816, #817, #808 and #806 are closed by the merge's keywords;

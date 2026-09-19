@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Anstehende Termine über den ganzen Katalog (ADR-0048 §5.2)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  .card { border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg-elevated); padding: 14px 16px; display: grid; gap: 10px; }
+  .card > header { display: flex; align-items: baseline; gap: 10px; }
+  .card > header h3 { margin: 0; font-size: 14px; font-weight: 700; }
+  .card > header .n { font-size: 12px; color: var(--color-text-muted); }
+  .card > header .more { margin-left: auto; font-size: 12px; color: var(--color-accent); }
+  .due { display: grid; grid-template-columns: 4.4rem 1fr auto; gap: 2px 10px; align-items: baseline; padding: 7px 0; border-top: 1px solid var(--color-border); font-size: 13px; }
+  .due:first-of-type { border-top: 0; }
+  .due .d { font-variant-numeric: tabular-nums; font-weight: 700; }
+  .due .d em { display: block; font-style: normal; font-size: 10.5px; font-weight: 500; color: var(--color-text-subtle); }
+  .due .n2 { font-weight: 600; }
+  .due .n2 small { display: block; font-weight: 400; font-size: 11.5px; color: var(--color-text-muted); }
+  .due .r { font-size: 11px; text-align: right; }
+  .pill { display: inline-block; padding: 0 7px; border-radius: 999px; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+  .pill.ok { background: var(--color-accent-soft); color: var(--color-accent); }
+  .pill.est { background: var(--color-bg-muted); color: var(--color-text-muted); }
+  .pill.due2 { background: var(--color-danger-soft); color: var(--color-danger); }
+  .pill.hold { background: #ecfdf5; color: var(--color-positive); }
+  .horizon { display: flex; gap: 6px; font-size: 11.5px; align-items: center; }
+  .horizon span { padding: 2px 8px; border: 1px solid var(--color-border); border-radius: 999px; color: var(--color-text-muted); }
+  .horizon span.on { border-color: var(--color-accent); color: var(--color-accent); font-weight: 700; }
+  .basis { font-size: 11px; color: var(--color-text-muted); margin: 0; }
+  .grid2 { display: grid; grid-template-columns: 1.15fr 1fr; gap: 18px; align-items: start; }
+  .stub { border: 1px dashed var(--color-border); border-radius: var(--radius-lg); padding: 14px 16px; color: var(--color-text-subtle); font-size: 12.5px; background: var(--color-bg); }
+  table.lst { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.lst th { text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); padding: 6px 8px; background: var(--color-bg-muted); }
+  table.lst td { padding: 8px; border-top: 1px solid var(--color-border); }
+  table.lst td.num { font-variant-numeric: tabular-nums; }
+  .subtabs { display: flex; gap: 2px; border-bottom: 1px solid var(--color-border); margin-bottom: 12px; }
+  .subtabs span { padding: 7px 11px; font-size: 13px; color: var(--color-text-muted); }
+  .subtabs span.on { color: var(--color-accent); font-weight: 700; box-shadow: inset 0 -2px 0 var(--color-accent); }
+  .sidebar { width: 178px; border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 8px; font-size: 12.5px; background: var(--color-bg); display: grid; gap: 2px; align-content: start; }
+  .sidebar b { font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted); padding: 6px 8px 2px; font-weight: 700; }
+  .sidebar a { padding: 5px 8px; border-radius: 6px; color: var(--color-text); text-decoration: none; }
+  .sidebar a.on { background: var(--color-accent-soft); color: var(--color-accent); font-weight: 700; }
+  .sidebar a.bad { color: var(--color-danger); }
+</style>
+</head>
+<body>
+
+<!-- ============================ VARIANTE A ============================ -->
+<section class="mock-board">
+  <h2>Variante A — eine Karte „Fällig“ auf der Übersicht <small>empfohlen · keine neue Route, kein neuer Sidebar-Eintrag</small></h2>
+  <p class="mock-note">Die Übersicht ist laut UX-DR2 die Analyse-Startseite mit „Off target“ und Datenqualität — die Fläche, die beantwortet, <strong>was heute Aufmerksamkeit braucht</strong>. Genau das ist ein anstehender Termin, und genau dort hat der Agent seinen beinahe übersehen. Die Karte reiht sich in die bestehende Aufmerksamkeitsspalte ein, zeigt den Horizont als Steuerelement, nennt ihre Grundlage in einer Basiszeile und verlinkt jede Zeile auf das Detailpanel des Papiers. <strong>Entscheidend: der Standard ist der ganze Katalog</strong> — eine Zeile ohne Bestand trägt das stille „ohne Bestand“-Etikett, statt zu fehlen. Kein Konflikt mit ADR-0024, weil kein neuer Sidebar-Eintrag entsteht.</p>
+  <div class="mock-frame"><div class="workspace-section">
+    <div class="grid2">
+      <div class="u-gap">
+        <div class="stub" style="min-height:96px;display:grid;place-items:center">Wertkarte — Gesamtwert inkl. Cash, Veränderung <span class="u-muted">(wie gebaut)</span></div>
+        <div class="stub" style="min-height:64px;display:grid;place-items:center">Kennzahlenstreifen — 1J-Rendite · Cash-Quote · letzte Buchung · Kursfrische <span class="u-muted">(#798)</span></div>
+        <div class="stub" style="min-height:150px;display:grid;place-items:center">Allokation / Drift <span class="u-muted">(wie gebaut)</span></div>
+      </div>
+      <div class="u-gap">
+        <div class="card">
+          <header><h3>Fällig</h3><span class="n">4 in 30 Tagen · 1 überfällig</span><a href="#" class="more">Alle anzeigen</a></header>
+          <div class="horizon"><span>14 Tage</span><span class="on">30 Tage</span><span>90 Tage</span></div>
+          <div class="due">
+            <span class="d">05.09.<em>vor 14 T.</em></span>
+            <span class="n2">Nordic Timber Holdings AB<small>Hauptversammlung</small></span>
+            <span class="r"><span class="pill due2">unbestätigt</span></span>
+          </div>
+          <div class="due">
+            <span class="d">28.09.<em>in 9 T.</em></span>
+            <span class="n2">Meridian Logistics N.V.<small>Ex-Dividende</small></span>
+            <span class="r"><span class="pill ok">bestätigt</span></span>
+          </div>
+          <div class="due">
+            <span class="d">06.10.<em>in 17 T.</em></span>
+            <span class="n2">Aurora Grid ASA<small>Quartalszahlen · <strong>ohne Bestand</strong></small></span>
+            <span class="r"><span class="pill est">geschätzt</span></span>
+          </div>
+          <div class="due">
+            <span class="d">Okt.<em>Monat bekannt</em></span>
+            <span class="n2">Helios Solar Systems SE<small>Kapitalmarkttag · <strong>ohne Bestand</strong></small></span>
+            <span class="r"><span class="pill est">geschätzt</span></span>
+          </div>
+          <p class="basis">Ganzer Katalog, nicht nur Bestände — ein Kaufkandidat ohne Position ist das Papier, dessen Termin am ehesten übersehen wird (ADR-0048 §2). Ein Zeitfenster zählt als fällig, sobald irgendein Tag darin im Horizont liegt. <span class="u-muted">ⓘ</span></p>
+        </div>
+        <div class="stub">„Off target“ · Datenqualität <span class="u-muted">— die bestehenden Aufmerksamkeitskarten</span></div>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ VARIANTE B ============================ -->
+<section class="mock-board">
+  <h2>Variante B — zusätzlich eine Facette unter „Wertpapiere“ <small>/securities?tab=events</small></h2>
+  <p class="mock-note">Die Karte aus A verlinkt auf eine echte Listenfläche: Filter nach Art, Horizont und „nur Bestände“, sortierbar, mit den unbestätigten und den lange nicht geprüften Einträgen als eigene Filter — die Reads 3 und 4 aus ADR-0048 §5 bekommen damit eine Oberfläche statt nur einen Endpunkt. Der Preis ist neue Struktur: <code>/securities</code> hat heute <em>keine</em> zweite Reiterebene, diese Variante führt sie ein. Dafür leuchtet der Sidebar-Eintrag „Wertpapiere“ korrekt (UX-DR4), und der Katalog ist der richtige Geltungsbereich.</p>
+  <div class="mock-frame"><div class="workspace-section">
+    <div class="subtabs"><span>Liste</span><span class="on">Termine</span></div>
+    <div class="horizon" style="margin-bottom:10px"><span class="on">30 Tage</span><span>90 Tage</span><span>Alle künftigen</span><span>Unbestätigt &amp; vorbei</span><span>Lange nicht geprüft</span><span style="margin-left:8px">Art: alle</span><span>nur Bestände</span></div>
+    <table class="lst">
+      <thead><tr><th>Datum</th><th>Genauigkeit</th><th>Wertpapier</th><th>Art</th><th>Quelle</th><th>Geprüft</th><th></th></tr></thead>
+      <tbody>
+        <tr><td class="num">2026-09-05</td><td>exakt</td><td>Nordic Timber Holdings AB</td><td>Hauptversammlung</td><td>primär</td><td class="num">2026-07-02</td><td><span class="pill due2">unbestätigt</span></td></tr>
+        <tr><td class="num">2026-09-28</td><td>exakt</td><td>Meridian Logistics N.V.</td><td>Ex-Dividende</td><td>primär</td><td class="num">2026-09-11</td><td><span class="pill ok">bestätigt</span></td></tr>
+        <tr><td class="num">2026-10-06</td><td>geschätzt</td><td>Aurora Grid ASA</td><td>Quartalszahlen</td><td>sekundär, mehrfach</td><td class="num">2026-08-22</td><td><span class="pill est">geschätzt</span></td></tr>
+        <tr><td class="num">2026-10</td><td>Monat</td><td>Helios Solar Systems SE</td><td>Kapitalmarkttag</td><td>Kenntnis</td><td class="num">2026-06-30</td><td><span class="pill est">geschätzt</span></td></tr>
+        <tr><td class="num">2026-11-14</td><td>geschätzt</td><td>Nordic Timber Holdings AB</td><td>Ende Lock-up</td><td>primär</td><td class="num">2026-08-30</td><td><span class="pill est">geschätzt</span></td></tr>
+      </tbody>
+    </table>
+    <p class="basis" style="margin-top:10px">Ganzer Katalog; „nur Bestände“ ist der Filter, nicht der Standard. Grenze der Liste auf der Fläche genannt (UX-DR26). <span class="u-muted">ⓘ</span></p>
+  </div></div>
+</section>
+
+<!-- ============================ VARIANTE C ============================ -->
+<section class="mock-board">
+  <h2>Variante C — eigene Route <code>/events</code> mit Sidebar-Eintrag <small>abgebildet, weil sie verliert</small></h2>
+  <p class="mock-note">Die naheliegendste Variante, und die einzige, die gegen eine bindende Regel läuft. ADR-0024 (in EXPERIENCE.md als bindende IA-Regel geführt): <em>Navigation bildet Aufgaben ab, nicht das Speichermodell — Sidebar = Aufgaben, Entitäten = Attribute. Neue Entitäten bekommen nicht automatisch einen Sidebar-Eintrag.</em> Ein Termin ist eine Entität am Wertpapier. Ein Eintrag „Termine“ würde außerdem mit „Wertpapiere“ um denselben Katalog konkurrieren — dieselbe Begründung, mit der Cash flow ein Reiter unter Wealth wurde und kein eigener Eintrag.</p>
+  <div class="mock-frame"><div class="workspace-section">
+    <div style="display:flex;gap:18px;align-items:flex-start">
+      <nav class="sidebar">
+        <b>Aufgaben</b>
+        <a href="#">Übersicht</a>
+        <a href="#">Wealth</a>
+        <a href="#">Wertpapiere</a>
+        <a href="#">Transaktionen</a>
+        <a href="#" class="on bad">Termine ⚠</a>
+        <b>Administration</b>
+        <a href="#">Konten &amp; Depots</a>
+        <a href="#">Views</a>
+        <a href="#">Klassifizierungen</a>
+      </nav>
+      <div class="stub" style="flex:1">Dieselbe Liste wie Variante B, nur an einer Stelle, die die IA-Regel nicht hergibt.<br><br><strong>Abgelehnt</strong>, sofern der Owner die Regel nicht ausdrücklich ändern will — was ein ADR-0024-Zusatz wäre, kein Entwurf.</div>
+    </div>
+  </div></div>
+</section>
+
+</body>
+</html>
