@@ -112,9 +112,9 @@ records the numbers in the FR Coverage Map.
   shape the design pass's **D1** picks — recommended **A**: a three-by-two
   metric grid under the chart with SMA-50 and SMA-200 drawn as the second and
   third series, one period control (the chart's own), and the not-computable
-  state carrying its observation count. After Lane C (sequencing below), and
-  on the same screen Lane E's event list lands on, so both go in one pass over
-  one surface.
+  state carrying its observation count (**D1-A picked 2026-09-19**). After
+  Lane C (sequencing below), and on the same pane Lane E3's new tab lands on,
+  so both go in one pass over one surface — different tabs, one file.
 - **A4 — the boundary, mechanically.** The key-set meta-test of ADR-0047 §7:
   the metrics payload carries no signal, recommendation, rating, score or
   action key. Rides A1 rather than trailing it, because a boundary test
@@ -200,16 +200,17 @@ tokens. Issues filed at branch opening with Lane A's, after the signature.
   `window` or `month` event is due when **any** day it could fall on is
   inside the horizon — conservative, because the failure being prevented is
   a missed date.
-- **E3 — the per-security list on the detail pane**, in the shape the design
-  pass's **D2** picks — recommended **A**: a "Termine" section inside the
-  existing **Research** tab, above the thesis and the research log, reusing
-  that tab's row shape and ADR-0044's source-quality vocabulary, so the tab
-  row #817 is repairing stays at eight. The catalog-wide upcoming surface is
-  the design pass's **D3** — recommended **A**, a "Fällig" attention card on
-  the Overview beside "Off target" and data quality, whole catalog by default
-  with an "ohne Bestand" marker rather than a filter. It is still the half
-  that may slip; if it does, **the close-out records the coverage deadline**
-  rather than letting it inherit one quietly (ADR-0048 Consequences).
+- **E3 — the per-security list on the detail pane**, as **D2-B picked
+  (2026-09-19)**: a dedicated **"Termine" tab**, ninth in `detail_tabs/0`,
+  carrying the event rows in the research timeline's shape and ADR-0044's
+  source-quality vocabulary. The Research tab keeps exactly what it has today.
+  **Depends on #817** — nine tabs in a ~360 px panel need the D6 scroll-snap
+  and edge fade to stay reachable, so #817 lands first. The catalog-wide
+  upcoming surface is **D3-A**: a "Fällig" attention card on the Overview
+  beside "Off target" and data quality, whole catalog by default with an
+  "ohne Bestand" marker rather than a filter. It is still the half that may
+  slip; if it does, **the close-out records the coverage deadline** rather
+  than letting it inherit one quietly (ADR-0048 Consequences).
 - **E4 — the re-import guarantee, extended before anyone asks.**
   `reimport_preservation_test.exs` gains the event assertions and the
   integration documentation's Imports section gains the sentence. Cheap to
@@ -374,18 +375,28 @@ pass ran before the batch opens:
 pick, a comment naming another letter changes it, and the story writes the
 picked anatomy into `DESIGN.md`.**
 
-| Pick | Surface | Recommended | The alternative, in one line |
-|---|---|---|---|
-| **D1** | Per-security metrics (A3) | **A** — strip under the chart, SMA-50/200 drawn as series | **B** prints the averages as numbers only and keeps the chart one series |
-| **D2** | Events on the detail pane (E3) | **A** — a section in the existing Research tab | **B** spends the one available new tab on "Termine" |
-| **D3** | Upcoming across the catalog | **A** — a "Fällig" card on the Overview | **B** adds a Securities facet (`?tab=events`) as well; **C** (own route) breaks ADR-0024 and is rejected |
+**Picked 2026-09-19 (owner, in session): D1-A, D2-B, D3-A.** The silence
+clause did not have to fire; the picks are recorded on this PR and in the
+design pass.
+
+| Pick | Surface | Recommended | **Picked** | What the pick means |
+|---|---|---|---|---|
+| **D1** | Per-security metrics (A3) | A | **A** | Strip under the chart, SMA-50/200 drawn as second and third series; the chart's own range control; no new tab |
+| **D2** | Events on the detail pane (E3) | A | **B** | **A dedicated "Termine" tab** rather than a section in Research — off the recommendation, and the use the tab budget was being kept for |
+| **D3** | Upcoming across the catalog | A | **A** | A "Fällig" attention card on the Overview, whole catalog by default; no new route, no sidebar entry |
 
 **The finding that makes this a pass rather than three layouts:** the detail
 pane carries eight tabs in a ~360 px panel, and both A3 and E3 would naturally
 add one — in the same sprint in which **#817 is repairing that row because it
-already overflows**. So: **at most one new tab this sprint, and the
-recommended set spends none.** Picking D1-C and D2-B together spends two and
-is advised against; every other combination is coherent.
+already overflows**. So: **at most one new tab this sprint.** The picked set
+spends **exactly one**, on D2-B, which is inside the budget; the combination
+the pass advised against (D1-C with D2-B, two tabs) did not occur.
+
+**One consequence rides with D2-B and changes a sequencing detail: #817 stops
+being tidy and becomes load-bearing.** With nine tabs in that panel, the D6
+treatment #817 applies — scroll-snap, the right-edge fade, no wrapping — is
+what keeps the last tab reachable at all. **#817 lands before Lane E3**, which
+the sequencing below now states.
 
 Six of the batch's nine user-visible items are **not** reopened — #806, #807
 and #808 have mockups and a target from the 2026-09-12 review (#806's variant
@@ -401,8 +412,9 @@ Lane E1/E2 ─ in parallel with A1: the table, the journaling, the four reads
 Lane C ───── in parallel: LiveViews and app.css, no overlap with A1 or E1/E2
 Lane B ───── #814 after C touches the Wealth surface
 Lane A3 + E3 ─ ONE pass over the securities detail pane, AFTER C is done
-              with securities_live.ex — the metrics on the chart tab, the
-              events list in the research timeline's shape
+              with securities_live.ex — and specifically after #817, which
+              D2-B makes a prerequisite: the metrics on the chart tab, the
+              events as the ninth tab that #817's D6 treatment keeps reachable
 Lane E4 ──── the re-import assertions and the docs sentence, any time after E1
 Lane D ───── #811, independent, any time
 Lane M ───── at lane time; the version report before the closing act
