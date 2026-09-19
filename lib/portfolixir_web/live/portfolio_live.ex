@@ -59,6 +59,25 @@ defmodule PortfolixirWeb.PortfolioLive do
   # and the filtered table agree on what "needs attention" means; 1 and 2 pp
   # are for a plan steered more tightly than that. A fixed set, because the
   # value round-trips through the URL and a whitelist beats parsing.
+  # #814: the human half of the holdings projection's `fields=` sparse
+  # fieldset. The columns are the API's own (`Ledger.holdings_for_portfolio/1`
+  # through `JSON.holding_fields/0`), so the picker offers the figures an
+  # agent reads rather than a second calculation — one projection, two
+  # surfaces. The picker left with the Transactions holdings panel in #803;
+  # this is where the review put the holdings.
+  @holdings_column_defaults ["depot", "security", "quantity"]
+  @holdings_column_keys @holdings_column_defaults ++
+                          [
+                            "isin",
+                            "wkn",
+                            "currency",
+                            "avg_cost",
+                            "latest_price",
+                            "market_value",
+                            "unrealized_pnl_abs",
+                            "unrealized_pnl_pct"
+                          ]
+
   @drift_steps ["1", "2", "5"]
   @unpriced_names_shown 6
 
@@ -127,6 +146,8 @@ defmodule PortfolixirWeb.PortfolioLive do
           |> assign(:allocation_mode, param_allocation_mode(params))
           |> assign(:min_drift_pp, param_min_drift_pp(params))
           |> assign(:flat_sort, {:drift, :desc})
+          |> assign(:holdings_columns, @holdings_column_defaults)
+          |> assign(:holding_rows, holding_rows(portfolio))
           |> assign(:fx_syncing, false)
           |> assign(:fx_sync_result, nil)
           |> assign(:fx_sync_flash, false)
@@ -2134,6 +2155,74 @@ defmodule PortfolixirWeb.PortfolioLive do
         </section>
         <% end %>
 
+        <%!-- #814: the holdings projection's own positions, with the column
+             picker that is the human half of the API's `fields=` sparse
+             fieldset. It left with the Transactions holdings panel (#803) and
+             the projection's valuation fields were agent-only until here. --%>
+        <%= if @wealth_tab == :holdings do %>
+        <section id="portfolio-positions" class="workspace-section">
+          <header class="section-head">
+            <h2><%= gettext("Positions") %></h2>
+            <div class="section-head-controls">
+              <details id="holdings-column-picker" class="more-filters">
+                <summary>
+                  <AppShell.icon name={:columns} />
+                  <%= gettext("Columns") %>
+                </summary>
+                <form id="holdings-column-form" phx-change="set_holdings_columns">
+                  <label :for={key <- holdings_column_keys()} class="checkbox-row">
+                    <input
+                      type="checkbox"
+                      name="columns[]"
+                      value={key}
+                      checked={key in @holdings_columns}
+                    />
+                    <span><%= holdings_column_label(key) %></span>
+                  </label>
+                  <input type="hidden" name="columns[]" value="" />
+                </form>
+              </details>
+            </div>
+          </header>
+          <p class="summary-basis" data-role="positions-basis">
+            <%= gettext(
+              "The holdings projection this instance serves over the API: one row per depot and security, valued at the latest stored price. The columns are that projection's own fields."
+            ) %>
+          </p>
+          <%= if @holding_rows == [] do %>
+            <div id="no-positions" class="empty-state" role="status">
+              <%= gettext("No holdings yet") %>
+            </div>
+          <% else %>
+            <div
+              id="holdings-positions-wrapper"
+              class="data-table-wrapper"
+              phx-hook="ColumnPrefs"
+              data-storage-key="wealth.holdings.columns"
+              data-restore-event="set_holdings_columns"
+              data-current-columns={Jason.encode!(@holdings_columns)}
+            >
+              <table id="holdings-positions-table" class="data-table">
+                <thead>
+                  <tr>
+                    <th :for={key <- @holdings_columns} {holdings_num_attrs(key)}>
+                      <%= holdings_column_label(key) %>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr :for={row <- @holding_rows} data-role="holdings-position">
+                    <td :for={key <- @holdings_columns} {holdings_num_attrs(key)}>
+                      <%= holdings_cell(row, key) %>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          <% end %>
+        </section>
+        <% end %>
+
         <%= if @wealth_tab == :holdings do %>
         <section id="portfolio-cash" class="workspace-section">
           <h2><%= gettext("Cash accounts") %></h2>
@@ -2188,6 +2277,69 @@ defmodule PortfolixirWeb.PortfolioLive do
     </AppShell.shell>
     """
   end
+
+  # -- #814 holdings column registry ------------------------------------------
+
+  defp holdings_column_keys, do: @holdings_column_keys
+
+  # The rows are the API's projection, decorated with the depot's name so the
+  # human column reads as a name where the payload carries an id.
+  defp holding_rows(nil), do: []
+
+  defp holding_rows(portfolio) do
+    names = Map.new(Portfolios.list_securities_accounts(), &{&1.id, &1.name})
+
+    portfolio.id
+    |> Ledger.holdings_for_portfolio()
+    |> Enum.map(fn row ->
+      Map.put(
+        row,
+        :securities_account_name,
+        Map.get(names, row.securities_account_id, gettext("Unknown depot"))
+      )
+    end)
+    |> Enum.sort_by(&{&1.securities_account_name, &1.security_name})
+  end
+
+  defp holdings_num_attrs(key)
+       when key in ~w(quantity avg_cost latest_price market_value unrealized_pnl_abs unrealized_pnl_pct),
+       do: %{class: "num"}
+
+  defp holdings_num_attrs(_key), do: %{}
+
+  defp holdings_column_label("depot"), do: gettext("Depot")
+  defp holdings_column_label("security"), do: gettext("Security")
+  defp holdings_column_label("quantity"), do: gettext("Quantity")
+  defp holdings_column_label("isin"), do: gettext("ISIN")
+  defp holdings_column_label("wkn"), do: gettext("WKN")
+  defp holdings_column_label("currency"), do: gettext("Currency")
+  defp holdings_column_label("avg_cost"), do: gettext("Avg cost")
+  defp holdings_column_label("latest_price"), do: gettext("Latest price")
+  defp holdings_column_label("market_value"), do: gettext("Market value")
+  defp holdings_column_label("unrealized_pnl_abs"), do: gettext("P&L")
+  defp holdings_column_label("unrealized_pnl_pct"), do: gettext("P&L %")
+
+  defp holdings_cell(row, "depot"), do: row.securities_account_name
+  defp holdings_cell(row, "security"), do: row.security_name
+  defp holdings_cell(row, "quantity"), do: holdings_decimal(row.quantity)
+  defp holdings_cell(row, "isin"), do: row.isin
+  defp holdings_cell(row, "wkn"), do: row.wkn
+  defp holdings_cell(row, "currency"), do: row.currency_code
+  defp holdings_cell(row, "avg_cost"), do: holdings_decimal(row.avg_cost)
+  defp holdings_cell(row, "latest_price"), do: holdings_decimal(row.latest_price)
+  defp holdings_cell(row, "market_value"), do: holdings_decimal(row.market_value)
+  defp holdings_cell(row, "unrealized_pnl_abs"), do: holdings_decimal(row.unrealized_pnl_abs)
+  defp holdings_cell(row, "unrealized_pnl_pct"), do: holdings_decimal(row.unrealized_pnl_pct)
+
+  # The projection's own values, unrounded: this table is the human read of
+  # what the API serves, so a figure here is the figure there. An absent value
+  # is an em dash rather than a blank cell.
+  defp holdings_decimal(nil), do: "—"
+
+  defp holdings_decimal(%Decimal{} = value),
+    do: value |> Decimal.normalize() |> Decimal.to_string(:normal)
+
+  defp holdings_decimal(value), do: to_string(value)
 
   # -- components -------------------------------------------------------------
 
@@ -2998,6 +3150,23 @@ defmodule PortfolixirWeb.PortfolioLive do
   # Tree = structure check, Positions = flat rebalancing worklist. The choice
   # round-trips through the URL (mobile-reconnect fix) so a reconnect restores
   # it; handle_params switches the mode (pure presentation — no reload).
+  # #814: the picker's own event, and the ColumnPrefs hook's restore event —
+  # the same pair the transaction history's picker uses, so the two behave
+  # identically. An empty selection falls back to the defaults rather than
+  # rendering a table with no columns.
+  def handle_event("set_holdings_columns", %{"columns" => columns}, socket)
+      when is_list(columns) do
+    chosen =
+      case Enum.filter(@holdings_column_keys, &(&1 in columns)) do
+        [] -> @holdings_column_defaults
+        picked -> picked
+      end
+
+    {:noreply, assign(socket, :holdings_columns, chosen)}
+  end
+
+  def handle_event("set_holdings_columns", _params, socket), do: {:noreply, socket}
+
   def handle_event("set_allocation_mode", %{"mode" => mode}, socket)
       when mode in ["tree", "flat"] do
     requested = allocation_mode_atom(mode)

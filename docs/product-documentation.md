@@ -440,9 +440,8 @@ Balance column is deliberately not in the picker: it stays governed by its
 own rule — it appears exactly when the chips narrow to one account — because
 a picker that could summon it outside that narrowing would show a
 meaningless figure. The former **Current holdings** panel left this page
-with issue #803: it duplicated Wealth → Holdings, and the holdings
-projection's valuation fields stay readable over the holdings API's
-`fields=` sparse fieldset.
+with issue #803: it duplicated Wealth → Holdings. Its column picker moved
+with the holdings, to **Wealth → Holdings → Positions** (issue #814).
 
 **On the phone** (issue #799, UX-DR27): under 560 px the history gives way
 to two-line rows under the same month heads — the date and the kind over the
@@ -796,7 +795,8 @@ forensic detail.
 ## Wealth Page
 
 The **Wealth** entry in the navigation opens the wealth overview, organised
-into tabs (ADR-0022): **Holdings** (value, performance, data quality, cash),
+into tabs (ADR-0022): **Holdings** (value, performance, positions, data
+quality, cash),
 **Allocation & targets** (the sunburst and drift table), and **Cash flow**
 (the received dividends and interest report). The Holdings tab opens with
 the **key-figure band in two tiers** (issue #797): three lead figures at
@@ -818,7 +818,18 @@ invested capital, the honest "what the money put in has become". When net
 invested capital is zero or negative the multiple reads `n/a` — never a
 negative multiple. For windows shorter than a year the money-weighted KPI
 is labeled **MWR** and shows the period figure instead of an annualized
-one, which would explode a short window (ADR-0034). Beside the fixed buttons, a year dropdown
+one, which would explode a short window (ADR-0034).
+
+**Positions** (issue #814) lists the holdings projection this instance
+serves over the API — one row per depot and security, valued at the latest
+stored price — with a **Columns** picker over that projection's own fields:
+beyond the default depot, security and quantity it offers ISIN, WKN,
+currency, average cost, latest price, market value and the unrealised result
+in money and percent. These are the same fields an agent selects with the
+holdings API's `fields=` sparse fieldset, read from the same projection, so
+a figure here is the figure there. The choice is stored in the browser and
+survives a reload; clearing every box falls back to the defaults rather than
+leaving a table with no columns. Beside the fixed buttons, a year dropdown
 chains any single calendar year with data, and a from/to date range chains a
 custom span — both are pure re-chains of the already-computed series, clamped
 honestly to the available history (a backwards range is refused with a short
