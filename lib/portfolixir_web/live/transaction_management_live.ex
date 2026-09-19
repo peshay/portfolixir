@@ -53,6 +53,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
      |> assign(:sell_preview, nil)
      |> assign(:tx_columns, @tx_column_defaults)
      |> assign(:booking_open?, false)
+     |> assign(:filter_sheet_open?, false)
      |> load_state()}
   end
 
@@ -105,6 +106,27 @@ defmodule PortfolixirWeb.TransactionManagementLive do
             <h2><%= gettext("Transaction history") %></h2>
             <div class="section-head-controls">
               <button
+                :if={@transactions != []}
+                type="button"
+                id="transaction-filter-sheet-toggle"
+                class="filter-sheet-toggle"
+                phx-click="open_filter_sheet"
+                aria-haspopup="dialog"
+                aria-expanded={to_string(@filter_sheet_open?)}
+                aria-controls={@filter_sheet_open? && "transaction-filter-sheet"}
+              >
+                <AppShell.icon name={:filter} />
+                <%= gettext("Filter") %>
+                <span
+                  :if={active_chip_count(assigns) > 0}
+                  class="badge"
+                  data-role="filter-sheet-count"
+                >
+                  <%= active_chip_count(assigns) %>
+                </span>
+              </button>
+
+              <button
                 :if={@securities_accounts != []}
                 type="button"
                 id="open-booking"
@@ -129,41 +151,14 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                   toggles, so they carry aria-pressed rather than aria-current,
                   and the pressed state shows on the border as well as the tint
                   so it survives forced colours (UX-DR7). --%>
-            <div
-              id="transaction-chips"
-              class="filter-chips"
-              role="group"
-              aria-label={gettext("Filter the history")}
-            >
-              <span class="filter-chips__family"><%= gettext("Account") %></span>
-              <%= for account <- filter_account_options(@cash_accounts, @transactions) do %>
-                <button
-                  type="button"
-                  class={["filter-chip", to_string(account.id) in @filters["account_ids"] && "is-active"]}
-                  aria-pressed={to_string(to_string(account.id) in @filters["account_ids"])}
-                  phx-click="toggle_filter"
-                  phx-value-family="account"
-                  phx-value-option={account.id}
-                >
-                  <%= account.name %>
-                </button>
-              <% end %>
-
-              <span class="filter-chips__family"><%= gettext("Type") %></span>
-              <%= for type <- filter_type_options(@transactions) do %>
-                <button
-                  type="button"
-                  class={["filter-chip", type in @filters["types"] && "is-active"]}
-                  aria-pressed={to_string(type in @filters["types"])}
-                  phx-click="toggle_filter"
-                  phx-value-family="type"
-                  phx-value-option={type}
-                >
-                  <%= tx_type_label(type) %>
-                </button>
-              <% end %>
-              <ChangedSince.chips id="changed-since-chips" since={@since} />
-            </div>
+            <.chip_families
+              prefix="tx"
+              layout={:row}
+              filters={@filters}
+              cash_accounts={@cash_accounts}
+              transactions={@transactions}
+              since={@since}
+            />
 
             <p
               :if={@since}
@@ -178,47 +173,75 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               ) %>
             </p>
 
-            <details id="transaction-more-filters" class="more-filters">
-              <summary>
-                <AppShell.icon name={:filter} />
-                <%= gettext("More filters") %>
-                <%!-- A demoted control that hides active state is a worse
-                      defect than the builder it replaces, so the count comes
-                      out to the summary. --%>
-                <span :if={@more_filters_count > 0} class="badge" data-role="more-filters-count">
-                  <%= @more_filters_count %>
-                </span>
-              </summary>
-            <form id="transaction-filters" phx-change="filter_changed" class="transaction-filters">
-              <label>
-                <span><%= gettext("Security") %></span>
-                <select name="filters[security_id]">
-                  <option value=""><%= gettext("All securities") %></option>
-                  <%= for {id, name} <- filter_security_options(@transactions) do %>
-                    <option value={id} selected={@filters["security_id"] == id}><%= name %></option>
-                  <% end %>
-                </select>
-              </label>
-              <label>
-                <span><%= gettext("From") %></span>
-                <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="filters[from]" value={@filters["from"]} />
-              </label>
-              <label>
-                <span><%= gettext("To") %></span>
-                <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="filters[to]" value={@filters["to"]} />
-              </label>
-              <label class="transaction-filters-search">
-                <span><%= gettext("Search") %></span>
-                <input
-                  type="text"
-                  name="filters[query]"
-                  value={@filters["query"]}
-                  phx-debounce="200"
-                  placeholder={gettext("Security, type, notes…")}
+            <.more_filters
+              id="transaction-more-filters"
+              form_id="transaction-filters"
+              filters={@filters}
+              transactions={@transactions}
+              more_filters_count={@more_filters_count}
+            />
+
+            <%!-- #816: under 560 px the three chip families and the "More
+                 filters" disclosure sit behind this control in a bottom
+                 sheet — the mechanism #800 built for the securities toolbar,
+                 reused as it stands. Above 560 px the control is hidden
+                 (CSS) and the row above is unchanged. --%>
+            <%= if @filter_sheet_open? do %>
+              <dialog
+                id="transaction-filter-sheet"
+                class="filter-sheet"
+                phx-hook="ModalDialog"
+                data-close-event="close_filter_sheet"
+                aria-labelledby="transaction-filter-sheet-title"
+              >
+                <header class="filter-sheet__head">
+                  <h2 id="transaction-filter-sheet-title"><%= gettext("Filter") %></h2>
+                  <button
+                    type="button"
+                    class="icon-button"
+                    aria-label={gettext("Close")}
+                    phx-click="close_filter_sheet"
+                  >
+                    <AppShell.icon name={:x} />
+                  </button>
+                </header>
+                <.chip_families
+                  prefix="sheet"
+                  layout={:sheet}
+                  filters={@filters}
+                  cash_accounts={@cash_accounts}
+                  transactions={@transactions}
+                  since={@since}
                 />
-              </label>
-            </form>
-            </details>
+                <div class="filter-sheet__family">
+                  <.more_filters
+                    id="sheet-more-filters"
+                    form_id="sheet-transaction-filters"
+                    filters={@filters}
+                    transactions={@transactions}
+                    more_filters_count={@more_filters_count}
+                  />
+                </div>
+                <footer class="filter-sheet__foot">
+                  <button
+                    type="button"
+                    id="transaction-filter-sheet-reset"
+                    class="button"
+                    phx-click="reset_filters"
+                  >
+                    <%= gettext("Reset") %>
+                  </button>
+                  <button
+                    type="button"
+                    id="transaction-filter-sheet-done"
+                    class="button-primary"
+                    phx-click="close_filter_sheet"
+                  >
+                    <%= gettext("Done") %>
+                  </button>
+                </footer>
+              </dialog>
+            <% end %>
 
             <div id="transaction-summary" class="transaction-summary" role="status">
               <span class="summary-total">
@@ -479,6 +502,31 @@ defmodule PortfolixirWeb.TransactionManagementLive do
      |> apply_current_filters()}
   end
 
+  # #816: the phone sheet, reusing #800's mechanism as it stands. The chips
+  # inside it drive the same events as the row, so opening the sheet changes
+  # where the families are rendered and nothing about what they do.
+  def handle_event("open_filter_sheet", _params, socket) do
+    {:noreply, assign(socket, :filter_sheet_open?, true)}
+  end
+
+  def handle_event("close_filter_sheet", _params, socket) do
+    {:noreply, assign(socket, :filter_sheet_open?, false)}
+  end
+
+  # Reset clears every family the sheet shows — the chips AND the demoted
+  # conditions — because a Reset that leaves a hidden condition standing is
+  # the state-hiding defect the counted control exists to prevent. The sheet
+  # stays open: the operator is still filtering.
+  def handle_event("reset_filters", _params, socket) do
+    socket = assign(socket, :filters, default_filters())
+
+    if socket.assigns.since do
+      {:noreply, push_patch(socket, to: "/transactions")}
+    else
+      {:noreply, apply_current_filters(socket)}
+    end
+  end
+
   def handle_event("set_changed_since", %{"preset" => preset}, socket) do
     case ChangedSince.toggle_value(socket.assigns.since, preset) do
       nil -> {:noreply, push_patch(socket, to: "/transactions")}
@@ -679,6 +727,160 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # Section the (already date-desc) history into month chunks with a subtotal
   # each (#414 follow-up). chunk_by works because the list is pre-sorted, so
   # consecutive same-month rows are adjacent and order is preserved.
+  # #816: the three chip families, rendered twice — once as the desktop row
+  # and once stacked inside the phone sheet. `prefix` keeps the two copies'
+  # ids apart; both drive the same `toggle_filter` event, so the filter
+  # vocabulary is learned once and works in both places.
+  attr(:prefix, :string, required: true)
+  attr(:layout, :atom, required: true)
+  attr(:filters, :map, required: true)
+  attr(:cash_accounts, :list, required: true)
+  attr(:transactions, :list, required: true)
+  attr(:since, :any, default: nil)
+
+  defp chip_families(assigns) do
+    ~H"""
+    <div
+      :if={@layout == :row}
+      id="transaction-chips"
+      class="filter-chips"
+      role="group"
+      aria-label={gettext("Filter the history")}
+    >
+      <.chip_family_content {assigns} />
+    </div>
+    <div
+      :if={@layout == :sheet}
+      class="filter-sheet__families"
+      role="group"
+      aria-label={gettext("Filter the history")}
+    >
+      <.chip_family_content {assigns} />
+    </div>
+    """
+  end
+
+  attr(:prefix, :string, required: true)
+  attr(:layout, :atom, required: true)
+  attr(:filters, :map, required: true)
+  attr(:cash_accounts, :list, required: true)
+  attr(:transactions, :list, required: true)
+  attr(:since, :any, default: nil)
+
+  # Chips are toggles, so they carry aria-pressed rather than aria-current,
+  # and the pressed state shows on the border as well as the tint so it
+  # survives forced colours (UX-DR7).
+  defp chip_family_content(assigns) do
+    ~H"""
+    <span class={@layout == :sheet && "filter-sheet__family"}>
+      <span class="filter-chips__family"><%= gettext("Account") %></span>
+      <%= for account <- filter_account_options(@cash_accounts, @transactions) do %>
+        <button
+          type="button"
+          id={"#{@prefix}-chip-account-#{account.id}"}
+          class={["filter-chip", to_string(account.id) in @filters["account_ids"] && "is-active"]}
+          aria-pressed={to_string(to_string(account.id) in @filters["account_ids"])}
+          phx-click="toggle_filter"
+          phx-value-family="account"
+          phx-value-option={account.id}
+        >
+          <%= account.name %>
+        </button>
+      <% end %>
+    </span>
+
+    <span class={@layout == :sheet && "filter-sheet__family"}>
+      <span class="filter-chips__family"><%= gettext("Type") %></span>
+      <%= for type <- filter_type_options(@transactions) do %>
+        <button
+          type="button"
+          id={"#{@prefix}-chip-type-#{type}"}
+          class={["filter-chip", type in @filters["types"] && "is-active"]}
+          aria-pressed={to_string(type in @filters["types"])}
+          phx-click="toggle_filter"
+          phx-value-family="type"
+          phx-value-option={type}
+        >
+          <%= tx_type_label(type) %>
+        </button>
+      <% end %>
+    </span>
+
+    <%!-- The desktop row keeps the id it has always had; only the sheet copy
+          is prefixed, so #816 adds a surface without renaming one. --%>
+    <ChangedSince.chips
+      id={if @layout == :row, do: "changed-since-chips", else: "#{@prefix}-changed-since-chips"}
+      since={@since}
+    />
+    """
+  end
+
+  # The demoted conditions, rendered twice like the chips. The DESKTOP copy
+  # keeps the ids it has always had — "the desktop chip row untouched above
+  # 560 px" (#816) — and only the sheet copy is prefixed.
+  attr(:id, :string, required: true)
+  attr(:form_id, :string, required: true)
+  attr(:filters, :map, required: true)
+  attr(:transactions, :list, required: true)
+  attr(:more_filters_count, :integer, required: true)
+
+  defp more_filters(assigns) do
+    ~H"""
+    <details id={@id} class="more-filters">
+      <summary>
+        <AppShell.icon name={:filter} />
+        <%= gettext("More filters") %>
+        <%!-- A demoted control that hides active state is a worse defect
+              than the builder it replaces, so the count comes out to the
+              summary. --%>
+        <span :if={@more_filters_count > 0} class="badge" data-role="more-filters-count">
+          <%= @more_filters_count %>
+        </span>
+      </summary>
+      <form id={@form_id} phx-change="filter_changed" class="transaction-filters">
+        <label>
+          <span><%= gettext("Security") %></span>
+          <select name="filters[security_id]">
+            <option value=""><%= gettext("All securities") %></option>
+            <%= for {id, name} <- filter_security_options(@transactions) do %>
+              <option value={id} selected={@filters["security_id"] == id}><%= name %></option>
+            <% end %>
+          </select>
+        </label>
+        <label>
+          <span><%= gettext("From") %></span>
+          <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="filters[from]" value={@filters["from"]} />
+        </label>
+        <label>
+          <span><%= gettext("To") %></span>
+          <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="filters[to]" value={@filters["to"]} />
+        </label>
+        <label class="transaction-filters-search">
+          <span><%= gettext("Search") %></span>
+          <input
+            type="text"
+            name="filters[query]"
+            value={@filters["query"]}
+            phx-debounce="200"
+            placeholder={gettext("Security, type, notes…")}
+          />
+        </label>
+      </form>
+    </details>
+    """
+  end
+
+  # The count the Filter control carries: the active chips of the three
+  # families, so a demoted control never hides state (#800's reason, #816's
+  # surface).
+  defp active_chip_count(assigns) do
+    filters = assigns.filters
+
+    length(Map.get(filters, "account_ids", [])) +
+      length(Map.get(filters, "types", [])) +
+      if(assigns[:since], do: 1, else: 0)
+  end
+
   # One figure per currency, so a total always names the money it is in.
   attr(:totals, :list, required: true)
 

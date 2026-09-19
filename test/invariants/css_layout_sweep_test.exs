@@ -89,8 +89,14 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
   end
 
   test "under 560 px the chip row yields to the Filter control" do
-    assert phone_block() =~ ~r/#securities-filter-chips \{\s*display: none;/
+    assert phone_block() =~ ~r/#securities-filter-chips,/
     assert phone_block() =~ ~r/\.filter-sheet-toggle \{\s*display: inline-flex;/
+  end
+
+  # #816: the same rule on the second list surface that has a chip row.
+  test "under 560 px the history's chips and demoted conditions yield too" do
+    assert phone_block() =~
+             ~r/#securities-filter-chips,\s*#transaction-chips,\s*#transaction-more-filters \{\s*display: none;/
   end
 
   test "the phone rows and the Filter control stay out of the desktop layout" do
