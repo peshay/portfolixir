@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-09-15 (Sprint 11 and Sprint 12 both closed out, 0.11.0 and 0.12.0 prepared for the owner; E11's second alignment pass shipped, its tracker #356 stays open on the Sprint 13 remainder)
+# last_updated: 2026-09-19 (Sprint 13 planned: ADR-0047 signs derived metrics FR-39/FR-40 as a new epic E22, and E11 closes on the 2026-09-12 review's remainder plus the #814 coverage deadline)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -42,7 +42,7 @@
 # requests, not assumed -- an issue's state lags the PR that fixes it.
 
 generated: 2026-07-25
-last_updated: 2026-09-15
+last_updated: 2026-09-19
 project: portfolixir
 project_key: NOKEY
 tracking_system: file-system
@@ -241,6 +241,34 @@ story_location: _bmad-output/implementation-artifacts
 # the FR Coverage Map's FR-9 row now names #572 and ADR-0046, and the Tracker
 # Index's E10 line names the benchmark comparison as its first shipped item;
 # the close-out reconciles the rest against the merge, not against this note.
+#
+# PLANNED (2026-09-19, Sprint 13) -- sprint-plan-2026-09-19-sprint13.md,
+# adopted by the merge of the Sprint 13 planning PR, which also carries the
+# decision gate ADR-0047 (derived metrics per security and per view, FR-39 and
+# FR-40, scope-ladder level (a)) and the AR-3 amendment that record requires.
+# Verification basis: `main` at 1dc63d0 with CI 1527 green, 30 open issues, one
+# open PR (Dependabot #819), latest published release 0.10.0.
+# Two epics on ONE branch (D-1): `agent/claude/derived-metrics-and-e11-close`.
+# Lanes: A (metrics -- A1 per-security read + MCP, A2 the figures added to the
+# existing risk read, A3 the two human views, A4 the no-verdict key-set
+# meta-test; risk-tier, issues filed at branch opening once the ADR is signed),
+# B (#814, the holdings column picker -- the two-way coverage deadline, does
+# not shrink), C (E11's close: #807 #809 #816 #817 #808 #806), D (#811, the
+# journal limit parser onto the shared ListLimit), M (#819 closed with the LTS
+# reason or applied if the promotion landed, #727 triggers re-checked, version
+# report before the closing act), Z (registry: the new E22 row and tracker, the
+# FR-39/FR-40 issue numbers, #356 closed by hand when Lane C ships whole).
+# D-2: the metrics' human views ride this batch rather than taking the
+# coverage rule's grace period, because #814 is what that grace period cost
+# last time. D-3: #807's needs-decision label comes off -- the issue's own rule
+# (leaving it as filed signs it) fired, no comment arrived, so the
+# Realized-gains facet IS the Trades view. D-4: #815 is closed by hand as
+# #808's duplicate, not by a keyword. D-5: the #706 closing-act conditions
+# stand, plus Sprint 12's ordering fix (the patch-coverage listing is read from
+# the last PRE-promotion CI run) and a risk-tier verification pass on ADR-0047
+# I1-I7. D-6: 0.13.0 prepared -- and the close-out restates the still-unpushed
+# 0.11.0 and 0.12.0 commands in the same block rather than adding a fourth
+# place to look.
 #
 # PLANNED (2026-09-12, Sprint 12) -- sprint-plan-2026-09-12-sprint12.md,
 # adopted by the merge of PR #783 (the planning PR that also carries the
@@ -1056,3 +1084,22 @@ development_status:
   # journal read's own parser (#811). Nothing in the family stays open.
   epic-21: done
   epic-21-retrospective: done
+
+  # E22 -- Derived metrics per security and per view (scope-ladder level (a),
+  # FR-39 and FR-40); decision gate ADR-0047, signed 2026-09-19 by the merge of
+  # the Sprint 13 planning PR, scheduled by that plan as Lane A. The ladder
+  # released this level on 2026-08-12 and the derived-value mechanism landed in
+  # Sprint 7 (#710, #711), but nothing was filed for four sprints because what
+  # was missing was a decision on what a metric is measured over, not a place
+  # to keep it. ADR-0047 settles that: two input series that are never mixed (a
+  # security's split-adjusted closes in its own currency; the portfolio's daily
+  # valuation walk in the base currency), portfolio figures read from the
+  # TTWROR chain's flow-adjusted factors so a deposit can never read as a
+  # return, a gap produces no observation rather than a zero return, a window
+  # below its stated minimum refuses with a gap marker, and no payload carries
+  # a signal, rating or action (pinned by a key-set meta-test). The row exists
+  # from the planning so the close-out reconciles against it instead of
+  # inventing one; the tracker issue and the story issues are filed at branch
+  # opening, after the signature.
+  epic-22: backlog
+  epic-22-retrospective: optional
