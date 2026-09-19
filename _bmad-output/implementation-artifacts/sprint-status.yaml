@@ -1109,9 +1109,16 @@ development_status:
   # below its stated minimum refuses with a gap marker, and no payload carries
   # a signal, rating or action (pinned by a key-set meta-test). The row exists
   # from the planning so the close-out reconciles against it instead of
-  # inventing one; the tracker issue and the story issues are filed at branch
-  # opening, after the signature.
-  epic-22: backlog
+  # inventing one; the tracker issue and the story issues were filed at branch
+  # opening, after the signature: tracker #821, stories #823 (the engine, the
+  # read and the MCP tool) and #824 (the human view, design pick D1-A), plus
+  # #825 for the per-security invalidation basis of ADR-0047 §8, which is
+  # FILED AND NOT BUILT and is the prerequisite for ever caching this
+  # analytic. Lane A2 -- the portfolio and view figures -- moved to Sprint 14
+  # by the plan's D-7 together with identity I1, to make room for the
+  # security-events lane; ADR-0047 stays signed whole and only the build order
+  # moved, so this epic is NOT done when the batch merges.
+  epic-22: in-progress
   epic-22-retrospective: optional
 
   # E23 -- Security events (FR-44); decision gate B3.4 CLOSED by ADR-0048,
@@ -1131,7 +1138,12 @@ development_status:
   # and pinned in the same batch. Nothing fetches a calendar (B3.3), nothing
   # alerts (B3.7), no rules run over it (B3.6) -- each named in the ADR.
   # The row exists from the planning so the close-out reconciles against it;
-  # the tracker and story issues are filed at branch opening, after the
-  # signature.
-  epic-23: backlog
+  # the tracker and story issues were filed at branch opening, after the
+  # signature: tracker #822, stories #826 (the journaled table), #827 (the
+  # four reads and the three writes on API and MCP), #828 (the "Termine" tab,
+  # pick D2-B, and the "Fällig" Overview card, pick D3-A) and #829 (the
+  # re-import guarantee). Both human surfaces landed in the SAME batch, so the
+  # deferred-view clause of ADR-0048's Consequences did not have to fire and
+  # the close-out records no coverage deadline for this epic.
+  epic-23: in-progress
   epic-23-retrospective: optional
