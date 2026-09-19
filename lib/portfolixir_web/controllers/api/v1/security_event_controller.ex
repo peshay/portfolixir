@@ -104,6 +104,9 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
 
       case Events.update_event(conn.assigns.actor, event, attrs) do
         {:ok, updated} -> json(conn, %{data: JSON.security_event(updated)})
+        # The row went away between the read and the write — the two-writer
+        # model of §4 makes that reachable, and "it is gone" is a 404.
+        {:error, :stale} -> not_found(conn)
         {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
       end
     else
@@ -118,6 +121,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
          {:ok, _deleted} <- Events.delete_event(conn.assigns.actor, event) do
       send_resp(conn, :no_content, "")
     else
+      {:error, :stale} -> not_found(conn)
       {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
       :error -> not_found(conn)
       nil -> not_found(conn)
@@ -246,17 +250,29 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
 
   defp drop_reserved(_attrs), do: %{}
 
+  # The bounded-list family's contract, spelled the family's way (#811):
+  # blank is the default, an oversized value is capped and echoed, and
+  # anything that is not a non-negative integer is a 422 naming the field.
+  # The cap is not cosmetic — an unbounded horizon walked `Date.add/2` for
+  # minutes on the way forward and left the range a date column can store on
+  # the way back, so the read answered a 500 or never answered at all.
+  @max_days 3650
+
+  @doc "The widest horizon the calendar reads accept, in days (ten years)."
+  @spec max_days() :: pos_integer()
+  def max_days, do: @max_days
+
   defp days_param(params, default) do
     case Map.get(params, "days") do
       value when value in [nil, ""] ->
         {:ok, default}
 
       value when is_integer(value) and value >= 0 ->
-        {:ok, value}
+        {:ok, min(value, @max_days)}
 
       value when is_binary(value) ->
         case Integer.parse(value) do
-          {days, ""} when days >= 0 -> {:ok, days}
+          {days, ""} when days >= 0 -> {:ok, min(days, @max_days)}
           _ -> {:error, :days}
         end
 

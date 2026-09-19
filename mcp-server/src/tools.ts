@@ -1977,9 +1977,20 @@ const eventCreateSchema = {
   }
 } as const;
 
+// The four the create route requires. The JSON schema said so from the
+// first commit; the zod validator did not, so `{event: {}}` passed the
+// tool and failed at the API instead — the round trip an agent pays for.
+// The update body stays wholly optional: a PATCH is partial by definition.
+const eventCreateBodyZ = eventBodyZ.required({
+  kind: true,
+  date: true,
+  timing: true,
+  source_quality: true
+});
+
 const eventCreateZ = z.object({
   security_id: z.number().int().positive(),
-  event: eventBodyZ
+  event: eventCreateBodyZ
 });
 
 const eventUpdateSchema = {
@@ -2024,7 +2035,30 @@ const eventsUpcomingZ = z.object({
   limit: z.number().int().min(1).optional()
 });
 
-const eventsQueueSchema = {
+// The did-it-actually-happen queue has no horizon: it is every unconfirmed
+// event whose span is already past, and GET /api/v1/events/unconfirmed reads
+// no `days`. The schema said otherwise until the Sprint 13 closing act, so an
+// agent passing `days` got the whole queue back with no error and no echo —
+// a parameter that silently does nothing is worse than one that 422s.
+const eventsUnconfirmedSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    security_id: { type: "integer", minimum: 1 },
+    kind: { type: "string", enum: [...EVENT_KINDS] },
+    held_only: { type: "boolean" },
+    limit: { type: "integer", minimum: 1 }
+  }
+} as const;
+
+const eventsUnconfirmedZ = z.object({
+  security_id: z.number().int().positive().optional(),
+  kind: z.enum(EVENT_KINDS).optional(),
+  held_only: z.boolean().optional(),
+  limit: z.number().int().min(1).optional()
+});
+
+const eventsStaleSchema = {
   type: "object",
   additionalProperties: false,
   properties: {
@@ -2036,7 +2070,7 @@ const eventsQueueSchema = {
   }
 } as const;
 
-const eventsQueueZ = z.object({
+const eventsStaleZ = z.object({
   days: z.number().int().min(0).optional(),
   security_id: z.number().int().positive().optional(),
   kind: z.enum(EVENT_KINDS).optional(),
@@ -2282,16 +2316,16 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.events.unconfirmed",
     "Dates that passed and nobody confirmed",
-    "Events whose whole span is in the past and whose confirmed flag is still false — the did-it-actually-happen queue, which is what keeps the calendar from quietly rotting. Resolve one by checking the source and calling portfolixir.events.update with confirmed=true (and a fresh checked_at), or by correcting the date if it moved. Optional security_id, kind, held_only and limit.",
-    eventsQueueSchema,
-    eventsQueueZ
+    "Events whose whole span is in the past and whose confirmed flag is still false — the did-it-actually-happen queue, which is what keeps the calendar from quietly rotting. Resolve one by checking the source and calling portfolixir.events.update with confirmed=true (and a fresh checked_at), or by correcting the date if it moved. Optional security_id, kind, held_only and limit; there is no days here, because every unconfirmed past date belongs in the queue however old it is.",
+    eventsUnconfirmedSchema,
+    eventsUnconfirmedZ
   ),
   tool(
     "portfolixir.events.stale",
     "Dates nobody has re-read in N days",
     "Events whose checked_at is older than days (default 90) — or that were never checked at all, which are listed too with days_since_checked null. This is the staleness of the CALENDAR, deliberately a different read from portfolixir.events.unconfirmed: a confirmed FUTURE date nobody has re-read in three months is a different risk from a PAST date nobody resolved. Re-read the source, then call portfolixir.events.update with a fresh checked_at (and a corrected date if it moved). Optional security_id, kind, held_only and limit.",
-    eventsQueueSchema,
-    eventsQueueZ
+    eventsStaleSchema,
+    eventsStaleZ
   ),
   tool(
     "portfolixir.notes.list",

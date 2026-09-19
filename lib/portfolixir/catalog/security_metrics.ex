@@ -125,12 +125,16 @@ defmodule Portfolixir.Catalog.SecurityMetrics do
         "a day with no stored close produces no return observation: returns are taken " <>
           "between consecutive stored closes and nothing is carried forward, because " <>
           "carrying a price forward and then differencing manufactures a calm 0 % day " <>
-          "(ADR-0047 §5). A pair whose earlier close is not positive is skipped — a " <>
-          "stored close of 0 is not a price. Below its stated minimum a metric is null " <>
+          "(ADR-0047 §5). A stored close of zero or below is not a price and is dropped " <>
+          "before any metric reads the series, so the observation counts are prices " <>
+          "actually read. Below its stated minimum a metric is null " <>
           "with insufficient_data and its observation count, never a number: " <>
           "#{PriceMetrics.min_return_observations()} return observations for volatility, " <>
           "n closes for an n-day moving average, 2 closes for the drawdown, and a close " <>
-          "on or before the window's start for the momentum and the 52-week extremes",
+          "on or before the window's start for the momentum and the 52-week extremes. " <>
+          "Momentum also refuses when the series does not reach FORWARD into the period " <>
+          "— a history that stopped before the period began would otherwise report 0 % " <>
+          "over a zero-day window",
       assumptions:
         "volatility is the POPULATION standard deviation of the window's simple daily " <>
           "returns (divided by the observation count, not by one less), annualized by " <>

@@ -28,11 +28,19 @@ defmodule PortfolixirWeb.SecurityEventLabel do
   @doc """
   How well the date is known (§3). The wording is the point: an estimate must
   not read like a filing.
+
+  `exact` reads "Announced" rather than "Confirmed date", which is what the
+  closing-act walkthrough found it saying beside the `confirmed` badge. The
+  two are different facts — `exact` is *a source set this day*, `confirmed`
+  is *it happened* (§5.3's "did it actually happen?" queue) — and a row
+  reading "Confirmed date" on an event nobody has ticked off says the
+  opposite of what it means. ADR-0048 §3 draws the same contrast itself:
+  `estimated` is "from an estimate rather than an announcement".
   """
   @spec timing(String.t() | atom()) :: String.t()
   def timing(value) when is_atom(value) and not is_nil(value), do: timing(Atom.to_string(value))
 
-  def timing("exact"), do: gettext("Confirmed date")
+  def timing("exact"), do: gettext("Announced")
   def timing("estimated"), do: gettext("Estimated")
   def timing("window"), do: gettext("Within a period")
   def timing("month"), do: gettext("Month known, day not")

@@ -2,8 +2,9 @@
 # priv/demo dataset plus deliberately finding-triggering rows — an
 # unclassified security, a held position with a stale quote, a priceless
 # position, a foreign-currency cash account with no FX rate, a snapshot, a tax
-# statement, research-log entries, buckets and a view. Synthetic all the way
-# down; no real data (AGENTS.md → Privacy And Disclosure).
+# statement, research-log entries, security events, buckets and a view.
+# Synthetic all the way down; no real data (AGENTS.md → Privacy And
+# Disclosure).
 #
 # The #706 walkthrough conditions with a script (Sprint 12, D-4): it lives here
 # rather than beside one review's mockups so every later walkthrough exercises
@@ -351,6 +352,73 @@ if Knowledge.list_notes(apple.id) == [] do
     {:ok, note} = Knowledge.append_note(owner, attrs)
     if tag == :risk, do: note.id, else: risk_id
   end)
+end
+
+# 10. Security events (ADR-0048): a calendar the walkthrough can read. Apple is
+#     held, the solar name is not — which is the decision the default scope
+#     exists for, so both carry dates. All four timing qualifiers appear, plus
+#     one past event nobody has confirmed and one nobody has re-read in months,
+#     because those are the two reads an empty calendar cannot show.
+watch = find_security.("Helios Solar Systems SE")
+
+if Knowledge.Events.list_for_security(apple.id) == [] do
+  [
+    %{
+      security_id: apple.id,
+      kind: "earnings",
+      date: Date.add(today, 9),
+      timing: "exact",
+      confirmed: true,
+      source_url: "https://example.invalid/ir/calendar",
+      source_quality: "primary",
+      checked_at: Date.add(today, -2),
+      note: "Q4 report, confirmed on the IR page"
+    },
+    %{
+      security_id: apple.id,
+      kind: "ex_dividend",
+      date: Date.add(today, 23),
+      timing: "estimated",
+      source_quality: "secondary_multi",
+      checked_at: Date.add(today, -20),
+      note: "Estimated from the last four quarters"
+    },
+    %{
+      security_id: apple.id,
+      kind: "shareholder_meeting",
+      date: Date.add(today, -11),
+      timing: "exact",
+      source_quality: "primary",
+      checked_at: Date.add(today, -40),
+      note: "Did it happen? Nobody has ticked this off"
+    }
+  ]
+  |> Enum.each(fn attrs -> {:ok, _} = Knowledge.Events.create_event(owner, attrs) end)
+end
+
+if watch && Knowledge.Events.list_for_security(watch.id) == [] do
+  [
+    %{
+      security_id: watch.id,
+      kind: "lockup_expiry",
+      date: Date.add(today, 5),
+      date_end: Date.add(today, 12),
+      timing: "window",
+      source_quality: "awareness",
+      checked_at: Date.add(today, -5),
+      note: "Prospectus gives a week, not a day"
+    },
+    %{
+      security_id: watch.id,
+      kind: "index_review",
+      date: Date.add(today, 45),
+      timing: "month",
+      source_quality: "unverified",
+      checked_at: Date.add(today, -140),
+      note: "Quarterly review; nobody has re-read this since the last one"
+    }
+  ]
+  |> Enum.each(fn attrs -> {:ok, _} = Knowledge.Events.create_event(owner, attrs) end)
 end
 
 IO.puts("review seed done (timber position: #{timber_state})")

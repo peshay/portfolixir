@@ -56,8 +56,10 @@ the demo dataset, seeds the quote history and the Strategies tree, and adds a
 held position whose quote went stale, a delivered position with no price and
 no asset class, a watch-list security with no classification, a USD cash
 account with a balance and no exchange rate, recent bookings, buckets and a
-view, a depot snapshot, a tax profile with a recorded statement, and a
-research log whose risk entry is superseded by a retraction.
+view, a depot snapshot, a tax profile with a recorded statement, a
+research log whose risk entry is superseded by a retraction, and a
+security-event calendar on both a held and a watch-list security (all four
+timing qualifiers, one unconfirmed past date, one nobody has re-read).
 
 ```bash
 DATABASE_NAME=portfolixir_review PORT=4003 mix ecto.create

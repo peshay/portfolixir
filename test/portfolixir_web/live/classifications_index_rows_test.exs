@@ -106,4 +106,48 @@ defmodule PortfolixirWeb.ClassificationsIndexRowsTest do
     assert has_element?(view, "#tree-open-#{builtin.id}")
     refute has_element?(view, "#tree-delete-#{builtin.id}")
   end
+
+  # User story (found by the edge-case hunter in the Sprint 13 closing act):
+  # As the operator who re-homed a category under its own descendant,
+  # I want the index to still open,
+  # so that one ordinary write cannot brick the only page that could undo it.
+  #
+  # Acceptance criteria:
+  # - A parent cycle (and a self-parent) renders instead of looping: the
+  #   walk is bounded the way `Classifications`' own root path already is.
+  # - The row still renders its counts.
+  @tag timeout: 20_000
+  test "a category parent cycle does not hang the index", %{conn: conn} do
+    {:ok, cyc} =
+      Classifications.create_classification(Actor.owner_ui(), %{name: "Cyc", key: "cyc"})
+
+    {:ok, a} =
+      Classifications.create_category(Actor.owner_ui(), %{classification_id: cyc.id, name: "A"})
+
+    {:ok, b} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: cyc.id,
+        name: "B",
+        parent_id: a.id
+      })
+
+    {:ok, _} = Classifications.update_category(Actor.owner_ui(), a, %{parent_id: b.id})
+
+    {:ok, _view, html} = live(conn, "/classifications")
+    assert html =~ "Cyc"
+
+    {:ok, selfie} =
+      Classifications.create_classification(Actor.owner_ui(), %{name: "Selfie", key: "selfie"})
+
+    {:ok, only} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: selfie.id,
+        name: "Only"
+      })
+
+    {:ok, _} = Classifications.update_category(Actor.owner_ui(), only, %{parent_id: only.id})
+
+    {:ok, _view, html} = live(conn, "/classifications")
+    assert html =~ "Selfie"
+  end
 end

@@ -2260,8 +2260,35 @@ describe("Portfolixir MCP tools", () => {
     const stale = listTools().find((tool) => tool.name === "portfolixir.events.stale");
     assert.match(stale?.description ?? "", /different read/);
 
+    // Every parameter a tool advertises has to be one its route reads.
+    // GET /api/v1/events/unconfirmed takes no horizon — every unconfirmed
+    // past date belongs in the queue — so the schema must not offer `days`,
+    // which would otherwise be accepted, dropped, and never echoed.
+    const unconfirmed = listTools().find(
+      (tool) => tool.name === "portfolixir.events.unconfirmed"
+    );
+    const unconfirmedProps = Object.keys(
+      (unconfirmed?.inputSchema as { properties?: Record<string, unknown> })?.properties ?? {}
+    );
+    assert.deepEqual(unconfirmedProps.sort(), ["held_only", "kind", "limit", "security_id"]);
+
+    const staleProps = Object.keys(
+      (stale?.inputSchema as { properties?: Record<string, unknown> })?.properties ?? {}
+    );
+    assert.ok(staleProps.includes("days"));
+
     const create = listTools().find((tool) => tool.name === "portfolixir.events.create");
     assert.match(create?.description ?? "", /HOW WELL YOU KNOW THE DATE/);
+
+    // The validator has to agree with the schema it advertises: a create
+    // without the four required fields fails here, not after a round trip
+    // to the API. An update body stays partial by definition.
+    assert.equal(requests.length, 7);
+    await assert.rejects(
+      callTool(client, "portfolixir.events.create", { security_id: 7, event: {} })
+    );
+    await callTool(client, "portfolixir.events.update", { id: 3, event: { note: "partial" } });
+    assert.equal(requests.length, 8);
 
     // An event is never converted into a transaction, and the tool set says
     // so rather than leaving an agent to invent the reconciliation.

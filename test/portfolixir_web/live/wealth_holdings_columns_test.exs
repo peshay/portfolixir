@@ -88,4 +88,24 @@ defmodule PortfolixirWeb.WealthHoldingsColumnsTest do
     assert head =~ "Security"
     assert head =~ "Quantity"
   end
+
+  # User story (#814; found by the edge-case hunter in the Sprint 13 closing
+  # act):
+  # As a local portfolio maintainer who picked my columns once,
+  # I want them still picked after a reload,
+  # so that the choice is a preference and not a gesture.
+  #
+  # Acceptance criteria:
+  # - Choosing columns pushes `column-prefs-changed` with the table's own
+  #   storage key, which is what the ColumnPrefs hook writes.
+  test "choosing columns pushes the preference the restore hook reads", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/portfolio")
+
+    render_change(view, "set_holdings_columns", %{"columns" => ["depot", "security", "isin"]})
+
+    assert_push_event(view, "column-prefs-changed", %{
+      key: "wealth.holdings.columns",
+      columns: ["depot", "security", "isin"]
+    })
+  end
 end

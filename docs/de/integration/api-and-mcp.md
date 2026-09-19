@@ -294,9 +294,13 @@ Die Reads:
 - `GET /api/v1/events/upcoming?days=N` — alles, was in den nächsten `N` Tagen
   (Standard 30) im **gesamten Katalog** ansteht. Ein `window`- oder
   `month`-Termin ist fällig, sobald **irgendein** Tag, auf den er fallen kann,
-  im Horizont liegt. Optional `kind`, `held_only`, `limit`.
+  im Horizont liegt. Optional `kind`, `held_only`, `limit`. `days` ist
+  begrenzt wie `limit`: Werte über zehn Jahre werden gekappt und gekappt
+  zurückgemeldet.
 - `GET /api/v1/events/unconfirmed` — Termine, deren Zeitraum vorbei ist und
-  die niemand bestätigt hat.
+  die niemand bestätigt hat. Optional `security_id`, `kind`, `held_only`,
+  `limit`; bewusst **kein** `days`, denn ein unbestätigter vergangener Termin
+  gehört in die Liste, egal wie alt er ist.
 - `GET /api/v1/events/stale?days=N` — Termine, deren `checked_at` älter als
   `N` Tage ist oder die nie geprüft wurden (`days_since_checked` ist dann
   `null`).

@@ -213,7 +213,14 @@ defmodule Portfolixir.Classifications do
 
   # Root-to-category path capped at @max_tree_depth as a cycle guard; a
   # corrupted parent chain yields a truncated path instead of an endless loop.
+  # `parent_id` is only foreign-key checked, so a cycle is reachable through
+  # the ordinary write path and every walk over it needs this bound — which
+  # is why the number is public rather than private to this module.
   @max_tree_depth 32
+
+  @doc "The depth at which a parent walk stops, as a cycle guard."
+  @spec max_tree_depth() :: pos_integer()
+  def max_tree_depth, do: @max_tree_depth
 
   defp category_at_level(by_id, category_id, level) do
     by_id

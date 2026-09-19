@@ -72,7 +72,7 @@ defmodule Portfolixir.Knowledge.Events do
   `checked_at`, `note`).
   """
   @spec create_event(Actor.t(), map()) ::
-          {:ok, SecurityEvent.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, SecurityEvent.t()} | {:error, Ecto.Changeset.t() | :stale | {atom(), term()}}
   def create_event(%Actor{} = actor, attrs) when is_map(attrs) do
     Multi.new()
     |> Multi.insert(:event, SecurityEvent.changeset(%SecurityEvent{}, attrs))
@@ -89,7 +89,7 @@ defmodule Portfolixir.Knowledge.Events do
   current?" is exactly the question the object exists to answer.
   """
   @spec update_event(Actor.t(), SecurityEvent.t(), map()) ::
-          {:ok, SecurityEvent.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, SecurityEvent.t()} | {:error, Ecto.Changeset.t() | :stale | {atom(), term()}}
   def update_event(%Actor{} = actor, %SecurityEvent{} = event, attrs) when is_map(attrs) do
     Multi.new()
     |> Multi.update(:event, SecurityEvent.changeset(event, attrs))
@@ -107,7 +107,7 @@ defmodule Portfolixir.Knowledge.Events do
   `before` snapshot — so removing a duplicate loses nothing (§4).
   """
   @spec delete_event(Actor.t(), SecurityEvent.t()) ::
-          {:ok, SecurityEvent.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, SecurityEvent.t()} | {:error, Ecto.Changeset.t() | :stale | {atom(), term()}}
   def delete_event(%Actor{} = actor, %SecurityEvent{} = event) do
     Multi.new()
     |> Multi.delete(:event, event)
@@ -120,11 +120,19 @@ defmodule Portfolixir.Knowledge.Events do
     |> commit()
   end
 
+  # `Multi.update`/`Multi.delete` RAISE on a row that vanished rather than
+  # returning a changeset, and §4 makes these rows mutable precisely so two
+  # writers can both touch them — so the race is part of the design and
+  # `{:error, :stale}` is part of the contract. The last clause keeps a
+  # journal-step failure a value rather than a `CaseClauseError`.
   defp commit(multi) do
     case Repo.transaction(multi) do
       {:ok, %{event: event}} -> {:ok, event}
       {:error, _step, %Ecto.Changeset{} = invalid, _changes} -> {:error, invalid}
+      {:error, step, reason, _changes} -> {:error, {step, reason}}
     end
+  rescue
+    Ecto.StaleEntryError -> {:error, :stale}
   end
 
   @doc "One event by id, or `nil`."
@@ -301,18 +309,32 @@ defmodule Portfolixir.Knowledge.Events do
     where(query, [e], e.security_id in subquery(held))
   end
 
+  # Every kind that moves a security's quantity in the canonical projection
+  # (`Ledger.Projection.effects/1`), not only the two an agent thinks of
+  # first: a depot transferred in arrives as `inbound_delivery`, and reading
+  # "held" as "bought" reported such a position as unheld — which is the
+  # same mistake, one layer down, that §2 made `held_only` opt-in for.
+  #
+  # `security_transfer` is deliberately absent: it moves quantity between two
+  # depots of the same security, so it nets to zero at the security level,
+  # which is the only level this predicate asks about. A split is absent for
+  # the same reason in the other direction — it multiplies by a positive
+  # ratio and cannot turn a zero into a position or back.
+  @holding_increases ["buy", "inbound_delivery"]
+  @holding_decreases ["sell", "outbound_delivery"]
+
   defp holding_totals_query do
     from(t in Transaction,
-      where: t.type in ["buy", "sell"],
+      where: t.type in ^(@holding_increases ++ @holding_decreases),
       group_by: t.security_id,
       select: %{
         security_id: t.security_id,
         quantity:
           fragment(
-            "sum(CASE WHEN ? = 'buy' THEN ? WHEN ? = 'sell' THEN -? ELSE 0 END)",
+            "sum(CASE WHEN ? = ANY(?) THEN ? ELSE -? END)",
             t.type,
+            ^@holding_increases,
             t.quantity,
-            t.type,
             t.quantity
           )
       }
