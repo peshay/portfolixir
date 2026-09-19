@@ -242,6 +242,82 @@ The human view is the **Research** tab of the security detail pane on
 kind and source quality visible, superseded entries marked as such,
 retractions legible, and a form that appends an entry as the operator.
 
+### Security events (ADR-0048)
+
+A **security event** is a dated statement that something will happen, or has
+happened, to a security: an earnings report, an ex-dividend or payment date, a
+lockup expiry, an index review, a shareholder meeting, a regulatory decision, a
+guidance update.
+
+It is **not** a corporate action. A split *changes a position* and is therefore
+a ledger event (ADR-0028); an earnings date changes nothing until a price
+moves, and a price move is already a quote. `security_events` is its own table
+and the ledger projection never sees one. When the calendar fact becomes a
+booking — the dividend is actually paid — the booking goes through the ledger
+as it always did and the event is marked `confirmed`: **the event is never
+converted into a transaction and the transaction does not consume it.**
+
+**The catalog, not the holdings.** Events key on `security_id` and nothing
+else — no portfolio, no depot, no view — and the catalog-wide reads cover
+**every security by default**. `held_only=true` narrows them and is never the
+default. This is the requirement rather than a query detail: a calendar derived
+from the position list cannot hold a date for a security not yet owned, which
+is exactly the security whose dates matter most.
+
+**A date is qualified by how well it is known.** `timing` is one of `exact`
+(a source that sets it), `estimated` (expected rather than announced), `window`
+(between `date` and `date_end`, inclusive — `date_end` is required here and
+allowed nowhere else) and `month` (the month of `date` is known, the day is
+not). "Earnings expected late February" is not a date, and storing it as one
+makes a guess indistinguishable from a filing.
+
+**Mutable and journaled, deliberately not append-only.** A research entry is an
+argument whose history is its meaning; an event is a fact about the world, and
+a rescheduled call does not make the old date a second fact — it makes it
+wrong. So a correction is a `PATCH` on the same row, and the change history
+lives in the append-only audit journal.
+
+The reads:
+
+- `GET /api/v1/securities/:security_id/events` — one security's events,
+  soonest first, with `limit` (default 1000, max 10000).
+- `GET /api/v1/events/upcoming?days=N` — everything due within `N` days
+  (default 30) across the whole catalog, soonest first. A `window` or `month`
+  event is due when **any** day it could fall on is inside the horizon — the
+  conservative direction, because the failure being prevented is a missed date
+  rather than an early warning. Optional `kind`, `held_only`, `limit`; the
+  answer echoes `days`, `as_of`, `held_only` and its scope.
+- `GET /api/v1/events/unconfirmed` — events whose whole span is in the past
+  and whose `confirmed` flag is still false: the "did it actually happen?"
+  queue, which is what keeps the calendar from quietly rotting.
+- `GET /api/v1/events/stale?days=N` — events whose `checked_at` (the day the
+  fact was last re-read against its source) is older than `N` days (default
+  90), or that were never checked at all, which are listed with
+  `days_since_checked` `null`. Deliberately a different read from the one
+  above: a confirmed *future* date nobody has re-read in three months is a
+  different risk from a *past* date nobody resolved.
+
+The writes:
+
+- `POST /api/v1/securities/:security_id/events` — records one event (`201`).
+  `security_id` comes from the path, never the body; `machine_generated` is
+  reserved and is ignored in the body.
+- `PATCH /api/v1/security_events/:id` — corrects or confirms one in place. The
+  security it belongs to cannot be changed.
+- `DELETE /api/v1/security_events/:id` — removes one (`204`), journaled with
+  the row recorded, for a duplicate or a date that never existed. To record
+  that a date passed, mark it `confirmed` instead.
+
+`source_quality` reuses the research log's vocabulary exactly (`primary`,
+`secondary_multi`, `awareness`, `unverified`) — one scale for "how well do we
+know this" across both knowledge families. An event carries **no money**: there
+is no financial decimal on the object at all.
+
+**What this surface is not.** Nothing fetches a calendar — entry is manual or
+through the agent's own write. The due-date read is a **pull**: there is no
+alerting and no push delivery. No rule reads these rows, and whether events
+predicted anything is not evaluated here.
+
 ### Derived metrics (ADR-0047)
 
 Scope-ladder **level (a)**: one security's price metrics, derived on read from
@@ -1465,9 +1541,12 @@ through this API lives next to the imported history:
   position targets and the cash target; each security's `note` and
   `attributes` including custom keys; the **security research log**
   (`/api/v1/securities/:id/notes` — the append-only entries and the
-  `thesis_state` derived from them, ADR-0044); security ids and `updated_at`.
+  `thesis_state` derived from them, ADR-0044); the **security events**
+  (`/api/v1/securities/:id/events` — every dated calendar fact with its
+  timing qualifier, its confirmation and its `checked_at`, ADR-0048 §7);
+  security ids and `updated_at`.
   Pinned by `test/portfolixir/imports/reimport_preservation_test.exs` since
-  issue #664 (research log added by #748).
+  issue #664 (research log added by #748, security events by #829).
 - **A mutated re-import** (a rename, a recorded ISIN change resolved through
   an alias or an explicit mapping) keeps the same guarantee for the matched
   securities; only the genuinely new bookings land.
@@ -1478,9 +1557,9 @@ through this API lives next to the imported history:
   Portfolixir maintains around the history, not about reconciling two
   versions of the history itself.
 
-A research log, a plan or an assignment therefore never "disappears at the
-next import"; an agent that observes otherwise has found a defect, not a
-documented limitation.
+A research log, a calendar, a plan or an assignment therefore never
+"disappears at the next import"; an agent that observes otherwise has found a
+defect, not a documented limitation.
 
 ## Contract Version
 
@@ -1551,6 +1630,19 @@ in MCP schemas are strings.
 - `portfolixir.securities.delete_isin_alias` — journaled delete of one
   recorded former-ISIN alias.
 - `portfolixir.securities.search_online`
+- `portfolixir.events.list` — one security's calendar (ADR-0048); the
+  description states that an event books nothing and is never converted into a
+  transaction.
+- `portfolixir.events.create` — records a dated fact; the description spells
+  out that `timing` says how well the date is known.
+- `portfolixir.events.update` — corrects or confirms one in place, because an
+  event is mutable by design.
+- `portfolixir.events.delete` — removes a duplicate, journaled.
+- `portfolixir.events.upcoming` — what is due within N days across the **whole
+  catalog**; `held_only` narrows and is never the default.
+- `portfolixir.events.unconfirmed` — dates that passed with nobody confirming
+  them.
+- `portfolixir.events.stale` — dates nobody has re-read in N days.
 - `portfolixir.securities.metrics` — one security's derived price metrics
   (ADR-0047) over its own split-adjusted close series: moving averages,
   volatility, maximum drawdown, momentum and the distance to the 52-week

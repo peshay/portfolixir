@@ -13,6 +13,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   alias Portfolixir.Classifications.Classification
   alias Portfolixir.Fx.ExchangeRate
   alias Portfolixir.Journal.Entry, as: JournalEntry
+  alias Portfolixir.Knowledge.SecurityEvent
   alias Portfolixir.Knowledge.SecurityNote
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.Allocation
@@ -1872,6 +1873,30 @@ defmodule PortfolixirWeb.Api.V1.JSON do
         String.replace(acc, "%{#{key}}", to_string(value))
       end)
     end)
+  end
+
+  @doc """
+  One security event (ADR-0048 §6). The closed sets travel as strings; there
+  is no financial decimal on this object at all — an event carries no money.
+  """
+  def security_event(%SecurityEvent{} = event) do
+    %{
+      id: event.id,
+      security_id: event.security_id,
+      kind: to_string(event.kind),
+      date: date(event.date),
+      date_end: date(event.date_end),
+      timing: to_string(event.timing),
+      confirmed: event.confirmed,
+      source_url: event.source_url,
+      source_quality: to_string(event.source_quality),
+      checked_at: date(event.checked_at),
+      days_since_checked: event.days_since_checked,
+      note: event.note,
+      machine_generated: event.machine_generated,
+      inserted_at: timestamp(event.inserted_at),
+      updated_at: timestamp(event.updated_at)
+    }
   end
 
   @doc """

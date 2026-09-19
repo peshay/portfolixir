@@ -1907,6 +1907,143 @@ const noteSourceQualities = ["primary", "secondary_multi", "awareness", "unverif
 const noteAuthors = ["operator", "agent", "local_model"] as const;
 const noteConvictions = ["low", "medium", "high"] as const;
 
+const EVENT_KINDS = [
+  "earnings",
+  "ex_dividend",
+  "dividend_payment",
+  "lockup_expiry",
+  "index_review",
+  "shareholder_meeting",
+  "regulatory_decision",
+  "guidance_update"
+] as const;
+
+const EVENT_TIMINGS = ["exact", "estimated", "window", "month"] as const;
+const EVENT_SOURCE_QUALITIES = ["primary", "secondary_multi", "awareness", "unverified"] as const;
+
+const eventBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    kind: { type: "string", enum: [...EVENT_KINDS] },
+    date: { type: "string", description: "ISO8601 date" },
+    date_end: { type: "string", description: "ISO8601 date; ONLY on timing=window" },
+    timing: { type: "string", enum: [...EVENT_TIMINGS] },
+    confirmed: { type: "boolean" },
+    source_url: { type: "string" },
+    source_quality: { type: "string", enum: [...EVENT_SOURCE_QUALITIES] },
+    checked_at: { type: "string", description: "ISO8601 date the fact was last re-read" },
+    note: { type: "string" }
+  }
+} as const;
+
+const eventBodyZ = z.object({
+  kind: z.enum(EVENT_KINDS).optional(),
+  date: z.string().optional(),
+  date_end: z.string().optional(),
+  timing: z.enum(EVENT_TIMINGS).optional(),
+  confirmed: z.boolean().optional(),
+  source_url: z.string().optional(),
+  source_quality: z.enum(EVENT_SOURCE_QUALITIES).optional(),
+  checked_at: z.string().optional(),
+  note: z.string().optional()
+});
+
+const eventsListSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["security_id"],
+  properties: {
+    security_id: { type: "integer", minimum: 1 },
+    limit: { type: "integer", minimum: 1 }
+  }
+} as const;
+
+const eventsListZ = z.object({
+  security_id: z.number().int().positive(),
+  limit: z.number().int().min(1).optional()
+});
+
+const eventCreateSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["security_id", "event"],
+  properties: {
+    security_id: { type: "integer", minimum: 1 },
+    event: {
+      ...eventBodySchema,
+      required: ["kind", "date", "timing", "source_quality"]
+    }
+  }
+} as const;
+
+const eventCreateZ = z.object({
+  security_id: z.number().int().positive(),
+  event: eventBodyZ
+});
+
+const eventUpdateSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "event"],
+  properties: {
+    id: { type: "integer", minimum: 1 },
+    event: eventBodySchema
+  }
+} as const;
+
+const eventUpdateZ = z.object({
+  id: z.number().int().positive(),
+  event: eventBodyZ
+});
+
+const eventDeleteSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id"],
+  properties: { id: { type: "integer", minimum: 1 } }
+} as const;
+
+const eventDeleteZ = z.object({ id: z.number().int().positive() });
+
+const eventsUpcomingSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    days: { type: "integer", minimum: 0, description: "horizon in days (default 30)" },
+    kind: { type: "string", enum: [...EVENT_KINDS] },
+    held_only: { type: "boolean", description: "narrow to securities you hold; NOT the default" },
+    limit: { type: "integer", minimum: 1 }
+  }
+} as const;
+
+const eventsUpcomingZ = z.object({
+  days: z.number().int().min(0).optional(),
+  kind: z.enum(EVENT_KINDS).optional(),
+  held_only: z.boolean().optional(),
+  limit: z.number().int().min(1).optional()
+});
+
+const eventsQueueSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    days: { type: "integer", minimum: 0 },
+    security_id: { type: "integer", minimum: 1 },
+    kind: { type: "string", enum: [...EVENT_KINDS] },
+    held_only: { type: "boolean" },
+    limit: { type: "integer", minimum: 1 }
+  }
+} as const;
+
+const eventsQueueZ = z.object({
+  days: z.number().int().min(0).optional(),
+  security_id: z.number().int().positive().optional(),
+  kind: z.enum(EVENT_KINDS).optional(),
+  held_only: z.boolean().optional(),
+  limit: z.number().int().min(1).optional()
+});
+
 const securityMetricsSchema = {
   type: "object",
   additionalProperties: false,
@@ -2106,6 +2243,55 @@ const toolDefinitions: ToolDefinition[] = [
     "One security's derived metrics (ADR-0047, FR-39) over ITS OWN split-adjusted close series, in the security's own currency — deliberately not converted to the base currency, because a price metric is a statement about the instrument. sma_50 and sma_200 with the latest close's distance to each; volatility over 30d/90d/365d (the population standard deviation of simple daily returns, annualized by the square root of 252); max_drawdown over the same windows with peak_date, trough_date and recovery_date (recovery_date null while the series is still below the peak); momentum over 3m/6m/12m; distance_to_extremes, the 52-week high and low with their dates and the distance to each. Every metric carries the window it was measured over and its observations count, and the payload carries computation_basis (input series, gaps, assumptions) once — read it before comparing two securities. A gap produces NO observation rather than a zero return: a day with no stored close is not carried forward and then differenced. Below its minimum a metric is null with insufficient_data true and its observation count, at HTTP 200 — that is a gap marker, not an error, and NOT a reason to retry. THIS READ REPORTS, IT DOES NOT EVALUATE: there is no signal, recommendation, rating, score or action in the payload and none is coming from this tool; an SMA-50 above an SMA-200 is two numbers and a distance, and what to do about it is yours to decide. Decimals are strings.",
     securityMetricsSchema,
     securityMetricsZ
+  ),
+  tool(
+    "portfolixir.events.list",
+    "Calendar of one security",
+    "One security's events (ADR-0048), soonest first: earnings reports, ex-dividend and payment dates, lockup expiries, index reviews, shareholder meetings, regulatory decisions, guidance updates. An event is a dated calendar FACT that books nothing — a split changes a position and is a ledger event, an earnings date changes nothing until a price moves. When the dividend is actually paid, book it through the ledger as always and mark the event confirmed with portfolixir.events.update; the event is never converted into a transaction and no tool does that for you. Each row carries kind, date, date_end (only on timing=window), timing (exact | estimated | window | month — how well the date is KNOWN, so a guess is never stored as a filing), confirmed, source_url, source_quality (primary | secondary_multi | awareness | unverified, the same scale as the research log), checked_at (the day the fact was last re-read against its source) and note.",
+    eventsListSchema,
+    eventsListZ
+  ),
+  tool(
+    "portfolixir.events.create",
+    "Record a calendar date for a security",
+    "Record one dated calendar fact against a security (ADR-0048). kind is one of earnings | ex_dividend | dividend_payment | lockup_expiry | index_review | shareholder_meeting | regulatory_decision | guidance_update. timing SAYS HOW WELL YOU KNOW THE DATE and is not decoration: exact = a source that sets it, estimated = expected rather than announced, window = it falls between date and date_end inclusive (date_end is required, and allowed ONLY here), month = the month of date is known and the day is not. Storing a guess as exact is the one mistake this field exists to prevent. source_quality is SET, not guessed. checked_at is the day you last re-read the fact against its source; set it when you check, and portfolixir.events.stale will tell you what has gone unread. Works for ANY security in the catalog, held or not — a purchase candidate's reporting date is exactly the one worth recording. The write is journaled under the API token.",
+    eventCreateSchema,
+    eventCreateZ
+  ),
+  tool(
+    "portfolixir.events.update",
+    "Correct or confirm a calendar date",
+    "Update one event in place (ADR-0048 §4). An event is MUTABLE by design, unlike a research-log entry: a rescheduled earnings call does not make the old date a second fact, it makes it wrong, and two rows for one reporting date is a calendar nobody can read. So correct the row rather than adding another, set confirmed=true once it actually happened, and bump checked_at when you re-read the source. The change history is kept in the append-only audit journal, so nothing is lost. The security an event belongs to cannot be changed.",
+    eventUpdateSchema,
+    eventUpdateZ
+  ),
+  tool(
+    "portfolixir.events.delete",
+    "Remove a calendar date",
+    "Delete one event (ADR-0048 §4) — for a duplicate or a date that turned out never to have existed. Journaled with the row recorded, so the deletion is auditable and nothing is silently lost. To record that a date passed, mark it confirmed instead of deleting it; the history of what happened is the point of keeping it.",
+    eventDeleteSchema,
+    eventDeleteZ
+  ),
+  tool(
+    "portfolixir.events.upcoming",
+    "Dates due across the whole catalog within N days",
+    "Every security event due within days (default 30), soonest first, across the WHOLE CATALOG — held or not. This is the read to poll instead of rebuilding a calendar out of the position list: a calendar derived from the holdings cannot hold a date for a security not yet owned, which is how a purchase candidate's reporting date gets missed. held_only=true narrows to securities with a position and is NEVER the default. A window or month event is due when ANY day it could fall on is inside the horizon — conservative on purpose, because the failure being prevented is a missed date and not an early warning. kind narrows to one kind. The answer echoes days, as_of, held_only and its scope. PULL ONLY: nothing is pushed anywhere and no rule or alert reads these rows.",
+    eventsUpcomingSchema,
+    eventsUpcomingZ
+  ),
+  tool(
+    "portfolixir.events.unconfirmed",
+    "Dates that passed and nobody confirmed",
+    "Events whose whole span is in the past and whose confirmed flag is still false — the did-it-actually-happen queue, which is what keeps the calendar from quietly rotting. Resolve one by checking the source and calling portfolixir.events.update with confirmed=true (and a fresh checked_at), or by correcting the date if it moved. Optional security_id, kind, held_only and limit.",
+    eventsQueueSchema,
+    eventsQueueZ
+  ),
+  tool(
+    "portfolixir.events.stale",
+    "Dates nobody has re-read in N days",
+    "Events whose checked_at is older than days (default 90) — or that were never checked at all, which are listed too with days_since_checked null. This is the staleness of the CALENDAR, deliberately a different read from portfolixir.events.unconfirmed: a confirmed FUTURE date nobody has re-read in three months is a different risk from a PAST date nobody resolved. Re-read the source, then call portfolixir.events.update with a fresh checked_at (and a corrected date if it moved). Optional security_id, kind, held_only and limit.",
+    eventsQueueSchema,
+    eventsQueueZ
   ),
   tool(
     "portfolixir.notes.list",
@@ -2805,6 +2991,47 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       return client.request(
         "GET",
         withQuery(`/api/v1/securities/${args.security_id}/metrics`, args, ["as_of"])
+      );
+    case "portfolixir.events.list":
+      return client.request(
+        "GET",
+        withQuery(`/api/v1/securities/${args.security_id}/events`, args, ["limit"])
+      );
+    case "portfolixir.events.create":
+      return client.request("POST", `/api/v1/securities/${args.security_id}/events`, {
+        event: args.event
+      });
+    case "portfolixir.events.update":
+      return client.request("PATCH", `/api/v1/security_events/${args.id}`, {
+        event: args.event
+      });
+    case "portfolixir.events.delete":
+      return client.request("DELETE", `/api/v1/security_events/${args.id}`);
+    case "portfolixir.events.upcoming":
+      return client.request(
+        "GET",
+        withQuery("/api/v1/events/upcoming", args, ["days", "kind", "held_only", "limit"])
+      );
+    case "portfolixir.events.unconfirmed":
+      return client.request(
+        "GET",
+        withQuery("/api/v1/events/unconfirmed", args, [
+          "security_id",
+          "kind",
+          "held_only",
+          "limit"
+        ])
+      );
+    case "portfolixir.events.stale":
+      return client.request(
+        "GET",
+        withQuery("/api/v1/events/stale", args, [
+          "days",
+          "security_id",
+          "kind",
+          "held_only",
+          "limit"
+        ])
       );
     case "portfolixir.notes.list":
       return client.request(

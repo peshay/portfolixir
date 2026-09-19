@@ -15,6 +15,7 @@ defmodule Portfolixir.Imports.ReimportPreservationTest do
   alias Portfolixir.Imports
   alias Portfolixir.Imports.Applier.Result
   alias Portfolixir.Knowledge
+  alias Portfolixir.Knowledge.Events
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Targets
@@ -144,16 +145,44 @@ defmodule Portfolixir.Imports.ReimportPreservationTest do
         as_of: ~D[2026-07-02]
       })
 
+    # The calendar (ADR-0048 §7): a confirmed date and a range the agent
+    # recorded between two imports of the same bookkeeping history. A calendar
+    # that vanishes at the next import is worth nothing, so the guarantee is
+    # extended to events in the same batch that creates them.
+    {:ok, earnings} =
+      Events.create_event(owner, %{
+        security_id: acme.id,
+        kind: "earnings",
+        date: ~D[2026-11-04],
+        timing: "exact",
+        confirmed: true,
+        source_quality: "primary",
+        checked_at: ~D[2026-07-01],
+        note: "Q3 report"
+      })
+
+    {:ok, _unlock} =
+      Events.create_event(owner, %{
+        security_id: btc.id,
+        kind: "lockup_expiry",
+        date: ~D[2026-12-01],
+        date_end: ~D[2026-12-31],
+        timing: "window",
+        source_quality: "secondary_multi"
+      })
+
     snapshot = %{
       plans: plan_snapshot(portfolio.id),
       targets: target_snapshot(portfolio.id),
       assignments: assignment_snapshot([btc.id, acme.id], classification.id),
       securities: security_snapshot([btc.id, acme.id]),
       transaction_count: Ledger.count_transactions(),
-      research_log: research_log_snapshot([btc.id, acme.id])
+      research_log: research_log_snapshot([btc.id, acme.id]),
+      events: events_snapshot([btc.id, acme.id])
     }
 
     assert length(snapshot.research_log) == 2
+    assert length(snapshot.events) == 2
 
     assert snapshot.securities |> Enum.map(& &1.note) |> Enum.all?(&is_binary/1)
 
@@ -182,6 +211,12 @@ defmodule Portfolixir.Imports.ReimportPreservationTest do
     assert research_log_snapshot([btc.id, acme.id]) == snapshot.research_log
     assert Knowledge.count_notes() == 2
     assert Knowledge.thesis_state(acme.id).derived_from_entry_id == thesis.id
+
+    # The calendar survives untouched too (ADR-0048 §7): same rows, same ids,
+    # same dates, same timing qualifiers, same confirmation.
+    assert events_snapshot([btc.id, acme.id]) == snapshot.events
+    assert Events.count_events() == 2
+    assert Events.get_event(earnings.id).confirmed
   end
 
   # User story (issue #664 companion — the mutated re-import keeps notes and
@@ -189,15 +224,16 @@ defmodule Portfolixir.Imports.ReimportPreservationTest do
   # As a local portfolio maintainer whose broker renamed a security and
   # changed an ISIN between exports,
   # I want the mutated re-import (the 18.2 golden path) to also preserve each
-  # security's note and attributes,
+  # security's note, attributes and calendar,
   # so that identity resolution through aliases and overrides never rewrites
   # the catalog fields I maintain by hand.
   #
   # Acceptance criteria:
   # - After the mutated re-import (explicit override + former-ISIN alias),
-  #   `note` and `attributes` on both securities are unchanged.
+  #   `note` and `attributes` on both securities are unchanged, and the
+  #   security events recorded against them survive the alias resolution.
   # - The one genuinely new booking still lands; nothing else changes.
-  test "a mutated re-import (rename + ISIN change) preserves notes and attributes" do
+  test "a mutated re-import (rename + ISIN change) preserves notes, attributes and events" do
     portfolio = setup_portfolio()
     owner = Actor.owner_ui()
 
@@ -219,7 +255,19 @@ defmodule Portfolixir.Imports.ReimportPreservationTest do
         attributes: Map.put(acme.attributes || %{}, "review_after", "2026-12-31")
       })
 
+    # A date on the security whose ISIN is about to change: identity resolution
+    # through an alias is exactly where a calendar could be lost (ADR-0048 §7).
+    {:ok, _earnings} =
+      Events.create_event(owner, %{
+        security_id: acme.id,
+        kind: "earnings",
+        date: ~D[2026-11-04],
+        timing: "exact",
+        source_quality: "primary"
+      })
+
     securities_before = security_snapshot([btc.id, acme.id])
+    events_before = events_snapshot([btc.id, acme.id])
 
     {:ok, %{security: acme}} = Catalog.record_isin_change(owner, acme, "DE000ACME119")
 
@@ -243,6 +291,28 @@ defmodule Portfolixir.Imports.ReimportPreservationTest do
     assert strip_isin(securities_after) == strip_isin(securities_before)
     assert Catalog.get_security!(acme.id).isin == "DE000ACME119"
     assert Catalog.get_security!(btc.id).name == "Bitcoin"
+
+    # The calendar rides the alias resolution unchanged.
+    assert events_snapshot([btc.id, acme.id]) == events_before
+    assert Events.count_events() == 1
+  end
+
+  defp events_snapshot(security_ids) do
+    for id <- security_ids, event <- Events.list_for_security(id) do
+      %{
+        id: event.id,
+        security_id: event.security_id,
+        kind: event.kind,
+        date: event.date,
+        date_end: event.date_end,
+        timing: event.timing,
+        confirmed: event.confirmed,
+        source_quality: event.source_quality,
+        checked_at: event.checked_at,
+        note: event.note,
+        inserted_at: event.inserted_at
+      }
+    end
   end
 
   defp research_log_snapshot(security_ids) do

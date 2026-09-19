@@ -151,6 +151,18 @@ defmodule PortfolixirWeb.Router do
     get("/notes/uncorroborated", NoteController, :uncorroborated)
     get("/notes/expiring", NoteController, :expiring)
 
+    # Security events (FR-44, ADR-0048 §5): a dated calendar fact that books
+    # nothing, tracked for the WHOLE CATALOG rather than the holdings. The
+    # four reads are the acceptance criteria; held_only= narrows and is never
+    # the default.
+    get("/securities/:security_id/events", SecurityEventController, :index)
+    post("/securities/:security_id/events", SecurityEventController, :create)
+    patch("/security_events/:id", SecurityEventController, :update)
+    delete("/security_events/:id", SecurityEventController, :delete)
+    get("/events/upcoming", SecurityEventController, :upcoming)
+    get("/events/unconfirmed", SecurityEventController, :unconfirmed)
+    get("/events/stale", SecurityEventController, :stale)
+
     get("/holdings/by_security", HoldingsBySecurityController, :index)
     get("/realized_gains", RealizedGainsController, :index)
     get("/external_flows", ExternalFlowsController, :index)
