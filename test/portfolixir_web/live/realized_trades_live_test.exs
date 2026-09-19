@@ -51,8 +51,10 @@ defmodule PortfolixirWeb.RealizedTradesLiveTest do
              "#realized-trades-table a[href='/securities/#{winner.id}?tab=trades']"
            )
 
-    # The matrix keeps its numbers, behind the disclosure.
-    assert has_element?(view, "#realized-annual-disclosure summary", "Realized per period")
+    # The matrix keeps its numbers, behind the disclosure — and the section
+    # keeps a heading on the ramp rather than letting the summary be it.
+    assert view |> element("#realized-annual h2") |> render() =~ "Realized per period"
+    assert has_element?(view, "#realized-annual-disclosure summary", "Year and month matrix")
     assert view |> element("#realized-annual") |> render() =~ "2026"
   end
 

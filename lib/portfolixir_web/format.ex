@@ -44,6 +44,23 @@ defmodule PortfolixirWeb.Format do
   def percent(_value, _locale), do: "—"
 
   @doc """
+  Formats a Decimal with locale separators and **without rounding**: every
+  stored digit is kept. For a surface that is the human read of an API
+  payload, where rounding would make the page and the payload disagree while
+  a missing thousands separator only makes the page harder to read.
+  """
+  def exact(value, locale \\ nil)
+
+  def exact(%Decimal{} = value, locale) do
+    value
+    |> Decimal.normalize()
+    |> Decimal.to_string(:normal)
+    |> localize(locale || current_locale())
+  end
+
+  def exact(_value, _locale), do: "—"
+
+  @doc """
   Formats a Decimal with the given number of decimal places, applying locale
   separators. E.g. `Decimal.new("1234.5")` with `places: 2` → `"1.234,50"` (de)
   or `"1,234.50"` (en). Non-numbers render as an em dash.

@@ -490,18 +490,25 @@ defmodule PortfolixirWeb.DashboardLive do
               data-role="upcoming-event"
               class="attention-item"
             >
+              <%!-- One name and one right-aligned figure, the anatomy
+                   `.attention-item` is built for: a second `.attention-name`
+                   span floated the kind into the middle of the row and made
+                   hover underline two things as if the row were two links.
+                   The kind and the timing qualifier are the name's sub-line;
+                   the date is the figure, which keeps the nowrap slot short
+                   enough for 390 px. --%>
               <span class="attention-name">
                 <%= row.security_name %>
-                <span :if={not row.held} class="badge badge--derived" data-role="upcoming-unheld">
+                <span :if={not row.held} class="badge badge--neutral" data-role="upcoming-unheld">
                   <%= gettext("no position") %>
                 </span>
-              </span>
-              <span class="attention-name">
-                <%= SecurityEventLabel.kind(row.event.kind) %>
+                <small class="attention-item__sub">
+                  <%= SecurityEventLabel.kind(row.event.kind) %>
+                  · <%= SecurityEventLabel.timing(row.event.timing) %>
+                </small>
               </span>
               <span class="num">
                 <%= Date.to_iso8601(row.event.date) %>
-                · <%= SecurityEventLabel.timing(row.event.timing) %>
               </span>
             </a>
           </li>

@@ -253,9 +253,10 @@ instrument. A day without a stored close produces no return observation, so
 nothing is carried forward and then differenced. **The block reports; it does
 not evaluate** — there is no signal, rating or recommendation anywhere in it.
 
-### Termine tab (the security's calendar, ADR-0048)
+### Dates tab (the security's calendar, ADR-0048)
 
-The **Termine** tab lists the dated calendar facts recorded for the security
+The **Dates** tab (German: *Termine*) lists the dated calendar facts recorded
+for the security
 — an earnings report, an ex-dividend or payment date, a lockup expiry, an
 index review, a shareholder meeting, a regulatory decision, a guidance update
 — in the research timeline's shape. Each row says how well the date is known
@@ -267,7 +268,7 @@ Those last two are different facts and the labels keep them apart on purpose.
 *Announced* says a source set this day; *took place* says the thing actually
 happened. A reporting date can be announced months ahead and still be waiting
 to happen, and a date nobody announced can pass all the same — which is why
-the Termine tab can show an *announced* row with no *took place* badge, and
+the Dates tab can show an *announced* row with no *took place* badge, and
 why that is not a contradiction.
 
 An event **books nothing**: when a dividend is actually paid it is booked
@@ -535,10 +536,12 @@ for historic imports once rates for the booking dates are stored.
 The **Classifications index** (`/classifications`, issue #808) is one row
 per tree, and each row says what that tree holds: how many categories and how
 many levels it uses, how many of your securities are assigned in it — with the
-unassigned count called out beside it — and the target plan it carries, with
-that plan's name and status. The row itself opens the tree; the kebab at its
-end carries Open and, for a custom tree, Delete; **+** in the heading creates
-a new one.
+unassigned count called out beside it — and the target plan it carries, whose
+name reads under the tree's name and whose status is the short word in the
+row's right-hand slot. The row itself opens the tree; the kebab at its end
+carries Open and, for a custom tree, Delete; **+** in the heading creates a
+new one. With no trees at all the index says so rather than rendering an
+empty list.
 
 Securities can be organised into **classification trees**. Custom trees are
 free-form folders with colours; built-in trees for **asset class** and
@@ -878,9 +881,12 @@ beyond the default depot, security and quantity it offers ISIN, WKN,
 currency, average cost, latest price, market value and the unrealised result
 in money and percent. These are the same fields an agent selects with the
 holdings API's `fields=` sparse fieldset, read from the same projection, so
-a figure here is the figure there. The choice is stored in the browser and
-survives a reload; clearing every box falls back to the defaults rather than
-leaving a table with no columns. Beside the fixed buttons, a year dropdown
+a figure here is the figure there — with your locale's separators, and with
+the row's currency after every money figure, so a market value states its
+currency even when the Currency column is switched off. The choice is stored
+in the browser and survives a reload; clearing every box falls back to the
+defaults rather than leaving a table with no columns. The picker sits above
+the table, and appears only when there is a table to configure. Beside the fixed buttons, a year dropdown
 chains any single calendar year with data, and a from/to date range chains a
 custom span — both are pure re-chains of the already-computed series, clamped
 honestly to the available history (a backwards range is refused with a short
@@ -1193,9 +1199,13 @@ rate** (the share of closed trades that realised a gain; a break-even trade
 counts as a miss) and the **average holding period** — followed by the closed
 round-trips themselves, newest close first, each row naming the security
 (linked to its Trades tab), bought → sold, how long it was held, the quantity,
-the cost, the proceeds and the result in both money and percent. The year ×
-month matrix the facet used to open with keeps every number, now behind the
-**Realized per period** disclosure beneath the list.
+the cost, the proceeds and the result in both money and percent, the result
+carrying its sign colour. The year × month matrix the facet used to open with
+keeps every number, now under **Realized per period** behind a **Year and
+month matrix** disclosure beneath the list. Where a sale could not be
+converted, the note saying how many and which leads the section — above the
+three figures it qualifies, with its backfill control — rather than sitting
+under the numbers it is about.
 
 With no closed trades the hit rate and the average holding period read as
 absent rather than as 0 % and 0 days — the average of nothing is not zero.

@@ -2171,26 +2171,6 @@ defmodule PortfolixirWeb.PortfolioLive do
         <section id="portfolio-positions" class="workspace-section">
           <header class="section-head">
             <h2><%= gettext("Positions") %></h2>
-            <div class="section-head-controls">
-              <details id="holdings-column-picker" class="more-filters">
-                <summary>
-                  <AppShell.icon name={:columns} />
-                  <%= gettext("Columns") %>
-                </summary>
-                <form id="holdings-column-form" phx-change="set_holdings_columns">
-                  <label :for={key <- holdings_column_keys()} class="checkbox-row">
-                    <input
-                      type="checkbox"
-                      name="columns[]"
-                      value={key}
-                      checked={key in @holdings_columns}
-                    />
-                    <span><%= holdings_column_label(key) %></span>
-                  </label>
-                  <input type="hidden" name="columns[]" value="" />
-                </form>
-              </details>
-            </div>
           </header>
           <p class="summary-basis" data-role="positions-basis">
             <%= gettext(
@@ -2202,6 +2182,32 @@ defmodule PortfolixirWeb.PortfolioLive do
               <%= gettext("No holdings yet") %>
             </div>
           <% else %>
+            <%!-- The picker sits in the body flow, not in `.section-head`:
+                 that header is `align-items: center`, so opening an
+                 eleven-row disclosure inside it re-centres the heading
+                 against it, and DESIGN.md's custom-range rule is that
+                 opening a disclosure moves nothing. It is also below the
+                 empty-state branch, because offering to pick columns for a
+                 table that is not there is an offer with nothing behind
+                 it. --%>
+            <details id="holdings-column-picker" class="section-disclosure">
+              <summary class="disclosure-summary">
+                <AppShell.icon name={:columns} />
+                <%= gettext("Columns") %>
+              </summary>
+              <form id="holdings-column-form" phx-change="set_holdings_columns">
+                <label :for={key <- holdings_column_keys()} class="checkbox-row">
+                  <input
+                    type="checkbox"
+                    name="columns[]"
+                    value={key}
+                    checked={key in @holdings_columns}
+                  />
+                  <span><%= holdings_column_label(key) %></span>
+                </label>
+                <input type="hidden" name="columns[]" value="" />
+              </form>
+            </details>
             <div
               id="holdings-positions-wrapper"
               class="data-table-wrapper"
@@ -2221,7 +2227,10 @@ defmodule PortfolixirWeb.PortfolioLive do
                 <tbody>
                   <tr :for={row <- @holding_rows} data-role="holdings-position">
                     <td :for={key <- @holdings_columns} {holdings_num_attrs(key)}>
-                      <%= holdings_cell(row, key) %>
+                      <%= holdings_cell(row, key) %><small
+                        :if={holdings_currency(row, key)}
+                        class="value-suffix"
+                      ><%= row.currency_code %></small>
                     </td>
                   </tr>
                 </tbody>
@@ -2340,14 +2349,25 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp holdings_cell(row, "unrealized_pnl_pct"), do: holdings_decimal(row.unrealized_pnl_pct)
 
   # The projection's own values, unrounded: this table is the human read of
-  # what the API serves, so a figure here is the figure there. An absent value
-  # is an em dash rather than a blank cell.
+  # what the API serves, so a figure here is the figure there. The separators
+  # are the reader's, though — `1234.5` beside a neighbouring table's
+  # `1.234,50` is the page disagreeing with itself for no gain. An absent
+  # value is an em dash rather than a blank cell.
   defp holdings_decimal(nil), do: "—"
 
-  defp holdings_decimal(%Decimal{} = value),
-    do: value |> Decimal.normalize() |> Decimal.to_string(:normal)
+  defp holdings_decimal(%Decimal{} = value), do: PortfolixirWeb.Format.exact(value)
 
   defp holdings_decimal(value), do: to_string(value)
+
+  # The money columns carry the row's own currency, because `currency` is an
+  # opt-in column and a bare market value with no currency states less than
+  # the payload it mirrors (EXPERIENCE.md → Voice and Tone: numbers state
+  # their basis where it is cheap).
+  defp holdings_money?(key), do: key in ~w(avg_cost latest_price market_value unrealized_pnl_abs)
+
+  defp holdings_currency(row, key) do
+    if holdings_money?(key) and holdings_cell(row, key) != "—", do: row.currency_code
+  end
 
   # -- components -------------------------------------------------------------
 

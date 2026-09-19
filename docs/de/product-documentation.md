@@ -574,10 +574,12 @@ historische Importe ab, sobald Kurse für die Buchungstage gespeichert sind.
 Die **Klassifizierungs-Übersicht** (`/classifications`, Issue #808) ist eine
 Zeile je Baum, und jede Zeile sagt, was dieser Baum enthält: wie viele
 Kategorien und Ebenen er nutzt, wie viele Wertpapiere in ihm zugeordnet sind —
-mit der Zahl der nicht zugeordneten daneben — und den Zielplan, den er trägt,
-mit dessen Name und Status. Die Zeile selbst öffnet den Baum; das Kebab-Menü
-am Ende trägt Öffnen und, bei eigenen Bäumen, Löschen; **+** in der Überschrift
-legt einen neuen an.
+mit der Zahl der nicht zugeordneten daneben — und den Zielplan, den er trägt:
+dessen Name steht unter dem Namen des Baums, dessen Status als kurzes Wort in
+der rechten Spalte. Die Zeile selbst öffnet den Baum; das Kebab-Menü am Ende
+trägt Öffnen und, bei eigenen Bäumen, Löschen; **+** in der Überschrift legt
+einen neuen an. Gibt es gar keine Bäume, sagt die Übersicht das, statt eine
+leere Liste zu zeigen.
 
 Wertpapiere können in **Klassifizierungsbäume** geordnet werden. Eigene Bäume
 sind frei gestaltbare Ordner mit Farben; integrierte Bäume für **Anlageklasse**
@@ -945,8 +947,12 @@ genau dieser Projektion: neben den Vorgaben Depot, Wertpapier und Stückzahl
 ISIN, WKN, Währung, durchschnittlicher Einstand, letzter Preis, Marktwert und
 das unrealisierte Ergebnis in Geld und Prozent. Es sind dieselben Felder, die
 ein Agent über `fields=` der Bestands-API auswählt, aus derselben Projektion
-gelesen. Die Auswahl liegt im Browser und übersteht ein Neuladen; alle Haken
-zu entfernen fällt auf die Vorgaben zurück. Neben den festen Buttons verkettet ein
+gelesen — mit den Trennzeichen Ihrer Sprache und mit der Währung der Zeile
+hinter jedem Geldbetrag, damit ein Marktwert seine Währung nennt, auch wenn
+die Spalte Währung abgeschaltet ist. Die Auswahl liegt im Browser und
+übersteht ein Neuladen; alle Haken zu entfernen fällt auf die Vorgaben
+zurück. Die Auswahl steht über der Tabelle und erscheint nur, wenn es eine
+Tabelle zu konfigurieren gibt. Neben den festen Buttons verkettet ein
 Jahres-Dropdown jedes einzelne Kalenderjahr mit Daten, und ein Von/Bis-
 Datumsbereich verkettet eine eigene Spanne — beides sind reine Neuverkettungen
 der bereits berechneten Reihe, ehrlich auf die vorhandene Historie begrenzt
@@ -1289,9 +1295,13 @@ ein Nullergebnis zählt nicht als Treffer) und der **durchschnittlichen
 Haltedauer** — gefolgt von den abgeschlossenen Rundläufen selbst, neuester
 Schluss zuerst, je Zeile das Wertpapier (verlinkt auf seinen Trades-Tab),
 gekauft → verkauft, die Haltedauer, die Stückzahl, die Kosten, der Erlös und
-das Ergebnis in Geld und Prozent. Die Jahres-/Monatsmatrix, mit der die
-Facette früher öffnete, behält jede Zahl — jetzt hinter der Aufklappung
-**Realisiert je Periode** unter der Liste.
+das Ergebnis in Geld und Prozent, das Ergebnis in seiner Vorzeichenfarbe. Die
+Jahres-/Monatsmatrix, mit der die Facette früher öffnete, behält jede Zahl —
+jetzt unter **Realisiert je Periode** hinter der Aufklappung **Matrix nach
+Jahr und Monat** unter der Liste. Konnte ein Verkauf nicht konvertiert
+werden, führt der Hinweis, wie viele und welche, den Abschnitt an — über den
+drei Zahlen, die er einschränkt, samt seiner Nachlade-Schaltfläche — statt
+unter den Zahlen zu stehen, um die es geht.
 
 Ohne abgeschlossene Trades lesen sich Trefferquote und Haltedauer als
 abwesend statt als 0 % und 0 Tage. Alle drei Zahlen stammen aus
