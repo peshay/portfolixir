@@ -1874,6 +1874,85 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     end)
   end
 
+  @doc """
+  The per-security derived metrics payload (FR-39, ADR-0047 §3, §6).
+
+  The shared parts of the basis — input series, reference, gaps, assumptions —
+  sit once; the part that varies, the window, rides each metric beside its
+  observation count. Every financial decimal is a string.
+
+  No key here is a signal, a recommendation, a rating, a score or an action:
+  level (a) reports what was recorded and the rule that would read a
+  cross-over is FR-43, gated at B3.6. The boundary is pinned mechanically by
+  `test/invariants/metrics_carry_no_verdict_test.exs` (identity I6).
+  """
+  def security_metrics(payload) do
+    %{
+      security_id: payload.security_id,
+      security_name: payload.security_name,
+      currency_code: payload.currency_code,
+      as_of: date(payload.as_of),
+      latest_close: close_point(payload.latest_close),
+      computation_basis: payload.computation_basis,
+      metrics: %{
+        sma_50: moving_average(payload.metrics.sma_50),
+        sma_200: moving_average(payload.metrics.sma_200),
+        volatility: by_window(payload.metrics.volatility, &windowed_value/1),
+        max_drawdown: by_window(payload.metrics.max_drawdown, &drawdown/1),
+        momentum: by_window(payload.metrics.momentum, &windowed_value/1),
+        distance_to_extremes: extremes(payload.metrics.distance_to_extremes)
+      }
+    }
+  end
+
+  defp by_window(metrics, renderer),
+    do: Map.new(metrics, fn {label, m} -> {label, renderer.(m)} end)
+
+  defp moving_average(metric) do
+    metric
+    |> windowed_value()
+    |> Map.put(:distance_pct, decimal(metric.distance_pct))
+  end
+
+  defp windowed_value(metric) do
+    %{
+      value: decimal(metric.value),
+      window: metric_window(metric.window),
+      observations: metric.observations,
+      insufficient_data: metric.insufficient_data
+    }
+  end
+
+  defp drawdown(metric) do
+    metric
+    |> windowed_value()
+    |> Map.merge(%{
+      peak_date: date(metric.peak_date),
+      trough_date: date(metric.trough_date),
+      recovery_date: date(metric.recovery_date)
+    })
+  end
+
+  defp extremes(metric) do
+    %{
+      high: close_point(metric.high),
+      low: close_point(metric.low),
+      distance_to_high_pct: decimal(metric.distance_to_high_pct),
+      distance_to_low_pct: decimal(metric.distance_to_low_pct),
+      window: metric_window(metric.window),
+      observations: metric.observations,
+      insufficient_data: metric.insufficient_data
+    }
+  end
+
+  defp metric_window(nil), do: nil
+
+  defp metric_window(%{start_date: start_date, end_date: end_date}),
+    do: %{start_date: date(start_date), end_date: date(end_date)}
+
+  defp close_point(nil), do: nil
+  defp close_point(%{date: date, close: close}), do: %{date: date(date), close: decimal(close)}
+
   def decimal(nil), do: nil
 
   def decimal(%Decimal{} = decimal) do

@@ -20,6 +20,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.securities.isin_change",
       "portfolixir.securities.delete_isin_alias",
       "portfolixir.securities.search_online",
+      "portfolixir.securities.metrics",
       "portfolixir.notes.list",
       "portfolixir.notes.append",
       "portfolixir.notes.unreviewed",
@@ -2168,6 +2169,41 @@ describe("Portfolixir MCP tools", () => {
   // hygiene reads as MCP tools wrapping the JSON API 1:1,
   // so that a run starts from one call and a refuted finding is withdrawn
   // by appending — the tool set has no update and no delete, by design.
+  // ADR-0047 (FR-39): the per-security derived metrics, agent-first. The tool
+  // wraps the read and its description carries the two things an agent would
+  // otherwise get wrong — an insufficient_data marker is not an error to
+  // retry, and the payload carries no verdict of any kind (§7, identity I6).
+  it("wraps the per-security derived metrics and says what they are not", async () => {
+    const { client, requests } = createRecordingClient({ data: { metrics: {} } });
+
+    await callTool(client, "portfolixir.securities.metrics", { security_id: 7 });
+    await callTool(client, "portfolixir.securities.metrics", {
+      security_id: 7,
+      as_of: "2026-09-19"
+    });
+
+    assert.deepEqual(requests, [
+      {
+        method: "GET",
+        path: "/api/v1/securities/7/metrics",
+        body: undefined,
+        token: "Bearer api-token"
+      },
+      {
+        method: "GET",
+        path: "/api/v1/securities/7/metrics?as_of=2026-09-19",
+        body: undefined,
+        token: "Bearer api-token"
+      }
+    ]);
+
+    const metrics = listTools().find((tool) => tool.name === "portfolixir.securities.metrics");
+    assert.match(metrics?.description ?? "", /own currency/);
+    assert.match(metrics?.description ?? "", /insufficient_data/);
+    assert.match(metrics?.description ?? "", /NOT a reason to retry/);
+    assert.match(metrics?.description ?? "", /no signal, recommendation, rating, score or action/);
+  });
+
   it("wraps the research log: list, append and the three hygiene reads", async () => {
     const { client, requests } = createRecordingClient({ data: { entries: [] } });
 

@@ -137,6 +137,11 @@ defmodule PortfolixirWeb.Router do
 
     get("/securities/:security_id/trades", TradeController, :index)
 
+    # The per-security derived metrics (FR-39, ADR-0047 §9): level (a) of the
+    # scope ladder — moving averages, volatility, drawdown, momentum and the
+    # distance to the 52-week extremes over the security's own close series.
+    get("/securities/:security_id/metrics", SecurityMetricsController, :show)
+
     # The security research log (ADR-0044): append, and the four reads of §7.
     # Deliberately no PATCH and no DELETE — entries never vanish (§3); a
     # retraction is appended.

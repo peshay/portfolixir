@@ -40,9 +40,17 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     [newest | _] = data["entries"]
     assert newest["version"] == Contract.version()
-    # Version 3 (E21) moved parameters, not routes; the Sprint 9 entry behind
-    # it is where the research-log routes were introduced.
-    assert Enum.any?(newest["parameters"], &(&1 =~ "limit="))
+
+    # The newest entry says what moved — an entry that names nothing is the
+    # failure mode this read exists to prevent. Which KIND of thing moved is
+    # the batch's business (Sprint 11 moved parameters, Sprint 13 endpoints
+    # and tools), so the assertion is on the entry saying something, plus
+    # this batch's own additions below.
+    assert newest["endpoints"] != [] or newest["tools"] != [] or
+             newest["parameters"] != []
+
+    assert "GET /api/v1/securities/:security_id/metrics" in newest["endpoints"]
+    assert "portfolixir.securities.metrics" in newest["tools"]
     # Found by version, not by position: a newer entry must not move it.
     sprint9 = Enum.find(data["entries"], &(&1["version"] == 2))
     assert "GET /api/v1/securities/:security_id/notes" in sprint9["endpoints"]
