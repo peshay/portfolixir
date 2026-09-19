@@ -87,9 +87,69 @@ defmodule PortfolixirWeb.ClassificationsLive do
     assign(socket,
       selected_id: nil,
       tree: nil,
-      classifications: Classifications.list_classifications()
+      tree_menu_id: nil,
+      classifications: Classifications.list_classifications(),
+      index_rows: index_rows(socket.assigns.portfolio)
     )
   end
+
+  # #808: one row per tree, built from the reads that already exist —
+  # `list_trees/0` carries the categories and the assignments in one pass, and
+  # the plan comes from the plan list the SOLL editor already reads. Nothing
+  # is recomputed here; the row only says what those reads hold.
+  defp index_rows(portfolio) do
+    security_count = Catalog.count_securities()
+
+    Enum.map(Classifications.list_trees(), fn tree ->
+      assigned = tree.assignments |> Enum.map(& &1.security_id) |> Enum.uniq() |> length()
+
+      %{
+        classification: tree.classification,
+        category_count: length(tree.categories),
+        depth: tree_depth(tree.categories),
+        assigned_count: assigned,
+        security_count: security_count,
+        unassigned_count: max(security_count - assigned, 0),
+        plan: index_plan(portfolio, tree.classification.id)
+      }
+    end)
+  end
+
+  # The plan a tree carries, preferring the active one — `list_plans/2` orders
+  # active before draft. Plans are portfolio-scoped and this page is not, so
+  # it reads the same portfolio the SOLL editor does; with no portfolio there
+  # is no plan to name.
+  defp index_plan(nil, _classification_id), do: nil
+
+  defp index_plan(portfolio, classification_id) do
+    portfolio.id
+    |> Targets.list_plans(classification_id: classification_id)
+    |> List.first()
+  end
+
+  # How many levels the tree actually uses: a flat tree is 1, a tree with
+  # children is 2, and so on. A pure fold over the categories the read
+  # already loaded.
+  defp tree_depth([]), do: 0
+
+  defp tree_depth(categories) do
+    parents = Map.new(categories, &{&1.id, &1.parent_id})
+
+    categories
+    |> Enum.map(&category_level(&1.id, parents, 1))
+    |> Enum.max(fn -> 0 end)
+  end
+
+  defp category_level(id, parents, level) do
+    case Map.get(parents, id) do
+      nil -> level
+      parent_id -> category_level(parent_id, parents, level + 1)
+    end
+  end
+
+  defp plan_status_label("active"), do: gettext("active")
+  defp plan_status_label("draft"), do: gettext("draft")
+  defp plan_status_label("archived"), do: gettext("archived")
 
   defp apply_action(socket, :new, _params) do
     assign(socket, selected_id: nil, tree: nil)
@@ -381,19 +441,130 @@ defmodule PortfolixirWeb.ClassificationsLive do
     ~H"""
     <AppShell.shell current_path={@current_path} page_title={gettext("Classifications")}>
       <div class="workspace-page">
+        <%!-- #808 (review C11): the index is the door to a tree, so each row
+             says what that tree holds — its size, its assignment state and
+             whether it carries a plan. The "choose a tree" sentence is gone
+             (issue 791) and the full-width button is a + in the heading. --%>
         <section class="workspace-section">
-          <h2><%= gettext("Classifications") %></h2>
-          <ul class="classification-index" data-role="classification-index">
-            <li :for={classification <- @classifications}>
-              <.link navigate={"/classifications/#{classification.id}"}>
-                <%= ClassificationName.display(classification) %>
+          <header class="section-head">
+            <h2><%= gettext("Classifications") %></h2>
+            <div class="section-head-controls">
+              <.link
+                navigate="/classifications/new"
+                id="new-classification"
+                class="icon-button"
+                aria-label={gettext("New classification")}
+                title={gettext("New classification")}
+              >
+                <AppShell.icon name={:plus} />
               </.link>
-              <span :if={classification.built_in} class="badge"><%= gettext("Built-in") %></span>
+            </div>
+          </header>
+
+          <%!-- The shipped list-row anatomy of the Views page (issue 802,
+               DESIGN.md → Components → the bucket/view row): name over its
+               facts, the figures right, the actions behind the kebab. No new
+               component is invented for this index. --%>
+          <ul id="classification-index" class="bucket-list" role="list" data-role="classification-index">
+            <li
+              :for={row <- @index_rows}
+              id={"classification-row-#{row.classification.id}"}
+              class="bucket-list__item"
+              data-role="classification-row"
+            >
+              <div class="bucket-list__main">
+                <span class="bucket-list__name">
+                  <.link navigate={"/classifications/#{row.classification.id}"}>
+                    <%= ClassificationName.display(row.classification) %>
+                  </.link>
+                  <span :if={row.classification.built_in} class="badge"><%= gettext("Built-in") %></span>
+                </span>
+                <span class="bucket-list__rule" data-role="tree-categories">
+                  <%= ngettext("%{count} category", "%{count} categories", row.category_count,
+                    count: row.category_count
+                  ) %>
+                  <%= if row.depth > 1 do %>
+                    · <%= ngettext("%{count} level", "%{count} levels", row.depth, count: row.depth) %>
+                  <% end %>
+                </span>
+                <span class="bucket-list__usage">
+                  <span data-role="tree-assigned">
+                    <%= gettext("%{assigned} of %{total} securities assigned",
+                      assigned: row.assigned_count,
+                      total: row.security_count
+                    ) %>
+                  </span>
+                  <%!-- The unassigned count is the state worth acting on, so
+                       it reads as a word rather than as a third bare
+                       number. --%>
+                  <span
+                    :if={row.unassigned_count > 0}
+                    class="badge badge--derived"
+                    data-role="tree-unassigned"
+                  >
+                    <%= ngettext(
+                      "%{count} unassigned",
+                      "%{count} unassigned",
+                      row.unassigned_count,
+                      count: row.unassigned_count
+                    ) %>
+                  </span>
+                </span>
+              </div>
+
+              <span class="bucket-list__figures" data-role="tree-plan">
+                <%= if row.plan do %>
+                  <strong><%= row.plan.name %></strong> · <%= plan_status_label(row.plan.status) %>
+                <% else %>
+                  <%= gettext("No plan") %>
+                <% end %>
+              </span>
+
+              <button
+                type="button"
+                id={"tree-kebab-#{row.classification.id}"}
+                class="row-actions__kebab"
+                phx-click="open_tree_menu"
+                phx-value-id={row.classification.id}
+                aria-label={gettext("Open actions menu")}
+                aria-haspopup="menu"
+                aria-expanded={to_string(@tree_menu_id == row.classification.id)}
+              >
+                <AppShell.icon name={:ellipsis_vertical} />
+              </button>
             </li>
           </ul>
-          <.link navigate="/classifications/new" class="button">
-            <%= gettext("New classification") %>
-          </.link>
+
+          <% open_row = @tree_menu_id && Enum.find(@index_rows, &(&1.classification.id == @tree_menu_id)) %>
+          <AppShell.row_menu
+            :if={open_row}
+            id={"tree-row-menu-#{open_row.classification.id}"}
+            trigger={"tree-kebab-#{open_row.classification.id}"}
+            label={gettext("Classification actions")}
+          >
+            <.link
+              navigate={"/classifications/#{open_row.classification.id}"}
+              id={"tree-open-#{open_row.classification.id}"}
+              class="row-context-menu__item"
+              role="menuitem"
+            >
+              <AppShell.icon name={:external_link} />
+              <%= gettext("Open") %>
+            </.link>
+            <button
+              :if={not open_row.classification.built_in}
+              type="button"
+              id={"tree-delete-#{open_row.classification.id}"}
+              class="row-context-menu__item row-context-menu__item--danger"
+              role="menuitem"
+              phx-click="delete_classification_row"
+              phx-value-id={open_row.classification.id}
+              data-confirm={gettext("Delete this classification and all its categories?")}
+            >
+              <AppShell.icon name={:trash} />
+              <%= gettext("Delete") %>
+            </button>
+          </AppShell.row_menu>
         </section>
       </div>
     </AppShell.shell>
@@ -890,6 +1061,34 @@ defmodule PortfolixirWeb.ClassificationsLive do
     else
       {:error, reason} -> {:noreply, failure(socket, error_message(reason))}
       _ -> {:noreply, socket}
+    end
+  end
+
+  # #808: the index row's kebab. Delete goes through the same context call the
+  # detail head uses; only the id travels differently, because the index has
+  # no selected tree.
+  def handle_event("open_tree_menu", %{"id" => id_str}, socket) do
+    case Integer.parse(to_string(id_str)) do
+      {id, ""} -> {:noreply, assign(socket, :tree_menu_id, id)}
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("close_row_menu", _params, socket) do
+    {:noreply, assign(socket, :tree_menu_id, nil)}
+  end
+
+  def handle_event("delete_classification_row", %{"id" => id_str}, socket) do
+    with {id, ""} <- Integer.parse(to_string(id_str)),
+         classification when not is_nil(classification) <- Classifications.get_classification(id),
+         {:ok, _} <- Classifications.delete_classification(Actor.owner_ui(), classification) do
+      {:noreply, push_navigate(socket, to: "/classifications")}
+    else
+      {:error, reason} ->
+        {:noreply, socket |> assign(:tree_menu_id, nil) |> failure(error_message(reason))}
+
+      _ ->
+        {:noreply, assign(socket, :tree_menu_id, nil)}
     end
   end
 
