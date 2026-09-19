@@ -286,10 +286,14 @@ The reads:
   event is due when **any** day it could fall on is inside the horizon — the
   conservative direction, because the failure being prevented is a missed date
   rather than an early warning. Optional `kind`, `held_only`, `limit`; the
-  answer echoes `days`, `as_of`, `held_only` and its scope.
+  answer echoes `days`, `as_of`, `held_only` and its scope. `days` is bounded
+  the way `limit` is: a value above ten years is capped and echoed capped.
 - `GET /api/v1/events/unconfirmed` — events whose whole span is in the past
   and whose `confirmed` flag is still false: the "did it actually happen?"
-  queue, which is what keeps the calendar from quietly rotting.
+  queue, which is what keeps the calendar from quietly rotting. Optional
+  `security_id`, `kind`, `held_only`, `limit`; there is deliberately **no**
+  `days` here, because an unconfirmed past date belongs in the queue however
+  old it is.
 - `GET /api/v1/events/stale?days=N` — events whose `checked_at` (the day the
   fact was last re-read against its source) is older than `N` days (default
   90), or that were never checked at all, which are listed with

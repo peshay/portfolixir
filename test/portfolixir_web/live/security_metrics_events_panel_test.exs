@@ -111,6 +111,65 @@ defmodule PortfolixirWeb.SecurityMetricsEventsPanelTest do
     assert panel =~ "expected from the IR calendar"
   end
 
+  # User story (#828, ADR-0048 §3 vs §5.3 — the closing-act walkthrough of
+  # 2026-09-19 found this on the seeded review instance):
+  # As a local portfolio maintainer reading the Termine tab,
+  # I want "the date is set" and "it happened" to read as different things,
+  # so that a shareholder meeting nobody has ticked off does not appear to be
+  # ticked off.
+  #
+  # Acceptance criteria:
+  # - `timing: exact` does not render a label containing the word the
+  #   `confirmed` badge uses, in English or in German — the two fields are
+  #   independent and the row must not say otherwise.
+  # - An `exact` event that is not confirmed renders the timing badge and no
+  #   confirmed badge; confirming it adds the second badge.
+  test "an exact date and a confirmed event do not read as the same fact", %{conn: conn} do
+    security = create_security!(name: "Label Co", ticker: "LBC")
+
+    {:ok, unconfirmed} =
+      Events.create_event(Actor.owner_ui(), %{
+        security_id: security.id,
+        kind: "shareholder_meeting",
+        date: ~D[2026-08-14],
+        timing: "exact",
+        source_quality: "primary"
+      })
+
+    for locale <- ~w(en de) do
+      Gettext.put_locale(PortfolixirWeb.Gettext, locale)
+
+      {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=events&locale=#{locale}")
+      panel = view |> element("#detail-tab-panel-events") |> render()
+
+      timing = view |> element("[data-role='event-timing']") |> render()
+      refute has_element?(view, "[data-role='event-confirmed']")
+
+      # The collision the walkthrough caught: "Confirmed date" beside a
+      # "Confirmed" badge. Whatever the two labels become, neither may
+      # contain the other.
+      confirmed_label =
+        Gettext.with_locale(PortfolixirWeb.Gettext, locale, fn ->
+          Gettext.gettext(PortfolixirWeb.Gettext, "Took place")
+        end)
+
+      refute String.contains?(String.downcase(timing), String.downcase(confirmed_label)),
+             "#{locale}: the timing badge #{inspect(timing)} reads as the confirmed badge " <>
+               "#{inspect(confirmed_label)}"
+
+      refute panel =~ confirmed_label
+    end
+
+    Gettext.put_locale(PortfolixirWeb.Gettext, "en")
+
+    {:ok, _} = Events.update_event(Actor.owner_ui(), unconfirmed, %{confirmed: true})
+    {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=events&locale=en")
+
+    assert has_element?(view, "[data-role='event-confirmed']")
+    assert view |> element("[data-role='event-confirmed']") |> render() =~ "Took place"
+    assert view |> element("[data-role='event-timing']") |> render() =~ "Announced"
+  end
+
   test "a security with no events says so", %{conn: conn} do
     security = create_security!(name: "Quiet Co", ticker: "QTC")
 

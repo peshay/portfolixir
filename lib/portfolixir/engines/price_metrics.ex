@@ -35,8 +35,19 @@ defmodule Portfolixir.Engines.PriceMetrics do
   **A gap produces no observation, never a zero** (§5). Returns are taken
   between *consecutive stored closes*; a day with no close is not carried
   forward and then differenced, because that manufactures a calm 0 % day and
-  drags the standard deviation toward zero. A pair whose earlier close is not
-  positive is skipped too — a stored close of 0 is not a price.
+  drags the standard deviation toward zero. **A close of zero or below is not
+  a price at all** and is dropped before any metric reads the series, so one
+  bad row cannot be the 52-week low in one figure and be skipped in the next;
+  the `observations` counts say how many prices were actually read.
+
+  **A metric refuses in both directions.** Momentum is refused when the series
+  does not reach *back* to the period's start — a "12M" figure computed over
+  one month of history is a confident wrong number, not a rough one — and
+  equally when it does not reach *forward* into the period at all, which is
+  what a security whose quotes stopped two years ago looks like. The moving
+  averages are deliberately not bound that way: an SMA is defined over the
+  last `n` closes rather than over a date range, so it stays a true statement
+  about those closes, and their dates are in its `window`.
 
   **`observations` is how many inputs the metric actually read**: closes for the
   moving averages, the drawdown and the extremes; daily *returns* for the
@@ -86,6 +97,7 @@ defmodule Portfolixir.Engines.PriceMetrics do
     series =
       points
       |> Enum.filter(&(Date.compare(&1.date, as_of) != :gt))
+      |> Enum.filter(&positive?(&1.close))
       |> Enum.sort_by(& &1.date, Date)
 
     latest = List.last(series)
@@ -302,8 +314,12 @@ defmodule Portfolixir.Engines.PriceMetrics do
   defp momentum(series, latest, as_of, months) do
     start_date = Date.shift(as_of, month: -months)
     opening = newest_on_or_before(series, start_date)
+    # The symmetric half of the coverage rule: a series that stops before the
+    # period even begins resolves `opening` to the same point as `latest`, and
+    # the honest answer is "no figure", not "0 % over zero days".
+    reaches_forward? = not is_nil(latest) and Date.compare(latest.date, start_date) == :gt
 
-    if is_nil(latest) or is_nil(opening) or not positive?(opening.close) do
+    if is_nil(latest) or is_nil(opening) or not reaches_forward? or not positive?(opening.close) do
       %{
         value: nil,
         window: requested_window(as_of, start_date),

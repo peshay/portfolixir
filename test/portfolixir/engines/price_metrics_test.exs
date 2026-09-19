@@ -23,6 +23,13 @@ defmodule Portfolixir.Engines.PriceMetricsTest do
            "expected #{expected}, got #{inspect(actual)}"
   end
 
+  # `Decimal.equal?/2` compares the number and ignores the scale, so it cannot
+  # tell `-0.5` from `-0.6666666666666666666666666666666667` rounded wrongly.
+  # Where an identity names the scale, the string is what has to be asserted.
+  defp assert_scale_6(actual, expected) do
+    assert Decimal.to_string(actual, :normal) == expected
+  end
+
   # User story (FR-39, ADR-0047 §3):
   # As the operator's agent researching one security,
   # I want its moving averages, volatility, drawdown, momentum and distance to
@@ -89,9 +96,12 @@ defmodule Portfolixir.Engines.PriceMetricsTest do
   # - A monotonically rising series has a maximum drawdown of exactly 0.
   # - A series that halves and recovers has exactly -0.5, with the peak, the
   #   trough and the recovery day named.
+  # - Both are carried **at scale 6** — the identity says so, and
+  #   `Decimal.equal?/2` cannot see it, so the scale is asserted as a string.
   test "I2: maximum drawdown is exactly 0 on a rising series and exactly -0.5 on one that halves" do
     rising = PriceMetrics.compute(series(Enum.map(1..31, &"#{100 + &1}")), @as_of)
     assert_decimal(rising.max_drawdown["30d"].value, "0")
+    assert_scale_6(rising.max_drawdown["30d"].value, "0.000000")
 
     halved =
       PriceMetrics.compute(
@@ -101,11 +111,93 @@ defmodule Portfolixir.Engines.PriceMetricsTest do
 
     drawdown = halved.max_drawdown["30d"]
     assert_decimal(drawdown.value, "-0.5")
+    assert_scale_6(drawdown.value, "-0.500000")
     # The peak is last touched on the day before the halving, the trough is
     # the halved close, and the recovery is the first close back at the peak.
     assert drawdown.peak_date == Date.add(@as_of, -21)
     assert drawdown.trough_date == Date.add(@as_of, -20)
     assert drawdown.recovery_date == Date.add(@as_of, -19)
+  end
+
+  # User story (ADR-0047 §5; found by the edge-case hunter in the Sprint 13
+  # closing act):
+  # As the agent reading a security whose quote sync broke two years ago,
+  # I want the trailing-return figures to refuse rather than answer 0 %,
+  # so that "nothing moved" and "nothing was recorded" are not the same
+  # answer.
+  #
+  # Acceptance criteria:
+  # - When the newest close predates the period's start, momentum refuses
+  #   with `insufficient_data: true` instead of comparing a close with
+  #   itself over a zero-day window.
+  # - The windows anchored on `as_of` already refuse, and keep refusing.
+  test "momentum refuses when the series does not reach forward into the period" do
+    stale = series(List.duplicate("100", 400))
+    two_years_on = Date.add(@as_of, 730)
+
+    metrics = PriceMetrics.compute(stale, two_years_on)
+
+    for label <- ~w(3m 6m 12m) do
+      assert metrics.momentum[label].value == nil, label
+      assert metrics.momentum[label].insufficient_data, label
+    end
+
+    assert metrics.distance_to_extremes.insufficient_data
+    assert metrics.volatility["365d"].insufficient_data
+
+    # The same series read at its own last day still answers.
+    fresh = PriceMetrics.compute(stale, @as_of)
+    refute fresh.momentum["3m"].insufficient_data
+    refute fresh.momentum["12m"].insufficient_data
+  end
+
+  # User story (ADR-0047 §5, the engine's own "a stored close of 0 is not a
+  # price"; found by the edge-case hunter):
+  # As the agent reading a security whose history carries a bad row,
+  # I want a close of zero or below to be skipped by EVERY metric,
+  # so that one non-price cannot be the 52-week low in one figure and be
+  # ignored in the next.
+  #
+  # Acceptance criteria:
+  # - A zero close is not the extremes' low and does not produce a -100 %
+  #   drawdown.
+  # - Its absence is visible in the observation counts, not hidden.
+  # - A series made entirely of non-prices refuses everything rather than
+  #   answering a number with a null beside it.
+  test "a close of zero or below is not a price and no metric reads one" do
+    with_zero =
+      series(List.duplicate("100", 200) ++ ["0"] ++ List.duplicate("100", 200))
+
+    metrics = PriceMetrics.compute(with_zero, @as_of)
+
+    assert_decimal(metrics.distance_to_extremes.low.close, "100")
+    assert_decimal(metrics.distance_to_extremes.high.close, "100")
+    assert_decimal(metrics.distance_to_extremes.distance_to_low_pct, "0")
+    assert_decimal(metrics.max_drawdown["90d"].value, "0")
+    # The 90-day slice is inclusive of both ends, and the non-price is far
+    # outside it — 91 prices, none of them the zero.
+    assert metrics.max_drawdown["90d"].observations == 91
+
+    all_bad = PriceMetrics.compute(series(["0", "-5", "0"]), @as_of)
+
+    assert all_bad.latest == nil
+    assert all_bad.distance_to_extremes.insufficient_data
+    assert all_bad.distance_to_extremes.distance_to_low_pct == nil
+    assert all_bad.sma_50.value == nil
+    assert all_bad.sma_50.insufficient_data
+    assert all_bad.max_drawdown["30d"].insufficient_data
+  end
+
+  # Acceptance criteria (ADR-0047 §11 I2, the "at scale 6" half):
+  # - A drawdown whose quotient does not terminate is rounded to scale 6 on
+  #   the way out, rather than rendered as the raw 34-digit quotient. Real
+  #   peak/trough pairs rarely divide evenly, so this is the case the rounding
+  #   exists for — and the one the value assertions above cannot see.
+  test "I2 at scale 6: a non-terminating drawdown quotient is rounded, not rendered raw" do
+    metrics =
+      PriceMetrics.compute(series(List.duplicate("3", 10) ++ List.duplicate("1", 21)), @as_of)
+
+    assert_scale_6(metrics.max_drawdown["30d"].value, "-0.666667")
   end
 
   # Acceptance criteria (ADR-0047 §3):

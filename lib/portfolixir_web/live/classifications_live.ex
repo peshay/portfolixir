@@ -162,14 +162,21 @@ defmodule PortfolixirWeb.ClassificationsLive do
     parents = Map.new(categories, &{&1.id, &1.parent_id})
 
     categories
-    |> Enum.map(&category_level(&1.id, parents, 1))
+    |> Enum.map(&category_level(&1.id, parents, 1, Classifications.max_tree_depth()))
     |> Enum.max(fn -> 0 end)
   end
 
-  defp category_level(id, parents, level) do
+  # Bounded, because `parent_id` carries a foreign key and nothing else: a
+  # category re-homed under its own descendant is accepted by the ordinary
+  # write path, and an unbounded walk over one pins a scheduler on the only
+  # page that could undo it. The same guard, and the same number, as
+  # `Classifications`' root-path walk.
+  defp category_level(_id, _parents, level, 0), do: level
+
+  defp category_level(id, parents, level, depth_left) do
     case Map.get(parents, id) do
       nil -> level
-      parent_id -> category_level(parent_id, parents, level + 1)
+      parent_id -> category_level(parent_id, parents, level + 1, depth_left - 1)
     end
   end
 

@@ -277,11 +277,20 @@ Der Tab **Termine** listet die datierten Kalenderfakten des Wertpapiers —
 Geschäftszahlen, Ex-Dividenden- und Zahltag, Ende einer Haltefrist,
 Indexüberprüfung, Hauptversammlung, Behördenentscheidung, Prognoseanpassung —
 in der Form der Research-Zeitleiste. Jede Zeile sagt, wie gut das Datum
-bekannt ist, woher es stammt (mit dem Quellenqualitäts-Vokabular des
-Research-Logs), ob es *bestätigt* ist und wann es zuletzt geprüft wurde.
+bekannt ist (*angekündigt*, *geschätzt*, *innerhalb eines Zeitraums*, *Monat
+bekannt, Tag nicht*), woher es stammt (mit dem Quellenqualitäts-Vokabular des
+Research-Logs), ob es *stattgefunden hat* und wann es zuletzt geprüft wurde.
+
+Die letzten beiden sind verschiedene Aussagen, und die Beschriftungen halten
+sie bewusst auseinander. *Angekündigt* heißt: eine Quelle hat diesen Tag
+gesetzt. *Hat stattgefunden* heißt: das Ereignis ist tatsächlich eingetreten.
+Ein Termin kann Monate im Voraus angekündigt sein und trotzdem noch
+ausstehen, und ein nie angekündigter Termin kann genauso vergehen — deshalb
+zeigt der Tab „Termine“ eine Zeile mit *Angekündigt* ohne Kennzeichen *Hat
+stattgefunden*, und das ist kein Widerspruch.
 
 Ein Termin **bucht nichts**: wird eine Dividende tatsächlich gezahlt, läuft
-die Buchung wie immer über das Ledger und der Termin wird als bestätigt
+die Buchung wie immer über das Ledger und der Termin wird als stattgefunden
 markiert.
 
 Was im **gesamten Katalog** ansteht — gehaltene Wertpapiere und Kandidaten

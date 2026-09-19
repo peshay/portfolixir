@@ -1279,8 +1279,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   >
                     <%= source_quality_label(event.source_quality) %>
                   </span>
+                  <%!-- ADR-0048 §5.3: the flag answers "did it actually
+                       happen?", so the badge says that. "Confirmed" beside
+                       the timing qualifier read as a statement about the
+                       date, which is the other field. --%>
                   <span :if={event.confirmed} class="badge" data-role="event-confirmed">
-                    <%= gettext("Confirmed") %>
+                    <%= gettext("Took place") %>
                   </span>
                 </div>
                 <p :if={event.note} class="research-entry__body"><%= event.note %></p>

@@ -66,6 +66,14 @@ defmodule PortfolixirWeb.PortfolioLive do
   # surfaces. The picker left with the Transactions holdings panel in #803;
   # this is where the review put the holdings.
   @holdings_column_defaults ["depot", "security", "quantity"]
+
+  # The one place the key is written: the hook restores from the table's
+  # `data-storage-key` and the handler pushes to it, and a picker that only
+  # ever reads the key is a preference that silently never persists.
+  @holdings_storage_key "wealth.holdings.columns"
+
+  defp holdings_storage_key, do: @holdings_storage_key
+
   @holdings_column_keys @holdings_column_defaults ++
                           [
                             "isin",
@@ -2198,7 +2206,7 @@ defmodule PortfolixirWeb.PortfolioLive do
               id="holdings-positions-wrapper"
               class="data-table-wrapper"
               phx-hook="ColumnPrefs"
-              data-storage-key="wealth.holdings.columns"
+              data-storage-key={holdings_storage_key()}
               data-restore-event="set_holdings_columns"
               data-current-columns={Jason.encode!(@holdings_columns)}
             >
@@ -3162,7 +3170,10 @@ defmodule PortfolixirWeb.PortfolioLive do
         picked -> picked
       end
 
-    {:noreply, assign(socket, :holdings_columns, chosen)}
+    {:noreply,
+     socket
+     |> assign(:holdings_columns, chosen)
+     |> push_event("column-prefs-changed", %{key: @holdings_storage_key, columns: chosen})}
   end
 
   def handle_event("set_holdings_columns", _params, socket), do: {:noreply, socket}

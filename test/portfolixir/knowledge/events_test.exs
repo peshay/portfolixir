@@ -7,6 +7,7 @@ defmodule Portfolixir.Knowledge.EventsTest do
   alias Portfolixir.Journal.Entry, as: JournalEntry
   alias Portfolixir.Knowledge.Events
   alias Portfolixir.Knowledge.SecurityEvent
+  alias Portfolixir.Ledger
 
   @today ~D[2026-09-19]
 
@@ -253,6 +254,49 @@ defmodule Portfolixir.Knowledge.EventsTest do
 
     filtered = Events.upcoming(days: 7, today: @today, kind: "earnings")
     assert length(filtered) == 2
+  end
+
+  # User story (ADR-0048 §2; found by the correctness hunter in the Sprint 13
+  # closing act):
+  # As the operator whose depot was transferred in rather than bought,
+  # I want "held" to mean what the ledger means by it,
+  # so that a position acquired by an inbound delivery is not reported as one
+  # I do not own.
+  #
+  # Acceptance criteria:
+  # - A security held only through an `inbound_delivery` counts as held, the
+  #   way `Ledger.Positions.calculate/1` counts it.
+  # - A delivery out that empties the position makes it not held again.
+  test "held_only counts every kind that moves quantity, not only buys and sells" do
+    world = base_world(name: "Delivery World", cash_name: "DW Cash", depot_name: "DW Depot")
+    delivered = create_security!(name: "Delivered Co", ticker: "DLV")
+    emptied = create_security!(name: "Emptied Co", ticker: "EMP")
+
+    deliver = fn security, type, quantity ->
+      {:ok, _} =
+        Ledger.create_transaction(Actor.owner_ui(), %{
+          portfolio_id: world.portfolio.id,
+          securities_account_id: world.depot.id,
+          security_id: security.id,
+          type: type,
+          date: ~D[2026-01-05],
+          quantity: quantity,
+          currency_code: "EUR"
+        })
+    end
+
+    deliver.(delivered, "inbound_delivery", "5")
+    deliver.(emptied, "inbound_delivery", "5")
+    deliver.(emptied, "outbound_delivery", "5")
+
+    event!(delivered, date: ~D[2026-09-25])
+    event!(emptied, date: ~D[2026-09-25])
+
+    assert delivered.id in Events.held_security_ids()
+    refute emptied.id in Events.held_security_ids()
+
+    held_only = Events.upcoming(days: 7, today: @today, held_only: true)
+    assert Enum.map(held_only, & &1.security_id) == [delivered.id]
   end
 
   # User story (ADR-0048 §5.3):

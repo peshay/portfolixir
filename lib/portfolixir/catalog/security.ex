@@ -131,6 +131,15 @@ defmodule Portfolixir.Catalog.Security do
       name: :security_notes_security_id_fkey,
       message: "is referenced by existing records"
     )
+    # ADR-0048: security events restrict for the same reason, and the
+    # constraint has to be declared here or the restriction surfaces as an
+    # `Ecto.ConstraintError` — a 500 and a LiveView crash — instead of the
+    # 409 the rest of the family answers. Every `:restrict` reference to
+    # `securities` belongs in this list.
+    |> foreign_key_constraint(:id,
+      name: :security_events_security_id_fkey,
+      message: "is referenced by existing records"
+    )
   end
 
   def asset_classes, do: AssetClasses.codes()

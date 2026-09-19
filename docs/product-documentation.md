@@ -259,13 +259,20 @@ The **Termine** tab lists the dated calendar facts recorded for the security
 — an earnings report, an ex-dividend or payment date, a lockup expiry, an
 index review, a shareholder meeting, a regulatory decision, a guidance update
 — in the research timeline's shape. Each row says how well the date is known
-(*confirmed date*, *estimated*, *within a period*, *month known, day not*),
-where it came from with the research log's own source-quality vocabulary,
-whether it has been *confirmed*, and the day it was last re-read.
+(*announced*, *estimated*, *within a period*, *month known, day not*), where
+it came from with the research log's own source-quality vocabulary, whether
+it *took place*, and the day it was last re-read.
+
+Those last two are different facts and the labels keep them apart on purpose.
+*Announced* says a source set this day; *took place* says the thing actually
+happened. A reporting date can be announced months ahead and still be waiting
+to happen, and a date nobody announced can pass all the same — which is why
+the Termine tab can show an *announced* row with no *took place* badge, and
+why that is not a contradiction.
 
 An event **books nothing**: when a dividend is actually paid it is booked
-through the ledger as always and the event is marked confirmed. It is never
-converted into a transaction.
+through the ledger as always and the event is marked as having taken place.
+It is never converted into a transaction.
 
 What is due across the **whole catalog** — held securities and purchase
 candidates alike — appears as the **Due** card on the Overview, beside *Off

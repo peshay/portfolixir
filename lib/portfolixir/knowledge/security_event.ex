@@ -96,6 +96,9 @@ defmodule Portfolixir.Knowledge.SecurityEvent do
 
   def span(%__MODULE__{date: date}), do: {date, date}
 
+  # Mirrors `security_events.source_url`'s column width.
+  @max_source_url 255
+
   @castable ~w(security_id date date_end confirmed source_url checked_at note machine_generated)a
 
   @closed_sets [kind: @kinds, timing: @timings, source_quality: @source_qualities]
@@ -111,6 +114,9 @@ defmodule Portfolixir.Knowledge.SecurityEvent do
     # The link is rendered as an anchor and handed to an agent as a source:
     # only http(s) — never javascript:, data: or a bare path.
     |> validate_format(:source_url, ~r{\Ahttps?://\S+\z}i, message: "must be an http(s) URL")
+    # The column is varchar(255); without this a tracking-laden link is a
+    # Postgrex 22001 and a 500 instead of a field error the caller can read.
+    |> validate_length(:source_url, max: @max_source_url)
     |> validate_window()
     |> validate_machine_generated_source()
     |> foreign_key_constraint(:security_id)

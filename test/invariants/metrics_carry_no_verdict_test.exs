@@ -84,11 +84,14 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
         |> get("/api/v1/securities/#{security.id}/metrics", %{"as_of" => Date.to_iso8601(as_of)})
         |> json_response(200)
 
-      # The basis is prose and names the gates it does not open; only the key
-      # set is the boundary.
+      # The basis is prose and names the gates it does not open — but `keys/2`
+      # collects keys and never values, so the prose is already outside the
+      # match and the basis map does not have to be dropped to keep it there.
+      # It is walked like everything else: a verdict added as a *key* of the
+      # basis would be as much a verdict on the payload as one beside a
+      # number.
       offenders =
         data
-        |> Map.delete("computation_basis")
         |> keys()
         |> Enum.filter(fn key ->
           downcased = String.downcase(to_string(key))

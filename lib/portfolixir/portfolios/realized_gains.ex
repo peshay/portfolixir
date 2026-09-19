@@ -182,12 +182,19 @@ defmodule Portfolixir.Portfolios.RealizedGains do
       # A break-even trade counts as a miss: it did not realise a gain, and
       # rounding it into the hit rate would flatter the figure.
       hit_rate: winners |> Decimal.new() |> Decimal.div(Decimal.new(count)) |> Decimal.round(4),
+      # Decimal rather than `Kernel.//2`: days are not money, but
+      # `Ledger.TradeMatcher` already derives each `holding_period_days`
+      # through `Decimal.round/2`, and one of the two averaging a set of
+      # integers through a float is the kind of split that is only ever
+      # noticed once it is wrong.
       average_holding_period_days:
         trades
         |> Enum.map(& &1.holding_period_days)
         |> Enum.sum()
-        |> Kernel./(count)
-        |> round(),
+        |> Decimal.new()
+        |> Decimal.div(Decimal.new(count))
+        |> Decimal.round(0)
+        |> Decimal.to_integer(),
       trade_count: count
     }
   end
