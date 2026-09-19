@@ -105,8 +105,8 @@ defmodule Portfolixir.Knowledge.SecurityEvent do
     event
     |> cast(attrs, @castable)
     |> cast_closed_sets(attrs)
-    |> update_change(:source_url, &blank_to_nil/1)
-    |> update_change(:note, &blank_to_nil/1)
+    |> update_change(:source_url, &trim_text/1)
+    |> update_change(:note, &trim_text/1)
     |> validate_required([:security_id, :kind, :date, :timing, :source_quality])
     # The link is rendered as an anchor and handed to an agent as a source:
     # only http(s) — never javascript:, data: or a bare path.
@@ -196,12 +196,11 @@ defmodule Portfolixir.Knowledge.SecurityEvent do
     end
   end
 
-  defp blank_to_nil(value) when is_binary(value) do
-    case String.trim(value) do
-      "" -> nil
-      trimmed -> trimmed
-    end
-  end
-
-  defp blank_to_nil(value), do: value
+  # `cast/3` already maps a whitespace-only string to the field's default
+  # (`nil` here) through Ecto's `:empty_values`, so "a link made of spaces"
+  # never reaches this function as a change. What is left is the padding
+  # around a value that does carry text, and a cleared field passing through
+  # as `nil`.
+  defp trim_text(value) when is_binary(value), do: String.trim(value)
+  defp trim_text(value), do: value
 end
