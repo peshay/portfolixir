@@ -185,6 +185,9 @@ never a guess and never a 500:
 - **Both halves are required.** A metric without its window is an incomplete
   basis, and the rule is review-blocking: a reviewer and an agent both read the
   payload, and neither reads a doc page.
+- **Amended 2026-09-19** ("a refusal says what it needed", below): a refusal
+  carries what it needed as well as what it had, and a metric defined over a
+  count of closes renders `window: null` rather than inventing a span.
 
 ### 7. No verdict, no signal — the level (a)/(d) boundary, mechanically
 
@@ -313,3 +316,50 @@ metric-basis rule added to `AGENTS.md` by the same gate.
 - Nothing here creates, stores or transmits an order, and nothing acquires data
   the instance does not already hold. Level (a) reports what was recorded; the
   operator still decides.
+
+## Amendment: a refusal says what it needed (2026-09-19, owner decision on PR #832)
+
+§6 was written for a metric that produced a number, and this batch's own
+closing act found the two places that shows.
+
+1. **A count-based metric has no window until it has the closes.**
+   `volatility`, `max_drawdown`, `momentum` and `distance_to_extremes` are
+   defined over a date range, so their window exists as a *request* before any
+   data is read and a refusal can state it. `sma_n` is defined over the newest
+   `n` closes: its span is an *output*, and below `n` closes there is none. A
+   rendered `window: null` is therefore the truthful answer to "what was this
+   measured over" rather than the missing half §6 forbids — and §6 says so
+   here instead of leaving the reading to a reviewer.
+2. **No refusal stated its threshold, which is the gap that mattered.** A
+   refused `volatility` renders the span it asked for and `observations: 14`;
+   the 20 it needed lives only in `computation_basis.gaps`, as prose. That is
+   the failure §6 exists to prevent — *a reviewer and an agent both read the
+   payload, and neither reads a doc page* — and it was invisible on the
+   date-range metrics only because their window happens to be non-null.
+
+So §6 reads in two states from here:
+
+- **Computed.** `window` is the span the metric was measured over, and
+  `observations` is how many inputs it read.
+- **Refused.** `observations` is what it had and **`required`** is what it
+  needed; `window` is the span it asked for where the metric is defined over a
+  date range, and `null` where it is defined over a count of closes.
+
+`required` sits on **every** metric in both states, not only on a refusal: a
+reader comparing two payloads should not have to know which state they are in
+to find the threshold. It carries the minimum `observations` value of §5's
+table. Where a metric additionally requires *coverage* — a close at each end
+of the window, which is `momentum` and `distance_to_extremes` — the count is
+the floor and the coverage rule stays in `computation_basis.gaps`: a coverage
+condition is not a number, and an integer standing in for one would mislead
+exactly the reader this rule is for.
+
+**Both halves stay review-blocking.** What changed is which two halves: not "a
+value and a window", but "what it measured, or what it needed".
+
+The wording is adopted with this PR; the payload half — `required` on the
+metric renderer, the contract-manifest entry, the MCP schema mirror and the
+EN/DE integration doc lines — lands with Lane A2 in Sprint 14, which extends
+the same payload, so the surface takes one contract bump rather than two.
+Until then the thresholds stay where they are today, in the basis prose.
+Issue #838 carries it.
