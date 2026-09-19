@@ -478,6 +478,14 @@ for historic imports once rates for the booking dates are stored.
 
 ## Classifications, Targets, and Allocation
 
+The **Classifications index** (`/classifications`, issue #808) is one row
+per tree, and each row says what that tree holds: how many categories and how
+many levels it uses, how many of your securities are assigned in it — with the
+unassigned count called out beside it — and the target plan it carries, with
+that plan's name and status. The row itself opens the tree; the kebab at its
+end carries Open and, for a custom tree, Delete; **+** in the heading creates
+a new one.
+
 Securities can be organised into **classification trees**. Custom trees are
 free-form folders with colours; built-in trees for **asset class** and
 **currency** are derived from each security and always present. Built-in

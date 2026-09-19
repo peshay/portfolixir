@@ -517,6 +517,14 @@ historische Importe ab, sobald Kurse für die Buchungstage gespeichert sind.
 
 ## Klassifizierungen, Ziele und Allokation
 
+Die **Klassifizierungs-Übersicht** (`/classifications`, Issue #808) ist eine
+Zeile je Baum, und jede Zeile sagt, was dieser Baum enthält: wie viele
+Kategorien und Ebenen er nutzt, wie viele Wertpapiere in ihm zugeordnet sind —
+mit der Zahl der nicht zugeordneten daneben — und den Zielplan, den er trägt,
+mit dessen Name und Status. Die Zeile selbst öffnet den Baum; das Kebab-Menü
+am Ende trägt Öffnen und, bei eigenen Bäumen, Löschen; **+** in der Überschrift
+legt einen neuen an.
+
 Wertpapiere können in **Klassifizierungsbäume** geordnet werden. Eigene Bäume
 sind frei gestaltbare Ordner mit Farben; integrierte Bäume für **Anlageklasse**
 und **Währung** werden aus jedem Wertpapier abgeleitet und sind immer vorhanden.
