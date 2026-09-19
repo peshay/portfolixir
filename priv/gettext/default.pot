@@ -22,7 +22,7 @@ msgstr ""
 #: lib/portfolixir_web/live/imports_live.ex:154
 #: lib/portfolixir_web/live/imports_live.ex:546
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:294
-#: lib/portfolixir_web/live/portfolio_live.ex:2139
+#: lib/portfolixir_web/live/portfolio_live.ex:2228
 #, elixir-autogen
 msgid "Cash accounts"
 msgstr ""
@@ -58,6 +58,7 @@ msgstr ""
 #: lib/portfolixir_web/live/income_live.ex:1000
 #: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:154
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:91
+#: lib/portfolixir_web/live/portfolio_live.ex:2315
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:360
 #: lib/portfolixir_web/live/securities_live.ex:3223
 #: lib/portfolixir_web/live/transaction_management_live.ex:1182
@@ -84,6 +85,7 @@ msgstr ""
 msgid "Date"
 msgstr ""
 
+#: lib/portfolixir_web/live/portfolio_live.ex:2310
 #: lib/portfolixir_web/live/securities_live.ex:1636
 #: lib/portfolixir_web/live/securities_live.ex:1867
 #: lib/portfolixir_web/live/transaction_management_live.ex:1755
@@ -136,6 +138,7 @@ msgid "German"
 msgstr ""
 
 #: lib/portfolixir/catalog/security_fields.ex:62
+#: lib/portfolixir_web/live/portfolio_live.ex:2313
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:348
 #, elixir-autogen
 msgid "ISIN"
@@ -238,6 +241,7 @@ msgid "Primary navigation"
 msgstr ""
 
 #: lib/portfolixir_web/live/income_live.ex:347
+#: lib/portfolixir_web/live/portfolio_live.ex:2312
 #: lib/portfolixir_web/live/securities_live.ex:1631
 #: lib/portfolixir_web/live/securities_live.ex:1714
 #: lib/portfolixir_web/live/securities_live.ex:1781
@@ -270,8 +274,8 @@ msgstr ""
 #: lib/portfolixir_web/live/dashboard_live.ex:824
 #: lib/portfolixir_web/live/imports_live.ex:150
 #: lib/portfolixir_web/live/imports_live.ex:542
-#: lib/portfolixir_web/live/portfolio_live.ex:822
-#: lib/portfolixir_web/live/portfolio_live.ex:916
+#: lib/portfolixir_web/live/portfolio_live.ex:843
+#: lib/portfolixir_web/live/portfolio_live.ex:937
 #: lib/portfolixir_web/live/securities_live.ex:324
 #: lib/portfolixir_web/live/securities_live.ex:701
 #, elixir-autogen
@@ -281,7 +285,8 @@ msgstr ""
 #: lib/portfolixir_web/live/income_live.ex:344
 #: lib/portfolixir_web/live/income_live.ex:941
 #: lib/portfolixir_web/live/income_live.ex:999
-#: lib/portfolixir_web/live/portfolio_live.ex:2019
+#: lib/portfolixir_web/live/portfolio_live.ex:2040
+#: lib/portfolixir_web/live/portfolio_live.ex:2311
 #: lib/portfolixir_web/live/transaction_management_live.ex:991
 #: lib/portfolixir_web/live/transaction_management_live.ex:1179
 #: lib/portfolixir_web/live/transaction_management_live.ex:1532
@@ -387,7 +392,7 @@ msgstr ""
 msgid "Holdings"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1159
+#: lib/portfolixir_web/live/portfolio_live.ex:1180
 #, elixir-autogen, elixir-format
 msgid "Performance"
 msgstr ""
@@ -437,6 +442,7 @@ msgstr ""
 msgid "Column"
 msgstr ""
 
+#: lib/portfolixir_web/live/portfolio_live.ex:2170
 #: lib/portfolixir_web/live/securities/column_picker.ex:16
 #: lib/portfolixir_web/live/securities_live.ex:397
 #: lib/portfolixir_web/live/securities_live.ex:399
@@ -636,8 +642,8 @@ msgid "Updated %{name}"
 msgstr ""
 
 #: lib/portfolixir_web/live/classifications_live.ex:363
-#: lib/portfolixir_web/live/portfolio_live.ex:1728
-#: lib/portfolixir_web/live/portfolio_live.ex:2039
+#: lib/portfolixir_web/live/portfolio_live.ex:1749
+#: lib/portfolixir_web/live/portfolio_live.ex:2060
 #: lib/portfolixir_web/live/securities/filter_popover.ex:90
 #: lib/portfolixir_web/live/securities_live.ex:1372
 #, elixir-autogen, elixir-format
@@ -645,6 +651,7 @@ msgid "Value"
 msgstr ""
 
 #: lib/portfolixir/catalog/security_fields.ex:64
+#: lib/portfolixir_web/live/portfolio_live.ex:2314
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:354
 #, elixir-autogen, elixir-format
 msgid "WKN"
@@ -941,7 +948,7 @@ msgstr ""
 #: lib/portfolixir_web/live/buckets_live.ex:261
 #: lib/portfolixir_web/live/buckets_live.ex:482
 #: lib/portfolixir_web/live/classifications_live.ex:727
-#: lib/portfolixir_web/live/portfolio_live.ex:1309
+#: lib/portfolixir_web/live/portfolio_live.ex:1330
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:208
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:435
 #: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:114
@@ -1126,8 +1133,8 @@ msgstr ""
 msgid "Add a personal note for this security…"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1311
-#: lib/portfolixir_web/live/portfolio_live.ex:1377
+#: lib/portfolixir_web/live/portfolio_live.ex:1332
+#: lib/portfolixir_web/live/portfolio_live.ex:1398
 #: lib/portfolixir_web/live/securities_live.ex:1050
 #, elixir-autogen, elixir-format
 msgid "Apply"
@@ -1144,6 +1151,7 @@ msgstr ""
 msgid "Avg buy"
 msgstr ""
 
+#: lib/portfolixir_web/live/portfolio_live.ex:2316
 #: lib/portfolixir_web/live/securities_live.ex:1869
 #, elixir-autogen, elixir-format
 msgid "Avg cost"
@@ -1155,7 +1163,7 @@ msgid "Avg sell"
 msgstr ""
 
 #: lib/portfolixir_web/live/imports_live.ex:567
-#: lib/portfolixir_web/live/portfolio_live.ex:3332
+#: lib/portfolixir_web/live/portfolio_live.ex:3501
 #: lib/portfolixir_web/transaction_kind_label.ex:17
 #, elixir-autogen, elixir-format
 msgid "Buy"
@@ -1219,7 +1227,7 @@ msgstr ""
 msgid "Export SVG"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1243
+#: lib/portfolixir_web/live/portfolio_live.ex:1264
 #: lib/portfolixir_web/live/securities_live.ex:1004
 #: lib/portfolixir_web/live/transaction_management_live.ex:1000
 #, elixir-autogen, elixir-format
@@ -1234,6 +1242,7 @@ msgid "Gross"
 msgstr ""
 
 #: lib/portfolixir/catalog/security_fields.ex:92
+#: lib/portfolixir_web/live/portfolio_live.ex:2317
 #: lib/portfolixir_web/live/securities_live.ex:1316
 #, elixir-autogen, elixir-format
 msgid "Latest price"
@@ -1317,7 +1326,7 @@ msgid "Security detail tabs"
 msgstr ""
 
 #: lib/portfolixir_web/live/imports_live.ex:568
-#: lib/portfolixir_web/live/portfolio_live.ex:3331
+#: lib/portfolixir_web/live/portfolio_live.ex:3500
 #: lib/portfolixir_web/transaction_kind_label.ex:18
 #, elixir-autogen, elixir-format
 msgid "Sell"
@@ -1340,7 +1349,7 @@ msgstr ""
 msgid "This view is not implemented yet."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1258
+#: lib/portfolixir_web/live/portfolio_live.ex:1279
 #: lib/portfolixir_web/live/securities_live.ex:1019
 #: lib/portfolixir_web/live/transaction_management_live.ex:1004
 #, elixir-autogen, elixir-format
@@ -1758,100 +1767,100 @@ msgstr ""
 msgid "Investment products"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:706
+#: lib/portfolixir_web/live/portfolio_live.ex:727
 #, elixir-autogen
 msgid "Value, performance and allocation"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:801
-#: lib/portfolixir_web/live/portfolio_live.ex:1112
+#: lib/portfolixir_web/live/portfolio_live.ex:822
+#: lib/portfolixir_web/live/portfolio_live.ex:1133
 #, elixir-autogen
 msgid "Total incl. cash"
 msgstr ""
 
 #: lib/portfolixir_web/live/classifications_live.ex:904
 #: lib/portfolixir_web/live/dashboard_live.ex:696
-#: lib/portfolixir_web/live/portfolio_live.ex:823
-#: lib/portfolixir_web/live/portfolio_live.ex:1891
-#: lib/portfolixir_web/live/portfolio_live.ex:3152
-#: lib/portfolixir_web/live/portfolio_live.ex:3594
-#: lib/portfolixir_web/live/portfolio_live.ex:3818
+#: lib/portfolixir_web/live/portfolio_live.ex:844
+#: lib/portfolixir_web/live/portfolio_live.ex:1912
+#: lib/portfolixir_web/live/portfolio_live.ex:3321
+#: lib/portfolixir_web/live/portfolio_live.ex:3763
+#: lib/portfolixir_web/live/portfolio_live.ex:3987
 #, elixir-autogen
 msgid "Cash"
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard_live.ex:298
-#: lib/portfolixir_web/live/portfolio_live.ex:841
-#: lib/portfolixir_web/live/portfolio_live.ex:1124
-#: lib/portfolixir_web/live/portfolio_live.ex:2430
+#: lib/portfolixir_web/live/portfolio_live.ex:862
+#: lib/portfolixir_web/live/portfolio_live.ex:1145
+#: lib/portfolixir_web/live/portfolio_live.ex:2582
 #, elixir-autogen
 msgid "TTWROR"
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard_live.ex:533
 #: lib/portfolixir_web/live/dashboard_live.ex:539
-#: lib/portfolixir_web/live/portfolio_live.ex:2615
-#: lib/portfolixir_web/live/portfolio_live.ex:3982
+#: lib/portfolixir_web/live/portfolio_live.ex:2767
+#: lib/portfolixir_web/live/portfolio_live.ex:4151
 #, elixir-autogen
 msgid "IRR"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1195
+#: lib/portfolixir_web/live/portfolio_live.ex:1216
 #, elixir-autogen
 msgid "Period"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2630
-#: lib/portfolixir_web/live/portfolio_live.ex:2633
+#: lib/portfolixir_web/live/portfolio_live.ex:2782
+#: lib/portfolixir_web/live/portfolio_live.ex:2785
 #, elixir-autogen
 msgid "Cumulative TTWROR over time"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1483
-#: lib/portfolixir_web/live/portfolio_live.ex:2732
+#: lib/portfolixir_web/live/portfolio_live.ex:1504
+#: lib/portfolixir_web/live/portfolio_live.ex:2884
 #, elixir-autogen
 msgid "Allocation"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1512
+#: lib/portfolixir_web/live/portfolio_live.ex:1533
 #, elixir-autogen
 msgid "Classification"
 msgstr ""
 
 #: lib/portfolixir_web/live/classifications_live.ex:361
 #: lib/portfolixir_web/live/classifications_live.ex:858
-#: lib/portfolixir_web/live/portfolio_live.ex:1727
-#: lib/portfolixir_web/live/portfolio_live.ex:2028
+#: lib/portfolixir_web/live/portfolio_live.ex:1748
+#: lib/portfolixir_web/live/portfolio_live.ex:2049
 #, elixir-autogen
 msgid "Category"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1729
-#: lib/portfolixir_web/live/portfolio_live.ex:2042
+#: lib/portfolixir_web/live/portfolio_live.ex:1750
+#: lib/portfolixir_web/live/portfolio_live.ex:2063
 #, elixir-autogen
 msgid "Actual"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1731
+#: lib/portfolixir_web/live/portfolio_live.ex:1752
 #, elixir-autogen
 msgid "Target"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1733
-#: lib/portfolixir_web/live/portfolio_live.ex:2052
+#: lib/portfolixir_web/live/portfolio_live.ex:1754
+#: lib/portfolixir_web/live/portfolio_live.ex:2073
 #, elixir-autogen
 msgid "Drift"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1941
-#: lib/portfolixir_web/live/portfolio_live.ex:2086
-#: lib/portfolixir_web/live/portfolio_live.ex:3639
-#: lib/portfolixir_web/live/portfolio_live.ex:3796
+#: lib/portfolixir_web/live/portfolio_live.ex:1962
+#: lib/portfolixir_web/live/portfolio_live.ex:2107
+#: lib/portfolixir_web/live/portfolio_live.ex:3808
+#: lib/portfolixir_web/live/portfolio_live.ex:3965
 #, elixir-autogen
 msgid "Unassigned"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2145
+#: lib/portfolixir_web/live/portfolio_live.ex:2234
 #: lib/portfolixir_web/live/transaction_management_live.ex:925
 #, elixir-autogen
 msgid "Account"
@@ -1859,7 +1868,7 @@ msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:93
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:367
-#: lib/portfolixir_web/live/portfolio_live.ex:2146
+#: lib/portfolixir_web/live/portfolio_live.ex:2235
 #: lib/portfolixir_web/live/transaction_management_live.ex:334
 #: lib/portfolixir_web/live/transaction_management_live.ex:451
 #, elixir-autogen
@@ -1875,7 +1884,7 @@ msgstr ""
 #: lib/portfolixir_web/live/dashboard_live.ex:236
 #: lib/portfolixir_web/live/dashboard_live.ex:280
 #: lib/portfolixir_web/live/dashboard_live.ex:283
-#: lib/portfolixir_web/live/portfolio_live.ex:4032
+#: lib/portfolixir_web/live/portfolio_live.ex:4201
 #, elixir-autogen
 msgid "YTD"
 msgstr ""
@@ -1883,35 +1892,35 @@ msgstr ""
 #: lib/portfolixir_web/live/dashboard_live.ex:298
 #: lib/portfolixir_web/live/dashboard_live.ex:560
 #: lib/portfolixir_web/live/dashboard_live.ex:563
-#: lib/portfolixir_web/live/portfolio_live.ex:4033
+#: lib/portfolixir_web/live/portfolio_live.ex:4202
 #, elixir-autogen
 msgid "1Y"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:4034
+#: lib/portfolixir_web/live/portfolio_live.ex:4203
 #, elixir-autogen
 msgid "3Y"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:4035
+#: lib/portfolixir_web/live/portfolio_live.ex:4204
 #, elixir-autogen
 msgid "5Y"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:4036
+#: lib/portfolixir_web/live/portfolio_live.ex:4205
 #, elixir-autogen
 msgid "Max"
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard_live.ex:472
-#: lib/portfolixir_web/live/portfolio_live.ex:2221
+#: lib/portfolixir_web/live/portfolio_live.ex:2373
 #: lib/portfolixir_web/live/securities/filter_popover.ex:54
 #: lib/portfolixir_web/live/securities_live.ex:3198
 #, elixir-autogen
 msgid "Data quality"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2286
+#: lib/portfolixir_web/live/portfolio_live.ex:2438
 #, elixir-autogen
 msgid "Bookings dated before 1970 (%{dates}) are applied on the first plausible day — fix those dates in the source and re-import."
 msgstr ""
@@ -2160,26 +2169,26 @@ msgstr[1] ""
 #: lib/portfolixir_web/live/buckets_live.ex:888
 #: lib/portfolixir_web/live/classifications_live.ex:254
 #: lib/portfolixir_web/live/classifications_live.ex:392
-#: lib/portfolixir_web/live/portfolio_live.ex:3416
-#: lib/portfolixir_web/live/portfolio_live.ex:3421
-#: lib/portfolixir_web/live/portfolio_live.ex:3435
-#: lib/portfolixir_web/live/portfolio_live.ex:3458
-#: lib/portfolixir_web/live/portfolio_live.ex:3480
+#: lib/portfolixir_web/live/portfolio_live.ex:3585
+#: lib/portfolixir_web/live/portfolio_live.ex:3590
+#: lib/portfolixir_web/live/portfolio_live.ex:3604
+#: lib/portfolixir_web/live/portfolio_live.ex:3627
+#: lib/portfolixir_web/live/portfolio_live.ex:3649
 #, elixir-autogen, elixir-format
 msgid "Unsorted"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3938
+#: lib/portfolixir_web/live/portfolio_live.ex:4107
 #, elixir-autogen, elixir-format
 msgid "not in cash quote"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3936
+#: lib/portfolixir_web/live/portfolio_live.ex:4105
 #, elixir-autogen, elixir-format
 msgid "credit line"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3937
+#: lib/portfolixir_web/live/portfolio_live.ex:4106
 #, elixir-autogen, elixir-format
 msgid "reserve"
 msgstr ""
@@ -2211,17 +2220,17 @@ msgstr ""
 msgid "➕ New category…"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1546
+#: lib/portfolixir_web/live/portfolio_live.ex:1567
 #, elixir-autogen
 msgid "Σ target top level:"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1796
+#: lib/portfolixir_web/live/portfolio_live.ex:1817
 #, elixir-autogen
 msgid "subcategories:"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1797
+#: lib/portfolixir_web/live/portfolio_live.ex:1818
 #, elixir-autogen
 msgid "of"
 msgstr ""
@@ -2252,8 +2261,8 @@ msgstr ""
 #: lib/portfolixir_web/live/income_live.ex:499
 #: lib/portfolixir_web/live/income_live.ex:588
 #: lib/portfolixir_web/live/income_live.ex:802
-#: lib/portfolixir_web/live/portfolio_live.ex:1289
-#: lib/portfolixir_web/live/portfolio_live.ex:2422
+#: lib/portfolixir_web/live/portfolio_live.ex:1310
+#: lib/portfolixir_web/live/portfolio_live.ex:2574
 #, elixir-autogen
 msgid "Year"
 msgstr ""
@@ -2403,45 +2412,45 @@ msgstr ""
 msgid "without holdings"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:939
+#: lib/portfolixir_web/live/portfolio_live.ex:960
 #, elixir-autogen
 msgid "Cash quote info"
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard_live.ex:392
-#: lib/portfolixir_web/live/portfolio_live.ex:941
+#: lib/portfolixir_web/live/portfolio_live.ex:962
 #, elixir-autogen
 msgid "Cash quote: deployable cash ÷ (securities value + deployable cash). Reserve and credit-line accounts are excluded."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:843
+#: lib/portfolixir_web/live/portfolio_live.ex:864
 #, elixir-autogen
 msgid "TTWROR info"
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard_live.ex:390
-#: lib/portfolixir_web/live/portfolio_live.ex:845
+#: lib/portfolixir_web/live/portfolio_live.ex:866
 #, elixir-autogen
 msgid "TTWROR — time-weighted return for the selected period (not annualized). Deposits and withdrawals are neutralised so only investment performance counts."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3993
+#: lib/portfolixir_web/live/portfolio_live.ex:4162
 #, elixir-autogen
 msgid "IRR info"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3365
+#: lib/portfolixir_web/live/portfolio_live.ex:3534
 #, elixir-autogen
 msgid "Sync exchange rates"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3357
-#: lib/portfolixir_web/live/portfolio_live.ex:3361
+#: lib/portfolixir_web/live/portfolio_live.ex:3526
+#: lib/portfolixir_web/live/portfolio_live.ex:3530
 #, elixir-autogen
 msgid "Syncing…"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3391
+#: lib/portfolixir_web/live/portfolio_live.ex:3560
 #, elixir-autogen
 msgid "Couldn't reach the exchange-rate provider. Please check the connection and try again."
 msgstr ""
@@ -2769,7 +2778,7 @@ msgstr ""
 msgid "— Choose a view —"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1572
+#: lib/portfolixir_web/live/portfolio_live.ex:1593
 #, elixir-autogen, elixir-format
 msgid "Create a plan for this view"
 msgstr ""
@@ -2779,7 +2788,7 @@ msgstr ""
 msgid "Has a target plan for the current classification"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1566
+#: lib/portfolixir_web/live/portfolio_live.ex:1587
 #, elixir-autogen, elixir-format
 msgid "No target plan for this view — showing actual allocation only."
 msgstr ""
@@ -2801,17 +2810,17 @@ msgstr ""
 msgid "Target plan"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1735
+#: lib/portfolixir_web/live/portfolio_live.ex:1756
 #, elixir-autogen, elixir-format
 msgid "Target/actual drift info"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1998
+#: lib/portfolixir_web/live/portfolio_live.ex:2019
 #, elixir-autogen, elixir-format
 msgid "%{pct}% of holdings aren't assigned to a category."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2002
+#: lib/portfolixir_web/live/portfolio_live.ex:2023
 #, elixir-autogen, elixir-format
 msgid "Assign them on the Classifications page"
 msgstr ""
@@ -2871,12 +2880,12 @@ msgstr ""
 msgid "Couldn't load the dashboard figures."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1170
+#: lib/portfolixir_web/live/portfolio_live.ex:1191
 #, elixir-autogen, elixir-format
 msgid "Chart series"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1188
+#: lib/portfolixir_web/live/portfolio_live.ex:1209
 #, elixir-autogen, elixir-format
 msgid "Value (%{currency})"
 msgstr ""
@@ -2935,13 +2944,13 @@ msgstr ""
 msgid "No logo"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1737
+#: lib/portfolixir_web/live/portfolio_live.ex:1758
 #, elixir-autogen, elixir-format
 msgid "Target vs. actual: drift is actual weight minus target weight. Positive = overweight (reduce to reach the target), negative = underweight (add to reach it)."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1771
-#: lib/portfolixir_web/live/portfolio_live.ex:1937
+#: lib/portfolixir_web/live/portfolio_live.ex:1792
+#: lib/portfolixir_web/live/portfolio_live.ex:1958
 #, elixir-autogen, elixir-format
 msgid "Toggle the category's securities"
 msgstr ""
@@ -2980,9 +2989,9 @@ msgid "Section tabs"
 msgstr ""
 
 #: lib/portfolixir_web/components/app_shell.ex:293
-#: lib/portfolixir_web/live/portfolio_live.ex:689
-#: lib/portfolixir_web/live/portfolio_live.ex:692
-#: lib/portfolixir_web/live/portfolio_live.ex:705
+#: lib/portfolixir_web/live/portfolio_live.ex:710
+#: lib/portfolixir_web/live/portfolio_live.ex:713
+#: lib/portfolixir_web/live/portfolio_live.ex:726
 #, elixir-autogen, elixir-format
 msgid "Wealth"
 msgstr ""
@@ -2992,7 +3001,7 @@ msgstr ""
 msgid "All targets within ±5 pp — nothing needs rebalancing."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1179
+#: lib/portfolixir_web/live/portfolio_live.ex:1200
 #, elixir-autogen, elixir-format
 msgid "% (TTWROR)"
 msgstr ""
@@ -3063,33 +3072,34 @@ msgstr ""
 msgid "Sep"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1488
+#: lib/portfolixir_web/live/portfolio_live.ex:1509
 #, elixir-autogen, elixir-format
 msgid "Allocation view"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1678
+#: lib/portfolixir_web/live/portfolio_live.ex:1699
 #, elixir-autogen, elixir-format
 msgid "Collapse all"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1680
+#: lib/portfolixir_web/live/portfolio_live.ex:1701
 #, elixir-autogen, elixir-format
 msgid "Expand all"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2055
+#: lib/portfolixir_web/live/portfolio_live.ex:2076
 #, elixir-autogen, elixir-format
 msgid "Hint"
 msgstr ""
 
 #: lib/portfolixir_web/live/classifications_live.ex:362
-#: lib/portfolixir_web/live/portfolio_live.ex:1507
+#: lib/portfolixir_web/live/portfolio_live.ex:1528
+#: lib/portfolixir_web/live/portfolio_live.ex:2165
 #, elixir-autogen, elixir-format
 msgid "Positions"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1497
+#: lib/portfolixir_web/live/portfolio_live.ex:1518
 #, elixir-autogen, elixir-format
 msgid "Tree"
 msgstr ""
@@ -3109,18 +3119,18 @@ msgstr ""
 msgid "Categories drifting more than ±%{pp} pp from their target weight."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3369
+#: lib/portfolixir_web/live/portfolio_live.ex:3538
 #, elixir-autogen, elixir-format
 msgid "Syncing exchange rates…"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3213
+#: lib/portfolixir_web/live/portfolio_live.ex:3382
 #: lib/portfolixir_web/live/securities_live.ex:1364
 #, elixir-autogen, elixir-format
 msgid "units"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1467
+#: lib/portfolixir_web/live/portfolio_live.ex:1488
 #, elixir-autogen, elixir-format
 msgid "Composition as of today"
 msgstr ""
@@ -3137,7 +3147,7 @@ msgstr ""
 #: lib/portfolixir_web/live/dashboard_live.ex:266
 #: lib/portfolixir_web/live/dashboard_live.ex:382
 #: lib/portfolixir_web/live/dashboard_live.ex:688
-#: lib/portfolixir_web/live/portfolio_live.ex:2816
+#: lib/portfolixir_web/live/portfolio_live.ex:2968
 #: lib/portfolixir_web/live/snapshots_live.ex:216
 #: lib/portfolixir_web/live/snapshots_live.ex:220
 #: lib/portfolixir_web/live/snapshots_live.ex:599
@@ -3145,7 +3155,7 @@ msgstr ""
 msgid "Everything"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:788
+#: lib/portfolixir_web/live/portfolio_live.ex:809
 #, elixir-autogen, elixir-format
 msgid "Got it"
 msgstr ""
@@ -3155,7 +3165,7 @@ msgstr ""
 msgid "Open the Wealth page and dashboard on this view by default"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:836
+#: lib/portfolixir_web/live/portfolio_live.ex:857
 #, elixir-autogen, elixir-format
 msgid "Overlapping buckets — accounts counted once"
 msgstr ""
@@ -3165,7 +3175,7 @@ msgstr ""
 msgid "Set as default"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:832
+#: lib/portfolixir_web/live/portfolio_live.ex:853
 #, elixir-autogen, elixir-format
 msgid "This view's buckets share accounts. Each account is counted once, so per-bucket figures may overlap and must not be summed."
 msgstr ""
@@ -3175,7 +3185,7 @@ msgstr ""
 msgid "Wealth value"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1468
+#: lib/portfolixir_web/live/portfolio_live.ex:1489
 #, elixir-autogen, elixir-format
 msgid "the view's current bucket membership is applied to the whole history."
 msgstr ""
@@ -3185,13 +3195,13 @@ msgstr ""
 msgid "API"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:623
+#: lib/portfolixir_web/live/portfolio_live.ex:644
 #, elixir-autogen, elixir-format
 msgid "Couldn't load the wealth figures."
 msgstr ""
 
 #: lib/portfolixir_web/live/income_live.ex:211
-#: lib/portfolixir_web/live/portfolio_live.ex:694
+#: lib/portfolixir_web/live/portfolio_live.ex:715
 #: lib/portfolixir_web/live/snapshots_live.ex:338
 #: lib/portfolixir_web/live/transaction_management_live.ex:98
 #, elixir-autogen, elixir-format
@@ -3238,13 +3248,13 @@ msgstr ""
 msgid "UI"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2357
+#: lib/portfolixir_web/live/portfolio_live.ex:2509
 #, elixir-autogen, elixir-format
 msgid "Value over time"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:798
-#: lib/portfolixir_web/live/portfolio_live.ex:1107
+#: lib/portfolixir_web/live/portfolio_live.ex:819
+#: lib/portfolixir_web/live/portfolio_live.ex:1128
 #, elixir-autogen, elixir-format
 msgid "Wealth key figures"
 msgstr ""
@@ -3530,7 +3540,7 @@ msgstr ""
 msgid "The bucket tag names an existing scope bucket. Scope buckets are exclusive and cannot be used as import tags — pick a different tag name."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:736
+#: lib/portfolixir_web/live/portfolio_live.ex:757
 #, elixir-autogen, elixir-format
 msgid "The selected view no longer exists — showing Everything."
 msgstr ""
@@ -3560,7 +3570,7 @@ msgstr ""
 msgid "shared — managed above"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3363
+#: lib/portfolixir_web/live/portfolio_live.ex:3532
 #, elixir-autogen, elixir-format
 msgid "Up to date"
 msgstr ""
@@ -3606,8 +3616,8 @@ msgstr ""
 
 #: lib/portfolixir_web/live/income_live.ex:793
 #: lib/portfolixir_web/live/income_live.ex:930
-#: lib/portfolixir_web/live/portfolio_live.ex:1665
-#: lib/portfolixir_web/live/portfolio_live.ex:2411
+#: lib/portfolixir_web/live/portfolio_live.ex:1686
+#: lib/portfolixir_web/live/portfolio_live.ex:2563
 #: lib/portfolixir_web/live/snapshots_live.ex:506
 #, elixir-autogen, elixir-format
 msgid "Data as table"
@@ -3744,62 +3754,62 @@ msgstr ""
 msgid "Save name"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:748
+#: lib/portfolixir_web/live/portfolio_live.ex:769
 #, elixir-autogen, elixir-format
 msgid "The selected classification no longer exists — showing the default tree."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3269
+#: lib/portfolixir_web/live/portfolio_live.ex:3438
 #, elixir-autogen, elixir-format
 msgid "not held"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3234
+#: lib/portfolixir_web/live/portfolio_live.ex:3403
 #, elixir-autogen, elixir-format
 msgid "stale target"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1794
+#: lib/portfolixir_web/live/portfolio_live.ex:1815
 #, elixir-autogen, elixir-format
 msgid "(no own weight)"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1574
+#: lib/portfolixir_web/live/portfolio_live.ex:1595
 #, elixir-autogen, elixir-format
 msgid "Create a plan"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1568
+#: lib/portfolixir_web/live/portfolio_live.ex:1589
 #, elixir-autogen, elixir-format
 msgid "No target plan yet — showing actual allocation only."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3208
+#: lib/portfolixir_web/live/portfolio_live.ex:3377
 #, elixir-autogen, elixir-format
 msgid "at quote from %{date}"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3242
+#: lib/portfolixir_web/live/portfolio_live.ex:3411
 #, elixir-autogen, elixir-format
 msgid "no quote"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3240
+#: lib/portfolixir_web/live/portfolio_live.ex:3409
 #, elixir-autogen, elixir-format
 msgid "no quote — add a price to get a unit hint"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3270
+#: lib/portfolixir_web/live/portfolio_live.ex:3439
 #, elixir-autogen, elixir-format
 msgid "not held in this view"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1792
+#: lib/portfolixir_web/live/portfolio_live.ex:1813
 #, elixir-autogen, elixir-format
 msgid "subcategories Σ"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1549
+#: lib/portfolixir_web/live/portfolio_live.ex:1570
 #, elixir-autogen, elixir-format
 msgid "targets deeper in the tree:"
 msgstr ""
@@ -4424,8 +4434,8 @@ msgid "Withheld capital-gains tax %{recorded} against %{expected} reconstructed 
 msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:409
-#: lib/portfolixir_web/live/portfolio_live.ex:1559
-#: lib/portfolixir_web/live/portfolio_live.ex:4124
+#: lib/portfolixir_web/live/portfolio_live.ex:1580
+#: lib/portfolixir_web/live/portfolio_live.ex:4293
 #: lib/portfolixir_web/live/tax_live.ex:547
 #, elixir-autogen, elixir-format
 msgid "as of %{date}"
@@ -4446,12 +4456,12 @@ msgstr ""
 msgid "These pots are transcribed from the broker statement, never computed from the ledger. Not for want of FIFO — lots are matched FIFO already, on the trade list — but that yields a gross gain, and a gross gain is not a tax pot. Teilfreistellung, Vorabpauschale, chronological allowance consumption and prior-year carry-forward are absent from transaction data, and the pots are kept per institution. The statement remains the authority. This is not tax advice."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1405
+#: lib/portfolixir_web/live/portfolio_live.ex:1426
 #, elixir-autogen, elixir-format
 msgid "Recomputation failed. The shown series is superseded: %{basis}. Reload retries."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:4107
+#: lib/portfolixir_web/live/portfolio_live.ex:4276
 #, elixir-autogen, elixir-format
 msgid "Superseded series — %{basis}. Recomputing."
 msgstr ""
@@ -4467,20 +4477,20 @@ msgid "Not counted in the portfolio totals — no price is known for this securi
 msgstr ""
 
 #: lib/portfolixir_web/live/classifications_live.ex:596
-#: lib/portfolixir_web/live/portfolio_live.ex:3249
+#: lib/portfolixir_web/live/portfolio_live.ex:3418
 #: lib/portfolixir_web/live/securities_live.ex:1888
 #, elixir-autogen, elixir-format
 msgid "The derived holding quantity is negative — likely an unmodeled corporate action from an imported history. Repair the security's transaction history."
 msgstr ""
 
 #: lib/portfolixir_web/live/classifications_live.ex:601
-#: lib/portfolixir_web/live/portfolio_live.ex:3254
+#: lib/portfolixir_web/live/portfolio_live.ex:3423
 #: lib/portfolixir_web/live/securities_live.ex:1893
 #, elixir-autogen, elixir-format
 msgid "negative quantity"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2324
+#: lib/portfolixir_web/live/portfolio_live.ex:2476
 #, elixir-autogen, elixir-format
 msgid "total across depots"
 msgstr ""
@@ -4631,7 +4641,7 @@ msgstr ""
 msgid "No securities match the search."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:773
+#: lib/portfolixir_web/live/portfolio_live.ex:794
 #, elixir-autogen, elixir-format
 msgid "Portfolios are now views"
 msgstr ""
@@ -4651,77 +4661,77 @@ msgstr ""
 msgid "State the balance the bank shows; only later bookings adjust it."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3229
+#: lib/portfolixir_web/live/portfolio_live.ex:3398
 #, elixir-autogen, elixir-format
 msgid "This position target is stale: the security was moved or unassigned. It keeps counting under the category it was filed under until re-filed on the Classifications page."
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard_live.ex:391
-#: lib/portfolixir_web/live/portfolio_live.ex:879
+#: lib/portfolixir_web/live/portfolio_live.ex:900
 #, elixir-autogen, elixir-format
 msgid "IRR — money-weighted return, annualized. Discounts the timing and size of cashflows over the period. Windows shorter than a year show the period MWR — the same figure, not annualized."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:972
+#: lib/portfolixir_web/live/portfolio_live.ex:993
 #, elixir-autogen, elixir-format
 msgid "Invested capital for the period: value at the period start plus net external flows (deposits minus withdrawals, deliveries at transaction value). Basis of the wealth multiple."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:970
+#: lib/portfolixir_web/live/portfolio_live.ex:991
 #, elixir-autogen, elixir-format
 msgid "Invested capital info"
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard_live.ex:538
-#: lib/portfolixir_web/live/portfolio_live.ex:2611
-#: lib/portfolixir_web/live/portfolio_live.ex:3982
+#: lib/portfolixir_web/live/portfolio_live.ex:2763
+#: lib/portfolixir_web/live/portfolio_live.ex:4151
 #, elixir-autogen, elixir-format
 msgid "MWR"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:965
+#: lib/portfolixir_web/live/portfolio_live.ex:986
 #, elixir-autogen, elixir-format
 msgid "Opening value"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:999
+#: lib/portfolixir_web/live/portfolio_live.ex:1020
 #, elixir-autogen, elixir-format
 msgid "Wealth multiple"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1001
+#: lib/portfolixir_web/live/portfolio_live.ex:1022
 #, elixir-autogen, elixir-format
 msgid "Wealth multiple info"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1003
+#: lib/portfolixir_web/live/portfolio_live.ex:1024
 #, elixir-autogen, elixir-format
 msgid "Wealth multiple — end value ÷ invested capital: what the money put in has become. n/a when net invested capital is zero or negative."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1011
+#: lib/portfolixir_web/live/portfolio_live.ex:1032
 #, elixir-autogen, elixir-format
 msgid "n/a"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:965
-#: lib/portfolixir_web/live/portfolio_live.ex:990
+#: lib/portfolixir_web/live/portfolio_live.ex:986
+#: lib/portfolixir_web/live/portfolio_live.ex:1011
 #, elixir-autogen, elixir-format
 msgid "net flows"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3993
+#: lib/portfolixir_web/live/portfolio_live.ex:4162
 #, elixir-autogen, elixir-format
 msgid "MWR info"
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard_live.ex:261
-#: lib/portfolixir_web/live/portfolio_live.ex:861
-#: lib/portfolixir_web/live/portfolio_live.ex:902
-#: lib/portfolixir_web/live/portfolio_live.ex:986
-#: lib/portfolixir_web/live/portfolio_live.ex:1020
-#: lib/portfolixir_web/live/portfolio_live.ex:1088
-#: lib/portfolixir_web/live/portfolio_live.ex:1473
+#: lib/portfolixir_web/live/portfolio_live.ex:882
+#: lib/portfolixir_web/live/portfolio_live.ex:923
+#: lib/portfolixir_web/live/portfolio_live.ex:1007
+#: lib/portfolixir_web/live/portfolio_live.ex:1041
+#: lib/portfolixir_web/live/portfolio_live.ex:1109
+#: lib/portfolixir_web/live/portfolio_live.ex:1494
 #, elixir-autogen, elixir-format
 msgid "computing"
 msgstr ""
@@ -4743,28 +4753,28 @@ msgid_plural "Last known: %{ttwror}% YTD — %{count} bookings through %{last}, 
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:4113
+#: lib/portfolixir_web/live/portfolio_live.ex:4282
 #, elixir-autogen, elixir-format
 msgid "One booking through %{last}, computed %{at}, as of %{date}"
 msgid_plural "%{count} bookings through %{last}, computed %{at}, as of %{date}"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2267
+#: lib/portfolixir_web/live/portfolio_live.ex:2419
 #, elixir-autogen, elixir-format
 msgid "One held position has no price at all and is missing from the totals:"
 msgid_plural "%{count} held positions have no price at all and are missing from the totals:"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:3384
+#: lib/portfolixir_web/live/portfolio_live.ex:3553
 #, elixir-autogen, elixir-format
 msgid "One rate updated"
 msgid_plural "%{count} rates updated"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2311
+#: lib/portfolixir_web/live/portfolio_live.ex:2463
 #, elixir-autogen, elixir-format
 msgid "One security has an impossible negative holding quantity — likely an unmodeled corporate action from an imported history. Repair the transaction history:"
 msgid_plural "%{count} securities have an impossible negative holding quantity — likely an unmodeled corporate action from an imported history. Repair the transaction history:"
@@ -4782,7 +4792,7 @@ msgstr ""
 msgid "No matches for the active filters."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1418
+#: lib/portfolixir_web/live/portfolio_live.ex:1439
 #, elixir-autogen, elixir-format
 msgid "Computation failed. Reload retries."
 msgstr ""
@@ -4847,7 +4857,7 @@ msgctxt "data-note severity"
 msgid "Problem"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1234
+#: lib/portfolixir_web/live/portfolio_live.ex:1255
 #: lib/portfolixir_web/live/securities_live.ex:992
 #, elixir-autogen, elixir-format
 msgid "Custom range…"
@@ -4863,7 +4873,7 @@ msgstr ""
 msgid "Set balance — %{name}"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2178
+#: lib/portfolixir_web/live/portfolio_live.ex:2267
 #, elixir-autogen, elixir-format
 msgid "Set balances on Accounts & depots"
 msgstr ""
@@ -4923,32 +4933,32 @@ msgstr ""
 msgid "Recommended"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2428
+#: lib/portfolixir_web/live/portfolio_live.ex:2580
 #, elixir-autogen, elixir-format
 msgid "End value (%{currency})"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2422
+#: lib/portfolixir_web/live/portfolio_live.ex:2574
 #, elixir-autogen, elixir-format
 msgid "Month"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2432
+#: lib/portfolixir_web/live/portfolio_live.ex:2584
 #, elixir-autogen, elixir-format
 msgid "Net flows (%{currency})"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2418
+#: lib/portfolixir_web/live/portfolio_live.ex:2570
 #, elixir-autogen, elixir-format
 msgid "Performance by period"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2425
+#: lib/portfolixir_web/live/portfolio_live.ex:2577
 #, elixir-autogen, elixir-format
 msgid "Start value (%{currency})"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2414
+#: lib/portfolixir_web/live/portfolio_live.ex:2566
 #, elixir-autogen, elixir-format
 msgid "Start/end value, return and flows per period — the chart, summarised."
 msgstr ""
@@ -4965,7 +4975,7 @@ msgstr[1] ""
 msgid "Stale — the statement is %{days} days old."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1457
+#: lib/portfolixir_web/live/portfolio_live.ex:1478
 #, elixir-autogen, elixir-format
 msgid "computed %{at}"
 msgstr ""
@@ -5036,7 +5046,7 @@ msgstr ""
 msgid "Derived:"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2238
+#: lib/portfolixir_web/live/portfolio_live.ex:2390
 #, elixir-autogen, elixir-format
 msgid "One held position is valued at its last trade price, so the total is not current:"
 msgid_plural "%{count} held positions are valued at their last trade price, so the total is not current:"
@@ -5139,27 +5149,27 @@ msgstr ""
 msgid "Yes"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1692
+#: lib/portfolixir_web/live/portfolio_live.ex:1713
 #, elixir-autogen, elixir-format
 msgid "Deviating by"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1690
+#: lib/portfolixir_web/live/portfolio_live.ex:1711
 #, elixir-autogen, elixir-format
 msgid "Drift threshold"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1710
+#: lib/portfolixir_web/live/portfolio_live.ex:1731
 #, elixir-autogen, elixir-format
 msgid "Showing %{shown} of %{total} categories, those deviating by at least %{pp} pp. Cash and unassigned always show."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1717
+#: lib/portfolixir_web/live/portfolio_live.ex:1738
 #, elixir-autogen, elixir-format
 msgid "Showing all %{total} categories."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1702
+#: lib/portfolixir_web/live/portfolio_live.ex:1723
 #, elixir-autogen, elixir-format
 msgid "≥ %{pp} pp"
 msgstr ""
@@ -5237,49 +5247,49 @@ msgstr ""
 msgid "Off target"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:759
+#: lib/portfolixir_web/live/portfolio_live.ex:780
 #, elixir-autogen, elixir-format
 msgid "This view matches no accounts — its included buckets are empty or no longer assigned. Edit the view under Views or tag accounts into its buckets."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:4076
+#: lib/portfolixir_web/live/portfolio_live.ex:4245
 #: lib/portfolixir_web/live/securities_live.ex:4976
 #, elixir-autogen, elixir-format
 msgid "Not a date — use YYYY-MM-DD."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:4073
+#: lib/portfolixir_web/live/portfolio_live.ex:4242
 #: lib/portfolixir_web/live/securities_live.ex:4973
 #, elixir-autogen, elixir-format
 msgid "The end date is before the start date."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1647
+#: lib/portfolixir_web/live/portfolio_live.ex:1668
 #, elixir-autogen, elixir-format
 msgid "A position target filed in %{categories} is stale: its security was moved or unassigned. It keeps counting there"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1638
+#: lib/portfolixir_web/live/portfolio_live.ex:1659
 #, elixir-autogen, elixir-format
 msgid "Align the position targets and the category weight on the Classifications page."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1621
+#: lib/portfolixir_web/live/portfolio_live.ex:1642
 #, elixir-autogen, elixir-format
 msgid "The plan's top-level targets sum to %{sum} % — more than 100 %. Drift keeps steering against the stored weights;"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1633
+#: lib/portfolixir_web/live/portfolio_live.ex:1654
 #, elixir-autogen, elixir-format
 msgid "The position targets steer in %{categories}: their sum overrides the stored category weight."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1625
+#: lib/portfolixir_web/live/portfolio_live.ex:1646
 #, elixir-autogen, elixir-format
 msgid "trim the plan on the Classifications page."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1651
+#: lib/portfolixir_web/live/portfolio_live.ex:1672
 #, elixir-autogen, elixir-format
 msgid "until re-filed on the Classifications page."
 msgstr ""
@@ -5792,95 +5802,95 @@ msgstr ""
 msgid "Unmark benchmark"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2575
+#: lib/portfolixir_web/live/portfolio_live.ex:2727
 #, elixir-autogen, elixir-format
 msgid "%{portfolio} vs %{benchmark}"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2551
+#: lib/portfolixir_web/live/portfolio_live.ex:2703
 #, elixir-autogen, elixir-format
 msgid "%{rate} % p.a."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1092
+#: lib/portfolixir_web/live/portfolio_live.ex:1113
 #, elixir-autogen, elixir-format
 msgid "Benchmark comparison info"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1324
+#: lib/portfolixir_web/live/portfolio_live.ex:1345
 #, elixir-autogen, elixir-format
 msgid "Benchmark…"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1366
+#: lib/portfolixir_web/live/portfolio_live.ex:1387
 #, elixir-autogen, elixir-format
 msgid "Fixed rate % p.a."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1363
+#: lib/portfolixir_web/live/portfolio_live.ex:1384
 #, elixir-autogen, elixir-format
 msgid "No benchmark securities yet — mark one on the Securities page."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2397
+#: lib/portfolixir_web/live/portfolio_live.ex:2549
 #, elixir-autogen, elixir-format
 msgid "Portfolio (TTWROR)"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1064
-#: lib/portfolixir_web/live/portfolio_live.ex:2401
+#: lib/portfolixir_web/live/portfolio_live.ex:1085
+#: lib/portfolixir_web/live/portfolio_live.ex:2553
 #, elixir-autogen, elixir-format
 msgid "bought once"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1036
+#: lib/portfolixir_web/live/portfolio_live.ex:1057
 #, elixir-autogen, elixir-format
 msgid "Benchmark comparison"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1444
+#: lib/portfolixir_web/live/portfolio_live.ex:1465
 #, elixir-autogen, elixir-format
 msgid "Benchmarks are drawn in the %% (TTWROR) view only — they have no value in %{currency}."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2256
+#: lib/portfolixir_web/live/portfolio_live.ex:2408
 #, elixir-autogen, elixir-format
 msgid "One held position is valued at a quote older than %{days} days, so the totals may be stale — mark it retired if its listing ended, or sync its quotes:"
 msgid_plural "%{count} held positions are valued at quotes older than %{days} days, so the totals may be stale — mark them retired if their listings ended, or sync their quotes:"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1094
+#: lib/portfolixir_web/live/portfolio_live.ex:1115
 #, elixir-autogen, elixir-format
 msgid "Savings plan: the period's opening value and every deposit or withdrawal invested into the benchmark on the same days at that day's price, without fees or taxes; the figure is the actual end value minus that. Bought once: the period's TTWROR against the benchmark held throughout. Pairs read portfolio vs benchmark; flows before the benchmark's first priced day enter through the opening value."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1379
+#: lib/portfolixir_web/live/portfolio_live.ex:1400
 #, elixir-autogen, elixir-format
 msgid "Up to two benchmarks — the first two ticked apply."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2634
+#: lib/portfolixir_web/live/portfolio_live.ex:2786
 #, elixir-autogen, elixir-format
 msgid "benchmarks: %{names}"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2597
+#: lib/portfolixir_web/live/portfolio_live.ex:2749
 #, elixir-autogen, elixir-format
 msgid "from %{date} — %{count} earlier flow enters through the opening value"
 msgid_plural "from %{date} — %{count} earlier flows enter through the opening value"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2589
+#: lib/portfolixir_web/live/portfolio_live.ex:2741
 #, elixir-autogen, elixir-format
 msgid "no covered window — %{count} flow before the benchmark's first priced day"
 msgid_plural "no covered window — %{count} flows before the benchmark's first priced day"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1056
-#: lib/portfolixir_web/live/portfolio_live.ex:1060
+#: lib/portfolixir_web/live/portfolio_live.ex:1077
+#: lib/portfolixir_web/live/portfolio_live.ex:1081
 #, elixir-autogen, elixir-format
 msgid "savings plan"
 msgstr ""
@@ -5947,12 +5957,12 @@ msgstr ""
 msgid "Snapshots need a depot with a cash account."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:775
+#: lib/portfolixir_web/live/portfolio_live.ex:796
 #, elixir-autogen, elixir-format
 msgid "The one-time migration turned each portfolio into a bucket and a view of the same name — fully editable, nothing was deleted."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:693
+#: lib/portfolixir_web/live/portfolio_live.ex:714
 #, elixir-autogen, elixir-format
 msgid "Wealth needs a depot with a cash account."
 msgstr ""
@@ -6020,21 +6030,21 @@ msgstr ""
 msgid "The fee and tax legs riding any transaction plus standalone fee and tax bookings across every portfolio, with tax refunds netted against taxes, by booking date. Gross amounts are never summed: a buy's gross includes its legs while a sell's is net of them. Excludes dividends and interest, realized gains, and deposits and withdrawals — each has its own Cash flow facet. This facet stays at overview level on purpose: totals per year, and no breakdown per security or per transaction. Each cost converted to %{currency} via the EUR hub at the rate stored on its own booking date; a cost with no stored rate for that day is excluded from the totals and named here — never converted at a neighbouring date's rate."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2292
+#: lib/portfolixir_web/live/portfolio_live.ex:2444
 #, elixir-autogen, elixir-format
 msgid "One cash account is not counted in the totals because there is no exchange rate to %{base}: %{names}."
 msgid_plural "%{count} cash accounts are not counted in the totals because there is no exchange rate to %{base}: %{names}."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2276
+#: lib/portfolixir_web/live/portfolio_live.ex:2428
 #, elixir-autogen, elixir-format
 msgid "One held position has a price but no exchange rate to %{base} stored, so it is missing from the totals: %{entries}."
 msgid_plural "%{count} held positions have a price but no exchange rate to %{base} stored, so they are missing from the totals: %{entries}."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2165
+#: lib/portfolixir_web/live/portfolio_live.ex:2254
 #, elixir-autogen, elixir-format
 msgid "no exchange rate"
 msgstr ""
@@ -6389,33 +6399,33 @@ msgstr ""
 msgid "unused"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1554
+#: lib/portfolixir_web/live/portfolio_live.ex:1575
 #, elixir-autogen, elixir-format
 msgid "Actual allocation on %{classification}"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2794
+#: lib/portfolixir_web/live/portfolio_live.ex:2946
 #, elixir-autogen, elixir-format
 msgid "Allocated"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1668
+#: lib/portfolixir_web/live/portfolio_live.ex:1689
 #, elixir-autogen, elixir-format
 msgid "Category, value, actual, target and drift — the sunburst as rows."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1536
+#: lib/portfolixir_web/live/portfolio_live.ex:1557
 #, elixir-autogen, elixir-format
 msgid "Plan on %{classification}"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1558
+#: lib/portfolixir_web/live/portfolio_live.ex:1579
 #, elixir-autogen, elixir-format
 msgid "View %{name}"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:2783
-#: lib/portfolixir_web/live/portfolio_live.ex:2805
+#: lib/portfolixir_web/live/portfolio_live.ex:2935
+#: lib/portfolixir_web/live/portfolio_live.ex:2957
 #, elixir-autogen, elixir-format
 msgid "target"
 msgstr ""
@@ -6430,7 +6440,7 @@ msgstr ""
 msgid "Year × month, dividends and interest apart — the chart data without the chart."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:4006
+#: lib/portfolixir_web/live/portfolio_live.ex:4175
 #, elixir-autogen, elixir-format
 msgid "%{basis} · as of %{date}"
 msgstr ""
@@ -6442,14 +6452,14 @@ msgid_plural "%{count} stale"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:1137
+#: lib/portfolixir_web/live/portfolio_live.ex:1158
 #, elixir-autogen, elixir-format
 msgid "All key figures → Holdings"
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard_live.ex:313
-#: lib/portfolixir_web/live/portfolio_live.ex:937
-#: lib/portfolixir_web/live/portfolio_live.ex:1119
+#: lib/portfolixir_web/live/portfolio_live.ex:958
+#: lib/portfolixir_web/live/portfolio_live.ex:1140
 #, elixir-autogen, elixir-format
 msgid "Cash quote"
 msgstr ""
@@ -6469,23 +6479,23 @@ msgstr ""
 msgid "View %{view} · return over %{period} to %{date} · in %{currency} · quotes: the newest across held positions"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:4002
+#: lib/portfolixir_web/live/portfolio_live.ex:4171
 #, elixir-autogen, elixir-format
 msgid "annualized"
 msgstr ""
 
 #: lib/portfolixir_web/live/dashboard_live.ex:317
-#: lib/portfolixir_web/live/portfolio_live.ex:955
+#: lib/portfolixir_web/live/portfolio_live.ex:976
 #, elixir-autogen, elixir-format
 msgid "cash"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:870
+#: lib/portfolixir_web/live/portfolio_live.ex:891
 #, elixir-autogen, elixir-format
 msgid "in the period"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_live.ex:4001
+#: lib/portfolixir_web/live/portfolio_live.ex:4170
 #, elixir-autogen, elixir-format
 msgid "not annualized"
 msgstr ""
@@ -6835,4 +6845,34 @@ msgstr ""
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:484
 #, elixir-autogen, elixir-format
 msgid "No bucket"
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex:2318
+#, elixir-autogen, elixir-format
+msgid "Market value"
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex:2194
+#, elixir-autogen, elixir-format
+msgid "No holdings yet"
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex:2319
+#, elixir-autogen, elixir-format
+msgid "P&L"
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex:2320
+#, elixir-autogen, elixir-format
+msgid "P&L %"
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex:2188
+#, elixir-autogen, elixir-format
+msgid "The holdings projection this instance serves over the API: one row per depot and security, valued at the latest stored price. The columns are that projection's own fields."
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_live.ex:2298
+#, elixir-autogen, elixir-format
+msgid "Unknown depot"
 msgstr ""

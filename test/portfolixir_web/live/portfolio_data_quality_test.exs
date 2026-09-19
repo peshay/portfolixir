@@ -444,7 +444,10 @@ defmodule PortfolixirWeb.PortfolioDataQualityTest do
     assert html =~ "Old Quote Co."
     assert html =~ Date.to_iso8601(old_day)
     assert html =~ "retired"
-    refute html =~ ~r/dq-stale-priced.*World ETF/s
+    # Scoped to the note: a document-wide regex would bridge the note to any
+    # later mention of the security elsewhere on the page (the #814 positions
+    # table lists every holding, including the fresh one).
+    refute view |> element(~s([data-role="dq-stale-priced"])) |> render() =~ "World ETF"
 
     assert has_element?(
              view,

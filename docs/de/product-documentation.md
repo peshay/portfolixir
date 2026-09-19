@@ -866,8 +866,8 @@ Audit-Journal.
 ## Vermögens-Seite
 
 Der Eintrag **Vermögen** in der Navigation öffnet die Vermögensübersicht,
-organisiert in Tabs (ADR-0022): **Bestände** (Wert, Performance, Datenqualität,
-Cash), **Allokation & Ziele** (Sunburst und Drift-Tabelle) und **Cashflow**
+organisiert in Tabs (ADR-0022): **Bestände** (Wert, Performance, Positionen,
+Datenqualität, Cash), **Allokation & Ziele** (Sunburst und Drift-Tabelle) und **Cashflow**
 (der Bericht über erhaltene Dividenden und Zinsen). Der Bestände-Tab beginnt
 mit dem **Kennzahlen-Band in zwei Ebenen** (Issue #797): drei Leitkennzahlen
 in voller Größe — der Gesamtwert inklusive Cash mit seiner Zusammensetzung
@@ -889,7 +889,17 @@ Transaktionswert), nie eine zusammengelegte Zahl — und der
 null oder darunter zeigt der Multiplikator `n/a` — nie einen negativen
 Multiplikator. Für Zeiträume unter einem Jahr trägt die geldgewichtete
 Kennzahl das Label **MWR** und zeigt die Periodenzahl statt einer
-annualisierten, die ein kurzes Fenster aufblähen würde (ADR-0034). Neben den festen Buttons verkettet ein
+annualisierten, die ein kurzes Fenster aufblähen würde (ADR-0034).
+
+**Positionen** (Issue #814) listet die Bestandsprojektion, die diese Instanz
+über die API ausliefert — eine Zeile je Depot und Wertpapier, bewertet zum
+zuletzt gespeicherten Preis — mit einer **Spalten**-Auswahl über die Felder
+genau dieser Projektion: neben den Vorgaben Depot, Wertpapier und Stückzahl
+ISIN, WKN, Währung, durchschnittlicher Einstand, letzter Preis, Marktwert und
+das unrealisierte Ergebnis in Geld und Prozent. Es sind dieselben Felder, die
+ein Agent über `fields=` der Bestands-API auswählt, aus derselben Projektion
+gelesen. Die Auswahl liegt im Browser und übersteht ein Neuladen; alle Haken
+zu entfernen fällt auf die Vorgaben zurück. Neben den festen Buttons verkettet ein
 Jahres-Dropdown jedes einzelne Kalenderjahr mit Daten, und ein Von/Bis-
 Datumsbereich verkettet eine eigene Spanne — beides sind reine Neuverkettungen
 der bereits berechneten Reihe, ehrlich auf die vorhandene Historie begrenzt
