@@ -24,6 +24,44 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
              ~r/mask-image:\s*linear-gradient\(to right, black calc\(100% - 40px\)/
   end
 
+  # User story (#817; DESIGN.md → "Tab row overflow — the shipped form is the
+  # specification (D6, UX-DR22)"; EXPERIENCE.md → UX-DR22, "answered here
+  # once, for every tab row — Wealth, Transactions, detail panes"):
+  # As a local portfolio maintainer reading a security on a 390 px phone,
+  # I want the detail pane's tab row held to the same shipped form as the
+  # area tabs,
+  # so that the last tab stays reachable in a ~360 px panel instead of
+  # coming to rest half-cut behind no affordance at all.
+  #
+  # Acceptance criteria:
+  # - `.detail-pane-tabs` carries the five declarations of the D6 form:
+  #   overflow-y hidden, x-proximity snapping, the one-sided right-edge fade,
+  #   no scrollbar, and the baseline as an inset box-shadow.
+  # - The `border-bottom` baseline is GONE, which is the clause the section
+  #   calls non-obvious: with `overflow-x: auto` a border baseline either
+  #   raises a vertical scrollbar or clips the active tab's underline to 1px.
+  # - `.detail-pane-tab` keeps its intrinsic width and snaps to the start.
+  test "the detail pane's tab row is held to the D6 shipped form" do
+    row = block(".detail-pane-tabs")
+
+    assert row =~ ~r/overflow-x:\s*auto/
+    assert row =~ ~r/overflow-y:\s*hidden/
+    assert row =~ ~r/scroll-snap-type:\s*x proximity/
+    assert row =~ ~r/mask-image:\s*linear-gradient\(to right, black calc\(100% - 40px\)/
+    assert row =~ ~r/scrollbar-width:\s*none/
+    assert row =~ ~r/box-shadow:\s*inset 0 -1px 0 var\(--color-border\)/
+
+    refute row =~ ~r/border-bottom:/,
+           "D6's non-obvious clause: the baseline is an inset box-shadow, never a border-bottom"
+
+    assert @css =~ ~r/\.detail-pane-tabs::-webkit-scrollbar \{\s*display: none;/
+
+    tab = block(".detail-pane-tab")
+    assert tab =~ ~r/flex:\s*none/
+    assert tab =~ ~r/scroll-snap-align:\s*start/
+    assert tab =~ ~r/white-space:\s*nowrap/
+  end
+
   test "a labelled tooltip summary grows with its label" do
     assert block(".metric-tooltip--labelled summary") =~ ~r/width:\s*auto/
   end

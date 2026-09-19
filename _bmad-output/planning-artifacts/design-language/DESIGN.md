@@ -1120,6 +1120,15 @@ Shipped as #702; recorded here so every tab row is held to it.
   the children, so the overlap survives and nothing overflows vertically.
 - **No tab row wraps, and none collapses into the burger** (UX-DR22).
 
+**Every tab row is held to it, and since Sprint 13 that is mechanical.**
+`.detail-pane-tabs` carried `overflow-x: auto` and the forbidden
+`border-bottom` and none of the rest until issue 817 — the row *most* likely
+to overflow, since it is the primary navigation of a reading surface in a pane
+whose default width is roughly 360 px. `css_layout_sweep_test.exs` now asserts
+the five declarations and the absence of the `border-bottom` on that row as
+well as the fade on `.area-tabs`, so a later refactor cannot quietly undo the
+non-obvious clause.
+
 ### Transactions — the target vocabulary *(Part 4)*
 
 `transaction_management_live.ex` predates this language. It adopts, with no new
