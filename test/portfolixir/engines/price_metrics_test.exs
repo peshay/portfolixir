@@ -355,4 +355,24 @@ defmodule Portfolixir.Engines.PriceMetricsTest do
     assert_decimal(metrics.latest.close, "120")
     assert metrics.latest.date == @as_of
   end
+
+  # Acceptance criteria (ADR-0047 §3, and the patch-coverage read of D-5):
+  # - The declared window sets ARE the keys every windowed metric carries, so
+  #   a window added to the engine cannot be one the payload omits — or, as
+  #   the human view showed, one that has no label and prints its slug.
+  test "the declared window sets are exactly the keys the payload carries" do
+    metrics = PriceMetrics.compute(flat(400), @as_of)
+
+    day_labels = Enum.map(PriceMetrics.day_windows(), &elem(&1, 0))
+    month_labels = Enum.map(PriceMetrics.month_windows(), &elem(&1, 0))
+
+    assert day_labels == ~w(30d 90d 365d)
+    assert month_labels == ~w(3m 6m 12m)
+
+    for key <- [:volatility, :max_drawdown] do
+      assert metrics |> Map.fetch!(key) |> Map.keys() |> Enum.sort() == Enum.sort(day_labels)
+    end
+
+    assert metrics.momentum |> Map.keys() |> Enum.sort() == Enum.sort(month_labels)
+  end
 end

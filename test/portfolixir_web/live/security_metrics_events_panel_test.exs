@@ -138,6 +138,26 @@ defmodule PortfolixirWeb.SecurityMetricsEventsPanelTest do
     refute names =~ "365 days"
 
     assert has_element?(view, "#detail-metrics [data-role='metric-window-name']")
+
+    # Every range the chart offers resolves to a named window: a range that
+    # snapped to a window with no label would print nothing where the
+    # disclosure belongs.
+    for range <- ~w(1M 3M 6M YTD 1Y 3Y 5Y MAX) do
+      view
+      |> element("button[phx-click='set_detail_range'][phx-value-range='#{range}']")
+      |> render_click()
+
+      names =
+        view
+        |> render()
+        |> Floki.parse_document!()
+        |> Floki.find("#detail-metrics [data-role='metric-window-name']")
+        |> Enum.map(&Floki.text/1)
+
+      assert length(names) == 3, range
+      for name <- names, do: assert(String.trim(name) =~ ~r/^\d+ \w+$/, "#{range}: #{name}")
+    end
+
     refute view |> element("#detail-metrics") |> render() =~ ~s(class="is-negative">\n)
   end
 
