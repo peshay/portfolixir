@@ -38,6 +38,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
      |> assign(:error, nil)
      |> assign(:success, nil)
      |> assign(:account_dialog?, false)
+     |> assign(:account_menu_id, nil)
      |> assign(:balance_dialog, nil)
      |> assign(:balance_error, nil)
      |> assign(:picker, nil)
@@ -91,6 +92,12 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                     <th><%= gettext("Liquidity role") %></th>
                     <th><%= gettext("Balance") %></th>
                     <th><%= gettext("Buckets") %></th>
+                    <%!-- #806: row actions behind the kebab (Tables pattern);
+                         "Tag separately" moved off the bucket cell, which held
+                         four controls for one question. --%>
+                    <th class="col-actions">
+                      <span class="visually-hidden"><%= gettext("Actions") %></span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody
@@ -116,10 +123,8 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                             all_buckets={@buckets}
                             picker_open={@picker == {"pair", row.depot.id}}
                             error={chip_error(@bucket_error, "pair", row.depot.id)}
-                            group_label={gettext("Both")}
-                            group_label_title={gettext("Applies to depot and cash account")}
+                            scope_line={scope_line(:pair)}
                             picker_caption={gettext("Tags apply to depot & cash")}
-                            split_control
                           />
                         </td>
                       <% else %>
@@ -131,9 +136,25 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                             all_buckets={@buckets}
                             picker_open={@picker == {"depot", row.depot.id}}
                             error={chip_error(@bucket_error, "depot", row.depot.id)}
+                            scope_line={scope_line(:depot)}
                           />
                         </td>
                       <% end %>
+                      <td class="cell-actions">
+                        <button
+                          :if={merged?(row, @split_pairs)}
+                          type="button"
+                          id={"account-kebab-#{row.depot.id}"}
+                          class="row-actions__kebab"
+                          phx-click="open_account_menu"
+                          phx-value-id={row.depot.id}
+                          aria-label={gettext("Open actions menu")}
+                          aria-haspopup="menu"
+                          aria-expanded={to_string(@account_menu_id == row.depot.id)}
+                        >
+                          <AppShell.icon name={:ellipsis_vertical} />
+                        </button>
+                      </td>
                     </tr>
                     <%= cond do %>
                       <% row.cash && row.cash_controls? -> %>
@@ -159,8 +180,10 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                               all_buckets={@buckets}
                               picker_open={@picker == {"cash", row.cash.id}}
                               error={chip_error(@bucket_error, "cash", row.cash.id)}
+                              scope_line={scope_line(:cash)}
                             />
                           </td>
+                          <td class="cell-actions"></td>
                         </tr>
                       <% row.cash -> %>
                         <tr class="account-row--cash account-row--shared">
@@ -172,6 +195,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                           <td class="cell-role"></td>
                           <td class="cell-balance"></td>
                           <td class="cell-buckets"></td>
+                          <td class="cell-actions"></td>
                         </tr>
                       <% true -> %>
                         <tr class="account-row--cash account-row--placeholder">
@@ -184,6 +208,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                           <td class="cell-role"></td>
                           <td class="cell-balance"></td>
                           <td class="cell-buckets"></td>
+                          <td class="cell-actions"></td>
                         </tr>
                     <% end %>
                   <% else %>
@@ -210,13 +235,36 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                           all_buckets={@buckets}
                           picker_open={@picker == {"cash", row.cash.id}}
                           error={chip_error(@bucket_error, "cash", row.cash.id)}
+                          scope_line={scope_line(:cash)}
                         />
                       </td>
+                      <td class="cell-actions"></td>
                     </tr>
                   <% end %>
                 </tbody>
               </table>
             </div>
+
+            <% open_pair = @account_menu_id && Enum.find(@rows, &pair_row?(&1, @account_menu_id)) %>
+            <AppShell.row_menu
+              :if={open_pair}
+              id={"account-row-menu-#{open_pair.depot.id}"}
+              trigger={"account-kebab-#{open_pair.depot.id}"}
+              label={gettext("Account actions")}
+            >
+              <button
+                type="button"
+                id={"split-pair-#{open_pair.depot.id}"}
+                class="row-context-menu__item"
+                role="menuitem"
+                data-role="split-pair"
+                phx-click="split_pair"
+                phx-value-id={open_pair.depot.id}
+              >
+                <AppShell.icon name={:layers} />
+                <%= gettext("Tag separately") %>
+              </button>
+            </AppShell.row_menu>
           <% end %>
         </section>
 
@@ -385,7 +433,10 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
       phx-change="set_liquidity_role"
     >
       <input type="hidden" name="account_id" value={@cash.id} />
-      <label class="liquidity-role-field__label" for={"liquidity-role-#{@cash.id}"}>
+      <%!-- #806 (variant A): the column is already headed "Liquidity role",
+           so the per-row label is for assistive technology only — printing
+           it in every cell repeated the head once per account. --%>
+      <label class="visually-hidden" for={"liquidity-role-#{@cash.id}"}>
         <%= gettext("Liquidity role") %>
       </label>
       <select id={"liquidity-role-#{@cash.id}"} name="liquidity_role">
@@ -409,10 +460,8 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   attr(:all_buckets, :list, required: true)
   attr(:picker_open, :boolean, required: true)
   attr(:error, :string, default: nil)
-  attr(:group_label, :string, default: nil, doc: ~s(micro-label, e.g. "Both" on a merged pair))
-  attr(:group_label_title, :string, default: nil)
+  attr(:scope_line, :string, required: true, doc: "what this set applies to, as a sub-line")
   attr(:picker_caption, :string, default: nil)
-  attr(:split_control, :boolean, default: false, doc: "render the \"Tag separately\" link")
 
   defp bucket_chips(assigns) do
     available =
@@ -431,8 +480,8 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
 
     ~H"""
     <div class="bucket-chip-group" id={"#{@owner}-buckets-#{@owner_id}"} data-role="bucket-chips">
-      <span :if={@group_label} class="bucket-chip-group__label" title={@group_label_title}>
-        <%= @group_label %>
+      <span :if={@assigned == []} class="bucket-chip-group__empty" data-role="bucket-empty">
+        <%= gettext("No bucket") %>
       </span>
       <.chip :for={bucket <- @visible} bucket={bucket} owner={@owner} owner_id={@owner_id} />
       <button
@@ -456,16 +505,10 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
         aria-label={gettext("Add bucket")}
         title={gettext("Add bucket")}
       >+</button>
-      <button
-        :if={@split_control}
-        type="button"
-        class="bucket-split-link"
-        data-role="split-pair"
-        phx-click="split_pair"
-        phx-value-id={@owner_id}
-      >
-        <%= gettext("Tag separately") %>
-      </button>
+      <%!-- #806 (variant A): the scope is READABLE without interacting —
+           which set this is and what it covers — instead of being a micro-
+           label whose meaning lived in a title attribute. --%>
+      <span class="bucket-chip-group__scope" data-role="bucket-scope"><%= @scope_line %></span>
       <p :if={@error} class="bucket-inline-error" data-role="bucket-error" role="alert">
         <%= @error %>
       </p>
@@ -619,12 +662,24 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
 
   # Session-only split of a merged pair: from here on the depot and its cash
   # account carry their own chip groups (no write happens).
+  def handle_event("open_account_menu", %{"id" => id_str}, socket) do
+    case Integer.parse(to_string(id_str)) do
+      {id, ""} -> {:noreply, assign(socket, :account_menu_id, id)}
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("close_row_menu", _params, socket) do
+    {:noreply, assign(socket, :account_menu_id, nil)}
+  end
+
   def handle_event("split_pair", %{"id" => id}, socket) do
     case coerce_id(id) do
       {:ok, depot_id} ->
         {:noreply,
          socket
          |> assign(:split_pairs, MapSet.put(socket.assigns.split_pairs, depot_id))
+         |> assign(:account_menu_id, nil)
          |> assign(:picker, nil)
          |> assign(:bucket_error, nil)}
 
@@ -879,6 +934,19 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   # its own (first-claimed) cash account carry the same bucket set and the
   # user has not chosen to tag them separately this session. Diverged sets —
   # however they diverged — always render split, so "Both" never lies.
+  defp pair_row?(%{depot: %SecuritiesAccount{id: id}}, menu_id), do: id == menu_id
+  defp pair_row?(_row, _menu_id), do: false
+
+  # #806 (variant A): the scope of a chip set, as a sub-line that can be read
+  # without interacting. Deliberately NOT the issue's "inherits from the
+  # depot" wording for a cash account: in this model a cash account carries
+  # its OWN bucket set and does not inherit one (ADR-0018 inheritance is
+  # position -> depot), so writing "inherits" on a cash row would state
+  # something the data does not say.
+  defp scope_line(:pair), do: gettext("Applies to depot and cash account")
+  defp scope_line(:depot), do: gettext("Applies to the depot")
+  defp scope_line(:cash), do: gettext("Applies to the cash account")
+
   defp merged?(
          %{depot: %SecuritiesAccount{} = depot, cash: %CashAccount{}, cash_controls?: true} = row,
          split_pairs

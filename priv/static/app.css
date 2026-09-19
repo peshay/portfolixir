@@ -6281,13 +6281,23 @@ button.income-bar-label.is-active {
   gap: 0.3rem;
 }
 
-.bucket-chip-group__label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+/* Issue 806 (variant A): the scope of a chip set reads as a sub-line under
+   the chips — what this set applies to, legible without interacting, where a
+   micro-label kept its meaning in a title attribute. It takes the whole row
+   so the chips wrap above it. */
+.bucket-chip-group__scope {
+  flex-basis: 100%;
+  margin-top: 2px;
   color: var(--color-text-muted);
-  margin-right: 0.15rem;
+  font-size: 12px;
+}
+
+/* An empty set says so as a word rather than as an empty cell: "no bucket"
+   is a state, and a blank cell reads as "not loaded". */
+.bucket-chip-group__empty {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-style: italic;
 }
 
 /* A bucket membership chip. The bucket's own color rides in through

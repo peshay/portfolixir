@@ -178,10 +178,10 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
     {:ok, view, _html} = live(conn, "/portfolios")
 
     # The fresh pair starts merged (equal empty sets) — split it so the depot
-    # and cash sides carry their own chip groups.
-    view
-    |> element("#account-row-depot-#{depot.id} [data-role='split-pair']")
-    |> render_click()
+    # and cash sides carry their own chip groups. Since #806 "Tag separately"
+    # lives in the row menu rather than as a fourth control in the cell.
+    view |> element("#account-kebab-#{depot.id}") |> render_click()
+    view |> element("#split-pair-#{depot.id}") |> render_click()
 
     # Open the picker on the depot row and add the existing bucket.
     view
@@ -533,8 +533,10 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
   # Acceptance criteria:
   # - The merged group renders exactly once, on the depot row, with
   #   rowspan="2"; the cash row has no buckets cell.
-  # - The group carries the "Both" micro-label with an explanatory title.
-  # - A visible "Tag separately" link sits next to the merged chip group.
+  # - The group carries its scope as a READABLE sub-line (#806 variant A),
+  #   not a "Both" micro-label whose meaning lived in a title attribute.
+  # - "Tag separately" sits in the row menu, not as a fourth control in the
+  #   cell (#806).
   # - The pair picker's header explains that tags apply to depot & cash.
   test "equal bucket sets render one merged pair chip group with rowspan", %{conn: conn} do
     %{cash: cash, depot: depot} = world()
@@ -548,9 +550,12 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
     band = view |> element("#account-row-depot-#{depot.id}") |> render()
     assert band =~ ~s(rowspan="2")
     assert band =~ "pair-buckets-#{depot.id}"
-    assert band =~ "Both"
+    refute band =~ ~s(class="bucket-chip-group__label")
     assert band =~ "Applies to depot and cash account"
-    assert band =~ "Tag separately"
+    refute band =~ "Tag separately"
+
+    view |> element("#account-kebab-#{depot.id}") |> render_click()
+    assert has_element?(view, "#account-row-menu-#{depot.id} #split-pair-#{depot.id}")
     refute band =~ "depot-buckets-#{depot.id}"
     refute band =~ "cash-buckets-#{cash.id}"
 
@@ -578,9 +583,8 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
 
     assert has_element?(view, "#pair-buckets-#{depot.id}")
 
-    view
-    |> element("#account-row-depot-#{depot.id} [data-role='split-pair']")
-    |> render_click()
+    view |> element("#account-kebab-#{depot.id}") |> render_click()
+    view |> element("#split-pair-#{depot.id}") |> render_click()
 
     refute has_element?(view, "#pair-buckets-#{depot.id}")
     assert has_element?(view, "#depot-buckets-#{depot.id}")
@@ -1139,9 +1143,13 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
 
     assert html =~ "Portfoliodatensätze"
     assert html =~ "Depot &amp; Konto anlegen"
-    # The merged pair group speaks German too (fresh pair = equal empty sets).
-    assert html =~ "Beide"
-    assert html =~ "Getrennt taggen"
+    # The merged pair group speaks German too (fresh pair = equal empty sets):
+    # its scope reads as a sub-line and its emptiness as a word (#806).
+    assert html =~ "Gilt für Depot und Verrechnungskonto"
+    assert html =~ "Kein Bucket"
+    # "Getrennt taggen" moved into the row menu, which renders when opened;
+    # what the page carries at rest is the control that opens it.
+    assert html =~ "Aktionsmenü öffnen"
     refute html =~ "Add to portfolio"
     refute html =~ "Create portfolio"
   end
