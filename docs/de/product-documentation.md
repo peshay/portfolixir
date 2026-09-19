@@ -394,10 +394,16 @@ Wertpapier-Detailbereichs — Art, Datum, das Depot, auf das die Buchung
 Preis, Kosten und Notiz hinter einer Aufklappung, darunter die
 Lot-Vorschau — auf dem Telefon ein Bottom Sheet. Das Erfassen schließt die
 Schublade und zeigt das Ergebnis über der Historie; Abbrechen oder Esc
-verwirft den Entwurf und gibt den Fokus an das Steuerelement zurück. Die
-Schublade ist zum Anlegen einer Buchung gebaut und als ein Panel gestapelter,
-vorbefüllbarer Felder geformt, damit die Bearbeitungsansicht der bestehenden
-Update-API sie wiederverwenden kann.
+verwirft den Entwurf und gibt den Fokus an das Steuerelement zurück.
+
+**Eine Buchung korrigieren** (Issue #809): jede Zeile der Historie trägt ein
+Kebab-Menü, und **Bearbeiten** darin öffnet dieselbe Schublade, vorbefüllt
+mit der Buchung — dieselben Felder, dieselbe Prüfung, dieselbe Lot-Vorschau.
+Das Speichern korrigiert die Zeile **an Ort und Stelle**: es entsteht keine
+zweite Buchung, die abgeleiteten Bestände folgen, und die Änderung wird mit
+den vorherigen Werten im Audit-Journal festgehalten. Das ist die menschliche
+Sicht auf eine Fähigkeit, die API und MCP-Begleiter schon vor der
+Zwei-Wege-Regel hatten; an beiden wurde nichts ergänzt.
 
 Während ein **Verkauf** erfasst wird, zeigt das Formular eine Vorschau,
 welche FIFO-Kauftranchen (Lots) der Verkauf verbrauchen würde und den

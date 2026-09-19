@@ -363,9 +363,16 @@ the date, the depot the booking **books to** (its cash account sets the
 currency), the security, quantity and price, costs and note behind one
 disclosure, the sell-lot preview beneath — a bottom sheet on the phone.
 Recording closes the drawer and shows the result above the history; Cancel
-or Esc discards the draft and returns focus to the control. The drawer is
-built for creating a booking and shaped as one panel of stacked, pre-fillable
-fields, so the edit view of the existing update API can reuse it.
+or Esc discards the draft and returns focus to the control.
+
+**Correcting a booking** (issue #809): every row of the history carries a
+kebab, and **Edit** in it opens that same drawer pre-filled with the booking
+— the same fields, the same validation, the same sell-lot preview. Saving
+corrects the row **in place**: no second booking is created, the derived
+holdings follow, and the change is recorded in the audit journal with the
+previous values as its before-image. This is the human view of a capability
+the API and the MCP companion have had since before the two-way coverage
+rule; nothing new was added to either.
 
 While entering a **sell**, the form previews which FIFO purchase tranches
 (lots) the sale would consume and the resulting **gross gain** per tranche
