@@ -260,6 +260,7 @@ components:
     sheet: 'native <dialog> at the viewport bottom (the row menu mechanism): full width, 85vh max, 12/16px padding plus the safe-area inset, top corners {rounded.md}, the modal backdrop tints'
     families: 'stacked blocks headed by their names ({typography.stat-label} voice), chips wrapping; the builder in flow; Reset and Done at the foot'
     focus: 'the ModalDialog hook — showModal on open, Esc closes, focus returns to the control'
+    surfaces: 'both list surfaces that carry a chip row — the securities toolbar (issue 800) and the transaction history (issue 816). The history sheet stacks the account, type and changed-since families and takes the demoted "More filters" conditions in with them, so the phone has ONE filter entry point; above 560px each page renders its own unchanged chip row and the control is hidden'
   booking-drawer:
     shape: '{components.panel} in the detail pane\'s dress (.detail-pane): 1px {colors.border}, {rounded.lg}, {shadows.md}, {spacing.3} padding; a head with the title and a close control'
     placement: 'a native <dialog> opened non-modally beside the history (grid minmax(0,1fr) minmax(320px, 380px)), sticky under the top bar; under 720px a modal bottom sheet (fixed, full width, 88vh max, the modal backdrop tints)'

@@ -7518,7 +7518,13 @@ dialog.filter-sheet::backdrop {
     display: none;
   }
 
-  #securities-filter-chips {
+  /* The chip rows give way to the Filter control on BOTH list surfaces
+     (issue 800 for the securities toolbar, issue 816 for the history): at
+     390 px the history's account, type and changed-since families plus the
+     demoted conditions took roughly eight lines before the first booking. */
+  #securities-filter-chips,
+  #transaction-chips,
+  #transaction-more-filters {
     display: none;
   }
 
