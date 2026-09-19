@@ -13,6 +13,7 @@ reads on its own.
 | --- | --- | --- |
 | `phoenix_live_view` | 1.2.11 → 1.2.12 | A patch release inside the declared `~> 1.2` range. The whole suite and the full gate set pass on it, and the batch's largest surface area is LiveViews, so being one patch behind on the library those surfaces are reviewed against is the wrong place to save a commit. |
 | `@types/node` (mcp-server, dev) | 24.13.4 → 24.13.6 | A patch inside the pinned `^24.0.0` range, which is where the types are held on purpose (below). `npm run build` and the companion suite pass on it. |
+| `mint` (transitive: req → finch → mint) | 1.10.0 → 1.10.1 | **Security, applied after the lane closed.** EEF-CVE-2026-82672 (CVE-2026-82672, GHSA-rj5m-69wp-cxq9, MEDIUM) was published on 2026-09-19 against the 1.10.0 this tree had pinned since 2026-09-04 — an unvalidated chunk-size line tail in the HTTP/1 client enabling response smuggling against strict intermediaries on pooled connections. It turned `mix hex.audit`, and with it the `quality` job, red on a commit that changed one Markdown file: the advisory database is read at run time, so a green job goes red with nobody pushing anything. `main` carries the same pin and fails identically. The patch released the same day, so it was ported rather than waited on; `mix deps.update mint` moved one line of `mix.lock` and nothing else. |
 
 Both land as this lane's own commit, never mixed into a feature story
 (ADR-0036 clause 1).
