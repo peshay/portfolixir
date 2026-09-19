@@ -43,7 +43,20 @@ defmodule Portfolixir.Derived.Registry do
     # over a walk and a benchmark's price series, keyed under the global
     # basis because a benchmark the portfolio never held is outside the
     # portfolio's own blast radius.
-    benchmark_comparison: %{computation_version: 1, default_lifetime: :request}
+    benchmark_comparison: %{computation_version: 1, default_lifetime: :request},
+    # The per-security derived metrics (ADR-0047 §8, Sprint 13 Lane A1).
+    # `:none` is the DEFAULT WITH A REASON, not a placeholder: the analytic's
+    # invalidation seam does not exist yet. `Invalidation.after_quote_write/1`
+    # resolves through `BlastRadius.for_quote/1`, which answers the portfolios
+    # that have ever transacted the security -- empty for a security no
+    # portfolio has ever held, which is precisely the security whose research
+    # metrics are most wanted. A quote write for it bumps nothing, so a memo
+    # would be stale with no counter able to say so. A per-security basis key
+    # (`DataVersion.security_basis/1`, bumped by `after_quote_write/1`) is the
+    # prerequisite for ever moving this to `:request` or `:durable`; it is
+    # filed as its own issue and the measurement of ADR-0039 C3 cannot be
+    # acted on before it lands.
+    security_metrics: %{computation_version: 1, default_lifetime: :none}
   }
 
   @doc "All registered analytic ids."

@@ -1907,6 +1907,21 @@ const noteSourceQualities = ["primary", "secondary_multi", "awareness", "unverif
 const noteAuthors = ["operator", "agent", "local_model"] as const;
 const noteConvictions = ["low", "medium", "high"] as const;
 
+const securityMetricsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["security_id"],
+  properties: {
+    security_id: { type: "integer", minimum: 1 },
+    as_of: { type: "string", description: "ISO8601 date; closes after it are not read (default: today)" }
+  }
+} as const;
+
+const securityMetricsZ = z.object({
+  security_id: z.number().int().positive(),
+  as_of: z.string().optional()
+});
+
 const notesListSchema = {
   type: "object",
   additionalProperties: false,
@@ -2085,6 +2100,13 @@ const toolDefinitions: ToolDefinition[] = [
       type: { type: "string", enum: ["security", "crypto"] }
     }
   }, z.object({ query: z.string(), type: z.enum(["security", "crypto"]).optional() })),
+  tool(
+    "portfolixir.securities.metrics",
+    "Derived price metrics of one security",
+    "One security's derived metrics (ADR-0047, FR-39) over ITS OWN split-adjusted close series, in the security's own currency — deliberately not converted to the base currency, because a price metric is a statement about the instrument. sma_50 and sma_200 with the latest close's distance to each; volatility over 30d/90d/365d (the population standard deviation of simple daily returns, annualized by the square root of 252); max_drawdown over the same windows with peak_date, trough_date and recovery_date (recovery_date null while the series is still below the peak); momentum over 3m/6m/12m; distance_to_extremes, the 52-week high and low with their dates and the distance to each. Every metric carries the window it was measured over and its observations count, and the payload carries computation_basis (input series, gaps, assumptions) once — read it before comparing two securities. A gap produces NO observation rather than a zero return: a day with no stored close is not carried forward and then differenced. Below its minimum a metric is null with insufficient_data true and its observation count, at HTTP 200 — that is a gap marker, not an error, and NOT a reason to retry. THIS READ REPORTS, IT DOES NOT EVALUATE: there is no signal, recommendation, rating, score or action in the payload and none is coming from this tool; an SMA-50 above an SMA-200 is two numbers and a distance, and what to do about it is yours to decide. Decimals are strings.",
+    securityMetricsSchema,
+    securityMetricsZ
+  ),
   tool(
     "portfolixir.notes.list",
     "Research log of a security",
@@ -2778,6 +2800,11 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       return client.request(
         "GET",
         withQuery("/api/v1/securities/search", args, ["query", "type"])
+      );
+    case "portfolixir.securities.metrics":
+      return client.request(
+        "GET",
+        withQuery(`/api/v1/securities/${args.security_id}/metrics`, args, ["as_of"])
       );
     case "portfolixir.notes.list":
       return client.request(

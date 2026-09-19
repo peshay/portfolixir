@@ -242,6 +242,53 @@ The human view is the **Research** tab of the security detail pane on
 kind and source quality visible, superseded entries marked as such,
 retractions legible, and a form that appends an entry as the operator.
 
+### Derived metrics (ADR-0047)
+
+Scope-ladder **level (a)**: one security's price metrics, derived on read from
+the quote history it already holds. Nothing is stored and nothing is fetched.
+
+- `GET /api/v1/securities/:security_id/metrics` — `sma_50` and `sma_200` with
+  the latest close's `distance_pct` to each; `volatility` and `max_drawdown`
+  over the windows `30d`, `90d` and `365d`; `momentum` over `3m`, `6m` and
+  `12m`; `distance_to_extremes`, the 52-week high and low with their dates and
+  the distance to each. The drawdown carries `peak_date`, `trough_date` and
+  `recovery_date` (`null` while the series is still below the peak).
+  Optional `as_of` (ISO date, default today) bounds the series: closes dated
+  after it are not read. An unknown security is a `404`; a malformed `as_of` a
+  `422`.
+
+Three properties are worth knowing before comparing two securities.
+
+**The series is the security's own.** Metrics read the stored closes in the
+**ADR-0028 §2 display basis** (split-adjusted at read time; the stored rows are
+never mutated) and in the **security's own currency** — deliberately *not*
+converted to the base currency, because a price metric is a statement about the
+instrument and a conversion would fold the FX path into it.
+
+**A gap produces no observation, never a zero.** Returns are taken between
+consecutive stored closes; a day with no close is not carried forward and then
+differenced, because that manufactures a calm 0 % day and drags the standard
+deviation toward zero. Every metric therefore carries its `observations` count
+and the `window` it was measured over, and the payload carries
+`computation_basis` (`input_series`, `window`, `reference`, `gaps`,
+`assumptions`) once.
+
+**Below its minimum a metric refuses.** `value` is `null` with
+`insufficient_data: true` and the observation count it had, at `200` — a gap
+marker, not an error: 20 return observations for a volatility, `n` closes for
+an `n`-day moving average, 2 closes for a drawdown, and a close on or before
+the window's start for the momentum and the 52-week extremes.
+
+Volatility is the **population** standard deviation of the window's simple
+daily returns, annualized by `√252`; distances, momentum and volatility are
+ratios rather than percentages (`0.05` is +5 %), rounded at scale 6.
+
+**This surface reports; it does not evaluate.** There is no signal, no
+recommendation, no rating, no score and no action in the payload — an SMA-50
+above an SMA-200 is two numbers and a distance. A rule over a metric is FR-43
+and is gated; backtesting one is out of scope. A meta-test walks the rendered
+key set so the boundary holds mechanically.
+
 ### Logos
 
 Each security can carry a logo, resolved automatically (CoinGecko for crypto,
@@ -1504,6 +1551,11 @@ in MCP schemas are strings.
 - `portfolixir.securities.delete_isin_alias` — journaled delete of one
   recorded former-ISIN alias.
 - `portfolixir.securities.search_online`
+- `portfolixir.securities.metrics` — one security's derived price metrics
+  (ADR-0047) over its own split-adjusted close series: moving averages,
+  volatility, maximum drawdown, momentum and the distance to the 52-week
+  extremes, each with its window and observation count. Reports only; the
+  description says so.
 - `portfolixir.notes.list` — a security's research log newest first with the
   derived thesis state; the description states that entries never vanish
   (ADR-0044).

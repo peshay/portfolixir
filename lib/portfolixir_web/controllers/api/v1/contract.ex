@@ -39,6 +39,25 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 5,
+      date: ~D[2026-09-19],
+      summary:
+        "Sprint 13: the per-security derived metrics (ADR-0047, FR-39) — moving averages, " <>
+          "realized volatility, maximum drawdown, momentum and the distance to the 52-week " <>
+          "extremes over the security's own split-adjusted close series, every metric " <>
+          "carrying its window and observation count and the payload its computation basis; " <>
+          "level (a) reports and carries no signal, rating or action.",
+      endpoints: [
+        "GET /api/v1/securities/:security_id/metrics"
+      ],
+      tools: [
+        "portfolixir.securities.metrics"
+      ],
+      parameters: [],
+      removed_endpoints: [],
+      removed_tools: []
+    },
+    %{
       version: 4,
       date: ~D[2026-09-15],
       summary:

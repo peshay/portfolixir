@@ -255,6 +255,48 @@ auf `/securities/:id`: der Thesenstand oben, die Einträge neueste zuerst mit
 sichtbarer Art und Quellenqualität, ersetzte Einträge als ersetzt markiert,
 Widerrufe lesbar und ein Formular, das einen Eintrag als Betreiber anhängt.
 
+### Abgeleitete Kennzahlen (ADR-0047)
+
+Stufe **(a)** der Scope-Leiter: die Preiskennzahlen eines Wertpapiers, beim
+Lesen aus der bereits gespeicherten Kurshistorie abgeleitet. Nichts wird
+gespeichert, nichts abgerufen.
+
+- `GET /api/v1/securities/:security_id/metrics` — `sma_50` und `sma_200` mit
+  der `distance_pct` des letzten Schlusskurses zu jedem; `volatility` und
+  `max_drawdown` über die Fenster `30d`, `90d` und `365d`; `momentum` über
+  `3m`, `6m` und `12m`; `distance_to_extremes`, das 52-Wochen-Hoch und -Tief
+  mit ihren Daten und dem Abstand zu beiden. Der Drawdown trägt `peak_date`,
+  `trough_date` und `recovery_date` (`null`, solange die Reihe unter dem Hoch
+  liegt). Optionales `as_of` (ISO-Datum, Standard heute) begrenzt die Reihe:
+  Schlusskurse danach werden nicht gelesen. Ein unbekanntes Wertpapier ist
+  `404`, ein ungültiges `as_of` ist `422`.
+
+**Die Reihe ist die des Wertpapiers selbst.** Gelesen werden die gespeicherten
+Schlusskurse in der Anzeigebasis nach ADR-0028 §2 (splitbereinigt beim Lesen;
+die gespeicherten Zeilen bleiben unverändert) und in der **eigenen Währung**
+des Wertpapiers — bewusst *nicht* in die Basiswährung umgerechnet, denn eine
+Preiskennzahl ist eine Aussage über das Instrument, und eine Umrechnung würde
+den Wechselkurspfad hineinfalten.
+
+**Eine Lücke erzeugt keine Beobachtung, niemals eine Null.** Renditen werden
+zwischen aufeinanderfolgenden gespeicherten Schlusskursen gebildet; ein Tag
+ohne Kurs wird nicht fortgeschrieben und anschließend differenziert. Jede
+Kennzahl trägt daher ihre `observations` und das `window`, über das sie
+gemessen wurde, und die Antwort trägt einmal `computation_basis`
+(`input_series`, `window`, `reference`, `gaps`, `assumptions`).
+
+**Unterhalb ihres Minimums verweigert eine Kennzahl.** `value` ist `null` mit
+`insufficient_data: true` und der vorhandenen Beobachtungszahl, bei `200` —
+eine Lückenmarkierung, kein Fehler. Die Volatilität ist die
+**Grundgesamtheits**-Standardabweichung der einfachen Tagesrenditen des
+Fensters, annualisiert mit `√252`; Abstände, Momentum und Volatilität sind
+Verhältniszahlen statt Prozentwerte (`0.05` ist +5 %), gerundet auf sechs
+Nachkommastellen.
+
+**Diese Fläche berichtet, sie bewertet nicht.** Es gibt kein Signal, keine
+Empfehlung, kein Rating, keinen Score und keine Handlung in der Antwort. Eine
+Regel über einer Kennzahl ist FR-43 und bleibt verschlossen.
+
 ## Kurse
 
 - `GET /api/v1/securities/:security_id/quotes` listet die Kurshistorie eines
@@ -1351,6 +1393,10 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
 - `portfolixir.securities.delete_isin_alias` — journalisiertes Löschen eines
   aufgezeichneten Früher-ISIN-Alias.
 - `portfolixir.securities.search_online`
+- `portfolixir.securities.metrics` — die abgeleiteten Preiskennzahlen eines
+  Wertpapiers (ADR-0047) über seine eigene splitbereinigte Kursreihe:
+  gleitende Durchschnitte, Volatilität, maximaler Drawdown, Momentum und der
+  Abstand zu den 52-Wochen-Extremen, jede mit Fenster und Beobachtungszahl.
 - `portfolixir.notes.list` — das Research-Log eines Wertpapiers, neueste
   zuerst, mit dem abgeleiteten Thesenstand; die Beschreibung benennt, dass
   Einträge nie verschwinden (ADR-0044).
