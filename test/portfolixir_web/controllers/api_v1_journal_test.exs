@@ -103,9 +103,42 @@ defmodule PortfolixirWeb.ApiV1JournalTest do
     assert body["meta"]["filters"]["limit"] == 1
   end
 
-  test "rejects a non-integer limit with 422", %{conn: conn} do
-    conn = conn |> api_conn() |> get("/api/v1/journal", %{"limit" => "lots"})
-    assert %{"errors" => %{"limit" => _}} = json_response(conn, 422)
+  # User story (#811, AGENTS.md -> "Surface check"):
+  # As the operator's agent reading the bounded list family over the API,
+  # I want the journal read to spell `limit=` exactly the way the rest of the
+  # family spells it,
+  # so that one contract holds across the family instead of one read having
+  # its own parser.
+  #
+  # Acceptance criteria:
+  # - The journal read goes through `PortfolixirWeb.Api.V1.ListLimit.parse/3`,
+  #   the family's one parser, rather than a local copy of it.
+  # - Zero, negative and non-numeric limits are a 422 naming the field.
+  # - An oversized limit is capped at the family maximum and the applied bound
+  #   is echoed, so the answer says what it actually did.
+  test "the journal read takes the family's limit contract", %{conn: conn} do
+    for value <- ["lots", "0", "-5"] do
+      response = conn |> api_conn() |> get("/api/v1/journal", %{"limit" => value})
+      assert %{"errors" => %{"limit" => [_ | _]}} = json_response(response, 422), value
+    end
+
+    body =
+      conn
+      |> api_conn()
+      |> get("/api/v1/journal", %{"limit" => "999999"})
+      |> json_response(200)
+
+    assert body["meta"]["filters"]["limit"] == 1_000
+  end
+
+  test "the journal read uses the shared limit parser, not its own" do
+    source = File.read!("lib/portfolixir_web/controllers/api/v1/journal_controller.ex")
+
+    assert source =~ "ListLimit.parse(",
+           "#811: the journal read must go through the family's parser"
+
+    refute source =~ "defp limit_param(",
+           "#811: the local limit parser is the outlier this issue removes"
   end
 
   test "rejects an unknown actor_type filter with 422", %{conn: conn} do
