@@ -3294,6 +3294,19 @@ input[pattern]:invalid:not(:placeholder-shown) {
   height: 0;
   border-top: 2px dashed currentColor;
 }
+/* The securities chart's overlays draw their swatch as a real line carrying
+   the series' OWN stroke class, so the legend cannot drift from the chart
+   and no rule here restates a colour the series already declares. */
+.chart-legend__swatch--line {
+  display: inline-block;
+  width: 18px;
+  height: 2px;
+  overflow: visible;
+}
+
+[data-role="detail-chart-legend"] {
+  margin-top: var(--space-2);
+}
 .chart-legend__swatch.chart-benchmark-1 {
   color: var(--color-chart-benchmark-1);
 }

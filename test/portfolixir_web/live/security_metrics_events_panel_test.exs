@@ -73,6 +73,37 @@ defmodule PortfolixirWeb.SecurityMetricsEventsPanelTest do
     assert has_element?(view, "#detail-metrics [data-role='metric-observations']")
   end
 
+  # User story (found by the design critic in the Sprint 13 closing act):
+  # As a local portfolio maintainer reading the price chart,
+  # I want each overlay named where it is drawn,
+  # so that "which dashed line is which" has an answer other than the tint
+  # on a toggle pill — which is colour only, and gone under forced colours.
+  #
+  # Acceptance criteria:
+  # - The chart carries a legend naming every active overlay, and the
+  #   swatch is drawn with that series' own stroke class.
+  # - Turning an overlay off removes its legend entry.
+  test "the chart names the overlays it draws", %{conn: conn} do
+    security = create_security!(name: "Legend Co", ticker: "LGD")
+    seed_series!(security.id, 400)
+
+    {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=chart")
+
+    legend = view |> element("[data-role='detail-chart-legend']") |> render()
+    assert legend =~ "MA50"
+    assert legend =~ "MA200"
+    assert legend =~ "chart-ma-50"
+    refute legend =~ "MA30"
+
+    view
+    |> element("button[phx-click='toggle_detail_ma'][phx-value-window='200']")
+    |> render_click()
+
+    legend = view |> element("[data-role='detail-chart-legend']") |> render()
+    assert legend =~ "MA50"
+    refute legend =~ "MA200"
+  end
+
   # User story (DESIGN.md → security-metric-grid.period; found by the design
   # critic in the Sprint 13 closing act):
   # As a local portfolio maintainer who picked 6M on the chart,
