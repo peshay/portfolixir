@@ -8,6 +8,12 @@ defmodule PortfolixirWeb.Api.V1.JournalController do
   (non-scenario) writes are returned; `include_scenarios=true` adds persisted
   what-if entries.
 
+  `limit=` goes through `PortfolixirWeb.Api.V1.ListLimit.parse/3`, the one
+  parser of the bounded-list family (#771, #776, #811): absent or blank is the
+  default, an oversized value is capped at the maximum and echoed in
+  `meta.filters.limit`, and zero, a negative or a non-number is a `422` naming
+  the field.
+
   This is mirrored by the `portfolixir.journal.list` MCP tool (API/MCP parity,
   FR-16/AR-11).
   """
@@ -17,7 +23,11 @@ defmodule PortfolixirWeb.Api.V1.JournalController do
   alias Portfolixir.Journal
   alias Portfolixir.Journal.Entry
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.ListLimit
 
+  # #811: the bound is the family's, spelled the family's way. This read
+  # carried its own copy of the parser until Sprint 13 — identical in
+  # behaviour and therefore exactly the kind of duplicate that drifts.
   @default_limit 100
   @max_limit 1000
 
@@ -61,7 +71,7 @@ defmodule PortfolixirWeb.Api.V1.JournalController do
   defp list_opts(params) do
     with {:ok, actor_type} <- enum_param(params, "actor_type", Actor.types()),
          {:ok, operation} <- enum_param(params, "operation", Entry.operations()),
-         {:ok, limit} <- limit_param(params) do
+         {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit) do
       opts =
         [limit: limit, include_scenarios: params["include_scenarios"] == "true"]
         |> put_if_present(:resource_type, params["resource_type"])
@@ -85,25 +95,6 @@ defmodule PortfolixirWeb.Api.V1.JournalController do
           nil -> {:error, String.to_existing_atom(key)}
           atom -> {:ok, atom}
         end
-    end
-  end
-
-  defp limit_param(params) do
-    case Map.get(params, "limit") do
-      value when value in [nil, ""] ->
-        {:ok, @default_limit}
-
-      value when is_integer(value) and value > 0 ->
-        {:ok, min(value, @max_limit)}
-
-      value when is_binary(value) ->
-        case Integer.parse(value) do
-          {int, ""} when int > 0 -> {:ok, min(int, @max_limit)}
-          _ -> {:error, :limit}
-        end
-
-      _ ->
-        {:error, :limit}
     end
   end
 

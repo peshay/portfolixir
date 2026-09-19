@@ -70,7 +70,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "portfolixir.events.unconfirmed",
         "portfolixir.events.stale"
       ],
-      parameters: [],
+      parameters: [
+        "GET /api/v1/journal and portfolixir.journal.list take limit= through the family's shared parser (#811): absent is the default 100, an oversized value is capped at 1000 and echoed in meta.filters.limit, and zero, a negative or a non-number is a 422 naming the field — the read carried its own identical copy of that parser until now"
+      ],
       removed_endpoints: [],
       removed_tools: []
     },
