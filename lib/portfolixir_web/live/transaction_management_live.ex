@@ -184,29 +184,6 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               more_filters_count={@more_filters_count}
             />
 
-            <%!-- #809: one open menu at a time, rendered outside the table
-                 so the popover is never clipped by the scroller. --%>
-            <% open_menu_transaction =
-              @row_menu_id && Enum.find(@filtered_transactions, &(&1.id == @row_menu_id)) %>
-            <AppShell.row_menu
-              :if={open_menu_transaction}
-              id={"tx-row-menu-#{open_menu_transaction.id}"}
-              trigger={"tx-kebab-#{open_menu_transaction.id}"}
-              label={gettext("Transaction actions")}
-            >
-              <button
-                type="button"
-                id={"tx-edit-#{open_menu_transaction.id}"}
-                class="row-context-menu__item"
-                role="menuitem"
-                phx-click="edit_transaction"
-                phx-value-id={open_menu_transaction.id}
-              >
-                <AppShell.icon name={:edit} />
-                <%= gettext("Edit") %>
-              </button>
-            </AppShell.row_menu>
-
             <%!-- #816: under 560 px the three chip families and the "More
                  filters" disclosure sit behind this control in a bottom
                  sheet — the mechanism #800 built for the securities toolbar,
@@ -336,7 +313,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                       </th>
                       <%!-- #809: row actions behind the kebab, never as
                             standing buttons on every row (Tables pattern). --%>
-                      <th class="col-actions">
+                      <th class="row-actions-head">
                         <span class="visually-hidden"><%= gettext("Actions") %></span>
                       </th>
                     </tr>
@@ -461,6 +438,35 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               </ul>
             <% end %>
           <% end %>
+          <%!-- #809: one open menu at a time, rendered outside the table so
+               the popover is never clipped by the scroller — and AFTER the
+               triggers, because `AppShell.row_menu` does no focus management
+               and relies on document order, the way the securities, accounts
+               and classifications menus already do. Rendered above the list
+               it was reachable from a kebab only by tabbing backwards past
+               the whole filter block. `trigger` names the kebab that is
+               visible at this width: the table one above 560 px, the phone
+               one below it. --%>
+          <% open_menu_transaction =
+            @row_menu_id && Enum.find(@filtered_transactions, &(&1.id == @row_menu_id)) %>
+          <AppShell.row_menu
+            :if={open_menu_transaction}
+            id={"tx-row-menu-#{open_menu_transaction.id}"}
+            trigger={"tx-kebab-#{open_menu_transaction.id}"}
+            label={gettext("Transaction actions")}
+          >
+            <button
+              type="button"
+              id={"tx-edit-#{open_menu_transaction.id}"}
+              class="row-context-menu__item"
+              role="menuitem"
+              phx-click="edit_transaction"
+              phx-value-id={open_menu_transaction.id}
+            >
+              <AppShell.icon name={:edit} />
+              <%= gettext("Edit") %>
+            </button>
+          </AppShell.row_menu>
         </section>
         <.booking_drawer
           :if={@booking_open?}

@@ -292,6 +292,33 @@ defmodule PortfolixirWeb.IncomeLive do
                the closed round-trips it aggregates; the year x month matrix
                it used to open with is the disclosure beneath. --%>
           <section id="realized-trades" class="workspace-section kpi-band">
+            <%!-- UX-DR25: the count and the names of what an aggregate could
+                 NOT include belong BESIDE the figure. The three figures, the
+                 trades table and the matrix are all computed over the reduced
+                 set, so the note leads the section rather than sitting under
+                 the matrix — where the closing act's design critic found it
+                 collapsed inside a disclosure, below every number it
+                 qualifies, with its backfill remedy collapsed with it. --%>
+            <%= if @realized.excluded.count > 0 do %>
+              <AppShell.data_note
+                severity={:attention}
+                id="realized-excluded"
+                data-role="realized-excluded"
+              >
+                <%= ngettext(
+                  "%{count} sale could not be converted — no stored rate at its close date — and is excluded from every total: %{securities}.",
+                  "%{count} sales could not be converted — no stored rate at their close dates — and are excluded from every total: %{securities}.",
+                  @realized.excluded.count,
+                  count: @realized.excluded.count,
+                  securities: Enum.join(@realized.excluded.securities, ", ")
+                ) %>
+                <.fx_backfill_control
+                  backfilling={@fx_backfilling}
+                  result={@fx_backfill_result}
+                />
+              </AppShell.data_note>
+            <% end %>
+
             <%!-- Three lead figures in the built band (DESIGN.md → stat,
                  kpi-band__lead), not a new component. --%>
             <div id="realized-figures" class="kpi-band__lead" data-role="realized-figures">
@@ -374,10 +401,18 @@ defmodule PortfolixirWeb.IncomeLive do
                       <td class="num">
                         <%= money(trade.proceeds) %><small class="value-suffix"><%= trade.currency_code %></small>
                       </td>
-                      <td class="num col-subject" data-role="trade-result">
+                      <%!-- DESIGN.md → "semantic colour applies wherever a
+                           sign exists, at every level of a table". The
+                           percent sign is the caller's job (Format.percent/2
+                           says so), and the sub-line is {components.stat}'s
+                           `.stat__sub`, which is the shipped name. --%>
+                      <td
+                        class={["num", "col-subject", trade_sign_class(trade.realized_base)]}
+                        data-role="trade-result"
+                      >
                         <%= money(trade.realized_base) %><small class="value-suffix"><%= @realized.base_currency %></small>
-                        <span class="kpi__sub">
-                          <%= PortfolixirWeb.Format.percent(trade.realized_pnl_pct) %>
+                        <span class="stat__sub">
+                          <%= PortfolixirWeb.Format.percent(trade.realized_pnl_pct) %>%
                         </span>
                       </td>
                     </tr>
@@ -388,27 +423,19 @@ defmodule PortfolixirWeb.IncomeLive do
           </section>
 
           <section id="realized-annual" class="workspace-section">
-            <details id="realized-annual-disclosure" class="more-filters">
-              <summary><%= gettext("Realized per period") %></summary>
-            <%= if @realized.excluded.count > 0 do %>
-              <AppShell.data_note
-                severity={:attention}
-                id="realized-excluded"
-                data-role="realized-excluded"
-              >
-                <%= ngettext(
-                  "%{count} sale could not be converted — no stored rate at its close date — and is excluded from every total: %{securities}.",
-                  "%{count} sales could not be converted — no stored rate at their close dates — and are excluded from every total: %{securities}.",
-                  @realized.excluded.count,
-                  count: @realized.excluded.count,
-                  securities: Enum.join(@realized.excluded.securities, ", ")
+            <%!-- The section keeps its heading on the h1/h2/h3 ramp; only the
+                 matrix itself is the disclosure, and the summary names what
+                 opens rather than repeating the heading. --%>
+            <h2><%= gettext("Realized per period") %></h2>
+            <details id="realized-annual-disclosure" class="section-disclosure">
+              <summary class="disclosure-summary">
+                <%= gettext("Year and month matrix") %>
+              </summary>
+              <p class="detail-tab-hint">
+                <%= gettext(
+                  "The same closed trades, aggregated by year and month."
                 ) %>
-                <.fx_backfill_control
-                  backfilling={@fx_backfilling}
-                  result={@fx_backfill_result}
-                />
-              </AppShell.data_note>
-            <% end %>
+              </p>
             <%= if @realized.annual == [] do %>
               <p class="empty-state"><%= gettext("No closed sales booked yet.") %></p>
             <% else %>
@@ -1177,6 +1204,18 @@ defmodule PortfolixirWeb.IncomeLive do
   # Month abbreviations through gettext, so the German matrix reads
   # Mär/Mai/Okt/Dez instead of leaking strftime's English %b output
   # (Steve UAT, reconsolidation).
+  # A realised result is signed, so it carries the sign colour every other
+  # signed figure in the app carries; a break-even trade carries none.
+  defp trade_sign_class(%Decimal{} = value) do
+    case Decimal.compare(value, Decimal.new(0)) do
+      :gt -> "is-positive"
+      :lt -> "is-negative"
+      :eq -> nil
+    end
+  end
+
+  defp trade_sign_class(_value), do: nil
+
   defp month_label(1), do: gettext("Jan")
   defp month_label(2), do: gettext("Feb")
   defp month_label(3), do: gettext("Mar")

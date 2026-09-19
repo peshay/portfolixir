@@ -261,21 +261,26 @@ components:
     families: 'stacked blocks headed by their names ({typography.stat-label} voice), chips wrapping; the builder in flow; Reset and Done at the foot'
     focus: 'the ModalDialog hook — showModal on open, Esc closes, focus returns to the control'
     surfaces: 'both list surfaces that carry a chip row — the securities toolbar (issue 800) and the transaction history (issue 816). The history sheet stacks the account, type and changed-since families and takes the demoted "More filters" conditions in with them, so the phone has ONE filter entry point; above 560px each page renders its own unchanged chip row and the control is hidden'
+  bucket-list:
+    scope: 'the index of a thing you own several of and open one of: the Views and Buckets lists, and the Classifications index (issue 808). Not a data table — a table is for comparing columns, a bucket-list is for choosing a row'
+    row: 'a link element, not a row with a link in it: `__main` carrying `__name`, then `__rule` or `__usage` in {typography.control-label} voice at {colors.text-muted} under it, `__figures` in the trailing slot, and the kebab of the Tables pattern as the trailing action. The whole row is the target; the kebab is the only thing inside it that is not'
+    figures: 'SHORT and tabular — the slot is `white-space: nowrap` and right-aligned. A user-supplied name never goes in it; a name belongs in `__main`, where it can wrap'
+    empty: 'the .empty-state sentence, never a bare `<ul>` — a list that renders nothing looks broken rather than empty, and every other new list in the batch carries one'
   bucket-cell:
-    chips: 'the assigned buckets as {components.chips}, the + control after them, a +N overflow chip past four; an empty set reads as the word "no bucket" in muted italic, never as a blank cell'
+    chips: 'the assigned buckets as {components.chip}, the + control after them, a +N overflow chip past four; an empty set reads as the word "no bucket" in muted italic, never as a blank cell'
     scope: 'a sub-line under the chips saying what the set applies to — depot and cash account, the depot, or the cash account — readable without interacting; it replaces the "Both" micro-label whose meaning lived in a title attribute (issue 806, variant A)'
     actions: 'row actions behind the kebab of the Tables pattern, never as a fourth control in the cell: "Tag separately" sits there'
     role: 'the Liquidity role select carries its label visually-hidden — the column head states it once for the whole table'
   security-metric-grid:
     placement: 'under the price chart on the securities detail chart tab, never on a tab of its own — a moving average means its distance to the price and its crossing with the other average, and separating the figures from the series makes both unreadable (issue 824, pick D1-A)'
-    cells: 'the shipped {components.overview-metric} grid of issue 804 — label over value, the distance as the unit slot, the window and the observation count as the sub-line; six cells: SMA-50, SMA-200, volatility, maximum drawdown, momentum, the 52-week range'
+    cells: 'the .overview-metrics grid of issue 804, reused rather than reinvented: a `<dl>` of `auto-fit` cells (two per row under 720px), each a {typography.stat-label} term over a {typography.stat-value} value, the distance or unit in the {components.value-slot} suffix, and the window plus the observation count as a {typography.control-label} sub-line at {colors.text-muted}. Six cells: SMA-50, SMA-200, volatility, maximum drawdown, momentum, the 52-week range. A signed value carries the sign colour the same grid carries on the Overview tab — two tabs of one pane may not disagree'
     series: 'SMA-50 and SMA-200 draw as the chart second and third series by default, their toggles unchanged so a reader can turn them off'
-    period: 'ONE control: the chart own range buttons. The engine windows are fixed (30/90/365 days), so a range snaps to the nearest at or below it and the cell names the window it used'
+    period: 'ONE control: the chart own range buttons. The engine windows are fixed (30/90/365 days and 3/6/12 months), so a range snaps to the nearest at or below it and the cell NAMES that window in words — "90 days", "12 months" — beside the span it measured. A date range alone is not the disclosure: a reader who picked 6M would have to subtract two ISO dates to learn the figure is a 90-day one'
     refusal: 'a metric below its minimum reads "not computable" and still shows its observation count — the reader learns how far short the series falls, not that the figure is zero'
     basis: 'one line under the grid: the series, the currency, the gap rule, the annualization, and that the block reports rather than evaluates'
   security-events-tab:
-    placement: 'the ninth tab of the detail pane, "Termine" (issue 828, pick D2-B); the Research tab keeps exactly what it has'
-    rows: 'the {components.research-timeline} shape — the kind as a badge, the date said the way it is known (a day, a range, a month), the timing qualifier and the ADR-0044 source quality as words, the note as the body, the source link and the last-checked day as the meta line'
+    placement: 'the ninth tab of the detail pane — "Dates", de "Termine" (issue 828, pick D2-B); the Research tab keeps exactly what it has. The label follows the bilingual rule: the source string is English, the German translation is German, and a German word in the English UI needs the term-of-art carve-out, which a calendar tab does not have'
+    rows: 'the .research-timeline shape of ADR-0044 reused, not a second list: an ordered list, newest relevant first, each entry a head / body / meta stack. The head carries the kind as a badge, the date said the way it is known (a day, a range, a month), the timing qualifier and the ADR-0044 source quality as words; the body is the note; the meta line is the source link and the last-checked day. The timing qualifier and the confirmed marker are two different facts and neither label may contain the other — "Announced" is the date being set, "Took place" is it having happened (Sprint 13 closing act)'
   due-card:
     placement: 'the Overview attention column beside Off target and data quality (issue 828, pick D3-A) — no route, no sidebar entry, per ADR-0024'
     scope: 'the WHOLE CATALOG by default; a security with no position carries a "no position" badge and is kept, because filtering it away is the defect the object exists to prevent'
@@ -1140,14 +1145,18 @@ Shipped as #702; recorded here so every tab row is held to it.
   the children, so the overlap survives and nothing overflows vertically.
 - **No tab row wraps, and none collapses into the burger** (UX-DR22).
 
-**Every tab row is held to it, and since Sprint 13 that is mechanical.**
-`.detail-pane-tabs` carried `overflow-x: auto` and the forbidden
-`border-bottom` and none of the rest until issue 817 — the row *most* likely
-to overflow, since it is the primary navigation of a reading surface in a pane
-whose default width is roughly 360 px. `css_layout_sweep_test.exs` now asserts
-the five declarations and the absence of the `border-bottom` on that row as
-well as the fade on `.area-tabs`, so a later refactor cannot quietly undo the
-non-obvious clause.
+**The rule: a new tab row is added to the sweep in the same commit that adds
+it.** The five declarations above are what a reader has to be told; what a
+diff has to be held to is that no tab row exists outside
+`css_layout_sweep_test.exs`, which today enumerates `.area-tabs` and
+`.detail-pane-tabs` by name and will enumerate the next one only if someone
+puts it there. `.detail-pane-tabs` is why the rule is written this way: it
+carried `overflow-x: auto` and the forbidden `border-bottom` and none of the
+rest until issue 817, and it is the row *most* likely to overflow — the
+primary navigation of a reading surface in a pane whose default width is
+roughly 360 px. The sweep now asserts the five declarations and the absence
+of the `border-bottom` on it as well as the fade on `.area-tabs`, so a later
+refactor cannot quietly undo the non-obvious clause.
 
 ### Transactions — the target vocabulary *(Part 4)*
 

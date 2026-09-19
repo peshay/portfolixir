@@ -95,7 +95,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                     <%!-- #806: row actions behind the kebab (Tables pattern);
                          "Tag separately" moved off the bucket cell, which held
                          four controls for one question. --%>
-                    <th class="col-actions">
+                    <th class="row-actions-head">
                       <span class="visually-hidden"><%= gettext("Actions") %></span>
                     </th>
                   </tr>
@@ -140,7 +140,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                           />
                         </td>
                       <% end %>
-                      <td class="cell-actions">
+                      <td class="row-actions">
                         <button
                           :if={merged?(row, @split_pairs)}
                           type="button"
@@ -183,7 +183,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                               scope_line={scope_line(:cash)}
                             />
                           </td>
-                          <td class="cell-actions"></td>
+                          <td class="row-actions"></td>
                         </tr>
                       <% row.cash -> %>
                         <tr class="account-row--cash account-row--shared">
@@ -195,7 +195,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                           <td class="cell-role"></td>
                           <td class="cell-balance"></td>
                           <td class="cell-buckets"></td>
-                          <td class="cell-actions"></td>
+                          <td class="row-actions"></td>
                         </tr>
                       <% true -> %>
                         <tr class="account-row--cash account-row--placeholder">
@@ -208,7 +208,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                           <td class="cell-role"></td>
                           <td class="cell-balance"></td>
                           <td class="cell-buckets"></td>
-                          <td class="cell-actions"></td>
+                          <td class="row-actions"></td>
                         </tr>
                     <% end %>
                   <% else %>
@@ -238,7 +238,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                           scope_line={scope_line(:cash)}
                         />
                       </td>
-                      <td class="cell-actions"></td>
+                      <td class="row-actions"></td>
                     </tr>
                   <% end %>
                 </tbody>

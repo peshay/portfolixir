@@ -73,15 +73,52 @@ defmodule PortfolixirWeb.SecurityMetricsEventsPanelTest do
     assert has_element?(view, "#detail-metrics [data-role='metric-observations']")
   end
 
+  # User story (DESIGN.md → security-metric-grid.period; found by the design
+  # critic in the Sprint 13 closing act):
+  # As a local portfolio maintainer who picked 6M on the chart,
+  # I want the cell to say which window it actually measured,
+  # so that the snap to the engine's fixed windows is disclosed in words
+  # rather than left to be inferred from two ISO dates.
+  #
+  # Acceptance criteria:
+  # - A windowed cell names its window ("90 days", "6 months") beside the
+  #   measured span.
+  # - 6M snaps the day windows to 90 days and keeps the 6-month momentum.
+  # - A signed figure carries the sign class the same grid carries one tab
+  #   over; the drawdown, which is always negative, does not.
+  test "each windowed cell names the window it used", %{conn: conn} do
+    security = create_security!(name: "Window Co", ticker: "WIN")
+    seed_series!(security.id, 400)
+
+    {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=chart")
+
+    # The range control is the one control (pick D1-A); the cells follow it.
+    view
+    |> element("button[phx-click='set_detail_range'][phx-value-range='6M']")
+    |> render_click()
+
+    names =
+      view
+      |> element("#detail-metrics")
+      |> render()
+
+    assert names =~ "90 days"
+    assert names =~ "6 months"
+    refute names =~ "365 days"
+
+    assert has_element?(view, "#detail-metrics [data-role='metric-window-name']")
+    refute view |> element("#detail-metrics") |> render() =~ ~s(class="is-negative">\n)
+  end
+
   # User story (#828, ADR-0048; design pick D2-B of 2026-09-19):
   # As a local portfolio maintainer,
   # I want a security's dated calendar facts on their own tab,
   # so that a reporting date I must not miss is where I read the security.
   #
   # Acceptance criteria:
-  # - "Termine" is the ninth tab of the detail pane and lists the events in
-  #   the research timeline's shape, with the timing qualifier and the source
-  #   quality as words.
+  # - "Dates" (de "Termine") is the ninth tab of the detail pane and lists
+  #   the events in the research timeline's shape, with the timing qualifier
+  #   and the source quality as words.
   # - The Research tab keeps exactly what it had.
   test "the detail pane carries a Termine tab with the security's events", %{conn: conn} do
     security = create_security!(name: "Event Co", ticker: "EVC")

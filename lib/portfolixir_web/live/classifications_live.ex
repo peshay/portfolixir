@@ -465,10 +465,19 @@ defmodule PortfolixirWeb.ClassificationsLive do
           </header>
 
           <%!-- The shipped list-row anatomy of the Views page (issue 802,
-               DESIGN.md → Components → the bucket/view row): name over its
-               facts, the figures right, the actions behind the kebab. No new
+               DESIGN.md → Components → bucket-list): name over its facts, the
+               short figure right, the actions behind the kebab. No new
                component is invented for this index. --%>
-          <ul id="classification-index" class="bucket-list" role="list" data-role="classification-index">
+          <p :if={@index_rows == []} class="empty-state" role="status">
+            <%= gettext("No classification trees yet.") %>
+          </p>
+          <ul
+            :if={@index_rows != []}
+            id="classification-index"
+            class="bucket-list"
+            role="list"
+            data-role="classification-index"
+          >
             <li
               :for={row <- @index_rows}
               id={"classification-row-#{row.classification.id}"}
@@ -500,9 +509,14 @@ defmodule PortfolixirWeb.ClassificationsLive do
                   <%!-- The unassigned count is the state worth acting on, so
                        it reads as a word rather than as a third bare
                        number. --%>
+                  <%!-- A plain badge: `badge--derived` carries issue 700's
+                       "shown but never shown as stated" contract — the
+                       visually-hidden "Derived:" qualifier and the ≈ marker —
+                       and an unassigned count is a stated fact, not a derived
+                       one. --%>
                   <span
                     :if={row.unassigned_count > 0}
-                    class="badge badge--derived"
+                    class="badge badge-warning"
                     data-role="tree-unassigned"
                   >
                     <%= ngettext(
@@ -513,11 +527,21 @@ defmodule PortfolixirWeb.ClassificationsLive do
                     ) %>
                   </span>
                 </span>
+                <span class="bucket-list__usage" data-role="tree-plan-name">
+                  <%= if row.plan do %>
+                    <%= gettext("Plan: %{name}", name: row.plan.name) %>
+                  <% end %>
+                </span>
               </div>
 
+              <%!-- DESIGN.md → bucket-list.figures: the trailing slot is
+                   `white-space: nowrap`, so a user-named plan clipped at
+                   390 px and took the status word with it. The name lives in
+                   `__main`, where it wraps; the slot keeps the short status
+                   word it was built for. --%>
               <span class="bucket-list__figures" data-role="tree-plan">
                 <%= if row.plan do %>
-                  <strong><%= row.plan.name %></strong> · <%= plan_status_label(row.plan.status) %>
+                  <%= plan_status_label(row.plan.status) %>
                 <% else %>
                   <%= gettext("No plan") %>
                 <% end %>

@@ -108,4 +108,29 @@ defmodule PortfolixirWeb.WealthHoldingsColumnsTest do
       columns: ["depot", "security", "isin"]
     })
   end
+
+  # User story (EXPERIENCE.md → Voice and Tone; found by the design critic in
+  # the Sprint 13 closing act):
+  # As a local portfolio maintainer reading the positions table,
+  # I want its money to read the way the rest of the page's money reads,
+  # so that a market value is not a bare unseparated number of no stated
+  # currency sitting next to properly formatted tables.
+  #
+  # Acceptance criteria:
+  # - Figures carry the locale's separators and keep every stored digit.
+  # - A money column carries the row's currency even when the Currency
+  #   column is switched off.
+  test "money columns are localized and state their currency", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/portfolio")
+
+    render_change(view, "set_holdings_columns", %{
+      "columns" => ["security", "market_value"]
+    })
+
+    table = view |> element("#holdings-positions-table") |> render()
+
+    refute table =~ ">Currency<"
+    assert table =~ ~s(class="value-suffix">EUR</small>)
+    assert table =~ "1,200"
+  end
 end

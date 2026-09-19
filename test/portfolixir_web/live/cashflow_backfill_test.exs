@@ -86,6 +86,18 @@ defmodule PortfolixirWeb.CashflowBackfillTest do
     assert note =~ "did not publish stays excluded"
     refute note =~ "Rate sync fetches current rates only"
 
+    # UX-DR25, found by the design critic in the Sprint 13 closing act: the
+    # note has to sit in the same section as the figures it qualifies and
+    # BEFORE them — it spent one round under the matrix, inside a collapsed
+    # disclosure, below every number it is about, with its remedy collapsed
+    # with it.
+    section = view |> element("#realized-trades") |> render()
+    assert [{note_at, _}] = Regex.run(~r/realized-excluded/, section, return: :index)
+    assert [{figures_at, _}] = Regex.run(~r/realized-figures/, section, return: :index)
+    assert note_at < figures_at
+    assert section =~ "fx-backfill-button"
+    refute view |> element("#realized-annual") |> render() =~ "realized-excluded"
+
     clicking = view |> element("#fx-backfill-button") |> render_click()
     assert clicking =~ "Backfilling…"
 

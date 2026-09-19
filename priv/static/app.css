@@ -1039,6 +1039,21 @@ textarea {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+/* The name slot may wrap; the figure slot may not, so the name is the one
+   that has to be allowed to give. */
+.attention-item .attention-name {
+  min-width: 0;
+}
+/* The row's second fact, under the name rather than beside it — a second
+   `.attention-name` would float in the middle of the row and be underlined
+   on hover as if the row were two links. */
+.attention-item__sub {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 400;
+  text-decoration: none;
+}
 
 .stat strong {
   color: var(--color-accent);
@@ -4259,6 +4274,11 @@ details[open] > .cat-summary::before {
   background: var(--color-danger-soft);
   color: var(--color-danger);
 }
+/* A stated fact that is not the accent's business: a muted tag. Distinct
+   from .badge--derived, whose dashed border is one of the four channels of
+   issue 700's "shown but never shown as stated" contract and therefore means
+   something — Sprint 13's closing act found three stated facts wearing it. */
+.badge--neutral,
 .badge--thesis-none,
 .badge--quality-awareness,
 .badge--quality-unverified,
@@ -4862,6 +4882,14 @@ thead .col-subject {
 .transaction-summary .summary-basis {
   flex-basis: 100%;
   margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+/* The same basis voice outside `.transaction-summary`'s flex row: the class
+   was descendant-scoped, so a section that used it on its own rendered an
+   ordinary body paragraph where a muted basis line was meant. */
+#portfolio-positions .summary-basis {
+  margin: 0 0 var(--space-2);
   font-size: 12px;
   color: var(--color-text-muted);
 }
@@ -6287,7 +6315,7 @@ button.income-bar-label.is-active {
    so the chips wrap above it. */
 .bucket-chip-group__scope {
   flex-basis: 100%;
-  margin-top: 2px;
+  margin-top: var(--space-1);
   color: var(--color-text-muted);
   font-size: 12px;
 }
@@ -6383,24 +6411,6 @@ button.income-bar-label.is-active {
   color: var(--color-text-muted);
   border-style: dashed;
   background: transparent;
-}
-
-/* "Tag separately" next to a merged pair group. */
-.bucket-split-link {
-  border: 0;
-  padding: 0;
-  min-height: 0;
-  background: transparent;
-  font: inherit;
-  font-size: 0.75rem;
-  color: var(--color-text-muted);
-  text-decoration: underline;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.bucket-split-link:hover {
-  color: var(--color-accent);
 }
 
 .bucket-inline-error {
@@ -7936,4 +7946,39 @@ dialog.booking-drawer {
   .overview-reading {
     grid-template-columns: 1fr;
   }
+}
+
+/* --- section disclosure (DESIGN.md -> Components -> disclosure) ---------
+   A section's secondary table behind the spec'd chevron. It exists because
+   .more-filters was carrying three jobs at once and its summary renders no
+   marker at all, so a content disclosure built on it had no expand
+   affordance. Same chevron as .cat-summary, which is the compliant one. */
+.section-disclosure {
+  margin-top: var(--space-2);
+}
+.disclosure-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  list-style: none;
+}
+.disclosure-summary::-webkit-details-marker {
+  display: none;
+}
+.disclosure-summary::before {
+  content: "\25B8";
+  font-size: 0.7rem;
+  color: var(--color-text-muted);
+  transition: transform 0.15s ease;
+}
+details[open] > .disclosure-summary::before {
+  transform: rotate(90deg);
+}
+.disclosure-summary:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }

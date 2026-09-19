@@ -1270,7 +1270,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   <time datetime={Date.to_iso8601(event.date)}>
                     <%= event_date_label(event) %>
                   </time>
-                  <span class="badge badge--derived" data-role="event-timing">
+                  <span class="badge badge--neutral" data-role="event-timing">
                     <%= SecurityEventLabel.timing(event.timing) %>
                   </span>
                   <span
@@ -2869,17 +2869,21 @@ defmodule PortfolixirWeb.SecuritiesLive do
       <.metric_cell
         label={gettext("Volatility")}
         metric={@block.metrics.volatility[@day_window]}
-        kind={:ratio}
+        kind={:magnitude}
+        window_name={metric_window_name(@day_window)}
       />
       <.metric_cell
         label={gettext("Max drawdown")}
         metric={@block.metrics.max_drawdown[@day_window]}
         kind={:ratio}
+        window_name={metric_window_name(@day_window)}
       />
       <.metric_cell
         label={gettext("Momentum")}
         metric={@block.metrics.momentum[@month_window]}
         kind={:ratio}
+        window_name={metric_window_name(@month_window)}
+        signed
       />
       <.extremes_cell metric={@block.metrics.distance_to_extremes} />
     </dl>
@@ -2895,12 +2899,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
   attr(:label, :string, required: true)
   attr(:metric, :map, required: true)
   attr(:kind, :atom, required: true)
+  attr(:window_name, :string, default: nil)
+  # A drawdown is always negative, so a sign colour there says nothing; the
+  # other ratios are signed returns and carry it.
+  attr(:signed, :boolean, default: false)
 
   defp metric_cell(assigns) do
     ~H"""
     <div class="overview-metric" data-role="metric-cell">
       <dt><%= @label %></dt>
-      <dd>
+      <%!-- A signed figure carries the sign colour here too: the same
+           `.overview-metric` grid one tab over already does, and two tabs of
+           one pane disagreeing is what a reader notices. A drawdown is
+           always negative, so colour adds nothing and is not applied. --%>
+      <dd class={@signed and not @metric.insufficient_data and pnl_class(@metric.value)}>
         <%= if @metric.insufficient_data do %>
           <span data-role="metric-na"><%= gettext("not computable") %></span>
         <% else %>
@@ -2910,6 +2922,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
           </small>
         <% end %>
         <small class="overview-metric__sub">
+          <span :if={@window_name} data-role="metric-window-name"><%= @window_name %></span>
+          <span :if={@window_name}>·</span>
           <span data-role="metric-window"><%= metric_window_label(@metric.window) %></span>
           ·
           <span data-role="metric-observations">
@@ -2929,7 +2943,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     ~H"""
     <div class="overview-metric" data-role="metric-cell">
       <dt><%= gettext("52-week range") %></dt>
-      <dd>
+      <dd class={not @metric.insufficient_data and pnl_class(@metric.distance_to_high_pct)}>
         <%= if @metric.insufficient_data do %>
           <span data-role="metric-na"><%= gettext("not computable") %></span>
         <% else %>
@@ -2969,6 +2983,18 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp metric_windows("6M", _custom), do: {"90d", "6m"}
   defp metric_windows(_range, _custom), do: {"365d", "12m"}
 
+  # DESIGN.md → security-metric-grid.period: the cell NAMES the window it
+  # used. A date range alone is not the disclosure the snap needs — a reader
+  # who picked 6M would have to subtract two ISO dates to learn the figure is
+  # a 90-day one.
+  defp metric_window_name("30d"), do: gettext("30 days")
+  defp metric_window_name("90d"), do: gettext("90 days")
+  defp metric_window_name("365d"), do: gettext("365 days")
+  defp metric_window_name("3m"), do: gettext("3 months")
+  defp metric_window_name("6m"), do: gettext("6 months")
+  defp metric_window_name("12m"), do: gettext("12 months")
+  defp metric_window_name(nil), do: nil
+
   defp metric_window_label(nil), do: gettext("no window measured")
 
   defp metric_window_label(%{start_date: from, end_date: to}),
@@ -2977,6 +3003,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp metric_value(nil, _kind), do: "—"
   defp metric_value(value, :average), do: Format.decimal(value, 2)
   defp metric_value(value, :ratio), do: signed_ratio(value)
+  # Volatility is a magnitude, not a direction: a leading "+" reads it as a
+  # gain. The signed rendering is for the returns beside it.
+  defp metric_value(value, :magnitude), do: "#{Format.percent(value)}%"
 
   defp signed_ratio(nil), do: "—"
 
@@ -3008,7 +3037,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
       # #828 (design pick D2-B): the ninth tab, and the one new tab the
       # sprint's budget allowed. #817 landed first so the D6 scroll-snap and
       # edge fade keep it reachable in a ~360 px pane.
-      {"events", gettext("Termine")}
+      # EXPERIENCE.md, Bilingual domain labels: a source string is English
+      # and its German translation is German. "Termine" is not a term of art,
+      # so the English UI would have shown one German tab among eight English
+      # ones (closing-act finding). The German label is unchanged.
+      {"events", gettext("Dates")}
     ]
   end
 
