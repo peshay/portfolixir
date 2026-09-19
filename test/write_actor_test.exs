@@ -84,7 +84,13 @@ defmodule Portfolixir.WriteActorTest do
                   # ADR-0044 §5: the research log is armed in the migration
                   # that creates it (a signed clause), so the agent's write
                   # path adds nothing to the rollout debt.
-                  "security_notes"
+                  "security_notes",
+                  # ADR-0048 §4: security events, armed in their first
+                  # migration for the same reason — an agent writes these
+                  # rows. Unlike the research log this table is MUTABLE, so
+                  # the guard covers UPDATE and DELETE in earnest rather than
+                  # as a precaution: the journal IS the change history.
+                  "security_events"
                 ])
 
   # Derived-value tables (ADR-0039): materializations of ledger-derived reads,
