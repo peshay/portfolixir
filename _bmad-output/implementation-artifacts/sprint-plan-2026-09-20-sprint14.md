@@ -596,8 +596,24 @@ recorded once per sprint.
 
 The #706 conditions stand unchanged: DE, one full pass at 390 px, light and
 dark, on `priv/demo/finding_surfaces_seed.exs`, screenshots in a PR **comment**
-rather than the PR body — and in **Markdown image syntax**, because Sprint 13's
-first attempt used HTML `<img>` and the API mangled the URLs into code spans.
+rather than the PR body.
+
+**Sprint 13's note on how to post them is incomplete, and this PR found out
+how.** It recorded that HTML `<img>` was mangled into code spans and that
+"Markdown image syntax survives". Markdown image syntax survives *only while
+the URL is short*: posting this batch's boards with inline
+`![alt](https://raw.githubusercontent.com/…)` came back with each URL — and the
+closing parenthesis with it — wrapped in a double-backtick code span, so
+nothing would have rendered. A `blob` link of ~147 characters in the same
+comment was untouched; every link past roughly 150 was not.
+
+**What works, verified by reading the stored comment back:
+reference-style links.** The label goes inline (`![alt][b1]`) and the URL sits
+in a definition line of its own at the bottom (`[b1]: https://…`), where the
+mangling does not reach. Record it as the convention: **a screenshot comment
+uses reference-style links**, and the author reads the posted comment back
+before treating it as delivered — which is how this was caught rather than
+discovered by the owner opening a comment full of code spans.
 Sprint 12's ordering fix is standing too: **the patch-coverage listing is read
 from the last pre-promotion CI run**, which produced its first negative result
 in Sprint 13 and is worth keeping for that reason rather than despite it.
