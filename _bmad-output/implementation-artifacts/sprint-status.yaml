@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-09-20 (Sprint 14 PLANNED: E22 closes on ADR-0047's portfolio half plus #838 and #825, the closing act's ten findings are paid, and ADR-0047 9's "Wealth risk surface" is corrected -- the risk lens has no human view and never had one; no new gate, B3.6 deliberately not opened; the design pass with five mockup boards rides the planning PR)
+# last_updated: 2026-09-20 (Sprint 14 PLANNED: E22 closes on ADR-0047's portfolio half plus #838 and #825, the closing act's ten findings are paid, and ADR-0047 9's "Wealth risk surface" is corrected -- the risk lens has no human view and never had one; no new gate, B3.6 deliberately not opened; the design pass with five mockup boards rides the planning PR, and D-11 makes "a UI change is mocked before it is built" a standing rule)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -113,6 +113,11 @@ story_location: _bmad-output/implementation-artifacts
 # board although they have no options, which is the pass's governing finding:
 # DESIGN.md described the .num defect in words for two sprints and it shipped
 # twice anyway. #836 is the one item with no board -- no rendered difference.
+# D-11 (owner instruction 2026-09-20): a UI change is mocked before it is
+# built, with comparison options, and the rule is amended into AGENTS.md,
+# CONTRIBUTING.md and the PR template on this PR. The Story Workflow keeps
+# nine steps -- the mockup rides step 1, because workflow_docs_test.exs
+# asserts the step strings across four documents.
 # Two cuts are spent at planning time: #835's convergence (D-4) and B3.6's
 # gate (D-6). The shrink order after that is #842, #844, #830's build half
 # (the family sentence stays either way) and A4 last, with the coverage

@@ -375,8 +375,8 @@ each step string against the **concatenation** of this file, `README.md`,
 carrying a step satisfies the test for all of them — renumbering here would
 pass CI while silently disagreeing with `docs/development/story-workflow.md`.
 Treat the numbering as shared state and change it in every document that
-carries it, or in none. Two clarifications ride the existing steps rather than
-adding a tenth:
+carries it, or in none. Three clarifications ride the existing steps rather
+than adding a tenth:
 
 - **Steps 5 and 6 run in both directions** per "API And MCP Coverage": a
   user-visible function needs API/MCP coverage, and an agent-visible capability
@@ -386,6 +386,10 @@ adding a tenth:
   gap treatment) before step 9 passes. Review-blocking; a code comment or a
   documentation page does not satisfy it, because the payload is where the
   reviewer and the agent both read it.
+- **A story that changes rendered output is mocked before step 4** — see "A UI
+  change is mocked before it is built" under the Epic-Batch Workflow. The
+  mockup rides step 1 as part of documenting the story; it is not a tenth step
+  and it does not move the TDD order, because a board is not code.
 
 For AI-assisted changes, the above cycle is required to run as distinct
 iterations.
@@ -489,6 +493,43 @@ reviews decisions and behavior, agents review code:
    skipped the view scope (#740) — and the sentence in the close-out is what
    makes the gap visible before the agent's next requirements edition carries
    it a third time. One sentence, in the close-out; not a new step.
+
+**A UI change is mocked before it is built (owner decision 2026-09-20).**
+Any story whose diff changes rendered output — a new surface, a changed layout,
+a control, a state, a colour, a label's placement — gets a **mockup board
+before the code**, and the board carries **comparison options**. It is not a
+courtesy for large features; it is the rule for every UI change, including a
+one-rule CSS repair.
+
+1. **Options, or a before/after.** Where there is a genuine choice, the board
+   shows at least two variants, each argued, with one marked **recommended**.
+   Where the living spec already fixes the answer — a conformance repair — the
+   board shows **before and after** instead. A repair is still a UI change:
+   `DESIGN.md` described the `.num` defect in words for two sprints and it
+   shipped twice anyway, because words about alignment do not show a reader
+   two columns of proportional digits.
+2. **Before the code, and before the batch where the work is already known.**
+   A surface a decision record places belongs on a board on the **planning
+   PR**, not at branch opening. A surface discovered mid-batch is boarded
+   before its story is implemented.
+3. **How a pick is made.** The recommendation is the default; a comment naming
+   another option changes it; silence adopts the recommendation. The picked
+   anatomy is written into `DESIGN.md` by the story that builds it, so the
+   spec and the screen do not drift apart again.
+4. **What a board is.** An HTML artboard under
+   `_bmad-output/planning-artifacts/design-language/mockups/<pass>/` that links
+   the real `priv/static/app.css`, rendered to PNG, using **synthetic data
+   only** — no real instrument, position, weight or threshold, per "Privacy And
+   Disclosure". Boards are proposals held against `DESIGN.md` and
+   `EXPERIENCE.md` (ADR-0038); they never amend the spec by existing.
+5. **The exception, stated so it is not stretched.** A change with **no
+   rendered difference** needs no board — an ARIA attribute that was absent and
+   is now correct, a `to_string/1` on a boolean, a test-only change. "Too
+   small to draw" is not that exception; "identical picture" is.
+
+The design-critic role in the closing act reviews the built surface against its
+board as well as against the spec, and a batch whose UI landed without one is a
+finding in the close-out.
 
 **Risk-tier work rides the batch (ADR-0036, 2026-08-04).** Ledger/money-domain
 math and invariants, security-relevant changes, dependency updates, and

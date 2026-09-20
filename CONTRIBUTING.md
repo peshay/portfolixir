@@ -182,6 +182,26 @@ User documentation moves with user-visible behavior. For each story:
 The detailed story workflow lives in
 [docs/development/story-workflow.md](docs/development/story-workflow.md).
 
+## UI Changes Are Mocked First
+
+If a story changes rendered output — a new surface, a changed layout, a
+control, a state, a colour, a label's placement — a **mockup board comes before
+the code**, and it carries **comparison options**: at least two argued variants
+where there is a choice, one of them marked recommended, or a **before/after**
+where the design-language spec already fixes the answer. A conformance repair
+is still a UI change.
+
+Boards are HTML artboards under
+`_bmad-output/planning-artifacts/design-language/mockups/`, they link the real
+`priv/static/app.css` so they show shipped tokens rather than an
+approximation, they are rendered to PNG, and they use **synthetic data only**.
+The recommendation is the default pick; a comment naming another option changes
+it; the story writes the picked anatomy into `design-language/DESIGN.md`.
+
+A change with no rendered difference needs no board. "Too small to draw" is not
+that case; "the picture is identical" is. AGENTS.md → "A UI change is mocked
+before it is built" carries the full rule.
+
 ## Required Local Checks
 
 The list is CI's `pre-commit`, `test` and `quality` jobs, so a branch that
@@ -245,6 +265,8 @@ chore/pre-commit
 - [ ] The new or changed test failed for the expected reason before implementation.
 - [ ] API coverage was reviewed and updated, or marked not applicable.
 - [ ] MCP coverage was reviewed and updated, or marked not applicable.
+- [ ] A mockup board was made before the code when rendered output changed, or
+      the change has no rendered difference.
 - [ ] User documentation was reviewed for consistency.
 - [ ] User documentation was updated, or the PR explains why no user docs changed.
 - [ ] Security audit was performed.

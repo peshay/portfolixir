@@ -5,9 +5,9 @@ The merge is the signature (ADR-0026 step 1 as amended on PR #780). Unlike
 Sprint 13's, this planning PR **signs no new decision gate**: every build item
 below already has a signed ADR behind it, and the one gate with accumulating
 evidence — **B3.6**, policy rules — is deliberately not opened here (D-6). What
-the merge does adopt is the lane cut, **D-1** to **D-10**, the correction to
-ADR-0047 §9 that D-2 carries, the four design picks of **D-10**, and the two
-process amendments in D-7 and D-8.
+the merge does adopt is the lane cut, **D-1** to **D-11**, the correction to
+ADR-0047 §9 that D-2 carries, the four design picks of **D-10**, and the three
+process amendments in D-7, D-8 and **D-11**.
 Nothing in this PR is `DRAFT` or `Proposed`; a decision the owner rejects is
 removed on the PR before the merge.
 
@@ -666,6 +666,50 @@ spec names. A wins on a narrower argument: risk is what an allocation
 scroll-snap, the edge fade and `flex: none` since #790, so a sixth tab is a
 list entry rather than a layout problem.
 
+### D-11 — a UI change is mocked before it is built (recommended, amended on this PR)
+
+Owner instruction, 2026-09-20: **when something changes on screen, a mockup
+comes first, and it carries comparison options.** D-10 is this sprint applying
+it; D-11 makes it standing, because the failure it prevents recurs and habits
+depend on someone remembering.
+
+**Amended on this PR**, in the three documents that carry the workflow:
+`AGENTS.md` (Epic-Batch Workflow — "A UI change is mocked before it is built",
+plus a third clarification riding the Story Workflow's existing steps),
+`CONTRIBUTING.md` (a "UI Changes Are Mocked First" section and a checklist
+line) and `.github/pull_request_template.md` (a checklist line). The rule in
+brief:
+
+1. Any story whose diff changes **rendered output** gets a board before the
+   code — a new surface, a changed layout, a control, a state, a colour, a
+   label's placement.
+2. **Options where there is a choice** (at least two, argued, one
+   recommended); a **before/after** where the living spec already fixes the
+   answer. A conformance repair is still a UI change.
+3. **Before the batch** where the work is already known: a surface a decision
+   record places belongs on a board on the **planning PR**, which is what this
+   PR now does rather than deferring to branch opening.
+4. The recommendation is the default; a comment changes it; the story writes
+   the picked anatomy into `DESIGN.md`.
+5. **One exception, stated so it cannot be stretched:** a change with **no
+   rendered difference** needs no board. "Too small to draw" is not that case;
+   "the picture is identical" is.
+
+The design-critic role in the closing act reviews the built surface against its
+board as well as against the spec, and a batch whose UI landed without one is a
+close-out finding.
+
+**The Story Workflow keeps nine steps.** The mockup rides step 1 rather than
+becoming a tenth, because `workflow_docs_test.exs` asserts each step string
+across four documents and renumbering here would pass CI while silently
+disagreeing with `docs/development/story-workflow.md`. It also does not move
+the TDD order: a board is not code.
+
+**If the owner would rather this stayed Sprint 14's arrangement**, removing the
+commit that carries it is the whole of the rejection: that commit holds the
+three amended documents **and this section**, and D-10's boards, picks and
+pass are in a commit of their own that survives it.
+
 ## Sequencing
 
 ```text
@@ -755,7 +799,7 @@ fit, nothing does.
    contract takes **one** bump covering both surfaces.
 3. **A4 renders in the picked E1 variant**, and it matches its board — the
    design critic reviews the built surface against `01-wealth-risk-surface` as
-   well as against the spec, including the four-column metric row at
+   well as against the spec (D-11), including the four-column metric row at
    390 px, which is the one thing the board could not settle. `DESIGN.md`
    names the anatomy. **Or** the close-out names the shrink and the coverage
    deadline it inherits, which is Sprint 15 by the rule's own terms.
@@ -778,7 +822,7 @@ fit, nothing does.
    was read **before** promotion, both risk-tier passes — A1's identities and
    B3's projection semantics — are in the reviewer briefing with their mutation
    proofs, and **the design critic held every user-visible item against its
-   board**. A UI item that shipped without one is a close-out finding.
+   board** (D-11). A UI item that shipped without one is a close-out finding.
 9. **The contract-version read reports the extended risk payload**, and the
    answers this plan owes the agent (D-5's three shapes, #831's guarantee) have
    gone back to it.
