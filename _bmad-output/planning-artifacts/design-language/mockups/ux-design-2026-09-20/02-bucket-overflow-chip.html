@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Überlaufchip der Bucket-Zelle (#842)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  table.t { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.t th { text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); background: var(--color-bg-muted); padding: 7px 10px; }
+  table.t td { padding: 9px 10px; border-bottom: 1px solid var(--color-border); vertical-align: top; }
+  .bchip { display: inline-block; padding: 2px 9px; border-radius: 999px; background: var(--color-accent-soft); color: var(--color-accent); font-size: 12px; font-weight: 600; margin: 0 4px 4px 0; }
+  .bchip.more { background: var(--color-bg-muted); color: var(--color-text-muted); }
+  .bchip.more.ctl { border: 1px solid var(--color-border-strong, var(--color-border)); cursor: pointer; }
+  .bchip.more.ctl:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .scope { display: block; font-size: 11.5px; color: var(--color-text-muted); margin-top: 2px; }
+  .kebab { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 6px; color: var(--color-text-muted); font-weight: 700; }
+  .menu { margin-top: 6px; display: inline-grid; gap: 2px; padding: 6px; min-width: 240px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); box-shadow: var(--shadow-md); font-size: 13px; }
+  .menu > span { padding: 6px 10px; border-radius: 4px; }
+  .menu > span.hd { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); }
+  .cursor { display:inline-block; margin-left:6px; font-size:11px; color: var(--color-accent); font-weight:700; }
+  .pickbar { max-width: 1120px; margin: 0 auto 20px; padding: 10px 14px; border: 1px solid var(--color-accent); border-left-width: 4px; border-radius: var(--radius-md); background: var(--color-accent-soft); font-size: 12.5px; }
+  .pickbar b { font-weight: 760; }
+</style>
+</head>
+<body>
+
+<div class="pickbar"><b>Entscheidung E2 — offen.</b> #842: der <code>+N</code>-Chip trägt seinen Inhalt heute in einem <code>title</code>-Attribut — auf dem Touchgerät unerreichbar, für assistive Technik unzuverlässig. Empfehlung: <b>A</b>.</div>
+
+<section class="mock-board">
+  <h2>Heute <small>Befund</small></h2>
+  <p class="mock-note"><code>bucket-cell.scope</code> verlangt eine Unterzeile, die „ohne Interaktion lesbar“ ist — und ersetzte damit das <code>title</code>-getragene „Beides“. Drei Zeilen weiter trägt der Überlaufchip weiterhin eines: welche Buckets hinter <code>+2</code> stehen, erfährt nur, wer mit der Maus stehen bleibt. Variante A von #806 hat eine title-getragene Bedeutung entfernt und die andere gelassen.</p>
+  <div class="mock-frame mock-before"><span class="mock-tag">Vorher</span><div class="workspace-section">
+    <table class="t">
+      <thead><tr><th>Depot / Konto</th><th>Buckets</th><th style="width:40px"></th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Depot Nord<span class="scope">Wertpapiere</span></td>
+          <td><span class="bchip">Altersvorsorge</span><span class="bchip">Kernanlage</span><span class="bchip more" title="Steueroptimiert, Langfristig">+2</span><span class="scope">gilt für Depot und Verrechnungskonto</span></td>
+          <td><span class="kebab">⋯</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div></div>
+</section>
+
+<section class="mock-board">
+  <h2>Variante A — <code>+N</code> wird ein Schalter, der die Zelle an Ort und Stelle aufklappt <small>empfohlen</small></h2>
+  <p class="mock-note">Der Chip wird ein echtes <code>&lt;button&gt;</code> mit <code>aria-expanded</code> (als Zeichenkette — siehe #836), Tastatur- und Touch-erreichbar, mit dem 2px-Akzentring der Do's and Don'ts und dem 44px-Boden unter <code>pointer: coarse</code>. Ein Druck zeigt alle Buckets; kein <code>title</code> bleibt übrig. Die Zeile wächst nur, wenn jemand sie wachsen lässt.</p>
+  <div class="mock-frame mock-after"><span class="mock-tag">Nachher — zugeklappt</span><div class="workspace-section">
+    <table class="t">
+      <thead><tr><th>Depot / Konto</th><th>Buckets</th><th style="width:40px"></th></tr></thead>
+      <tbody><tr>
+        <td>Depot Nord<span class="scope">Wertpapiere</span></td>
+        <td><span class="bchip">Altersvorsorge</span><span class="bchip">Kernanlage</span><span class="bchip more ctl">+2 anzeigen</span><span class="scope">gilt für Depot und Verrechnungskonto</span></td>
+        <td><span class="kebab">⋯</span></td>
+      </tr></tbody>
+    </table>
+  </div></div>
+  <div class="mock-frame mock-after" style="margin-top:12px"><span class="mock-tag">Nachher — aufgeklappt</span><div class="workspace-section">
+    <table class="t">
+      <thead><tr><th>Depot / Konto</th><th>Buckets</th><th style="width:40px"></th></tr></thead>
+      <tbody><tr>
+        <td>Depot Nord<span class="scope">Wertpapiere</span></td>
+        <td><span class="bchip">Altersvorsorge</span><span class="bchip">Kernanlage</span><span class="bchip">Steueroptimiert</span><span class="bchip">Langfristig</span><span class="bchip more ctl">weniger<span class="cursor">▲</span></span><span class="scope">gilt für Depot und Verrechnungskonto</span></td>
+        <td><span class="kebab">⋯</span></td>
+      </tr></tbody>
+    </table>
+  </div></div>
+</section>
+
+<section class="mock-board">
+  <h2>Variante B — das Zeilenmenü bekommt einen Abschnitt „Buckets“</h2>
+  <p class="mock-note">Der Chip bleibt eine reine Anzeige und verliert sein <code>title</code>; wer wissen will, welche, öffnet das Menü, das ohnehin in der Zeile steht. Billiger als A und ohne neuen Zustand in der Tabelle. Der Preis: die Antwort auf „welche zwei?“ liegt zwei Interaktionen entfernt, und das Menü ist der Ort für <em>Aktionen</em> — eine Liste zum Lesen ist dort ein Gast.</p>
+  <div class="mock-frame"><div class="workspace-section">
+    <table class="t">
+      <thead><tr><th>Depot / Konto</th><th>Buckets</th><th style="width:40px"></th></tr></thead>
+      <tbody><tr>
+        <td>Depot Nord<span class="scope">Wertpapiere</span></td>
+        <td><span class="bchip">Altersvorsorge</span><span class="bchip">Kernanlage</span><span class="bchip more">+2</span><span class="scope">gilt für Depot und Verrechnungskonto</span></td>
+        <td><span class="kebab">⋯</span>
+          <div class="menu">
+            <span class="hd">Buckets (4)</span>
+            <span>Altersvorsorge · Kernanlage · Steueroptimiert · Langfristig</span>
+            <span class="hd">Aktionen</span>
+            <span>Buckets bearbeiten …</span>
+            <span>Getrennt taggen …</span>
+          </div>
+        </td>
+      </tr></tbody>
+    </table>
+  </div></div>
+</section>
+
+</body>
+</html>

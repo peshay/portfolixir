@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Reiterzeile der Detailspalte (#837)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  .pane { width: 360px; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg-elevated); overflow: hidden; }
+  .pane .hd { padding: 12px 14px; border-bottom: 1px solid var(--color-border); font-size: 14px; font-weight: 700; }
+  .tabs { display: flex; gap: 2px; padding: 0 14px; border-bottom: 1px solid var(--color-border); overflow: hidden; white-space: nowrap; position: relative; }
+  .tabs::after { content: ""; position: absolute; top: 0; right: 0; bottom: 0; width: 40px; background: linear-gradient(to right, transparent, var(--color-bg-elevated)); pointer-events: none; }
+  .tabs span { padding: 8px 9px; font-size: 12.5px; color: var(--color-text-muted); flex: none; }
+  .tabs span.on { color: var(--color-accent); font-weight: 700; box-shadow: inset 0 -2px 0 var(--color-accent); }
+  .tabs span.foc { outline: 2px solid var(--color-accent); outline-offset: -2px; border-radius: 4px; }
+  .body { padding: 14px; font-size: 13px; color: var(--color-text-muted); }
+  .key { display: inline-block; padding: 1px 6px; border: 1px solid var(--color-border); border-bottom-width: 2px; border-radius: 4px; font: 600 11px/1.6 var(--font-mono); background: var(--color-bg); }
+  .sr { margin-top: 10px; padding: 8px 10px; border-left: 3px solid var(--color-accent); background: var(--color-accent-soft); font-size: 12px; }
+  .pickbar { max-width: 1120px; margin: 0 auto 20px; padding: 10px 14px; border: 1px solid var(--color-accent); border-left-width: 4px; border-radius: var(--radius-md); background: var(--color-accent-soft); font-size: 12.5px; }
+  .pickbar b { font-weight: 760; }
+</style>
+</head>
+<body>
+
+<div class="pickbar"><b>Entscheidung E4 — Empfehlung <b>A</b> (Plan D-3).</b> #837: die Reiterzeile trägt <code>role="tablist"</code> ohne wanderndes <code>tabindex</code> und ohne Pfeiltasten; <code>aria-controls</code> zeigt auf Bereiche, die es nur gibt, solange ihr Reiter aktiv ist. Die Wahl ist: Muster vervollständigen oder Rolle ablegen.</div>
+
+<section class="mock-board">
+  <h2>Heute <small>Befund</small></h2>
+  <p class="mock-note">Neun Reiter, jeder in der Tabulatorreihenfolge, keine Pfeiltasten. Einer Bildschirmleserin wird „Reiter 1 von 9“ angesagt, dann tut <span class="key">→</span> nichts. Acht von neun <code>aria-controls</code> zeigen auf <code>id</code>s, die im DOM nicht existieren.</p>
+  <div class="mock-frame mock-before"><span class="mock-tag">Vorher</span><div class="workspace-section">
+    <div class="pane">
+      <div class="hd">Nordic Timber Holdings AB</div>
+      <div class="tabs"><span>Übersicht</span><span class="on">Diagramm</span><span>Transaktionen</span><span>Trades</span><span>Kurse</span><span>Bestände</span><span>Klassifizierungen</span><span>Research</span><span>Termine</span></div>
+      <div class="body">Neun Tabulatorstopps, bevor der Inhalt erreicht ist.</div>
+    </div>
+  </div></div>
+</section>
+
+<section class="mock-board">
+  <h2>Variante A — Rolle bleibt, wanderndes <code>tabindex</code> und Pfeiltasten kommen dazu <small>empfohlen</small></h2>
+  <p class="mock-note">Ein Tabulatorstopp für die ganze Zeile: <code>tabindex="0"</code> auf dem gewählten Reiter, <code>-1</code> auf den übrigen. <span class="key">←</span><span class="key">→</span> wechseln, <span class="key">Pos1</span><span class="key">Ende</span> springen, der Fokusring ist der 2px-Akzentring. <code>aria-controls</code> steht nur noch am gewählten Reiter — das ist die Hälfte des Befunds, die heute ungültiges Markup ist, nicht bloß fehlende Tastaturunterstützung. Die Detailspalte <em>ist</em> ein Reiterwidget: sie schaltet Bereiche um und ändert keine Route. Die Bereichsreiter oben sind <code>&lt;a href&gt;</code> in einer <code>&lt;nav&gt;</code> und tragen die Rolle zu Recht nicht.</p>
+  <div class="mock-frame mock-after"><span class="mock-tag">Nachher</span><div class="workspace-section">
+    <div class="pane">
+      <div class="hd">Nordic Timber Holdings AB</div>
+      <div class="tabs"><span>Übersicht</span><span class="on foc">Diagramm</span><span>Transaktionen</span><span>Trades</span><span>Kurse</span><span>Bestände</span><span>Klassifizierungen</span><span>Research</span><span>Termine</span></div>
+      <div class="body">Ein Tabulatorstopp. <span class="key">→</span> geht zu „Transaktionen“, <span class="key">Ende</span> zu „Termine“.
+        <div class="sr">Ansage: „Diagramm, Reiter, 2 von 9, ausgewählt“ — und <span class="key">→</span> tut, was sie ankündigt.</div>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+<section class="mock-board">
+  <h2>Variante B — Rolle ablegen, die Zeile ist eine Liste von Schaltflächen</h2>
+  <p class="mock-note">Billiger: <code>role</code>, <code>aria-selected</code> und <code>aria-controls</code> entfallen, neun gewöhnliche Schaltflächen bleiben, jede in der Tabulatorreihenfolge. Nichts ist mehr ungültig. Was verloren geht: die Ansage „2 von 9“ und die Tatsache, dass diese neun Schalter <em>einen</em> Bereich umschalten — eine Bildschirmleserin hört neun unverbundene Schalter. Und die Detailspalte widerspräche dann der einzigen anderen Reiterzeile der App darüber, was eine Reiterzeile ist.</p>
+  <div class="mock-frame"><div class="workspace-section">
+    <div class="pane">
+      <div class="hd">Nordic Timber Holdings AB</div>
+      <div class="tabs"><span>Übersicht</span><span class="on">Diagramm</span><span>Transaktionen</span><span>Trades</span><span>Kurse</span><span>Bestände</span><span>Klassifizierungen</span><span>Research</span><span>Termine</span></div>
+      <div class="body">Neun Tabulatorstopps, aber keine falschen Zusagen mehr.</div>
+    </div>
+  </div></div>
+</section>
+
+</body>
+</html>

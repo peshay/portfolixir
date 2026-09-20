@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-09-20 (Sprint 14 PLANNED: E22 closes on ADR-0047's portfolio half plus #838 and #825, the closing act's ten findings are paid, and ADR-0047 9's "Wealth risk surface" is corrected -- the risk lens has no human view and never had one; no new gate, B3.6 deliberately not opened)
+# last_updated: 2026-09-20 (Sprint 14 PLANNED: E22 closes on ADR-0047's portfolio half plus #838 and #825, the closing act's ten findings are paid, and ADR-0047 9's "Wealth risk surface" is corrected -- the risk lens has no human view and never had one; no new gate, B3.6 deliberately not opened; the design pass with five mockup boards rides the planning PR)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -102,6 +102,17 @@ story_location: _bmad-output/implementation-artifacts
 # mutation-verified. D-9: 0.14.0 prepared -- and THREE tags are still
 # unpushed (0.11.0, 0.12.0, 0.13.0), so the close-out restates four commands
 # in one block.
+# D-10: the design pass ran BEFORE this PR rather than at branch opening --
+# ux-design-2026-09-20-sprint14.md plus five boards under
+# design-language/mockups/ux-design-2026-09-20/, linking the real app.css,
+# rendered at 1200 px, synthetic data only. Four picks, recommendation as the
+# default: E1 the risk surface (sixth Wealth tab / facet on Aufteilung & Ziele
+# / metrics-only strip -- A), E2 the +N overflow chip (#842, inline expand --
+# A), E3 the column-picker fork (#835, .popover), E4 the detail tab row (#837,
+# keep tablist plus roving tabindex -- A). #833 and #834 get a before/after
+# board although they have no options, which is the pass's governing finding:
+# DESIGN.md described the .num defect in words for two sprints and it shipped
+# twice anyway. #836 is the one item with no board -- no rendered difference.
 # Two cuts are spent at planning time: #835's convergence (D-4) and B3.6's
 # gate (D-6). The shrink order after that is #842, #844, #830's build half
 # (the family sentence stays either way) and A4 last, with the coverage
