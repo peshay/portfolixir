@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-09-19 (Sprint 13 CLOSED OUT: PR #832 rebase-merged, main at 6e7de6ef -- E11 and E23 done, E22 in-progress on Lane A2; fourteen issues closed by keyword, #356, #822 and #815 by hand; the two-way coverage deadline #814 met; ten closing-act findings filed; tags 0.11.0, 0.12.0 and 0.13.0 all outstanding for the owner)
+# last_updated: 2026-09-20 (Sprint 14 PLANNED: E22 closes on ADR-0047's portfolio half plus #838 and #825, the closing act's ten findings are paid, and ADR-0047 9's "Wealth risk surface" is corrected -- the risk lens has no human view and never had one; no new gate, B3.6 deliberately not opened)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -42,7 +42,7 @@
 # requests, not assumed -- an issue's state lags the PR that fixes it.
 
 generated: 2026-07-25
-last_updated: 2026-09-19
+last_updated: 2026-09-20
 project: portfolixir
 project_key: NOKEY
 tracking_system: file-system
@@ -51,6 +51,61 @@ story_location: _bmad-output/implementation-artifacts
 # ---------------------------------------------------------------------------
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
+#
+# PLANNED (2026-09-20, Sprint 14) -- sprint-plan-2026-09-20-sprint14.md,
+# adopted by the merge of the Sprint 14 planning PR. It signs NO new decision
+# gate: every build item already has a signed ADR behind it. Verification
+# basis: `main` at dabcd27 (the Sprint 13 close-out commit), 34 open issues
+# plus #844 filed by this round, NO open PR, latest published release 0.10.0.
+# One branch (D-1): `agent/claude/portfolio-metrics-and-the-surface-debt`.
+# Lanes: A (E22's close -- A1 ADR-0047's portfolio and view figures added to
+# the existing risk read over the TTWROR chain's flow-adjusted factors with
+# I1/I3/I4/I7, A2 = #838's `required` on both payloads for one contract bump,
+# A3 the no-verdict meta-test extended to the portfolio payload, A4 the human
+# view per D-2, A5 = #825 the per-security invalidation basis; risk-tier,
+# story issues filed at branch opening), B (the error contract: #840 one
+# shared id parser, #841 the note URL length, #839 the held predicate --
+# risk-tier, projection semantics), C (design-spec conformance #833 #834 #836
+# #837 #842 plus #844's ADR front matter), D (#830 per D-5, #831 the
+# re-import guarantee into the MCP tool descriptions), M (version report
+# before the closing act, #727 triggers re-checked, the Node LTS promotion
+# re-checked and expected to decline a fourth time), Z (registry: the Lane A
+# issue numbers, FR-38's scope sentence, #821 closed by hand at the
+# close-out, the D-4 treatment written into DESIGN.md with its convergence
+# filed).
+# D-2 is the finding this plan contributes and it corrects a signed record:
+# ADR-0047 9 places the portfolio figures "on the Wealth risk surface", and
+# there is none. `Portfolixir.Portfolios.Risk` is read by its controller, the
+# route and the measure task, and by nothing in lib/portfolixir_web/live/**,
+# so FR-8/FR-9/FR-10's concentration lens has been agent-only since it
+# shipped -- which predates the two-way coverage rule, so no deadline was
+# ever missed. Recommended option A: a sixth Wealth tab carrying the existing
+# lens AND A1's four figures, the tab row being already on the D6 scroll-snap
+# form that #817 copied from. B keeps the lens agent-only; C defers with the
+# deadline recorded. The design pass for the surface has NOT run and is the
+# first thing on the branch, before A4 opens.
+# D-3: the detail pane keeps role="tablist" and gains the roving tabindex --
+# it switches panels, unlike the area tabs, which are links and correctly
+# unmarked. D-4: `.popover` wins the column-picker fork and the spec is not
+# amended to match the drift; the convergence is CUT at planning time and
+# filed with the treatment named. D-5: `?since=` is a row-delta parameter --
+# it ships on the row collections, derived projections need a basis-version
+# mechanism (filed, not built), and time-derived queues must NOT carry it
+# because membership changes with no row changing. D-6: B3.6 stays shut, with
+# its trigger named (the Sprint 15 planning PR, or sooner on a third drift
+# observation) and the two questions its ADR must answer recorded now. D-7:
+# "Required Local Checks" is amended on this PR in AGENTS.md AND
+# CONTRIBUTING.md to name the eight gates CI runs and the list omitted --
+# the owner call the Sprint 13 version report said it was. D-8: the #706
+# closing-act conditions stand, screenshots in Markdown image syntax, the
+# patch-coverage listing read pre-promotion, and both risk-tier passes
+# mutation-verified. D-9: 0.14.0 prepared -- and THREE tags are still
+# unpushed (0.11.0, 0.12.0, 0.13.0), so the close-out restates four commands
+# in one block.
+# Two cuts are spent at planning time: #835's convergence (D-4) and B3.6's
+# gate (D-6). The shrink order after that is #842, #844, #830's build half
+# (the family sentence stays either way) and A4 last, with the coverage
+# deadline recorded if it goes.
 #
 # CLOSED OUT (2026-09-19, Sprint 13) -- PR #832 rebase-merged 20:15 UTC,
 # `main` at 6e7de6ef:
