@@ -42,20 +42,40 @@
 
 ## Tests and Gates
 
+The list is AGENTS.md -> "Required Local Checks", which is CI's `pre-commit`,
+`test` and `quality` jobs. Report each one; "n/a" with a reason is an answer,
+silence is not.
+
 - `mix format`:
+- `mix compile --force --warnings-as-errors`:
 - `mix test`:
 - `mix coveralls` (if applicable):
+- `mix credo --strict`:
+- `mix sobelow --skip --exit`:
+- `mix dialyzer --format short`:
+- `mix deps.unlock --check-unused`:
+- `mix hex.audit`:
+- `mix deps.audit`:
 - `pre-commit run --all-files`:
 - `npm test --prefix mcp-server` (if applicable):
 - `npm run build --prefix mcp-server` (if applicable):
+- `npm audit --audit-level=high --prefix mcp-server` (if applicable):
 
 ```bash
 mix format
+mix compile --force --warnings-as-errors
 mix test
 mix coveralls
+mix credo --strict
+mix sobelow --skip --exit
+mix dialyzer --format short
+mix deps.unlock --check-unused
+mix hex.audit
+mix deps.audit
 pre-commit run --all-files
 npm test --prefix mcp-server
 npm run build --prefix mcp-server
+npm audit --audit-level=high --prefix mcp-server
 ```
 
 ## Documentation

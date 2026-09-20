@@ -546,9 +546,10 @@ owner's signature is that call** — the same mechanism by which the Sprint 13
 planning PR amended AR-3 in `architecture.md` rather than letting a requirement
 go on disagreeing with the code.
 
-**Amended on this PR**, in `AGENTS.md` and in `CONTRIBUTING.md` — both carry the
-list, and a list that is right in one document and wrong in the other is the
-defect with an extra step:
+**Amended on this PR**, in all three documents that carry the list —
+`AGENTS.md`, `CONTRIBUTING.md` and `.github/pull_request_template.md`, the last
+being where a PR body reports the gates it ran. A list that is right in one
+document and wrong in the other two is the defect with two extra steps:
 
 ```bash
 mix format
