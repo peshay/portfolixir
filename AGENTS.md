@@ -233,16 +233,35 @@ Do not make real network calls in tests.
 
 ## Required Local Checks
 
-Run these before opening a PR:
+Run these before opening a PR. **The list is CI's `pre-commit`, `test` and
+`quality` jobs**, so a branch that passes here passes there. It was six commands
+until 2026-09-20; the eight it omitted — the four quality checks and the four
+supply-chain ones — were run out of habit rather than instruction, and a batch
+that skipped two of them cost a round (recorded in the Sprint 13 retrospective,
+amended by the Sprint 14 planning PR).
 
 ```bash
 mix format
+mix compile --force --warnings-as-errors
 mix test
 mix coveralls
+mix credo --strict
+mix sobelow --skip --exit
+mix dialyzer --format short
+mix deps.unlock --check-unused
+mix hex.audit
+mix deps.audit
 pre-commit run --all-files
 npm test --prefix mcp-server
 npm run build --prefix mcp-server
+npm audit --audit-level=high --prefix mcp-server
 ```
+
+Two of these behave differently from the rest. `mix dialyzer` builds a PLT on
+its first run, so it is slow once rather than every time. `mix hex.audit` and
+`mix deps.audit` read a live advisory database, so a green run does not stay
+green — a gate that turns red with nobody pushing anything is an advisory
+published since, not a regression.
 
 If pre-commit is not installed:
 
