@@ -93,6 +93,8 @@ npm audit --audit-level=high --prefix mcp-server
 - [ ] MCP coverage was reviewed and updated, or marked not applicable.
 - [ ] Security audit was run before finalizing changes.
 - [ ] Required gates were run and passed.
+- [ ] UI change mocked first: a board with options (or a before/after) exists
+      and is linked, or the change has no rendered difference.
 - [ ] User documentation reviewed for consistency.
 - [ ] User documentation was updated, or this PR explains why no user docs changed.
 - [ ] No real financial data was added.
