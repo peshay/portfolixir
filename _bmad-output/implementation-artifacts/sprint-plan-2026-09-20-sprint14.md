@@ -5,8 +5,9 @@ The merge is the signature (ADR-0026 step 1 as amended on PR #780). Unlike
 Sprint 13's, this planning PR **signs no new decision gate**: every build item
 below already has a signed ADR behind it, and the one gate with accumulating
 evidence — **B3.6**, policy rules — is deliberately not opened here (D-6). What
-the merge does adopt is the lane cut, **D-1** to **D-9**, the correction to
-ADR-0047 §9 that D-2 carries, and the two process amendments in D-7 and D-8.
+the merge does adopt is the lane cut, **D-1** to **D-10**, the correction to
+ADR-0047 §9 that D-2 carries, the four design picks of **D-10**, and the two
+process amendments in D-7 and D-8.
 Nothing in this PR is `DRAFT` or `Proposed`; a decision the owner rejects is
 removed on the PR before the merge.
 
@@ -18,7 +19,9 @@ sprint opening with an empty PR list since Sprint 11); the published releases
 (latest **0.10.0** of 2026-09-07, three tags outstanding); the Sprint 12 and
 Sprint 13 retrospectives; the 2026-09-19 agent round
 (`planning-artifacts/feedback-triage-2026-09-19.md`) and its two declared
-Sprint 14 candidates; the Sprint 13 version report; and **the code**, read for
+Sprint 14 candidates; the Sprint 13 version report; the design pass this PR
+carries (`planning-artifacts/ux-design-2026-09-20-sprint14.md`, with five
+rendered mockup boards); and **the code**, read for
 ADR-0047's unbuilt half and for the human-view claim in its §9 rather than
 summarized from this repository's prior statements. Where this plan contradicts
 an existing record it says so and shows the read (D-2).
@@ -198,7 +201,12 @@ briefing (D-8).
 ### Lane C — design-spec conformance, and the ADR front matter (five findings plus #844)
 
 Held against the living spec (`design-language/DESIGN.md` + `EXPERIENCE.md`) by
-the standing design-critic gate, **not** under a reopened E11.
+the standing design-critic gate, **not** under a reopened E11. **Every item
+here is boarded** (D-10): #833 and #834 as before/after on `04-num-and-focus`,
+#842 with two variants on `02-bucket-overflow-chip`, #837 with two on
+`05-detail-tablist`. #836 is the one exception and the pass names it — an
+attribute that was absent or valueless and is now correct renders no
+differently, so a board would be two identical pictures.
 
 - **C1 — #833, `.num` has no generic rule.** `app.css` carries 15 `.num` rules
   and every one is descendant-scoped, so a plain `.data-table` renders
@@ -387,18 +395,24 @@ severity are the lens's own existing vocabulary, not a signal (ADR-0047 §7). No
 rebalancing hint rides in on it; ADR-0023 permits those and this batch does not
 build them.
 
-**One consequence rides with A and the sequencing states it:** the design pass
-for this surface has **not** run — the finding is a day old. It runs at branch
-opening, before A4 opens, on the same mechanism as Sprint 13's D-8: variant
-boards, the recommendation as the default pick, a comment naming another letter
-changes it, and the picked anatomy written into `DESIGN.md`. **If the pass shows
-the surface is larger than this spec**, A4 is the last item in the shrink order
-and the close-out records the coverage deadline — which is the rule working, not
-the rule being waived.
+**The design pass ran, and it is on this PR** (D-10). All three options are
+drawn on `01-wealth-risk-surface`, at 1200 px, against the real `app.css`: A as
+a sixth Wealth tab carrying the lens and the four figures, B as a facet of
+"Aufteilung & Ziele" behind the segmented control the Cash-flow tab already
+uses, C as a metrics strip on "Bestände" with the lens left agent-only. The
+board's own finding is that **B is a real competitor rather than a foil** — it
+spends no area tab and uses the app's one facet mechanism — and Part 1 of the
+pass argues why A still wins: risk is what an allocation *produces*, not
+another view of it, so a facet of "targets" is the wrong parent.
 
-**To flip this by comment:** "B" keeps A1's figures and leaves the lens where it
-is; "C" defers both with the deadline recorded. Either is a legitimate outcome;
-neither is the outcome of not deciding.
+**If the build shows the surface is larger than the board prices it**, A4 is
+the last item in the shrink order and the close-out records the coverage
+deadline — which is the rule working, not the rule being waived.
+
+**To flip this by comment:** "E1-B" keeps the content and moves the container;
+"E1-C" keeps A1's figures and leaves the lens where it is, with the deadline
+recorded. Either is a legitimate outcome; neither is the outcome of not
+deciding.
 
 ### D-3 — #837: the detail pane keeps its `tablist` role and gains the roving tabindex (recommended)
 
@@ -615,20 +629,57 @@ place to look. Four sprints of a refused push is the process working as decided,
 and a growing list of unpushed rollback points is a fact about the published
 releases either way.
 
+### D-10 — four design picks, recommendation first (recommended)
+
+The design pass ran **before this PR opened**, not at branch opening:
+`planning-artifacts/ux-design-2026-09-20-sprint14.md`, with five boards in
+`design-language/mockups/ux-design-2026-09-20/`. They link the real
+`priv/static/app.css`, render at 1200 px with no console error and no
+horizontal overflow, and carry synthetic data only — no real instrument,
+position, weight or threshold appears on any of them.
+
+Same mechanism as Sprint 13's D-8: **the recommendation is the default pick, a
+comment naming another option changes it, and the story writes the picked
+anatomy into `DESIGN.md`.**
+
+| Pick | Item | Board | Options | Recommended |
+|---|---|---|---|---|
+| **E1** | The risk surface (Lane A4) | `01-wealth-risk-surface` | sixth Wealth tab · facet on Aufteilung & Ziele · metrics-only strip | **A** |
+| **E2** | The `+N` overflow chip (#842) | `02-bucket-overflow-chip` | inline expand · row-menu section | **A** |
+| **E3** | The column-picker fork (#835) | `03-column-picker` | `.popover` · `<details>` | **`.popover`** |
+| **E4** | The detail pane's tab row (#837) | `05-detail-tablist` | keep `tablist` + roving tabindex · drop the role | **A** |
+
+**#833 and #834 have no options and still have a board** (`04-num-and-focus`,
+before/after). That is the pass's governing finding rather than a courtesy:
+`DESIGN.md:947` described the `.num` defect in words for two sprints and it
+shipped twice anyway, including into two tables added by the batch whose own
+review then found it. Words about alignment do not show a reader two columns of
+proportional digits. **#836 is the one item with no board**, and the pass says
+why — an attribute that was absent or valueless and is now correct renders no
+differently, so the board would be two identical pictures.
+
+**E1 is the one pick with real design freedom, and B is not a foil.** The facet
+option spends no area tab and uses the app's one facet mechanism, which the
+spec names. A wins on a narrower argument: risk is what an allocation
+*produces*, not another view of it, so filing it under a heading that says
+"targets" puts it under the wrong parent — and the area tab row has carried
+scroll-snap, the edge fade and `flex: none` since #790, so a sixth tab is a
+list entry rather than a layout problem.
+
 ## Sequencing
 
 ```text
+design pass ─ DONE, on this PR (D-10): five boards, four picks, the
+              recommendation standing unless a comment changes it
 branch opens on main @ dabcd27 ──▶ Lane Z files the Lane A issues
-design pass ─ FIRST, on D-2's picked option: variant boards for the Risk
-              surface, recommendation as default pick, anatomy into DESIGN.md.
-              A4 does not open before it.
 Lane A1 ──── the portfolio figures over the TTWROR chain, the risk read, the
              MCP tool; I1, I3, I4, I7; A3 rides it
 Lane A2 ──── #838's `required` on both payloads, one contract bump, after A1
 Lane B ───── in parallel: controllers and changesets, no overlap with A
 Lane C ───── in parallel: app.css and securities_live.ex, no overlap with A
 Lane D ───── #830 after D-5's scope, #831 any time
-Lane A4 ──── the Risk surface, after the design pass and after A1's payload
+Lane A4 ──── the Risk surface in the picked variant, after A1's payload;
+              its anatomy goes into DESIGN.md with the story
 Lane A5 ──── #825, independent, any time after A1
 Lane M ───── at lane time; the version report before the closing act
 closing act ─ D-8's conditions, the risk-tier passes on A1 and B3, then
@@ -702,16 +753,19 @@ fit, nothing does.
 2. **`required` sits on every metric in both payloads and both states**, `window`
    is `null` where the metric is defined over a count of closes, and the
    contract takes **one** bump covering both surfaces.
-3. **A4 renders**, in the variant the design pass picks, with `DESIGN.md`
-   naming its anatomy — **or** the close-out names the shrink and the coverage
+3. **A4 renders in the picked E1 variant**, and it matches its board — the
+   design critic reviews the built surface against `01-wealth-risk-surface` as
+   well as against the spec, including the four-column metric row at
+   390 px, which is the one thing the board could not settle. `DESIGN.md`
+   names the anatomy. **Or** the close-out names the shrink and the coverage
    deadline it inherits, which is Sprint 15 by the rule's own terms.
 4. **No JSON API read answers 500 for an out-of-range id** (#840), an over-long
    note `source_url` answers 422 (#841), and the "is it held?" predicate is one
    predicate or three honest docstrings (#839), with the projection-semantics
    invariant mutation-verified.
-5. **Lane C's five conformance items ship**, D-3's and D-4's picks are written
-   into `DESIGN.md`, and #844's effect on the published site is established
-   before it is fixed.
+5. **Lane C's five conformance items ship** and each matches its board;
+   D-3/E4's and D-4/E3's picks are written into `DESIGN.md`, and #844's effect
+   on the published site is established before it is fixed.
 6. **#830 ships on the row-collection reads**, and the close-out's surface-check
    sentence **names every member of the family** — those that carry `?since=`,
    the derived projections that need a different mechanism, and the time-derived
@@ -721,9 +775,10 @@ fit, nothing does.
    are re-checked and the result recorded either way; the Node LTS promotion is
    applied if it landed and declined with its reason if it did not.
 8. **The closing act ran under D-8's conditions**, the patch-coverage listing
-   was read **before** promotion, and both risk-tier passes — A1's identities
-   and B3's projection semantics — are in the reviewer briefing with their
-   mutation proofs.
+   was read **before** promotion, both risk-tier passes — A1's identities and
+   B3's projection semantics — are in the reviewer briefing with their mutation
+   proofs, and **the design critic held every user-visible item against its
+   board**. A UI item that shipped without one is a close-out finding.
 9. **The contract-version read reports the extended risk payload**, and the
    answers this plan owes the agent (D-5's three shapes, #831's guarantee) have
    gone back to it.

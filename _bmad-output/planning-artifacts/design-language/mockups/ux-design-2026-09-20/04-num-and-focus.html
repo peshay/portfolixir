@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Zahlenspalten und Fokusring (#833, #834)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  table.t { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.t th { text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); background: var(--color-bg-muted); padding: 7px 10px; }
+  table.t td { padding: 8px 10px; border-bottom: 1px solid var(--color-border); }
+  /* the defect: class="num" with nothing behind it */
+  table.bad td.num, table.bad th.num { text-align: left; font-variant-numeric: normal; }
+  /* the fix: one generic rule */
+  table.good td.num, table.good th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .kebab { display: inline-grid; place-items: center; border-radius: 6px; color: var(--color-text-muted); font-weight: 700; }
+  .kebab.now { padding: 4px; width: 24px; height: 24px; background: var(--color-hover, var(--color-bg-muted)); outline: none; }
+  .kebab.fix { min-width: 44px; min-height: 44px; outline: 2px solid var(--color-accent); outline-offset: 2px; background: transparent; }
+  .hitbox { position: relative; display: inline-block; justify-self: start; }
+  .hitbox::after { content: ""; position: absolute; inset: 0; border: 1px dashed var(--color-danger); border-radius: 6px; pointer-events: none; }
+  .hitbox.ok::after { border-color: var(--color-positive); }
+  .cap { font-size: 11px; color: var(--color-text-muted); display: block; margin-top: 4px; }
+  .pickbar { max-width: 1120px; margin: 0 auto 20px; padding: 10px 14px; border: 1px solid var(--color-accent); border-left-width: 4px; border-radius: var(--radius-md); background: var(--color-accent-soft); font-size: 12.5px; }
+  .pickbar b { font-weight: 760; }
+</style>
+</head>
+<body>
+
+<div class="pickbar"><b>Vorher / Nachher — keine Variantenwahl.</b> #833 und #834 sind Konformitätsbefunde gegen den lebenden Spec, keine Entwurfsfragen: <code>DESIGN.md</code> sagt bereits, wie es aussehen soll. Die Boards zeigen, was sich ändert, damit die Änderung vor dem Bau gesehen wird.</div>
+
+<section class="mock-board">
+  <h2>#833 — <code>.num</code> hat keine generische Regel <small>Vorher / Nachher</small></h2>
+  <p class="mock-note"><code>app.css</code> trägt 15 <code>.num</code>-Regeln und jede ist nachfahrengebunden (<code>#transaction-list td.num</code>, <code>.drift-table th.num</code>, …). Eine schlichte <code>.data-table</code> rendert <code>class="num"</code> mit nichts dahinter, und <code>thead th { text-align: left }</code> wird nie überschrieben. <code>DESIGN.md:947</code> benennt den Defekt samt Ursache. Sprint 13 hat zwei weitere Tabellen hinzugefügt, die ihn erben.</p>
+  <div class="mock-row">
+    <div style="flex:1 1 380px">
+      <div class="mock-frame mock-before"><span class="mock-tag">Vorher — linksbündig, proportionale Ziffern</span><div class="workspace-section" style="padding:0">
+        <table class="t bad">
+          <thead><tr><th>Wertpapier</th><th class="num">Menge</th><th class="num">Marktwert</th></tr></thead>
+          <tbody>
+            <tr><td>Nordic Timber Holdings AB</td><td class="num">120</td><td class="num">24.180,00 €</td></tr>
+            <tr><td>Helios Solar Systems SE</td><td class="num">1.480</td><td class="num">16.240,00 €</td></tr>
+            <tr><td>Kestrel Industrial Group NV</td><td class="num">9</td><td class="num">9.120,00 €</td></tr>
+          </tbody>
+        </table>
+      </div></div>
+    </div>
+    <div style="flex:1 1 380px">
+      <div class="mock-frame mock-after"><span class="mock-tag">Nachher — eine generische Regel</span><div class="workspace-section" style="padding:0">
+        <table class="t good">
+          <thead><tr><th>Wertpapier</th><th class="num">Menge</th><th class="num">Marktwert</th></tr></thead>
+          <tbody>
+            <tr><td>Nordic Timber Holdings AB</td><td class="num">120</td><td class="num">24.180,00 €</td></tr>
+            <tr><td>Helios Solar Systems SE</td><td class="num">1.480</td><td class="num">16.240,00 €</td></tr>
+            <tr><td>Kestrel Industrial Group NV</td><td class="num">9</td><td class="num">9.120,00 €</td></tr>
+          </tbody>
+        </table>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<section class="mock-board">
+  <h2>#834 — Fokusring und Grobzeiger-Boden am Zeilenmenü <small>Vorher / Nachher</small></h2>
+  <p class="mock-note"><code>.row-actions__kebab</code> und <code>.row-context-menu__item</code> setzen beide <code>outline: none</code> mit einem Hintergrundwechsel als Ersatz — genau das „Don't“, das <code>DESIGN.md</code> namentlich aufführt. Das konforme Beispiel ist <code>.filter-sheet-toggle:focus-visible</code> aus Sprint 13: 2px Akzentkontur, 2px Versatz. Getrennt davon: der Kebab ist <code>var(--space-1)</code> um ein 16px-Zeichen, deutlich unter dem 44px-Boden, und Sprint 13 hat ihn auf drei weitere telefonerreichbare Oberflächen gesetzt.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before" style="flex:1 1 300px"><span class="mock-tag">Vorher</span><div class="workspace-section">
+      <span class="hitbox"><span class="kebab now">⋯</span></span>
+      <span class="cap">Fokus nur als Hintergrund · Trefferfläche 24 × 24 px</span>
+    </div></div>
+    <div class="mock-frame mock-after" style="flex:1 1 300px"><span class="mock-tag">Nachher</span><div class="workspace-section">
+      <span class="hitbox ok"><span class="kebab fix">⋯</span></span>
+      <span class="cap">2px Akzentkontur, 2px Versatz · 44 × 44 px unter <code>pointer: coarse</code></span>
+    </div></div>
+  </div>
+</section>
+
+</body>
+</html>

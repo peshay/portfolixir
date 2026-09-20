@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Spaltenauswahl: zwei Behandlungen (#835)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  .tb { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--color-border); font-size: 13px; }
+  .tb .sp { flex: 1 1 auto; }
+  .ctl { padding: 5px 11px; border: 1px solid var(--color-border); border-radius: var(--radius-sm, 6px); font-size: 12.5px; color: var(--color-text-muted); background: var(--color-bg-elevated); }
+  .ctl.on { border-color: var(--color-accent); color: var(--color-accent); font-weight: 700; }
+  .pop { margin: 10px 12px; display: inline-grid; gap: 10px; padding: 14px; min-width: 340px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); box-shadow: var(--shadow-md); }
+  .pop .ph { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; padding-bottom: 8px; border-bottom: 1px solid var(--color-border); }
+  .pop .ph .x { margin-left: auto; color: var(--color-text-muted); font-weight: 600; }
+  fieldset.g { border: 0; margin: 0; padding: 0; display: grid; gap: 5px; }
+  fieldset.g legend { padding: 0; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); margin-bottom: 3px; }
+  label.o { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  label.o input { accent-color: var(--color-accent); }
+  .det { margin: 10px 12px; padding: 8px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-sm, 6px); background: var(--color-bg); max-width: 340px; }
+  .det > .sm { font-size: 12.5px; color: var(--color-text-muted); }
+  .det .flat { display: grid; gap: 4px; margin-top: 8px; }
+  table.t { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.t th { text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); background: var(--color-bg-muted); padding: 7px 10px; }
+  table.t td { padding: 8px 10px; border-bottom: 1px solid var(--color-border); }
+  .pickbar { max-width: 1120px; margin: 0 auto 20px; padding: 10px 14px; border: 1px solid var(--color-accent); border-left-width: 4px; border-radius: var(--radius-md); background: var(--color-accent-soft); font-size: 12.5px; }
+  .pickbar b { font-weight: 760; }
+</style>
+</head>
+<body>
+
+<div class="pickbar"><b>Entscheidung E3 — Empfehlung <code>.popover</code> (Plan D-4).</b> #835: zwei Behandlungen existieren nebeneinander, <code>DESIGN.md</code> → Inventory → Overlays benennt nur eine. Dieses Board zeigt beide nebeneinander, damit die Entscheidung gesehen und nicht gelesen wird. Gebaut wird die Konvergenz in Sprint 15; entschieden wird sie hier.</div>
+
+<section class="mock-board">
+  <h2>Behandlung 1 — <code>.popover.column-picker</code> <small>von DESIGN.md benannt · empfohlen</small></h2>
+  <p class="mock-note">Was <code>PortfolixirWeb.Securities.ColumnPicker</code> heute auf der Wertpapierliste rendert: <code>role="dialog"</code>, <code>aria-label</code>, eine <code>.popover-head</code>-Überschrift, gruppierte <code>&lt;fieldset&gt;</code>/<code>&lt;legend&gt;</code>. Die Gruppen sind der Unterschied, der zählt — bei vierzehn Spalten ist eine flache Liste eine Suchaufgabe.</p>
+  <div class="mock-frame"><div class="workspace-section" style="padding:0">
+    <div class="tb"><b>Wertpapiere</b><span class="sp"></span><span class="ctl">Filter</span><span class="ctl on">Spalten ▾</span></div>
+    <div class="pop">
+      <div class="ph">Spalten<span class="x">✕</span></div>
+      <fieldset class="g"><legend>Stammdaten</legend>
+        <label class="o"><input type="checkbox" checked>Name</label>
+        <label class="o"><input type="checkbox" checked>ISIN</label>
+        <label class="o"><input type="checkbox">Ticker</label>
+      </fieldset>
+      <fieldset class="g"><legend>Bewertung</legend>
+        <label class="o"><input type="checkbox" checked>Letzter Kurs</label>
+        <label class="o"><input type="checkbox" checked>Kursdatum</label>
+        <label class="o"><input type="checkbox">Marktwert</label>
+      </fieldset>
+      <fieldset class="g"><legend>Klassifizierung</legend>
+        <label class="o"><input type="checkbox">Anlageklasse</label>
+        <label class="o"><input type="checkbox">Region</label>
+      </fieldset>
+    </div>
+  </div></div>
+</section>
+
+<section class="mock-board">
+  <h2>Behandlung 2 — <code>&lt;details&gt;</code> mit flacher Kästchenliste <small>Abweichung, zweimal gebaut</small></h2>
+  <p class="mock-note">Was <code>#tx-column-picker</code> (Transaktionshistorie, auf <code>main</code>) und <code>#holdings-column-picker</code> (Vermögen → Bestände, Sprint 13) rendern. Keine Überschrift, keine Gruppen, keine Dialogsemantik; die Disclosure schiebt beim Öffnen den Inhalt darunter weg. Sprint 13 hat die unbenannte Seite der Gabelung gewählt, statt eine dritte zu erfinden — das ist die richtige Reihenfolge, aber die Gabelung bleibt.</p>
+  <div class="mock-frame mock-before"><span class="mock-tag">Abweichung</span><div class="workspace-section" style="padding:0">
+    <div class="tb"><b>Bestände</b><span class="sp"></span><span class="ctl">Spalten ▾</span></div>
+    <div class="det">
+      <span class="sm">Spalten ▾</span>
+      <div class="flat">
+        <label class="o"><input type="checkbox" checked>Menge</label>
+        <label class="o"><input type="checkbox" checked>Marktwert</label>
+        <label class="o"><input type="checkbox">Einstandswert</label>
+        <label class="o"><input type="checkbox">Kursdatum</label>
+        <label class="o"><input type="checkbox">Währung</label>
+      </div>
+    </div>
+    <table class="t">
+      <thead><tr><th>Wertpapier</th><th>Menge</th><th>Marktwert</th></tr></thead>
+      <tbody><tr><td>Nordic Timber Holdings AB</td><td>120</td><td>24.180,00 €</td></tr></tbody>
+    </table>
+  </div></div>
+</section>
+
+</body>
+</html>
