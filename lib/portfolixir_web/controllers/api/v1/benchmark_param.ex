@@ -16,10 +16,7 @@ defmodule PortfolixirWeb.Api.V1.BenchmarkParam do
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Portfolios.Performance.Benchmark
-
-  # The largest id the securities table can hold (int8); anything above it
-  # cannot name a security and must not reach the database encoder.
-  @max_id 9_223_372_036_854_775_807
+  alias PortfolixirWeb.Api.V1.IdParam
 
   @spec resolve(map()) ::
           {:ok, {:rate, Decimal.t()} | {:security, Security.t()}}
@@ -48,12 +45,13 @@ defmodule PortfolixirWeb.Api.V1.BenchmarkParam do
   end
 
   defp security(raw) when is_binary(raw) do
-    with {id, ""} when id > 0 and id <= @max_id <- Integer.parse(raw),
+    # IdParam refuses an id past the int8 range, so it never reaches the
+    # database encoder.
+    with {:ok, id} <- IdParam.parse(raw),
          %Security{is_benchmark: true} = security <- Catalog.get_security(id) do
       {:ok, {:security, security}}
     else
       :error -> invalid()
-      {_id, _rest} -> invalid()
       _unflagged_or_missing -> {:error, {:benchmark, "is not a benchmark security"}}
     end
   end

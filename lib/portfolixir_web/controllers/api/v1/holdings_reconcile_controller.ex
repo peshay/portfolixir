@@ -15,6 +15,7 @@ defmodule PortfolixirWeb.Api.V1.HoldingsReconcileController do
 
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Reconcile
+  alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ViewParam
 
@@ -139,7 +140,7 @@ defmodule PortfolixirWeb.Api.V1.HoldingsReconcileController do
   end
 
   defp portfolio_scope(portfolio_id) do
-    with {:ok, id} <- parse_id(portfolio_id),
+    with {:ok, id} <- IdParam.parse(portfolio_id),
          portfolio when not is_nil(portfolio) <- Portfolios.get_portfolio(id) do
       {:ok, [portfolio_id: id]}
     else
@@ -156,15 +157,4 @@ defmodule PortfolixirWeb.Api.V1.HoldingsReconcileController do
       :view_not_found -> {:error, :not_found}
     end
   end
-
-  defp parse_id(value) when is_integer(value) and value > 0, do: {:ok, value}
-
-  defp parse_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} when id > 0 -> {:ok, id}
-      _invalid -> :error
-    end
-  end
-
-  defp parse_id(_value), do: :error
 end

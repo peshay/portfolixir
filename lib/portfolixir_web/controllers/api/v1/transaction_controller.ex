@@ -7,6 +7,7 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CashAccount
   alias PortfolixirWeb.Api.V1.FieldSelection
+  alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ListLimit
   alias PortfolixirWeb.Api.V1.SinceParam
@@ -87,7 +88,7 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
   # Whitelisted and resolved: a query param never mints an atom, and an account
   # that does not exist is a named 422 rather than a column of nulls.
   defp running_balance_param(%{"running_balance_for" => value}) do
-    with {id, ""} <- Integer.parse(to_string(value)),
+    with {:ok, id} <- IdParam.parse(value),
          %CashAccount{} = account <- Portfolios.get_cash_account(id) do
       {:ok, account}
     else
@@ -101,7 +102,7 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
   defp put_updated_since(opts, %{cut: cut}), do: Keyword.put(opts, :updated_since, cut)
 
   def show(conn, %{"id" => id}) do
-    with {:ok, tid} <- parse_id(id),
+    with {:ok, tid} <- IdParam.parse(id),
          %Transaction{} = transaction <- Ledger.get_transaction(tid) do
       json(conn, %{data: JSON.transaction(transaction)})
     else
@@ -146,7 +147,7 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
     if split?(attrs) do
       unprocessable(conn, @split_rejection)
     else
-      with {:ok, tid} <- parse_id(id),
+      with {:ok, tid} <- IdParam.parse(id),
            %Transaction{} = transaction <- Ledger.get_transaction(tid),
            {:ok, updated} <- Ledger.update_transaction(conn.assigns.actor, transaction, attrs) do
         json(conn, %{data: JSON.transaction(updated)})
@@ -165,7 +166,7 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
   defp split?(_attrs), do: false
 
   def delete(conn, %{"id" => id}) do
-    with {:ok, tid} <- parse_id(id),
+    with {:ok, tid} <- IdParam.parse(id),
          %Transaction{} = transaction <- Ledger.get_transaction(tid),
          {:ok, _} <- Ledger.delete_transaction(conn.assigns.actor, transaction) do
       send_resp(conn, :no_content, "")
@@ -179,10 +180,10 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
   defp list_opts(params) do
     with {:ok, from} <- date_param(params, "from", :from),
          {:ok, to} <- date_param(params, "to", :to),
-         {:ok, portfolio_id} <- int_param(params, "portfolio_id", :portfolio_id),
-         {:ok, security_id} <- int_param(params, "security_id", :security_id),
+         {:ok, portfolio_id} <- id_filter(params, "portfolio_id", :portfolio_id),
+         {:ok, security_id} <- id_filter(params, "security_id", :security_id),
          {:ok, securities_account_id} <-
-           int_param(params, "securities_account_id", :securities_account_id),
+           id_filter(params, "securities_account_id", :securities_account_id),
          {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit) do
       opts =
         []
@@ -213,38 +214,21 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
     end
   end
 
-  defp int_param(params, key, field) do
+  defp id_filter(params, key, field) do
     case Map.get(params, key) do
       value when value in [nil, ""] ->
         {:ok, nil}
 
-      value when is_integer(value) and value > 0 ->
-        {:ok, value}
-
-      value when is_binary(value) ->
-        case Integer.parse(value) do
-          {int, ""} when int > 0 -> {:ok, int}
-          _ -> {:error, field}
+      value ->
+        case IdParam.parse(value) do
+          {:ok, id} -> {:ok, id}
+          :error -> {:error, field}
         end
-
-      _ ->
-        {:error, field}
     end
   end
 
   defp put_present(opts, _key, nil), do: opts
   defp put_present(opts, key, value), do: Keyword.put(opts, key, value)
-
-  defp parse_id(value) when is_integer(value), do: {:ok, value}
-
-  defp parse_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> {:ok, id}
-      _ -> :error
-    end
-  end
-
-  defp parse_id(_value), do: :error
 
   defp unprocessable(conn, errors) do
     conn

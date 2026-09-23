@@ -12,12 +12,13 @@ defmodule PortfolixirWeb.Api.V1.ViewPerformanceController do
   alias Portfolixir.Buckets
   alias Portfolixir.Buckets.View
   alias Portfolixir.Portfolios.Performance
+  alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.PeriodParam
   alias PortfolixirWeb.Api.V1.ViewParam
 
   def show(conn, %{"view_id" => view_id} = params) do
-    with {:ok, vid} <- parse_id(view_id),
+    with {:ok, vid} <- IdParam.parse(view_id),
          %View{} = view <- Buckets.get_view(vid) do
       include_series? = Map.get(params, "series") in ["true", "1"]
 
@@ -46,15 +47,6 @@ defmodule PortfolixirWeb.Api.V1.ViewPerformanceController do
       _ -> not_found(conn)
     end
   end
-
-  defp parse_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> {:ok, id}
-      _ -> :error
-    end
-  end
-
-  defp parse_id(_value), do: :error
 
   defp not_found(conn) do
     conn

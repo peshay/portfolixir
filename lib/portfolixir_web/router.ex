@@ -45,6 +45,8 @@ defmodule PortfolixirWeb.Router do
   pipeline :api_auth do
     plug(:accepts, ["json"])
     plug(PortfolixirWeb.ApiAuthPlug)
+    # #840: an id past the bigint range is refused here, for every route.
+    plug(PortfolixirWeb.Api.V1.IdRangeGuard)
   end
 
   scope "/", PortfolixirWeb do

@@ -14,10 +14,11 @@ defmodule PortfolixirWeb.Api.V1.CategoryResultController do
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CategoryResult
   alias Portfolixir.Portfolios.Portfolio
+  alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
 
   def index(conn, %{"portfolio_id" => portfolio_id} = params) do
-    with {:ok, pid} <- parse_id(portfolio_id),
+    with {:ok, pid} <- IdParam.parse(portfolio_id),
          %Portfolio{} <- Portfolios.get_portfolio(pid),
          {:ok, cid} <- classification_id(Map.get(params, "classification_id")) do
       case CategoryResult.for_portfolio(pid, cid) do
@@ -32,16 +33,7 @@ defmodule PortfolixirWeb.Api.V1.CategoryResultController do
   end
 
   defp classification_id(nil), do: :missing
-  defp classification_id(value), do: parse_id(value)
-
-  defp parse_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> {:ok, id}
-      _ -> :error
-    end
-  end
-
-  defp parse_id(_value), do: :error
+  defp classification_id(value), do: IdParam.parse(value)
 
   defp unprocessable(conn, errors) do
     conn

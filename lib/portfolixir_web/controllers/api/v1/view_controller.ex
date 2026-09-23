@@ -11,6 +11,7 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
 
   alias Portfolixir.Buckets
   alias Portfolixir.Buckets.View
+  alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
 
   def index(conn, _params) do
@@ -22,7 +23,7 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
   end
 
   def show(conn, %{"id" => id}) do
-    with {:ok, vid} <- parse_id(id),
+    with {:ok, vid} <- IdParam.parse(id),
          %View{} = view <- Buckets.get_view(vid) do
       json(conn, %{data: JSON.view(view, filter_for(view))})
     else
@@ -47,7 +48,7 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
   def update(conn, %{"id" => id} = params) do
     attrs = Map.get(params, "view", %{})
 
-    with {:ok, vid} <- parse_id(id),
+    with {:ok, vid} <- IdParam.parse(id),
          %View{} = view <- Buckets.get_view(vid),
          {:ok, updated} <- Buckets.update_view(conn.assigns.actor, view, attrs) do
       json(conn, %{data: JSON.view(updated, filter_for(updated))})
@@ -59,7 +60,7 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
   end
 
   def delete(conn, %{"id" => id}) do
-    with {:ok, vid} <- parse_id(id),
+    with {:ok, vid} <- IdParam.parse(id),
          %View{} = view <- Buckets.get_view(vid),
          {:ok, _} <- Buckets.delete_view(conn.assigns.actor, view) do
       send_resp(conn, :no_content, "")
@@ -76,7 +77,7 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
   resolved filter.
   """
   def set_buckets(conn, %{"id" => id} = params) do
-    with {:ok, vid} <- parse_id(id),
+    with {:ok, vid} <- IdParam.parse(id),
          %View{} = view <- Buckets.get_view(vid),
          {:ok, include} <- id_list(params, "include", :include),
          {:ok, exclude} <- id_list(params, "exclude", :exclude),
@@ -112,7 +113,7 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
 
   defp parse_ids(list, field) do
     Enum.reduce_while(list, {:ok, []}, fn value, {:ok, acc} ->
-      case parse_id(value) do
+      case IdParam.parse(value) do
         {:ok, id} -> {:cont, {:ok, [id | acc]}}
         :error -> {:halt, {:error, field}}
       end
@@ -122,17 +123,6 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
       error -> error
     end
   end
-
-  defp parse_id(value) when is_integer(value) and value > 0, do: {:ok, value}
-
-  defp parse_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} when id > 0 -> {:ok, id}
-      _ -> :error
-    end
-  end
-
-  defp parse_id(_value), do: :error
 
   defp unprocessable(conn, errors) do
     conn

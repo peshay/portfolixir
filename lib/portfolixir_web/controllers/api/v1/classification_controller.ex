@@ -3,6 +3,7 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
 
   alias Portfolixir.Classifications
   alias Portfolixir.Classifications.Classification
+  alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
 
   def index(conn, _params) do
@@ -26,7 +27,7 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
   def update(conn, %{"id" => id} = params) do
     attrs = Map.get(params, "classification", %{})
 
-    with {:ok, cid} <- parse_id(id),
+    with {:ok, cid} <- IdParam.parse(id),
          %Classification{} = classification <- Classifications.get_classification(cid) do
       case Classifications.update_classification(conn.assigns.actor, classification, attrs) do
         {:ok, classification} ->
@@ -42,7 +43,7 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
   end
 
   def delete(conn, %{"id" => id}) do
-    with {:ok, cid} <- parse_id(id),
+    with {:ok, cid} <- IdParam.parse(id),
          %Classification{} = classification <- Classifications.get_classification(cid) do
       case Classifications.delete_classification(conn.assigns.actor, classification) do
         {:ok, _classification} -> json(conn, %{data: %{deleted: true}})
@@ -55,7 +56,7 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
   end
 
   def create_category(conn, %{"classification_id" => classification_id} = params) do
-    with {:ok, id} <- parse_id(classification_id) do
+    with {:ok, id} <- IdParam.parse(classification_id) do
       attrs = params |> Map.get("category", %{}) |> Map.put("classification_id", id)
 
       case Classifications.create_category(conn.assigns.actor, attrs) do
@@ -77,8 +78,8 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
     # into a different classification.
     attrs = params |> Map.get("category", %{}) |> Map.drop(["classification_id"])
 
-    with {:ok, cid} <- parse_id(classification_id),
-         {:ok, category_id} <- parse_id(id),
+    with {:ok, cid} <- IdParam.parse(classification_id),
+         {:ok, category_id} <- IdParam.parse(id),
          %{classification_id: ^cid} = category <- Classifications.get_category(category_id) do
       case Classifications.update_category(conn.assigns.actor, category, attrs) do
         {:ok, category} -> json(conn, %{data: JSON.category(category)})
@@ -92,8 +93,8 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
   end
 
   def delete_category(conn, %{"classification_id" => classification_id, "id" => id}) do
-    with {:ok, cid} <- parse_id(classification_id),
-         {:ok, category_id} <- parse_id(id),
+    with {:ok, cid} <- IdParam.parse(classification_id),
+         {:ok, category_id} <- IdParam.parse(id),
          %{classification_id: ^cid} = category <- Classifications.get_category(category_id) do
       case Classifications.delete_category(conn.assigns.actor, category) do
         {:ok, _category} -> json(conn, %{data: %{deleted: true}})
@@ -107,9 +108,9 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
   end
 
   def assign(conn, %{"classification_id" => classification_id} = params) do
-    with {:ok, cid} <- parse_id(classification_id),
-         {:ok, security_id} <- parse_id(Map.get(params, "security_id")),
-         {:ok, category_id} <- parse_id(Map.get(params, "category_id")) do
+    with {:ok, cid} <- IdParam.parse(classification_id),
+         {:ok, security_id} <- IdParam.parse(Map.get(params, "security_id")),
+         {:ok, category_id} <- IdParam.parse(Map.get(params, "category_id")) do
       previous = Classifications.get_assignment(security_id, cid)
 
       case Classifications.assign_security(conn.assigns.actor, security_id, cid, category_id) do
@@ -125,9 +126,9 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
   end
 
   def assign_bulk(conn, %{"classification_id" => classification_id} = params) do
-    with {:ok, cid} <- parse_id(classification_id),
-         {:ok, category_id} <- parse_id(Map.get(params, "category_id")),
-         {:ok, security_ids} <- parse_ids(Map.get(params, "security_ids")) do
+    with {:ok, cid} <- IdParam.parse(classification_id),
+         {:ok, category_id} <- IdParam.parse(Map.get(params, "category_id")),
+         {:ok, security_ids} <- IdParam.parse_list(Map.get(params, "security_ids")) do
       case Classifications.assign_securities(conn.assigns.actor, security_ids, cid, category_id) do
         {:ok, count} ->
           json(conn, %{
@@ -159,8 +160,8 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
   end
 
   def unassign(conn, %{"classification_id" => classification_id, "security_id" => security_id}) do
-    with {:ok, cid} <- parse_id(classification_id),
-         {:ok, sid} <- parse_id(security_id) do
+    with {:ok, cid} <- IdParam.parse(classification_id),
+         {:ok, sid} <- IdParam.parse(security_id) do
       {:ok, count} = Classifications.unassign_security(conn.assigns.actor, sid, cid)
       json(conn, %{data: %{unassigned: count}})
     else
@@ -179,32 +180,6 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
 
   defp render_error(conn, :category_mismatch),
     do: unprocessable(conn, %{detail: "category does not belong to the classification"})
-
-  defp parse_id(value) when is_integer(value), do: {:ok, value}
-
-  defp parse_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> {:ok, id}
-      _ -> :error
-    end
-  end
-
-  defp parse_id(_value), do: :error
-
-  defp parse_ids(values) when is_list(values) do
-    Enum.reduce_while(values, {:ok, []}, fn value, {:ok, acc} ->
-      case parse_id(value) do
-        {:ok, id} -> {:cont, {:ok, [id | acc]}}
-        :error -> {:halt, :error}
-      end
-    end)
-    |> case do
-      {:ok, ids} -> {:ok, Enum.reverse(ids)}
-      :error -> :error
-    end
-  end
-
-  defp parse_ids(_values), do: :error
 
   defp unprocessable(conn, errors) do
     conn

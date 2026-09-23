@@ -16,10 +16,11 @@ defmodule PortfolixirWeb.Api.V1.BucketAssignmentController do
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.SecuritiesAccount
+  alias PortfolixirWeb.Api.V1.IdParam
 
   @doc "Replaces a depot's default bucket set (`PUT /securities_accounts/:id/buckets`)."
   def set_depot_buckets(conn, %{"id" => id} = params) do
-    with {:ok, sid} <- parse_id(id),
+    with {:ok, sid} <- IdParam.parse(id),
          %SecuritiesAccount{} = depot <- Portfolios.get_securities_account(sid),
          {:ok, bucket_ids} <- bucket_ids(params),
          :ok <- Buckets.set_depot_default_buckets(conn.assigns.actor, depot, bucket_ids) do
@@ -40,7 +41,7 @@ defmodule PortfolixirWeb.Api.V1.BucketAssignmentController do
 
   @doc "Replaces a cash account's bucket set (`PUT /cash_accounts/:id/buckets`)."
   def set_cash_account_buckets(conn, %{"id" => id} = params) do
-    with {:ok, cid} <- parse_id(id),
+    with {:ok, cid} <- IdParam.parse(id),
          %CashAccount{} = cash <- Portfolios.get_cash_account(cid),
          {:ok, bucket_ids} <- bucket_ids(params),
          :ok <- Buckets.set_cash_account_buckets(conn.assigns.actor, cash, bucket_ids) do
@@ -63,8 +64,8 @@ defmodule PortfolixirWeb.Api.V1.BucketAssignmentController do
   distinct from inheriting the depot default.
   """
   def set_position_override(conn, %{"id" => id, "security_id" => security_id} = params) do
-    with {:ok, sid} <- parse_id(id),
-         {:ok, sec_id} <- parse_id(security_id),
+    with {:ok, sid} <- IdParam.parse(id),
+         {:ok, sec_id} <- IdParam.parse(security_id),
          %SecuritiesAccount{} = depot <- Portfolios.get_securities_account(sid),
          %Security{} = security <- Catalog.get_security(sec_id),
          {:ok, bucket_ids} <- bucket_ids(params),
@@ -87,8 +88,8 @@ defmodule PortfolixirWeb.Api.V1.BucketAssignmentController do
   default (`DELETE /securities_accounts/:id/positions/:security_id/buckets`).
   """
   def clear_position_override(conn, %{"id" => id, "security_id" => security_id}) do
-    with {:ok, sid} <- parse_id(id),
-         {:ok, sec_id} <- parse_id(security_id),
+    with {:ok, sid} <- IdParam.parse(id),
+         {:ok, sec_id} <- IdParam.parse(security_id),
          %SecuritiesAccount{} = depot <- Portfolios.get_securities_account(sid),
          %Security{} = security <- Catalog.get_security(sec_id),
          :ok <- Buckets.clear_position_override(conn.assigns.actor, depot, security) do
@@ -120,34 +121,13 @@ defmodule PortfolixirWeb.Api.V1.BucketAssignmentController do
   defp bucket_ids(params) do
     case Map.get(params, "bucket_ids") do
       nil -> {:ok, []}
-      list when is_list(list) -> parse_ids(list)
+      list when is_list(list) -> list |> IdParam.parse_list() |> bucket_ids_result()
       _ -> {:error, :bucket_ids}
     end
   end
 
-  defp parse_ids(list) do
-    Enum.reduce_while(list, {:ok, []}, fn value, {:ok, acc} ->
-      case parse_id(value) do
-        {:ok, id} -> {:cont, {:ok, [id | acc]}}
-        :error -> {:halt, {:error, :bucket_ids}}
-      end
-    end)
-    |> case do
-      {:ok, ids} -> {:ok, Enum.reverse(ids)}
-      error -> error
-    end
-  end
-
-  defp parse_id(value) when is_integer(value) and value > 0, do: {:ok, value}
-
-  defp parse_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} when id > 0 -> {:ok, id}
-      _ -> :error
-    end
-  end
-
-  defp parse_id(_value), do: :error
+  defp bucket_ids_result({:ok, ids}), do: {:ok, ids}
+  defp bucket_ids_result(:error), do: {:error, :bucket_ids}
 
   # ADR-0024: an account carries at most one bucket of the exclusive "scope"
   # dimension; a violating set is rejected before anything is written.

@@ -27,6 +27,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
   alias Portfolixir.Clock
   alias Portfolixir.Knowledge.Events
   alias Portfolixir.Knowledge.SecurityEvent
+  alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ListLimit
   alias PortfolixirWeb.Api.V1.SinceParam
@@ -101,7 +102,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
   end
 
   def update(conn, %{"id" => id} = params) do
-    with {:ok, event_id} <- parse_id(id),
+    with {:ok, event_id} <- IdParam.parse(id),
          %SecurityEvent{} = event <- Events.get_event(event_id) do
       # `security_id` is not re-assignable: an event belongs to the security
       # it was recorded against, and moving one would silently rewrite two
@@ -122,7 +123,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
   end
 
   def delete(conn, %{"id" => id}) do
-    with {:ok, event_id} <- parse_id(id),
+    with {:ok, event_id} <- IdParam.parse(id),
          %SecurityEvent{} = event <- Events.get_event(event_id),
          {:ok, _deleted} <- Events.delete_event(conn.assigns.actor, event) do
       send_resp(conn, :no_content, "")
@@ -319,29 +320,13 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
       value when value in [nil, ""] ->
         {:ok, nil}
 
-      value when is_integer(value) ->
-        {:ok, value}
-
-      value when is_binary(value) ->
-        case Integer.parse(value) do
-          {id, ""} -> {:ok, id}
-          _ -> {:error, :security_id}
+      value ->
+        case IdParam.parse(value) do
+          {:ok, id} -> {:ok, id}
+          :error -> {:error, :security_id}
         end
-
-      _ ->
-        {:error, :security_id}
     end
   end
-
-  defp parse_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> {:ok, id}
-      _ -> :error
-    end
-  end
-
-  defp parse_id(value) when is_integer(value), do: {:ok, value}
-  defp parse_id(_value), do: :error
 
   defp unprocessable(conn, errors) do
     conn

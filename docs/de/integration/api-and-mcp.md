@@ -37,6 +37,15 @@ diese Werte sollten ebenfalls Strings senden.
 `204 No Content` mit leerem Body. Clients sollten für diese erfolgreiche
 Löschantwort keinen JSON-Body parsen.
 
+**IDs.** Jede ID ist eine positive Ganzzahl, die in ein PostgreSQL-`bigint`
+passt (höchstens `9223372036854775807`). Eine Pfad-ID, die fehlerhaft,
+unbekannt oder jenseits dieser Grenze ist, liefert `404`; eine ID jenseits der
+Grenze in einem Query-String oder einem JSON-Body (in beliebiger Tiefe, als Zahl
+oder als String) liefert `422` mit dem Namen des Schlüssels — derselbe
+Feldfehler, den eine fehlerhafte ID erhält. Keine ID wird je mit `500`
+beantwortet. Die freie `attributes`-Map eines Wertpapiers sowie die Textfelder
+`online_id` und `resource_id` sind keine IDs und werden nicht geprüft.
+
 **Delta-Reads (FR-38).** Die beiden wiederkehrenden Sync-Reads — `GET
 /api/v1/transactions` und `GET /api/v1/securities` — akzeptieren
 `?since=<ISO8601>` (Datetime mit Offset, naive UTC-Datetime oder ein reines

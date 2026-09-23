@@ -5,13 +5,14 @@ defmodule PortfolixirWeb.Api.V1.RiskController do
   alias Portfolixir.Portfolios.Performance.Benchmark
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.Risk
+  alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ViewParam
 
   @zero Decimal.new("0")
 
   def index(conn, %{"portfolio_id" => portfolio_id} = params) do
-    with {:ok, pid} <- parse_id(portfolio_id),
+    with {:ok, pid} <- IdParam.parse(portfolio_id),
          %Portfolio{} <- Portfolios.get_portfolio(pid),
          {:ok, view} <- ViewParam.resolve(params),
          {:ok, opts} <- risk_opts(params) do
@@ -181,15 +182,6 @@ defmodule PortfolixirWeb.Api.V1.RiskController do
   # consumes a keyword list, not a map). Absent (`nil`) overrides are dropped.
   defp put_opt(opts, _key, nil), do: opts
   defp put_opt(opts, key, value), do: Keyword.put(opts, key, value)
-
-  defp parse_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> {:ok, id}
-      _ -> :error
-    end
-  end
-
-  defp parse_id(_value), do: :error
 
   defp unprocessable(conn, errors) do
     conn

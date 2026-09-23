@@ -3,11 +3,12 @@ defmodule PortfolixirWeb.Api.V1.ValuationController do
 
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Valuation
+  alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ViewParam
 
   def index(conn, %{"portfolio_id" => portfolio_id} = params) do
-    with {:ok, id} <- parse_id(portfolio_id),
+    with {:ok, id} <- IdParam.parse(portfolio_id),
          portfolio when not is_nil(portfolio) <- Portfolios.get_portfolio(id),
          {:ok, view} <- ViewParam.resolve(params),
          {:ok, include_positions} <- include_positions_param(params) do
@@ -43,15 +44,6 @@ defmodule PortfolixirWeb.Api.V1.ValuationController do
       _other -> {:error, :include_positions}
     end
   end
-
-  defp parse_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> {:ok, id}
-      _ -> :error
-    end
-  end
-
-  defp parse_id(_value), do: :error
 
   defp unprocessable(conn, errors) do
     conn

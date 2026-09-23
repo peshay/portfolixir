@@ -16,6 +16,7 @@ defmodule PortfolixirWeb.Api.V1.ViewParam do
 
   alias Portfolixir.Buckets
   alias Portfolixir.Buckets.View
+  alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
 
   @type result :: {:ok, View.t() | nil} | {:error, :view} | :view_not_found
@@ -42,16 +43,12 @@ defmodule PortfolixirWeb.Api.V1.ViewParam do
 
   # A query-string `view` arrives as a binary; a JSON body `view` (e.g. the PUT
   # target/cash-target endpoints, ADR-0020) may arrive as a parsed integer.
-  defp resolve_id(raw) when is_integer(raw), do: lookup(raw)
-
-  defp resolve_id(raw) when is_binary(raw) do
-    case Integer.parse(raw) do
-      {vid, ""} -> lookup(vid)
-      _ -> {:error, :view}
+  defp resolve_id(raw) do
+    case IdParam.parse(raw) do
+      {:ok, vid} -> lookup(vid)
+      :error -> {:error, :view}
     end
   end
-
-  defp resolve_id(_raw), do: {:error, :view}
 
   defp lookup(vid) do
     case Buckets.get_view(vid) do

@@ -22,6 +22,7 @@ defmodule PortfolixirWeb.Api.V1.TaxSnapshotController do
   use PortfolixirWeb, :controller
 
   alias Portfolixir.Tax
+  alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
 
   def index(conn, params) do
@@ -36,7 +37,7 @@ defmodule PortfolixirWeb.Api.V1.TaxSnapshotController do
   end
 
   def show(conn, %{"id" => id}) do
-    with {:ok, snapshot_id} <- parse_id(id),
+    with {:ok, snapshot_id} <- IdParam.parse(id),
          {:ok, snapshot} <- Tax.fetch_snapshot(snapshot_id) do
       json(conn, %{data: serialize(snapshot)})
     else
@@ -56,7 +57,7 @@ defmodule PortfolixirWeb.Api.V1.TaxSnapshotController do
   def update(conn, %{"id" => id} = params) do
     attrs = Map.get(params, "statement_snapshot", %{})
 
-    with {:ok, snapshot_id} <- parse_id(id),
+    with {:ok, snapshot_id} <- IdParam.parse(id),
          {:ok, snapshot} <- Tax.fetch_snapshot(snapshot_id) do
       case Tax.update_snapshot(conn.assigns.actor, snapshot, attrs) do
         {:ok, updated} -> json(conn, %{data: serialize(updated)})
@@ -68,7 +69,7 @@ defmodule PortfolixirWeb.Api.V1.TaxSnapshotController do
   end
 
   def delete(conn, %{"id" => id}) do
-    with {:ok, snapshot_id} <- parse_id(id),
+    with {:ok, snapshot_id} <- IdParam.parse(id),
          {:ok, snapshot} <- Tax.delete_snapshot(conn.assigns.actor, snapshot_id) do
       json(conn, %{data: serialize(snapshot)})
     else
@@ -103,17 +104,6 @@ defmodule PortfolixirWeb.Api.V1.TaxSnapshotController do
       staleness: Tax.staleness(snapshot.as_of)
     )
   end
-
-  defp parse_id(value) when is_integer(value), do: {:ok, value}
-
-  defp parse_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> {:ok, id}
-      _other -> :error
-    end
-  end
-
-  defp parse_id(_value), do: :error
 
   defp parse_year(nil), do: nil
 

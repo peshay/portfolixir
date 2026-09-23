@@ -13,6 +13,7 @@ defmodule PortfolixirWeb.Api.V1.PortfolioController do
 
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Portfolio
+  alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
 
   def index(conn, _params) do
@@ -42,7 +43,7 @@ defmodule PortfolixirWeb.Api.V1.PortfolioController do
   def update(conn, %{"portfolio_id" => portfolio_id} = params) do
     conn = put_deprecation(conn)
 
-    with {:ok, pid} <- parse_id(portfolio_id),
+    with {:ok, pid} <- IdParam.parse(portfolio_id),
          %Portfolio{} = portfolio <- Portfolios.get_portfolio(pid) do
       attrs = Map.get(params, "portfolio", %{})
 
@@ -67,15 +68,6 @@ defmodule PortfolixirWeb.Api.V1.PortfolioController do
   defp put_deprecation(conn) do
     put_resp_header(conn, "deprecation", "true")
   end
-
-  defp parse_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> {:ok, id}
-      _ -> :error
-    end
-  end
-
-  defp parse_id(_value), do: :error
 
   defp not_found(conn) do
     conn

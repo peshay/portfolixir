@@ -13,12 +13,13 @@ defmodule PortfolixirWeb.Api.V1.ViewBenchmarkController do
   alias Portfolixir.Buckets.View
   alias Portfolixir.Portfolios.Performance.Benchmark
   alias PortfolixirWeb.Api.V1.BenchmarkParam
+  alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.PeriodParam
   alias PortfolixirWeb.Api.V1.ViewParam
 
   def show(conn, %{"view_id" => view_id} = params) do
-    with {:ok, vid} <- parse_id(view_id),
+    with {:ok, vid} <- IdParam.parse(view_id),
          %View{} = view <- Buckets.get_view(vid) do
       include_series? = Map.get(params, "series") in ["true", "1"]
 
@@ -47,15 +48,6 @@ defmodule PortfolixirWeb.Api.V1.ViewBenchmarkController do
     |> put_status(:unprocessable_entity)
     |> json(%{errors: errors})
   end
-
-  defp parse_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> {:ok, id}
-      _ -> :error
-    end
-  end
-
-  defp parse_id(_value), do: :error
 
   defp not_found(conn) do
     conn

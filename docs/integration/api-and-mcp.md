@@ -36,6 +36,14 @@ send strings.
 `204 No Content` with an empty body. Clients should not parse a JSON body for
 that successful delete response.
 
+**Ids.** Every id is a positive integer that fits a PostgreSQL `bigint`
+(at most `9223372036854775807`). A path id that is malformed, unknown or past
+that bound answers `404`; an id past the bound in a query string or a JSON body
+(at any depth, as a number or a string) answers `422` naming the key, the same
+field error a malformed id gets. No id is ever answered with a `500`. A
+security's free-form `attributes` map and the text fields `online_id` and
+`resource_id` are not ids and are not checked.
+
 **Delta reads (FR-38).** The two recurring-sync reads — `GET
 /api/v1/transactions` and `GET /api/v1/securities` — accept
 `?since=<ISO8601>` (a datetime with offset, a naive UTC datetime, or a plain

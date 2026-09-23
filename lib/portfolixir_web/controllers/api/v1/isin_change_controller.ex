@@ -12,6 +12,7 @@ defmodule PortfolixirWeb.Api.V1.IsinChangeController do
   use PortfolixirWeb, :controller
 
   alias Portfolixir.Catalog
+  alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
 
   def create(conn, %{"security_id" => id} = params) do
@@ -42,8 +43,8 @@ defmodule PortfolixirWeb.Api.V1.IsinChangeController do
   end
 
   def delete_alias(conn, %{"security_id" => security_id, "id" => id}) do
-    with {:ok, security_id} <- parse_id(security_id),
-         {:ok, alias_id} <- parse_id(id),
+    with {:ok, security_id} <- IdParam.parse(security_id),
+         {:ok, alias_id} <- IdParam.parse(id),
          alias_row when not is_nil(alias_row) <-
            Catalog.get_identifier_alias(security_id, alias_id),
          {:ok, _deleted} <- Catalog.delete_identifier_alias(conn.assigns.actor, alias_row) do
@@ -54,17 +55,6 @@ defmodule PortfolixirWeb.Api.V1.IsinChangeController do
       {:error, changeset} -> validation_error(conn, changeset)
     end
   end
-
-  defp parse_id(value) when is_integer(value), do: {:ok, value}
-
-  defp parse_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> {:ok, id}
-      _ -> :error
-    end
-  end
-
-  defp parse_id(_value), do: :error
 
   defp not_found(conn) do
     conn
