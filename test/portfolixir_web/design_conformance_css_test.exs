@@ -117,4 +117,38 @@ defmodule PortfolixirWeb.DesignConformanceCssTest do
     assert ring =~ "outline: 2px solid var(--color-accent)"
     assert ring =~ ~r/outline-offset: -\d+px/
   end
+
+  # User story (#854, DESIGN.md → Data as table — one disclosure; board
+  # ux-design-2026-09-23/04-tab-row-and-disclosure, "after"):
+  # As a local portfolio maintainer opening a table behind a disclosure,
+  # I want exactly one marker on the summary — the chevron that turns when it
+  # opens —
+  # so that the row does not read "▸ ›" with two arrows pointing at nothing.
+  #
+  # Acceptance criteria:
+  # - No `.disclosure-summary::before` rule draws a triangle in app.css.
+  # - Every `<summary class="disclosure-summary">` in the templates renders the
+  #   chevron icon, so dropping the triangle leaves none of them without a
+  #   marker. The one exception is a picker trigger whose own icon names it
+  #   (the Wealth holdings "Columns" picker, converted to `.popover` by #850).
+  test "a disclosure summary carries exactly one marker, the chevron" do
+    app_css = File.read!(@app_css)
+    refute app_css =~ ~r/\.disclosure-summary::before\s*\{/
+
+    summaries =
+      for path <- Path.wildcard("lib/portfolixir_web/**/*.ex"),
+          source = File.read!(path),
+          [block] <-
+            Regex.scan(
+              ~r/<summary class="disclosure-summary">.*?<\/summary>/s,
+              source
+            ),
+          not (block =~ "gettext(\"Columns\")"),
+          do: {path, block}
+
+    assert summaries != []
+
+    missing = for {path, block} <- summaries, not (block =~ "disclosure-chevron"), do: path
+    assert missing == [], "disclosure summaries without the chevron: #{inspect(missing)}"
+  end
 end
