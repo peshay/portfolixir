@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — aktiver Reiter bei 390 px und ein Aufklapp-Marker (#857, #854)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  .phone { width: 390px; border: 1px solid var(--color-border); border-radius: 18px; overflow: hidden; background: var(--color-bg-elevated); }
+  .phone .top { padding: 10px 14px; font-weight: 700; border-bottom: 1px solid var(--color-border); }
+  .strip { position: relative; display: flex; gap: 2px; padding: 0 8px; border-bottom: 1px solid var(--color-border); overflow: hidden; white-space: nowrap; }
+  .strip span { padding: 9px 11px; font-size: 13px; color: var(--color-text-muted); flex: none; }
+  .strip span.on { color: var(--color-accent); font-weight: 700; box-shadow: inset 0 -2px 0 var(--color-accent); }
+  .strip::after { content: ""; position: absolute; top: 0; right: 0; bottom: 0; width: 40px; background: linear-gradient(to right, transparent, var(--color-bg-elevated)); }
+  .strip.end::after { display: none; }
+  .strip.scrolled::before { content: ""; position: absolute; top: 0; left: 0; bottom: 0; width: 24px; z-index: 1; background: linear-gradient(to left, transparent, var(--color-bg-elevated)); }
+  .off { font-size: 11px; color: var(--color-danger); padding: 6px 14px; }
+  .okk { font-size: 11px; color: var(--color-positive); padding: 6px 14px; }
+  .sum { display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--color-text-muted); padding: 8px 0; }
+  .mark { font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="pickbar"><b>Vorher / Nachher — keine Variantenwahl.</b> #857 und #854 sind Konformitätsbefunde gegen <code>DESIGN.md</code> (D6 / UX-DR22 und UX-DR10). Das Board zeigt, was sich ändert, bevor es gebaut wird.</div>
+
+<section class="mock-board">
+  <h2>#857 — der aktive Reiter ist bei 390 px außerhalb des Bildes <small>Vorher / Nachher</small></h2>
+  <p class="mock-note">Die Reiterzeile scrollt wie spezifiziert, öffnet aber auf jeder Seite bei <code>scrollLeft: 0</code>. Auf „Risiko“, „Steuern“ und „Momentaufnahmen“ sieht ein Telefonnutzer nicht, wo er ist (gemessen: „Risiko“ bei x 689–784). Nachher: Beim Laden wird der Reiter mit <code>aria-current</code> in den sichtbaren Bereich gerollt, ohne Animation unter <code>prefers-reduced-motion</code>; ein linker Verlauf zeigt, dass davor noch Reiter liegen. Steht die Zeile am Ende, fällt der rechte Verlauf weg, damit er den aktiven Reiter nicht selbst verdeckt — sonst wäre die Reparatur nur ein Umzug unter die Maske.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before"><span class="mock-tag">Vorher</span><div class="workspace-section">
+      <div class="phone"><div class="top">Vermögen</div>
+        <div class="strip"><span>Bestände</span><span>Aufteilung &amp; Ziele</span><span>Zahlungsfluss</span><span>Momentauf…</span></div>
+        <div class="off">aktiver Reiter „Risiko“ liegt rechts außerhalb</div>
+      </div>
+    </div></div>
+    <div class="mock-frame mock-after"><span class="mock-tag">Nachher</span><div class="workspace-section">
+      <div class="phone"><div class="top">Vermögen</div>
+        <div class="strip scrolled end"><span>Zahlungsfluss</span><span>Momentaufnahmen</span><span>Steuern</span><span class="on">Risiko</span></div>
+        <div class="okk">aktiver Reiter sichtbar · linker Verlauf zeigt: davor liegt mehr</div>
+      </div>
+    </div></div>
+  </div>
+</section>
+
+<section class="mock-board">
+  <h2>#854 — jede Aufklappzeile zeigt zwei Marker <small>Vorher / Nachher</small></h2>
+  <p class="mock-note"><code>.disclosure-summary::before</code> setzt „▸“, und die Vorlagen rendern zusätzlich das Chevron-Symbol. Ergebnis „▸ ›“ auf „Daten als Tabelle“, der Aufteilungs-Aufklappzeile und den Korrelationen auf „Risiko“. <code>DESIGN.md</code> → „Data as table — one disclosure“ nennt einen Chevron. Nachher: das Symbol bleibt (es dreht sich beim Öffnen), das CSS-Dreieck fällt weg.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before" style="flex:1 1 300px"><span class="mock-tag">Vorher</span><div class="workspace-section">
+      <div class="sum"><span class="mark">▸</span><span class="mark">›</span>Daten als Tabelle</div>
+      <div class="sum"><span class="mark">▸</span><span class="mark">›</span>Korrelationen der größten Positionen anzeigen</div>
+    </div></div>
+    <div class="mock-frame mock-after" style="flex:1 1 300px"><span class="mock-tag">Nachher</span><div class="workspace-section">
+      <div class="sum"><span class="mark">›</span>Daten als Tabelle</div>
+      <div class="sum"><span class="mark">›</span>Korrelationen der größten Positionen anzeigen</div>
+    </div></div>
+  </div>
+</section>
+
+</body>
+</html>

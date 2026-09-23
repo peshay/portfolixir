@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Eigene Regeln (ADR-0049, Lane A4, Pick F1)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  .finding td:first-child { width: 36%; }
+  .rulewords { font-size: 12px; color: var(--color-text-muted); display: block; margin-top: 2px; }
+  .lens-sep { border-top: 1px dashed var(--color-border-strong); padding-top: 12px; }
+  .card { border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); padding: 12px 14px; display: grid; gap: 8px; }
+  .card h5 { margin: 0; font-size: 13px; }
+  .card .li { display: flex; gap: 8px; align-items: baseline; font-size: 12.5px; }
+  .card .li b { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+
+<div class="pickbar"><b>Entscheidung F1 — offen.</b> Wo die eigenen Regeln (ADR-0049) und ihre Befunde für den Betreiber stehen. Empfehlung: <b>A</b>. Ein Kommentar mit dem Buchstaben auf der Planungs-PR entscheidet; ohne Kommentar gilt die Empfehlung. Alle Zahlen und Namen sind erfunden.</div>
+
+<!-- ============================ VARIANTE A ============================ -->
+<section class="mock-board">
+  <h2>Variante A — Abschnitt „Eigene Regeln“ oben auf dem Reiter „Risiko“ <small>empfohlen</small></h2>
+  <p class="mock-note">Die Befunde stehen dort, wo die Frage gestellt wird: „Bin ich innerhalb meiner Grenzen?“ Verletzte und nicht bestimmbare Regeln stehen oben (ADR-0049 §9). Die allgemeinen Schwellen der Konzentrationslinse bleiben darunter und sind ausdrücklich als <em>allgemein</em> beschriftet — zwei Mechanismen, zwei Überschriften (§7). Anlegen, Ändern und Beenden über einen nativen Dialog; eine Änderung erzeugt eine neue Version und nennt das.</p>
+  <div class="mock-row">
+  <div class="mock-frame" style="flex:1 1 640px"><div class="workspace-section">
+    <div class="page">
+      <div class="top"><h3>Vermögen</h3><span class="u-muted">Ansicht: Alles</span></div>
+      <div class="atabs"><span>Bestände</span><span>Aufteilung &amp; Ziele</span><span>Zahlungsfluss</span><span>Momentaufnahmen</span><span>Steuern</span><span class="on">Risiko</span></div>
+      <div class="body">
+        <div class="u-flex"><h4 class="sec u-grow">Eigene Regeln <span class="u-muted" style="font-weight:500">· 1 verletzt · 1 nicht bestimmbar · 3 eingehalten</span></h4><span class="btn">Regel anlegen</span></div>
+        <div class="mock-frame" style="box-shadow:none">
+          <table class="t finding">
+            <thead><tr><th>Regel</th><th class="n">Gemessen</th><th class="n">Grenze</th><th>Stand</th></tr></thead>
+            <tbody>
+              <tr><td><b>Einzeltitel höchstens 10 %</b><span class="rulewords">Gewicht · Nordic Timber Holdings AB · Obergrenze · hart</span></td><td class="n">12,4 %</td><td class="n">10,0 %</td><td><span class="sev hard">verletzt · +2,4 Pp</span></td></tr>
+              <tr><td><b>Schwankung begrenzen</b><span class="rulewords">Volatilität · 90 Tage · Obergrenze · Warnung</span></td><td class="n">—</td><td class="n">15,0 %</td><td><span class="sev und">nicht bestimmbar</span><span class="rulewords">14 von 20 nötigen Beobachtungen</span></td></tr>
+              <tr><td><b>Anleihen im Band</b><span class="rulewords">Abweichung · Kategorie Anleihen · Band · Warnung</span></td><td class="n">−1,2 Pp</td><td class="n">−3 … +3 Pp</td><td><span class="sev ok">eingehalten</span></td></tr>
+              <tr><td><b>Barreserve</b><span class="rulewords">Gewicht · Barmittel · Untergrenze · Warnung</span></td><td class="n">6,2 %</td><td class="n">5,0 %</td><td><span class="sev ok">eingehalten</span></td></tr>
+              <tr><td><b>Spielgeld klein halten</b><span class="rulewords">Gewicht · Ansicht „Spekulativ“ · Obergrenze · hart</span></td><td class="n">3,1 %</td><td class="n">5,0 %</td><td><span class="sev ok">eingehalten</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="basis">Ausgewertet beim Lesen, Stand 2026-09-19, auf der steuerbaren Basis der Ansicht. Jede Regel nennt die Kennzahl, aus der sie liest. Ein Befund sagt nicht, was zu tun ist.</p>
+
+        <div class="lens-sep"><h4 class="sec">Größte Einzelpositionen <span class="u-muted" style="font-weight:500">· allgemeine Schwellen, nicht deine Regeln</span></h4></div>
+        <div class="mock-frame" style="box-shadow:none">
+          <table class="t">
+            <thead><tr><th>Wertpapier</th><th class="n">Gewicht</th><th>Allgemeine Schwelle</th></tr></thead>
+            <tbody>
+              <tr><td>Nordic Timber Holdings AB</td><td class="n">12,4 %</td><td><span class="sev hard">über 10 %</span></td></tr>
+              <tr><td>Meridian Global Equity ETF</td><td class="n">21,5 %</td><td><span class="sev ok">unter 25 %</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="note-muted">… HHI, Kennzahlen und Korrelationen wie bisher.</p>
+      </div>
+    </div>
+  </div></div>
+
+  <div style="flex:0 1 420px" class="u-gap">
+    <div class="dialog-mock">
+      <h5>Regel ändern — „Einzeltitel höchstens 10 %“</h5>
+      <div class="grid2">
+        <label class="field"><span>Kennzahl</span><span class="in">Gewicht</span></label>
+        <label class="field"><span>Bezug</span><span class="in">Nordic Timber Holdings AB</span></label>
+        <label class="field"><span>Art</span><span class="in">Obergrenze</span></label>
+        <label class="field"><span>Grenze (%)</span><span class="in num">10</span></label>
+        <label class="field"><span>Schweregrad</span><span class="in">hart</span></label>
+        <label class="field"><span>Gilt ab</span><span class="in">2026-09-23</span></label>
+      </div>
+      <p class="note-muted">Speichern legt <b>Version 3</b> an. Version 2 (Grenze 12 %) galt vom 2026-06-01 bis 2026-09-22 und bleibt lesbar.</p>
+      <div class="u-flex"><span class="btn primary">Neue Version speichern</span><span class="btn">Regel beenden</span><span class="u-grow"></span><span class="btn">Abbrechen</span></div>
+    </div>
+    <div class="dialog-mock" style="gap:6px">
+      <h5 style="font-size:13px">Versionen</h5>
+      <p class="note-muted">v3 · ab 2026-09-23 · ≤ 10 % · hart</p>
+      <p class="note-muted">v2 · 2026-06-01 – 2026-09-22 · ≤ 12 % · hart</p>
+      <p class="note-muted">v1 · 2026-02-01 – 2026-05-31 · ≤ 12 % · Warnung</p>
+    </div>
+  </div>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE B ============================ -->
+<section class="mock-board">
+  <h2>Variante B — siebter Bereichsreiter „Regeln“ <small>eigene Seite</small></h2>
+  <p class="mock-note">Mehr Platz für Regelverwaltung und Versionsverlauf, und die Regeln stehen nicht unter einer Überschrift, die „Risiko“ sagt, obwohl eine Abweichungsregel eher zu „Aufteilung &amp; Ziele“ gehört. Der Preis: ein siebter Reiter in einer Zeile, deren aktiver Reiter bei 390 px schon heute außerhalb des Bildes liegt (#857), und die Befunde stehen nicht neben den Zahlen, über die sie urteilen.</p>
+  <div class="mock-frame"><div class="workspace-section">
+    <div class="page">
+      <div class="top"><h3>Vermögen</h3><span class="u-muted">Ansicht: Alles</span></div>
+      <div class="atabs"><span>Bestände</span><span>Aufteilung &amp; Ziele</span><span>Zahlungsfluss</span><span>Momentaufnahmen</span><span>Steuern</span><span>Risiko</span><span class="on new">Regeln</span></div>
+      <div class="body">
+        <div class="u-flex"><h4 class="sec u-grow">Regeln dieser Ansicht</h4><span class="btn">Regel anlegen</span></div>
+        <div class="mock-frame" style="box-shadow:none">
+          <table class="t">
+            <thead><tr><th>Regel</th><th>Kennzahl</th><th class="n">Grenze</th><th class="n">Gemessen</th><th>Stand</th><th>Gilt seit</th></tr></thead>
+            <tbody>
+              <tr><td>Einzeltitel höchstens 10 %</td><td class="u-muted">Gewicht · Nordic Timber</td><td class="n">≤ 10,0 %</td><td class="n">12,4 %</td><td><span class="sev hard">verletzt</span></td><td class="u-muted">2026-09-23 (v3)</td></tr>
+              <tr><td>Schwankung begrenzen</td><td class="u-muted">Volatilität · 90 T</td><td class="n">≤ 15,0 %</td><td class="n">—</td><td><span class="sev und">nicht bestimmbar</span></td><td class="u-muted">2026-08-01 (v1)</td></tr>
+              <tr><td>Anleihen im Band</td><td class="u-muted">Abweichung · Anleihen</td><td class="n">±3 Pp</td><td class="n">−1,2 Pp</td><td><span class="sev ok">eingehalten</span></td><td class="u-muted">2026-07-15 (v2)</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <details class="disc"><summary class="note-muted">Beendete Regeln anzeigen (2)</summary></details>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ VARIANTE C ============================ -->
+<section class="mock-board">
+  <h2>Variante C — Karte „Regeln verletzt“ auf der Übersicht, Verwaltung auf „Risiko“ <small>am sichtbarsten</small></h2>
+  <p class="mock-note">Wie A, plus eine Karte auf der Übersicht neben „Fällig“ (Sprint 13, D3-A), die nur verletzte und nicht bestimmbare Regeln zeigt und auf „Risiko“ verlinkt. Der Betreiber sieht einen Verstoß, ohne danach zu suchen. Der Preis: eine weitere Übersichtskarte, und die Übersicht wächst mit jeder Epic um eine. Die Karte lässt sich auch später ergänzen; darum ist sie hier eine Variante und nicht der Kern.</p>
+  <div class="mock-row">
+    <div class="mock-frame" style="flex:0 1 420px"><div class="workspace-section">
+      <div class="card">
+        <h5>Regeln · 1 verletzt · 1 nicht bestimmbar</h5>
+        <div class="li"><span class="sev hard">verletzt</span><span class="u-grow">Einzeltitel höchstens 10 %</span><b>12,4 %</b></div>
+        <div class="li"><span class="sev und">offen</span><span class="u-grow">Schwankung begrenzen</span><span class="u-muted">zu wenig Daten</span></div>
+        <span class="note-muted">Alle Regeln auf „Risiko“ →</span>
+      </div>
+    </div></div>
+    <div class="mock-frame" style="flex:0 1 420px"><div class="workspace-section">
+      <div class="card">
+        <h5>Fällig · nächste 14 Tage</h5>
+        <div class="li"><span class="u-grow">Helios Solar Systems SE · Quartalszahlen</span><span class="u-muted">2026-09-30</span></div>
+        <div class="li"><span class="u-grow">Kestrel Industrial Group NV · Hauptversammlung</span><span class="u-muted">2026-10-02</span></div>
+      </div>
+    </div></div>
+  </div>
+</section>
+
+</body>
+</html>

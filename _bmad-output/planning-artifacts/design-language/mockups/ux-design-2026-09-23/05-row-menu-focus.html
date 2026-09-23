@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Zeilenmenü per Tastatur erreichbar (#858)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  .rowm { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--color-border); font-size: 13px; position: relative; }
+  .keb { display: inline-grid; place-items: center; min-width: 32px; min-height: 32px; border-radius: 6px; color: var(--color-text-muted); font-weight: 700; }
+  .keb.focus { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .menu { position: absolute; right: 12px; top: 46px; z-index: 2; min-width: 190px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); box-shadow: var(--shadow-md); padding: 4px; display: grid; }
+  .menu span { padding: 8px 10px; border-radius: 6px; font-size: 13px; }
+  .menu span.focus { outline: 2px solid var(--color-accent); outline-offset: -2px; }
+  .keys { font-size: 11.5px; color: var(--color-text-muted); margin-top: 110px; }
+  kbd { font: 600 11px var(--font-mono); border: 1px solid var(--color-border-strong); border-radius: 4px; padding: 0 4px; background: var(--color-bg-muted); }
+</style>
+</head>
+<body>
+
+<div class="pickbar"><b>Vorher / Nachher — keine Variantenwahl.</b> Das Menümuster (WAI-ARIA <code>role="menu"</code>) legt das Verhalten fest; <code>DESIGN.md</code> → Do's and Don'ts (Fokus). Der Fokusring ist seit #834 korrekt — nur erreicht ihn niemand.</div>
+
+<section class="mock-board">
+  <h2>#858 — Enter öffnet das Menü, der Fokus bleibt am Kebab <small>Vorher / Nachher</small></h2>
+  <p class="mock-note">Reproduziert auf <code>/portfolios</code>, <code>/securities</code>, <code>/transactions</code>, <code>/buckets</code>. Vorher: <kbd>Tab</kbd> springt zur nächsten Zeile, <kbd>↓</kbd> tut nichts. Nachher: Öffnen setzt den Fokus auf den ersten Eintrag, <kbd>↑</kbd>/<kbd>↓</kbd> wandern, <kbd>Pos1</kbd>/<kbd>Ende</kbd> springen, <kbd>Esc</kbd> schließt und gibt den Fokus an den Kebab zurück, <kbd>Tab</kbd> schließt das Menü.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before" style="flex:1 1 380px"><span class="mock-tag">Vorher</span><div class="workspace-section" style="padding:0">
+      <div class="rowm"><span class="u-grow">Nordic Timber Holdings AB</span><span class="keb focus">⋯</span>
+        <div class="menu"><span>Bearbeiten</span><span>Umbuchen</span><span>Löschen…</span></div></div>
+      <div class="rowm"><span class="u-grow">Helios Solar Systems SE</span><span class="keb">⋯</span></div>
+      <p class="keys" style="padding:0 12px 12px">Fokus: Kebab · <kbd>↓</kbd> ohne Wirkung · <kbd>Tab</kbd> → nächste Zeile, Menü bleibt offen</p>
+    </div></div>
+    <div class="mock-frame mock-after" style="flex:1 1 380px"><span class="mock-tag">Nachher</span><div class="workspace-section" style="padding:0">
+      <div class="rowm"><span class="u-grow">Nordic Timber Holdings AB</span><span class="keb">⋯</span>
+        <div class="menu"><span class="focus">Bearbeiten</span><span>Umbuchen</span><span>Löschen…</span></div></div>
+      <div class="rowm"><span class="u-grow">Helios Solar Systems SE</span><span class="keb">⋯</span></div>
+      <p class="keys" style="padding:0 12px 12px">Fokus: erster Eintrag · <kbd>↑</kbd>/<kbd>↓</kbd> wandern · <kbd>Esc</kbd> zurück zum Kebab · <kbd>Tab</kbd> schließt</p>
+    </div></div>
+  </div>
+</section>
+
+</body>
+</html>
