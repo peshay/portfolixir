@@ -27,6 +27,7 @@ defmodule PortfolixirWeb.RiskLive do
 
   use PortfolixirWeb, :live_view
 
+  alias Portfolixir.Catalog.AssetClasses
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Risk
   alias PortfolixirWeb.AppShell
@@ -151,12 +152,12 @@ defmodule PortfolixirWeb.RiskLive do
               <p class="empty-state"><%= gettext("No valued position in this view.") %></p>
             <% else %>
               <div class="data-table-wrapper">
-                <table class="data-table" id="risk-top-holdings">
+                <table class="data-table risk-top-table" id="risk-top-holdings">
                   <thead>
                     <tr>
                       <th><%= gettext("Security") %></th>
-                      <th><%= gettext("Asset class") %></th>
-                      <th class="num"><%= gettext("Value") %></th>
+                      <th class="risk-col-optional"><%= gettext("Asset class") %></th>
+                      <th class="num risk-col-optional"><%= gettext("Value") %></th>
                       <th class="num"><%= gettext("Weight") %></th>
                       <th><%= gettext("Threshold") %></th>
                     </tr>
@@ -164,8 +165,8 @@ defmodule PortfolixirWeb.RiskLive do
                   <tbody>
                     <tr :for={holding <- @risk.top_holdings} data-security-id={holding.security_id}>
                       <td><%= holding.security_name %></td>
-                      <td class="muted"><%= holding.asset_class || "—" %></td>
-                      <td class="num"><%= Format.money(holding.market_value) %> <%= @risk.base_currency %></td>
+                      <td class="muted risk-col-optional"><%= asset_class_label(holding.asset_class) %></td>
+                      <td class="num risk-col-optional"><%= Format.money(holding.market_value) %> <%= @risk.base_currency %></td>
                       <td class="num"><%= Format.decimal(holding.weight, 1) %> %</td>
                       <td>
                         <span class={["badge", severity_class(holding.severity)]} data-severity={holding.severity}>
@@ -342,6 +343,9 @@ defmodule PortfolixirWeb.RiskLive do
       required: required
     )
   end
+
+  defp asset_class_label(nil), do: "—"
+  defp asset_class_label(code), do: AssetClasses.label(code)
 
   defp view_name(nil), do: gettext("Everything")
   defp view_name(view), do: view.name

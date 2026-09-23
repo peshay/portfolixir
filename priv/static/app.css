@@ -8083,6 +8083,26 @@ details[open] > .disclosure-summary::before {
   background: var(--color-text);
 }
 
+/* The Top-N at phone width: weight and threshold are the columns the table
+   exists for, so the asset class and the value step aside and the name wraps
+   rather than pushing both off-screen (design-critic finding at 390 px). */
+@media (max-width: 720px) {
+  /* Beats `.data-table-wrapper > table { min-width: max-content }`: this
+     table is meant to fit, not to scroll. */
+  .data-table-wrapper > .risk-top-table {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .risk-top-table .risk-col-optional {
+    display: none;
+  }
+
+  .risk-top-table td:first-child {
+    white-space: normal;
+  }
+}
+
 /* The generic numeric cell (issue 833, DESIGN.md → Components →
    data-table.cell; board ux-design-2026-09-20/04-num-and-focus). Every table
    cell marked `.num` is right-aligned with tabular numerals, in any table —
