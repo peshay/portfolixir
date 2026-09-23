@@ -153,6 +153,26 @@ jobs:
       - name: Audit Hex dependencies
         run: mix deps.audit
 
+      # Issue #728: the MCP gates ran on whatever Node ubuntu-latest shipped
+      # that week — the one unpinned toolchain in this workflow. Pinned to
+      # the 24 LTS line, the same major the companion's Dockerfile ships and
+      # `engines.node` in mcp-server/package.json records, so CI, the image
+      # and a local run agree — and `@types/node` has a runtime major to
+      # follow instead of the registry's latest.
+      # The pin sits above the audit, not below it. `npm audit` is as
+      # npm-version-dependent a gate as the tests are, and leaving it on the
+      # runner's default npm was the gap #728's pin left open. CI 1558
+      # (2026-09-23, main at d085572) failed here on a docs-only merge: a 400
+      # from the registry's retiring `/security/audits/quick` endpoint, while
+      # the same lockfile audited clean locally on npm 10.9.7 and npm 12. The
+      # failure was undiagnosable precisely because the toolchain running it
+      # was the one thing CI did not control. The audit still runs before
+      # `npm ci`, so the lockfile is cleared before anything installs from it.
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+
       - name: Audit MCP server dependencies (npm)
         run: npm audit --audit-level=high --prefix mcp-server
 
@@ -166,17 +186,6 @@ jobs:
       # scripts, which are arbitrary code execution on the runner at install
       # time; nothing in this tree needs them (the deps are the MCP SDK,
       # express, zod, tsx and typescript), and both gates below pass without.
-      # Issue #728: the MCP gates ran on whatever Node ubuntu-latest shipped
-      # that week — the one unpinned toolchain in this workflow. Pinned to
-      # the 24 LTS line, the same major the companion's Dockerfile ships and
-      # `engines.node` in mcp-server/package.json records, so CI, the image
-      # and a local run agree — and `@types/node` has a runtime major to
-      # follow instead of the registry's latest.
-      - name: Setup Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: "24"
-
       - name: Install MCP server dependencies
         run: npm ci --ignore-scripts --prefix mcp-server
 
