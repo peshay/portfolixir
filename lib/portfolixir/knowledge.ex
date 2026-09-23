@@ -28,7 +28,7 @@ defmodule Portfolixir.Knowledge do
   alias Portfolixir.Journal
   alias Portfolixir.Knowledge.SecurityNote
   alias Portfolixir.Knowledge.ThesisState
-  alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Ledger.HeldSecurities
   alias Portfolixir.Repo
 
   @default_days 90
@@ -136,7 +136,8 @@ defmodule Portfolixir.Knowledge do
 
   @doc """
   Held securities with **no entry for N days** (§7.2, review hygiene): every
-  security whose ledger quantity is non-zero and whose newest `as_of` is older
+  security whose ledger quantity is non-zero (`Ledger.HeldSecurities` — every
+  quantity-moving kind, deliveries included) and whose newest `as_of` is older
   than `days` (default #{@default_days}) — or absent. Rows carry the security,
   `last_entry_as_of` (nil when none) and `days_since_last_entry`.
 
@@ -156,11 +157,9 @@ defmodule Portfolixir.Knowledge do
       )
 
     from(s in Security,
-      join: h in subquery(holding_totals_query()),
-      on: h.security_id == s.id,
       left_join: l in subquery(latest),
       on: l.security_id == s.id,
-      where: fragment("? <> 0", h.quantity),
+      where: s.id in subquery(HeldSecurities.held_ids_query()),
       where: is_nil(l.last_as_of) or l.last_as_of < ^cutoff,
       order_by: [asc_nulls_first: l.last_as_of, asc: s.name],
       select: {s, l.last_as_of}
@@ -261,25 +260,5 @@ defmodule Portfolixir.Knowledge do
       |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
 
     Enum.map(notes, &%{&1 | superseded_by_ids: Map.get(superseders, &1.id, [])})
-  end
-
-  # Mirrors Catalog's held-status predicate: the net buy/sell quantity per
-  # security across every depot.
-  defp holding_totals_query do
-    from(t in Transaction,
-      where: t.type in ["buy", "sell"],
-      group_by: t.security_id,
-      select: %{
-        security_id: t.security_id,
-        quantity:
-          fragment(
-            "sum(CASE WHEN ? = 'buy' THEN ? WHEN ? = 'sell' THEN -? ELSE 0 END)",
-            t.type,
-            t.quantity,
-            t.type,
-            t.quantity
-          )
-      }
-    )
   end
 end

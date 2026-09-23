@@ -147,6 +147,55 @@ defmodule Portfolixir.Ledger.Projection do
 
   defp effect(parts), do: Map.merge(%{cash: [], quantities: [], external: false}, Map.new(parts))
 
+  # A row carrying every field any kind reads, so each clause of `effects/1`
+  # can project it. Only its shape matters: one share of `:probe_security`.
+  @probe %{
+    quantity: Decimal.new("1"),
+    price: Decimal.new("1"),
+    fees: Decimal.new("0"),
+    taxes: Decimal.new("0"),
+    gross_amount: Decimal.new("1"),
+    security_id: :probe_security,
+    securities_account_id: :probe_depot,
+    counter_securities_account_id: :probe_counter_depot,
+    cash_account_id: :probe_cash,
+    counter_cash_account_id: :probe_counter_cash,
+    portfolio_id: :probe_portfolio,
+    split_ratio_numerator: 2,
+    split_ratio_denominator: 1
+  }
+
+  @doc """
+  How one unit of a kind's `quantity` moves a security's **total** held
+  quantity across every depot: `1` (the kind acquires shares), `-1` (it
+  disposes of them) or `0` (it moves nothing at that level).
+
+  Read off `effects/1` itself rather than listed by hand (#839): a probe row
+  of the kind is projected and its additive quantity legs for the probe
+  security are summed. So a `security_transfer` is `0` because its two legs
+  cancel, a `split` is `0` because its leg multiplies rather than adds (a
+  positive ratio cannot turn a zero total into a position), and a cash kind is
+  `0` because it has no quantity leg. A kind added to `effects/1` is picked up
+  here without an edit.
+  """
+  @spec security_quantity_sign(String.t()) :: -1 | 0 | 1
+  def security_quantity_sign(kind) when is_binary(kind) do
+    %{type: kind}
+    |> Map.merge(@probe)
+    |> effects()
+    |> Map.fetch!(:quantities)
+    |> Enum.reduce(@zero, fn
+      {_account, :probe_security, delta}, acc -> Decimal.add(acc, delta)
+      _other_leg, acc -> acc
+    end)
+    |> Decimal.compare(@zero)
+    |> case do
+      :gt -> 1
+      :lt -> -1
+      :eq -> 0
+    end
+  end
+
   @doc """
   Replay order within one day: a split applies first (start-of-day, ADR-0028
   §3 — same-day trades are booked in post-split units), and a balance

@@ -41,11 +41,10 @@ defmodule Portfolixir.Knowledge.Events do
 
   alias Ecto.Multi
   alias Portfolixir.Actor
-  alias Portfolixir.Catalog.Security
   alias Portfolixir.Clock
   alias Portfolixir.Journal
   alias Portfolixir.Knowledge.SecurityEvent
-  alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Ledger.HeldSecurities
   alias Portfolixir.Repo
 
   @default_upcoming_days 30
@@ -289,63 +288,15 @@ defmodule Portfolixir.Knowledge.Events do
 
   @doc """
   The security ids with a non-zero net ledger quantity — the same predicate
-  `held_only: true` narrows by. Exposed so a surface can MARK an unheld
+  `held_only: true` narrows by, and the one every held surface reads
+  (`Portfolixir.Ledger.HeldSecurities`, #839). Exposed so a surface can MARK an unheld
   security rather than filter it away (ADR-0048 §2, design pick D3-A).
   """
   @spec held_security_ids() :: [integer()]
-  def held_security_ids do
-    from(s in Security,
-      join: h in subquery(holding_totals_query()),
-      on: h.security_id == s.id,
-      where: fragment("? <> 0", h.quantity),
-      select: s.id
-    )
-    |> Repo.all()
-  end
+  def held_security_ids, do: HeldSecurities.held_ids()
 
   defp maybe_held_only(query, false), do: query
 
-  defp maybe_held_only(query, true) do
-    held =
-      from(s in Security,
-        join: h in subquery(holding_totals_query()),
-        on: h.security_id == s.id,
-        where: fragment("? <> 0", h.quantity),
-        select: s.id
-      )
-
-    where(query, [e], e.security_id in subquery(held))
-  end
-
-  # Every kind that moves a security's quantity in the canonical projection
-  # (`Ledger.Projection.effects/1`), not only the two an agent thinks of
-  # first: a depot transferred in arrives as `inbound_delivery`, and reading
-  # "held" as "bought" reported such a position as unheld — which is the
-  # same mistake, one layer down, that §2 made `held_only` opt-in for.
-  #
-  # `security_transfer` is deliberately absent: it moves quantity between two
-  # depots of the same security, so it nets to zero at the security level,
-  # which is the only level this predicate asks about. A split is absent for
-  # the same reason in the other direction — it multiplies by a positive
-  # ratio and cannot turn a zero into a position or back.
-  @holding_increases ["buy", "inbound_delivery"]
-  @holding_decreases ["sell", "outbound_delivery"]
-
-  defp holding_totals_query do
-    from(t in Transaction,
-      where: t.type in ^(@holding_increases ++ @holding_decreases),
-      group_by: t.security_id,
-      select: %{
-        security_id: t.security_id,
-        quantity:
-          fragment(
-            "sum(CASE WHEN ? = ANY(?) THEN ? ELSE -? END)",
-            t.type,
-            ^@holding_increases,
-            t.quantity,
-            t.quantity
-          )
-      }
-    )
-  end
+  defp maybe_held_only(query, true),
+    do: where(query, [e], e.security_id in subquery(HeldSecurities.held_ids_query()))
 end

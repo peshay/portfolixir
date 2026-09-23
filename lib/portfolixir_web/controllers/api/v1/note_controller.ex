@@ -16,6 +16,7 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Knowledge
   alias Portfolixir.Knowledge.SecurityNote
+  alias Portfolixir.Ledger.HeldSecurities
   alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ListLimit
@@ -25,9 +26,6 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
               "withdrawn by appending a retraction that supersedes it; both stay readable " <>
               "(superseded_by_ids names what superseded an entry). thesis_state is derived " <>
               "from these entries, never stored."
-
-  @unreviewed_basis "Held securities (net buy/sell quantity <> 0 across all depots) whose newest " <>
-                      "entry as_of is older than `days` before as_of, or that have no entry at all."
 
   # FR-38 / #830: the log's delta note. The log is append-only, so the cut
   # compares inserted_at, and there are no deletions to leave out.
@@ -126,7 +124,7 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
           as_of: JSON.date(today),
           limit: limit,
           positions: Enum.map(rows, &unreviewed_row/1),
-          basis: @unreviewed_basis <> " A limit keeps the most overdue positions."
+          basis: unreviewed_basis() <> " A limit keeps the most overdue positions."
         }
       })
     else
@@ -209,6 +207,19 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
     else
       {:error, field} -> unprocessable(conn, %{field => ["is invalid"]})
     end
+  end
+
+  # The held predicate's kinds are read from the one predicate (#839), so the
+  # basis cannot name a narrower rule than the one the read applied.
+  defp unreviewed_basis do
+    %{increases: increases, decreases: decreases} = HeldSecurities.quantity_kinds()
+
+    "Held securities (net quantity <> 0 across all depots; " <>
+      Enum.join(increases, ", ") <>
+      " add, " <>
+      Enum.join(decreases, ", ") <>
+      " subtract, a security_transfer between own depots nets to zero) whose newest " <>
+      "entry as_of is older than `days` before as_of, or that have no entry at all."
   end
 
   # A non-negative integer; absent or empty means the default.

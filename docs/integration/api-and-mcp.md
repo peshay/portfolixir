@@ -145,6 +145,11 @@ full list.
   (ADR-0046: the reference series of the benchmark comparison),
   `is_benchmark=false` leaves them out; the flag is a field of the full
   projection and of `fields=`, and `POST`/`PATCH` accept it.
+  **Held** (`holding_status=held`, and every other held filter: the research
+  log's unreviewed positions and the events' `held_only`) means one thing: a
+  non-zero net quantity across all depots, moved by `buy`, `sell`,
+  `inbound_delivery` and `outbound_delivery` — a depot transferred in is held
+  the moment it arrives; a `security_transfer` between own depots nets to zero.
 - `POST /api/v1/securities` creates a security with a `security` object.
   `asset_class` is a stable string code: `equity`, `etf`, `fund`,
   `government_bond`, `bond`, `crypto`, `commodity`, `index`, `other`, plus the
