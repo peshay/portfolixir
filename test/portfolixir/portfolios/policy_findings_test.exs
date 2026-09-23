@@ -217,6 +217,13 @@ defmodule Portfolixir.Portfolios.PolicyFindingsTest do
     assert %{state: state} = finding(result, drift)
     assert state in [:ok, :breached]
     assert %{state: :undetermined, reason: :no_target} = finding(result, beta_drift)
+
+    # The pass list never carries an undetermined finding: `status=ok` is how
+    # an agent asks "what passes", and undetermined is never a pass (§4).
+    passing = PolicyFindings.for_portfolio(world.portfolio.id, status: [:ok])
+    assert Enum.all?(passing.findings, &(&1.state == :ok))
+    refute finding(passing, beta_drift)
+    refute finding(passing, vol)
   end
 
   # Acceptance criteria (ADR-0049 §2):
