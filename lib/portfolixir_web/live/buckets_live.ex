@@ -35,6 +35,7 @@ defmodule PortfolixirWeb.BucketsLive do
   alias Portfolixir.Settings
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.PolicyRuleLabel
 
   @impl true
   def mount(_params, _session, socket) do
@@ -711,7 +712,16 @@ defmodule PortfolixirWeb.BucketsLive do
          {:ok, _} <- Buckets.delete_view(Actor.owner_ui(), view) do
       {:noreply, socket |> success(gettext("View deleted")) |> load_state()}
     else
-      _ -> {:noreply, socket}
+      # ADR-0049 §8: a view a rule reads is refused by name, where the delete
+      # used to fail with no message at all (board 06-rule-reference-409).
+      {:error, {:policy_rules, rules}} ->
+        {:noreply, failure(socket, PolicyRuleLabel.read_by(rules))}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:noreply, failure(socket, changeset_error(changeset))}
+
+      _ ->
+        {:noreply, socket}
     end
   end
 

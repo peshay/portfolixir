@@ -96,4 +96,42 @@ defmodule PortfolixirWeb.TransactionKindLabelTest do
       refute AssetClasses.label(code) == code, code
     end
   end
+
+  # ADR-0049 §1: the policy-rule enums, their finding states, the reasons a
+  # finding is undetermined and the rule statuses, from the first commit that
+  # renders them. No fallback: an unknown value is refused, not printed.
+  test "every policy-rule enum value has a localized label and an unknown value is refused" do
+    alias Portfolixir.Portfolios.PolicyFindings
+    alias Portfolixir.Portfolios.PolicyRuleVersion
+    alias PortfolixirWeb.PolicyRuleLabel
+
+    Gettext.put_locale(PortfolixirWeb.Gettext, "en")
+
+    sets = [
+      {&PolicyRuleLabel.measure/1, PolicyRuleVersion.measures()},
+      {&PolicyRuleLabel.subject_type/1, PolicyRuleVersion.subject_types()},
+      {&PolicyRuleLabel.kind/1, PolicyRuleVersion.kinds()},
+      {&PolicyRuleLabel.severity/1, PolicyRuleVersion.severities()},
+      {&PolicyRuleLabel.window/1, PolicyRuleVersion.windows()},
+      {&PolicyRuleLabel.state/1, Enum.map(PolicyFindings.states(), &Atom.to_string/1)},
+      {&PolicyRuleLabel.reason/1,
+       ~w(insufficient_data undefined no_active_plan no_target empty_basis subject_not_found not_measured)},
+      {&PolicyRuleLabel.status/1, ~w(in_force scheduled retired)}
+    ]
+
+    for {label, values} <- sets, value <- values do
+      text = label.(value)
+      assert is_binary(text) and text != "", value
+      refute text =~ "_", value
+    end
+
+    for {label, _values} <- sets do
+      assert_raise FunctionClauseError, fn -> label.("bogus_value") end
+    end
+
+    Gettext.put_locale(PortfolixirWeb.Gettext, "de")
+    assert PolicyRuleLabel.state(:breached) == "verletzt"
+    assert PolicyRuleLabel.state(:undetermined) == "nicht bestimmbar"
+    assert PolicyRuleLabel.kind(:cap) == "Obergrenze"
+  end
 end

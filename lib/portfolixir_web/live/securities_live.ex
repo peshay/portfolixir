@@ -132,6 +132,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:row_menu_id, nil)
      |> assign(:editing_security, nil)
      |> assign(:delete_blocked, nil)
+     |> assign(:delete_blocked_rules, [])
      |> assign(:logo_dialog_security, nil)
      |> assign(:securities, [])}
   end
@@ -823,7 +824,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
       <% end %>
 
       <%= if @delete_blocked do %>
-        <RowContextMenu.delete_blocked_dialog security={@delete_blocked} />
+        <RowContextMenu.delete_blocked_dialog
+          security={@delete_blocked}
+          rules={@delete_blocked_rules}
+        />
       <% end %>
 
       <%= if @logo_dialog_security do %>
@@ -4482,8 +4486,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
          |> assign(:delete_blocked, nil)
          |> load_securities()}
 
+      # ADR-0049 §8: the rules that read the security are named, not
+      # disguised as bookings (board 06-rule-reference-409).
+      {:error, {:policy_rules, rules}} ->
+        {:noreply, socket |> assign(:delete_blocked, sec) |> assign(:delete_blocked_rules, rules)}
+
       {:error, _changeset} ->
-        {:noreply, assign(socket, :delete_blocked, sec)}
+        {:noreply, socket |> assign(:delete_blocked, sec) |> assign(:delete_blocked_rules, [])}
     end
   end
 

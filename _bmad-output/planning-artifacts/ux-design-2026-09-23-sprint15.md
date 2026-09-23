@@ -183,3 +183,19 @@ Each built surface against its board **and** against `DESIGN.md` /
 The picked anatomy for F1, F2 and F3 is written into `DESIGN.md` by the story
 that builds it. A UI item that lands without its board is a close-out
 finding.
+
+---
+
+## Part 6 — Boards drawn mid-batch
+
+A surface discovered while the batch runs is boarded before its story is
+implemented (AGENTS.md → "A UI change is mocked before it is built", point 2).
+
+| Board | Item | Kind | Found by |
+|---|---|---|---|
+| `06-rule-reference-409` | The refusal a delete gives when a policy rule reads the object: the securities delete-blocked dialog names the rules instead of claiming "transactions or quote history"; the classifications and views pages show the rules in their existing error message (the views page used to show nothing at all; the API answered a 500). | before/after | Lane A3 (ADR-0049 §8) |
+
+The built copy follows the microcopy voice gate (no second person in English,
+no imperative in German), so the flash reads "… sie auf „Vermögen → Risiko“
+zu beenden, stoppt ihre Auswertung." The board was re-rendered with that
+wording, so the board and the build say the same thing.

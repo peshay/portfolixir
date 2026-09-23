@@ -12,6 +12,7 @@ defmodule PortfolixirWeb.Securities.RowContextMenu do
   use Gettext, backend: PortfolixirWeb.Gettext
 
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.PolicyRuleLabel
 
   attr(:security, :map, required: true)
   attr(:has_transactions?, :boolean, default: false)
@@ -170,6 +171,9 @@ defmodule PortfolixirWeb.Securities.RowContextMenu do
   end
 
   attr(:security, :map, required: true)
+  # ADR-0049 §8: the policy rules that read the security, when they are what
+  # blocks the delete; empty for a booking or a quote.
+  attr(:rules, :list, default: [])
 
   def delete_blocked_dialog(assigns) do
     ~H"""
@@ -195,12 +199,29 @@ defmodule PortfolixirWeb.Securities.RowContextMenu do
         </header>
 
         <div class="modal-body">
-          <p>
-            <%= gettext(
-              "%{name} is referenced by existing transactions or quote history and cannot be deleted. Retire it instead to hide it from the active list while keeping the historical record intact.",
-              name: @security.name
-            ) %>
-          </p>
+          <%= if @rules == [] do %>
+            <p>
+              <%= gettext(
+                "%{name} is referenced by existing transactions or quote history and cannot be deleted. Retire it instead to hide it from the active list while keeping the historical record intact.",
+                name: @security.name
+              ) %>
+            </p>
+          <% else %>
+            <p><%= gettext("%{name} is read by policy rules:", name: @security.name) %></p>
+            <ul>
+              <li :for={rule <- @rules}>
+                <%= gettext("“%{name}” (%{status})",
+                  name: rule.name,
+                  status: PolicyRuleLabel.status(rule.status)
+                ) %>
+              </li>
+            </ul>
+            <p class="muted">
+              <%= gettext(
+                "A rule that has been in force keeps its subject as part of its history. Retiring the security hides it from the active list and keeps both."
+              ) %>
+            </p>
+          <% end %>
         </div>
 
         <div class="modal-footer">

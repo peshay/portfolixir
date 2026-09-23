@@ -13,6 +13,7 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
   alias Portfolixir.Buckets.View
   alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.PolicyConflict
 
   def index(conn, _params) do
     data =
@@ -65,6 +66,7 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
          {:ok, _} <- Buckets.delete_view(conn.assigns.actor, view) do
       send_resp(conn, :no_content, "")
     else
+      {:error, {:policy_rules, rules}} -> PolicyConflict.render(conn, rules, "view")
       nil -> not_found(conn)
       :error -> not_found(conn)
       {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))

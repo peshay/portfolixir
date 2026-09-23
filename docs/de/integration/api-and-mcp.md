@@ -1353,6 +1353,16 @@ Die Schreibzugriffe:
 - `DELETE /api/v1/policy_rules/:id` — nur, solange **keine** Version je
   gegolten hat (`204`); sonst `409`, und der Ausweg ist, sie zu beenden.
 
+**Was eine Regel liest, ist geschützt.** Das Löschen eines Wertpapiers, einer
+Kategorie, einer Klassifizierung oder einer View, auf die eine Regelversion
+(oder der Kontext einer Regel) verweist, antwortet mit **`409`** und
+`errors.policy_rules` — `id`, `name` und `status` jeder Regel — sowie einem
+`detail` mit dem Ausweg. Eine Version, die gegolten hat, behält ihren Bezug als
+Aufzeichnung dessen, was der Maßstab war; eine Regel zu beenden stoppt ihre
+Auswertung, gibt das Objekt aber nicht frei. Nur eine Regel, deren keine
+Version je gegolten hat, lässt sich löschen, und das gibt es frei. Ein
+Wertpapier bleibt wie bisher stilllegbar (`is_retired`).
+
 **Die Befunde.** `GET /api/v1/portfolios/:portfolio_id/policy_findings`
 wertet die **heute** geltenden Regeln eines Auswertungskontexts (`view`; ohne:
 die portfolioweiten Regeln) über die Zahlen aus, die das Produkt schon liefert,
@@ -1613,9 +1623,13 @@ neben der importierten Historie:
   Einträge und der daraus abgeleitete `thesis_state`, ADR-0044); die
   **Wertpapier-Termine** (`/api/v1/securities/:id/events` — jeder datierte
   Kalenderfakt mit seiner Qualifizierung, seiner Bestätigung und seinem
-  `checked_at`, ADR-0048 §7); Wertpapier-ids und `updated_at`. Festgehalten in
+  `checked_at`, ADR-0048 §7); die **eigenen Regeln**
+  (`/api/v1/portfolios/:id/policy_rules` — jede Regel und jede Version mit
+  ihren Bezugs-ids, Grenzen und Zeiträumen, ADR-0049 §8); Wertpapier-ids und
+  `updated_at`. Festgehalten in
   `test/portfolixir/imports/reimport_preservation_test.exs` seit Issue #664
-  (Research-Log ergänzt durch #748, Wertpapier-Termine durch #829).
+  (Research-Log ergänzt durch #748, Wertpapier-Termine durch #829, eigene
+  Regeln durch #864).
 - **Ein veränderter erneuter Import** (eine Umbenennung, ein erfasster
   ISIN-Wechsel, der über einen Alias oder eine explizite Zuordnung aufgelöst
   wird) hält dieselbe Garantie für die zugeordneten Wertpapiere; nur die
@@ -1627,7 +1641,11 @@ neben der importierten Historie:
   Performance re-import does not destroy the research log or the security
   events", sodass ein Agent die Antwort in der Tool-Liste findet, die er
   ohnehin liest, statt auf dieser Seite. Der veränderte Pfad hält neben den
-  Terminen auch das Research-Log fest.
+  Terminen auch das Research-Log fest. Die Regel-Reads
+  (`portfolixir.policy_rules.list`, `.get` und
+  `portfolixir.portfolios.policy_findings`) tragen den eigenen Satz „A
+  Portfolio Performance re-import does not destroy the policy rules", und der
+  veränderte Pfad hält eine Regel über das Wertpapier mit neuer ISIN fest.
 - **Nicht abgedeckt:** eine in der Quelle geänderte Buchung. Eine bearbeitete
   Transaktion hasht anders und wird als neue Zeile neben der alten importiert;
   die alte Buchung wird über `PATCH`/`DELETE /api/v1/transactions/:id`
@@ -1635,7 +1653,7 @@ neben der importierten Historie:
   die Historie pflegt, nicht den Abgleich zweier Versionen der Historie
   selbst.
 
-Ein Research-Log, ein Kalender, ein Plan oder eine Zuordnung „verschwindet“
+Ein Research-Log, ein Kalender, eine Regel, ein Plan oder eine Zuordnung „verschwindet“
 also nie beim nächsten Import; ein Agent, der etwas anderes beobachtet, hat einen Defekt
 gefunden, keine dokumentierte Grenze.
 

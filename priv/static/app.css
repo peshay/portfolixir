@@ -2499,6 +2499,14 @@ dialog.modal::backdrop {
   color: var(--color-text);
 }
 
+/* ADR-0049 §8: when policy rules block the delete, the sentence after the
+   rule list explains why retiring them does not free the security — the
+   quiet voice of the board 06 dialog, which the rule above would otherwise
+   override. */
+.confirm-delete-blocked .modal-body p.muted {
+  color: var(--color-text-muted);
+}
+
 .security-logo {
   display: inline-flex;
   align-items: center;

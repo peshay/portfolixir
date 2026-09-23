@@ -272,4 +272,88 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleControllerTest do
     })
     |> json_response(404)
   end
+
+  # User story (ADR-0049 §8 — referenced objects are protected):
+  # As the operator's agent cleaning up the catalog,
+  # I want a delete that would leave a rule without its subject refused with
+  # the rules named,
+  # so that I learn which standard reads the object instead of meeting a
+  # 500 or an unexplained "referenced by existing records".
+  #
+  # Acceptance criteria:
+  # - Deleting a security, a category, a classification or a view a rule
+  #   version (or a rule's context) references answers 409.
+  # - The answer names the rules (id, name, status) and states the remedy:
+  #   a rule that has been in force keeps its subject as part of its history;
+  #   retiring stops its evaluation, and only a rule never in force is deleted.
+  test "deleting what a rule reads is a 409 naming the rules",
+       %{conn: conn, world: world, security: security} do
+    {:ok, tree} =
+      Portfolixir.Classifications.create_classification(Actor.owner_ui(), %{name: "Strategy"})
+
+    {:ok, bonds} =
+      Portfolixir.Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: tree.id,
+        name: "Bonds"
+      })
+
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Spekulativ"})
+
+    {:ok, security_rule} =
+      PolicyRules.create_rule(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        name: "Single name at most 10 %",
+        version: weight_cap(security)
+      })
+
+    {:ok, category_rule} =
+      PolicyRules.create_rule(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        name: "Bonds in band",
+        version: %{
+          "subject_type" => "category",
+          "classification_id" => tree.id,
+          "category_id" => bonds.id,
+          "measure" => "drift",
+          "kind" => "band",
+          "lower" => "-3",
+          "upper" => "3",
+          "severity" => "warn"
+        }
+      })
+
+    {:ok, view_rule} =
+      PolicyRules.create_rule(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        view_id: view.id,
+        name: "Cash floor in the view",
+        version: %{
+          "subject_type" => "cash",
+          "measure" => "weight",
+          "kind" => "floor",
+          "threshold" => "5",
+          "severity" => "warn"
+        }
+      })
+
+    for {path, rule} <- [
+          {"/api/v1/securities/#{security.id}", security_rule},
+          {"/api/v1/classifications/#{tree.id}/categories/#{bonds.id}", category_rule},
+          {"/api/v1/classifications/#{tree.id}", category_rule},
+          {"/api/v1/views/#{view.id}", view_rule}
+        ] do
+      %{"errors" => errors} = conn |> delete(path) |> json_response(409)
+
+      assert [%{"id" => id, "name" => name, "status" => "in_force"}] = errors["policy_rules"],
+             "expected #{path} to name the rule, got #{inspect(errors)}"
+
+      assert id == rule.id
+      assert name == rule.name
+      assert errors["detail"] =~ "policy rule"
+      assert errors["detail"] =~ "retire"
+    end
+
+    assert Portfolixir.Catalog.get_security(security.id)
+    assert Buckets.get_view(view.id)
+  end
 end

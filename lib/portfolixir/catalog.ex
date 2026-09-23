@@ -21,6 +21,7 @@ defmodule Portfolixir.Catalog do
   alias Portfolixir.Catalog.SecurityWithMetrics
   alias Portfolixir.Journal
   alias Portfolixir.Ledger.HeldSecurities
+  alias Portfolixir.Portfolios.PolicyRules
   alias Portfolixir.Portfolios.Targets, as: PortfolioTargets
   alias Portfolixir.Repo
 
@@ -421,8 +422,22 @@ defmodule Portfolixir.Catalog do
   `Portfolixir.Portfolios.Targets.delete_position_targets_for_security/2`,
   mirroring how other dependent records are handled instead of leaving the
   cleanup to the silent `security_id` FK cascade (which remains as a backstop).
+
+  A security a policy rule reads is not deleted (ADR-0049 §8): the answer is
+  `{:error, {:policy_rules, rules}}`, naming them. A version that has been in
+  force keeps its subject as part of its history, so retiring the rule stops
+  its evaluation but does not free the security; retiring the security does.
   """
   def delete_security(%Actor{} = actor, %Security{} = security) do
+    # ADR-0049 §8: a security a policy rule reads is protected, and the answer
+    # names the rules rather than a foreign key.
+    case PolicyRules.referencing(:security, security.id) do
+      [] -> delete_unreferenced_security(actor, security)
+      rules -> {:error, {:policy_rules, rules}}
+    end
+  end
+
+  defp delete_unreferenced_security(actor, security) do
     Repo.transaction(fn ->
       with {:ok, _count} <-
              PortfolioTargets.delete_position_targets_for_security(actor, security.id),

@@ -18,6 +18,7 @@ defmodule Portfolixir.Imports.ReimportPreservationTest do
   alias Portfolixir.Knowledge.Events
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.PolicyRules
   alias Portfolixir.Portfolios.Targets
 
   @fixtures Path.expand("../../support/fixtures/portfolio_performance", __DIR__)
@@ -64,6 +65,8 @@ defmodule Portfolixir.Imports.ReimportPreservationTest do
   # - The research log (ADR-0044, #748): every entry appended before the
   #   re-import is still there, unchanged, in the same order — the guarantee
   #   #741 documents, pinned for the new table.
+  # - The policy rules (ADR-0049 §8): every rule and every version — its
+  #   subject ids, thresholds and period — is still there with the same ids.
   test "re-importing the identical export preserves classification, targets, cash target, notes and attributes" do
     portfolio = setup_portfolio()
     owner = Actor.owner_ui()
@@ -171,7 +174,55 @@ defmodule Portfolixir.Imports.ReimportPreservationTest do
         source_quality: "secondary_multi"
       })
 
+    # The operator's own rules (ADR-0049 §8): a cap on an imported security
+    # and a band on a Portfolixir-owned category, each with a history.
+    {:ok, cap} =
+      PolicyRules.create_rule(
+        owner,
+        %{
+          portfolio_id: portfolio.id,
+          name: "Acme at most 10 %",
+          version: %{
+            subject_type: "security",
+            security_id: acme.id,
+            measure: "weight",
+            kind: "cap",
+            threshold: "12",
+            severity: "hard",
+            valid_from: Date.add(Portfolixir.Clock.today(), -10)
+          }
+        },
+        today: Date.add(Portfolixir.Clock.today(), -10)
+      )
+
+    {:ok, _} =
+      PolicyRules.add_version(owner, cap, %{
+        subject_type: "security",
+        security_id: acme.id,
+        measure: "weight",
+        kind: "cap",
+        threshold: "10",
+        severity: "hard"
+      })
+
+    {:ok, _band} =
+      PolicyRules.create_rule(owner, %{
+        portfolio_id: portfolio.id,
+        name: "Crypto in band",
+        version: %{
+          subject_type: "category",
+          classification_id: classification.id,
+          category_id: crypto_cat.id,
+          measure: "drift",
+          kind: "band",
+          lower: "-3",
+          upper: "3",
+          severity: "warn"
+        }
+      })
+
     snapshot = %{
+      policy_rules: policy_rules_snapshot(portfolio.id),
       plans: plan_snapshot(portfolio.id),
       targets: target_snapshot(portfolio.id),
       assignments: assignment_snapshot([btc.id, acme.id], classification.id),
@@ -183,6 +234,7 @@ defmodule Portfolixir.Imports.ReimportPreservationTest do
 
     assert length(snapshot.research_log) == 2
     assert length(snapshot.events) == 2
+    assert length(snapshot.policy_rules) == 3
 
     assert snapshot.securities |> Enum.map(& &1.note) |> Enum.all?(&is_binary/1)
 
@@ -217,6 +269,10 @@ defmodule Portfolixir.Imports.ReimportPreservationTest do
     assert events_snapshot([btc.id, acme.id]) == snapshot.events
     assert Events.count_events() == 2
     assert Events.get_event(earnings.id).confirmed
+
+    # And so do the operator's rules (ADR-0049 §8): same rules, same
+    # versions, same subject ids, same thresholds, same periods.
+    assert policy_rules_snapshot(portfolio.id) == snapshot.policy_rules
   end
 
   # User story (issue #664 companion — the mutated re-import keeps notes and
@@ -234,8 +290,10 @@ defmodule Portfolixir.Imports.ReimportPreservationTest do
   #   security events recorded against them survive the alias resolution.
   # - The research log recorded against them survives it too, same ids
   #   (#831 — the MCP tool descriptions state this guarantee).
+  # - A policy rule over the re-ISINed security keeps its subject id: the
+  #   rule reads the same security after the import (ADR-0049 §8).
   # - The one genuinely new booking still lands; nothing else changes.
-  test "a mutated re-import (rename + ISIN change) preserves notes, attributes and events" do
+  test "a mutated re-import (rename + ISIN change) preserves notes, attributes, events and rules" do
     portfolio = setup_portfolio()
     owner = Actor.owner_ui()
 
@@ -281,6 +339,21 @@ defmodule Portfolixir.Imports.ReimportPreservationTest do
         as_of: ~D[2026-08-01]
       })
 
+    {:ok, _rule} =
+      PolicyRules.create_rule(owner, %{
+        portfolio_id: portfolio.id,
+        name: "Acme at most 10 %",
+        version: %{
+          subject_type: "security",
+          security_id: acme.id,
+          measure: "weight",
+          kind: "cap",
+          threshold: "10",
+          severity: "hard"
+        }
+      })
+
+    rules_before = policy_rules_snapshot(portfolio.id)
     securities_before = security_snapshot([btc.id, acme.id])
     events_before = events_snapshot([btc.id, acme.id])
     research_log_before = research_log_snapshot([btc.id, acme.id])
@@ -315,6 +388,33 @@ defmodule Portfolixir.Imports.ReimportPreservationTest do
     # And so does the research log (#831).
     assert research_log_snapshot([btc.id, acme.id]) == research_log_before
     assert Knowledge.count_notes() == 1
+
+    # And so does the rule over the re-ISINed security (ADR-0049 §8).
+    assert policy_rules_snapshot(portfolio.id) == rules_before
+    assert [%{security_id: security_id}] = rules_before
+    assert security_id == acme.id
+  end
+
+  defp policy_rules_snapshot(portfolio_id) do
+    for rule <- PolicyRules.list_rules(portfolio_id, include_retired: true),
+        version <- PolicyRules.get_rule(rule.id).versions do
+      %{
+        rule_id: rule.id,
+        name: rule.name,
+        version_id: version.id,
+        subject_type: version.subject_type,
+        security_id: version.security_id,
+        classification_id: version.classification_id,
+        category_id: version.category_id,
+        measure: version.measure,
+        threshold: decimal_str(version.threshold),
+        lower: decimal_str(version.lower),
+        upper: decimal_str(version.upper),
+        valid_from: version.valid_from,
+        valid_until: version.valid_until,
+        updated_at: version.updated_at
+      }
+    end
   end
 
   defp events_snapshot(security_ids) do

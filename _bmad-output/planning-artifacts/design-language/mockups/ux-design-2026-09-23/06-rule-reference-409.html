@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Löschen blockiert: die Regel beim Namen nennen (ADR-0049 §8, Lane A3)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  .flash-mock { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--color-danger); border-left-width: 4px; border-radius: var(--radius-md); background: var(--color-danger-soft); font-size: 13px; max-width: 560px; }
+  .flash-mock b { font-weight: 700; }
+  ul.rules { margin: 6px 0 0; padding-left: 18px; font-size: 13px; }
+  ul.rules li { margin: 2px 0; }
+</style>
+</head>
+<body>
+
+<div class="pickbar"><b>Vorher / Nachher — keine Variantenwahl.</b> Im Batch entdeckt (Lane A3, ADR-0049 §8): Ein Wertpapier, eine Kategorie oder eine View, die eine Regel liest, kann nicht gelöscht werden. Das Nein existierte schon; neu ist, dass es die Regel beim Namen nennt, statt „Transaktionen oder Kurshistorie“ zu behaupten. Alle Namen sind erfunden.</div>
+
+<section class="mock-board">
+  <h2>Wertpapier löschen — der Dialog nennt die Regel <small>Vorher / Nachher</small></h2>
+  <p class="mock-note">Vorher behauptet der Dialog jeden Verweis als Buchung oder Kurs — auch wenn es eine Regel ist, die das Wertpapier misst. Nachher nennt er die Regeln. Der Ausweg „Stattdessen stilllegen“ bleibt: Eine Regel, die gegolten hat, behält ihren Bezug als Teil ihrer Geschichte, darum verschwindet das Wertpapier nicht, es wird stillgelegt. Nur eine Regel, die nie gegolten hat, lässt sich löschen und gibt den Bezug frei.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before" style="flex:1 1 420px"><span class="mock-tag">Vorher</span><div class="workspace-section">
+      <div class="dialog-mock">
+        <h5>Löschen nicht möglich</h5>
+        <p class="note-muted" style="color:var(--color-text)">Nordic Timber Holdings AB wird von bestehenden Transaktionen oder Kurshistorie referenziert und kann nicht gelöscht werden. Stilllegen blendet es aus der aktiven Liste aus und behält die Historie.</p>
+        <div class="u-flex"><span class="u-grow"></span><span class="btn">Abbrechen</span><span class="btn primary">Stattdessen stilllegen</span></div>
+      </div>
+    </div></div>
+    <div class="mock-frame mock-after" style="flex:1 1 420px"><span class="mock-tag">Nachher</span><div class="workspace-section">
+      <div class="dialog-mock">
+        <h5>Löschen nicht möglich</h5>
+        <p class="note-muted" style="color:var(--color-text)">Nordic Timber Holdings AB wird von eigenen Regeln gelesen:</p>
+        <ul class="rules"><li>„Einzeltitel höchstens 10 %“ (gilt)</li><li>„Alter Deckel 12 %“ (beendet)</li></ul>
+        <p class="note-muted">Eine Regel, die gegolten hat, behält ihren Bezug als Teil ihrer Geschichte. Stilllegen blendet das Wertpapier aus der aktiven Liste aus und behält beides.</p>
+        <div class="u-flex"><span class="u-grow"></span><span class="btn">Abbrechen</span><span class="btn primary">Stattdessen stilllegen</span></div>
+      </div>
+    </div></div>
+  </div>
+</section>
+
+<section class="mock-board">
+  <h2>Kategorie, Klassifizierung oder View löschen — die Meldung nennt die Regel <small>Vorher / Nachher</small></h2>
+  <p class="mock-note">Vorher endete dieser Fall in einem Absturz (ein 500 auf der API, „Etwas ist schiefgelaufen“ oder gar nichts in der Oberfläche), weil die Datenbank den Verweis ablehnt, bevor jemand fragt. Nachher prüft der Kontext zuerst und die bestehende Fehlermeldung der Seite nennt die Regeln. Kein neues Element, nur ein neuer Satz im vorhandenen Meldungsband.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before" style="flex:1 1 420px"><span class="mock-tag">Vorher</span><div class="workspace-section">
+      <div class="flash-mock"><span>Etwas ist schiefgelaufen</span></div>
+    </div></div>
+    <div class="mock-frame mock-after" style="flex:1 1 420px"><span class="mock-tag">Nachher</span><div class="workspace-section">
+      <div class="flash-mock"><span>Wird von eigenen Regeln gelesen: <b>„Anleihen im Band“</b>, <b>„Spielgeld klein halten“</b>. Eine Regel, die gegolten hat, behält ihren Bezug als Teil ihrer Geschichte; sie auf „Vermögen → Risiko“ zu beenden, stoppt ihre Auswertung.</span></div>
+    </div></div>
+  </div>
+</section>
+
+</body>
+</html>

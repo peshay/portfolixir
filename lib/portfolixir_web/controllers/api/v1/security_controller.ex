@@ -8,6 +8,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
   alias PortfolixirWeb.Api.V1.FieldSelection
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ListLimit
+  alias PortfolixirWeb.Api.V1.PolicyConflict
   alias PortfolixirWeb.Api.V1.SinceParam
 
   @sortable_fields Map.new(SecurityFields.sortable(), fn field ->
@@ -141,6 +142,9 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
         case Catalog.delete_security(conn.assigns.actor, security) do
           {:ok, _} ->
             send_resp(conn, :no_content, "")
+
+          {:error, {:policy_rules, rules}} ->
+            PolicyConflict.render(conn, rules, "security")
 
           {:error, _changeset} ->
             conflict(conn)
