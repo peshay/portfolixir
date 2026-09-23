@@ -152,7 +152,7 @@ defmodule PortfolixirWeb.RiskLive do
               <p class="empty-state"><%= gettext("No valued position in this view.") %></p>
             <% else %>
               <div class="data-table-wrapper">
-                <table class="data-table risk-top-table" id="risk-top-holdings">
+                <table class="data-table risk-top-table risk-fit-table" id="risk-top-holdings">
                   <thead>
                     <tr>
                       <th><%= gettext("Security") %></th>
@@ -224,7 +224,7 @@ defmodule PortfolixirWeb.RiskLive do
                 ) %>
               </p>
               <div class="data-table-wrapper">
-                <table class="data-table">
+                <table class="data-table risk-fit-table">
                   <thead>
                     <tr>
                       <th><%= gettext("Pair") %></th>

@@ -6241,6 +6241,15 @@ button.income-bar-label.is-active {
   overflow: visible;
 }
 
+/* ...and because it does not scroll, it must fit: the scrolling tables'
+   `min-width: max-content` sized the bucket cell to every chip on one line,
+   so the row ran past the page and `.workspace-page` clipped the +N chip out
+   of reach at 390 and 1200 px (issue 842, Sprint 14 closing act). */
+.data-table-wrapper > .accounts-table {
+  min-width: 0;
+  width: 100%;
+}
+
 .accounts-table thead th {
   border-right: 0;
 }
@@ -6374,6 +6383,12 @@ button.income-bar-label.is-active {
 /* A bucket membership chip. The bucket's own color rides in through
    --chip-color; without one the neutral accent tokens take over. Tag chips
    are outlined, the exclusive scope chip is filled (ADR-0024). */
+/* An overflow chip stays in the DOM while collapsed (issue 842): `hidden`
+   has to win over the chip's own `display`. */
+.bucket-chip[hidden] {
+  display: none;
+}
+
 .bucket-chip {
   --chip-color: var(--color-accent);
   display: inline-flex;
@@ -8083,13 +8098,15 @@ details[open] > .disclosure-summary::before {
   background: var(--color-text);
 }
 
-/* The Top-N at phone width: weight and threshold are the columns the table
-   exists for, so the asset class and the value step aside and the name wraps
-   rather than pushing both off-screen (design-critic finding at 390 px). */
+/* The Risk tab's two tables at phone width: the Top-N's weight and
+   threshold and the matrix's correlation are the columns each table exists
+   for, so the names in the first column wrap rather than pushing those
+   off-screen, and the Top-N's asset class and value step aside
+   (design-critic findings at 390 px). */
 @media (max-width: 720px) {
-  /* Beats `.data-table-wrapper > table { min-width: max-content }`: this
-     table is meant to fit, not to scroll. */
-  .data-table-wrapper > .risk-top-table {
+  /* Beats `.data-table-wrapper > table { min-width: max-content }`: these
+     tables are meant to fit, not to scroll. */
+  .data-table-wrapper > .risk-fit-table {
     min-width: 0;
     width: 100%;
   }
@@ -8098,7 +8115,8 @@ details[open] > .disclosure-summary::before {
     display: none;
   }
 
-  .risk-top-table td:first-child {
+  .risk-fit-table th,
+  .risk-fit-table td {
     white-space: normal;
   }
 }

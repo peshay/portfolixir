@@ -2249,7 +2249,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                 <thead>
                   <tr>
                     <th><%= gettext("Account") %></th>
-                    <th><%= gettext("Balance") %></th>
+                    <th class="num"><%= gettext("Balance") %></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2261,7 +2261,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                           <span class="hint"><%= liquidity_role_hint(cash.liquidity_role) %></span>
                         <% end %>
                       </td>
-                      <td>
+                      <td class="num">
                         <%= Format.money(cash.balance) %> <%= cash.currency %>
                         <span
                           :if={not cash.valued}

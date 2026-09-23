@@ -604,7 +604,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   <tr>
                     <th class="row-actions-head" aria-label={gettext("Row actions")}></th>
                     <%= for column <- visible_fields(@visible_columns, @classification_columns) do %>
-                      <th>
+                      <th class={numeric_column?(column) && "num"}>
                         <%= if column.sortable? do %>
                           <button
                             type="button"
@@ -686,7 +686,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                         </button>
                       </td>
                       <%= for column <- visible do %>
-                        <td>
+                        <td class={numeric_column?(column) && "num"}>
                           <%= if column.key == first_key do %>
                             <.link patch={row_path} class="row-target row-target--with-logo" tabindex="0">
                               <.security_logo security={inner_security} variant="row" />
@@ -3276,6 +3276,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # the value in document order plus a data attribute, so it survives
   # `forced-colors: active` (DESIGN.md → Value slot, binding since 2026-08-05).
   #
+  # #833 (closing-act design finding): a money or percent column is numeric,
+  # so its header and cells take `.num` and the generic rule aligns them.
+  defp numeric_column?(%Field{render_hint: hint}),
+    do: hint in [:money, :money_signed, :percent_signed]
+
+  defp numeric_column?(_column), do: false
+
   defp render_cell(%Field{key: :asset_class} = field, row),
     do: asset_class_cell(field, row, "quick-assign")
 

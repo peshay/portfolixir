@@ -87,6 +87,21 @@ defmodule PortfolixirWeb.DesignConformanceCssTest do
              ~r/@media \(pointer: coarse\) \{[^@]*\.bucket-chip--overflow \{\s*min-height: 44px/s
   end
 
+  # Acceptance criteria (#842, closing-act UAT finding — the chip was
+  # unreachable at 390 and 1200 px):
+  # - The accounts table fits its (non-scrolling) wrapper instead of taking
+  #   the scrolling tables' `min-width: max-content`, so the chip group can
+  #   wrap and the overflow chip stays on screen.
+  test "the accounts table fits its wrapper so the bucket chips wrap" do
+    app_css = File.read!(@app_css)
+
+    [rule] =
+      Regex.run(~r/\n\.data-table-wrapper > \.accounts-table \{[^}]*\}/s, app_css)
+
+    assert rule =~ "min-width: 0"
+    assert rule =~ "width: 100%"
+  end
+
   # User story (#837, board ux-design-2026-09-20/05-detail-tablist, E4-A):
   # As a local portfolio maintainer walking the detail tab row by keyboard,
   # I want the focused tab to show the accent ring,

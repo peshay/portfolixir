@@ -559,13 +559,15 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
     assert collapsed =~ ~s(aria-expanded="false")
     assert collapsed =~ "+2 more"
     refute collapsed =~ "title="
-    refute view |> element(group) |> render() =~ "Tag E"
+    # Collapsed, the overflow chips are in the DOM but `hidden` — the toggle
+    # never moves, so keyboard focus survives the press.
+    shown = "#{group} .bucket-chip:not([hidden]):not(.bucket-chip--overflow)"
+    refute has_element?(view, shown, "Tag E")
 
     view |> element(overflow) |> render_click()
 
-    expanded_group = view |> element(group) |> render()
-    assert expanded_group =~ "Tag E"
-    assert expanded_group =~ "Tag F"
+    assert has_element?(view, shown, "Tag E")
+    assert has_element?(view, shown, "Tag F")
     refute has_element?(view, "#bucket-picker-depot-#{depot.id}")
 
     expanded = view |> element(overflow) |> render()
@@ -573,7 +575,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
     assert expanded =~ "Show fewer"
 
     view |> element(overflow) |> render_click()
-    refute view |> element(group) |> render() =~ "Tag E"
+    refute has_element?(view, shown, "Tag E")
     assert view |> element(overflow) |> render() =~ ~s(aria-expanded="false")
 
     {:ok, de_view, _html} = live(conn, "/portfolios?locale=de")
@@ -778,8 +780,14 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
     assert chips =~ ~s(data-role="bucket-overflow")
     assert chips =~ "+2"
 
-    # Only the four visible chips carry row-level remove buttons.
-    assert length(String.split(chips, ~s(data-role="bucket-remove"))) == 5
+    # Only the four visible chips show; the rest wait, hidden, behind +N.
+    assert view
+           |> render()
+           |> Floki.parse_document!()
+           |> Floki.find(
+             "#depot-buckets-#{depot.id} .bucket-chip:not([hidden]) [data-role='bucket-remove']"
+           )
+           |> length() == 4
 
     # The picker lists the full assigned set; the hidden chip is removable
     # there.
@@ -1343,5 +1351,26 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
 
     assert Process.alive?(view.pid)
     assert render(view) =~ "bucket"
+  end
+
+  # Acceptance criteria (#842, closing-act UAT finding): the overflow toggle
+  # keeps its identity across the re-render it causes — a stable id — so
+  # keyboard focus survives the press and a second Enter collapses it.
+  test "the overflow toggle keeps a stable id across expand and collapse", %{conn: conn} do
+    %{depot: depot} = world()
+
+    tags =
+      for name <- ["Tag A", "Tag B", "Tag C", "Tag D", "Tag E"] do
+        {:ok, tag} = Buckets.create_bucket(Actor.owner_ui(), %{name: name})
+        tag
+      end
+
+    :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, Enum.map(tags, & &1.id))
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    toggle = "#bucket-overflow-depot-#{depot.id}"
+    assert has_element?(view, toggle <> "[aria-expanded='false']")
+    view |> element(toggle) |> render_click()
+    assert has_element?(view, toggle <> "[aria-expanded='true']")
   end
 end
