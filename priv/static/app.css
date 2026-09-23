@@ -8033,3 +8033,19 @@ details[open] > .disclosure-summary::before {
   height: calc(100% + var(--space-2));
   background: var(--color-text);
 }
+
+/* The generic numeric cell (issue 833, DESIGN.md → Components →
+   data-table.cell; board ux-design-2026-09-20/04-num-and-focus). Every table
+   cell marked `.num` is right-aligned with tabular numerals, in any table —
+   the scoped `.num` rules above predate it and agree with it. It sits last in
+   the file on purpose: several tables reset `th, td` to `text-align: left`
+   at the same specificity as `th.num` (`.perf-data-table th`, `.drift-table
+   th`, …), and only source order lets a later rule win that tie. The third
+   selector lifts the header cell over `.data-table thead th`'s
+   `text-align: left`, which `th.num` cannot outrank by order alone. */
+th.num,
+td.num,
+.data-table thead th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
