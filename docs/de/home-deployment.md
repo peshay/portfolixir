@@ -146,6 +146,98 @@ dokumentierte Deployment:
 docker compose -f docker-compose.dev.yml up --build
 ```
 
+## Sicherung und Wiederherstellung
+
+Die ganze Instanz ist eine PostgreSQL-Datenbank, eine Sicherung ist also eine
+`pg_dump`-Datei. Sie enthält **alle** Daten der Instanz: Wertpapiere, Kurse und
+Wechselkurse, Portfolios, Depots und Geldkonten, jede Transaktion, die
+Klassifizierungen mit ihren Zuordnungen, die SOLL-Pläne mit Kategorie- und
+Positionszielen und die Cash-Ziele, die eigenen Regeln, Recherche-Log und
+Termine, Steuerdaten und das Audit-Journal. Sie enthält **nicht** die `.env` —
+diese Datei gehört ebenfalls an einen sicheren Ort: Ohne `POSTGRES_PASSWORD` und
+die Tokens ist eine wiederhergestellte Datenbank zwar vollständig, die Instanz
+muss aber neu konfiguriert werden.
+
+Die Befehle unten laufen in dem Verzeichnis, das `docker-compose.yml` und `.env`
+enthält. PostgreSQL-Werkzeuge auf dem Host sind nicht nötig: Sie laufen im
+`db`-Container.
+
+### Sicherung anlegen
+
+Vor der Sicherung drei Zahlen notieren, gegen die die Wiederherstellung geprüft
+wird (siehe „Wiederherstellung prüfen“ unten). Dann:
+
+```bash
+docker compose exec -T db \
+  pg_dump -U portfolixir -d portfolixir_prod --format=custom \
+  > portfolixir-$(date +%F).dump
+```
+
+Die Instanz läuft währenddessen weiter; die Datei ist ein konsistenter Stand
+eines Zeitpunkts. Ob die Datei lesbar ist, zeigt ihr Inhaltsverzeichnis:
+
+```bash
+docker compose exec -T db pg_restore --list < portfolixir-2026-09-23.dump | head
+```
+
+Vor jedem Upgrade eine Sicherung anlegen: Migrationen sind additiv, und ein
+Rollback über ein Release hinweg stellt die davor angelegte Sicherung wieder
+her.
+
+### Wiederherstellen
+
+Eine Wiederherstellung ersetzt die Datenbank durch die Sicherung. Die Anwendung
+migriert die Datenbank beim Start, deshalb wird sie vorher angehalten und erst
+nach der vollständigen Wiederherstellung gestartet — auf einem neuen Host aus
+demselben Grund nur die Datenbank starten:
+
+```bash
+# 1. Nur die Datenbank (auf einem neuen Host: `docker compose up -d db`).
+docker compose stop app mcp
+
+# 2. Eine leere Datenbank unter demselben Namen.
+docker compose exec -T db dropdb -U portfolixir --if-exists portfolixir_prod
+docker compose exec -T db createdb -U portfolixir portfolixir_prod
+
+# 3. Die Sicherung.
+docker compose exec -T db \
+  pg_restore -U portfolixir -d portfolixir_prod --no-owner --exit-on-error \
+  < portfolixir-2026-09-23.dump
+
+# 4. Die Instanz; sie migriert die wiederhergestellte Datenbank nach vorn, wenn
+#    die Sicherung aus einem älteren Release stammt.
+docker compose up -d
+```
+
+`--exit-on-error` hält beim ersten Problem an, statt eine halb gefüllte
+Datenbank zu hinterlassen. Eine Sicherung lässt sich in dieselbe oder eine
+neuere PostgreSQL-Hauptversion zurückspielen; das `db`-Image aus
+`docker-compose.yml` ist das richtige.
+
+### Wiederherstellung prüfen
+
+Drei Zahlen vor der Sicherung und nach der Wiederherstellung vergleichen: den
+Gesamtwert, die Anzahl der Bestände und eine bekannte Position. Auf der
+Vermögensseite sind das die Summe oben, die Zeilen der Positionstabelle und eine
+beliebige Zeile daraus. Über die API (das Token ist `PORTFOLIXIR_API_TOKEN` aus
+der `.env`; `1` ist die Portfolio-ID, die der erste Aufruf liefert):
+
+```bash
+TOKEN=$(grep '^PORTFOLIXIR_API_TOKEN=' .env | cut -d= -f2-)
+API=http://127.0.0.1:4000/api/v1
+
+curl -s -H "Authorization: Bearer $TOKEN" $API/portfolios
+curl -s -H "Authorization: Bearer $TOKEN" $API/portfolios/1/valuation   # "total_value"
+curl -s -H "Authorization: Bearer $TOKEN" $API/portfolios/1/holdings    # ein Eintrag je Bestand
+```
+
+Die Zahlen sind Dezimal-Strings in voller Genauigkeit; eine Wiederherstellung,
+die nichts verloren hat, zeigt sie Zeichen für Zeichen gleich. Der Ablauf wurde
+am 2026-09-23 vollständig gegen den synthetischen Review-Datensatz mit der
+mitgelieferten `docker-compose.yml` durchgespielt: Sicherung, ein neues
+Datenbank-Volume, Wiederherstellung, und die drei Zahlen, die Zeilenzahl des
+Audit-Journals und die eigenen Regeln stimmten überein.
+
 ## Zurücksetzen
 
 Soll die lokale Datenbank zurückgesetzt werden, entferne das Compose-Volume:

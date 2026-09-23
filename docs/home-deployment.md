@@ -138,6 +138,95 @@ origin checks off, the database port published for local tooling — lives in
 docker compose -f docker-compose.dev.yml up --build
 ```
 
+## Backup and restore
+
+The whole instance is one PostgreSQL database, so a backup is one `pg_dump`
+file. It holds **all** of the instance's data: securities, quotes and exchange
+rates, portfolios, depots and cash accounts, every transaction, the
+classifications with their assignments, the target plans with their category
+and position targets and the cash targets, the policy rules, the research log
+and events, tax records, and the audit journal. It does **not** hold `.env` —
+keep a copy of that file somewhere safe as well: without `POSTGRES_PASSWORD`
+and the tokens a restored database is still intact, but the instance has to be
+configured anew.
+
+The commands below run from the directory that holds `docker-compose.yml` and
+`.env`. No PostgreSQL tools on the host are needed: they run inside the `db`
+container.
+
+### Take a backup
+
+Before the backup, note three figures the restore will be checked against
+(see "Check the restore" below). Then:
+
+```bash
+docker compose exec -T db \
+  pg_dump -U portfolixir -d portfolixir_prod --format=custom \
+  > portfolixir-$(date +%F).dump
+```
+
+The instance keeps running while the dump is taken; the file is a consistent
+snapshot of one moment. To see that the file is readable, list its contents:
+
+```bash
+docker compose exec -T db pg_restore --list < portfolixir-2026-09-23.dump | head
+```
+
+Take a backup before every upgrade: migrations are additive, and a rollback
+across a release restores the backup taken before it.
+
+### Restore
+
+A restore replaces the database with the backup. The application migrates the
+database when it starts, so it is stopped first and started only once the
+restore is complete — on a new host, start only the database for the same
+reason:
+
+```bash
+# 1. The database only (on a new host: `docker compose up -d db`).
+docker compose stop app mcp
+
+# 2. An empty database under the same name.
+docker compose exec -T db dropdb -U portfolixir --if-exists portfolixir_prod
+docker compose exec -T db createdb -U portfolixir portfolixir_prod
+
+# 3. The backup.
+docker compose exec -T db \
+  pg_restore -U portfolixir -d portfolixir_prod --no-owner --exit-on-error \
+  < portfolixir-2026-09-23.dump
+
+# 4. The instance, which migrates the restored database forward if the
+#    backup came from an older release.
+docker compose up -d
+```
+
+`--exit-on-error` stops at the first problem rather than leaving a half-filled
+database behind. A backup restores into the same or a newer PostgreSQL major
+version; the `db` image in `docker-compose.yml` is the one to use.
+
+### Check the restore
+
+Compare three figures before the backup and after the restore: the total value,
+the number of holdings, and one position you know. On the Wealth page they are
+the total at the top, the rows of the Positions table and any one row of it.
+Over the API (the token is `PORTFOLIXIR_API_TOKEN` from `.env`; `1` is the
+portfolio id the first call lists):
+
+```bash
+TOKEN=$(grep '^PORTFOLIXIR_API_TOKEN=' .env | cut -d= -f2-)
+API=http://127.0.0.1:4000/api/v1
+
+curl -s -H "Authorization: Bearer $TOKEN" $API/portfolios
+curl -s -H "Authorization: Bearer $TOKEN" $API/portfolios/1/valuation   # "total_value"
+curl -s -H "Authorization: Bearer $TOKEN" $API/portfolios/1/holdings    # one entry per holding
+```
+
+The figures are full-precision decimal strings, so a restore that lost nothing
+shows them character for character the same. The procedure was run end to end
+on 2026-09-23 against the synthetic review dataset with the shipped
+`docker-compose.yml`: backup, a new database volume, restore, and the three
+figures, the audit journal's row count and the policy rules compared equal.
+
 ## Reset
 
 If the local database should be reset, remove the Compose volume:
@@ -147,8 +236,8 @@ docker compose down -v
 docker compose up --build
 ```
 
-Take a database backup before an upgrade: migrations are additive, and a
-rollback across a release restores that backup.
+Take a database backup before an upgrade (see "Backup and restore" above):
+migrations are additive, and a rollback across a release restores that backup.
 
 ## Rebuild Derived Values
 
