@@ -35,6 +35,7 @@ defmodule Portfolixir.Buckets do
   alias Portfolixir.Buckets.ViewExcludeBucket
   alias Portfolixir.Buckets.ViewIncludeBucket
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Derived.Invalidation
   alias Portfolixir.Engines.BucketResolution
   alias Portfolixir.Journal
   alias Portfolixir.Portfolios.CashAccount
@@ -382,11 +383,15 @@ defmodule Portfolixir.Buckets do
     |> Repo.insert()
   end
 
-  @doc "Updates a view definition (not journaled)."
+  @doc """
+  Updates a view definition (not journaled). Every derived value computed under
+  the view is invalidated, because the view's reach may have changed.
+  """
   def update_view(%Actor{} = _actor, %View{} = view, attrs) when is_map(attrs) do
     view
     |> View.changeset(attrs)
     |> Repo.update()
+    |> tap(&if(match?({:ok, _}, &1), do: Invalidation.after_view_write()))
   end
 
   @doc """
@@ -448,7 +453,7 @@ defmodule Portfolixir.Buckets do
       |> insert_all_step(:exclude, ViewExcludeBucket, exclude_entries)
       |> Repo.transaction()
       |> case do
-        {:ok, _} -> :ok
+        {:ok, _} -> Invalidation.after_view_write()
         {:error, _, reason, _} -> {:error, reason}
       end
     end

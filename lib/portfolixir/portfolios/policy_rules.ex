@@ -142,11 +142,13 @@ defmodule Portfolixir.Portfolios.PolicyRules do
   @doc """
   Retires `rule` (§4): sets `valid_until` on the version in force — yesterday
   by default, or `attrs.valid_until` (never before yesterday, never before the
-  version's own start) — and drops any version scheduled after it.
+  version's own start) — and drops every version that has not started: a
+  retirement ends the rule, planned changes included.
 
   A rule none of whose versions has ever been in force is deleted, not
-  retired: `{:error, :never_in_force}`. A rule already retired answers
-  `{:error, :already_retired}`.
+  retired: `{:error, :never_in_force}`. A rule already retired but scheduled
+  to restart has the restart cancelled (its versions that have not started
+  are dropped); one with nothing scheduled answers `{:error, :already_retired}`.
   """
   @spec retire_rule(Actor.t(), PolicyRule.t(), map(), keyword()) ::
           {:ok, PolicyRuleVersion.t()} | {:error, write_error()}
@@ -156,14 +158,33 @@ defmodule Portfolixir.Portfolios.PolicyRules do
     transaction(fn ->
       versions = versions_of(rule.id)
 
-      with {:ok, current} <- latest_started(versions, today),
-           {:ok, until} <- retirement_date(current, attr(attrs, :valid_until), today),
-           :ok <- replace_scheduled(actor, versions, Date.add(until, 1), today),
-           {:ok, closed} <- journaled_close(actor, current, until) do
-        Invalidation.after_rule_write(rule.portfolio_id, Repo)
-        closed
+      with {:ok, current} <- latest_started(versions, today) do
+        case retirement_date(current, attr(attrs, :valid_until), today) do
+          {:ok, until} -> retire_current(actor, rule, versions, current, until, today)
+          {:error, :already_retired} -> cancel_restart(actor, rule, versions, current, today)
+          error -> error
+        end
       end
     end)
+  end
+
+  defp retire_current(actor, rule, versions, current, until, today) do
+    with :ok <- replace_scheduled(actor, versions, Date.add(current.valid_from, 1), today),
+         {:ok, closed} <- journaled_close(actor, current, until) do
+      Invalidation.after_rule_write(rule.portfolio_id, Repo)
+      closed
+    end
+  end
+
+  defp cancel_restart(actor, rule, versions, current, today) do
+    if Enum.any?(versions, &(not started?(&1, today))) do
+      with :ok <- replace_scheduled(actor, versions, Date.add(current.valid_from, 1), today) do
+        Invalidation.after_rule_write(rule.portfolio_id, Repo)
+        current
+      end
+    else
+      {:error, :already_retired}
+    end
   end
 
   @doc """
@@ -397,7 +418,8 @@ defmodule Portfolixir.Portfolios.PolicyRules do
          Ecto.Changeset.add_error(
            changeset,
            :valid_from,
-           "must be after #{version.valid_from}, the start of the version in force"
+           "must be after %{date}, the start of the version in force",
+           date: version.valid_from
          )}
     end
   end
@@ -482,14 +504,14 @@ defmodule Portfolixir.Portfolios.PolicyRules do
 
   defp not_before(date, floor) do
     if Date.compare(date, floor) == :lt,
-      do: {:error, retire_error("cannot be before #{floor}")},
+      do: {:error, retire_error("cannot be before %{date}", date: floor)},
       else: :ok
   end
 
-  defp retire_error(message) do
+  defp retire_error(message, keys \\ []) do
     %PolicyRuleVersion{}
     |> Ecto.Changeset.change()
-    |> Ecto.Changeset.add_error(:valid_until, message)
+    |> Ecto.Changeset.add_error(:valid_until, message, keys)
     |> Map.put(:action, :update)
   end
 

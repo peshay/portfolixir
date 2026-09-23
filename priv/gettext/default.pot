@@ -32,7 +32,7 @@ msgstr ""
 #: lib/portfolixir_web/live/income_live.ex:878
 #: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:58
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:345
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:134
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:149
 #: lib/portfolixir_web/live/securities/logo_override_dialog.ex:34
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:194
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:88
@@ -205,7 +205,7 @@ msgstr ""
 #: lib/portfolixir_web/live/classifications_live.ex:739
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:93
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:296
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:150
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:165
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:335
 #: lib/portfolixir_web/live/snapshots_live.ex:572
 #: lib/portfolixir_web/live/snapshots_live.ex:619
@@ -279,7 +279,7 @@ msgstr ""
 #: lib/portfolixir_web/live/imports_live.ex:542
 #: lib/portfolixir_web/live/portfolio_live.ex:853
 #: lib/portfolixir_web/live/portfolio_live.ex:947
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:421
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:436
 #: lib/portfolixir_web/live/securities_live.ex:335
 #: lib/portfolixir_web/live/securities_live.ex:713
 #, elixir-autogen
@@ -957,7 +957,7 @@ msgstr ""
 #: lib/portfolixir_web/live/buckets_live.ex:483
 #: lib/portfolixir_web/live/classifications_live.ex:755
 #: lib/portfolixir_web/live/portfolio_live.ex:1340
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:329
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:344
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:229
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:435
 #: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:114
@@ -1237,7 +1237,7 @@ msgid "Export SVG"
 msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_live.ex:1274
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:240
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:255
 #: lib/portfolixir_web/live/securities_live.ex:1026
 #: lib/portfolixir_web/live/transaction_management_live.ex:1041
 #, elixir-autogen, elixir-format
@@ -1361,7 +1361,7 @@ msgid "This view is not implemented yet."
 msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_live.ex:1289
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:246
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:261
 #: lib/portfolixir_web/live/securities_live.ex:1041
 #: lib/portfolixir_web/live/transaction_management_live.ex:1045
 #, elixir-autogen, elixir-format
@@ -3163,7 +3163,7 @@ msgstr ""
 #: lib/portfolixir_web/live/dashboard_live.ex:388
 #: lib/portfolixir_web/live/dashboard_live.ex:745
 #: lib/portfolixir_web/live/portfolio_live.ex:3006
-#: lib/portfolixir_web/live/risk_live.ex:609
+#: lib/portfolixir_web/live/risk_live.ex:649
 #: lib/portfolixir_web/live/snapshots_live.ex:216
 #: lib/portfolixir_web/live/snapshots_live.ex:220
 #: lib/portfolixir_web/live/snapshots_live.ex:599
@@ -3439,7 +3439,7 @@ msgstr ""
 #: lib/portfolixir_web/components/view_switcher.ex:94
 #: lib/portfolixir_web/live/buckets_live.ex:60
 #: lib/portfolixir_web/live/buckets_live.ex:74
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:432
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:447
 #: lib/portfolixir_web/live/securities_live.ex:2143
 #, elixir-autogen, elixir-format
 msgid "Views"
@@ -5485,7 +5485,7 @@ msgstr ""
 msgid "Invalidation condition"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:218
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:233
 #: lib/portfolixir_web/live/securities_live.ex:2322
 #: lib/portfolixir_web/live/securities_live.ex:5026
 #, elixir-autogen, elixir-format
@@ -6967,8 +6967,8 @@ msgid "no window measured"
 msgstr ""
 
 #: lib/portfolixir_web/live/risk_live.ex:382
-#: lib/portfolixir_web/live/risk_live.ex:543
-#: lib/portfolixir_web/live/risk_live.ex:584
+#: lib/portfolixir_web/live/risk_live.ex:583
+#: lib/portfolixir_web/live/risk_live.ex:624
 #: lib/portfolixir_web/live/securities_live.ex:2949
 #: lib/portfolixir_web/live/securities_live.ex:2980
 #, elixir-autogen, elixir-format
@@ -7047,7 +7047,7 @@ msgstr ""
 msgid "No classification trees yet."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:598
+#: lib/portfolixir_web/live/risk_live.ex:638
 #, elixir-autogen, elixir-format
 msgid "%{count} of %{required} observations"
 msgid_plural "%{count} of %{required} observations"
@@ -7085,7 +7085,7 @@ msgstr ""
 msgid "Correlation"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:573
+#: lib/portfolixir_web/live/risk_live.ex:613
 #, elixir-autogen, elixir-format
 msgid "Correlations"
 msgstr ""
@@ -7161,35 +7161,35 @@ msgstr ""
 msgid "Weight"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:624
-#: lib/portfolixir_web/live/risk_live.ex:630
-#: lib/portfolixir_web/live/risk_live.ex:633
+#: lib/portfolixir_web/live/risk_live.ex:664
+#: lib/portfolixir_web/live/risk_live.ex:670
+#: lib/portfolixir_web/live/risk_live.ex:673
 #, elixir-autogen, elixir-format
 msgid "above %{pct} %"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:627
-#: lib/portfolixir_web/live/risk_live.ex:636
+#: lib/portfolixir_web/live/risk_live.ex:667
+#: lib/portfolixir_web/live/risk_live.ex:676
 #, elixir-autogen, elixir-format
 msgid "below %{pct} %"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:640
+#: lib/portfolixir_web/live/risk_live.ex:680
 #, elixir-autogen, elixir-format
 msgid "concentrated"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:588
+#: lib/portfolixir_web/live/risk_live.ex:628
 #, elixir-autogen, elixir-format
 msgid "fewer than two names"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:638
+#: lib/portfolixir_web/live/risk_live.ex:678
 #, elixir-autogen, elixir-format
 msgid "low"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:639
+#: lib/portfolixir_web/live/risk_live.ex:679
 #, elixir-autogen, elixir-format
 msgid "moderate"
 msgstr ""
@@ -7221,7 +7221,7 @@ msgid_plural "1 year · %{count} observations · min. %{required}"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/risk_live.ex:577
+#: lib/portfolixir_web/live/risk_live.ex:617
 #, elixir-autogen, elixir-format
 msgid "highest of %{count} pair · 1 year"
 msgid_plural "highest of %{count} pairs · 1 year"
@@ -7285,7 +7285,7 @@ msgstr ""
 msgid "breached"
 msgstr ""
 
-#: lib/portfolixir_web/policy_rule_label.ex:72
+#: lib/portfolixir_web/policy_rule_label.ex:73
 #, elixir-autogen, elixir-format
 msgid "in force"
 msgstr ""
@@ -7315,12 +7315,12 @@ msgstr ""
 msgid "nothing to weigh"
 msgstr ""
 
-#: lib/portfolixir_web/policy_rule_label.ex:74
+#: lib/portfolixir_web/policy_rule_label.ex:75
 #, elixir-autogen, elixir-format
 msgid "retired"
 msgstr ""
 
-#: lib/portfolixir_web/policy_rule_label.ex:73
+#: lib/portfolixir_web/policy_rule_label.ex:74
 #, elixir-autogen, elixir-format
 msgid "scheduled"
 msgstr ""
@@ -7346,7 +7346,7 @@ msgid "undetermined"
 msgstr ""
 
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:213
-#: lib/portfolixir_web/policy_rule_label.ex:93
+#: lib/portfolixir_web/policy_rule_label.ex:94
 #, elixir-autogen, elixir-format
 msgid "“%{name}” (%{status})"
 msgstr ""
@@ -7356,53 +7356,53 @@ msgstr ""
 msgid "%{name} is read by policy rules:"
 msgstr ""
 
-#: lib/portfolixir_web/policy_rule_label.ex:83
+#: lib/portfolixir_web/policy_rule_label.ex:84
 #, elixir-autogen, elixir-format
 msgid "Read by policy rules: %{names}. A rule that has been in force keeps its subject as part of its history; retiring it on Wealth → Risk stops its evaluation."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:421
+#: lib/portfolixir_web/live/risk_live.ex:424
 #, elixir-autogen, elixir-format
 msgid "%{count} breached"
 msgid_plural "%{count} breached"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/risk_live.ex:423
+#: lib/portfolixir_web/live/risk_live.ex:426
 #, elixir-autogen, elixir-format
 msgid "%{count} met"
 msgid_plural "%{count} met"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/risk_live.ex:422
+#: lib/portfolixir_web/live/risk_live.ex:425
 #, elixir-autogen, elixir-format
 msgid "%{count} undetermined"
 msgid_plural "%{count} undetermined"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:128
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:143
 #, elixir-autogen, elixir-format
 msgid "Change rule — “%{name}”"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:312
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:327
 #, elixir-autogen, elixir-format
 msgid "Delete rule"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:310
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:325
 #, elixir-autogen, elixir-format
 msgid "Delete this rule? None of its versions has been in force, so nothing was ever measured against it."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:145
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:160
 #, elixir-autogen, elixir-format
 msgid "Evaluated in the view “%{view}”, on its steerable basis."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:485
+#: lib/portfolixir_web/live/risk_live.ex:500
 #, elixir-autogen, elixir-format
 msgid "Evaluated on read, as of %{date}, on the steerable basis of the view “%{view}”. Each rule names the figure it reads; a figure that cannot be read is undetermined, never met. A finding does not say what to do."
 msgstr ""
@@ -7412,161 +7412,161 @@ msgstr ""
 msgid "Generic threshold"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:265
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:280
 #, elixir-autogen, elixir-format
 msgid "In force from"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:350
-#: lib/portfolixir_web/live/risk_live.ex:444
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:365
+#: lib/portfolixir_web/live/risk_live.ex:447
 #, elixir-autogen, elixir-format
 msgid "Line"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:351
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:366
 #, elixir-autogen, elixir-format
 msgid "Line (%{unit})"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:156
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:171
 #, elixir-autogen, elixir-format
 msgid "Measure"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:443
+#: lib/portfolixir_web/live/risk_live.ex:446
 #, elixir-autogen, elixir-format
 msgid "Measured"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:129
-#: lib/portfolixir_web/live/risk_live.ex:427
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:144
+#: lib/portfolixir_web/live/risk_live.ex:430
 #, elixir-autogen, elixir-format
 msgid "New rule"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:435
+#: lib/portfolixir_web/live/risk_live.ex:438
 #, elixir-autogen, elixir-format
 msgid "No rule in force for this view. A rule sets a line over a weight, a drift, the HHI or a portfolio metric; its finding says which side of the line the figure is on."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:279
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:294
 #, elixir-autogen, elixir-format
 msgid "Note (optional)"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:419
+#: lib/portfolixir_web/live/risk_live.ex:422
 #, elixir-autogen, elixir-format
 msgid "Own rules"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:190
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:205
 #, elixir-autogen, elixir-format
 msgid "Plan of the classification"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:323
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:338
 #, elixir-autogen, elixir-format
 msgid "Retire rule"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:394
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:409
 #, elixir-autogen, elixir-format
 msgid "Retire this rule? It is no longer evaluated from today; the rule and its versions stay readable."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:390
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:405
 #, elixir-autogen, elixir-format
 msgid "Retire this rule? Its version in force started today, so it ends tonight. The rule and its versions stay readable."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:442
+#: lib/portfolixir_web/live/risk_live.ex:445
 #, elixir-autogen, elixir-format
 msgid "Rule"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:543
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:558
 #, elixir-autogen, elixir-format
 msgid "Rule deleted"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:529
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:544
 #, elixir-autogen, elixir-format
 msgid "Rule retired"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:515
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:530
 #, elixir-autogen, elixir-format
 msgid "Rule saved"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:332
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:347
 #, elixir-autogen, elixir-format
 msgid "Save new version"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:332
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:347
 #, elixir-autogen, elixir-format
 msgid "Save rule"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:363
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:378
 #, elixir-autogen, elixir-format
 msgid "Saving creates version %{n}. Earlier versions stay readable."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:376
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:391
 #, elixir-autogen, elixir-format
 msgid "Saving creates version %{n}. Version %{current} (%{line}) is in force since %{from}, ends the day before the new one and stays readable."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:369
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:384
 #, elixir-autogen, elixir-format
 msgid "Saving creates version %{n}. Version %{current} (%{line}) is in force since today and ends tonight — a version that has been the standard stays readable."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:252
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:267
 #, elixir-autogen, elixir-format
 msgid "Severity"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:495
+#: lib/portfolixir_web/live/risk_live.ex:528
 #, elixir-autogen, elixir-format
 msgid "Show the retired rule (%{count})"
 msgid_plural "Show the retired rules (%{count})"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/risk_live.ex:445
+#: lib/portfolixir_web/live/risk_live.ex:448
 #, elixir-autogen, elixir-format
 msgid "State"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:170
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:185
 #, elixir-autogen, elixir-format
 msgid "Subject"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:547
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:562
 #, elixir-autogen, elixir-format
 msgid "The rule could not be deleted."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:536
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:551
 #, elixir-autogen, elixir-format
 msgid "The rule could not be retired."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:533
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:548
 #, elixir-autogen, elixir-format
 msgid "This rule is already retired."
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:295
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:310
 #, elixir-autogen, elixir-format
 msgid "Version %{n}"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:291
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:306
 #, elixir-autogen, elixir-format
 msgid "Versions"
 msgstr ""
@@ -7576,12 +7576,13 @@ msgstr ""
 msgid "View “%{name}”"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:204
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:219
 #, elixir-autogen, elixir-format
 msgid "Window"
 msgstr ""
 
 #: lib/portfolixir_web/live/risk/policy_rule_format.ex:57
+#: lib/portfolixir_web/live/risk_live.ex:518
 #, elixir-autogen, elixir-format
 msgid "from %{date}"
 msgstr ""
@@ -7598,7 +7599,7 @@ msgstr ""
 msgid "pp"
 msgstr ""
 
-#: lib/portfolixir_web/live/risk_live.ex:464
+#: lib/portfolixir_web/live/risk_live.ex:479
 #, elixir-autogen, elixir-format
 msgid "Line %{line}"
 msgstr ""
@@ -7709,3 +7710,18 @@ msgid "Position (%{count})"
 msgid_plural "Positions (%{count})"
 msgstr[0] ""
 msgstr[1] ""
+
+#: lib/portfolixir_web/live/risk_live.ex:470
+#, elixir-autogen, elixir-format
+msgid "From %{date}: line %{line}"
+msgstr ""
+
+#: lib/portfolixir_web/live/risk_live.ex:511
+#, elixir-autogen, elixir-format
+msgid "Scheduled rules"
+msgstr ""
+
+#: lib/portfolixir_web/policy_rule_label.ex:68
+#, elixir-autogen, elixir-format
+msgid "held, but not valued"
+msgstr ""

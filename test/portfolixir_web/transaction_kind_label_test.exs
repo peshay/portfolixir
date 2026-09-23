@@ -115,7 +115,7 @@ defmodule PortfolixirWeb.TransactionKindLabelTest do
       {&PolicyRuleLabel.window/1, PolicyRuleVersion.windows()},
       {&PolicyRuleLabel.state/1, Enum.map(PolicyFindings.states(), &Atom.to_string/1)},
       {&PolicyRuleLabel.reason/1,
-       ~w(insufficient_data undefined no_active_plan no_target empty_basis subject_not_found not_measured)},
+       ~w(insufficient_data undefined no_active_plan no_target empty_basis unvalued subject_not_found not_measured)},
       {&PolicyRuleLabel.status/1, ~w(in_force scheduled retired)}
     ]
 

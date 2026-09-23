@@ -65,6 +65,7 @@ defmodule PortfolixirWeb.PolicyRuleLabel do
   def reason("empty_basis"), do: gettext("nothing to weigh")
   def reason("subject_not_found"), do: gettext("the subject no longer exists")
   def reason("not_measured"), do: gettext("not measured")
+  def reason("unvalued"), do: gettext("held, but not valued")
 
   @doc "A rule's status relative to today (in force, scheduled, retired)."
   @spec status(String.t() | atom()) :: String.t()

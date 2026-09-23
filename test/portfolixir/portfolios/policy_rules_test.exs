@@ -286,6 +286,67 @@ defmodule Portfolixir.Portfolios.PolicyRulesTest do
     assert Decimal.equal?(scheduled.threshold, Decimal.new("9"))
   end
 
+  # Acceptance criteria (ADR-0049 §4, closing act — correctness and edge-case
+  # hunters):
+  # - Retiring drops every version that has not started, whatever end date it
+  #   is given: a retirement is the end of the rule, planned changes included
+  #   (before, an end date past a scheduled start answered an overlap error).
+  # - Retiring a rule that is already retired but scheduled to restart cancels
+  #   the restart (before, nothing could: retire answered already_retired and
+  #   delete answered in_force). With nothing scheduled it stays an error.
+  test "a retirement cancels what is scheduled, even for a retired rule",
+       %{world: world, security: security} do
+    rule =
+      rule!(world.portfolio, weight_cap(security, %{valid_from: Date.add(today(), -20)}),
+        today: Date.add(today(), -20)
+      )
+
+    {:ok, _} =
+      PolicyRules.add_version(
+        Actor.owner_ui(),
+        rule,
+        weight_cap(security, %{threshold: "11", valid_from: Date.add(today(), 3)}),
+        today: today()
+      )
+
+    until = Date.add(today(), 10)
+
+    assert {:ok, closed} =
+             PolicyRules.retire_rule(Actor.owner_ui(), rule, %{valid_until: until},
+               today: today()
+             )
+
+    assert closed.valid_until == until
+    assert [only] = versions(rule)
+    assert Decimal.equal?(only.threshold, Decimal.new("10"))
+
+    # Retired for good now (yesterday), then a restart is planned…
+    other =
+      rule!(world.portfolio, weight_cap(security, %{valid_from: Date.add(today(), -20)}),
+        today: Date.add(today(), -20)
+      )
+
+    {:ok, _} = PolicyRules.retire_rule(Actor.owner_ui(), other, %{}, today: today())
+
+    {:ok, _} =
+      PolicyRules.add_version(
+        Actor.owner_ui(),
+        other,
+        weight_cap(security, %{threshold: "12", valid_from: Date.add(today(), 5)}),
+        today: today()
+      )
+
+    assert %{status: :scheduled} = PolicyRules.get_rule(other.id)
+
+    # …and cancelled by retiring again.
+    assert {:ok, _} = PolicyRules.retire_rule(Actor.owner_ui(), other, %{}, today: today())
+    assert %{status: :retired} = PolicyRules.get_rule(other.id)
+    assert [_one] = versions(other)
+
+    assert {:error, :already_retired} =
+             PolicyRules.retire_rule(Actor.owner_ui(), other, %{}, today: today())
+  end
+
   # User story (ADR-0049 §4, §8):
   # As the operator dropping a rule,
   # I want retiring to end its version in force without deleting anything,

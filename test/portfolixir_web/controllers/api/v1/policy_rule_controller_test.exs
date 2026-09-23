@@ -291,9 +291,18 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleControllerTest do
     {:ok, tree} =
       Portfolixir.Classifications.create_classification(Actor.owner_ui(), %{name: "Strategy"})
 
+    {:ok, fixed} =
+      Portfolixir.Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: tree.id,
+        name: "Fixed income"
+      })
+
+    # A child: deleting its parent would delete it too (closing act, both
+    # hunters — the parent's delete answered 422 without the rules' names).
     {:ok, bonds} =
       Portfolixir.Classifications.create_category(Actor.owner_ui(), %{
         classification_id: tree.id,
+        parent_id: fixed.id,
         name: "Bonds"
       })
 
@@ -339,6 +348,7 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleControllerTest do
     for {path, rule} <- [
           {"/api/v1/securities/#{security.id}", security_rule},
           {"/api/v1/classifications/#{tree.id}/categories/#{bonds.id}", category_rule},
+          {"/api/v1/classifications/#{tree.id}/categories/#{fixed.id}", category_rule},
           {"/api/v1/classifications/#{tree.id}", category_rule},
           {"/api/v1/views/#{view.id}", view_rule}
         ] do

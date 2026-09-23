@@ -1064,7 +1064,7 @@ const policyVersionSchema = {
       type: "string",
       enum: [...POLICY_MEASURES],
       description:
-        "weight (percent 0-100: security, category, cash, view), drift (percentage points -100..100, actual minus target of the active plan: category, security), hhi (0-10000: basis), volatility (percent, annualized, >= 0: basis), max_drawdown (percent in its own sign, -100..0: basis)"
+        "weight (percent 0-100: security, category, cash, view), drift (percentage points -100..100, actual minus target of the active plan — renormalised over the allocated portion when the plan's targets sum to less than 100 %, which the finding's computation_basis.drift_basis names: category, security), hhi (0-10000: basis), volatility (percent, annualized, >= 0: basis), max_drawdown (percent in its own sign, -100..0: basis)"
     },
     kind: {
       type: "string",
@@ -2867,7 +2867,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.portfolios.policy_findings",
     "Did anything cross a line?",
-    "The operator's policy rules in force TODAY for one evaluation context (ADR-0049), evaluated at read over the figures the product already serves — one call instead of re-deriving weights, drift or HHI yourself. One finding per rule, sorted breached, undetermined, ok: state breached (strictly beyond the line), ok, or undetermined — the figure could not be read (reason insufficient_data with the metric's required and observations, undefined, no_active_plan, no_target, empty_basis, subject_not_found, not_measured), which is NEVER a pass and is never filtered out by default. Each finding carries the rule's words (rule_name, subject, measure, kind, severity, note), the thresholds and the measured value as Decimal strings on the measure's scale, the signed distance to the nearest line, and its computation_basis naming the read it used; the payload carries summary (counts per state) and computation_basis. status narrows (status=breached is the retrievable alarm list); view selects the context. PULL ONLY: nothing is pushed anywhere. A finding is the operator's own rule applied to a figure and carries no action — it neither proposes nor sizes a trade." + POLICY_REIMPORT_GUARANTEE,
+    "The operator's policy rules in force TODAY for one evaluation context (ADR-0049), evaluated at read over the figures the product already serves — one call instead of re-deriving weights, drift or HHI yourself. One finding per rule, sorted breached, undetermined, ok: state breached (strictly beyond the line), ok, or undetermined — the figure could not be read (reason insufficient_data with the metric's required and observations, undefined, no_active_plan, no_target, empty_basis, unvalued, subject_not_found, not_measured), which is NEVER a pass and is never filtered out by default. Each finding carries the rule's words (rule_name, subject, measure, kind, severity, note), the thresholds and the measured value as Decimal strings on the measure's scale, the signed distance to the nearest line, and its computation_basis naming the read it used; the payload carries summary (counts per state) and computation_basis. status narrows (status=breached is the retrievable alarm list); view selects the context. PULL ONLY: nothing is pushed anywhere. A finding is the operator's own rule applied to a figure and carries no action — it neither proposes nor sizes a trade." + POLICY_REIMPORT_GUARANTEE,
     policyFindingsSchema,
     policyFindingsZ
   ),
