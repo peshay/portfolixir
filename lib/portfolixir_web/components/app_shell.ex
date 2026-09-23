@@ -254,7 +254,11 @@ defmodule PortfolixirWeb.AppShell do
         current: current == :snapshots,
         icon: :camera
       },
-      %{label: gettext("Tax"), href: "/tax", current: current == :tax, icon: :calc}
+      %{label: gettext("Tax"), href: "/tax", current: current == :tax, icon: :calc},
+      # Sprint 14 D-2 / E1-A: the concentration lens and the portfolio metrics
+      # (ADR-0047 §9). The row was built to overflow since #790, so a sixth
+      # tab is a list entry, not a layout change.
+      %{label: gettext("Risk"), href: "/risk", current: current == :risk, icon: :shield}
     ]
   end
 
@@ -353,7 +357,8 @@ defmodule PortfolixirWeb.AppShell do
     do:
       path == "/portfolio" or String.starts_with?(path, "/portfolio?") or
         String.starts_with?(path, "/cashflow") or String.starts_with?(path, "/income") or
-        String.starts_with?(path, "/tax") or String.starts_with?(path, "/snapshots")
+        String.starts_with?(path, "/tax") or String.starts_with?(path, "/snapshots") or
+        String.starts_with?(path, "/risk")
 
   defp nav_current?(path, %{section: :securities}), do: String.starts_with?(path, "/securities")
   defp nav_current?(path, %{section: :portfolios}), do: String.starts_with?(path, "/portfolios")
@@ -618,6 +623,9 @@ defmodule PortfolixirWeb.AppShell do
 
   defp icon_paths(:pie),
     do: ~s(<path d="M21 12A9 9 0 1 1 12 3v9Z"/><path d="M21 12a9 9 0 0 0-9-9v9h9Z"/>)
+
+  defp icon_paths(:shield),
+    do: ~s(<path d="M12 21s7-3.5 7-9V5.5L12 3 5 5.5V12c0 5.5 7 9 7 9Z"/>)
 
   defp icon_paths(:chart_line), do: ~s(<path d="M3 17 9 11l4 4 8-8"/>)
   defp icon_paths(:chart_bar), do: ~s(<path d="M3 20V8M9 20V4M15 20v-8M21 20v-5"/>)

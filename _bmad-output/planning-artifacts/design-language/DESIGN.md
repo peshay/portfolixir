@@ -1537,3 +1537,65 @@ name, the value and the result; positions and cost stay in the cells' titles
 and on the desktop. The unassigned notice is the attention data note it
 became with issue 791; the result's basis is a `.summary-basis` line with
 the full ADR-0041 sentence behind its ⓘ.
+
+## Amendment 2026-09-23 — Wealth → Risk, the surface ADR-0047 §9 assumed *(Sprint 14 D-2, pick E1-A)*
+
+Board: `mockups/ux-design-2026-09-20/01-wealth-risk-surface` (variant A, the
+recommendation, adopted by the planning PR's merge without a comment changing
+it). Built by Sprint 14 Lane A4 as `PortfolixirWeb.RiskLive` at `/risk`.
+
+### Placement
+
+A **sixth Wealth area tab**, "Risk" / "Risiko", after Tax, with its own glyph
+(`:shield`, not used elsewhere, so no glyph carries a second meaning). The tab
+row's shipped overflow form (D6 above: scroll-snap, the right-edge mask,
+`flex: none` on the tab) carries it; nothing in `.area-tabs` changed. The
+sidebar keeps Wealth current on `/risk`.
+
+### Anatomy, top to bottom
+
+1. **Portfolio metrics** — four `.stat.stat--compact` cards in the KPI band's
+   supporting grid (`.kpi-band__support`: four columns, pairs under 720 px):
+   volatility (annualized, one year), maximum drawdown (the peak → trough dates
+   and the recovery date or "not recovered" as the sub-line; the value in the
+   danger colour when negative), risk-adjusted return (the risk-free rate and
+   "return per unit of risk" as the sub-line), correlations (the highest
+   computed pair and how many pairs computed). The page reads the **365-day**
+   window; the API carries all three.
+2. **The refused state** is the Value slot's not-computable form
+   (`strong.stat-empty`): "not computable" with **"n of required
+   observations"** as the sub-line (#838), never a dash and never a number. A
+   risk-adjusted return over a volatility of exactly 0 is "undefined —
+   volatility is 0", which is a different statement from "short of data".
+3. **Basis line** (`.summary-basis`) under the cards: the flow-adjusted TTWROR
+   factors, the base currency, `√365`, the gap rule, the conversion of the
+   matrix (UX-DR26: the limit is stated on the surface).
+4. **Largest single names** — a `.data-table`: security, asset class, value
+   and weight as `.num` columns, and a **threshold** badge that names the
+   threshold rather than pronouncing on it: "above 10 %" (`.badge--danger`,
+   the stock hard line), "above 7 %" / "above 25 %" (`.badge-warning`),
+   "below 7 %" / "below 25 %" (`.badge--neutral`).
+5. **Concentration (HHI)** — one `.stat--compact` card: the value with its
+   band as the value suffix, a decorative `0–10000` track tinted at the band
+   cutoffs (`.risk-hhi__track`, `aria-hidden`) with a marker at the value, and
+   the cutoffs spelled out as the sub-line.
+6. **Asset-class caps** — the violations, or the empty-state sentence "No cap
+   configured — there is nothing to exceed", which also says caps are set per
+   request over the API (the surface does not configure them).
+7. **Correlations** behind the chart-as-table disclosure
+   (`details.perf-table-disclosure`, **closed by default** — #807's
+   precedent): pair, correlation, observations `n / 60`, and the names left
+   out for want of a rate path.
+
+### What the surface does not carry
+
+No recommendation, rating, signal or action — ADR-0047 §7; the threshold
+badge is the lens's own arithmetic. No rebalancing hint (ADR-0023 permits one;
+this surface does not build it). No cap editor.
+
+### Checked at 390 px
+
+The four cards pair up (two columns) rather than stacking, as the KPI band's
+support tier does; the longest refused sub-line ("6 of 20 observations") fits
+the half-width card. This is the one thing the board could not settle, and the
+design critic checks it on a real render.

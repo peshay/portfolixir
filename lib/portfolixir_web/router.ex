@@ -66,6 +66,7 @@ defmodule PortfolixirWeb.Router do
       live("/cashflow", IncomeLive)
       live("/snapshots", SnapshotsLive)
       live("/tax", TaxLive)
+      live("/risk", RiskLive)
       live("/imports", ImportsLive)
       live("/buckets", BucketsLive)
       live("/classifications", ClassificationsLive, :index)

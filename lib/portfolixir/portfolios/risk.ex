@@ -68,6 +68,20 @@ defmodule Portfolixir.Portfolios.Risk do
   @etf_asset_class "etf"
 
   @doc """
+  The shipped single-name thresholds and HHI bands (FR8/FR10), for a surface
+  that names the threshold a weight is above or below rather than restating
+  the numbers.
+  """
+  @spec defaults() :: map()
+  def defaults do
+    %{
+      stock: %{warn: @default_stock_warn, hard: @default_stock_hard},
+      etf: %{warn: @default_etf_warn},
+      hhi: %{low: @default_low, high: @default_high}
+    }
+  end
+
+  @doc """
   Builds the risk/concentration lens for `portfolio_id`.
 
   Options:
