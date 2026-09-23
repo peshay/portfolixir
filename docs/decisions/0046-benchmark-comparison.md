@@ -1,7 +1,7 @@
 ---
 layout: docs
 title: "ADR-0046: benchmark comparison — a benchmark is a price series the portfolio's own flows are replayed into"
-description: Design decision for issue #572 (FR-9), written for the Sprint 11 decision gate. Two benchmark kinds behind one interface (a fixed annual rate, and a catalog security flagged as a benchmark whose quotes come through the existing sync), two comparisons that are both Portfolio Performance's ("bought once" as a rebased overlay next to TTWROR, and "savings plan" as the portfolio's own external flows invested into the benchmark, giving an end-value delta and two IRRs on identical flows). Portfolio-wide and per view, API and MCP first. Inflation is a fixed rate in v1; the after-tax dimension (OQ-9) and a dated CPI table are deferred and named.
+description: 'Design decision for issue #572 (FR-9), written for the Sprint 11 decision gate. Two benchmark kinds behind one interface (a fixed annual rate, and a catalog security flagged as a benchmark whose quotes come through the existing sync), two comparisons that are both Portfolio Performance''s ("bought once" as a rebased overlay next to TTWROR, and "savings plan" as the portfolio''s own external flows invested into the benchmark, giving an end-value delta and two IRRs on identical flows). Portfolio-wide and per view, API and MCP first. Inflation is a fixed rate in v1; the after-tax dimension (OQ-9) and a dated CPI table are deferred and named.'
 ---
 
 # ADR-0046: benchmark comparison — a benchmark is a price series the portfolio's own flows are replayed into

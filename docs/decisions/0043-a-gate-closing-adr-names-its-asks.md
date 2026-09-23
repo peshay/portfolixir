@@ -1,7 +1,7 @@
 ---
 layout: docs
 title: "ADR-0043: an ADR that closes a decision gate names the asks it answers — and the ones it does not"
-description: A gate is opened on a set of asks and closed by an ADR, and nothing in ADR-0026 checks that the ADR answers what the gate was opened for. ADR-0039 proved the cost - it closed gate B3.2 on durability while the gate's second ask, push-on-write, fell out silently and survived the batch, the review closing act and the close-out, because every one of those holds the work against the ADR and the ADR was internally complete. The rule is one paragraph: a gate-closing ADR carries a list of the gate's asks, each marked answered or deferred with a reason. It costs a few lines and turns a silent drop into a written deferral.
+description: 'A gate is opened on a set of asks and closed by an ADR, and nothing in ADR-0026 checks that the ADR answers what the gate was opened for. ADR-0039 proved the cost - it closed gate B3.2 on durability while the gate''s second ask, push-on-write, fell out silently and survived the batch, the review closing act and the close-out, because every one of those holds the work against the ADR and the ADR was internally complete. The rule is one paragraph: a gate-closing ADR carries a list of the gate''s asks, each marked answered or deferred with a reason. It costs a few lines and turns a silent drop into a written deferral.'
 ---
 
 # ADR-0043: an ADR that closes a decision gate names the asks it answers — and the ones it does not

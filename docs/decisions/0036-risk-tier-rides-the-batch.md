@@ -1,7 +1,7 @@
 ---
 layout: docs
 title: "ADR-0036: risk-tier work rides the batch — the dedicated-small-PR exception is withdrawn"
-description: Amends ADR-0026. The risk-tier exception required ledger/money math, security-relevant changes, dependency updates and idempotency/projection work to ship as dedicated small PRs with real human review. With one reviewer that rule did not buy review, it bought queue: the micro-PRs were not being read. Risk-tier work now rides the epic batch like everything else, and "risk-tier" survives as an attention label that raises review depth and briefing emphasis, not as a delivery mode. The compensating controls become mandatory rather than aspirational.
+description: 'Amends ADR-0026. The risk-tier exception required ledger/money math, security-relevant changes, dependency updates and idempotency/projection work to ship as dedicated small PRs with real human review. With one reviewer that rule did not buy review, it bought queue: the micro-PRs were not being read. Risk-tier work now rides the epic batch like everything else, and "risk-tier" survives as an attention label that raises review depth and briefing emphasis, not as a delivery mode. The compensating controls become mandatory rather than aspirational.'
 ---
 
 # ADR-0036: risk-tier work rides the batch — the dedicated-small-PR exception is withdrawn
