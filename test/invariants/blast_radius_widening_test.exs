@@ -22,7 +22,15 @@ defmodule Portfolixir.Invariants.BlastRadiusWideningTest do
 
   # Every function in the module that returns a radius. Arity-0 entry points are
   # excluded: with no arguments there is no clause to fall through.
-  @resolvers [:for_write, :for_quote, :transaction_radius]
+  # The per-security resolvers (#825) are held to the same rule: a security
+  # write they cannot resolve widens to every security, never to none.
+  @resolvers [
+    :for_write,
+    :for_quote,
+    :transaction_radius,
+    :securities_for_write,
+    :securities_for_quote
+  ]
 
   test "every radius resolver ends in a catch-all that widens to :all" do
     clauses = clauses_by_name(@source)

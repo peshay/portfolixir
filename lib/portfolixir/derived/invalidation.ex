@@ -35,23 +35,40 @@ defmodule Portfolixir.Derived.Invalidation do
   """
   @spec after_write(Ecto.Repo.t(), String.t(), map()) :: :ok
   def after_write(repo, resource_type, record) when is_binary(resource_type) do
-    DataVersion.bump(BlastRadius.for_write(resource_type, record), repo)
+    DataVersion.bump(
+      BlastRadius.for_write(resource_type, record),
+      repo,
+      BlastRadius.securities_for_write(resource_type, record)
+    )
   end
 
-  def after_write(repo, _resource_type, _record), do: DataVersion.bump(:all, repo)
+  def after_write(repo, _resource_type, _record), do: DataVersion.bump(:all, repo, :all)
 
   @doc """
   Bumps after a quote write. Quotes are allowlisted out of the audit journal
   (market data, ADR-0017), so they cannot ride the journal seam and announce
   themselves here directly.
+
+  Two radii, one insert: every portfolio that ever transacted the security
+  (plus the global basis), and the security's own basis (#825). The second
+  is what makes a quote write for a security **no portfolio ever held** — a
+  benchmark, a watch-only candidate — bump a counter that exists, where the
+  portfolio radius alone is the empty list.
   """
   @spec after_quote_write(integer()) :: :ok
   def after_quote_write(security_id),
-    do: DataVersion.bump(BlastRadius.for_quote(security_id), Repo)
+    do:
+      DataVersion.bump(
+        BlastRadius.for_quote(security_id),
+        Repo,
+        BlastRadius.securities_for_quote(security_id)
+      )
 
   @doc """
   Bumps after an exchange-rate write. Allowlisted out of the journal for the
-  same reason as quotes.
+  same reason as quotes. No security basis is bumped: a security's own data is
+  its row, its quotes and its splits in its own currency, and no value keyed
+  under a security basis reads an exchange rate (ADR-0047 §1).
   """
   @spec after_exchange_rate_write() :: :ok
   def after_exchange_rate_write, do: DataVersion.bump(BlastRadius.for_exchange_rate(), Repo)

@@ -74,10 +74,27 @@ defmodule Portfolixir.Derived.RefresherTest do
     assert {:ok, result} = Imports.apply(preview, %{portfolio_id: portfolio.id})
     assert result.created_transactions == 13
 
-    # One refresh for the portfolio basis, one for the global basis.
-    assert_receive {:refreshed, "global"}
-    assert_receive {:refreshed, "portfolio:" <> _}
-    refute_receive {:refreshed, _}, 400
+    # One refresh per affected basis: the portfolio basis, the global basis,
+    # and the own basis (#825) of each security the import created or booked
+    # against — each exactly once, however many rows touched it.
+    refreshed = drain_refreshed([])
+
+    assert Enum.uniq(refreshed) == refreshed
+    assert "global" in refreshed
+    assert Enum.count(refreshed, &String.starts_with?(&1, "portfolio:")) == 1
+    assert Enum.any?(refreshed, &String.starts_with?(&1, "security:"))
+
+    assert Enum.all?(refreshed, fn basis ->
+             basis == "global" or String.starts_with?(basis, ["portfolio:", "security:"])
+           end)
+  end
+
+  defp drain_refreshed(acc) do
+    receive do
+      {:refreshed, basis} -> drain_refreshed([basis | acc])
+    after
+      1_000 -> Enum.reverse(acc)
+    end
   end
 
   test "a bump arriving during a running refresh re-queues the basis exactly once" do

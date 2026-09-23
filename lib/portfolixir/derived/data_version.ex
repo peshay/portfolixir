@@ -4,7 +4,12 @@ defmodule Portfolixir.Derived.DataVersion do
 
   A basis is a named scope of ledger data a derived value depends on:
   `"portfolio:<id>"` for one portfolio's series, `"global"` for anything that
-  depends on every portfolio (the cross-portfolio view walk, #577). Every
+  depends on every portfolio (the cross-portfolio view walk, #577), and
+  `"security:<id>"` for anything that depends only on **one security's own
+  data** — its row, its stored quotes and its booked splits (#825, ADR-0047
+  §8). The security basis exists because the portfolio bases cannot carry a
+  security no portfolio has ever held: a benchmark's quote write resolves to
+  no portfolio at all. Every
   ledger write bumps the counter of each basis it can affect — inside the
   writing transaction, through `Portfolixir.Derived.Invalidation` — so a read
   after a committed write can never compose a pre-write version into its key.
@@ -23,6 +28,11 @@ defmodule Portfolixir.Derived.DataVersion do
   narrow bump lists portfolio ids; `:all` widens to **every** portfolio — the
   set is enumerable from the portfolios table, so widening can never miss a
   basis that has no event row yet. Every bump also bumps `"global"`.
+
+  Security bases ride the same bump as its optional third argument, resolved
+  by `Portfolixir.Derived.BlastRadius`'s per-security resolvers; `:all` widens
+  to every security in the catalog. They carry no global bump of their own —
+  the portfolio half of the same bump already does.
   """
 
   import Ecto.Query
@@ -39,6 +49,15 @@ defmodule Portfolixir.Derived.DataVersion do
   def portfolio_basis(portfolio_id) when is_integer(portfolio_id),
     do: "portfolio:#{portfolio_id}"
 
+  @doc """
+  The basis key of derived values depending only on one security's own data
+  (its row, its quotes, its splits) — bumped even when no portfolio has ever
+  held the security (#825).
+  """
+  @spec security_basis(integer()) :: String.t()
+  def security_basis(security_id) when is_integer(security_id),
+    do: "security:#{security_id}"
+
   @doc "The basis key of derived values depending on every portfolio."
   @spec global_basis() :: String.t()
   def global_basis, do: @global
@@ -52,26 +71,33 @@ defmodule Portfolixir.Derived.DataVersion do
 
   @doc """
   Bumps the version of the given portfolios' bases — plus, always, the global
-  basis — or of **every** portfolio for `:all`. Runs on the given repo so a
-  journaled write bumps inside its own transaction.
+  basis — or of **every** portfolio for `:all`; and the given securities'
+  bases (`:all` for every security, none by default). Runs on the given repo
+  so a journaled write bumps inside its own transaction, as one insert.
 
   `:all` is not an emergency lever: it is the ordinary result of a write whose
   blast radius cannot be proven narrower (ADR-0032 §3.3, carried forward).
   """
-  @spec bump(:all | [integer()], Ecto.Repo.t()) :: :ok
-  def bump(target, repo \\ Repo)
+  @spec bump(:all | [integer()], Ecto.Repo.t(), :all | [integer()]) :: :ok
+  def bump(target, repo \\ Repo, securities \\ [])
 
-  def bump(:all, repo) do
-    bump(repo.all(from(p in Portfolixir.Portfolios.Portfolio, select: p.id)), repo)
+  def bump(:all, repo, securities) do
+    bump(repo.all(from(p in Portfolixir.Portfolios.Portfolio, select: p.id)), repo, securities)
   end
 
-  def bump(portfolio_ids, repo) when is_list(portfolio_ids) do
+  def bump(portfolio_ids, repo, :all) when is_list(portfolio_ids) do
+    bump(portfolio_ids, repo, repo.all(from(s in Portfolixir.Catalog.Security, select: s.id)))
+  end
+
+  def bump(portfolio_ids, repo, security_ids)
+      when is_list(portfolio_ids) and is_list(security_ids) do
     if schema_ready?(repo) do
       bases =
         portfolio_ids
         |> Enum.uniq()
         |> Enum.map(&portfolio_basis/1)
         |> Enum.concat([@global])
+        |> Enum.concat(security_ids |> Enum.uniq() |> Enum.map(&security_basis/1))
 
       repo.insert_all(@table, Enum.map(bases, &%{basis: &1}))
 
