@@ -791,4 +791,45 @@ defmodule Portfolixir.DocsTest do
     #{Enum.join(offenders, "\n")}
     """
   end
+
+  # User story (#354, FR-29 rescoped 2026-07-22):
+  # As a self-hoster without PostgreSQL knowledge,
+  # I want the deployment guide to carry the backup, the restore and the
+  # check that the restore lost nothing,
+  # so that retiring my external copies is safe.
+  #
+  # Acceptance criteria:
+  # - EN and DE both carry the pg_dump backup and the pg_restore restore as
+  #   `docker compose exec` invocations for the shipped Compose file, with the
+  #   application stopped before the restore (it migrates on start).
+  # - Both name the verification: total value, holdings count, one position.
+  # - Both state that the dump holds all data, strategy configuration and the
+  #   audit journal included, and that `.env` is not in it.
+  test "the deployment guide documents backup, restore and the restore check" do
+    for path <- ["docs/home-deployment.md", "docs/de/home-deployment.md"] do
+      doc = File.read!(path)
+
+      assert doc =~ "pg_dump -U portfolixir -d portfolixir_prod --format=custom", path
+      assert doc =~ "docker compose stop app mcp", path
+
+      assert doc =~
+               "pg_restore -U portfolixir -d portfolixir_prod --no-owner --exit-on-error",
+             path
+
+      assert doc =~ "/portfolios/1/valuation", path
+      assert doc =~ "/portfolios/1/holdings", path
+      assert doc =~ "`.env`", path
+    end
+
+    # Prose wraps at any word; compare it with the line breaks folded.
+    en = "docs/home-deployment.md" |> File.read!() |> String.replace(~r/\s+/, " ")
+    assert en =~ "total value, the number of holdings, and one position"
+    assert en =~ "target plans"
+    assert en =~ "audit journal"
+
+    de = "docs/de/home-deployment.md" |> File.read!() |> String.replace(~r/\s+/, " ")
+    assert de =~ "Gesamtwert, die Anzahl der Bestände und eine bekannte Position"
+    assert de =~ "SOLL-Pläne"
+    assert de =~ "Audit-Journal"
+  end
 end
