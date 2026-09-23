@@ -135,6 +135,14 @@ defmodule PortfolixirWeb.TransactionSettlementFormTest do
     })
 
     [tx] = Repo.all(Transaction)
+
+    # The history shows the cash amount in the currency it moved in — the
+    # account's — never labelled with the security's (closing act, UAT).
+    amount = view |> element("#transaction-list [data-role=amount]") |> render()
+    assert amount =~ "EUR"
+    refute amount =~ "USD"
+    assert view |> element(".summary-type[data-type=buy]") |> render() =~ "EUR"
+
     assert tx.currency_code == "USD"
     assert Decimal.equal?(tx.price, Decimal.new("200"))
     assert Decimal.equal?(tx.security_amount, Decimal.new("2000"))
@@ -280,5 +288,176 @@ defmodule PortfolixirWeb.TransactionSettlementFormTest do
     assert Decimal.equal?(saved.price, Decimal.new("181.818"))
     assert Decimal.equal?(saved.settlement_amount, Decimal.new("1818.18"))
     assert Decimal.equal?(saved.security_amount, Decimal.new("2000"))
+  end
+
+  # Acceptance criteria (closing act, correctness and edge-case hunters —
+  # risk-tier: each of these moved money without a word):
+  # - Typing the settlement amount before quantity and price does not crash
+  #   the page.
+  # - The figure the operator typed last is kept: after the amount, a changed
+  #   quantity or price re-derives the rate, never the amount; a note, fees
+  #   or a date re-derive nothing (the amount used to move by a cent on every
+  #   keystroke).
+  test "the typed settlement amount is kept, and typing it first does not crash",
+       %{conn: conn, world: w, usd: usd} do
+    view = open(conn)
+
+    blank =
+      form_params(w, usd, %{"quantity" => "", "price" => "", "settlement_amount" => "1818.18"})
+
+    change(view, blank, "settlement_amount")
+    assert input_value(view, "settlement_amount") == "1818.18"
+
+    typed = form_params(w, usd, %{"settlement_amount" => "1818.18"})
+    change(view, typed, "price")
+    assert input_value(view, "settlement_amount") == "1818.18"
+    assert input_value(view, "settlement_fx_rate") == "0.90909"
+
+    for target <- ["notes", "fees", "date"] do
+      change(
+        view,
+        Map.merge(typed, %{
+          "settlement_fx_rate" => "0.90909",
+          "notes" => "Broker 42",
+          "fees" => "4,90"
+        }),
+        target
+      )
+
+      assert input_value(view, "settlement_amount") == "1818.18", "#{target} moved the amount"
+    end
+  end
+
+  # Acceptance criteria (closing act, edge-case hunter — risk-tier): an edit
+  # that turns a cross-currency booking into a same-currency one leaves no
+  # settlement legs and no stale cash amount behind; the cash follows the new
+  # quantity, price and fees.
+  test "leaving the cross-currency pair clears the settlement legs",
+       %{conn: conn, world: w, usd: usd, eur: eur} do
+    {:ok, tx} =
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: w.portfolio.id,
+        securities_account_id: w.depot.id,
+        cash_account_id: w.cash.id,
+        security_id: usd.id,
+        type: "buy",
+        date: ~D[2026-04-01],
+        quantity: "10",
+        price: "200",
+        fees: "1",
+        currency_code: "USD",
+        security_amount: "2000",
+        settlement_amount: "1818.18",
+        gross_amount: "1819.18"
+      })
+
+    {:ok, view, _html} = live(conn, "/transactions")
+    render_click(view, "edit_transaction", %{"id" => to_string(tx.id)})
+
+    view
+    |> element("#transaction-form")
+    |> render_submit(%{
+      "transaction" =>
+        form_params(w, eur, %{
+          "quantity" => "5",
+          "price" => "10",
+          "fees" => "1",
+          "settlement_mode" => "security"
+        })
+    })
+
+    saved = Repo.get!(Transaction, tx.id)
+    assert saved.currency_code == "EUR"
+    assert is_nil(saved.settlement_amount)
+    assert is_nil(saved.security_amount)
+    assert is_nil(saved.settlement_fx_rate)
+    assert is_nil(saved.gross_amount)
+  end
+
+  # Acceptance criteria (closing act, edge-case hunter): an imported row in
+  # the account-currency form can have its fees corrected in the form — its
+  # cash amount follows its stored settlement, so the guard holds.
+  test "an imported account-currency row's fees can be corrected",
+       %{conn: conn, world: w, usd: usd} do
+    {:ok, tx} =
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: w.portfolio.id,
+        securities_account_id: w.depot.id,
+        cash_account_id: w.cash.id,
+        security_id: usd.id,
+        type: "buy",
+        date: ~D[2026-04-01],
+        quantity: "10",
+        price: "181.818",
+        fees: "1",
+        currency_code: "EUR",
+        security_amount: "2000",
+        settlement_amount: "1818.18",
+        gross_amount: "1819.18"
+      })
+
+    {:ok, view, _html} = live(conn, "/transactions")
+    render_click(view, "edit_transaction", %{"id" => to_string(tx.id)})
+
+    view
+    |> element("#transaction-form")
+    |> render_submit(%{
+      "transaction" =>
+        form_params(w, usd, %{
+          "price" => "181.818",
+          "fees" => "2",
+          "settlement_mode" => "account",
+          "settlement_amount" => "1818.18"
+        })
+    })
+
+    saved = Repo.get!(Transaction, tx.id)
+    assert Decimal.equal?(saved.fees, Decimal.new("2"))
+    assert Decimal.equal?(saved.gross_amount, Decimal.new("1820.18"))
+    assert Decimal.equal?(saved.settlement_amount, Decimal.new("1818.18"))
+  end
+
+  # Acceptance criteria (closing act, edge-case hunter):
+  # - A cross-currency buy at price 0 (a spin-off, a free allotment) books:
+  #   no cash moves, so there is no cash amount to record.
+  # - A sale whose fees and taxes exceed its settlement is refused on the
+  #   settlement field the form shows, not on a field it does not have.
+  test "a zero-price buy books, and a sale netting below zero is named",
+       %{conn: conn, world: w, usd: usd} do
+    view = open(conn)
+
+    view
+    |> element("#transaction-form")
+    |> render_submit(%{
+      "transaction" =>
+        form_params(w, usd, %{
+          "price" => "0",
+          "settlement_amount" => "0",
+          "settlement_fx_rate" => "0.909091"
+        })
+    })
+
+    assert [free] = Repo.all(Transaction)
+    assert Decimal.equal?(free.price, Decimal.new("0"))
+    assert is_nil(free.gross_amount)
+
+    view |> element("#open-booking") |> render_click()
+
+    html =
+      view
+      |> element("#transaction-form")
+      |> render_submit(%{
+        "transaction" =>
+          form_params(w, usd, %{
+            "type" => "sell",
+            "quantity" => "1",
+            "price" => "5",
+            "fees" => "9,90",
+            "settlement_amount" => "4,55"
+          })
+      })
+
+    assert html =~ ~s(id="tx-error-settlement_amount")
+    assert length(Repo.all(Transaction)) == 1
   end
 end

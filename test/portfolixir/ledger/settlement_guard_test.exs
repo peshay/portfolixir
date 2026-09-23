@@ -92,6 +92,25 @@ defmodule Portfolixir.Ledger.SettlementGuardTest do
       assert message =~ "1800.68"
     end
 
+    # Closing act, edge-case hunter (hostile input): the legs are magnitudes
+    # like every other amount; a negative settlement with an explicit rate
+    # could otherwise meet the guard with fees larger than the trade.
+    test "the settlement legs are never negative" do
+      w = world()
+
+      assert {:error, changeset} =
+               trade(w, "buy", %{
+                 settlement_amount: Decimal.new("-5"),
+                 security_amount: Decimal.new("-5.50"),
+                 fees: Decimal.new("10"),
+                 gross_amount: Decimal.new("5")
+               })
+
+      errors = errors_on(changeset)
+      assert errors[:settlement_amount]
+      assert errors[:security_amount]
+    end
+
     test "a same-currency trade carries no settlement and is not checked" do
       w = world()
       usd = create_security!(name: "EUR Guard Co", ticker: "EUG", currency: "EUR")
@@ -133,6 +152,26 @@ defmodule Portfolixir.Ledger.SettlementGuardTest do
       assert SettlementGuard.expected_cash("dividend", Decimal.new("1"), Decimal.new("0"), nil) ==
                nil
     end
+  end
+
+  # Acceptance criteria (closing act, fix round B): a row derived from its cash
+  # amount — the Portfolio Performance import, the settlement backfill — meets
+  # the guard by construction: `trade_amount/4` is the guard's relation
+  # inverted, for a buy and for a sell, exactly.
+  test "the trade amount read off the cash round-trips through the guard" do
+    gross = Decimal.new("1021.37")
+    fees = Decimal.new("4.90")
+    taxes = Decimal.new("12.05")
+
+    buy = SettlementGuard.trade_amount("buy", gross, fees, taxes)
+    sell = SettlementGuard.trade_amount("sell", gross, fees, taxes)
+
+    assert Decimal.equal?(buy, Decimal.new("1004.42"))
+    assert Decimal.equal?(sell, Decimal.new("1038.32"))
+    assert Decimal.equal?(SettlementGuard.expected_cash("buy", buy, fees, taxes), gross)
+    assert Decimal.equal?(SettlementGuard.expected_cash("sell", sell, fees, taxes), gross)
+    assert SettlementGuard.trade_amount("dividend", gross, fees, taxes) == nil
+    assert SettlementGuard.trade_amount("buy", nil, fees, taxes) == nil
   end
 
   # User story (plan D-5):

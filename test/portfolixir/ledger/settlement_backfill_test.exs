@@ -90,6 +90,37 @@ defmodule Portfolixir.Ledger.SettlementBackfillTest do
     assert second.skipped_no_rate == 0
   end
 
+  # Acceptance criteria (closing act, both hunters): a legacy row whose
+  # cash amount is not exactly quantity × price (PP's rounded Kurs) is
+  # backfilled on its cash amount net of fees, so the settlement guard the
+  # update now meets holds — before, the backfill stopped on its first row.
+  test "a legacy row is backfilled on its cash amount, and the guard holds" do
+    w = world()
+
+    {:ok, tx} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: w.portfolio.id,
+        securities_account_id: w.depot.id,
+        cash_account_id: w.cash.id,
+        security_id: w.security.id,
+        type: "buy",
+        date: ~D[2026-01-15],
+        quantity: "13",
+        price: "61.54",
+        fees: "4.95",
+        gross_amount: "805.03",
+        currency_code: "EUR"
+      })
+
+    seed_rate!(~D[2026-01-15], "1.25")
+
+    assert {:ok, %{updated: 1}} = SettlementBackfill.run(Actor.system_job("settlement_backfill"))
+
+    reloaded = Ledger.get_transaction(tx.id)
+    assert Decimal.equal?(reloaded.settlement_amount, Decimal.new("800.08"))
+    assert Decimal.equal?(reloaded.security_amount, Decimal.new("1000.10"))
+  end
+
   # User story (honesty over availability):
   # As a maintainer whose row's booking date has no stored rate,
   # I want the row skipped and reported, never guessed,

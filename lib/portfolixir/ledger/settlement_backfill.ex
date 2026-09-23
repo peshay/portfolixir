@@ -32,6 +32,7 @@ defmodule Portfolixir.Ledger.SettlementBackfill do
   alias Portfolixir.Actor
   alias Portfolixir.Fx
   alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.SettlementGuard
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Repo
 
@@ -81,8 +82,17 @@ defmodule Portfolixir.Ledger.SettlementBackfill do
     )
   end
 
+  # The settlement leg is read off the row's cash amount where it has one
+  # (the guard's relation, inverted — a rounded Kurs × quantity can miss it by
+  # more than the guard's cent), else quantity × price as before.
   defp backfill_row(actor, %Transaction{} = transaction) do
-    settlement_amount = Decimal.mult(transaction.quantity, transaction.price)
+    settlement_amount =
+      SettlementGuard.trade_amount(
+        transaction.type,
+        transaction.gross_amount,
+        transaction.fees,
+        transaction.taxes
+      ) || Decimal.mult(transaction.quantity, transaction.price)
 
     case Fx.convert(
            settlement_amount,

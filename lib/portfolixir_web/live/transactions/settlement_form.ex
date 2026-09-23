@@ -42,6 +42,8 @@ defmodule PortfolixirWeb.Transactions.SettlementForm do
   @trade_types ["buy", "sell"]
   @fields ["settlement_amount", "settlement_fx_rate", "settlement_source", "settlement_mode"]
   @reprefill_targets ["security_id", "securities_account_id", "date", "type"]
+  @trade_fields ["quantity", "price"]
+  @typed_sources ["amount", "rate"]
 
   @doc """
   The two currencies when the form describes a cross-currency trade, else nil.
@@ -71,32 +73,67 @@ defmodule PortfolixirWeb.Transactions.SettlementForm do
   operator just edited (the event's `_target`).
   """
   @spec derive(map(), String.t() | nil, map() | nil) :: map()
+  def derive(%{"settlement_mode" => "account"} = params, _target, nil), do: params
+
   def derive(params, _target, nil),
     do: Map.drop(params, @fields -- ["settlement_mode"])
 
+  # The figure the operator typed last is authoritative (closing act, both
+  # hunters: a note or a fee used to re-derive the amount from the rounded
+  # rate, moving the broker's figure by a cent). A typed amount survives a
+  # changed quantity or price — the rate follows it; a typed rate makes the
+  # amount follow it; nothing else re-derives a typed figure. Only a
+  # suggestion (the stored rate) is refreshed when the pair or date changes.
   def derive(params, target, pair) do
     security_amount = security_amount(params)
     amount = decimal(params["settlement_amount"])
     rate = decimal(params["settlement_fx_rate"])
+    typed = params["settlement_source"] in @typed_sources
 
     cond do
       target == "settlement_amount" ->
         params
-        |> Map.put("settlement_source", "entered")
-        |> put_rate(amount && positive(security_amount) && Decimal.div(amount, security_amount))
+        |> Map.put("settlement_source", "amount")
+        |> put_rate(ratio(amount, security_amount))
 
       target == "settlement_fx_rate" ->
         params
-        |> Map.put("settlement_source", "entered")
-        |> put_amount(rate && security_amount && Decimal.mult(security_amount, rate))
+        |> Map.put("settlement_source", "rate")
+        |> put_amount(product(security_amount, rate))
 
-      is_nil(rate) or (target in @reprefill_targets and params["settlement_source"] != "entered") ->
+      typed and target in @trade_fields ->
+        follow_typed(params, security_amount, amount, rate)
+
+      typed ->
+        params
+
+      is_nil(rate) or target in @reprefill_targets ->
         prefill(params, pair, security_amount)
 
+      target in @trade_fields ->
+        put_amount(params, product(security_amount, rate))
+
       true ->
-        put_amount(params, security_amount && Decimal.mult(security_amount, rate))
+        params
     end
   end
+
+  defp follow_typed(%{"settlement_source" => "amount"} = params, security_amount, amount, _rate),
+    do: put_rate(params, ratio(amount, security_amount))
+
+  defp follow_typed(params, security_amount, _amount, rate),
+    do: put_amount(params, product(security_amount, rate))
+
+  defp ratio(%Decimal{} = amount, %Decimal{} = security_amount) do
+    if Decimal.compare(security_amount, 0) == :gt, do: Decimal.div(amount, security_amount)
+  end
+
+  defp ratio(_amount, _security_amount), do: nil
+
+  defp product(%Decimal{} = security_amount, %Decimal{} = rate),
+    do: Decimal.mult(security_amount, rate)
+
+  defp product(_security_amount, _rate), do: nil
 
   defp prefill(params, pair, security_amount) do
     case stored_rate(pair, params["date"]) do
@@ -147,6 +184,36 @@ defmodule PortfolixirWeb.Transactions.SettlementForm do
   show.
   """
   @spec prepare(map(), map() | nil) :: {:ok, map()} | {:error, %{String.t() => String.t()}}
+  # The importer's account-currency form (closing act, edge-case hunter): its
+  # cash amount follows its stored settlement, so a corrected fee or type
+  # keeps the guard's relation; the settlement itself is not re-sent.
+  def prepare(%{"settlement_mode" => "account"} = params, nil) do
+    expected =
+      case decimal(params["settlement_amount"]) do
+        %Decimal{} = settlement -> cash_for(params, settlement)
+        nil -> nil
+      end
+
+    params = Map.drop(params, @fields)
+
+    {:ok, if(expected, do: Map.put(params, "gross_amount", plain_string(expected)), else: params)}
+  end
+
+  # Leaving the pair (an edit to a security in the account's currency): the
+  # legs and the cash amount they implied go, or the booking keeps a cash
+  # amount its new figures do not produce (closing act, edge-case hunter).
+  def prepare(%{"settlement_mode" => "security"} = params, nil) do
+    {:ok,
+     params
+     |> Map.drop(@fields)
+     |> Map.merge(%{
+       "security_amount" => nil,
+       "settlement_amount" => nil,
+       "settlement_fx_rate" => nil,
+       "gross_amount" => nil
+     })}
+  end
+
   def prepare(params, nil), do: {:ok, Map.drop(params, @fields)}
 
   def prepare(params, pair) do
@@ -159,28 +226,61 @@ defmodule PortfolixirWeb.Transactions.SettlementForm do
          }}
 
       amount ->
-        security_amount = security_amount(params)
-
-        expected =
-          SettlementGuard.expected_cash(
-            params["type"],
-            amount,
-            decimal(params["fees"]),
-            decimal(params["taxes"])
-          )
-
-        {:ok,
-         params
-         |> Map.drop(@fields)
-         |> Map.merge(%{
-           "currency_code" => pair.security,
-           "security_amount" => security_amount && Decimal.to_string(security_amount, :normal),
-           "settlement_amount" => Decimal.to_string(amount, :normal),
-           "settlement_fx_rate" => nil,
-           "gross_amount" => expected && Decimal.to_string(expected, :normal)
-         })}
+        prepare_settled(params, pair, amount)
     end
   end
+
+  defp prepare_settled(params, pair, amount) do
+    security_amount = security_amount(params)
+    expected = cash_for(params, amount)
+
+    if expected && Decimal.negative?(expected) do
+      {:error, %{"settlement_amount" => gettext("is less than the fees and taxes of this sale")}}
+    else
+      {:ok,
+       params
+       |> Map.drop(@fields)
+       |> Map.merge(%{
+         "currency_code" => pair.security,
+         "security_amount" => security_amount && plain_string(security_amount),
+         "settlement_amount" => plain_string(amount),
+         # The ledger derives the rate from the two amounts (the broker's
+         # actual rate, ADR-0015); a trade worth nothing has no amounts to
+         # derive it from, so the form's rate is recorded instead.
+         "settlement_fx_rate" => zero_trade_rate(security_amount, params),
+         "gross_amount" => cash_string(expected)
+       })}
+    end
+  end
+
+  defp cash_for(params, settlement) do
+    SettlementGuard.expected_cash(
+      params["type"],
+      settlement,
+      decimal(params["fees"]),
+      decimal(params["taxes"])
+    )
+  end
+
+  # No cash moves on a trade worth nothing: no cash amount is recorded.
+  defp cash_string(%Decimal{} = expected) do
+    if Decimal.eq?(expected, 0), do: nil, else: plain_string(expected)
+  end
+
+  defp cash_string(nil), do: nil
+
+  defp zero_trade_rate(%Decimal{} = security_amount, params) do
+    with true <- Decimal.eq?(security_amount, 0),
+         %Decimal{} = rate <- decimal(params["settlement_fx_rate"]) do
+      plain_string(rate)
+    else
+      _derived_by_the_ledger -> nil
+    end
+  end
+
+  defp zero_trade_rate(_security_amount, _params), do: nil
+
+  defp plain_string(decimal), do: Decimal.to_string(decimal, :normal)
 
   @doc """
   The fieldset's values for a stored booking (the edit drawer); a row in the
@@ -190,14 +290,18 @@ defmodule PortfolixirWeb.Transactions.SettlementForm do
   def from_transaction(%Transaction{settlement_amount: %Decimal{}} = transaction, securities) do
     case find_by_id(securities, to_string(transaction.security_id)) do
       %{currency_code: currency} when currency != transaction.currency_code ->
-        %{"settlement_mode" => "account"}
+        %{
+          "settlement_mode" => "account",
+          "settlement_amount" => plain(transaction.settlement_amount)
+        }
 
       _booked_in_the_security_currency ->
         %{
+          "settlement_mode" => "security",
           "settlement_amount" => plain(transaction.settlement_amount),
           "settlement_fx_rate" =>
             transaction.settlement_fx_rate && plain(transaction.settlement_fx_rate),
-          "settlement_source" => "entered"
+          "settlement_source" => "amount"
         }
     end
   end
@@ -210,9 +314,6 @@ defmodule PortfolixirWeb.Transactions.SettlementForm do
       Decimal.mult(quantity, price)
     end
   end
-
-  defp positive(%Decimal{} = value), do: Decimal.compare(value, 0) == :gt
-  defp positive(_value), do: false
 
   # The form boundary's German comma (one comma, no dot, means a decimal
   # point) — the same rule the booking form applies to its other amounts.

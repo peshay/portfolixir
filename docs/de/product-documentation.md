@@ -576,15 +576,20 @@ der des Geldkontos am gewählten Depot ab, zeigt die Buchungsleiste einen Block
 „Abrechnung in EUR“ (benannt nach der Kontowährung) mit zwei verbundenen
 Feldern: dem Abrechnungsbetrag in Kontowährung und dem Kurs — Einheiten der
 Kontowährung je einer Einheit der Wertpapierwährung. Wer eines einträgt, sieht
-das andere abgeleitet; eine geänderte Stückzahl oder ein geänderter Preis leitet
-den Betrag neu aus dem Kurs ab. Beide sind aus den gespeicherten Wechselkursen
+das andere abgeleitet, und das zuletzt eingetragene bleibt, wie es ist: Nach dem
+Betrag aus der Abrechnung passt eine geänderte Stückzahl oder ein geänderter
+Preis den Kurs an, nie den Betrag; eine Notiz, eine Gebühr oder ein Datum ändert
+keines von beiden. Beide sind aus den gespeicherten Wechselkursen
 am oder vor dem Buchungstag vorbelegt und sagen das — ein Vorschlag, die
 Abrechnung des Brokers gilt; ohne gespeicherten Kurs sagt der Block auch das und
 wartet auf den Betrag der Abrechnung. Der Preis wird in der Wertpapierwährung
 eingegeben, Gebühren und Steuern in der Kontowährung. Gespeichert ist die
 Buchung in der Wertpapierwährung, und ihr Geldbetrag wird aus Abrechnung,
 Gebühren und Steuern berechnet — das Formular erzeugt also nie eine Buchung, die
-die folgende Regel ablehnt. Vor Sprint 15 buchte das Formular einen solchen
+die folgende Regel ablehnt. Ein Handel ohne Wert (eine Gratiszuteilung zum Preis
+0) wird ohne Geldbetrag gebucht. Wird eine solche Buchung auf ein Wertpapier in
+der Kontowährung geändert, entfallen ihre Abrechnungsangaben, und der Geldbetrag
+folgt der neuen Stückzahl, dem Preis und den Gebühren. Vor Sprint 15 buchte das Formular einen solchen
 Handel in der Kontowährung und las den Preis des Wertpapiers, als wäre er in
 Euro.
 
