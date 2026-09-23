@@ -477,31 +477,44 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
         Enum.any?(assigns.assigned, &(&1.id == bucket.id))
       end)
 
-    {visible, overflow} =
+    {_visible, overflow} =
       if length(assigns.assigned) > @max_visible_chips do
         Enum.split(assigns.assigned, @max_visible_chips)
       else
         {assigns.assigned, []}
       end
 
-    # Expanded in place (issue 842): every assigned chip renders, and the
-    # overflow control stays — it is the way back.
-    visible = if assigns.overflow_open, do: assigns.assigned, else: visible
-
-    assigns = assign(assigns, available: available, visible: visible, overflow: overflow)
+    # Expanded in place (issue 842): every assigned chip is ALWAYS in the DOM
+    # and the overflow ones carry `hidden` while collapsed. Inserting them on
+    # expand moved the focused toggle, and a moved node loses focus — the
+    # closing act found keyboard focus dropped to <body> on Enter.
+    assigns =
+      assign(assigns,
+        available: available,
+        overflow: overflow,
+        hidden_ids:
+          if(assigns.overflow_open, do: MapSet.new(), else: MapSet.new(overflow, & &1.id))
+      )
 
     ~H"""
     <div class="bucket-chip-group" id={"#{@owner}-buckets-#{@owner_id}"} data-role="bucket-chips">
       <span :if={@assigned == []} class="bucket-chip-group__empty" data-role="bucket-empty">
         <%= gettext("No bucket") %>
       </span>
-      <.chip :for={bucket <- @visible} bucket={bucket} owner={@owner} owner_id={@owner_id} />
+      <.chip
+        :for={bucket <- @assigned}
+        bucket={bucket}
+        owner={@owner}
+        owner_id={@owner_id}
+        hidden={MapSet.member?(@hidden_ids, bucket.id)}
+      />
       <%!-- #842 (pick E2-A): the overflow is a disclosure that expands the
            cell in place. Its label says what a press does, so no title
            carries the hidden names. --%>
       <button
         :if={@overflow != []}
         type="button"
+        id={"bucket-overflow-#{@owner}-#{@owner_id}"}
         class="bucket-chip bucket-chip--overflow"
         data-role="bucket-overflow"
         phx-click="toggle_bucket_overflow"
@@ -579,12 +592,14 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   end
 
   attr(:bucket, :map, required: true)
+  attr(:hidden, :boolean, default: false, doc: "an overflow chip while the cell is collapsed")
   attr(:owner, :string, required: true)
   attr(:owner_id, :integer, required: true)
 
   defp chip(assigns) do
     ~H"""
     <span
+      hidden={@hidden}
       class={["bucket-chip", @bucket.dimension == "scope" && "bucket-chip--scope"]}
       style={chip_style(@bucket)}
       title={@bucket.name}

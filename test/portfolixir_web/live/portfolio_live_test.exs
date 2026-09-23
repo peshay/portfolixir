@@ -956,6 +956,10 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
     assert html =~ "Business Account"
     assert html =~ "reserve"
+
+    # #833 (closing-act design finding): the balance is a numeric column.
+    assert has_element?(view, ".cash-table thead th.num")
+    assert has_element?(view, ".cash-table tbody td.num", "500.00")
   end
 
   # User story:

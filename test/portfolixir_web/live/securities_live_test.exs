@@ -2603,6 +2603,30 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     refute has_element?(view, "td", "Fresh AG")
   end
 
+  # User story (#833, closing-act design finding; DESIGN.md → data-table):
+  # As a local portfolio maintainer comparing prices down a column,
+  # I want the securities list's numeric columns right-aligned with
+  # tabular digits,
+  # so that the decimal places line up the way the spec says they do.
+  #
+  # Acceptance criteria:
+  # - The header and cells of every money or percent column carry `.num`,
+  #   which the generic rule right-aligns; text columns do not.
+  test "the securities list marks its numeric columns .num", %{conn: conn} do
+    {:ok, _security} =
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "Helios Solar Systems SE",
+        ticker_symbol: "HSS",
+        currency_code: "EUR"
+      })
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    assert has_element?(view, "#securities-table thead th.num", "Latest price")
+    assert has_element?(view, "#securities-table tbody td.num")
+    refute has_element?(view, "#securities-table thead th.num", "Name")
+  end
+
   describe "ARIA state attributes render as strings (#836)" do
     # User story:
     # As a local portfolio maintainer using a screen reader,
