@@ -315,6 +315,55 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
+            // The area tab row (#857): on a phone the row overflows, and it
+            // opened at scrollLeft 0 on every page, so on Risk, Tax or
+            // Snapshots the tab the operator was on sat off-screen. On mount
+            // the aria-current tab is scrolled into the row's view — the row
+            // only, never the page, which is why this is a scrollTo on the nav
+            // and not a scrollIntoView. No animation under
+            // prefers-reduced-motion. The hook also marks which edges the row
+            // rests on, so the stylesheet can fade exactly the edges that have
+            // tabs beyond them (board 04): otherwise the repair only moves the
+            // active tab under the right-edge mask.
+            Hooks.AreaTabs = {
+              mounted: function () {
+                var self = this;
+                this.onScroll = function () { self.markEdges(); };
+                this.el.addEventListener("scroll", this.onScroll, { passive: true });
+                window.addEventListener("resize", this.onScroll);
+                this.reveal();
+                this.markEdges();
+              },
+              updated: function () {
+                this.markEdges();
+              },
+              destroyed: function () {
+                window.removeEventListener("resize", this.onScroll);
+              },
+              reveal: function () {
+                var nav = this.el;
+                var tab = nav.querySelector('[aria-current="page"]');
+                if (!tab || nav.scrollWidth <= nav.clientWidth) return;
+
+                var navRect = nav.getBoundingClientRect();
+                var tabRect = tab.getBoundingClientRect();
+                var left = tabRect.left - navRect.left + nav.scrollLeft;
+                var target = left - (nav.clientWidth - tabRect.width) / 2;
+                var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+                nav.scrollTo({ left: Math.max(0, target), behavior: reduce ? "auto" : "smooth" });
+              },
+              markEdges: function () {
+                var nav = this.el;
+                var slack = 2;
+                var atStart = nav.scrollLeft <= slack;
+                var atEnd = nav.scrollLeft + nav.clientWidth >= nav.scrollWidth - slack;
+
+                nav.toggleAttribute("data-scroll-start", atStart);
+                nav.toggleAttribute("data-scroll-end", atEnd);
+              }
+            };
+
             Hooks.PositionedMenu = {
               mounted: function () {
                 this.reposition();

@@ -203,8 +203,10 @@ defmodule PortfolixirWeb.AppShell do
   def area_tabs(assigns) do
     ~H"""
     <nav
+      id="area-tabs"
       class="area-tabs"
       data-role="area-tabs"
+      phx-hook="AreaTabs"
       data-tab-level="1"
       aria-label={gettext("Section tabs")}
     >
