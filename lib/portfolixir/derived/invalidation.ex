@@ -29,20 +29,46 @@ defmodule Portfolixir.Derived.Invalidation do
   Bumps the bases of every portfolio a journaled write can affect, on the
   writing transaction's `repo`.
 
-  `resource_type` and `record` come straight from `Journal.record/3`, so a new
-  journaled resource type needs no change here — it simply resolves to `:all`
-  until someone teaches `BlastRadius` a narrower answer.
+  `resource_type`, `record` and `before` come straight from
+  `Journal.record/3`, so a new journaled resource type needs no change here —
+  it simply resolves to `:all` until someone teaches `BlastRadius` a narrower
+  answer.
+
+  **The radius is the union of both images** (#851). An update that moves a
+  record — a transaction to another security, a buy to another portfolio —
+  affects what the record used to touch as much as what it touches now; the
+  after-image alone left the old portfolio's walk and the old security's
+  metrics memoised as current. `before` is `nil` for a create; for a delete
+  it is the same row as `record`, and the union changes nothing. Either
+  image widening to `:all` widens the whole bump.
   """
-  @spec after_write(Ecto.Repo.t(), String.t(), map()) :: :ok
-  def after_write(repo, resource_type, record) when is_binary(resource_type) do
+  @spec after_write(Ecto.Repo.t(), String.t(), map(), map() | nil) :: :ok
+  def after_write(repo, resource_type, record, before \\ nil)
+
+  def after_write(repo, resource_type, record, before) when is_binary(resource_type) do
     DataVersion.bump(
-      BlastRadius.for_write(resource_type, record),
+      union(
+        BlastRadius.for_write(resource_type, record),
+        before_radius(&BlastRadius.for_write/2, resource_type, before)
+      ),
       repo,
-      BlastRadius.securities_for_write(resource_type, record)
+      union(
+        BlastRadius.securities_for_write(resource_type, record),
+        before_radius(&BlastRadius.securities_for_write/2, resource_type, before)
+      )
     )
   end
 
-  def after_write(repo, _resource_type, _record), do: DataVersion.bump(:all, repo, :all)
+  def after_write(repo, _resource_type, _record, _before), do: DataVersion.bump(:all, repo, :all)
+
+  # No before-image (a create) contributes nothing; anything else resolves
+  # through the same allowlist as the after-image, so it widens the same way.
+  defp before_radius(_resolver, _resource_type, nil), do: []
+  defp before_radius(resolver, resource_type, before), do: resolver.(resource_type, before)
+
+  defp union(:all, _other), do: :all
+  defp union(_one, :all), do: :all
+  defp union(one, other), do: (one ++ other) |> Enum.uniq() |> Enum.sort()
 
   @doc """
   Bumps after a quote write. Quotes are allowlisted out of the audit journal
