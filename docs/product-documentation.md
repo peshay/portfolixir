@@ -644,8 +644,10 @@ zero, which would quietly understate the category.
 > flagged as *stale* in the position-targets read — re-file it to move the
 > weight. Since slice 2a the **allocation view displays** position SOLL/drift —
 > including positions not yet held (IST 0, *not held* marker) — and the
-> category rows steer by the effective roll-up. The editor UI for per-position
-> entry and even-split auto-distribution are coming in later slices.
+> category rows steer by the effective roll-up. Since Sprint 15 the plan editor
+> on the Classifications page takes position targets as well (see "Position
+> targets in the plan editor" below); an even-split auto-distribution is not
+> planned.
 
 ### Editing a target plan on the Classifications page
 
@@ -678,6 +680,21 @@ Weights are entered and shown as **percentages** (e.g. `60`), stored as
 fractions in `[0, 1]`. Inputs are labelled and keyboard-focusable, and the same
 plan is equally reachable over the API/MCP target endpoints with a `view`
 parameter.
+
+**Position targets in the plan editor** (issue #481, Sprint 15). Each category
+with assigned securities offers **Positions (n)** beside its name; it opens the
+category's securities as rows of the same table, each with its own **Target %**
+input — the same form, one **Save plan**, one live **Σ**. A category opens by
+itself when any of its positions carries a target. Once a position under a
+category carries a target, the category's own field turns into a dashed,
+read-only **Σ positions** figure: the category *is* the sum of its positions
+(ADR-0030 §2), and the Σ footer counts that sum in its place. Saving writes the
+category's own weight to that sum too, so the Wealth page's "position targets
+and category weight disagree" note is resolved by saving here. **An empty
+position field means "no position target"** — never zero: clearing a stored
+position's field and saving deletes that target and hands the steering back to
+the category, while `0` is a target of zero and is kept. Closing a category's
+positions only hides the rows; their values still save.
 
 ### Plan versions: duplicate, draft, activate
 

@@ -696,8 +696,9 @@ die Kategorie still kleinrechnen würde.
 > Gewichts legt man es neu ab. Seit Schritt 2a **zeigt die Allokationsansicht**
 > die Positions-Soll/Drift an — auch für noch nicht gehaltene Positionen (IST 0,
 > Marker *ohne Bestand*) — und die Kategorie-Zeilen steuern nach der effektiven
-> Aufrollung. Die Editor-Oberfläche für die Eingabe je Position und die
-> gleichmäßige Auto-Verteilung folgen in späteren Schritten.
+> Aufrollung. Seit Sprint 15 nimmt der Plan-Editor auf der Klassifizierungsseite
+> auch Positionsziele entgegen (siehe „Positionsziele im Plan-Editor“ unten);
+> eine gleichmäßige Auto-Verteilung ist nicht geplant.
 
 ### Einen SOLL-Plan auf der Klassifizierungsseite bearbeiten
 
@@ -730,6 +731,23 @@ Gewichte werden als **Prozentsätze** eingegeben und angezeigt (z. B. `60`) und 
 Brüche in `[0, 1]` gespeichert. Die Felder sind beschriftet und per Tastatur
 fokussierbar, und derselbe Plan ist über die API/MCP-Ziel-Endpunkte mit einem
 `view`-Parameter gleichermaßen erreichbar.
+
+**Positionsziele im Plan-Editor** (Issue #481, Sprint 15). Jede Kategorie mit
+zugeordneten Wertpapieren bietet neben ihrem Namen **Positionen (n)** an; das
+öffnet ihre Wertpapiere als Zeilen derselben Tabelle, jede mit eigenem
+**Soll %**-Feld — dasselbe Formular, ein **Plan speichern**, eine Live-**Σ**.
+Eine Kategorie öffnet sich von selbst, sobald eine ihrer Positionen ein Ziel
+trägt. Trägt eine Position unter einer Kategorie ein Ziel, wird das Feld der
+Kategorie zur gestrichelten, schreibgeschützten Anzeige **Σ Positionen**: Die
+Kategorie *ist* die Summe ihrer Positionen (ADR-0030 §2), und die Σ-Fußzeile
+zählt diese Summe an ihrer Stelle. Beim Speichern wird auch das eigene Gewicht
+der Kategorie auf diese Summe gesetzt, sodass der Hinweis der Vermögensseite
+„Positionsziele und Kategoriegewicht weichen ab“ durch das Speichern hier erledigt
+ist. **Ein leeres Positionsfeld bedeutet „kein Positionsziel“** — nie null: Wer
+das Feld einer gespeicherten Position leert und speichert, löscht dieses Ziel und
+gibt die Steuerung an die Kategorie zurück; `0` ist ein Ziel von null und bleibt
+erhalten. Das Zuklappen der Positionen einer Kategorie blendet die Zeilen nur
+aus; ihre Werte werden weiter gespeichert.
 
 ### Plan-Versionen: duplizieren, Entwurf, aktivieren
 

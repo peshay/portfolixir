@@ -1741,3 +1741,28 @@ Board `ux-design-2026-09-23/03-settlement-inputs`, variant A, as built.
   changed quantity or price re-derives the amount from the rate; a changed
   security, depot, date or kind re-prefills a *suggested* rate but never one
   the operator typed. A missing amount on save is named on its own field.
+
+## Amendment 2026-09-24 — Position targets in the plan editor *(Sprint 15 pick F2-A, issue 481)*
+
+Board `ux-design-2026-09-23/02-position-soll-entry`, variant A, as built.
+
+- **One table, one form.** A category with assigned securities carries a
+  text-style disclosure control beside its name — the chevron plus
+  "Positions (n)" in the accent, no button chrome (`.soll-positions-toggle` on
+  `.disclosure-button`, `aria-expanded`/`aria-controls`). Its position rows
+  follow directly under the category in the same `<table>`, indented one level
+  deeper, on `--color-bg-muted`, each with its own target input. One save, one
+  live Σ. A category whose positions carry a target opens by default.
+- **Closed is hidden, never removed.** Collapsed rows carry `hidden` and keep
+  their inputs in the form, so closing a category can never read as clearing
+  its targets.
+- **The category follows its positions.** Once a position carries a target,
+  the category's input is replaced by `output.soll-position-sum`: the sum, in a
+  dashed `--color-border-strong` box at the input's width, muted, right-aligned,
+  with the line "Sum of the position targets — the category follows it" under
+  the name. Shown, not entered (ADR-0030 §2).
+- **Empty is not zero.** An empty position input is no target; the copy and
+  the save both honour it.
+- **Fits at 390 px.** The plan table opts out of the scroller's
+  `min-width: max-content` (the Risk tables' fit pattern) and position names
+  wrap anywhere, so every input stays on screen.

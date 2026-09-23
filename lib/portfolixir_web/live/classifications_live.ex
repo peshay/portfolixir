@@ -910,16 +910,77 @@ defmodule PortfolixirWeb.ClassificationsLive do
                       >
                         <%= gettext("no assigned positions") %>
                       </span>
+                      <%!-- #481 (pick F2-A): the category's positions, in the
+                           same form — one save, one live Σ. --%>
+                      <button
+                        :if={Map.get(@soll.members, category.id, []) != []}
+                        type="button"
+                        id={"soll-positions-toggle-#{category.id}"}
+                        class="disclosure-button soll-positions-toggle"
+                        phx-click="toggle_soll_positions"
+                        phx-value-id={category.id}
+                        aria-expanded={to_string(MapSet.member?(@soll.expanded, category.id))}
+                        aria-controls={"soll-positions-#{category.id}"}
+                      >
+                        <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
+                        <%= gettext("Positions (%{count})",
+                          count: length(Map.get(@soll.members, category.id, []))
+                        ) %>
+                      </button>
+                      <span
+                        :if={position_sum(@soll, category.id)}
+                        class="hint soll-row__follows"
+                        data-role="soll-position-hint"
+                      >
+                        <%= gettext("Sum of the position targets — the category follows it") %>
+                      </span>
                     </th>
                     <td class="num">
-                      <label class="sr-only" for={"soll-weight-#{category.id}"}>
-                        <%= gettext("Target weight for %{name}", name: category.name) %>
+                      <%= case position_sum(@soll, category.id) do %>
+                        <% nil -> %>
+                          <label class="sr-only" for={"soll-weight-#{category.id}"}>
+                            <%= gettext("Target weight for %{name}", name: category.name) %>
+                          </label>
+                          <input
+                            type="number"
+                            id={"soll-weight-#{category.id}"}
+                            name={"weights[#{category.id}]"}
+                            value={Map.get(@soll.weights, category.id, "")}
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            inputmode="decimal"
+                          />
+                        <% sum -> %>
+                          <%!-- ADR-0030 §2: once a position carries a target
+                               the category IS the sum of its positions — shown,
+                               not entered. --%>
+                          <output
+                            id={"soll-position-sum-#{category.id}"}
+                            class="soll-position-sum"
+                            aria-label={gettext("Σ positions for %{name}", name: category.name)}
+                          ><%= format_sum(sum) %></output>
+                      <% end %>
+                    </td>
+                  </tr>
+                  <tr
+                    :for={member <- Map.get(@soll.members, category.id, [])}
+                    class="soll-row soll-row--position"
+                    data-category={category.id}
+                    hidden={not MapSet.member?(@soll.expanded, category.id)}
+                  >
+                    <th scope="row" class="soll-row__name soll-row__name--position">
+                      <span aria-hidden="true"><%= indent(depth + 1) %></span><%= member.name %>
+                    </th>
+                    <td class="num">
+                      <label class="sr-only" for={"soll-position-#{category.id}-#{member.id}"}>
+                        <%= gettext("Position target for %{name}", name: member.name) %>
                       </label>
                       <input
                         type="number"
-                        id={"soll-weight-#{category.id}"}
-                        name={"weights[#{category.id}]"}
-                        value={Map.get(@soll.weights, category.id, "")}
+                        id={"soll-position-#{category.id}-#{member.id}"}
+                        name={"positions[#{category.id}][#{member.id}]"}
+                        value={@soll.position_weights |> Map.get(category.id, %{}) |> Map.get(member.id, "")}
                         min="0"
                         max="100"
                         step="0.1"
@@ -1212,7 +1273,15 @@ defmodule PortfolixirWeb.ClassificationsLive do
     with %{id: portfolio_id} <- socket.assigns.portfolio,
          classification_id when is_integer(classification_id) <- socket.assigns.selected_id,
          {:ok, entries} <- parse_weight_entries(params["weights"]),
-         {:ok, _} <- save_soll_targets(socket, portfolio_id, classification_id, entries),
+         {:ok, position_entries} <- parse_position_entries(params["positions"]),
+         :ok <- clear_soll_positions(socket, portfolio_id, params["positions"]),
+         {:ok, _} <-
+           save_soll_targets(
+             socket,
+             portfolio_id,
+             classification_id,
+             follow_positions(entries, position_entries) ++ position_entries
+           ),
          :ok <- save_soll_cash_target(socket, portfolio_id, params) do
       {:noreply, socket |> success(gettext("Plan saved")) |> load_soll()}
     else
@@ -1224,6 +1293,22 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
       _ ->
         {:noreply, failure(socket, gettext("Could not save the plan"))}
+    end
+  end
+
+  # #481: a category's position rows open and close in place; closed rows
+  # stay in the form (hidden), so closing never reads as clearing.
+  def handle_event("toggle_soll_positions", %{"id" => id}, socket) do
+    with {:ok, category_id} <- coerce_id(id),
+         %{expanded: expanded} = soll <- socket.assigns.soll do
+      expanded =
+        if MapSet.member?(expanded, category_id),
+          do: MapSet.delete(expanded, category_id),
+          else: MapSet.put(expanded, category_id)
+
+      {:noreply, assign(socket, :soll, %{soll | expanded: expanded})}
+    else
+      _ -> {:noreply, socket}
     end
   end
 
@@ -1444,6 +1529,30 @@ defmodule PortfolixirWeb.ClassificationsLive do
       |> Targets.get_cash_target(view: view_id)
       |> fraction_to_percent_or_nil()
 
+    # Position targets (ADR-0030, #481 rescoped, pick F2-A): the securities
+    # each category offers as position rows, and the stored position weights
+    # of the edited plan. A stored row whose security moved elsewhere (stale)
+    # still shows under the category it was filed in — it keeps counting
+    # there, so it must stay editable there.
+    stored_positions =
+      if exists?,
+        do:
+          Targets.list_position_targets(portfolio_id,
+            classification_id: classification_id,
+            plan: selected.id
+          ),
+        else: []
+
+    position_weights =
+      Enum.reduce(stored_positions, %{}, fn row, acc ->
+        put_in_nested(
+          acc,
+          row.category_id,
+          row.security_id,
+          fraction_to_percent(row.target_weight)
+        )
+      end)
+
     soll = %{
       view_id: view_id,
       plans: plans,
@@ -1451,6 +1560,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
       editing_version?: editing_version?,
       exists: exists?,
       weights: weights,
+      members: position_members(classification_id, stored_positions),
+      position_weights: position_weights,
+      stored_positions: MapSet.new(stored_positions, &{&1.category_id, &1.security_id}),
+      expanded: position_weights |> Map.keys() |> MapSet.new(),
       cash_target: cash_target,
       top_level_ids: top_level_ids(assigns.tree.flat),
       children_by_parent: children_by_parent(assigns.tree.flat),
@@ -1491,6 +1604,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
     soll
     |> Map.put(:weights, weights)
+    |> Map.put(:position_weights, parse_position_map(params["positions"]))
     |> Map.put(:cash_target, cash)
     |> Map.put(:child_sums, child_sums_from_decimals(weights))
     |> put_sum()
@@ -1547,6 +1661,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
     sum =
       soll
+      |> Map.put(:weights, steering_weights(soll))
       |> effective_top_level_sum(top_level_ids, children_by_parent)
       |> Decimal.add(to_decimal(soll.cash_target))
 
@@ -1569,6 +1684,59 @@ defmodule PortfolixirWeb.ClassificationsLive do
       Decimal.add(acc, to_decimal(value))
     end)
   end
+
+  # ADR-0030 §2: a category with any position target steers by the sum of its
+  # positions, whatever its own row says; the rest steer by their own weight.
+  defp steering_weights(soll) do
+    soll
+    |> Map.get(:position_weights, %{})
+    |> Enum.reduce(soll.weights, fn {category_id, _positions}, acc ->
+      case position_sum(soll, category_id) do
+        nil -> acc
+        sum -> Map.put(acc, category_id, sum)
+      end
+    end)
+  end
+
+  # The sum of a category's position targets (percent), or nil when none of
+  # its positions carries one — an empty input is no target, not zero.
+  defp position_sum(soll, category_id) do
+    case soll |> Map.get(:position_weights, %{}) |> Map.get(category_id, %{}) |> Map.values() do
+      [] -> nil
+      values -> Enum.reduce(values, @zero, &Decimal.add(to_decimal(&1), &2))
+    end
+  end
+
+  # The securities a category offers as position rows: those assigned to it in
+  # this classification, plus any security a stored position row files there.
+  defp position_members(classification_id, stored_positions) do
+    assigned =
+      case Classifications.security_category_map(classification_id) do
+        {:ok, map} ->
+          Enum.map(map, fn {security_id, category_id} -> {category_id, security_id} end)
+
+        {:error, _} ->
+          []
+      end
+
+    pairs = Enum.uniq(assigned ++ Enum.map(stored_positions, &{&1.category_id, &1.security_id}))
+    ids = pairs |> Enum.map(&elem(&1, 1)) |> MapSet.new()
+
+    names =
+      Catalog.list_securities()
+      |> Enum.filter(&MapSet.member?(ids, &1.id))
+      |> Map.new(&{&1.id, &1.name})
+
+    pairs
+    |> Enum.filter(fn {_category_id, security_id} -> Map.has_key?(names, security_id) end)
+    |> Enum.group_by(&elem(&1, 0), fn {_category_id, security_id} ->
+      %{id: security_id, name: Map.fetch!(names, security_id)}
+    end)
+    |> Map.new(fn {category_id, members} -> {category_id, Enum.sort_by(members, & &1.name)} end)
+  end
+
+  defp put_in_nested(map, outer, inner, value),
+    do: Map.update(map, outer, %{inner => value}, &Map.put(&1, inner, value))
 
   # A category's effective weight: its explicit weight when set, else the summed
   # effective weights of its children (recursive roll-up), else zero.
@@ -2006,6 +2174,102 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   defp parse_weight_entries(_weights), do: {:ok, []}
 
+  # `positions[category_id][security_id]` → position entries (ADR-0030); a blank
+  # input is no position target and yields no entry.
+  defp parse_position_entries(positions) when is_map(positions) do
+    Enum.reduce_while(positions, {:ok, []}, fn {category_key, by_security}, {:ok, acc} ->
+      case position_entries_for(category_key, by_security) do
+        {:ok, entries} -> {:cont, {:ok, entries ++ acc}}
+        error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp parse_position_entries(_positions), do: {:ok, []}
+
+  defp position_entries_for(category_key, by_security) when is_map(by_security) do
+    with {:ok, category_id} <- coerce_id(category_key) do
+      Enum.reduce_while(by_security, {:ok, []}, fn {security_key, value}, {:ok, acc} ->
+        with {:ok, security_id} <- coerce_id(security_key),
+             {:ok, fraction} <- parse_percent_fraction(value) do
+          entry = %{category_id: category_id, security_id: security_id, target_weight: fraction}
+          {:cont, {:ok, if(fraction, do: [entry | acc], else: acc)}}
+        else
+          _ -> {:halt, {:error, :invalid_weight}}
+        end
+      end)
+    else
+      _ -> {:error, :invalid_weight}
+    end
+  end
+
+  defp position_entries_for(_category_key, _by_security), do: {:error, :invalid_weight}
+
+  # "The category follows it" (board 02, ADR-0030 §2): a category whose
+  # positions carry targets gets its own row set to their sum, so the stored
+  # category weight never disagrees with what steers — the conflict the Wealth
+  # page reports is resolved by saving here, not by a second field to keep in
+  # step. Any submitted weight for such a category is superseded.
+  defp follow_positions(entries, []), do: entries
+
+  defp follow_positions(entries, position_entries) do
+    sums =
+      Enum.reduce(position_entries, %{}, fn entry, acc ->
+        Map.update(
+          acc,
+          entry.category_id,
+          entry.target_weight,
+          &Decimal.add(&1, entry.target_weight)
+        )
+      end)
+
+    entries
+    |> Enum.reject(&Map.has_key?(sums, &1.category_id))
+    |> Kernel.++(Enum.map(sums, fn {id, sum} -> %{category_id: id, target_weight: sum} end))
+  end
+
+  # The stored position rows whose input came back empty are deleted — an empty
+  # field means "no position target", never zero (#481). Only a row the form
+  # actually carried is touched: a submit without the position inputs clears
+  # nothing.
+  defp clear_soll_positions(socket, portfolio_id, positions) when is_map(positions) do
+    case socket.assigns.soll do
+      %{plan: %{id: plan_id}, stored_positions: stored} ->
+        for {category_id, security_id} <- stored,
+            blank_position?(positions, category_id, security_id) do
+          Targets.delete_position_target(
+            Actor.owner_ui(),
+            portfolio_id,
+            category_id,
+            security_id,
+            plan: plan_id
+          )
+        end
+
+        :ok
+
+      _no_plan ->
+        :ok
+    end
+  end
+
+  defp clear_soll_positions(_socket, _portfolio_id, _positions), do: :ok
+
+  defp blank_position?(positions, category_id, security_id) do
+    case positions |> Map.get(to_string(category_id)) do
+      %{} = by_security ->
+        by_security
+        |> Map.fetch(to_string(security_id))
+        |> case do
+          {:ok, value} when is_binary(value) -> String.trim(value) == ""
+          _absent -> false
+        end
+
+      _absent ->
+        false
+    end
+  end
+
   # A percentage string ("60", "12.5", "" ) → a `Decimal` fraction in [0, 1], or
   # `nil` for blank. Returns `{:error, :invalid_weight}` for non-numbers.
   # Status-aware banner for a selected non-active version (Steve UAT: an
@@ -2049,6 +2313,21 @@ defmodule PortfolixirWeb.ClassificationsLive do
   end
 
   defp parse_percent_map(_weights), do: %{}
+
+  # `positions[category_id][security_id]` → `%{category_id => %{security_id =>
+  # Decimal}}`, blanks dropped: an empty position input is no target.
+  defp parse_position_map(positions) when is_map(positions) do
+    Enum.reduce(positions, %{}, fn {category_key, by_security}, acc ->
+      with {:ok, category_id} <- coerce_id(category_key),
+           parsed when parsed != %{} <- parse_percent_map(by_security) do
+        Map.put(acc, category_id, parsed)
+      else
+        _ -> acc
+      end
+    end)
+  end
+
+  defp parse_position_map(_positions), do: %{}
 
   defp parse_percent_string(nil), do: nil
   defp parse_percent_string(""), do: nil

@@ -3,7 +3,8 @@
 # unclassified security, a held position with a stale quote, a priceless
 # position, a foreign-currency cash account with no FX rate, a snapshot, a tax
 # statement, research-log entries, security events, buckets and a view, policy
-# rules in every state and a cross-currency buy.
+# rules in every state, a cross-currency buy and position targets in one
+# category.
 # Synthetic all the way down; no real data (AGENTS.md → Privacy And
 # Disclosure).
 #
@@ -677,5 +678,31 @@ alpine_date = Date.add(today, -10)
     %{date: alpine_date, close: "45.60", source: "manual"},
     %{date: today, close: "46.10", source: "manual"}
   ])
+
+# 13. Position targets in one category (#481, Sprint 15 Lane D1): the three
+# Platforms securities carry their own targets, summing to the category's
+# 30 %, so the Classifications SOLL editor shows the category as the read-only
+# "Σ positions" with its position rows open. An upsert, safe to repeat.
+strategies = Enum.find(Classifications.list_classifications(), &(&1.name == "Strategies"))
+platforms = Enum.find(Classifications.list_categories(strategies.id), &(&1.name == "Platforms"))
+
+platform_targets =
+  for {fragment, weight} <- [{"apple", "0.12"}, {"microsoft", "0.10"}, {"nvidia", "0.08"}],
+      security =
+        Enum.find(
+          Catalog.list_securities(),
+          &String.contains?(String.downcase(&1.name), fragment)
+        ),
+      security do
+    %{category_id: platforms.id, security_id: security.id, target_weight: weight}
+  end
+
+{:ok, _} =
+  Portfolixir.Portfolios.Targets.set_targets(
+    owner,
+    portfolio.id,
+    strategies.id,
+    platform_targets
+  )
 
 IO.puts("review seed done (timber position: #{timber_state})")
