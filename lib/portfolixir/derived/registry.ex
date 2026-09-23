@@ -45,17 +45,15 @@ defmodule Portfolixir.Derived.Registry do
     # portfolio's own blast radius.
     benchmark_comparison: %{computation_version: 1, default_lifetime: :request},
     # The per-security derived metrics (ADR-0047 §8, Sprint 13 Lane A1).
-    # `:none` is the DEFAULT WITH A REASON, not a placeholder: the analytic's
-    # invalidation seam does not exist yet. `Invalidation.after_quote_write/1`
-    # resolves through `BlastRadius.for_quote/1`, which answers the portfolios
-    # that have ever transacted the security -- empty for a security no
-    # portfolio has ever held, which is precisely the security whose research
-    # metrics are most wanted. A quote write for it bumps nothing, so a memo
-    # would be stale with no counter able to say so. A per-security basis key
-    # (`DataVersion.security_basis/1`, bumped by `after_quote_write/1`) is the
-    # prerequisite for ever moving this to `:request` or `:durable`; it is
-    # filed as its own issue and the measurement of ADR-0039 C3 cannot be
-    # acted on before it lands.
+    # `:none` is the DEFAULT WITH A REASON, not a placeholder. The portfolio
+    # radius of a quote write is empty for a security no portfolio has ever
+    # held -- precisely the security whose research metrics are most wanted --
+    # so the portfolio bases cannot invalidate this analytic. The seam that
+    # can now exists (#825): `DataVersion.security_basis/1`, bumped by
+    # `after_quote_write/1` and by the security's own writes and splits. The
+    # ADR-0039 C3 measurement that would justify moving to `:request` or
+    # `:durable` is therefore AVAILABLE, NOT TAKEN; `SecurityMetrics` already
+    # keys under the security basis, so the move is that measurement.
     security_metrics: %{computation_version: 1, default_lifetime: :none},
     # The per-portfolio and per-view derived metrics (ADR-0047 §8, Sprint 14
     # Lane A1): the walk-derived figures and the Top-N correlation matrix on

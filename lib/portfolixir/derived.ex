@@ -56,6 +56,9 @@ defmodule Portfolixir.Derived do
   @doc "The basis key of one portfolio's derived values."
   defdelegate portfolio_basis(portfolio_id), to: DataVersion
 
+  @doc "The basis key of derived values depending only on one security's own data (#825)."
+  defdelegate security_basis(security_id), to: DataVersion
+
   @doc "The basis key of derived values depending on every portfolio."
   defdelegate global_basis(), to: DataVersion
 

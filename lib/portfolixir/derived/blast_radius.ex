@@ -36,6 +36,7 @@ defmodule Portfolixir.Derived.BlastRadius do
 
   import Ecto.Query
 
+  alias Portfolixir.Catalog.Security
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.Portfolio
@@ -69,6 +70,68 @@ defmodule Portfolixir.Derived.BlastRadius do
   def for_quote(security_id) when is_integer(security_id), do: portfolios_of_security(security_id)
 
   def for_quote(_security_id), do: :all
+
+  # -- the per-security radius (#825) ---------------------------------------
+  #
+  # A security basis (`DataVersion.security_basis/1`) carries a value that
+  # depends only on ONE security's own data: its row, its stored quotes and its
+  # booked splits (the `security_metrics` inputs, ADR-0047 §8). The two
+  # resolvers below answer "which securities?" under the same two rules as the
+  # portfolio resolvers: the narrow answers are an allowlist, and an
+  # unresolvable record — or a resource type nobody classified — widens to
+  # `:all`, every security in the catalog.
+  #
+  # The one list that answers `[]` is `@feeds_no_security_data`: journaled
+  # resource types classified, one by one, as writing nothing a security's own
+  # series reads. It is an explicit enumeration, not a default — a new resource
+  # type is absent from it and so widens.
+  @feeds_no_security_data ~w(
+    allowance_order bucket cash_account cash_account_bucket_assignment category
+    classification depot_bucket_assignment portfolio position_bucket_override
+    securities_account security_category_assignment security_event
+    security_identifier_alias security_note snapshot target target_plan
+    tax_parameters tax_profile tax_statement_snapshot view
+  )
+
+  @doc """
+  The securities whose own basis a journaled write can affect, or `:all` when
+  that cannot be proven narrower.
+
+  A transaction resolves to its own security (a split re-bases the security's
+  display series; any other kind is included so an edit that turns a split
+  into another kind still bumps). A security write resolves to the security,
+  or to the ids a bulk write's aggregate carries.
+  """
+  @spec securities_for_write(String.t(), map()) :: radius()
+  def securities_for_write(resource_type, record)
+
+  def securities_for_write("transaction", %{__struct__: Transaction, security_id: id})
+      when is_integer(id),
+      do: [id]
+
+  # A cash-only booking (deposit, fee, transfer, ...) names no security.
+  def securities_for_write("transaction", %{__struct__: Transaction, security_id: nil}), do: []
+
+  def securities_for_write("security", %{__struct__: Security, id: id}) when is_integer(id),
+    do: [id]
+
+  # The bulk asset-class write journals an aggregate carrying the affected ids.
+  def securities_for_write("security", %{security_ids: ids}) when is_list(ids),
+    do: ids |> Enum.uniq() |> Enum.sort()
+
+  def securities_for_write(resource_type, _record)
+      when resource_type in @feeds_no_security_data,
+      do: []
+
+  # Everything else — an unclassified resource type, or a listed one whose
+  # record cannot be resolved. Widening is the only safe default.
+  def securities_for_write(_resource_type, _record), do: :all
+
+  @doc "The securities whose own basis a quote write for `security_id` affects: itself."
+  @spec securities_for_quote(integer()) :: radius()
+  def securities_for_quote(security_id) when is_integer(security_id), do: [security_id]
+
+  def securities_for_quote(_security_id), do: :all
 
   @doc """
   The portfolios an exchange-rate write can affect: those with any
@@ -128,7 +191,7 @@ defmodule Portfolixir.Derived.BlastRadius do
   defp foreign_security_portfolios do
     Transaction
     |> join(:inner, [t], p in Portfolio, on: p.id == t.portfolio_id)
-    |> join(:inner, [t, _p], s in Portfolixir.Catalog.Security, on: s.id == t.security_id)
+    |> join(:inner, [t, _p], s in Security, on: s.id == t.security_id)
     |> where([_t, p, s], s.currency_code != p.base_currency_code)
     |> select([t], t.portfolio_id)
     |> distinct(true)

@@ -22,17 +22,23 @@ defmodule Portfolixir.Catalog.SecurityMetrics do
   and a decade of a monthly one, so a calendar bound would silently refuse the
   sparse case.
 
-  ## Lifetime `:none`, and the seam that is missing
+  ## Lifetime `:none`, and the seam that now exists
 
-  `security_metrics` registers with ADR-0039 §2 at lifetime **`:none`**, and
-  the reason is the point (ADR-0047 §8): `Invalidation.after_quote_write/1`
-  resolves through `BlastRadius.for_quote/1`, which answers *the portfolios
-  that have ever transacted the security*. For a security **no portfolio has
-  ever held** — a benchmark, a watch-only candidate, exactly the security whose
-  research metrics are most wanted — that list is empty, so a quote write bumps
-  **nothing** and any memo would be stale with no counter able to say so.
-  Moving this analytic to `:request` or `:durable` needs the per-security basis
-  key filed as its own issue by the batch, and not before.
+  `security_metrics` registers with ADR-0039 §2 at lifetime **`:none`**
+  (ADR-0047 §8). The portfolio bases cannot invalidate it:
+  `BlastRadius.for_quote/1` answers *the portfolios that have ever transacted
+  the security*, and for a security **no portfolio has ever held** — a
+  benchmark, a watch-only candidate, exactly the security whose research
+  metrics are most wanted — that list is empty.
+
+  The per-security basis closes that gap (#825):
+  `Portfolixir.Derived.DataVersion.security_basis/1` is bumped by every quote
+  write for the security, by its own journaled edits and by splits booked for
+  it — every input this read consumes. The seam exists; the move off `:none`
+  does not follow from it. Whether caching is worth anything is the ADR-0039
+  C3 measurement, which is now **available, not taken**. The read below is
+  already keyed under the security basis, so taking the measurement and
+  changing the registry default is the whole move.
   """
 
   import Ecto.Query
@@ -77,13 +83,13 @@ defmodule Portfolixir.Catalog.SecurityMetrics do
   defp compute(%Security{} = security, %Date{} = as_of) do
     # Served through the derived-value axis (ADR-0039) as the
     # `:security_metrics` analytic. At the registry's `:none` lifetime this is
-    # a plain call and the numbers are identical; the basis is the global one
-    # because no per-security basis exists yet (ADR-0047 §8) — which is
-    # exactly why the lifetime is `:none` and the key is never used.
+    # a plain call and the numbers are identical. The entry is keyed under the
+    # security's own basis (#825), which every input of this read bumps — so
+    # moving the lifetime, once ADR-0039 C3 is measured, needs no re-keying.
     {:fresh, metrics} =
       Derived.fetch(
         :security_metrics,
-        Derived.global_basis(),
+        Derived.security_basis(security.id),
         "#{security.id}:#{Date.to_iso8601(as_of)}",
         fn -> PriceMetrics.compute(series(security, as_of), as_of) end
       )
