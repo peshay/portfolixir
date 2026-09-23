@@ -39,6 +39,32 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 6,
+      date: ~D[2026-09-23],
+      summary:
+        "Sprint 14: the portfolio and view derived metrics (ADR-0047, FR-40) on the one " <>
+          "risk read — volatility, maximum drawdown and risk-adjusted return over the " <>
+          "TTWROR chain's flow-adjusted factors, and the Top-N correlation matrix converted " <>
+          "to the base currency; `required` on every metric of both metric payloads (#838); " <>
+          "since= on the row collections a scheduled run polls (#830), deliberately not on " <>
+          "the derived projections or the time-derived queues; the re-import guarantee in " <>
+          "the descriptions of the reads it protects (#831).",
+      endpoints: [],
+      tools: [],
+      parameters: [
+        "GET /api/v1/portfolios/:portfolio_id/risk and portfolixir.portfolios.risk carry metrics (ADR-0047 §3, FR-40): volatility, max_drawdown (peak/trough/recovery dates) and risk_adjusted_return over 30d/90d/365d from the TTWROR chain's flow-adjusted daily return factors, annualized by √365, and correlations — the Top-N names' Pearson matrix converted to the base currency first, each pair with its overlap count, a currency with no rate path listed in excluded; metrics.computation_basis states the basis once. The risk family keeps exactly one endpoint; the view arrives as view=",
+        "GET /api/v1/portfolios/:portfolio_id/risk and portfolixir.portfolios.risk take risk_free_rate= (a Decimal fraction, default 0, ADR-0046's fixed-rate bound and daily compounding); a malformed or out-of-bound rate is a 422 naming the field",
+        "GET /api/v1/securities/:security_id/metrics and the risk read's metrics carry required on every metric in both states (ADR-0047 §6 as amended, #838): n for sma_n, 20 for volatility and risk_adjusted_return, 2 for max_drawdown and momentum, 1 for distance_to_extremes, 60 per correlation pair; a refused sma_n keeps window null",
+        "GET /api/v1/securities/:security_id/notes and portfolixir.notes.list take since= (FR-38, #830): entries appended strictly after it, by inserted_at; thesis_state still derives from the whole log",
+        "GET /api/v1/securities/:security_id/events and portfolixir.events.list take since= (#830): rows created or updated strictly after it",
+        "GET /api/v1/portfolios/:portfolio_id/targets and /position_targets and portfolixir.targets.list / list_positions take since= (#830): a row counts as changed when it or its plan changed; effective_targets stays whole-plan",
+        "The six time-derived queues (/notes/unreviewed, /notes/expiring, /notes/uncorroborated, /events/upcoming, /events/stale, /events/unconfirmed) deliberately ignore since= (D-5): their membership changes because time passes, with no row changing",
+        "The eight research-log and security-events tools state the re-import guarantee in their descriptions (#831)"
+      ],
+      removed_endpoints: [],
+      removed_tools: []
+    },
+    %{
       version: 5,
       date: ~D[2026-09-19],
       summary:

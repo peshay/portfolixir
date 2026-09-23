@@ -49,8 +49,17 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
-    assert "GET /api/v1/securities/:security_id/metrics" in newest["endpoints"]
-    assert "portfolixir.securities.metrics" in newest["tools"]
+    # Sprint 14 (version 6) moved parameters only: the portfolio metrics on
+    # the risk read, `required` on both metric payloads (#838), since= on the
+    # row collections (#830). Sprint 13's additions are found by version.
+    assert newest["version"] == 6
+    assert Enum.any?(newest["parameters"], &(&1 =~ "risk_free_rate"))
+    assert Enum.any?(newest["parameters"], &(&1 =~ "required"))
+    assert Enum.any?(newest["parameters"], &(&1 =~ "since="))
+
+    sprint13 = Enum.find(data["entries"], &(&1["version"] == 5))
+    assert "GET /api/v1/securities/:security_id/metrics" in sprint13["endpoints"]
+    assert "portfolixir.securities.metrics" in sprint13["tools"]
     # Found by version, not by position: a newer entry must not move it.
     sprint9 = Enum.find(data["entries"], &(&1["version"] == 2))
     assert "GET /api/v1/securities/:security_id/notes" in sprint9["endpoints"]
