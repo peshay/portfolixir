@@ -783,7 +783,7 @@ defmodule PortfolixirWeb.TaxLive do
                   phx-value-id={entry.row.id}
                   aria-label={gettext("Open actions menu")}
                   aria-haspopup="menu"
-                  aria-expanded={@row_menu == {:statement, entry.row.id}}
+                  aria-expanded={to_string(@row_menu == {:statement, entry.row.id})}
                 >
                   <AppShell.icon name={:ellipsis_vertical} />
                 </button>
@@ -887,7 +887,7 @@ defmodule PortfolixirWeb.TaxLive do
                   phx-value-id={order.id}
                   aria-label={gettext("Open actions menu")}
                   aria-haspopup="menu"
-                  aria-expanded={@row_menu == {:order, order.id}}
+                  aria-expanded={to_string(@row_menu == {:order, order.id})}
                 >
                   <AppShell.icon name={:ellipsis_vertical} />
                 </button>

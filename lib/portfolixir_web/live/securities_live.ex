@@ -405,7 +405,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
               phx-click="toggle_popover"
               phx-value-popover="columns"
               aria-label={gettext("Columns")}
-              aria-expanded={@open_popover == :columns}
+              aria-expanded={to_string(@open_popover == :columns)}
               title={gettext("Columns")}
             >
               <AppShell.icon name={:columns} />
@@ -680,7 +680,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                           phx-value-id={sec_id}
                           aria-label={gettext("Open actions menu")}
                           aria-haspopup="menu"
-                          aria-expanded={@row_menu_id == sec_id}
+                          aria-expanded={to_string(@row_menu_id == sec_id)}
                         >
                           <AppShell.icon name={:ellipsis_vertical} />
                         </button>
@@ -1069,7 +1069,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 id="toggle-log"
                 phx-click="toggle_detail_log"
                 class={["chart-toggle", @detail_log_scale? && "is-active"]}
-                aria-pressed={@detail_log_scale?}
+                aria-pressed={to_string(@detail_log_scale?)}
                 disabled={@detail_percent_mode?}
               >
                 <%= gettext("Log scale") %>
@@ -1079,7 +1079,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 id="toggle-percent-mode"
                 phx-click="toggle_detail_percent_mode"
                 class={["chart-toggle", @detail_percent_mode? && "is-active"]}
-                aria-pressed={@detail_percent_mode?}
+                aria-pressed={to_string(@detail_percent_mode?)}
               >
                 <%= gettext("Percent") %>
               </button>
@@ -1088,7 +1088,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 id="toggle-transactions"
                 phx-click="toggle_detail_transactions"
                 class={["chart-toggle", @detail_show_transactions? && "is-active"]}
-                aria-pressed={@detail_show_transactions?}
+                aria-pressed={to_string(@detail_show_transactions?)}
               >
                 <%= gettext("Show transactions") %>
               </button>
@@ -1109,7 +1109,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 id="toggle-cost-basis"
                 phx-click="toggle_detail_cost_basis"
                 class={["chart-toggle", @detail_cost_basis? && "is-active"]}
-                aria-pressed={@detail_cost_basis?}
+                aria-pressed={to_string(@detail_cost_basis?)}
               >
                 <%= gettext("Cost basis") %>
               </button>
@@ -3557,7 +3557,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         class={["more-filters-link", @open_popover == :filter && "is-active"]}
         phx-click="toggle_popover"
         phx-value-popover="filter"
-        aria-expanded={@open_popover == :filter}
+        aria-expanded={to_string(@open_popover == :filter)}
       >
         <AppShell.icon name={:filter} />
         <%= gettext("More filters") %>
