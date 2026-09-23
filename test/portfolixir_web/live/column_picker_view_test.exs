@@ -45,6 +45,9 @@ defmodule PortfolixirWeb.ColumnPickerViewTest do
     assert html =~ ~s(id="transaction-list")
     refute view |> element("#transaction-list thead") |> render() =~ "Fees"
 
+    # #850: the picker is a popover on its toggle.
+    view |> element("#tx-column-toggle") |> render_click()
+
     view
     |> element("#tx-column-form")
     |> render_change(%{
@@ -76,6 +79,7 @@ defmodule PortfolixirWeb.ColumnPickerViewTest do
     %{world: world} = seed_history()
 
     {:ok, view, _html} = live(conn, "/transactions")
+    view |> element("#tx-column-toggle") |> render_click()
 
     refute has_element?(view, "#tx-column-form input[value='balance']")
 

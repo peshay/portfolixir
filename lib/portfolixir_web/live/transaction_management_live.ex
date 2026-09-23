@@ -9,6 +9,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.ChangedSince
+  alias PortfolixirWeb.ColumnPicker
   alias PortfolixirWeb.TransactionKindLabel
 
   # Two chip families (#707 D2, Part 4) plus the conditions the "More filters"
@@ -53,6 +54,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
      |> assign(:form_errors, %{})
      |> assign(:sell_preview, nil)
      |> assign(:tx_columns, @tx_column_defaults)
+     |> assign(:column_picker_open?, false)
      |> assign(:booking_open?, false)
      |> assign(:editing_id, nil)
      |> assign(:row_menu_id, nil)
@@ -271,26 +273,25 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               <%!-- #732: the pickable columns are the human half of the
                     API's fields= sparse fieldset — fees, taxes, gross amount
                     and notes exist in every row and were never showable. --%>
-              <details id="tx-column-picker" class="more-filters">
-                <summary>
-                  <AppShell.icon name={:columns} />
-                  <%= gettext("Columns") %>
-                </summary>
-                <form id="tx-column-form" phx-change="set_tx_columns">
-                  <%= for key <- tx_column_keys() do %>
-                    <label class="checkbox-row">
-                      <input
-                        type="checkbox"
-                        name="columns[]"
-                        value={key}
-                        checked={key in @tx_columns}
-                      />
-                      <span><%= tx_column_label(key) %></span>
-                    </label>
-                  <% end %>
-                  <input type="hidden" name="columns[]" value="" />
-                </form>
-              </details>
+              <%!-- #850: the shared grouped popover on its toggle (DESIGN.md →
+                    Overlays, pick E3) — it opens over the table instead of
+                    pushing it down, as the <details> it replaces did. --%>
+              <div class="column-picker-bar popover-container">
+                <ColumnPicker.toggle
+                  id="tx-column-toggle"
+                  open={@column_picker_open?}
+                  on_toggle="toggle_column_picker"
+                />
+                <ColumnPicker.picker
+                  :if={@column_picker_open?}
+                  id="tx-column-picker"
+                  form_id="tx-column-form"
+                  on_change="set_tx_columns"
+                  on_close="close_column_picker"
+                  groups={tx_column_groups()}
+                  selected={@tx_columns}
+                />
+              </div>
               <div
                 id="transaction-table-wrapper"
                 class="data-table-wrapper"
@@ -628,6 +629,14 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   end
 
   def handle_event("set_tx_columns", _params, socket), do: {:noreply, socket}
+
+  def handle_event("toggle_column_picker", _params, socket) do
+    {:noreply, update(socket, :column_picker_open?, &(not &1))}
+  end
+
+  def handle_event("close_column_picker", _params, socket) do
+    {:noreply, assign(socket, :column_picker_open?, false)}
+  end
 
   def handle_event("save_transaction", %{"transaction" => params}, socket) do
     # The currency is authoritative from the chosen depot's cash account, never a
@@ -1171,7 +1180,16 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   # -- #732 column registries -------------------------------------------------
 
-  defp tx_column_keys, do: @tx_column_keys
+  # #850: the picker's groups, every key of `@tx_column_keys` in exactly one
+  # (the picker test pins that none is dropped).
+  defp tx_column_groups do
+    [
+      {gettext("Booking"), ~w(date type security)},
+      {gettext("Amounts"), ~w(quantity price gross_amount fees taxes)},
+      {gettext("Other"), ~w(currency notes)}
+    ]
+    |> Enum.map(fn {legend, keys} -> {legend, Enum.map(keys, &{&1, tx_column_label(&1)})} end)
+  end
 
   defp safe_columns(requested, all_keys, defaults) do
     case Enum.filter(all_keys, &(&1 in requested)) do

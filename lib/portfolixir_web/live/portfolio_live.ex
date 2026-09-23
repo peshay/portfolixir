@@ -31,6 +31,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias Portfolixir.Settings
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.ClassificationName
+  alias PortfolixirWeb.ColumnPicker
   alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.Format
   import PortfolixirWeb.ViewSwitcher
@@ -155,6 +156,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           |> assign(:min_drift_pp, param_min_drift_pp(params))
           |> assign(:flat_sort, {:drift, :desc})
           |> assign(:holdings_columns, @holdings_column_defaults)
+          |> assign(:column_picker_open?, false)
           |> assign(:holding_rows, holding_rows(portfolio))
           |> assign(:fx_syncing, false)
           |> assign(:fx_sync_result, nil)
@@ -2171,6 +2173,28 @@ defmodule PortfolixirWeb.PortfolioLive do
         <section id="portfolio-positions" class="workspace-section">
           <header class="section-head">
             <h2><%= gettext("Positions") %></h2>
+            <%!-- #850: the shared grouped popover (DESIGN.md → Overlays, pick
+                 E3). It sits in the head now that it opens over the table:
+                 the <details> it replaces had to live in the body flow,
+                 because opening it re-centred the heading. Not offered over
+                 an empty state — picking columns for a table that is not
+                 there is an offer with nothing behind it. --%>
+            <div :if={@holding_rows != []} class="popover-container">
+              <ColumnPicker.toggle
+                id="holdings-column-toggle"
+                open={@column_picker_open?}
+                on_toggle="toggle_column_picker"
+              />
+              <ColumnPicker.picker
+                :if={@column_picker_open?}
+                id="holdings-column-picker"
+                form_id="holdings-column-form"
+                on_change="set_holdings_columns"
+                on_close="close_column_picker"
+                groups={holdings_column_groups()}
+                selected={@holdings_columns}
+              />
+            </div>
           </header>
           <p class="summary-basis" data-role="positions-basis">
             <%= gettext(
@@ -2182,32 +2206,6 @@ defmodule PortfolixirWeb.PortfolioLive do
               <%= gettext("No holdings yet") %>
             </div>
           <% else %>
-            <%!-- The picker sits in the body flow, not in `.section-head`:
-                 that header is `align-items: center`, so opening an
-                 eleven-row disclosure inside it re-centres the heading
-                 against it, and DESIGN.md's custom-range rule is that
-                 opening a disclosure moves nothing. It is also below the
-                 empty-state branch, because offering to pick columns for a
-                 table that is not there is an offer with nothing behind
-                 it. --%>
-            <details id="holdings-column-picker" class="section-disclosure">
-              <summary class="disclosure-summary">
-                <AppShell.icon name={:columns} />
-                <%= gettext("Columns") %>
-              </summary>
-              <form id="holdings-column-form" phx-change="set_holdings_columns">
-                <label :for={key <- holdings_column_keys()} class="checkbox-row">
-                  <input
-                    type="checkbox"
-                    name="columns[]"
-                    value={key}
-                    checked={key in @holdings_columns}
-                  />
-                  <span><%= holdings_column_label(key) %></span>
-                </label>
-                <input type="hidden" name="columns[]" value="" />
-              </form>
-            </details>
             <div
               id="holdings-positions-wrapper"
               class="data-table-wrapper"
@@ -2297,7 +2295,19 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # -- #814 holdings column registry ------------------------------------------
 
-  defp holdings_column_keys, do: @holdings_column_keys
+  # #850: the picker's groups, every key of `@holdings_column_keys` in
+  # exactly one.
+  defp holdings_column_groups do
+    [
+      {gettext("Position"), ~w(depot security quantity)},
+      {gettext("Identifiers"), ~w(isin wkn)},
+      {gettext("Valuation"),
+       ~w(currency avg_cost latest_price market_value unrealized_pnl_abs unrealized_pnl_pct)}
+    ]
+    |> Enum.map(fn {legend, keys} ->
+      {legend, Enum.map(keys, &{&1, holdings_column_label(&1)})}
+    end)
+  end
 
   # The rows are the API's projection, decorated with the depot's name so the
   # human column reads as a name where the payload carries an id.
@@ -3197,6 +3207,14 @@ defmodule PortfolixirWeb.PortfolioLive do
   end
 
   def handle_event("set_holdings_columns", _params, socket), do: {:noreply, socket}
+
+  def handle_event("toggle_column_picker", _params, socket) do
+    {:noreply, update(socket, :column_picker_open?, &(not &1))}
+  end
+
+  def handle_event("close_column_picker", _params, socket) do
+    {:noreply, assign(socket, :column_picker_open?, false)}
+  end
 
   def handle_event("set_allocation_mode", %{"mode" => mode}, socket)
       when mode in ["tree", "flat"] do

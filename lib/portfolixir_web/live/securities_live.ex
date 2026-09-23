@@ -34,9 +34,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.ChangedSince
   alias PortfolixirWeb.ClassificationName
+  alias PortfolixirWeb.ColumnPicker
   alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.Format
-  alias PortfolixirWeb.Securities.ColumnPicker
   alias PortfolixirWeb.Securities.FilterPopover
   alias PortfolixirWeb.Securities.LogoOverrideDialog
   alias PortfolixirWeb.Securities.RowContextMenu
@@ -413,14 +413,15 @@ defmodule PortfolixirWeb.SecuritiesLive do
             </button>
 
             <div class="popover-container">
-              <%= if @open_popover == :columns do %>
-                <.live_component
-                  module={ColumnPicker}
-                  id="column-picker"
-                  visible={@visible_columns}
-                  classification_columns={@classification_columns}
-                />
-              <% end %>
+              <ColumnPicker.picker
+                :if={@open_popover == :columns}
+                id="column-picker"
+                form_id="securities-column-form"
+                on_change="toggle_columns"
+                on_close="close_popover"
+                groups={column_groups(@classification_columns)}
+                selected={Enum.map(@visible_columns, &column_key_string/1)}
+              />
             </div>
           </div>
         </div>
@@ -3127,6 +3128,50 @@ defmodule PortfolixirWeb.SecuritiesLive do
     )
   end
 
+  # The picker's groups (#850 moved the component to `PortfolixirWeb`; the
+  # securities list keeps its grouping): the registry's own groups in their
+  # fixed order, then one entry per classification tree and level (#565),
+  # custom and built-in alike.
+  defp column_groups(classification_columns) do
+    registry =
+      SecurityFields.all()
+      |> Enum.group_by(& &1.group)
+      |> Enum.sort_by(fn {group, _} -> column_group_order(group) end)
+      |> Enum.map(fn {group, fields} ->
+        {column_group_label(group), Enum.map(fields, &{Atom.to_string(&1.key), &1.label})}
+      end)
+
+    classifications =
+      for spec <- classification_columns, level <- 1..spec.levels do
+        {"classification:#{spec.classification.id}:#{level}",
+         classification_column_label(spec, level)}
+      end
+
+    registry ++ [{gettext("Classifications"), classifications}]
+  end
+
+  defp column_group_order(:stammdaten), do: 0
+  defp column_group_order(:kurse), do: 1
+  defp column_group_order(:online_quelle), do: 2
+  defp column_group_order(:sonstiges), do: 3
+  defp column_group_order(_), do: 99
+
+  defp column_group_label(:stammdaten), do: gettext("Core data")
+  defp column_group_label(:kurse), do: gettext("Prices")
+  defp column_group_label(:online_quelle), do: gettext("Online source")
+  defp column_group_label(:sonstiges), do: gettext("Other")
+  defp column_group_label(other), do: to_string(other)
+
+  defp classification_column_label(%{classification: classification, levels: 1}, _level),
+    do: ClassificationName.display(classification)
+
+  defp classification_column_label(%{classification: classification}, level) do
+    gettext("%{name} (level %{level})",
+      name: ClassificationName.display(classification),
+      level: level
+    )
+  end
+
   defp column_key_string(key) when is_atom(key), do: Atom.to_string(key)
 
   defp column_key_string({:classification, id, level}), do: "classification:#{id}:#{level}"
@@ -3935,6 +3980,34 @@ defmodule PortfolixirWeb.SecuritiesLive do
     end
   end
 
+  def handle_event("close_popover", _params, socket) do
+    {:noreply, assign(socket, :open_popover, nil)}
+  end
+
+  # The shared picker (#850) sends raw column-key strings; validation against
+  # the field registry and the current classification specs happens here
+  # (#565), and no atom is minted from them.
+  def handle_event("toggle_columns", params, socket) do
+    columns =
+      params
+      |> Map.get("columns", [])
+      |> List.wrap()
+      |> Enum.filter(&is_binary/1)
+      |> Enum.reject(&(&1 == ""))
+      |> Enum.uniq()
+      |> Enum.map(&safe_column_key(&1, socket.assigns.classification_columns))
+      |> Enum.reject(&is_nil/1)
+
+    columns = if columns == [], do: SecurityFields.visible_default(), else: columns
+    column_strs = Enum.map(columns, &column_key_string/1)
+
+    {:noreply,
+     socket
+     |> assign(:visible_columns, columns)
+     |> load_securities()
+     |> push_event("column-prefs-changed", %{key: "securities.columns", columns: column_strs})}
+  end
+
   def handle_event("open_new", _params, socket) do
     {:noreply,
      socket
@@ -4625,25 +4698,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   # -- messages from child components --------------------------------------
 
-  # The picker sends raw column-key strings; validation against the field
-  # registry and the current classification specs happens here (#565).
   @impl true
-  def handle_info({:columns_changed, column_strings}, socket) do
-    columns =
-      column_strings
-      |> Enum.map(&safe_column_key(&1, socket.assigns.classification_columns))
-      |> Enum.reject(&is_nil/1)
-
-    columns = if columns == [], do: SecurityFields.visible_default(), else: columns
-    column_strs = Enum.map(columns, &column_key_string/1)
-
-    {:noreply,
-     socket
-     |> assign(:visible_columns, columns)
-     |> load_securities()
-     |> push_event("column-prefs-changed", %{key: "securities.columns", columns: column_strs})}
-  end
-
   def handle_info({:dq_selected, dq}, socket) do
     {:noreply,
      socket
