@@ -655,14 +655,23 @@ Beispiel-Payloads für Konten:
   anderen Währung abgerechnet wird (zum Beispiel ein USD-Wertpapier über ein
   EUR-Konto), wird in der eigenen Währung des Wertpapiers gebucht und trägt die
   Felder zur währungsübergreifenden Abrechnung: `security_amount` (Handelsbetrag in
-  der Wertpapierwährung), `settlement_amount` (im Geldkonto in Kontowährung
-  belasteter oder gutgeschriebener Betrag) und `settlement_fx_rate` (Einheiten der
+  der Wertpapierwährung), `settlement_amount` (der Handelsbetrag in der
+  Kontowährung, vor Gebühren und Steuern) und `settlement_fx_rate` (Einheiten der
   Kontowährung je einer Einheit der Wertpapierwährung). Fehlt der Kurs, werden
   jedoch beide Beträge geliefert, wird er als `settlement_amount / security_amount`
   abgeleitet (der tatsächliche Kurs des Brokers); eine Währungsabweichung ohne Kurs
   und ohne Beträge zur Ableitung wird abgelehnt. Die Einstandsbasis bleibt in der
   Wertpapierwährung, sodass die positionsbezogene G/V währungsehrlich ist. Alle
   drei sind Decimal-Strings und bei Buchungen in gleicher Währung `null`.
+  **Geldbetrag und Abrechnung müssen übereinstimmen** (#395): Das `gross_amount`
+  eines währungsübergreifenden Kaufs (der gezahlte Betrag, einschließlich
+  Gebühren und Steuern) muss `settlement_amount + fees + taxes` sein, das eines
+  Verkaufs (der erhaltene Betrag) `settlement_amount - fees - taxes`, auf 0,01
+  genau bei voller Genauigkeit verglichen; sonst antwortet der Schreibzugriff mit
+  422 und einem `gross_amount`-Fehler, der den abgeleiteten Betrag nennt. Die
+  Prüfung läuft beim Anlegen und bei einem `PATCH`, das `gross_amount`,
+  `settlement_amount`, `fees`, `taxes` oder `type` ändert — ein `PATCH` der
+  Notiz oder des Datums einer älteren Buchung wird deswegen nie abgelehnt.
 - `GET /api/v1/transactions/:id` liefert eine Transaktion.
 - `PATCH /api/v1/transactions/:id` aktualisiert eine Transaktion (z. B. um eine
   falsch importierte Buchung zu korrigieren); die Validierung je Art gilt weiter.

@@ -533,6 +533,34 @@ date) shows a dash instead of a guessed number; the
 `mix portfolixir.backfill_settlement_legs` task derives the missing legs
 for historic imports once rates for the booking dates are stored.
 
+**The cash and the settlement agree** (issue #395). A cross-currency buy
+records the cash it moved (`gross_amount`, fees and taxes included) beside
+the trade value in the account's currency (`settlement_amount`); a sell
+records the cash it brought in, net of fees and taxes. Since Sprint 15 a
+booking is refused when the two disagree by more than one cent — a buy's cash
+must be the settlement plus fees and taxes, a sell's the settlement less
+them — and the message names the amount the settlement implies. The check
+runs when a booking is recorded and when an edit changes one of those amounts
+or the kind; editing the note or the date of an older booking is never
+refused because of it. To list older bookings that miss the rule — read-only,
+nothing is changed — run this against the instance's database:
+
+```bash
+docker compose exec db psql -U portfolixir portfolixir_prod -c "
+SELECT id, date, type, gross_amount, settlement_amount, fees, taxes
+FROM transactions
+WHERE type IN ('buy', 'sell')
+  AND settlement_amount IS NOT NULL AND gross_amount IS NOT NULL
+  AND abs(gross_amount - CASE type
+        WHEN 'buy' THEN settlement_amount + coalesce(fees, 0) + coalesce(taxes, 0)
+        ELSE settlement_amount - coalesce(fees, 0) - coalesce(taxes, 0)
+      END) > 0.01
+ORDER BY date, id;"
+```
+
+Correcting a listed booking is a decision about your own records: edit its
+amounts on the transaction history or through the API.
+
 ## Classifications, Targets, and Allocation
 
 The **Classifications index** (`/classifications`, issue #808) is one row

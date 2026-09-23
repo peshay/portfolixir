@@ -432,6 +432,20 @@ defmodule PortfolixirWeb.ApiV1Test do
       |> Map.fetch!("errors")
 
     assert errors["settlement_fx_rate"] == ["is required for a cross-currency settlement"]
+
+    # #395: the cash and the settlement agree — the settlement plus fees is
+    # what a buy pays, and the 422 names that amount.
+    errors =
+      conn
+      |> post_json("/api/v1/transactions", %{
+        "transaction" => Map.merge(attrs, %{"fees" => "4.90", "gross_amount" => "1818.18"})
+      })
+      |> json_response(422)
+      |> Map.fetch!("errors")
+
+    assert errors["gross_amount"] == [
+             "must equal the settlement amount plus fees and taxes (1823.081818), within 0.01"
+           ]
   end
 
   # User story:

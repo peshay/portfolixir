@@ -74,7 +74,8 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "GET /api/v1/portfolios/:portfolio_id/policy_rules and portfolixir.policy_rules.list take as_of= (the standard in force on a date), include_retired=, view= (one evaluation context; absent is every context), since= (a rule counts as changed when its row or any version did) and limit=",
         "GET /api/v1/portfolios/:portfolio_id/policy_findings and portfolixir.portfolios.policy_findings take view= (the evaluation context) and status= (a comma-separated set of breached, undetermined, ok; status=breached is the pull-only alarm list); since= deliberately does not apply — findings are a derived projection (#849)",
         "DELETE /api/v1/securities/:id, /classifications/:id, /classifications/:classification_id/categories/:id and /views/:id answer 409 with errors.policy_rules (id, name, status) when a policy rule reads the object (ADR-0049 §8); a view counts as read both as a rule's context and as its subject",
-        "The policy-rule reads (portfolixir.policy_rules.list, .get, portfolixir.portfolios.policy_findings) state in their descriptions that a Portfolio Performance re-import does not destroy the policy rules (ADR-0049 §8, #831's lesson)"
+        "The policy-rule reads (portfolixir.policy_rules.list, .get, portfolixir.portfolios.policy_findings) state in their descriptions that a Portfolio Performance re-import does not destroy the policy rules (ADR-0049 §8, #831's lesson)",
+        "POST /api/v1/transactions and PATCH /api/v1/transactions/:id (portfolixir.transactions.create, .update) answer 422 on gross_amount when a cross-currency buy's cash differs from settlement_amount + fees + taxes, or a sell's from settlement_amount - fees - taxes, by more than 0.01 (#395); a PATCH that changes none of gross_amount, settlement_amount, fees, taxes and type is not re-checked"
       ],
       removed_endpoints: [],
       removed_tools: []

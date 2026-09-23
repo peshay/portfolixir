@@ -3,6 +3,7 @@ defmodule Portfolixir.Ledger.Transaction do
   import Ecto.Changeset
 
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Ledger.SettlementGuard
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.SecuritiesAccount
@@ -235,6 +236,9 @@ defmodule Portfolixir.Ledger.Transaction do
     |> validate_required_for_kind()
     |> validate_split_ratio_scope()
     |> validate_decimal_signs()
+    # #395 (risk-tier, ADR-0036): a cross-currency trade's cash agrees with
+    # its settlement; runs on insert and on amount/type changes only (D-5).
+    |> SettlementGuard.validate()
     |> assoc_constraint(:portfolio)
     |> assoc_constraint(:security)
     |> assoc_constraint(:cash_account)
