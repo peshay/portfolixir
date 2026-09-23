@@ -307,4 +307,35 @@ defmodule Portfolixir.CITest do
     assert prod_config =~ "force_ssl: false"
     assert prod_config =~ "PHX_FORCE_SSL"
   end
+
+  # User story (Sprint 15 plan D-7):
+  # As the maintainer relying on the npm audit gate,
+  # I want it to run on the pinned Node toolchain,
+  # so that it goes red for an advisory, not because the runner image's npm
+  # called an audit endpoint the registry is retiring.
+  #
+  # Acceptance criteria:
+  # - In the quality job the npm audit step runs after the Setup Node step
+  #   (Node 24, the pinned line) — CI 1558 ran it before, on the image's npm,
+  #   and failed on the retiring quick-audit endpoint's 400.
+  # - The gate is unchanged: `--audit-level=high`, no `|| true`, no
+  #   `continue-on-error`.
+  test "the npm audit runs on the pinned Node and keeps its level" do
+    ci = File.read!(".github/workflows/ci.yml")
+    [_before, quality] = String.split(ci, ~r/^  quality:$/m, parts: 2)
+    quality = quality |> String.split(~r/^  [a-z-]+:$/m) |> hd()
+
+    {setup_node, _} = :binary.match(quality, "uses: actions/setup-node@")
+
+    {audit, _} =
+      :binary.match(quality, "run: npm audit --audit-level=high --prefix mcp-server")
+
+    assert setup_node < audit, "the npm audit runs before the pinned Node is set up"
+    assert quality =~ ~s(node-version: "24")
+
+    audit_step = binary_part(quality, audit, byte_size(quality) - audit)
+    audit_step = audit_step |> String.split("\n      - name:") |> hd()
+    refute audit_step =~ "|| true"
+    refute audit_step =~ "continue-on-error"
+  end
 end
