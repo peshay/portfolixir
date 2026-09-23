@@ -1353,8 +1353,45 @@ Die Schreibzugriffe:
 - `DELETE /api/v1/policy_rules/:id` — nur, solange **keine** Version je
   gegolten hat (`204`); sonst `409`, und der Ausweg ist, sie zu beenden.
 
+**Die Befunde.** `GET /api/v1/portfolios/:portfolio_id/policy_findings`
+wertet die **heute** geltenden Regeln eines Auswertungskontexts (`view`; ohne:
+die portfolioweiten Regeln) über die Zahlen aus, die das Produkt schon liefert,
+und antwortet mit einem **Befund** je Regel, sortiert verletzt, nicht
+bestimmbar, eingehalten:
+
+- `state` ist `breached` (strikt jenseits der Linie), `ok` oder
+  `undetermined` — die Zahl ließ sich nicht lesen. **Nicht bestimmbar ist nie
+  bestanden** und wird standardmäßig nie ausgefiltert; es trägt seinen Grund
+  `reason`: `insufficient_data` (eine verweigerte Portfolio-Kennzahl, mit
+  `required` und `observations` aus ADR-0047), `undefined`, `no_active_plan`
+  oder `no_target` (eine Abweichung ohne Ziel), `empty_basis` (ein Gewicht von
+  nichts ist nicht 0 %), `subject_not_found` oder `not_measured`. Ein
+  Wertpapier, das man schlicht nicht hält, hat das Gewicht `0` — das ist ein
+  Messwert.
+- jeder Befund trägt Identität und Worte der Regel, die Version, die Grenzen,
+  den gemessenen `value` und den vorzeichenbehafteten Abstand `distance` zur
+  nächsten Linie (Wert − Linie, auf der Skala der Kennzahl) sowie seine eigene
+  `computation_basis` mit der gelesenen Quelle; die Antwort trägt `summary`
+  (Anzahl je Zustand) und eine `computation_basis` mit Eingangsreihe, Fenster,
+  Bezug und Umgang mit Lücken.
+- `status` schränkt auf eine kommagetrennte Menge von Zuständen ein:
+  `status=breached` ist die **abrufbare Alarmliste**. Sie wird abgerufen;
+  nichts wird irgendwohin geschickt. Ein unbekannter Zustand ist ein `422`;
+  `since` gilt bewusst nicht, weil Befunde eine abgeleitete Projektion sind
+  und keine Zeilen.
+
+Die Kennzahlen werden gelesen, nie berechnet: Einzeltitelgewicht und HHI der
+Risikolinse, Kategorie- und Barmittelgewicht und die Abweichung des aktiven
+Plans aus der Aufteilung (Anteile × 100), die Bewertung für den Anteil einer
+View, und Volatilität und maximaler Drawdown der Portfolio-Kennzahlen im
+Fenster der Regel (Verhältnisse × 100). Die Abfrage ist unter der
+Datenversion des Portfolios und seinem Regelzähler zwischengespeichert; eine
+geänderte Grenze wird beim nächsten Lesen ausgewertet.
+
 **Was diese Schnittstelle nicht ist.** Eine Regel ist ein Maßstab, nie eine
-Anweisung: Hier wird kein Trade platziert, vorgeschlagen oder bemessen, nichts
+Anweisung, und ein Befund trägt **keine Handlung** — keine Stückzahl, kein
+Handelsverb, keinen Vorschlag; ein Meta-Test prüft die gerenderte Antwort
+darauf. Hier wird kein Trade platziert, vorgeschlagen oder bemessen, nichts
 wird irgendwohin geschickt, und keine Regel wird über einen Zeitraum vor ihrem
 `valid_from` zurückgerechnet (das wäre Backtesting, Stufe (d) der
 Scope-Leiter).
@@ -1767,6 +1804,10 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
   bleibt lesbar.
 - `portfolixir.policy_rules.delete` — nur für eine Regel, an der nie gemessen
   wurde.
+- `portfolixir.portfolios.policy_findings` — wurde eine Linie überschritten?
+  Die heute geltenden Regeln als Befunde; `status=breached` ist die
+  Alarmliste, und die Beschreibung sagt, dass nicht bestimmbar nie bestanden
+  ist.
 - `portfolixir.portfolios.cash_target`
 - `portfolixir.portfolios.set_cash_target`
 - `portfolixir.portfolios.income`

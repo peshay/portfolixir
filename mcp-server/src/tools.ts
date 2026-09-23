@@ -1199,6 +1199,31 @@ const policyRuleRetireZ = z.object({
   valid_until: optionalString()
 });
 
+const policyFindingsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["portfolio_id"],
+  properties: {
+    portfolio_id: { type: "integer", minimum: 1 },
+    view: {
+      type: "integer",
+      minimum: 1,
+      description: "the evaluation context: the rules of this view (default: the portfolio-wide rules)"
+    },
+    status: {
+      type: "string",
+      description:
+        "comma-separated states to keep: breached, undetermined, ok (default all; breached is the alarm list)"
+    }
+  }
+} as const;
+
+const policyFindingsZ = z.object({
+  portfolio_id: z.number().int().positive(),
+  view: z.number().int().positive().optional(),
+  status: optionalString()
+});
+
 const allocationSchema = {
   type: "object",
   additionalProperties: false,
@@ -2830,6 +2855,13 @@ const toolDefinitions: ToolDefinition[] = [
     idZ
   ),
   tool(
+    "portfolixir.portfolios.policy_findings",
+    "Did anything cross a line?",
+    "The operator's policy rules in force TODAY for one evaluation context (ADR-0049), evaluated at read over the figures the product already serves — one call instead of re-deriving weights, drift or HHI yourself. One finding per rule, sorted breached, undetermined, ok: state breached (strictly beyond the line), ok, or undetermined — the figure could not be read (reason insufficient_data with the metric's required and observations, undefined, no_active_plan, no_target, empty_basis, subject_not_found, not_measured), which is NEVER a pass and is never filtered out by default. Each finding carries the rule's words (rule_name, subject, measure, kind, severity, note), the thresholds and the measured value as Decimal strings on the measure's scale, the signed distance to the nearest line, and its computation_basis naming the read it used; the payload carries summary (counts per state) and computation_basis. status narrows (status=breached is the retrievable alarm list); view selects the context. PULL ONLY: nothing is pushed anywhere. A finding is the operator's own rule applied to a figure and carries no action — it neither proposes nor sizes a trade.",
+    policyFindingsSchema,
+    policyFindingsZ
+  ),
+  tool(
     "portfolixir.portfolios.cash_target",
     "Read cash target weight",
     "Read a plan's cash target weight, the SOLL cash share of the allocation's 100% basis (securities + counting cash), as a string fraction in [0,1] (or null when none is steered). Pass an optional view (a view id) to read that view's plan; omitting it reads the portfolio-wide Gesamt plan, the same value the portfolio's legacy cash_target_weight field reports.",
@@ -3572,6 +3604,14 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       );
     case "portfolixir.policy_rules.delete":
       return client.request("DELETE", `/api/v1/policy_rules/${args.id}`);
+    case "portfolixir.portfolios.policy_findings":
+      return client.request(
+        "GET",
+        withQuery(`/api/v1/portfolios/${args.portfolio_id}/policy_findings`, args, [
+          "view",
+          "status"
+        ])
+      );
     case "portfolixir.portfolios.cash_target":
       return client.request(
         "GET",

@@ -86,7 +86,11 @@ defmodule Portfolixir.Portfolios.Risk do
 
   Options:
 
-    * `:top_n` – number of single-name entries to return (default `10`).
+    * `:top_n` – number of single-name entries to return (default `10`), or
+      `:all` for every one.
+    * `:metrics` – `false` skips ADR-0047's portfolio metrics (default
+      `true`); a caller that needs only the lens's weights and HHI does not
+      pay for the walk and the correlation matrix.
     * `:hhi_bands` – `%{low: Decimal, high: Decimal}` HHI band cutoffs.
     * `:asset_class_caps` – `%{asset_class => Decimal}` percentage caps (opt-in).
     * `:stock_thresholds` – `%{warn: Decimal, hard: Decimal}` stock cutoffs.
@@ -106,11 +110,19 @@ defmodule Portfolixir.Portfolios.Risk do
       Keyword.split(opts, [:prices, :base_currency, :view])
 
     {metrics_opts, risk_opts} = Keyword.split(risk_opts, [:risk_free_rate, :as_of])
+    {with_metrics?, risk_opts} = Keyword.pop(risk_opts, :metrics, true)
 
     # A vanished view degrades to `{:error, :view_not_found}` (fix round).
     with %{} = valuation <- Valuation.for_portfolio(portfolio_id, valuation_opts),
-         %{} = risk <- build_risk(valuation, risk_opts),
-         %{} = metrics <- metrics(portfolio_id, risk, valuation_opts, metrics_opts) do
+         %{} = risk <- build_risk(valuation, risk_opts) do
+      if with_metrics?,
+        do: put_metrics(portfolio_id, risk, valuation_opts, metrics_opts),
+        else: risk
+    end
+  end
+
+  defp put_metrics(portfolio_id, risk, valuation_opts, metrics_opts) do
+    with %{} = metrics <- metrics(portfolio_id, risk, valuation_opts, metrics_opts) do
       Map.put(risk, :metrics, metrics)
     end
   end
@@ -185,7 +197,7 @@ defmodule Portfolixir.Portfolios.Risk do
 
     weighted
     |> Enum.sort(&order_desc/2)
-    |> Enum.take(top_n)
+    |> take_top(top_n)
     |> Enum.map(fn exposure ->
       %{
         security_id: exposure.security_id,
@@ -197,6 +209,12 @@ defmodule Portfolixir.Portfolios.Risk do
       }
     end)
   end
+
+  # `:all` is every single-name exposure — the policy-rules read (ADR-0049 §2)
+  # needs the weight of a name outside the Top-N, and reads it here rather
+  # than recomputing it.
+  defp take_top(exposures, :all), do: exposures
+  defp take_top(exposures, top_n), do: Enum.take(exposures, top_n)
 
   # Largest weight first; equal weights break by ascending security_id so the
   # Top-N order is deterministic regardless of the valuation's input order.

@@ -1530,10 +1530,43 @@ The writes:
 - `DELETE /api/v1/policy_rules/:id` — only while **no** version has ever been
   in force (`204`); otherwise `409`, and the remedy is retiring it.
 
-**What this surface is not.** A rule is a standard, never an instruction:
-nothing here places, proposes or sizes a trade, nothing is pushed anywhere, and
-no rule is replayed over a period before its `valid_from` (that would be
-backtesting, scope-ladder level (d)).
+**The findings read.** `GET /api/v1/portfolios/:portfolio_id/policy_findings`
+evaluates the rules in force **today** for one evaluation context (`view`;
+absent: the portfolio-wide rules) over the figures the product already serves,
+and answers one **finding** per rule, sorted breached, undetermined, ok:
+
+- `state` is `breached` (strictly beyond the line), `ok`, or `undetermined` —
+  the figure could not be read. **Undetermined is never a pass** and is never
+  filtered out by default; it carries its `reason`: `insufficient_data` (a
+  refused portfolio metric, with ADR-0047's `required` and `observations`),
+  `undefined`, `no_active_plan` or `no_target` (a drift with nothing to drift
+  from), `empty_basis` (a weight of nothing is not 0 %), `subject_not_found` or
+  `not_measured`. A security that is simply not held has a weight of `0`,
+  which is a reading.
+- each finding carries the rule's identity and words, the version, the
+  thresholds, the measured `value` and the signed `distance` to the nearest
+  line (value − line, on the measure's scale), and its own
+  `computation_basis` naming the read it used; the payload carries `summary`
+  (a count per state) and a `computation_basis` stating the input series,
+  window, reference and gap treatment.
+- `status` narrows to a comma-separated set of states: `status=breached` is
+  the **retrievable alarm list**. It is a pull; nothing is pushed anywhere.
+  An unknown state is a `422`; `since` deliberately does not apply, because
+  findings are a derived projection rather than rows.
+
+The measures are read, never computed: the risk lens's single-name weight and
+HHI, the allocation breakdown's category and cash weight and the drift of the
+active plan (fractions × 100), the valuation for a view's share, and the
+portfolio metrics' volatility and maximum drawdown at the rule's window
+(ratios × 100). The read is memoised under the portfolio's data version and
+its rules counter, so an edited cap is evaluated on the very next read.
+
+**What this surface is not.** A rule is a standard, never an instruction, and
+a finding carries **no action** — no quantity, no trade verb, no suggestion; a
+meta-test walks the rendered payload to keep it so. Nothing here places,
+proposes or sizes a trade, nothing is pushed anywhere, and no rule is replayed
+over a period before its `valid_from` (that would be backtesting, scope-ladder
+level (d)).
 
 ## Exchange Rates
 
@@ -1945,6 +1978,9 @@ in MCP schemas are strings.
   stays readable.
 - `portfolixir.policy_rules.delete` — only for a rule nobody was ever measured
   against.
+- `portfolixir.portfolios.policy_findings` — did anything cross a line? The
+  rules in force today evaluated into findings; `status=breached` is the
+  alarm list, and the description says undetermined is never a pass.
 - `portfolixir.portfolios.cash_target`
 - `portfolixir.portfolios.set_cash_target`
 - `portfolixir.portfolios.income`
