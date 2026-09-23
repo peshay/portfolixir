@@ -81,6 +81,12 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.portfolios.allocation",
     "portfolixir.portfolios.category_results",
       "portfolixir.portfolios.risk",
+      "portfolixir.policy_rules.list",
+      "portfolixir.policy_rules.get",
+      "portfolixir.policy_rules.create",
+      "portfolixir.policy_rules.add_version",
+      "portfolixir.policy_rules.retire",
+      "portfolixir.policy_rules.delete",
       "portfolixir.portfolios.cash_target",
       "portfolixir.portfolios.set_cash_target",
       "portfolixir.cash_accounts.set_balance",
@@ -2347,6 +2353,102 @@ describe("Portfolixir MCP tools", () => {
       (risk?.inputSchema as any).properties.risk_free_rate.type,
       "string"
     );
+  });
+
+  // ADR-0049 (FR-43): policy rules as versioned objects. The agent reads the
+  // operator's standard from the instance instead of restating it from a
+  // prompt, and an edit is a new version, never an overwrite.
+  it("wraps the policy-rules surface: list, show, create, add a version, retire, delete", async () => {
+    const { client, requests } = createRecordingClient({ data: { rules: [] } });
+
+    await callTool(client, "portfolixir.policy_rules.list", {
+      portfolio_id: 3,
+      view: 5,
+      as_of: "2026-09-01",
+      include_retired: true,
+      since: "2026-09-01T00:00:00Z",
+      limit: 20
+    });
+    await callTool(client, "portfolixir.policy_rules.get", { id: 9 });
+    await callTool(client, "portfolixir.policy_rules.create", {
+      portfolio_id: 3,
+      rule: {
+        name: "Single name at most 10 %",
+        version: {
+          subject_type: "security",
+          security_id: 7,
+          measure: "weight",
+          kind: "cap",
+          threshold: "10",
+          severity: "hard"
+        }
+      }
+    });
+    await callTool(client, "portfolixir.policy_rules.add_version", {
+      id: 9,
+      version: {
+        subject_type: "basis",
+        measure: "volatility",
+        window: "90d",
+        kind: "cap",
+        threshold: "15",
+        severity: "warn",
+        valid_from: "2026-10-01"
+      }
+    });
+    await callTool(client, "portfolixir.policy_rules.retire", { id: 9 });
+    await callTool(client, "portfolixir.policy_rules.delete", { id: 9 });
+
+    assert.deepEqual(
+      requests.map((request) => `${request.method} ${request.path}`),
+      [
+        "GET /api/v1/portfolios/3/policy_rules?view=5&as_of=2026-09-01&include_retired=true&since=2026-09-01T00%3A00%3A00Z&limit=20",
+        "GET /api/v1/policy_rules/9",
+        "POST /api/v1/portfolios/3/policy_rules",
+        "POST /api/v1/policy_rules/9/versions",
+        "POST /api/v1/policy_rules/9/retire",
+        "DELETE /api/v1/policy_rules/9"
+      ]
+    );
+
+    const create = listTools().find((tool) => tool.name === "portfolixir.policy_rules.create");
+    const version = (create?.inputSchema as any).properties.rule.properties.version;
+    assert.equal(version.properties.threshold.type, "string");
+    assert.equal(version.properties.lower.type, "string");
+    assert.equal(version.properties.upper.type, "string");
+    assert.deepEqual(version.properties.measure.enum, [
+      "weight",
+      "drift",
+      "hhi",
+      "volatility",
+      "max_drawdown"
+    ]);
+
+    const addVersion = listTools().find(
+      (tool) => tool.name === "portfolixir.policy_rules.add_version"
+    );
+    assert.match(addVersion?.description ?? "", /new version/);
+    assert.match(addVersion?.description ?? "", /never changed or deleted/);
+
+    // The validator agrees with the schema: a create without its version's
+    // required fields fails before the round trip, and a decimal passed as a
+    // number is refused rather than silently floated.
+    await assert.rejects(
+      callTool(client, "portfolixir.policy_rules.create", {
+        portfolio_id: 3,
+        rule: { name: "x", version: {} }
+      })
+    );
+    await assert.rejects(
+      callTool(client, "portfolixir.policy_rules.add_version", {
+        id: 9,
+        version: { subject_type: "basis", measure: "hhi", kind: "cap", threshold: 2500, severity: "warn" }
+      })
+    );
+    assert.equal(requests.length, 6);
+
+    const retire = listTools().find((tool) => tool.name === "portfolixir.policy_rules.retire");
+    assert.match(retire?.description ?? "", /stay readable/);
   });
 
   // ADR-0048 (FR-44): security events, agent-first. The whole point of the

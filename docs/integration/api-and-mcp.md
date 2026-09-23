@@ -1450,6 +1450,91 @@ church tax withheld at a zero church-tax rate.
   whole history, and each leg is filtered by its own date afterwards), stated
   in the payload's `basis`.
 
+## Policy rules (ADR-0049)
+
+A **policy rule** is the operator's own standard over a figure the product
+already serves: "no single name above 10 %", "cash never below 5 %", "the
+bond category within ±3 percentage points of its target", "the portfolio's
+90-day volatility under 15 %". It is stored as an object instead of living as
+prose in a scheduled prompt, which is where such limits used to drift.
+
+**What a rule is.** A predicate over **one named measure**, for one subject,
+in one evaluation context:
+
+- the **context** is the portfolio plus an optional `view_id` (`null` is the
+  portfolio-wide context, the convention target plans use); the measure is
+  read on that context's steerable basis;
+- the **subject** is `basis`, `security` (`security_id`), `category`
+  (`classification_id` + `category_id`), `view` (`subject_view_id`) or `cash`;
+- the **measure** is one of these, and each is read off a payload the product
+  already serves — the rules compute no figure of their own:
+
+  | `measure` | Subjects | Scale of the thresholds |
+  |---|---|---|
+  | `weight` | security, category, cash, view | percent, `0`–`100` |
+  | `drift` | category, security | percentage points, `−100`–`100` (actual − target of the active plan) |
+  | `hhi` | basis | `0`–`10000` |
+  | `volatility` | basis, with a `window` (`30d`, `90d`, `365d`) | percent, annualized, `≥ 0` |
+  | `max_drawdown` | basis, with a `window` | percent in its own sign, `−100`–`0` |
+
+  A `security` subject read for `drift` also names the `classification_id`
+  whose plan carries its position target. A `view` subject is how a **bucket**
+  is capped: "the speculative bucket stays under 5 % of everything" is a
+  `weight` cap on the view that selects that bucket, evaluated in the
+  portfolio-wide context.
+- the **kind** is `cap` (breached strictly above `threshold`), `floor`
+  (strictly below) or `band` (outside `[lower, upper]`) — the risk lens's own
+  reading of a line, so a rule and the lens never disagree about where one is;
+- the **severity** is `warn` or `hard`; `name` and `note` are the operator's
+  words and are never parsed.
+
+Thresholds are Decimal strings (ADR-0016). A predicate that does not fit its
+measure — a subject outside the matrix, a missing or superfluous `window`, a
+band with `lower > upper`, a threshold off the scale — is a `422` naming the
+field under `version`.
+
+**Versioned and effective-dated.** A rule has a stable identity and one or
+more **versions**, each the standard of its own period `[valid_from,
+valid_until]`. An **edit adds a version** from `valid_from` (today by default,
+never earlier) and closes the previous one the day before; both stay readable,
+so "what was the standard on date D" is a read (`as_of=`), not an
+investigation of the audit journal. A version that has been in force is
+**never changed and never deleted** — the database refuses it, and refuses two
+overlapping versions of one rule. A version only scheduled for a later date is
+replaced by adding a version from the same date. Every write is journaled.
+
+The reads:
+
+- `GET /api/v1/portfolios/:portfolio_id/policy_rules` — the portfolio's rules,
+  each with `status` (`in_force`, `scheduled` or `retired`, relative to
+  `as_of`), `version_in_force` and `next_version`. `as_of` (ISO date, default
+  today) reads the standard in force on a date; `include_retired=true` adds the
+  retired rules; `view` narrows to one evaluation context (absent: every
+  context); `since` is the row delta (a rule counts as changed when its row or
+  any of its versions did); `limit` (default 1000, max 10000).
+- `GET /api/v1/policy_rules/:id` — one rule with its **whole version
+  history**, oldest first.
+
+The writes:
+
+- `POST /api/v1/portfolios/:portfolio_id/policy_rules` — body
+  `{"rule": {"name", "view_id", "version": {…}}}`; creates the rule with its
+  first version (`201`).
+- `POST /api/v1/policy_rules/:id/versions` — body `{"version": {…}}`; the edit
+  (`201`).
+- `POST /api/v1/policy_rules/:id/retire` — optional `valid_until`; ends the
+  version in force yesterday by default (tonight when it only started today)
+  and drops any version scheduled after it. The rule stays readable with
+  `include_retired=true`. A rule none of whose versions has been in force, or
+  one already retired, is a `409`.
+- `DELETE /api/v1/policy_rules/:id` — only while **no** version has ever been
+  in force (`204`); otherwise `409`, and the remedy is retiring it.
+
+**What this surface is not.** A rule is a standard, never an instruction:
+nothing here places, proposes or sizes a trade, nothing is pushed anywhere, and
+no rule is replayed over a period before its `valid_from` (that would be
+backtesting, scope-ladder level (d)).
+
 ## Exchange Rates
 
 - `GET /api/v1/exchange_rates` lists stored exchange rates. Rates are kept
@@ -1848,6 +1933,18 @@ in MCP schemas are strings.
 - `portfolixir.targets.delete_position`
 - `portfolixir.portfolios.allocation`
 - `portfolixir.portfolios.risk`
+- `portfolixir.policy_rules.list` — the operator's rules with the version in
+  force on `as_of` (ADR-0049); the description tells the agent to read the
+  standard here instead of restating it.
+- `portfolixir.policy_rules.get` — one rule with its whole version history.
+- `portfolixir.policy_rules.create` — stores a rule with its first version; the
+  description carries the measure matrix and the scales.
+- `portfolixir.policy_rules.add_version` — the edit: a new version, never an
+  overwrite.
+- `portfolixir.policy_rules.retire` — ends the version in force; everything
+  stays readable.
+- `portfolixir.policy_rules.delete` — only for a rule nobody was ever measured
+  against.
 - `portfolixir.portfolios.cash_target`
 - `portfolixir.portfolios.set_cash_target`
 - `portfolixir.portfolios.income`

@@ -62,6 +62,33 @@ defmodule Portfolixir.Derived.DataVersion do
   @spec global_basis() :: String.t()
   def global_basis, do: @global
 
+  @doc """
+  The **rules counter** of one portfolio (ADR-0049 §5): bumped by every
+  policy-rule write in that portfolio, inside the writing transaction.
+
+  The findings read keys on it **beside** the portfolio basis, because a rule
+  write changes no ledger data — it must not recompute the portfolio's walk —
+  yet a finding that outlived an edited cap would be a stale answer to the only
+  question that read exists for.
+  """
+  @spec rules_basis(integer()) :: String.t()
+  def rules_basis(portfolio_id) when is_integer(portfolio_id),
+    do: "policy_rules:#{portfolio_id}"
+
+  @doc """
+  Bumps one portfolio's rules counter on `repo` — the policy-rule write path's
+  own transaction. Nothing durable is keyed on the counter alone, so the
+  refresher is not told.
+  """
+  @spec bump_rules(integer(), Ecto.Repo.t()) :: :ok
+  def bump_rules(portfolio_id, repo \\ Repo) when is_integer(portfolio_id) do
+    if schema_ready?(repo) do
+      repo.insert_all(@table, [%{basis: rules_basis(portfolio_id)}])
+    end
+
+    :ok
+  end
+
   @doc "The current version of a basis; `0` before its first bump."
   @spec current(String.t(), Ecto.Repo.t()) :: non_neg_integer()
   def current(basis, repo \\ Repo) when is_binary(basis) do

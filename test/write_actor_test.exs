@@ -90,7 +90,13 @@ defmodule Portfolixir.WriteActorTest do
                   # rows. Unlike the research log this table is MUTABLE, so
                   # the guard covers UPDATE and DELETE in earnest rather than
                   # as a precaution: the journal IS the change history.
-                  "security_events"
+                  "security_events",
+                  # ADR-0049 §4: policy rules and their versions, armed in
+                  # their first migration — an agent writes these rows, and
+                  # the journal records WHO changed a standard while the
+                  # versions record WHAT it was.
+                  "policy_rules",
+                  "policy_rule_versions"
                 ])
 
   # Derived-value tables (ADR-0039): materializations of ledger-derived reads,

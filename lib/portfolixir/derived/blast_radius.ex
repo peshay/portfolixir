@@ -39,6 +39,8 @@ defmodule Portfolixir.Derived.BlastRadius do
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.CashAccount
+  alias Portfolixir.Portfolios.PolicyRule
+  alias Portfolixir.Portfolios.PolicyRuleVersion
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Repo
 
@@ -56,6 +58,14 @@ defmodule Portfolixir.Derived.BlastRadius do
   def for_write("securities_account", %{portfolio_id: id}) when is_integer(id), do: [id]
 
   def for_write("portfolio", %{__struct__: Portfolio, id: id}) when is_integer(id), do: [id]
+
+  # A policy rule (ADR-0049) is a standard over figures, not a figure: its
+  # writes change no ledger, quote or FX data, so no portfolio's walk moves.
+  # The findings read keys on the portfolio's own rules counter, which the
+  # rule write path bumps itself (`DataVersion.bump_rules/2`). An ANSWER of
+  # "none", resolved per struct — never a default.
+  def for_write("policy_rule", %{__struct__: PolicyRule}), do: []
+  def for_write("policy_rule_version", %{__struct__: PolicyRuleVersion}), do: []
 
   # Everything else — unlisted resource types, and listed ones whose record
   # cannot be resolved (a bulk write journals an aggregate with no id). Widening
@@ -87,8 +97,8 @@ defmodule Portfolixir.Derived.BlastRadius do
   # type is absent from it and so widens.
   @feeds_no_security_data ~w(
     allowance_order bucket cash_account cash_account_bucket_assignment category
-    classification depot_bucket_assignment portfolio position_bucket_override
-    securities_account security_category_assignment security_event
+    classification depot_bucket_assignment policy_rule policy_rule_version portfolio
+    position_bucket_override securities_account security_category_assignment security_event
     security_identifier_alias security_note snapshot target target_plan
     tax_parameters tax_profile tax_statement_snapshot view
   )

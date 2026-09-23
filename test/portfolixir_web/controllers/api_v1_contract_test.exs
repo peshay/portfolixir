@@ -49,13 +49,20 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
+    # Sprint 15 (version 7): the policy-rules family (ADR-0049) — its reads,
+    # its writes and their MCP twins.
+    assert newest["version"] == 7
+    assert "GET /api/v1/portfolios/:portfolio_id/policy_rules" in newest["endpoints"]
+    assert "POST /api/v1/policy_rules/:id/versions" in newest["endpoints"]
+    assert "portfolixir.policy_rules.add_version" in newest["tools"]
+
     # Sprint 14 (version 6) moved parameters only: the portfolio metrics on
     # the risk read, `required` on both metric payloads (#838), since= on the
-    # row collections (#830). Sprint 13's additions are found by version.
-    assert newest["version"] == 6
-    assert Enum.any?(newest["parameters"], &(&1 =~ "risk_free_rate"))
-    assert Enum.any?(newest["parameters"], &(&1 =~ "required"))
-    assert Enum.any?(newest["parameters"], &(&1 =~ "since="))
+    # row collections (#830). Found by version, like every older entry.
+    sprint14 = Enum.find(data["entries"], &(&1["version"] == 6))
+    assert Enum.any?(sprint14["parameters"], &(&1 =~ "risk_free_rate"))
+    assert Enum.any?(sprint14["parameters"], &(&1 =~ "required"))
+    assert Enum.any?(sprint14["parameters"], &(&1 =~ "since="))
 
     sprint13 = Enum.find(data["entries"], &(&1["version"] == 5))
     assert "GET /api/v1/securities/:security_id/metrics" in sprint13["endpoints"]

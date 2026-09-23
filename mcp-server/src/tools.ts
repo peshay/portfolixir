@@ -1031,6 +1031,174 @@ const riskZ = z.object({
   risk_free_rate: z.string().optional()
 });
 
+// ADR-0049 (FR-43): policy rules. The closed sets mirror
+// Portfolixir.Portfolios.PolicyRuleVersion exactly; thresholds are Decimal
+// strings like every financial figure on this surface (ADR-0016).
+const POLICY_SUBJECT_TYPES = ["basis", "security", "category", "view", "cash"] as const;
+const POLICY_MEASURES = ["weight", "drift", "hhi", "volatility", "max_drawdown"] as const;
+const POLICY_KINDS = ["cap", "floor", "band"] as const;
+const POLICY_SEVERITIES = ["warn", "hard"] as const;
+const POLICY_WINDOWS = ["30d", "90d", "365d"] as const;
+
+const policyVersionSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["subject_type", "measure", "kind", "severity"],
+  properties: {
+    subject_type: {
+      type: "string",
+      enum: [...POLICY_SUBJECT_TYPES],
+      description:
+        "what the measure is taken of: basis (hhi, volatility, max_drawdown), security (security_id), category (classification_id + category_id), view (subject_view_id — how a bucket is capped), cash"
+    },
+    security_id: { type: "integer", minimum: 1 },
+    classification_id: {
+      type: "integer",
+      minimum: 1,
+      description:
+        "the category's classification; on a security subject ONLY for measure drift, naming the plan's classification that carries its position target"
+    },
+    category_id: { type: "integer", minimum: 1 },
+    subject_view_id: { type: "integer", minimum: 1 },
+    measure: {
+      type: "string",
+      enum: [...POLICY_MEASURES],
+      description:
+        "weight (percent 0-100: security, category, cash, view), drift (percentage points -100..100, actual minus target of the active plan: category, security), hhi (0-10000: basis), volatility (percent, annualized, >= 0: basis), max_drawdown (percent in its own sign, -100..0: basis)"
+    },
+    kind: {
+      type: "string",
+      enum: [...POLICY_KINDS],
+      description:
+        "cap: breached strictly above threshold; floor: strictly below; band: outside [lower, upper]"
+    },
+    threshold: { type: "string", description: "Decimal string on the measure's scale (cap, floor)" },
+    lower: { type: "string", description: "Decimal string (band)" },
+    upper: { type: "string", description: "Decimal string, at least lower (band)" },
+    window: {
+      type: "string",
+      enum: [...POLICY_WINDOWS],
+      description: "the ADR-0047 window; required for volatility and max_drawdown, absent otherwise"
+    },
+    severity: { type: "string", enum: [...POLICY_SEVERITIES] },
+    note: { type: "string", description: "the operator's words, never parsed" },
+    valid_from: {
+      type: "string",
+      description: "ISO date the version is in force from (default today; never before today)"
+    }
+  }
+} as const;
+
+const policyVersionZ = z.object({
+  subject_type: z.enum(POLICY_SUBJECT_TYPES),
+  security_id: z.number().int().positive().optional(),
+  classification_id: z.number().int().positive().optional(),
+  category_id: z.number().int().positive().optional(),
+  subject_view_id: z.number().int().positive().optional(),
+  measure: z.enum(POLICY_MEASURES),
+  kind: z.enum(POLICY_KINDS),
+  threshold: optionalString(),
+  lower: optionalString(),
+  upper: optionalString(),
+  window: z.enum(POLICY_WINDOWS).optional(),
+  severity: z.enum(POLICY_SEVERITIES),
+  note: optionalString(),
+  valid_from: optionalString()
+});
+
+const policyRulesListSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["portfolio_id"],
+  properties: {
+    portfolio_id: { type: "integer", minimum: 1 },
+    view: {
+      type: "integer",
+      minimum: 1,
+      description: "narrow to the rules evaluated in this view's context (default: every context)"
+    },
+    as_of: { type: "string", description: "ISO date the status is read on (default today)" },
+    include_retired: { type: "boolean", description: "also list rules retired by as_of" },
+    since: { type: "string", description: "ISO8601 instant (UTC) or date; rules whose row or any version changed after it" },
+    limit: { type: "integer", minimum: 1 }
+  }
+} as const;
+
+const policyRulesListZ = z.object({
+  portfolio_id: z.number().int().positive(),
+  view: z.number().int().positive().optional(),
+  as_of: optionalString(),
+  include_retired: z.boolean().optional(),
+  since: optionalString(),
+  limit: z.number().int().min(1).optional()
+});
+
+const policyRuleCreateSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["portfolio_id", "rule"],
+  properties: {
+    portfolio_id: { type: "integer", minimum: 1 },
+    rule: {
+      type: "object",
+      additionalProperties: false,
+      required: ["name", "version"],
+      properties: {
+        name: { type: "string", description: "the operator's name for the rule" },
+        view_id: {
+          type: "integer",
+          minimum: 1,
+          description: "the evaluation context; absent is the portfolio-wide context"
+        },
+        version: policyVersionSchema
+      }
+    }
+  }
+} as const;
+
+const policyRuleCreateZ = z.object({
+  portfolio_id: z.number().int().positive(),
+  rule: z.object({
+    name: z.string(),
+    view_id: z.number().int().positive().optional(),
+    version: policyVersionZ
+  })
+});
+
+const policyRuleAddVersionSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "version"],
+  properties: {
+    id: { type: "integer", minimum: 1 },
+    version: policyVersionSchema
+  }
+} as const;
+
+const policyRuleAddVersionZ = z.object({
+  id: z.number().int().positive(),
+  version: policyVersionZ
+});
+
+const policyRuleRetireSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id"],
+  properties: {
+    id: { type: "integer", minimum: 1 },
+    valid_until: {
+      type: "string",
+      description:
+        "ISO date the version in force ends on (default yesterday, or today when it only started today; never earlier)"
+    }
+  }
+} as const;
+
+const policyRuleRetireZ = z.object({
+  id: z.number().int().positive(),
+  valid_until: optionalString()
+});
+
 const allocationSchema = {
   type: "object",
   additionalProperties: false,
@@ -2620,6 +2788,48 @@ const toolDefinitions: ToolDefinition[] = [
     riskZ
   ),
   tool(
+    "portfolixir.policy_rules.list",
+    "The operator's own rules",
+    "The operator's policy rules for a portfolio (ADR-0049): caps, floors and bands on a figure the product already serves — a weight, a drift, the HHI, the portfolio volatility or maximum drawdown — stored as objects instead of prose in a prompt. READ THE STANDARD HERE rather than restating it from memory: the rule in force is the one the operator set. Each rule carries status (in_force | scheduled | retired, relative to as_of), version_in_force (the predicate: subject_type and its ids, measure, kind, threshold or lower/upper as Decimal strings, window, severity, note, valid_from, valid_until) and next_version when one is scheduled. as_of (default today) answers \"what was the standard on date D\"; include_retired=true adds retired rules; view narrows to one evaluation context (default: every context — view_id null is the portfolio-wide one); since is the row delta (a rule counts as changed when its row or any version changed). Whether a rule holds is the findings read, not this one.",
+    policyRulesListSchema,
+    policyRulesListZ
+  ),
+  tool(
+    "portfolixir.policy_rules.get",
+    "One rule and its whole history",
+    "One policy rule with its WHOLE version history, oldest first (ADR-0049 §4): each version is the standard of its own period [valid_from, valid_until], so a raised cap leaves the old cap readable as what applied before. Use it to answer why a finding changed between two runs.",
+    idSchema,
+    idZ
+  ),
+  tool(
+    "portfolixir.policy_rules.create",
+    "Store a rule",
+    "Create a policy rule with its first version (ADR-0049). The subject must fit the measure: weight is read for a security, a category, cash or a view (a view is how a bucket is capped: a weight cap on the view that selects it, evaluated portfolio-wide); drift for a category or a security (a security also names the classification whose active plan carries its position target); hhi, volatility and max_drawdown for the basis, the last two with a window (30d | 90d | 365d). kind cap is breached STRICTLY above threshold, floor strictly below, band outside [lower, upper] — the risk lens's own reading of a line. Thresholds are Decimal strings on the measure's scale: weight percent 0-100, drift percentage points -100..100, hhi 0-10000, volatility percent >= 0, max_drawdown percent -100..0. view_id sets the evaluation context (absent = portfolio-wide). valid_from defaults to today and is never earlier: a rule is never replayed over a period that did not have it. Journaled under the API token. A rule is the operator's standard, never an instruction: nothing evaluates it into a trade.",
+    policyRuleCreateSchema,
+    policyRuleCreateZ
+  ),
+  tool(
+    "portfolixir.policy_rules.add_version",
+    "Change a rule (a new version)",
+    "The edit of a policy rule: adds a new version from valid_from (default today, never earlier), and the previous version is closed the day before — both stay readable, so the standard in force on any date is a read. A version that has been in force is never changed or deleted. A version that is only scheduled (valid_from still in the future) is replaced by adding a version from the same or an earlier future date. The version carries the whole predicate (see portfolixir.policy_rules.create for the matrix and scales). Journaled under the API token.",
+    policyRuleAddVersionSchema,
+    policyRuleAddVersionZ
+  ),
+  tool(
+    "portfolixir.policy_rules.retire",
+    "Retire a rule",
+    "Retire a policy rule: its version in force ends on valid_until (default yesterday, or today when it only started today; never earlier), any scheduled version after that is dropped, and the rule and all its versions stay readable (list with include_retired=true). A rule none of whose versions has ever been in force answers 409 — delete it instead. Journaled under the API token.",
+    policyRuleRetireSchema,
+    policyRuleRetireZ
+  ),
+  tool(
+    "portfolixir.policy_rules.delete",
+    "Delete a rule nobody was measured against",
+    "Delete a policy rule and its versions — ONLY while none of its versions has ever been in force (all start in the future). A standard that was in force is never removed: that answers 409 and the remedy is portfolixir.policy_rules.retire. Journaled under the API token.",
+    idSchema,
+    idZ
+  ),
+  tool(
     "portfolixir.portfolios.cash_target",
     "Read cash target weight",
     "Read a plan's cash target weight, the SOLL cash share of the allocation's 100% basis (securities + counting cash), as a string fraction in [0,1] (or null when none is steered). Pass an optional view (a view id) to read that view's plan; omitting it reads the portfolio-wide Gesamt plan, the same value the portfolio's legacy cash_target_weight field reports.",
@@ -3333,6 +3543,35 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       );
     case "portfolixir.portfolios.risk":
       return client.request("GET", riskPath(args));
+    case "portfolixir.policy_rules.list":
+      return client.request(
+        "GET",
+        withQuery(`/api/v1/portfolios/${args.portfolio_id}/policy_rules`, args, [
+          "view",
+          "as_of",
+          "include_retired",
+          "since",
+          "limit"
+        ])
+      );
+    case "portfolixir.policy_rules.get":
+      return client.request("GET", `/api/v1/policy_rules/${args.id}`);
+    case "portfolixir.policy_rules.create":
+      return client.request("POST", `/api/v1/portfolios/${args.portfolio_id}/policy_rules`, {
+        rule: args.rule
+      });
+    case "portfolixir.policy_rules.add_version":
+      return client.request("POST", `/api/v1/policy_rules/${args.id}/versions`, {
+        version: args.version
+      });
+    case "portfolixir.policy_rules.retire":
+      return client.request(
+        "POST",
+        `/api/v1/policy_rules/${args.id}/retire`,
+        args.valid_until ? { valid_until: args.valid_until } : {}
+      );
+    case "portfolixir.policy_rules.delete":
+      return client.request("DELETE", `/api/v1/policy_rules/${args.id}`);
     case "portfolixir.portfolios.cash_target":
       return client.request(
         "GET",

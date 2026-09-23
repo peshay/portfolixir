@@ -44,6 +44,9 @@ defmodule Portfolixir.Invariants.DerivedNeverAWriteSourceTest do
     "lib/portfolixir/journal.ex" => [[:Portfolixir, :Derived, :Invalidation]],
     "lib/portfolixir/fx.ex" => [[:Portfolixir, :Derived, :Invalidation]],
     "lib/portfolixir/catalog/quotes.ex" => [[:Portfolixir, :Derived, :Invalidation]],
+    # The policy-rule write path (ADR-0049 §5) announces its own rules
+    # counter; it reads nothing derived.
+    "lib/portfolixir/portfolios/policy_rules.ex" => [[:Portfolixir, :Derived, :Invalidation]],
     # Supervision only: the memo table's owner and the background refresher
     # start with the app, and the refresher is handed the warm-up it must call.
     # Starting a process is not reading a derived value.
