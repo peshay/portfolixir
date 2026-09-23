@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.Api.V1.CashAccountController do
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CashAccount
+  alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
 
   def index(conn, _params) do
@@ -23,7 +24,7 @@ defmodule PortfolixirWeb.Api.V1.CashAccountController do
   end
 
   def show(conn, %{"id" => id}) do
-    with {:ok, cid} <- parse_id(id),
+    with {:ok, cid} <- IdParam.parse(id),
          %CashAccount{} = account <- Portfolios.get_cash_account(cid) do
       json(conn, %{data: JSON.cash_account(account)})
     else
@@ -55,7 +56,7 @@ defmodule PortfolixirWeb.Api.V1.CashAccountController do
     # Never let an update move an account into a different portfolio.
     attrs = params |> Map.get("cash_account", %{}) |> Map.drop(["portfolio_id"])
 
-    with {:ok, cid} <- parse_id(id),
+    with {:ok, cid} <- IdParam.parse(id),
          %CashAccount{} = account <- Portfolios.get_cash_account(cid),
          {:ok, updated} <- Portfolios.update_cash_account(conn.assigns.actor, account, attrs) do
       json(conn, %{data: JSON.cash_account(updated)})
@@ -67,7 +68,7 @@ defmodule PortfolixirWeb.Api.V1.CashAccountController do
   end
 
   def delete(conn, %{"id" => id}) do
-    with {:ok, cid} <- parse_id(id),
+    with {:ok, cid} <- IdParam.parse(id),
          %CashAccount{} = account <- Portfolios.get_cash_account(cid) do
       case Portfolios.delete_cash_account(conn.assigns.actor, account) do
         {:ok, _} -> send_resp(conn, :no_content, "")
@@ -88,7 +89,7 @@ defmodule PortfolixirWeb.Api.V1.CashAccountController do
   def set_balance(conn, %{"id" => id} = params) do
     attrs = Map.take(params, ["date", "amount", "notes"])
 
-    with {:ok, cid} <- parse_id(id),
+    with {:ok, cid} <- IdParam.parse(id),
          %CashAccount{} = account <- Portfolios.get_cash_account(cid),
          {:ok, transaction} <- Ledger.set_cash_balance(conn.assigns.actor, account, attrs) do
       conn
@@ -100,17 +101,6 @@ defmodule PortfolixirWeb.Api.V1.CashAccountController do
       {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
     end
   end
-
-  defp parse_id(value) when is_integer(value), do: {:ok, value}
-
-  defp parse_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> {:ok, id}
-      _ -> :error
-    end
-  end
-
-  defp parse_id(_value), do: :error
 
   defp default_portfolio_binding(attrs, actor) when is_map(attrs) do
     case Map.get(attrs, "portfolio_id") do

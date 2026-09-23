@@ -3,12 +3,13 @@ defmodule PortfolixirWeb.Api.V1.TradeController do
 
   alias Portfolixir.Catalog
   alias Portfolixir.Ledger
+  alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
 
   def index(conn, %{"security_id" => security_id} = params) do
     with {:ok, from} <- date_param(params, "from", :from),
          {:ok, to} <- date_param(params, "to", :to),
-         {:ok, id} <- parse_id(security_id),
+         {:ok, id} <- IdParam.parse(security_id),
          security when not is_nil(security) <- Catalog.get_security(id) do
       trades =
         security.id
@@ -58,16 +59,6 @@ defmodule PortfolixirWeb.Api.V1.TradeController do
         {:error, field}
     end
   end
-
-  defp parse_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> {:ok, id}
-      _ -> :error
-    end
-  end
-
-  defp parse_id(value) when is_integer(value), do: {:ok, value}
-  defp parse_id(_), do: :error
 
   defp unprocessable(conn, field) do
     conn

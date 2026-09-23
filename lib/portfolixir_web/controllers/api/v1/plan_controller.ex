@@ -11,10 +11,11 @@ defmodule PortfolixirWeb.Api.V1.PlanController do
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.Targets
+  alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
 
   def index(conn, %{"portfolio_id" => portfolio_id} = params) do
-    with {:ok, pid} <- parse_id(portfolio_id),
+    with {:ok, pid} <- IdParam.parse(portfolio_id),
          %Portfolio{} <- Portfolios.get_portfolio(pid) do
       opts =
         case params["classification_id"] do
@@ -22,7 +23,7 @@ defmodule PortfolixirWeb.Api.V1.PlanController do
             []
 
           value ->
-            case parse_id(value) do
+            case IdParam.parse(value) do
               {:ok, cid} -> [classification_id: cid]
               :error -> []
             end
@@ -37,7 +38,7 @@ defmodule PortfolixirWeb.Api.V1.PlanController do
   end
 
   def duplicate(conn, %{"id" => id} = params) do
-    with {:ok, plan_id} <- parse_id(id),
+    with {:ok, plan_id} <- IdParam.parse(id),
          {:ok, copy} <-
            Targets.duplicate_plan(conn.assigns.actor, plan_id, Map.take(params, ["name"])) do
       conn |> put_status(201) |> json(%{data: JSON.plan(copy)})
@@ -49,7 +50,7 @@ defmodule PortfolixirWeb.Api.V1.PlanController do
   end
 
   def activate(conn, %{"id" => id}) do
-    with {:ok, plan_id} <- parse_id(id),
+    with {:ok, plan_id} <- IdParam.parse(id),
          {:ok, plan} <- Targets.activate_plan(conn.assigns.actor, plan_id) do
       json(conn, %{data: JSON.plan(plan)})
     else
@@ -60,7 +61,7 @@ defmodule PortfolixirWeb.Api.V1.PlanController do
   end
 
   def rename(conn, %{"id" => id} = params) do
-    with {:ok, plan_id} <- parse_id(id),
+    with {:ok, plan_id} <- IdParam.parse(id),
          name when is_binary(name) and name != "" <- params["name"],
          {:ok, plan} <- Targets.rename_plan(conn.assigns.actor, plan_id, name) do
       json(conn, %{data: JSON.plan(plan)})
@@ -73,7 +74,7 @@ defmodule PortfolixirWeb.Api.V1.PlanController do
   end
 
   def delete(conn, %{"id" => id}) do
-    with {:ok, plan_id} <- parse_id(id),
+    with {:ok, plan_id} <- IdParam.parse(id),
          {:ok, plan} <- Targets.delete_plan_version(conn.assigns.actor, plan_id) do
       json(conn, %{data: JSON.plan(plan)})
     else
@@ -81,17 +82,6 @@ defmodule PortfolixirWeb.Api.V1.PlanController do
       {:error, :not_found} -> not_found(conn)
     end
   end
-
-  defp parse_id(value) when is_integer(value), do: {:ok, value}
-
-  defp parse_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> {:ok, id}
-      _ -> :error
-    end
-  end
-
-  defp parse_id(_value), do: :error
 
   defp unprocessable(conn, errors) do
     conn |> put_status(422) |> json(%{errors: errors})

@@ -6,11 +6,12 @@ defmodule PortfolixirWeb.Api.V1.AllocationController do
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Tax
   alias PortfolixirWeb.Api.V1.DriftParam
+  alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ViewParam
 
   def index(conn, %{"portfolio_id" => portfolio_id} = params) do
-    with {:ok, pid} <- parse_id(portfolio_id),
+    with {:ok, pid} <- IdParam.parse(portfolio_id),
          %Portfolio{} <- Portfolios.get_portfolio(pid),
          {:ok, cid} <- classification_id(Map.get(params, "classification_id")),
          {:ok, view} <- ViewParam.resolve(params),
@@ -83,7 +84,7 @@ defmodule PortfolixirWeb.Api.V1.AllocationController do
   end
 
   defp classification_id(nil), do: :missing
-  defp classification_id(value), do: parse_id(value)
+  defp classification_id(value), do: IdParam.parse(value)
 
   # FR-37 (#665): `include_positions=false` for a roll-up-only read.
   defp include_positions_param(params) do
@@ -93,15 +94,6 @@ defmodule PortfolixirWeb.Api.V1.AllocationController do
       _other -> {:error, :include_positions}
     end
   end
-
-  defp parse_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> {:ok, id}
-      _ -> :error
-    end
-  end
-
-  defp parse_id(_value), do: :error
 
   defp unprocessable(conn, errors) do
     conn

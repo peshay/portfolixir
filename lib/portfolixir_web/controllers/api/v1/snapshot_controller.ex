@@ -13,6 +13,7 @@ defmodule PortfolixirWeb.Api.V1.SnapshotController do
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.SnapshotComparison
   alias Portfolixir.Portfolios.Snapshots
+  alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ListLimit
 
@@ -48,7 +49,7 @@ defmodule PortfolixirWeb.Api.V1.SnapshotController do
   end
 
   def delete(conn, %{"id" => id}) do
-    with {:ok, snapshot_id} <- parse_id(id),
+    with {:ok, snapshot_id} <- IdParam.parse(id),
          {:ok, snapshot} <- Snapshots.delete_snapshot(conn.assigns.actor, snapshot_id) do
       json(conn, %{data: JSON.snapshot(snapshot)})
     else
@@ -58,9 +59,9 @@ defmodule PortfolixirWeb.Api.V1.SnapshotController do
   end
 
   def comparison(conn, %{"portfolio_id" => portfolio_id, "id" => id}) do
-    with {:ok, pid} <- parse_id(portfolio_id),
+    with {:ok, pid} <- IdParam.parse(portfolio_id),
          %Portfolio{} <- Portfolios.get_portfolio(pid),
-         {:ok, snapshot_id} <- parse_id(id),
+         {:ok, snapshot_id} <- IdParam.parse(id),
          {:ok, comparison} <- SnapshotComparison.for_snapshot(snapshot_id, pid) do
       json(conn, %{data: JSON.snapshot_comparison(comparison)})
     else
@@ -70,17 +71,6 @@ defmodule PortfolixirWeb.Api.V1.SnapshotController do
       {:error, :view_not_found} -> not_found(conn)
     end
   end
-
-  defp parse_id(value) when is_integer(value), do: {:ok, value}
-
-  defp parse_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> {:ok, id}
-      _ -> :error
-    end
-  end
-
-  defp parse_id(_value), do: :error
 
   defp unprocessable(conn, errors) do
     conn |> put_status(422) |> json(%{errors: errors})

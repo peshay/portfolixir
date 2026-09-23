@@ -16,6 +16,7 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Knowledge
   alias Portfolixir.Knowledge.SecurityNote
+  alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ListLimit
   alias PortfolixirWeb.Api.V1.SinceParam
@@ -232,18 +233,12 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
     case Map.get(params, key) do
       nil -> {:ok, nil}
       "" -> {:ok, nil}
-      value when is_integer(value) and value > 0 -> {:ok, value}
-      value when is_binary(value) -> parse_positive(value, key)
-      _ -> {:error, key}
+      value -> value |> IdParam.parse() |> id_result(key)
     end
   end
 
-  defp parse_positive(value, field) do
-    case Integer.parse(value) do
-      {int, ""} when int > 0 -> {:ok, int}
-      _ -> {:error, field}
-    end
-  end
+  defp id_result({:ok, id}, _key), do: {:ok, id}
+  defp id_result(:error, key), do: {:error, key}
 
   defp bool_param(params, key, default) do
     case Map.get(params, key) do

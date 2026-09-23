@@ -15,6 +15,7 @@ defmodule PortfolixirWeb.Api.V1.TaxConfigurationController do
   use PortfolixirWeb, :controller
 
   alias Portfolixir.Tax
+  alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
 
   def index_parameters(conn, params) do
@@ -49,7 +50,7 @@ defmodule PortfolixirWeb.Api.V1.TaxConfigurationController do
   def update_profile(conn, %{"id" => id} = params) do
     attrs = Map.get(params, "profile", %{})
 
-    with {:ok, profile_id} <- parse_id(id),
+    with {:ok, profile_id} <- IdParam.parse(id),
          {:ok, profile} <- Tax.fetch_profile(profile_id) do
       case Tax.update_profile(conn.assigns.actor, profile, attrs) do
         {:ok, updated} -> json(conn, %{data: JSON.tax_profile(updated)})
@@ -61,7 +62,7 @@ defmodule PortfolixirWeb.Api.V1.TaxConfigurationController do
   end
 
   def delete_profile(conn, %{"id" => id}) do
-    with {:ok, profile_id} <- parse_id(id),
+    with {:ok, profile_id} <- IdParam.parse(id),
          {:ok, profile} <- Tax.delete_profile(conn.assigns.actor, profile_id) do
       json(conn, %{data: JSON.tax_profile(profile)})
     else
@@ -90,24 +91,13 @@ defmodule PortfolixirWeb.Api.V1.TaxConfigurationController do
   end
 
   def delete_allowance_order(conn, %{"id" => id}) do
-    with {:ok, order_id} <- parse_id(id),
+    with {:ok, order_id} <- IdParam.parse(id),
          {:ok, order} <- Tax.delete_allowance_order(conn.assigns.actor, order_id) do
       json(conn, %{data: JSON.allowance_order(order)})
     else
       _otherwise -> not_found(conn)
     end
   end
-
-  defp parse_id(value) when is_integer(value), do: {:ok, value}
-
-  defp parse_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> {:ok, id}
-      _other -> :error
-    end
-  end
-
-  defp parse_id(_value), do: :error
 
   defp parse_year(nil), do: nil
 

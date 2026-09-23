@@ -10,6 +10,7 @@ defmodule PortfolixirWeb.Api.V1.BucketController do
 
   alias Portfolixir.Buckets
   alias Portfolixir.Buckets.Bucket
+  alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
 
   def index(conn, _params) do
@@ -17,7 +18,7 @@ defmodule PortfolixirWeb.Api.V1.BucketController do
   end
 
   def show(conn, %{"id" => id}) do
-    with {:ok, bid} <- parse_id(id),
+    with {:ok, bid} <- IdParam.parse(id),
          %Bucket{} = bucket <- Buckets.get_bucket(bid) do
       json(conn, %{data: JSON.bucket(bucket)})
     else
@@ -42,7 +43,7 @@ defmodule PortfolixirWeb.Api.V1.BucketController do
   def update(conn, %{"id" => id} = params) do
     attrs = Map.get(params, "bucket", %{})
 
-    with {:ok, bid} <- parse_id(id),
+    with {:ok, bid} <- IdParam.parse(id),
          %Bucket{} = bucket <- Buckets.get_bucket(bid),
          {:ok, updated} <- Buckets.update_bucket(conn.assigns.actor, bucket, attrs) do
       json(conn, %{data: JSON.bucket(updated)})
@@ -54,7 +55,7 @@ defmodule PortfolixirWeb.Api.V1.BucketController do
   end
 
   def delete(conn, %{"id" => id}) do
-    with {:ok, bid} <- parse_id(id),
+    with {:ok, bid} <- IdParam.parse(id),
          %Bucket{} = bucket <- Buckets.get_bucket(bid) do
       case Buckets.delete_bucket(conn.assigns.actor, bucket) do
         {:ok, _} -> send_resp(conn, :no_content, "")
@@ -65,17 +66,6 @@ defmodule PortfolixirWeb.Api.V1.BucketController do
       :error -> not_found(conn)
     end
   end
-
-  defp parse_id(value) when is_integer(value), do: {:ok, value}
-
-  defp parse_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> {:ok, id}
-      _ -> :error
-    end
-  end
-
-  defp parse_id(_value), do: :error
 
   defp unprocessable(conn, errors) do
     conn

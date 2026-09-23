@@ -3,6 +3,7 @@ defmodule PortfolixirWeb.Api.V1.SecuritiesAccountController do
 
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.SecuritiesAccount
+  alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
 
   def index(conn, _params) do
@@ -12,7 +13,7 @@ defmodule PortfolixirWeb.Api.V1.SecuritiesAccountController do
   end
 
   def show(conn, %{"id" => id}) do
-    with {:ok, sid} <- parse_id(id),
+    with {:ok, sid} <- IdParam.parse(id),
          %SecuritiesAccount{} = account <- Portfolios.get_securities_account(sid) do
       json(conn, %{data: JSON.securities_account(account)})
     else
@@ -44,7 +45,7 @@ defmodule PortfolixirWeb.Api.V1.SecuritiesAccountController do
     # Never let an update move an account into a different portfolio.
     attrs = params |> Map.get("securities_account", %{}) |> Map.drop(["portfolio_id"])
 
-    with {:ok, sid} <- parse_id(id),
+    with {:ok, sid} <- IdParam.parse(id),
          %SecuritiesAccount{} = account <- Portfolios.get_securities_account(sid),
          {:ok, updated} <-
            Portfolios.update_securities_account(conn.assigns.actor, account, attrs) do
@@ -57,7 +58,7 @@ defmodule PortfolixirWeb.Api.V1.SecuritiesAccountController do
   end
 
   def delete(conn, %{"id" => id}) do
-    with {:ok, sid} <- parse_id(id),
+    with {:ok, sid} <- IdParam.parse(id),
          %SecuritiesAccount{} = account <- Portfolios.get_securities_account(sid) do
       case Portfolios.delete_securities_account(conn.assigns.actor, account) do
         {:ok, _} -> send_resp(conn, :no_content, "")
@@ -69,17 +70,6 @@ defmodule PortfolixirWeb.Api.V1.SecuritiesAccountController do
       :error -> not_found(conn)
     end
   end
-
-  defp parse_id(value) when is_integer(value), do: {:ok, value}
-
-  defp parse_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> {:ok, id}
-      _ -> :error
-    end
-  end
-
-  defp parse_id(_value), do: :error
 
   defp default_portfolio_binding(attrs, actor) when is_map(attrs) do
     case Map.get(attrs, "portfolio_id") do

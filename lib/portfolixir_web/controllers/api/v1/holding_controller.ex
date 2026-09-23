@@ -4,13 +4,14 @@ defmodule PortfolixirWeb.Api.V1.HoldingController do
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.Api.V1.FieldSelection
+  alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
 
   # FR-37 (#665): sparse fieldsets over the serializer's own field list.
   @fields_whitelist FieldSelection.whitelist(JSON.holding_fields())
 
   def index(conn, %{"portfolio_id" => portfolio_id} = params) do
-    with {:ok, id} <- parse_id(portfolio_id),
+    with {:ok, id} <- IdParam.parse(portfolio_id),
          portfolio when not is_nil(portfolio) <- Portfolios.get_portfolio(id),
          {:ok, fields} <- FieldSelection.parse(params, @fields_whitelist) do
       holdings =
@@ -55,20 +56,11 @@ defmodule PortfolixirWeb.Api.V1.HoldingController do
     do: Enum.filter(holdings, fn holding -> selector.(holding) == value end)
 
   defp optional_id(value) do
-    case parse_id(value) do
+    case IdParam.parse(value) do
       {:ok, id} -> id
       _ -> nil
     end
   end
-
-  defp parse_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> {:ok, id}
-      _ -> :error
-    end
-  end
-
-  defp parse_id(_value), do: :error
 
   defp not_found(conn) do
     conn

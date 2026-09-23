@@ -6,6 +6,7 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.Targets
   alias PortfolixirWeb.Api.V1.DriftParam
+  alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.SinceParam
   alias PortfolixirWeb.Api.V1.ViewParam
@@ -26,7 +27,7 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
   # fails with the same structured error contract as the analytics endpoints,
   # instead of crashing or silently steering Gesamt.
   def index(conn, %{"portfolio_id" => portfolio_id} = params) do
-    with {:ok, pid} <- parse_id(portfolio_id),
+    with {:ok, pid} <- IdParam.parse(portfolio_id),
          %Portfolio{} <- Portfolios.get_portfolio(pid),
          {:ok, view} <- ViewParam.resolve(params),
          {:ok, since} <- SinceParam.parse(params) do
@@ -50,7 +51,7 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
   end
 
   def set(conn, %{"portfolio_id" => portfolio_id} = params) do
-    with {:ok, pid} <- parse_id(portfolio_id),
+    with {:ok, pid} <- IdParam.parse(portfolio_id),
          %Portfolio{} <- Portfolios.get_portfolio(pid),
          {:ok, view} <- ViewParam.resolve(params) do
       set_for_portfolio(conn, pid, params, view)
@@ -63,10 +64,10 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
   end
 
   def delete(conn, %{"portfolio_id" => portfolio_id, "category_id" => category_id} = params) do
-    with {:ok, pid} <- parse_id(portfolio_id),
+    with {:ok, pid} <- IdParam.parse(portfolio_id),
          %Portfolio{} <- Portfolios.get_portfolio(pid),
          {:ok, view} <- ViewParam.resolve(params),
-         {:ok, cid} <- parse_id(category_id) do
+         {:ok, cid} <- IdParam.parse(category_id) do
       {:ok, count} = Targets.delete_target(conn.assigns.actor, pid, cid, ViewParam.opts(view))
       json(conn, %{data: %{deleted: count}})
     else
@@ -90,7 +91,7 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
   # carry `drift_weight`; the response states the applied `min_drift`,
   # `position_targets_total` (the pre-filter count) and the drift basis.
   def index_positions(conn, %{"portfolio_id" => portfolio_id} = params) do
-    with {:ok, pid} <- parse_id(portfolio_id),
+    with {:ok, pid} <- IdParam.parse(portfolio_id),
          %Portfolio{} <- Portfolios.get_portfolio(pid),
          {:ok, view} <- ViewParam.resolve(params),
          {:ok, min_drift} <- DriftParam.parse(params),
@@ -179,11 +180,11 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
         } =
           params
       ) do
-    with {:ok, pid} <- parse_id(portfolio_id),
+    with {:ok, pid} <- IdParam.parse(portfolio_id),
          %Portfolio{} <- Portfolios.get_portfolio(pid),
          {:ok, view} <- ViewParam.resolve(params),
-         {:ok, cid} <- parse_id(category_id),
-         {:ok, sid} <- parse_id(security_id) do
+         {:ok, cid} <- IdParam.parse(category_id),
+         {:ok, sid} <- IdParam.parse(security_id) do
       {:ok, count} =
         Targets.delete_position_target(conn.assigns.actor, pid, cid, sid, ViewParam.opts(view))
 
@@ -201,7 +202,7 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
   # cash plan, which is the same value the legacy portfolio `cash_target_weight`
   # field still reads and writes (back-compat).
   def show_cash_target(conn, %{"portfolio_id" => portfolio_id} = params) do
-    with {:ok, pid} <- parse_id(portfolio_id),
+    with {:ok, pid} <- IdParam.parse(portfolio_id),
          %Portfolio{} <- Portfolios.get_portfolio(pid),
          {:ok, view} <- ViewParam.resolve(params) do
       weight = Targets.get_cash_target(pid, ViewParam.opts(view))
@@ -215,7 +216,7 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
   end
 
   def set_cash_target(conn, %{"portfolio_id" => portfolio_id} = params) do
-    with {:ok, pid} <- parse_id(portfolio_id),
+    with {:ok, pid} <- IdParam.parse(portfolio_id),
          %Portfolio{} <- Portfolios.get_portfolio(pid),
          {:ok, view} <- ViewParam.resolve(params) do
       weight = Map.get(params, "cash_target_weight")
@@ -233,7 +234,7 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
   end
 
   defp set_for_portfolio(conn, pid, params, view) do
-    with {:ok, cid} <- parse_id(Map.get(params, "classification_id")),
+    with {:ok, cid} <- IdParam.parse(Map.get(params, "classification_id")),
          entries when is_list(entries) <- Map.get(params, "targets") do
       case Targets.set_targets(conn.assigns.actor, pid, cid, entries, ViewParam.opts(view)) do
         {:ok, targets} ->
@@ -254,7 +255,7 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
   defp list_opts(params, view) do
     base = ViewParam.opts(view)
 
-    case parse_id(Map.get(params, "classification_id")) do
+    case IdParam.parse(Map.get(params, "classification_id")) do
       {:ok, cid} -> [{:classification_id, cid} | base]
       :error -> base
     end
@@ -295,17 +296,6 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
           "a plan carries one position row per security: security #{security_id} already has " <>
             "a position target under a different category, or appears more than once in this batch"
       })
-
-  defp parse_id(value) when is_integer(value), do: {:ok, value}
-
-  defp parse_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> {:ok, id}
-      _ -> :error
-    end
-  end
-
-  defp parse_id(_value), do: :error
 
   defp invalid_view(conn), do: unprocessable(conn, %{view: ["is invalid"]})
 
