@@ -205,15 +205,13 @@ defmodule PortfolixirWeb.RiskLive do
             <header class="section-head">
               <h2 id="risk-caps-title"><%= gettext("Asset-class caps") %></h2>
             </header>
-            <p :if={@risk.asset_class_violations == []} class="empty-state">
+            <%!-- The page reads the lens with its shipped defaults, and caps
+                 are opt-in per request (FR9): no cap is ever configured here,
+                 so the section says so rather than rendering a list that can
+                 only be empty. --%>
+            <p class="empty-state">
               <%= gettext("No cap configured — there is nothing to exceed. Caps are set per request over the API.") %>
             </p>
-            <ul :if={@risk.asset_class_violations != []}>
-              <li :for={v <- @risk.asset_class_violations}>
-                <%= v.asset_class %>: <%= Format.decimal(v.current_weight, 1) %> % /
-                <%= Format.decimal(v.cap, 1) %> %
-              </li>
-            </ul>
 
             <details class="perf-table-disclosure" id="risk-correlations">
               <summary class="disclosure-summary">
