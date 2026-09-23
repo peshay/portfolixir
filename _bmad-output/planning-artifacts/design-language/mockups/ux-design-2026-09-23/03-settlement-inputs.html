@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Abrechnung in Kontowährung im Buchungsformular (#395, Lane D2, Pick F3)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  .form { display: grid; gap: 10px; max-width: 520px; }
+  .fs { border: 1px solid var(--color-accent); border-radius: var(--radius-md); padding: 10px 12px; display: grid; gap: 8px; background: var(--color-accent-soft); }
+  .fs legend, .fs .lg { font-size: 12px; font-weight: 700; color: var(--color-accent); }
+  .err { font-size: 12px; color: var(--color-danger); }
+  .sum2 { font-size: 12.5px; color: var(--color-text-muted); }
+</style>
+</head>
+<body>
+
+<div class="pickbar"><b>Entscheidung F3 — offen.</b> Ein Kauf, dessen Wertpapierwährung von der Währung des Verrechnungskontos abweicht, lässt sich heute nur über die API buchen: Das Formular hat kein Feld für Abrechnungsbetrag oder Kurs (Triage §2.2). Empfehlung: <b>A</b>. Beispiel frei erfunden: ein Titel in USD, Depot mit EUR-Konto.</div>
+
+<section class="mock-board">
+  <h2>Vorher — der Fehler ohne Ausweg</h2>
+  <div class="mock-frame mock-before" style="max-width:560px"><span class="mock-tag">Vorher</span><div class="workspace-section">
+    <div class="form">
+      <div class="grid3"><label class="field"><span>Art</span><span class="in">Kauf</span></label><label class="field"><span>Datum</span><span class="in">2026-09-18</span></label><label class="field"><span>Depot</span><span class="in">Depot A (EUR)</span></label></div>
+      <div class="grid3"><label class="field"><span>Wertpapier</span><span class="in">Kestrel Industrial (USD)</span></label><label class="field"><span>Menge</span><span class="in num">20</span></label><label class="field"><span>Kurs</span><span class="in num">45,60</span></label></div>
+      <p class="err">settlement_fx_rate is required for a cross-currency settlement</p>
+    </div>
+  </div></div>
+</section>
+
+<section class="mock-board">
+  <h2>Variante A — ein Feldblock erscheint, sobald die Währungen abweichen <small>empfohlen</small></h2>
+  <p class="mock-note">Der Block „Abrechnung in EUR“ erscheint nur, wenn Wertpapier- und Kontowährung verschieden sind, und ist dann Pflicht. Kurs und Betrag hängen zusammen: wer einen einträgt, sieht den anderen abgeleitet. Vorbelegt wird der gespeicherte Kurs des Buchungstags, erkennbar als Vorschlag. Die Regel aus der Eigentümerentscheidung vom 2026-07-19 (Barbetrag = Abrechnungsbetrag, netto nach Kosten, mit ADR-0016-Toleranz) steht als Satz im Block, damit ein 422 nie überrascht.</p>
+  <div class="mock-frame mock-after" style="max-width:560px"><span class="mock-tag">Variante A</span><div class="workspace-section">
+    <div class="form">
+      <div class="grid3"><label class="field"><span>Art</span><span class="in">Kauf</span></label><label class="field"><span>Datum</span><span class="in">2026-09-18</span></label><label class="field"><span>Depot</span><span class="in">Depot A (EUR)</span></label></div>
+      <div class="grid3"><label class="field"><span>Wertpapier</span><span class="in">Kestrel Industrial (USD)</span></label><label class="field"><span>Menge</span><span class="in num">20</span></label><label class="field"><span>Kurs (USD)</span><span class="in num">45,60</span></label></div>
+      <div class="fs">
+        <span class="lg">Abrechnung in EUR — Wertpapier in USD, Konto in EUR</span>
+        <div class="grid2"><label class="field"><span>Abrechnungsbetrag (EUR)</span><span class="in num">821,44</span></label><label class="field"><span>Kurs EUR je USD</span><span class="in num">0,900700</span></label></div>
+        <p class="note-muted">Kurs aus den gespeicherten Wechselkursen vom 2026-09-18 vorgeschlagen · Wertpapierbetrag 912,00 USD · Der Barbetrag muss dem Abrechnungsbetrag entsprechen (netto nach Kosten und Steuern).</p>
+      </div>
+      <p class="sum2">Währung: EUR</p>
+    </div>
+  </div></div>
+</section>
+
+<section class="mock-board">
+  <h2>Variante B — Felder immer sichtbar, unter „Kosten und Notiz“ <small>kein bedingtes Einblenden</small></h2>
+  <p class="mock-note">Die drei Felder stehen immer im aufklappbaren Kostenbereich, optional. Einfacher zu bauen, kein Zustand, der vom Wertpapier abhängt. Der Preis: Bei 95 % aller Buchungen sind es drei leere Felder mehr, und bei der Buchung, die sie braucht, sind sie zugeklappt — der Fehler von heute bleibt der erste Hinweis.</p>
+  <div class="mock-frame" style="max-width:560px"><div class="workspace-section">
+    <div class="form">
+      <div class="grid3"><label class="field"><span>Wertpapier</span><span class="in">Kestrel Industrial (USD)</span></label><label class="field"><span>Menge</span><span class="in num">20</span></label><label class="field"><span>Kurs</span><span class="in num">45,60</span></label></div>
+      <details open><summary class="note-muted">Kosten, Abrechnung und Notiz</summary>
+        <div class="grid3" style="margin-top:8px"><label class="field"><span>Gebühren</span><span class="in num"></span></label><label class="field"><span>Steuern</span><span class="in num"></span></label><label class="field"><span>Abrechnungsbetrag</span><span class="in num"></span></label></div>
+        <div class="grid3" style="margin-top:8px"><label class="field"><span>Wertpapierbetrag</span><span class="in num"></span></label><label class="field"><span>Abrechnungskurs</span><span class="in num"></span></label><span></span></div>
+      </details>
+    </div>
+  </div></div>
+</section>
+
+</body>
+</html>
