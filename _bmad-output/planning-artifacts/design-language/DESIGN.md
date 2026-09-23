@@ -1135,6 +1135,16 @@ Shipped as #702; recorded here so every tab row is held to it.
   Wealth tab read as the last one;
 - a **right-edge fade** as the affordance, one-sided on purpose: a symmetric fade
   dims the first tab at desktop width, where there is no overflow to signal;
+- **the active tab is in view on arrival** *(issue 857, board 04 of the
+  2026-09-23 pass)*: the `AreaTabs` hook scrolls the `aria-current` tab into the
+  row's view on mount — the row, never the page; no animation under
+  `prefers-reduced-motion` — and marks the edges the row rests on
+  (`data-scroll-start`, `data-scroll-end`). **The fades follow the edges, not a
+  fixed side:** away from the start a 24 px left fade says tabs lie before;
+  at the end the right fade goes, because on Risk the last tab *is* the active
+  one and a fixed right fade would cover it; a row resting on both edges (no
+  overflow, desktop) carries no mask. Without script the row keeps the
+  one-sided right fade above;
 - **no scrollbar** — a phone renders none anyway, and the fade plus snap carry
   it; keyboard users reach off-screen tabs by tabbing, which scrolls them in;
 - **the baseline is an inset box-shadow, not `border-bottom`.** This is the

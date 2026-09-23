@@ -2788,6 +2788,27 @@ img.security-logo {
   flex-shrink: 0;
 }
 
+/* Edge-aware fades (issue 857, board 04). The AreaTabs hook marks the edges
+   the row rests on; without script the row keeps the one-sided right fade
+   above. Away from its start the row gains a 24 px left fade, so the tabs
+   before the active one read as there; at its end the right fade goes, so it
+   no longer covers the last tab — which is the active one on Risk. A row that
+   does not overflow rests on both edges and is not masked at all. */
+.area-tabs:not([data-scroll-start]) {
+  mask-image: linear-gradient(
+    to right,
+    transparent 0,
+    black 24px,
+    black calc(100% - 40px),
+    transparent 100%
+  );
+}
+.area-tabs[data-scroll-end] {
+  mask-image: linear-gradient(to right, transparent 0, black 24px);
+}
+.area-tabs[data-scroll-start][data-scroll-end] {
+  mask-image: none;
+}
 /* No scrollbar under the tabs: the fade and the snap are the affordance, and
    a phone renders no scrollbar anyway. Keyboard users reach the off-screen
    tabs by tabbing, which scrolls them into view. */

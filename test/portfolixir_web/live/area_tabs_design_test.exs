@@ -170,4 +170,54 @@ defmodule PortfolixirWeb.AreaTabsDesignTest do
       assert has_element?(view, ~s([data-role="area-tabs"] a[href="/snapshots"]))
     end
   end
+
+  # User story (#857, board 04 of the 2026-09-23 pass):
+  # As the operator on a phone opening Risk, Tax or Snapshots,
+  # I want the tab I am on to be in view when the page opens,
+  # so that the row says where I am instead of showing the first four tabs.
+  #
+  # Acceptance criteria:
+  # - The tab row carries a hook that scrolls the aria-current tab into view
+  #   on mount, without animation under prefers-reduced-motion.
+  # - The hook marks the row's scroll edge, and the stylesheet drops the right
+  #   fade at the row's end and adds a left fade away from its start — or the
+  #   repair only moves the active tab under the mask.
+  describe "the active area tab is in view on mount (#857)" do
+    test "the tab row carries the AreaTabs hook", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/transactions")
+
+      assert has_element?(view, ~s(nav#area-tabs[data-role="area-tabs"][phx-hook="AreaTabs"]))
+    end
+
+    test "the hook scrolls the current tab into view and marks the scroll edges" do
+      hook =
+        "lib/portfolixir_web/layout_view.ex"
+        |> File.read!()
+        |> String.split("Hooks.AreaTabs")
+        |> Enum.at(1)
+        |> String.split("Hooks.")
+        |> hd()
+
+      assert hook =~ ~s([aria-current="page"])
+      assert hook =~ "prefers-reduced-motion"
+      assert hook =~ "data-scroll-start"
+      assert hook =~ "data-scroll-end"
+      # Scrolls the row only — scrollIntoView would also move the page.
+      refute hook =~ "scrollIntoView"
+    end
+
+    test "the stylesheet fades each edge only where tabs lie beyond it" do
+      app_css = File.read!("priv/static/app.css")
+
+      # At the end of the row the right fade goes; away from the start the
+      # left fade comes.
+      assert app_css =~
+               ~r/\.area-tabs\[data-scroll-end\]\s*\{[^}]*mask-image:\s*linear-gradient\(to right, transparent/s
+
+      assert app_css =~ ~r/\.area-tabs:not\(\[data-scroll-start\]\)\s*\{[^}]*mask-image/s
+
+      assert app_css =~
+               ~r/\.area-tabs\[data-scroll-start\]\[data-scroll-end\]\s*\{[^}]*mask-image:\s*none/s
+    end
+  end
 end
