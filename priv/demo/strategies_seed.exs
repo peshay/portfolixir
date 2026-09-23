@@ -11,30 +11,44 @@ alias Portfolixir.Catalog
 portfolio = Enum.find(Portfolios.list_portfolios(), &(&1.name == "Demo Depot"))
 unless portfolio, do: raise("Demo Depot portfolio not found")
 
-# Clean re-run: drop an existing Strategies so the seed is idempotent.
+# Idempotent re-run: reuse an existing Strategies tree and its categories
+# instead of dropping them. Dropping used to be the idempotency mechanism, but
+# a tree a policy rule reads cannot be deleted (ADR-0049 §8), and the review
+# seed's rules read this one.
 owner = Portfolixir.Actor.owner_ui()
 
-for c <- Classifications.list_classifications(), c.name == "Strategies" do
-  Classifications.delete_classification(owner, c)
-end
+cls =
+  case Enum.find(Classifications.list_classifications(), &(&1.name == "Strategies")) do
+    nil ->
+      {:ok, created} =
+        Classifications.create_classification(owner, %{
+          name: "Strategies",
+          position: 0,
+          description: "Demo strategy tree with target weights for rebalancing."
+        })
 
-{:ok, cls} =
-  Classifications.create_classification(owner, %{
-    name: "Strategies",
-    position: 0,
-    description: "Demo strategy tree with target weights for rebalancing."
-  })
+      created
+
+    existing ->
+      existing
+  end
 
 cat = fn name, color, parent_id ->
-  {:ok, c} =
-    Classifications.create_category(owner, %{
-      name: name,
-      color: color,
-      classification_id: cls.id,
-      parent_id: parent_id
-    })
+  case Enum.find(Classifications.list_categories(cls.id), &(&1.name == name)) do
+    nil ->
+      {:ok, c} =
+        Classifications.create_category(owner, %{
+          name: name,
+          color: color,
+          classification_id: cls.id,
+          parent_id: parent_id
+        })
 
-  c
+      c
+
+    existing ->
+      existing
+  end
 end
 
 stability = cat.("Stability", "#16a34a", nil)

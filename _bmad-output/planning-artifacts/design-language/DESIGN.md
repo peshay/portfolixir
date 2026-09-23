@@ -1629,3 +1629,79 @@ The four cards pair up (two columns) rather than stacking, as the KPI band's
 support tier does; the longest refused sub-line ("6 of 20 observations") fits
 the half-width card. This is the one thing the board could not settle, and the
 design critic checks it on a real render.
+
+## Amendment 2026-09-24 — Wealth → Risk: the operator's own rules *(Sprint 15 pick F1-A, ADR-0049 §9)*
+
+Board: `mockups/ux-design-2026-09-23/01-policy-rules-surface` (variant A, the
+recommendation, adopted by the planning PR's merge without a comment changing
+it). Built by Sprint 15 Lane A4 in `PortfolixirWeb.RiskLive` and
+`PortfolixirWeb.Risk.PolicyRuleDialog`.
+
+### Placement
+
+A section **"Own rules" / "Eigene Regeln" at the top of Wealth → Risk**, above
+the portfolio metrics. A finding is most legible next to the figures it
+judges, and the question a rule answers — "am I inside my limits?" — is the
+question the tab exists for. No seventh area tab, no Overview card (variants
+B and C of the board).
+
+### Anatomy, top to bottom
+
+1. **Section head**: the title with a muted count per state
+   (`.section-head__meta`: "1 breached · 1 undetermined · 3 met") and a
+   secondary "New rule" button.
+2. **Findings table** (`.data-table.policy-findings-table`), sorted breached,
+   then undetermined, then met; hard before warning within a state. Columns:
+   - **Rule**: the name as a quiet button (`.policy-rule__name`, bold text
+     colour, underline on hover, the focus ring) that opens the edit dialog,
+     and under it the rule's **words** (`.policy-rule__words`: measure and
+     window · subject · kind · severity);
+   - **Measured** and **Line** as `.num` columns, on the measure's own scale:
+     weight and volatility `12.4 %`, drawdown `−12.0 %`, drift `−1.2 pp`, HHI
+     `6,800`; a band's line reads `lower … upper`;
+   - **State**: a badge — breached `.badge--danger` (hard) or `.badge-warning`
+     (warning) carrying the signed distance ("breached · +2.4 pp"), met
+     `.badge--neutral`, undetermined **`.badge--undetermined`** (transparent,
+     muted text, a dashed strong border) with the reason under it
+     (`.policy-rule__reason`): for a refused metric "n of required
+     observations", else the reason in words ("no active plan", "no target in
+     the plan", "nothing to weigh", …).
+3. **Basis line** (`.summary-basis`): evaluated on read, the date, the view's
+   steerable basis; undetermined is never met; a finding does not say what to
+   do (UX-DR26).
+4. **Retired rules** behind a closed chart-as-table disclosure
+   (`details.perf-table-disclosure#policy-rules-retired`): each name opens the
+   same dialog, with its period and last line beside it.
+
+The lens's **Top-N** section below is retitled "Largest single names ·
+generic thresholds, not policy rules", and its column "Generic threshold", so
+a weight that carries both an operator's breached rule and the lens's "above
+10 %" reads as two statements — never as one mechanism (ADR-0049 §7).
+
+### The dialog
+
+A native `<dialog>` (UX-DR9), one component for create and edit:
+
+- **Fields** in `.form-grid`: name (create only — the name and the context
+  view are the rule's identity), measure, subject, the plan's classification
+  (only for the drift of a security), window (only for volatility and
+  drawdown), kind, the line (or "From"/"To" for a band) with the measure's
+  unit in its label, severity, "In force from" (the ISO text input, UX-DR19),
+  a note across the full width (`.form-grid__wide`). The **subject control
+  follows the measure**: its options are exactly the ADR-0049 §2 matrix, so
+  the form cannot submit a pair the record refuses.
+- **Editing is a new version, said before saving**: "Saving creates version
+  N. Version M (10.0 %) is in force since … and stays readable." The version
+  list (`ol.policy-rule-versions`) is open under it.
+- **Footer**: a spacer (`.modal-footer__spacer`) separates the confirmed
+  destructive action on the left — "Retire rule", or "Delete rule" for a rule
+  none of whose versions has been in force — from Cancel and the primary
+  "Save new version" / "Save rule".
+- A version that only started today ends **tonight** when retired; the
+  confirmation and the version note say so rather than pretending it is gone.
+
+### What the surface does not carry
+
+No action, quantity or suggestion on a finding (ADR-0049 §6; the API payload
+is walked for it by a meta-test). No push, no digest. The lens's per-request
+caps are not configured here, and the two mechanisms do not read each other.
