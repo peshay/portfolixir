@@ -37,4 +37,34 @@ defmodule PortfolixirWeb.DesignConformanceCssTest do
     assert left_aligned_cell_resets != []
     assert Enum.all?(left_aligned_cell_resets, &(&1 < generic_at))
   end
+
+  # User story (#834, DESIGN.md → Do's and Don'ts, EXPERIENCE.md → the
+  # coarse-pointer table; board ux-design-2026-09-20/04-num-and-focus, "after"):
+  # As a local portfolio maintainer working a table by keyboard or on a phone,
+  # I want the row kebab and its menu items to show a real focus ring and the
+  # kebab to be a thumb-sized target,
+  # so that I can see where focus is and hit the row menu without zooming.
+  #
+  # Acceptance criteria:
+  # - `.row-actions__kebab:focus-visible` and `.row-context-menu__item:focus-visible`
+  #   carry the 2px accent outline with a 2px offset, as
+  #   `.filter-sheet-toggle:focus-visible` does.
+  # - No rule on either class substitutes `outline: none` for the ring.
+  # - Under `@media (pointer: coarse)` the kebab is at least 44 x 44 px.
+  test "the row kebab and its menu items carry the shared focus ring and a coarse floor" do
+    app_css = File.read!(@app_css)
+
+    for class <- ["row-actions__kebab", "row-context-menu__item"] do
+      [ring] = Regex.run(~r/\n\.#{class}:focus-visible \{[^}]*\}/s, app_css)
+      assert ring =~ "outline: 2px solid var(--color-accent)"
+      assert ring =~ "outline-offset: 2px"
+
+      for [rule] <- Regex.scan(~r/\.#{class}[^{}]*\{[^}]*\}/s, app_css) do
+        refute rule =~ "outline: none", "#{class} still substitutes outline: none:\n#{rule}"
+      end
+    end
+
+    assert app_css =~
+             ~r/@media \(pointer: coarse\) \{\s*\.row-actions__kebab \{[^}]*min-width: 44px;[^}]*min-height: 44px/s
+  end
 end
