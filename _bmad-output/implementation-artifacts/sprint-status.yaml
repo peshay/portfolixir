@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-09-23 (Sprint 14 CLOSED OUT: PR #846 rebase-merged, main at c0746222 -- E22 DONE; sixteen issues closed by keyword, #821 and #835 by hand; the concentration lens gets its first human view; nine closing-act findings filed; tags 0.11.0-0.14.0 all outstanding for the owner)
+# last_updated: 2026-09-23 (Sprint 15 PLANNED: gate B3.6 closed by ADR-0049 -- policy rules as versioned, effective-dated standards evaluated at read into findings that carry no action, E24 opens; the backlog counted to the end -- 15 buildable issues, about three sprints of planned work, five closures and two rescopes; two operator surfaces the records assumed are paid -- position-level SOLL entry and cross-currency booking; closing-act findings carry a reach label)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -51,6 +51,55 @@ story_location: _bmad-output/implementation-artifacts
 # ---------------------------------------------------------------------------
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
+#
+# PLANNED (2026-09-23, Sprint 15) -- sprint-plan-2026-09-23-sprint15.md,
+# adopted by the merge of the Sprint 15 planning PR, which SIGNS GATE B3.6:
+# ADR-0049 (policy rules as first-class objects). Verification basis: `main`
+# at c0746222 with CI 1571 and Commit authorship 585 green; the Sprint 14
+# close-out open as PR #859, on whose commit d78d5d59 the planning branch is
+# stacked and onto `main` it is rebased once #859 merges; 29 open issues,
+# bodies read; releases 0.11.0-0.14.0 all published (no tag outstanding --
+# the "four outstanding" sentence above was written from the record, not
+# from `gh release list`, and is stale); the code, read for four claims.
+# One branch (D-1): `agent/claude/policy-rules-and-the-operator-floor`.
+# Lanes: A (E24 -- A1 the rules and their versions, journaled, a DB-level
+# no-overlap constraint, a version in force immutable; A2 the pure
+# evaluation engine over measures read from existing payloads, the findings
+# read with status= and a computation basis per finding, the no-action
+# key-set meta-test; A3 the 409s on referenced deletes, the re-import
+# guarantee in tests, docs AND tool descriptions, one contract bump; A4 the
+# operator's view, pick F1), B (#851 the invalidation radius as the union of
+# before- and after-image -- risk-tier attention; #853 #855 #856 hostile-
+# input 500s), C (#854 one disclosure marker, #857 the active tab in view --
+# and the mask dropped at the row's end, #858 the row menu's keyboard
+# pattern, #850 the column-picker convergence), D (the operator floor: #481
+# rescoped to position-level SOLL entry, pick F2; #395 rescoped to the
+# settlement inputs, pick F3, and the owner's 2026-07-19 guard -- risk-tier,
+# run on writes that touch the amounts, D-5; #354 backup/restore run and
+# documented), M (version report; the npm audit endpoint, D-7), Z (E24's
+# issues and the flow-rules deferral at branch opening; the triage closures
+# by hand right after the merge).
+# D-3 adopts backlog-triage-2026-09-23.md: 29 open issues hold 15 buildable
+# ones; with the unfiled registry work that is about three sprints of work
+# worth doing (15: rules + operator floor; 16: lifecycle merges #328/#608
+# under one ADR, NFR-9 backstops, #330 discovery, FR-41 decision; 17: FR-41
+# and B4.2 if the agent will record predictions), then maintenance. Closed by
+# hand after the merge, each with its reason: #340, #320, #332, #333, #567.
+# Registry: FR-27 and FR-42 retired, FR-43 to ADR-0049, E8 loses #320, E24
+# added. The triage found TWO more surfaces the records assumed: position
+# targets settable only over the API since 2026-07-21, and a cross-currency
+# buy not bookable in the form -- both predate the two-way rule.
+# D-4: three design picks on five boards (ux-design-2026-09-23-sprint15.md):
+# F1 the rules surface (section on Risk -- A), F2 position-SOLL entry (inline
+# under each category -- A), F3 the settlement fieldset (shown when the
+# currencies differ -- A); #854/#857 and #858 before/after.
+# D-6: #849 decided at Sprint 17's planning. D-7: the npm audit gate reads an
+# endpoint that answers, never weakened. D-8: no tags outstanding; 0.15.0
+# only. D-9: closing-act findings carry a reach label (user-reachable /
+# hostile-input only); hostile-input findings never set a sprint's theme.
+# D-10: the closing-act conditions, screenshot URLs under ~140 characters,
+# mutation-verified passes on ADR-0049's two invariants, the settlement guard
+# and the union radius.
 #
 # CLOSED OUT (2026-09-23, Sprint 14) -- PR #846 rebase-merged 19:20 UTC,
 # `main` at c0746222:
@@ -1485,3 +1534,14 @@ development_status:
   # source_url length, and the vanished-row race answering 404.
   epic-23: done
   epic-23-retrospective: optional
+
+  # E24 -- Policy rules (FR-43); decision gate B3.6 CLOSED by ADR-0049,
+  # signed by the merge of the Sprint 15 planning PR, scheduled by that plan
+  # as Lane A. A rule is a stored predicate (cap / floor / band) over one
+  # named measure an existing read produces, versioned and effective-dated,
+  # evaluated at read into findings whose `undetermined` never passes and
+  # which carry no action. The row exists from the planning so the close-out
+  # reconciles against it; the tracker and story issues are filed at branch
+  # opening, after the signature.
+  epic-24: backlog
+  epic-24-retrospective: optional
