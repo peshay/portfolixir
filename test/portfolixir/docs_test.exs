@@ -749,4 +749,46 @@ defmodule Portfolixir.DocsTest do
       assert bullet =~ "`limit`", "#{language}: #{endpoint} does not name its bound"
     end
   end
+
+  # User story (#844):
+  # As a reader of the published documentation site,
+  # I want every page's front matter to parse,
+  # so that no page is published as an unstyled fragment without its layout,
+  # title and description.
+  #
+  # Acceptance criteria:
+  # - No front-matter value in `docs/**/*.md` is an unquoted (plain) scalar
+  #   that YAML cannot parse: a plain value may not contain ": " or " #", nor
+  #   end in ":". Such a value makes Psych — the parser Jekyll uses — raise
+  #   "mapping values are not allowed in this context"; without
+  #   `strict_front_matter` Jekyll then drops the whole front matter and
+  #   publishes the page with no layout, no <title> and no meta description.
+  #
+  # The check is deliberately narrower than a full YAML parse: `yaml_elixir`
+  # is only a transitive dependency (of `mix_audit`, dev/test, runtime: false),
+  # and making it a direct one is a dependency change outside this story. The
+  # front matter in `docs/` is flat `key: value` lines, and the three rules
+  # above are the plain-scalar restrictions such a line can break.
+  test "every docs page's front matter is flat key: value lines YAML can parse" do
+    pages = Path.wildcard("docs/**/*.md")
+    refute pages == []
+
+    offenders =
+      for path <- pages,
+          [_, front_matter] <- [Regex.run(~r/\A---\r?\n(.*?)\r?\n---\r?\n/s, File.read!(path))],
+          line <- String.split(front_matter, ~r/\r?\n/),
+          [_, key, value] <- [Regex.run(~r/\A([A-Za-z_][\w-]*):[ \t]+(\S.*)\z/, line)],
+          not String.starts_with?(value, ["\"", "'", "|", ">", "[", "{"]),
+          String.contains?(value, [": ", " #"]) or String.ends_with?(value, ":") do
+        "#{path}: #{key}"
+      end
+
+    assert offenders == [], """
+    these front-matter values are unquoted but contain ": " or " #" (or end
+    in ":"), so YAML cannot parse them and Jekyll publishes the page without
+    its front matter. Quote the value:
+
+    #{Enum.join(offenders, "\n")}
+    """
+  end
 end

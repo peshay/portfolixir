@@ -1,7 +1,7 @@
 ---
 layout: docs
 title: "ADR-0041: category result — the positions in a category, rolled up and decomposable"
-description: A category shows what the positions currently filed under it have collectively made, expandable to the rows that produced it. Because the figure describes the portfolio as it stands rather than a period, it needs no membership history and carries no restatement caveat. Money-weighted, never an average of percentages; rows whose result cannot be derived are excluded and named rather than silently counted as zero. A time-weighted per-category series is not part of this decision and not rejected: what it would refuse is booking classification changes into the ledger, while a separate membership timeline stays open - and its raw material already accrues in the audit journal, so deferring it loses nothing.
+description: 'A category shows what the positions currently filed under it have collectively made, expandable to the rows that produced it. Because the figure describes the portfolio as it stands rather than a period, it needs no membership history and carries no restatement caveat. Money-weighted, never an average of percentages; rows whose result cannot be derived are excluded and named rather than silently counted as zero. A time-weighted per-category series is not part of this decision and not rejected: what it would refuse is booking classification changes into the ledger, while a separate membership timeline stays open - and its raw material already accrues in the audit journal, so deferring it loses nothing.'
 ---
 
 # ADR-0041: category result — the positions in a category, rolled up and decomposable

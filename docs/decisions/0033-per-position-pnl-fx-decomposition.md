@@ -1,7 +1,7 @@
 ---
 layout: docs
 title: "ADR-0033: per-position P&L decomposed — price return and currency return over a security-currency cost basis"
-description: Proposed decision on how per-position P&L stops mixing price moves with purchase-date FX. Two candidates are worked through on the same synthetic fixture — (A) decompose each position's P&L into a price-return and a currency-return component that sum Decimal-exactly to the base-currency total, and (B) keep the cost basis in the security's own currency and convert both sides at the current rate — with A adopted, because it contains B as its price leg and is the only option whose per-position figures reconcile with the portfolio total without an extra aggregate line. Decision gate per ADR-0026; owner signed off 2026-07-31 on issue #569.
+description: 'Proposed decision on how per-position P&L stops mixing price moves with purchase-date FX. Two candidates are worked through on the same synthetic fixture — (A) decompose each position''s P&L into a price-return and a currency-return component that sum Decimal-exactly to the base-currency total, and (B) keep the cost basis in the security''s own currency and convert both sides at the current rate — with A adopted, because it contains B as its price leg and is the only option whose per-position figures reconcile with the portfolio total without an extra aggregate line. Decision gate per ADR-0026; owner signed off 2026-07-31 on issue #569.'
 ---
 
 # ADR-0033: per-position P&L decomposed — price return and currency return over a security-currency cost basis

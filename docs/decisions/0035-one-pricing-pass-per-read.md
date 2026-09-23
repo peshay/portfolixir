@@ -1,7 +1,7 @@
 ---
 layout: docs
 title: "ADR-0035: one pricing pass per read — shared preloaded market data instead of six re-derivations"
-description: Decision for issue #619. A dashboard mount prices the same holdings six times and issues per-position lookups for securities, quotes and exchange rates. Rather than memoizing that redundancy (the ADR-0032 extension), the redundancy is removed - market data is preloaded once per read into an explicit pricing context and threaded into every valuation and allocation in that read. No new stored state, no cache, no invalidation surface; Decimal-identical output is the acceptance criterion.
+description: 'Decision for issue #619. A dashboard mount prices the same holdings six times and issues per-position lookups for securities, quotes and exchange rates. Rather than memoizing that redundancy (the ADR-0032 extension), the redundancy is removed - market data is preloaded once per read into an explicit pricing context and threaded into every valuation and allocation in that read. No new stored state, no cache, no invalidation surface; Decimal-identical output is the acceptance criterion.'
 ---
 
 # ADR-0035: one pricing pass per read — shared preloaded market data instead of six re-derivations

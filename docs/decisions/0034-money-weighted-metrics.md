@@ -1,7 +1,7 @@
 ---
 layout: docs
 title: "ADR-0034: money-weighted metrics — net invested capital, wealth multiple, and a hand-rolled XIRR next to TTWROR"
-description: Design decision for issue #568, consolidating the 2026-07-12 design session and the owner sign-off given the same day. Exactly four transaction kinds are external flows (deposit, removal, inbound delivery, outbound delivery, plus balance_adjustment as a signed external flow); the flow classifier is parameterized by scope so the benchmark comparison (#572) can reuse it. XIRR is hand-rolled with float64 confined to the solver and Decimal everywhere else, nothing persisted. Net invested at or below zero renders "n/a", never a negative multiple, and period-scoped invested capital is shown as two labeled numbers.
+description: 'Design decision for issue #568, consolidating the 2026-07-12 design session and the owner sign-off given the same day. Exactly four transaction kinds are external flows (deposit, removal, inbound delivery, outbound delivery, plus balance_adjustment as a signed external flow); the flow classifier is parameterized by scope so the benchmark comparison (#572) can reuse it. XIRR is hand-rolled with float64 confined to the solver and Decimal everywhere else, nothing persisted. Net invested at or below zero renders "n/a", never a negative multiple, and period-scoped invested capital is shown as two labeled numbers.'
 ---
 
 # ADR-0034: money-weighted metrics — net invested capital, wealth multiple, and a hand-rolled XIRR next to TTWROR
