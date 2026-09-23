@@ -18,6 +18,7 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
   alias Portfolixir.Knowledge.SecurityNote
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ListLimit
+  alias PortfolixirWeb.Api.V1.SinceParam
 
   @log_note "Entries are append-only: never updated, never deleted. A refuted finding is " <>
               "withdrawn by appending a retraction that supersedes it; both stay readable " <>
@@ -26,6 +27,15 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
 
   @unreviewed_basis "Held securities (net buy/sell quantity <> 0 across all depots) whose newest " <>
                       "entry as_of is older than `days` before as_of, or that have no entry at all."
+
+  # FR-38 / #830: the log's delta note. The log is append-only, so the cut
+  # compares inserted_at, and there are no deletions to leave out.
+  @delta_note "Entries appended strictly after `since` (UTC), by their inserted_at. The log " <>
+                "is append-only, so an entry never changes after it is written and no entry " <>
+                "is ever deleted: a retraction arrives as a new entry naming what it " <>
+                "supersedes, and superseded_by_ids on an older entry is only complete on a " <>
+                "full read. thesis_state always derives from the whole log. Use this " <>
+                "response's `as_of` as the next `since`."
 
   @default_unreviewed_days 90
   @default_expiring_days 30
@@ -37,20 +47,26 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
 
   def index(conn, %{"security_id" => security_id} = params) do
     with {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit),
+         {:ok, since} <- SinceParam.parse(params),
          %Security{} = security <- Catalog.get_security(security_id) do
-      json(conn, %{
+      opts = [limit: limit] ++ if(since, do: [inserted_since: since.cut], else: [])
+
+      payload = %{
         data: %{
           security_id: security.id,
           entries:
             security.id
-            |> Knowledge.list_notes(limit: limit)
+            |> Knowledge.list_notes(opts)
             |> Enum.map(&JSON.security_note/1),
-          # The projection reads the whole log, whatever the page shows.
+          # The projection reads the whole log, whatever the page (or the
+          # delta) shows.
           thesis_state: security.id |> Knowledge.thesis_state() |> JSON.thesis_state(),
           limit: limit,
           log_note: @log_note
         }
-      })
+      }
+
+      json(conn, SinceParam.put_envelope(payload, since, @delta_note))
     else
       {:error, field} -> unprocessable(conn, %{field => ["is invalid"]})
       nil -> not_found(conn)

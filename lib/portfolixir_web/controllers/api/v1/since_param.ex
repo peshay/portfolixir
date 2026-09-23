@@ -11,6 +11,19 @@ defmodule PortfolixirWeb.Api.V1.SinceParam do
   cut). Deletions are not represented — a caller that must detect deletions
   performs a full read. Push delivery stays gated (B3.7); this module is
   deliberately the whole of FR-38's change-propagation surface.
+
+  **The family (#830, Sprint 14 D-5).** `since` is a *row-delta* parameter and
+  fits only reads whose answer is a collection of rows with a change stamp:
+  securities, transactions, a security's research log (by `inserted_at` — the
+  log is append-only), a security's events, and the category and position
+  target reads (a row counts as changed when it or its plan did). Two shapes
+  deliberately do not carry it: derived projections (valuation, allocation,
+  performance, risk — no rows, so "changed since" is a basis-version question
+  this module cannot answer), and the time-derived queues (`/notes/unreviewed`,
+  `/notes/expiring`, `/notes/uncorroborated`, `/events/upcoming`,
+  `/events/stale`, `/events/unconfirmed`), whose membership changes because
+  time passes with no row changing — a cut there would drop exactly the rows
+  a poller needs. Those reads ignore `since` like any undefined parameter.
   """
 
   @delta_note "Rows created or updated strictly after `since` (UTC), by " <>
@@ -75,13 +88,21 @@ defmodule PortfolixirWeb.Api.V1.SinceParam do
   Adds the delta envelope (`since`, `as_of`, `delta_note`) to a `%{data: _}`
   response when a delta cut is active; leaves the plain read untouched.
   """
-  def put_envelope(response, nil), do: response
+  def put_envelope(response, since), do: put_envelope(response, since, @delta_note)
 
-  def put_envelope(response, %{raw: raw, as_of: as_of}) do
+  @doc """
+  As `put_envelope/2`, with a read-specific `delta_note` for a read whose
+  change stamp is not a plain `updated_at` (the append-only research log, the
+  plan-scoped targets). The note must still state what the cut compares and
+  what the delta cannot represent.
+  """
+  def put_envelope(response, nil, _note), do: response
+
+  def put_envelope(response, %{raw: raw, as_of: as_of}, note) when is_binary(note) do
     Map.merge(response, %{
       since: raw,
       as_of: DateTime.to_iso8601(as_of),
-      delta_note: @delta_note
+      delta_note: note
     })
   end
 end

@@ -96,11 +96,16 @@ defmodule Portfolixir.Knowledge do
   Option `:limit` keeps the newest `limit` entries (#776); the superseder
   annotation still looks beyond the page. The thesis projection never passes
   one — it reads the whole log.
+
+  Option `:inserted_since` (a naive-UTC cut, FR-38 / #830) keeps the entries
+  inserted strictly after it — the delta read. The log is append-only, so an
+  entry's `inserted_at` is the last time it changed.
   """
   @spec list_notes(integer(), keyword()) :: [SecurityNote.t()]
   def list_notes(security_id, opts \\ []) when is_integer(security_id) do
     SecurityNote
     |> where([n], n.security_id == ^security_id)
+    |> maybe_inserted_since(Keyword.get(opts, :inserted_since))
     |> order_by([n], desc: n.as_of, desc: n.inserted_at, desc: n.id)
     |> maybe_limit(Keyword.get(opts, :limit))
     |> Repo.all()
@@ -221,6 +226,11 @@ defmodule Portfolixir.Knowledge do
   # #776: a bound on the rows one read materialises, in each read's own order.
   defp maybe_limit(query, nil), do: query
   defp maybe_limit(query, n) when is_integer(n) and n > 0, do: limit(query, ^n)
+
+  defp maybe_inserted_since(query, nil), do: query
+
+  defp maybe_inserted_since(query, %NaiveDateTime{} = cut),
+    do: where(query, [n], n.inserted_at > ^cut)
 
   defp maybe_security(query, nil), do: query
   defp maybe_security(query, id) when is_integer(id), do: where(query, [n], n.security_id == ^id)

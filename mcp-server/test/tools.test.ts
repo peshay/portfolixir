@@ -659,6 +659,69 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(requests[1].path, "/api/v1/securities?since=2026-06-01T00%3A00%3A00Z");
   });
 
+  // User story (FR-38, issue #830, Sprint 14 D-5):
+  // As the operating LLM agent on a scheduled run,
+  // I want since= on the other row-collection reads I poll — a security's
+  // research log and events, the category and position target reads —
+  // so that every read of the family is a delta read, not a full re-read.
+  //
+  // Acceptance criteria:
+  // - notes.list, events.list, targets.list and targets.list_positions expose
+  //   since as a string and forward it as a query parameter.
+  // - The time-derived queues (notes.unreviewed/expiring/uncorroborated,
+  //   events.upcoming/stale/unconfirmed) and the derived projections do NOT
+  //   expose since: their membership moves with time or a basis, not a row.
+  it("forwards since= on the row-collection reads of #830 and keeps it off the queues", async () => {
+    const { client, requests } = createRecordingClient({ data: {} });
+    const since = "2026-06-01T00:00:00Z";
+    const encoded = "since=2026-06-01T00%3A00%3A00Z";
+
+    await callTool(client, "portfolixir.notes.list", { security_id: 7, since });
+    await callTool(client, "portfolixir.events.list", { security_id: 7, since });
+    await callTool(client, "portfolixir.targets.list", { portfolio_id: 3, since });
+    await callTool(client, "portfolixir.targets.list_positions", { portfolio_id: 3, since });
+
+    assert.deepEqual(
+      requests.map((request) => request.path),
+      [
+        `/api/v1/securities/7/notes?${encoded}`,
+        `/api/v1/securities/7/events?${encoded}`,
+        `/api/v1/portfolios/3/targets?${encoded}`,
+        `/api/v1/portfolios/3/position_targets?${encoded}`
+      ]
+    );
+
+    const tools = listTools();
+    const byName = (name: string) => tools.find((tool) => tool.name === name) as any;
+
+    for (const name of [
+      "portfolixir.notes.list",
+      "portfolixir.events.list",
+      "portfolixir.targets.list",
+      "portfolixir.targets.list_positions"
+    ]) {
+      assert.equal(byName(name).inputSchema.properties.since?.type, "string", name);
+      assert.match(String(byName(name).description), /since/, name);
+    }
+
+    for (const name of [
+      "portfolixir.notes.unreviewed",
+      "portfolixir.notes.expiring",
+      "portfolixir.notes.uncorroborated",
+      "portfolixir.events.upcoming",
+      "portfolixir.events.stale",
+      "portfolixir.events.unconfirmed",
+      "portfolixir.portfolios.valuation",
+      "portfolixir.portfolios.allocation",
+      "portfolixir.portfolios.performance",
+      "portfolixir.portfolios.risk"
+    ]) {
+      const tool = byName(name);
+      assert.ok(tool, name);
+      assert.equal(tool.inputSchema.properties?.since, undefined, name);
+    }
+  });
+
   // User story (Sprint 7 closing act, #414 parity gap):
   // As the operating LLM agent,
   // I want the per-booking running balance of a cash account that the

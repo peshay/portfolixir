@@ -7,7 +7,18 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
   alias Portfolixir.Portfolios.Targets
   alias PortfolixirWeb.Api.V1.DriftParam
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.SinceParam
   alias PortfolixirWeb.Api.V1.ViewParam
+
+  # FR-38 / #830: a target row's change stamp is its own updated_at OR its
+  # plan's — activating another plan version swaps the steering rows without
+  # touching any of them, so a row-only cut would hide that change.
+  @delta_note "Target rows changed strictly after `since` (UTC): a row counts as changed " <>
+                "when its own updated_at or its plan's is after the cut, so activating, " <>
+                "renaming or editing a plan version re-delivers that plan's rows. Deletions " <>
+                "are not represented - a row removed, or left behind by a plan that stopped " <>
+                "being active, is only visible on a full read. Use this response's `as_of` " <>
+                "as the next `since`."
 
   # Since ADR-0020 a SOLL plan belongs to a view: the target read/write endpoints
   # accept an optional `view` query/body param (omitted/null = the Gesamt plan).
@@ -17,13 +28,23 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
   def index(conn, %{"portfolio_id" => portfolio_id} = params) do
     with {:ok, pid} <- parse_id(portfolio_id),
          %Portfolio{} <- Portfolios.get_portfolio(pid),
-         {:ok, view} <- ViewParam.resolve(params) do
-      targets = Targets.list_targets(pid, list_opts(params, view))
-      json(conn, %{data: %{targets: Enum.map(targets, &JSON.target/1)}})
+         {:ok, view} <- ViewParam.resolve(params),
+         {:ok, since} <- SinceParam.parse(params) do
+      targets = Targets.list_targets(pid, since_opts(list_opts(params, view), since))
+
+      json(
+        conn,
+        SinceParam.put_envelope(
+          %{data: %{targets: Enum.map(targets, &JSON.target/1)}},
+          since,
+          @delta_note
+        )
+      )
     else
       :error -> not_found(conn)
       nil -> not_found(conn)
       {:error, :view} -> invalid_view(conn)
+      {:error, :since} -> unprocessable(conn, %{since: ["is invalid"]})
       :view_not_found -> not_found(conn)
     end
   end
@@ -72,11 +93,14 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
     with {:ok, pid} <- parse_id(portfolio_id),
          %Portfolio{} <- Portfolios.get_portfolio(pid),
          {:ok, view} <- ViewParam.resolve(params),
-         {:ok, min_drift} <- DriftParam.parse(params) do
+         {:ok, min_drift} <- DriftParam.parse(params),
+         {:ok, since} <- SinceParam.parse(params) do
       opts = list_opts(params, view)
-      rows = Targets.list_position_targets(pid, opts)
+      rows = Targets.list_position_targets(pid, since_opts(opts, since))
 
-      json(conn, %{
+      # `effective_targets` is a roll-up derived from the WHOLE plan, never
+      # from the delta, so it reads without the cut.
+      payload = %{
         data: %{
           position_targets: position_rows(rows, pid, view, min_drift),
           position_targets_total: length(rows),
@@ -85,12 +109,15 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
           effective_targets:
             Enum.map(Targets.effective_targets(pid, opts), &JSON.effective_target/1)
         }
-      })
+      }
+
+      json(conn, SinceParam.put_envelope(payload, since, @delta_note))
     else
       :error -> not_found(conn)
       nil -> not_found(conn)
       {:error, :view} -> invalid_view(conn)
       {:error, :min_drift} -> unprocessable(conn, %{min_drift: ["is invalid"]})
+      {:error, :since} -> unprocessable(conn, %{since: ["is invalid"]})
       :view_not_found -> not_found(conn)
     end
   end
@@ -220,6 +247,9 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
       _ -> unprocessable(conn, %{targets: ["must be a list"]})
     end
   end
+
+  defp since_opts(opts, nil), do: opts
+  defp since_opts(opts, %{cut: cut}), do: Keyword.put(opts, :changed_since, cut)
 
   defp list_opts(params, view) do
     base = ViewParam.opts(view)
