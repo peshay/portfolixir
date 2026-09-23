@@ -169,6 +169,44 @@ defmodule Portfolixir.Portfolios.RiskMetricsTest do
     assert_scale_6(pair.value, "1.000000")
   end
 
+  # Acceptance criteria (ADR-0047 §3, I7 — the conversion's edges):
+  # - A GBX (pence) security converts through GBP × 100, as `Fx` resolves it.
+  # - A close dated before its currency's first stored rate is not a point:
+  #   the pair's overlap shrinks rather than reading an unconverted close.
+  # - A portfolio whose BASE currency has no stored rate path cannot convert
+  #   anything foreign: every foreign name is excluded, never unconverted.
+  test "I7 at the edges: GBX through GBP, closes before the first rate, a base with no rate" do
+    world = base_world()
+    pence = create_security!(name: "Pence Co", ticker: "PNC", currency: "GBX")
+    tracker = create_security!(name: "Sterling Tracker", ticker: "STR")
+
+    # GBP rates only from day -80: the 20 earlier closes have no converted value.
+    rate_of = fn offset -> Decimal.add(Decimal.new("0.8"), Decimal.div(offset + 100, 2000)) end
+    for offset <- -80..0, do: rate!("GBP", day(offset), rate_of.(offset))
+
+    daily_closes(pence, -100, fn _ -> "10000" end)
+
+    daily_closes(tracker, -100, fn offset ->
+      Decimal.div(Decimal.new(100), rate_of.(max(offset, -80)))
+    end)
+
+    %{correlations: correlations} =
+      RiskMetrics.for_portfolio(world.portfolio.id, [pence.id, tracker.id], as_of: @as_of)
+
+    [pair] = correlations.pairs
+    assert pair.observations == 80
+    assert_scale_6(pair.value, "1.000000")
+
+    # A CHF-based portfolio with no CHF rate stored: nothing converts.
+    empty = Portfolixir.WorldFixtures.base_world(currency: "CHF")
+
+    %{correlations: chf} =
+      RiskMetrics.for_portfolio(empty.portfolio.id, [pence.id, tracker.id], as_of: @as_of)
+
+    assert chf.security_ids == []
+    assert Enum.map(chf.excluded, & &1.security_id) == [pence.id, tracker.id]
+  end
+
   # Acceptance criteria (ADR-0047 §9):
   # - The figures ride the existing risk read, scoped by the view the lens
   #   honours, over the lens's own Top-N.
