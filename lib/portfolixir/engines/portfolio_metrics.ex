@@ -223,7 +223,10 @@ defmodule Portfolixir.Engines.PortfolioMetrics do
   defp sharpe(returns, rate_factor) do
     variance = Statistics.population_variance(returns)
 
-    if Decimal.equal?(variance, @zero) do
+    # The ratio follows the volatility the reader sees beside it: when that
+    # rounds to 0 at scale 6 the ratio is undefined, never a quotient of
+    # rounding residue (closing-act finding).
+    if Decimal.equal?(Statistics.annualized_deviation(returns, @days_per_year), @zero) do
       nil
     else
       daily_rf = Decimal.sub(rate_factor, @one)

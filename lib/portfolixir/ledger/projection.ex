@@ -173,9 +173,11 @@ defmodule Portfolixir.Ledger.Projection do
   Read off `effects/1` itself rather than listed by hand (#839): a probe row
   of the kind is projected and its additive quantity legs for the probe
   security are summed. So a `security_transfer` is `0` because its two legs
-  cancel, a `split` is `0` because its leg multiplies rather than adds (a
-  positive ratio cannot turn a zero total into a position), and a cash kind is
-  `0` because it has no quantity leg. A kind added to `effects/1` is picked up
+  cancel, a `split` is `0` because its leg multiplies rather than adds, and a
+  cash kind is `0` because it has no quantity leg. A sign is not enough to
+  answer "is it held?" for a security that has split — bookings after a split
+  are in post-split units — so `Portfolixir.Ledger.HeldSecurities` answers
+  those securities from the fold itself. A kind added to `effects/1` is picked up
   here without an edit.
   """
   @spec security_quantity_sign(String.t()) :: -1 | 0 | 1
