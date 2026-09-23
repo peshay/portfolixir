@@ -433,5 +433,34 @@ defmodule Portfolixir.KnowledgeTest do
                  source_url: "HTTPS://example.invalid/ir?q=1"
                })
     end
+
+    # #841: the column is varchar(255); a longer link is a field error, not a
+    # Postgrex 22001 raised out of the insert.
+    test "a source_url longer than the column is a changeset error; one at the limit is stored" do
+      security = security!()
+      prefix = "https://example.invalid/?q="
+
+      attrs = %{
+        security_id: security.id,
+        author: "agent",
+        kind: "evidence",
+        body: "x",
+        source_quality: "primary",
+        as_of: ~D[2026-08-01]
+      }
+
+      too_long = prefix <> String.duplicate("a", 256 - String.length(prefix))
+      assert String.length(too_long) == 256
+
+      assert {:error, changeset} =
+               Knowledge.append_note(owner(), Map.put(attrs, :source_url, too_long))
+
+      assert errors_on(changeset).source_url == ["should be at most 255 character(s)"]
+
+      at_limit = prefix <> String.duplicate("a", 255 - String.length(prefix))
+
+      assert {:ok, %{source_url: ^at_limit}} =
+               Knowledge.append_note(owner(), Map.put(attrs, :source_url, at_limit))
+    end
   end
 end

@@ -306,4 +306,36 @@ defmodule PortfolixirWeb.ApiV1NotesTest do
              "include_superseded"
            ] == true
   end
+
+  # User story (ADR-0044 §6; issue #841):
+  # As the agent recording a source link that carries tracking parameters,
+  # I want a link the column cannot hold refused with a field error,
+  # so that a long URL is a 422 I can act on rather than a 500 I cannot.
+  #
+  # Acceptance criteria:
+  # - A note `source_url` longer than 255 characters answers 422 naming the
+  #   field, and nothing is appended.
+  test "a note source_url longer than the column is a 422, not a 500", %{conn: conn} do
+    security = WorldFixtures.create_security!(name: "Long Link Co", ticker: "LLC")
+    too_long = "https://example.invalid/?utm_source=" <> String.duplicate("a", 300)
+
+    assert %{"errors" => %{"source_url" => [_ | _]}} =
+             post_json(
+               conn,
+               "/api/v1/securities/#{security.id}/notes",
+               %{
+                 "note" => %{
+                   "kind" => "evidence",
+                   "body" => "a filing behind a tracking link",
+                   "source_quality" => "primary",
+                   "as_of" => "2026-08-01",
+                   "author" => "agent",
+                   "source_url" => too_long
+                 }
+               },
+               422
+             )
+
+    assert Knowledge.list_notes(security.id) == []
+  end
 end
