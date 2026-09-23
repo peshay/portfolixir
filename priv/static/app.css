@@ -8062,6 +8062,93 @@ dialog.booking-drawer {
   outline-offset: 2px;
 }
 
+/* ===== Wealth → Risk: own rules (ADR-0049 §9, Sprint 15 pick F1-A) =====
+   Board: ux-design-2026-09-23/01-policy-rules-surface, variant A. The
+   findings reuse `.data-table` and the badges; new are the rule's words under
+   its name, the undetermined badge, and the dialog's version list. */
+.section-head__meta {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.policy-rule__name {
+  color: var(--color-text);
+  font-weight: 700;
+  text-align: left;
+  text-decoration: none;
+}
+
+.policy-rule__name:hover {
+  text-decoration: underline;
+}
+
+.policy-rule__name:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.policy-rule__words,
+.policy-rule__reason {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* Undetermined is neither a pass nor a breach (ADR-0049 §3): an outlined,
+   muted badge — the board's reading — so it can never pass for "met". */
+.badge--undetermined {
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px dashed var(--color-border-strong);
+}
+
+.policy-rules-retired,
+.policy-rule-versions {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.modal-footer__spacer {
+  flex: 1 1 auto;
+}
+
+/* At phone width the Line column steps aside and the line rides under the
+   measured value, so the rule's name keeps the room it needs to be read
+   (the Top-N table's own 720 px treatment, applied to the findings). */
+.policy-rule__line-sub {
+  display: none;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+@media (max-width: 720px) {
+  .policy-findings-table .policy-col-line {
+    display: none;
+  }
+
+  /* A band's line ("−2.0 pp … +2.0 pp") wraps inside the cell rather than
+     pushing the state column off the table. */
+  .policy-findings-table td.num {
+    white-space: normal;
+  }
+
+  .policy-rule__line-sub {
+    display: block;
+  }
+}
+
+.form-grid__wide {
+  grid-column: 1 / -1;
+}
+
+@media (pointer: coarse) {
+  .policy-rule__name {
+    min-height: 44px;
+  }
+}
+
 /* ===== Wealth → Risk (Sprint 14 D-2, pick E1-A) =====
    Board: ux-design-2026-09-20/01-wealth-risk-surface. The four metric cards
    reuse `.kpi-band__support` + `.stat--compact`, the Top-N reuses

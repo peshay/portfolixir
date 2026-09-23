@@ -18,7 +18,18 @@
 # **Idempotent**: every step asks whether its row is already there and skips
 # it, so a re-run on a seeded database adds nothing and raises nothing. Rerun
 # it after a migration rather than dropping the database.
-alias Portfolixir.{Actor, Buckets, Catalog, Imports, Knowledge, Ledger, Portfolios, Tax}
+alias Portfolixir.{
+  Actor,
+  Buckets,
+  Catalog,
+  Classifications,
+  Imports,
+  Knowledge,
+  Ledger,
+  Portfolios,
+  Tax
+}
+
 alias Portfolixir.Catalog.Quotes
 alias Portfolixir.Portfolios.Snapshots
 
@@ -420,5 +431,201 @@ if watch && Knowledge.Events.list_for_security(watch.id) == [] do
   ]
   |> Enum.each(fn attrs -> {:ok, _} = Knowledge.Events.create_event(owner, attrs) end)
 end
+
+# 11. Policy rules (ADR-0049, Sprint 15 Lane A4): one in every state the
+#     Risk tab's "Own rules" section has to render — breached with a version
+#     history, met, a band on a drift, undetermined for want of a target,
+#     undetermined because a metric refused, and a retired rule. Created only
+#     when a rule of that name is not there yet; versions are append-style
+#     (ADR-0049 §4), so a re-run must not add a second history.
+alias Portfolixir.Portfolios.{PolicyRules, Risk}
+
+rule_named = fn name, view_id ->
+  Enum.find(
+    PolicyRules.list_rules(portfolio.id, view: view_id, include_retired: true),
+    &(&1.name == name)
+  )
+end
+
+seed_rule = fn name, view_id, version, since ->
+  case rule_named.(name, view_id) do
+    nil ->
+      {:ok, rule} =
+        PolicyRules.create_rule(
+          owner,
+          %{
+            portfolio_id: portfolio.id,
+            view_id: view_id,
+            name: name,
+            version: Map.put(version, :valid_from, since)
+          },
+          today: since
+        )
+
+      rule
+
+    rule ->
+      rule
+  end
+end
+
+top =
+  portfolio.id
+  |> Risk.for_portfolio(metrics: false)
+  |> Map.fetch!(:top_holdings)
+  |> List.first()
+
+strategies = Enum.find(Classifications.list_classifications(), &(&1.name == "Strategies"))
+
+growth =
+  strategies && Enum.find(Classifications.list_categories(strategies.id), &(&1.name == "Growth"))
+
+# Breached, with a history: 8 % a month ago, tightened to 5 % today.
+cap = %{
+  subject_type: "security",
+  security_id: top.security_id,
+  measure: "weight",
+  kind: "cap",
+  severity: "hard"
+}
+
+single =
+  seed_rule.(
+    "Einzeltitel höchstens 5 %",
+    nil,
+    Map.put(cap, :threshold, "8"),
+    Date.add(today, -30)
+  )
+
+if length(PolicyRules.get_rule(single.id).versions) == 1 do
+  {:ok, _} = PolicyRules.add_version(owner, single, Map.put(cap, :threshold, "5"))
+end
+
+seed_rule.(
+  "Barreserve mindestens 1 %",
+  nil,
+  %{subject_type: "cash", measure: "weight", kind: "floor", threshold: "1", severity: "warn"},
+  Date.add(today, -30)
+)
+
+seed_rule.(
+  "Schwankung 90 Tage unter 30 %",
+  nil,
+  %{
+    subject_type: "basis",
+    measure: "volatility",
+    window: "90d",
+    kind: "cap",
+    threshold: "30",
+    severity: "warn"
+  },
+  Date.add(today, -30)
+)
+
+if growth do
+  seed_rule.(
+    "Wachstum im Band",
+    nil,
+    %{
+      subject_type: "category",
+      classification_id: strategies.id,
+      category_id: growth.id,
+      measure: "drift",
+      kind: "band",
+      lower: "-50",
+      upper: "50",
+      severity: "warn"
+    },
+    Date.add(today, -30)
+  )
+
+  # Undetermined: Helios is on the watch list, not in the plan — no target.
+  seed_rule.(
+    "Helios nahe am Ziel",
+    nil,
+    %{
+      subject_type: "security",
+      security_id: watch.id,
+      classification_id: strategies.id,
+      measure: "drift",
+      kind: "band",
+      lower: "-2",
+      upper: "2",
+      severity: "warn"
+    },
+    Date.add(today, -30)
+  )
+end
+
+# Retired: a cap that was the standard for three months, retired as of
+# yesterday and readable behind the disclosure. It cannot be retired "sixty
+# days ago": a period already measured is never shortened after the fact, and
+# the database refuses the backdated end (ADR-0049 §4).
+old_cap =
+  seed_rule.("Alter Deckel 12 %", nil, Map.put(cap, :threshold, "12"), Date.add(today, -90))
+
+if PolicyRules.get_rule(old_cap.id).status != :retired do
+  {:ok, _} = PolicyRules.retire_rule(owner, old_cap, %{})
+end
+
+# Undetermined because a metric refused: a position bought three days ago in
+# its own bucket, and a view over only that bucket, whose walk is three days
+# long — volatility needs 20 return observations. Switch to the view
+# "Nur Neuzugang" to read it.
+{_kestrel_state, kestrel} =
+  seed_position.(
+    "Kestrel Industrial Group NV",
+    %{ticker_symbol: "KIGN", isin: "NL0000000019", currency_code: "EUR", asset_class: "equity"},
+    fn security ->
+      %{
+        portfolio_id: portfolio.id,
+        securities_account_id: depot.id,
+        security_id: security.id,
+        type: "buy",
+        date: Date.add(today, -3),
+        quantity: "10",
+        price: "24.00",
+        currency_code: "EUR"
+      }
+    end
+  )
+
+{:ok, _} =
+  Quotes.upsert_many(
+    kestrel.id,
+    for(
+      back <- 3..0//-1,
+      do: %{date: Date.add(today, -back), close: "24.#{back}0", source: "manual"}
+    )
+  )
+
+neu = bucket.("Neuzugang")
+:ok = Buckets.set_position_override(owner, depot, kestrel, [neu.id])
+
+young_view =
+  case Enum.find(Buckets.list_views(), &(&1.name == "Nur Neuzugang")) do
+    nil ->
+      {:ok, v} = Buckets.create_view(owner, %{name: "Nur Neuzugang", include_all: false})
+      v
+
+    v ->
+      v
+  end
+
+:ok = Buckets.set_view_buckets(owner, young_view, [neu.id], [])
+
+seed_rule.(
+  "Neuzugang: Schwankung unter 20 %",
+  young_view.id,
+  %{
+    subject_type: "basis",
+    measure: "volatility",
+    window: "30d",
+    kind: "cap",
+    threshold: "20",
+    severity: "warn"
+  },
+  today
+)
 
 IO.puts("review seed done (timber position: #{timber_state})")

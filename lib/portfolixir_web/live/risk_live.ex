@@ -19,6 +19,14 @@ defmodule PortfolixirWeb.RiskLive do
   what it had and what it needed (ADR-0047 §6 as amended, #838) — never a dash
   and never a number.
 
+  Above both sits the operator's **own rules** section (ADR-0049 §9, Sprint 15
+  pick F1-A, board `ux-design-2026-09-23/01-policy-rules-surface`): the rules
+  in force for the active view evaluated into findings, breached and
+  undetermined first, each with the rule's words beside the measured value,
+  and a native dialog to create, edit (a new version) and retire a rule. The
+  lens's Top-N below is titled as generic thresholds, so the two mechanisms
+  never read as one (§7) — they do not read each other either.
+
   **No verdict.** A threshold crossing is the lens's own arithmetic and is
   rendered as the threshold ("above 10 %"), never as advice; nothing here
   recommends, rates or signals (ADR-0047 §7), and ADR-0023's rebalancing hints
@@ -27,11 +35,20 @@ defmodule PortfolixirWeb.RiskLive do
 
   use PortfolixirWeb, :live_view
 
+  alias Portfolixir.Buckets
+  alias Portfolixir.Catalog
   alias Portfolixir.Catalog.AssetClasses
+  alias Portfolixir.Classifications
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.PolicyFindings
+  alias Portfolixir.Portfolios.PolicyRules
   alias Portfolixir.Portfolios.Risk
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.ClassificationName
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.PolicyRuleLabel
+  alias PortfolixirWeb.Risk.PolicyRuleDialog
+  alias PortfolixirWeb.Risk.PolicyRuleFormat
 
   # The window the page reads: the one-year figure is the one a reader compares
   # across portfolios; the API carries all three.
@@ -46,7 +63,101 @@ defmodule PortfolixirWeb.RiskLive do
       if Portfolios.count_securities_accounts() + Portfolios.count_cash_accounts() > 0,
         do: Portfolios.first_portfolio()
 
-    {:ok, socket |> assign(:portfolio, portfolio) |> assign(:risk, load(portfolio, socket))}
+    {:ok,
+     socket
+     |> assign(:portfolio, portfolio)
+     |> assign(:risk, load(portfolio, socket))
+     |> assign(:rule_dialog, nil)
+     |> assign(:notice, nil)
+     |> load_rules()}
+  end
+
+  # ADR-0049 §9: the rules of the active view's context, their findings, and
+  # the names the rules' words need. The dialog's options are loaded with it.
+  defp load_rules(%{assigns: %{portfolio: nil}} = socket) do
+    assign(socket, findings: nil, rules: [], names: empty_names(), options: nil)
+  end
+
+  defp load_rules(socket) do
+    portfolio = socket.assigns.portfolio
+    view_id = socket.assigns[:active_view_id]
+
+    findings =
+      case PolicyFindings.for_portfolio(portfolio.id, view: view_id) do
+        {:error, :view_not_found} -> PolicyFindings.for_portfolio(portfolio.id)
+        result -> result
+      end
+
+    rules = PolicyRules.list_rules(portfolio.id, view: findings.view_id, include_retired: true)
+    options = options()
+
+    assign(socket,
+      findings: findings,
+      rules: rules,
+      names: names(options),
+      options: options
+    )
+  end
+
+  defp empty_names, do: %{securities: %{}, categories: %{}, views: %{}}
+
+  defp options do
+    classifications = Classifications.list_classifications()
+
+    %{
+      securities:
+        [sort: {:name, :asc}]
+        |> Catalog.list_securities()
+        |> Enum.reject(& &1.is_retired)
+        |> Enum.map(&{&1.id, &1.name}),
+      categories:
+        Enum.map(classifications, fn classification ->
+          {ClassificationName.display(classification),
+           classification.id
+           |> Classifications.list_categories()
+           |> Enum.map(&{classification.id, &1.id, &1.name})}
+        end),
+      classifications: Enum.map(classifications, &{&1.id, ClassificationName.display(&1)}),
+      views: Enum.map(Buckets.list_views(), &{&1.id, &1.name})
+    }
+  end
+
+  defp names(options) do
+    %{
+      securities: Map.new(options.securities),
+      categories:
+        options.categories
+        |> Enum.flat_map(fn {_group, categories} -> categories end)
+        |> Map.new(fn {_cid, id, name} -> {id, name} end),
+      views: Map.new(options.views)
+    }
+  end
+
+  @impl true
+  def handle_event("new_rule", _params, socket) do
+    {:noreply, socket |> assign(:rule_dialog, :new) |> assign(:notice, nil)}
+  end
+
+  def handle_event("edit_rule", %{"id" => id}, socket) do
+    with {rule_id, ""} <- Integer.parse(to_string(id)),
+         %{} = rule <- Enum.find(socket.assigns.rules, &(&1.id == rule_id)) do
+      {:noreply, socket |> assign(:rule_dialog, rule) |> assign(:notice, nil)}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("close_policy_rule_dialog", _params, socket) do
+    {:noreply, assign(socket, :rule_dialog, nil)}
+  end
+
+  @impl true
+  def handle_info({PolicyRuleDialog, {:saved, message}}, socket) do
+    {:noreply,
+     socket
+     |> assign(:rule_dialog, nil)
+     |> assign(:notice, message)
+     |> load_rules()}
   end
 
   defp load(nil, _socket), do: nil
@@ -83,6 +194,25 @@ defmodule PortfolixirWeb.RiskLive do
             </p>
           </section>
         <% else %>
+          <.policy_rules
+            findings={@findings}
+            rules={@rules}
+            names={@names}
+            notice={@notice}
+            view_name={@view_name}
+          />
+
+          <.live_component
+            :if={@rule_dialog}
+            module={PolicyRuleDialog}
+            id="policy-rule-dialog"
+            rule={if @rule_dialog == :new, do: nil, else: @rule_dialog}
+            portfolio_id={@portfolio.id}
+            view_id={@findings.view_id}
+            view_name={@view_name}
+            options={@options}
+          />
+
           <section class="workspace-section kpi-band" id="risk-metrics" aria-labelledby="risk-metrics-title">
             <header class="section-head">
               <h2 id="risk-metrics-title"><%= gettext("Portfolio metrics") %></h2>
@@ -146,7 +276,16 @@ defmodule PortfolixirWeb.RiskLive do
 
           <section class="workspace-section" aria-labelledby="risk-top-title">
             <header class="section-head">
-              <h2 id="risk-top-title"><%= gettext("Largest single names") %></h2>
+              <%!-- ADR-0049 §7: the lens's shipped thresholds are generic,
+                   and the title says so, so a weight carrying two badges —
+                   the operator's rule and the generic line — reads as two
+                   statements, not a contradiction. --%>
+              <h2 id="risk-top-title">
+                <%= gettext("Largest single names") %>
+                <span class="section-head__meta">
+                  · <%= gettext("generic thresholds, not policy rules") %>
+                </span>
+              </h2>
             </header>
             <%= if @risk.top_holdings == [] do %>
               <p class="empty-state"><%= gettext("No valued position in this view.") %></p>
@@ -159,7 +298,7 @@ defmodule PortfolixirWeb.RiskLive do
                       <th class="risk-col-optional"><%= gettext("Asset class") %></th>
                       <th class="num risk-col-optional"><%= gettext("Value") %></th>
                       <th class="num"><%= gettext("Weight") %></th>
-                      <th><%= gettext("Threshold") %></th>
+                      <th><%= gettext("Generic threshold") %></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -259,6 +398,128 @@ defmodule PortfolixirWeb.RiskLive do
     </AppShell.shell>
     """
   end
+
+  attr(:findings, :map, required: true)
+  attr(:rules, :list, required: true)
+  attr(:names, :map, required: true)
+  attr(:notice, :string, default: nil)
+  attr(:view_name, :string, required: true)
+
+  # The operator's own rules (ADR-0049 §9, pick F1-A): the findings, breached
+  # and undetermined first, with the rule's words beside the measured value;
+  # retired rules readable behind a closed disclosure.
+  defp policy_rules(assigns) do
+    assigns =
+      assign(assigns, :retired, Enum.filter(assigns.rules, &(&1.status == :retired)))
+
+    ~H"""
+    <section class="workspace-section policy-rules" id="policy-rules" aria-labelledby="policy-rules-title">
+      <header class="section-head">
+        <h2 id="policy-rules-title">
+          <%= gettext("Own rules") %>
+          <span class="section-head__meta" data-role="policy-rules-summary">
+            · <%= ngettext("%{count} breached", "%{count} breached", @findings.summary.breached) %>
+            · <%= ngettext("%{count} undetermined", "%{count} undetermined", @findings.summary.undetermined) %>
+            · <%= ngettext("%{count} met", "%{count} met", @findings.summary.ok) %>
+          </span>
+        </h2>
+        <button type="button" class="button-secondary" phx-click="new_rule">
+          <%= gettext("New rule") %>
+        </button>
+      </header>
+
+      <p :if={@notice} class="alert-success" role="status"><%= @notice %></p>
+
+      <%= if @findings.findings == [] do %>
+        <p class="empty-state" data-role="policy-rules-empty">
+          <%= gettext("No rule in force for this view. A rule sets a line over a weight, a drift, the HHI or a portfolio metric; its finding says which side of the line the figure is on.") %>
+        </p>
+      <% else %>
+        <div class="data-table-wrapper">
+          <table class="data-table policy-findings-table risk-fit-table" id="policy-findings">
+            <thead>
+              <tr>
+                <th><%= gettext("Rule") %></th>
+                <th class="num"><%= gettext("Measured") %></th>
+                <th class="num policy-col-line"><%= gettext("Line") %></th>
+                <th><%= gettext("State") %></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr :for={finding <- @findings.findings} data-state={finding.state} data-rule-id={finding.rule_id}>
+                <td>
+                  <button
+                    type="button"
+                    class="link-button policy-rule__name"
+                    phx-click="edit_rule"
+                    phx-value-id={finding.rule_id}
+                  >
+                    <%= finding.rule_name %>
+                  </button>
+                  <span class="policy-rule__words"><%= PolicyRuleFormat.words(finding, @names) %></span>
+                </td>
+                <td class="num">
+                  <%= PolicyRuleFormat.value(finding.measure, finding.value) %>
+                  <span class="policy-rule__line-sub">
+                    <%= gettext("Line %{line}", line: PolicyRuleFormat.line(finding)) %>
+                  </span>
+                </td>
+                <td class="num policy-col-line"><%= PolicyRuleFormat.line(finding) %></td>
+                <td>
+                  <span class={["badge", state_class(finding)]} data-state={finding.state}>
+                    <%= PolicyRuleLabel.state(finding.state) %><%= if finding.state == :breached do %>
+                      · <%= PolicyRuleFormat.distance(finding.measure, finding.distance) %>
+                    <% end %>
+                  </span>
+                  <span :if={finding.state == :undetermined} class="policy-rule__reason">
+                    <%= undetermined_reason(finding) %>
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      <% end %>
+
+      <p class="summary-basis" data-role="policy-rules-basis">
+        <%= gettext(
+          "Evaluated on read, as of %{date}, on the steerable basis of the view “%{view}”. Each rule names the figure it reads; a figure that cannot be read is undetermined, never met. A finding does not say what to do.",
+          date: Format.date(@findings.as_of),
+          view: @view_name
+        ) %>
+      </p>
+
+      <details :if={@retired != []} class="perf-table-disclosure" id="policy-rules-retired">
+        <summary class="disclosure-summary">
+          <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
+          <%= ngettext("Show the retired rule (%{count})", "Show the retired rules (%{count})", length(@retired)) %>
+        </summary>
+        <ul class="policy-rules-retired">
+          <li :for={rule <- @retired}>
+            <button type="button" class="link-button" phx-click="edit_rule" phx-value-id={rule.id}>
+              <%= rule.name %>
+            </button>
+            <span class="muted">
+              · <%= PolicyRuleFormat.period(List.last(rule.versions)) %>
+              · <%= PolicyRuleFormat.line(List.last(rule.versions)) %>
+            </span>
+          </li>
+        </ul>
+      </details>
+    </section>
+    """
+  end
+
+  defp state_class(%{state: :breached, severity: :hard}), do: "badge--danger"
+  defp state_class(%{state: :breached}), do: "badge-warning"
+  defp state_class(%{state: :undetermined}), do: "badge--undetermined"
+  defp state_class(_ok), do: "badge--neutral"
+
+  defp undetermined_reason(%{reason: :insufficient_data, observations: n, required: required})
+       when is_integer(n) and is_integer(required),
+       do: observations_of(n, required)
+
+  defp undetermined_reason(%{reason: reason}), do: PolicyRuleLabel.reason(reason)
 
   attr(:role, :string, required: true)
   attr(:label, :string, required: true)
