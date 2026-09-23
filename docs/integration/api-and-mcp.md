@@ -222,7 +222,8 @@ premise. There is deliberately no `PATCH` and no `DELETE` for an entry.
 
 Each entry carries `kind` (`thesis`, `evidence`, `invalidation_check`,
 `event_result`, `risk`, `retraction`, `decision`), `body`, `source_url` (an
-`http(s)` URL; other schemes are a `422`),
+`http(s)` URL of at most 255 characters; other schemes and longer links are
+a `422`),
 `source_quality` (`primary`, `secondary_multi`, `awareness`, `unverified` —
 **set, not guessed**), `as_of` (the statement's cut-off date, distinct from
 `inserted_at`: an entry written today about last quarter carries last

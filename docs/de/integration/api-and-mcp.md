@@ -236,7 +236,8 @@ absichtlich kein `PATCH` und kein `DELETE` für einen Eintrag.
 
 Jeder Eintrag trägt `kind` (`thesis`, `evidence`, `invalidation_check`,
 `event_result`, `risk`, `retraction`, `decision`), `body`, `source_url` (eine
-`http(s)`-URL; andere Schemata sind ein `422`),
+`http(s)`-URL mit höchstens 255 Zeichen; andere Schemata und längere Links
+sind ein `422`),
 `source_quality` (`primary`, `secondary_multi`, `awareness`, `unverified` —
 **gesetzt, nicht geraten**), `as_of` (das Stichdatum der Aussage, getrennt
 von `inserted_at`: ein heute geschriebener Eintrag über das letzte Quartal
