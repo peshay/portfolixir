@@ -160,6 +160,13 @@ describe("Portfolixir MCP tools", () => {
       transactionCreate?.inputSchema.properties.transaction.properties.settlement_fx_rate.type,
       "string"
     );
+    // The settlement guard (#395) is stated where the agent reads the tool:
+    // which figure must agree with which, and which patches re-check it.
+    assert.match(transactionCreate?.description ?? "", /settlement_amount \+ fees \+ taxes/);
+    assert.match(transactionCreate?.description ?? "", /settlement_amount - fees - taxes/);
+    const transactionUpdate = tools.find((tool) => tool.name === "portfolixir.transactions.update");
+    assert.match(transactionUpdate?.description ?? "", /re-checks the cross-currency settlement/);
+    assert.match(transactionUpdate?.description ?? "", /notes or date on an older booking/);
 
     const securitiesList = tools.find((tool) => tool.name === "portfolixir.securities.list");
     assert.deepEqual(securitiesList?.inputSchema.properties.holding_status.enum, [

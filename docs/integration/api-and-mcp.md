@@ -677,13 +677,21 @@ Example account payloads:
   account (for example a USD security bought through a EUR account) is booked in
   the security's own currency and carries the cross-currency settlement fields
   `security_amount` (trade amount in the security currency), `settlement_amount`
-  (cash amount debited or credited in the account currency) and
+  (the trade amount in the account currency, before fees and taxes) and
   `settlement_fx_rate` (account-currency units per one unit of the security
   currency). When the rate is omitted but both amounts are supplied it is derived
   as `settlement_amount / security_amount` (the broker's actual rate); a currency
   mismatch with no rate and no amounts to derive one is rejected. Cost basis stays
   in the security currency so per-position P&L is FX-honest. All three are Decimal
-  strings and `null` for same-currency bookings.
+  strings and `null` for same-currency bookings. **The cash and the settlement
+  must agree** (#395): a cross-currency buy's `gross_amount` (the cash paid,
+  fees and taxes included) must equal `settlement_amount + fees + taxes`, a
+  sell's (the cash received) `settlement_amount - fees - taxes`, within 0.01
+  compared at full precision; otherwise the write answers 422 with a
+  `gross_amount` error naming the implied amount. The check runs on create and
+  on a `PATCH` that changes `gross_amount`, `settlement_amount`, `fees`,
+  `taxes` or `type` — a `PATCH` of the notes or the date of an older booking is
+  never refused by it.
 - `GET /api/v1/transactions/:id` returns one transaction.
 - `PATCH /api/v1/transactions/:id` updates a transaction (e.g. to fix a
   mis-imported booking); the per-kind validation still applies.

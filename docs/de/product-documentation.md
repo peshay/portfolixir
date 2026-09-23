@@ -571,6 +571,36 @@ Buchungstag), zeigt einen Strich statt einer geratenen Zahl; die Aufgabe
 `mix portfolixir.backfill_settlement_legs` leitet die fehlenden Beine für
 historische Importe ab, sobald Kurse für die Buchungstage gespeichert sind.
 
+**Geldbetrag und Abrechnung stimmen überein** (Issue #395). Ein
+währungsübergreifender Kauf hält den bewegten Geldbetrag fest (`gross_amount`,
+einschließlich Gebühren und Steuern) und daneben den Handelswert in der
+Kontowährung (`settlement_amount`); ein Verkauf den zugeflossenen Betrag, nach
+Gebühren und Steuern. Seit Sprint 15 wird eine Buchung abgelehnt, wenn beide um
+mehr als einen Cent auseinanderliegen — beim Kauf muss der Geldbetrag die
+Abrechnung plus Gebühren und Steuern sein, beim Verkauf die Abrechnung abzüglich
+dieser — und die Meldung nennt den Betrag, den die Abrechnung ergibt. Die Prüfung
+läuft beim Erfassen einer Buchung und bei einer Änderung, die einen dieser
+Beträge oder die Art ändert; das Bearbeiten der Notiz oder des Datums einer
+älteren Buchung wird deswegen nie abgelehnt. Ältere Buchungen, die die Regel
+verfehlen, listet diese Abfrage auf — nur lesend, nichts wird geändert:
+
+```bash
+docker compose exec db psql -U portfolixir portfolixir_prod -c "
+SELECT id, date, type, gross_amount, settlement_amount, fees, taxes
+FROM transactions
+WHERE type IN ('buy', 'sell')
+  AND settlement_amount IS NOT NULL AND gross_amount IS NOT NULL
+  AND abs(gross_amount - CASE type
+        WHEN 'buy' THEN settlement_amount + coalesce(fees, 0) + coalesce(taxes, 0)
+        ELSE settlement_amount - coalesce(fees, 0) - coalesce(taxes, 0)
+      END) > 0.01
+ORDER BY date, id;"
+```
+
+Eine aufgelistete Buchung zu korrigieren ist eine Entscheidung über die eigenen
+Aufzeichnungen: ihre Beträge in der Transaktionshistorie oder über die API
+bearbeiten.
+
 ## Klassifizierungen, Ziele und Allokation
 
 Die **Klassifizierungs-Übersicht** (`/classifications`, Issue #808) ist eine
