@@ -115,7 +115,9 @@ defmodule PortfolixirWeb.RiskLive do
           {ClassificationName.display(classification),
            classification.id
            |> Classifications.list_categories()
-           |> Enum.map(&{classification.id, &1.id, &1.name})}
+           |> Enum.map(
+             &{classification.id, &1.id, ClassificationName.category(classification, &1)}
+           )}
         end),
       classifications: Enum.map(classifications, &{&1.id, ClassificationName.display(&1)}),
       views: Enum.map(Buckets.list_views(), &{&1.id, &1.name})

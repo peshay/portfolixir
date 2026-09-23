@@ -289,6 +289,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                   form_id="tx-column-form"
                   on_change="set_tx_columns"
                   on_close="close_column_picker"
+                  toggle_id="tx-column-toggle"
                   groups={tx_column_groups()}
                   selected={@tx_columns}
                 />

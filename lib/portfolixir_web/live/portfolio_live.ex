@@ -2191,6 +2191,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                 form_id="holdings-column-form"
                 on_change="set_holdings_columns"
                 on_close="close_column_picker"
+                toggle_id="holdings-column-toggle"
                 groups={holdings_column_groups()}
                 selected={@holdings_columns}
               />

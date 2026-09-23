@@ -419,6 +419,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 form_id="securities-column-form"
                 on_change="toggle_columns"
                 on_close="close_popover"
+                toggle_id="toggle-column-popover"
                 groups={column_groups(@classification_columns)}
                 selected={Enum.map(@visible_columns, &column_key_string/1)}
               />

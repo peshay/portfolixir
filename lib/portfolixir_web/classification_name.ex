@@ -11,7 +11,22 @@ defmodule PortfolixirWeb.ClassificationName do
   """
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  alias Portfolixir.Catalog.AssetClasses
+  alias Portfolixir.Catalog.Currencies
+
   def display(%{key: "asset_class"}), do: gettext("Asset class")
   def display(%{key: "currency"}), do: gettext("Currency")
   def display(%{name: name}), do: name
+
+  @doc """
+  A category's display name, by the same rule: a built-in tree's category is
+  system data keyed on its code, so it reads through the catalog's labels —
+  `AssetClasses.label/1`, `Currencies.name/1` — while a user's category keeps
+  its stored name (closing act, board 07 F28).
+  """
+  def category(%{key: "asset_class"}, %{key: code}) when is_binary(code),
+    do: AssetClasses.label(code)
+
+  def category(%{key: "currency"}, %{key: code}) when is_binary(code), do: Currencies.name(code)
+  def category(_classification, %{name: name}), do: name
 end
