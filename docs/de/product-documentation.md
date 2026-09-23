@@ -1563,6 +1563,34 @@ und schreibt nie eine erfasste Abrechnung um.
 Alles auf dieser Seite ist auch über
 [API und MCP](integration/api-and-mcp.html) verfügbar.
 
+## Risiko (Konzentration und Schwankung)
+
+Der Reiter **Risiko** im Bereich Vermögen zeigt zwei Dinge, die eine Frage
+beantworten — wie konzentriert ist das Portfolio, und wie stark schwankt es —
+über der **steuerbaren Basis** der aktiven Ansicht (die Ansicht steht im Kopf).
+
+- **Kennzahlen des Portfolios**, ein Jahr: die annualisierte **Volatilität**,
+  der **maximale Rückgang** mit Beginn, Tiefpunkt und Erholung, die
+  **risikoadjustierte Rendite** (bei einem risikofreien Satz von 0 ist sie
+  Rendite je Risikoeinheit) und die höchste **Korrelation** unter den größten
+  Positionen. Gemessen wird über die um Zahlungen bereinigten Tagesrenditen der
+  TTWROR-Kette: eine Einzahlung oder Entnahme zählt nie als Schwankung, wer
+  spart, liest bei gleichen Kursen dasselbe Risiko wie wer nur hält. Eine Zahl
+  ohne ausreichende Historie sagt **„nicht berechenbar“** mit der Zahl der
+  vorhandenen und der nötigen Beobachtungen, statt eine Zahl zu zeigen.
+- **Größte Einzelpositionen** mit Gewicht und der Schwelle, über oder unter der
+  sie liegen — über 10 % für eine Einzelaktie (7 % ist die erste Linie), über
+  25 % für einen ETF. Die Schwelle wird genannt, nicht bewertet.
+- **Klumpenrisiko (HHI)** auf der Skala 0–10.000 mit Band (niedrig unter
+  1.500, konzentriert ab 2.500).
+- **Anlageklassen-Obergrenzen**, sofern über die API gesetzt.
+- **Korrelationen** der größten Positionen hinter einer Aufklappfläche, zuerst
+  in die Basiswährung umgerechnet und nur über Tage mit Kurs für beide.
+
+Die Seite berichtet, sie empfiehlt nicht. Dieselben Zahlen liefert
+`GET /api/v1/portfolios/:portfolio_id/risk` und das MCP-Werkzeug
+`portfolixir.portfolios.risk`, mit allen drei Fenstern.
+
 ## Imports
 
 Die Imports-Seite akzeptiert Portfolio-Performance-Transaktionsexporte im Format

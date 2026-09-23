@@ -7995,3 +7995,41 @@ details[open] > .disclosure-summary::before {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
+
+/* ===== Wealth → Risk (Sprint 14 D-2, pick E1-A) =====
+   Board: ux-design-2026-09-20/01-wealth-risk-surface. The four metric cards
+   reuse `.kpi-band__support` + `.stat--compact`, the Top-N reuses
+   `.data-table`, the correlation matrix the chart-as-table disclosure; only
+   the HHI scale and the danger badge are new. */
+.badge--danger {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.stat strong .is-negative {
+  color: var(--color-danger);
+}
+
+/* The HHI on its 0–10000 scale: the band stretches are tinted by the tokens
+   the badges use, the marker is the value. Decorative (aria-hidden) — the
+   value and its band are in the text above it. */
+.risk-hhi__track {
+  position: relative;
+  height: var(--space-2);
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: linear-gradient(
+    to right,
+    var(--color-bg-muted) 0 15%,
+    var(--color-warning-soft) 15% 25%,
+    var(--color-danger-soft) 25% 100%
+  );
+}
+
+.risk-hhi__marker {
+  position: absolute;
+  top: calc(var(--space-1) * -1);
+  width: 2px;
+  height: calc(100% + var(--space-2));
+  background: var(--color-text);
+}

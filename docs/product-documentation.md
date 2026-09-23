@@ -1445,6 +1445,34 @@ changes future entries and never rewrites a recorded one.
 Everything on this page is available over the
 [API and MCP](integration/api-and-mcp.html).
 
+## Risk (concentration and movement)
+
+The **Risk** tab of the Wealth area shows two things that answer one question
+— how concentrated is the portfolio, and how much does it move — over the
+**steerable basis** of the active view (the view is named in the header).
+
+- **Portfolio metrics**, one year: the annualized **volatility**, the
+  **maximum drawdown** with the day it started, its low and the day it
+  recovered, the **risk-adjusted return** (at a risk-free rate of 0 it is
+  return per unit of risk), and the highest **correlation** among the largest
+  positions. These are measured over the flow-adjusted daily returns of the
+  TTWROR chain, so a deposit or a withdrawal never counts as movement: a saver
+  and a holder on the same prices read the same risk. A figure without enough
+  history says **"not computable"** with how many observations it had and how
+  many it needs, instead of showing a number it cannot stand behind.
+- **Largest single names**, with each weight and the threshold it is above or
+  below — above 10 % for a single stock (7 % is the first line), above 25 %
+  for an ETF. The threshold is named, not judged.
+- **Concentration (HHI)** on its 0–10,000 scale with its band (low below
+  1,500, concentrated from 2,500).
+- **Asset-class caps**, where a cap is set over the API.
+- **Correlations** of the largest positions behind a disclosure, converted to
+  the base currency first and computed only on days both securities closed.
+
+The page reports; it does not recommend. The same figures are on
+`GET /api/v1/portfolios/:portfolio_id/risk` and the MCP tool
+`portfolixir.portfolios.risk`, with all three windows.
+
 ## Imports
 
 The Imports page accepts Portfolio Performance transaction exports in CSV or
