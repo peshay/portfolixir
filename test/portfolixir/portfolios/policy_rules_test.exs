@@ -211,6 +211,50 @@ defmodule Portfolixir.Portfolios.PolicyRulesTest do
     assert %{valid_from: [_ | _]} = errors_on(changeset)
   end
 
+  # Acceptance criteria (ADR-0049 §4, pinned per guard — the closing act's
+  # mutation pass found the two context guards masking each other in the
+  # test above, so each is exercised here where the other one is silent):
+  # - A new version may not start in the past, even after the version in
+  #   force started: that would rewrite a period already evaluated.
+  # - A new version may not start on or before the start of the version in
+  #   force, even today: the version that started today is in force.
+  test "each context guard refuses a rewrite of a period in force on its own",
+       %{world: world, security: security} do
+    long_running =
+      rule!(world.portfolio, weight_cap(security, %{valid_from: Date.add(today(), -22)}),
+        today: Date.add(today(), -22)
+      )
+
+    # Only the backdating guard can refuse this: the version in force started
+    # 22 days ago, before the proposed start 3 days ago.
+    assert {:error, %Ecto.Changeset{} = changeset} =
+             PolicyRules.add_version(
+               Actor.owner_ui(),
+               long_running,
+               weight_cap(security, %{valid_from: Date.add(today(), -3), threshold: "11"}),
+               today: today()
+             )
+
+    assert %{valid_from: [_ | _]} = errors_on(changeset)
+    assert [_one] = versions(long_running)
+
+    started_today =
+      rule!(world.portfolio, weight_cap(security, %{valid_from: today()}), today: today())
+
+    # Only the in-force guard can refuse this: today is not in the past.
+    assert {:error, %Ecto.Changeset{} = changeset} =
+             PolicyRules.add_version(
+               Actor.owner_ui(),
+               started_today,
+               weight_cap(security, %{valid_from: today(), threshold: "11"}),
+               today: today()
+             )
+
+    assert %{valid_from: [_ | _]} = errors_on(changeset)
+    assert [%{threshold: threshold}] = versions(started_today)
+    assert Decimal.equal?(threshold, Decimal.new("10"))
+  end
+
   # Acceptance criteria (ADR-0049 §4):
   # - A version whose valid_from is still in the future may be replaced:
   #   adding a version from the same date replaces the scheduled one, and
