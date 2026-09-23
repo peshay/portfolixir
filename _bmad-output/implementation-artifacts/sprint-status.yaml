@@ -1542,6 +1542,7 @@ development_status:
   # evaluated at read into findings whose `undetermined` never passes and
   # which carry no action. The row exists from the planning so the close-out
   # reconciles against it; the tracker and story issues are filed at branch
-  # opening, after the signature.
-  epic-24: backlog
+  # opening, after the signature: tracker #861, stories #862-#865, and the
+  # deferred flow rules (`protected`, `budget`) as #866.
+  epic-24: in-progress
   epic-24-retrospective: optional
