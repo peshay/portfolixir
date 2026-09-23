@@ -759,4 +759,28 @@ defmodule PortfolixirWeb.SnapshotsLiveTest do
       assert text(menu) =~ "Delete"
     end
   end
+
+  # User story (#836):
+  # As a local portfolio maintainer using a screen reader,
+  # I want a snapshot row's actions button to announce whether its menu is open,
+  # so that I hear "collapsed" or "expanded" instead of nothing at all.
+  #
+  # Acceptance criteria:
+  # - The row kebab renders `aria-expanded="false"` closed and `"true"` open,
+  #   never a valueless attribute and never no attribute at all.
+  test "the snapshot row kebab renders aria-expanded as a string in both states",
+       %{conn: conn} do
+    seeded_world()
+
+    {:ok, snapshot} =
+      Snapshots.create_snapshot(Actor.owner_ui(), %{name: "Marker", as_of: ~D[2026-02-15]})
+
+    {:ok, view, _html} = live(conn, "/snapshots")
+
+    kebab = "#snapshot-kebab-#{snapshot.id}"
+    assert view |> element(kebab) |> render() =~ ~s(aria-expanded="false")
+
+    view |> element(kebab) |> render_click()
+    assert view |> element(kebab) |> render() =~ ~s(aria-expanded="true")
+  end
 end

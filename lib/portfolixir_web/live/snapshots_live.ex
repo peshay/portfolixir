@@ -657,7 +657,7 @@ defmodule PortfolixirWeb.SnapshotsLive do
                           phx-value-id={snapshot.id}
                           aria-label={gettext("Open actions menu")}
                           aria-haspopup="menu"
-                          aria-expanded={@row_menu_id == snapshot.id}
+                          aria-expanded={to_string(@row_menu_id == snapshot.id)}
                         >
                           <AppShell.icon name={:ellipsis_vertical} />
                         </button>

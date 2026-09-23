@@ -178,7 +178,7 @@ defmodule PortfolixirWeb.BucketsLive do
                     phx-value-id={row.id}
                     aria-label={gettext("Open actions menu")}
                     aria-haspopup="menu"
-                    aria-expanded={@row_menu == {:view, row.id}}
+                    aria-expanded={to_string(@row_menu == {:view, row.id})}
                   >
                     <AppShell.icon name={:ellipsis_vertical} />
                   </button>
@@ -286,7 +286,7 @@ defmodule PortfolixirWeb.BucketsLive do
                     phx-value-id={bucket.id}
                     aria-label={gettext("Open actions menu")}
                     aria-haspopup="menu"
-                    aria-expanded={@row_menu == {:bucket, bucket.id}}
+                    aria-expanded={to_string(@row_menu == {:bucket, bucket.id})}
                   >
                     <AppShell.icon name={:ellipsis_vertical} />
                   </button>

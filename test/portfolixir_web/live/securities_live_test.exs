@@ -2523,4 +2523,74 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     assert has_element?(view, "td", "Stale AG")
     refute has_element?(view, "td", "Fresh AG")
   end
+
+  describe "ARIA state attributes render as strings (#836)" do
+    # User story:
+    # As a local portfolio maintainer using a screen reader,
+    # I want every toggle and disclosure control to announce its state,
+    # so that I hear "not pressed" or "collapsed" instead of nothing at all.
+    #
+    # Acceptance criteria:
+    # - The chart toolbar's log-scale, percent, transactions and cost-basis
+    #   toggles render `aria-pressed="true"` or `aria-pressed="false"`, never
+    #   a valueless attribute and never no attribute at all.
+    # - The row kebab, the columns button and "More filters" render
+    #   `aria-expanded="true"` or `"false"` in both states.
+    setup do
+      {:ok, security} =
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+          name: "Nordic Timber Holdings AB",
+          ticker_symbol: "NTH",
+          currency_code: "EUR",
+          asset_class: "equity"
+        })
+
+      {:ok, security: security}
+    end
+
+    test "the chart toolbar toggles render aria-pressed as a string in both states",
+         %{conn: conn, security: security} do
+      {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=chart")
+
+      for {id, initial} <- [
+            {"#toggle-log", "false"},
+            {"#toggle-percent-mode", "false"},
+            {"#toggle-transactions", "true"},
+            {"#toggle-cost-basis", "false"}
+          ] do
+        assert view |> element(id) |> render() =~ ~s(aria-pressed="#{initial}")
+      end
+
+      view |> element("#toggle-log") |> render_click()
+      view |> element("#toggle-transactions") |> render_click()
+      view |> element("#toggle-cost-basis") |> render_click()
+
+      assert view |> element("#toggle-log") |> render() =~ ~s(aria-pressed="true")
+      assert view |> element("#toggle-transactions") |> render() =~ ~s(aria-pressed="false")
+      assert view |> element("#toggle-cost-basis") |> render() =~ ~s(aria-pressed="true")
+
+      view |> element("#toggle-percent-mode") |> render_click()
+      assert view |> element("#toggle-percent-mode") |> render() =~ ~s(aria-pressed="true")
+    end
+
+    test "the list's disclosure controls render aria-expanded as a string in both states",
+         %{conn: conn, security: security} do
+      {:ok, view, _html} = live(conn, "/securities")
+
+      kebab = "#row-kebab-#{security.id}"
+
+      for id <- [kebab, "#toggle-column-popover", "#more-filters-toggle"] do
+        assert view |> element(id) |> render() =~ ~s(aria-expanded="false")
+      end
+
+      view |> element(kebab) |> render_click()
+      assert view |> element(kebab) |> render() =~ ~s(aria-expanded="true")
+
+      view |> element("#toggle-column-popover") |> render_click()
+      assert view |> element("#toggle-column-popover") |> render() =~ ~s(aria-expanded="true")
+
+      view |> element("#more-filters-toggle") |> render_click()
+      assert view |> element("#more-filters-toggle") |> render() =~ ~s(aria-expanded="true")
+    end
+  end
 end

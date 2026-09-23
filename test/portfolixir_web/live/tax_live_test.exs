@@ -529,4 +529,38 @@ defmodule PortfolixirWeb.TaxLiveTest do
     assert text(orders) =~ "Example Bank"
     assert text(orders) =~ "What was instructed per institution"
   end
+
+  # User story (#836):
+  # As a local portfolio maintainer using a screen reader,
+  # I want a statement's or an allowance order's actions button to announce
+  # whether its menu is open,
+  # so that I hear "collapsed" or "expanded" instead of nothing at all.
+  #
+  # Acceptance criteria:
+  # - Both row kebabs render `aria-expanded="false"` closed and `"true"` open,
+  #   never a valueless attribute and never no attribute at all.
+  test "the statement and order row kebabs render aria-expanded as a string in both states",
+       %{conn: conn} do
+    snapshot = record!(%{})
+
+    {:ok, order} =
+      Tax.put_allowance_order(Actor.owner_ui(), %{
+        holder: "Owner",
+        institution: "Example Bank",
+        tax_year: 2025,
+        amount_granted: Decimal.new("1000.00")
+      })
+
+    {:ok, live, _html} = live(conn, "/tax?holder=Owner&year=2025")
+
+    for kebab <- [
+          "#tax-row-kebab-statement-#{snapshot.id}",
+          "#tax-row-kebab-order-#{order.id}"
+        ] do
+      assert live |> element(kebab) |> render() =~ ~s(aria-expanded="false")
+
+      live |> element(kebab) |> render_click()
+      assert live |> element(kebab) |> render() =~ ~s(aria-expanded="true")
+    end
+  end
 end

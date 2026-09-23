@@ -644,4 +644,29 @@ defmodule PortfolixirWeb.BucketsLiveTest do
       assert [_] = Floki.find(menu, ~s(button[phx-click="delete_bucket"][data-confirm]))
     end
   end
+
+  # User story (#836):
+  # As a local portfolio maintainer using a screen reader,
+  # I want a view's or bucket's actions button to announce whether its menu
+  # is open,
+  # so that I hear "collapsed" or "expanded" instead of nothing at all.
+  #
+  # Acceptance criteria:
+  # - Both row kebabs render `aria-expanded="false"` closed and `"true"` open,
+  #   never a valueless attribute and never no attribute at all.
+  test "the view and bucket row kebabs render aria-expanded as a string in both states",
+       %{conn: conn} do
+    world()
+    {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Core"})
+    {:ok, saved} = Buckets.create_view(Actor.owner_ui(), %{name: "Everything", include_all: true})
+
+    {:ok, view, _html} = live(conn, "/buckets")
+
+    for kebab <- ["#view-kebab-#{saved.id}", "#bucket-kebab-#{bucket.id}"] do
+      assert view |> element(kebab) |> render() =~ ~s(aria-expanded="false")
+
+      view |> element(kebab) |> render_click()
+      assert view |> element(kebab) |> render() =~ ~s(aria-expanded="true")
+    end
+  end
 end
