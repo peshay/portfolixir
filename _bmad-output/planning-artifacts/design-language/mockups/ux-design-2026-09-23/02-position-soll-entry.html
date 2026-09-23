@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Positions-SOLL erfassen (#481, Lane D1, Pick F2)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  table.s { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.s th, table.s td { padding: 7px 10px; border-bottom: 1px solid var(--color-border); text-align: left; }
+  table.s thead th { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); background: var(--color-bg-muted); }
+  table.s .n { text-align: right; font-variant-numeric: tabular-nums; }
+  table.s tr.pos th { font-weight: 500; padding-left: 34px; color: var(--color-text); }
+  table.s tr.pos { background: var(--color-bg); }
+  table.s tr.sum th, table.s tr.sum td { font-weight: 700; }
+  .inp { display: inline-block; min-width: 64px; padding: 4px 8px; border: 1px solid var(--color-border-strong); border-radius: 6px; text-align: right; font-variant-numeric: tabular-nums; background: var(--color-bg-elevated); }
+  .inp.ro { background: var(--color-bg-muted); color: var(--color-text-muted); border-style: dashed; }
+  .tog { font-size: 12px; color: var(--color-accent); font-weight: 600; margin-left: 8px; }
+  .hint2 { display: block; font-size: 11.5px; color: var(--color-text-muted); font-weight: 500; }
+</style>
+</head>
+<body>
+
+<div class="pickbar"><b>Entscheidung F2 — offen.</b> Positions-SOLL sind seit 2026-07-21 nur über API und MCP setzbar (Triage 2026-09-23 §2.1). Empfehlung: <b>A</b>. Beide Varianten folgen ADR-0030 §2: Sobald eine Position unter einer Kategorie ein Ziel trägt, <em>ist</em> das Kategorieziel die Summe der Positionen — das Feld wird zur Anzeige.</div>
+
+<section class="mock-board">
+  <h2>Vorher — der SOLL-Editor heute <small>nur Kategorien</small></h2>
+  <p class="mock-note">Die Vermögensseite verweist für Positionsziele auf diese Seite; hier gibt es kein Feld dafür.</p>
+  <div class="mock-frame mock-before" style="max-width:560px"><span class="mock-tag">Vorher</span><div class="workspace-section">
+    <table class="s">
+      <thead><tr><th>Kategorie</th><th class="n">Ziel %</th></tr></thead>
+      <tbody>
+        <tr><th>Aktien</th><td class="n"><span class="inp">60</span></td></tr>
+        <tr><th>Anleihen</th><td class="n"><span class="inp">30</span></td></tr>
+        <tr><th>Barmittel</th><td class="n"><span class="inp">10</span></td></tr>
+        <tr class="sum"><th>Σ</th><td class="n">100 % ✓</td></tr>
+      </tbody>
+    </table>
+  </div></div>
+</section>
+
+<section class="mock-board">
+  <h2>Variante A — Positionen aufklappbar in derselben Tabelle <small>empfohlen</small></h2>
+  <p class="mock-note">Jede Kategorie mit zugeordneten Wertpapieren bekommt „Positionen“ zum Aufklappen (offen, sobald eine Position ein Ziel trägt). Die Positionszeilen sind Eingaben im selben Formular, also ein Speichern, eine Summe, ein Journaleintrag je Zeile. Sobald eine Position ein Ziel hat, wird das Kategoriefeld zur gestrichelten Anzeige „Σ Positionen“ — die Rechenregel aus ADR-0030 §2 wird sichtbar statt erklärt. Leere Positionsfelder bedeuten „kein Positionsziel“, nicht null.</p>
+  <div class="mock-frame mock-after" style="max-width:640px"><span class="mock-tag">Variante A</span><div class="workspace-section">
+    <table class="s">
+      <thead><tr><th>Kategorie / Position</th><th class="n">Ziel %</th></tr></thead>
+      <tbody>
+        <tr><th>Aktien <span class="tog">▾ Positionen (3)</span><span class="hint2">Summe der Positionsziele — das Kategoriefeld folgt ihr</span></th><td class="n"><span class="inp ro">60,0</span></td></tr>
+        <tr class="pos"><th>Nordic Timber Holdings AB</th><td class="n"><span class="inp">8</span></td></tr>
+        <tr class="pos"><th>Helios Solar Systems SE</th><td class="n"><span class="inp">7</span></td></tr>
+        <tr class="pos"><th>Meridian Global Equity ETF</th><td class="n"><span class="inp">45</span></td></tr>
+        <tr><th>Anleihen <span class="tog">▸ Positionen (2)</span></th><td class="n"><span class="inp">30</span></td></tr>
+        <tr><th>Barmittel</th><td class="n"><span class="inp">10</span></td></tr>
+        <tr class="sum"><th>Σ</th><td class="n">100 % ✓</td></tr>
+      </tbody>
+    </table>
+  </div></div>
+</section>
+
+<section class="mock-board">
+  <h2>Variante B — ein Dialog je Kategorie <small>Tabelle bleibt flach</small></h2>
+  <p class="mock-note">Die Tabelle bleibt wie heute; ein Knopf „Positionen gewichten…“ öffnet je Kategorie einen nativen Dialog. Hält die Übersicht kurz. Der Preis: Das Speichern im Dialog und das Speichern des Plans sind zwei Schreibvorgänge mit zwei Zuständen, die Summe im Hauptformular stimmt erst nach dem Schließen, und man sieht nie alle Positionsziele gleichzeitig — genau die Pivot-Sicht, für die #481 geschrieben wurde.</p>
+  <div class="mock-row">
+    <div class="mock-frame" style="flex:0 1 440px"><div class="workspace-section">
+      <table class="s">
+        <thead><tr><th>Kategorie</th><th class="n">Ziel %</th></tr></thead>
+        <tbody>
+          <tr><th>Aktien <span class="tog">Positionen gewichten…</span></th><td class="n"><span class="inp ro">60,0</span></td></tr>
+          <tr><th>Anleihen <span class="tog">Positionen gewichten…</span></th><td class="n"><span class="inp">30</span></td></tr>
+          <tr><th>Barmittel</th><td class="n"><span class="inp">10</span></td></tr>
+          <tr class="sum"><th>Σ</th><td class="n">100 % ✓</td></tr>
+        </tbody>
+      </table>
+    </div></div>
+    <div class="dialog-mock" style="flex:0 1 380px">
+      <h5>Positionen in „Aktien“</h5>
+      <div class="grid2"><span class="field"><span>Nordic Timber Holdings AB</span></span><span class="field"><span class="in num">8</span></span>
+      <span class="field"><span>Helios Solar Systems SE</span></span><span class="field"><span class="in num">7</span></span>
+      <span class="field"><span>Meridian Global Equity ETF</span></span><span class="field"><span class="in num">45</span></span></div>
+      <p class="note-muted">Σ 60 % — ersetzt das Kategorieziel.</p>
+      <div class="u-flex"><span class="btn primary">Übernehmen</span><span class="btn">Abbrechen</span></div>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>
