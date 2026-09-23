@@ -1003,6 +1003,11 @@ const riskSchema = {
       type: "object",
       additionalProperties: false,
       properties: { warn: { type: "string" } }
+    },
+    risk_free_rate: {
+      type: "string",
+      description:
+        "annual risk-free rate as a Decimal fraction (0.02 is 2 % p.a.) for risk_adjusted_return; default 0"
     }
   }
 };
@@ -1018,7 +1023,8 @@ const riskZ = z.object({
   stock_thresholds: z
     .object({ warn: optionalString(), hard: optionalString() })
     .optional(),
-  etf_thresholds: z.object({ warn: optionalString() }).optional()
+  etf_thresholds: z.object({ warn: optionalString() }).optional(),
+  risk_free_rate: z.string().optional()
 });
 
 const allocationSchema = {
@@ -2274,7 +2280,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.securities.metrics",
     "Derived price metrics of one security",
-    "One security's derived metrics (ADR-0047, FR-39) over ITS OWN split-adjusted close series, in the security's own currency — deliberately not converted to the base currency, because a price metric is a statement about the instrument. sma_50 and sma_200 with the latest close's distance to each; volatility over 30d/90d/365d (the population standard deviation of simple daily returns, annualized by the square root of 252); max_drawdown over the same windows with peak_date, trough_date and recovery_date (recovery_date null while the series is still below the peak); momentum over 3m/6m/12m; distance_to_extremes, the 52-week high and low with their dates and the distance to each. Every metric carries the window it was measured over and its observations count, and the payload carries computation_basis (input series, gaps, assumptions) once — read it before comparing two securities. A gap produces NO observation rather than a zero return: a day with no stored close is not carried forward and then differenced. Below its minimum a metric is null with insufficient_data true and its observation count, at HTTP 200 — that is a gap marker, not an error, and NOT a reason to retry. THIS READ REPORTS, IT DOES NOT EVALUATE: there is no signal, recommendation, rating, score or action in the payload and none is coming from this tool; an SMA-50 above an SMA-200 is two numbers and a distance, and what to do about it is yours to decide. Decimals are strings.",
+    "One security's derived metrics (ADR-0047, FR-39) over ITS OWN split-adjusted close series, in the security's own currency — deliberately not converted to the base currency, because a price metric is a statement about the instrument. sma_50 and sma_200 with the latest close's distance to each; volatility over 30d/90d/365d (the population standard deviation of simple daily returns, annualized by the square root of 252); max_drawdown over the same windows with peak_date, trough_date and recovery_date (recovery_date null while the series is still below the peak); momentum over 3m/6m/12m; distance_to_extremes, the 52-week high and low with their dates and the distance to each. Every metric carries the window it was measured over and its observations count, plus required — the minimum observations it needs (n for sma_n, 20 for volatility, 2 for max_drawdown and momentum, 1 for distance_to_extremes) — whether it computed or refused, so the threshold is on the metric and not only in the prose; a refused sma_n has window null because its span is an output, and momentum and distance_to_extremes additionally need a close at each end of the window (stated in computation_basis.gaps). The payload carries computation_basis (input series, gaps, assumptions) once — read it before comparing two securities. A gap produces NO observation rather than a zero return: a day with no stored close is not carried forward and then differenced. Below its minimum a metric is null with insufficient_data true and its observation count, at HTTP 200 — that is a gap marker, not an error, and NOT a reason to retry. THIS READ REPORTS, IT DOES NOT EVALUATE: there is no signal, recommendation, rating, score or action in the payload and none is coming from this tool; an SMA-50 above an SMA-200 is two numbers and a distance, and what to do about it is yours to decide. Decimals are strings.",
     securityMetricsSchema,
     securityMetricsZ
   ),
@@ -2592,7 +2598,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.portfolios.risk",
     "Portfolio risk/concentration lens",
-    "Risk/concentration lens for a portfolio over the steerable basis (the valued positions, scoped by the active view): single-name Top-N (default 10, override top_n) with a severity (ok/warn/hard) per instrument type (stock warn>7/hard>10, ETF warn>25), the Herfindahl-Hirschman Index (hhi) on the 0-10000 scale with a band (low<1500, moderate, concentrated>2500), and opt-in asset-class cap violations (asset_class_caps, e.g. {\"equity\":\"50\"}) returning only classes over cap with the overage in percentage points. Weights, caps and HHI are 0-100 percentage Decimal strings. Thresholds and bands are overridable per call. Pass an optional view (a view id) to scope the lens to the holdings matching that bucket view; the response then echoes the active view.",
+    "Risk/concentration lens for a portfolio over the steerable basis (the valued positions, scoped by the active view): single-name Top-N (default 10, override top_n) with a severity (ok/warn/hard) per instrument type (stock warn>7/hard>10, ETF warn>25), the Herfindahl-Hirschman Index (hhi) on the 0-10000 scale with a band (low<1500, moderate, concentrated>2500), and opt-in asset-class cap violations (asset_class_caps, e.g. {\"equity\":\"50\"}) returning only classes over cap with the overage in percentage points. Weights, caps and HHI are 0-100 percentage Decimal strings. Thresholds and bands are overridable per call. Pass an optional view (a view id) to scope the lens to the holdings matching that bucket view; the response then echoes the active view. The response also carries metrics (ADR-0047, FR-40), the portfolio's or view's derived figures on this same read: volatility, max_drawdown (with peak_date, trough_date, recovery_date) and risk_adjusted_return over 30d/90d/365d, read from the TTWROR chain's flow-adjusted daily return factors — NEVER the day-over-day change of the value, so a deposit or a withdrawal is not a return and a saver reads the same risk as a holder. Volatility is the population standard deviation of daily returns annualized by the square root of 365 (the walk is a calendar walk). risk_adjusted_return is the annualized mean daily excess return over risk_free_rate (a Decimal fraction, default 0 — at 0 it is return per unit of risk, and the rate is never inferred or fetched) divided by the volatility; it is null when the volatility is exactly 0. correlations is the Pearson matrix of the Top-N names' daily returns, converted to the base currency first and computed over the days BOTH securities closed on, each pair with its overlap count; a security whose currency has no stored rate path is listed in excluded instead. Every metric carries its window, its observations and required — the minimum it needs — in both states; below it the value is null with insufficient_data true at HTTP 200, a gap marker and not a reason to retry. metrics.computation_basis states the series, gaps and assumptions once. THIS READ REPORTS, IT DOES NOT EVALUATE: there is no signal, recommendation, rating, score or action in the payload.",
     riskSchema,
     riskZ
   ),
@@ -3607,6 +3613,10 @@ function riskPath(args: Record<string, any>): string {
   appendNested(params, "hhi_bands", args.hhi_bands);
   appendNested(params, "stock_thresholds", args.stock_thresholds);
   appendNested(params, "etf_thresholds", args.etf_thresholds);
+
+  if (args.risk_free_rate !== undefined && args.risk_free_rate !== null) {
+    params.set("risk_free_rate", String(args.risk_free_rate));
+  }
 
   const query = params.toString();
   const path = `/api/v1/portfolios/${args.portfolio_id}/risk`;

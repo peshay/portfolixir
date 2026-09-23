@@ -318,4 +318,82 @@ defmodule PortfolixirWeb.ApiV1RiskTest do
 
     assert body["errors"]["etf_thresholds"] == ["is invalid"]
   end
+
+  # User story (FR-40, ADR-0047 §3, §6 and §9):
+  # As the operator's agent reading a portfolio's risk,
+  # I want the portfolio's volatility, drawdown, risk-adjusted return and the
+  # Top-N correlation matrix on the risk read I already poll,
+  # so that I do not rebuild them from the daily valuation series myself.
+  #
+  # Acceptance criteria:
+  # - The risk read carries `metrics`, additively: every metric per window with
+  #   value (a Decimal string or null), window, observations, required and
+  #   insufficient_data; the shared computation_basis sits once inside it.
+  # - At the default risk_free_rate the basis's reference says the figure is
+  #   return per unit of risk; the rate is echoed on each window.
+  # - A risk_free_rate that is not a Decimal, or lies outside ADR-0046's rate
+  #   bound, is a 422 naming the field.
+  test "carries the portfolio metrics additively, with required on every metric", %{conn: conn} do
+    world = risk_world()
+
+    data =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{world.portfolio.id}/risk")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    # The lens is unchanged.
+    assert data["hhi"]["band"]
+    metrics = data["metrics"]
+
+    for key <- ~w(volatility max_drawdown risk_adjusted_return),
+        window <- ~w(30d 90d 365d) do
+      metric = metrics[key][window]
+
+      assert Map.has_key?(metric, "value")
+      assert is_nil(metric["value"]) or is_binary(metric["value"])
+      assert %{"start_date" => _, "end_date" => _} = metric["window"]
+      assert is_integer(metric["observations"])
+      assert is_integer(metric["required"])
+      assert is_boolean(metric["insufficient_data"])
+    end
+
+    assert metrics["volatility"]["30d"]["required"] == 20
+    assert metrics["max_drawdown"]["30d"]["required"] == 2
+    assert metrics["risk_adjusted_return"]["90d"]["risk_free_rate"] == "0"
+    assert metrics["computation_basis"]["reference"] =~ "return per unit of risk"
+    assert metrics["computation_basis"]["input_series"] =~ "flow-adjusted"
+    assert metrics["computation_basis"]["assumptions"] =~ "√365"
+
+    correlations = metrics["correlations"]
+    assert length(correlations["security_ids"]) == 4
+    assert length(correlations["pairs"]) == 6
+    assert correlations["excluded"] == []
+
+    for pair <- correlations["pairs"] do
+      assert pair["required"] == 60
+      assert is_integer(pair["observations"])
+    end
+  end
+
+  test "takes risk_free_rate as a Decimal string and refuses a malformed one", %{conn: conn} do
+    world = risk_world()
+    path = "/api/v1/portfolios/#{world.portfolio.id}/risk"
+
+    metrics =
+      conn
+      |> api_conn()
+      |> get(path, %{"risk_free_rate" => "0.02"})
+      |> json_response(200)
+      |> get_in(["data", "metrics"])
+
+    assert metrics["risk_adjusted_return"]["30d"]["risk_free_rate"] == "0.02"
+    assert metrics["computation_basis"]["reference"] =~ "0.02"
+
+    for bad <- ["abc", "11", "-1", ""] do
+      body = conn |> api_conn() |> get(path, %{"risk_free_rate" => bad}) |> json_response(422)
+      assert body["errors"]["risk_free_rate"] == ["is invalid"], "#{inspect(bad)} was accepted"
+    end
+  end
 end

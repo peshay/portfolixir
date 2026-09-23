@@ -375,4 +375,37 @@ defmodule Portfolixir.Engines.PriceMetricsTest do
 
     assert metrics.momentum |> Map.keys() |> Enum.sort() == Enum.sort(month_labels)
   end
+
+  # User story (#838, ADR-0047 §6 as amended 2026-09-19):
+  # As the operator's agent comparing two metric payloads,
+  # I want every metric to say what it needed as well as what it had,
+  # so that I can find the threshold without knowing whether it computed.
+  #
+  # Acceptance criteria:
+  # - `required` rides every metric in both states and carries §5's minimum:
+  #   n for sma_n, 20 for volatility, 2 for max_drawdown and momentum, 1 for
+  #   distance_to_extremes.
+  # - A refused sma_n renders `window: nil` — its span is an output.
+  test "#838: every metric carries `required` whether it computed or refused" do
+    rich = PriceMetrics.compute(flat(400), @as_of)
+    thin = PriceMetrics.compute(flat(3), @as_of)
+
+    for metrics <- [rich, thin] do
+      assert metrics.sma_50.required == 50
+      assert metrics.sma_200.required == 200
+
+      for window <- ~w(30d 90d 365d) do
+        assert metrics.volatility[window].required == 20
+        assert metrics.max_drawdown[window].required == 2
+      end
+
+      for period <- ~w(3m 6m 12m), do: assert(metrics.momentum[period].required == 2)
+      assert metrics.distance_to_extremes.required == 1
+    end
+
+    assert thin.sma_50.insufficient_data
+    assert thin.sma_50.window == nil
+    refute rich.volatility["30d"].insufficient_data
+    assert thin.volatility["30d"].insufficient_data
+  end
 end

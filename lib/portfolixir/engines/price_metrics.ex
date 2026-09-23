@@ -64,10 +64,21 @@ defmodule Portfolixir.Engines.PriceMetrics do
   float island of AR-3 through **`:math.sqrt/1` and nothing else** (§4, the
   amendment this record carries). Decimals in, one float operation, back out
   through `Decimal.from_float/1` and `Decimal.round/2` at scale 6 — the IRR
-  solver's boundary convention. Nothing float is persisted.
+  solver's boundary convention. Nothing float is persisted. The crossing lives
+  in `Portfolixir.Engines.Statistics.square_root/1`, shared with the
+  portfolio engine so the island stays one operation in one place.
+
+  ## `required`
+
+  Every metric carries `required` — the minimum `observations` of §5 — in both
+  states (§6 as amended 2026-09-19, #838): `n` for `sma_n`, 20 for the
+  volatility, 2 for the drawdown and the momentum, 1 for the extremes. Where a
+  metric also needs a close at each end of its window (momentum, extremes) the
+  integer is the count floor only and the coverage rule stays in the basis.
   """
 
-  @scale 6
+  alias Portfolixir.Engines.Statistics
+
   @trading_days_per_year 252
 
   # §3: the three windows every metric takes unless it names its own.
@@ -78,6 +89,11 @@ defmodule Portfolixir.Engines.PriceMetrics do
   # §5, the stated minima.
   @min_return_observations 20
   @min_drawdown_closes 2
+  # The count floor only: momentum and the extremes ALSO need a close at each
+  # end of the window, a coverage rule that stays in the basis's `gaps` prose
+  # because a coverage condition is not a number (#838).
+  @momentum_endpoints 2
+  @min_extremes_closes 1
 
   @zero Decimal.new(0)
 
@@ -156,6 +172,7 @@ defmodule Portfolixir.Engines.PriceMetrics do
         distance_pct: nil,
         window: nil,
         observations: count,
+        required: n,
         insufficient_data: true
       }
     else
@@ -167,6 +184,7 @@ defmodule Portfolixir.Engines.PriceMetrics do
         distance_pct: ratio(latest.close, average),
         window: measured_window(used),
         observations: n,
+        required: n,
         insufficient_data: false
       }
     end
@@ -183,13 +201,15 @@ defmodule Portfolixir.Engines.PriceMetrics do
         value: nil,
         window: requested_window(as_of, days),
         observations: observations,
+        required: @min_return_observations,
         insufficient_data: true
       }
     else
       %{
-        value: annualized_deviation(returns, observations),
+        value: Statistics.annualized_deviation(returns, @trading_days_per_year),
         window: measured_window(slice),
         observations: observations,
+        required: @min_return_observations,
         insufficient_data: false
       }
     end
@@ -207,50 +227,20 @@ defmodule Portfolixir.Engines.PriceMetrics do
     end)
   end
 
-  defp annualized_deviation(returns, observations) do
-    mean = returns |> Enum.reduce(&Decimal.add/2) |> divide(observations)
-
-    variance =
-      returns
-      |> Enum.map(fn r -> r |> Decimal.sub(mean) |> square() end)
-      |> Enum.reduce(&Decimal.add/2)
-      |> divide(observations)
-
-    variance
-    |> Decimal.mult(@trading_days_per_year)
-    |> square_root()
-    |> round_scale()
-  end
-
   # ---------------------------------------------------------------- drawdown
 
   defp max_drawdown([], as_of, days), do: refused_drawdown(as_of, days, 0)
 
-  defp max_drawdown([first | _] = slice, _as_of, _days)
-       when length(slice) >= @min_drawdown_closes do
-    worst =
-      Enum.reduce(
-        slice,
-        %{
-          peak: first.close,
-          peak_date: first.date,
-          value: @zero,
-          worst_peak: first.close,
-          worst_peak_date: first.date,
-          trough_date: first.date
-        },
-        &step_drawdown/2
-      )
-
-    %{
-      value: round_scale(worst.value),
-      peak_date: worst.worst_peak_date,
-      trough_date: worst.trough_date,
-      recovery_date: recovery_date(slice, worst),
+  defp max_drawdown(slice, _as_of, _days) when length(slice) >= @min_drawdown_closes do
+    slice
+    |> Enum.map(&%{date: &1.date, value: &1.close})
+    |> Statistics.drawdown()
+    |> Map.merge(%{
       window: measured_window(slice),
       observations: length(slice),
+      required: @min_drawdown_closes,
       insufficient_data: false
-    }
+    })
   end
 
   defp max_drawdown(slice, as_of, days), do: refused_drawdown(as_of, days, length(slice))
@@ -263,50 +253,9 @@ defmodule Portfolixir.Engines.PriceMetrics do
       recovery_date: nil,
       window: requested_window(as_of, days),
       observations: observations,
+      required: @min_drawdown_closes,
       insufficient_data: true
     }
-  end
-
-  # The running peak takes a close EQUAL to it as well, so `peak_date` is the
-  # day the peak was last touched before the decline — the day a reader looks
-  # for when asking where the fall started.
-  defp step_drawdown(point, state) do
-    state =
-      if Decimal.compare(point.close, state.peak) != :lt,
-        do: %{state | peak: point.close, peak_date: point.date},
-        else: state
-
-    decline =
-      if positive?(state.peak),
-        do: point.close |> Decimal.sub(state.peak) |> Decimal.div(state.peak),
-        else: @zero
-
-    if Decimal.compare(decline, state.value) == :lt do
-      %{
-        state
-        | value: decline,
-          worst_peak: state.peak,
-          worst_peak_date: state.peak_date,
-          trough_date: point.date
-      }
-    else
-      state
-    end
-  end
-
-  # The first close at or after the trough that is back at the peak. A drawdown
-  # of exactly 0 recovers on its own day — the series was never below its peak,
-  # which is a different statement from "has not recovered yet" (`nil`).
-  defp recovery_date(slice, worst) do
-    slice
-    |> Enum.find(fn point ->
-      Date.compare(point.date, worst.trough_date) != :lt and
-        Decimal.compare(point.close, worst.worst_peak) != :lt
-    end)
-    |> case do
-      nil -> nil
-      point -> point.date
-    end
   end
 
   # ---------------------------------------------------------------- momentum
@@ -324,13 +273,15 @@ defmodule Portfolixir.Engines.PriceMetrics do
         value: nil,
         window: requested_window(as_of, start_date),
         observations: resolved_endpoints(latest, opening),
+        required: @momentum_endpoints,
         insufficient_data: true
       }
     else
       %{
         value: ratio(latest.close, opening.close),
         window: %{start_date: opening.date, end_date: latest.date},
-        observations: 2,
+        observations: @momentum_endpoints,
+        required: @momentum_endpoints,
         insufficient_data: false
       }
     end
@@ -355,6 +306,7 @@ defmodule Portfolixir.Engines.PriceMetrics do
         distance_to_low_pct: nil,
         window: requested_window(as_of, start_date),
         observations: length(window_points),
+        required: @min_extremes_closes,
         insufficient_data: true
       }
     else
@@ -368,6 +320,7 @@ defmodule Portfolixir.Engines.PriceMetrics do
         distance_to_low_pct: ratio(latest.close, low.close),
         window: measured_window(window_points),
         observations: length(window_points),
+        required: @min_extremes_closes,
         insufficient_data: false
       }
     end
@@ -416,14 +369,7 @@ defmodule Portfolixir.Engines.PriceMetrics do
 
   defp divide(sum, count), do: Decimal.div(sum, Decimal.new(count))
 
-  defp square(value), do: Decimal.mult(value, value)
-
-  # AR-3's float island, for the one operation `Decimal` does not have (§4).
-  defp square_root(%Decimal{} = value) do
-    value |> Decimal.to_float() |> :math.sqrt() |> Decimal.from_float()
-  end
-
-  defp round_scale(%Decimal{} = value), do: Decimal.round(value, @scale)
+  defp round_scale(%Decimal{} = value), do: Statistics.round_scale(value)
 
   defp positive?(%Decimal{} = value), do: Decimal.compare(value, @zero) == :gt
   defp positive?(_value), do: false

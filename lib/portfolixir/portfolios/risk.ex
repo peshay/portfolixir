@@ -49,6 +49,7 @@ defmodule Portfolixir.Portfolios.Risk do
   strictly above the relevant `warn`.
   """
 
+  alias Portfolixir.Portfolios.RiskMetrics
   alias Portfolixir.Portfolios.Valuation
 
   @zero Decimal.new("0")
@@ -78,6 +79,8 @@ defmodule Portfolixir.Portfolios.Risk do
     * `:etf_thresholds` – `%{warn: Decimal}` ETF cutoff.
     * forwarded to `Valuation.for_portfolio/2` for tests: `:prices`,
       `:base_currency`.
+    * forwarded to `RiskMetrics.for_portfolio/3` (FR-40, ADR-0047):
+      `:risk_free_rate` (a Decimal fraction, default `0`) and `:as_of`.
 
   Returns the lens map. The portfolio is assumed to exist; the controller checks
   existence and forwards a `404` otherwise.
@@ -88,11 +91,28 @@ defmodule Portfolixir.Portfolios.Risk do
     {valuation_opts, risk_opts} =
       Keyword.split(opts, [:prices, :base_currency, :view])
 
+    {metrics_opts, risk_opts} = Keyword.split(risk_opts, [:risk_free_rate, :as_of])
+
     # A vanished view degrades to `{:error, :view_not_found}` (fix round).
-    case Valuation.for_portfolio(portfolio_id, valuation_opts) do
-      {:error, :view_not_found} = error -> error
-      valuation -> build_risk(valuation, risk_opts)
+    with %{} = valuation <- Valuation.for_portfolio(portfolio_id, valuation_opts),
+         %{} = risk <- build_risk(valuation, risk_opts),
+         %{} = metrics <- metrics(portfolio_id, risk, valuation_opts, metrics_opts) do
+      Map.put(risk, :metrics, metrics)
     end
+  end
+
+  # ADR-0047 §9: the portfolio and view figures EXTEND this read, additively,
+  # over the lens's own Top-N — the set whose correlation §3 asks for.
+  defp metrics(portfolio_id, risk, valuation_opts, metrics_opts) do
+    top_ids = Enum.map(risk.top_holdings, & &1.security_id)
+
+    RiskMetrics.for_portfolio(
+      portfolio_id,
+      top_ids,
+      metrics_opts
+      |> Keyword.put(:view, Keyword.get(valuation_opts, :view))
+      |> Keyword.put(:base_currency, risk.base_currency)
+    )
   end
 
   defp build_risk(valuation, risk_opts) do

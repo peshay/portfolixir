@@ -2211,6 +2211,45 @@ describe("Portfolixir MCP tools", () => {
     assert.match(metrics?.description ?? "", /no signal, recommendation, rating, score or action/);
   });
 
+  // #838 (ADR-0047 §6 as amended 2026-09-19): the description tells the
+  // agent where the threshold is — `required`, on every metric, in both
+  // states — so it does not have to read the basis prose to find it.
+  it("names `required` in the per-security metrics description", () => {
+    const metrics = listTools().find((tool) => tool.name === "portfolixir.securities.metrics");
+    assert.match(metrics?.description ?? "", /required/);
+    assert.match(metrics?.description ?? "", /window null/);
+  });
+
+  // FR-40 (ADR-0047 §3 and §9): the portfolio and view figures ride the
+  // existing risk read, additively. risk_free_rate is passed through as a
+  // Decimal string, and the description states the invariant (flow-adjusted
+  // factors, never the value series), the conversion of the matrix, and that
+  // nothing here is a verdict.
+  it("passes risk_free_rate to the risk read and describes the portfolio metrics", async () => {
+    const { client, requests } = createRecordingClient({ data: { metrics: {} } });
+
+    await callTool(client, "portfolixir.portfolios.risk", {
+      portfolio_id: 3,
+      view: 5,
+      risk_free_rate: "0.02"
+    });
+
+    assert.equal(requests[0].path, "/api/v1/portfolios/3/risk?view=5&risk_free_rate=0.02");
+
+    const risk = listTools().find((tool) => tool.name === "portfolixir.portfolios.risk");
+    const description = risk?.description ?? "";
+    assert.match(description, /flow-adjusted/);
+    assert.match(description, /square root of 365/);
+    assert.match(description, /risk_free_rate/);
+    assert.match(description, /converted to the base currency/);
+    assert.match(description, /required/);
+    assert.match(description, /no signal, recommendation, rating, score or action/);
+    assert.equal(
+      (risk?.inputSchema as any).properties.risk_free_rate.type,
+      "string"
+    );
+  });
+
   // ADR-0048 (FR-44): security events, agent-first. The whole point of the
   // object is the DEFAULT SCOPE — the catalog, not the holdings — so the
   // upcoming tool's description has to say so where the agent reads it.
