@@ -440,11 +440,11 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           <% end %>
           <%!-- #809: one open menu at a time, rendered outside the table so
                the popover is never clipped by the scroller — and AFTER the
-               triggers, because `AppShell.row_menu` does no focus management
-               and relies on document order, the way the securities, accounts
-               and classifications menus already do. Rendered above the list
-               it was reachable from a kebab only by tabbing backwards past
-               the whole filter block. `trigger` names the kebab that is
+               triggers, the way the securities, accounts and classifications
+               menus already do. Since #858 the shared PositionedMenu hook
+               moves the focus into the menu on open and back to the kebab on
+               Escape or Tab, so document order no longer carries the
+               keyboard path on its own. `trigger` names the kebab that is
                visible at this width: the table one above 560 px, the phone
                one below it. --%>
           <% open_menu_transaction =

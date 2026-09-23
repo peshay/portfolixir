@@ -364,6 +364,15 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
+            // Every row menu mounts this hook (role="menu" with data-trigger
+            // naming its kebab), so the keyboard pattern lives here once
+            // (#858, WAI-ARIA menu): opening focuses the first enabled item;
+            // ArrowDown/ArrowUp walk the enabled items and wrap, Home/End
+            // jump; Tab closes through the same close_row_menu event that
+            // Escape and click-away send, onto the kebab. When
+            // the menu goes away while it held the focus and nothing else
+            // took it — Escape, or an item that only closed the menu — the
+            // focus returns to the kebab, instead of falling to the page.
             Hooks.PositionedMenu = {
               mounted: function () {
                 this.reposition();
@@ -372,6 +381,12 @@ defmodule PortfolixirWeb.LayoutView do
                 this.onWindow = function () { self.reposition(); };
                 window.addEventListener("resize", this.onWindow);
                 window.addEventListener("scroll", this.onWindow, true);
+
+                this.onKey = function (event) { self.navigate(event); };
+                this.el.addEventListener("keydown", this.onKey);
+
+                var first = this.items()[0];
+                if (first) first.focus();
               },
               updated: function () {
                 this.reposition();
@@ -379,6 +394,58 @@ defmodule PortfolixirWeb.LayoutView do
               destroyed: function () {
                 window.removeEventListener("resize", this.onWindow);
                 window.removeEventListener("scroll", this.onWindow, true);
+
+                var active = document.activeElement;
+                if (!active || active === document.body || !active.isConnected) {
+                  this.focusTrigger();
+                }
+              },
+              focusTrigger: function () {
+                var id = this.el.dataset.trigger;
+                var trigger = id && document.getElementById(id);
+                if (trigger) trigger.focus();
+              },
+              items: function () {
+                return Array.prototype.slice.call(
+                  this.el.querySelectorAll('[role="menuitem"]:not([disabled])')
+                );
+              },
+              navigate: function (event) {
+                var items = this.items();
+                if (items.length === 0) return;
+
+                var index = items.indexOf(document.activeElement);
+                var next = null;
+
+                switch (event.key) {
+                  case "ArrowDown":
+                    next = items[(index + 1) % items.length];
+                    break;
+                  case "ArrowUp":
+                    next = items[index <= 0 ? items.length - 1 : index - 1];
+                    break;
+                  case "Home":
+                    next = items[0];
+                    break;
+                  case "End":
+                    next = items[items.length - 1];
+                    break;
+                  case "Tab":
+                    // The menus render after their table (so the popover is
+                    // never clipped), which makes the browser's own next stop
+                    // the first control past the whole list. Tab therefore
+                    // closes onto the kebab, and the next Tab moves on from
+                    // the row the operator was in.
+                    event.preventDefault();
+                    this.focusTrigger();
+                    this.pushEvent("close_row_menu", {});
+                    return;
+                  default:
+                    return;
+                }
+
+                event.preventDefault();
+                next.focus();
               },
               reposition: function () {
                 if (window.matchMedia("(max-width: 720px)").matches) {
