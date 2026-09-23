@@ -42,6 +42,9 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
      |> assign(:balance_dialog, nil)
      |> assign(:balance_error, nil)
      |> assign(:picker, nil)
+     # Session-only: bucket cells whose "+N" overflow is expanded in place
+     # (issue 842, pick E2-A), keyed by {owner, owner_id}.
+     |> assign(:overflow_open, MapSet.new())
      |> assign(:bucket_error, nil)
      # Session-only: pairs the user chose to tag separately. Never persisted —
      # a reload merges equal sets again.
@@ -122,6 +125,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                             assigned={row.depot_buckets}
                             all_buckets={@buckets}
                             picker_open={@picker == {"pair", row.depot.id}}
+                            overflow_open={MapSet.member?(@overflow_open, {"pair", row.depot.id})}
                             error={chip_error(@bucket_error, "pair", row.depot.id)}
                             scope_line={scope_line(:pair)}
                             picker_caption={gettext("Tags apply to depot & cash")}
@@ -135,6 +139,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                             assigned={row.depot_buckets}
                             all_buckets={@buckets}
                             picker_open={@picker == {"depot", row.depot.id}}
+                            overflow_open={MapSet.member?(@overflow_open, {"depot", row.depot.id})}
                             error={chip_error(@bucket_error, "depot", row.depot.id)}
                             scope_line={scope_line(:depot)}
                           />
@@ -179,6 +184,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                               assigned={row.cash_buckets}
                               all_buckets={@buckets}
                               picker_open={@picker == {"cash", row.cash.id}}
+                              overflow_open={MapSet.member?(@overflow_open, {"cash", row.cash.id})}
                               error={chip_error(@bucket_error, "cash", row.cash.id)}
                               scope_line={scope_line(:cash)}
                             />
@@ -234,6 +240,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                           assigned={row.cash_buckets}
                           all_buckets={@buckets}
                           picker_open={@picker == {"cash", row.cash.id}}
+                          overflow_open={MapSet.member?(@overflow_open, {"cash", row.cash.id})}
                           error={chip_error(@bucket_error, "cash", row.cash.id)}
                           scope_line={scope_line(:cash)}
                         />
@@ -459,6 +466,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   attr(:assigned, :list, required: true, doc: "the bucket structs assigned to this owner")
   attr(:all_buckets, :list, required: true)
   attr(:picker_open, :boolean, required: true)
+  attr(:overflow_open, :boolean, default: false, doc: "the +N overflow is expanded in place")
   attr(:error, :string, default: nil)
   attr(:scope_line, :string, required: true, doc: "what this set applies to, as a sub-line")
   attr(:picker_caption, :string, default: nil)
@@ -476,6 +484,10 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
         {assigns.assigned, []}
       end
 
+    # Expanded in place (issue 842): every assigned chip renders, and the
+    # overflow control stays — it is the way back.
+    visible = if assigns.overflow_open, do: assigns.assigned, else: visible
+
     assigns = assign(assigns, available: available, visible: visible, overflow: overflow)
 
     ~H"""
@@ -484,16 +496,22 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
         <%= gettext("No bucket") %>
       </span>
       <.chip :for={bucket <- @visible} bucket={bucket} owner={@owner} owner_id={@owner_id} />
+      <%!-- #842 (pick E2-A): the overflow is a disclosure that expands the
+           cell in place. Its label says what a press does, so no title
+           carries the hidden names. --%>
       <button
         :if={@overflow != []}
         type="button"
         class="bucket-chip bucket-chip--overflow"
         data-role="bucket-overflow"
-        title={Enum.map_join(@overflow, ", ", & &1.name)}
-        phx-click={if @picker_open, do: "close_bucket_picker", else: "open_bucket_picker"}
+        phx-click="toggle_bucket_overflow"
         phx-value-owner={@owner}
         phx-value-id={@owner_id}
-      >+<%= length(@overflow) %></button>
+        aria-expanded={to_string(@overflow_open)}
+      ><%= if @overflow_open do %><%= gettext("Show fewer") %><span
+            class="bucket-chip--overflow__caret"
+            aria-hidden="true"
+          >▲</span><% else %><%= ngettext("+%{count} more", "+%{count} more", length(@overflow)) %><% end %></button>
       <button
         type="button"
         class="bucket-chip-add"
@@ -682,6 +700,23 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
          |> assign(:account_menu_id, nil)
          |> assign(:picker, nil)
          |> assign(:bucket_error, nil)}
+
+      :error ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("toggle_bucket_overflow", %{"owner" => owner, "id" => id}, socket)
+      when owner in ["depot", "cash", "pair"] do
+    case coerce_id(id) do
+      {:ok, owner_id} ->
+        key = {owner, owner_id}
+        open = socket.assigns.overflow_open
+
+        open =
+          if MapSet.member?(open, key), do: MapSet.delete(open, key), else: MapSet.put(open, key)
+
+        {:noreply, assign(socket, :overflow_open, open)}
 
       :error ->
         {:noreply, socket}

@@ -6438,13 +6438,27 @@ button.income-bar-label.is-active {
   background: var(--color-accent-soft);
 }
 
-/* "+N" overflow chip: the fifth and later chips collapse into it; the title
-   attribute lists the hidden names, the click opens the picker. */
+/* "+N" overflow chip: the fifth and later chips collapse into it. It is a
+   disclosure that expands the cell in place (issue 842, pick E2-A, board
+   ux-design-2026-09-20/02-bucket-overflow-chip): "+2 more" collapsed,
+   "Show fewer ▲" expanded, aria-expanded as a string, and no title. */
 .bucket-chip--overflow {
   cursor: pointer;
   color: var(--color-text-muted);
   border-style: dashed;
   background: transparent;
+  font-weight: 600;
+}
+
+.bucket-chip--overflow:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.bucket-chip--overflow__caret {
+  margin-left: 4px;
+  font-size: 0.7em;
+  color: var(--color-accent);
 }
 
 .bucket-inline-error {
@@ -6530,6 +6544,11 @@ button.income-bar-label.is-active {
   .bucket-chip-add {
     width: 32px;
     height: 32px;
+  }
+
+  /* The overflow disclosure takes the full 44px floor (issue 842). */
+  .bucket-chip--overflow {
+    min-height: 44px;
   }
 
   .bucket-chip__remove {

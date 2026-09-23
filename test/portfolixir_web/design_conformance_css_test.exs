@@ -67,4 +67,23 @@ defmodule PortfolixirWeb.DesignConformanceCssTest do
     assert app_css =~
              ~r/@media \(pointer: coarse\) \{\s*\.row-actions__kebab \{[^}]*min-width: 44px;[^}]*min-height: 44px/s
   end
+
+  # User story (#842, board ux-design-2026-09-20/02-bucket-overflow-chip, E2-A):
+  # As a local portfolio maintainer expanding a bucket cell by keyboard or thumb,
+  # I want the "+N" overflow control to show focus and be thumb-sized,
+  # so that the disclosure is as reachable as the chips it reveals.
+  #
+  # Acceptance criteria:
+  # - `.bucket-chip--overflow:focus-visible` carries the 2px accent outline.
+  # - Under `@media (pointer: coarse)` it takes the 44px floor.
+  test "the bucket overflow disclosure carries the focus ring and the coarse floor" do
+    app_css = File.read!(@app_css)
+
+    [ring] = Regex.run(~r/\n\.bucket-chip--overflow:focus-visible \{[^}]*\}/s, app_css)
+    assert ring =~ "outline: 2px solid var(--color-accent)"
+    assert ring =~ "outline-offset: 2px"
+
+    assert app_css =~
+             ~r/@media \(pointer: coarse\) \{[^@]*\.bucket-chip--overflow \{\s*min-height: 44px/s
+  end
 end

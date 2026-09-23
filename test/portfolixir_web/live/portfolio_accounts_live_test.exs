@@ -524,6 +524,64 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
     refute has_element?(view, "#bucket-picker-pair-#{depot.id}")
   end
 
+  # User story (#842, board ux-design-2026-09-20/02-bucket-overflow-chip,
+  # pick E2 = variant A):
+  # As a local portfolio maintainer on a phone or with a screen reader,
+  # I want the "+N" overflow chip to show which buckets it hides when I press
+  # it,
+  # so that the answer does not live in a hover-only title I cannot reach.
+  #
+  # Acceptance criteria:
+  # - The overflow control is a real button that says what it does ("+2 more")
+  #   and carries `aria-expanded="false"`; it carries no `title`.
+  # - Pressing it expands the cell in place: every assigned bucket renders as
+  #   a chip, the control reads "Show fewer" with `aria-expanded="true"`, and
+  #   the picker does not open.
+  # - Pressing it again collapses the cell back to four chips.
+  # - The German UI reads "+2 anzeigen" and "weniger".
+  test "the +N overflow chip expands the bucket cell in place", %{conn: conn} do
+    %{depot: depot} = world()
+
+    tags =
+      for name <- ["Tag A", "Tag B", "Tag C", "Tag D", "Tag E", "Tag F"] do
+        {:ok, tag} = Buckets.create_bucket(Actor.owner_ui(), %{name: name})
+        tag
+      end
+
+    :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, Enum.map(tags, & &1.id))
+
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    group = "#depot-buckets-#{depot.id}"
+    overflow = "#{group} button[data-role='bucket-overflow']"
+
+    collapsed = view |> element(overflow) |> render()
+    assert collapsed =~ ~s(aria-expanded="false")
+    assert collapsed =~ "+2 more"
+    refute collapsed =~ "title="
+    refute view |> element(group) |> render() =~ "Tag E"
+
+    view |> element(overflow) |> render_click()
+
+    expanded_group = view |> element(group) |> render()
+    assert expanded_group =~ "Tag E"
+    assert expanded_group =~ "Tag F"
+    refute has_element?(view, "#bucket-picker-depot-#{depot.id}")
+
+    expanded = view |> element(overflow) |> render()
+    assert expanded =~ ~s(aria-expanded="true")
+    assert expanded =~ "Show fewer"
+
+    view |> element(overflow) |> render_click()
+    refute view |> element(group) |> render() =~ "Tag E"
+    assert view |> element(overflow) |> render() =~ ~s(aria-expanded="false")
+
+    {:ok, de_view, _html} = live(conn, "/portfolios?locale=de")
+    assert de_view |> element(overflow) |> render() =~ "+2 anzeigen"
+    de_view |> element(overflow) |> render_click()
+    assert de_view |> element(overflow) |> render() =~ "weniger"
+  end
+
   # User story (UAT fix round, disciplined table):
   # As a local portfolio maintainer whose depot and cash account carry the
   # same buckets,
@@ -696,8 +754,8 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
   # so that one tag-heavy account cannot blow up the row height.
   #
   # Acceptance criteria:
-  # - The fifth and later chips collapse into a "+N" chip whose title lists
-  #   the hidden names.
+  # - The fifth and later chips collapse into a "+N" chip (since #842 the
+  #   chip is a disclosure that expands the cell in place, not a title).
   # - The picker carries the full assigned set, so hidden chips stay
   #   removable.
   test "more than four chips collapse into a +N overflow chip", %{conn: conn} do
@@ -719,7 +777,6 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
     assert chips =~ "Tag D"
     assert chips =~ ~s(data-role="bucket-overflow")
     assert chips =~ "+2"
-    assert chips =~ ~r/title="[^"]*Tag E[^"]*Tag F[^"]*"/
 
     # Only the four visible chips carry row-level remove buttons.
     assert length(String.split(chips, ~s(data-role="bucket-remove"))) == 5
