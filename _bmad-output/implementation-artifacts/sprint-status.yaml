@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-09-20 (Sprint 14 PLANNED: E22 closes on ADR-0047's portfolio half plus #838 and #825, the closing act's ten findings are paid, and ADR-0047 9's "Wealth risk surface" is corrected -- the risk lens has no human view and never had one; no new gate, B3.6 deliberately not opened; the design pass with five mockup boards rides the planning PR, and D-11 makes "a UI change is mocked before it is built" a standing rule)
+# last_updated: 2026-09-23 (Sprint 14 CLOSED OUT: PR #846 rebase-merged, main at c0746222 -- E22 DONE; sixteen issues closed by keyword, #821 and #835 by hand; the concentration lens gets its first human view; nine closing-act findings filed; tags 0.11.0-0.14.0 all outstanding for the owner)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -42,7 +42,7 @@
 # requests, not assumed -- an issue's state lags the PR that fixes it.
 
 generated: 2026-07-25
-last_updated: 2026-09-20
+last_updated: 2026-09-23
 project: portfolixir
 project_key: NOKEY
 tracking_system: file-system
@@ -51,6 +51,121 @@ story_location: _bmad-output/implementation-artifacts
 # ---------------------------------------------------------------------------
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
+#
+# CLOSED OUT (2026-09-23, Sprint 14) -- PR #846 rebase-merged 19:20 UTC,
+# `main` at c0746222:
+# Verification basis: the commits on `main` (d085572..c074622, 30 commits
+# linear, zero merge commits, per the ADR-0026 rebase-merge amendment), the
+# Actions runs on the merge push (Commit authorship 585 and CI 1571, verified
+# green before this entry was written), the post-merge issue list, and the
+# diff of the merged tree against the pre-merge head 67abe49 (empty). The
+# rebase replayed the commits, so `main`'s SHAs differ from the branch's;
+# tree equality is the check that holds.
+#
+# WHAT CLOSED: sixteen issues by the merge's keywords -- #847 #838 #848 #825
+# (E22's remainder: the portfolio and view figures on the risk read, `required`
+# on both payloads, the Risk tab, the per-security invalidation basis), #840
+# #841 #839 #852 (the error contract and the held predicate), #833 #834 #836
+# #842 #837 #844 (design conformance and the ADR front matter), #830 #831 (the
+# agent's surface). CLOSED BY HAND: #821, E22's tracker, with the where-each-
+# half-landed evidence (a tracking issue carries no direct PR, so no keyword
+# reaches it), and #835, DECIDED in this batch (D-4 / E3: `.popover` wins,
+# written into DESIGN.md) with its convergence filed as #850 -- a keyword would
+# have recorded the rebuild as done.
+#
+# NOTHING WAS SHRUNK. The plan's shrink order named four cuts (#842, #844,
+# #830's build half, A4); none was taken. The two cuts spent at planning time
+# (#835's convergence, B3.6) stay spent.
+#
+# FILED AND NOT BUILT: #849 (a conditional read for derived projections, D-5's
+# second shape -- needs a decision), #850 (the column-picker convergence), and
+# from the build and the closing act #851 (invalidation sees only the after-
+# image), #853 (two more 500s), #854 (the double disclosure marker, pre-
+# existing since Sprint 13), #855 (LiveView pages 500 on an out-of-range id),
+# #856 (unbounded offset/days), #857 (the active area tab off-screen at
+# 390 px), #858 (the row menu unreachable by keyboard). Every one was
+# reproduced before it was filed.
+#
+# RETROSPECTIVE (E22 and the batch).
+# * THE CLOSING ACT FOUND THREE BLOCKING DEFECTS IN WORK THAT WAS GREEN.
+#   Four roles ran under D-8, every finding reproduced first. The correctness
+#   hunter found the batch's own one-predicate fix (#839) still wrong across a
+#   split -- bought 10, split 2:1, sold 20 read as held -- and Decimal division
+#   residue in a flat multi-currency walk reading as a "-0" unrecovered
+#   drawdown and a risk-adjusted return of -3.5: I1 broken through a door the
+#   engine tests could not see, because they fed exact factors. The UAT pass
+#   found the #842 chip unreachable at 390 AND 1200 px, which every LiveView
+#   test had passed. All three were fixed on the branch; the lesson is that an
+#   identity pinned at the engine needs one integration test through the
+#   real input path, and a UI fix needs one real render.
+# * THE PARALLEL LANES WORKED, AND THE HOST WAS THE BOTTLENECK. Lanes A5, B, C,
+#   D and M ran as sub-agents in isolated worktrees with their own test
+#   databases and were cherry-picked by the lead; the only conflicts were in
+#   end-of-file CSS and the regenerated gettext catalogues, both resolved by
+#   regeneration rather than by hand. Five concurrent suites drove the load
+#   average past 30 and produced DB-pool timeouts that passed in isolation --
+#   noise, not defects, but a real cost: the gates were re-run on a quiet host
+#   before every push.
+# * THE BASE WAS RED WHEN THE BATCH OPENED. CI 1558 on d085572 failed the npm
+#   audit step on an advisory published after the planning merge -- Sprint 13's
+#   "green at promotion has a shelf life" again. The maintenance lane's
+#   @modelcontextprotocol/sdk patch fixed it inside the batch, which is the
+#   lane doing its job rather than a lucky coincidence.
+# * D-8'S SCREENSHOT CONVENTION IS STILL INCOMPLETE. Reference-style links
+#   were wrapped in code spans too once a URL passed ~145 characters, and the
+#   first post also lost every image's `!`; an edit of the same comment kept
+#   it. Shorter file names fixed both. Recorded here rather than silently
+#   amending the adopted plan: the next planning round should state the
+#   limit (every URL under ~145 characters) beside the convention.
+# * THE RISK-TIER PASSES WERE MUTATION-VERIFIED, TWICE. I1, I3, I4, I7 and
+#   the B3 invariant were each shown red against a broken implementation by
+#   the lane and again, independently, by the correctness hunter.
+#
+# TWO-WAY COVERAGE: every agent-visible figure this batch added landed with
+# its human view in the same batch (the Risk tab). More: the concentration
+# lens of FR-8/FR-9/FR-10, agent-only since it shipped (the older debt D-2
+# found), now has its operator half. Nothing in this batch is agent-only, and
+# no deadline is carried into Sprint 15.
+#
+# SURFACE CHECK (the 2026-09-03 owner decision): two read-ergonomics
+# parameters landed.
+#   - risk_free_rate= on the risk family, which has EXACTLY ONE endpoint
+#     (GET /api/v1/portfolios/:portfolio_id/risk); the view arrives as view=,
+#     there is no /views/:id/risk (ADR-0047 §9), so the family is complete.
+#   - since= (#830): CARRIED by /securities, /transactions (before), and now
+#     /securities/:id/notes (by inserted_at, the log being append-only),
+#     /securities/:id/events, /portfolios/:id/targets and /position_targets
+#     (a row changed when it OR its plan changed). DELIBERATELY ABSENT from
+#     the six time-derived queues (/notes/unreviewed, /notes/expiring,
+#     /notes/uncorroborated, /events/upcoming, /events/stale,
+#     /events/unconfirmed), whose membership changes because time passes --
+#     pinned by a test. NOT CARRIED by the derived projections (valuation,
+#     allocation, performance, benchmark, income, risk), which have no rows:
+#     a basis-version conditional read, filed as #849. NOT CARRIED by the
+#     small operator-edited configuration collections, quotes or the journal,
+#     each with its reason in the Lane D report.
+#
+# MAINTENANCE LANE: three update commits (MCP SDK and tsx patches, the Node
+# 24.21.0 image, two transitive Hex bumps); #727's two triggers re-checked and
+# not fired; the Node 26 LTS promotion declined a fourth time for the same
+# reason; one runtime advisory (CVE-2026-75758, Elixir 1.18.3, unreachable,
+# invisible to the Hex audits) recorded in version-report-2026-09-23-sprint14.md
+# as input to #727.
+#
+# EPIC STATES AFTER THIS MERGE: E22 DONE -- FR-39 and FR-40 discharged in both
+# directions, #838 and #825 shipped, the tracker #821 closed by hand.
+#
+# THE TAGS -- FOUR OUTSTANDING. The latest published release is still 0.10.0
+# of 2026-09-07. Per D-9 all four commands are restated in ONE place. The
+# agent credential cannot push a tag (owner action, 2026-09-07 decision); the
+# owner runs:
+#   git tag -a 0.11.0 c2164f54 -m "Portfolixir 0.11.0" && git push origin 0.11.0
+#   git tag -a 0.12.0 5ea57ea3 -m "Portfolixir 0.12.0" && git push origin 0.12.0
+#   git tag -a 0.13.0 6e7de6ef -m "Portfolixir 0.13.0" && git push origin 0.13.0
+#   git tag -a 0.14.0 c0746222 -m "Portfolixir 0.14.0" && git push origin 0.14.0
+# Each push triggers the Release workflow, which creates the GitHub Release
+# with generated notes -- a rollback point plus a communicable changelog,
+# never an installable artifact (#659).
 #
 # PLANNED (2026-09-20, Sprint 14) -- sprint-plan-2026-09-20-sprint14.md,
 # adopted by the merge of the Sprint 14 planning PR. It signs NO new decision
@@ -1334,8 +1449,8 @@ development_status:
   # (the per-security invalidation basis), and the payload half of §6's
   # 2026-09-19 amendment (#838 -- `required` on every metric), which rides
   # A2 so the surface takes one contract bump instead of two.
-  epic-22: in-progress
-  epic-22-retrospective: optional
+  epic-22: done
+  epic-22-retrospective: done
 
   # E23 -- Security events (FR-44); decision gate B3.4 CLOSED by ADR-0048,
   # signed 2026-09-19 by the merge of the Sprint 13 planning PR, scheduled by
