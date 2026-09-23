@@ -533,6 +533,22 @@ date) shows a dash instead of a guessed number; the
 `mix portfolixir.backfill_settlement_legs` task derives the missing legs
 for historic imports once rates for the booking dates are stored.
 
+**Booking one in the form** (issue #395). When the security's currency
+differs from the currency of the chosen depot's cash account, the booking
+drawer shows a block "Settlement in EUR" (named after the account's currency)
+with two linked fields: the settlement amount in the account's currency and
+the rate — account units per one unit of the security's currency. Typing one
+derives the other; a changed quantity or price re-derives the amount from the
+rate. Both are prefilled from the stored exchange rates on or before the
+booking date and say so — a suggestion, the broker statement wins; with no
+stored rate the block says that too and waits for the statement's figure. The
+price is entered in the security's currency, fees and taxes in the account's.
+Saved, the booking is in the security's currency, and its cash amount is
+computed from the settlement, fees and taxes, so the form never produces a
+booking the rule below refuses. Before Sprint 15 the form booked such a trade
+in the account's currency, reading the security's price as if it were in
+euros.
+
 **The cash and the settlement agree** (issue #395). A cross-currency buy
 records the cash it moved (`gross_amount`, fees and taxes included) beside
 the trade value in the account's currency (`settlement_amount`); a sell
