@@ -89,6 +89,15 @@ defmodule PortfolixirWeb.RiskLiveTest do
              "above 25 %"
            )
 
+    # The asset class is the catalogue's label, not the stored code.
+    assert has_element?(
+             view,
+             ~s(#risk-top-holdings tr[data-security-id="#{world.etf.id}"] td),
+             "ETF"
+           )
+
+    refute has_element?(view, "#risk-top-holdings td", "equity")
+
     assert has_element?(view, ~s([data-role="risk-hhi"] [data-band]))
     assert has_element?(view, ~s([data-role="risk-caps"]), "No cap configured")
     assert has_element?(view, "details#risk-correlations:not([open])")
