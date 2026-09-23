@@ -1715,3 +1715,29 @@ A native `<dialog>` (UX-DR9), one component for create and edit:
 No action, quantity or suggestion on a finding (ADR-0049 §6; the API payload
 is walked for it by a meta-test). No push, no digest. The lens's per-request
 caps are not configured here, and the two mechanisms do not read each other.
+
+## Amendment 2026-09-24 — The booking drawer's cross-currency settlement *(Sprint 15 pick F3-A, issue 395)*
+
+Board `ux-design-2026-09-23/03-settlement-inputs`, variant A, as built.
+
+- **Shown only when it is required.** The block appears in the booking drawer
+  when a buy or sell's security currency differs from the chosen depot's cash
+  account, directly under the quantity/price row, and nowhere else. A booking
+  in one currency carries no empty settlement fields (variant B's cost).
+- **Anatomy.** A `fieldset.settlement-fieldset`: accent border, the
+  `--color-accent-soft` tint, `--radius-md`. Its legend is the block's heading
+  *inside* the box (floated, so it does not straddle the border): "Settlement in
+  EUR" in the accent at 600, then "· security in CHF, account in EUR" at 400.
+  Two fields in `.form-grid` — the settlement amount in the account currency and
+  the rate "EUR per CHF" — then one `.form-help` paragraph without the help
+  box's padding, carrying where the suggestion came from ("suggested from the
+  stored exchange rates on or before 2026‑09‑13", or "no stored exchange rate …
+  enter the settlement amount from the broker statement") and the guard in one
+  sentence, so its 422 never surprises. The ISO date in running text uses
+  non-breaking hyphens.
+- **Around it.** The price label names the security's currency ("Price (CHF)")
+  and the derived-currency line reads "Price in CHF · cash in EUR".
+- **Behaviour.** Amount and rate derive each other from whichever was typed; a
+  changed quantity or price re-derives the amount from the rate; a changed
+  security, depot, date or kind re-prefills a *suggested* rate but never one
+  the operator typed. A missing amount on save is named on its own field.

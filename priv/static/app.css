@@ -1231,6 +1231,41 @@ li + li {
   border-radius: var(--radius-md);
 }
 
+/* Cross-currency settlement (issue 395, board 03 variant A): shown only when
+   the security and the cash account differ in currency, so it is marked as
+   the one block that asks for something the ordinary booking does not. */
+.settlement-fieldset {
+  margin: var(--space-2) 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  background: var(--color-accent-soft);
+}
+
+/* The legend sits inside the box as its heading (board 03), not across the
+   border: floated legends are laid out as ordinary content. */
+.settlement-fieldset legend {
+  float: left;
+  width: 100%;
+  padding: 0;
+  margin-bottom: var(--space-2);
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.settlement-fieldset > .form-grid {
+  clear: both;
+}
+
+.settlement-fieldset__pair {
+  font-weight: 400;
+}
+
+.settlement-fieldset .form-help {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+}
+
 .transaction-costs {
   margin: 4px 0 8px;
 }

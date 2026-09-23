@@ -11,6 +11,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   alias PortfolixirWeb.ChangedSince
   alias PortfolixirWeb.ColumnPicker
   alias PortfolixirWeb.TransactionKindLabel
+  alias PortfolixirWeb.Transactions.SettlementForm
 
   # Two chip families (#707 D2, Part 4) plus the conditions the "More filters"
   # disclosure holds. Chips within a family compose as OR -- two accounts means
@@ -509,7 +510,12 @@ defmodule PortfolixirWeb.TransactionManagementLive do
      |> assign(:sell_preview, nil)}
   end
 
-  def handle_event("form_changed", %{"transaction" => params}, socket) do
+  def handle_event("form_changed", %{"transaction" => params} = event, socket) do
+    # #395: a cross-currency trade's settlement amount and rate derive each
+    # other from whichever the operator just typed (the event's `_target`).
+    target = event |> Map.get("_target", []) |> List.wrap() |> List.last()
+    params = SettlementForm.derive(params, target, settlement_pair(params, socket.assigns))
+
     # Clear stale field errors as the user edits, so a corrected field stops
     # reading as invalid before the next submit.
     {:noreply,
@@ -574,7 +580,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
        socket
        |> assign(:row_menu_id, nil)
        |> assign(:editing_id, id)
-       |> assign(:transaction_form, form_from_transaction(transaction))
+       |> assign(:transaction_form, form_from_transaction(transaction, socket.assigns.securities))
        |> assign(:form_errors, %{})
        |> assign(:sell_preview, nil)
        |> assign(:booking_open?, true)}
@@ -650,7 +656,23 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       |> put_portfolio_from_depot(socket.assigns.securities_accounts)
       |> maybe_put_currency(currency)
 
-    case book(socket.assigns.editing_id, params) do
+    # #395: a cross-currency trade is booked in the security's currency with
+    # its settlement; a missing settlement amount is named on its field.
+    case SettlementForm.prepare(params, settlement_pair(params, socket.assigns)) do
+      {:ok, prepared} ->
+        save_booking(socket, params, prepared)
+
+      {:error, errors} ->
+        {:noreply,
+         socket
+         |> assign(:transaction_form, params)
+         |> assign(:form_errors, errors)
+         |> failure(gettext("The settlement amount is missing."))}
+    end
+  end
+
+  defp save_booking(socket, params, prepared) do
+    case book(socket.assigns.editing_id, prepared) do
       {:ok, _transaction} ->
         {:noreply,
          socket
@@ -693,13 +715,16 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     end
   end
 
+  defp settlement_pair(params, assigns),
+    do: SettlementForm.pair(params, assigns.securities_accounts, assigns.securities)
+
   defp saved_message(nil), do: gettext("Transaction recorded")
   defp saved_message(_id), do: gettext("Transaction updated")
 
   # The drawer's fields, filled from a stored booking. Decimals travel as the
   # strings the inputs carry; a nil field is the empty string the form uses,
   # never "nil" on the screen.
-  defp form_from_transaction(%Transaction{} = transaction) do
+  defp form_from_transaction(%Transaction{} = transaction, securities) do
     %{
       "type" => transaction.type,
       "date" => transaction.date && Date.to_iso8601(transaction.date),
@@ -712,6 +737,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       "currency_code" => transaction.currency_code || "EUR",
       "notes" => transaction.notes || ""
     }
+    |> Map.merge(SettlementForm.from_transaction(transaction, securities))
   end
 
   defp to_form_value(nil), do: ""
@@ -1462,6 +1488,17 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   attr(:editing?, :boolean, default: false)
 
   defp booking_drawer(assigns) do
+    assigns =
+      assign(
+        assigns,
+        :settlement_pair,
+        SettlementForm.pair(
+          assigns.transaction_form,
+          assigns.securities_accounts,
+          assigns.securities
+        )
+      )
+
     ~H"""
     <dialog
       id="booking-drawer"
@@ -1486,7 +1523,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                     "Corrects the booking in place; the derived holdings follow and the change is journaled."
                   ),
                 else:
-                  gettext("Books against the chosen depot; the currency follows its cash account.") %>
+                  gettext("Books against the chosen depot; the cash moves in its cash account's currency.") %>
             </p>
           </div>
         </div>
@@ -1591,7 +1628,11 @@ defmodule PortfolixirWeb.TransactionManagementLive do
             <.field_error errors={@form_errors} field="quantity" />
           </label>
           <label>
-            <span><%= gettext("Price") %></span>
+            <span>
+              <%= if @settlement_pair,
+                do: gettext("Price (%{currency})", currency: @settlement_pair.security),
+                else: gettext("Price") %>
+            </span>
             <input
               name="transaction[price]"
               value={@transaction_form["price"]}
@@ -1604,11 +1645,29 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           </label>
         </div>
 
+        <input
+          :if={@transaction_form["settlement_mode"]}
+          type="hidden"
+          name="transaction[settlement_mode]"
+          value={@transaction_form["settlement_mode"]}
+        />
+        <SettlementForm.fieldset
+          :if={@settlement_pair}
+          pair={@settlement_pair}
+          form={@transaction_form}
+          errors={@form_errors}
+        />
+
         <p class="form-help" data-role="derived-currency">
-          <%= case derived_currency(@securities_accounts, @transaction_form["securities_account_id"]) do %>
-            <% nil -> %>
+          <%= case {@settlement_pair, derived_currency(@securities_accounts, @transaction_form["securities_account_id"])} do %>
+            <% {%{security: security, account: account}, _currency} -> %>
+              <%= gettext("Price in %{security} · cash in %{account}",
+                security: security,
+                account: account
+              ) %>
+            <% {nil, nil} -> %>
               <%= gettext("Currency is set by the selected depot.") %>
-            <% currency -> %>
+            <% {nil, currency} -> %>
               <%= gettext("Currency: %{currency}", currency: currency) %>
           <% end %>
         </p>

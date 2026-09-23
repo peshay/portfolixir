@@ -2,7 +2,8 @@
 # priv/demo dataset plus deliberately finding-triggering rows — an
 # unclassified security, a held position with a stale quote, a priceless
 # position, a foreign-currency cash account with no FX rate, a snapshot, a tax
-# statement, research-log entries, security events, buckets and a view.
+# statement, research-log entries, security events, buckets and a view, policy
+# rules in every state and a cross-currency buy.
 # Synthetic all the way down; no real data (AGENTS.md → Privacy And
 # Disclosure).
 #
@@ -23,6 +24,7 @@ alias Portfolixir.{
   Buckets,
   Catalog,
   Classifications,
+  Fx,
   Imports,
   Knowledge,
   Ledger,
@@ -627,5 +629,53 @@ seed_rule.(
   },
   today
 )
+
+# 12. A cross-currency buy (#395, Sprint 15 Lane D2): a CHF security bought
+# through the EUR depot, its settlement meeting the guard (960.00 EUR for
+# 912.00 CHF at 1 EUR = 0.95 CHF, plus 4.90 EUR fees). CHF rather than USD on
+# purpose: the USD Settlement account above must keep firing "cash with no
+# FX", so this seed never stores a USD rate. The CHF rate on the booking date
+# is also what the booking form suggests when the walkthrough books another
+# CHF trade on that date — open the drawer, pick the depot and this security.
+alpine_date = Date.add(today, -10)
+
+{:ok, _} =
+  Fx.upsert_many([
+    %{
+      base_currency: "EUR",
+      quote_currency: "CHF",
+      date: alpine_date,
+      rate: "0.95",
+      source: "manual"
+    }
+  ])
+
+{_alpine_state, alpine} =
+  seed_position.(
+    "Alpine Test Werke AG",
+    %{ticker_symbol: "ATW", isin: "CH0000000017", currency_code: "CHF", asset_class: "equity"},
+    fn security ->
+      %{
+        portfolio_id: portfolio.id,
+        securities_account_id: depot.id,
+        security_id: security.id,
+        type: "buy",
+        date: alpine_date,
+        quantity: "20",
+        price: "45.60",
+        currency_code: "CHF",
+        security_amount: "912.00",
+        settlement_amount: "960.00",
+        fees: "4.90",
+        gross_amount: "964.90"
+      }
+    end
+  )
+
+{:ok, _} =
+  Quotes.upsert_many(alpine.id, [
+    %{date: alpine_date, close: "45.60", source: "manual"},
+    %{date: today, close: "46.10", source: "manual"}
+  ])
 
 IO.puts("review seed done (timber position: #{timber_state})")
