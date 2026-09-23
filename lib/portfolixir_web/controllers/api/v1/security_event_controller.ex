@@ -29,6 +29,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
   alias Portfolixir.Knowledge.SecurityEvent
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ListLimit
+  alias PortfolixirWeb.Api.V1.SinceParam
 
   @events_note "An event is a dated calendar fact that books nothing (ADR-0048): a split " <>
                  "changes a position and is a ledger event, an earnings date changes " <>
@@ -58,18 +59,23 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
 
   def index(conn, %{"security_id" => security_id} = params) do
     with {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit),
+         {:ok, since} <- SinceParam.parse(params),
          %Security{} = security <- Catalog.get_security(security_id) do
-      json(conn, %{
+      opts = [limit: limit] ++ if(since, do: [updated_since: since.cut], else: [])
+
+      payload = %{
         data: %{
           security_id: security.id,
           events:
             security.id
-            |> Events.list_for_security(limit: limit)
+            |> Events.list_for_security(opts)
             |> Enum.map(&JSON.security_event/1),
           limit: limit,
           events_note: @events_note
         }
-      })
+      }
+
+      json(conn, SinceParam.put_envelope(payload, since))
     else
       {:error, field} -> unprocessable(conn, %{field => ["is invalid"]})
       nil -> not_found(conn)

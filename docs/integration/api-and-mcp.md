@@ -48,6 +48,47 @@ full read. An invalid `since` is a `422`. Delta reads are **pull-only**: push
 delivery (webhooks to a user-configured endpoint) is a separate, still-gated
 decision (B3.7) and deliberately not part of this surface.
 
+**Which reads carry `since` (issue #830, Sprint 14 D-5).** `since` is a
+*row-delta* parameter, so it fits reads that answer a collection of rows with a
+change stamp, and only those. The family splits three ways:
+
+- **Carries it — the row collections a scheduled run polls:**
+  `GET /api/v1/transactions`, `GET /api/v1/securities`,
+  `GET /api/v1/securities/:security_id/notes` (by `inserted_at`: the research
+  log is append-only, so an entry never changes after it is written; the
+  derived `thesis_state` still covers the whole log),
+  `GET /api/v1/securities/:security_id/events` (by `updated_at`, so a
+  rescheduled date returns as its changed row), and
+  `GET /api/v1/portfolios/:portfolio_id/targets` and `/position_targets`
+  (a target row counts as changed when **it or its plan** changed after the
+  cut — activating another plan version swaps the steering rows without
+  editing any of them; the position read's `effective_targets` roll-up always
+  covers the whole plan, and `min_drift` applies after the cut). Their MCP
+  twins take the same `since` string: `portfolixir.transactions.list`,
+  `portfolixir.securities.list`, `portfolixir.notes.list`,
+  `portfolixir.events.list`, `portfolixir.targets.list` and
+  `portfolixir.targets.list_positions`. The configuration collections
+  (portfolios, cash and securities accounts, buckets, views, classifications,
+  plans, tax parameters, profiles and allowance orders, snapshots) do not carry
+  it: they are small and operator-edited, and several carry per-row figures
+  derived from other tables (a cash balance, a statement's staleness) that move
+  without the row's `updated_at` moving.
+- **Derived projections do not carry it — and need a different mechanism:**
+  valuation, allocation, performance, benchmark, income and risk have no rows
+  and therefore no `updated_at`. "Has the valuation changed since I last read
+  it" is a question about the version of its **basis**, which the instance
+  already tracks internally (ADR-0039) but does not expose; answering it is a
+  conditional-read mechanism (an ETag or a basis token) that has not been
+  built.
+- **Time-derived queues must not carry it:** `/notes/unreviewed`,
+  `/notes/expiring`, `/notes/uncorroborated`, `/events/upcoming`,
+  `/events/stale` and `/events/unconfirmed`. Their membership changes
+  **because time passes**, with no row changing — a position becomes
+  unreviewed overnight, a date enters the horizon. A cut on `updated_at` would
+  silently drop exactly the rows a poller needs, so these reads ignore `since`
+  like any parameter they do not define (full answer, no delta envelope), and
+  their MCP tools do not accept it.
+
 The **human view** of the same cut (issue #731) lives on
 `/transactions?since=` and `/securities?since=` as the *Changed since* chips:
 same parameter name, same accepted forms, same strictly-after-`updated_at`

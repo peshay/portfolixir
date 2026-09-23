@@ -50,6 +50,50 @@ sind **pull-only**: Push-Zustellung (Webhooks an einen konfigurierten
 Endpunkt) ist eine separate, weiterhin gegatete Entscheidung (B3.7) und
 bewusst nicht Teil dieser Oberfläche.
 
+**Welche Reads `since` tragen (Issue #830, Sprint 14 D-5).** `since` ist ein
+*Zeilen-Delta*-Parameter und passt deshalb nur auf Reads, die eine Sammlung von
+Zeilen mit Änderungsstempel liefern. Die Familie zerfällt in drei Teile:
+
+- **Tragen ihn — die Zeilensammlungen, die ein geplanter Lauf pollt:**
+  `GET /api/v1/transactions`, `GET /api/v1/securities`,
+  `GET /api/v1/securities/:security_id/notes` (nach `inserted_at`: das
+  Research-Log ist append-only, ein Eintrag ändert sich nach dem Schreiben nie;
+  der abgeleitete `thesis_state` deckt weiterhin das ganze Log ab),
+  `GET /api/v1/securities/:security_id/events` (nach `updated_at`, ein
+  verschobener Termin kommt also als seine geänderte Zeile zurück) sowie
+  `GET /api/v1/portfolios/:portfolio_id/targets` und `/position_targets`
+  (eine Zielzeile gilt als geändert, wenn **sie oder ihr Plan** nach dem
+  Schnitt geändert wurde — das Aktivieren einer anderen Planversion tauscht die
+  steuernden Zeilen, ohne eine davon zu bearbeiten; der Roll-up
+  `effective_targets` des Positions-Reads deckt immer den ganzen Plan ab, und
+  `min_drift` greift nach dem Schnitt). Ihre MCP-Zwillinge nehmen denselben
+  `since`-String: `portfolixir.transactions.list`,
+  `portfolixir.securities.list`, `portfolixir.notes.list`,
+  `portfolixir.events.list`, `portfolixir.targets.list` und
+  `portfolixir.targets.list_positions`. Die Konfigurationssammlungen
+  (Portfolios, Konten und Depots, Buckets, Sichten, Klassifikationen, Pläne,
+  Steuerparameter, -profile und Freistellungsaufträge, Snapshots) tragen ihn
+  nicht: Sie sind klein und vom Betreiber gepflegt, und mehrere tragen pro
+  Zeile Werte, die aus anderen Tabellen abgeleitet sind (ein Kontosaldo, die
+  Veraltung einer Steuerbescheinigung) und sich ändern, ohne dass sich das
+  `updated_at` der Zeile ändert.
+- **Abgeleitete Projektionen tragen ihn nicht — sie brauchen einen anderen
+  Mechanismus:** Bewertung, Allokation, Performance, Benchmark, Erträge und
+  Risiko haben keine Zeilen und damit kein `updated_at`. „Hat sich die
+  Bewertung seit meinem letzten Read geändert" ist eine Frage nach der Version
+  ihrer **Basis**, die die Instanz intern bereits führt (ADR-0039), aber nicht
+  exponiert; sie zu beantworten ist ein Conditional-Read-Mechanismus (ein ETag
+  oder ein Basis-Token), der nicht gebaut ist.
+- **Zeitabgeleitete Queues dürfen ihn nicht tragen:** `/notes/unreviewed`,
+  `/notes/expiring`, `/notes/uncorroborated`, `/events/upcoming`,
+  `/events/stale` und `/events/unconfirmed`. Ihre Mitgliedschaft ändert sich,
+  **weil Zeit vergeht**, ohne dass sich eine Zeile ändert — eine Position wird
+  über Nacht ungeprüft, ein Termin rückt in den Horizont. Ein Schnitt auf
+  `updated_at` würde genau die Zeilen stillschweigend verwerfen, die ein
+  Poller braucht; diese Reads ignorieren `since` deshalb wie jeden Parameter,
+  den sie nicht definieren (volle Antwort, kein Delta-Umschlag), und ihre
+  MCP-Tools akzeptieren ihn nicht.
+
 Die **menschliche Sicht** desselben Schnitts (Issue #731) liegt auf
 `/transactions?since=` und `/securities?since=` als *Geändert-seit*-Chips:
 gleicher Parametername, gleiche akzeptierte Formen, gleicher

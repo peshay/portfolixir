@@ -145,12 +145,15 @@ defmodule Portfolixir.Knowledge.Events do
   @doc """
   §5.1 — all of one security's events, past and future, soonest first.
 
-  Option `:limit` keeps the earliest rows.
+  Option `:limit` keeps the earliest rows. Option `:updated_since` (a
+  naive-UTC cut, FR-38 / #830) keeps the rows created or updated strictly
+  after it — the delta read.
   """
   @spec list_for_security(integer(), keyword()) :: [SecurityEvent.t()]
   def list_for_security(security_id, opts \\ []) when is_integer(security_id) do
     SecurityEvent
     |> where([e], e.security_id == ^security_id)
+    |> maybe_updated_since(Keyword.get(opts, :updated_since))
     |> order_by([e], asc: e.date, asc: e.id)
     |> maybe_limit(Keyword.get(opts, :limit))
     |> Repo.all()
@@ -259,6 +262,11 @@ defmodule Portfolixir.Knowledge.Events do
 
   defp maybe_limit(query, nil), do: query
   defp maybe_limit(query, n) when is_integer(n) and n > 0, do: limit(query, ^n)
+
+  defp maybe_updated_since(query, nil), do: query
+
+  defp maybe_updated_since(query, %NaiveDateTime{} = cut),
+    do: where(query, [e], e.updated_at > ^cut)
 
   defp take(rows, nil), do: rows
   defp take(rows, n) when is_integer(n) and n > 0, do: Enum.take(rows, n)

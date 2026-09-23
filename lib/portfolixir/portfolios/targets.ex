@@ -45,12 +45,19 @@ defmodule Portfolixir.Portfolios.Targets do
   plan), or `plan:` to read a specific plan version (e.g. a draft).
 
   Loads **only** the addressed plan's targets.
+
+  Option `:changed_since` (a naive-UTC cut, FR-38 / #830) keeps the rows that
+  changed strictly after it — the delta read — where a row counts as changed
+  when the row itself OR its plan was updated after the cut. The plan half is
+  what makes the delta honest: activating another plan version swaps the
+  steering rows without touching a single one of them.
   """
   def list_targets(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
     portfolio_id
     |> scoped_query(opts)
     |> where([t], is_nil(t.security_id))
     |> filter_classification(Keyword.get(opts, :classification_id))
+    |> filter_changed_since(Keyword.get(opts, :changed_since))
     |> order_by([t], asc: t.classification_id, asc: t.category_id)
     |> select([t], t)
     |> Repo.all()
@@ -96,6 +103,7 @@ defmodule Portfolixir.Portfolios.Targets do
     |> scoped_query(opts)
     |> where([t], not is_nil(t.security_id))
     |> filter_classification(Keyword.get(opts, :classification_id))
+    |> filter_changed_since(Keyword.get(opts, :changed_since))
     |> order_by([t], asc: t.classification_id, asc: t.category_id, asc: t.security_id)
     |> select([t], t)
     |> Repo.all()
@@ -864,6 +872,16 @@ defmodule Portfolixir.Portfolios.Targets do
 
   defp filter_classification(query, classification_id),
     do: where(query, [t], t.classification_id == ^classification_id)
+
+  # FR-38 / #830: a row is in the delta when it or its plan changed after the
+  # cut. Plans are looked up by subquery so the filter composes with both
+  # scoped_query/2 shapes (joined to the active plan, or addressed by id).
+  defp filter_changed_since(query, nil), do: query
+
+  defp filter_changed_since(query, %NaiveDateTime{} = cut) do
+    changed_plans = from(p in TargetPlan, where: p.updated_at > ^cut, select: p.id)
+    where(query, [t], t.updated_at > ^cut or t.plan_id in subquery(changed_plans))
+  end
 
   # Scope a target query (joined to its plan as the 2nd binding) to one plan view.
   defp filter_plan_view(query, nil), do: where(query, [_t, p], is_nil(p.view_id))

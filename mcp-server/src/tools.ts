@@ -837,14 +837,16 @@ const targetsListSchema = {
   properties: {
     portfolio_id: { type: "integer", minimum: 1 },
     classification_id: { type: "integer", minimum: 1 },
-    view: { type: "integer", minimum: 1 }
+    view: { type: "integer", minimum: 1 },
+    since: { type: "string", description: "ISO8601 instant (UTC) or date; delta read, see the tool description" }
   }
 };
 
 const targetsListZ = z.object({
   portfolio_id: z.number().int().positive(),
   classification_id: z.number().int().positive().optional(),
-  view: z.number().int().positive().optional()
+  view: z.number().int().positive().optional(),
+  since: optionalString()
 });
 
 // A target entry sets a category weight (category_id only) or, since ADR-0030
@@ -919,7 +921,8 @@ const positionTargetsListSchema = {
     min_drift: {
       type: "string",
       description: "absolute drift-weight threshold as a Decimal string, e.g. \"0.02\""
-    }
+    },
+    since: { type: "string", description: "ISO8601 instant (UTC) or date; delta read, see the tool description" }
   }
 };
 
@@ -927,7 +930,8 @@ const positionTargetsListZ = z.object({
   portfolio_id: z.number().int().positive(),
   classification_id: z.number().int().positive().optional(),
   view: z.number().int().positive().optional(),
-  min_drift: optionalString()
+  min_drift: optionalString(),
+  since: optionalString()
 });
 
 // #740: the view valuation takes the same roll-up switch as the portfolio one.
@@ -1961,13 +1965,15 @@ const eventsListSchema = {
   required: ["security_id"],
   properties: {
     security_id: { type: "integer", minimum: 1 },
-    limit: { type: "integer", minimum: 1 }
+    limit: { type: "integer", minimum: 1 },
+    since: { type: "string", description: "ISO8601 instant (UTC) or date; delta read, see the tool description" }
   }
 } as const;
 
 const eventsListZ = z.object({
   security_id: z.number().int().positive(),
-  limit: z.number().int().min(1).optional()
+  limit: z.number().int().min(1).optional(),
+  since: optionalString()
 });
 
 const eventCreateSchema = {
@@ -2105,13 +2111,15 @@ const notesListSchema = {
   required: ["security_id"],
   properties: {
     security_id: { type: "integer", minimum: 1 },
-    limit: { type: "integer", minimum: 1, description: "newest entries to keep (default 1000, at most 10000)" }
+    limit: { type: "integer", minimum: 1, description: "newest entries to keep (default 1000, at most 10000)" },
+    since: { type: "string", description: "ISO8601 instant (UTC) or date; delta read, see the tool description" }
   }
 };
 
 const notesListZ = z.object({
   security_id: z.number().int().positive(),
-  limit: z.number().int().min(1).optional()
+  limit: z.number().int().min(1).optional(),
+  since: optionalString()
 });
 
 const noteAppendSchema = {
@@ -2287,7 +2295,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.events.list",
     "Calendar of one security",
-    "One security's events (ADR-0048), soonest first: earnings reports, ex-dividend and payment dates, lockup expiries, index reviews, shareholder meetings, regulatory decisions, guidance updates. An event is a dated calendar FACT that books nothing — a split changes a position and is a ledger event, an earnings date changes nothing until a price moves. When the dividend is actually paid, book it through the ledger as always and mark the event confirmed with portfolixir.events.update; the event is never converted into a transaction and no tool does that for you. Each row carries kind, date, date_end (only on timing=window), timing (exact | estimated | window | month — how well the date is KNOWN, so a guess is never stored as a filing), confirmed, source_url, source_quality (primary | secondary_multi | awareness | unverified, the same scale as the research log), checked_at (the day the fact was last re-read against its source) and note.",
+    "One security's events (ADR-0048), soonest first: earnings reports, ex-dividend and payment dates, lockup expiries, index reviews, shareholder meetings, regulatory decisions, guidance updates. An event is a dated calendar FACT that books nothing — a split changes a position and is a ledger event, an earnings date changes nothing until a price moves. When the dividend is actually paid, book it through the ledger as always and mark the event confirmed with portfolixir.events.update; the event is never converted into a transaction and no tool does that for you. Each row carries kind, date, date_end (only on timing=window), timing (exact | estimated | window | month — how well the date is KNOWN, so a guess is never stored as a filing), confirmed, source_url, source_quality (primary | secondary_multi | awareness | unverified, the same scale as the research log), checked_at (the day the fact was last re-read against its source) and note. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only events created or updated strictly after that instant return — a rescheduled date comes back as its changed row — and the response carries as_of (use it as the next since) plus a delta_note; deletions are NOT represented, so a sync that must detect a removed date does a full read. The due, stale and unconfirmed queues deliberately take no since: their membership changes because time passes, with no row changing.",
     eventsListSchema,
     eventsListZ
   ),
@@ -2336,7 +2344,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.notes.list",
     "Research log of a security",
-    "The security's research log (ADR-0044), newest first: dated, typed entries (thesis, evidence, invalidation_check, event_result, risk, retraction, decision) with author, source_url, source_quality (primary | secondary_multi | awareness | unverified), as_of (the statement's cut-off date, distinct from inserted_at), valid_until for dated blocks and the thesis fields (conviction, invalidation_condition, time_stop). Entries NEVER vanish: nothing updates or deletes one; a refuted finding is withdrawn by appending a retraction that supersedes it, and the superseded entry stays in the list with superseded_by_ids naming what superseded it — read the retraction first, then the finding, and do not re-investigate a premise a retraction already settled. The response also carries thesis_state, the current thesis derived from these entries (status none | intact | retracted, naming derived_from_entry_id and retracted_by_entry_id). This is the starting point of a research run: one call instead of a re-read of old conversations. Optional limit keeps the newest entries (default 1000, at most 10000); thesis_state always derives from the whole log, and the answer echoes the limit it applied.",
+    "The security's research log (ADR-0044), newest first: dated, typed entries (thesis, evidence, invalidation_check, event_result, risk, retraction, decision) with author, source_url, source_quality (primary | secondary_multi | awareness | unverified), as_of (the statement's cut-off date, distinct from inserted_at), valid_until for dated blocks and the thesis fields (conviction, invalidation_condition, time_stop). Entries NEVER vanish: nothing updates or deletes one; a refuted finding is withdrawn by appending a retraction that supersedes it, and the superseded entry stays in the list with superseded_by_ids naming what superseded it — read the retraction first, then the finding, and do not re-investigate a premise a retraction already settled. The response also carries thesis_state, the current thesis derived from these entries (status none | intact | retracted, naming derived_from_entry_id and retracted_by_entry_id). This is the starting point of a research run: one call instead of a re-read of old conversations. Optional limit keeps the newest entries (default 1000, at most 10000); thesis_state always derives from the whole log, and the answer echoes the limit it applied. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only entries appended strictly after that instant (by inserted_at — the log is append-only, so an entry never changes after it is written) return, and the response carries as_of (use it as the next since) plus a delta_note; thesis_state still derives from the whole log, and superseded_by_ids on an older entry is only complete on a full read. The unreviewed, expiring and uncorroborated queues deliberately take no since: their membership changes because time passes, with no row changing.",
     notesListSchema,
     notesListZ
   ),
@@ -2549,7 +2557,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.targets.list",
     "List target weights",
-    "List a portfolio's stored target weights (SOLL). Optional classification_id scopes to one tree.",
+    "List a portfolio's stored target weights (SOLL). Optional classification_id scopes to one tree; optional view (a view id) selects that view's plan. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only target rows changed strictly after that instant return, where a row counts as changed when it OR its plan changed — activating another plan version re-delivers the rows it swapped in, though none of them was edited. The response carries as_of (use it as the next since) plus a delta_note; deletions are NOT represented, so a removed target, or one left behind by a plan that stopped being active, is only visible on a full read.",
     targetsListSchema,
     targetsListZ
   ),
@@ -2570,7 +2578,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.targets.list_positions",
     "List position targets",
-    "List a portfolio's position-level SOLL targets (ADR-0030, #481): a target_weight (string fraction in [0,1]) per individual security under a category, plus each affected category's effective roll-up (explicit weight, position sum, effective steering weight and a conflict flag surfacing an explicit/position mismatch). Sums are NOT enforced in this slice (the 100%-per-level check is a later slice), so a category's position sum may not match its explicit weight or 1. Each position row carries security_id, security_name and a stale flag — true when its security no longer sits under the stored category (reclassified or unassigned); the row still counts where it was filed, so react to stale rows by re-filing them (delete_position + set under the current category). The roll-up carries has_stale per category. Optional classification_id scopes to one tree; optional view (a view id) selects that view's plan. Read ergonomics (FR-37, #740): min_drift (an absolute drift-weight threshold as a Decimal string, e.g. \"0.02\" — the same spelling as portfolixir.portfolios.allocation) returns only the position rows whose |drift_weight| meets it, where drift_weight is the security's actual weight in the steering basis minus its position target exactly as the allocation computes it; kept rows carry drift_weight, rows without a drift are filtered out, and the response states min_drift, position_targets_total (the pre-filter count) and drift_basis. Without min_drift the rows carry no drift_weight and the shape is unchanged.",
+    "List a portfolio's position-level SOLL targets (ADR-0030, #481): a target_weight (string fraction in [0,1]) per individual security under a category, plus each affected category's effective roll-up (explicit weight, position sum, effective steering weight and a conflict flag surfacing an explicit/position mismatch). Sums are NOT enforced in this slice (the 100%-per-level check is a later slice), so a category's position sum may not match its explicit weight or 1. Each position row carries security_id, security_name and a stale flag — true when its security no longer sits under the stored category (reclassified or unassigned); the row still counts where it was filed, so react to stale rows by re-filing them (delete_position + set under the current category). The roll-up carries has_stale per category. Optional classification_id scopes to one tree; optional view (a view id) selects that view's plan. Read ergonomics (FR-37, #740): min_drift (an absolute drift-weight threshold as a Decimal string, e.g. \"0.02\" — the same spelling as portfolixir.portfolios.allocation) returns only the position rows whose |drift_weight| meets it, where drift_weight is the security's actual weight in the steering basis minus its position target exactly as the allocation computes it; kept rows carry drift_weight, rows without a drift are filtered out, and the response states min_drift, position_targets_total (the pre-filter count) and drift_basis. Without min_drift the rows carry no drift_weight and the shape is unchanged. Optional since (FR-38, ISO8601 UTC) makes the position rows a delta read with the same rule as portfolixir.targets.list — a row counts as changed when it or its plan changed, as_of is the next since, deletions are not represented — applied before min_drift, so position_targets_total counts the delta; effective_targets is a roll-up and always covers the whole plan.",
     positionTargetsListSchema,
     positionTargetsListZ
   ),
@@ -3035,7 +3043,7 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
     case "portfolixir.events.list":
       return client.request(
         "GET",
-        withQuery(`/api/v1/securities/${args.security_id}/events`, args, ["limit"])
+        withQuery(`/api/v1/securities/${args.security_id}/events`, args, ["limit", "since"])
       );
     case "portfolixir.events.create":
       return client.request("POST", `/api/v1/securities/${args.security_id}/events`, {
@@ -3076,7 +3084,7 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
     case "portfolixir.notes.list":
       return client.request(
         "GET",
-        withQuery(`/api/v1/securities/${args.security_id}/notes`, args, ["limit"])
+        withQuery(`/api/v1/securities/${args.security_id}/notes`, args, ["limit", "since"])
       );
     case "portfolixir.notes.append":
       return client.request("POST", `/api/v1/securities/${args.security_id}/notes`, {
@@ -3258,7 +3266,8 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         "GET",
         withQuery(`/api/v1/portfolios/${args.portfolio_id}/targets`, args, [
           "classification_id",
-          "view"
+          "view",
+          "since"
         ])
       );
     case "portfolixir.targets.set":
@@ -3282,7 +3291,8 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         withQuery(`/api/v1/portfolios/${args.portfolio_id}/position_targets`, args, [
           "classification_id",
           "view",
-          "min_drift"
+          "min_drift",
+          "since"
         ])
       );
     case "portfolixir.targets.delete_position":
