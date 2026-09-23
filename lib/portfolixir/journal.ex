@@ -68,7 +68,10 @@ defmodule Portfolixir.Journal do
       # read after a committed write can be served a pre-write derived value.
       # A write kind the resolver does not know widens to "every portfolio"
       # rather than to none.
-      Invalidation.after_write(repo, resource_type, Map.fetch!(changes, source))
+      # #851: the before-image rides along, so an edit that MOVES a record
+      # (a transaction to another security or portfolio) also bumps what the
+      # record used to affect — the radius is the union of both images.
+      Invalidation.after_write(repo, resource_type, Map.fetch!(changes, source), before)
       {:ok, :invalidated}
     end)
     |> Multi.run(:journal_reset_actor, fn repo, _changes -> reset_actor(repo) end)
