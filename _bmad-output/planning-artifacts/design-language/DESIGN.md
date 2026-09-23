@@ -1003,8 +1003,8 @@ Note on the last two rows, both measured in the build.
 | app.css:620-629 | `.theme-menu-trigger` **and** `.accent-menu-trigger` | needs the shared outline — **the previously missed one**; the earlier citation started at 623 and so read the selector list as the accent trigger alone |
 | app.css:673-681 | `.theme-choice` **and** `.accent-choice` | needs the shared outline |
 | app.css:755-759 | `.locale-link` | needs the shared outline |
-| app.css:2122-2127 | `.row-actions__kebab` | needs the shared outline |
-| app.css:2160-2164 | `.row-context-menu__item` | needs the shared outline |
+| app.css:2122-2127 | `.row-actions__kebab` | **shipped 2026-09-23** (Sprint 14, issue 834): the 2px accent outline at a 2px offset on `:focus-visible`, hover keeps the background |
+| app.css:2160-2164 | `.row-context-menu__item` | **shipped 2026-09-23** (Sprint 14, issue 834): the 2px accent outline at a 2px offset on `:focus-visible`, hover keeps the background |
 
 **Not one of the eight is justified in place.** A hover background is a hover treatment; reusing it for focus means focus and hover are indistinguishable and neither is guaranteed 3:1 against its container. The correction is one shared `:focus-visible` rule carrying the 2px accent outline, not eight reinstatements — and it must land with a `outline-offset` of at least 2px wherever the focused element's own fill is the accent ({components.selected-segment}`.option-active`, the active tab underline), or the outline abuts its own colour at 1:1.
 
