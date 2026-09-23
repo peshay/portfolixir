@@ -366,4 +366,81 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleControllerTest do
     assert Portfolixir.Catalog.get_security(security.id)
     assert Buckets.get_view(view.id)
   end
+
+  # Acceptance criteria (ADR-0049 §8; FR-38 row delta):
+  # - Retiring on a named day ends the version in force that day; a malformed
+  #   day, or one before yesterday, is a 422 on `valid_until` and nothing ends.
+  # - `since=` returns a rule whose own row is older than the cut when one of
+  #   its versions changed after it — a new version is a change to the rule.
+  test "retires on a named day and reads a rule's new version as a change",
+       %{conn: conn, world: world, security: security} do
+    create = fn name ->
+      {:ok, rule} =
+        PolicyRules.create_rule(
+          Actor.owner_ui(),
+          %{
+            portfolio_id: world.portfolio.id,
+            name: name,
+            version: Map.put(weight_cap(security), "valid_from", Date.add(today(), -30))
+          },
+          today: Date.add(today(), -30)
+        )
+
+      rule
+    end
+
+    ending = create.("Ends on a named day")
+
+    for {bad, message} <- [
+          {"soon", "is invalid"},
+          {Date.to_iso8601(Date.add(today(), -5)), "cannot be before"}
+        ] do
+      %{"errors" => errors} =
+        conn
+        |> post("/api/v1/policy_rules/#{ending.id}/retire", %{"valid_until" => bad})
+        |> json_response(422)
+
+      assert Enum.any?(errors["valid_until"], &(&1 =~ message))
+    end
+
+    day = Date.add(today(), 5)
+
+    %{"data" => retired} =
+      conn
+      |> post("/api/v1/policy_rules/#{ending.id}/retire", %{"valid_until" => Date.to_iso8601(day)})
+      |> json_response(200)
+
+    assert [%{"valid_until" => until}] = retired["versions"]
+    assert until == Date.to_iso8601(day)
+
+    edited = create.("Gets a new version")
+    untouched = create.("Stays as it is")
+    old = NaiveDateTime.add(NaiveDateTime.utc_now(), -3 * 86_400, :second)
+
+    # Test-only clock control, as the delta-read tests do: backdate the rows
+    # under a transaction-local journal actor so the cut falls between them.
+    Portfolixir.Repo.query!(
+      "SELECT set_config('portfolixir.journal_actor', 'test_backdate', true)"
+    )
+
+    Portfolixir.Repo.query!("UPDATE policy_rules SET updated_at = $1", [old])
+    Portfolixir.Repo.query!("UPDATE policy_rule_versions SET updated_at = $1", [old])
+
+    conn
+    |> post("/api/v1/policy_rules/#{edited.id}/versions", %{
+      "version" => Map.put(weight_cap(security), "threshold", "12")
+    })
+    |> json_response(201)
+
+    cut = Date.to_iso8601(Date.add(today(), -1))
+
+    %{"data" => %{"rules" => delta}} =
+      conn
+      |> get("/api/v1/portfolios/#{world.portfolio.id}/policy_rules?since=#{cut}")
+      |> json_response(200)
+
+    ids = Enum.map(delta, & &1["id"])
+    assert edited.id in ids
+    refute untouched.id in ids
+  end
 end
