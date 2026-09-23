@@ -653,4 +653,55 @@ defmodule Portfolixir.Portfolios.TargetsTest do
     assert a.stale
     assert b.stale
   end
+
+  # User story (#481, closing-act fix round):
+  # As the maintainer saving the plan editor,
+  # I want the clears and the writes of one save to land together or not at all,
+  # so that a refused save never leaves half a plan behind.
+  #
+  # Acceptance criteria:
+  # - `edit_plan/5` deletes the named position and category rows and writes the
+  #   entries in one transaction.
+  # - A rejected entry rolls the deletes back as well.
+  test "edit_plan/5 clears and writes as one transaction" do
+    %{portfolio: portfolio, classification: classification, core: core, satellite: satellite} =
+      setup_world()
+
+    alpha = create_assigned_security(classification, core, "Alpha")
+    beta = create_assigned_security(classification, core, "Beta")
+
+    {:ok, _} =
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+        %{category_id: core.id, target_weight: "0.3"},
+        %{category_id: core.id, security_id: alpha.id, target_weight: "0.1"},
+        %{category_id: core.id, security_id: beta.id, target_weight: "0.2"}
+      ])
+
+    assert {:error, {:security_category_mismatch, _, _}} =
+             Targets.edit_plan(
+               Actor.owner_ui(),
+               portfolio.id,
+               classification.id,
+               [%{category_id: satellite.id, security_id: alpha.id, target_weight: "0.1"}],
+               clear_positions: [{core.id, beta.id}],
+               clear_categories: [core.id]
+             )
+
+    assert length(Targets.list_position_targets(portfolio.id)) == 2
+    assert Targets.get_target(portfolio.id, core.id)
+
+    assert {:ok, _} =
+             Targets.edit_plan(
+               Actor.owner_ui(),
+               portfolio.id,
+               classification.id,
+               [%{category_id: satellite.id, target_weight: "0.5"}],
+               clear_positions: [{core.id, alpha.id}, {core.id, beta.id}],
+               clear_categories: [core.id]
+             )
+
+    assert Targets.list_position_targets(portfolio.id) == []
+    assert Targets.get_target(portfolio.id, core.id) == nil
+    assert Decimal.equal?(Targets.get_target(portfolio.id, satellite.id).target_weight, "0.5")
+  end
 end

@@ -754,6 +754,18 @@ gibt die Steuerung an die Kategorie zurück; `0` ist ein Ziel von null und bleib
 erhalten. Das Zuklappen der Positionen einer Kategorie blendet die Zeilen nur
 aus; ihre Werte werden weiter gespeichert.
 
+Ein Speichern ist **eine Transaktion**: Ein abgelehntes Speichern — ein Ziel über
+100 %, ein Wertpapier unter einer Kategorie, in der es nicht mehr liegt — ändert
+nichts, auch nicht die Leerungen. Leert ein Speichern das **letzte** Positionsziel
+einer Kategorie und ist für die Kategorie kein Gewicht eingetragen, fällt das
+Gewicht der Kategorie, das nur der Summe folgte, mit weg: Die Kategorie steht
+dann ohne Ziel da statt mit einer Zahl, die niemand eingetragen hat. Eine
+**veraltete** Positionszeile (ihr Wertpapier wurde inzwischen einer anderen
+Kategorie zugeordnet) erscheint weiter dort, wo sie abgelegt wurde; unverändert
+zurückgeschickt bleibt sie, wie sie ist, eine Änderung wird mit dem Grund
+abgelehnt — leere sie stattdessen dort. **Das Übernehmen eines Plans aus einer
+anderen Sicht** übernimmt auch dessen Positionsziele.
+
 ### Plan-Versionen: duplizieren, Entwurf, aktivieren
 
 Seit ADR-0027 ist ein Plan eine **benannte Version** mit Status — *aktiv*,

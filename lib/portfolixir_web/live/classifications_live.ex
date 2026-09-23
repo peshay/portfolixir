@@ -1276,22 +1276,22 @@ defmodule PortfolixirWeb.ClassificationsLive do
          classification_id when is_integer(classification_id) <- socket.assigns.selected_id,
          {:ok, entries} <- parse_weight_entries(params["weights"]),
          {:ok, position_entries} <- parse_position_entries(params["positions"]),
-         :ok <- clear_soll_positions(socket, portfolio_id, params["positions"]),
+         {:ok, cash_opts} <- soll_cash_opts(socket, params),
          {:ok, _} <-
-           save_soll_targets(
-             socket,
+           Targets.edit_plan(
+             Actor.owner_ui(),
              portfolio_id,
              classification_id,
-             follow_positions(entries, position_entries) ++ position_entries
-           ),
-         :ok <- save_soll_cash_target(socket, portfolio_id, params) do
+             follow_positions(entries, position_entries) ++
+               changed_positions(socket.assigns.soll, position_entries),
+             soll_scope(socket) ++
+               soll_clears(socket.assigns.soll, params["positions"], entries, position_entries) ++
+               cash_opts
+           ) do
       {:noreply, socket |> success(gettext("Plan saved")) |> load_soll()}
     else
-      {:error, %Ecto.Changeset{} = changeset} ->
-        {:noreply, failure(socket, changeset_error(changeset))}
-
       {:error, reason} ->
-        {:noreply, failure(socket, error_message(reason))}
+        {:noreply, failure(socket, soll_error(socket.assigns, reason))}
 
       _ ->
         {:noreply, failure(socket, gettext("Could not save the plan"))}
@@ -1410,33 +1410,25 @@ defmodule PortfolixirWeb.ClassificationsLive do
   # Writes into the picked plan version when one is loaded; with no plan yet
   # (e.g. saving a copy-prefilled empty scope) the view-addressed write creates
   # the scope's active plan on first save, as before ADR-0027.
-  defp save_soll_targets(socket, portfolio_id, classification_id, entries) do
+  defp soll_scope(socket) do
     case socket.assigns.soll do
-      %{plan: %{id: plan_id}} ->
-        Targets.set_targets(Actor.owner_ui(), portfolio_id, classification_id, entries,
-          plan: plan_id
-        )
-
-      _ ->
-        Targets.set_targets(Actor.owner_ui(), portfolio_id, classification_id, entries,
-          view: socket.assigns.soll_view_id
-        )
+      %{plan: %{id: plan_id}} -> [plan: plan_id, view: socket.assigns.soll_view_id]
+      _ -> [view: socket.assigns.soll_view_id]
     end
   end
 
   # The cash target belongs to the ACTIVE steering (the portfolio-wide cash
   # plan of the view scope, ADR-0020) — editing a draft version leaves it
-  # untouched; the input is disabled there (ADR-0027 v1).
-  defp save_soll_cash_target(socket, portfolio_id, params) do
+  # untouched; the input is disabled there (ADR-0027 v1). It is written in the
+  # same transaction as the plan (`Targets.edit_plan/5`).
+  defp soll_cash_opts(socket, params) do
     case socket.assigns.soll do
       %{editing_version?: true} ->
-        :ok
+        {:ok, []}
 
       _ ->
         with {:ok, cash_weight} <- parse_percent_fraction(params["cash_target"]) do
-          Targets.set_cash_target(Actor.owner_ui(), portfolio_id, cash_weight,
-            view: socket.assigns.soll_view_id
-          )
+          {:ok, [cash: cash_weight]}
         end
     end
   end
@@ -1565,6 +1557,13 @@ defmodule PortfolixirWeb.ClassificationsLive do
       members: position_members(classification_id, stored_positions),
       position_weights: position_weights,
       stored_positions: MapSet.new(stored_positions, &{&1.category_id, &1.security_id}),
+      stale_positions:
+        for(
+          row <- stored_positions,
+          row.stale,
+          into: %{},
+          do: {{row.category_id, row.security_id}, row.target_weight}
+        ),
       expanded: position_weights |> Map.keys() |> MapSet.new(),
       cash_target: cash_target,
       top_level_ids: top_level_ids(assigns.tree.flat),
@@ -1627,11 +1626,32 @@ defmodule PortfolixirWeb.ClassificationsLive do
       |> Targets.get_cash_target(view: source_view_id)
       |> fraction_to_percent_or_nil()
 
+    # The source's position targets come along (closing act): a plan that
+    # steers by positions is not copied by its category rows alone.
+    positions =
+      Targets.list_position_targets(portfolio.id,
+        classification_id: classification_id,
+        view: source_view_id
+      )
+
+    position_weights =
+      Enum.reduce(positions, %{}, fn row, acc ->
+        put_in_nested(
+          acc,
+          row.category_id,
+          row.security_id,
+          fraction_to_percent(row.target_weight)
+        )
+      end)
+
     # Copying prefills the form (and reveals it from the empty state) without
     # persisting; the maintainer still has to Save to write the plan.
     assigns.soll
     |> Map.put(:exists, true)
     |> Map.put(:weights, weights)
+    |> Map.put(:position_weights, position_weights)
+    |> Map.put(:members, position_members(classification_id, positions))
+    |> Map.put(:expanded, position_weights |> Map.keys() |> MapSet.new())
     |> Map.put(:cash_target, cash)
     |> Map.put(:child_sums, child_sums(assigns.tree.flat, weights))
     |> put_sum()
@@ -2233,29 +2253,48 @@ defmodule PortfolixirWeb.ClassificationsLive do
   # The stored position rows whose input came back empty are deleted — an empty
   # field means "no position target", never zero (#481). Only a row the form
   # actually carried is touched: a submit without the position inputs clears
-  # nothing.
-  defp clear_soll_positions(socket, portfolio_id, positions) when is_map(positions) do
-    case socket.assigns.soll do
-      %{plan: %{id: plan_id}, stored_positions: stored} ->
-        for {category_id, security_id} <- stored,
-            blank_position?(positions, category_id, security_id) do
-          Targets.delete_position_target(
-            Actor.owner_ui(),
-            portfolio_id,
-            category_id,
-            security_id,
-            plan: plan_id
-          )
-        end
+  # nothing. A category whose stored positions this save clears completely,
+  # with no weight typed for it and no new position, loses the row that only
+  # followed their sum (closing-act fix round): the steering goes back to the
+  # category, which then has no target, as the editor shows.
+  defp soll_clears(soll, positions, entries, position_entries) when is_map(positions) do
+    case soll do
+      %{plan: %{id: _}, stored_positions: stored} ->
+        cleared = Enum.filter(stored, fn {c, s} -> blank_position?(positions, c, s) end)
+        kept = MapSet.difference(stored, MapSet.new(cleared))
 
-        :ok
+        typed =
+          MapSet.new(entries ++ position_entries, & &1.category_id)
+          |> MapSet.union(MapSet.new(kept, &elem(&1, 0)))
+
+        categories =
+          cleared |> Enum.map(&elem(&1, 0)) |> Enum.uniq() |> Enum.reject(&(&1 in typed))
+
+        [clear_positions: cleared, clear_categories: categories]
 
       _no_plan ->
-        :ok
+        []
     end
   end
 
-  defp clear_soll_positions(_socket, _portfolio_id, _positions), do: :ok
+  defp soll_clears(_soll, _positions, _entries, _position_entries), do: []
+
+  # A stale position row (its security re-filed outside the category since)
+  # keeps counting where it was filed (ADR-0030), so the editor still shows it
+  # — but the write path refuses to file a security under a category it no
+  # longer sits in. Sent back unchanged, the row is left as it is instead of
+  # blocking every save; a changed value still goes to the write and is
+  # refused with the reason.
+  defp changed_positions(soll, position_entries) do
+    stale = Map.get(soll, :stale_positions, %{})
+
+    Enum.reject(position_entries, fn entry ->
+      case Map.get(stale, {entry.category_id, entry.security_id}) do
+        nil -> false
+        stored -> Decimal.equal?(stored, entry.target_weight)
+      end
+    end)
+  end
 
   defp blank_position?(positions, category_id, security_id) do
     case positions |> Map.get(to_string(category_id)) do
@@ -2412,9 +2451,64 @@ defmodule PortfolixirWeb.ClassificationsLive do
   defp error_message(%Ecto.Changeset{} = changeset), do: changeset_error(changeset)
   defp error_message(_other), do: gettext("Something went wrong")
 
+  # A plan save refused by the write path, in the operator's terms (closing
+  # act): the securities and categories by name, a weight as the percentage
+  # the form takes — the changeset's own bound is a fraction.
+  defp soll_error(assigns, {:security_category_mismatch, security_id, category_id}) do
+    gettext("%{security} no longer sits under %{category} — clear its position target there",
+      security: soll_member_name(assigns, security_id),
+      category: category_name(assigns, category_id)
+    )
+  end
+
+  defp soll_error(assigns, {:duplicate_position, security_id}) do
+    gettext("%{security} already carries a position target under another category",
+      security: soll_member_name(assigns, security_id)
+    )
+  end
+
+  defp soll_error(_assigns, %Ecto.Changeset{errors: errors} = changeset) do
+    if Keyword.has_key?(errors, :target_weight),
+      do: gettext("A target must lie between 0 and 100 %"),
+      else: changeset_error(changeset)
+  end
+
+  defp soll_error(_assigns, reason), do: error_message(reason)
+
+  defp soll_member_name(assigns, security_id) do
+    assigns.soll.members
+    |> Map.values()
+    |> List.flatten()
+    |> Enum.find_value(to_string(security_id), &(&1.id == security_id && &1.name))
+  end
+
+  defp category_name(assigns, category_id) do
+    Enum.find_value(assigns.tree.flat, to_string(category_id), fn {category, _depth} ->
+      category.id == category_id && category.name
+    end)
+  end
+
+  # A changeset's errors in the page's language (closing act): the messages
+  # run through the `errors` domain with their values bound, never the raw
+  # English with an unfilled placeholder.
   defp changeset_error(changeset) do
     changeset.errors
-    |> Enum.map(fn {field, {message, _opts}} -> "#{field} #{message}" end)
+    |> Enum.map(fn {field, error} -> "#{field_label(field)} #{translate_error(error)}" end)
     |> Enum.join(", ")
+  end
+
+  defp field_label(:name), do: gettext("Name")
+  defp field_label(field), do: Phoenix.Naming.humanize(field)
+
+  defp translate_error({message, opts}) do
+    bindings = Map.new(opts, fn {key, value} -> {key, to_string(value)} end)
+
+    case opts[:count] do
+      nil ->
+        Gettext.dgettext(PortfolixirWeb.Gettext, "errors", message, bindings)
+
+      count ->
+        Gettext.dngettext(PortfolixirWeb.Gettext, "errors", message, message, count, bindings)
+    end
   end
 end

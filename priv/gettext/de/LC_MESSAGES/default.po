@@ -203,6 +203,7 @@ msgstr "Manuelles Kauf- und Verkaufsjournal"
 #: lib/portfolixir/catalog/security_fields.ex:54
 #: lib/portfolixir_web/live/classifications_live.ex:433
 #: lib/portfolixir_web/live/classifications_live.ex:739
+#: lib/portfolixir_web/live/classifications_live.ex:2500
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:93
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:296
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:165
@@ -1954,7 +1955,7 @@ msgstr "Hinzufügen"
 msgid "Built-in"
 msgstr "Vordefiniert"
 
-#: lib/portfolixir_web/live/classifications_live.ex:2406
+#: lib/portfolixir_web/live/classifications_live.ex:2445
 #, elixir-autogen, elixir-format
 msgid "Built-in classifications cannot be edited"
 msgstr "Vordefinierte Klassifizierungen können nicht bearbeitet werden"
@@ -1974,7 +1975,7 @@ msgstr "Kategorie angelegt"
 msgid "Category deleted"
 msgstr "Kategorie gelöscht"
 
-#: lib/portfolixir_web/live/classifications_live.ex:2409
+#: lib/portfolixir_web/live/classifications_live.ex:2448
 #, elixir-autogen, elixir-format
 msgid "Category not found"
 msgstr "Kategorie nicht gefunden"
@@ -2096,7 +2097,7 @@ msgstr "Klassifizierungen verwalten"
 msgid "Move to category"
 msgstr "In Kategorie verschieben"
 
-#: lib/portfolixir_web/live/classifications_live.ex:2086
+#: lib/portfolixir_web/live/classifications_live.ex:2106
 #, elixir-autogen, elixir-format
 msgid "Moved %{count} security"
 msgid_plural "Moved %{count} securities"
@@ -2130,7 +2131,7 @@ msgstr "Noch keine Kategorien."
 msgid "No classifications yet."
 msgstr "Noch keine Klassifizierungen."
 
-#: lib/portfolixir_web/live/classifications_live.ex:2408
+#: lib/portfolixir_web/live/classifications_live.ex:2447
 #, elixir-autogen, elixir-format
 msgid "Not found"
 msgstr "Nicht gefunden"
@@ -2150,7 +2151,7 @@ msgstr "Übergeordnet"
 msgid "Search securities in this tree…"
 msgstr "Wertpapiere in diesem Baum suchen…"
 
-#: lib/portfolixir_web/live/classifications_live.ex:2413
+#: lib/portfolixir_web/live/classifications_live.ex:2452
 #, elixir-autogen, elixir-format
 msgid "Something went wrong"
 msgstr "Etwas ist schiefgelaufen"
@@ -2160,12 +2161,12 @@ msgstr "Etwas ist schiefgelaufen"
 msgid "Target category"
 msgstr "Zielkategorie"
 
-#: lib/portfolixir_web/live/classifications_live.ex:2407
+#: lib/portfolixir_web/live/classifications_live.ex:2446
 #, elixir-autogen, elixir-format
 msgid "That category belongs to another tree"
 msgstr "Diese Kategorie gehört zu einem anderen Baum"
 
-#: lib/portfolixir_web/live/classifications_live.ex:2410
+#: lib/portfolixir_web/live/classifications_live.ex:2449
 #, elixir-autogen, elixir-format
 msgid "This tree cannot be reassigned"
 msgstr "Dieser Baum kann nicht neu zugewiesen werden"
@@ -2175,7 +2176,7 @@ msgstr "Dieser Baum kann nicht neu zugewiesen werden"
 msgid "Unassign"
 msgstr "Zuordnung entfernen"
 
-#: lib/portfolixir_web/live/classifications_live.ex:2090
+#: lib/portfolixir_web/live/classifications_live.ex:2110
 #, elixir-autogen, elixir-format
 msgid "Unassigned %{count} security"
 msgid_plural "Unassigned %{count} securities"
@@ -2738,7 +2739,7 @@ msgstr "Plan anlegen"
 msgid "Delete plan"
 msgstr "Plan löschen"
 
-#: lib/portfolixir_web/live/classifications_live.ex:1643
+#: lib/portfolixir_web/live/classifications_live.ex:1663
 #, elixir-autogen, elixir-format
 msgid "Gesamt (total)"
 msgstr "Gesamt"
@@ -2753,7 +2754,7 @@ msgstr "Plan angelegt"
 msgid "Plan deleted"
 msgstr "Plan gelöscht"
 
-#: lib/portfolixir_web/live/classifications_live.ex:1288
+#: lib/portfolixir_web/live/classifications_live.ex:1291
 #, elixir-autogen, elixir-format
 msgid "Plan saved"
 msgstr "Plan gespeichert"
@@ -3722,22 +3723,22 @@ msgstr "Geltungsbereich"
 msgid "Snapshots"
 msgstr "Snapshots"
 
-#: lib/portfolixir_web/live/classifications_live.ex:2288
+#: lib/portfolixir_web/live/classifications_live.ex:2327
 #, elixir-autogen, elixir-format
 msgid "active"
 msgstr "aktiv"
 
-#: lib/portfolixir_web/live/classifications_live.ex:2290
+#: lib/portfolixir_web/live/classifications_live.ex:2329
 #, elixir-autogen, elixir-format
 msgid "archived"
 msgstr "archiviert"
 
-#: lib/portfolixir_web/live/classifications_live.ex:2289
+#: lib/portfolixir_web/live/classifications_live.ex:2328
 #, elixir-autogen, elixir-format
 msgid "draft"
 msgstr "Entwurf"
 
-#: lib/portfolixir_web/live/classifications_live.ex:2280
+#: lib/portfolixir_web/live/classifications_live.ex:2319
 #, elixir-autogen, elixir-format
 msgid "Archived — the Wealth page follows the active plan; activate to reuse it."
 msgstr "Archiviert — die Vermögensseite folgt dem aktiven Plan; aktiviere ihn, um ihn wiederzuverwenden."
@@ -4636,7 +4637,7 @@ msgstr "Zugeordnete, nicht mehr gehaltene Wertpapiere, vom Filter ausgeblendet"
 msgid "CSV or JSON v1 · max 20 MB · nothing is saved before confirmation"
 msgstr "CSV oder JSON v1 · max. 20 MB · vor der Bestätigung wird nichts gespeichert"
 
-#: lib/portfolixir_web/live/classifications_live.ex:2284
+#: lib/portfolixir_web/live/classifications_live.ex:2323
 #, elixir-autogen, elixir-format
 msgid "Draft — the Wealth page keeps following the active plan until this one is activated."
 msgstr "Entwurf — die Vermögensseite folgt weiter dem aktiven Plan, bis dieser hier aktiviert wird."
@@ -7731,3 +7732,18 @@ msgstr "gehalten, aber nicht bewertbar"
 #, elixir-autogen, elixir-format
 msgid "is less than the fees and taxes of this sale"
 msgstr "ist kleiner als die Gebühren und Steuern dieses Verkaufs"
+
+#: lib/portfolixir_web/live/classifications_live.ex:2465
+#, elixir-autogen, elixir-format
+msgid "%{security} already carries a position target under another category"
+msgstr "%{security} hat bereits ein Positionsziel unter einer anderen Kategorie"
+
+#: lib/portfolixir_web/live/classifications_live.ex:2458
+#, elixir-autogen, elixir-format
+msgid "%{security} no longer sits under %{category} — clear its position target there"
+msgstr "%{security} liegt nicht mehr unter %{category} – leere dort sein Positionsziel"
+
+#: lib/portfolixir_web/live/classifications_live.ex:2472
+#, elixir-autogen, elixir-format
+msgid "A target must lie between 0 and 100 %"
+msgstr "Ein Ziel muss zwischen 0 und 100 % liegen"

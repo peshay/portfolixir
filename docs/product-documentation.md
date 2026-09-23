@@ -700,6 +700,17 @@ position's field and saving deletes that target and hands the steering back to
 the category, while `0` is a target of zero and is kept. Closing a category's
 positions only hides the rows; their values still save.
 
+A save is **one transaction**: a refused save — a target above 100 %, a
+security filed under a category it no longer sits in — changes nothing, the
+clears included. When a save clears a category's **last** position target and
+no weight is typed for the category, the category's weight that only followed
+their sum is removed with them, so the category is left without a target rather
+than holding a figure nobody typed. A **stale** position row (its security was
+moved to another category since) still shows where it was filed; sent back
+unchanged it is left as it is, and changing it is refused with the reason —
+clear it there instead. **Copying a plan from another view** copies its position
+targets as well.
+
 ### Plan versions: duplicate, draft, activate
 
 Since ADR-0027 a plan is a **named version** with a status — *active*, *draft*

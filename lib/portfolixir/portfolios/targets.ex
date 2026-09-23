@@ -398,6 +398,60 @@ defmodule Portfolixir.Portfolios.Targets do
     end
   end
 
+  @doc """
+  One save of the plan editor (#481, closing-act fix round): deletes the
+  position rows named in `clear_positions: [{category_id, security_id}]` and
+  the category rows named in `clear_categories: [category_id]`, then writes
+  `entries` as `set_targets/5` does — all in **one** transaction, so a
+  rejected entry also rolls the deletes back and a refused save changes
+  nothing. `plan:` / `view:` address the plan as for `set_targets/5`; with
+  `cash: weight` (a fraction or `nil`) the view's cash target is written in
+  the same transaction. Returns `set_targets/5`'s results.
+  """
+  def edit_plan(%Actor{} = actor, portfolio_id, classification_id, entries, opts \\ [])
+      when is_integer(portfolio_id) and is_integer(classification_id) and is_list(entries) do
+    {edit, scope} = Keyword.split(opts, [:clear_positions, :clear_categories, :cash])
+
+    Repo.transaction(fn ->
+      with {:ok, _} <- clear_positions(actor, portfolio_id, edit[:clear_positions], scope),
+           {:ok, _} <- clear_categories(actor, portfolio_id, edit[:clear_categories], scope),
+           {:ok, targets} <- set_targets(actor, portfolio_id, classification_id, entries, scope),
+           :ok <- edit_cash(actor, portfolio_id, edit, scope) do
+        targets
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+  end
+
+  defp clear_positions(actor, portfolio_id, pairs, scope) do
+    Enum.reduce_while(pairs || [], {:ok, 0}, fn {category_id, security_id}, {:ok, count} ->
+      case delete_position_target(actor, portfolio_id, category_id, security_id, scope) do
+        {:ok, deleted} -> {:cont, {:ok, count + deleted}}
+        error -> {:halt, error}
+      end
+    end)
+  end
+
+  defp clear_categories(actor, portfolio_id, category_ids, scope) do
+    Enum.reduce_while(category_ids || [], {:ok, 0}, fn category_id, {:ok, count} ->
+      case delete_target(actor, portfolio_id, category_id, scope) do
+        {:ok, deleted} -> {:cont, {:ok, count + deleted}}
+        error -> {:halt, error}
+      end
+    end)
+  end
+
+  # The cash target is the active steering's (ADR-0020): it is addressed by
+  # view, never by the edited version.
+  defp edit_cash(actor, portfolio_id, edit, scope) do
+    if Keyword.has_key?(edit, :cash) do
+      set_cash_target(actor, portfolio_id, edit[:cash], Keyword.take(scope, [:view]))
+    else
+      :ok
+    end
+  end
+
   # Plan resolution runs INSIDE the batch transaction (review finding): a
   # rejected entry must also roll back a plan row created for this batch —
   # otherwise a failed first save leaves an empty active plan behind and flips
