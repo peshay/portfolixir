@@ -6243,6 +6243,67 @@ button.income-bar-label.is-active {
   text-align: right;
 }
 
+/* Position targets inline (issue 481, board 02 variant A). The toggle is a
+   quiet accent text control beside the category name; the position rows sit
+   indented under it on the sunken surface; once a position carries a target
+   the category's field is a dashed read-only sum, because it is shown, not
+   entered (ADR-0030 §2). */
+.soll-positions-toggle,
+.soll-positions-toggle:hover {
+  min-height: 0;
+  margin-left: var(--space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--color-accent);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.soll-row__follows {
+  display: block;
+  font-weight: 400;
+}
+
+.soll-row--position th,
+.soll-row--position td {
+  background: var(--color-bg-muted);
+}
+
+.soll-row__name--position {
+  font-weight: 400;
+  /* Instrument names carry unbreakable runs ("DL-,00000625"); at 390 px
+     they must wrap rather than push the target column off-screen. */
+  overflow-wrap: anywhere;
+}
+
+.soll-position-sum {
+  display: inline-block;
+  min-width: 6rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  text-align: right;
+}
+
+/* The plan editor is a two-column form, meant to fit rather than scroll: with
+   position names in it (issue 481) the scroller's `min-width: max-content`
+   pushed every input off a 390 px screen. The Risk tables' fit pattern. */
+@media (max-width: 720px) {
+  .data-table-wrapper > .soll-table {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .soll-table th,
+  .soll-table td {
+    white-space: normal;
+  }
+}
+
 .soll-row.is-target-mismatch > .soll-row__name {
   color: var(--color-warning);
 }
