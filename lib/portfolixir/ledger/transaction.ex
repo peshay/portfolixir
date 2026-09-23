@@ -449,6 +449,8 @@ defmodule Portfolixir.Ledger.Transaction do
           "separate tax_refund transaction whose positive gross_amount credits " <>
           "the cash account"
     )
+    |> validate_number(:settlement_amount, greater_than_or_equal_to: 0)
+    |> validate_number(:security_amount, greater_than_or_equal_to: 0)
     |> validate_gross_amount_sign()
   end
 

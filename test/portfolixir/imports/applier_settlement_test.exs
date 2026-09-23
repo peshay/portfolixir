@@ -101,6 +101,43 @@ defmodule Portfolixir.Imports.ApplierSettlementTest do
     assert Decimal.equal?(tx.settlement_fx_rate, Decimal.new("0.80"))
   end
 
+  # Acceptance criteria (#395's guard meets the importer; closing act, both
+  # hunters): Portfolio Performance prints the per-share Kurs rounded, while
+  # the Betrag is the exact cash the broker settled. The settlement amount
+  # is therefore the cash amount net of fees and taxes — the guard's own
+  # relation, inverted — not quantity × the rounded Kurs, which missed the
+  # Betrag by more than a cent and made the guard refuse the whole import.
+  test "a cross-currency PP buy settles on its cash amount, not the rounded Kurs" do
+    portfolio = portfolio!()
+    usd_security!()
+
+    {:ok, _} =
+      Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: ~D[2026-01-15],
+          rate: "1.25",
+          source: "manual"
+        }
+      ])
+
+    tx =
+      apply!(
+        buy_entry(%{
+          gross_amount: Decimal.new("805.03"),
+          quantity: Decimal.new("13"),
+          price: Decimal.new("61.54"),
+          fees: Decimal.new("4.95")
+        }),
+        portfolio
+      )
+
+    assert Decimal.equal?(tx.gross_amount, Decimal.new("805.03"))
+    assert Decimal.equal?(tx.settlement_amount, Decimal.new("800.08"))
+    assert Decimal.equal?(tx.security_amount, Decimal.new("1000.10"))
+  end
+
   # User story (ADR-0033 requirement 4 — honesty over availability):
   # As a maintainer importing the same buy without any stored rate for the
   # booking date,

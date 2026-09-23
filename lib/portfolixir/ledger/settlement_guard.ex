@@ -59,6 +59,26 @@ defmodule Portfolixir.Ledger.SettlementGuard do
   def expected_cash(_type, _settlement, _fees, _taxes), do: nil
 
   @doc """
+  The guard's relation inverted: the trade amount in the account currency a
+  cash amount implies — `gross - fees - taxes` for a buy, `gross + fees +
+  taxes` for a sell — or `nil` without a cash amount or for another kind.
+
+  Where a row is derived rather than typed (the Portfolio Performance import,
+  the settlement backfill), the cash amount is the figure the broker settled
+  and the per-share price a rounded display, so the settlement leg is read off
+  the cash: the row then meets the guard by construction.
+  """
+  @spec trade_amount(String.t(), Decimal.t() | nil, Decimal.t() | nil, Decimal.t() | nil) ::
+          Decimal.t() | nil
+  def trade_amount("buy", %Decimal{} = gross, fees, taxes),
+    do: gross |> Decimal.sub(zero(fees)) |> Decimal.sub(zero(taxes))
+
+  def trade_amount("sell", %Decimal{} = gross, fees, taxes),
+    do: gross |> Decimal.add(zero(fees)) |> Decimal.add(zero(taxes))
+
+  def trade_amount(_type, _gross, _fees, _taxes), do: nil
+
+  @doc """
   The changeset step (D-5): checks a cross-currency buy or sell on insert and
   on an update that changes an amount or the type; leaves every other write
   alone. The error lands on `gross_amount` and names the implied amount —

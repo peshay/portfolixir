@@ -68,6 +68,7 @@ defmodule Portfolixir.Imports.Applier do
   alias Portfolixir.Imports.Preview
   alias Portfolixir.Imports.SecurityResolver
   alias Portfolixir.Journal
+  alias Portfolixir.Ledger.SettlementGuard
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CashAccount
@@ -1071,8 +1072,11 @@ defmodule Portfolixir.Imports.Applier do
   # ADR-0033 (issue #569): a Portfolio Performance export books a
   # cross-currency trade in the ACCOUNT currency, so the row alone carries no
   # security-currency leg. Persist the ADR-0015 settlement fields at write
-  # time — `settlement_amount` is the account-currency trade amount
-  # (quantity x price), `security_amount` is that amount converted through
+  # time — `settlement_amount` is the account-currency trade amount (read
+  # off the cash amount net of fees and taxes, the settlement guard's
+  # relation inverted, #395: PP prints the per-share Kurs rounded, so
+  # quantity × Kurs can miss the Betrag by more than the guard's cent;
+  # quantity × price only without a cash amount), `security_amount` is that amount converted through
   # the STORED hub rate at the booking date, `settlement_fx_rate` their
   # ratio — so the cost fold can carry an honest cost pair without any
   # read-time rate lookup. No stored rate for the booking date means no
@@ -1088,7 +1092,9 @@ defmodule Portfolixir.Imports.Applier do
          %Decimal{} = quantity <- entry.quantity,
          %Decimal{} = price <- entry.price,
          %Date{} = date <- entry.date,
-         settlement_amount = Decimal.mult(quantity, price),
+         settlement_amount =
+           SettlementGuard.trade_amount(entry.kind, entry.gross_amount, entry.fees, entry.taxes) ||
+             Decimal.mult(quantity, price),
          {:ok, %Decimal{} = security_amount} <-
            Fx.convert(settlement_amount, entry_currency, security_currency, date),
          false <- Decimal.equal?(security_amount, 0) do

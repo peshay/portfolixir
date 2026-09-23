@@ -365,7 +365,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                                     <td class="num" data-role="amount">—</td>
                                   <% amount -> %>
                                     <td class="num" data-role="amount">
-                                      <%= signed_money(transaction.type, amount) %><small class="value-suffix"><%= transaction.currency_code %></small>
+                                      <%= signed_money(transaction.type, amount) %><small class="value-suffix"><%= money_currency(transaction) %></small>
                                     </td>
                                 <% end %>
                               <% _other -> %>
@@ -514,6 +514,15 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     # #395: a cross-currency trade's settlement amount and rate derive each
     # other from whichever the operator just typed (the event's `_target`).
     target = event |> Map.get("_target", []) |> List.wrap() |> List.last()
+
+    # Which settlement figure was typed last travels in the form's hidden
+    # field; an event that omits it keeps the drawer's last known one.
+    params =
+      case socket.assigns.transaction_form["settlement_source"] do
+        nil -> params
+        source -> Map.put_new(params, "settlement_source", source)
+      end
+
     params = SettlementForm.derive(params, target, settlement_pair(params, socket.assigns))
 
     # Clear stale field errors as the user edits, so a corrected field stops
@@ -1150,7 +1159,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # that would then need its own rate basis.
   defp totals_by_currency(transactions) do
     transactions
-    |> Enum.group_by(& &1.currency_code)
+    |> Enum.group_by(&money_currency/1)
     |> Enum.map(fn {currency, list} -> %{currency: currency, total: sum_amount(list)} end)
     |> Enum.sort_by(& &1.currency)
   end
@@ -1360,7 +1369,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp phone_amount(transaction) do
     case tx_money(transaction) do
       nil -> "—"
-      amount -> signed_money(transaction.type, amount) <> " " <> transaction.currency_code
+      amount -> signed_money(transaction.type, amount) <> " " <> money_currency(transaction)
     end
   end
 
@@ -1377,6 +1386,17 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # The booking's money on the same basis as the month subtotal (the stored
   # gross amount, else quantity × price); a split or a transfer without a
   # price has none.
+  # The currency a booking's money is in: a recorded cash amount moves through
+  # the cash account, so it is in the account's currency — for a cross-
+  # currency trade (ADR-0015) that is not the booking's currency, which is the
+  # security's (closing act, UAT: a EUR debit read "CHF"). Without a recorded
+  # cash amount the figure is quantity × price, in the booking's currency.
+  defp money_currency(%{gross_amount: %Decimal{}, cash_account: %{currency_code: code}})
+       when is_binary(code),
+       do: code
+
+  defp money_currency(transaction), do: transaction.currency_code
+
   defp tx_money(%{type: "split"}), do: nil
   defp tx_money(%{gross_amount: %Decimal{} = gross}), do: gross
 
@@ -1650,6 +1670,14 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           type="hidden"
           name="transaction[settlement_mode]"
           value={@transaction_form["settlement_mode"]}
+        />
+        <%!-- The importer's form keeps its settlement; the cash amount of a
+             corrected fee follows it (SettlementForm.prepare/2). --%>
+        <input
+          :if={@transaction_form["settlement_mode"] == "account"}
+          type="hidden"
+          name="transaction[settlement_amount]"
+          value={@transaction_form["settlement_amount"]}
         />
         <SettlementForm.fieldset
           :if={@settlement_pair}

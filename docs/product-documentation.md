@@ -538,14 +538,18 @@ differs from the currency of the chosen depot's cash account, the booking
 drawer shows a block "Settlement in EUR" (named after the account's currency)
 with two linked fields: the settlement amount in the account's currency and
 the rate — account units per one unit of the security's currency. Typing one
-derives the other; a changed quantity or price re-derives the amount from the
-rate. Both are prefilled from the stored exchange rates on or before the
+derives the other, and the one typed last stays as typed: after the amount
+from the broker statement, a changed quantity or price adjusts the rate, never
+the amount; a note, a fee or a date changes neither. Both are prefilled from the stored exchange rates on or before the
 booking date and say so — a suggestion, the broker statement wins; with no
 stored rate the block says that too and waits for the statement's figure. The
 price is entered in the security's currency, fees and taxes in the account's.
 Saved, the booking is in the security's currency, and its cash amount is
 computed from the settlement, fees and taxes, so the form never produces a
-booking the rule below refuses. Before Sprint 15 the form booked such a trade
+booking the rule below refuses. A trade worth nothing (a free allotment at
+price 0) books without a cash amount. Editing such a booking to a security in
+the account's currency removes its settlement figures and lets the cash follow
+the new quantity, price and fees. Before Sprint 15 the form booked such a trade
 in the account's currency, reading the security's price as if it were in
 euros.
 
