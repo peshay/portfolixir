@@ -374,8 +374,10 @@ Tragen Depot und Verrechnungskonto dieselben Buckets, zeigt das Paar **eine
 zusammengeführte Chip-Gruppe mit der Marke „Beide"** über beide Zeilen; der
 Link **Getrennt taggen** daneben teilt die Gruppe, sodass jede Seite eigene
 Tags bekommt (unterschiedliche Mengen erscheinen immer getrennt). Je Gruppe
-sind höchstens vier Chips sichtbar — weitere klappen in einen **+N**-Chip,
-und der Picker führt die vollständige Menge. Lange Namen (etwa
+sind höchstens vier Chips sichtbar — weitere klappen in ein Bedienelement
+**+2 anzeigen**; ein Druck darauf klappt die Zelle an Ort und Stelle auf und
+zeigt alle Buckets, **weniger** klappt sie wieder zu. Auch der Picker führt die
+vollständige Menge. Lange Namen (etwa
 datumsgestempelte Import-Tags) werden gekürzt; der volle Name erscheint beim
 Überfahren des Chips. Die Chips sind die Gruppierungs-UI: das **+** öffnet
 ein kleines Picker-Popover mit den übrigen Buckets plus einem Inline-Feld

@@ -350,7 +350,9 @@ touching it, and an empty set reads as the words *no bucket* rather than as a
 blank cell. **Tag separately** moved out of the cell into the row's **kebab
 menu**, which splits the group so each side can be tagged on its own
 (differing sets always render split). At most four chips are shown per group — further chips
-collapse into a **+N** chip, and the picker carries the full set. Long names
+collapse into a **+2 more** control; pressing it expands the cell in place to
+show every bucket, and **Show fewer** collapses it again. The picker carries
+the full set as well. Long names
 (for example date-stamped import tags) are truncated; hovering a chip reveals
 the full name. The chips are the grouping UI: the **+** affordance opens a
 small picker popover with the remaining buckets plus an inline **New tag**
