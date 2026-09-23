@@ -1662,6 +1662,14 @@ through this API lives next to the imported history:
 - **A mutated re-import** (a rename, a recorded ISIN change resolved through
   an alias or an explicit mapping) keeps the same guarantee for the matched
   securities; only the genuinely new bookings land.
+- **Stated where an agent reads it (issue #831).** The descriptions of the
+  eight MCP reads the guarantee protects — `portfolixir.notes.list`,
+  `.unreviewed`, `.uncorroborated`, `.expiring` and `portfolixir.events.list`,
+  `.upcoming`, `.unconfirmed`, `.stale` — carry the sentence "A Portfolio
+  Performance re-import does not destroy the research log or the security
+  events", so an agent meets the answer in the tool list it already reads
+  instead of on this page. The mutated path pins the research log as well as
+  the events.
 - **Not covered:** a booking that changed in the source. An edited
   transaction hashes differently and is imported as a new row beside the old
   one; the old booking is removed or corrected through

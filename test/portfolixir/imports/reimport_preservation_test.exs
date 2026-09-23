@@ -232,6 +232,8 @@ defmodule Portfolixir.Imports.ReimportPreservationTest do
   # - After the mutated re-import (explicit override + former-ISIN alias),
   #   `note` and `attributes` on both securities are unchanged, and the
   #   security events recorded against them survive the alias resolution.
+  # - The research log recorded against them survives it too, same ids
+  #   (#831 — the MCP tool descriptions state this guarantee).
   # - The one genuinely new booking still lands; nothing else changes.
   test "a mutated re-import (rename + ISIN change) preserves notes, attributes and events" do
     portfolio = setup_portfolio()
@@ -266,8 +268,22 @@ defmodule Portfolixir.Imports.ReimportPreservationTest do
         source_quality: "primary"
       })
 
+    # #831: the MCP tool descriptions now promise that a LATER export (renamed,
+    # re-ISINed) leaves the research log in place too, so this path pins it
+    # rather than only the identical re-import above.
+    {:ok, _entry} =
+      Knowledge.append_note(owner, %{
+        security_id: acme.id,
+        author: "operator",
+        kind: "evidence",
+        body: "Order book stable.",
+        source_quality: "primary",
+        as_of: ~D[2026-08-01]
+      })
+
     securities_before = security_snapshot([btc.id, acme.id])
     events_before = events_snapshot([btc.id, acme.id])
+    research_log_before = research_log_snapshot([btc.id, acme.id])
 
     {:ok, %{security: acme}} = Catalog.record_isin_change(owner, acme, "DE000ACME119")
 
@@ -295,6 +311,10 @@ defmodule Portfolixir.Imports.ReimportPreservationTest do
     # The calendar rides the alias resolution unchanged.
     assert events_snapshot([btc.id, acme.id]) == events_before
     assert Events.count_events() == 1
+
+    # And so does the research log (#831).
+    assert research_log_snapshot([btc.id, acme.id]) == research_log_before
+    assert Knowledge.count_notes() == 1
   end
 
   defp events_snapshot(security_ids) do

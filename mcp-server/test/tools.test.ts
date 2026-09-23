@@ -659,6 +659,42 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(requests[1].path, "/api/v1/securities?since=2026-06-01T00%3A00%3A00Z");
   });
 
+  // User story (issue #831, Sprint 14 D2):
+  // As the operating LLM agent reading the research log and the calendar,
+  // I want the re-import guarantee stated in the descriptions of the reads it
+  // protects,
+  // so that I stop re-asking whether a Portfolio Performance re-import wipes
+  // them — the answer arrives where I read, not on a page I never open.
+  //
+  // Acceptance criteria:
+  // - Every research-log read (notes.list, notes.unreviewed,
+  //   notes.uncorroborated, notes.expiring) and every security-events read
+  //   (events.list, events.upcoming, events.unconfirmed, events.stale) states
+  //   that a Portfolio Performance re-import does not destroy the research
+  //   log or the security events.
+  it("states the re-import guarantee on every research-log and events read", () => {
+    const tools = listTools();
+
+    for (const name of [
+      "portfolixir.notes.list",
+      "portfolixir.notes.unreviewed",
+      "portfolixir.notes.uncorroborated",
+      "portfolixir.notes.expiring",
+      "portfolixir.events.list",
+      "portfolixir.events.upcoming",
+      "portfolixir.events.unconfirmed",
+      "portfolixir.events.stale"
+    ]) {
+      const description = String(tools.find((tool) => tool.name === name)?.description);
+
+      assert.match(
+        description,
+        /A Portfolio Performance re-import does not destroy the research log or the security events/,
+        name
+      );
+    }
+  });
+
   // User story (FR-38, issue #830, Sprint 14 D-5):
   // As the operating LLM agent on a scheduled run,
   // I want since= on the other row-collection reads I poll — a security's

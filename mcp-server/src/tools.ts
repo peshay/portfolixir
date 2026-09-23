@@ -2105,6 +2105,15 @@ const securityMetricsZ = z.object({
   as_of: z.string().optional()
 });
 
+// #831: the re-import guarantee, stated where the consumer reads — in the
+// description of every read it protects — rather than only on a documentation
+// page. Pinned by test/portfolixir/imports/reimport_preservation_test.exs.
+const REIMPORT_GUARANTEE =
+  " A Portfolio Performance re-import does not destroy the research log or the security events: " +
+  "re-applying an export, the same one or a later one with renamed or re-ISINed securities, " +
+  "leaves every entry and every event in place with the same id — there is nothing to back up " +
+  "before an import and nothing to re-create after one.";
+
 const notesListSchema = {
   type: "object",
   additionalProperties: false,
@@ -2295,7 +2304,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.events.list",
     "Calendar of one security",
-    "One security's events (ADR-0048), soonest first: earnings reports, ex-dividend and payment dates, lockup expiries, index reviews, shareholder meetings, regulatory decisions, guidance updates. An event is a dated calendar FACT that books nothing — a split changes a position and is a ledger event, an earnings date changes nothing until a price moves. When the dividend is actually paid, book it through the ledger as always and mark the event confirmed with portfolixir.events.update; the event is never converted into a transaction and no tool does that for you. Each row carries kind, date, date_end (only on timing=window), timing (exact | estimated | window | month — how well the date is KNOWN, so a guess is never stored as a filing), confirmed, source_url, source_quality (primary | secondary_multi | awareness | unverified, the same scale as the research log), checked_at (the day the fact was last re-read against its source) and note. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only events created or updated strictly after that instant return — a rescheduled date comes back as its changed row — and the response carries as_of (use it as the next since) plus a delta_note; deletions are NOT represented, so a sync that must detect a removed date does a full read. The due, stale and unconfirmed queues deliberately take no since: their membership changes because time passes, with no row changing.",
+    "One security's events (ADR-0048), soonest first: earnings reports, ex-dividend and payment dates, lockup expiries, index reviews, shareholder meetings, regulatory decisions, guidance updates. An event is a dated calendar FACT that books nothing — a split changes a position and is a ledger event, an earnings date changes nothing until a price moves. When the dividend is actually paid, book it through the ledger as always and mark the event confirmed with portfolixir.events.update; the event is never converted into a transaction and no tool does that for you. Each row carries kind, date, date_end (only on timing=window), timing (exact | estimated | window | month — how well the date is KNOWN, so a guess is never stored as a filing), confirmed, source_url, source_quality (primary | secondary_multi | awareness | unverified, the same scale as the research log), checked_at (the day the fact was last re-read against its source) and note. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only events created or updated strictly after that instant return — a rescheduled date comes back as its changed row — and the response carries as_of (use it as the next since) plus a delta_note; deletions are NOT represented, so a sync that must detect a removed date does a full read. The due, stale and unconfirmed queues deliberately take no since: their membership changes because time passes, with no row changing." + REIMPORT_GUARANTEE,
     eventsListSchema,
     eventsListZ
   ),
@@ -2323,28 +2332,28 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.events.upcoming",
     "Dates due across the whole catalog within N days",
-    "Every security event due within days (default 30), soonest first, across the WHOLE CATALOG — held or not. This is the read to poll instead of rebuilding a calendar out of the position list: a calendar derived from the holdings cannot hold a date for a security not yet owned, which is how a purchase candidate's reporting date gets missed. held_only=true narrows to securities with a position and is NEVER the default. A window or month event is due when ANY day it could fall on is inside the horizon — conservative on purpose, because the failure being prevented is a missed date and not an early warning. kind narrows to one kind. The answer echoes days, as_of, held_only and its scope. PULL ONLY: nothing is pushed anywhere and no rule or alert reads these rows.",
+    "Every security event due within days (default 30), soonest first, across the WHOLE CATALOG — held or not. This is the read to poll instead of rebuilding a calendar out of the position list: a calendar derived from the holdings cannot hold a date for a security not yet owned, which is how a purchase candidate's reporting date gets missed. held_only=true narrows to securities with a position and is NEVER the default. A window or month event is due when ANY day it could fall on is inside the horizon — conservative on purpose, because the failure being prevented is a missed date and not an early warning. kind narrows to one kind. The answer echoes days, as_of, held_only and its scope. PULL ONLY: nothing is pushed anywhere and no rule or alert reads these rows." + REIMPORT_GUARANTEE,
     eventsUpcomingSchema,
     eventsUpcomingZ
   ),
   tool(
     "portfolixir.events.unconfirmed",
     "Dates that passed and nobody confirmed",
-    "Events whose whole span is in the past and whose confirmed flag is still false — the did-it-actually-happen queue, which is what keeps the calendar from quietly rotting. Resolve one by checking the source and calling portfolixir.events.update with confirmed=true (and a fresh checked_at), or by correcting the date if it moved. Optional security_id, kind, held_only and limit; there is no days here, because every unconfirmed past date belongs in the queue however old it is.",
+    "Events whose whole span is in the past and whose confirmed flag is still false — the did-it-actually-happen queue, which is what keeps the calendar from quietly rotting. Resolve one by checking the source and calling portfolixir.events.update with confirmed=true (and a fresh checked_at), or by correcting the date if it moved. Optional security_id, kind, held_only and limit; there is no days here, because every unconfirmed past date belongs in the queue however old it is." + REIMPORT_GUARANTEE,
     eventsUnconfirmedSchema,
     eventsUnconfirmedZ
   ),
   tool(
     "portfolixir.events.stale",
     "Dates nobody has re-read in N days",
-    "Events whose checked_at is older than days (default 90) — or that were never checked at all, which are listed too with days_since_checked null. This is the staleness of the CALENDAR, deliberately a different read from portfolixir.events.unconfirmed: a confirmed FUTURE date nobody has re-read in three months is a different risk from a PAST date nobody resolved. Re-read the source, then call portfolixir.events.update with a fresh checked_at (and a corrected date if it moved). Optional security_id, kind, held_only and limit.",
+    "Events whose checked_at is older than days (default 90) — or that were never checked at all, which are listed too with days_since_checked null. This is the staleness of the CALENDAR, deliberately a different read from portfolixir.events.unconfirmed: a confirmed FUTURE date nobody has re-read in three months is a different risk from a PAST date nobody resolved. Re-read the source, then call portfolixir.events.update with a fresh checked_at (and a corrected date if it moved). Optional security_id, kind, held_only and limit." + REIMPORT_GUARANTEE,
     eventsStaleSchema,
     eventsStaleZ
   ),
   tool(
     "portfolixir.notes.list",
     "Research log of a security",
-    "The security's research log (ADR-0044), newest first: dated, typed entries (thesis, evidence, invalidation_check, event_result, risk, retraction, decision) with author, source_url, source_quality (primary | secondary_multi | awareness | unverified), as_of (the statement's cut-off date, distinct from inserted_at), valid_until for dated blocks and the thesis fields (conviction, invalidation_condition, time_stop). Entries NEVER vanish: nothing updates or deletes one; a refuted finding is withdrawn by appending a retraction that supersedes it, and the superseded entry stays in the list with superseded_by_ids naming what superseded it — read the retraction first, then the finding, and do not re-investigate a premise a retraction already settled. The response also carries thesis_state, the current thesis derived from these entries (status none | intact | retracted, naming derived_from_entry_id and retracted_by_entry_id). This is the starting point of a research run: one call instead of a re-read of old conversations. Optional limit keeps the newest entries (default 1000, at most 10000); thesis_state always derives from the whole log, and the answer echoes the limit it applied. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only entries appended strictly after that instant (by inserted_at — the log is append-only, so an entry never changes after it is written) return, and the response carries as_of (use it as the next since) plus a delta_note; thesis_state still derives from the whole log, and superseded_by_ids on an older entry is only complete on a full read. The unreviewed, expiring and uncorroborated queues deliberately take no since: their membership changes because time passes, with no row changing.",
+    "The security's research log (ADR-0044), newest first: dated, typed entries (thesis, evidence, invalidation_check, event_result, risk, retraction, decision) with author, source_url, source_quality (primary | secondary_multi | awareness | unverified), as_of (the statement's cut-off date, distinct from inserted_at), valid_until for dated blocks and the thesis fields (conviction, invalidation_condition, time_stop). Entries NEVER vanish: nothing updates or deletes one; a refuted finding is withdrawn by appending a retraction that supersedes it, and the superseded entry stays in the list with superseded_by_ids naming what superseded it — read the retraction first, then the finding, and do not re-investigate a premise a retraction already settled. The response also carries thesis_state, the current thesis derived from these entries (status none | intact | retracted, naming derived_from_entry_id and retracted_by_entry_id). This is the starting point of a research run: one call instead of a re-read of old conversations. Optional limit keeps the newest entries (default 1000, at most 10000); thesis_state always derives from the whole log, and the answer echoes the limit it applied. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only entries appended strictly after that instant (by inserted_at — the log is append-only, so an entry never changes after it is written) return, and the response carries as_of (use it as the next since) plus a delta_note; thesis_state still derives from the whole log, and superseded_by_ids on an older entry is only complete on a full read. The unreviewed, expiring and uncorroborated queues deliberately take no since: their membership changes because time passes, with no row changing." + REIMPORT_GUARANTEE,
     notesListSchema,
     notesListZ
   ),
@@ -2358,21 +2367,21 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.notes.unreviewed",
     "Held positions with no research-log entry for N days",
-    "Review hygiene (ADR-0044 §7): every HELD security (net quantity <> 0 across all depots) whose newest research-log entry (by as_of) is older than days (default 90) — or that has no entry at all (last_entry_as_of null, days_since_last_entry null). Rows carry security_id, security_name, isin, ticker_symbol; the response echoes days, as_of and its basis. Unheld securities are not listed, however stale their log. Optional limit keeps the most overdue positions (default 1000, at most 10000).",
+    "Review hygiene (ADR-0044 §7): every HELD security (net quantity <> 0 across all depots) whose newest research-log entry (by as_of) is older than days (default 90) — or that has no entry at all (last_entry_as_of null, days_since_last_entry null). Rows carry security_id, security_name, isin, ticker_symbol; the response echoes days, as_of and its basis. Unheld securities are not listed, however stale their log. Optional limit keeps the most overdue positions (default 1000, at most 10000)." + REIMPORT_GUARANTEE,
     notesUnreviewedSchema,
     notesUnreviewedZ
   ),
   tool(
     "portfolixir.notes.uncorroborated",
     "Research-log entries that still need corroboration",
-    "Entries whose source_quality is not primary (secondary_multi, awareness, unverified), newest first, across all securities or one security_id — what a run should try to confirm against a primary source. Superseded entries (a rumour already confirmed or retracted by a later entry) are skipped unless include_superseded=true. Confirming one means appending a primary entry with supersedes_id on it, not editing it. Optional limit keeps the newest entries (default 1000, at most 10000).",
+    "Entries whose source_quality is not primary (secondary_multi, awareness, unverified), newest first, across all securities or one security_id — what a run should try to confirm against a primary source. Superseded entries (a rumour already confirmed or retracted by a later entry) are skipped unless include_superseded=true. Confirming one means appending a primary entry with supersedes_id on it, not editing it. Optional limit keeps the newest entries (default 1000, at most 10000)." + REIMPORT_GUARANTEE,
     notesUncorroboratedSchema,
     notesUncorroboratedZ
   ),
   tool(
     "portfolixir.notes.expiring",
     "Dated blocks expiring within N days",
-    "Research-log entries whose valid_until falls between today and today + days (default 30), soonest first, across all securities or one security_id — lockups and self-imposed buying blocks about to lapse. Each row carries days_until_expiry; the response echoes days and as_of. A block lifted by a later entry (supersedes_id on it) is skipped; a block already past is not listed. Optional limit keeps the soonest-expiring entries (default 1000, at most 10000).",
+    "Research-log entries whose valid_until falls between today and today + days (default 30), soonest first, across all securities or one security_id — lockups and self-imposed buying blocks about to lapse. Each row carries days_until_expiry; the response echoes days and as_of. A block lifted by a later entry (supersedes_id on it) is skipped; a block already past is not listed. Optional limit keeps the soonest-expiring entries (default 1000, at most 10000)." + REIMPORT_GUARANTEE,
     notesExpiringSchema,
     notesExpiringZ
   ),

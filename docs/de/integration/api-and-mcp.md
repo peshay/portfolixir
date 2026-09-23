@@ -1477,6 +1477,14 @@ neben der importierten Historie:
   ISIN-Wechsel, der über einen Alias oder eine explizite Zuordnung aufgelöst
   wird) hält dieselbe Garantie für die zugeordneten Wertpapiere; nur die
   wirklich neuen Buchungen landen.
+- **Dort ausgesprochen, wo ein Agent liest (Issue #831).** Die Beschreibungen
+  der acht MCP-Reads, die die Garantie schützt — `portfolixir.notes.list`,
+  `.unreviewed`, `.uncorroborated`, `.expiring` und `portfolixir.events.list`,
+  `.upcoming`, `.unconfirmed`, `.stale` — tragen den Satz „A Portfolio
+  Performance re-import does not destroy the research log or the security
+  events", sodass ein Agent die Antwort in der Tool-Liste findet, die er
+  ohnehin liest, statt auf dieser Seite. Der veränderte Pfad hält neben den
+  Terminen auch das Research-Log fest.
 - **Nicht abgedeckt:** eine in der Quelle geänderte Buchung. Eine bearbeitete
   Transaktion hasht anders und wird als neue Zeile neben der alten importiert;
   die alte Buchung wird über `PATCH`/`DELETE /api/v1/transactions/:id`
