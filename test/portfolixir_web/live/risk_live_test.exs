@@ -103,6 +103,11 @@ defmodule PortfolixirWeb.RiskLiveTest do
     assert has_element?(view, "details#risk-correlations:not([open])")
     assert has_element?(view, ~s(#risk-correlations table tbody tr))
 
+    # A year of daily closes on three names: the matrix computes, so the card
+    # carries the highest pair rather than a refusal.
+    refute has_element?(view, ~s([data-role="risk-metric-correlations"][data-refused]))
+    assert has_element?(view, ~s([data-role="risk-metric-correlations"]), "highest of 3 pairs")
+
     refute html =~ ~r/recommend|signal|rating/i
   end
 
@@ -131,5 +136,22 @@ defmodule PortfolixirWeb.RiskLiveTest do
   test "renders an empty state when there is no portfolio", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/risk")
     assert has_element?(view, ~s([data-role="risk-empty"]))
+  end
+
+  # Acceptance criteria (ADR-0047 §3):
+  # - Over a volatility of exactly 0 the risk-adjusted return is undefined,
+  #   and the card says so — a different statement from "short of data".
+  test "a risk-adjusted return over zero volatility reads as undefined", %{conn: conn} do
+    world = base_world()
+    flat = create_security!(name: "Kestrel Industrial Group NV", ticker: "KIG")
+    deposit!(world, "1000", day(-60))
+    buy!(world, flat, quantity: "5", price: "100", date: day(-60))
+    daily_closes(flat, -60, fn _ -> "100" end)
+
+    {:ok, view, _html} = live(conn, "/risk")
+
+    refute has_element?(view, ~s([data-role="risk-metric-risk-adjusted-return"][data-refused]))
+    assert has_element?(view, ~s([data-role="risk-metric-risk-adjusted-return"]), "undefined")
+    assert has_element?(view, ~s([data-role="risk-metric-correlations"]), "fewer than two names")
   end
 end
