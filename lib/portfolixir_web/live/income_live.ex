@@ -429,6 +429,7 @@ defmodule PortfolixirWeb.IncomeLive do
             <h2><%= gettext("Realized per period") %></h2>
             <details id="realized-annual-disclosure" class="section-disclosure">
               <summary class="disclosure-summary">
+                <AppShell.icon name={:chevron_right} class="disclosure-chevron" />
                 <%= gettext("Year and month matrix") %>
               </summary>
               <p class="detail-tab-hint">

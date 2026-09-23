@@ -8054,15 +8054,9 @@ dialog.booking-drawer {
 .disclosure-summary::-webkit-details-marker {
   display: none;
 }
-.disclosure-summary::before {
-  content: "\25B8";
-  font-size: 0.7rem;
-  color: var(--color-text-muted);
-  transition: transform 0.15s ease;
-}
-details[open] > .disclosure-summary::before {
-  transform: rotate(90deg);
-}
+/* One marker (issue 854, DESIGN.md → Data as table — one disclosure): the
+   templates render the chevron icon, which turns when the details open
+   (`.disclosure-chevron` above). A CSS triangle here as well drew "▸ ›". */
 .disclosure-summary:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
