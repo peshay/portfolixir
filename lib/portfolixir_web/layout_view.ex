@@ -279,6 +279,42 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
+            // The detail pane's tab row (issue 837, plan D-3, pick E4-A): the
+            // keyboard half of the tablist pattern. The server renders the
+            // roving tabindex (0 on the selected tab, -1 on the rest); this
+            // hook moves focus along the row with Arrow Left/Right (wrapping)
+            // and Home/End, and activates the focused tab, so the tab stop and
+            // the selection never disagree after the patch.
+            Hooks.DetailTabs = {
+              mounted: function () {
+                var self = this;
+                this.onKeydown = function (e) { self.keydown(e); };
+                this.el.addEventListener("keydown", this.onKeydown);
+              },
+              destroyed: function () {
+                this.el.removeEventListener("keydown", this.onKeydown);
+              },
+              keydown: function (e) {
+                var tabs = Array.prototype.slice.call(
+                  this.el.querySelectorAll('[role="tab"]')
+                );
+                var index = tabs.indexOf(e.target);
+                if (index < 0 || tabs.length === 0) return;
+
+                var next;
+                if (e.key === "ArrowRight") next = (index + 1) % tabs.length;
+                else if (e.key === "ArrowLeft") next = (index - 1 + tabs.length) % tabs.length;
+                else if (e.key === "Home") next = 0;
+                else if (e.key === "End") next = tabs.length - 1;
+                else return;
+
+                e.preventDefault();
+                var target = tabs[next];
+                target.focus();
+                if (target.getAttribute("aria-selected") !== "true") target.click();
+              }
+            };
+
             Hooks.PositionedMenu = {
               mounted: function () {
                 this.reposition();

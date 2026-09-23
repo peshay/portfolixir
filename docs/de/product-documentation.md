@@ -1786,6 +1786,12 @@ gewählte Detailbereich öffnet sich darunter. Der horizontale Trenner kann am
 Desktop gezogen oder per Tastatur angepasst werden; mobil wird ein gestapeltes
 Layout genutzt.
 
+Die Reiterzeile des Detailbereichs ist ein einziger Tastaturstopp: **Tab**
+landet auf dem gewählten Reiter, **Pfeil links/rechts** wechseln zum vorigen
+oder nächsten Reiter (am Ende geht es von vorn weiter), **Pos1** und **Ende**
+springen zum ersten und letzten, und der Reiter, der den Fokus erhält, öffnet
+seinen Bereich.
+
 Der Detailbereich zeigt einen serverseitig gerenderten SVG-Preischart mit:
 
 - Zeitraum-Buttons (1M / 3M / 6M / YTD / 1Y / 3Y / 5Y / MAX).

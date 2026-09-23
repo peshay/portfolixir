@@ -12,6 +12,9 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
   alias Portfolixir.Portfolios
   alias Portfolixir.WorldFixtures
 
+  defp detail_tab_keys,
+    do: ~w(overview chart transactions trades quotes holdings classifications research events)
+
   defmodule RaisingAdapter do
     @moduledoc false
     @behaviour Portfolixir.Catalog.QuoteSync.Provider
@@ -875,6 +878,82 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
                  "#detail-pane-tabs button[role='tab'][phx-value-tab='#{tab}']"
                )
       end
+    end
+
+    # User story (#837, plan D-3, pick E4 = variant A of board
+    # ux-design-2026-09-20/05-detail-tablist):
+    # As a local portfolio maintainer moving through the detail pane by
+    # keyboard or with a screen reader,
+    # I want the tab row to be one tab stop that I walk with the arrow keys,
+    # so that "tab 2 of 9" is followed by an Arrow Right that does something,
+    # and nine tab stops no longer stand between me and the panel.
+    #
+    # Acceptance criteria:
+    # - The row keeps `role="tablist"` and each tab keeps `role="tab"`.
+    # - Roving tabindex: `tabindex="0"` on the selected tab, `"-1"` on the
+    #   other eight; the stop moves with the selection.
+    # - `aria-selected` renders as the strings "true"/"false".
+    # - `aria-controls` sits only on the selected tab, and names a panel that
+    #   exists; the others point at nothing because their panel is not in
+    #   the DOM.
+    # - The row carries the `DetailTabs` hook, which handles Arrow Left/Right
+    #   (wrapping) and Home/End.
+    test "the tab row is one tab stop with a roving tabindex", %{conn: conn, apple: apple} do
+      {:ok, view, _html} = live(conn, "/securities/#{apple.id}?tab=chart")
+
+      assert has_element?(view, ~s(#detail-pane-tabs[role="tablist"][phx-hook="DetailTabs"]))
+
+      tabs = Enum.map(detail_tab_keys(), &{&1, view |> element("#detail-tab-#{&1}") |> render()})
+      assert length(tabs) == 9
+
+      for {tab, html} <- tabs do
+        assert html =~ ~s(role="tab")
+
+        if tab == "chart" do
+          assert html =~ ~s(tabindex="0")
+          assert html =~ ~s(aria-selected="true")
+          assert html =~ ~s(aria-controls="detail-tab-panel-chart")
+        else
+          assert html =~ ~s(tabindex="-1")
+          assert html =~ ~s(aria-selected="false")
+          refute html =~ "aria-controls"
+        end
+      end
+
+      assert has_element?(view, ~s(#detail-tab-panel-chart[role="tabpanel"]))
+
+      view |> element("#detail-tab-quotes") |> render_click()
+
+      assert view |> element("#detail-tab-quotes") |> render() =~ ~s(tabindex="0")
+      assert view |> element("#detail-tab-chart") |> render() =~ ~s(tabindex="-1")
+      refute view |> element("#detail-tab-chart") |> render() =~ "aria-controls"
+
+      assert has_element?(
+               view,
+               ~s(#detail-tab-quotes[aria-controls="detail-tab-panel-quotes"])
+             )
+
+      assert has_element?(view, ~s(#detail-tab-panel-quotes[role="tabpanel"]))
+    end
+
+    test "the DetailTabs hook walks the row with the arrow keys, Home and End" do
+      hook =
+        "lib/portfolixir_web/layout_view.ex"
+        |> File.read!()
+        |> String.split("Hooks.DetailTabs")
+        |> Enum.at(1)
+        |> String.split("Hooks.")
+        |> hd()
+
+      for key <- ~w(ArrowRight ArrowLeft Home End) do
+        assert hook =~ ~s("#{key}"), "the DetailTabs hook does not handle #{key}"
+      end
+
+      # Automatic activation: the focused tab is selected, so the stop and
+      # the selection never disagree after the server patch.
+      assert hook =~ "focus()"
+      assert hook =~ "click()"
+      assert hook =~ "preventDefault()"
     end
 
     test "classifications tab assigns the security to a custom category",

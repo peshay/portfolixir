@@ -776,7 +776,7 @@ All components are hand-written CSS classes consumed by LiveView templates — n
 - **Three function-component modules under `components/`**, carrying six public function components: `app_shell.ex` (`shell/1`, `area_tabs/1`, `status_toast/1`, `icon/1`), `security_chart.ex` (`chart/1`), `view_switcher.ex` (`view_switcher/1`).
 - **Two further function-component modules** colocated with their surface: `live/securities/logo_override_dialog.ex`, `live/securities/row_context_menu.ex`.
 - **Five LiveComponents** (stateful, so they are not in the list above): `live/securities/column_picker.ex`, `filter_popover.ex`, `security_form_dialog.ex`, `split_wizard_dialog.ex`, and `live/portfolio_accounts/account_form_dialog.ex`.
-- **Eight small inline hooks, all eight defined in `layout_view.ex`** — `ColumnPrefs`, `SecuritySplitPane`, `PositionedMenu`, `ChartCrosshair`, `SunburstTooltip`, `PPImportDrop`, `ClassificationDnD`, `AutoDismissToast`. `security_chart.ex` *consumes* `ChartCrosshair` via `phx-hook`; it defines none. The count-up hook approved 2026-08-05 (Motion) is the ninth and lands in the same file.
+- **Eight small inline hooks, all eight defined in `layout_view.ex`** — `ColumnPrefs`, `SecuritySplitPane`, `PositionedMenu`, `ChartCrosshair`, `SunburstTooltip`, `PPImportDrop`, `ClassificationDnD`, `AutoDismissToast`. `security_chart.ex` *consumes* `ChartCrosshair` via `phx-hook`; it defines none. The count-up hook approved 2026-08-05 (Motion) is the ninth and lands in the same file. *Recount 2026-09-23 (Sprint 14):* `ModalDialog` and `PopoverDisclosure` have since joined, `AutoDismissToast` has left (issue #566), and `DetailTabs` (issue 837 — the detail pane tab row's arrow-key half; Tab row overflow → keyboard contract) is the newest, all still in `layout_view.ex`.
 
 ### Selected state — three classes, and only three *(UX-DR16 appearance; mapping and the icon rule in EXPERIENCE.md. Reserved metrics: UX-DR18.)*
 
@@ -1145,6 +1145,34 @@ Shipped as #702; recorded here so every tab row is held to it.
   1px thin with grey beneath it. An inset shadow paints on the padding box below
   the children, so the overlap survives and nothing overflows vertically.
 - **No tab row wraps, and none collapses into the burger** (UX-DR22).
+
+**Which tab row is a tab widget, and its keyboard contract** *(issue 837,
+Sprint 14 plan D-3, pick E4-A, 2026-09-23; board
+`ux-design-2026-09-20/05-detail-tablist`).* The two tab rows are different
+objects and are marked differently on purpose. `.area-tabs` is navigation —
+`<a href>` inside a `<nav>` with `aria-current="page"` — and carries **no**
+`tablist` role. `.detail-pane-tabs` switches panels inside one pane and
+changes no route, so it **is** a tab widget and carries the full pattern:
+
+- `role="tablist"` on the row, `role="tab"` on each `<button>`, and
+  `aria-selected` as the strings `"true"`/`"false"`;
+- a **roving tabindex** — `tabindex="0"` on the selected tab, `"-1"` on the
+  rest — so the row is one tab stop, not nine;
+- **Arrow Left/Right** move to the previous/next tab and wrap at the ends,
+  **Home/End** jump to the first/last (the `DetailTabs` hook in
+  `layout_view.ex`); activation is automatic — the focused tab is selected,
+  so the stop and the selection never disagree after the server patch;
+- **`aria-controls` only on the selected tab**, because a panel is in the DOM
+  only while its tab is active and an `aria-controls` naming an absent id is
+  invalid markup;
+- the 2px accent focus ring, inset (`outline-offset: -6px`) because the row
+  clips vertically, which also keeps a 2px gap above the active tab's own
+  accent underline.
+
+A new row that switches panels without changing the route takes this
+contract; a row of links takes `aria-current` and no role. Dropping the role
+(variant B) was rejected: it would announce nine unrelated buttons and make
+the app's two tab rows disagree about what a tab row is.
 
 **The rule: a new tab row is added to the sweep in the same commit that adds
 it.** The five declarations above are what a reader has to be told; what a
