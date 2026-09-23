@@ -86,4 +86,20 @@ defmodule PortfolixirWeb.DesignConformanceCssTest do
     assert app_css =~
              ~r/@media \(pointer: coarse\) \{[^@]*\.bucket-chip--overflow \{\s*min-height: 44px/s
   end
+
+  # User story (#837, board ux-design-2026-09-20/05-detail-tablist, E4-A):
+  # As a local portfolio maintainer walking the detail tab row by keyboard,
+  # I want the focused tab to show the accent ring,
+  # so that the arrow keys visibly move something.
+  #
+  # Acceptance criteria:
+  # - `.detail-pane-tab:focus-visible` carries the 2px accent outline, inset
+  #   because the scrolling row clips anything drawn outside a tab.
+  test "the detail pane tab carries the inset accent focus ring" do
+    app_css = File.read!(@app_css)
+
+    [ring] = Regex.run(~r/\n\.detail-pane-tab:focus-visible \{[^}]*\}/s, app_css)
+    assert ring =~ "outline: 2px solid var(--color-accent)"
+    assert ring =~ ~r/outline-offset: -\d+px/
+  end
 end

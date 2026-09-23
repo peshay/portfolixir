@@ -2821,6 +2821,15 @@ img.security-logo {
   font-weight: 600;
 }
 
+/* The 2px accent focus ring (issue 837, board 05-detail-tablist variant A).
+   Inset, because the row scrolls horizontally and clips anything drawn
+   outside a tab vertically; -6px keeps a 2px gap above the active tab's own
+   2px accent underline, so the ring never abuts its own colour. */
+.detail-pane-tab:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -6px;
+}
+
 .detail-pane-tab.phx-click-loading {
   color: var(--color-accent);
   cursor: progress;

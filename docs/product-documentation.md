@@ -1665,6 +1665,11 @@ stays in the upper scrollable pane and the selected detail pane opens below it.
 The horizontal separator can be dragged or adjusted with the keyboard on
 desktop; mobile uses a stacked layout.
 
+The detail pane's tab row is a single keyboard stop: **Tab** lands on the
+selected tab, **Arrow Left/Right** move to the previous or next tab (wrapping
+at the ends), **Home** and **End** jump to the first and last, and the tab
+that receives focus opens its panel.
+
 The detail pane shows a server-rendered SVG price chart with:
 
 - Time-range buttons (1M / 3M / 6M / YTD / 1Y / 3Y / 5Y / MAX).

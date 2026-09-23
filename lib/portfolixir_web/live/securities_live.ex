@@ -926,11 +926,17 @@ defmodule PortfolixirWeb.SecuritiesLive do
         </div>
       </header>
 
+      <%!-- #837 (plan D-3, pick E4-A): a tab widget — it switches panels in
+           one pane and changes no route — so the role stays and the pattern
+           is completed: one tab stop (roving tabindex), Arrow Left/Right and
+           Home/End through the DetailTabs hook, and aria-controls only on the
+           selected tab, because the other panels are not in the DOM. --%>
       <nav
         id="detail-pane-tabs"
         class="detail-pane-tabs"
         role="tablist"
         data-tab-level="2"
+        phx-hook="DetailTabs"
         aria-label={gettext("Security detail tabs")}
       >
         <%= for {tab, label} <- detail_tabs() do %>
@@ -940,8 +946,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
             role="tab"
             phx-click="select_detail_tab"
             phx-value-tab={tab}
-            aria-selected={if @detail_tab == tab, do: "true", else: "false"}
-            aria-controls={"detail-tab-panel-#{tab}"}
+            tabindex={if @detail_tab == tab, do: "0", else: "-1"}
+            aria-selected={to_string(@detail_tab == tab)}
+            aria-controls={if @detail_tab == tab, do: "detail-tab-panel-#{tab}"}
             class={["detail-pane-tab", @detail_tab == tab && "is-active"]}
           >
             <%= label %>
