@@ -72,7 +72,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
       ],
       parameters: [
         "GET /api/v1/portfolios/:portfolio_id/policy_rules and portfolixir.policy_rules.list take as_of= (the standard in force on a date), include_retired=, view= (one evaluation context; absent is every context), since= (a rule counts as changed when its row or any version did) and limit=",
-        "GET /api/v1/portfolios/:portfolio_id/policy_findings and portfolixir.portfolios.policy_findings take view= (the evaluation context) and status= (a comma-separated set of breached, undetermined, ok; status=breached is the pull-only alarm list); since= deliberately does not apply — findings are a derived projection (#849)"
+        "GET /api/v1/portfolios/:portfolio_id/policy_findings and portfolixir.portfolios.policy_findings take view= (the evaluation context) and status= (a comma-separated set of breached, undetermined, ok; status=breached is the pull-only alarm list); since= deliberately does not apply — findings are a derived projection (#849)",
+        "DELETE /api/v1/securities/:id, /classifications/:id, /classifications/:classification_id/categories/:id and /views/:id answer 409 with errors.policy_rules (id, name, status) when a policy rule reads the object (ADR-0049 §8); a view counts as read both as a rule's context and as its subject",
+        "The policy-rule reads (portfolixir.policy_rules.list, .get, portfolixir.portfolios.policy_findings) state in their descriptions that a Portfolio Performance re-import does not destroy the policy rules (ADR-0049 §8, #831's lesson)"
       ],
       removed_endpoints: [],
       removed_tools: []

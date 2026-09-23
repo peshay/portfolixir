@@ -38,6 +38,7 @@ defmodule Portfolixir.Buckets do
   alias Portfolixir.Engines.BucketResolution
   alias Portfolixir.Journal
   alias Portfolixir.Portfolios.CashAccount
+  alias Portfolixir.Portfolios.PolicyRules
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias Portfolixir.Repo
@@ -394,8 +395,29 @@ defmodule Portfolixir.Buckets do
   tables require the journal actor to be set when the cascade fires.
   """
   def delete_view(%Actor{} = actor, %View{} = view) do
+    # ADR-0049 §8: a view a policy rule reads — as its evaluation context or
+    # as its subject — is protected, and the answer names the rules.
+    case PolicyRules.referencing(:view, view.id) do
+      [] -> delete_unreferenced_view(actor, view)
+      rules -> {:error, {:policy_rules, rules}}
+    end
+  end
+
+  defp delete_unreferenced_view(actor, view) do
     Multi.new()
-    |> Multi.delete(:view, view)
+    |> Multi.delete(
+      :view,
+      view
+      |> Ecto.Changeset.change()
+      |> Ecto.Changeset.foreign_key_constraint(:id,
+        name: :policy_rules_view_id_fkey,
+        message: "is read by a policy rule"
+      )
+      |> Ecto.Changeset.foreign_key_constraint(:id,
+        name: :policy_rule_versions_subject_view_id_fkey,
+        message: "is read by a policy rule"
+      )
+    )
     |> Journal.record(actor,
       resource_type: "view",
       operation: :delete,

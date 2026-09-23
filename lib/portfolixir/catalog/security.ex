@@ -140,6 +140,13 @@ defmodule Portfolixir.Catalog.Security do
       name: :security_events_security_id_fkey,
       message: "is referenced by existing records"
     )
+    # ADR-0049 §8: policy-rule versions restrict too. `Catalog.delete_security/2`
+    # names the rules before this is reached; the declaration is the backstop
+    # that keeps a race a 409 rather than a 500.
+    |> foreign_key_constraint(:id,
+      name: :policy_rule_versions_security_id_fkey,
+      message: "is referenced by existing records"
+    )
   end
 
   def asset_classes, do: AssetClasses.codes()

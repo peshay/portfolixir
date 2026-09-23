@@ -1530,6 +1530,15 @@ The writes:
 - `DELETE /api/v1/policy_rules/:id` — only while **no** version has ever been
   in force (`204`); otherwise `409`, and the remedy is retiring it.
 
+**What a rule reads is protected.** Deleting a security, a category, a
+classification or a view that a rule version (or a rule's context) references
+answers **`409`** with `errors.policy_rules` — each rule's `id`, `name` and
+`status` — and a `detail` stating the remedy. A version that has been in force
+keeps its subject as the record of what the standard was, so retiring the rule
+stops its evaluation but does not free the object; only a rule none of whose
+versions was ever in force can be deleted, which does. A security stays
+retirable (`is_retired`) as before.
+
 **The findings read.** `GET /api/v1/portfolios/:portfolio_id/policy_findings`
 evaluates the rules in force **today** for one evaluation context (`view`;
 absent: the portfolio-wide rules) over the figures the product already serves,
@@ -1787,10 +1796,13 @@ through this API lives next to the imported history:
   (`/api/v1/securities/:id/notes` — the append-only entries and the
   `thesis_state` derived from them, ADR-0044); the **security events**
   (`/api/v1/securities/:id/events` — every dated calendar fact with its
-  timing qualifier, its confirmation and its `checked_at`, ADR-0048 §7);
+  timing qualifier, its confirmation and its `checked_at`, ADR-0048 §7); the
+  **policy rules** (`/api/v1/portfolios/:id/policy_rules` — every rule and
+  every version with its subject ids, thresholds and period, ADR-0049 §8);
   security ids and `updated_at`.
   Pinned by `test/portfolixir/imports/reimport_preservation_test.exs` since
-  issue #664 (research log added by #748, security events by #829).
+  issue #664 (research log added by #748, security events by #829, policy
+  rules by #864).
 - **A mutated re-import** (a rename, a recorded ISIN change resolved through
   an alias or an explicit mapping) keeps the same guarantee for the matched
   securities; only the genuinely new bookings land.
@@ -1801,7 +1813,10 @@ through this API lives next to the imported history:
   Performance re-import does not destroy the research log or the security
   events", so an agent meets the answer in the tool list it already reads
   instead of on this page. The mutated path pins the research log as well as
-  the events.
+  the events. The policy-rule reads (`portfolixir.policy_rules.list`, `.get`
+  and `portfolixir.portfolios.policy_findings`) carry the rules' own sentence,
+  "A Portfolio Performance re-import does not destroy the policy rules", and
+  the mutated path pins a rule over the re-ISINed security.
 - **Not covered:** a booking that changed in the source. An edited
   transaction hashes differently and is imported as a new row beside the old
   one; the old booking is removed or corrected through
@@ -1809,7 +1824,7 @@ through this API lives next to the imported history:
   Portfolixir maintains around the history, not about reconciling two
   versions of the history itself.
 
-A research log, a calendar, a plan or an assignment therefore never
+A research log, a calendar, a rule, a plan or an assignment therefore never
 "disappears at the next import"; an agent that observes otherwise has found a
 defect, not a documented limitation.
 

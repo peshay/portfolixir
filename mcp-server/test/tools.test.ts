@@ -2450,6 +2450,17 @@ describe("Portfolixir MCP tools", () => {
 
     const retire = listTools().find((tool) => tool.name === "portfolixir.policy_rules.retire");
     assert.match(retire?.description ?? "", /stay readable/);
+
+    // ADR-0049 §8 and #831's lesson: the re-import guarantee lives where the
+    // agent reads — in the descriptions of the reads it protects.
+    for (const name of [
+      "portfolixir.policy_rules.list",
+      "portfolixir.policy_rules.get",
+      "portfolixir.portfolios.policy_findings"
+    ]) {
+      const description = listTools().find((tool) => tool.name === name)?.description ?? "";
+      assert.match(description, /re-import does not destroy the policy rules/, name);
+    }
   });
 
   // ADR-0049 §5: the findings read — did anything cross a line? — as one

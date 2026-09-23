@@ -5,6 +5,7 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
   alias Portfolixir.Classifications.Classification
   alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.PolicyConflict
 
   def index(conn, _params) do
     json(conn, %{data: Enum.map(Classifications.list_trees(), &JSON.classification_tree/1)})
@@ -47,6 +48,7 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
          %Classification{} = classification <- Classifications.get_classification(cid) do
       case Classifications.delete_classification(conn.assigns.actor, classification) do
         {:ok, _classification} -> json(conn, %{data: %{deleted: true}})
+        {:error, {:policy_rules, rules}} -> PolicyConflict.render(conn, rules, "classification")
         {:error, reason} -> render_error(conn, reason)
       end
     else
@@ -98,6 +100,7 @@ defmodule PortfolixirWeb.Api.V1.ClassificationController do
          %{classification_id: ^cid} = category <- Classifications.get_category(category_id) do
       case Classifications.delete_category(conn.assigns.actor, category) do
         {:ok, _category} -> json(conn, %{data: %{deleted: true}})
+        {:error, {:policy_rules, rules}} -> PolicyConflict.render(conn, rules, "category")
         {:error, reason} -> render_error(conn, reason)
       end
     else

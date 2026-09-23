@@ -2307,6 +2307,16 @@ const REIMPORT_GUARANTEE =
   "leaves every entry and every event in place with the same id — there is nothing to back up " +
   "before an import and nothing to re-create after one.";
 
+// ADR-0049 §8, #831's lesson: the rules' re-import guarantee, in the
+// description of every read it protects. Pinned by
+// test/portfolixir/imports/reimport_preservation_test.exs.
+const POLICY_REIMPORT_GUARANTEE =
+  " A Portfolio Performance re-import does not destroy the policy rules: re-applying an export, " +
+  "the same one or a later one with renamed or re-ISINed securities, leaves every rule and every " +
+  "version in place with the same ids and the same subjects — securities survive a re-import, " +
+  "and categories and views are Portfolixir's own. A security, category, classification or view " +
+  "a rule reads cannot be deleted: the delete answers 409 naming the rules.";
+
 const notesListSchema = {
   type: "object",
   additionalProperties: false,
@@ -2815,14 +2825,14 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.policy_rules.list",
     "The operator's own rules",
-    "The operator's policy rules for a portfolio (ADR-0049): caps, floors and bands on a figure the product already serves — a weight, a drift, the HHI, the portfolio volatility or maximum drawdown — stored as objects instead of prose in a prompt. READ THE STANDARD HERE rather than restating it from memory: the rule in force is the one the operator set. Each rule carries status (in_force | scheduled | retired, relative to as_of), version_in_force (the predicate: subject_type and its ids, measure, kind, threshold or lower/upper as Decimal strings, window, severity, note, valid_from, valid_until) and next_version when one is scheduled. as_of (default today) answers \"what was the standard on date D\"; include_retired=true adds retired rules; view narrows to one evaluation context (default: every context — view_id null is the portfolio-wide one); since is the row delta (a rule counts as changed when its row or any version changed). Whether a rule holds is the findings read, not this one.",
+    "The operator's policy rules for a portfolio (ADR-0049): caps, floors and bands on a figure the product already serves — a weight, a drift, the HHI, the portfolio volatility or maximum drawdown — stored as objects instead of prose in a prompt. READ THE STANDARD HERE rather than restating it from memory: the rule in force is the one the operator set. Each rule carries status (in_force | scheduled | retired, relative to as_of), version_in_force (the predicate: subject_type and its ids, measure, kind, threshold or lower/upper as Decimal strings, window, severity, note, valid_from, valid_until) and next_version when one is scheduled. as_of (default today) answers \"what was the standard on date D\"; include_retired=true adds retired rules; view narrows to one evaluation context (default: every context — view_id null is the portfolio-wide one); since is the row delta (a rule counts as changed when its row or any version changed). Whether a rule holds is the findings read, not this one." + POLICY_REIMPORT_GUARANTEE,
     policyRulesListSchema,
     policyRulesListZ
   ),
   tool(
     "portfolixir.policy_rules.get",
     "One rule and its whole history",
-    "One policy rule with its WHOLE version history, oldest first (ADR-0049 §4): each version is the standard of its own period [valid_from, valid_until], so a raised cap leaves the old cap readable as what applied before. Use it to answer why a finding changed between two runs.",
+    "One policy rule with its WHOLE version history, oldest first (ADR-0049 §4): each version is the standard of its own period [valid_from, valid_until], so a raised cap leaves the old cap readable as what applied before. Use it to answer why a finding changed between two runs." + POLICY_REIMPORT_GUARANTEE,
     idSchema,
     idZ
   ),
@@ -2857,7 +2867,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.portfolios.policy_findings",
     "Did anything cross a line?",
-    "The operator's policy rules in force TODAY for one evaluation context (ADR-0049), evaluated at read over the figures the product already serves — one call instead of re-deriving weights, drift or HHI yourself. One finding per rule, sorted breached, undetermined, ok: state breached (strictly beyond the line), ok, or undetermined — the figure could not be read (reason insufficient_data with the metric's required and observations, undefined, no_active_plan, no_target, empty_basis, subject_not_found, not_measured), which is NEVER a pass and is never filtered out by default. Each finding carries the rule's words (rule_name, subject, measure, kind, severity, note), the thresholds and the measured value as Decimal strings on the measure's scale, the signed distance to the nearest line, and its computation_basis naming the read it used; the payload carries summary (counts per state) and computation_basis. status narrows (status=breached is the retrievable alarm list); view selects the context. PULL ONLY: nothing is pushed anywhere. A finding is the operator's own rule applied to a figure and carries no action — it neither proposes nor sizes a trade.",
+    "The operator's policy rules in force TODAY for one evaluation context (ADR-0049), evaluated at read over the figures the product already serves — one call instead of re-deriving weights, drift or HHI yourself. One finding per rule, sorted breached, undetermined, ok: state breached (strictly beyond the line), ok, or undetermined — the figure could not be read (reason insufficient_data with the metric's required and observations, undefined, no_active_plan, no_target, empty_basis, subject_not_found, not_measured), which is NEVER a pass and is never filtered out by default. Each finding carries the rule's words (rule_name, subject, measure, kind, severity, note), the thresholds and the measured value as Decimal strings on the measure's scale, the signed distance to the nearest line, and its computation_basis naming the read it used; the payload carries summary (counts per state) and computation_basis. status narrows (status=breached is the retrievable alarm list); view selects the context. PULL ONLY: nothing is pushed anywhere. A finding is the operator's own rule applied to a figure and carries no action — it neither proposes nor sizes a trade." + POLICY_REIMPORT_GUARANTEE,
     policyFindingsSchema,
     policyFindingsZ
   ),

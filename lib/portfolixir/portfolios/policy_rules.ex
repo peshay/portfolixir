@@ -265,6 +265,44 @@ defmodule Portfolixir.Portfolios.PolicyRules do
     |> Repo.all()
   end
 
+  @doc """
+  The rules that read an object, oldest first, each annotated with its status
+  today — the answer a delete of that object gives instead of a foreign-key
+  error (ADR-0049 §8). `kind` is `:security`, `:category`, `:classification`
+  or `:view`; a view is read both as a rule's context and as a subject.
+
+  Every version counts, retired ones included: a version that has been in
+  force keeps its subject as part of the record of what the standard was, so
+  the reference outlives the rule's evaluation.
+  """
+  @spec referencing(:security | :category | :classification | :view, integer()) ::
+          [PolicyRule.t()]
+  def referencing(kind, id)
+      when kind in [:security, :category, :classification, :view] and is_integer(id) do
+    rule_ids =
+      from(v in PolicyRuleVersion, select: v.policy_rule_id, distinct: true)
+      |> where_references(kind, id)
+
+    PolicyRule
+    |> where([r], r.id in subquery(rule_ids))
+    |> or_context_view(kind, id)
+    |> order_by([r], asc: r.id)
+    |> preload(:versions)
+    |> Repo.all()
+    |> Enum.map(&annotate(&1, Clock.today()))
+  end
+
+  defp where_references(query, :security, id), do: where(query, [v], v.security_id == ^id)
+  defp where_references(query, :category, id), do: where(query, [v], v.category_id == ^id)
+
+  defp where_references(query, :classification, id),
+    do: where(query, [v], v.classification_id == ^id)
+
+  defp where_references(query, :view, id), do: where(query, [v], v.subject_view_id == ^id)
+
+  defp or_context_view(query, :view, id), do: or_where(query, [r], r.view_id == ^id)
+  defp or_context_view(query, _kind, _id), do: query
+
   @doc "Whether `version` has been in force by `today` (its start is reached)."
   @spec started?(PolicyRuleVersion.t(), Date.t()) :: boolean()
   def started?(%PolicyRuleVersion{valid_from: from}, %Date{} = today),

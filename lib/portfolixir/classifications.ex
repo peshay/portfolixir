@@ -22,6 +22,7 @@ defmodule Portfolixir.Classifications do
   alias Portfolixir.Classifications.Category
   alias Portfolixir.Classifications.Classification
   alias Portfolixir.Journal
+  alias Portfolixir.Portfolios.PolicyRules
   alias Portfolixir.Repo
 
   @builtin_keys ~w(asset_class currency)
@@ -293,8 +294,22 @@ defmodule Portfolixir.Classifications do
     do: {:error, :builtin_locked}
 
   def delete_classification(%Actor{} = actor, %Classification{} = classification) do
+    # ADR-0049 §8: a tree a policy rule reads (its categories, or a position
+    # drift in its plan) is protected, and the answer names the rules.
+    with :ok <- not_read_by_rules(:classification, classification.id) do
+      delete_unreferenced_classification(actor, classification)
+    end
+  end
+
+  defp delete_unreferenced_classification(actor, classification) do
     Multi.new()
-    |> Multi.delete(:classification, classification)
+    |> Multi.delete(
+      :classification,
+      classification
+      |> Ecto.Changeset.change()
+      |> rule_reference_backstop(:policy_rule_versions_classification_id_fkey)
+      |> rule_reference_backstop(:policy_rule_versions_category_id_fkey)
+    )
     |> Journal.record(actor,
       resource_type: "classification",
       operation: :delete,
@@ -344,9 +359,15 @@ defmodule Portfolixir.Classifications do
   end
 
   def delete_category(%Actor{} = actor, %Category{} = category) do
-    with :ok <- ensure_custom_category(category) do
+    with :ok <- ensure_custom_category(category),
+         :ok <- not_read_by_rules(:category, category.id) do
       Multi.new()
-      |> Multi.delete(:category, category)
+      |> Multi.delete(
+        :category,
+        category
+        |> Ecto.Changeset.change()
+        |> rule_reference_backstop(:policy_rule_versions_category_id_fkey)
+      )
       |> Journal.record(actor,
         resource_type: "category",
         operation: :delete,
@@ -359,6 +380,23 @@ defmodule Portfolixir.Classifications do
   end
 
   def get_category(id) when is_integer(id), do: Repo.get(Category, id)
+
+  # ADR-0049 §8: the rules that read an object answer its delete, by name.
+  defp not_read_by_rules(kind, id) do
+    case PolicyRules.referencing(kind, id) do
+      [] -> :ok
+      rules -> {:error, {:policy_rules, rules}}
+    end
+  end
+
+  # The backstop behind `not_read_by_rules/2`: a race past the check is a
+  # changeset error, never an `Ecto.ConstraintError`.
+  defp rule_reference_backstop(changeset, constraint) do
+    Ecto.Changeset.foreign_key_constraint(changeset, :id,
+      name: constraint,
+      message: "is read by a policy rule"
+    )
+  end
 
   @doc """
   Updates only a category's color. Allowed for built-in categories too, since
