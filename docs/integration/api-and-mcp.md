@@ -1574,9 +1574,10 @@ and answers one **finding** per rule, sorted breached, undetermined, ok:
   filtered out by default; it carries its `reason`: `insufficient_data` (a
   refused portfolio metric, with ADR-0047's `required` and `observations`),
   `undefined`, `no_active_plan` or `no_target` (a drift with nothing to drift
-  from), `empty_basis` (a weight of nothing is not 0 %), `subject_not_found` or
-  `not_measured`. A security that is simply not held has a weight of `0`,
-  which is a reading.
+  from), `empty_basis` (a weight of nothing is not 0 %), `unvalued` (the
+  subject is held but its position cannot be valued, e.g. a quote with no
+  stored exchange rate), `subject_not_found` or `not_measured`. A security
+  that is simply not held has a weight of `0`, which is a reading.
 - each finding carries the rule's identity and words, the version, the
   thresholds, the measured `value` and the signed `distance` to the nearest
   line (value − line, on the measure's scale), and its own

@@ -100,5 +100,18 @@ defmodule PortfolixirWeb.ApiV1BodyShapeTest do
 
     %{"errors" => errors} = conn |> put("/api/v1/tax/parameters", %{}) |> json_response(422)
     assert Map.has_key?(errors, "tax_year")
+
+    # The rule's nested version is a wrapper too (closing act, edge-case
+    # hunter): a string there is not four missing fields.
+    for bad <- ["cap", 42, ["x"]] do
+      %{"errors" => errors} =
+        conn
+        |> post("/api/v1/portfolios/#{world.portfolio.id}/policy_rules", %{
+          "rule" => %{"name" => "Nested", "version" => bad}
+        })
+        |> json_response(422)
+
+      assert errors == %{"version" => ["must be an object"]}
+    end
   end
 end

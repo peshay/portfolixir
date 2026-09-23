@@ -1403,7 +1403,9 @@ bestimmbar, eingehalten:
   `reason`: `insufficient_data` (eine verweigerte Portfolio-Kennzahl, mit
   `required` und `observations` aus ADR-0047), `undefined`, `no_active_plan`
   oder `no_target` (eine Abweichung ohne Ziel), `empty_basis` (ein Gewicht von
-  nichts ist nicht 0 %), `subject_not_found` oder `not_measured`. Ein
+  nichts ist nicht 0 %), `unvalued` (der Gegenstand wird gehalten, seine
+  Position lässt sich aber nicht bewerten, etwa ein Kurs ohne gespeicherten
+  Wechselkurs), `subject_not_found` oder `not_measured`. Ein
   Wertpapier, das man schlicht nicht hält, hat das Gewicht `0` — das ist ein
   Messwert.
 - jeder Befund trägt Identität und Worte der Regel, die Version, die Grenzen,

@@ -410,7 +410,10 @@ defmodule PortfolixirWeb.RiskLive do
   # retired rules readable behind a closed disclosure.
   defp policy_rules(assigns) do
     assigns =
-      assign(assigns, :retired, Enum.filter(assigns.rules, &(&1.status == :retired)))
+      assigns
+      |> assign(:retired, Enum.filter(assigns.rules, &(&1.status == :retired)))
+      |> assign(:scheduled, Enum.filter(assigns.rules, &(&1.status == :scheduled)))
+      |> assign(:rules_by_id, Map.new(assigns.rules, &{&1.id, &1}))
 
     ~H"""
     <section class="workspace-section policy-rules" id="policy-rules" aria-labelledby="policy-rules-title">
@@ -457,6 +460,18 @@ defmodule PortfolixirWeb.RiskLive do
                     <%= finding.rule_name %>
                   </button>
                   <span class="policy-rule__words"><%= PolicyRuleFormat.words(finding, @names) %></span>
+                  <%!-- A planned change is part of the rule's standard; it
+                       is shown where the rule is, with the day it starts. --%>
+                  <span
+                    :if={next = next_version(@rules_by_id, finding.rule_id)}
+                    class="policy-rule__next"
+                    data-role="policy-rule-next"
+                  >
+                    <%= gettext("From %{date}: line %{line}",
+                      date: Format.date(next.valid_from),
+                      line: PolicyRuleFormat.line(next)
+                    ) %>
+                  </span>
                 </td>
                 <td class="num">
                   <%= PolicyRuleFormat.value(finding.measure, finding.value) %>
@@ -489,6 +504,24 @@ defmodule PortfolixirWeb.RiskLive do
         ) %>
       </p>
 
+      <%!-- A rule that has not started is not a finding yet, and it must
+           still be reachable: to read, change or delete it before it counts
+           (closing act, UAT and correctness roles). --%>
+      <div :if={@scheduled != []} id="policy-rules-scheduled" class="policy-rules-scheduled">
+        <h3 class="policy-rules-scheduled__title"><%= gettext("Scheduled rules") %></h3>
+        <ul class="policy-rules-retired">
+          <li :for={rule <- @scheduled}>
+            <button type="button" class="link-button" phx-click="edit_rule" phx-value-id={rule.id}>
+              <%= rule.name %>
+            </button>
+            <span class="muted">
+              · <%= gettext("from %{date}", date: Format.date(rule.next_version.valid_from)) %>
+              · <%= PolicyRuleFormat.line(rule.next_version) %>
+            </span>
+          </li>
+        </ul>
+      </div>
+
       <details :if={@retired != []} class="perf-table-disclosure" id="policy-rules-retired">
         <summary class="disclosure-summary">
           <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
@@ -508,6 +541,13 @@ defmodule PortfolixirWeb.RiskLive do
       </details>
     </section>
     """
+  end
+
+  defp next_version(rules_by_id, rule_id) do
+    case Map.get(rules_by_id, rule_id) do
+      %{status: :in_force, next_version: %{} = next} -> next
+      _none -> nil
+    end
   end
 
   defp state_class(%{state: :breached, severity: :hard}), do: "badge--danger"

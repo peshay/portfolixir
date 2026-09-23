@@ -360,7 +360,7 @@ defmodule Portfolixir.Classifications do
 
   def delete_category(%Actor{} = actor, %Category{} = category) do
     with :ok <- ensure_custom_category(category),
-         :ok <- not_read_by_rules(:category, category.id) do
+         :ok <- subtree_not_read_by_rules(category) do
       Multi.new()
       |> Multi.delete(
         :category,
@@ -387,6 +387,31 @@ defmodule Portfolixir.Classifications do
       [] -> :ok
       rules -> {:error, {:policy_rules, rules}}
     end
+  end
+
+  # Deleting a category deletes the categories below it, so a rule reading any
+  # of them answers the delete, named — not the foreign-key backstop's 422.
+  defp subtree_not_read_by_rules(%Category{} = category) do
+    categories = list_categories(category.classification_id)
+
+    rules =
+      categories
+      |> subtree_ids(MapSet.new([category.id]))
+      |> Enum.flat_map(&PolicyRules.referencing(:category, &1))
+      |> Enum.uniq_by(& &1.id)
+      |> Enum.sort_by(& &1.id)
+
+    if rules == [], do: :ok, else: {:error, {:policy_rules, rules}}
+  end
+
+  defp subtree_ids(categories, ids) do
+    grown =
+      categories
+      |> Enum.filter(&(&1.parent_id in ids))
+      |> MapSet.new(& &1.id)
+      |> MapSet.union(ids)
+
+    if MapSet.size(grown) == MapSet.size(ids), do: ids, else: subtree_ids(categories, grown)
   end
 
   # The backstop behind `not_read_by_rules/2`: a race past the check is a

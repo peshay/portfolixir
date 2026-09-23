@@ -52,8 +52,9 @@ defmodule PortfolixirWeb.Api.V1.PolicyFindingController do
       "a figure that cannot be read makes the finding undetermined with its reason, never ok: " <>
         "insufficient_data (a refused metric, with its required and observations), undefined, " <>
         "no_active_plan and no_target (a drift with nothing to drift from), empty_basis (a " <>
-        "weight of nothing), subject_not_found, not_measured. A security that is not held has " <>
-        "a weight of 0, which is a reading"
+        "weight of nothing), unvalued (the subject is held but its position cannot be valued, " <>
+        "e.g. no exchange rate), subject_not_found, not_measured. A security that is not held " <>
+        "has a weight of 0, which is a reading"
   }
 
   def index(conn, %{"portfolio_id" => portfolio_id} = params) do

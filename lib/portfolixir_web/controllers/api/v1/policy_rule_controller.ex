@@ -100,7 +100,8 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
 
   def create(conn, %{"portfolio_id" => portfolio_id} = params) do
     with {:ok, pid} <- IdParam.parse(portfolio_id),
-         %Portfolio{} <- Portfolios.get_portfolio(pid) do
+         %Portfolio{} <- Portfolios.get_portfolio(pid),
+         :ok <- nested_version_object(params["rule"]) do
       attrs =
         params
         |> Map.get("rule", %{})
@@ -120,9 +121,21 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
           unprocessable(conn, JSON.errors(changeset))
       end
     else
-      _missing -> not_found(conn)
+      {:error, :version_not_object} ->
+        unprocessable(conn, %{version: ["must be an object"]})
+
+      _missing ->
+        not_found(conn)
     end
   end
+
+  # The BodyObject contract (#853), one level down: the rule carries its first
+  # version under `version`, and a non-object there is named, not read as
+  # four missing fields.
+  defp nested_version_object(%{"version" => version}) when not is_map(version),
+    do: {:error, :version_not_object}
+
+  defp nested_version_object(_rule), do: :ok
 
   def add_version(conn, %{"id" => id} = params) do
     with {:ok, rule_id} <- IdParam.parse(id),

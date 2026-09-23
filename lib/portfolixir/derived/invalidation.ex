@@ -104,6 +104,18 @@ defmodule Portfolixir.Derived.Invalidation do
     do: DataVersion.bump_rules(portfolio_id, repo)
 
   @doc """
+  Bumps after a view definition changes (its `include_all` flag or its bucket
+  filter). View definitions are not journaled (ADR-0018 §5), so they cannot
+  ride the journal seam; every value computed under a view reads its filter,
+  and which portfolios a view reaches is itself what changed — so the radius
+  is everything. View edits are rare, and a stale "ok" is the failure this
+  prevents (the Sprint 15 closing act found the policy findings served from
+  the memo after a view was narrowed).
+  """
+  @spec after_view_write() :: :ok
+  def after_view_write, do: DataVersion.bump(:all, Repo, :all)
+
+  @doc """
   Bumps after an exchange-rate write. Allowlisted out of the journal for the
   same reason as quotes. No security basis is bumped: a security's own data is
   its row, its quotes and its splits in its own currency, and no value keyed

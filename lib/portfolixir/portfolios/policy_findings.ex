@@ -28,8 +28,10 @@ defmodule Portfolixir.Portfolios.PolicyFindings do
   (`insufficient_data`, with ADR-0047's `required` and `observations`), an
   undefined one (`undefined`), a drift with no active plan
   (`no_active_plan`) or no target for its subject (`no_target`), a subject
-  that no longer exists (`subject_not_found`), and a context whose basis is
-  empty (`empty_basis` — a weight of nothing is not 0 %, it is undefined).
+  that no longer exists (`subject_not_found`), a subject held but not
+  valued (`unvalued` — outside the steerable basis, so it has no weight to
+  read), and a context whose basis is empty (`empty_basis` — a weight of
+  nothing is not 0 %, it is undefined).
   A security that is simply not held has a weight of `0`: that *is* a
   reading, and a floor on it can breach.
 
@@ -153,12 +155,31 @@ defmodule Portfolixir.Portfolios.PolicyFindings do
       context_total:
         lazy_if(Enum.any?(keys, &match?({:weight, :view, _}, &1)), fn ->
           valuation_total(pid, view_id)
-        end)
+        end),
+      unvalued:
+        lazy_if(Enum.any?(keys, &unvalued_key?/1), fn -> unvalued_security_ids(pid, view_id) end)
     }
   end
 
   defp lazy_if(true, fun), do: fun.()
   defp lazy_if(false, _fun), do: nil
+
+  defp unvalued_key?({:weight, :security, _}), do: true
+  defp unvalued_key?({:weight, :category, _, _}), do: true
+  defp unvalued_key?(_key), do: false
+
+  # The positions held but not valued (a quote with no rate, no price at all):
+  # they are outside the steerable basis, so a subject made only of them has
+  # no weight to read — which is not 0 % (ADR-0049 §4, never a pass).
+  defp unvalued_security_ids(pid, view_id) do
+    case Valuation.for_portfolio(pid, view: view_id) do
+      %{positions: positions} ->
+        for %{valued: false, security_id: id} <- positions, into: MapSet.new(), do: id
+
+      _vanished ->
+        MapSet.new()
+    end
+  end
 
   defp risk_key?({:weight, :security, _}), do: true
   defp risk_key?({:hhi}), do: true
@@ -188,6 +209,27 @@ defmodule Portfolixir.Portfolios.PolicyFindings do
     end)
   end
 
+  # The subject view's valued positions that lie inside the context (§2: the
+  # weight is a share of the context's basis, 0–100). Portfolio-wide, that is
+  # the subject's whole basis; inside a view, only the positions both views
+  # hold count.
+  defp subject_total(pid, subject_view_id, nil), do: valuation_total(pid, subject_view_id)
+
+  defp subject_total(pid, subject_view_id, context_view_id) do
+    with %{positions: subject} <- Valuation.for_portfolio(pid, view: subject_view_id),
+         %{positions: context} <- Valuation.for_portfolio(pid, view: context_view_id) do
+      inside = MapSet.new(context, &{&1.securities_account_id, &1.security_id})
+
+      subject
+      |> Enum.filter(
+        &(&1.valued and MapSet.member?(inside, {&1.securities_account_id, &1.security_id}))
+      )
+      |> Enum.reduce(@zero, &Decimal.add(&1.market_value, &2))
+    else
+      _vanished -> nil
+    end
+  end
+
   defp valuation_total(pid, view_id) do
     case Valuation.for_portfolio(pid, view: view_id) do
       %{total_value: total} -> total
@@ -197,17 +239,14 @@ defmodule Portfolixir.Portfolios.PolicyFindings do
 
   # -- reading: one measure off its loaded source ------------------------------
 
-  defp read({:weight, :security, security_id}, %{risk: risk}, sources) do
+  defp read({:weight, :security, security_id}, %{risk: risk} = loaded, sources) do
     with_basis(risk_basis(sources), fn ->
       with {:ok, risk} <- present(risk),
            :ok <- non_empty(risk.steerable_basis) do
-        weight =
-          case Enum.find(risk.top_holdings, &(&1.security_id == security_id)) do
-            nil -> @zero
-            exposure -> exposure.weight
-          end
-
-        {:ok, weight}
+        case Enum.find(risk.top_holdings, &(&1.security_id == security_id)) do
+          nil -> unheld_or_unvalued(loaded, [security_id])
+          exposure -> {:ok, exposure.weight}
+        end
       end
     end)
   end
@@ -227,7 +266,7 @@ defmodule Portfolixir.Portfolios.PolicyFindings do
            :ok <- non_empty(allocation.total_value) do
         case find_row(allocation, category_id) do
           %{actual_weight: weight} -> {:ok, percent(weight)}
-          nil -> absent_category(classification_id, category_id)
+          nil -> absent_category(loaded, classification_id, category_id)
         end
       end
     end)
@@ -245,8 +284,9 @@ defmodule Portfolixir.Portfolios.PolicyFindings do
   defp read({:weight, :view, subject_view_id}, %{context_total: context_total}, sources) do
     basis = %{
       source:
-        "valuation: the subject view's steerable basis (its valued positions) over the " <>
-          "context's, × 100",
+        "valuation: the subject view's steerable basis (its valued positions) within the " <>
+          "context — inside a view context, only the positions both views hold — over the " <>
+          "context's steerable basis, × 100",
       scale: "percent of the context's steerable basis",
       as_of: sources.today,
       view_id: sources.view_id
@@ -255,7 +295,7 @@ defmodule Portfolixir.Portfolios.PolicyFindings do
     with_basis(basis, fn ->
       with :ok <- non_empty(context_total),
            subject when not is_nil(subject) <-
-             valuation_total(sources.portfolio_id, subject_view_id) do
+             subject_total(sources.portfolio_id, subject_view_id, sources.view_id) do
         {:ok, subject |> Decimal.div(context_total) |> Decimal.mult(@hundred)}
       else
         nil -> {:undetermined, :subject_not_found}
@@ -266,7 +306,12 @@ defmodule Portfolixir.Portfolios.PolicyFindings do
 
   defp read({:drift, :category, classification_id, category_id}, loaded, sources) do
     with_basis(
-      allocation_basis(sources, "drift_weight × 100 (actual − target of the active plan)"),
+      drift_basis(
+        loaded,
+        classification_id,
+        sources,
+        "drift_weight × 100 (actual − target of the active plan)"
+      ),
       fn ->
         with {:ok, allocation} <- allocation(loaded, classification_id),
              :ok <- non_empty(allocation.total_value),
@@ -281,7 +326,15 @@ defmodule Portfolixir.Portfolios.PolicyFindings do
   end
 
   defp read({:drift, :security, classification_id, security_id}, loaded, sources) do
-    with_basis(allocation_basis(sources, "the position's drift_weight × 100 (ADR-0030)"), fn ->
+    basis =
+      drift_basis(
+        loaded,
+        classification_id,
+        sources,
+        "the position's drift_weight × 100 (ADR-0030)"
+      )
+
+    with_basis(basis, fn ->
       with {:ok, allocation} <- allocation(loaded, classification_id),
            :ok <- non_empty(allocation.total_value),
            :ok <- has_plan(allocation) do
@@ -367,12 +420,48 @@ defmodule Portfolixir.Portfolios.PolicyFindings do
   end
 
   # A category the breakdown leaves out has neither value nor target: its
-  # weight is 0, a reading — unless it no longer belongs to the classification.
-  defp absent_category(classification_id, category_id) do
+  # weight is 0, a reading — unless it no longer belongs to the classification,
+  # or its members are held but unvalued (then there is nothing to read).
+  defp absent_category(loaded, classification_id, category_id) do
     case Classifications.get_category(category_id) do
-      %Category{classification_id: ^classification_id} -> {:ok, @zero}
-      _gone -> {:undetermined, :subject_not_found}
+      %Category{classification_id: ^classification_id} ->
+        unheld_or_unvalued(loaded, members_under(classification_id, category_id))
+
+      _gone ->
+        {:undetermined, :subject_not_found}
     end
+  end
+
+  # Not in the steerable basis: 0 % when nothing of it is held, undetermined
+  # when something of it is held and could not be valued.
+  defp unheld_or_unvalued(loaded, security_ids) do
+    unvalued = Map.get(loaded, :unvalued) || MapSet.new()
+
+    if Enum.any?(security_ids, &MapSet.member?(unvalued, &1)),
+      do: {:undetermined, :unvalued},
+      else: {:ok, @zero}
+  end
+
+  # The securities assigned to the category or to any category below it.
+  defp members_under(classification_id, category_id) do
+    categories = Classifications.list_categories(classification_id)
+    subtree = subtree_ids(categories, MapSet.new([category_id]))
+
+    case Classifications.security_category_map(classification_id) do
+      {:ok, map} -> for {security_id, cid} <- map, MapSet.member?(subtree, cid), do: security_id
+      {:error, _} -> []
+    end
+  end
+
+  defp subtree_ids(categories, ids) do
+    grown =
+      categories
+      |> Enum.filter(&(&1.parent_id in ids))
+      |> Enum.map(& &1.id)
+      |> MapSet.new()
+      |> MapSet.union(ids)
+
+    if MapSet.size(grown) == MapSet.size(ids), do: ids, else: subtree_ids(categories, grown)
   end
 
   defp percent(%Decimal{} = fraction), do: Decimal.mult(fraction, @hundred)
@@ -386,6 +475,33 @@ defmodule Portfolixir.Portfolios.PolicyFindings do
       as_of: sources.today,
       view_id: sources.view_id
     }
+  end
+
+  # A drift names the base it moves against: the allocation renormalises a plan
+  # that covers less than 100 % over its allocated portion (target / Σ
+  # targets), and a reader who assumed plain actual − target would misread the
+  # figure (AGENTS.md: the computation basis travels in the payload).
+  defp drift_basis(loaded, classification_id, sources, figure) do
+    base = allocation_basis(sources, figure)
+
+    case allocation(loaded, classification_id) do
+      {:ok, %{drift_basis: "allocated_portion"}} ->
+        %{
+          base
+          | source:
+              base.source <>
+                "; the plan's targets sum to less than 100 %, so each target is renormalised " <>
+                "over the allocated portion (target / Σ targets) and the drift is actual − that " <>
+                "renormalised target"
+        }
+        |> Map.put(:drift_basis, "allocated_portion")
+
+      {:ok, %{drift_basis: drift_basis}} ->
+        Map.put(base, :drift_basis, drift_basis)
+
+      _no_allocation ->
+        base
+    end
   end
 
   defp allocation_basis(sources, figure) do

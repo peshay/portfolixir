@@ -226,6 +226,56 @@ defmodule Portfolixir.Portfolios.PolicyFindingsTest do
     refute finding(passing, vol)
   end
 
+  # Acceptance criteria (ADR-0049 §4, found by the closing act's correctness
+  # hunter):
+  # - A position that is held but cannot be valued — a USD quote with no
+  #   stored USD rate — has no weight to read. Its cap is `undetermined` with
+  #   reason `unvalued`, never a 0 % that passes.
+  # - The same for a category whose members are all held but unvalued.
+  # - A security that is simply not held still weighs 0 % (a reading).
+  test "a held position that cannot be valued is undetermined, never 0 %",
+       %{world: world, tree: tree, beta: beta} do
+    gamma = create_security!(name: "Gamma Unrated", ticker: "GAM", currency: "USD")
+    buy!(world, gamma, quantity: "50", price: "100", date: Date.add(today(), -2))
+    put_quote!(gamma, Date.add(today(), -2), "100")
+
+    {:ok, foreign} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: tree.id,
+        name: "Foreign"
+      })
+
+    {:ok, _} = Classifications.assign_security(Actor.owner_ui(), gamma.id, tree.id, foreign.id)
+    unheld = create_security!(name: "Delta Watchlist", ticker: "DLT")
+
+    cap = fn name, subject ->
+      rule!(
+        world,
+        name,
+        Map.merge(%{measure: "weight", kind: "cap", threshold: "10", severity: "hard"}, subject)
+      )
+    end
+
+    gamma_cap = cap.("Gamma at most 10 %", %{subject_type: "security", security_id: gamma.id})
+
+    foreign_cap =
+      cap.("Foreign at most 10 %", %{
+        subject_type: "category",
+        classification_id: tree.id,
+        category_id: foreign.id
+      })
+
+    unheld_cap = cap.("Delta at most 10 %", %{subject_type: "security", security_id: unheld.id})
+    _beta_cap = cap.("Beta at most 10 %", %{subject_type: "security", security_id: beta.id})
+
+    result = PolicyFindings.for_portfolio(world.portfolio.id)
+
+    assert %{state: :undetermined, reason: :unvalued, value: nil} = finding(result, gamma_cap)
+    assert %{state: :undetermined, reason: :unvalued, value: nil} = finding(result, foreign_cap)
+    assert %{state: :ok, value: value} = finding(result, unheld_cap)
+    assert Decimal.equal?(value, d("0"))
+  end
+
   # Acceptance criteria (ADR-0049 §2):
   # - A drift rule reads the allocation's drift of the context's active
   #   plan, in percentage points (drift_weight × 100), for a category and for
@@ -252,10 +302,17 @@ defmodule Portfolixir.Portfolios.PolicyFindingsTest do
     {:ok, allocation} = Allocation.for_portfolio(world.portfolio.id, tree.id)
     row = Enum.find(allocation.categories, &(&1.category_id == growth.id))
 
-    assert %{state: :breached, value: value} =
+    assert %{state: :breached, value: value, computation_basis: basis} =
              world.portfolio.id |> PolicyFindings.for_portfolio() |> finding(drift)
 
     assert Decimal.equal?(value, Decimal.mult(row.drift_weight, 100))
+
+    # The plan covers 30 % of the portfolio: the allocation renormalises its
+    # targets over the allocated portion, and the finding says so rather than
+    # implying a plain actual − target (closing act, correctness hunter).
+    assert allocation.drift_basis == "allocated_portion"
+    assert basis.drift_basis == "allocated_portion"
+    assert basis.source =~ "renormalised"
 
     {:ok, _} =
       Targets.set_targets(Actor.owner_ui(), world.portfolio.id, tree.id, [
@@ -325,6 +382,54 @@ defmodule Portfolixir.Portfolios.PolicyFindingsTest do
     in_view = PolicyFindings.for_portfolio(world.portfolio.id, view: everything.id)
     assert %{state: :ok} = finding(in_view, scoped)
     refute finding(in_view, whole)
+  end
+
+  # Acceptance criteria (ADR-0049 §2, found by the closing act's edge-case
+  # hunter): in a view context a view subject is weighed within the context —
+  # the part of the subject that lies inside it, over the context's basis —
+  # so the weight stays on its 0–100 scale. A subject disjoint from the
+  # context weighs 0; one that covers it weighs 100.
+  test "a view subject inside a view context is weighed within the context",
+       %{world: world, alpha: alpha, beta: beta} do
+    {:ok, a} = Buckets.create_bucket(Actor.owner_ui(), %{name: "A"})
+    {:ok, b} = Buckets.create_bucket(Actor.owner_ui(), %{name: "B"})
+    :ok = Buckets.set_position_override(Actor.owner_ui(), world.depot, alpha, [a.id])
+    :ok = Buckets.set_position_override(Actor.owner_ui(), world.depot, beta, [b.id])
+
+    view_of = fn name, include ->
+      {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: name, include_all: false})
+      :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, include, [])
+      view
+    end
+
+    only_a = view_of.("Only A", [a.id])
+    only_b = view_of.("Only B", [b.id])
+    both = view_of.("Both", [a.id, b.id])
+
+    cap = fn name, subject_view ->
+      rule!(
+        world,
+        name,
+        %{
+          subject_type: "view",
+          subject_view_id: subject_view.id,
+          measure: "weight",
+          kind: "cap",
+          threshold: "50",
+          severity: "hard"
+        },
+        view_id: only_a.id
+      )
+    end
+
+    disjoint = cap.("B inside A", only_b)
+    covering = cap.("Both inside A", both)
+
+    result = PolicyFindings.for_portfolio(world.portfolio.id, view: only_a.id)
+    assert %{state: :ok, value: zero} = finding(result, disjoint)
+    assert Decimal.equal?(zero, d("0"))
+    assert %{state: :breached, value: hundred} = finding(result, covering)
+    assert Decimal.equal?(hundred, d("100"))
   end
 
   # Acceptance criteria (ADR-0049 §5):

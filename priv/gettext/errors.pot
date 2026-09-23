@@ -34,3 +34,43 @@ msgstr[1] ""
 
 msgid "must be greater than or equal to 0 — a refunded tax is booked as a separate tax_refund transaction whose positive gross_amount credits the cash account"
 msgstr ""
+
+## Policy rules (ADR-0049): the version changeset and the rule writes.
+msgid "does not fit the measure %{measure}"
+msgstr ""
+
+msgid "is not recorded on this subject"
+msgstr ""
+
+msgid "is required for %{measure}"
+msgstr ""
+
+msgid "is only recorded on volatility and max_drawdown"
+msgstr ""
+
+msgid "must be at least lower"
+msgstr ""
+
+msgid "must be at least %{min}"
+msgstr ""
+
+msgid "must be at most %{max}"
+msgstr ""
+
+msgid "cannot be before today"
+msgstr ""
+
+msgid "cannot be before %{date}"
+msgstr ""
+
+msgid "is not a category of the classification"
+msgstr ""
+
+msgid "must be after %{date}, the start of the version in force"
+msgstr ""
+
+msgid "overlaps another version of this rule"
+msgstr ""
+
+msgid "is required for the drift of a security (the plan's classification)"
+msgstr ""

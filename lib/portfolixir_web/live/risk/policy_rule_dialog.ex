@@ -85,16 +85,31 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
       "upper" => decimal_input(version.upper),
       "window" => (version.window && to_string(version.window)) || "365d",
       "severity" => to_string(version.severity),
-      "valid_from" => Date.to_iso8601(Clock.today()),
+      "valid_from" => rule |> first_start() |> Date.to_iso8601(),
       "note" => version.note || ""
     }
   end
 
-  # The version the edit starts from: the one in force, else the next one,
-  # else the last one the rule had.
+  # The version the edit starts from: the one planned next, else the one in
+  # force, else the last one the rule had — reopened after an edit, the dialog
+  # shows the edit, not the version it replaces.
   defp reference_version(rule) do
-    rule.version_in_force || rule.next_version || List.last(rule.versions)
+    rule.next_version || rule.version_in_force || List.last(rule.versions)
   end
+
+  # The first start the context accepts (ADR-0049 §4): a scheduled version's
+  # own day (the edit replaces it), else the later of today and the day after
+  # the version in force began — a version that began today is in force until
+  # tonight, so its successor starts tomorrow.
+  defp first_start(%{next_version: %{valid_from: from}}), do: from
+
+  defp first_start(%{version_in_force: %{valid_from: from}}) do
+    today = Clock.today()
+    after_start = Date.add(from, 1)
+    if Date.compare(after_start, today) == :gt, do: after_start, else: today
+  end
+
+  defp first_start(_rule), do: Clock.today()
 
   defp decimal_input(nil), do: ""
 
@@ -614,13 +629,24 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
 
   @subject_fields ~w(subject_type security_id category_id subject_view_id)
 
+  # The page's language, not the changeset's English (closing act, UAT): the
+  # messages are static msgids of the `errors` domain with their values as
+  # bindings, so the API's own interpolation stays word for word.
+  defp translate_error({message, opts}) do
+    bindings = Map.new(opts, fn {key, value} -> {key, to_string(value)} end)
+
+    case opts[:count] do
+      nil ->
+        Gettext.dgettext(PortfolixirWeb.Gettext, "errors", message, bindings)
+
+      count ->
+        Gettext.dngettext(PortfolixirWeb.Gettext, "errors", message, message, count, bindings)
+    end
+  end
+
   defp errors(%Ecto.Changeset{} = changeset) do
     changeset
-    |> Ecto.Changeset.traverse_errors(fn {message, opts} ->
-      Enum.reduce(opts, message, fn {key, value}, acc ->
-        String.replace(acc, "%{#{key}}", to_string(value))
-      end)
-    end)
+    |> Ecto.Changeset.traverse_errors(&translate_error/1)
     |> Enum.reduce(%{}, fn {field, [message | _]}, acc ->
       key = to_string(field)
       key = if key in @subject_fields, do: "subject", else: key

@@ -203,9 +203,16 @@ defmodule Portfolixir.Portfolios.PolicyRuleVersion do
     subject = get_field(changeset, :subject_type)
 
     cond do
-      is_nil(measure) or is_nil(subject) -> changeset
-      subject in Map.fetch!(@matrix, measure) -> changeset
-      true -> add_error(changeset, :subject_type, "does not fit the measure #{measure}")
+      is_nil(measure) or is_nil(subject) ->
+        changeset
+
+      subject in Map.fetch!(@matrix, measure) ->
+        changeset
+
+      true ->
+        add_error(changeset, :subject_type, "does not fit the measure %{measure}",
+          measure: measure
+        )
     end
   end
 
@@ -271,7 +278,7 @@ defmodule Portfolixir.Portfolios.PolicyRuleVersion do
         changeset
 
       metric_measure?(measure) and is_nil(window) ->
-        add_error(changeset, :window, "is required for #{measure}")
+        add_error(changeset, :window, "is required for %{measure}", measure: measure)
 
       not metric_measure?(measure) and not is_nil(window) ->
         add_error(changeset, :window, "is only recorded on volatility and max_drawdown")
@@ -332,10 +339,10 @@ defmodule Portfolixir.Portfolios.PolicyRuleVersion do
             add_error(changeset, field, "is invalid")
 
           Decimal.compare(value, min) == :lt ->
-            add_error(changeset, field, "must be at least #{min}")
+            add_error(changeset, field, "must be at least %{min}", min: min)
 
           max && Decimal.compare(value, max) == :gt ->
-            add_error(changeset, field, "must be at most #{max}")
+            add_error(changeset, field, "must be at most %{max}", max: max)
 
           true ->
             changeset
