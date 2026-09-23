@@ -9,6 +9,8 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
   """
   use PortfolixirWeb, :controller
 
+  plug(PortfolixirWeb.Api.V1.BodyObject, "view" when action in [:create, :update])
+
   alias Portfolixir.Buckets
   alias Portfolixir.Buckets.View
   alias PortfolixirWeb.Api.V1.IdParam

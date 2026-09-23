@@ -46,6 +46,25 @@ Feldfehler, den eine fehlerhafte ID erhält. Keine ID wird je mit `500`
 beantwortet. Die freie `attributes`-Map eines Wertpapiers sowie die Textfelder
 `online_id` und `resource_id` sind keine IDs und werden nicht geprüft.
 
+Die Seiten halten dasselbe Versprechen: Ein ID-förmiger Query-Parameter
+jenseits der Grenze (`id`, `*_id`, `*_ids`, `view`) wird durch eine
+Weiterleitung auf dieselbe Seite ohne ihn verworfen, und eine Pfad-ID jenseits
+der Grenze (`/securities/:id`, `/classifications/:id`) leitet auf die Übersicht
+um — nie ein Serverfehler.
+
+**Begrenzte Ganzzahlen.** `offset` auf der Wertpapierliste nimmt höchstens
+`1000000` an, `days` auf den Research-Log-Abfragen `unreviewed` und `expiring`
+höchstens `3650` (zehn Jahre); ein Wert über der Grenze oder einer, der keine
+nicht-negative Ganzzahl ist, liefert `422` mit dem Namen des Parameters.
+`limit` behält seinen Vertrag (gekappt und zurückgemeldet), ebenso `days` bei
+den Wertpapier-Terminen. Ein Jahr außerhalb von `1`–`9999` gilt als
+fehlerhaftes Jahr.
+
+**Eingepackte Rümpfe.** Ein Schreibzugriff, dessen Attribute unter einem
+Schlüssel reisen — `{"transaction": {…}}`, `{"view": {…}}`, `{"rule": {…}}`
+und ihre Geschwister — liefert `422` mit dem Namen dieses Schlüssels, wenn
+sein Wert kein JSON-Objekt ist (ein String, eine Zahl, eine Liste).
+
 **Delta-Reads (FR-38).** Die beiden wiederkehrenden Sync-Reads — `GET
 /api/v1/transactions` und `GET /api/v1/securities` — akzeptieren
 `?since=<ISO8601>` (Datetime mit Offset, naive UTC-Datetime oder ein reines

@@ -1,6 +1,13 @@
 defmodule PortfolixirWeb.Api.V1.ClassificationController do
   use PortfolixirWeb, :controller
 
+  plug(PortfolixirWeb.Api.V1.BodyObject, "classification" when action in [:create, :update])
+
+  plug(
+    PortfolixirWeb.Api.V1.BodyObject,
+    "category" when action in [:create_category, :update_category]
+  )
+
   alias Portfolixir.Classifications
   alias Portfolixir.Classifications.Classification
   alias PortfolixirWeb.Api.V1.IdParam

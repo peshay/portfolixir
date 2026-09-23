@@ -18,6 +18,7 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
   alias Portfolixir.Knowledge.SecurityNote
   alias Portfolixir.Ledger.HeldSecurities
   alias PortfolixirWeb.Api.V1.IdParam
+  alias PortfolixirWeb.Api.V1.IntegerParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ListLimit
   alias PortfolixirWeb.Api.V1.SinceParam
@@ -222,23 +223,10 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
       "entry as_of is older than `days` before as_of, or that have no entry at all."
   end
 
-  # A non-negative integer; absent or empty means the default.
-  defp days_param(params, default) do
-    case Map.get(params, "days") do
-      nil -> {:ok, default}
-      "" -> {:ok, default}
-      value when is_integer(value) and value >= 0 -> {:ok, value}
-      value when is_binary(value) -> parse_non_negative(value, "days")
-      _ -> {:error, "days"}
-    end
-  end
-
-  defp parse_non_negative(value, field) do
-    case Integer.parse(value) do
-      {int, ""} when int >= 0 -> {:ok, int}
-      _ -> {:error, field}
-    end
-  end
+  # A non-negative integer up to ten years (#856); absent or empty means the
+  # default. Unbounded, a 20-digit horizon walked `Date.add/2` for minutes.
+  defp days_param(params, default),
+    do: IntegerParam.parse(params, "days", default, IntegerParam.max_days())
 
   defp optional_id_param(params, key) do
     case Map.get(params, key) do

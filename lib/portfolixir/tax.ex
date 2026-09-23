@@ -97,9 +97,12 @@ defmodule Portfolixir.Tax do
     jurisdiction = Ecto.Changeset.get_field(fresh, :jurisdiction)
     tax_year = Ecto.Changeset.get_field(fresh, :tax_year)
 
-    case fetch_parameters(jurisdiction || @default_jurisdiction, tax_year) do
-      {:error, :not_found} -> insert_parameters(actor, fresh)
+    # #853: without a tax year there is no row to look up — the lookup's
+    # `== ^nil` raised an ArgumentError (a 500). The insert path answers the
+    # changeset's own field errors instead.
+    case tax_year && fetch_parameters(jurisdiction || @default_jurisdiction, tax_year) do
       {:ok, existing} -> update_parameters(actor, existing, attrs)
+      _absent -> insert_parameters(actor, fresh)
     end
   end
 

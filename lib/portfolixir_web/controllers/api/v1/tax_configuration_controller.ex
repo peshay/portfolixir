@@ -14,6 +14,15 @@ defmodule PortfolixirWeb.Api.V1.TaxConfigurationController do
 
   use PortfolixirWeb, :controller
 
+  plug(PortfolixirWeb.Api.V1.BodyObject, "parameters" when action in [:upsert_parameters])
+
+  plug(
+    PortfolixirWeb.Api.V1.BodyObject,
+    "profile" when action in [:create_profile, :update_profile]
+  )
+
+  plug(PortfolixirWeb.Api.V1.BodyObject, "allowance_order" when action in [:put_allowance_order])
+
   alias Portfolixir.Tax
   alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
@@ -101,14 +110,18 @@ defmodule PortfolixirWeb.Api.V1.TaxConfigurationController do
 
   defp parse_year(nil), do: nil
 
+  # A year the `tax_year` column (an int4) can hold and a calendar can name;
+  # anything else reads as a malformed year (#856) — before this bound a
+  # 20-digit year reached the driver as a DBConnection.EncodeError, a 500.
   defp parse_year(value) when is_binary(value) do
     case Integer.parse(value) do
-      {year, ""} -> year
+      {year, ""} -> parse_year(year)
       _other -> nil
     end
   end
 
-  defp parse_year(value) when is_integer(value), do: value
+  defp parse_year(value) when is_integer(value) and value >= 1 and value <= 9999, do: value
+  defp parse_year(_value), do: nil
 
   defp missing_param(conn, param) do
     conn |> put_status(422) |> json(%{errors: %{param => ["is required"]}})
