@@ -1,6 +1,6 @@
 # Exact tag rather than a floating major (#761); Dependabot's docker
 # ecosystem keeps it current.
-FROM node:24.20.0-alpine3.24
+FROM node:24.21.0-alpine3.24
 
 ENV PORTFOLIXIR_MCP_TRANSPORT=http \
     PORTFOLIXIR_MCP_HOST=0.0.0.0 \
