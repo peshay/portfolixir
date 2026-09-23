@@ -958,7 +958,7 @@ The checkbox is one control: box and label sit on one line, the label is the hit
 - **Forms** — stacked label-over-input grids ({components.input}); buttons are quiet elevated rectangles ({components.button}) with `.button-primary` / `.button-danger` variants. **One primary action treatment:** solid filled button; the outline button is the secondary; invisible grey inline text is not an action treatment. Forms sit behind disclosure, not in the primary sightline. Per-account actions live in their row: **the global cash-balance form is `form.inline-form.balance-form` on Wealth — Holdings (`portfolio_live.ex:1509-1531`), not on Accounts & depots** — see EXPERIENCE.md → Component Patterns → Cash accounts for what moves where.
 - **Feedback** — {components.data-note} replaces `.alert-error` / `.alert-success` / `.alert-warning` / `.alert-info` / `.hint` / the dq chips. `.empty-state` wells stay. {components.inline-result} replaces toasts (`.status-toast` and the `AutoDismissToast` hook, issue #566).
 - **Overlays** — `.modal` + backdrop, `.popover` for column pickers and filters, `.row-context-menu` (kebab menu, bottom sheet under 720px). **The requirement is a native `<dialog>` opened with `showModal()`, focus-trapped and inert-backed (UX-DR9).** *Built, and this bullet is the record of it (corrected 2026-09-15, Sprint 12):* `lib/portfolixir_web/` now contains **nine** `<dialog>` elements and **zero** `aria-modal` attributes. Every modal runs on the `ModalDialog` hook, so the focus trap, the inert backdrop and Esc come from the platform; the securities detail `<aside class="detail-pane">` carries no modality attribute at all (issue #646), which is what the original correction asked for. The two bottom sheets issues 800 and 803 added — the securities filter sheet and the booking drawer — are the same `<dialog>`, the drawer opened non-modally above 720 px through `data-sheet-below` so the history behind it stays readable. The reason the original diagnosis gave still binds: `aria-modal="true"` without containment is worse than omitting it, because the screen reader confines its virtual cursor to the dialog while `Tab` keeps walking the page behind it.
-  **Column pickers take `.popover`, at every level (decided 2026-09-23, Sprint 14 plan D-4, pick E3; board `ux-design-2026-09-20/03-column-picker`; issue #835).** The treatment is the one `PortfolixirWeb.Securities.ColumnPicker` implements: `.popover.column-picker` with `role="dialog"` and an `aria-label`, a `.popover-head` heading, and the columns grouped in `<fieldset>`/`<legend>` — at fourteen columns a flat list is a search task, and the grouping is the difference that matters. There is **no** section-level/toolbar-level split: a picker is a popover whether it sits on a toolbar or at the head of a section. The two `<details>` pickers with a flat checkbox list — the transaction history's `#tx-column-picker` and Wealth Positions' `#holdings-column-picker` — are the **non-conforming side**, recorded here as drift rather than as a second sanctioned treatment; the spec was deliberately not amended to match them, because under ADR-0038 the spec is what the design-critic review holds work against, and amending it because two surfaces diverged would invert that. Their convergence is filed as its own issue and built later: it needs the component moved out of the `Securities` namespace into a shared one first, and two surfaces rebuilt on it. Until it lands, a new column picker is built on `.popover`, never on `<details>`. **Built (issue 850, Sprint 15):** `PortfolixirWeb.ColumnPicker` is the one component — `picker/1` renders the popover from `[{legend, [{value, label}]}]` groups, `toggle/1` the labelled trigger (columns glyph plus the word, `aria-expanded`); the popover closes from its × and on Escape. All three pickers render it: securities (icon trigger on its toolbar), the transaction history (a toggle bar right-aligned above the table, groups Booking · Amounts · Other) and Wealth Positions (the toggle in the section head, which the `<details>` could not use because opening it re-centred the heading; groups Position · Identifiers · Valuation). A test fails the build on a `<details>` column picker anywhere in the web layer.
+  **Column pickers take `.popover`, at every level (decided 2026-09-23, Sprint 14 plan D-4, pick E3; board `ux-design-2026-09-20/03-column-picker`; issue #835).** The treatment is the one `PortfolixirWeb.Securities.ColumnPicker` implements: `.popover.column-picker` with `role="dialog"` and an `aria-label`, a `.popover-head` heading, and the columns grouped in `<fieldset>`/`<legend>` — at fourteen columns a flat list is a search task, and the grouping is the difference that matters. There is **no** section-level/toolbar-level split: a picker is a popover whether it sits on a toolbar or at the head of a section. The two `<details>` pickers with a flat checkbox list — the transaction history's `#tx-column-picker` and Wealth Positions' `#holdings-column-picker` — are the **non-conforming side**, recorded here as drift rather than as a second sanctioned treatment; the spec was deliberately not amended to match them, because under ADR-0038 the spec is what the design-critic review holds work against, and amending it because two surfaces diverged would invert that. Their convergence is filed as its own issue and built later: it needs the component moved out of the `Securities` namespace into a shared one first, and two surfaces rebuilt on it. Until it lands, a new column picker is built on `.popover`, never on `<details>`. **Built (issue 850, Sprint 15):** `PortfolixirWeb.ColumnPicker` is the one component — `picker/1` renders the popover from `[{legend, [{value, label}]}]` groups, `toggle/1` the labelled trigger (columns glyph plus the word, `aria-expanded`; open, it carries the board's accent state — accent border and text, bold — as `.is-active`); the popover closes from its × and on Escape, and closing returns the focus to the toggle. All three pickers render it: securities (icon trigger on its toolbar), the transaction history (a toggle bar right-aligned above the table, groups Booking · Amounts · Other) and Wealth Positions (the toggle in the section head, which the `<details>` could not use because opening it re-centred the heading; groups Position · Identifiers · Valuation). A test fails the build on a `<details>` column picker anywhere in the web layer.
 - **Import surfaces** — drop zone, progress, stat cards, notes.
 - **Drag-and-drop rows** (`.dnd-row`, `.dnd-dropzone`, classifications tree) — selection per {components.selected-row}.
 - **Chips** — one chip: {components.chip}, a filled tag. The outline chip and the grey initial-avatar square are separate things wearing the chip's clothes; the avatar is a logo placeholder (`.security-logo--initial`) and reads as one.
@@ -1663,12 +1663,20 @@ B and C of the board).
 2. **Findings table** (`.data-table.policy-findings-table`), sorted breached,
    then undetermined, then met; hard before warning within a state. Columns:
    - **Rule**: the name as a quiet button (`.policy-rule__name`, bold text
-     colour, underline on hover, the focus ring) that opens the edit dialog,
-     and under it the rule's **words** (`.policy-rule__words`: measure and
-     window · subject · kind · severity);
+     colour, underline on hover, the focus ring; `.link-button` carries none
+     of the base button's shadow, radius or 34 px floor, only the 44 px under
+     a coarse pointer) that opens the edit dialog, and under it the rule's
+     **words** (`.policy-rule__words`: measure and window · subject · kind ·
+     severity). A built-in tree's category reads in the page's language
+     (`ClassificationName.category/2`), never its stored English name;
    - **Measured** and **Line** as `.num` columns, on the measure's own scale:
-     weight and volatility `12.4 %`, drawdown `−12.0 %`, drift `−1.2 pp`, HHI
-     `6,800`; a band's line reads `lower … upper`;
+     weight and volatility `12.4 %`, drawdown `-12.0 %`, drift `-1.2 pp`, HHI
+     `6,800`; a band's line reads `lower … upper`. Negative figures carry the
+     hyphen-minus every other figure in the app carries (the board drew U+2212;
+     the spec follows the app, closing act F30). A value and its unit are
+     joined by a non-breaking space, so a narrow cell breaks a band only at
+     `…`. **Below 720 px** the Line column steps aside and the line rides
+     under the measured value (`.policy-rule__line-sub`, "Line 30.0 %");
    - **State**: a badge — breached `.badge--danger` (hard) or `.badge-warning`
      (warning) carrying the signed distance ("breached · +2.4 pp"), met
      `.badge--neutral`, undetermined **`.badge--undetermined`** (transparent,
@@ -1706,7 +1714,9 @@ A native `<dialog>` (UX-DR9), one component for create and edit:
 - **Footer**: a spacer (`.modal-footer__spacer`) separates the confirmed
   destructive action on the left — "Retire rule", or "Delete rule" for a rule
   none of whose versions has been in force — from Cancel and the primary
-  "Save new version" / "Save rule".
+  "Save new version" / "Save rule". Below 480 px the destructive action takes
+  a row of its own at the start and the pair wraps under it, so no label
+  breaks over two lines (board 07); without it the footer stays one row.
 - A version that only started today ends **tonight** when retired; the
   confirmation and the version note say so rather than pretending it is gone.
 
@@ -1749,7 +1759,8 @@ Board `ux-design-2026-09-23/02-position-soll-entry`, variant A, as built.
 - **One table, one form.** A category with assigned securities carries a
   text-style disclosure control beside its name — the chevron plus
   "Positions (n)" in the accent, no button chrome (`.soll-positions-toggle` on
-  `.disclosure-button`, `aria-expanded`/`aria-controls`). Its position rows
+  `.disclosure-button`, `aria-expanded`/`aria-controls`), with the 2 px accent
+  focus outline every control carries (board 07). Its position rows
   follow directly under the category in the same `<table>`, indented one level
   deeper, on `--color-bg-muted`, each with its own target input. One save, one
   live Σ. A category whose positions carry a target opens by default.

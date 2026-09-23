@@ -1840,6 +1840,14 @@ li + li {
   gap: var(--space-1);
 }
 
+/* Open, the toggle carries the accent state board 2026-09-20/03 draws for
+   it (closing act, design critic). */
+.column-picker-toggle.is-active {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
 .popover-actions {
   display: flex;
   justify-content: flex-end;
@@ -2542,6 +2550,12 @@ dialog.modal::backdrop {
     padding: 14px 12px;
     font-size: 16px;
   }
+}
+
+/* The footer is a sibling of the body here, so it takes the body's padding
+   itself (board 06 "after", board 07 F27). */
+.confirm-delete-blocked .modal-footer {
+  padding: 0 18px 18px;
 }
 
 .confirm-delete-blocked .modal-body p {
@@ -6262,6 +6276,13 @@ button.income-bar-label.is-active {
   cursor: pointer;
 }
 
+/* The toggle's reset above drops the base focus ring; it draws the accent
+   outline every control carries (board 07, F25). */
+.soll-positions-toggle:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
 .soll-row__follows {
   display: block;
   font-weight: 400;
@@ -7110,11 +7131,16 @@ select:disabled {
   gap: var(--space-4);
   align-items: end;
 }
-/* A remedy control inside a data note reads as a link in the note's text. */
+/* A remedy control inside a data note reads as a link in the note's text —
+   none of the base button's chrome (shadow, radius, 34 px floor), which drew
+   a box around every rule name on Risk (board 07, F26). */
 .link-button {
+  min-height: 0;
   padding: 0;
   border: 0;
+  border-radius: 0;
   background: none;
+  box-shadow: none;
   font: inherit;
   color: var(--color-accent);
   text-decoration: underline;
@@ -8245,6 +8271,25 @@ dialog.booking-drawer {
 
 .modal-footer__spacer {
   flex: 1 1 auto;
+}
+
+/* At phone width the rule dialog's three actions do not fit one row: "Retire
+   rule" (or "Delete rule") takes a row of its own at the start, the pair
+   below it, so no label breaks over two lines (board 07, F29). Without that
+   first action the spacer does not break, so no empty row opens. */
+@media (max-width: 480px) {
+  .policy-rule-dialog .modal-footer {
+    flex-wrap: wrap;
+  }
+
+  .policy-rule-dialog .modal-footer > button + .modal-footer__spacer {
+    flex-basis: 100%;
+    height: 0;
+  }
+
+  .policy-rule-dialog .modal-footer > button:first-child {
+    margin-right: auto;
+  }
 }
 
 /* At phone width the Line column steps aside and the line rides under the

@@ -133,9 +133,9 @@ defmodule PortfolixirWeb.RiskPolicyRulesLiveTest do
     breached = view |> element("#policy-findings tr[data-state='breached']") |> render()
     assert breached =~ "Einzeltitel höchstens 10 %"
     assert breached =~ "Weight · Nordic Timber Holdings AB · Cap · Hard"
-    assert breached =~ "38.3 %"
-    assert breached =~ "10.0 %"
-    assert breached =~ "+28.3 pp"
+    assert breached =~ "38.3\u00A0%"
+    assert breached =~ "10.0\u00A0%"
+    assert breached =~ "+28.3\u00A0pp"
 
     undetermined = view |> element("#policy-findings tr[data-state='undetermined']") |> render()
     assert undetermined =~ "Volatility · 90 days"
@@ -228,7 +228,7 @@ defmodule PortfolixirWeb.RiskPolicyRulesLiveTest do
     dialog = view |> element("dialog#policy-rule-dialog") |> render()
     assert dialog =~ "Saving creates version 2"
     assert dialog =~ "Version 1"
-    assert dialog =~ "10.0 %"
+    assert dialog =~ "10.0\u00A0%"
 
     view
     |> form("#policy-rule-form", rule: %{threshold: "40"})
@@ -299,7 +299,7 @@ defmodule PortfolixirWeb.RiskPolicyRulesLiveTest do
     assert length(PolicyRules.get_rule(rule.id).versions) == 2
 
     # The change is listed beside the rule, with its start.
-    assert has_element?(view, "#policy-findings [data-role='policy-rule-next']", "45.0 %")
+    assert has_element?(view, "#policy-findings [data-role='policy-rule-next']", "45.0\u00A0%")
 
     view |> element("#policy-findings button[phx-value-id='#{rule.id}']") |> render_click()
     assert has_element?(view, ~s(#policy-rule-form input[name="rule[threshold]"][value="45"]))
@@ -360,6 +360,49 @@ defmodule PortfolixirWeb.RiskPolicyRulesLiveTest do
              html =~ "darf nicht vor heute liegen"
 
     refute html =~ "must be after"
+  end
+
+  # Acceptance criteria (closing act, design critic, board 07 F28/F29):
+  # - On a German page the built-in trees' categories read in German in the
+  #   dialog's subject control and in the rule's words, never the stored
+  #   English names.
+  # - A figure never splits from its unit: value and unit are joined by a
+  #   non-breaking space, so the phone table can only break at "…".
+  test "built-in categories read in German and a figure keeps its unit", %{conn: conn} do
+    world = rules_world()
+    alias Portfolixir.Classifications
+
+    Classifications.ensure_builtins()
+    asset_class = Classifications.get_classification_by_key("asset_class")
+
+    bond =
+      asset_class.id
+      |> Classifications.list_categories()
+      |> Enum.find(&(&1.key == "government_bond"))
+
+    _rule =
+      rule!(world, "Anleihen mindestens 5 %", %{
+        subject_type: "category",
+        classification_id: asset_class.id,
+        category_id: bond.id,
+        measure: "weight",
+        kind: "floor",
+        threshold: "5",
+        severity: "warn"
+      })
+
+    conn = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    {:ok, view, _html} = live(conn, "/risk")
+    html = render_async(view)
+
+    assert html =~ "Gewicht · Staatsanleihe · Untergrenze"
+    refute html =~ "Government bond"
+    assert html =~ "5,0\u00A0%"
+
+    view |> element("button", "Regel anlegen") |> render_click()
+    assert has_element?(view, "#policy-rule-form option", "Staatsanleihe")
+    assert has_element?(view, "#policy-rule-form option", "US-Dollar")
+    refute has_element?(view, "#policy-rule-form option", "Government bond")
   end
 
   # Acceptance criteria (ADR-0049 §1, §2; the dialog's field set per measure):

@@ -11,7 +11,8 @@ defmodule Portfolixir.Invariants.RowMenuKeyboardTest do
   # Acceptance criteria (WAI-ARIA menu pattern, DESIGN.md → Do's and Don'ts):
   # - Opening moves the focus to the first enabled item.
   # - ↑/↓ move between the enabled items and wrap; Home/End jump.
-  # - Esc closes the menu and returns the focus to the kebab that opened it.
+  # - Esc closes the menu and returns the focus to the kebab that opened it —
+  #   the phone row's own kebab too, not the hidden desktop one.
   # - Tab closes the menu onto the kebab.
   # - The behaviour lives in the one hook every row menu mounts, so
   #   /portfolios, /securities, /transactions and /buckets cannot diverge:
@@ -57,5 +58,11 @@ defmodule Portfolixir.Invariants.RowMenuKeyboardTest do
     assert hook =~ "dataset.trigger"
     assert hook =~ "focusTrigger()"
     assert hook =~ "destroyed"
+    # The phone rows open the menu from their own kebab while `data-trigger`
+    # names the desktop one, hidden below 720 px (closing act, F24): the hook
+    # remembers the element that had the focus when the menu opened and
+    # returns to it while it is still on the page and visible.
+    assert hook =~ "this.opener = document.activeElement"
+    assert hook =~ ~r/opener\.isConnected && opener\.offsetParent !== null/
   end
 end

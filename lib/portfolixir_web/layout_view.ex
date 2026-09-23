@@ -375,6 +375,10 @@ defmodule PortfolixirWeb.LayoutView do
             // focus returns to the kebab, instead of falling to the page.
             Hooks.PositionedMenu = {
               mounted: function () {
+                // The control that opened the menu: the phone rows open it
+                // from their own kebab, while data-trigger names the desktop
+                // one, hidden below 720 px.
+                this.opener = document.activeElement;
                 this.reposition();
 
                 var self = this;
@@ -401,6 +405,12 @@ defmodule PortfolixirWeb.LayoutView do
                 }
               },
               focusTrigger: function () {
+                var opener = this.opener;
+                if (opener && opener !== document.body && opener.isConnected && opener.offsetParent !== null) {
+                  opener.focus();
+                  return;
+                }
+
                 var id = this.el.dataset.trigger;
                 var trigger = id && document.getElementById(id);
                 if (trigger) trigger.focus();

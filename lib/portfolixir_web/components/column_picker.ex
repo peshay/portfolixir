@@ -13,11 +13,14 @@ defmodule PortfolixirWeb.ColumnPicker do
   Stateless: the owning LiveView holds whether it is open, renders the toggle
   (`toggle/1`) and receives the form's `on_change` event with the raw
   `columns[]` strings, which it validates against its own registry — no atom
-  is minted from them here. The close button and Escape send `on_close`.
+  is minted from them here. The close button and Escape send `on_close` and
+  return the focus to the toggle named by `toggle_id`.
   """
 
   use Phoenix.Component
   use Gettext, backend: PortfolixirWeb.Gettext
+
+  alias Phoenix.LiveView.JS
 
   alias PortfolixirWeb.AppShell
 
@@ -25,6 +28,11 @@ defmodule PortfolixirWeb.ColumnPicker do
   attr(:form_id, :string, required: true)
   attr(:on_change, :string, required: true)
   attr(:on_close, :string, required: true)
+
+  attr(:toggle_id, :string,
+    required: true,
+    doc: "the toggle that opened the picker; closing hands the focus back to it"
+  )
 
   attr(:groups, :list,
     required: true,
@@ -40,7 +48,7 @@ defmodule PortfolixirWeb.ColumnPicker do
       class="popover column-picker"
       role="dialog"
       aria-label={gettext("Choose columns")}
-      phx-window-keydown={@on_close}
+      phx-window-keydown={close(@on_close, @toggle_id)}
       phx-key="Escape"
     >
       <div class="popover-head">
@@ -49,7 +57,7 @@ defmodule PortfolixirWeb.ColumnPicker do
           type="button"
           class="icon-button"
           data-role="column-picker-close"
-          phx-click={@on_close}
+          phx-click={close(@on_close, @toggle_id)}
           aria-label={gettext("Close")}
         >
           <AppShell.icon name={:x} size={14} />
@@ -70,6 +78,11 @@ defmodule PortfolixirWeb.ColumnPicker do
     </div>
     """
   end
+
+  # Closing removes the focused control with the popover; without a target the
+  # focus falls to the page body (closing act, F31), so it goes back to the
+  # toggle that opened it.
+  defp close(event, toggle_id), do: event |> JS.push() |> JS.focus(to: "#" <> toggle_id)
 
   @doc """
   The labelled toggle for a picker at the head of a section or a table: the

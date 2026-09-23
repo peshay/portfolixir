@@ -38,7 +38,8 @@ defmodule PortfolixirWeb.ColumnPickerConvergenceTest do
   #   `.popover-head` heading and the columns in `<fieldset>`/`<legend>`
   #   groups — the securities list's treatment, from one shared component.
   # - A toggle button opens it and reports aria-expanded; the popover closes
-  #   from its close button and on Escape.
+  #   from its close button and on Escape, and hands the focus back to the
+  #   toggle.
   # - No column picker in the web layer is a `<details>` any more.
   # - The picked columns still apply through the form, as before.
   test "every column picker is the shared grouped popover, opened by its toggle", %{conn: conn} do
@@ -64,6 +65,19 @@ defmodule PortfolixirWeb.ColumnPickerConvergenceTest do
 
       legends = view |> render() |> Floki.parse_document!() |> Floki.find("##{id} legend")
       assert length(legends) >= 2, "#{path}: the columns are not grouped"
+
+      # Closing hands the focus back to the toggle that opened it, not to the
+      # page body (closing act, UAT persona, F31).
+      doc = view |> render() |> Floki.parse_document!()
+
+      for command <- [
+            Floki.attribute(doc, "##{id}", "phx-window-keydown"),
+            Floki.attribute(doc, "##{id} [data-role=column-picker-close]", "phx-click")
+          ] do
+        assert [js] = command
+        assert js =~ ~s("focus"), "#{path}: closing does not move the focus"
+        assert js =~ ~s("to":"#{toggle}"), "#{path}: closing does not return to the toggle"
+      end
 
       view |> element("##{id} [data-role=column-picker-close]") |> render_click()
       refute has_element?(view, "##{id}"), "#{path}: the close button did not close it"
