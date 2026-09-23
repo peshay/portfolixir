@@ -151,7 +151,7 @@ defmodule PortfolixirWeb.ApiV1Test do
   # so that MCP and other local clients can request active or inactive securities without duplicating ledger logic.
   #
   # Acceptance criteria:
-  # - `holding_status=held` returns securities with non-zero net buy/sell quantity.
+  # - `holding_status=held` returns securities with non-zero net quantity.
   # - `holding_status=not_held` returns sold-out and never-held securities.
   # - Invalid holding_status values return a field-specific 422 error.
   test "lists securities with a derived holding_status filter", %{conn: conn} do

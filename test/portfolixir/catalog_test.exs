@@ -248,7 +248,8 @@ defmodule Portfolixir.CatalogTest do
     # so that I can separate active positions from sold-out or never-held securities.
     #
     # Acceptance criteria:
-    # - `:held` returns securities with a non-zero derived buy/sell quantity.
+    # - `:held` returns securities with a non-zero derived net quantity (every
+    #   quantity-moving kind, deliveries included — see HeldSecuritiesTest).
     # - `:not_held` returns securities with zero or no derived quantity.
     # - `:all` keeps the existing unfiltered list behavior.
     test "filters by derived holding status", %{a: a, b: b, c: c} do

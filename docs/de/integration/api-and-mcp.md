@@ -144,6 +144,12 @@ verengen, was der Betreiber sieht.
   Wertpapiere (ADR-0046: die Referenzreihen des Benchmark-Vergleichs),
   `is_benchmark=false` lässt sie weg; das Kennzeichen ist ein Feld der vollen
   Projektion und von `fields=`, und `POST`/`PATCH` nehmen es an.
+  **Gehalten** (`holding_status=held` und jeder andere Gehalten-Filter: die
+  unreviewten Positionen des Research-Logs und `held_only` der Ereignisse)
+  bedeutet eines: eine von null verschiedene Nettomenge über alle Depots,
+  bewegt durch `buy`, `sell`, `inbound_delivery` und `outbound_delivery` — ein
+  eingeliefertes Depot ist ab seiner Ankunft gehalten; ein `security_transfer`
+  zwischen eigenen Depots gleicht sich zu null aus.
 - `POST /api/v1/securities` legt ein Wertpapier mit einem `security`-Objekt an.
   `asset_class` ist ein stabiler String-Code: `equity`, `etf`, `fund`,
   `government_bond`, `bond`, `crypto`, `commodity`, `index`, `other`, plus die

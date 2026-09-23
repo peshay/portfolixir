@@ -20,7 +20,7 @@ defmodule Portfolixir.Catalog do
   alias Portfolixir.Catalog.SecuritySearch.SearchResult
   alias Portfolixir.Catalog.SecurityWithMetrics
   alias Portfolixir.Journal
-  alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Ledger.HeldSecurities
   alias Portfolixir.Portfolios.Targets, as: PortfolioTargets
   alias Portfolixir.Repo
 
@@ -723,19 +723,13 @@ defmodule Portfolixir.Catalog do
       :all ->
         query
 
+      # The one held predicate (#839): every kind the canonical projection
+      # moves quantity with, not only buys and sells.
       :held ->
-        from(s in query,
-          join: h in subquery(holding_totals_query()),
-          on: h.security_id == s.id,
-          where: fragment("? <> 0", h.quantity)
-        )
+        from(s in query, where: s.id in subquery(HeldSecurities.held_ids_query()))
 
       :not_held ->
-        from(s in query,
-          left_join: h in subquery(holding_totals_query()),
-          on: h.security_id == s.id,
-          where: is_nil(h.security_id) or fragment("? = 0", h.quantity)
-        )
+        from(s in query, where: s.id not in subquery(HeldSecurities.held_ids_query()))
     end
   end
 
@@ -757,24 +751,6 @@ defmodule Portfolixir.Catalog do
   defp normalize_holding_status(other) do
     Logger.warning("dropping invalid holding status filter: #{inspect(other)}")
     :all
-  end
-
-  defp holding_totals_query do
-    from(t in Transaction,
-      where: t.type in ["buy", "sell"],
-      group_by: t.security_id,
-      select: %{
-        security_id: t.security_id,
-        quantity:
-          fragment(
-            "sum(CASE WHEN ? = 'buy' THEN ? WHEN ? = 'sell' THEN -? ELSE 0 END)",
-            t.type,
-            t.quantity,
-            t.type,
-            t.quantity
-          )
-      }
-    )
   end
 
   defp normalize_filter({key, op, value}) when is_atom(key) and is_atom(op) do
