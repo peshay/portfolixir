@@ -94,8 +94,10 @@ defmodule PortfolixirWeb.RiskLive do
               >
                 <:value :let={m}><%= Format.percent(m.value) %><small class="value-suffix">%</small></:value>
                 <:sub :let={m}>
-                  <%= gettext("1 year · %{count} observations · min. %{required}",
-                    count: m.observations,
+                  <%= ngettext(
+                    "1 year · %{count} observation · min. %{required}",
+                    "1 year · %{count} observations · min. %{required}",
+                    m.observations,
                     required: m.required
                   ) %>
                 </:sub>
@@ -280,10 +282,7 @@ defmodule PortfolixirWeb.RiskLive do
         <% @metric.insufficient_data -> %>
           <strong class="stat-empty"><%= gettext("not computable") %></strong>
           <small class="stat__sub">
-            <%= gettext("%{count} of %{required} observations",
-              count: @metric.observations,
-              required: @metric.required
-            ) %>
+            <%= observations_of(@metric.observations, @metric.required) %>
           </small>
         <% is_nil(@metric.value) -> %>
           <strong class="stat-empty"><%= @undefined %></strong>
@@ -315,20 +314,33 @@ defmodule PortfolixirWeb.RiskLive do
       <%= if @highest do %>
         <strong><%= Format.decimal(@highest.value, 2) %></strong>
         <small class="stat__sub">
-          <%= gettext("highest of %{count} pairs · 1 year", count: length(@computed)) %>
+          <%= ngettext(
+            "highest of %{count} pair · 1 year",
+            "highest of %{count} pairs · 1 year",
+            length(@computed)
+          ) %>
         </small>
       <% else %>
         <strong class="stat-empty"><%= gettext("not computable") %></strong>
         <small :if={@best} class="stat__sub">
-          <%= gettext("%{count} of %{required} observations",
-            count: @best.observations,
-            required: @best.required
-          ) %>
+          <%= observations_of(@best.observations, @best.required) %>
         </small>
         <small :if={is_nil(@best)} class="stat__sub"><%= gettext("fewer than two names") %></small>
       <% end %>
     </article>
     """
+  end
+
+  # "n of required observations": the noun follows the requirement, which is
+  # never one, so both English forms read the same; the catalogue still owns
+  # the plural (issue 636).
+  defp observations_of(count, required) do
+    ngettext(
+      "%{count} of %{required} observations",
+      "%{count} of %{required} observations",
+      count,
+      required: required
+    )
   end
 
   defp view_name(nil), do: gettext("Everything")
