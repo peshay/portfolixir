@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Reparaturen aus dem Abschlussakt (Sprint 15, Runde D)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  /* The proposed rules, scoped to the "after" frames. Everything else is the
+     live app.css, so "before" is what ships today. */
+  .fix .link-button { box-shadow: none; min-height: 0; border-radius: 0; }
+  .fix .soll-positions-toggle:focus-visible,
+  .fix .soll-positions-toggle.is-focus { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .fix .confirm-delete-blocked .modal-footer { padding: 0 18px 18px; }
+  .fix .policy-rule-dialog .modal-footer { flex-wrap: wrap; }
+  .fix .policy-rule-dialog .modal-footer .modal-footer__spacer { flex-basis: 100%; height: 0; }
+  .fix .policy-rule-dialog .modal-footer > button:first-child { margin-right: auto; }
+  .fix .nowrap-unit { white-space: nowrap; }
+  .fake-focus { outline: auto 1px rgb(16, 16, 16); }
+  .frame-390 { width: 390px; box-sizing: border-box; padding: 16px; }
+  .dlg { border: 1px solid var(--color-border); border-radius: 12px; background: var(--color-bg-elevated); }
+  .dlg .modal-head { padding: 14px 18px; border-bottom: 1px solid var(--color-border); }
+</style>
+</head>
+<body data-widths="1200">
+
+<div class="pickbar"><b>Reparaturen — vorher/nachher.</b> Die lebende Spezifikation (DESIGN.md, Boards 01, 02, 06) legt die Antwort bereits fest; dieses Board zeigt nur, was sich ändert. Links: heute. Rechts: nach der Reparatur. Alle Namen und Zahlen sind erfunden.</div>
+
+<!-- ============================ F26 ============================ -->
+<section class="mock-board">
+  <h2>F26 — Regelnamen ohne Knopf-Rahmen <small>Board 01: „fetter Text, Unterstreichung beim Hover“</small></h2>
+  <p class="mock-note">Der Name ist ein stiller Knopf. Heute erbt er von <code>button</code> Schatten, Radius und 34 px Mindesthöhe — im Dunkeln steht jeder Name in einem Kasten, und über den Worten der Regel entsteht eine Lücke. Nachher: <code>.link-button</code> ohne Schatten und Mindesthöhe; die 44 px bei <code>pointer: coarse</code> bleiben.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before frame-390"><span class="mock-tag">vorher</span>
+      <button type="button" class="link-button policy-rule__name">Einzeltitel höchstens 8 %</button>
+      <span class="policy-rule__words">Gewicht · Nordlicht Holz AB · Obergrenze · hart</span>
+    </div>
+    <div class="fix mock-frame mock-after frame-390"><span class="mock-tag">nachher</span>
+      <button type="button" class="link-button policy-rule__name">Einzeltitel höchstens 8 %</button>
+      <span class="policy-rule__words">Gewicht · Nordlicht Holz AB · Obergrenze · hart</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ F25 ============================ -->
+<section class="mock-board">
+  <h2>F25 — Fokus auf „Positionen (n)“ <small>DESIGN: „jede Bedienung mit sichtbarem 2-px-Fokus“</small></h2>
+  <p class="mock-note">Heute zeigt der Umschalter den Browser-Ring (1 px, im Dunkeln doppelt, schneidet die schließende Klammer ab). Nachher der Akzent-Umriss aller anderen Bedienelemente.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before frame-390"><span class="mock-tag">vorher</span>
+      <b>Aktien</b><button type="button" class="soll-positions-toggle fake-focus">Positionen (2)</button>
+    </div>
+    <div class="fix mock-frame mock-after frame-390"><span class="mock-tag">nachher</span>
+      <b>Aktien</b><button type="button" class="soll-positions-toggle is-focus">Positionen (2)</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ F29 ============================ -->
+<section class="mock-board">
+  <h2>F29 — Zahl und Einheit trennen sich nicht; Fußzeile des Regeldialogs <small>DESIGN: „die Ziffern … brechen nie um“</small></h2>
+  <p class="mock-note">Heute bricht die Grenze in der Telefon-Tabelle zwischen Wert und Einheit („30,0 / %“). Nachher ein geschütztes Leerzeichen zwischen Wert und Einheit — umbrechen darf nur noch an „…“. Die Fußzeile des Dialogs bricht unter 480 px so um, dass „Regel beenden“ eine eigene Zeile bekommt, statt jede Beschriftung zweizeilig zu setzen.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before frame-390" style="width:128px"><span class="mock-tag">vorher</span>
+      <div class="num" style="text-align:right">3,7 %<span class="policy-rule__line-sub" style="display:block">Grenze 30,0 %</span></div>
+      <div class="num" style="text-align:right;margin-top:8px">−18,1 Pp<span class="policy-rule__line-sub" style="display:block">Grenze −50,0 Pp … +50,0 Pp</span></div>
+    </div>
+    <div class="fix mock-frame mock-after frame-390" style="width:128px"><span class="mock-tag">nachher</span>
+      <div class="num" style="text-align:right">3,7&nbsp;%<span class="policy-rule__line-sub" style="display:block">Grenze 30,0&nbsp;%</span></div>
+      <div class="num" style="text-align:right;margin-top:8px">−18,1&nbsp;Pp<span class="policy-rule__line-sub" style="display:block">Grenze −50,0&nbsp;Pp … +50,0&nbsp;Pp</span></div>
+    </div>
+    <div class="mock-frame mock-before" style="width:390px"><span class="mock-tag">vorher</span>
+      <div class="policy-rule-dialog"><div class="modal-body"><div class="modal-footer">
+        <button type="button">Regel beenden</button><span class="modal-footer__spacer"></span>
+        <button type="button">Abbrechen</button><button type="button" class="primary-button">Neue Version speichern</button>
+      </div></div></div>
+    </div>
+    <div class="fix mock-frame mock-after" style="width:390px"><span class="mock-tag">nachher</span>
+      <div class="policy-rule-dialog"><div class="modal-body"><div class="modal-footer">
+        <button type="button">Regel beenden</button><span class="modal-footer__spacer"></span>
+        <button type="button">Abbrechen</button><button type="button" class="primary-button">Neue Version speichern</button>
+      </div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ F27 ============================ -->
+<section class="mock-board">
+  <h2>F27 — Fußzeile des 409-Dialogs im Innenabstand <small>Board 06 „Nachher“</small></h2>
+  <p class="mock-note">Heute ist die Fußzeile ein Geschwister von <code>.modal-body</code> ohne Innenabstand; „Stattdessen stilllegen“ liegt an der Kante. Nachher 0 18 px 18 px, der Innenabstand des Körpers.</p>
+  <div class="mock-row">
+    <div class="mock-before" style="width:390px"><span class="mock-tag">vorher</span>
+      <div class="dlg confirm-delete-blocked"><div class="modal-head"><h2>Kann nicht gelöscht werden</h2></div>
+        <div class="modal-body"><p>„Sonnenfeld Energie SE“ wird von einer Regel gelesen: <b>Einzeltitel höchstens 8 %</b> (in Kraft).</p></div>
+        <div class="modal-footer"><button type="button">Schließen</button><button type="button" class="primary-button">Stattdessen stilllegen</button></div>
+      </div>
+    </div>
+    <div class="fix mock-after" style="width:390px"><span class="mock-tag">nachher</span>
+      <div class="dlg confirm-delete-blocked"><div class="modal-head"><h2>Kann nicht gelöscht werden</h2></div>
+        <div class="modal-body"><p>„Sonnenfeld Energie SE“ wird von einer Regel gelesen: <b>Einzeltitel höchstens 8 %</b> (in Kraft).</p></div>
+        <div class="modal-footer"><button type="button">Schließen</button><button type="button" class="primary-button">Stattdessen stilllegen</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ F28 ============================ -->
+<section class="mock-board">
+  <h2>F28 — Eingebaute Bäume auf Deutsch im Regeldialog <small>Deutsch-Gate: keine englischen Reste</small></h2>
+  <p class="mock-note">Die Gruppen „Anlageklasse“ und „Währung“ listen heute die gespeicherten Kategorienamen, also Englisch — und der Dialog schreibt sie in die Worte der Regel. Nachher dieselben Beschriftungen wie auf der Aufteilungsseite (<code>AssetClasses.label/1</code>, <code>Currencies.name/1</code>).</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before frame-390"><span class="mock-tag">vorher</span>
+      <select size="6" style="width:100%"><optgroup label="Anlageklasse"><option>Equity</option><option>Government bond</option><option>Leverage products</option></optgroup><optgroup label="Währung"><option>US Dollar</option><option>Swiss Franc</option></optgroup></select>
+      <span class="policy-rule__words">Gewicht · Government bond · Untergrenze · Warnung</span>
+    </div>
+    <div class="fix mock-frame mock-after frame-390"><span class="mock-tag">nachher</span>
+      <select size="6" style="width:100%"><optgroup label="Anlageklasse"><option>Aktie</option><option>Staatsanleihe</option><option>Hebelprodukte</option></optgroup><optgroup label="Währung"><option>US-Dollar</option><option>Schweizer Franken</option></optgroup></select>
+      <span class="policy-rule__words">Gewicht · Staatsanleihe · Untergrenze · Warnung</span>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>
