@@ -117,6 +117,58 @@ defmodule Portfolixir.Ledger.HeldSecuritiesTest do
     end
   end
 
+  # Acceptance criteria (closing-act finding F1, risk-tier): a split scales
+  # the pre-split quantity, and bookings after it are in post-split units
+  # (ADR-0028 §3), so a raw sum cannot answer for a security that split.
+  # - Bought 10, split 2:1, sold 20: not held, although the raw sum is -10.
+  # - Bought 10, split 2:1, sold 10: held (10 left), and agrees with the fold.
+  # - A split in ANOTHER portfolio does not scale this portfolio's position.
+  test "held agrees with the positions fold across a split followed by a trade" do
+    world = base_world(name: "Split Held", cash_name: "SH Cash", depot_name: "SH Depot")
+    sold_out = create_security!(name: "Sold Out Co", ticker: "SOC")
+    half_sold = create_security!(name: "Half Sold Co", ticker: "HSC")
+
+    split! = fn security ->
+      book!(world, security, "split", nil, %{
+        securities_account_id: nil,
+        quantity: nil,
+        date: ~D[2026-02-01],
+        split_ratio_numerator: 2,
+        split_ratio_denominator: 1
+      })
+    end
+
+    for security <- [sold_out, half_sold] do
+      buy!(world, security, quantity: "10", price: "100", date: ~D[2026-01-02])
+      split!.(security)
+    end
+
+    Portfolixir.WorldFixtures.sell!(world, sold_out,
+      quantity: "20",
+      price: "50",
+      date: ~D[2026-03-01]
+    )
+
+    Portfolixir.WorldFixtures.sell!(world, half_sold,
+      quantity: "10",
+      price: "50",
+      date: ~D[2026-03-01]
+    )
+
+    totals =
+      Transaction
+      |> Repo.all()
+      |> Positions.calculate()
+      |> Enum.group_by(fn {{_account, security_id}, _qty} -> security_id end, &elem(&1, 1))
+      |> Map.new(fn {security_id, qtys} -> {security_id, Enum.reduce(qtys, &Decimal.add/2)} end)
+
+    from_fold = for {security_id, total} <- totals, not Decimal.equal?(total, 0), do: security_id
+
+    assert Enum.sort(from_fold) == [half_sold.id]
+    assert Enum.sort(HeldSecurities.held_ids()) == [half_sold.id]
+    assert Repo.all(HeldSecurities.held_ids_query()) == [half_sold.id]
+  end
+
   # User story (#839; ADR-0048 §2 for why an under-reporting filter matters):
   # As the operator whose depot was transferred in rather than bought,
   # I want every surface that asks "is it held?" to mean what the ledger

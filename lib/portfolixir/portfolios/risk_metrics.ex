@@ -47,6 +47,7 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
   @zero Decimal.new(0)
   @hub "EUR"
   @gbx_per_gbp Decimal.new(100)
+  @factor_scale 15
 
   @doc """
   The metrics for `portfolio_id` over the lens's Top-N `top_security_ids`.
@@ -125,13 +126,20 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
     {observations, _prev} =
       Enum.flat_map_reduce(daily, @zero, fn point, prev ->
         case Performance.return_factor(point, prev) do
-          {:ok, factor} -> {[%{date: point.date, factor: factor}], point.value}
+          {:ok, factor} -> {[%{date: point.date, factor: round_factor(factor)}], point.value}
           :no_return -> {[], point.value}
         end
       end)
 
     observations
   end
+
+  # A walk converted through exchange rates leaves Decimal division residue in
+  # a factor (0.999…9 at 34 places) on days nothing moved. That residue is not
+  # a return, and left in it reads as a drawdown of "-0" and a risk-adjusted
+  # return made of rounding noise (closing-act finding). 15 places keeps every
+  # real daily return exactly and drops only the residue.
+  defp round_factor(factor), do: Decimal.round(factor, @factor_scale)
 
   # ------------------------------------------------------------ correlations
 

@@ -259,4 +259,20 @@ defmodule Portfolixir.Engines.PortfolioMetricsTest do
       assert Enum.sort(Map.keys(metrics[key])) == Enum.sort(labels)
     end
   end
+
+  # Acceptance criteria (closing-act finding F2): the ratio follows the
+  # volatility the reader sees beside it — when that rounds to 0 at scale 6
+  # the ratio is undefined (null), not a quotient of rounding residue.
+  test "risk_adjusted_return is null when the volatility rounds to zero" do
+    factors =
+      Enum.map(1..30, fn i ->
+        if rem(i, 7) == 0, do: "0.9999999999999999999999999999999999", else: "1"
+      end)
+
+    metrics = PortfolioMetrics.compute(observations(factors), @as_of)
+
+    assert_scale_6(metrics.volatility["30d"].value, "0.000000")
+    assert metrics.risk_adjusted_return["30d"].value == nil
+    refute metrics.risk_adjusted_return["30d"].insufficient_data
+  end
 end

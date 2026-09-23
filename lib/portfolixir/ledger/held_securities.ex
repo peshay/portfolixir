@@ -8,8 +8,15 @@ defmodule Portfolixir.Ledger.HeldSecurities do
   canonical projection — `buy` and `inbound_delivery` add, `sell` and
   `outbound_delivery` subtract — so a depot transferred in (the normal shape of
   a Portfolio Performance import) is held the moment it arrives. A
-  `security_transfer` between own depots nets to zero at this level and a
-  `split` only scales, so neither enters the sum.
+  `security_transfer` between own depots nets to zero at this level.
+
+  **A split is the one kind a sum cannot answer.** It scales the quantity
+  held before it, and every booking after it is in post-split units
+  (ADR-0028 §3): bought 10, split 2:1, sold 20 is a raw sum of -10 and a
+  position of 0. So a security that has ever split is answered by the
+  canonical fold itself — `Portfolixir.Ledger.Positions` over that
+  security's bookings — and only the securities that never split take the
+  one-statement sum, where it is exact (closing-act finding, Sprint 14).
 
   Three surfaces used to carry their own copy of this predicate — the
   catalog's `holding_status` filter, the research log's unreviewed-positions
@@ -17,13 +24,16 @@ defmodule Portfolixir.Ledger.HeldSecurities do
   sells, reporting a delivered-in position as not held. They now all read
   this module, so the predicate cannot drift between them again.
 
-  It is a query rather than a fold over `Portfolixir.Ledger.Positions` so a
-  catalog-sized filter stays one SQL statement; the kind sets it filters by
-  come from the projection, which is what keeps the two in agreement.
+  It stays a query for the never-split majority so a catalog-sized filter is
+  one SQL statement; the kind sets it filters by come from the projection,
+  which is what keeps the two in agreement. `held_ids_query/0` therefore reads
+  the split securities' bookings when it is BUILT, and composes their answer
+  in as a parameter.
   """
 
   import Ecto.Query
 
+  alias Portfolixir.Ledger.Positions
   alias Portfolixir.Ledger.Projection
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Repo
@@ -53,13 +63,51 @@ defmodule Portfolixir.Ledger.HeldSecurities do
     )
   end
 
-  @doc "The ids of the held securities, as a query to compose into another."
+  @doc """
+  The ids of the held securities, as a query to compose into another.
+
+  A security that never split is held when its raw sum is non-zero; one that
+  has split is held when the canonical fold leaves it a non-zero total. Every
+  held security has a quantity-moving booking, so every one of them has a row
+  in `totals_query/0` to be selected from.
+  """
   @spec held_ids_query() :: Ecto.Query.t()
   def held_ids_query do
+    split_ids = split_security_ids()
+    split_held = held_by_fold(split_ids)
+
     from(h in subquery(totals_query()),
-      where: fragment("? <> 0", h.quantity),
+      where:
+        (fragment("? <> 0", h.quantity) and h.security_id not in ^split_ids) or
+          h.security_id in ^split_held,
       select: h.security_id
     )
+  end
+
+  defp split_security_ids do
+    Repo.all(
+      from(t in Transaction,
+        where: t.type == "split" and not is_nil(t.security_id),
+        distinct: true,
+        select: t.security_id
+      )
+    )
+  end
+
+  # The canonical fold over every booking of the securities that split, in
+  # replay order; the split's scale leg reaches only its own portfolio's
+  # positions, which is what the fold's account-to-portfolio map is for.
+  defp held_by_fold([]), do: []
+
+  defp held_by_fold(security_ids) do
+    from(t in Transaction, where: t.security_id in ^security_ids)
+    |> Repo.all()
+    |> Positions.calculate()
+    |> Enum.reduce(%{}, fn {{_account, security_id}, quantity}, acc ->
+      Map.update(acc, security_id, quantity, &Decimal.add(&1, quantity))
+    end)
+    |> Enum.reject(fn {_security_id, total} -> Decimal.equal?(total, 0) end)
+    |> Enum.map(&elem(&1, 0))
   end
 
   @doc "The ids of the held securities."

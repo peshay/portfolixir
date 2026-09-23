@@ -129,6 +129,48 @@ defmodule Portfolixir.Portfolios.RiskMetricsTest do
              Decimal.to_string(holder_metrics.risk_adjusted_return["90d"].value)
   end
 
+  # Acceptance criteria (closing-act finding F2/F3, I1 under currency
+  # conversion): a flat multi-currency portfolio whose walk leaves Decimal
+  # division residue in a factor (0.999…9 at 34 places) still reads as flat —
+  # volatility and drawdown "0.000000", no risk-adjusted-return number made
+  # of rounding noise, and no "-0" drawdown left unrecovered.
+  test "I1 survives currency conversion: division residue is not a return" do
+    for {ccy, rate} <- [{"USD", "3"}, {"CHF", "7"}], do: rate!(ccy, day(-200), rate)
+
+    world = base_world()
+    usd = create_security!(name: "Flat USD", ticker: "FUS", currency: "USD")
+    chf = create_security!(name: "Flat CHF", ticker: "FCH", currency: "CHF")
+
+    deposit!(world, "1000", day(-100))
+    buy!(world, usd, quantity: "1", price: "33", date: day(-100))
+    buy!(world, chf, quantity: "1", price: "14", date: day(-100))
+
+    for {amount, offset} <- [
+          {"7", -90},
+          {"61", -80},
+          {"999", -70},
+          {"9001", -50},
+          {"13", -40},
+          {"88888", -30},
+          {"3", -20},
+          {"900001", -10},
+          {"1", -3}
+        ],
+        do: deposit!(world, amount, day(offset))
+
+    daily_closes(usd, -100, fn _ -> "100" end)
+    daily_closes(chf, -100, fn _ -> "100" end)
+
+    metrics = RiskMetrics.for_portfolio(world.portfolio.id, [usd.id, chf.id], as_of: @as_of)
+
+    for window <- ~w(30d 90d 365d) do
+      assert_scale_6(metrics.volatility[window].value, "0.000000")
+      assert_scale_6(metrics.max_drawdown[window].value, "0.000000")
+      assert metrics.max_drawdown[window].recovery_date
+      assert metrics.risk_adjusted_return[window].value == nil
+    end
+  end
+
   # User story (FR-40, ADR-0047 §3 and §11, identity I7):
   # As the operator holding positions in several currencies,
   # I want the correlation matrix computed in my base currency,
