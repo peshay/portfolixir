@@ -49,14 +49,17 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "operator's caps, floors and bands over a weight, a drift, the HHI or a portfolio " <>
           "metric, stored as versioned, effective-dated objects: an edit is a new version, a " <>
           "version that has been in force is never changed or deleted, and the standard in " <>
-          "force on any date is a read.",
+          "force on any date is a read — and the findings read, which evaluates the rules in " <>
+          "force today over the figures the product already serves into ok, breached or " <>
+          "undetermined (never a pass), with no action on any finding.",
       endpoints: [
         "GET /api/v1/portfolios/:portfolio_id/policy_rules",
         "POST /api/v1/portfolios/:portfolio_id/policy_rules",
         "GET /api/v1/policy_rules/:id",
         "POST /api/v1/policy_rules/:id/versions",
         "POST /api/v1/policy_rules/:id/retire",
-        "DELETE /api/v1/policy_rules/:id"
+        "DELETE /api/v1/policy_rules/:id",
+        "GET /api/v1/portfolios/:portfolio_id/policy_findings"
       ],
       tools: [
         "portfolixir.policy_rules.list",
@@ -64,10 +67,12 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "portfolixir.policy_rules.create",
         "portfolixir.policy_rules.add_version",
         "portfolixir.policy_rules.retire",
-        "portfolixir.policy_rules.delete"
+        "portfolixir.policy_rules.delete",
+        "portfolixir.portfolios.policy_findings"
       ],
       parameters: [
-        "GET /api/v1/portfolios/:portfolio_id/policy_rules and portfolixir.policy_rules.list take as_of= (the standard in force on a date), include_retired=, view= (one evaluation context; absent is every context), since= (a rule counts as changed when its row or any version did) and limit="
+        "GET /api/v1/portfolios/:portfolio_id/policy_rules and portfolixir.policy_rules.list take as_of= (the standard in force on a date), include_retired=, view= (one evaluation context; absent is every context), since= (a rule counts as changed when its row or any version did) and limit=",
+        "GET /api/v1/portfolios/:portfolio_id/policy_findings and portfolixir.portfolios.policy_findings take view= (the evaluation context) and status= (a comma-separated set of breached, undetermined, ok; status=breached is the pull-only alarm list); since= deliberately does not apply — findings are a derived projection (#849)"
       ],
       removed_endpoints: [],
       removed_tools: []

@@ -36,6 +36,52 @@ defmodule PortfolixirWeb.Api.V1.PolicyJSON do
     |> Map.put(:versions, Enum.map(rule.versions, &version/1))
   end
 
+  @doc """
+  One finding (ADR-0049 §5): the rule's identity and words, the version, the
+  thresholds, the measured `value`, the `state`, the signed `distance` to the
+  nearest line, the reason and — for a refused metric — `required` and
+  `observations`, and the computation basis of the reading. No action (§6).
+  """
+  def finding(finding) do
+    %{
+      rule_id: finding.rule_id,
+      rule_name: finding.rule_name,
+      view_id: finding.view_id,
+      version_id: finding.version_id,
+      valid_from: JSON.date(finding.valid_from),
+      valid_until: JSON.date(finding.valid_until),
+      subject_type: to_string(finding.subject_type),
+      security_id: finding.security_id,
+      classification_id: finding.classification_id,
+      category_id: finding.category_id,
+      subject_view_id: finding.subject_view_id,
+      measure: to_string(finding.measure),
+      window: finding.window && to_string(finding.window),
+      kind: to_string(finding.kind),
+      severity: to_string(finding.severity),
+      threshold: JSON.decimal(finding.threshold),
+      lower: JSON.decimal(finding.lower),
+      upper: JSON.decimal(finding.upper),
+      note: finding.note,
+      state: to_string(finding.state),
+      value: JSON.decimal(finding.value),
+      distance: JSON.decimal(finding.distance),
+      reason: finding.reason && to_string(finding.reason),
+      required: finding.required,
+      observations: finding.observations,
+      computation_basis: basis(finding.computation_basis)
+    }
+  end
+
+  defp basis(nil), do: nil
+
+  defp basis(%{} = basis) do
+    Map.new(basis, fn
+      {key, %Date{} = date} -> {key, JSON.date(date)}
+      pair -> pair
+    end)
+  end
+
   @doc "One version: the predicate and the period it is the standard."
   def version(nil), do: nil
 

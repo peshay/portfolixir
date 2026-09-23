@@ -41,6 +41,10 @@ defmodule Portfolixir.Invariants.DerivedNeverAWriteSourceTest do
     # registered read model over the walk and the Top-N close series, keyed
     # under the portfolio basis at lifetime `:request`. It has no write path.
     "lib/portfolixir/portfolios/risk_metrics.ex" => [[:Portfolixir, :Derived]],
+    # The policy findings (ADR-0049 §5): a registered read model over the
+    # reads above, keyed under the portfolio basis and the rules counter at
+    # lifetime `:request`. It has no write path.
+    "lib/portfolixir/portfolios/policy_findings.ex" => [[:Portfolixir, :Derived]],
     "lib/portfolixir/journal.ex" => [[:Portfolixir, :Derived, :Invalidation]],
     "lib/portfolixir/fx.ex" => [[:Portfolixir, :Derived, :Invalidation]],
     "lib/portfolixir/catalog/quotes.ex" => [[:Portfolixir, :Derived, :Invalidation]],

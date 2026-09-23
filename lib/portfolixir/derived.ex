@@ -62,6 +62,17 @@ defmodule Portfolixir.Derived do
   @doc "The basis key of derived values depending on every portfolio."
   defdelegate global_basis(), to: DataVersion
 
+  @doc "The rules counter of one portfolio (ADR-0049 §5)."
+  defdelegate rules_basis(portfolio_id), to: DataVersion
+
+  @doc """
+  The current version of a basis. A read keyed on a SECOND basis beside the
+  one `fetch/4` composes — the findings read's rules counter — puts it into
+  its entry key through this.
+  """
+  @spec current_version(String.t()) :: non_neg_integer()
+  def current_version(basis) when is_binary(basis), do: DataVersion.current(basis)
+
   @doc """
   The derived value for `(analytic_id, basis, entry_key)`, computing it with
   `compute` when no current-version value exists.

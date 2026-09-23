@@ -159,6 +159,25 @@ defmodule Portfolixir.Portfolios.Allocation do
     do: Decimal.compare(Decimal.abs(drift), threshold) != :lt
 
   @doc """
+  The cash row's actual weight on its own: the counting cash as a share of the
+  steering basis (valued positions plus deployable cash) — the same figure as
+  `for_portfolio/3`'s `cash.actual_weight` under **any** classification, since
+  cash's share does not depend on how the securities are sorted. For a reader
+  that needs the cash share without a tree (the policy-rules read, ADR-0049
+  §2). Options as `for_portfolio/3` (`:view`, `:pricing_context`, ...).
+
+  Returns `%{actual_weight: fraction, total_value: basis}` or
+  `{:error, :view_not_found}`.
+  """
+  @spec cash_weight(integer(), keyword()) :: map() | {:error, :view_not_found}
+  def cash_weight(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
+    with %{} = valuation <- Valuation.for_portfolio(portfolio_id, opts) do
+      total = Decimal.add(valuation.total_value, valuation.counting_cash)
+      %{actual_weight: weight(valuation.counting_cash, total), total_value: total}
+    end
+  end
+
+  @doc """
   Builds the allocation breakdown for `portfolio_id` against `classification_id`.
 
   Options are passed through to `Valuation.for_portfolio/2` (e.g. `:prices`,
@@ -918,6 +937,11 @@ defmodule Portfolixir.Portfolios.Allocation do
       # exist, else the explicit category weight; `conflict`/`has_stale`
       # surface a divergent explicit weight or a stale position row.
       target_weight: target_weight,
+      # Whether the active plan steers this category at all — the one fact
+      # `target_weight` (0 when absent) cannot tell apart from a target of 0.
+      # The policy-rules read (ADR-0049 §3) needs it: a drift against no
+      # target is undetermined, not a drift against zero.
+      has_target: not is_nil(values.target),
       drift_weight: drift_weight,
       drift_value: Decimal.mult(drift_weight, total),
       child_target_sum: values.child_target_sum,

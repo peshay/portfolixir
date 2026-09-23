@@ -87,6 +87,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.policy_rules.add_version",
       "portfolixir.policy_rules.retire",
       "portfolixir.policy_rules.delete",
+      "portfolixir.portfolios.policy_findings",
       "portfolixir.portfolios.cash_target",
       "portfolixir.portfolios.set_cash_target",
       "portfolixir.cash_accounts.set_balance",
@@ -2449,6 +2450,40 @@ describe("Portfolixir MCP tools", () => {
 
     const retire = listTools().find((tool) => tool.name === "portfolixir.policy_rules.retire");
     assert.match(retire?.description ?? "", /stay readable/);
+  });
+
+  // ADR-0049 §5: the findings read — did anything cross a line? — as one
+  // call, with status=breached as the pull-only alarm list.
+  it("wraps the findings read: status narrows, view scopes, no action", async () => {
+    const { client, requests } = createRecordingClient({ data: { findings: [] } });
+
+    await callTool(client, "portfolixir.portfolios.policy_findings", { portfolio_id: 3 });
+    await callTool(client, "portfolixir.portfolios.policy_findings", {
+      portfolio_id: 3,
+      view: 5,
+      status: "breached,undetermined"
+    });
+
+    assert.deepEqual(
+      requests.map((request) => `${request.method} ${request.path}`),
+      [
+        "GET /api/v1/portfolios/3/policy_findings",
+        "GET /api/v1/portfolios/3/policy_findings?view=5&status=breached%2Cundetermined"
+      ]
+    );
+
+    const findings = listTools().find(
+      (tool) => tool.name === "portfolixir.portfolios.policy_findings"
+    );
+    const description = findings?.description ?? "";
+    assert.match(description, /undetermined/);
+    assert.match(description, /NEVER a pass/);
+    assert.match(description, /PULL ONLY/);
+    assert.match(description, /no action/);
+    assert.deepEqual(
+      Object.keys((findings?.inputSchema as any).properties).sort(),
+      ["portfolio_id", "status", "view"]
+    );
   });
 
   // ADR-0048 (FR-44): security events, agent-first. The whole point of the

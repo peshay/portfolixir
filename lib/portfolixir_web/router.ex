@@ -203,6 +203,11 @@ defmodule PortfolixirWeb.Router do
     post("/policy_rules/:id/versions", PolicyRuleController, :add_version)
     post("/policy_rules/:id/retire", PolicyRuleController, :retire)
     delete("/policy_rules/:id", PolicyRuleController, :delete)
+
+    # The findings read (ADR-0049 §5): the rules in force today, evaluated at
+    # read over the figures the product already serves. status=breached is
+    # the retrievable alarm list — a pull; nothing is pushed (B3.7).
+    get("/portfolios/:portfolio_id/policy_findings", PolicyFindingController, :index)
     get("/portfolios/:portfolio_id/targets", TargetController, :index)
     put("/portfolios/:portfolio_id/targets", TargetController, :set)
     delete("/portfolios/:portfolio_id/targets/:category_id", TargetController, :delete)
