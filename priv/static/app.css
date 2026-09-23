@@ -1789,6 +1789,22 @@ li + li {
   gap: 2px;
 }
 
+/* The shared picker's labelled toggle (issue 850): icon and word, the
+   popover opening over the table from its right edge. On the transaction
+   history it sits on its own bar above the table; on Wealth Positions in
+   the section head. */
+.column-picker-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-2);
+}
+
+.column-picker-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
 .popover-actions {
   display: flex;
   justify-content: flex-end;
@@ -7657,7 +7673,7 @@ dialog.filter-sheet::backdrop {
   /* The column pickers configure tables that are not on the phone: the rows
      are a fixed composition (UX-DR27), so the controls would do nothing. */
   #toggle-column-popover,
-  #tx-column-picker {
+  .column-picker-bar {
     display: none;
   }
 

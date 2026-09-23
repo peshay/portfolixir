@@ -60,6 +60,8 @@ defmodule PortfolixirWeb.WealthHoldingsColumnsTest do
     {:ok, view, _html} = live(conn, "/portfolio")
     render_async(view)
 
+    # #850: the picker is a popover on its toggle.
+    view |> element("#holdings-column-toggle") |> render_click()
     assert has_element?(view, "#holdings-column-picker")
 
     view
@@ -82,6 +84,7 @@ defmodule PortfolixirWeb.WealthHoldingsColumnsTest do
     {:ok, view, _html} = live(conn, "/portfolio")
     render_async(view)
 
+    view |> element("#holdings-column-toggle") |> render_click()
     view |> form("#holdings-column-form", %{"columns" => [""]}) |> render_change()
 
     head = view |> element("#holdings-positions-table thead") |> render()
