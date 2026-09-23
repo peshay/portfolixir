@@ -193,6 +193,16 @@ defmodule PortfolixirWeb.Router do
     )
 
     get("/portfolios/:portfolio_id/risk", RiskController, :index)
+
+    # Policy rules (FR-43, ADR-0049 §8, §9): the operator's caps, floors and
+    # bands as versioned objects. An edit is a new version; a version that has
+    # been in force is never changed or deleted.
+    get("/portfolios/:portfolio_id/policy_rules", PolicyRuleController, :index)
+    post("/portfolios/:portfolio_id/policy_rules", PolicyRuleController, :create)
+    get("/policy_rules/:id", PolicyRuleController, :show)
+    post("/policy_rules/:id/versions", PolicyRuleController, :add_version)
+    post("/policy_rules/:id/retire", PolicyRuleController, :retire)
+    delete("/policy_rules/:id", PolicyRuleController, :delete)
     get("/portfolios/:portfolio_id/targets", TargetController, :index)
     put("/portfolios/:portfolio_id/targets", TargetController, :set)
     delete("/portfolios/:portfolio_id/targets/:category_id", TargetController, :delete)

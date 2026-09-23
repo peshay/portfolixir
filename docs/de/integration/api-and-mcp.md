@@ -1269,6 +1269,96 @@ Beispiel-Payloads für Konten:
 - `DELETE /api/v1/snapshots/:id` löscht einen Marker; Transaktionen und
   Bestände bleiben unberührt.
 
+## Eigene Regeln (ADR-0049)
+
+Eine **eigene Regel** ist ein Maßstab des Betreibers über eine Zahl, die das
+Produkt ohnehin liefert: „kein Einzeltitel über 10 %", „Barmittel nie unter
+5 %", „die Kategorie Anleihen innerhalb von ±3 Prozentpunkten ihres Ziels",
+„die 90-Tage-Volatilität des Portfolios unter 15 %". Sie wird als Objekt
+gespeichert, statt als Fließtext in einem geplanten Prompt zu stehen — dort,
+wo solche Grenzen bisher auseinanderliefen.
+
+**Was eine Regel ist.** Eine Aussage über **eine benannte Kennzahl**, für
+einen Bezug, in einem Auswertungskontext:
+
+- der **Kontext** ist das Portfolio plus eine optionale `view_id` (`null` ist
+  der portfolioweite Kontext, wie bei Zielplänen); die Kennzahl wird auf der
+  steuerbaren Basis dieses Kontexts gelesen;
+- der **Bezug** ist `basis`, `security` (`security_id`), `category`
+  (`classification_id` + `category_id`), `view` (`subject_view_id`) oder
+  `cash`;
+- die **Kennzahl** ist eine dieser, und jede wird aus einer Antwort gelesen,
+  die das Produkt schon liefert — Regeln berechnen keine eigene Zahl:
+
+  | `measure` | Bezüge | Skala der Grenzen |
+  |---|---|---|
+  | `weight` | security, category, cash, view | Prozent, `0`–`100` |
+  | `drift` | category, security | Prozentpunkte, `−100`–`100` (Ist − Ziel des aktiven Plans) |
+  | `hhi` | basis | `0`–`10000` |
+  | `volatility` | basis, mit `window` (`30d`, `90d`, `365d`) | Prozent, annualisiert, `≥ 0` |
+  | `max_drawdown` | basis, mit `window` | Prozent im eigenen Vorzeichen, `−100`–`0` |
+
+  Ein `security`-Bezug für `drift` nennt zusätzlich die `classification_id`,
+  deren Plan sein Positionsziel trägt. Ein `view`-Bezug ist die Art, einen
+  **Bucket** zu begrenzen: „der spekulative Bucket bleibt unter 5 % von allem"
+  ist eine `weight`-Obergrenze auf der View, die diesen Bucket auswählt,
+  ausgewertet im portfolioweiten Kontext.
+- die **Art** ist `cap` (verletzt strikt oberhalb von `threshold`), `floor`
+  (strikt unterhalb) oder `band` (außerhalb von `[lower, upper]`) — dieselbe
+  Lesart einer Linie wie die Risikolinse;
+- der **Schweregrad** ist `warn` oder `hard`; `name` und `note` sind die
+  Worte des Betreibers und werden nie ausgewertet.
+
+Grenzen sind Decimal-Strings (ADR-0016). Eine Aussage, die nicht zu ihrer
+Kennzahl passt — ein Bezug außerhalb der Tabelle, ein fehlendes oder
+überflüssiges `window`, ein Band mit `lower > upper`, eine Grenze außerhalb der
+Skala — ist ein `422`, das Feld unter `version` benannt.
+
+**Versioniert und mit Gültigkeitsdatum.** Eine Regel hat eine feste Identität
+und eine oder mehrere **Versionen**, jede der Maßstab ihres eigenen Zeitraums
+`[valid_from, valid_until]`. Eine **Änderung legt eine Version an** ab
+`valid_from` (standardmäßig heute, nie früher) und beendet die vorige am Tag
+davor; beide bleiben lesbar, sodass „welcher Maßstab galt am Tag D" eine
+Abfrage ist (`as_of=`) und keine Recherche im Audit-Journal. Eine Version, die
+schon gegolten hat, wird **nie geändert und nie gelöscht** — die Datenbank
+lehnt es ab, ebenso zwei sich überschneidende Versionen einer Regel. Eine erst
+geplante Version wird ersetzt, indem man eine Version ab demselben Datum
+anlegt. Jeder Schreibvorgang wird journalisiert.
+
+Die Lesezugriffe:
+
+- `GET /api/v1/portfolios/:portfolio_id/policy_rules` — die Regeln des
+  Portfolios, jede mit `status` (`in_force`, `scheduled` oder `retired`,
+  bezogen auf `as_of`), `version_in_force` und `next_version`. `as_of`
+  (ISO-Datum, standardmäßig heute) liest den Maßstab eines Tages;
+  `include_retired=true` nimmt beendete Regeln dazu; `view` beschränkt auf
+  einen Auswertungskontext (ohne: alle Kontexte); `since` ist die Zeilen-Delta
+  (eine Regel gilt als geändert, wenn ihre Zeile oder eine ihrer Versionen
+  geändert wurde); `limit` (Standard 1000, höchstens 10000).
+- `GET /api/v1/policy_rules/:id` — eine Regel mit ihrer **ganzen
+  Versionsgeschichte**, älteste zuerst.
+
+Die Schreibzugriffe:
+
+- `POST /api/v1/portfolios/:portfolio_id/policy_rules` — Rumpf
+  `{"rule": {"name", "view_id", "version": {…}}}`; legt die Regel mit ihrer
+  ersten Version an (`201`).
+- `POST /api/v1/policy_rules/:id/versions` — Rumpf `{"version": {…}}`; die
+  Änderung (`201`).
+- `POST /api/v1/policy_rules/:id/retire` — optional `valid_until`; beendet
+  die geltende Version standardmäßig gestern (heute Abend, wenn sie erst heute
+  begann) und verwirft danach geplante Versionen. Die Regel bleibt mit
+  `include_retired=true` lesbar. Eine Regel, deren keine Version je gegolten
+  hat, oder eine schon beendete, ist ein `409`.
+- `DELETE /api/v1/policy_rules/:id` — nur, solange **keine** Version je
+  gegolten hat (`204`); sonst `409`, und der Ausweg ist, sie zu beenden.
+
+**Was diese Schnittstelle nicht ist.** Eine Regel ist ein Maßstab, nie eine
+Anweisung: Hier wird kein Trade platziert, vorgeschlagen oder bemessen, nichts
+wird irgendwohin geschickt, und keine Regel wird über einen Zeitraum vor ihrem
+`valid_from` zurückgerechnet (das wäre Backtesting, Stufe (d) der
+Scope-Leiter).
+
 ## Wechselkurse
 
 - `GET /api/v1/exchange_rates` listet gespeicherte Wechselkurse. Kurse werden
@@ -1664,6 +1754,19 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
 - `portfolixir.targets.delete`
 - `portfolixir.portfolios.allocation`
 - `portfolixir.portfolios.risk`
+- `portfolixir.policy_rules.list` — die eigenen Regeln mit der am `as_of`
+  geltenden Version (ADR-0049); die Beschreibung weist den Agenten an, den
+  Maßstab hier zu lesen, statt ihn zu wiederholen.
+- `portfolixir.policy_rules.get` — eine Regel mit ihrer ganzen
+  Versionsgeschichte.
+- `portfolixir.policy_rules.create` — legt eine Regel mit ihrer ersten Version
+  an; die Beschreibung enthält die Kennzahl-Tabelle und die Skalen.
+- `portfolixir.policy_rules.add_version` — die Änderung: eine neue Version,
+  nie ein Überschreiben.
+- `portfolixir.policy_rules.retire` — beendet die geltende Version; alles
+  bleibt lesbar.
+- `portfolixir.policy_rules.delete` — nur für eine Regel, an der nie gemessen
+  wurde.
 - `portfolixir.portfolios.cash_target`
 - `portfolixir.portfolios.set_cash_target`
 - `portfolixir.portfolios.income`

@@ -65,6 +65,19 @@ defmodule Portfolixir.Derived.Invalidation do
       )
 
   @doc """
+  Bumps one portfolio's **rules counter** after a policy-rule write
+  (ADR-0049 §5), on the writing transaction's `repo`.
+
+  A rule write rides the journal seam like every write, and `BlastRadius`
+  answers it with no portfolio: a standard over figures moves no figure. The
+  one derived value that reads rules — the findings read — keys on this
+  counter beside the portfolio basis, and this is where it is bumped.
+  """
+  @spec after_rule_write(integer(), Ecto.Repo.t()) :: :ok
+  def after_rule_write(portfolio_id, repo \\ Repo) when is_integer(portfolio_id),
+    do: DataVersion.bump_rules(portfolio_id, repo)
+
+  @doc """
   Bumps after an exchange-rate write. Allowlisted out of the journal for the
   same reason as quotes. No security basis is bumped: a security's own data is
   its row, its quotes and its splits in its own currency, and no value keyed

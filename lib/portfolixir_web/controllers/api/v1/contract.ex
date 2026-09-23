@@ -39,6 +39,40 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 7,
+      # The date the batch lands on main; an entry sharing its predecessor's
+      # date would be invisible to a poller that read that one (since= is
+      # strictly after), so it is never backdated onto Sprint 14's.
+      date: ~D[2026-09-24],
+      summary:
+        "Sprint 15: policy rules as first-class objects (ADR-0049, FR-43, gate B3.6) — the " <>
+          "operator's caps, floors and bands over a weight, a drift, the HHI or a portfolio " <>
+          "metric, stored as versioned, effective-dated objects: an edit is a new version, a " <>
+          "version that has been in force is never changed or deleted, and the standard in " <>
+          "force on any date is a read.",
+      endpoints: [
+        "GET /api/v1/portfolios/:portfolio_id/policy_rules",
+        "POST /api/v1/portfolios/:portfolio_id/policy_rules",
+        "GET /api/v1/policy_rules/:id",
+        "POST /api/v1/policy_rules/:id/versions",
+        "POST /api/v1/policy_rules/:id/retire",
+        "DELETE /api/v1/policy_rules/:id"
+      ],
+      tools: [
+        "portfolixir.policy_rules.list",
+        "portfolixir.policy_rules.get",
+        "portfolixir.policy_rules.create",
+        "portfolixir.policy_rules.add_version",
+        "portfolixir.policy_rules.retire",
+        "portfolixir.policy_rules.delete"
+      ],
+      parameters: [
+        "GET /api/v1/portfolios/:portfolio_id/policy_rules and portfolixir.policy_rules.list take as_of= (the standard in force on a date), include_retired=, view= (one evaluation context; absent is every context), since= (a rule counts as changed when its row or any version did) and limit="
+      ],
+      removed_endpoints: [],
+      removed_tools: []
+    },
+    %{
       version: 6,
       date: ~D[2026-09-23],
       summary:
