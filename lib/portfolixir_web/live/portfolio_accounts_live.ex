@@ -723,6 +723,9 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
     end
   end
 
+  # A forged toggle (unknown owner, missing keys) changes nothing.
+  def handle_event("toggle_bucket_overflow", _params, socket), do: {:noreply, socket}
+
   def handle_event("close_bucket_picker", _params, socket) do
     {:noreply, socket |> assign(:picker, nil) |> assign(:bucket_error, nil)}
   end

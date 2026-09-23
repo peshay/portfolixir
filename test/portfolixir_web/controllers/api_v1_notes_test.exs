@@ -338,4 +338,32 @@ defmodule PortfolixirWeb.ApiV1NotesTest do
 
     assert Knowledge.list_notes(security.id) == []
   end
+
+  # Acceptance criteria (closing-act finding on #841): the column counts
+  # characters (codepoints), not graphemes — 237 combining "é" graphemes are
+  # 474 codepoints and must be refused, not reach the database.
+  test "a source_url over 255 codepoints is a 422 even when it is fewer graphemes", %{
+    conn: conn
+  } do
+    security = WorldFixtures.create_security!(name: "Accent Link Co", ticker: "ALC")
+    combining = "https://x.invalid/" <> String.duplicate("e\u0301", 237)
+    assert String.length(combining) == 255
+
+    assert %{"errors" => %{"source_url" => [_ | _]}} =
+             post_json(
+               conn,
+               "/api/v1/securities/#{security.id}/notes",
+               %{
+                 "note" => %{
+                   "kind" => "evidence",
+                   "body" => "a filing behind an accented link",
+                   "source_quality" => "primary",
+                   "as_of" => "2026-08-01",
+                   "author" => "agent",
+                   "source_url" => combining
+                 }
+               },
+               422
+             )
+  end
 end

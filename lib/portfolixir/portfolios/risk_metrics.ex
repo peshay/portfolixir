@@ -47,7 +47,6 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
   @zero Decimal.new(0)
   @hub "EUR"
   @gbx_per_gbp Decimal.new(100)
-  @rate_floor ~D[1900-01-01]
 
   @doc """
   The metrics for `portfolio_id` over the lens's Top-N `top_security_ids`.
@@ -140,10 +139,15 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
   # converted into `base` at the rate stored on or before each close's day. A
   # close before the currency's first stored rate has no converted value and
   # is not a point; a currency with no stored rate at all is excluded.
+  #
+  # Rates are loaded from the window's start only, seeded with the one rate
+  # stored on or before it, and walked together with the ascending closes in
+  # one pass — the cost is closes + rates, not closes × every rate ever stored
+  # (closing-act finding: 9,000 daily rates made the read take seconds).
   defp converted_series(ids, as_of, base) do
     from = Date.add(as_of, -PortfolioMetrics.correlation_window_days())
     securities = Repo.all(from(s in Security, where: s.id in ^ids)) |> Map.new(&{&1.id, &1})
-    base_rates = hub_rate_series(base)
+    base_rates = hub_rate_series(base, from)
 
     {series, excluded} =
       ids
@@ -165,6 +169,7 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
       security.id
       |> Quotes.adjusted_range(from, as_of)
       |> Enum.map(&%{date: &1.date, close: &1.close})
+      |> Enum.sort_by(& &1.date, Date)
 
     currency = security.currency_code || base
 
@@ -176,32 +181,54 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
         :no_rate_path
 
       true ->
-        case hub_rate_series(currency) do
+        case hub_rate_series(currency, from) do
           :none -> :no_rate_path
           rates -> {:ok, convert_points(closes, rates, base_rates)}
         end
     end
   end
 
+  # One merge walk over the ascending closes and both ascending rate lists:
+  # each rate cursor advances past every rate dated on or before the close.
   defp convert_points(closes, from_rates, base_rates) do
-    Enum.flat_map(closes, fn %{date: date, close: close} ->
-      with %Decimal{} = from_rate <- rate_on_or_before(from_rates, date),
-           %Decimal{} = base_rate <- rate_on_or_before(base_rates, date) do
-        # EUR-hub rates are units of the currency per 1 EUR, so
-        # close_in_base = close / from_rate × base_rate.
-        [%{date: date, close: close |> Decimal.div(from_rate) |> Decimal.mult(base_rate)}]
-      else
-        _no_rate_yet -> []
-      end
-    end)
+    {points, _cursors} =
+      Enum.flat_map_reduce(closes, {from_rates, nil, base_rates, nil}, fn point,
+                                                                          {fr, fcur, br, bcur} ->
+        {fr, fcur} = advance(fr, fcur, point.date)
+        {br, bcur} = advance(br, bcur, point.date)
+
+        case {fcur, bcur} do
+          {%Decimal{} = from_rate, %Decimal{} = base_rate} ->
+            # EUR-hub rates are units of the currency per 1 EUR, so
+            # close_in_base = close / from_rate × base_rate.
+            converted = point.close |> Decimal.div(from_rate) |> Decimal.mult(base_rate)
+            {[%{date: point.date, close: converted}], {fr, fcur, br, bcur}}
+
+          _no_rate_yet ->
+            {[], {fr, fcur, br, bcur}}
+        end
+      end)
+
+    points
   end
 
-  # `:hub` for EUR (always 1), `:none` for a currency with no stored rate, or
-  # the ascending `{date, rate}` list — GBX as GBP × 100, as `Fx` resolves it.
-  defp hub_rate_series(@hub), do: :hub
+  defp advance(:hub, _current, _date), do: {:hub, Decimal.new(1)}
 
-  defp hub_rate_series("GBX") do
-    case hub_rate_series("GBP") do
+  defp advance([{rate_date, rate} | rest] = rates, current, date) do
+    if Date.compare(rate_date, date) != :gt,
+      do: advance(rest, rate, date),
+      else: {rates, current}
+  end
+
+  defp advance([], current, _date), do: {[], current}
+
+  # `:hub` for EUR (always 1), `:none` for a currency with no stored rate, or
+  # the ascending `{date, rate}` list from the window on, seeded with the rate
+  # stored on or before its start — GBX as GBP × 100, as `Fx` resolves it.
+  defp hub_rate_series(@hub, _from), do: :hub
+
+  defp hub_rate_series("GBX", from) do
+    case hub_rate_series("GBP", from) do
       rates when is_list(rates) ->
         Enum.map(rates, fn {d, r} -> {d, Decimal.mult(r, @gbx_per_gbp)} end)
 
@@ -210,22 +237,18 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
     end
   end
 
-  defp hub_rate_series(currency) do
-    case Fx.series(currency, @rate_floor) do
+  defp hub_rate_series(currency, from) do
+    seed =
+      case Fx.hub_rate_before(currency, from) do
+        nil -> []
+        row -> [{row.date, row.rate}]
+      end
+
+    in_window = currency |> Fx.series(from) |> Enum.map(&{&1.date, &1.rate})
+
+    case Enum.uniq_by(seed ++ in_window, &elem(&1, 0)) do
       [] -> :none
-      rows -> Enum.map(rows, &{&1.date, &1.rate})
-    end
-  end
-
-  defp rate_on_or_before(:hub, _date), do: Decimal.new(1)
-
-  defp rate_on_or_before(rates, date) when is_list(rates) do
-    rates
-    |> Enum.take_while(fn {rate_date, _rate} -> Date.compare(rate_date, date) != :gt end)
-    |> List.last()
-    |> case do
-      nil -> nil
-      {_date, rate} -> rate
+      rates -> rates
     end
   end
 

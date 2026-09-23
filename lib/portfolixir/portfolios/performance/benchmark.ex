@@ -479,6 +479,12 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
   """
   @spec daily_rate_factor(Decimal.t()) :: Decimal.t()
   def daily_rate_factor(rate) do
+    # Rounded to 15 places BEFORE the float boundary: a subnormal rate such as
+    # 1e-400 is inside the bound but below DBL_MIN, and `Decimal.to_float/1`
+    # raises on it (closing-act finding). At 15 places it is exactly 0, which
+    # is also what a float would make of it.
+    rate = Decimal.round(rate, 15)
+
     if Decimal.equal?(rate, @zero) do
       @one
     else
