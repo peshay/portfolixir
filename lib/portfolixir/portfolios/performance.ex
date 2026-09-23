@@ -1509,12 +1509,29 @@ defmodule Portfolixir.Portfolios.Performance do
   chains the same daily points from the as-of date.
   """
   def day_factor(point, prev) do
+    case return_factor(point, prev) do
+      {:ok, factor} -> factor
+      :no_return -> @one
+    end
+  end
+
+  @doc """
+  One day's return factor, or `:no_return` when the day has no return base.
+
+  `day_factor/2` chains a baseless day as `1`, which is right for a cumulative
+  return — the chain must not break — and wrong for a return *distribution*:
+  a day with nothing invested is not a day of zero return, it is no
+  observation at all (ADR-0047 §5). The derived metrics read this one so the
+  two meanings never share a value.
+  """
+  @spec return_factor(map(), Decimal.t()) :: {:ok, Decimal.t()} | :no_return
+  def return_factor(point, prev) do
     denominator = prev |> Decimal.add(point.flow) |> Decimal.add(basis_of(point))
 
     if Decimal.compare(denominator, @zero) == :gt do
-      Decimal.div(point.value, denominator)
+      {:ok, Decimal.div(point.value, denominator)}
     else
-      @one
+      :no_return
     end
   end
 

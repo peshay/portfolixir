@@ -56,7 +56,13 @@ defmodule Portfolixir.Derived.Registry do
     # prerequisite for ever moving this to `:request` or `:durable`; it is
     # filed as its own issue and the measurement of ADR-0039 C3 cannot be
     # acted on before it lands.
-    security_metrics: %{computation_version: 1, default_lifetime: :none}
+    security_metrics: %{computation_version: 1, default_lifetime: :none},
+    # The per-portfolio and per-view derived metrics (ADR-0047 §8, Sprint 14
+    # Lane A1): the walk-derived figures and the Top-N correlation matrix on
+    # the risk read. `:request` like its neighbours, keyed under the portfolio
+    # basis exactly as `performance_analysis` is -- every write that moves the
+    # walk, a held security's quote or an exchange rate bumps that basis.
+    portfolio_metrics: %{computation_version: 1, default_lifetime: :request}
   }
 
   @doc "All registered analytic ids."

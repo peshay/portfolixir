@@ -359,6 +359,16 @@ marker, not an error: 20 return observations for a volatility, `n` closes for
 an `n`-day moving average, 2 closes for a drawdown, and a close on or before
 the window's start for the momentum and the 52-week extremes.
 
+**Every metric says what it needed** (ADR-0047 §6 as amended 2026-09-19):
+`required` carries the minimum `observations` on **every** metric, whether it
+computed or refused — `n` for `sma_n`, `20` for `volatility`, `2` for
+`max_drawdown` and `momentum`, `1` for `distance_to_extremes` — so a reader
+comparing two payloads finds the threshold without knowing which state they are
+in. For the momentum and the extremes the integer is the count floor only; the
+coverage rule (a close at each end of the window) stays in
+`computation_basis.gaps`. A refused `sma_n` renders `window: null`: its span is
+an output of the newest `n` closes, and below `n` there is none.
+
 Volatility is the **population** standard deviation of the window's simple
 daily returns, annualized by `√252`; distances, momentum and volatility are
 ratios rather than percentages (`0.05` is +5 %), rounded at scale 6.
@@ -1299,6 +1309,48 @@ church tax withheld at a zero church-tax rate.
   securities' asset classification — nothing is stored, so it is deterministic on
   read. A malformed override (e.g. a non-positive `top_n`) returns `422
   Unprocessable Entity`; unknown portfolios return `404 Not Found`.
+
+  **The portfolio's derived metrics ride the same read** (ADR-0047, FR-40,
+  scope-ladder level (a)) under `metrics`, additively. The risk family has
+  **exactly one endpoint**: there is no `/views/:id/risk`, and the view
+  arrives as the `view` parameter the lens already honours.
+  - `volatility`, `max_drawdown` (with `peak_date`, `trough_date`,
+    `recovery_date`) and `risk_adjusted_return`, each over `30d`, `90d` and
+    `365d`. They read the **flow-adjusted daily return factors of the TTWROR
+    chain** — never the day-over-day change of the portfolio's value — so a
+    deposit or a withdrawal is not a return: a portfolio whose prices never
+    move has volatility and drawdown exactly `0` however much money moves in
+    and out. A walked day whose return base is zero or negative produces no
+    observation rather than a zero return. Volatility is the population
+    standard deviation of the daily returns, annualized by `√365` (the walk is
+    a calendar walk); the drawdown runs over the chained return index.
+  - `risk_adjusted_return` is the mean daily excess return over the
+    risk-free leg, times 365, divided by the annualized volatility. The
+    **`risk_free_rate`** query parameter is a Decimal fraction (`0.02` is 2 %
+    p.a.), compounded daily as ADR-0046's fixed-rate benchmark is, bounded like
+    it, and **defaults to `0`** — at the default the figure is return per unit
+    of risk, and `computation_basis.reference` says so. No rate is inferred,
+    fetched or stored; each window echoes the rate it used. A malformed or
+    out-of-bound rate is a `422`. Over a volatility of exactly `0` the ratio is
+    `null` without `insufficient_data`: undefined, not short of data.
+  - `correlations` is the Pearson matrix of the Top-N single names' daily
+    returns (`security_ids` in Top-N order, `pairs` with `security_id_a`,
+    `security_id_b`, `value`), over a `365d` window. The closes are
+    **converted to the base currency first** — the opposite of the
+    per-security metrics, because two holdings sharing an FX leg do move
+    together in the operator's money — and a pair reads only the days on
+    which **both** securities have a stored close. A security whose currency
+    has no stored rate path is absent from the matrix and listed in `excluded`
+    with `reason: "no_rate_path"`, never silently unconverted.
+  - Every metric carries `window`, `observations`, `required` and
+    `insufficient_data`; below its minimum — 20 observations for volatility
+    and the risk-adjusted return, 2 index points for the drawdown, 60
+    overlapping returns per correlation pair — `value` is `null` at `200`.
+    `metrics.computation_basis` carries `input_series`, `window`, `reference`,
+    `gaps` and `assumptions` once; figures are ratios rounded at scale 6.
+  - **The read reports; it does not evaluate.** No key in `metrics` is a
+    signal, recommendation, rating, score or action, and a meta-test walks
+    the rendered key set of both metric payloads to keep it so.
 - `GET /api/v1/portfolios/:portfolio_id/cash_target` reads a plan's cash target,
   the target cash share of the allocation's 100% basis (securities + counting
   cash). The response is `{"cash_target_weight": "0.05"}` (a string fraction in

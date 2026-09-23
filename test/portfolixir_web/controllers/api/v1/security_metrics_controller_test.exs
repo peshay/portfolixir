@@ -94,6 +94,43 @@ defmodule PortfolixirWeb.Api.V1.SecurityMetricsControllerTest do
     assert volatility["observations"] == 4
   end
 
+  # User story (#838, ADR-0047 §6 as amended 2026-09-19):
+  # As the operator's agent reading a refused metric,
+  # I want the payload to say what the metric needed,
+  # so that the threshold is on the metric and not only in the basis prose.
+  #
+  # Acceptance criteria:
+  # - `required` rides every metric in the rendered payload, computed or
+  #   refused: n for sma_n, 20 for volatility, 2 for max_drawdown and
+  #   momentum, 1 for distance_to_extremes.
+  # - A refused sma_n renders `window: null`.
+  test "#838: every rendered metric carries required, in both states", %{conn: conn} do
+    thin = create_security!(name: "Required Thin Co", ticker: "RTC")
+    seed_series!(thin.id, List.duplicate("100", 5))
+
+    %{"data" => %{"metrics" => metrics}} =
+      conn
+      |> get("/api/v1/securities/#{thin.id}/metrics", %{"as_of" => "2026-09-19"})
+      |> json_response(200)
+
+    assert metrics["sma_50"]["required"] == 50
+    assert metrics["sma_50"]["window"] == nil
+    assert metrics["sma_200"]["required"] == 200
+
+    for window <- ~w(30d 90d 365d) do
+      assert metrics["volatility"][window]["required"] == 20
+      assert metrics["max_drawdown"][window]["required"] == 2
+    end
+
+    # Computed (the drawdown reads 5 closes) and refused (the volatility reads
+    # 4 returns) side by side, both carrying the threshold.
+    refute metrics["max_drawdown"]["30d"]["insufficient_data"]
+    assert metrics["volatility"]["30d"]["insufficient_data"]
+
+    for period <- ~w(3m 6m 12m), do: assert(metrics["momentum"][period]["required"] == 2)
+    assert metrics["distance_to_extremes"]["required"] == 1
+  end
+
   # Acceptance criteria:
   # - An unknown security is 404; a malformed as_of is 422 naming the field.
   test "refuses an unknown security and a malformed as_of", %{conn: conn} do

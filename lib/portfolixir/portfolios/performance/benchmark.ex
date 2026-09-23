@@ -425,7 +425,7 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
   # day the comparison rebases to (`anchor`), so its units are money in that
   # day's terms; the security series is what the quotes say.
   defp price_series({:rate, rate}, %{start_date: start_date, end_date: end_date}, _base, anchor) do
-    factor = daily_factor(rate)
+    factor = daily_rate_factor(rate)
     from = Date.add(start_date, -1)
     # `from` is the anchor itself or the day before it: the base of 1, or one
     # day of compounding below it.
@@ -469,10 +469,16 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
     prices
   end
 
-  # `(1 + rate)^(1/365)`: the one float, taken once at the arithmetic
-  # boundary (as the IRR solver does) and compounded in Decimal from there.
-  # A rate of exactly 0 keeps the exact factor 1.
-  defp daily_factor(rate) do
+  @doc """
+  `(1 + rate)^(1/365)`: the daily compounding factor of a fixed annual rate.
+
+  The one float, taken once at the arithmetic boundary (as the IRR solver
+  does) and compounded in Decimal from there. A rate of exactly 0 keeps the
+  exact factor 1. Public so the risk-adjusted return's risk-free leg
+  (ADR-0047 §3) shares this convention rather than restating it.
+  """
+  @spec daily_rate_factor(Decimal.t()) :: Decimal.t()
+  def daily_rate_factor(rate) do
     if Decimal.equal?(rate, @zero) do
       @one
     else

@@ -37,6 +37,10 @@ defmodule Portfolixir.Invariants.DerivedNeverAWriteSourceTest do
     # facade at lifetime `:none` — it has no write path, and the reason its
     # lifetime is `:none` is that its invalidation seam does not exist yet.
     "lib/portfolixir/catalog/security_metrics.ex" => [[:Portfolixir, :Derived]],
+    # The per-portfolio and per-view derived metrics (ADR-0047 §8, FR-40): a
+    # registered read model over the walk and the Top-N close series, keyed
+    # under the portfolio basis at lifetime `:request`. It has no write path.
+    "lib/portfolixir/portfolios/risk_metrics.ex" => [[:Portfolixir, :Derived]],
     "lib/portfolixir/journal.ex" => [[:Portfolixir, :Derived, :Invalidation]],
     "lib/portfolixir/fx.ex" => [[:Portfolixir, :Derived, :Invalidation]],
     "lib/portfolixir/catalog/quotes.ex" => [[:Portfolixir, :Derived, :Invalidation]],

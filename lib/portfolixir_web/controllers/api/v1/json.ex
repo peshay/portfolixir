@@ -1274,7 +1274,53 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       steerable_basis: decimal(risk.steerable_basis),
       top_holdings: Enum.map(risk.top_holdings, &risk_holding/1),
       hhi: risk_hhi(risk.hhi),
-      asset_class_violations: Enum.map(risk.asset_class_violations, &risk_violation/1)
+      asset_class_violations: Enum.map(risk.asset_class_violations, &risk_violation/1),
+      metrics: portfolio_metrics(Map.get(risk, :metrics))
+    }
+  end
+
+  # FR-40 / ADR-0047 §9: the portfolio and view figures, additively on the risk
+  # read. The shared basis sits once inside `metrics`, because the lens figures
+  # beside it (weights, HHI) have their own `risk_note` and are not measured
+  # over the walk; the window rides each metric with `observations` and
+  # `required` (§6 as amended, #838). No key here is a verdict (§7, pinned by
+  # `metrics_carry_no_verdict_test.exs`).
+  defp portfolio_metrics(nil), do: nil
+
+  defp portfolio_metrics(metrics) do
+    %{
+      as_of: date(metrics.as_of),
+      base_currency: metrics.base_currency,
+      computation_basis: metrics.computation_basis,
+      volatility: by_window(metrics.volatility, &windowed_value/1),
+      max_drawdown: by_window(metrics.max_drawdown, &drawdown/1),
+      risk_adjusted_return: by_window(metrics.risk_adjusted_return, &risk_adjusted/1),
+      correlations: correlations(metrics.correlations)
+    }
+  end
+
+  defp risk_adjusted(metric) do
+    metric
+    |> windowed_value()
+    |> Map.put(:risk_free_rate, decimal(metric.risk_free_rate))
+  end
+
+  defp correlations(matrix) do
+    %{
+      window: metric_window(matrix.window),
+      security_ids: matrix.security_ids,
+      pairs:
+        Enum.map(matrix.pairs, fn pair ->
+          %{
+            security_id_a: pair.security_id_a,
+            security_id_b: pair.security_id_b,
+            value: decimal(pair.value),
+            observations: pair.observations,
+            required: pair.required,
+            insufficient_data: pair.insufficient_data
+          }
+        end),
+      excluded: matrix.excluded
     }
   end
 
@@ -1970,6 +2016,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       value: decimal(metric.value),
       window: metric_window(metric.window),
       observations: metric.observations,
+      required: metric.required,
       insufficient_data: metric.insufficient_data
     }
   end
@@ -1992,6 +2039,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       distance_to_low_pct: decimal(metric.distance_to_low_pct),
       window: metric_window(metric.window),
       observations: metric.observations,
+      required: metric.required,
       insufficient_data: metric.insufficient_data
     }
   end

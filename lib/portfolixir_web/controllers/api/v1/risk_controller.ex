@@ -2,6 +2,7 @@ defmodule PortfolixirWeb.Api.V1.RiskController do
   use PortfolixirWeb, :controller
 
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.Performance.Benchmark
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.Risk
   alias PortfolixirWeb.Api.V1.JSON
@@ -41,7 +42,8 @@ defmodule PortfolixirWeb.Api.V1.RiskController do
          {:ok, caps} <- caps_param(params),
          {:ok, bands} <- bands_param(params),
          {:ok, stock} <- stock_thresholds_param(params),
-         {:ok, etf} <- etf_thresholds_param(params) do
+         {:ok, etf} <- etf_thresholds_param(params),
+         {:ok, risk_free_rate} <- risk_free_rate_param(params) do
       opts =
         []
         |> put_opt(:top_n, top_n)
@@ -49,6 +51,7 @@ defmodule PortfolixirWeb.Api.V1.RiskController do
         |> put_opt(:hhi_bands, bands)
         |> put_opt(:stock_thresholds, stock)
         |> put_opt(:etf_thresholds, etf)
+        |> put_opt(:risk_free_rate, risk_free_rate)
 
       {:ok, opts}
     end
@@ -104,6 +107,24 @@ defmodule PortfolixirWeb.Api.V1.RiskController do
 
   defp etf_thresholds_param(%{"etf_thresholds" => _}), do: {:error, :etf_thresholds}
   defp etf_thresholds_param(_params), do: {:ok, nil}
+
+  # ADR-0047 §3: the risk-adjusted return's risk-free rate is the caller's, a
+  # Decimal fraction (`0.02` is 2 % p.a.), defaulting to 0. It shares
+  # ADR-0046's fixed-rate bound (`Benchmark.valid_rate?/1`), because it is
+  # compounded daily by the same function; negative rates inside that bound
+  # are legitimate and accepted.
+  defp risk_free_rate_param(%{"risk_free_rate" => value}) when is_binary(value) do
+    case Decimal.parse(value) do
+      {%Decimal{} = rate, ""} ->
+        if Benchmark.valid_rate?(rate), do: {:ok, rate}, else: {:error, :risk_free_rate}
+
+      _malformed ->
+        {:error, :risk_free_rate}
+    end
+  end
+
+  defp risk_free_rate_param(%{"risk_free_rate" => _}), do: {:error, :risk_free_rate}
+  defp risk_free_rate_param(_params), do: {:ok, nil}
 
   defp optional_warn_hard(map, field) do
     with {:ok, warn} <- optional_decimal(map, "warn", field),

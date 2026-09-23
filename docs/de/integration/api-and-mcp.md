@@ -347,7 +347,18 @@ gemessen wurde, und die Antwort trägt einmal `computation_basis`
 
 **Unterhalb ihres Minimums verweigert eine Kennzahl.** `value` ist `null` mit
 `insufficient_data: true` und der vorhandenen Beobachtungszahl, bei `200` —
-eine Lückenmarkierung, kein Fehler. Die Volatilität ist die
+eine Lückenmarkierung, kein Fehler.
+
+**Jede Kennzahl sagt, was sie gebraucht hätte** (ADR-0047 §6, ergänzt am
+2026-09-19): `required` trägt die Mindestzahl an `observations` auf **jeder**
+Kennzahl, ob berechnet oder verweigert — `n` für `sma_n`, `20` für
+`volatility`, `2` für `max_drawdown` und `momentum`, `1` für
+`distance_to_extremes`. Für Momentum und Extremwerte ist die Zahl nur die
+Untergrenze; die Abdeckungsregel (ein Kurs an jedem Ende des Fensters) bleibt
+in `computation_basis.gaps`. Ein verweigerter `sma_n` trägt `window: null`,
+weil seine Spanne erst aus den jüngsten `n` Kursen entsteht.
+
+Die Volatilität ist die
 **Grundgesamtheits**-Standardabweichung der einfachen Tagesrenditen des
 Fensters, annualisiert mit `√252`; Abstände, Momentum und Volatilität sind
 Verhältniszahlen statt Prozentwerte (`0.05` ist +5 %), gerundet auf sechs
@@ -1097,6 +1108,46 @@ Beispiel-Payloads für Konten:
   deterministisch beim Lesen. Eine ungültige Überschreibung (z. B. ein
   nicht-positiver `top_n`) liefert `422 Unprocessable Entity`; unbekannte
   Portfolios liefern `404 Not Found`.
+
+  **Die abgeleiteten Kennzahlen des Portfolios reisen auf derselben Abfrage**
+  (ADR-0047, FR-40, Stufe (a) der Scope-Leiter) unter `metrics`, additiv. Die
+  Risiko-Familie hat **genau einen Endpunkt**: es gibt kein
+  `/views/:id/risk`, die Sicht kommt über den `view`-Parameter.
+  - `volatility`, `max_drawdown` (mit `peak_date`, `trough_date`,
+    `recovery_date`) und `risk_adjusted_return`, je über `30d`, `90d` und
+    `365d`. Sie lesen die **flussbereinigten Tagesrenditefaktoren der
+    TTWROR-Kette** — nie die Wertänderung von Tag zu Tag —, eine Einzahlung
+    oder Entnahme ist also keine Rendite: ein Portfolio, dessen Kurse sich nie
+    bewegen, hat Volatilität und Drawdown von genau `0`, egal wie viel Geld
+    fließt. Ein Tag ohne Renditebasis erzeugt keine Beobachtung statt einer
+    Nullrendite. Die Volatilität ist die Grundgesamtheits-Standardabweichung
+    der Tagesrenditen, annualisiert mit `√365` (Kalenderreihe); der Drawdown
+    läuft über den verketteten Renditeindex.
+  - `risk_adjusted_return` ist die mittlere tägliche Überrendite über dem
+    risikofreien Anteil, mal 365, geteilt durch die annualisierte
+    Volatilität. Der Query-Parameter **`risk_free_rate`** ist ein
+    Decimal-Bruch (`0.02` = 2 % p. a.), täglich verzinst wie der Festzins-
+    Benchmark aus ADR-0046, gleich begrenzt, und **standardmäßig `0`** — dann
+    ist die Zahl Rendite je Risikoeinheit, und
+    `computation_basis.reference` sagt das. Kein Zins wird erschlossen,
+    geladen oder gespeichert. Ein ungültiger Zins ist ein `422`. Bei einer
+    Volatilität von genau `0` ist der Quotient `null` ohne
+    `insufficient_data`: undefiniert, nicht zu wenige Daten.
+  - `correlations` ist die Pearson-Matrix der Tagesrenditen der Top-N-
+    Einzeltitel (`security_ids` in Top-N-Reihenfolge, `pairs` mit
+    `security_id_a`, `security_id_b`, `value`) über ein `365d`-Fenster. Die
+    Kurse werden **zuerst in die Basiswährung umgerechnet**, und ein Paar
+    liest nur Tage, an denen **beide** Wertpapiere einen Kurs haben. Ein
+    Wertpapier ohne gespeicherten Wechselkurspfad fehlt in der Matrix und
+    steht in `excluded` mit `reason: "no_rate_path"`.
+  - Jede Kennzahl trägt `window`, `observations`, `required` und
+    `insufficient_data`; unterhalb des Minimums — 20 Beobachtungen für
+    Volatilität und risikobereinigte Rendite, 2 Indexpunkte für den Drawdown,
+    60 gemeinsame Renditen je Korrelationspaar — ist `value` `null` bei
+    `200`. `metrics.computation_basis` trägt die Berechnungsgrundlage einmal.
+  - **Die Abfrage berichtet, sie bewertet nicht.** Kein Schlüssel in
+    `metrics` ist ein Signal, eine Empfehlung, ein Rating, ein Score oder eine
+    Handlung.
 - `GET /api/v1/portfolios/:portfolio_id/cash_target` liest das Cash-Ziel eines
   Plans, den SOLL-Cash-Anteil an der 100 %-Basis der Allokation (Wertpapiere +
   zählendes Cash). Die Antwort ist `{"cash_target_weight": "0.05"}` (ein
