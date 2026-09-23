@@ -153,9 +153,6 @@ jobs:
       - name: Audit Hex dependencies
         run: mix deps.audit
 
-      - name: Audit MCP server dependencies (npm)
-        run: npm audit --audit-level=high --prefix mcp-server
-
       # AGENTS.md has always required `npm test` and `npm run build` for the
       # MCP companion, but CI only audited its dependencies — so an MCP-only
       # change (or a transitive major bump underneath the SDK) rested on an
@@ -176,6 +173,15 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "24"
+
+      # D-7 (Sprint 15): the audit runs on the pinned Node 24 and its npm, not
+      # on whatever npm the runner image ships. CI 1558 ran it before Setup
+      # Node: that npm fell back to the quick-audit endpoint the registry is
+      # retiring, which answered 400 and turned the gate red with no advisory
+      # behind it. The level is unchanged — the fix is reading the right
+      # endpoint, never making the gate optional.
+      - name: Audit MCP server dependencies (npm)
+        run: npm audit --audit-level=high --prefix mcp-server
 
       - name: Install MCP server dependencies
         run: npm ci --ignore-scripts --prefix mcp-server
