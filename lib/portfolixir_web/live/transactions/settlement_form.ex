@@ -186,7 +186,7 @@ defmodule PortfolixirWeb.Transactions.SettlementForm do
   The fieldset's values for a stored booking (the edit drawer); a row in the
   importer's account-currency form is marked so it edits as it was booked.
   """
-  @spec from_transaction(Transaction.t(), [map()]) :: map()
+  @spec from_transaction(%Transaction{}, [map()]) :: map()
   def from_transaction(%Transaction{settlement_amount: %Decimal{}} = transaction, securities) do
     case find_by_id(securities, to_string(transaction.security_id)) do
       %{currency_code: currency} when currency != transaction.currency_code ->

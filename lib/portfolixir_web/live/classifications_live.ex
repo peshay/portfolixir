@@ -923,8 +923,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
                         aria-controls={"soll-positions-#{category.id}"}
                       >
                         <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
-                        <%= gettext("Positions (%{count})",
-                          count: length(Map.get(@soll.members, category.id, []))
+                        <%= ngettext(
+                          "Position (%{count})",
+                          "Positions (%{count})",
+                          length(Map.get(@soll.members, category.id, []))
                         ) %>
                       </button>
                       <span
