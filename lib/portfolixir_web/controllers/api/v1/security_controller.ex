@@ -1,11 +1,14 @@
 defmodule PortfolixirWeb.Api.V1.SecurityController do
   use PortfolixirWeb, :controller
 
+  plug(PortfolixirWeb.Api.V1.BodyObject, "security" when action in [:create, :update])
+
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.DataQuality
   alias Portfolixir.Catalog.SecurityFields
   alias Portfolixir.Knowledge
   alias PortfolixirWeb.Api.V1.FieldSelection
+  alias PortfolixirWeb.Api.V1.IntegerParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ListLimit
   alias PortfolixirWeb.Api.V1.PolicyConflict
@@ -158,7 +161,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
          {:ok, is_benchmark} <- benchmark_flag_param(params),
          {:ok, logo_status} <- logo_status_param(params),
          {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit),
-         {:ok, offset} <- int_param(params, "offset", :offset) do
+         {:ok, offset} <- offset_param(params) do
       opts =
         []
         |> put_if_present(:query, params["query"])
@@ -181,25 +184,12 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
   defp logo_status_param(%{"logo_status" => _}), do: {:error, :logo_status}
   defp logo_status_param(_params), do: {:ok, nil}
 
-  defp int_param(params, key, field) do
-    case Map.get(params, key) do
-      nil ->
-        {:ok, nil}
-
-      "" ->
-        {:ok, nil}
-
-      value when is_integer(value) and value >= 0 ->
-        {:ok, value}
-
-      value when is_binary(value) ->
-        case Integer.parse(value) do
-          {int, ""} when int >= 0 -> {:ok, int}
-          _ -> {:error, field}
-        end
-
-      _ ->
-        {:error, field}
+  # #856: a stated upper bound, so a 20-digit offset is a 422 naming the
+  # parameter rather than a DBConnection.EncodeError.
+  defp offset_param(params) do
+    case IntegerParam.parse(params, "offset", nil, IntegerParam.max_offset()) do
+      {:ok, offset} -> {:ok, offset}
+      {:error, _key} -> {:error, :offset}
     end
   end
 

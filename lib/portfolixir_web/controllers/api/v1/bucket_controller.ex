@@ -8,6 +8,8 @@ defmodule PortfolixirWeb.Api.V1.BucketController do
   """
   use PortfolixirWeb, :controller
 
+  plug(PortfolixirWeb.Api.V1.BodyObject, "bucket" when action in [:create, :update])
+
   alias Portfolixir.Buckets
   alias Portfolixir.Buckets.Bucket
   alias PortfolixirWeb.Api.V1.IdParam

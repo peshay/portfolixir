@@ -44,6 +44,23 @@ field error a malformed id gets. No id is ever answered with a `500`. A
 security's free-form `attributes` map and the text fields `online_id` and
 `resource_id` are not ids and are not checked.
 
+The pages keep the same promise: an id-shaped query parameter past the bound
+(`id`, `*_id`, `*_ids`, `view`) is dropped by a redirect to the same page
+without it, and a path id past the bound (`/securities/:id`,
+`/classifications/:id`) redirects to the index — never a server error.
+
+**Bounded integers.** `offset` on the securities list accepts at most
+`1000000`, and `days` on the research log's `unreviewed` and `expiring` reads
+at most `3650` (ten years); a value above the bound, or one that is not a
+non-negative integer, answers `422` naming the parameter. `limit` keeps its
+capped-and-echoed contract, and so does the security events' `days`. A year
+outside `1`–`9999` reads as a malformed year.
+
+**Wrapped bodies.** A write whose attributes travel under one key —
+`{"transaction": {…}}`, `{"view": {…}}`, `{"rule": {…}}` and their siblings —
+answers `422` naming that key when its value is not a JSON object (a string, a
+number, a list).
+
 **Delta reads (FR-38).** The two recurring-sync reads — `GET
 /api/v1/transactions` and `GET /api/v1/securities` — accept
 `?since=<ISO8601>` (a datetime with offset, a naive UTC datetime, or a plain

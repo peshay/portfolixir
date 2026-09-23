@@ -11,6 +11,8 @@ defmodule PortfolixirWeb.Api.V1.PortfolioController do
 
   use PortfolixirWeb, :controller
 
+  plug(PortfolixirWeb.Api.V1.BodyObject, "portfolio" when action in [:create, :update])
+
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Portfolio
   alias PortfolixirWeb.Api.V1.IdParam

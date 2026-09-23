@@ -1,6 +1,8 @@
 defmodule PortfolixirWeb.Api.V1.TransactionController do
   use PortfolixirWeb, :controller
 
+  plug(PortfolixirWeb.Api.V1.BodyObject, "transaction" when action in [:create, :update])
+
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Projection
   alias Portfolixir.Ledger.Transaction

@@ -20,6 +20,9 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
   """
   use PortfolixirWeb, :controller
 
+  plug(PortfolixirWeb.Api.V1.BodyObject, "rule" when action in [:create])
+  plug(PortfolixirWeb.Api.V1.BodyObject, "version" when action in [:add_version])
+
   alias Portfolixir.Clock
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.PolicyRule
