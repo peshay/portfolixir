@@ -117,7 +117,11 @@ defmodule PortfolixirWeb.Api.V1.RiskController do
   defp risk_free_rate_param(%{"risk_free_rate" => value}) when is_binary(value) do
     case Decimal.parse(value) do
       {%Decimal{} = rate, ""} ->
-        if Benchmark.valid_rate?(rate), do: {:ok, rate}, else: {:error, :risk_free_rate}
+        # Normalised once, so equal rates read and memoise equal
+        # ("0.020000" is "0.02", "-0" is "0").
+        if Benchmark.valid_rate?(rate),
+          do: {:ok, normalize_rate(rate)},
+          else: {:error, :risk_free_rate}
 
       _malformed ->
         {:error, :risk_free_rate}
@@ -165,8 +169,14 @@ defmodule PortfolixirWeb.Api.V1.RiskController do
 
   defp to_decimal(value) when is_binary(value) do
     case Decimal.parse(value) do
+      # NaN and Infinity parse but are not thresholds: NaN crashed the
+      # comparison and Infinity silently disabled the check (closing act).
       {decimal, ""} ->
-        if Decimal.compare(decimal, @zero) == :lt, do: :error, else: {:ok, decimal}
+        cond do
+          Decimal.nan?(decimal) or Decimal.inf?(decimal) -> :error
+          Decimal.compare(decimal, @zero) == :lt -> :error
+          true -> {:ok, decimal}
+        end
 
       _ ->
         :error
@@ -174,6 +184,11 @@ defmodule PortfolixirWeb.Api.V1.RiskController do
   end
 
   defp to_decimal(_value), do: :error
+
+  defp normalize_rate(rate) do
+    normalized = Decimal.normalize(rate)
+    if Decimal.equal?(normalized, @zero), do: @zero, else: normalized
+  end
 
   defp put_present(map, _key, nil), do: map
   defp put_present(map, key, value), do: Map.put(map, key, value)

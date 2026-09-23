@@ -1331,4 +1331,17 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
       assert has_element?(view, "#balance-dialog [data-role='balance-error']")
     end
   end
+
+  # Acceptance criteria (closing-act finding): a forged overflow event with
+  # an owner the page does not know is ignored, not a crashed LiveView.
+  test "a forged overflow toggle is ignored", %{conn: conn} do
+    world()
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    render_hook(view, "toggle_bucket_overflow", %{"owner" => "evil", "id" => "1"})
+    render_hook(view, "toggle_bucket_overflow", %{})
+
+    assert Process.alive?(view.pid)
+    assert render(view) =~ "bucket"
+  end
 end

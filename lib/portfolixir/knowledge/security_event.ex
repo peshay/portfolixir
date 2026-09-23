@@ -116,7 +116,7 @@ defmodule Portfolixir.Knowledge.SecurityEvent do
     |> validate_format(:source_url, ~r{\Ahttps?://\S+\z}i, message: "must be an http(s) URL")
     # The column is varchar(255); without this a tracking-laden link is a
     # Postgrex 22001 and a 500 instead of a field error the caller can read.
-    |> validate_length(:source_url, max: @max_source_url)
+    |> validate_length(:source_url, max: @max_source_url, count: :codepoints)
     |> validate_window()
     |> validate_machine_generated_source()
     |> foreign_key_constraint(:security_id)

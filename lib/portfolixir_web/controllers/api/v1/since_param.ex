@@ -53,6 +53,12 @@ defmodule PortfolixirWeb.Api.V1.SinceParam do
       # second would satisfy `updated_at == as_of` and be excluded forever
       # by the strictly-after cut. Both give a harmless overlap — the next
       # poll re-delivers a row rather than losing one (review findings).
+      # A cut the database cannot encode (a year before 1) is not a cut:
+      # the timestamp encoder raises on it, so it is refused here as the
+      # 422 the contract promises (closing-act finding).
+      {:ok, %NaiveDateTime{year: year}} when year < 1 ->
+        {:error, :since}
+
       {:ok, naive} ->
         as_of =
           DateTime.utc_now()

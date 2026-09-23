@@ -396,4 +396,46 @@ defmodule PortfolixirWeb.ApiV1RiskTest do
       assert body["errors"]["risk_free_rate"] == ["is invalid"], "#{inspect(bad)} was accepted"
     end
   end
+
+  # Acceptance criteria (closing-act findings, error contract):
+  # - A subnormal but in-bound risk_free_rate is a rate, not a crash: 200.
+  # - Equal rates read equal: "0.020000" echoes as "0.02", "-0" as "0".
+  # - A NaN or infinite cap or band is a 422 naming the field, never a 500
+  #   and never a silent "no violation".
+  test "risk_free_rate and the lens overrides at their numeric edges", %{conn: conn} do
+    world = risk_world()
+    path = "/api/v1/portfolios/#{world.portfolio.id}/risk"
+
+    for tiny <- ["1e-308", "1e-400", "-1e-309"] do
+      metrics =
+        conn
+        |> api_conn()
+        |> get(path, %{"risk_free_rate" => tiny})
+        |> json_response(200)
+        |> get_in(["data", "metrics"])
+
+      assert metrics["risk_adjusted_return"]["30d"]["risk_free_rate"]
+    end
+
+    for {raw, echoed} <- [{"0.020000", "0.02"}, {"-0", "0"}] do
+      metrics =
+        conn
+        |> api_conn()
+        |> get(path, %{"risk_free_rate" => raw})
+        |> json_response(200)
+        |> get_in(["data", "metrics"])
+
+      assert metrics["risk_adjusted_return"]["30d"]["risk_free_rate"] == echoed
+    end
+
+    for {query, field} <- [
+          {"asset_class_caps[equity]=NaN", "asset_class_caps"},
+          {"asset_class_caps[equity]=Infinity", "asset_class_caps"},
+          {"hhi_bands[low]=NaN", "hhi_bands"},
+          {"stock_thresholds[warn]=Infinity", "stock_thresholds"}
+        ] do
+      body = conn |> api_conn() |> get(path <> "?" <> query) |> json_response(422)
+      assert body["errors"][field] == ["is invalid"], query
+    end
+  end
 end

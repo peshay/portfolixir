@@ -562,4 +562,29 @@ defmodule PortfolixirWeb.ApiV1DeltaReadsTest do
     assert docs =~ "pull-only"
     assert docs =~ "B3.7"
   end
+
+  # Acceptance criteria (closing-act finding, error contract): a since the
+  # database cannot encode — a year before 1 — is a 422 naming the field on
+  # every delta read, never a 500.
+  test "a since before year 1 is a 422 on every delta read", %{conn: conn} do
+    world = seed_world()
+    security = Portfolixir.WorldFixtures.create_security!(name: "Ancient Co", ticker: "ANC")
+
+    for path <- [
+          "/api/v1/transactions",
+          "/api/v1/securities",
+          "/api/v1/securities/#{security.id}/notes",
+          "/api/v1/securities/#{security.id}/events",
+          "/api/v1/portfolios/#{world.portfolio.id}/targets",
+          "/api/v1/portfolios/#{world.portfolio.id}/position_targets"
+        ] do
+      body =
+        conn
+        |> api_conn()
+        |> get(path, %{"since" => "-9999-01-01T00:00:00Z"})
+        |> json_response(422)
+
+      assert body["errors"]["since"] == ["is invalid"], path
+    end
+  end
 end
