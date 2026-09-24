@@ -115,17 +115,15 @@ defmodule Portfolixir.Auth.Throttle do
     end
   end
 
+  # The window's buckets are read by their keys, oldest first: a bounded number
+  # of hash lookups, never a scan of every source the table remembers.
   defp check_ceiling(scope, now, ceiling, window_buckets) do
     current = div(now, @bucket_seconds)
-    oldest = current - window_buckets
 
     buckets =
-      @table
-      |> :ets.select([
-        {{{scope, {:scope_failures, :"$1"}}, :"$2", :_, :_},
-         [{:>, :"$1", oldest}, {:"=<", :"$1", current}], [{{:"$1", :"$2"}}]}
-      ])
-      |> Enum.sort()
+      for bucket <- (current - window_buckets + 1)..current//1,
+          {_key, count, _, _} <- :ets.lookup(@table, {scope, {:scope_failures, bucket}}),
+          do: {bucket, count}
 
     total = buckets |> Enum.map(&elem(&1, 1)) |> Enum.sum()
 
