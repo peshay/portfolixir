@@ -1045,4 +1045,46 @@ defmodule Portfolixir.DocsTest do
     assert adr =~ "Amendment, 2026-09-25 (E25 S2, #887): the loopback-only reach, qualified."
     assert adr =~ "Docker Engine 28.3.3"
   end
+
+  # User story (E25 S2, F56):
+  # As an operator keeping the instance's secrets and backups,
+  # I want the guide's commands to create them readable by me only, outside
+  # the checkout, and to keep the token off every command line,
+  # so that another local user cannot read my secrets file, a full backup of
+  # my data, or the token in the process list.
+  #
+  # Acceptance criteria:
+  # - EN and DE create .env with mode 600 and take backups under umask 077 into
+  #   a directory outside the checkout, and say to encrypt a copy that leaves
+  #   the machine.
+  # - The restore check passes the token to curl on standard input, never as a
+  #   command-line argument.
+  # - .gitignore covers dump files and the logo archives.
+  test "secrets and backups are created private and the token stays off the command line" do
+    for {path, encrypt} <- [
+          {"docs/home-deployment.md", "encrypt it first"},
+          {"docs/de/home-deployment.md", "vorher verschlüsseln"}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- [
+            "install -m 600 .env.example .env",
+            "umask 077",
+            "> ~/portfolixir-backups/portfolixir-$(date +%F).dump",
+            "< ~/portfolixir-backups/portfolixir-2026-09-23.dump",
+            "curl -s -H @-",
+            encrypt
+          ] do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+
+      refute doc =~ ~s(-H "Authorization: Bearer $TOKEN"), path
+    end
+
+    assert File.read!("README.md") =~ "install -m 600 .env.example .env"
+
+    gitignore = File.read!(".gitignore")
+    assert gitignore =~ ~r/^\*\.dump$/m
+    assert gitignore =~ ~r/^portfolixir-logos-\*\.tar$/m
+  end
 end

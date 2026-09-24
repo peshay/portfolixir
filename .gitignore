@@ -28,6 +28,12 @@ erl_crash.dump
 *.sqlite3
 *.db
 
+# Backups: a dump and a logo archive hold the instance's data (E25 S2); the
+# deployment guide writes them outside the checkout, and these keep a stray
+# one out of git.
+*.dump
+portfolixir-logos-*.tar
+
 # Generated local/CI artifacts
 /tmp/test-runs/
 /sbom/*.cdx.json

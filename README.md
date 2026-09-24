@@ -133,7 +133,8 @@ _All screenshots use the synthetic demo dataset in
 
 ### Run with Docker Compose
 
-Copy `.env.example` to `.env`, set the secrets, then:
+Create `.env` from `.env.example`, readable by you only
+(`install -m 600 .env.example .env`), set the secrets, then:
 
 ```sh
 docker compose up --build
