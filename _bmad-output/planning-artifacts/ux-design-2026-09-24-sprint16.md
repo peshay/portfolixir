@@ -21,11 +21,11 @@ fake identifiers such as `XS0000000001`, and made-up figures. **No real
 instrument, position, balance, account, provider or rate appears.**
 
 A pick's code is its board's number (board 12, which holds three, numbers
-them G12.1 to G12.3). The recommendation is the default; a
-comment on the planning PR naming another option changes it; the story that
+them G12.1 to G12.3). **The owner walked through the boards on 2026-09-24 and
+picked every one; each pick is the option marked below.** The story that
 builds a pick writes its anatomy into `DESIGN.md`.
 
-| Pick | Item | Board | Variants | Recommended |
+| Pick | Item | Board | Variants | Picked |
 |---|---|---|---|---|
 | **G1** | Lifecycle controls on Accounts & depots (#328, ADR-0050) | `01-accounts-lifecycle` | the existing row menu, one dialog per action · one "edit" dialog with a danger zone | **A** |
 | **G2** | The merge preview and confirm (#328, ADR-0050 §7, §8, §10) | `02-merge-preview` | one dialog, target on top and preview below · two steps, target then the preview of exactly that pair | **B** |
