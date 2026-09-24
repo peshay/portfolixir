@@ -388,6 +388,10 @@ Datenbanksicherung zurück.
   fremde `Host`-Namen ab (ADR-0045).
 - Der MCP-Begleitdienst kapselt die lokale JSON-API und greift nicht direkt
   auf die Datenbank zu.
+- Das Release protokolliert auf der Stufe `info`: die Anfragezeilen, Warnungen
+  und Fehler. Die Datenbankabfragen, die Parameter jeder Anfrage und jedes
+  Seitenereignisses und die Sitzungsinhalte, die die Stufe `debug` schreibt,
+  bleiben aus dem Log.
 - Dieses Setup konfiguriert keine Broker-Synchronisation, keine
   Bank-Synchronisation, keine Dokumentenaufnahme (über den Portfolio-
   Performance-CSV/JSON-Import hinaus), kein Trading, keine Zahlungen, keine
