@@ -42,7 +42,8 @@ if config_env() == :prod do
     config :portfolixir, Portfolixir.Catalog.LogoStore, storage_dir: logo_dir
   end
 
-  # The proxies whose x-forwarded-for names the throttle's source (#771).
+  # The proxies whose x-forwarded-for names the throttle's source (#771) and
+  # whose x-forwarded-proto, like loopback's, names the scheme (E25 S1, F09).
   config :portfolixir, :trusted_proxies, Portfolixir.RuntimeConfig.trusted_proxies()
 
   # The agent's credential is checked at boot (#761): length and no

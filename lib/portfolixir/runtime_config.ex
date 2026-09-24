@@ -112,7 +112,8 @@ defmodule Portfolixir.RuntimeConfig do
   @doc """
   The `Plug.SSL` options behind `PHX_FORCE_SSL` (#759): off unless asked for;
   on, plain HTTP is redirected and HSTS is set, with the scheme read from the
-  proxy's `x-forwarded-proto`.
+  proxy's `x-forwarded-proto`, which `PortfolixirWeb.TrustedProxy` keeps only
+  from loopback or a trusted proxy (E25 S1, F09).
   """
   @spec force_ssl_opts(String.t() | nil) :: false | keyword()
   def force_ssl_opts(value \\ System.get_env("PHX_FORCE_SSL"))
@@ -288,10 +289,13 @@ defmodule Portfolixir.RuntimeConfig do
   def session_max_age(_value), do: @default_session_days * 86_400
 
   @doc """
-  The proxies whose `x-forwarded-for` the throttle may believe (#771):
+  The proxies whose forwarding headers the application believes (#771, E25 S1
+  F09): their `x-forwarded-for` names the throttle's source, and their
+  `x-forwarded-proto` the scheme, which loopback may also set.
   `PORTFOLIXIR_TRUSTED_PROXIES`, comma-separated addresses or CIDR blocks
-  (`127.0.0.1`, `172.16.0.0/12`, `::1`). Empty by default: a header nobody
-  vouches for is never a source. Entries that do not parse are dropped.
+  (`127.0.0.1`, `172.18.0.1`, `::1`, a block such as `192.0.2.0/29`). Empty
+  by default: a header nobody vouches for is never a source. Entries that do
+  not parse are dropped.
   """
   @spec trusted_proxies(String.t() | nil) :: [{:inet.ip_address(), non_neg_integer()}]
   def trusted_proxies(value \\ System.get_env("PORTFOLIXIR_TRUSTED_PROXIES"))
