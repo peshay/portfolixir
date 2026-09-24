@@ -77,16 +77,25 @@ http://127.0.0.1:4001/mcp
 
 Die Anwendung lauscht auf Loopback; ein Reverse-Proxy auf demselben Host
 (Caddy, nginx, Traefik) terminiert TLS und leitet an `127.0.0.1:4000` weiter.
-Er muss den ursprünglichen `Host`-Header durchreichen (setze `PHX_HOST` auf
-diesen Namen) sowie `X-Forwarded-Proto: https`, das das Sitzungs-Cookie als
-`Secure` markiert und das `PHX_FORCE_SSL` liest, und `X-Forwarded-For`. Nenne
-die Adresse, von der aus der Proxy verbindet, in
-`PORTFOLIXIR_TRUSTED_PROXIES` — über den veröffentlichten Port ist das das
-Gateway der Docker-Bridge (`docker network inspect` zeigt es, ein Block wie
-`172.16.0.0/12` deckt es ab) —, damit die Drossel den Client hinter dem Proxy
-zählt und nicht den Proxy: ohne sie sperren zehn falsche Passwörter von
-irgendwem, den der Proxy durchlässt, die Anmeldung für alle dahinter, den
-Betreiber eingeschlossen. Dieselbe Einstellung entscheidet, wessen
+Er reicht den ursprünglichen `Host`-Header durch (setze `PHX_HOST` auf diesen
+Namen) und setzt die beiden Weiterleitungs-Header selbst: Er setzt
+`X-Forwarded-Proto` auf das Schema, das der Browser benutzt hat — das markiert
+das Sitzungs-Cookie als `Secure` und wird von `PHX_FORCE_SSL` gelesen —, und er
+hängt die verbindende Adresse an `X-Forwarded-For` an oder überschreibt den
+Header mit dieser Adresse. Er reicht nie einen Wert durch, den der Client
+geschickt hat: ein Weiterleitungs-Header, der die Anwendung so erreicht, wie
+der Client ihn geschrieben hat, lässt den Client die Quelle der Drossel wählen.
+
+Nenne die genaue Adresse, von der aus der Proxy verbindet, in
+`PORTFOLIXIR_TRUSTED_PROXIES`. Über den veröffentlichten Port ist das das
+Gateway der Docker-Bridge, das `docker network inspect` zeigt, zum Beispiel
+`PORTFOLIXIR_TRUSTED_PROXIES=172.18.0.1`. Nenne die eine Adresse statt eines
+privaten Blocks: jede Adresse in einem genannten Block wird geglaubt, ein Block
+vertraut also auch allem anderen in diesem Netz. Mit der genannten Adresse
+zählt die Drossel den Client hinter dem Proxy und nicht den Proxy: ohne sie
+sperren zehn falsche Passwörter von irgendwem, den der Proxy durchlässt, die
+Anmeldung für alle dahinter, den Betreiber eingeschlossen. Dieselbe
+Einstellung entscheidet, wessen
 `X-Forwarded-Proto` geglaubt wird: nur Loopback und die genannten Adressen.
 Ein Proxy, der den Container über die Docker-Bridge erreicht, muss dort also
 genannt sein, damit das Cookie `Secure` ist und `PHX_FORCE_SSL` HTTPS sieht.
@@ -106,11 +115,31 @@ Vertrag in vier Zeilen:
 
 1. Der Proxy terminiert TLS und leitet unverschlüsseltes HTTP an
    `127.0.0.1:4000` weiter.
-2. Er reicht `Host`, `X-Forwarded-Proto` und `X-Forwarded-For` unverändert
-   durch und leitet WebSocket-Upgrades auf `/live/websocket` weiter (Caddy tut
-   das von sich aus; nginx braucht `proxy_set_header Upgrade $http_upgrade;`
-   und `proxy_set_header Connection "upgrade";`) — die Live-Seiten laufen
-   über diesen Socket.
+2. Er reicht `Host` durch, setzt `X-Forwarded-Proto` selbst und hängt die
+   verbindende Adresse an `X-Forwarded-For` an oder überschreibt den Header;
+   er reicht nie einen Wert durch, den der Client geschickt hat. Außerdem
+   leitet er WebSocket-Upgrades auf `/live/websocket` weiter — die Live-Seiten
+   laufen über diesen Socket. Caddys `reverse_proxy` tut all das von sich aus.
+   nginx braucht:
+
+   ```nginx
+   proxy_http_version 1.1;
+   proxy_set_header Host $host;
+   proxy_set_header X-Forwarded-Proto $scheme;
+   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+   proxy_set_header Upgrade $http_upgrade;
+   proxy_set_header Connection "upgrade";
+   ```
+
+   HAProxy braucht die Zeilen unten, `option forwardfor` ohne `if-none`, das
+   einen vom Client geschickten Header behalten würde:
+
+   ```text
+   option forwardfor
+   http-request set-header X-Forwarded-Proto https if { ssl_fc }
+   http-request set-header X-Forwarded-Proto http if !{ ssl_fc }
+   ```
+
 3. Sobald das steht, lässt `PHX_FORCE_SSL=true` die Anwendung jede
    unverschlüsselte Anfrage, die sie noch sieht, auf HTTPS umleiten und auf
    den HTTPS-Antworten `Strict-Transport-Security` senden. Ohne die Variable

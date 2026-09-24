@@ -74,16 +74,24 @@ http://127.0.0.1:4001/mcp
 ## Reverse proxy
 
 The application listens on loopback; a reverse proxy on the same host (Caddy,
-nginx, Traefik) terminates TLS and forwards to `127.0.0.1:4000`. It must pass
-the original `Host` header (set `PHX_HOST` to that name) and
-`X-Forwarded-Proto: https`, which is what marks the session cookie `Secure`
-and what `PHX_FORCE_SSL` reads, and `X-Forwarded-For`. Name the address the
-proxy connects from in `PORTFOLIXIR_TRUSTED_PROXIES` — through the published
-port that is the Docker bridge gateway (`docker network inspect` shows it, a
-block such as `172.16.0.0/12` covers it) — so that the throttle counts the
-client behind the proxy rather than the proxy: without it, ten wrong passwords
-from anyone the proxy admits lock the login for everyone behind it, the
-operator included. The same setting decides whose `X-Forwarded-Proto` is
+nginx, Traefik) terminates TLS and forwards to `127.0.0.1:4000`. It passes the
+original `Host` header through (set `PHX_HOST` to that name) and sets the two
+forwarding headers itself: it sets `X-Forwarded-Proto` to the scheme the
+browser used, which is what marks the session cookie `Secure` and what
+`PHX_FORCE_SSL` reads, and it appends the connecting address to
+`X-Forwarded-For` or overwrites it with that address. It never passes a value
+the client sent through: a forwarding header that reaches the application as
+the client wrote it lets the client choose the throttle's source.
+
+Name the exact address the proxy connects from in
+`PORTFOLIXIR_TRUSTED_PROXIES`. Through the published port that is the Docker
+bridge gateway, which `docker network inspect` shows, for example
+`PORTFOLIXIR_TRUSTED_PROXIES=172.18.0.1`. Name the one address rather than a
+private block: every address inside a named block is believed, so a block also
+trusts whatever else shares that network. With the address named, the throttle
+counts the client behind the proxy rather than the proxy: without it, ten
+wrong passwords from anyone the proxy admits lock the login for everyone behind
+it, the operator included. The same setting decides whose `X-Forwarded-Proto` is
 believed: loopback and the named addresses only, so a proxy reaching the
 container through the Docker bridge must be named there for the cookie to be
 `Secure` and for `PHX_FORCE_SSL` to see HTTPS. Failed logins are also counted
@@ -101,11 +109,30 @@ instance that has no certificate; what it offers is the opt-in. The contract,
 in four lines:
 
 1. The proxy terminates TLS and forwards plain HTTP to `127.0.0.1:4000`.
-2. It forwards `Host`, `X-Forwarded-Proto` and `X-Forwarded-For` unchanged,
-   and it forwards WebSocket upgrades on `/live/websocket` (Caddy does by
-   default; nginx needs `proxy_set_header Upgrade $http_upgrade;` and
-   `proxy_set_header Connection "upgrade";`) — the live pages run over that
-   socket.
+2. It passes `Host` through, sets `X-Forwarded-Proto` itself, and appends the
+   connecting address to `X-Forwarded-For` or overwrites it; it never passes a
+   value the client sent through. It also forwards WebSocket upgrades on
+   `/live/websocket` — the live pages run over that socket. Caddy's
+   `reverse_proxy` does all of this by default. nginx needs:
+
+   ```nginx
+   proxy_http_version 1.1;
+   proxy_set_header Host $host;
+   proxy_set_header X-Forwarded-Proto $scheme;
+   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+   proxy_set_header Upgrade $http_upgrade;
+   proxy_set_header Connection "upgrade";
+   ```
+
+   HAProxy needs the lines below, with `option forwardfor` written without
+   `if-none`, which would keep a header the client sent:
+
+   ```text
+   option forwardfor
+   http-request set-header X-Forwarded-Proto https if { ssl_fc }
+   http-request set-header X-Forwarded-Proto http if !{ ssl_fc }
+   ```
+
 3. Once that is in place, `PHX_FORCE_SSL=true` makes the application redirect
    any plain-HTTP request it still sees to HTTPS and send
    `Strict-Transport-Security` on the HTTPS answers. Without the variable the
