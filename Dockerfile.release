@@ -46,10 +46,14 @@ RUN apt-get update && \
     sed -i '/C.UTF-8/s/^# //g' /etc/locale.gen && locale-gen && \
     rm -rf /var/lib/apt/lists/*
 
+# No Erlang distribution (E25 S2, F62): the release is one node and nothing
+# attaches to it, so no distribution listener is opened towards the sibling
+# containers. `bin/portfolixir eval` still works; `remote` and `rpc` do not.
 ENV LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
     MIX_ENV=prod \
-    PHX_SERVER=true
+    PHX_SERVER=true \
+    RELEASE_DISTRIBUTION=none
 
 WORKDIR /opt/app
 

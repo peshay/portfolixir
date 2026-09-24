@@ -429,6 +429,9 @@ Datenbanksicherung zurück.
   und Fehler. Die Datenbankabfragen, die Parameter jeder Anfrage und jedes
   Seitenereignisses und die Sitzungsinhalte, die die Stufe `debug` schreibt,
   bleiben aus dem Log.
+- Das Release startet ohne Erlang-Distribution und öffnet deshalb keinen
+  Listener zu den anderen Containern: `bin/portfolixir eval` funktioniert im
+  Container, `remote` und `rpc` nicht.
 - Dieses Setup konfiguriert keine Broker-Synchronisation, keine
   Bank-Synchronisation, keine Dokumentenaufnahme (über den Portfolio-
   Performance-CSV/JSON-Import hinaus), kein Trading, keine Zahlungen, keine
