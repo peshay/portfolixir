@@ -612,10 +612,11 @@ Datenbanksicherung zurück.
   (ADR-0045).
 - Der MCP-Begleitdienst kapselt die lokale JSON-API und greift nicht direkt
   auf die Datenbank zu.
-- Das Release protokolliert auf der Stufe `info`: die Anfragezeilen, Warnungen
-  und Fehler. Die Datenbankabfragen, die Parameter jeder Anfrage und jedes
-  Seitenereignisses und die Sitzungsinhalte, die die Stufe `debug` schreibt,
-  bleiben aus dem Log.
+- Das Release protokolliert auf der Stufe `info`: die Anfragezeilen, den
+  Socket-Verbindungsaufbau jeder Live-Seite mit herausgefiltertem CSRF-Token,
+  Warnungen und Fehler. Die Datenbankabfragen, die Parameter jeder Anfrage
+  und jedes Seitenereignisses und die Sitzungsinhalte, die die Stufe `debug`
+  schreibt, bleiben aus dem Log.
 - Das Release startet ohne Erlang-Distribution und öffnet deshalb keinen
   Listener zu den anderen Containern: `bin/portfolixir eval` funktioniert im
   Container, `remote` und `rpc` nicht.
