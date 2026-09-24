@@ -876,4 +876,50 @@ defmodule Portfolixir.DocsTest do
     assert env_example =~ "0 turns the server-side expiry off"
     refute env_example =~ "0 means the login ends when the browser closes"
   end
+
+  # User story (E25 S1, F57):
+  # As an operator configuring the reverse proxy,
+  # I want the proxy contract to have the proxy set or append the forwarding
+  # headers itself, and to name one exact proxy address,
+  # so that no client can hand the throttle a source of its own choosing.
+  #
+  # Acceptance criteria:
+  # - EN and DE say the proxy appends the connecting address to X-Forwarded-For
+  #   or overwrites it, sets X-Forwarded-Proto itself, and never passes a value
+  #   the client sent through; the "forwarded unchanged" wording is gone.
+  # - Both give the nginx and the HAProxy directives.
+  # - Both recommend a single trusted-proxy address and no longer suggest a
+  #   broad private block.
+  # - SECURITY.md states the same contract.
+  test "the reverse-proxy contract has the proxy set or append the forwarding headers" do
+    read = fn path -> path |> File.read!() |> String.replace(~r/\s+/, " ") end
+
+    for {path, append, never, unchanged} <- [
+          {"docs/home-deployment.md",
+           "appends the connecting address to `X-Forwarded-For` or overwrites it",
+           "never passes a value the client sent through", "`X-Forwarded-For` unchanged"},
+          {"docs/de/home-deployment.md",
+           "hängt die verbindende Adresse an `X-Forwarded-For` an oder überschreibt den Header",
+           "reicht nie einen Wert durch, den der Client geschickt hat",
+           "`X-Forwarded-For` unverändert"}
+        ] do
+      doc = read.(path)
+      assert doc =~ append, path
+      assert doc =~ never, path
+      refute doc =~ unchanged, path
+
+      assert doc =~ "proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;", path
+      assert doc =~ "proxy_set_header X-Forwarded-Proto $scheme;", path
+      assert doc =~ "option forwardfor", path
+      assert doc =~ "http-request set-header X-Forwarded-Proto https if { ssl_fc }", path
+
+      assert doc =~ "PORTFOLIXIR_TRUSTED_PROXIES=172.18.0.1", path
+      refute doc =~ "172.16.0.0/12", path
+    end
+
+    security = read.("SECURITY.md")
+    assert security =~ "appends the connecting address to `X-Forwarded-For` or overwrites it"
+    assert security =~ "never passes a value the client sent through"
+    refute security =~ "`X-Forwarded-For` unchanged"
+  end
 end

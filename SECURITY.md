@@ -38,11 +38,14 @@ the reverse-proxy contract in `docs/home-deployment.md`: TLS is terminated by
 the proxy, the application never redirects on its own, and `PHX_FORCE_SSL` is
 the opt-in for the redirect and HSTS once the proxy forwards
 `X-Forwarded-Proto`. What the instance still expects of the operator: a
-reverse proxy that terminates TLS and forwards `Host`, `X-Forwarded-Proto` and
-`X-Forwarded-For` unchanged and injects nothing into the pages, the proxy's
-address named in `PORTFOLIXIR_TRUSTED_PROXIES` (without it the throttle counts
-the proxy as the one source, and a guesser behind it locks everyone behind it
-out, and `X-Forwarded-Proto` is believed from loopback only), and backups.
+reverse proxy that terminates TLS, passes `Host` through, sets
+`X-Forwarded-Proto` itself, appends the connecting address to `X-Forwarded-For`
+or overwrites it, never passes a value the client sent through, and injects
+nothing into the pages; the proxy's exact address named in
+`PORTFOLIXIR_TRUSTED_PROXIES`, not a block that also covers other hosts
+(without it the throttle counts the proxy as the one source, and a guesser
+behind it locks everyone behind it out, and `X-Forwarded-Proto` is believed
+from loopback only); and backups.
 
 Sessions: a UI login lasts `PORTFOLIXIR_SESSION_DAYS` days (default 30),
 renewed while the instance is used, enforced on the server rather than trusted
