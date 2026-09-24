@@ -26,14 +26,17 @@ defmodule PortfolixirWeb.TrustedProxy do
 
     with [_ | _] <- blocks,
          true <- RuntimeConfig.trusted_proxy?(remote_ip, blocks),
-         [header | _] <- get_req_header(conn, "x-forwarded-for"),
-         {:ok, client} <- client_address(header, blocks) do
+         [_ | _] = lines <- get_req_header(conn, "x-forwarded-for"),
+         {:ok, client} <- client_address(Enum.join(lines, ","), blocks) do
       %{conn | remote_ip: client}
     else
       _ -> conn
     end
   end
 
+  # Every header line, in order, is one list (RFC 9110 field-line combining,
+  # E25 S1 F03): a proxy may append its hop as a line of its own, and reading
+  # only the first line would hand the client the choice of source.
   # Right to left: the proxies append, so the first untrusted hop from the
   # right is the client the trusted chain vouches for.
   defp client_address(header, blocks) do

@@ -59,4 +59,37 @@ defmodule PortfolixirWeb.TrustedProxyTest do
 
     assert TrustedProxy.call(request({172, 18, 0, 1}, nil), []).remote_ip == {172, 18, 0, 1}
   end
+
+  # User story (E25 S1, F03):
+  # As an operator behind a proxy that appends its hop as a header line of its own,
+  # I want every x-forwarded-for line read, in order, as one list,
+  # so that a client cannot choose its own throttle key with a line of its own.
+  #
+  # Acceptance criteria:
+  # - A trusted-proxy request with two forwarding header lines resolves to the
+  #   last appended hop (RFC 9110 field-line combining, then the right-to-left walk).
+  # - Trusted hops in the later lines are skipped exactly as within one line.
+  test "reads every x-forwarded-for line as one list" do
+    Application.put_env(:portfolixir, :trusted_proxies, [{{172, 16, 0, 0}, 12}])
+
+    two_lines = %{
+      request({172, 18, 0, 1}, nil)
+      | req_headers: [
+          {"x-forwarded-for", "192.0.2.10"},
+          {"x-forwarded-for", "203.0.113.5"}
+        ]
+    }
+
+    assert TrustedProxy.call(two_lines, []).remote_ip == {203, 0, 113, 5}
+
+    with_trusted_hop = %{
+      request({172, 18, 0, 1}, nil)
+      | req_headers: [
+          {"x-forwarded-for", "192.0.2.10, 198.51.100.7"},
+          {"x-forwarded-for", "172.20.0.2"}
+        ]
+    }
+
+    assert TrustedProxy.call(with_trusted_hop, []).remote_ip == {198, 51, 100, 7}
+  end
 end
