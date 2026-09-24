@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Allokation → Positionen bei 390 px: Hinweisspalte, Null-Hinweis, Cash-Zeile, Umschalter, Drift-Basis (#875, Vorher / Nachher)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  /* Board chrome only. The phone frames are iframes at a true 390 px
+     viewport, so every media query of the live app.css fires as it does on a
+     phone: "Vorher" is app.css as shipped with today's markup, "Nachher" is
+     app.css plus the rule in <template id="css-fix-875"> with the markup the
+     story renders. Markup inside the frames is the markup of
+     portfolio_live.ex (the allocation section head, the basis line and the
+     flat worklist, data-role="flat-positions") with synthetic data. */
+  .mock-frame { overflow: visible; }
+  .mock-note code, .notes code, .callout code { font-size: 11.5px; }
+  .notes { display: grid; gap: 8px; align-content: start; font-size: 12.5px; max-width: 72ch; margin: 0 0 12px; }
+  .notes p, .notes ol, .notes ul { margin: 0; }
+  .notes ol, .notes ul { padding-left: 18px; }
+  .notes li + li { margin-top: 4px; }
+  i.pin { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 999px; font: 700 10px/1 var(--font-sans); font-style: normal; color: #fff; vertical-align: 1px; margin: 0 3px 0 0; }
+  i.pin.b { background: var(--color-danger); }
+  i.pin.a { background: var(--color-positive); }
+  .col { display: grid; gap: 6px; align-content: start; }
+  .cap { margin: 4px 0 0; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .ph { width: 390px; border: 1px solid var(--color-border-strong); border-radius: 20px; overflow: hidden; background: var(--color-bg); }
+  .ph.flat { border-radius: 12px; }
+  .ph iframe { display: block; width: 390px; height: 40px; border: 0; }
+  /* zoomed phone crops: a 390 px viewport, drawn at 1.4x */
+  .zoom { width: calc(390px * 1.4); overflow: hidden; border: 1px solid var(--color-border-strong); border-radius: 12px; background: var(--color-bg); }
+  .zoom iframe { display: block; width: 390px; height: 40px; border: 0; transform: scale(1.4); transform-origin: 0 0; }
+  .measure { font-size: 12px; color: var(--mock-ink); margin: 4px 0 0; max-width: 548px; }
+  .measure b { color: var(--color-text); font-variant-numeric: tabular-nums; }
+  .callout { border: 1px solid var(--color-border); border-left: 4px solid var(--color-accent); border-radius: var(--radius-md); background: var(--color-bg-elevated); padding: 10px 14px; display: grid; gap: 6px; font-size: 12.5px; max-width: 1090px; }
+  .callout.keep { border-left-color: var(--color-positive); }
+  .callout.seen { border-left-color: var(--color-warning); }
+  .callout h4 { margin: 0; font-size: 13px; }
+  .callout p, .callout ul, .callout ol { margin: 0; }
+  .callout ul, .callout ol { padding-left: 18px; }
+  .callout li + li { margin-top: 4px; }
+
+  /* ⑤ state matrix: basis lines at desktop width, in this document */
+  table.states { width: 100%; max-width: 1120px; border-collapse: separate; border-spacing: 0; font-size: 12.5px; background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+  table.states th { text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); background: var(--color-bg-muted); padding: 7px 12px; }
+  table.states td { padding: 10px 12px; border-top: 1px solid var(--color-border); vertical-align: top; }
+  table.states td.state { width: 170px; font-weight: 600; }
+  table.states td.state small { display: block; font-weight: 500; color: var(--color-text-muted); margin-top: 2px; }
+  table.states td.before { background: color-mix(in srgb, var(--color-danger-soft) 45%, transparent); }
+  table.states td.after { background: color-mix(in srgb, #ecfdf5 70%, transparent); }
+  table.states td.same { color: var(--mock-ink); }
+  table.states .summary-basis { margin: 0; }
+  /* marks the added words; a tint rather than an outline, because an outline
+     on a wrapped inline span draws a box per line fragment across the line above */
+  .is-new { background: color-mix(in srgb, var(--color-positive) 18%, transparent); border-radius: 3px; padding: 0 2px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+</style>
+</head>
+<body data-widths="1200">
+
+<div class="pickbar"><b>Vorher / Nachher — keine Variantenwahl.</b> #875 besteht aus fünf Konformitätsbefunden, deren Antwort schon feststeht: ① die Hinweisteile stehen in Spalten, die sich über die Zeilen ausrichten (ADR-0023, <code>.rebalance-hint</code>) — eine Spalte, aus der ihr Wort herausläuft, richtet nichts aus · ② ein Hinweis ist eine Menge, und „≈ 0,00 Stück“ ist keine · ③ Cash hat ein eigenes Soll und ist nicht „nicht zugeordnet“ · ④ ein Umschalter ist <code>{components.selected-segment}</code> (UX-DR16, DESIGN.md → Selected state) · ⑤ jede Zahl nennt ihre Basis (UX-DR11), und unter 100 % gibt es keine Warnfarbe (DESIGN.md D3, ADR-0040 §2/§3). Links: heute. Rechts: nach der Reparatur. Alle Namen, Mengen und Beträge sind erfunden.</div>
+
+<!-- =========================================================== overview -->
+<section class="mock-board">
+  <h2>#875 — Vermögen → Allokation &amp; Ziele → Positionen bei 390 px <small>Vorher / Nachher · echte 390-px-Ansicht</small></h2>
+  <p class="mock-note">Die Arbeitsliste „Positionen“: eine Zeile je Position, nach Drift sortiert (übergewichtet zuerst), Cash als eigene Zeile. Der Plan „Strategie“ verteilt 85 % (Stabilität 30, Wachstum 40, Rohstoffe 5, Cash 10), 15 % bleiben bewusst ungesteuert. Oben die Ansicht beim Öffnen, darunter dieselbe Tabelle nach rechts gewischt — die Hinweisspalte liegt bei 390 px außerhalb des ersten Bildes. Die Nummern stehen für die fünf Befunde; jeder folgt vergrößert.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before"><span class="mock-tag">Vorher</span><div class="workspace-section">
+      <div class="notes" style="margin:0;max-width:390px">
+        <p><i class="pin b">4</i>„Baum“ und „Positionen“ sehen gleich aus. <i class="pin b">5</i>Σ 85,0 % in Warnfarbe, und nichts sagt, wogegen die Drift misst. <i class="pin b">3</i>Cash steht als „Nicht zugeordnet“.</p>
+      </div>
+      <div class="ph"><iframe data-tpl="tpl-section-before" data-css="css-mock" title="Vorher, 390 px, beim Öffnen"></iframe></div>
+      <p class="cap">Nach rechts gewischt</p>
+      <div class="notes" style="margin:0;max-width:390px">
+        <p><i class="pin b">1</i>„Verkauf“ läuft in das ≈. <i class="pin b">2</i>„Verkauf ≈ 0,00 Stück“.</p>
+      </div>
+      <div class="ph flat"><iframe data-tpl="tpl-table-before" data-css="css-mock" data-scroll="end" title="Vorher, 390 px, nach rechts gewischt"></iframe></div>
+    </div></div>
+    <div class="mock-frame mock-after"><span class="mock-tag">Nachher</span><div class="workspace-section">
+      <div class="notes" style="margin:0;max-width:390px">
+        <p><i class="pin a">4</i>Die aktive Option ist gefüllt. <i class="pin a">5</i>Σ ohne Warnfarbe, dahinter die Basis der Drift. <i class="pin a">3</i>Cash: „—“ wie jede Zelle ohne Wert.</p>
+      </div>
+      <div class="ph"><iframe data-tpl="tpl-section-after" data-css="css-mock css-fix-875" title="Nachher, 390 px, beim Öffnen"></iframe></div>
+      <p class="cap">Nach rechts gewischt</p>
+      <div class="notes" style="margin:0;max-width:390px">
+        <p><i class="pin a">1</i>Die Verbspalte ist so breit wie ihr Wort. <i class="pin a">2</i>Rundet die Menge auf null, steht „—“.</p>
+      </div>
+      <div class="ph flat"><iframe data-tpl="tpl-table-after" data-css="css-mock css-fix-875" data-scroll="end" title="Nachher, 390 px, nach rechts gewischt"></iframe></div>
+    </div></div>
+  </div>
+</section>
+
+<!-- =========================================================== ① ② -->
+<section class="mock-board">
+  <h2>① Das Verb passt in seine Spalte · ② kein Hinweis, der auf null rundet <small>ADR-0023 · app.css <code>.rebalance-hint</code> · 390 px, 1,4-fach, nach rechts gewischt</small></h2>
+  <div class="notes">
+    <p><b>①</b> Der Hinweis steht in vier Gitterspalten — Verb · ≈ · Menge · Einheit —, damit ≈ und Mengen über alle Zeilen in einer Linie stehen. Die Verbspalte ist fest <code>2.9em</code> breit (bei 0,85 em von 13 px rund 32 px): Platz für „Sell“, „Buy“ und „Kauf“, nicht für „Verkauf“. Das Wort läuft über seine Spalte in das ≈. Nachher ist die Verbspalte <code>max-content</code>. Die drei anderen Spalten behalten ihre Breite, und das Gitter packt weiter nach rechts (<code>justify-content: end</code>) — also steht das ≈ weiter in jeder Zeile an derselben Stelle, und jedes Verb schließt bündig davor ab. Eine breitere feste Spur (etwa <code>4.4em</code>) hielte die Verben an einer linken Kante, wäre aber dieselbe Schätzung über die Wortlänge, die hier gescheitert ist — nur eine Sprache später. <code>max-content</code> kann nicht überlaufen; der Preis ist, dass ein „Kauf“ unter einem „Verkauf“ rechts am ≈ endet statt links anzufangen, und <code>.rebalance-verb { text-align: left }</code> wird wirkungslos. Dieselbe Regel gilt im Baum, wo die Positionszeilen einer aufgeklappten Kategorie denselben Hinweis tragen. Gemessen unter den Bildern.</p>
+    <p><b>②</b> „Corvid Physical Gold ETC“ steht fast genau auf dem Ziel seiner Kategorie: +0,65 EUR Drift bei einem Kurs um 490 EUR sind rund 0,001 Stück, zwei Nachkommastellen machen daraus „Verkauf ≈ 0,00 Stück“ — ein Hinweis, etwas zu tun, das nichts ist. Nachher gibt <code>rebalance_hint_parts/1</code> <code>nil</code> zurück, wenn die auf zwei Stellen gerundete Menge null ist; die Zelle zeigt „—“ wie heute schon bei Cash und bei Positionen ohne Kurs. Die Drift von 0,65 EUR bleibt stehen, und die API liefert die Menge weiter ungerundet — die Unterdrückung ist reine Anzeige.</p>
+  </div>
+  <div class="mock-row">
+    <div class="col">
+      <div class="mock-frame mock-before"><span class="mock-tag">Vorher</span>
+        <div class="zoom"><iframe data-tpl="tpl-crop-end-before" data-css="css-mock" data-scale="1.4" data-scroll="end" data-measure="m1-before" title="Hinweisspalte vorher"></iframe></div>
+      </div>
+      <p class="measure" id="m1-before"></p>
+    </div>
+    <div class="col">
+      <div class="mock-frame mock-after"><span class="mock-tag">Nachher</span>
+        <div class="zoom"><iframe data-tpl="tpl-crop-end-after" data-css="css-mock css-fix-875" data-scale="1.4" data-scroll="end" data-measure="m1-after" title="Hinweisspalte nachher"></iframe></div>
+      </div>
+      <p class="measure" id="m1-after"></p>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================== ③ -->
+<section class="mock-board">
+  <h2>③ Die Cash-Zeile ist nicht „Nicht zugeordnet“ <small>Arbeitsliste, Spalte Kategorie · 390 px, 1,4-fach, beim Öffnen, erste vier Zeilen</small></h2>
+  <p class="mock-note">Die Cash-Zeile hat keine Kategorie, und die Vorlage fällt dann auf den Text für nicht zugeordnete Wertpapiere zurück. Cash ist aber nicht nicht zugeordnet: Der Plan trägt ein eigenes Cash-Soll (hier 10 %), die Zeile hat eine Drift, und „Nicht zugeordnet“ ist auf derselben Seite der Name einer anderen Zeile — der Sammelzeile im Baum, die gerade <em>keine</em> Drift hat. Nachher steht in der Cash-Zeile „—“, in der gedämpften Behandlung, die die ganze Zeile schon trägt (<code>tr.is-muted</code>), genau wie jede andere Zelle ohne Wert in dieser Tabelle. Das gilt auch, wenn der Plan kein Cash-Soll trägt: Cash ist nie ein Wertpapier, das auf eine Kategorie wartet. Echte nicht zugeordnete Wertpapiere behalten ihren Text. Die Sortierung nach Kategorie ändert sich nicht: Cash hat weiter keinen Kategorienamen und sinkt ans Ende.</p>
+  <div class="mock-row">
+    <div class="col">
+      <div class="mock-frame mock-before"><span class="mock-tag">Vorher</span>
+        <div class="zoom"><iframe data-tpl="tpl-crop-start-before" data-css="css-mock" data-scale="1.4" title="Kategorie vorher"></iframe></div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="mock-frame mock-after"><span class="mock-tag">Nachher</span>
+        <div class="zoom"><iframe data-tpl="tpl-crop-start-after" data-css="css-mock css-fix-875" data-scale="1.4" title="Kategorie nachher"></iframe></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================== ④ -->
+<section class="mock-board">
+  <h2>④ Baum / Positionen: der Umschalter zeigt, was gewählt ist <small>DESIGN.md → Selected state, Klasse 2 · <code>{components.selected-segment}</code> · 390 px, 1,4-fach</small></h2>
+  <p class="mock-note">Die beiden Knöpfe tragen <code>.button-mini</code> und im aktiven Zustand <code>.is-active</code>. app.css gestaltet <code>.button-mini</code> nirgends und <code>.is-active</code> nur an anderen Bauteilen (Navigation, Reiter, Chips, Segmente) — an diesem Knopf greift keine Regel. Sie fallen auf den einfachen Knopf zurück, und nur <code>aria-pressed</code> wechselt: Wer sieht, sieht zweimal dasselbe Bild. Die Gruppe trägt dazu <code>.chart-toggle</code>, die Klasse eines <em>einzelnen</em> Diagrammknopfs, und wird so zu einem gerahmten Kasten um zwei Knöpfe. Nachher ist es dieselbe Gruppe, die „% (TTWROR) / Wert (EUR)“ auf dem Reiter „Bestände“ schon benutzt: <code>.segmented-control</code> mit <code>.segmented-control__option</code> — eine gerahmte Spur mit Trennlinie, die aktive Option gefüllt in der Akzentfarbe mit Text in <code>on-accent</code>. Keine Änderung der Schriftstärke, also springt nichts, wenn die Auswahl wechselt. Mit der Klasse kommen der Fokusring (2 px Akzent, 2 px Abstand) und auf Touch-Geräten 44 px Höhe (UX-DR6) — hier nicht zu sehen, weil das Board mit feinem Zeiger rendert. <code>role="group"</code>, das <code>aria-label</code> „Allokations-Ansicht“ und <code>aria-pressed</code> bleiben.</p>
+  <div class="mock-row">
+    <div class="col">
+      <div class="mock-frame mock-before"><span class="mock-tag">Vorher</span>
+        <div class="zoom"><iframe data-tpl="tpl-head-before" data-css="css-mock" data-scale="1.4" title="Umschalter vorher"></iframe></div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="mock-frame mock-after"><span class="mock-tag">Nachher</span>
+        <div class="zoom"><iframe data-tpl="tpl-head-after" data-css="css-mock css-fix-875" data-scale="1.4" title="Umschalter nachher"></iframe></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================== ⑤ -->
+<section class="mock-board">
+  <h2>⑤ Die Drift sagt, wogegen sie misst <small>ADR-0040 §2 / §3 · DESIGN.md D3 · UX-DR11 · Grundlagenzeile der Allokation</small></h2>
+  <div class="notes">
+    <p>Verteilt ein Plan weniger als 100 %, misst die Drift jede Kategorie gegen ihr Soll <em>im verteilten Anteil</em> (ADR-0040 §2): Die 40 % Soll von Wachstum sind 47,1 % der verteilten 85 %. Das ist richtig — sonst erschiene der ungesteuerte Rest als Übergewicht in jeder Kategorie —, aber die Seite sagt es nirgends. Im Beispiel liegt Wachstum bei 45,4 % Ist gegen 40,0 % Soll, also scheinbar 5,4 Punkte über dem Plan; die Drift sagt −1.658,82 EUR (in der Arbeitsliste die Summe der drei Wachstumspositionen), und für alle drei steht „Kauf“. Ohne den Satz liest sich das als Fehler mit umgekehrtem Vorzeichen.</p>
+    <p><b>Nachher</b> bekommt die Σ-Angabe der bestehenden Grundlagenzeile einen Nachsatz, <b>„— Abweichung gegen den verteilten Anteil“</b>, nur wenn der Plan einen Rest hat (<code>drift_basis == "allocated_portion"</code>, das Feld, das die API schon ausliefert). Der Nachsatz steht dort, wo die Zeile schon ihre andere Σ-Ergänzung trägt („— Ziele tiefer im Baum: …“), und nennt die Zahl nicht noch einmal: Die 85,0 % stehen unmittelbar davor, und sie <em>sind</em> der verteilte Anteil (<code>drift_basis</code> ist genau dann <code>allocated_portion</code>, wenn diese Σ echt zwischen 0 und 100 % liegt). Die beiden Ergänzungen treffen sich nie: „Ziele tiefer im Baum“ erscheint nur bei 0 % oben, und dann misst die Drift gegen den ganzen Plan. „Abweichung“ ist das Wort, das die Schwellen-Chips derselben Seite für dieselbe Zahl benutzen („Abweichung ab“) und mit dem das ⓘ der Drift-Spalte sich nennt („Info SOLL-IST-Abweichung“). Die Zeile gilt für beide Ansichten, Baum und Positionen.</p>
+    <p><b>Und die Warnfarbe geht.</b> Heute färbt die Zeile die Σ bei jeder Summe ≠ 100 % in Warnfarbe (<code>target_mismatch?(Σ, 1)</code>). DESIGN.md D3: „Under-100 % therefore has no warning colour anywhere on the surface.“ Eine bernsteinfarbene 85,0 % neben einem Satz, der sie als Absicht erklärt, widerspräche sich selbst. Nachher bleibt die Warnfarbe genau dort, wo ADR-0040 §3 sie hinstellt: über 100 % (<code>plan_overshoot/1</code>, schon vorhanden). Eine Überschreitung ist keine Basis und bekommt keinen Nachsatz. Dieselbe Regel nimmt die Warnfarbe auch von 0 % oben mit Zielen tiefer im Baum, die heute ebenfalls bernsteinfarben steht — die zweite Zeile unten; ihr Text bleibt.</p>
+  </div>
+  <table class="states">
+    <thead><tr><th>Plan</th><th>Vorher</th><th>Nachher</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="state">Σ 85,0 %<small>Rest 15 % · Drift gegen den verteilten Anteil</small></td>
+        <td class="before"><p class="summary-basis allocation-basis">Plan auf Strategie · <span class="target-sum is-target-mismatch">Σ Soll oberste Ebene: 85,0%</span> · Ansicht Alles · Stand 24.09.2026</p></td>
+        <td class="after"><p class="summary-basis allocation-basis">Plan auf Strategie · <span class="target-sum">Σ Soll oberste Ebene: 85,0% <span class="is-new">— Abweichung gegen den verteilten Anteil</span></span> · Ansicht Alles · Stand 24.09.2026</p></td>
+      </tr>
+      <tr>
+        <td class="state">Σ 0,0 % oben<small>Ziele tiefer im Baum · Drift gegen den ganzen Plan</small></td>
+        <td class="before"><p class="summary-basis allocation-basis">Plan auf Strategie · <span class="target-sum is-target-mismatch">Σ Soll oberste Ebene: 0,0% — Ziele tiefer im Baum: 60,0%</span> · Ansicht Alles · Stand 24.09.2026</p></td>
+        <td class="after"><p class="summary-basis allocation-basis">Plan auf Strategie · <span class="target-sum">Σ Soll oberste Ebene: 0,0% — Ziele tiefer im Baum: 60,0%</span> · Ansicht Alles · Stand 24.09.2026</p><span class="note-muted">ohne Warnfarbe, Text unverändert — kein Nachsatz: Bei 0 % oben gibt es keinen verteilten Anteil, gegen den gerechnet würde (<code>drift_basis</code> ist <code>full_plan</code>)</span></td>
+      </tr>
+      <tr>
+        <td class="state">Σ 100,0 %<small>kein Rest · Drift gegen den ganzen Plan</small></td>
+        <td class="same" colspan="2"><p class="summary-basis allocation-basis">Plan auf Strategie · <span class="target-sum">Σ Soll oberste Ebene: 100,0%</span> · Ansicht Alles · Stand 24.09.2026</p><span class="note-muted">unverändert — kein Nachsatz</span></td>
+      </tr>
+      <tr>
+        <td class="state">Σ 105,0 %<small>überplant · ein Fehler (ADR-0040 §3)</small></td>
+        <td class="same" colspan="2"><p class="summary-basis allocation-basis">Plan auf Strategie · <span class="target-sum is-target-mismatch">Σ Soll oberste Ebene: 105,0%</span> · Ansicht Alles · Stand 24.09.2026</p><span class="note-muted">unverändert — Warnfarbe bleibt, kein Nachsatz: eine Überschreitung wird nicht umgerechnet</span></td>
+      </tr>
+      <tr>
+        <td class="state">kein Plan<small>nur Ist, keine Drift</small></td>
+        <td class="same" colspan="2"><p class="summary-basis allocation-basis">Ist-Allokation auf Strategie · Ansicht Alles · Stand 24.09.2026</p><span class="note-muted">unverändert</span></td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- =========================================================== what the story changes -->
+<section class="mock-board">
+  <h2>Was die Story ändert <small>eine CSS-Regel, vier Stellen in <code>portfolio_live.ex</code>, ein neuer Text</small></h2>
+  <div class="callout">
+    <ol>
+      <li><b>①</b> app.css: <code>.rebalance-hint { grid-template-columns: max-content 0.9em minmax(4.2em, max-content) max-content; }</code> — nur die erste Spur ändert sich.</li>
+      <li><b>②</b> <code>rebalance_hint_parts/1</code>: <code>nil</code>, wenn <code>Decimal.round(Decimal.abs(q), 2)</code> null ist. Beide Aufrufer folgen von selbst: im Baum entfällt der Hinweis unter der Drift, in der Arbeitsliste steht „—“.</li>
+      <li><b>③</b> Arbeitsliste, Spalte Kategorie: bei <code>entry.cash?</code> „—“ statt des Textes „Nicht zugeordnet“.</li>
+      <li><b>④</b> Die Gruppe wird <code>class="segmented-control"</code> (statt <code>chart-toggle</code>), die Knöpfe <code>segmented-control__option</code> (statt <code>button-mini</code>); <code>data-role</code>, <code>phx-click</code>, <code>aria-pressed</code> bleiben.</li>
+      <li><b>⑤</b> In <code>data-role="target-sum-top-level"</code>: <code>is-target-mismatch</code> nur noch bei <code>plan_overshoot(@allocation)</code>; bei <code>@allocation.drift_basis == "allocated_portion"</code> der Nachsatz, neue msgid <code>"drift against the allocated portion"</code> → „Abweichung gegen den verteilten Anteil“. Die Warnfarbe fällt damit bei jeder Σ unter 100 % weg, auch bei 0 % mit Zielen tiefer im Baum.</li>
+    </ol>
+  </div>
+</section>
+
+<section class="mock-board">
+  <h2>Was gleich bleibt <small>Umfang der Reparatur</small></h2>
+  <div class="callout keep">
+    <p>Die Drift-Arithmetik (ADR-0040 §2 wird nur <em>gesagt</em>, nicht geändert), die Sortierung (Drift absteigend, Cash als Zeile), Spaltenfolge und Spaltenköpfe, zwei Nachkommastellen für Hinweismengen, die Hinweise als reine Anzeige (ADR-0023 — nichts wird angelegt, gespeichert oder gesendet), die Chips „ohne Bestand“ / „kein Kurs“, die Position des Umschalters im Abschnittskopf, der Baum als Standardansicht. Die API und das MCP-Werkzeug ändern sich nicht: <code>drift_basis</code> und <code>unallocated_remainder</code> stehen schon im Payload.</p>
+  </div>
+</section>
+
+<section class="mock-board">
+  <h2>Beim Rendern bemerkt, nicht Teil von #875 <small>Scope Lock — zu erfassen, nicht nebenbei zu lösen</small></h2>
+  <div class="callout seen">
+    <ul>
+      <li><b>Die Drift-Spalte heftet sich nicht an.</b> DESIGN.md (Amendment „subject column“) führt die Drift-Spalte der Allokationstabelle als <code>.col-subject</code>, rechts angeheftet. Die generische Regel <code>table { overflow: hidden }</code> — und unter 560 px zusätzlich <code>table { display: block; overflow-x: auto }</code> — macht aber die Tabelle selbst zum Scroll-Container, obwohl der <code>.data-table-wrapper</code> um sie herum scrollt, sodass <code>position: sticky</code> in <code>.drift-table</code> nichts bewirkt — in beiden Frames oben sichtbar: Beim Öffnen ist keine Drift zu sehen. In der Arbeitsliste trägt zudem nur die Zelle <code>col-subject</code>, nicht der Spaltenkopf.</li>
+      <li><b>Die Grundlagenzeile spricht nicht in der Grundlagen-Stimme.</b> <code>.summary-basis</code> ist nur unter <code>.transaction-summary</code> und <code>#portfolio-positions</code> gestaltet; im Abschnitt Allokation rendert die Zeile als gewöhnlicher Absatz (14 px bei 390 px, Textfarbe, 14 px Rand). Dieselbe Lücke, die #portfolio-positions lokal geschlossen hat.</li>
+      <li><b>Die ⓘ-Definition der Drift im Baum</b> sagt „Ist-Gewicht minus Soll-Gewicht“. Bei einem Plan mit Rest stimmt das nur gegen den verteilten Anteil; der Nachsatz aus ⑤ steht in derselben Ansicht, die Definition könnte ihn aufnehmen.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================================================================ CSS -->
+
+<!-- Mock-only chrome inside the iframes (pins). Not a proposal. -->
+<template id="css-mock"><style>
+  body { background: var(--color-bg); }
+  .workspace-page { min-height: 0 !important; }
+  .mk-pin { position: relative; }
+  .mk-pin::after { content: attr(data-pin); position: absolute; top: -7px; right: -3px; z-index: 5; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 999px; font: 700 10px/16px var(--font-sans); color: #fff; text-align: center; letter-spacing: 0; text-transform: none; }
+  .mk-b .mk-pin::after { background: var(--color-danger); }
+  .mk-a .mk-pin::after { background: var(--color-positive); }
+  /* Pins sit in empty space, never on a glyph of the evidence (critic pass):
+     at-left on a control's corner, at-above in the gap over a paragraph's
+     first letter, at-cell in the gutter before a cell's text, at-over on the
+     row border above a hint's verb. */
+  .mk-pin.at-left::after { right: auto; left: -8px; top: -8px; }
+  .mk-pin.at-above::after { right: auto; left: -2px; top: -19px; }
+  .mk-pin.at-cell::after { right: auto; left: -14px; top: calc(50% - 8px); }
+  .mk-pin.at-dash::after { right: 26px; top: calc(50% - 8px); }
+  .mk-pin.at-over::after { right: auto; left: -4px; top: -16px; }
+  .crop-label { margin: 0 0 4px; font: 700 10px/1.2 var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted); }
+</style></template>
+
+<!-- THE PROPOSAL (#875 ①): the one rule the story adds to app.css. -->
+<template id="css-fix-875"><style>
+  /* ① The verb track sizes to its word ("Verkauf" does not fit 2.9em at the
+     hint's 0.85em). The ≈, quantity and unit tracks keep their widths and the
+     grid still packs to the end, so the ≈ stays in one vertical line across
+     rows — in the tree drill-down and in the flat worklist alike. */
+  .rebalance-hint {
+    grid-template-columns: max-content 0.9em minmax(4.2em, max-content) max-content;
+  }
+</style></template>
+
+<!-- ============================================================ TEMPLATES -->
+
+<template id="frag-toggle-before">
+  <div class="chart-toggle" role="group" aria-label="Allokations-Ansicht">
+    <button type="button" data-role="allocation-mode-tree" class="button-mini{{TREE_ACTIVE}}" aria-pressed="{{TREE_PRESSED}}">Baum</button>
+    <button type="button" data-role="allocation-mode-flat" class="button-mini{{FLAT_ACTIVE}}" aria-pressed="{{FLAT_PRESSED}}">Positionen</button>
+  </div>
+</template>
+<template id="frag-toggle-after">
+  <div class="segmented-control" role="group" aria-label="Allokations-Ansicht">
+    <button type="button" data-role="allocation-mode-tree" class="segmented-control__option{{TREE_ACTIVE}}" aria-pressed="{{TREE_PRESSED}}">Baum</button>
+    <button type="button" data-role="allocation-mode-flat" class="segmented-control__option{{FLAT_ACTIVE}}" aria-pressed="{{FLAT_PRESSED}}">Positionen</button>
+  </div>
+</template>
+
+<template id="frag-head">
+  <header class="section-head">
+    <h2>Allokation</h2>
+    <div class="section-head-controls{{PIN4}}" data-pin="4">
+      {{TOGGLE}}
+      <form id="allocation-classification-form">
+        <label class="visually-hidden" for="allocation-classification">Klassifizierung</label>
+        <select id="allocation-classification" name="classification_id"><option selected>Strategie</option><option>Anlageklasse</option><option>Währung</option></select>
+      </form>
+    </div>
+  </header>
+</template>
+
+<template id="frag-basis-before">
+  <p class="summary-basis allocation-basis{{PIN5}}" data-pin="5" data-role="allocation-basis">Plan auf Strategie · <span class="target-sum is-target-mismatch" data-role="target-sum-top-level">Σ Soll oberste Ebene: 85,0%</span> · Ansicht Alles · Stand 24.09.2026</p>
+</template>
+<template id="frag-basis-after">
+  <p class="summary-basis allocation-basis{{PIN5}}" data-pin="5" data-role="allocation-basis">Plan auf Strategie · <span class="target-sum" data-role="target-sum-top-level">Σ Soll oberste Ebene: 85,0% <span data-role="drift-basis">— Abweichung gegen den verteilten Anteil</span></span> · Ansicht Alles · Stand 24.09.2026</p>
+</template>
+
+<template id="frag-table">
+  <div class="data-table-wrapper">
+    <table class="drift-table" data-role="flat-positions">
+      <thead>
+        <tr>
+          <th>Wertpapier</th>
+          <th><button type="button" class="table-sort" data-role="flat-sort-category">Kategorie</button></th>
+          <th class="num"><button type="button" class="table-sort" data-role="flat-sort-value">Wert</button></th>
+          <th class="num">Ist</th>
+          <th class="num"><button type="button" class="table-sort" data-role="flat-sort-drift">Drift ↓</button></th>
+          <th class="num">Hinweis</th>
+        </tr>
+      </thead>
+      <tbody><!--ROWS--></tbody>
+    </table>
+  </div>
+</template>
+
+<template id="frag-section">
+  <div class="app-shell {{MK}}"><div class="app-frame">
+    <main class="app-main app-main--workspace">
+      <div class="workspace-page portfolio-overview">
+        <section id="portfolio-allocation" class="workspace-section">
+          {{HEAD}}
+          {{BASIS}}
+          {{TABLE}}
+        </section>
+      </div>
+    </main>
+  </div></div>
+</template>
+
+<template id="frag-table-only">
+  <div class="{{MK}}">
+    <section class="workspace-section" style="padding-block:12px">
+      {{TABLE}}
+    </section>
+  </div>
+</template>
+
+<template id="frag-head-crop">
+  <div class="{{MK}}">
+    <section class="workspace-section" style="padding-block:10px 14px;gap:6px">
+      <p class="crop-label">Baum gewählt</p>
+      {{HEAD_TREE}}
+      <p class="crop-label">Positionen gewählt</p>
+      {{HEAD_FLAT}}
+    </section>
+  </div>
+</template>
+
+<script>
+/* Builds the iframes (srcdoc, so relative links resolve against this board).
+   Assembly only; nothing here is a proposal. The rows are the same data for
+   both sides — they differ only where the proposal differs. */
+const $ = (id) => document.getElementById(id).innerHTML;
+const CSS_HREF = '../../../../../priv/static/app.css';
+const fill = (s, map) => s.replace(/\{\{(\w+)\}\}/g, (_, k) => (k in map ? map[k] : ''));
+
+/* Synthetic worklist. Total 100.000,00 EUR; plan Σ 85 % (Stabilität 30,
+   Wachstum 40, Rohstoffe 5, Cash 10); drift against the allocated portion
+   (ADR-0040 §2), each position's share by value, quantity at its implied
+   price — the arithmetic of allocation.ex, worked by hand. */
+const ROWS = [
+  { name: 'Cash', cash: true, value: '12.617,00', ist: '12,6', drift: '852,29' },
+  { name: 'Tessellate Euro Government Bond ETF', cat: 'Stabilität', color: '#0f766e', value: '19.000,00', ist: '19,0', drift: '424,15', hint: ['Verkauf', '4,24'], pin1: true },
+  { name: 'Nordic Timber Holdings AB', cat: 'Stabilität', color: '#0f766e', value: '17.100,00', ist: '17,1', drift: '381,73', hint: ['Verkauf', '20,09'] },
+  { name: 'Corvid Physical Gold ETC', cat: 'Rohstoffe', color: '#b45309', value: '5.883,00', ist: '5,9', drift: '0,65', hint: ['Verkauf', '0,00'], rounds_to_zero: true },
+  { name: 'Helios Solar Systems SE', cat: 'Wachstum', color: '#7c3aed', value: '5.300,00', ist: '5,3', drift: '-193,65', hint: ['Kauf', '7,31'] },
+  { name: 'Kestrel Industrial Group NV', cat: 'Wachstum', color: '#7c3aed', value: '12.600,00', ist: '12,6', drift: '-460,38', hint: ['Kauf', '10,96'] },
+  { name: 'Meridian Global Equity ETF', cat: 'Wachstum', color: '#7c3aed', value: '27.500,00', ist: '27,5', drift: '-1.004,79', hint: ['Kauf', '9,13'] }
+];
+
+function hintCell(r, after, pins) {
+  if (!r.hint || (after && r.rounds_to_zero)) {
+    const pin = pins && r.rounds_to_zero ? ' class="num mk-pin at-dash" data-pin="2"' : ' class="num"';
+    return `<td${pin}>—</td>`;
+  }
+  const pin = pins && (r.pin1 || r.rounds_to_zero) ? ` mk-pin at-over" data-pin="${r.pin1 ? 1 : 2}` : '';
+  return `<td class="num"><span class="rebalance-hint" data-role="rebalance-hint"><span class="rebalance-verb${pin}">${r.hint[0]}</span><span class="rebalance-approx">≈</span><span class="rebalance-qty">${r.hint[1]}</span><span class="rebalance-unit">Stück</span></span></td>`;
+}
+function catCell(r, after, pins) {
+  if (r.cash) {
+    const pin = pins ? ' class="mk-pin at-cell" data-pin="3"' : '';
+    return after ? `<td${pin}>—</td>` : `<td${pin}><span class="hint">Nicht zugeordnet</span></td>`;
+  }
+  return `<td><span class="cat-swatch" style="background:${r.color}" aria-hidden="true"></span>${r.cat}</td>`;
+}
+function rows(after, pins) {
+  return ROWS.slice(0, pins.limit || ROWS.length).map((r) => {
+    const neg = r.drift.startsWith('-');
+    return `<tr${r.cash ? ' class="is-muted"' : ''} data-role="${r.cash ? 'flat-cash' : 'flat-position'}">` +
+      `<td>${r.name}</td>` + catCell(r, after, pins.cat) +
+      `<td class="num">${r.value}</td><td class="num">${r.ist}%</td>` +
+      `<td class="num col-subject${neg ? ' is-negative' : ''}">${r.drift} EUR</td>` +
+      hintCell(r, after, pins.hint) + '</tr>';
+  }).join('');
+}
+function toggle(after, flatActive) {
+  return fill($(after ? 'frag-toggle-after' : 'frag-toggle-before'), {
+    TREE_ACTIVE: flatActive ? '' : ' is-active', TREE_PRESSED: String(!flatActive),
+    FLAT_ACTIVE: flatActive ? ' is-active' : '', FLAT_PRESSED: String(flatActive)
+  });
+}
+function head(after, flatActive, pin) {
+  return fill($('frag-head'), { TOGGLE: toggle(after, flatActive), PIN4: pin ? ' mk-pin at-left' : '' });
+}
+function basis(after, pin) {
+  return fill($(after ? 'frag-basis-after' : 'frag-basis-before'), { PIN5: pin ? ' mk-pin at-above' : '' });
+}
+/* A text placeholder inside <tbody> would be foster-parented out of the
+   table by the parser, so the rows go in through a comment, which stays. */
+function table(after, pins) { return $('frag-table').replace('<!--ROWS-->', rows(after, pins)); }
+
+function section(after) {
+  return fill($('frag-section'), {
+    MK: after ? 'mk-a' : 'mk-b',
+    HEAD: head(after, true, true), BASIS: basis(after, true),
+    TABLE: table(after, { cat: true, hint: false })
+  });
+}
+function tableOnly(after, pins) {
+  return fill($('frag-table-only'), { MK: after ? 'mk-a' : 'mk-b', TABLE: table(after, pins) });
+}
+function headCrop(after) {
+  return fill($('frag-head-crop'), { MK: after ? 'mk-a' : 'mk-b', HEAD_TREE: head(after, false, false), HEAD_FLAT: head(after, true, false) });
+}
+
+const T = {
+  'tpl-section-before': () => section(false),
+  'tpl-section-after': () => section(true),
+  'tpl-table-before': () => tableOnly(false, { hint: true }),
+  'tpl-table-after': () => tableOnly(true, { hint: true }),
+  'tpl-crop-end-before': () => tableOnly(false, { hint: true }),
+  'tpl-crop-end-after': () => tableOnly(true, { hint: true }),
+  'tpl-crop-start-before': () => tableOnly(false, { cat: true, limit: 4 }),
+  'tpl-crop-start-after': () => tableOnly(true, { cat: true, limit: 4 }),
+  'tpl-head-before': () => headCrop(false),
+  'tpl-head-after': () => headCrop(true)
+};
+
+function measure(iframe) {
+  const out = iframe.dataset.measure && document.getElementById(iframe.dataset.measure);
+  if (!out) return;
+  const d = iframe.contentDocument;
+  const hints = [...d.querySelectorAll('.rebalance-hint')];
+  const lines = [];
+  const approxX = new Set();
+  const seen = new Set();
+  for (const h of hints) {
+    const verb = h.querySelector('.rebalance-verb');
+    const approx = h.querySelector('.rebalance-approx');
+    const word = verb.textContent;
+    approxX.add(Math.round(approx.getBoundingClientRect().left));
+    if (seen.has(word)) continue;
+    seen.add(word);
+    const range = d.createRange(); range.selectNodeContents(verb);
+    const tw = range.getBoundingClientRect().width;
+    const cw = verb.getBoundingClientRect().width;
+    const over = tw - cw;
+    lines.push(`„${word}“: Wort <b>${Math.round(tw)} px</b>, Spalte <b>${Math.round(cw)} px</b>` +
+      (over > 0.5 ? ` → ragt <b>${Math.round(over)} px</b> in das ≈` : ' → passt'));
+  }
+  lines.push(approxX.size === 1 ? `≈ in allen ${hints.length} Hinweisen an derselben Stelle (x = <b>${[...approxX][0]} px</b>)` : `≈ an ${approxX.size} verschiedenen Stellen`);
+  out.innerHTML = lines.join('<br>');
+}
+
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const css = (f.dataset.css || '').split(' ').filter(Boolean).map($).join('\n');
+  f.addEventListener('load', () => {
+    const d = f.contentDocument;
+    if (f.dataset.scroll === 'end') for (const w of d.querySelectorAll('.data-table-wrapper')) w.scrollLeft = w.scrollWidth;
+    const h = Math.ceil(d.documentElement.scrollHeight);
+    f.style.height = h + 'px';
+    const s = parseFloat(f.dataset.scale || '1');
+    if (s !== 1) f.parentElement.style.height = Math.ceil(h * s) + 'px';
+    measure(f);
+  });
+  f.srcdoc = `<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=390"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body>${T[f.dataset.tpl]()}</body></html>`;
+}
+</script>
+</body>
+</html>

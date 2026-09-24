@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Zusammenführen: Vorschau und Bestätigung für Verrechnungskonto und Depot (#328, ADR-0050 §7, §8, §10, Pick G2)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  /* Board-local helpers. Everything the build already has comes from
+     app.css (.modal, .modal-head, .modal-body, .modal-footer,
+     .modal-footer__spacer, .data-table, .data-note, .button-*, .icon-button).
+     What is new anatomy is marked "neu" in the notes and listed for
+     DESIGN.md: the .modal-footer--band modifier (a fixed foot band below
+     the body) and a .button-danger:disabled appearance. */
+  .mock-frame > .mock-tag { display: block; padding: 4px 10px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); background: var(--color-bg-muted); }
+  .stage { background: var(--color-bg-muted); padding: 20px 24px; display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+  .modal.flat { box-shadow: var(--shadow-md); }
+  .modal-head .step { display: block; margin-top: 2px; font-size: 12px; font-weight: 500; color: var(--color-text-muted); }
+  .route { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 14px; }
+  .route b { font-weight: 700; }
+  .route .arr { color: var(--color-text-muted); }
+  .route .meta { font-size: 12px; color: var(--color-text-muted); }
+  .basis { font-size: 11.5px; color: var(--color-text-muted); margin: 0; }
+  h3.blk { margin: 0; font-size: 13px; font-weight: 700; }
+  h3.blk small { font-weight: 500; color: var(--color-text-muted); margin-left: 6px; }
+  /* the balance identity, as a sum */
+  .identity { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1.2fr); align-items: end; gap: 4px 10px; padding: 12px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); }
+  .identity .op { font-size: 20px; font-weight: 600; color: var(--color-text-muted); padding-bottom: 2px; }
+  .identity .kf b { font-size: 18px; }
+  .identity .res { padding-left: 10px; border-left: 2px solid var(--color-accent); }
+  .identity .alt { grid-column: 1 / -1; font-size: 12px; color: var(--color-text-muted); text-align: right; }
+  .identity .alt b { color: var(--color-text); font-variant-numeric: tabular-nums; }
+  /* counts */
+  dl.counts { display: grid; grid-template-columns: 3.2em 1fr; gap: 4px 10px; margin: 0; font-size: 13px; }
+  dl.counts dt { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+  dl.counts dd { margin: 0; }
+  dl.counts dd small { color: var(--color-text-muted); font-size: 12px; }
+  /* radio choice — no preselection */
+  fieldset.choice { display: grid; gap: 8px; margin: 0; padding: 10px 12px 12px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); }
+  fieldset.choice legend { padding: 0 4px; font-size: 13px; font-weight: 700; }
+  label.opt { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-md); cursor: pointer; }
+  label.opt input { margin-top: 3px; }
+  label.opt > span { display: grid; gap: 2px; font-size: 13px; font-weight: 600; color: var(--color-text); }
+  label.opt > span small { font-size: 12px; font-weight: 400; color: var(--color-text-muted); }
+  label.opt > span small b { color: var(--color-text); font-variant-numeric: tabular-nums; }
+  label.opt.is-on { background: var(--color-selected); box-shadow: inset 3px 0 0 var(--color-accent); } /* UX-DR16 class 3 exactly: tint + 3px leading edge, border unchanged */
+  /* target list (step 1) */
+  fieldset.targets { display: grid; gap: 6px; margin: 0; padding: 0; border: 0; }
+  fieldset.targets legend { padding: 0; margin-bottom: 6px; font-size: 13px; font-weight: 700; }
+  label.tgt { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 2px 10px; padding: 9px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-md); min-height: 44px; box-sizing: border-box; }
+  label.tgt input { margin-top: 3px; }
+  label.tgt span { color: var(--color-text); font-size: 13px; font-weight: 400; }
+  label.tgt .nm { display: grid; gap: 1px; }
+  label.tgt .nm b { font-weight: 650; }
+  label.tgt .nm small { font-size: 12px; color: var(--color-text-muted); }
+  label.tgt .bal { text-align: right; font-variant-numeric: tabular-nums; font-size: 12.5px; }
+  label.tgt.is-on { background: var(--color-selected); box-shadow: inset 3px 0 0 var(--color-accent); }
+  label.tgt.is-off { background: var(--color-bg-muted); cursor: not-allowed; }
+  label.tgt.is-off .nm b, label.tgt.is-off .bal { color: var(--color-text-muted); }
+  label.tgt .why { grid-column: 2 / -1; font-size: 12px; color: var(--color-text); }
+  .sub-caps { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted); margin: 6px 0 0; }
+  /* proposed (neu): .modal-footer--band — the existing .modal-footer as a
+     band below the body, fixed while the body scrolls */
+  .modal-footer.modal-footer--band { align-items: center; margin-top: 0; padding: 12px 18px; border-top: 1px solid var(--color-border); background: var(--color-bg-elevated); border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+  .modal-footer--band .why { font-size: 12px; color: var(--color-text-muted); margin: 0; }
+  .button-danger[disabled] { opacity: .45; cursor: not-allowed; }
+  .button-danger, .button-ghost, .button-primary { font-weight: 600; }
+  /* the native select, opened (variant A) */
+  .optlist { display: grid; min-width: 330px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); background: var(--color-bg-elevated); box-shadow: var(--shadow-md); font-size: 13px; overflow: hidden; }
+  .optlist span { padding: 5px 10px; white-space: nowrap; }
+  .optlist span.sel { background: var(--color-accent); color: var(--color-on-accent); }
+  .optlist span.dis { color: var(--color-text-subtle); }
+  .preview-box { display: grid; gap: 12px; padding: 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+  .preview-box > .u-caps { margin: 0; }
+  details.disc > summary { font-size: 13px; color: var(--color-text-muted); cursor: pointer; }
+  /* positions (depot) */
+  .data-table td small { display: block; color: var(--color-text-muted); font-size: 11px; }
+  .data-table td.num b { display: block; font-weight: 700; }
+  .data-table td.chg { font-weight: 700; }
+  /* phone */
+  .phone { width: 390px; height: 844px; position: relative; overflow: hidden; border: 1px solid var(--color-border-strong); border-radius: 24px; background: var(--color-bg); font-size: 14px; flex: none; }
+  .phone .behind { padding: 26px 20px 14px; display: grid; gap: 10px; }
+  .phone .behind .ttl { font-weight: 700; font-size: 16px; padding-bottom: 6px; }
+  .phone .behind .ln { height: 52px; border-radius: 8px; background: var(--color-bg-elevated); border: 1px solid var(--color-border); }
+  .phone .scrim { position: absolute; inset: 0; background: rgba(15, 23, 42, .4); }
+  .phone .sheet { position: absolute; left: 0; right: 0; bottom: 0; max-height: 88%; display: flex; flex-direction: column; background: var(--color-bg-elevated); border-radius: 8px 8px 0 0; box-shadow: 0 -8px 24px rgba(0, 0, 0, .18); }
+  .phone .sheet.tall { height: 88%; }
+  .phone .grip { width: 36px; height: 4px; border-radius: 999px; background: var(--color-border-strong); margin: 8px auto 0; flex: none; }
+  .phone .modal-head { padding: 8px 16px 10px; flex: none; }
+  .phone .modal-head h2 { font-size: 15px; }
+  .phone .sh-body { flex: 1 1 auto; min-height: 0; overflow: hidden; padding: 12px 16px; display: grid; gap: 12px; align-content: start; position: relative; }
+  .phone .sh-body.scrolled { display: flex; flex-direction: column; justify-content: flex-end; }
+  .phone .sh-body.scrolled > * { flex: none; }
+  .phone .sh-body.more::after { content: ""; position: absolute; bottom: 0; left: 0; right: 0; height: 36px; background: linear-gradient(to top, var(--color-bg-elevated), transparent); }
+  .phone .sh-body.scrolled::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 28px; background: linear-gradient(to bottom, var(--color-bg-elevated), transparent); z-index: 1; }
+  .phone .modal-footer--band { flex: none; flex-direction: column; align-items: stretch; gap: 6px; padding: 10px 16px 18px; border-radius: 0; box-shadow: 0 -6px 12px rgba(15, 23, 42, .06); }
+  .phone .modal-footer--band button { width: 100%; min-height: 44px; font-size: 14px; justify-content: center; }
+  .phone label.tgt { min-height: 52px; }
+  .phone label.opt { min-height: 44px; box-sizing: border-box; }
+  .idl { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); font-size: 13.5px; }
+  .idl div { display: flex; justify-content: space-between; gap: 8px; }
+  .idl b { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .idl .sum { border-top: 1px solid var(--color-border-strong); padding-top: 4px; margin-top: 2px; }
+  .idl .sum b { font-weight: 750; font-size: 15px; }
+  .idl small { font-size: 12px; color: var(--color-text-muted); text-align: right; }
+  .arow { display: grid; gap: 1px; padding: 7px 0; border-bottom: 1px solid var(--color-border); font-size: 13px; }
+  .arow .t { color: var(--color-text-muted); font-size: 12px; }
+  .arow .eq { font-variant-numeric: tabular-nums; text-align: right; }
+  .arow .eq small { display: block; font-size: 11.5px; color: var(--color-text-muted); }
+  .callout { font-size: 11.5px; color: var(--color-accent); font-weight: 700; }
+  .aside-list { display: grid; gap: 8px; font-size: 12.5px; max-width: 520px; margin: 0; padding-left: 18px; }
+</style>
+</head>
+<body>
+
+<div class="pickbar"><b>Entscheidung G2 — offen.</b> Vorschau und Bestätigung beim Zusammenführen eines Verrechnungskontos oder Depots (#328, ADR-0050 §7, §8, §10). Einstieg — nicht Teil dieser Wahl: „Zusammenführen …“ im Zeilenmenü der Zeile, die verschwinden soll. <b>A</b> ein Dialog (Ziel oben, Vorschau darunter) · <b>B</b> zwei Schritte (Ziel wählen, dann Vorschau mit Bestätigung). Empfehlung: <b>B</b>. Ein Kommentar mit dem Buchstaben auf der Planungs-PR entscheidet; ohne Kommentar gilt die Empfehlung. Alle Namen, Beträge und Stückzahlen sind erfunden.</div>
+
+<!-- ============================ VARIANTE A ============================ -->
+<section class="mock-board">
+  <h2>Variante A — ein Dialog: Ziel oben, Vorschau darunter, Bestätigung unten <small>nicht empfohlen</small></h2>
+  <p class="mock-note">Das Ziel ist eine Auswahlliste; die Vorschau darunter rechnet bei jedem Zielwechsel neu. Stärke: Ziel und Folgen stehen gleichzeitig im Blick, ein Vergleich zweier Ziele kostet einen Klick. Schwächen: (1) Warum ein Konto nicht wählbar ist, steht in deaktivierten Optionen der nativen Liste — lesbar erst beim Öffnen, auf iOS als graue, abgeschnittene Zeilen im Auswahlrad. (2) Die gleichen Buchungen gehören zum Ziel: Ein Zielwechsel verwirft die dort getroffene Wahl, und während die Vorschau neu rechnet, steht die Bestätigung schon sichtbar darunter. (3) Bei 390 px liegt die Auswahl eine Bildschirmhöhe über der Bestätigung; ein Zielwechsel ändert Inhalt außerhalb des Blicks. Eine Liste statt der Auswahlliste würde (1) beheben, schiebt die Vorschau aber um die Höhe der Liste nach unten und verschärft (3). Der Vergleichsvorteil ist klein, weil Währung, Liquiditätsrolle und Buckets meist genau ein Ziel übrig lassen.</p>
+  <div class="mock-frame"><span class="mock-tag">Variante A</span>
+    <div class="stage">
+      <div class="modal flat">
+        <header class="modal-head">
+          <h2>Tagesgeld (alt) zusammenführen</h2>
+          <span class="icon-button" aria-label="Schließen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></svg></span>
+        </header>
+        <div class="modal-body">
+          <label><span>Ziel</span>
+            <select><option>Tagesgeld — EUR · Reserve · 8.400,00 EUR</option></select>
+          </label>
+          <p class="basis">4 Konten nicht wählbar — der Grund steht in der Liste.</p>
+          <div class="preview-box">
+            <p class="u-caps">Vorschau für Tagesgeld</p>
+            <div class="identity">
+              <div class="kf"><i>Tagesgeld (alt)</i><b>1.274,80<small>EUR</small></b></div>
+              <span class="op">+</span>
+              <div class="kf"><i>Tagesgeld</i><b>8.400,00<small>EUR</small></b></div>
+              <span class="op">=</span>
+              <div class="kf res"><i>Tagesgeld danach</i><b>9.674,80<small>EUR</small></b></div>
+              <div class="alt"><b>9.650,00 EUR</b>, wenn die 2 gleichen Buchungen entfernt werden</div>
+            </div>
+            <dl class="counts">
+              <dt>142</dt><dd>Buchungen wechseln nach Tagesgeld</dd>
+              <dt>6</dt><dd>Umbuchungen zwischen beiden Konten entfallen</dd>
+              <dt>3</dt><dd>gesetzte Salden werden angepasst, 1 entfällt</dd>
+              <dt>2</dt><dd>Buchungen sind in beiden Konten gleich — Wahl unten</dd>
+            </dl>
+            <details><summary class="disclosure-summary"><svg class="disclosure-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>Angepasste gesetzte Salden anzeigen (3)</summary></details>
+            <fieldset class="choice">
+              <legend>2 gleiche Buchungen</legend>
+              <label class="opt"><input type="radio" name="a-pair"><span>als Duplikate entfernen<small>Saldo danach <b>9.650,00 EUR</b></small></span></label>
+              <label class="opt"><input type="radio" name="a-pair"><span>beide behalten<small>Saldo danach <b>9.674,80 EUR</b></small></span></label>
+            </fieldset>
+          </div>
+        </div>
+        <div class="modal-footer modal-footer--band">
+          <button type="button" class="button-ghost">Abbrechen</button>
+          <span class="modal-footer__spacer"></span>
+          <p class="why">Wahl für 2 gleiche Buchungen fehlt</p>
+          <button type="button" class="button-danger" disabled>In Tagesgeld zusammenführen</button>
+        </div>
+      </div>
+
+      <div class="u-gap" style="flex:0 1 340px">
+        <p class="u-caps" style="margin:0">Die Auswahlliste, geöffnet</p>
+        <div class="optlist">
+          <span class="sel">Tagesgeld — EUR · Reserve · 8.400,00 EUR</span>
+          <span class="dis">Festgeld — andere Buckets</span>
+          <span class="dis">Girokonto — andere Liquiditätsrolle</span>
+          <span class="dis">Kreditrahmen — andere Liquiditätsrolle</span>
+          <span class="dis">Broker USD — andere Währung</span>
+        </div>
+        <p class="note-muted">Die Gründe sind nur hier lesbar, grau und nicht fokussierbar. Auf dem Telefon öffnet die Liste als Auswahlrad des Systems.</p>
+        <p class="note-muted">Beim Zielwechsel: Die Wahl für gleiche Buchungen wird zurückgesetzt, die Vorschau zeigt den Rechenzustand, die Bestätigung ist so lange gesperrt.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE B ============================ -->
+<section class="mock-board">
+  <h2>Variante B — zwei Schritte: Ziel wählen, dann Vorschau mit Bestätigung <small>empfohlen</small></h2>
+  <p class="mock-note">Schritt 1 listet alle Konten gleicher Art; jedes nicht wählbare steht mit seinem Grund da — alle Gründe auf einmal lesbar, ohne etwas zu öffnen. Schritt 2 ist die Vorschau genau dieses Paares: oben „Quelle → Ziel“, dann die Salden als Summe, die Mengen, die angepassten gesetzten Salden, die Wahl für gleiche Buchungen <b>ohne Vorauswahl</b> (ADR-0050 §8), die Folgen, eine Bestätigung. Die Vorschau gehört zu genau einem Plan-Digest (§10); nichts über ihr kann sie ändern, während sie gelesen wird. „Zurück“ behält die Zielwahl. Preis: ein Klick mehr, und das Ziel steht in Schritt 2 nur noch als Zeile. Die Form ist die des Imports — Vorschau, dann anwenden —, die der Betreiber kennt. Neu ist der Fuß als feste Leiste am unteren Rand des Dialogs: das vorhandene <code>.modal-footer</code> mit Abstandhalter <code>.modal-footer__spacer</code>, dazu ein Modifikator <code>.modal-footer--band</code> (Linie oben, fest beim Scrollen) und ein Aussehen für <code>.button-danger:disabled</code>, das app.css heute nicht hat.</p>
+  <div class="mock-frame mock-after"><span class="mock-tag">Variante B — empfohlen</span>
+    <div class="stage">
+
+      <!-- Schritt 1 -->
+      <div class="modal flat" style="max-width:392px">
+        <header class="modal-head">
+          <h2>Tagesgeld (alt) zusammenführen<span class="step">Schritt 1 von 2 · Ziel</span></h2>
+          <span class="icon-button" aria-label="Schließen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></svg></span>
+        </header>
+        <div class="modal-body">
+          <div class="route"><b>Tagesgeld (alt)</b><span class="meta">EUR · Reserve · Buckets: Langfrist · 151 Buchungen · 1.274,80 EUR</span></div>
+          <fieldset class="targets">
+            <legend>Ziel — bekommt alle Buchungen</legend>
+            <label class="tgt is-on"><input type="radio" name="b-t" checked><span class="nm"><b>Tagesgeld</b><small>EUR · Reserve · Langfrist</small></span><span class="bal">8.400,00 EUR</span></label>
+            <p class="sub-caps">Nicht wählbar (4)</p>
+            <label class="tgt is-off"><input type="radio" name="b-t" disabled><span class="nm"><b>Festgeld</b><small>EUR · Reserve · Kurzfrist</small></span><span class="bal">5.000,00 EUR</span><span class="why">andere Buckets</span></label>
+            <label class="tgt is-off"><input type="radio" name="b-t" disabled><span class="nm"><b>Girokonto</b><small>EUR · Verfügbares Cash · Langfrist</small></span><span class="bal">2.310,00 EUR</span><span class="why">andere Liquiditätsrolle</span></label>
+            <label class="tgt is-off"><input type="radio" name="b-t" disabled><span class="nm"><b>Kreditrahmen</b><small>EUR · Kreditlinie · Langfrist</small></span><span class="bal">−1.500,00 EUR</span><span class="why">andere Liquiditätsrolle</span></label>
+            <label class="tgt is-off"><input type="radio" name="b-t" disabled><span class="nm"><b>Broker USD</b><small>USD · Verfügbares Cash · Langfrist</small></span><span class="bal">640,00 USD</span><span class="why">andere Währung</span></label>
+          </fieldset>
+          <p class="basis">Wählbar: gleiche Währung, gleiche Liquiditätsrolle, gleiche Buckets.</p>
+        </div>
+        <div class="modal-footer modal-footer--band">
+          <button type="button" class="button-ghost">Abbrechen</button>
+          <span class="modal-footer__spacer"></span>
+          <button type="button" class="button-primary">Weiter zur Vorschau</button>
+        </div>
+      </div>
+
+      <!-- Schritt 2 -->
+      <div class="modal flat" style="flex:1 1 600px; max-width:640px">
+        <header class="modal-head">
+          <h2>Tagesgeld (alt) zusammenführen<span class="step">Schritt 2 von 2 · Vorschau</span></h2>
+          <span class="icon-button" aria-label="Schließen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></svg></span>
+        </header>
+        <div class="modal-body">
+          <div class="route"><b>Tagesgeld (alt)</b><span class="arr">→</span><b>Tagesgeld</b><span class="meta">EUR · Reserve · Langfrist</span></div>
+
+          <div class="identity">
+            <div class="kf"><i>Tagesgeld (alt)</i><b>1.274,80<small>EUR</small></b></div>
+            <span class="op">+</span>
+            <div class="kf"><i>Tagesgeld</i><b>8.400,00<small>EUR</small></b></div>
+            <span class="op">=</span>
+            <div class="kf res"><i>Tagesgeld danach</i><b>9.674,80<small>EUR</small></b></div>
+            <div class="alt"><b>9.650,00 EUR</b>, wenn die 2 gleichen Buchungen entfernt werden (− 24,80)</div>
+          </div>
+          <p class="basis">Salden am 2026-09-24, aus den Buchungen berechnet. Die Summe gilt an jedem Tag, an dem eines der Konten eine Buchung hat, und wird vor dem Speichern geprüft.</p>
+
+          <dl class="counts">
+            <dt>142</dt><dd>Buchungen wechseln nach Tagesgeld</dd>
+            <dt>6</dt><dd>Umbuchungen zwischen beiden Konten entfallen <small>— im Saldo heben sie sich auf</small></dd>
+            <dt>3</dt><dd>gesetzte Salden werden angepasst, 1 entfällt <small>— Tabelle</small></dd>
+            <dt>2</dt><dd>Buchungen sind in beiden Konten gleich <small>— Wahl unten</small></dd>
+          </dl>
+
+          <h3 class="blk">Gesetzte Salden<small>angepasst, damit der zusammengeführte Verlauf stimmt</small></h3>
+          <div class="data-table-wrapper">
+            <table class="data-table">
+              <thead><tr><th>Datum</th><th>Konto</th><th class="num">Gesetzt</th><th class="num">+ anderes Konto</th><th class="num">Danach</th></tr></thead>
+              <tbody>
+                <tr><td>2024-12-31</td><td>Tagesgeld (alt)</td><td class="num">3.000,00</td><td class="num">5.200,00</td><td class="num chg">8.200,00</td></tr>
+                <tr><td>2025-06-30</td><td>Tagesgeld</td><td class="num">6.100,00</td><td class="num">1.500,00</td><td class="num chg">7.600,00</td></tr>
+                <tr><td>2025-12-31</td><td>Tagesgeld<small>der von Tagesgeld (alt) entfällt</small></td><td class="num">7.900,00</td><td class="num">1.250,00</td><td class="num chg">9.150,00</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="basis">„+ anderes Konto“: Saldo des anderen Kontos am Ende dieses Tages, aus seinen Buchungen vor dem Zusammenführen. An einem Tag mit zwei gesetzten Salden trägt der des Ziels die Summe.</p>
+
+          <fieldset class="choice">
+            <legend>2 gleiche Buchungen in beiden Konten</legend>
+            <div class="data-table-wrapper">
+              <table class="data-table">
+                <thead><tr><th>Datum</th><th>Art</th><th class="num">Betrag</th><th>Steht in</th></tr></thead>
+                <tbody>
+                  <tr><td>2026-03-31</td><td>Zinsen</td><td class="num">12,40 EUR</td><td>Tagesgeld (alt) und Tagesgeld</td></tr>
+                  <tr><td>2026-06-30</td><td>Zinsen</td><td class="num">12,40 EUR</td><td>Tagesgeld (alt) und Tagesgeld</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <label class="opt"><input type="radio" name="b-pair"><span>als Duplikate entfernen<small>Die 2 Buchungen aus Tagesgeld (alt) werden gelöscht. Saldo danach <b>9.650,00 EUR</b>.</small></span></label>
+            <label class="opt"><input type="radio" name="b-pair"><span>beide behalten<small>Alle 4 Buchungen stehen danach in Tagesgeld. Saldo danach <b>9.674,80 EUR</b>.</small></span></label>
+            <p class="basis">Gleich heißt: gleicher Tag, gleiche Art, gleiche Beträge.</p>
+          </fieldset>
+
+          <div class="data-note">
+            <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/></svg></span>
+            <span class="data-note__word">Hinweis</span>
+            <div class="data-note__body">„Tagesgeld (alt)“ wird früherer Name von Tagesgeld. Ein Import, der dieses Konto nennt, bucht danach auf Tagesgeld.</div>
+          </div>
+          <div class="data-note data-note--attention">
+            <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/></svg></span>
+            <span class="data-note__word">Achtung</span>
+            <div class="data-note__body">Tagesgeld (alt) wird danach gelöscht. Das lässt sich nicht rückgängig machen; jede geänderte Buchung wird journalisiert.</div>
+          </div>
+        </div>
+        <div class="modal-footer modal-footer--band">
+          <button type="button" class="button-ghost">Zurück</button>
+          <span class="modal-footer__spacer"></span>
+          <p class="why">Wahl für 2 gleiche Buchungen fehlt</p>
+          <button type="button" class="button-danger" disabled>In Tagesgeld zusammenführen</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE B bei 390 px ============================ -->
+<section class="mock-board">
+  <h2>Variante B bei 390 px — Bottom-Sheet, fester Fuß <small>empfohlen · Telefon</small></h2>
+  <p class="mock-note">Unter 720 px öffnet derselbe Dialog als Bottom-Sheet in der Form der Buchungsschublade (volle Breite, höchstens 88 % Höhe). Neu: Der Fuß steht fest am unteren Rand, der Inhalt scrollt darüber; die Bestätigung nimmt dort eine volle Zeile ein, „Zurück“ die nächste. Solange eine Wahl fehlt, steht ihr Grund über dem gesperrten Knopf, mit einem Pfeil nach unten. Die Tabelle der gesetzten Salden wird zu zweizeiligen Zeilen mit der Rechnung „gesetzt + anderes Konto = danach“. Die beiden Optionen tragen den Saldo danach selbst, weil die Summe oben dann aus dem Bild ist. Ziele und Optionen sind mindestens 44 px hoch. Nichts scrollt seitwärts.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-after"><span class="mock-tag">390 px · Schritt 1</span><div class="workspace-section">
+      <div class="phone">
+        <div class="behind"><div class="ttl">Konten &amp; Depots</div><div class="ln"></div><div class="ln"></div><div class="ln"></div><div class="ln"></div><div class="ln"></div></div>
+        <div class="scrim"></div>
+        <div class="sheet">
+          <div class="grip"></div>
+          <header class="modal-head">
+            <h2>Tagesgeld (alt) zusammenführen<span class="step">Schritt 1 von 2 · Ziel</span></h2>
+            <span class="icon-button" aria-label="Schließen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></svg></span>
+          </header>
+          <div class="sh-body">
+            <div class="route"><b>Tagesgeld (alt)</b><span class="meta">EUR · Reserve · Buckets: Langfrist · 151 Buchungen · 1.274,80 EUR</span></div>
+            <fieldset class="targets">
+              <legend>Ziel — bekommt alle Buchungen</legend>
+              <label class="tgt is-on"><input type="radio" name="p-t" checked><span class="nm"><b>Tagesgeld</b><small>EUR · Reserve · Langfrist</small></span><span class="bal">8.400,00</span></label>
+              <p class="sub-caps">Nicht wählbar (4)</p>
+              <label class="tgt is-off"><input type="radio" disabled><span class="nm"><b>Festgeld</b><small>EUR · Reserve · Kurzfrist</small></span><span class="bal">5.000,00</span><span class="why">andere Buckets</span></label>
+              <label class="tgt is-off"><input type="radio" disabled><span class="nm"><b>Girokonto</b><small>EUR · Verfügbares Cash · Langfrist</small></span><span class="bal">2.310,00</span><span class="why">andere Liquiditätsrolle</span></label>
+              <label class="tgt is-off"><input type="radio" disabled><span class="nm"><b>Kreditrahmen</b><small>EUR · Kreditlinie · Langfrist</small></span><span class="bal">−1.500,00</span><span class="why">andere Liquiditätsrolle</span></label>
+              <label class="tgt is-off"><input type="radio" disabled><span class="nm"><b>Broker USD</b><small>USD · Verfügbares Cash · Langfrist</small></span><span class="bal">640,00 USD</span><span class="why">andere Währung</span></label>
+            </fieldset>
+          </div>
+          <div class="modal-footer modal-footer--band">
+            <button type="button" class="button-primary">Weiter zur Vorschau</button><button type="button" class="button-ghost">Abbrechen</button>
+          </div>
+        </div>
+      </div>
+    </div></div>
+
+    <div class="mock-frame mock-after"><span class="mock-tag">390 px · Schritt 2, oben</span><div class="workspace-section">
+      <div class="phone">
+        <div class="behind"><div class="ttl">Konten &amp; Depots</div><div class="ln"></div></div>
+        <div class="scrim"></div>
+        <div class="sheet tall">
+          <div class="grip"></div>
+          <header class="modal-head">
+            <h2>Tagesgeld (alt) zusammenführen<span class="step">Schritt 2 von 2 · Vorschau</span></h2>
+            <span class="icon-button" aria-label="Schließen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></svg></span>
+          </header>
+          <div class="sh-body more">
+            <div class="route"><b>Tagesgeld (alt)</b><span class="arr">→</span><b>Tagesgeld</b><span class="meta">EUR · Reserve · Langfrist</span></div>
+            <div class="idl">
+              <div><span>Tagesgeld (alt)</span><b>1.274,80</b></div>
+              <div><span>+ Tagesgeld</span><b>8.400,00</b></div>
+              <div class="sum"><span>= Tagesgeld danach</span><b>9.674,80 EUR</b></div>
+              <small>9.650,00 EUR, wenn die 2 gleichen Buchungen entfernt werden</small>
+            </div>
+            <p class="basis">Salden am 2026-09-24; die Summe gilt an jedem Tag und wird vor dem Speichern geprüft.</p>
+            <dl class="counts">
+              <dt>142</dt><dd>Buchungen wechseln nach Tagesgeld</dd>
+              <dt>6</dt><dd>Umbuchungen zwischen beiden entfallen</dd>
+              <dt>3</dt><dd>gesetzte Salden angepasst, 1 entfällt</dd>
+              <dt>2</dt><dd>gleiche Buchungen — Wahl unten</dd>
+            </dl>
+            <h3 class="blk">Gesetzte Salden</h3>
+            <div>
+              <div class="arow"><span class="t">2024-12-31 · Tagesgeld (alt)</span><span class="eq">3.000,00 + 5.200,00 = <b>8.200,00</b></span></div>
+              <div class="arow"><span class="t">2025-06-30 · Tagesgeld</span><span class="eq">6.100,00 + 1.500,00 = <b>7.600,00</b></span></div>
+              <div class="arow"><span class="t">2025-12-31 · Tagesgeld</span><span class="eq">7.900,00 + 1.250,00 = <b>9.150,00</b><small>gesetzter Saldo von Tagesgeld (alt) an diesem Tag entfällt</small></span></div>
+            </div>
+            <h3 class="blk">2 gleiche Buchungen in beiden Konten</h3>
+          </div>
+          <div class="modal-footer modal-footer--band">
+            <p class="why">↓ Wahl für 2 gleiche Buchungen fehlt</p>
+            <button type="button" class="button-danger" disabled>In Tagesgeld zusammenführen</button><button type="button" class="button-ghost">Zurück</button>
+          </div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <div class="mock-row" style="margin-top:24px">
+    <div class="mock-frame mock-after"><span class="mock-tag">390 px · Schritt 2, unten — nach der Wahl</span><div class="workspace-section">
+      <div class="phone">
+        <div class="behind"><div class="ttl">Konten &amp; Depots</div><div class="ln"></div></div>
+        <div class="scrim"></div>
+        <div class="sheet tall">
+          <div class="grip"></div>
+          <header class="modal-head">
+            <h2>Tagesgeld (alt) zusammenführen<span class="step">Schritt 2 von 2 · Vorschau</span></h2>
+            <span class="icon-button" aria-label="Schließen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></svg></span>
+          </header>
+          <div class="sh-body scrolled">
+            <div class="arow"><span class="t">2025-12-31 · Tagesgeld</span><span class="eq">7.900,00 + 1.250,00 = <b>9.150,00</b></span></div>
+            <fieldset class="choice">
+              <legend>2 gleiche Buchungen in beiden Konten</legend>
+              <div class="arow"><span class="t">2026-03-31 · Zinsen</span><span class="eq">12,40 EUR<small>in Tagesgeld (alt) und Tagesgeld</small></span></div>
+              <div class="arow" style="border-bottom:0"><span class="t">2026-06-30 · Zinsen</span><span class="eq">12,40 EUR<small>in Tagesgeld (alt) und Tagesgeld</small></span></div>
+              <label class="opt is-on"><input type="radio" name="p-pair" checked><span>als Duplikate entfernen<small>Die 2 Buchungen aus Tagesgeld (alt) werden gelöscht. Saldo danach <b>9.650,00 EUR</b>.</small></span></label>
+              <label class="opt"><input type="radio" name="p-pair"><span>beide behalten<small>Alle 4 Buchungen stehen danach in Tagesgeld. Saldo danach <b>9.674,80 EUR</b>.</small></span></label>
+              <p class="basis">Gleich heißt: gleicher Tag, gleiche Art, gleiche Beträge.</p>
+            </fieldset>
+            <div class="data-note">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/></svg></span>
+              <span class="data-note__word">Hinweis</span>
+              <div class="data-note__body">„Tagesgeld (alt)“ wird früherer Name von Tagesgeld. Ein Import, der dieses Konto nennt, bucht danach auf Tagesgeld.</div>
+            </div>
+            <div class="data-note data-note--attention">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/></svg></span>
+              <span class="data-note__word">Achtung</span>
+              <div class="data-note__body">Tagesgeld (alt) wird danach gelöscht. Das lässt sich nicht rückgängig machen; jede geänderte Buchung wird journalisiert.</div>
+            </div>
+          </div>
+          <div class="modal-footer modal-footer--band">
+            <button type="button" class="button-danger">In Tagesgeld zusammenführen</button><button type="button" class="button-ghost">Zurück</button>
+          </div>
+        </div>
+      </div>
+    </div></div>
+
+    <div style="flex:1 1 360px" class="u-gap">
+      <p class="u-caps" style="margin:0">Was bei 390 px feststeht</p>
+      <ul class="aside-list">
+        <li>Der Fuß steht fest. Die Bestätigung hat eine eigene volle Zeile, „Zurück“ steht darunter: So bricht kein Kontoname im Knopf um (derselbe Grundsatz wie beim Regel-Dialog, F29). Der Knopf nennt das Ziel, damit er ohne die Zeile oben lesbar bleibt.</li>
+        <li>Gesperrt heißt: Grund als Text über dem Knopf, nie nur ein blasser Knopf. Der Pfeil zeigt nach unten, wo die Wahl steht.</li>
+        <li>Die Wahl hat keine Vorauswahl. Erst nach dem Tippen wird die Bestätigung aktiv (links: „als Duplikate entfernen“ gewählt).</li>
+        <li>„Zurück“ führt zu Schritt 1 und behält das Ziel; die Wahl für gleiche Buchungen bleibt, solange das Ziel dasselbe ist.</li>
+        <li>Bestätigen schließt das Sheet und meldet das Ergebnis als Inline-Ergebnis in der Tabelle; der Fokus geht zurück zur Zeile von Tagesgeld.</li>
+        <li>Einmal bestätigen, nie zweimal (EXPERIENCE.md → Forms behind disclosure): kein zweiter „Wirklich?“-Dialog.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ DEPOT ============================ -->
+<section class="mock-board">
+  <h2>Depot 2 → Depot 1 — Schritt 2 mit Positionen vorher / danach <small>gleiche Form, anderer Inhalt</small></h2>
+  <p class="mock-note">Derselbe Schritt 2 für ein Depot. Statt der Salden steht je betroffener Position Stückzahl, Ø Kosten und realisierter G/V vorher und danach (ADR-0050 §7). Die Kosten ändern sich zu Recht: Die Käufe beider Depots bilden danach einen gemeinsamen gleitenden Durchschnitt. Darum steht bei Meridian 84,00 und nicht das gewichtete Mittel 83,60 (40 × 80,00 + 60 × 86,00): Depot&nbsp;1 hat zwischen den Käufen verkauft, dieser Verkauf verbraucht danach den gemeinsamen Durchschnitt. Der realisierte G/V steigt um 40,00 (180,00 → 220,00), der Einstand des Bestands um dieselben 40,00 (8.360,00 → 8.400,00). Die Stückzahl ist die Summe beider Depots und wird an jedem Tag geprüft. Hier gibt es keine gleichen Buchungen, also keine Wahl — die Bestätigung ist sofort aktiv. Positionen, die nur in Depot 1 liegen, ändern sich nicht und stehen nicht in der Tabelle.</p>
+  <div class="mock-frame mock-after"><span class="mock-tag">Variante B · Depot</span>
+    <div class="stage">
+      <div class="modal flat">
+        <header class="modal-head">
+          <h2>Depot 2 zusammenführen<span class="step">Schritt 2 von 2 · Vorschau</span></h2>
+          <span class="icon-button" aria-label="Schließen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6 6 18"/></svg></span>
+        </header>
+        <div class="modal-body">
+          <div class="route"><b>Depot 2</b><span class="arr">→</span><b>Depot 1</b><span class="meta">Buckets: Langfrist</span></div>
+          <dl class="counts">
+            <dt>38</dt><dd>Buchungen wechseln nach Depot 1</dd>
+            <dt>2</dt><dd>Wertpapierumbuchungen zwischen beiden Depots entfallen</dd>
+            <dt>0</dt><dd>gleiche Buchungen</dd>
+          </dl>
+          <h3 class="blk">Betroffene Positionen</h3>
+          <div class="data-table-wrapper">
+            <table class="data-table">
+              <thead><tr><th>Wertpapier</th><th class="num">Stückzahl</th><th class="num">Ø Kosten</th><th class="num">Realisierter G/V</th></tr></thead>
+              <tbody>
+                <tr><td>Meridian Global Equity ETF</td><td class="num"><small>40 + 60 →</small><b>100</b></td><td class="num"><small>80,00 · 86,00 →</small><b>84,00</b></td><td class="num"><small>0,00 · 180,00 →</small><b>220,00</b></td></tr>
+                <tr><td>Kestrel Industrial Group NV</td><td class="num"><small>25 + 0 →</small><b>25</b></td><td class="num"><small>41,20 · — →</small><b>41,20</b></td><td class="num"><small>0,00 · — →</small><b>0,00</b></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="basis">Je Zelle oben vorher (Depot 2 + Depot 1 bzw. Depot 2 · Depot 1), unten danach. Ø Kosten und realisierter G/V in EUR, gleitender Durchschnitt über die Käufe beider Depots. Stückzahl je Wertpapier = Summe beider Depots, an jedem Tag geprüft; der Marktwert beider Depots zusammen bleibt gleich.</p>
+          <div class="data-note">
+            <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/></svg></span>
+            <span class="data-note__word">Hinweis</span>
+            <div class="data-note__body">„Depot&nbsp;2“ wird früherer Name von Depot&nbsp;1. Depot&nbsp;1 behält sein Verrechnungskonto; das Verrechnungskonto von Depot&nbsp;2 bleibt als eigenes Konto bestehen.</div>
+          </div>
+          <div class="data-note data-note--attention">
+            <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/></svg></span>
+            <span class="data-note__word">Achtung</span>
+            <div class="data-note__body">Depot&nbsp;2 wird danach gelöscht. Das lässt sich nicht rückgängig machen; jede geänderte Buchung wird journalisiert.</div>
+          </div>
+        </div>
+        <div class="modal-footer modal-footer--band">
+          <button type="button" class="button-ghost">Zurück</button>
+          <span class="modal-footer__spacer"></span>
+          <button type="button" class="button-danger">In Depot 1 zusammenführen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ABLEHNUNG ============================ -->
+<section class="mock-board">
+  <h2>Abgelehnt, veraltet, kein Ziel — Schritt 2 und Schritt 1 in ihren Randzuständen <small>beide Varianten gleich</small></h2>
+  <p class="mock-note">Was gesperrt ist, steht mit Grund da, nie als stilles Fehlen (ADR-0050: abgelehnt mit benanntem Grund, nie geraten). Die Kontenwächter prüft Schritt 1 vorab. Übrig bleiben Fälle, die erst die Vorschau erkennt. <b>Abgelehnt:</b> Eine Position trägt in beiden Depots verschiedene Buckets; das Zusammenführen würde Geschichte zwischen Ansichten verschieben. Das ist ein Problem mit Abhilfe in der Notiz und ohne Bestätigungsknopf. <b>Veraltet</b> (409 <code>plan_changed</code>): Die Daten haben sich seit dem Öffnen geändert. Die frische Vorschau steht da, gespeichert ist nichts, und die Bestätigung braucht einen neuen Klick. Der Ausschnitt zeigt nur den Kopf von Schritt 2; darunter folgt die ganze Vorschau mit den neuen Zahlen. Ob eine getroffene Wahl für gleiche Buchungen die Auffrischung übersteht, entscheidet die Story (offener Punkt 5). <b>Kein Ziel:</b> Schritt 1 ohne wählbares Konto, mit dem Grund je Zeile.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-after" style="flex:1 1 500px"><span class="mock-tag">Abgelehnt · Depot</span>
+      <div class="stage" style="padding:16px">
+        <div class="modal flat">
+          <header class="modal-head"><h2>Depot 2 zusammenführen<span class="step">Schritt 2 von 2 · Vorschau</span></h2></header>
+          <div class="modal-body">
+            <div class="route"><b>Depot 2</b><span class="arr">→</span><b>Depot 1</b></div>
+            <div class="data-note data-note--problem">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z"/><path d="M12 8v4"/><circle cx="12" cy="16" r=".6"/></svg></span>
+              <span class="data-note__word">Problem</span>
+              <div class="data-note__body"><p style="margin:0">Zusammenführen nicht möglich: Bei 1 Position unterscheiden sich die Buckets, die Ansichten würden sich rückwirkend ändern.</p><p style="margin:4px 0 0"><b>Helios Solar Systems SE</b> — Depot&nbsp;2: Spekulativ · Depot&nbsp;1: Langfrist</p><p style="margin:4px 0 8px">Abhilfe: die Buckets der Position in einem der Depots angleichen, dann erneut prüfen.</p><button type="button" class="button">Erneut prüfen</button></div>
+            </div>
+          </div>
+          <div class="modal-footer modal-footer--band"><button type="button" class="button-ghost">Zurück</button><span class="modal-footer__spacer"></span><button type="button" class="button-ghost">Schließen</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mock-frame mock-after" style="flex:1 1 500px"><span class="mock-tag">Veraltet · Verrechnungskonto · Kopf von Schritt 2</span>
+      <div class="stage" style="padding:16px">
+        <div class="modal flat">
+          <header class="modal-head"><h2>Tagesgeld (alt) zusammenführen<span class="step">Schritt 2 von 2 · Vorschau</span></h2></header>
+          <div class="modal-body">
+            <div class="data-note data-note--attention">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/></svg></span>
+              <span class="data-note__word">Achtung</span>
+              <div class="data-note__body">Die Konten haben sich geändert, während die Vorschau offen war. Nichts wurde zusammengeführt; die Vorschau zeigt jetzt den neuen Stand.</div>
+            </div>
+            <div class="route"><b>Tagesgeld (alt)</b><span class="arr">→</span><b>Tagesgeld</b></div>
+            <div class="idl">
+              <div><span>Tagesgeld (alt)</span><b>1.274,80</b></div>
+              <div><span>+ Tagesgeld</span><b>8.450,00</b></div>
+              <div class="sum"><span>= Tagesgeld danach</span><b>9.724,80 EUR</b></div>
+            </div>
+            <p class="basis">Geändert seit dem Öffnen: Saldo Tagesgeld 8.400,00 → 8.450,00 EUR.</p>
+          </div>
+          <div class="modal-footer modal-footer--band"><button type="button" class="button-ghost">Zurück</button><span class="modal-footer__spacer"></span><button type="button" class="button-danger">In Tagesgeld zusammenführen</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mock-frame mock-after" style="flex:1 1 500px"><span class="mock-tag">Kein Ziel · Schritt 1</span>
+      <div class="stage" style="padding:16px">
+        <div class="modal flat">
+          <header class="modal-head"><h2>Broker USD zusammenführen<span class="step">Schritt 1 von 2 · Ziel</span></h2></header>
+          <div class="modal-body">
+            <div class="route"><b>Broker USD</b><span class="meta">USD · Verfügbares Cash · Buckets: Langfrist · 640,00 USD</span></div>
+            <p style="margin:0">Kein Konto erfüllt die Bedingungen.</p>
+            <fieldset class="targets">
+              <legend class="sub-caps">Nicht wählbar (5)</legend>
+              <label class="tgt is-off"><input type="radio" disabled><span class="nm"><b>Tagesgeld</b><small>EUR · Reserve · Langfrist</small></span><span class="bal">8.400,00 EUR</span><span class="why">andere Währung, andere Liquiditätsrolle</span></label>
+              <label class="tgt is-off"><input type="radio" disabled><span class="nm"><b>Tagesgeld (alt)</b><small>EUR · Reserve · Langfrist</small></span><span class="bal">1.274,80 EUR</span><span class="why">andere Währung, andere Liquiditätsrolle</span></label>
+              <label class="tgt is-off"><input type="radio" disabled><span class="nm"><b>Festgeld</b><small>EUR · Reserve · Kurzfrist</small></span><span class="bal">5.000,00 EUR</span><span class="why">andere Währung, andere Liquiditätsrolle, andere Buckets</span></label>
+              <label class="tgt is-off"><input type="radio" disabled><span class="nm"><b>Girokonto</b><small>EUR · Verfügbares Cash · Langfrist</small></span><span class="bal">2.310,00 EUR</span><span class="why">andere Währung</span></label>
+              <label class="tgt is-off"><input type="radio" disabled><span class="nm"><b>Kreditrahmen</b><small>EUR · Kreditlinie · Langfrist</small></span><span class="bal">−1.500,00 EUR</span><span class="why">andere Währung, andere Liquiditätsrolle</span></label>
+            </fieldset>
+            <p class="basis">Wählbar: gleiche Währung, gleiche Liquiditätsrolle, gleiche Buckets.</p>
+          </div>
+          <div class="modal-footer modal-footer--band"><span class="modal-footer__spacer"></span><button type="button" class="button-ghost">Schließen</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Klassifizierungsdetail bei 390 px und der Kinder-Σ-Hinweis im Plan-Editor (#873, #874, Pick G8)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  /* Board chrome only. The 390 px frames are iframes with a true 390 px
+     viewport, so every media query of the live app.css (900 / 720 / 560 px)
+     fires as it does on a phone: "Vorher" is app.css as shipped; "Nachher"
+     and the variants are app.css plus the <template id="css-fix-…"> rules
+     below, which are the proposal. The markup inside the frames is the markup
+     of classifications_live.ex (render :show, category_node/1, soll_editor/1)
+     with synthetic data. The ① desktop crops are iframes with a true 1200 px
+     viewport, shown from the sidebar's edge. The #874 frames render in this
+     document at a desktop width; nothing in them depends on a media query
+     there. */
+  .mock-frame { overflow: visible; }
+  .mock-note code, .notes code, .measure code { font-size: 11.5px; }
+  .notes { display: grid; gap: 8px; align-content: start; font-size: 12.5px; max-width: 72ch; margin: 0 0 12px; }
+  .notes p, .notes ol, .notes ul { margin: 0; }
+  .notes ol, .notes ul { padding-left: 18px; }
+  .notes li + li { margin-top: 4px; }
+  i.pin { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 999px; font: 700 10px/1 var(--font-sans); font-style: normal; color: #fff; vertical-align: 1px; margin: 0 3px 0 0; }
+  i.pin.b { background: var(--color-danger); }
+  i.pin.a { background: var(--color-positive); }
+  .col { display: grid; gap: 6px; align-content: start; justify-items: start; }
+  .ph { width: 390px; border: 1px solid var(--color-border-strong); border-radius: 20px; overflow: hidden; background: var(--color-bg); }
+  .ph iframe { display: block; width: 390px; height: 600px; border: 0; }
+  .zoom { overflow: hidden; background: var(--color-bg); }
+  .zoom iframe { display: block; width: 390px; height: 200px; border: 0; transform-origin: 0 0; }
+  /* desktop crops: a true 1200 px viewport, shown from 190 px (the last
+     30 px of the 220 px sidebar) for 520 px */
+  .dcrop { width: 520px; overflow: hidden; background: var(--color-bg); }
+  .dcrop + .dcrop { border-top: 2px dashed var(--color-border-strong); }
+  .dcrop iframe { display: block; width: 1200px; height: 400px; border: 0; margin-left: -190px; }
+  .measure { font-size: 12px; color: var(--mock-ink); margin: 2px 0 0; max-width: 530px; }
+  .measure b { color: var(--color-text); font-variant-numeric: tabular-nums; }
+  .mock-var { border-color: var(--color-accent); }
+  .mock-var > .mock-tag { display: block; padding: 4px 10px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--color-accent); background: var(--color-accent-soft); }
+  .mock-var.rec { border-width: 2px; }
+  .mock-ref { border-color: var(--color-border-strong); }
+  .mock-ref > .mock-tag { display: block; padding: 4px 10px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); background: var(--color-bg-muted); }
+  .side { flex: 1 1 300px; font-size: 12.5px; display: grid; gap: 8px; align-content: start; max-width: 520px; }
+  .side p, .side ul { margin: 0; }
+  .side ul { padding-left: 18px; }
+
+  /* #874 frames: the plan editor's form at a desktop width */
+  .plan-frame { flex: 0 0 540px; min-width: 0; }
+  .plan-frame .workspace-section { padding: 14px 16px; }
+  .typing { border-color: var(--color-accent) !important; outline: 3px solid color-mix(in srgb, var(--color-accent) 18%, transparent) !important; }
+  .gone { display: block; margin-top: 2px; font-size: 11px; font-weight: 600; color: var(--color-danger); border: 1px dashed var(--color-danger); border-radius: 4px; padding: 0 5px; width: max-content; }
+  .callout { border: 1px solid var(--color-border); border-left: 4px solid var(--color-positive); border-radius: var(--radius-md); background: var(--color-bg-elevated); padding: 10px 14px; display: grid; gap: 6px; font-size: 12.5px; max-width: 1090px; }
+  .callout h4 { margin: 0; font-size: 13px; }
+  .callout p { margin: 0; }
+</style>
+</head>
+<body data-widths="1200">
+
+<div class="pickbar"><b>Entscheidung G8 — offen.</b> Die Kategoriezeile des Baums unter 560 px, sobald die Seite ihren Rand hat (#873 ③). <b>A</b> die Zeile wird unter 560 px zweizeilig: Name und „+1 ohne Bestand“ oben, Wert und Ergebnis darunter in ihren Spalten · <b>B</b> die Zeile bleibt einzeilig, der Zusatz schrumpft auf „+N“, der Rest steht im <code>title</code> (die kleinste Reparatur). Empfehlung: <b>A</b>. Mit dem Rand aus ① bleiben der Namensspalte bei 390 px noch 70 px; unter B schrumpfen „Stabilität“ und „Wachstum“ auf „S…“ und „Wac…“ (gemessen, unten), und C8-A verlangt: „Under 560 px the row keeps the name, the value and the result“. Ein Kommentar mit dem Buchstaben auf der Planungs-PR entscheidet; ohne Kommentar gilt die Empfehlung.
+<br><b>Vorher / Nachher, keine Wahl: ① der Randabstand, ② „Umbenennen“ und #874 der Kinder-Σ-Hinweis.</b> Dort legt die lebende Spezifikation die Antwort fest: <code>EXPERIENCE.md</code> → App shell „Nothing is flush with the sidebar edge or the screen edge“ (app.css seit #790: mindestens 16 px) · <code>DESIGN.md</code> → Komponente <em>disclosure</em>: „defined chevron, never the raw browser triangle“ · Plan-Editor: live Σ und der Kinder-Σ-Hinweis aus #467. Alle Namen und Zahlen sind erfunden.</div>
+
+<!-- =========================================================== #873 overview -->
+<section class="mock-board">
+  <h2>#873 — <code>/classifications/:id</code> bei 390 px, von oben nach unten <small>Vorher / Nachher (③ in G8-A) · echte 390-px-Ansicht</small></h2>
+  <p class="mock-note">Die Seite ist ein <code>.workspace-page</code>, dessen Kinder ohne eigenen Rand direkt darin stehen — nur der Soll-Plan ist ein <code>.workspace-section</code>-Band und hält die 16 px. Rot getönt: der 16-px-Streifen, in den heute Überschrift, „Klassifizierung löschen“, Hinweis, Suche, Formular „Neue Kategorie“ und die Ergebnistabelle hineinragen. Grün getönt: derselbe Streifen, nachher frei. Die Nummern stehen für die drei Befunde; ② und ③ folgen vergrößert.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before"><span class="mock-tag">Vorher</span><div class="workspace-section">
+      <div class="notes" style="margin:0;max-width:390px">
+        <p><i class="pin b">1</i>Kopf, Hinweis, Suche, Formular und Baum beginnen bei x = 0. <i class="pin b">2</i>„Umbenennen“ zeigt das Browser-Dreieck. <i class="pin b">3</i>Die erste Kategorie zeigt nur „+1 ohne Bestan“ — Farbpunkt und Name sind weg, „Nicht zugeordnet“ ist gekürzt.</p>
+      </div>
+      <div class="ph"><iframe data-tpl="page-before" data-css="css-mock css-stripes-before" title="Vorher, 390 px"></iframe></div>
+    </div></div>
+    <div class="mock-frame mock-after"><span class="mock-tag">Nachher</span><div class="workspace-section">
+      <div class="notes" style="margin:0;max-width:390px">
+        <p><i class="pin a">1</i>Jeder Block hält den Rand des Soll-Plan-Bands. <i class="pin a">2</i>Chevron statt Dreieck. <i class="pin a">3</i>G8-A: unter 560 px steht der Name mit „+1 ohne Bestand“ in der ersten Zeile, Wert und Ergebnis darunter in ihren Spalten.</p>
+      </div>
+      <div class="ph"><iframe data-tpl="page-after" data-css="css-mock css-fix-873 css-fix-873-a css-stripes-after" title="Nachher, 390 px"></iframe></div>
+    </div></div>
+  </div>
+</section>
+
+<!-- =========================================================== #873 ① -->
+<section class="mock-board">
+  <h2>① Der Randabstand <small>Vorher / Nachher · DESIGN.md → Layout &amp; Spacing; EXPERIENCE.md → App shell; app.css <code>.workspace-section</code> (#790)</small></h2>
+  <div class="notes">
+    <p>Heute trägt nur das Soll-Plan-Band <code>padding-inline: clamp(16px, 2.4vw, 28px)</code>. Alles andere steht direkt in <code>.workspace-page</code>, und <code>.app-main--workspace</code> hat <code>padding: 0</code> — also x = 0, auch am Desktop (dort direkt an der Seitenleiste, Ausschnitt unten). Nachher bekommt jedes direkte Kind von <code>.classifications-detail</code>, das kein Band ist, denselben Randabstand, den die Seite schon ihren Meldungen gibt (<code>.workspace-page &gt; .alert-*</code>). Kein neuer Wert: bei 390 px 16 px, bei 1200 px 28 px.</p>
+    <p>Dazu das Band-Maß oben und unten (<code>clamp(18px, 2.4vw, 28px)</code>), damit die Überschrift nicht an der Kopfleiste und „Nicht zugeordnet“ nicht am Seitenende klebt. Sonst ändert sich nichts: keine neue Bandfläche, keine neue Trennlinie, die Abstände zwischen Suche, Formular und Baum bleiben.</p>
+    <p><b>Was der Rand kostet:</b> Die Telefonzeile hat feste Spalten (0,7 rem · 6 rem · 6 rem · 2,6 rem). Jeder Pixel Rand geht von der Namensspalte ab — 32 px, von 102 auf 70 px. Deshalb ist ③ eine Wahl und keine reine Reparatur.</p>
+    <p><b>Nebenbefund:</b> Das Frontmatter von <code>DESIGN.md</code> nennt <code>section-pad-inline</code> noch <code>clamp(14px, 2.4vw, 28px)</code>; app.css hat seit #790 16 px als Untergrenze. Die Story gleicht das Token an die gebaute Regel an.</p>
+  </div>
+  <p class="mock-note">Derselbe Befund am Desktop, 1200 px breit, linker Ausschnitt ab dem Rand der Seitenleiste: oben Kopf und Anfang des Soll-Plan-Bands, darunter das Ende des Bands mit Hinweis, Suche und Formular. Rot / grün getönt: der Streifen in der Breite des Band-Rands, hier 28 px. „Klassifizierung löschen“ steht rechts außerhalb des Ausschnitts.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before"><span class="mock-tag">Vorher · 1200 px</span>
+      <div class="dcrop"><iframe data-tpl="desk-before" data-css="css-mock css-nopins css-stripes-before" data-crop-top="0" data-crop-h="188" title="Desktop vorher, Kopf"></iframe></div>
+      <div class="dcrop"><iframe data-tpl="desk-before" data-css="css-mock css-nopins css-stripes-before" data-crop-el=".soll-editor__actions" data-crop-h="300" title="Desktop vorher, Suche und Formular"></iframe></div>
+    </div>
+    <div class="mock-frame mock-after"><span class="mock-tag">Nachher · 1200 px</span>
+      <div class="dcrop"><iframe data-tpl="desk-after" data-css="css-mock css-nopins css-fix-873 css-fix-873-a css-stripes-after" data-crop-top="0" data-crop-h="188" title="Desktop nachher, Kopf"></iframe></div>
+      <div class="dcrop"><iframe data-tpl="desk-after" data-css="css-mock css-nopins css-fix-873 css-fix-873-a css-stripes-after" data-crop-el=".soll-editor__actions" data-crop-h="300" title="Desktop nachher, Suche und Formular"></iframe></div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================== #873 ② -->
+<section class="mock-board">
+  <h2>② „Umbenennen“ ohne Browser-Dreieck <small>Vorher / Nachher · DESIGN.md → Components → disclosure; #854</small></h2>
+  <p class="mock-note"><code>&lt;details class="plan-rename"&gt;</code> hat eine <code>&lt;summary&gt;</code> ohne Klasse, also zeigt der Browser sein ▶ / ▼. #854 hat den Marker für jede <code>.disclosure-summary</code> auf den Chevron vereinheitlicht; diese Zeile war keine. Nachher: <code>class="disclosure-summary"</code> und das Chevron-Symbol (<code>AppShell.icon :chevron_right</code>), das sich beim Öffnen dreht — keine neue CSS-Regel. Größe und Gewicht kommen aus der Klasse (0,85 rem, 600 statt 400). Die Farbe bleibt der Akzent, weil <code>.plan-rename summary</code> spezifischer ist als die Klasse. Das weicht vom Token <code>disclosure.control</code> (text-muted) ab, mit Absicht: Im selben Editor ist „Positionen (n)“ seit F2-A eine Disclosure in Akzentfarbe, und „Umbenennen“ öffnet eine Handlung, keine Daten. Die Story schreibt diese Ausnahme als einen Satz in <code>DESIGN.md</code> → disclosure. Oben zu, unten offen; 390 px, vergrößert (1,36×).</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before"><span class="mock-tag">Vorher</span>
+      <div class="zoom"><iframe data-tpl="rename-before" data-css="css-mock" data-scale="1.36" title="Umbenennen vorher"></iframe></div>
+    </div>
+    <div class="mock-frame mock-after"><span class="mock-tag">Nachher</span>
+      <div class="zoom"><iframe data-tpl="rename-after" data-css="css-mock css-fix-873" data-scale="1.36" title="Umbenennen nachher"></iframe></div>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================== #873 ③ -->
+<section class="mock-board">
+  <h2>③ Der Kategoriename bleibt sichtbar <small>Wahl G8 · DESIGN.md → Classification tree rows — columns (C8-A, #805); EXPERIENCE.md → UX-DR27</small></h2>
+  <p class="mock-note">Unter 560 px ist die Namensspalte, was nach 0,7 rem · 6 rem · 6 rem · 2,6 rem übrig bleibt. „+1 ohne Bestand“ ist <code>flex: 0 0 auto</code> und schrumpft nie; Name und Farbpunkt geben deshalb als Einzige nach — bis auf 0. Die 6-rem-Spalten sind nicht verhandelbar: ein sechsstelliges Ergebnis („−123.456,78“, fett) misst schon 97 px. Mit dem Rand aus ① bleibt dem Namen also auf einer Zeile kaum etwas. Beide Varianten setzen den Farbpunkt auf <code>flex: none</code>. 390 px, vergrößert (1,36×); unter jedem Rahmen gemessen.</p>
+  <div class="mock-row">
+    <div class="col">
+      <div class="mock-frame mock-before"><span class="mock-tag">Vorher</span>
+        <div class="zoom"><iframe data-tpl="rows-before" data-css="css-mock" data-scale="1.36" data-measure="m-before" title="Zeilen vorher"></iframe></div>
+      </div>
+      <p class="measure" id="m-before"></p>
+    </div>
+    <div class="col">
+      <div class="mock-frame mock-var rec"><span class="mock-tag">G8-A — zwei Zeilen unter 560 px · empfohlen</span>
+        <div class="zoom"><iframe data-tpl="rows-after-a" data-css="css-mock css-fix-873 css-fix-873-a" data-scale="1.36" data-measure="m-a" title="G8-A"></iframe></div>
+      </div>
+      <p class="measure" id="m-a"></p>
+    </div>
+  </div>
+  <div class="mock-row" style="margin-top:20px">
+    <div class="col">
+      <div class="mock-frame mock-var"><span class="mock-tag">G8-B — nur „+N“ unter 560 px</span>
+        <div class="zoom"><iframe data-tpl="rows-after-b" data-css="css-mock css-fix-873 css-fix-873-b" data-scale="1.36" data-measure="m-b" title="G8-B"></iframe></div>
+      </div>
+      <p class="measure" id="m-b"></p>
+    </div>
+    <div class="side">
+      <p><b>G8-A — zwei Zeilen (empfohlen).</b> Unter 560 px liegt die Zeile auf zwei Rasterzeilen desselben Rasters: oben Marker, Farbpunkt, Name und „+1 ohne Bestand“ über die Spalten von Name, Wert und Ergebnis, am Ende Bearbeiten/Löschen; darunter Wert und Ergebnis in genau ihren Spalten, also weiter unter „Wert“ und „Ergebnis“ im Kopf. Der Name bekommt 276 statt 70 px und darf umbrechen. Das ist UX-DR27s Telefonzeile (Name über den Zahlen, Zustände als Worte in der Zeile), angewandt auf die Kategorien; die Spaltenbreiten aus C8-A bleiben. Kosten: jede Zeile wird rund 30 px höher (gemessen unter den Rahmen), und <code>DESIGN.md</code> C8-A bekommt einen Satz zur Telefonzeile. Am Desktop ändert sich nichts.</p>
+      <p><b>G8-B — nur „+N“.</b> Die Zeile bleibt einzeilig; unter 560 px wird „ohne Bestand“ nur visuell ausgeblendet (das <code>.visually-hidden</code>-Muster — ein Screenreader liest weiter „+1 ohne Bestand“), der <code>title</code> nennt den Zusatz vor der bisherigen Erklärung. Kleinste Änderung, keine Anatomie-Änderung. Aber: dem Namen bleiben 27–51 px, „Wachstum“ ist damit nach ① kürzer als heute; und „+1“ allein ist ein Zustand, der nur im <code>title</code> erklärt wird — auf einem Touchscreen nicht erreichbar, gegen UX-DR27 („Zustände als Worte in der Zeile“).</p>
+    </div>
+  </div>
+</section>
+
+<!-- =========================================================== #874 -->
+<section class="mock-board">
+  <h2>#874 — „Kinder Σ“ verschwindet beim ersten Tastendruck <small>Vorher / Nachher · Plan-Editor, #467-Hinweis</small></h2>
+  <div class="mock-row">
+    <div class="plan-frame mock-frame mock-ref"><span class="mock-tag">Geladen — so steht der Plan nach dem Öffnen</span><div class="workspace-section soll-editor" id="plan-loaded"></div></div>
+    <div class="side">
+      <p>Beim Laden rechnet <code>build_soll/4</code> die Summe der Kinder je Elternkategorie (<code>child_sums/2</code>, braucht den Baum): „Stabilität“ 30 mit Kindern 20 + 10, „Wachstum“ 60 mit „Kernmarkt“ (folgt seinen Positionen, 15 + 10 = 25) und „Plattformen“ 35.</p>
+      <p>Bei jeder Eingabe rechnet <code>recompute_soll_sum/2</code> neu und setzt <code>child_sums_from_decimals/1</code> ein, das immer <code>%{}</code> liefert („we lack the tree shape“). Der Baum liegt aber im Zustand (<code>children_by_parent</code>, gebaut für die Σ-Zeile). Folge: Die Σ-Zeile rechnet live, der Kinder-Hinweis und seine Warnfarbe verschwinden bis „Plan speichern“.</p>
+      <p>Nachher rechnet der Hinweis bei jeder Eingabe neu, mit demselben wirksamen Gewicht wie die Σ-Zeile (<code>steering_weights/1</code>): ein Kind, das seinen Positionen folgt, zählt mit deren Summe. Beim Laden und live dieselbe Rechnung. Form und Farbe des Hinweises bleiben, und er blockiert nie das Speichern.</p>
+      <p>Unten zwei Eingaben: „Wachstum“ 60 → 65 (eigenes Gewicht), und das Positionsziel von „Kestrel Industrial Group NV“ 10 → 15 (ein Kind, das seinen Positionen folgt). Das violett umrandete Feld ist das, in dem gerade getippt wurde. <span class="gone" style="display:inline-block">Kinder-Σ-Hinweis fehlt</span> ist eine Markierung des Boards, kein Element der Seite: Dort steht heute nichts.</p>
+    </div>
+  </div>
+  <h2 style="margin-top:20px">Eingabe 1 — „Wachstum“ 60 → 65 <small>die Kinder ergeben weiter 60; auch „Stabilität“, an der nichts geändert wurde, verliert ihren Hinweis</small></h2>
+  <div class="mock-row">
+    <div class="plan-frame mock-frame mock-before"><span class="mock-tag">Vorher — nach „65“</span><div class="workspace-section soll-editor" id="plan-typed-before"></div></div>
+    <div class="plan-frame mock-frame mock-after"><span class="mock-tag">Nachher — nach „65“</span><div class="workspace-section soll-editor" id="plan-typed-after"></div></div>
+  </div>
+  <h2 style="margin-top:20px">Eingabe 2 — Positionsziel „Kestrel Industrial Group NV“ 10 → 15 <small>„Kernmarkt“ folgt seinen Positionen (ADR-0030 §2)</small></h2>
+  <p class="mock-note">Die gestrichelte Summe springt schon heute live auf 30. Heute sagt dann nichts mehr, dass „Wachstum“ 60 nennt, seine Kinder aber 65 ergeben — die Σ-Zeile bleibt bei 100 % ✓, weil „Wachstum“ ein eigenes Gewicht hat und die Kinder nicht zusätzlich zählen. Der Kinder-Hinweis ist die einzige Stelle, an der diese Abweichung sichtbar wird.</p>
+  <div class="mock-row">
+    <div class="plan-frame mock-frame mock-before"><span class="mock-tag">Vorher — nach „15“</span><div class="workspace-section soll-editor" id="plan-pos-before"></div></div>
+    <div class="plan-frame mock-frame mock-after"><span class="mock-tag">Nachher — nach „15“</span><div class="workspace-section soll-editor" id="plan-pos-after"></div></div>
+  </div>
+</section>
+
+<section class="mock-board">
+  <h2>Was gleich bleibt <small>Umfang</small></h2>
+  <div class="callout">
+    <h4>Nicht Teil von #873 / #874</h4>
+    <p>Die Desktop-Zeile des Baums (C8-A, 4,5 · 7 · 7 · 7 rem) und die Breiten der Telefonspalten (6 rem · 6 rem · 2,6 rem), die Form und Farbe des Kinder-Σ-Hinweises (<code>.hint.target-consistency</code>, Warnfarbe bei Abweichung), die Σ-Zeile und ihre Regeln, die Positionszeilen aus #481. Der Hinweis wird wieder live — er wird nicht umgestaltet.</p>
+  </div>
+</section>
+
+<!-- ================================================================ CSS -->
+
+<!-- Mock-only chrome inside the iframes (pins, gutter stripes as wide as the
+     band gutter: 16 px at 390, 28 px at 1200). Not a proposal. -->
+<template id="css-mock"><style>
+  body { background: var(--color-bg); }
+  .mk-pin { position: relative; }
+  .mk-pin::after { content: attr(data-pin); position: absolute; top: -8px; right: 2px; z-index: 5; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 999px; font: 700 10px/16px var(--font-sans); color: #fff; text-align: center; }
+  .mk-b .mk-pin::after { background: var(--color-danger); }
+  .mk-a .mk-pin::after { background: var(--color-positive); }
+</style></template>
+<template id="css-nopins"><style>
+  .mk-pin::after { display: none; }
+</style></template>
+<template id="css-stripes-before"><style>
+  main.app-main { position: relative; }
+  main.app-main::before, main.app-main::after { content: ""; position: absolute; top: 0; bottom: 0; width: clamp(16px, 2.4vw, 28px); background: rgb(220 38 38 / 0.13); pointer-events: none; z-index: 4; }
+  main.app-main::before { left: 0; } main.app-main::after { right: 0; }
+</style></template>
+<template id="css-stripes-after"><style>
+  main.app-main { position: relative; }
+  main.app-main::before, main.app-main::after { content: ""; position: absolute; top: 0; bottom: 0; width: clamp(16px, 2.4vw, 28px); background: rgb(16 185 129 / 0.13); pointer-events: none; z-index: 4; }
+  main.app-main::before { left: 0; } main.app-main::after { right: 0; }
+</style></template>
+
+<!-- THE PROPOSAL (#873 ①): what the story adds to app.css in either variant. -->
+<template id="css-fix-873"><style>
+  /* The page's own blocks take the band's gutter — the value the page
+     already gives its alerts (.workspace-page > .alert-*) and the Soll-Plan
+     band. 16 px at 390, 28 px at 1200. */
+  .classifications-detail > :not(.workspace-section) {
+    margin-inline: clamp(16px, 2.4vw, 28px);
+  }
+  .classifications-detail > .detail-head {
+    margin-top: clamp(18px, 2.4vw, 28px);
+  }
+  .classifications-detail > :last-child {
+    margin-bottom: clamp(18px, 2.4vw, 28px);
+  }
+</style></template>
+
+<!-- ③ Variant A (recommended): two grid rows under 560 px. -->
+<template id="css-fix-873-a"><style>
+  @media (max-width: 560px) {
+    .cat-summary { row-gap: 2px; }
+    .cat-summary::before { grid-column: 1; grid-row: 1; }
+    .cat-summary .cat-name { grid-column: 2 / 5; grid-row: 1; flex-wrap: wrap; row-gap: 0; }
+    .cat-summary .cat-swatch { flex: none; }
+    .cat-summary .cat-name__text { white-space: normal; }
+    .cat-summary .cat-actions { grid-column: 5; grid-row: 1; }
+    .cat-summary .cat-value { grid-column: 3; grid-row: 2; }
+    .cat-summary .cat-result { grid-column: 4; grid-row: 2; }
+  }
+</style></template>
+
+<!-- ③ Variant B: the count stays, its words go to the title (and stay in the
+     DOM for assistive tech). -->
+<template id="css-fix-873-b"><style>
+  @media (max-width: 560px) {
+    .cat-summary .cat-swatch { flex: none; }
+    .cat-without-holdings__words {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+  }
+</style></template>
+
+<!-- ============================================================ FRAGMENTS -->
+<!-- Placeholders (@@NAME@@) are filled by the script below, so before and
+     after differ only where the proposal differs. They sit in text or in
+     attribute values, never between attributes. -->
+
+<template id="frag-topbar">
+  <header class="topbar">
+    <label class="sidebar-toggle" aria-label="Navigation öffnen"><span class="burger-bars" aria-hidden="true"></span></label>
+    <div class="topbar-primary">
+      <a class="topbar-brand" aria-label="Portfolixir"><span class="brand-logo" aria-hidden="true"><img class="topbar-mark brand-mark-light" src="../../../../../priv/static/images/logo-mark-light.svg" alt=""><img class="topbar-mark brand-mark-dark" src="../../../../../priv/static/images/logo-mark-dark.svg" alt=""></span><span>Portfolixir</span></a>
+      <div class="topbar-page"><h1>Strategie</h1><p>Wertpapiere per Drag-and-drop zwischen Kategorien einsortieren</p></div>
+    </div>
+    <div class="topbar-controls" aria-label="Anzeigeeinstellungen">
+      <details class="theme-menu" aria-label="Theme"><summary class="theme-menu-trigger" title="Theme"><span class="theme-current-icon theme-current-icon-system" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="theme-svg-icon" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></span><span class="visually-hidden">Theme</span></summary></details>
+      <details class="accent-menu" aria-label="Akzentfarbe"><summary class="accent-menu-trigger" title="Akzentfarbe"><span class="accent-current-dot accent-current-dot-violet" aria-hidden="true"></span><span class="visually-hidden">Akzentfarbe</span></summary></details>
+      <nav class="locale-switcher" aria-label="Sprache"><a class="locale-link">EN</a><a class="locale-link is-active" aria-current="true">DE</a></nav>
+    </div>
+  </header>
+</template>
+
+<!-- the sidebar as the shell renders it (fixed at 220 px; off-canvas under 900 px).
+     Nav icons are left out: the crops never show them. -->
+<template id="frag-sidebar">
+  <aside class="app-sidebar" aria-label="App-Navigation">
+    <a class="brand" aria-label="Portfolixir"><span class="brand-logo" aria-hidden="true"><img class="brand-mark brand-mark-light" src="../../../../../priv/static/images/logo-mark-light.svg" alt=""><img class="brand-mark brand-mark-dark" src="../../../../../priv/static/images/logo-mark-dark.svg" alt=""></span><span class="brand-wordmark">Portfolixir</span></a>
+    <nav class="primary-nav" aria-label="Hauptnavigation">
+      <div class="nav-group nav-group-unlabeled">
+        <a class="nav-link"><span class="nav-marker" aria-hidden="true"></span><span class="nav-ico" aria-hidden="true"></span><span class="nav-label">Übersicht</span></a>
+        <a class="nav-link"><span class="nav-marker" aria-hidden="true"></span><span class="nav-ico" aria-hidden="true"></span><span class="nav-label">Vermögen</span></a>
+        <a class="nav-link"><span class="nav-marker" aria-hidden="true"></span><span class="nav-ico" aria-hidden="true"></span><span class="nav-label">Wertpapiere</span></a>
+        <a class="nav-link"><span class="nav-marker" aria-hidden="true"></span><span class="nav-ico" aria-hidden="true"></span><span class="nav-label">Transaktionen</span></a>
+      </div>
+      <div class="nav-group">
+        <div class="nav-group-head"><span>Verwaltung</span></div>
+        <a class="nav-link"><span class="nav-marker" aria-hidden="true"></span><span class="nav-ico" aria-hidden="true"></span><span class="nav-label">Konten &amp; Depots</span></a>
+        <a class="nav-link"><span class="nav-marker" aria-hidden="true"></span><span class="nav-ico" aria-hidden="true"></span><span class="nav-label">Ansichten</span></a>
+        <a class="nav-link is-active" aria-current="page"><span class="nav-marker" aria-hidden="true"></span><span class="nav-ico" aria-hidden="true"></span><span class="nav-label">Klassifizierungen</span></a>
+      </div>
+    </nav>
+  </aside>
+</template>
+
+<!-- the Rename disclosure as built -->
+<template id="frag-rename-before">
+  <details class="plan-rename @@PIN@@" data-pin="2">
+    <summary>Umbenennen</summary>
+    <form><label class="sr-only" for="plan-rename-input">Neuer Planname</label><input id="plan-rename-input" type="text" value="Grundplan" maxlength="120"><button type="button" class="button">Namen speichern</button></form>
+  </details>
+</template>
+<!-- proposed: the shared disclosure summary and chevron -->
+<template id="frag-rename-after">
+  <details class="plan-rename @@PIN@@" data-pin="2">
+    <summary class="disclosure-summary"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>Umbenennen</summary>
+    <form><label class="sr-only" for="plan-rename-input">Neuer Planname</label><input id="plan-rename-input" type="text" value="Grundplan" maxlength="120"><button type="button" class="button">Namen speichern</button></form>
+  </details>
+</template>
+
+<template id="frag-plan-versions">
+  <div class="soll-plan-versions">
+    <span class="muted" data-role="soll-plan-name">Grundplan</span>
+    <button type="button" class="button">Plan duplizieren</button>
+    @@RENAME@@
+  </div>
+</template>
+
+<template id="frag-soll-table">
+  <form id="soll-plan-form">
+    <div class="data-table-wrapper">
+      <table class="soll-table">
+        <thead><tr><th scope="col">Kategorie</th><th scope="col" class="num">Soll %</th></tr></thead>
+        <tbody>
+          <tr class="soll-row" data-cat="Stabilität"><th scope="row" class="soll-row__name"><span aria-hidden="true"></span>Stabilität<span class="hint target-consistency" data-role="soll-child-hint">Kinder Σ 30%</span></th><td class="num"><input type="number" value="30" min="0" max="100" step="0.1" inputmode="decimal"></td></tr>
+          <tr class="soll-row" data-cat="Anleihen"><th scope="row" class="soll-row__name"><span aria-hidden="true">— </span>Anleihen</th><td class="num"><input type="number" value="20" min="0" max="100" step="0.1" inputmode="decimal"></td></tr>
+          <tr class="soll-row" data-cat="Gold"><th scope="row" class="soll-row__name"><span aria-hidden="true">— </span>Gold</th><td class="num"><input type="number" value="10" min="0" max="100" step="0.1" inputmode="decimal"></td></tr>
+          <tr class="soll-row" data-cat="Wachstum"><th scope="row" class="soll-row__name"><span aria-hidden="true"></span>Wachstum<span class="hint target-consistency" data-role="soll-child-hint">Kinder Σ 60%</span></th><td class="num"><input type="number" value="60" min="0" max="100" step="0.1" inputmode="decimal"></td></tr>
+          <tr class="soll-row" data-cat="Kernmarkt"><th scope="row" class="soll-row__name"><span aria-hidden="true">— </span>Kernmarkt<button type="button" class="disclosure-button soll-positions-toggle" aria-expanded="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>Positionen (2)</button><span class="hint soll-row__follows" data-role="soll-position-hint">Summe der Positionsziele — das Kategoriefeld folgt ihr</span></th><td class="num"><output class="soll-position-sum">25</output></td></tr>
+          <tr class="soll-row soll-row--position" data-cat="Meridian"><th scope="row" class="soll-row__name soll-row__name--position"><span aria-hidden="true">— — </span>Meridian Global Equity ETF</th><td class="num"><input type="number" value="15" min="0" max="100" step="0.1" inputmode="decimal"></td></tr>
+          <tr class="soll-row soll-row--position" data-cat="Kestrel"><th scope="row" class="soll-row__name soll-row__name--position"><span aria-hidden="true">— — </span>Kestrel Industrial Group NV</th><td class="num"><input type="number" value="10" min="0" max="100" step="0.1" inputmode="decimal"></td></tr>
+          <tr class="soll-row" data-cat="Plattformen"><th scope="row" class="soll-row__name"><span aria-hidden="true">— </span>Plattformen<button type="button" class="disclosure-button soll-positions-toggle" aria-expanded="false"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>Position (1)</button></th><td class="num"><input type="number" value="35" min="0" max="100" step="0.1" inputmode="decimal"></td></tr>
+          <tr class="soll-row soll-row--position" hidden><th scope="row" class="soll-row__name soll-row__name--position"><span aria-hidden="true">— — </span>Helios Solar Systems SE</th><td class="num"><input type="number" value="" min="0" max="100" step="0.1" inputmode="decimal"></td></tr>
+          <tr class="soll-row soll-row--cash"><th scope="row" class="soll-row__name">Cash</th><td class="num"><input type="number" value="10" min="0" max="100" step="0.1" inputmode="decimal"></td></tr>
+        </tbody>
+        <tfoot><tr class="soll-row soll-row--sum"><th scope="row">Σ</th><td class="num" data-role="soll-sum">100% <span class="soll-ok" aria-hidden="true">✓</span></td></tr></tfoot>
+      </table>
+    </div>
+    <div class="soll-editor__actions"><button type="submit" class="button-primary">Plan speichern</button><button type="button" class="button-danger">Plan löschen</button></div>
+  </form>
+</template>
+
+<!-- the hidden-positions suffix: as built (and variant A, which keeps it) -->
+<template id="frag-suffix-before">
+  <span class="cat-without-holdings" data-role="without-holdings" title="Zugeordnete, nicht mehr gehaltene Wertpapiere, vom Filter ausgeblendet">+1 ohne Bestand</span>
+</template>
+<!-- variant B: the words in their own span, the title names the suffix -->
+<template id="frag-suffix-b">
+  <span class="cat-without-holdings" data-role="without-holdings" title="+1 ohne Bestand — Zugeordnete, nicht mehr gehaltene Wertpapiere, vom Filter ausgeblendet">+1<span class="cat-without-holdings__words"> ohne Bestand</span></span>
+</template>
+
+<template id="frag-basis">
+  <div class="summary-basis tree-basis" data-role="category-result-basis">Ergebnis: heutige Zusammensetzung, keine Periodenrendite <details class="metric-tooltip metric-tooltip--inline"><summary aria-label="Zum Ergebnis">ⓘ</summary><p role="tooltip">Kosten und Ergebnis umfassen die heute hier eingeordneten Positionen — eine Aussage über die aktuelle Zusammensetzung, keine Periodenrendite.</p></details></div>
+</template>
+
+<template id="frag-tree">
+  <div class="tree-head" data-role="tree-head">
+    <span class="tree-head__name">Kategorie</span><span class="tree-head__num">Positionen</span><span class="tree-head__num">Wert</span><span class="tree-head__num">Einstand</span><span class="tree-head__num">Ergebnis</span><span class="tree-head__actions" aria-hidden="true"></span>
+  </div>
+  <section class="tree">
+    <details class="cat-node @@PIN@@" data-pin="3">
+      <summary class="cat-summary">
+        <span class="cat-name"><span class="cat-swatch" style="background:#0f766e" aria-hidden="true"></span><span class="cat-name__text" title="Stabilität">Stabilität</span>@@SUFFIX@@</span>
+        <span class="cat-positions" title="Sichtbare Positionen in dieser Kategorie und ihren Unterkategorien">3</span>
+        <span class="cat-value" title="EUR-Wert der sichtbaren Positionen">18.400,00</span>
+        <span class="cat-invested">17.900,00</span>
+        <span class="cat-result is-positive"><b>+500,00</b><small>+2,8 %</small></span>
+        <span class="cat-actions" data-no-toggle><button type="button" class="icon-mini" aria-label="Kategorie bearbeiten">✎</button><button type="button" class="icon-mini" aria-label="Kategorie löschen">×</button></span>
+      </summary>
+    </details>
+    <details class="cat-node">
+      <summary class="cat-summary">
+        <span class="cat-name"><span class="cat-swatch" style="background:#7c3aed" aria-hidden="true"></span><span class="cat-name__text" title="Wachstum">Wachstum</span></span>
+        <span class="cat-positions">4</span>
+        <span class="cat-value">36.250,00</span>
+        <span class="cat-invested">30.100,00</span>
+        <span class="cat-result is-positive"><b>+6.150,00</b><small>+20,4 %</small></span>
+        <span class="cat-actions" data-no-toggle><button type="button" class="icon-mini" aria-label="Kategorie bearbeiten">✎</button><button type="button" class="icon-mini" aria-label="Kategorie löschen">×</button></span>
+      </summary>
+    </details>
+  </section>
+  <details id="unsorted" class="cat-node unsorted-node">
+    <summary class="cat-summary">
+      <span class="cat-name"><span class="cat-swatch is-empty" aria-hidden="true"></span><span class="cat-name__text">Nicht zugeordnet</span></span>
+      <span class="cat-positions">1</span><span class="cat-value">2.100,00</span><span class="cat-invested">—</span><span class="cat-result">—</span><span class="cat-actions" aria-hidden="true"></span>
+    </summary>
+  </details>
+</template>
+
+<template id="frag-page">
+  <div class="app-shell @@MK@@">@@SIDEBAR@@<div class="app-frame">
+    @@TOPBAR@@
+    <main class="app-main app-main--workspace">
+      <div id="classifications-workspace" class="workspace-page classifications-detail">
+        <header class="detail-head">
+          <h2>Strategie</h2>
+          <button type="button" class="button-danger">Klassifizierung löschen</button>
+        </header>
+        <section id="soll-editor" class="workspace-section soll-editor">
+          <header class="soll-editor__head">
+            <h2>Soll-Plan</h2>
+            <form class="soll-view-picker"><label class="soll-view-picker__label" for="soll-view-select">Soll-Plan für Sicht:</label><select id="soll-view-select"><option>Gesamt</option></select></form>
+          </header>
+          @@VERSIONS@@
+          @@TABLE@@
+        </section>
+        <div role="status"><div class="data-note data-note--attention" data-role="assignment-nudge"><span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/></svg></span><span class="data-note__word">Achtung</span><div class="data-note__body">1 Wertpapier ist noch keiner Kategorie zugeordnet und fließt nicht in die SOLL-IST-Allokation ein. <a href="#unsorted">Nicht zugeordnet</a></div></div></div>
+        <form class="tree-search mk-pin" data-pin="1"><input type="search" placeholder="Wertpapiere in diesem Baum suchen…" autocomplete="off"></form>
+        <form class="tree-toggle"><label class="current-only-label"><input type="checkbox" checked><span>Nur aktuelle Positionen</span></label></form>
+        <form class="inline-form category-form">
+          <label><span>Neue Kategorie</span><input></label>
+          <label><span>Übergeordnet</span><select><option>— Oberste Ebene —</option></select></label>
+          <label><span>Farbe</span><input type="color" value="#7c3aed"></label>
+          <label class="category-form__description"><span>Beschreibung <small>(optional)</small></span><input></label>
+          <button type="submit">Hinzufügen</button>
+        </form>
+        @@BASIS@@
+        @@TREE@@
+      </div>
+    </main>
+  </div></div>
+</template>
+
+<template id="frag-rename-crop">
+  <div class="@@MK@@" style="padding:6px 0 10px">
+    <section class="workspace-section soll-editor" style="border-bottom:0;padding-block:10px">
+      @@VERSIONS_CLOSED@@
+    </section>
+    <section class="workspace-section soll-editor" style="border-bottom:0;padding-block:0 10px">
+      @@VERSIONS_OPEN@@
+    </section>
+  </div>
+</template>
+
+<template id="frag-rows-crop">
+  <div class="workspace-page classifications-detail @@MK@@" style="min-height:0;padding:4px 0 0">
+    @@TREE@@
+  </div>
+</template>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds the iframes (srcdoc, so
+   relative links resolve against this board) and the #874 plan frames. */
+const $ = (id) => document.getElementById(id).innerHTML;
+const CSS_HREF = '../../../../../priv/static/app.css';
+const fill = (s, map) => s.replace(/@@(\w+)@@/g, (_, k) => (k in map ? map[k] : ''));
+
+function versions(which, open, pin) {
+  let r = fill($(which === 'after' ? 'frag-rename-after' : 'frag-rename-before'), { PIN: pin ? 'mk-pin' : '' });
+  if (open) r = r.replace('<details ', '<details open ');
+  return fill($('frag-plan-versions'), { RENAME: r });
+}
+function tree(suffix, pin) {
+  return fill($('frag-tree'), { SUFFIX: $(suffix), PIN: pin ? 'mk-pin' : '' });
+}
+function page(mk, which, suffix) {
+  return fill($('frag-page'), {
+    MK: mk, SIDEBAR: $('frag-sidebar'), TOPBAR: $('frag-topbar'), VERSIONS: versions(which, false, true),
+    TABLE: $('frag-soll-table'), BASIS: $('frag-basis'), TREE: tree(suffix, true)
+  });
+}
+const T = {
+  'page-before': () => page('mk-b', 'before', 'frag-suffix-before'),
+  'page-after': () => page('mk-a', 'after', 'frag-suffix-before'),
+  'desk-before': () => page('mk-b', 'before', 'frag-suffix-before'),
+  'desk-after': () => page('mk-a', 'after', 'frag-suffix-before'),
+  'rename-before': () => fill($('frag-rename-crop'), { MK: 'mk-b', VERSIONS_CLOSED: versions('before', false), VERSIONS_OPEN: versions('before', true) }),
+  'rename-after': () => fill($('frag-rename-crop'), { MK: 'mk-a', VERSIONS_CLOSED: versions('after', false), VERSIONS_OPEN: versions('after', true) }),
+  'rows-before': () => fill($('frag-rows-crop'), { MK: 'mk-b', TREE: tree('frag-suffix-before', false) }),
+  'rows-after-a': () => fill($('frag-rows-crop'), { MK: 'mk-a', TREE: tree('frag-suffix-before', false) }),
+  'rows-after-b': () => fill($('frag-rows-crop'), { MK: 'mk-a', TREE: tree('frag-suffix-b', false) })
+};
+
+function measure(iframe) {
+  const out = iframe.dataset.measure && document.getElementById(iframe.dataset.measure);
+  if (!out) return;
+  const d = iframe.contentDocument;
+  const px = (el) => Math.round(el.getBoundingClientRect().width);
+  out.innerHTML = [...d.querySelectorAll('.cat-summary')].map((s) => {
+    const name = s.querySelector('.cat-name__text');
+    const cell = s.querySelector('.cat-name');
+    const suffix = s.querySelector('.cat-without-holdings');
+    const full = name.scrollWidth;
+    const shown = Math.min(px(name), full);
+    const cut = name.scrollWidth > name.clientWidth + 0.5 || shown === 0;
+    return `„${name.textContent}“: Namenszelle <b>${px(cell)} px</b> · Name <b>${shown}</b>/${full} px ${cut ? '— <b>gekürzt</b>' : '— ganz'}` +
+      (suffix ? ` · Zusatz ${px(suffix)} px` : '') + ` · Zeile ${Math.round(s.getBoundingClientRect().height)} px hoch`;
+  }).join('<br>');
+}
+
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const css = (f.dataset.css || '').split(' ').filter(Boolean).map($).join('\n');
+  const s = parseFloat(f.dataset.scale || '1');
+  if (s !== 1) { f.style.transform = `scale(${s})`; f.parentElement.style.width = `${390 * s}px`; }
+  f.addEventListener('load', () => {
+    const h = Math.ceil(f.contentDocument.documentElement.scrollHeight);
+    f.style.height = h + 'px';
+    if (s !== 1) f.parentElement.style.height = Math.ceil(h * s) + 'px';
+    if (f.dataset.cropH) {
+      const d = f.contentDocument;
+      const el = f.dataset.cropEl && d.querySelector(f.dataset.cropEl);
+      const top = el ? Math.round(el.getBoundingClientRect().top + d.defaultView.scrollY) - 12 : parseInt(f.dataset.cropTop || '0', 10);
+      f.style.marginTop = -top + 'px';
+      f.parentElement.style.height = f.dataset.cropH + 'px';
+    }
+    measure(f);
+  });
+  f.srcdoc = `<!doctype html><html lang="de" data-theme="system" data-accent="violet"><head><meta charset="utf-8"><meta name="viewport" content="width=${f.dataset.cropH ? 1200 : 390}"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body>${T[f.dataset.tpl]()}</body></html>`;
+}
+
+/* ---- #874 plan frames (desktop width, in this document) ---- */
+function plan(opts) {
+  const host = document.createElement('div');
+  host.innerHTML = $('frag-soll-table');
+  const row = (n) => host.querySelector(`tr[data-cat="${n}"]`);
+  const type = (n, v) => { const i = row(n).querySelector('input'); i.setAttribute('value', v); i.classList.add('typing'); };
+  if (opts.wachstum) type('Wachstum', opts.wachstum);
+  if (opts.kestrel) { type('Kestrel', opts.kestrel); row('Kernmarkt').querySelector('output').textContent = opts.kernmarkt; }
+  for (const n of ['Stabilität', 'Wachstum']) {
+    const hint = row(n).querySelector('[data-role="soll-child-hint"]');
+    const h = (opts.hints || {})[n];
+    if (opts.gone) { hint.outerHTML = '<span class="gone">Kinder-Σ-Hinweis fehlt</span>'; }
+    else if (h) { hint.textContent = h.text; if (h.mismatch) { hint.classList.add('is-target-mismatch'); row(n).classList.add('is-target-mismatch'); } }
+  }
+  if (opts.sum) {
+    const cell = host.querySelector('[data-role="soll-sum"]');
+    cell.innerHTML = `${opts.sum}% <span class="soll-bad" aria-hidden="true">✗</span>`;
+    cell.closest('tr').classList.add('is-target-mismatch');
+  }
+  host.querySelector('.soll-editor__actions').remove();
+  return host.innerHTML;
+}
+document.getElementById('plan-loaded').innerHTML = plan({});
+document.getElementById('plan-typed-before').innerHTML = plan({ wachstum: '65', sum: '105', gone: true });
+document.getElementById('plan-typed-after').innerHTML = plan({ wachstum: '65', sum: '105', hints: { 'Wachstum': { text: 'Kinder Σ 60%', mismatch: true } } });
+document.getElementById('plan-pos-before').innerHTML = plan({ kestrel: '15', kernmarkt: '30', gone: true });
+document.getElementById('plan-pos-after').innerHTML = plan({ kestrel: '15', kernmarkt: '30', hints: { 'Wachstum': { text: 'Kinder Σ 65%', mismatch: true } } });
+</script>
+</body>
+</html>

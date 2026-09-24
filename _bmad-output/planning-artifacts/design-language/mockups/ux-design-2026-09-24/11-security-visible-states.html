@@ -1,0 +1,677 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — E25: was die Härtung sichtbar ändert (Vorher / Nachher)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  /* Board chrome only. Inside the frames: the live classes of imports_live.ex
+     (the @error band .alert-error, .import-drop-zone, .upload-progress,
+     .import-stats, .import-stat-card.warning, .kind-chips,
+     .import-warning-box), securities_live.ex (AppShell.inline_result with its
+     .data-note, .detail-pane with its .button-ghost actions,
+     research_tab_panel/1: .detail-tab-hint, .research-thesis,
+     .research-entry-form, .research-entry-form__errors, .research-timeline),
+     risk_live.ex (.kpi-band, .stat.stat--compact, .stat-empty, .summary-basis,
+     .perf-table-disclosure, .risk-fit-table) and session_html.ex
+     (.login-page, .login-card, .login-form). The error pages are the
+     ErrorView's bare text body: render_errors runs with layout: false and no
+     stylesheet, so the browser's default rendering is the real picture. The
+     browser chrome around them and the browser's own error page are drawing
+     aids, not app UI. Nothing here is proposed for app.css: every after state
+     uses a treatment that already ships. */
+  .mock-frame { overflow: visible; }
+  .col { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-content: start; flex: 1 1 520px; min-width: 0; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .notes { display: grid; gap: 8px; align-content: start; font-size: 12.5px; }
+  .notes p, .notes ol, .notes ul { margin: 0; }
+  .notes ol, .notes ul { padding-left: 18px; }
+  .notes ol.pins, ol.notes.pins { list-style: none; padding: 0; }
+  .notes li { margin: 0 0 6px; }
+  .notes code, .mock-note code, table.t code, .pickbar code { font-size: 11.5px; }
+  .elide { margin: 0; font-size: 12px; color: var(--mock-ink); font-style: italic; }
+  /* numbered pins: the before frame's findings, the after frame's repairs */
+  i.pin { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-left: 5px; border-radius: 999px; font: 700 10px/1 var(--font-sans); font-style: normal; color: #fff; vertical-align: 1px; letter-spacing: 0; text-transform: none; }
+  i.pin.b { background: var(--color-danger); }
+  i.pin.a { background: var(--color-positive); }
+  .notes li > i.pin:first-child, .notes p > i.pin:first-child { margin: 0 4px 0 0; }
+  /* a changed clause inside a shipped element */
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+
+  /* the page frames (as boards 04 and 06) */
+  .pg { border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg); overflow: hidden; }
+  .pg-top { display: flex; align-items: center; gap: 10px; padding: 10px 18px; border-bottom: 1px solid var(--color-border); background: var(--color-bg-elevated); }
+  .pg-top .topbar-page p { white-space: normal; }
+  .pg .workspace-page { min-height: 0; }
+  .pg .area-tabs { padding: 0 18px; margin-bottom: 0; }
+  .pg .import-drop-zone { position: relative; min-height: 0; padding: 1.75rem 1.25rem; }
+  .pg .import-drop-icon { width: 56px; height: 56px; }
+  .pg .import-drop-zone h2 { font-size: 1.25rem; }
+  .pg .workspace-section.pad { padding: 16px 18px; }
+  .pg-body { padding: 14px 16px; display: grid; gap: 10px; }
+
+  /* a board-chrome note laid over a frozen frame: not app UI */
+  .stuck { position: absolute; right: 10px; top: 10px; padding: 3px 8px; border: 1px dashed var(--color-danger); border-radius: 999px; background: var(--color-bg-elevated); color: var(--color-danger); font: 700 10.5px/1.4 var(--font-sans); letter-spacing: .04em; text-transform: uppercase; }
+
+  /* browser chrome, drawn (not app UI) */
+  .browser { border: 1px solid var(--color-border-strong); border-radius: 10px; overflow: hidden; background: #fff; }
+  .browser .bar { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: #eceef2; border-bottom: 1px solid #d3d8df; }
+  .browser .dots { display: flex; gap: 4px; flex: none; }
+  .browser .dots i { width: 9px; height: 9px; border-radius: 50%; background: #c8ced7; }
+  .browser .url { flex: 1 1 auto; min-width: 0; padding: 2px 10px; border: 1px solid #d3d8df; border-radius: 999px; background: #fff; color: #4b5563; font: 11.5px/1.5 var(--font-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .browser .vp { height: 190px; position: relative; overflow: hidden; }
+  /* the ErrorView's body as the browser renders a bare text/html answer */
+  .browser .vp.plain { margin: 0; padding: 8px; background: #fff; color: #000; font: 16px/1.25 "Times New Roman", Times, serif; letter-spacing: 0; }
+  /* the browser's own page for an empty 5xx answer (Chromium), simplified */
+  .browser .vp.own { background: #fff; color: #202124; padding: 26px 30px; font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .browser .vp.own .glyph { width: 30px; height: 36px; border: 2px solid #9aa0a6; border-radius: 3px; margin-bottom: 14px; position: relative; }
+  .browser .vp.own .glyph::after { content: ""; position: absolute; left: 7px; right: 7px; bottom: 9px; height: 2px; background: #9aa0a6; }
+  .browser .vp.own h5 { margin: 0 0 8px; font-size: 17px; font-weight: 500; line-height: 1.25; }
+  .browser .vp.own p { margin: 0 0 6px; color: #5f6368; }
+  .browser .vp.own .code { font-size: 11px; letter-spacing: .02em; color: #5f6368; }
+  .browser .vp.own .rl { display: table; margin: 14px 0 0 auto; padding: 6px 14px; border-radius: 4px; background: #3c64b1; color: #fff; font-size: 12.5px; }
+  .aside-ink { font-size: 11.5px; color: var(--mock-ink); margin: 6px 0 0; }
+
+  /* the login card at board scale */
+  .login-page.at-board { min-height: 0; padding: 22px 16px; }
+  .step { display: grid; grid-template-columns: 1fr 22px 1fr; gap: 10px; align-items: center; }
+  .step .arr { color: var(--mock-ink); font-size: 18px; text-align: center; }
+
+  /* the research pane at board scale */
+  .stage { padding: 14px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .stage .detail-pane { margin-top: 0; }
+  .stage .detail-pane-tabs { overflow: hidden; }
+  .stage .research-timeline { gap: var(--space-2); }
+
+  /* the 390 px phone frame (drawn: the board renders at 1200) */
+  .phone { width: 390px; border: 1px solid var(--color-border); border-radius: 18px; overflow: hidden; background: var(--color-bg); flex: none; }
+  .ph-top { padding: 10px 16px; border-bottom: 1px solid var(--color-border); background: var(--color-bg-elevated); }
+  .phone .workspace-page { min-height: 0; }
+  .phone .area-tabs { padding: 0 8px; margin-bottom: 0; }
+  /* app.css sets this band's side margin with clamp(16px, 2.4vw, 28px); the
+     board renders at 1200, so the 390 px value (16px) is stated here. The
+     drop zone below is the live markup at its real sizes. */
+  .phone .workspace-page > .alert-error { margin: 12px 16px 0; }
+
+  table.t td.v { font-family: var(--font-mono); font-size: 12px; }
+  .callout { border: 1px solid var(--color-border); border-left: 4px solid var(--color-accent); border-radius: var(--radius-md); background: var(--color-bg-elevated); padding: 10px 14px; display: grid; gap: 6px; font-size: 12.5px; }
+  .callout.keep { border-left-color: var(--color-border-strong); }
+  .callout h4 { margin: 0; font-size: 13px; }
+  .callout p { margin: 0; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-note" viewBox="0 0 24 24"><path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/></symbol>
+    <symbol id="i-prob" viewBox="0 0 24 24"><path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z"/><path d="M12 8v4"/><circle cx="12" cy="16" r=".6"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-max" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+    <symbol id="i-hist" viewBox="0 0 24 24"><path d="M4 4h16M4 12h16M4 20h16"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 19h14"/></symbol>
+  </defs>
+</svg>
+
+<div class="pickbar"><b>Vorher / Nachher — keine Variantenwahl.</b> Die vier Stellen, an denen der zweite Sicherheitsdurchgang (E25) etwas ändert, das man sieht: Der Import lehnt eine Datei mit einer benannten Meldung ab, statt die Seite anzuhalten (Gruppe S5); das Research-Log lehnt einen Stichtag in der Zukunft ab (S6); „Risiko“ bleibt trotz unplausibler gespeicherter Kurse lesbar und nennt, über wie viele Titel die Korrelationen laufen (S3, S4); jeder Fehlerstatus bekommt die Fehlerseite der App statt einer leeren Antwort (S2). <b>Jeder Nachher-Zustand nutzt eine Behandlung, die schon ausgeliefert ist</b> — kein neues Bauteil, keine neue Regel in <code>app.css</code>. Das Board ist öffentlich: Es zeigt Meldungen und Zustände, <b>keine Eingaben und keine Grenzwerte</b> (Triage 2026-09-24, Teil 6). Alle Namen, Zahlen und Daten sind erfunden.</div>
+
+<!-- ============================== 1 · IMPORTE ============================== -->
+<section class="mock-board">
+  <h2>1 · Importe — eine Datei, die heute die Seite anhält <small>S5 · Triage F34, F35, F33 · <code>imports_live.ex</code></small></h2>
+  <p class="mock-note">Drei Arten von Datei bringen die Vorschau heute zum Stehen: eine, die nicht in UTF-8 kodiert ist; eine mit so vielen unterschiedlichen Konto-, Depot- oder Wertpapiernamen, dass die Vorschau zu groß wird; eine mit einem Wertpapier ohne Name und ohne ISIN. Nachher lehnt der Parser die ersten beiden mit einem <b>benannten Dateifehler</b> ab, bevor etwas geparkt wird, und zeigt ihn dort, wo heute „Unbekanntes Dateiformat …“ steht: im Meldungsband <code>@error</code> (<code>.alert-error</code>, <code>role="alert"</code>) über dem Ablagefeld. Die dritte wird zur Zeilenwarnung in der Vorschau.</p>
+
+  <div class="mock-row">
+    <div class="col">
+      <div class="mock-frame mock-before"><span class="mock-tag">Vorher · direkt nach dem Ablegen</span><div class="workspace-section">
+        <div class="pg">
+          <div class="pg-top"><div class="topbar-page"><h1>Importe</h1><p>Portfolio-Performance-Exporte (CSV oder JSON) als Stapel importieren.</p></div></div>
+          <div class="workspace-page">
+            <nav class="area-tabs" data-scroll-start data-scroll-end aria-label="Bereichs-Tabs">
+              <a class="area-tab"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-hist"/></svg></span><span class="area-tab__label" data-label="Historie">Historie</span></a>
+              <a class="area-tab is-active" aria-current="page"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-up"/></svg></span><span class="area-tab__label" data-label="Import">Import</span></a>
+            </nav>
+            <div class="stack">
+              <form class="workspace-section import-drop-zone">
+                <svg class="import-drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M5 19h14"/></svg>
+                <h2>Portfolio-Performance-Export hier ablegen</h2>
+                <p class="muted">CSV oder JSON v1 · max. 20 MB · vor der Bestätigung wird nichts gespeichert</p>
+                <button type="button" class="button-primary">Datei auswählen<i class="pin b">2</i></button>
+                <p class="muted upload-progress">pp-export-2026.csv · 88%<i class="pin b">1</i></p>
+                <span class="stuck">keine Rückmeldung</span>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <ol class="notes pins">
+        <li><i class="pin b">1</i><b>Die Fortschrittszeile bleibt stehen.</b> Bei der ersten und der dritten Datei stürzt die Seite beim Zeichnen der Vorschau ab; die zweite baut eine Vorschau, die so groß wird, dass der Tab hängt. Keine der drei sagt etwas.</li>
+        <li><i class="pin b">2</i><b>Klicks bleiben ohne Wirkung.</b> Die Seite baut sich neu auf, trifft auf die geparkte Vorschau und stürzt wieder ab — so lange, bis diese verfällt.</li>
+      </ol>
+    </div>
+
+    <div class="col">
+      <div class="mock-frame mock-after"><span class="mock-tag">Nachher · Datei nicht in UTF-8</span><div class="workspace-section">
+        <div class="pg">
+          <div class="pg-top"><div class="topbar-page"><h1>Importe</h1><p>Portfolio-Performance-Exporte (CSV oder JSON) als Stapel importieren.</p></div></div>
+          <div class="workspace-page">
+            <nav class="area-tabs" data-scroll-start data-scroll-end aria-label="Bereichs-Tabs">
+              <a class="area-tab"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-hist"/></svg></span><span class="area-tab__label" data-label="Historie">Historie</span></a>
+              <a class="area-tab is-active" aria-current="page"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-up"/></svg></span><span class="area-tab__label" data-label="Import">Import</span></a>
+            </nav>
+            <p class="alert-error" role="alert">Die Datei ist nicht in UTF-8 kodiert. Abhilfe: in Portfolio Performance neu exportieren und die Datei ablegen, ohne sie vorher in einer Tabellenkalkulation zu speichern.<i class="pin a">1</i></p>
+            <div class="stack">
+              <form class="workspace-section import-drop-zone">
+                <svg class="import-drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M5 19h14"/></svg>
+                <h2>Portfolio-Performance-Export hier ablegen</h2>
+                <p class="muted">CSV oder JSON v1 · max. 20 MB · vor der Bestätigung wird nichts gespeichert</p>
+                <button type="button" class="button-primary">Datei auswählen<i class="pin a">2</i></button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <ol class="notes pins">
+        <li><i class="pin a">1</i><b>Ein benannter Dateifehler, im Band, das es gibt.</b> Der Satz nennt den Befund und die Abhilfe, ohne die Leserin anzusprechen (EXPERIENCE.md → Voice and Tone). Die Datei wird nicht geparkt, also gibt es nichts, woran ein Neuaufbau erneut scheitern könnte.</li>
+        <li><i class="pin a">2</i><b>Die Seite bleibt bedienbar.</b> Das Ablagefeld nimmt sofort die nächste Datei; die Meldung verschwindet mit dem nächsten Parse, wie heute jede Meldung in <code>@error</code>.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:22px">
+    <div class="col">
+      <div class="mock-frame mock-before"><span class="mock-tag">Vorher · jeder weitere Aufruf von „Import“ (Wertpapier ohne Name und ISIN)</span><div class="workspace-section">
+        <div class="browser">
+          <div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="url">localhost:4000/imports</span></div>
+          <div class="vp plain">Internal Server Error<i class="pin b">3</i></div>
+        </div>
+        <p class="aside-ink">Der Text ist der ganze Körper der Antwort: <code>ErrorView.render("500.html")</code>, ohne Layout und ohne Stylesheet.</p>
+      </div></div>
+      <ol class="notes pins">
+        <li><i class="pin b">3</i><b>Die ganze Seite ist weg.</b> Beim Wertpapier ohne Name und ISIN scheitert schon das erste Zeichnen der geparkten Vorschau; nach dem Neuladen steht unter <code>/imports</code> nur noch dieser Satz, bis die geparkte Vorschau verfällt. „Verwerfen“ ist nicht erreichbar. Bei der nicht in UTF-8 kodierten Datei zeigt das Neuladen die Vorschau, aber keine Schaltfläche darin reagiert.</li>
+      </ol>
+    </div>
+
+    <div class="col">
+      <div class="mock-frame mock-after"><span class="mock-tag">Nachher · Wertpapier ohne Name und ISIN</span><div class="workspace-section">
+        <div class="pg">
+          <div class="pg-top"><div class="topbar-page"><h1>Importe</h1><p>Portfolio-Performance-Exporte (CSV oder JSON) als Stapel importieren.</p></div></div>
+          <div class="workspace-page">
+            <nav class="area-tabs" data-scroll-start data-scroll-end aria-label="Bereichs-Tabs">
+              <a class="area-tab"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-hist"/></svg></span><span class="area-tab__label" data-label="Historie">Historie</span></a>
+              <a class="area-tab is-active" aria-current="page"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-up"/></svg></span><span class="area-tab__label" data-label="Import">Import</span></a>
+            </nav>
+            <section class="workspace-section pad">
+              <h2 style="margin:0">Übersicht</h2>
+              <p class="muted" style="margin:0">Quellformat: CSV</p>
+              <div class="import-stats" style="margin:0">
+                <div class="import-stat-card"><span class="label">Einträge</span><span class="value">412</span></div>
+                <div class="import-stat-card"><span class="label">Wertpapiere</span><span class="value">12</span></div>
+                <div class="import-stat-card"><span class="label">Verrechnungskonten</span><span class="value">3</span></div>
+                <div class="import-stat-card"><span class="label">Depots</span><span class="value">2</span></div>
+                <div class="import-stat-card warning"><span class="label">Warnungen<i class="pin a">3</i></span><span class="value">1</span></div>
+              </div>
+              <h3 style="margin:0">Anzahl pro Art</h3>
+              <ul class="kind-chips" style="margin:0">
+                <li class="kind-chip"><span class="name">Kauf</span><span class="count">208</span></li>
+                <li class="kind-chip"><span class="name">Einlage</span><span class="count">42</span></li>
+                <li class="kind-chip"><span class="name">Dividende</span><span class="count">131</span></li>
+                <li class="kind-chip"><span class="name">Verkauf</span><span class="count">31</span></li>
+              </ul>
+              <section class="import-warning-box" aria-label="Parser-Warnungen" style="margin:0">
+                <div class="import-warning-box__head">
+                  <h3>Parser-Warnungen</h3>
+                  <button type="button" class="icon-button" aria-label="Parser-Warnungen kopieren" title="Parser-Warnungen kopieren"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-copy"/></svg></button>
+                </div>
+                <pre>Zeile 214: Wertpapier ohne Name und ohne ISIN — Zeile nicht übernommen</pre>
+              </section>
+              <p class="elide">… Bucket-Tag, Zuordnungen, „Verwerfen“ und „Import bestätigen“ wie heute.</p>
+            </section>
+          </div>
+        </div>
+      </div></div>
+      <ol class="notes pins">
+        <li><i class="pin a">3</i><b>Eine Zeilenwarnung, wie jede andere Zeile, die der Parser nicht lesen kann.</b> Die Zeile zählt nicht zu den Einträgen (412 statt 413) und nicht zu den Wertpapieren; Karte und Kasten sind die, die heute „unbekannter PP-CSV-Typ“ zeigen. Die Vorschau wird erst geparkt, wenn sie einmal gezeichnet ist.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:22px">
+    <div class="mock-frame mock-after ph-frame" style="flex:none"><span class="mock-tag">Nachher · 390 px · zu viele Namen</span><div class="workspace-section" style="padding:16px">
+      <div class="phone">
+        <div class="ph-top"><div class="topbar-page"><h1>Importe</h1><p>Portfolio-Performance-Exporte (CSV oder JSON) als Stapel importieren.</p></div></div>
+        <div class="workspace-page">
+          <nav class="area-tabs" data-scroll-start data-scroll-end aria-label="Bereichs-Tabs">
+            <a class="area-tab"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-hist"/></svg></span><span class="area-tab__label" data-label="Historie">Historie</span></a>
+            <a class="area-tab is-active" aria-current="page"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-up"/></svg></span><span class="area-tab__label" data-label="Import">Import</span></a>
+          </nav>
+          <p class="alert-error" role="alert">Die Datei enthält zu viele unterschiedliche Konto-, Depot- oder Wertpapiernamen für eine Vorschau. Abhilfe: in Portfolio Performance kleinere Exporte anlegen, etwa je Konto oder Depot, und nacheinander importieren.</p>
+          <div class="stack">
+            <form class="workspace-section import-drop-zone">
+              <svg class="import-drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M5 19h14"/></svg>
+              <h2>Portfolio-Performance-Export hier ablegen</h2>
+              <p class="muted">CSV oder JSON v1 · max. 20 MB · vor der Bestätigung wird nichts gespeichert</p>
+              <button type="button" class="button-primary">Datei auswählen</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div></div>
+
+    <div class="notes" style="flex:1 1 420px;min-width:0">
+      <p class="cap">Die drei Meldungen</p>
+      <table class="t">
+        <thead><tr><th>Datei</th><th>Heute</th><th>Nachher</th></tr></thead>
+        <tbody>
+          <tr><td>nicht in UTF-8 kodiert</td><td>Seite hängt; nach dem Neuladen die Vorschau, ohne dass etwas reagiert</td><td>Dateifehler im Band: „Die Datei ist nicht in UTF-8 kodiert. Abhilfe: …“</td></tr>
+          <tr><td>zu viele unterschiedliche Namen</td><td>die Vorschau wird so groß, dass der Tab hängt</td><td>Dateifehler im Band: „Die Datei enthält zu viele unterschiedliche Konto-, Depot- oder Wertpapiernamen …“</td></tr>
+          <tr><td>Wertpapier ohne Name und ISIN</td><td>Absturz; „Import“ zeigt nur „Internal Server Error“, bis die geparkte Vorschau verfällt</td><td>Zeilenwarnung „Zeile N: Wertpapier ohne Name und ohne ISIN — Zeile nicht übernommen“; der Rest importiert</td></tr>
+        </tbody>
+      </table>
+      <p><b>Bei 390 px</b> bricht das Band in der Breite der Seite um, mit 16 px Rand wie jedes Band in <code>.workspace-page</code>; das Ablagefeld darunter bleibt, wie es ist.</p>
+      <p><b>Die Meldung nennt keine Zahl.</b> Sie sagt, <em>was</em> zu viel ist, und wie ein Export aussieht, der passt. Die Grenze selbst liegt weit über jedem gewöhnlichen Export und steht in keinem Text der Oberfläche.</p>
+      <p class="u-muted" style="font-size:12px">Bleibt: „Datei zu groß.“ und „Dateityp nicht erlaubt.“ im Ablagefeld (Upload-Fehler vor dem Parse), die bestehenden Parse-Meldungen im Band, „Verwerfen“ und die Vorschau selbst.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 2 · RESEARCH-LOG ============================ -->
+<section class="mock-board">
+  <h2>2 · Research-Log — ein Stichtag in der Zukunft <small>S6 · Triage F44 · <code>securities_live.ex</code>, <code>research_tab_panel/1</code></small></h2>
+  <p class="mock-note">Ein Tippfehler im Jahr: Die Invalidierungsprüfung vom 2026-09-18 wird mit „2027-09-18“ angehängt. Heute nimmt das Log den Eintrag an — und weil es nur anhängt, bleibt er. Nachher lehnt der Changeset einen Stichtag nach dem heutigen Tag ab, und das Formular zeigt es in seiner bestehenden Fehlerliste (<code>.research-entry-form__errors</code>) mit dem Satz „Eintrag konnte nicht angehängt werden.“ im Ergebnisplatz über der Liste. Heute ist erlaubt.</p>
+
+  <div class="mock-row">
+    <div class="col">
+      <div class="mock-frame mock-before"><span class="mock-tag">Vorher · angehängt</span>
+        <div class="stage">
+          <div class="inline-result" data-role="action-result"><div role="status" class="inline-result__region">
+            <div class="data-note data-note--note">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-note"/></svg></span>
+              <span class="data-note__word">Hinweis</span>
+              <div class="data-note__body">Eintrag angehängt.<i class="pin b">1</i> <button type="button" class="inline-result__dismiss" aria-label="Schließen">&times;</button></div>
+            </div>
+          </div></div>
+          <aside class="detail-pane" aria-label="Ausgewähltes Wertpapier">
+            <header class="detail-pane-head">
+              <div class="detail-pane-head__title">
+                <span class="security-logo security-logo--lg security-logo--initial">K</span>
+                <div><h2>Kestrel Industrial Group NV</h2><p class="detail-pane-sub">XS0000000004 · KIG · EUR · Letzter 42,10 (2026-09-23)</p></div>
+              </div>
+              <div class="detail-pane-head__actions">
+                <button type="button" class="button-ghost" aria-label="Stammdaten bearbeiten">Bearbeiten</button>
+                <button type="button" class="button-ghost" title="Aktiensplit für dieses Wertpapier erfassen">Split erfassen</button>
+                <span class="icon-button" aria-label="Maximieren"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-max"/></svg></span>
+                <span class="icon-button" aria-label="Detail schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-x"/></svg></span>
+              </div>
+            </header>
+            <nav class="detail-pane-tabs" role="tablist" aria-label="Wertpapier-Detail-Tabs">
+              <button type="button" role="tab" class="detail-pane-tab">Übersicht</button>
+              <button type="button" role="tab" class="detail-pane-tab">Diagramm</button>
+              <button type="button" role="tab" class="detail-pane-tab">Transaktionen</button>
+              <button type="button" role="tab" class="detail-pane-tab">Trades</button>
+              <button type="button" role="tab" class="detail-pane-tab">Kurse</button>
+              <button type="button" role="tab" class="detail-pane-tab">Bestände</button>
+              <button type="button" role="tab" class="detail-pane-tab">Klassifizierungen</button>
+              <button type="button" role="tab" class="detail-pane-tab is-active" aria-selected="true">Research</button>
+              <button type="button" role="tab" class="detail-pane-tab">Termine</button>
+            </nav>
+            <section class="detail-tab-panel detail-tab-panel--research" role="tabpanel">
+              <p class="detail-tab-hint">Datierte, belegte Einträge zu diesem Wertpapier. Einträge werden nie geändert oder entfernt; ein falscher Befund wird durch einen Widerruf zurückgezogen, der ihn ersetzt, und beide bleiben sichtbar.</p>
+              <section class="research-thesis" aria-label="Thesenstand">
+                <div class="research-thesis__head"><h3>These</h3><span class="badge badge--thesis-intact">Intakt</span></div>
+                <p class="research-thesis__text">Der Auftragsbestand deckt knapp zwei Jahresumsätze; die Marge hält trotz höherer Materialkosten.</p>
+                <dl class="research-thesis__facts">
+                  <div><dt>Überzeugung</dt><dd>Mittel</dd></div>
+                  <div><dt>Invalidierungsbedingung</dt><dd>Auftragsbestand fällt unter einen Jahresumsatz</dd></div>
+                  <div><dt>Zeitstopp</dt><dd>30.06.2027</dd></div>
+                  <div><dt>Stichtag</dt><dd>14.05.2026</dd></div>
+                  <div><dt>Zuletzt geprüft<i class="pin b">3</i></dt><dd>18.09.2027 · Operator</dd></div>
+                  <div><dt>Abgeleitet aus</dt><dd>#9</dd></div>
+                </dl>
+              </section>
+              <form class="research-entry-form" aria-label="Eintrag anhängen">
+                <h3>Eintrag anhängen</h3>
+                <div class="research-entry-form__grid">
+                  <label><span>Art</span><select><option selected>Beleg</option></select></label>
+                  <label><span>Quellenqualität</span><select><option selected>Primärquelle</option></select></label>
+                  <label><span>Stichtag</span><input type="text" placeholder="YYYY-MM-DD" maxlength="10" value="2026-09-24"></label>
+                  <label><span>Ersetzt</span><select><option selected>— nichts —</option></select></label>
+                  <label class="research-entry-form__full"><span>Eintrag</span><textarea rows="3"></textarea></label>
+                  <label class="research-entry-form__full"><span>Quellenlink</span><input type="url" inputmode="url" value=""></label>
+                  <label><span>Gültig bis</span><input type="text" placeholder="YYYY-MM-DD" maxlength="10"></label>
+                </div>
+                <button type="submit" class="button">Eintrag anhängen</button>
+              </form>
+              <ol class="research-timeline" aria-label="Research-Zeitleiste">
+                <li class="research-entry research-entry--invalidation_check">
+                  <div class="research-entry__head"><span class="badge badge--kind-invalidation_check">Invalidierungsprüfung</span><span class="badge badge--quality-primary">Primärquelle</span><span class="research-entry__meta">#15 · 18.09.2027 · Operator<i class="pin b">2</i></span></div>
+                  <p class="research-entry__body">Halbjahreszahlen gelesen: Auftragsbestand stabil, Bedingung nicht erreicht.</p>
+                </li>
+                <li class="research-entry research-entry--invalidation_check">
+                  <div class="research-entry__head"><span class="badge badge--kind-invalidation_check">Invalidierungsprüfung</span><span class="badge badge--quality-primary">Primärquelle</span><span class="research-entry__meta">#14 · 02.09.2026 · Operator</span></div>
+                  <p class="research-entry__body">Auftragsbestand geprüft: deckt weiter knapp zwei Jahresumsätze.</p>
+                </li>
+              </ol>
+            </section>
+          </aside>
+        </div>
+      </div>
+      <ol class="notes pins">
+        <li><i class="pin b">1</i><b>Angenommen, ohne ein Wort.</b> Das Datum ist gültig geformt, also gilt es. Das Formular steht danach wieder auf „Beleg“ und dem heutigen Tag; nichts darin erinnert an das Jahr, das eben gespeichert wurde.</li>
+        <li><i class="pin b">2</i><b>Der Eintrag führt die Zeitleiste an</b> — sie ist nach Stichtag sortiert — und bleibt dort bis zu diesem Tag. Entfernen geht nicht; ein Widerruf von heute sortiert <em>unter</em> ihm ein.</li>
+        <li><i class="pin b">3</i><b>„Zuletzt geprüft“ liegt ein Jahr voraus.</b> Jede Lesestelle, die nach ungeprüften Positionen sucht, hält diesen Titel so lange für frisch geprüft.</li>
+      </ol>
+    </div>
+
+    <div class="col">
+      <div class="mock-frame mock-after"><span class="mock-tag">Nachher · abgelehnt</span>
+        <div class="stage">
+          <div class="inline-result" data-role="action-result"><div role="alert" class="inline-result__region">
+            <div class="data-note data-note--problem">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-prob"/></svg></span>
+              <span class="data-note__word">Problem</span>
+              <div class="data-note__body">Eintrag konnte nicht angehängt werden. <button type="button" class="inline-result__dismiss" aria-label="Schließen">&times;</button></div>
+            </div>
+          </div></div>
+          <aside class="detail-pane" aria-label="Ausgewähltes Wertpapier">
+            <header class="detail-pane-head">
+              <div class="detail-pane-head__title">
+                <span class="security-logo security-logo--lg security-logo--initial">K</span>
+                <div><h2>Kestrel Industrial Group NV</h2><p class="detail-pane-sub">XS0000000004 · KIG · EUR · Letzter 42,10 (2026-09-23)</p></div>
+              </div>
+              <div class="detail-pane-head__actions">
+                <button type="button" class="button-ghost" aria-label="Stammdaten bearbeiten">Bearbeiten</button>
+                <button type="button" class="button-ghost" title="Aktiensplit für dieses Wertpapier erfassen">Split erfassen</button>
+                <span class="icon-button" aria-label="Maximieren"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-max"/></svg></span>
+                <span class="icon-button" aria-label="Detail schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-x"/></svg></span>
+              </div>
+            </header>
+            <nav class="detail-pane-tabs" role="tablist" aria-label="Wertpapier-Detail-Tabs">
+              <button type="button" role="tab" class="detail-pane-tab">Übersicht</button>
+              <button type="button" role="tab" class="detail-pane-tab">Diagramm</button>
+              <button type="button" role="tab" class="detail-pane-tab">Transaktionen</button>
+              <button type="button" role="tab" class="detail-pane-tab">Trades</button>
+              <button type="button" role="tab" class="detail-pane-tab">Kurse</button>
+              <button type="button" role="tab" class="detail-pane-tab">Bestände</button>
+              <button type="button" role="tab" class="detail-pane-tab">Klassifizierungen</button>
+              <button type="button" role="tab" class="detail-pane-tab is-active" aria-selected="true">Research</button>
+              <button type="button" role="tab" class="detail-pane-tab">Termine</button>
+            </nav>
+            <section class="detail-tab-panel detail-tab-panel--research" role="tabpanel">
+              <p class="detail-tab-hint">Datierte, belegte Einträge zu diesem Wertpapier. Einträge werden nie geändert oder entfernt; ein falscher Befund wird durch einen Widerruf zurückgezogen, der ihn ersetzt, und beide bleiben sichtbar.</p>
+              <section class="research-thesis" aria-label="Thesenstand">
+                <div class="research-thesis__head"><h3>These</h3><span class="badge badge--thesis-intact">Intakt</span></div>
+                <p class="research-thesis__text">Der Auftragsbestand deckt knapp zwei Jahresumsätze; die Marge hält trotz höherer Materialkosten.</p>
+                <dl class="research-thesis__facts">
+                  <div><dt>Überzeugung</dt><dd>Mittel</dd></div>
+                  <div><dt>Invalidierungsbedingung</dt><dd>Auftragsbestand fällt unter einen Jahresumsatz</dd></div>
+                  <div><dt>Zeitstopp</dt><dd>30.06.2027</dd></div>
+                  <div><dt>Stichtag</dt><dd>14.05.2026</dd></div>
+                  <div><dt>Zuletzt geprüft<i class="pin a">3</i></dt><dd>02.09.2026 · Operator</dd></div>
+                  <div><dt>Abgeleitet aus</dt><dd>#9</dd></div>
+                </dl>
+              </section>
+              <form class="research-entry-form" aria-label="Eintrag anhängen">
+                <h3>Eintrag anhängen</h3>
+                <div class="research-entry-form__grid">
+                  <label><span>Art</span><select><option selected>Invalidierungsprüfung</option></select></label>
+                  <label><span>Quellenqualität</span><select><option selected>Primärquelle</option></select></label>
+                  <label><span>Stichtag<i class="pin a">2</i></span><input type="text" placeholder="YYYY-MM-DD" maxlength="10" value="2027-09-18"></label>
+                  <label><span>Ersetzt</span><select><option selected>— nichts —</option></select></label>
+                  <label class="research-entry-form__full"><span>Eintrag</span><textarea rows="3">Halbjahreszahlen gelesen: Auftragsbestand stabil, Bedingung nicht erreicht.</textarea></label>
+                  <label class="research-entry-form__full"><span>Quellenlink</span><input type="url" inputmode="url" value=""></label>
+                  <label><span>Gültig bis</span><input type="text" placeholder="YYYY-MM-DD" maxlength="10"></label>
+                </div>
+                <ul class="research-entry-form__errors" role="alert">
+                  <li>Stichtag: darf nicht in der Zukunft liegen<i class="pin a">1</i></li>
+                </ul>
+                <button type="submit" class="button">Eintrag anhängen</button>
+              </form>
+              <ol class="research-timeline" aria-label="Research-Zeitleiste">
+                <li class="research-entry research-entry--invalidation_check">
+                  <div class="research-entry__head"><span class="badge badge--kind-invalidation_check">Invalidierungsprüfung</span><span class="badge badge--quality-primary">Primärquelle</span><span class="research-entry__meta">#14 · 02.09.2026 · Operator</span></div>
+                  <p class="research-entry__body">Auftragsbestand geprüft: deckt weiter knapp zwei Jahresumsätze.</p>
+                </li>
+                <li class="research-entry research-entry--evidence">
+                  <div class="research-entry__head"><span class="badge badge--kind-evidence">Beleg</span><span class="badge badge--quality-secondary_multi">Mehrere Sekundärquellen</span><span class="research-entry__meta">#13 · 21.08.2026 · Operator</span></div>
+                  <p class="research-entry__body">Neuer Rahmenvertrag mit einem Schienenbetreiber gemeldet.</p>
+                </li>
+              </ol>
+            </section>
+          </aside>
+        </div>
+      </div>
+      <ol class="notes pins">
+        <li><i class="pin a">1</i><b>Die Fehlerliste, die das Formular hat</b>, im Muster „Feld: Meldung“. Die Meldung „darf nicht in der Zukunft liegen“ kommt in <code>errors.po</code> neben „darf nicht leer sein“; „Der Stichtag darf nicht in der Zukunft liegen.“ beim Split ist dieselbe Regel in Satzform. <b>Heute übersetzt diese Liste die Meldung nicht</b>: Auf der deutschen Oberfläche steht dort „Eintrag: can't be blank“. Die Story führt sie darum über <code>errors.po</code>, wie es das Buchungsformular und der Regel-Dialog schon tun; sonst stünde hier „Stichtag: must not be in the future“.</li>
+        <li><i class="pin a">2</i><b>Nichts wird angehängt, und das Getippte bleibt stehen</b>: Das Jahr ist zu korrigieren, nicht der ganze Eintrag neu zu schreiben. <b>Das ist zu bauen, nicht geschenkt.</b> Nach einer Ablehnung setzt LiveView heute jedes Feld ohne Fokus auf den Wert, den der Server zeichnet: den Stichtag auf heute, den Eintrag auf leer. Die Story gibt dem Formular die abgeschickten Werte zurück, und ein Test hält das fest.</li>
+        <li><i class="pin a">3</i><b>Zeitleiste und These unverändert.</b> #14 führt weiter, „Zuletzt geprüft“ bleibt der 02.09.2026.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:14px">
+    <div class="notes" style="flex:1 1 100%">
+      <p class="cap">Bleibt, wie es ist</p>
+      <ul>
+        <li><b>„Gültig bis“ und „Zeitstopp“ dürfen in der Zukunft liegen</b> — dafür sind sie da. Die Regel gilt nur für den Stichtag, die Aussage „so war es an diesem Tag“.</li>
+        <li>Die Datumsfelder bleiben ISO-Texteingaben (UX-DR19); das Feld wird nicht rot umrandet, weil dieses Formular seine Fehler heute nur in der Liste zeigt. Die Meldung ändert daran nichts.</li>
+        <li>API und MCP lehnen denselben Stichtag mit derselben Regel ab; dort gibt es nichts zu zeichnen.</li>
+        <li>Ein schon gespeicherter Eintrag mit Stichtag in der Zukunft bleibt stehen, denn das Log hängt nur an. Lesestellen, die daraus ein Prüfdatum ableiten, nehmen bei ihm den Tag des Anlegens; der Eintrag selbst zeigt weiter sein Datum. Nicht gezeichnet.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== 3 · RISIKO ============================== -->
+<section class="mock-board">
+  <h2>3 · Vermögen → Risiko — ein Paar, das sich nicht rechnen lässt <small>S3 · Triage F73 (und F26) · S4 · Triage F72 · <code>risk_live.ex</code></small></h2>
+  <p class="mock-note">Unplausible gespeicherte Kurse oder Wechselkurse können einen Rechenschritt der Korrelation heute scheitern lassen — und mit ihm die ganze Seite, samt „Eigene Regeln“. Nachher liefert der Schritt für dieses Paar keinen Wert, und die Seite zeigt das Paar so, wie sie heute schon ein Paar zeigt, dessen eine Seite sich nie bewegt hat: „nicht berechenbar“ mit seiner Beobachtungszahl. Neue unplausible Kurse nimmt die App nachher gar nicht erst an (F26); dieser Zustand gilt den Zeilen, die schon gespeichert sind. Dazu nennt die Grundlagenzeile, über wie viele Titel die Korrelationen laufen.</p>
+
+  <div class="mock-row">
+    <div class="col" style="flex:0 0 280px">
+      <div class="mock-frame mock-before"><span class="mock-tag">Vorher · /risk</span><div class="workspace-section">
+        <div class="browser">
+          <div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="url">localhost:4000/risk</span></div>
+          <div class="vp plain" style="height:260px">Internal Server Error<i class="pin b">1</i></div>
+        </div>
+      </div></div>
+      <ol class="notes pins">
+        <li><i class="pin b">1</i><b>Die Seite rechnet beim Öffnen und scheitert beim Öffnen.</b> Übrig bleibt der Satz der Fehlerseite, ohne Menü, ohne Rückweg. Die eigenen Regeln, die Kennzahlen und die größten Einzelpositionen sind nicht zu sehen, solange die Zeile gespeichert ist.</li>
+      </ol>
+    </div>
+
+    <div class="col" style="flex:1 1 700px">
+      <div class="mock-frame mock-after"><span class="mock-tag">Nachher · /risk, Ansicht „Alles“, Korrelationen aufgeklappt</span><div class="workspace-section">
+        <div class="pg">
+          <div class="pg-top"><div class="topbar-page"><h1>Risiko</h1><p>Konzentration und Schwankung · Ansicht: Alles</p></div></div>
+          <div class="workspace-page">
+            <nav class="area-tabs" data-scroll-start data-scroll-end aria-label="Bereichs-Tabs">
+              <a class="area-tab"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17 9 11l4 4 8-8"/></svg></span><span class="area-tab__label" data-label="Bestände">Bestände</span></a>
+              <a class="area-tab"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12A9 9 0 1 1 12 3v9Z"/><path d="M21 12a9 9 0 0 0-9-9v9h9Z"/></svg></span><span class="area-tab__label" data-label="Allokation &amp; Ziele">Allokation &amp; Ziele</span></a>
+              <a class="area-tab"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20V8M9 20V4M15 20v-8M21 20v-5"/></svg></span><span class="area-tab__label" data-label="Cashflow">Cashflow</span></a>
+              <a class="area-tab"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg></span><span class="area-tab__label" data-label="Snapshots">Snapshots</span></a>
+              <a class="area-tab"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6"/><path d="M9 17h6"/></svg></span><span class="area-tab__label" data-label="Steuern">Steuern</span></a>
+              <a class="area-tab is-active" aria-current="page"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-3.5 7-9V5.5L12 3 5 5.5V12c0 5.5 7 9 7 9Z"/></svg></span><span class="area-tab__label" data-label="Risiko">Risiko</span></a>
+            </nav>
+            <section class="workspace-section pad"><p class="elide">… „Eigene Regeln“ wie heute — nachher wieder erreichbar.</p></section>
+            <section class="workspace-section kpi-band pad" aria-labelledby="m-title">
+              <header class="section-head" style="margin:0"><h2 id="m-title">Kennzahlen des Portfolios</h2></header>
+              <div class="kpi-band__support">
+                <article class="stat stat--compact"><span>Volatilität, annualisiert</span><strong>13,8<small class="value-suffix">%</small></strong><small class="stat__sub">1 Jahr · 251 Beobachtungen · min. 60</small></article>
+                <article class="stat stat--compact"><span>Max. Rückgang</span><strong><span class="is-negative">−11,4</span><small class="value-suffix">%</small></strong><small class="stat__sub">12.03.2026 → 07.04.2026 · erholt 19.06.2026</small></article>
+                <article class="stat stat--compact"><span>Risikoadjustierte Rendite</span><strong>0,62</strong><small class="stat__sub">risikofreier Satz 2,00 % · Rendite je Risikoeinheit</small></article>
+                <article class="stat stat--compact"><span>Korrelationen</span><strong>0,78</strong><small class="stat__sub">höchste von 44 Paaren · 1 Jahr<i class="pin a">2</i></small></article>
+              </div>
+              <p class="summary-basis" style="margin:0">Grundlage: die um Zahlungen bereinigten täglichen Renditefaktoren der TTWROR-Kette, in EUR, annualisiert mit √365 — eine Einzahlung ist keine Rendite. Ein Tag ohne Renditebasis liefert keine Beobachtung, nie eine Null. Korrelationen rechnen zuerst in EUR um <span class="is-new">und laufen über die 10 größten Einzelpositionen</span>.<i class="pin a">3</i></p>
+            </section>
+            <section class="workspace-section pad"><p class="elide">… „Größte Einzelpositionen · allgemeine Schwellen, keine eigenen Regeln“ (10 Zeilen) und „Klumpenrisiko (HHI)“ wie heute.<i class="pin a">4</i></p></section>
+            <section class="workspace-section pad" aria-labelledby="c-title">
+              <header class="section-head" style="margin:0"><h2 id="c-title">Anlageklassen-Obergrenzen</h2></header>
+              <p class="empty-state" style="margin:0">Keine Obergrenze konfiguriert — es gibt nichts zu überschreiten. Obergrenzen werden pro Abfrage über die API gesetzt.</p>
+              <details class="perf-table-disclosure" open>
+                <summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg>Korrelationen der größten Positionen anzeigen</summary>
+                <p class="hint">Pearson-Korrelation der Tagesrenditen über ein Jahr, nur an Tagen mit Kurs für beide; mindestens 60 gemeinsame Beobachtungen je Paar.</p>
+                <div class="data-table-wrapper">
+                  <table class="data-table risk-fit-table">
+                    <thead><tr><th>Paar</th><th class="num">Korrelation</th><th class="num">Beobachtungen</th></tr></thead>
+                    <tbody>
+                      <tr><td>Meridian Global Equity ETF · Nordic Timber Holdings AB</td><td class="num">0,78</td><td class="num">249 / 60</td></tr>
+                      <tr><td>Kestrel Industrial Group NV · Meridian Global Equity ETF</td><td class="num">0,64</td><td class="num">250 / 60</td></tr>
+                      <tr><td>Kestrel Industrial Group NV · Harbor Light Utilities SE<i class="pin a">1</i></td><td class="num">nicht berechenbar</td><td class="num">248 / 60</td></tr>
+                      <tr><td>Harbor Light Utilities SE · Nordic Timber Holdings AB</td><td class="num">0,21</td><td class="num">247 / 60</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p class="elide" style="margin-top:6px">… 41 weitere Paare.</p>
+              </details>
+            </section>
+          </div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:14px">
+    <div class="notes" style="flex:1 1 520px">
+      <p class="cap">Nachher</p>
+      <ol class="pins">
+        <li><i class="pin a">1</i><b>„nicht berechenbar“, kein Gedankenstrich.</b> Die Zelle nutzt, was die Tabelle für einen fehlenden Wert heute schon zeigt; ein Paar, dessen eine Seite sich nie bewegt hat, steht genauso da. <code>DESIGN.md</code> → Risiko, Punkt 2 schließt auf dieser Seite den Strich aus. Die Beobachtungszahl bleibt stehen: Sie zeigt, dass die Daten nicht zu knapp sind.</li>
+        <li><i class="pin a">2</i><b>Die Karte zählt nur berechnete Paare</b> — „höchste von 44 Paaren“ bei 45 Paaren aus zehn Titeln —, wie sie es heute tut.</li>
+        <li><i class="pin a">3</i><b>Die Grundlagenzeile nennt die Zahl der korrelierten Titel.</b> Die Zahl kommt aus der Antwort (wie viele Titel tatsächlich korreliert wurden), nicht aus einer Konstante der Seite; so bleibt der Satz wahr, auch wenn die Grenze für die Korrelation unter der Länge der Liste liegt. Die Zeile ist schon der Ort, an dem die Seite ihre Grenzen nennt (UX-DR26).</li>
+        <li><i class="pin a">4</i><b>Die Liste „Größte Einzelpositionen“ ändert sich nicht.</b> Die Seite liest die Standardlänge der Liste; die neue Obergrenze gilt Abfragen über API und MCP, die eine längere Liste verlangen, und steht nicht auf dieser Seite.</li>
+      </ol>
+    </div>
+    <div class="notes" style="flex:1 1 360px">
+      <p class="cap">Offen, nicht Teil von E25</p>
+      <p>Die Zeile sagt nicht, <em>warum</em> das Paar nicht berechenbar ist — das tut sie heute auch beim Paar ohne Bewegung nicht. Ein Grund je Paar (wie „undefiniert — Volatilität ist 0“ auf der Karte) wäre ein eigener Punkt für den Backlog, keine Härtung.</p>
+      <p class="cap" style="margin-top:6px">Für die Story, nicht gezeichnet</p>
+      <p>Derselbe Rechenschritt steckt auch in der Volatilität. Liefert die Härtung dort je keinen Wert, bliebe die Karte leer, denn nur „Risikoadjustierte Rendite“ hat heute einen Text für „kein Wert“. Dann gilt Punkt 2 der Risiko-Anatomie auch dort: „nicht berechenbar“ mit der Beobachtungszahl, nie eine leere Karte.</p>
+    </div>
+  </div>
+</section>
+
+<!-- =========================== 4 · FEHLERSEITEN =========================== -->
+<section class="mock-board">
+  <h2>4 · Fehlerseiten im Browser — jeder Status, nicht nur 404 und 500 <small>S2 · Triage F68 · <code>error_view.ex</code></small></h2>
+  <p class="mock-note">Die Fehlerseite der App ist ein einzelner Satz ohne Layout: „Not Found“ für 404, „Internal Server Error“ für 500 (<code>render_errors … layout: false</code>). Für jeden anderen Status hat die Ansicht keine Klausel; das Zeichnen der Fehlerseite scheitert selbst, und der Browser bekommt eine leere Antwort mit Status 500. Das trifft etwa ein Anmeldeformular, das offen stand, bis die Sitzung abgelaufen war: „Anmelden“ schickt ein Formular, zu dem es keine Sitzung mehr gibt (403). Nachher trägt eine Klausel jeden Status, mit einer Statuszeile in der Sprache der Seite.</p>
+
+  <div class="mock-row">
+    <div class="col">
+      <div class="mock-frame mock-before"><span class="mock-tag">Vorher · „Anmelden“ nach abgelaufener Sitzung</span><div class="workspace-section">
+        <div class="step">
+          <div class="browser">
+            <div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="url">localhost:4000/login</span></div>
+            <main class="login-page at-board" aria-labelledby="l1">
+              <section class="login-card">
+                <p class="login-brand" aria-hidden="true">Portfolixir</p>
+                <h1 id="l1">Anmelden</h1>
+                <form class="login-form">
+                  <label for="p1">Passwort</label>
+                  <input type="password" id="p1" value="xxxxxxxxxx">
+                  <button type="submit" class="button-primary">Anmelden</button>
+                </form>
+                <nav class="locale-switcher login-locale" aria-label="Sprache"><a class="locale-link" hreflang="en">EN</a><a class="locale-link is-active" hreflang="de" aria-current="true">DE</a></nav>
+              </section>
+            </main>
+          </div>
+          <span class="arr" aria-hidden="true">→</span>
+          <div class="browser">
+            <div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="url">localhost:4000/login</span></div>
+            <div class="vp own" style="height:292px">
+              <div class="glyph"></div>
+              <h5>Diese Seite funktioniert nicht</h5>
+              <p>localhost kann diese Anfrage momentan nicht verarbeiten.</p>
+              <p class="code">HTTP ERROR 500<i class="pin b">1</i></p>
+              <span class="rl">Neu laden</span>
+            </div>
+          </div>
+        </div>
+        <p class="aside-ink">Rechts: die eigene Seite des Browsers (hier Chromium) für eine leere 500-Antwort — nichts davon kommt von der App. Firefox zeigt eine leere Seite.</p>
+      </div></div>
+      <ol class="notes pins">
+        <li><i class="pin b">1</i><b>Falscher Status, keine Antwort, verlorener Grund.</b> Aus einer abgelehnten Anfrage (403) wird ein Serverfehler (500) ohne Körper, und im Log steht der Fehler beim Zeichnen statt des ursprünglichen Grunds.</li>
+      </ol>
+    </div>
+
+    <div class="col">
+      <div class="mock-frame mock-after"><span class="mock-tag">Nachher · dieselbe Anfrage</span><div class="workspace-section">
+        <div class="step">
+          <div class="browser">
+            <div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="url">localhost:4000/login</span></div>
+            <main class="login-page at-board" aria-labelledby="l2">
+              <section class="login-card">
+                <p class="login-brand" aria-hidden="true">Portfolixir</p>
+                <h1 id="l2">Anmelden</h1>
+                <form class="login-form">
+                  <label for="p2">Passwort</label>
+                  <input type="password" id="p2" value="xxxxxxxxxx">
+                  <button type="submit" class="button-primary">Anmelden</button>
+                </form>
+                <nav class="locale-switcher login-locale" aria-label="Sprache"><a class="locale-link" hreflang="en">EN</a><a class="locale-link is-active" hreflang="de" aria-current="true">DE</a></nav>
+              </section>
+            </main>
+          </div>
+          <span class="arr" aria-hidden="true">→</span>
+          <div class="browser">
+            <div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="url">localhost:4000/login</span></div>
+            <div class="vp plain" style="height:292px">403 · Zugriff verweigert<i class="pin a">1</i></div>
+          </div>
+        </div>
+        <p class="aside-ink">Rechts: der ganze Körper der Antwort, Status 403, in der Darstellung, die der Browser einer Antwort ohne Stylesheet gibt — dieselbe wie heute bei 404 und 500.</p>
+      </div></div>
+      <ol class="notes pins">
+        <li><i class="pin a">1</i><b>Die Fehlerseite der App, mit dem richtigen Status.</b> Eine Klausel für jeden Status liefert Zahl und Statuszeile; der ursprüngliche Grund bleibt im Log. Zurück geht es wie bei jeder Fehlerseite mit „Zurück“ im Browser und neuem Laden der Anmeldeseite.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:22px">
+    <div class="col" style="flex:0 1 330px">
+      <div class="mock-frame mock-after"><span class="mock-tag">Nachher · 413, eine zu große Anfrage</span><div class="workspace-section">
+        <div class="browser">
+          <div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="url">localhost:4000/…</span></div>
+          <div class="vp plain" style="height:120px">413 · Anfrage zu groß<i class="pin a">2</i></div>
+        </div>
+      </div></div>
+      <ol class="notes pins">
+        <li><i class="pin a">2</i><b>Auch vor der Sprachwahl deutsch.</b> Eine zu große Anfrage scheitert im Endpoint, bevor der Router die Sprache setzt. Die Fehlerseite liest die Sprache darum selbst: Sprach-Cookie, dann Browsersprache, sonst Englisch.</li>
+      </ol>
+    </div>
+
+    <div class="notes" style="flex:1 1 560px;min-width:0">
+      <p class="cap">Die Statuszeilen</p>
+      <table class="t">
+        <thead><tr><th>Status</th><th>Anlass im Browser, zum Beispiel</th><th>Heute</th><th>Nachher (de)</th><th>Nachher (en)</th></tr></thead>
+        <tbody>
+          <tr><td class="v">400</td><td>eine Anfrage, die der Server nicht lesen kann</td><td>leere Antwort, Status 500</td><td>400 · Ungültige Anfrage</td><td>400 · Bad Request</td></tr>
+          <tr><td class="v">403</td><td>ein Formular nach abgelaufener Sitzung (Anmelden, Abmelden)</td><td>leere Antwort, Status 500</td><td>403 · Zugriff verweigert</td><td>403 · Forbidden</td></tr>
+          <tr><td class="v">404</td><td>eine unbekannte Adresse</td><td>Not Found</td><td>404 · Nicht gefunden</td><td>404 · Not Found</td></tr>
+          <tr><td class="v">406</td><td>ein Format, das die Adresse nicht liefert</td><td>leere Antwort, Status 500</td><td>406 · Format nicht verfügbar</td><td>406 · Not Acceptable</td></tr>
+          <tr><td class="v">413</td><td>eine Anfrage über der Größengrenze des Servers</td><td>leere Antwort, Status 500</td><td>413 · Anfrage zu groß</td><td>413 · Request Entity Too Large</td></tr>
+          <tr><td class="v">500</td><td>ein Fehler in der App</td><td>Internal Server Error</td><td>500 · Interner Fehler</td><td>500 · Internal Server Error</td></tr>
+        </tbody>
+      </table>
+      <div class="callout keep">
+        <h4>Eine Klausel, alle Status — auch 404 und 500</h4>
+        <p>Die beiden bestehenden Sätze laufen durch dieselbe Klausel und bekommen Zahl und Sprache; sonst stünde auf einer deutschen Instanz „Not Found“ neben „403 · Zugriff verweigert“. Die englische Statuszeile ist die übliche des Status; gettext übersetzt sie. Die JSON-Antwort der API behält ihre Form (<code>status</code>, <code>error</code>) und bleibt englisch.</p>
+      </div>
+      <div class="callout keep">
+        <h4>Offen, nicht Teil von E25</h4>
+        <p>Eine gestaltete Fehlerseite — Layout, ein Satz zur Abhilfe, ein Link zurück zur Anmeldung — wäre eine eigene Entscheidung. Dieser Befund bringt nur den richtigen Status und eine lesbare Zeile.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  // Drawing aid: the pane's tab row overflows at this width, and the live row
+  // rests with the active tab in view. Scroll each drawn row to its active tab.
+  document.querySelectorAll('.detail-pane-tabs').forEach(function (row) {
+    var active = row.querySelector('.is-active');
+    if (active) row.scrollLeft = active.offsetLeft - row.offsetLeft - 140;
+  });
+</script>
+</body>
+</html>

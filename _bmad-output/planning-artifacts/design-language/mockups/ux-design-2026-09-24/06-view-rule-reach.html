@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Eine Regel, die eine Ablehnung nennt, erreichbar machen (#871, ADR-0049 §8–§9, Pick G6)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  /* Board chrome only. Everything inside the frames uses the live classes of
+     buckets_live.ex (views list, .alert-error band), risk_live.ex (area tabs,
+     .policy-findings-table), view_switcher.ex and the securities
+     delete-blocked dialog (.modal.confirm-delete-blocked). */
+  .pg { border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg); overflow: hidden; }
+  .pg-top { display: flex; align-items: center; gap: 10px; padding: 10px 18px; border-bottom: 1px solid var(--color-border); background: var(--color-bg-elevated); }
+  .pg-top .topbar-page p { white-space: normal; }
+  .pg .workspace-page, .phone .workspace-page { min-height: 0; }
+  .pg .area-tabs { padding: 0 18px; }
+  .mock-frame:not(.mock-before):not(.mock-after) > .mock-tag { display: block; padding: 4px 10px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); background: var(--color-bg-muted); }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .ann { margin: 8px 0 0; font-size: 11.5px; color: var(--mock-ink); max-width: 90ch; }
+  .ann code { font-size: 11px; }
+  .ann.is-missing { font-size: 12px; color: var(--color-danger); }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+  .side { flex: 1 1 300px; display: grid; gap: 10px; align-content: start; font-size: 12.5px; }
+  .side ol, .side ul { margin: 0; padding-left: 18px; }
+  .side li { margin: 0 0 6px; }
+  .side li + li { margin-top: 0; }
+  .side li code { white-space: nowrap; }
+  .halves { width: 100%; max-width: 1120px; border-collapse: collapse; font-size: 12.5px; background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+  .halves th, .halves td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--color-border); }
+  .halves th { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--mock-ink); background: var(--color-bg-muted); }
+  .halves tr:last-child td { border-bottom: 0; }
+  .halves td:first-child { font-weight: 700; white-space: nowrap; }
+  /* proposed (variant A and C): a link inside the message band or the
+     dialog's list reads as a link in the band's own colour — the rule
+     .data-note__body a already carries, so the links survive the alert-class
+     sweep into the data note unchanged. */
+  .alert-error a, .confirm-delete-blocked .modal-body a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+  /* the 390 px phone frames (drawn: the board renders at 1200, so the phone
+     and pointer:coarse rules of app.css are applied by hand here) */
+  .phone { width: 390px; border: 1px solid var(--color-border); border-radius: 18px; overflow: hidden; background: var(--color-bg); flex: none; }
+  .ph-top { padding: 10px 16px; border-bottom: 1px solid var(--color-border); background: var(--color-bg-elevated); }
+  .ph-top .topbar-page p { white-space: normal; }
+  .phone .workspace-section { padding: 16px; }
+  .phone .workspace-section--controls { padding-block: 0; }
+  .phone .workspace-page > .alert-error { margin: 12px 16px 0; }
+  .phone .area-tabs { padding: 0 8px; }
+  .phone .area-tab { min-height: 44px; }
+  .phone .section-head h2 { font-size: 16px; }
+  .phone .policy-findings-table .policy-col-line { display: none; }
+  .phone .policy-rule__line-sub { display: block; }
+  .phone .view-chip { min-height: 44px; padding: 8px 16px; }
+  .phone .row-actions__kebab { min-width: 44px; min-height: 44px; }
+  .phone .data-table-wrapper > .risk-fit-table { min-width: 0; width: 100%; }
+  .phone .risk-fit-table th, .phone .risk-fit-table td { white-space: normal; }
+  .view-switcher.is-new { outline-offset: 4px; }
+  .flow { font-size: 12px; color: var(--color-text-muted); margin: 0; }
+  .flow b { color: var(--color-text); }
+</style>
+</head>
+<body>
+
+<div class="pickbar"><b>Entscheidung G6 — offen.</b> #871 hat zwei Hälften. <b>Erreichbarkeit:</b> Das Nein beim Löschen einer Ansicht nennt Regeln, die auf „Risiko“ nicht zu finden sind. <b>Form:</b> Das Issue schlägt statt des Meldungsbands den Dialog „Kann nicht gelöscht werden“ vor (ADR-0049 §8–§9, Sprint-15-Board <code>ux-design-2026-09-23/06</code>). <b>A</b> das vorhandene Meldungsband verlinkt jede Regel auf „Risiko“ in der Ansicht, in der sie gilt; die Form bleibt das Band · <b>B</b> ein Ansichtsumschalter auf dem Reiter „Risiko“; die Form bleibt das Band · <b>C</b> dieselben Links wie A, im Dialog aus Sprint-15-Board 06. Empfehlung: <b>A</b>: schließt die Lücke genau dort, wohin die Meldung zeigt, ohne neues Element, und bleibt bei der Form, die Sprint-15-Board 06 für Ansichten angenommen hat. Mit A wird die Form-Hälfte von #871 mit Begründung abgelehnt (siehe C). Ein Kommentar mit dem Buchstaben auf der Planungs-PR entscheidet; ohne Kommentar gilt die Empfehlung. Alle Namen, Beträge, Kennzahlen und Daten sind erfunden.</div>
+
+<!-- ============================ HEUTE ============================ -->
+<section class="mock-board">
+  <h2>Heute — die Meldung schickt nach „Vermögen → Risiko“, dort steht die Regel nicht <small>der Befund aus #871</small></h2>
+  <p class="mock-note">Das Nein ist richtig und nennt die Regeln (gebaut nach Sprint-15-Board 06). Aber eine Regel gehört zu der Ansicht, in der sie gilt (ihr <em>Kontext</em>, ADR-0049 §1), und „Risiko“ zeigt nur die Regeln der gerade aktiven Ansicht. Einen Ansichtsumschalter hat „Risiko“ nicht; umschalten lässt sich nur auf „Bestände“ oder „Allokation &amp; Ziele“. Wer der Meldung folgt, landet in der gerade aktiven Ansicht, hier „Alles“, und findet zwei der drei genannten Regeln nicht.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before" style="flex:1 1 100%"><span class="mock-tag">Heute · /buckets, nach „Löschen“ in der Zeile „Spekulativ“ und OK auf „Diese Ansicht löschen?“</span><div class="workspace-section">
+      <div class="pg">
+        <div class="pg-top"><div class="topbar-page"><h1>Ansichten</h1><p>Gespeicherte Filter, die die Analysen eingrenzen, gebaut aus Bucket-Tags</p></div></div>
+        <div class="workspace-page">
+          <p class="alert-error" role="alert">Wird von eigenen Regeln gelesen: „Spielgeld klein halten“ (gilt), „Spekulativ breit streuen“ (gilt), „Alter Deckel Spekulativ“ (beendet). Eine Regel, die gegolten hat, behält ihren Bezug als Teil ihrer Geschichte; sie auf „Vermögen → Risiko“ zu beenden, stoppt ihre Auswertung.</p>
+          <section class="workspace-section">
+            <header class="section-head"><h2>Ansichten <details class="metric-tooltip metric-tooltip--inline"><summary aria-label="Über Ansichten">ⓘ</summary></details></h2><div class="section-head-controls"><p class="summary-basis">Gespeicherte Ein-/Ausschlussfilter über Buckets · gelten im Ansichtsumschalter auf Vermögen</p><button type="button" class="button-primary">+ Ansicht</button></div></header>
+            <ul class="bucket-list" role="list" style="margin-top:0">
+              <li class="bucket-list__item"><div class="bucket-list__main"><span class="bucket-list__name">Alles <span class="badge">Standard</span></span><span class="bucket-list__rule">Alle Depots, Verrechnungskonten und Positionen · keine Filter</span></div><span class="bucket-list__figures"><strong>186.400,00 EUR</strong> · 18 Positionen · 4 Konten</span></li>
+              <li class="bucket-list__item"><div class="bucket-list__main"><span class="bucket-list__name">Haushalt</span><span class="bucket-list__rule">Nur <span class="badge">Haushalt</span></span></div><span class="bucket-list__figures"><strong>24.650,00 EUR</strong> · 3 Positionen · 2 Konten</span><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></li>
+              <li class="bucket-list__item"><div class="bucket-list__main"><span class="bucket-list__name">Langfristig</span><span class="bucket-list__rule">Nur <span class="badge">Altersvorsorge</span></span></div><span class="bucket-list__figures"><strong>98.400,00 EUR</strong> · 9 Positionen · 2 Konten</span><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></li>
+              <li class="bucket-list__item"><div class="bucket-list__main"><span class="bucket-list__name">Spekulativ</span><span class="bucket-list__rule">Nur <span class="badge">Spielgeld</span></span></div><span class="bucket-list__figures"><strong>5.780,00 EUR</strong> · 4 Positionen · 1 Konto</span><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></li>
+            </ul>
+          </section>
+        </div>
+      </div>
+    </div></div>
+  </div>
+  <div class="mock-row" style="margin-top:16px">
+    <div class="mock-frame mock-before" style="flex:1 1 100%"><span class="mock-tag">Heute · /risk, aktive Ansicht „Alles“</span><div class="workspace-section">
+      <div class="pg">
+        <div class="pg-top"><div class="topbar-page"><h1>Risiko</h1><p>Konzentration und Schwankung · Ansicht: Alles</p></div></div>
+        <div class="workspace-page">
+          <nav class="area-tabs" data-scroll-start data-scroll-end aria-label="Bereichs-Tabs">
+            <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17 9 11l4 4 8-8"/></svg></span><span class="area-tab__label" data-label="Bestände">Bestände</span></a>
+            <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12A9 9 0 1 1 12 3v9Z"/><path d="M21 12a9 9 0 0 0-9-9v9h9Z"/></svg></span><span class="area-tab__label" data-label="Allokation &amp; Ziele">Allokation &amp; Ziele</span></a>
+            <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20V8M9 20V4M15 20v-8M21 20v-5"/></svg></span><span class="area-tab__label" data-label="Cashflow">Cashflow</span></a>
+            <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg></span><span class="area-tab__label" data-label="Snapshots">Snapshots</span></a>
+            <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6"/><circle cx="9" cy="11" r=".6"/><circle cx="12" cy="11" r=".6"/><circle cx="15" cy="11" r=".6"/><circle cx="9" cy="14" r=".6"/><circle cx="12" cy="14" r=".6"/><circle cx="15" cy="14" r=".6"/><path d="M9 17h6"/></svg></span><span class="area-tab__label" data-label="Steuern">Steuern</span></a>
+            <a class="area-tab is-active" href="#" aria-current="page"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-3.5 7-9V5.5L12 3 5 5.5V12c0 5.5 7 9 7 9Z"/></svg></span><span class="area-tab__label" data-label="Risiko">Risiko</span></a>
+          </nav>
+          <section class="workspace-section policy-rules">
+            <header class="section-head">
+              <h2>Eigene Regeln <span class="section-head__meta">· 1 verletzt · 0 nicht bestimmbar · 2 eingehalten</span></h2>
+              <button type="button" class="button-secondary">Regel anlegen</button>
+            </header>
+            <div class="data-table-wrapper">
+              <table class="data-table policy-findings-table risk-fit-table">
+                <thead><tr><th>Regel</th><th class="num">Gemessen</th><th class="num policy-col-line">Grenze</th><th>Stand</th></tr></thead>
+                <tbody>
+                  <tr><td><button type="button" class="link-button policy-rule__name">Einzeltitel höchstens 10 %</button><span class="policy-rule__words">Gewicht · Nordic Timber Holdings AB · Obergrenze · hart</span></td><td class="num">12,4&nbsp;%</td><td class="num policy-col-line">10,0&nbsp;%</td><td><span class="badge badge--danger">verletzt · +2,4&nbsp;Pp</span></td></tr>
+                  <tr><td><button type="button" class="link-button policy-rule__name">Spielgeld klein halten</button><span class="policy-rule__words">Gewicht · Ansicht „Spekulativ“ · Obergrenze · hart</span></td><td class="num">3,1&nbsp;%</td><td class="num policy-col-line">5,0&nbsp;%</td><td><span class="badge badge--neutral">eingehalten</span></td></tr>
+                  <tr><td><button type="button" class="link-button policy-rule__name">Barreserve</button><span class="policy-rule__words">Gewicht · Cash · Untergrenze · Warnung</span></td><td class="num">6,2&nbsp;%</td><td class="num policy-col-line">5,0&nbsp;%</td><td><span class="badge badge--neutral">eingehalten</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="summary-basis">Ausgewertet beim Lesen, Stand 24.09.2026, auf der steuerbaren Basis der Ansicht „Alles“. Jede Regel nennt die Kennzahl, aus der sie liest; eine Zahl, die sich nicht lesen lässt, ist nicht bestimmbar, nie eingehalten. Ein Befund sagt nicht, was zu tun ist.</p>
+          </section>
+        </div>
+      </div>
+      <p class="ann is-missing">Nicht hier: „Spekulativ breit streuen“ und „Alter Deckel Spekulativ“, weil sie in der Ansicht „Spekulativ“ gelten. Kein Umschalter auf dieser Seite.</p>
+    </div></div>
+  </div>
+</section>
+
+<!-- ============================ DIE ZWEI HÄLFTEN ============================ -->
+<section class="mock-board">
+  <h2>Was jede Variante zu den zwei Hälften von #871 sagt</h2>
+  <table class="halves">
+    <thead><tr><th>Variante</th><th>Erreichbarkeit: der Weg zur genannten Regel</th><th>Form: Band oder Dialog</th></tr></thead>
+    <tbody>
+      <tr><td>A · empfohlen</td><td>Jeder Regelname im Band ist ein Link auf <code>/risk?view=&lt;Kontext&gt;</code>, und die Klammer nennt die Ansicht.</td><td>Das Band bleibt, wie Sprint-15-Board 06 es für Ansichten festgelegt hat. Die Form-Hälfte wird mit Begründung abgelehnt.</td></tr>
+      <tr><td>B</td><td>Ein Umschalter auf „Risiko“. Das Band nennt die Ansicht nicht, also muss der Betreiber raten, welchen Chip er wählt.</td><td>Das Band bleibt wie heute.</td></tr>
+      <tr><td>C</td><td>Dieselben Links wie A.</td><td>Der Dialog des Wertpapier-Löschens, wie im Issue vorgeschlagen.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================ VARIANTE A ============================ -->
+<section class="mock-board">
+  <h2>Variante A — das Meldungsband verlinkt jede Regel auf „Risiko“ in ihrer Ansicht <small>empfohlen</small></h2>
+  <p class="mock-note">Das Band und sein Satz aus Sprint-15-Board 06 bleiben. Neu ist nur, dass jeder Regelname ein Link ist und in der Klammer neben dem Stand die Ansicht steht, in der die Regel gilt. Das ist ihr Kontext, nicht die Ansicht, die gelöscht werden soll: „Spielgeld klein halten“ liest „Spekulativ“ als Bezug, gilt aber unter „Alles“. Das Ziel ist <code>/risk?view=&lt;Kontext&gt;</code>, für „Alles“ <code>?view=total</code>. Es ist ein gewöhnliches <code>&lt;a href&gt;</code> wie die Chips des Ansichtsumschalters, kein <code>navigate</code>, damit <code>ViewScope</code> die Wahl übernimmt. Der Kopf von „Risiko“ nennt die Ansicht nach der Ankunft (UX-DR26).</p>
+  <p class="mock-note"><b>Dafür:</b> schließt die Erreichbarkeits-Hälfte von #871 genau dort, wohin die Meldung zeigt. Es kommt kein neues Element dazu. Sprint-15-Board 06 hat für Kategorie, Klassifizierung und Ansicht das vorhandene Band festgelegt („kein neues Element, nur ein neuer Satz im vorhandenen Meldungsband“), und A bleibt dabei. Dieselbe Formulierung (<code>PolicyRuleLabel.read_by</code>) nennt auch die Regeln beim Löschen einer Kategorie oder Klassifizierung, also erreicht der Link diese Ablehnungen ohne weitere Arbeit. API und MCP ändern sich nicht, der 409 trägt schon die Regel-IDs. <b>Dagegen:</b> Die Form-Hälfte von #871 bleibt unerfüllt; das Issue schließt mit dieser Begründung. Der Link wechselt die aktive Ansicht auf allen Vermögensreitern, genau wie ein Chip des Umschalters. Deshalb nennt die Klammer die Ansicht vor dem Klick. Nach dem Nein liegt der Fokus nicht im Band: Der Screenreader liest das Band vor (<code>role="alert"</code>), die Tastatur erreicht die Links nur über die Tab-Reihenfolge der Seite. Drei Links in einem Satz sind dichter als eine Liste.</p>
+
+  <div class="mock-row">
+    <div class="mock-frame mock-after" style="flex:1 1 100%"><span class="mock-tag">A · /buckets, dasselbe Löschen · neu sind nur die unterstrichenen Regelnamen und die Ansicht in der Klammer</span><div class="workspace-section">
+      <div class="pg">
+        <div class="pg-top"><div class="topbar-page"><h1>Ansichten</h1><p>Gespeicherte Filter, die die Analysen eingrenzen, gebaut aus Bucket-Tags</p></div></div>
+        <div class="workspace-page">
+          <p class="alert-error" role="alert">Wird von eigenen Regeln gelesen: „<a href="#">Spielgeld klein halten</a>“ (gilt, Ansicht „Alles“), „<a href="#">Spekulativ breit streuen</a>“ (gilt, Ansicht „Spekulativ“), „<a href="#">Alter Deckel Spekulativ</a>“ (beendet, Ansicht „Spekulativ“). Eine Regel, die gegolten hat, behält ihren Bezug als Teil ihrer Geschichte; sie auf „Vermögen → Risiko“ zu beenden, stoppt ihre Auswertung.</p>
+          <section class="workspace-section">
+            <header class="section-head"><h2>Ansichten <details class="metric-tooltip metric-tooltip--inline"><summary aria-label="Über Ansichten">ⓘ</summary></details></h2><div class="section-head-controls"><p class="summary-basis">Gespeicherte Ein-/Ausschlussfilter über Buckets · gelten im Ansichtsumschalter auf Vermögen</p><button type="button" class="button-primary">+ Ansicht</button></div></header>
+            <ul class="bucket-list" role="list" style="margin-top:0">
+              <li class="bucket-list__item"><div class="bucket-list__main"><span class="bucket-list__name">Alles <span class="badge">Standard</span></span><span class="bucket-list__rule">Alle Depots, Verrechnungskonten und Positionen · keine Filter</span></div><span class="bucket-list__figures"><strong>186.400,00 EUR</strong> · 18 Positionen · 4 Konten</span></li>
+              <li class="bucket-list__item"><div class="bucket-list__main"><span class="bucket-list__name">Haushalt</span><span class="bucket-list__rule">Nur <span class="badge">Haushalt</span></span></div><span class="bucket-list__figures"><strong>24.650,00 EUR</strong> · 3 Positionen · 2 Konten</span><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></li>
+              <li class="bucket-list__item"><div class="bucket-list__main"><span class="bucket-list__name">Langfristig</span><span class="bucket-list__rule">Nur <span class="badge">Altersvorsorge</span></span></div><span class="bucket-list__figures"><strong>98.400,00 EUR</strong> · 9 Positionen · 2 Konten</span><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></li>
+              <li class="bucket-list__item"><div class="bucket-list__main"><span class="bucket-list__name">Spekulativ</span><span class="bucket-list__rule">Nur <span class="badge">Spielgeld</span></span></div><span class="bucket-list__figures"><strong>5.780,00 EUR</strong> · 4 Positionen · 1 Konto</span><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></li>
+            </ul>
+          </section>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <div class="mock-row" style="margin-top:16px">
+    <div class="mock-frame mock-after" style="flex:0 0 auto"><span class="mock-tag">A · 390 px</span><div class="workspace-section">
+      <div class="phone">
+        <div class="ph-top"><div class="topbar-page"><h1>Ansichten</h1><p>Gespeicherte Filter, die die Analysen eingrenzen, gebaut aus Bucket-Tags</p></div></div>
+        <div class="workspace-page">
+          <p class="alert-error" role="alert">Wird von eigenen Regeln gelesen: „<a href="#">Spielgeld klein halten</a>“ (gilt, Ansicht „Alles“), „<a href="#">Spekulativ breit streuen</a>“ (gilt, Ansicht „Spekulativ“), „<a href="#">Alter Deckel Spekulativ</a>“ (beendet, Ansicht „Spekulativ“). Eine Regel, die gegolten hat, behält ihren Bezug als Teil ihrer Geschichte; sie auf „Vermögen → Risiko“ zu beenden, stoppt ihre Auswertung.</p>
+          <section class="workspace-section">
+            <header class="section-head"><h2>Ansichten <details class="metric-tooltip metric-tooltip--inline"><summary aria-label="Über Ansichten">ⓘ</summary></details></h2><div class="section-head-controls"><p class="summary-basis">Gespeicherte Ein-/Ausschlussfilter über Buckets · gelten im Ansichtsumschalter auf Vermögen</p><button type="button" class="button-primary">+ Ansicht</button></div></header>
+            <ul class="bucket-list" role="list" style="margin-top:0">
+              <li class="bucket-list__item"><div class="bucket-list__main"><span class="bucket-list__name">Alles <span class="badge">Standard</span></span><span class="bucket-list__rule">Alle Depots, Verrechnungskonten und Positionen · keine Filter</span></div><span class="bucket-list__figures"><strong>186.400,00 EUR</strong> · 18 Positionen · 4 Konten</span></li>
+              <li class="bucket-list__item"><div class="bucket-list__main"><span class="bucket-list__name">Haushalt</span><span class="bucket-list__rule">Nur <span class="badge">Haushalt</span></span></div><span class="bucket-list__figures"><strong>24.650,00 EUR</strong> · 3 Positionen · 2 Konten</span><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></li>
+              <li class="bucket-list__item"><div class="bucket-list__main"><span class="bucket-list__name">Langfristig</span><span class="bucket-list__rule">Nur <span class="badge">Altersvorsorge</span></span></div><span class="bucket-list__figures"><strong>98.400,00 EUR</strong> · 9 Positionen · 2 Konten</span><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></li>
+              <li class="bucket-list__item"><div class="bucket-list__main"><span class="bucket-list__name">Spekulativ</span><span class="bucket-list__rule">Nur <span class="badge">Spielgeld</span></span></div><span class="bucket-list__figures"><strong>5.780,00 EUR</strong> · 4 Positionen · 1 Konto</span><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></li>
+            </ul>
+          </section>
+        </div>
+      </div>
+    </div></div>
+    <div class="side">
+      <p class="cap">Was A festlegt</p>
+      <ol>
+        <li><b>Ziel je Regel:</b> ihr Kontext. „Spielgeld klein halten“ → <code>/risk?view=total</code>; „Spekulativ breit streuen“ und „Alter Deckel Spekulativ“ → <code>/risk?view=&lt;id von Spekulativ&gt;</code>.</li>
+        <li><b>Ein voller Seitenaufruf</b> (<code>&lt;a href&gt;</code>), wie die Chips des Umschalters. Ein <code>navigate</code> würde <code>ViewScope</code> überspringen, und „Risiko“ zeigte weiter die alte Ansicht.</li>
+        <li><b>Neue Formulierung je Regel:</b> <code>“%{name}” (%{status}, view “%{view}”)</code>, deutsch <code>„%{name}“ (%{status}, Ansicht „%{view}“)</code>. Nur der Name ist der Link. Der zweite Satz aus Sprint-15-Board 06 bleibt wörtlich. Das Band bekommt die Regeln dafür als Daten (Name, Stand, Kontext), nicht als fertigen Satz, und ein Regelname wird nie als rohes HTML eingesetzt.</li>
+        <li><b>Linkstil:</b> die Farbe des Bands, unterstrichen, Abstand 2 px. Das ist die Regel von <code>.data-note__body a</code>, also bleiben die Links unverändert, wenn das Band später in die Data Note übergeht.</li>
+        <li><b>Überall, wo ein Nein Regeln nennt:</b> Die Lücke hängt am Kontext der Regel, nicht an der Art des gelöschten Objekts. Eine Regel mit Kontext „Spekulativ“, die ein Wertpapier oder eine Kategorie liest, ist aus deren Nein genauso unerreichbar. Darum das Band auf /buckets und /classifications (gemeinsames <code>read_by</code>), und die Liste im Wertpapier-Dialog aus Sprint-15-Board 06 bekommt dieselben Links.</li>
+        <li><b>390 px:</b> Die Links laufen im Satz um. Als Links im Fließtext gilt für sie die Ausnahme „Inline“ der Zielgröße (WCAG 2.5.5 und 2.5.8), wie für den Link in einer Data Note (<code>DESIGN.md</code>: „the remedy as a link inside the note“).</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:16px">
+    <div class="mock-frame mock-after" style="flex:1 1 100%"><span class="mock-tag">A · Ankunft nach „Spekulativ breit streuen“: /risk?view=&lt;Spekulativ&gt;</span><div class="workspace-section">
+      <div class="pg">
+        <div class="pg-top"><div class="topbar-page"><h1>Risiko</h1><p>Konzentration und Schwankung · Ansicht: Spekulativ</p></div></div>
+        <div class="workspace-page">
+          <nav class="area-tabs" data-scroll-start data-scroll-end aria-label="Bereichs-Tabs">
+            <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17 9 11l4 4 8-8"/></svg></span><span class="area-tab__label" data-label="Bestände">Bestände</span></a>
+            <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12A9 9 0 1 1 12 3v9Z"/><path d="M21 12a9 9 0 0 0-9-9v9h9Z"/></svg></span><span class="area-tab__label" data-label="Allokation &amp; Ziele">Allokation &amp; Ziele</span></a>
+            <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20V8M9 20V4M15 20v-8M21 20v-5"/></svg></span><span class="area-tab__label" data-label="Cashflow">Cashflow</span></a>
+            <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg></span><span class="area-tab__label" data-label="Snapshots">Snapshots</span></a>
+            <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6"/><circle cx="9" cy="11" r=".6"/><circle cx="12" cy="11" r=".6"/><circle cx="15" cy="11" r=".6"/><circle cx="9" cy="14" r=".6"/><circle cx="12" cy="14" r=".6"/><circle cx="15" cy="14" r=".6"/><path d="M9 17h6"/></svg></span><span class="area-tab__label" data-label="Steuern">Steuern</span></a>
+            <a class="area-tab is-active" href="#" aria-current="page"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-3.5 7-9V5.5L12 3 5 5.5V12c0 5.5 7 9 7 9Z"/></svg></span><span class="area-tab__label" data-label="Risiko">Risiko</span></a>
+          </nav>
+          <section class="workspace-section policy-rules">
+            <header class="section-head">
+              <h2>Eigene Regeln <span class="section-head__meta">· 0 verletzt · 0 nicht bestimmbar · 1 eingehalten</span></h2>
+              <button type="button" class="button-secondary">Regel anlegen</button>
+            </header>
+            <div class="data-table-wrapper">
+              <table class="data-table policy-findings-table risk-fit-table">
+                <thead><tr><th>Regel</th><th class="num">Gemessen</th><th class="num policy-col-line">Grenze</th><th>Stand</th></tr></thead>
+                <tbody>
+                  <tr><td><button type="button" class="link-button policy-rule__name">Spekulativ breit streuen</button><span class="policy-rule__words">Klumpenrisiko (HHI) · Obergrenze · Warnung</span></td><td class="num">1.850</td><td class="num policy-col-line">2.500</td><td><span class="badge badge--neutral">eingehalten</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="summary-basis">Ausgewertet beim Lesen, Stand 24.09.2026, auf der steuerbaren Basis der Ansicht „Spekulativ“. Jede Regel nennt die Kennzahl, aus der sie liest; eine Zahl, die sich nicht lesen lässt, ist nicht bestimmbar, nie eingehalten. Ein Befund sagt nicht, was zu tun ist.</p>
+            <details class="perf-table-disclosure">
+              <summary class="disclosure-summary"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg> Beendete Regel anzeigen (1)</summary>
+            </details>
+          </section>
+          <section class="workspace-section"><header class="section-head"><h2>Kennzahlen des Portfolios</h2></header><p class="note-muted">… Kennzahlen, größte Einzelpositionen und HHI wie bisher, alle auf „Spekulativ“ eingegrenzt.</p></section>
+        </div>
+      </div>
+      <p class="ann">Die Seite ist unverändert. Eine beendete Regel („Alter Deckel Spekulativ“) steht hinter der geschlossenen Aufklappzeile „Beendete Regel anzeigen (1)“, eine geplante unter „Geplante Regeln“. Das „(beendet …)“ im Band sagt, wo sie zu suchen ist. Ein Sprung zur Zeile oder eine Hervorhebung wird nicht vorgeschlagen.</p>
+    </div></div>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE B ============================ -->
+<section class="mock-board">
+  <h2>Variante B — ein Ansichtsumschalter auf dem Reiter „Risiko“ <small>breiter, allein schließt es #871 nicht</small></h2>
+  <p class="mock-note">Die Steuerzeile, die „Bestände“ und „Allokation &amp; Ziele“ schon tragen (<code>.workspace-section--controls</code> mit <code>.view-switcher</code>, DESIGN.md D4), steht auch über „Eigene Regeln“, ohne „Als Standard festlegen“, weil „Risiko“ kein <code>set_default_view</code> behandelt. <b>Dafür:</b> „Risiko“ ist heute die einzige Seite, die der aktiven Ansicht folgt und keinen Umschalter hat. Nur <code>portfolio_live</code> und <code>risk_live</code> lesen die aktive Ansicht, die Übersicht liest die Standard-Ansicht. Jede Regel jeder Ansicht wird vom Reiter selbst aus erreichbar, nicht nur über eine Ablehnung.</p>
+  <p class="mock-note"><b>Dagegen:</b> B allein schließt #871 nicht. Das Band nennt die Regeln, aber nicht die Ansicht, in der sie gelten, also muss der Betreiber raten, welchen Chip er wählt. Braucht B die Ansichtsangabe aus A trotzdem, dann ist B eine Ergänzung. B ist ein neues Element auf einer Seite, deren Board (<code>ux-design-2026-09-20/01</code>) die Ansicht im Kopf nennt, statt sie umschaltbar zu machen. Bei 390 px schieben die Chips (in zwei Reihen), „Ansichten“ und die Statuszeile „Eigene Regeln“ um rund 135 px nach unten. Ob jede eingegrenzte Seite den Umschalter trägt, ist eine größere Frage als #871. Sie gehört als eigene Frage in die Triage. <b>Gestrichelt = neu.</b></p>
+  <div class="mock-row">
+    <div class="mock-frame" style="flex:1 1 100%"><span class="mock-tag">B · /risk, aktive Ansicht „Spekulativ“</span><div class="workspace-section">
+      <div class="pg">
+        <div class="pg-top"><div class="topbar-page"><h1>Risiko</h1><p>Konzentration und Schwankung · Ansicht: Spekulativ</p></div></div>
+        <div class="workspace-page">
+          <nav class="area-tabs" data-scroll-start data-scroll-end aria-label="Bereichs-Tabs">
+            <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17 9 11l4 4 8-8"/></svg></span><span class="area-tab__label" data-label="Bestände">Bestände</span></a>
+            <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12A9 9 0 1 1 12 3v9Z"/><path d="M21 12a9 9 0 0 0-9-9v9h9Z"/></svg></span><span class="area-tab__label" data-label="Allokation &amp; Ziele">Allokation &amp; Ziele</span></a>
+            <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20V8M9 20V4M15 20v-8M21 20v-5"/></svg></span><span class="area-tab__label" data-label="Cashflow">Cashflow</span></a>
+            <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg></span><span class="area-tab__label" data-label="Snapshots">Snapshots</span></a>
+            <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6"/><circle cx="9" cy="11" r=".6"/><circle cx="12" cy="11" r=".6"/><circle cx="15" cy="11" r=".6"/><circle cx="9" cy="14" r=".6"/><circle cx="12" cy="14" r=".6"/><circle cx="15" cy="14" r=".6"/><path d="M9 17h6"/></svg></span><span class="area-tab__label" data-label="Steuern">Steuern</span></a>
+            <a class="area-tab is-active" href="#" aria-current="page"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-3.5 7-9V5.5L12 3 5 5.5V12c0 5.5 7 9 7 9Z"/></svg></span><span class="area-tab__label" data-label="Risiko">Risiko</span></a>
+          </nav>
+          <div class="workspace-section workspace-section--controls">
+            <div class="view-switcher is-new" role="group" aria-label="Aktive Filter">
+              <nav class="view-switcher__options" aria-label="Aktive Filter">
+                <a class="view-chip" href="#">Alles</a>
+                <a class="view-chip" href="#">Haushalt</a>
+                <a class="view-chip" href="#">Langfristig</a>
+                <a class="view-chip is-active" href="#" aria-current="true">Spekulativ</a>
+              </nav>
+              <a class="view-switcher__manage" href="#"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/></svg> Ansichten</a>
+              <p class="view-switcher__active" role="status">Eingegrenzt auf Ansicht: Spekulativ</p>
+              <details class="view-switcher__help"><summary aria-label="Über Ansichten">ⓘ</summary></details>
+            </div>
+          </div>
+          <section class="workspace-section policy-rules">
+            <header class="section-head">
+              <h2>Eigene Regeln <span class="section-head__meta">· 0 verletzt · 0 nicht bestimmbar · 1 eingehalten</span></h2>
+              <button type="button" class="button-secondary">Regel anlegen</button>
+            </header>
+            <div class="data-table-wrapper">
+              <table class="data-table policy-findings-table risk-fit-table">
+                <thead><tr><th>Regel</th><th class="num">Gemessen</th><th class="num policy-col-line">Grenze</th><th>Stand</th></tr></thead>
+                <tbody>
+                  <tr><td><button type="button" class="link-button policy-rule__name">Spekulativ breit streuen</button><span class="policy-rule__words">Klumpenrisiko (HHI) · Obergrenze · Warnung</span></td><td class="num">1.850</td><td class="num policy-col-line">2.500</td><td><span class="badge badge--neutral">eingehalten</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+      <p class="ann">Dieselbe Steuerzeile wie auf „Bestände“, ohne „Als Standard festlegen“. Das Meldungsband auf /buckets bleibt in B wie heute: „(gilt)“, keine Ansicht, keine Links.</p>
+    </div></div>
+  </div>
+
+  <div class="mock-row" style="margin-top:16px">
+
+    <div class="mock-frame" style="flex:0 0 auto"><span class="mock-tag">B · 390 px</span><div class="workspace-section">
+      <div class="phone">
+        <div class="ph-top"><div class="topbar-page"><h1>Risiko</h1><p>Konzentration und Schwankung · Ansicht: Spekulativ</p></div></div>
+        <div class="workspace-page">
+          <nav class="area-tabs" data-scroll-end aria-label="Bereichs-Tabs">
+            <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg></span><span class="area-tab__label" data-label="Snapshots">Snapshots</span></a>
+            <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6"/><circle cx="9" cy="11" r=".6"/><circle cx="12" cy="11" r=".6"/><circle cx="15" cy="11" r=".6"/><circle cx="9" cy="14" r=".6"/><circle cx="12" cy="14" r=".6"/><circle cx="15" cy="14" r=".6"/><path d="M9 17h6"/></svg></span><span class="area-tab__label" data-label="Steuern">Steuern</span></a>
+            <a class="area-tab is-active" href="#" aria-current="page"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-3.5 7-9V5.5L12 3 5 5.5V12c0 5.5 7 9 7 9Z"/></svg></span><span class="area-tab__label" data-label="Risiko">Risiko</span></a>
+          </nav>
+          <div class="workspace-section workspace-section--controls">
+            <div class="view-switcher is-new" role="group" aria-label="Aktive Filter">
+              <nav class="view-switcher__options" aria-label="Aktive Filter">
+                <a class="view-chip" href="#">Alles</a>
+                <a class="view-chip" href="#">Haushalt</a>
+                <a class="view-chip" href="#">Langfristig</a>
+                <a class="view-chip is-active" href="#" aria-current="true">Spekulativ</a>
+              </nav>
+              <a class="view-switcher__manage" href="#"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/></svg> Ansichten</a>
+              <p class="view-switcher__active" role="status">Eingegrenzt auf Ansicht: Spekulativ</p>
+              <details class="view-switcher__help"><summary aria-label="Über Ansichten">ⓘ</summary></details>
+            </div>
+          </div>
+          <section class="workspace-section policy-rules">
+            <header class="section-head">
+              <h2>Eigene Regeln <span class="section-head__meta">· 0 verletzt · 0 nicht bestimmbar · 1 eingehalten</span></h2>
+              <button type="button" class="button-secondary">Regel anlegen</button>
+            </header>
+            <div class="data-table-wrapper">
+              <table class="data-table policy-findings-table risk-fit-table">
+                <thead><tr><th>Regel</th><th class="num">Gemessen</th><th class="num policy-col-line">Grenze</th><th>Stand</th></tr></thead>
+                <tbody>
+                  <tr><td><button type="button" class="link-button policy-rule__name">Spekulativ breit streuen</button><span class="policy-rule__words">Klumpenrisiko (HHI) · Obergrenze · Warnung</span></td><td class="num">1.850<span class="policy-rule__line-sub">Grenze 2.500</span></td><td class="num policy-col-line">2.500</td><td><span class="badge badge--neutral">eingehalten</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div></div>
+    <div class="side">
+      <p class="cap">Was B kostet und was es offen lässt</p>
+      <ol>
+        <li><b>Bei 390 px</b> stehen rund 135 px Steuerzeile zwischen Reitern und „Eigene Regeln“: zwei Reihen Chips mit 44 px Zielgröße, darunter „Ansichten“ und der Status. Auf „Bestände“ ist das heute schon so.</li>
+        <li><b>Ohne A</b> sagt das Nein auf /buckets nicht, welcher Chip der richtige ist. Bei drei Regeln in zwei Ansichten muss der Betreiber zwei Chips probieren.</li>
+        <li><b>Die Ansichten-Frage</b> („trägt jede eingegrenzte Seite den Umschalter?“) betrifft auch künftige eingegrenzte Seiten. Das ist eine eigene Entscheidung, keine Reparatur von #871.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE C ============================ -->
+<section class="mock-board">
+  <h2>Variante C — der Dialog „Kann nicht gelöscht werden“ aus Sprint-15-Board 06 auch für Ansichten <small>die Form aus dem Issue-Text</small></h2>
+  <p class="mock-note">Der native Dialog des Wertpapier-Löschens (<code>.modal.confirm-delete-blocked</code>, UX-DR9) ersetzt das Band. Die Regeln stehen als Liste, jede mit demselben Link und derselben Klammer wie in A. Damit ist auch die Form-Hälfte von #871 erfüllt, so wie das Issue sie vorschlägt. <b>Dafür:</b> Das Löschen eines Wertpapiers sieht schon so aus. Der Fokus springt in den Dialog, während das Band oben auf der Seite erscheint, weit weg von der Zeile, in der gelöscht wurde. Drei Links in einer Liste lesen sich leichter als in einem Satz, und bei 390 px steht jeder Link in einer eigenen Zeile.</p>
+  <p class="mock-note"><b>Dagegen:</b> Sprint-15-Board 06 hat für Kategorie, Klassifizierung und Ansicht das Band gewählt, und diese Wahl ist angenommen. C öffnet sie für eins von drei Objekten wieder. Kategorien und Klassifizierungen behielten das Band, die Uneinheitlichkeit wandert also nur. Der Wertpapier-Dialog hat einen Ausweg („Stattdessen stilllegen“). Eine Ansicht kann nicht stillgelegt werden, also bliebe hier ein Nein mit nur „Schließen“. Auf das Browser-Bestätigen „Diese Ansicht löschen?“ folgt ein zweites Modal. Die Links, die #871 tatsächlich löst, sind in A und C dieselben. <b>Gestrichelt = neu.</b></p>
+  <div class="mock-row">
+    <div class="mock-frame" style="flex:0 1 520px"><span class="mock-tag">C · /buckets, dasselbe Löschen</span><div class="workspace-section">
+      <div class="modal confirm-delete-blocked is-new" style="max-width:460px" role="dialog" aria-labelledby="c-title">
+        <header class="modal-head">
+          <h2 id="c-title">Kann nicht gelöscht werden</h2>
+          <button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+        </header>
+        <div class="modal-body">
+          <p>Spekulativ wird von eigenen Regeln gelesen:</p>
+          <ul>
+            <li>„<a href="#">Spielgeld klein halten</a>“ (gilt, Ansicht „Alles“)</li>
+            <li>„<a href="#">Spekulativ breit streuen</a>“ (gilt, Ansicht „Spekulativ“)</li>
+            <li>„<a href="#">Alter Deckel Spekulativ</a>“ (beendet, Ansicht „Spekulativ“)</li>
+          </ul>
+          <p class="muted">Eine Regel, die gegolten hat, behält ihren Bezug als Teil ihrer Geschichte; sie auf „Vermögen → Risiko“ zu beenden, stoppt ihre Auswertung.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="button-ghost">Schließen</button>
+        </div>
+      </div>
+    </div></div>
+    <div class="side">
+      <p class="cap">Ablauf in C</p>
+      <p class="flow">Zeilenmenü „Spekulativ“ → <b>Löschen</b> → Browser: <b>„Diese Ansicht löschen?“</b> → OK → Dialog <b>„Kann nicht gelöscht werden“</b> → ein Link führt nach <code>/risk?view=…</code>, oder <b>Schließen</b> führt zurück zur Liste.</p>
+      <p class="flow">Zum Vergleich der Wertpapier-Dialog aus Sprint-15-Board 06: dieselbe Liste, darunter aber <b>Abbrechen</b> und <b>Stattdessen stilllegen</b>. Einen solchen zweiten Ausweg gibt es für eine Ansicht nicht.</p>
+      <p class="flow">Für Kategorie und Klassifizierung auf /classifications bliebe es in C beim Band (Sprint-15-Board 06). Soll C einheitlich sein, muss der Dialog auch dorthin, und das ist mehr als #871.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ NICHT TEIL DER WAHL ============================ -->
+<section class="mock-board">
+  <h2>Nicht Teil der Wahl — was für alle drei Varianten gilt</h2>
+  <div class="mock-row">
+    <div class="side" style="flex:1 1 100%; max-width:96ch">
+      <ol>
+        <li><b>Eine Ansicht, die eine Regel gelesen hat, bleibt gesperrt, solange die Regel besteht.</b> Das gilt, egal ob die Regel die Ansicht als Kontext oder als Bezug liest. Solange die gültige Version sie nennt, lässt sie sich ohnehin nicht löschen. Aber auch Beenden gibt sie nicht frei, denn Beenden stoppt nur die Auswertung. Eine Version, die gegolten hat, behält ihren Bezug als Teil der Geschichte (ADR-0049 §4). <code>PolicyRules.referencing/2</code> zählt jede Version, auch eine beendete, und der 409 der API sagt dasselbe. Frei wird die Ansicht nur, wenn jede lesende Regel nie gegolten hat und gelöscht wird („Regel löschen“ im Regeldialog). Der Link in A und C führt zur Regel, damit sie gelesen, beendet oder, falls sie noch nicht galt, gelöscht werden kann. Einen Weg zum Löschen der Ansicht verspricht er nicht. ADR-0049 §8 sagte bis zu dieser Planungs-PR das Gegenteil („Retiring the rule first is the remedy“); die Planungs-PR korrigiert den Satz auf das gebaute Verhalten (Sprint-Plan D-6).</li>
+        <li><b>Das Bestätigen bleibt.</b> „Diese Ansicht löschen?“ (<code>data-confirm</code>) kommt weiter vor dem Nein, wie beim Wertpapier. Eine Vorabprüfung, die das Löschen gar nicht erst anbietet, ist nicht Gegenstand dieses Boards.</li>
+        <li><b>API und MCP:</b> keine Änderung. Der 409 nennt Regel-ID, Name und Stand. Ein Agent erreicht die Regel über ihre ID, und ihr Kontext steht in der Regel selbst.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>
