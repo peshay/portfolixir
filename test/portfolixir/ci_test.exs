@@ -323,6 +323,49 @@ defmodule Portfolixir.CITest do
     assert env_example =~ "rand-hex-32"
   end
 
+  # User story (E25 S2, F08):
+  # As an operator who starts the development stack on a machine in a network,
+  # I want both Compose files to publish every port on loopback only,
+  # so that the development app and its database, which run on public
+  # development secrets, are never reachable from the rest of the network.
+  #
+  # Acceptance criteria:
+  # - Every `ports:` entry in docker-compose.yml and docker-compose.dev.yml is
+  #   prefixed with 127.0.0.1.
+  # - SECURITY.md names the development stack's public secrets.
+  # - The deployment guide (EN, DE) moves an instance off the development
+  #   stack, the documented deployment before #760, by a backup and a restore.
+  test "every published port in both Compose files is on loopback" do
+    for path <- ["docker-compose.yml", "docker-compose.dev.yml"] do
+      entries =
+        ~r/^\s+ports:\n((?:\s+- .*\n)+)/m
+        |> Regex.scan(File.read!(path), capture: :all_but_first)
+        |> Enum.flat_map(fn [block] -> String.split(block, "\n", trim: true) end)
+        |> Enum.map(&String.trim/1)
+
+      assert entries != [], "#{path} publishes no port at all"
+
+      for entry <- entries do
+        assert entry =~ ~r/^- "127\.0\.0\.1:\d+:\d+"$/,
+               "#{path} publishes a port beyond loopback: #{entry}"
+      end
+    end
+
+    security = "SECURITY.md" |> File.read!() |> String.replace(~r/\s+/, " ")
+    assert security =~ "`docker-compose.dev.yml`"
+    assert security =~ "public development secrets"
+
+    for {path, heading} <- [
+          {"docs/home-deployment.md", "### Moving off the development stack"},
+          {"docs/de/home-deployment.md", "### Umzug vom Entwicklungs-Stack"}
+        ] do
+      guide = File.read!(path)
+      assert guide =~ heading, path
+      assert guide =~ "pg_dump -U postgres -d portfolixir_dev --format=custom", path
+      assert guide =~ "docker compose -f docker-compose.dev.yml down -v", path
+    end
+  end
+
   # User story (#772 — Sprint 11 Lane D; D-3 of the 2026-09-05 security triage):
   # As a maintainer whose dependency tree carried three cowlib advisories
   # with no fixed release,

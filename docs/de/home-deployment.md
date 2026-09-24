@@ -188,6 +188,43 @@ dokumentierte Deployment:
 docker compose -f docker-compose.dev.yml up --build
 ```
 
+Der Stack läuft mit öffentlichen Entwicklungsgeheimnissen — dem Datenbankpasswort
+`postgres` und dem in `config/dev.exs` eingecheckten `SECRET_KEY_BASE` —,
+deshalb sind seine beiden Ports, der der Anwendung und der der Datenbank, nur
+auf der Loopback-Schnittstelle des Hosts veröffentlicht, und er enthält nur
+synthetische Daten.
+
+### Umzug vom Entwicklungs-Stack
+
+Vor dem Produktions-Release (Sprint 10, #760) war das dokumentierte Deployment
+dieser Entwicklungs-Stack, damals `docker-compose.yml` genannt, mit auf jeder
+Schnittstelle offenen Ports. Eine Instanz, die noch so läuft, zieht per
+Sicherung und Wiederherstellung auf den Produktions-Stack um, nicht an Ort und
+Stelle: die Produktionsdatenbank wird nur auf einem leeren Volume angelegt, und
+das alte Volume behält den Entwicklungsbenutzer. Im Checkout, nachdem die
+aktuelle Version geholt ist:
+
+```bash
+# 1. Eine Sicherung der Entwicklungsdatenbank, solange sie noch läuft.
+umask 077
+mkdir -p ~/portfolixir-backups
+docker compose -f docker-compose.dev.yml exec -T db \
+  pg_dump -U postgres -d portfolixir_dev --format=custom \
+  > ~/portfolixir-backups/portfolixir-dev.dump
+
+# 2. Die Datei zeigt ihr Inhaltsverzeichnis; erst dann den Entwicklungs-Stack
+#    samt Volumes entfernen, womit die Sicherung die einzige Kopie ist.
+docker compose -f docker-compose.dev.yml exec -T db \
+  pg_restore --list < ~/portfolixir-backups/portfolixir-dev.dump | head
+docker compose -f docker-compose.dev.yml down -v
+
+# 3. Die Produktionsdatenbank, auf einem neuen Volume.
+docker compose up -d db
+```
+
+Dann diese Datei ab Schritt 3 von „Wiederherstellen“ unten zurückspielen und
+die Wiederherstellung prüfen.
+
 ## Sicherung und Wiederherstellung
 
 Die ganze Instanz ist eine PostgreSQL-Datenbank, eine Sicherung ist also eine
