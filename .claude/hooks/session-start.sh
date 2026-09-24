@@ -24,9 +24,17 @@ OTP_DIR=/opt/otp
 ELIXIR_DIR=/opt/elixir
 
 # 1. Cold-cache safety net: install the toolchain if the cached Setup script
-#    snapshot is not present yet.
-if [ ! -x "${ELIXIR_DIR}/bin/elixir" ]; then
-  bash "${ROOT}/.claude/scripts/install-elixir-toolchain.sh"
+#    snapshot is not present yet, or holds another version than the script
+#    pins (a snapshot taken before a toolchain bump would otherwise keep the
+#    old runtime; the script replaces a mismatching install).
+SCRIPT="${ROOT}/.claude/scripts/install-elixir-toolchain.sh"
+want_elixir=$(sed -n 's/^ELIXIR_VERSION="${ELIXIR_VERSION:-\(.*\)}"$/\1/p' "${SCRIPT}")
+want_otp=$(sed -n 's/^OTP_VERSION="${OTP_VERSION:-\(.*\)}"$/\1/p' "${SCRIPT}")
+have_elixir=$(cat "${ELIXIR_DIR}/VERSION" 2>/dev/null || true)
+have_otp=$(cat "${OTP_DIR}"/releases/*/OTP_VERSION 2>/dev/null | head -n1 || true)
+if [ ! -x "${ELIXIR_DIR}/bin/elixir" ] || [ "${have_elixir}" != "${want_elixir}" ] \
+  || [ "${have_otp}" != "${want_otp}" ]; then
+  bash "${SCRIPT}"
 fi
 
 # 2. Persist environment for the whole session.

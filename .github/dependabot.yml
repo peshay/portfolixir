@@ -37,6 +37,15 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # The Elixir images and the release runtime's Debian are moved by the
+    # maintenance lane, not here (the 2026-09-24 runtime hotfix): the bot reads
+    # the hexpm tag's OTP patch and Debian date as a fixed suffix, so it can
+    # never propose the security-relevant move, and a runtime Debian bump on
+    # its own fails ci_test's parity with the build stage by design.
+    # scripts/version-report.sh prints what the images actually contain.
+    ignore:
+      - dependency-name: "hexpm/elixir"
+      - dependency-name: "debian"
 
   - package-ecosystem: "docker"
     directory: "/mcp-server"
