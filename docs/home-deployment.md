@@ -233,8 +233,8 @@ container.
 
 ### Take a backup
 
-Before the backup, note three figures the restore will be checked against
-(see "Check the restore" below). Then:
+Before the backup, note the three figures and the trigger count the restore
+will be checked against (see "Check the restore" below). Then:
 
 ```bash
 docker compose exec -T db \
@@ -274,13 +274,15 @@ docker compose stop app mcp
 docker compose exec -T db dropdb -U portfolixir --if-exists portfolixir_prod
 docker compose exec -T db createdb -U portfolixir portfolixir_prod
 
-# 3. The backup.
+# 3. The backup, in one transaction: all of it or nothing.
 docker compose exec -T db \
   pg_restore -U portfolixir -d portfolixir_prod --no-owner --exit-on-error \
-  < portfolixir-2026-09-23.dump
+  --single-transaction < portfolixir-2026-09-23.dump \
+  && echo "restore complete"
 
-# 4. The instance, which migrates the restored database forward if the
-#    backup came from an older release.
+# 4. Only if step 3 ended without an error ("restore complete"): the
+#    instance, which migrates the restored database forward if the backup
+#    came from an older release.
 docker compose up -d
 
 # 5. The stored logos, into the running application container.
@@ -288,15 +290,30 @@ docker compose exec -T app tar -C /var/lib/portfolixir/logos -xf - \
   < portfolixir-logos-2026-09-23.tar
 ```
 
-`--exit-on-error` stops at the first problem rather than leaving a half-filled
-database behind. A backup restores into the same or a newer PostgreSQL major
-version; the `db` image in `docker-compose.yml` is the one to use.
+`--single-transaction` makes the restore all or nothing: at the first error
+(`--exit-on-error`) everything it did is rolled back, and the database is left
+empty rather than half filled — a half-filled one can lack the append-only and
+audit-journal triggers that guard the records, which are restored with the
+tables. Start the instance only after a restore that ended without an error:
+on an empty database it would run the migrations and start without data. Find
+the cause and repeat from step 2. A backup restores into the same or a newer
+PostgreSQL major version; the `db` image in `docker-compose.yml` is the one to
+use.
 
 ### Check the restore
 
 Compare three figures before the backup and after the restore: the total value,
 the number of holdings, and one position you know. On the Wealth page they are
 the total at the top, the rows of the Positions table and any one row of it.
+Compare, too, the number of the database's triggers, the append-only and
+audit-journal guards among them; a restore that lost none shows the same
+number:
+
+```bash
+docker compose exec -T db psql -U portfolixir -d portfolixir_prod -tAc \
+  "SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal"
+```
+
 Over the API (the token is `PORTFOLIXIR_API_TOKEN` from `.env`; `1` is the
 portfolio id the first call lists):
 
@@ -314,6 +331,9 @@ shows them character for character the same. The procedure was run end to end
 on 2026-09-23 against the synthetic review dataset with the shipped
 `docker-compose.yml`: backup, a new database volume, restore, and the three
 figures, the audit journal's row count and the policy rules compared equal.
+The single transaction and the trigger count came later (2026-09-25) and were
+checked with the same PostgreSQL tools outside Compose, on a restore that
+succeeds and on one that is refused.
 
 ## Reset
 
