@@ -652,8 +652,9 @@ records only what changed in the requirement registry.
 
 Verification basis: the commits on `main` (`165dfec..096b80e`, PR #867
 rebase-merged, 31 commits linear, zero merge commits), the Actions runs on the
-merge push (Commit authorship 607 and CI 1593, verified green before this entry
-was written), the post-merge issue list, and the diff of the merged tree
+merge push (Commit authorship 607 green; CI 1593's pre-commit, quality and
+migration jobs green when this entry was written, its test job confirmed on the
+close-out PR before promotion), the post-merge issue list, and the diff of the merged tree
 against the pre-merge head `0607a78e` (empty).
 
 **Shipped by Sprint 15** — fourteen issues closed by the merge's keywords under

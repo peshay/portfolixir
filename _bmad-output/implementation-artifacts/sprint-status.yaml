@@ -56,8 +56,9 @@ story_location: _bmad-output/implementation-artifacts
 # `main` at 096b80e5:
 # Verification basis: the commits on `main` (165dfec..096b80e, 31 commits
 # linear, zero merge commits), the Actions runs on the merge push (Commit
-# authorship 607 and CI 1593, verified green before this entry was written),
-# the post-merge issue list, and the diff of the merged tree against the
+# authorship 607 green; CI 1593's pre-commit, quality and migration jobs
+# green when this entry was written, its test job confirmed on the close-out
+# PR before promotion), the post-merge issue list, and the diff of the merged tree against the
 # pre-merge head 0607a78e (empty). The rebase replayed the commits, so
 # `main`'s SHAs differ from the branch's; tree equality is the check that
 # holds. Contract entry 7 was dated 2026-09-24 ahead of the merge and the
