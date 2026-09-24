@@ -70,12 +70,16 @@ instance still running the development stack as its deployment, as the
 documentation described it before the production release (#760), moves off it
 by a backup and a restore (`docs/home-deployment.md`, "Development stack").
 
-Known limits, recorded rather than hidden: the outbound URL policy resolves a
-name once for the check and the client resolves it again to connect, so a name
-whose answer changes in between can pass (the byte cap, the deadline and the
-redirect re-check bound what such a fetch can do); and the WebSocket handshake
-is dispatched ahead of the Host guard and rests on `check_origin`, built from
-the same allow-list. The policy's `style-src` admits inline `style`
+Known limits, recorded rather than hidden: as shipped, the application
+connects as the database's bootstrap superuser, which also owns the tables, so
+the append-only and audit-journal triggers bind the application's code rather
+than its credential (`docs/home-deployment.md` gives the recommended owner role
+and a runtime role without `TRUNCATE` for a new install); the outbound URL
+policy resolves a name once for the check and the client resolves it again to
+connect, so a name whose answer changes in between can pass (the byte cap, the
+deadline and the redirect re-check bound what such a fetch can do); and the
+WebSocket handshake is dispatched ahead of the Host guard and rests on
+`check_origin`, built from the same allow-list. The policy's `style-src` admits inline `style`
 attributes (the data-driven colours and tree indents the pages render), so it
 guards against script injection, not against CSS injection.
 

@@ -52,6 +52,111 @@ Without a UI password and with the port opened beyond loopback, the
 application logs a warning at startup naming this table; with a UI password
 shorter than 12 characters it warns as well, and starts either way.
 
+## Database roles (recommended for a new install)
+
+As shipped, the application connects as the database's bootstrap superuser, the
+role the `db` image creates from `POSTGRES_USER`, which also owns every table.
+The append-only and audit-journal triggers then bind the application's code,
+not its credential: a superuser or a table's owner can switch a trigger off or
+drop it. The recommended setup gives the database three roles, each with one
+job:
+
+- the bootstrap superuser, for administration only: backups, restores and the
+  grants below;
+- `portfolixir_owner`, not a superuser, which owns the tables and runs the
+  migrations;
+- `portfolixir_app`, which the application connects as: it reads and writes
+  rows, owns nothing and holds no `TRUNCATE`, so it can neither change a table
+  nor switch off or drop a trigger.
+
+This is for a new install, before its first start. Moving an existing instance
+onto these roles is a migration of that instance and is not described here.
+
+1. Add two passwords to `.env`, each from `openssl rand -hex 32`:
+   `PORTFOLIXIR_OWNER_DB_PASSWORD` and `PORTFOLIXIR_APP_DB_PASSWORD`.
+2. Start the database alone and create the roles. The passwords reach `psql` on
+   its standard input, never on a command line:
+
+   ```bash
+   docker compose up -d db
+   OWNER_PW=$(grep '^PORTFOLIXIR_OWNER_DB_PASSWORD=' .env | cut -d= -f2-)
+   APP_PW=$(grep '^PORTFOLIXIR_APP_DB_PASSWORD=' .env | cut -d= -f2-)
+   docker compose exec -T db psql -v ON_ERROR_STOP=1 -U portfolixir -d portfolixir_prod <<SQL
+   CREATE ROLE portfolixir_owner LOGIN PASSWORD '$OWNER_PW';
+   CREATE ROLE portfolixir_app LOGIN PASSWORD '$APP_PW';
+   ALTER DATABASE portfolixir_prod OWNER TO portfolixir_owner;
+   REVOKE ALL ON DATABASE portfolixir_prod FROM PUBLIC;
+   GRANT CONNECT ON DATABASE portfolixir_prod TO portfolixir_app;
+   REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+   GRANT USAGE ON SCHEMA public TO portfolixir_app;
+   ALTER DEFAULT PRIVILEGES FOR ROLE portfolixir_owner IN SCHEMA public
+     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO portfolixir_app;
+   ALTER DEFAULT PRIVILEGES FOR ROLE portfolixir_owner IN SCHEMA public
+     GRANT USAGE, SELECT ON SEQUENCES TO portfolixir_app;
+   SQL
+   ```
+
+   The two default-privilege lines reach every table a migration adds, now or
+   later: each is granted to the runtime role as the owner creates it, and
+   `TRUNCATE` never is.
+3. Create `docker-compose.override.yml` beside `docker-compose.yml`; Compose
+   reads it with every command. It connects the application as the runtime
+   role, starts the release without the migration step, which the runtime role
+   cannot run, and adds a one-off `migrate` service that runs the migrations as
+   the owner:
+
+   ```yaml
+   services:
+     app:
+       entrypoint: ["/opt/app/bin/portfolixir"]
+       command: ["start"]
+       environment:
+         DATABASE_URL: postgres://portfolixir_app:${PORTFOLIXIR_APP_DB_PASSWORD:?set it in .env}@db:5432/portfolixir_prod
+
+     migrate:
+       build:
+         context: .
+         dockerfile: Dockerfile.release
+       profiles: ["migrate"]
+       depends_on:
+         db:
+           condition: service_healthy
+       entrypoint: ["/opt/app/bin/portfolixir", "eval", "Portfolixir.Release.migrate()"]
+       environment:
+         DATABASE_URL: postgres://portfolixir_owner:${PORTFOLIXIR_OWNER_DB_PASSWORD:?set it in .env}@db:5432/portfolixir_prod
+         SECRET_KEY_BASE: ${SECRET_KEY_BASE:?set SECRET_KEY_BASE in .env}
+         PORTFOLIXIR_API_TOKEN: ${PORTFOLIXIR_API_TOKEN:?set PORTFOLIXIR_API_TOKEN in .env}
+         PHX_HOST: ${PHX_HOST:-localhost}
+   ```
+
+4. Migrate as the owner, then start:
+
+   ```bash
+   docker compose run --rm --build migrate
+   docker compose up --build -d
+   ```
+
+With these roles, two procedures below change. An upgrade runs
+`docker compose run --rm --build migrate` after the build and before
+`docker compose up -d`, because the application no longer migrates on start. A
+restore gives the new database back to the owner after its step 2, restores as
+the owner in step 3 by adding `--role=portfolixir_owner` to `pg_restore`, so
+the tables keep their owner and their grants, and migrates as in the upgrade
+before step 4:
+
+```bash
+docker compose exec -T db psql -v ON_ERROR_STOP=1 -U portfolixir -d portfolixir_prod <<'SQL'
+ALTER DATABASE portfolixir_prod OWNER TO portfolixir_owner;
+REVOKE ALL ON DATABASE portfolixir_prod FROM PUBLIC;
+GRANT CONNECT ON DATABASE portfolixir_prod TO portfolixir_app;
+SQL
+```
+
+The recipe was checked with PostgreSQL's own tools and the release outside
+Compose: the runtime role writes journaled records and is refused `TRUNCATE`,
+switching a trigger off, dropping one and creating a table; a backup restored
+as the owner keeps every trigger and grant.
+
 ## Start
 
 ```bash
