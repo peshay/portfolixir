@@ -6,7 +6,12 @@
 # used by docker-compose.dev.yml).
 
 # --- build stage -----------------------------------------------------------
-FROM elixir:1.18.3-otp-27-slim AS build
+# The Hex team's image for exactly the Elixir and OTP patch CI runs, pinned by
+# tag and digest (ADR-0045 §2). `mix release` bundles this image's ERTS, so the
+# OTP named here is the OTP every instance runs; the official `elixir` library
+# tag this used to name was frozen and shipped an OTP with published TLS-client
+# advisories (the 2026-09-24 runtime hotfix). ci_test pins the parity with CI.
+FROM hexpm/elixir:1.18.5-erlang-27.3.4.18-debian-bookworm-20260918-slim@sha256:ada1bbb1b961eb8fa13c142968289cdd47e261a8de4595a468beb351da6092d8 AS build
 
 ENV MIX_ENV=prod \
     MIX_HOME=/opt/mix \
@@ -31,7 +36,9 @@ COPY priv priv
 RUN mix compile && mix phx.digest && mix release
 
 # --- runtime stage ---------------------------------------------------------
-FROM debian:bookworm-slim
+# The same Debian release the build stage was built on, because the bundled
+# ERTS links against its libraries; pinned by tag and digest.
+FROM debian:bookworm-20260918-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
