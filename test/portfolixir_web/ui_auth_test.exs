@@ -204,17 +204,24 @@ defmodule PortfolixirWeb.UiAuthTest do
           "session" => %{"password" => @password}
         })
 
+      # The pre-login token was valid: the login POST it carried went through.
       assert redirected_to(logged_in) == "/"
       refute Plug.Conn.get_session(logged_in, "_csrf_token") == pre_login_session_token
       assert Plug.Conn.get_session(logged_in, "locale") == "de"
 
-      # The check `protect_from_forgery` runs on the logout POST: the token was
-      # valid against the session before the login and is not after it.
-      assert csrf_valid?(pre_login_session_token, pre_login_token)
-
+      # A page behind the login answers 200 only to a logged-in session.
       home = logged_in |> recycle_session_cookie() |> get("/")
-      post_login_session_token = Plug.Conn.get_session(home, "_csrf_token")
-      refute csrf_valid?(post_login_session_token, pre_login_token)
+      assert html_response(home, 200)
+
+      # Through the endpoint, the pre-login token is refused on the logout
+      # POST, and the session it tried to end is still logged in.
+      assert_error_sent(403, fn ->
+        home
+        |> recycle_session_cookie()
+        |> post("/logout", %{"_csrf_token" => pre_login_token})
+      end)
+
+      assert home |> recycle_session_cookie() |> get("/") |> html_response(200)
 
       # The token the logged-in page carries is the one that logs out.
       logged_out =
@@ -267,6 +274,24 @@ defmodule PortfolixirWeb.UiAuthTest do
 
       assert redirected_to(get(unbound, "/portfolio")) =~ "/login"
       assert {:error, {:redirect, %{to: "/login" <> _}}} = live(unbound, "/portfolio")
+    end
+
+    # Key hygiene (E25 S1, F02, review round): the fingerprint's HMAC key is
+    # derived from SECRET_KEY_BASE for this one purpose, the way the cookie
+    # signing keys are, never the raw secret itself.
+    test "the password fingerprint is keyed with a key derived for it" do
+      secret_key_base = PortfolixirWeb.Endpoint.config(:secret_key_base)
+      message = "portfolixir.ui_password." <> @password
+
+      keyed_with = fn key ->
+        :hmac |> :crypto.mac(:sha256, key, message) |> Base.url_encode64(padding: false)
+      end
+
+      derived =
+        Plug.Crypto.KeyGenerator.generate(secret_key_base, "portfolixir.ui_password_fingerprint")
+
+      refute UiAuth.password_fingerprint() == keyed_with.(secret_key_base)
+      assert UiAuth.password_fingerprint() == keyed_with.(derived)
     end
 
     test "the API stays on its bearer token", %{conn: conn} do
@@ -393,12 +418,6 @@ defmodule PortfolixirWeb.UiAuthTest do
       Regex.run(~r/(?:name="_csrf_token" value|name="csrf-token" content)="([^"]+)"/, html)
 
     token
-  end
-
-  defp csrf_valid?(session_token, form_token) do
-    session_token
-    |> Plug.CSRFProtection.dump_state_from_session()
-    |> Plug.CSRFProtection.valid_state_and_csrf_token?(form_token)
   end
 
   defp recycle_session(conn, response) do
