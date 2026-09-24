@@ -47,6 +47,7 @@ Base64 die Verbindungszeichenkette zerlegen würde.
 | `PHX_FORCE_SSL` | nein | `true` leitet unverschlüsseltes HTTP auf HTTPS um und setzt HSTS. Setze es, sobald der Reverse-Proxy TLS terminiert und `X-Forwarded-Proto` von Loopback oder von einer in `PORTFOLIXIR_TRUSTED_PROXIES` genannten Adresse sendet; standardmäßig aus, weil eine Loopback-Instanz kein TLS hat, auf das sie umleiten könnte, und die Anwendung TLS nie selbst terminiert. |
 | `PORTFOLIXIR_TRUSTED_PROXIES` | nein | Adressen oder CIDR-Blöcke, kommagetrennt, deren `X-Forwarded-For` (die Quelle der Anmelde- und Token-Drossel) und `X-Forwarded-Proto` (das Schema) die Anwendung glaubt. Leer zählt die Drossel die verbindende Adresse, hinter einem Proxy also den Proxy, und nur ein Proxy auf Loopback kann eine Anfrage als HTTPS kennzeichnen. |
 | `PORTFOLIXIR_MCP_ALLOWED_HOSTS` | nein | Weitere `Host`-Namen, unter denen der MCP-Begleitdienst antwortet (ein Proxy-Name), kommagetrennt. |
+| `PORTFOLIXIR_LOGO_DIR` | nein | Das absolute Verzeichnis, in dem gespeicherte Logos liegen. Das Release-Image setzt es auf `/var/lib/portfolixir/logos`, das Volume `portfolixir-logos`, weil das Release selbst für den Benutzer, unter dem es läuft, schreibgeschützt ist; in Compose nicht ändern. |
 
 Ohne UI-Passwort und mit einem über Loopback hinaus geöffneten Port
 protokolliert die Anwendung beim Start eine Warnung, die diese Tabelle nennt;
@@ -235,7 +236,10 @@ Positionszielen und die Cash-Ziele, die eigenen Regeln, Recherche-Log und
 Termine, Steuerdaten und das Audit-Journal. Sie enthält **nicht** die `.env` —
 diese Datei gehört ebenfalls an einen sicheren Ort: Ohne `POSTGRES_PASSWORD` und
 die Tokens ist eine wiederhergestellte Datenbank zwar vollständig, die Instanz
-muss aber neu konfiguriert werden.
+muss aber neu konfiguriert werden. Sie enthält auch nicht die gespeicherten
+Logos: Die sind Dateien im Volume `portfolixir-logos`, außerhalb der Datenbank
+und des Release, und ein hochgeladenes oder von Hand gewähltes Logo gibt es nur
+dort; das Volume wird deshalb neben dem Dump gesichert.
 
 Die Befehle unten laufen in dem Verzeichnis, das `docker-compose.yml` und `.env`
 enthält. PostgreSQL-Werkzeuge auf dem Host sind nicht nötig: Sie laufen im
@@ -257,6 +261,13 @@ eines Zeitpunkts. Ob die Datei lesbar ist, zeigt ihr Inhaltsverzeichnis:
 
 ```bash
 docker compose exec -T db pg_restore --list < portfolixir-2026-09-23.dump | head
+```
+
+Die gespeicherten Logos, aus dem laufenden Anwendungs-Container:
+
+```bash
+docker compose exec -T app tar -C /var/lib/portfolixir/logos -cf - . \
+  > portfolixir-logos-$(date +%F).tar
 ```
 
 Vor jedem Upgrade eine Sicherung anlegen: Migrationen sind additiv, und ein
@@ -286,6 +297,10 @@ docker compose exec -T db \
 # 4. Die Instanz; sie migriert die wiederhergestellte Datenbank nach vorn, wenn
 #    die Sicherung aus einem älteren Release stammt.
 docker compose up -d
+
+# 5. Die gespeicherten Logos, in den laufenden Anwendungs-Container.
+docker compose exec -T app tar -C /var/lib/portfolixir/logos -xf - \
+  < portfolixir-logos-2026-09-23.tar
 ```
 
 `--exit-on-error` hält beim ersten Problem an, statt eine halb gefüllte

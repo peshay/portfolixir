@@ -225,4 +225,28 @@ defmodule Portfolixir.RuntimeConfigTest do
     assert RuntimeConfig.password_warning({0, 0, 0, 0}, nil) == :ok
     assert RuntimeConfig.password_warning({0, 0, 0, 0}, "") == :ok
   end
+
+  # User story (E25 S2, F59):
+  # As an operator running the release image,
+  # I want the directory stored logos live in to be configuration,
+  # so that the logos sit on a volume of their own, outside the release tree
+  # the running user cannot write, survive a rebuild and are backed up.
+  #
+  # Acceptance criteria:
+  # - PORTFOLIXIR_LOGO_DIR unset or blank leaves the default (nil here).
+  # - A value is taken trimmed; a relative path is refused, naming the variable,
+  #   because a release resolves it against its own read-only tree.
+  # - config/runtime.exs reads the variable through this function.
+  test "reads the logo directory from PORTFOLIXIR_LOGO_DIR" do
+    assert RuntimeConfig.logo_dir(nil) == nil
+    assert RuntimeConfig.logo_dir("") == nil
+    assert RuntimeConfig.logo_dir("  ") == nil
+    assert RuntimeConfig.logo_dir(" /var/lib/portfolixir/logos ") == "/var/lib/portfolixir/logos"
+
+    assert_raise ArgumentError, ~r/PORTFOLIXIR_LOGO_DIR.*absolute/, fn ->
+      RuntimeConfig.logo_dir("logos")
+    end
+
+    assert File.read!("config/runtime.exs") =~ "Portfolixir.RuntimeConfig.logo_dir()"
+  end
 end

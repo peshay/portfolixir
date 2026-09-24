@@ -1,7 +1,7 @@
 defmodule Portfolixir.Catalog.LogoStore do
   @moduledoc """
-  Downloads a logo URL once and stores the bytes under
-  `priv/static/security_logos/<security_id>.<ext>`.
+  Downloads a logo URL once and stores the bytes as
+  `<security_id>.<ext>` in the logo directory (`storage_dir/0`).
 
   The path is registered on the security's `attributes` map as
   `logo_path` (an app-relative URL starting with `/security_logos/...`)
@@ -259,11 +259,21 @@ defmodule Portfolixir.Catalog.LogoStore do
     end
   end
 
-  @doc "The directory stored logos are written to and served from."
+  @doc """
+  The directory stored logos are written to and served from: the configured
+  `:storage_dir` (`PORTFOLIXIR_LOGO_DIR` in a release, E25 S2), else the
+  release's own `priv/static/security_logos`.
+  """
   @spec storage_dir() :: Path.t()
   def storage_dir, do: default_storage_dir()
 
   defp default_storage_dir do
-    Application.app_dir(:portfolixir, "priv/static/security_logos")
+    :portfolixir
+    |> Application.get_env(__MODULE__, [])
+    |> Keyword.get(:storage_dir)
+    |> case do
+      dir when is_binary(dir) -> dir
+      nil -> Application.app_dir(:portfolixir, "priv/static/security_logos")
+    end
   end
 end

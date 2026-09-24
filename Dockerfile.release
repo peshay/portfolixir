@@ -57,12 +57,22 @@ ENV LANG=C.UTF-8 \
 
 WORKDIR /opt/app
 
+# The one directory the runtime user owns: the stored logos, a Compose volume
+# (docker-compose.yml), so they survive a rebuild and are backed up.
 RUN groupadd --system portfolixir && \
-    useradd --system --gid portfolixir --home /opt/app --shell /usr/sbin/nologin portfolixir
+    useradd --system --gid portfolixir --home /opt/app --shell /usr/sbin/nologin portfolixir && \
+    install -d -o portfolixir -g portfolixir -m 0750 /var/lib/portfolixir/logos
 
-COPY --from=build --chown=portfolixir:portfolixir /app/_build/prod/rel/portfolixir ./
-COPY --chown=portfolixir:portfolixir docker/release-entrypoint.sh /usr/local/bin/release-entrypoint.sh
-RUN chmod +x /usr/local/bin/release-entrypoint.sh
+# The release stays root-owned (E25 S2, F59): the user it runs as can read and
+# run it, not change it. What it writes goes elsewhere: the logos to their
+# directory, and whatever the start script puts in RELEASE_TMP (a daemon's
+# pipes, a rebooted config) to /tmp rather than into the release.
+COPY --from=build /app/_build/prod/rel/portfolixir ./
+COPY docker/release-entrypoint.sh /usr/local/bin/release-entrypoint.sh
+RUN chmod 0755 /usr/local/bin/release-entrypoint.sh
+
+ENV PORTFOLIXIR_LOGO_DIR=/var/lib/portfolixir/logos \
+    RELEASE_TMP=/tmp/portfolixir
 
 USER portfolixir
 
