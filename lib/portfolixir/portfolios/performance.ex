@@ -29,7 +29,7 @@ defmodule Portfolixir.Portfolios.Performance do
   Real-world guards (ADR-0010 amendments):
 
     * Bookings dated before #{inspect(~D[1970-01-01])} are treated as data
-      errors (e.g. a `0217-12-05` typo in an import); their effects are
+      errors (e.g. a `0219-03-07` typo in an import); their effects are
       applied on the first plausible day instead of walking centuries of
       empty days, and the dates are reported as `suspect_dates`.
     * A day whose return base (`V_{d−1} + F_d`) is zero or negative

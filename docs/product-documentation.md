@@ -1655,8 +1655,8 @@ CSV `Kurs` column), so a priced inbound delivery enters the holdings cost
 basis with its real cost. A delivery row without a price still imports and
 moves quantity at zero cost, as described under Holdings Calculation.
 
-Rows with **implausible dates** (before 1900, e.g. a `0217-12-05` typo for
-2017) are rejected per row with a clear message instead of poisoning every
+Rows with **implausible dates** (before 1900, e.g. a `0219-03-07` typo for
+2019) are rejected per row with a clear message instead of poisoning every
 derived metric — fix the booking in the source and re-import; the content
 hashes keep the re-run free of duplicates. After an import, quote and logo
 enrichment for the created securities runs as one throttled background job,

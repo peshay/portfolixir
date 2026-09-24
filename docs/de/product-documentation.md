@@ -1782,8 +1782,8 @@ Einstand in den Einstandswert der Bestände eingeht. Eine Lieferzeile ohne
 Preis wird weiterhin importiert und bewegt die Menge zum Einstand null, wie
 unter Bestandsberechnung beschrieben.
 
-Zeilen mit **unplausiblen Daten** (vor 1900, z. B. ein `0217-12-05`-Tippfehler für
-2017) werden je Zeile mit einer klaren Meldung abgelehnt, statt jede abgeleitete
+Zeilen mit **unplausiblen Daten** (vor 1900, z. B. ein `0219-03-07`-Tippfehler für
+2019) werden je Zeile mit einer klaren Meldung abgelehnt, statt jede abgeleitete
 Kennzahl zu vergiften — korrigiere die Buchung in der Quelle und importiere
 erneut; die Inhalts-Hashes halten den Wiederholungslauf frei von Duplikaten. Nach
 einem Import läuft die Kurs- und Logo-Anreicherung für die angelegten Wertpapiere

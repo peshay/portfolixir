@@ -25,7 +25,7 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
   #   starting from the value just before the period.
   # - A security without quotes is priced at the latest own trade price until
   #   a quote exists, so imported portfolios are not valued at zero.
-  # - Bookings with implausible dates (before 1970, e.g. a 0217 import typo)
+  # - Bookings with implausible dates (before 1970, e.g. a 0219 import typo)
   #   are applied on the first plausible day instead of walking centuries,
   #   and are reported as suspect_dates.
   # - A day with a zero-or-negative return base contributes no return.
@@ -478,7 +478,7 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
   test "applies implausibly dated bookings on the first plausible day" do
     world = setup_world()
 
-    # A PP export typo: year 0217 instead of 2017. Walking from year 0217
+    # A PP export typo: year 0219 instead of 2019. Walking from year 0219
     # would mean ~660,000 daily steps — the walk must start at the first
     # plausible booking instead, with the ancient cash effect preserved.
     {:ok, _} =
@@ -486,7 +486,7 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
         portfolio_id: world.portfolio.id,
         cash_account_id: world.cash.id,
         type: "removal",
-        date: ~D[0217-12-05],
+        date: ~D[0219-03-07],
         gross_amount: "300",
         currency_code: "EUR"
       })
@@ -497,7 +497,7 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
 
     assert result.start_date == ~D[2026-01-01]
     assert length(result.series) == 10
-    assert result.suspect_dates == [~D[0217-12-05]]
+    assert result.suspect_dates == [~D[0219-03-07]]
     # Both flows land on the first day: 1000 in, 300 out, no return.
     assert Decimal.equal?(result.end_value, Decimal.new("700"))
     assert Decimal.equal?(result.net_external_flows, Decimal.new("700"))

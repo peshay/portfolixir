@@ -122,17 +122,17 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
       assert message =~ "Mystery"
     end
 
-    # Mirrors the JSON parser: a date typo like 0217-12-05 must surface as a
+    # Mirrors the JSON parser: a date typo like 0219-03-07 must surface as a
     # per-row error instead of poisoning every derived metric after import.
     test "rejects bookings with implausible dates (before 1900) per row" do
       body = """
       Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
-      0217-12-05 00:00:00;Entnahme;;;;1.346,47;;;1.346,47;Girokonto;;;
+      0219-03-07 00:00:00;Entnahme;;;;250,00;;;250,00;Girokonto;;;
       """
 
       assert {:ok, %Preview{entries: [], errors: errors}} = CsvParser.parse(body)
       assert [%{row: 1, message: message}] = errors
-      assert message =~ "implausible date 0217-12-05"
+      assert message =~ "implausible date 0219-03-07"
       assert message =~ "re-import"
     end
   end

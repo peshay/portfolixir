@@ -2386,7 +2386,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   # valued at a stale trade price, positions with no price at all, positions
   # priced in a currency without a stored FX path (#406 — a distinct, honest
   # state: the price exists and is shown), bookings whose dates are
-  # implausible (import typos like 0217-12-05), and cash accounts excluded
+  # implausible (import typos like 0219-03-07), and cash accounts excluded
   # because no FX rate to the base currency exists.
   defp data_quality(assigns) do
     assigns =

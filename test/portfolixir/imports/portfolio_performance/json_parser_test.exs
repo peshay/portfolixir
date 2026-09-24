@@ -195,7 +195,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
 
     # User story:
     # As a local portfolio maintainer with a date typo in my PP export
-    # (a real export contained "0217-12-05" instead of 2017-12-05),
+    # (e.g. "0219-03-07" instead of 2019-03-07),
     # I want the row rejected with a clear per-row error,
     # so that one bad booking cannot poison every derived metric and I can
     # fix the source and re-import idempotently.
@@ -207,9 +207,9 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
             %{
               type: "REMOVAL",
               account: "Girokonto",
-              date: "0217-12-05",
+              date: "0219-03-07",
               currency: "EUR",
-              amount: 1346.47
+              amount: 250.0
             }
           ]
         })
@@ -217,7 +217,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
       assert {:ok, %Preview{entries: [], errors: [%{row: 1, message: message}]}} =
                JsonParser.parse(body)
 
-      assert message =~ "implausible date 0217-12-05"
+      assert message =~ "implausible date 0219-03-07"
       assert message =~ "re-import"
     end
   end
