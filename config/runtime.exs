@@ -1,7 +1,10 @@
 import Config
 
 if config_env() == :prod do
-  secret_key_base = System.fetch_env!("SECRET_KEY_BASE")
+  # Checked at boot (E25 S1, F67): length, no placeholder, no committed
+  # literal, with the variable named in the failure.
+  secret_key_base =
+    Portfolixir.RuntimeConfig.validate_secret_key_base!(System.get_env("SECRET_KEY_BASE"))
 
   config :portfolixir, PortfolixirWeb.Endpoint,
     server: true,

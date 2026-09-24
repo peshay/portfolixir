@@ -23,7 +23,10 @@ rather than trusted to the cookie's expiry, and bound to the password it was
 issued under) — a logout ends that session, changing `PORTFOLIXIR_UI_PASSWORD`
 ends every session issued under the old one, and rotating `SECRET_KEY_BASE`
 ends every session everywhere; either of the last two is the lever to reach
-for when a device is lost; the bearer tokens must be
+for when a device is lost; `SECRET_KEY_BASE` must be at least 64 bytes and
+neither a placeholder nor a value committed in this repository, and a UI
+password shorter than 12 characters on an instance bound beyond loopback is
+named in a startup warning; the bearer tokens must be
 at least 32 bytes and, like the UI password, are throttled per source after
 repeated failures, with the escalation kept well past the longest lock; failed
 UI logins also meet a rolling ceiling across all sources, which asks everyone

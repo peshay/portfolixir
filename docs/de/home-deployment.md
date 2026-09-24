@@ -27,7 +27,9 @@ des Hosts und die Datenbank nie.
 
 Kopiere `.env.example` nach `.env`. Der Stack startet nicht, solange ein
 Geheimnis fehlt, und die Anwendung verweigert den Start mit einem Token, das
-kürzer als 32 Bytes oder ein Platzhalter ist. Erzeuge jedes Token mit
+kürzer als 32 Bytes oder ein Platzhalter ist, und mit einem `SECRET_KEY_BASE`,
+der kürzer als 64 Bytes, ein Platzhalter oder ein in diesem Repository
+veröffentlichter Wert ist. Erzeuge jedes Token und `SECRET_KEY_BASE` mit
 `openssl rand -base64 48` und `POSTGRES_PASSWORD` mit `openssl rand -hex 32`:
 die Compose-Datei setzt es in die Datenbank-URL ein, wo ein `/` oder `#` aus
 Base64 die Verbindungszeichenkette zerlegen würde.
@@ -47,7 +49,9 @@ Base64 die Verbindungszeichenkette zerlegen würde.
 | `PORTFOLIXIR_MCP_ALLOWED_HOSTS` | nein | Weitere `Host`-Namen, unter denen der MCP-Begleitdienst antwortet (ein Proxy-Name), kommagetrennt. |
 
 Ohne UI-Passwort und mit einem über Loopback hinaus geöffneten Port
-protokolliert die Anwendung beim Start eine Warnung, die diese Tabelle nennt.
+protokolliert die Anwendung beim Start eine Warnung, die diese Tabelle nennt;
+bei einem UI-Passwort unter 12 Zeichen warnt sie ebenfalls und startet
+trotzdem.
 
 ## Start
 
