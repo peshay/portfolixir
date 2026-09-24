@@ -425,6 +425,44 @@ defmodule Portfolixir.CITest do
     end
   end
 
+  # User story (E25 S2, F65):
+  # As an operator building the images from my own checkout,
+  # I want the build context to leave out everything git leaves out,
+  # so that my agent memory, local settings, secrets, stored logos and
+  # generated files never end up inside an image.
+  #
+  # Acceptance criteria:
+  # - Every pattern in .gitignore appears in .dockerignore.
+  # - A pattern git matches at any depth (no slash but a trailing one) appears
+  #   in its any-depth form, `**/<pattern>`, because .dockerignore anchors
+  #   every pattern at the context root; a negation keeps its `!`.
+  test "the build context leaves out everything git leaves out" do
+    patterns = fn path ->
+      path
+      |> File.read!()
+      |> String.split("\n")
+      |> Enum.map(&String.trim/1)
+      |> Enum.reject(&(&1 == "" or String.starts_with?(&1, "#")))
+    end
+
+    dockerignore = MapSet.new(patterns.(".dockerignore"))
+
+    missing =
+      for pattern <- patterns.(".gitignore"),
+          expected = dockerignore_form(pattern),
+          not MapSet.member?(dockerignore, expected),
+          do: "#{pattern} (as #{expected})"
+
+    assert missing == [], ".dockerignore lacks .gitignore entries:\n" <> Enum.join(missing, "\n")
+  end
+
+  defp dockerignore_form("!" <> pattern), do: "!" <> dockerignore_form(pattern)
+
+  defp dockerignore_form(pattern) do
+    anchored? = pattern |> String.trim_trailing("/") |> String.contains?("/")
+    if anchored?, do: pattern, else: "**/" <> pattern
+  end
+
   # User story (#772 — Sprint 11 Lane D; D-3 of the 2026-09-05 security triage):
   # As a maintainer whose dependency tree carried three cowlib advisories
   # with no fixed release,
