@@ -60,6 +60,16 @@ every session issued under the old one, and rotating `SECRET_KEY_BASE` ends
 every session everywhere. Either is the one to reach for when a device or a
 cookie may be in someone else's hands (ADR-0045).
 
+The development stack, `docker-compose.dev.yml`, is not a deployment. It runs
+on public development secrets: the database password `postgres` and the
+`SECRET_KEY_BASE` committed in `config/dev.exs`, with debug pages and origin
+checks off. Anyone who reaches its ports can read and change its data, so both
+its ports, the application's and the database's, are published on loopback
+only (E25), and it holds synthetic data, never an operator's real records. An
+instance still running the development stack as its deployment, as the
+documentation described it before the production release (#760), moves off it
+by a backup and a restore (`docs/home-deployment.md`, "Development stack").
+
 Known limits, recorded rather than hidden: the outbound URL policy resolves a
 name once for the check and the client resolves it again to connect, so a name
 whose answer changes in between can pass (the byte cap, the deadline and the

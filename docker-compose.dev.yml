@@ -4,6 +4,9 @@
 #   docker compose -f docker-compose.dev.yml up --build
 # The database port is published for local tooling; the tokens have no
 # fallback so a development stack never authenticates with a public string.
+# Every port is published on loopback only (E25 S2): the database password
+# and the development secret key base are public values, so nothing beyond
+# this machine may reach either service.
 
 services:
   db:
@@ -22,7 +25,7 @@ services:
       retries: 10
       start_period: 5s
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
 
   app:
     build:
@@ -43,7 +46,7 @@ services:
       PORTFOLIXIR_API_TOKEN: ${PORTFOLIXIR_API_TOKEN:?set PORTFOLIXIR_API_TOKEN in .env}
       PORT: 4000
     ports:
-      - "4000:4000"
+      - "127.0.0.1:4000:4000"
     command: ["mix", "phx.server"]
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:4000/health | grep -q '\"status\":\"ok\"' || exit 1"]

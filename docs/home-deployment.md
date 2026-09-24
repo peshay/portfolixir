@@ -177,6 +177,40 @@ origin checks off, the database port published for local tooling — lives in
 docker compose -f docker-compose.dev.yml up --build
 ```
 
+It runs on public development secrets — the database password `postgres` and
+the `SECRET_KEY_BASE` committed in `config/dev.exs` — so both of its ports, the
+application's and the database's, are published on the host's loopback only,
+and it holds synthetic data only.
+
+### Moving off the development stack
+
+Before the production release (Sprint 10, #760), the documented deployment was
+this development stack, then named `docker-compose.yml`, with its ports open on
+every interface. An instance still running that way moves to the production
+stack by a backup and a restore, not in place: the production database is set
+up only on an empty volume, and the old volume keeps the development user. From
+the checkout, after pulling the current version:
+
+```bash
+# 1. A backup of the development database, while it still runs.
+umask 077
+mkdir -p ~/portfolixir-backups
+docker compose -f docker-compose.dev.yml exec -T db \
+  pg_dump -U postgres -d portfolixir_dev --format=custom \
+  > ~/portfolixir-backups/portfolixir-dev.dump
+
+# 2. The file lists its contents; only then remove the development stack and
+#    its volumes, which leaves the backup as the only copy.
+docker compose -f docker-compose.dev.yml exec -T db \
+  pg_restore --list < ~/portfolixir-backups/portfolixir-dev.dump | head
+docker compose -f docker-compose.dev.yml down -v
+
+# 3. The production database, on a new volume.
+docker compose up -d db
+```
+
+Then restore that file from step 3 of "Restore" below, and check the restore.
+
 ## Backup and restore
 
 The whole instance is one PostgreSQL database, so a backup is one `pg_dump`
