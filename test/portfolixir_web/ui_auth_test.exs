@@ -225,6 +225,50 @@ defmodule PortfolixirWeb.UiAuthTest do
       assert redirected_to(logged_out) == "/login"
     end
 
+    # User story (E25 S1, F02):
+    # As an operator who changes the UI password,
+    # I want every session logged in under the old password to end,
+    # so that changing the password is a lever against a copied session cookie.
+    #
+    # Acceptance criteria:
+    # - After the configured password changes, an existing session is sent to
+    #   the login page and the LiveView mount halts.
+    # - A session carrying the flag and a fresh stamp but no password binding
+    #   (one issued before this change) is logged out.
+    # - Logging in again with the new password works.
+    test "a password change ends existing sessions", %{conn: conn} do
+      Throttle.success(:ui, Throttle.source_key(conn.remote_ip))
+      conn = recycle_session(conn, login(conn, @password))
+      assert conn |> get("/portfolio") |> html_response(200)
+      assert {:ok, _view, _html} = live(conn, "/portfolio")
+
+      # The binding is a keyed fingerprint, never the password itself.
+      fingerprint = Plug.Conn.get_session(conn, UiAuth.fingerprint_key())
+      assert is_binary(fingerprint)
+      refute fingerprint =~ @password
+
+      Application.put_env(:portfolixir, :ui_password, "a-different-operator-password")
+
+      assert redirected_to(get(conn, "/portfolio")) == "/login?to=%2Fportfolio"
+      assert {:error, {:redirect, %{to: "/login" <> _}}} = live(conn, "/portfolio")
+
+      fresh = Phoenix.ConnTest.build_conn()
+      Throttle.success(:ui, Throttle.source_key(fresh.remote_ip))
+      again = recycle_session(fresh, login(fresh, "a-different-operator-password"))
+      assert again |> get("/portfolio") |> html_response(200)
+    end
+
+    test "a session without the password binding is logged out", %{conn: conn} do
+      unbound =
+        Plug.Test.init_test_session(conn, %{
+          UiAuth.session_key() => true,
+          UiAuth.stamp_key() => System.os_time(:second)
+        })
+
+      assert redirected_to(get(unbound, "/portfolio")) =~ "/login"
+      assert {:error, {:redirect, %{to: "/login" <> _}}} = live(unbound, "/portfolio")
+    end
+
     test "the API stays on its bearer token", %{conn: conn} do
       assert conn
              |> put_req_header("accept", "application/json")
@@ -274,7 +318,11 @@ defmodule PortfolixirWeb.UiAuthTest do
 
     test "a session issued before this change carries no timestamp and is refused",
          %{conn: conn} do
-      unstamped = Plug.Test.init_test_session(conn, %{UiAuth.session_key() => true})
+      unstamped =
+        Plug.Test.init_test_session(conn, %{
+          UiAuth.session_key() => true,
+          UiAuth.fingerprint_key() => UiAuth.password_fingerprint()
+        })
 
       assert redirected_to(get(unstamped, "/portfolio")) =~ "/login"
     end
@@ -309,7 +357,8 @@ defmodule PortfolixirWeb.UiAuthTest do
     defp authenticated_at(conn, stamp) do
       Plug.Test.init_test_session(conn, %{
         UiAuth.session_key() => true,
-        UiAuth.stamp_key() => stamp
+        UiAuth.stamp_key() => stamp,
+        UiAuth.fingerprint_key() => UiAuth.password_fingerprint()
       })
     end
   end
