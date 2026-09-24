@@ -29,7 +29,13 @@ mapping, not the application, keeps it on the host's loopback ("Reach" below).
 
 ## Secrets and settings
 
-Copy `.env.example` to `.env`. The stack refuses to start while a secret is
+Create `.env` from `.env.example`, readable by you only, and keep it that way:
+
+```bash
+install -m 600 .env.example .env
+```
+
+The stack refuses to start while a secret is
 missing, the application and the MCP companion refuse to start with a token
 shorter than 32 bytes or equal to a placeholder, and the application refuses a
 `SECRET_KEY_BASE` shorter than 64 bytes, equal to a placeholder, or equal to a
@@ -355,7 +361,11 @@ beside the dump.
 
 The commands below run from the directory that holds `docker-compose.yml` and
 `.env`. No PostgreSQL tools on the host are needed: they run inside the `db`
-container.
+container. They write the backups into `~/portfolixir-backups`, outside the
+checkout, under `umask 077`, so that only you can read them: a dump holds all
+of the instance's data. `umask 077` holds for the rest of that shell session.
+A copy that leaves this machine, on a disk or in a cloud folder: encrypt it
+first, for example with `age -p` or `gpg --symmetric`.
 
 ### Take a backup
 
@@ -363,23 +373,26 @@ Before the backup, note the three figures and the trigger count the restore
 will be checked against (see "Check the restore" below). Then:
 
 ```bash
+umask 077
+mkdir -p ~/portfolixir-backups
 docker compose exec -T db \
   pg_dump -U portfolixir -d portfolixir_prod --format=custom \
-  > portfolixir-$(date +%F).dump
+  > ~/portfolixir-backups/portfolixir-$(date +%F).dump
 ```
 
 The instance keeps running while the dump is taken; the file is a consistent
 snapshot of one moment. To see that the file is readable, list its contents:
 
 ```bash
-docker compose exec -T db pg_restore --list < portfolixir-2026-09-23.dump | head
+docker compose exec -T db \
+  pg_restore --list < ~/portfolixir-backups/portfolixir-2026-09-23.dump | head
 ```
 
 The stored logos, from the running application container:
 
 ```bash
 docker compose exec -T app tar -C /var/lib/portfolixir/logos -cf - . \
-  > portfolixir-logos-$(date +%F).tar
+  > ~/portfolixir-backups/portfolixir-logos-$(date +%F).tar
 ```
 
 Take a backup before every upgrade: migrations are additive, and a rollback
@@ -403,7 +416,7 @@ docker compose exec -T db createdb -U portfolixir portfolixir_prod
 # 3. The backup, in one transaction: all of it or nothing.
 docker compose exec -T db \
   pg_restore -U portfolixir -d portfolixir_prod --no-owner --exit-on-error \
-  --single-transaction < portfolixir-2026-09-23.dump \
+  --single-transaction < ~/portfolixir-backups/portfolixir-2026-09-23.dump \
   && echo "restore complete"
 
 # 4. Only if step 3 ended without an error ("restore complete"): the
@@ -413,7 +426,7 @@ docker compose up -d
 
 # 5. The stored logos, into the running application container.
 docker compose exec -T app tar -C /var/lib/portfolixir/logos -xf - \
-  < portfolixir-logos-2026-09-23.tar
+  < ~/portfolixir-backups/portfolixir-logos-2026-09-23.tar
 ```
 
 `--single-transaction` makes the restore all or nothing: at the first error
@@ -446,10 +459,13 @@ portfolio id the first call lists):
 ```bash
 TOKEN=$(grep '^PORTFOLIXIR_API_TOKEN=' .env | cut -d= -f2-)
 API=http://127.0.0.1:4000/api/v1
+# The token reaches curl on its standard input, never on its command line,
+# where every local user could read it in the process list.
+api() { printf 'Authorization: Bearer %s\n' "$TOKEN" | curl -s -H @- "$API$1"; }
 
-curl -s -H "Authorization: Bearer $TOKEN" $API/portfolios
-curl -s -H "Authorization: Bearer $TOKEN" $API/portfolios/1/valuation   # "total_value"
-curl -s -H "Authorization: Bearer $TOKEN" $API/portfolios/1/holdings    # one entry per holding
+api /portfolios
+api /portfolios/1/valuation   # "total_value"
+api /portfolios/1/holdings    # one entry per holding
 ```
 
 The figures are full-precision decimal strings, so a restore that lost nothing

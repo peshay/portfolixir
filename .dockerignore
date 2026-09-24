@@ -40,6 +40,10 @@
 **/*.sqlite3
 **/*.db
 
+# Backups
+**/*.dump
+**/portfolixir-logos-*.tar
+
 # Generated local/CI artifacts
 /tmp/test-runs/
 /sbom/*.cdx.json
