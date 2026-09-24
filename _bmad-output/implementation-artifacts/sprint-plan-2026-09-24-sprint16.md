@@ -401,15 +401,17 @@ add nothing the triage does not already carry. **To flip by comment:**
 the merge and moves the per-row text into the issues; the branch history
 already holds the rows, so the window has opened either way.
 
-### D-5: the design picks, recommendation first (recommended)
+### D-5: the design picks (picked by the owner, 2026-09-24)
 
-The recommendation is the default, a comment naming another option changes
-it, and the story writes the picked anatomy into `DESIGN.md`. The design pass
-lists every board, variant and argument; the picks are:
+**The owner walked through every board with its variants on 2026-09-24 and
+picked each one; every pick is the option the table marks.** The column below
+therefore records the owner's choice, not a default that silence would adopt.
+The story writes the picked anatomy into `DESIGN.md`. The design pass lists
+every board, variant and argument; the picks are:
 
 A pick's code is its board's number.
 
-| Pick | Item | Board | Options | Recommended |
+| Pick | Item | Board | Options | Picked |
 |---|---|---|---|---|
 | **G1** | Where rename, merge and delete live on Accounts & depots (#328) | `01-accounts-lifecycle` | the existing row menu, one dialog per action · one "edit" dialog with a danger zone | **A** |
 | **G2** | The merge preview and confirm (#328) | `02-merge-preview` | one dialog, target on top and preview below · two steps, target then the preview of exactly that pair | **B** |
