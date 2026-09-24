@@ -69,3 +69,7 @@ __pycache__/
 
 # Agent builder quality-analysis output (generated, regenerable artifacts)
 /skills/reports/
+
+# A tool that writes to an unset path variable creates this directory; nothing
+# in it is ever meant to be tracked (2026-09-24 security review, privacy pass).
+/undefined/
