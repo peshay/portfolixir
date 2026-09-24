@@ -46,6 +46,7 @@ base64 would break the connection string.
 | `PHX_FORCE_SSL` | no | `true` redirects plain HTTP to HTTPS and sets HSTS. Set it once the reverse proxy terminates TLS and sends `X-Forwarded-Proto` from loopback or from an address named in `PORTFOLIXIR_TRUSTED_PROXIES`; off by default, because a loopback instance has no TLS to redirect to and the application never terminates TLS itself. |
 | `PORTFOLIXIR_TRUSTED_PROXIES` | no | Addresses or CIDR blocks, comma-separated, whose `X-Forwarded-For` (the login and token throttle's source) and `X-Forwarded-Proto` (the scheme) the application believes. Empty, the throttle counts the connecting address, which behind a proxy is the proxy, and only a proxy on loopback can mark a request as HTTPS. |
 | `PORTFOLIXIR_MCP_ALLOWED_HOSTS` | no | Further `Host` names the MCP companion answers under (a proxy name), comma-separated. |
+| `PORTFOLIXIR_LOGO_DIR` | no | The absolute directory stored logos are kept in. The release image sets it to `/var/lib/portfolixir/logos`, the `portfolixir-logos` volume, because the release itself is read-only for the user it runs as; leave it alone in Compose. |
 
 Without a UI password and with the port opened beyond loopback, the
 application logs a warning at startup naming this table; with a UI password
@@ -221,7 +222,10 @@ and position targets and the cash targets, the policy rules, the research log
 and events, tax records, and the audit journal. It does **not** hold `.env` —
 keep a copy of that file somewhere safe as well: without `POSTGRES_PASSWORD`
 and the tokens a restored database is still intact, but the instance has to be
-configured anew.
+configured anew. Nor does it hold the stored logos: they are files in the
+`portfolixir-logos` volume, outside both the database and the release, and a
+logo uploaded or chosen by hand exists only there, so the volume is backed up
+beside the dump.
 
 The commands below run from the directory that holds `docker-compose.yml` and
 `.env`. No PostgreSQL tools on the host are needed: they run inside the `db`
@@ -243,6 +247,13 @@ snapshot of one moment. To see that the file is readable, list its contents:
 
 ```bash
 docker compose exec -T db pg_restore --list < portfolixir-2026-09-23.dump | head
+```
+
+The stored logos, from the running application container:
+
+```bash
+docker compose exec -T app tar -C /var/lib/portfolixir/logos -cf - . \
+  > portfolixir-logos-$(date +%F).tar
 ```
 
 Take a backup before every upgrade: migrations are additive, and a rollback
@@ -271,6 +282,10 @@ docker compose exec -T db \
 # 4. The instance, which migrates the restored database forward if the
 #    backup came from an older release.
 docker compose up -d
+
+# 5. The stored logos, into the running application container.
+docker compose exec -T app tar -C /var/lib/portfolixir/logos -xf - \
+  < portfolixir-logos-2026-09-23.tar
 ```
 
 `--exit-on-error` stops at the first problem rather than leaving a half-filled

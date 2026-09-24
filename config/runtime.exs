@@ -36,6 +36,12 @@ if config_env() == :prod do
   # instance without TLS keeps working.
   config :portfolixir, :force_ssl, Portfolixir.RuntimeConfig.force_ssl_opts()
 
+  # Stored logos live outside the release, which stays read-only for the user
+  # it runs as (E25 S2, F59); the release image names a volume's directory.
+  if logo_dir = Portfolixir.RuntimeConfig.logo_dir() do
+    config :portfolixir, Portfolixir.Catalog.LogoStore, storage_dir: logo_dir
+  end
+
   # The proxies whose x-forwarded-for names the throttle's source (#771).
   config :portfolixir, :trusted_proxies, Portfolixir.RuntimeConfig.trusted_proxies()
 

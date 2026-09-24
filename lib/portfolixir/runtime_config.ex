@@ -236,6 +236,34 @@ defmodule Portfolixir.RuntimeConfig do
 
   defp ensure_bracket(host), do: if(String.ends_with?(host, "]"), do: host, else: host <> "]")
 
+  @doc """
+  The directory stored logos are written to and served from, from
+  `PORTFOLIXIR_LOGO_DIR` (E25 S2, F59). Unset or blank leaves the default, the
+  release's own `priv/static/security_logos` (`nil` here); the release image
+  names a directory of its own, on a volume outside the read-only release
+  tree. A relative path is refused, naming the variable: a release would
+  resolve it against that read-only tree.
+  """
+  @spec logo_dir(String.t() | nil) :: Path.t() | nil
+  def logo_dir(value \\ System.get_env("PORTFOLIXIR_LOGO_DIR"))
+
+  def logo_dir(value) when is_binary(value) do
+    case String.trim(value) do
+      "" ->
+        nil
+
+      dir ->
+        if Path.type(dir) == :absolute do
+          dir
+        else
+          raise ArgumentError,
+                "PORTFOLIXIR_LOGO_DIR must be an absolute path, got a relative one"
+        end
+    end
+  end
+
+  def logo_dir(_value), do: nil
+
   @default_session_days 30
 
   @doc """

@@ -379,8 +379,50 @@ defmodule Portfolixir.CITest do
     assert [_header, _build_stage, runtime_stage] =
              "Dockerfile.release" |> File.read!() |> String.split(~r/^FROM /m)
 
-    assert runtime_stage =~ ~r/^\s*RELEASE_DISTRIBUTION=none\b/m,
+    assert runtime_stage =~ ~r/^(?:ENV)?\s+RELEASE_DISTRIBUTION=none\b/m,
            "the runtime stage does not switch Erlang distribution off"
+  end
+
+  # User story (E25 S2, F59):
+  # As an operator running the release image,
+  # I want the release tree owned by root and not writable by the user it runs
+  # as, with the stored logos on a named volume of their own,
+  # so that the running application cannot change its own code, and the logos
+  # survive a rebuild and are part of the backup.
+  #
+  # Acceptance criteria:
+  # - No COPY in the runtime stage carries --chown.
+  # - The runtime stage creates the logo directory for the runtime user, names
+  #   it in PORTFOLIXIR_LOGO_DIR, and keeps the release's temporary files
+  #   outside the release tree (RELEASE_TMP).
+  # - docker-compose.yml mounts a named volume at that directory and declares it.
+  # - The deployment guide's backup section (EN, DE) covers the volume.
+  test "the release tree is read-only for its user and the logos live on a volume" do
+    assert [_header, _build_stage, runtime_stage] =
+             "Dockerfile.release" |> File.read!() |> String.split(~r/^FROM /m)
+
+    copies = Regex.scan(~r/^COPY .*$/m, runtime_stage) |> List.flatten()
+    assert copies != []
+
+    for copy <- copies do
+      refute copy =~ "--chown", "the runtime user would own what this copies: #{copy}"
+    end
+
+    logo_dir = "/var/lib/portfolixir/logos"
+    assert runtime_stage =~ "install -d -o portfolixir -g portfolixir -m 0750 #{logo_dir}"
+    assert runtime_stage =~ ~r/^(?:ENV)?\s+PORTFOLIXIR_LOGO_DIR=#{Regex.escape(logo_dir)}\b/m
+    assert [_, release_tmp] = Regex.run(~r/^(?:ENV)?\s+RELEASE_TMP=(\S+)/m, runtime_stage)
+    refute String.starts_with?(release_tmp, "/opt/app")
+
+    compose = File.read!("docker-compose.yml")
+    assert compose =~ "- portfolixir-logos:#{logo_dir}"
+    assert compose =~ ~r/^volumes:\n(?:  .*\n)*  portfolixir-logos:$/m
+
+    for path <- ["docs/home-deployment.md", "docs/de/home-deployment.md"] do
+      guide = File.read!(path)
+      assert guide =~ "portfolixir-logos", path
+      assert guide =~ "tar -C #{logo_dir} -cf -", path
+    end
   end
 
   # User story (#772 — Sprint 11 Lane D; D-3 of the 2026-09-05 security triage):
