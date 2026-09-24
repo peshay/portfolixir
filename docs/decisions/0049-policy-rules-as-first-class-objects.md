@@ -9,7 +9,10 @@ description: "Decision for gate B3.6 (FR-43). A policy rule is a stored predicat
 - **Status:** Accepted (decision gate **B3.6** per
   [ADR-0026](0026-epic-batch-workflow.html)). The owner signs it by merging
   the Sprint 15 planning PR (step 1 as amended on PR #780: the merge is the
-  signature).
+  signature). **Amended by the Sprint 16 planning PR** (its D-6, signed by
+  that PR's merge): a rule's name is a label outside the versioning and may be
+  renamed (§4), §8's write list gains the rename, and §8's remedy sentence is
+  corrected to the built behaviour.
 - **Date:** 2026-09-23
 - **Answers:** FR-43. §11 lists the asks it answers and the ones it defers, per
   [ADR-0043](0043-a-gate-closing-adr-names-its-asks.html).
@@ -156,11 +159,18 @@ FR-48 (level (c): did the rules produce findings that mattered?) cannot be
 answered without. The in-repo precedent is the target plan: named, versioned,
 at most one active version per scope ([ADR-0027](0027-plan-versions-and-depot-snapshots.html)).
 
-So a rule has a stable identity (`policy_rules`: name, context) and one or
+So a rule has a stable identity (`policy_rules`: its id and context) and one or
 more **versions** (`policy_rule_versions`: the predicate of §1 plus
-`valid_from` and `valid_until`):
+`valid_from` and `valid_until`). *Amended 2026-09-24 (Sprint 16 plan D-6):* the
+rule's **name** is the operator's label on that identity, not part of it. A
+rename is a journaled rule-level edit outside the versioning, the way a target
+plan is renamed (ADR-0027), because a version answers "what was the standard
+on date D" and the label never did; a rename-as-version would add versions
+identical in every predicate, which FR-48 would read as changes of the
+standard.
 
-- **Editing a rule creates a new version.** The new version gets `valid_from`
+- **Editing a rule's predicate creates a new version** (a rename does not;
+  see above). The new version gets `valid_from`
   (today by default, or a later date). The previous version's `valid_until`
   is set to the day before. Versions of one rule never overlap. That is a
   database constraint, not only a changeset check.
@@ -245,9 +255,11 @@ it changes an existing payload's meaning, and no caller has asked.
 ### 8. Writes, identity and the re-import guarantee
 
 - **Writes on API and MCP**, journaled with the actor (UI session or token,
-  AR-1): create a rule with its first version, add a version (the edit), and
-  retire. Deleting a rule is allowed only while none of its versions has
-  been in force (§4).
+  AR-1): create a rule with its first version, add a version (the edit),
+  rename (*amended 2026-09-24, Sprint 16 plan D-6:* `PATCH
+  /api/v1/policy_rules/:id` and its MCP tool, a rule-level edit outside the
+  versioning, §4), and retire. Deleting a rule is allowed only while none of
+  its versions has been in force (§4).
 - **Validation is per measure.** Weights lie in `[0, 100]`, drift in
   `[−100, 100]`, HHI in `[0, 10000]`, and volatility is `≥ 0`. `lower ≤ upper`
   for a band. The subject must fit the measure (the matrix of §2). The window
@@ -256,8 +268,13 @@ it changes an existing payload's meaning, and no caller has asked.
 - **Referenced objects are protected.** Deleting a security, category or view
   that a rule version references answers **409** and names the rules. That is
   the same answer the security-events family gives
-  (ADR-0048, Sprint 13 closing act). Retiring the rule first is the remedy,
-  and the error says so.
+  (ADR-0048, Sprint 13 closing act). *Corrected 2026-09-24 (Sprint 16 plan
+  D-6):* a version that has been in force keeps its reference for good (§4),
+  so retiring the rule does **not** free the object: the reference lasts while
+  the rule exists and any of its versions, or its context, names the object,
+  and the 409 says so. Only a rule none of
+  whose versions was ever in force can be deleted, and deleting it frees the
+  reference.
 - **A Portfolio Performance re-import preserves rules.** The rows key on
   `security_id`, `category_id` and `view_id`. Securities survive a re-import
   by construction ([ADR-0029](0029-stable-identities-and-reimport-survival.html)),
