@@ -1,8 +1,9 @@
 # Dependency update visibility (#676, Quality Gate Roadmap item 3).
 #
 # Dependabot opens update PRs for the ecosystems this repository actually
-# uses: Mix, npm, GitHub Actions, the Dockerfiles and the Compose files. Update PRs are reviewed like any dependency PR and are
-# NEVER auto-merged (standing decision, Dependency Update Policy in
+# uses: Mix, npm, GitHub Actions, the Dockerfiles and the Compose files.
+# Update PRs are reviewed like any dependency PR and are NEVER auto-merged
+# (standing decision, Dependency Update Policy in
 # _bmad-output/project-context.md). The per-batch maintenance lane
 # (AGENTS.md, Epic-Batch Workflow) remains the deciding reviewer; a
 # fuller point-in-time picture comes from scripts/version-report.sh.

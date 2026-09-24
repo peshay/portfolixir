@@ -53,12 +53,14 @@ docker compose up --build
 ```
 
 The Compose setup starts PostgreSQL, the Phoenix app, and the MCP companion.
-Set local bearer tokens through `.env` or the shell; both must be at least 32
-bytes and not a placeholder, or the app and the companion refuse to start:
+Both local bearer tokens must be at least 32 bytes and not a placeholder, or
+the app and the companion refuse to start. In `.env`, paste the output of
+`openssl rand -base64 48` as each value: Compose reads `.env` literally and
+runs no command there. In the shell, export them before `docker compose`:
 
 ```bash
-PORTFOLIXIR_API_TOKEN=$(openssl rand -base64 48)
-PORTFOLIXIR_MCP_TOKEN=$(openssl rand -base64 48)
+export PORTFOLIXIR_API_TOKEN="$(openssl rand -base64 48)"
+export PORTFOLIXIR_MCP_TOKEN="$(openssl rand -base64 48)"
 ```
 
 Reset local Docker volumes when you need a clean database:
