@@ -16,13 +16,13 @@ model:
 
 1. **Total wealth** — everything held must count somewhere, exactly once.
 2. **Scoped views** — only a *subset* should feed a given analysis. The
-   motivating case: Bitcoin stays in total net worth but is left out of the
-   investment *strategy* and rebalancing because its volatility would distort
-   the steered mix.
-3. **Separating parts by purpose or person** — e.g. a family member's
-   holdings currently mixed into the operator's real depot should be viewable
-   separately, while a non-owner's holdings are not the operator's
-   wealth at all and should leave the instance entirely.
+   motivating case: a highly volatile asset stays in total net worth but is
+   left out of the investment *strategy* and rebalancing because its
+   volatility would distort the steered mix.
+3. **Separating parts by purpose or person** — e.g. holdings that belong to a
+   second person but sit in the operator's depot should be viewable
+   separately, while holdings that are not the operator's wealth at all
+   should be able to leave the instance entirely.
 
 Today three mechanisms each address part of this and conflict:
 

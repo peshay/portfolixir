@@ -28,12 +28,12 @@ of the valued positions' total — the **steering basis**, the 100% the targets
 are measured against.
 
 Some holdings should be **visible and valued** but should not be **steered**. The
-motivating case is a Bitcoin position held as a long-term store of value: it must
-stay in the total value, the holdings, and the performance figures, but it should
-not dilute the target mix of the steered part of the portfolio. With no flag, the
-operator faces a bad choice: either the Bitcoin distorts every category's actual
-percentage and the drift, or it is dropped from the valuation entirely and the
-totals stop matching reality.
+motivating case is a store-of-value position, such as a cryptocurrency held for
+the long term: it must stay in the total value, the holdings, and the performance
+figures, but it should not dilute the target mix of the steered part of the
+portfolio. With no flag, the operator faces a bad choice: either the position
+distorts every category's actual percentage and the drift, or it is dropped
+from the valuation entirely and the totals stop matching reality.
 
 This is the security-side sibling of the cash-account problem solved in
 [ADR-0009](0009-cash-as-balance-snapshots.html): there a reference-only cash

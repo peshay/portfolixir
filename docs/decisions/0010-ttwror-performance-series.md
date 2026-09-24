@@ -74,8 +74,8 @@ geometrically, the way Portfolio Performance computes TTWROR.
 
 ## Amendment (2026-06-10): real-world import hardening
 
-Validating the page against a real Portfolio Performance export (2,755
-bookings over nine years) surfaced three failure modes; the engine now guards
+Validating the page against a real-world Portfolio Performance export (several
+thousand bookings over many years) surfaced three failure modes; the engine now guards
 against all three without changing the method:
 
 - **Trade-price fallback.** A security with no quote was valued at zero, so
@@ -85,8 +85,8 @@ against all three without changing the method:
   the live valuation) now price quoteless securities at the latest own trade
   price. A quote wins over a trade on the same day; positions valued this way
   are flagged (`price_source: :trade`) and counted, never silent.
-- **Implausible dates.** One booking dated `0217-12-05` (a typo for 2017)
-  made the daily walk span ~660,000 days. Bookings dated before 1970 are now
+- **Implausible dates.** One booking whose year had lost a digit (`02xx`
+  instead of `20xx`) made the daily walk span hundreds of thousands of days. Bookings dated before 1970 are now
   applied on the first plausible day and reported as `suspect_dates`; the
   importers additionally reject such rows per-row with a clear message, so
   the fix happens in the source and re-import stays idempotent.
