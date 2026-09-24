@@ -23,7 +23,12 @@ Authorization: Bearer <PORTFOLIXIR_API_TOKEN>
 
 The MCP companion uses `PORTFOLIXIR_API_TOKEN` to call Portfolixir.
 `PORTFOLIXIR_MCP_TOKEN` is required for HTTP transport so local HTTP clients can
-authenticate to the companion.
+authenticate to the companion. It meets the API token's policy: the companion
+refuses to start with a token shorter than 32 bytes or equal to a placeholder,
+naming the variable, and repeated wrong tokens from one connecting address are
+answered `429` with `Retry-After` for a growing interval. Behind the published
+port every client connects from the Docker bridge, so a guesser there delays
+the agent as well.
 
 ## Data Rules
 

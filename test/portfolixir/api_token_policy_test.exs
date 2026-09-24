@@ -31,4 +31,23 @@ defmodule Portfolixir.ApiTokenPolicyTest do
       end
     end
   end
+
+  # User story (E25 S1, F01):
+  # As a maintainer,
+  # I want the MCP companion's token policy pinned to the API token's,
+  # so that one credential's policy cannot silently drift from the other's.
+  #
+  # Acceptance criteria:
+  # - The companion's length floor equals the API token's.
+  # - The companion's placeholder prefixes equal the API token's, in order.
+  test "the MCP companion's token policy is the API token's" do
+    source = File.read!("mcp-server/src/http.ts")
+
+    [_, floor] = Regex.run(~r/MCP_TOKEN_MIN_BYTES = (\d+);/, source)
+    assert String.to_integer(floor) == RuntimeConfig.min_token_bytes()
+
+    [_, list] = Regex.run(~r/MCP_TOKEN_PLACEHOLDER_PREFIXES = \[(.*?)\];/s, source)
+    prefixes = ~r/"([^"]+)"/ |> Regex.scan(list) |> Enum.map(&List.last/1)
+    assert prefixes == RuntimeConfig.token_placeholder_prefixes()
+  end
 end

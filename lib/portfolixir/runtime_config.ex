@@ -126,6 +126,14 @@ defmodule Portfolixir.RuntimeConfig do
   @min_token_bytes 32
   @placeholder_prefixes ~w(dev-api-token dev-mcp-token test-api-token replace change secret token password example)
 
+  @doc "The bearer tokens' length floor; the MCP companion holds its token to it too (F01)."
+  @spec min_token_bytes() :: pos_integer()
+  def min_token_bytes, do: @min_token_bytes
+
+  @doc "The placeholder prefixes a bearer token may not start with; mirrored by the companion."
+  @spec token_placeholder_prefixes() :: [String.t()]
+  def token_placeholder_prefixes, do: @placeholder_prefixes
+
   @doc """
   The bearer token a production instance boots with (#761): at least 32 bytes
   and not one of the placeholders the example files ship. Raises with the

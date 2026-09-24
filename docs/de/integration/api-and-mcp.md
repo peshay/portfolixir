@@ -24,7 +24,13 @@ Authorization: Bearer <PORTFOLIXIR_API_TOKEN>
 
 Der MCP-Begleitdienst nutzt `PORTFOLIXIR_API_TOKEN`, um Portfolixir aufzurufen.
 `PORTFOLIXIR_MCP_TOKEN` ist für den HTTP-Transport erforderlich, damit sich
-lokale HTTP-Clients beim Begleitdienst authentifizieren können.
+lokale HTTP-Clients beim Begleitdienst authentifizieren können. Es folgt der
+Regel des API-Tokens: Der Begleitdienst startet nicht mit einem Token, das
+kürzer als 32 Bytes oder ein Platzhalter ist, und nennt dabei die Variable;
+wiederholt falsche Tokens von einer verbindenden Adresse werden mit `429` und
+`Retry-After` für ein wachsendes Intervall beantwortet. Hinter dem
+veröffentlichten Port verbindet jeder Client über die Docker-Bridge, ein
+Rater dort bremst also auch den Agenten.
 
 ## Datenregeln
 
