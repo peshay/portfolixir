@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { once } from "node:events";
+import { STATUS_CODES } from "node:http";
+import type { AddressInfo } from "node:net";
 import { describe, it } from "node:test";
 
 import type { NextFunction, Request, Response } from "express";
@@ -9,6 +12,7 @@ import {
   requireMcpToken,
   allowedHostsFor,
   createFailureThrottle,
+  createHttpApp,
   mcpAuthMiddleware,
   MCP_TOKEN_MIN_BYTES
 } from "../src/http.js";
@@ -182,5 +186,91 @@ describe("MCP HTTP security helpers", () => {
       "mcp.lan:4001",
       "mcp.lan"
     ]);
+  });
+});
+
+// The companion's HTTP app on a loopback port the OS picks; nothing leaves
+// the machine and the API client is never called.
+async function withApp(run: (base: string) => Promise<void>): Promise<void> {
+  const app = createHttpApp({
+    client: {
+      request: async () => {
+        throw new Error("the API is not reached by these requests");
+      }
+    },
+    token: soundToken,
+    allowedHosts: allowedHostsFor("127.0.0.1", 0)
+  });
+  const server = app.listen(0, "127.0.0.1");
+  await once(server, "listening");
+
+  try {
+    await run(`http://127.0.0.1:${(server.address() as AddressInfo).port}`);
+  } finally {
+    server.close();
+    await once(server, "close");
+  }
+}
+
+function post(base: string, body: string, authorization?: string): Promise<globalThis.Response> {
+  const headers: Record<string, string> = { "content-type": "application/json" };
+
+  if (authorization !== undefined) {
+    headers.authorization = authorization;
+  }
+
+  return fetch(`${base}/mcp`, { method: "POST", headers, body });
+}
+
+describe("MCP HTTP transport", () => {
+  // User story (E25 S2, F19):
+  // As an operator whose companion listens over HTTP,
+  // I want a request authenticated before its body is read, and every error
+  // answered as a short JSON error,
+  // so that an unauthenticated caller cannot make the companion parse a body,
+  // and no error answer carries a stack trace or a local path.
+  //
+  // Acceptance criteria:
+  // - A malformed or oversized body without the token is answered 401 JSON.
+  // - A malformed body with the token is answered 400, an oversized one 413,
+  //   each as {"errors": {"detail": <reason phrase>}} and nothing else.
+  // - The app runs in Express's production mode whatever NODE_ENV says.
+  it("authenticates before it reads a body", async () => {
+    await withApp(async (base) => {
+      for (const body of ["{", JSON.stringify({ x: "a".repeat(2 * 1024 * 1024) })]) {
+        const response = await post(base, body);
+        assert.equal(response.status, 401);
+        assert.deepEqual(await response.json(), { errors: { detail: "unauthorized" } });
+      }
+    });
+  });
+
+  it("answers a malformed or oversized body with a short JSON error", async () => {
+    await withApp(async (base) => {
+      const malformed = await post(base, "{", `Bearer ${soundToken}`);
+      assert.equal(malformed.status, 400);
+      assert.match(malformed.headers.get("content-type") ?? "", /^application\/json/);
+      assert.deepEqual(await malformed.json(), { errors: { detail: STATUS_CODES[400] } });
+
+      const oversized = await post(
+        base,
+        JSON.stringify({ x: "a".repeat(2 * 1024 * 1024) }),
+        `Bearer ${soundToken}`
+      );
+      assert.equal(oversized.status, 413);
+      const text = await oversized.text();
+      assert.deepEqual(JSON.parse(text), { errors: { detail: STATUS_CODES[413] } });
+      assert.doesNotMatch(text, /\bat\s|node_modules|\.js:\d+/);
+    });
+  });
+
+  it("runs in Express's production mode", () => {
+    const app = createHttpApp({
+      client: { request: async () => null },
+      token: soundToken,
+      allowedHosts: []
+    });
+
+    assert.equal(app.get("env"), "production");
   });
 });

@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
+import { STATUS_CODES } from "node:http";
 
-import express, { type NextFunction, type Request, type Response } from "express";
+import express, { type Express, type NextFunction, type Request, type Response } from "express";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 
 import { createPortfolixirMcpServer } from "./server.js";
@@ -236,22 +237,73 @@ export function allowedHostsFor(host: string, port: number, ...extraHosts: strin
   return names.flatMap((name) => [`${name}:${port}`, name]);
 }
 
-export async function startHttpServer(options: HttpServerOptions): Promise<void> {
-  const app = express();
-  const host = options.host ?? "127.0.0.1";
-  const port = options.port ?? 4001;
-  const token = requireMcpToken(options.token);
-  const allowedHosts = allowedHostsFor(host, port, ...(options.extraHosts ?? []));
+export interface HttpAppOptions {
+  client: ApiClient;
+  /** A token `requireMcpToken` has accepted. */
+  token: string;
+  /** The Host values the SDK's DNS-rebinding protection accepts. */
+  allowedHosts: string[];
+}
 
+/**
+ * The terminal error handler (E25 S2, F19): every error that reaches it is
+ * answered in the API's error shape with the status's reason phrase, and
+ * nothing of the error itself (no message, no stack, no path) reaches the
+ * client. A 4xx is the client's own doing and is not logged; anything else
+ * is logged by its stack, never with the request.
+ */
+export function mcpErrorHandler(
+  error: unknown,
+  _req: Request,
+  res: Response,
+  next: NextFunction
+): void {
+  if (res.headersSent) {
+    next(error);
+    return;
+  }
+
+  const status = errorStatus(error);
+
+  if (status >= 500) {
+    console.error(error instanceof Error ? error.stack : "unexpected non-error thrown");
+  }
+
+  res.status(status).json({ errors: { detail: STATUS_CODES[status] ?? "Error" } });
+}
+
+function errorStatus(error: unknown): number {
+  if (typeof error === "object" && error !== null) {
+    const candidate =
+      (error as { status?: unknown }).status ?? (error as { statusCode?: unknown }).statusCode;
+
+    if (typeof candidate === "number" && candidate >= 400 && candidate <= 599) {
+      return candidate;
+    }
+  }
+
+  return 500;
+}
+
+/**
+ * The companion's HTTP app, without a listener. The gate runs before any
+ * body is read (E25 S2, F19): an unauthenticated request is refused without
+ * being parsed. Express runs in production mode whatever NODE_ENV says, so
+ * its own last-resort handler never renders a stack trace either.
+ */
+export function createHttpApp(options: HttpAppOptions): Express {
+  const app = express();
+  app.set("env", "production");
+
+  app.use(mcpAuthMiddleware(options.token));
   app.use(express.json({ limit: "1mb" }));
-  app.use(mcpAuthMiddleware(token));
 
   app.all("/mcp", async (req: Request, res: Response) => {
     const server = createPortfolixirMcpServer(options.client);
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableDnsRebindingProtection: true,
-      allowedHosts
+      allowedHosts: options.allowedHosts
     });
 
     res.on("close", () => {
@@ -262,6 +314,18 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
     await server.connect(transport);
     await transport.handleRequest(req, res, req.body);
   });
+
+  app.use(mcpErrorHandler);
+
+  return app;
+}
+
+export async function startHttpServer(options: HttpServerOptions): Promise<void> {
+  const host = options.host ?? "127.0.0.1";
+  const port = options.port ?? 4001;
+  const token = requireMcpToken(options.token);
+  const allowedHosts = allowedHostsFor(host, port, ...(options.extraHosts ?? []));
+  const app = createHttpApp({ client: options.client, token, allowedHosts });
 
   await new Promise<void>((resolve) => {
     app.listen(port, host, () => resolve());

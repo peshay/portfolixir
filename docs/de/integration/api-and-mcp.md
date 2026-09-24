@@ -30,7 +30,10 @@ kürzer als 32 Bytes oder ein Platzhalter ist, und nennt dabei die Variable;
 wiederholt falsche Tokens von einer verbindenden Adresse werden mit `429` und
 `Retry-After` für ein wachsendes Intervall beantwortet. Hinter dem
 veröffentlichten Port verbindet jeder Client über die Docker-Bridge, ein
-Rater dort bremst also auch den Agenten.
+Rater dort bremst also auch den Agenten. Das Token wird geprüft, bevor der
+Body der Anfrage gelesen wird, und der Begleitdienst beantwortet jeden Fehler
+in der Form der API, `{"errors": {"detail": "Bad Request"}}`, ohne Stacktrace
+und ohne lokalen Pfad.
 
 ## Datenregeln
 
