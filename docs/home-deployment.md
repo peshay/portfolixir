@@ -71,11 +71,12 @@ A release started on its own listens on loopback unless `PHX_BIND_ALL` says
 otherwise. In the Compose deployment the application listens on every
 interface inside its container, because a port mapping forwards to the
 container's network interface, never to its loopback, and the port mapping,
-not the application, keeps it on the host's loopback. What reaches it there is this host, through the loopback mapping and
-through the container's own address, and the other containers of the stack;
-nothing else on the network, on Docker Engine 28.3.3 or newer. The application
-cannot tell this apart from a port opened to the network, so without a UI
-password the startup warning appears in every Compose install. Set
+not the application, keeps it on the host's loopback. What reaches it there is
+this host, through the loopback mapping and through the container's own
+address, and the other containers of the stack; nothing else on the network,
+on Docker Engine 28.3.3 or newer. The application cannot tell this apart from
+a port opened to the network, so without a UI password the startup warning
+appears in every Compose install. Set
 `PORTFOLIXIR_UI_PASSWORD` for a Compose install: it also locks the web UI
 against the other containers and against whatever else runs on this host.
 
@@ -220,7 +221,10 @@ the client wrote it lets the client choose the throttle's source.
 Name the exact address the proxy connects from in
 `PORTFOLIXIR_TRUSTED_PROXIES`. Through the published port that is the Docker
 bridge gateway, which `docker network inspect` shows, for example
-`PORTFOLIXIR_TRUSTED_PROXIES=172.18.0.1`. Name the one address rather than a
+`PORTFOLIXIR_TRUSTED_PROXIES=172.18.0.1`. Docker picks that address when it
+creates the stack's network, so check it again whenever the stack's network is
+recreated, after a `docker compose down` for instance: an address that no
+longer matches is as good as none. Name the one address rather than a
 private block: every address inside a named block is believed, so a block also
 trusts whatever else shares that network. With the address named, the throttle
 counts the client behind the proxy rather than the proxy: without it, ten
@@ -232,6 +236,10 @@ container through the Docker bridge must be named there for the cookie to be
 across all sources together over a rolling window, so guesses spread over many
 addresses cannot multiply; past that ceiling the login asks everyone to wait,
 the operator included, while sessions already logged in keep working.
+Restarting the application clears the counts, the ceiling's included, because
+they are kept in memory only: `docker compose restart app` gives the login
+back at once. Changing `PORTFOLIXIR_UI_PASSWORD` in `.env` and running
+`docker compose up -d` recreates the container, which clears them too.
 Reverse-proxy authentication and the built-in UI password compose: keep
 either, or both.
 
@@ -474,7 +482,7 @@ shows them character for character the same. The procedure was run end to end
 on 2026-09-23 against the synthetic review dataset with the shipped
 `docker-compose.yml`: backup, a new database volume, restore, and the three
 figures, the audit journal's row count and the policy rules compared equal.
-The single transaction and the trigger count came later (2026-09-25) and were
+The single transaction and the trigger count came later (2026-09-24) and were
 checked with the same PostgreSQL tools outside Compose, on a restore that
 succeeds and on one that is refused.
 
@@ -507,6 +515,31 @@ base and the database image — so a fix in one of them arrives with the version
 that moves its digest, and the release notes say when an upgrade carries one.
 `docker compose pull db` and `--pull` fetch exactly the images the new version
 names.
+
+Upgrading from 0.15.x or earlier, four changes of the security pass reach an
+instance that already runs. Check them before the `up`:
+
+- **The proxy's address.** `X-Forwarded-Proto` is now believed only from
+  loopback and from the addresses named in `PORTFOLIXIR_TRUSTED_PROXIES`. A
+  reverse proxy that reaches the container through the Docker bridge, as every
+  proxy does through the published port, is neither until it is named. Without
+  it, `PHX_FORCE_SSL=true` redirects every request in a loop, and without
+  `PHX_FORCE_SSL` the session cookie silently loses `Secure`. Name the bridge
+  gateway before upgrading ("Reverse proxy" above).
+- **One login.** A session is now bound to the UI password, and a session
+  issued by an earlier release carries no binding, so every browser logs in
+  once after the upgrade.
+- **The MCP token's floor.** The companion now refuses a
+  `PORTFOLIXIR_MCP_TOKEN` shorter than 32 bytes or equal to a placeholder, as
+  the application already refused such an API token, and stops with the
+  variable's name.
+- **The secret key's floor.** The application refuses a `SECRET_KEY_BASE`
+  shorter than 64 bytes, equal to a placeholder or equal to a value committed
+  in this repository, and stops with the variable's name. A new
+  `SECRET_KEY_BASE` ends every session.
+
+Replace a refused value with the output of `openssl rand -base64 48`, as
+"Secrets and settings" above describes.
 
 ## Rebuild Derived Values
 
