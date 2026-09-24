@@ -12,7 +12,10 @@
 #   set PHX_HOST to the name the proxy serves and PORTFOLIXIR_ALLOWED_HOSTS
 #   for any further name.
 # - Set PORTFOLIXIR_UI_PASSWORD to require a login on the web UI; leave it
-#   unset only behind reverse-proxy authentication.
+#   unset only behind reverse-proxy authentication. Inside its container the
+#   app listens on every interface, and the loopback mapping, on Docker
+#   Engine 28.3.3 or newer, is what keeps it on this host
+#   (docs/home-deployment.md, "Reach").
 #
 # Development uses docker-compose.dev.yml (source mounted, Mix present):
 #   docker compose -f docker-compose.dev.yml up --build

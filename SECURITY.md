@@ -45,7 +45,10 @@ nothing into the pages; the proxy's exact address named in
 `PORTFOLIXIR_TRUSTED_PROXIES`, not a block that also covers other hosts
 (without it the throttle counts the proxy as the one source, and a guesser
 behind it locks everyone behind it out, and `X-Forwarded-Proto` is believed
-from loopback only); and backups.
+from loopback only); for the Compose deployment, Docker Engine 28.3.3 or newer,
+because there the port mapping, not the application, keeps the instance on the
+host's loopback, and a UI password, because the other containers and the host
+itself still reach it; and backups.
 
 Sessions: a UI login lasts `PORTFOLIXIR_SESSION_DAYS` days (default 30),
 renewed while the instance is used, enforced on the server rather than trusted

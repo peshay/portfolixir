@@ -12,11 +12,17 @@ lang_de: /de/home-deployment.html
 Portfolixir is a local self-hosted application. For a small home setup, build
 the production release with Docker Compose and put your own reverse proxy in
 front of it. The Compose file publishes the application and the MCP companion
-on the host's loopback interface only and never publishes the database.
+on the host's loopback interface only and never publishes the database. Inside
+their containers both listen on every interface, so in Compose the port
+mapping, not the application, keeps it on the host's loopback ("Reach" below).
 
 ## Prerequisites
 
-- Docker and Docker Compose;
+- Docker Engine 28.3.3 or newer, with Docker Compose. From 28.0 the engine
+  stops other machines on the network from reaching a port published on
+  `127.0.0.1` directly, and 28.3.3 closes the case in which a firewall reload
+  reopened that path (CVE-2025-54388). On an older engine the loopback port
+  mappings do not keep the instance on this machine;
 - a checkout of this repository;
 - a `.env` file with the secrets (see below);
 - no real portfolio, bank, broker, wallet, or statement data in fixtures.
@@ -51,6 +57,20 @@ base64 would break the connection string.
 Without a UI password and with the port opened beyond loopback, the
 application logs a warning at startup naming this table; with a UI password
 shorter than 12 characters it warns as well, and starts either way.
+
+### Reach
+
+A release started on its own listens on loopback unless `PHX_BIND_ALL` says
+otherwise. In the Compose deployment the application listens on every
+interface inside its container, because a port mapping forwards to the
+container's network interface, never to its loopback, and the port mapping,
+not the application, keeps it on the host's loopback. What reaches it there is this host, through the loopback mapping and
+through the container's own address, and the other containers of the stack;
+nothing else on the network, on Docker Engine 28.3.3 or newer. The application
+cannot tell this apart from a port opened to the network, so without a UI
+password the startup warning appears in every Compose install. Set
+`PORTFOLIXIR_UI_PASSWORD` for a Compose install: it also locks the web UI
+against the other containers and against whatever else runs on this host.
 
 ## Database roles (recommended for a new install)
 
@@ -179,8 +199,9 @@ http://127.0.0.1:4001/mcp
 
 ## Reverse proxy
 
-The application listens on loopback; a reverse proxy on the same host (Caddy,
-nginx, Traefik) terminates TLS and forwards to `127.0.0.1:4000`. It passes the
+The application is reachable on the host's loopback; a reverse proxy on the
+same host (Caddy, nginx, Traefik) terminates TLS and forwards to
+`127.0.0.1:4000`. It passes the
 original `Host` header through (set `PHX_HOST` to that name) and sets the two
 forwarding headers itself: it sets `X-Forwarded-Proto` to the scheme the
 browser used, which is what marks the session cookie `Secure` and what
@@ -537,8 +558,9 @@ added migrations, restore the database backup taken before that upgrade.
   from `Dockerfile.release`); `docker-compose.dev.yml` is the development
   stack.
 - The web UI is open by default and locked by one variable
-  (`PORTFOLIXIR_UI_PASSWORD`); the instance binds loopback and refuses
-  foreign `Host` names (ADR-0045).
+  (`PORTFOLIXIR_UI_PASSWORD`). A release started on its own binds loopback;
+  in Compose the port mapping keeps it on the host's loopback ("Reach" above).
+  Either way it refuses foreign `Host` names (ADR-0045).
 - The MCP companion wraps the local JSON API and does not access the database
   directly.
 - The release logs at `info`: the request lines, warnings and errors. The

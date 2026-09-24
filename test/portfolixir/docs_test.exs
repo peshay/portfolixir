@@ -1004,4 +1004,45 @@ defmodule Portfolixir.DocsTest do
     security = read.("SECURITY.md")
     assert security =~ "connects as the database's bootstrap superuser"
   end
+
+  # User story (E25 S2, F76):
+  # As an operator running the Compose deployment,
+  # I want the guide to say what actually keeps the instance on my machine,
+  # which Docker Engine that needs, and why the startup warning appears,
+  # so that I rely on the loopback reach only where it holds, and set a UI
+  # password where it does not.
+  #
+  # Acceptance criteria:
+  # - EN and DE name Docker Engine 28.3.3 or newer as a prerequisite, with why.
+  # - Both qualify the reach: in Compose the port mapping, not the application,
+  #   keeps it on the host's loopback; the unqualified "binds loopback" claim
+  #   for the Compose instance is gone.
+  # - Both recommend a UI password for a Compose install and explain why the
+  #   warning appears there.
+  # - ADR-0045 records the qualification as an amendment.
+  test "the Compose reach is qualified and the engine prerequisite named" do
+    read = fn path -> path |> File.read!() |> String.replace(~r/\s+/, " ") end
+
+    for {path, engine, reach, password, gone} <- [
+          {"docs/home-deployment.md", "Docker Engine 28.3.3 or newer",
+           "the port mapping, not the application, keeps it on the host's loopback",
+           "Set `PORTFOLIXIR_UI_PASSWORD` for a Compose install",
+           "the instance binds loopback and refuses"},
+          {"docs/de/home-deployment.md", "Docker Engine 28.3.3 oder neuer",
+           "die Port-Zuordnung, nicht die Anwendung, hält sie auf dem Loopback des Hosts",
+           "Setze für eine Compose-Installation `PORTFOLIXIR_UI_PASSWORD`",
+           "die Instanz bindet Loopback und weist"}
+        ] do
+      doc = read.(path)
+      assert doc =~ engine, path
+      assert doc =~ "CVE-2025-54388", path
+      assert doc =~ reach, path
+      assert doc =~ password, path
+      refute doc =~ gone, path
+    end
+
+    adr = read.("docs/decisions/0045-optional-built-in-authentication.md")
+    assert adr =~ "Amendment, 2026-09-25 (E25 S2, #887): the loopback-only reach, qualified."
+    assert adr =~ "Docker Engine 28.3.3"
+  end
 end

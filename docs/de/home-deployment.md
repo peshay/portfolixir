@@ -13,11 +13,18 @@ Portfolixir ist eine lokale, selbst gehostete Anwendung. Für einen kleinen
 Betrieb zu Hause baust du das Produktions-Release mit Docker Compose und
 stellst deinen eigenen Reverse-Proxy davor. Die Compose-Datei veröffentlicht
 die Anwendung und den MCP-Begleitdienst nur auf der Loopback-Schnittstelle
-des Hosts und die Datenbank nie.
+des Hosts und die Datenbank nie. In ihren Containern lauschen beide auf jeder
+Schnittstelle; in Compose hält deshalb die Port-Zuordnung, nicht die
+Anwendung, sie auf dem Loopback des Hosts („Erreichbarkeit“ unten).
 
 ## Voraussetzungen
 
-- Docker und Docker Compose;
+- Docker Engine 28.3.3 oder neuer, mit Docker Compose. Ab 28.0 verhindert die
+  Engine, dass andere Rechner im Netz einen auf `127.0.0.1` veröffentlichten
+  Port direkt erreichen, und 28.3.3 schließt den Fall, in dem ein Neuladen der
+  Firewall diesen Weg wieder öffnete (CVE-2025-54388). Mit einer älteren
+  Engine halten die Loopback-Port-Zuordnungen die Instanz nicht auf diesem
+  Rechner;
 - ein Checkout dieses Repositories;
 - eine `.env`-Datei mit den Geheimnissen (siehe unten);
 - keine echten Portfolio-, Bank-, Broker-, Wallet- oder Abrechnungsdaten in
@@ -53,6 +60,22 @@ Ohne UI-Passwort und mit einem über Loopback hinaus geöffneten Port
 protokolliert die Anwendung beim Start eine Warnung, die diese Tabelle nennt;
 bei einem UI-Passwort unter 12 Zeichen warnt sie ebenfalls und startet
 trotzdem.
+
+### Erreichbarkeit
+
+Ein allein gestartetes Release lauscht auf Loopback, solange `PHX_BIND_ALL`
+nichts anderes sagt. Im Compose-Deployment lauscht die Anwendung in ihrem
+Container auf jeder Schnittstelle, weil eine Port-Zuordnung an die
+Netzwerkschnittstelle des Containers weiterleitet, nie an dessen Loopback, und
+die Port-Zuordnung, nicht die Anwendung, hält sie auf dem Loopback des Hosts.
+Erreichbar ist sie dort von diesem Host, über die Loopback-Zuordnung und über
+die eigene Adresse des Containers, und von den anderen Containern des Stacks;
+von nichts sonst im Netz, mit Docker Engine 28.3.3 oder neuer. Die Anwendung
+kann das nicht von einem ins Netz geöffneten Port unterscheiden, ohne
+UI-Passwort erscheint die Startwarnung deshalb in jeder Compose-Installation.
+Setze für eine Compose-Installation `PORTFOLIXIR_UI_PASSWORD`: es sperrt die
+Web-Oberfläche auch gegenüber den anderen Containern und gegenüber allem
+anderen, was auf diesem Host läuft.
 
 ## Datenbankrollen (empfohlen für eine neue Installation)
 
@@ -184,8 +207,9 @@ http://127.0.0.1:4001/mcp
 
 ## Reverse-Proxy
 
-Die Anwendung lauscht auf Loopback; ein Reverse-Proxy auf demselben Host
-(Caddy, nginx, Traefik) terminiert TLS und leitet an `127.0.0.1:4000` weiter.
+Die Anwendung ist auf dem Loopback des Hosts erreichbar; ein Reverse-Proxy auf
+demselben Host (Caddy, nginx, Traefik) terminiert TLS und leitet an
+`127.0.0.1:4000` weiter.
 Er reicht den ursprünglichen `Host`-Header durch (setze `PHX_HOST` auf diesen
 Namen) und setzt die beiden Weiterleitungs-Header selbst: Er setzt
 `X-Forwarded-Proto` auf das Schema, das der Browser benutzt hat — das markiert
@@ -564,8 +588,10 @@ Datenbanksicherung zurück.
   Produktions-Release aus `Dockerfile.release`); `docker-compose.dev.yml` ist
   der Entwicklungs-Stack.
 - Die Web-Oberfläche ist standardmäßig offen und wird mit einer Variablen
-  (`PORTFOLIXIR_UI_PASSWORD`) gesperrt; die Instanz bindet Loopback und weist
-  fremde `Host`-Namen ab (ADR-0045).
+  (`PORTFOLIXIR_UI_PASSWORD`) gesperrt. Ein allein gestartetes Release bindet
+  Loopback; in Compose hält die Port-Zuordnung es auf dem Loopback des Hosts
+  („Erreichbarkeit“ oben). In beiden Fällen weist es fremde `Host`-Namen ab
+  (ADR-0045).
 - Der MCP-Begleitdienst kapselt die lokale JSON-API und greift nicht direkt
   auf die Datenbank zu.
 - Das Release protokolliert auf der Stufe `info`: die Anfragezeilen, Warnungen
