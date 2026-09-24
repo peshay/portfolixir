@@ -28,9 +28,11 @@ refuses to start with a token shorter than 32 bytes or equal to a placeholder,
 naming the variable, and repeated wrong tokens from one connecting address are
 answered `429` with `Retry-After` for a growing interval. Behind the published
 port every client connects from the Docker bridge, so a guesser there delays
-the agent as well. The token is checked before the request body is read, and
-the companion answers every error in the API's shape, `{"errors": {"detail":
-"Bad Request"}}`, with no stack trace or local path in it.
+the agent as well. The token is checked before the request body is read. The
+errors the companion answers itself, an unknown path among them, take the
+API's shape, `{"errors": {"detail": "Bad Request"}}`, with no stack trace or
+local path in it; the refusals of the MCP protocol itself on `/mcp` keep the
+protocol's JSON-RPC error shape.
 
 ## Data Rules
 
