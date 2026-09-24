@@ -120,6 +120,24 @@ lever beside rotating `SECRET_KEY_BASE`, not a server-side session list.
   reverse proxy, non-root users and digest-pinned images. The current Compose
   file is kept as the development configuration under its own name.
 
+**Amendment, 2026-09-25 (E25 S2, #887): the loopback-only reach, qualified.**
+The 2026-09-24 security review (F76) found that the documents overstated what
+"loopback by default" means for the documented deployment. In Compose the
+application sets `PHX_BIND_ALL` and listens on every interface inside its
+container, because a port mapping forwards to the container's network
+interface, never to its loopback; the `127.0.0.1` port mapping, not the
+application, keeps it on the host's loopback. It is therefore reachable from
+the host, through the mapping and through the container's own address, and
+from the other containers of the stack, and from nothing else on the network
+only on Docker Engine 28.3.3 or newer (28.0 blocked other machines from
+reaching loopback-published ports directly; 28.3.3 closed the firewall-reload
+case, CVE-2025-54388). The startup warning of the first bullet is kept: the
+application cannot tell a mapped container interface from an opened port, so
+it appears in every Compose install without a UI password, and the deployment
+guide now recommends that password for Compose installs and names the engine
+prerequisite. The decision itself is unchanged: a release started on its own
+still binds loopback unless told otherwise.
+
 ### 3. What this is not
 
 - Not a user model, not roles, not per-portfolio permissions; NFR-6 (one
