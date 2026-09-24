@@ -355,13 +355,12 @@ docker compose build --pull
 docker compose up -d
 ```
 
-Die Erlang/OTP- und Debian-Basis-Images der Anwendung sind im Repository per
-Digest gepinnt; eine Laufzeit-Korrektur darin kommt also mit der neuen Version
-selbst. Das Datenbank-Image und die Node-Basis des MCP-Begleiters sind per Tag
-benannt: ein einfaches `docker compose up --build` verwendet die Kopien weiter,
-die schon auf dem Host liegen, deshalb bringen erst `docker compose pull db`
-und `--pull` deren Korrekturen. Die Release-Notes sagen, wann ein Upgrade eine
-solche Korrektur enthält.
+Jedes Image, auf dem der Stack läuft, ist im Repository per Tag und Digest
+gepinnt — die Erlang/OTP- und Debian-Basis-Images der Anwendung, die Node-Basis
+des MCP-Begleiters und das Datenbank-Image —; eine Korrektur darin kommt also
+mit der Version, die ihren Digest bewegt, und die Release-Notes sagen, wann ein
+Upgrade eine solche Korrektur enthält. `docker compose pull db` und `--pull`
+holen genau die Images, die die neue Version nennt.
 
 ## Abgeleitete Werte neu aufbauen
 

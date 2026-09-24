@@ -19,7 +19,9 @@
 
 services:
   db:
-    image: postgres:18-alpine
+    # Pinned by tag and digest (ADR-0045 §2, E25 S2); Dependabot's
+    # docker-compose ecosystem moves both, never across a PostgreSQL major.
+    image: postgres:18.6-alpine3.24@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
     environment:
       POSTGRES_DB: portfolixir_prod
       POSTGRES_USER: portfolixir

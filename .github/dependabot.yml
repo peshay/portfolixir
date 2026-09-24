@@ -1,7 +1,7 @@
 # Dependency update visibility (#676, Quality Gate Roadmap item 3).
 #
-# Dependabot opens update PRs for the three ecosystems this repository
-# actually uses. Update PRs are reviewed like any dependency PR and are
+# Dependabot opens update PRs for the ecosystems this repository actually
+# uses: Mix, npm, GitHub Actions, the Dockerfiles and the Compose files. Update PRs are reviewed like any dependency PR and are
 # NEVER auto-merged (standing decision, Dependency Update Policy in
 # _bmad-output/project-context.md). The per-batch maintenance lane
 # (AGENTS.md, Epic-Batch Workflow) remains the deciding reviewer; a
@@ -31,8 +31,9 @@ updates:
     schedule:
       interval: "weekly"
 
-  # The image tags (#760, #761): exact tags rather than floating majors, kept
-  # current here instead of by hand.
+  # The images (#760, #761, E25 S2): exact tags pinned by digest (ADR-0045
+  # §2), kept current here instead of by hand; an update moves tag and digest
+  # together.
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
@@ -51,3 +52,15 @@ updates:
     directory: "/mcp-server"
     schedule:
       interval: "weekly"
+
+  # The Compose files' images (E25 S2): the database, pinned by tag and digest
+  # in docker-compose.yml and docker-compose.dev.yml. A PostgreSQL major is
+  # declined, not deferred: its data directory needs a dump and a restore
+  # (docs/home-deployment.md), which a version bump cannot do.
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    ignore:
+      - dependency-name: "postgres"
+        update-types: ["version-update:semver-major"]
