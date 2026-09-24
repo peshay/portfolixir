@@ -25,7 +25,9 @@ on the host's loopback interface only and never publishes the database.
 
 Copy `.env.example` to `.env`. The stack refuses to start while a secret is
 missing, and the application refuses to boot with a token shorter than 32
-bytes or equal to a placeholder. Generate each token with
+bytes or equal to a placeholder, and with a `SECRET_KEY_BASE` shorter than 64
+bytes, equal to a placeholder, or equal to a value committed in this
+repository. Generate each token and `SECRET_KEY_BASE` with
 `openssl rand -base64 48`, and `POSTGRES_PASSWORD` with `openssl rand -hex 32`:
 the Compose file splices it into the database URL, where a `/` or `#` from
 base64 would break the connection string.
@@ -45,7 +47,8 @@ base64 would break the connection string.
 | `PORTFOLIXIR_MCP_ALLOWED_HOSTS` | no | Further `Host` names the MCP companion answers under (a proxy name), comma-separated. |
 
 Without a UI password and with the port opened beyond loopback, the
-application logs a warning at startup naming this table.
+application logs a warning at startup naming this table; with a UI password
+shorter than 12 characters it warns as well, and starts either way.
 
 ## Start
 

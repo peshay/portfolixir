@@ -66,6 +66,36 @@ defmodule Portfolixir.RuntimeConfig do
        "(ADR-0045)."}
   end
 
+  @min_ui_password_length 12
+
+  @doc "The UI password length below which a network-bound instance warns at boot (T-2)."
+  @spec min_ui_password_length() :: pos_integer()
+  def min_ui_password_length, do: @min_ui_password_length
+
+  @doc """
+  The startup check behind T-2 of the 2026-09-24 triage (E25 S1, F67): bound
+  beyond loopback with a UI password shorter than `min_ui_password_length/0`
+  is named in the log. A warning, never a refusal: an instance that already
+  runs keeps booting (ADR-0045 §1). No password at all is
+  `exposure_warning/2`'s case. Pure; `Portfolixir.Application` logs it.
+  """
+  @spec password_warning(:inet.ip_address(), String.t() | nil) :: :ok | {:warn, String.t()}
+  def password_warning(@loopback, _password), do: :ok
+  def password_warning({0, 0, 0, 0, 0, 0, 0, 1}, _password), do: :ok
+
+  def password_warning(_ip, password) when is_binary(password) and password != "" do
+    if String.length(password) < @min_ui_password_length do
+      {:warn,
+       "The web UI is bound beyond loopback and PORTFOLIXIR_UI_PASSWORD is shorter " <>
+         "than #{@min_ui_password_length} characters: the login throttle slows guessing, " <>
+         "it does not stop it. Choose a longer password (ADR-0045)."}
+    else
+      :ok
+    end
+  end
+
+  def password_warning(_ip, _password), do: :ok
+
   @doc """
   A signing salt derived from `SECRET_KEY_BASE` for one named purpose (#759):
   no installation shares a salt printed in the repository, and the two salts
@@ -124,9 +154,45 @@ defmodule Portfolixir.RuntimeConfig do
           "PORTFOLIXIR_API_TOKEN is required; generate one with `openssl rand -base64 48`"
   end
 
-  defp placeholder?(token) do
+  defp placeholder?(token, prefixes \\ @placeholder_prefixes) do
     lowered = String.downcase(token)
-    Enum.any?(@placeholder_prefixes, &String.starts_with?(lowered, &1))
+    Enum.any?(prefixes, &String.starts_with?(lowered, &1))
+  end
+
+  # What the cookie store needs, and what `openssl rand -base64 48` prints.
+  @min_secret_key_base_bytes 64
+  # The placeholders, plus the prefixes of the literals committed in
+  # config/dev.exs and config/test.exs, which anyone can read.
+  @secret_key_base_placeholders @placeholder_prefixes ++
+                                  ~w(dev_secret_key_base test_secret_key_base)
+
+  @doc """
+  The `SECRET_KEY_BASE` a production instance boots with (E25 S1, F67): at
+  least #{@min_secret_key_base_bytes} bytes, not a placeholder the example
+  files ship, and not a literal committed in this repository. Raises with the
+  variable's name, mirroring `validate_api_token!/1`.
+  """
+  @spec validate_secret_key_base!(String.t() | nil) :: String.t()
+  def validate_secret_key_base!(secret) when is_binary(secret) do
+    cond do
+      byte_size(secret) < @min_secret_key_base_bytes ->
+        raise ArgumentError,
+              "SECRET_KEY_BASE must be at least #{@min_secret_key_base_bytes} bytes " <>
+                "(got #{byte_size(secret)}); generate one with `openssl rand -base64 48`"
+
+      placeholder?(secret, @secret_key_base_placeholders) ->
+        raise ArgumentError,
+              "SECRET_KEY_BASE is a placeholder or a value committed in the repository; " <>
+                "generate a real one with `openssl rand -base64 48`"
+
+      true ->
+        secret
+    end
+  end
+
+  def validate_secret_key_base!(_missing) do
+    raise ArgumentError,
+          "SECRET_KEY_BASE is required; generate one with `openssl rand -base64 48`"
   end
 
   defp truthy?(value) do
