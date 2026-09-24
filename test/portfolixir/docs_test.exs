@@ -832,4 +832,48 @@ defmodule Portfolixir.DocsTest do
     assert de =~ "SOLL-Pläne"
     assert de =~ "Audit-Journal"
   end
+
+  # User story (E25 S1, F05; T-4 of the 2026-09-24 triage):
+  # As an operator deciding how to end a login,
+  # I want SECURITY.md and the deployment guide to say what a logout and a
+  # zero session lifetime actually do,
+  # so that I reach for the lever that also ends a copied session cookie.
+  #
+  # Acceptance criteria:
+  # - SECURITY.md and the EN and DE deployment pages say that a logout clears
+  #   the login in that browser only, and that a copy of the cookie stays valid.
+  # - All three say that a lifetime of 0 turns the server-side expiry off.
+  # - All three name the two levers that end every session: changing the UI
+  #   password and rotating SECRET_KEY_BASE.
+  # - The former wording (a logout ends the session; 0 ends the login when the
+  #   browser closes) is gone; .env.example carries the corrected lifetime line.
+  test "the revocation and lifetime wording says what the code does" do
+    read = fn path -> path |> File.read!() |> String.replace(~r/\s+/, " ") end
+
+    security = read.("SECURITY.md")
+    assert security =~ "a logout clears the login in that browser only"
+    assert security =~ "a copy of the session cookie taken earlier stays valid"
+    assert security =~ "`PORTFOLIXIR_SESSION_DAYS=0` turns the server-side expiry off"
+    assert security =~ "changing `PORTFOLIXIR_UI_PASSWORD`"
+    assert security =~ "rotating `SECRET_KEY_BASE` ends every session everywhere"
+    refute security =~ "a logout ends that session"
+
+    en = read.("docs/home-deployment.md")
+    assert en =~ "A logout clears the login in that browser only"
+    assert en =~ "a copy of the session cookie taken earlier stays valid"
+    assert en =~ "`0` turns the server-side expiry off"
+    assert en =~ "change `PORTFOLIXIR_UI_PASSWORD` or rotate `SECRET_KEY_BASE`"
+    refute en =~ "`0` ends the login when the browser closes."
+
+    de = read.("docs/de/home-deployment.md")
+    assert de =~ "Eine Abmeldung beendet die Anmeldung nur in diesem Browser"
+    assert de =~ "eine vorher genommene Kopie des Sitzungs-Cookies bleibt gültig"
+    assert de =~ "`0` schaltet den serverseitigen Ablauf ab"
+    assert de =~ "ändere `PORTFOLIXIR_UI_PASSWORD` oder rotiere `SECRET_KEY_BASE`"
+    refute de =~ "`0` beendet die Anmeldung mit dem Schließen des Browsers."
+
+    env_example = read.(".env.example")
+    assert env_example =~ "0 turns the server-side expiry off"
+    refute env_example =~ "0 means the login ends when the browser closes"
+  end
 end
