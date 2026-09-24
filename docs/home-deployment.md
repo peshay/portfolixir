@@ -14,7 +14,8 @@ the production release with Docker Compose and put your own reverse proxy in
 front of it. The Compose file publishes the application and the MCP companion
 on the host's loopback interface only and never publishes the database. Inside
 their containers both listen on every interface, so in Compose the port
-mapping, not the application, keeps it on the host's loopback ("Reach" below).
+mappings, not the application, keep them on the host's loopback ("Reach"
+below).
 
 ## Prerequisites
 
@@ -35,11 +36,11 @@ Create `.env` from `.env.example`, readable by you only, and keep it that way:
 install -m 600 .env.example .env
 ```
 
-The stack refuses to start while a secret is
-missing, the application and the MCP companion refuse to start with a token
-shorter than 32 bytes or equal to a placeholder, and the application refuses a
-`SECRET_KEY_BASE` shorter than 64 bytes, equal to a placeholder, or equal to a
-value committed in this repository. Generate each token and `SECRET_KEY_BASE`
+The stack refuses to start while a secret is missing, the application and the
+MCP companion refuse to start with a token shorter than 32 bytes or equal to a
+placeholder, and the application refuses a `SECRET_KEY_BASE` shorter than 64
+bytes, equal to a placeholder, or equal to a value committed in this
+repository. Generate each token and `SECRET_KEY_BASE`
 with `openssl rand -base64 48`, and `POSTGRES_PASSWORD` with
 `openssl rand -hex 32`:
 the Compose file splices it into the database URL, where a `/` or `#` from
