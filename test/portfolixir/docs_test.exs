@@ -922,4 +922,35 @@ defmodule Portfolixir.DocsTest do
     assert security =~ "never passes a value the client sent through"
     refute security =~ "`X-Forwarded-For` unchanged"
   end
+
+  # User story (E25 S2, F54):
+  # As an operator restoring a backup,
+  # I want the restore to be all or nothing, the instance started only after
+  # it succeeded, and a check that the database's guards came back,
+  # so that a failed restore can never leave a database without its
+  # append-only and journal triggers behind a running instance.
+  #
+  # Acceptance criteria:
+  # - The restore step (EN, DE) runs pg_restore with --exit-on-error and
+  #   --single-transaction.
+  # - Both say to start the instance only once the restore ended without error.
+  # - Both compare the number of database triggers before the backup and
+  #   after the restore.
+  test "the restore is one transaction, and its check counts the triggers" do
+    trigger_count = "SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal"
+
+    for {path, start_only} <- [
+          {"docs/home-deployment.md", "Only if step 3 ended without an error"},
+          {"docs/de/home-deployment.md", "Nur wenn Schritt 3 ohne Fehler endete"}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s*\\\n\s*/, " ")
+
+      assert doc =~
+               "pg_restore -U portfolixir -d portfolixir_prod --no-owner --exit-on-error --single-transaction",
+             path
+
+      assert doc =~ start_only, path
+      assert doc =~ trigger_count, path
+    end
+  end
 end

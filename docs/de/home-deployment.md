@@ -247,8 +247,9 @@ enthält. PostgreSQL-Werkzeuge auf dem Host sind nicht nötig: Sie laufen im
 
 ### Sicherung anlegen
 
-Vor der Sicherung drei Zahlen notieren, gegen die die Wiederherstellung geprüft
-wird (siehe „Wiederherstellung prüfen“ unten). Dann:
+Vor der Sicherung die drei Zahlen und die Zahl der Trigger notieren, gegen die
+die Wiederherstellung geprüft wird (siehe „Wiederherstellung prüfen“ unten).
+Dann:
 
 ```bash
 docker compose exec -T db \
@@ -289,13 +290,15 @@ docker compose stop app mcp
 docker compose exec -T db dropdb -U portfolixir --if-exists portfolixir_prod
 docker compose exec -T db createdb -U portfolixir portfolixir_prod
 
-# 3. Die Sicherung.
+# 3. Die Sicherung, in einer Transaktion: ganz oder gar nicht.
 docker compose exec -T db \
   pg_restore -U portfolixir -d portfolixir_prod --no-owner --exit-on-error \
-  < portfolixir-2026-09-23.dump
+  --single-transaction < portfolixir-2026-09-23.dump \
+  && echo "restore complete"
 
-# 4. Die Instanz; sie migriert die wiederhergestellte Datenbank nach vorn, wenn
-#    die Sicherung aus einem älteren Release stammt.
+# 4. Nur wenn Schritt 3 ohne Fehler endete („restore complete“): die Instanz;
+#    sie migriert die wiederhergestellte Datenbank nach vorn, wenn die
+#    Sicherung aus einem älteren Release stammt.
 docker compose up -d
 
 # 5. Die gespeicherten Logos, in den laufenden Anwendungs-Container.
@@ -303,8 +306,14 @@ docker compose exec -T app tar -C /var/lib/portfolixir/logos -xf - \
   < portfolixir-logos-2026-09-23.tar
 ```
 
-`--exit-on-error` hält beim ersten Problem an, statt eine halb gefüllte
-Datenbank zu hinterlassen. Eine Sicherung lässt sich in dieselbe oder eine
+`--single-transaction` macht die Wiederherstellung zu einem Ganz-oder-gar-nicht:
+beim ersten Fehler (`--exit-on-error`) wird alles zurückgerollt, was sie getan
+hat, und die Datenbank bleibt leer statt halb gefüllt — einer halb gefüllten
+können die Append-only- und Audit-Journal-Trigger fehlen, die die Daten
+schützen und mit den Tabellen zurückkommen. Starte die Instanz erst nach einer
+Wiederherstellung, die ohne Fehler endete: auf einer leeren Datenbank würde sie
+die Migrationen ausführen und ohne Daten starten. Suche die Ursache und
+wiederhole ab Schritt 2. Eine Sicherung lässt sich in dieselbe oder eine
 neuere PostgreSQL-Hauptversion zurückspielen; das `db`-Image aus
 `docker-compose.yml` ist das richtige.
 
@@ -313,7 +322,16 @@ neuere PostgreSQL-Hauptversion zurückspielen; das `db`-Image aus
 Drei Zahlen vor der Sicherung und nach der Wiederherstellung vergleichen: den
 Gesamtwert, die Anzahl der Bestände und eine bekannte Position. Auf der
 Vermögensseite sind das die Summe oben, die Zeilen der Positionstabelle und eine
-beliebige Zeile daraus. Über die API (das Token ist `PORTFOLIXIR_API_TOKEN` aus
+beliebige Zeile daraus. Vergleiche auch die Zahl der Trigger der Datenbank,
+darunter die Append-only- und Audit-Journal-Wächter; eine Wiederherstellung,
+die keinen verloren hat, zeigt dieselbe Zahl:
+
+```bash
+docker compose exec -T db psql -U portfolixir -d portfolixir_prod -tAc \
+  "SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal"
+```
+
+Über die API (das Token ist `PORTFOLIXIR_API_TOKEN` aus
 der `.env`; `1` ist die Portfolio-ID, die der erste Aufruf liefert):
 
 ```bash
@@ -330,7 +348,10 @@ die nichts verloren hat, zeigt sie Zeichen für Zeichen gleich. Der Ablauf wurde
 am 2026-09-23 vollständig gegen den synthetischen Review-Datensatz mit der
 mitgelieferten `docker-compose.yml` durchgespielt: Sicherung, ein neues
 Datenbank-Volume, Wiederherstellung, und die drei Zahlen, die Zeilenzahl des
-Audit-Journals und die eigenen Regeln stimmten überein.
+Audit-Journals und die eigenen Regeln stimmten überein. Die eine Transaktion
+und die Trigger-Zahl kamen später hinzu (2026-09-25) und wurden mit denselben
+PostgreSQL-Werkzeugen außerhalb von Compose geprüft, an einer
+Wiederherstellung, die gelingt, und an einer, die abgewiesen wird.
 
 ## Zurücksetzen
 
