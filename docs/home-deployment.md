@@ -82,8 +82,12 @@ from anyone the proxy admits lock the login for everyone behind it, the
 operator included. The same setting decides whose `X-Forwarded-Proto` is
 believed: loopback and the named addresses only, so a proxy reaching the
 container through the Docker bridge must be named there for the cookie to be
-`Secure` and for `PHX_FORCE_SSL` to see HTTPS. Reverse-proxy authentication and the built-in UI password
-compose: keep either, or both.
+`Secure` and for `PHX_FORCE_SSL` to see HTTPS. Failed logins are also counted
+across all sources together over a rolling window, so guesses spread over many
+addresses cannot multiply; past that ceiling the login asks everyone to wait,
+the operator included, while sessions already logged in keep working.
+Reverse-proxy authentication and the built-in UI password compose: keep
+either, or both.
 
 ### The TLS contract
 
