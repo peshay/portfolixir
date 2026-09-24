@@ -236,24 +236,26 @@ docker compose down -v
 docker compose up --build
 ```
 
+## Upgrade
+
 Take a database backup before an upgrade (see "Backup and restore" above):
 migrations are additive, and a rollback across a release restores that backup.
 
-## Upgrade
-
-After pulling a new version of the repository, rebuild with `--pull`, then
+After pulling a new version of the repository, fetch the images, rebuild and
 start:
 
 ```bash
+docker compose pull db
 docker compose build --pull
 docker compose up -d
 ```
 
-`--pull` fetches the current base images. A plain `docker compose up --build`
-reuses the base image already on the host, so a fix that ships in the base
-image (the Erlang/OTP runtime the release bundles, the Debian libraries under
-it) would never reach the instance. The release notes say when an upgrade
-carries such a fix.
+The application's Erlang/OTP and Debian base images are pinned by digest in
+the repository, so a runtime fix in them arrives with the new version itself.
+The database image and the MCP companion's Node base are named by tag: a
+plain `docker compose up --build` reuses the copies already on the host, so
+`docker compose pull db` and `--pull` are what bring their fixes. The release
+notes say when an upgrade carries such a fix.
 
 ## Rebuild Derived Values
 

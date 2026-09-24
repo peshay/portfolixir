@@ -185,10 +185,10 @@ defmodule Portfolixir.CITest do
     install_script = File.read!(".claude/scripts/install-elixir-toolchain.sh")
 
     elixir_versions =
-      Regex.scan(~r/elixir-version: ['"]([^'"]+)['"]/, ci_workflow, capture: :all_but_first)
+      Regex.scan(~r/elixir-version: ['"]?([^'"\s]+)['"]?/, ci_workflow, capture: :all_but_first)
 
     otp_versions =
-      Regex.scan(~r/otp-version: ['"]([^'"]+)['"]/, ci_workflow, capture: :all_but_first)
+      Regex.scan(~r/otp-version: ['"]?([^'"\s]+)['"]?/, ci_workflow, capture: :all_but_first)
 
     assert [[elixir] | _] = elixir_versions
     assert [[otp] | _] = otp_versions
@@ -200,8 +200,17 @@ defmodule Portfolixir.CITest do
     assert elixir =~ ~r/^\d+\.\d+\.\d+$/, "CI's Elixir version is not exact: #{elixir}"
     assert otp =~ ~r/^\d+\.\d+(\.\d+)+$/, "CI's OTP version is not an exact patch: #{otp}"
 
-    assert ci_workflow =~ "plt-otp#{otp}-elixir#{elixir}-",
+    plt = "${{ runner.os }}-plt-otp#{otp}-elixir#{elixir}-"
+
+    assert ci_workflow =~ "key: #{plt}${{ hashFiles",
            "the PLT cache key would reuse a PLT built on another toolchain"
+
+    assert ci_workflow =~ ~r/restore-keys: \|\s+#{Regex.escape(plt)}$/m,
+           "the PLT restore key would fall back to a PLT built on another toolchain"
+
+    # One FROM per stage, so a stale extra stage cannot hide beside a match.
+    assert length(Regex.scan(~r/^FROM /m, dev_dockerfile)) == 1
+    assert length(Regex.scan(~r/^FROM /m, release_dockerfile)) == 2
 
     image = ~r/hexpm\/elixir:#{Regex.escape("#{elixir}-erlang-#{otp}")}-debian-([a-z]+-\d{8})/
 
@@ -242,8 +251,9 @@ defmodule Portfolixir.CITest do
     end
 
     report = File.read!("scripts/version-report.sh")
-    assert report =~ "Dockerfile.release"
-    assert report =~ "OTP_VERSION"
+    assert report =~ ~s(awk '/^FROM .* AS build$/ {print $2; exit}' Dockerfile.release)
+    assert report =~ ~s(docker run --rm --entrypoint sh "${build_image}")
+    assert report =~ "/releases/*/OTP_VERSION"
   end
 
   # User story:

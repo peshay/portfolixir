@@ -341,9 +341,9 @@ implementation stories build directly on the existing repo.
 
 **Architectural Decisions Provided by the Baseline:**
 
-- **Language & Runtime:** Elixir 1.18.5 / OTP 27.3.4.18, one exact patch in CI and
-  in both images since the 2026-09-24 runtime hotfix (CI is authoritative; do
-  not use language features beyond the CI version). TypeScript for the MCP companion.
+- **Language & Runtime:** Elixir 1.18 / OTP 27, one exact patch in CI and in both
+  images since the 2026-09-24 runtime hotfix (CI is authoritative; do not use
+  language features beyond the CI version). TypeScript for the MCP companion.
   Version truth lives in `mix.lock`, `mcp-server/package-lock.json`, and
   `.github/workflows` — never hardcoded in planning documents.
 - **Web Framework:** Phoenix with LiveView 0.20.x (NOT 1.x idioms); no CoreComponents;

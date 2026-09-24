@@ -49,9 +49,10 @@ installed_otp() {
 }
 if [ ! -x "${OTP_DIR}/bin/erl" ] || ! "${OTP_DIR}/bin/erl" -noshell -eval 'halt()' 2>/dev/null \
   || [ "$(installed_otp)" != "${OTP_VERSION}" ]; then
+  # Download before removing, so a failed fetch leaves the old toolchain usable.
+  curl -fsSL "https://builds.hex.pm/builds/otp/${UBUNTU}/OTP-${OTP_VERSION}.tar.gz" -o /tmp/otp.tar.gz
   rm -rf "${OTP_DIR}"
   mkdir -p "${OTP_DIR}"
-  curl -fsSL "https://builds.hex.pm/builds/otp/${UBUNTU}/OTP-${OTP_VERSION}.tar.gz" -o /tmp/otp.tar.gz
   tar -xzf /tmp/otp.tar.gz -C "${OTP_DIR}" --strip-components=1
   "${OTP_DIR}/Install" -minimal "${OTP_DIR}" >/dev/null
   rm -f /tmp/otp.tar.gz
@@ -60,9 +61,9 @@ fi
 # 3. Elixir — precompiled release matching the OTP major version, replaced
 # when the installed one is another version.
 if [ ! -x "${ELIXIR_DIR}/bin/elixir" ] || [ "$(cat "${ELIXIR_DIR}/VERSION" 2>/dev/null)" != "${ELIXIR_VERSION}" ]; then
+  curl -fsSL "https://github.com/elixir-lang/elixir/releases/download/v${ELIXIR_VERSION}/elixir-otp-${OTP_MAJOR}.zip" -o /tmp/elixir.zip
   rm -rf "${ELIXIR_DIR}"
   mkdir -p "${ELIXIR_DIR}"
-  curl -fsSL "https://github.com/elixir-lang/elixir/releases/download/v${ELIXIR_VERSION}/elixir-otp-${OTP_MAJOR}.zip" -o /tmp/elixir.zip
   unzip -q -o /tmp/elixir.zip -d "${ELIXIR_DIR}"
   rm -f /tmp/elixir.zip
 fi
