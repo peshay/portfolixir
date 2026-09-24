@@ -953,4 +953,55 @@ defmodule Portfolixir.DocsTest do
       assert doc =~ trigger_count, path
     end
   end
+
+  # User story (E25 S2, F50; T-6 of the 2026-09-24 triage: documented, not
+  # migrated):
+  # As an operator setting up a new instance,
+  # I want the deployment guide to give me a table-owner role that is not a
+  # superuser and a runtime role without TRUNCATE, with the SQL,
+  # so that the append-only and journal triggers bind the credential the
+  # application holds, not only its code.
+  #
+  # Acceptance criteria:
+  # - EN and DE carry the SQL: the two roles, the database handed to the owner,
+  #   and the runtime role's grants by default privileges, with no TRUNCATE.
+  # - Both wire it: the application connects as the runtime role, the
+  #   migrations run as the owner in a one-off service, and a restore runs as
+  #   the owner.
+  # - Both say it is for a new install and that an existing instance's move is
+  #   not described; SECURITY.md names the shipped default as a known limit.
+  test "the deployment guide recommends an owner role and a runtime role without TRUNCATE" do
+    read = fn path -> path |> File.read!() |> String.replace(~r/\s+/, " ") end
+
+    for {path, owner_words, runtime_words, new_install} <- [
+          {"docs/home-deployment.md", "not a superuser", "holds no `TRUNCATE`",
+           "Moving an existing instance onto these roles"},
+          {"docs/de/home-deployment.md", "kein Superuser", "hat kein `TRUNCATE`",
+           "Eine bestehende Instanz auf diese Rollen umzustellen"}
+        ] do
+      doc = read.(path)
+
+      for fragment <- [
+            "CREATE ROLE portfolixir_owner LOGIN",
+            "CREATE ROLE portfolixir_app LOGIN",
+            "ALTER DATABASE portfolixir_prod OWNER TO portfolixir_owner;",
+            "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO portfolixir_app;",
+            "GRANT USAGE, SELECT ON SEQUENCES TO portfolixir_app;",
+            "DATABASE_URL: postgres://portfolixir_app:",
+            "DATABASE_URL: postgres://portfolixir_owner:",
+            "docker compose run --rm --build migrate",
+            "--role=portfolixir_owner",
+            owner_words,
+            runtime_words,
+            new_install
+          ] do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+
+      refute doc =~ ~r/GRANT[^;]*TRUNCATE[^;]*TO portfolixir_app/, path
+    end
+
+    security = read.("SECURITY.md")
+    assert security =~ "connects as the database's bootstrap superuser"
+  end
 end
