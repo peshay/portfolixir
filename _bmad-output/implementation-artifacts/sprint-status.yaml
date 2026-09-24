@@ -52,6 +52,36 @@ story_location: _bmad-output/implementation-artifacts
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
 #
+# BATCH OPENED (2026-09-24, Sprint 16) -- branch
+# claude/sprint-16-umsetzung-j5mjk0 from `main` at fa2a3c19, which carries
+# the Sprint 16 planning merge and, below it, Lane H's hotfix (PR #880,
+# closing the S0 issue #879), so D-1's order holds. The branch is the
+# session's designated branch rather than D-1's
+# `agent/claude/security-second-pass-and-lifecycle-merges`: the name differs,
+# the one-branch cut does not.
+# LANE M, the first commit: the BMAD re-pin Sprint 15 deferred. Core and
+# method 6.11.0 -> 6.12.0, tea v1.19.0 -> v1.27.2, cis v0.2.1 -> v0.3.2,
+# each pinned; bmb stays at v1.8.1 (its next major is its own decision) and
+# automator stays on main at 0b94fd7, still that branch's head. 6.12.0's
+# registry marks automator deprecated in favour of bmad-loop; the installer
+# only warns, and the swap is not taken in this commit. The diff touches only
+# `_bmad/` and `.claude/skills/` (one new skill, bmad-walkthrough, which
+# bmad-checkpoint-preview now forwards to); no personal configuration or
+# agent memory is in it.
+# LANE Z, the issues filed at branch opening (their registry rows land with
+# this entry): E25's tracker #883 with the groups S1-S8 as #886-#893 (S4
+# folds in #868), and the triage's follow-ups under it -- #894 (G28), #895
+# (F62), #899 (G31, for Sprint 17), and #896 (F74), #897 (G06), #898 (T-6),
+# which need a decision. The L2 issue #884 under #417, where #328 and #608
+# already sat. NFR-9 as #885 under #420. FR-41's side findings #900 and #901
+# under #418. ADR-0050 §15's deferrals #902-#906 under #417 and #907 (merger
+# and spin-off, on FR-23's row, without a parent because #338 is closed), all
+# needing a decision. The design pass's Part 13 observations #908-#913,
+# without a parent and unscheduled. Rows touched: FR-4, FR-23, FR-41, NFR-9
+# and UX-DR in the FR Coverage Map, NFR-9's inventory line, and the Tracker
+# Index's E3, E17 and E25 lines; epic-25 moves to in-progress. The close-out
+# reconciles against the merge, not against this note.
+#
 # PLANNED (2026-09-24, Sprint 16) -- sprint-plan-2026-09-24-sprint16.md,
 # adopted by the merge of the Sprint 16 planning PR, which SIGNS ADR-0050
 # (lifecycle merges under a post-merge re-import contract; the design gate for
@@ -1491,7 +1521,8 @@ development_status:
   # and repair securities, the #328 analogue), both now under FR-4 and E3's
   # Tracker Index line. Both are scheduled in Sprint 16 Lane L under ADR-0050
   # (signed by the merge of the Sprint 16 planning PR); the importer half (L2)
-  # is filed as its own issue at branch opening, under #417.
+  # is filed as its own issue at branch opening, under #417: #884, with
+  # ADR-0050 §15's deferrals #902-#906 beside it and #907 on FR-23's row.
   epic-3: in-progress
   epic-3-retrospective: optional
 
@@ -1721,6 +1752,8 @@ development_status:
   # Sprint 16 planning PR, scheduled by that plan as Lane H (the runtime
   # hotfix ahead of the batch, D-2) and Lane S (groups S1-S8). The row exists
   # from the planning so the close-out reconciles against it; the tracker and
-  # the group issues are filed at branch opening.
-  epic-25: backlog
+  # the group issues are filed at branch opening (2026-09-24): tracker #883,
+  # groups #886-#893 (S1-S8), follow-ups #894-#899. Lane H shipped ahead of
+  # the batch as PR #880, closing the S0 issue #879.
+  epic-25: in-progress
   epic-25-retrospective: optional
