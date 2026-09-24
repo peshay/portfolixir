@@ -179,6 +179,52 @@ defmodule PortfolixirWeb.UiAuthTest do
       assert redirected_to(get(fresh, "/")) == "/login?to=%2F"
     end
 
+    # User story (E25 S1, F10):
+    # As an operator logging in to the web UI,
+    # I want the login to start a fresh CSRF token,
+    # so that a token minted before I authenticated cannot act on my session.
+    #
+    # Acceptance criteria:
+    # - The CSRF token in the session differs after a successful login.
+    # - A form token minted before the login is rejected on the logout POST.
+    # - Preference keys in the session (the locale) survive the login.
+    test "a login rotates the CSRF token", %{conn: conn} do
+      Throttle.success(:ui, Throttle.source_key(conn.remote_ip))
+
+      login_page = conn |> with_csrf() |> get("/login?locale=de")
+      pre_login_token = form_csrf_token(html_response(login_page, 200))
+      pre_login_session_token = Plug.Conn.get_session(login_page, "_csrf_token")
+      assert is_binary(pre_login_session_token)
+
+      logged_in =
+        login_page
+        |> recycle_session_cookie()
+        |> post("/login", %{
+          "_csrf_token" => pre_login_token,
+          "session" => %{"password" => @password}
+        })
+
+      assert redirected_to(logged_in) == "/"
+      refute Plug.Conn.get_session(logged_in, "_csrf_token") == pre_login_session_token
+      assert Plug.Conn.get_session(logged_in, "locale") == "de"
+
+      # The check `protect_from_forgery` runs on the logout POST: the token was
+      # valid against the session before the login and is not after it.
+      assert csrf_valid?(pre_login_session_token, pre_login_token)
+
+      home = logged_in |> recycle_session_cookie() |> get("/")
+      post_login_session_token = Plug.Conn.get_session(home, "_csrf_token")
+      refute csrf_valid?(post_login_session_token, pre_login_token)
+
+      # The token the logged-in page carries is the one that logs out.
+      logged_out =
+        home
+        |> recycle_session_cookie()
+        |> post("/logout", %{"_csrf_token" => form_csrf_token(html_response(home, 200))})
+
+      assert redirected_to(logged_out) == "/login"
+    end
+
     test "the API stays on its bearer token", %{conn: conn} do
       assert conn
              |> put_req_header("accept", "application/json")
@@ -280,6 +326,30 @@ defmodule PortfolixirWeb.UiAuthTest do
     File.write!(path, @png)
     on_exit(fn -> File.rm(path) end)
     file
+  end
+
+  # ConnTest skips CSRF protection by default; these requests keep it on.
+  defp with_csrf(conn), do: Plug.Conn.put_private(conn, :plug_skip_csrf_protection, false)
+
+  # The next browser request: the response's cookies, CSRF protection on.
+  defp recycle_session_cookie(response) do
+    response
+    |> Phoenix.ConnTest.recycle()
+    |> Map.put(:remote_ip, response.remote_ip)
+    |> with_csrf()
+  end
+
+  defp form_csrf_token(html) do
+    [_, token] =
+      Regex.run(~r/(?:name="_csrf_token" value|name="csrf-token" content)="([^"]+)"/, html)
+
+    token
+  end
+
+  defp csrf_valid?(session_token, form_token) do
+    session_token
+    |> Plug.CSRFProtection.dump_state_from_session()
+    |> Plug.CSRFProtection.valid_state_and_csrf_token?(form_token)
   end
 
   defp recycle_session(conn, response) do
