@@ -135,16 +135,16 @@ as a comment on #561 (+ ADR-0022 addendum only if option 2/3 wins).
 
 ## D. Automation recipes in the repo: where is the boundary?
 
-**The question.** External read-only broker sync (e.g. a private,
-out-of-repo comdirect script: OAuth+photoTAN pull of depot/positions/postbox, settlement-PDF
-parsing) feeding Portfolixir via MCP is exactly the LLM-first direction (#419)
-— but AGENTS.md forbids broker sync *in the app*. What may live in the repo?
+**The question.** External read-only broker sync (a private, out-of-repo
+script that pulls positions and documents from a broker API) feeding
+Portfolixir via MCP is exactly the LLM-first direction (#419) — but AGENTS.md
+forbids broker sync *in the app*. What may live in the repo?
 
-**Evidence.** The comdirect example (reviewed 2026-07-12): strictly read-only,
-never writes to Portfolixir directly, hand-off via MCP reconcile-and-book; the
-credential reality is ugly (comdirect grants all scopes incl. BROKERAGE_RW —
-no read-only grant exists), mitigated by per-session TAN, short token TTL, and
-never wrapping order endpoints. Full details in #567.
+**Evidence.** The example reviewed on 2026-07-12 is strictly read-only, never
+writes to Portfolixir directly, and hands off via MCP reconcile-and-book. Broker
+APIs of this kind often grant broader scopes than read-only, which a private
+script has to mitigate on its own side; the details stay in a private note, not
+in this repository.
 
 **Options.** Docs-only recipes (prompts + walkthrough, scripts linked
 externally) · `contrib/` directory with example scripts (unsupported, no CI,
@@ -167,15 +167,15 @@ Personal data-modeling questions from the review, to be walked through
 together against the live instance — no repo changes expected (account
 names and amounts live on the instance, not in this document):
 
-1. **Lombard/credit line**: model the broker credit line as a cash account
-   with liquidity role `credit_line`; the call-money account as `reserve`
-   (roles exist in `portfolio_accounts_live.ex`). Then the cash line stops
-   being cosmetic.
+1. **Account roles**: map each cash account on the instance to its liquidity
+   role (`credit_line`, `reserve` and the others in
+   `portfolio_accounts_live.ex`), so the cash line stops being cosmetic.
 2. **Negative holdings**: identify via the future #570
    report; until then, repair the transaction history manually — these are
    import debris, not classification candidates.
-3. **Phantom FX P&L positions**: list the USD-quoted/EUR-booked positions so
-   the per-position P&L distortion (#569) is known-and-ignored until fixed.
+3. **Phantom FX P&L positions**: list positions quoted in one currency and
+   booked in another, so the per-position P&L distortion (#569) is
+   known-and-ignored until fixed.
 
 **BMad method.** None — this is a guided session with John + the MCP tools on
 the live instance, after #557 merges.
