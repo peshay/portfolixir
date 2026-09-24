@@ -86,6 +86,19 @@ session's LiveViews, and rotating `SECRET_KEY_BASE` invalidates every session
 everywhere. With longer-lived cookies that second lever is the one to
 document, and `SECURITY.md` now does.
 
+**Amendment, 2026-09-25 (E25 S1, #886): a session is bound to the password.**
+The 2026-09-24 security review (F02) found that changing
+`PORTFOLIXIR_UI_PASSWORD` left every existing session valid, because a session
+carried only the flag and its stamp. A login now also stores a keyed HMAC
+fingerprint of the configured password (keyed with `SECRET_KEY_BASE`, so the
+signed but unencrypted cookie carries nothing a reader could test guesses
+against), and every browser request and every LiveView mount recomputes it and
+compares in constant time. A changed password ends every session issued under
+the old one; a session without the fingerprint counts as logged out, so the
+first start after this change asks for the password once. The revocation
+decision above is unchanged (T-4 of the 2026-09-24 triage): this is a second
+lever beside rotating `SECRET_KEY_BASE`, not a server-side session list.
+
 ### 2. The deployment contract
 
 - **Production binds loopback by default.** `config/runtime.exs` gains the
