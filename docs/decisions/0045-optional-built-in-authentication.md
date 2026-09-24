@@ -90,9 +90,9 @@ document, and `SECURITY.md` now does.
 The 2026-09-24 security review (F02) found that changing
 `PORTFOLIXIR_UI_PASSWORD` left every existing session valid, because a session
 carried only the flag and its stamp. A login now also stores a keyed HMAC
-fingerprint of the configured password (keyed with `SECRET_KEY_BASE`, so the
-signed but unencrypted cookie carries nothing a reader could test guesses
-against), and every browser request and every LiveView mount recomputes it and
+fingerprint of the configured password (keyed with a key derived from
+`SECRET_KEY_BASE` for this purpose, so the signed but unencrypted cookie
+carries nothing a reader could test guesses against), and every browser request and every LiveView mount recomputes it and
 compares in constant time. A changed password ends every session issued under
 the old one; a session without the fingerprint counts as logged out, so the
 first start after this change asks for the password once. The revocation

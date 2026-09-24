@@ -93,9 +93,9 @@ defmodule PortfolixirWeb.UiAuth do
 
   @doc """
   The fingerprint of the configured password a login stores (F02): an HMAC
-  keyed with `SECRET_KEY_BASE`, so the signed (not encrypted) cookie carries
-  nothing a reader could test password guesses against. `nil` with no
-  password configured.
+  keyed with a key derived from `SECRET_KEY_BASE` for this purpose, so the
+  signed (not encrypted) cookie carries nothing a reader could test password
+  guesses against. `nil` with no password configured.
   """
   @spec password_fingerprint() :: String.t() | nil
   def password_fingerprint do
@@ -110,7 +110,12 @@ defmodule PortfolixirWeb.UiAuth do
     end
   end
 
-  defp fingerprint_secret, do: PortfolixirWeb.Endpoint.config(:secret_key_base)
+  # A key derived from SECRET_KEY_BASE for this one purpose, as the cookie
+  # signing keys are, rather than the raw secret; cached like theirs.
+  defp fingerprint_secret do
+    PortfolixirWeb.Endpoint.config(:secret_key_base)
+    |> Plug.Crypto.KeyGenerator.generate("portfolixir.ui_password_fingerprint", cache: Plug.Keys)
+  end
 
   defp bound_to_password?(stored) when is_binary(stored) do
     case password_fingerprint() do
