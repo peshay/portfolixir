@@ -136,7 +136,7 @@ Add to `.vscode/mcp.json` (note: uses `servers` key, not `mcpServers`):
 
 When designing contract tests, use MCP to query existing provider states:
 
-```
+```text
 # Agent queries SmartBear MCP during test-design workflow:
 # → Fetch Provider States for consumer="movie-web", provider="SampleMoviesAPI"
 # ← Returns: ["movie with id 1 exists", "no movies exist", "user is authenticated"]
@@ -148,7 +148,7 @@ When designing contract tests, use MCP to query existing provider states:
 
 During test-review workflow, use MCP to evaluate test quality:
 
-```
+```text
 # Agent submits test file to SmartBear MCP Review tool:
 # → Review Pact Tests with test file content
 # ← Returns: feedback on matcher usage, state coverage, interaction naming
@@ -160,13 +160,50 @@ During test-review workflow, use MCP to evaluate test quality:
 
 During CI workflow design, reference the can-i-deploy tool:
 
-```
+```text
 # Agent generates CI pipeline with can-i-deploy gate:
 # → Can I Deploy: pacticipant="SampleMoviesAPI", version="${GITHUB_SHA}", to="production"
 # ← Returns: { ok: true/false, reason: "..." }
 #
 # Agent designs pipeline to block deployment if can-i-deploy fails
 ```
+
+## When the Tools Are Not Reachable
+
+`tea_pact_mcp` defaults to `"mcp"`, so every contract-testing step reaches this fragment on a normal install. Most installs have no broker. That is expected, and it must cost nothing.
+
+### The probe is a tool-list check, never a broker call
+
+Reachability means **the SmartBear MCP tools are present in this session's tool list**. Nothing else. Do not call `Can I Deploy`, `Matrix`, or any other tool to discover whether the broker answers: a missing server is instant and free to detect, while a misconfigured or unreachable broker is a network round trip that can hang the step. The two failure modes have very different costs and only the free one is worth probing for.
+
+Credentials are likewise not probed. `PACT_BROKER_BASE_URL` and `PACT_BROKER_TOKEN` being unset is a reason the first real tool call will fail, not a reason to make one.
+
+### Probe once per run
+
+Record the result in run state as `pact_mcp_reachable` the first time any step needs it, and have every later step read that value instead of probing again. A run that touches test design, generation, and review must not ask three times, and "probe once" is only true if the answer is stored.
+
+### Fallback order, in this order
+
+1. **Provider source.** Route handlers, types, DTOs, validation schemas. Most authoritative.
+2. **An OpenAPI or Swagger spec** (`openapi.yaml`, `openapi.json`, `swagger.json`) when provider source is not readable.
+3. **Neither available:** apply `confidence-gate.md`. Stop and ask. Do not invent a provider state, a status code, or a response shape.
+
+There is no fourth branch, and inference is not one of the three.
+
+### What the output must say
+
+State it once per run, in the workflow summary, in this form:
+
+`Pact broker: unreachable (SmartBear MCP tools not available). Provider states derived from <provider source | OpenAPI spec>.`
+
+Then continue. Specifically:
+
+- **Never block a workflow** on the broker. A missing broker is not a HALT condition.
+- **Never retry.** One probe, one answer, no loop and no backoff.
+- **Never present inferred data as broker data.** A provider state read from a handler is provider-sourced; saying or implying it came from the broker misrepresents its authority, and a contract built on that is worse than one built on an acknowledged guess.
+- **`tea_pact_mcp: "none"`** skips the probe entirely. Treat it as "unreachable" without the check and without the report line: the user already said not to look.
+
+Everything above applies to the tools in this fragment only. It has no bearing on whether a Pact suite belongs in the project at all — that is the relevance gate in `pactjs-utils-mandate.md`.
 
 ## Key Points
 
@@ -187,14 +224,14 @@ During CI workflow design, reference the can-i-deploy tool:
 
 ### Wrong: Using MCP for runtime test execution
 
-```
+```text
 # ❌ Don't use MCP to run pact tests — use npm scripts and CI pipelines
 # MCP is for agent-assisted design, generation, and review
 ```
 
 ### Right: Use MCP for design-time assistance
 
-```
+```text
 # ✅ Use MCP during planning and review:
 # - Fetch provider states to inform test design
 # - Generate test scaffolds from existing contracts
@@ -202,4 +239,4 @@ During CI workflow design, reference the can-i-deploy tool:
 # - Check can-i-deploy during CI pipeline design
 ```
 
-_Source: SmartBear MCP documentation, PactFlow developer docs_
+_Source: SmartBear MCP documentation, PactFlow developer docs._

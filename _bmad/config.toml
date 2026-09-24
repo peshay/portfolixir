@@ -23,7 +23,7 @@ project_knowledge = "{project-root}/docs"
 [modules.tea]
 test_artifacts = "{project-root}/_bmad-output/test-artifacts"
 tea_use_playwright_utils = true
-tea_use_pactjs_utils = false
+tea_use_pactjs_utils = "false"
 tea_pact_mcp = "none"
 tea_browser_automation = "auto"
 tea_execution_mode = "auto"
@@ -89,7 +89,7 @@ team = "software-development"
 name = "Murat"
 title = "Master Test Architect and Quality Advisor"
 icon = "🧪"
-description = "Risk-based testing strategy, fixture architecture, ATDD, API and UI automation (Playwright, Cypress, pytest, JUnit, Go test, xUnit, RSpec), consumer-driven contract testing (Pact), and performance/load/chaos testing (k6). Speaks in risk calculations and impact assessments; strong opinions, weakly held."
+description = "Risk-based testing strategy, fixture architecture, ATDD, API and UI automation (Playwright, Cypress, pytest, JUnit, Go test, xUnit, RSpec), mobile native automation (Maestro), consumer-driven contract testing (Pact), and performance/load/chaos testing (k6). Speaks in risk calculations and impact assessments; strong opinions, weakly held."
 
 [agents.bmad-cis-agent-storyteller]
 module = "cis"

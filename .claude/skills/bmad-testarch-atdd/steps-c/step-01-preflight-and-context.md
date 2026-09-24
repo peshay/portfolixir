@@ -44,13 +44,16 @@ Verify prerequisites and load all required inputs before generating red-phase ac
 **Auto-Detection Algorithm** (when `test_stack_type` is `"auto"` or not configured):
 
 - Scan `{project-root}` for project manifests:
+  - **Mobile indicators**: `.maestro/` or `maestro/` flow directory, `app.json`/`app.config.*` declaring expo or react-native, `Podfile`, `android/app/build.gradle`, `*.xcodeproj`/`*.xcworkspace`, `pubspec.yaml`
   - **Frontend indicators**: `package.json` with react/vue/angular/next dependencies, `playwright.config.*`, `vite.config.*`, `webpack.config.*`
   - **Backend indicators**: `pyproject.toml`, `pom.xml`/`build.gradle`, `go.mod`, `*.csproj`/`*.sln`, `Gemfile`, `Cargo.toml`
-  - **Both present** = `fullstack`; only frontend = `frontend`; only backend = `backend`
+  - **Check mobile first.** A React Native or Expo project carries `package.json` with react and misdetects as `frontend` otherwise.
+  - **Mobile present** = `mobile`; frontend and backend both present = `fullstack`; only frontend = `frontend`; only backend = `backend`
+  - A mobile client and its own backend in one repo detects as `mobile`. Set `test_stack_type` explicitly to cover both surfaces in one run.
 - Explicit `test_stack_type` config value overrides auto-detection
 - **Backward compatibility**: if `test_stack_type` is not in config, treat as `"auto"` (preserves current frontend behavior for existing installs)
 
-Store result as `{detected_stack}` = `frontend` | `backend` | `fullstack`
+Store result as `{detected_stack}` = `frontend` | `backend` | `fullstack` | `mobile`
 
 ---
 
@@ -69,7 +72,11 @@ If any are missing: **HALT** and notify the user.
 ## 3. Load Story Context
 
 - Read story markdown from `{story_file}` (or ask user if not provided)
-- Extract acceptance criteria and constraints
+- Extract acceptance criteria and constraints into a criterion registry in source order
+- Preserve every supplied criterion id that matches `AC-<positive integer>` exactly
+- Reject duplicate supplied ids
+- Assign ids to unnamed criteria deterministically. Reserve all supplied ids first, then visit unnamed criteria in source order and assign the lowest unused `AC-<positive integer>` id
+- Persist each registry row as `{ id, idSource: supplied | generated, text }` and persist the exact ordered id set as `{criterion_ids}`. The same story content must always produce the same registry
 - Identify affected components and integrations
 - Derive and store `story_key` from the story filename when available (for BMM stories, this is the filename without `.md`, e.g. `1-2-user-authentication`)
 - Derive and store `story_id` from story metadata, the H1 heading, or the filename when available (for BMM stories, this is typically `{epic_num}.{story_num}`)
@@ -102,43 +109,11 @@ From `{config_source}`:
 
 ---
 
-### Tiered Knowledge Loading
+### Deterministic Knowledge Selection
 
-Load fragments based on their `tier` classification in `tea-index.csv`:
+The fragment list for this step is a closed set. Start empty, evaluate the complete conditions under **Load Knowledge Base Fragments**, and add every fragment from each matching list. A config flag opens a branch only when every stack, runner, package, and relevance condition on that branch also matches. Do not add fragments from tier labels, index descriptions, nearby mentions, general usefulness, or possible future need. Deduplicate while preserving the order below. Identical facts and config must produce an identical list.
 
-1. **Core tier** (always load): Foundational fragments required for this workflow
-2. **Extended tier** (load on-demand): Load when deeper analysis is needed or when the user's context requires it
-3. **Specialized tier** (load only when relevant): Load only when the specific use case matches (e.g., contract-testing only for microservices, email-auth only for email flows)
-
-> **Context Efficiency**: Loading only core fragments reduces context usage by 40-50% compared to loading all fragments.
-
-### Playwright Utils Loading Profiles
-
-**If `tea_use_playwright_utils` is enabled**, select the appropriate loading profile:
-
-- **API-only profile** (when `{detected_stack}` is `backend` or no `page.goto`/`page.locator` found in test files):
-  Load: `overview`, `api-request`, `auth-session`, `recurse` (~1,800 lines)
-
-- **Full UI+API profile** (when `{detected_stack}` is `frontend`/`fullstack` or browser tests detected):
-  Load: all Playwright Utils core fragments (~4,500 lines)
-
-**Detection**: Scan `{test_dir}` for files containing `page.goto` or `page.locator`. If none found, use API-only profile.
-
-### Pact.js Utils Loading
-
-**If `tea_use_pactjs_utils` is enabled** (and `{detected_stack}` is `backend` or `fullstack`, or microservices indicators detected):
-
-Load: `pactjs-utils-overview.md`, `pactjs-utils-consumer-helpers.md`, `pactjs-utils-provider-verifier.md`, `pactjs-utils-request-filter.md`, `pact-consumer-di.md`, `pact-consumer-framework-setup.md`, `pact-broker-webhooks.md`
-
-**If `tea_use_pactjs_utils` is disabled** but contract testing is relevant:
-
-Load: `contract-testing.md`
-
-### Pact MCP Loading
-
-**If `tea_pact_mcp` is `"mcp"`:**
-
-Load: `pact-mcp.md`
+Contract testing is relevant only when repository facts show existing Pact artifacts, dependencies, configuration, or broker variables, or when the task explicitly requests contract testing. A service count or target-state architecture alone does not open a contract branch.
 
 ## 5. Load Knowledge Base Fragments
 
@@ -156,9 +131,11 @@ Use `{knowledgeIndex}` to load:
 - `selector-resilience.md`
 - `timing-debugging.md`
 
-**Playwright Utils (if enabled and {detected_stack} is `frontend` or `fullstack`):**
+**Playwright Utils (if enabled, `@seontechnologies/playwright-utils` is in `package.json`, the test files run on the Playwright runner, and {detected_stack} is `frontend` or `fullstack`):**
 
+- `playwright-utils-mandate.md` (load first — it governs how the fragments below are applied)
 - `overview.md`, `api-request.md`, `network-recorder.md`, `auth-session.md`, `intercept-network-call.md`, `recurse.md`, `log.md`, `file-utils.md`, `network-error-monitor.md`, `fixtures-composition.md`
+- `fixture-architecture.md` and `network-first.md` for their principles only. Under the mandate the mechanism comes from the playwright-utils fragments.
 
 **Playwright CLI (if tea_browser_automation is "cli" or "auto" and {detected_stack} is `frontend` or `fullstack`):**
 
@@ -168,7 +145,7 @@ Use `{knowledgeIndex}` to load:
 
 - (existing MCP-related fragments, if any are added in future)
 
-**Traditional Patterns (if utils disabled and {detected_stack} is `frontend` or `fullstack`):**
+**Traditional Patterns (if the Playwright Utils applicability gate above did not open and {detected_stack} is `frontend` or `fullstack`):**
 
 - `fixture-architecture.md`
 - `network-first.md`
@@ -179,15 +156,16 @@ Use `{knowledgeIndex}` to load:
 - `test-priorities-matrix.md`
 - `ci-burn-in.md`
 
-**Pact.js Utils (if enabled):**
+**Pact.js Utils (if enabled, `@seontechnologies/pactjs-utils` is in `package.json`, and contract testing is relevant):**
 
-- `pactjs-utils-overview.md`, `pactjs-utils-consumer-helpers.md`, `pactjs-utils-provider-verifier.md`, `pactjs-utils-request-filter.md`, `pact-consumer-di.md`, `pact-consumer-framework-setup.md`, `pact-broker-webhooks.md`
+- `pactjs-utils-mandate.md` (load first — it governs how the fragments below are applied)
+- `pactjs-utils-overview.md`, `pactjs-utils-consumer-helpers.md`, `pactjs-utils-provider-verifier.md`, `pactjs-utils-request-filter.md`, `pactjs-utils-zod-to-pact.md`, `pact-consumer-di.md`, `pact-consumer-framework-setup.md`, `pact-broker-webhooks.md`
 
-**Contract Testing (if pactjs-utils disabled but relevant):**
+**Contract Testing (if Pact.js Utils is disabled or not installed, and contract testing is relevant):**
 
 - `contract-testing.md`
 
-**Pact MCP (if tea_pact_mcp is "mcp"):**
+**Pact MCP (if tea_pact_mcp is "mcp" and contract testing is relevant):**
 
 - `pact-mcp.md`
 
@@ -229,6 +207,7 @@ Summarize loaded inputs and confirm with the user. Then proceed.
 - Set `atddChecklistPath` to `{outputFile}`
 - Initialize `generatedTestFiles` to `[]`
 - Set `inputDocuments` to the list of artifact paths loaded in this step (e.g., knowledge fragments, test design documents, configuration files)
+- Set `acceptanceCriteria` to the persisted criterion registry, including generated ids and `idSource`
 
 Load next step: `{nextStepFile}`
 

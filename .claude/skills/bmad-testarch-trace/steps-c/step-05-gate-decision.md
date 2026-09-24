@@ -18,7 +18,9 @@ outputFile: '{test_artifacts}/traceability-matrix.md'
 - ✅ Speak in `{communication_language}`
 - ✅ Read coverage matrix from Phase 1 temp file
 - ✅ Resolve collection status and gate eligibility before applying gate decision logic
+- ✅ Read, validate, and report the waiver register when one exists
 - ❌ Do NOT regenerate coverage matrix (use Phase 1 output)
+- ❌ Do NOT let any waiver change the derived gate decision
 
 ---
 
@@ -123,6 +125,65 @@ const oracleConfidence =
   }[oracleResolutionMode] ||
   'medium';
 const syntheticOracle = coverageMatrix.oracle?.synthetic === true || ['synthetic_requirements', 'user_journeys'].includes(coverageBasis);
+
+// Defaults keep a Phase 1 matrix written before live evidence existed readable: no live block means
+// no live-only requirements, which leaves every gate decision below exactly as it was.
+const liveEvidenceDefaults = {
+  present: false,
+  results_file: '',
+  freshness: 'not_present',
+  recorded_source_sha: '',
+  current_source_sha: '',
+  producer: '',
+  counted: 0,
+  stale: 0,
+  unverifiable: 0,
+  failed: 0,
+  contradicted: 0,
+  blocked: 0,
+  skipped: 0,
+  unmatched: 0,
+  invalid: 0,
+  requirements_live_only: 0,
+};
+const reportedLiveEvidence =
+  coverageMatrix.live_evidence && typeof coverageMatrix.live_evidence === 'object' && !Array.isArray(coverageMatrix.live_evidence)
+    ? coverageMatrix.live_evidence
+    : {};
+const liveEvidence = { ...liveEvidenceDefaults, ...reportedLiveEvidence };
+
+// The live-only count is what stands between live evidence and an unconditional PASS, so it is
+// re-derived here from the requirements themselves rather than trusted as a scalar. Phase 1 can be
+// resumed, hand-edited, or produced by an older step-04, and every one of those paths would otherwise
+// resolve a missing or malformed count to zero, which means "cap off". Deriving and taking the larger
+// of the two fails closed: a wrong count can only ever tighten the gate, never loosen it.
+const liveCoverageEligible = new Set(['FULL', 'PARTIAL', 'UNIT-ONLY', 'INTEGRATION-ONLY']);
+const isActiveTest = (test) => {
+  const status = String(test.status || '')
+    .trim()
+    .toLowerCase();
+  if (['skipped', 'pending', 'fixme'].includes(status)) return false;
+  return test.skipped !== true && test.pending !== true && test.fixme !== true;
+};
+const derivedLiveOnlyRequirements = (coverageMatrix.requirements || []).filter((req) => {
+  if (!liveCoverageEligible.has(req.coverage)) return false;
+  const activeTests = (req.tests || []).filter(isActiveTest);
+  return (
+    activeTests.length > 0 &&
+    activeTests.every(
+      (test) =>
+        String(test.level || '')
+          .trim()
+          .toLowerCase() === 'live',
+    )
+  );
+}).length;
+const reportedLiveOnly = Number(liveEvidence.requirements_live_only);
+const liveOnlyCoveredRequirements = Math.max(
+  derivedLiveOnlyRequirements,
+  Number.isFinite(reportedLiveOnly) ? Math.max(0, reportedLiveOnly) : 0,
+);
+liveEvidence.requirements_live_only = liveOnlyCoveredRequirements;
 const deriveActiveTestCasesFromRequirements = (requirements) => {
   const uniqueTests = new Map();
 
@@ -209,7 +270,9 @@ if (!gateEligible) {
   // Rule 1: P0 coverage must be 100%
   if (p0Coverage < 100) {
     gateDecision = 'FAIL';
-    rationale = `P0 coverage is ${p0Coverage}% (required: 100%). ${criticalGaps} critical requirements uncovered.`;
+    // Critical gaps are every P0 criterion under FULL, which includes PARTIAL, UNIT-ONLY, and
+    // INTEGRATION-ONLY, so the count is stated as "below FULL coverage". See checklist.md's Gap Analysis.
+    rationale = `P0 coverage is ${p0Coverage}% (required: 100%). ${criticalGaps} critical requirement(s) below FULL coverage.`;
   }
   // Rule 2: Overall coverage must be >= 80%
   else if (overallCoverage < 80) {
@@ -238,8 +301,14 @@ if (!gateEligible) {
       : `P0 coverage is 100% and overall coverage is ${overallCoverage}% (minimum: 80%), but additional non-P1 gaps need mitigation.`;
   }
 
-  // Rule 6: Manual waiver — set gateDecision = 'WAIVED' and update rationale here
-  // if a stakeholder-approved waiver applies (wired through config or user input upstream).
+  // Rule 6: Manual waiver — deliberately not computed here. Rules 1-5 above are the only rules
+  // that set gateDecision automatically; WAIVED is never derived from coverage data or any other
+  // input to this step. It can only be applied by a human overriding the automated decision after
+  // the fact, and the resulting artifact must carry the full waiver contract (approver, approval
+  // date, waiver reason, expiry, monitoring plan, remediation owner, fix target) defined in
+  // trace-template.md's "Waiver Details" section and validated by checklist.md's Decision
+  // Integrity and Waiver Scenarios checks. There is no default waiver expiry anywhere in the
+  // repo; a human granting a waiver must supply one explicitly.
 
   // Oracle confidence overlay
   if (syntheticOracle && gateDecision === 'PASS' && effectiveOracleConfidence !== 'high') {
@@ -253,8 +322,97 @@ if (!gateEligible) {
       `Coverage traced against inferred ${coverageBasis.replace('_', ' ')} with low confidence. ` +
       `Treat this result as advisory until the inferred journeys are confirmed or formalized.`;
   }
+
+  // Live evidence overlay. Same treatment the oracle confidence overlay above gives inferred
+  // requirements: sound enough to count as coverage, not sound enough to carry an unconditional PASS.
+  // A live result is a one-time observation of one commit with no artifact anyone can re-run, so a
+  // requirement resting only on it is capped at CONCERNS. This overlay only ever lowers PASS or
+  // annotates an existing CONCERNS; it can never lift a FAIL.
+  if (liveOnlyCoveredRequirements > 0 && ['PASS', 'CONCERNS'].includes(gateDecision)) {
+    gateDecision = 'CONCERNS';
+    // Appended rather than replaced so the coverage numbers that produced the base decision survive.
+    rationale =
+      `${rationale} ${liveOnlyCoveredRequirements} requirement(s) are covered only by recorded live verification ` +
+      `observed at ${liveEvidence.recorded_source_sha || 'an unrecorded commit'}. Live evidence is a point-in-time ` +
+      `observation with no re-runnable artifact, so it is capped at CONCERNS.`;
+  }
 }
 ```
+
+---
+
+### 2b. Load and Validate the Waiver Register
+
+A waiver is a human override of a FAIL decision. This workflow never grants one and never applies one: Rule 6 above keeps `gateDecision` exactly what Rules 1 to 5 produced. What it owes the reader is the register a team filed against this gate, checked and reported, so a waiver that does not hold up is visible instead of being taken on trust.
+
+The rules are defined in checklist.md's "Waiver Scenarios" section, which names each check by id, and in the "Waiver Details" section of trace-template.md, which lists the fields a waiver must carry. This step evaluates those rules and names the ones a waiver fails. Changing a rule means editing the checklist.
+
+```javascript
+const waiverRegisterPath = isUnresolved('{waiver_register_input}') ? '' : '{waiver_register_input}';
+const waiverRegisterExists = Boolean(waiverRegisterPath) && fs.existsSync(waiverRegisterPath);
+
+// Check ids, in the order checklist.md's Waiver Scenarios section lists them.
+// A check the register leaves unanswerable fails. A waiver is an assertion that a known risk is
+// accepted on stated terms, so a term the register never states is a term nobody accepted.
+const WAIVER_CHECK_IDS = [
+  'fail_only',
+  'business_justification',
+  'approver_authority',
+  'expiry_present',
+  'remediation_due_date',
+  'not_security',
+  'contract_complete',
+];
+
+let waiverReadError = '';
+let waiverRegisterText = '';
+if (waiverRegisterExists) {
+  try {
+    waiverRegisterText = fs.readFileSync(waiverRegisterPath, 'utf8');
+  } catch (error) {
+    waiverReadError = `Waiver register at ${waiverRegisterPath} could not be read: ${error.message}`;
+  }
+}
+```
+
+Split `waiverRegisterText` on its `## {ID}: {title}` headings, one entry per waiver, and for each entry:
+
+- Read the gap it covers, the priority of that gap, and the decision it names as waived.
+- Evaluate every id in `WAIVER_CHECK_IDS` against the checklist definition. Evaluate `fail_only` against `gateDecision` from section 2, which is the decision this run derived. A waiver naming a FAIL that this run did not produce fails that check.
+- Evaluate `not_security` against the priority and subject of the covered criterion. `test-priorities-matrix.md` names authentication and authorization as security-critical paths.
+- Collect every failing id into `failed_checks`.
+- Leave the gap the waiver covers where the gap analysis put it. An accepted risk is still a gap, so a waived criterion stays in `critical_gaps` and stays in every coverage percentage.
+
+```javascript
+// `parseWaiverRegister` is the split-and-evaluate the bullets above describe: one object per
+// `## {ID}: {title}` heading, carrying the fields it read and the check ids that failed.
+const parsedWaiverEntries = waiverReadError ? [] : parseWaiverRegister(waiverRegisterText);
+
+const waiverEntries = parsedWaiverEntries.map((entry) => ({
+  id: entry.id,
+  title: entry.title || '',
+  covers: entry.covers || '', // requirement id the waiver names, empty when it names none
+  priority: entry.priority || '',
+  valid: entry.failed_checks.length === 0,
+  failed_checks: entry.failed_checks,
+}));
+
+const waivers = waiverRegisterExists
+  ? {
+      register: waiverRegisterPath,
+      read_error: waiverReadError,
+      filed: waiverEntries.length,
+      valid: waiverEntries.filter((entry) => entry.valid).length,
+      invalid: waiverEntries.filter((entry) => !entry.valid).length,
+      entries: waiverEntries,
+    }
+  : null;
+
+// `gateDecision` is not reassigned in this section and nothing below reads `waivers` to change it.
+// A valid waiver and an invalid one have the same effect on the derived decision: none.
+```
+
+Report every entry in the traceability report, with its id, the gap it covers, its validity, and for an invalid waiver the check ids it failed. A register that could not be read is reported by path with `read_error`, and contributes zero valid waivers.
 
 ---
 
@@ -287,7 +445,15 @@ const gateReport = {
       }
     : null,
 
+  // Critical gaps plus high gaps. Critical covers every P0 criterion below FULL, so an entry here can
+  // carry partial coverage. See checklist.md's Gap Analysis section.
   uncovered_requirements: (coverageMatrix.gap_analysis?.critical_gaps || []).concat(coverageMatrix.gap_analysis?.high_gaps || []),
+
+  // Tests whose names claim a criterion their assertions do not establish, from Step 3 section 1a.
+  rejected_evidence: coverageMatrix.gap_analysis?.rejected_evidence || [],
+
+  // Null when no register was found. Never consulted by the decision logic above.
+  waivers: waivers,
 
   recommendations: coverageMatrix.recommendations,
 };
@@ -301,6 +467,20 @@ const gateReport = {
 
 This file is the portable, automation-friendly companion to the markdown report. Any CI/CD pipeline, reporting dashboard, or LLM agent can consume it without parsing markdown.
 
+The summary metadata is a strict contract. Emit the resolved run value for every field below. Use the explicit unknown representation `unknown` when a runtime value cannot be resolved. Preserve the exact artifact path supplied by `{outputFile}`. Empty URL fields remain empty until a CI/CD uploader populates them. The formal requirements oracle uses `not_applicable` for both optional UI heuristic statuses when no synthetic user journey oracle exists.
+
+| Field                                                             | Required value for this run                                        |
+| ----------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `decision_mode`                                                   | `{decision_mode}`                                                  |
+| `links.trace_report_path`                                         | `{outputFile}`                                                     |
+| `links.trace_report_url`                                          | `''`                                                               |
+| `links.artifact_url`                                              | `''`                                                               |
+| `links.journey_evidence_url`                                      | `''`                                                               |
+| `tests.skipped_cases`, `tests.fixme_cases`, `tests.pending_cases` | The real inventory counts. Use `0` when no cases have that status. |
+| `heuristics.ui_journey_status`, `heuristics.ui_state_status`      | `not_applicable` for a non-synthetic formal requirements oracle    |
+
+Do not shorten `{outputFile}`, invent a URL, or replace an unavailable runtime value with a guess. Use the literal string `unknown` for an unavailable runtime value.
+
 ```javascript
 const buildFallbackInventory = () => {
   const byLevel = {
@@ -308,6 +488,7 @@ const buildFallbackInventory = () => {
     api: { tests: 0, criteria_covered: 0 },
     component: { tests: 0, criteria_covered: 0 },
     unit: { tests: 0, criteria_covered: 0 },
+    live: { tests: 0, criteria_covered: 0 }, // recorded runtime verification; no file on disk
     other: { tests: 0, criteria_covered: 0 }, // captures tests with unrecognized or empty level
   };
   const coverageEligibleStatuses = new Set(['FULL', 'PARTIAL', 'UNIT-ONLY', 'INTEGRATION-ONLY']);
@@ -393,7 +574,21 @@ const buildFallbackInventory = () => {
 };
 
 const fallbackInventory = buildFallbackInventory();
-const testInventory = coverageMatrix.test_inventory?.summary || fallbackInventory.summary;
+const rawTestInventory = coverageMatrix.test_inventory?.summary || fallbackInventory.summary;
+// A Phase 1 matrix from an older step-04 has no `live` bucket, which would leave this file declaring
+// schema_version 0.3.0 while omitting a key that version promises. Fill the shape, keep the counts.
+const testInventory = {
+  ...rawTestInventory,
+  by_level: {
+    e2e: { tests: 0, criteria_covered: 0 },
+    api: { tests: 0, criteria_covered: 0 },
+    component: { tests: 0, criteria_covered: 0 },
+    unit: { tests: 0, criteria_covered: 0 },
+    live: { tests: 0, criteria_covered: 0 },
+    other: { tests: 0, criteria_covered: 0 },
+    ...(rawTestInventory.by_level || {}),
+  },
+};
 const blockers = coverageMatrix.blockers || coverageMatrix.test_inventory?.blockers || fallbackInventory.blockers;
 
 const heuristicCounts = coverageMatrix.coverage_heuristics?.counts || {};
@@ -402,7 +597,10 @@ const authGapCount = heuristicCounts.auth_missing_negative_paths ?? 0;
 const errorPathGapCount = heuristicCounts.happy_path_only_criteria ?? 0;
 const uiJourneyGapCount = heuristicCounts.ui_journeys_without_e2e;
 const uiStateGapCount = heuristicCounts.ui_states_missing_coverage;
-const sourceSha = process.env.GITHUB_SHA || runtime.getSourceSha?.() || '';
+// Same resolution order and same value as step-02's freshness check: the working tree is the authority,
+// and `live_evidence.current_source_sha` carries what step-02 actually resolved. Two fields in one file
+// disagreeing about "the commit under trace" would undermine the freshness contract they both describe.
+const sourceSha = liveEvidence.current_source_sha || runtime.getSourceSha?.() || runtime.getGitHeadSha?.() || process.env.GITHUB_SHA || '';
 const mapOptionalHeuristicStatus = (count, applicable) => {
   if (!applicable) return 'not_applicable';
   if (typeof count !== 'number' || Number.isNaN(count)) return 'unknown';
@@ -411,10 +609,15 @@ const mapOptionalHeuristicStatus = (count, applicable) => {
 };
 const gateBasis = gateEligible ? 'priority_thresholds' : 'none';
 
+// `project_name` is declared in workflow.yaml and read from the TEA config. An install whose config
+// predates that key leaves the placeholder unsubstituted, and an empty string says "unknown repo",
+// which is true. Emitting the literal "{project_name}" would name a repository that does not exist.
+const repoName = isUnresolved('{project_name}') ? '' : String('{project_name}').trim();
+
 const e2eTraceSummary = {
-  schema_version: '0.1.0',
+  schema_version: '0.3.0', // 0.2.0 added live_evidence and the by_level.live bucket; 0.3.0 added waivers
   snapshot_at: new Date().toISOString(),
-  repo: '{project_name}',
+  repo: repoName,
   collection_mode: collectionMode,
   collection_status: collectionStatus,
   inventory_basis: coverageBasis,
@@ -480,13 +683,26 @@ const e2eTraceSummary = {
 
   heuristics: {
     endpoint_gaps: endpointGapCount,
-    auth_negative_path_status: authGapCount === 0 ? 'present' : authGapCount <= 2 ? 'partial' : 'none',
-    error_path_status: errorPathGapCount === 0 ? 'present' : errorPathGapCount <= 2 ? 'partial' : 'none',
+    // `runtime_manifest` skips static discovery, so the heuristics had nothing to inspect. Zero gaps
+    // there means "not examined", and reporting that as `present` would assert auth negative paths and
+    // error paths are covered on the strength of an analysis that never ran.
+    auth_negative_path_status:
+      collectionMode === 'runtime_manifest' ? 'unknown' : authGapCount === 0 ? 'present' : authGapCount <= 2 ? 'partial' : 'none',
+    error_path_status:
+      collectionMode === 'runtime_manifest' ? 'unknown' : errorPathGapCount === 0 ? 'present' : errorPathGapCount <= 2 ? 'partial' : 'none',
     ui_journey_status: mapOptionalHeuristicStatus(uiJourneyGapCount, syntheticOracle),
     ui_state_status: mapOptionalHeuristicStatus(uiStateGapCount, syntheticOracle),
   },
 
+  live_evidence: {
+    ...liveEvidence,
+    current_source_sha: liveEvidence.current_source_sha || sourceSha || '',
+  },
+
   blockers: blockers,
+  // Tests whose names claim a criterion their assertions do not establish. They carry no coverage and
+  // are in no test total; they are here so a consumer can see which claims were read and turned down.
+  rejected_evidence: coverageMatrix.gap_analysis?.rejected_evidence || [],
   recommendations: coverageMatrix.recommendations,
 
   links: {
@@ -496,6 +712,12 @@ const e2eTraceSummary = {
     journey_evidence_url: '',
   },
 };
+
+// Emitted only when a register was found, so a run with no waivers says nothing about waivers.
+// The block records what was filed and what held up; `gate_status` above is untouched by it.
+if (waivers) {
+  e2eTraceSummary.waivers = waivers;
+}
 
 if (gateEligible) {
   e2eTraceSummary.gate_status = gateDecision;
@@ -565,11 +787,15 @@ if (gateEligible && ['PASS', 'CONCERNS', 'FAIL', 'WAIVED'].includes(gateDecision
 
 ## Traceability Matrix
 
-[Full matrix with requirement → test mappings]
+[Full matrix with requirement → test mappings, each criterion carrying its "Considered and rejected" entries from `rejected_evidence`]
 
 ## Gaps & Recommendations
 
 [List of uncovered requirements with recommended actions]
+
+## Waiver Register Review
+
+[Every waiver in `waivers.entries` with its id, the gap it covers, its validity, and for an invalid waiver the check ids it failed. Omit the section when no register was found.]
 
 ## Next Actions
 
@@ -586,7 +812,7 @@ fs.writeFileSync('{outputFile}', reportContent, 'utf8');
 
 ### 5. Display Gate Decision
 
-```
+```text
 🚨 GATE DECISION: {gateDecision}
 
 📊 Coverage Analysis:
@@ -597,7 +823,18 @@ fs.writeFileSync('{outputFile}', reportContent, 'utf8');
 ✅ Decision Rationale:
 {rationale}
 
-⚠️ Critical Gaps: {criticalGaps.length}
+{if liveEvidence.present}
+🔴 Live Evidence: {liveEvidence.freshness} ({liveEvidence.counted} counted, {liveEvidence.stale} stale)
+{endif}
+{if liveOnlyCoveredRequirements > 0}
+- Requirements covered only by live evidence: {liveOnlyCoveredRequirements} (this run is capped at CONCERNS)
+{endif}
+
+⚠️ Critical Gaps: {criticalGaps.length} (P0 criteria below FULL coverage)
+
+{if waivers}
+🔓 Waivers Filed: {waivers.filed} ({waivers.valid} valid, {waivers.invalid} invalid). None applied; the decision above is the derived one.
+{endif}
 
 📝 Recommended Actions:
 {list top 3 recommendations}
@@ -643,6 +880,7 @@ Then append the gate decision summary (from section 5 above) to the end of the e
 
 - ✅ Phase 1 coverage matrix read successfully
 - ✅ Collection status resolved and gate decision logic applied when eligible
+- ✅ Waiver register read, validated, and reported when `{waiver_register_input}` exists
 - ✅ `e2e-trace-summary.json` written to `{e2e_trace_summary_output}`
 - ✅ `gate-decision.json` written to `{gate_decision_output}` (when gate-eligible)
 - ✅ Traceability report generated
@@ -658,6 +896,7 @@ Then append the gate decision summary (from section 5 above) to the end of the e
 
 - Coverage matrix read from Phase 1
 - Gate decision made with clear rationale when gate-eligible
+- Every filed waiver reported with its validity and its failed checks
 - `e2e-trace-summary.json` written and valid
 - `gate-decision.json` written when gate-eligible
 - Report generated and saved
@@ -667,14 +906,16 @@ Then append the gate decision summary (from section 5 above) to the end of the e
 
 - Could not read Phase 1 matrix
 - Gate eligibility or gate decision logic incorrect
+- A waiver register present on disk and absent from the report
+- A waiver reported as accepted, or a gap dropped because a waiver covers it
 - `e2e-trace-summary.json` missing or invalid JSON
 - Report missing or incomplete
 
-**Master Rule:** Gate decision MUST be deterministic based on clear criteria (P0 100%, P1 90/80, overall >=80) whenever `allow_gate` is true and `collection_status` is `COLLECTED`. `e2e-trace-summary.json` MUST be written before the workflow terminates.
+**Master Rule:** Gate decision MUST be deterministic based on clear criteria (P0 100%, P1 90/80, overall >=80) whenever `allow_gate` is true and `collection_status` is `COLLECTED`. A run with any requirement covered only by recorded live verification MUST NOT return PASS. A filed waiver MUST be validated and reported, and MUST leave the derived decision unchanged. `e2e-trace-summary.json` MUST be written before the workflow terminates.
 
 ## On Complete
 
-Run: `python3 {project-root}/_bmad/scripts/resolve_customization.py --skill {skill-root} --key workflow.on_complete`
+Run: `uv run {project-root}/_bmad/scripts/resolve_customization.py --skill {skill-root} --project-root {project-root} --key workflow.on_complete`
 
 If the resolver succeeds and returns a non-empty `workflow.on_complete`, execute that value as the final terminal instruction before exiting.
 

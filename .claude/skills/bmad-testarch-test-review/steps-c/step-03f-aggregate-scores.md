@@ -9,7 +9,7 @@ outputFile: '{test_artifacts}/test-review.md'
 
 ## STEP GOAL
 
-Read outputs from 4 quality subagents, calculate weighted overall score (0-100), and aggregate violations for report generation.
+Read outputs from 4 quality subagents, aggregate violations by severity, and calculate the overall score (0-100) from the deduction ledger for report generation.
 
 ---
 
@@ -18,8 +18,8 @@ Read outputs from 4 quality subagents, calculate weighted overall score (0-100),
 - 📖 Read the entire step file before acting
 - ✅ Speak in `{communication_language}`
 - ✅ Read all 4 subagent outputs
-- ✅ Calculate weighted overall score
 - ✅ Aggregate violations by severity
+- ✅ Calculate the overall score from the deduction ledger, never a weighted average
 - ❌ Do NOT re-evaluate quality (use subagent outputs)
 
 ---
@@ -62,30 +62,132 @@ if (!allSucceeded) {
 
 ---
 
-### 2. Calculate Weighted Overall Score
+### 2. Aggregate Violations by Severity
 
-**Dimension Weights** (based on TEA quality priorities):
+**Collect all violations from all dimensions:**
 
 ```javascript
-const weights = {
-  determinism: 0.3, // 30% - Reliability and flake prevention
-  isolation: 0.3, // 30% - Parallel safety and independence
-  maintainability: 0.25, // 25% - Readability and long-term health
-  performance: 0.15, // 15% - Speed and execution efficiency
+const allViolations = dimensions.flatMap((dim) =>
+  results[dim].violations.map((v) => ({
+    ...v,
+    dimension: dim,
+  })),
+);
+
+// Attribution first, because everything below depends on it. A violation with no
+// registry `row` is a severity somebody chose, which is the thing the registry
+// exists to prevent, and there is no safe fallback: keying dedup on `category`
+// instead lets two workers describing one defect survive as two.
+const unattributed = allViolations.filter((v) => !v.row);
+if (unattributed.length > 0) {
+  const dimensions = [...new Set(unattributed.map((v) => v.dimension))];
+  throw new Error(`${unattributed.length} violation(s) carry no registry row; re-run these workers: ${dimensions.join(', ')}`);
+}
+
+// Deduplicate before counting. Some registry rows are detectable by more than one
+// worker (M4 by isolation and maintainability, H5 by maintainability and
+// performance), and counting the same defect twice deducts twice for it. Identity
+// is the registry row at a location, never the prose description, which differs
+// between workers describing the same line.
+//
+// File-level rows carry no meaningful line: H5 is a property of the whole file,
+// and the pact config rows are properties of the whole config. Two workers each
+// pick a plausible line for the same finding (1 and 1041 for the same 1041-line
+// file), so the line is dropped from the key for those rows or the dedup this
+// block exists for never fires on its own worked example.
+const FILE_LEVEL_ROWS = new Set(['H5', 'H6', 'H7', 'H8', 'L4']);
+const locationOf = (v) => (FILE_LEVEL_ROWS.has(v.row) ? 'file' : v.line);
+
+const seenViolations = new Set();
+const dedupedViolations = allViolations.filter((v) => {
+  const key = `${v.file}:${locationOf(v)}:${v.row}`;
+  if (seenViolations.has(key)) return false;
+  seenViolations.add(key);
+  return true;
+});
+
+// Group by severity (four tiers, matching the report template).
+// CRITICAL: violations placed in the report's `## Critical Issues (Must Fix)`
+// section (P0) count as CRITICAL; subagent HIGH/MEDIUM/LOW map to the
+// report's Recommendations section (P1/P2/P3).
+const criticalSeverity = dedupedViolations.filter((v) => v.severity === 'CRITICAL');
+const highSeverity = dedupedViolations.filter((v) => v.severity === 'HIGH');
+const mediumSeverity = dedupedViolations.filter((v) => v.severity === 'MEDIUM');
+const lowSeverity = dedupedViolations.filter((v) => v.severity === 'LOW');
+
+const violationSummary = {
+  total: dedupedViolations.length,
+  CRITICAL: criticalSeverity.length,
+  HIGH: highSeverity.length,
+  MEDIUM: mediumSeverity.length,
+  LOW: lowSeverity.length,
 };
 ```
 
-**Calculate overall score:**
+**Every violation must carry the registry row that produced it**, which is what the
+attribution guard above enforces. A violation with no `row` is a severity somebody
+chose, which is the thing the registry exists to prevent. Reject the dimension
+output and re-run that worker rather than scoring an unattributed violation, and
+never substitute the prose `category` for a missing row.
+
+**Everything downstream reads `dedupedViolations`.** The counts, the persisted
+violation list, and every report-facing collection come from the same array, or the
+report prints more findings than its own summary counts.
+
+---
+
+### 3. Calculate Quality Score
+
+**This deduction ledger is the ONE scoring model for this workflow.** It is the
+same arithmetic the `## Quality Score Breakdown` block in
+`test-review-template.md` prints, so the published breakdown and the published
+score are the same calculation and a reader can check one against the other.
+Never substitute a weighted average, a per-dimension roll-up, or any other
+formula, and never adjust the result by judgment after computing it.
 
 ```javascript
-const overallScore = dimensions.reduce((sum, dim) => {
-  return sum + results[dim].score * weights[dim];
-}, 0);
-
-const roundedScore = Math.round(overallScore);
+const deductions = violationSummary.CRITICAL * 10 + violationSummary.HIGH * 5 + violationSummary.MEDIUM * 2 + violationSummary.LOW * 1;
 ```
 
-**Determine grade:**
+**Bonus points.** Exactly six categories, each worth `0` or `5` and nothing in
+between: no partial credit, no invented categories, no category counted twice.
+Award `5` only when the criterion holds across every reviewed file; otherwise
+award `0`.
+
+```javascript
+const bonuses = {
+  excellentBdd: 0, // 5: every test name states behavior, not implementation
+  comprehensiveFixtures: 0, // 5: setup goes through fixtures, no inline duplication
+  dataFactories: 0, // 5: test data comes from factories, not hardcoded literals
+  networkFirst: 0, // 5: network interception is declared before the action that triggers it
+  perfectIsolation: 0, // 5: no shared mutable state, any test can run alone or in parallel
+  allTestIds: 0, // 5: every element lookup uses a stable test id, never a CSS or text selector
+};
+
+const bonusTotal = Object.values(bonuses).reduce((sum, value) => sum + value, 0);
+```
+
+**Raw deduction score**, clamped to the 0-100 range the report contract requires:
+
+```javascript
+const rawScore = Math.max(0, Math.min(100, 100 - deductions + bonusTotal));
+```
+
+**Effective score**, capped by the highest finding severity so the score and verdict
+cannot contradict each other:
+
+```javascript
+const severityCaps = { CRITICAL: 69, HIGH: 79, MEDIUM: 89, LOW: 99 };
+const highestSeverity = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'].find((severity) => violationSummary[severity] > 0);
+const scoreCap = highestSeverity ? severityCaps[highestSeverity] : 100;
+const roundedScore = Math.min(rawScore, scoreCap);
+const scoreOverrideRule = highestSeverity
+  ? `Highest severity ${highestSeverity} caps effective score at ${scoreCap}: min(raw deduction score ${rawScore}, ${scoreCap}) = ${roundedScore}.`
+  : `No severity cap: no findings; effective score equals raw deduction score ${rawScore}.`;
+```
+
+**Determine grade.** These five letters are the complete scale. Never emit a
+modifier such as `A+`, `B-`, or any label outside this function.
 
 ```javascript
 const getGrade = (score) => {
@@ -101,36 +203,83 @@ const overallGrade = getGrade(roundedScore);
 
 ---
 
-### 3. Aggregate Violations by Severity
+### 3b. Derive the Recommendation
 
-**Collect all violations from all dimensions:**
+**The recommendation is computed, never chosen.** Until this rule existed the score
+was fully deterministic and the verdict beside it was free-form: the report template
+offered four enum values and the reviewer picked one by judgment, while the CLI
+checked only that the value was legal and that the two sections agreed. Nothing
+bound the verdict to the findings.
+
+That asymmetry is measurable. On couture-cast PR #103, two reviewers of the same
+four files scored 82 and 85, a 3-point spread that is noise, and returned
+`Request Changes` and "meets our quality bar for merge", which is the opposite
+outcome. `--fail-on request-changes` acts on the verdict, so the gate was decided by
+the unpinned half of the report.
 
 ```javascript
-const allViolations = dimensions.flatMap((dim) =>
-  results[dim].violations.map((v) => ({
-    ...v,
-    dimension: dim,
-  })),
-);
-
-// Group by severity
-const highSeverity = allViolations.filter((v) => v.severity === 'HIGH');
-const mediumSeverity = allViolations.filter((v) => v.severity === 'MEDIUM');
-const lowSeverity = allViolations.filter((v) => v.severity === 'LOW');
-
-const violationSummary = {
-  total: allViolations.length,
-  HIGH: highSeverity.length,
-  MEDIUM: mediumSeverity.length,
-  LOW: lowSeverity.length,
+const deriveRecommendation = ({ CRITICAL, HIGH, MEDIUM, LOW }, score) => {
+  if (CRITICAL > 0) return 'Block'; // a test that cannot fail is not a suggestion
+  if (HIGH > 0) return 'Request Changes';
+  if (score < 70) return 'Request Changes'; // volume of MEDIUM/LOW can also fail the bar
+  if (MEDIUM + LOW > 0) return 'Approve with Comments';
+  return 'Approve';
 };
+
+const recommendation = deriveRecommendation(violationSummary, roundedScore);
+const verdictRule =
+  violationSummary.CRITICAL > 0
+    ? `Critical > 0 => Block (${violationSummary.CRITICAL} Critical).`
+    : violationSummary.HIGH > 0
+      ? `Critical = 0 and High > 0 => Request Changes (${violationSummary.HIGH} High).`
+      : roundedScore < 70
+        ? `Critical = 0, High = 0, and effective score < 70 => Request Changes (${roundedScore}).`
+        : violationSummary.MEDIUM + violationSummary.LOW > 0
+          ? 'No Critical or High, effective score >= 70, and findings remain => Approve with Comments.'
+          : 'No findings => Approve.';
 ```
+
+Why these boundaries:
+
+- **`CRITICAL > 0` is `Block`.** A committed `.skip` on the one test that matters, a
+  `expect(true).toBe(true)`, or an assertion against a self-configured mock means the
+  suite reports green while proving nothing. That is worse than an absent test,
+  because it buys false confidence, and it is not something a reviewer approves with
+  a comment.
+- **`HIGH > 0` is `Request Changes`.** Every HIGH row is either a test that can pass
+  while the behavior is broken or one that fails at random. Both waste more
+  engineering time downstream than fixing them costs now.
+- **`score < 70` is `Request Changes` even with no HIGH.** Fifteen MEDIUM findings is
+  a suite with a systemic problem, and a rule keyed only on severity tiers would wave
+  it through.
+- **Anything else with findings is `Approve with Comments`.** Real, worth fixing, not
+  worth blocking a merge.
+
+The reviewer's remaining judgment is which rows fired, which is where judgment
+belongs. Write this value into **both** the `## Executive Summary` and the
+`## Decision` section; the CLI rejects a report whose two copies disagree.
+
+**A waiver is the only way past this**, it is recorded in the verdict payload, and it
+never changes the computed value: `--waive` changes the exit code, not the
+recommendation. Never soften the derived recommendation because context, a story, or
+a focus note argued the findings were acceptable here.
+
+**Before continuing, verify the ledger prints what it computed.** The breakdown
+block in the report must show these exact deduction lines, this bonus total, and
+this final score. A breakdown whose lines do not sum to the stated score is a
+broken report; recompute rather than publishing the mismatch.
 
 ---
 
-### 4. Prioritize Recommendations
+### 4. Separate Scored Weaknesses From Advisory Observations
 
-**Extract recommendations from all dimensions:**
+`Key Weaknesses` is another view of `dedupedViolations`, not a free-form list.
+Each item must carry its registry row so the human summary can be checked against
+the scored finding blocks.
+
+Subagent recommendations that do not correspond to a deduplicated violation are
+unscored ideas. Keep useful ones as advisory observations. Drop empty strings and
+literal `n/a`; do not promote them into weaknesses.
 
 ```javascript
 const allRecommendations = dimensions.flatMap((dim) =>
@@ -141,9 +290,28 @@ const allRecommendations = dimensions.flatMap((dim) =>
   })),
 );
 
-// Sort by impact (HIGH first)
-const prioritizedRecommendations = allRecommendations.sort((a, b) => (a.impact === 'HIGH' ? -1 : 1)).slice(0, 10); // Top 10 recommendations
+const keyWeaknesses = dedupedViolations.slice(0, 5).map((violation) => ({
+  row: violation.row,
+  summary: violation.description ?? violation.category,
+}));
+
+const scoredRecommendationTexts = new Set(
+  dedupedViolations.flatMap((violation) => [violation.recommendation, violation.description]).filter(Boolean),
+);
+const advisoryObservations = allRecommendations
+  .map(({ recommendation }) =>
+    (typeof recommendation === 'string' ? recommendation : (recommendation?.recommendation ?? recommendation?.description ?? '')).trim(),
+  )
+  .filter((recommendation) => recommendation && !/^n\s*\/?\s*a[.!]?$/i.test(recommendation))
+  .filter((recommendation) => !scoredRecommendationTexts.has(recommendation))
+  .filter((recommendation, index, all) => all.indexOf(recommendation) === index)
+  .slice(0, 10);
 ```
+
+This text comparison is only a routing aid. It never changes
+`dedupedViolations`, the violation counts, the score, or the recommendation. If
+it is unclear whether an idea corresponds to a violation, keep the scored
+finding under Key Weaknesses and omit the duplicate advisory wording.
 
 ---
 
@@ -153,9 +321,19 @@ const prioritizedRecommendations = allRecommendations.sort((a, b) => (a.impact =
 
 ```javascript
 const reviewSummary = {
+  raw_score: rawScore,
+  score_cap: scoreCap,
+  score_override_rule: scoreOverrideRule,
   overall_score: roundedScore,
   overall_grade: overallGrade,
   quality_assessment: getQualityAssessment(roundedScore),
+  // Computed in 3b from the deduped violation counts. Publish this value in both
+  // report sections verbatim; it is not a starting point for a judgment call.
+  recommendation,
+  verdict_rule: verdictRule,
+  // Carried through so the report can cite adoption counts on Convention rows and
+  // say `PASS (n/a)` where a convention is absent rather than a bare WARN.
+  convention_baseline: subagentContext.convention_baseline,
 
   dimension_scores: {
     determinism: results.determinism.score,
@@ -173,14 +351,25 @@ const reviewSummary = {
 
   violations_summary: violationSummary,
 
-  all_violations: allViolations,
+  // Deduped, not raw: violations_summary counts this same array, and a report
+  // listing a defect twice beside a count of one is a report nobody can check.
+  all_violations: dedupedViolations,
+
+  critical_severity_violations: criticalSeverity,
 
   high_severity_violations: highSeverity,
 
-  top_10_recommendations: prioritizedRecommendations,
+  // Human-readable Executive Summary collections. Key weaknesses are scored;
+  // advisory observations are useful but never enter the ledger.
+  key_weaknesses: keyWeaknesses,
+  advisory_observations: advisoryObservations,
 
-  subagent_execution: 'PARALLEL (4 quality dimensions)',
-  performance_gain: '~60% faster than sequential',
+  // The mode step-03 actually resolved, carried through verbatim. It used to read
+  // 'PARALLEL (4 quality dimensions)' and '~60% faster than sequential' whatever ran,
+  // which described a sequential run as a parallel one and published a speed figure
+  // nobody had measured. Step 4 prints this as the report's "**Execution Mode**:"
+  // line, and cli/lib/parse-report.js reads it into the verdict.
+  execution_mode: subagentContext.execution.resolvedMode,
 };
 
 // Save for Step 4 (report generation)
@@ -191,7 +380,7 @@ fs.writeFileSync(`/tmp/tea-test-review-summary-${timestamp}.json`, JSON.stringif
 
 ### 6. Display Summary to User
 
-```
+```text
 ✅ Quality Evaluation Complete (Parallel Execution)
 
 📊 Overall Quality Score: {roundedScore}/100 (Grade: {overallGrade})
@@ -205,10 +394,11 @@ fs.writeFileSync(`/tmp/tea-test-review-summary-${timestamp}.json`, JSON.stringif
 ℹ️ Coverage is excluded from `test-review` scoring. Use `trace` for coverage analysis and gates.
 
 ⚠️ Violations Found:
-- HIGH:   {high_count} violations
-- MEDIUM: {medium_count} violations
-- LOW:    {low_count} violations
-- TOTAL:  {total_count} violations
+- CRITICAL: {critical_count} violations
+- HIGH:     {high_count} violations
+- MEDIUM:   {medium_count} violations
+- LOW:      {low_count} violations
+- TOTAL:    {total_count} violations
 
 🚀 Performance: Parallel execution ~60% faster than sequential
 
@@ -221,12 +411,13 @@ fs.writeFileSync(`/tmp/tea-test-review-summary-${timestamp}.json`, JSON.stringif
 
 ### 7. Save Progress
 
-**Save this step's accumulated work to `{outputFile}`.**
+**Save this step's accumulated work to `{outputFile}`.** When `output_file_override` is non-empty it IS `{outputFile}`, replacing the step frontmatter default.
 
 - **If `{outputFile}` does not exist** (first save), create it using the workflow template (if available) with YAML frontmatter:
 
   ```yaml
   ---
+  workflowType: 'testarch-test-review'
   stepsCompleted: ['step-03f-aggregate-scores']
   lastStep: 'step-03f-aggregate-scores'
   lastSaved: '{date}'
@@ -264,8 +455,8 @@ Load next step: `{nextStepFile}`
 ### ✅ SUCCESS:
 
 - All 4 subagent outputs read and parsed
-- Overall score calculated with proper weights
 - Violations aggregated correctly
+- Overall score calculated from the deduction ledger, and the published breakdown sums to it
 - Summary complete and saved
 
 ### ❌ FAILURE:
