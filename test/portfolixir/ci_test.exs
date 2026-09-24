@@ -162,6 +162,90 @@ defmodule Portfolixir.CITest do
     assert package_json =~ ~s("@types/node": "^#{ci_major}.)
   end
 
+  # User story (the 2026-09-24 runtime hotfix, Sprint 16 plan D-2):
+  # As an operator who runs the image the documented deployment builds,
+  # I want that image to ship exactly the Elixir and Erlang/OTP patch CI tests,
+  # pinned in the same places the agent's toolchain and the dialyzer cache read,
+  # so that the runtime cannot fall behind the tested one without a commit --
+  # which is how every instance came to run an OTP whose TLS client had
+  # published certificate-verification bypasses while CI tested a patched one.
+  #
+  # Acceptance criteria:
+  # - Every CI job names one exact Elixir version and one exact OTP patch.
+  # - The dialyzer cache key names the same versions.
+  # - The development image and the release build stage are the Hex team's
+  #   image for exactly those versions, pinned by tag and digest.
+  # - The release runtime stage is the Debian release the build stage was
+  #   built on, pinned by tag and digest.
+  # - The agent install script defaults to the same versions.
+  test "CI, both images, the PLT key and the install script name one Elixir and one OTP" do
+    ci_workflow = File.read!(".github/workflows/ci.yml")
+    dev_dockerfile = File.read!("Dockerfile")
+    release_dockerfile = File.read!("Dockerfile.release")
+    install_script = File.read!(".claude/scripts/install-elixir-toolchain.sh")
+
+    elixir_versions =
+      Regex.scan(~r/elixir-version: ['"]([^'"]+)['"]/, ci_workflow, capture: :all_but_first)
+
+    otp_versions =
+      Regex.scan(~r/otp-version: ['"]([^'"]+)['"]/, ci_workflow, capture: :all_but_first)
+
+    assert [[elixir] | _] = elixir_versions
+    assert [[otp] | _] = otp_versions
+    assert Enum.uniq(elixir_versions) == [[elixir]], "CI jobs disagree on the Elixir version"
+    assert Enum.uniq(otp_versions) == [[otp]], "CI jobs disagree on the OTP version"
+
+    # A bare major ("27") lets setup-beam float to whatever patch is newest;
+    # the image cannot follow a float, so both sides name an exact version.
+    assert elixir =~ ~r/^\d+\.\d+\.\d+$/, "CI's Elixir version is not exact: #{elixir}"
+    assert otp =~ ~r/^\d+\.\d+(\.\d+)+$/, "CI's OTP version is not an exact patch: #{otp}"
+
+    assert ci_workflow =~ "plt-otp#{otp}-elixir#{elixir}-",
+           "the PLT cache key would reuse a PLT built on another toolchain"
+
+    image = ~r/hexpm\/elixir:#{Regex.escape("#{elixir}-erlang-#{otp}")}-debian-([a-z]+-\d{8})/
+
+    assert [_, dev_debian] =
+             Regex.run(~r/^FROM #{image.source}@sha256:[0-9a-f]{64}$/m, dev_dockerfile)
+
+    assert [_, build_debian] =
+             Regex.run(
+               ~r/^FROM #{image.source}-slim@sha256:[0-9a-f]{64} AS build$/m,
+               release_dockerfile
+             )
+
+    assert dev_debian == build_debian, "the development and release images differ in Debian"
+
+    # The release carries the build stage's ERTS, linked against that Debian
+    # release's libraries, so the runtime stage is the same release.
+    assert release_dockerfile =~
+             ~r/^FROM debian:#{build_debian}-slim@sha256:[0-9a-f]{64}$/m
+
+    assert install_script =~ ~s(ELIXIR_VERSION="${ELIXIR_VERSION:-#{elixir}}")
+    assert install_script =~ ~s(OTP_VERSION="${OTP_VERSION:-#{otp}}")
+  end
+
+  # User story (the 2026-09-24 runtime hotfix):
+  # As an operator upgrading my instance,
+  # I want the documented upgrade to fetch the current base images,
+  # so that a runtime fix shipped in a base image actually reaches me -- a
+  # plain `docker compose up --build` reuses the base image already cached.
+  #
+  # Acceptance criteria:
+  # - The deployment guide, in English and German, rebuilds with --pull.
+  # - The version report prints the OTP inside the release's base image,
+  #   because reading the tag is exactly what hid the frozen runtime.
+  test "the upgrade pulls the base images and the version report reads the OTP inside them" do
+    for guide <- ["docs/home-deployment.md", "docs/de/home-deployment.md"] do
+      assert File.read!(guide) =~ "docker compose build --pull",
+             "#{guide} does not rebuild with --pull"
+    end
+
+    report = File.read!("scripts/version-report.sh")
+    assert report =~ "Dockerfile.release"
+    assert report =~ "OTP_VERSION"
+  end
+
   # User story:
   # As a maintainer whose test suite is the mechanical guard behind money math,
   # I want async LiveView assertions to have a wall-clock budget that survives
