@@ -239,6 +239,22 @@ docker compose up --build
 Take a database backup before an upgrade (see "Backup and restore" above):
 migrations are additive, and a rollback across a release restores that backup.
 
+## Upgrade
+
+After pulling a new version of the repository, rebuild with `--pull`, then
+start:
+
+```bash
+docker compose build --pull
+docker compose up -d
+```
+
+`--pull` fetches the current base images. A plain `docker compose up --build`
+reuses the base image already on the host, so a fix that ships in the base
+image (the Erlang/OTP runtime the release bundles, the Debian libraries under
+it) would never reach the instance. The release notes say when an upgrade
+carries such a fix.
+
 ## Rebuild Derived Values
 
 Expensive analytics (currently the daily performance walk) are kept as

@@ -250,6 +250,23 @@ docker compose up --build
 Sichere die Datenbank vor einem Upgrade: Migrationen sind additiv, und ein
 Rollback über ein Release hinweg spielt diese Sicherung zurück.
 
+## Upgrade
+
+Nachdem du eine neue Version des Repositorys geholt hast, baue mit `--pull`
+neu und starte dann:
+
+```bash
+docker compose build --pull
+docker compose up -d
+```
+
+`--pull` holt die aktuellen Basis-Images. Ein einfaches
+`docker compose up --build` verwendet das Basis-Image weiter, das schon auf
+dem Host liegt; eine Korrektur, die im Basis-Image ausgeliefert wird (die
+Erlang/OTP-Laufzeit, die das Release mitbringt, und die Debian-Bibliotheken
+darunter), käme so nie in der Instanz an. Die Release-Notes sagen, wann ein
+Upgrade eine solche Korrektur enthält.
+
 ## Abgeleitete Werte neu aufbauen
 
 Teure Auswertungen (derzeit der tägliche Performance-Lauf) werden als
