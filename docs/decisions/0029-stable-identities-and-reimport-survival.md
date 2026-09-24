@@ -8,7 +8,13 @@ description: Decision that strategy configuration survives a PP re-import throug
 
 - **Status:** Accepted (owner sign-off 2026-07-22, following the three-method
   adversarial review round; [ADR-0026](0026-epic-batch-workflow.html)
-  decision gate passed)
+  decision gate passed); **amended by
+  [ADR-0050](0050-lifecycle-merges-under-a-reimport-contract.html)**
+  (2026-09-24, signed by the merge of the Sprint 16 planning PR): the Context
+  sentence on account renames no longer holds; the content-hash check runs
+  ahead of all resolution and consults retired hashes; the in-run collapse key
+  is scoped by the file's account names; account resolution gains a
+  former-name tier; and §3's manual repair points at the security merge.
 - **Date:** 2026-07-19
 
 ## Context
