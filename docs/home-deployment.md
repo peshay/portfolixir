@@ -40,8 +40,8 @@ base64 would break the connection string.
 | `PORTFOLIXIR_SESSION_DAYS` | no | How many days a UI login stays valid (default 30). The window slides: using the instance renews it, so you are asked again only after a full period of not using it. `0` ends the login when the browser closes. |
 | `PHX_HOST` | no | The name the reverse proxy serves (default `localhost`). Requests under any other `Host` are refused with 421. |
 | `PORTFOLIXIR_ALLOWED_HOSTS` | no | Further names, comma-separated (a LAN address, a second proxy name). The Compose file adds `app`, the name the MCP companion reaches the application under. |
-| `PHX_FORCE_SSL` | no | `true` redirects plain HTTP to HTTPS and sets HSTS. Set it once the reverse proxy terminates TLS and forwards `X-Forwarded-Proto`; off by default, because a loopback instance has no TLS to redirect to and the application never terminates TLS itself. |
-| `PORTFOLIXIR_TRUSTED_PROXIES` | no | Addresses or CIDR blocks, comma-separated, whose `X-Forwarded-For` the login and token throttle believes. Empty, the throttle counts the connecting address, which behind a proxy is the proxy. |
+| `PHX_FORCE_SSL` | no | `true` redirects plain HTTP to HTTPS and sets HSTS. Set it once the reverse proxy terminates TLS and sends `X-Forwarded-Proto` from loopback or from an address named in `PORTFOLIXIR_TRUSTED_PROXIES`; off by default, because a loopback instance has no TLS to redirect to and the application never terminates TLS itself. |
+| `PORTFOLIXIR_TRUSTED_PROXIES` | no | Addresses or CIDR blocks, comma-separated, whose `X-Forwarded-For` (the login and token throttle's source) and `X-Forwarded-Proto` (the scheme) the application believes. Empty, the throttle counts the connecting address, which behind a proxy is the proxy, and only a proxy on loopback can mark a request as HTTPS. |
 | `PORTFOLIXIR_MCP_ALLOWED_HOSTS` | no | Further `Host` names the MCP companion answers under (a proxy name), comma-separated. |
 
 Without a UI password and with the port opened beyond loopback, the
@@ -79,7 +79,10 @@ port that is the Docker bridge gateway (`docker network inspect` shows it, a
 block such as `172.16.0.0/12` covers it) — so that the throttle counts the
 client behind the proxy rather than the proxy: without it, ten wrong passwords
 from anyone the proxy admits lock the login for everyone behind it, the
-operator included. Reverse-proxy authentication and the built-in UI password
+operator included. The same setting decides whose `X-Forwarded-Proto` is
+believed: loopback and the named addresses only, so a proxy reaching the
+container through the Docker bridge must be named there for the cookie to be
+`Secure` and for `PHX_FORCE_SSL` to see HTTPS. Reverse-proxy authentication and the built-in UI password
 compose: keep either, or both.
 
 ### The TLS contract
@@ -99,8 +102,9 @@ in four lines:
    any plain-HTTP request it still sees to HTTPS and send
    `Strict-Transport-Security` on the HTTPS answers. Without the variable the
    application serves what it is given; with it, a proxy that forgets
-   `X-Forwarded-Proto` produces a redirect loop, which is the variable telling
-   you the header is missing.
+   `X-Forwarded-Proto`, or whose address is neither loopback nor named in
+   `PORTFOLIXIR_TRUSTED_PROXIES`, produces a redirect loop, which is the
+   variable telling you the header is missing or not believed.
 4. The proxy passes the application's response headers through unchanged and
    injects nothing into the pages. Every page carries a Content-Security-Policy
    (next section); a proxy that adds a script or a stylesheet — a banner, an

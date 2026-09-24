@@ -41,7 +41,7 @@ reverse proxy that terminates TLS and forwards `Host`, `X-Forwarded-Proto` and
 `X-Forwarded-For` unchanged and injects nothing into the pages, the proxy's
 address named in `PORTFOLIXIR_TRUSTED_PROXIES` (without it the throttle counts
 the proxy as the one source, and a guesser behind it locks everyone behind it
-out), and backups.
+out, and `X-Forwarded-Proto` is believed from loopback only), and backups.
 
 Known limits, recorded rather than hidden: the outbound URL policy resolves a
 name once for the check and the client resolves it again to connect, so a name

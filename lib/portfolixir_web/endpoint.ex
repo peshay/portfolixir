@@ -20,13 +20,11 @@ defmodule PortfolixirWeb.Endpoint do
   plug(PortfolixirWeb.HostGuard)
 
   # Behind a proxy the operator has named, the throttle sees the client the
-  # proxy vouches for rather than the proxy (#771).
+  # proxy vouches for rather than the proxy (#771). Behind a TLS-terminating
+  # proxy the scheme arrives in x-forwarded-proto, which is what lets the
+  # session cookie carry Secure and the opt-in SSL plug see https (#759); the
+  # same plug believes it only from loopback or a named proxy (E25 S1, F09).
   plug(PortfolixirWeb.TrustedProxy)
-
-  # Behind a TLS-terminating proxy the scheme arrives in x-forwarded-proto;
-  # rewriting it here is what lets the session cookie carry Secure and the
-  # opt-in SSL plug see https (#759).
-  plug(Plug.RewriteOn, [:x_forwarded_proto])
   plug(PortfolixirWeb.OptionalSsl)
 
   plug(Plug.Static,

@@ -42,8 +42,8 @@ Base64 die Verbindungszeichenkette zerlegen würde.
 | `PORTFOLIXIR_SESSION_DAYS` | nein | Wie viele Tage eine Anmeldung gilt (Standard 30). Das Fenster wandert: die Nutzung der Instanz verlängert es, gefragt wird also erst nach einer vollen Periode ohne Nutzung. `0` beendet die Anmeldung mit dem Schließen des Browsers. |
 | `PHX_HOST` | nein | Der Name, unter dem der Reverse-Proxy ausliefert (Standard `localhost`). Anfragen unter einem anderen `Host` werden mit 421 abgewiesen. |
 | `PORTFOLIXIR_ALLOWED_HOSTS` | nein | Weitere Namen, kommagetrennt (eine LAN-Adresse, ein zweiter Proxy-Name). Die Compose-Datei ergänzt `app`, den Namen, unter dem der MCP-Begleitdienst die Anwendung erreicht. |
-| `PHX_FORCE_SSL` | nein | `true` leitet unverschlüsseltes HTTP auf HTTPS um und setzt HSTS. Setze es, sobald der Reverse-Proxy TLS terminiert und `X-Forwarded-Proto` weiterreicht; standardmäßig aus, weil eine Loopback-Instanz kein TLS hat, auf das sie umleiten könnte, und die Anwendung TLS nie selbst terminiert. |
-| `PORTFOLIXIR_TRUSTED_PROXIES` | nein | Adressen oder CIDR-Blöcke, kommagetrennt, deren `X-Forwarded-For` die Anmelde- und Token-Drossel glaubt. Leer zählt die Drossel die verbindende Adresse, hinter einem Proxy also den Proxy. |
+| `PHX_FORCE_SSL` | nein | `true` leitet unverschlüsseltes HTTP auf HTTPS um und setzt HSTS. Setze es, sobald der Reverse-Proxy TLS terminiert und `X-Forwarded-Proto` von Loopback oder von einer in `PORTFOLIXIR_TRUSTED_PROXIES` genannten Adresse sendet; standardmäßig aus, weil eine Loopback-Instanz kein TLS hat, auf das sie umleiten könnte, und die Anwendung TLS nie selbst terminiert. |
+| `PORTFOLIXIR_TRUSTED_PROXIES` | nein | Adressen oder CIDR-Blöcke, kommagetrennt, deren `X-Forwarded-For` (die Quelle der Anmelde- und Token-Drossel) und `X-Forwarded-Proto` (das Schema) die Anwendung glaubt. Leer zählt die Drossel die verbindende Adresse, hinter einem Proxy also den Proxy, und nur ein Proxy auf Loopback kann eine Anfrage als HTTPS kennzeichnen. |
 | `PORTFOLIXIR_MCP_ALLOWED_HOSTS` | nein | Weitere `Host`-Namen, unter denen der MCP-Begleitdienst antwortet (ein Proxy-Name), kommagetrennt. |
 
 Ohne UI-Passwort und mit einem über Loopback hinaus geöffneten Port
@@ -82,7 +82,10 @@ Gateway der Docker-Bridge (`docker network inspect` zeigt es, ein Block wie
 `172.16.0.0/12` deckt es ab) —, damit die Drossel den Client hinter dem Proxy
 zählt und nicht den Proxy: ohne sie sperren zehn falsche Passwörter von
 irgendwem, den der Proxy durchlässt, die Anmeldung für alle dahinter, den
-Betreiber eingeschlossen. Authentifizierung am Reverse-Proxy und das
+Betreiber eingeschlossen. Dieselbe Einstellung entscheidet, wessen
+`X-Forwarded-Proto` geglaubt wird: nur Loopback und die genannten Adressen.
+Ein Proxy, der den Container über die Docker-Bridge erreicht, muss dort also
+genannt sein, damit das Cookie `Secure` ist und `PHX_FORCE_SSL` HTTPS sieht. Authentifizierung am Reverse-Proxy und das
 eingebaute UI-Passwort ergänzen sich: behalte eines oder beides.
 
 ### Der TLS-Vertrag
@@ -103,8 +106,9 @@ Vertrag in vier Zeilen:
    unverschlüsselte Anfrage, die sie noch sieht, auf HTTPS umleiten und auf
    den HTTPS-Antworten `Strict-Transport-Security` senden. Ohne die Variable
    liefert die Anwendung aus, was sie bekommt; mit ihr erzeugt ein Proxy, der
-   `X-Forwarded-Proto` vergisst, eine Umleitungsschleife — so sagt dir die
-   Variable, dass der Header fehlt.
+   `X-Forwarded-Proto` vergisst oder dessen Adresse weder Loopback ist noch in
+   `PORTFOLIXIR_TRUSTED_PROXIES` steht, eine Umleitungsschleife — so sagt dir
+   die Variable, dass der Header fehlt oder nicht geglaubt wird.
 4. Der Proxy reicht die Antwort-Header der Anwendung unverändert durch und
    fügt den Seiten nichts hinzu. Jede Seite trägt eine Content-Security-Policy
    (nächster Abschnitt); ein Proxy, der ein Skript oder ein Stylesheet
