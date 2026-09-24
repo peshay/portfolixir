@@ -19,6 +19,7 @@ defmodule PortfolixirWeb.UiAuth do
   existing session; a session without the fingerprint counts as logged out.
   """
 
+  alias Plug.Crypto.KeyGenerator
   alias Portfolixir.RuntimeConfig
 
   @session_key "ui_authenticated"
@@ -114,7 +115,7 @@ defmodule PortfolixirWeb.UiAuth do
   # signing keys are, rather than the raw secret; cached like theirs.
   defp fingerprint_secret do
     PortfolixirWeb.Endpoint.config(:secret_key_base)
-    |> Plug.Crypto.KeyGenerator.generate("portfolixir.ui_password_fingerprint", cache: Plug.Keys)
+    |> KeyGenerator.generate("portfolixir.ui_password_fingerprint", cache: Plug.Keys)
   end
 
   defp bound_to_password?(stored) when is_binary(stored) do

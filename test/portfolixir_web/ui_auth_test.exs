@@ -6,6 +6,7 @@ defmodule PortfolixirWeb.UiAuthTest do
 
   import Phoenix.LiveViewTest
 
+  alias Plug.Crypto.KeyGenerator
   alias Portfolixir.Auth.Throttle
   alias Portfolixir.Catalog.LogoStore
   alias PortfolixirWeb.UiAuth
@@ -287,8 +288,7 @@ defmodule PortfolixirWeb.UiAuthTest do
         :hmac |> :crypto.mac(:sha256, key, message) |> Base.url_encode64(padding: false)
       end
 
-      derived =
-        Plug.Crypto.KeyGenerator.generate(secret_key_base, "portfolixir.ui_password_fingerprint")
+      derived = KeyGenerator.generate(secret_key_base, "portfolixir.ui_password_fingerprint")
 
       refute UiAuth.password_fingerprint() == keyed_with.(secret_key_base)
       assert UiAuth.password_fingerprint() == keyed_with.(derived)
