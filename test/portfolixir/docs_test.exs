@@ -1042,8 +1042,66 @@ defmodule Portfolixir.DocsTest do
     end
 
     adr = read.("docs/decisions/0045-optional-built-in-authentication.md")
-    assert adr =~ "Amendment, 2026-09-25 (E25 S2, #887): the loopback-only reach, qualified."
+    assert adr =~ "Amendment, 2026-09-24 (E25 S2, #887): the loopback-only reach, qualified."
     assert adr =~ "Docker Engine 28.3.3"
+  end
+
+  # User story (E25 S1 and S2, review round):
+  # As an operator upgrading an instance that already runs,
+  # I want the upgrade steps to name what this security pass changes for it,
+  # and the guide to say how the login comes back when the ceiling holds it,
+  # so that the upgrade brings no redirect loop, no cookie silently without
+  # Secure, no refused start and no login I cannot reach.
+  #
+  # Acceptance criteria:
+  # - The Upgrade section (EN, DE) says to name a proxy that reaches the
+  #   container through the Docker bridge in PORTFOLIXIR_TRUSTED_PROXIES before
+  #   upgrading, or PHX_FORCE_SSL loops and the cookie loses Secure; that every
+  #   browser logs in once; and that the MCP token and SECRET_KEY_BASE must meet
+  #   their floors.
+  # - EN, DE and SECURITY.md say that restarting the application lifts the
+  #   login ceiling, and that sessions already logged in keep working.
+  # - EN and DE say to check the bridge gateway's address again when the
+  #   stack's network is recreated.
+  test "the upgrade names the security pass's changes and the ceiling its way out" do
+    read = fn path -> path |> File.read!() |> String.replace(~r/\s+/, " ") end
+
+    upgrade_section = fn doc ->
+      [_, rest] = String.split(doc, "## Upgrade ", parts: 2)
+      rest |> String.split(" ## ", parts: 2) |> hd()
+    end
+
+    for {path, from, login, restart, recheck} <- [
+          {"docs/home-deployment.md", "Upgrading from 0.15.x or earlier",
+           "every browser logs in once after the upgrade",
+           "Restarting the application clears the counts, the ceiling's included",
+           "check it again whenever the stack's network is recreated"},
+          {"docs/de/home-deployment.md", "Beim Upgrade von 0.15.x oder älter",
+           "jeder Browser meldet sich nach dem Upgrade einmal neu an",
+           "Ein Neustart der Anwendung löscht die Zählungen, die der Obergrenze eingeschlossen",
+           "prüfe sie erneut, wann immer das Netzwerk des Stacks neu angelegt wird"}
+        ] do
+      doc = read.(path)
+      upgrade = upgrade_section.(doc)
+
+      for fragment <- [
+            from,
+            login,
+            "PORTFOLIXIR_TRUSTED_PROXIES",
+            "PHX_FORCE_SSL=true",
+            "`Secure`",
+            "PORTFOLIXIR_MCP_TOKEN",
+            "SECRET_KEY_BASE"
+          ] do
+        assert upgrade =~ fragment, "#{path} (Upgrade): #{fragment}"
+      end
+
+      assert doc =~ restart, path
+      assert doc =~ recheck, path
+    end
+
+    security = read.("SECURITY.md")
+    assert security =~ "restarting the application clears it"
   end
 
   # User story (E25 S2, F56):

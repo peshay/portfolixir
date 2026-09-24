@@ -86,7 +86,7 @@ session's LiveViews, and rotating `SECRET_KEY_BASE` invalidates every session
 everywhere. With longer-lived cookies that second lever is the one to
 document, and `SECURITY.md` now does.
 
-**Amendment, 2026-09-25 (E25 S1, #886): a session is bound to the password.**
+**Amendment, 2026-09-24 (E25 S1, #886): a session is bound to the password.**
 The 2026-09-24 security review (F02) found that changing
 `PORTFOLIXIR_UI_PASSWORD` left every existing session valid, because a session
 carried only the flag and its stamp. A login now also stores a keyed HMAC
@@ -120,7 +120,7 @@ lever beside rotating `SECRET_KEY_BASE`, not a server-side session list.
   reverse proxy, non-root users and digest-pinned images. The current Compose
   file is kept as the development configuration under its own name.
 
-**Amendment, 2026-09-25 (E25 S2, #887): the loopback-only reach, qualified.**
+**Amendment, 2026-09-24 (E25 S2, #887): the loopback-only reach, qualified.**
 The 2026-09-24 security review (F76) found that the documents overstated what
 "loopback by default" means for the documented deployment. In Compose the
 application sets `PHX_BIND_ALL` and listens on every interface inside its

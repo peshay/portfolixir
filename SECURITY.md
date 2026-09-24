@@ -26,19 +26,21 @@ bytes and not a placeholder, and, like the UI password, are throttled per
 source after repeated failures, with the escalation kept well past the longest
 lock; failed UI logins also meet a rolling ceiling across all sources, which
 asks everyone to wait, the operator included, while existing sessions keep
-working; every server-side fetch of a caller- or provider-supplied URL passes a
-deny-by-default policy (https only, public addresses only, provider hosts
-only); and the documented deployment is a production release with no secret
-defaults. Since Sprint 11 (#382, #772): every browser page carries a
+working, and restarting the application clears it, because the counts live in
+memory only; every server-side fetch of a caller- or provider-supplied URL
+passes a deny-by-default policy (https only, public addresses only, provider
+hosts only); and the documented deployment is a production release with no
+secret defaults. Since Sprint 11 (#382, #772): every browser page carries a
 `Content-Security-Policy` — scripts only from the instance and from the root
 layout's inline boot scripts through a per-request nonce, no inline event
 handlers, no `eval`, no foreign origins — and the HTTP server is Bandit, which
 took cowlib and its unfixed advisories out of the tree. The HTTPS posture is
 the reverse-proxy contract in `docs/home-deployment.md`: TLS is terminated by
 the proxy, the application never redirects on its own, and `PHX_FORCE_SSL` is
-the opt-in for the redirect and HSTS once the proxy forwards
-`X-Forwarded-Proto`. What the instance still expects of the operator: a
-reverse proxy that terminates TLS, passes `Host` through, sets
+the opt-in for the redirect and HSTS once the proxy sets `X-Forwarded-Proto`
+from loopback or from an address named in `PORTFOLIXIR_TRUSTED_PROXIES`, the
+only peers whose scheme is believed. What the instance still expects of the
+operator: a reverse proxy that terminates TLS, passes `Host` through, sets
 `X-Forwarded-Proto` itself, appends the connecting address to `X-Forwarded-For`
 or overwrites it, never passes a value the client sent through, and injects
 nothing into the pages; the proxy's exact address named in

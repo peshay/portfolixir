@@ -229,7 +229,10 @@ der Client ihn geschrieben hat, lässt den Client die Quelle der Drossel wählen
 Nenne die genaue Adresse, von der aus der Proxy verbindet, in
 `PORTFOLIXIR_TRUSTED_PROXIES`. Über den veröffentlichten Port ist das das
 Gateway der Docker-Bridge, das `docker network inspect` zeigt, zum Beispiel
-`PORTFOLIXIR_TRUSTED_PROXIES=172.18.0.1`. Nenne die eine Adresse statt eines
+`PORTFOLIXIR_TRUSTED_PROXIES=172.18.0.1`. Docker wählt diese Adresse, wenn es
+das Netzwerk des Stacks anlegt; prüfe sie erneut, wann immer das Netzwerk des
+Stacks neu angelegt wird, etwa nach einem `docker compose down`: Eine Adresse,
+die nicht mehr passt, ist so gut wie keine. Nenne die eine Adresse statt eines
 privaten Blocks: jede Adresse in einem genannten Block wird geglaubt, ein Block
 vertraut also auch allem anderen in diesem Netz. Mit der genannten Adresse
 zählt die Drossel den Client hinter dem Proxy und nicht den Proxy: ohne sie
@@ -243,6 +246,11 @@ Fehlgeschlagene Anmeldungen zählen außerdem über alle Quellen zusammen in ein
 gleitenden Zeitfenster, damit auf viele Adressen verteilte Versuche sich nicht
 vervielfachen; über dieser Obergrenze lässt die Anmeldung alle warten, den
 Betreiber eingeschlossen, während bereits angemeldete Sitzungen weiterlaufen.
+Ein Neustart der Anwendung löscht die Zählungen, die der Obergrenze
+eingeschlossen, weil sie nur im Speicher liegen: `docker compose restart app`
+gibt die Anmeldung sofort wieder frei. `PORTFOLIXIR_UI_PASSWORD` in `.env` zu
+ändern und `docker compose up -d` auszuführen, legt den Container neu an und
+löscht sie ebenso.
 Authentifizierung am Reverse-Proxy und das eingebaute UI-Passwort ergänzen
 sich: behalte eines oder beides.
 
@@ -499,7 +507,7 @@ am 2026-09-23 vollständig gegen den synthetischen Review-Datensatz mit der
 mitgelieferten `docker-compose.yml` durchgespielt: Sicherung, ein neues
 Datenbank-Volume, Wiederherstellung, und die drei Zahlen, die Zeilenzahl des
 Audit-Journals und die eigenen Regeln stimmten überein. Die eine Transaktion
-und die Trigger-Zahl kamen später hinzu (2026-09-25) und wurden mit denselben
+und die Trigger-Zahl kamen später hinzu (2026-09-24) und wurden mit denselben
 PostgreSQL-Werkzeugen außerhalb von Compose geprüft, an einer
 Wiederherstellung, die gelingt, und an einer, die abgewiesen wird.
 
@@ -532,6 +540,33 @@ des MCP-Begleiters und das Datenbank-Image —; eine Korrektur darin kommt also
 mit der Version, die ihren Digest bewegt, und die Release-Notes sagen, wann ein
 Upgrade eine solche Korrektur enthält. `docker compose pull db` und `--pull`
 holen genau die Images, die die neue Version nennt.
+
+Beim Upgrade von 0.15.x oder älter erreichen vier Änderungen des
+Sicherheitsdurchgangs eine Instanz, die schon läuft. Prüfe sie vor dem `up`:
+
+- **Die Adresse des Proxys.** `X-Forwarded-Proto` wird jetzt nur noch von
+  Loopback und von den in `PORTFOLIXIR_TRUSTED_PROXIES` genannten Adressen
+  geglaubt. Ein Reverse-Proxy, der den Container über die Docker-Bridge
+  erreicht, wie es jeder Proxy über den veröffentlichten Port tut, ist keins
+  von beidem, bis er genannt ist. Ohne ihn leitet `PHX_FORCE_SSL=true` jede
+  Anfrage in einer Schleife um, und ohne `PHX_FORCE_SSL` verliert das
+  Sitzungs-Cookie `Secure`, ohne dass etwas darauf hinweist. Nenne das
+  Bridge-Gateway vor dem Upgrade („Reverse-Proxy“ oben).
+- **Eine Anmeldung.** Eine Sitzung ist jetzt an das UI-Passwort gebunden, und
+  eine Sitzung aus einem früheren Release trägt keine Bindung; jeder Browser
+  meldet sich nach dem Upgrade einmal neu an.
+- **Die Untergrenze des MCP-Tokens.** Der Begleitdienst weist jetzt ein
+  `PORTFOLIXIR_MCP_TOKEN` ab, das kürzer als 32 Bytes oder ein Platzhalter
+  ist, wie die Anwendung ein solches API-Token schon abwies, und hält mit dem
+  Namen der Variable an.
+- **Die Untergrenze des geheimen Schlüssels.** Die Anwendung weist einen
+  `SECRET_KEY_BASE` ab, der kürzer als 64 Bytes, ein Platzhalter oder ein in
+  diesem Repository committeter Wert ist, und hält mit dem Namen der Variable
+  an. Ein neuer `SECRET_KEY_BASE` beendet jede Sitzung.
+
+Ersetze einen abgewiesenen Wert durch die Ausgabe von
+`openssl rand -base64 48`, wie „Geheimnisse und Einstellungen“ oben
+beschreibt.
 
 ## Abgeleitete Werte neu aufbauen
 
