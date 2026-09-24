@@ -72,3 +72,22 @@ msgstr "überschneidet sich mit einer anderen Version dieser Regel"
 
 msgid "is required for the drift of a security (the plan's classification)"
 msgstr "ist für die Abweichung eines Wertpapiers erforderlich (die Klassifizierung des Plans)"
+
+## The status line of the error page (E25 S2).
+msgid "Bad Request"
+msgstr "Ungültige Anfrage"
+
+msgid "Forbidden"
+msgstr "Zugriff verweigert"
+
+msgid "Not Found"
+msgstr "Nicht gefunden"
+
+msgid "Not Acceptable"
+msgstr "Format nicht verfügbar"
+
+msgid "Request Entity Too Large"
+msgstr "Anfrage zu groß"
+
+msgid "Internal Server Error"
+msgstr "Interner Fehler"

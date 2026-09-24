@@ -28,6 +28,23 @@ defmodule PortfolixirWeb.Locale do
 
   def supported_locales, do: @supported_locales
 
+  @doc """
+  The locale of a page answered outside the router's pipeline, such as an
+  error the endpoint refuses before any route runs (E25 S2, F68): the one the
+  pipeline chose when it ran, else the locale cookie, then the browser's
+  language, then English.
+  """
+  @spec locale_of(Plug.Conn.t()) :: String.t()
+  def locale_of(%Plug.Conn{assigns: %{locale: locale}}) when locale in @supported_locales,
+    do: locale
+
+  def locale_of(%Plug.Conn{} = conn) do
+    conn = fetch_cookies(conn)
+
+    normalize_locale(conn.cookies["portfolixir_locale"]) || preferred_browser_locale(conn) ||
+      @default_locale
+  end
+
   defp maybe_store_locale(conn, nil), do: conn
 
   defp maybe_store_locale(conn, locale) do

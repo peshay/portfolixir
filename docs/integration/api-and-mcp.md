@@ -37,6 +37,11 @@ decimals are serialized as strings, including quantities, prices, fees, taxes,
 quote closes, and monetary totals. Request payloads for those values should also
 send strings.
 
+The errors the server answers itself, rather than an endpoint, use the same
+envelope with their own status: an unreadable body is `400`, a body over the server's size
+bound `413`, an unknown route `404`, an internal error `500`, each as
+`{"errors": {"detail": "Bad Request"}}` with the status's reason phrase.
+
 `DELETE /api/v1/securities/:id` is the success exception: it returns
 `204 No Content` with an empty body. Clients should not parse a JSON body for
 that successful delete response.

@@ -39,6 +39,22 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 8,
+      # Sprint 16's one entry: the first surface change of the batch opened it,
+      # every later change of the batch extends it.
+      date: ~D[2026-09-25],
+      summary:
+        "Sprint 16: the second security pass (E25) — errors the server answers " <>
+          "itself carry the documented errors envelope with their own status.",
+      endpoints: [],
+      tools: [],
+      parameters: [
+        "Every /api/v1 error the server answers itself rather than an endpoint (an unreadable body 400, a body over the size bound 413, an unknown route 404, an internal error 500) answers {\"errors\": {\"detail\": <reason phrase>}} with its own status (E25 S2, F68); it used to be {\"status\", \"error\"} for 404 and 500 and a bodyless 500 for every other status"
+      ],
+      removed_endpoints: [],
+      removed_tools: []
+    },
+    %{
       version: 7,
       # The date the batch lands on main; an entry sharing its predecessor's
       # date would be invisible to a poller that read that one (since= is
