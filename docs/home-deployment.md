@@ -580,9 +580,10 @@ added migrations, restore the database backup taken before that upgrade.
   Either way it refuses foreign `Host` names (ADR-0045).
 - The MCP companion wraps the local JSON API and does not access the database
   directly.
-- The release logs at `info`: the request lines, warnings and errors. The
-  database queries, the parameters of each request and page event, and the
-  session contents that the `debug` level writes stay out of the log.
+- The release logs at `info`: the request lines, each live page's socket
+  connect with its CSRF token filtered out, warnings and errors. The database
+  queries, the parameters of each request and page event, and the session
+  contents that the `debug` level writes stay out of the log.
 - The release starts without Erlang distribution, so it opens no listener
   towards the other containers: `bin/portfolixir eval` works inside the
   container, `remote` and `rpc` do not.

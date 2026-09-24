@@ -2,6 +2,8 @@ defmodule PortfolixirWeb.ErrorViewTest do
   # Not async: the oversized-body requests allocate a few megabytes each.
   use PortfolixirWeb.ConnCase, async: false
 
+  import ExUnit.CaptureLog
+
   alias PortfolixirWeb.ErrorView
 
   # One byte past the endpoint's body bound (Plug.Parsers length: 8_000_000).
@@ -22,6 +24,8 @@ defmodule PortfolixirWeb.ErrorViewTest do
   #   chose, else the locale cookie, then the browser's language, then English.
   # - The error that reaches the server is the original one, which carries
   #   nothing from the request, never a rendering crash holding the request.
+  # - Nothing the refused request carried, its password or its body, reaches
+  #   the log, even at the debug level.
   describe "the browser's error pages" do
     test "a form posted without its CSRF token answers 403 with a status line", %{conn: conn} do
       password = "error-page-" <> Integer.to_string(System.unique_integer([:positive]))
@@ -42,6 +46,32 @@ defmodule PortfolixirWeb.ErrorViewTest do
         end
 
       refute Exception.message(error) =~ password
+    end
+
+    test "a refused request leaves its password and its body out of the log", %{conn: conn} do
+      secret = "error-log-" <> Integer.to_string(System.unique_integer([:positive]))
+      level = Logger.level()
+      Logger.configure(level: :debug)
+      on_exit(fn -> Logger.configure(level: level) end)
+
+      log =
+        capture_log([level: :debug], fn ->
+          assert_error_sent(403, fn ->
+            post(with_csrf(conn), "/login", %{"session" => %{"password" => secret}})
+          end)
+
+          assert_error_sent(413, fn ->
+            conn
+            |> put_req_header("accept", "text/html")
+            |> put_req_header("content-type", "application/json")
+            |> post("/login", oversized_json(secret))
+          end)
+        end)
+
+      # The log was written, down to the conversion of each error to its status.
+      assert log =~ "to 403 response"
+      assert log =~ "to 413 response"
+      refute log =~ secret
     end
 
     test "an unreadable body answers 400", %{conn: conn} do
@@ -184,5 +214,6 @@ defmodule PortfolixirWeb.ErrorViewTest do
   # ConnTest skips CSRF protection by default; these requests keep it on.
   defp with_csrf(conn), do: Plug.Conn.put_private(conn, :plug_skip_csrf_protection, false)
 
-  defp oversized_json, do: ~s({"x":") <> String.duplicate("a", @too_large) <> ~s("})
+  defp oversized_json(prefix \\ ""),
+    do: ~s({"x":") <> prefix <> String.duplicate("a", @too_large) <> ~s("})
 end

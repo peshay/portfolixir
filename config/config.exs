@@ -5,8 +5,10 @@ config :portfolixir,
 
 # The reconcile endpoint's external position list must never be logged
 # (ADR-0029 §6 boundary / NFR-4): filter the `rows` request parameter from
-# Phoenix parameter logging alongside the default password filter.
-config :phoenix, :filter_parameters, ["password", "rows"]
+# Phoenix parameter logging alongside the default password filter. The CSRF
+# token is bound to the session, and a live page's socket connect is logged
+# with its parameters at info, the production level (E25 S2, F66).
+config :phoenix, :filter_parameters, ["password", "rows", "_csrf_token"]
 
 config :portfolixir, PortfolixirWeb.Endpoint,
   # Bandit serves HTTP and the LiveView socket (#772); the http: options in
