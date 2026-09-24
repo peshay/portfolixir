@@ -366,6 +366,23 @@ defmodule Portfolixir.CITest do
     end
   end
 
+  # User story (E25 S2, F62):
+  # As an operator running the release image beside a database and a
+  # companion container,
+  # I want the release to start without Erlang distribution,
+  # so that no distribution listener is open to the sibling containers.
+  #
+  # Acceptance criteria:
+  # - The runtime stage of Dockerfile.release sets RELEASE_DISTRIBUTION=none.
+  test "the release starts without Erlang distribution" do
+    # The header comment, the build stage, the runtime stage.
+    assert [_header, _build_stage, runtime_stage] =
+             "Dockerfile.release" |> File.read!() |> String.split(~r/^FROM /m)
+
+    assert runtime_stage =~ ~r/^\s*RELEASE_DISTRIBUTION=none\b/m,
+           "the runtime stage does not switch Erlang distribution off"
+  end
+
   # User story (#772 — Sprint 11 Lane D; D-3 of the 2026-09-05 security triage):
   # As a maintainer whose dependency tree carried three cowlib advisories
   # with no fixed release,
