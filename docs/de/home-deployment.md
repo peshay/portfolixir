@@ -85,8 +85,13 @@ irgendwem, den der Proxy durchlässt, die Anmeldung für alle dahinter, den
 Betreiber eingeschlossen. Dieselbe Einstellung entscheidet, wessen
 `X-Forwarded-Proto` geglaubt wird: nur Loopback und die genannten Adressen.
 Ein Proxy, der den Container über die Docker-Bridge erreicht, muss dort also
-genannt sein, damit das Cookie `Secure` ist und `PHX_FORCE_SSL` HTTPS sieht. Authentifizierung am Reverse-Proxy und das
-eingebaute UI-Passwort ergänzen sich: behalte eines oder beides.
+genannt sein, damit das Cookie `Secure` ist und `PHX_FORCE_SSL` HTTPS sieht.
+Fehlgeschlagene Anmeldungen zählen außerdem über alle Quellen zusammen in einem
+gleitenden Zeitfenster, damit auf viele Adressen verteilte Versuche sich nicht
+vervielfachen; über dieser Obergrenze lässt die Anmeldung alle warten, den
+Betreiber eingeschlossen, während bereits angemeldete Sitzungen weiterlaufen.
+Authentifizierung am Reverse-Proxy und das eingebaute UI-Passwort ergänzen
+sich: behalte eines oder beides.
 
 ### Der TLS-Vertrag
 

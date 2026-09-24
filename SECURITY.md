@@ -24,7 +24,10 @@ issued under) — a logout ends that session, changing `PORTFOLIXIR_UI_PASSWORD`
 ends every session issued under the old one, and rotating `SECRET_KEY_BASE`
 ends every session everywhere; either of the last two is the lever to reach
 for when a device is lost; the bearer tokens must be
-at least 32 bytes and are throttled per source after repeated failures; every
+at least 32 bytes and, like the UI password, are throttled per source after
+repeated failures, with the escalation kept well past the longest lock; failed
+UI logins also meet a rolling ceiling across all sources, which asks everyone
+to wait, the operator included, while existing sessions keep working; every
 server-side fetch of a caller- or provider-supplied URL passes a
 deny-by-default policy (https only, public addresses only, provider hosts
 only); and the documented deployment is a production release with no secret
