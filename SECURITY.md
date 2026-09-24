@@ -17,21 +17,16 @@ Portfolixir handles sensitive financial data. Treat it as a private finance syst
 Since the E21 hardening batch (ADR-0045, 2026-09): production binds loopback
 unless `PHX_BIND_ALL` is set; requests under a `Host` outside `PHX_HOST`,
 `localhost`, `127.0.0.1` and `PORTFOLIXIR_ALLOWED_HOSTS` are refused; the web
-UI is locked by `PORTFOLIXIR_UI_PASSWORD` when set, for `PORTFOLIXIR_SESSION_DAYS`
-days (default 30, renewed while the instance is used, and enforced on the server
-rather than trusted to the cookie's expiry, and bound to the password it was
-issued under) — a logout ends that session, changing `PORTFOLIXIR_UI_PASSWORD`
-ends every session issued under the old one, and rotating `SECRET_KEY_BASE`
-ends every session everywhere; either of the last two is the lever to reach
-for when a device is lost; `SECRET_KEY_BASE` must be at least 64 bytes and
-neither a placeholder nor a value committed in this repository, and a UI
-password shorter than 12 characters on an instance bound beyond loopback is
-named in a startup warning; both bearer tokens, the API's and the MCP
-companion's, must be at least 32 bytes and not a placeholder, and, like the UI
-password, are throttled per source after repeated failures, with the escalation kept well past the longest lock; failed
-UI logins also meet a rolling ceiling across all sources, which asks everyone
-to wait, the operator included, while existing sessions keep working; every
-server-side fetch of a caller- or provider-supplied URL passes a
+UI is locked by `PORTFOLIXIR_UI_PASSWORD` when set (its sessions are described
+below); `SECRET_KEY_BASE` must be at least 64 bytes and neither a placeholder
+nor a value committed in this repository, and a UI password shorter than 12
+characters on an instance bound beyond loopback is named in a startup warning;
+both bearer tokens, the API's and the MCP companion's, must be at least 32
+bytes and not a placeholder, and, like the UI password, are throttled per
+source after repeated failures, with the escalation kept well past the longest
+lock; failed UI logins also meet a rolling ceiling across all sources, which
+asks everyone to wait, the operator included, while existing sessions keep
+working; every server-side fetch of a caller- or provider-supplied URL passes a
 deny-by-default policy (https only, public addresses only, provider hosts
 only); and the documented deployment is a production release with no secret
 defaults. Since Sprint 11 (#382, #772): every browser page carries a
@@ -48,6 +43,19 @@ reverse proxy that terminates TLS and forwards `Host`, `X-Forwarded-Proto` and
 address named in `PORTFOLIXIR_TRUSTED_PROXIES` (without it the throttle counts
 the proxy as the one source, and a guesser behind it locks everyone behind it
 out, and `X-Forwarded-Proto` is believed from loopback only), and backups.
+
+Sessions: a UI login lasts `PORTFOLIXIR_SESSION_DAYS` days (default 30),
+renewed while the instance is used, enforced on the server rather than trusted
+to the cookie's expiry, and bound to the password it was issued under. What
+ends one is narrower than "log out" suggests: a logout clears the login in that
+browser only and closes its live pages, while a copy of the session cookie
+taken earlier stays valid on the same terms as the original.
+`PORTFOLIXIR_SESSION_DAYS=0` turns the server-side expiry off rather than
+tightening it: the browser forgets the login when it closes, but a copy never
+expires. Two levers end every session: changing `PORTFOLIXIR_UI_PASSWORD` ends
+every session issued under the old one, and rotating `SECRET_KEY_BASE` ends
+every session everywhere. Either is the one to reach for when a device or a
+cookie may be in someone else's hands (ADR-0045).
 
 Known limits, recorded rather than hidden: the outbound URL policy resolves a
 name once for the check and the client resolves it again to connect, so a name
