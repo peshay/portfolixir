@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-09-23 (Sprint 15 PLANNED: gate B3.6 closed by ADR-0049 -- policy rules as versioned, effective-dated standards evaluated at read into findings that carry no action, E24 opens; the backlog counted to the end -- 15 buildable issues, about three sprints of planned work, five closures and two rescopes; two operator surfaces the records assumed are paid -- position-level SOLL entry and cross-currency booking; closing-act findings carry a reach label)
+# last_updated: 2026-09-24 (Sprint 15 CLOSED OUT: PR #867 rebase-merged, main at 096b80e5 -- E24 DONE, the operator's own rules on API, MCP and the Risk tab; position-level SOLL entry and cross-currency booking reach the operator; fourteen issues closed by keyword, #861 by hand; the closing act's 31 findings fixed on the branch but one, which is filed with eight more; tag 0.15.0 outstanding for the owner)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -42,7 +42,7 @@
 # requests, not assumed -- an issue's state lags the PR that fixes it.
 
 generated: 2026-07-25
-last_updated: 2026-09-23
+last_updated: 2026-09-24
 project: portfolixir
 project_key: NOKEY
 tracking_system: file-system
@@ -51,6 +51,123 @@ story_location: _bmad-output/implementation-artifacts
 # ---------------------------------------------------------------------------
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
+#
+# CLOSED OUT (2026-09-24, Sprint 15) -- PR #867 rebase-merged 05:34 UTC,
+# `main` at 096b80e5:
+# Verification basis: the commits on `main` (165dfec..096b80e, 31 commits
+# linear, zero merge commits), the Actions runs on the merge push (Commit
+# authorship 607 and CI 1593, verified green before this entry was written),
+# the post-merge issue list, and the diff of the merged tree against the
+# pre-merge head 0607a78e (empty). The rebase replayed the commits, so
+# `main`'s SHAs differ from the branch's; tree equality is the check that
+# holds. Contract entry 7 was dated 2026-09-24 ahead of the merge and the
+# merge landed that day, so it needs no correction.
+#
+# WHAT CLOSED: fourteen issues by the merge's keywords -- #862 #863 #864 #865
+# (E24: rules and their versions, the findings read, what a rule reads
+# protected by name with rules surviving a re-import, the operator's view on
+# Wealth -> Risk), #851 #853 #855 #856 (the correctness debt), #854 #857 #858
+# #850 (the operator floor), #481 (position targets in the plan editor) and
+# #395 (the settlement inputs and the cash/settlement guard). CLOSED BY HAND:
+# #861, E24's tracker, with where each story landed. STAYS OPEN: #354 -- the
+# backup and restore procedure is documented EN/DE and was verified end to end
+# with Docker on the demo seed, but the issue carries needs-uat and the
+# restore on the owner's own instance is the owner's; no keyword was used.
+#
+# NOTHING WAS SHRUNK. Every lane of the plan landed.
+#
+# FILED AND NOT BUILT (Scope Lock): #868 (LiveView integer URL params past
+# int4 answer 500 -- the page-side twin of #856, reproduced, pre-existing),
+# #869 (numeric and date inputs in one format only), #870 (every kebab has the
+# same accessible name), #871 (a view-context rule is not reachable from Risk;
+# a view delete answers with a flash), #872 (may a rule be renamed --
+# needs-decision), #873 (classification detail at 390 px), #874 (the children
+# sum hint vanishes while editing), #875 (Allocation -> Positions nits, one of
+# them possibly a decision) and #876 (the tab fragment under the left fade).
+# A note from the settlement fix round about a tax-refund double count in the
+# PP CSV import could not be reproduced from the importer or the projection,
+# and was NOT filed -- an unverified defect is not a finding.
+#
+# RETROSPECTIVE (E24 and the batch).
+# * THE PLANNING HAD NEVER REACHED MAIN. PR #860 was stacked on #859's branch;
+#   #859 merged first and #860 then merged into #859's branch, not into
+#   `main`. ADR-0049, the triage, the design pass and the lane plan were
+#   carried to `main` by a cherry-pick with a tree identical to that branch.
+#   The owner's merge was the signature; the batch carried the signed content.
+#   Carry forward: a stacked PR is retargeted to `main` before it is merged,
+#   or the planning round checks `main` for its ADR before the batch opens.
+# * THE CLOSING ACT FOUND SIX BLOCKING DEFECTS IN WORK THAT WAS GREEN, and 31
+#   findings in all, every one reproduced and reach-labelled (D-9: 28
+#   user-reachable, 3 hostile-input). The two that matter most share a shape:
+#   the new settlement guard rejected Portfolio Performance CSV rows and halted
+#   the settlement backfill (F2), because the lane tested the form and the API
+#   and not the other two writers of the same table; and cross-currency cash
+#   was labelled in the security's currency in the history (F21), because no
+#   test rendered a row the new flow wrote. Carry forward: an invariant added
+#   to a write path is swept over EVERY writer of that table, and a new flow is
+#   rendered on every surface that reads its rows -- the same lesson Sprint 14
+#   drew for an identity pinned at the engine, one layer over.
+# * THE MUTATION PASSES CAUGHT THREE GAPS. M4 (`status=ok` admitting
+#   undetermined findings) and M6 (a version starting in the past) survived the
+#   first pass; T2 (the importer's inverse of the guard on a sell) survived the
+#   re-run after the fix rounds. Each got a test and went red. M7 survives on
+#   its own by design -- the DB exclusion constraint refuses the same write --
+#   and M7+M9 together are red. Re-running the passes after the fix rounds is
+#   what found T2: the fix rounds added code the first pass never saw.
+# * PATCH COVERAGE DIPPED UNDER ITS GATE MID-BATCH (89.47 %, then 89.61 %
+#   against 90 %) and was raised to 93.75 % with tests that pin behaviour --
+#   the retire-on-a-named-day and version-aware `since=` paths among them --
+#   never by lowering the target.
+# * THE SCREENSHOT COMMENT LOST EVERY IMAGE'S `!` ON ITS FIRST POST AGAIN,
+#   with every URL at 121 characters -- so the loss is not the length limit
+#   D-10 set. An edit of the same comment kept it, as in Sprint 14. Carry
+#   forward: the convention is post, read back, edit when the `!` is gone.
+#   Linking by the screenshot commit's short SHA kept every URL short and
+#   survives the branch's deletion.
+# * THE HOST WAS CALM. One pre-commit job died on a Hex registry timeout on a
+#   superseded head before any check ran; the next head was green.
+#
+# TWO-WAY COVERAGE: E24 shipped agent and operator halves in the same batch
+# (the rules on API and MCP, the Risk tab's rules section). The batch also
+# paid two OLDER debts the triage found: position-level SOLL, settable only
+# over the API since 2026-07-21, now has its entry in the plan editor (#481);
+# a cross-currency buy, bookable only over the API or the import, now has its
+# settlement inputs in the booking form (#395). Nothing in this batch is
+# agent-only, and no deadline carries into Sprint 16.
+#
+# SURFACE CHECK (the 2026-09-03 owner decision): read-ergonomics parameters
+# that landed --
+#   - since= on GET /api/v1/portfolios/:portfolio_id/policy_rules
+#     (portfolixir.policy_rules.list): a rule counts as changed when its row OR
+#     any of its versions changed. It joins the family named in Sprint 14's
+#     entry (securities, transactions, per-security notes and events, targets,
+#     position targets). DELIBERATELY ABSENT from
+#     GET /portfolios/:portfolio_id/policy_findings -- findings are a derived
+#     projection with no rows, the #849 case -- stated in contract entry 7.
+#   - status= on the findings read (a set of breached, undetermined, ok) and
+#     as_of= / include_retired= on the rules list: each is a family of exactly
+#     one endpoint.
+#   - view= keeps its existing meaning (one evaluation context).
+#
+# MAINTENANCE LANE: version-report-2026-09-23-sprint15.md -- nothing to update
+# (Hex, npm, Elixir/OTP, PostgreSQL); #727's triggers re-checked and not
+# fired; BMAD 6.12.0 deferred to the first commit of Sprint 16 with the
+# reason recorded; D-7's npm audit failure traced to the step running on the
+# runner's unpinned npm against a retiring endpoint, and the step moved after
+# Setup Node.
+#
+# EPIC STATES AFTER THIS MERGE: E24 DONE -- FR-43 discharged in both
+# directions for caps, floors and bands over weight, drift, HHI, portfolio
+# volatility and max drawdown; the flow rules stay deferred as #866; the
+# tracker #861 closed by hand.
+#
+# THE TAG -- ONE OUTSTANDING. 0.11.0 to 0.14.0 are published (the Sprint 15
+# planning PR corrected the record). The agent credential cannot push a tag
+# (owner action, 2026-09-07 decision); the owner runs:
+#   git tag -a 0.15.0 096b80e5 -m "Portfolixir 0.15.0" && git push origin 0.15.0
+# The push triggers the Release workflow, which creates the GitHub Release
+# with generated notes -- a rollback point plus a communicable changelog,
+# never an installable artifact (#659).
 #
 # PLANNED (2026-09-23, Sprint 15) -- sprint-plan-2026-09-23-sprint15.md,
 # adopted by the merge of the Sprint 15 planning PR, which SIGNS GATE B3.6:
@@ -1544,5 +1661,12 @@ development_status:
   # reconciles against it; the tracker and story issues are filed at branch
   # opening, after the signature: tracker #861, stories #862-#865, and the
   # deferred flow rules (`protected`, `budget`) as #866.
-  epic-24: in-progress
-  epic-24-retrospective: optional
+  # DONE 2026-09-24 (Sprint 15, PR #867, main at 096b80e5): all four stories
+  # shipped with the operator's view in the same batch as the API and MCP
+  # reads. The closing act's findings on this family were fixed on the branch
+  # before the merge -- an unvalued held position read as 0 % and passed, the
+  # findings memo outlived a view's changed definition, scheduled rules were
+  # invisible, a same-day edit was refused by the dialog's own default. The
+  # tracker #861 closed by hand; the flow rules stay deferred as #866.
+  epic-24: done
+  epic-24-retrospective: done
