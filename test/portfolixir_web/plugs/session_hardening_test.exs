@@ -33,6 +33,57 @@ defmodule PortfolixirWeb.SessionHardeningTest do
     assert cookie =~ ~r/;\s*secure/i
   end
 
+  # User story (E25 S1, F09):
+  # As an operator behind a reverse proxy,
+  # I want x-forwarded-proto believed only from loopback or from a proxy I named,
+  # so that the scheme follows the same trust rule as the forwarded address.
+  #
+  # Acceptance criteria:
+  # - An untrusted peer's forwarded-proto header leaves the scheme http: the
+  #   cookie is not Secure, and with force_ssl on the request is redirected.
+  # - A loopback proxy still gets Secure cookies.
+  # - A named proxy is judged by the address it connects from, before the
+  #   forwarded-for rewrite names the client behind it.
+  test "x-forwarded-proto is believed only from loopback or a trusted proxy", %{conn: conn} do
+    previous_proxies = Application.get_env(:portfolixir, :trusted_proxies)
+    previous_ssl = Application.get_env(:portfolixir, :force_ssl)
+
+    on_exit(fn ->
+      Application.put_env(:portfolixir, :trusted_proxies, previous_proxies)
+      Application.put_env(:portfolixir, :force_ssl, previous_ssl)
+    end)
+
+    Application.put_env(:portfolixir, :trusted_proxies, [{{172, 16, 0, 0}, 12}])
+
+    untrusted =
+      %{conn | remote_ip: {192, 168, 1, 50}}
+      |> put_req_header("x-forwarded-proto", "https")
+      |> get("/")
+
+    refute session_cookie(untrusted) =~ ~r/;\s*secure/i
+
+    loopback = conn |> put_req_header("x-forwarded-proto", "https") |> get("/")
+    assert session_cookie(loopback) =~ ~r/;\s*secure/i
+
+    proxied =
+      %{conn | remote_ip: {172, 18, 0, 1}}
+      |> put_req_header("x-forwarded-proto", "https")
+      |> put_req_header("x-forwarded-for", "203.0.113.5")
+      |> get("/")
+
+    assert session_cookie(proxied) =~ ~r/;\s*secure/i
+
+    Application.put_env(:portfolixir, :force_ssl, RuntimeConfig.force_ssl_opts("true"))
+
+    redirected =
+      %{conn | remote_ip: {192, 168, 1, 50}}
+      |> put_req_header("x-forwarded-proto", "https")
+      |> get("/health")
+
+    assert redirected.status in [301, 302]
+    assert get_resp_header(redirected, "strict-transport-security") == []
+  end
+
   # User story:
   # As an operator,
   # I want the cookie signing salts derived from my SECRET_KEY_BASE,
