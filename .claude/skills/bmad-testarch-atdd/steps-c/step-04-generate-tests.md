@@ -71,8 +71,11 @@ const subagentContext = {
   config: {
     test_framework: config.test_framework,
     use_playwright_utils: config.tea_use_playwright_utils,
+    playwright_utils_mandate: config.tea_use_playwright_utils === true,  // when true, workers MUST follow playwright-utils-mandate.md
     use_pactjs_utils: config.tea_use_pactjs_utils,
     pact_mcp: config.tea_pact_mcp,  // "mcp" | "none"
+    pact_mcp_reachable: /* from Step 1: the probe result, not the mode. `mcp` alone does not mean the tools are there */,
+    pact_fallback_source: /* from Step 1: 'broker' | 'provider-source' | 'openapi' | 'none' */,
     browser_automation: config.tea_browser_automation,
     execution_mode: config.tea_execution_mode || 'auto',  // "auto" | "subagent" | "agent-team" | "sequential"
     capability_probe: parseBooleanFlag(config.tea_capability_probe, true),  // supports booleans and "false"/"true" strings
@@ -162,6 +165,30 @@ If probing is disabled, honor the requested mode strictly. If that mode cannot b
 
 ---
 
+### Playwright Utils Generation Contract
+
+When `use_playwright_utils` is `true`, both workers below generate in the playwright-utils style by default. `playwright-utils-mandate.md` is the binding rule; pass it in `knowledge_fragments_loaded` and restate it in each worker's dispatch context.
+
+A red-phase scaffold is production test code that happens to be skipped. It is the file the developer un-skips and then lives with, so it must be born in the right style. Generating a vanilla scaffold "because it will be rewritten anyway" is the failure mode this contract exists to prevent.
+
+The non-negotiable substitutions:
+
+| Vanilla                                                  | Required instead                                    |
+| -------------------------------------------------------- | --------------------------------------------------- |
+| `page.route` / `page.waitForResponse` on an app endpoint | `interceptNetworkCall`                              |
+| `request.get/post/put/patch/delete`                      | `apiRequest`                                        |
+| `page.waitForTimeout`, bare `expect.poll`                | `recurse`                                           |
+| `console.log`                                            | `log.info` / `log.step`                             |
+| `import { test } from '@playwright/test'` in a spec      | `import { test } from '../support/merged-fixtures'` |
+
+`auth-session`, `network-recorder`, `webhook`, and `burn-in` are recommended rather than required: they need project wiring. Propose them and name the wiring; never silently emit the vanilla equivalent instead.
+
+The endpoints and selectors do not exist yet in the red phase. That is a reason to apply `confidence-gate.md` and stop to ask, not a reason to fall back to vanilla shapes.
+
+This contract does not apply to Cypress suites, Maestro flows, or Pact/Vitest contract artifacts.
+
+---
+
 ### 3. Dispatch Worker A: Red-Phase API Test Generation
 
 **Dispatch worker:**
@@ -176,7 +203,7 @@ If probing is disabled, honor the requested mode strictly. If that mode cannot b
 
 **System Action:**
 
-```
+```text
 🚀 Launching Subagent A: RED-PHASE API Test Generation
 📝 Output: /tmp/tea-atdd-api-tests-${timestamp}.json
 ⚙️ Mode: ${resolvedMode}
@@ -200,7 +227,7 @@ If probing is disabled, honor the requested mode strictly. If that mode cannot b
 
 **System Action:**
 
-```
+```text
 🚀 Launching Subagent B: RED-PHASE E2E Test Generation
 📝 Output: /tmp/tea-atdd-e2e-tests-${timestamp}.json
 ⚙️ Mode: ${resolvedMode}
@@ -214,7 +241,7 @@ If probing is disabled, honor the requested mode strictly. If that mode cannot b
 
 **If `resolvedMode` is `agent-team` or `subagent`:**
 
-```
+```text
 ⏳ Waiting for subagents to complete...
   ├── Subagent A (API RED): Running... ⟳
   └── Subagent B (E2E RED): Running... ⟳
@@ -229,7 +256,7 @@ If probing is disabled, honor the requested mode strictly. If that mode cannot b
 
 **If `resolvedMode` is `sequential`:**
 
-```
+```text
 ✅ Sequential mode: each worker already completed during dispatch.
 ```
 
@@ -250,7 +277,7 @@ if (!apiOutputExists || !e2eOutputExists) {
 
 **Display TDD status:**
 
-```
+```text
 🔴 TDD RED PHASE: Test Scaffolds Generated
 
 ✅ Both subagents completed:
@@ -271,7 +298,7 @@ Next: Aggregation will verify TDD compliance
 
 **Display performance metrics:**
 
-```
+```text
 🚀 Performance Report:
 - Execution Mode: {resolvedMode}
 - API Test Generation: ~X minutes
