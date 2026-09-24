@@ -425,6 +425,46 @@ defmodule Portfolixir.CITest do
     end
   end
 
+  # User story (E25 S2, F25; ADR-0045 §2 "digest-pinned images"):
+  # As an operator building and running the documented images,
+  # I want every base image and every Compose image pinned by tag and digest,
+  # and each kept current by Dependabot,
+  # so that what I run is exactly what the repository names, and an OS or
+  # database fix arrives as a reviewed digest move rather than never.
+  #
+  # Acceptance criteria:
+  # - Every FROM line of the three Dockerfiles carries @sha256 and 64 hex digits.
+  # - Every image line of both Compose files does too.
+  # - Dependabot watches the Compose files (the docker-compose ecosystem) as
+  #   well as the Dockerfiles, and never proposes a PostgreSQL major, which
+  #   needs a dump and restore rather than a bump.
+  test "every base image and Compose image is pinned by digest" do
+    digest = ~r/@sha256:[0-9a-f]{64}(\s+AS\s+\w+)?$/
+
+    for path <- ["Dockerfile", "Dockerfile.release", "mcp-server/Dockerfile"],
+        line <- Regex.scan(~r/^FROM .*$/m, File.read!(path)) |> List.flatten() do
+      assert line =~ digest, "#{path}: not pinned by digest: #{line}"
+    end
+
+    for path <- ["docker-compose.yml", "docker-compose.dev.yml"] do
+      images = Regex.scan(~r/^\s+image: .*$/m, File.read!(path)) |> List.flatten()
+      assert images != [], "#{path} names no image"
+
+      for line <- images do
+        assert String.trim(line) =~ ~r/^image: [\w.\/-]+:[\w.-]+@sha256:[0-9a-f]{64}$/,
+               "#{path}: not pinned by tag and digest: #{String.trim(line)}"
+      end
+    end
+
+    dependabot = File.read!(".github/dependabot.yml")
+    assert dependabot =~ ~s(package-ecosystem: "docker-compose")
+
+    [_, compose_entry] = String.split(dependabot, ~s(package-ecosystem: "docker-compose"))
+    compose_entry = compose_entry |> String.split("- package-ecosystem:") |> hd()
+    assert compose_entry =~ ~s(dependency-name: "postgres")
+    assert compose_entry =~ ~s(update-types: ["version-update:semver-major"])
+  end
+
   # User story (E25 S2, F65):
   # As an operator building the images from my own checkout,
   # I want the build context to leave out everything git leaves out,

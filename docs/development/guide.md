@@ -40,8 +40,8 @@ Run before opening a PR:
 
 The two `npm` checks need **Node 24** (the Active LTS line). That version is
 pinned in three places that must agree: `actions/setup-node` in CI,
-`engines.node` in `mcp-server/package.json`, and the `node:24-alpine` image in
-`mcp-server/Dockerfile` — `test/portfolixir/ci_test.exs` asserts that they do,
+`engines.node` in `mcp-server/package.json`, and the Node 24 base image in
+`mcp-server/Dockerfile` (an exact tag pinned by digest) — `test/portfolixir/ci_test.exs` asserts that they do,
 and that `@types/node` describes the same major. Running the checks on another
 major produces an `EBADENGINE` warning rather than an error; CI is the
 authority.

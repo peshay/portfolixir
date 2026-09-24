@@ -338,12 +338,12 @@ docker compose build --pull
 docker compose up -d
 ```
 
-The application's Erlang/OTP and Debian base images are pinned by digest in
-the repository, so a runtime fix in them arrives with the new version itself.
-The database image and the MCP companion's Node base are named by tag: a
-plain `docker compose up --build` reuses the copies already on the host, so
-`docker compose pull db` and `--pull` are what bring their fixes. The release
-notes say when an upgrade carries such a fix.
+Every image the stack runs on is pinned by tag and digest in the repository —
+the application's Erlang/OTP and Debian base images, the MCP companion's Node
+base and the database image — so a fix in one of them arrives with the version
+that moves its digest, and the release notes say when an upgrade carries one.
+`docker compose pull db` and `--pull` fetch exactly the images the new version
+names.
 
 ## Rebuild Derived Values
 
