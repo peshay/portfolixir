@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-09-24 (Sprint 15 CLOSED OUT: PR #867 rebase-merged, main at 096b80e5 -- E24 DONE, the operator's own rules on API, MCP and the Risk tab; position-level SOLL entry and cross-currency booking reach the operator; fourteen issues closed by keyword, #861 by hand; the closing act's 31 findings fixed on the branch but one, which is filed with eight more; tag 0.15.0 outstanding for the owner)
+# last_updated: 2026-09-24 (Sprint 16 PLANNED: the second security pass (E25, a runtime hotfix ahead of the batch), ADR-0050 signs the lifecycle merges #328/#608, NFR-9's backstops, the E24 remainder; tag 0.15.0 still outstanding for the owner)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -51,6 +51,45 @@ story_location: _bmad-output/implementation-artifacts
 # ---------------------------------------------------------------------------
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
+#
+# PLANNED (2026-09-24, Sprint 16) -- sprint-plan-2026-09-24-sprint16.md,
+# adopted by the merge of the Sprint 16 planning PR, which SIGNS ADR-0050
+# (lifecycle merges under a post-merge re-import contract; the design gate for
+# #328 and #608, risk-tier) and ADOPTS security-review-triage-2026-09-24.md
+# (E25). Verification basis: `main` at 44fb82a9 with CI 1595 green; 24 open
+# issues, bodies and comments read and checked against the code; releases
+# ending at 0.14.0, so 0.15.0 is still the owner's to push; the security
+# review of 2026-09-24 (eleven finder dimensions plus a completeness round,
+# every finding verified by three independent lenses; the full report is
+# held privately, the triage names classes and fixes only); sobelow,
+# hex.audit, deps.audit and npm audit clean the same day.
+# Lane H (D-2): a runtime hotfix BEFORE the batch, tagged 0.15.1 -- the
+# release image built on a base tag frozen since 2025-05 and so shipped an
+# Erlang/OTP with published TLS-client advisories, while CI tested a patched
+# one; the images, CI and the install script move to one exact toolchain
+# (Elixir 1.18.5, OTP 27.3.4.18), pinned by a parity invariant.
+# One branch (D-1): `agent/claude/security-second-pass-and-lifecycle-merges`,
+# opened after this merge and after the hotfix.
+# Lanes: S (E25 -- S1 credentials and sessions, S2 deployment and logging,
+# S3 outbound requests and provider data, S4 input bounds and cost with #868
+# folded in, S5 import robustness, S6 the audit trail and integrity, S7
+# browser and agent-surface hygiene, S8 CI supply chain; each fix red-first),
+# L (ADR-0050 -- L1 foundation, L2 the re-import contract that also closes
+# today's rename hazard, L3 cash and depot merge #328, L4 security merge
+# #608, L5 surfaces on picks G1-G4), N (NFR-9's seven invariant files, tests
+# only), D (#870, #871, #872 decided in D-6: a rule may be renamed), C (#869,
+# #873-#876, last and first cut), R (#330's discovery story; the FR-41
+# design-gate record for Sprint 17's planning, D-7), M (the deferred BMAD
+# re-pin as the first commit, hpax, #314's 90 % target, the version report
+# with the OTP inside the image), Z (closures by hand, the E25 and lifecycle
+# issues at branch opening).
+# D-8 closes #573 (delivered) and #470 (complete) by hand; #866, #849, #354
+# and #727 stay open with their reasons. D-11: this PR scrubs five committed
+# records of real-data classes, gives one real booking reused as a test
+# fixture invented values, and removes an unprovenanced screenshot; no history
+# rewrite is recommended. D-12: the runway moves by one sprint -- FR-41's
+# build and B4.2 stay in Sprint 17, the overflow goes to Sprint 18,
+# maintenance mode after Sprint 18.
 #
 # CLOSED OUT (2026-09-24, Sprint 15) -- PR #867 rebase-merged 05:34 UTC,
 # `main` at 096b80e5:
@@ -1448,12 +1487,17 @@ development_status:
   epic-2: in-progress
   epic-2-retrospective: optional
 
-  # E3 -- open: #328 (merge/rename/delete accounts, needs-uat); #608 (merge and
-  # repair securities, the #328 analogue) is unattached
+  # E3 -- open: #328 (merge/rename/delete accounts, needs-uat) and #608 (merge
+  # and repair securities, the #328 analogue), both now under FR-4 and E3's
+  # Tracker Index line. Both are scheduled in Sprint 16 Lane L under ADR-0050
+  # (signed by the merge of the Sprint 16 planning PR); the importer half (L2)
+  # is filed as its own issue at branch opening, under #417.
   epic-3: in-progress
   epic-3-retrospective: optional
 
-  # E4 -- open: #333 (PP XML import) -- GATED, needs ADR + AGENTS.md amendment
+  # E4 -- no open issue: #333 (PP XML import) closed 2026-09-23 by the backlog
+  # triage; tracker #470 is closed by hand after the Sprint 16 planning merge
+  # (plan D-8). XML intake stays GATED: ADR + AGENTS.md amendment.
   epic-4: backlog
   epic-4-retrospective: optional
 
@@ -1671,3 +1715,12 @@ development_status:
   # tracker #861 closed by hand; the flow rules stay deferred as #866.
   epic-24: done
   epic-24-retrospective: done
+
+  # E25 -- Security hardening, second pass. The 2026-09-24 whole-system review
+  # (security-review-triage-2026-09-24.md), adopted by the merge of the
+  # Sprint 16 planning PR, scheduled by that plan as Lane H (the runtime
+  # hotfix ahead of the batch, D-2) and Lane S (groups S1-S8). The row exists
+  # from the planning so the close-out reconciles against it; the tracker and
+  # the group issues are filed at branch opening.
+  epic-25: backlog
+  epic-25-retrospective: optional
