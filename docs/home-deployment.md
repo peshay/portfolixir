@@ -367,6 +367,9 @@ added migrations, restore the database backup taken before that upgrade.
   foreign `Host` names (ADR-0045).
 - The MCP companion wraps the local JSON API and does not access the database
   directly.
+- The release logs at `info`: the request lines, warnings and errors. The
+  database queries, the parameters of each request and page event, and the
+  session contents that the `debug` level writes stay out of the log.
 - This setup does not configure broker sync, bank sync, document intake (beyond
   the Portfolio Performance CSV/JSON import), trading, payments, orders,
   rebalancing, or LLM features.

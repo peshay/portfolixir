@@ -402,6 +402,20 @@ defmodule Portfolixir.CITest do
     assert prod_config =~ "PHX_FORCE_SSL"
   end
 
+  # User story (E25 S2, F66):
+  # As an operator reading my container's log,
+  # I want the production release to log at info,
+  # so that database query parameters, request and page-event parameters and
+  # session contents -- my financial figures among them -- never reach the log.
+  #
+  # Acceptance criteria:
+  # - Reading config/prod.exs yields the logger level :info.
+  test "the production release logs at info, not debug" do
+    prod = Config.Reader.read!("config/prod.exs", env: :prod)
+
+    assert get_in(prod, [:logger, :level]) == :info
+  end
+
   # User story (Sprint 15 plan D-7):
   # As the maintainer relying on the npm audit gate,
   # I want it to run on the pinned Node toolchain,

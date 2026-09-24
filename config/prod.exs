@@ -4,6 +4,11 @@ import Config
 config :portfolixir, Portfolixir.Repo,
   pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10")
 
+# Info, not Logger's debug default (E25 S2, F66): at debug the release wrote
+# query parameters, request and page-event parameters and session contents to
+# the container log. Info keeps the request line, warnings and errors.
+config :logger, level: :info
+
 # Keep static asset manifest config near endpoint and document follow-up for release-time asset wiring when needed.
 config :portfolixir, PortfolixirWeb.Endpoint,
   url: [host: "127.0.0.1", port: 4000],
