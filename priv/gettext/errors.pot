@@ -74,3 +74,24 @@ msgstr ""
 
 msgid "is required for the drift of a security (the plan's classification)"
 msgstr ""
+
+## The status line of the error page (E25 S2): the HTTP reason phrase of a
+## status, looked up at runtime by PortfolixirWeb.ErrorView. A status without
+## an entry shows its English reason phrase.
+msgid "Bad Request"
+msgstr ""
+
+msgid "Forbidden"
+msgstr ""
+
+msgid "Not Found"
+msgstr ""
+
+msgid "Not Acceptable"
+msgstr ""
+
+msgid "Request Entity Too Large"
+msgstr ""
+
+msgid "Internal Server Error"
+msgstr ""
