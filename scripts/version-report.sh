@@ -19,8 +19,24 @@ section() {
 section "Toolchain pins (CI is authoritative)"
 grep -m1 "elixir-version" .github/workflows/ci.yml | sed 's/^ *//'
 grep -m1 "otp-version" .github/workflows/ci.yml | sed 's/^ *//'
-grep -m1 "FROM elixir" Dockerfile
+grep -m1 "^FROM " Dockerfile
+grep "^FROM " Dockerfile.release
 grep -m1 "image: postgres" docker-compose.yml | sed 's/^ *//'
+
+# The tag is not the runtime: the release bundles whatever ERTS its build
+# image contains, and a frozen tag once shipped an OTP with published
+# TLS-client advisories while CI tested a patched one (the 2026-09-24 runtime
+# hotfix). So the report reads the OTP inside that image, next to CI's pin.
+section "OTP inside the release's build image (what every instance runs)"
+build_image=$(awk '/^FROM .* AS build$/ {print $2; exit}' Dockerfile.release)
+echo "image: ${build_image}"
+if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+  docker run --rm --entrypoint sh "${build_image}" -c \
+    'printf "OTP_VERSION inside the image: "; cat "$(erl -noshell -eval "io:format(\"~s\", [code:root_dir()]), halt().")"/releases/*/OTP_VERSION' \
+    || echo "could not read the OTP inside the image"
+else
+  echo "docker is not available: the OTP inside the image was NOT read; run this report where docker runs"
+fi
 
 section "Hex: outdated packages"
 mix hex.outdated || true
