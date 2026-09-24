@@ -26,10 +26,10 @@ des Hosts und die Datenbank nie.
 ## Geheimnisse und Einstellungen
 
 Kopiere `.env.example` nach `.env`. Der Stack startet nicht, solange ein
-Geheimnis fehlt, und die Anwendung verweigert den Start mit einem Token, das
-kürzer als 32 Bytes oder ein Platzhalter ist, und mit einem `SECRET_KEY_BASE`,
-der kürzer als 64 Bytes, ein Platzhalter oder ein in diesem Repository
-veröffentlichter Wert ist. Erzeuge jedes Token und `SECRET_KEY_BASE` mit
+Geheimnis fehlt, die Anwendung und der MCP-Begleitdienst verweigern den Start
+mit einem Token, das kürzer als 32 Bytes oder ein Platzhalter ist, und die
+Anwendung verweigert einen `SECRET_KEY_BASE`, der kürzer als 64 Bytes, ein
+Platzhalter oder ein in diesem Repository veröffentlichter Wert ist. Erzeuge jedes Token und `SECRET_KEY_BASE` mit
 `openssl rand -base64 48` und `POSTGRES_PASSWORD` mit `openssl rand -hex 32`:
 die Compose-Datei setzt es in die Datenbank-URL ein, wo ein `/` oder `#` aus
 Base64 die Verbindungszeichenkette zerlegen würde.
