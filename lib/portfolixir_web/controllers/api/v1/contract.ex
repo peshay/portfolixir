@@ -50,7 +50,7 @@ defmodule PortfolixirWeb.Api.V1.Contract do
       tools: [],
       parameters: [
         "Every /api/v1 error the server answers itself rather than an endpoint (an unreadable body 400, a body over the size bound 413, an unknown route 404, an internal error 500) answers {\"errors\": {\"detail\": <reason phrase>}} with its own status (E25 S2, F68); it used to be {\"status\", \"error\"} for 404 and 500 and a bodyless 500 for every other status",
-        "The MCP companion's HTTP transport checks the origin and the bearer token before it reads a request body, and answers every transport error {\"errors\": {\"detail\": <reason phrase>}} with no stack trace (E25 S2, F19)"
+        "The MCP companion's HTTP transport checks the origin and the bearer token before it reads a request body, and answers the errors it raises itself, an unknown path's 404 among them, {\"errors\": {\"detail\": <reason phrase>}} with no stack trace; the MCP protocol's own refusals on /mcp keep their JSON-RPC error shape (E25 S2, F19)"
       ],
       removed_endpoints: [],
       removed_tools: []

@@ -264,6 +264,32 @@ describe("MCP HTTP transport", () => {
     });
   });
 
+  // User story (E25 S2, F19, review round):
+  // As an MCP client pointed at the wrong path,
+  // I want the companion's 404 in the same short JSON shape as its other errors,
+  // so that no answer the companion gives itself is Express's HTML page.
+  //
+  // Acceptance criteria:
+  // - An authenticated request to a path other than /mcp is answered 404
+  //   {"errors": {"detail": "Not Found"}} as JSON, for any method.
+  // - Without the token the same request is still answered 401 first.
+  it("answers an unknown path with a JSON 404", async () => {
+    await withApp(async (base) => {
+      for (const method of ["GET", "POST"]) {
+        const response = await fetch(`${base}/elsewhere`, {
+          method,
+          headers: { authorization: `Bearer ${soundToken}` }
+        });
+        assert.equal(response.status, 404);
+        assert.match(response.headers.get("content-type") ?? "", /^application\/json/);
+        assert.deepEqual(await response.json(), { errors: { detail: STATUS_CODES[404] } });
+      }
+
+      const anonymous = await fetch(`${base}/elsewhere`);
+      assert.equal(anonymous.status, 401);
+    });
+  });
+
   it("runs in Express's production mode", () => {
     const app = createHttpApp({
       client: { request: async () => null },

@@ -250,7 +250,10 @@ export interface HttpAppOptions {
  * answered in the API's error shape with the status's reason phrase, and
  * nothing of the error itself (no message, no stack, no path) reaches the
  * client. A 4xx is the client's own doing and is not logged; anything else
- * is logged by its stack, never with the request.
+ * is logged by its stack, never with the request. The refusals the MCP SDK's
+ * transport answers itself on /mcp (a Host outside the allow-list, a method
+ * the protocol does not take) never reach it: they keep the protocol's
+ * JSON-RPC error shape.
  */
 export function mcpErrorHandler(
   error: unknown,
@@ -313,6 +316,12 @@ export function createHttpApp(options: HttpAppOptions): Express {
 
     await server.connect(transport);
     await transport.handleRequest(req, res, req.body);
+  });
+
+  // Any other path: Express's own 404 is an HTML page, so the companion
+  // answers it in the same shape as its other errors.
+  app.use((_req: Request, res: Response) => {
+    res.status(404).json({ errors: { detail: STATUS_CODES[404] } });
   });
 
   app.use(mcpErrorHandler);

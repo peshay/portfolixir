@@ -31,9 +31,11 @@ wiederholt falsche Tokens von einer verbindenden Adresse werden mit `429` und
 `Retry-After` für ein wachsendes Intervall beantwortet. Hinter dem
 veröffentlichten Port verbindet jeder Client über die Docker-Bridge, ein
 Rater dort bremst also auch den Agenten. Das Token wird geprüft, bevor der
-Body der Anfrage gelesen wird, und der Begleitdienst beantwortet jeden Fehler
-in der Form der API, `{"errors": {"detail": "Bad Request"}}`, ohne Stacktrace
-und ohne lokalen Pfad.
+Body der Anfrage gelesen wird. Die Fehler, die der Begleitdienst selbst
+beantwortet, ein unbekannter Pfad eingeschlossen, haben die Form der API,
+`{"errors": {"detail": "Bad Request"}}`, ohne Stacktrace und ohne lokalen
+Pfad; die Ablehnungen des MCP-Protokolls selbst auf `/mcp` behalten dessen
+JSON-RPC-Fehlerform.
 
 ## Datenregeln
 
