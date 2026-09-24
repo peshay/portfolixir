@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Eine Regel umbenennen, und woran ihr Name zeigt, dass er den Dialog öffnet (#872, D-6, ADR-0049 §1, §4, Pick G7)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  /* Board chrome only. Everything inside the frames uses the live classes of
+     risk_live.ex (area tabs, .policy-rules, .policy-findings-table, the
+     scheduled and retired lists), Risk.PolicyRuleDialog (.modal.policy-rule-dialog,
+     .form-grid, .hint, .perf-table-disclosure, .policy-rule-versions,
+     .modal-footer__spacer) and AppShell.row_menu (.row-actions__kebab,
+     .row-context-menu). */
+  .pg { border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg); overflow: hidden; }
+  .pg-top { display: flex; align-items: center; gap: 10px; padding: 10px 18px; border-bottom: 1px solid var(--color-border); background: var(--color-bg-elevated); }
+  .pg-top .topbar-page p { white-space: normal; }
+  .pg .workspace-page, .phone .workspace-page { min-height: 0; }
+  .pg .area-tabs { padding: 0 18px; margin-bottom: 0; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .ann { margin: 8px 0 0; font-size: 11.5px; color: var(--mock-ink); max-width: 110ch; }
+  .ann code { font-size: 11px; }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+  .pin { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-left: 4px; border-radius: 999px; background: var(--mock-ink); color: #fff; font: 700 10px/1 var(--font-sans); vertical-align: 1px; }
+  .flow { font-size: 12px; color: var(--color-text-muted); margin: 0; }
+  .flow b { color: var(--color-text); }
+  .side { flex: 1 1 300px; display: grid; gap: 10px; align-content: start; font-size: 12.5px; }
+  .side ol, .side ul { margin: 0; padding-left: 18px; }
+  .side li { margin: 0 0 6px; }
+  .side code { font-size: 11.5px; }
+  .mismatch { box-shadow: inset 0 -2px 0 var(--color-danger); }
+  /* the dialog drawn on a muted field standing in for the backdrop */
+  .dlg-field { background: var(--color-bg-muted); padding: 16px; }
+  .dlg-field .modal { max-width: none; }
+  .dlg-col { flex: 1 1 520px; max-width: 548px; }
+  .modal .form-grid label.is-new { outline-offset: 4px; }
+  /* variant A, proposed: .policy-rule__name no longer overrides .link-button
+     (accent colour and underline at rest); the weight stays. Drawn here
+     because app.css still carries the override. */
+  .prop-a .policy-rule__name { color: var(--color-accent); text-decoration: underline; }
+  /* variant B: the real menu is fixed-positioned by the PositionedMenu hook;
+     drawn absolute here, so the table scroller must not clip it. */
+  .prop-b .data-table-wrapper, .prop-b table { overflow: visible; }
+  .menu-at { position: absolute !important; z-index: 5; }
+  /* variant C, proposed: a standing button per row */
+  .row-edit { min-height: 28px; padding: 3px 10px; font-size: 12px; box-shadow: none; white-space: nowrap; }
+  .rule-text { font-weight: 700; color: var(--color-text); }
+  /* the 390 px phone frames (drawn: the board renders at 1200, so the phone
+     (max-width 720 / 560 px) and coarse-pointer rules of app.css are applied
+     by hand here). 392 px outer = 390 px inside the 1 px frame border. */
+  .phone { width: 392px; border: 1px solid var(--color-border); border-radius: 18px; overflow: hidden; background: var(--color-bg); flex: none; position: relative; font-size: 14px; }
+  .ph-top { padding: 10px 16px; border-bottom: 1px solid var(--color-border); background: var(--color-bg-elevated); }
+  .ph-top .topbar-page h1 { font-size: 15px; }
+  .ph-top .topbar-page p { display: none; }
+  .phone .workspace-section { padding: 16px; }
+  .phone .data-table-wrapper > .risk-fit-table { min-width: 0; width: 100%; }
+  .phone .risk-fit-table th, .phone .risk-fit-table td { white-space: normal; }
+  .phone .policy-findings-table .policy-col-line { display: none; }
+  .phone .policy-findings-table td.num { white-space: normal; }
+  .phone .policy-rule__line-sub { display: block; }
+  .phone .policy-rule__name { min-height: 44px; }
+  .phone .row-actions__kebab { min-width: 44px; min-height: 44px; }
+  .phone .row-edit { min-height: 44px; }
+  .phone.tall { height: 700px; }
+  .as-sheet { position: absolute !important; left: 0; right: 0; bottom: 0; max-width: none; min-width: 0; width: auto; border-radius: var(--radius-md) var(--radius-md) 0 0; padding: 12px 12px 16px; box-shadow: 0 -8px 24px rgba(0,0,0,.18); }
+  .as-sheet .row-context-menu__item { padding: 14px 12px; font-size: 16px; min-height: 44px; }
+  .sheet-cap { padding: 2px 12px 8px; font-size: 12.5px; color: var(--color-text-muted); border-bottom: 1px solid var(--color-border); margin-bottom: 4px; }
+  .sheet-cap b { color: var(--color-text); font-weight: 650; }
+  .scrim { position: absolute; inset: 0; background: rgba(15,23,42,.28); }
+  .css-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: start; }
+  pre.css { margin: 0; padding: 10px 12px; font: 11.5px/1.5 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+  table.t td b { font-weight: 650; }
+  table.t td.win { background: color-mix(in srgb, var(--color-positive) 8%, transparent); }
+</style>
+</head>
+<body>
+
+<div class="pickbar"><b>Entscheidung G7 — offen.</b> Darf eine eigene Regel umbenannt werden, und woran zeigt ihr Name, dass er den Dialog öffnet (#872, ADR-0049 §1, §4)? <b>Teil 1, für alle Varianten gleich (D-6 der Planung):</b> Umbenennen ist erlaubt, als journalisierte Änderung an der Regel selbst und außerhalb der Versionen, so wie <code>PATCH /plans/:id</code> einen Zielplan umbenennt. Der Dialog „Regel ändern“ bekommt dafür das Feld „Name“. Ein Kommentar „keine Umbenennung“ kippt D-6; dann wird nur Teil 2 gebaut. <b>Teil 2, die Wahl G7:</b> <b>A</b> der Name trägt die Link-Darstellung schon in Ruhe (Akzentfarbe, unterstrichen) · <b>B</b> ein Zeilenmenü je Regel mit „Bearbeiten“, „Umbenennen“ und „Regel beenden“ · <b>C</b> ein sichtbarer Knopf „Bearbeiten“ in jeder Zeile. Empfehlung: <b>A</b>. Die geplanten und beendeten Regeln im selben Abschnitt tragen diese Darstellung für denselben Klick schon, und A kostet bei 390&nbsp;px keine Spalte. Ein Kommentar mit dem Buchstaben auf der Planungs-PR entscheidet; ohne Kommentar gilt die Empfehlung. Alle Namen, Kennzahlen und Daten sind erfunden.</div>
+
+<!-- ============================ HEUTE ============================ -->
+<section class="mock-board">
+  <h2>Heute — der Name ist der einzige Weg in den Dialog, und nichts zeigt das <small>der Befund aus #872</small></h2>
+  <p class="mock-note">Der Regelname ist ein stiller Knopf (<code>.policy-rule__name</code>): fett, in Textfarbe, unterstrichen nur unter der Maus <span class="pin">1</span>. Er öffnet den Dialog, und nur im Dialog lässt sich eine Regel ändern oder beenden. Auf dem Telefon gibt es kein Überfahren, dort sieht der Name aus wie eine Überschrift. Weiter unten im selben Abschnitt öffnen die Namen der geplanten und der beendeten Regeln <em>denselben</em> Dialog, und dort tragen sie die Link-Darstellung (<code>.link-button</code>: Akzentfarbe, unterstrichen) <span class="pin">3</span>. Ein Abschnitt, eine Aufgabe, zwei Darstellungen.</p>
+  <p class="mock-note">Die zweite Hälfte des Befunds steht in Zeile 3 <span class="pin">2</span>: Die UAT-Persona hat die Untergrenze von 1&nbsp;% auf 2&nbsp;% angehoben (Version 2). Der Name sagt weiter „mindestens 1&nbsp;%“, und ändern lässt er sich nicht. Der Dialog hat kein Feld dafür, weil er Name und Kontext als Identität der Regel behandelt; so stand es in ADR-0049 §4, bis D-6 diese Stelle auf der Planungs-PR ergänzt. Bleibt nur beenden und neu anlegen. Dann beginnt die neue Regel ohne Geschichte, und die Versionen 1 und 2 hängen an einer beendeten Regel.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before" style="flex:1 1 100%"><span class="mock-tag">Heute · /risk, Ansicht „Alles“</span><div class="workspace-section">
+      <div class="pg">
+        <div class="pg-top"><div class="topbar-page"><h1>Risiko</h1><p>Konzentration und Schwankung · Ansicht: Alles</p></div></div>
+        <div class="workspace-page">
+          <nav class="area-tabs" data-scroll-start data-scroll-end aria-label="Bereichs-Tabs">
+            <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17 9 11l4 4 8-8"/></svg></span><span class="area-tab__label" data-label="Bestände">Bestände</span></a>
+            <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12A9 9 0 1 1 12 3v9Z"/><path d="M21 12a9 9 0 0 0-9-9v9h9Z"/></svg></span><span class="area-tab__label" data-label="Allokation &amp; Ziele">Allokation &amp; Ziele</span></a>
+            <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20V8M9 20V4M15 20v-8M21 20v-5"/></svg></span><span class="area-tab__label" data-label="Cashflow">Cashflow</span></a>
+            <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg></span><span class="area-tab__label" data-label="Snapshots">Snapshots</span></a>
+            <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6"/><circle cx="9" cy="11" r=".6"/><circle cx="12" cy="11" r=".6"/><circle cx="15" cy="11" r=".6"/><circle cx="9" cy="14" r=".6"/><circle cx="12" cy="14" r=".6"/><circle cx="15" cy="14" r=".6"/><path d="M9 17h6"/></svg></span><span class="area-tab__label" data-label="Steuern">Steuern</span></a>
+            <a class="area-tab is-active" href="#" aria-current="page"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-3.5 7-9V5.5L12 3 5 5.5V12c0 5.5 7 9 7 9Z"/></svg></span><span class="area-tab__label" data-label="Risiko">Risiko</span></a>
+          </nav>
+          <section class="workspace-section policy-rules">
+            <header class="section-head">
+              <h2>Eigene Regeln <span class="section-head__meta">· 1 verletzt · 1 nicht bestimmbar · 2 eingehalten</span></h2>
+              <button type="button" class="button-secondary">Regel anlegen</button>
+            </header>
+            <div class="data-table-wrapper">
+              <table class="data-table policy-findings-table risk-fit-table">
+                <thead><tr><th>Regel</th><th class="num">Gemessen</th><th class="num policy-col-line">Grenze</th><th>Stand</th></tr></thead>
+                <tbody>
+                  <tr><td><button type="button" class="link-button policy-rule__name" style="text-decoration:underline">Einzeltitel höchstens 10 %</button><span class="pin">1</span><span class="policy-rule__words">Gewicht · Nordic Timber Holdings AB · Obergrenze · hart</span></td><td class="num">12,4&nbsp;%</td><td class="num policy-col-line">10,0&nbsp;%</td><td><span class="badge badge--danger">verletzt · +2,4&nbsp;Pp</span></td></tr>
+                  <tr><td><button type="button" class="link-button policy-rule__name">Schwankung begrenzen</button><span class="policy-rule__words">Volatilität · 90 Tage · Obergrenze · Warnung</span></td><td class="num">—</td><td class="num policy-col-line">15,0&nbsp;%</td><td><span class="badge badge--undetermined">nicht bestimmbar</span><span class="policy-rule__reason">14 von 20 Beobachtungen</span></td></tr>
+                  <tr><td><button type="button" class="link-button policy-rule__name mismatch">Barreserve mindestens 1 %</button><span class="pin">2</span><span class="policy-rule__words">Gewicht · Cash · Untergrenze · Warnung</span></td><td class="num">6,2&nbsp;%</td><td class="num policy-col-line"><span class="mismatch">2,0&nbsp;%</span></td><td><span class="badge badge--neutral">eingehalten</span></td></tr>
+                  <tr><td><button type="button" class="link-button policy-rule__name">Anleihen im Band</button><span class="policy-rule__words">Drift · Anleihen · Band · Warnung</span></td><td class="num">-1,2&nbsp;Pp</td><td class="num policy-col-line">-3,0&nbsp;Pp … +3,0&nbsp;Pp</td><td><span class="badge badge--neutral">eingehalten</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="summary-basis">Ausgewertet beim Lesen, Stand 24.09.2026, auf der steuerbaren Basis der Ansicht „Alles“. Jede Regel nennt die Kennzahl, aus der sie liest; eine Zahl, die sich nicht lesen lässt, ist nicht bestimmbar, nie eingehalten. Ein Befund sagt nicht, was zu tun ist.</p>
+            <div class="policy-rules-scheduled">
+              <h3 class="policy-rules-scheduled__title">Geplante Regeln</h3>
+              <ul class="policy-rules-retired">
+                <li><button type="button" class="link-button">Industrie-Anteil begrenzen</button><span class="pin">3</span> <span class="muted">· ab 01.10.2026 · 25,0&nbsp;%</span></li>
+              </ul>
+            </div>
+            <details class="perf-table-disclosure" open>
+              <summary class="disclosure-summary"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg> Beendete Regel anzeigen (1)</summary>
+              <ul class="policy-rules-retired">
+                <li><button type="button" class="link-button">Alter Deckel Einzeltitel</button> <span class="muted">· 01.02.2026 – 31.05.2026 · 12,0&nbsp;%</span></li>
+              </ul>
+            </details>
+          </section>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <div class="mock-row" style="margin-top:20px">
+    <div class="phone">
+      <div class="ph-top"><div class="topbar-page"><h1>Risiko</h1><p>Konzentration und Schwankung · Ansicht: Alles</p></div></div>
+      <div class="workspace-page">
+        <section class="workspace-section policy-rules">
+          <header class="section-head">
+            <h2>Eigene Regeln <span class="section-head__meta">· 1 verletzt · 1 nicht bestimmbar · 2 eingehalten</span></h2>
+            <button type="button" class="button-secondary">Regel anlegen</button>
+          </header>
+          <div class="data-table-wrapper">
+            <table class="data-table policy-findings-table risk-fit-table">
+              <thead><tr><th>Regel</th><th class="num">Gemessen</th><th class="num policy-col-line">Grenze</th><th>Stand</th></tr></thead>
+              <tbody>
+                <tr><td><button type="button" class="link-button policy-rule__name">Einzeltitel höchstens 10 %</button><span class="policy-rule__words">Gewicht · Nordic Timber Holdings AB · Obergrenze · hart</span></td><td class="num">12,4&nbsp;%<span class="policy-rule__line-sub">Grenze 10,0&nbsp;%</span></td><td class="num policy-col-line">10,0&nbsp;%</td><td><span class="badge badge--danger">verletzt · +2,4&nbsp;Pp</span></td></tr>
+                <tr><td><button type="button" class="link-button policy-rule__name">Schwankung begrenzen</button><span class="policy-rule__words">Volatilität · 90 Tage · Obergrenze · Warnung</span></td><td class="num">—<span class="policy-rule__line-sub">Grenze 15,0&nbsp;%</span></td><td class="num policy-col-line">15,0&nbsp;%</td><td><span class="badge badge--undetermined">nicht bestimmbar</span><span class="policy-rule__reason">14 von 20 Beobachtungen</span></td></tr>
+                <tr><td><button type="button" class="link-button policy-rule__name">Barreserve mindestens 1 %</button><span class="policy-rule__words">Gewicht · Cash · Untergrenze · Warnung</span></td><td class="num">6,2&nbsp;%<span class="policy-rule__line-sub">Grenze 2,0&nbsp;%</span></td><td class="num policy-col-line">2,0&nbsp;%</td><td><span class="badge badge--neutral">eingehalten</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div class="side">
+      <p class="cap">Was die Zeichen zeigen</p>
+      <ul style="list-style:none; padding-left:0">
+        <li><span class="pin">1</span> Unterstrichen nur unter der Maus; hier ist das Überfahren gezeichnet. Die übrigen Namen zeigen den Ruhezustand.</li>
+        <li><span class="pin">2</span> Der Name sagt „mindestens 1 %“, die Grenze in Kraft ist 2,0&nbsp;%.</li>
+        <li><span class="pin">3</span> Dieselbe Aufgabe, „öffne den Dialog dieser Regel“, als Link in Akzentfarbe. Die Namen der geplanten und beendeten Regeln rufen dasselbe <code>edit_rule</code> auf wie die Namen in der Tabelle.</li>
+      </ul>
+      <p class="cap" style="margin-top:6px">390 px, Touch</p>
+      <p class="flow">Es gibt kein Überfahren, also auch keinen Unterstrich. Die Namen sehen aus wie Zeilenüberschriften. Nichts zeigt, dass sie der einzige Weg zu „Ändern“ und „Beenden“ sind. Die 44&nbsp;px Tippfläche (<code>pointer: coarse</code>) ist da, aber unsichtbar. Die Tabelle passt genau: 356 von 356&nbsp;px.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ TEIL 1: DER DIALOG ============================ -->
+<section class="mock-board">
+  <h2>Teil 1 — Umbenennen im Dialog „Regel ändern“ <small>für A, B und C gleich · D-6 der Planung, ADR-0049 §4 auf derselben PR ergänzt</small></h2>
+  <p class="mock-note">Der Name ist das Wort des Betreibers und wird nie ausgewertet (ADR-0049 §1: „the operator's words, never parsed“). Eine Version hält den <em>Maßstab</em> fest: Kennzahl, Bezug, Art, Grenze, Schweregrad. Nur eine Änderung am Maßstab braucht einen Zeitraum. Deshalb ändert Umbenennen die Regelzeile, wird unter dem Handelnden journalisiert und legt <b>keine</b> Version an. Die Unveränderlichkeit aus §4 liegt auf den Versionen, der Trigger schützt <code>policy_rule_versions</code> und nicht die Regelzeile, also braucht es keine Migration. Vorbild ist der Zielplan: <code>Targets.rename_plan/3</code> ist ein journalisiertes Update ohne neue Planversion. Das Feld steht an derselben Stelle wie beim Anlegen, als erstes. <b>Gestrichelt = neu.</b></p>
+  <p class="mock-note"><b>Verworfen: Umbenennen als neue Version.</b> Die Versionsliste würde einen Wechsel des Maßstabs behaupten, den es nicht gab („Version 3 · ab 24.09.2026 · 2,0&nbsp;%“, gleich wie Version 2), und der Name hinge an einem Zeitraum, nach dem niemand fragt. <b>Verworfen: Umbenennen verweigern.</b> So ist es heute, und es zwingt zu beenden und neu anlegen. Damit wird genau die Geschichte geteilt, die die Regel bewahren soll. <b>Der Preis der Empfehlung:</b> Der neue Name gilt rückwirkend für alle Versionen, der alte steht im Journal. Die Versionsliste nennt jede Grenze selbst. Ein Name, der heute stimmt, führt deshalb auch bei Version 1 nicht in die Irre.</p>
+
+  <div class="mock-row">
+    <div class="dlg-col">
+      <div class="mock-frame mock-before"><span class="mock-tag">Heute · Regel ändern</span><div class="dlg-field">
+        <div class="modal policy-rule-dialog">
+          <header class="modal-head">
+            <h2>Regel ändern — „Barreserve mindestens 1 %“</h2>
+            <button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+          </header>
+          <div class="modal-body">
+            <p class="hint">Ausgewertet in der Ansicht „Alles“, auf ihrer steuerbaren Basis.</p>
+            <div class="form-grid">
+              <label><span>Kennzahl</span><select><option>Gewicht</option></select></label>
+              <label><span>Bezug</span><select><option>Cash</option></select></label>
+              <label><span>Art</span><select><option>Untergrenze</option></select></label>
+              <label><span>Grenze (%)</span><input type="text" inputmode="decimal" class="num" value="2"></label>
+              <label><span>Schweregrad</span><select><option>Warnung</option></select></label>
+              <label><span>Gilt ab</span><input type="text" value="2026-09-24" placeholder="YYYY-MM-DD"></label>
+              <label class="form-grid__wide"><span>Notiz (optional)</span><input type="text" value=""></label>
+            </div>
+            <p class="hint">Speichern legt Version 3 an. Version 2 (2,0&nbsp;%) gilt seit 10.09.2026, endet am Tag vor der neuen und bleibt lesbar.</p>
+            <details class="perf-table-disclosure" open>
+              <summary class="disclosure-summary"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg> Versionen</summary>
+              <ol class="policy-rule-versions">
+                <li>Version 1 · 01.06.2026 – 09.09.2026 · 1,0&nbsp;% · Warnung</li>
+                <li>Version 2 · ab 10.09.2026 · 2,0&nbsp;% · Warnung</li>
+              </ol>
+            </details>
+            <div class="modal-footer">
+              <button type="button" class="button-ghost">Regel beenden</button>
+              <span class="modal-footer__spacer"></span>
+              <button type="button" class="button-ghost">Abbrechen</button>
+              <button type="submit" class="button-primary">Neue Version speichern</button>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <p class="ann">Den Namen gibt es nur in der Überschrift. Um „1 %“ loszuwerden, bleibt nur „Regel beenden“ und eine neue Regel.</p>
+    </div>
+
+    <div class="dlg-col">
+      <div class="mock-frame mock-after"><span class="mock-tag">Nachher · nur der Name geändert</span><div class="dlg-field">
+        <div class="modal policy-rule-dialog">
+          <header class="modal-head">
+            <h2>Regel ändern — „Barreserve mindestens 1 %“</h2>
+            <button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+          </header>
+          <div class="modal-body">
+            <p class="hint">Ausgewertet in der Ansicht „Alles“, auf ihrer steuerbaren Basis.</p>
+            <div class="form-grid">
+              <label class="is-new"><span>Name</span><input type="text" value="Barreserve mindestens 2 %" maxlength="255"></label>
+              <label><span>Kennzahl</span><select><option>Gewicht</option></select></label>
+              <label><span>Bezug</span><select><option>Cash</option></select></label>
+              <label><span>Art</span><select><option>Untergrenze</option></select></label>
+              <label><span>Grenze (%)</span><input type="text" inputmode="decimal" class="num" value="2"></label>
+              <label><span>Schweregrad</span><select><option>Warnung</option></select></label>
+              <label><span>Gilt ab</span><input type="text" value="2026-09-24" placeholder="YYYY-MM-DD"></label>
+              <label class="form-grid__wide"><span>Notiz (optional)</span><input type="text" value=""></label>
+            </div>
+            <p class="hint is-new">Nur der Name ändert sich: Speichern legt keine neue Version an. Der Name gilt für die Regel mit allen Versionen; die Änderung wird journalisiert, der bisherige Name bleibt dort lesbar.</p>
+            <details class="perf-table-disclosure" open>
+              <summary class="disclosure-summary"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg> Versionen</summary>
+              <ol class="policy-rule-versions">
+                <li>Version 1 · 01.06.2026 – 09.09.2026 · 1,0&nbsp;% · Warnung</li>
+                <li>Version 2 · ab 10.09.2026 · 2,0&nbsp;% · Warnung</li>
+              </ol>
+            </details>
+            <div class="modal-footer">
+              <button type="button" class="button-ghost">Regel beenden</button>
+              <span class="modal-footer__spacer"></span>
+              <button type="button" class="button-ghost">Abbrechen</button>
+              <button type="submit" class="button-primary is-new">Name speichern</button>
+            </div>
+          </div>
+        </div>
+      </div></div>
+      <p class="ann">Die Überschrift nennt den gespeicherten Namen, bis gespeichert ist. Danach zeigt die Tabelle den neuen Namen an Ort und Stelle, dazu die vorhandene Meldung „Regel gespeichert“.</p>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:20px">
+    <div class="dlg-col">
+      <div class="mock-frame mock-after"><span class="mock-tag">Nachher · Name und Grenze geändert</span><div class="dlg-field">
+        <div class="modal policy-rule-dialog">
+          <div class="modal-body">
+            <div class="form-grid">
+              <label class="is-new"><span>Name</span><input type="text" value="Barreserve mindestens 3 %"></label>
+              <label><span>Grenze (%)</span><input type="text" inputmode="decimal" class="num" value="3"></label>
+            </div>
+            <p class="flow" style="font-size:11.5px">… übrige Felder wie oben …</p>
+            <p class="hint">Speichern legt Version 3 an. Version 2 (2,0&nbsp;%) gilt seit 10.09.2026, endet am Tag vor der neuen und bleibt lesbar. <span class="is-new" style="display:block; margin-top:4px">Der neue Name gilt für die Regel mit allen Versionen.</span></p>
+            <div class="modal-footer">
+              <button type="button" class="button-ghost">Regel beenden</button>
+              <span class="modal-footer__spacer"></span>
+              <button type="button" class="button-ghost">Abbrechen</button>
+              <button type="submit" class="button-primary">Neue Version speichern</button>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="side">
+      <p class="cap">Was Speichern tut, sagt der Dialog vorher</p>
+      <ol>
+        <li><b>Nur der Name geändert:</b> der Hinweis „Nur der Name ändert sich …“, der Knopf heißt „Name speichern“. Es entsteht keine Version, das „Gilt ab“ spielt keine Rolle.</li>
+        <li><b>Ein Feld des Maßstabs geändert</b>, mit oder ohne Name: der Versionshinweis von heute. Ist auch der Name geändert, kommt ein Satz dazu: „Der neue Name gilt für die Regel mit allen Versionen.“ Der Knopf bleibt „Neue Version speichern“. Beides wird in einem Schritt gespeichert.</li>
+        <li><b>Leerer Name:</b> der Feldfehler am Feld, wie beim Anlegen. Eine Umbenennung auf Leer wird abgelehnt, nicht still übergangen (wie <code>rename_plan</code>: <code>:invalid_name</code>).</li>
+        <li><b>Beendete Regel:</b> Umbenennen geht auch dort (D-6). Nur den Namen zu ändern legt auch dort keine Version an.</li>
+      </ol>
+      <p class="cap" style="margin-top:6px">API und MCP (beide Richtungen, AGENTS.md)</p>
+      <p style="margin:0"><code>PATCH /api/v1/policy_rules/:id</code> nimmt nur <code>name</code>, genau wie <code>PATCH /plans/:id</code>. Ein Maßstab im selben Aufruf wird abgelehnt, denn der gehört zu <code>POST …/versions</code>. Dazu kommt ein MCP-Werkzeug zum Umbenennen einer Regel. Das Journal hält alten und neuen Namen.</p>
+      <p class="flow">Eindeutig muss ein Regelname nicht sein; heute gilt das auch nicht. Anders als ein Kontoname (G1) findet kein Import eine Regel über ihren Namen, darum braucht es keine Liste früherer Namen.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE A ============================ -->
+<section class="mock-board">
+  <h2>Variante A — der Name trägt die Link-Darstellung schon in Ruhe <small>empfohlen</small></h2>
+  <p class="mock-note">Der Name bleibt der eine Weg in den Dialog, und jetzt zeigt er es: Akzentfarbe und Unterstrich, auch ohne Maus. Diese Darstellung hat <code>.link-button</code> ohnehin, und die geplanten und beendeten Regeln im selben Abschnitt tragen sie schon. A löscht nur die zwei Angaben in <code>.policy-rule__name</code>, die sie überschreiben, und die <code>:hover</code>-Regel, die danach nichts mehr ändert. Der fette Schnitt bleibt, denn der Name ist die Überschrift der Zeile und die Wörter darunter sind ihr Untertitel. Fokusring und 44&nbsp;px unter grobem Zeiger bleiben, wie sie sind.</p>
+  <p class="mock-note"><b>Dafür:</b> Der Name ist ohne Überfahren als Link erkennbar, also auch auf dem Telefon, und genau das fehlt laut Befund. Im ganzen Abschnitt gibt es eine Darstellung für eine Aufgabe (DESIGN.md, Do's: „Solve each recurring job once“). Keine neue Spalte, kein neues Element, kein neuer Text. Der Dialog ist das Zuhause der Regel mit Name, Maßstab, Versionen und Beenden, und ein Weg führt hinein. <b>Dagegen:</b> Jede Regelzeile trägt jetzt Akzentfarbe, und bisher gehörte die Farbe der Tabelle den Stand-Abzeichen. Die Akzentfarbe ist aber die Farbe des Bedienbaren und keine Schwere; nur das Abzeichen zeigt Schwere. Mit dem Akzent Koralle im hellen Thema ist Akzenttext in Textgröße gesperrt (DESIGN.md → Colors, 4,38:1). Das trifft heute schon jeden <code>.link-button</code>, auch die geplanten Regeln darunter; A erbt die Lücke und macht sie breiter, nicht neu. „Regel beenden“ bleibt eine Ebene tief im Dialog. Dort stehen die Versionen, die man vor dem Beenden lesen will.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-after prop-a" style="flex:1 1 100%"><span class="mock-tag">A · /risk, Abschnitt „Eigene Regeln“</span><div class="workspace-section">
+      <section class="workspace-section policy-rules" style="padding:0">
+        <header class="section-head">
+          <h2>Eigene Regeln <span class="section-head__meta">· 1 verletzt · 1 nicht bestimmbar · 2 eingehalten</span></h2>
+          <button type="button" class="button-secondary">Regel anlegen</button>
+        </header>
+        <div class="data-table-wrapper">
+          <table class="data-table policy-findings-table risk-fit-table">
+            <thead><tr><th>Regel</th><th class="num">Gemessen</th><th class="num policy-col-line">Grenze</th><th>Stand</th></tr></thead>
+            <tbody>
+              <tr><td><button type="button" class="link-button policy-rule__name">Einzeltitel höchstens 10 %</button><span class="policy-rule__words">Gewicht · Nordic Timber Holdings AB · Obergrenze · hart</span></td><td class="num">12,4&nbsp;%</td><td class="num policy-col-line">10,0&nbsp;%</td><td><span class="badge badge--danger">verletzt · +2,4&nbsp;Pp</span></td></tr>
+              <tr><td><button type="button" class="link-button policy-rule__name">Schwankung begrenzen</button><span class="policy-rule__words">Volatilität · 90 Tage · Obergrenze · Warnung</span></td><td class="num">—</td><td class="num policy-col-line">15,0&nbsp;%</td><td><span class="badge badge--undetermined">nicht bestimmbar</span><span class="policy-rule__reason">14 von 20 Beobachtungen</span></td></tr>
+              <tr><td><button type="button" class="link-button policy-rule__name">Barreserve mindestens 2 %</button><span class="policy-rule__words">Gewicht · Cash · Untergrenze · Warnung</span></td><td class="num">6,2&nbsp;%</td><td class="num policy-col-line">2,0&nbsp;%</td><td><span class="badge badge--neutral">eingehalten</span></td></tr>
+              <tr><td><button type="button" class="link-button policy-rule__name">Anleihen im Band</button><span class="policy-rule__words">Drift · Anleihen · Band · Warnung</span></td><td class="num">-1,2&nbsp;Pp</td><td class="num policy-col-line">-3,0&nbsp;Pp … +3,0&nbsp;Pp</td><td><span class="badge badge--neutral">eingehalten</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="summary-basis">Ausgewertet beim Lesen, Stand 24.09.2026, auf der steuerbaren Basis der Ansicht „Alles“. Jede Regel nennt die Kennzahl, aus der sie liest; eine Zahl, die sich nicht lesen lässt, ist nicht bestimmbar, nie eingehalten. Ein Befund sagt nicht, was zu tun ist.</p>
+        <div class="policy-rules-scheduled">
+          <h3 class="policy-rules-scheduled__title">Geplante Regeln</h3>
+          <ul class="policy-rules-retired">
+            <li><button type="button" class="link-button">Industrie-Anteil begrenzen</button> <span class="muted">· ab 01.10.2026 · 25,0&nbsp;%</span></li>
+          </ul>
+        </div>
+      </section>
+    </div></div>
+  </div>
+
+  <div class="mock-row" style="margin-top:20px">
+    <div class="phone prop-a">
+      <div class="ph-top"><div class="topbar-page"><h1>Risiko</h1><p>Konzentration und Schwankung · Ansicht: Alles</p></div></div>
+      <div class="workspace-page">
+        <section class="workspace-section policy-rules">
+          <header class="section-head">
+            <h2>Eigene Regeln <span class="section-head__meta">· 1 verletzt · 1 nicht bestimmbar · 2 eingehalten</span></h2>
+            <button type="button" class="button-secondary">Regel anlegen</button>
+          </header>
+          <div class="data-table-wrapper">
+            <table class="data-table policy-findings-table risk-fit-table">
+              <thead><tr><th>Regel</th><th class="num">Gemessen</th><th class="num policy-col-line">Grenze</th><th>Stand</th></tr></thead>
+              <tbody>
+                <tr><td><button type="button" class="link-button policy-rule__name">Einzeltitel höchstens 10 %</button><span class="policy-rule__words">Gewicht · Nordic Timber Holdings AB · Obergrenze · hart</span></td><td class="num">12,4&nbsp;%<span class="policy-rule__line-sub">Grenze 10,0&nbsp;%</span></td><td class="num policy-col-line">10,0&nbsp;%</td><td><span class="badge badge--danger">verletzt · +2,4&nbsp;Pp</span></td></tr>
+                <tr><td><button type="button" class="link-button policy-rule__name">Schwankung begrenzen</button><span class="policy-rule__words">Volatilität · 90 Tage · Obergrenze · Warnung</span></td><td class="num">—<span class="policy-rule__line-sub">Grenze 15,0&nbsp;%</span></td><td class="num policy-col-line">15,0&nbsp;%</td><td><span class="badge badge--undetermined">nicht bestimmbar</span><span class="policy-rule__reason">14 von 20 Beobachtungen</span></td></tr>
+                <tr><td><button type="button" class="link-button policy-rule__name">Barreserve mindestens 2 %</button><span class="policy-rule__words">Gewicht · Cash · Untergrenze · Warnung</span></td><td class="num">6,2&nbsp;%<span class="policy-rule__line-sub">Grenze 2,0&nbsp;%</span></td><td class="num policy-col-line">2,0&nbsp;%</td><td><span class="badge badge--neutral">eingehalten</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div class="side">
+      <p class="cap">390 px</p>
+      <p class="flow">Dieselben drei Spalten wie heute. Der Name ist die Tippfläche, 44&nbsp;px hoch unter grobem Zeiger, und jetzt sieht er auch so aus. Bricht ein Name über zwei Zeilen, ist jede Zeile unterstrichen.</p>
+    <div class="css-pair">
+    <div class="mock-frame mock-before"><span class="mock-tag">app.css heute</span>
+<pre class="css">.policy-rule__name {
+  color: var(--color-text);
+  font-weight: 700;
+  text-align: left;
+  text-decoration: none;
+}
+.policy-rule__name:hover {
+  text-decoration: underline;
+}</pre></div>
+    <div class="mock-frame mock-after"><span class="mock-tag">app.css nach A — zwei Angaben und eine Regel weniger</span>
+<pre class="css">.policy-rule__name {
+  font-weight: 700;
+  text-align: left;
+}
+/* colour and underline come
+   from .link-button; the :hover
+   rule goes; the focus ring and
+   the coarse-pointer 44 px stay */</pre></div>
+    </div>
+      <p class="flow">Die Farbe erbt der Name von <code>.link-button</code> (<code>--color-accent</code>). Violett und Türkis tragen Akzenttext in Textgröße in beiden Themen; Koralle im hellen Thema nicht (DESIGN.md → Colors). Das gilt heute schon für jeden <code>.link-button</code>; die Abhilfe gehört an den Koralle-Token, nicht an #872. Farbe und Unterstrich sind zwei Merkmale, also hängt die Erkennbarkeit nicht an der Farbe allein, auch nicht unter <code>forced-colors</code>.</p>
+      <p class="flow">Nach A schreibt die bauende Story DESIGN.md → Amendment 2026-09-24 (Wealth → Risk), Anatomie Punkt 2 „Rule“ um: aus „the name as a quiet button (… bold text colour, underline on hover …)“ wird der Name in der Link-Darstellung, fett, auch in Ruhe.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE B ============================ -->
+<section class="mock-board">
+  <h2>Variante B — ein Zeilenmenü je Regel: Bearbeiten, Umbenennen, Regel beenden <small>wie andere Listen</small></h2>
+  <p class="mock-note">Das Kebab ist das bekannte Zeichen für Zeilenaktionen (EXPERIENCE.md → Tables: „kebab menu for row actions“), und „Regel beenden“ ist ohne den Dialog erreichbar: eine Rückfrage, dieselbe wie heute im Dialog. Für eine Regel, deren Versionen nie gegolten haben, steht dort „Regel löschen“ in Gefahrenfarbe. Der Name bleibt der stille Knopf von heute. <b>Gestrichelt = neu.</b></p>
+  <p class="mock-note"><b>Dagegen:</b> Zwei der drei Einträge führen in denselben Dialog. Entweder öffnet „Umbenennen“ ihn mit dem Fokus im Namen, oder es braucht einen zweiten Dialog für ein einziges Feld derselben Regel. Zwei Einträge wollen denselben Stift (<code>:edit</code>). Der heißt heute bei Wertpapieren und Buchungen „Bearbeiten“, bei Ansichten und Buckets „Umbenennen“, aber nie beides im selben Menü. B stellt ihn zweimal untereinander, mit zwei Wörtern für dasselbe Ziel, oder „Umbenennen“ braucht ein eigenes Zeichen (UX-DR16: ein Zeichen, eine Bedeutung). Die Tabelle bekommt eine fünfte Spalte, unter grobem Zeiger 62&nbsp;px breit (44&nbsp;px Knopf plus Zellenabstand), und bei 390&nbsp;px gibt sie schon die Spalte „Grenze“ ab. Dort ragt sie 14&nbsp;px über den Rand, und das Kebab wird angeschnitten. Die geplanten und beendeten Regeln bräuchten eigene Kebabs, sonst hat der Abschnitt wieder zwei Darstellungen. Die gemeinsame Kebab-Komponente aus #870 (jedes Kebab nennt seine Zeile) bekommt eine Liste mehr. Und die Frage aus dem Befund, ob der Name etwas tut, bleibt offen, weil er still bleibt.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-after prop-b" style="flex:1 1 100%; overflow:visible"><span class="mock-tag">B · /risk, Menü der dritten Regel offen</span><div class="workspace-section">
+      <section class="workspace-section policy-rules" style="padding:0">
+        <header class="section-head">
+          <h2>Eigene Regeln <span class="section-head__meta">· 1 verletzt · 1 nicht bestimmbar · 2 eingehalten</span></h2>
+          <button type="button" class="button-secondary">Regel anlegen</button>
+        </header>
+        <div class="data-table-wrapper">
+          <table class="data-table policy-findings-table risk-fit-table">
+            <thead><tr><th>Regel</th><th class="num">Gemessen</th><th class="num policy-col-line">Grenze</th><th>Stand</th><th class="row-actions-head"><span class="visually-hidden">Aktionen</span></th></tr></thead>
+            <tbody>
+              <tr><td><button type="button" class="link-button policy-rule__name">Einzeltitel höchstens 10 %</button><span class="policy-rule__words">Gewicht · Nordic Timber Holdings AB · Obergrenze · hart</span></td><td class="num">12,4&nbsp;%</td><td class="num policy-col-line">10,0&nbsp;%</td><td><span class="badge badge--danger">verletzt · +2,4&nbsp;Pp</span></td>
+                <td class="row-actions"><button type="button" class="row-actions__kebab is-new" aria-label="Aktionsmenü öffnen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></td></tr>
+              <tr><td><button type="button" class="link-button policy-rule__name">Schwankung begrenzen</button><span class="policy-rule__words">Volatilität · 90 Tage · Obergrenze · Warnung</span></td><td class="num">—</td><td class="num policy-col-line">15,0&nbsp;%</td><td><span class="badge badge--undetermined">nicht bestimmbar</span><span class="policy-rule__reason">14 von 20 Beobachtungen</span></td>
+                <td class="row-actions"><button type="button" class="row-actions__kebab is-new" aria-label="Aktionsmenü öffnen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></td></tr>
+              <tr><td><button type="button" class="link-button policy-rule__name">Barreserve mindestens 1 %</button><span class="policy-rule__words">Gewicht · Cash · Untergrenze · Warnung</span></td><td class="num">6,2&nbsp;%</td><td class="num policy-col-line">2,0&nbsp;%</td><td><span class="badge badge--neutral">eingehalten</span></td>
+                <td class="row-actions">
+                  <button type="button" class="row-actions__kebab is-new" aria-label="Aktionsmenü öffnen" aria-expanded="true" style="background:var(--color-hover);color:var(--color-text)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button>
+                  <div class="row-context-menu menu-at" role="menu" aria-label="Regelaktionen" style="right:6px; top:36px">
+                    <button type="button" class="row-context-menu__item" role="menuitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16Z"/></svg><span>Bearbeiten</span></button>
+                    <button type="button" class="row-context-menu__item" role="menuitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16Z"/></svg><span>Umbenennen</span></button>
+                    <button type="button" class="row-context-menu__item" role="menuitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="4"/><path d="M5 8v12h14V8M10 12h4"/></svg><span>Regel beenden</span></button>
+                  </div>
+                </td></tr>
+              <tr><td><button type="button" class="link-button policy-rule__name">Anleihen im Band</button><span class="policy-rule__words">Drift · Anleihen · Band · Warnung</span></td><td class="num">-1,2&nbsp;Pp</td><td class="num policy-col-line">-3,0&nbsp;Pp … +3,0&nbsp;Pp</td><td><span class="badge badge--neutral">eingehalten</span></td>
+                <td class="row-actions"><button type="button" class="row-actions__kebab is-new" aria-label="Aktionsmenü öffnen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="summary-basis">Ausgewertet beim Lesen, Stand 24.09.2026, auf der steuerbaren Basis der Ansicht „Alles“. Jede Regel nennt die Kennzahl, aus der sie liest; eine Zahl, die sich nicht lesen lässt, ist nicht bestimmbar, nie eingehalten. Ein Befund sagt nicht, was zu tun ist.</p>
+      </section>
+    </div></div>
+  </div>
+
+  <div class="mock-row" style="margin-top:20px">
+    <div class="phone tall">
+      <div class="ph-top"><div class="topbar-page"><h1>Risiko</h1><p>Konzentration und Schwankung · Ansicht: Alles</p></div></div>
+      <div class="workspace-page">
+        <section class="workspace-section policy-rules">
+          <header class="section-head">
+            <h2>Eigene Regeln <span class="section-head__meta">· 1 verletzt · 1 nicht bestimmbar · 2 eingehalten</span></h2>
+            <button type="button" class="button-secondary">Regel anlegen</button>
+          </header>
+          <div class="data-table-wrapper">
+            <table class="data-table policy-findings-table risk-fit-table">
+              <thead><tr><th>Regel</th><th class="num">Gemessen</th><th class="num policy-col-line">Grenze</th><th>Stand</th><th class="row-actions-head"><span class="visually-hidden">Aktionen</span></th></tr></thead>
+              <tbody>
+                <tr><td><button type="button" class="link-button policy-rule__name">Einzeltitel höchstens 10 %</button><span class="policy-rule__words">Gewicht · Nordic Timber Holdings AB · Obergrenze · hart</span></td><td class="num">12,4&nbsp;%<span class="policy-rule__line-sub">Grenze 10,0&nbsp;%</span></td><td class="num policy-col-line">10,0&nbsp;%</td><td><span class="badge badge--danger">verletzt · +2,4&nbsp;Pp</span></td><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></td></tr>
+                <tr><td><button type="button" class="link-button policy-rule__name">Schwankung begrenzen</button><span class="policy-rule__words">Volatilität · 90 Tage · Obergrenze · Warnung</span></td><td class="num">—<span class="policy-rule__line-sub">Grenze 15,0&nbsp;%</span></td><td class="num policy-col-line">15,0&nbsp;%</td><td><span class="badge badge--undetermined">nicht bestimmbar</span><span class="policy-rule__reason">14 von 20 Beobachtungen</span></td><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></td></tr>
+                <tr><td><button type="button" class="link-button policy-rule__name">Barreserve mindestens 1 %</button><span class="policy-rule__words">Gewicht · Cash · Untergrenze · Warnung</span></td><td class="num">6,2&nbsp;%<span class="policy-rule__line-sub">Grenze 2,0&nbsp;%</span></td><td class="num policy-col-line">2,0&nbsp;%</td><td><span class="badge badge--neutral">eingehalten</span></td><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen" style="background:var(--color-hover)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+      <div class="scrim"></div>
+      <div class="row-context-menu as-sheet" role="menu" aria-label="Regelaktionen">
+        <div class="sheet-cap"><b>Barreserve mindestens 1 %</b> · Regel</div>
+        <button type="button" class="row-context-menu__item" role="menuitem"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16Z"/></svg><span>Bearbeiten</span></button>
+        <button type="button" class="row-context-menu__item" role="menuitem"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16Z"/></svg><span>Umbenennen</span></button>
+        <button type="button" class="row-context-menu__item" role="menuitem"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="4"/><path d="M5 8v12h14V8M10 12h4"/></svg><span>Regel beenden</span></button>
+      </div>
+    </div>
+    <div class="side">
+      <p class="cap">Was B mitbringt</p>
+      <ol>
+        <li><b>Zwei Einträge, ein Stift.</b> „Bearbeiten“ und „Umbenennen“ tragen dasselbe Zeichen und öffnen denselben Dialog. Der stille Name davor öffnet ihn ebenfalls, das ist ein dritter Weg zum selben Ziel.</li>
+        <li><b>„Regel beenden“ ohne Dialog:</b> die Rückfrage von heute („Diese Regel beenden? Sie wird ab heute nicht mehr ausgewertet; die Regel und ihre Versionen bleiben lesbar.“). Für eine Regel, deren Versionen nie gegolten haben, steht an der Stelle „Regel löschen“ in Gefahrenfarbe. Die Versionen, die man vor dem Beenden lesen möchte, sieht man dabei nicht.</li>
+        <li><b>390 px:</b> Das Menü wird zum Blatt (unter 720&nbsp;px, wie überall). Weil ein Blatt nicht an der Zeile hängt, braucht es eine Kopfzeile mit dem Regelnamen. Das ist dieselbe Ergänzung an <code>AppShell.row_menu</code>, die G1 für Konten vorschlägt. Die Kebab-Spalte ist 62&nbsp;px breit, die Regelspalte schrumpft von 142 auf 105&nbsp;px, und die Zeilen brauchen trotzdem 370 statt 356&nbsp;px. Das Kebab ragt 14&nbsp;px über den Rand und wird angeschnitten, obwohl die Risiko-Tabellen passen sollen (<code>.risk-fit-table</code>).</li>
+        <li><b>#870:</b> Gezeichnet mit der Beschriftung von heute, „Aktionsmenü öffnen“. #870 ändert sie in derselben Lane über eine gemeinsame Komponente; B hängt daran, damit jedes Regel-Kebab die Regel im zugänglichen Namen trägt.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE C ============================ -->
+<section class="mock-board">
+  <h2>Variante C — ein Knopf „Bearbeiten“ in jeder Zeile <small>am deutlichsten</small></h2>
+  <p class="mock-note">Das Wort sagt, was passiert, und der Name wird reiner Text. <b>Dafür:</b> Niemand muss raten, und es ist nur ein Weg je Zeile. <b>Dagegen:</b> Ein stehender Knopf auf jeder Zeile kommt in keiner anderen Tabelle der App vor. Dort sind Zeilen Ziele und Zeilenaktionen liegen hinter dem Kebab (EXPERIENCE.md → Tables), „never as standing buttons on every row“ (Regel 11 des Reviews vom 2026-09-12, festgehalten an <code>AppShell.row_menu</code>), und bei vier Regeln steht viermal dasselbe Wort da. Bei 390&nbsp;px kostet die Spalte 106&nbsp;px mit Zellenabstand. Die Tabelle ragt dann 58&nbsp;px über den Rand, und der Knopf steht halb außerhalb des Bildes. Die geplanten und beendeten Regeln bräuchten denselben Knopf, sonst hat der Abschnitt wieder zwei Darstellungen. <b>Gestrichelt = neu.</b></p>
+  <div class="mock-row">
+    <div class="mock-frame mock-after" style="flex:1 1 100%"><span class="mock-tag">C · /risk, Abschnitt „Eigene Regeln“</span><div class="workspace-section">
+      <section class="workspace-section policy-rules" style="padding:0">
+        <header class="section-head">
+          <h2>Eigene Regeln <span class="section-head__meta">· 1 verletzt · 1 nicht bestimmbar · 2 eingehalten</span></h2>
+          <button type="button" class="button-secondary">Regel anlegen</button>
+        </header>
+        <div class="data-table-wrapper">
+          <table class="data-table policy-findings-table risk-fit-table">
+            <thead><tr><th>Regel</th><th class="num">Gemessen</th><th class="num policy-col-line">Grenze</th><th>Stand</th><th><span class="visually-hidden">Aktionen</span></th></tr></thead>
+            <tbody>
+              <tr><td><span class="rule-text">Einzeltitel höchstens 10 %</span><span class="policy-rule__words">Gewicht · Nordic Timber Holdings AB · Obergrenze · hart</span></td><td class="num">12,4&nbsp;%</td><td class="num policy-col-line">10,0&nbsp;%</td><td><span class="badge badge--danger">verletzt · +2,4&nbsp;Pp</span></td><td><button type="button" class="button-ghost row-edit is-new">Bearbeiten</button></td></tr>
+              <tr><td><span class="rule-text">Schwankung begrenzen</span><span class="policy-rule__words">Volatilität · 90 Tage · Obergrenze · Warnung</span></td><td class="num">—</td><td class="num policy-col-line">15,0&nbsp;%</td><td><span class="badge badge--undetermined">nicht bestimmbar</span><span class="policy-rule__reason">14 von 20 Beobachtungen</span></td><td><button type="button" class="button-ghost row-edit is-new">Bearbeiten</button></td></tr>
+              <tr><td><span class="rule-text">Barreserve mindestens 2 %</span><span class="policy-rule__words">Gewicht · Cash · Untergrenze · Warnung</span></td><td class="num">6,2&nbsp;%</td><td class="num policy-col-line">2,0&nbsp;%</td><td><span class="badge badge--neutral">eingehalten</span></td><td><button type="button" class="button-ghost row-edit is-new">Bearbeiten</button></td></tr>
+              <tr><td><span class="rule-text">Anleihen im Band</span><span class="policy-rule__words">Drift · Anleihen · Band · Warnung</span></td><td class="num">-1,2&nbsp;Pp</td><td class="num policy-col-line">-3,0&nbsp;Pp … +3,0&nbsp;Pp</td><td><span class="badge badge--neutral">eingehalten</span></td><td><button type="button" class="button-ghost row-edit is-new">Bearbeiten</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="policy-rules-scheduled">
+          <h3 class="policy-rules-scheduled__title">Geplante Regeln</h3>
+          <ul class="policy-rules-retired">
+            <li><button type="button" class="link-button">Industrie-Anteil begrenzen</button> <span class="muted">· ab 01.10.2026 · 25,0&nbsp;%</span></li>
+          </ul>
+        </div>
+        <p class="ann">Unten bleibt der Link für dieselbe Aufgabe. Entweder bekommt die Liste auch Knöpfe, oder der Abschnitt hat weiter zwei Darstellungen.</p>
+      </section>
+    </div></div>
+  </div>
+
+  <div class="mock-row" style="margin-top:20px">
+    <div class="phone">
+      <div class="ph-top"><div class="topbar-page"><h1>Risiko</h1><p>Konzentration und Schwankung · Ansicht: Alles</p></div></div>
+      <div class="workspace-page">
+        <section class="workspace-section policy-rules">
+          <header class="section-head">
+            <h2>Eigene Regeln <span class="section-head__meta">· 1 verletzt · 1 nicht bestimmbar · 2 eingehalten</span></h2>
+            <button type="button" class="button-secondary">Regel anlegen</button>
+          </header>
+          <div class="data-table-wrapper">
+            <table class="data-table policy-findings-table risk-fit-table">
+              <thead><tr><th>Regel</th><th class="num">Gemessen</th><th class="num policy-col-line">Grenze</th><th>Stand</th><th><span class="visually-hidden">Aktionen</span></th></tr></thead>
+              <tbody>
+                <tr><td><span class="rule-text">Einzeltitel höchstens 10 %</span><span class="policy-rule__words">Gewicht · Nordic Timber Holdings AB · Obergrenze · hart</span></td><td class="num">12,4&nbsp;%<span class="policy-rule__line-sub">Grenze 10,0&nbsp;%</span></td><td class="num policy-col-line">10,0&nbsp;%</td><td><span class="badge badge--danger">verletzt · +2,4&nbsp;Pp</span></td><td><button type="button" class="button-ghost row-edit">Bearbeiten</button></td></tr>
+                <tr><td><span class="rule-text">Schwankung begrenzen</span><span class="policy-rule__words">Volatilität · 90 Tage · Obergrenze · Warnung</span></td><td class="num">—<span class="policy-rule__line-sub">Grenze 15,0&nbsp;%</span></td><td class="num policy-col-line">15,0&nbsp;%</td><td><span class="badge badge--undetermined">nicht bestimmbar</span><span class="policy-rule__reason">14 von 20 Beobachtungen</span></td><td><button type="button" class="button-ghost row-edit">Bearbeiten</button></td></tr>
+                <tr><td><span class="rule-text">Barreserve mindestens 2 %</span><span class="policy-rule__words">Gewicht · Cash · Untergrenze · Warnung</span></td><td class="num">6,2&nbsp;%<span class="policy-rule__line-sub">Grenze 2,0&nbsp;%</span></td><td class="num policy-col-line">2,0&nbsp;%</td><td><span class="badge badge--neutral">eingehalten</span></td><td><button type="button" class="button-ghost row-edit">Bearbeiten</button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div class="side">
+      <p class="cap">390 px — mit den Regeln von heute gezeichnet</p>
+      <p class="flow">Die Knopf-Spalte passt nicht mehr hinein. Name und Wörter brechen schon, und trotzdem schiebt der Knopf die Tabelle 58&nbsp;px über den Rand (414 statt 356&nbsp;px): „Bearbeiten“ steht halb außerhalb des Bildes. Gerade das soll die Regel der Risiko-Tabellen verhindern (<code>.risk-fit-table</code>: „these tables are meant to fit, not to scroll“). Damit C auf dem Telefon trägt, bräuchte es eine eigene Zeilenform, etwa den Knopf unter den Wörtern. Das wäre ein neues Muster für eine Tabelle mit vier Regeln.</p>
+      <p class="cap" style="margin-top:6px">Zugänglicher Name</p>
+      <p class="flow">Vier Knöpfe hießen viermal „Bearbeiten“. Jeder bräuchte die Regel im zugänglichen Namen („Einzeltitel höchstens 10 % bearbeiten“), sonst entsteht derselbe Befund wie #870 mit anderem Wort.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VERGLEICH ============================ -->
+<section class="mock-board">
+  <h2>Gegen DESIGN.md und EXPERIENCE.md gehalten <small>warum A</small></h2>
+  <div class="mock-frame"><div class="workspace-section" style="padding:0">
+    <table class="t">
+      <thead><tr><th style="width:28%">Regel</th><th>A — Name als Link in Ruhe</th><th>B — Zeilenmenü</th><th>C — Knopf „Bearbeiten“</th></tr></thead>
+      <tbody>
+        <tr><td><b>Der Befund:</b> ohne Überfahren erkennbar, auch auf dem Telefon (#872)</td><td class="win">ja: Farbe und Unterstrich in Ruhe</td><td>ja, über das Kebab; der Name bleibt still</td><td class="win">ja: das Wort selbst</td></tr>
+        <tr><td><b>Jede wiederkehrende Aufgabe einmal lösen</b> (DESIGN.md → Do's and Don'ts)</td><td class="win">eine Darstellung: Tabelle, geplante und beendete Regeln tragen denselben Link</td><td>Kebab in der Tabelle, Links darunter, oder Kebabs überall</td><td>Knopf in der Tabelle, Links darunter, oder Knöpfe überall</td></tr>
+        <tr><td><b>Tables:</b> Zeilen sind Ziele, Zeilenaktionen hinter dem Kebab (EXPERIENCE.md → Component Patterns)</td><td class="win">die Zeile hat ein Ziel, den Dialog; keine Zeilenaktion steht offen</td><td class="win">Kebab wie in anderen Listen</td><td>stehender Knopf auf jeder Zeile, den keine andere Tabelle trägt</td></tr>
+        <tr><td><b>Ein Weg, eine Bedeutung</b></td><td class="win">Name → Dialog</td><td>Name, „Bearbeiten“ und „Umbenennen“ führen in denselben Dialog</td><td class="win">Knopf → Dialog</td></tr>
+        <tr><td><b>UX-DR16:</b> ein Zeichen, eine Bedeutung</td><td class="win">kein Zeichen nötig</td><td>der Stift zweimal in einem Menü, mit „Bearbeiten“ und „Umbenennen“; anderswo trägt er je eines davon</td><td class="win">kein Zeichen nötig</td></tr>
+        <tr><td><b>390 px</b> (die Tabelle gibt „Grenze“ dort schon ab)</td><td class="win">passt wie heute: 356 von 356&nbsp;px</td><td>+62&nbsp;px Spalte; 14&nbsp;px zu breit, Kebab angeschnitten</td><td>+106&nbsp;px Spalte; 58&nbsp;px zu breit, Knopf halb außerhalb</td></tr>
+        <tr><td><b>Wege bis „Regel beenden“</b></td><td>Name → Dialog → Regel beenden → Rückfrage</td><td class="win">Kebab → Regel beenden → Rückfrage</td><td>Bearbeiten → Dialog → Regel beenden → Rückfrage</td></tr>
+        <tr><td><b>#870:</b> jedes Bedienelement nennt seine Zeile</td><td class="win">nicht berührt: der Name ist selbst die Beschriftung</td><td>eine Liste mehr für die gemeinsame Kebab-Komponente aus #870</td><td>vier gleich beschriftete Knöpfe; jeder braucht die Regel im zugänglichen Namen</td></tr>
+        <tr><td><b>Farbe in der Tabelle</b></td><td>jeder Name in Akzentfarbe; Schwere bleibt beim Abzeichen. Koralle hell: Akzenttext in Textgröße gesperrt, wie heute bei jedem <code>.link-button</code></td><td class="win">unverändert</td><td class="win">unverändert</td></tr>
+        <tr><td><b>Was sich baut</b></td><td class="win">zwei CSS-Angaben und eine <code>:hover</code>-Regel gelöscht; der Dialog bekommt „Name“</td><td>Menü, Kebab-Spalte, Blatt-Kopfzeile, zweiter Einstieg in den Dialog; der Dialog bekommt „Name“</td><td>Knopf-Spalte in Tabelle und Listen; der Dialog bekommt „Name“</td></tr>
+      </tbody>
+    </table>
+  </div></div>
+</section>
+
+</body>
+</html>

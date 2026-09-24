@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Konten &amp; Depots: Umbenennen, Zusammenführen, Löschen (#328, ADR-0050, Pick G1)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL (variant A): the rules the story adds to app.css. The desktop
+     table below renders with them, and so does every "A" phone frame (they are
+     copied into the frame); the "Heute" frame renders app.css as shipped. -->
+<style id="proposal">
+  /* ① A former name reads as its own line under the name (ADR-0050 §4), at
+     the 12 px of the table's other sub-line, the bucket scope line. */
+  .account-sub--former { display: block; width: fit-content; font-size: 12px; }
+  /* ② The former-names list inside the rename dialog. */
+  .former-names { list-style: none; margin: var(--space-1) 0 0; padding: 0; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+  .former-names li { display: flex; align-items: center; gap: var(--space-2); margin: 0; padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3); font-size: 13px; }
+  .former-names li + li { border-top: 1px solid var(--color-border); }
+  .former-names li > span { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+  /* ③ The row menu names its entity, on the phone sheet only. */
+  .row-context-menu__caption { display: none; }
+  @media (max-width: 720px) {
+    .row-context-menu__caption { display: block; padding: var(--space-1) var(--space-3) var(--space-2); margin-bottom: var(--space-1); border-bottom: 1px solid var(--color-border); font-size: 13px; color: var(--color-text-muted); }
+    .row-context-menu__caption b { color: var(--color-text); font-weight: 600; }
+  }
+  /* ④ Under 640 px each entity's kebab sits at the end of its own name line. */
+  @media (max-width: 640px) {
+    .accounts-table tbody.account-pair tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+    .accounts-table tbody.account-pair td { grid-column: 1; }
+    .accounts-table tbody.account-pair td.row-actions { grid-column: 2; grid-row: 1; width: auto; padding-block: 0; }
+  }
+</style>
+<style>
+  /* Board chrome only. Everything inside the frames uses the live classes of
+     portfolio_accounts_live.ex, AppShell.row_menu and the dialogs; the
+     proposal is the <style id="proposal"> block above. */
+  .pg { border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg); position: relative; }
+  .pg-top { display: flex; align-items: baseline; gap: 10px; padding: 12px 18px; border-bottom: 1px solid var(--color-border); background: var(--color-bg-elevated); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+  .pg-top h3 { margin: 0; font-size: 18px; }
+  .pg-top span { font-size: 12.5px; color: var(--color-text-muted); }
+  .mock-frame { overflow: visible; }
+  .menu-at { position: absolute !important; z-index: 5; }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 1px; border-radius: 6px; }
+  .row-context-menu.static { position: static; }
+  .row-context-menu__item.is-new { outline-offset: -2px; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .card-mini { display: grid; gap: 8px; align-content: start; }
+  .card-mini p { margin: 0; font-size: 12px; color: var(--color-text-muted); max-width: 34ch; }
+  .dlg { flex: 1 1 340px; max-width: 380px; display: grid; gap: 10px; align-content: start; }
+  /* a browser-drawn confirm (data-confirm), approximated */
+  .native-confirm { border: 1px solid #c9ced8; border-radius: 10px; background: #fff; color: #1f2430; box-shadow: 0 10px 28px rgba(15,23,42,.22); padding: 14px 16px; display: grid; gap: 12px; font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .native-confirm .host { font-size: 12px; font-weight: 600; color: #5a6577; }
+  .native-confirm .btns { display: flex; justify-content: flex-end; gap: 8px; }
+  .native-confirm .btns span { padding: 4px 14px; border-radius: 6px; border: 1px solid #c9ced8; background: #f3f4f7; font-size: 12.5px; }
+  .native-confirm .btns span.ok { background: #2f6fed; border-color: #2f6fed; color: #fff; }
+  .flow { font-size: 12px; color: var(--color-text-muted); margin: 0; }
+  .flow b { color: var(--color-text); }
+  /* the 390 px frames: iframes with a true 390 px viewport, so the media
+     queries of app.css (720 / 640 px) fire as they do on a phone */
+  .col { display: grid; gap: 6px; align-content: start; justify-items: start; }
+  .ph { width: 392px; border: 1px solid var(--color-border-strong); border-radius: 20px; overflow: hidden; background: var(--color-bg); flex: none; }
+  .ph iframe { display: block; width: 390px; height: 700px; border: 0; }
+  .notes { flex: 1 1 360px; display: grid; gap: 10px; align-content: start; font-size: 12.5px; }
+  .notes ol { margin: 0; padding-left: 18px; }
+  .notes li { margin: 0 0 6px; }
+  /* variant B's proposed danger zone */
+  .danger-zone { border: 1px solid color-mix(in srgb, var(--color-danger) 45%, transparent); border-radius: var(--radius-md); padding: 10px 12px; display: grid; gap: 10px; }
+  .danger-zone h3 { margin: 0; font-size: 13px; color: var(--color-danger); }
+  .dz-row { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; font-size: 12.5px; color: var(--color-text-muted); }
+  .dz-row .button-danger { white-space: nowrap; background: transparent; box-shadow: none; }
+  .dz-row .button-danger:disabled { opacity: .45; cursor: not-allowed; }
+  .dz-row em { font-style: normal; color: var(--color-text); }
+  table.t td b { font-weight: 650; }
+  table.t td.win { background: color-mix(in srgb, var(--color-positive) 8%, transparent); }
+</style>
+</head>
+<body>
+
+<div class="pickbar"><b>Entscheidung G1 — offen.</b> Wo Umbenennen, Zusammenführen und Löschen von Verrechnungskonten und Depots auf „Konten &amp; Depots“ stehen (#328, ADR-0050 §4, §7, §11). Heute trägt das Zeilenmenü der Seite genau einen Eintrag, „Getrennt taggen“. Empfehlung: <b>A</b>. Ein Kommentar mit dem Buchstaben auf der Planungs-PR entscheidet; ohne Kommentar gilt die Empfehlung. Alle Namen, Beträge und Daten sind erfunden. Die Vorschau, die „Zusammenführen in…“ öffnet (ADR-0050 §7, §10), steht auf Board 02 (Entscheidung G2); hier ist nur der Einstieg Gegenstand.</div>
+
+<!-- ============================ VARIANTE A ============================ -->
+<section class="mock-board">
+  <h2>Variante A — das vorhandene Zeilenmenü bekommt Umbenennen, Zusammenführen in… und Löschen; je Aktion ein Dialog <small>empfohlen</small></h2>
+  <p class="mock-note">Das Kebab gibt es auf dieser Seite seit #806; A erweitert es, statt einen zweiten Einstieg zu erfinden. Das ist die Tabellenregel aus <code>EXPERIENCE.md</code> (Zeilenaktionen hinter dem Kebab; eine zerstörende Aktion steht im Zeilenmenü, nie als stehender Knopf in jeder Zeile) und die Regel der Bucket-Zelle in <code>DESIGN.md</code> (nie als vierte Steuerung in der Zelle). Neu ist, dass <b>jede Entitätszeile ihr eigenes Kebab bekommt</b> — Depotzeile, Kontozeile und allein stehendes Konto —, weil heute nur die Depotzeile eines zusammengefassten Paars eines hat. Die Wiederholungszeile eines geteilten Kontos („geteilt — oben verwaltet“) bekommt keins.</p>
+  <p class="mock-note">Reihenfolge nach Tragweite: Umbenennen, Getrennt taggen (nur Depotzeile eines Paars), Zusammenführen in…, Löschen zuletzt in Gefahrenfarbe — wie im Wertpapier- und im Bucket-Menü. „Zusammenführen in…“ ist nicht rot: Der Eintrag öffnet eine Vorschau, erst deren Bestätigung schreibt. Jede Aktion öffnet ihren eigenen nativen <code>&lt;dialog&gt;</code> (UX-DR9), nie einen Dialog aus einem Dialog. Das Overlay-Inventar in <code>DESIGN.md</code> braucht keine neue Form: <code>.row-context-menu</code>, <code>.modal</code> und der Dialog „Kann nicht gelöscht werden“ der Wertpapiere (<code>.confirm-delete-blocked</code>) mit einem anderen Ausweg. Neu sind ein Symbol für „Zusammenführen“ — keins der vorhandenen trägt die Bedeutung, und eine zweite Bedeutung für ein vorhandenes verbietet UX-DR16 — und auf dem Telefon eine Kopfzeile im Blatt (unten). <b>Gestrichelt = neu.</b></p>
+
+  <div class="mock-row">
+    <div class="mock-frame" style="flex:1 1 100%"><div class="workspace-section">
+      <div class="pg">
+        <div class="pg-top"><h3>Konten &amp; Depots</h3><span>Depots, Verrechnungskonten und ihre Buckets</span></div>
+        <section class="workspace-section" style="position:relative">
+          <div class="section-head">
+            <h2>Depots und Verrechnungskonten</h2>
+            <button type="button" class="button-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg> Depot &amp; Konto anlegen</button>
+          </div>
+          <div class="data-table-wrapper">
+            <table class="data-table accounts-table">
+              <thead>
+                <tr>
+                  <th>Name</th><th>Währung</th><th>Liquiditätsrolle</th><th>Saldo</th><th>Buckets</th>
+                  <th class="row-actions-head"><span class="visually-hidden">Aktionen</span></th>
+                </tr>
+              </thead>
+              <!-- Band 1: Depot 1 + Girokonto (renamed from "Giro") -->
+              <tbody class="account-pair">
+                <tr class="account-row--depot">
+                  <td class="cell-name cell-name--depot"><span class="account-name">Depot 1</span></td>
+                  <td class="cell-currency cell-currency--empty"></td>
+                  <td class="cell-role cell-role--empty"></td>
+                  <td class="cell-balance cell-balance--empty"></td>
+                  <td class="cell-buckets cell-buckets--pair" rowspan="2">
+                    <div class="bucket-chip-group">
+                      <span class="bucket-chip" style="--chip-color:#7c3aed"><span class="bucket-chip__name">Langfrist</span><button type="button" class="bucket-chip__remove" aria-label="Bucket Langfrist entfernen">×</button></span>
+                      <button type="button" class="bucket-chip-add" aria-label="Bucket hinzufügen">+</button>
+                      <span class="bucket-chip-group__scope">Gilt für Depot und Verrechnungskonto</span>
+                    </div>
+                  </td>
+                  <td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen für Depot 1" aria-haspopup="menu" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></td>
+                </tr>
+                <tr class="account-row--cash">
+                  <td class="cell-name cell-name--cash"><span class="account-cash-name">Girokonto</span><span class="account-sub account-sub--former is-new">früher: Giro</span></td>
+                  <td class="cell-currency">EUR</td>
+                  <td class="cell-role"><div class="liquidity-role-field"><select aria-label="Liquiditätsrolle"><option>Verfügbares Cash</option></select></div></td>
+                  <td class="cell-balance"><span class="cash-balance"><span class="cash-balance__amount num">2.310,00 EUR</span><span class="cash-balance__asof">Stand 19.09.2026</span></span><button type="button" class="cash-balance__action">Saldo setzen</button></td>
+                  <td class="row-actions"><button type="button" class="row-actions__kebab is-new" aria-label="Aktionen für Girokonto" aria-haspopup="menu" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></td>
+                </tr>
+              </tbody>
+              <!-- Band 2: Depot 2 + Tagesgeld (alt): the obsolete account, still linked (board 02's merge source) -->
+              <tbody class="account-pair">
+                <tr class="account-row--depot">
+                  <td class="cell-name cell-name--depot"><span class="account-name">Depot 2</span></td>
+                  <td class="cell-currency cell-currency--empty"></td>
+                  <td class="cell-role cell-role--empty"></td>
+                  <td class="cell-balance cell-balance--empty"></td>
+                  <td class="cell-buckets cell-buckets--pair" rowspan="2">
+                    <div class="bucket-chip-group">
+                      <span class="bucket-chip" style="--chip-color:#7c3aed"><span class="bucket-chip__name">Langfrist</span><button type="button" class="bucket-chip__remove" aria-label="Bucket Langfrist entfernen">×</button></span>
+                      <button type="button" class="bucket-chip-add" aria-label="Bucket hinzufügen">+</button>
+                      <span class="bucket-chip-group__scope">Gilt für Depot und Verrechnungskonto</span>
+                    </div>
+                  </td>
+                  <td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen für Depot 2" aria-haspopup="menu" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></td>
+                </tr>
+                <tr class="account-row--cash">
+                  <td class="cell-name cell-name--cash"><span class="account-cash-name">Tagesgeld (alt)</span></td>
+                  <td class="cell-currency">EUR</td>
+                  <td class="cell-role"><div class="liquidity-role-field"><select aria-label="Liquiditätsrolle"><option>Reserve</option></select></div></td>
+                  <td class="cell-balance"><span class="cash-balance"><span class="cash-balance__amount num">1.274,80 EUR</span><span class="cash-balance__asof">Stand 28.03.2024</span></span><button type="button" class="cash-balance__action">Saldo setzen</button></td>
+                  <td class="row-actions" style="position:relative">
+                    <button type="button" class="row-actions__kebab is-new" aria-label="Aktionen für Tagesgeld (alt)" aria-haspopup="menu" aria-expanded="true" style="background:var(--color-hover);color:var(--color-text)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button>
+                    <div class="row-context-menu menu-at" role="menu" aria-label="Aktionen für Tagesgeld (alt)" style="right:6px; top:40px">
+                      <div class="row-context-menu__caption" aria-hidden="true"><b>Tagesgeld (alt)</b> · Verrechnungskonto</div>
+                      <button type="button" class="row-context-menu__item is-new" role="menuitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16Z"/></svg><span>Umbenennen</span></button>
+                      <button type="button" class="row-context-menu__item is-new" role="menuitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h4.5l5.5 6h6"/><path d="M4 18h4.5l5.5-6"/><path d="m17 9 3 3-3 3"/></svg><span>Zusammenführen in…</span></button>
+                      <button type="button" class="row-context-menu__item row-context-menu__item--danger is-new" role="menuitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7v13a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7"/><path d="M10 11v7M14 11v7"/></svg><span>Löschen</span></button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+              <!-- Lone cash accounts -->
+              <tbody class="account-pair account-pair--lone">
+                <tr class="account-row--cash account-row--lone-cash">
+                  <td class="cell-name cell-name--lone"><span class="account-name">Festgeld</span><span class="account-microtag">Verrechnungskonto</span></td>
+                  <td class="cell-currency">USD</td>
+                  <td class="cell-role"><div class="liquidity-role-field"><select aria-label="Liquiditätsrolle"><option>Reserve</option></select></div></td>
+                  <td class="cell-balance"><span class="cash-balance"><span class="cash-balance__empty">—</span></span><button type="button" class="cash-balance__action">Saldo setzen</button></td>
+                  <td class="cell-buckets"><div class="bucket-chip-group"><span class="bucket-chip-group__empty">Kein Bucket</span><button type="button" class="bucket-chip-add" aria-label="Bucket hinzufügen">+</button><span class="bucket-chip-group__scope">Gilt für das Verrechnungskonto</span></div></td>
+                  <td class="row-actions"><button type="button" class="row-actions__kebab is-new" aria-label="Aktionen für Festgeld" aria-haspopup="menu" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></td>
+                </tr>
+              </tbody>
+              <tbody class="account-pair account-pair--lone">
+                <tr class="account-row--cash account-row--lone-cash">
+                  <td class="cell-name cell-name--lone"><span class="account-name">Tagesgeld</span><span class="account-microtag">Verrechnungskonto</span><span class="account-sub account-sub--former is-new">früher: Sparkonto</span></td>
+                  <td class="cell-currency">EUR</td>
+                  <td class="cell-role"><div class="liquidity-role-field"><select aria-label="Liquiditätsrolle"><option>Reserve</option></select></div></td>
+                  <td class="cell-balance"><span class="cash-balance"><span class="cash-balance__amount num">8.400,00 EUR</span><span class="cash-balance__asof">Stand 01.09.2026</span></span><button type="button" class="cash-balance__action">Saldo setzen</button></td>
+                  <td class="cell-buckets"><div class="bucket-chip-group"><span class="bucket-chip" style="--chip-color:#7c3aed"><span class="bucket-chip__name">Langfrist</span><button type="button" class="bucket-chip__remove" aria-label="Bucket Langfrist entfernen">×</button></span><button type="button" class="bucket-chip-add" aria-label="Bucket hinzufügen">+</button><span class="bucket-chip-group__scope">Gilt für das Verrechnungskonto</span></div></td>
+                  <td class="row-actions"><button type="button" class="row-actions__kebab is-new" aria-label="Aktionen für Tagesgeld" aria-haspopup="menu" aria-expanded="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div></div>
+  </div>
+
+  <div class="mock-row" style="margin-top:20px">
+    <div class="mock-frame mock-before" style="flex:0 1 260px"><span class="mock-tag">Heute</span><div class="workspace-section card-mini">
+      <p class="cap">Depotzeile eines Paars</p>
+      <div class="row-context-menu static" role="menu" aria-label="Kontoaktionen">
+        <button type="button" class="row-context-menu__item" role="menuitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 10 6-10 6L2 8Z"/><path d="m2 16 10 6 10-6"/><path d="m2 12 10 6 10-6"/></svg><span>Getrennt taggen</span></button>
+      </div>
+      <p>Der einzige Zeileneintrag der Seite. Kontozeilen und allein stehende Konten haben kein Kebab. Umbenennen und Löschen gibt es heute nur über API und MCP, Zusammenführen gar nicht.</p>
+    </div></div>
+
+    <div class="mock-frame mock-after" style="flex:0 1 280px"><span class="mock-tag">Nachher</span><div class="workspace-section card-mini">
+      <p class="cap">Depotzeile eines Paars</p>
+      <div class="row-context-menu static" role="menu" aria-label="Aktionen für Depot 1">
+        <button type="button" class="row-context-menu__item is-new" role="menuitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16Z"/></svg><span>Umbenennen</span></button>
+        <button type="button" class="row-context-menu__item" role="menuitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 10 6-10 6L2 8Z"/><path d="m2 16 10 6 10-6"/><path d="m2 12 10 6 10-6"/></svg><span>Getrennt taggen</span></button>
+        <button type="button" class="row-context-menu__item is-new" role="menuitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h4.5l5.5 6h6"/><path d="M4 18h4.5l5.5-6"/><path d="m17 9 3 3-3 3"/></svg><span>Zusammenführen in…</span></button>
+        <button type="button" class="row-context-menu__item row-context-menu__item--danger is-new" role="menuitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7v13a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7"/><path d="M10 11v7M14 11v7"/></svg><span>Löschen</span></button>
+      </div>
+      <p>„Getrennt taggen“ bleibt, wo es ist, und erscheint nur, solange das Paar zusammengefasst ist. Ein getrenntes Paar behält sein Kebab jetzt trotzdem.</p>
+    </div></div>
+
+    <div class="mock-frame" style="flex:1 1 400px"><div class="workspace-section card-mini">
+      <p class="cap">Frühere Namen in der Zeile — für A und B gleich</p>
+      <p style="max-width:none">Unter dem Namen steht lesbar, ohne Klick, unter welchen Namen ein Import das Konto noch findet („früher: Giro“, <code>.account-sub</code> als eigene Zeile). ADR-0050 §4 verlangt, dass frühere Namen gelistet sind; eine Liste, die nur hinter „Umbenennen“ liegt, findet niemand, der ein Import-Ergebnis verstehen will. Bei mehreren steht der jüngste da und die Zahl der übrigen („früher: Giro +2“); die volle Liste steht im Dialog.</p>
+      <p class="cap" style="margin-top:6px">Löschen fragt nicht, bevor es Nein sagt</p>
+      <p style="max-width:none">Die Seite kennt die Verweise eines Kontos. Ist es belegt, öffnet „Löschen“ direkt den Dialog „Kann nicht gelöscht werden“ — ohne Rückfrage vorab, auf die dann doch die Ablehnung folgt. Bei Wertpapieren läuft es heute noch so: erst die Rückfrage, dann der Dialog. Ist es frei, kommt genau eine Rückfrage: „Zerstörendes einmal bestätigen, nie zweimal“ (EXPERIENCE.md, Forms behind disclosure).</p>
+    </div></div>
+  </div>
+
+  <div class="mock-row" style="margin-top:20px">
+    <!-- Rename dialog -->
+    <div class="dlg">
+      <p class="cap">Umbenennen — der Dialog</p>
+      <div class="modal">
+        <header class="modal-head">
+          <h2>Umbenennen — Girokonto</h2>
+          <button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+        </header>
+        <div class="modal-body">
+          <div class="form-grid"><label><span>Name</span><input type="text" value="Hauptkonto"></label></div>
+          <p class="hint">Der bisherige Name „Girokonto“ bleibt als früherer Name gespeichert: Ein Import, der ihn noch nennt, bucht weiter auf dieses Konto.</p>
+          <details class="perf-table-disclosure" open>
+            <summary class="disclosure-summary"><svg class="disclosure-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>Frühere Namen</summary>
+            <ul class="former-names is-new">
+              <li><span>Giro</span><button type="button" class="button-ghost" aria-label="„Giro“ entfernen">Entfernen</button></li>
+            </ul>
+          </details>
+          <div class="modal-footer">
+            <button type="button" class="button-ghost">Abbrechen</button>
+            <button type="submit" class="button-primary">Umbenennen</button>
+          </div>
+        </div>
+      </div>
+      <p class="flow">Nur der Name ist änderbar (ADR-0050 §11): Währung und Zuordnung sind ab der ersten Buchung eingefroren, Liquiditätsrolle, Saldo und Buckets bleiben in der Zeile. Die Liste ist die offene Aufklappliste, mit der der Regeldialog seine Versionen zeigt; ohne frühere Namen fehlt sie. „Entfernen“ wirkt nach seiner Rückfrage sofort, der Dialog bleibt offen und ein getippter Name stehen; nur „Umbenennen“ schreibt den Namen. Zurückbenennen auf „Giro“ holt den Namen aus der Liste. Die Zeile, die sich an Ort und Stelle ändert, ist die Bestätigung — keine Meldung.</p>
+    </div>
+
+    <!-- Name guard + former-name removal confirm -->
+    <div class="dlg" style="flex:0 1 330px">
+      <p class="cap">Der Name ist vergeben (ADR-0050 §4)</p>
+      <div class="modal">
+        <div class="modal-body">
+          <div class="form-grid"><label><span>Name</span><input type="text" value="Sparkonto" aria-invalid="true"><span class="field-error">„Sparkonto“ ist ein früherer Name von „Tagesgeld“ — ein Import unter diesem Namen bucht dorthin. Einen anderen Namen wählen oder ihn bei „Tagesgeld“ entfernen.</span></label></div>
+        </div>
+      </div>
+      <p class="flow">Gleiche Prüfung gegen jeden lebenden und jeden früheren Namen derselben Art; der Fehler steht am Feld, nach dem Absenden, als Tatsache mit Ausweg.</p>
+
+      <p class="cap" style="margin-top:10px">„Entfernen“ — eine Rückfrage (<code>data-confirm</code>)</p>
+      <div class="native-confirm">
+        <span class="host">localhost:4000 meldet</span>
+        <span>„Giro“ als früheren Namen entfernen? Ein Import, der noch „Giro“ nennt, legt dann ein neues Konto an.</span>
+        <div class="btns"><span>Abbrechen</span><span class="ok">OK</span></div>
+      </div>
+      <p class="flow">Die Browser-Rückfrage ist die, mit der jede andere Löschung der App fragt (Buckets, Views, Wertpapiere, der Regeldialog); sie nennt, was das Entfernen kostet. Bei einem Depot endet sie mit „… legt dann ein neues Depot an.“ Danach verschwindet die Zeile aus der Liste.</p>
+    </div>
+
+    <!-- Delete blocked / delete free -->
+    <div class="dlg">
+      <p class="cap">Löschen, belegt — der Dialog, keine Meldung</p>
+      <div class="modal confirm-delete-blocked">
+        <header class="modal-head">
+          <h2>Kann nicht gelöscht werden</h2>
+          <button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+        </header>
+        <div class="modal-body">
+          <p>„Tagesgeld (alt)“ hat noch 151 Buchungen und 1 verknüpftes Depot (Depot 2) — zuerst zusammenführen.</p>
+          <p class="muted">Beim Zusammenführen ziehen Buchungen und Depot in ein Konto gleicher Währung, Liquiditätsrolle und Buckets um; der Name bleibt dort als früherer Name.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="button-ghost">Abbrechen</button>
+          <button type="button" class="button-primary is-new">Zusammenführen in…</button>
+        </div>
+      </div>
+      <p class="flow">Der Dialog der Wertpapiere (<code>RowContextMenu.delete_blocked_dialog</code>) mit anderem Ausweg: dort „Stattdessen stilllegen“, hier „Zusammenführen in…“. Er schließt sich und öffnet die Vorschau von Board 02 mit „Tagesgeld (alt)“ als Quelle. Für ein Depot lautet der Satz: „Depot 2“ hat noch 38 Buchungen — zuerst zusammenführen. Zahlen im Plural je Art (ngettext).</p>
+
+      <p class="cap" style="margin-top:10px">Löschen, frei — eine Rückfrage</p>
+      <div class="native-confirm">
+        <span class="host">localhost:4000 meldet</span>
+        <span>„Festgeld“ löschen? Das Konto hat keine Buchungen und kein verknüpftes Depot.</span>
+        <div class="btns"><span>Abbrechen</span><span class="ok">OK</span></div>
+      </div>
+      <p class="flow">Trägt ein freies Konto Buckets, sagt die Rückfrage auch das: „… Seine Bucket-Zuordnungen werden mit entfernt.“ ADR-0050 §11: protokolliert entfernt, nie still per Kaskade.</p>
+    </div>
+  </div>
+
+  <!-- 390 px: real viewport frames built by the script at the end -->
+  <div class="mock-row" style="margin-top:20px">
+    <div class="col">
+      <p class="cap">Heute — 390 px, app.css wie ausgeliefert</p>
+      <div class="ph"><iframe data-tpl="today" title="Heute, 390 px"></iframe></div>
+    </div>
+    <div class="col">
+      <p class="cap">A — 390 px, mit den Regeln aus <code>#proposal</code></p>
+      <div class="ph"><iframe data-tpl="a" data-proposal title="Variante A, 390 px"></iframe></div>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:20px">
+    <div class="col">
+      <p class="cap">A — Kebab von „Tagesgeld (alt)“ getippt: das Blatt</p>
+      <div class="ph"><iframe data-tpl="a-sheet" data-proposal data-fixed="700" data-scroll="280" title="Variante A, 390 px, Zeilenmenü als Blatt"></iframe></div>
+    </div>
+    <div class="notes">
+      <p class="cap">390 px — was sich ändert</p>
+      <ol>
+        <li><b>Das Kebab sitzt rechts auf der Namenszeile seiner Entität.</b> Unter 640 px stapelt sich jedes Band zum Block (wie heute); die Aktionszelle fällt heute als eigene Zeile unter die Buckets (links oben zu sehen). Mit zwei Kebabs je Band muss jedes neben dem Namen stehen, zu dem es gehört: Regel ④ macht die Zeile unter 640 px zum zweispaltigen Raster. 44 px unter <code>pointer: coarse</code> wie seit #834 — in allen drei Rahmen nachgestellt, weil der Renderer eine Maus hat.</li>
+        <li><b>Jedes Kebab nennt seine Entität.</b> Ein Band trägt zwei; zweimal „Aktionsmenü öffnen“ klingt im Screenreader gleich. Neu: „Aktionen für Tagesgeld (alt)“ als <code>aria-label</code> von Kebab und Menü. Kein sichtbarer Unterschied.</li>
+        <li><b>Das Blatt nennt, wofür es gilt.</b> Unter 720 px wird das Menü zum Blatt am unteren Rand (app.css, wie heute) und hängt nicht mehr an der Zeile. Regel ③ zeigt dort eine Kopfzeile mit Name und Art; über 720 px bleibt sie aus. Zeilen 14 px / 16 px wie heute.</li>
+        <li><b>Die Dialoge werden einspaltig</b> — <code>.form-grid</code> tut das schon; die Liste früherer Namen bricht nicht, „Entfernen“ bleibt rechts.</li>
+      </ol>
+      <p class="flow">Punkt 3 ändert das gemeinsame <code>AppShell.row_menu</code> (eine optionale Kopfzeile, nur unter 720 px sichtbar). Fällt er weg, nennen die Dialoge das Konto trotzdem — aber erst nach dem Tippen.</p>
+      <p class="flow">Die Rahmen rendern das Markup von <code>portfolio_accounts_live.ex</code> mit dem ausgelieferten app.css in einem echten 390-px-Viewport, „A“ zusätzlich mit den Regeln ①–④. Weggelassen: die Seitenleiste (unter 900 px ohnehin außerhalb) und der Abschnitt „Portfolio-Datensätze“ unter der Tabelle.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE B ============================ -->
+<section class="mock-board">
+  <h2>Variante B — ein Dialog „Bearbeiten“ je Konto und Depot, mit früheren Namen und einer Gefahrenzone <small>alles an einer Stelle</small></h2>
+  <p class="mock-note">Das Kebab bekommt einen Eintrag „Bearbeiten…“; der Dialog trägt den Namen, die früheren Namen und, abgesetzt, „Zusammenführen in…“ und „Löschen“. Dafür spricht: Alles, was die Identität eines Kontos betrifft, steht an einer Stelle, und warum Löschen nicht geht, steht schon vor dem Klick neben dem gesperrten Knopf. Dagegen, gehalten an <code>DESIGN.md</code>: Die Gefahrenzone ist eine <b>dritte Behandlung zerstörender Aktionen</b> neben dem roten Menüeintrag (fünf Seiten) und dem linken Dialogfuß des Regeldialogs — „jede wiederkehrende Aufgabe einmal lösen“ (Do's and Don'ts), und das Overlay-Inventar kennt sie nicht. Die Vorschau der Zusammenführung (ADR-0050 §10, Salden vorher und nachher) ist aus diesem Dialog heraus entweder ein Dialog auf einem Dialog, den UX-DR9 verbietet, oder der Dialog wechselt in Schritten seinen Inhalt und braucht ein eigenes Zurück.</p>
+  <p class="mock-note">„Bearbeiten“ verspricht außerdem mehr, als der Dialog hält: Liquiditätsrolle, Saldo und Buckets bleiben in der Zeile (#806, #670), die Währung ist ab der ersten Buchung eingefroren (§11) — übrig bleibt ein Feld. Löschen liegt eine Ebene tiefer (Kebab → Bearbeiten… → Löschen), und auf einer Kontozeile hätte das Menü einen einzigen Eintrag.</p>
+  <div class="mock-row">
+    <div class="mock-frame" style="flex:0 1 280px"><div class="workspace-section card-mini">
+      <p class="cap">Depotzeile eines Paars</p>
+      <div class="row-context-menu static" role="menu" aria-label="Aktionen für Depot 1">
+        <button type="button" class="row-context-menu__item is-new" role="menuitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16Z"/></svg><span>Bearbeiten…</span></button>
+        <button type="button" class="row-context-menu__item" role="menuitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 2 10 6-10 6L2 8Z"/><path d="m2 16 10 6 10-6"/><path d="m2 12 10 6 10-6"/></svg><span>Getrennt taggen</span></button>
+      </div>
+      <p class="cap" style="margin-top:8px">Kontozeile</p>
+      <div class="row-context-menu static" role="menu" aria-label="Aktionen für Girokonto">
+        <button type="button" class="row-context-menu__item is-new" role="menuitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16Z"/></svg><span>Bearbeiten…</span></button>
+      </div>
+      <p>Ein Menü mit einem Eintrag ist ein Klick ohne Wahl.</p>
+    </div></div>
+
+    <div class="dlg" style="flex:1 1 460px; max-width:520px">
+      <div class="modal">
+        <header class="modal-head">
+          <h2>Bearbeiten — Girokonto</h2>
+          <button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+        </header>
+        <div class="modal-body">
+          <div class="form-grid"><label><span>Name</span><input type="text" value="Girokonto"></label></div>
+          <p class="hint">Ein neuer Name ersetzt „Girokonto“; der bisherige bleibt als früherer Name gespeichert, damit ein Import ihn weiter hierher bucht.</p>
+          <details class="perf-table-disclosure" open>
+            <summary class="disclosure-summary"><svg class="disclosure-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>Frühere Namen</summary>
+            <ul class="former-names">
+              <li><span>Giro</span><button type="button" class="button-ghost" aria-label="„Giro“ entfernen">Entfernen</button></li>
+            </ul>
+          </details>
+          <div class="danger-zone is-new">
+            <h3>Gefahrenzone</h3>
+            <div class="dz-row"><span>Buchungen, Depot und Name ziehen in ein Konto gleicher Währung, Liquiditätsrolle und Buckets um; <em>dieses Konto wird gelöscht. Nicht rückgängig zu machen.</em></span><button type="button" class="button-danger">Zusammenführen in…</button></div>
+            <div class="dz-row"><span>Nicht möglich: <em>318 Buchungen und 1 verknüpftes Depot</em> — zuerst zusammenführen.</span><button type="button" class="button-danger" disabled>Löschen</button></div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="button-ghost">Abbrechen</button>
+            <button type="submit" class="button-primary">Speichern</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes" style="flex:1 1 260px">
+      <p class="cap">Was B offenlässt</p>
+      <ol>
+        <li>„Zusammenführen in…“ drücken: Der Dialog müsste sich schließen und die Vorschau öffnen (dann verliert er ungespeicherte Namensänderungen) oder zur Vorschau werden (ein Stufendialog mit „Zurück“, wie der Anlegedialog).</li>
+        <li>Zwei Wege aus einem Dialog: „Speichern“ schreibt den Namen, die Gefahrenzone verlässt ihn (Vorschau oder Löschen). Was gilt für einen getippten, noch nicht gespeicherten Namen? (Das „Entfernen“ früherer Namen ist in A und B gleich: Es wirkt nach seiner Rückfrage sofort, der Dialog bleibt offen.)</li>
+        <li>Bei 390 px ist der Dialog ein langes Blatt; die Gefahrenzone liegt unter der Falz — genau dort, wo „Löschen“ gesucht wird.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VERGLEICH ============================ -->
+<section class="mock-board">
+  <h2>Gegen DESIGN.md und EXPERIENCE.md gehalten <small>warum A</small></h2>
+  <div class="mock-frame"><div class="workspace-section" style="padding:0">
+    <table class="t">
+      <thead><tr><th style="width:30%">Regel</th><th>A — Zeilenmenü, ein Dialog je Aktion</th><th>B — „Bearbeiten“-Dialog mit Gefahrenzone</th></tr></thead>
+      <tbody>
+        <tr><td><b>Tabellen:</b> Zeilenaktionen hinter dem Kebab; eine zerstörende Aktion im Zeilenmenü (EXPERIENCE.md → Component Patterns, Rules that extend)</td><td class="win">erfüllt — drei Einträge im vorhandenen Menü, Löschen zuletzt und rot wie überall</td><td>teilweise — das Kebab öffnet nur „Bearbeiten…“, Zusammenführen und Löschen liegen eine Ebene tiefer</td></tr>
+        <tr><td><b>Overlay-Inventar</b> (DESIGN.md → Inventory → Overlays) und „jede wiederkehrende Aufgabe einmal lösen“</td><td class="win">keine neue Form: <code>.row-context-menu</code>, <code>.modal</code>, <code>.confirm-delete-blocked</code> wiederverwendet; neu nur die Kopfzeile im Blatt</td><td>neuer Block „Gefahrenzone“ — dritte Form für Zerstörendes neben Menüeintrag und Dialogfuß</td></tr>
+        <tr><td><b>UX-DR9:</b> nie Dialog auf Dialog</td><td class="win">jede Aktion ein Dialog; „Zusammenführen in…“ öffnet die Vorschau direkt</td><td>Vorschau aus dem Dialog: Dialog auf Dialog oder Stufendialog mit eigenem Zurück</td></tr>
+        <tr><td><b>Zerstörendes einmal bestätigen, nie zweimal</b> (Forms behind disclosure)</td><td>erfüllt — frei: eine Rückfrage; belegt: der Blockiert-Dialog ohne Rückfrage davor</td><td class="win">erfüllt — und der Grund steht schon vor dem Klick am gesperrten Knopf</td></tr>
+        <tr><td><b>Lesen vor Bearbeiten</b>, frühere Namen</td><td>im Umbenennen-Dialog; lesbar als Unterzeile in der Zeile</td><td>im Bearbeiten-Dialog; Unterzeile gleich</td></tr>
+        <tr><td><b>Wege bis Löschen</b></td><td class="win">Kebab → Löschen</td><td>Kebab → Bearbeiten… → Löschen</td></tr>
+        <tr><td><b>UX-DR16:</b> ein Symbol, eine Bedeutung</td><td>neues Symbol <code>:merge</code></td><td class="win">kein Symbol nötig (Textknopf in der Gefahrenzone)</td></tr>
+        <tr><td><b>390 px</b></td><td>Blatt mit drei 44-px-Zeilen und einer Kopfzeile; kurze Dialoge</td><td>langer Dialog als Blatt; Gefahrenzone unter der Falz</td></tr>
+      </tbody>
+    </table>
+  </div></div>
+</section>
+
+<!-- Fragments for the 390 px frames (markup of portfolio_accounts_live.ex and
+     AppShell, synthetic data; the same names and figures as the desktop table). -->
+<template id="frag-topbar">
+  <header class="topbar">
+    <label class="sidebar-toggle" aria-label="Navigation öffnen"><span class="burger-bars" aria-hidden="true"></span></label>
+    <div class="topbar-primary">
+      <a class="topbar-brand" aria-label="Portfolixir"><span class="brand-logo" aria-hidden="true"><img class="topbar-mark brand-mark-light" src="../../../../../priv/static/images/logo-mark-light.svg" alt=""><img class="topbar-mark brand-mark-dark" src="../../../../../priv/static/images/logo-mark-dark.svg" alt=""></span><span>Portfolixir</span></a>
+      <div class="topbar-page"><h1>Konten &amp; Depots</h1><p>Depots, Verrechnungskonten und ihre Buckets</p></div>
+    </div>
+    <div class="topbar-controls">
+      <nav class="locale-switcher" aria-label="Sprache"><a class="locale-link">EN</a><a class="locale-link is-active" aria-current="true">DE</a></nav>
+    </div>
+  </header>
+</template>
+
+<template id="frag-sheet">
+  <div class="row-context-menu" role="menu" aria-label="Aktionen für Tagesgeld (alt)">
+    <div class="row-context-menu__caption is-new" aria-hidden="true"><b>Tagesgeld (alt)</b> · Verrechnungskonto</div>
+    <button type="button" class="row-context-menu__item" role="menuitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16Z"/></svg><span>Umbenennen</span></button>
+    <button type="button" class="row-context-menu__item" role="menuitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h4.5l5.5 6h6"/><path d="M4 18h4.5l5.5-6"/><path d="m17 9 3 3-3 3"/></svg><span>Zusammenführen in…</span></button>
+    <button type="button" class="row-context-menu__item row-context-menu__item--danger" role="menuitem"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7v13a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7"/><path d="M10 11v7M14 11v7"/></svg><span>Löschen</span></button>
+  </div>
+</template>
+
+<!-- Frame chrome only: the renderer has a fine pointer, so the shipped
+     `@media (pointer: coarse)` kebab floor (app.css, issue 834) is restated;
+     the dashed outline marks what is new. -->
+<template id="css-mock"><style>
+  body { background: var(--color-bg); }
+  .row-actions__kebab { min-width: 44px; min-height: 44px; }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 1px; border-radius: 6px; }
+  html.screen, html.screen body { overflow: hidden; }
+</style></template>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds the 390 px iframes
+   (srcdoc, so relative links resolve against this board). */
+const $ = (id) => document.getElementById(id).innerHTML;
+const CSS_HREF = '../../../../../priv/static/app.css';
+const KEBAB = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg>';
+const PLUS = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+
+const PAIRS = [
+  { depot: 'Depot 1', cash: 'Girokonto', former: 'Giro', cur: 'EUR', role: 'Verfügbares Cash', amt: '2.310,00 EUR', asof: '19.09.2026', buckets: ['Langfrist'] },
+  { depot: 'Depot 2', cash: 'Tagesgeld (alt)', cur: 'EUR', role: 'Reserve', amt: '1.274,80 EUR', asof: '28.03.2024', buckets: ['Langfrist'] }
+];
+const LONE = [
+  { cash: 'Festgeld', cur: 'USD', role: 'Reserve', amt: null, buckets: [] },
+  { cash: 'Tagesgeld', former: 'Sparkonto', cur: 'EUR', role: 'Reserve', amt: '8.400,00 EUR', asof: '01.09.2026', buckets: ['Langfrist'] }
+];
+
+const chip = (n) => `<span class="bucket-chip" style="--chip-color:#7c3aed"><span class="bucket-chip__name">${n}</span><button type="button" class="bucket-chip__remove" aria-label="Bucket ${n} entfernen">×</button></span>`;
+const chips = (list, scope) => `<div class="bucket-chip-group">${list.length ? list.map(chip).join('') : '<span class="bucket-chip-group__empty">Kein Bucket</span>'}<button type="button" class="bucket-chip-add" aria-label="Bucket hinzufügen">+</button><span class="bucket-chip-group__scope">${scope}</span></div>`;
+const role = (r) => `<div class="liquidity-role-field"><select aria-label="Liquiditätsrolle"><option>${r}</option></select></div>`;
+const balance = (e) => `<span class="cash-balance">${e.amt ? `<span class="cash-balance__amount num">${e.amt}</span><span class="cash-balance__asof">Stand ${e.asof}</span>` : '<span class="cash-balance__empty">—</span>'}</span><button type="button" class="cash-balance__action">Saldo setzen</button>`;
+
+function table(a, open) {
+  const kebab = (name, isNew) => {
+    const on = open === name;
+    return `<button type="button" class="row-actions__kebab${a && isNew ? ' is-new' : ''}" aria-label="${a ? 'Aktionen für ' + name : 'Aktionsmenü öffnen'}" aria-haspopup="menu" aria-expanded="${on}"${on ? ' style="background:var(--color-hover);color:var(--color-text)"' : ''}>${KEBAB}</button>`;
+  };
+  const former = (e) => (a && e.former ? `<span class="account-sub account-sub--former is-new">früher: ${e.former}</span>` : '');
+  let h = '<div class="data-table-wrapper"><table class="data-table accounts-table"><thead><tr><th>Name</th><th>Währung</th><th>Liquiditätsrolle</th><th>Saldo</th><th>Buckets</th><th class="row-actions-head"><span class="visually-hidden">Aktionen</span></th></tr></thead>';
+  for (const p of PAIRS) {
+    h += `<tbody class="account-pair"><tr class="account-row--depot"><td class="cell-name cell-name--depot"><span class="account-name">${p.depot}</span></td><td class="cell-currency cell-currency--empty"></td><td class="cell-role cell-role--empty"></td><td class="cell-balance cell-balance--empty"></td><td class="cell-buckets cell-buckets--pair" rowspan="2">${chips(p.buckets, 'Gilt für Depot und Verrechnungskonto')}</td><td class="row-actions">${kebab(p.depot, false)}</td></tr>`;
+    h += `<tr class="account-row--cash"><td class="cell-name cell-name--cash"><span class="account-cash-name">${p.cash}</span>${former(p)}</td><td class="cell-currency">${p.cur}</td><td class="cell-role">${role(p.role)}</td><td class="cell-balance">${balance(p)}</td><td class="row-actions">${a ? kebab(p.cash, true) : ''}</td></tr></tbody>`;
+  }
+  for (const l of LONE) {
+    h += `<tbody class="account-pair account-pair--lone"><tr class="account-row--cash account-row--lone-cash"><td class="cell-name cell-name--lone"><span class="account-name">${l.cash}</span><span class="account-microtag">Verrechnungskonto</span>${former(l)}</td><td class="cell-currency">${l.cur}</td><td class="cell-role">${role(l.role)}</td><td class="cell-balance">${balance(l)}</td><td class="cell-buckets">${chips(l.buckets, 'Gilt für das Verrechnungskonto')}</td><td class="row-actions">${a ? kebab(l.cash, true) : ''}</td></tr></tbody>`;
+  }
+  return h + '</table></div>';
+}
+
+function page(a, open) {
+  return `<div class="app-shell"><div class="app-frame">${$('frag-topbar')}<main class="app-main app-main--workspace"><div id="portfolios-workspace" class="workspace-page"><section id="accounts-panel" class="workspace-section"><div class="section-head"><h2>Depots und Verrechnungskonten</h2><button type="button" class="button-primary">${PLUS} Depot &amp; Konto anlegen</button></div>${table(a, open)}</section></div></main></div></div>${open ? $('frag-sheet') : ''}`;
+}
+
+const T = {
+  today: () => page(false, null),
+  a: () => page(true, null),
+  'a-sheet': () => page(true, 'Tagesgeld (alt)')
+};
+
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const css = $('css-mock') + ('proposal' in f.dataset ? document.getElementById('proposal').outerHTML : '');
+  const fixed = f.dataset.fixed;
+  f.addEventListener('load', () => {
+    if (fixed) { f.style.height = fixed + 'px'; f.contentWindow.scrollTo(0, Number(f.dataset.scroll || 0)); return; }
+    f.style.height = Math.ceil(f.contentDocument.documentElement.scrollHeight) + 'px';
+  });
+  f.srcdoc = `<!doctype html><html lang="de"${fixed ? ' class="screen"' : ''}><head><meta charset="utf-8"><meta name="viewport" content="width=390"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body>${T[f.dataset.tpl]()}</body></html>`;
+}
+</script>
+</body>
+</html>

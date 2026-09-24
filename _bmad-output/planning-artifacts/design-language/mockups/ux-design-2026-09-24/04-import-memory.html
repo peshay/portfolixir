@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Import mit Gedächtnis: Vorschau und Ergebnis nach ADR-0050 (#328, Pick G4)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  /* Board chrome only. Inside the frames: the live classes of imports_live.ex
+     (.import-stats, .import-stat-card, .panel.inner, .mapping-grid,
+     .mapping-row, .form-help, .import-done, .import-skipped — the last one
+     is in the template but has no rule in app.css today), AppShell
+     .area-tabs and data_note/1 (.data-note--note / --attention, no role on
+     the note itself). Row order is the live one: Mapping.unique_*_pp_names
+     sorts the names. The rules under "proposed" are what the new anatomy
+     needs; the story that builds the pick writes them into app.css. */
+  .mock-frame { overflow: visible; }
+  .page .top span { font-size: 12.5px; color: var(--color-text-muted); }
+  .pg-tabs { padding: 10px 24px 0; background: var(--color-bg); }
+  .pg-tabs .area-tabs { margin-bottom: 0; mask-image: none; }
+  .pg-body { background: var(--color-bg); }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+  .elide { margin: 0; font-size: 12px; color: var(--mock-ink); font-style: italic; }
+  .gap-ph { display: grid; place-items: center; height: 150px; margin-top: 1rem; border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); color: var(--mock-ink); font-size: 12px; text-align: center; padding: 0 16px; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .notes { flex: 1 1 320px; display: grid; gap: 10px; align-content: start; font-size: 12.5px; }
+  .notes p, .notes ol { margin: 0; }
+  .notes ol { padding-left: 18px; }
+  .notes li { margin: 0 0 6px; }
+  .notes li + li { margin-top: 0; }
+  table.t td:first-child { width: 26%; }
+
+  /* ---- proposed: the mapping row's new anatomy (both variants) ---- */
+  .mapping-row { align-items: start; }
+  .mapping-row .source .mapping-count { display: block; margin-top: 3px; font-size: 12px; font-weight: 400; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+  .mapping-count b { font-weight: 600; color: var(--color-text); }
+  .mapping-target { display: grid; gap: 5px; min-width: 0; }
+  .mapping-basis { font-size: 12px; color: var(--color-text-muted); }
+  /* proposed, variant A: the remember box, only on a changed prefill */
+  .mapping-remember { display: grid; gap: 2px; }
+  .mapping-remember > small { padding-left: 22px; font-size: 12px; color: var(--color-text-muted); }
+  /* proposed: the result's lists read left-aligned in one column */
+  .import-done .import-skipped { justify-self: stretch; max-width: 46rem; width: 100%; margin: 0 auto; text-align: left; display: grid; gap: 4px; }
+  .import-done .import-skipped > p { margin: 0; }
+  .import-done .import-skipped ul { margin: 0; padding-left: 0; list-style: none; font-size: 12.5px; }
+  .import-done .import-skipped > ul { margin-left: 2px; }
+  .import-done .import-skipped ul li + li { margin-top: 2px; }
+  .dup-group { margin-left: 2px; }
+  .import-done .dup-group > ul { margin: 4px 0 6px 22px; }
+  .dup-group .disclosure-summary { font-weight: 500; letter-spacing: 0; font-size: 12.5px; }
+  .dup-group .disclosure-summary b { color: var(--color-text); font-variant-numeric: tabular-nums; }
+  /* proposed, both variants: the row goes single-column on a phone. In
+     app.css this is  @media (max-width: 720px) { .mapping-row,
+     .mapping-row.depot { grid-template-columns: 1fr; gap: 8px; } }  — the
+     board renders at 1200, so the drawn phone below scopes it to .phone. */
+
+  /* the 390 px phone frame (drawn: the board renders at 1200); paddings are
+     app.css's at 390 px: .workspace-section 18/16, .panel 16 (max-width 560) */
+  .phone { width: 390px; border: 1px solid var(--color-border); border-radius: 18px; overflow: hidden; background: var(--color-bg); flex: none; }
+  .ph-top { padding: 10px 16px; font-weight: 700; border-bottom: 1px solid var(--color-border); background: var(--color-bg-elevated); }
+  .phone .workspace-section { padding: 18px 16px; }
+  .phone .panel { padding: 16px; }
+  .phone .mapping-row, .phone .mapping-row.depot { grid-template-columns: 1fr; gap: 8px; }
+  .mock-before .mapping-row { align-items: center; }
+</style>
+</head>
+<body>
+
+<div class="pickbar"><b>Entscheidung G4 — offen.</b> Was die Vorschau und das Ergebnis eines Imports nach ADR-0050 sagen (§3 Hash-Prüfung zuerst, §4 Konten entstehen erst mit der ersten Buchung und behalten frühere Namen, §5 interne Umbuchungen). Zu wählen ist nur das Bedienelement fürs Merken einer Zuordnung: <b>A</b> ein Kästchen „Zuordnung merken“ in der Zeile, sichtbar nur dort, wo eine Vorbelegung geändert wurde · <b>B</b> ein Schalter „Zuordnungen für künftige Importe merken“ am Ende des Zuordnungsschritts. Beide sind standardmäßig an (ADR-0050 §4). Empfehlung: <b>A</b>. Alles andere auf dem Board — Vorbelegung über frühere Namen, Zählung je Zeile, der mehrdeutige Name, die Ergebnislisten — ist für A und B gleich. Ein Kommentar mit dem Buchstaben auf der Planungs-PR entscheidet; ohne Kommentar gilt die Empfehlung. Alle Namen, Zahlen und Daten sind erfunden.</div>
+
+<!-- ============================ VORHER ============================ -->
+<section class="mock-board">
+  <h2>Vorher — die Zuordnung heute <small>exakter Name oder neu, nichts wird behalten</small></h2>
+  <p class="mock-note">Heute belegt der Import eine Zeile nur bei exakt gleichem Namen mit einem bestehenden Konto vor, sonst mit „+ Neu anlegen“, und behält zwischen zwei Importen nichts (<code>initial_mapping_for/2</code>). Nach dem Umbenennen von „Giro“ in „Girokonto“ schlägt der nächste Import „+ Neu anlegen: Giro“ vor und legt das Konto an, bevor er eine einzige Zeile prüft: leer, oder bei einem veränderten Export mit der ganzen Historie ein zweites Mal (ADR-0050, Kontext). Eine Zuordnung von Hand gilt nur für diesen Import. Keine Zeile sagt, wie viele ihrer Buchungen schon gebucht sind.</p>
+  <div class="mock-frame mock-before" style="max-width:640px"><span class="mock-tag">Vorher</span><div class="workspace-section">
+    <section class="panel inner" style="margin-top:0">
+      <h3>Verrechnungskonten aus dem Export</h3>
+      <div class="mapping-grid">
+        <div class="mapping-row">
+          <div class="source"><small>PP-Konto</small>Cash USD</div>
+          <select><option selected>+ Neu anlegen: Cash USD</option><option>Broker USD</option></select>
+        </div>
+        <div class="mapping-row">
+          <div class="source"><small>PP-Konto</small>Giro</div>
+          <select><option selected>+ Neu anlegen: Giro</option><option>Girokonto</option></select>
+        </div>
+      </div>
+    </section>
+  </div></div>
+</section>
+
+<!-- ============================ VARIANTE A ============================ -->
+<section class="mock-board">
+  <h2>Variante A — „Zuordnung merken“ in der Zeile, nur wo eine Vorbelegung geändert wurde <small>empfohlen</small></h2>
+  <p class="mock-note">Jede Zeile sagt zwei Dinge, die sie heute nicht sagt. Unter dem Namen aus der Datei steht, wie viele ihrer Buchungen schon gebucht sind; der Hash wird vor jeder Zuordnung geprüft (§3). Unter der Auswahl steht, warum sie so vorbelegt ist, aber nur, wo das nicht offensichtlich ist: Ein gleicher Name braucht keine Begründung, ein früherer Name schon. Sind alle Buchungen einer Zeile schon gebucht, steht dort „nichts anzulegen“, auch neben „+ Neu anlegen“, denn ein Konto entsteht erst mit seiner ersten neuen Buchung (§4; gezeigt im Randfall unten). Das Kästchen „Zuordnung merken“ erscheint nur in einer Zeile, deren Vorbelegung von Hand auf ein <em>anders benanntes</em> bestehendes Konto geändert wurde. Es ist angekreuzt und nennt die Folge. Der mehrdeutige Name bleibt ohne Vorbelegung, nennt den Grund und die Abhilfe in derselben Notiz und hält den Import auf, wie heute eine fehlende Zuordnung. <b>Gestrichelt: neu.</b></p>
+  <div class="mock-frame"><div class="workspace-section" style="padding:18px">
+    <div class="page">
+      <div class="top"><h3>Importe</h3><span>Portfolio-Performance-Exporte (CSV oder JSON) als Stapel importieren.</span></div>
+      <div class="pg-tabs">
+        <nav class="area-tabs" aria-label="Bereichs-Tabs">
+          <a class="area-tab"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16M4 12h16M4 20h16"/></svg></span><span class="area-tab__label" data-label="Historie">Historie</span></a>
+          <a class="area-tab is-active" aria-current="page"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 19h14"/></svg></span><span class="area-tab__label" data-label="Import">Import</span></a>
+        </nav>
+      </div>
+      <div class="pg-body">
+      <section class="workspace-section">
+        <h2>Übersicht</h2>
+        <p class="muted" style="margin:0">Quellformat: JSON</p>
+        <div class="import-stats" style="margin:0">
+          <div class="import-stat-card"><span class="label">Einträge</span><span class="value">344</span></div>
+          <div class="import-stat-card"><span class="label">Wertpapiere</span><span class="value">12</span></div>
+          <div class="import-stat-card"><span class="label">Verrechnungskonten</span><span class="value">5</span></div>
+          <div class="import-stat-card"><span class="label">Depots</span><span class="value">2</span></div>
+        </div>
+        <p class="elide">… „Anzahl pro Art“ und „Bucket-Tag für neue Konten“ wie heute.</p>
+
+        <form>
+          <section class="panel inner" style="margin-top:0">
+            <h3>Verrechnungskonten aus dem Export</h3>
+            <div class="mapping-grid">
+              <!-- manual remap, remember (the names sort: Cash USD comes first) -->
+              <div class="mapping-row">
+                <div class="source"><small>PP-Konto</small>Cash USD<span class="mapping-count is-new"><b>9 Buchungen neu</b></span></div>
+                <div class="mapping-target">
+                  <select><option>+ Neu anlegen: Cash USD</option><option selected>Broker USD</option></select>
+                  <div class="mapping-remember is-new">
+                    <label><input type="hidden" value="false"><input type="checkbox" checked aria-describedby="remember-cash-usd"><span>Zuordnung merken</span></label>
+                    <small id="remember-cash-usd">„Cash USD“ wird früherer Name von Broker USD; ein künftiger Import ordnet den Namen selbst zu.</small>
+                  </div>
+                </div>
+              </div>
+              <!-- former name -->
+              <div class="mapping-row">
+                <div class="source"><small>PP-Konto</small>Giro<span class="mapping-count is-new">182 Buchungen bereits importiert · <b>4 neu</b></span></div>
+                <div class="mapping-target">
+                  <select><option>+ Neu anlegen: Giro</option><option selected>Girokonto</option></select>
+                  <span class="mapping-basis is-new">über früheren Namen zugeordnet — Girokonto, früher „Giro“</span>
+                </div>
+              </div>
+              <!-- exact name, all hits -->
+              <div class="mapping-row">
+                <div class="source"><small>PP-Konto</small>Tagesgeld<span class="mapping-count is-new">64 Buchungen bereits importiert · <b>nichts anzulegen</b></span></div>
+                <div class="mapping-target">
+                  <select><option>+ Neu anlegen: Tagesgeld</option><option selected>Tagesgeld</option></select>
+                </div>
+              </div>
+              <!-- merged away, all hits -->
+              <div class="mapping-row">
+                <div class="source"><small>PP-Konto</small>Tagesgeld (alt)<span class="mapping-count is-new">51 Buchungen bereits importiert · <b>nichts anzulegen</b></span></div>
+                <div class="mapping-target">
+                  <select><option>+ Neu anlegen: Tagesgeld (alt)</option><option selected>Tagesgeld</option></select>
+                  <span class="mapping-basis is-new">über früheren Namen zugeordnet — Tagesgeld, früher „Tagesgeld (alt)“</span>
+                </div>
+              </div>
+              <!-- ambiguous: no prefill, the reason, and the remedy inside the note -->
+              <div class="mapping-row">
+                <div class="source"><small>PP-Konto</small>Verrechnungskonto<span class="mapping-count is-new">9 Buchungen bereits importiert · <b>3 neu</b></span></div>
+                <div class="mapping-target">
+                  <select><option selected>Entscheiden…</option><option>+ Neu anlegen: Verrechnungskonto</option><option>Verrechnungskonto · bei Depot 1</option><option>Verrechnungskonto · bei Depot 2</option></select>
+                  <div class="data-note data-note--attention is-new">
+                    <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/></svg></span>
+                    <span class="data-note__word">Achtung</span>
+                    <div class="data-note__body">Zwei Verrechnungskonten heißen „Verrechnungskonto“, eines bei Depot 1, eines bei Depot 2, daher keine Vorbelegung. Die Wahl gilt für die 3 neuen Buchungen dieses Imports und lässt sich nicht merken, solange beide so heißen. Heißt nur noch eines so, ordnet der Import den Namen diesem zu: umbenennen unter <a href="#">Konten &amp; Depots</a>.</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel inner">
+            <h3>Depots aus dem Export</h3>
+            <div class="mapping-grid">
+              <div class="mapping-row depot">
+                <div class="source"><small>PP-Depot</small>Depot 1<span class="mapping-count is-new">140 Buchungen bereits importiert · 2 interne Umbuchungen entfallen · <b>nichts anzulegen</b></span></div>
+                <div class="mapping-target">
+                  <select><option>+ Neu anlegen: Depot 1</option><option selected>Depot 1</option></select>
+                </div>
+                <select><option selected>(Import) Giro</option><option>Girokonto</option></select>
+              </div>
+              <div class="mapping-row depot">
+                <div class="source"><small>PP-Depot</small>Depot 2<span class="mapping-count is-new">35 Buchungen bereits importiert · 2 interne Umbuchungen entfallen · <b>nichts anzulegen</b></span></div>
+                <div class="mapping-target">
+                  <select><option>+ Neu anlegen: Depot 2</option><option selected>Depot 1</option></select>
+                  <span class="mapping-basis is-new">über früheren Namen zugeordnet — Depot 1, früher „Depot 2“</span>
+                </div>
+                <select><option selected>(Import) Giro</option><option>Girokonto</option></select>
+              </div>
+            </div>
+          </section>
+
+          <p class="elide" style="margin-top:1rem">… „Wertpapiere aus dem Export“ wie heute (Randfall unten).</p>
+
+          <p id="import-missing-hint" class="form-help" role="status" style="margin-top:1rem">Vor dem Import noch zuzuordnen: Verrechnungskonto: Verrechnungskonto</p>
+          <div class="actions u-flex" style="margin-top:.75rem">
+            <button type="submit" class="button-primary" disabled>Import bestätigen</button>
+            <button type="button">Verwerfen</button>
+          </div>
+        </form>
+      </section>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ VARIANTE A, 390 px ============================ -->
+<section class="mock-board">
+  <h2>Variante A bei 390 px <small>eine Spalte je Zeile</small></h2>
+  <p class="mock-note">Die Zuordnungszeile hat heute keine Telefon-Regel. Nachgemessen bei 390 px ist sie 661 px breit, weil die Depotzeile mit drei Mindestspalten (160 / 224 / 224 px) das ganze Raster verbreitert; ab x = 358 wird sie abgeschnitten und ist nicht erreichbar (UX-DR15). Die neue Zeile bekommt zwei Textzeilen und ein Kästchen und würde das verschlimmern. Unter 720 px wird die Zeile deshalb einspaltig: Quelle, Auswahl, Begründung, Kästchen. Bei der Depotzeile folgt die Auswahl des Verrechnungskontos als dritte Zeile.</p>
+  <div class="mock-row">
+    <div class="phone">
+      <div class="ph-top">Importe</div>
+      <section class="workspace-section">
+        <section class="panel inner" style="margin-top:0">
+          <h3>Verrechnungskonten aus dem Export</h3>
+          <div class="mapping-grid">
+            <div class="mapping-row">
+              <div class="source"><small>PP-Konto</small>Cash USD<span class="mapping-count"><b>9 Buchungen neu</b></span></div>
+              <div class="mapping-target">
+                <select><option selected>Broker USD</option></select>
+                <div class="mapping-remember">
+                  <label><input type="checkbox"><span>Zuordnung merken</span></label>
+                  <small>Gilt nur für diesen Import. Ein künftiger Import schlägt wieder „+ Neu anlegen: Cash USD“ vor.</small>
+                </div>
+              </div>
+            </div>
+            <div class="mapping-row">
+              <div class="source"><small>PP-Konto</small>Giro<span class="mapping-count">182 Buchungen bereits importiert · <b>4 neu</b></span></div>
+              <div class="mapping-target">
+                <select><option selected>Girokonto</option></select>
+                <span class="mapping-basis">über früheren Namen zugeordnet — Girokonto, früher „Giro“</span>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section class="panel inner">
+          <h3>Depots aus dem Export</h3>
+          <div class="mapping-grid">
+            <div class="mapping-row depot">
+              <div class="source"><small>PP-Depot</small>Depot 2<span class="mapping-count">35 Buchungen bereits importiert · 2 interne Umbuchungen entfallen · <b>nichts anzulegen</b></span></div>
+              <div class="mapping-target">
+                <select><option selected>Depot 1</option></select>
+                <span class="mapping-basis">über früheren Namen zugeordnet — Depot 1, früher „Depot 2“</span>
+              </div>
+              <select><option selected>(Import) Giro</option></select>
+            </div>
+          </div>
+        </section>
+      </section>
+    </div>
+    <div class="notes">
+      <p class="cap">Gezeigt und gemessen</p>
+      <ol>
+        <li><b>Nicht angekreuzt</b> (die „Cash USD“-Zeile hier): Die Folgezeile wechselt auf „Gilt nur für diesen Import“ und nennt den Vorschlag, den der nächste Import wieder macht. Der Satz unter dem Kästchen beschreibt immer den Zustand, der gerade gilt.</li>
+        <li><b>Kein Kästchen</b>, wo es nichts zu merken gibt: eine unveränderte Vorbelegung, eine Änderung auf „+ Neu anlegen“, eine Änderung auf ein Konto gleichen Namens. Auch dort nicht, wo der Name aus der Datei schon Name eines <em>anderen</em> lebenden Kontos ist, denn der Namensschutz (§4) verweigert ihn als früheren Namen. Statt des Kästchens steht dann die Folgezeile „„Tagesgeld“ heißt schon ein anderes Konto; die Wahl gilt nur für diesen Import.“</li>
+        <li><b>Früherer Name eines anderen Kontos:</b> Wird die Zeile „Giro“ von Girokonto auf ein anderes Konto geändert, <em>verschiebt</em> das Merken den Namen (§4: ein früherer Name gehört genau einem Konto), und die Folgezeile sagt das vor dem Import: „„Giro“ wird früherer Name von Haushaltskonto und ist dann nicht mehr früherer Name von Girokonto.“ In B steht derselbe Satz in der Liste am Ende.</li>
+        <li><b>Mehrdeutig, aber alles schon gebucht:</b> Eine Zeile, deren Buchungen alle Hash-Treffer sind, braucht keine Entscheidung (§3: keine Auflösung für Treffer). Die Achtung-Notiz fällt weg, „nichts anzulegen“ steht, und der Import ist nicht blockiert.</li>
+        <li><b>Zählung:</b> Eine Buchung, die zwei Namen nennt (Kauf: Depot und Konto, Umbuchung: beide Seiten), zählt in beiden Zeilen. Die Zeilen ergeben also keine Summe; die Summe steht in „Einträge“.</li>
+        <li><b>Gleiche Namen in der Auswahl:</b> Heute zeigt die Liste nur <code>c.name</code>, zwei Konten namens „Verrechnungskonto“ wären darin nicht zu unterscheiden. Bei gleichem Namen trägt die Option deshalb das verknüpfte Depot („Verrechnungskonto · bei Depot 1“), sonst bleibt sie wie heute.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE B ============================ -->
+<section class="mock-board">
+  <h2>Variante B — ein Schalter am Ende des Zuordnungsschritts <small>eine Entscheidung für alle</small></h2>
+  <p class="mock-note">Die Zeilen sind dieselben, nur ohne Kästchen: Eine geänderte Zeile sagt „von Hand zugeordnet“, und unter allen Abschnitten, direkt über „Import bestätigen“, steht ein Schalter wie der Bucket-Tag-Abschnitt, der alle geänderten Zuordnungen auf einmal merkt. <b>Dafür:</b> eine Entscheidung an einer Stelle; keine Zeile wird höher, wenn eine Auswahl geändert wird, also springt nichts unter dem Zeiger. <b>Dagegen</b>, gehalten an <code>DESIGN.md</code> und <code>EXPERIENCE.md</code>: Das Bedienelement steht weit weg von der Zeile, auf die es wirkt: unter vier weiteren Konten, zwei Depots und dem Wertpapier-Abschnitt (in A gemessen rund 930 px bis zum Knopf, noch ohne die Wertpapiere), und in einem eigenen <code>&lt;section&gt;</code> außerhalb der Abschnitte, deren Zeilen es betrifft. Für eine Abhilfe prüft <code>DESIGN.md</code> genau diese Elementgrenze, und <code>EXPERIENCE.md</code> nennt dieselbe Form als Verstoß: eine Abhilfe rund 1100 px unter der Aussage, zu der sie gehört (Data note, Platzierung). Es ist alles oder nichts: Eine einmalige Umleitung, etwa ein Export mit einem vertippten Kontonamen, lässt sich nur mit allen anderen zusammen nicht merken. Und es steht auch da, wenn nichts zu merken ist, oder es taucht am Seitenende auf, sobald oben eine Auswahl geändert wird.</p>
+  <div class="mock-frame"><div class="workspace-section" style="padding:18px">
+    <div class="page">
+      <div class="top"><h3>Importe</h3><span>Portfolio-Performance-Exporte (CSV oder JSON) als Stapel importieren.</span></div>
+      <div class="pg-body">
+      <section class="workspace-section">
+        <form>
+          <section class="panel inner" style="margin-top:0">
+            <h3>Verrechnungskonten aus dem Export</h3>
+            <div class="mapping-grid">
+              <div class="mapping-row">
+                <div class="source"><small>PP-Konto</small>Cash USD<span class="mapping-count"><b>9 Buchungen neu</b></span></div>
+                <div class="mapping-target">
+                  <select><option selected>Broker USD</option></select>
+                  <span class="mapping-basis is-new">von Hand zugeordnet — vorgeschlagen war „+ Neu anlegen: Cash USD“</span>
+                </div>
+              </div>
+              <div class="mapping-row">
+                <div class="source"><small>PP-Konto</small>Giro<span class="mapping-count">182 Buchungen bereits importiert · <b>4 neu</b></span></div>
+                <div class="mapping-target">
+                  <select><option selected>Girokonto</option></select>
+                  <span class="mapping-basis">über früheren Namen zugeordnet — Girokonto, früher „Giro“</span>
+                </div>
+              </div>
+            </div>
+          </section>
+          <div class="gap-ph">… drei weitere Verrechnungskonten · „Depots aus dem Export“ (2 Zeilen) · „Wertpapiere aus dem Export“ (12 Wertpapiere, davon 2 zu entscheiden)<br>in Variante A gemessen: vom Ende der „Cash USD“-Zeile bis „Import bestätigen“ rund 930 px, noch ohne die Wertpapiere</div>
+          <section class="panel inner is-new">
+            <h3>Zuordnungen merken</h3>
+            <label><input type="hidden" value="false"><input type="checkbox" checked><span>Zuordnungen für künftige Importe merken</span></label>
+            <p class="muted" style="margin:0;font-size:12px">Betrifft 1 geänderte Zuordnung: „Cash USD“ → Broker USD. Der Name aus der Datei wird früherer Name des gewählten Kontos.</p>
+          </section>
+          <p class="form-help" role="status" style="margin-top:1rem">Vor dem Import noch zuzuordnen: Verrechnungskonto: Verrechnungskonto</p>
+          <div class="actions u-flex" style="margin-top:.75rem">
+            <button type="submit" class="button-primary" disabled>Import bestätigen</button>
+            <button type="button">Verwerfen</button>
+          </div>
+        </form>
+      </section>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+<!-- ============================ A gegen B ============================ -->
+<section class="mock-board">
+  <h2>A gegen B, gehalten an Spezifikation und ADR <small>warum A</small></h2>
+  <div class="mock-frame" style="box-shadow:none"><table class="t">
+    <thead><tr><th>Frage</th><th>A — Kästchen in der Zeile</th><th>B — ein Schalter am Ende</th></tr></thead>
+    <tbody>
+      <tr><td><b>Nähe</b> (DESIGN.md, Data note → Platzierung: eine Abhilfe steht im selben <code>&lt;section&gt;</code> wie die Daten, auf die sie wirkt; hier sinngemäß)</td><td>in der geänderten Zeile, unter der Auswahl</td><td>in einem eigenen Abschnitt unter allen anderen; in A gemessen rund 930 px bis zum Knopf, noch ohne die Wertpapiere</td></tr>
+      <tr><td><b>Nur wenn nötig</b></td><td>erscheint erst mit einer Änderung; ein erneuter Import ohne Änderung zeigt nichts davon</td><td>entweder immer da (und bewirkt nichts) oder taucht am Seitenende auf, wenn oben eine Auswahl geändert wird</td></tr>
+      <tr><td><b>Einzeln entscheidbar</b></td><td>je Umleitung; eine einmalige bleibt ungemerkt, die anderen nicht</td><td>alles oder nichts</td></tr>
+      <tr><td><b>Folge benannt</b> (Voice: Tatsache plus Folge)</td><td>ein Satz je Zeile: welcher Name früherer Name welches Kontos wird</td><td>eine Liste, die die geänderten Zeilen wiederholt</td></tr>
+      <tr><td><b>ADR-0050 §4</b> („maps X onto a differently named Y … with ‚remember‘ set“)</td><td>ein Merken-Feld je Zuordnung, so wie §4 es formuliert; eine Import-Route unter <code>/api/v1</code> gibt es nicht (§14), käme eine, erbte sie diese Form</td><td>ein globales Feld; der Import leitet daraus je Zeile ab, was gemerkt wird</td></tr>
+      <tr><td><b>Ruhe beim Ändern</b></td><td>die Zeile wird um zwei Zeilen höher, wenn die Auswahl wechselt</td><td>keine Zeile ändert ihre Höhe</td></tr>
+      <tr><td><b>390 px</b></td><td>im einspaltigen Zeilenstapel direkt unter der Auswahl</td><td>am Ende einer sehr langen Seite</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============================ ERGEBNIS ============================ -->
+<section class="mock-board">
+  <h2>Ergebnis — Vorher / Nachher <small>für A und B gleich</small></h2>
+  <p class="mock-note"><b>Vorher:</b> Eine Umbuchung, deren beide Seiten auf ein Konto oder Depot führen, rollt heute den ganzen Import zurück. Die Meldung ist der Text des Changesets, und jeder künftige Import desselben Exports scheitert genauso. <b>Nachher (§5):</b> Die Umbuchung entfällt und steht in einer eigenen Liste mit Zeile, Art, Datum, Menge oder Betrag und den beiden Namen aus der Datei. Die Duplikate stehen nach ihrer Schicht gruppiert. „Inhalts-Hash“ ist der erwartete Normalfall eines erneuten Imports und bleibt zugeklappt. „Stillgelegter Inhalts-Hash“ (bei einer Zusammenführung entfernt, §3) und die wirtschaftliche Schicht (dieselbe Buchung; nach einer Zusammenführung kann sie eine echte Zwillingsbuchung schlucken, §2) lohnen einen Blick und stehen offen. „Über frühere Namen zugeordnet“ zählt wie heute „über frühere ISIN“ jeden Datensatz, der über diese Stufe aufgelöst wurde (4 aus „Giro“, die 2 Umbuchungen über „Depot 2“), nicht nur die angelegten. Eine gemerkte Zuordnung wird bestätigt, damit sie keine Stammdaten ändert, ohne dass es irgendwo steht. Null neue Konten, weil jede Zeile auf ein bestehendes Konto ging; dass „+ Neu anlegen“ ohne neue Buchung nichts anlegt (§4), zeigt der Randfall unten. Dass „Verrechnungskonten“ über seine Karte hinausläuft, ist der heutige Stand von <code>.import-done .summary</code>, nicht Teil dieser Wahl.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before" style="flex:0 1 330px"><span class="mock-tag">Vorher</span><div class="workspace-section">
+      <p class="alert-error" role="alert" style="margin:0">Zeile 338: counter_securities_account_id must differ from securities_account_id</p>
+      <h2 style="font-size:17px">Übersicht</h2>
+      <p class="elide">… die Vorschau bleibt stehen; nichts wurde geschrieben. Dieselbe Datei scheitert beim nächsten Versuch an derselben Zeile.</p>
+    </div></div>
+
+    <div class="mock-frame mock-after" style="flex:1 1 640px"><span class="mock-tag">Nachher</span>
+      <section class="workspace-section import-done">
+        <svg class="success-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>
+        <h2>Import abgeschlossen</h2>
+        <p class="muted" style="margin:0">Erzeugte Transaktionen: 14 · Übersprungene Duplikate: 328</p>
+        <p class="muted is-new" data-role="former-name-matches" style="margin:0">6 Datensätze über frühere Namen zugeordnet.</p>
+        <p class="muted is-new" data-role="remembered-remaps" style="margin:0">1 Zuordnung gemerkt: „Cash USD“ ist jetzt früherer Name von Broker USD.</p>
+
+        <div class="import-skipped is-new" data-role="duplicate-entries">
+          <p class="muted">328 bereits gebuchte Datensätze übersprungen:</p>
+          <details class="dup-group">
+            <summary class="disclosure-summary"><svg class="disclosure-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg><span><b>322</b> · eine identische Zeile wurde bereits importiert (gespeicherter Inhalts-Hash)</span></summary>
+          </details>
+          <details class="dup-group" open>
+            <summary class="disclosure-summary"><svg class="disclosure-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg><span><b>4</b> · eine Zeile mit diesem Inhalt wurde bei einer Zusammenführung entfernt (stillgelegter Inhalts-Hash)</span></summary>
+            <ul>
+              <li>Zeile 61: Umbuchung 2025-03-03 · 1.000,00 EUR · Tagesgeld (alt) → Tagesgeld · interne Umbuchung</li>
+              <li>Zeile 97: Umbuchung 2025-07-01 · 2.500,00 EUR · Tagesgeld → Tagesgeld (alt) · interne Umbuchung</li>
+              <li>Zeile 142: Zinsen 2025-12-31 · 12,40 EUR · Tagesgeld (alt) · als Duplikat zusammengeführt</li>
+              <li>Zeile 143: Zinsen 2025-12-31 · 3,15 EUR · Tagesgeld (alt) · als Duplikat zusammengeführt</li>
+            </ul>
+          </details>
+          <details class="dup-group" open>
+            <summary class="disclosure-summary"><svg class="disclosure-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg><span><b>2</b> · eine bestehende Buchung hat dasselbe Datum, Wertpapier, dieselbe Stückzahl und denselben Betrag</span></summary>
+            <ul>
+              <li>Zeile 12: Dividende 2026-09-01 · Helios Solar Systems SE · 18,40 EUR · Giro</li>
+              <li>Zeile 13: Dividende 2026-09-01 · Nordic Timber Holdings AB · 7,20 EUR · Giro</li>
+            </ul>
+          </details>
+        </div>
+
+        <div class="import-skipped is-new" data-role="internal-transfers">
+          <p class="muted">2 interne Umbuchungen übersprungen — beide Seiten führen auf dasselbe Konto oder Depot:</p>
+          <ul>
+            <li>Zeile 338: Wertpapierumbuchung 2026-09-15 · 10 Stück Meridian Global Equity ETF · Depot 2 → Depot 1</li>
+            <li>Zeile 341: Wertpapierumbuchung 2026-09-18 · 25 Stück Helios Solar Systems SE · Depot 2 → Depot 1</li>
+          </ul>
+        </div>
+
+        <div class="summary">
+          <div class="import-stat-card"><span class="label">Wertpapiere</span><span class="value">0</span></div>
+          <div class="import-stat-card"><span class="label">Verrechnungskonten</span><span class="value">0</span></div>
+          <div class="import-stat-card"><span class="label">Depots</span><span class="value">0</span></div>
+        </div>
+        <div class="actions">
+          <button type="button" class="button-primary">Weitere Datei importieren</button>
+          <a class="button-secondary">Transaktionen ansehen</a>
+        </div>
+      </section>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ RANDFALL ============================ -->
+<section class="mock-board">
+  <h2>Randfall — eine Datei, die schon ganz importiert ist <small>für A und B gleich</small></h2>
+  <p class="mock-note">Nach §2 ist eine schon angewandte Datei nach jeder Folge von Umbenennungen und Zusammenführungen ein Leerlauf. Die Vorschau sagt das einmal, als Hinweis über dem Bestätigen-Knopf, statt es in jeder Zeile zusammenzählen zu lassen. Der Knopf bleibt aktiv: Bestätigen schreibt nichts und liefert das Ergebnis mit allen Duplikaten nach Schicht. Die Zeile „Sparkonto“ zeigt §4 neben „+ Neu anlegen“: Das Konto heißt seit einer Umbenennung vor ADR-0050 „Rücklagen“ und hat keinen früheren Namen, also schlägt der Import „+ Neu anlegen“ vor. Weil alle 24 Buchungen schon gebucht sind, entsteht trotzdem nichts, und die Zeile sagt warum. Wird die Auswahl auf Rücklagen geändert, erscheint in A das Kästchen, und „Sparkonto“ ist ab dann früherer Name von Rücklagen. Die Wertpapier-Zuordnung folgt derselben Regel wie ein mehrdeutiger Kontoname: Ein Wertpapier, dessen Zeilen alle Hash-Treffer sind, braucht keine Entscheidung (§3).</p>
+  <div class="mock-frame" style="max-width:760px"><div class="workspace-section">
+    <div class="mapping-grid" style="margin:0">
+      <div class="mapping-row">
+        <div class="source"><small>PP-Konto</small>Sparkonto<span class="mapping-count">24 Buchungen bereits importiert · <b>nichts anzulegen</b></span></div>
+        <div class="mapping-target">
+          <select><option selected>+ Neu anlegen: Sparkonto</option><option>Rücklagen</option><option>Tagesgeld</option></select>
+          <span class="mapping-basis is-new">kein Konto unter diesem Namen; angelegt wird es erst mit seiner ersten neuen Buchung</span>
+        </div>
+      </div>
+      <div class="mapping-row">
+        <div class="source"><small>PP-Konto</small>Tagesgeld<span class="mapping-count">64 Buchungen bereits importiert · <b>nichts anzulegen</b></span></div>
+        <div class="mapping-target"><select><option selected>Tagesgeld</option></select></div>
+      </div>
+    </div>
+    <p class="elide">… jede Zeile ebenso.</p>
+    <div class="data-note data-note--note is-new">
+      <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/></svg></span>
+      <span class="data-note__word">Hinweis</span>
+      <div class="data-note__body">Alle 212 Einträge sind bereits importiert. Der Import legt nichts an: keine Buchung, kein Konto, kein Depot, kein Wertpapier.</div>
+    </div>
+    <div class="actions u-flex">
+      <button type="submit" class="button-primary">Import bestätigen</button>
+      <button type="button">Verwerfen</button>
+    </div>
+  </div></div>
+</section>
+
+</body>
+</html>

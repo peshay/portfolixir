@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Zahlenfelder in der Sprache der Seite (#869, Vorher / Nachher)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  /* Board chrome only. Inside the frames: the live classes of
+     transaction_management_live.ex (booking_drawer/1: .detail-pane.booking-drawer,
+     .detail-pane-head, .form-grid, .form-help, .transaction-costs,
+     .booking-drawer__foot), settlement_form.ex (fieldset/1:
+     .settlement-fieldset) and policy_rule_dialog.ex (.modal.policy-rule-dialog,
+     .modal-head, .modal-body, .hint, .perf-table-disclosure,
+     .policy-rule-versions, .modal-footer). The drawer and the dialog are drawn
+     as <div>s because a closed <dialog> does not paint. The one rule under
+     "proposed" is what #869 adds to app.css. */
+  .mock-frame { overflow: visible; }
+  .col { display: grid; gap: 10px; align-content: start; flex: 0 0 432px; min-width: 0; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .notes { display: grid; gap: 8px; align-content: start; font-size: 12.5px; }
+  .notes p, .notes ol, .notes ul { margin: 0; }
+  .notes ol, .notes ul { padding-left: 18px; }
+  .notes li { margin: 0 0 6px; }
+  .notes li + li { margin-top: 0; }
+  .notes code, .mock-note code, table.t code { font-size: 11.5px; }
+  /* numbered pins: the before frame's findings, the after frame's repairs */
+  i.pin { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-left: 5px; border-radius: 999px; font: 700 10px/1 var(--font-sans); font-style: normal; color: #fff; vertical-align: 1px; letter-spacing: 0; }
+  i.pin.b { background: var(--color-danger); }
+  i.pin.a { background: var(--color-positive); }
+  .notes li > i.pin:first-child, .notes p > i.pin:first-child { margin: 0 4px 0 0; }
+  /* the booking drawer at its desktop width: the second column of
+     .transactions-columns--drawer, minmax(320px, 380px) */
+  .booking-drawer.desk { width: 380px; margin: 0; box-sizing: border-box; }
+  /* the rule dialog at its desktop width (.modal max-width) */
+  .policy-rule-dialog.desk { width: 640px; box-shadow: var(--shadow-md); }
+
+  /* ---- the 390 px phone frames (drawn: the board renders at 1200) ---- */
+  .phone { width: 390px; height: 844px; position: relative; overflow: hidden; border: 1px solid var(--color-border-strong); border-radius: 24px; background: var(--color-bg); flex: none; box-sizing: content-box; }
+  .phone .behind { padding: 22px 18px; display: grid; gap: 10px; }
+  .phone .behind .ttl { font-weight: 700; font-size: 16px; padding-bottom: 4px; }
+  .phone .behind .ln { height: 48px; border-radius: 8px; background: var(--color-bg-elevated); border: 1px solid var(--color-border); }
+  .phone .scrim { position: absolute; inset: 0; background: rgba(15, 23, 42, .4); }
+  /* dialog.booking-drawer under 720 px (app.css), replayed */
+  .phone .booking-drawer.sheet { position: absolute; left: 0; right: 0; bottom: 0; max-height: 88%; overflow: hidden; margin: 0; padding: 12px 16px 16px; border-bottom: 0; border-radius: 8px 8px 0 0; box-shadow: 0 -8px 24px rgba(0, 0, 0, .18); box-sizing: border-box; }
+  /* dialog.modal at 390 px: the UA's max-width calc(100% - 6px - 2em), 60 px from the top */
+  .phone .policy-rule-dialog.at-phone { position: absolute; top: 60px; left: 19px; right: 19px; width: auto; max-width: none; max-height: calc(100% - 76px); overflow: hidden; }
+  .ph-frame .workspace-section { padding: 12px; }
+  /* .policy-rule-dialog .modal-footer under 480 px (app.css, board 07), replayed */
+  .phone .policy-rule-dialog .modal-footer { flex-wrap: wrap; }
+  .phone .policy-rule-dialog .modal-footer > button + .modal-footer__spacer { flex-basis: 100%; height: 0; }
+  .phone .policy-rule-dialog .modal-footer > button:first-child { margin-right: auto; }
+
+  /* section 3 */
+  table.t td.v { font-family: var(--font-mono); font-size: 12.5px; white-space: nowrap; }
+  table.t td.v.bad { color: var(--color-danger); }
+  table.t td.v.good { color: var(--color-positive); }
+  .callout { border: 1px solid var(--color-border); border-left: 4px solid var(--color-danger); border-radius: var(--radius-md); background: var(--color-bg-elevated); padding: 10px 14px; display: grid; gap: 6px; font-size: 12.5px; }
+  .callout.keep { border-left-color: var(--color-border-strong); }
+  .callout h4 { margin: 0; font-size: 13px; }
+  .callout p { margin: 0; }
+  .demo { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; }
+  .demo-in { display: inline-block; min-width: 96px; padding: 3px 8px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); font-variant-numeric: tabular-nums; text-align: right; }
+
+  /* ---- proposed (#869). Scoped to the after frames here; in app.css the
+     selector joins the generic `th.num, td.num` rule at the end of the file,
+     so it outranks the bare `input` rule by specificity and any scoped
+     `… input` rule of equal specificity by source order. ---- */
+  .mock-after input.num { text-align: right; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+
+<div class="pickbar"><b>Vorher / Nachher — keine Variantenwahl.</b> #869 ist ein Konformitätsbefund: Zahlenfelder zeigen ihren Wert auf einer deutschen Seite mit Dezimalpunkt und stehen linksbündig in proportionalen Ziffern, wo <code>DESIGN.md</code> Tabellenziffern für Geld „in jedem Zustand“ verlangt (Typography) und die Boards <code>ux-design-2026-09-23/01</code> und <code>/03</code> die Felder rechtsbündig mit Tabellenziffern zeichnen. Nachher zeigt <b>ein gemeinsamer Helfer</b> jeden Wert in der Sprache der Seite — im Deutschen mit Dezimalkomma, <b>ohne Tausenderpunkt</b> — und liest ihn auf demselben Weg zurück; <b><code>input.num</code></b> steht rechtsbündig mit Tabellenziffern. <b>Datumsfelder bleiben ISO</b> (UX-DR19). Gezeichnet: der Abrechnungsblock der Buchungsschublade (Betrag, Kurs) und der Regeldialog (Grenze), je bei 1200 px und in einem 390-px-Rahmen. Alle Namen, Zahlen und Daten sind erfunden.</div>
+
+<!-- ======================= 1 · BUCHUNGSSCHUBLADE ======================= -->
+<section class="mock-board">
+  <h2>Buchungsschublade — Abrechnung in EUR <small>Vorher / Nachher · 1200 px: die Schublade in ihrer Spalte von 380 px</small></h2>
+  <p class="mock-note">Ein Kauf von 40 Stück eines USD-Titels auf ein Depot mit EUR-Konto. Stückzahl und Preis sind getippt, Abrechnungsbetrag und Kurs aus den gespeicherten Wechselkursen vorbelegt (Pick F3-A, Sprint 15). Die Stückzahl und der Preis bekommen dieselbe Behandlung wie der Block: Ein Formular mit zwei Ausrichtungen wäre der nächste Befund.</p>
+  <div class="mock-row">
+
+    <div class="col">
+      <div class="mock-frame mock-before"><span class="mock-tag">Vorher · 1200 px</span><div class="workspace-section">
+        <div class="detail-pane booking-drawer desk">
+          <header class="detail-pane-head">
+            <div class="detail-pane-head__title"><div>
+              <h2>Transaktion erfassen</h2>
+              <p class="detail-pane-sub">Bucht gegen das gewählte Depot; das Geld bewegt sich in der Währung seines Geldkontos.</p>
+            </div></div>
+            <div class="detail-pane-head__actions"><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+          </header>
+          <form>
+            <div class="form-grid">
+              <label><span>Typ</span><select><option selected>Kauf</option></select></label>
+              <label><span>Datum</span><input type="text" value="2026-09-18" placeholder="YYYY-MM-DD" maxlength="10"></label>
+              <label><span>Bucht auf Depot</span><select><option selected>Depot 1 (Girokonto)</option></select></label>
+              <label><span>Wertpapier</span><select><option selected>Kestrel Industrial Group NV</option></select></label>
+              <label><span>Stückzahl<i class="pin b">2</i></span><input value="40" inputmode="decimal"></label>
+              <label><span>Preis (USD)</span><input value="45,60" inputmode="decimal"></label>
+            </div>
+            <fieldset class="settlement-fieldset">
+              <legend>Abrechnung in EUR <span class="settlement-fieldset__pair">· Wertpapier in USD, Konto in EUR</span></legend>
+              <div class="form-grid">
+                <label><span>Abrechnungsbetrag (EUR)<i class="pin b">1</i></span><input value="1664.40" inputmode="decimal"></label>
+                <label><span>Kurs EUR je USD<i class="pin b">1</i></span><input value="0.9125" inputmode="decimal"></label>
+              </div>
+              <p class="form-help">Kurs aus den gespeicherten Wechselkursen am oder vor dem 2026&#8209;09&#8209;18 vorgeschlagen. Der Geldbetrag ist beim Kauf der Abrechnungsbetrag plus Gebühren und Steuern, beim Verkauf abzüglich dieser; Gebühren und Steuern sind in EUR.</p>
+            </fieldset>
+            <p class="form-help">Preis in USD · Geld in EUR</p>
+            <details class="transaction-costs"><summary class="disclosure-summary"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>Kosten und Notiz</summary></details>
+            <div class="booking-drawer__foot"><button type="submit" class="button-primary">Transaktion erfassen</button><button type="button" class="button-ghost">Abbrechen</button></div>
+          </form>
+        </div>
+      </div></div>
+      <ol class="notes" style="list-style:none;padding:0">
+        <li><i class="pin b">1</i><b>Ein Formular, zwei Schreibweisen.</b> „45,60“ steht, wie es getippt wurde; direkt darunter kommen Betrag und Kurs aus der Vorbelegung mit Punkt (<code>SettlementForm.put_amount/2</code>, <code>put_rate/2</code> über <code>Decimal.to_string/2</code>). Beim Bearbeiten einer gespeicherten Buchung kommt <em>jeder</em> Wert mit Nachkommastellen mit Punkt (<code>to_form_value/1</code>).</li>
+        <li><i class="pin b">2</i><b>Linksbündig, proportionale Ziffern.</b> Die Felder der Schublade tragen keine Klasse <code>num</code>; <code>app.css</code> belegt ohnehin nur <code>th.num</code> und <code>td.num</code>.</li>
+      </ol>
+    </div>
+
+    <div class="col">
+      <div class="mock-frame mock-after"><span class="mock-tag">Nachher · 1200 px</span><div class="workspace-section">
+        <div class="detail-pane booking-drawer desk">
+          <header class="detail-pane-head">
+            <div class="detail-pane-head__title"><div>
+              <h2>Transaktion erfassen</h2>
+              <p class="detail-pane-sub">Bucht gegen das gewählte Depot; das Geld bewegt sich in der Währung seines Geldkontos.</p>
+            </div></div>
+            <div class="detail-pane-head__actions"><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+          </header>
+          <form>
+            <div class="form-grid">
+              <label><span>Typ</span><select><option selected>Kauf</option></select></label>
+              <label><span>Datum</span><input type="text" value="2026-09-18" placeholder="YYYY-MM-DD" maxlength="10"></label>
+              <label><span>Bucht auf Depot</span><select><option selected>Depot 1 (Girokonto)</option></select></label>
+              <label><span>Wertpapier</span><select><option selected>Kestrel Industrial Group NV</option></select></label>
+              <label><span>Stückzahl<i class="pin a">2</i></span><input class="num" value="40" inputmode="decimal"></label>
+              <label><span>Preis (USD)</span><input class="num" value="45,60" inputmode="decimal"></label>
+            </div>
+            <fieldset class="settlement-fieldset">
+              <legend>Abrechnung in EUR <span class="settlement-fieldset__pair">· Wertpapier in USD, Konto in EUR</span></legend>
+              <div class="form-grid">
+                <label><span>Abrechnungsbetrag (EUR)<i class="pin a">1</i></span><input class="num" value="1664,40" inputmode="decimal"></label>
+                <label><span>Kurs EUR je USD<i class="pin a">1</i></span><input class="num" value="0,9125" inputmode="decimal"></label>
+              </div>
+              <p class="form-help">Kurs aus den gespeicherten Wechselkursen am oder vor dem 2026&#8209;09&#8209;18 vorgeschlagen. Der Geldbetrag ist beim Kauf der Abrechnungsbetrag plus Gebühren und Steuern, beim Verkauf abzüglich dieser; Gebühren und Steuern sind in EUR.</p>
+            </fieldset>
+            <p class="form-help">Preis in USD · Geld in EUR</p>
+            <details class="transaction-costs"><summary class="disclosure-summary"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>Kosten und Notiz</summary></details>
+            <div class="booking-drawer__foot"><button type="submit" class="button-primary">Transaktion erfassen</button><button type="button" class="button-ghost">Abbrechen</button></div>
+          </form>
+        </div>
+      </div></div>
+      <ol class="notes" style="list-style:none;padding:0">
+        <li><i class="pin a">1</i><b>Ein Helfer, beide Richtungen.</b> Er zeigt den Wert in der Sprache der Seite und liest ihn zurück. Er tauscht nur das Trennzeichen, nie die Ziffern: <code>put_amount/2</code> rundet weiter auf zwei Stellen, <code>put_rate/2</code> auf sechs.</li>
+        <li><i class="pin a">2</i><b>Jedes Zahlenfeld trägt <code>class="num"</code></b>, und <code>input.num</code> ist rechtsbündig mit Tabellenziffern. Betrag und Kurs enden an derselben Kante.</li>
+      </ol>
+    </div>
+
+    <div class="notes" style="flex:1 1 180px">
+      <p class="cap">Bleibt, wie es ist</p>
+      <ul>
+        <li>Beschriftungen, Reihenfolge, der Block und sein Hinweis.</li>
+        <li>„Datum“ bleibt die ISO-Texteingabe (UX-DR19).</li>
+        <li>Das ISO-Datum im Hinweis mit geschützten Bindestrichen — so festgelegt in <code>DESIGN.md</code> → Amendment 2026-09-24, Abrechnung.</li>
+        <li>Getipptes wird nicht umgeschrieben: „45,60“ bleibt „45,60“, auch nach einer Ableitung.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 390 px -->
+  <p class="cap" style="margin-top:22px">390 px — derselbe Kauf, nachdem der Betrag aus der Abrechnung der Bank getippt wurde</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before ph-frame" style="flex:none"><span class="mock-tag">Vorher · 390 px · Betrag getippt</span><div class="workspace-section">
+      <div class="phone">
+        <div class="behind"><div class="ttl">Transaktionen</div><div class="ln"></div><div class="ln"></div><div class="ln"></div></div>
+        <div class="scrim"></div>
+        <div class="detail-pane booking-drawer sheet">
+          <header class="detail-pane-head">
+            <div class="detail-pane-head__title"><div>
+              <h2>Transaktion erfassen</h2>
+              <p class="detail-pane-sub">Bucht gegen das gewählte Depot; das Geld bewegt sich in der Währung seines Geldkontos.</p>
+            </div></div>
+            <div class="detail-pane-head__actions"><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+          </header>
+          <form>
+            <div class="form-grid">
+              <label><span>Typ</span><select><option selected>Kauf</option></select></label>
+              <label><span>Datum</span><input type="text" value="2026-09-18" placeholder="YYYY-MM-DD" maxlength="10"></label>
+              <label><span>Bucht auf Depot</span><select><option selected>Depot 1 (Girokonto)</option></select></label>
+              <label><span>Wertpapier</span><select><option selected>Kestrel Industrial Group NV</option></select></label>
+              <label><span>Stückzahl</span><input value="40" inputmode="decimal"></label>
+              <label><span>Preis (USD)</span><input value="45,60" inputmode="decimal"></label>
+            </div>
+            <fieldset class="settlement-fieldset">
+              <legend>Abrechnung in EUR <span class="settlement-fieldset__pair">· Wertpapier in USD, Konto in EUR</span></legend>
+              <div class="form-grid">
+                <label><span>Abrechnungsbetrag (EUR)</span><input value="1666,15" inputmode="decimal"></label>
+                <label><span>Kurs EUR je USD<i class="pin b">1</i></span><input value="0.913459" inputmode="decimal"></label>
+              </div>
+              <p class="form-help">Der Geldbetrag ist beim Kauf der Abrechnungsbetrag plus Gebühren und Steuern, beim Verkauf abzüglich dieser; Gebühren und Steuern sind in EUR.</p>
+            </fieldset>
+            <p class="form-help">Preis in USD · Geld in EUR</p>
+            <details class="transaction-costs"><summary class="disclosure-summary"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>Kosten und Notiz</summary></details>
+            <div class="booking-drawer__foot"><button type="submit" class="button-primary">Transaktion erfassen</button><button type="button" class="button-ghost">Abbrechen</button></div>
+          </form>
+        </div>
+      </div>
+    </div></div>
+
+    <div class="mock-frame mock-after ph-frame" style="flex:none"><span class="mock-tag">Nachher · 390 px · Betrag getippt</span><div class="workspace-section">
+      <div class="phone">
+        <div class="behind"><div class="ttl">Transaktionen</div><div class="ln"></div><div class="ln"></div><div class="ln"></div></div>
+        <div class="scrim"></div>
+        <div class="detail-pane booking-drawer sheet">
+          <header class="detail-pane-head">
+            <div class="detail-pane-head__title"><div>
+              <h2>Transaktion erfassen</h2>
+              <p class="detail-pane-sub">Bucht gegen das gewählte Depot; das Geld bewegt sich in der Währung seines Geldkontos.</p>
+            </div></div>
+            <div class="detail-pane-head__actions"><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+          </header>
+          <form>
+            <div class="form-grid">
+              <label><span>Typ</span><select><option selected>Kauf</option></select></label>
+              <label><span>Datum</span><input type="text" value="2026-09-18" placeholder="YYYY-MM-DD" maxlength="10"></label>
+              <label><span>Bucht auf Depot</span><select><option selected>Depot 1 (Girokonto)</option></select></label>
+              <label><span>Wertpapier</span><select><option selected>Kestrel Industrial Group NV</option></select></label>
+              <label><span>Stückzahl</span><input class="num" value="40" inputmode="decimal"></label>
+              <label><span>Preis (USD)</span><input class="num" value="45,60" inputmode="decimal"></label>
+            </div>
+            <fieldset class="settlement-fieldset">
+              <legend>Abrechnung in EUR <span class="settlement-fieldset__pair">· Wertpapier in USD, Konto in EUR</span></legend>
+              <div class="form-grid">
+                <label><span>Abrechnungsbetrag (EUR)</span><input class="num" value="1666,15" inputmode="decimal"></label>
+                <label><span>Kurs EUR je USD<i class="pin a">1</i></span><input class="num" value="0,913459" inputmode="decimal"></label>
+              </div>
+              <p class="form-help">Der Geldbetrag ist beim Kauf der Abrechnungsbetrag plus Gebühren und Steuern, beim Verkauf abzüglich dieser; Gebühren und Steuern sind in EUR.</p>
+            </fieldset>
+            <p class="form-help">Preis in USD · Geld in EUR</p>
+            <details class="transaction-costs"><summary class="disclosure-summary"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>Kosten und Notiz</summary></details>
+            <div class="booking-drawer__foot"><button type="submit" class="button-primary">Transaktion erfassen</button><button type="button" class="button-ghost">Abbrechen</button></div>
+          </form>
+        </div>
+      </div>
+    </div></div>
+
+    <div class="notes" style="flex:1 1 200px;min-width:0">
+      <p class="cap">Was 390 px zeigt</p>
+      <p><i class="pin b">1</i>Der Fall, den die UAT-Persona des Sprint-15-Abschlusses auf dem Telefon traf: Der getippte Betrag „1666,15“ steht mit Komma, der daraus abgeleitete Kurs „0.913459“ mit Punkt darunter. Nach dem Tippen fällt der Satz zur Herkunft des Kurses weg; der Kurs folgt jetzt dem getippten Betrag.</p>
+      <p><i class="pin a">1</i>Nachher „0,913459“ unter „1666,15“, beide an der rechten Kante. Auf voller Breite rücken die Ziffern von der Beschriftung weg; das ist der Preis einer Kante, an der sich untereinander stehende Zahlen vergleichen lassen, und dieselbe Lesart wie jede Zahlenspalte der App.</p>
+      <p>Die Schublade ist unter 720 px die Bodenleiste (88 % der Höhe) und scrollt; der Fuß liegt hier unter der Kante.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ========================== 2 · REGELDIALOG ========================== -->
+<section class="mock-board">
+  <h2>Regeldialog — „Regel ändern“ auf Vermögen → Risiko <small>Vorher / Nachher · 1200 px: der Dialog in seiner vollen Breite von 640 px</small></h2>
+  <p class="mock-note">Eine Obergrenze für das Gewicht eines Titels, Version 2 in Kraft. Der Dialog öffnet mit den Werten der geltenden Version. Hier trägt das Feld die Klasse <code>num</code> schon — mit nichts dahinter.</p>
+
+  <div class="mock-row">
+    <div class="mock-frame mock-before" style="flex:none"><span class="mock-tag">Vorher · 1200 px</span><div class="workspace-section">
+      <div class="modal policy-rule-dialog desk">
+        <header class="modal-head">
+          <h2>Regel ändern — „Einzeltitel begrenzen“</h2>
+          <button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+        </header>
+        <form><div class="modal-body">
+          <p class="hint">Ausgewertet in der Ansicht „Alles“, auf ihrer steuerbaren Basis.</p>
+          <div class="form-grid">
+            <label><span>Kennzahl</span><select><option selected>Gewicht</option></select></label>
+            <label><span>Bezug</span><select><option selected>Nordic Timber Holdings AB</option></select></label>
+            <label><span>Art</span><select><option selected>Obergrenze</option></select></label>
+            <label><span>Grenze (%)<i class="pin b">1</i><i class="pin b">2</i></span><input type="text" inputmode="decimal" class="num" value="7.5" autocomplete="off"></label>
+            <label><span>Schweregrad</span><select><option selected>hart</option></select></label>
+            <label><span>Gilt ab</span><input type="text" value="2026-09-24" placeholder="YYYY-MM-DD" maxlength="10" autocomplete="off"></label>
+            <label class="form-grid__wide"><span>Notiz (optional)</span><input type="text" value="" autocomplete="off"></label>
+          </div>
+          <p class="hint">Speichern legt Version 3 an. Version 2 (7,5&nbsp;%<i class="pin b">1</i>) gilt seit 01.06.2026, endet am Tag vor der neuen und bleibt lesbar.</p>
+          <details class="perf-table-disclosure" open>
+            <summary class="disclosure-summary"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>Versionen</summary>
+            <ol class="policy-rule-versions">
+              <li>Version 1 · 01.02.2026 – 31.05.2026 · 12,5&nbsp;% · hart</li>
+              <li>Version 2 · ab 01.06.2026 · 7,5&nbsp;% · hart</li>
+            </ol>
+          </details>
+          <div class="modal-footer">
+            <button type="button" class="button-ghost">Regel beenden</button>
+            <span class="modal-footer__spacer"></span>
+            <button type="button" class="button-ghost">Abbrechen</button>
+            <button type="submit" class="button-primary">Neue Version speichern</button>
+          </div>
+        </div></form>
+      </div>
+    </div></div>
+    <div class="notes" style="flex:1 1 300px">
+      <p class="cap">Vorher</p>
+      <ol style="list-style:none;padding:0">
+        <li><i class="pin b">1</i><b>Derselbe Wert zweimal, in zwei Schreibweisen.</b> Das Feld zeigt „7.5“ (<code>decimal_input/1</code>: <code>Decimal.to_string/2</code>), der Satz darunter und die Versionsliste „7,5&nbsp;%“ (<code>PolicyRuleFormat.line/1</code> über <code>Format.decimal/3</code>).</li>
+        <li><i class="pin b">2</i><b>Die Klasse ohne Regel.</b> <code>class="num"</code> steht auf „Grenze“, „Von“ und „Bis“, aber <code>app.css</code> trägt nichts dahinter: linksbündig, proportionale Ziffern — derselbe Fehler, den <code>td.num</code> bis Sprint 14 hatte (Issue 833).</li>
+      </ol>
+      <p class="u-muted" style="font-size:12px">„Gilt ab“ zeigt ISO, die Versionsliste das deutsche Datum — beides ist so gebaut und nicht Gegenstand dieses Boards (siehe unten, Datumsfelder).</p>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:20px">
+    <div class="mock-frame mock-after" style="flex:none"><span class="mock-tag">Nachher · 1200 px</span><div class="workspace-section">
+      <div class="modal policy-rule-dialog desk">
+        <header class="modal-head">
+          <h2>Regel ändern — „Einzeltitel begrenzen“</h2>
+          <button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+        </header>
+        <form><div class="modal-body">
+          <p class="hint">Ausgewertet in der Ansicht „Alles“, auf ihrer steuerbaren Basis.</p>
+          <div class="form-grid">
+            <label><span>Kennzahl</span><select><option selected>Gewicht</option></select></label>
+            <label><span>Bezug</span><select><option selected>Nordic Timber Holdings AB</option></select></label>
+            <label><span>Art</span><select><option selected>Obergrenze</option></select></label>
+            <label><span>Grenze (%)<i class="pin a">1</i><i class="pin a">2</i></span><input type="text" inputmode="decimal" class="num" value="7,5" autocomplete="off"></label>
+            <label><span>Schweregrad</span><select><option selected>hart</option></select></label>
+            <label><span>Gilt ab</span><input type="text" value="2026-09-24" placeholder="YYYY-MM-DD" maxlength="10" autocomplete="off"></label>
+            <label class="form-grid__wide"><span>Notiz (optional)</span><input type="text" value="" autocomplete="off"></label>
+          </div>
+          <p class="hint">Speichern legt Version 3 an. Version 2 (7,5&nbsp;%) gilt seit 01.06.2026, endet am Tag vor der neuen und bleibt lesbar.</p>
+          <details class="perf-table-disclosure" open>
+            <summary class="disclosure-summary"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>Versionen</summary>
+            <ol class="policy-rule-versions">
+              <li>Version 1 · 01.02.2026 – 31.05.2026 · 12,5&nbsp;% · hart</li>
+              <li>Version 2 · ab 01.06.2026 · 7,5&nbsp;% · hart</li>
+            </ol>
+          </details>
+          <div class="modal-footer">
+            <button type="button" class="button-ghost">Regel beenden</button>
+            <span class="modal-footer__spacer"></span>
+            <button type="button" class="button-ghost">Abbrechen</button>
+            <button type="submit" class="button-primary">Neue Version speichern</button>
+          </div>
+        </div></form>
+      </div>
+    </div></div>
+    <div class="notes" style="flex:1 1 300px">
+      <p class="cap">Nachher</p>
+      <ol style="list-style:none;padding:0">
+        <li><i class="pin a">1</i><b>„7,5“ im Feld, „7,5&nbsp;%“ im Satz.</b> Der Helfer ersetzt <code>decimal_input/1</code>; auf dem Rückweg ersetzt er <code>decimal_text/1</code>, das heute <em>jedes</em> Komma zum Punkt macht, während Buchung und Abrechnung nur ein einzelnes Komma ohne Punkt umdeuten. Nachher gilt überall die zweite Regel.</li>
+        <li><i class="pin a">2</i><b>Rechtsbündig, Tabellenziffern</b> — durch die eine neue Zeile in <code>app.css</code>, ohne Änderung am Dialog. Bei einem Band gilt dieselbe Zeile für „Von“ und „Bis“: jedes Feld an seiner rechten Kante, das Minus als Bindestrich wie in jeder Zahl der App.</li>
+      </ol>
+      <p class="u-muted" style="font-size:12px">„Gilt ab“ bleibt „2026-09-24“: die ISO-Texteingabe von UX-DR19.</p>
+    </div>
+  </div>
+
+  <!-- 390 px -->
+  <p class="cap" style="margin-top:22px">390 px — derselbe Dialog, einspaltig; er scrollt, der Fuß liegt unter der Kante</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before ph-frame" style="flex:none"><span class="mock-tag">Vorher · 390 px</span><div class="workspace-section">
+      <div class="phone">
+        <div class="behind"><div class="ttl">Vermögen</div><div class="ln" style="height:34px"></div><div class="ln"></div><div class="ln"></div><div class="ln"></div></div>
+        <div class="scrim"></div>
+        <div class="modal policy-rule-dialog at-phone">
+          <header class="modal-head">
+            <h2>Regel ändern — „Einzeltitel begrenzen“</h2>
+            <button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+          </header>
+          <form><div class="modal-body">
+            <p class="hint">Ausgewertet in der Ansicht „Alles“, auf ihrer steuerbaren Basis.</p>
+            <div class="form-grid">
+              <label><span>Kennzahl</span><select><option selected>Gewicht</option></select></label>
+              <label><span>Bezug</span><select><option selected>Nordic Timber Holdings AB</option></select></label>
+              <label><span>Art</span><select><option selected>Obergrenze</option></select></label>
+              <label><span>Grenze (%)</span><input type="text" inputmode="decimal" class="num" value="7.5" autocomplete="off"></label>
+              <label><span>Schweregrad</span><select><option selected>hart</option></select></label>
+              <label><span>Gilt ab</span><input type="text" value="2026-09-24" placeholder="YYYY-MM-DD" maxlength="10" autocomplete="off"></label>
+              <label class="form-grid__wide"><span>Notiz (optional)</span><input type="text" value="" autocomplete="off"></label>
+            </div>
+            <p class="hint">Speichern legt Version 3 an. Version 2 (7,5&nbsp;%) gilt seit 01.06.2026, endet am Tag vor der neuen und bleibt lesbar.</p>
+            <details class="perf-table-disclosure" open>
+              <summary class="disclosure-summary"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>Versionen</summary>
+              <ol class="policy-rule-versions">
+                <li>Version 1 · 01.02.2026 – 31.05.2026 · 12,5&nbsp;% · hart</li>
+                <li>Version 2 · ab 01.06.2026 · 7,5&nbsp;% · hart</li>
+              </ol>
+            </details>
+            <div class="modal-footer">
+              <button type="button" class="button-ghost">Regel beenden</button>
+              <span class="modal-footer__spacer"></span>
+              <button type="button" class="button-ghost">Abbrechen</button>
+              <button type="submit" class="button-primary">Neue Version speichern</button>
+            </div>
+          </div></form>
+        </div>
+      </div>
+    </div></div>
+
+    <div class="mock-frame mock-after ph-frame" style="flex:none"><span class="mock-tag">Nachher · 390 px</span><div class="workspace-section">
+      <div class="phone">
+        <div class="behind"><div class="ttl">Vermögen</div><div class="ln" style="height:34px"></div><div class="ln"></div><div class="ln"></div><div class="ln"></div></div>
+        <div class="scrim"></div>
+        <div class="modal policy-rule-dialog at-phone">
+          <header class="modal-head">
+            <h2>Regel ändern — „Einzeltitel begrenzen“</h2>
+            <button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+          </header>
+          <form><div class="modal-body">
+            <p class="hint">Ausgewertet in der Ansicht „Alles“, auf ihrer steuerbaren Basis.</p>
+            <div class="form-grid">
+              <label><span>Kennzahl</span><select><option selected>Gewicht</option></select></label>
+              <label><span>Bezug</span><select><option selected>Nordic Timber Holdings AB</option></select></label>
+              <label><span>Art</span><select><option selected>Obergrenze</option></select></label>
+              <label><span>Grenze (%)</span><input type="text" inputmode="decimal" class="num" value="7,5" autocomplete="off"></label>
+              <label><span>Schweregrad</span><select><option selected>hart</option></select></label>
+              <label><span>Gilt ab</span><input type="text" value="2026-09-24" placeholder="YYYY-MM-DD" maxlength="10" autocomplete="off"></label>
+              <label class="form-grid__wide"><span>Notiz (optional)</span><input type="text" value="" autocomplete="off"></label>
+            </div>
+            <p class="hint">Speichern legt Version 3 an. Version 2 (7,5&nbsp;%) gilt seit 01.06.2026, endet am Tag vor der neuen und bleibt lesbar.</p>
+            <details class="perf-table-disclosure" open>
+              <summary class="disclosure-summary"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>Versionen</summary>
+              <ol class="policy-rule-versions">
+                <li>Version 1 · 01.02.2026 – 31.05.2026 · 12,5&nbsp;% · hart</li>
+                <li>Version 2 · ab 01.06.2026 · 7,5&nbsp;% · hart</li>
+              </ol>
+            </details>
+            <div class="modal-footer">
+              <button type="button" class="button-ghost">Regel beenden</button>
+              <span class="modal-footer__spacer"></span>
+              <button type="button" class="button-ghost">Abbrechen</button>
+              <button type="submit" class="button-primary">Neue Version speichern</button>
+            </div>
+          </div></form>
+        </div>
+      </div>
+    </div></div>
+
+    <div class="notes" style="flex:1 1 200px;min-width:0">
+      <p class="cap">Was 390 px zeigt</p>
+      <p>Bei 390 px ist das Raster einspaltig. „Grenze“ steht über die volle Breite, die „7,5“ an der rechten Kante — wie der Wert in der Spalte „Gemessen“ der Befundtabelle auf „Risiko“, unter dem bei dieser Breite auch die Grenze steht.</p>
+      <p>Die Fußzeile mit „Regel beenden“ in eigener Zeile (Board 07 der Sprint-15-Runde) liegt unterhalb der Kante und ändert sich nicht.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= 3 · DIE REGEL DAHINTER ======================= -->
+<section class="mock-board">
+  <h2>Die Regel dahinter — ein Helfer, eine Klasse, zwölf Stellen <small>gilt für jedes Textfeld mit <code>inputmode="decimal"</code></small></h2>
+  <p class="mock-note">Gezeichnet sind zwei Oberflächen; die Regel gilt für alle zwölf Stellen im Code, an denen ein Textfeld <code>inputmode="decimal"</code> trägt, in fünf Dateien: Buchungsschublade (Stückzahl, Preis, Gebühren, Steuern), Abrechnungsblock (Betrag, Kurs), Regeldialog (Grenze, Von, Bis), „Steuern“ (die Zahlen der Abrechnung, der Betrag eines Freistellungsauftrags) und der Saldo-Dialog auf „Konten &amp; Depots“ (Saldo). Jede bekommt <code>class="num"</code> und zeigt ihren Wert über den Helfer.</p>
+  <div class="mock-row">
+    <div class="mock-frame" style="flex:1 1 620px"><div class="workspace-section">
+      <table class="t">
+        <thead><tr><th>Feld</th><th>Heute</th><th>Nachher (de)</th><th>Nachher (en)</th><th>Anmerkung</th></tr></thead>
+        <tbody>
+          <tr><td>Abrechnungsbetrag, vorbelegt</td><td class="v bad">1664.40</td><td class="v good">1664,40</td><td class="v">1664.40</td><td>zwei Stellen, wie <code>put_amount/2</code> rundet</td></tr>
+          <tr><td>Kurs EUR je USD, abgeleitet</td><td class="v bad">0.913459</td><td class="v good">0,913459</td><td class="v">0.913459</td><td>sechs Stellen, wie <code>put_rate/2</code> rundet</td></tr>
+          <tr><td>Grenze (%)</td><td class="v bad">7.5</td><td class="v good">7,5</td><td class="v">7.5</td><td></td></tr>
+          <tr><td>Von (Pp), Band</td><td class="v bad">-2.5</td><td class="v good">-2,5</td><td class="v">-2.5</td><td>Minus als Bindestrich wie in jeder Zahl der App — den liest der Rückweg</td></tr>
+          <tr><td>Stückzahl, beim Bearbeiten</td><td class="v">1664</td><td class="v good">1664</td><td class="v">1664</td><td><b>nie „1.664“</b> — siehe rechts</td></tr>
+          <tr><td>Preis, beim Bearbeiten</td><td class="v bad">45.6</td><td class="v good">45,6</td><td class="v">45.6</td><td>Ziffern unverändert: <code>to_form_value/1</code> kürzt Endnullen. Ob Geldfelder sie auffüllen („45,60“), ist ein offener Punkt der Story</td></tr>
+          <tr><td>Saldo, Platzhalter</td><td class="v bad">4250.00</td><td class="v good">4250,00</td><td class="v">4250.00</td><td>ein Platzhalter folgt derselben Regel</td></tr>
+        </tbody>
+      </table>
+    </div></div>
+
+    <div class="col" style="flex:1 1 380px">
+      <div class="callout">
+        <h4>Warum ohne Tausenderpunkt</h4>
+        <p>Die Eingabegrenze liest einen Punkt als Dezimalpunkt, damit ein getipptes „45.60“ gültig bleibt. Ein gruppiertes „1.664“ für 1664 Stück käme beim Speichern als <b>1,664 Stück</b> zurück — ein Faktor 1000 ohne Fehlermeldung. Ohne Gruppierung liest der Rückweg jeden gezeigten Wert unverändert zurück.</p>
+        <div class="demo"><span class="demo-in">1.664</span><span>→ gespeichert: <b>1,664</b> Stück</span><span class="demo-in">1664</span><span>→ gespeichert: <b>1664</b> Stück</span></div>
+        <p>Ein eingefügtes „1.664,40“ bleibt abgelehnt, wie heute: Genau diese Mehrdeutigkeit rät der Rückweg nicht.</p>
+        <p class="u-muted">Außerhalb von Feldern gruppiert die App weiter (<code>Format.decimal/3</code>, „1.664,40“): Eine Zahl in einer Tabelle wird gelesen, nicht bearbeitet und nicht zurückgelesen.</p>
+      </div>
+      <div class="callout keep">
+        <h4>Datumsfelder bleiben ISO</h4>
+        <p>„Datum“ in der Buchung und „Gilt ab“ im Regeldialog sind die ISO-Texteingabe von UX-DR19 (<code>DESIGN.md</code> → Native controls, entschieden 2026-08-10, Issue 641, gesichert durch <code>iso_date_input_test.exs</code>). Das ISO-Datum im Hinweis des Abrechnungsblocks legt <code>DESIGN.md</code> → Amendment 2026-09-24 fest. Die beiden Datumspunkte von #869 werden als spezifikationskonform geschlossen, nicht gebaut.</p>
+      </div>
+      <div class="callout keep">
+        <h4>Nicht erfasst: <code>type="number"</code></h4>
+        <p>Die sieben Zahlenfelder des Browsers (Sollgewichte, fester Zins als Benchmark, Steuerjahr, Split-Verhältnis) bleiben, wie sie sind: Ihr <code>value</code> muss einen Punkt tragen, sonst bleibt das Feld leer, und wie sie Ziffern zeigen, entscheidet der Browser. Die Sollgewichte stehen schon rechtsbündig (<code>.soll-table input[type="number"]</code>).</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

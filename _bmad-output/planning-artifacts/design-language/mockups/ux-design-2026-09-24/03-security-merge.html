@@ -1,0 +1,746 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Wertpapiere zusammenführen: ISIN-Wahl, Vorschau, Ablehnung, danach (#608, ADR-0050 §8, §9, §12, Pick G3)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  /* Board-local helpers. Everything inside the frames uses the live classes of
+     securities_live.ex, Securities.RowContextMenu, AppShell.data_note, the
+     .modal family (.modal-footer, .modal-footer__spacer) and .mono. The step
+     dialog's chrome (.modal-footer--band, .counts, fieldset.choice, label.opt,
+     fieldset.targets, label.tgt, .identity) is the anatomy board 02 (G2)
+     proposes, repeated here so the two merge dialogs are one dialog; the
+     .merge-pair cards are new on this board. Dashed outline = new. */
+  .mock-frame { overflow: visible; }
+  .mock-frame > .mock-tag { display: block; padding: 4px 10px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); background: var(--color-bg-muted); border-radius: 12px 12px 0 0; }
+  .mock-after > .mock-tag { color: var(--color-positive); background: #ecfdf5; }
+  .mock-before > .mock-tag { color: var(--color-danger); background: var(--color-danger-soft); }
+  .stage { background: var(--color-bg-muted); padding: 20px 24px; display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; border-radius: 0 0 12px 12px; }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 6px; }
+  .modal.flat { box-shadow: var(--shadow-md); }
+  .modal-head .step { display: block; margin-top: 2px; font-size: 12px; font-weight: 500; color: var(--color-text-muted); }
+  .route .meta, .basis { font-size: 11.5px; color: var(--color-text-muted); margin: 0; }
+  .nw { white-space: nowrap; }
+  h3.blk { margin: 0; font-size: 13px; font-weight: 700; }
+  h3.blk small { font-weight: 500; color: var(--color-text-muted); margin-left: 6px; }
+  /* the source → target pair: two cards, because the names can be equal */
+  .merge-pair { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: stretch; }
+  .merge-pair .side { display: grid; gap: 2px; align-content: start; padding: 8px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); font-size: 13px; }
+  .merge-pair .side .role { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted); }
+  .merge-pair .side .role.gone { color: var(--color-danger); }
+  .merge-pair .side b { font-weight: 700; }
+  .merge-pair .side small { font-size: 12px; color: var(--color-text-muted); }
+  .merge-pair .arr { align-self: center; color: var(--color-text-muted); font-size: 18px; }
+  /* the sum identity (G2) */
+  .identity { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1.2fr); align-items: end; gap: 4px 10px; padding: 12px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); }
+  .identity .op { font-size: 20px; font-weight: 600; color: var(--color-text-muted); padding-bottom: 2px; }
+  .identity .kf b { font-size: 18px; }
+  .identity .res { padding-left: 10px; border-left: 2px solid var(--color-accent); }
+  .identity .alt { grid-column: 1 / -1; font-size: 12px; color: var(--color-text-muted); text-align: right; }
+  .identity .alt b { color: var(--color-text); font-variant-numeric: tabular-nums; }
+  dl.counts { display: grid; grid-template-columns: 3.4em 1fr; gap: 4px 10px; margin: 0; font-size: 13px; }
+  dl.counts dt { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+  dl.counts dd { margin: 0; }
+  dl.counts dd small { color: var(--color-text-muted); font-size: 12px; }
+  /* radio choice — no preselection (G2) */
+  fieldset.choice { display: grid; gap: 8px; margin: 0; padding: 10px 12px 12px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); min-width: 0; }
+  fieldset.choice legend { padding: 0 4px; font-size: 13px; font-weight: 700; }
+  label.opt { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-md); cursor: pointer; }
+  label.opt input[type=radio] { margin-top: 3px; flex: none; }
+  label.opt > span { display: grid; gap: 3px; font-size: 13px; font-weight: 600; color: var(--color-text); min-width: 0; }
+  label.opt > span small { font-size: 12px; font-weight: 400; color: var(--color-text-muted); }
+  label.opt > span small b { color: var(--color-text); font-variant-numeric: tabular-nums; }
+  label.opt.is-on { background: var(--color-selected); box-shadow: inset 3px 0 0 var(--color-accent); } /* UX-DR16 class 3: tint + 3px leading edge, border unchanged (as G2) */
+  label.opt .t { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  label.opt .tag { font-size: 11px; font-weight: 600; color: var(--color-text-muted); }
+  label.opt .field > span { font-size: 12px; font-weight: 680; color: var(--color-text-muted); }
+  label.opt .field { margin-top: 4px; max-width: 220px; font-weight: 400; }
+  label.opt .field .in { font-family: var(--font-mono); font-size: 12.5px; background: var(--color-bg-elevated); }
+  /* target list (G2 step 1) */
+  fieldset.targets { display: grid; gap: 6px; margin: 0; padding: 0; border: 0; min-width: 0; }
+  fieldset.targets legend { padding: 0; margin-bottom: 6px; font-size: 13px; font-weight: 700; }
+  label.tgt { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 2px 10px; padding: 9px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-md); min-height: 44px; box-sizing: border-box; }
+  label.tgt input { margin-top: 3px; }
+  /* app.css styles every `label span` as a muted 13px field caption; the spans
+     inside an option are content, so they inherit from the option instead. */
+  label.tgt span, label.opt > span span { font-size: inherit; font-weight: inherit; color: inherit; }
+  label.tgt .nm { display: grid; gap: 1px; font-size: 13px; font-weight: 400; color: var(--color-text); }
+  label.tgt .nm b { font-weight: 650; }
+  label.tgt .nm small { font-size: 12px; color: var(--color-text-muted); }
+  label.tgt .bal { text-align: right; font-variant-numeric: tabular-nums; font-size: 12.5px; }
+  label.tgt.is-on { background: var(--color-selected); box-shadow: inset 3px 0 0 var(--color-accent); }
+  label.tgt.is-off { background: var(--color-bg-muted); cursor: not-allowed; }
+  label.tgt.is-off .nm b, label.tgt.is-off .bal { color: var(--color-text-muted); }
+  label.tgt .why { grid-column: 2 / -1; font-size: 12px; color: var(--color-text); }
+  label.tgt .why::before { content: "⊘ "; color: var(--color-text-muted); }
+  .sub-caps { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted); margin: 6px 0 0; }
+  .modal-body .search-field { max-width: none; }
+  /* proposed on board 02 (G2): .modal-footer--band — the existing .modal-footer
+     as a band below the body, fixed while the body scrolls */
+  .modal-footer.modal-footer--band { align-items: center; margin-top: 0; padding: 12px 18px; border-top: 1px solid var(--color-border); background: var(--color-bg-elevated); border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+  .modal-footer--band .why { font-size: 12px; color: var(--color-text-muted); margin: 0; }
+  .modal-footer--band button { white-space: nowrap; }
+  .confirm-delete-blocked .modal-footer button { white-space: nowrap; }
+  .button-danger[disabled] { opacity: .45; cursor: not-allowed; }
+  .button-danger, .button-ghost, .button-primary { font-weight: 600; }
+  details.disc > summary { font-size: 13px; }
+  .data-table td small { display: block; color: var(--color-text-muted); font-size: 11px; font-weight: 400; }
+  .data-table td .badge { font-size: 11px; }
+  .data-table td.drop { color: var(--color-text-muted); }
+  .data-table td.drop s { text-decoration-thickness: 1px; }
+  .data-table td.keep { font-weight: 600; }
+  .data-table.tight th, .data-table.tight td { padding: 6px 8px; font-size: 12.5px; }
+  .outcome { font-weight: 600; }
+  .outcome.moves::before { content: "→ "; color: var(--color-text-muted); }
+  .outcome.drops::before { content: "✕ "; color: var(--color-text-muted); }
+  /* variant B: the compare table with the ISIN pick in its cells */
+  table.compare th[scope=row] { font-size: 12px; font-weight: 600; color: var(--color-text-muted); white-space: nowrap; background: transparent; text-transform: none; letter-spacing: 0; }
+  table.compare td { font-size: 12.5px; }
+  table.compare tr.pick td { background: var(--color-selected); }
+  table.compare td label { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+  table.compare td label span { color: var(--color-text); font-weight: 600; }
+  table.compare thead th small { display: block; font-size: 10.5px; font-weight: 600; text-transform: none; letter-spacing: 0; }
+  table.compare td.ok { color: var(--color-text-muted); }
+  table.compare td.after { font-weight: 600; }
+  .cut { font-size: 12px; color: var(--color-text-muted); border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); padding: 8px 10px; text-align: center; }
+  /* the page frames */
+  .pg { border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg); position: relative; }
+  .pg-top { display: flex; align-items: baseline; gap: 10px; padding: 12px 18px; border-bottom: 1px solid var(--color-border); background: var(--color-bg-elevated); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+  .pg-top h3 { margin: 0; font-size: 18px; }
+  .pg-top span { font-size: 12.5px; color: var(--color-text-muted); }
+  .pg-body { padding: 14px 18px; display: grid; gap: 10px; }
+  .menu-at { position: absolute !important; z-index: 5; }
+  .list-wrap { position: relative; }
+  .row-context-menu__item.is-new { outline-offset: -2px; }
+  .security-row td { vertical-align: middle; }
+  .row-actions__kebab { box-shadow: none; }
+  .row-actions__kebab.is-open { color: var(--color-text); outline: 2px solid var(--color-accent); outline-offset: 2px; } /* the live :focus-visible ring */
+  .quick-assign-select { font-size: 12px; padding: 1px 4px; }
+  .detail-pane { margin-top: 0; }
+  .dlg { display: grid; gap: 8px; align-content: start; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .notes { display: grid; gap: 10px; align-content: start; font-size: 12.5px; }
+  .notes ol, .notes ul { margin: 0; padding-left: 18px; }
+  .notes li { margin: 0 0 7px; }
+  .notes li code, .mock-note code { font-size: 11.5px; }
+  .notes b { font-weight: 700; }
+  /* phones (G2 form) */
+  .phone { width: 390px; height: 844px; position: relative; overflow: hidden; border: 1px solid var(--color-border-strong); border-radius: 24px; background: var(--color-bg); font-size: 14px; flex: none; }
+  .phone .behind { padding: 26px 20px 14px; display: grid; gap: 10px; }
+  .phone .behind .ttl { font-weight: 700; font-size: 16px; padding-bottom: 6px; }
+  .phone .behind .ln { height: 52px; border-radius: 8px; background: var(--color-bg-elevated); border: 1px solid var(--color-border); }
+  .phone .scrim { position: absolute; inset: 0; background: rgba(15, 23, 42, .4); }
+  .phone .sheet { position: absolute; left: 0; right: 0; bottom: 0; height: 90%; display: flex; flex-direction: column; background: var(--color-bg-elevated); border-radius: 8px 8px 0 0; box-shadow: 0 -8px 24px rgba(0, 0, 0, .18); }
+  .phone .grip { width: 36px; height: 4px; border-radius: 999px; background: var(--color-border-strong); margin: 8px auto 0; flex: none; }
+  .phone .modal-head { padding: 8px 16px 10px; flex: none; }
+  .phone .modal-head h2 { font-size: 15px; }
+  .phone .sh-body { flex: 1 1 auto; min-height: 0; overflow: hidden; padding: 12px 16px; display: grid; gap: 12px; align-content: start; position: relative; }
+  .phone .modal-footer--band { flex: none; flex-direction: column; align-items: stretch; gap: 6px; padding: 10px 16px 18px; border-radius: 0; box-shadow: 0 -6px 12px rgba(15, 23, 42, .06); }
+  .phone .modal-footer--band button { width: 100%; min-height: 44px; font-size: 14px; justify-content: center; white-space: normal; }
+  .phone label.opt { min-height: 44px; box-sizing: border-box; }
+  .phone .merge-pair { grid-template-columns: 1fr; gap: 4px; }
+  .phone .merge-pair .arr { justify-self: center; transform: rotate(90deg); font-size: 14px; line-height: 1; }
+  .phone .merge-pair .side { padding: 6px 10px; }
+  .phone .scroller { overflow: hidden; position: relative; margin-right: -16px; }
+  .phone .scroller table { width: max-content; }
+  .phone .scroller td, .phone .scroller th { white-space: nowrap; }
+  .phone .scroller::after { content: ""; position: absolute; top: 0; right: 0; bottom: 0; width: 40px; background: linear-gradient(to right, transparent, var(--color-bg-elevated)); }
+  /* conformance table */
+  table.check { width: 100%; border-collapse: collapse; font-size: 12.5px; background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+  table.check th { text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); background: var(--color-bg-muted); padding: 7px 10px; }
+  table.check td { padding: 8px 10px; border-top: 1px solid var(--color-border); vertical-align: top; }
+  table.check td.win { background: color-mix(in srgb, #ecfdf5 70%, transparent); }
+  svg.ic { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  svg.ic.s14 { width: 14px; height: 14px; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4l10-10-4-4L4 16Z"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3.2-6.9"/><path d="M21 4v5h-5"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></symbol>
+  <symbol id="i-archive" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="4"/><path d="M5 8v12h14V8M10 12h4"/></symbol>
+  <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m16 8-2 6-6 2 2-6Z"/></symbol>
+  <symbol id="i-merge" viewBox="0 0 24 24"><path d="M4 6h4.5l5.5 6h6"/><path d="M4 18h4.5l5.5-6"/><path d="m17 9 3 3-3 3"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7v13a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7"/><path d="M10 11v7M14 11v7"/></symbol>
+  <symbol id="i-kebab" viewBox="0 0 24 24"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-max" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/></symbol>
+  <symbol id="i-att" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/></symbol>
+  <symbol id="i-prob" viewBox="0 0 24 24"><path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z"/><path d="M12 8v4"/><circle cx="12" cy="16" r=".6"/></symbol>
+</svg>
+
+<div class="pickbar"><b>Entscheidung G3 — offen.</b> Wie die ISIN-Wahl beim Zusammenführen zweier Wertpapiere erscheint, wenn beide eine ISIN tragen (#608, ADR-0050 §9). <b>A</b> zwei Optionskarten mit je einer Folgezeile · <b>B</b> Gegenüberstellung beider Wertpapiere, die ISIN-Wahl in der Gegenüberstellung. Empfehlung: <b>A</b> — dieselbe Wahl-Anatomie wie die gleichen Buchungen in G2, die Folge steht an jeder Option, und bei 390 px ändert sich nichts. Nicht Teil dieser Wahl: Einstieg (Zeilenmenü, wie G1), zwei Schritte mit festem Fuß (folgt der Wahl in G2), der Inhalt der Vorschau, die Ablehnung und die Anzeige danach — das Board zeigt sie einmal, für beide Varianten gleich. Ein Kommentar mit dem Buchstaben auf der Planungs-PR entscheidet; ohne Kommentar gilt die Empfehlung. Alle Namen, ISINs, WKNs, Kurse und Stückzahlen sind erfunden.</div>
+
+<!-- ============================ EINSTIEG ============================ -->
+<section class="mock-board">
+  <h2>Einstieg und Schritt 1 — „Zusammenführen in…“ im Zeilenmenü der Zeile, die verschwinden soll <small>beide Varianten gleich</small></h2>
+  <p class="mock-note">Die Lage: „Meridian Global Equity ETF“ wurde unter der alten ISIN importiert; ein späterer Export mit der neuen ISIN kam an, bevor der ISIN-Wechsel erfasst war, und legte ein zweites „Meridian Global Equity ETF“ mit einer vollen Kopie der Geschichte an (ADR-0029 §3, falsche Reihenfolge). Bestand, Kosten und Erträge sind doppelt. <b>Einstieg im Zeilenmenü</b>, wie bei Konten und Depots (G1): „Zusammenführen in…“ steht nach „Als Benchmark markieren“ und vor „Löschen“, nicht rot — erst die Bestätigung in der Vorschau schreibt. Neu ist nur der Eintrag (Symbol aus G1). <b>Kein Knopf im Detailkopf:</b> Der Kopf trägt die zwei Schreibabsichten eines Wertpapiers („Bearbeiten“, „Split erfassen“) und bricht bei 390 px schon um; Zusammenführen betrifft zwei Zeilen der Liste und steht dort, wo auch Stilllegen und Löschen stehen. <b>Zweiter Einstieg:</b> Der Dialog „Kann nicht gelöscht werden“ bekommt „Zusammenführen in…“ neben „Stattdessen stilllegen“ — wer das Duplikat löschen will, trifft genau dort auf die Buchungen.</p>
+  <div class="mock-frame mock-after"><span class="mock-tag">Wertpapiere · Zeilenmenü auf dem Duplikat</span>
+    <div class="stage">
+      <div class="pg" style="flex:1 1 auto">
+        <div class="pg-top"><h3>Wertpapiere</h3><span>Suchen, filtern und pflegen des investierbaren Universums.</span></div>
+        <div class="pg-body">
+          <div class="list-wrap">
+            <div class="data-table-wrapper">
+              <table class="data-table">
+                <thead><tr><th class="row-actions-head" aria-label="Zeilenaktionen"></th><th>Name</th><th>Ticker</th><th>ISIN</th><th>Währung</th><th>Anlageklasse</th><th class="num">Letzter Kurs</th><th class="num">Tagesänderung %</th></tr></thead>
+                <tbody>
+                  <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen"><svg class="ic"><use href="#i-kebab"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial">H</span><span class="row-target__label">Helios Solar Systems SE</span></span></td><td>HSS</td><td>XS0000000010</td><td>EUR</td><td><span class="badge">Aktie</span></td><td class="num">18,42</td><td class="num is-negative">−0,6 %</td></tr>
+                  <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen"><svg class="ic"><use href="#i-kebab"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial">K</span><span class="row-target__label">Kestrel Industrial Group NV</span></span></td><td>KIG</td><td>XS0000000004</td><td>EUR</td><td><span class="badge">Aktie</span></td><td class="num">42,10</td><td class="num is-positive">+0,2 %</td></tr>
+                  <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen"><svg class="ic"><use href="#i-kebab"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial">M</span><span class="row-target__label">Meridian Global Equity ETF</span></span></td><td>MGEQ</td><td>XS0000000001</td><td>EUR</td><td><span class="badge">ETF</span></td><td class="num">75,90</td><td class="num is-positive">+0,3 %</td></tr>
+                  <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab is-open" aria-label="Aktionsmenü öffnen" aria-expanded="true"><svg class="ic"><use href="#i-kebab"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial">M</span><span class="row-target__label">Meridian Global Equity ETF</span></span></td><td>MGEQ.DE</td><td>XS0000000002</td><td>EUR</td><td><span class="badge">ETF</span></td><td class="num">76,20</td><td class="num is-positive">+0,4 %</td></tr>
+                  <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen"><svg class="ic"><use href="#i-kebab"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial">N</span><span class="row-target__label">Nordic Timber Holdings AB</span></span></td><td>NTH</td><td>XS0000000005</td><td>EUR</td><td><span class="badge">Aktie</span></td><td class="num">9,86</td><td class="num">±0,0 %</td></tr>
+                  <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen"><svg class="ic"><use href="#i-kebab"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial">O</span><span class="row-target__label">Orchid Bay Pharmaceuticals plc</span></span></td><td>OBP</td><td>XS0000000007</td><td>EUR</td><td><span class="badge">Aktie</span></td><td class="num">31,05</td><td class="num is-negative">−1,1 %</td></tr>
+                  <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen"><svg class="ic"><use href="#i-kebab"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial">P</span><span class="row-target__label">Pinecrest Utilities SA</span></span></td><td>PCU</td><td>XS0000000008</td><td>EUR</td><td><span class="badge">Aktie</span></td><td class="num">12,74</td><td class="num is-positive">+0,5 %</td></tr>
+                  <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen"><svg class="ic"><use href="#i-kebab"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial">Q</span><span class="row-target__label">Quarry Lane Materials AG</span></span></td><td>QLM</td><td>XS0000000009</td><td>EUR</td><td><span class="badge">Aktie</span></td><td class="num">57,30</td><td class="num">±0,0 %</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="row-context-menu menu-at" role="menu" aria-label="Wertpapier-Aktionen" style="left:36px; top:218px; min-width:236px">
+              <button type="button" class="row-context-menu__item" role="menuitem"><svg class="ic"><use href="#i-edit"/></svg><span>Bearbeiten</span></button>
+              <button type="button" class="row-context-menu__item" role="menuitem"><svg class="ic"><use href="#i-refresh"/></svg><span>Kurse aktualisieren</span></button>
+              <button type="button" class="row-context-menu__item" role="menuitem"><svg class="ic"><use href="#i-chev"/></svg><span>Detail öffnen</span></button>
+              <button type="button" class="row-context-menu__item" role="menuitem"><svg class="ic"><use href="#i-copy"/></svg><span>ISIN kopieren</span></button>
+              <button type="button" class="row-context-menu__item" role="menuitem"><svg class="ic"><use href="#i-copy"/></svg><span>Ticker kopieren</span></button>
+              <button type="button" class="row-context-menu__item" role="menuitem"><svg class="ic"><use href="#i-refresh"/></svg><span>Logo aktualisieren</span></button>
+              <button type="button" class="row-context-menu__item" role="menuitem"><svg class="ic"><use href="#i-image"/></svg><span>Logo verwalten</span></button>
+              <button type="button" class="row-context-menu__item" role="menuitem"><svg class="ic"><use href="#i-archive"/></svg><span>Stilllegen</span></button>
+              <button type="button" class="row-context-menu__item" role="menuitem"><svg class="ic"><use href="#i-compass"/></svg><span>Als Benchmark markieren</span></button>
+              <button type="button" class="row-context-menu__item is-new" role="menuitem"><svg class="ic"><use href="#i-merge"/></svg><span>Zusammenführen in…</span></button>
+              <button type="button" class="row-context-menu__item row-context-menu__item--danger" role="menuitem"><svg class="ic"><use href="#i-trash"/></svg><span>Löschen</span></button>
+            </div>
+          </div>
+          <p class="basis" style="margin-top:196px">Zwei Zeilen gleichen Namens, zwei ISINs, Bestand doppelt. Das Menü steht auf der Zeile, die verschwinden soll — dem Duplikat mit der neuen ISIN; welche ISIN danach gilt, entscheidet die Vorschau.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:24px">
+    <div class="mock-frame mock-after" style="flex:0 1 490px"><span class="mock-tag">Schritt 1 · Ziel suchen</span>
+      <div class="stage">
+        <div class="modal flat" style="max-width:440px">
+          <header class="modal-head">
+            <h2>Meridian Global Equity ETF zusammenführen<span class="step">Schritt 1 von 2 · Ziel</span></h2>
+            <span class="icon-button" aria-label="Schließen"><svg class="ic"><use href="#i-x"/></svg></span>
+          </header>
+          <div class="modal-body">
+            <p class="basis" style="font-size:12px">Quelle: <span class="mono">XS0000000002</span> · EUR · 41 Buchungen · angelegt <span class="nw">2026-09-20</span> beim Import</p>
+            <form><label class="search-field"><svg class="ic"><use href="#i-search"/></svg><input type="search" value="Meridian" aria-label="Ziel suchen: Name, ISIN, WKN oder Ticker"></label></form>
+            <fieldset class="targets">
+              <legend>Ziel — bekommt Buchungen, Kurse und Einstellungen</legend>
+              <label class="tgt is-on"><input type="radio" name="s1" checked><span class="nm"><b>Meridian Global Equity ETF</b><small><span class="mono">XS0000000001</span> · EUR · ETF · seit <span class="nw">2023-03-02</span></small></span><span class="bal">38 Buchungen</span></label>
+              <p class="sub-caps">Nicht wählbar (2)</p>
+              <label class="tgt is-off"><input type="radio" name="s1" disabled><span class="nm"><b>Meridian Global Equity ETF USD</b><small><span class="mono">XS0000000003</span> · USD · ETF</small></span><span class="bal">12 Buchungen</span><span class="why">andere Währung</span></label>
+              <label class="tgt is-off"><input type="radio" name="s1" disabled><span class="nm"><b>Meridian World Index</b><small><span class="mono">XS0000000006</span> · EUR · Index · Benchmark</small></span><span class="bal">—</span><span class="why">nur eines der beiden ist Benchmark</span></label>
+            </fieldset>
+            <p class="basis">Wählbar: gleiche Währung, gleiche Benchmark-Markierung, Ziel nicht stillgelegt; mit Kursen auch dieselbe Einstellung „Synchronisierte Kurse als roh behandeln“. Alles Weitere prüft die Vorschau.</p>
+          </div>
+          <div class="modal-footer modal-footer--band">
+            <button type="button" class="button-ghost">Abbrechen</button>
+            <span class="modal-footer__spacer"></span>
+            <button type="button" class="button-primary">Weiter zur Vorschau</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes" style="flex:1 1 560px">
+      <p class="cap">Zweiter Einstieg — „Löschen“ auf dem Duplikat</p>
+      <div class="modal flat confirm-delete-blocked" style="max-width:540px">
+        <header class="modal-head"><h2>Kann nicht gelöscht werden</h2><span class="icon-button" aria-label="Schließen"><svg class="ic"><use href="#i-x"/></svg></span></header>
+        <div class="modal-body">
+          <p style="margin:0">Meridian Global Equity ETF wird von bestehenden Transaktionen oder Kursdaten referenziert und kann nicht gelöscht werden. Stilllegen verbirgt das Wertpapier aus der aktiven Liste, der historische Eintrag bleibt erhalten.</p>
+          <p class="muted is-new" style="margin:0">Ist es ein Duplikat, führt „Zusammenführen in…“ seine Buchungen und Kurse in das andere Wertpapier.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="button-ghost">Abbrechen</button>
+          <button type="button" class="button-ghost is-new">Zusammenführen in…</button>
+          <button type="button" class="button-primary">Stattdessen stilllegen</button>
+        </div>
+      </div>
+      <p class="note-muted" style="max-width:560px">Der vorhandene Dialog (<code>RowContextMenu.delete_blocked_dialog</code>) mit einem zweiten Ausweg. Stilllegen bleibt der Hauptknopf: Bei einem verkauften Wertpapier ist es der richtige Weg, und das ist der häufigere Fall. „Zusammenführen in…“ schließt diesen Dialog und öffnet Schritt 1 — nie ein Dialog aus einem Dialog (UX-DR9). Nur in der Fassung „Buchungen oder Kursdaten“: Liest eine eigene Regel das Wertpapier, bleibt der Dialog, wie er ist, denn auch Zusammenführen würde abgelehnt (unten).</p>
+      <p class="cap" style="margin-top:6px">Was Schritt 1 von G2 übernimmt, und was anders ist</p>
+      <ul>
+        <li><b>Gleich:</b> Kopf mit „Schritt 1 von 2 · Ziel“, Radiozeilen, nicht wählbare Ziele mit ihrem Grund im Klartext, der feste Fuß, „Weiter zur Vorschau“.</li>
+        <li><b>Anders: ein Suchfeld statt der ganzen Liste.</b> Konten gibt es eine Handvoll, Wertpapiere Hunderte. Die Liste bleibt leer, bis ein Suchbegriff steht (Name, ISIN, WKN oder Ticker, wie die Suche der Seite), und sie <b>schlägt nichts vor</b> — Vorschläge für Duplikate sind ausgeschlossen (ADR-0050 §14). Die Quelle selbst steht nie in der Liste.</li>
+        <li><b>Was Schritt 1 schon prüft:</b> die Wächter aus den Stammdaten (Währung, Benchmark, stillgelegtes Ziel, Rohkurse). Research-Einträge, eigene Regeln, Ansichten und Splits braucht das Paar samt Buchungen — die prüft die Vorschau, und dort steht auch die Abhilfe (unten, „Abgelehnt“).</li>
+        <li><b>Die Quellzeile</b> nennt das Anlagedatum: Bei gleichem Namen ist es neben der ISIN das, was die beiden Einträge unterscheidet.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE A ============================ -->
+<section class="mock-board">
+  <h2>Variante A — zwei Optionskarten, je eine Folgezeile <small>empfohlen</small></h2>
+  <p class="mock-note">Die ISIN-Wahl ist eine Frage mit zwei Antworten, und sie sieht aus wie die zweite Frage desselben Dialogs, die gleichen Buchungen (G2): <code>fieldset.choice</code> mit Legende, zwei <code>label.opt</code>, <b>keine Vorauswahl</b>. Jede Karte nennt, was aus der anderen ISIN wird — in einer Zeile. „Übernehmen“ ist die Reparatur der falschen Reihenfolge (ADR-0029 §3) und öffnet in der Karte das Datum des ISIN-Wechsels: ISO-Textfeld (UX-DR19), vorbelegt mit heute, hier auf den Tag des Wechsels gesetzt. Die übrigen Stammdaten stehen getrennt als Liste der Unterschiede — Fakten, keine Wahl. Hier gewählt: „übernehmen“; die Wahl für die gleichen Buchungen fehlt noch, darum ist die Bestätigung gesperrt und sagt warum.</p>
+  <div class="mock-frame mock-after"><span class="mock-tag">Variante A — empfohlen · Schritt 2</span>
+    <div class="stage">
+      <div class="modal flat" style="flex:1 1 640px; max-width:660px">
+        <header class="modal-head">
+          <h2>Meridian Global Equity ETF zusammenführen<span class="step">Schritt 2 von 2 · Vorschau</span></h2>
+          <span class="icon-button" aria-label="Schließen"><svg class="ic"><use href="#i-x"/></svg></span>
+        </header>
+        <div class="modal-body">
+          <div class="merge-pair is-new">
+            <div class="side"><span class="role gone">Quelle · wird gelöscht</span><b>Meridian Global Equity ETF</b><span class="mono">XS0000000002</span><small>41 Buchungen · angelegt <span class="nw">2026-09-20</span> beim Import</small></div>
+            <span class="arr" aria-hidden="true">→</span>
+            <div class="side"><span class="role">Ziel · bleibt</span><b>Meridian Global Equity ETF</b><span class="mono">XS0000000001</span><small>38 Buchungen · seit <span class="nw">2023-03-02</span></small></div>
+          </div>
+
+          <fieldset class="choice is-new">
+            <legend>ISIN danach</legend>
+            <label class="opt"><input type="radio" name="a-id"><span><span class="t">XS0000000001 behalten<span class="tag">ISIN des Ziels</span></span><small>XS0000000002 wird frühere ISIN dieses Wertpapiers.</small></span></label>
+            <label class="opt is-on"><input type="radio" name="a-id" checked><span><span class="t">XS0000000002 übernehmen<span class="tag">ISIN der Quelle</span></span><small>XS0000000001 wird frühere ISIN; das Ziel trägt danach XS0000000002.</small>
+              <span class="field"><span>ISIN-Wechsel am</span><span class="in">2026-09-15</span></span></span></label>
+          </fieldset>
+
+          <div class="identity">
+            <div class="kf"><i>Quelle</i><b>126<small>Stück</small></b></div>
+            <span class="op">+</span>
+            <div class="kf"><i>Ziel</i><b>120<small>Stück</small></b></div>
+            <span class="op">=</span>
+            <div class="kf res"><i>Bestand danach</i><b>246<small>Stück</small></b></div>
+            <div class="alt"><b>126 Stück</b>, wenn die 38 gleichen Buchungen entfernt werden (− 120)</div>
+          </div>
+          <p class="basis">Bestand in allen Depots am 2026-09-24, aus den Buchungen berechnet. Die Summe gilt je Depot an jedem Tag und wird vor dem Speichern geprüft; ein Split mit anderem Verhältnis bricht ab.</p>
+
+          <dl class="counts">
+            <dt>3</dt><dd>Buchungen wechseln zum Ziel <small>— nur in der Quelle, 2026-07-01 bis 2026-09-01</small></dd>
+            <dt>38</dt><dd>Buchungen sind in beiden gleich <small>— Wahl unten</small></dd>
+            <dt>22</dt><dd>Kurse der Quelle füllen Lücken im Ziel</dd>
+            <dt>1.214</dt><dd>Tage mit Kurs in beiden — der des Ziels gilt <small>— 2 davon manuell, Tabelle</small></dd>
+            <dt>4</dt><dd>Einstellungen der Quelle: 2 wechseln, 2 entfallen <small>— Tabelle</small></dd>
+            <dt>3</dt><dd>Termine wechseln, 2 davon stehen gleich im Ziel <small>— Tabelle</small></dd>
+          </dl>
+
+          <fieldset class="choice">
+            <legend>38 gleiche Buchungen in beiden Wertpapieren</legend>
+            <div class="data-table-wrapper">
+              <table class="data-table tight">
+                <thead><tr><th>Datum</th><th>Art</th><th class="num">Stück</th><th class="num">Betrag</th><th>Depot / Konto</th></tr></thead>
+                <tbody>
+                  <tr><td>2023-03-02</td><td>Kauf</td><td class="num">40</td><td class="num">2.480,00 EUR</td><td>Depot 1</td></tr>
+                  <tr><td>2023-09-01</td><td>Kauf</td><td class="num">20</td><td class="num">1.310,00 EUR</td><td>Depot 1</td></tr>
+                  <tr><td>2024-05-28</td><td>Dividende</td><td class="num">—</td><td class="num">18,40 EUR</td><td>Girokonto</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <details class="disc"><summary class="disclosure-summary"><svg class="ic s14 disclosure-chevron"><use href="#i-chev"/></svg>Alle 38 Paare anzeigen</summary></details>
+            <label class="opt"><input type="radio" name="a-pair"><span>als Duplikate entfernen<small>Die 38 Buchungen der Quelle werden gelöscht. Bestand danach <b>126 Stück</b>.</small></span></label>
+            <label class="opt"><input type="radio" name="a-pair"><span>beide behalten<small>Alle 79 Buchungen stehen danach beim Ziel. Bestand danach <b>246 Stück</b>.</small></span></label>
+            <p class="basis">Gleich heißt: gleicher Tag, gleiche Art, gleiches Depot und Konto, gleiche Stückzahl und Beträge.</p>
+          </fieldset>
+
+          <h3 class="blk">Kurse an Tagen mit beiden Werten<small>nur Tage mit einem manuellen Kurs</small></h3>
+          <div class="data-table-wrapper">
+            <table class="data-table tight">
+              <thead><tr><th>Datum</th><th class="num">Ziel · gilt</th><th class="num">Quelle · entfällt</th></tr></thead>
+              <tbody>
+                <tr><td>2025-12-31</td><td class="num keep">71,40 EUR <span class="badge quote-source">Portfolio Performance</span></td><td class="num drop"><s>71,55 EUR</s> <span class="badge quote-source">Manuell</span></td></tr>
+                <tr><td>2026-03-31</td><td class="num keep">74,10 EUR <span class="badge quote-source">Manuell</span></td><td class="num drop"><s>74,02 EUR</s> <span class="badge quote-source">Automatisch</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="basis">Jeder entfallende Kurs steht mit Datum, Wert und Quelle im Protokoll der Zusammenführung. Die 22 übernommenen Kurse behalten ihre Quelle und damit ihre Kursbasis.</p>
+
+          <h3 class="blk">Einstellungen der Quelle<small>in aktiven, Entwurfs- und archivierten Plänen</small></h3>
+          <div class="data-table-wrapper">
+            <table class="data-table tight">
+              <thead><tr><th>Was</th><th>Quelle</th><th>Folge</th></tr></thead>
+              <tbody>
+                <tr><td>Kategorie<small>Baum „Region“</small></td><td>Welt</td><td><span class="outcome moves">wechselt</span><small>Das Ziel hat in diesem Baum keine.</small></td></tr>
+                <tr><td>Kategorie<small>Baum „Strategie“</small></td><td>Kern</td><td><span class="outcome drops">entfällt</span><small>Das Ziel steht dort in „Satellit“.</small></td></tr>
+                <tr><td>Positionsziel<small>„Kernplan 2026“, aktiv</small></td><td>4,0 % in „Kern“</td><td><span class="outcome drops">entfällt</span><small>Das Ziel steht nicht in „Kern“; es wäre veraltet.</small></td></tr>
+                <tr><td>Buckets der Position<small>Depot 1</small></td><td>Langfrist</td><td><span class="outcome moves">wechselt</span><small>Das Ziel hat keine eigenen; Ansichten gleich.</small></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 class="blk">Termine, die gleich im Ziel stehen<small>gleiche Art am gleichen Tag</small></h3>
+          <div class="data-table-wrapper">
+            <table class="data-table tight">
+              <thead><tr><th>Datum</th><th>Art</th><th>Folge</th></tr></thead>
+              <tbody>
+                <tr><td>2026-05-14</td><td>Ex-Dividenden-Tag</td><td>beide bleiben</td></tr>
+                <tr><td>2026-05-28</td><td>Dividendenzahlung</td><td>beide bleiben</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="basis">Ein Termin bucht nichts. Ein doppelter lässt sich danach im Tab Termine löschen.</p>
+
+          <h3 class="blk">Stammdaten, die sich unterscheiden</h3>
+          <div class="data-table-wrapper">
+            <table class="data-table tight">
+              <thead><tr><th>Feld</th><th>Quelle</th><th>Ziel</th><th>Danach</th></tr></thead>
+              <tbody>
+                <tr><td>WKN</td><td>A0XXXX</td><td>—</td><td class="keep">A0XXXX<small>übernommen: Das Ziel hatte keine.</small></td></tr>
+                <tr><td>Ticker</td><td>MGEQ.DE</td><td>MGEQ</td><td class="keep">MGEQ<small>Der Wert des Ziels gilt.</small></td></tr>
+                <tr><td>Notiz</td><td>„Neu importiert“</td><td>„Kernbaustein Welt“</td><td class="keep">„Kernbaustein Welt“<small>Die Notiz der Quelle steht im Protokoll.</small></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="basis">Gleich und geprüft: Name, Anlageklasse ETF, Währung EUR, Kursquelle Portfolio Performance, kein Logo, keine Benchmark, Kurse nicht roh.</p>
+
+          <div class="data-note data-note--note">
+            <span class="data-note__icon" aria-hidden="true"><svg class="ic s14"><use href="#i-note"/></svg></span>
+            <span class="data-note__word">Hinweis</span>
+            <div class="data-note__body">Nach der Zusammenführung führen XS0000000001 und XS0000000002 zu diesem Wertpapier. Ein Import, der eine der beiden nennt, bucht hierher.</div>
+          </div>
+          <div class="data-note data-note--attention">
+            <span class="data-note__icon" aria-hidden="true"><svg class="ic s14"><use href="#i-att"/></svg></span>
+            <span class="data-note__word">Achtung</span>
+            <div class="data-note__body">Die Quelle (angelegt 2026-09-20) wird danach gelöscht — der Eintrag, nicht ihre ISIN. Nicht rückgängig zu machen; jede geänderte Zeile steht im Journal.</div>
+          </div>
+        </div>
+        <div class="modal-footer modal-footer--band">
+          <button type="button" class="button-ghost">Zurück</button>
+          <span class="modal-footer__spacer"></span>
+          <p class="why">Wahl für 38 gleiche Buchungen fehlt</p>
+          <button type="button" class="button-danger" disabled>In Meridian Global Equity ETF zusammenführen</button>
+        </div>
+      </div>
+
+      <div class="notes" style="flex:1 1 340px">
+        <p class="cap">Die Vorschau, von oben nach unten</p>
+        <ol>
+          <li><b>Quelle → Ziel als zwei Karten</b> (neu, <code>.merge-pair</code>). Bei Konten reicht eine Zeile „Tagesgeld (alt) → Tagesgeld“ (G2); hier sind die Namen gleich, und nur ISIN und Anlagedatum trennen die beiden. Die Rolle steht als Wort über jeder Karte, „wird gelöscht“ in Gefahrenfarbe <i>und</i> als Wort (UX-DR7).</li>
+          <li><b>ISIN danach</b> (§9) — die Wahl dieses Boards. Nur wenn beide eine ISIN tragen; sonst entfällt die Frage, und die Liste der Unterschiede zeigt, welche ISIN bleibt.</li>
+          <li><b>Bestand als Summe</b> — die Form von G2 in Stück statt Euro. Die Zahl unter der Summe zeigt, was die Wahl für gleiche Buchungen bewirkt: Bei einer vollen Kopie ist „entfernen“ die Reparatur (§8).</li>
+          <li><b>Mengen</b> je Art — was wechselt, was gleich ist, was entfällt.</li>
+          <li><b>Gleiche Buchungen</b> — Anatomie aus G2, ohne Vorauswahl; drei Paare sichtbar, der Rest hinter der Offenlegung.</li>
+          <li><b>Kurse</b> (§9): Lücken füllt die Quelle, bei Kollision gilt das Ziel. Aufgelistet sind nur Tage mit einem manuellen Kurs — der ist Handarbeit; die übrigen Werte stehen im Protokoll.</li>
+          <li><b>Einstellungen</b> (§9): Kategorie, Positionsziel, Buckets der Position — jede Zeile mit Folge und Grund, nie still.</li>
+          <li><b>Termine</b>: mögliche Duplikate werden genannt, nicht entfernt.</li>
+          <li><b>Stammdaten</b>: nur die Felder, die sich unterscheiden, mit „Danach“. Gleiche Felder stehen in einer Zeile darunter — eine Prüfung, die hält, ist kein Befund.</li>
+          <li><b>Hinweis und Achtung</b>, dann der feste Fuß (G2). Die Bestätigung nennt das Ziel; bei gleichem Namen trennt die Kopfzeile, welches.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE B ============================ -->
+<section class="mock-board">
+  <h2>Variante B — Gegenüberstellung beider Wertpapiere, die ISIN-Wahl in der Gegenüberstellung <small>nicht empfohlen</small></h2>
+  <p class="mock-note">Eine Tabelle, Quelle und Ziel nebeneinander, dazu „Danach“; in der ISIN-Zeile steht in jeder Zelle ein Radio. Stärke: Alles, was die beiden unterscheidet, steht auf einen Blick — Anlagedatum, Buchungen, WKN, Ticker, Notiz —, und die ISINs werden dort gewählt, wo sie verglichen werden. Die Liste der Stammdaten-Unterschiede aus A entfällt, sie ist die Tabelle. Schwächen: (1) <b>Zwei Radios in zwei Zellen einer Zeile</b> sind keine Gruppe mit Legende; ein <code>fieldset</code> kann keine Tabellenzeile umschließen, und <code>role="radiogroup"</code> auf einem <code>&lt;tr&gt;</code> ist ungültig. Vorgelesen wird „XS0000000002, Auswahlschalter“, ohne dass die Frage fällt. (2) Die Folge — welche ISIN frühere wird — steht nur in der Spalte „Danach“, zwei Spalten rechts der Wahl. (3) Der Dialog hätte zwei Wahl-Idiome: Tabellen-Radio für die ISIN, Optionskarten für die gleichen Buchungen. (4) Wächter, die halten (Währung, Benchmark, Rohkurse), stehen als Zeilen mit Haken — Rauschen. (5) Bei 390 px trägt die Tabelle vier Spalten nicht (unten).</p>
+  <div class="mock-frame"><span class="mock-tag">Variante B · Schritt 2, oberer Teil</span>
+    <div class="stage">
+      <div class="modal flat" style="flex:1 1 640px; max-width:660px">
+        <header class="modal-head">
+          <h2>Meridian Global Equity ETF zusammenführen<span class="step">Schritt 2 von 2 · Vorschau</span></h2>
+          <span class="icon-button" aria-label="Schließen"><svg class="ic"><use href="#i-x"/></svg></span>
+        </header>
+        <div class="modal-body">
+          <div class="data-table-wrapper">
+            <table class="data-table tight compare">
+              <thead><tr><th></th><th>Quelle<small>wird gelöscht</small></th><th>Ziel<small>bleibt</small></th><th>Danach</th></tr></thead>
+              <tbody>
+                <tr class="pick"><th scope="row">ISIN</th><td><label><input type="radio" name="b-id" checked><span class="mono">XS0000000002</span></label></td><td><label><input type="radio" name="b-id"><span class="mono">XS0000000001</span></label></td><td class="after"><span class="mono">XS0000000002</span><small>frühere ISIN XS0000000001</small></td></tr>
+                <tr><th scope="row">WKN</th><td>A0XXXX</td><td>—</td><td class="after">A0XXXX<small>übernommen</small></td></tr>
+                <tr><th scope="row">Ticker</th><td>MGEQ.DE</td><td>MGEQ</td><td class="after">MGEQ</td></tr>
+                <tr><th scope="row">Notiz</th><td>„Neu importiert“</td><td>„Kernbaustein Welt“</td><td class="after">„Kernbaustein Welt“</td></tr>
+                <tr><th scope="row">Währung</th><td>EUR</td><td>EUR</td><td class="ok">✓ gleich</td></tr>
+                <tr><th scope="row">Benchmark</th><td>nein</td><td>nein</td><td class="ok">✓ gleich</td></tr>
+                <tr><th scope="row">Kurse roh</th><td>nein</td><td>nein</td><td class="ok">✓ gleich</td></tr>
+                <tr><th scope="row">Angelegt</th><td>2026-09-20, Import</td><td>2023-03-02</td><td class="ok">—</td></tr>
+                <tr><th scope="row">Buchungen</th><td>41</td><td>38</td><td class="ok">Wahl unten</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <label class="field" style="max-width:220px"><span>ISIN-Wechsel am</span><span class="in mono">2026-09-15</span></label>
+          <p class="basis">Erscheint, sobald die ISIN der Quelle gewählt ist — unter der Tabelle, weil eine Zelle kein Feld mit Beschriftung trägt.</p>
+          <div class="cut">… weiter wie Variante A ab „Bestand“: Summe, Mengen, gleiche Buchungen, Kurse, Einstellungen, Termine, Hinweis, Achtung, fester Fuß</div>
+        </div>
+        <div class="modal-footer modal-footer--band">
+          <button type="button" class="button-ghost">Zurück</button>
+          <span class="modal-footer__spacer"></span>
+          <p class="why">Wahl für 38 gleiche Buchungen fehlt</p>
+          <button type="button" class="button-danger" disabled>In Meridian Global Equity ETF zusammenführen</button>
+        </div>
+      </div>
+      <div class="notes" style="flex:1 1 340px">
+        <p class="cap">Was B besser macht, und warum es nicht reicht</p>
+        <ul>
+          <li>Der Vergleich trägt die Wahl: Wer nicht weiß, welche ISIN die neue ist, sieht Anlagedatum und Buchungen in derselben Zeilenhöhe. In A steht das Anlagedatum in den Karten des Kopfs — eine Blickzeile höher, aber lesbar.</li>
+          <li>Die gewählte Zeile ist nur getönt; welche Zelle gewählt ist, zeigt allein das Radio. In A trägt die gewählte Karte Tönung und Balken am Anfang (UX-DR16, wie in G2).</li>
+          <li>Das Datum des ISIN-Wechsels gehört zur Antwort „übernehmen“, steht aber außerhalb der Tabelle. In A steht es in der Karte, die es auslöst.</li>
+          <li>Die Tabelle hat einen eigenen Scroller (UX-DR15); am Telefon liegt die Wahl dann in einer seitwärts scrollenden Fläche.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 390 PX ============================ -->
+<section class="mock-board">
+  <h2>A und B bei 390 px — dasselbe Bottom-Sheet wie G2, fester Fuß <small>der Unterschied, der entscheidet</small></h2>
+  <p class="mock-note">Unter 720 px öffnet der Dialog als Bottom-Sheet (G2). <b>A</b> braucht dafür nichts: Die Karten stapeln sich, jede Option ist mindestens 44 px hoch, die Folgezeile bricht um, das Datumsfeld steht in der gewählten Karte. <b>B</b> braucht einen seitwärts scrollenden Tabellenbereich: Bei 358 px Inhaltsbreite passen Feldname, Quelle und Ziel knapp; „Danach“ — die Folge der Wahl — liegt rechts außerhalb. Die Wahl liegt damit in einer Fläche, die man seitwärts schieben muss, und ihre Folge außerhalb des Bildes. Die Alternative — die Tabelle in Blöcke je Feld umbauen — ergibt Variante A mit mehr Zeilen.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-after"><span class="mock-tag">A · 390 px — empfohlen</span><div class="workspace-section">
+      <div class="phone">
+        <div class="behind"><div class="ttl">Wertpapiere</div><div class="ln"></div><div class="ln"></div></div>
+        <div class="scrim"></div>
+        <div class="sheet">
+          <div class="grip"></div>
+          <header class="modal-head">
+            <h2>Meridian Global Equity ETF zusammenführen<span class="step">Schritt 2 von 2 · Vorschau</span></h2>
+            <span class="icon-button" aria-label="Schließen"><svg class="ic"><use href="#i-x"/></svg></span>
+          </header>
+          <div class="sh-body">
+            <div class="merge-pair">
+              <div class="side"><span class="role gone">Quelle · wird gelöscht</span><span class="mono">XS0000000002</span><small>41 Buchungen · angelegt <span class="nw">2026-09-20</span></small></div>
+              <span class="arr" aria-hidden="true">→</span>
+              <div class="side"><span class="role">Ziel · bleibt</span><span class="mono">XS0000000001</span><small>38 Buchungen · seit <span class="nw">2023-03-02</span></small></div>
+            </div>
+            <fieldset class="choice">
+              <legend>ISIN danach</legend>
+              <label class="opt"><input type="radio" name="p-id"><span><span class="t">XS0000000001 behalten</span><small>XS0000000002 wird frühere ISIN dieses Wertpapiers.</small></span></label>
+              <label class="opt is-on"><input type="radio" name="p-id" checked><span><span class="t">XS0000000002 übernehmen</span><small>XS0000000001 wird frühere ISIN; das Ziel trägt danach XS0000000002.</small><span class="field"><span>ISIN-Wechsel am</span><span class="in">2026-09-15</span></span></span></label>
+            </fieldset>
+            <div class="identity" style="grid-template-columns: minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1.2fr); padding:10px">
+              <div class="kf"><i>Quelle</i><b style="font-size:16px">126</b></div><span class="op">+</span>
+              <div class="kf"><i>Ziel</i><b style="font-size:16px">120</b></div><span class="op">=</span>
+              <div class="kf res"><i>danach</i><b style="font-size:16px">246<small>Stück</small></b></div>
+            </div>
+          </div>
+          <div class="modal-footer modal-footer--band">
+            <p class="why">↓ Wahl für 38 gleiche Buchungen fehlt</p>
+            <button type="button" class="button-danger" disabled>In Meridian Global Equity ETF zusammenführen</button>
+            <button type="button" class="button-ghost">Zurück</button>
+          </div>
+        </div>
+      </div>
+    </div></div>
+
+    <div class="mock-frame"><span class="mock-tag">B · 390 px</span><div class="workspace-section">
+      <div class="phone">
+        <div class="behind"><div class="ttl">Wertpapiere</div><div class="ln"></div><div class="ln"></div></div>
+        <div class="scrim"></div>
+        <div class="sheet">
+          <div class="grip"></div>
+          <header class="modal-head">
+            <h2>Meridian Global Equity ETF zusammenführen<span class="step">Schritt 2 von 2 · Vorschau</span></h2>
+            <span class="icon-button" aria-label="Schließen"><svg class="ic"><use href="#i-x"/></svg></span>
+          </header>
+          <div class="sh-body">
+            <div class="scroller">
+              <table class="data-table tight compare">
+                <thead><tr><th></th><th>Quelle<small>wird gelöscht</small></th><th>Ziel<small>bleibt</small></th><th>Danach</th></tr></thead>
+                <tbody>
+                  <tr class="pick"><th scope="row">ISIN</th><td><label><input type="radio" name="pb-id" checked><span class="mono">XS0000000002</span></label></td><td><label><input type="radio" name="pb-id"><span class="mono">XS0000000001</span></label></td><td class="after"><span class="mono">XS0000000002</span><small>frühere ISIN XS0000000001</small></td></tr>
+                  <tr><th scope="row">WKN</th><td>A0XXXX</td><td>—</td><td class="after">A0XXXX</td></tr>
+                  <tr><th scope="row">Ticker</th><td>MGEQ.DE</td><td>MGEQ</td><td class="after">MGEQ</td></tr>
+                  <tr><th scope="row">Notiz</th><td>„Neu importiert“</td><td>„Kernbaustein Welt“</td><td class="after">„Kernbaustein …“</td></tr>
+                  <tr><th scope="row">Währung</th><td>EUR</td><td>EUR</td><td class="ok">✓</td></tr>
+                  <tr><th scope="row">Benchmark</th><td>nein</td><td>nein</td><td class="ok">✓</td></tr>
+                  <tr><th scope="row">Kurse roh</th><td>nein</td><td>nein</td><td class="ok">✓</td></tr>
+                  <tr><th scope="row">Angelegt</th><td>2026-09-20</td><td>2023-03-02</td><td class="ok">—</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <label class="field" style="max-width:220px"><span>ISIN-Wechsel am</span><span class="in mono">2026-09-15</span></label>
+          </div>
+          <div class="modal-footer modal-footer--band">
+            <p class="why">↓ Wahl für 38 gleiche Buchungen fehlt</p>
+            <button type="button" class="button-danger" disabled>In Meridian Global Equity ETF zusammenführen</button>
+            <button type="button" class="button-ghost">Zurück</button>
+          </div>
+        </div>
+      </div>
+    </div></div>
+
+    <div class="notes" style="flex:1 1 280px">
+      <p class="cap">Was bei 390 px feststeht (beide)</p>
+      <ul>
+        <li>Die Quell- und Zielkarte stehen untereinander, der Pfeil zeigt nach unten; der Name entfällt, weil er gleich ist und im Titel steht.</li>
+        <li>Der Fuß ist der von G2: Bestätigung über „Zurück“, volle Breite, 44 px; gesperrt heißt Grund als Text mit Pfeil zur fehlenden Wahl.</li>
+        <li>Die Summe wird kurz („danach“), die Folgezeilen der Optionen tragen den Rest.</li>
+        <li>Nichts scrollt seitwärts — in A. B verletzt das nicht, weil die Tabelle ihren eigenen Scroller hat (UX-DR15), aber die Wahl liegt in ihm.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ABGELEHNT ============================ -->
+<section class="mock-board">
+  <h2>Abgelehnt — was die Vorschau verweigert, mit Grund und Abhilfe <small>beide Varianten gleich</small></h2>
+  <p class="mock-note">Die Vorschau prüft die Wächter, die das Paar samt Buchungen braucht (ADR-0050 §9), und sagt „nicht möglich“ als Problem-Notiz mit der Abhilfe <i>in</i> der Notiz (UX-DR17) — ohne Bestätigungsknopf. <b>Research-Einträge</b> werden nie verschoben oder gelöscht (ADR-0044); ein Wertpapier mit Einträgen kann darum nur Ziel sein. Hier hat der Betreiber das Menü auf dem alten Eintrag geöffnet. Die Abhilfe tauscht die Rollen und rechnet die Vorschau neu — das Ergebnis ist genau die Vorschau von Variante A oben, und dort ist „XS0000000002 übernehmen“ die Reparatur. Die Vorschau ist ein Lesen (§10), der Tausch kostet nichts. <b>Keine Richtung möglich</b> (rechts, eine Abwandlung: angenommen, auf das Duplikat wurde nach dem Import eine eigene Regel gesetzt): Liest eine Regel die Quelle und hat das Ziel Research-Einträge, ist auch der Tausch verweigert. Die Notiz nennt beide Gründe, die Regeln beim Namen wie beim Löschen (ADR-0049 §8), und bietet keinen Knopf an: einen Weg gibt es erst mit dem zurückgestellten Tombstone (ADR-0050 §15), und der Satz erfindet keinen. Veraltet (409 <code>plan_changed</code>) sieht aus wie in G2.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-after" style="flex:1 1 520px"><span class="mock-tag">Abgelehnt · Research-Einträge auf der Quelle</span>
+      <div class="stage" style="padding:16px">
+        <div class="modal flat">
+          <header class="modal-head"><h2 style="font-size:14px">Meridian Global Equity ETF zusammenführen<span class="step">Schritt 2 von 2 · Vorschau</span></h2><span class="icon-button" aria-label="Schließen"><svg class="ic"><use href="#i-x"/></svg></span></header>
+          <div class="modal-body">
+            <div class="merge-pair">
+              <div class="side"><span class="role gone">Quelle · wird gelöscht</span><span class="mono">XS0000000001</span><small>38 Buchungen · seit <span class="nw">2023-03-02</span></small></div>
+              <span class="arr" aria-hidden="true">→</span>
+              <div class="side"><span class="role">Ziel · bleibt</span><span class="mono">XS0000000002</span><small>41 Buchungen · angelegt <span class="nw">2026-09-20</span></small></div>
+            </div>
+            <div class="data-note data-note--problem">
+              <span class="data-note__icon" aria-hidden="true"><svg class="ic s14"><use href="#i-prob"/></svg></span>
+              <span class="data-note__word">Problem</span>
+              <div class="data-note__body">Zusammenführen nicht möglich: Die Quelle hat 3 Research-Einträge, der letzte vom 2026-01-15. Research-Einträge werden nie verschoben oder gelöscht; ein Wertpapier mit Einträgen kann nur Ziel sein.<br>Abhilfe: in die andere Richtung zusammenführen — XS0000000002 in dieses Wertpapier.<br><button type="button" class="button is-new" style="margin-top:6px">Andersherum zusammenführen</button></div>
+            </div>
+          </div>
+          <div class="modal-footer modal-footer--band"><button type="button" class="button-ghost">Zurück</button><span class="modal-footer__spacer"></span><button type="button" class="button-ghost">Schließen</button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mock-frame mock-after" style="flex:1 1 440px"><span class="mock-tag">Abwandlung · keine Richtung möglich</span>
+      <div class="stage" style="padding:16px">
+        <div class="modal flat">
+          <header class="modal-head"><h2 style="font-size:14px">Meridian Global Equity ETF zusammenführen<span class="step">Schritt 2 von 2 · Vorschau</span></h2><span class="icon-button" aria-label="Schließen"><svg class="ic"><use href="#i-x"/></svg></span></header>
+          <div class="modal-body">
+            <div class="merge-pair">
+              <div class="side"><span class="role gone">Quelle · wird gelöscht</span><span class="mono">XS0000000002</span><small>41 Buchungen · angelegt <span class="nw">2026-09-20</span></small></div>
+              <span class="arr" aria-hidden="true">→</span>
+              <div class="side"><span class="role">Ziel · bleibt</span><span class="mono">XS0000000001</span><small>38 Buchungen · seit <span class="nw">2023-03-02</span></small></div>
+            </div>
+            <div class="data-note data-note--problem">
+              <span class="data-note__icon" aria-hidden="true"><svg class="ic s14"><use href="#i-prob"/></svg></span>
+              <span class="data-note__word">Problem</span>
+              <div class="data-note__body">Zusammenführen nicht möglich: Die Quelle wird von eigenen Regeln gelesen: „Obergrenze Einzelwert“ (gilt). Eine Regel, die gegolten hat, behält ihren Bezug als Teil ihrer Geschichte.<br>Andersherum ebenso nicht: Das Ziel hat 3 Research-Einträge, und Research-Einträge werden nie verschoben oder gelöscht.<br>Keine Richtung ist möglich; beide Wertpapiere bleiben unverändert.</div>
+            </div>
+          </div>
+          <div class="modal-footer modal-footer--band"><button type="button" class="button-ghost">Zurück</button><span class="modal-footer__spacer"></span><button type="button" class="button-ghost">Schließen</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes" style="margin-top:14px; max-width:1120px">
+    <p class="cap">Die übrigen Ablehnungen, alle in derselben Form (Grund, dann Abhilfe, wo es eine gibt)</p>
+    <ul>
+      <li><b>Ansichten würden sich ändern:</b> Eine Position trägt in beiden verschiedene Buckets — die Positionen beim Namen, Abhilfe: angleichen, „Erneut prüfen“ (wie das Depot in G2).</li>
+      <li><b>Split mit anderem Verhältnis</b> am selben Tag im selben Portfolio — Datum und beide Verhältnisse, Abhilfe: den falschen Split im Tab Transaktionen löschen.</li>
+      <li><b>Nicht mehr auffindbar</b> (<code>identity_unresolvable</code>): Keines der beiden trägt eine ISIN, und eine Kennung der Quelle führte danach nicht mehr zum Ziel — die Kennung beim Namen. Keine Abhilfe in v1; der Satz sagt das, statt eine zu erfinden.</li>
+      <li><b>Eigene Regeln auf der Quelle</b>, das Ziel ohne Einträge und Regeln: die Form links, die Regeln beim Namen wie beim Löschen (ADR-0049 §8), Abhilfe „Andersherum zusammenführen“.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================ DANACH ============================ -->
+<section class="mock-board">
+  <h2>Danach — eine Zeile, ein Ergebnis, und „Zusammengeführt aus …“ im Detail des Ziels <small>beide Varianten gleich</small></h2>
+  <p class="mock-note">Bestätigt wurde mit „XS0000000002 übernehmen“ und „als Duplikate entfernen“. Das Sheet schließt; über der Tabelle steht das Inline-Ergebnis (bleibt bis zur nächsten Aktion, kein Timer), der Fokus geht zur Zeile des Ziels, und ihr Detail ist offen. <b>Neu im Detail</b>, beide in der Grundlagenzeile der Übersicht (<code>.summary-basis</code>), weil sie wie WKN und Kursquelle sagen, woher die Zahlen kommen: „frühere ISIN … (bis …)“ und „zusammengeführt am … aus …“. Die Quelle wird mit Name, Anlagedatum und ihrer ISIN von damals genannt — bei gleichem Namen und übernommener ISIN trägt das Ziel diese ISIN jetzt selbst, also macht das Anlagedatum die Quelle kenntlich, und „damals“ sagt, warum die ISIN zweimal vorkommt. Ausschnitt: Kennzahlen und Grundlagenzeile; Diagramm und Thesis-Karte der Übersicht sind unverändert und hier weggelassen. <b>Ein alter Link</b> auf die gelöschte Quelle führt hierher (ADR-0050 §12) und sagt es einmal als Hinweis im Detail.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-after" style="flex:1 1 100%"><span class="mock-tag">Nachher · Wertpapiere mit geöffnetem Detail</span>
+      <div class="stage">
+        <div class="pg" style="flex:1 1 auto">
+          <div class="pg-top"><h3>Wertpapiere</h3><span>Suchen, filtern und pflegen des investierbaren Universums.</span></div>
+          <div class="pg-body">
+            <div class="inline-result" data-role="action-result"><div role="status" class="inline-result__region">
+              <div class="data-note data-note--note">
+                <span class="data-note__icon" aria-hidden="true"><svg class="ic s14"><use href="#i-note"/></svg></span>
+                <span class="data-note__word">Hinweis</span>
+                <div class="data-note__body">Zusammengeführt in Meridian Global Equity ETF: 3 Buchungen verschoben, 38 Duplikate entfernt, 22 Kurse ergänzt, 2 Einstellungen entfallen. ISIN jetzt XS0000000002. <button type="button" class="inline-result__dismiss" aria-label="Schließen">&times;</button></div>
+              </div>
+            </div></div>
+            <div class="data-table-wrapper">
+              <table class="data-table">
+                <thead><tr><th class="row-actions-head" aria-label="Zeilenaktionen"></th><th>Name</th><th>Ticker</th><th>ISIN</th><th>Währung</th><th>Anlageklasse</th><th class="num">Letzter Kurs</th><th class="num">Tagesänderung %</th></tr></thead>
+                <tbody>
+                  <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen"><svg class="ic"><use href="#i-kebab"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial">K</span><span class="row-target__label">Kestrel Industrial Group NV</span></span></td><td>KIG</td><td>XS0000000004</td><td>EUR</td><td><span class="badge">Aktie</span></td><td class="num">42,10</td><td class="num is-positive">+0,2 %</td></tr>
+                  <tr class="security-row is-selected"><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen"><svg class="ic"><use href="#i-kebab"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial">M</span><span class="row-target__label">Meridian Global Equity ETF</span></span></td><td>MGEQ</td><td>XS0000000002</td><td>EUR</td><td><span class="badge">ETF</span></td><td class="num">76,20</td><td class="num is-positive">+0,4 %</td></tr>
+                  <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen"><svg class="ic"><use href="#i-kebab"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial">N</span><span class="row-target__label">Nordic Timber Holdings AB</span></span></td><td>NTH</td><td>XS0000000005</td><td>EUR</td><td><span class="badge">Aktie</span></td><td class="num">9,86</td><td class="num">±0,0 %</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <aside class="detail-pane" aria-label="Ausgewähltes Wertpapier">
+              <header class="detail-pane-head">
+                <div class="detail-pane-head__title">
+                  <span class="security-logo security-logo--lg security-logo--initial">M</span>
+                  <div><h2>Meridian Global Equity ETF</h2><p class="detail-pane-sub">XS0000000002 · MGEQ · EUR · Letzter 76,20 (2026-09-23)</p></div>
+                </div>
+                <div class="detail-pane-head__actions">
+                  <button type="button" class="button-ghost">Bearbeiten</button>
+                  <button type="button" class="button-ghost">Split erfassen</button>
+                  <span class="icon-button" aria-label="Maximieren"><svg class="ic"><use href="#i-max"/></svg></span>
+                  <span class="icon-button" aria-label="Detail schließen"><svg class="ic"><use href="#i-x"/></svg></span>
+                </div>
+              </header>
+              <nav class="detail-pane-tabs" role="tablist" aria-label="Wertpapier-Detail-Tabs">
+                <button type="button" role="tab" class="detail-pane-tab is-active" aria-selected="true">Übersicht</button>
+                <button type="button" role="tab" class="detail-pane-tab">Diagramm</button>
+                <button type="button" role="tab" class="detail-pane-tab">Transaktionen</button>
+                <button type="button" role="tab" class="detail-pane-tab">Trades</button>
+                <button type="button" role="tab" class="detail-pane-tab">Kurse</button>
+                <button type="button" role="tab" class="detail-pane-tab">Bestände</button>
+                <button type="button" role="tab" class="detail-pane-tab">Klassifizierungen</button>
+                <button type="button" role="tab" class="detail-pane-tab">Research</button>
+                <button type="button" role="tab" class="detail-pane-tab">Termine</button>
+              </nav>
+              <section class="detail-tab-panel detail-tab-panel--overview" role="tabpanel">
+                <div class="overview-reading" style="grid-template-columns: minmax(0,1fr)">
+                  <div class="overview-reading__main">
+                    <dl class="overview-metrics">
+                      <div class="overview-metric"><dt>Letzter Kurs</dt><dd>76,20 <small class="overview-metric__unit">EUR</small><small class="overview-metric__sub">(2026-09-23)</small></dd></div>
+                      <div class="overview-metric"><dt>Tagesänderung</dt><dd class="is-positive">+0,4 %</dd></div>
+                      <div class="overview-metric"><dt>1Y</dt><dd class="is-positive">+8,1 % <small class="overview-metric__sub">nur Kurs</small></dd></div>
+                      <div class="overview-metric"><dt>Bestand</dt><dd>126 <small class="overview-metric__unit">Stück</small><small class="overview-metric__sub">Depot 1</small></dd></div>
+                      <div class="overview-metric"><dt>Wert</dt><dd>9.601,20 <small class="overview-metric__unit">EUR</small></dd></div>
+                      <div class="overview-metric"><dt>Unrealisiert</dt><dd class="is-positive">+1.180,62 <small class="overview-metric__sub">+14,0 % · gegen den Durchschnittseinstand</small></dd></div>
+                    </dl>
+                    <p class="summary-basis" data-role="overview-basis">Kurse: Portfolio Performance · Anlageklasse ETF · WKN A0XXXX · <span class="is-new">frühere ISIN XS0000000001 (bis 2026-09-15)</span> · <span class="is-new">zusammengeführt am 2026-09-24 aus „Meridian Global Equity ETF“ (angelegt 2026-09-20, damals XS0000000002)</span></p>
+                  </div>
+                </div>
+              </section>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="mock-row" style="margin-top:24px">
+    <div class="mock-frame mock-after" style="flex:0 1 400px"><span class="mock-tag">Über einen alten Link auf die Quelle</span>
+      <div class="stage" style="padding:16px">
+      <aside class="detail-pane" aria-label="Ausgewähltes Wertpapier" style="padding:12px">
+        <div class="data-note data-note--note is-new">
+          <span class="data-note__icon" aria-hidden="true"><svg class="ic s14"><use href="#i-note"/></svg></span>
+          <span class="data-note__word">Hinweis</span>
+          <div class="data-note__body">Der Link führte zu einem Wertpapier, das am 2026-09-24 hierher zusammengeführt wurde. <button type="button" class="inline-result__dismiss" aria-label="Schließen">&times;</button></div>
+        </div>
+        <header class="detail-pane-head">
+          <div class="detail-pane-head__title"><span class="security-logo security-logo--lg security-logo--initial">M</span><div><h2>Meridian Global Equity ETF</h2><p class="detail-pane-sub">XS0000000002 · MGEQ · EUR</p></div></div>
+        </header>
+      </aside>
+      </div>
+    </div>
+    <div class="notes" style="flex:1 1 500px">
+      <p class="note-muted">Die Route <code>/securities/:id</code> der gelöschten Quelle leitet zum Ziel um (§12). Die Notiz ist ein Inline-Ergebnis: Sie bleibt bis zur nächsten Aktion im Detail und verschwindet dann, ohne Timer. Ein Benchmark-Parameter, der die Quelle nennt, bekommt dieselbe Notiz auf seiner Seite.</p>
+      <p class="note-muted">Nicht auf dieser Fläche: eine Liste aller Zusammenführungen. Die Datensätze sind über <code>GET /api/v1/merges</code> und MCP lesbar; eine Ansicht dafür ist nicht Teil von #608.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ GEHALTEN GEGEN ============================ -->
+<section class="mock-board">
+  <h2>Gegen DESIGN.md und EXPERIENCE.md gehalten <small>warum A</small></h2>
+  <table class="check">
+    <thead><tr><th style="width:28%">Regel</th><th>A — Optionskarten</th><th>B — Gegenüberstellung</th></tr></thead>
+    <tbody>
+      <tr><td><b>Eine Wahl-Anatomie im Dialog</b> — die Vorschau von G2 fragt mit <code>fieldset.choice</code> und <code>label.opt</code></td><td class="win">dieselbe Anatomie für ISIN und gleiche Buchungen</td><td>zweites Idiom: Radio in einer Tabellenzelle</td></tr>
+      <tr><td><b>Accessibility Floor</b>: Frage und Antworten als Gruppe mit Namen</td><td class="win"><code>fieldset</code> + <code>legend</code> „ISIN danach“</td><td>keine gültige Gruppe über zwei Zellen; die Frage wird nicht vorgelesen</td></tr>
+      <tr><td><b>UX-DR16</b>: gewählt = eine der drei Klassen (hier: getönte Zeile/Karte mit Balken)</td><td class="win">gewählte Karte wie in G2</td><td>getönte Tabellenzeile; welche Zelle gewählt ist, zeigt nur das Radio</td></tr>
+      <tr><td><b>Nähe</b>: eine Folge steht an dem, was sie auslöst (die Platzierungsregel von UX-DR17, übertragen)</td><td class="win">Folgezeile in jeder Karte</td><td>Folge in der Spalte „Danach“, zwei Spalten weiter</td></tr>
+      <tr><td><b>UX-DR19</b>: Datum als ISO-Textfeld mit Beschriftung</td><td class="win">in der Karte „übernehmen“, nur wenn gewählt</td><td>unter der Tabelle, getrennt von der Antwort</td></tr>
+      <tr><td><b>UX-DR6 / UX-DR15</b>: 44 px, kein Seitwärtsscrollen der Seite; breite Blöcke mit eigenem Scroller</td><td class="win">stapelt sich ohne Änderung</td><td>regelkonform nur mit eigenem Scroller — die Wahl liegt dann darin</td></tr>
+      <tr><td><b>EXPERIENCE.md, „an all-clear is not a finding“</b> (Needs-attention-Karte): gehaltene Prüfungen nicht als Befund</td><td class="win">gleiche Felder in einer Grundlagenzeile</td><td>drei Haken-Zeilen</td></tr>
+      <tr><td><b>Vergleich auf einen Blick</b> (kein Spec-Satz, aber ein echter Vorteil)</td><td>Anlagedatum und Buchungen im Kopf, Unterschiede als eigene Liste</td><td class="win">alles in einer Tabelle</td></tr>
+    </tbody>
+  </table>
+</section>
+
+</body>
+</html>

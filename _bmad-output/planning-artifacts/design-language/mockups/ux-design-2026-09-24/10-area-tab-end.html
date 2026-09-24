@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — die Reiterzeile an ihrem Ende (#876, D6 / UX-DR22, Board 04, Pick G10)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  /* Board chrome only. Every tab row on this board is the live markup of
+     AppShell.area_tabs/1 (nav.area-tabs > a.area-tab > .area-tab__icon +
+     .area-tab__label[data-label]) styled by the real app.css, including the
+     edge-aware fades of #857 (data-scroll-start / data-scroll-end). The
+     board's script below scrolls each row by the rule of its variant, the
+     way the AreaTabs hook in layout_view.ex would, and then marks the edges
+     with the hook's own markEdges logic. The numbers are measured, not drawn. */
+  .phone { box-sizing: content-box; width: 390px; border: 1px solid var(--color-border); border-radius: 16px; overflow: hidden; background: var(--color-bg); flex: none; }
+  .ph-top { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--color-border); background: var(--color-bg-elevated); }
+  .ph-top .topbar-page h1 { font-size: 15px; }
+  .burger { position: relative; width: 18px; height: 12px; border-top: 2px solid var(--color-text-muted); border-bottom: 2px solid var(--color-text-muted); box-sizing: border-box; flex: none; }
+  .burger::after { content: ""; position: absolute; left: 0; right: 0; top: 3px; border-top: 2px solid var(--color-text-muted); }
+  .phone .workspace-page { min-height: 0; }
+  .phone .area-tabs { margin-bottom: 0; }
+  /* the phone rules of app.css, applied by hand because the board renders at
+     1200 px under a fine pointer: body text is 14 px below 560 px (13 px on
+     the desktop, which would shrink every tab), and the coarse-pointer floor
+     of 44 px (UX-DR6). The geometry figure takes the same 14 px. */
+  .phone, .geo { font-size: 14px; }
+  .phone .area-tab { min-height: 44px; }
+  .navwrap { position: relative; }
+  .rest-line { margin: 0; padding: 7px 16px; font-size: 11.5px; border-top: 1px solid var(--color-border); background: var(--color-bg-elevated); font-variant-numeric: tabular-nums; }
+  .rest-line.bad { color: var(--color-danger); }
+  .rest-line.good { color: var(--color-positive); }
+  /* annotations, not UI: red dashes = remnant of a tab, accent hatching = trailing inset */
+  .ann-frag { position: absolute; top: 4px; bottom: 4px; left: 0; border: 2px dashed var(--color-danger); border-radius: 4px; pointer-events: none; }
+  .ann-tail { position: absolute; top: 4px; bottom: 4px; border: 2px dashed var(--color-accent); border-radius: 4px; pointer-events: none; display: grid; place-items: center; font: 700 10px/1 var(--font-sans); color: var(--color-accent); background: repeating-linear-gradient(135deg, transparent 0 5px, color-mix(in srgb, var(--color-accent) 16%, transparent) 5px 7px); }
+  .stack { display: grid; gap: 12px; flex: none; }
+  .side { flex: 1 1 300px; display: grid; gap: 10px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .side p { margin: 0; }
+  .side code { font-size: 11.5px; }
+  .cap { margin: 0 0 2px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  pre.css { margin: 0; padding: 10px 12px; font: 11.5px/1.5 var(--font-mono); white-space: pre; overflow: hidden; }
+  blockquote.spec { margin: 0; padding: 8px 12px; border-left: 3px solid var(--color-border-strong); background: var(--color-bg-muted); font-size: 12px; }
+  blockquote.spec b { font-weight: 700; }
+  /* the geometry figure: the same row laid flat, 1:1, with the 390 px window */
+  .geo { position: relative; width: 860px; padding-top: 4px; }
+  .geo .area-tabs.flat { overflow: visible; mask-image: none; -webkit-mask-image: none; width: max-content; margin: 0; }
+  .geo .area-tab { min-height: 44px; }
+  .geo-guides { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; pointer-events: none; }
+  .geo-guides i { position: absolute; top: 4px; bottom: 0; border-left: 1px dashed var(--color-border-strong); }
+  .geo-ticks { position: relative; height: 18px; margin: 2px 0 6px; font: 600 10.5px/18px var(--font-mono); color: var(--mock-ink); }
+  .geo-ticks span { position: absolute; transform: translateX(-50%); }
+  .geo-ticks span.end { color: var(--color-text); }
+  .geo-win { position: relative; height: 26px; margin: 0 0 6px; }
+  .geo-win .w { position: absolute; top: 0; bottom: 0; border: 2px solid; border-radius: 5px; font-size: 11px; line-height: 22px; padding: 0 8px; white-space: nowrap; overflow: hidden; }
+  .geo-win .w.bad { border-color: var(--color-danger); color: var(--color-danger); background: var(--color-danger-soft); }
+  .geo-win .w.good { border-color: var(--color-positive); color: var(--color-positive); background: color-mix(in srgb, var(--color-positive) 8%, var(--color-bg-elevated)); }
+  .geo-win .w .part { position: absolute; top: 0; bottom: 0; }
+  .geo-win .w .part.frag { background: repeating-linear-gradient(135deg, transparent 0 4px, color-mix(in srgb, var(--color-danger) 30%, transparent) 4px 6px); border-right: 2px solid var(--color-danger); }
+  .geo-win .w .part.tail { background: repeating-linear-gradient(135deg, transparent 0 5px, color-mix(in srgb, var(--color-accent) 22%, transparent) 5px 7px); border-left: 2px dashed var(--color-accent); }
+  .geo-win .w .lbl { position: relative; z-index: 1; }
+  .geo-legend { margin: 4px 0 0; font-size: 11.5px; color: var(--mock-ink); }
+  .mock-frame:not(.mock-after):not(.mock-before) > .mock-tag { display: block; padding: 4px 10px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); background: var(--color-bg-muted); }
+  table.t td.bad { color: var(--color-danger); }
+  table.t td.good { color: var(--color-positive); }
+  table.t td.pick { background: color-mix(in srgb, var(--color-positive) 7%, transparent); }
+  /* ---- the variants' proposed CSS, applied only to their own rows ---- */
+  /* A: one declaration on .area-tabs; the hook writes the number */
+  .area-tabs.v-a { padding-inline-end: var(--area-tabs-tail, 0px); }
+  /* C: mandatory snapping with a start padding the width of the left fade */
+  .area-tabs.v-c { scroll-snap-type: x mandatory; scroll-padding-inline-start: 24px; }
+</style>
+</head>
+<body>
+
+<div class="pickbar"><b>Entscheidung G10 — offen.</b> Wo die Reiterzeile „Vermögen“ bei 390&nbsp;px an ihrem Ende ruht (#876, D6 / UX-DR22, Board <code>ux-design-2026-09-23/04</code>). Auf „Steuern“ und „Risiko“ bleibt sie heute am Ende stehen, und links steht ein Rest von „Cashflow“. D6 sagt: Ein Reiter bleibt nie halb abgeschnitten stehen. <b>A</b> Nachlauf am Zeilenende, Ankunft auf einer Reitergrenze · <b>B</b> den Rest hinnehmen und D6 umformulieren · <b>C</b> Einrasten mit <code>mandatory</code> und <code>scroll-padding</code>. Empfehlung: <b>A</b>. Nur mit A gelten D6 und das Nachher von Board&nbsp;04 wie geschrieben; C lässt den Rest laut Messung stehen. Ein Kommentar mit dem Buchstaben auf der Planungs-PR entscheidet; ohne Kommentar gilt die Empfehlung. Das Board zeigt keine Daten, nur die Reiternamen der App aus gettext (Board&nbsp;04 zeichnete sie mit Arbeitsnamen wie „Zahlungsfluss“). Jede Reiterzeile unten ist echtes <code>.area-tabs</code>-Markup; das Skript des Boards rollt sie nach der Regel der Variante, gemessen in Chromium.</div>
+
+<!-- ============================ BEFUND ============================ -->
+<section class="mock-board">
+  <h2>Der Befund: Das Ende der Zeile ist keine Reitergrenze <small>#876, Rest aus #857</small></h2>
+  <p class="mock-note">Die Zeile ist 784&nbsp;px breit, das Fenster 390&nbsp;px. Sie rollt also höchstens bis 394&nbsp;px. Der Hook aus #857 zentriert den aktiven Reiter. Das Ziel liegt auf „Steuern“ bei 435&nbsp;px und auf „Risiko“ bei 541&nbsp;px, beide Male hinter dem Ende. Der Browser hält bei 394 an, und 394 liegt mitten in „Cashflow“ (318–436). Sichtbar bleiben 42&nbsp;px davon, das „ow“, zur Hälfte unter dem linken Verlauf.</p>
+  <p class="mock-note">Das Einrasten (<code>proximity</code>, <code>start</code>) holt das nicht zurück. Ein Einrastpunkt hinter dem Ende wird auf das Ende gezogen, also ist das Ende selbst ein Einrastpunkt. In der Mitte der Zeile greift das Einrasten schon heute: „Cashflow“ zielt auf 182 und ruht bei 126, „Snapshots“ zielt auf 310 und ruht bei 318. Beide ruhen auf einer Grenze. Nur das Ende ist die Ausnahme. Dorthin kommt man aber auch mit dem Finger, auf jeder Seite des Bereichs, und dann steht dort derselbe Rest.</p>
+  <div class="mock-row">
+    <div class="mock-frame" style="flex:1 1 100%"><div class="workspace-section">
+      <p class="cap">Die Zeile flach ausgelegt, 1:1 · darunter das 390-px-Fenster, wo es ruht</p>
+      <div class="geo" id="geo">
+        <nav class="area-tabs flat" data-tab-level="1" aria-label="Bereichs-Tabs">
+          <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17 9 11l4 4 8-8"/></svg></span><span class="area-tab__label" data-label="Bestände">Bestände</span></a>
+          <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12A9 9 0 1 1 12 3v9Z"/><path d="M21 12a9 9 0 0 0-9-9v9h9Z"/></svg></span><span class="area-tab__label" data-label="Allokation &amp; Ziele">Allokation &amp; Ziele</span></a>
+          <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20V8M9 20V4M15 20v-8M21 20v-5"/></svg></span><span class="area-tab__label" data-label="Cashflow">Cashflow</span></a>
+          <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg></span><span class="area-tab__label" data-label="Snapshots">Snapshots</span></a>
+          <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6"/><circle cx="9" cy="11" r=".6"/><circle cx="12" cy="11" r=".6"/><circle cx="15" cy="11" r=".6"/><circle cx="9" cy="14" r=".6"/><circle cx="12" cy="14" r=".6"/><circle cx="15" cy="14" r=".6"/><path d="M9 17h6"/></svg></span><span class="area-tab__label" data-label="Steuern">Steuern</span></a>
+          <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-3.5 7-9V5.5L12 3 5 5.5V12c0 5.5 7 9 7 9Z"/></svg></span><span class="area-tab__label" data-label="Risiko">Risiko</span></a>
+        </nav>
+        <div class="geo-ticks" id="geo-ticks"></div>
+        <div class="geo-win"><div class="w bad" data-win="today"><span class="lbl">heute, B und C · „Steuern“ und „Risiko“</span></div></div>
+        <div class="geo-win"><div class="w good" data-win="a-tax"><span class="lbl">A · „Steuern“</span></div></div>
+        <div class="geo-win"><div class="w good" data-win="a-risk"><span class="lbl">A · „Risiko“, mit Nachlauf</span></div></div>
+        <div class="geo-guides" id="geo-guides"></div>
+      </div>
+      <p class="geo-legend">Gestrichelte Linien: wo ein Reiter beginnt. Rot schraffiert: der Rest von „Cashflow“, der heute links im Fenster steht. Akzent schraffiert: der Nachlauf, den A hinter „Risiko“ anhängt, damit das Fenster bei 440 enden kann.</p>
+    </div></div>
+  </div>
+
+  <div class="mock-row" style="margin-top:16px">
+    <div class="mock-frame" style="flex:1 1 100%"><div class="workspace-section">
+      <p class="cap">Wo die Zeile ruht, je Seite · 390 px · gemessen in Chromium</p>
+      <table class="t">
+        <thead><tr><th>aktiver Reiter</th><th class="n">Zentrierziel</th><th class="n">heute = B</th><th class="n">A</th><th class="n">C</th></tr></thead>
+        <tbody>
+          <tr><td>Bestände</td><td class="n">−134</td><td class="n good">0</td><td class="n good pick">0</td><td class="n good">0</td></tr>
+          <tr><td>Allokation &amp; Ziele</td><td class="n">25</td><td class="n good">0</td><td class="n good pick">0</td><td class="n good">0</td></tr>
+          <tr><td>Cashflow</td><td class="n">182</td><td class="n good">126</td><td class="n good pick">126</td><td class="n bad">102 · 20&nbsp;px Rest</td></tr>
+          <tr><td>Snapshots</td><td class="n">310</td><td class="n good">318</td><td class="n good pick">318</td><td class="n bad">294 · 20&nbsp;px Rest</td></tr>
+          <tr><td>Steuern</td><td class="n">435</td><td class="n bad">394 · 42&nbsp;px Rest</td><td class="n good pick">318</td><td class="n bad">394 · 42&nbsp;px Rest</td></tr>
+          <tr><td>Risiko</td><td class="n">541</td><td class="n bad">394 · 42&nbsp;px Rest</td><td class="n good pick">440 · 46&nbsp;px Nachlauf</td><td class="n bad">394 · 42&nbsp;px Rest</td></tr>
+        </tbody>
+      </table>
+      <p class="basis" style="margin-top:8px">Reitergrenzen bei 0, 126, 318, 440, 575, 689 · Zeilenende 784 · größte Rollweite heute 394, mit dem Nachlauf aus A 440. Alle Werte in px, <code>scrollLeft</code> der Zeile. Die Breiten hängen an Schrift und Fensterbreite. Die Regeln unten rechnen mit den gemessenen Breiten, nicht mit diesen Zahlen.</p>
+    </div></div>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE A ============================ -->
+<section class="mock-board">
+  <h2>Variante A: Nachlauf am Ende, Ankunft auf einer Reitergrenze <small>empfohlen</small></h2>
+  <p class="mock-note">Zwei Teile, beide im Hook <code>AreaTabs</code>. <b>1. Nachlauf.</b> Wenn die Zeile überläuft, gibt der Hook ihr am Ende einen Innenabstand. Er ist genau so breit wie der Weg vom heutigen Ende bis zur nächsten Reitergrenze, bei 390&nbsp;px also 46&nbsp;px. Die Zeile rollt dann bis 440, dem Anfang von „Snapshots“. Das Ende ist damit selbst eine Grenze, beim Laden der Seite wie beim Wischen. Der Nachlauf ist nie breiter als ein Reiter. Der Hook misst ihn bei jeder Größenänderung neu. Eine Zeile, die nicht überläuft (Desktop), bekommt keinen. <b>2. Ankunft.</b> Der Hook rollt nicht mehr auf das rohe Zentrierziel. Er rollt auf die letzte Reitergrenze davor, bei der der aktive Reiter noch ganz zu sehen ist, und wenn es keine gibt, auf die erste danach. So hängt das Ergebnis nicht an der Einrastschwelle, die jeder Browser selbst wählt. <b>Warum beide Teile:</b> Teil&nbsp;2 allein ist der erste Weg, den #876 nennt, und reicht nur auf „Steuern“. Auf „Risiko“ ist die letzte Grenze, bei der der Reiter ganz zu sehen ist, 440. Ohne Nachlauf endet die Zeile aber bei 394, der Browser zieht das Ziel auf das Ende zurück, und der Rest steht wieder da.</p>
+  <p class="mock-note"><b>Dafür:</b> D6 („a tab never comes to rest half-cut“) und das Nachher von Board&nbsp;04 gelten, wie sie geschrieben sind, ohne Ausnahme im Text. Anfang und Mitte der Zeile ändern sich nicht, „Snapshots“ ruht bei 318 wie heute. Der rechte Verlauf zeigt weiter an, dass noch ein Reiter folgt, so wie auf „Steuern“. <b>Dagegen:</b> Am Ende stehen 46&nbsp;px Leerraum hinter dem letzten Reiter, auf „Risiko“ beim Laden und auf jeder anderen Seite, wenn bis ans Ende gewischt wird. Auf dem Desktop endet die Zeile auch mit Leerraum, dort ohne Verlauf und ohne Rest. Ohne Skript gibt es keinen Nachlauf; wer dann bis ans Ende wischt, sieht den Rest wie heute. Wie heute schon in der Mitte der Zeile liegt das Symbol des ersten sichtbaren Reiters unter dem linken Verlauf. Der Reiter ist ganz, der Verlauf sagt nur, dass davor noch etwas liegt. <b>Aufwand:</b> etwa fünfzehn Zeilen im Hook, eine Angabe in <code>app.css</code> und ein weiterer Test neben denen von #857.</p>
+  <div class="mock-row">
+    <div class="stack">
+      <div class="phone" data-variant="a" data-active="3">
+        <div class="ph-top"><span class="burger" aria-hidden="true"></span><div class="topbar-page"><h1>Snapshots</h1></div></div>
+        <div class="workspace-page"><div class="navwrap"></div></div>
+        <p class="rest-line"></p>
+      </div>
+      <div class="phone" data-variant="a" data-active="4">
+        <div class="ph-top"><span class="burger" aria-hidden="true"></span><div class="topbar-page"><h1>Steuern</h1></div></div>
+        <div class="workspace-page"><div class="navwrap"></div></div>
+        <p class="rest-line"></p>
+      </div>
+      <div class="phone" data-variant="a" data-active="5">
+        <div class="ph-top"><span class="burger" aria-hidden="true"></span><div class="topbar-page"><h1>Risiko</h1></div></div>
+        <div class="workspace-page"><div class="navwrap"></div></div>
+        <p class="rest-line"></p>
+      </div>
+    </div>
+    <div class="side">
+      <p class="cap">390 px · Snapshots, Steuern, Risiko</p>
+      <p>„Snapshots“ ruht wie heute bei 318. „Steuern“ ruht bei 318: „Cashflow“ steht links ganz, „Risiko“ kündigt sich unter dem rechten Verlauf an. „Risiko“ ruht bei 440 am Ende: „Snapshots“ steht links ganz, der rechte Verlauf fällt weg, dahinter liegt der Nachlauf (auf dem Board schraffiert, in der App leer).</p>
+      <div class="mock-frame mock-after"><span class="mock-tag">Vorschlag A — empfohlen · app.css und Hook</span>
+<pre class="css">/* app.css, .area-tabs: one declaration */
+padding-inline-end: var(--area-tabs-tail, 0px);
+
+// AreaTabs: on mount, on resize, in updated()
+starts = tab.offsetLeft for each tab
+max    = scrollWidth - tail - clientWidth
+tail   = (first start >= max) - max   // 46 at 390
+target = centre of the aria-current tab
+rest   = last start <= target at which the
+         active tab is whole   // 440 on Risiko
+         (none: the first start after target)
+scrollTo(rest)  // row only, no animation
+                // under reduced motion</pre></div>
+      <p>Der Nachlauf ist ein Innenabstand am Zeilenende (<code>padding-inline-end</code>). Chromium rechnet ihn zur Rollweite: gemessen 784&nbsp;+&nbsp;46 = 830, größte Rollweite 440. Ein <code>::after</code>-Platzhalter wäre die schlechtere Wahl, weil der Flex-Abstand von 4&nbsp;px hinzukäme und die Zeile dann bei 444 endete, neben der Grenze. Der Hook schreibt nur die Zahl, die Angabe steht im Stylesheet, und der Layout-Test der Zeile kann sie prüfen.</p>
+      <p>Setzt LiveView die Attribute der Zeile bei einem Patch zurück, stellt <code>updated()</code> den Wert wieder her, so wie es heute schon <code>data-scroll-start</code> und <code>data-scroll-end</code> wiederherstellt.</p>
+      <p class="cap" style="margin-top:6px">DESIGN.md → Tab row overflow, D6, der neue Punkt</p>
+      <blockquote class="spec"><b>the row's end is a tab boundary</b> <i>(issue 876)</i>: when the row overflows, the <code>AreaTabs</code> hook gives it a trailing inset (<code>padding-inline-end</code> from <code>--area-tabs-tail</code>) as wide as the distance from its maximum scroll to the next tab start, and brings the active tab to rest on the last tab start at or before its centring target at which it is whole; a row that does not overflow gets no inset;</blockquote>
+      <p>Der Satz zum Einrasten in D6 und der in EXPERIENCE.md bleiben, wie sie sind.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE B ============================ -->
+<section class="mock-board">
+  <h2>Variante B: den Rest hinnehmen und D6 umformulieren <small>kein Code</small></h2>
+  <p class="mock-note">Die Zeile bleibt so, wie #857 sie gebaut hat. Geändert wird nur der Satz in D6: Der Rest am Ende wird zur erlaubten Ausnahme, und Board&nbsp;04 bekommt ein neues Nachher mit dem Rest links. <b>Dafür:</b> kein Code, kein Test, kein Leerraum am Ende. Der Rest liegt zur Hälfte unter dem Verlauf und sagt wie der Verlauf: Davor liegt noch mehr. <b>Dagegen:</b> „ow“ ist kein Hinweis, sondern ein unlesbarer Schnipsel. Er steht genau auf den zwei Seiten, für die #857 gebaut wurde. D6 verbietet den halben Reiter, weil er die Zeile falsch lesen lässt. Damals sah der vierte Reiter aus wie der letzte. Eine Regel, die gerade dort eine Ausnahme bekommt, wo sie verletzt wird, trägt nicht mehr. Die nächste überlaufende Zeile erbt die Ausnahme dann ungeprüft.</p>
+  <div class="mock-row">
+    <div class="stack">
+      <div class="phone" data-variant="today" data-active="3">
+        <div class="ph-top"><span class="burger" aria-hidden="true"></span><div class="topbar-page"><h1>Snapshots</h1></div></div>
+        <div class="workspace-page"><div class="navwrap"></div></div>
+        <p class="rest-line"></p>
+      </div>
+      <div class="phone" data-variant="today" data-active="4">
+        <div class="ph-top"><span class="burger" aria-hidden="true"></span><div class="topbar-page"><h1>Steuern</h1></div></div>
+        <div class="workspace-page"><div class="navwrap"></div></div>
+        <p class="rest-line"></p>
+      </div>
+      <div class="phone" data-variant="today" data-active="5">
+        <div class="ph-top"><span class="burger" aria-hidden="true"></span><div class="topbar-page"><h1>Risiko</h1></div></div>
+        <div class="workspace-page"><div class="navwrap"></div></div>
+        <p class="rest-line"></p>
+      </div>
+    </div>
+    <div class="side">
+      <p class="cap">390 px · der heutige Stand, unverändert</p>
+      <p>Rot gestrichelt ist der Rest von „Cashflow“ markiert, 42&nbsp;px. Er liegt vor „Snapshots“, auf beiden Seiten gleich, weil beide am selben Ende ruhen.</p>
+      <p class="cap" style="margin-top:6px">DESIGN.md → Tab row overflow, D6, der geänderte Satz</p>
+      <blockquote class="spec"><code>scroll-snap-type: x proximity</code> with <code>scroll-snap-align: start</code> on each tab, so a tab never comes to rest half-cut <b>— except at the row's end, where the maximum scroll decides and a remnant of the tab before may show under the left fade</b>;</blockquote>
+      <p>Dazu das Nachher von Board&nbsp;04, neu gezeichnet mit dem Rest links, und derselbe Satz in EXPERIENCE.md → D6 („scroll-snap so a tab never rests half-cut“), weil UX-DR22 dort steht.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE C ============================ -->
+<section class="mock-board">
+  <h2>Variante C: Einrasten mit mandatory und scroll-padding <small>nur CSS</small></h2>
+  <p class="mock-note"><code>scroll-snap-type: x mandatory</code> statt <code>proximity</code>, dazu <code>scroll-padding-inline-start: 24px</code>, damit ein Reiter hinter dem linken Verlauf einrastet statt darunter. Der Hook bleibt, wie er ist. <b>Gemessen in Chromium:</b> Auf „Steuern“ und „Risiko“ ruht die Zeile weiter bei 394, mit denselben 42&nbsp;px Rest. Das Ende bleibt auch unter <code>mandatory</code> ein Einrastpunkt. Das Polster verschiebt außerdem jede andere Ruhelage um 24&nbsp;px nach links: „Snapshots“ ruht bei 294, und links stehen 20&nbsp;px vom Reiter davor. Aus dem Rest auf zwei Seiten wird ein Rest auf vier von sechs. Ohne Polster verhält sich C genau wie heute (gemessen: 126, 318, 394, 394).</p>
+  <p class="mock-note"><b>Dafür:</b> nur CSS, und jedes Wischen endet auf einem Einrastpunkt. <b>Dagegen:</b> C behebt #876 nicht. Es bräuchte den Nachlauf aus A, und dann bringt <code>mandatory</code> nur noch eines: Die Zeile springt unter dem Finger. D6 schreibt <code>proximity</code> vor, und das Polster würde den linken Verlauf von einer Randmarke zu einem Streifen über einem Rest machen.</p>
+  <div class="mock-row">
+    <div class="stack">
+      <div class="phone" data-variant="c" data-active="3">
+        <div class="ph-top"><span class="burger" aria-hidden="true"></span><div class="topbar-page"><h1>Snapshots</h1></div></div>
+        <div class="workspace-page"><div class="navwrap"></div></div>
+        <p class="rest-line"></p>
+      </div>
+      <div class="phone" data-variant="c" data-active="4">
+        <div class="ph-top"><span class="burger" aria-hidden="true"></span><div class="topbar-page"><h1>Steuern</h1></div></div>
+        <div class="workspace-page"><div class="navwrap"></div></div>
+        <p class="rest-line"></p>
+      </div>
+      <div class="phone" data-variant="c" data-active="5">
+        <div class="ph-top"><span class="burger" aria-hidden="true"></span><div class="topbar-page"><h1>Risiko</h1></div></div>
+        <div class="workspace-page"><div class="navwrap"></div></div>
+        <p class="rest-line"></p>
+      </div>
+    </div>
+    <div class="side">
+      <p class="cap">390 px · Snapshots, Steuern, Risiko</p>
+      <p>„Snapshots“ ruht bei 294: Links steht das Ende von „Allokation &amp; Ziele“, 20&nbsp;px, fast ganz im Verlauf. „Steuern“ und „Risiko“ ruhen wie heute bei 394, mit dem Rest von „Cashflow“.</p>
+      <div class="mock-frame"><span class="mock-tag">Vorschlag C · app.css</span>
+<pre class="css">.area-tabs {
+  scroll-snap-type: x mandatory;       /* was proximity */
+  scroll-padding-inline-start: 24px;   /* new */
+}</pre></div>
+      <p>Ein Einrastpunkt, der hinter dem größten Rollweg läge, wird auf das Ende gezogen, unter <code>mandatory</code> wie unter <code>proximity</code>. „Snapshots“, „Steuern“ und „Risiko“ könnten mit <code>start</code> nur jenseits von 394 einrasten. Also rasten alle drei bei 394 ein, und dort steht der Rest.</p>
+    </div>
+  </div>
+</section>
+
+<template id="tabs-tpl">
+  <nav class="area-tabs" data-role="area-tabs" data-tab-level="1" aria-label="Bereichs-Tabs">
+    <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17 9 11l4 4 8-8"/></svg></span><span class="area-tab__label" data-label="Bestände">Bestände</span></a>
+    <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12A9 9 0 1 1 12 3v9Z"/><path d="M21 12a9 9 0 0 0-9-9v9h9Z"/></svg></span><span class="area-tab__label" data-label="Allokation &amp; Ziele">Allokation &amp; Ziele</span></a>
+    <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20V8M9 20V4M15 20v-8M21 20v-5"/></svg></span><span class="area-tab__label" data-label="Cashflow">Cashflow</span></a>
+    <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg></span><span class="area-tab__label" data-label="Snapshots">Snapshots</span></a>
+    <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6"/><circle cx="9" cy="11" r=".6"/><circle cx="12" cy="11" r=".6"/><circle cx="15" cy="11" r=".6"/><circle cx="9" cy="14" r=".6"/><circle cx="12" cy="14" r=".6"/><circle cx="15" cy="14" r=".6"/><path d="M9 17h6"/></svg></span><span class="area-tab__label" data-label="Steuern">Steuern</span></a>
+    <a class="area-tab" href="#"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-3.5 7-9V5.5L12 3 5 5.5V12c0 5.5 7 9 7 9Z"/></svg></span><span class="area-tab__label" data-label="Risiko">Risiko</span></a>
+  </nav>
+</template>
+
+<script>
+  // Board script. It stands in for the AreaTabs hook of layout_view.ex: the
+  // "today" rows run the hook's reveal() unchanged, the "a" rows run the
+  // proposed rule, the "c" rows run today's reveal() under C's CSS. Every
+  // row then gets the hook's markEdges(), so the fades are the real ones.
+  const SLACK = 2;
+  const starts = nav => {
+    const r0 = nav.getBoundingClientRect().left, sl = nav.scrollLeft;
+    return [...nav.querySelectorAll('.area-tab')].map(t => {
+      const r = t.getBoundingClientRect();
+      return { l: r.left - r0 + sl, w: r.width, name: t.querySelector('.area-tab__label').dataset.label };
+    });
+  };
+  const markEdges = nav => {
+    nav.toggleAttribute('data-scroll-start', nav.scrollLeft <= SLACK);
+    nav.toggleAttribute('data-scroll-end', nav.scrollLeft + nav.clientWidth >= nav.scrollWidth - SLACK);
+  };
+  const centringTarget = (nav, tab) => tab.l - (nav.clientWidth - tab.w) / 2;
+
+  // today: the shipped reveal() of #857
+  const revealToday = (nav, i) => {
+    const tabs = starts(nav);
+    nav.scrollTo({ left: Math.max(0, centringTarget(nav, tabs[i])), behavior: 'instant' });
+  };
+
+  // A: trailing inset to the next tab start, then rest on a tab start
+  const revealA = (nav, i) => {
+    nav.style.setProperty('--area-tabs-tail', '0px');
+    const tabs = starts(nav);
+    const cw = nav.clientWidth;
+    if (nav.scrollWidth <= cw) return 0;
+    const max = nav.scrollWidth - cw;
+    const next = tabs.map(t => t.l).find(l => l >= max - 0.5);
+    const tail = next === undefined ? 0 : Math.round(next - max);
+    nav.style.setProperty('--area-tabs-tail', tail + 'px');
+    const a = tabs[i];
+    const target = centringTarget(nav, a);
+    const whole = l => l <= a.l + 0.5 && a.l + a.w <= l + cw + 0.5;
+    let rest = tabs.map(t => t.l).filter(l => l <= target && whole(l)).pop();
+    if (rest === undefined) rest = tabs.map(t => t.l).find(l => l > target && whole(l));
+    nav.scrollTo({ left: Math.max(0, rest ?? 0), behavior: 'instant' });
+    return tail;
+  };
+
+  document.querySelectorAll('.phone[data-variant]').forEach(phone => {
+    const nav = document.getElementById('tabs-tpl').content.firstElementChild.cloneNode(true);
+    const i = Number(phone.dataset.active);
+    const tabEls = nav.querySelectorAll('.area-tab');
+    tabEls[i].classList.add('is-active');
+    tabEls[i].setAttribute('aria-current', 'page');
+    const variant = phone.dataset.variant;
+    if (variant === 'a') nav.classList.add('v-a');
+    if (variant === 'c') nav.classList.add('v-c');
+    phone.querySelector('.navwrap').appendChild(nav);
+    phone._nav = nav;
+  });
+
+  document.querySelectorAll('.phone[data-variant]').forEach(phone => {
+    const nav = phone._nav, i = Number(phone.dataset.active);
+    phone._tail = phone.dataset.variant === 'a' ? revealA(nav, i) : (revealToday(nav, i), 0);
+  });
+
+  const annotate = () => {
+    document.querySelectorAll('.phone[data-variant]').forEach(phone => {
+      const nav = phone._nav, wrap = phone.querySelector('.navwrap'), line = phone.querySelector('.rest-line');
+      markEdges(nav);
+      const s = nav.scrollLeft, cw = nav.clientWidth;
+      const tabs = starts(nav);
+      const frag = tabs.find(t => t.l < s - 1 && t.l + t.w > s + 1);
+      let text = 'ruht bei ' + Math.round(s) + '\u00a0px';
+      if (frag) {
+        const w = Math.round(frag.l + frag.w - s);
+        const box = document.createElement('div');
+        box.className = 'ann-frag'; box.style.width = w + 'px';
+        wrap.appendChild(box);
+        text += ' · links ' + w + '\u00a0px Rest von „' + frag.name + '“';
+        line.className = 'rest-line bad';
+      } else {
+        const first = tabs.find(t => t.l >= s - 1);
+        text += ' · links beginnt „' + first.name + '“ ganz';
+        line.className = 'rest-line good';
+      }
+      const atEnd = s + cw >= nav.scrollWidth - SLACK;
+      if (phone._tail > 0) {
+        if (atEnd) {
+          const lastEnd = tabs[tabs.length - 1].l + tabs[tabs.length - 1].w - s;
+          const box = document.createElement('div');
+          box.className = 'ann-tail';
+          box.style.left = Math.round(lastEnd + 2) + 'px';
+          box.style.width = Math.round(cw - lastEnd - 4) + 'px';
+          box.textContent = phone._tail + '\u00a0px';
+          wrap.appendChild(box);
+        }
+        text += ' · Nachlauf ' + phone._tail + '\u00a0px' + (atEnd ? ', hier sichtbar' : ', rechts außer Sicht');
+      }
+      line.textContent = text;
+    });
+
+    // the flat geometry figure
+    const flat = document.querySelector('.geo .area-tabs.flat');
+    const tabs = starts(flat);
+    const rowEnd = tabs[tabs.length - 1].l + tabs[tabs.length - 1].w;
+    const cw = 390, max = rowEnd - cw;
+    const ticks = document.getElementById('geo-ticks'), guides = document.getElementById('geo-guides');
+    tabs.forEach(t => {
+      const s = document.createElement('span'); s.style.left = t.l + 'px'; s.textContent = Math.round(t.l); ticks.appendChild(s);
+      const g = document.createElement('i'); g.style.left = t.l + 'px'; guides.appendChild(g);
+    });
+    const e = document.createElement('span'); e.className = 'end'; e.style.left = rowEnd + 'px'; e.textContent = Math.round(rowEnd); ticks.appendChild(e);
+    const ge = document.createElement('i'); ge.style.left = rowEnd + 'px'; ge.style.borderLeftStyle = 'solid'; guides.appendChild(ge);
+    const next = tabs.map(t => t.l).find(l => l >= max - 0.5);
+    const tail = next - max;
+    const win = (key, left, parts) => {
+      const w = document.querySelector('[data-win="' + key + '"]');
+      w.style.left = left + 'px'; w.style.width = cw + 'px';
+      const lbl = w.querySelector('.lbl');
+      lbl.textContent += ' · ' + Math.round(left) + '–' + Math.round(left + cw);
+      (parts || []).forEach(p => { const d = document.createElement('span'); d.className = 'part ' + p.cls; d.style.left = p.l + 'px'; d.style.width = p.w + 'px'; w.insertBefore(d, lbl); if (p.cls === 'frag') lbl.style.marginLeft = (p.w + 2) + 'px'; });
+    };
+    const cash = tabs[2];
+    win('today', max, [{ cls: 'frag', l: -2, w: Math.round(cash.l + cash.w - max) }]);
+    win('a-tax', tabs[2].l);
+    win('a-risk', max + tail, [{ cls: 'tail', l: Math.round(rowEnd - (max + tail)) - 2, w: Math.round(tail) }]);
+  };
+  requestAnimationFrame(() => setTimeout(annotate, 120));
+</script>
+
+</body>
+</html>

@@ -1,0 +1,671 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — E25: neue Markierungen und Rückfragen (Picks G12.1–G12.3, Vorher / Nachher)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  /* Board chrome only. Inside the frames: the live classes of
+     risk_live.ex (policy_rules/1: .policy-rules, .section-head,
+     .section-head__meta, .policy-findings-table.risk-fit-table,
+     .policy-rule__name, .policy-rule__words, .policy-rule__line-sub,
+     .policy-rule__reason, .policy-col-line, .badge--danger,
+     .badge--undetermined, .badge--neutral (the "met" state), .summary-basis,
+     .policy-rules-scheduled, .policy-rules-retired, .perf-table-disclosure),
+     Risk.PolicyRuleDialog (.modal.policy-rule-dialog, .modal-head,
+     .modal-body, .form-grid, .form-grid__wide, .hint,
+     .policy-rule-versions, .modal-footer, .modal-footer__spacer; the "Name"
+     field is board 07's D-6), securities_live.ex (research_tab_panel/1:
+     .research-timeline, .research-entry, .research-entry__head,
+     .research-entry__meta, .research-entry__body, .badge--kind-*,
+     .badge--quality-*; the .detail-pane head with its four actions),
+     AppShell.data_note/1 (.data-note.data-note--attention, .data-note__body,
+     .link-button as the remedy inside it), transaction_management_live.ex
+     (booking_drawer/1: .detail-pane.booking-drawer, .detail-pane-head,
+     .detail-pane-sub, .form-grid, .form-help, .transaction-costs,
+     .booking-drawer__foot; the history table #transaction-list with
+     .tx-group-head, .row-actions, .row-actions__kebab), buckets_live.ex
+     (#buckets-section, .section-head-controls, .metric-tooltip, .bucket-list,
+     .bucket-list__item, .bucket-list__name, .bucket-list__usage,
+     AppShell.row_menu's .row-context-menu, .row-context-menu__item--danger),
+     securities_live.ex position_bucket_override/1 (.position-buckets) and
+     portfolio_live.ex (the flat worklist .drift-table
+     data-role="flat-positions", .table-sort, .cat-swatch, .col-subject,
+     .is-negative, .rebalance-hint). Shipped utility classes used as they
+     are: .badge, .mono, .visually-hidden, .muted, .hint.
+     The drawer, the dialog and the pane are drawn as <div>s because a closed
+     <dialog> does not paint. The browser frame and the browser's own
+     confirm box are drawing aids, not app UI (data-confirm runs
+     window.confirm, layout_view.ex).
+     ONE rule is proposed for app.css (G12.2 B, pin 4), drawn inline on the
+     one element it styles and marked data-proposed there:
+       .data-note__body .mono { margin: var(--space-1) 0 0;
+         white-space: pre-wrap; overflow-wrap: anywhere; }
+     the wrap .research-entry__body already has, so the escaped text keeps
+     its line breaks and a run of escapes cannot overflow the note at 390 px.
+     No new class; the text keeps the note's colour. Everything else is built
+     from classes that already ship. */
+  .mock-frame { overflow: visible; }
+  .col { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-content: start; flex: 1 1 520px; min-width: 0; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .notes { display: grid; gap: 8px; align-content: start; font-size: 12.5px; }
+  .notes p, .notes ol, .notes ul { margin: 0; }
+  .notes ol, .notes ul { padding-left: 18px; }
+  .notes ol.pins, ol.notes.pins { list-style: none; padding: 0; }
+  .notes li { margin: 0 0 6px; }
+  .notes code, .mock-note code, table.t code, .pickbar code, .callout code { font-size: 11.5px; }
+  .elide { margin: 0; font-size: 12px; color: var(--mock-ink); font-style: italic; }
+  /* numbered pins: red = a finding today, green = a repair, grey = an option's mark */
+  i.pin { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-left: 5px; border-radius: 999px; font: 700 10px/1 var(--font-sans); font-style: normal; color: #fff; vertical-align: 1px; letter-spacing: 0; text-transform: none; flex: none; }
+  i.pin.b { background: var(--color-danger); }
+  i.pin.a { background: var(--color-positive); }
+  i.pin.o { background: var(--mock-ink); }
+  .notes li > i.pin:first-child, .notes p > i.pin:first-child { margin: 0 4px 0 0; }
+  /* a changed or added element inside a shipped surface */
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+  /* no dashes on or around a badge on this board: a dashed badge already
+     means "undetermined" in the rule table and "derived" app-wide */
+  /* added words inside running text: a tint with a dashed underline, because
+     an outline on a wrapped inline span draws a box per line fragment (as
+     board 09) */
+  .is-new-text { background: color-mix(in srgb, var(--color-accent) 14%, transparent); border-bottom: 1.5px dashed var(--color-accent); border-radius: 2px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+  /* an empty cell that is the change: the dashed mark drawn inside it */
+  td.is-new-cell { outline: 1.5px dashed var(--color-accent); outline-offset: -3px; text-align: center; }
+  .rec { color: var(--color-positive); font-weight: 760; }
+  .callout { border: 1px solid var(--color-border); border-left: 4px solid var(--color-accent); border-radius: var(--radius-md); background: var(--color-bg-elevated); padding: 10px 14px; display: grid; gap: 6px; font-size: 12.5px; }
+  .callout.keep { border-left-color: var(--color-border-strong); }
+  .callout.open { border-left-color: var(--color-warning); }
+  .callout h4 { margin: 0; font-size: 13px; }
+  .callout p, .callout ul { margin: 0; }
+  .callout ul { padding-left: 18px; }
+  table.t td.v { font-family: var(--font-mono); font-size: 12px; }
+
+  /* the rule dialog on a muted field standing in for the backdrop (as board 07) */
+  .dlg-field { background: var(--color-bg-muted); padding: 16px; }
+  .dlg-field .modal { max-width: none; }
+
+  /* the 390 px phone frame (as board 07; the board renders at 1200, so the
+     max-width 720 px and coarse-pointer rules of app.css are applied by hand) */
+  .phone { width: 392px; border: 1px solid var(--color-border); border-radius: 18px; overflow: hidden; background: var(--color-bg); flex: none; position: relative; font-size: 14px; }
+  .ph-top { padding: 10px 16px; border-bottom: 1px solid var(--color-border); background: var(--color-bg-elevated); }
+  .ph-top .topbar-page h1 { font-size: 15px; }
+  .ph-top .topbar-page p { display: none; }
+  .phone .workspace-page { min-height: 0; }
+  .phone .workspace-section { padding: 16px; }
+  .phone .data-table-wrapper > .risk-fit-table { min-width: 0; width: 100%; }
+  .phone .risk-fit-table th, .phone .risk-fit-table td { white-space: normal; }
+  .phone .policy-findings-table .policy-col-line { display: none; }
+  .phone .policy-findings-table td.num { white-space: normal; }
+  .phone .policy-rule__line-sub { display: block; }
+  .phone .policy-rule__name { min-height: 44px; }
+
+  /* the booking drawer at its desktop width: the second column of
+     .transactions-columns--drawer, minmax(320px, 380px) (as board 05) */
+  .booking-drawer.desk { width: 380px; margin: 0 auto; box-sizing: border-box; }
+
+  /* the securities detail pane at board scale (as board 11) */
+  .stage { padding: 14px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .stage .detail-pane { margin-top: 0; }
+  .stage .detail-pane-tabs { overflow: hidden; }
+
+  /* the row menu: fixed-positioned on its kebab by the PositionedMenu hook
+     in the app, drawn absolute here */
+  .menu-at { position: absolute !important; z-index: 5; }
+  .rel { position: relative; }
+
+  /* browser chrome, drawn (not app UI; as board 11) */
+  .browser { border: 1px solid var(--color-border-strong); border-radius: 10px; overflow: hidden; background: var(--color-bg); position: relative; }
+  .browser .bar { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: #eceef2; border-bottom: 1px solid #d3d8df; }
+  .browser .dots { display: flex; gap: 4px; flex: none; }
+  .browser .dots i { width: 9px; height: 9px; border-radius: 50%; background: #c8ced7; }
+  .browser .url { flex: 1 1 auto; min-width: 0; padding: 2px 10px; border: 1px solid #d3d8df; border-radius: 999px; background: #fff; color: #4b5563; font: 11.5px/1.5 var(--font-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .browser .vp { position: relative; padding: 0 0 14px; }
+  /* room under the last bucket row for its open menu (drawing aid) */
+  .browser .vp.menu-room { padding-bottom: 96px; }
+  .browser .vp .workspace-section { padding: 14px 16px 4px; }
+  /* the browser's own confirm box for window.confirm (Chromium, simplified) */
+  .confirm { position: relative; max-width: 440px; margin: 0 auto; padding: 18px 20px 16px; border-radius: 8px; background: #fff; color: #202124; box-shadow: 0 4px 18px rgba(0,0,0,.28), 0 0 0 1px rgba(0,0,0,.06); font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .confirm .origin { margin: 0 0 10px; font-size: 14px; font-weight: 500; }
+  .confirm .msg { margin: 0 0 16px; }
+  .confirm .btns { display: flex; justify-content: flex-end; gap: 8px; }
+  .confirm .btns span { padding: 6px 16px; border-radius: 4px; border: 1px solid #dadce0; color: #1a73e8; font-weight: 500; }
+  .confirm .btns span.ok { background: #1a73e8; border-color: #1a73e8; color: #fff; }
+  .after-state { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-bg-elevated); font-size: 12.5px; }
+  .after-state .lbl { color: var(--mock-ink); font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+  .after-state .position-buckets summary { list-style: none; }
+
+  .frame-cap { margin: 0 0 8px; font-size: 12px; color: var(--mock-ink); }
+</style>
+</head>
+<body data-widths="1200">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-att" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-max" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+    <symbol id="i-keb" viewBox="0 0 24 24"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4l10-10-4-4L4 16Z"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7v13a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7"/><path d="M10 11v7M14 11v7"/></symbol>
+  </defs>
+</svg>
+
+<div class="pickbar"><b>Drei Entscheidungen, zwei Vorher / Nachher — was E25 sonst noch sichtbar ändert.</b> Board 11 zeigt die Meldungen der Härtung; dieses die neuen Marken und Rückfragen. <b>G12.1</b> — woran eine Regel zu erkennen ist, deren gültige Version der Agent geschrieben hat (G30, T&#8209;8): <b>A</b> das Wort „Agent“ am Ende der Wortzeile dieser Regeln, dazu der Autor an jeder Version im Dialog · <b>B</b> der Autor nur in der Versionsliste des Dialogs. <span class="rec">Empfehlung A.</span> <b>G12.2</b> — gespeicherter Text mit unsichtbaren Zeichen (G20): <b>A</b> jedes Zeichen als sichtbares Kürzel an seiner Stelle · <b>B</b> eine Datennotiz „Achtung“ am Eintrag, mit Abhilfe und dem Text mit sichtbar gemachten Zeichen in einer Aufklappung. <span class="rec">Empfehlung B.</span> <b>G12.3</b> — eine gebuchte Split-Zeile bearbeiten (G07): <b>A</b> die Schublade zeigt den Split fest, nur die Notiz ist änderbar, und ein Satz nennt, wie ein falscher Split korrigiert wird · <b>B</b> kein „Bearbeiten“ an Split-Zeilen. <span class="rec">Empfehlung A.</span> <b>Ohne Wahl:</b> die Rückfrage beim Löschen eines Buckets (G19, T&#8209;10) und der Drift-Anteil einer Position ohne Wert (G14). Die Codes heißen G12.1–G12.3, weil G12 bis G14 schon Befunde der Triage sind. Ein Kommentar mit Code und Buchstabe auf der Planungs-PR entscheidet; ohne Kommentar gilt die Empfehlung. <b>Das Board ist öffentlich:</b> Es zeigt Zustände, Marken und Rückfragen, keine Eingaben (Triage 2026-09-24, Teil 6). Alle Namen, Zahlen und Daten sind erfunden. <b>Gestrichelt oder getönt = neu.</b></div>
+
+<!-- ============================ G12.1 · AUTOR EINER REGEL ============================ -->
+<section class="mock-board">
+  <h2>G12.1 · Vermögen → Risiko — eine Regel, deren gültige Version der Agent geschrieben hat <small>G30 · T&#8209;8 · <code>risk_live.ex</code>, <code>policy_rule_dialog.ex</code></small></h2>
+  <p class="mock-note">Heute trägt keine Version einer Regel ihren Autor, und die Seite zeigt jede Regel als Maßstab des Operators: „Eigene Regeln“. Der Token des Agenten legt Regeln aber genauso an und ändert sie. Nachher speichert jede Version ihren Autor, abgeleitet vom Handelnden (Dialog: Operator; API und MCP: Agent), und Regel- und Befundlesungen geben ihn aus. T&#8209;8 hält fest, was <em>nicht</em> kommt: kein Zurückhalten, bis der Operator eine Regel übernimmt. Die Marke macht sichtbar, sie ändert nicht, ab wann eine Regel gilt. Die Namen sind in der Darstellung von heute gezeichnet; mit G7&#8209;A tragen sie Akzent und Unterstrich, die Wortzeile darunter bleibt gleich.</p>
+
+  <div class="mock-row">
+    <div class="mock-frame mock-after" style="flex:1 1 100%"><span class="mock-tag">A · empfohlen · /risk, Abschnitt „Eigene Regeln“</span><div class="workspace-section">
+      <section class="workspace-section policy-rules" style="padding:0">
+        <header class="section-head">
+          <h2>Eigene Regeln <span class="section-head__meta">· 1 verletzt · 1 nicht bestimmbar · 2 eingehalten</span><i class="pin o">3</i></h2>
+          <button type="button" class="button-secondary">Regel anlegen</button>
+        </header>
+        <div class="data-table-wrapper">
+          <table class="data-table policy-findings-table risk-fit-table">
+            <thead><tr><th>Regel</th><th class="num">Gemessen</th><th class="num policy-col-line">Grenze</th><th>Stand</th></tr></thead>
+            <tbody>
+              <tr><td><button type="button" class="link-button policy-rule__name">Einzeltitel höchstens 10 %</button><span class="policy-rule__words">Gewicht · Nordic Timber Holdings AB · Obergrenze · hart</span></td><td class="num">12,4&nbsp;%</td><td class="num policy-col-line">10,0&nbsp;%</td><td><span class="badge badge--danger">verletzt · +2,4&nbsp;Pp</span></td></tr>
+              <tr><td><button type="button" class="link-button policy-rule__name">Schwankung begrenzen</button><span class="policy-rule__words">Volatilität · 90 Tage · Obergrenze · Warnung</span></td><td class="num">—</td><td class="num policy-col-line">15,0&nbsp;%</td><td><span class="badge badge--undetermined">nicht bestimmbar</span><span class="policy-rule__reason">14 von 20 Beobachtungen</span></td></tr>
+              <tr><td><button type="button" class="link-button policy-rule__name">Liquiditätsreserve halten</button><span class="policy-rule__words">Gewicht · Cash · Untergrenze · Warnung <span class="is-new-text" data-role="policy-rule-author">· <span class="visually-hidden">Version in Kraft von: </span>Agent</span><i class="pin o">1</i></span></td><td class="num">6,2&nbsp;%</td><td class="num policy-col-line">5,0&nbsp;%</td><td><span class="badge badge--neutral">eingehalten</span></td></tr>
+              <tr><td><button type="button" class="link-button policy-rule__name">Anleihen im Band</button><span class="policy-rule__words">Drift · Anleihen · Band · Warnung</span></td><td class="num">-1,2&nbsp;Pp</td><td class="num policy-col-line">-3,0&nbsp;Pp … +3,0&nbsp;Pp</td><td><span class="badge badge--neutral">eingehalten</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="summary-basis">Ausgewertet beim Lesen, Stand 24.09.2026, auf der steuerbaren Basis der Ansicht „Alles“. Jede Regel nennt die Kennzahl, aus der sie liest; eine Zahl, die sich nicht lesen lässt, ist nicht bestimmbar, nie eingehalten. Ein Befund sagt nicht, was zu tun ist.</p>
+        <div class="policy-rules-scheduled">
+          <h3 class="policy-rules-scheduled__title">Geplante Regeln</h3>
+          <ul class="policy-rules-retired">
+            <li><button type="button" class="link-button">Industrie-Anteil begrenzen</button> <span class="muted">· ab 01.10.2026 · 25,0&nbsp;% <span class="is-new-text">· <span class="visually-hidden">Version von: </span>Agent</span></span><i class="pin o">2</i></li>
+          </ul>
+        </div>
+        <details class="perf-table-disclosure">
+          <summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg> Beendete Regel anzeigen (1)</summary>
+        </details>
+      </section>
+    </div></div>
+  </div>
+
+  <div class="mock-row" style="margin-top:20px">
+    <div class="mock-frame mock-after" style="flex:1 1 100%"><span class="mock-tag">B · dieselbe Tabelle, unverändert — der Autor steht nur im Dialog</span><div class="workspace-section">
+      <div class="data-table-wrapper">
+        <table class="data-table policy-findings-table risk-fit-table">
+          <thead><tr><th>Regel</th><th class="num">Gemessen</th><th class="num policy-col-line">Grenze</th><th>Stand</th></tr></thead>
+          <tbody>
+            <tr><td><button type="button" class="link-button policy-rule__name">Einzeltitel höchstens 10 %</button><span class="policy-rule__words">Gewicht · Nordic Timber Holdings AB · Obergrenze · hart</span></td><td class="num">12,4&nbsp;%</td><td class="num policy-col-line">10,0&nbsp;%</td><td><span class="badge badge--danger">verletzt · +2,4&nbsp;Pp</span></td></tr>
+            <tr><td><button type="button" class="link-button policy-rule__name">Liquiditätsreserve halten</button><i class="pin o">4</i><span class="policy-rule__words">Gewicht · Cash · Untergrenze · Warnung</span></td><td class="num">6,2&nbsp;%</td><td class="num policy-col-line">5,0&nbsp;%</td><td><span class="badge badge--neutral">eingehalten</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="elide" style="margin-top:8px">… übrige Zeilen, Grundlagenzeile und „Geplante Regeln“ wie heute, ohne Marke.</p>
+    </div></div>
+  </div>
+
+  <div class="mock-row" style="margin-top:20px">
+    <div class="col" style="flex:1 1 560px">
+      <div class="mock-frame mock-after"><span class="mock-tag">A und B · Regel ändern — der Autor an jeder Version · mit dem Feld „Name“ aus D&#8209;6 (Board 07)</span><div class="dlg-field">
+        <div class="modal policy-rule-dialog">
+          <header class="modal-head">
+            <h2>Regel ändern — „Liquiditätsreserve halten“</h2>
+            <button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><use href="#i-x"/></svg></button>
+          </header>
+          <div class="modal-body">
+            <p class="hint">Ausgewertet in der Ansicht „Alles“, auf ihrer steuerbaren Basis.</p>
+            <div class="form-grid">
+              <label><span>Name<i class="pin o">6</i></span><input type="text" value="Liquiditätsreserve halten" maxlength="255"></label>
+              <label><span>Kennzahl</span><select><option>Gewicht</option></select></label>
+              <label><span>Bezug</span><select><option>Cash</option></select></label>
+              <label><span>Art</span><select><option>Untergrenze</option></select></label>
+              <label><span>Grenze (%)</span><input type="text" inputmode="decimal" class="num" value="5"></label>
+              <label><span>Schweregrad</span><select><option>Warnung</option></select></label>
+              <label><span>Gilt ab</span><input type="text" value="2026-09-24" placeholder="YYYY-MM-DD"></label>
+              <label class="form-grid__wide"><span>Notiz (optional)</span><input type="text" value=""></label>
+            </div>
+            <p class="hint">Speichern legt Version 3 an. Version 2 (5,0&nbsp;%) gilt seit 15.09.2026, endet am Tag vor der neuen und bleibt lesbar.</p>
+            <details class="perf-table-disclosure" open>
+              <summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg> Versionen</summary>
+              <ol class="policy-rule-versions">
+                <li>Version 1 · 01.07.2026 – 14.09.2026 · 4,0&nbsp;% · Warnung <span class="is-new-text">· Operator</span></li>
+                <li>Version 2 · ab 15.09.2026 · 5,0&nbsp;% · Warnung <span class="is-new-text">· Agent</span><i class="pin o">5</i></li>
+              </ol>
+            </details>
+            <div class="modal-footer">
+              <button type="button" class="button-ghost">Regel beenden</button>
+              <span class="modal-footer__spacer"></span>
+              <button type="button" class="button-ghost">Abbrechen</button>
+              <button type="submit" class="button-primary">Neue Version speichern</button>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <div class="col" style="flex:0 0 392px">
+    <p class="cap" style="margin:0">A · 390 px</p>
+    <div class="phone">
+      <div class="ph-top"><div class="topbar-page"><h1>Risiko</h1><p>Konzentration und Schwankung · Ansicht: Alles</p></div></div>
+      <div class="workspace-page">
+        <section class="workspace-section policy-rules">
+          <header class="section-head">
+            <h2>Eigene Regeln <span class="section-head__meta">· 1 verletzt · 1 nicht bestimmbar · 2 eingehalten</span></h2>
+            <button type="button" class="button-secondary">Regel anlegen</button>
+          </header>
+          <div class="data-table-wrapper">
+            <table class="data-table policy-findings-table risk-fit-table">
+              <thead><tr><th>Regel</th><th class="num">Gemessen</th><th class="num policy-col-line">Grenze</th><th>Stand</th></tr></thead>
+              <tbody>
+                <tr><td><button type="button" class="link-button policy-rule__name">Einzeltitel höchstens 10 %</button><span class="policy-rule__words">Gewicht · Nordic Timber Holdings AB · Obergrenze · hart</span></td><td class="num">12,4&nbsp;%<span class="policy-rule__line-sub">Grenze 10,0&nbsp;%</span></td><td class="num policy-col-line">10,0&nbsp;%</td><td><span class="badge badge--danger">verletzt · +2,4&nbsp;Pp</span></td></tr>
+                <tr><td><button type="button" class="link-button policy-rule__name">Liquiditätsreserve halten</button><span class="policy-rule__words">Gewicht · Cash · Untergrenze · Warnung <span class="is-new-text">· <span class="visually-hidden">Version in Kraft von: </span>Agent</span></span></td><td class="num">6,2&nbsp;%<span class="policy-rule__line-sub">Grenze 5,0&nbsp;%</span></td><td class="num policy-col-line">5,0&nbsp;%</td><td><span class="badge badge--neutral">eingehalten</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:16px">
+    <div class="notes" style="flex:1 1 520px;min-width:0">
+      <p class="cap">Was die Marken zeigen</p>
+      <ol class="pins">
+        <li><i class="pin o">1</i><b>Ein Wort, nur an der Ausnahme.</b> „Agent“ als letztes Wort der Wortzeile (<code>.policy-rule__words</code>), nur an Regeln, deren <em>gültige</em> Version der Agent geschrieben hat; davor ein verborgenes „Version in Kraft von:“. Dieselbe Stelle und dasselbe Wort wie der Autor in der Kopfzeile eines Research-Eintrags („#16 · 22.09.2026 · Agent“). Kein Abzeichen, keine Farbe: Die Stand-Spalte bleibt die einzige Pille der Zeile. Die Regeln des Operators bleiben ohne Wort. Ein Portfolio ohne Regeln des Agenten sieht aus wie heute.</li>
+        <li><i class="pin o">2</i><b>Auch bei den geplanten Regeln</b>, denn sie werden am 01.10. zu Befunden: dasselbe Wort am Ende ihrer gedämpften Zeile. Die beendeten Regeln tragen es ebenso, wenn ihre letzte Version vom Agenten war.</li>
+        <li><i class="pin o">3</i><b>Titel, Zählung und Stand bleiben.</b> „Eigene Regeln“ grenzt die Regeln dieses Portfolios gegen die allgemeinen Schwellen der Liste „Größte Einzelpositionen“ ab (ADR&#8209;0049 §7), nicht gegen den Agenten. Die Marke sagt, wer die Linie gezogen hat. Der Titel darf darum bleiben.</li>
+        <li><i class="pin o">4</i><b>B: die Zeile wie heute.</b> Nichts in der Tabelle unterscheidet die Linie des Agenten von der eigenen.</li>
+        <li><i class="pin o">5</i><b>Jede Version nennt ihren Autor</b>, mit den Wörtern des Research-Logs („Operator“, „Agent“: <code>author_label/1</code> in <code>securities_live.ex</code>). Hier zog der Operator die Linie bei 4&nbsp;%, der Agent hob sie auf 5&nbsp;%. Gilt wieder eine Version des Operators, verschwindet das Wort aus der Zeile. Ein eigenes „Übernehmen“ gibt es nicht (T&#8209;8).</li>
+        <li><i class="pin o">6</i><b>Umbenennen trägt keinen Versionsautor.</b> Nach D&#8209;6 ist ein neuer Name eine journalisierte Änderung an der Regel, keine Version; das Journal nennt, wer umbenannt hat (mit FU&#8209;6 den Namen des Tokens). Die Marke folgt der <em>Linie</em>, nicht dem Namen: Benennt der Agent eine Regel des Operators um, bleibt die Zeile ohne Wort, und die Grenze, die der Name beschreibt, steht in derselben Zeile daneben.</li>
+      </ol>
+    </div>
+    <div class="notes" style="flex:1 1 520px;min-width:0">
+      <p class="cap">A oder B</p>
+      <p><b>Für A.</b> Die Frage „bin ich innerhalb meiner Grenzen?“ beantwortet die Befundtabelle. Unter B steht dort die Linie des Agenten genau wie die eigene. Das ist die Klasse von G30, nur von der Werkzeugbeschreibung auf den Bildschirm verschoben. Den Dialog öffnet nur, wer eine Regel ändern will; unter B sieht den Autor also nur, wer schon ändert. A markiert nur die Ausnahme, mit einem Wort in einer Zeile, die es schon gibt: Die Wortzeile nennt, was die Regel ist, und der Autor ist eine Tatsache der Regel. Der Research-Log setzt seinen Autor genauso als letztes Wort in die Kopfzeile. Kein neues Bauteil, keine neue Spalte (DESIGN.md → „Solve each recurring job once“).</p>
+      <p><b>Warum kein Abzeichen.</b> Jede Pille in dieser Tabelle ist schon belegt. <code>.badge--neutral</code> ist hier das Stand-Abzeichen „eingehalten“ (<code>state_class/1</code>); „Agent“ und „eingehalten“ stünden als zwei gleiche graue Pillen in einer Zeile, und die Marke läse sich wie ein zweiter Befund. Gestrichelt heißt hier „nicht bestimmbar“ und app-weit „abgeleitet“, Akzent heißt „bedienbar, aktuell, deins“ (DESIGN.md → Colors), und eine Linie des Agenten ist gerade nicht „deins“. Warnfarbe wäre ein Schweregrad, und T&#8209;8 lehnt ab, Regeln des Agenten als Problem zu behandeln. Das Wort in der gedämpften Zeile bleibt ruhig, trägt sich unter <code>forced-colors</code> als Text und bricht bei 390&nbsp;px mit der Zeile um, nicht für sich (rechts).</p>
+      <p><b>Gegen A.</b> Ein Wort in 12&nbsp;px ist leiser als eine Pille; wer die Zeile überfliegt, kann es übersehen. Es steht aber an der Stelle, die man liest, um zu wissen, was eine Regel prüft. <b>Für B:</b> Die Tabelle bleibt unberührt, und der Dialog braucht die Versionsliste mit Autor ohnehin; beides bleibt unter A erhalten. Wer B wählt, ändert auch den Fix-Text von G30: aus „Regeln des Agenten auf der Risikoseite markieren“ wird „den Autor je Version im Dialog nennen“.</p>
+      <p class="u-muted" style="font-size:12px">Nicht gezeichnet: API und MCP geben den Autor je Version aus (<code>author</code>), dazu den der gültigen Version am Befund. Die Werkzeugtexte beschreiben Regeln neutral und verweisen auf das Journal (T&#8209;8). Mit benannten Tokens (FU&#8209;6) kann die Versionsliste den Namen des Tokens nennen; die Zeile behält das eine Wort.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ G12.2 · UNSICHTBARE ZEICHEN ============================ -->
+<section class="mock-board">
+  <h2>G12.2 · Gespeicherter Text mit unsichtbaren Zeichen <small>G20 · <code>securities_live.ex</code> (Research, Termine, Detail), Namen und Notizen</small></h2>
+  <p class="mock-note">Nachher lehnt ein gemeinsamer Prüfer solche Zeichen bei jedem Schreiben ab, das ein Agent später liest: Oberfläche, API, MCP und Import. Neu entsteht also kein solcher Text. Die Marke gilt den Zeilen, die schon gespeichert sind. Im Research-Log ist sie die einzige Hilfe, denn das Log hängt nur an; einen Namen kann man umbenennen. Am Rand zur MCP-Schnittstelle werden die Zeichen sichtbar gemacht, der Agent liest sie also als Kürzel. Das Beispiel ist der gewöhnliche Fall: ein Text, von einer Webseite kopiert, mit zwei Leerzeichen der Breite null (U+200B).</p>
+
+  <div class="mock-row">
+    <div class="col">
+      <div class="mock-frame mock-after"><span class="mock-tag">A · jedes Zeichen als Kürzel an seiner Stelle</span>
+        <div class="stage">
+          <p class="frame-cap">Wertpapier → Research, ein Eintrag des Agenten</p>
+          <ol class="research-timeline" aria-label="Research-Zeitleiste">
+            <li class="research-entry research-entry--invalidation_check">
+              <div class="research-entry__head"><span class="badge badge--kind-invalidation_check">Invalidierungsprüfung</span><span class="badge badge--quality-primary">Primärquelle</span><span class="research-entry__meta">#16 · 22.09.2026 · Agent</span></div>
+              <p class="research-entry__body">Halbjahreszahlen gelesen: Auftrags<span class="badge badge--neutral mono">U+200B</span>bestand stabil, Bedingung nicht erreicht.<span class="badge badge--neutral mono">U+200B</span><i class="pin o">1</i></p>
+            </li>
+          </ol>
+          <p class="frame-cap" style="margin-top:6px">Derselbe Name in der Buchungsliste und in einer Auswahl</p>
+          <div class="data-table-wrapper">
+            <table>
+              <thead><tr><th>Datum</th><th>Typ</th><th>Wertpapier</th></tr></thead>
+              <tbody><tr><td>22.09.2026</td><td>Kauf</td><td>Meridian Global<span class="badge badge--neutral mono">U+200B</span> Equity ETF</td></tr></tbody>
+            </table>
+          </div>
+          <div class="form-grid" style="grid-template-columns:minmax(0,1fr)">
+            <label><span>Wertpapier<i class="pin o">2</i></span><select><option>Meridian Global[U+200B] Equity ETF (MGEQ)</option></select></label>
+          </div>
+        </div>
+      </div>
+      <ol class="notes pins">
+        <li><i class="pin o">1</i><b>Genau an der Stelle, ohne Klick.</b> Das Kürzel ersetzt das Zeichen, auch ein Steuerzeichen für die Schreibrichtung; die Anzeige kann sich also nicht mehr umordnen. Gezeichnet mit <code>.badge.badge--neutral.mono</code>, beides gibt es; jeder Chip ist das Neue.</li>
+        <li><i class="pin o">2</i><b>Wo kein Markup hinkommt, wird es Text.</b> In <code>&lt;option&gt;</code>, <code>title</code>, <code>aria-label</code> und in Diagrammbeschriftungen gibt es keinen Chip; dort steht „[U+200B]“ als Zeichenfolge (die Schreibweise legt die Story einmal fest, für Oberfläche und MCP). Derselbe Name liest sich auf einer Seite zweimal anders.</li>
+      </ol>
+    </div>
+
+    <div class="col">
+      <div class="mock-frame mock-after"><span class="mock-tag">B · empfohlen · eine Datennotiz am Eintrag, der Text dahinter</span>
+        <div class="stage">
+          <p class="frame-cap">Wertpapier → Research, derselbe Eintrag</p>
+          <ol class="research-timeline" aria-label="Research-Zeitleiste">
+            <li class="research-entry research-entry--invalidation_check">
+              <div class="research-entry__head"><span class="badge badge--kind-invalidation_check">Invalidierungsprüfung</span><span class="badge badge--quality-primary">Primärquelle</span><span class="research-entry__meta">#16 · 22.09.2026 · Agent</span></div>
+              <p class="research-entry__body">Halbjahreszahlen gelesen: Auftrags&#8203;bestand stabil, Bedingung nicht erreicht.&#8203;</p>
+              <div class="data-note data-note--attention is-new">
+                <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-att"/></svg></span>
+                <span class="data-note__word">Achtung</span>
+                <div class="data-note__body">Der Text enthält 2 unsichtbare Zeichen.<i class="pin o">3</i> Das Log hängt nur an: Ein Eintrag, der diesen ersetzt, trägt den Text ohne sie. <button type="button" class="link-button">Eintrag anhängen, der #16 ersetzt</button>
+                  <details class="perf-table-disclosure" open>
+                    <summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg> Text mit sichtbar gemachten Zeichen<i class="pin o">4</i></summary>
+                    <!-- data-proposed: the one app.css rule this board proposes (see the head comment) -->
+                    <p class="mono" data-proposed style="margin:4px 0 0;white-space:pre-wrap;overflow-wrap:anywhere">Halbjahreszahlen gelesen: Auftrags[U+200B]bestand stabil, Bedingung nicht erreicht.[U+200B]</p>
+                  </details>
+                </div>
+              </div>
+            </li>
+          </ol>
+          <p class="frame-cap" style="margin-top:6px">Ein Name: im Detail des Wertpapiers, wo er geändert wird</p>
+          <div class="detail-pane" aria-label="Ausgewähltes Wertpapier">
+            <header class="detail-pane-head">
+              <div class="detail-pane-head__title">
+                <span class="security-logo security-logo--lg security-logo--initial">M</span>
+                <div><h2>Meridian Global&#8203; Equity ETF</h2><p class="detail-pane-sub">XS0000000001 · MGEQ · EUR · Letzter 110,05 (2026-09-23)</p></div>
+              </div>
+              <div class="detail-pane-head__actions">
+                <button type="button" class="button-ghost" aria-label="Stammdaten bearbeiten">Bearbeiten</button>
+                <button type="button" class="button-ghost" title="Aktiensplit für dieses Wertpapier erfassen">Split erfassen</button>
+                <span class="icon-button" aria-label="Maximieren"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-max"/></svg></span>
+                <span class="icon-button" aria-label="Detail schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-x"/></svg></span>
+              </div>
+            </header>
+            <div class="data-note data-note--attention is-new">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-att"/></svg></span>
+              <span class="data-note__word">Achtung</span>
+              <div class="data-note__body">Der Name enthält 1 unsichtbares Zeichen. Neu eingegeben ist er sauber. <button type="button" class="link-button">Stammdaten bearbeiten</button><i class="pin o">5</i>
+                <details class="perf-table-disclosure">
+                  <summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg> Name mit sichtbar gemachten Zeichen</summary>
+                </details>
+              </div>
+            </div>
+            <p class="elide" style="margin-top:6px">… Tabs und Inhalt wie heute.</p>
+          </div>
+        </div>
+      </div>
+      <ol class="notes pins">
+        <li><i class="pin o">3</i><b>Ein Satz, gleich wie viele Zeichen.</b> Die Datennotiz ist <code>AppShell.data_note</code> mit Schweregrad „Achtung“: Der Text steht, aber er ist nicht, was er zu sein scheint (EXPERIENCE.md → Data note). Sie sitzt im Eintrag selbst, und die Abhilfe ist ein Kind der Notiz (Regel&nbsp;3): „Eintrag anhängen, der #16 ersetzt“ öffnet das Formular „Eintrag anhängen“ mit „Ersetzt: #16“ vorgewählt. Mehrere Einträge können eine Notiz tragen, darum trägt keine Notiz ein eigenes <code>role="status"</code>; die Zeitleiste ist die eine Region um die Liste (Regel&nbsp;4).</li>
+        <li><i class="pin o">4</i><b>Dahinter der Text, wie API und MCP ihn ausgeben</b>, mit derselben Schreibweise der Kürzel. Die Aufklappung ist die, die „Versionen“ und „Daten als Tabelle“ schon tragen. <b>Vorgeschlagen für <code>app.css</code>:</b> <code>.data-note__body .mono</code> bricht wie <code>.research-entry__body</code> (<code>white-space: pre-wrap; overflow-wrap: anywhere</code>), sonst läuft eine lange Folge von Kürzeln bei 390&nbsp;px aus der Notiz. Die Farbe bleibt die der Notiz.</li>
+        <li><i class="pin o">5</i><b>Namen: dort, wo sie geändert werden.</b> Die Abhilfe ist die Aktion des Kopfes, „Bearbeiten“ (<code>aria-label</code> „Stammdaten bearbeiten“), noch einmal in der Notiz. Listen, Auswahlfelder und Überschriften anderswo bleiben unverändert. Nach dem Umbenennen ist der Name überall sauber.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:14px">
+    <div class="notes" style="flex:1 1 560px;min-width:0">
+      <p class="cap">Wo die Marke steht (B)</p>
+      <table class="t">
+        <thead><tr><th>Fläche</th><th>Gespeicherter Text</th><th>Datennotiz</th></tr></thead>
+        <tbody>
+          <tr><td>Wertpapier → Research</td><td>Eintrag, Invalidierungsbedingung, Grund eines Widerrufs</td><td>im Eintrag; die These zeigt sie unter dem Thesentext</td></tr>
+          <tr><td>Wertpapier → Termine</td><td>Notiz eines Termins</td><td>im Termin (dasselbe <code>.research-entry</code>)</td></tr>
+          <tr><td>Transaktionen → Schublade</td><td>Notizen einer Buchung</td><td>über der Aufklappung „Kosten und Notiz“, die dann offen steht; das Feld „Notizen“ liegt darin und ist sonst zu</td></tr>
+          <tr><td>Transaktionen → Historie, Spalte „Notizen“ (wählbar)</td><td>dieselbe Notiz</td><td>keine; die Zelle zeigt den Text wie heute, wie Namen in Listen. Die Notiz steht in der Schublade, die „Bearbeiten“ öffnet</td></tr>
+          <tr><td>Namen: Wertpapier, Konto, Depot, Ansicht, Bucket, Kategorie, Regel (mit Notiz)</td><td>der Name</td><td>im Detail oder Dialog des Datensatzes, dort, wo umbenannt wird</td></tr>
+        </tbody>
+      </table>
+      <p class="u-muted" style="font-size:12px">Die Wealth-Datenqualität bekommt dafür keine Zeile; die Marke steht bei den Daten, die sie beschreibt.</p>
+    </div>
+    <div class="notes" style="flex:1 1 480px;min-width:0">
+      <p class="cap">A oder B</p>
+      <p><b>Für B.</b> B sagt es einmal, mit dem Bauteil, das die Spezifikation für eine Tatsache über die Daten vorsieht: Glyphe, Wort und Farbe, nie Farbe allein (UX&#8209;DR17). Der Text mit sichtbar gemachten Zeichen liegt einen Klick entfernt, in der Schreibweise, die auch der Agent bekommt. Eine Folge von vierzig Zeichen kostet eine Zeile, nicht vierzig Chips.</p>
+      <p><b>Gegen A.</b> A braucht ein neues Kürzel-Bauteil an jeder Stelle, an der ein freier Text erscheint. Gerade bei Namen scheitert es an vielen Stellen (Pin&nbsp;2). Ein Chip ohne Wort ist eine Meldung ohne Schweregrad (DESIGN.md → Do's: „Give every data message a severity, an icon and a word“). Ein Screenreader liest jedes Kürzel mitten im Satz.</p>
+      <p><b>Für A</b> sprechen zwei Dinge. Die Stelle steht ohne Klick da; B zeigt sie in der Aufklappung ebenso, und die Notiz sagt vorher, dass es sie gibt. Und ein Steuerzeichen der Schreibrichtung, als Kürzel gezeigt, kann die Anzeige nicht mehr umordnen (Pin&nbsp;1); unter B steht der gespeicherte Text weiter in der Reihenfolge, die seine Zeichen ergeben. Das wiegt weniger, als es klingt. Ein Eintrag, eine Tabellenzelle, eine Überschrift ist ein eigener Block, und dort endet die Umordnung. Wo gespeicherter Text mitten in einem Satz steht (ein Name in der Wortzeile einer Regel, ein Grund in einer Datennotiz), setzt die Story ihn in <code>&lt;bdi&gt;</code>, das HTML-Element für Text unbekannter Richtung; dann endet sie am Rand des Namens. Kein Bild ändert sich dadurch. Die Notiz sagt, dass der Text nicht ist, was er scheint, und die Aufklappung zeigt ihn in der Form, die auch der Agent liest. Der gewöhnliche Fall, ein Leerzeichen der Breite null aus kopiertem Text, ordnet nichts um; A würde ihn trotzdem mit Chips durchsetzen.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ G12.3 · SPLIT-ZEILEN ============================ -->
+<section class="mock-board">
+  <h2>G12.3 · Transaktionen — eine gebuchte Split-Zeile bearbeiten <small>G07 · <code>transaction_management_live.ex</code>, <code>split_wizard_dialog.ex</code></small></h2>
+  <p class="mock-note">Ein Split ist für den Operator eine Tatsache am Wertpapier („Nordic Timber, 2:1 am 15.09.2026“). Gespeichert wird er als eine Zeile je Portfolio mit Bestand am Stichtag, ohne Depot, gebucht über „Split erfassen“ im Detail des Wertpapiers (<code>Splits.book_split/2</code>). Nachher lehnt die allgemeine Buchungsänderung an einer Split-Zeile jede Änderung an Datum, Wertpapier, Portfolio, Typ und Verhältnis ab. Nur die Notiz bleibt änderbar, auf API, MCP und in der Oberfläche. Heute öffnet „Bearbeiten“ an einer Split-Zeile die volle Buchungsschublade.</p>
+
+  <div class="mock-row">
+    <div class="col">
+      <div class="mock-frame mock-before"><span class="mock-tag">Heute · „Bearbeiten“ an der Split-Zeile</span><div class="workspace-section">
+        <div class="detail-pane booking-drawer desk">
+            <header class="detail-pane-head">
+              <div class="detail-pane-head__title"><div>
+                <h2>Transaktion bearbeiten</h2>
+                <p class="detail-pane-sub">Korrigiert die Buchung an Ort und Stelle; die abgeleiteten Bestände folgen, die Änderung wird journalisiert.</p>
+              </div></div>
+              <div class="detail-pane-head__actions"><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+            </header>
+            <form>
+              <div class="form-grid">
+                <label><span>Typ<i class="pin b">1</i></span><select><option selected>Kauf</option><option>Verkauf</option></select></label>
+                <label><span>Datum</span><input type="text" value="2026-09-15" placeholder="YYYY-MM-DD" maxlength="10"></label>
+                <label><span>Bucht auf Depot<i class="pin b">2</i></span><select><option selected>Depot auswählen</option></select></label>
+                <label><span>Wertpapier</span><select><option selected>Nordic Timber Holdings AB (NTH)</option></select></label>
+                <label><span>Stückzahl<i class="pin b">3</i></span><input value="" inputmode="decimal"></label>
+                <label><span>Preis</span><input value="" inputmode="decimal"></label>
+              </div>
+              <p class="form-help">Die Währung wird durch das gewählte Depot bestimmt.</p>
+              <details class="transaction-costs"><summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg>Kosten und Notiz</summary></details>
+              <div class="booking-drawer__foot"><button type="submit" class="button-primary">Änderungen speichern</button><button type="button" class="button-ghost">Abbrechen</button></div>
+            </form>
+          </div>
+      </div></div>
+      <ol class="notes pins">
+            <li><i class="pin b">1</i><b>Die Schublade kennt keinen Split.</b> „Typ“ bietet nur Kauf und Verkauf; der gespeicherte Typ ist keine der Optionen, also steht dort die erste: „Kauf“.</li>
+            <li><i class="pin b">2</i><b>Ein Depot, das der Split nicht hat.</b> Eine Split-Zeile trägt keins: <code>Splits.row_attrs/2</code> schreibt Portfolio, Wertpapier, Datum, Währung und Verhältnis. Die Auswahl steht auf „Depot auswählen“, die Währungszeile auf ihrem Leertext. Speichern verlangt hier ein Depot für einen Split. Datum und Wertpapier sind offen, und eine Änderung dort ginge an den Prüfungen von „Split erfassen“ vorbei (G07).</li>
+            <li><i class="pin b">3</i><b>Kein Verhältnis.</b> Die Liste zeigt „2:1“ in der Spalte „Stückzahl“; hier sind Stückzahl und Preis leer und doch Pflicht.</li>
+          </ol>
+    </div>
+
+    <div class="col">
+      <div class="mock-frame mock-after"><span class="mock-tag">A · empfohlen · der Split fest, die Notiz offen</span><div class="workspace-section">
+        <div class="detail-pane booking-drawer desk">
+            <header class="detail-pane-head">
+              <div class="detail-pane-head__title"><div>
+                <h2>Transaktion bearbeiten</h2>
+                <p class="detail-pane-sub is-new">Ein Split ist eine Tatsache am Wertpapier; hier ändert sich nur die Notiz, und die Änderung wird journalisiert.<i class="pin a">1</i></p>
+              </div></div>
+              <div class="detail-pane-head__actions"><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+            </header>
+            <form>
+              <div class="form-grid">
+                <label><span>Typ</span><select disabled><option selected>Split</option></select></label>
+                <label><span>Stichtag</span><input type="text" value="2026-09-15" disabled></label>
+                <label><span>Wertpapier</span><select disabled><option selected>Nordic Timber Holdings AB (NTH)</option></select></label>
+                <label class="is-new"><span>Verhältnis (neue:alte Aktien)<i class="pin a">2</i></span><input value="2:1" disabled></label>
+              </div>
+              <p class="form-help is-new">Stichtag, Verhältnis und Wertpapier eines gebuchten Splits stehen fest. Ein falscher Split lässt sich hier nicht korrigieren; er wird über API oder MCP gelöscht und danach am Wertpapier mit „Split erfassen“ neu erfasst.<i class="pin a">3</i></p>
+              <label><span>Notizen<i class="pin a">4</i></span><textarea rows="2">Laut Depotauszug vom 16.09.2026.</textarea></label>
+              <div class="booking-drawer__foot"><button type="submit" class="button-primary is-new">Notiz speichern</button><button type="button" class="button-ghost">Abbrechen</button></div>
+            </form>
+          </div>
+      </div></div>
+      <ol class="notes pins">
+            <li><i class="pin a">1</i><b>Die Kopfzeile sagt vorher, was geht.</b> Ein Satz statt „Korrigiert die Buchung an Ort und Stelle“.</li>
+            <li><i class="pin a">2</i><b>Die Tatsachen des Splits, fest</b>, mit den Wörtern von „Split erfassen“: „Stichtag“ und „Verhältnis als neue:alte Aktien“ aus seinem Hilfetext, als „2:1“ wie in der Historie. Gesperrte Felder, wie <code>app.css</code> sie schon zeigt (<code>input:disabled</code>, <code>select:disabled</code>). Das Verhältnis steht als viertes Feld über die volle Breite (die Schublade stellt die ersten vier Felder untereinander), dort, wo sonst Stückzahl und Preis stehen. Kein Depot: Die Zeile hat keins, und ein Split gilt für jedes Depot, das den Titel am Stichtag hielt.</li>
+            <li><i class="pin a">3</i><b>Die Grenze, dort, wo die Korrektur versucht wird</b>, ohne Link (UX&#8209;DR26). „Split erfassen“ lehnt am selben Stichtag ein anderes Verhältnis ab, solange die falsche Zeile steht, und die Oberfläche kann keine Buchung löschen. Ein Link dorthin wäre ein Versuch, der scheitert (DESIGN.md UX&#8209;DR25, Regel&nbsp;3). Der Link kommt mit „Split löschen“, siehe „Offen“ unten.</li>
+            <li><i class="pin a">4</i><b>Die Notiz bleibt</b>, wie über API und MCP. Kosten gibt es beim Split nicht, also keine Aufklappung; das Feld steht offen.</li>
+          </ol>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:20px">
+    <div class="col" style="flex:1 1 100%">
+      <div class="mock-frame mock-after"><span class="mock-tag">B · kein „Bearbeiten“ an Split-Zeilen · /transactions, Historie</span><div class="workspace-section">
+        <div class="data-table-wrapper">
+          <table id="transaction-list">
+            <thead><tr><th>Datum</th><th>Typ</th><th>Wertpapier</th><th class="num">Stückzahl</th><th class="num">Preis</th><th class="num">Betrag</th><th class="row-actions-head"><span class="visually-hidden">Aktionen</span></th></tr></thead>
+            <tbody>
+              <tr class="tx-group-head"><th colspan="7" scope="colgroup"><span class="tx-group-month">September 2026</span> <span class="tx-group-subtotal">3 Transaktionen · <span class="currency-total">-724,00 <small>EUR</small></span></span></th></tr>
+              <tr><td>22.09.2026</td><td>Kauf</td><td>Kestrel Industrial Group NV</td><td class="num">40</td><td class="num">45,60</td><td class="num" data-role="amount">-1.824,00<small class="value-suffix">EUR</small></td><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button></td></tr>
+              <tr><td>15.09.2026</td><td>Split</td><td>Nordic Timber Holdings AB</td><td data-role="split-ratio">2:1</td><td class="num">—</td><td class="num" data-role="amount">—</td><td class="row-actions is-new-cell"><i class="pin o" style="margin:0">5</i></td></tr>
+              <tr><td>12.09.2026</td><td>Verkauf</td><td>Meridian Global Equity ETF</td><td class="num">10</td><td class="num">110,00</td><td class="num" data-role="amount">1.100,00<small class="value-suffix">EUR</small></td><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div></div>
+      <ol class="notes pins">
+        <li><i class="pin o">5</i><b>B: die Zeile ohne Menü.</b> Das Menü hat heute genau einen Eintrag, „Bearbeiten“. Ohne ihn bleibt die Zelle leer, auch in der Telefonzeile.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:6px">
+    <div class="notes" style="flex:1 1 520px;min-width:0">
+      <p class="cap">A oder B</p>
+      <p><b>Für A.</b> Die Notiz einer Split-Zeile bleibt nach der Härtung änderbar (API und MCP behalten es), also behält die Oberfläche den Weg dorthin. Die Schublade zeigt einen Split nicht mehr als „Kauf“ mit leerer Stückzahl, sondern mit seinen eigenen Angaben, fest, samt dem Verhältnis, das sie nie zeigte. Der Versuch zu korrigieren bekommt dort eine Antwort, wo er passiert.</p>
+      <p><b>Gegen B.</b> B nimmt der Zeile ihre einzige Aktion ohne ein Wort. Die Notiz ist dann nur noch über API und MCP zu ändern, und nichts sagt, wie ein falscher Split korrigiert wird. Die Lücke in der Menüspalte liest sich wie ein fehlendes Bedienelement. <b>Für B</b> spricht die Einfachheit: kein dritter Zustand der Schublade.</p>
+    </div>
+    <div class="notes" style="flex:1 1 520px;min-width:0">
+      <div class="callout open">
+        <h4>Offen — die Oberfläche kann keine Buchung löschen</h4>
+        <p>„Löschen und neu buchen“ (G07) geht heute nur über <code>DELETE /api/v1/transactions/:id</code> und das MCP-Werkzeug. Die Historie hat für keine Buchung ein „Löschen“, und „Split erfassen“ lehnt am selben Tag ein anderes Verhältnis ab. Darum nennt der Satz in A die Grenze und API und MCP, ohne Link. Ein bestätigtes „Split löschen“ in dieser Schublade wäre die menschliche Sicht dieser Fähigkeit (AGENTS.md → API and MCP Coverage, beide Richtungen). Es ist nicht Teil von G07 und wird nach Scope Lock als eigener Punkt angelegt; dieselbe Story gibt dem Satz dann den Link zu „Split erfassen“.</p>
+        <p><b>Nebenbefund, nicht Teil von G07:</b> Die Verhältniszelle der Historie (<code>&lt;td data-role="split-ratio"&gt;</code>) trägt kein <code>.num</code>; „2:1“ steht darum links unter dem rechtsbündigen Kopf „Stückzahl“ (Frame B). Das ist die Ausrichtungsfamilie aus DESIGN.md; nach Scope Lock als eigener Punkt angelegt.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ G19 · BUCKET LÖSCHEN ============================ -->
+<section class="mock-board">
+  <h2>G19 · Ansichten → Buckets — die Rückfrage beim Löschen <small>T&#8209;10 · Vorher / Nachher · <code>buckets_live.ex</code> (<code>data-confirm</code> am Eintrag „Löschen“)</small></h2>
+  <p class="mock-note">Heute löscht die Datenbank mit dem Bucket still die Zeilen, die ihn an Positionen hängen. Hatte eine Position „bestimmte Buckets“ und war dieser der letzte, steht sie danach auf „vom Depot geerbt“: Sie bekommt die Buckets ihres Depots, ohne dass es jemand entschieden hat. Nachher schreibt das Löschen jede betroffene Zuordnung über ihre journalisierte Funktion um. Eine geleerte Auswahl bleibt ausdrücklich leer, und die Rückfrage sagt das in einem Satz mehr. Ein neues 409 gibt es nicht: Löschen bleibt möglich, und es bleibt sichtbar.</p>
+
+  <div class="mock-row">
+    <div class="col">
+      <div class="mock-frame mock-before"><span class="mock-tag">Vorher · Rückfrage des Browsers</span><div class="workspace-section">
+        <div class="browser">
+          <div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="url">localhost:4000/views</span></div>
+          <div class="vp menu-room">
+            <section id="buckets-section" class="workspace-section">
+              <header class="section-head">
+                <h2>Buckets <details class="metric-tooltip metric-tooltip--inline"><summary aria-label="Zu den Buckets">ⓘ</summary></details></h2>
+                <div class="section-head-controls">
+                  <p class="summary-basis">Überlappende Tags an Depots, Verrechnungskonten und Positionen · Werte je Bucket sind keine Summe</p>
+                  <button type="button" class="button-ghost">+ Bucket</button>
+                </div>
+              </header>
+              <ul class="bucket-list" role="list">
+                <li class="bucket-list__item"><div class="bucket-list__main"><span class="bucket-list__name"><span class="cat-swatch" style="background:#7c3aed" aria-hidden="true"></span>Langfristig</span><span class="bucket-list__usage">Standard auf <strong>Depot 1</strong> · 12 Positionen erben</span></div><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button></li>
+                <li class="bucket-list__item"><div class="bucket-list__main"><span class="bucket-list__name"><span class="cat-swatch" style="background:#b45309" aria-hidden="true"></span>Rücklage</span><span class="bucket-list__usage">Standard auf <strong>Tagesgeld (alt)</strong></span></div><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button></li>
+                <li class="bucket-list__item rel"><div class="bucket-list__main"><span class="bucket-list__name"><span class="cat-swatch" style="background:#0f766e" aria-hidden="true"></span>Taktisch</span><span class="bucket-list__usage">2 Positionen direkt: <strong>Kestrel Industrial Group NV, Harbor Light Utilities SE</strong> · kein Standard</span></div><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen" aria-expanded="true" style="background:var(--color-hover);color:var(--color-text)"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button>
+                  <div class="row-context-menu menu-at" role="menu" aria-label="Aktionen zum Bucket" style="right:8px; top:calc(100% - 6px)">
+                    <button type="button" class="row-context-menu__item" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-edit"/></svg><span>Umbenennen</span></button>
+                    <button type="button" class="row-context-menu__item row-context-menu__item--danger" role="menuitem" style="background:var(--color-hover)"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-trash"/></svg><span>Löschen</span></button>
+                  </div></li>
+              </ul>
+            </section>
+          </div>
+        </div>
+        <p class="frame-cap" style="margin:10px 0 6px">Nach „Löschen“ — die Rückfrage des Browsers:</p>
+        <div class="confirm"><p class="origin">localhost:4000 meldet</p><p class="msg">Diesen Bucket löschen? Er wird aus jeder Zuordnung und Ansicht entfernt.<i class="pin b">1</i></p><div class="btns"><span class="ok">OK</span><span>Abbrechen</span></div></div>
+        <div class="after-state" style="margin-top:10px"><span class="lbl">Nach „OK“</span><span>Wertpapier → Bestände, Harbor Light Utilities SE in Depot 1:</span><details class="position-buckets"><summary>Buckets: <span data-role="override-state">vom Depot geerbt</span></summary></details><i class="pin b">2</i></div>
+      </div></div>
+      <ol class="notes pins">
+        <li><i class="pin b">1</i><b>Der Satz nennt das Entfernen, nicht seine Folge.</b> Harbor Light hatte nur „Taktisch“ als bestimmten Bucket.</li>
+        <li><i class="pin b">2</i><b>Aus „bestimmte Buckets“ wird „vom Depot geerbt“,</b> ohne Journaleintrag an der Position. Die Position zählt danach in Ansichten, die sie vorher nicht enthielten.</li>
+      </ol>
+    </div>
+
+    <div class="col">
+      <div class="mock-frame mock-after"><span class="mock-tag">Nachher · dieselbe Rückfrage, ein Satz mehr</span><div class="workspace-section">
+        <div class="browser">
+          <div class="bar"><span class="dots"><i></i><i></i><i></i></span><span class="url">localhost:4000/views</span></div>
+          <div class="vp menu-room">
+            <section id="buckets-section" class="workspace-section">
+              <header class="section-head">
+                <h2>Buckets <details class="metric-tooltip metric-tooltip--inline"><summary aria-label="Zu den Buckets">ⓘ</summary></details></h2>
+                <div class="section-head-controls">
+                  <p class="summary-basis">Überlappende Tags an Depots, Verrechnungskonten und Positionen · Werte je Bucket sind keine Summe</p>
+                  <button type="button" class="button-ghost">+ Bucket</button>
+                </div>
+              </header>
+              <ul class="bucket-list" role="list">
+                <li class="bucket-list__item"><div class="bucket-list__main"><span class="bucket-list__name"><span class="cat-swatch" style="background:#7c3aed" aria-hidden="true"></span>Langfristig</span><span class="bucket-list__usage">Standard auf <strong>Depot 1</strong> · 12 Positionen erben</span></div><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button></li>
+                <li class="bucket-list__item"><div class="bucket-list__main"><span class="bucket-list__name"><span class="cat-swatch" style="background:#b45309" aria-hidden="true"></span>Rücklage</span><span class="bucket-list__usage">Standard auf <strong>Tagesgeld (alt)</strong></span></div><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button></li>
+                <li class="bucket-list__item rel"><div class="bucket-list__main"><span class="bucket-list__name"><span class="cat-swatch" style="background:#0f766e" aria-hidden="true"></span>Taktisch</span><span class="bucket-list__usage">2 Positionen direkt: <strong>Kestrel Industrial Group NV, Harbor Light Utilities SE</strong> · kein Standard</span></div><button type="button" class="row-actions__kebab" aria-label="Aktionsmenü öffnen" aria-expanded="true" style="background:var(--color-hover);color:var(--color-text)"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button>
+                  <div class="row-context-menu menu-at" role="menu" aria-label="Aktionen zum Bucket" style="right:8px; top:calc(100% - 6px)">
+                    <button type="button" class="row-context-menu__item" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-edit"/></svg><span>Umbenennen</span></button>
+                    <button type="button" class="row-context-menu__item row-context-menu__item--danger" role="menuitem" style="background:var(--color-hover)"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-trash"/></svg><span>Löschen</span></button>
+                  </div></li>
+              </ul>
+            </section>
+          </div>
+        </div>
+        <p class="frame-cap" style="margin:10px 0 6px">Nach „Löschen“ — die Rückfrage des Browsers:</p>
+        <div class="confirm"><p class="origin">localhost:4000 meldet</p><p class="msg">Diesen Bucket löschen? Er wird aus jeder Zuordnung und Ansicht entfernt. <span class="is-new-text">Eine Position, deren bestimmte Buckets nur aus diesem bestehen, steht danach auf „keine Buckets (ausgeschlossen)“ und erbt nicht vom Depot.</span><i class="pin a">1</i></p><div class="btns"><span class="ok">OK</span><span>Abbrechen</span></div></div>
+        <div class="after-state" style="margin-top:10px"><span class="lbl">Nach „OK“</span><span>Wertpapier → Bestände, Harbor Light Utilities SE in Depot 1:</span><details class="position-buckets"><summary>Buckets: <span data-role="override-state">keine Buckets (ausgeschlossen)</span></summary></details><i class="pin a">2</i></div>
+      </div></div>
+      <ol class="notes pins">
+        <li><i class="pin a">1</i><b>Ein Satz mit den Wörtern, die die Position selbst zeigt:</b> „bestimmte Buckets“, „keine Buckets (ausgeschlossen)“, „vom Depot geerbt“ (<code>override_state_label/1</code>). Welche Positionen es trifft, nennt die Zeile schon: „2 Positionen direkt: …“.</li>
+        <li><i class="pin a">2</i><b>Die Position gerät nicht über ihr Depot in Ansichten, die sie vorher nicht enthielten.</b> Sie steht ausdrücklich leer, bis jemand ihr Buckets gibt. Jede umgeschriebene Zuordnung bekommt ihren Journaleintrag.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:14px">
+    <div class="notes" style="flex:1 1 100%">
+      <p class="cap">Der Text, Quelle und Übersetzung</p>
+      <table class="t">
+        <thead><tr><th></th><th>msgid (en)</th><th>msgstr (de)</th></tr></thead>
+        <tbody>
+          <tr><td>Vorher</td><td class="v">Delete this bucket? It is removed from every assignment and view.</td><td class="v">Diesen Bucket löschen? Er wird aus jeder Zuordnung und Ansicht entfernt.</td></tr>
+          <tr><td>Nachher</td><td class="v">Delete this bucket? It is removed from every assignment and view. A position whose only specific bucket is this one stays at “no buckets (excluded)” and does not inherit from its depot.</td><td class="v">Diesen Bucket löschen? Er wird aus jeder Zuordnung und Ansicht entfernt. Eine Position, deren bestimmte Buckets nur aus diesem bestehen, steht danach auf „keine Buckets (ausgeschlossen)“ und erbt nicht vom Depot.</td></tr>
+        </tbody>
+      </table>
+      <p class="u-muted" style="font-size:12px">Die Beschreibung des MCP-Werkzeugs (<code>mcp-server/src/tools.ts</code>: „Delete a bucket. The deletion cascades: …“) bekommt denselben Satz. Die Rückfrage bleibt die des Browsers (<code>data-confirm</code>, #765); Firefox zeigt sie in eigener Gestalt, der Text ist derselbe.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ G14 · POSITION OHNE WERT ============================ -->
+<section class="mock-board">
+  <h2>G14 · Allokation &amp; Ziele → Positionen — der Drift-Anteil einer Position ohne Wert <small>Vorher / Nachher · <code>allocation.ex</code> (<code>with_rebalance_hints/2</code>), <code>portfolio_live.ex</code></small></h2>
+  <p class="mock-note">Eine Position ohne eigenes Soll bekommt ihren Anteil an der Drift ihrer Kategorie, nach Wert. Eine Position, die mit 0,00 bewertet ist (etwa ein Titel mit gespeichertem Schlusskurs 0), bekommt heute den Anteil null. Er erscheint als Betrag, bei einer untergewichteten Kategorie mit Minus. Die Härtung überspringt den Anteil für solche Positionen. Die Zelle zeigt dann „—“, wie bei einer nicht zugeordneten Position. Der Hinweis in der letzten Spalte ist schon heute „—“, denn ohne Stückpreis gibt es keine Menge.</p>
+
+  <div class="mock-row">
+    <div class="mock-frame mock-before" style="flex:1 1 100%"><span class="mock-tag">Vorher · Klassifizierung „Strategie“, Ansicht „Alles“, sortiert nach Drift ↓</span><div class="workspace-section">
+      <p class="elide" style="margin-bottom:8px">… Cash und die Positionen über dem Soll stehen darüber, wie auf Board 09.</p>
+      <div class="data-table-wrapper">
+        <table class="drift-table" data-role="flat-positions">
+          <thead><tr><th>Wertpapier</th><th><button type="button" class="table-sort">Kategorie</button></th><th class="num"><button type="button" class="table-sort">Wert</button></th><th class="num">Ist</th><th class="num"><button type="button" class="table-sort">Drift ↓</button></th><th class="num">Hinweis</th></tr></thead>
+          <tbody>
+            <tr data-role="flat-position"><td>Larkspur Minerals SE<i class="pin b">2</i></td><td><span class="cat-swatch" style="background:#7c3aed" aria-hidden="true"></span>Wachstum</td><td class="num">0,00</td><td class="num">0,0%</td><td class="num col-subject">-0,00 EUR<i class="pin b">1</i></td><td class="num">—</td></tr>
+            <tr data-role="flat-position"><td>Helios Solar Systems SE</td><td><span class="cat-swatch" style="background:#7c3aed" aria-hidden="true"></span>Wachstum</td><td class="num">5.300,00</td><td class="num">5,3%</td><td class="num col-subject is-negative">-193,65 EUR</td><td class="num"><span class="rebalance-hint" data-role="rebalance-hint"><span class="rebalance-verb">Kauf</span><span class="rebalance-approx">≈</span><span class="rebalance-qty">7,31</span><span class="rebalance-unit">Stück</span></span></td></tr>
+            <tr data-role="flat-position"><td>Kestrel Industrial Group NV</td><td><span class="cat-swatch" style="background:#7c3aed" aria-hidden="true"></span>Wachstum</td><td class="num">12.600,00</td><td class="num">12,6%</td><td class="num col-subject is-negative">-460,38 EUR</td><td class="num"><span class="rebalance-hint" data-role="rebalance-hint"><span class="rebalance-verb">Kauf</span><span class="rebalance-approx">≈</span><span class="rebalance-qty">10,96</span><span class="rebalance-unit">Stück</span></span></td></tr>
+            <tr data-role="flat-position"><td>Meridian Global Equity ETF</td><td><span class="cat-swatch" style="background:#7c3aed" aria-hidden="true"></span>Wachstum</td><td class="num">27.500,00</td><td class="num">27,5%</td><td class="num col-subject is-negative">-1.004,79 EUR</td><td class="num"><span class="rebalance-hint" data-role="rebalance-hint"><span class="rebalance-verb">Kauf</span><span class="rebalance-approx">≈</span><span class="rebalance-qty">9,13</span><span class="rebalance-unit">Stück</span></span></td></tr>
+            <tr data-role="flat-position"><td>Harbor Light Utilities SE</td><td><span class="hint">Nicht zugeordnet</span></td><td class="num">2.400,00</td><td class="num">2,4%</td><td class="num col-subject">—</td><td class="num">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div></div>
+  </div>
+  <div class="mock-row" style="margin-top:8px">
+    <ol class="notes pins" style="flex:1 1 100%">
+      <li><i class="pin b">1</i><b>„-0,00 EUR“ — ein Anteil, der keiner ist.</b> Wert 0,00 mal die negative Drift der Kategorie ergibt eine Null mit Vorzeichen; <code>Format.money/1</code> schreibt das Minus mit, die rote Farbe nicht (der Vergleich mit 0 ist gleich). Unter „Baum“ steht in der aufgeklappten Kategorie dieselbe Zelle.</li>
+      <li><i class="pin b">2</i><b>Die Zeile sortiert, als hätte sie eine Drift</b>: zwischen den Verkäufen und den Käufen, oben in der Arbeitsliste.</li>
+    </ol>
+  </div>
+
+  <div class="mock-row" style="margin-top:14px">
+    <div class="mock-frame mock-after" style="flex:1 1 100%"><span class="mock-tag">Nachher · dieselbe Liste</span><div class="workspace-section">
+      <p class="elide" style="margin-bottom:8px">… Cash und die Positionen über dem Soll stehen darüber, wie auf Board 09.</p>
+      <div class="data-table-wrapper">
+        <table class="drift-table" data-role="flat-positions">
+          <thead><tr><th>Wertpapier</th><th><button type="button" class="table-sort">Kategorie</button></th><th class="num"><button type="button" class="table-sort">Wert</button></th><th class="num">Ist</th><th class="num"><button type="button" class="table-sort">Drift ↓</button></th><th class="num">Hinweis</th></tr></thead>
+          <tbody>
+            <tr data-role="flat-position"><td>Helios Solar Systems SE</td><td><span class="cat-swatch" style="background:#7c3aed" aria-hidden="true"></span>Wachstum</td><td class="num">5.300,00</td><td class="num">5,3%</td><td class="num col-subject is-negative">-193,65 EUR</td><td class="num"><span class="rebalance-hint" data-role="rebalance-hint"><span class="rebalance-verb">Kauf</span><span class="rebalance-approx">≈</span><span class="rebalance-qty">7,31</span><span class="rebalance-unit">Stück</span></span></td></tr>
+            <tr data-role="flat-position"><td>Kestrel Industrial Group NV</td><td><span class="cat-swatch" style="background:#7c3aed" aria-hidden="true"></span>Wachstum</td><td class="num">12.600,00</td><td class="num">12,6%</td><td class="num col-subject is-negative">-460,38 EUR</td><td class="num"><span class="rebalance-hint" data-role="rebalance-hint"><span class="rebalance-verb">Kauf</span><span class="rebalance-approx">≈</span><span class="rebalance-qty">10,96</span><span class="rebalance-unit">Stück</span></span></td></tr>
+            <tr data-role="flat-position"><td>Meridian Global Equity ETF</td><td><span class="cat-swatch" style="background:#7c3aed" aria-hidden="true"></span>Wachstum</td><td class="num">27.500,00</td><td class="num">27,5%</td><td class="num col-subject is-negative">-1.004,79 EUR</td><td class="num"><span class="rebalance-hint" data-role="rebalance-hint"><span class="rebalance-verb">Kauf</span><span class="rebalance-approx">≈</span><span class="rebalance-qty">9,13</span><span class="rebalance-unit">Stück</span></span></td></tr>
+            <tr data-role="flat-position"><td>Larkspur Minerals SE<i class="pin a">2</i></td><td><span class="cat-swatch" style="background:#7c3aed" aria-hidden="true"></span>Wachstum</td><td class="num">0,00</td><td class="num">0,0%</td><td class="num col-subject">—<i class="pin a">1</i></td><td class="num">—</td></tr>
+            <tr data-role="flat-position"><td>Harbor Light Utilities SE</td><td><span class="hint">Nicht zugeordnet</span></td><td class="num">2.400,00</td><td class="num">2,4%</td><td class="num col-subject">—</td><td class="num">—</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div></div>
+  </div>
+  <div class="mock-row" style="margin-top:8px">
+    <ol class="notes pins" style="flex:1 1 560px;min-width:0">
+      <li><i class="pin a">1</i><b>„—“, wie die Zeile darunter.</b> Ohne Anteil bleibt <code>drift_value</code> leer, und die Zelle zeigt, was sie für eine nicht zugeordnete Position oder eine Kategorie ohne Soll schon zeigt. In der API steht <code>null</code> statt <code>"-0.00"</code>, eine neue Lücke, die der Payload nennt (rechts).</li>
+      <li><i class="pin a">2</i><b>Die Zeile rückt ans Ende</b>, zu den Zeilen ohne Drift (<code>sort_flat/2</code>: „Rows without a sortable value … sink to the end“). Die Arbeitsliste reiht, was sich handeln lässt.</li>
+    </ol>
+    <div class="notes" style="flex:1 1 480px;min-width:0">
+      <p class="u-muted" style="font-size:12px">Bleibt: Wert „0,00“ und Ist „0,0%“, die Kategorie und ihre Summe, der Hinweis „—“.</p>
+      <div class="callout open">
+        <h4>Für die Story, nicht gezeichnet — die Lücke im Payload und die Meldung im Plan-Editor</h4>
+        <p><b>Die Lücke im Payload.</b> <code>drift_value</code> ist heute <code>null</code> ohne Plan und für nicht zugeordnete Positionen (Kommentar an <code>allocation_position/1</code>). Die Position mit Wert 0,00 kommt als dritter Fall dazu: <code>null</code>, die Zeile sortiert ans Ende. Ihr <code>rebalance_quantity</code> ist schon heute <code>null</code>. Die Story nennt ihn dort, wo API und MCP die Grundlage des Drift-Anteils ausgeben, und in der Werkzeugbeschreibung. AGENTS.md verlangt die Behandlung von Lücken im Payload, eine Doku-Seite genügt nicht.</p>
+        <p>Der Rest von G14 lehnt ein Soll mit zu vielen Nachkommastellen ab. Der Plan-Editor übersetzt heute <em>jeden</em> Fehler am Soll-Gewicht in „Ein Ziel muss zwischen 0 und 100 % liegen“ (<code>soll_error/2</code> in <code>classifications_live.ex</code>). Ohne eigene Meldung nennt die Ablehnung also den falschen Grund. Die Story gibt der neuen Regel ihren eigenen Satz im Meldungsband.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>
