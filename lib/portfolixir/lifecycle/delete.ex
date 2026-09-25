@@ -17,8 +17,10 @@ defmodule Portfolixir.Lifecycle.Delete do
        bucket links, position overrides, category assignments, position
        targets, identifier aliases) is removed through its journaled context
        function, one entry per account or position as that function already
-       writes; then the row is deleted and its delete journaled with the
-       full before-image.
+       writes — the rows removed one by one are locked `FOR UPDATE` first, so
+       a concurrent removal waits instead of making a per-row delete stale;
+       then the row is deleted and its delete journaled with the full
+       before-image.
 
   No cascade removes a membership: the database refuses the delete of a row
   that still carries one (the foreign keys restrict). The delete declares
@@ -301,10 +303,15 @@ defmodule Portfolixir.Lifecycle.Delete do
     |> each_removed(&Buckets.clear_position_override(actor, %SecuritiesAccount{id: &1}, security))
   end
 
+  # The per-row removers below read a row, then delete it; its rows are
+  # locked FOR UPDATE first, in this transaction, so a writer removing one of
+  # them concurrently waits for the delete instead of leaving the per-row
+  # delete stale (Ecto.StaleEntryError, a 500).
   defp remove_membership(:category_assignments, actor, %Security{} = security) do
     from(a in Assignment,
       where: a.security_id == ^security.id,
       order_by: a.classification_id,
+      lock: "FOR UPDATE",
       select: a.classification_id
     )
     |> Repo.all()
@@ -312,11 +319,23 @@ defmodule Portfolixir.Lifecycle.Delete do
   end
 
   defp remove_membership(:position_targets, actor, %Security{} = security) do
+    lock_memberships("portfolio_targets", security.id)
     actor |> Targets.delete_position_targets_for_security(security.id) |> removed()
   end
 
   defp remove_membership(:identifier_aliases, actor, %Security{} = security) do
+    lock_memberships("security_identifier_aliases", security.id)
     actor |> IdentifierAliases.delete_all_for_security(security.id) |> removed()
+  end
+
+  defp lock_memberships(table, security_id) do
+    from(m in table,
+      where: m.security_id == ^security_id,
+      order_by: m.id,
+      lock: "FOR UPDATE",
+      select: m.id
+    )
+    |> Repo.all()
   end
 
   defp each_removed(keys, remover) do

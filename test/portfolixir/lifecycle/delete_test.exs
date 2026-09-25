@@ -518,6 +518,55 @@ defmodule Portfolixir.Lifecycle.DeleteTest do
     end
 
     # User story:
+    # As the operator deleting a security while an agent edits its
+    # classification, targets or aliases,
+    # I want the delete to hold the rows it removes before it removes them,
+    # so that a concurrent removal of one of them waits instead of turning
+    # the delete into a crash (a stale per-row delete).
+    #
+    # Acceptance criteria:
+    # - Each membership table a security delete removes rows from per row
+    #   (category assignments, position targets, identifier aliases) is read
+    #   FOR UPDATE before its first row is deleted.
+    test "each per-row membership is locked FOR UPDATE before it is removed" do
+      world = WorldFixtures.base_world()
+
+      security =
+        WorldFixtures.create_security!(name: "Race ETF", ticker: "RCE", isin: "XS0000000011")
+
+      {strategy, core} = custom_category!("Strategy", "Core")
+
+      {:ok, _} =
+        Classifications.assign_security(Actor.owner_ui(), security.id, strategy.id, core.id)
+
+      {:ok, _} =
+        Portfolixir.Portfolios.Targets.set_targets(
+          Actor.owner_ui(),
+          world.portfolio.id,
+          strategy.id,
+          [
+            %{category_id: core.id, target_weight: "0.3"},
+            %{category_id: core.id, security_id: security.id, target_weight: "0.1"}
+          ]
+        )
+
+      {:ok, %{security: security}} =
+        Catalog.record_isin_change(Actor.owner_ui(), security, "XS0000000029")
+
+      queries =
+        capture_queries(fn -> assert {:ok, _} = Catalog.delete_security(agent(), security) end)
+
+      for table <- ~w(security_category_assignments portfolio_targets security_identifier_aliases) do
+        lock = Enum.find_index(queries, &(&1 =~ ~r/FROM "#{table}".*FOR UPDATE/s))
+        delete = Enum.find_index(queries, &(&1 =~ ~r/^DELETE FROM "#{table}"/))
+
+        assert delete, "no row of #{table} was deleted"
+        assert lock, "no FOR UPDATE read of #{table}"
+        assert lock < delete
+      end
+    end
+
+    # User story:
     # As the agent deleting a row the operator deleted a moment earlier,
     # I want the answer to be "it is gone", not a crash.
     #
