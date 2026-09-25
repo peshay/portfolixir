@@ -1571,6 +1571,14 @@ The **Risk** tab of the Wealth area shows two things that answer one question
 — how concentrated is the portfolio, and how much does it move — over the
 **steerable basis** of the active view (the view is named in the header).
 
+- **Own rules** at the top: the operator's caps, floors and bands (ADR-0049)
+  with their findings, breached and undetermined first. A rule's **name is a
+  link** that opens its dialog, the one place where the rule is changed (a new
+  version from a date; the previous one stays readable), **renamed** or
+  retired. A rename changes only the label: it creates no version, the new
+  name reads for the rule with all its versions, and the audit journal keeps
+  the previous name. A retired rule is renamed the same way from the list of
+  retired rules.
 - **Portfolio metrics**, one year: the annualized **volatility**, the
   **maximum drawdown** with the day it started, its low and the day it
   recovered, the **risk-adjusted return** (at a risk-free rate of 0 it is

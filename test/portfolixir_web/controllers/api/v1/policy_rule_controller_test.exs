@@ -443,4 +443,101 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleControllerTest do
     assert edited.id in ids
     refute untouched.id in ids
   end
+
+  # User story (#872, ADR-0049 §4 and §8 as amended by the Sprint 16 plan D-6):
+  # As the operator's agent,
+  # I want to rename a rule over the API,
+  # so that a rule whose line was raised can say so without being retired —
+  # retiring and re-creating it would split the history the rule exists to
+  # keep.
+  #
+  # Acceptance criteria:
+  # - PATCH /api/v1/policy_rules/:id with a name answers 200 with the rule and
+  #   its versions, unchanged in number and content; the rename is journaled
+  #   under the token with the previous name.
+  # - Only the name is read, as on PATCH /api/v1/plans/:id. A predicate field,
+  #   a version, or the context in the same body is refused 422 naming each
+  #   such field and where it belongs, and nothing is written; any other key
+  #   is ignored.
+  # - A retired rule can be renamed. A blank, missing or non-text name is 422
+  #   on name; an unknown or malformed id is 404.
+  test "renames a rule outside the versioning", %{conn: conn, world: world, security: security} do
+    {:ok, rule} =
+      PolicyRules.create_rule(
+        Actor.owner_ui(),
+        %{
+          portfolio_id: world.portfolio.id,
+          name: "Single name at most 8 %",
+          version: Map.put(weight_cap(security), "valid_from", Date.add(today(), -30))
+        },
+        today: Date.add(today(), -30)
+      )
+
+    %{"data" => before} = conn |> get("/api/v1/policy_rules/#{rule.id}") |> json_response(200)
+
+    %{"data" => renamed} =
+      conn
+      |> patch("/api/v1/policy_rules/#{rule.id}", %{
+        "name" => "Single name at most 10 %",
+        "status" => "retired"
+      })
+      |> json_response(200)
+
+    assert renamed["id"] == rule.id
+    assert renamed["name"] == "Single name at most 10 %"
+    assert renamed["status"] == "in_force"
+    assert renamed["view_id"] == nil
+    assert renamed["versions"] == before["versions"]
+
+    assert [%{actor_type: :api_token_rw, operation: :update} = entry | _] =
+             Journal.list_entries(resource_type: "policy_rule")
+
+    assert entry.before["name"] == "Single name at most 8 %"
+    assert entry.after["name"] == "Single name at most 10 %"
+
+    # The predicate and the context are not a rename's: named, nothing written.
+    %{"errors" => errors} =
+      conn
+      |> patch("/api/v1/policy_rules/#{rule.id}", %{
+        "name" => "Changed twice",
+        "threshold" => "12",
+        "version" => %{"threshold" => "12"},
+        "view_id" => 7
+      })
+      |> json_response(422)
+
+    assert [threshold_error] = errors["threshold"]
+    assert threshold_error =~ "POST /api/v1/policy_rules/#{rule.id}/versions"
+    assert [_] = errors["version"]
+    assert [view_error] = errors["view_id"]
+    assert view_error =~ "context"
+    refute Map.has_key?(errors, "name")
+
+    %{"data" => unchanged} = conn |> get("/api/v1/policy_rules/#{rule.id}") |> json_response(200)
+    assert unchanged["name"] == "Single name at most 10 %"
+    assert unchanged["versions"] == before["versions"]
+
+    # Retired, the rule is still renamable.
+    conn |> post("/api/v1/policy_rules/#{rule.id}/retire", %{}) |> json_response(200)
+
+    %{"data" => retired} =
+      conn
+      |> patch("/api/v1/policy_rules/#{rule.id}", %{"name" => "Old single-name cap"})
+      |> json_response(200)
+
+    assert retired["name"] == "Old single-name cap"
+    assert retired["status"] == "retired"
+
+    %{"errors" => %{"name" => [_ | _]}} =
+      conn |> patch("/api/v1/policy_rules/#{rule.id}", %{"name" => "  "}) |> json_response(422)
+
+    %{"errors" => %{"name" => [_ | _]}} =
+      conn |> patch("/api/v1/policy_rules/#{rule.id}", %{}) |> json_response(422)
+
+    %{"errors" => %{"name" => [_ | _]}} =
+      conn |> patch("/api/v1/policy_rules/#{rule.id}", %{"name" => 42}) |> json_response(422)
+
+    conn |> patch("/api/v1/policy_rules/999999999", %{"name" => "x"}) |> json_response(404)
+    conn |> patch("/api/v1/policy_rules/abc", %{"name" => "x"}) |> json_response(404)
+  end
 end

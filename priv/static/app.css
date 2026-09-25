@@ -8231,15 +8231,13 @@ dialog.booking-drawer {
   color: var(--color-text-muted);
 }
 
+/* The name is the way into the rule's dialog, so it reads as a link at rest
+   (issue 872, pick G7-A, board ux-design-2026-09-24/07-rule-name-affordance):
+   colour and underline come from `.link-button`, as on the scheduled and
+   retired names below the table; bold, because it heads its row. */
 .policy-rule__name {
-  color: var(--color-text);
   font-weight: 700;
   text-align: left;
-  text-decoration: none;
-}
-
-.policy-rule__name:hover {
-  text-decoration: underline;
 }
 
 .policy-rule__name:focus-visible {
@@ -8319,6 +8317,13 @@ dialog.booking-drawer {
 
 .form-grid__wide {
   grid-column: 1 / -1;
+}
+
+/* A second sentence of a hint on its own line (issue 872: the rename's line under
+   the rule dialog's version note, board 07). */
+.hint__line {
+  display: block;
+  margin-top: var(--space-1);
 }
 
 @media (pointer: coarse) {

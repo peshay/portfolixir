@@ -4,7 +4,8 @@ defmodule Portfolixir.Portfolios.PolicyRules do
   floors and bands, stored as rows instead of prose in a scheduled prompt.
 
   A rule is a **standard in force over a period** (§4). Its identity
-  (`Portfolixir.Portfolios.PolicyRule`: context and name) is stable; its
+  (`Portfolixir.Portfolios.PolicyRule`: its id and context) is stable, and
+  its name is the operator's label on it; its
   predicate lives on **versions** (`Portfolixir.Portfolios.PolicyRuleVersion`),
   each in force over `[valid_from, valid_until]`. So "what was the standard on
   date D" is a read (`version_on/2`), not a reconstruction from the journal.
@@ -16,6 +17,8 @@ defmodule Portfolixir.Portfolios.PolicyRules do
       (today by default, never earlier); the previous version is closed the
       day before. A version not yet in force that starts on or after the new
       one is replaced — that is how a scheduled version is edited.
+    * `rename_rule/4` — the label, outside the versioning (#872): no version
+      is added or changed; the journal keeps the previous name.
     * `retire_rule/4` — closes the version in force (yesterday by default).
       The rule and every version stay readable.
     * `delete_rule/3` — only while **no** version has ever been in force:
@@ -186,6 +189,72 @@ defmodule Portfolixir.Portfolios.PolicyRules do
     else
       {:error, :already_retired}
     end
+  end
+
+  @doc """
+  Renames `rule` (#872; ADR-0049 §4 and §8 as amended by the Sprint 16 plan
+  D-6), journaled under `actor`.
+
+  The name is the operator's label on the rule, never parsed, so a rename is
+  a **rule-level edit outside the versioning**: no version is added or
+  changed, and the new name reads for the rule with all its versions. The
+  journal keeps the previous name (the entry's before-image is the stored
+  row) and who changed it. Only `name` is read from `attrs`: the context
+  (portfolio, view) never changes. Allowed on a retired rule; a name need not
+  be unique. The rules counter is bumped, because a finding carries the name.
+
+  Returns `{:ok, rule}` (versions preloaded) or `{:error, changeset}` — a
+  blank or over-long name is refused, never silently kept. Resending the
+  stored name writes nothing.
+  """
+  @spec rename_rule(Actor.t(), PolicyRule.t(), map(), keyword()) ::
+          {:ok, PolicyRule.t()} | {:error, write_error()}
+  def rename_rule(%Actor{} = actor, %PolicyRule{} = rule, attrs, opts \\ []) when is_map(attrs) do
+    attrs = %{"name" => attr(attrs, :name)}
+
+    transaction(fn ->
+      stored = PolicyRule |> lock("FOR UPDATE") |> Repo.get!(rule.id)
+      changeset = PolicyRule.rename_changeset(stored, attrs)
+
+      cond do
+        not changeset.valid? ->
+          {:error, %{changeset | action: :update}}
+
+        changeset.changes == %{} ->
+          stored.id
+
+        true ->
+          with {:ok, renamed} <- journaled_update(actor, changeset, stored, "policy_rule") do
+            Invalidation.after_rule_write(renamed.portfolio_id, Repo)
+            renamed.id
+          end
+      end
+    end)
+    |> reload(opts)
+  end
+
+  @doc """
+  The dialog's edit when both the name and the predicate changed (#872): the
+  rename and the new version in **one** transaction, so a refused version
+  leaves the name as it was, and a refused name adds no version. Returns what
+  `add_version/4` returns.
+  """
+  @spec rename_and_add_version(Actor.t(), PolicyRule.t(), map(), map(), keyword()) ::
+          {:ok, PolicyRuleVersion.t()} | {:error, write_error()}
+  def rename_and_add_version(
+        %Actor{} = actor,
+        %PolicyRule{} = rule,
+        name_attrs,
+        attrs,
+        opts \\ []
+      )
+      when is_map(name_attrs) and is_map(attrs) do
+    transaction(fn ->
+      with {:ok, renamed} <- rename_rule(actor, rule, name_attrs, opts),
+           {:ok, version} <- add_version(actor, renamed, attrs, opts) do
+        version
+      end
+    end)
   end
 
   @doc """
@@ -556,6 +625,19 @@ defmodule Portfolixir.Portfolios.PolicyRules do
     |> normalize_write()
   end
 
+  defp journaled_update(actor, changeset, before, resource_type) do
+    Multi.new()
+    |> Multi.update(:record, changeset)
+    |> Journal.record(actor,
+      resource_type: resource_type,
+      operation: :update,
+      source: :record,
+      before: before
+    )
+    |> Repo.transaction()
+    |> normalize_write()
+  end
+
   defp journaled_close(actor, version, until) do
     Multi.new()
     |> Multi.update(:record, PolicyRuleVersion.close_changeset(version, until))
@@ -603,8 +685,12 @@ defmodule Portfolixir.Portfolios.PolicyRules do
     end)
   end
 
-  defp reload({:ok, rule_id}), do: {:ok, get_rule(rule_id)}
-  defp reload(error), do: error
+  defp reload(result, opts \\ [])
+
+  defp reload({:ok, rule_id}, opts),
+    do: {:ok, get_rule(rule_id, as_of: Keyword.get(opts, :today))}
+
+  defp reload(error, _opts), do: error
 
   defp attr(attrs, key), do: Map.get(attrs, key, Map.get(attrs, to_string(key)))
 

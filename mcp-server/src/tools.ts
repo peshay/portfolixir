@@ -1212,6 +1212,31 @@ const policyRuleAddVersionZ = z.object({
   version: policyVersionZ
 });
 
+// #872: the name only. Strict, so a line or a context sent to the rename is
+// refused before the round trip instead of silently dropped — the API refuses
+// them too.
+const policyRuleRenameSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "name"],
+  properties: {
+    id: { type: "integer", minimum: 1 },
+    name: {
+      type: "string",
+      minLength: 1,
+      maxLength: 255,
+      description: "the operator's new name for the rule; a label, never parsed"
+    }
+  }
+} as const;
+
+const policyRuleRenameZ = z
+  .object({
+    id: z.number().int().positive(),
+    name: z.string().min(1).max(255)
+  })
+  .strict();
+
 const policyRuleRetireSchema = {
   type: "object",
   additionalProperties: false,
@@ -2998,6 +3023,13 @@ const toolDefinitions: ToolDefinition[] = [
     policyRuleAddVersionZ
   ),
   tool(
+    "portfolixir.policy_rules.rename",
+    "Rename a rule (no new version)",
+    "Rename a policy rule (ADR-0049 §4 as amended): the name is the operator's label on the rule, never parsed, so a rename is a rule-level edit OUTSIDE the versioning — it creates NO version, and the versions do not change: each keeps its predicate and its period, and the new name reads for the rule with all its versions. Use it when a raised or lowered line has left the name saying the old figure; retiring and re-creating the rule would split its history. Journaled under the API token; the journal keeps the previous name. Allowed on a retired rule; names need not be unique; the context (portfolio, view) never changes. Only the name is accepted: a new line, subject or severity is a new version (portfolixir.policy_rules.add_version), and the API refuses predicate or context fields sent here.",
+    policyRuleRenameSchema,
+    policyRuleRenameZ
+  ),
+  tool(
     "portfolixir.policy_rules.retire",
     "Retire a rule",
     "Retire a policy rule: its version in force ends on valid_until (default yesterday, or today when it only started today; never earlier), any scheduled version after that is dropped, and the rule and all its versions stay readable (list with include_retired=true). A rule none of whose versions has ever been in force answers 409 — delete it instead. Journaled under the API token.",
@@ -3760,6 +3792,8 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       return client.request("POST", `/api/v1/policy_rules/${args.id}/versions`, {
         version: args.version
       });
+    case "portfolixir.policy_rules.rename":
+      return client.request("PATCH", `/api/v1/policy_rules/${args.id}`, { name: args.name });
     case "portfolixir.policy_rules.retire":
       return client.request(
         "POST",

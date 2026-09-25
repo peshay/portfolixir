@@ -574,4 +574,132 @@ defmodule PortfolixirWeb.RiskPolicyRulesLiveTest do
     assert has_element?(view, "#policy-findings", "Nur im Kern")
     refute has_element?(view, "#policy-findings", "Portfolioweit")
   end
+
+  # User story (#872, plan D-6, pick G7-A, board
+  # ux-design-2026-09-24/07-rule-name-affordance, Part 1):
+  # As the operator who raised a floor and now reads a name that still says
+  # the old figure,
+  # I want to change the name in the rule's dialog,
+  # so that the name says what the standard is without retiring the rule and
+  # splitting its history.
+  #
+  # Acceptance criteria:
+  # - The edit dialog carries the name field first, holding the stored name;
+  #   the heading keeps the stored name until the rename is saved.
+  # - With only the name changed, the dialog says before saving that no new
+  #   version is created and the primary button reads "Save name"; saving
+  #   renames the rule, adds no version, and the table shows the new name.
+  # - With the name and the line changed, the version note stays and adds
+  #   that the new name applies to the rule with all its versions; the button
+  #   stays "Save new version", and one save does both.
+  # - A blank name is refused at the field, and nothing is written.
+  # - A retired rule is renamed from its dialog the same way.
+  test "renames a rule from its dialog without a new version", %{conn: conn} do
+    world = rules_world()
+
+    rule =
+      rule!(
+        world,
+        "Barreserve mindestens 1 %",
+        %{
+          subject_type: "cash",
+          measure: "weight",
+          kind: "floor",
+          threshold: "1",
+          severity: "warn",
+          valid_from: Date.add(today(), -30)
+        },
+        today: Date.add(today(), -30)
+      )
+
+    {:ok, view, _html} = live(conn, "/risk")
+    view |> element("#policy-findings button[phx-value-id='#{rule.id}']") |> render_click()
+
+    assert has_element?(
+             view,
+             ~s(#policy-rule-form .form-grid label:first-child input[name="rule[name]"][value="Barreserve mindestens 1 %"])
+           )
+
+    assert has_element?(view, "dialog#policy-rule-dialog button[type=submit]", "Save new version")
+
+    html =
+      view
+      |> form("#policy-rule-form", rule: %{name: "Barreserve mindestens 2 %"})
+      |> render_change()
+
+    assert html =~ "Only the name changes: saving creates no new version."
+    assert has_element?(view, "dialog#policy-rule-dialog button[type=submit]", "Save name")
+    assert has_element?(view, "dialog#policy-rule-dialog h2", "Barreserve mindestens 1 %")
+
+    # Blank: refused at the field, nothing written.
+    html = view |> form("#policy-rule-form", rule: %{name: "  "}) |> render_submit()
+    assert html =~ "can&#39;t be blank"
+    assert has_element?(view, "dialog#policy-rule-dialog")
+    assert PolicyRules.get_rule(rule.id).name == "Barreserve mindestens 1 %"
+
+    view
+    |> form("#policy-rule-form", rule: %{name: "Barreserve mindestens 2 %"})
+    |> render_submit()
+
+    refute has_element?(view, "dialog#policy-rule-dialog")
+
+    assert has_element?(
+             view,
+             "#policy-findings button[phx-value-id='#{rule.id}']",
+             "Barreserve mindestens 2 %"
+           )
+
+    renamed = PolicyRules.get_rule(rule.id)
+    assert renamed.name == "Barreserve mindestens 2 %"
+    assert length(renamed.versions) == 1
+
+    # Name and line together: the version note stays, and says what the new
+    # name covers; one save does both.
+    view |> element("#policy-findings button[phx-value-id='#{rule.id}']") |> render_click()
+
+    html =
+      view
+      |> form("#policy-rule-form", rule: %{name: "Barreserve mindestens 3 %", threshold: "3"})
+      |> render_change()
+
+    assert html =~ "Saving creates version 2"
+    assert html =~ "The new name applies to the rule with all its versions."
+    assert has_element?(view, "dialog#policy-rule-dialog button[type=submit]", "Save new version")
+
+    view
+    |> form("#policy-rule-form", rule: %{name: "Barreserve mindestens 3 %", threshold: "3"})
+    |> render_submit()
+
+    both = PolicyRules.get_rule(rule.id)
+    assert both.name == "Barreserve mindestens 3 %"
+    assert length(both.versions) == 2
+
+    # A retired rule keeps its name field and is renamed the same way.
+    old =
+      rule!(world, "Deckel Einzeltitel", single_cap(world, %{valid_from: Date.add(today(), -30)}),
+        today: Date.add(today(), -30)
+      )
+
+    {:ok, _} = PolicyRules.retire_rule(Actor.owner_ui(), old, %{})
+    {:ok, view, _html} = live(conn, "/risk")
+
+    view
+    |> element("#policy-rules-retired button[phx-value-id='#{old.id}']")
+    |> render_click()
+
+    view
+    |> form("#policy-rule-form", rule: %{name: "Alter Deckel Einzeltitel"})
+    |> render_submit()
+
+    assert has_element?(view, "#policy-rules-retired", "Alter Deckel Einzeltitel")
+    assert length(PolicyRules.get_rule(old.id).versions) == 1
+
+    # On a German page the dialog says it in German.
+    conn = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    {:ok, view, _html} = live(conn, "/risk")
+    view |> element("#policy-findings button[phx-value-id='#{rule.id}']") |> render_click()
+    html = view |> form("#policy-rule-form", rule: %{name: "Barreserve"}) |> render_change()
+    assert html =~ "Nur der Name ändert sich: Speichern legt keine neue Version an."
+    assert has_element?(view, "dialog#policy-rule-dialog button[type=submit]", "Namen speichern")
+  end
 end

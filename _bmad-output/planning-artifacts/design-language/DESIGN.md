@@ -1666,10 +1666,12 @@ B and C of the board).
    secondary "New rule" button.
 2. **Findings table** (`.data-table.policy-findings-table`), sorted breached,
    then undetermined, then met; hard before warning within a state. Columns:
-   - **Rule**: the name as a quiet button (`.policy-rule__name`, bold text
-     colour, underline on hover, the focus ring; `.link-button` carries none
-     of the base button's shadow, radius or 34 px floor, only the 44 px under
-     a coarse pointer) that opens the edit dialog, and under it the rule's
+   - **Rule**: the name as a **link at rest** (`.policy-rule__name` on
+     `.link-button`: accent colour and underline without hovering, bold, the
+     focus ring; `.link-button` carries none of the base button's shadow,
+     radius or 34 px floor, only the 44 px under a coarse pointer) that opens
+     the edit dialog — *amended 2026-09-25 by pick G7-A, below; it was a quiet
+     button in text colour, underlined on hover only* — and under it the rule's
      **words** (`.policy-rule__words`: measure and window · subject · kind ·
      severity). A built-in tree's category reads in the page's language
      (`ClassificationName.category/2`), never its stored English name;
@@ -1704,8 +1706,9 @@ a weight that carries both an operator's breached rule and the lens's "above
 
 A native `<dialog>` (UX-DR9), one component for create and edit:
 
-- **Fields** in `.form-grid`: name (create only — the name and the context
-  view are the rule's identity), measure, subject, the plan's classification
+- **Fields** in `.form-grid`: name (on create and on edit — *amended
+  2026-09-25, G7-A:* the context view is the rule's identity, the name is its
+  label), measure, subject, the plan's classification
   (only for the drift of a security), window (only for volatility and
   drawdown), kind, the line (or "From"/"To" for a band) with the measure's
   unit in its label, severity, "In force from" (the ISO text input, UX-DR19),
@@ -1781,3 +1784,36 @@ Board `ux-design-2026-09-23/02-position-soll-entry`, variant A, as built.
 - **Fits at 390 px.** The plan table opts out of the scroller's
   `min-width: max-content` (the Risk tables' fit pattern) and position names
   wrap anywhere, so every input stays on screen.
+
+## Amendment 2026-09-25 — Wealth → Risk: the rule's name as a link, and the rename *(Sprint 16 pick G7-A, issue 872)*
+
+Board `mockups/ux-design-2026-09-24/07-rule-name-affordance`, variant A (the
+owner's pick, plan D-5), with Part 1 of the same board for the rename (plan
+D-6, ADR-0049 §4 as amended). Built by Sprint 16 Lane D in
+`PortfolixirWeb.RiskLive` and `PortfolixirWeb.Risk.PolicyRuleDialog`.
+
+- **The name is the one way into the rule, and it looks like it.** In the
+  findings table the rule's name carries the link treatment **at rest**:
+  `.link-button`'s accent colour and underline, bold because it heads its row.
+  `.policy-rule__name` no longer overrides the colour or the underline, and
+  its `:hover` rule is gone; the focus ring and the 44 px under a coarse
+  pointer stay. One treatment for "open this rule" across the section: the
+  scheduled and retired names below the table already carried it. No kebab
+  and no standing "Edit" button (variants B and C): at 390 px the table keeps
+  its three columns. Colour and underline are two cues, so the control does
+  not rest on colour alone, `forced-colors` included. The coral accent's
+  light-mode contrast for body-size link text is the token question every
+  `.link-button` already has, not a property of this pick.
+- **The dialog names the rule on edit too.** The name field is the first
+  field of `.form-grid` on create **and** on edit (`maxlength` 255). The
+  heading keeps the stored name until the rename is saved.
+- **What saving does is said before it happens.** With only the name changed,
+  the hint under the fields reads "Only the name changes: saving creates no
+  new version …" in place of the version note, and the primary button reads
+  **"Save name"**; the "In force from" date plays no part. With the name and
+  any field of the predicate changed, the version note stays and gains a
+  second line (`.hint__line`): "The new name applies to the rule with all its
+  versions."; the button stays "Save new version", and one save writes both
+  or neither. A blank name is the field's own error, as on create.
+- **A retired rule** opens the same dialog from the retired list and is
+  renamed the same way; a rename there creates no version either.

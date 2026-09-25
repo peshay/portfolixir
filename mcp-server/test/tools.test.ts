@@ -87,6 +87,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.policy_rules.get",
       "portfolixir.policy_rules.create",
       "portfolixir.policy_rules.add_version",
+      "portfolixir.policy_rules.rename",
       "portfolixir.policy_rules.retire",
       "portfolixir.policy_rules.delete",
       "portfolixir.portfolios.policy_findings",
@@ -2610,6 +2611,42 @@ describe("Portfolixir MCP tools", () => {
       const description = listTools().find((tool) => tool.name === name)?.description ?? "";
       assert.match(description, /re-import does not destroy the policy rules/, name);
     }
+  });
+
+  // #872 (ADR-0049 §4 and §8 as amended by the Sprint 16 plan D-6): the name
+  // is the operator's label, so a rename is a rule-level edit outside the
+  // versioning, and the description says so where the agent reads it.
+  it("wraps the rename of a policy rule: the name only, no version", async () => {
+    const { client, requests } = createRecordingClient({ data: { id: 9 } });
+
+    await callTool(client, "portfolixir.policy_rules.rename", {
+      id: 9,
+      name: "Cash at least 2 %"
+    });
+
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].method, "PATCH");
+    assert.equal(requests[0].path, "/api/v1/policy_rules/9");
+    assert.deepEqual(requests[0].body, { name: "Cash at least 2 %" });
+
+    const rename = listTools().find((tool) => tool.name === "portfolixir.policy_rules.rename");
+    const description = rename?.description ?? "";
+    assert.match(description, /creates NO version/);
+    assert.match(description, /versions do not change/);
+    assert.match(description, /journal/i);
+    assert.match(description, /retired/);
+    assert.match(description, /portfolixir\.policy_rules\.add_version/);
+    assert.deepEqual((rename?.inputSchema as any).required, ["id", "name"]);
+    assert.equal((rename?.inputSchema as any).additionalProperties, false);
+    assert.equal((rename?.inputSchema as any).properties.name.maxLength, 255);
+
+    // The validator agrees with the schema: an empty name and a predicate
+    // field are refused before the round trip.
+    await assert.rejects(callTool(client, "portfolixir.policy_rules.rename", { id: 9, name: "" }));
+    await assert.rejects(
+      callTool(client, "portfolixir.policy_rules.rename", { id: 9, name: "x", threshold: "12" })
+    );
+    assert.equal(requests.length, 1);
   });
 
   // ADR-0049 §5: the findings read — did anything cross a line? — as one

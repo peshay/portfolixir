@@ -51,14 +51,18 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "identity fields freeze once referenced, answering 422 — and the re-import contract's " <>
           "former names (ADR-0050 §4): a cash account and a depot list the names a Portfolio " <>
           "Performance import still books onto them, a rename keeps the previous name, a name " <>
-          "another account answers to is refused, and a former name is removable.",
+          "another account answers to is refused, and a former name is removable — and a " <>
+          "policy rule's rename (ADR-0049 §4 as amended, #872): the name is a label outside the " <>
+          "versioning, so a rename creates no version and changes none.",
       endpoints: [
         "DELETE /api/v1/cash_accounts/:id/former_names",
-        "DELETE /api/v1/securities_accounts/:id/former_names"
+        "DELETE /api/v1/securities_accounts/:id/former_names",
+        "PATCH /api/v1/policy_rules/:id"
       ],
       tools: [
         "portfolixir.cash_accounts.remove_former_name",
-        "portfolixir.securities_accounts.remove_former_name"
+        "portfolixir.securities_accounts.remove_former_name",
+        "portfolixir.policy_rules.rename"
       ],
       parameters: [
         "Every /api/v1 error the server answers itself rather than an endpoint (an unreadable body 400, a body over the size bound 413, an unknown route 404, an internal error 500) answers {\"errors\": {\"detail\": <reason phrase>}} with its own status (E25 S2, F68); it used to be {\"status\", \"error\"} for 404 and 500 and a bodyless 500 for every other status",
@@ -84,7 +88,8 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "PUT /api/v1/portfolios/:portfolio_id/targets, PUT .../cash_target and POST/PATCH /api/v1/portfolios with cash_target_weight (portfolixir.targets.set, the cash-target tool, portfolixir.portfolios.create) answer 422 on the weight for more than 6 decimal places, and the database refuses such a weight on every writer. GET /api/v1/portfolios/:portfolio_id/allocation (portfolixir.portfolios.allocation) answers drift_value and rebalance_quantity null for a position valued at 0 without its own target (it used to answer a signed zero) and, with the position rows, carries computation_basis (the drift share's basis and the gaps where it is null) (E25 S4, G14)",
         "POST /api/v1/classifications/:classification_id/categories and PATCH .../categories/:id (portfolixir.classifications.categories.create, .update) answer 422 on parent_id for a parent from another classification, and PATCH for the category itself or one of its descendants as its parent, and write nothing; both used to store a tree that loops (E25 S4, F11)",
         "GET /api/v1/portfolios/:portfolio_id/risk (portfolixir.portfolios.risk) caps top_n at 1000 and echoes the applied top_n (10 when absent); the MCP schema carries maximum 1000. metrics.correlations covers at most the 20 leading names of the Top-N list and carries leading_names, how many it ran over, and metrics.computation_basis.input_series states the bound; both used to grow with an unbounded top_n (E25 S4, F72)",
-        "POST /api/v1/splits/preview and POST /api/v1/splits (portfolixir.splits.preview, .create) answer 422 on ratio when the security's splits, each counted by its own magnitude, would multiply past 10^12 with the new one included, and write nothing. The performance reads' irr (and mwr) are null when an amount lies outside the range the solver's one float step carries, and computation_basis.gaps names why irr can be null; such a read used to fail with a 500 (E25 S4, G12)"
+        "POST /api/v1/splits/preview and POST /api/v1/splits (portfolixir.splits.preview, .create) answer 422 on ratio when the security's splits, each counted by its own magnitude, would multiply past 10^12 with the new one included, and write nothing. The performance reads' irr (and mwr) are null when an amount lies outside the range the solver's one float step carries, and computation_basis.gaps names why irr can be null; such a read used to fail with a 500 (E25 S4, G12)",
+        "PATCH /api/v1/policy_rules/:id (portfolixir.policy_rules.rename) takes {\"name\"} only and answers the rule with its versions, none added or changed; journaled under the token with the previous name; allowed on a retired rule; names need not be unique. A blank, missing or non-text name answers 422 on name; a predicate field, a version or the context (view_id, portfolio_id) in the same body answers 422 naming each such field, and nothing is written; any other key is ignored, as on PATCH /api/v1/plans/:id (ADR-0049 §4 and §8 as amended by the Sprint 16 plan D-6, #872)"
       ],
       removed_endpoints: [],
       removed_tools: []

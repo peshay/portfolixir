@@ -7856,3 +7856,13 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "Several accounts are named %{name}. Pick the one this export's %{name} books to, then confirm again. Nothing was written."
 msgstr ""
+
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:314
+#, elixir-autogen, elixir-format
+msgid "Only the name changes: saving creates no new version. The name applies to the rule with all its versions; the change is journaled, and the previous name stays readable there."
+msgstr ""
+
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:321
+#, elixir-autogen, elixir-format
+msgid "The new name applies to the rule with all its versions."
+msgstr ""

@@ -1536,7 +1536,10 @@ einen Bezug, in einem Auswertungskontext:
   (strikt unterhalb) oder `band` (außerhalb von `[lower, upper]`) — dieselbe
   Lesart einer Linie wie die Risikolinse;
 - der **Schweregrad** ist `warn` oder `hard`; `name` und `note` sind die
-  Worte des Betreibers und werden nie ausgewertet.
+  Worte des Betreibers und werden nie ausgewertet. Der `name` ist eine
+  **Bezeichnung der Regel**, nicht Teil ihrer Identität: Er lässt sich jederzeit
+  ohne neue Version ändern (siehe das Umbenennen unten) und muss nicht
+  eindeutig sein.
 
 Grenzen sind Decimal-Strings (ADR-0016). Eine Aussage, die nicht zu ihrer
 Kennzahl passt — ein Bezug außerhalb der Tabelle, ein fehlendes oder
@@ -1574,6 +1577,18 @@ Die Schreibzugriffe:
   ersten Version an (`201`).
 - `POST /api/v1/policy_rules/:id/versions` — Rumpf `{"version": {…}}`; die
   Änderung (`201`).
+- `PATCH /api/v1/policy_rules/:id` — Rumpf `{"name": "…"}`; das
+  **Umbenennen**, eine Änderung an der Regel selbst **außerhalb der
+  Versionen**: Es entsteht keine Version, keine wird geändert, und der neue
+  Name gilt für die Regel mit allen Versionen (`200`, die Regel mit ihren
+  Versionen). Das Journal hält den bisherigen Namen und wer ihn geändert hat.
+  Auch bei einer beendeten Regel erlaubt. Gelesen wird nur `name`, wie bei
+  `PATCH /api/v1/plans/:id`: Ein leerer, fehlender oder nicht-textueller Name
+  ist ein `422` auf `name`; ein Feld der Aussage, eine `version` oder der
+  Kontext (`view_id`, `portfolio_id`) im selben Rumpf ist ein `422`, das jedes
+  solche Feld nennt, und nichts wird geschrieben — eine neue Linie ist eine
+  neue Version, und eine Regel in einem anderen Kontext ist eine neue Regel.
+  Jeder andere Schlüssel wird ignoriert.
 - `POST /api/v1/policy_rules/:id/retire` — optional `valid_until`; beendet
   die geltende Version standardmäßig gestern (heute Abend, wenn sie erst heute
   begann) und verwirft danach geplante Versionen. Die Regel bleibt mit
@@ -2092,6 +2107,8 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
   an; die Beschreibung enthält die Kennzahl-Tabelle und die Skalen.
 - `portfolixir.policy_rules.add_version` — die Änderung: eine neue Version,
   nie ein Überschreiben.
+- `portfolixir.policy_rules.rename` — nur der Name; die Beschreibung sagt,
+  dass Umbenennen keine Version anlegt und die Versionen unverändert bleiben.
 - `portfolixir.policy_rules.retire` — beendet die geltende Version; alles
   bleibt lesbar.
 - `portfolixir.policy_rules.delete` — nur für eine Regel, an der nie gemessen

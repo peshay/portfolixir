@@ -1699,6 +1699,15 @@ Der Reiter **Risiko** im Bereich Vermögen zeigt zwei Dinge, die eine Frage
 beantworten — wie konzentriert ist das Portfolio, und wie stark schwankt es —
 über der **steuerbaren Basis** der aktiven Ansicht (die Ansicht steht im Kopf).
 
+- **Eigene Regeln** ganz oben: die Obergrenzen, Untergrenzen und Bänder des
+  Betreibers (ADR-0049) mit ihren Befunden, verletzte und nicht bestimmbare
+  zuerst. Der **Name einer Regel ist ein Link** und öffnet ihren Dialog, den
+  einen Ort, an dem die Regel geändert (eine neue Version ab einem Datum; die
+  bisherige bleibt lesbar), **umbenannt** oder beendet wird. Umbenennen ändert
+  nur die Bezeichnung: Es entsteht keine Version, der neue Name gilt für die
+  Regel mit allen Versionen, und das Audit-Journal behält den bisherigen
+  Namen. Eine beendete Regel wird genauso aus der Liste der beendeten Regeln
+  umbenannt.
 - **Kennzahlen des Portfolios**, ein Jahr: die annualisierte **Volatilität**,
   der **maximale Rückgang** mit Beginn, Tiefpunkt und Erholung, die
   **risikoadjustierte Rendite** (bei einem risikofreien Satz von 0 ist sie

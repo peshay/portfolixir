@@ -52,6 +52,30 @@ defmodule Portfolixir.Invariants.CssClosingActRepairsTest do
     assert open_toggle =~ ~r/font-weight:\s*700;/
   end
 
+  # User story (#872, pick G7-A, board
+  # ux-design-2026-09-24/07-rule-name-affordance):
+  # As the operator on a phone, where nothing hovers,
+  # I want a rule's name to look like the control it is,
+  # so that I can tell the name is the way into the rule's dialog — the only
+  # way to change, rename or retire it.
+  #
+  # Acceptance criteria:
+  # - `.policy-rule__name` no longer overrides `.link-button`'s colour and
+  #   underline, so the name reads as a link at rest, and it stays bold — the
+  #   treatment the scheduled and retired names below it already carry.
+  # - The hover rule that would change nothing is gone; the focus ring and
+  #   the 44 px under a coarse pointer (asserted above) stay.
+  test "a rule's name reads as a link at rest" do
+    name = block(".policy-rule__name")
+    assert name =~ ~r/font-weight:\s*700;/
+    refute name =~ "color:"
+    refute name =~ "text-decoration"
+    refute @css =~ ".policy-rule__name:hover"
+
+    assert block(".policy-rule__name:focus-visible") =~
+             ~r/outline:\s*2px solid var\(--color-accent\);/
+  end
+
   defp block(selector) do
     case Regex.run(~r/\n#{Regex.escape(selector)} \{([^}]*)\}/, @css) do
       [_, body] -> body

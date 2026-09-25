@@ -203,6 +203,8 @@ defmodule PortfolixirWeb.Router do
     get("/portfolios/:portfolio_id/policy_rules", PolicyRuleController, :index)
     post("/portfolios/:portfolio_id/policy_rules", PolicyRuleController, :create)
     get("/policy_rules/:id", PolicyRuleController, :show)
+    # The rename (#872, D-6): the name is a label outside the versioning.
+    patch("/policy_rules/:id", PolicyRuleController, :rename)
     post("/policy_rules/:id/versions", PolicyRuleController, :add_version)
     post("/policy_rules/:id/retire", PolicyRuleController, :retire)
     delete("/policy_rules/:id", PolicyRuleController, :delete)
