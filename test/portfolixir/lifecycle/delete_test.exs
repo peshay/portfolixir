@@ -425,7 +425,12 @@ defmodule Portfolixir.Lifecycle.DeleteTest do
             end)
           end
 
-        assert %{postgres: %{code: :foreign_key_violation, constraint: ^constraint}} = error
+        # PostgreSQL reports a refusal through an ON DELETE RESTRICT key as
+        # restrict_violation (23001) from 18 on, and as foreign_key_violation
+        # (23503) before it; Ecto maps both to the same foreign-key
+        # constraint error, so the delete path's 409 holds on either.
+        assert %{postgres: %{code: code, constraint: ^constraint}} = error
+        assert code in [:foreign_key_violation, :restrict_violation]
       end
 
       assert Buckets.cash_account_bucket_ids(tagged.id) == [family.id]
