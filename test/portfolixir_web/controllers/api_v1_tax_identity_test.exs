@@ -45,8 +45,8 @@ defmodule PortfolixirWeb.ApiV1TaxIdentityTest do
   test "two case spellings of one holder yield one trim budget", %{conn: conn} do
     today = Clock.today()
     as_of = Enum.max([Date.add(today, -2), Date.new!(today.year, 1, 1)], Date)
-    record!("Anna Muster", "Bank Eins", as_of)
-    record!("ANNA MUSTER", "Bank Zwei", as_of)
+    record!("Carla Probe", "Bank Fünf", as_of)
+    record!("CARLA PROBE", "Bank Sechs", as_of)
 
     {:ok, portfolio} =
       Portfolios.create_portfolio(owner(), %{name: "Tax Identity", base_currency_code: "EUR"})
@@ -68,7 +68,7 @@ defmodule PortfolixirWeb.ApiV1TaxIdentityTest do
     trim =
       conn
       |> api_conn()
-      |> get("/api/v1/tax/trim_budget?holder=anna%20muster&tax_year=#{as_of.year}")
+      |> get("/api/v1/tax/trim_budget?holder=carla%20probe&tax_year=#{as_of.year}")
       |> json_response(200)
 
     assert length(trim["data"]["institutions"]) == 2

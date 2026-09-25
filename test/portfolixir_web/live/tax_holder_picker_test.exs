@@ -36,14 +36,14 @@ defmodule PortfolixirWeb.TaxHolderPickerTest do
   # so that I neither pick half a budget nor see a person twice.
   #
   # Acceptance criteria:
-  # - Statements under "Anna Muster" and "ANNA MUSTER" give one picker entry;
+  # - Statements under "Berta Beispiel" and "BERTA BEISPIEL" give one picker entry;
   #   opened under either spelling, the entry is the scope's spelling, marked
   #   current, and the budget rolls both banks up.
   test "case spellings of one taxpayer are one picker entry with one budget", %{conn: conn} do
-    record!("Anna Muster", "Bank Eins", ~D[2025-06-30])
-    record!("ANNA MUSTER", "Bank Zwei", ~D[2025-09-30])
+    record!("Berta Beispiel", "Bank Drei", ~D[2025-06-30])
+    record!("BERTA BEISPIEL", "Bank Vier", ~D[2025-09-30])
 
-    {:ok, view, _html} = live(conn, "/tax?holder=anna%20muster&year=2025")
+    {:ok, view, _html} = live(conn, "/tax?holder=berta%20beispiel&year=2025")
 
     entries =
       view
@@ -54,10 +54,10 @@ defmodule PortfolixirWeb.TaxHolderPickerTest do
 
     assert length(entries) == 1
     assert [entry] = entries
-    assert Floki.text(entry) =~ "anna muster"
+    assert Floki.text(entry) =~ "berta beispiel"
     assert Floki.attribute(entry, "aria-current") == ["true"]
 
-    summary = Tax.holder_summary("anna muster", 2025)
+    summary = Tax.holder_summary("berta beispiel", 2025)
     assert length(summary.institutions) == 2
   end
 end
