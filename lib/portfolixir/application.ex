@@ -52,6 +52,10 @@ defmodule Portfolixir.Application do
        :portfolixir
        |> Application.get_env(Portfolixir.Derived.Refresher, [])
        |> Keyword.put_new(:refresh, &Warmup.warm_basis/1)},
+      # The post-commit bump (E25 S6, F47): settles the data-version events a
+      # writer marked pending once its transaction has committed.
+      {Portfolixir.Derived.PostCommit,
+       Application.get_env(:portfolixir, Portfolixir.Derived.PostCommit, [])},
       PortfolixirWeb.Endpoint
     ]
   end

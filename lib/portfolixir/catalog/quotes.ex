@@ -284,7 +284,8 @@ defmodule Portfolixir.Catalog.Quotes do
         journaled(changed, fn ->
           Multi.new()
           |> Multi.run(:quotes, fn _repo, _changes ->
-            insert_in_chunks(changed, on_conflict(false))
+            # The journal seam bumps this write's radius (T-9).
+            insert_in_chunks(changed, on_conflict(false), nil)
             {:ok, QuoteWrite.new(security_id, changed)}
           end)
           |> Journal.record(actor,
@@ -448,12 +449,7 @@ defmodule Portfolixir.Catalog.Quotes do
         if protect_manual?, do: {:ok, 0, 0}, else: {:ok, 0}
 
       {:ok, prepared} ->
-        count = insert_in_chunks(prepared, on_conflict(protect_manual?))
-
-        # Quotes are allowlisted out of the audit journal (market data), so they
-        # cannot ride the journal seam and drop the affected performance memos
-        # themselves (ADR-0032 §3.4).
-        Invalidation.after_quote_write(security_id)
+        count = insert_in_chunks(prepared, on_conflict(protect_manual?), security_id)
 
         if protect_manual? do
           {:ok, count, length(prepared) - count}
@@ -467,21 +463,28 @@ defmodule Portfolixir.Catalog.Quotes do
   end
 
   # One transaction, several statements (F28): the counts are summed, and a
-  # failing chunk rolls the whole history back.
-  defp insert_in_chunks(prepared, on_conflict) do
+  # failing chunk rolls the whole history back. Quotes are allowlisted out of
+  # the audit journal (market data), so they cannot ride the journal seam;
+  # their bump runs in the same transaction as the rows (E25 S6, F47), so a
+  # committed write always carries its bump and a rolled-back one none.
+  defp insert_in_chunks(prepared, on_conflict, security_id) do
     {:ok, count} =
       Repo.transaction(fn ->
-        prepared
-        |> Enum.chunk_every(@insert_chunk)
-        |> Enum.reduce(0, fn chunk, total ->
-          {count, _} =
-            Repo.insert_all(SecurityQuote, chunk,
-              on_conflict: on_conflict,
-              conflict_target: [:security_id, :date]
-            )
+        count =
+          prepared
+          |> Enum.chunk_every(@insert_chunk)
+          |> Enum.reduce(0, fn chunk, total ->
+            {count, _} =
+              Repo.insert_all(SecurityQuote, chunk,
+                on_conflict: on_conflict,
+                conflict_target: [:security_id, :date]
+              )
 
-          total + count
-        end)
+            total + count
+          end)
+
+        if security_id, do: Invalidation.after_quote_write(security_id, Repo)
+        count
       end)
 
     count

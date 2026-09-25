@@ -43,6 +43,7 @@ config :portfolixir, :api_token, "test-api-token"
 config :portfolixir, Portfolixir.Derived, enabled?: false
 config :portfolixir, Portfolixir.Portfolios.Performance.Warmup, enabled?: false
 config :portfolixir, Portfolixir.Derived.Refresher, enabled?: false
+config :portfolixir, Portfolixir.Derived.PostCommit, enabled?: false
 
 config :portfolixir, Portfolixir.Catalog.SecuritySearch,
   providers: [Portfolixir.Catalog.SecuritySearch.Fake],

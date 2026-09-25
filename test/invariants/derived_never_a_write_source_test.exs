@@ -51,15 +51,14 @@ defmodule Portfolixir.Invariants.DerivedNeverAWriteSourceTest do
     # The policy-rule write path (ADR-0049 §5) announces its own rules
     # counter; it reads nothing derived.
     "lib/portfolixir/portfolios/policy_rules.ex" => [[:Portfolixir, :Derived, :Invalidation]],
-    # View definitions are not journaled (ADR-0018 §5), so the two view
-    # writes announce their change themselves; they read nothing derived.
-    "lib/portfolixir/buckets.ex" => [[:Portfolixir, :Derived, :Invalidation]],
-    # Supervision only: the memo table's owner and the background refresher
-    # start with the app, and the refresher is handed the warm-up it must call.
-    # Starting a process is not reading a derived value.
+    # Supervision only: the memo table's owner, the background refresher and
+    # the post-commit bump (E25 S6, F47) start with the app, and the
+    # refresher is handed the warm-up it must call. Starting a process is not
+    # reading a derived value.
     "lib/portfolixir/application.ex" => [
       [:Portfolixir, :Derived, :Memo],
-      [:Portfolixir, :Derived, :Refresher]
+      [:Portfolixir, :Derived, :Refresher],
+      [:Portfolixir, :Derived, :PostCommit]
     ],
     # The release twin of `mix portfolixir.derived.rebuild` (ADR-0045 §2,
     # #760): the same drop-and-rebuild call the Mix task makes, reachable

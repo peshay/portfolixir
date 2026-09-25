@@ -44,22 +44,25 @@ defmodule Portfolixir.Fx do
       {:ok, prepared} ->
         {:ok, count} =
           Repo.transaction(fn ->
-            prepared
-            |> Enum.chunk_every(@insert_chunk)
-            |> Enum.reduce(0, fn chunk, total ->
-              {count, _} =
-                Repo.insert_all(ExchangeRate, chunk,
-                  on_conflict: {:replace, [:rate, :source, :updated_at]},
-                  conflict_target: [:base_currency, :quote_currency, :date]
-                )
+            count =
+              prepared
+              |> Enum.chunk_every(@insert_chunk)
+              |> Enum.reduce(0, fn chunk, total ->
+                {count, _} =
+                  Repo.insert_all(ExchangeRate, chunk,
+                    on_conflict: {:replace, [:rate, :source, :updated_at]},
+                    conflict_target: [:base_currency, :quote_currency, :date]
+                  )
 
-              total + count
-            end)
+                total + count
+              end)
+
+            # Allowlisted out of the journal for the same reason as quotes, so
+            # the invalidation is announced here (ADR-0032 §3.4) — in the
+            # same transaction as the rates (E25 S6, F47).
+            Invalidation.after_exchange_rate_write(Repo)
+            count
           end)
-
-        # Allowlisted out of the journal for the same reason as quotes, so the
-        # invalidation is announced here (ADR-0032 §3.4).
-        Invalidation.after_exchange_rate_write()
 
         {:ok, count}
 

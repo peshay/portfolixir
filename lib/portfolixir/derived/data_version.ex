@@ -33,16 +33,24 @@ defmodule Portfolixir.Derived.DataVersion do
   by `Portfolixir.Derived.BlastRadius`'s per-security resolvers; `:all` widens
   to every security in the catalog. They carry no global bump of their own —
   the portfolio half of the same bump already does.
+
+  **Ids are taken before the commit, so versions are not commit-ordered**
+  (E25 S6, F47). A bump inside a writer's transaction is marked pending, and
+  `Portfolixir.Derived.PostCommit` bumps its bases once more after the commit,
+  so a writer that took a lower id and committed last still moves the version
+  past every value read before its commit.
   """
 
   import Ecto.Query
 
+  alias Portfolixir.Derived.PostCommit
   alias Portfolixir.Derived.Refresher
   alias Portfolixir.Repo
 
   @global "global"
   @table "derived_data_version_events"
   @ready_key {__MODULE__, :schema_ready}
+  @pending_key {__MODULE__, :pending_column}
 
   @doc "The basis key of one portfolio's derived values."
   @spec portfolio_basis(integer()) :: String.t()
@@ -83,7 +91,7 @@ defmodule Portfolixir.Derived.DataVersion do
   @spec bump_rules(integer(), Ecto.Repo.t()) :: :ok
   def bump_rules(portfolio_id, repo \\ Repo) when is_integer(portfolio_id) do
     if schema_ready?(repo) do
-      repo.insert_all(@table, [%{basis: rules_basis(portfolio_id)}])
+      insert_events(repo, [rules_basis(portfolio_id)])
     end
 
     :ok
@@ -126,7 +134,7 @@ defmodule Portfolixir.Derived.DataVersion do
         |> Enum.concat([@global])
         |> Enum.concat(security_ids |> Enum.uniq() |> Enum.map(&security_basis/1))
 
-      repo.insert_all(@table, Enum.map(bases, &%{basis: &1}))
+      insert_events(repo, bases)
 
       # The refresher is told here rather than in `Invalidation` because this
       # is the only place that knows the EXPANDED base list — `:all` resolves
@@ -137,6 +145,66 @@ defmodule Portfolixir.Derived.DataVersion do
     end
 
     :ok
+  end
+
+  # A bump inside a writer's transaction takes its ids before the commit, so
+  # a writer with a lower id can commit after one with a higher: its rows are
+  # marked pending, and `PostCommit` bumps their bases once more after the
+  # commit (E25 S6, F47). A bump outside a transaction commits as it inserts.
+  defp insert_events(repo, bases) do
+    if pending_column?(repo) do
+      pending = repo.in_transaction?()
+      repo.insert_all(@table, Enum.map(bases, &%{basis: &1, pending: pending}))
+      if pending, do: PostCommit.notify()
+    else
+      repo.insert_all(@table, Enum.map(bases, &%{basis: &1}))
+    end
+
+    :ok
+  end
+
+  # The data migrations that run before the pending column's own migration
+  # (a fresh database's journaled seeds and backfills) bump without the mark:
+  # no reader runs during a migration. Cached once seen, like the table.
+  defp pending_column?(repo) do
+    :persistent_term.get(@pending_key, false) ||
+      case repo.query!(
+             "SELECT 1 FROM information_schema.columns " <>
+               "WHERE table_schema = 'public' AND table_name = $1 AND column_name = 'pending'",
+             [@table]
+           ).rows do
+        [] ->
+          false
+
+        _found ->
+          :persistent_term.put(@pending_key, true)
+          true
+      end
+  end
+
+  @doc """
+  Settles the pending events (E25 S6, F47): clears the mark on every one that
+  has become visible — committed; an in-flight writer's rows are not — and
+  bumps each of their bases once more with a fresh id, taken now, after those
+  commits, in one statement so no mark is cleared without its bump. Tells the
+  refresher, as every bump does. Returns the bases bumped. Called by
+  `Portfolixir.Derived.PostCommit`, outside any writer's transaction.
+  """
+  @spec settle_pending(Ecto.Repo.t()) :: [String.t()]
+  def settle_pending(repo \\ Repo) do
+    %{rows: rows} =
+      repo.query!("""
+      WITH settled AS (
+        UPDATE #{@table} SET pending = false WHERE pending RETURNING basis
+      )
+      INSERT INTO #{@table} (basis, pending)
+      SELECT DISTINCT basis, false FROM settled
+      RETURNING basis
+      """)
+
+    bases = Enum.map(rows, fn [basis] -> basis end)
+    if bases != [], do: Refresher.notify(bases)
+    bases
   end
 
   @doc """
