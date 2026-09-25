@@ -1989,8 +1989,14 @@ individual security positions) for tag-based wealth scoping. Views are named,
 global filters over those buckets: a holding matches when it is included
 (always under `include_all`, otherwise when it carries one of the view's include
 buckets) and carries none of the view's exclude buckets — exclude always wins.
-Bucket-definition and assignment writes are journaled (ADR-0017); view-definition
-writes are deliberately not journaled (ADR-0018 §5).
+Bucket-definition and assignment writes are journaled (ADR-0017). A view's
+definition is journaled too (ADR-0018 §5 as amended in Sprint 16), because a
+policy rule in force reads it: `PATCH /api/v1/views/:id`, `PUT
+/api/v1/views/:id/buckets` and `DELETE /api/v1/views/:id` each leave one
+`resource_type=view` entry, filed under the view, whose `before` and `after`
+carry the whole definition — `name`, `include_all`, `include_bucket_ids` and
+`exclude_bucket_ids`; resending the stored definition leaves none. Creating
+a view is not journaled: no rule can read it yet.
 
 - `GET /api/v1/buckets` lists buckets (`id`, `name`, `color`, `dimension`).
   `dimension` is `"tag"` (a free overlapping tag) or `"scope"` — the exclusive
@@ -2002,8 +2008,17 @@ writes are deliberately not journaled (ADR-0018 §5).
 - `GET /api/v1/buckets/:id` returns one bucket; unknown ids return `404`.
 - `PATCH /api/v1/buckets/:id` patches a bucket's `name`/`color`. The
   `dimension` is fixed at creation; attempts to change it return `422`.
-- `DELETE /api/v1/buckets/:id` deletes a bucket and cascades it out of every
-  assignment and view set, returning `204 No Content`.
+- `DELETE /api/v1/buckets/:id` deletes a bucket (`204 No Content`). It is
+  first removed from every view and assignment that names it, each through
+  its journaled writer, so each affected owner gets its own entry: every
+  view's sets before and after, every depot default set and cash-account set,
+  every position override. **A position override whose only bucket this was
+  stays explicit-empty** ("no buckets") and does not inherit its depot's
+  buckets, so the position enters no view it was not in. The bucket's own
+  `delete` entry carries its row and every membership it had
+  (`memberships`: `view_include`, `view_exclude`, `depot_defaults`,
+  `cash_accounts`, `position_overrides`). A bucket a policy rule's view reads
+  is deleted too; a bucket already gone answers `404`.
 - `GET /api/v1/views` lists views. Each view carries `include_all`, the resolved
   `include` set (the literal `"all"` under `include_all`, otherwise a list of
   bucket ids) and the `exclude` list of bucket ids.

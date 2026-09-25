@@ -40,6 +40,9 @@ defmodule Portfolixir.Journal do
       `resource_id`.
     * `:before` — the prior record/changeset-data struct (for `update`/`delete`);
       serialized into `before`. Defaults to `nil` (creates).
+    * `:before_step` — instead of `:before`, the name of an earlier Multi step
+      whose result is the prior image, for an aggregate the write reads
+      inside its own transaction (a view's definition, E25 S6, F45).
     * `:resource_id` — the id the entry is filed under when the `:source`
       record is an aggregate without one of its own (a security's quotes are
       filed under the security's id, E25 S6); defaults to the record's `id`.
@@ -80,12 +83,13 @@ defmodule Portfolixir.Journal do
     journal_step = Keyword.get(opts, :journal_step, :journal_entry)
     filed_under = Keyword.get(opts, :resource_id)
     lock_step = lock_step(operation, before, journal_step)
+    image_step = Keyword.get(opts, :before_step) || lock_step
 
     multi
     |> Multi.prepend(lock_before_multi(lock_step, operation, before))
     |> Multi.prepend(set_actor_multi(actor))
     |> Multi.run(journal_step, fn repo, changes ->
-      before = locked_before(changes, lock_step, before)
+      before = locked_before(changes, image_step, before)
       record = stored_after(repo, operation, lock_step, Map.fetch!(changes, source))
 
       if unchanged?(operation, before, record) do
@@ -108,7 +112,7 @@ defmodule Portfolixir.Journal do
         repo,
         resource_type,
         Map.fetch!(changes, source),
-        locked_before(changes, lock_step, before)
+        locked_before(changes, image_step, before)
       )
 
       {:ok, :invalidated}

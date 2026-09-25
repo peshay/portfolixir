@@ -1866,16 +1866,33 @@ einzugrenzen. Views sind benannte, globale Filter über diese Buckets: ein
 Bestand passt, wenn er eingeschlossen ist (immer unter `include_all`, sonst wenn
 er einen der Include-Buckets der View trägt) und keinen der Exclude-Buckets der
 View trägt — Exclude gewinnt immer. Bucket-Definitions- und
-Zuordnungs-Schreibvorgänge werden journalisiert (ADR-0017);
-View-Definitions-Schreibvorgänge bewusst nicht (ADR-0018 §5).
+Zuordnungs-Schreibvorgänge werden journalisiert (ADR-0017). Die Definition
+einer View ebenfalls (ADR-0018 §5 in der Fassung von Sprint 16), weil eine
+gültige Richtlinienregel sie liest: `PATCH /api/v1/views/:id`, `PUT
+/api/v1/views/:id/buckets` und `DELETE /api/v1/views/:id` hinterlassen je
+einen Eintrag mit `resource_type=view` unter der View, dessen `before` und
+`after` die ganze Definition tragen — `name`, `include_all`,
+`include_bucket_ids` und `exclude_bucket_ids`; wer die gespeicherte
+Definition erneut sendet, hinterlässt keinen. Das Anlegen einer View wird
+nicht journalisiert: Noch keine Regel kann sie lesen.
 
 - `GET /api/v1/buckets` listet Buckets (`id`, `name`, `color`).
 - `POST /api/v1/buckets` legt einen Bucket aus einem `bucket`-Objekt an (`name`
   erforderlich, optionales `color`). Ein leerer oder doppelter Name ergibt `422`.
 - `GET /api/v1/buckets/:id` liefert einen Bucket; unbekannte ids ergeben `404`.
 - `PATCH /api/v1/buckets/:id` ändert `name`/`color` eines Buckets.
-- `DELETE /api/v1/buckets/:id` löscht einen Bucket und entfernt ihn aus jeder
-  Zuordnung und jedem View-Set, Antwort `204 No Content`.
+- `DELETE /api/v1/buckets/:id` löscht einen Bucket (`204 No Content`). Zuvor
+  wird er aus jeder View und jeder Zuordnung, die ihn nennt, über deren
+  journalisierten Schreibweg entfernt, sodass jeder betroffene Eigentümer
+  seinen eigenen Eintrag erhält: die Sets jeder View vorher und nachher, jedes
+  Standard-Set eines Depots und Set eines Geldkontos, jede Positions-Zuordnung.
+  **Eine Position, deren bestimmte Buckets nur aus diesem bestehen, bleibt
+  ausdrücklich leer** („keine Buckets“) und erbt nicht vom Depot; sie gerät so
+  in keine View, in der sie vorher nicht war. Der `delete`-Eintrag des Buckets
+  trägt seine Zeile und jede Zugehörigkeit, die er hatte (`memberships`:
+  `view_include`, `view_exclude`, `depot_defaults`, `cash_accounts`,
+  `position_overrides`). Auch ein Bucket, den die View einer Richtlinienregel
+  liest, wird gelöscht; ein schon gelöschter Bucket antwortet mit `404`.
 - `GET /api/v1/views` listet Views. Jede View trägt `include_all`, das aufgelöste
   `include`-Set (das Literal `"all"` unter `include_all`, sonst eine Liste von
   Bucket-ids) und die `exclude`-Liste von Bucket-ids.

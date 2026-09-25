@@ -5,8 +5,11 @@ defmodule Portfolixir.Buckets.View do
   the `view_include_buckets` — and carries none of the `view_exclude_buckets`.
   Exclude always wins.
 
-  View-definition edits are **not** journaled (ADR-0018 §5), so the `views` table
-  (and its bucket-set link tables) are never guard-armed.
+  View-definition edits are journaled with the view's whole definition,
+  `Portfolixir.Buckets.ViewDefinition` (ADR-0018 §5 as amended in Sprint 16;
+  E25 S6, F45), by the `Portfolixir.Buckets` writers; the `views` table and
+  its bucket-set link tables stay unarmed scope tables
+  (`Portfolixir.Journal.Allowlist`), so that rests on the writers.
 
   `source_portfolio_id` marks a view seeded by the ADR-0024 portfolio migration
   (NULL = user-created); the migration rollback removes only marked records. It

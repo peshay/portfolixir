@@ -1069,6 +1069,26 @@ describe("Portfolixir MCP tools", () => {
     assert.match(upsert?.description ?? "", /replaced/);
   });
 
+  // E25 S6, F45 and T-10: view-definition writes are journaled with the sets
+  // before and after, and a bucket delete rewrites every owner through its
+  // journaled writer, an emptied override staying explicit-empty.
+  it("states the journaled view writes and the bucket delete's explicit-empty rule", () => {
+    const description = (name: string) =>
+      listTools().find((tool) => tool.name === name)?.description ?? "";
+
+    for (const name of ["portfolixir.views.update", "portfolixir.views.set_buckets"]) {
+      assert.match(description(name), /journaled/i);
+      assert.match(description(name), /before and after/);
+    }
+
+    assert.match(description("portfolixir.views.delete"), /journaled/);
+
+    const bucketDelete = description("portfolixir.buckets.delete");
+    assert.match(bucketDelete, /journaled/);
+    assert.match(bucketDelete, /explicit-empty/);
+    assert.match(bucketDelete, /does not inherit/);
+  });
+
   // E25 S6, F44 and G09: an entry's as_of and an event's checked_at cannot
   // lie in the future, and the tools say so where the agent reads the schema.
   it("states the future-date refusals on the research and event writes", () => {
