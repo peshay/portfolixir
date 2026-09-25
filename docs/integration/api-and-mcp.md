@@ -1809,7 +1809,11 @@ so "what was the standard on date D" is a read (`as_of=`), not an
 investigation of the audit journal. A version that has been in force is
 **never changed and never deleted** — the database refuses it, and refuses two
 overlapping versions of one rule. A version only scheduled for a later date is
-replaced by adding a version from the same date. Every write is journaled.
+replaced by adding a version from the same date. The database also refuses,
+on any version, a change to its rule, its predicate or its start date; on any
+rule, a change to its portfolio or view; and a `TRUNCATE` of either table. A
+version's end date and a rule's name stay writable, through the retirement,
+the edit and the rename. Every write is journaled.
 
 The reads:
 

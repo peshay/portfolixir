@@ -1669,7 +1669,12 @@ Abfrage ist (`as_of=`) und keine Recherche im Audit-Journal. Eine Version, die
 schon gegolten hat, wird **nie geändert und nie gelöscht** — die Datenbank
 lehnt es ab, ebenso zwei sich überschneidende Versionen einer Regel. Eine erst
 geplante Version wird ersetzt, indem man eine Version ab demselben Datum
-anlegt. Jeder Schreibvorgang wird journalisiert.
+anlegt. Die Datenbank lehnt außerdem bei jeder Version eine Änderung ihrer
+Regel, ihrer Aussage oder ihres Startdatums ab, bei jeder Regel eine Änderung
+ihres Portfolios oder ihrer View, und ein `TRUNCATE` beider Tabellen. Das
+Enddatum einer Version und der Name einer Regel bleiben schreibbar, über das
+Beenden, die Änderung und das Umbenennen. Jeder Schreibvorgang wird
+journalisiert.
 
 Die Lesezugriffe:
 
