@@ -84,6 +84,14 @@ Setze für eine Compose-Installation `PORTFOLIXIR_UI_PASSWORD`: es sperrt die
 Web-Oberfläche auch gegenüber den anderen Containern und gegenüber allem
 anderen, was auf diesem Host läuft.
 
+Nach außen lädt die Anwendung Logos und folgt Weiterleitungen eines Anbieters
+nur zu öffentlichen Adressen (`SECURITY.md`). Nutze auf einem reinen
+IPv6-Host hinter DNS64 das bekannte NAT64-Präfix `64:ff9b::/96`: Eine Adresse
+darin wird nach der IPv4-Adresse beurteilt, die sie trägt. Das Präfix für
+lokale Übersetzung `64:ff9b:1::/48` ist wie die privaten Bereiche ein Block für
+besondere Zwecke; jede Adresse, die ein DNS64 darin bildet, wird deshalb
+abgelehnt, und Logo-Downloads und weitergeleitete Anbieteranfragen scheitern.
+
 ## Datenbankrollen (empfohlen für eine neue Installation)
 
 Im Auslieferungszustand verbindet sich die Anwendung als Bootstrap-Superuser

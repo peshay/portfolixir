@@ -80,6 +80,13 @@ appears in every Compose install. Set
 `PORTFOLIXIR_UI_PASSWORD` for a Compose install: it also locks the web UI
 against the other containers and against whatever else runs on this host.
 
+Outbound, the application fetches logos and follows provider redirects only to
+public addresses (`SECURITY.md`). On an IPv6-only host behind DNS64, use the
+well-known NAT64 prefix `64:ff9b::/96`: an address in it is judged by the IPv4
+address it carries. The local-use translation prefix `64:ff9b:1::/48` is a
+special-purpose block like the private ranges, so every address a DNS64 builds
+in it is refused, and logo downloads and redirected provider requests fail.
+
 ## Database roles (recommended for a new install)
 
 As shipped, the application connects as the database's bootstrap superuser, the
