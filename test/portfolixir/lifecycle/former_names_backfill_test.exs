@@ -243,10 +243,6 @@ defmodule Portfolixir.Lifecycle.FormerNamesBackfillTest do
     test "a rename of an account deleted since is skipped", %{portfolio: portfolio} do
       gone = cash!(portfolio, "Giro") |> old_rename!("Main account")
 
-      # The hardened delete reads its referencing columns with
-      # String.to_existing_atom/1, which fails until a schema naming them is
-      # loaded (reported beside this lane, not L2's to change).
-      Code.ensure_loaded!(Portfolixir.Ledger.Transaction)
       {:ok, _} = Portfolios.delete_cash_account(Actor.owner_ui(), gone)
 
       assert {:ok, %{written: [], refused: []}} = FormerNamesBackfill.run(job())
