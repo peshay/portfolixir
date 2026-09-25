@@ -23,6 +23,8 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
   @endpoint "https://en.wikipedia.org/api/rest_v1/page/summary"
   @search_endpoint "https://en.wikipedia.org/w/rest.php/v1/search/page"
   @wikidata_endpoint "https://www.wikidata.org/wiki/Special:EntityData"
+  # The only hosts a request or a redirect hop may reach (F27).
+  @allowed_hosts ["en.wikipedia.org", "www.wikidata.org"]
   # Special:FilePath with a width renders SVG logos to PNG (Special:Redirect only
   # 301-redirects to the raw SVG, which the logo store then rejects — #483).
   @commons_file_path "https://commons.wikimedia.org/wiki/Special:FilePath/"
@@ -151,6 +153,7 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
       Http.new(
         headers: [{"user-agent", "portfolixir/0.1 (logo-lookup)"}],
         receive_timeout: 5_000,
+        allowed_hosts: @allowed_hosts,
         max_bytes: 2 * 1024 * 1024,
         deadline_ms: 15_000
       )
