@@ -243,18 +243,20 @@ defmodule Portfolixir.Buckets do
 
   defp release_depot(actor, securities_account_id, bucket_id) do
     actor
-    |> set_depot_default_buckets(
+    |> write_depot_default_buckets(
       %SecuritiesAccount{id: securities_account_id},
-      depot_default_bucket_ids(securities_account_id) -- [bucket_id]
+      depot_default_bucket_ids(securities_account_id) -- [bucket_id],
+      :release
     )
     |> owner_gone_is_released()
   end
 
   defp release_cash_account(actor, cash_account_id, bucket_id) do
     actor
-    |> set_cash_account_buckets(
+    |> write_cash_account_buckets(
       %CashAccount{id: cash_account_id},
-      cash_account_bucket_ids(cash_account_id) -- [bucket_id]
+      cash_account_bucket_ids(cash_account_id) -- [bucket_id],
+      :release
     )
     |> owner_gone_is_released()
   end
@@ -270,10 +272,10 @@ defmodule Portfolixir.Buckets do
     case position_override(sa_id, sec_id) do
       {:explicit, bucket_ids} ->
         actor
-        |> set_position_override(
-          %SecuritiesAccount{id: sa_id},
-          %Security{id: sec_id},
-          bucket_ids -- [bucket_id]
+        |> write_position_override(
+          {%SecuritiesAccount{id: sa_id}, %Security{id: sec_id}},
+          bucket_ids -- [bucket_id],
+          :release
         )
         |> owner_gone_is_released()
 
@@ -354,14 +356,17 @@ defmodule Portfolixir.Buckets do
   take turns and the later one's set is the one stored. A depot deleted in
   the meantime answers `{:error, :not_found}`.
   """
-  def set_depot_default_buckets(%Actor{} = actor, %SecuritiesAccount{id: sa_id}, bucket_ids)
-      when is_list(bucket_ids) do
+  def set_depot_default_buckets(%Actor{} = actor, %SecuritiesAccount{} = depot, bucket_ids)
+      when is_list(bucket_ids),
+      do: write_depot_default_buckets(actor, depot, bucket_ids, :assign)
+
+  defp write_depot_default_buckets(actor, %SecuritiesAccount{id: sa_id}, bucket_ids, check) do
     bucket_ids = Enum.uniq(bucket_ids)
     entries = Enum.map(bucket_ids, &%{securities_account_id: sa_id, bucket_id: &1})
 
     Multi.new()
     |> lock_owner(SecuritiesAccount, sa_id)
-    |> validate_assignment(bucket_ids)
+    |> validate_assignment(bucket_ids, check)
     |> Multi.delete_all(
       :clear,
       from(x in SecuritiesAccountBucket, where: x.securities_account_id == ^sa_id)
@@ -400,14 +405,17 @@ defmodule Portfolixir.Buckets do
   locks its depot. A cash account deleted in the meantime answers
   `{:error, :not_found}`.
   """
-  def set_cash_account_buckets(%Actor{} = actor, %CashAccount{id: ca_id}, bucket_ids)
-      when is_list(bucket_ids) do
+  def set_cash_account_buckets(%Actor{} = actor, %CashAccount{} = cash_account, bucket_ids)
+      when is_list(bucket_ids),
+      do: write_cash_account_buckets(actor, cash_account, bucket_ids, :assign)
+
+  defp write_cash_account_buckets(actor, %CashAccount{id: ca_id}, bucket_ids, check) do
     bucket_ids = Enum.uniq(bucket_ids)
     entries = Enum.map(bucket_ids, &%{cash_account_id: ca_id, bucket_id: &1})
 
     Multi.new()
     |> lock_owner(CashAccount, ca_id)
-    |> validate_assignment(bucket_ids)
+    |> validate_assignment(bucket_ids, check)
     |> Multi.delete_all(
       :clear,
       from(x in CashAccountBucket, where: x.cash_account_id == ^ca_id)
@@ -456,11 +464,19 @@ defmodule Portfolixir.Buckets do
   """
   def set_position_override(
         %Actor{} = actor,
-        %SecuritiesAccount{id: sa_id},
-        %Security{id: sec_id},
+        %SecuritiesAccount{} = depot,
+        %Security{} = security,
         bucket_ids
       )
-      when is_list(bucket_ids) do
+      when is_list(bucket_ids),
+      do: write_position_override(actor, {depot, security}, bucket_ids, :assign)
+
+  defp write_position_override(
+         actor,
+         {%SecuritiesAccount{id: sa_id}, %Security{id: sec_id}},
+         bucket_ids,
+         check
+       ) do
     entries =
       case Enum.uniq(bucket_ids) do
         [] ->
@@ -472,7 +488,7 @@ defmodule Portfolixir.Buckets do
 
     Multi.new()
     |> lock_owner(SecuritiesAccount, sa_id)
-    |> validate_assignment(bucket_ids)
+    |> validate_assignment(bucket_ids, check)
     |> Multi.delete_all(:clear, position_override_query(sa_id, sec_id))
     |> Multi.insert_all(:assign, PositionBucketOverride, entries)
     |> Multi.run(:record, fn _repo, _changes ->
@@ -1296,7 +1312,12 @@ defmodule Portfolixir.Buckets do
   # (`{:error, :bucket_ids}`, a clean 422), and at most one may belong to
   # the exclusive "scope" dimension (ADR-0024, `{:error,
   # :exclusive_bucket_conflict}`), so scope-scoped totals always add up.
-  defp validate_assignment(multi, bucket_ids) do
+  #
+  # A bucket delete's `:release` of the bucket from a set skips the scope
+  # count (E25 S6 review round, G19): removing a bucket cannot add a
+  # conflict, and a set stored before the rule held for overrides must not
+  # block a delete that only shrinks it.
+  defp validate_assignment(multi, bucket_ids, check) do
     ids = Enum.uniq(bucket_ids)
 
     Multi.run(multi, :buckets, fn repo, _changes ->
@@ -1314,7 +1335,7 @@ defmodule Portfolixir.Buckets do
         length(dimensions) < length(ids) ->
           {:error, :bucket_ids}
 
-        Enum.count(dimensions, &(&1 == @scope_dimension)) > 1 ->
+        check == :assign and Enum.count(dimensions, &(&1 == @scope_dimension)) > 1 ->
           {:error, :exclusive_bucket_conflict}
 
         true ->

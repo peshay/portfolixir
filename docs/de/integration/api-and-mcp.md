@@ -1957,7 +1957,11 @@ nicht journalisiert: Noch keine Regel kann sie lesen.
   trägt seine Zeile und jede Zugehörigkeit, die er hatte (`memberships`:
   `view_include`, `view_exclude`, `depot_defaults`, `cash_accounts`,
   `position_overrides`). Auch ein Bucket, den die View einer Richtlinienregel
-  liest, wird gelöscht; ein schon gelöschter Bucket antwortet mit `404`.
+  liest, wird gelöscht; ein schon gelöschter Bucket antwortet mit `404`. Das
+  Entfernen des Buckets aus einem Set prüft die exklusive Scope-Dimension nicht
+  erneut, sodass ein Set, das gespeichert wurde, bevor diese Regel galt, das
+  Löschen nie blockiert; ein Set, aus dem der Bucket nicht entfernt werden
+  kann, antwortet mit `422`, und nichts wird gelöscht.
 - `GET /api/v1/views` listet Views. Jede View trägt `include_all`, das aufgelöste
   `include`-Set (das Literal `"all"` unter `include_all`, sonst eine Liste von
   Bucket-ids) und die `exclude`-Liste von Bucket-ids.

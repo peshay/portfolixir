@@ -2077,7 +2077,10 @@ a view is not journaled: no rule can read it yet.
   `delete` entry carries its row and every membership it had
   (`memberships`: `view_include`, `view_exclude`, `depot_defaults`,
   `cash_accounts`, `position_overrides`). A bucket a policy rule's view reads
-  is deleted too; a bucket already gone answers `404`.
+  is deleted too; a bucket already gone answers `404`. Removing the bucket
+  from a set never re-checks the exclusive scope dimension, so a set stored
+  before that rule held never blocks the delete; a set the bucket cannot be
+  removed from answers `422`, and nothing is deleted.
 - `GET /api/v1/views` lists views. Each view carries `include_all`, the resolved
   `include` set (the literal `"all"` under `include_all`, otherwise a list of
   bucket ids) and the `exclude` list of bucket ids.
