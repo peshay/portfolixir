@@ -142,6 +142,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:detail_note_editing?, false)
      |> assign(:research_form_kind, "evidence")
      |> assign(:research_form_errors, [])
+     |> assign(:research_form_values, %{})
      |> assign(:row_menu_id, nil)
      |> assign(:editing_security, nil)
      |> assign(:delete_blocked, nil)
@@ -1280,6 +1281,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
           thesis_state={@detail_thesis_state}
           form_kind={@research_form_kind}
           form_errors={@research_form_errors}
+          form_values={@research_form_values}
         />
       <% end %>
 
@@ -2238,6 +2240,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   attr(:thesis_state, :map, required: true)
   attr(:form_kind, :string, required: true)
   attr(:form_errors, :list, default: [])
+  # What a refused submit carried, drawn back into the form (E25 S6, board 11):
+  # a refusal names what to correct, never what to type again.
+  attr(:form_values, :map, default: %{})
 
   # ADR-0044 §6: the research timeline. Newest first; kind and source quality
   # visible; a superseded entry stays in the list marked as superseded; a
@@ -2336,20 +2341,22 @@ defmodule PortfolixirWeb.SecuritiesLive do
             <span><%= gettext("Source quality") %></span>
             <select name="note[source_quality]">
               <%= for quality <- SecurityNote.source_qualities() do %>
-                <option value={quality}><%= source_quality_label(quality) %></option>
+                <option value={quality} selected={@form_values["source_quality"] == quality}>
+                  <%= source_quality_label(quality) %>
+                </option>
               <% end %>
             </select>
           </label>
           <label>
             <span><%= gettext("As of") %></span>
-            <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="note[as_of]" value={@today} required />
+            <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="note[as_of]" value={Map.get(@form_values, "as_of", @today)} required />
           </label>
           <label>
             <span><%= gettext("Supersedes") %></span>
             <select name="note[supersedes_id]">
               <option value=""><%= gettext("— nothing —") %></option>
               <%= for note <- @notes do %>
-                <option value={note.id}>
+                <option value={note.id} selected={@form_values["supersedes_id"] == to_string(note.id)}>
                   #<%= note.id %> · <%= kind_label(note.kind) %> · <%= Format.date(note.as_of) %>
                 </option>
               <% end %>
@@ -2357,15 +2364,15 @@ defmodule PortfolixirWeb.SecuritiesLive do
           </label>
           <label class="research-entry-form__full">
             <span><%= gettext("Entry") %></span>
-            <textarea name="note[body]" rows="3" required></textarea>
+            <textarea name="note[body]" rows="3" required><%= @form_values["body"] %></textarea>
           </label>
           <label class="research-entry-form__full">
             <span><%= gettext("Source link") %></span>
-            <input type="url" name="note[source_url]" inputmode="url" />
+            <input type="url" name="note[source_url]" inputmode="url" value={@form_values["source_url"]} />
           </label>
           <label>
             <span><%= gettext("Valid until") %></span>
-            <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="note[valid_until]" />
+            <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="note[valid_until]" value={@form_values["valid_until"]} />
           </label>
           <%= if @form_kind == "thesis" do %>
             <label>
@@ -2373,17 +2380,19 @@ defmodule PortfolixirWeb.SecuritiesLive do
               <select name="note[conviction]">
                 <option value=""><%= gettext("— not stated —") %></option>
                 <%= for tier <- SecurityNote.convictions() do %>
-                  <option value={tier}><%= conviction_label(tier) %></option>
+                  <option value={tier} selected={@form_values["conviction"] == tier}>
+                    <%= conviction_label(tier) %>
+                  </option>
                 <% end %>
               </select>
             </label>
             <label class="research-entry-form__full">
               <span><%= gettext("Invalidation condition") %></span>
-              <input type="text" name="note[invalidation_condition]" />
+              <input type="text" name="note[invalidation_condition]" value={@form_values["invalidation_condition"]} />
             </label>
             <label>
               <span><%= gettext("Time stop") %></span>
-              <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="note[time_stop]" />
+              <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="note[time_stop]" value={@form_values["time_stop"]} />
             </label>
           <% end %>
         </div>
@@ -4121,10 +4130,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
   def handle_event("append_research_entry", %{"note" => params}, socket) do
     case socket.assigns.selected_security do
       %Security{id: id} ->
+        typed = params |> LiveParam.map() |> Map.take(@research_form_keys)
+
         attrs =
-          params
-          |> LiveParam.map()
-          |> Map.take(@research_form_keys)
+          typed
           |> Map.put("security_id", id)
           |> Map.put("author", "operator")
           |> drop_blank_values()
@@ -4134,6 +4143,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
             {:noreply,
              socket
              |> assign(:research_form_errors, [])
+             |> assign(:research_form_values, %{})
              |> assign(:research_form_kind, "evidence")
              |> load_research_log()
              |> put_action_result(:note, gettext("Entry appended."))}
@@ -4142,6 +4152,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
             {:noreply,
              socket
              |> assign(:research_form_errors, research_form_errors(changeset))
+             |> assign(:research_form_values, text_values(typed))
              |> put_action_result(:problem, gettext("Could not append the entry."))}
         end
 
@@ -4878,6 +4889,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:detail_thesis_state, ThesisState.none())
     |> assign(:detail_note_editing?, false)
     |> assign(:research_form_errors, [])
+    |> assign(:research_form_values, %{})
   end
 
   defp load_detail_data(%{assigns: %{selected_security: nil}} = socket), do: socket
@@ -5048,16 +5060,31 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> Map.new()
   end
 
+  # "Field: message", the message through the "errors" Gettext domain like the
+  # booking form's (E25 S6, board 11), so a German page reads "darf nicht in
+  # der Zukunft liegen" rather than the changeset's English.
   defp research_form_errors(changeset) do
     changeset
-    |> Ecto.Changeset.traverse_errors(fn {message, opts} ->
-      Enum.reduce(opts, message, fn {key, value}, acc ->
-        String.replace(acc, "%{#{key}}", to_string(value))
-      end)
-    end)
+    |> Ecto.Changeset.traverse_errors(&translate_research_error/1)
     |> Enum.flat_map(fn {field, messages} ->
       Enum.map(messages, &"#{research_field_label(field)}: #{&1}")
     end)
+  end
+
+  defp translate_research_error({message, opts}) do
+    if count = opts[:count] do
+      Gettext.dngettext(PortfolixirWeb.Gettext, "errors", message, message, count, opts)
+    else
+      Gettext.dgettext(PortfolixirWeb.Gettext, "errors", message, opts)
+    end
+  end
+
+  # Only text goes back into the form: a value that is not a string (a
+  # crafted nested map) is dropped rather than drawn.
+  defp text_values(typed) do
+    typed
+    |> Enum.filter(fn {_key, value} -> is_binary(value) end)
+    |> Map.new()
   end
 
   defp research_field_label(:body), do: gettext("Entry")

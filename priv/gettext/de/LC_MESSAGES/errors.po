@@ -150,3 +150,10 @@ msgstr "ist keine WKN (sechs Buchstaben oder Ziffern)"
 
 msgid "must be printable ASCII characters"
 msgstr "darf nur aus druckbaren ASCII-Zeichen bestehen"
+
+## E25 S6 (F44, G09): a research-log entry's as_of, and an event's checked_at.
+msgid "must not be in the future"
+msgstr "darf nicht in der Zukunft liegen"
+
+msgid "must not be later than tomorrow"
+msgstr "darf nicht nach morgen liegen"

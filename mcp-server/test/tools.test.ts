@@ -1069,6 +1069,21 @@ describe("Portfolixir MCP tools", () => {
     assert.match(upsert?.description ?? "", /replaced/);
   });
 
+  // E25 S6, F44 and G09: an entry's as_of and an event's checked_at cannot
+  // lie in the future, and the tools say so where the agent reads the schema.
+  it("states the future-date refusals on the research and event writes", () => {
+    const property = (name: string, path: string[]) => {
+      let node: any = listTools().find((tool) => tool.name === name)?.inputSchema;
+      for (const key of path) node = node?.properties?.[key];
+      return (node?.description as string | undefined) ?? "";
+    };
+
+    assert.match(property("portfolixir.notes.append", ["note", "as_of"]), /not after today/);
+    for (const name of ["portfolixir.events.create", "portfolixir.events.update"]) {
+      assert.match(property(name, ["event", "checked_at"]), /no later than tomorrow/, name);
+    }
+  });
+
   // E25 S6, F20: a tax statement's source is the system's to state.
   it("offers no source on the tax statement write tools", () => {
     for (const name of ["portfolixir.tax_snapshots.create", "portfolixir.tax_snapshots.update"]) {

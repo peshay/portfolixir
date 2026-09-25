@@ -42,11 +42,16 @@ defmodule Portfolixir.Knowledge do
   `invalidation_condition`, `time_stop`). `supersedes_id` must name an entry
   of the same security; a `retraction` must supersede one.
 
+  `opts[:today]` injects the clock (AR-2) and defaults to `Clock.today/0`;
+  an `as_of` after it is refused (E25 S6, F44).
+
   Returns `{:ok, note}` or `{:error, changeset}`.
   """
-  @spec append_note(Actor.t(), map()) :: {:ok, SecurityNote.t()} | {:error, Ecto.Changeset.t()}
-  def append_note(%Actor{} = actor, attrs) when is_map(attrs) do
-    changeset = SecurityNote.changeset(%SecurityNote{}, attrs)
+  @spec append_note(Actor.t(), map(), keyword()) ::
+          {:ok, SecurityNote.t()} | {:error, Ecto.Changeset.t()}
+  def append_note(%Actor{} = actor, attrs, opts \\ []) when is_map(attrs) do
+    today = Keyword.get(opts, :today, Clock.today())
+    changeset = SecurityNote.changeset(%SecurityNote{}, attrs, today)
 
     multi =
       Multi.new()
@@ -150,10 +155,17 @@ defmodule Portfolixir.Knowledge do
     today = Keyword.get(opts, :today, Clock.today())
     cutoff = Date.add(today, -days)
 
+    # An entry counts as a review on its as_of, but no later than the day it
+    # was written (one day of zone slack): an entry stored with a future
+    # as_of cannot keep its position off this read (E25 S6, F44;
+    # `SecurityNote.review_date/1` is the same rule for one loaded entry).
     latest =
       from(n in SecurityNote,
         group_by: n.security_id,
-        select: %{security_id: n.security_id, last_as_of: max(n.as_of)}
+        select: %{
+          security_id: n.security_id,
+          last_as_of: max(fragment("LEAST(?, (?::date + 1))", n.as_of, n.inserted_at))
+        }
       )
 
     from(s in Security,
