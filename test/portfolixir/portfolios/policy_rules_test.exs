@@ -673,4 +673,30 @@ defmodule Portfolixir.Portfolios.PolicyRulesTest do
     assert both.name == "Single name at most 12 %"
     assert length(both.versions) == 2
   end
+
+  # The S3/S4/D review round (LD-3):
+  # Acceptance criteria:
+  # - A rename of a rule deleted since it was read answers
+  #   {:error, :not_found}, as its sibling writers answer a vanished rule,
+  #   and never raises; the combined save answers the same.
+  test "a rename of a rule deleted in the meantime is not found, never a raise",
+       %{world: world, security: security} do
+    rule =
+      rule!(world.portfolio, weight_cap(security, %{valid_from: Date.add(today(), 5)}),
+        name: "Scheduled cap"
+      )
+
+    {:ok, _deleted} = PolicyRules.delete_rule(Actor.owner_ui(), rule)
+
+    assert {:error, :not_found} =
+             PolicyRules.rename_rule(Actor.owner_ui(), rule, %{"name" => "Gone"})
+
+    assert {:error, :not_found} =
+             PolicyRules.rename_and_add_version(
+               Actor.owner_ui(),
+               rule,
+               %{"name" => "Gone"},
+               weight_cap(security, %{threshold: "12"})
+             )
+  end
 end

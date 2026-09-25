@@ -647,6 +647,30 @@ defmodule PortfolixirWeb.RiskPolicyRulesLiveTest do
     assert PolicyRules.get_rule(retired.id).versions |> hd() |> Map.get(:valid_until)
   end
 
+  # The S3/S4/D review round (LD-3):
+  # Acceptance criteria:
+  # - A rename saved from a dialog whose rule was deleted meanwhile (from
+  #   another tab) says the rule no longer exists; the page stays alive.
+  test "a rename of a rule deleted meanwhile says so in the dialog", %{conn: conn} do
+    world = rules_world()
+
+    rule =
+      rule!(world, "Geplanter Deckel", single_cap(world, %{valid_from: Date.add(today(), 5)}))
+
+    {:ok, view, _html} = live(conn, "/risk")
+    view |> element("button[phx-value-id='#{rule.id}']") |> render_click()
+
+    {:ok, _deleted} = PolicyRules.delete_rule(Actor.owner_ui(), rule)
+
+    html =
+      view
+      |> form("#policy-rule-form", rule: %{name: "Umbenannt"})
+      |> render_submit()
+
+    assert html =~ "This rule no longer exists."
+    assert has_element?(view, "dialog#policy-rule-dialog")
+  end
+
   test "renames a rule from its dialog without a new version", %{conn: conn} do
     world = rules_world()
 

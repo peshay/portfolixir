@@ -62,6 +62,7 @@ defmodule Portfolixir.Portfolios.PolicyRules do
           | :in_force
           | :never_in_force
           | :already_retired
+          | :not_found
 
   # -- writes ------------------------------------------------------------------
 
@@ -204,7 +205,8 @@ defmodule Portfolixir.Portfolios.PolicyRules do
   be unique. The rules counter is bumped, because a finding carries the name.
 
   Returns `{:ok, rule}` (versions preloaded) or `{:error, changeset}` — a
-  blank or over-long name is refused, never silently kept. Resending the
+  blank or over-long name is refused, never silently kept — or
+  `{:error, :not_found}` for a rule deleted since it was read. Resending the
   stored name writes nothing.
   """
   @spec rename_rule(Actor.t(), PolicyRule.t(), map(), keyword()) ::
@@ -213,24 +215,30 @@ defmodule Portfolixir.Portfolios.PolicyRules do
     attrs = %{"name" => attr(attrs, :name)}
 
     transaction(fn ->
-      stored = PolicyRule |> lock("FOR UPDATE") |> Repo.get!(rule.id)
-      changeset = PolicyRule.rename_changeset(stored, attrs)
-
-      cond do
-        not changeset.valid? ->
-          {:error, %{changeset | action: :update}}
-
-        changeset.changes == %{} ->
-          stored.id
-
-        true ->
-          with {:ok, renamed} <- journaled_update(actor, changeset, stored, "policy_rule") do
-            Invalidation.after_rule_write(renamed.portfolio_id, Repo)
-            renamed.id
-          end
+      case PolicyRule |> lock("FOR UPDATE") |> Repo.get(rule.id) do
+        nil -> {:error, :not_found}
+        stored -> rename_stored(actor, stored, attrs)
       end
     end)
     |> reload(opts)
+  end
+
+  defp rename_stored(actor, stored, attrs) do
+    changeset = PolicyRule.rename_changeset(stored, attrs)
+
+    cond do
+      not changeset.valid? ->
+        {:error, %{changeset | action: :update}}
+
+      changeset.changes == %{} ->
+        stored.id
+
+      true ->
+        with {:ok, renamed} <- journaled_update(actor, changeset, stored, "policy_rule") do
+          Invalidation.after_rule_write(renamed.portfolio_id, Repo)
+          renamed.id
+        end
+    end
   end
 
   @doc """

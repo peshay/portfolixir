@@ -1759,10 +1759,12 @@ The writes:
   with its versions). The journal keeps the previous name and who changed it.
   Allowed on a retired rule. Only `name` is read, as on
   `PATCH /api/v1/plans/:id`: a blank, missing or non-text name is a `422` on
-  `name`; a predicate field, a `version` or the context (`view_id`,
-  `portfolio_id`) in the same body is a `422` naming each such field, and
-  nothing is written — a new line is a new version, and a rule in another
-  context is a new rule. Any other key is ignored.
+  `name`; a predicate field, a `version`, the version keys of the rule's own
+  read shape (`version_in_force`, `next_version`, `versions`) or the context
+  (`view_id`, `portfolio_id`) in the same body is a `422` naming each such
+  field, and nothing is written — a new line is a new version, and a rule in
+  another context is a new rule. Any other key is ignored. A rule deleted
+  since it was read is a `404`.
 - `POST /api/v1/policy_rules/:id/retire` — optional `valid_until`; ends the
   version in force yesterday by default (tonight when it only started today)
   and drops any version scheduled after it. The rule stays readable with

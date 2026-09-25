@@ -7620,6 +7620,11 @@ msgstr ""
 msgid "The rule could not be deleted."
 msgstr ""
 
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex
+#, elixir-autogen, elixir-format
+msgid "This rule no longer exists."
+msgstr ""
+
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:551
 #, elixir-autogen, elixir-format
 msgid "The rule could not be retired."
