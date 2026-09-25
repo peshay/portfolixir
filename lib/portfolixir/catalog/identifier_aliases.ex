@@ -365,6 +365,17 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
     end
   end
 
+  @doc """
+  Takes the ISIN write lock as an `Ecto.Multi` step, for a writer that must
+  hold it before the journal's row lock (E25 S6 review round, F49): the
+  lock every ISIN writer takes first.
+  """
+  @spec lock_isin_writes(Ecto.Repo.t(), map()) :: {:ok, :locked}
+  def lock_isin_writes(repo, _changes) do
+    :ok = acquire_isin_write_lock(repo)
+    {:ok, :locked}
+  end
+
   defp acquire_isin_write_lock(repo) do
     repo.query!("SELECT pg_advisory_xact_lock($1)", [@isin_write_lock_key])
     :ok
