@@ -129,7 +129,9 @@ defmodule PortfolixirWeb.ImportsLive do
     assigns =
       assign(assigns,
         kind_counts: Enum.sort(Preview.counts_by_kind(assigns.preview)),
-        unique_securities_count: length(Preview.unique_securities(assigns.preview)),
+        # The securities the mapping step lists (E25 S5, F33): one per
+        # unique reference of the resolution plan, whatever it carries.
+        unique_securities_count: length(resolutions),
         total_entries: total_entries(assigns.preview),
         matched_resolutions: Enum.filter(resolutions, &(&1.status == :matched)),
         plain_create_resolutions: Enum.filter(resolutions, &(&1.status == :create)),
@@ -689,6 +691,23 @@ defmodule PortfolixirWeb.ImportsLive do
   def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   @impl true
+  def handle_info({:park_preview, park}, socket) do
+    # Only the preview this page still shows: a reset, an apply or another
+    # upload in between has moved on, and parking it would bring it back.
+    if socket.assigns.stage == :preview and Map.get(socket.assigns, :park) == park do
+      PreviewStore.put(
+        socket.assigns.session_token,
+        socket.assigns.preview,
+        socket.assigns.mapping
+      )
+    end
+
+    {:noreply, socket}
+  end
+
+  def handle_info(_message, socket), do: {:noreply, socket}
+
+  @impl true
   def handle_async(:apply_import, {:ok, {:ok, result}}, socket) do
     PreviewStore.delete(socket.assigns.session_token)
 
@@ -787,9 +806,13 @@ defmodule PortfolixirWeb.ImportsLive do
             |> assign_security_resolutions(preview)
             |> assign(:mapping, initial_mapping_for(preview))
 
-          PreviewStore.put(socket.assigns.session_token, preview, socket.assigns.mapping)
+          # E25 S5 (F33): parked only once it has rendered. The message is
+          # handled after this callback's render, so a preview whose first
+          # render fails is never parked to fail again on every remount.
+          park = make_ref()
+          send(self(), {:park_preview, park})
 
-          {:noreply, socket}
+          {:noreply, assign(socket, :park, park)}
 
         {:error, reason} ->
           {:noreply, assign(socket, :error, parse_error_message(reason))}

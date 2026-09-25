@@ -7866,3 +7866,8 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "The file is not UTF-8 encoded. Remedy: export it again from Portfolio Performance and drop the file without saving it in a spreadsheet first."
 msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance.ex:77
+#, elixir-autogen, elixir-format
+msgid "security without a name and without an ISIN — row not imported"
+msgstr ""

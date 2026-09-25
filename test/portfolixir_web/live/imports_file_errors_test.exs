@@ -78,4 +78,71 @@ defmodule PortfolixirWeb.ImportsFileErrorsTest do
 
     assert has_element?(view, ".alert-error", "Die Datei ist nicht in UTF-8 kodiert.")
   end
+
+  defp json_export(transactions) do
+    Jason.encode!(%{"version" => 1, "transactions" => transactions})
+  end
+
+  defp upload_json(view, name, content) do
+    file_input(view, "#pp-import-form", :pp_file, [
+      %{name: name, content: content, type: "application/json", last_modified: 1_700_000_000_000}
+    ])
+    |> render_upload(name)
+  end
+
+  defp purchase(row_security) do
+    %{
+      "type" => "PURCHASE",
+      "account" => "Test-Cash",
+      "portfolio" => "Test-Depot",
+      "date" => "2024-04-01",
+      "currency" => "EUR",
+      "amount" => "500.00",
+      "shares" => "5",
+      "security" => row_security
+    }
+  end
+
+  # User story (E25 S5, F33, board 11):
+  # As an operator importing an export whose security entries are incomplete,
+  # I want the preview to show them, survive a reload and be discardable,
+  # so that one odd entry never locks me out of the Imports page.
+  #
+  # Acceptance criteria:
+  # - A security with neither a name nor an ISIN (a WKN or a ticker only)
+  #   previews, counted once under the securities.
+  # - A security that names nothing is a parser warning and not an entry.
+  # - The parked preview remounts, and "Discard" returns to the drop zone.
+  test "blank and partial security references preview, remount and discard", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/imports")
+
+    export =
+      json_export([
+        purchase(%{"wkn" => "A0RPWH", "currency" => "EUR"}),
+        purchase(%{"ticker" => "SYN", "currency" => "EUR"}),
+        purchase(%{"currency" => "EUR"})
+      ])
+
+    upload_json(view, "partial.json", export)
+
+    html = render(view)
+    assert html =~ "Preview"
+
+    assert has_element?(
+             view,
+             "#parser-warnings-box",
+             "Row 3: security without a name and without an ISIN — row not imported"
+           )
+
+    assert view |> element(".import-stat-card", "Securities") |> render() =~ ">2<"
+    assert view |> element(".import-stat-card", "Entries") |> render() =~ ">2<"
+    assert parked() != nil
+
+    {:ok, remounted, html} = live(conn, "/imports")
+    assert html =~ "Preview"
+
+    remounted |> element("button", "Discard") |> render_click()
+    assert has_element?(remounted, "form#pp-import-form.import-drop-zone")
+    assert parked() == nil
+  end
 end

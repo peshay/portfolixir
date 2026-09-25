@@ -7867,3 +7867,8 @@ msgstr "Der neue Name gilt für die Regel mit allen Versionen."
 #, elixir-autogen, elixir-format
 msgid "The file is not UTF-8 encoded. Remedy: export it again from Portfolio Performance and drop the file without saving it in a spreadsheet first."
 msgstr "Die Datei ist nicht in UTF-8 kodiert. Abhilfe: in Portfolio Performance neu exportieren und die Datei ablegen, ohne sie vorher in einer Tabellenkalkulation zu speichern."
+
+#: lib/portfolixir/imports/portfolio_performance.ex:77
+#, elixir-autogen, elixir-format
+msgid "security without a name and without an ISIN — row not imported"
+msgstr "Wertpapier ohne Name und ohne ISIN — Zeile nicht übernommen"

@@ -161,6 +161,30 @@ defmodule Portfolixir.Imports.ParserRobustnessTest do
              PortfolioPerformance.parse("\uFEFF" <> csv([@csv_ok]), filename: "bom.csv")
   end
 
+  # User story (E25 S5, F33, board 11):
+  # As an operator importing an export with a security entry that names nothing,
+  # I want that row listed as a parser warning and left out,
+  # so that the rest of the file previews and imports.
+  #
+  # Acceptance criteria:
+  # - A row whose security carries no name, ISIN, WKN or ticker is a row
+  #   warning naming the reason, and is not an entry.
+  # - A security with only a WKN or a ticker is a partial reference and stays.
+  # - The sound rows next to it are entries.
+  test "a security reference that names nothing is a row warning, a partial one stays" do
+    blank = Map.put(base_tx(), "security", %{"currency" => "EUR", "name" => "  "})
+    wkn_only = Map.put(base_tx(), "security", %{"wkn" => "A0RPWH", "currency" => "EUR"})
+    ticker_only = Map.put(base_tx(), "security", %{"ticker" => "SYN", "currency" => "EUR"})
+
+    assert {:ok, %Preview{entries: entries, errors: [%{row: 2, message: message}]}} =
+             PortfolioPerformance.parse(json([base_tx(), blank, wkn_only, ticker_only]),
+               filename: "blank.json"
+             )
+
+    assert message == "security without a name and without an ISIN — row not imported"
+    assert Enum.map(entries, & &1.source_row) == [1, 3, 4]
+  end
+
   test "a version-1 payload whose transactions are not a list is malformed, and a BOM is not a column" do
     assert {:error, :malformed_payload} =
              PortfolioPerformance.parse(~s({"version":1,"transactions":"x"}), filename: "x.json")
