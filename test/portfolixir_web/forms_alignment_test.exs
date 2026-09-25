@@ -29,4 +29,23 @@ defmodule PortfolixirWeb.FormsAlignmentTest do
     # No dead identifier class: .mono is a real monospace rule (issue 412).
     assert app_css =~ ~r/\.mono \{[^}]*font-family: var\(--font-mono\)/s
   end
+
+  # User story (#869, Lane C review round DC-C3; board 05):
+  # As the operator whose quantity was refused,
+  # I want the price beside it to keep its height,
+  # so that the error under one field of a paired row does not stretch the
+  # other field to twice its size.
+  #
+  # Acceptance criteria:
+  # - A label's own tracks do not absorb the height a grid row gives it: the
+  #   label stacks its caption and control from the top (`align-content:
+  #   start`), so a label stretched to a taller neighbour leaves the space
+  #   below its control empty instead of growing the control.
+  test "a label stretched by its row does not stretch its control" do
+    app_css = File.read!("priv/static/app.css")
+
+    [label] = Regex.run(~r/\nlabel \{[^}]*\}/s, app_css)
+    assert label =~ "display: grid"
+    assert label =~ "align-content: start"
+  end
 end

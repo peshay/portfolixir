@@ -970,6 +970,11 @@ set-balance dialog on Accounts & depots.
   "ist mehrdeutig: ohne Tausendertrennzeichen eingeben". A figure with two
   separators (`1.664,40`) is refused the same way; an exponent, `NaN`, an inner
   space or a trailing separator is invalid. A refused figure saves nothing.
+- **A refusal does not reshape its row.** A label stacks its caption and
+  control from the top (`label { align-content: start }`), so the error under
+  one field of a paired row (quantity · price) leaves the other field at its
+  own height; the grid row still grows, the neighbour's control does not
+  (review round, 2026-09-25).
 - **`input.num` joins the generic `.num` rule** — right-aligned, tabular
   numerals — which sits last in `app.css`, so it outranks the bare `input` rule by
   specificity and any scoped `… input` rule by source order. An amount and a rate
