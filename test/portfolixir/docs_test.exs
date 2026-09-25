@@ -1392,4 +1392,23 @@ defmodule Portfolixir.DocsTest do
       end
     end
   end
+
+  # E25 S3, F32 (#888), the S3/S4 review round (R3): the local-use NAT64
+  # prefix is a special-purpose block the outbound policy refuses; an
+  # IPv6-only operator reads which prefix works before a logo download fails.
+  test "the docs state which NAT64 prefix the outbound policy accepts" do
+    for {path, fragments} <- [
+          {"docs/home-deployment.md",
+           ["well-known NAT64 prefix `64:ff9b::/96`", "`64:ff9b:1::/48` is a special-purpose"]},
+          {"docs/de/home-deployment.md",
+           ["bekannte NAT64-Präfix `64:ff9b::/96`", "`64:ff9b:1::/48` ist wie die privaten"]},
+          {"SECURITY.md", ["local-use IPv4/IPv6 translation prefix (`64:ff9b:1::/48`)"]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+  end
 end

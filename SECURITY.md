@@ -86,8 +86,12 @@ than its credential (`docs/home-deployment.md` gives the recommended owner role
 and a runtime role without `TRUNCATE` for a new install); the outbound URL
 policy resolves a name once for the check and the client resolves it again to
 connect, so a name whose answer changes in between can pass (the byte cap, the
-deadline and the redirect re-check bound what such a fetch can do); and the
-WebSocket handshake is dispatched ahead of the Host guard and rests on
+deadline and the redirect re-check bound what such a fetch can do); an address
+in the local-use IPv4/IPv6 translation prefix (`64:ff9b:1::/48`) is refused
+like every special-purpose block, so an IPv6-only host whose DNS64 uses it
+cannot download logos or follow provider redirects (the well-known prefix
+`64:ff9b::/96` is judged by the IPv4 address it carries,
+`docs/home-deployment.md`); and the WebSocket handshake is dispatched ahead of the Host guard and rests on
 `check_origin`, built from the same allow-list. The policy's `style-src` admits inline `style`
 attributes (the data-driven colours and tree indents the pages render), so it
 guards against script injection, not against CSS injection.
