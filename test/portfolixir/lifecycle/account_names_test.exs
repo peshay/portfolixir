@@ -82,6 +82,45 @@ defmodule Portfolixir.Lifecycle.AccountNamesTest do
       assert renamed.former_names == []
       assert reload(b).name == "Giro"
     end
+
+    # User story:
+    # As the owner reading the audit journal after an agent renamed an
+    # account from a copy it had loaded earlier,
+    # I want the rename's entry to start from the account as it was stored,
+    # so that a former-name change someone else made in between is not
+    # credited to the rename.
+    #
+    # Acceptance criteria:
+    # - The rename's before-image carries the stored former names, not the
+    #   caller's copy; its after-image the names the rename rule left.
+    # - The same holds for a depot.
+    test "a rename journals the stored row as its before-image", %{portfolio: portfolio} do
+      giro = cash!(portfolio, "Giro")
+      {:ok, main} = Portfolios.update_cash_account(agent(), giro, %{name: "Main account"})
+      stale = reload(main)
+      {:ok, _} = AccountNames.remove_former_name(agent(), main, "Giro")
+
+      {:ok, primary} = Portfolios.update_cash_account(agent(), stale, %{name: "Primary"})
+      assert primary.former_names == ["Main account"]
+
+      [entry | _] = Journal.list_entries(resource_type: "cash_account", resource_id: "#{giro.id}")
+      assert entry.before["name"] == "Main account"
+      assert entry.before["former_names"] == []
+      assert entry.after["former_names"] == ["Main account"]
+
+      depot = depot!(portfolio, "Depot", giro)
+      {:ok, renamed} = Portfolios.update_securities_account(agent(), depot, %{name: "Broker"})
+      stale_depot = reload(renamed)
+      {:ok, _} = AccountNames.remove_former_name(agent(), renamed, "Depot")
+
+      {:ok, _} = Portfolios.update_securities_account(agent(), stale_depot, %{name: "Main depot"})
+
+      [entry | _] =
+        Journal.list_entries(resource_type: "securities_account", resource_id: "#{depot.id}")
+
+      assert entry.before["former_names"] == []
+      assert entry.after["former_names"] == ["Broker"]
+    end
   end
 
   describe "the name guard (§4)" do

@@ -220,17 +220,23 @@ defmodule Portfolixir.Portfolios do
 
   def get_cash_account(id) when is_integer(id), do: Repo.get(CashAccount, id)
 
+  # A rename or a move starts from the row as stored (ADR-0050 §4): its
+  # changeset and its journal before-image agree with the former names the
+  # rename rule reads (`AccountNames.with_stored/3`).
   def update_cash_account(%Actor{} = actor, %CashAccount{} = cash_account, attrs)
       when is_map(attrs) do
-    Multi.new()
-    |> Multi.update(:cash_account, CashAccount.changeset(cash_account, attrs))
-    |> Journal.record(actor,
-      resource_type: "cash_account",
-      operation: :update,
-      source: :cash_account,
-      before: cash_account
-    )
-    |> Repo.transaction()
+    cash_account
+    |> AccountNames.with_stored(CashAccount.changeset(cash_account, attrs), fn account ->
+      Multi.new()
+      |> Multi.update(:cash_account, CashAccount.changeset(account, attrs))
+      |> Journal.record(actor,
+        resource_type: "cash_account",
+        operation: :update,
+        source: :cash_account,
+        before: account
+      )
+      |> Repo.transaction()
+    end)
     |> account_write_result(:cash_account)
   end
 
@@ -317,15 +323,20 @@ defmodule Portfolixir.Portfolios do
         attrs
       )
       when is_map(attrs) do
-    Multi.new()
-    |> Multi.update(:securities_account, SecuritiesAccount.changeset(securities_account, attrs))
-    |> Journal.record(actor,
-      resource_type: "securities_account",
-      operation: :update,
-      source: :securities_account,
-      before: securities_account
-    )
-    |> Repo.transaction()
+    probe = SecuritiesAccount.changeset(securities_account, attrs)
+
+    securities_account
+    |> AccountNames.with_stored(probe, fn account ->
+      Multi.new()
+      |> Multi.update(:securities_account, SecuritiesAccount.changeset(account, attrs))
+      |> Journal.record(actor,
+        resource_type: "securities_account",
+        operation: :update,
+        source: :securities_account,
+        before: account
+      )
+      |> Repo.transaction()
+    end)
     |> account_write_result(:securities_account)
     |> case do
       {:ok, updated} -> {:ok, Repo.preload(updated, :cash_account, force: true)}
