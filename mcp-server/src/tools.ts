@@ -2310,12 +2310,47 @@ const securityMetricsZ = z.object({
 // Performance import, on the two tools that rename an account (#831's lesson:
 // agents read descriptions, not docs). The behaviour is pinned by
 // test/portfolixir_web/controllers/api/v1/rename_reimport_test.exs.
-const RENAME_REIMPORT =
-  " A rename is safe for a re-import of the same export: the Portfolio Performance import checks each row's " +
-  "content hash before it resolves an account, and creates an account only with its first new booking, so no " +
-  "empty account appears under the old name (ADR-0050 §3, §4). A re-export that changed inside Portfolio " +
-  "Performance hashes differently: its rows land on a new account under the old name unless the operator " +
-  "remaps the old name in the import preview.";
+// ADR-0050 §3, §4 (L2, #884): what a rename means for the next Portfolio
+// Performance import, and which of the two former-name cases applies.
+const renameReimport = (noun: string) =>
+  " A rename keeps the previous name as a former name of this account (listed in former_names), and the " +
+  "Portfolio Performance import resolves a file's account name by the live name first, then by the former names " +
+  "(ADR-0050 §4): the next import of the same export, or of a re-export that changed inside Portfolio Performance, " +
+  "books onto this account. The import checks each row's content hash before it resolves an account and creates " +
+  "an account only with its first new booking, so no empty account appears under the old name (§3). Renaming back " +
+  "to a former name consumes it. While another " +
+  noun +
+  " in the portfolio still carries the previous name as its live name, the previous name is not kept: an import " +
+  "naming it books to that other account (merge or rename that account to change this). A name another " +
+  noun +
+  " in the portfolio carries as its live or former name is refused with 422 on errors.name.";
+
+// ADR-0050 §4: the name guard on create.
+const nameGuard = (noun: string) =>
+  " A name another " +
+  noun +
+  " in the portfolio carries as its live or former name answers 422 on errors.name, because an import naming " +
+  "it already books to that account.";
+
+// ADR-0050 §4: removing a former name, and what it costs.
+const removeFormerName = (noun: string) =>
+  "Remove one former name from a " +
+  noun +
+  " (ADR-0050 §4), journaled under the API token; answers the account. A former name routes a Portfolio " +
+  "Performance import row that names it onto this account. An import that still names '<name>' will then create a " +
+  "new account. A name the account does not carry answers 404.";
+
+const formerNameRemovalSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "name"],
+  properties: {
+    id: { type: "integer", minimum: 1 },
+    name: { type: "string", minLength: 1, description: "The former name to remove, exactly as listed in former_names." }
+  }
+};
+
+const formerNameRemovalZ = z.object({ id: z.number().int().positive(), name: z.string().min(1) });
 
 // #831: the re-import guarantee, stated where the consumer reads — in the
 // description of every read it protects — rather than only on a documentation
@@ -2640,11 +2675,19 @@ const toolDefinitions: ToolDefinition[] = [
   tool("portfolixir.quotes.upsert", "Upsert quotes", "Upsert manual quote history.", quoteUpsertSchema, quoteUpsertZ),
   tool("portfolixir.portfolios.list", "List portfolios", "List local portfolios. Deprecated (ADR-0024): portfolios are internal compatibility records, not the user-facing grouping — use portfolixir.buckets.list and portfolixir.views.list to group and scope holdings.", emptyObjectSchema, emptyObjectZ),
   tool("portfolixir.portfolios.create", "Create portfolio", "Create a portfolio. Deprecated (ADR-0024, compatibility only — the API answers with a Deprecation header): grouping happens through buckets and views, so prefer portfolixir.buckets.create and portfolixir.views.create; depots and cash accounts no longer need a portfolio_id (a deterministic internal default is bound automatically).", portfolioSchema, portfolioZ),
-  tool("portfolixir.cash_accounts.list", "List cash accounts", "List cash accounts with their current balance.", emptyObjectSchema, emptyObjectZ),
+  tool(
+    "portfolixir.cash_accounts.list",
+    "List cash accounts",
+    "List cash accounts with their current balance and their former_names (ADR-0050 §4): the names a Portfolio " +
+      "Performance import still books onto each account.",
+    emptyObjectSchema,
+    emptyObjectZ
+  ),
   tool(
     "portfolixir.cash_accounts.create",
     "Create cash account",
-    "Create a cash account. liquidity_role is free_cash (default, deployable cash), credit_line (overdraft/Lombard, never deployable), or reserve (visible but excluded from the cash quote).",
+    "Create a cash account. liquidity_role is free_cash (default, deployable cash), credit_line (overdraft/Lombard, never deployable), or reserve (visible but excluded from the cash quote)." +
+      nameGuard("cash account"),
     cashAccountSchema,
     cashAccountZ
   ),
@@ -2657,7 +2700,7 @@ const toolDefinitions: ToolDefinition[] = [
       "errors.currency_code counting the references (e.g. \"is frozen once referenced (1 securities account, " +
       "12 transactions)\") and writes nothing, so booked history is never re-denominated. The other fields stay " +
       "editable. The binding is never moved over the API at all." +
-      RENAME_REIMPORT,
+      renameReimport("cash account"),
     cashAccountUpdateSchema,
     cashAccountUpdateZ
   ),
@@ -2674,23 +2717,32 @@ const toolDefinitions: ToolDefinition[] = [
     idZ
   ),
   tool(
+    "portfolixir.cash_accounts.remove_former_name",
+    "Remove a cash account's former name",
+    removeFormerName("cash account"),
+    formerNameRemovalSchema,
+    formerNameRemovalZ
+  ),
+  tool(
     "portfolixir.securities_accounts.list",
     "List securities accounts",
-    "List depot/securities accounts.",
+    "List depot/securities accounts with their former_names (ADR-0050 §4): the names a Portfolio Performance " +
+      "import still books onto each depot.",
     emptyObjectSchema,
     emptyObjectZ
   ),
   tool(
     "portfolixir.securities_accounts.create",
     "Create securities account",
-    "Create a depot/securities account linked to a cash account.",
+    "Create a depot/securities account linked to a cash account." + nameGuard("securities account"),
     securitiesAccountSchema,
     securitiesAccountZ
   ),
   tool(
     "portfolixir.securities_accounts.update",
     "Update securities account",
-    "Patch a depot/securities account's name, notes or linked cash account." + RENAME_REIMPORT,
+    "Patch a depot/securities account's name, notes or linked cash account." +
+      renameReimport("securities account"),
     securitiesAccountUpdateSchema,
     securitiesAccountUpdateZ
   ),
@@ -2705,6 +2757,13 @@ const toolDefinitions: ToolDefinition[] = [
       "default set, one per position).",
     idSchema,
     idZ
+  ),
+  tool(
+    "portfolixir.securities_accounts.remove_former_name",
+    "Remove a depot's former name",
+    removeFormerName("securities account"),
+    formerNameRemovalSchema,
+    formerNameRemovalZ
   ),
   tool("portfolixir.transactions.list", "List transactions", "List transactions. Optional filters: from/to (ISO dates), portfolio_id, security_id, securities_account_id. Optional fields (FR-37) selects a sparse fieldset: each row then carries exactly those fields — prefer a small selection (e.g. id, type, date, security_id, gross_amount) for routine reads and request the full rows only when auditing a booking. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only rows created or updated strictly after that instant return, and the response carries as_of (use it as the next since) plus a delta_note — deletions are NOT represented, so a sync that must detect deletions does a full read. Pull-only; there is no push delivery. Optional running_balance_for (a cash account id) adds a running_balance to each row: the balance of that account after the booking, in the account's own currency, and a running_balance_basis block naming the account. Two properties worth knowing before you read the numbers: the fold always covers the account's WHOLE history, so a narrowed read (from/to, a filter) still shows true balances rather than a partial sum; and a row that does not move that account carries null, not the previous balance.", {
     type: "object",
@@ -3449,6 +3508,8 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       });
     case "portfolixir.cash_accounts.delete":
       return client.request("DELETE", `/api/v1/cash_accounts/${args.id}`);
+    case "portfolixir.cash_accounts.remove_former_name":
+      return client.request("DELETE", withQuery(`/api/v1/cash_accounts/${args.id}/former_names`, args, ["name"]));
     case "portfolixir.securities_accounts.list":
       return client.request("GET", "/api/v1/securities_accounts");
     case "portfolixir.securities_accounts.create":
@@ -3461,6 +3522,11 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       });
     case "portfolixir.securities_accounts.delete":
       return client.request("DELETE", `/api/v1/securities_accounts/${args.id}`);
+    case "portfolixir.securities_accounts.remove_former_name":
+      return client.request(
+        "DELETE",
+        withQuery(`/api/v1/securities_accounts/${args.id}/former_names`, args, ["name"])
+      );
     case "portfolixir.transactions.list":
       return client.request(
         "GET",

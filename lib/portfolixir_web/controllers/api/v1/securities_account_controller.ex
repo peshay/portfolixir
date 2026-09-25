@@ -92,15 +92,40 @@ defmodule PortfolixirWeb.Api.V1.SecuritiesAccountController do
 
   defp default_portfolio_binding(attrs, _actor), do: attrs
 
+  @doc """
+  Removes one former name of the account (ADR-0050 §4), journaled under the
+  token, and answers the account:
+  `DELETE /api/v1/securities_accounts/:id/former_names?name=<name>`. An import that still
+  names the removed name then creates a new account. A name the account does
+  not carry answers 404, a missing `name` 422.
+  """
+  def remove_former_name(conn, %{"id" => id} = params) do
+    with {:ok, account_id} <- IdParam.parse(id),
+         %SecuritiesAccount{} = account <- Portfolios.get_securities_account(account_id),
+         {:ok, name} <- former_name_param(params),
+         {:ok, updated} <-
+           Portfolios.remove_securities_account_former_name(conn.assigns.actor, account, name) do
+      json(conn, %{data: JSON.securities_account(updated)})
+    else
+      :blank -> unprocessable(conn, %{name: ["can't be blank"]})
+      {:error, :not_a_former_name} -> not_found(conn, "not a former name of this account")
+      {:error, %Ecto.Changeset{} = changeset} -> unprocessable(conn, JSON.errors(changeset))
+      _not_found -> not_found(conn)
+    end
+  end
+
+  defp former_name_param(%{"name" => name}) when is_binary(name) and name != "", do: {:ok, name}
+  defp former_name_param(_params), do: :blank
+
   defp unprocessable(conn, errors) do
     conn
     |> put_status(:unprocessable_entity)
     |> json(%{errors: errors})
   end
 
-  defp not_found(conn) do
+  defp not_found(conn, detail \\ "not found") do
     conn
     |> put_status(:not_found)
-    |> json(%{errors: %{detail: "not found"}})
+    |> json(%{errors: %{detail: detail}})
   end
 end

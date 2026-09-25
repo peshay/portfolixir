@@ -607,6 +607,16 @@ Example quote sync response:
   excluded bucket (e.g. a business account). Only `free_cash` accounts with a
   non-negative balance contribute to the valuation's deployable cash and its
   `cash_quote`. An unknown value is rejected with `422 Unprocessable Entity`.
+  A `name` another cash account in the portfolio carries as its name or as
+  one of its former names answers `422` with `errors.name`, because an import
+  naming it already books to that account (ADR-0050 §4).
+- Every cash-account and securities-account payload carries **`former_names`**
+  (ADR-0050 §4), a list of strings: the names the account was known by. The
+  Portfolio Performance import resolves a file's account name by the live name
+  first, then by the former names, so a row that names a former name books
+  onto this account. Two accounts of one kind in a portfolio never share a
+  live or former name; names two accounts already shared before this rule
+  resolve to neither, and the import waits for the operator to pick one.
 - `GET /api/v1/cash_accounts/:id` returns one cash account.
 - `PATCH /api/v1/cash_accounts/:id` updates a cash account (`name`,
   `currency_code`, `notes`, `liquidity_role`); `portfolio_id` cannot
@@ -616,6 +626,17 @@ Example quote sync response:
   counting the references, for example
   `["is frozen once referenced (1 securities account, 12 transactions)"]`,
   and nothing is written, so booked history is never re-denominated.
+  A rename keeps the previous name in `former_names`, and renaming back to a
+  former name consumes it. While another cash account in the portfolio still
+  carries the previous name as its live name, the previous name is not kept:
+  an import naming it books to that other account (merge or rename that
+  account to change this). A new name another cash account carries as its
+  live or former name answers `422` with `errors.name`.
+- `DELETE /api/v1/cash_accounts/:id/former_names?name=` removes one former
+  name, journaled, and answers the account
+  (`portfolixir.cash_accounts.remove_former_name`). An import that still names
+  '<name>' will then create a new account. A name the account does not carry
+  answers `404`, a missing `name` `422`.
 - `DELETE /api/v1/cash_accounts/:id` deletes a cash account that no
   transaction references through either leg and no securities account links
   to. Otherwise it returns `409 Conflict` with `errors.referenced_by` (for
@@ -629,9 +650,19 @@ Example quote sync response:
 - `POST /api/v1/securities_accounts` creates a depot/securities account with a
   `securities_account` object. `portfolio_id` is optional (ADR-0024): when
   omitted, the depot is bound to the deterministic internal default portfolio.
+  A `name` another depot in the portfolio carries as its name or as one of its
+  former names answers `422` with `errors.name` (ADR-0050 §4).
 - `GET /api/v1/securities_accounts/:id` returns one securities account.
 - `PATCH /api/v1/securities_accounts/:id` updates a securities account
   (`name`, `notes`, `cash_account_id`); `portfolio_id` cannot be changed.
+  A rename keeps the previous name in `former_names` under the same rules as
+  a cash account's: renaming back consumes it, a previous name another depot
+  still carries as its live name is not kept, and a name another depot carries
+  as its live or former name answers `422` with `errors.name`.
+- `DELETE /api/v1/securities_accounts/:id/former_names?name=` removes one
+  former name of a depot, journaled, and answers the depot
+  (`portfolixir.securities_accounts.remove_former_name`). An import that still
+  names '<name>' will then create a new depot.
 - `DELETE /api/v1/securities_accounts/:id` deletes a securities account that
   no transaction references through either leg. Otherwise it returns
   `409 Conflict` with `errors.referenced_by`, `errors.remedy` `merge` and
@@ -1863,16 +1894,22 @@ through this API lives next to the imported history:
 - **Re-applying the same export is a content-hash no-op.** Every transaction
   row that already exists is skipped as a duplicate; no security is created
   twice; the response of the apply reports the skipped count.
-- **A rename is safe for the next import of the same export (ADR-0050 §3,
-  §4).** The hash is checked before anything resolves, and a cash account or
-  depot is created only with its first new booking, so a rename over
+- **A rename is safe for the next import (ADR-0050 §3, §4).** The hash is
+  checked before anything resolves, and a cash account or depot is created
+  only with its first new booking, so a rename over
   `PATCH /api/v1/cash_accounts/:id` or `PATCH /api/v1/securities_accounts/:id`
   (`portfolixir.cash_accounts.update`, `portfolixir.securities_accounts.update`,
   whose descriptions say so) leaves no empty account under the old name. The
-  limit: a re-export that changed inside Portfolio Performance hashes
-  differently, and its rows land on a new account under the old name unless
-  the operator remaps the old name in the preview. A transfer whose two sides
-  lead to one account is skipped and listed, never a failed import.
+  rename keeps the old name in `former_names`, and the import resolves a
+  file's account name by the live name first, then by the former names, so a
+  re-export that changed inside Portfolio Performance (other decimals, an
+  edited booking) books onto the renamed account too and nothing twice. What
+  stays outside: an old name another account still carries as its live name
+  books to that account, and a rename older than the accounts' audit journal
+  left nothing to remember. A mapping in the preview onto an account of
+  another name is remembered as a former name of that account by default. A
+  transfer whose two sides lead to one account is skipped and listed, never a
+  failed import.
 - **What survives a re-import, unchanged, same ids, exact `Decimal` values:**
   classification assignments; every target plan version with its category and
   position targets and the cash target; each security's `note` and

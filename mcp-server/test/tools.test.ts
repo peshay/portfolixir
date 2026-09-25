@@ -42,10 +42,12 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.cash_accounts.create",
       "portfolixir.cash_accounts.update",
       "portfolixir.cash_accounts.delete",
+      "portfolixir.cash_accounts.remove_former_name",
       "portfolixir.securities_accounts.list",
       "portfolixir.securities_accounts.create",
       "portfolixir.securities_accounts.update",
       "portfolixir.securities_accounts.delete",
+      "portfolixir.securities_accounts.remove_former_name",
       "portfolixir.transactions.list",
       "portfolixir.transactions.create",
       "portfolixir.transactions.update",
@@ -1487,8 +1489,61 @@ describe("Portfolixir MCP tools", () => {
       assert.match(description, /checks each row's content hash before it resolves an account/);
       assert.match(description, /creates an account only with its first new booking/);
       assert.match(description, /no empty account appears under the old name/);
-      assert.match(description, /remaps the old name in the import preview/);
     }
+  });
+
+  // ADR-0050 §4 (L2, #884; #831's lesson: agents read descriptions, not
+  // docs): a rename keeps the previous name as a former name, the import
+  // resolves a file's account name by live name, then former name, and the
+  // rename tools say which case applies; the removal tools say what a
+  // removal costs; create and rename name the guard's 422.
+  it("states the former-name cases on the account tools", () => {
+    const tools = listTools();
+    const describe = (name: string) => tools.find((tool) => tool.name === name)?.description ?? "";
+
+    for (const [kind, noun] of [
+      ["cash_accounts", "cash account"],
+      ["securities_accounts", "securities account"]
+    ]) {
+      const update = describe(`portfolixir.${kind}.update`);
+      assert.match(update, /keeps the previous name as a former name of this account/);
+      assert.match(update, /listed in former_names/);
+      assert.match(update, /live name first, then by the former names/);
+      assert.match(update, /re-export that changed inside Portfolio Performance/);
+      assert.match(update, /Renaming back to a former name consumes it/);
+      assert.match(
+        update,
+        new RegExp(`While another ${noun} in the portfolio still carries the previous name as its live name, the previous name is not kept`)
+      );
+      assert.match(update, /an import naming it books to that other account/);
+      assert.match(update, /422/);
+
+      assert.match(describe(`portfolixir.${kind}.create`), /live or former name.*422/);
+      assert.match(describe(`portfolixir.${kind}.list`), /former_names/);
+
+      const remove = describe(`portfolixir.${kind}.remove_former_name`);
+      assert.match(remove, /journaled/);
+      assert.match(remove, /An import that still names '<name>' will then create a new account\./);
+    }
+  });
+
+  it("routes the former-name removal to DELETE with the name as a query parameter", async () => {
+    const { client, requests } = createRecordingClient({ data: { id: 3 } });
+
+    await callTool(client, "portfolixir.cash_accounts.remove_former_name", {
+      id: 3,
+      name: "Giro & Savings"
+    });
+    await callTool(client, "portfolixir.securities_accounts.remove_former_name", {
+      id: 4,
+      name: "Depot"
+    });
+
+    assert.equal(requests[0].method, "DELETE");
+    assert.equal(requests[0].path, "/api/v1/cash_accounts/3/former_names?name=Giro+%26+Savings");
+    assert.equal(requests[0].body, undefined);
+    assert.equal(requests[1].method, "DELETE");
+    assert.equal(requests[1].path, "/api/v1/securities_accounts/4/former_names?name=Depot");
   });
 
   it("routes update/delete tools to PATCH/DELETE on the right paths", async () => {

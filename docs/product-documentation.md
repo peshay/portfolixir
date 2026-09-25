@@ -399,6 +399,21 @@ booked history is never re-denominated or moved. Name, notes and liquidity
 role stay editable. The API never moves an account or a depot to another
 portfolio at all.
 
+**Names and former names** (ADR-0050 §4). Two cash accounts never share a
+name, and neither do two depots: a name another account of the kind carries,
+as its name or as one of its former names, is refused when an account is
+created or renamed, because a Portfolio Performance import that names it
+already books to that account. A renamed account keeps its previous name as a
+**former name**, so an export that still names the old account books onto the
+renamed one; renaming back to a former name takes it back. While another
+account of the kind still carries the old name as its name, the old name is
+not kept, and an import naming it books to that other account. Accounts that
+already shared a name before this rule stay as they are; renaming one of them
+ends the ambiguity. The former names are listed on the API and MCP payloads
+(`former_names`) and can be removed there; an import that still names a
+removed name then creates a new account. The rename and removal controls on
+this page follow with the accounts' row menu.
+
 For worked examples — a household split, strategy views with their own target
 plans, translating Portfolio Performance habits, and excluding a position from
 steering — see the [Buckets & Views Guide](guides/buckets-and-views.html).
@@ -1640,10 +1655,30 @@ never up front. An account mapped to *+ Create new* whose rows are all
 already booked, or all skipped for another reason, is not created, and the
 bucket tag lands on exactly the accounts the import created. Renaming an
 imported account and dropping the same export again therefore creates no
-empty account under the old name. A re-export that changed inside Portfolio
-Performance (a different decimal precision, an edited booking) hashes
-differently: map the old name onto the renamed account in the preview, or
-its rows land on a new account under the old name.
+empty account under the old name.
+
+**Accounts are found by name, then by former name.** The preview prefills
+each cash account and depot of the file with the account of that exact name,
+and otherwise with the account that carries it as a former name (see
+[Accounts and Depots](#accounts-and-depots)). A rename keeps the previous
+name, so a re-export that changed inside Portfolio Performance (a different
+decimal precision, an edited booking) finds the renamed account as well and
+books nothing twice. A name two accounts carry is prefilled with nothing:
+the select reads *Decide…*, and the import waits until you pick the account;
+it never guesses. Mapping a name onto an account with a different name
+**remembers** the mapping by default: the name becomes a former name of that
+account, and the next import prefills it by itself. When the name is another
+account's former name, remembering moves it over; when it is another
+account's name, the choice holds for this import only. An account mapped in a
+preview that is merged or deleted before you confirm stops the import before
+it writes anything, and the account mapping is refreshed.
+
+Renames made before this release are remembered too: the upgrade replays the
+renames the audit journal holds. A name a newer account already carries (an
+empty account an earlier import created under the old name, say) is logged by
+the upgrade and left alone; merging that account into the renamed one repairs
+it. A rename older than the accounts' audit journal left no trace, and its
+old name is mapped by hand once.
 
 A **transfer whose two sides lead to the same account or depot** (two
 Portfolio Performance accounts mapped onto one Portfolixir account, say) is

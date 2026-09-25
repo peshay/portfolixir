@@ -48,14 +48,26 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "itself carry the documented errors envelope with their own status — and the " <>
           "lifecycle's hardened deletes (ADR-0050 §11): a referenced cash account, depot or " <>
           "security answers 409 naming what references it, counted, and the remedy; its " <>
-          "identity fields freeze once referenced, answering 422.",
-      endpoints: [],
-      tools: [],
+          "identity fields freeze once referenced, answering 422 — and the re-import contract's " <>
+          "former names (ADR-0050 §4): a cash account and a depot list the names a Portfolio " <>
+          "Performance import still books onto them, a rename keeps the previous name, a name " <>
+          "another account answers to is refused, and a former name is removable.",
+      endpoints: [
+        "DELETE /api/v1/cash_accounts/:id/former_names",
+        "DELETE /api/v1/securities_accounts/:id/former_names"
+      ],
+      tools: [
+        "portfolixir.cash_accounts.remove_former_name",
+        "portfolixir.securities_accounts.remove_former_name"
+      ],
       parameters: [
         "Every /api/v1 error the server answers itself rather than an endpoint (an unreadable body 400, a body over the size bound 413, an unknown route 404, an internal error 500) answers {\"errors\": {\"detail\": <reason phrase>}} with its own status (E25 S2, F68); it used to be {\"status\", \"error\"} for 404 and 500 and a bodyless 500 for every other status",
         "The MCP companion's HTTP transport checks the origin and the bearer token before it reads a request body, and answers the errors it raises itself, an unknown path's 404 among them, {\"errors\": {\"detail\": <reason phrase>}} with no stack trace; the MCP protocol's own refusals on /mcp keep their JSON-RPC error shape (E25 S2, F19)",
         "DELETE /api/v1/cash_accounts/:id, /securities_accounts/:id and /securities/:id (portfolixir.cash_accounts.delete, portfolixir.securities_accounts.delete, portfolixir.securities.delete) answer a referenced row 409 with errors.referenced_by (the referencing tables, counted; a transaction once whichever leg references the account), errors.remedy (merge, or retire for a security research notes or policy-rule versions reference) and errors.remedy_route (GET /api/v1/<kind>/:id/merge_preview?target_id=, or PATCH /api/v1/securities/:id); it used to be a bare detail. A delete of a row that has gone answers 404, and an unreferenced row's bucket links, position overrides, category assignments, position targets and ISIN aliases are removed first, each journaled (ADR-0050 §11, L1)",
-        "PATCH /api/v1/cash_accounts/:id (portfolixir.cash_accounts.update) answers a currency_code change 422 once a transaction references the account through either leg or a securities account links to it, and PATCH /api/v1/securities/:id (portfolixir.securities.update) once the security has a transaction or a quote, with errors.currency_code [\"is frozen once referenced (<the references, counted>)\"] and nothing written; it used to re-denominate the booked history silently. Resending the stored currency is no change, and the other fields stay editable (ADR-0050 §11, L1)"
+        "PATCH /api/v1/cash_accounts/:id (portfolixir.cash_accounts.update) answers a currency_code change 422 once a transaction references the account through either leg or a securities account links to it, and PATCH /api/v1/securities/:id (portfolixir.securities.update) once the security has a transaction or a quote, with errors.currency_code [\"is frozen once referenced (<the references, counted>)\"] and nothing written; it used to re-denominate the booked history silently. Resending the stored currency is no change, and the other fields stay editable (ADR-0050 §11, L1)",
+        "Every cash-account and securities-account payload (GET /api/v1/cash_accounts, /cash_accounts/:id, /securities_accounts, /securities_accounts/:id and the create, update and removal answers; portfolixir.cash_accounts.* and portfolixir.securities_accounts.*) carries former_names, a list of strings: the names a Portfolio Performance import still resolves to that account after its live name (ADR-0050 §4, L2)",
+        "PATCH /api/v1/cash_accounts/:id and /securities_accounts/:id (portfolixir.cash_accounts.update, portfolixir.securities_accounts.update): a rename appends the previous name to former_names, and a rename back to a former name consumes it; while another account of the kind in the portfolio still carries the previous name as its live name, it is not kept. POST and PATCH answer 422 with errors.name when the name is another account's live or former name of the kind in the portfolio; it used to allow duplicate names (ADR-0050 §4, L2)",
+        "DELETE /api/v1/cash_accounts/:id/former_names?name= and /securities_accounts/:id/former_names?name= (portfolixir.cash_accounts.remove_former_name, portfolixir.securities_accounts.remove_former_name) remove one former name, journaled, and answer the account; a name the account does not carry answers 404, a missing name 422. An import that still names it then creates a new account (ADR-0050 §4, L2)"
       ],
       removed_endpoints: [],
       removed_tools: []
