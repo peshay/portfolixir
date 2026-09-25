@@ -844,6 +844,39 @@ defmodule Portfolixir.CITest do
     end
   end
 
+  # User story (E25 S8 review round, F60 -- #893):
+  # As a contributor whose system Python is externally managed (PEP 668, as
+  # on current Debian, Ubuntu and Homebrew),
+  # I want the documented local pre-commit install to go into a virtual
+  # environment,
+  # so that the hash-pinned install CI runs works on my machine as well
+  # instead of being refused.
+  #
+  # Acceptance criteria:
+  # - CONTRIBUTING creates a virtual environment outside the checkout, so
+  #   neither git nor the image build context ever sees it.
+  # - The hash-pinned requirements file is installed with that environment's
+  #   pip, and no documented command installs into the global interpreter
+  #   with `python3 -m pip install`.
+  test "the documented local pre-commit install goes into a virtual environment" do
+    contributing = File.read!("CONTRIBUTING.md")
+
+    assert [[venv]] =
+             Regex.scan(~r/^python3 -m venv (\S+)$/m, contributing, capture: :all_but_first)
+
+    assert venv =~ ~r/^(~|\$HOME)\//, "the virtual environment lies in the checkout: #{venv}"
+
+    assert contributing =~
+             """
+             python3 -m venv #{venv}
+             . #{venv}/bin/activate
+             python -m pip install --require-hashes --only-binary :all: -r .github/pre-commit/requirements.txt
+             pre-commit install --install-hooks
+             """
+
+    refute contributing =~ "python3 -m pip install", "installs into the global interpreter"
+  end
+
   # User story (E25 S8, F60 -- #893):
   # As a maintainer, and an agent whose toolchain the install script fetches,
   # I want CI's database service and the companion's base image pinned by
