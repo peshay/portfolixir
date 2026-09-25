@@ -4,7 +4,12 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { describe, it } from "node:test";
 
-import { ApiOutcomeUnknownError, ApiRedirectError, createApiClient } from "../src/api-client.js";
+import {
+  ApiOutcomeUnknownError,
+  ApiReadTimeoutError,
+  ApiRedirectError,
+  createApiClient
+} from "../src/api-client.js";
 
 async function listen(server: Server): Promise<number> {
   server.listen(0, "127.0.0.1");
@@ -118,8 +123,21 @@ describe("the companion's API client", () => {
 
     await assert.rejects(hanging().request("GET", "/api/v1/transactions"), (error: unknown) => {
       assert.ok(!(error instanceof ApiOutcomeUnknownError), String(error));
+      assert.ok(error instanceof ApiReadTimeoutError, String(error));
       return true;
     });
+
+    // E25 S7 review round (R3): a read-only tool routed through POST says
+    // so, and its timeout is a read's.
+    await assert.rejects(
+      hanging().request("POST", "/api/v1/holdings/reconcile", {}, { readOnly: true }),
+      (error: unknown) => {
+        assert.ok(error instanceof ApiReadTimeoutError, String(error));
+        assert.match((error as Error).message, /POST \/api\/v1\/holdings\/reconcile/);
+        assert.match((error as Error).message, /changes nothing/);
+        return true;
+      }
+    );
   });
 
   it("never contacts a redirect's target", async () => {

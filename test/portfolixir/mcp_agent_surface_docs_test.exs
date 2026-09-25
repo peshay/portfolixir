@@ -110,6 +110,9 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
          "| `DELETE` | false | true (it removes) | true |",
          "are routed through `POST` but store nothing",
          "`portfolixir.quotes.release` is routed through `POST` but removes the manual quotes in its range, so it is hinted as a `DELETE` is",
+         "`portfolixir.securities.isin_change` are routed through `POST` but change stored rows",
+         "so they are hinted as a `PUT` is",
+         "and for `portfolixir.securities.create`, which queues a quote backfill",
          "**Auto-approvable reads.** A host may run every tool with `readOnlyHint: true` without asking"
        ]},
       {"docs/de/integration/api-and-mcp.md",
@@ -118,6 +121,9 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
          "| `DELETE` | false | true (entfernt) | true |",
          "laufen über `POST`, speichern aber nichts",
          "`portfolixir.quotes.release` läuft über `POST`, entfernt aber die manuellen Kurse in seinem Zeitraum und trägt deshalb die Hinweise eines `DELETE`",
+         "`portfolixir.securities.isin_change` laufen über `POST`, ändern aber gespeicherte Zeilen",
+         "und tragen deshalb die Hinweise eines `PUT`",
+         "und für `portfolixir.securities.create`, das bei eingeschalteter Anreicherung",
          "**Ohne Rückfrage freigebbare Lesezugriffe.** Ein Host darf jedes Tool mit `readOnlyHint: true` ohne Rückfrage ausführen"
        ]}
     ])
@@ -168,16 +174,20 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
   # Acceptance criteria:
   # - The EN and DE MCP pages name ApiOutcomeUnknownError, which calls answer
   #   it, and the re-read before a retry.
+  # - They name ApiReadTimeoutError for a read, the read-only tools routed
+  #   through POST included (E25 S7 review round, R3).
   test "the MCP pages state the outcome-unknown answer of a write that times out" do
     assert_fragments([
       {"docs/integration/api-and-mcp.md",
        [
-         "a write that misses it (`POST`, `PUT`, `PATCH` or `DELETE`) answers `ApiOutcomeUnknownError`",
+         "one of the tools routed through `POST` that change nothing (`readOnlyHint: true`) — changes nothing and answers `ApiReadTimeoutError`",
+         "any other call that misses it answers `ApiOutcomeUnknownError`",
          "re-read what it would have changed before retrying"
        ]},
       {"docs/de/integration/api-and-mcp.md",
        [
-         "ein Schreibvorgang, der sie verpasst (`POST`, `PUT`, `PATCH` oder `DELETE`), ergibt `ApiOutcomeUnknownError`",
+         "eines der über `POST` laufenden Tools, die nichts ändern (`readOnlyHint: true`) —, ändert nichts und ergibt `ApiReadTimeoutError`",
+         "jeder andere Aufruf, der sie verpasst, ergibt `ApiOutcomeUnknownError`",
          "lesen Sie vor einer Wiederholung neu, was er geändert hätte"
        ]}
     ])

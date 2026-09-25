@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { ApiOutcomeUnknownError } from "../src/api-client.js";
+import { ApiOutcomeUnknownError, ApiReadTimeoutError } from "../src/api-client.js";
 import { readOnlySwitch } from "../src/server.js";
 import { callTool, listTools } from "../src/tools.js";
 import { connectCompanion, publishedTools } from "./support/companion.js";
@@ -145,8 +145,19 @@ const REMOVING_POSTS = [
   "portfolixir.quotes.release" // removes the manual quotes in a range (E25 S6, T-9)
 ];
 
+// Routed through POST but change or remove stored rows, so they are hinted
+// as a PUT is: destructive, and idempotent, since a repeat changes nothing
+// more (a second retirement answers 409, a second activation is a no-op, a
+// second ISIN change a named conflict). E25 S7 review round, R1.
+const MODIFYING_POSTS = [
+  "portfolixir.policy_rules.retire", // closes the version in force, drops scheduled ones
+  "portfolixir.plans.activate", // archives the plan that was active
+  "portfolixir.securities.isin_change" // writes the new ISIN onto the security
+];
+
 const OPEN_WORLD = [
   "portfolixir.securities.search_online", // sends its query to the configured provider
+  "portfolixir.securities.create", // queues a provider backfill and a logo lookup (R6)
   "portfolixir.quotes.sync", // the quote provider
   "portfolixir.exchange_rates.sync" // the rate feed
 ];
@@ -327,7 +338,11 @@ describe("the companion's published tool surface", () => {
       }
 
       const readOnly = method === "GET" || READ_ONLY_POSTS.includes(tool.name);
-      const hintedAs = REMOVING_POSTS.includes(tool.name) ? "DELETE" : method;
+      const hintedAs = REMOVING_POSTS.includes(tool.name)
+        ? "DELETE"
+        : MODIFYING_POSTS.includes(tool.name)
+          ? "PUT"
+          : method;
       assert.equal(hints.readOnlyHint, readOnly, `${tool.name} (${method}) readOnlyHint`);
       assert.equal(
         hints.destructiveHint,
@@ -363,6 +378,107 @@ describe("the companion's published tool surface", () => {
   // - portfolixir.quotes.release is routed through POST and carries
   //   destructiveHint true and idempotentHint true, readOnlyHint false.
   // - It is not listed in read-only mode.
+  // User story (E25 S7 review round, R1):
+  // As the operator whose host asks before every destructive write,
+  // I want the POST-routed writes that change or remove stored rows hinted
+  // destructive by name,
+  // so that a retirement, a plan activation or an ISIN change never runs as
+  // if it only added a record.
+  //
+  // Acceptance criteria:
+  // - policy_rules.retire, plans.activate and securities.isin_change are
+  //   destructive and idempotent, and carry no "a blind retry can store a
+  //   duplicate" note.
+  // - Every POST-routed tool is either read-only, one of the named removing
+  //   or modifying writes, or a write that only adds.
+  it("hints the POST-routed writes that change stored rows as destructive, by name", async () => {
+    const published = await publishedTools();
+
+    for (const name of MODIFYING_POSTS) {
+      const tool = published.find((candidate) => candidate.name === name);
+      assert.equal(tool?.annotations?.readOnlyHint, false, name);
+      assert.equal(tool?.annotations?.destructiveHint, true, name);
+      assert.equal(tool?.annotations?.idempotentHint, true, name);
+      assert.doesNotMatch(tool?.description ?? "", /outcome unknown/, name);
+    }
+
+    const routes = routedMethodsFromSource();
+    const additive = published.filter(
+      (tool) =>
+        routes.get(tool.name) === "POST" &&
+        tool.annotations?.readOnlyHint === false &&
+        tool.annotations?.destructiveHint === false
+    );
+
+    for (const tool of additive) {
+      assert.doesNotMatch(
+        tool.description ?? "",
+        /\b(is archived|are dropped|is dropped|written onto)\b/,
+        `${tool.name} says it changes stored rows but is hinted as only adding`
+      );
+    }
+  });
+
+  // User story (E25 S7 review round, R6):
+  // As the operator deciding which tools may reach beyond the instance,
+  // I want the security create hinted open-world,
+  // so that the provider backfill and logo lookup it queues are in view.
+  //
+  // Acceptance criteria:
+  // - portfolixir.securities.create carries openWorldHint: true.
+  it("hints the security create as reaching a provider", async () => {
+    const create = (await publishedTools()).find(
+      (tool) => tool.name === "portfolixir.securities.create"
+    );
+
+    assert.equal(create?.annotations?.openWorldHint, true);
+    assert.match(create?.description ?? "", /provider/);
+  });
+
+  // User story (E25 S7 review round, R3):
+  // As the agent whose read-only call timed out,
+  // I want to be told the call changed nothing,
+  // so that I retry it instead of re-reading for a write that never was.
+  //
+  // Acceptance criteria:
+  // - A read-only tool routed through POST that times out answers a read
+  //   timeout, never outcome unknown; a write routed the same way still
+  //   answers outcome unknown.
+  it("answers a read-only POST that timed out as a read, not an unknown outcome", async () => {
+    const companion = await connectCompanion({
+      request: async (method: string, path: string, _body?: unknown, options?: { readOnly?: boolean }) => {
+        if (options?.readOnly) {
+          throw new ApiReadTimeoutError(method, path, 30_000);
+        }
+
+        throw new ApiOutcomeUnknownError(method, path, 30_000);
+      }
+    } as any);
+
+    try {
+      const read = await companion.mcp.callTool({
+        name: "portfolixir.holdings.reconcile",
+        arguments: { rows: [{ identifier: "DE0001234565", quantity: "1" }] }
+      });
+
+      assert.equal(read.isError, true);
+      assert.doesNotMatch((read.content as any)[0].text, /outcome unknown/);
+      assert.match((read.content as any)[0].text, /changes nothing/);
+
+      const write = await companion.mcp.callTool({
+        name: "portfolixir.notes.append",
+        arguments: {
+          security_id: 7,
+          note: { kind: "evidence", body: "x", source_quality: "primary", as_of: "2026-08-01" }
+        }
+      });
+
+      assert.match((write.content as any)[0].text, /outcome unknown/);
+    } finally {
+      await companion.close();
+    }
+  });
+
   it("hints the quote release as the delete it is", async () => {
     const routes = routedMethodsFromSource();
     const release = (await publishedTools()).find((tool) => tool.name === "portfolixir.quotes.release");
