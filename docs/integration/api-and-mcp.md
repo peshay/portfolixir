@@ -460,7 +460,10 @@ and the `window` it was measured over, and the payload carries
 `insufficient_data: true` and the observation count it had, at `200` — a gap
 marker, not an error: 20 return observations for a volatility, `n` closes for
 an `n`-day moving average, 2 closes for a drawdown, and a close on or before
-the window's start for the momentum and the 52-week extremes.
+the window's start for the momentum and the 52-week extremes. A volatility
+whose square root lies beyond what the one float step can carry — a magnitude
+only implausible stored closes reach — is `null` **without**
+`insufficient_data`: undefined, not short of data, and never an error.
 
 **Every metric says what it needed** (ADR-0047 §6 as amended 2026-09-19):
 `required` carries the minimum `observations` on **every** metric, whether it
@@ -1501,6 +1504,12 @@ church tax withheld at a zero church-tax rate.
     fetched or stored; each window echoes the rate it used. A malformed or
     out-of-bound rate is a `422`. Over a volatility of exactly `0` the ratio is
     `null` without `insufficient_data`: undefined, not short of data.
+  - A figure whose square root lies beyond what the one float step can
+    carry — a magnitude only implausible stored prices or exchange rates
+    reach — is `null` without `insufficient_data` as well: that volatility
+    and the risk-adjusted return beside it, or that correlation pair. The
+    read never fails on such data, and never answers a number over it; the
+    Risk page shows such a pair as "not computable" with its observations.
   - `correlations` is the Pearson matrix of the Top-N single names' daily
     returns (`security_ids` in Top-N order, `pairs` with `security_id_a`,
     `security_id_b`, `value`), over a `365d` window. The closes are

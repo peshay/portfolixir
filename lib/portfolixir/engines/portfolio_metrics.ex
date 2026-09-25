@@ -225,10 +225,12 @@ defmodule Portfolixir.Engines.PortfolioMetrics do
 
     # The ratio follows the volatility the reader sees beside it: when that
     # rounds to 0 at scale 6 the ratio is undefined, never a quotient of
-    # rounding residue (closing-act finding).
-    if Decimal.equal?(Statistics.annualized_deviation(returns, @days_per_year), @zero) do
-      nil
-    else
+    # rounding residue (closing-act finding); when it has no figure at all
+    # (F73), neither has the ratio.
+    with %Decimal{} = shown <- Statistics.annualized_deviation(returns, @days_per_year),
+         false <- Decimal.equal?(shown, @zero),
+         %Decimal{} = volatility <-
+           variance |> Decimal.mult(@days_per_year) |> Statistics.square_root() do
       daily_rf = Decimal.sub(rate_factor, @one)
 
       excess =
@@ -237,9 +239,9 @@ defmodule Portfolixir.Engines.PortfolioMetrics do
         |> Statistics.mean()
         |> Decimal.mult(@days_per_year)
 
-      volatility = variance |> Decimal.mult(@days_per_year) |> Statistics.square_root()
-
       excess |> Decimal.div(volatility) |> Statistics.round_scale()
+    else
+      _undefined -> nil
     end
   end
 

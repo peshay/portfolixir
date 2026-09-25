@@ -463,7 +463,11 @@ gemessen wurde, und die Antwort trägt einmal `computation_basis`
 
 **Unterhalb ihres Minimums verweigert eine Kennzahl.** `value` ist `null` mit
 `insufficient_data: true` und der vorhandenen Beobachtungszahl, bei `200` —
-eine Lückenmarkierung, kein Fehler.
+eine Lückenmarkierung, kein Fehler. Eine Volatilität, deren Quadratwurzel
+jenseits dessen liegt, was der eine Gleitkommaschritt tragen kann — eine
+Größenordnung, die nur unplausible gespeicherte Schlusskurse erreichen —, ist
+`null` **ohne** `insufficient_data`: undefiniert, nicht zu wenige Daten, und
+nie ein Fehler.
 
 **Jede Kennzahl sagt, was sie gebraucht hätte** (ADR-0047 §6, ergänzt am
 2026-09-19): `required` trägt die Mindestzahl an `observations` auf **jeder**
@@ -1320,6 +1324,13 @@ Beispiel-Payloads für Konten:
     geladen oder gespeichert. Ein ungültiger Zins ist ein `422`. Bei einer
     Volatilität von genau `0` ist der Quotient `null` ohne
     `insufficient_data`: undefiniert, nicht zu wenige Daten.
+  - Eine Zahl, deren Quadratwurzel jenseits dessen liegt, was der eine
+    Gleitkommaschritt tragen kann — eine Größenordnung, die nur unplausible
+    gespeicherte Kurse oder Wechselkurse erreichen —, ist ebenfalls `null`
+    ohne `insufficient_data`: diese Volatilität und die risikobereinigte
+    Rendite daneben oder dieses Korrelationspaar. Die Abfrage scheitert an
+    solchen Daten nie und liefert über ihnen nie eine Zahl; die Risiko-Seite
+    zeigt ein solches Paar als „nicht berechenbar“ mit seinen Beobachtungen.
   - `correlations` ist die Pearson-Matrix der Tagesrenditen der Top-N-
     Einzeltitel (`security_ids` in Top-N-Reihenfolge, `pairs` mit
     `security_id_a`, `security_id_b`, `value`) über ein `365d`-Fenster. Die
