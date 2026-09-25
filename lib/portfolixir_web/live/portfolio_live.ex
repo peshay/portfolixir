@@ -35,6 +35,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias PortfolixirWeb.ColumnPicker
   alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.LiveParam
   import PortfolixirWeb.ViewSwitcher
 
   @unassigned_color "#9ca3af"
@@ -285,7 +286,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   # default tree instead of crashing.
   defp param_classification_id(params, classifications) do
     with id when is_binary(id) <- Map.get(params, "classification"),
-         {:ok, parsed} <- coerce_id(id),
+         {:ok, parsed} <- LiveParam.fetch_id(id),
          true <- Enum.any?(classifications, &(&1.id == parsed)) do
       parsed
     else
@@ -3098,7 +3099,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   # shows the default; re-selecting the active tree is a no-op — no duplicate
   # history entry.
   def handle_event("select_classification", %{"classification_id" => id}, socket) do
-    with {:ok, classification_id} <- coerce_id(id),
+    with {:ok, classification_id} <- LiveParam.fetch_id(id),
          true <- Enum.any?(socket.assigns.classifications, &(&1.id == classification_id)),
          false <- classification_id == socket.assigns.classification_id do
       {:noreply,
@@ -3135,7 +3136,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   end
 
   def handle_event("toggle_category_positions", %{"category-id" => id}, socket) do
-    case coerce_id(id) do
+    case LiveParam.fetch_id(id) do
       {:ok, category_id} ->
         expanded = socket.assigns.expanded_categories
 
@@ -4329,15 +4330,6 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp range_to({:range, _from, to}, _performance), do: to
   defp range_to(_period, %{end_date: %Date{} = end_date}), do: end_date
   defp range_to(_period, _performance), do: nil
-
-  defp coerce_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> {:ok, id}
-      _ -> :error
-    end
-  end
-
-  defp coerce_id(_value), do: :error
 
   # The colour lands in a style attribute, so only a literal hex colour from
   # our own render is accepted — anything else falls back to neutral grey.

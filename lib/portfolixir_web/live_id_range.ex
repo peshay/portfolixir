@@ -12,12 +12,20 @@ defmodule PortfolixirWeb.LiveIdRange do
 
     * an id-shaped **query** parameter past the range (`id`, `*_id`, `*_ids`,
       `view`) is dropped by navigating to the same page without it;
-    * an id-shaped **path** parameter past the range (`/securities/:id`,
+    * a **path** parameter past the range (`/securities/:id`,
       `/classifications/:id`) navigates to the route's index.
+
+  Which params are path params is read from the router's match of the URL
+  (E25 S4, F16), never inferred from the query string: a query key that
+  shares a path param's name does not hide it, and every path param of every
+  live route is checked.
 
   On the static render the navigation is an HTTP 302, never a 500; a
   malformed or an in-range unknown id is not this hook's business and keeps
-  the answer it had.
+  the answer it had. An id-valued parameter whose name this hook does not
+  recognise (`?snapshot=`, `?soll_view=`, `?year=`) is parsed by its page
+  through `PortfolixirWeb.LiveParam`, which reads a value it cannot hold as
+  absent.
   """
   import Phoenix.LiveView, only: [attach_hook: 4, push_navigate: 2]
 
@@ -29,14 +37,14 @@ defmodule PortfolixirWeb.LiveIdRange do
     {:cont, attach_hook(socket, :id_range, :handle_params, &guard/3)}
   end
 
-  defp guard(params, url, socket) do
+  defp guard(_params, url, socket) do
     uri = URI.parse(url)
     query = URI.decode_query(uri.query || "")
 
     path_out_of_range? =
-      Enum.any?(params, fn {key, value} ->
-        not Map.has_key?(query, key) and id_key?(key) and out_of_range?(value)
-      end)
+      socket.router
+      |> path_params(uri)
+      |> Enum.any?(fn {_key, value} -> out_of_range?(value) end)
 
     out_of_range_query = for {key, value} <- query, id_key?(key), out_of_range?(value), do: key
 
@@ -51,6 +59,14 @@ defmodule PortfolixirWeb.LiveIdRange do
 
       true ->
         {:cont, socket}
+    end
+  end
+
+  # The path params of the route this URL matches, as the router reads them.
+  defp path_params(router, uri) do
+    case Phoenix.Router.route_info(router, "GET", uri.path || "/", uri.host) do
+      %{path_params: path_params} -> path_params
+      :error -> %{}
     end
   end
 

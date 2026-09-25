@@ -12,6 +12,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.ClassificationName
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PolicyRuleLabel
 
   @zero Decimal.new("0")
@@ -99,8 +100,8 @@ defmodule PortfolixirWeb.ClassificationsLive do
   end
 
   defp apply_action(socket, :show, %{"id" => id} = params) do
-    case Integer.parse(id) do
-      {classification_id, ""} ->
+    case LiveParam.id(id) do
+      classification_id when is_integer(classification_id) ->
         # The portfolio page's no-plan hint deep-links here with `?soll_view=`
         # so the editor opens on the right `(view, classification)` plan
         # (ADR-0020, #468). Without the param the editor defaults to Gesamt.
@@ -2425,16 +2426,9 @@ defmodule PortfolixirWeb.ClassificationsLive do
   end
 
   # "total" or a view id string → the view id (nil for Gesamt) used by the
-  # Targets context. Never builds an atom from input.
-  defp parse_soll_view("total"), do: nil
-  defp parse_soll_view(nil), do: nil
-
-  defp parse_soll_view(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> id
-      _ -> nil
-    end
-  end
+  # Targets context. Never builds an atom from input; a value no view id can
+  # be (a URL's `?soll_view=` included, #868) reads as Gesamt.
+  defp parse_soll_view(value), do: LiveParam.id(value)
 
   defp view_param(nil), do: "total"
   defp view_param(id) when is_integer(id), do: Integer.to_string(id)
