@@ -995,7 +995,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     test "the pre-apply inverse check lists configured securities the import misses",
          %{conn: conn} do
       portfolio = setup_portfolio()
-      leftover = create_security!(%{name: "Leftover AG", isin: "DE000LEFT001"})
+      leftover = create_security!(%{name: "Leftover AG", isin: "DE000LEFT003"})
       attach_assignment!(leftover)
 
       {:ok, cash} =
@@ -1129,7 +1129,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       _portfolio = setup_portfolio()
 
       # Two securities share WKN AMB001, so the second file row is ambiguous and
-      # the user must decide. The first row plain-creates ISIN DE000COLL001; the
+      # the user must decide. The first row plain-creates ISIN DE000COLL006; the
       # user then deliberately forces the ambiguous row to ALSO create with the
       # same ISIN, which collides on the now-live unique ISIN index and makes the
       # applier return {:security_create_failed, changeset}.
@@ -1171,7 +1171,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     test "remapping onto an existing security can record the ISIN change end-to-end",
          %{conn: conn} do
       _portfolio = setup_portfolio()
-      acme = create_security!(%{name: "Acme AG", isin: "DE000ACME001", wkn: "ACM111"})
+      acme = create_security!(%{name: "Acme AG", isin: "DE000ACME016", wkn: "ACM111"})
 
       {:ok, view, _html} = live(conn, "/imports")
 
@@ -1210,9 +1210,9 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       assert html =~ "Import complete"
 
       updated = Portfolixir.Catalog.get_security!(acme.id)
-      assert updated.isin == "DE000ACME119"
+      assert updated.isin == "DE000ACME115"
       assert [alias_row] = Portfolixir.Catalog.list_identifier_aliases(updated)
-      assert alias_row.former_isin == "DE000ACME001"
+      assert alias_row.former_isin == "DE000ACME016"
 
       assert [transaction] = Ledger.list_transactions()
       assert transaction.security_id == acme.id

@@ -2267,6 +2267,21 @@ describe("Portfolixir MCP tools", () => {
     });
   });
 
+  // User story (E25 S5, G23):
+  // As the operating agent, I want the ISIN-change and security-update tools
+  // to state which identifiers the catalog refuses, so that a lookalike never
+  // replaces the identifier the exports carry and a 422 reads as a rule.
+  it("states the catalog's identifier rules on isin_change and securities.update", () => {
+    const find = (name: string) => listTools().find((tool) => tool.name === name);
+    const isin = find("portfolixir.securities.isin_change")?.description ?? "";
+    assert.match(isin, /check digit/);
+    const update = find("portfolixir.securities.update")?.description ?? "";
+    assert.match(update, /check digit/);
+    assert.match(update, /WKN of six letters or digits/);
+    assert.match(update, /printable ASCII/);
+    assert.match(update, /format characters/);
+  });
+
   it("rejects an isin_change call without new_isin before any API request", async () => {
     const { client, requests } = createRecordingClient({ data: { id: 7 } });
 

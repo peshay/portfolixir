@@ -35,6 +35,7 @@ defmodule Portfolixir.Portfolios.Reconcile do
   """
 
   alias Portfolixir.Buckets
+  alias Portfolixir.Catalog.Isin
   alias Portfolixir.Imports.SecurityResolver
   alias Portfolixir.Imports.SecurityResolver.Index
   alias Portfolixir.Ledger
@@ -52,8 +53,6 @@ defmodule Portfolixir.Portfolios.Reconcile do
   # tiers and the weak (confirm-before-booking) tiers.
   @tier_rank %{isin: 0, former_isin: 1, wkn: 2, pinned: 3, ticker: 4, name: 5}
   @weak_tiers [:ticker, :name]
-
-  @isin_format ~r/^[A-Z]{2}[A-Z0-9]{9}[0-9]$/
 
   @type row :: %{
           identifier: String.t(),
@@ -324,36 +323,12 @@ defmodule Portfolixir.Portfolios.Reconcile do
 
   @doc """
   Whether a (normalized) string validates as an ISIN: two letters, nine
-  alphanumerics, one check digit — verified with the ISO 6166 Luhn check over
-  the digitized string. Only such strings enter tier 1 (§6).
+  alphanumerics, one check digit — verified with the ISO 6166 Luhn check.
+  Only such strings enter tier 1 (§6). The catalog's one predicate
+  (`Portfolixir.Catalog.Isin.valid?/1`, E25 S5, G23).
   """
   @spec isin?(String.t() | nil) :: boolean()
-  def isin?(value) when is_binary(value) do
-    Regex.match?(@isin_format, value) and luhn_valid?(value)
-  end
-
-  def isin?(_value), do: false
-
-  defp luhn_valid?(value) do
-    value
-    |> String.to_charlist()
-    |> Enum.flat_map(&digitize/1)
-    |> Enum.reverse()
-    |> Enum.with_index()
-    |> Enum.reduce(0, fn {digit, position}, sum -> sum + luhn_digit(digit, position) end)
-    |> rem(10) == 0
-  end
-
-  # A letter contributes its two-digit base-36 value (A=10 … Z=35).
-  defp digitize(char) when char in ?0..?9, do: [char - ?0]
-  defp digitize(char) when char in ?A..?Z, do: [div(char - ?A + 10, 10), rem(char - ?A + 10, 10)]
-
-  defp luhn_digit(digit, position) when rem(position, 2) == 1 do
-    doubled = digit * 2
-    if doubled > 9, do: doubled - 9, else: doubled
-  end
-
-  defp luhn_digit(digit, _position), do: digit
+  def isin?(value), do: Isin.valid?(value)
 
   # Catalog normal form, mirroring the resolver: trimmed/upcased codes,
   # trimmed names, blanks to nil.

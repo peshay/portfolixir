@@ -7927,3 +7927,8 @@ msgstr "Steuern"
 #, elixir-autogen, elixir-format
 msgid "number %{value} cannot be read or is out of range"
 msgstr "Zahl %{value} ist nicht lesbar oder außerhalb des Bereichs"
+
+#: lib/portfolixir/imports/portfolio_performance.ex:108
+#, elixir-autogen, elixir-format
+msgid "ISIN %{isin} is not a valid ISIN (shape or check digit) — row not imported"
+msgstr "ISIN %{isin} ist keine gültige ISIN (Form oder Prüfziffer) — Zeile nicht übernommen"

@@ -30,7 +30,7 @@ defmodule Portfolixir.Imports.FormerNamesReimportTest do
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.SecuritiesAccount
 
-  @fund %{"name" => "Example Fund", "isin" => "DE000EXMPL01", "currency" => "EUR"}
+  @fund %{"name" => "Example Fund", "isin" => "DE000EXMPL17", "currency" => "EUR"}
 
   defp agent, do: Actor.api_token_rw("synthetic-agent")
 

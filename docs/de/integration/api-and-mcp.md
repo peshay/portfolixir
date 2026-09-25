@@ -325,14 +325,24 @@ ISIN-Wechsel — sie ist nur eine Namensänderung.
   und `note`. Liefert das aktualisierte Wertpapier einschließlich seiner
   `identifier_aliases`. Eine `new_isin`, die nicht zwölf Zeichen in der Form
   einer ISIN hat (zwei Buchstaben, neun Buchstaben oder Ziffern und eine
-  Prüfziffer), liefert `422` auf `new_isin`, eine `note` über 255 Zeichen `422`
-  auf `note`. Abgelehnt mit `422` und benanntem Konflikt, wenn
+  Prüfziffer) oder deren Prüfziffer nicht stimmt, liefert `422` auf
+  `new_isin`, eine `note` über 255 Zeichen `422` auf `note`. Abgelehnt mit `422` und benanntem Konflikt, wenn
   `new_isin` der aktuellen ISIN entspricht, auf einem anderen Wertpapier live
   ist oder als frühere ISIN eines anderen Wertpapiers aufgezeichnet ist; ein
   Wechsel zurück auf eine eigene frühere ISIN verbraucht diesen Alias (ein
   Revert). Jeder Wertpapier-ISIN-Schreibpfad — Anlegen, Aktualisieren und der
   Anlege-Pfad des Imports — lehnt symmetrisch eine ISIN ab, die als Alias
   existiert, und benennt das Alias-Wertpapier.
+- Ein Kennzeichen, das `PATCH /api/v1/securities/:id` an einem bestehenden
+  Wertpapier **ändert**, erfüllt dieselben Katalogregeln, sonst `422` mit dem
+  Feldnamen: eine `isin` in ISIN-Form mit stimmender Prüfziffer, eine `wkn`
+  aus sechs Buchstaben oder Ziffern, ein `ticker_symbol` nur aus druckbarem
+  ASCII. Ein Doppelgänger (ein Buchstabe aus einer anderen Schrift, ein
+  unsichtbares Zeichen, eine falsche Prüfziffer) ersetzt so nie das
+  Kennzeichen, das die Exporte tragen. Den gespeicherten Wert erneut zu senden
+  ist keine Änderung, und ein neues Wertpapier behält, womit es angelegt wird.
+  Der `name` eines Wertpapiers wird ohne Unicode-Formatzeichen gespeichert
+  (Nullbreiten-Leerzeichen und -Verbinder, Steuerzeichen der Schreibrichtung).
 - `DELETE /api/v1/securities/:security_id/identifier_aliases/:id` löscht einen
   aufgezeichneten Alias (journalisiert), wenn ein ISIN-Wechsel versehentlich
   aufgezeichnet wurde; liefert `204 No Content` oder `404`, wenn der Alias

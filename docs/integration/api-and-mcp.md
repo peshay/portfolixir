@@ -307,14 +307,23 @@ then the aliases — so re-imports of old exports (former ISIN) and new exports
   optional `changed_on` (ISO date, defaults to today) and `note`. Returns the
   updated security including its `identifier_aliases`. A `new_isin` that is not
   twelve characters of the ISIN shape (two letters, nine letters or digits and
-  a check digit) answers `422` on `new_isin`, and a `note` over 255 characters
-  `422` on `note`. Guarded with `422` and a
+  a check digit) or whose check digit does not agree answers `422` on
+  `new_isin`, and a `note` over 255 characters `422` on `note`. Guarded with `422` and a
   named conflict when `new_isin` equals the current ISIN, is live on another
   security, or is recorded as another security's former ISIN; recording a
   change back to one of the same security's own former ISINs consumes that
   alias (a revert). Every security-ISIN write path — create, update, and the
   import's create path — symmetrically rejects an ISIN that exists as an
   alias, naming the aliased security.
+- An identifier **changed** on an existing security through
+  `PATCH /api/v1/securities/:id` meets the same catalog rules, or answers `422`
+  naming the field: an `isin` of the ISIN shape with a check digit that
+  agrees, a `wkn` of six letters or digits, a `ticker_symbol` of printable
+  ASCII only. A lookalike (a letter from another script, an invisible
+  character, a wrong check digit) never replaces the identifier the exports
+  carry. Resending the stored value is no change, and a new security keeps
+  what it is created with. A security's `name` is stored without Unicode
+  format characters (zero-width spaces and joiners, bidirectional controls).
 - `DELETE /api/v1/securities/:security_id/identifier_aliases/:id` deletes one
   recorded alias (journaled) when an ISIN change was recorded by mistake;
   returns `204 No Content`, or `404` when the alias does not belong to the

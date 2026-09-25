@@ -174,7 +174,7 @@ defmodule PortfolixirWeb.Api.V1.RenameReimportTest do
             "shares" => Jason.Fragment.new(digits.shares),
             "security" => %{
               "name" => "Example Fund",
-              "isin" => "DE000EXMPL01",
+              "isin" => "DE000EXMPL17",
               "currency" => "EUR"
             }
           },

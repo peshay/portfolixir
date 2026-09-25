@@ -5,6 +5,7 @@ defmodule Portfolixir.Catalog.Security do
   alias Portfolixir.Catalog.AssetClasses
   alias Portfolixir.Catalog.Currencies
   alias Portfolixir.Catalog.Feeds
+  alias Portfolixir.Catalog.Isin
   alias Portfolixir.Input.Text
   alias Portfolixir.Lifecycle.Freeze
 
@@ -81,6 +82,9 @@ defmodule Portfolixir.Catalog.Security do
     # value, which would otherwise be a failed write.
     |> Text.validate_map(:attributes)
     |> protect_attributes()
+    # E25 S5 (G23): a name is stored without the format characters that
+    # render as nothing, so no two names differ only by what cannot be seen.
+    |> normalize_text(:name, &Text.strip_format_characters/1)
     |> normalize_text(:ticker_symbol, &String.upcase/1)
     |> normalize_text(:currency_code, &String.upcase/1)
     |> normalize_text(:exchange_code, &String.upcase/1)
@@ -132,6 +136,7 @@ defmodule Portfolixir.Catalog.Security do
     |> validate_format(:online_id, ~r/\A(?!\.+\z)[^\s\/?#%]{1,128}\z/,
       message: "is not a provider id"
     )
+    |> validate_changed_identifiers()
     |> validate_length(:currency_code, is: 3)
     |> validate_inclusion(:currency_code, Currencies.codes(), message: "is invalid")
     |> validate_inclusion(:asset_class, AssetClasses.codes(), message: "is invalid")
@@ -146,6 +151,37 @@ defmodule Portfolixir.Catalog.Security do
     # transaction or a quote — whichever writer built this changeset (a form,
     # the API, a search result merged into an existing security).
     |> Freeze.validate()
+  end
+
+  # E25 S5 (G23): an identifier CHANGED on a stored security meets the
+  # catalog's rules, so a lookalike can never replace the identifier the
+  # exports carry: the ISIN predicate with its check digit, a WKN of six
+  # letters or digits, a ticker of printable ASCII. A value resent unchanged
+  # is no change, and a new security keeps what it is created with (its
+  # identifiers come from providers and exports, and an import checks its
+  # ISINs at parse).
+  @wkn_shape ~r/\A[A-Z0-9]{6}\z/
+  @printable_ascii ~r/\A[\x21-\x7E]+\z/
+
+  defp validate_changed_identifiers(%Ecto.Changeset{data: data} = changeset) do
+    if Ecto.get_meta(data, :state) == :loaded do
+      changeset
+      |> validate_change(:isin, fn :isin, isin ->
+        if Isin.valid?(isin),
+          do: [],
+          else: [
+            isin:
+              {"is not an ISIN (two letters, nine letters or digits and a check digit)",
+               validation: :isin}
+          ]
+      end)
+      |> validate_format(:wkn, @wkn_shape, message: "is not a WKN (six letters or digits)")
+      |> validate_format(:ticker_symbol, @printable_ascii,
+        message: "must be printable ASCII characters"
+      )
+    else
+      changeset
+    end
   end
 
   # The delete changeset lives with the hardened delete path

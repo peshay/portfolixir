@@ -254,7 +254,7 @@ defmodule PortfolixirWeb.ApiV1TextBoundsTest do
       Catalog.create_security(Actor.owner_ui(), %{
         name: "Kestrel Industrial Group NV",
         currency_code: "EUR",
-        isin: "NL0000000018"
+        isin: "NL0000000016"
       })
 
     path = "/api/v1/securities/#{security.id}/isin-change"
@@ -275,14 +275,14 @@ defmodule PortfolixirWeb.ApiV1TextBoundsTest do
 
     body =
       conn
-      |> post(path, %{"isin_change" => %{"new_isin" => "NL0000000026", "note" => @long}})
+      |> post(path, %{"isin_change" => %{"new_isin" => "NL0000000024", "note" => @long}})
       |> json_response(422)
 
     assert Map.has_key?(body["errors"], "note")
-    assert Catalog.get_security(security.id).isin == "NL0000000018"
+    assert Catalog.get_security(security.id).isin == "NL0000000016"
 
     assert conn
-           |> post(path, %{"isin_change" => %{"new_isin" => " nl0000000026 "}})
+           |> post(path, %{"isin_change" => %{"new_isin" => " nl0000000024 "}})
            |> json_response(200)
   end
 end

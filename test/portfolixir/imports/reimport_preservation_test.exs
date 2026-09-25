@@ -77,7 +77,7 @@ defmodule Portfolixir.Imports.ReimportPreservationTest do
              Imports.apply(initial, %{portfolio_id: portfolio.id})
 
     btc = find_security!(&(&1.name == "Bitcoin"))
-    acme = find_security!(&(&1.isin == "DE000ACME001"))
+    acme = find_security!(&(&1.isin == "DE000ACME016"))
 
     # --- operator-maintained configuration -------------------------------
     {:ok, classification} = Classifications.create_classification(owner, %{name: "Strategy"})
@@ -301,7 +301,7 @@ defmodule Portfolixir.Imports.ReimportPreservationTest do
     assert {:ok, %Result{}} = Imports.apply(initial, %{portfolio_id: portfolio.id})
 
     btc = find_security!(&(&1.name == "Bitcoin"))
-    acme = find_security!(&(&1.isin == "DE000ACME001"))
+    acme = find_security!(&(&1.isin == "DE000ACME016"))
 
     {:ok, btc} =
       Catalog.update_security(owner, btc, %{
@@ -358,12 +358,12 @@ defmodule Portfolixir.Imports.ReimportPreservationTest do
     events_before = events_snapshot([btc.id, acme.id])
     research_log_before = research_log_snapshot([btc.id, acme.id])
 
-    {:ok, %{security: acme}} = Catalog.record_isin_change(owner, acme, "DE000ACME119")
+    {:ok, %{security: acme}} = Catalog.record_isin_change(owner, acme, "DE000ACME115")
 
     mutated = parse_fixture!("golden_path_mutated.json")
     %{resolutions: resolutions} = Imports.resolve_securities(mutated)
 
-    acme_res = Enum.find(resolutions, &(&1.ref.isin == "DE000ACME001"))
+    acme_res = Enum.find(resolutions, &(&1.ref.isin == "DE000ACME016"))
     btc_res = Enum.find(resolutions, &(&1.ref.name == "BTC (Cold Wallet)"))
 
     assert {:ok, %Result{created_securities: 0, created_transactions: 1}} =
@@ -378,7 +378,7 @@ defmodule Portfolixir.Imports.ReimportPreservationTest do
     # note + attributes byte-for-byte; the recorded ISIN change is the ONLY
     # difference the mutated import may leave on the catalog rows.
     assert strip_isin(securities_after) == strip_isin(securities_before)
-    assert Catalog.get_security!(acme.id).isin == "DE000ACME119"
+    assert Catalog.get_security!(acme.id).isin == "DE000ACME115"
     assert Catalog.get_security!(btc.id).name == "Bitcoin"
 
     # The calendar rides the alias resolution unchanged.
