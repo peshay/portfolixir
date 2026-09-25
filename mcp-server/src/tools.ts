@@ -3003,7 +3003,7 @@ const declaredTools: DeclaredTool[] = [
   tool("portfolixir.classifications.create", "Create classification", "Create a custom classification tree.", classificationSchema, classificationZ),
   tool("portfolixir.classifications.categories.create", "Create category", "Create a category in a custom classification. A parent_id must name a category of the same classification; any other parent answers 422 on parent_id and nothing is written.", categorySchema, categoryZ),
   tool("portfolixir.classifications.update", "Update classification", "Update a custom classification's name, description or position.", classificationUpdateSchema, classificationUpdateZ),
-  tool("portfolixir.classifications.delete", "Delete classification", "Delete a custom classification (a built-in tree is refused). ONE CALL REMOVES, with it: every category of the tree, at every depth; every security's assignment in it; every target weight on its categories, category and position targets alike; and every target plan of the tree, in every portfolio and view and every version, with its cash target. The securities themselves stay. Each of those rows is journaled as its own delete before the classification's, so the journal keeps the whole tree. A tree a policy rule reads is refused with 409 naming the rules.", idSchema, idZ),
+  tool("portfolixir.classifications.delete", "Delete classification", "Delete a custom classification (a built-in tree is refused). ONE CALL REMOVES, with it: every category of the tree, at every depth; every security's assignment in it; every target weight on its categories, category and position targets alike; and every target plan of the tree, in every portfolio and view and every version, with its cash target. The securities themselves stay. Each of those rows — the plans with their targets, the stored assignments and the categories — is journaled as its own delete before the classification's, so the journal keeps the whole tree. A tree a policy rule reads is refused with 409 naming the rules.", idSchema, idZ),
   tool("portfolixir.classifications.categories.update", "Update category", "Patch a category's name, color, description, position or parent_id. A new parent_id must name a category of the same classification that is neither the category itself nor one of its descendants, so the tree never loops; any other parent answers 422 on parent_id and nothing is written.", categoryUpdateSchema, categoryUpdateZ),
   tool("portfolixir.classifications.categories.delete", "Delete category", "Delete a category from a custom classification. ONE CALL REMOVES, with it: its sub-categories at every depth; the securities' assignments to any of them, so those securities are unassigned in the tree; and the target weights on any of them, category and position targets alike, in every plan. Each row is journaled as its own delete, the lowest categories first and the category itself last. A category a policy rule reads, itself or below it, is refused with 409 naming the rules.", categoryDeleteSchema, categoryDeleteZ),
   tool("portfolixir.classifications.assign", "Assign security", "Assign a security to a category of a custom classification.", assignSchema, assignZ),
@@ -3512,6 +3512,13 @@ const READ_ONLY_POSTS = new Set([
   "portfolixir.holdings.reconcile"
 ]);
 
+// Routed through POST but remove what is stored, so they are hinted as a
+// DELETE is: destructive, and idempotent, since a repeat finds nothing left.
+const REMOVING_POSTS = new Set([
+  // Removes one security's manual quotes in a range (E25 S6, T-9).
+  "portfolixir.quotes.release"
+]);
+
 // Reach an external provider through the API, so their answer depends on
 // something outside the instance.
 const OPEN_WORLD_TOOLS = new Set([
@@ -3522,11 +3529,12 @@ const OPEN_WORLD_TOOLS = new Set([
 
 function hintsFor(name: string, method: string): ToolHints {
   const readOnly = method === "GET" || READ_ONLY_POSTS.has(name);
+  const hintedAs = REMOVING_POSTS.has(name) ? "DELETE" : method;
 
   return {
     readOnlyHint: readOnly,
-    destructiveHint: !readOnly && ["PUT", "PATCH", "DELETE"].includes(method),
-    idempotentHint: readOnly || method !== "POST",
+    destructiveHint: !readOnly && ["PUT", "PATCH", "DELETE"].includes(hintedAs),
+    idempotentHint: readOnly || hintedAs !== "POST",
     openWorldHint: OPEN_WORLD_TOOLS.has(name)
   };
 }

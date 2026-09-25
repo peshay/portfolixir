@@ -139,6 +139,12 @@ const READ_ONLY_POSTS = [
   "portfolixir.holdings.reconcile" // compares a pasted list with the ledger, stores nothing
 ];
 
+// Routed through POST but remove what is stored, so they are hinted as a
+// DELETE is: destructive, and idempotent, since a repeat finds nothing left.
+const REMOVING_POSTS = [
+  "portfolixir.quotes.release" // removes the manual quotes in a range (E25 S6, T-9)
+];
+
 const OPEN_WORLD = [
   "portfolixir.securities.search_online", // sends its query to the configured provider
   "portfolixir.quotes.sync", // the quote provider
@@ -321,13 +327,14 @@ describe("the companion's published tool surface", () => {
       }
 
       const readOnly = method === "GET" || READ_ONLY_POSTS.includes(tool.name);
+      const hintedAs = REMOVING_POSTS.includes(tool.name) ? "DELETE" : method;
       assert.equal(hints.readOnlyHint, readOnly, `${tool.name} (${method}) readOnlyHint`);
       assert.equal(
         hints.destructiveHint,
-        !readOnly && ["PUT", "PATCH", "DELETE"].includes(method ?? ""),
+        !readOnly && ["PUT", "PATCH", "DELETE"].includes(hintedAs ?? ""),
         `${tool.name} (${method}) destructiveHint`
       );
-      assert.equal(hints.idempotentHint, readOnly || method !== "POST", `${tool.name} idempotentHint`);
+      assert.equal(hints.idempotentHint, readOnly || hintedAs !== "POST", `${tool.name} idempotentHint`);
       assert.equal(hints.openWorldHint, OPEN_WORLD.includes(tool.name), `${tool.name} openWorldHint`);
 
       if (method === "GET") {
@@ -344,6 +351,29 @@ describe("the companion's published tool surface", () => {
       assert.equal(tool?.annotations?.destructiveHint, false, name);
       assert.match(tool?.description ?? "", /PERMANENT/, `${name} states its permanence`);
     }
+  });
+
+  // User story (E25 S7, F24 and G25, with E25 S6, T-9):
+  // As the operator whose host asks before a write that removes what is stored,
+  // I want the quote release, a POST that removes manual quotes, hinted as the
+  // delete it is,
+  // so that the host never approves it as an additive write.
+  //
+  // Acceptance criteria:
+  // - portfolixir.quotes.release is routed through POST and carries
+  //   destructiveHint true and idempotentHint true, readOnlyHint false.
+  // - It is not listed in read-only mode.
+  it("hints the quote release as the delete it is", async () => {
+    const routes = routedMethodsFromSource();
+    const release = (await publishedTools()).find((tool) => tool.name === "portfolixir.quotes.release");
+
+    assert.equal(routes.get("portfolixir.quotes.release"), "POST");
+    assert.equal(release?.annotations?.readOnlyHint, false);
+    assert.equal(release?.annotations?.destructiveHint, true);
+    assert.equal(release?.annotations?.idempotentHint, true);
+
+    const readOnly = await publishedTools({ readOnly: true });
+    assert.equal(readOnly.some((tool) => tool.name === "portfolixir.quotes.release"), false);
   });
 
   // User story (E25 S7, G31):

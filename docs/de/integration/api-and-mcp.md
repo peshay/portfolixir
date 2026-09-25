@@ -2237,7 +2237,10 @@ HTTP-Methode, an die es weiterleitet:
 
 Die Ausnahmen sind benannt: `portfolixir.splits.preview` und
 `portfolixir.holdings.reconcile` laufen über `POST`, speichern aber nichts und
-sind deshalb nur lesend; `openWorldHint` ist nur für
+sind deshalb nur lesend; `portfolixir.quotes.release` läuft über `POST`,
+entfernt aber die manuellen Kurse in seinem Zeitraum und trägt deshalb die
+Hinweise eines `DELETE`: destruktiv und idempotent, weil eine Wiederholung
+nichts mehr zu entfernen findet; `openWorldHint` ist nur für
 `portfolixir.securities.search_online`, `portfolixir.quotes.sync` und
 `portfolixir.exchange_rates.sync` wahr, die einen externen Anbieter erreichen.
 Die nur anfügenden Schreibvorgänge, `portfolixir.notes.append` und die
