@@ -19,6 +19,7 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
   """
 
   alias Portfolixir.Net.Http
+  alias Portfolixir.Net.PathSegment
 
   @endpoint "https://en.wikipedia.org/api/rest_v1/page/summary"
   @search_endpoint "https://en.wikipedia.org/w/rest.php/v1/search/page"
@@ -42,21 +43,21 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
   @spec lookup(String.t(), keyword()) ::
           {:ok, String.t()} | :not_found | {:error, term()}
   def lookup(title, opts \\ []) when is_binary(title) do
-    url = @endpoint <> "/" <> URI.encode(title, &URI.char_unreserved?/1)
-    req = build_req(opts)
+    # Every identifier placed in a path is one segment (F31).
+    with {:ok, segment} <- PathSegment.encode(title) do
+      case Http.get(build_req(opts), url: @endpoint <> "/" <> segment) do
+        {:ok, %Req.Response{status: 200, body: body}} ->
+          image_from_summary(body, opts)
 
-    case Http.get(req, url: url) do
-      {:ok, %Req.Response{status: 200, body: body}} ->
-        image_from_summary(body, opts)
+        {:ok, %Req.Response{status: 404}} ->
+          :not_found
 
-      {:ok, %Req.Response{status: 404}} ->
-        :not_found
+        {:ok, %Req.Response{status: status}} ->
+          {:error, {:http_status, status}}
 
-      {:ok, %Req.Response{status: status}} ->
-        {:error, {:http_status, status}}
-
-      {:error, reason} ->
-        {:error, reason}
+        {:error, reason} ->
+          {:error, reason}
+      end
     end
   end
 
@@ -190,21 +191,20 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
   defp wikidata_logo_from_summary(_body, _opts), do: :not_found
 
   defp lookup_wikidata_logo(id, opts) do
-    url = @wikidata_endpoint <> "/" <> URI.encode(id, &URI.char_unreserved?/1) <> ".json"
-    req = build_req(opts)
+    with {:ok, segment} <- PathSegment.encode(id) do
+      case Http.get(build_req(opts), url: @wikidata_endpoint <> "/" <> segment <> ".json") do
+        {:ok, %Req.Response{status: 200, body: body}} ->
+          logo_url_from_entity(body, id)
 
-    case Http.get(req, url: url) do
-      {:ok, %Req.Response{status: 200, body: body}} ->
-        logo_url_from_entity(body, id)
+        {:ok, %Req.Response{status: 404}} ->
+          :not_found
 
-      {:ok, %Req.Response{status: 404}} ->
-        :not_found
+        {:ok, %Req.Response{status: status}} ->
+          {:error, {:http_status, status}}
 
-      {:ok, %Req.Response{status: status}} ->
-        {:error, {:http_status, status}}
-
-      {:error, reason} ->
-        {:error, reason}
+        {:error, reason} ->
+          {:error, reason}
+      end
     end
   end
 
@@ -212,8 +212,9 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
     with %{"entities" => entities} <- body,
          %{} = entity <- Map.get(entities, id),
          claims when is_list(claims) <- get_in(entity, ["claims", "P154"]),
-         filename when is_binary(filename) and filename != "" <- first_logo_filename(claims) do
-      {:ok, commons_logo_redirect(filename)}
+         filename when is_binary(filename) and filename != "" <- first_logo_filename(claims),
+         {:ok, segment} <- PathSegment.encode(filename) do
+      {:ok, commons_logo_redirect(segment)}
     else
       _ -> :not_found
     end
@@ -225,9 +226,7 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
     end)
   end
 
-  defp commons_logo_redirect(filename) do
-    @commons_file_path <> URI.encode(filename, &URI.char_unreserved?/1) <> "?width=256"
-  end
+  defp commons_logo_redirect(segment), do: @commons_file_path <> segment <> "?width=256"
 
   defp summary_image(%{"thumbnail" => %{"source" => source}}) when is_binary(source),
     do: {:ok, source}

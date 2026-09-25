@@ -24,6 +24,7 @@ defmodule Portfolixir.Catalog.QuoteSync.Yahoo do
 
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Net.Http
+  alias Portfolixir.Net.PathSegment
 
   @endpoint "https://query1.finance.yahoo.com/v8/finance/chart"
   # The only hosts a request or a redirect hop may reach (F27).
@@ -39,33 +40,27 @@ defmodule Portfolixir.Catalog.QuoteSync.Yahoo do
   end
 
   def fetch(%Security{} = security, opts) do
-    case build_symbol(security) do
-      {:error, _} = err ->
-        err
+    # One path segment (#763, F31): a ticker can neither change the endpoint,
+    # nor the query, nor, as a relative segment, the path.
+    with {:ok, symbol} <- build_symbol(security),
+         {:ok, segment} <- PathSegment.encode(symbol) do
+      case Http.get(req(opts),
+             url: "#{@endpoint}/#{segment}",
+             params: [
+               period1: 0,
+               period2: DateTime.utc_now() |> DateTime.to_unix(),
+               interval: @interval
+             ]
+           ) do
+        {:ok, %Req.Response{status: 200, body: body}} ->
+          {:ok, decode(body)}
 
-      {:ok, symbol} ->
-        req = req(opts)
-        # One unreserved path segment (#763): a ticker can neither change
-        # the endpoint nor the query.
-        url = "#{@endpoint}/#{URI.encode(symbol, &URI.char_unreserved?/1)}"
+        {:ok, %Req.Response{status: status}} ->
+          {:error, {:http_status, status}}
 
-        case Http.get(req,
-               url: url,
-               params: [
-                 period1: 0,
-                 period2: DateTime.utc_now() |> DateTime.to_unix(),
-                 interval: @interval
-               ]
-             ) do
-          {:ok, %Req.Response{status: 200, body: body}} ->
-            {:ok, decode(body)}
-
-          {:ok, %Req.Response{status: status}} ->
-            {:error, {:http_status, status}}
-
-          {:error, reason} ->
-            {:error, reason}
-        end
+        {:error, reason} ->
+          {:error, reason}
+      end
     end
   end
 
