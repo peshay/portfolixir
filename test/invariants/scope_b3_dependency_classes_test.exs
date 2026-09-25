@@ -38,8 +38,8 @@ defmodule Portfolixir.Invariants.ScopeB3DependencyClassesTest do
   # by mcp_dependency_allowlist_test.exs (ADR-0002); this file widens the
   # scope-line half of that idea to both trees and to transitive packages.
 
-  # Each class: the gate it backs, whether it is a permanent non-goal or a
-  # gated capability, and its vocabulary. `words` match a whole name token
+  # Each class: the gate it backs (and any it also backs), whether it is a
+  # permanent non-goal or a gated capability, and its vocabulary. `words` match a whole name token
   # (`order` matches `order-book`, not `ordered-map`); `stems` are distinctive
   # enough to match inside a token (`openai` in `openai_ex`).
   @classes [
@@ -82,8 +82,11 @@ defmodule Portfolixir.Invariants.ScopeB3DependencyClassesTest do
       class: :gated,
       gate: "gated.b3_7_push_delivery",
       category: "push delivery",
-      words: ~w(push mail mailer smtp apns fcm swoosh bamboo pigeon),
-      stems: ~w(webhook webpush nodemailer)
+      # Mail, webhooks, web and mobile push, and the chat and SMS channels a
+      # self-hosted alert would reach for — generic channels, not providers
+      # anyone banks or trades with.
+      words: ~w(push mail mailer smtp apns fcm firebase swoosh bamboo pigeon slack sms nadia),
+      stems: ~w(webhook webpush nodemailer telegram telegex twilio discord pushover ntfy gotify)
     },
     %{
       class: :gated,
@@ -95,6 +98,9 @@ defmodule Portfolixir.Invariants.ScopeB3DependencyClassesTest do
     %{
       class: :gated,
       gate: "gated.phase3_readonly_sync",
+      # A banking or broker SDK is where an order-placing connection would
+      # arrive too; it is caught until an ADR admits it as read-only.
+      also_backs: ["nongoal.order_placing_connection"],
       category: "banking and broker access",
       words: ~w(bank banks banking broker brokers brokerage wallet ofx xpub bip32 bip39),
       stems: ~w(fints hbci ebics openbanking psd2 xs2a)
@@ -150,7 +156,11 @@ defmodule Portfolixir.Invariants.ScopeB3DependencyClassesTest do
         "crawly": {:hex, :crawly, "0.17.2", "abc", [:mix], [], "hexpm", "def"},
         "ordered_map": {:hex, :ordered_map, "0.1.0", "abc", [:mix], [], "hexpm", "def"},
         "fints_client": {:git, "https://example.invalid/acme/fints_client.git", "0123abc", []},
-        "renamed": {:hex, :bumblebee, "0.6.0", "abc", [:mix], [], "hexpm", "def"}
+        "renamed": {:hex, :bumblebee, "0.6.0", "abc", [:mix], [], "hexpm", "def"},
+        "order_router": {:hex, :order_router, "0.1.0", "abc", [:mix], [], "hexpm", "def"},
+        "rss_reader": {:hex, :rss_reader, "0.1.0", "abc", [:mix], [], "hexpm", "def"},
+        "telegex": {:hex, :telegex, "1.8.0", "abc", [:mix], [], "hexpm", "def"},
+        "ex_twilio": {:hex, :ex_twilio, "0.10.0", "abc", [:mix], [], "hexpm", "def"}
       }
       """
 
@@ -162,7 +172,8 @@ defmodule Portfolixir.Invariants.ScopeB3DependencyClassesTest do
       caught = lock |> hex_packages() |> classify() |> Enum.map(&elem(&1, 0)) |> MapSet.new()
 
       assert MapSet.subset?(
-               MapSet.new(~w(openai_ex stripity_stripe crawly fints_client bumblebee)),
+               MapSet.new(~w(openai_ex stripity_stripe crawly fints_client bumblebee order_router
+                    rss_reader telegex ex_twilio)),
                caught
              )
 
@@ -180,7 +191,10 @@ defmodule Portfolixir.Invariants.ScopeB3DependencyClassesTest do
             "node_modules/@anthropic-ai/sdk" => %{"version" => "1.0.0"},
             "node_modules/express/node_modules/nodemailer" => %{"version" => "6.0.0"},
             "node_modules/innocent-alias" => %{"name" => "psd2-client", "version" => "1.0.0"},
-            "node_modules/strip-ansi" => %{"version" => "7.0.0"}
+            "node_modules/strip-ansi" => %{"version" => "7.0.0"},
+            "node_modules/discord.js" => %{"version" => "14.0.0"},
+            "node_modules/@slack/web-api" => %{"version" => "7.0.0"},
+            "node_modules/pushover-notifications" => %{"version" => "1.0.0"}
           }
         })
 
@@ -192,13 +206,43 @@ defmodule Portfolixir.Invariants.ScopeB3DependencyClassesTest do
 
       caught = packages |> classify() |> Enum.map(&elem(&1, 0)) |> MapSet.new()
 
-      assert MapSet.equal?(caught, MapSet.new(~w(@anthropic-ai/sdk nodemailer psd2-client)))
+      assert MapSet.equal?(
+               caught,
+               MapSet.new(~w(@anthropic-ai/sdk nodemailer psd2-client discord.js @slack/web-api
+                    pushover-notifications))
+             )
+    end
+
+    test "every gate the file declares is carried by a class that catches a sample" do
+      samples =
+        ~w(openai_ex stripity_stripe crawly fints_client bumblebee order_router rss_reader
+           nodemailer telegex)
+
+      caught_gates =
+        for {_package, class} <- classify(samples), gate <- gates(class), into: MapSet.new() do
+          gate
+        end
+
+      class_gates = @classes |> Enum.flat_map(&gates/1) |> MapSet.new()
+
+      declared =
+        ~r/^\s*#\s*gate:([a-z0-9_.]+)\s*$/m
+        |> Regex.scan(File.read!(__ENV__.file))
+        |> MapSet.new(fn [_, id] -> id end)
+
+      assert declared == class_gates,
+             "the gate: lines and the classes' gates differ (NFR-9 B7): declared " <>
+               inspect(Enum.sort(declared)) <> ", classes " <> inspect(Enum.sort(class_gates))
+
+      assert MapSet.subset?(class_gates, caught_gates),
+             "gates with no caught sample: " <>
+               inspect(MapSet.difference(class_gates, caught_gates) |> Enum.sort())
     end
 
     test "every class names its gate and a vocabulary" do
       for class <- @classes do
         assert class.class in [:permanent, :gated]
-        assert class.gate =~ ~r/^(nongoal|gated)\./
+        assert Enum.all?(gates(class), &(&1 =~ ~r/^(nongoal|gated)\./))
         assert class.words ++ class.stems != []
       end
     end
@@ -229,6 +273,9 @@ defmodule Portfolixir.Invariants.ScopeB3DependencyClassesTest do
   defp classify(packages) do
     for package <- packages, class <- @classes, member?(package, class), do: {package, class}
   end
+
+  # The gate a class backs first, and any other it backs as well.
+  defp gates(class), do: [class.gate | Map.get(class, :also_backs, [])]
 
   defp member?(package, %{words: words, stems: stems}) do
     tokens = package |> String.downcase() |> String.split(~r/[^a-z0-9]+/, trim: true)

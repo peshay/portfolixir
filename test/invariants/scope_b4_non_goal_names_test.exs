@@ -40,7 +40,9 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
   #   clean tree cannot pass vacuously, and an excuse still excuses a real name.
 
   # `{class, gate, words}` or `{class, gate, phrases}`: a name violates when a
-  # word, or a phrase's tokens in order, appears among its tokens. Words with
+  # word, or a phrase's tokens in order, appears among its tokens — the last
+  # word also in its plural, since Ecto names a table in the plural
+  # (`simulations`, `advisories`). Words with
   # an innocent ledger meaning on their own (`trade` for a recorded buy, `feed`
   # for a quote source) are listed only inside phrases.
   @vocabulary [
@@ -58,6 +60,7 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
     {:permanent, "nongoal.raw_news_archive", ~w(news newsfeed headline headlines)},
     {:permanent, "nongoal.external_llm_calls",
      ~w(llm llms chat chatbot completion completions openai gpt genai)},
+    {:permanent, "nongoal.external_llm_calls", [~w(open ai)]},
     # Gated: each opens only with its own ADR.
     {:gated, "gated.level_d_backtesting",
      ~w(backtest backtests backtesting simulator simulation simulate scenario scenarios
@@ -130,24 +133,66 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
              end)
   end
 
+  # Synthetic names the matcher must catch: every kind of name, acronyms
+  # spelled as Elixir spells them, Ecto's plural table names, and at least one
+  # for every gate of the vocabulary.
+  @caught_samples [
+    {:route, "POST /api/v1/orders"},
+    {:route, "GET /api/v1/portfolios/:portfolio_id/backtest"},
+    {:route, "GET /api/v1/recommendations"},
+    {:tool, "portfolixir.broker.sync"},
+    {:tool, "portfolixir.quotes.sync_broker"},
+    {:tool, "portfolixir.accounts.sync_now"},
+    {:event, "place_order"},
+    {:event, "execute_rebalance"},
+    {:table, "news_articles"},
+    {:table, "money_transfers"},
+    {:table, "simulations"},
+    {:table, "scrapers"},
+    {:table, "advisors"},
+    {:table, "advisories"},
+    {:table, "notifiers"},
+    {:table, "counterfactuals"},
+    {:table, "chatbots"},
+    {:table, "broker_connections"},
+    {:module, "Portfolixir.Llm.ChatCompletion"},
+    {:module, "Portfolixir.LLMClient"},
+    {:module, "Portfolixir.AI.OpenAIClient"},
+    {:module, "Portfolixir.Alerts.SMSNotifier"},
+    {:module, "Portfolixir.Imports.OCRPipeline"},
+    {:module, "Portfolixir.Notifications.WebhookDelivery"},
+    {:module, "Portfolixir.Acquisition.Scraper"},
+    {:module, "PortfolixirWeb.Api.V1.PaymentController"}
+  ]
+
   describe "the matcher (self-test: a clean tree cannot pass vacuously)" do
     test "synthetic names of every kind are caught" do
-      for name <- [
-            {:route, "POST /api/v1/orders"},
-            {:route, "GET /api/v1/portfolios/:portfolio_id/backtest"},
-            {:tool, "portfolixir.broker.sync"},
-            {:tool, "portfolixir.quotes.sync_broker"},
-            {:tool, "portfolixir.accounts.sync_now"},
-            {:event, "place_order"},
-            {:event, "execute_rebalance"},
-            {:table, "news_articles"},
-            {:table, "money_transfers"},
-            {:module, "Portfolixir.Llm.ChatCompletion"},
-            {:module, "Portfolixir.Notifications.WebhookDelivery"},
-            {:module, "PortfolixirWeb.Api.V1.PaymentController"}
-          ] do
+      for name <- @caught_samples do
         assert violations(name) != [], "#{inspect(name)} should be caught"
       end
+    end
+
+    test "every gate of the vocabulary catches a sample, and the gate lines match it" do
+      vocabulary_gates = @vocabulary |> Enum.map(&elem(&1, 1)) |> MapSet.new()
+
+      caught_gates =
+        for name <- @caught_samples, {_name, term} <- violations(name), into: MapSet.new() do
+          term.gate
+        end
+
+      assert MapSet.subset?(vocabulary_gates, caught_gates),
+             "gates with no caught sample: " <>
+               inspect(MapSet.difference(vocabulary_gates, caught_gates) |> Enum.sort())
+
+      declared =
+        ~r/^\s*#\s*gate:([a-z0-9_.]+)\s*$/m
+        |> Regex.scan(File.read!(__ENV__.file))
+        |> MapSet.new(fn [_, id] -> id end)
+
+      assert declared == vocabulary_gates,
+             "the gate: lines and the vocabulary's gates differ (NFR-9 B7): declared " <>
+               inspect(Enum.sort(declared)) <>
+               ", vocabulary " <> inspect(Enum.sort(vocabulary_gates))
     end
 
     test "excused phrases and innocent neighbours are not caught" do
@@ -160,7 +205,11 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
             {:event, "sync_now"},
             {:module, "Portfolixir.Ledger.TradeMatcher"},
             {:route, "GET /api/v1/portfolios/:portfolio_id/allocation"},
-            {:table, "security_notes"}
+            {:table, "security_notes"},
+            {:module, "PortfolixirWeb.Api.V1.PolicyJSON"},
+            {:module, "PortfolixirWeb.SessionHTML"},
+            {:module, "Portfolixir.Portfolios.Performance.IRR"},
+            {:table, "status_checks"}
           ] do
         assert violations(name) == [], "#{inspect(name)} should not be caught"
       end
@@ -216,10 +265,30 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
           do: position
 
     for term <- @terms,
-        at <- occurrences(tokens, term.tokens),
+        at <- term_occurrences(tokens, term.tokens),
         not Enum.any?(span(at, term.tokens), &MapSet.member?(masked, &1)),
         uniq: true,
         do: {named, term}
+  end
+
+  # Where a term occurs: its words in order, the last one also plural.
+  defp term_occurrences(tokens, words) do
+    size = length(words)
+    last = length(tokens) - size
+    {leading, [final]} = Enum.split(words, -1)
+
+    if last < 0,
+      do: [],
+      else:
+        Enum.filter(0..last, fn at ->
+          {head, [token]} = tokens |> Enum.slice(at, size) |> Enum.split(-1)
+          head == leading and token in plural_forms(final)
+        end)
+  end
+
+  defp plural_forms(word) do
+    ies = if String.ends_with?(word, "y"), do: [String.slice(word, 0..-2//1) <> "ies"], else: []
+    [word, word <> "s", word <> "es" | ies]
   end
 
   # The excuse's phrase occurs in the name and covers a term there — the
@@ -232,7 +301,9 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
         covered = span(at, phrase)
 
         Enum.any?(@terms, fn term ->
-          Enum.any?(occurrences(tokens, term.tokens), &(span(&1, term.tokens) -- covered == []))
+          tokens
+          |> term_occurrences(term.tokens)
+          |> Enum.any?(&(span(&1, term.tokens) -- covered == []))
         end)
       end)
   end
@@ -250,10 +321,13 @@ defmodule Portfolixir.Invariants.ScopeB4NonGoalNamesTest do
   defp span(at, phrase), do: Enum.to_list(at..(at + length(phrase) - 1))
 
   # `Portfolixir.Catalog.QuoteSync`, `portfolixir.quotes.sync_broker` and
-  # `POST /api/v1/exchange_rates/sync` all split into lowercase word tokens.
+  # `POST /api/v1/exchange_rates/sync` all split into lowercase word tokens; an
+  # acronym fused to the next word splits off it (`LLMClient` reads as
+  # ["llm", "client"]), as Elixir spells acronyms.
   defp tokens(name) do
     name
     |> to_string()
+    |> String.replace(~r/([A-Z]+)([A-Z][a-z])/, "\\1_\\2")
     |> String.replace(~r/([a-z0-9])([A-Z])/, "\\1_\\2")
     |> String.downcase()
     |> String.split(~r/[^a-z0-9]+/, trim: true)
