@@ -40,7 +40,8 @@ defmodule Portfolixir.Imports.Entry do
           pp_counter_account_name: String.t() | nil,
           note: String.t() | nil,
           warnings: [String.t()],
-          companion_entries: [t()]
+          companion_entries: [t()],
+          companion_index: pos_integer() | nil
         }
 
   defstruct source_row: nil,
@@ -60,18 +61,26 @@ defmodule Portfolixir.Imports.Entry do
             pp_counter_account_name: nil,
             note: nil,
             warnings: [],
-            companion_entries: []
+            companion_entries: [],
+            # Set by `flatten/1` on a split-off companion: its 1-based
+            # position among its parent's companions (E25 S5, F37).
+            companion_index: nil
 
   @doc """
   Flattens an entry list so each parent's `companion_entries` becomes
-  a top-level entry of its own, ordered right after the parent.
-
-  Used by the Applier so it doesn't have to know about companions.
+  a top-level entry of its own, ordered right after the parent and marked
+  with its `companion_index` (1-based), so the applier can hash it with its
+  parent and book or skip it together with it (E25 S5, F37).
   """
   @spec flatten([t()]) :: [t()]
   def flatten(entries) do
     Enum.flat_map(entries, fn entry ->
-      [%{entry | companion_entries: []} | entry.companion_entries]
+      companions =
+        entry.companion_entries
+        |> Enum.with_index(1)
+        |> Enum.map(fn {companion, index} -> %{companion | companion_index: index} end)
+
+      [%{entry | companion_entries: []} | companions]
     end)
   end
 end

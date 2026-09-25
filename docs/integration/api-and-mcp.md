@@ -2052,7 +2052,11 @@ through this API lives next to the imported history:
 
 - **Re-applying the same export is a content-hash no-op.** Every transaction
   row that already exists is skipped as a duplicate; no security is created
-  twice; the response of the apply reports the skipped count.
+  twice; the response of the apply reports the skipped count. The hash is
+  injective (two different rows never share one) and every hash stored before
+  it became so is still found. A tax refund split off a row books or skips
+  with that row, so two equal refunds of two different sales both book, and a
+  refund already imported is recognised through its sale.
 - **A rename is safe for the next import (ADR-0050 §3, §4).** The hash is
   checked before anything resolves, and a cash account or depot is created
   only with its first new booking, so a rename over

@@ -17,7 +17,8 @@ description: Decision that strategy configuration survives a PP re-import throug
   former-name tier; and §3's manual repair points at the security merge.
   **Amended by the security pass E25 S5** (2026-09-25, Sprint 16, adopted
   with its triage): the content hash and the reference key are injective
-  with every stored hash still valid (see the amendment below).
+  with every stored hash still valid, and a split-off tax refund books with
+  its row (see the amendment below).
 - **Date:** 2026-07-19
 
 ## Context
@@ -431,7 +432,7 @@ Shape (binding for Story 18.3, hardened 2026-07-22):
   FR-29 rescope wording — are applied to the sections above. The draft is
   review-hardened and ready for owner sign-off.
 
-## Amendment: the content hash and the reference key are injective (2026-09-25, E25 S5)
+## Amendment: injective identity keys, and a refund books with its row (2026-09-25, E25 S5)
 
 Two identity keys of this record joined their fields with an unescaped `|`:
 the content `import_hash` (#533) and the preview's security reference key
@@ -457,6 +458,39 @@ different references one key, so one preview decision applied to both
   formula) and `import_hash_reimport_test.exs` (a re-import of a row stored
   under that formula books nothing; two rows that joined to one string both
   book; two references that joined to one string resolve separately).
+
+**A split-off tax refund books with its row** (F37; risk-tier: idempotency).
+The parsers split a negative tax of a row into a `tax_refund` companion
+entry. It used to be hashed as a row of its own, so two different rows with
+equal refunds (one date, account, security and amount) gave their refunds one
+hash, and the second refund was skipped as already imported.
+
+- A companion's hash folds in its parent's hash and its position among the
+  parent's companions (`ImportHash.companion/4`), so equal refunds of
+  different rows hash apart.
+- A companion is **skipped or inserted together with its parent**: it books
+  when its parent booked in the same run, and when its parent is skipped it
+  is skipped on the same layer (a parent already booked, retired, economically
+  equal or collapsed) or with the parent's reason. A companion stored under
+  the Sprint 15 formula is therefore recognised through its parent on
+  re-import, and nothing books twice; the preview counts a companion under
+  its parent's layer.
+- What this does not repair: a refund the old formula skipped wrongly is not
+  booked by a re-import, since its row is already booked; and a refund whose
+  row was deleted by hand and is re-imported books again with it.
+
+**Within-file duplicates collapse, and this is deliberate.** A row that
+repeats an earlier row of the same file exactly holds the same content hash:
+the first copy books, and the repeat is reported as already booked (layer
+`hash`) with its companions. Rows that differ in the file but resolve to one
+booking (§2's N:1 case) collapse on the in-run key of ADR-0050 §6, scoped by
+the file's account names and the time of day. Two genuinely separate
+bookings that a Portfolio Performance export renders identically — the same
+kind, date, time, security, amounts and accounts — therefore book once; the
+result names the collapsed row, so the operator can book the second by hand.
+Pinned by `companion_hash_test.exs` (two different parents with equal refunds
+book both; a companion stored under the Sprint 15 formula is recognised on
+re-import; a companion is skipped with a parent that is not imported).
 
 ## References
 

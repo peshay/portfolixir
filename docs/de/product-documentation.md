@@ -1891,6 +1891,13 @@ Inhalts-Hash), eine Zeile, die eine Zusammenführung entfernt hat
 (stillgelegter Inhalts-Hash), oder eine bestehende Buchung mit demselben Datum,
 Wertpapier, derselben Stückzahl und demselben Betrag.
 
+Eine **von einer Zeile abgespaltene Steuererstattung** (etwa eine negative
+Steuer auf einen Verkauf) wird zusammen mit dieser Zeile gebucht oder
+übersprungen: Zwei gleiche Erstattungen zweier verschiedener Verkäufe werden
+beide gebucht, und ein erneuter Import der Datei bucht keine doppelt. Innerhalb
+einer Datei wird eine Zeile, die eine frühere genau wiederholt, einmal
+gebucht, und die Wiederholung steht bei den bereits gebuchten.
+
 ### Wertpapier-Matching und der Zuordnungsschritt
 
 Wertpapiere in der Datei werden über eine deterministische **Leiter stabiler

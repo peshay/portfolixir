@@ -1749,6 +1749,12 @@ identical row imported before (stored content hash), a row a merge removed
 (retired content hash), or an existing booking with the same date, security,
 quantity and amount.
 
+A **tax refund split off a row** (a negative tax on a sale, say) is booked or
+skipped together with that row: two equal refunds of two different sales both
+book, and re-importing the file books neither twice. Within one file, a row
+that repeats an earlier row exactly books once, and the repeat is listed as
+already booked.
+
 ### Security matching and the mapping step
 
 Securities in the file resolve against existing records through a

@@ -300,8 +300,9 @@ defmodule Portfolixir.Imports.Applier do
   carries on either leg. Read-only; the hash names `portfolio_id`, and without
   one every importable row is new.
 
-  A row repeating an earlier row of the same file exactly (the same content
-  hash) counts `:hash`: the apply skips it on that layer once the first copy
+  A tax refund split off a row counts under that row's layer: it is booked
+  or skipped with it (E25 S5, F37). A row repeating an earlier row of the
+  same file exactly (the same content hash) counts `:hash`: the apply skips it on that layer once the first copy
   is booked, or on whatever later layer skipped the first. A row counted
   `:new` may still be skipped at apply by a later layer (an equal economic
   booking, an internal transfer, an in-run collapse or an undecided
@@ -318,12 +319,18 @@ defmodule Portfolixir.Imports.Applier do
     layer_of = row_layers(flat_entries, portfolio_id)
     empty = %{hash: 0, retired: 0, unimportable: 0, new: 0}
 
-    initial = {%{total: empty, cash_accounts: %{}, depots: %{}}, MapSet.new()}
+    initial = {%{total: empty, cash_accounts: %{}, depots: %{}}, MapSet.new(), nil}
 
-    {counts, _seen} =
-      Enum.reduce(flat_entries, initial, fn entry, {acc, seen} ->
-        {layer, seen} = in_file_repeat(layer_of.(entry), seen)
-        {count_row(acc, entry, layer, empty), seen}
+    # A companion counts under its parent's layer: it is booked or skipped
+    # with it (E25 S5, F37).
+    {counts, _seen, _parent_layer} =
+      Enum.reduce(flat_entries, initial, fn
+        %Entry{companion_index: nil} = entry, {acc, seen, _parent_layer} ->
+          {layer, seen} = in_file_repeat(layer_of.(entry), seen)
+          {count_row(acc, entry, layer, empty), seen, layer}
+
+        entry, {acc, seen, parent_layer} ->
+          {count_row(acc, entry, parent_layer || :unimportable, empty), seen, parent_layer}
       end)
 
     counts
@@ -378,16 +385,18 @@ defmodule Portfolixir.Imports.Applier do
   # whose fields carry the hash's separator also consults the hash the
   # Sprint 15 formula gave it (E25 S5, F36), as the apply does.
   defp row_layers(flat_entries, portfolio_id) do
+    parents = Enum.filter(flat_entries, &is_nil(&1.companion_index))
+
     hashes =
       if is_integer(portfolio_id),
-        do: Map.new(flat_entries, &{&1, ImportHash.compute(&1, portfolio_id)}),
+        do: Map.new(parents, &{&1, ImportHash.compute(&1, portfolio_id)}),
         else: %{}
 
     legacy =
       if is_integer(portfolio_id),
         do:
           for(
-            entry <- flat_entries,
+            entry <- parents,
             hash = ImportHash.legacy(entry, portfolio_id),
             hash != nil,
             into: %{},
@@ -785,12 +794,110 @@ defmodule Portfolixir.Imports.Applier do
   end
 
   defp reduce_entries(entries, initial_state) do
+    initial_state = Map.merge(initial_state, %{parent: nil, outcome: nil})
+
     Enum.reduce_while(entries, {:ok, initial_state}, fn entry, {:ok, state} ->
-      case process_entry(entry, state) do
+      case process_row(entry, state) do
         {:ok, state} -> {:cont, {:ok, state}}
         {:error, reason} -> {:halt, {:error, reason}}
       end
     end)
+  end
+
+  # A row of the file is processed on its own and remembered as the parent of
+  # the companions `Entry.flatten/1` placed right after it; a companion (a tax
+  # refund split off that row) follows its parent (E25 S5, F37). The recorders
+  # and the insert leave the row's outcome in `state.outcome`.
+  defp process_row(%Entry{companion_index: nil} = entry, state) do
+    with {:ok, state} <- process_entry(entry, %{state | outcome: nil}) do
+      parent = %{
+        row: entry.source_row,
+        hash: ImportHash.compute(entry, state.portfolio_id),
+        outcome: state.outcome
+      }
+
+      {:ok, %{state | parent: parent}}
+    end
+  end
+
+  defp process_row(%Entry{companion_index: index} = entry, state),
+    do: process_companion(entry, index, state)
+
+  # E25 S5 (F37): a companion is skipped or inserted together with its
+  # parent. It books when its parent booked in this run, under a hash that
+  # folds in the parent's hash and its position, so two equal refunds split
+  # off two different rows book both; a parent already booked (or skipped by
+  # any later layer) skips its companions on the same layer, so a companion
+  # stored under the Sprint 15 formula is recognised through its parent and
+  # nothing books twice.
+  defp process_companion(
+         entry,
+         index,
+         %{parent: %{outcome: :inserted, hash: parent_hash}} = state
+       ) do
+    insert_companion(
+      entry,
+      ImportHash.companion(parent_hash, index, entry, state.portfolio_id),
+      state
+    )
+  end
+
+  defp process_companion(entry, _index, %{parent: %{outcome: {:duplicate, layer}}} = state),
+    do: {:ok, record_duplicate(state, entry, layer)}
+
+  defp process_companion(entry, _index, %{parent: %{outcome: :collapsed}} = state),
+    do: {:ok, state |> bump_result(:skipped_duplicates) |> record_collapsed(entry)}
+
+  defp process_companion(
+         entry,
+         _index,
+         %{parent: %{outcome: {:unresolved, key, reason}}} = state
+       ),
+       do: {:ok, record_unresolved(state, entry, key, reason)}
+
+  defp process_companion(entry, _index, state) do
+    parent_row = state.parent && state.parent.row
+
+    {:ok,
+     record_skip(
+       state,
+       entry,
+       "skipped: the row it was split from (row #{parent_row}) was not imported"
+     )}
+  end
+
+  # The companion of a row booked in this run: its accounts and security are
+  # its parent's, and the later layers (the economic key, the in-run
+  # collapse) judged its parent already, so it books.
+  defp insert_companion(%Entry{} = entry, import_hash, state) do
+    refs = account_refs(entry, state)
+
+    case ambiguous_ref(refs) do
+      nil ->
+        case resolve_security(entry, state) do
+          {:skip, state} ->
+            {:ok, state}
+
+          {:ok, state, security_id} ->
+            attrs =
+              build_transaction_attrs(
+                entry,
+                state,
+                Map.put(refs, :security_id, security_id),
+                import_hash
+              )
+
+            with {:ok, state, attrs} <- materialize_accounts(entry, attrs, state) do
+              insert_new_transaction(entry, attrs, run_key(dedup_key(attrs), entry), state)
+            end
+
+          {:error, _} = error ->
+            error
+        end
+
+      ambiguous ->
+        {:error, ambiguous_account_error(ambiguous, state)}
+    end
   end
 
   # Kinds that move shares but settle no cash, so they legitimately carry no
@@ -852,7 +959,9 @@ defmodule Portfolixir.Imports.Applier do
   end
 
   defp record_skip(state, %Entry{} = entry, reason) when is_binary(reason) do
-    Map.update!(state, :result, fn %Result{} = r ->
+    state
+    |> Map.put(:outcome, :skipped)
+    |> Map.update!(:result, fn %Result{} = r ->
       %Result{
         r
         | skipped_entries: r.skipped_entries ++ [%{row: entry.source_row, reason: reason}]
@@ -1206,7 +1315,9 @@ defmodule Portfolixir.Imports.Applier do
   defp maybe_record_alias(state, _entry, _ref, _tier, _security_id), do: state
 
   defp record_unresolved(state, %Entry{} = entry, key, reason) do
-    Map.update!(state, :result, fn %Result{} = r ->
+    state
+    |> Map.put(:outcome, {:unresolved, key, reason})
+    |> Map.update!(:result, fn %Result{} = r ->
       unresolved = %{row: entry.source_row, key: key, reason: reason}
       %Result{r | unresolved_entries: r.unresolved_entries ++ [unresolved]}
     end)
@@ -1347,7 +1458,9 @@ defmodule Portfolixir.Imports.Applier do
       reason: "skipped: both legs resolve to one account, so the transfer is void"
     }
 
-    Map.update!(state, :result, fn %Result{} = r ->
+    state
+    |> Map.put(:outcome, :skipped)
+    |> Map.update!(:result, fn %Result{} = r ->
       %Result{r | internal_transfers: r.internal_transfers ++ [transfer]}
     end)
   end
@@ -1685,6 +1798,7 @@ defmodule Portfolixir.Imports.Applier do
 
     state
     |> bump_result(:skipped_duplicates)
+    |> Map.put(:outcome, {:duplicate, layer})
     |> Map.update!(:result, fn %Result{} = r ->
       %Result{
         r
@@ -1696,7 +1810,9 @@ defmodule Portfolixir.Imports.Applier do
   end
 
   defp record_collapsed(state, %Entry{} = entry) do
-    Map.update!(state, :result, fn %Result{} = r ->
+    state
+    |> Map.put(:outcome, :collapsed)
+    |> Map.update!(:result, fn %Result{} = r ->
       collapsed = %{
         row: entry.source_row,
         reason: "collapsed: resolves to the same booking as an earlier row in this file"
@@ -1728,6 +1844,7 @@ defmodule Portfolixir.Imports.Applier do
         state =
           state
           |> bump_result(:created_transactions)
+          |> Map.put(:outcome, :inserted)
           |> Map.update!(:seen_run_keys, &MapSet.put(&1, run_key))
 
         {:ok, state}
