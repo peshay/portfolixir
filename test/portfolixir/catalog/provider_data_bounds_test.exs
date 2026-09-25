@@ -11,9 +11,10 @@ defmodule Portfolixir.Catalog.ProviderDataBoundsTest do
   alias Portfolixir.Catalog.DataQuality
   alias Portfolixir.Catalog.MarketDataBounds
   alias Portfolixir.Catalog.Quote
-  alias Portfolixir.Catalog.QuoteSync
-  alias Portfolixir.Catalog.QuoteSync.Yahoo
   alias Portfolixir.Catalog.Quotes
+  alias Portfolixir.Catalog.QuoteSync
+  alias Portfolixir.Catalog.QuoteSync.Fake
+  alias Portfolixir.Catalog.QuoteSync.Yahoo
   alias Portfolixir.Clock
   alias Portfolixir.Fx
   alias Portfolixir.Fx.ExchangeRate
@@ -124,7 +125,7 @@ defmodule Portfolixir.Catalog.ProviderDataBoundsTest do
     security = security!(%{provider: "coingecko", ticker_symbol: "SYNC", currency_code: "USD"})
     today = Clock.today()
 
-    Portfolixir.Catalog.QuoteSync.Fake.put_response(
+    Fake.put_response(
       security.id,
       {:ok,
        [
@@ -136,7 +137,7 @@ defmodule Portfolixir.Catalog.ProviderDataBoundsTest do
 
     result =
       QuoteSync.sync_security(security,
-        adapter_for: %{"coingecko" => Portfolixir.Catalog.QuoteSync.Fake}
+        adapter_for: %{"coingecko" => Fake}
       )
 
     assert %{status: :ok, upserted: 1} = result

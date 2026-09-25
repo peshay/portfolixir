@@ -8,9 +8,9 @@ defmodule Portfolixir.Catalog.BoundedUpsertsTest do
 
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Quote
+  alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.QuoteSync
   alias Portfolixir.Catalog.QuoteSync.Fake
-  alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Clock
   alias Portfolixir.Fx
   alias Portfolixir.Fx.ExchangeRate

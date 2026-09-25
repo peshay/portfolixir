@@ -10,6 +10,7 @@ defmodule Portfolixir.Engines.StatisticsTotalTest do
   import Portfolixir.WorldFixtures,
     only: [base_world: 1, create_security!: 1, put_quotes!: 2]
 
+  alias Portfolixir.Catalog.SecurityMetrics
   alias Portfolixir.Engines.PortfolioMetrics
   alias Portfolixir.Engines.PriceMetrics
   alias Portfolixir.Engines.Statistics
@@ -91,7 +92,7 @@ defmodule Portfolixir.Engines.StatisticsTotalTest do
     price_metrics = PriceMetrics.compute(closes, @as_of)
 
     security = create_security!(name: "Synthetic Gamma", ticker: "SYNG")
-    {:ok, payload} = Portfolixir.Catalog.SecurityMetrics.for_security(security.id, as_of: @as_of)
+    {:ok, payload} = SecurityMetrics.for_security(security.id, as_of: @as_of)
     assert payload.computation_basis.gaps =~ "outside the double range"
 
     for window <- ~w(30d 90d 365d) do
