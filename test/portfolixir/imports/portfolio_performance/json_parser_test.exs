@@ -220,6 +220,30 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
       assert message =~ "implausible date 0219-03-07"
       assert message =~ "re-import"
     end
+
+    # E25 S4, F70: the ledger refuses a date past its bounded range, so the
+    # parser names the row instead of letting the apply fail on it.
+    test "rejects bookings dated past the ledger's range per row" do
+      body =
+        Jason.encode!(%{
+          version: 1,
+          transactions: [
+            %{
+              type: "REMOVAL",
+              account: "Girokonto",
+              date: "3019-03-07",
+              currency: "EUR",
+              amount: 250.0
+            }
+          ]
+        })
+
+      assert {:ok, %Preview{entries: [], errors: [%{row: 1, message: message}]}} =
+               JsonParser.parse(body)
+
+      assert message =~ "implausible date 3019-03-07"
+      assert message =~ "re-import"
+    end
   end
 
   test "an entry struct exposes the expected fields" do

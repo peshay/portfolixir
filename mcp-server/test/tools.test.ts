@@ -3004,4 +3004,68 @@ describe("Portfolixir MCP tools", () => {
     assert.ok(!("machine_generated" in noteProperties));
   });
 
+  // E25 S4, F70 (#889): every date a write stores is an ISO date inside one
+  // bounded range; each write tool's date fields say so where the agent reads
+  // the schema.
+  it("states the bounded date range on every date a write tool stores", () => {
+    const dateKeys = new Set([
+      "date",
+      "date_end",
+      "checked_at",
+      "as_of",
+      "valid_from",
+      "valid_until",
+      "time_stop",
+      "changed_on"
+    ]);
+    const writeTools = [
+      "portfolixir.securities.isin_change",
+      "portfolixir.events.create",
+      "portfolixir.events.update",
+      "portfolixir.notes.append",
+      "portfolixir.quotes.upsert",
+      "portfolixir.transactions.create",
+      "portfolixir.transactions.update",
+      "portfolixir.splits.preview",
+      "portfolixir.splits.create",
+      "portfolixir.policy_rules.create",
+      "portfolixir.policy_rules.add_version",
+      "portfolixir.policy_rules.retire",
+      "portfolixir.cash_accounts.set_balance",
+      "portfolixir.snapshots.create",
+      "portfolixir.tax_profiles.create",
+      "portfolixir.tax_profiles.update",
+      "portfolixir.tax_snapshots.create"
+    ];
+
+    const found: string[] = [];
+
+    const walk = (toolName: string, schema: unknown, path: string) => {
+      if (!schema || typeof schema !== "object") return;
+      const node = schema as { properties?: Record<string, unknown>; items?: unknown };
+
+      for (const [key, child] of Object.entries(node.properties ?? {})) {
+        if (dateKeys.has(key)) {
+          const description = (child as { description?: string }).description ?? "";
+          found.push(`${toolName} ${path}${key}`);
+          assert.match(description, /1900-01-01/, `${toolName} ${path}${key}`);
+          assert.match(description, /2999-12-31/, `${toolName} ${path}${key}`);
+        }
+
+        walk(toolName, child, `${path}${key}.`);
+      }
+
+      walk(toolName, node.items, `${path}[].`);
+    };
+
+    for (const name of writeTools) {
+      const definition = listTools().find((candidate) => candidate.name === name);
+      assert.ok(definition, name);
+      walk(name, definition?.inputSchema, "");
+    }
+
+    assert.ok(found.includes("portfolixir.transactions.create transaction.date"));
+    assert.ok(found.includes("portfolixir.policy_rules.create rule.version.valid_from"));
+    assert.ok(found.includes("portfolixir.snapshots.create as_of"));
+  });
 });

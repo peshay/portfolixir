@@ -95,3 +95,7 @@ msgstr ""
 
 msgid "Internal Server Error"
 msgstr ""
+
+## The shared input bounds (E25 S4): Portfolixir.Input.BoundedDate.
+msgid "must be a date between 1900-01-01 and 2999-12-31"
+msgstr ""

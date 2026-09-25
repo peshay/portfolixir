@@ -39,6 +39,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
   alias Portfolixir.Imports.Decimals
   alias Portfolixir.Imports.Entry
   alias Portfolixir.Imports.PortfolioPerformance
+  alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Imports.Preview
 
   @kind_map %{
@@ -192,8 +193,19 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
            date: value
          )}
 
-      {:ok, _date} = ok ->
-        ok
+      # The ledger's bounded date (E25 S4, F70), named here as the row's error
+      # rather than failing the apply.
+      {:ok, date} = ok ->
+        if BoundedDate.within?(date) do
+          ok
+        else
+          {:error,
+           gettext(
+             "implausible date %{date} (after %{latest}) — fix the booking in the source and re-import",
+             date: value,
+             latest: Date.to_iso8601(BoundedDate.latest())
+           )}
+        end
 
       {:error, _} = err ->
         err

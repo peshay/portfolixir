@@ -12,6 +12,7 @@ defmodule PortfolixirWeb.Api.V1.SplitController do
 
   use PortfolixirWeb, :controller
 
+  alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Ledger.Splits
   alias Portfolixir.Ledger.Transaction
   alias PortfolixirWeb.Api.V1.JSON
@@ -56,7 +57,7 @@ defmodule PortfolixirWeb.Api.V1.SplitController do
   defp error_response(conn, %Ecto.Changeset{} = changeset),
     do: unprocessable(conn, JSON.errors(changeset))
 
-  defp error_shape(:invalid_date), do: %{date: ["is invalid"]}
+  defp error_shape(:invalid_date), do: %{date: [BoundedDate.message()]}
   defp error_shape(:future_effective_date), do: %{date: ["must not be in the future"]}
   defp error_shape(:invalid_ratio), do: %{ratio: ["must be a pair of positive integers"]}
 

@@ -91,3 +91,7 @@ msgstr "Anfrage zu groß"
 
 msgid "Internal Server Error"
 msgstr "Interner Fehler"
+
+## The shared input bounds (E25 S4): Portfolixir.Input.BoundedDate.
+msgid "must be a date between 1900-01-01 and 2999-12-31"
+msgstr "muss ein Datum zwischen dem 1900-01-01 und dem 2999-12-31 sein"

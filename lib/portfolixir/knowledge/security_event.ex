@@ -38,6 +38,7 @@ defmodule Portfolixir.Knowledge.SecurityEvent do
   import Ecto.Changeset
 
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Input.BoundedDate
 
   @kinds ~w(earnings ex_dividend dividend_payment lockup_expiry index_review
             shareholder_meeting regulatory_decision guidance_update)a
@@ -111,6 +112,7 @@ defmodule Portfolixir.Knowledge.SecurityEvent do
     |> update_change(:source_url, &trim_text/1)
     |> update_change(:note, &trim_text/1)
     |> validate_required([:security_id, :kind, :date, :timing, :source_quality])
+    |> BoundedDate.validate([:date, :date_end, :checked_at])
     # The link is rendered as an anchor and handed to an agent as a source:
     # only http(s) — never javascript:, data: or a bare path.
     |> validate_format(:source_url, ~r{\Ahttps?://\S+\z}i, message: "must be an http(s) URL")

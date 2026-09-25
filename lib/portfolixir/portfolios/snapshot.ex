@@ -14,6 +14,7 @@ defmodule Portfolixir.Portfolios.Snapshot do
   import Ecto.Changeset
 
   alias Portfolixir.Buckets.View
+  alias Portfolixir.Input.BoundedDate
 
   @type t :: %__MODULE__{}
 
@@ -35,6 +36,7 @@ defmodule Portfolixir.Portfolios.Snapshot do
     snapshot
     |> cast(attrs, [:name, :as_of, :view_id])
     |> validate_required([:name, :as_of])
+    |> BoundedDate.validate([:as_of])
     |> validate_length(:name, max: 120)
     |> validate_not_future(today)
     |> assoc_constraint(:view)

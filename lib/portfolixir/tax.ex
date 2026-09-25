@@ -33,6 +33,7 @@ defmodule Portfolixir.Tax do
   alias Ecto.Multi
   alias Portfolixir.Actor
   alias Portfolixir.Journal
+  alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Repo
   alias Portfolixir.Tax.AllowanceOrder
   alias Portfolixir.Tax.Budget
@@ -668,7 +669,9 @@ defmodule Portfolixir.Tax do
     as_of = Ecto.Changeset.get_field(probe, :as_of)
 
     with nil <- Ecto.Changeset.get_change(probe, :church_tax_rate),
-         true <- is_binary(holder) and match?(%Date{}, as_of),
+         # A date outside the shared bound is the probe's field error, never
+         # a lookup (E25 S4, F70).
+         true <- is_binary(holder) and BoundedDate.within?(as_of),
          %Profile{} = profile <- profile_in_force(holder, as_of) do
       StatementSnapshot.changeset(%StatementSnapshot{}, attrs, today,
         default_church_tax_rate: profile.church_tax_rate

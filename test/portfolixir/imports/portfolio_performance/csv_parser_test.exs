@@ -135,5 +135,19 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
       assert message =~ "implausible date 0219-03-07"
       assert message =~ "re-import"
     end
+
+    # E25 S4, F70: the ledger refuses a date past its bounded range, so the
+    # parser names the row instead of letting the apply fail on it.
+    test "rejects bookings dated past the ledger's range per row" do
+      body = """
+      Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
+      3019-03-07 00:00:00;Entnahme;;;;250,00;;;250,00;Girokonto;;;
+      """
+
+      assert {:ok, %Preview{entries: [], errors: errors}} = CsvParser.parse(body)
+      assert [%{row: 1, message: message}] = errors
+      assert message =~ "implausible date 3019-03-07"
+      assert message =~ "re-import"
+    end
   end
 end
