@@ -2,6 +2,8 @@ defmodule Portfolixir.Portfolios.Portfolio do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Portfolixir.Input.Text
+
   schema "portfolios" do
     field(:name, :string)
     field(:base_currency_code, :string)
@@ -20,6 +22,8 @@ defmodule Portfolixir.Portfolios.Portfolio do
     |> cast(attrs, [:name, :base_currency_code, :notes, :cash_target_weight])
     |> normalize_currency_code()
     |> validate_required([:name, :base_currency_code])
+    |> Text.validate([:name, :base_currency_code], max: 255)
+    |> Text.validate(:notes, multiline: true)
     |> validate_length(:base_currency_code, is: 3)
     |> validate_cash_target_weight()
   end

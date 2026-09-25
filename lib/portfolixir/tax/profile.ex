@@ -21,6 +21,7 @@ defmodule Portfolixir.Tax.Profile do
   import Ecto.Changeset
 
   alias Portfolixir.Input.BoundedDate
+  alias Portfolixir.Input.Text
   alias Portfolixir.Tax.Identity
 
   @type t :: %__MODULE__{}
@@ -58,6 +59,8 @@ defmodule Portfolixir.Tax.Profile do
     |> update_change(:holder, &Identity.normalize/1)
     |> validate_required([:holder, :valid_from, :assessment_type])
     |> BoundedDate.validate([:valid_from])
+    |> Text.validate(:holder, max: 255)
+    |> Text.validate(:note, multiline: true)
     |> validate_length(:holder, min: 1)
     |> validate_inclusion(:jurisdiction, @jurisdictions)
     |> validate_inclusion(:assessment_type, @assessment_types)

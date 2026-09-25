@@ -4209,6 +4209,66 @@ msgstr ""
 msgid "implausible date %{date} (after %{latest}) — fix the booking in the source and re-import"
 msgstr ""
 
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "security name"
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "security ISIN"
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "security WKN"
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "security ticker"
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "portfolio"
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "account"
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "counter portfolio"
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "counter account"
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "note"
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "%{field} is longer than 255 characters"
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "%{field} contains a control character"
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "%{field} is not valid UTF-8 text"
+msgstr ""
+
 #: lib/portfolixir/imports/portfolio_performance/json_parser.ex:122
 #, elixir-autogen, elixir-format
 msgid "missing transaction type"

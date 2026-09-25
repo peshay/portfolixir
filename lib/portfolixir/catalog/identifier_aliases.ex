@@ -29,6 +29,7 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
   alias Ecto.Multi
   alias Portfolixir.Actor
   alias Portfolixir.Catalog.IdentifierAlias
+  alias Portfolixir.Catalog.Isin
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Journal
   alias Portfolixir.Repo
@@ -199,6 +200,15 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
 
       is_nil(normalized) ->
         {:error, error_changeset(:new_isin, "can't be blank")}
+
+      # E25 S4 (G17): twelve characters of the ISIN shape, before anything is
+      # looked up or moved into the alias table.
+      not Isin.shape?(normalized) ->
+        {:error,
+         error_changeset(
+           :new_isin,
+           "is not an ISIN (two letters, nine letters or digits and a check digit)"
+         )}
 
       normalized == security.isin ->
         {:error, error_changeset(:new_isin, "must differ from the current ISIN")}

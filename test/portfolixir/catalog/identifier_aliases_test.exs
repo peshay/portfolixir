@@ -134,19 +134,19 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
     # ADR-0029 §3 "chains and reverts": B->A consumes the security's own alias
     # row (journaled) instead of deadlocking on the uniqueness guard.
     test "reverting to an own former ISIN consumes that alias row (B->A)" do
-      security = create_security!(%{isin: "DE000000000A"})
+      security = create_security!(%{isin: "DE00000000A1"})
 
       {:ok, %{security: security}} =
-        Catalog.record_isin_change(Actor.owner_ui(), security, "DE000000000B")
+        Catalog.record_isin_change(Actor.owner_ui(), security, "DE00000000B2")
 
       assert {:ok, %{security: reverted, alias: new_alias}} =
-               Catalog.record_isin_change(Actor.owner_ui(), security, "DE000000000A")
+               Catalog.record_isin_change(Actor.owner_ui(), security, "DE00000000A1")
 
-      assert reverted.isin == "DE000000000A"
+      assert reverted.isin == "DE00000000A1"
       # The A alias was consumed; only the B alias remains.
       assert [remaining] = Catalog.list_identifier_aliases(reverted)
-      assert remaining.former_isin == "DE000000000B"
-      assert new_alias.former_isin == "DE000000000B"
+      assert remaining.former_isin == "DE00000000B2"
+      assert new_alias.former_isin == "DE00000000B2"
 
       assert [delete_entry] =
                Journal.list_entries(
@@ -154,19 +154,19 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
                  operation: :delete
                )
 
-      assert delete_entry.before["former_isin"] == "DE000000000A"
+      assert delete_entry.before["former_isin"] == "DE00000000A1"
     end
 
     test "supports chains: A->B->C keeps both former ISINs as aliases" do
-      security = create_security!(%{isin: "DE000000000A"})
+      security = create_security!(%{isin: "DE00000000A1"})
 
       {:ok, %{security: security}} =
-        Catalog.record_isin_change(Actor.owner_ui(), security, "DE000000000B")
+        Catalog.record_isin_change(Actor.owner_ui(), security, "DE00000000B2")
 
       {:ok, %{security: security}} =
-        Catalog.record_isin_change(Actor.owner_ui(), security, "DE000000000C")
+        Catalog.record_isin_change(Actor.owner_ui(), security, "DE00000000C3")
 
-      assert security.isin == "DE000000000C"
+      assert security.isin == "DE00000000C3"
 
       former =
         security
@@ -174,7 +174,7 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
         |> Enum.map(& &1.former_isin)
         |> Enum.sort()
 
-      assert former == ["DE000000000A", "DE000000000B"]
+      assert former == ["DE00000000A1", "DE00000000B2"]
     end
   end
 

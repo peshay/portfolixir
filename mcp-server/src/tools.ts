@@ -309,7 +309,8 @@ const isinChangeSchema = {
     new_isin: {
       type: "string",
       minLength: 1,
-      description: "The security's new ISIN (normalized to trimmed uppercase server-side)."
+      description:
+        "The security's new ISIN (normalized to trimmed uppercase server-side): twelve characters, two letters, nine letters or digits and a check digit; anything else answers 422 on new_isin."
     },
     changed_on: {
       type: "string",

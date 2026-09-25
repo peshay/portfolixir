@@ -9,6 +9,8 @@ defmodule Portfolixir.Settings.Setting do
 
   import Ecto.Changeset
 
+  alias Portfolixir.Input.Text
+
   schema "settings" do
     field(:key, :string)
     field(:value, :string)
@@ -20,6 +22,7 @@ defmodule Portfolixir.Settings.Setting do
     setting
     |> cast(attrs, [:key, :value])
     |> validate_required([:key, :value])
+    |> Text.validate([:key, :value], max: 255)
     |> unique_constraint(:key)
   end
 end

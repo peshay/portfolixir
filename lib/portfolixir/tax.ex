@@ -343,6 +343,11 @@ defmodule Portfolixir.Tax do
     end
   end
 
+  # An invalid order is the changeset's error, never a lookup: a value the
+  # changeset refuses, such as a control character, would fail in the query
+  # instead (E25 S4, G24).
+  defp existing_order(%Ecto.Changeset{valid?: false}), do: nil
+
   defp existing_order(changeset) do
     holder = Ecto.Changeset.get_field(changeset, :holder)
     institution = Ecto.Changeset.get_field(changeset, :institution)

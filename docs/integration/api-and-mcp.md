@@ -89,6 +89,17 @@ positive amount that rounds to `0` answers `422`. A value with more than 14
 digits before the decimal point (a quantity more than 18) answers `422` naming
 the field instead of failing in the database.
 
+**Text.** A name, an identifier or any other one-line text a write stores is
+at most as long as its column — 255 characters unless a narrower limit is
+stated (a bucket's or view's name 100, a plan's or snapshot's name 120),
+counted in Unicode code points, the unit the database counts — and carries no
+control character and no line break. Free text (a booking's `notes`, a
+research-log entry, an event's or a rule version's `note`, a description)
+keeps tabs and line breaks but no other control character, a NUL included.
+Anything else answers `422` naming the field, never a server error. A
+Portfolio Performance import names a row whose names or note break the same
+rule in its preview.
+
 **Wrapped bodies.** A write whose attributes travel under one key —
 `{"transaction": {…}}`, `{"view": {…}}`, `{"rule": {…}}` and their siblings —
 answers `422` naming that key when its value is not a JSON object (a string, a
@@ -265,7 +276,10 @@ then the aliases — so re-imports of old exports (former ISIN) and new exports
 - `POST /api/v1/securities/:security_id/isin-change` records the change with an
   `isin_change` object: required `new_isin` (normalized to trimmed uppercase),
   optional `changed_on` (ISO date, defaults to today) and `note`. Returns the
-  updated security including its `identifier_aliases`. Guarded with `422` and a
+  updated security including its `identifier_aliases`. A `new_isin` that is not
+  twelve characters of the ISIN shape (two letters, nine letters or digits and
+  a check digit) answers `422` on `new_isin`, and a `note` over 255 characters
+  `422` on `note`. Guarded with `422` and a
   named conflict when `new_isin` equals the current ISIN, is live on another
   security, or is recorded as another security's former ISIN; recording a
   change back to one of the same security's own former ISINs consumes that

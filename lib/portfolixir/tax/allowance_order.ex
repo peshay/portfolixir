@@ -16,6 +16,7 @@ defmodule Portfolixir.Tax.AllowanceOrder do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Portfolixir.Input.Text
   alias Portfolixir.Tax.Identity
 
   @type t :: %__MODULE__{}
@@ -42,6 +43,8 @@ defmodule Portfolixir.Tax.AllowanceOrder do
     |> validate_required([:holder, :institution, :tax_year, :amount_granted])
     |> validate_length(:holder, min: 1)
     |> validate_length(:institution, min: 1)
+    |> Text.validate([:holder, :institution], max: 255)
+    |> Text.validate(:note, multiline: true)
     |> validate_number(:tax_year,
       greater_than_or_equal_to: @min_tax_year,
       less_than_or_equal_to: @max_tax_year

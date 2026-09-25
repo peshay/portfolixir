@@ -16,6 +16,8 @@ defmodule Portfolixir.Buckets.View do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Portfolixir.Input.Text
+
   @type t :: %__MODULE__{}
 
   schema "views" do
@@ -31,7 +33,7 @@ defmodule Portfolixir.Buckets.View do
     |> cast(attrs, [:name, :include_all])
     |> normalize_name()
     |> validate_required([:name, :include_all])
-    |> validate_length(:name, max: 100)
+    |> Text.validate(:name, max: 100)
     |> unique_constraint(:name)
   end
 
