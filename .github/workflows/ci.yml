@@ -66,7 +66,11 @@ jobs:
 
     services:
       db:
-        image: postgres:18
+        # An exact tag and its digest (E25 S8, F60): the digest is what gets
+        # pulled, the tag says which release that is. Dependabot does not read
+        # service images, so the maintenance lane's PostgreSQL review moves
+        # the pin, in both jobs at once -- ci_test holds them equal.
+        image: postgres:18.6@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -286,7 +290,8 @@ jobs:
 
     services:
       db:
-        image: postgres:18
+        # The test job's pin, tag and digest alike (E25 S8, F60).
+        image: postgres:18.6@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
