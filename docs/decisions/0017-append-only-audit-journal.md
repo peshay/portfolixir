@@ -266,9 +266,12 @@ before-image. The exemption is narrowed to the writers that ingest:
   provider data stays.
 
 The `security_quotes` table stays unarmed — the sync still writes it without
-an actor — so the split rests on the writers: a test pins that no module in
-`lib/` or the seeds other than the sync calls the unjournaled upsert. The
-operations stay `create | update | delete | upsert`.
+an actor — so the split rests on the writers: a test pins, from the compiled
+call graph, that no module other than the sync calls the unjournaled upsert
+under any alias, and, by a scan of `lib/` and the seeds, that no file other
+than the quote module writes the quote schema or the `security_quotes` table
+by a Repo write, a changeset or SQL (review round). The operations stay
+`create | update | delete | upsert`.
 
 ## Consequences
 

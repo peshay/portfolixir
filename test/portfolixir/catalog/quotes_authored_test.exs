@@ -184,21 +184,120 @@ defmodule Portfolixir.Catalog.QuotesAuthoredTest do
 
   # User story:
   # As a maintainer keeping ADR-0017's exemption narrow,
-  # I want the unjournaled quote writer called only by the sync,
+  # I want the unjournaled quote writer called only by the sync, and no
+  # other module writing the quote table at all,
   # so that no authored path can write a quote outside the journal.
   #
   # Acceptance criteria:
-  # - Outside the quote module itself, only the sync writer calls
-  #   `Quotes.upsert_many`, in lib/ and in the demo seeds.
+  # - In the compiled call graph, only the sync writer (besides the quote
+  #   module itself) calls `Quotes.upsert_many/3`, however it is aliased or
+  #   imported; the demo seeds, which are not compiled, never name it.
+  # - No file in lib/ or the seeds other than the quote module writes the
+  #   quote schema or the security_quotes table — by insert_all, delete_all,
+  #   update_all, a changeset write or raw SQL — under any alias
+  #   (E25 S6 review round, M1).
   test "only the sync writer calls the unjournaled quote upsert" do
     callers =
-      ["lib/**/*.ex", "priv/**/*.exs"]
-      |> Enum.flat_map(&Path.wildcard/1)
-      |> Enum.reject(&(&1 == "lib/portfolixir/catalog/quotes.ex"))
-      |> Enum.filter(&(File.read!(&1) =~ ~r/Quotes\.upsert_many\(/))
+      xref_callers({Quotes, :upsert_many, 3})
+      |> Enum.reject(&(&1 == Quotes))
       |> Enum.sort()
 
-    assert callers == ["lib/portfolixir/catalog/quote_sync.ex"]
-    assert function_exported?(Quotes, :upsert_many, 3)
+    assert callers == [QuoteSync]
+
+    seeds =
+      Enum.filter(seed_files(), &(File.read!(&1) =~ ~r/(Quotes|Catalog\.Quotes)\.upsert_many\b/))
+
+    assert seeds == []
+    assert function_exported?(Code.ensure_loaded!(Quotes), :upsert_many, 3)
+
+    writers =
+      (Path.wildcard("lib/**/*.ex") ++ seed_files())
+      |> Enum.reject(&(&1 == "lib/portfolixir/catalog/quotes.ex"))
+      |> Enum.filter(&writes_quotes?(File.read!(&1)))
+
+    assert writers == []
+  end
+
+  test "the quote-writer scan catches an aliased, a changeset and a raw-SQL write" do
+    for source <- [
+          "alias Portfolixir.Catalog.Quote, as: Q\nRepo.insert_all(Q, rows)",
+          "alias Portfolixir.Catalog.Quote\nRepo.delete_all(from q in Quote)",
+          "alias Portfolixir.Catalog.{Quote, Security}\nRepo.update_all(Quote, set: [])",
+          "%Portfolixir.Catalog.Quote{} |> Portfolixir.Catalog.Quote.changeset(a) |> Repo.insert()",
+          ~s|Repo.query!("DELETE FROM security_quotes WHERE id = $1", [id])|,
+          ~s|Repo.query!("insert into \\"security_quotes\\" (close) values (1)")|
+        ] do
+      assert writes_quotes?(source), "missed: #{source}"
+    end
+
+    refute writes_quotes?(
+             "alias Portfolixir.Catalog.Quote, as: SecurityQuote\n%SecurityQuote{} = q"
+           )
+
+    refute writes_quotes?(~s|constraint: "security_quotes_security_id_fkey"|)
+  end
+
+  # The scripts under priv/ the app runs but does not compile (the demo
+  # seeds); a migration writes the schema, not quotes.
+  defp seed_files do
+    "priv/**/*.exs"
+    |> Path.wildcard()
+    |> Enum.reject(&String.starts_with?(&1, "priv/repo/migrations/"))
+  end
+
+  # Every module of the app that calls `mfa`, from the compiled call graph:
+  # an alias or an import resolves at compile time, so none hides a call.
+  defp xref_callers({module, function, arity}) do
+    {:ok, xref} = :xref.start([])
+
+    try do
+      :ok = :xref.set_default(xref, warnings: false, verbose: false)
+
+      {:ok, _modules} =
+        :xref.add_directory(xref, to_charlist(Application.app_dir(:portfolixir, "ebin")))
+
+      query = ~c"E || '#{module}':#{function}/#{arity}"
+      {:ok, edges} = :xref.q(xref, query)
+
+      edges |> Enum.map(fn {{caller, _f, _a}, _callee} -> caller end) |> Enum.uniq()
+    after
+      :xref.stop(xref)
+    end
+  end
+
+  @write_calls ~w(insert_all delete_all update_all insert insert! update update! delete delete!
+                  insert_or_update insert_or_update!)
+
+  # A file writes the quote schema when it hands the schema — by its full
+  # name or any alias the file gives it — to a Repo write, builds its
+  # changeset, or names the table in a writing SQL statement.
+  defp writes_quotes?(source) do
+    names =
+      ["Portfolixir.Catalog.Quote" | quote_aliases(source)]
+      |> Enum.map_join("|", &Regex.escape/1)
+
+    calls = Enum.map_join(@write_calls, "|", &Regex.escape/1)
+
+    Regex.match?(~r/\b(#{calls})\(\s*(from\(?\s*\w+\s+in\s+)?(#{names})\b/, source) or
+      Regex.match?(~r/\b(#{names})\.changeset\(/, source) or
+      Regex.match?(
+        ~r/\b(insert\s+into|update|delete\s+from|truncate(\s+table)?)\s+\\?"?security_quotes\b/i,
+        source
+      )
+  end
+
+  defp quote_aliases(source) do
+    as =
+      Regex.scan(~r/alias Portfolixir\.Catalog\.Quote,\s*as:\s*(\w+)/, source)
+      |> Enum.map(fn [_, name] -> name end)
+
+    plain = if source =~ ~r/alias Portfolixir\.Catalog\.Quote\s*$/m, do: ["Quote"], else: []
+
+    grouped =
+      if source =~ ~r/alias Portfolixir\.Catalog\.\{[^}]*\bQuote\b[^}]*\}/,
+        do: ["Quote"],
+        else: []
+
+    as ++ plain ++ grouped
   end
 end
