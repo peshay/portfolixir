@@ -4453,6 +4453,21 @@ msgstr "Auftrag hinterlegen"
 msgid "Record statement"
 msgstr "Abrechnung erfassen"
 
+#: lib/portfolixir_web/live/tax_live.ex
+#, elixir-autogen, elixir-format
+msgid "This statement no longer exists: it was deleted after you opened it, so the correction was not saved. Record it again if it should stay."
+msgstr "Diese Abrechnung gibt es nicht mehr: Sie wurde nach dem Öffnen gelöscht, die Korrektur wurde daher nicht gespeichert. Soll sie bleiben, erneut erfassen."
+
+#: lib/portfolixir_web/live/tax_live.ex
+#, elixir-autogen, elixir-format
+msgid "This allowance order no longer exists: it was deleted while yours was recorded, so nothing was saved. Record it again."
+msgstr "Diesen Freistellungsauftrag gibt es nicht mehr: Er wurde während des Hinterlegens gelöscht, es wurde nichts gespeichert. Bitte erneut hinterlegen."
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex
+#, elixir-autogen, elixir-format
+msgid "This security no longer exists: it was deleted after you opened it, so nothing was saved."
+msgstr "Dieses Wertpapier gibt es nicht mehr: Es wurde nach dem Öffnen gelöscht, es wurde nichts gespeichert."
+
 #: lib/portfolixir_web/live/tax_live.ex:492
 #, elixir-autogen, elixir-format
 msgid "Recorded broker tax statements"

@@ -3,6 +3,10 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   use Phoenix.LiveComponent
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  # The errors key of a message about the security itself rather than one of
+  # its fields; no input carries this name.
+  @record_error "_record"
+
   alias Phoenix.LiveView.JS
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
@@ -298,8 +302,11 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   end
 
   defp render_confirm(assigns) do
+    assigns = assign(assigns, :record_error, assigns.errors[@record_error])
+
     ~H"""
     <form id="security-dialog-form" phx-change="form_change" phx-submit="save" phx-target={@myself}>
+      <p :if={@record_error} class="alert-error" role="alert"><%= @record_error %></p>
       <%= if @conflict do %>
         <div class="alert-warning" role="alert">
           <strong><%= gettext("This security already exists") %></strong>
@@ -817,9 +824,16 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
         notify_parent(socket, {:updated, updated})
         {:noreply, socket}
 
-      # Deleted in the meantime (E25 S6, F49).
+      # Deleted in the meantime (E25 S6, F49): a form-level alert about the
+      # record, never an error on a field (review round, R5).
       {:error, :not_found} ->
-        {:noreply, assign(socket, :errors, %{"name" => gettext("Not found")})}
+        {:noreply,
+         assign(socket, :errors, %{
+           @record_error =>
+             gettext(
+               "This security no longer exists: it was deleted after you opened it, so nothing was saved."
+             )
+         })}
 
       {:error, changeset} ->
         {:noreply, assign(socket, :errors, changeset_errors(changeset))}

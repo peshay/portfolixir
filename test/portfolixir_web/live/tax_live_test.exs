@@ -288,6 +288,88 @@ defmodule PortfolixirWeb.TaxLiveTest do
     assert Tax.list_snapshots(holder: "Owner", tax_year: 2025) == []
   end
 
+  # User story (E25 S6 review round, R5):
+  # As the operator correcting a statement that another tab, the API or the
+  # agent deleted meanwhile,
+  # I want to be told the statement is gone,
+  # so that my corrections do not vanish without a word.
+  #
+  # Acceptance criteria:
+  # - Saving a correction of a statement deleted since the form opened keeps
+  #   the statement panel open with a problem note naming the gone statement.
+  # - Recording an allowance order whose stored order is deleted while it is
+  #   replaced shows a problem note naming the gone order.
+  test "a statement or an order deleted meanwhile is named as gone", %{conn: conn} do
+    snapshot = record!(%{})
+
+    {:ok, live, _html} = live(conn, "/tax?holder=Owner&year=2025")
+
+    live |> element("button.row-actions__kebab") |> render_click()
+    live |> element(~s([role="menu"] button[phx-click=edit_statement])) |> render_click()
+
+    {:ok, _} = Tax.delete_snapshot(Actor.owner_ui(), snapshot.id)
+
+    html =
+      live
+      |> form("#tax-statement-form", %{
+        "statement" => %{
+          "institution" => "Example Bank",
+          "as_of" => "2025-12-31",
+          "loss_pot_equities" => "3000.00"
+        }
+      })
+      |> render_submit()
+
+    assert html =~ "This statement no longer exists"
+    assert has_element?(live, "#tax-form-error")
+
+    {:ok, order} =
+      Tax.put_allowance_order(Actor.owner_ui(), %{
+        holder: "Owner",
+        institution: "Example Bank",
+        tax_year: 2025,
+        amount_granted: "800.00"
+      })
+
+    html =
+      with_order_deleted_after_its_read(live.pid, order, fn ->
+        live
+        |> form("#tax-order-form", %{
+          "order" => %{"institution" => "Example Bank", "amount_granted" => "1000.00"}
+        })
+        |> render_submit()
+      end)
+
+    assert html =~ "This allowance order no longer exists"
+  end
+
+  # Another writer deletes the order right after the page's write read it,
+  # in the page's own process, as a concurrent delete would commit between
+  # the read and the write's lock.
+  defp with_order_deleted_after_its_read(pid, order, fun) do
+    handler = "tax-order-race-#{System.unique_integer([:positive])}"
+
+    :ok =
+      :telemetry.attach(
+        handler,
+        [:portfolixir, :repo, :query],
+        fn _event, _measurements, %{query: query}, _config ->
+          if self() == pid and query =~ ~r/FROM "allowance_orders"/ and
+               not (query =~ "FOR") and Process.get(:order_deleted) == nil do
+            Process.put(:order_deleted, true)
+            {:ok, _} = Tax.delete_allowance_order(Actor.owner_ui(), order.id)
+          end
+        end,
+        nil
+      )
+
+    try do
+      fun.()
+    after
+      :telemetry.detach(handler)
+    end
+  end
+
   test "a configured Freistellungsauftrag can be recorded and removed", %{conn: conn} do
     {:ok, live, _html} = live(conn, "/tax?holder=Owner&year=2025")
 

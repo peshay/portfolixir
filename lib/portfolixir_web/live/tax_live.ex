@@ -121,12 +121,20 @@ defmodule PortfolixirWeb.TaxLive do
 
         {:noreply, socket}
 
-      # The statement being edited was deleted in the meantime (E25 S6, F49).
+      # The statement being edited was deleted in the meantime (E25 S6, F49):
+      # the panel stays open and says so (review round, R5).
       {:error, :not_found} ->
         {:noreply,
          socket
-         |> assign(form_errors: nil, editing_id: nil, statement_form_open?: false)
-         |> load_year()}
+         |> assign(editing_id: nil, statement_form_open?: true)
+         |> assign(
+           :form_errors,
+           gettext(
+             "This statement no longer exists: it was deleted after you opened it, so the correction was not saved. Record it again if it should stay."
+           )
+         )
+         |> load_year()
+         |> load_editing()}
 
       {:error, changeset} ->
         {:noreply, assign(socket, :form_errors, changeset_errors(changeset))}
@@ -175,9 +183,18 @@ defmodule PortfolixirWeb.TaxLive do
       {:ok, _order} ->
         {:noreply, socket |> assign(order_errors: nil, order_form_open?: false) |> load_year()}
 
-      # The order being replaced was deleted in the meantime (E25 S6, F49).
+      # The order being replaced was deleted in the meantime (E25 S6, F49):
+      # the panel says so (review round, R5).
       {:error, :not_found} ->
-        {:noreply, load_year(socket)}
+        {:noreply,
+         socket
+         |> assign(
+           :order_errors,
+           gettext(
+             "This allowance order no longer exists: it was deleted while yours was recorded, so nothing was saved. Record it again."
+           )
+         )
+         |> load_year()}
 
       {:error, changeset} ->
         {:noreply, assign(socket, :order_errors, changeset_errors(changeset))}
@@ -474,6 +491,8 @@ defmodule PortfolixirWeb.TaxLive do
   defp order_finding?(%{code: code}), do: code in [:c7, :c8]
 
   defp invalid?(nil, _field), do: false
+  # A message about the record, not a field (E25 S6 review round, R5).
+  defp invalid?(message, _field) when is_binary(message), do: false
   defp invalid?(errors, field), do: Map.has_key?(errors, field)
 
   # A money input is described by the sign convention, and by the error
@@ -481,6 +500,8 @@ defmodule PortfolixirWeb.TaxLive do
   defp amount_describedby(errors, field) do
     if invalid?(errors, field), do: "tax-amount-help tax-form-error", else: "tax-amount-help"
   end
+
+  defp error_text(message) when is_binary(message), do: message
 
   defp error_text(errors) do
     Enum.map_join(errors, "; ", fn {field, messages} ->
