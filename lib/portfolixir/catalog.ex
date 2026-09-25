@@ -21,8 +21,8 @@ defmodule Portfolixir.Catalog do
   alias Portfolixir.Catalog.SecurityWithMetrics
   alias Portfolixir.Journal
   alias Portfolixir.Ledger.HeldSecurities
+  alias Portfolixir.Lifecycle.Delete
   alias Portfolixir.Portfolios.PolicyRules
-  alias Portfolixir.Portfolios.Targets, as: PortfolioTargets
   alias Portfolixir.Repo
 
   @doc """
@@ -412,42 +412,33 @@ defmodule Portfolixir.Catalog do
   end
 
   @doc """
-  Deletes a security on behalf of `actor` (FR-28). The deletion is journaled
-  with the full `before` snapshot, so a removed security stays traceable in the
-  audit journal.
-
-  Any position-target rows referencing the security (ADR-0030, #481 fix round)
-  are removed **explicitly and journaled per row** in the same transaction —
-  across active, draft and archived SOLL plans — via
-  `Portfolixir.Portfolios.Targets.delete_position_targets_for_security/2`,
-  mirroring how other dependent records are handled instead of leaving the
-  cleanup to the silent `security_id` FK cascade (which remains as a backstop).
+  Deletes a security on behalf of `actor` (FR-28), through the hardened delete
+  path of ADR-0050 §11 (`Portfolixir.Lifecycle.Delete`). The deletion is
+  journaled with the full `before` snapshot, so a removed security stays
+  traceable in the audit journal.
 
   A security a policy rule reads is not deleted (ADR-0049 §8): the answer is
   `{:error, {:policy_rules, rules}}`, naming them. A version that has been in
   force keeps its subject as part of its history, so retiring the rule stops
   its evaluation but does not free the security; retiring the security does.
+
+  Otherwise the row is locked `FOR UPDATE`, and a security that bookings,
+  quotes, research notes, security events or rule versions reference answers
+  `{:error, {:referenced, referenced_by}}` (the referencing tables, counted)
+  and is left alone. An unreferenced security's memberships are removed first,
+  each through its journaled writer: category assignments and position
+  targets (ADR-0030, #481) per row, position bucket overrides per position,
+  identifier aliases per row (ADR-0029 §3). No cascade removes any of them;
+  the foreign keys restrict. A vanished security answers `{:error,
+  :not_found}`.
   """
   def delete_security(%Actor{} = actor, %Security{} = security) do
     # ADR-0049 §8: a security a policy rule reads is protected, and the answer
     # names the rules rather than a foreign key.
     case PolicyRules.referencing(:security, security.id) do
-      [] -> delete_unreferenced_security(actor, security)
+      [] -> Delete.delete(actor, security)
       rules -> {:error, {:policy_rules, rules}}
     end
-  end
-
-  defp delete_unreferenced_security(actor, security) do
-    Repo.transaction(fn ->
-      with {:ok, _count} <-
-             PortfolioTargets.delete_position_targets_for_security(actor, security.id),
-           {:ok, _} <- IdentifierAliases.delete_all_for_security(actor, security.id),
-           {:ok, deleted} <- delete_security_row(actor, security) do
-        deleted
-      else
-        {:error, %Ecto.Changeset{} = changeset} -> Repo.rollback(changeset)
-      end
-    end)
   end
 
   @doc """
@@ -478,23 +469,6 @@ defmodule Portfolixir.Catalog do
     Repo.preload(security,
       identifier_aliases: from(a in IdentifierAlias, order_by: [desc: a.changed_on, desc: a.id])
     )
-  end
-
-  defp delete_security_row(%Actor{} = actor, %Security{} = security) do
-    multi =
-      Multi.new()
-      |> Multi.delete(:security, Security.delete_changeset(security))
-      |> Journal.record(actor,
-        resource_type: "security",
-        operation: :delete,
-        source: :security,
-        before: security
-      )
-
-    case Repo.transaction(multi) do
-      {:ok, %{security: deleted}} -> {:ok, deleted}
-      {:error, :security, %Ecto.Changeset{} = changeset, _changes} -> {:error, changeset}
-    end
   end
 
   @doc """

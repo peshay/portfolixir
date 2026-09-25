@@ -1888,6 +1888,13 @@ The journal is queryable through `GET /api/v1/journal` and the matching
 master-data writes; the remaining write areas are covered in sequence. A
 dedicated in-app viewer is a planned follow-up.
 
+Deleting a cash account, a depot or a security never takes anything with it
+silently (ADR-0050 §11). A row that bookings still reference — or, for a
+security, quotes, research notes or events — is not deleted at all: merge it
+into the one you keep instead. An unreferenced row's bucket links, position
+overrides and category assignments are removed first, each through its own
+journaled writer, so the journal shows every membership the deletion ended.
+
 ## Non-goals today
 
 - No automatic trading or order execution.

@@ -99,6 +99,29 @@ defmodule Portfolixir.Invariants.LifecycleForeignKeyDispositionsTest do
              "refuse through:\n" <> Enum.join(offenders, "\n")
   end
 
+  # User story (ADR-0050 §11, §16 invariant 11):
+  # As the maintainer of the audit trail,
+  # I want no foreign key onto a security, a cash account or a depot to
+  # remove or rewrite its referencing rows when that row is deleted,
+  # so that no lifecycle path removes a row by cascade — a membership is
+  # removed by its journaled writer first, or the database refuses the delete.
+  #
+  # Acceptance criteria:
+  # - Every such foreign key, a :remove_journaled one included, is RESTRICT or
+  #   NO ACTION; CASCADE, SET NULL and SET DEFAULT fail, naming the key.
+  test "no foreign key onto the lifecycle tables removes a row by cascade" do
+    offenders =
+      for {name, %{on_delete: action}} <- database_foreign_keys(),
+          action not in ["r", "a"] do
+        "#{name}: ON DELETE action #{inspect(action)}"
+      end
+      |> Enum.sort()
+
+    assert offenders == [],
+           "foreign keys onto the lifecycle tables that act on their own when the row is " <>
+             "deleted (ADR-0050 §11):\n" <> Enum.join(offenders, "\n")
+  end
+
   # The enumeration must not pass vacuously: it sees single-column and
   # composite keys onto each of the three tables.
   test "the pg_constraint enumeration sees composite keys onto all three tables" do

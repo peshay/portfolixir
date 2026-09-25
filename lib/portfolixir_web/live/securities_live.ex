@@ -4565,7 +4565,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
       {:error, {:policy_rules, rules}} ->
         {:noreply, socket |> assign(:delete_blocked, sec) |> assign(:delete_blocked_rules, rules)}
 
-      {:error, _changeset} ->
+      # ADR-0050 §11: gone already (another writer deleted it) — the row just
+      # goes; nothing references a security that is not there.
+      {:error, :not_found} ->
+        {:noreply, socket |> assign(:delete_blocked, nil) |> load_securities()}
+
+      # Referenced by bookings, quotes, notes, events or rule versions
+      # ({:referenced, counts}), or refused otherwise: nothing was written.
+      {:error, _reason} ->
         {:noreply, socket |> assign(:delete_blocked, sec) |> assign(:delete_blocked_rules, [])}
     end
   end

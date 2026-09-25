@@ -208,9 +208,23 @@ verengen, was der Betreiber sieht.
   Aktiensplit nie rückwirkend anpassen: Mit gesetztem Flag werden die
   synchronisierten Kurszeilen des Wertpapiers als roh (wie gehandelt)
   behandelt, sodass die Split-Anpassungsfaktoren auch auf sie wirken.
-- `DELETE /api/v1/securities/:id` löscht ein Wertpapier, wenn keine abhängigen
-  Transaktionen oder keine Kurshistorie darauf verweisen; referenzierte
-  Wertpapiere liefern `409 Conflict`.
+- `DELETE /api/v1/securities/:id` löscht ein Wertpapier, wenn nichts darauf
+  verweist. Liest eine Policy-Regel es, antwortet der Aufruf mit
+  `409 Conflict` und `errors.policy_rules`. Buchungen, Kurshistorie,
+  Recherche-Notizen, Wertpapier-Ereignisse oder Regelversionen ergeben
+  `409 Conflict` mit `errors.referenced_by` (die verweisenden Tabellen,
+  gezählt, etwa `{"transactions": 3, "security_quotes": 120}`),
+  `errors.remedy` und `errors.remedy_route`: `merge` für ein Duplikat, dessen
+  Route die Zusammenführungs-Vorschau
+  `GET /api/v1/securities/:id/merge_preview?target_id=` ist, ergänzt um die
+  ID des Wertpapiers, das bleibt, oder `retire`, wenn Recherche-Notizen oder
+  Regelversionen darauf verweisen, weil eine Zusammenführung sie nicht
+  mitnehmen kann (die Route ist `PATCH /api/v1/securities/:id` mit
+  `is_retired: true`). Bevor ein unreferenziertes Wertpapier gelöscht wird,
+  werden seine Kategorie-Zuordnungen, Positionsziele,
+  Positions-Bucket-Overrides und ISIN-Aliasse entfernt, jeweils
+  journalisiert; keine Datenbank-Kaskade entfernt sie (ADR-0050 §11). Ein
+  bereits gelöschtes Wertpapier liefert `404`.
 - `GET /api/v1/securities/search` durchsucht konfigurierte
   Online-Wertpapieranbieter. Query-Parameter: `query`; optional `type` mit
   `security` oder `crypto`.
@@ -569,9 +583,16 @@ Beispiel-Antwort für Kurssynchronisierung:
 - `PATCH /api/v1/cash_accounts/:id` aktualisiert ein Geldkonto (`name`,
   `currency_code`, `notes`, `liquidity_role`); `portfolio_id` kann nicht
   geändert werden.
-- `DELETE /api/v1/cash_accounts/:id` löscht ein Geldkonto oder liefert
-  `409 Conflict`, wenn eine Transaktion oder ein Wertpapierkonto noch darauf
-  verweist.
+- `DELETE /api/v1/cash_accounts/:id` löscht ein Geldkonto, auf das keine
+  Transaktion über eines ihrer beiden Konten verweist und das kein
+  Wertpapierkonto verknüpft. Sonst liefert es `409 Conflict` mit
+  `errors.referenced_by` (etwa `{"transactions": 12, "securities_accounts": 1}`),
+  `errors.remedy` `merge` und `errors.remedy_route`, der
+  Zusammenführungs-Vorschau
+  `GET /api/v1/cash_accounts/:id/merge_preview?target_id=`, ergänzt um die ID
+  des Kontos, das bleibt: Eine Zusammenführung verschiebt die Historie, ein
+  Löschen verwirft sie nie. Die Bucket-Verknüpfungen eines unreferenzierten
+  Kontos werden vorher entfernt, journalisiert (ADR-0050 §11).
 - `GET /api/v1/securities_accounts` listet Depots/Wertpapierkonten.
 - `POST /api/v1/securities_accounts` legt ein Depot/Wertpapierkonto mit einem
   `securities_account`-Objekt an. `portfolio_id` ist optional (ADR-0024):
@@ -580,8 +601,14 @@ Beispiel-Antwort für Kurssynchronisierung:
 - `GET /api/v1/securities_accounts/:id` liefert ein Wertpapierkonto.
 - `PATCH /api/v1/securities_accounts/:id` aktualisiert ein Wertpapierkonto
   (`name`, `notes`, `cash_account_id`); `portfolio_id` kann nicht geändert werden.
-- `DELETE /api/v1/securities_accounts/:id` löscht ein Wertpapierkonto oder liefert
-  `409 Conflict`, wenn eine Transaktion noch darauf verweist.
+- `DELETE /api/v1/securities_accounts/:id` löscht ein Wertpapierkonto, auf das
+  keine Transaktion über eines ihrer beiden Konten verweist. Sonst liefert es
+  `409 Conflict` mit `errors.referenced_by`, `errors.remedy` `merge` und
+  `errors.remedy_route`, der Zusammenführungs-Vorschau
+  `GET /api/v1/securities_accounts/:id/merge_preview?target_id=`. Die
+  Standard-Buckets und Positions-Overrides eines unreferenzierten Depots
+  werden vorher entfernt, journalisiert: ein Eintrag für die Standardmenge,
+  einer je Position.
 
 Beispiel-Payloads für Konten:
 

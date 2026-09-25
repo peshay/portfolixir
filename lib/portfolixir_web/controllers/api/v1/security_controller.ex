@@ -12,6 +12,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ListLimit
   alias PortfolixirWeb.Api.V1.PolicyConflict
+  alias PortfolixirWeb.Api.V1.ReferencedConflict
   alias PortfolixirWeb.Api.V1.SinceParam
 
   @sortable_fields Map.new(SecurityFields.sortable(), fn field ->
@@ -149,8 +150,14 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
           {:error, {:policy_rules, rules}} ->
             PolicyConflict.render(conn, rules, "security")
 
-          {:error, _changeset} ->
-            conflict(conn)
+          {:error, {:referenced, referenced_by}} ->
+            ReferencedConflict.render(conn, security, referenced_by)
+
+          {:error, :not_found} ->
+            not_found(conn)
+
+          {:error, %Ecto.Changeset{} = changeset} ->
+            validation_error(conn, changeset)
         end
     end
   end
@@ -242,11 +249,5 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
     conn
     |> put_status(:unprocessable_entity)
     |> json(%{errors: JSON.errors(changeset)})
-  end
-
-  defp conflict(conn) do
-    conn
-    |> put_status(:conflict)
-    |> json(%{errors: %{detail: "security is referenced by existing records"}})
   end
 end

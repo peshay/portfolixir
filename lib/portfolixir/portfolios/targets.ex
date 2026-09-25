@@ -557,11 +557,11 @@ defmodule Portfolixir.Portfolios.Targets do
   `actor`, journaled per row (ADR-0017), in one transaction. Returns
   `{:ok, count}`.
 
-  This is the explicit seam `Portfolixir.Catalog.delete_security/2` calls
-  (#481 fix round) so removing a security leaves a `"target"` journal delete
-  entry for each SOLL row it takes with it, instead of relying on the silent
-  `ON DELETE CASCADE` of the `security_id` foreign key (which stays in place as
-  a backstop only).
+  This is the explicit seam the hardened security delete path
+  (`Portfolixir.Lifecycle.Delete`, ADR-0050 §11; #481 fix round) calls so
+  removing a security leaves a `"target"` journal delete entry for each SOLL
+  row it takes with it. The `security_id` foreign key restricts, so no cascade
+  removes a position target silently.
   """
   def delete_position_targets_for_security(%Actor{} = actor, security_id)
       when is_integer(security_id) do

@@ -204,9 +204,21 @@ full list.
   split: with the flag set, the security's provider-synced quote rows are
   treated as raw (as-traded), so the split-adjustment factors apply to them
   too.
-- `DELETE /api/v1/securities/:id` deletes a security when no dependent
-  transactions or quote history reference it; referenced securities return
-  `409 Conflict`.
+- `DELETE /api/v1/securities/:id` deletes a security when nothing references
+  it. A policy rule that reads it answers `409 Conflict` with
+  `errors.policy_rules`. Bookings, quote history, research notes, security
+  events or policy-rule versions answer `409 Conflict` with
+  `errors.referenced_by` (the referencing tables, counted, for example
+  `{"transactions": 3, "security_quotes": 120}`), `errors.remedy` and
+  `errors.remedy_route`: `merge` for a duplicate, whose route is the merge
+  preview `GET /api/v1/securities/:id/merge_preview?target_id=` completed
+  with the id of the security to keep, or `retire` when research notes or
+  rule versions reference it, because a merge cannot carry them (the route
+  is `PATCH /api/v1/securities/:id` with `is_retired: true`). Before an
+  unreferenced security is deleted, its category assignments, position
+  targets, position bucket overrides and ISIN aliases are removed, each
+  journaled; no database cascade removes them (ADR-0050 §11). A security that
+  is already gone answers `404`.
 - `GET /api/v1/securities/search` searches configured online security providers.
   Query params: `query`; optional `type` with `security` or `crypto`.
 
@@ -594,8 +606,15 @@ Example quote sync response:
 - `PATCH /api/v1/cash_accounts/:id` updates a cash account (`name`,
   `currency_code`, `notes`, `liquidity_role`); `portfolio_id` cannot
   be changed.
-- `DELETE /api/v1/cash_accounts/:id` deletes a cash account, or returns
-  `409 Conflict` when a transaction or securities account still references it.
+- `DELETE /api/v1/cash_accounts/:id` deletes a cash account that no
+  transaction references through either leg and no securities account links
+  to. Otherwise it returns `409 Conflict` with `errors.referenced_by` (for
+  example `{"transactions": 12, "securities_accounts": 1}`), `errors.remedy`
+  `merge` and `errors.remedy_route`, the merge preview
+  `GET /api/v1/cash_accounts/:id/merge_preview?target_id=` completed with the
+  id of the account to keep: a merge moves the history, a delete never
+  discards it. An unreferenced account's bucket links are removed first,
+  journaled (ADR-0050 §11).
 - `GET /api/v1/securities_accounts` lists depots/securities accounts.
 - `POST /api/v1/securities_accounts` creates a depot/securities account with a
   `securities_account` object. `portfolio_id` is optional (ADR-0024): when
@@ -603,8 +622,13 @@ Example quote sync response:
 - `GET /api/v1/securities_accounts/:id` returns one securities account.
 - `PATCH /api/v1/securities_accounts/:id` updates a securities account
   (`name`, `notes`, `cash_account_id`); `portfolio_id` cannot be changed.
-- `DELETE /api/v1/securities_accounts/:id` deletes a securities account, or
-  returns `409 Conflict` when a transaction still references it.
+- `DELETE /api/v1/securities_accounts/:id` deletes a securities account that
+  no transaction references through either leg. Otherwise it returns
+  `409 Conflict` with `errors.referenced_by`, `errors.remedy` `merge` and
+  `errors.remedy_route`, the merge preview
+  `GET /api/v1/securities_accounts/:id/merge_preview?target_id=`. An
+  unreferenced depot's default buckets and position overrides are removed
+  first, journaled: one entry for the default set, one per position.
 
 Example account payloads:
 

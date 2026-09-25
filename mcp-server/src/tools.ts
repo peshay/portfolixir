@@ -2485,7 +2485,20 @@ const toolDefinitions: ToolDefinition[] = [
   tool("portfolixir.securities.get", "Get security", "Read one security's full record, including its identifier_aliases — the former ISINs recorded via portfolixir.securities.isin_change that keep old exports matching this security — and its thesis_state (ADR-0044): the current thesis derived from the research log (status none|intact|retracted, thesis text, conviction tier, invalidation_condition, time_stop, as_of, last_reviewed_at/by, the derived_from_entry_id and, when retracted, the retracted_by_entry_id whose body carries the reason). The state is a projection over portfolixir.notes.list entries, never stored; read the log itself for the evidence.", idSchema, idZ),
   tool("portfolixir.securities.create", "Create security", "Create a local security. To keep a position (e.g. Bitcoin) in the totals and performance but out of the allocation steering basis (the 100%) and drift, tag it with a bucket and exclude that bucket from the active view.", securitySchema, securityZ),
   tool("portfolixir.securities.update", "Update security", "Patch a local security's master data. To keep a position visible in totals/performance but out of the allocation steering basis and drift, tag it with a bucket and exclude that bucket from the active view. Do NOT use this to change an ISIN after a corporate action — use portfolixir.securities.isin_change instead, which keeps the former ISIN as an import-matching alias; a plain rename is just a name edit here.", securityUpdateSchema, securityUpdateZ),
-  tool("portfolixir.securities.delete", "Delete security", "Delete a local security when no transactions or quotes reference it.", idSchema, idZ),
+  tool(
+    "portfolixir.securities.delete",
+    "Delete security",
+    "Delete a local security when nothing references it. A policy rule reading it answers 409 with errors.policy_rules. " +
+      "Bookings, quotes, research notes, security events or policy-rule versions answer 409 with errors.referenced_by " +
+      "(the referencing tables, counted, e.g. {\"transactions\": 3, \"security_quotes\": 120}), errors.remedy and " +
+      "errors.remedy_route: remedy \"merge\" for a duplicate — preview the merge with " +
+      "GET /api/v1/securities/:id/merge_preview?target_id=<the security to keep> — or \"retire\" when research notes " +
+      "or rule versions reference it, which a merge cannot carry (PATCH the security with is_retired true). Before an " +
+      "unreferenced security goes, its category assignments, position targets, position bucket overrides and ISIN " +
+      "aliases are removed, each journaled under the API token; no cascade removes them.",
+    idSchema,
+    idZ
+  ),
   tool("portfolixir.securities.isin_change", "Record ISIN change", "Record a corporate-action ISIN change (merger rename, re-domiciliation): the current ISIN becomes a journaled former-ISIN alias and new_isin is written onto the same security, so re-imports of OLD exports (former ISIN) and NEW exports (new ISIN) both keep matching this security instead of duplicating it. Use this whenever a broker/PP export starts carrying a new ISIN for an existing position; a plain rename needs no ISIN change — edit the name via portfolixir.securities.update. Rejected with a named conflict when new_isin equals the current ISIN, is live on another security, or is aliased to another security; recording a change back to one of this security's own former ISINs consumes that alias (revert).", isinChangeSchema, isinChangeZ),
   tool("portfolixir.securities.delete_isin_alias", "Delete ISIN alias", "Delete one recorded former-ISIN alias of a security (journaled) — use when an ISIN change was recorded by mistake. After deletion, imports no longer match the security via that former ISIN.", isinAliasDeleteSchema, isinAliasDeleteZ),
   tool("portfolixir.securities.search_online", "Search online securities", "Search configured online security providers.", {
@@ -2623,7 +2636,18 @@ const toolDefinitions: ToolDefinition[] = [
     cashAccountUpdateSchema,
     cashAccountUpdateZ
   ),
-  tool("portfolixir.cash_accounts.delete", "Delete cash account", "Delete a cash account when no transactions or depots reference it.", idSchema, idZ),
+  tool(
+    "portfolixir.cash_accounts.delete",
+    "Delete cash account",
+    "Delete a cash account that no transaction references through either leg and no depot links to. Otherwise 409 " +
+      "with errors.referenced_by (the referencing tables, counted: transactions, securities_accounts), " +
+      "errors.remedy \"merge\" and errors.remedy_route, the merge preview " +
+      "GET /api/v1/cash_accounts/:id/merge_preview?target_id=<the account to keep> — a merge moves the history onto " +
+      "the account you keep; a delete never discards it. An unreferenced account's bucket links are removed first, " +
+      "journaled under the API token.",
+    idSchema,
+    idZ
+  ),
   tool(
     "portfolixir.securities_accounts.list",
     "List securities accounts",
@@ -2648,7 +2672,12 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.securities_accounts.delete",
     "Delete securities account",
-    "Delete a depot/securities account when no transactions reference it.",
+    "Delete a depot/securities account that no transaction references through either leg. Otherwise 409 with " +
+      "errors.referenced_by (the referencing tables, counted: transactions), errors.remedy \"merge\" and " +
+      "errors.remedy_route, the merge preview " +
+      "GET /api/v1/securities_accounts/:id/merge_preview?target_id=<the depot to keep>. An unreferenced depot's " +
+      "default buckets and position overrides are removed first, journaled under the API token (one entry for the " +
+      "default set, one per position).",
     idSchema,
     idZ
   ),

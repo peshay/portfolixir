@@ -6,6 +6,7 @@ defmodule PortfolixirWeb.Api.V1.CashAccountController do
   alias Portfolixir.Portfolios.CashAccount
   alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.ReferencedConflict
 
   def index(conn, _params) do
     balances = Ledger.cash_balances()
@@ -71,9 +72,17 @@ defmodule PortfolixirWeb.Api.V1.CashAccountController do
     with {:ok, cid} <- IdParam.parse(id),
          %CashAccount{} = account <- Portfolios.get_cash_account(cid) do
       case Portfolios.delete_cash_account(conn.assigns.actor, account) do
-        {:ok, _} -> send_resp(conn, :no_content, "")
-        {:error, :referenced} -> conflict(conn)
-        {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
+        {:ok, _} ->
+          send_resp(conn, :no_content, "")
+
+        {:error, {:referenced, referenced_by}} ->
+          ReferencedConflict.render(conn, account, referenced_by)
+
+        {:error, :not_found} ->
+          not_found(conn)
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          unprocessable(conn, JSON.errors(changeset))
       end
     else
       nil -> not_found(conn)
@@ -124,11 +133,5 @@ defmodule PortfolixirWeb.Api.V1.CashAccountController do
     conn
     |> put_status(:not_found)
     |> json(%{errors: %{detail: "not found"}})
-  end
-
-  defp conflict(conn) do
-    conn
-    |> put_status(:conflict)
-    |> json(%{errors: %{detail: "cash account is referenced by existing records"}})
   end
 end

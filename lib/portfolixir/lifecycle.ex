@@ -19,7 +19,9 @@ defmodule Portfolixir.Lifecycle do
   own transaction, which joins the caller's when a merge calls it inside one.
 
   The foreign-key disposition map every merge and delete is held against is
-  `Portfolixir.Lifecycle.ForeignKeys` (§14).
+  `Portfolixir.Lifecycle.ForeignKeys` (§14); the hardened delete of a cash
+  account, a depot or a security that reads it is
+  `Portfolixir.Lifecycle.Delete` (§11).
   """
 
   alias Ecto.Multi

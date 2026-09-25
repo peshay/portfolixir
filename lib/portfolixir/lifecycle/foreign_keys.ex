@@ -44,7 +44,9 @@ defmodule Portfolixir.Lifecycle.ForeignKeys do
       with `referenced_by` and the merge remedy (§11), and the database
       refuses the delete itself (RESTRICT or NO ACTION).
     * `:remove_journaled` — removed through its journaled context function
-      before the row is deleted (§11); no cascade removes it silently.
+      before the row is deleted (§11, `Portfolixir.Lifecycle.Delete`); the
+      foreign key restricts too, so no cascade removes it silently and a path
+      that forgets the removal is refused by the database.
   """
 
   @merge_dispositions [

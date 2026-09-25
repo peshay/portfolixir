@@ -114,40 +114,11 @@ defmodule Portfolixir.Catalog.Security do
     |> unique_constraint(:isin, name: :securities_isin_unique_index)
   end
 
-  def delete_changeset(security) do
-    security
-    |> change()
-    |> foreign_key_constraint(:id,
-      name: :transactions_security_id_fkey,
-      message: "is referenced by existing records"
-    )
-    |> foreign_key_constraint(:id,
-      name: :security_quotes_security_id_fkey,
-      message: "is referenced by existing records"
-    )
-    # ADR-0044 §3: research-log entries never vanish, so a security carrying
-    # any is not deletable (the FK restricts; the API answers 409).
-    |> foreign_key_constraint(:id,
-      name: :security_notes_security_id_fkey,
-      message: "is referenced by existing records"
-    )
-    # ADR-0048: security events restrict for the same reason, and the
-    # constraint has to be declared here or the restriction surfaces as an
-    # `Ecto.ConstraintError` — a 500 and a LiveView crash — instead of the
-    # 409 the rest of the family answers. Every `:restrict` reference to
-    # `securities` belongs in this list.
-    |> foreign_key_constraint(:id,
-      name: :security_events_security_id_fkey,
-      message: "is referenced by existing records"
-    )
-    # ADR-0049 §8: policy-rule versions restrict too. `Catalog.delete_security/2`
-    # names the rules before this is reached; the declaration is the backstop
-    # that keeps a race a 409 rather than a 500.
-    |> foreign_key_constraint(:id,
-      name: :policy_rule_versions_security_id_fkey,
-      message: "is referenced by existing records"
-    )
-  end
+  # The delete changeset lives with the hardened delete path
+  # (`Portfolixir.Lifecycle.Delete.delete_changeset/1`, ADR-0050 §11): it
+  # declares every foreign key onto `securities` from the disposition map, so
+  # a reference added later — research notes (ADR-0044 §3), events
+  # (ADR-0048), rule versions (ADR-0049 §8) — is a 409, never a 500.
 
   def asset_classes, do: AssetClasses.codes()
   def providers, do: @providers
