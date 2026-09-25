@@ -1866,10 +1866,12 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         </p>
 
         <%!-- A refused fee or tax opens the costs (#869): an error the reader
-             cannot see is no answer. --%>
+             cannot see is no answer. The hook keeps them open, by whoever
+             opened them, across the patch each keystroke brings. --%>
         <details
           id="transaction-costs"
           class="transaction-costs"
+          phx-hook="DisclosureState"
           open={(@form_errors["fees"] || @form_errors["taxes"]) && true}
         >
           <summary class="disclosure-summary">
