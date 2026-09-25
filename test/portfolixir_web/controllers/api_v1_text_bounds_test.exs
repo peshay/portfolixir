@@ -15,8 +15,10 @@ defmodule PortfolixirWeb.ApiV1TextBoundsTest do
   alias Portfolixir.Repo
 
   # One grapheme, three code points: 100 of them are 300 code points, past a
-  # varchar(255) column however short they look.
-  @combining String.duplicate("é́", 100)
+  # varchar(255) column however short they look. A base letter with no
+  # precomposed acute, so the tax identity's NFC (E25 S6, G21) keeps all
+  # three.
+  @combining String.duplicate("x\u{0301}\u{0301}", 100)
   @long String.duplicate("a", 256)
   @nul "Depot\u0000A"
 
