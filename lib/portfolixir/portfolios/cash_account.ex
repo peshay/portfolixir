@@ -2,6 +2,7 @@ defmodule Portfolixir.Portfolios.CashAccount do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Portfolixir.Lifecycle.Freeze
   alias Portfolixir.Portfolios.Portfolio
 
   # FR5 (#389): a cash account's liquidity role decides whether (and how) its
@@ -37,6 +38,9 @@ defmodule Portfolixir.Portfolios.CashAccount do
     |> validate_length(:currency_code, is: 3)
     |> validate_inclusion(:liquidity_role, @liquidity_roles)
     |> assoc_constraint(:portfolio)
+    # ADR-0050 §11: `currency_code` and `portfolio_id` freeze once a
+    # transaction (either leg) or a linked depot references the account.
+    |> Freeze.validate()
   end
 
   defp normalize_currency_code(changeset) do

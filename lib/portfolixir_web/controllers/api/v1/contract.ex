@@ -47,13 +47,15 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "Sprint 16: the second security pass (E25) — errors the server answers " <>
           "itself carry the documented errors envelope with their own status — and the " <>
           "lifecycle's hardened deletes (ADR-0050 §11): a referenced cash account, depot or " <>
-          "security answers 409 naming what references it, counted, and the remedy.",
+          "security answers 409 naming what references it, counted, and the remedy; its " <>
+          "identity fields freeze once referenced, answering 422.",
       endpoints: [],
       tools: [],
       parameters: [
         "Every /api/v1 error the server answers itself rather than an endpoint (an unreadable body 400, a body over the size bound 413, an unknown route 404, an internal error 500) answers {\"errors\": {\"detail\": <reason phrase>}} with its own status (E25 S2, F68); it used to be {\"status\", \"error\"} for 404 and 500 and a bodyless 500 for every other status",
         "The MCP companion's HTTP transport checks the origin and the bearer token before it reads a request body, and answers the errors it raises itself, an unknown path's 404 among them, {\"errors\": {\"detail\": <reason phrase>}} with no stack trace; the MCP protocol's own refusals on /mcp keep their JSON-RPC error shape (E25 S2, F19)",
-        "DELETE /api/v1/cash_accounts/:id, /securities_accounts/:id and /securities/:id (portfolixir.cash_accounts.delete, portfolixir.securities_accounts.delete, portfolixir.securities.delete) answer a referenced row 409 with errors.referenced_by (the referencing tables, counted; a transaction once whichever leg references the account), errors.remedy (merge, or retire for a security research notes or policy-rule versions reference) and errors.remedy_route (GET /api/v1/<kind>/:id/merge_preview?target_id=, or PATCH /api/v1/securities/:id); it used to be a bare detail. A delete of a row that has gone answers 404, and an unreferenced row's bucket links, position overrides, category assignments, position targets and ISIN aliases are removed first, each journaled (ADR-0050 §11, L1)"
+        "DELETE /api/v1/cash_accounts/:id, /securities_accounts/:id and /securities/:id (portfolixir.cash_accounts.delete, portfolixir.securities_accounts.delete, portfolixir.securities.delete) answer a referenced row 409 with errors.referenced_by (the referencing tables, counted; a transaction once whichever leg references the account), errors.remedy (merge, or retire for a security research notes or policy-rule versions reference) and errors.remedy_route (GET /api/v1/<kind>/:id/merge_preview?target_id=, or PATCH /api/v1/securities/:id); it used to be a bare detail. A delete of a row that has gone answers 404, and an unreferenced row's bucket links, position overrides, category assignments, position targets and ISIN aliases are removed first, each journaled (ADR-0050 §11, L1)",
+        "PATCH /api/v1/cash_accounts/:id (portfolixir.cash_accounts.update) answers a currency_code change 422 once a transaction references the account through either leg or a securities account links to it, and PATCH /api/v1/securities/:id (portfolixir.securities.update) once the security has a transaction or a quote, with errors.currency_code [\"is frozen once referenced (<the references, counted>)\"] and nothing written; it used to re-denominate the booked history silently. Resending the stored currency is no change, and the other fields stay editable (ADR-0050 §11, L1)"
       ],
       removed_endpoints: [],
       removed_tools: []

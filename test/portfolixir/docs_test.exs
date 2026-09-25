@@ -1145,4 +1145,52 @@ defmodule Portfolixir.DocsTest do
     assert gitignore =~ ~r/^\*\.dump$/m
     assert gitignore =~ ~r/^portfolixir-logos-\*\.tar$/m
   end
+
+  # User story:
+  # As the operator or the agent correcting an account or a security,
+  # I want the handbook and the API page to say, in English and German, when
+  # a currency or a portfolio binding freezes and what a frozen change
+  # answers,
+  # so that a refused edit is expected, not a surprise (ADR-0050 §11).
+  #
+  # Acceptance criteria:
+  # - The API page, both languages, states the currency freeze on the
+  #   security and the cash-account PATCH with its 422 and its counted error.
+  # - The handbook, both languages, states the security freeze on every path
+  #   including the search dialog's merge, and the accounts' currency and
+  #   binding freeze.
+  test "the docs state the identity-field freezes in English and German" do
+    for {path, fragments} <- [
+          {"docs/integration/api-and-mcp.md",
+           [
+             "`currency_code` **freezes** once it has a transaction or a quote",
+             "`currency_code` **freezes** once a transaction references the account",
+             "is frozen once referenced (1 securities account, 12 transactions)"
+           ]},
+          {"docs/de/integration/api-and-mcp.md",
+           [
+             "**friert ein**, sobald es eine Transaktion oder einen Kurs hat",
+             "**friert ein**, sobald eine Transaktion über eines ihrer beiden Konten",
+             "is frozen once referenced (1 securities account, 12 transactions)"
+           ]},
+          {"docs/product-documentation.md",
+           [
+             "### Identity fields that freeze (ADR-0050 §11)",
+             "**Merge online fields** and **Update existing**",
+             "**Currency and binding freeze once referenced**"
+           ]},
+          {"docs/de/product-documentation.md",
+           [
+             "### Identitätsfelder, die einfrieren (ADR-0050 §11)",
+             "**Online-Felder übernehmen** und **Vorhandenes aktualisieren**",
+             "**Währung und Bindung frieren ein, sobald verwiesen**"
+           ]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+  end
 end

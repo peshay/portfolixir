@@ -656,7 +656,11 @@ const securityUpdateSchema = {
         ticker_symbol: { type: "string" },
         isin: { type: "string" },
         wkn: { type: "string" },
-        currency_code: { type: "string" },
+        currency_code: {
+          type: "string",
+          description:
+            "ADR-0050 §11: Frozen once the security has a transaction or a quote — a change then answers 422 with errors.currency_code counting them, and nothing is written. Resending the stored currency is no change."
+        },
         exchange_code: { type: "string" },
         asset_class: { type: "string" },
         note: { type: "string" },
@@ -783,7 +787,11 @@ const cashAccountUpdateSchema = {
       type: "object",
       properties: {
         name: { type: "string" },
-        currency_code: { type: "string" },
+        currency_code: {
+          type: "string",
+          description:
+            "ADR-0050 §11: Frozen once a transaction (either leg) or a linked depot references the account — a change then answers 422 with errors.currency_code counting the references, and nothing is written. Resending the stored currency is no change."
+        },
         notes: { type: "string" },
         liquidity_role: { type: "string", enum: ["free_cash", "credit_line", "reserve"] }
       }
@@ -2484,7 +2492,7 @@ const toolDefinitions: ToolDefinition[] = [
   })),
   tool("portfolixir.securities.get", "Get security", "Read one security's full record, including its identifier_aliases — the former ISINs recorded via portfolixir.securities.isin_change that keep old exports matching this security — and its thesis_state (ADR-0044): the current thesis derived from the research log (status none|intact|retracted, thesis text, conviction tier, invalidation_condition, time_stop, as_of, last_reviewed_at/by, the derived_from_entry_id and, when retracted, the retracted_by_entry_id whose body carries the reason). The state is a projection over portfolixir.notes.list entries, never stored; read the log itself for the evidence.", idSchema, idZ),
   tool("portfolixir.securities.create", "Create security", "Create a local security. To keep a position (e.g. Bitcoin) in the totals and performance but out of the allocation steering basis (the 100%) and drift, tag it with a bucket and exclude that bucket from the active view.", securitySchema, securityZ),
-  tool("portfolixir.securities.update", "Update security", "Patch a local security's master data. To keep a position visible in totals/performance but out of the allocation steering basis and drift, tag it with a bucket and exclude that bucket from the active view. Do NOT use this to change an ISIN after a corporate action — use portfolixir.securities.isin_change instead, which keeps the former ISIN as an import-matching alias; a plain rename is just a name edit here.", securityUpdateSchema, securityUpdateZ),
+  tool("portfolixir.securities.update", "Update security", "Patch a local security's master data. To keep a position visible in totals/performance but out of the allocation steering basis and drift, tag it with a bucket and exclude that bucket from the active view. Do NOT use this to change an ISIN after a corporate action — use portfolixir.securities.isin_change instead, which keeps the former ISIN as an import-matching alias; a plain rename is just a name edit here. The currency_code freezes once the security has a transaction or a quote (ADR-0050 §11): a change then answers 422 with errors.currency_code counting them (e.g. \"is frozen once referenced (120 quotes, 3 transactions)\") and writes nothing — a listing in another currency is a different price series, not a correction.", securityUpdateSchema, securityUpdateZ),
   tool(
     "portfolixir.securities.delete",
     "Delete security",
@@ -2632,7 +2640,12 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.cash_accounts.update",
     "Update cash account",
-    "Patch a cash account's name, currency, notes or liquidity_role (free_cash, credit_line, reserve).",
+    "Patch a cash account's name, currency, notes or liquidity_role (free_cash, credit_line, reserve). " +
+      "Its currency_code and its portfolio binding freeze once a transaction references the account through " +
+      "either leg or a linked depot does (ADR-0050 §11): a currency change then answers 422 with " +
+      "errors.currency_code counting the references (e.g. \"is frozen once referenced (1 securities account, " +
+      "12 transactions)\") and writes nothing, so booked history is never re-denominated. The other fields stay " +
+      "editable. The binding is never moved over the API at all.",
     cashAccountUpdateSchema,
     cashAccountUpdateZ
   ),

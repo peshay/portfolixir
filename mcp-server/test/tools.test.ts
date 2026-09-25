@@ -1435,6 +1435,45 @@ describe("Portfolixir MCP tools", () => {
     assert.match(security, /no cascade/);
   });
 
+  // ADR-0050 §11 first bullet, §16 invariant 15 (#831's lesson: agents read
+  // descriptions, not docs): the two update tools that expose a currency say
+  // when it freezes and what a frozen change answers, on the tool and on the
+  // currency_code property itself; the depot update exposes no portfolio_id,
+  // so its binding cannot be moved from here at all.
+  it("states the identity-field freezes on the update tools that expose a currency", () => {
+    const tools = listTools();
+    const find = (name: string) => tools.find((tool) => tool.name === name);
+    const currencyDescription = (name: string, wrapper: string) => {
+      const schema = find(name)?.inputSchema as {
+        properties: Record<string, { properties: Record<string, { description?: string }> }>;
+      };
+      return schema.properties[wrapper].properties.currency_code.description ?? "";
+    };
+
+    const cash = find("portfolixir.cash_accounts.update")?.description ?? "";
+    assert.match(cash, /currency_code and its portfolio binding freeze/);
+    assert.match(cash, /either leg/);
+    assert.match(cash, /linked depot/);
+    assert.match(cash, /422/);
+    assert.match(
+      currencyDescription("portfolixir.cash_accounts.update", "cash_account"),
+      /Frozen once a transaction \(either leg\) or a linked depot references the account/
+    );
+
+    const security = find("portfolixir.securities.update")?.description ?? "";
+    assert.match(security, /currency_code freezes once the security has a transaction or a quote/);
+    assert.match(security, /422/);
+    assert.match(
+      currencyDescription("portfolixir.securities.update", "security"),
+      /Frozen once the security has a transaction or a quote/
+    );
+
+    const depotSchema = find("portfolixir.securities_accounts.update")?.inputSchema as {
+      properties: { securities_account: { properties: Record<string, unknown> } };
+    };
+    assert.equal("portfolio_id" in depotSchema.properties.securities_account.properties, false);
+  });
+
   it("routes update/delete tools to PATCH/DELETE on the right paths", async () => {
     const { client, requests } = createRecordingClient({ data: { id: 1 } });
 

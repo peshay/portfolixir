@@ -5,6 +5,7 @@ defmodule Portfolixir.Catalog.Security do
   alias Portfolixir.Catalog.AssetClasses
   alias Portfolixir.Catalog.Currencies
   alias Portfolixir.Catalog.Feeds
+  alias Portfolixir.Lifecycle.Freeze
 
   @providers ~w(portfolio_performance coingecko manual)
 
@@ -112,6 +113,10 @@ defmodule Portfolixir.Catalog.Security do
       name: :securities_provider_online_id_unique_index
     )
     |> unique_constraint(:isin, name: :securities_isin_unique_index)
+    # ADR-0050 §11: `currency_code` freezes once the security has a
+    # transaction or a quote — whichever writer built this changeset (a form,
+    # the API, a search result merged into an existing security).
+    |> Freeze.validate()
   end
 
   # The delete changeset lives with the hardened delete path

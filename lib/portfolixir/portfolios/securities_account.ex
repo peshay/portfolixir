@@ -2,6 +2,7 @@ defmodule Portfolixir.Portfolios.SecuritiesAccount do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Portfolixir.Lifecycle.Freeze
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.Portfolio
 
@@ -24,5 +25,8 @@ defmodule Portfolixir.Portfolios.SecuritiesAccount do
     |> foreign_key_constraint(:cash_account_id,
       name: :securities_accounts_cash_account_portfolio_fkey
     )
+    # ADR-0050 §11: `portfolio_id` freezes once a transaction references the
+    # depot through either leg.
+    |> Freeze.validate()
   end
 end
