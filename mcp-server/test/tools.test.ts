@@ -3168,6 +3168,39 @@ describe("Portfolixir MCP tools", () => {
     }
   });
 
+  // E25 S4, F70 and G24 (the S3/S4 review round): a read's date and text
+  // filters meet the writers' rules, and the read tools say so.
+  it("states the bounded date and the text rule on the read tools' filters", () => {
+    const property = (name: string, key: string) => {
+      const schema = listTools().find((tool) => tool.name === name)?.inputSchema as
+        | { properties?: Record<string, { description?: string }> }
+        | undefined;
+      return schema?.properties?.[key]?.description ?? "";
+    };
+
+    for (const [name, key] of [
+      ["portfolixir.transactions.list", "from"],
+      ["portfolixir.transactions.list", "to"],
+      ["portfolixir.quotes.list", "from"],
+      ["portfolixir.quotes.list", "to"],
+      ["portfolixir.trades.list", "from"],
+      ["portfolixir.securities.metrics", "as_of"],
+      ["portfolixir.policy_rules.list", "as_of"]
+    ]) {
+      assert.match(property(name, key), /1900-01-01/, `${name} ${key}`);
+    }
+
+    for (const [name, key] of [
+      ["portfolixir.securities.list", "query"],
+      ["portfolixir.journal.list", "resource_type"],
+      ["portfolixir.tax_profiles.list", "holder"],
+      ["portfolixir.allowance_orders.list", "institution"],
+      ["portfolixir.tax_snapshots.list", "holder"]
+    ]) {
+      assert.match(property(name, key), /at most 255 characters/, `${name} ${key}`);
+    }
+  });
+
   // E25 S4, G24 (the S3/S4 review round): a security's free-form attributes
   // meet the text rule at any depth, and the security tools say so.
   it("states the attributes text rule on the security write tools", () => {

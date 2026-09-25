@@ -24,6 +24,7 @@ defmodule PortfolixirWeb.Api.V1.JournalController do
   alias Portfolixir.Journal.Entry
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ListLimit
+  alias PortfolixirWeb.Api.V1.TextParam
 
   # #811: the bound is the family's, spelled the family's way. This read
   # carried its own copy of the parser until Sprint 13 — identical in
@@ -69,17 +70,27 @@ defmodule PortfolixirWeb.Api.V1.JournalController do
   end
 
   defp list_opts(params) do
-    with {:ok, actor_type} <- enum_param(params, "actor_type", Actor.types()),
+    with {:ok, resource_type} <- text_param(params, "resource_type"),
+         {:ok, resource_id} <- text_param(params, "resource_id"),
+         {:ok, actor_type} <- enum_param(params, "actor_type", Actor.types()),
          {:ok, operation} <- enum_param(params, "operation", Entry.operations()),
          {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit) do
       opts =
         [limit: limit, include_scenarios: params["include_scenarios"] == "true"]
-        |> put_if_present(:resource_type, params["resource_type"])
-        |> put_if_present(:resource_id, params["resource_id"])
+        |> put_if_present(:resource_type, resource_type)
+        |> put_if_present(:resource_id, resource_id)
         |> put_if_present(:actor_type, actor_type)
         |> put_if_present(:operation, operation)
 
       {:ok, opts}
+    end
+  end
+
+  # The text rule every writer meets (TextParam, G24 review round).
+  defp text_param(params, key) do
+    case TextParam.parse(params, key) do
+      {:ok, text} -> {:ok, text}
+      :error -> {:error, String.to_existing_atom(key)}
     end
   end
 

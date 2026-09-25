@@ -97,6 +97,9 @@ Objekt aus Teilen, ein Datum mit Uhrzeit) liefert `422` mit dem Namen des Felds
 und speichert nichts; das gespeicherte, gemeldete und im Journal festgehaltene
 Datum ist also das gesendete. Ein Portfolio-Performance-Import nennt eine Zeile
 mit einem Datum außerhalb des Bereichs in der Vorschau, statt sie zu buchen.
+Ein Datumsfilter eines Lesezugriffs — `from` und `to` bei den Buchungen, Kursen
+und Trades, `as_of` bei den Kennzahlen eines Wertpapiers und den Regeln — folgt
+derselben Regel: Alles andere liefert `422` mit dem Namen des Parameters.
 
 **Buchungsbeträge.** Die Geldfelder und Preise einer Buchung (`gross_amount`,
 `price`, `fees`, `taxes`, `security_amount`, `settlement_amount`,
@@ -134,7 +137,11 @@ Tiefe: Jeder Schlüssel ist einzeiliger Text mit höchstens 255 Zeichen, und
 jeder Textwert, auch in einem verschachtelten Objekt oder einer Liste, ist
 Freitext; sonst liefert der Schreibzugriff `422` auf `attributes`. Eine
 Eigenschaft eines Suchanbieters, die gegen die Regel verstößt, wird verworfen,
-bevor sie die Attribute erreicht.
+bevor sie die Attribute erreicht. Ein Textfilter eines Lesezugriffs — `query`
+bei den Wertpapieren, `resource_type` und `resource_id` im Journal, `holder`,
+`institution` und `jurisdiction` bei den Steuer-Lesezugriffen — ist
+einzeiliger Text mit höchstens 255 Zeichen; alles andere, auch eine Liste,
+liefert `422` mit dem Namen des Parameters.
 
 **Eingepackte Rümpfe.** Ein Schreibzugriff, dessen Attribute unter einem
 Schlüssel reisen — `{"transaction": {…}}`, `{"view": {…}}`, `{"rule": {…}}`

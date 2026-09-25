@@ -87,7 +87,10 @@ and a split's dates — is an ISO 8601 calendar date (`YYYY-MM-DD`) from
 form (an object of parts, a date-time), answers `422` naming the field and
 stores nothing, so the date stored, answered and journaled is the date sent.
 A Portfolio Performance import names a row dated outside the range in its
-preview instead of booking it.
+preview instead of booking it. A read's date filter — `from` and `to` on the
+transactions, quotes and trades reads, `as_of` on the security metrics and
+policy-rule reads — meets the same rule: anything else answers `422` naming
+the parameter.
 
 **Ledger amounts.** A booking's money fields and prices (`gross_amount`,
 `price`, `fees`, `taxes`, `security_amount`, `settlement_amount`,
@@ -120,7 +123,11 @@ rule in its preview. A security's free-form `attributes` map meets the rule at
 any depth: every key is one-line text of at most 255 characters, and every
 text value, in a nested object or list too, is free text; otherwise the write
 answers `422` on `attributes`. A search provider's property that breaks the
-rule is dropped before it reaches the attributes.
+rule is dropped before it reaches the attributes. A read's text filter — the
+securities `query`, the journal's `resource_type` and `resource_id`, the tax
+reads' `holder`, `institution` and `jurisdiction` — is one-line text of at
+most 255 characters; anything else, a list included, answers `422` naming the
+parameter.
 
 **Wrapped bodies.** A write whose attributes travel under one key —
 `{"transaction": {…}}`, `{"view": {…}}`, `{"rule": {…}}` and their siblings —
