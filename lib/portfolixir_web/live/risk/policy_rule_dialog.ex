@@ -27,6 +27,7 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
   use Gettext, backend: PortfolixirWeb.Gettext
 
   alias Portfolixir.Actor
+  alias Portfolixir.Catalog
   alias Portfolixir.Clock
   alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Portfolios.PolicyRules
@@ -45,6 +46,9 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
   @impl true
   def update(assigns, socket) do
     socket = assign(socket, assigns)
+
+    socket =
+      assign(socket, :options, with_own_subject(socket.assigns[:options], socket.assigns[:rule]))
 
     socket =
       if changed?(socket, :rule) or not Map.has_key?(socket.assigns, :form) do
@@ -511,6 +515,31 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
         [{gettext("Views"), Enum.map(options.views, fn {id, name} -> {name, "view:#{id}"} end)}]
     end)
     |> Enum.reject(fn {_group, entries} -> entries == [] end)
+  end
+
+  # The rule's own subject stays a choice of its dialog (the S3/S4/D review
+  # round, LD-1): a retired security is not offered for a new rule, but a
+  # rule that reads one keeps it, so the dialog never swaps it for another
+  # security and a rename stays a rename.
+  defp with_own_subject(%{securities: securities} = options, %{} = rule) do
+    case reference_version(rule) do
+      %{subject_type: :security, security_id: id} when is_integer(id) ->
+        if List.keymember?(securities, id, 0),
+          do: options,
+          else: %{options | securities: securities ++ [{id, own_security_name(id)}]}
+
+      _other_subject ->
+        options
+    end
+  end
+
+  defp with_own_subject(options, _rule), do: options
+
+  defp own_security_name(id) do
+    case Catalog.get_security(id) do
+      %{name: name} -> name
+      nil -> PolicyRuleLabel.subject_type(:security)
+    end
   end
 
   defp measure_atom(measure) do
