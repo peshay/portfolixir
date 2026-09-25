@@ -72,11 +72,15 @@ defmodule Portfolixir.Invariants.ScopeB5SystemWritersAndSchedulersTest do
   }
 
   # Modules allowed to name the journal's `scenario_id` at all: the writer
-  # seam that stores it (defaulting to nil), the schema, and the API read-out.
+  # seam that stores it (defaulting to nil), the schema, the API read-out, and
+  # a reader that filters on it to leave what-if entries out.
   @scenario_modules %{
     "Portfolixir.Journal" => "the journal's writer seam; nothing passes the option",
     "Portfolixir.Journal.Entry" => "the audit-journal schema carrying the dormant column",
-    "PortfolixirWeb.Api.V1.JSON" => "serializes the column on the journal read (always nil)"
+    "PortfolixirWeb.Api.V1.JSON" => "serializes the column on the journal read (always nil)",
+    "Portfolixir.Lifecycle.FormerNamesBackfill" =>
+      "reads the column only in an is_nil filter, so the former-name backfill " <>
+        "(ADR-0050 §4) never replays a what-if rename; it writes no scenario_id"
   }
 
   @scheduler_calls %{
