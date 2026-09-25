@@ -1221,6 +1221,19 @@ Shipped as #702; recorded here so every tab row is held to it.
   one and a fixed right fade would cover it; a row resting on both edges (no
   overflow, desktop) carries no mask. Without script the row keeps the
   one-sided right fade above;
+- **the row's end is a tab boundary** *(issue 876, pick G10 = A of board
+  `ux-design-2026-09-24/10-area-tab-end`)*: when the row overflows, the
+  `AreaTabs` hook gives it a trailing inset (`padding-inline-end` from
+  `--area-tabs-tail`, 0 by default on `.area-tabs`) as wide as the distance
+  from its maximum scroll to the next tab start, and brings the active tab to
+  rest on the last tab start at or before its centring target at which it is
+  whole (else the first after); a row that does not overflow gets no inset. The
+  browser clamps a target past the maximum scroll, and the maximum scroll lay
+  mid-tab, which is how Tax and Risk rested with a fragment of "Cashflow" under
+  the left fade. The inset is re-measured on resize and restored after a patch,
+  like the edge marks; its cost is a little empty space after the last tab at
+  the row's end. Measured in Chromium at 390 px: every Wealth page rests with a
+  whole tab at the left, on arrival and when swiped to the end;
 - **no scrollbar** — a phone renders none anyway, and the fade plus snap carry
   it; keyboard users reach off-screen tabs by tabbing, which scrolls them in;
 - **the baseline is an inset box-shadow, not `border-bottom`.** This is the
