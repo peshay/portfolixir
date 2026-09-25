@@ -339,4 +339,34 @@ defmodule PortfolixirWeb.SecuritiesResearchTabTest do
     assert id == kept.id
     assert view |> element(~s([data-role="thesis-state"])) |> render() == before_state
   end
+
+  # User story (E25 S6, G01):
+  # As the operator appending to the research log from the page,
+  # I want an entry body past its bound refused in the form's error list,
+  # so that the page meets the same cap as the API.
+  #
+  # Acceptance criteria:
+  # - A body one code point past the cap is named in the error list and
+  #   nothing is appended.
+  test "an entry body past its cap is refused in the form's error list", %{conn: conn} do
+    security = security!()
+    max = Portfolixir.Input.Text.entry_body_max()
+
+    {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=research")
+
+    view
+    |> form("#research-entry-form",
+      note: %{
+        kind: "evidence",
+        body: String.duplicate("a", max + 1),
+        source_quality: "primary",
+        as_of: "2026-09-01"
+      }
+    )
+    |> render_submit()
+
+    errors = view |> element(".research-entry-form__errors") |> render()
+    assert errors =~ "Entry: should be at most #{max} character(s)"
+    assert Knowledge.list_notes(security.id) == []
+  end
 end

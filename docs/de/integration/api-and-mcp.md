@@ -414,7 +414,10 @@ Feldnamen, und aus Eingaben entsteht nie ein Atom.
   Ein `as_of` nach heute (dem Kalendertag der Instanz) liefert `422` auf
   `as_of` („must not be in the future“): Das Log hängt nur an, ein vertipptes
   Jahr in der Zukunft ließe sich nie zurücknehmen. `valid_until` und
-  `time_stop` dürfen in der Zukunft liegen.
+  `time_stop` dürfen in der Zukunft liegen. `body` fasst höchstens 20000
+  Zeichen, `invalidation_condition` höchstens 10000 (Unicode-Codepoints); ein
+  längerer Wert liefert `422` mit dem Feld, und auch die Datenbank lehnt ihn
+  ab.
 - `GET /api/v1/notes/unreviewed?days=N` — gehaltene Wertpapiere
   (Nettostückzahl ungleich null über alle Depots), deren neuester Eintrag
   älter als `N` Tage ist (Standard 90) oder die keinen haben; Zeilen tragen
@@ -523,7 +526,8 @@ Die Writes: `POST /api/v1/securities/:security_id/events` (`201`),
 `PATCH /api/v1/security_events/:id` und `DELETE /api/v1/security_events/:id`
 (`204`). Auf beiden schreibenden Wegen liefert ein `checked_at` nach morgen
 (Kalendertag der Instanz plus ein Tag für Zeitzonen) `422` auf `checked_at`,
-und nichts wird geschrieben. `source_quality` verwendet dieselben vier Werte wie das Research-Log.
+und nichts wird geschrieben. Die `note` eines Termins fasst höchstens 10000
+Zeichen (Unicode-Codepoints); eine längere liefert `422` auf `note`. `source_quality` verwendet dieselben vier Werte wie das Research-Log.
 Ein Termin trägt **kein Geld**.
 
 **Was diese Fläche nicht ist.** Nichts ruft einen Kalender ab — Eintrag von
@@ -1668,7 +1672,8 @@ Die Schreibzugriffe:
   `{"rule": {"name", "view_id", "version": {…}}}`; legt die Regel mit ihrer
   ersten Version an (`201`).
 - `POST /api/v1/policy_rules/:id/versions` — Rumpf `{"version": {…}}`; die
-  Änderung (`201`).
+  Änderung (`201`). Auf beiden fasst die `note` einer Version höchstens 10000
+  Zeichen (Unicode-Codepoints); eine längere liefert `422` auf `note`.
 - `PATCH /api/v1/policy_rules/:id` — Rumpf `{"name": "…"}`; das
   **Umbenennen**, eine Änderung an der Regel selbst **außerhalb der
   Versionen**: Es entsteht keine Version, keine wird geändert, und der neue

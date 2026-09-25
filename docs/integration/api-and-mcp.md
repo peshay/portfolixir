@@ -381,7 +381,9 @@ input.
   after today (the instance's calendar day) answers `422` on `as_of` ("must
   not be in the future"): the log is append-only, so a mistyped future year
   could never be taken back. `valid_until` and `time_stop` may lie in the
-  future.
+  future. `body` holds at most 20000 characters and `invalidation_condition`
+  at most 10000 (Unicode code points); a longer value answers `422` naming
+  the field, and the database refuses it as well.
 - `GET /api/v1/notes/unreviewed?days=N` — held securities (net quantity
   non-zero across all depots) whose newest entry is older than `N` days
   (default 90) or that have none; rows carry `last_entry_as_of` and
@@ -502,7 +504,8 @@ The writes:
 - On both writes a `checked_at` later than tomorrow (the instance's calendar
   day plus one day of zone slack) answers `422` on `checked_at` and writes
   nothing: it is the day the source was re-read, and a future one would hide
-  the event from the stale read.
+  the event from the stale read. An event's `note` holds at most 10000
+  characters (Unicode code points); a longer one answers `422` on `note`.
 - `DELETE /api/v1/security_events/:id` — removes one (`204`), journaled with
   the row recorded, for a duplicate or a date that never existed. To record
   that a date passed, mark it `confirmed` instead.
@@ -1812,7 +1815,8 @@ The writes:
   `{"rule": {"name", "view_id", "version": {…}}}`; creates the rule with its
   first version (`201`).
 - `POST /api/v1/policy_rules/:id/versions` — body `{"version": {…}}`; the edit
-  (`201`).
+  (`201`). On both, a version's `note` holds at most 10000 characters
+  (Unicode code points); a longer one answers `422` on `note`.
 - `PATCH /api/v1/policy_rules/:id` — body `{"name": "…"}`; the **rename**, a
   rule-level edit **outside the versioning**: no version is added or changed,
   and the new name reads for the rule with all its versions (`200`, the rule

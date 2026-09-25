@@ -121,13 +121,37 @@ defmodule Portfolixir.Knowledge do
   @spec get_note(integer()) :: SecurityNote.t() | nil
   def get_note(id) when is_integer(id), do: Repo.get(SecurityNote, id)
 
+  # What the projection reads of every entry (E25 S6, G01): no free text. A
+  # body is shown for the current thesis only, so only that one is loaded,
+  # with its invalidation condition — a detail read no longer costs every
+  # body the log ever stored.
+  @projection_fields [:id, :security_id, :kind, :supersedes_id, :as_of, :inserted_at, :author] ++
+                       [:conviction, :time_stop]
+
   @doc """
   The current thesis state of a security — a pure projection over its log
   (`Portfolixir.Knowledge.ThesisState.project/1`).
   """
   @spec thesis_state(integer()) :: ThesisState.t()
   def thesis_state(security_id) when is_integer(security_id) do
-    security_id |> list_notes() |> ThesisState.project()
+    SecurityNote
+    |> where([n], n.security_id == ^security_id)
+    |> select([n], struct(n, ^@projection_fields))
+    |> Repo.all()
+    |> ThesisState.project()
+    |> put_thesis_text()
+  end
+
+  defp put_thesis_text(%{derived_from_entry_id: nil} = state), do: state
+
+  defp put_thesis_text(%{derived_from_entry_id: id} = state) do
+    {body, condition} =
+      SecurityNote
+      |> where([n], n.id == ^id)
+      |> select([n], {n.body, n.invalidation_condition})
+      |> Repo.one()
+
+    %{state | thesis: body, invalidation_condition: condition}
   end
 
   @doc """

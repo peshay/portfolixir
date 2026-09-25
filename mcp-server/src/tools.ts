@@ -67,6 +67,18 @@ const idZ = z.object({ id: z.number().int().positive() });
 // MCP clients mis-render. A fresh instance per field keeps each property inline.
 const optionalString = () => z.string().optional();
 
+// E25 S6, G01: free text on append-only or journaled storage is capped in
+// Unicode code points, the unit the server counts; a JS string's length is
+// UTF-16 units, so the zod check counts code points itself.
+const FREE_TEXT_MAX = 10000;
+const ENTRY_BODY_MAX = 20000;
+const codePoints = (value: string) => [...value].length;
+const cappedText = (max: number) =>
+  z.string().refine((value) => codePoints(value) <= max, {
+    message: `at most ${max} characters (Unicode code points)`
+  });
+const capNote = (max: number) => `At most ${max} characters (Unicode code points), else 422.`;
+
 const securityZ = z.object({
   security: z.object({
     name: z.string(),
@@ -1146,7 +1158,11 @@ const policyVersionSchema = {
       description: "the ADR-0047 window; required for volatility and max_drawdown, absent otherwise"
     },
     severity: { type: "string", enum: [...POLICY_SEVERITIES] },
-    note: { type: "string", description: "the operator's words, never parsed" },
+    note: {
+      type: "string",
+      maxLength: FREE_TEXT_MAX,
+      description: `the operator's words, never parsed. ${capNote(FREE_TEXT_MAX)}`
+    },
     valid_from: {
       type: "string",
       description: boundedDate("The day the version is in force from (default today; never before today).")
@@ -1167,7 +1183,7 @@ const policyVersionZ = z.object({
   upper: optionalString(),
   window: z.enum(POLICY_WINDOWS).optional(),
   severity: z.enum(POLICY_SEVERITIES),
-  note: optionalString(),
+  note: cappedText(FREE_TEXT_MAX).optional(),
   valid_from: optionalString()
 });
 
@@ -2232,7 +2248,7 @@ const eventBodySchema = {
         "The day the fact was last re-read; no later than tomorrow (the instance's calendar day plus one day of zone slack), else 422."
       )
     },
-    note: { type: "string" }
+    note: { type: "string", maxLength: FREE_TEXT_MAX, description: capNote(FREE_TEXT_MAX) }
   }
 } as const;
 
@@ -2245,7 +2261,7 @@ const eventBodyZ = z.object({
   source_url: z.string().optional(),
   source_quality: z.enum(EVENT_SOURCE_QUALITIES).optional(),
   checked_at: z.string().optional(),
-  note: z.string().optional()
+  note: cappedText(FREE_TEXT_MAX).optional()
 });
 
 const eventsListSchema = {
@@ -2487,7 +2503,12 @@ const noteAppendSchema = {
       required: ["kind", "body", "source_quality", "as_of"],
       properties: {
         kind: { type: "string", enum: [...noteKinds] },
-        body: { type: "string", minLength: 1 },
+        body: {
+          type: "string",
+          minLength: 1,
+          maxLength: ENTRY_BODY_MAX,
+          description: capNote(ENTRY_BODY_MAX)
+        },
         source_quality: { type: "string", enum: [...noteSourceQualities] },
         source_url: { type: "string" },
         as_of: {
@@ -2502,7 +2523,11 @@ const noteAppendSchema = {
           description: boundedDate("The end of a dated block (lockup, self-imposed buying block).")
         },
         conviction: { type: "string", enum: [...noteConvictions], description: "thesis entries only" },
-        invalidation_condition: { type: "string", description: "thesis entries only" },
+        invalidation_condition: {
+          type: "string",
+          maxLength: FREE_TEXT_MAX,
+          description: `thesis entries only. ${capNote(FREE_TEXT_MAX)}`
+        },
         time_stop: { type: "string", description: boundedDate("Thesis entries only.") }
       }
     }
@@ -2513,14 +2538,14 @@ const noteAppendZ = z.object({
   security_id: z.number().int().positive(),
   note: z.object({
     kind: z.enum(noteKinds),
-    body: z.string().min(1),
+    body: cappedText(ENTRY_BODY_MAX).pipe(z.string().min(1)),
     source_quality: z.enum(noteSourceQualities),
     source_url: optionalString(),
     as_of: z.string(),
     supersedes_id: z.number().int().positive().optional(),
     valid_until: optionalString(),
     conviction: z.enum(noteConvictions).optional(),
-    invalidation_condition: optionalString(),
+    invalidation_condition: cappedText(FREE_TEXT_MAX).optional(),
     time_stop: optionalString()
   })
 });

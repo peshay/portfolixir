@@ -111,7 +111,10 @@ defmodule Portfolixir.Knowledge.SecurityNote do
     # The column is varchar(255); without this a tracking-laden link is a
     # Postgrex 22001 and a 500 instead of a field error the caller can read.
     |> Text.validate(:source_url, max: @max_source_url)
-    |> Text.validate([:body, :invalidation_condition], multiline: true)
+    # Code-point caps on append-only storage (E25 S6, G01), with a CHECK of
+    # the same number behind each.
+    |> Text.validate(:body, multiline: true, max: Text.entry_body_max())
+    |> Text.validate(:invalidation_condition, multiline: true, max: Text.free_text_max())
     |> validate_machine_generated_source()
     |> validate_retraction_supersedes()
     |> validate_thesis_fields()
@@ -123,6 +126,10 @@ defmodule Portfolixir.Knowledge.SecurityNote do
     |> check_constraint(:conviction, name: :security_notes_conviction_check)
     |> check_constraint(:source_url, name: :security_notes_machine_generated_source_check)
     |> check_constraint(:supersedes_id, name: :security_notes_retraction_supersedes_check)
+    |> check_constraint(:body, name: :security_notes_body_length_check)
+    |> check_constraint(:invalidation_condition,
+      name: :security_notes_invalidation_condition_length_check
+    )
   end
 
   # A closed-set value is accepted as the atom itself or as its string form;
