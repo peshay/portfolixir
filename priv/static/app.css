@@ -5510,6 +5510,13 @@ button.income-bar-label.is-active {
      overflow and no tab sits under it. */
   mask-image: linear-gradient(to right, black calc(100% - 40px), transparent 100%);
   scrollbar-width: none;
+  /* The row's end is a tab boundary (issue 876, pick G10 = A of board
+     ux-design-2026-09-24/10-area-tab-end): when the row overflows, the
+     AreaTabs hook writes the distance from its maximum scroll to the next
+     tab start on the row itself, so it can rest with a whole tab at its
+     left. Zero without script and on a row that does not overflow. */
+  --area-tabs-tail: 0px;
+  padding-inline-end: var(--area-tabs-tail);
 }
 /* No scrollbar under the tabs: the fade and the snap are the affordance, and
    a phone renders no scrollbar anyway. Keyboard users reach the off-screen

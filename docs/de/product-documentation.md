@@ -2210,6 +2210,12 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
   (ADR-0024): sie werden als Chips auf den Zeilen von Konten & Depots und auf
   der Ansichten-Seite verwaltet, die der Link **Ansichten** des
   Sicht-Umschalters öffnet.
+- Auf dem Telefon scrollt die Reiterzeile eines Bereichs (Vermögen,
+  Transaktionen) seitlich, statt umzubrechen: Der Reiter, auf dem man steht,
+  ist beim Öffnen einer Seite sichtbar, ein Verlauf markiert jede Seite, hinter
+  der weitere Reiter liegen, und die Zeile kommt immer mit einem ganzen Reiter
+  am linken Rand zur Ruhe — auch an ihrem Ende, wo nach dem letzten Reiter ein
+  wenig Leerraum folgt.
 - Theme: System-, hell- und dunkel-Modus werden unterstützt.
 - Akzent: violette, türkise und korallenfarbene Logo-Akzentwahlen werden
   unterstützt.

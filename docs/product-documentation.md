@@ -2046,6 +2046,11 @@ naming the already-booked event) stays inline in the dialog.
   of their own (ADR-0024): they are managed as chips on the Accounts & depots
   rows and on the Views page, which the view switcher's **Views** link
   opens.
+- On a phone, a section's tab row (Wealth, Transactions) scrolls sideways
+  instead of wrapping: the tab you are on is in view when a page opens, a fade
+  marks each side beyond which more tabs lie, and the row always comes to rest
+  with a whole tab at its left edge — also at its end, where a little empty
+  space follows the last tab.
 - Theme: system, light, and dark modes are supported.
 - Accent: violet, teal, and coral logo accent choices are supported.
 - Language: first load follows the browser language when it is English or

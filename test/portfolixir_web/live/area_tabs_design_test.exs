@@ -190,13 +190,7 @@ defmodule PortfolixirWeb.AreaTabsDesignTest do
     end
 
     test "the hook scrolls the current tab into view and marks the scroll edges" do
-      hook =
-        "lib/portfolixir_web/layout_view.ex"
-        |> File.read!()
-        |> String.split("Hooks.AreaTabs")
-        |> Enum.at(1)
-        |> String.split("Hooks.")
-        |> hd()
+      hook = area_tabs_hook()
 
       assert hook =~ ~s([aria-current="page"])
       assert hook =~ "prefers-reduced-motion"
@@ -204,6 +198,44 @@ defmodule PortfolixirWeb.AreaTabsDesignTest do
       assert hook =~ "data-scroll-end"
       # Scrolls the row only — scrollIntoView would also move the page.
       refute hook =~ "scrollIntoView"
+    end
+
+    # User story (#876, pick G10 = A of board
+    # ux-design-2026-09-24/10-area-tab-end; DESIGN.md → Tab row overflow, D6):
+    # As the operator opening Tax or Risk on a phone,
+    # I want the tab row to come to rest with a whole tab at its left edge,
+    # so that no fragment of the tab before ("ow" of "Cashflow") sits under the
+    # left fade — "a tab never comes to rest half-cut" holds at the row's end
+    # as well.
+    #
+    # Acceptance criteria:
+    # - The stylesheet gives the row a trailing inset from a custom property
+    #   the hook writes; without script it is zero.
+    # - When the row overflows, the hook sizes the inset to the distance from
+    #   the row's maximum scroll to the next tab start, so the row's end is a
+    #   tab boundary; a row that does not overflow gets none. It measures again
+    #   on resize.
+    # - The active tab comes to rest on a tab start — the last one at or
+    #   before its centring target at which the tab is whole, else the first
+    #   after — never on the raw centring target the browser would clamp.
+    # - After a LiveView patch the hook restores the inset and the resting
+    #   position, as it restores the edge marks.
+    test "the row's end is a tab boundary, and the active tab rests on one" do
+      app_css = File.read!("priv/static/app.css")
+      [area_tabs_rule] = Regex.run(~r/\n\.area-tabs \{[^}]*\}/s, app_css)
+      assert area_tabs_rule =~ ~r/--area-tabs-tail:\s*0px;/
+      assert area_tabs_rule =~ ~r/padding-inline-end:\s*var\(--area-tabs-tail\);/
+
+      hook = area_tabs_hook()
+
+      assert hook =~ ~s(setProperty("--area-tabs-tail")
+      assert hook =~ ~r/fitTail: function/
+      assert hook =~ ~r/restingLeft: function/
+      assert hook =~ ~r/mounted: function \(\) \{.*this\.fitTail\(\);.*this\.reveal\(\);/s
+      assert hook =~ ~r/updated: function \(\) \{.*this\.fitTail\(\);.*this\.markEdges\(\);/s
+      assert hook =~ ~r/addEventListener\("resize", this\.onResize\)/
+      assert hook =~ ~r/left: this\.restingLeft\(/
+      refute hook =~ "Math.max(0, target)"
     end
 
     test "the stylesheet fades each edge only where tabs lie beyond it" do
@@ -219,5 +251,15 @@ defmodule PortfolixirWeb.AreaTabsDesignTest do
       assert app_css =~
                ~r/\.area-tabs\[data-scroll-start\]\[data-scroll-end\]\s*\{[^}]*mask-image:\s*none/s
     end
+  end
+
+  # The AreaTabs hook's source in layout_view.ex, up to the next hook.
+  defp area_tabs_hook do
+    "lib/portfolixir_web/layout_view.ex"
+    |> File.read!()
+    |> String.split("Hooks.AreaTabs")
+    |> Enum.at(1)
+    |> String.split("Hooks.")
+    |> hd()
   end
 end
