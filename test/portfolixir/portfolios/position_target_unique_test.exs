@@ -170,8 +170,11 @@ defmodule Portfolixir.Portfolios.PositionTargetUniqueTest do
   # so that I choose which row stays rather than the upgrade choosing for me.
   #
   # Acceptance criteria:
-  # - With such a pair the migration step raises, naming the plan and the
-  #   security, and the index is not created.
+  # - With such a pair the migration step raises, naming the plan, the
+  #   security and each row id, and the index is not created.
+  # - The message names a remedy that works while this release cannot start
+  #   (E25 S6 review round, D1): the pre-upgrade backup and the previous
+  #   release, where the plan editor and the API remove the rows journaled.
   # - Without one, the index is created.
   test "the migration names an existing duplicate instead of choosing a row" do
     w = world()
@@ -181,9 +184,15 @@ defmodule Portfolixir.Portfolios.PositionTargetUniqueTest do
     insert_position_row!(plan, w.core, w.security, "0.2")
     insert_position_row!(plan, w.tech, w.security, "0.3")
 
+    row_ids =
+      Repo.all(from(t in Target, where: t.security_id == ^w.security.id, select: t.id))
+
     error = assert_raise RuntimeError, fn -> migration().create_index(Repo) end
     assert error.message =~ "plan #{plan.id}"
     assert error.message =~ "security #{w.security.id}"
+    for id <- row_ids, do: assert(error.message =~ "#{id}")
+    assert error.message =~ "previous release"
+    assert error.message =~ "backup"
     refute index_exists?()
 
     Repo.delete_all(from(t in Target, where: t.category_id == ^w.tech.id))
