@@ -7,7 +7,9 @@ defmodule PortfolixirWeb.ImportsFileErrorsTest do
 
   import Phoenix.LiveViewTest
 
+  alias Plug.Conn.Query
   alias Portfolixir.Actor
+  alias Portfolixir.Imports.PortfolioPerformance
   alias Portfolixir.Imports.PreviewStore
   alias Portfolixir.Portfolios
 
@@ -159,7 +161,7 @@ defmodule PortfolixirWeb.ImportsFileErrorsTest do
   #   depot row offers each cash account of the file exactly once.
   test "a file past the distinct-name cap is a named file error; at the cap it renders bounded",
        %{conn: conn} do
-    %{accounts: cap} = Portfolixir.Imports.PortfolioPerformance.max_names()
+    %{accounts: cap} = PortfolioPerformance.max_names()
     half = div(cap, 2)
     long = String.duplicate("x", 40)
 
@@ -222,7 +224,7 @@ defmodule PortfolixirWeb.ImportsFileErrorsTest do
           {select, field} <- Enum.zip(selects, fields_of(row)),
           do: {select_name(select), pick(picks, field, source_name(row), select)}
 
-    pairs |> URI.encode_query() |> Plug.Conn.Query.decode()
+    pairs |> URI.encode_query() |> Query.decode()
   end
 
   defp fields_of(row) do
