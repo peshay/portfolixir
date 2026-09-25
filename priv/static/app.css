@@ -4678,6 +4678,25 @@ details[open] > .cat-summary::before {
   flex: 1 1 14rem;
 }
 
+/* The page's own blocks take the band's gutter (issue 873, board
+   ux-design-2026-09-24/08-classification-detail ①; DESIGN.md → Layout &
+   Spacing): only the plan editor is a `.workspace-section` band, and the
+   heading, the notice, the search, the forms and the tree otherwise start
+   at x = 0 — at the screen's edge on a phone, at the sidebar's on the
+   desktop. No new value: the band's own padding, the one the page's alerts
+   already take (`.workspace-page > .alert-*`). */
+.classifications-detail > :not(.workspace-section) {
+  margin-inline: clamp(16px, 2.4vw, 28px);
+}
+
+.classifications-detail > .detail-head {
+  margin-top: clamp(18px, 2.4vw, 28px);
+}
+
+.classifications-detail > :last-child {
+  margin-bottom: clamp(18px, 2.4vw, 28px);
+}
+
 /* Mobile: keep the classification detail header from overflowing sideways */
 .classifications-detail .detail-head {
   flex-wrap: wrap;
@@ -8004,6 +8023,54 @@ dialog.booking-drawer {
   .tree-head__num:nth-child(2),
   .tree-head__num:nth-child(4) {
     display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  /* category rows on two lines (issue 873, pick G8 = A of board
+     ux-design-2026-09-24/08-classification-detail): with the page's gutter
+     in, one line leaves the name some 70 px beside two 6 rem figures and the
+     actions — "Growth" became "Gr…". The row lies on two lines of the same
+     grid instead: marker, swatch, name (which may wrap) and its "+N without
+     holdings" on the first, the actions at its end; value and result on the
+     second, under their column heads. The column widths of C8-A stay. */
+  .cat-summary {
+    row-gap: 2px;
+  }
+
+  .cat-summary::before {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .cat-summary .cat-name {
+    grid-column: 2 / 5;
+    grid-row: 1;
+    flex-wrap: wrap;
+    row-gap: 0;
+  }
+
+  .cat-summary .cat-swatch {
+    flex: none;
+  }
+
+  .cat-summary .cat-name__text {
+    white-space: normal;
+  }
+
+  .cat-summary .cat-actions {
+    grid-column: 5;
+    grid-row: 1;
+  }
+
+  .cat-summary .cat-value {
+    grid-column: 3;
+    grid-row: 2;
+  }
+
+  .cat-summary .cat-result {
+    grid-column: 4;
+    grid-row: 2;
   }
 }
 

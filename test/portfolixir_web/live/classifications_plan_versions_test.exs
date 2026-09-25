@@ -183,6 +183,29 @@ defmodule PortfolixirWeb.ClassificationsPlanVersionsTest do
     assert render(view) =~ "Plan renamed"
   end
 
+  # User story (#873; board ux-design-2026-09-24/08-classification-detail, ②;
+  # DESIGN.md → Components → disclosure, #854):
+  # As the operator editing a plan,
+  # I want "Rename" to open like every other disclosure of the app,
+  # so that the browser's triangle does not sit beside the chevron the rest
+  # of the editor uses.
+  #
+  # Acceptance criteria:
+  # - The rename summary is a `.disclosure-summary` carrying the chevron, the
+  #   one marker #854 set for every disclosure; no bare `<summary>` is left.
+  test "the rename disclosure carries the one marker, the chevron", %{conn: conn} do
+    %{classification: classification} = plan_world()
+
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
+
+    assert has_element?(
+             view,
+             "details.plan-rename > summary.disclosure-summary svg.disclosure-chevron"
+           )
+
+    refute render(view) =~ ~r/<details class="plan-rename">\s*<summary>/
+  end
+
   test "an archived version gets its own banner and garbage picker input is ignored",
        %{conn: conn} do
     %{portfolio: portfolio, classification: classification} = plan_world()
