@@ -60,6 +60,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # meets (E25 S4, F17).
   @max_tree_level 1_000
 
+  # The fields the research form renders (`research_tab_panel/1`), and the
+  # only ones its submit is read for (E25 S6, F15, decision T-5).
+  @research_form_keys ~w(kind source_quality as_of supersedes_id body source_url
+                         valid_until conviction invalidation_condition time_stop)
+
   # Data-quality shortcut filters (#561): conditions that are not expressible
   # as a plain column filter — stale/missing quotes are metric-derived and the
   # logo lives in JSONB attributes. URL-addressable via `?dq=` so the Overview
@@ -4110,12 +4115,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   # ADR-0044 §6: the operator appends from the pane; author is the operator,
   # never guessed from the form. Nothing here edits or removes an entry.
+  # Only the keys the form renders are read (E25 S6, F15, decision T-5): a
+  # provenance field — the machine-generated marker, the author — and the
+  # security are the system's to state, whatever a submit carries.
   def handle_event("append_research_entry", %{"note" => params}, socket) do
     case socket.assigns.selected_security do
       %Security{id: id} ->
         attrs =
           params
           |> LiveParam.map()
+          |> Map.take(@research_form_keys)
           |> Map.put("security_id", id)
           |> Map.put("author", "operator")
           |> drop_blank_values()
