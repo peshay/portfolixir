@@ -110,4 +110,26 @@ defmodule PortfolixirWeb.TransactionSplitEditLiveTest do
     assert stored.type == "split"
     assert stored.date == ~D[2026-02-01]
   end
+
+  # User story (E25 S6 review round, R4; board 11's rule for refusals):
+  # As the operator whose note on a split is refused,
+  # I want the text I typed kept in the drawer,
+  # so that a refusal names what to correct, never what to type again.
+  #
+  # Acceptance criteria:
+  # - A note refused by the ledger (over its cap) re-renders the drawer with
+  #   the typed text and the field error; the stored note is unchanged.
+  test "a refused split note keeps what was typed", %{conn: conn, split: split} do
+    view = open_split_edit(conn, split)
+    typed = "typed " <> String.duplicate("x", 10_001)
+
+    view
+    |> form("#split-note-form", %{"split" => %{"notes" => typed}})
+    |> render_submit()
+
+    assert has_element?(view, "#booking-drawer")
+    assert view |> element("#split-note-form textarea[name='split[notes]']") |> render() =~ typed
+    assert has_element?(view, "#split-note-form textarea[aria-invalid='true']")
+    assert Ledger.get_transaction(split.id).notes == split.notes
+  end
 end
