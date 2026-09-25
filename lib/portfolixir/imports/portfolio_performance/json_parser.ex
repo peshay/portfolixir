@@ -39,8 +39,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
   alias Portfolixir.Imports.Decimals
   alias Portfolixir.Imports.Entry
   alias Portfolixir.Imports.PortfolioPerformance
-  alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Imports.Preview
+  alias Portfolixir.Input.BoundedDate
 
   @kind_map %{
     "PURCHASE" => "buy",

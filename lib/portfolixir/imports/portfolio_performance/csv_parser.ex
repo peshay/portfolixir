@@ -29,8 +29,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
   alias Portfolixir.Imports.Decimals
   alias Portfolixir.Imports.Entry
   alias Portfolixir.Imports.PortfolioPerformance
-  alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Imports.Preview
+  alias Portfolixir.Input.BoundedDate
 
   NimbleCSV.define(__MODULE__.Parser, separator: ";", escape: "\"")
 
