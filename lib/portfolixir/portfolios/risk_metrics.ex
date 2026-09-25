@@ -30,7 +30,9 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
   `portfolio_metrics` registers with ADR-0039 §2 at computation version 1 and
   lifetime `:request`, keyed under `Derived.portfolio_basis/1` exactly as
   `performance_analysis` is (§8): every write that can move the walk, a held
-  security's quote or an exchange rate already bumps that basis.
+  security's quote or an exchange rate already bumps that basis. The entry
+  key carries the basis version read before the walk (E25 S6, F46), so
+  metrics are never filed under a version their walk did not see.
   """
 
   import Ecto.Query
@@ -71,6 +73,8 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
       default `0`.
     * `:base_currency` — the currency correlations are converted into; the
       walk's own base wins when the walk has one.
+    * `:analysis` — the function the walk is read through, `(portfolio_id,
+      opts) -> analysis`; `Performance.analysis/2` unless a test injects one.
 
   Returns the metrics map or `{:error, :view_not_found}`.
   """
@@ -82,7 +86,18 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
     view = Keyword.get(opts, :view)
     leading_ids = Enum.take(top_security_ids, @max_correlated_names)
 
-    case Performance.analysis(portfolio_id, view: view, today: as_of) do
+    read_walk = Keyword.get(opts, :analysis, &Performance.analysis/2)
+    basis = Derived.portfolio_basis(portfolio_id)
+
+    # The basis's version is read BEFORE the walk and carried in the entry
+    # key (E25 S6, F46): a write landing between the walk and the metrics
+    # stores them under the walk's version, which the next read — reading a
+    # newer one — never asks for. The version `Derived.fetch/5` composes is
+    # read later, at the fetch, and alone would file the old walk's metrics
+    # as current.
+    walk_version = Derived.current_version(basis)
+
+    case read_walk.(portfolio_id, view: view, today: as_of) do
       {:error, :view_not_found} = error ->
         error
 
@@ -92,13 +107,14 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
 
         # Only a whole-basis-point risk-free rate is remembered: a finer one
         # is computed on every read, so a sweep of distinct rates adds no
-        # memo entry (E25 S4, G03).
-        if Benchmark.memoisable_rate?(rate) do
+        # memo entry (E25 S4, G03). A walk served stale is never the basis
+        # of a remembered result (F46).
+        if Benchmark.memoisable_rate?(rate) and not Map.get(analysis, :stale, false) do
           {:fresh, metrics} =
             Derived.fetch(
               :portfolio_metrics,
-              Derived.portfolio_basis(portfolio_id),
-              entry_key(view, as_of, rate, leading_ids, base),
+              basis,
+              entry_key(walk_version, view, as_of, rate, leading_ids, base),
               compute
             )
 
@@ -109,9 +125,9 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
     end
   end
 
-  defp entry_key(view, as_of, rate, ids, base) do
-    "view=#{view || "unscoped"}|as_of=#{as_of}|rf=#{Decimal.to_string(rate, :normal)}|" <>
-      "base=#{base}|top=#{Enum.join(ids, ",")}"
+  defp entry_key(walk_version, view, as_of, rate, ids, base) do
+    "walk=#{walk_version}|view=#{view || "unscoped"}|as_of=#{as_of}|" <>
+      "rf=#{Decimal.to_string(rate, :normal)}|base=#{base}|top=#{Enum.join(ids, ",")}"
   end
 
   defp compute(analysis, leading_ids, as_of, rate, base) do
