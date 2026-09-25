@@ -37,6 +37,7 @@ defmodule Portfolixir.Buckets do
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Derived.Invalidation
   alias Portfolixir.Engines.BucketResolution
+  alias Portfolixir.Input.Text
   alias Portfolixir.Journal
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.PolicyRules
@@ -141,7 +142,7 @@ defmodule Portfolixir.Buckets do
     trimmed = String.trim(name)
 
     cond do
-      String.length(trimmed) > @name_max_length ->
+      Text.codepoint_length(trimmed) > @name_max_length ->
         {:error, :name_too_long}
 
       match?(%Bucket{dimension: @scope_dimension}, Repo.get_by(Bucket, name: trimmed)) ->
@@ -811,8 +812,9 @@ defmodule Portfolixir.Buckets do
     |> Enum.find(free?)
   end
 
+  # Counted in code points, as the name bound counts it (E25 S4, R2).
   defp fit_name(base, suffix) do
-    String.slice(base, 0, max(@name_max_length - String.length(suffix), 1)) <> suffix
+    Text.truncate(base, max(@name_max_length - Text.codepoint_length(suffix), 1)) <> suffix
   end
 
   defp tag_portfolio_accounts(%Actor{} = actor, %Portfolio{id: pid}, %Bucket{} = bucket, acc) do

@@ -33,6 +33,7 @@ defmodule Portfolixir.Portfolios.Targets do
   alias Portfolixir.Buckets.View
   alias Portfolixir.Classifications
   alias Portfolixir.Input.BoundedDecimal
+  alias Portfolixir.Input.Text
   alias Portfolixir.Journal
   alias Portfolixir.Portfolios.Target
   alias Portfolixir.Portfolios.TargetPlan
@@ -655,8 +656,9 @@ defmodule Portfolixir.Portfolios.Targets do
         classification_id: source.classification_id,
         cash_target_weight: plan_weight(source.cash_target_weight),
         # The default copy name is clamped to the 120-char limit so a
-        # maximum-length source name still duplicates (review finding).
-        name: attr(attrs, :name, String.slice(source.name <> " (copy)", 0, 120)),
+        # maximum-length source name still duplicates (review finding),
+        # counted in code points as the name bound counts it (E25 S4, R2).
+        name: attr(attrs, :name, Text.truncate(source.name <> " (copy)", 120)),
         status: "draft"
       }
 
