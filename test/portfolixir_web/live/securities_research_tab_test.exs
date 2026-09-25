@@ -293,4 +293,50 @@ defmodule PortfolixirWeb.SecuritiesResearchTabTest do
     assert note.author == :operator
     assert Knowledge.list_notes(other.id) == []
   end
+
+  # User story (E25 S6, F44; board 11, before/after 2):
+  # As the operator appending to a research log that is never edited,
+  # I want an entry dated after today refused in the form's error list, in my
+  # language, with what I typed still there,
+  # so that I correct the year instead of writing the entry again.
+  #
+  # Acceptance criteria:
+  # - A future as_of is named in the error list ("Field: message"), the
+  #   message translated through errors.po; nothing is appended.
+  # - The refused submit keeps the typed body and dates in the form.
+  # - The timeline and the thesis state are unchanged.
+  test "a future as of is refused in the form's error list and the typing stays",
+       %{conn: conn} do
+    security = security!()
+    kept = append!(security, %{kind: "invalidation_check", as_of: ~D[2026-09-02]})
+    future = Portfolixir.Clock.today() |> Date.add(365) |> Date.to_iso8601()
+
+    {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=research&locale=de")
+    before_state = view |> element(~s([data-role="thesis-state"])) |> render()
+
+    view
+    |> form("#research-entry-form",
+      note: %{
+        kind: "invalidation_check",
+        body: "Half-year figures read; the condition is not met.",
+        source_quality: "primary",
+        as_of: future,
+        valid_until: "2030-01-31"
+      }
+    )
+    |> render_submit()
+
+    errors = view |> element(".research-entry-form__errors") |> render()
+    assert errors =~ "Stichtag: darf nicht in der Zukunft liegen"
+    assert render(view) =~ "Eintrag konnte nicht angehängt werden."
+
+    form = view |> element("#research-entry-form") |> render()
+    assert form =~ ~s(value="#{future}")
+    assert form =~ ~s(value="2030-01-31")
+    assert form =~ "Half-year figures read; the condition is not met."
+
+    assert [%{id: id}] = Knowledge.list_notes(security.id)
+    assert id == kept.id
+    assert view |> element(~s([data-role="thesis-state"])) |> render() == before_state
+  end
 end

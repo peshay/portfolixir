@@ -154,3 +154,10 @@ msgstr ""
 
 msgid "must be printable ASCII characters"
 msgstr ""
+
+## E25 S6 (F44, G09): a research-log entry's as_of, and an event's checked_at.
+msgid "must not be in the future"
+msgstr ""
+
+msgid "must not be later than tomorrow"
+msgstr ""

@@ -2226,7 +2226,12 @@ const eventBodySchema = {
     confirmed: { type: "boolean" },
     source_url: { type: "string" },
     source_quality: { type: "string", enum: [...EVENT_SOURCE_QUALITIES] },
-    checked_at: { type: "string", description: boundedDate("The day the fact was last re-read.") },
+    checked_at: {
+      type: "string",
+      description: boundedDate(
+        "The day the fact was last re-read; no later than tomorrow (the instance's calendar day plus one day of zone slack), else 422."
+      )
+    },
     note: { type: "string" }
   }
 } as const;
@@ -2487,7 +2492,9 @@ const noteAppendSchema = {
         source_url: { type: "string" },
         as_of: {
           type: "string",
-          description: boundedDate("The statement's cut-off date, not the write time.")
+          description: boundedDate(
+            "The statement's cut-off date, not the write time; not after today (the instance's calendar day), else 422 — the log is append-only, so a future date could never be taken back."
+          )
         },
         supersedes_id: { type: "integer", minimum: 1, description: "the earlier entry this one replaces (same security); required for a retraction" },
         valid_until: {

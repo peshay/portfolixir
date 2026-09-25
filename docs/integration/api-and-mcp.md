@@ -377,11 +377,19 @@ input.
   always derives from the whole log, and the answer echoes the applied
   `limit`.
 - `POST /api/v1/securities/:security_id/notes` — appends one entry from a
-  `note` object (`201`); journaled under the API-token actor.
+  `note` object (`201`); journaled under the API-token actor. An `as_of`
+  after today (the instance's calendar day) answers `422` on `as_of` ("must
+  not be in the future"): the log is append-only, so a mistyped future year
+  could never be taken back. `valid_until` and `time_stop` may lie in the
+  future.
 - `GET /api/v1/notes/unreviewed?days=N` — held securities (net quantity
   non-zero across all depots) whose newest entry is older than `N` days
   (default 90) or that have none; rows carry `last_entry_as_of` and
-  `days_since_last_entry` (`null` when never reviewed).
+  `days_since_last_entry` (`null` when never reviewed). An entry counts as a
+  review on its `as_of`, but no later than the day after it was written, so
+  an entry stored with a future `as_of` before the refusal existed cannot
+  keep its position off this read; the thesis state's `last_reviewed_at`
+  follows the same rule, and the entry itself keeps its `as_of`.
   `limit` keeps the most overdue positions (default 1000, max 10000).
 - `GET /api/v1/notes/uncorroborated` — entries whose `source_quality` is not
   `primary`, newest first; superseded entries are skipped unless
@@ -480,7 +488,9 @@ The reads:
   90), or that were never checked at all, which are listed with
   `days_since_checked` `null`. Deliberately a different read from the one
   above: a confirmed *future* date nobody has re-read in three months is a
-  different risk from a *past* date nobody resolved.
+  different risk from a *past* date nobody resolved. An event whose stored
+  `checked_at` lies after tomorrow (written before the refusal below
+  existed) is listed too, with a negative `days_since_checked`.
 
 The writes:
 
@@ -489,6 +499,10 @@ The writes:
   reserved and is ignored in the body.
 - `PATCH /api/v1/security_events/:id` — corrects or confirms one in place. The
   security it belongs to cannot be changed.
+- On both writes a `checked_at` later than tomorrow (the instance's calendar
+  day plus one day of zone slack) answers `422` on `checked_at` and writes
+  nothing: it is the day the source was re-read, and a future one would hide
+  the event from the stale read.
 - `DELETE /api/v1/security_events/:id` — removes one (`204`), journaled with
   the row recorded, for a duplicate or a date that never existed. To record
   that a date passed, mark it `confirmed` instead.

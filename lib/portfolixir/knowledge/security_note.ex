@@ -87,8 +87,14 @@ defmodule Portfolixir.Knowledge.SecurityNote do
     conviction: @convictions
   ]
 
-  @doc false
-  def changeset(note, attrs) do
+  @doc """
+  Builds an entry's changeset. `today` is injected by the context shell (the
+  clock stays out of schemas, AR-2): an `as_of` after it is refused (E25 S6,
+  F44) — an entry states what held on its day, and on a log that is never
+  edited a mistyped future year could never be taken back. `valid_until` and
+  `time_stop` may lie in the future; that is what they are for.
+  """
+  def changeset(note, attrs, %Date{} = today) do
     note
     |> cast(attrs, @castable)
     |> cast_closed_sets(attrs)
@@ -97,6 +103,7 @@ defmodule Portfolixir.Knowledge.SecurityNote do
     |> update_change(:invalidation_condition, &blank_to_nil/1)
     |> validate_required([:security_id, :author, :kind, :body, :source_quality, :as_of])
     |> BoundedDate.validate([:as_of, :valid_until, :time_stop])
+    |> validate_not_future(today)
     |> validate_length(:body, min: 1)
     # The link is rendered as an anchor on the timeline and handed to an agent
     # as a source: only http(s) — never javascript:, data: or a bare path.
@@ -159,6 +166,30 @@ defmodule Portfolixir.Knowledge.SecurityNote do
       true -> :absent
     end
   end
+
+  defp validate_not_future(changeset, today) do
+    validate_change(changeset, :as_of, fn :as_of, as_of ->
+      if Date.compare(as_of, today) == :gt,
+        do: [as_of: {"must not be in the future", validation: :not_future}],
+        else: []
+    end)
+  end
+
+  @doc """
+  The day an entry counts as a review on (E25 S6, F44): its `as_of`, but no
+  later than the day it was written. An entry stored with a future `as_of`
+  before the refusal existed would otherwise keep its position off the
+  review-hygiene read until that date. `inserted_at` is UTC and `as_of` the
+  instance's day, so the written day carries one day of slack for a host
+  east of UTC — no entry the refusal accepts is ever moved.
+  """
+  @spec review_date(t()) :: Date.t()
+  def review_date(%__MODULE__{as_of: as_of, inserted_at: %NaiveDateTime{} = inserted_at}) do
+    written = inserted_at |> NaiveDateTime.to_date() |> Date.add(1)
+    if Date.compare(as_of, written) == :gt, do: written, else: as_of
+  end
+
+  def review_date(%__MODULE__{as_of: as_of}), do: as_of
 
   # ADR-0044 §4: an extracted entry is a proposal carrying its source link.
   defp validate_machine_generated_source(changeset) do

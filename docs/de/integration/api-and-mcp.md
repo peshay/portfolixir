@@ -411,10 +411,19 @@ Feldnamen, und aus Eingaben entsteht nie ein Atom.
   nennt das angewandte `limit`.
 - `POST /api/v1/securities/:security_id/notes` — hängt einen Eintrag aus
   einem `note`-Objekt an (`201`); journalisiert unter dem API-Token-Akteur.
+  Ein `as_of` nach heute (dem Kalendertag der Instanz) liefert `422` auf
+  `as_of` („must not be in the future“): Das Log hängt nur an, ein vertipptes
+  Jahr in der Zukunft ließe sich nie zurücknehmen. `valid_until` und
+  `time_stop` dürfen in der Zukunft liegen.
 - `GET /api/v1/notes/unreviewed?days=N` — gehaltene Wertpapiere
   (Nettostückzahl ungleich null über alle Depots), deren neuester Eintrag
   älter als `N` Tage ist (Standard 90) oder die keinen haben; Zeilen tragen
   `last_entry_as_of` und `days_since_last_entry` (`null`, wenn nie geprüft).
+  Ein Eintrag zählt als Prüfung an seinem `as_of`, aber nicht später als am
+  Tag nach seinem Anlegen; ein Eintrag, der vor der Ablehnung mit einem
+  `as_of` in der Zukunft gespeichert wurde, hält seine Position also nicht
+  aus dieser Liste. `last_reviewed_at` des Thesenstands folgt derselben
+  Regel, und der Eintrag selbst behält sein `as_of`.
   `limit` behält die am längsten überfälligen Positionen (Standard 1000, max.
   10000).
 - `GET /api/v1/notes/uncorroborated` — Einträge, deren `source_quality`
@@ -506,11 +515,15 @@ Die Reads:
   gehört in die Liste, egal wie alt er ist.
 - `GET /api/v1/events/stale?days=N` — Termine, deren `checked_at` älter als
   `N` Tage ist oder die nie geprüft wurden (`days_since_checked` ist dann
-  `null`).
+  `null`). Ein Termin, dessen gespeichertes `checked_at` nach morgen liegt
+  (vor der Ablehnung unten geschrieben), steht ebenfalls darin, mit
+  negativem `days_since_checked`.
 
 Die Writes: `POST /api/v1/securities/:security_id/events` (`201`),
 `PATCH /api/v1/security_events/:id` und `DELETE /api/v1/security_events/:id`
-(`204`). `source_quality` verwendet dieselben vier Werte wie das Research-Log.
+(`204`). Auf beiden schreibenden Wegen liefert ein `checked_at` nach morgen
+(Kalendertag der Instanz plus ein Tag für Zeitzonen) `422` auf `checked_at`,
+und nichts wird geschrieben. `source_quality` verwendet dieselben vier Werte wie das Research-Log.
 Ein Termin trägt **kein Geld**.
 
 **Was diese Fläche nicht ist.** Nichts ruft einen Kalender ab — Eintrag von

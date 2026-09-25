@@ -105,8 +105,13 @@ defmodule Portfolixir.Knowledge.SecurityEvent do
 
   @closed_sets [kind: @kinds, timing: @timings, source_quality: @source_qualities]
 
-  @doc false
-  def changeset(event, attrs) do
+  @doc """
+  Builds an event's changeset. `today` is injected by the context shell (the
+  clock stays out of schemas, AR-2): a `checked_at` later than `today` plus
+  one day of zone slack is refused (E25 S6, G09) — it is the day the source
+  was re-read, and a future one hid the event from the stale-calendar read.
+  """
+  def changeset(event, attrs, %Date{} = today) do
     event
     |> cast(attrs, @castable)
     |> cast_closed_sets(attrs)
@@ -114,6 +119,7 @@ defmodule Portfolixir.Knowledge.SecurityEvent do
     |> update_change(:note, &trim_text/1)
     |> validate_required([:security_id, :kind, :date, :timing, :source_quality])
     |> BoundedDate.validate([:date, :date_end, :checked_at])
+    |> validate_checked_by(today)
     # The link is rendered as an anchor and handed to an agent as a source:
     # only http(s) — never javascript:, data: or a bare path.
     |> validate_format(:source_url, ~r{\Ahttps?://\S+\z}i, message: "must be an http(s) URL")
@@ -129,6 +135,16 @@ defmodule Portfolixir.Knowledge.SecurityEvent do
     |> check_constraint(:source_quality, name: :security_events_source_quality_check)
     |> check_constraint(:date_end, name: :security_events_window_end_check)
     |> check_constraint(:source_url, name: :security_events_machine_generated_source_check)
+  end
+
+  defp validate_checked_by(changeset, today) do
+    latest = Date.add(today, 1)
+
+    validate_change(changeset, :checked_at, fn :checked_at, checked_at ->
+      if Date.compare(checked_at, latest) == :gt,
+        do: [checked_at: {"must not be later than tomorrow", validation: :not_future}],
+        else: []
+    end)
   end
 
   # §3: only a window carries a range, and it never runs backwards. Stating it
