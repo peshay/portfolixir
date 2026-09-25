@@ -509,6 +509,17 @@ den vorherigen Werten im Audit-Journal festgehalten. Das ist die menschliche
 Sicht auf eine Fähigkeit, die API und MCP-Begleiter schon vor der
 Zwei-Wege-Regel hatten; an beiden wurde nichts ergänzt.
 
+**Ein gebuchter Split** ist die Ausnahme (E25 S6): Ein Split ist eine
+Tatsache am Wertpapier, gebucht über **Split erfassen** am Wertpapier, dessen
+Prüfungen (der Stichtag, die Bestände, ein anderes Verhältnis am selben Tag)
+eine gewöhnliche Änderung umgehen würde. **Bearbeiten** an einer Split-Zeile
+öffnet die Schublade daher mit Typ, Stichtag, Wertpapier und Verhältnis des
+Splits, fest, und nur die **Notiz** ist änderbar (**Notiz speichern**). Ein
+falscher Split wird nicht an Ort und Stelle korrigiert: Seine Zeilen werden
+über die API oder den MCP-Begleiter gelöscht, und der Split wird mit **Split
+erfassen** neu erfasst. API und MCP antworten auf eine Änderung an etwas
+anderem als der Notiz einer Split-Zeile mit `422`.
+
 Während ein **Verkauf** erfasst wird, zeigt das Formular eine Vorschau,
 welche FIFO-Kauftranchen (Lots) der Verkauf verbrauchen würde und den
 **Bruttogewinn** je Tranche und in Summe — Verkaufserlös minus

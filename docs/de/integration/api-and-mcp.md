@@ -957,7 +957,12 @@ Beispiel-Payloads für Konten:
   Eine importierte Zeile behält ihren Inhalts-Hash, und ein Saldo-Snapshot
   oder ein Split trägt nie einen (ADR-0050 §1): Wird der `type` einer
   importierten Zeile auf `balance_adjustment` oder `split` geändert, antwortet
-  die API mit 422 auf `errors.type`.
+  die API mit 422 auf `errors.type`. Eine gespeicherte **Split**-Zeile ändert
+  nur ihre `notes` (E25 S6): Eine Änderung an `date`, `security_id`,
+  `portfolio_id`, `type` oder am Verhältnis antwortet mit 422 und nennt das
+  Feld, denn ein Split wird über `POST /api/v1/splits` gebucht, dessen
+  Prüfungen eine allgemeine Änderung umgehen würde. Ein falscher Split wird
+  gelöscht (jede seiner Zeilen) und neu gebucht.
 - `DELETE /api/v1/transactions/:id` löscht eine Transaktion. Da Trades und
   Bestände abgeleitet sind, korrigiert oder entfernt das Korrigieren oder Entfernen
   der Transaktion auch sie.

@@ -1868,3 +1868,31 @@ owner's pick, plan D-5). Built by Sprint 16 Lane D in
   named in the refusal but its link opens Risk without it. The limit is
   Risk's, inherited rather than introduced by this pick; a per-portfolio Risk
   is its own follow-up (recorded by the Sprint 16 S3/S4/D review round, LD-4).
+
+## Amendment 2026-09-25 — The booking drawer's split state *(Sprint 16 pick G12.3-A, E25 S6, G07)*
+
+Board `mockups/ux-design-2026-09-24/12-e25-new-marks`, G12.3 variant A (the
+owner's pick, plan D-5), as built in `TransactionManagementLive`.
+
+- **When.** **Edit** on a history row whose type is split opens this state of
+  the booking drawer instead of the booking form. A split is a fact about the
+  security, booked through **Record split** on it; the ledger refuses every
+  change to a split row but its note, on the API and MCP as here.
+- **Anatomy.** The same `dialog.detail-pane.booking-drawer`, titled "Edit
+  transaction". The sub line says what the drawer does before anything is
+  tried: a split is a fact about the security, only the note changes here,
+  and the change is journaled. Then a `.form-grid` of four **disabled**
+  fields with the words of **Record split**: Type ("Split"), Effective date
+  (ISO), Security (name and ticker) and "Ratio (new:old shares)" as "2:1",
+  the form the history shows. No depot (the row has none), no quantity or
+  price, no settlement block and no costs disclosure: a split carries none of
+  them. One `.form-help` line states the limit where the correction is tried
+  — the effective date, ratio and security are fixed; a wrong split is
+  deleted over the API or MCP and recorded again with **Record split** —
+  **without a link** (UX-DR26), because no screen deletes a booking yet; the
+  link arrives with a "Delete split" action (Part 13, item 5 of the design
+  pass). The **Notes** textarea stands open under it, and the foot carries
+  **Save note** (primary) and **Cancel** (ghost).
+- **Behaviour.** Saving sends the note only and closes the drawer with
+  "Note saved"; a refused write keeps the drawer open with the page's error
+  band.

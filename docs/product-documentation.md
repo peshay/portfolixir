@@ -475,6 +475,16 @@ previous values as its before-image. This is the human view of a capability
 the API and the MCP companion have had since before the two-way coverage
 rule; nothing new was added to either.
 
+**A booked split** is the exception (E25 S6): a split is a fact about the
+security, booked through **Record split** on the security, whose checks
+(the effective date, the positions, a conflicting ratio on the same day)
+an ordinary edit would pass by. **Edit** on a split row therefore opens the
+drawer with the split's type, effective date, security and ratio shown and
+fixed, and only its **note** editable (**Save note**). A wrong split is not
+corrected in place: its rows are deleted over the API or the MCP companion
+and the split is recorded again with **Record split**. The API and MCP
+answer a change to anything but the note of a split row with `422`.
+
 While entering a **sell**, the form previews which FIFO purchase tranches
 (lots) the sale would consume and the resulting **gross gain** per tranche
 and in total — sale proceeds minus the FIFO purchase cost of the consumed
