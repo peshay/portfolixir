@@ -646,10 +646,13 @@ und nie Aktualität.
 ## Separate MCP-Installation
 
 Der MCP-Server wird in diesem Repository entwickelt, lässt sich aber getrennt
-installieren und starten:
+installieren und starten. `npm ci` installiert genau die Versionen aus
+`package-lock.json`, und `--ignore-scripts` verhindert, dass beim Installieren
+Skripte der Abhängigkeiten auf Ihrem Rechner laufen — dieselbe Installation,
+die CI und das Image des Begleitdienstes ausführen:
 
 ```bash
-npm install --prefix mcp-server
+npm ci --ignore-scripts --prefix mcp-server
 npm run build --prefix mcp-server
 PORTFOLIXIR_API_BASE_URL=http://127.0.0.1:4000 \
 PORTFOLIXIR_API_TOKEN=replace-me \

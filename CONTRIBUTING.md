@@ -78,10 +78,12 @@ mix ecto.setup
 mix phx.server
 ```
 
-MCP companion workflow:
+MCP companion workflow (`--ignore-scripts`: no dependency's install-time
+script runs, as in CI; `mcp-server/.npmrc` sets the same for an ad-hoc
+`npm install` in that folder):
 
 ```bash
-npm install --prefix mcp-server
+npm ci --ignore-scripts --prefix mcp-server
 npm run build --prefix mcp-server
 PORTFOLIXIR_API_BASE_URL=http://127.0.0.1:4000 \
 PORTFOLIXIR_API_TOKEN=replace-me \
