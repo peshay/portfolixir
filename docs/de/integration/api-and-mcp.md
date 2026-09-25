@@ -67,7 +67,12 @@ Die Seiten halten dasselbe Versprechen: Ein ID-förmiger Query-Parameter
 jenseits der Grenze (`id`, `*_id`, `*_ids`, `view`) wird durch eine
 Weiterleitung auf dieselbe Seite ohne ihn verworfen, und eine Pfad-ID jenseits
 der Grenze (`/securities/:id`, `/classifications/:id`) leitet auf die Übersicht
-um — nie ein Serverfehler.
+um, gleich was der Query-String enthält — nie ein Serverfehler. Jeder andere
+ID- oder Ganzzahl-Parameter einer Seite wird nach derselben ID-Regel gelesen
+und gilt als nicht angegeben, wenn er den Wert nicht fassen kann:
+`/snapshots?snapshot=` öffnet den neuesten Snapshot,
+`/classifications/:id?soll_view=` den Plan für das Gesamtportfolio und
+`/tax?year=` (ein Jahr außerhalb von `1`–`9999`) das voreingestellte Jahr.
 
 **Begrenzte Ganzzahlen.** `offset` auf der Wertpapierliste nimmt höchstens
 `1000000` an, `days` auf den Research-Log-Abfragen `unreviewed` und `expiring`

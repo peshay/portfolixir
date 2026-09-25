@@ -50,4 +50,29 @@ defmodule PortfolixirWeb.LiveIdRangeTest do
     # An in-range unknown id keeps its old answer (the page renders).
     assert {:ok, _view, _html} = live(build_conn(), "/securities?id=999999")
   end
+
+  # User story (E25 S4, F16):
+  # As the operator following a link with a mangled path id,
+  # I want the page to send me to its index whatever else the URL carries,
+  # so that no query key can make the guard mistake a path id for its own.
+  #
+  # Acceptance criteria:
+  # - A path id past the range redirects to the route's index even when the
+  #   query carries a key of the same name, in range or not.
+  # - The guard reads which params are path params from the router's match,
+  #   so every path param of every live route is checked.
+  test "an out-of-range path id redirects to the index regardless of query keys", %{conn: conn} do
+    for {path, index} <- [
+          {"/securities/#{@past_bigint}", "/securities"},
+          {"/classifications/#{@past_bigint}", "/classifications"}
+        ],
+        query <- ["", "?id=1", "?id=#{@past_bigint}", "?id=abc", "?id[]=1"] do
+      assert {:error, {kind, %{to: to}}} = live(conn, path <> query)
+      assert kind in [:redirect, :live_redirect]
+      assert URI.parse(to).path == index, "#{path}#{query} went to #{to}"
+
+      conn = get(build_conn(), path <> query)
+      assert redirected_to(conn, 302) =~ index
+    end
+  end
 end

@@ -37,6 +37,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias PortfolixirWeb.ColumnPicker
   alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.Securities.FilterPopover
   alias PortfolixirWeb.Securities.LogoOverrideDialog
   alias PortfolixirWeb.Securities.RowContextMenu
@@ -161,7 +162,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
       |> reset_logo_retry()
       |> load_securities()
 
-    case params["id"] do
+    # The selection is read through the shared id rule (E25 S4, F16): an id
+    # no security can carry selects nothing, as an unknown one does.
+    case LiveParam.id(params["id"]) do
       nil ->
         {:noreply, clear_selection(socket) |> assign(:detail_tab, tab)}
 

@@ -31,6 +31,7 @@ defmodule PortfolixirWeb.SnapshotsLive do
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.LiveParam
 
   @impl true
   def mount(_params, _session, socket) do
@@ -73,7 +74,8 @@ defmodule PortfolixirWeb.SnapshotsLive do
   def handle_params(params, _uri, socket) do
     socket = assign(socket, :row_menu_id, nil)
 
-    case parse_int(params["snapshot"] || "") do
+    # An id no snapshot can carry reads as absent (#868): the newest opens.
+    case LiveParam.id(params["snapshot"]) do
       nil ->
         case socket.assigns.snapshots do
           [newest | _rest] -> {:noreply, select_snapshot(socket, newest.id)}
@@ -90,7 +92,7 @@ defmodule PortfolixirWeb.SnapshotsLive do
     attrs = %{
       name: params["name"],
       as_of: params["as_of"],
-      view_id: parse_view_id(params["view_id"])
+      view_id: LiveParam.id(params["view_id"])
     }
 
     case Snapshots.create_snapshot(Actor.owner_ui(), attrs) do
@@ -109,14 +111,14 @@ defmodule PortfolixirWeb.SnapshotsLive do
   end
 
   def handle_event("select_snapshot", %{"id" => id}, socket) do
-    case parse_int(id) do
+    case LiveParam.id(id) do
       nil -> {:noreply, socket}
       id -> {:noreply, push_patch(socket, to: snapshot_path(id))}
     end
   end
 
   def handle_event("delete_snapshot", %{"id" => id}, socket) do
-    case parse_int(id) do
+    case LiveParam.id(id) do
       nil ->
         {:noreply, socket}
 
@@ -142,7 +144,7 @@ defmodule PortfolixirWeb.SnapshotsLive do
   # The row menu (Part 4 rule 11 of the 2026-09-12 review): deletion lives
   # behind the row's kebab, never as a standing button on every row.
   def handle_event("open_row_menu", %{"id" => id}, socket) do
-    case parse_int(id) do
+    case LiveParam.id(id) do
       nil ->
         {:noreply, socket}
 
@@ -180,19 +182,6 @@ defmodule PortfolixirWeb.SnapshotsLive do
   end
 
   defp snapshot_path(id), do: "/snapshots?snapshot=#{id}"
-
-  defp parse_view_id(nil), do: nil
-  defp parse_view_id(""), do: nil
-  defp parse_view_id(value) when is_binary(value), do: parse_int(value)
-
-  defp parse_int(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {int, ""} -> int
-      _ -> nil
-    end
-  end
-
-  defp parse_int(_value), do: nil
 
   # Field -> messages map, so each input can carry aria-invalid and reference
   # the error text (UX-DR13; a11y review finding).

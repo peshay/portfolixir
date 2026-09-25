@@ -40,6 +40,7 @@ defmodule PortfolixirWeb.TaxLive do
   alias Portfolixir.Tax.StatementSnapshot
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.LiveParam
 
   # Rendered with the statement's printed sign: the loss pots and the
   # allowance-consumption figures appear as negatives on the paper even though
@@ -77,7 +78,8 @@ defmodule PortfolixirWeb.TaxLive do
     socket =
       socket
       |> assign(:holder, scope_holder(params["holder"]))
-      |> assign(:tax_year, parse_int(params["year"]) || socket.assigns.today.year - 1)
+      # A year no calendar or `int4` column holds reads as absent (#868).
+      |> assign(:tax_year, LiveParam.year(params["year"]) || socket.assigns.today.year - 1)
       |> assign(:editing_id, nil)
       |> assign(:row_menu, nil)
       |> load_year()
@@ -126,7 +128,7 @@ defmodule PortfolixirWeb.TaxLive do
   def handle_event("edit_statement", %{"id" => id}, socket) do
     {:noreply,
      socket
-     |> assign(editing_id: parse_int(id), form_errors: nil)
+     |> assign(editing_id: LiveParam.id(id), form_errors: nil)
      |> assign(statement_form_open?: true, row_menu: nil)
      |> load_editing()}
   end
@@ -141,9 +143,11 @@ defmodule PortfolixirWeb.TaxLive do
   def handle_event("delete_statement", %{"id" => id}, socket) do
     # Already deleted elsewhere (other tab, API, MCP) is not an error — the row
     # is gone either way.
-    case Tax.delete_snapshot(Actor.owner_ui(), parse_int(id)) do
-      {:ok, _snapshot} -> :ok
-      {:error, :not_found} -> :ok
+    with id when is_integer(id) <- LiveParam.id(id) do
+      case Tax.delete_snapshot(Actor.owner_ui(), id) do
+        {:ok, _snapshot} -> :ok
+        {:error, :not_found} -> :ok
+      end
     end
 
     {:noreply, socket |> assign(editing_id: nil, row_menu: nil) |> load_year()}
@@ -167,9 +171,11 @@ defmodule PortfolixirWeb.TaxLive do
   end
 
   def handle_event("delete_allowance_order", %{"id" => id}, socket) do
-    case Tax.delete_allowance_order(Actor.owner_ui(), parse_int(id)) do
-      {:ok, _order} -> :ok
-      {:error, :not_found} -> :ok
+    with id when is_integer(id) <- LiveParam.id(id) do
+      case Tax.delete_allowance_order(Actor.owner_ui(), id) do
+        {:ok, _order} -> :ok
+        {:error, :not_found} -> :ok
+      end
     end
 
     {:noreply, socket |> assign(:row_menu, nil) |> load_year()}
@@ -179,7 +185,7 @@ defmodule PortfolixirWeb.TaxLive do
   # delete for a statement, delete for an order; one menu open at a time.
   def handle_event("open_row_menu", %{"kind" => kind, "id" => id}, socket) do
     menu =
-      case {kind, parse_int(id)} do
+      case {kind, LiveParam.id(id)} do
         {"statement", id} when is_integer(id) ->
           if Enum.any?(socket.assigns.snapshots, &(&1.row.id == id)), do: {:statement, id}
 
@@ -223,7 +229,7 @@ defmodule PortfolixirWeb.TaxLive do
     Map.merge(money, %{
       institution: params["institution"],
       holder: form_holder(params["holder"]) || socket.assigns.holder,
-      tax_year: parse_int(params["tax_year"]) || socket.assigns.tax_year,
+      tax_year: LiveParam.year(params["tax_year"]) || socket.assigns.tax_year,
       as_of: params["as_of"],
       note: params["note"]
     })
@@ -322,6 +328,8 @@ defmodule PortfolixirWeb.TaxLive do
     end
   end
 
+  defp scope_holder(_not_a_name), do: default_holder()
+
   defp scope_path(holder, year), do: "/tax?holder=#{URI.encode_www_form(holder)}&year=#{year}"
 
   # The warning names its reason: activity first (the substantive condition),
@@ -353,17 +361,6 @@ defmodule PortfolixirWeb.TaxLive do
       end)
     end)
   end
-
-  defp parse_int(value) when is_integer(value), do: value
-
-  defp parse_int(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {int, ""} -> int
-      _other -> nil
-    end
-  end
-
-  defp parse_int(_value), do: nil
 
   # -- display ---------------------------------------------------------------
 
