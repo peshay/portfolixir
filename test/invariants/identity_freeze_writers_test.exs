@@ -10,6 +10,13 @@ defmodule Portfolixir.Invariants.IdentityFreezeWritersTest do
   # fails here until it is classified; the dynamic half shows each update
   # writer refused (test/portfolixir/lifecycle/freeze_test.exs, the API and
   # LiveView freeze tests).
+  #
+  # The same sweep holds ADR-0050 §4's name guard: with no unique index, the
+  # guard in the account schemas' `changeset/2` is the single enforcement
+  # point of account-name uniqueness, "every writer passes through it". So
+  # every schema function that can write `name` runs it, every writer of
+  # `former_names` is known and classified, and no code writes either around
+  # them.
   use ExUnit.Case, async: true
 
   @lib_sources Path.wildcard("lib/**/*.ex")
@@ -55,6 +62,36 @@ defmodule Portfolixir.Invariants.IdentityFreezeWritersTest do
 
   @changeset_writes ~w(put_change force_change change)a
   @bulk_writes ~w(insert_all update_all)a
+  @upserts ~w(insert insert! insert_all insert_or_update insert_or_update!)a
+  @field_writes ~w(cast put_change force_change change insert_all update_all)a
+
+  @account_schema_sources ~w(
+    lib/portfolixir/portfolios/cash_account.ex
+    lib/portfolixir/portfolios/securities_account.ex
+  )
+  @account_schemas ~w(CashAccount SecuritiesAccount)a
+  @account_tables ~w(cash_accounts securities_accounts)
+
+  # Every function that can write `former_names` (ADR-0050 §4), and why the
+  # name guard holds on it:
+  #   :schema_builder — the schemas' `former_names_changeset/2`, called only
+  #                     by the writers below;
+  #   :rename_rule    — `changeset/2`'s guard forces the list on a rename,
+  #                     under the account-identity lock;
+  #   :remember_or_removal — the remembered remap and the removal, which hold
+  #                     the lock and decide the outcome first;
+  #   :backfill       — the one-time migration from the journal, held against
+  #                     the guard before it writes (it runs alone, at upgrade).
+  # The merge (L3) joins this list with its own reason.
+  @former_name_writers %{
+    {"lib/portfolixir/portfolios/cash_account.ex", :former_names_changeset} => :schema_builder,
+    {"lib/portfolixir/portfolios/securities_account.ex", :former_names_changeset} =>
+      :schema_builder,
+    {"lib/portfolixir/lifecycle/account_names.ex", :guard_rename} => :rename_rule,
+    {"lib/portfolixir/lifecycle/account_names.ex", :former_names_changeset} =>
+      :remember_or_removal,
+    {"lib/portfolixir/lifecycle/former_names_backfill.ex", :write_row} => :backfill
+  }
 
   # User story:
   # As the maintainer of the identity-field freezes,
@@ -137,13 +174,108 @@ defmodule Portfolixir.Invariants.IdentityFreezeWritersTest do
       def c(id), do: from(a in CashAccount, where: a.id == ^id) |> Repo.update_all(set: [portfolio_id: 2])
       def d, do: Repo.query!("UPDATE securities SET currency_code = 'USD'")
       def e(rows), do: Repo.insert_all(Security, rows, on_conflict: {:replace, [:currency_code]})
+      def f(params), do: %CashAccount{} |> Ecto.Changeset.cast(params, [:currency_code]) |> Repo.insert()
+      def g(id), do: from(a in "cash_accounts", where: a.id == ^id) |> Repo.update_all(set: [currency_code: "USD"])
+      def h(rows), do: Repo.insert_all(Security, rows, on_conflict: :replace_all)
+      def i(cs), do: Repo.insert(cs, on_conflict: {:replace_all_except, [:id]}, conflict_target: :id, into: SecuritiesAccount)
     end
     """
 
     assert [{"sample.ex", :a, "Security.changeset"}] =
              builder_calls_in_source("sample.ex", sample)
 
-    assert [_change, _update_all, _raw_sql, _upsert] = side_writes_in_source("sample.ex", sample)
+    offenders = side_writes_in_source("sample.ex", sample)
+
+    # b's change, c's update_all, d's raw SQL, e's upsert; f's cast outside
+    # the schemas, g's schemaless update_all, h's and i's replace-all upserts.
+    assert length(offenders) == 8, Enum.join(offenders, "\n")
+    assert Enum.any?(offenders, &(&1 =~ "cast"))
+    assert Enum.count(offenders, &(&1 =~ "replace_all")) == 2
+  end
+
+  # User story:
+  # As the maintainer of the name guard (ADR-0050 §4),
+  # I want every code path that can write an account's name or its former
+  # names to be known, and each schema function that writes a name to run
+  # the guard,
+  # so that a new writer cannot give two accounts one name, or one former
+  # name to two accounts, where no unique index would stop it.
+  #
+  # Acceptance criteria:
+  # - In each account schema, the functions that cast or change `name` are
+  #   exactly `changeset/2`, and it pipes into `AccountNames.validate/1`.
+  # - The functions that write `former_names` are exactly the classified set.
+  # - No code writes `name` or `former_names` of an account around them: no
+  #   change, cast, bulk write or raw SQL naming them outside the schemas and
+  #   the classified writers.
+  test "each account schema function that can write a name runs the name guard" do
+    for path <- @account_schema_sources do
+      ast = path |> File.read!() |> Code.string_to_quoted!()
+      attributes = module_attributes(ast)
+
+      writers =
+        for {name, body} <- defs(ast),
+            writes_frozen?(body, ["name"], attributes),
+            uniq: true,
+            do: {name, runs_name_guard?(body)}
+
+      assert writers == [{:changeset, true}],
+             "#{path}: the functions that can write name must be exactly changeset/2, " <>
+               "piped into AccountNames.validate/1; found #{inspect(writers)}"
+    end
+  end
+
+  test "the writers of former_names are exactly the known, classified set" do
+    found = @lib_sources |> Enum.flat_map(&former_name_writers_in/1) |> MapSet.new()
+    expected = @former_name_writers |> Map.keys() |> MapSet.new()
+
+    assert MapSet.difference(found, expected) |> Enum.sort() == [],
+           "new writers of former_names — classify each in @former_name_writers with the " <>
+             "reason the name guard holds on it (ADR-0050 §4)"
+
+    assert MapSet.difference(expected, found) |> Enum.sort() == [],
+           "expected writers of former_names no longer found — did they move?"
+  end
+
+  test "no code writes an account's name around the changeset" do
+    offenders =
+      @lib_sources
+      |> Kernel.--(@account_schema_sources)
+      |> Enum.flat_map(&name_side_writes_in/1)
+
+    assert offenders == [],
+           "an account's name written outside its changeset/2 (ADR-0050 §4):\n" <>
+             Enum.join(offenders, "\n")
+  end
+
+  test "the name sweeps find their writers in a sample" do
+    sample = """
+    defmodule Sample do
+      def a(acc, names), do: Ecto.Changeset.change(acc, former_names: names)
+      def b(cs, names), do: Changeset.force_change(cs, :former_names, names)
+      def c(acc, names), do: CashAccount.former_names_changeset(acc, names)
+      def d(id), do: from(a in "securities_accounts", where: a.id == ^id) |> Repo.update_all(set: [former_names: []])
+      def e(%CashAccount{} = acc), do: acc |> Ecto.Changeset.change(name: "Other") |> Repo.update()
+      def f(id), do: from(a in CashAccount, where: a.id == ^id) |> Repo.update_all(set: [name: "X"])
+      def g, do: Repo.query!("UPDATE securities_accounts SET name = 'X'")
+      def h(category), do: category |> Ecto.Changeset.change(name: "Core") |> Repo.update()
+      def i(%CashAccount{} = acc, name), do: Changeset.force_change(acc, :notes, name)
+    end
+    """
+
+    assert "sample.ex"
+           |> former_name_writers_in_source(sample)
+           |> Enum.map(&elem(&1, 1))
+           |> Enum.sort() ==
+             [:a, :b, :c, :d]
+
+    offenders = name_side_writes_in_source("sample.ex", sample)
+
+    # a to d write former_names; e to g write an account's name; h renames
+    # something that is not an account, and i only passes a variable called
+    # name.
+    assert length(offenders) == 7, Enum.join(offenders, "\n")
+    refute Enum.any?(offenders, &(&1 =~ ~r/sample\.ex:(9|10) /))
   end
 
   # --- the sweep ---------------------------------------------------------------
@@ -182,10 +314,12 @@ defmodule Portfolixir.Invariants.IdentityFreezeWritersTest do
 
   # A side write is a frozen field written without `changeset/2`: a
   # put_change/force_change/change naming `currency_code` or `portfolio_id`
-  # anywhere (the struct it changes cannot be told from the source); an
-  # update_all or insert_all naming one (an upsert's on_conflict replace
-  # included) in a function that names one of the three schemas; or a raw
-  # SQL UPDATE of one of the three tables.
+  # anywhere (the struct it changes cannot be told from the source); a cast,
+  # an update_all or an insert_all naming one (an upsert's on_conflict replace
+  # included) in a function that names one of the three schemas or tables; an
+  # insert or insert_all there that replaces every column on conflict
+  # (`:replace_all`, `{:replace_all_except, _}`), which names no field; or a
+  # raw SQL UPDATE of one of the three tables.
   defp side_writes_in_source(path, source) do
     ast = Code.string_to_quoted!(source)
 
@@ -212,11 +346,22 @@ defmodule Portfolixir.Invariants.IdentityFreezeWritersTest do
         {{:., _, [_mod, fun]}, meta, args} = node, acc when fun in @changeset_writes ->
           {node, maybe_offender(acc, mentions_frozen?(args), path, meta, fun)}
 
-        {{:., _, [_mod, fun]}, meta, args} = node, acc when fun in @bulk_writes ->
-          {node, maybe_offender(acc, names_a_schema? and mentions_frozen?(args), path, meta, fun)}
+        {:cast, meta, args} = node, acc when is_list(args) ->
+          {node,
+           maybe_offender(acc, names_a_schema? and mentions_frozen?(args), path, meta, :cast)}
+
+        {{:., _, [_mod, :cast]}, meta, args} = node, acc ->
+          {node,
+           maybe_offender(acc, names_a_schema? and mentions_frozen?(args), path, meta, :cast)}
+
+        {{:., _, [_mod, fun]}, meta, args} = node, acc when fun in @upserts ->
+          {node, upsert_offender(acc, names_a_schema?, args, path, meta, fun)}
 
         {fun, meta, args} = node, acc when fun in @bulk_writes and is_list(args) ->
-          {node, maybe_offender(acc, names_a_schema? and mentions_frozen?(args), path, meta, fun)}
+          {node, upsert_offender(acc, names_a_schema?, args, path, meta, fun)}
+
+        {{:., _, [_mod, fun]}, meta, args} = node, acc when fun in @bulk_writes ->
+          {node, upsert_offender(acc, names_a_schema?, args, path, meta, fun)}
 
         node, acc ->
           {node, acc}
@@ -225,14 +370,34 @@ defmodule Portfolixir.Invariants.IdentityFreezeWritersTest do
     Enum.reverse(offenders)
   end
 
+  defp upsert_offender(acc, names_a_schema?, args, path, meta, fun) do
+    cond do
+      not names_a_schema? -> acc
+      replaces_all?(args) -> maybe_offender(acc, true, path, meta, "#{fun} replace_all")
+      fun in @bulk_writes -> maybe_offender(acc, mentions_frozen?(args), path, meta, fun)
+      true -> acc
+    end
+  end
+
+  defp replaces_all?(args) do
+    found?(args, fn
+      {:on_conflict, :replace_all} -> true
+      {:on_conflict, {:replace_all_except, _columns}} -> true
+      _other -> false
+    end)
+  end
+
   defp maybe_offender(acc, false, _path, _meta, _what), do: acc
 
   defp maybe_offender(acc, true, path, meta, what),
     do: ["#{path}:#{Keyword.get(meta, :line, "?")} #{what}" | acc]
 
+  # An alias of one of the three schemas, or one of their table names (a
+  # schemaless query writes the table as well).
   defp names_a_schema?(body) do
     found?(body, fn
       {:__aliases__, _, segments} -> List.last(segments) in @schemas
+      table when is_binary(table) -> table in @tables
       _other -> false
     end)
   end
@@ -272,6 +437,114 @@ defmodule Portfolixir.Invariants.IdentityFreezeWritersTest do
         false
     end)
   end
+
+  defp runs_name_guard?(body) do
+    found?(body, fn
+      {{:., _, [{:__aliases__, _, [:AccountNames]}, :validate]}, _, _args} -> true
+      _other -> false
+    end)
+  end
+
+  # --- the name guard's writers (ADR-0050 §4) --------------------------------------
+
+  defp former_name_writers_in(path), do: former_name_writers_in_source(path, File.read!(path))
+
+  defp former_name_writers_in_source(path, source) do
+    for {name, _head, body} <- source |> Code.string_to_quoted!() |> defs_with_heads(),
+        writes_former_names?(body),
+        uniq: true,
+        do: {path, name}
+  end
+
+  defp writes_former_names?(body) do
+    found?(body, fn
+      {fun, _, args} when fun in @field_writes and is_list(args) ->
+        mentions?(args, :former_names)
+
+      {{:., _, [_mod, fun]}, _, args} when fun in @field_writes ->
+        mentions?(args, :former_names)
+
+      {{:., _, [{:__aliases__, _, segments}, :former_names_changeset]}, _, _args} ->
+        List.last(segments) in @account_schemas
+
+      _other ->
+        false
+    end)
+  end
+
+  defp name_side_writes_in(path), do: name_side_writes_in_source(path, File.read!(path))
+
+  # A former-names write by a function not classified in @former_name_writers;
+  # a change, cast or bulk write naming `name` in a function that names an
+  # account schema or table (anywhere else `name` is some other record's); or
+  # a raw SQL UPDATE of an account table setting either.
+  defp name_side_writes_in_source(path, source) do
+    ast = Code.string_to_quoted!(source)
+
+    in_defs =
+      Enum.flat_map(defs_with_heads(ast), fn {name, head, body} ->
+        former =
+          if writes_former_names?(body) and
+               not Map.has_key?(@former_name_writers, {path, name}),
+             do: ["#{path}:#{line_of(head)} former_names"],
+             else: []
+
+        names =
+          if names_an_account?({head, body}),
+            do: name_writes(body, path),
+            else: []
+
+        former ++ names
+      end)
+
+    raw_sql =
+      for string <- strings(ast),
+          string =~
+            ~r/\bUPDATE\s+(#{Enum.join(@account_tables, "|")})\s+SET\b[^;]*\b(name|former_names)\b/i,
+          do: "#{path}:? raw_sql"
+
+    in_defs ++ raw_sql
+  end
+
+  defp name_writes(body, path) do
+    {_ast, offenders} =
+      Macro.prewalk(body, [], fn
+        {fun, meta, args} = node, acc
+        when fun in @field_writes and is_list(args) ->
+          {node, maybe_offender(acc, mentions?(args, :name), path, meta, "#{fun} name")}
+
+        {{:., _, [_mod, fun]}, meta, args} = node, acc
+        when fun in @field_writes ->
+          {node, maybe_offender(acc, mentions?(args, :name), path, meta, "#{fun} name")}
+
+        node, acc ->
+          {node, acc}
+      end)
+
+    Enum.reverse(offenders)
+  end
+
+  defp names_an_account?(ast) do
+    found?(ast, fn
+      {:__aliases__, _, segments} -> List.last(segments) in @account_schemas
+      table when is_binary(table) -> table in @account_tables
+      _other -> false
+    end)
+  end
+
+  # The field as an atom in the call — a keyword key or a field list — never
+  # a variable that happens to share its name (`name` in AccountNames).
+  defp mentions?(ast, field) do
+    ast
+    |> Macro.prewalk(fn
+      {var, _meta, context} when is_atom(var) and is_atom(context) -> nil
+      node -> node
+    end)
+    |> found?(&(&1 == field))
+  end
+
+  defp line_of({:when, meta, _args}), do: Keyword.get(meta, :line, "?")
+  defp line_of({_name, meta, _args}), do: Keyword.get(meta, :line, "?")
 
   defp runs_freeze?(body) do
     found?(body, fn
@@ -323,6 +596,19 @@ defmodule Portfolixir.Invariants.IdentityFreezeWritersTest do
       Macro.prewalk(ast, [], fn
         {kind, _meta, [head, body]} = node, acc when kind in [:def, :defp] ->
           {node, [{def_name(head), body} | acc]}
+
+        node, acc ->
+          {node, acc}
+      end)
+
+    Enum.reverse(defs)
+  end
+
+  defp defs_with_heads(ast) do
+    {_ast, defs} =
+      Macro.prewalk(ast, [], fn
+        {kind, _meta, [head, body]} = node, acc when kind in [:def, :defp] ->
+          {node, [{def_name(head), head, body} | acc]}
 
         node, acc ->
           {node, acc}
