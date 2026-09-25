@@ -1714,6 +1714,13 @@ Die Schreibzugriffe:
 - `DELETE /api/v1/policy_rules/:id` — nur, solange **keine** Version je
   gegolten hat (`204`); sonst `409`, und der Ausweg ist, sie zu beenden.
 
+Eine neue Version, ein Beenden und ein Löschen halten die Regel jeweils,
+während sie deren Versionen lesen; zwei davon auf derselben Regel kommen daher
+nacheinander dran: Eine Version, die hinzukommt, während ein Beenden läuft,
+wartet darauf und wird gegen die beendete Regel geprüft, statt sie zu
+überdauern. Eine Regel, die seit dem Lesen gelöscht wurde, ist bei allen drei
+ein `404`.
+
 **Was eine Regel liest, ist geschützt.** Das Löschen eines Wertpapiers, einer
 Kategorie, einer Klassifizierung oder einer View, auf die eine Regelversion
 (oder der Kontext einer Regel) verweist, antwortet mit **`409`** und
