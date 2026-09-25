@@ -28,9 +28,11 @@ defmodule Portfolixir.Lifecycle.AccountNames do
   before any row lock. Names only ever conflict inside one portfolio, so the
   lock is one per portfolio (`lock_identity/2`, keyed `{lock_key/0, portfolio}`): two
   writers of one portfolio's account names serialize, writers of different
-  portfolios do not wait on each other. A merge (L3) takes the same lock
-  first. An update that leaves the name and the portfolio alone is not
-  checked, so a duplicate from before the guard stays editable.
+  portfolios do not wait on each other. An import takes it at apply start,
+  before it books onto any account, and a merge (L3) takes it first too, so
+  every writer takes the advisory lock before any row lock and none waits on
+  another crosswise. An update that leaves the name and the portfolio alone
+  is not checked, so a duplicate from before the guard stays editable.
 
   **The writers of former names:**
 
@@ -460,7 +462,11 @@ defmodule Portfolixir.Lifecycle.AccountNames do
   # --- shared ---------------------------------------------------------------------
 
   # The account's portfolio lock first, then its row: the order every writer
-  # of account names takes them in.
+  # of account names takes them in. The row is read FOR NO KEY UPDATE: the
+  # former-names write touches no key, the advisory lock already serializes
+  # the name writers, and a booking's foreign-key check (KEY SHARE) does not
+  # wait on it — an import that remembers a name holds this lock until it
+  # commits.
   defp locked(schema, id) do
     case Repo.one(from(a in schema, where: a.id == ^id, select: a.portfolio_id)) do
       nil ->
@@ -469,7 +475,7 @@ defmodule Portfolixir.Lifecycle.AccountNames do
       portfolio_id ->
         lock_identity(portfolio_id)
 
-        case Repo.one(from(a in schema, where: a.id == ^id, lock: "FOR UPDATE")) do
+        case Repo.one(from(a in schema, where: a.id == ^id, lock: "FOR NO KEY UPDATE")) do
           nil -> {:error, :not_found}
           account -> {:ok, account}
         end

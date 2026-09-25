@@ -337,6 +337,35 @@ defmodule Portfolixir.Lifecycle.AccountNamesTest do
     end
   end
 
+  describe "the row lock of a former-name write (§4, review round)" do
+    # User story:
+    # As the operator booking onto an account while an import remembers a
+    # name on it,
+    # I want the import's lock on the account to leave bookings alone,
+    # so that a booking over the API does not wait for the whole import.
+    #
+    # Acceptance criteria:
+    # - Remembering and removing a former name read the account FOR NO KEY
+    #   UPDATE — which a foreign-key check's KEY SHARE does not wait on —
+    #   never FOR UPDATE; the advisory lock already serializes name writers.
+    test "remember and removal lock the row FOR NO KEY UPDATE", %{portfolio: portfolio} do
+      broker = cash!(portfolio, "Broker USD")
+
+      queries =
+        capture_queries(fn ->
+          {:ok, :appended} =
+            AccountNames.remember(Actor.import_session(), CashAccount, broker.id, "Cash USD")
+
+          {:ok, _} = AccountNames.remove_former_name(agent(), reload(broker), "Cash USD")
+        end)
+
+      row_reads = Enum.filter(queries, &(&1 =~ ~r/FROM "cash_accounts".*FOR (NO KEY )?UPDATE/s))
+
+      assert length(row_reads) == 2
+      assert Enum.all?(row_reads, &(&1 =~ "FOR NO KEY UPDATE"))
+    end
+  end
+
   describe "removing a former name (§4)" do
     # User story:
     # As the operator who no longer wants an old name routed to an account,
@@ -423,4 +452,35 @@ defmodule Portfolixir.Lifecycle.AccountNamesTest do
   defp reload(%schema{id: id}), do: Repo.get!(schema, id)
 
   defp journal_count, do: Repo.aggregate(Portfolixir.Journal.Entry, :count, :id)
+
+  defp capture_queries(fun) do
+    test_pid = self()
+    handler = "account-names-lock-#{System.unique_integer([:positive])}"
+
+    :ok =
+      :telemetry.attach(
+        handler,
+        [:portfolixir, :repo, :query],
+        fn _event, _measurements, %{query: query}, _config ->
+          if self() == test_pid, do: send(test_pid, {:query, query})
+        end,
+        nil
+      )
+
+    try do
+      fun.()
+    after
+      :telemetry.detach(handler)
+    end
+
+    collect_queries([])
+  end
+
+  defp collect_queries(acc) do
+    receive do
+      {:query, query} -> collect_queries([query | acc])
+    after
+      0 -> Enum.reverse(acc)
+    end
+  end
 end
