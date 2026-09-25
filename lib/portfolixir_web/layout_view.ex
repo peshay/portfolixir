@@ -1055,6 +1055,31 @@ defmodule PortfolixirWeb.LayoutView do
             // count's real progress. The hook reads prefers-reduced-motion
             // before the first frame: under `reduce` the settling state does
             // not occur — the final value renders immediately.
+            // #869 (review round DC-C1): a <details> inside a live form —
+            // the booking drawer's costs. LiveView removes every attribute
+            // the server did not render, `open` included, so the first
+            // keystroke into a field inside it folded it shut around that
+            // field, whether the operator opened it or the server did (a
+            // refused fee opens it). The hook remembers the toggle and
+            // restores it after each patch; no Esc handling, which belongs
+            // to the drawer the disclosure sits in.
+            Hooks.DisclosureState = {
+              mounted: function () {
+                var self = this;
+                this.open = this.el.open;
+                this.onToggle = function () {
+                  self.open = self.el.open;
+                };
+                this.el.addEventListener("toggle", this.onToggle);
+              },
+              updated: function () {
+                if (this.open && !this.el.open) this.el.setAttribute("open", "");
+              },
+              destroyed: function () {
+                this.el.removeEventListener("toggle", this.onToggle);
+              }
+            };
+
             Hooks.CountUp = {
               mounted: function () {
                 this.lastValue = null;

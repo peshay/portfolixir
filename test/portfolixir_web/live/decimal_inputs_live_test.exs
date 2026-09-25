@@ -223,6 +223,54 @@ defmodule PortfolixirWeb.DecimalInputsLiveTest do
     assert input_value(view, "#transaction-form", "transaction[fees]") == "0,99"
   end
 
+  # User story (#869, Lane C review round DC-C1):
+  # As the operator whose fee was refused,
+  # I want the costs section to stay open while I correct the fee,
+  # so that my first keystroke does not fold it shut around the field I am
+  # typing in.
+  #
+  # Acceptance criteria:
+  # - A refused fee opens the costs section and names the reason there.
+  # - The section carries the DisclosureState hook: LiveView removes every
+  #   attribute the server does not render, `open` included, so the hook
+  #   remembers the toggle — the operator's or the server's — and restores it
+  #   after each patch. (LiveViewTest does not run the client patch; the
+  #   hook's contract is pinned on its source.)
+  test "a refused fee opens the costs, and a patch does not fold them", %{conn: conn} do
+    %{world: w, eur: eur} = usd_world()
+
+    view = conn |> german() |> open_booking()
+
+    assert has_element?(view, ~s(details#transaction-costs[phx-hook="DisclosureState"]))
+    refute has_element?(view, "details#transaction-costs[open]")
+
+    view
+    |> element("#transaction-form")
+    |> render_submit(%{"transaction" => trade(w, eur, %{"fees" => "1.664"})})
+
+    assert has_element?(view, "details#transaction-costs[open] #tx-error-fees")
+
+    hook = hook_source("DisclosureState")
+    assert hook =~ ~r/mounted: function \(\) \{.*this\.open = this\.el\.open;/s
+    assert hook =~ ~r/addEventListener\("toggle", this\.onToggle\)/
+    assert hook =~ ~r/self\.open = self\.el\.open;/
+
+    assert hook =~
+             ~r/updated: function \(\) \{\s*if \(this\.open && !this\.el\.open\) this\.el\.setAttribute\("open", ""\);/s
+
+    assert hook =~ ~r/removeEventListener\("toggle", this\.onToggle\)/
+  end
+
+  # A hook's source in layout_view.ex, up to the next hook.
+  defp hook_source(name) do
+    "lib/portfolixir_web/layout_view.ex"
+    |> File.read!()
+    |> String.split("Hooks.#{name} = ")
+    |> Enum.at(1, "")
+    |> String.split("Hooks.")
+    |> hd()
+  end
+
   defp rule_world do
     world = base_world(name: "Regeln")
 

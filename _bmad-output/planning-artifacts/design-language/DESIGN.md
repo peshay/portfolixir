@@ -1605,7 +1605,11 @@ readable and scrollable. Under 720 px the same dialog opens modally as a
 bottom sheet (full width, 88 vh maximum, the modal backdrop tints). The
 fields stack — type, date, the depot the booking books to, security — with
 quantity and price paired on one row, costs and note behind one disclosure,
-the sell-lot preview beneath; the foot carries **Record transaction**
+the sell-lot preview beneath. The disclosure opens itself when a fee or a tax
+is refused, and it stays open, by whoever opened it, while the operator types:
+LiveView drops an `open` the server did not render on the next patch, so the
+`DisclosureState` hook remembers the toggle and restores it (#869 review
+round). The foot carries **Record transaction**
 (primary) and **Cancel** (ghost). Recording closes the drawer; Cancel and
 Esc discard the draft; focus returns to the control. Built for creating a
 booking and shaped — one panel, stacked, pre-fillable fields — for the edit
