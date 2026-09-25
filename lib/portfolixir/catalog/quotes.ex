@@ -25,6 +25,7 @@ defmodule Portfolixir.Catalog.Quotes do
 
   import Ecto.Query
 
+  alias Portfolixir.Catalog.MarketDataBounds
   alias Portfolixir.Catalog.Quote, as: SecurityQuote
   alias Portfolixir.Catalog.QuoteAdjustment
   alias Portfolixir.Catalog.Security
@@ -33,10 +34,14 @@ defmodule Portfolixir.Catalog.Quotes do
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Repo
 
-  @doc "Most recent quote for the security, or nil."
+  @doc """
+  Most recent quote for the security, or nil. Like every latest read here, it
+  never serves a row dated past `MarketDataBounds.latest_date/0` (E25 S3, F26).
+  """
   def latest(security_id) when is_integer(security_id) do
     SecurityQuote
     |> where([q], q.security_id == ^security_id)
+    |> plausibly_dated()
     |> order_by([q], desc: q.date)
     |> limit(1)
     |> Repo.one()
@@ -55,6 +60,7 @@ defmodule Portfolixir.Catalog.Quotes do
   def latest_by_security_ids(security_ids) when is_list(security_ids) do
     SecurityQuote
     |> where([q], q.security_id in ^security_ids)
+    |> plausibly_dated()
     |> distinct([q], q.security_id)
     |> order_by([q], asc: q.security_id, desc: q.date)
     |> Repo.all()
@@ -65,9 +71,17 @@ defmodule Portfolixir.Catalog.Quotes do
   def latest_two(security_id) when is_integer(security_id) do
     SecurityQuote
     |> where([q], q.security_id == ^security_id)
+    |> plausibly_dated()
     |> order_by([q], desc: q.date)
     |> limit(2)
     |> Repo.all()
+  end
+
+  # The latest reads' cap (F26): a row stored before the bound existed and
+  # dated past it is never the latest quote.
+  defp plausibly_dated(query) do
+    latest = MarketDataBounds.latest_date()
+    where(query, [q], q.date <= ^latest)
   end
 
   @doc "Closest quote on or before `date`, or nil."
@@ -326,8 +340,10 @@ defmodule Portfolixir.Catalog.Quotes do
   """
   def attach_metrics([]), do: []
 
-  # The SQL is a literal with positional parameters only ($1..$3); nothing is
-  # interpolated into the query string.
+  # The SQL is a literal with positional parameters only ($1..$4); nothing is
+  # interpolated into the query string. The latest and previous closes are
+  # capped at MarketDataBounds.latest_date/0 like every latest read (F26), so a
+  # row dated past it neither prices a security nor hides a stale quote.
   # sobelow_skip ["SQL.Query"]
   def attach_metrics(securities) when is_list(securities) do
     ids = Enum.map(securities, & &1.id)
@@ -353,14 +369,14 @@ defmodule Portfolixir.Catalog.Quotes do
     LEFT JOIN LATERAL (
       SELECT q.close, q.date, q.source
       FROM security_quotes q
-      WHERE q.security_id = s.id
+      WHERE q.security_id = s.id AND q.date <= $4
       ORDER BY q.date DESC
       LIMIT 1
     ) latest ON TRUE
     LEFT JOIN LATERAL (
       SELECT q.close, q.date, q.source
       FROM security_quotes q
-      WHERE q.security_id = s.id
+      WHERE q.security_id = s.id AND q.date <= $4
       ORDER BY q.date DESC
       OFFSET 1 LIMIT 1
     ) prev ON TRUE
@@ -382,7 +398,7 @@ defmodule Portfolixir.Catalog.Quotes do
     """
 
     %Postgrex.Result{rows: result_rows} =
-      Repo.query!(sql, [ids, cutoff_1m, cutoff_1y])
+      Repo.query!(sql, [ids, cutoff_1m, cutoff_1y, MarketDataBounds.latest_date()])
 
     by_id = Map.new(result_rows, fn [id | _rest] = row -> {id, metrics_row(row)} end)
     events_by_security = split_events_by_security(ids)

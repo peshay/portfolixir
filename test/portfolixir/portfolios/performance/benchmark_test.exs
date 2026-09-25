@@ -419,12 +419,25 @@ defmodule Portfolixir.Portfolios.Performance.BenchmarkTest do
     deposit!(world, "500", ~D[2026-01-08])
     bench = benchmark_security!(name: "Zero Close", ticker: "ZRO")
 
-    put_quotes!(bench, [
-      {~D[2026-01-01], "0"},
-      {~D[2026-01-05], "50"},
-      {~D[2026-01-08], "0"},
-      {~D[2026-01-10], "55"}
-    ])
+    put_quotes!(bench, [{~D[2026-01-05], "50"}, {~D[2026-01-10], "55"}])
+
+    # Since E25 S3 (F26) no writer stores a close of 0; the read-side rule
+    # still holds for a row stored before that bound, inserted here directly.
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+
+    Portfolixir.Repo.insert_all(
+      Portfolixir.Catalog.Quote,
+      for date <- [~D[2026-01-01], ~D[2026-01-08]] do
+        %{
+          security_id: bench.id,
+          date: date,
+          close: d("0"),
+          source: "manual",
+          inserted_at: now,
+          updated_at: now
+        }
+      end
+    )
 
     {:ok, cmp} =
       Benchmark.for_portfolio(world.portfolio.id, {:security, bench}, today: ~D[2026-01-11])

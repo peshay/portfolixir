@@ -17,11 +17,15 @@ defmodule Portfolixir.Catalog.QuoteSync.Yahoo do
     * `"portfolio_performance"` — bare `ticker_symbol` (e.g. `AAPL`, `APC.DE`).
     * `"coingecko"` — `<ticker_symbol>-<currency_code>` (e.g. `BTC-USD`).
 
-  Null closes (non-trading days) are dropped.
+  Null closes (non-trading days) are dropped, and so is an implausible point
+  (a close that is not positive, or a date past
+  `Portfolixir.Catalog.MarketDataBounds.latest_date/0`), so one bad point never
+  fails the batch (E25 S3, F26).
   """
 
   @behaviour Portfolixir.Catalog.QuoteSync.Provider
 
+  alias Portfolixir.Catalog.MarketDataBounds
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Net.Http
   alias Portfolixir.Net.PathSegment
@@ -93,8 +97,11 @@ defmodule Portfolixir.Catalog.QuoteSync.Yahoo do
   defp to_row({_ts, nil}), do: []
 
   defp to_row({ts, close}) when is_integer(ts) and is_number(close) do
-    case DateTime.from_unix(ts) do
-      {:ok, dt} -> [%{date: DateTime.to_date(dt), close: close |> to_string() |> Decimal.new()}]
+    with {:ok, dt} <- DateTime.from_unix(ts),
+         date = DateTime.to_date(dt),
+         true <- MarketDataBounds.plausible?(date, close) do
+      [%{date: date, close: close |> to_string() |> Decimal.new()}]
+    else
       _ -> []
     end
   end

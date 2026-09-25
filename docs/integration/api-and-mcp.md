@@ -532,6 +532,12 @@ Example create payload:
   `limit` keeps the newest rows of the window, still ascending (default 20000,
   max 50000; zero, negative or non-numeric is a `422`).
 - `PUT /api/v1/securities/:security_id/quotes` upserts manual quote rows.
+  Every quote row, manual or synced, is bounded: a positive `close` on a
+  `date` no later than tomorrow (the instance's calendar day plus one day for
+  time zones). A row outside the bound answers `422` naming the field, and a
+  sync drops such a provider point instead of failing the run. The
+  latest-quote reads (the valuation price, the catalog's latest price and the
+  stale-quote check) never use a stored row dated past the bound.
 - `POST /api/v1/securities/:security_id/sync_quotes` triggers quote sync for
   one security. The response includes `status` (`ok`, `skipped`, or `error`);
   skipped and error responses may include a `reason` such as
@@ -1691,6 +1697,10 @@ level (d)).
   against the EUR hub (`1 base_currency = rate quote_currency`); other pairs are
   derived by triangulation, and `GBX` (pence) is handled as `GBP × 100`.
   `limit` keeps the most recent rates (default 50000, max 200000).
+  Every stored rate is bounded like a quote: positive, and dated no later
+  than tomorrow. A sync drops a provider rate outside the bound instead of
+  failing the run, and the latest-rate reads never use a stored row dated
+  past it.
 - `POST /api/v1/exchange_rates/sync` fetches rates from the configured
   provider (ECB by default) and returns `{provider, status, upserted, scope}`.
   `scope=latest` (the default) fetches the **daily** feed — today's rates,

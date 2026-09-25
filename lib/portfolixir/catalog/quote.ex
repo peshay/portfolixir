@@ -13,6 +13,8 @@ defmodule Portfolixir.Catalog.Quote do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Portfolixir.Catalog.MarketDataBounds
+
   @sources ~w(auto manual coingecko portfolio_performance)
 
   schema "security_quotes" do
@@ -30,6 +32,9 @@ defmodule Portfolixir.Catalog.Quote do
     quote_
     |> cast(attrs, [:security_id, :date, :close, :source])
     |> validate_required([:security_id, :date, :close, :source])
+    # Plausibility bounds for every writer (E25 S3, F26): a positive close on
+    # a date no later than MarketDataBounds.latest_date/0.
+    |> MarketDataBounds.validate(:date, :close)
     |> validate_inclusion(:source, @sources, message: "is invalid")
     |> unique_constraint([:security_id, :date],
       name: :security_quotes_security_id_date_index

@@ -13,12 +13,16 @@ defmodule Portfolixir.Fx.RateSync.Ecb do
   The feed is EUR-based (`1 EUR = rate <currency>`) — exactly Portfolixir's hub
   convention — and publishes one `<Cube currency=.. rate=..>` per currency under
   a dated `<Cube time=..>`. Currencies outside `Catalog.Currencies` are dropped
-  so the upsert only ever sees supported codes.
+  so the upsert only ever sees supported codes, and an implausible row (a rate
+  that is not positive, or a date past
+  `Portfolixir.Catalog.MarketDataBounds.latest_date/0`) is dropped rather than
+  failing the batch (E25 S3, F26).
   """
 
   @behaviour Portfolixir.Fx.RateSync.Provider
 
   alias Portfolixir.Catalog.Currencies
+  alias Portfolixir.Catalog.MarketDataBounds
   alias Portfolixir.Net.Http
 
   @endpoint "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"
@@ -107,7 +111,7 @@ defmodule Portfolixir.Fx.RateSync.Ecb do
   defp row([_, currency, rate], date) do
     code = String.upcase(currency)
 
-    if Currencies.supported?(code) do
+    if Currencies.supported?(code) and MarketDataBounds.plausible?(date, rate) do
       [%{base_currency: @hub, quote_currency: code, date: date, rate: rate, source: @source}]
     else
       []
