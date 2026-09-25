@@ -184,11 +184,7 @@ defmodule Portfolixir.Catalog.QuoteSync do
   defp field(row, key), do: Map.get(row, key, Map.get(row, Atom.to_string(key)))
 
   defp upsert(security, rows, provider) do
-    case Quotes.upsert_many(
-           security.id,
-           Enum.map(rows, &Map.put(&1, :source, provider)),
-           protect_manual: true
-         ) do
+    case safe_upsert(security, rows, provider) do
       {:ok, count, skipped_manual} ->
         if skipped_manual > 0 do
           Logger.warning(
@@ -198,10 +194,30 @@ defmodule Portfolixir.Catalog.QuoteSync do
 
         result(security, :ok, nil, count, skipped_manual)
 
+      {:error, :persist_failed} ->
+        result(security, :error, :persist_failed)
+
       {:error, reason} ->
         Logger.warning("quote upsert failed for security ##{security.id}: #{inspect(reason)}")
         result(security, :error, {:upsert_failed, reason})
     end
+  end
+
+  # A security whose quotes cannot be stored is that security's error, never
+  # the end of the run (F28): the next security is still synced.
+  defp safe_upsert(security, rows, provider) do
+    Quotes.upsert_many(
+      security.id,
+      Enum.map(rows, &Map.put(&1, :source, provider)),
+      protect_manual: true
+    )
+  rescue
+    exception ->
+      Logger.warning(
+        "quote persistence failed for security ##{security.id}: #{Exception.message(exception)}"
+      )
+
+      {:error, :persist_failed}
   end
 
   defp result(security, status, reason, upserted \\ nil, skipped_manual \\ 0) do

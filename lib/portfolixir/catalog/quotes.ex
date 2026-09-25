@@ -34,6 +34,11 @@ defmodule Portfolixir.Catalog.Quotes do
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Repo
 
+  # Rows per INSERT, below PostgreSQL's 65,535 bind parameters per statement
+  # at six parameters a row (E25 S3, F28): a provider's whole daily history is
+  # written in chunks inside one transaction.
+  @insert_chunk 5_000
+
   @doc """
   Most recent quote for the security, or nil. Like every latest read here, it
   never serves a row dated past `MarketDataBounds.latest_date/0` (E25 S3, F26).
@@ -252,11 +257,7 @@ defmodule Portfolixir.Catalog.Quotes do
         if protect_manual?, do: {:ok, 0, 0}, else: {:ok, 0}
 
       {:ok, prepared} ->
-        {count, _} =
-          Repo.insert_all(SecurityQuote, prepared,
-            on_conflict: on_conflict(protect_manual?),
-            conflict_target: [:security_id, :date]
-          )
+        count = insert_in_chunks(prepared, on_conflict(protect_manual?))
 
         # Quotes are allowlisted out of the audit journal (market data), so they
         # cannot ride the journal seam and drop the affected performance memos
@@ -272,6 +273,27 @@ defmodule Portfolixir.Catalog.Quotes do
       {:error, _} = err ->
         err
     end
+  end
+
+  # One transaction, several statements (F28): the counts are summed, and a
+  # failing chunk rolls the whole history back.
+  defp insert_in_chunks(prepared, on_conflict) do
+    {:ok, count} =
+      Repo.transaction(fn ->
+        prepared
+        |> Enum.chunk_every(@insert_chunk)
+        |> Enum.reduce(0, fn chunk, total ->
+          {count, _} =
+            Repo.insert_all(SecurityQuote, chunk,
+              on_conflict: on_conflict,
+              conflict_target: [:security_id, :date]
+            )
+
+          total + count
+        end)
+      end)
+
+    count
   end
 
   # Postgres counts a conflicting row only when the DO UPDATE actually ran,

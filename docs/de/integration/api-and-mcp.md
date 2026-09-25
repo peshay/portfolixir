@@ -518,7 +518,11 @@ Regel über einer Kennzahl ist FR-43 und bleibt verschlossen.
 - `POST /api/v1/securities/:security_id/sync_quotes` löst die
   Kurssynchronisierung eines Wertpapiers aus. Die Antwort enthält `status` (`ok`,
   `skipped` oder `error`); übersprungene und Fehler-Antworten können einen
-  `reason` wie `missing_ticker` oder `no_provider_adapter` enthalten.
+  `reason` wie `missing_ticker` oder `no_provider_adapter` enthalten, und
+  `persist_failed`, wenn die geholten Kurse nicht gespeichert werden konnten.
+  Eine Historie beliebiger Länge wird in einer Synchronisierung gespeichert,
+  und in der geplanten Synchronisierung ist ein scheiterndes Wertpapier der
+  Fehler dieses Wertpapiers, während die übrigen weiter synchronisiert werden.
 
 Beispiel-Payload für Kurs-Upsert:
 
@@ -1573,7 +1577,8 @@ Scope-Leiter).
   benannt; das Backfill füllt Daten, es lockert die Basis „exakter
   Buchungstagskurs“ nicht. Ein unbekannter `scope` ist ein `422`, ein
   Anbieter ohne Historie antwortet mit `422` und benennt `scope`, ein
-  Anbieterfehler liefert `502 Bad Gateway`. Die menschliche Sicht ist die
+  Anbieterfehler oder Kurse, die die Datenbank nicht speichern kann, liefern
+  `502 Bad Gateway`, und nichts wird gespeichert. Die menschliche Sicht ist die
   Schaltfläche **Historische Kurse nachladen** in den Ausschluss-Hinweisen
   auf `/cashflow`.
 

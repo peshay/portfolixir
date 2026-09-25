@@ -2654,7 +2654,7 @@ const toolDefinitions: ToolDefinition[] = [
     notesExpiringSchema,
     notesExpiringZ
   ),
-  tool("portfolixir.quotes.sync", "Sync quotes", "Sync quote history for one security.", {
+  tool("portfolixir.quotes.sync", "Sync quotes", "Sync quote history for one security. Returns status (ok, skipped or error) and, when not ok, a reason such as missing_ticker, no_provider_adapter or persist_failed (the fetched quotes could not be stored). A history of any length is stored in one call.", {
     type: "object",
     additionalProperties: false,
     required: ["security_id"],
@@ -2847,7 +2847,7 @@ const toolDefinitions: ToolDefinition[] = [
     additionalProperties: false,
     properties: { limit: { type: "integer", minimum: 1 } }
   }, z.object({ limit: z.number().int().min(1).optional() })),
-  tool("portfolixir.exchange_rates.sync", "Sync exchange rates", "Fetch and store exchange rates from the configured provider (ECB, EUR hub). scope=latest (default) fetches the daily feed — today's rates, nothing in the past. scope=history (issue #737) runs the one-shot BACKFILL of the historical ECB series through the same path: every published day at once, so a dated conversion (a realized gain, a cost, a flow excluded and named for a missing close-date rate) can find its rate; run it when a cashflow facet reports excluded rows. The rate-availability rule is unchanged: a day the ECB did not publish (a weekend, an unlisted currency) stays excluded and named. Returns {provider, status, upserted, scope}; a provider without a history answers 422.", exchangeRateSyncSchema, exchangeRateSyncZ),
+  tool("portfolixir.exchange_rates.sync", "Sync exchange rates", "Fetch and store exchange rates from the configured provider (ECB, EUR hub). scope=latest (default) fetches the daily feed — today's rates, nothing in the past. scope=history (issue #737) runs the one-shot BACKFILL of the historical ECB series through the same path: every published day at once, so a dated conversion (a realized gain, a cost, a flow excluded and named for a missing close-date rate) can find its rate; run it when a cashflow facet reports excluded rows. The rate-availability rule is unchanged: a day the ECB did not publish (a weekend, an unlisted currency) stays excluded and named. Returns {provider, status, upserted, scope}; a provider without a history answers 422, and a provider failure, or rates the database cannot store, answers 502 with nothing stored.", exchangeRateSyncSchema, exchangeRateSyncZ),
   tool("portfolixir.classifications.list", "List classifications", "List classification trees with categories and security assignments.", emptyObjectSchema, emptyObjectZ),
   tool("portfolixir.classifications.create", "Create classification", "Create a custom classification tree.", classificationSchema, classificationZ),
   tool("portfolixir.classifications.categories.create", "Create category", "Create a category in a custom classification.", categorySchema, categoryZ),
