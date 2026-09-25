@@ -23,6 +23,7 @@ defmodule Portfolixir.Classifications do
   alias Portfolixir.Classifications.Classification
   alias Portfolixir.Journal
   alias Portfolixir.Portfolios.PolicyRules
+  alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Repo
 
   @builtin_keys ~w(asset_class currency)
@@ -304,7 +305,27 @@ defmodule Portfolixir.Classifications do
     end
   end
 
-  defp delete_unreferenced_classification(actor, classification) do
+  # E25 S6, F43: the tree's rows go first, each through its journaled writer
+  # — every plan with its targets, every stored assignment, every category
+  # leaves first — then the classification; the foreign keys' cascades stay
+  # as a backstop that finds nothing left. The classification row is locked
+  # first, so no category, assignment or plan lands on it in between.
+  defp delete_unreferenced_classification(actor, %Classification{id: id} = classification) do
+    fn ->
+      with {:ok, _locked} <- lock_classification(id),
+           {:ok, _} <- Targets.delete_plans_for_classification(actor, id),
+           :ok <- unassign_where(actor, dynamic([a], a.classification_id == ^id)),
+           :ok <- delete_categories(actor, list_categories(id)),
+           {:ok, deleted} <- delete_classification_row(actor, classification) do
+        deleted
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end
+    |> Repo.transaction()
+  end
+
+  defp delete_classification_row(actor, classification) do
     Multi.new()
     |> Multi.delete(
       :classification,
@@ -321,6 +342,82 @@ defmodule Portfolixir.Classifications do
     )
     |> Repo.transaction()
     |> classification_result()
+  end
+
+  defp lock_classification(id) do
+    case Repo.one(from(c in Classification, where: c.id == ^id, lock: "FOR UPDATE")) do
+      nil -> {:error, :not_found}
+      classification -> {:ok, classification}
+    end
+  end
+
+  # The stored assignments matching `condition`, locked and removed one by
+  # one through the journaled delete.
+  defp unassign_where(actor, condition) do
+    from(a in Assignment, where: ^condition, order_by: a.id, lock: "FOR UPDATE")
+    |> Repo.all()
+    |> Enum.reduce_while(:ok, fn assignment, :ok ->
+      case delete_assignment(actor, assignment) do
+        {:ok, _} -> {:cont, :ok}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  # Categories are deleted leaves first, so a parent's delete never cascades
+  # to a child the journal has not recorded. A loop stored before the parent
+  # guard (E25 S4, F11) has no leaf: its rows are deleted in id order, and a
+  # row the backstop cascade removed first is skipped.
+  defp delete_categories(actor, categories) do
+    categories
+    |> leaves_first()
+    |> Enum.reduce_while(:ok, fn category, :ok ->
+      case delete_category_row(actor, category) do
+        {:ok, _} -> {:cont, :ok}
+        :gone -> {:cont, :ok}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  defp delete_category_row(actor, %Category{id: id} = category) do
+    if Repo.exists?(from(c in Category, where: c.id == ^id)) do
+      Multi.new()
+      |> Multi.delete(
+        :category,
+        category
+        |> Ecto.Changeset.change()
+        |> rule_reference_backstop(:policy_rule_versions_category_id_fkey)
+      )
+      |> Journal.record(actor,
+        resource_type: "category",
+        operation: :delete,
+        source: :category,
+        before: category
+      )
+      |> Repo.transaction()
+      |> category_result()
+    else
+      :gone
+    end
+  end
+
+  defp leaves_first(categories) do
+    parents = Map.new(categories, &{&1.id, &1.parent_id})
+
+    Enum.sort_by(categories, &{-depth(&1.id, parents, MapSet.new()), &1.id})
+  end
+
+  defp depth(id, parents, seen) do
+    case Map.get(parents, id) do
+      nil ->
+        0
+
+      parent_id ->
+        if MapSet.member?(seen, id) or not Map.has_key?(parents, parent_id),
+          do: 0,
+          else: 1 + depth(parent_id, parents, MapSet.put(seen, id))
+    end
   end
 
   defp classification_result({:ok, %{classification: classification}}), do: {:ok, classification}
@@ -362,7 +459,6 @@ defmodule Portfolixir.Classifications do
 
     with :ok <- ensure_custom_category(category) do
       Multi.new()
-      |> lock_tree(category.classification_id)
       |> Multi.update(:category, fn changes ->
         changes |> Journal.locked_row() |> Category.changeset(attrs) |> validate_parent()
       end)
@@ -372,30 +468,46 @@ defmodule Portfolixir.Classifications do
         source: :category,
         before: category
       )
+      # The tree first, then the row: the order a category delete takes them
+      # in (F43), so the two never wait on each other.
+      |> Multi.prepend(lock_tree(Multi.new(), category.classification_id))
       |> Repo.transaction()
       |> category_result()
     end
   end
 
+  # E25 S6, F43: the subtree's rows go first, each through its journaled
+  # writer — the targets filed under its categories, the securities assigned
+  # there, the categories below it leaves first — then the category itself.
+  # The tree is locked first, as every parent write locks it.
   def delete_category(%Actor{} = actor, %Category{} = category) do
     with :ok <- ensure_custom_category(category),
          :ok <- subtree_not_read_by_rules(category) do
-      Multi.new()
-      |> Multi.delete(
-        :category,
-        category
-        |> Ecto.Changeset.change()
-        |> rule_reference_backstop(:policy_rule_versions_category_id_fkey)
-      )
-      |> Journal.record(actor,
-        resource_type: "category",
-        operation: :delete,
-        source: :category,
-        before: category
-      )
+      fn ->
+        with {:ok, _tree} <- lock_classification(category.classification_id),
+             subtree = subtree(category),
+             ids = Enum.map(subtree, & &1.id),
+             {:ok, _} <- Targets.delete_targets_for_categories(actor, ids),
+             :ok <- unassign_where(actor, dynamic([a], a.category_id in ^ids)),
+             :ok <- delete_categories(actor, subtree) do
+          category
+        else
+          {:error, reason} -> Repo.rollback(reason)
+        end
+      end
       |> Repo.transaction()
-      |> category_result()
+      |> case do
+        {:ok, _} -> {:ok, category}
+        {:error, reason} -> {:error, reason}
+      end
     end
+  end
+
+  # The category and every category below it, as stored now.
+  defp subtree(%Category{id: id, classification_id: classification_id}) do
+    categories = list_categories(classification_id)
+    ids = subtree_ids(categories, MapSet.new([id]))
+    Enum.filter(categories, &MapSet.member?(ids, &1.id))
   end
 
   def get_category(id) when is_integer(id), do: Repo.get(Category, id)

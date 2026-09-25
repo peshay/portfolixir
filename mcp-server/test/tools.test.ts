@@ -1069,6 +1069,25 @@ describe("Portfolixir MCP tools", () => {
     assert.match(upsert?.description ?? "", /replaced/);
   });
 
+  // E25 S6, F43: a delete removes its children through their journaled
+  // writers first, one entry per row, and the tools say what goes with it.
+  it("states the per-row journaled children of the classification, category, plan and view deletes", () => {
+    const description = (name: string) =>
+      listTools().find((tool) => tool.name === name)?.description ?? "";
+
+    for (const name of [
+      "portfolixir.classifications.delete",
+      "portfolixir.classifications.categories.delete",
+      "portfolixir.plans.delete",
+      "portfolixir.views.delete"
+    ]) {
+      assert.match(description(name), /journaled as its own delete|journaled one delete each/);
+    }
+
+    assert.match(description("portfolixir.classifications.delete"), /assignments/);
+    assert.match(description("portfolixir.views.delete"), /snapshots/);
+  });
+
   // E25 S6, F45 and T-10: view-definition writes are journaled with the sets
   // before and after, and a bucket delete rewrites every owner through its
   // journaled writer, an emptied override staying explicit-empty.

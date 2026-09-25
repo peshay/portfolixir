@@ -602,11 +602,12 @@ defmodule Portfolixir.Portfolios.Targets do
 
   @doc """
   Removes the addressed **active** plan for `(portfolio, view, classification)`
-  (default `view: nil` = Gesamt), on behalf of `actor`: the plan row and — via
-  the `plan_id` foreign key's `ON DELETE CASCADE` — every category target
-  hanging off it, plus the plan's cash target. Draft/archived versions of the
-  scope are untouched. After this `plan_exists?/3` is `false`, so the portfolio
-  page falls back to IST-only for that `(view, classification)`. Returns
+  (default `view: nil` = Gesamt), on behalf of `actor`: every target hanging
+  off it, one journaled delete per row, then the plan row and with it the
+  plan's cash target (E25 S6, F43: the `plan_id` foreign key's cascade stays
+  as a backstop that finds nothing left). Draft/archived versions of the scope
+  are untouched. After this `plan_exists?/3` is `false`, so the portfolio page
+  falls back to IST-only for that `(view, classification)`. Returns
   `{:ok, count}` with the number of plan rows removed (0 when there was none).
   """
   def delete_plan(%Actor{} = actor, portfolio_id, classification_id, opts \\ [])
@@ -618,7 +619,7 @@ defmodule Portfolixir.Portfolios.Targets do
         {:ok, 0}
 
       %TargetPlan{} = plan ->
-        with {:ok, _} <- journaled_delete(actor, plan, "target_plan") do
+        with {:ok, _} <- delete_plan_rows(actor, plan) do
           {:ok, 1}
         end
     end
@@ -626,12 +627,90 @@ defmodule Portfolixir.Portfolios.Targets do
 
   @doc """
   Deletes one plan **version** by id (any status), on behalf of `actor` — the
-  cleanup path for drafts and archived plans. Cascades its targets. Returns
-  `{:ok, %TargetPlan{}}` or `{:error, :not_found}`.
+  cleanup path for drafts and archived plans. Its targets are deleted first,
+  one journaled delete per row (F43). Returns `{:ok, %TargetPlan{}}` or
+  `{:error, :not_found}`.
   """
   def delete_plan_version(%Actor{} = actor, plan_or_id) do
     with {:ok, plan} <- fetch_plan(plan_or_id) do
-      journaled_delete(actor, plan, "target_plan")
+      delete_plan_rows(actor, plan)
+    end
+  end
+
+  @doc """
+  Deletes every plan version of a classification — all portfolios, views and
+  statuses — each with its targets, one journaled delete per row (E25 S6,
+  F43). The seam the classification delete calls before its row goes.
+  Returns `{:ok, count}` with the number of plans removed.
+  """
+  @spec delete_plans_for_classification(Actor.t(), integer()) ::
+          {:ok, non_neg_integer()} | {:error, term()}
+  def delete_plans_for_classification(%Actor{} = actor, classification_id)
+      when is_integer(classification_id) do
+    delete_plans(actor, from(p in TargetPlan, where: p.classification_id == ^classification_id))
+  end
+
+  @doc """
+  Deletes every plan version scoped to a view — all portfolios,
+  classifications and statuses — each with its targets, one journaled delete
+  per row (F43). The seam the view delete calls before its row goes.
+  Returns `{:ok, count}` with the number of plans removed.
+  """
+  @spec delete_plans_for_view(Actor.t(), integer()) ::
+          {:ok, non_neg_integer()} | {:error, term()}
+  def delete_plans_for_view(%Actor{} = actor, view_id) when is_integer(view_id) do
+    delete_plans(actor, from(p in TargetPlan, where: p.view_id == ^view_id))
+  end
+
+  @doc """
+  Deletes every target — category and position rows, across all plans —
+  filed under one of `category_ids`, one journaled delete per row (F43). The
+  seam a category delete calls for its subtree before the categories go.
+  Returns `{:ok, count}`.
+  """
+  @spec delete_targets_for_categories(Actor.t(), [integer()]) ::
+          {:ok, non_neg_integer()} | {:error, term()}
+  def delete_targets_for_categories(%Actor{} = actor, category_ids) when is_list(category_ids) do
+    from(t in Target, where: t.category_id in ^category_ids)
+    |> Repo.all()
+    |> delete_targets(actor)
+  end
+
+  # The plans are locked first, in id order, so a target written onto one
+  # waits for its delete instead of landing after its targets were read.
+  defp delete_plans(actor, query) do
+    Repo.transaction(fn ->
+      plans = Repo.all(from(p in query, order_by: p.id, lock: "FOR UPDATE"))
+
+      Enum.each(plans, fn plan ->
+        case delete_plan_rows(actor, plan) do
+          {:ok, _} -> :ok
+          {:error, reason} -> Repo.rollback(reason)
+        end
+      end)
+
+      length(plans)
+    end)
+  end
+
+  # One plan: locked first, so no target lands on it after its targets were
+  # read; its targets per row, journaled; then the plan row, journaled.
+  defp delete_plan_rows(actor, %TargetPlan{id: plan_id}) do
+    Repo.transaction(fn ->
+      with {:ok, plan} <- lock_plan(plan_id),
+           {:ok, _} <- plan_id |> targets_of_plan() |> delete_targets(actor),
+           {:ok, deleted} <- journaled_delete(actor, plan, "target_plan") do
+        deleted
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+  end
+
+  defp lock_plan(plan_id) do
+    case Repo.one(from(p in TargetPlan, where: p.id == ^plan_id, lock: "FOR UPDATE")) do
+      nil -> {:error, :not_found}
+      plan -> {:ok, plan}
     end
   end
 

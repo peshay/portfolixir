@@ -1814,8 +1814,11 @@ neu zugeordnet werden.
   `classification`-Objekt an (`name`, optional `position`, `description`).
 - `PATCH /api/v1/classifications/:id` aktualisiert das `classification`-Objekt
   einer eigenen Klassifizierung (`name`, `position`, `description` — alle optional).
-- `DELETE /api/v1/classifications/:id` löscht eine eigene Klassifizierung und
-  kaskadiert ihre Kategorien und Zuordnungen.
+- `DELETE /api/v1/classifications/:id` löscht eine eigene Klassifizierung mit
+  ihren Kategorien, ihren gespeicherten Zuordnungen und jedem Plan darauf samt
+  dessen Zielen. Jede dieser Zeilen wird als eigene Löschung journalisiert,
+  bevor die Klassifizierung gelöscht wird; keine Zeile verschwindet allein
+  durch eine Datenbank-Kaskade.
 - `POST /api/v1/classifications/:classification_id/categories` fügt einer eigenen
   Klassifizierung eine `category` hinzu (`name`, optional `color`, `description`,
   `parent_id`, `position`).
@@ -1827,7 +1830,10 @@ neu zugeordnet werden.
   Unterkategorien ist; jede andere Oberkategorie liefert `422` an `parent_id`,
   und nichts wird geschrieben, sodass ein Baum nie im Kreis läuft (E25 S4).
 - `DELETE /api/v1/classifications/:classification_id/categories/:id` löscht eine
-  Kategorie und kaskadiert ihre Unterkategorien und Zuordnungen.
+  Kategorie mit den Kategorien darunter, den dort zugeordneten Wertpapieren und
+  den dort abgelegten Zielen; jede Zeile wird als eigene Löschung
+  journalisiert, die untersten Kategorien zuerst und die Kategorie selbst
+  zuletzt.
 - `PUT /api/v1/classifications/:classification_id/assignments` ordnet ein
   Wertpapier einer Kategorie zu (`security_id`, `category_id`) und ersetzt jede
   bestehende Zuordnung dieses Wertpapiers in der Klassifizierung. Die Antwort trägt
@@ -1900,7 +1906,9 @@ nicht journalisiert: Noch keine Regel kann sie lesen.
   erforderlich, optionales `include_all`, Standard `true`).
 - `GET /api/v1/views/:id` liefert eine View mit ihrem aufgelösten Filter.
 - `PATCH /api/v1/views/:id` ändert `name`/`include_all` einer View.
-- `DELETE /api/v1/views/:id` löscht eine View und ihre Bucket-Sets (`204`).
+- `DELETE /api/v1/views/:id` löscht eine View und ihre Bucket-Sets (`204`); die
+  auf sie bezogenen Pläne samt Zielen und ihre Depot-Schnappschüsse werden je
+  als eigene Löschung journalisiert, bevor die View gelöscht wird.
 - `PUT /api/v1/views/:id/buckets` ersetzt die Include-/Exclude-Bucket-Sets einer
   View. Body: `{"include": [..], "exclude": [..]}` (beide optional, Standard
   `[]`, Listen von Bucket-ids). Eine fehlerhafte id-Liste ergibt `422`; ein
