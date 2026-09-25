@@ -97,7 +97,8 @@ defmodule Portfolixir.Imports.Applier do
   - Inserts one ledger row per entry, branching by kind.
   - Skips degenerate rows that can never form a valid transaction — a
     cash kind with a zero or missing gross_amount (e.g. a 0 EUR tax
-    line) — recording each in `skipped_entries` with its row and a
+    line), or a kind no export carries (a balance anchor or a split,
+    ADR-0050 §1) — recording each in `skipped_entries` with its row and a
     reason instead of aborting the whole import (#482). Genuine
     changeset/FK errors still roll the whole transaction back.
   - Reports created/skipped/error counts in the final result.
@@ -289,7 +290,8 @@ defmodule Portfolixir.Imports.Applier do
   @doc """
   The already-imported counts of a parsed preview, before any apply (ADR-0050
   §3): every row classified by the first check the applier would run on it —
-  `:unimportable` (a cash kind without a positive amount), `:hash` (a
+  `:unimportable` (a cash kind without a positive amount, or a kind no export
+  carries), `:hash` (a
   transaction holds its content hash), `:retired` (a merge retired it) or
   `:new` — in `total`, and again per file cash-account name (`cash_accounts`)
   and per file depot name (`depots`), where a row counts under every name it
@@ -364,7 +366,7 @@ defmodule Portfolixir.Imports.Applier do
       hash = Map.get(hashes, entry)
 
       cond do
-        skip_unimportable?(entry) -> :unimportable
+        unimportable(entry) != nil -> :unimportable
         hash != nil and MapSet.member?(held, hash) -> :hash
         hash != nil and MapSet.member?(retired, hash) -> :retired
         true -> :new
@@ -749,33 +751,44 @@ defmodule Portfolixir.Imports.Applier do
   end
 
   # Kinds that move shares but settle no cash, so they legitimately carry no
-  # gross_amount. Everything else (except balance_adjustment, whose amount is an
-  # absolute balance) needs a positive gross_amount.
+  # gross_amount. Every other importable kind needs a positive gross_amount.
   @cashless_kinds ~w(inbound_delivery outbound_delivery security_transfer)
+
+  # The kinds a Portfolio Performance export carries — the parsers map to no
+  # other. A balance anchor or a split is never imported (ADR-0050 §1): an
+  # entry of any other kind is a reported skip, never a row and never a crash.
+  @importable_kinds ~w(buy sell dividend interest deposit removal fee tax tax_refund
+                       cash_transfer inbound_delivery outbound_delivery security_transfer)
 
   # The order of the checks is the re-import contract (ADR-0050 §2, §3): an
   # unimportable row first, then the content hash — held by a transaction or
   # retired by a merge — before anything resolves or is created.
   defp process_entry(%Entry{} = entry, state) do
-    if skip_unimportable?(entry) do
+    case unimportable(entry) do
       # A degenerate row (e.g. a 0 EUR tax line) can't become a valid
       # transaction, but it must not abort the whole atomic import (#482).
       # Skip it and report it; genuine changeset failures still roll back.
-      reason = "skipped: zero or missing gross_amount for #{entry.kind}"
-      {:ok, record_skip(state, entry, reason)}
-    else
-      import_hash = compute_hash(entry, state.portfolio_id)
+      reason when is_binary(reason) ->
+        {:ok, record_skip(state, entry, reason)}
 
-      case hash_layer(import_hash) do
-        nil -> do_process_entry(entry, import_hash, state)
-        layer -> {:ok, record_duplicate(state, entry, layer)}
-      end
+      nil ->
+        import_hash = compute_hash(entry, state.portfolio_id)
+
+        case hash_layer(import_hash) do
+          nil -> do_process_entry(entry, import_hash, state)
+          layer -> {:ok, record_duplicate(state, entry, layer)}
+        end
     end
   end
 
-  defp skip_unimportable?(%Entry{kind: kind, gross_amount: amount}) do
-    kind not in @cashless_kinds and kind != "balance_adjustment" and
-      (is_nil(amount) or Decimal.compare(amount, Decimal.new(0)) != :gt)
+  # Why an entry can never become a transaction, or nil.
+  defp unimportable(%Entry{kind: kind}) when kind not in @importable_kinds,
+    do: "skipped: #{kind} is never imported"
+
+  defp unimportable(%Entry{kind: kind, gross_amount: amount}) do
+    if kind not in @cashless_kinds and
+         (is_nil(amount) or Decimal.compare(amount, Decimal.new(0)) != :gt),
+       do: "skipped: zero or missing gross_amount for #{kind}"
   end
 
   # `:hash` when a transaction holds the hash (an exact re-insert, or an exact
