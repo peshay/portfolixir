@@ -250,24 +250,29 @@ jobs:
           persist-credentials: false
 
       # Applied migrations are immutable (see the migration-roundtrip job): an
-      # already-merged migration must never be edited or deleted, only new ones
-      # added. --diff-filter=MD lists files that this branch Modified or
-      # Deleted under priv/repo/migrations/; any such file fails the gate.
+      # already-merged migration must never change in any way, only new ones
+      # be added. --no-renames reports a moved or renamed file as a deletion
+      # plus an addition, and --diff-filter=a lists every status except
+      # Added -- a modification, a deletion, a mode or type change -- so the
+      # only change the gate lets through under priv/repo/migrations/ is a new
+      # file. (F55: the former allow-list, --diff-filter=MD with rename
+      # detection on, passed a renamed-and-edited migration as a rename.)
+      # ci_test runs this script against a scratch repository.
       # The base is the pull request's base commit, an immutable SHA handed to
       # the script through env: a context expression inside `run:` is pasted
       # into the script as shell text before bash reads it (F61).
-      - name: Reject edits or deletions of existing migrations
+      - name: Reject any change to an existing migration
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           git cat-file -e "${BASE_SHA:?no pull request base commit}^{commit}"
-          changed="$(git diff --diff-filter=MD --name-only "$BASE_SHA"...HEAD -- priv/repo/migrations/)"
+          changed="$(git diff --no-renames --diff-filter=a --name-status "$BASE_SHA"...HEAD -- priv/repo/migrations/)"
           if [ -n "$changed" ]; then
-            echo "Applied migrations are immutable; the following existing files were modified or deleted:"
+            echo "Applied migrations are immutable; only new files may be added. These existing files changed:"
             echo "$changed"
             exit 1
           fi
-          echo "No existing migration was modified or deleted."
+          echo "No existing migration was changed."
 
   migration-roundtrip:
     runs-on: ubuntu-latest
