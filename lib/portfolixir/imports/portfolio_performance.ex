@@ -30,15 +30,25 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
 
   @spec parse(binary(), keyword()) :: {:ok, Preview.t()} | {:error, term()}
   def parse(body, opts \\ []) when is_binary(body) do
-    case detect_format(body, Keyword.get(opts, :filename)) do
-      :json -> JsonParser.parse(body, opts)
-      :csv -> CsvParser.parse(body, opts)
-      :unknown -> {:error, :unknown_format}
+    # E25 S5 (F34): a body that is not UTF-8 is a named file error before any
+    # row is read, so no cell of it can reach the preview the page parks.
+    if String.valid?(body) do
+      parse_valid(body, opts)
+    else
+      {:error, :invalid_encoding}
     end
   rescue
     # The parsers run in the operator's LiveView process; untrusted input
     # must never reach that process boundary as an exception (#768).
     _exception -> {:error, :malformed_payload}
+  end
+
+  defp parse_valid(body, opts) do
+    case detect_format(body, Keyword.get(opts, :filename)) do
+      :json -> JsonParser.parse(body, opts)
+      :csv -> CsvParser.parse(body, opts)
+      :unknown -> {:error, :unknown_format}
+    end
   end
 
   # The text of an entry the ledger stores, each with the rule its column

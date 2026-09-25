@@ -121,6 +121,46 @@ defmodule Portfolixir.Imports.ParserRobustnessTest do
              PortfolioPerformance.parse(json(txs), filename: "big.json")
   end
 
+  # User story (E25 S5, F34):
+  # As an operator dropping an export that was saved in another encoding,
+  # I want the file refused with a named file error before anything is parked,
+  # so that the import page stays usable and says how to fix the file.
+  #
+  # Acceptance criteria:
+  # - A body with bytes that are not UTF-8, in any cell of a CSV or anywhere
+  #   in a JSON export, is refused as {:error, :invalid_encoding}.
+  # - A UTF-8 body, with or without a byte-order mark, still parses.
+  test "a body that is not UTF-8 is refused with a named file error" do
+    for cell <- ["Wertpapier", "Quelle", "Typ"] do
+      row =
+        case cell do
+          "Wertpapier" ->
+            <<"2024-01-16 10:01:00;Kauf;Synthetic M", 0xFC,
+              "nchen AG;10;150,25;1.502,50;2,50;;1.502,50;Test-Depot;Test-Cash;;">>
+
+          "Quelle" ->
+            <<"2024-01-16 10:01:00;Kauf;Synthetic AG;10;150,25;1.502,50;2,50;;1.502,50;Test-Depot;Test-Cash;;M",
+              0xFC, "nchen">>
+
+          "Typ" ->
+            <<"2024-01-16 10:01:00;K", 0xE4,
+              "uf;Synthetic AG;10;150,25;1.502,50;2,50;;1.502,50;Test-Depot;Test-Cash;;">>
+        end
+
+      assert {:error, :invalid_encoding} =
+               PortfolioPerformance.parse(csv([@csv_ok, row]), filename: "latin1.csv"),
+             cell
+    end
+
+    body =
+      <<(~s({"version":1,"transactions":[{"type":"DEPOSIT","note":"M)), 0xFC, ~s(nchen"}]})>>
+
+    assert {:error, :invalid_encoding} = PortfolioPerformance.parse(body, filename: "x.json")
+
+    assert {:ok, %Preview{entries: [_]}} =
+             PortfolioPerformance.parse("\uFEFF" <> csv([@csv_ok]), filename: "bom.csv")
+  end
+
   test "a version-1 payload whose transactions are not a list is malformed, and a BOM is not a column" do
     assert {:error, :malformed_payload} =
              PortfolioPerformance.parse(~s({"version":1,"transactions":"x"}), filename: "x.json")
