@@ -2030,6 +2030,15 @@ abfragbar (siehe [API und MCP](integration/api-and-mcp.html)). Es deckt derzeit
 Wertpapier-Stammdaten ab; die übrigen Schreibbereiche folgen nacheinander. Eine
 eigene Ansicht in der App ist als Folgeschritt geplant.
 
+Das Löschen eines Geldkontos, eines Depots oder eines Wertpapiers nimmt nie
+stillschweigend etwas mit (ADR-0050 §11). Eine Zeile, auf die noch Buchungen
+verweisen — bei einem Wertpapier auch Kurse, Recherche-Notizen oder
+Ereignisse —, wird gar nicht gelöscht: Der Weg ist dann, sie mit der Zeile
+zusammenzuführen, die bleibt. Bei einer unreferenzierten Zeile werden
+Bucket-Verknüpfungen, Positions-Overrides und Kategorie-Zuordnungen vorher
+entfernt, jeweils über ihren eigenen journalisierten Schreibpfad, sodass das
+Journal jede Mitgliedschaft zeigt, die das Löschen beendet hat.
+
 ## Heutige Nicht-Ziele
 
 - Kein automatischer Handel und keine Orderausführung.

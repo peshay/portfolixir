@@ -113,8 +113,10 @@ defmodule Portfolixir.Journal.AppendOnlyTest do
         assert body == "a finding that must never vanish"
 
         # A security carrying log entries cannot be deleted either: the log
-        # would vanish with it (ADR-0044 §3), so the FK restricts.
-        assert {:error, %Ecto.Changeset{}} = Catalog.delete_security(actor, security)
+        # would vanish with it (ADR-0044 §3), so the FK restricts and the
+        # hardened delete (ADR-0050 §11) names the reference, counted.
+        assert {:error, {:referenced, %{"security_notes" => 1}}} =
+                 Catalog.delete_security(actor, security)
 
         # Test hygiene only: the append-only triggers are dropped for THIS
         # connection's cleanup and re-created — production never does this.

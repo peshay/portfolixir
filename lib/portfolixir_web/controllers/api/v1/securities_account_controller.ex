@@ -5,6 +5,7 @@ defmodule PortfolixirWeb.Api.V1.SecuritiesAccountController do
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.ReferencedConflict
 
   def index(conn, _params) do
     json(conn, %{
@@ -61,9 +62,17 @@ defmodule PortfolixirWeb.Api.V1.SecuritiesAccountController do
     with {:ok, sid} <- IdParam.parse(id),
          %SecuritiesAccount{} = account <- Portfolios.get_securities_account(sid) do
       case Portfolios.delete_securities_account(conn.assigns.actor, account) do
-        {:ok, _} -> send_resp(conn, :no_content, "")
-        {:error, :referenced} -> conflict(conn)
-        {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
+        {:ok, _} ->
+          send_resp(conn, :no_content, "")
+
+        {:error, {:referenced, referenced_by}} ->
+          ReferencedConflict.render(conn, account, referenced_by)
+
+        {:error, :not_found} ->
+          not_found(conn)
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          unprocessable(conn, JSON.errors(changeset))
       end
     else
       nil -> not_found(conn)
@@ -93,11 +102,5 @@ defmodule PortfolixirWeb.Api.V1.SecuritiesAccountController do
     conn
     |> put_status(:not_found)
     |> json(%{errors: %{detail: "not found"}})
-  end
-
-  defp conflict(conn) do
-    conn
-    |> put_status(:conflict)
-    |> json(%{errors: %{detail: "securities account is referenced by existing records"}})
   end
 end

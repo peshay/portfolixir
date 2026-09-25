@@ -6,7 +6,7 @@ defmodule Portfolixir.Portfolios do
   alias Ecto.Multi
   alias Portfolixir.Actor
   alias Portfolixir.Journal
-  alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Lifecycle.Delete
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.SecuritiesAccount
@@ -234,34 +234,17 @@ defmodule Portfolixir.Portfolios do
   end
 
   @doc """
-  Deletes a cash account on behalf of `actor`. All account FKs are
-  `on_delete: :restrict`, so an account still referenced by a transaction or a
-  securities account cannot be removed; this returns `{:error, :referenced}`
-  instead of raising. The deletion is journaled with the full `before` snapshot.
+  Deletes a cash account on behalf of `actor`, through the hardened delete
+  path of ADR-0050 §11 (`Portfolixir.Lifecycle.Delete`): the row is locked
+  `FOR UPDATE`; an account a transaction references through either leg, or a
+  depot links to, answers `{:error, {:referenced, referenced_by}}` (the
+  referencing tables, counted) and is left alone — merging it is the remedy;
+  otherwise its bucket links are removed through `Buckets`, journaled, and the
+  deletion is journaled with the full `before` snapshot. A vanished account
+  answers `{:error, :not_found}`.
   """
   def delete_cash_account(%Actor{} = actor, %CashAccount{} = cash_account) do
-    if cash_account_referenced?(cash_account.id) do
-      {:error, :referenced}
-    else
-      Multi.new()
-      |> Multi.delete(:cash_account, cash_account)
-      |> Journal.record(actor,
-        resource_type: "cash_account",
-        operation: :delete,
-        source: :cash_account,
-        before: cash_account
-      )
-      |> Repo.transaction()
-      |> account_write_result(:cash_account)
-    end
-  end
-
-  defp cash_account_referenced?(id) do
-    Repo.exists?(
-      from(t in Transaction,
-        where: t.cash_account_id == ^id or t.counter_cash_account_id == ^id
-      )
-    ) or Repo.exists?(from(s in SecuritiesAccount, where: s.cash_account_id == ^id))
+    Delete.delete(actor, cash_account)
   end
 
   def list_securities_accounts do
@@ -329,33 +312,16 @@ defmodule Portfolixir.Portfolios do
   end
 
   @doc """
-  Deletes a securities account on behalf of `actor`. Its FKs are
-  `on_delete: :restrict`, so an account still referenced by a transaction cannot
-  be removed; this returns `{:error, :referenced}` instead of raising. The
-  deletion is journaled with the full `before` snapshot.
+  Deletes a securities account (depot) on behalf of `actor`, through the
+  hardened delete path of ADR-0050 §11 (`Portfolixir.Lifecycle.Delete`): the
+  row is locked `FOR UPDATE`; a depot a transaction references through either
+  leg answers `{:error, {:referenced, referenced_by}}` and is left alone —
+  merging it is the remedy; otherwise its default buckets (one aggregate
+  entry) and its position overrides (one entry per position) are removed
+  through `Buckets`, journaled, and the deletion is journaled with the full
+  `before` snapshot. A vanished depot answers `{:error, :not_found}`.
   """
   def delete_securities_account(%Actor{} = actor, %SecuritiesAccount{} = securities_account) do
-    if securities_account_referenced?(securities_account.id) do
-      {:error, :referenced}
-    else
-      Multi.new()
-      |> Multi.delete(:securities_account, securities_account)
-      |> Journal.record(actor,
-        resource_type: "securities_account",
-        operation: :delete,
-        source: :securities_account,
-        before: securities_account
-      )
-      |> Repo.transaction()
-      |> account_write_result(:securities_account)
-    end
-  end
-
-  defp securities_account_referenced?(id) do
-    Repo.exists?(
-      from(t in Transaction,
-        where: t.securities_account_id == ^id or t.counter_securities_account_id == ^id
-      )
-    )
+    Delete.delete(actor, securities_account)
   end
 end

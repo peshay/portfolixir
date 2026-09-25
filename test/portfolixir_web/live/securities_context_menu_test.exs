@@ -243,6 +243,91 @@ defmodule PortfolixirWeb.SecuritiesContextMenuTest do
     assert html =~ ~s(phx-value-action="retire")
   end
 
+  # User story (ADR-0050 §11):
+  # As the operator deleting a security from its row menu,
+  # I want the security's category assignments removed through their
+  # journaled writer before the security goes,
+  # so that the screen's delete leaves the same audit record as the API's —
+  # no classification loses a member silently.
+  #
+  # Acceptance criteria:
+  # - Delete on a security with a category assignment removes both.
+  # - The assignment's removal is journaled under the operator, before the
+  #   security's own delete entry.
+  test "Delete removes the security's category assignment through its journaled writer",
+       %{conn: conn} do
+    sec = create_security!()
+    actor = Portfolixir.Actor.owner_ui()
+
+    {:ok, strategy} =
+      Portfolixir.Classifications.create_classification(actor, %{name: "Strategy"})
+
+    {:ok, core} =
+      Portfolixir.Classifications.create_category(actor, %{
+        classification_id: strategy.id,
+        name: "Core"
+      })
+
+    {:ok, _} = Portfolixir.Classifications.assign_security(actor, sec.id, strategy.id, core.id)
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    view
+    |> element(~s(#securities-table button[phx-click="open_row_menu"][phx-value-id="#{sec.id}"]))
+    |> render_click()
+
+    view
+    |> element(~s(button[phx-value-action="delete"][phx-value-id="#{sec.id}"]))
+    |> render_click()
+
+    assert is_nil(Repo.get(Security, sec.id))
+
+    assert [removal] =
+             Portfolixir.Journal.list_entries(
+               resource_type: "security_category_assignment",
+               operation: :delete
+             )
+             |> Enum.filter(&(&1.before["security_id"] == sec.id))
+
+    assert removal.actor_type == :owner_ui
+
+    assert [row_delete] =
+             Portfolixir.Journal.list_entries(
+               resource_type: "security",
+               operation: :delete,
+               resource_id: to_string(sec.id)
+             )
+
+    assert removal.id < row_delete.id
+  end
+
+  # User story:
+  # As the operator deleting a security the agent deleted a moment earlier,
+  # I want the screen to take it in its stride,
+  # so that a stale row neither crashes the page nor claims the security is
+  # still referenced.
+  #
+  # Acceptance criteria:
+  # - Delete on a row whose security has vanished shows no "Cannot delete"
+  #   dialog and the page stays up.
+  test "Delete of a security removed elsewhere shows no blocked dialog", %{conn: conn} do
+    sec = create_security!()
+    {:ok, view, _html} = live(conn, "/securities")
+
+    view
+    |> element(~s(#securities-table button[phx-click="open_row_menu"][phx-value-id="#{sec.id}"]))
+    |> render_click()
+
+    {:ok, _} = Catalog.delete_security(Portfolixir.Actor.api_token_rw("synthetic-agent"), sec)
+
+    view
+    |> element(~s(button[phx-value-action="delete"][phx-value-id="#{sec.id}"]))
+    |> render_click()
+
+    refute has_element?(view, "#delete-blocked-dialog")
+    assert render(view) =~ "securities-table"
+  end
+
   test "Close menu event clears the open menu state", %{conn: conn} do
     sec = create_security!()
     {:ok, view, _html} = live(conn, "/securities")

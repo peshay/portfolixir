@@ -591,7 +591,12 @@ defmodule PortfolixirWeb.ApiV1Test do
       |> delete("/api/v1/securities/#{security.id}")
       |> json_response(409)
 
-    assert conflict == %{"errors" => %{"detail" => "security is referenced by existing records"}}
+    # ADR-0050 §11: the 409 counts what references the security and names
+    # the merge that would carry it.
+    assert %{"errors" => %{"detail" => detail, "referenced_by" => referenced_by}} = conflict
+    assert detail =~ "security is referenced by existing records"
+    assert referenced_by == %{"security_quotes" => 1}
+    assert conflict["errors"]["remedy"] == "merge"
     assert Catalog.get_security(security.id)
     assert [%{close: close}] = Quotes.range(security.id, ~D[2026-05-01], ~D[2026-05-31])
     assert Decimal.equal?(close, Decimal.new("43.75"))
@@ -1030,17 +1035,27 @@ defmodule PortfolixirWeb.ApiV1Test do
 
     assert renamed_depot["name"] == "Main Depot"
 
-    assert conn
-           |> api_conn()
-           |> delete("/api/v1/securities_accounts/#{depot.id}")
-           |> json_response(409) ==
-             %{"errors" => %{"detail" => "securities account is referenced by existing records"}}
+    # ADR-0050 §11: the 409 counts what references the account and names the
+    # merge preview as the remedy.
+    assert %{"errors" => depot_conflict} =
+             conn
+             |> api_conn()
+             |> delete("/api/v1/securities_accounts/#{depot.id}")
+             |> json_response(409)
 
-    assert conn
-           |> api_conn()
-           |> delete("/api/v1/cash_accounts/#{cash.id}")
-           |> json_response(409) ==
-             %{"errors" => %{"detail" => "cash account is referenced by existing records"}}
+    assert depot_conflict["detail"] =~ "securities account is referenced by existing records"
+    assert depot_conflict["referenced_by"] == %{"transactions" => 1}
+    assert depot_conflict["remedy"] == "merge"
+
+    assert %{"errors" => cash_conflict} =
+             conn
+             |> api_conn()
+             |> delete("/api/v1/cash_accounts/#{cash.id}")
+             |> json_response(409)
+
+    assert cash_conflict["detail"] =~ "cash account is referenced by existing records"
+    assert cash_conflict["referenced_by"] == %{"transactions" => 1, "securities_accounts" => 1}
+    assert cash_conflict["remedy"] == "merge"
 
     {:ok, spare} =
       Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
@@ -1548,7 +1563,8 @@ defmodule PortfolixirWeb.ApiV1Test do
       |> delete("/api/v1/securities/#{protected_security.id}")
       |> json_response(409)
 
-    assert conflict == %{"errors" => %{"detail" => "security is referenced by existing records"}}
+    assert conflict["errors"]["detail"] =~ "security is referenced by existing records"
+    assert conflict["errors"]["referenced_by"] == %{"transactions" => 1}
     assert Catalog.get_security(protected_security.id)
 
     conn = build_conn() |> api_conn() |> delete("/api/v1/securities/#{security.id}")

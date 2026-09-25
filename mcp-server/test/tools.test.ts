@@ -1404,6 +1404,37 @@ describe("Portfolixir MCP tools", () => {
     });
   });
 
+  // ADR-0050 §11 (#831's lesson: agents read descriptions, not docs): the
+  // three lifecycle deletes say what a referenced row answers — the counted
+  // referenced_by, the remedy and its route — and that the memberships an
+  // unreferenced row carries are removed journaled, never by a cascade.
+  it("states the hardened delete answer on the three lifecycle delete tools", () => {
+    const tools = listTools();
+    const describe = (name: string) => tools.find((tool) => tool.name === name)?.description ?? "";
+
+    const cash = describe("portfolixir.cash_accounts.delete");
+    assert.match(cash, /either leg/);
+    assert.match(cash, /referenced_by/);
+    assert.match(cash, /remedy "merge"/);
+    assert.match(cash, /GET \/api\/v1\/cash_accounts\/:id\/merge_preview\?target_id=/);
+    assert.match(cash, /bucket links are removed first, journaled/);
+
+    const depot = describe("portfolixir.securities_accounts.delete");
+    assert.match(depot, /either leg/);
+    assert.match(depot, /referenced_by/);
+    assert.match(depot, /remedy "merge"/);
+    assert.match(depot, /GET \/api\/v1\/securities_accounts\/:id\/merge_preview\?target_id=/);
+    assert.match(depot, /position overrides are removed first, journaled/);
+
+    const security = describe("portfolixir.securities.delete");
+    assert.match(security, /referenced_by/);
+    assert.match(security, /GET \/api\/v1\/securities\/:id\/merge_preview\?target_id=/);
+    assert.match(security, /retire/);
+    assert.match(security, /policy_rules/);
+    assert.match(security, /category assignments, position targets, position bucket overrides/);
+    assert.match(security, /no cascade/);
+  });
+
   it("routes update/delete tools to PATCH/DELETE on the right paths", async () => {
     const { client, requests } = createRecordingClient({ data: { id: 1 } });
 

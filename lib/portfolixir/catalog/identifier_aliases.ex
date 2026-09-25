@@ -129,7 +129,8 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
 
   @doc """
   Deletes all alias rows of a security, journaled per row — used by the
-  security delete path so the FK cascade stays a silent backstop only.
+  hardened security delete path (`Portfolixir.Lifecycle.Delete`, ADR-0050
+  §11). The foreign key restricts, so no cascade removes an alias silently.
   """
   def delete_all_for_security(%Actor{} = actor, security_id) when is_integer(security_id) do
     Repo.transaction(fn ->

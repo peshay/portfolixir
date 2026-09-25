@@ -205,10 +205,13 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventControllerTest do
     security = create_security!(name: "Calendar Co", ticker: "CAL")
     event = event!(security, %{})
 
-    assert conn
-           |> delete("/api/v1/securities/#{security.id}")
-           |> json_response(409) ==
-             %{"errors" => %{"detail" => "security is referenced by existing records"}}
+    assert %{"errors" => errors} =
+             conn
+             |> delete("/api/v1/securities/#{security.id}")
+             |> json_response(409)
+
+    assert errors["detail"] =~ "security is referenced by existing records"
+    assert errors["referenced_by"] == %{"security_events" => 1}
 
     assert Catalog.get_security(security.id)
     assert Events.get_event(event.id)
