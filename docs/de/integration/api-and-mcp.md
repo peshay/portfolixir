@@ -1198,7 +1198,12 @@ Beispiel-Payloads für Konten:
   Gesamt). Jedes `target_weight` ist ein String-Bruch in `[0, 1]`; Ziele müssen
   sich nicht zu `1` summieren. Nur die übergebenen Kategorien werden geändert.
   Eine Kategorie aus einem anderen Baum liefert `422 Unprocessable Entity`, und
-  eine unbekannte Klassifizierung liefert `404 Not Found`.
+  eine unbekannte Klassifizierung liefert `404 Not Found`. Ein Stapel nennt jede
+  Kategoriezeile einmal und trägt höchstens eine Zeile je Kategorie und eine je
+  in der Klassifizierung zugeordnetem Wertpapier, nie mehr als `10000` Zeilen;
+  eine wiederholte Kategoriezeile oder ein größerer Stapel liefert `422`
+  (`errors.detail` nennt die Kategorie, `errors.targets` die Grenze) und
+  schreibt nichts.
 - `DELETE /api/v1/portfolios/:portfolio_id/targets/:category_id` entfernt das
   Zielgewicht eines Portfolios für eine Kategorie und liefert `{deleted}` (die Zahl
   der entfernten Zeilen). Optionales `view` wählt den Plan (weggelassen = Gesamt).

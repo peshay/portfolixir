@@ -883,6 +883,10 @@ const targetsSetSchema = {
     view: { type: "integer", minimum: 1 },
     targets: {
       type: "array",
+      // E25 S4, G11: the API's fixed maximum (Targets.max_batch/0); the
+      // classification's own bound is one row per category and per assigned
+      // security.
+      maxItems: 10000,
       items: {
         type: "object",
         required: ["category_id", "target_weight"],
@@ -910,6 +914,7 @@ const targetsSetZ = z.object({
       })
     )
     .min(1)
+    .max(10000)
 });
 
 const targetsDeleteSchema = {
@@ -2913,7 +2918,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.targets.set",
     "Set target weights",
-    "Upsert target weights for one portfolio and classification. Each target_weight is a string fraction in [0,1]. A target entry with only a category_id sets that category's weight; adding a security_id (ADR-0030, #481) sets a position-level weight on that security under the category (the security must sit under it). Category and position rows coexist; a category's effective target rolls up from its positions. A plan carries at most one position row per security (filing it under a second category, or twice in one batch, is rejected). Weight sums are NOT enforced in this slice — neither per category nor per level (the 100%-per-level check is a later slice), so verify sums yourself if they matter.",
+    "Upsert target weights for one portfolio and classification. Each target_weight is a string fraction in [0,1]. A target entry with only a category_id sets that category's weight; adding a security_id (ADR-0030, #481) sets a position-level weight on that security under the category (the security must sit under it). Category and position rows coexist; a category's effective target rolls up from its positions. A plan carries at most one position row per security (filing it under a second category, or twice in one batch, is rejected), and a category row names its category once per batch; a batch carries at most one row per category and one per security assigned in the classification (and never more than 10000), otherwise a 422 names targets and nothing is written. Weight sums are NOT enforced in this slice — neither per category nor per level (the 100%-per-level check is a later slice), so verify sums yourself if they matter.",
     targetsSetSchema,
     targetsSetZ
   ),

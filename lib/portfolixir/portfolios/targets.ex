@@ -378,6 +378,10 @@ defmodule Portfolixir.Portfolios.Targets do
 
   Returns `{:ok, [%Target{}]}`, `{:error, :not_found}` (unknown classification),
   `{:error, :category_mismatch}` (a category from another tree),
+  `{:error, {:duplicate_category, category_id}}` (a category row named twice in
+  the batch), `{:error, {:too_many_targets, cap}}` (more rows than the
+  classification's categories plus its assigned securities, or than
+  `max_batch/0` — E25 S4, G11),
   `{:error, {:security_category_mismatch, security_id, category_id}}` (a
   position whose security is not under the named category — the ids identify
   the offending pair), `{:error, :invalid_security_id}` (a present but
@@ -388,9 +392,12 @@ defmodule Portfolixir.Portfolios.Targets do
   """
   def set_targets(%Actor{} = actor, portfolio_id, classification_id, entries, opts \\ [])
       when is_integer(portfolio_id) and is_integer(classification_id) and is_list(entries) do
-    with {:ok, _classification} <- fetch_classification(classification_id),
+    with :ok <- ensure_within_max_batch(entries),
+         {:ok, _classification} <- fetch_classification(classification_id),
          :ok <- ensure_entries_are_maps(entries),
          :ok <- ensure_security_ids(entries),
+         :ok <- ensure_unique_category_rows(entries),
+         :ok <- ensure_within_classification(classification_id, entries),
          :ok <- ensure_categories(classification_id, entries),
          :ok <- ensure_positions(classification_id, entries) do
       batch = fn -> run_targets_batch(actor, portfolio_id, classification_id, entries, opts) end
@@ -1000,6 +1007,55 @@ defmodule Portfolixir.Portfolios.Targets do
 
   # Each entry must be an object; a bare scalar (e.g. `targets: [1]`) is rejected
   # here so it surfaces as a 422 instead of crashing on `entry["category_id"]`.
+  # E25 S4 (G11): one request writes a bounded number of journaled rows. The
+  # fixed maximum is checked before anything is read; the classification's
+  # own bound — one row per category and one per assigned security, the most
+  # a plan can meaningfully carry — after the entries are known to be maps.
+  @max_batch 10_000
+
+  @doc "The most target rows one `set_targets/5` call accepts, whatever the tree."
+  @spec max_batch() :: pos_integer()
+  def max_batch, do: @max_batch
+
+  defp ensure_within_max_batch(entries) do
+    if length(entries) > @max_batch, do: {:error, {:too_many_targets, @max_batch}}, else: :ok
+  end
+
+  defp ensure_within_classification(classification_id, entries) do
+    count = length(entries)
+    categories = classification_id |> Classifications.list_categories() |> length()
+
+    # The assignments are read only when the categories alone do not cover
+    # the batch.
+    if count <= categories do
+      :ok
+    else
+      case Classifications.security_category_map(classification_id) do
+        {:ok, assigned} ->
+          cap = categories + map_size(assigned)
+          if count > cap, do: {:error, {:too_many_targets, cap}}, else: :ok
+
+        {:error, :not_found} = error ->
+          error
+      end
+    end
+  end
+
+  # A category row (no security_id) names its category once per batch, as a
+  # position row names its security once (E25 S4, G11).
+  defp ensure_unique_category_rows(entries) do
+    entries
+    |> Enum.reject(&position_entry?/1)
+    |> Enum.map(&normalize_id(&1["category_id"] || &1[:category_id]))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.frequencies()
+    |> Enum.find(fn {_category_id, count} -> count > 1 end)
+    |> case do
+      nil -> :ok
+      {category_id, _count} -> {:error, {:duplicate_category, category_id}}
+    end
+  end
+
   defp ensure_entries_are_maps(entries) do
     if Enum.all?(entries, &is_map/1), do: :ok, else: {:error, :invalid_entry}
   end
