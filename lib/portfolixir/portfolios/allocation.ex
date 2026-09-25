@@ -195,7 +195,7 @@ defmodule Portfolixir.Portfolios.Allocation do
   """
   @spec cash_weight(integer(), keyword()) :: map() | {:error, :view_not_found}
   def cash_weight(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
-    with %{} = valuation <- Valuation.for_portfolio(portfolio_id, opts) do
+    with %{} = valuation <- given_or_valued(portfolio_id, opts) do
       total = Decimal.add(valuation.total_value, valuation.counting_cash)
       %{actual_weight: weight(valuation.counting_cash, total), total_value: total}
     end
@@ -206,7 +206,8 @@ defmodule Portfolixir.Portfolios.Allocation do
 
   Options are passed through to `Valuation.for_portfolio/2` (e.g. `:prices`,
   `:base_currency`, and `:pricing_context` — the one pricing pass a caller
-  computing both a total and its drift shares between them, ADR-0035).
+  computing both a total and its drift shares between them, ADR-0035), or
+  `:valuation`, the scope's valuation when the caller already holds it.
   `:view` (a `%View{}`, a view id, or `nil` = Gesamt) scopes
   **both** the IST valuation (#444) and the SOLL plan (ADR-0020): only the
   addressed view's `(view, classification)` plan is loaded. Returns
@@ -226,7 +227,7 @@ defmodule Portfolixir.Portfolios.Allocation do
 
         # A vanished view degrades to `{:error, :view_not_found}` (fix round)
         # instead of raising out of an async render or API request.
-        with %{} = valuation <- Valuation.for_portfolio(portfolio_id, opts) do
+        with %{} = valuation <- given_or_valued(portfolio_id, opts) do
           soll =
             plan_soll(portfolio_id, classification_id, view, security_categories, categories)
 
@@ -236,6 +237,12 @@ defmodule Portfolixir.Portfolios.Allocation do
         end
     end
   end
+
+  # A caller that already valued this scope passes it as `:valuation` (the
+  # findings read values its context once, E25 S4); it must be the valuation
+  # `:view` names.
+  defp given_or_valued(portfolio_id, opts),
+    do: Keyword.get_lazy(opts, :valuation, fn -> Valuation.for_portfolio(portfolio_id, opts) end)
 
   # The SOLL side is the active view's plan only (ADR-0020). A view "has a plan"
   # for this surface when it carries a `(view, classification)` category plan OR
