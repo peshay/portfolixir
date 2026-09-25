@@ -10,9 +10,10 @@ defmodule Portfolixir.Imports.Applier do
   Idempotency: each entry receives a deterministic SHA-256
   `import_hash` derived from its stable identity (kind, date, security
   ISIN-or-name, quantity, gross amount, PP account names, target
-  portfolio id). The `transactions.import_hash` unique partial index
-  rejects re-inserts; the applier counts those as `skipped_duplicates`
-  and continues.
+  portfolio id) by `Portfolixir.Imports.ImportHash`, injective since E25 S5
+  (F36) with every stored hash still valid. The `transactions.import_hash`
+  unique partial index rejects re-inserts; the applier counts those as
+  `skipped_duplicates` and continues.
 
   The re-import contract (ADR-0050 §2–§6) fixes the order of the checks:
 
@@ -114,6 +115,7 @@ defmodule Portfolixir.Imports.Applier do
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Fx
   alias Portfolixir.Imports.Entry
+  alias Portfolixir.Imports.ImportHash
   alias Portfolixir.Imports.Preview
   alias Portfolixir.Imports.SecurityResolver
   alias Portfolixir.Journal
@@ -372,30 +374,46 @@ defmodule Portfolixir.Imports.Applier do
     |> Enum.reduce(acc, fn name, acc -> Map.update(acc, name, bump.(empty), bump) end)
   end
 
-  # One query per layer over the whole file, instead of one per row.
+  # One query per layer over the whole file, instead of one per row. A row
+  # whose fields carry the hash's separator also consults the hash the
+  # Sprint 15 formula gave it (E25 S5, F36), as the apply does.
   defp row_layers(flat_entries, portfolio_id) do
     hashes =
       if is_integer(portfolio_id),
-        do: Map.new(flat_entries, &{&1, compute_hash(&1, portfolio_id)}),
+        do: Map.new(flat_entries, &{&1, ImportHash.compute(&1, portfolio_id)}),
         else: %{}
 
-    held = held_hashes(Transaction, Map.values(hashes))
-    retired = held_hashes(RetiredImportHash, Map.values(hashes))
+    legacy =
+      if is_integer(portfolio_id),
+        do:
+          for(
+            entry <- flat_entries,
+            hash = ImportHash.legacy(entry, portfolio_id),
+            hash != nil,
+            into: %{},
+            do: {entry, hash}
+          ),
+        else: %{}
+
+    lookups = Map.values(hashes) ++ Map.values(legacy)
+    held = held_hashes(Transaction, lookups)
+    retired = held_hashes(RetiredImportHash, lookups)
 
     # `{layer, key}`: the key finds a repeat inside the file, and stands in
     # for the hash with no portfolio yet (no real portfolio has id 0).
     fn entry ->
       hash = Map.get(hashes, entry)
+      hashes_of_row = Enum.reject([hash, Map.get(legacy, entry)], &is_nil/1)
 
       layer =
         cond do
           unimportable(entry) != nil -> :unimportable
-          hash != nil and MapSet.member?(held, hash) -> :hash
-          hash != nil and MapSet.member?(retired, hash) -> :retired
+          Enum.any?(hashes_of_row, &MapSet.member?(held, &1)) -> :hash
+          Enum.any?(hashes_of_row, &MapSet.member?(retired, &1)) -> :retired
           true -> :new
         end
 
-      {layer, hash || compute_hash(entry, 0)}
+      {layer, hash || ImportHash.compute(entry, 0)}
     end
   end
 
@@ -797,9 +815,9 @@ defmodule Portfolixir.Imports.Applier do
         {:ok, record_skip(state, entry, reason)}
 
       nil ->
-        import_hash = compute_hash(entry, state.portfolio_id)
+        import_hash = ImportHash.compute(entry, state.portfolio_id)
 
-        case hash_layer(import_hash) do
+        case hash_layer(import_hash, ImportHash.legacy(entry, state.portfolio_id)) do
           nil -> do_process_entry(entry, import_hash, state)
           layer -> {:ok, record_duplicate(state, entry, layer)}
         end
@@ -819,10 +837,16 @@ defmodule Portfolixir.Imports.Applier do
   # `:hash` when a transaction holds the hash (an exact re-insert, or an exact
   # duplicate earlier in this file: the query sees this transaction's own
   # inserts), `:retired` when a merge removed the row that held it (§3).
-  defp hash_layer(import_hash) do
+  #
+  # A row whose fields carry the hash's separator is also looked up by the
+  # hash the Sprint 15 formula gave it (E25 S5, F36): a row stored before the
+  # hash became injective keeps being recognised, so nothing books twice.
+  defp hash_layer(import_hash, legacy_hash) do
+    hashes = Enum.reject([import_hash, legacy_hash], &is_nil/1)
+
     cond do
-      Repo.exists?(from(t in Transaction, where: t.import_hash == ^import_hash)) -> :hash
-      Repo.exists?(from(r in RetiredImportHash, where: r.import_hash == ^import_hash)) -> :retired
+      Repo.exists?(from(t in Transaction, where: t.import_hash in ^hashes)) -> :hash
+      Repo.exists?(from(r in RetiredImportHash, where: r.import_hash in ^hashes)) -> :retired
       true -> nil
     end
   end
@@ -1037,23 +1061,26 @@ defmodule Portfolixir.Imports.Applier do
   # reaches it, because a security no inserted row needs would be exactly the
   # duplicate the hash-first order prevents. A mapping of a key the file does
   # not carry is not executed.
+  #
+  # One key standing for two references of the file fails closed (E25 S5,
+  # F36): the apply is refused before any row, never decided twice.
   defp execute_security_mappings(flat_entries, state) do
-    flat_entries
-    |> Enum.flat_map(&keyed_ref/1)
-    |> Enum.uniq_by(fn {key, _ref} -> key end)
-    |> Enum.reduce_while({:ok, state}, fn {key, ref}, {:ok, state} ->
-      case execute_security_mapping(ref, key, Map.get(state.security_mappings, key), state) do
-        {:ok, state} -> {:cont, {:ok, state}}
-        {:error, _} = error -> {:halt, error}
-      end
-    end)
+    with {:ok, keyed} <-
+           flat_entries |> Enum.flat_map(&file_ref/1) |> SecurityResolver.unique_keys() do
+      Enum.reduce_while(keyed, {:ok, state}, fn {key, ref}, {:ok, state} ->
+        case execute_security_mapping(ref, key, Map.get(state.security_mappings, key), state) do
+          {:ok, state} -> {:cont, {:ok, state}}
+          {:error, _} = error -> {:halt, error}
+        end
+      end)
+    end
   end
 
-  defp keyed_ref(%Entry{security: nil}), do: []
+  defp file_ref(%Entry{security: nil}), do: []
 
-  defp keyed_ref(%Entry{} = entry) do
+  defp file_ref(%Entry{} = entry) do
     ref = SecurityResolver.effective_ref(entry)
-    if SecurityResolver.blank_ref?(ref), do: [], else: [{SecurityResolver.key(ref), ref}]
+    if SecurityResolver.blank_ref?(ref), do: [], else: [ref]
   end
 
   defp execute_security_mapping(_ref, _key, nil, state), do: {:ok, state}
@@ -1798,53 +1825,4 @@ defmodule Portfolixir.Imports.Applier do
       %Result{r | resolved_security_ids: [security_id | r.resolved_security_ids]}
     end)
   end
-
-  # SHA-256 over the stable identity fields. Same import file applied
-  # twice yields the same hash, so the unique partial index on
-  # `transactions.import_hash` rejects the second insert.
-  #
-  # The fields below must be specific enough that two genuinely
-  # distinct PP rows never collapse to the same hash. In particular
-  # `time`, `price`, `fees` and `taxes` are part of the input because
-  # the same security can legitimately be bought twice on the same
-  # day with the same quantity and gross amount but different
-  # intraday timestamps or fee structures (e.g. two trades minutes
-  # apart at slightly different prices).
-  defp compute_hash(%Entry{} = entry, portfolio_id) do
-    parts = [
-      entry.kind,
-      date_str(entry.date),
-      time_str(entry.time),
-      security_key(entry.security),
-      decimal_str(entry.quantity),
-      decimal_str(entry.price),
-      decimal_str(entry.gross_amount),
-      decimal_str(entry.fees),
-      decimal_str(entry.taxes),
-      entry.pp_portfolio_name || "",
-      entry.pp_account_name || "",
-      entry.pp_counter_portfolio_name || "",
-      entry.pp_counter_account_name || "",
-      Integer.to_string(portfolio_id)
-    ]
-
-    parts
-    |> Enum.join("|")
-    |> then(&:crypto.hash(:sha256, &1))
-    |> Base.encode16(case: :lower)
-  end
-
-  defp date_str(nil), do: ""
-  defp date_str(%Date{} = d), do: Date.to_iso8601(d)
-
-  defp time_str(nil), do: ""
-  defp time_str(%Time{} = t), do: Time.to_iso8601(t)
-
-  defp decimal_str(nil), do: ""
-  defp decimal_str(%Decimal{} = d), do: Decimal.to_string(d, :normal)
-
-  defp security_key(nil), do: ""
-  defp security_key(%{isin: isin}) when is_binary(isin) and isin != "", do: "isin:" <> isin
-  defp security_key(%{name: name}) when is_binary(name), do: "name:" <> name
-  defp security_key(_), do: ""
 end

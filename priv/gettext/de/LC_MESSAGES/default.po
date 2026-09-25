@@ -7932,3 +7932,8 @@ msgstr "Zahl %{value} ist nicht lesbar oder außerhalb des Bereichs"
 #, elixir-autogen, elixir-format
 msgid "ISIN %{isin} is not a valid ISIN (shape or check digit) — row not imported"
 msgstr "ISIN %{isin} ist keine gültige ISIN (Form oder Prüfziffer) — Zeile nicht übernommen"
+
+#: lib/portfolixir_web/live/imports_live.ex:1170
+#, elixir-autogen, elixir-format
+msgid "Two securities of this file cannot be told apart, so the import is refused. Correct them in Portfolio Performance and export again."
+msgstr "Zwei Wertpapiere dieser Datei lassen sich nicht unterscheiden, daher wird der Import abgelehnt. In Portfolio Performance korrigieren und erneut exportieren."
