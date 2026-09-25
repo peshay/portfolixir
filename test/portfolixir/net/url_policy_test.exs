@@ -157,4 +157,105 @@ defmodule Portfolixir.Net.UrlPolicyTest do
     assert UrlPolicy.check("https://[64:ff9b::5db8:d822]/x.png", @opts) == :ok
     assert UrlPolicy.check("https://198.17.0.1/x.png", @opts) == :ok
   end
+
+  # E25 S3, F32 (#888): the IANA special-purpose address registries, one row
+  # per block, each probed at its first address and at an address inside it.
+  @ipv6_special_purpose [
+    {"::1/128 loopback", ["::1"]},
+    {"::/128 unspecified", ["::"]},
+    {"::/96 IPv4-compatible (deprecated)", ["::5db8:d822", "::0808:0808"]},
+    {"64:ff9b:1::/48 local-use IPv4/IPv6 translation", ["64:ff9b:1::", "64:ff9b:1::5db8:d822"]},
+    {"100::/64 discard-only", ["100::", "100::1:2:3:4"]},
+    {"100:0:0:1::/64 dummy prefix", ["100:0:0:1::", "100:0:0:1::5"]},
+    {"2001::/23 IETF protocol assignments", ["2001::", "2001:1::1", "2001:1ff::1"]},
+    {"2001::/32 Teredo", ["2001:0:5db8:d822::1"]},
+    {"2001:2::/48 benchmarking", ["2001:2::1"]},
+    {"2001:3::/32 AMT", ["2001:3::1"]},
+    {"2001:4:112::/48 AS112-v6", ["2001:4:112::1"]},
+    {"2001:20::/28 ORCHIDv2", ["2001:20::1", "2001:2f::1"]},
+    {"2001:db8::/32 documentation", ["2001:db8::", "2001:db8:ffff::1"]},
+    {"2620:4f:8000::/48 direct delegation AS112", ["2620:4f:8000::1"]},
+    {"3fff::/20 documentation", ["3fff::", "3fff:fff::1"]},
+    {"5f00::/16 segment routing SIDs", ["5f00::1"]},
+    {"fc00::/7 unique local", ["fc00::1", "fdff::1"]},
+    {"fe80::/10 link-local", ["fe80::1", "febf::1"]},
+    {"fec0::/10 site-local (deprecated)", ["fec0::1"]},
+    {"ff00::/8 multicast", ["ff02::1", "ff0e::1"]},
+    {"outside 2000::/3", ["1234::1", "4000::1", "8000::1", "e000::1"]}
+  ]
+
+  @ipv4_special_purpose [
+    {"0.0.0.0/8 this network", ["0.0.0.0", "0.1.2.3"]},
+    {"10.0.0.0/8 private", ["10.0.0.0", "10.255.0.1"]},
+    {"100.64.0.0/10 shared address space", ["100.64.0.0", "100.127.255.254"]},
+    {"127.0.0.0/8 loopback", ["127.0.0.1", "127.255.0.1"]},
+    {"169.254.0.0/16 link-local", ["169.254.0.1", "169.254.169.254"]},
+    {"172.16.0.0/12 private", ["172.16.0.1", "172.31.255.254"]},
+    {"192.0.0.0/24 IETF protocol assignments", ["192.0.0.0", "192.0.0.9", "192.0.0.170"]},
+    {"192.0.2.0/24 documentation", ["192.0.2.0", "192.0.2.77"]},
+    {"192.31.196.0/24 AS112-v4", ["192.31.196.1"]},
+    {"192.52.193.0/24 AMT", ["192.52.193.1"]},
+    {"192.88.99.0/24 deprecated 6to4 relay anycast", ["192.88.99.1"]},
+    {"192.168.0.0/16 private", ["192.168.0.1", "192.168.255.254"]},
+    {"192.175.48.0/24 direct delegation AS112", ["192.175.48.1"]},
+    {"198.18.0.0/15 benchmarking", ["198.18.0.1", "198.19.255.254"]},
+    {"198.51.100.0/24 documentation", ["198.51.100.1"]},
+    {"203.0.113.0/24 documentation", ["203.0.113.1"]},
+    {"224.0.0.0/4 multicast", ["224.0.0.1", "239.255.255.255"]},
+    {"240.0.0.0/4 reserved", ["240.0.0.1", "255.255.255.254"]},
+    {"255.255.255.255/32 limited broadcast", ["255.255.255.255"]}
+  ]
+
+  # User story:
+  # As an operator whose instance fetches provider-supplied URLs,
+  # I want the policy to treat an address as public only when it is ordinary
+  # global unicast, in both address families,
+  # so that no special-purpose range an upstream can name is mistaken for the
+  # internet.
+  #
+  # Acceptance criteria:
+  # - Every IANA special-purpose IPv6 block and everything outside 2000::/3 is
+  #   refused; an IPv6 address counts as public only inside global unicast
+  #   and outside those blocks.
+  # - The embedded-IPv4 forms (IPv4-mapped, the well-known NAT64 prefix, 6to4)
+  #   are judged by the IPv4 address they carry.
+  # - Every IANA special-purpose IPv4 block is refused.
+  # - Ordinary global unicast in both families still passes.
+  test "every IANA special-purpose block is non-public; ordinary global unicast passes" do
+    for {block, addresses} <- @ipv6_special_purpose ++ @ipv4_special_purpose,
+        literal <- addresses do
+      {:ok, address} = :inet.parse_strict_address(String.to_charlist(literal))
+      refute UrlPolicy.public_address?(address), "#{block}: #{literal} is public"
+
+      host = if String.contains?(literal, ":"), do: "[#{literal}]", else: literal
+
+      assert {:error, {:url_not_allowed, :private_address}} =
+               UrlPolicy.check("https://#{host}/x.png", @opts),
+             "#{block}: #{literal}"
+    end
+
+    for literal <- [
+          "2606:4700::1111",
+          "2a00:1450:4001::200e",
+          "2001:200::1",
+          "2620:4f:8001::1",
+          "3fff:1000::1",
+          "::ffff:5db8:d822",
+          "64:ff9b::5db8:d822",
+          "2002:5db8:d822::1",
+          "93.184.216.34",
+          "192.0.1.1",
+          "192.0.3.1",
+          "198.51.101.1",
+          "203.0.114.1"
+        ] do
+      {:ok, address} = :inet.parse_strict_address(String.to_charlist(literal))
+      assert UrlPolicy.public_address?(address), literal
+    end
+
+    for literal <- ["::ffff:c0a8:0101", "64:ff9b::c000:0201", "2002:c633:6401::1"] do
+      {:ok, address} = :inet.parse_strict_address(String.to_charlist(literal))
+      refute UrlPolicy.public_address?(address), literal
+    end
+  end
 end

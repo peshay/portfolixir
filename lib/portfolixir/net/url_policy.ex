@@ -8,10 +8,14 @@ defmodule Portfolixir.Net.UrlPolicy do
     * the scheme is `https`, and there is no userinfo;
     * the host is present and, when an allow-list is given, on it — an exact
       entry matches that host, a `.domain` entry matches its subdomains;
-    * the host, literal or resolved, maps only to public addresses: loopback,
-      private, link-local, carrier-grade NAT, multicast, reserved, the IPv6
-      local ranges and IPv4-mapped private addresses are all refused, and one
-      bad address among several refuses the host.
+    * the host, literal or resolved, maps only to public addresses, and one
+      bad address among several refuses the host. Every block of the IANA
+      special-purpose registries is refused in both families (loopback,
+      private, link-local, carrier-grade NAT, documentation, benchmarking,
+      multicast, reserved and the rest). IPv6 is deny-by-default (E25 S3, F32):
+      an address is public only inside global unicast (`2000::/3`) and outside
+      its special-purpose blocks, and the embedded-IPv4 forms (IPv4-mapped,
+      the well-known NAT64 prefix, 6to4) are judged by the IPv4 they carry.
 
   The resolver is injectable (`:resolver` option or application config as an
   MFA) so the test suite never touches DNS. The default resolves both address
@@ -79,32 +83,46 @@ defmodule Portfolixir.Net.UrlPolicy do
   def public_address?({169, 254, _, _}), do: false
   def public_address?({172, b, _, _}) when b >= 16 and b <= 31, do: false
   def public_address?({192, 168, _, _}), do: false
-  # IETF protocol assignments and the benchmarking range are not on the internet.
-  def public_address?({192, 0, 0, _}), do: false
+  # IETF protocol assignments, the documentation ranges, the benchmarking
+  # range, the AS112 and AMT anycast blocks and the retired 6to4 relay anycast
+  # are special-purpose, not the internet (F32).
+  def public_address?({192, 0, c, _}) when c in [0, 2], do: false
+  def public_address?({192, 31, 196, _}), do: false
+  def public_address?({192, 52, 193, _}), do: false
+  def public_address?({192, 88, 99, _}), do: false
+  def public_address?({192, 175, 48, _}), do: false
   def public_address?({198, b, _, _}) when b in [18, 19], do: false
+  def public_address?({198, 51, 100, _}), do: false
+  def public_address?({203, 0, 113, _}), do: false
+  # Multicast, reserved and the limited broadcast.
   def public_address?({a, _, _, _}) when a >= 224, do: false
   def public_address?({_, _, _, _}), do: true
 
-  # IPv4-mapped (::ffff:a.b.c.d): judge the embedded IPv4 address.
-  def public_address?({0, 0, 0, 0, 0, 0xFFFF, hi, lo}),
-    do: public_address?({div(hi, 256), rem(hi, 256), div(lo, 256), rem(lo, 256)})
-
-  def public_address?({0, 0, 0, 0, 0, 0, 0, 0}), do: false
-  def public_address?({0, 0, 0, 0, 0, 0, 0, 1}), do: false
-  # The other IPv4-embedding forms are judged by the embedded address too:
-  # IPv4-compatible (::a.b.c.d), NAT64 (64:ff9b::/96) and 6to4 (2002::/16).
-  def public_address?({0, 0, 0, 0, 0, 0, hi, lo}), do: public_address?(embedded_ipv4(hi, lo))
+  # IPv6 is deny-by-default (F32). The embedded-IPv4 forms are judged by the
+  # IPv4 they carry: IPv4-mapped (::ffff:0:0/96), the well-known NAT64 prefix
+  # (64:ff9b::/96) and 6to4 (2002::/16).
+  def public_address?({0, 0, 0, 0, 0, 0xFFFF, hi, lo}), do: public_address?(embedded_ipv4(hi, lo))
 
   def public_address?({0x64, 0xFF9B, 0, 0, 0, 0, hi, lo}),
     do: public_address?(embedded_ipv4(hi, lo))
 
   def public_address?({0x2002, hi, lo, _, _, _, _, _}), do: public_address?(embedded_ipv4(hi, lo))
-  # fc00::/7 unique local, fe80::/10 link-local, fec0::/10 site-local, ff00::/8 multicast.
-  def public_address?({a, _, _, _, _, _, _, _}) when Bitwise.band(a, 0xFE00) == 0xFC00, do: false
-  def public_address?({a, _, _, _, _, _, _, _}) when Bitwise.band(a, 0xFFC0) == 0xFE80, do: false
-  def public_address?({a, _, _, _, _, _, _, _}) when Bitwise.band(a, 0xFFC0) == 0xFEC0, do: false
-  def public_address?({a, _, _, _, _, _, _, _}) when Bitwise.band(a, 0xFF00) == 0xFF00, do: false
-  def public_address?({_, _, _, _, _, _, _, _}), do: true
+
+  # Inside global unicast (2000::/3), the special-purpose blocks: IETF protocol
+  # assignments with Teredo, benchmarking, ORCHID and AMT (2001::/23), the
+  # documentation prefixes (2001:db8::/32, 3fff::/20) and the direct-delegation
+  # AS112 service (2620:4f:8000::/48).
+  def public_address?({0x2001, b, _, _, _, _, _, _}) when b <= 0x01FF, do: false
+  def public_address?({0x2001, 0x0DB8, _, _, _, _, _, _}), do: false
+  def public_address?({0x2620, 0x004F, 0x8000, _, _, _, _, _}), do: false
+  def public_address?({0x3FFF, b, _, _, _, _, _, _}) when b <= 0x0FFF, do: false
+
+  # Everything else is public only inside 2000::/3: loopback, unspecified,
+  # IPv4-compatible, the discard and dummy prefixes, the local-use NAT64
+  # prefix, segment-routing SIDs, unique-local, link-local, site-local and
+  # multicast all sit outside it.
+  def public_address?({a, _, _, _, _, _, _, _}) when Bitwise.band(a, 0xE000) == 0x2000, do: true
+  def public_address?({_, _, _, _, _, _, _, _}), do: false
 
   defp embedded_ipv4(hi, lo), do: {div(hi, 256), rem(hi, 256), div(lo, 256), rem(lo, 256)}
 
