@@ -276,6 +276,26 @@ defmodule Portfolixir.Imports.ParserRobustnessTest do
     assert message =~ "units"
   end
 
+  # User story (E25 S5 review round, F38):
+  # As the operator of an instance with a row cap,
+  # I want the cap to count the refund cell the row is built from,
+  # so that a header naming a column twice cannot hide split-off refunds.
+  #
+  # Acceptance criteria:
+  # - With a repeated tax column, the pre-count reads the same cell as the
+  #   row builder, and a file expanding past the cap is refused.
+  test "the entry cap reads the tax cell the row is built from" do
+    cap = PortfolioPerformance.max_rows()
+    rows = div(cap, 2) + 1
+
+    header = "Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Konto;Steuern"
+    row = "2024-01-02 00:00:00;Zinsen;;;;10,00;0,00;0,00;Cash;-1,00"
+    body = Enum.join([header | List.duplicate(row, rows)], "\n")
+
+    assert {:error, {:too_many_entries, n}} = PortfolioPerformance.parse(body, filename: "t.csv")
+    assert n == rows * 2
+  end
+
   # User story (E25 S5, F39):
   # As an operator importing an export with a value no ledger column holds,
   # I want that row named as a row error in the preview,

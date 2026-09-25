@@ -7,6 +7,7 @@ defmodule PortfolixirWeb.ImportsMalformedMappingTest do
   import Phoenix.LiveViewTest
 
   alias Portfolixir.Actor
+  alias Portfolixir.Imports
   alias Portfolixir.Imports.Mapping
   alias Portfolixir.Imports.PreviewStore
   alias Portfolixir.Portfolios
@@ -41,6 +42,8 @@ defmodule PortfolixirWeb.ImportsMalformedMappingTest do
   # - An existing-account or existing-security choice past the id range is
   #   refused like any unreadable choice, never handed to a query.
   # - After all of them, /imports remounts on the parked preview.
+  # - A security row under a key the preview did not hand out is never
+  #   parked (E25 S5 review round, F42).
   test "malformed mapping events leave the preview alive and remountable", %{conn: conn} do
     Process.flag(:trap_exit, true)
 
@@ -67,6 +70,7 @@ defmodule PortfolixirWeb.ImportsMalformedMappingTest do
       %{"depot" => %{depot => %{"target" => %{"a" => "b"}, "cash" => ["x"]}}},
       %{"security" => %{"k" => "x"}},
       %{"security" => %{"k" => %{"choice" => %{"a" => "b"}}}},
+      %{"security" => %{"not-a-key" => %{"choice" => "create"}}},
       %{"remember" => %{"cash" => "x", "depot" => ["x"]}},
       %{"cash" => %{cash => "existing:#{@past_bigint}"}},
       %{"depot" => %{depot => %{"target" => "existing:#{@past_bigint}", "cash" => ""}}}
@@ -84,13 +88,16 @@ defmodule PortfolixirWeb.ImportsMalformedMappingTest do
       assert Process.alive?(view.pid)
     end
 
-    assert {_preview, mapping} = PreviewStore.get(PreviewStore.key_for(@session_token))
+    assert {preview, mapping} = PreviewStore.get(PreviewStore.key_for(@session_token))
     assert is_binary(mapping.bucket_tag)
     assert Enum.all?(mapping.cash, fn {name, choice} -> is_binary(name) and is_binary(choice) end)
     # A key the preview did not hand out, or a bare file name, addresses no row.
     assert Map.keys(mapping.cash) |> Enum.sort() == ["Test-Cash", "Test-Cash-2"]
     assert Enum.all?(mapping.depot, fn {_name, row} -> is_map(row) end)
     assert Enum.all?(mapping.security, fn {_key, row} -> is_map(row) end)
+
+    handed_out = preview |> Imports.resolve_securities() |> Map.fetch!(:resolutions)
+    assert Map.keys(mapping.security) -- Enum.map(handed_out, & &1.key) == []
 
     assert {:ok, _view, html} = live(conn, "/imports")
     assert html =~ "Preview"
