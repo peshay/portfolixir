@@ -535,7 +535,10 @@ defmodule Portfolixir.Catalog do
   This bulk reclassification is journaled as a single aggregate `update` entry
   on `resource_type: "security"` (resource_id `nil`) carrying the affected ids —
   the guard-armed `securities` table still requires the actor on every row, so
-  the whole `update_all` runs inside one actor-set transaction (ADR-0017).
+  the whole `update_all` runs inside one actor-set transaction (ADR-0017). Its
+  before-image lists every affected security with the asset class it had,
+  read under the rows' lock in the same transaction (E25 S6, F43), so a
+  mistaken bulk move can be read back.
   """
   def set_asset_class(%Actor{} = _actor, [], _code), do: 0
 
@@ -544,6 +547,19 @@ defmodule Portfolixir.Catalog do
 
     multi =
       Multi.new()
+      |> Multi.run(:prior_asset_classes, fn repo, _changes ->
+        prior =
+          repo.all(
+            from(s in Security,
+              where: s.id in ^security_ids,
+              order_by: s.id,
+              lock: "FOR NO KEY UPDATE",
+              select: %{security_id: s.id, asset_class: s.asset_class}
+            )
+          )
+
+        {:ok, %{id: nil, security_ids: security_ids, asset_classes: prior}}
+      end)
       |> Multi.update_all(
         :bulk,
         from(s in Security, where: s.id in ^security_ids),
@@ -555,7 +571,8 @@ defmodule Portfolixir.Catalog do
       |> Journal.record(actor,
         resource_type: "security",
         operation: :update,
-        source: :bulk_record
+        source: :bulk_record,
+        before_step: :prior_asset_classes
       )
 
     {:ok, %{bulk: {count, _}}} = Repo.transaction(multi)

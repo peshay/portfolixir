@@ -46,6 +46,9 @@ defmodule Portfolixir.Buckets do
   alias Portfolixir.Portfolios.PolicyRules
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.SecuritiesAccount
+  alias Portfolixir.Portfolios.Snapshot
+  alias Portfolixir.Portfolios.Snapshots
+  alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Repo
 
   @scope_dimension "scope"
@@ -611,10 +614,10 @@ defmodule Portfolixir.Buckets do
 
   @doc """
   Deletes a view, journaled with its whole definition — the row and both
-  bucket sets — as the before-image (F45). Deleting a view cascades the
-  view's target plans (ADR-0027) — a financial-steering write, and the armed
-  plan tables require the journal actor to be set when the cascade fires.
-  A view that is gone answers `{:error, :not_found}`.
+  bucket sets — as the before-image (F45). The plans scoped to the view
+  (ADR-0027) and its depot snapshots are deleted first, one journaled entry
+  per row, targets included (F43). A view that is gone answers
+  `{:error, :not_found}`.
   """
   def delete_view(%Actor{} = actor, %View{} = view) do
     # ADR-0049 §8: a view a policy rule reads — as its evaluation context or
@@ -625,7 +628,44 @@ defmodule Portfolixir.Buckets do
     end
   end
 
+  # E25 S6, F43: the rows scoped to the view go first, each through its
+  # journaled writer — every plan with its targets, every depot snapshot —
+  # then the view, whose entry carries both bucket sets; the cascades stay as
+  # a backstop that finds nothing left. The view is locked first, so no plan
+  # or snapshot lands on it in between.
   defp delete_unreferenced_view(actor, %View{id: view_id}) do
+    fn ->
+      with {:ok, _view} <- lock_view_row(view_id),
+           {:ok, _} <- Targets.delete_plans_for_view(actor, view_id),
+           :ok <- delete_view_snapshots(actor, view_id),
+           {:ok, deleted} <- delete_view_row(actor, view_id) do
+        deleted
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end
+    |> Repo.transaction()
+  end
+
+  defp lock_view_row(view_id) do
+    case Repo.one(view_lock_query(view_id, :delete)) do
+      nil -> {:error, :not_found}
+      view -> {:ok, view}
+    end
+  end
+
+  defp delete_view_snapshots(actor, view_id) do
+    from(s in Snapshot, where: s.view_id == ^view_id, order_by: s.id, lock: "FOR UPDATE")
+    |> Repo.all()
+    |> Enum.reduce_while(:ok, fn snapshot, :ok ->
+      case Snapshots.delete_snapshot(actor, snapshot) do
+        {:ok, _} -> {:cont, :ok}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  defp delete_view_row(actor, view_id) do
     Multi.new()
     |> lock_view(view_id, :delete)
     |> Multi.delete(:view, fn %{locked_view: view} ->

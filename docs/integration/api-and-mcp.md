@@ -1350,7 +1350,8 @@ Example account payloads:
 - `PATCH /api/v1/plans/:id` renames a plan version (`{"name": "..."}`).
 - `DELETE /api/v1/plans/:id` deletes one plan version (any status) including its
   category targets. Deleting the active plan leaves the scope without a plan
-  (the allocation falls back to actual-only).
+  (the allocation falls back to actual-only). Each target is journaled as its
+  own `target` delete before the plan's `target_plan` delete.
 - `GET /api/v1/snapshots` lists depot **snapshot markers** (ADR-0027): each is a
   `name`, a scope (`view_id`, `null` = everything) and an `as_of` date. A
   snapshot copies no financial data — the holdings it represents derive from
@@ -1939,8 +1940,10 @@ tree stays intrinsic and cannot be reassigned.
   `classification` object (`name`, optional `position`, `description`).
 - `PATCH /api/v1/classifications/:id` updates a custom classification's
   `classification` object (`name`, `position`, `description` — all optional).
-- `DELETE /api/v1/classifications/:id` deletes a custom classification and
-  cascades its categories and assignments.
+- `DELETE /api/v1/classifications/:id` deletes a custom classification with its
+  categories, its stored assignments and every plan on it with the plan's
+  targets. Each of those rows is journaled as its own delete before the
+  classification's; no row goes by database cascade alone.
 - `POST /api/v1/classifications/:classification_id/categories` adds a `category`
   (`name`, optional `color`, `description`, `parent_id`, `position`) to a custom
   classification.
@@ -1952,7 +1955,9 @@ tree stays intrinsic and cannot be reassigned.
   parent answers `422` on `parent_id` and nothing is written, so a tree never
   loops (E25 S4).
 - `DELETE /api/v1/classifications/:classification_id/categories/:id` deletes a
-  category and cascades its child categories and assignments.
+  category with the categories below it, the securities assigned there and
+  the targets filed under them; each row is journaled as its own delete,
+  the lowest categories first and the category itself last.
 - `PUT /api/v1/classifications/:classification_id/assignments` assigns a security
   to a category (`security_id`, `category_id`), replacing any existing assignment
   for that security in the classification. The response carries a `status` of
@@ -2026,7 +2031,9 @@ a view is not journaled: no rule can read it yet.
   optional `include_all` defaulting to `true`).
 - `GET /api/v1/views/:id` returns one view with its resolved filter.
 - `PATCH /api/v1/views/:id` patches a view's `name`/`include_all`.
-- `DELETE /api/v1/views/:id` deletes a view and its bucket sets (`204`).
+- `DELETE /api/v1/views/:id` deletes a view and its bucket sets (`204`); the
+  plans scoped to it, with their targets, and its depot snapshots are
+  journaled one delete each before the view's.
 - `PUT /api/v1/views/:id/buckets` replaces a view's include/exclude bucket sets.
   Body: `{"include": [..], "exclude": [..]}` (both optional, default `[]`,
   arrays of bucket ids). A malformed id list returns `422`; a bucket named

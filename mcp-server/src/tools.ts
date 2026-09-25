@@ -2974,9 +2974,9 @@ const toolDefinitions: ToolDefinition[] = [
   tool("portfolixir.classifications.create", "Create classification", "Create a custom classification tree.", classificationSchema, classificationZ),
   tool("portfolixir.classifications.categories.create", "Create category", "Create a category in a custom classification. A parent_id must name a category of the same classification; any other parent answers 422 on parent_id and nothing is written.", categorySchema, categoryZ),
   tool("portfolixir.classifications.update", "Update classification", "Update a custom classification's name, description or position.", classificationUpdateSchema, classificationUpdateZ),
-  tool("portfolixir.classifications.delete", "Delete classification", "Delete a custom classification and all its categories.", idSchema, idZ),
+  tool("portfolixir.classifications.delete", "Delete classification", "Delete a custom classification with all its categories, its stored assignments and every plan on it with the plan's targets. Each of those rows is journaled as its own delete before the classification's, so the journal keeps the whole tree.", idSchema, idZ),
   tool("portfolixir.classifications.categories.update", "Update category", "Patch a category's name, color, description, position or parent_id. A new parent_id must name a category of the same classification that is neither the category itself nor one of its descendants, so the tree never loops; any other parent answers 422 on parent_id and nothing is written.", categoryUpdateSchema, categoryUpdateZ),
-  tool("portfolixir.classifications.categories.delete", "Delete category", "Delete a category from a custom classification.", categoryDeleteSchema, categoryDeleteZ),
+  tool("portfolixir.classifications.categories.delete", "Delete category", "Delete a category from a custom classification, with the categories below it, the securities assigned there and the targets filed under them. Each row is journaled as its own delete, the lowest categories first and the category itself last.", categoryDeleteSchema, categoryDeleteZ),
   tool("portfolixir.classifications.assign", "Assign security", "Assign a security to a category of a custom classification.", assignSchema, assignZ),
   tool("portfolixir.classifications.assign_bulk", "Assign securities (bulk)", "Assign many securities to one category in a single call.", assignBulkSchema, assignBulkZ),
   tool("portfolixir.classifications.unassign", "Unassign security", "Remove a security's assignment from a classification.", unassignSchema, unassignZ),
@@ -3227,7 +3227,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.views.delete",
     "Delete view",
-    "Delete a view and its include/exclude bucket sets, journaled with the view's whole definition (include_all and both sets) as the before-image.",
+    "Delete a view and its include/exclude bucket sets, journaled with the view's whole definition (include_all and both sets) as the before-image. The plans scoped to the view, with their targets, and its depot snapshots are journaled one delete each before the view's.",
     idSchema,
     idZ
   ),
@@ -3332,7 +3332,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.plans.delete",
     "Delete a plan version",
-    "Delete one plan version by id (any status) including its category targets - the cleanup path for drafts and archived plans. Deleting the active plan leaves its scope without a plan (the allocation falls back to actual-only).",
+    "Delete one plan version by id (any status) including its category targets - the cleanup path for drafts and archived plans. Each target is journaled as its own delete before the plan's. Deleting the active plan leaves its scope without a plan (the allocation falls back to actual-only).",
     planIdSchema,
     planIdZ
   ),
