@@ -260,13 +260,36 @@ defmodule Portfolixir.Portfolios.PolicyRules do
     |> where([r], r.portfolio_id == ^portfolio_id)
     |> maybe_context(Keyword.get(opts, :view, :any))
     |> maybe_updated_since(Keyword.get(opts, :updated_since))
+    |> maybe_not_retired(include_retired, as_of)
     |> order_by([r], asc: r.id)
+    |> maybe_limit(Keyword.get(opts, :limit))
     |> preload(:versions)
     |> Repo.all()
     |> Enum.map(&annotate(&1, as_of))
-    |> Enum.filter(&(include_retired or &1.status != :retired))
-    |> take(Keyword.get(opts, :limit))
   end
+
+  # The retired filter and the limit run in the query (E25 S4, F74), so a long
+  # rule history is not loaded to answer a short list. A rule is not retired
+  # on `as_of` exactly when one of its versions has not ended by then: such a
+  # version is in force if it has started, scheduled if it has not — the same
+  # status `annotate/2` gives.
+  defp maybe_not_retired(query, true, _as_of), do: query
+
+  defp maybe_not_retired(query, false, as_of) do
+    open =
+      from(v in PolicyRuleVersion,
+        where: v.policy_rule_id == parent_as(:rule).id,
+        where: is_nil(v.valid_until) or v.valid_until >= ^as_of,
+        select: 1
+      )
+
+    query
+    |> from(as: :rule)
+    |> where(exists(subquery(open)))
+  end
+
+  defp maybe_limit(query, nil), do: query
+  defp maybe_limit(query, n) when is_integer(n) and n > 0, do: limit(query, ^n)
 
   @doc """
   The `{rule, version}` pairs in force on `date` for one evaluation context
@@ -631,7 +654,4 @@ defmodule Portfolixir.Portfolios.PolicyRules do
   defp in_force_on?(%PolicyRuleVersion{valid_from: from, valid_until: until}, date) do
     Date.compare(from, date) != :gt and (is_nil(until) or Date.compare(until, date) != :lt)
   end
-
-  defp take(rows, nil), do: rows
-  defp take(rows, n) when is_integer(n) and n > 0, do: Enum.take(rows, n)
 end

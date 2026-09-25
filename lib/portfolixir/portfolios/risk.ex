@@ -103,6 +103,9 @@ defmodule Portfolixir.Portfolios.Risk do
     * `:etf_thresholds` – `%{warn: Decimal}` ETF cutoff.
     * forwarded to `Valuation.for_portfolio/2` for tests: `:prices`,
       `:base_currency`.
+    * `:valuation` – the context's valuation when the caller already holds
+      it (the findings read values its context once, E25 S4); it must be
+      the valuation `:view` names.
     * forwarded to `RiskMetrics.for_portfolio/3` (FR-40, ADR-0047):
       `:risk_free_rate` (a Decimal fraction, default `0`) and `:as_of`.
 
@@ -117,9 +120,10 @@ defmodule Portfolixir.Portfolios.Risk do
 
     {metrics_opts, risk_opts} = Keyword.split(risk_opts, [:risk_free_rate, :as_of])
     {with_metrics?, risk_opts} = Keyword.pop(risk_opts, :metrics, true)
+    {given, risk_opts} = Keyword.pop(risk_opts, :valuation)
 
     # A vanished view degrades to `{:error, :view_not_found}` (fix round).
-    with %{} = valuation <- Valuation.for_portfolio(portfolio_id, valuation_opts),
+    with %{} = valuation <- given || Valuation.for_portfolio(portfolio_id, valuation_opts),
          %{} = risk <- build_risk(valuation, risk_opts) do
       if with_metrics?,
         do: put_metrics(portfolio_id, risk, valuation_opts, metrics_opts),
