@@ -3112,4 +3112,21 @@ describe("Portfolixir MCP tools", () => {
       assert.match(description, /14 digits before the decimal point/, name);
     }
   });
+
+  // E25 S4, F11 (#889): a parent that loops the tree or sits in another
+  // classification is refused; the category tools say so.
+  it("states the parent rule on the category write tools", () => {
+    for (const name of [
+      "portfolixir.classifications.categories.create",
+      "portfolixir.classifications.categories.update"
+    ]) {
+      const description = listTools().find((tool) => tool.name === name)?.description ?? "";
+      assert.match(description, /same classification/, name);
+    }
+
+    const update =
+      listTools().find((tool) => tool.name === "portfolixir.classifications.categories.update")
+        ?.description ?? "";
+    assert.match(update, /nor one of its descendants/);
+  });
 });
