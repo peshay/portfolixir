@@ -415,4 +415,106 @@ defmodule PortfolixirWeb.ClassificationsPositionTargetsTest do
       row -> Decimal.normalize(row.target_weight)
     end
   end
+
+  # User story (#874; board ux-design-2026-09-24/08-classification-detail,
+  # "#874"; DESIGN.md → the plan editor, #467's per-parent hint):
+  # As the operator editing a nested plan,
+  # I want each parent's "children Σ" to stay on screen and follow my typing,
+  # so that Growth at 65 % over children adding up to 60 % is flagged while I
+  # type, not only after "Save plan".
+  #
+  # Acceptance criteria:
+  # - On load and on every change the hint is computed the same way, with the
+  #   weight each child steers by: a child that follows its position targets
+  #   counts with their sum (ADR-0030 §2).
+  # - Changing a parent's own weight keeps its hint and flags the mismatch; a
+  #   parent nobody touched keeps its hint too.
+  # - Changing a position target under a child moves the parent's hint.
+  test "the children Σ hint stays live while the plan is edited", %{conn: conn} = ctx do
+    owner = Actor.owner_ui()
+
+    category =
+      &Classifications.create_category(owner, Map.put(&1, :classification_id, ctx.tree.id))
+
+    {:ok, growth} = category.(%{name: "Growth"})
+    {:ok, core} = category.(%{name: "Core market", parent_id: growth.id})
+    {:ok, platforms} = category.(%{name: "Platforms", parent_id: growth.id})
+    {:ok, stability} = category.(%{name: "Stability"})
+    {:ok, govies} = category.(%{name: "Govies", parent_id: stability.id})
+    {:ok, gold} = category.(%{name: "Gold", parent_id: stability.id})
+
+    kestrel = create_security!(name: "Kestrel Industrial Test NV", ticker: "KIT")
+    meridian = create_security!(name: "Meridian Global Test ETF", ticker: "MGT")
+
+    for security <- [kestrel, meridian] do
+      {:ok, _} = Classifications.assign_security(owner, security.id, ctx.tree.id, core.id)
+    end
+
+    {:ok, _} =
+      Targets.set_targets(owner, ctx.portfolio.id, ctx.tree.id, [
+        %{category_id: growth.id, target_weight: "0.60"},
+        %{category_id: platforms.id, target_weight: "0.35"},
+        %{category_id: core.id, security_id: meridian.id, target_weight: "0.15"},
+        %{category_id: core.id, security_id: kestrel.id, target_weight: "0.10"},
+        %{category_id: stability.id, target_weight: "0.30"},
+        %{category_id: govies.id, target_weight: "0.20"},
+        %{category_id: gold.id, target_weight: "0.10"}
+      ])
+
+    view = open(conn, ctx.tree)
+
+    # Loaded: Core counts with its positions (15 + 10), Platforms with 35.
+    assert child_hint(view, "Growth") == {"children Σ 60%", false}
+    assert child_hint(view, "Stability") == {"children Σ 30%", false}
+
+    edit = fn weights, positions ->
+      view
+      |> form("#soll-plan-form")
+      |> render_change(%{
+        "weights" =>
+          Map.merge(
+            %{
+              "#{platforms.id}" => "35",
+              "#{stability.id}" => "30",
+              "#{govies.id}" => "20",
+              "#{gold.id}" => "10"
+            },
+            weights
+          ),
+        "positions" => %{
+          "#{core.id}" =>
+            Map.merge(%{"#{meridian.id}" => "15", "#{kestrel.id}" => "10"}, positions)
+        },
+        "cash_target" => ""
+      })
+    end
+
+    edit.(%{"#{growth.id}" => "65"}, %{})
+    assert child_hint(view, "Growth") == {"children Σ 60%", true}
+    assert child_hint(view, "Stability") == {"children Σ 30%", false}
+
+    edit.(%{"#{growth.id}" => "60"}, %{"#{kestrel.id}" => "15"})
+    assert child_hint(view, "Growth") == {"children Σ 65%", true}
+  end
+
+  # The hint text of the category row named `name`, and whether it is flagged.
+  defp child_hint(view, name) do
+    row =
+      view
+      |> render()
+      |> Floki.parse_document!()
+      |> Floki.find("#soll-plan-form tr.soll-row")
+      |> Enum.find(fn row ->
+        row |> Floki.find("th.soll-row__name") |> Floki.text() |> String.contains?(name)
+      end)
+
+    case Floki.find(row, ~s([data-role="soll-child-hint"])) do
+      [] ->
+        nil
+
+      [hint] ->
+        text = hint |> Floki.text() |> String.split() |> Enum.join(" ")
+        {text, hint |> Floki.attribute("class") |> hd() |> String.contains?("is-target-mismatch")}
+    end
+  end
 end
