@@ -36,7 +36,7 @@ defmodule PortfolixirWeb.BucketsLive do
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
-  alias PortfolixirWeb.PolicyRuleLabel
+  alias PortfolixirWeb.PolicyRuleReferences
 
   @impl true
   def mount(_params, _session, socket) do
@@ -63,7 +63,7 @@ defmodule PortfolixirWeb.BucketsLive do
     >
       <div id="buckets-workspace" class="workspace-page">
         <%= if @error do %>
-          <p class="alert-error" role="alert"><%= @error %></p>
+          <p class="alert-error" role="alert"><PolicyRuleReferences.message message={@error} /></p>
         <% end %>
         <%= if @success do %>
           <p class="alert-success" role="status"><%= @success %></p>
@@ -715,9 +715,10 @@ defmodule PortfolixirWeb.BucketsLive do
       {:noreply, socket |> success(gettext("View deleted")) |> load_state()}
     else
       # ADR-0049 §8: a view a rule reads is refused by name, where the delete
-      # used to fail with no message at all (board 06-rule-reference-409).
+      # used to fail with no message at all (board 06-rule-reference-409);
+      # each name links to Risk in the view the rule applies in (#871, G6-A).
       {:error, {:policy_rules, rules}} ->
-        {:noreply, failure(socket, PolicyRuleLabel.read_by(rules))}
+        {:noreply, failure(socket, PolicyRuleReferences.refusal(rules))}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, failure(socket, changeset_error(changeset))}

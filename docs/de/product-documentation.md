@@ -1707,7 +1707,12 @@ beantworten — wie konzentriert ist das Portfolio, und wie stark schwankt es �
   nur die Bezeichnung: Es entsteht keine Version, der neue Name gilt für die
   Regel mit allen Versionen, und das Audit-Journal behält den bisherigen
   Namen. Eine beendete Regel wird genauso aus der Liste der beendeten Regeln
-  umbenannt.
+  umbenannt. „Risiko“ zeigt die Regeln der aktiven Ansicht; eine Regel, die in
+  einer anderen Ansicht gilt, steht in jener Ansicht. Wird das Löschen einer
+  Ansicht, einer Kategorie, einer Klassifizierung oder eines Wertpapiers
+  abgelehnt, weil Regeln es lesen, nennt die Ablehnung die Regeln mit Stand und
+  Ansicht, und jeder Name führt auf „Risiko“ in der Ansicht, in der die Regel
+  gilt.
 - **Kennzahlen des Portfolios**, ein Jahr: die annualisierte **Volatilität**,
   der **maximale Rückgang** mit Beginn, Tiefpunkt und Erholung, die
   **risikoadjustierte Rendite** (bei einem risikofreien Satz von 0 ist sie

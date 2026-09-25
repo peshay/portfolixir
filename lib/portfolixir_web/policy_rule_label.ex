@@ -13,8 +13,6 @@ defmodule PortfolixirWeb.PolicyRuleLabel do
   """
   use Gettext, backend: PortfolixirWeb.Gettext
 
-  alias Portfolixir.Portfolios.PolicyRule
-
   @spec measure(String.t() | atom()) :: String.t()
   def measure(value) when is_atom(value), do: measure(Atom.to_string(value))
   def measure("weight"), do: gettext("Weight")
@@ -74,24 +72,7 @@ defmodule PortfolixirWeb.PolicyRuleLabel do
   def status("scheduled"), do: gettext("scheduled")
   def status("retired"), do: gettext("retired")
 
-  @doc """
-  The refusal a delete gives when rules read the object (ADR-0049 §8, board
-  `06-rule-reference-409`): the rules by name, and why retiring them does not
-  free the object.
-  """
-  @spec read_by(Enumerable.t()) :: String.t()
-  def read_by(rules) do
-    gettext(
-      "Read by policy rules: %{names}. A rule that has been in force keeps its subject as part of its history; retiring it on Wealth → Risk stops its evaluation.",
-      names: names(rules)
-    )
-  end
-
-  @doc "The rules as a list of quoted names with their status."
-  @spec names(Enumerable.t()) :: String.t()
-  def names(rules) do
-    Enum.map_join(rules, ", ", fn %PolicyRule{} = rule ->
-      gettext("“%{name}” (%{status})", name: rule.name, status: status(rule.status))
-    end)
-  end
+  # The refusal a delete gives when rules read the object (ADR-0049 §8) names
+  # each rule as a link to Risk in its view: `PortfolixirWeb.PolicyRuleReferences`
+  # (#871, G6-A).
 end

@@ -76,6 +76,32 @@ defmodule Portfolixir.Invariants.CssClosingActRepairsTest do
              ~r/outline:\s*2px solid var\(--color-accent\);/
   end
 
+  # User story (#871, pick G6-A, board ux-design-2026-09-24/06-view-rule-reach):
+  # As the operator reading a refusal that names rules,
+  # I want the rule names to read as links in the refusal's own colour,
+  # so that the way to each rule is visible without the band turning into a
+  # second colour of alarm.
+  #
+  # Acceptance criteria:
+  # - A link inside the error band and inside the delete-blocked dialog's body
+  #   inherits the surrounding colour and is underlined with a 2 px offset —
+  #   the rule `.data-note__body a` already carries, so the links survive the
+  #   band's move into a data note unchanged.
+  test "a rule named in a refusal is a link in the refusal's own colour" do
+    rule =
+      case Regex.run(
+             ~r/\n\.alert-error a,\n\.confirm-delete-blocked \.modal-body a \{([^}]*)\}/,
+             @css
+           ) do
+        [_, body] -> body
+        nil -> flunk("no shared link rule for the error band and the delete-blocked dialog")
+      end
+
+    assert rule =~ ~r/color:\s*inherit;/
+    assert rule =~ ~r/text-decoration:\s*underline;/
+    assert rule =~ ~r/text-underline-offset:\s*2px;/
+  end
+
   defp block(selector) do
     case Regex.run(~r/\n#{Regex.escape(selector)} \{([^}]*)\}/, @css) do
       [_, body] -> body

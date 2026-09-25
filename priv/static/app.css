@@ -1292,6 +1292,16 @@ li + li {
   border: 1px solid color-mix(in srgb, var(--color-danger) 32%, transparent);
 }
 
+/* A rule named in a refusal links to Risk in the view it applies in
+   (issue 871, pick G6-A, board ux-design-2026-09-24/06-view-rule-reach): the
+   band's own colour, underlined, the rule `.data-note__body a` carries. */
+.alert-error a,
+.confirm-delete-blocked .modal-body a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .alert-success {
   color: var(--color-accent);
   background: var(--color-accent-soft);

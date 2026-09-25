@@ -39,6 +39,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.PolicyRuleReferences
   alias PortfolixirWeb.Securities.FilterPopover
   alias PortfolixirWeb.Securities.LogoOverrideDialog
   alias PortfolixirWeb.Securities.RowContextMenu
@@ -4593,9 +4594,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
          |> load_securities()}
 
       # ADR-0049 §8: the rules that read the security are named, not
-      # disguised as bookings (board 06-rule-reference-409).
+      # disguised as bookings (board 06-rule-reference-409), each linked to
+      # Risk in the view it applies in (#871, G6-A).
       {:error, {:policy_rules, rules}} ->
-        {:noreply, socket |> assign(:delete_blocked, sec) |> assign(:delete_blocked_rules, rules)}
+        {:noreply,
+         socket
+         |> assign(:delete_blocked, sec)
+         |> assign(:delete_blocked_rules, PolicyRuleReferences.references(rules))}
 
       # ADR-0050 §11: gone already (another writer deleted it) — the row just
       # goes; nothing references a security that is not there.

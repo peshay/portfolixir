@@ -1817,3 +1817,38 @@ D-6, ADR-0049 §4 as amended). Built by Sprint 16 Lane D in
   or neither. A blank name is the field's own error, as on create.
 - **A retired rule** opens the same dialog from the retired list and is
   renamed the same way; a rename there creates no version either.
+
+## Amendment 2026-09-25 — A refusal that names rules makes each one reachable *(Sprint 16 pick G6-A, issue 871)*
+
+Board `mockups/ux-design-2026-09-24/06-view-rule-reach`, variant A (the
+owner's pick, plan D-5). Built by Sprint 16 Lane D in
+`PortfolixirWeb.PolicyRuleReferences`, used by `BucketsLive`,
+`ClassificationsLive` and the securities delete-blocked dialog.
+
+- **The form stays.** A delete of a view, a category or a classification that
+  rules read is refused in the page's existing message band, as Sprint 15's
+  board `06-rule-reference-409` fixed; a security keeps its "Cannot delete"
+  dialog. No new element. The refusal dialog for view deletes (variant C) is
+  declined: it would reopen that pick for one of three kinds of delete, and a
+  view has no second way out to offer.
+- **Each rule is a link to where it lives.** A rule belongs to the view it
+  applies in (its context, ADR-0049 §1), and Risk shows only the active
+  view's rules. So each rule reads `“name” (status, view “View”)` —
+  `„Name“ (gilt, Ansicht „Alles“)` in German — and **only the name** is the
+  link, to `/risk?view=<its context>` (`view=total` for a portfolio-wide
+  rule). The parenthesis names the view **before** the click, because the
+  link changes the active view on every Wealth tab, as a view chip does. The
+  band's second sentence is unchanged.
+- **A plain `href`, never `navigate`**: a full navigation, so the view scope
+  takes the choice and Risk's header names the view on arrival (UX-DR26).
+  Arrival is the page as it is; no jump to the row and no highlight. A retired
+  rule is behind the page's "retired rules" disclosure, which the "(retired)"
+  in the band points to.
+- **Link style**: the band's own colour, underlined at a 2 px offset —
+  `.alert-error a` and `.confirm-delete-blocked .modal-body a` share the rule
+  `.data-note__body a` carries, so the links survive the band's move into a
+  data note unchanged. In running text the links take the inline exception of
+  the target-size rule (WCAG 2.5.8), as a data note's remedy link does.
+- **The rules arrive as data**, never as a finished sentence: the translated
+  templates are split around their placeholders before any stored name is
+  put in, so a rule's or a view's name is only ever text.

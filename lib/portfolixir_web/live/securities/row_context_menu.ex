@@ -12,7 +12,7 @@ defmodule PortfolixirWeb.Securities.RowContextMenu do
   use Gettext, backend: PortfolixirWeb.Gettext
 
   alias PortfolixirWeb.AppShell
-  alias PortfolixirWeb.PolicyRuleLabel
+  alias PortfolixirWeb.PolicyRuleReferences
 
   attr(:security, :map, required: true)
   attr(:has_transactions?, :boolean, default: false)
@@ -172,7 +172,9 @@ defmodule PortfolixirWeb.Securities.RowContextMenu do
 
   attr(:security, :map, required: true)
   # ADR-0049 §8: the policy rules that read the security, when they are what
-  # blocks the delete; empty for a booking or a quote.
+  # blocks the delete; empty for a booking or a quote. References
+  # (`PortfolixirWeb.PolicyRuleReferences`), so each name links to Risk in the
+  # view the rule applies in (#871, G6-A).
   attr(:rules, :list, default: [])
 
   def delete_blocked_dialog(assigns) do
@@ -209,12 +211,7 @@ defmodule PortfolixirWeb.Securities.RowContextMenu do
           <% else %>
             <p><%= gettext("%{name} is read by policy rules:", name: @security.name) %></p>
             <ul>
-              <li :for={rule <- @rules}>
-                <%= gettext("“%{name}” (%{status})",
-                  name: rule.name,
-                  status: PolicyRuleLabel.status(rule.status)
-                ) %>
-              </li>
+              <li :for={reference <- @rules}><PolicyRuleReferences.rule reference={reference} /></li>
             </ul>
             <p class="muted">
               <%= gettext(
