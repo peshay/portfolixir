@@ -8,4 +8,7 @@
 # and installed with
 #
 #   python3 -m pip install --require-hashes --only-binary :all: -r requirements.txt
+#
+# in CI; a local install runs the same pip inside a virtual environment
+# (CONTRIBUTING.md), because an externally managed system Python refuses it.
 pre-commit==4.6.2

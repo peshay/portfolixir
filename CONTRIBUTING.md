@@ -236,12 +236,21 @@ green — a gate that turns red with nobody pushing anything is an advisory
 published since, not a regression.
 
 Install pre-commit itself from the hash-pinned file CI installs from, then the
-hooks, once:
+hooks, once. The install goes into a virtual environment, because the system
+Python on current Debian, Ubuntu and Homebrew is externally managed (PEP 668)
+and refuses a global `pip install`; on Debian and Ubuntu, `python3 -m venv`
+needs the `python3-venv` package. The environment lives outside the checkout,
+so neither git nor the image build context ever sees it:
 
 ```bash
-python3 -m pip install --require-hashes --only-binary :all: -r .github/pre-commit/requirements.txt
+python3 -m venv ~/.venvs/portfolixir-pre-commit
+. ~/.venvs/portfolixir-pre-commit/bin/activate
+python -m pip install --require-hashes --only-binary :all: -r .github/pre-commit/requirements.txt
 pre-commit install --install-hooks
 ```
+
+The Git hooks find that environment by themselves; activate it again in a new
+shell before running `pre-commit run --all-files` from the list above.
 
 The pre-commit setup uses standard hygiene hooks and `mix format --check-formatted`.
 Remote hook repositories are frozen to commit SHAs; `pre-commit autoupdate
