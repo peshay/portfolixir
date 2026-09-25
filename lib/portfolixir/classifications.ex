@@ -366,18 +366,79 @@ defmodule Portfolixir.Classifications do
 
   # Categories are deleted leaves first, so a parent's delete never cascades
   # to a child the journal has not recorded. A loop stored before the parent
-  # guard (E25 S4, F11) has no leaf: its rows are deleted in id order, and a
-  # row the backstop cascade removed first is skipped.
+  # guard (E25 S4, F11) has no leaf: it is broken first by a journaled update
+  # of its lowest id, whose parent becomes none (E25 S6 review round, M4), so
+  # every category of the loop is then deleted with its own entry. A row the
+  # backstop cascade removed first is still skipped.
   defp delete_categories(actor, categories) do
-    categories
-    |> leaves_first()
-    |> Enum.reduce_while(:ok, fn category, :ok ->
-      case delete_category_row(actor, category) do
-        {:ok, _} -> {:cont, :ok}
-        :gone -> {:cont, :ok}
-        {:error, reason} -> {:halt, {:error, reason}}
+    with {:ok, categories} <- break_loops(actor, categories) do
+      categories
+      |> leaves_first()
+      |> Enum.reduce_while(:ok, fn category, :ok ->
+        case delete_category_row(actor, category) do
+          {:ok, _} -> {:cont, :ok}
+          :gone -> {:cont, :ok}
+          {:error, reason} -> {:halt, {:error, reason}}
+        end
+      end)
+    end
+  end
+
+  defp break_loops(actor, categories) do
+    heads = loop_heads(categories)
+
+    Enum.reduce_while(categories, {:ok, []}, fn category, {:ok, acc} ->
+      if MapSet.member?(heads, category.id) do
+        case break_loop(actor, category) do
+          {:ok, broken} -> {:cont, {:ok, [broken | acc]}}
+          {:error, reason} -> {:halt, {:error, reason}}
+        end
+      else
+        {:cont, {:ok, [category | acc]}}
       end
     end)
+    |> case do
+      {:ok, categories} -> {:ok, Enum.reverse(categories)}
+      error -> error
+    end
+  end
+
+  # The lowest id of every parent loop among `categories` (a self-parent is
+  # a loop of one).
+  defp loop_heads(categories) do
+    parents = Map.new(categories, &{&1.id, &1.parent_id})
+
+    Enum.reduce(Map.keys(parents), MapSet.new(), fn id, heads ->
+      case loop_from(id, parents, []) do
+        nil -> heads
+        loop -> MapSet.put(heads, Enum.min(loop))
+      end
+    end)
+  end
+
+  # Follows parent links from `id`; the members of the loop the walk enters,
+  # or nil when it leaves the set or reaches a root. `path` is the walk so
+  # far, latest first.
+  defp loop_from(id, parents, path) do
+    cond do
+      id in path -> [id | Enum.take_while(path, &(&1 != id))]
+      not Map.has_key?(parents, id) -> nil
+      is_nil(Map.fetch!(parents, id)) -> nil
+      true -> loop_from(Map.fetch!(parents, id), parents, [id | path])
+    end
+  end
+
+  defp break_loop(actor, %Category{} = category) do
+    Multi.new()
+    |> Multi.update(:category, &Ecto.Changeset.change(Journal.locked_row(&1), parent_id: nil))
+    |> Journal.record(actor,
+      resource_type: "category",
+      operation: :update,
+      source: :category,
+      before: category
+    )
+    |> Repo.transaction()
+    |> category_result()
   end
 
   defp delete_category_row(actor, %Category{id: id} = category) do
