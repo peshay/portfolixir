@@ -4,7 +4,9 @@
 # -- no source, no compiler, no dev dependency, no install of its own.
 #
 # Exact tag rather than a floating major (#761), pinned by digest as well
-# (ADR-0045 §2, E25 S2); Dependabot's docker ecosystem moves both.
+# (ADR-0045 §2, E25 S2; E25 S8, F60): the digest is what gets pulled, the
+# tag says which release that is. Both stages name the same one;
+# Dependabot's docker ecosystem moves tag and digest together.
 
 # --- build stage -----------------------------------------------------------
 FROM node:24.21.0-alpine3.24@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS build

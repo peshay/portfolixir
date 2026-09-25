@@ -844,6 +844,58 @@ defmodule Portfolixir.CITest do
     end
   end
 
+  # User story (E25 S8, F60 -- #893):
+  # As a maintainer, and an agent whose toolchain the install script fetches,
+  # I want CI's database service and the companion's base image pinned by
+  # digest, and every toolchain archive the install script downloads checked
+  # against a SHA-256 written in this repository,
+  # so that a re-pushed tag or a tampered download cannot change what the
+  # gates and the agent run on without a commit here.
+  #
+  # Acceptance criteria:
+  # - Every CI service container names an exact PostgreSQL tag and a sha256
+  #   digest, the same in every job.
+  # - Both stages of the MCP image name one Node tag with a sha256 digest.
+  # - The agent install script hard-codes a SHA-256 for the OTP and the
+  #   Elixir archive; a version override without its own checksum is refused.
+  # - Its one download helper removes and refuses an archive whose SHA-256
+  #   differs, and every download goes through it, before the installed
+  #   toolchain is removed.
+  test "service and base images are pinned by digest and toolchain downloads by SHA-256" do
+    images = Regex.scan(~r/^\s+image: (.*)$/m, ci_workflow(), capture: :all_but_first)
+    assert images != []
+    assert [[image]] = Enum.uniq(images), "CI jobs disagree on the database image"
+    assert image =~ ~r/^postgres:\d+\.\d+@sha256:[0-9a-f]{64}$/
+
+    froms = Regex.scan(~r/^FROM (\S+)/m, File.read!("mcp-server/Dockerfile"))
+    assert [[_, build], [_, runtime]] = froms
+    assert build == runtime, "the MCP image's two stages differ in base"
+    assert build =~ ~r/^node:[\w.-]+@sha256:[0-9a-f]{64}$/
+
+    script = File.read!(".claude/scripts/install-elixir-toolchain.sh")
+    assert script =~ ~r/^OTP_SHA256="\$\{OTP_SHA256:-[0-9a-f]{64}\}"$/m
+    assert script =~ ~r/^ELIXIR_SHA256="\$\{ELIXIR_SHA256:-[0-9a-f]{64}\}"$/m
+
+    # Every download goes through the helper, and each archive is fetched and
+    # verified before the toolchain it replaces is removed.
+    assert [_] = Regex.scan(~r/^\s*curl /m, script)
+
+    for {download, dir} <- [
+          {~s(fetch_verified "https://builds.hex.pm/builds/otp/), ~s(rm -rf "${OTP_DIR}")},
+          {~s(fetch_verified "https://github.com/elixir-lang/elixir/), ~s(rm -rf "${ELIXIR_DIR}")}
+        ] do
+      assert {fetched, _} = :binary.match(script, download)
+      assert {removed, _} = :binary.match(script, dir)
+      assert fetched < removed, "#{dir} runs before its archive is verified"
+    end
+
+    assert [helper] = Regex.run(~r/^fetch_verified\(\) \{\n.*?^\}$/ms, script)
+    assert {"", 0} = run_fetch_verified(helper, :match)
+    assert {output, status} = run_fetch_verified(helper, :mismatch)
+    assert status != 0
+    assert output =~ "refusing"
+  end
+
   defp ci_workflow, do: File.read!(".github/workflows/ci.yml")
 
   defp workflows do
@@ -957,6 +1009,38 @@ defmodule Portfolixir.CITest do
   defp change_migration(:type, path) do
     File.rm!(path)
     File.ln_s!("20260102000000_elsewhere.exs", path)
+  end
+
+  # Runs the install script's download helper on a local file:// archive --
+  # no network -- once with its real SHA-256 and once with another, and
+  # checks that a refused download leaves no file behind.
+  defp run_fetch_verified(helper, outcome) do
+    dir = Path.join(System.tmp_dir!(), "fetch-verified-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(dir)
+    source = Path.join(dir, "toolchain.tar.gz")
+    dest = Path.join(dir, "downloaded.tar.gz")
+    File.write!(source, "synthetic toolchain archive\n")
+
+    sha256 =
+      case outcome do
+        :match -> :crypto.hash(:sha256, File.read!(source)) |> Base.encode16(case: :lower)
+        :mismatch -> String.duplicate("0", 64)
+      end
+
+    try do
+      result =
+        System.cmd(
+          "bash",
+          ["-c", "set -euo pipefail\n#{helper}\nfetch_verified \"$1\" \"$2\" \"$3\"", "_"] ++
+            ["file://#{source}", dest, sha256],
+          stderr_to_stdout: true
+        )
+
+      assert File.exists?(dest) == (outcome == :match)
+      result
+    after
+      File.rm_rf!(dir)
+    end
   end
 
   defp git!(dir, args) do
