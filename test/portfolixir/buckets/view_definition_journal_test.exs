@@ -15,9 +15,18 @@ defmodule Portfolixir.Buckets.ViewDefinitionJournalTest do
 
   defp owner, do: Actor.owner_ui()
 
+  # Bucket and view names are unique instance-wide, so each is made unique
+  # here: two async tests inserting one name would wait on each other.
+  defp unique(name), do: "#{name} #{System.unique_integer([:positive])}"
+
   defp bucket!(name, dimension \\ "tag") do
-    {:ok, bucket} = Buckets.create_bucket(owner(), %{name: name, dimension: dimension})
+    {:ok, bucket} = Buckets.create_bucket(owner(), %{name: unique(name), dimension: dimension})
     bucket
+  end
+
+  defp view!(name, attrs \\ %{}) do
+    {:ok, view} = Buckets.create_view(owner(), Map.put(attrs, :name, unique(name)))
+    view
   end
 
   defp view_entries(view_id) do
@@ -39,7 +48,7 @@ defmodule Portfolixir.Buckets.ViewDefinitionJournalTest do
   test "update_view and set_view_buckets each leave a journal entry with the prior and new sets" do
     core = bucket!("Core")
     satellite = bucket!("Satellite")
-    {:ok, view} = Buckets.create_view(owner(), %{name: "Strategy", include_all: false})
+    view = view!("Strategy", %{include_all: false})
 
     assert :ok = Buckets.set_view_buckets(owner(), view, [core.id], [satellite.id])
 
@@ -52,13 +61,14 @@ defmodule Portfolixir.Buckets.ViewDefinitionJournalTest do
     assert set_entry.after["exclude_bucket_ids"] == [satellite.id]
     assert set_entry.after["include_all"] == false
 
-    assert {:ok, _} =
-             Buckets.update_view(owner(), view, %{name: "Strategy all", include_all: true})
+    renamed = unique("Strategy all")
+
+    assert {:ok, _} = Buckets.update_view(owner(), view, %{name: renamed, include_all: true})
 
     assert [edit_entry, ^set_entry] = view_entries(view.id)
-    assert edit_entry.before["name"] == "Strategy"
+    assert edit_entry.before["name"] == view.name
     assert edit_entry.before["include_all"] == false
-    assert edit_entry.after["name"] == "Strategy all"
+    assert edit_entry.after["name"] == renamed
     assert edit_entry.after["include_all"] == true
     assert edit_entry.after["exclude_bucket_ids"] == [satellite.id]
 
@@ -83,7 +93,7 @@ defmodule Portfolixir.Buckets.ViewDefinitionJournalTest do
     security = create_security!(name: "Kestrel Industrial Group NV", ticker: "KIG")
     core = bucket!("Core")
     tactical = bucket!("Tactical")
-    {:ok, view} = Buckets.create_view(owner(), %{name: "Long term", include_all: false})
+    view = view!("Long term", %{include_all: false})
     :ok = Buckets.set_view_buckets(owner(), view, [core.id, tactical.id], [])
 
     {:ok, _rule} =
@@ -114,7 +124,7 @@ defmodule Portfolixir.Buckets.ViewDefinitionJournalTest do
                operation: :delete
              )
 
-    assert deleted.before["name"] == "Tactical"
+    assert deleted.before["name"] == tactical.name
     assert deleted.before["memberships"]["view_include"] == [view.id]
     assert deleted.before["memberships"]["view_exclude"] == []
   end
@@ -186,7 +196,7 @@ defmodule Portfolixir.Buckets.ViewDefinitionJournalTest do
 
   test "a bucket or a view deleted in the meantime answers not found" do
     bucket = bucket!("Gone")
-    {:ok, view} = Buckets.create_view(owner(), %{name: "Gone view"})
+    view = view!("Gone view")
 
     assert {:ok, _} = Buckets.delete_bucket(owner(), bucket)
     assert {:error, :not_found} = Buckets.delete_bucket(owner(), bucket)
