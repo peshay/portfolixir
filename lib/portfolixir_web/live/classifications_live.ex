@@ -2468,12 +2468,28 @@ defmodule PortfolixirWeb.ClassificationsLive do
   end
 
   defp soll_error(_assigns, %Ecto.Changeset{errors: errors} = changeset) do
-    if Keyword.has_key?(errors, :target_weight),
-      do: gettext("A target must lie between 0 and 100 %"),
-      else: changeset_error(changeset)
+    cond do
+      # E25 S4 (G14): a weight refused for its precision says so, in the
+      # percent the form speaks (six places of a fraction are four of a
+      # percentage), instead of naming the 0-100 % range.
+      scale_error?(errors) ->
+        gettext("A target carries at most four decimal places in percent")
+
+      Keyword.has_key?(errors, :target_weight) ->
+        gettext("A target must lie between 0 and 100 %")
+
+      true ->
+        changeset_error(changeset)
+    end
   end
 
   defp soll_error(_assigns, reason), do: error_message(reason)
+
+  defp scale_error?(errors) do
+    Enum.any?(errors, fn {field, {_message, keys}} ->
+      field in [:target_weight, :cash_target_weight] and keys[:validation] == :decimal_scale
+    end)
+  end
 
   defp soll_member_name(assigns, security_id) do
     assigns.soll.members

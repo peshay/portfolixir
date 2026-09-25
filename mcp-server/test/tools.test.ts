@@ -3088,6 +3088,17 @@ describe("Portfolixir MCP tools", () => {
     );
   });
 
+  // E25 S4, G14 (#889): the weight scale and the zero-value gap are stated
+  // where the agent reads the tools.
+  it("states the weight scale and the zero-value drift gap", () => {
+    const describe = (name: string) =>
+      listTools().find((tool) => tool.name === name)?.description ?? "";
+
+    assert.match(describe("portfolixir.targets.set"), /at most 6 decimal places/);
+    assert.match(describe("portfolixir.portfolios.allocation"), /valued at 0/);
+    assert.match(describe("portfolixir.portfolios.allocation"), /computation_basis/);
+  });
+
   // E25 S4, G16 and G17 (#889): a ledger amount is rounded to the column's
   // scale before it is checked, and one past the column's precision is a 422.
   it("states the ledger's amount scale and bound on the booking tools", () => {
