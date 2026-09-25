@@ -2196,6 +2196,14 @@ die übrigen Schreibkontexte werden nacheinander scharfgeschaltet.
 Der MCP-Begleitdienst stellt denselben lokalen Kontrakt als Tool-Aufrufe bereit.
 Decimal-Eingaben in MCP-Schemata sind Strings.
 
+Das Schema, das ein Host über `tools/list` erhält, ist die Definition des
+Tools selbst, mit seinen Feldbeschreibungen und geschlossenen Objekten
+(`additionalProperties: false`), und der Begleitdienst prüft jeden Aufruf
+gegen dieselben Felder, bevor er die API aufruft: Ein abgelehntes Argument
+ergibt einen Tool-Fehler, der Tool und Feld nennt, und es geht keine Anfrage
+hinaus. Ein Aufruf, den die API ohne Body beantwortet, das `204` eines
+Löschens, ist ein Ergebnis ohne strukturierten Inhalt.
+
 - `portfolixir.contract.get` — der Kontraktversions-Read (ADR-0044 §8): was
   die Oberfläche bietet und wann sie sich zuletzt geändert hat, abfragbar mit
   `since=`.
