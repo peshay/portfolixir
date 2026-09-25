@@ -249,7 +249,7 @@ defmodule PortfolixirWeb.ImportsLive do
                     <small><%= gettext("PP account") %></small>
                     <%= pp_name %>
                   </div>
-                  <select name={"cash[#{pp_name}]"}>
+                  <select name={"cash[#{Mapping.row_key("cash", pp_name)}]"}>
                     <%!-- ADR-0050 §4: an ambiguous name is prefilled with
                          nothing, and the select says so rather than showing
                          its first option as if it were chosen. --%>
@@ -281,7 +281,7 @@ defmodule PortfolixirWeb.ImportsLive do
                     <small><%= gettext("PP depot") %></small>
                     <%= pp_name %>
                   </div>
-                  <select name={"depot[#{pp_name}][target]"}>
+                  <select name={"depot[#{Mapping.row_key("depot", pp_name)}][target]"}>
                     <option :if={depot_target_value(@mapping, pp_name) in [nil, ""]} value="" selected>
                       <%= gettext("Decide…") %>
                     </option>
@@ -295,7 +295,7 @@ defmodule PortfolixirWeb.ImportsLive do
                     <% end %>
                   </select>
                   <% chosen_cash = depot_cash_value(@mapping, pp_name) %>
-                  <select name={"depot[#{pp_name}][cash]"}>
+                  <select name={"depot[#{Mapping.row_key("depot", pp_name)}][cash]"}>
                     <option value="" selected={chosen_cash in [nil, ""]}>
                       <%= gettext("Pick a cash account…") %>
                     </option>
@@ -634,7 +634,7 @@ defmodule PortfolixirWeb.ImportsLive do
   def handle_event("parse", _params, socket), do: {:noreply, socket}
 
   def handle_event("mapping_changed", params, socket) do
-    mapping = mapping_from_params(params, socket.assigns.mapping)
+    mapping = mapping_from_params(params, socket.assigns.mapping, socket.assigns.row_names)
     PreviewStore.put_mapping(socket.assigns.session_token, mapping)
     {:noreply, assign(socket, :mapping, mapping)}
   end
@@ -644,7 +644,7 @@ defmodule PortfolixirWeb.ImportsLive do
   end
 
   def handle_event("apply", params, socket) do
-    mapping = mapping_from_params(params, socket.assigns.mapping)
+    mapping = mapping_from_params(params, socket.assigns.mapping, socket.assigns.row_names)
     socket = assign(socket, :mapping, mapping)
 
     case build_apply_params(mapping, socket.assigns) do
@@ -835,12 +835,27 @@ defmodule PortfolixirWeb.ImportsLive do
     |> assign(:existing_depots, existing_depots)
     |> assign_new(:cash_pp_names, fn -> [] end)
     |> assign_new(:depot_pp_names, fn -> [] end)
+    |> assign_new(:row_names, fn -> row_names([], []) end)
   end
 
   defp assign_preview_pp_names(socket, preview) do
+    cash_pp_names = Mapping.unique_cash_pp_names(preview)
+    depot_pp_names = Mapping.unique_depot_pp_names(preview)
+
     socket
-    |> assign(:cash_pp_names, Mapping.unique_cash_pp_names(preview))
-    |> assign(:depot_pp_names, Mapping.unique_depot_pp_names(preview))
+    |> assign(:cash_pp_names, cash_pp_names)
+    |> assign(:depot_pp_names, depot_pp_names)
+    |> assign(:row_names, row_names(cash_pp_names, depot_pp_names))
+  end
+
+  # E25 S5 (F42): the server-side map from a row's opaque key, the only thing
+  # a field name carries, back to the file's name. A key the preview did not
+  # hand out addresses nothing.
+  defp row_names(cash_pp_names, depot_pp_names) do
+    %{
+      "cash" => Map.new(cash_pp_names, &{Mapping.row_key("cash", &1), &1}),
+      "depot" => Map.new(depot_pp_names, &{Mapping.row_key("depot", &1), &1})
+    }
   end
 
   defp maybe_assign_preview_pp_names(socket, nil), do: socket
@@ -940,32 +955,57 @@ defmodule PortfolixirWeb.ImportsLive do
   # per cash name, a map of strings per depot and per security row, a string
   # tag. Anything else changes nothing — the mapping is parked in the preview
   # store, so a shape the page cannot render would crash every remount.
-  defp mapping_from_params(params, current) do
+  #
+  # Cash and depot rows are addressed by their opaque key (E25 S5, F42): a
+  # file name never becomes part of a field name, where brackets in it would
+  # nest into another row's parameters. A key the preview did not hand out is
+  # ignored.
+  defp mapping_from_params(params, current, row_names) do
     params = LiveParam.map(params)
 
     %{
       bucket_tag: LiveParam.string(Map.get(params, "bucket_tag")) || current.bucket_tag,
       bucket_skip: parse_bucket_skip(Map.get(params, "bucket_skip"), current.bucket_skip),
-      cash: Map.merge(current.cash, LiveParam.form(Map.get(params, "cash"))),
-      depot: merge_rows(current.depot, Map.get(params, "depot"), @depot_fields),
+      cash:
+        Map.merge(
+          current.cash,
+          params |> Map.get("cash") |> by_name(row_names["cash"]) |> LiveParam.form()
+        ),
+      depot:
+        merge_rows(
+          current.depot,
+          params |> Map.get("depot") |> by_name(row_names["depot"]),
+          @depot_fields
+        ),
       security:
         merge_rows(
           Map.get(current, :security, %{}),
           Map.get(params, "security"),
           @security_fields
         ),
-      remember: merge_remember(Map.get(current, :remember, blank_mapping().remember), params),
+      remember:
+        merge_remember(Map.get(current, :remember, blank_mapping().remember), params, row_names),
       prefill: Map.get(current, :prefill, blank_mapping().prefill)
     }
   end
 
-  # "remember[cash][<name>]" / "remember[depot][<name>]" = "false" switches a
+  defp by_name(given, names) do
+    for {key, value} <- LiveParam.map(given),
+        is_binary(key),
+        name = Map.get(names, key),
+        name != nil,
+        into: %{},
+        do: {name, value}
+  end
+
+  # "remember[cash][<key>]" / "remember[depot][<key>]" = "false" switches a
   # remap's remembering off; anything else leaves it on (the default).
-  defp merge_remember(current, params) do
+  defp merge_remember(current, params, row_names) do
     case Map.get(params, "remember") do
       %{} = given ->
         Map.new(["cash", "depot"], fn group ->
-          {group, Map.merge(Map.get(current, group, %{}), LiveParam.form(Map.get(given, group)))}
+          given_names = given |> Map.get(group) |> by_name(row_names[group]) |> LiveParam.form()
+          {group, Map.merge(Map.get(current, group, %{}), given_names)}
         end)
 
       _absent ->
