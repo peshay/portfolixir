@@ -22,9 +22,11 @@ defmodule PortfolixirWeb.DecimalInput do
       (`1.664` on a German page, `1,664` on an English one): that figure reads
       two ways, and it is refused as ambiguous rather than stored a thousand
       times too small or too large. A figure with two separators
-      (`1.664,40`) is refused the same way. Anything that is not a plain
-      decimal — an exponent, `NaN`, a space inside, a trailing separator — is
-      invalid.
+      (`1.664,40`) is refused the same way, and so is one grouped in threes
+      with a space or an apostrophe (`1 664,40`, `1'664.40`), so the field
+      names the thousands separator as the fix. Anything else that is not a
+      plain decimal — an exponent, `NaN`, any other inner space, a trailing
+      separator — is invalid.
 
   Browser number inputs (`type="number"`) are not covered: their `value`
   must carry a point whatever the page's language, and the browser decides
@@ -39,6 +41,9 @@ defmodule PortfolixirWeb.DecimalInput do
   @plain ~r/\A[+-]?(?:[0-9]+(?:[.,][0-9]+)?|[.,][0-9]+)\z/
   @thousands_group ~r/\A[+-]?[1-9][0-9]{0,2}[.,][0-9]{3}\z/
   @grouped ~r/\A[+-]?[0-9]+(?:[.,][0-9]+){2,}\z/
+  # Groups of three set off by a space, a no-break, narrow no-break or thin
+  # space, or an apostrophe — as a bank page or a PDF prints a figure.
+  @space_grouped ~r/\A[+-]?[0-9]{1,3}(?:[ \x{00A0}\x{202F}\x{2009}'\x{2019}][0-9]{3})+(?:[.,][0-9]+)?\z/u
 
   @type locale :: String.t() | nil
   @type reason :: :ambiguous | :invalid
@@ -82,6 +87,7 @@ defmodule PortfolixirWeb.DecimalInput do
       String.length(trimmed) > @max_length -> {:error, :invalid}
       Regex.match?(@plain, trimmed) -> read_plain(trimmed, decimal_separator(locale))
       Regex.match?(@grouped, trimmed) -> {:error, :ambiguous}
+      Regex.match?(@space_grouped, trimmed) -> {:error, :ambiguous}
       true -> {:error, :invalid}
     end
   end

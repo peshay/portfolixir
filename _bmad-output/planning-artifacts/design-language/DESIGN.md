@@ -968,8 +968,12 @@ set-balance dialog on Accounts & depots.
   English one): that figure reads two ways and is refused on its field with
   "is ambiguous: enter it without a thousands separator" /
   "ist mehrdeutig: ohne Tausendertrennzeichen eingeben". A figure with two
-  separators (`1.664,40`) is refused the same way; an exponent, `NaN`, an inner
-  space or a trailing separator is invalid. A refused figure saves nothing.
+  separators (`1.664,40`) is refused the same way, and so is one grouped in
+  threes with a space, a no-break, narrow no-break or thin space, or an
+  apostrophe (`1 664,40`, `1'664.40` — the way a bank page or a PDF prints
+  it), so the field names the fix rather than a bare "is invalid" (review
+  round, 2026-09-25). An exponent, `NaN`, any other inner space or a trailing
+  separator is invalid. A refused figure saves nothing.
 - **A refusal does not reshape its row.** A label stacks its caption and
   control from the top (`label { align-content: start }`), so the error under
   one field of a paired row (quantity · price) leaves the other field at its
