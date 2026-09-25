@@ -578,6 +578,28 @@ Ersetze einen abgewiesenen Wert durch die Ausgabe von
 `openssl rand -base64 48`, wie „Geheimnisse und Einstellungen“ oben
 beschreibt.
 
+Zwei Migrationen desselben Durchgangs prüfen die Daten, die eine Instanz schon
+hält. Das Release migriert, bevor es startet; eine Migration, die anhält,
+verhindert also den Start des neuen Release:
+
+- **Eine Positionszeile je Wertpapier in einem Plan.** Ein Plan, der ein
+  Wertpapier unter zwei Kategorien führt, hält das Upgrade mit einem Fehler
+  an, der jeden Plan, jedes Wertpapier und jede `portfolio_targets`-Zeile
+  nennt; welche Zeile bleibt, entscheidest du. Spiele die vor dem Upgrade
+  genommene Sicherung zurück, starte darauf das vorige Release (seinen Tag
+  auschecken, bauen, `up`), entferne in dessen Plan-Editor alle Zeilen jedes
+  genannten Paars bis auf eine, nimm eine neue Sicherung und führe das Upgrade
+  erneut aus. Wer vor dem Upgrade jeden Plan auf ein doppelt geführtes
+  Wertpapier prüft, spart sich den Umweg.
+- **Schreibweisen von Steuerpflichtigen und Banken.** Namen von Inhabern und
+  Instituten, die mit einem geschützten Leerzeichen, einem unsichtbaren
+  Zeichen oder einem zerlegten Buchstaben erfasst wurden, werden so
+  gespeichert, wie ein neuer Schreibvorgang sie speichert, jede Änderung im
+  Prüfprotokoll. Ein Name, der danach einem anderen Eintrag desselben
+  Schlüssels gliche, bleibt, wie er war, und wird im Log genannt
+  (`tax identity backfill`); das Upgrade läuft weiter, und du korrigierst oder
+  entfernst einen der beiden Einträge auf der Steuerseite.
+
 ## Abgeleitete Werte neu aufbauen
 
 Teure Auswertungen (derzeit der tägliche Performance-Lauf) werden als

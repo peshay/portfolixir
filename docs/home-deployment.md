@@ -550,6 +550,24 @@ instance that already runs. Check them before the `up`:
 Replace a refused value with the output of `openssl rand -base64 48`, as
 "Secrets and settings" above describes.
 
+Two migrations of the same pass check the data an instance already holds. The
+release migrates before it starts, so a migration that stops keeps the new
+release from starting:
+
+- **One position row per security in a plan.** A plan that files one security
+  under two categories stops the upgrade with an error naming each plan,
+  security and `portfolio_targets` row; which row stays is your choice. Restore
+  the backup taken before the upgrade, start the previous release on it (check
+  out its tag, build, `up`), remove all but one row of each named pair in its
+  plan editor, take a new backup and upgrade again. Checking each plan for a
+  security listed twice before the upgrade avoids the round trip.
+- **Taxpayer and bank spellings.** Holder and institution names recorded with
+  a no-break space, an invisible character or a decomposed letter are stored
+  the way a new write stores them, each change in the audit journal. A name
+  that would then equal another record of the same key is left as it was and
+  named in the log (`tax identity backfill`); the upgrade goes on, and you
+  correct or remove one of the two records on the Tax page.
+
 ## Rebuild Derived Values
 
 Expensive analytics (currently the daily performance walk) are kept as
