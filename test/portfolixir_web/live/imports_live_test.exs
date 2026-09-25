@@ -1508,6 +1508,99 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     end
 
     # User story:
+    # As the operator mapping an export's account onto another of my accounts
+    # while its name is the former name of a third,
+    # I want the import page to leave that former name where it is until the
+    # preview can tell me it would move,
+    # so that a one-off remap never silently re-routes the next import of an
+    # old export (ADR-0050 §4: the preview says so before the import is
+    # applied; board 04's notice is L5's).
+    #
+    # Acceptance criteria:
+    # - The row books onto the account chosen.
+    # - The former name stays on the account that had it, and the chosen
+    #   account gains none.
+    test "a remap never moves another account's former name from the import page", %{
+      conn: conn
+    } do
+      portfolio = setup_portfolio()
+      giro = cash_account!(portfolio, "Giro")
+
+      {:ok, main} =
+        Portfolios.update_cash_account(Portfolixir.Actor.owner_ui(), giro, %{
+          name: "Main account"
+        })
+
+      household = cash_account!(portfolio, "Household")
+
+      body =
+        pp_json([
+          %{"type" => "DEPOSIT", "account" => "Giro", "date" => "2025-01-02", "amount" => "10.00"}
+        ])
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_payload(view, "move.json", body, "application/json")
+
+      view
+      |> element("form#pp-import-apply")
+      |> render_submit(%{"cash" => %{"Giro" => "existing:#{household.id}"}})
+
+      assert render_async(view, 1_000) =~ "Created transactions: 1"
+      assert [%{cash_account_id: cash_id}] = Ledger.list_transactions()
+      assert cash_id == household.id
+
+      assert Repo.get!(Portfolixir.Portfolios.CashAccount, main.id).former_names == ["Giro"]
+      assert Repo.get!(Portfolixir.Portfolios.CashAccount, household.id).former_names == []
+    end
+
+    # User story:
+    # As the agent that removed an account's former name while the operator
+    # had an import preview open,
+    # I want confirming that preview not to write the name back,
+    # so that the removal holds: a prefilled choice is the preview's, not a
+    # remap the operator made.
+    #
+    # Acceptance criteria:
+    # - Confirming the unchanged prefill books the row as shown.
+    # - The removed former name is not written back.
+    test "an unchanged prefill is never remembered, so a removal made meanwhile holds", %{
+      conn: conn
+    } do
+      portfolio = setup_portfolio()
+      giro = cash_account!(portfolio, "Giro")
+
+      {:ok, main} =
+        Portfolios.update_cash_account(Portfolixir.Actor.owner_ui(), giro, %{
+          name: "Main account"
+        })
+
+      body =
+        pp_json([
+          %{"type" => "DEPOSIT", "account" => "Giro", "date" => "2025-01-02", "amount" => "10.00"}
+        ])
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_payload(view, "prefill.json", body, "application/json")
+
+      assert has_element?(
+               view,
+               ~s(select[name="cash[Giro]"] option[value="existing:#{main.id}"][selected])
+             )
+
+      {:ok, _} =
+        Portfolixir.Lifecycle.AccountNames.remove_former_name(
+          Portfolixir.Actor.api_token_rw("synthetic-agent"),
+          main,
+          "Giro"
+        )
+
+      view |> element("form#pp-import-apply") |> render_submit()
+
+      assert render_async(view, 1_000) =~ "Created transactions: 1"
+      assert Repo.get!(Portfolixir.Portfolios.CashAccount, main.id).former_names == []
+    end
+
+    # User story:
     # As the operator whose preview sat open while its account was merged
     # away,
     # I want the confirm to stop, say why, and refresh the account mapping,

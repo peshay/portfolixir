@@ -1665,11 +1665,15 @@ name, so a re-export that changed inside Portfolio Performance (a different
 decimal precision, an edited booking) finds the renamed account as well and
 books nothing twice. A name two accounts carry is prefilled with nothing:
 the select reads *Decide…*, and the import waits until you pick the account;
-it never guesses. Mapping a name onto an account with a different name
-**remembers** the mapping by default: the name becomes a former name of that
-account, and the next import prefills it by itself. When the name is another
-account's former name, remembering moves it over; when it is another
-account's name, the choice holds for this import only. An account mapped in a
+it never guesses. Changing a prefilled choice to an account with a different
+name **remembers** the mapping by default: the name becomes a former name of
+that account, and the next import prefills it by itself. A prefill you leave
+as it is remembers nothing. When the name is another account's name, the
+choice holds for this import only. When it is another account's former name,
+the choice holds for this import only as well, for now: the import page does
+not move a former name to another account until the preview can say so before
+you confirm. To move it, remove it from the other account's former names
+first (over the API or MCP), then map it again. An account mapped in a
 preview that is merged or deleted before you confirm stops the import before
 it writes anything, and the account mapping is refreshed.
 

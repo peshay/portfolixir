@@ -1267,9 +1267,9 @@ defmodule Portfolixir.DocsTest do
   # Acceptance criteria:
   # - The handbook, both languages, states the name rule on Accounts &
   #   depots, and on the import the live-then-former resolution, the drifted
-  #   re-export, the undecided ambiguous name, the remembered remap with its
-  #   move and its limit, the refreshed stale mapping and the upgrade's
-  #   backfill.
+  #   re-export, the undecided ambiguous name, the remembered remap (a
+  #   changed prefill only; a move waits for the preview's notice) and its
+  #   limit, the refreshed stale mapping and the upgrade's backfill.
   # - The API page, both languages, states former_names on the payloads, the
   #   rename cases, the guard's 422 and the removal route with its cost.
   test "the docs state former names, the name guard and the remembered remap in English and German" do
@@ -1282,7 +1282,8 @@ defmodule Portfolixir.DocsTest do
              "a re-export that changed inside Portfolio Performance",
              "A name two accounts carry is prefilled with nothing",
              "**remembers** the mapping by default",
-             "remembering moves it over",
+             "A prefill you leave as it is remembers nothing",
+             "does not move a former name to another account until the preview can say so",
              "the choice holds for this import only",
              "merged or deleted before you confirm",
              "the upgrade replays the renames the audit journal holds"
@@ -1295,7 +1296,8 @@ defmodule Portfolixir.DocsTest do
              "ein Export, der sich in Portfolio Performance verändert hat",
              "Ein Name, den zwei Konten tragen, wird mit nichts vorbelegt",
              "wird die Zuordnung standardmäßig **gemerkt**",
-             "wandert er beim Merken herüber",
+             "Eine unveränderte Vorbelegung merkt nichts",
+             "verschiebt einen früheren Namen erst dann auf ein anderes Konto",
              "gilt die Wahl nur für diesen Import",
              "vor dem Bestätigen zusammengeführt oder gelöscht",
              "das Update spielt die Umbenennungen nach, die das Audit-Journal hält"

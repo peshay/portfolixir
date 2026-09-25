@@ -1751,10 +1751,15 @@ neben der importierten Historie:
   Buchung), auf das umbenannte Konto bucht und nichts doppelt. Was außen
   bleibt: Ein alter Name, den ein anderes Konto noch als aktuellen Namen trägt,
   bucht auf jenes Konto, und eine Umbenennung, die älter ist als das
-  Audit-Journal der Konten, hat nichts zum Merken hinterlassen. Eine Zuordnung
-  in der Vorschau auf ein Konto anderen Namens wird standardmäßig als früherer
-  Name dieses Kontos gemerkt. Eine Umbuchung, deren beide Seiten auf ein Konto
-  führen, wird übersprungen und aufgeführt, nie ein gescheiterter Import.
+  Audit-Journal der Konten, hat nichts zum Merken hinterlassen. Ändert der
+  Operator eine Vorbelegung in der Vorschau auf ein Konto anderen Namens, wird
+  die Zuordnung standardmäßig als früherer Name dieses Kontos gemerkt. Den
+  früheren Namen eines anderen Kontos verschiebt die Importseite nie (die
+  Vorschau kann das noch nicht vor dem Anwenden sagen): Er wird dort zuerst mit
+  `DELETE /api/v1/cash_accounts/:id/former_names?name=` (oder dem Gegenstück
+  unter `securities_accounts`) entfernt. Eine Umbuchung, deren beide Seiten auf
+  ein Konto führen, wird übersprungen und aufgeführt, nie ein gescheiterter
+  Import.
 - **Was einen erneuten Import unverändert übersteht, gleiche ids, exakte
   `Decimal`-Werte:** Klassifizierungs-Zuordnungen; jede Zielplan-Version mit
   ihren Kategorie- und Positionszielen sowie dem Cash-Ziel; `note` und

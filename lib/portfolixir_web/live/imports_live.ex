@@ -704,7 +704,14 @@ defmodule PortfolixirWeb.ImportsLive do
       when kind in [:cash_account, :securities_account] do
     socket = reload_lookups(socket)
     fresh = initial_mapping_for(socket.assigns.preview)
-    mapping = %{socket.assigns.mapping | cash: fresh.cash, depot: fresh.depot}
+
+    mapping =
+      Map.merge(socket.assigns.mapping, %{
+        cash: fresh.cash,
+        depot: fresh.depot,
+        prefill: fresh.prefill
+      })
+
     PreviewStore.put_mapping(socket.assigns.session_token, mapping)
 
     {:noreply,
@@ -839,7 +846,10 @@ defmodule PortfolixirWeb.ImportsLive do
       security: %{},
       # ADR-0050 §4: the per-name "remember" of a remap, on by default; only a
       # "false" is ever stored. Its control is the preview's board-04 work.
-      remember: %{"cash" => %{}, "depot" => %{}}
+      remember: %{"cash" => %{}, "depot" => %{}},
+      # The choice the preview prefilled per file name, as shown: only a
+      # choice the operator changed from it is a remap to remember.
+      prefill: %{"cash" => %{}, "depot" => %{}}
     }
   end
 
@@ -878,7 +888,12 @@ defmodule PortfolixirWeb.ImportsLive do
         {pp_name, %{"target" => target, "cash" => cash_value}}
       end)
 
-    %{blank_mapping() | cash: cash, depot: depot}
+    prefill = %{
+      "cash" => cash,
+      "depot" => Map.new(depot, fn {pp_name, %{"target" => target}} -> {pp_name, target} end)
+    }
+
+    %{blank_mapping() | cash: cash, depot: depot, prefill: prefill}
   end
 
   defp prefill({:ok, id, _tier}, _pp_name), do: "existing:#{id}"
@@ -892,7 +907,8 @@ defmodule PortfolixirWeb.ImportsLive do
       cash: Map.merge(current.cash, Map.get(params, "cash", %{})),
       depot: Map.merge(current.depot, Map.get(params, "depot", %{})),
       security: merge_security_mapping(Map.get(current, :security, %{}), params),
-      remember: merge_remember(Map.get(current, :remember, blank_mapping().remember), params)
+      remember: merge_remember(Map.get(current, :remember, blank_mapping().remember), params),
+      prefill: Map.get(current, :prefill, blank_mapping().prefill)
     }
   end
 
@@ -1180,19 +1196,45 @@ defmodule PortfolixirWeb.ImportsLive do
     end
   end
 
-  # ADR-0050 §4: only a name switched off is passed; the applier remembers
-  # every other remap by default.
+  # ADR-0050 §4 and board 04: a remembered remap is a choice the operator
+  # changed from the prefill onto an existing account, remembered unless
+  # switched off. Every name mapped onto an existing account is passed
+  # explicitly, because the applier remembers an absent name by default:
+  #
+  #   * an unchanged prefill is not remembered — it is the preview's choice,
+  #     and a former name removed since the preview opened must not be
+  #     written back;
+  #   * only an append is remembered. Moving another account's former name
+  #     needs the preview to say so before the import is applied, and that
+  #     notice is L5's board-04 work: until it lands the import page holds
+  #     such a remap to this import. A live name of another account is never
+  #     remembered anyway.
   defp remember_params(mapping) do
     remember = Map.get(mapping, :remember, %{})
+    prefill = Map.get(mapping, :prefill, %{})
+    depot_targets = Map.new(mapping.depot, fn {pp_name, m} -> {pp_name, m["target"]} end)
 
     %{
-      cash_accounts: switched_off(Map.get(remember, "cash", %{})),
-      depots: switched_off(Map.get(remember, "depot", %{}))
+      cash_accounts: remembered(:cash_account, mapping.cash, prefill["cash"], remember["cash"]),
+      depots: remembered(:securities_account, depot_targets, prefill["depot"], remember["depot"])
     }
   end
 
-  defp switched_off(names) do
-    for {pp_name, "false"} <- names, into: %{}, do: {pp_name, false}
+  defp remembered(kind, choices, prefill, switches) do
+    for {pp_name, "existing:" <> raw_id = choice} <- choices, into: %{} do
+      remember? =
+        Map.get(switches || %{}, pp_name) != "false" and
+          Map.get(prefill || %{}, pp_name) != choice and append?(kind, pp_name, raw_id)
+
+      {pp_name, remember?}
+    end
+  end
+
+  defp append?(kind, pp_name, raw_id) do
+    case Integer.parse(raw_id) do
+      {id, ""} -> Imports.remember_outcome(kind, pp_name, id) == :append
+      _invalid -> false
+    end
   end
 
   # Splits the reviewed security resolutions into the applier's explicit

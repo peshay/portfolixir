@@ -1909,10 +1909,13 @@ through this API lives next to the imported history:
   edited booking) books onto the renamed account too and nothing twice. What
   stays outside: an old name another account still carries as its live name
   books to that account, and a rename older than the accounts' audit journal
-  left nothing to remember. A mapping in the preview onto an account of
-  another name is remembered as a former name of that account by default. A
-  transfer whose two sides lead to one account is skipped and listed, never a
-  failed import.
+  left nothing to remember. A prefilled choice the operator changes in the
+  preview to an account of another name is remembered as a former name of
+  that account by default. The import page never moves another account's
+  former name (the preview cannot yet say so before the apply): remove it
+  there first with `DELETE /api/v1/cash_accounts/:id/former_names?name=` (or
+  the `securities_accounts` twin). A transfer whose two sides lead to one
+  account is skipped and listed, never a failed import.
 - **What survives a re-import, unchanged, same ids, exact `Decimal` values:**
   classification assignments; every target plan version with its category and
   position targets and the cash target; each security's `note` and
