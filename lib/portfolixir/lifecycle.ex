@@ -17,6 +17,9 @@ defmodule Portfolixir.Lifecycle do
   `merge_record` and `retired_import_hash`); both tables are append-only and
   journal-armed from the migrations that create them. Each writer runs in its
   own transaction, which joins the caller's when a merge calls it inside one.
+
+  The foreign-key disposition map every merge and delete is held against is
+  `Portfolixir.Lifecycle.ForeignKeys` (§14).
   """
 
   alias Ecto.Multi
