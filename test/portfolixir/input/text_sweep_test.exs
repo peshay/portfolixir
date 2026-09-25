@@ -26,6 +26,15 @@ defmodule Portfolixir.Input.TextSweepTest do
     {Portfolixir.Catalog.Security, :latest_feed} => "a supported-feed check"
   }
 
+  # Structured fields whose text never comes from a caller as such.
+  @not_free_structure %{
+    {Portfolixir.Portfolios.CashAccount, :former_names} =>
+      "the account's own previous names, each already met the text rule",
+    {Portfolixir.Portfolios.SecuritiesAccount, :former_names} =>
+      "the account's own previous names, each already met the text rule",
+    {Portfolixir.Tax.Parameters, :church_tax_rates} => "a list of decimals"
+  }
+
   defp varchar_columns do
     %{rows: rows} =
       Repo.query!("""
@@ -82,4 +91,30 @@ defmodule Portfolixir.Input.TextSweepTest do
       assert named in swept
     end
   end
+
+  # The S3/S4 review round (G24): a jsonb column refuses a NUL in a key or a
+  # value as the text columns do, so a free-form map a schema casts meets the
+  # text rule at any depth, and one added later without it fails here by name.
+  test "every free-form map or list a schema casts meets the text rule at any depth" do
+    swept =
+      for module <- schemas(),
+          field <- module.__schema__(:fields),
+          structured?(module.__schema__(:type, field)),
+          not Map.has_key?(@not_free_structure, {module, field}) do
+        source = module.__info__(:compile)[:source] |> List.to_string() |> File.read!()
+
+        assert Regex.match?(~r/Text\.validate_map\(\s*:#{field}\b/, source),
+               "#{inspect(module)}.#{field} is a free-form field its changeset does not bound " <>
+                 "with Portfolixir.Input.Text.validate_map/3"
+
+        {module, field}
+      end
+
+    assert {Portfolixir.Catalog.Security, :attributes} in swept
+  end
+
+  defp structured?(:map), do: true
+  defp structured?({:map, _inner}), do: true
+  defp structured?({:array, _inner}), do: true
+  defp structured?(_type), do: false
 end

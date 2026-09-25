@@ -76,6 +76,10 @@ defmodule Portfolixir.Catalog.Security do
   def changeset(security, attrs) do
     security
     |> cast(attrs, @castable)
+    # The caller's attributes meet the text rule at any depth before they are
+    # merged (E25 S4, G24): the database refuses a NUL in a jsonb key or
+    # value, which would otherwise be a failed write.
+    |> Text.validate_map(:attributes)
     |> protect_attributes()
     |> normalize_text(:ticker_symbol, &String.upcase/1)
     |> normalize_text(:currency_code, &String.upcase/1)

@@ -131,3 +131,15 @@ msgstr "muss zur selben Klassifikation gehören"
 
 msgid "would make the category its own ancestor"
 msgstr "würde die Kategorie zu ihrer eigenen Oberkategorie machen"
+
+## Portfolixir.Input.Text: a free-form map the database refuses (G24).
+msgid "must have text keys"
+msgstr "muss Textschlüssel haben"
+
+msgid "must not contain control characters (a value keeps its tabs and line breaks)"
+msgstr "darf keine Steuerzeichen enthalten (ein Wert behält seine Tabulatoren und Zeilenumbrüche)"
+
+msgid "must have keys of at most %{count} character(s)"
+msgid_plural "must have keys of at most %{count} character(s)"
+msgstr[0] "darf nur Schlüssel mit höchstens %{count} Zeichen haben"
+msgstr[1] "darf nur Schlüssel mit höchstens %{count} Zeichen haben"

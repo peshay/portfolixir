@@ -9,6 +9,8 @@ defmodule Portfolixir.Catalog.SecuritySearch.Properties do
   keys; and a payload that is not a map used to crash the confirm dialog.
   """
 
+  alias Portfolixir.Input.Text
+
   @max_keys 50
   @max_key_bytes 64
   @max_value_bytes 500
@@ -27,12 +29,18 @@ defmodule Portfolixir.Catalog.SecuritySearch.Properties do
 
   defp keep?({key, value}) when is_binary(key) do
     byte_size(key) > 0 and byte_size(key) <= @max_key_bytes and
-      not String.starts_with?(key, @reserved_prefix) and scalar?(value)
+      not String.starts_with?(key, @reserved_prefix) and Text.check(key, []) == :ok and
+      scalar?(value)
   end
 
   defp keep?(_pair), do: false
 
-  defp scalar?(value) when is_binary(value), do: byte_size(value) <= @max_value_bytes
+  # A key or text value the text rule refuses (a NUL, another control
+  # character, invalid UTF-8) is dropped: the database refuses it in the
+  # stored attributes (E25 S4, G24).
+  defp scalar?(value) when is_binary(value),
+    do: byte_size(value) <= @max_value_bytes and Text.check(value, []) == :ok
+
   defp scalar?(value) when is_number(value) or is_boolean(value), do: true
   defp scalar?(_value), do: false
 end

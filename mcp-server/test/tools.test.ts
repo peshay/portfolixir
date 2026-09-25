@@ -3168,6 +3168,15 @@ describe("Portfolixir MCP tools", () => {
     }
   });
 
+  // E25 S4, G24 (the S3/S4 review round): a security's free-form attributes
+  // meet the text rule at any depth, and the security tools say so.
+  it("states the attributes text rule on the security write tools", () => {
+    for (const name of ["portfolixir.securities.create", "portfolixir.securities.update"]) {
+      const description = listTools().find((tool) => tool.name === name)?.description ?? "";
+      assert.match(description, /Every key of attributes, at any depth/, name);
+    }
+  });
+
   // E25 S4, F11 (#889): a parent that loops the tree or sits in another
   // classification is refused; the category tools say so.
   it("states the parent rule on the category write tools", () => {

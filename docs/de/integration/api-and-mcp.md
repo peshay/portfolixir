@@ -129,6 +129,12 @@ Beschreibung) behält Tabulatoren und Zeilenumbrüche, aber kein anderes
 Steuerzeichen, auch kein NUL. Alles andere liefert `422` mit dem Namen des
 Felds, nie einen Serverfehler. Ein Portfolio-Performance-Import nennt eine
 Zeile, deren Namen oder Notiz gegen dieselbe Regel verstoßen, in der Vorschau.
+Die freie Zuordnung `attributes` eines Wertpapiers erfüllt die Regel in jeder
+Tiefe: Jeder Schlüssel ist einzeiliger Text mit höchstens 255 Zeichen, und
+jeder Textwert, auch in einem verschachtelten Objekt oder einer Liste, ist
+Freitext; sonst liefert der Schreibzugriff `422` auf `attributes`. Eine
+Eigenschaft eines Suchanbieters, die gegen die Regel verstößt, wird verworfen,
+bevor sie die Attribute erreicht.
 
 **Eingepackte Rümpfe.** Ein Schreibzugriff, dessen Attribute unter einem
 Schlüssel reisen — `{"transaction": {…}}`, `{"view": {…}}`, `{"rule": {…}}`

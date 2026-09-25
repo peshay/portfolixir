@@ -185,6 +185,61 @@ defmodule PortfolixirWeb.ApiV1TextBoundsTest do
   end
 
   # User story:
+  # As the operator's agent keeping free-form attributes on a security,
+  # I want an attribute the database cannot store refused as a field error,
+  # so that a garbled key or value costs me one round trip and never a server
+  # error.
+  #
+  # Acceptance criteria:
+  # - An attributes map whose key or string value carries a NUL or another
+  #   control character, at any depth, or whose key is longer than 255 code
+  #   points, answers 422 on attributes on create and update, and stores
+  #   nothing.
+  # - A value keeps its tabs and line breaks.
+  test "an attributes map carrying text the database refuses answers 422",
+       %{conn: conn, security: security} do
+    for attributes <- [
+          %{"sector" => "Tech\u0000"},
+          %{"a\u0000b" => "Tech"},
+          %{"segments" => %{"nested" => ["ok", "bad\u0000"]}},
+          %{"line\nbreak" => "Tech"},
+          %{@long => "Tech"}
+        ] do
+      body =
+        conn
+        |> post("/api/v1/securities", %{
+          "security" => %{
+            "name" => "Garbled Attributes Co",
+            "currency_code" => "EUR",
+            "attributes" => attributes
+          }
+        })
+        |> json_response(422)
+
+      assert Map.has_key?(body["errors"], "attributes"), inspect(attributes)
+
+      body =
+        conn
+        |> patch("/api/v1/securities/#{security.id}", %{
+          "security" => %{"attributes" => attributes}
+        })
+        |> json_response(422)
+
+      assert Map.has_key?(body["errors"], "attributes"), inspect(attributes)
+    end
+
+    refute Repo.get_by(Portfolixir.Catalog.Security, name: "Garbled Attributes Co")
+    assert Catalog.get_security(security.id).attributes == %{}
+
+    assert %{"data" => %{"attributes" => %{"summary" => "line one\nline two\ttab"}}} =
+             conn
+             |> patch("/api/v1/securities/#{security.id}", %{
+               "security" => %{"attributes" => %{"summary" => "line one\nline two\ttab"}}
+             })
+             |> json_response(200)
+  end
+
+  # User story:
   # As the operator's agent recording a corporate action's ISIN change,
   # I want a new ISIN that is not twelve characters of the ISIN shape refused,
   # so that an identifier that can never resolve an import is not stored.
