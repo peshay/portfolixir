@@ -1759,7 +1759,7 @@ kopierte Text nutzt stabile `Row N: message`-Zeilen, sodass die Diagnose beim
 Quell-Export verbleiben kann. Das Anwenden des Imports ist atomar und nutzt
 Inhalts-Hashes, um Duplikate bei erneutem Lauf zu überspringen.
 
-### Dateien, die die Vorschau ablehnt
+### Dateien und Zeilen, die die Vorschau ablehnt
 
 Eine Datei, die die Vorschau nicht sicher halten kann, wird als Ganzes
 abgelehnt, bevor etwas für den nächsten Besuch aufbewahrt wird. Der Grund steht
@@ -1770,6 +1770,16 @@ nimmt sofort die nächste Datei:
   eine Tabellenkalkulation einen Export neu gespeichert hat: in Portfolio
   Performance neu exportieren und die Datei ablegen, ohne sie vorher in einer
   Tabellenkalkulation zu öffnen.
+
+Eine einzelne Zeile, die der Import nie buchen könnte, ist stattdessen eine
+Parser-Warnung: Sie steht mit ihrer Zeilennummer im Warnungsfeld, zählt nicht
+zu den Einträgen, und der Rest der Datei wird angezeigt und importiert. Ein
+Wertpapiereintrag, der nichts benennt (kein Name, keine ISIN, WKN oder kein
+Ticker), ist eine solche Zeile: *Wertpapier ohne Name und ohne ISIN — Zeile
+nicht übernommen*. Ein Eintrag nur mit WKN oder nur mit Ticker ist ein
+Wertpapier wie jedes andere und wird über die Zuordnungsleiter unten
+aufgelöst. Eine Vorschau wird für den nächsten Besuch (Sprachwechsel,
+Neuladen) erst aufbewahrt, wenn sie einmal angezeigt wurde.
 
 ### Was ein erneuter Import bewahrt
 

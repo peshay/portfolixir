@@ -17,6 +17,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
   alias Portfolixir.Imports.PortfolioPerformance.CsvParser
   alias Portfolixir.Imports.PortfolioPerformance.JsonParser
   alias Portfolixir.Imports.Preview
+  alias Portfolixir.Imports.SecurityResolver
   alias Portfolixir.Input.Text
 
   @default_max_rows 100_000
@@ -56,6 +57,27 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
   # note keeps its line breaks.
   @name_rule [max: 255]
   @note_rule [multiline: true]
+
+  @doc """
+  Why a parsed entry cannot be a row of the preview, as the row's message, or
+  `nil`. Both parsers run it on every entry they build, so a row the apply
+  could never book is named in the preview instead:
+
+    * a security reference that names nothing — no name, ISIN, WKN or ticker
+      in catalog normal form — is not a security (E25 S5, F33);
+    * text the ledger would refuse (`text_error/1`, E25 S4, G24).
+  """
+  @spec row_error(Entry.t()) :: String.t() | nil
+  def row_error(%Entry{} = entry) do
+    blank_security_error(entry) || text_error(entry)
+  end
+
+  defp blank_security_error(%Entry{security: %{} = security}) do
+    if SecurityResolver.blank_ref?(SecurityResolver.normalize_ref(security)),
+      do: gettext("security without a name and without an ISIN — row not imported")
+  end
+
+  defp blank_security_error(%Entry{}), do: nil
 
   @doc """
   The first piece of an entry's text the ledger would refuse, as the row's

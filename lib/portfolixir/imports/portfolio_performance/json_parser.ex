@@ -175,8 +175,9 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
         companion_entries: companions
       }
 
-      # E25 S4 (G24): text the ledger would refuse is this row's error.
-      case PortfolioPerformance.text_error(entry) do
+      # E25 S4 (G24) and S5 (F33): a security that names nothing, and text
+      # the ledger would refuse, are this row's error.
+      case PortfolioPerformance.row_error(entry) do
         nil -> {:ok, entry}
         message -> {:error, message}
       end
