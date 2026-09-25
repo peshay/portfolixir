@@ -47,8 +47,11 @@ defmodule Portfolixir.Catalog.SecuritySearch do
 
   defp run_provider(provider, query, opts) do
     case safe_call(provider, query, opts) do
+      # Whatever a provider returns, every hit leaves here bounded (F29).
       {:ok, results} when is_list(results) ->
         results
+        |> Enum.map(&bound/1)
+        |> Enum.reject(&is_nil/1)
 
       {:error, reason} ->
         Logger.warning("security search provider #{inspect(provider)} failed: #{inspect(reason)}")
@@ -63,6 +66,9 @@ defmodule Portfolixir.Catalog.SecuritySearch do
         []
     end
   end
+
+  defp bound(%SearchResult{} = result), do: SearchResult.bound(result)
+  defp bound(_not_a_result), do: nil
 
   defp safe_call(provider, query, opts) do
     provider.search(query, opts)

@@ -233,7 +233,15 @@ verengen, was der Betreiber sieht.
   bereits gelöschtes Wertpapier liefert `404`.
 - `GET /api/v1/securities/search` durchsucht konfigurierte
   Online-Wertpapieranbieter. Query-Parameter: `query`; optional `type` mit
-  `security` oder `crypto`.
+  `security` oder `crypto`. Jedes Feld eines Treffers stammt vom Anbieter und
+  wird auf seinen Typ geprüft und in der Größe begrenzt: Ein Feld mit falschem
+  Typ oder über seiner Grenze fehlt, ein Treffer ohne verwendbaren Namen
+  entfällt, ein Handelsplatz behält nur begrenzte Felder und skalare
+  Eigenschaften, und `raw` trägt nur `type` und `market_cap_rank`, nie den
+  ganzen Eintrag des Anbieters. Die Attribute, die ein Treffer in ein
+  Wertpapier schreibt, sind genauso begrenzt, und ein Name oder eine
+  Kursquellen-URL über 255 Zeichen ist bei jedem Schreiben eines Wertpapiers
+  ein `422`.
 
 ### ISIN-Wechsel (Identifier-Aliasse)
 

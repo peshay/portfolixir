@@ -98,6 +98,12 @@ defmodule Portfolixir.Catalog.Security do
     |> default_attributes()
     |> infer_asset_class()
     |> validate_required([:name, :currency_code])
+    # The width of the columns they are stored in (E25 S3, F29): an over-long
+    # name or quote-feed URL, typed or taken from a search provider, is a
+    # field error rather than a failed write.
+    |> validate_length(:name, max: 255, count: :codepoints)
+    |> validate_length(:feed_url, max: 255, count: :codepoints)
+    |> validate_length(:latest_feed_url, max: 255, count: :codepoints)
     # A ticker and a provider id travel in provider request paths (#763, F31):
     # no whitespace, no URL syntax, not made only of dots (a relative-path
     # segment), bounded length. Real shapes (BRK-B, ^GDAXI, EURUSD=X, 0005.HK,

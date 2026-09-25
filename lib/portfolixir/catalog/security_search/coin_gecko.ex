@@ -32,7 +32,7 @@ defmodule Portfolixir.Catalog.SecuritySearch.CoinGecko do
 
     case Http.get(req, url: @endpoint, params: [query: query]) do
       {:ok, %Req.Response{status: 200, body: %{"coins" => coins}}} when is_list(coins) ->
-        {:ok, Enum.map(coins, &to_result/1) |> Enum.reject(&is_nil/1)}
+        {:ok, coins |> Enum.map(&to_result/1) |> Enum.reject(&is_nil/1)}
 
       {:ok, %Req.Response{status: 200}} ->
         {:ok, []}
@@ -109,6 +109,8 @@ defmodule Portfolixir.Catalog.SecuritySearch.CoinGecko do
     end
   end
 
+  # Every field is type-matched and bounded (F29); a coin without a usable id
+  # or name is not a hit.
   defp to_result(%{"id" => id, "name" => name} = coin)
        when is_binary(id) and is_binary(name) do
     %SearchResult{
@@ -124,11 +126,17 @@ defmodule Portfolixir.Catalog.SecuritySearch.CoinGecko do
         "market_cap_rank" => Map.get(coin, "market_cap_rank")
       }
     }
+    |> SearchResult.bound()
+    |> case do
+      %SearchResult{online_id: id} = result when is_binary(id) -> result
+      _unusable -> nil
+    end
   end
 
   defp to_result(_), do: nil
 
-  defp upcase_or_nil(nil), do: nil
-  defp upcase_or_nil(""), do: nil
-  defp upcase_or_nil(value) when is_binary(value), do: String.upcase(String.trim(value))
+  defp upcase_or_nil(value) when is_binary(value) and value != "",
+    do: String.upcase(String.trim(value))
+
+  defp upcase_or_nil(_value), do: nil
 end

@@ -225,7 +225,14 @@ full list.
   journaled; no database cascade removes them (ADR-0050 §11). A security that
   is already gone answers `404`.
 - `GET /api/v1/securities/search` searches configured online security providers.
-  Query params: `query`; optional `type` with `security` or `crypto`.
+  Query params: `query`; optional `type` with `security` or `crypto`. Every
+  field of a hit comes from the provider and is checked for its type and
+  bounded in size: a field of the wrong type or over its bound is absent, a
+  hit without a usable name is dropped, a market keeps only bounded fields and
+  scalar properties, and `raw` carries only `type` and `market_cap_rank`,
+  never the provider's whole entry. The attributes a hit writes to a security
+  are bounded the same way, and a name or quote-feed URL longer than 255
+  characters is a `422` on any security write.
 
 ### ISIN changes (identifier aliases)
 
