@@ -254,4 +254,43 @@ defmodule PortfolixirWeb.SecuritiesResearchTabTest do
 
     assert render(view) =~ "As of: is invalid"
   end
+
+  # User story (E25 S6, F15, decision T-5):
+  # As the operator reading the research log,
+  # I want an entry I append from the page to carry only what the form asks
+  # for, with its provenance stated by the system,
+  # so that no crafted submit can mark my entry a machine-generated proposal
+  # or file it under another security.
+  #
+  # Acceptance criteria:
+  # - A submit carrying machine_generated, author, security_id or any other
+  #   key the form does not render stores an operator entry, not
+  #   machine-generated, on the security the page shows.
+  test "the research form stores only the keys it renders", %{conn: conn} do
+    security = security!()
+    other = WorldFixtures.create_security!(name: "Elsewhere Co.", ticker: "ELSW")
+
+    {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=research")
+
+    view
+    |> element("#research-entry-form")
+    |> render_submit(%{
+      note: %{
+        kind: "evidence",
+        body: "Order book read from the half-year report.",
+        source_quality: "primary",
+        as_of: "2026-09-01",
+        source_url: "https://example.invalid/report",
+        machine_generated: "true",
+        author: "local_model",
+        security_id: other.id
+      }
+    })
+
+    assert render(view) =~ "Entry appended."
+    assert [note] = Knowledge.list_notes(security.id)
+    assert note.machine_generated == false
+    assert note.author == :operator
+    assert Knowledge.list_notes(other.id) == []
+  end
 end
