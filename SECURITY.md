@@ -91,7 +91,13 @@ in the local-use IPv4/IPv6 translation prefix (`64:ff9b:1::/48`) is refused
 like every special-purpose block, so an IPv6-only host whose DNS64 uses it
 cannot download logos or follow provider redirects (the well-known prefix
 `64:ff9b::/96` is judged by the IPv4 address it carries,
-`docs/home-deployment.md`); and the WebSocket handshake is dispatched ahead of the Host guard and rests on
+`docs/home-deployment.md`); an Imports preview is parked in memory per browser
+session until it is applied, discarded or left for two hours, within a fixed
+number of parked previews of which the oldest-touched is evicted, judged by
+its key and timestamp alone (E25): only a session past the UI password, or,
+without one, a browser that reaches the instance on its loopback binding, can
+park one, so an instance bound beyond loopback without a UI password lets
+anyone who reaches it fill that budget; and the WebSocket handshake is dispatched ahead of the Host guard and rests on
 `check_origin`, built from the same allow-list. The policy's `style-src` admits inline `style`
 attributes (the data-driven colours and tree indents the pages render), so it
 guards against script injection, not against CSS injection.
