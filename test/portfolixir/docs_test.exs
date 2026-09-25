@@ -1193,4 +1193,67 @@ defmodule Portfolixir.DocsTest do
       end
     end
   end
+
+  # User story:
+  # As the operator re-importing an export, or the agent that renamed an
+  # imported account,
+  # I want the handbook and the API page to say, in English and German, what
+  # the import checks before it creates anything, when an account is created,
+  # what happens to an internal transfer and which rows collapse,
+  # so that a skipped row or an account that was not created is expected
+  # (ADR-0050 §3–§6, L2, #884).
+  #
+  # Acceptance criteria:
+  # - The handbook, both languages, states the hash-first check with the
+  #   retired hash, the lazy account creation with the bucket tag and the
+  #   rename case, the internal-transfer skip, and the collapse scoped by the
+  #   file's accounts.
+  # - The API page, both languages, states the rename case for the two
+  #   account update routes and tools, and its limit.
+  test "the docs state the re-import contract's importer half in English and German" do
+    for {path, fragments} <- [
+          {"docs/product-documentation.md",
+           [
+             "### What a re-import checks first (ADR-0050)",
+             "**before anything is resolved or created**",
+             "**retired content hash**",
+             "created **with their first imported booking**, never up front",
+             "the bucket tag lands on exactly the accounts the import created",
+             "creates no empty account under the old name",
+             "**transfer whose two sides lead to the same account or depot**",
+             "Only rows of the same Portfolio Performance account collapse"
+           ]},
+          {"docs/de/product-documentation.md",
+           [
+             "### Was ein erneuter Import zuerst prüft (ADR-0050)",
+             "**bevor irgendetwas aufgelöst oder angelegt wird**",
+             "**stillgelegter Inhalts-Hash**",
+             "entstehen **mit ihrer ersten importierten Buchung**, nie vorab",
+             "der Bucket-Tag landet auf genau den Konten, die der Import angelegt hat",
+             "legt kein leeres Konto unter dem alten Namen an",
+             "**Umbuchung, deren beide Seiten auf dasselbe Konto oder Depot führen**",
+             "Zusammengefasst werden nur Zeilen desselben Portfolio-Performance-Kontos"
+           ]},
+          {"docs/integration/api-and-mcp.md",
+           [
+             "The hash is checked before anything resolves",
+             "a cash account or depot is created only with its first new booking",
+             "leaves no empty account under the old name",
+             "the operator remaps the old name in the preview"
+           ]},
+          {"docs/de/integration/api-and-mcp.md",
+           [
+             "Der Hash wird geprüft, bevor irgendetwas aufgelöst wird",
+             "ein Verrechnungskonto oder Depot entsteht erst mit seiner ersten neuen Buchung",
+             "kein leeres Konto unter dem alten Namen hinterlässt",
+             "der Betreiber ordnet den alten Namen in der Vorschau zu"
+           ]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+  end
 end

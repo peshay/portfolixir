@@ -1863,6 +1863,16 @@ through this API lives next to the imported history:
 - **Re-applying the same export is a content-hash no-op.** Every transaction
   row that already exists is skipped as a duplicate; no security is created
   twice; the response of the apply reports the skipped count.
+- **A rename is safe for the next import of the same export (ADR-0050 §3,
+  §4).** The hash is checked before anything resolves, and a cash account or
+  depot is created only with its first new booking, so a rename over
+  `PATCH /api/v1/cash_accounts/:id` or `PATCH /api/v1/securities_accounts/:id`
+  (`portfolixir.cash_accounts.update`, `portfolixir.securities_accounts.update`,
+  whose descriptions say so) leaves no empty account under the old name. The
+  limit: a re-export that changed inside Portfolio Performance hashes
+  differently, and its rows land on a new account under the old name unless
+  the operator remaps the old name in the preview. A transfer whose two sides
+  lead to one account is skipped and listed, never a failed import.
 - **What survives a re-import, unchanged, same ids, exact `Decimal` values:**
   classification assignments; every target plan version with its category and
   position targets and the cash target; each security's `note` and

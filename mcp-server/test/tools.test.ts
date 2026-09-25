@@ -1474,6 +1474,23 @@ describe("Portfolixir MCP tools", () => {
     assert.equal("portfolio_id" in depotSchema.properties.securities_account.properties, false);
   });
 
+  // ADR-0050 §3, §4 (L2, #884; #831's lesson: agents read descriptions, not
+  // docs): a rename over these tools is the agent's half of the re-import
+  // hazard, so the two account update tools say what the next import of the
+  // same export does after a rename, and where that stops.
+  it("states what a rename means for the next import on the account update tools", () => {
+    const tools = listTools();
+    const describe = (name: string) => tools.find((tool) => tool.name === name)?.description ?? "";
+
+    for (const name of ["portfolixir.cash_accounts.update", "portfolixir.securities_accounts.update"]) {
+      const description = describe(name);
+      assert.match(description, /checks each row's content hash before it resolves an account/);
+      assert.match(description, /creates an account only with its first new booking/);
+      assert.match(description, /no empty account appears under the old name/);
+      assert.match(description, /remaps the old name in the import preview/);
+    }
+  });
+
   it("routes update/delete tools to PATCH/DELETE on the right paths", async () => {
     const { client, requests } = createRecordingClient({ data: { id: 1 } });
 

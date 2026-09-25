@@ -2306,6 +2306,17 @@ const securityMetricsZ = z.object({
   as_of: z.string().optional()
 });
 
+// ADR-0050 §3, §4 (L2, #884): what a rename means for the next Portfolio
+// Performance import, on the two tools that rename an account (#831's lesson:
+// agents read descriptions, not docs). The behaviour is pinned by
+// test/portfolixir_web/controllers/api/v1/rename_reimport_test.exs.
+const RENAME_REIMPORT =
+  " A rename is safe for a re-import of the same export: the Portfolio Performance import checks each row's " +
+  "content hash before it resolves an account, and creates an account only with its first new booking, so no " +
+  "empty account appears under the old name (ADR-0050 §3, §4). A re-export that changed inside Portfolio " +
+  "Performance hashes differently: its rows land on a new account under the old name unless the operator " +
+  "remaps the old name in the import preview.";
+
 // #831: the re-import guarantee, stated where the consumer reads — in the
 // description of every read it protects — rather than only on a documentation
 // page. Pinned by test/portfolixir/imports/reimport_preservation_test.exs.
@@ -2645,7 +2656,8 @@ const toolDefinitions: ToolDefinition[] = [
       "either leg or a linked depot does (ADR-0050 §11): a currency change then answers 422 with " +
       "errors.currency_code counting the references (e.g. \"is frozen once referenced (1 securities account, " +
       "12 transactions)\") and writes nothing, so booked history is never re-denominated. The other fields stay " +
-      "editable. The binding is never moved over the API at all.",
+      "editable. The binding is never moved over the API at all." +
+      RENAME_REIMPORT,
     cashAccountUpdateSchema,
     cashAccountUpdateZ
   ),
@@ -2678,7 +2690,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.securities_accounts.update",
     "Update securities account",
-    "Patch a depot/securities account's name, notes or linked cash account.",
+    "Patch a depot/securities account's name, notes or linked cash account." + RENAME_REIMPORT,
     securitiesAccountUpdateSchema,
     securitiesAccountUpdateZ
   ),

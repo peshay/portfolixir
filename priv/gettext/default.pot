@@ -7746,3 +7746,20 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "A target must lie between 0 and 100 %"
 msgstr ""
+
+#: lib/portfolixir_web/live/imports_live.ex:530
+#, elixir-autogen, elixir-format
+msgid "Skipped one internal transfer: both sides lead to the same account or depot."
+msgid_plural "Skipped %{count} internal transfers: both sides lead to the same account or depot."
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/portfolixir_web/live/imports_live.ex:539
+#, elixir-autogen, elixir-format
+msgid "Row %{row}: %{kind} %{date} · %{from} → %{to}"
+msgstr ""
+
+#: lib/portfolixir_web/live/imports_live.ex:1278
+#, elixir-autogen, elixir-format
+msgid "a row with this content was removed by a merge (retired content hash)"
+msgstr ""
