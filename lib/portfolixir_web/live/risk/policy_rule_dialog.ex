@@ -273,19 +273,39 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
                 name="rule[threshold]"
                 value={@form["threshold"]}
                 autocomplete="off"
+                aria-invalid={@errors["threshold"] && "true"}
+                aria-describedby={@errors["threshold"] && "rule-error-threshold"}
               />
               <.field_error errors={@errors} field="threshold" />
             </label>
 
             <label :if={@band?}>
               <span><%= gettext("From") %> <%= unit_suffix(@unit) %></span>
-              <input type="text" inputmode="decimal" class="num" name="rule[lower]" value={@form["lower"]} autocomplete="off" />
+              <input
+                type="text"
+                inputmode="decimal"
+                class="num"
+                name="rule[lower]"
+                value={@form["lower"]}
+                autocomplete="off"
+                aria-invalid={@errors["lower"] && "true"}
+                aria-describedby={@errors["lower"] && "rule-error-lower"}
+              />
               <.field_error errors={@errors} field="lower" />
             </label>
 
             <label :if={@band?}>
               <span><%= gettext("To") %> <%= unit_suffix(@unit) %></span>
-              <input type="text" inputmode="decimal" class="num" name="rule[upper]" value={@form["upper"]} autocomplete="off" />
+              <input
+                type="text"
+                inputmode="decimal"
+                class="num"
+                name="rule[upper]"
+                value={@form["upper"]}
+                autocomplete="off"
+                aria-invalid={@errors["upper"] && "true"}
+                aria-describedby={@errors["upper"] && "rule-error-upper"}
+              />
               <.field_error errors={@errors} field="upper" />
             </label>
 
@@ -393,9 +413,13 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
   attr(:errors, :map, required: true)
   attr(:field, :string, required: true)
 
+  # A refusal is announced and tied to its field (#869 review round,
+  # UX-DR13): an input names this id in aria-describedby.
   defp field_error(assigns) do
     ~H"""
-    <span :if={msg = @errors[@field]} class="field-error"><%= msg %></span>
+    <span :if={msg = @errors[@field]} id={"rule-error-#{@field}"} class="field-error" role="alert">
+      <%= msg %>
+    </span>
     """
   end
 

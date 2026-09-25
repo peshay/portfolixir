@@ -339,6 +339,77 @@ defmodule PortfolixirWeb.DecimalInputsLiveTest do
     assert input_value(english, "#policy-rule-form", "rule[threshold]") =~ ~r/\A\d+(\.\d+)?\z/
   end
 
+  # User story (#869, Lane C review round DC-C4; UX-DR13):
+  # As the operator using a screen reader in the rule dialog or the
+  # set-balance dialog,
+  # I want a refused figure's reason to be announced and tied to its field,
+  # as the booking drawer, the settlement block and Tax already do,
+  # so that I hear which field to fix and why.
+  #
+  # Acceptance criteria:
+  # - A refused line, from or to in the rule dialog carries aria-invalid and
+  #   aria-describedby naming its error, which has that id and role="alert".
+  # - A refused balance amount carries aria-invalid and aria-describedby
+  #   naming the dialog's error (role="alert"); the date does not, and a
+  #   refused date is tied to the date field instead.
+  test "a refused figure in the rule and balance dialogs is tied to its field", %{conn: conn} do
+    %{rule: rule} = rule_world()
+
+    {:ok, view, _html} = live(german(conn), "/risk")
+    view |> element("#policy-findings button[phx-value-id='#{rule.id}']") |> render_click()
+
+    view |> form("#policy-rule-form", rule: %{threshold: "1.000"}) |> render_submit()
+
+    assert has_element?(
+             view,
+             ~s(#policy-rule-form input[name="rule[threshold]"][aria-invalid="true"][aria-describedby="rule-error-threshold"])
+           )
+
+    assert has_element?(view, ~s(#policy-rule-form #rule-error-threshold[role="alert"]))
+
+    view |> form("#policy-rule-form", rule: %{kind: "band"}) |> render_change()
+
+    view
+    |> form("#policy-rule-form", rule: %{kind: "band", lower: "1.000", upper: "2.500"})
+    |> render_submit()
+
+    for field <- ~w(lower upper) do
+      assert has_element?(
+               view,
+               ~s(#policy-rule-form input[name="rule[#{field}]"][aria-invalid="true"][aria-describedby="rule-error-#{field}"])
+             )
+
+      assert has_element?(view, ~s(#policy-rule-form #rule-error-#{field}[role="alert"]))
+    end
+
+    %{world: w} = usd_world()
+    {:ok, accounts, _html} = live(german(conn), "/portfolios")
+    accounts |> element("#set-balance-#{w.cash.id}") |> render_click()
+
+    accounts
+    |> form("#balance-dialog form", %{"balance" => %{"date" => "2026-04-01", "amount" => "1.250"}})
+    |> render_submit()
+
+    assert has_element?(
+             accounts,
+             ~s(#balance-dialog input[name="balance[amount]"][aria-invalid="true"][aria-describedby="balance-error"])
+           )
+
+    assert has_element?(accounts, ~s(#balance-dialog #balance-error[role="alert"]))
+    refute has_element?(accounts, ~s(#balance-dialog input[name="balance[date]"][aria-invalid]))
+
+    accounts
+    |> form("#balance-dialog form", %{"balance" => %{"date" => "2026-02-30", "amount" => "10"}})
+    |> render_submit()
+
+    assert has_element?(
+             accounts,
+             ~s(#balance-dialog input[name="balance[date]"][aria-invalid="true"][aria-describedby="balance-error"])
+           )
+
+    refute has_element?(accounts, ~s(#balance-dialog input[name="balance[amount]"][aria-invalid]))
+  end
+
   # User story (#869; board 05, "Steuern"):
   # As the operator copying a German tax statement into the app,
   # I want its figures to be accepted as printed — "12000,00", "140,25" —

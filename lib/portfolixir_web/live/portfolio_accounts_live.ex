@@ -44,6 +44,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
      |> assign(:account_menu_id, nil)
      |> assign(:balance_dialog, nil)
      |> assign(:balance_error, nil)
+     |> assign(:balance_invalid, [])
      |> assign(:picker, nil)
      # Session-only: bucket cells whose "+N" overflow is expanded in place
      # (issue 842, pick E2-A), keyed by {owner, owner_id}.
@@ -350,6 +351,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
               <form phx-submit="set_balance" class="balance-dialog-form">
                 <p
                   :if={@balance_error}
+                  id="balance-error"
                   class="field-error"
                   data-role="balance-error"
                   role="alert"
@@ -365,6 +367,8 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                     maxlength="10"
                     name="balance[date]"
                     value={Date.to_iso8601(Clock.today())}
+                    aria-invalid={"date" in @balance_invalid && "true"}
+                    aria-describedby={"date" in @balance_invalid && "balance-error"}
                   />
                 </label>
                 <label>
@@ -377,6 +381,8 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                     class="num"
                     required
                     placeholder={DecimalInput.value(Decimal.new("4250.00"))}
+                    aria-invalid={"amount" in @balance_invalid && "true"}
+                    aria-describedby={"amount" in @balance_invalid && "balance-error"}
                   />
                 </label>
                 <p class="hint">
@@ -630,14 +636,14 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   def handle_event("open_balance_dialog", %{"id" => id}, socket) do
     with {:ok, parsed} <- LiveParam.fetch_id(id),
          %CashAccount{} = account <- Portfolios.get_cash_account(parsed) do
-      {:noreply, assign(socket, balance_dialog: account, balance_error: nil)}
+      {:noreply, assign(socket, balance_dialog: account, balance_error: nil, balance_invalid: [])}
     else
       _ -> {:noreply, socket}
     end
   end
 
   def handle_event("close_balance_dialog", _params, socket) do
-    {:noreply, assign(socket, balance_dialog: nil, balance_error: nil)}
+    {:noreply, assign(socket, balance_dialog: nil, balance_error: nil, balance_invalid: [])}
   end
 
   def handle_event("set_balance", %{"balance" => params}, socket) do
@@ -651,14 +657,22 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
           # confirmation — no toast, no success banner (#566 direction).
           {:noreply,
            socket
-           |> assign(balance_dialog: nil, balance_error: nil)
+           |> assign(balance_dialog: nil, balance_error: nil, balance_invalid: [])
            |> load_state()}
         else
           {:error, %Ecto.Changeset{} = changeset} ->
-            {:noreply, assign(socket, :balance_error, changeset_error(changeset))}
+            {:noreply,
+             assign(socket,
+               balance_error: changeset_error(changeset),
+               balance_invalid: balance_invalid(changeset)
+             )}
 
           {:error, %{"amount" => message}} ->
-            {:noreply, assign(socket, :balance_error, "#{gettext("Balance")} #{message}")}
+            {:noreply,
+             assign(socket,
+               balance_error: "#{gettext("Balance")} #{message}",
+               balance_invalid: ["amount"]
+             )}
         end
 
       _ ->
@@ -1055,4 +1069,17 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
     |> Enum.map(fn {field, {message, _opts}} -> "#{field} #{message}" end)
     |> Enum.join(", ")
   end
+
+  # The balance dialog's fields a refused balance names (#869 review round,
+  # UX-DR13): the one error paragraph is tied to each of them.
+  defp balance_invalid(changeset) do
+    for {field, _error} <- changeset.errors,
+        name = balance_field(field),
+        uniq: true,
+        do: name
+  end
+
+  defp balance_field(:date), do: "date"
+  defp balance_field(:gross_amount), do: "amount"
+  defp balance_field(_field), do: nil
 end
