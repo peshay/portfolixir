@@ -114,6 +114,61 @@ defmodule Portfolixir.Journal.CascadeRemovalsTest do
     refute MapSet.member?(deleted("target_plan"), t.plan.id)
   end
 
+  # User story (E25 S6 review round, M4):
+  # As the operator deleting a tree whose categories hold a parent loop
+  # stored before the parent guard,
+  # I want every category of the loop journaled on its own,
+  # so that the loop's categories are no gap in the journal.
+  #
+  # Acceptance criteria:
+  # - The loop is broken first by a journaled update of the loop's lowest id
+  #   (its parent set to none), and then each category of the loop, and of
+  #   a self-parent, is deleted with its own journal entry.
+  test "a stored parent loop is broken by a journaled update and each category journals its delete" do
+    {:ok, classification} = Classifications.create_classification(owner(), %{name: "Looped"})
+
+    [a, b, c, selfie] =
+      for name <- ["Loop A", "Loop B", "Loop C", "Self"] do
+        {:ok, category} =
+          Classifications.create_category(owner(), %{
+            classification_id: classification.id,
+            name: name
+          })
+
+        category
+      end
+
+    store_parent!(a, b.id)
+    store_parent!(b, c.id)
+    store_parent!(c, a.id)
+    store_parent!(selfie, selfie.id)
+
+    assert {:ok, _} = Classifications.delete_classification(owner(), classification)
+
+    assert MapSet.subset?(MapSet.new([a.id, b.id, c.id, selfie.id]), deleted("category"))
+
+    broken =
+      [resource_type: "category", operation: :update]
+      |> Journal.list_entries()
+      |> Enum.filter(&(&1.after["parent_id"] == nil))
+      |> MapSet.new(&String.to_integer(&1.resource_id))
+
+    assert MapSet.member?(broken, Enum.min([a.id, b.id, c.id]))
+    assert MapSet.member?(broken, selfie.id)
+  end
+
+  # A parent as a writer before the parent guard stored it.
+  defp store_parent!(category, parent_id) do
+    {:ok, {1, _}} =
+      Repo.transaction(fn ->
+        Repo.query!("SELECT set_config('portfolixir.journal_actor', 'test', true)")
+
+        Portfolixir.Classifications.Category
+        |> where(id: ^category.id)
+        |> Repo.update_all(set: [parent_id: parent_id])
+      end)
+  end
+
   # User story:
   # As the operator cleaning up a plan version,
   # I want its targets journaled as they go,
