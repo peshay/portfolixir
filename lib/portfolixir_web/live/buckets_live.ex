@@ -171,19 +171,14 @@ defmodule PortfolixirWeb.BucketsLive do
                     </span>
                   </div>
                   <.view_figures figures={row.figures} />
-                  <button
-                    type="button"
+                  <AppShell.row_kebab
                     id={"view-kebab-#{row.id}"}
-                    class="row-actions__kebab"
+                    row={row.name}
+                    open={@row_menu == {:view, row.id}}
                     phx-click="open_row_menu"
                     phx-value-kind="view"
                     phx-value-id={row.id}
-                    aria-label={gettext("Open actions menu")}
-                    aria-haspopup="menu"
-                    aria-expanded={to_string(@row_menu == {:view, row.id})}
-                  >
-                    <AppShell.icon name={:ellipsis_vertical} />
-                  </button>
+                  />
                 <% end %>
               </li>
             <% end %>
@@ -279,19 +274,14 @@ defmodule PortfolixirWeb.BucketsLive do
                       <.bucket_usage usage={Map.fetch!(@bucket_usage, bucket.id)} />
                     </span>
                   </div>
-                  <button
-                    type="button"
+                  <AppShell.row_kebab
                     id={"bucket-kebab-#{bucket.id}"}
-                    class="row-actions__kebab"
+                    row={bucket.name}
+                    open={@row_menu == {:bucket, bucket.id}}
                     phx-click="open_row_menu"
                     phx-value-kind="bucket"
                     phx-value-id={bucket.id}
-                    aria-label={gettext("Open actions menu")}
-                    aria-haspopup="menu"
-                    aria-expanded={to_string(@row_menu == {:bucket, bucket.id})}
-                  >
-                    <AppShell.icon name={:ellipsis_vertical} />
-                  </button>
+                  />
                 <% end %>
               </li>
             <% end %>

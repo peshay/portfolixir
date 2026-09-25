@@ -550,6 +550,50 @@ defmodule PortfolixirWeb.AppShell do
   end
 
   @doc """
+  A row's kebab — the one trigger every row menu opens from (issue 870).
+
+  Its accessible name says which row it acts on — "Actions for Nordic Timber
+  Holdings AB" — so a screen reader tabbing a list, or listing the page's
+  buttons, can tell the kebabs apart (WCAG 2.4.6, 4.1.2). `row` is the row's
+  name as the reader hears it; `row_name/1` composes one from several parts
+  (a transaction's kind, subject and date). The picture is unchanged: the
+  name is `aria-label` only. The caller passes the event bindings
+  (`phx-click`, `phx-value-*`) through; the kebab's DOM id is what the row
+  menu's `trigger` names.
+  """
+  attr(:id, :string, required: true)
+  attr(:row, :string, required: true, doc: "the row's name, as the reader hears it")
+  attr(:open, :boolean, required: true, doc: "whether this row's menu is open")
+  attr(:rest, :global)
+
+  def row_kebab(assigns) do
+    ~H"""
+    <button
+      type="button"
+      id={@id}
+      class="row-actions__kebab"
+      aria-label={gettext("Actions for %{row}", row: @row)}
+      aria-haspopup="menu"
+      aria-expanded={to_string(@open)}
+      {@rest}
+    >
+      <.icon name={:ellipsis_vertical} />
+    </button>
+    """
+  end
+
+  @doc """
+  A row's name from its parts, for `row_kebab/1`: the parts that are there,
+  joined by commas ("Buy, Nordic Timber Holdings AB, 2026-09-01").
+  """
+  @spec row_name([String.t() | nil]) :: String.t()
+  def row_name(parts) do
+    parts
+    |> Enum.reject(&(&1 in [nil, ""]))
+    |> Enum.join(", ")
+  end
+
+  @doc """
   The freshness marker of a price read (issue 789): attention tone, the
   triangle glyph `aria-hidden`, the word and the quote date as real text, so
   a linear read hears "stale · 2026-08-08" where the eye sees the tone. It

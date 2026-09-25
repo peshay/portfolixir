@@ -1032,19 +1032,10 @@ msgstr "Wertpapier bearbeiten"
 msgid "ISIN copied"
 msgstr "ISIN kopiert"
 
-#: lib/portfolixir_web/live/buckets_live.ex:180
-#: lib/portfolixir_web/live/buckets_live.ex:288
-#: lib/portfolixir_web/live/classifications_live.ex:557
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:156
-#: lib/portfolixir_web/live/securities_live.ex:683
-#: lib/portfolixir_web/live/securities_live.ex:770
-#: lib/portfolixir_web/live/snapshots_live.ex:658
-#: lib/portfolixir_web/live/tax_live.ex:784
-#: lib/portfolixir_web/live/tax_live.ex:888
-#: lib/portfolixir_web/live/transaction_management_live.ex:920
+#: lib/portfolixir_web/components/app_shell.ex:575
 #, elixir-autogen, elixir-format
-msgid "Open actions menu"
-msgstr "Aktionsmenü öffnen"
+msgid "Actions for %{row}"
+msgstr "Aktionen für %{row}"
 
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:66
 #, elixir-autogen, elixir-format

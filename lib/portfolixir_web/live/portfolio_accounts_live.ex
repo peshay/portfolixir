@@ -147,19 +147,14 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                         </td>
                       <% end %>
                       <td class="row-actions">
-                        <button
+                        <AppShell.row_kebab
                           :if={merged?(row, @split_pairs)}
-                          type="button"
                           id={"account-kebab-#{row.depot.id}"}
-                          class="row-actions__kebab"
+                          row={row.depot.name}
+                          open={@account_menu_id == row.depot.id}
                           phx-click="open_account_menu"
                           phx-value-id={row.depot.id}
-                          aria-label={gettext("Open actions menu")}
-                          aria-haspopup="menu"
-                          aria-expanded={to_string(@account_menu_id == row.depot.id)}
-                        >
-                          <AppShell.icon name={:ellipsis_vertical} />
-                        </button>
+                        />
                       </td>
                     </tr>
                     <%= cond do %>

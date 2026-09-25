@@ -926,21 +926,26 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   attr(:transaction, :map, required: true)
   attr(:open?, :boolean, required: true)
 
+  # #870: named for its row through the shared trigger, the booking composed
+  # from its kind, its subject and its date.
   defp row_kebab(assigns) do
     ~H"""
-    <button
-      type="button"
+    <AppShell.row_kebab
       id={@id}
-      class="row-actions__kebab"
+      row={row_name(@transaction)}
+      open={@open?}
       phx-click="open_row_menu"
       phx-value-id={@transaction.id}
-      aria-label={gettext("Open actions menu")}
-      aria-haspopup="menu"
-      aria-expanded={to_string(@open?)}
-    >
-      <AppShell.icon name={:ellipsis_vertical} />
-    </button>
+    />
     """
+  end
+
+  defp row_name(transaction) do
+    AppShell.row_name([
+      tx_type_label(transaction.type),
+      phone_subject(transaction),
+      PortfolixirWeb.Format.date(transaction.date)
+    ])
   end
 
   # #816: the three chip families, rendered twice — once as the desktop row
