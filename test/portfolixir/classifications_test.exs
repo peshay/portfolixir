@@ -251,6 +251,59 @@ defmodule Portfolixir.ClassificationsTest do
     refute equity.color == bond.color
   end
 
+  # User story (E25 S6 review round, M5):
+  # As the operator recolouring a built-in category while the built-in seed
+  # backfills default colours,
+  # I want my colour kept,
+  # so that the backfill never overwrites a colour it read as unset before
+  # I chose one.
+  #
+  # Acceptance criteria:
+  # - The backfill decides on the category as stored under the write's lock:
+  #   a colour set after the seed read the tree stays, and the backfill
+  #   journals nothing for that category.
+  test "the colour backfill never overwrites a colour chosen after it read the tree" do
+    Classifications.ensure_builtins()
+    asset = Classifications.list_trees() |> tree("asset_class")
+    equity = category(asset, "equity")
+
+    set_color = fn color ->
+      Repo.query!("SELECT set_config('portfolixir.journal_actor', 'test', true)")
+
+      Repo.update_all(
+        from(c in Portfolixir.Classifications.Category, where: c.id == ^equity.id),
+        set: [color: color]
+      )
+    end
+
+    {:ok, _} = Repo.transaction(fn -> set_color.(nil) end)
+
+    test_pid = self()
+    handler = "colour-backfill-race-#{System.unique_integer([:positive])}"
+
+    :ok =
+      :telemetry.attach(
+        handler,
+        [:portfolixir, :repo, :query],
+        fn _event, _measurements, %{query: query}, _config ->
+          if self() == test_pid and query =~ ~r/FROM "classification_categories"/ and
+               not (query =~ "FOR") and Process.get(:recoloured) == nil do
+            Process.put(:recoloured, true)
+            set_color.("#123abc")
+          end
+        end,
+        nil
+      )
+
+    try do
+      Classifications.ensure_builtins()
+    after
+      :telemetry.detach(handler)
+    end
+
+    assert Repo.get!(Portfolixir.Classifications.Category, equity.id).color == "#123abc"
+  end
+
   test "recolors a built-in category without unlocking its structure" do
     Classifications.ensure_builtins()
 

@@ -1019,10 +1019,13 @@ defmodule Portfolixir.Classifications do
 
       %Category{color: nil} = category when not is_nil(color) ->
         # Backfill a default color, but never overwrite a user-chosen one. This
-        # one-time write is journaled under the same built-in seed actor.
+        # one-time write is journaled under the same built-in seed actor. It
+        # decides on the row as stored under the write's lock (E25 S6 review
+        # round, M5): a color chosen after the read above stays, and the
+        # unchanged row leaves no entry.
         {:ok, updated} =
           Multi.new()
-          |> Multi.update(:category, Ecto.Changeset.change(category, color: color))
+          |> Multi.update(:category, &backfill_color(Journal.locked_row(&1), color))
           |> Journal.record(builtin_actor(),
             resource_type: "category",
             operation: :update,
@@ -1038,6 +1041,11 @@ defmodule Portfolixir.Classifications do
         category
     end
   end
+
+  defp backfill_color(%Category{color: nil} = category, color),
+    do: Ecto.Changeset.change(category, color: color)
+
+  defp backfill_color(%Category{} = category, _color), do: Ecto.Changeset.change(category)
 
   # -- internals ------------------------------------------------------------
 

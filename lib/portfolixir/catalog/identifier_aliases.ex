@@ -127,18 +127,34 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
   alias-alias collisions are held by the unique index.
   """
   def update_alias(%Actor{} = actor, %IdentifierAlias{} = alias_row, attrs) when is_map(attrs) do
-    changeset = IdentifierAlias.changeset(alias_row, attrs)
+    # Built on the row as stored, re-read under its lock by the journal step
+    # (E25 S6 review round, M5): an edit from a stale read that sets a field
+    # back to the value it read is a change, never dropped as none. The ISIN
+    # write lock comes first, as in every ISIN writer.
+    changeset = &IdentifierAlias.changeset(Journal.locked_row(&1), attrs)
 
-    Repo.transaction(fn ->
-      acquire_isin_write_lock(Repo)
-
-      with :ok <- ensure_changed_former_isin_not_live(changeset),
-           {:ok, updated} <- journaled_alias_update(actor, alias_row, changeset) do
-        updated
-      else
-        {:error, reason} -> Repo.rollback(reason)
+    Multi.new()
+    |> Multi.run(:former_isin_guard, fn _repo, changes ->
+      case ensure_changed_former_isin_not_live(changeset.(changes)) do
+        :ok -> {:ok, :clear}
+        {:error, _changeset} = refused -> refused
       end
     end)
+    |> Multi.update(:alias, changeset)
+    |> Journal.record(actor,
+      resource_type: "security_identifier_alias",
+      operation: :update,
+      source: :alias,
+      before: alias_row
+    )
+    |> Multi.prepend(Multi.run(Multi.new(), :isin_write_lock, &lock_isin_writes/2))
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{alias: updated}} -> {:ok, updated}
+      {:error, :former_isin_guard, %Changeset{} = error, _changes} -> {:error, error}
+      {:error, :alias, %Changeset{} = error, _changes} -> {:error, error}
+      {:error, {:journal_lock, _}, :not_found, _changes} -> {:error, :not_found}
+    end
   end
 
   @doc """
@@ -322,24 +338,6 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
     case Repo.transaction(multi) do
       {:ok, %{security: updated}} -> {:ok, updated}
       {:error, :security, %Changeset{} = error, _changes} -> {:error, error}
-      {:error, {:journal_lock, _}, :not_found, _changes} -> {:error, :not_found}
-    end
-  end
-
-  defp journaled_alias_update(%Actor{} = actor, %IdentifierAlias{} = before, changeset) do
-    multi =
-      Multi.new()
-      |> Multi.update(:alias, changeset)
-      |> Journal.record(actor,
-        resource_type: "security_identifier_alias",
-        operation: :update,
-        source: :alias,
-        before: before
-      )
-
-    case Repo.transaction(multi) do
-      {:ok, %{alias: updated}} -> {:ok, updated}
-      {:error, :alias, %Changeset{} = error, _changes} -> {:error, error}
       {:error, {:journal_lock, _}, :not_found, _changes} -> {:error, :not_found}
     end
   end
