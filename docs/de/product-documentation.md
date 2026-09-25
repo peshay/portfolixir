@@ -1382,8 +1382,11 @@ sich bis zu zwei Benchmarks wählen: ein auf der Wertpapierseite als
 Benchmark markiertes Wertpapier (ein Index über einen ETF, Gold über einen
 ETC, per gewöhnlichem Kurs-Sync) oder ein fester Jahreszins als Prozentwert
 (die Tagesgeld-Alternative; in dieser Version auch die Ausdrucksform der
-Inflation). Die Wahl steht in der URL und wird wie die aktive View gemerkt.
-Zwei Vergleiche erscheinen, beide so, wie Portfolio Performance sie zeigt.
+Inflation). Die Wahl steht in der URL und wird wie die aktive View gemerkt;
+ein Zins wird nur behalten, wenn der Vergleich ihn exakt verwenden kann
+(zwischen −99,9999 % und 1000 % p. a., als Bruch mit höchstens 15
+Nachkommastellen), und ein gemerkter Zins, der das nicht mehr erfüllt,
+fällt beim nächsten Aufruf weg. Zwei Vergleiche erscheinen, beide so, wie Portfolio Performance sie zeigt.
 **Einmal gekauft** — die auf den Periodenbeginn rebasierte Benchmark als
 gestrichelte Linie über dem TTWROR-Chart, mit eigener Legende und im
 Chart-Tooltip — beantwortet, ob die Auswahl den Index geschlagen hat.

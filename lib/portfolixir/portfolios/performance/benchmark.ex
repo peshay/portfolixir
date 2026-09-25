@@ -71,6 +71,9 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
   @days_per_year 365
   # A whole basis point of a rate fraction (E25 S4, G03).
   @memo_rate_places 4
+  # The engine's scale for a rate: `daily_rate_factor/1` rounds to it before
+  # the float boundary, so a rate with more places is not what is computed.
+  @engine_rate_places 15
 
   @type benchmark :: {:rate, Decimal.t()} | {:security, Security.t()}
 
@@ -172,6 +175,24 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
   end
 
   def valid_rate?(_other), do: false
+
+  @doc """
+  A rate as the engine computes it: inside `valid_rate?/1` and exact at the
+  engine's scale (at most #{@engine_rate_places} decimal places, trailing
+  zeros not counted), normalised to one spelling. Anything else is `:error`.
+  A remembered selector passes through this on every read (E25 S4, F06).
+  """
+  @spec exact_rate(term()) :: {:ok, Decimal.t()} | :error
+  def exact_rate(%Decimal{} = rate) do
+    if valid_rate?(rate) and BoundedDecimal.decimal_places(rate) <= @engine_rate_places do
+      normalized = Decimal.normalize(rate)
+      {:ok, if(Decimal.equal?(normalized, @zero), do: @zero, else: normalized)}
+    else
+      :error
+    end
+  end
+
+  def exact_rate(_other), do: :error
 
   @doc """
   Whether a read at `rate` may be memoised: a whole number of basis points
@@ -515,7 +536,7 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
     # 1e-400 is inside the bound but below DBL_MIN, and `Decimal.to_float/1`
     # raises on it (closing-act finding). At 15 places it is exactly 0, which
     # is also what a float would make of it.
-    rate = Decimal.round(rate, 15)
+    rate = Decimal.round(rate, @engine_rate_places)
 
     if Decimal.equal?(rate, @zero) do
       @one

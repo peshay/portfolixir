@@ -14,9 +14,13 @@ defmodule PortfolixirWeb.BenchmarkScope do
   The plug validates only the **shape** of a selector — a positive integer
   security id, or a finite rate inside the engine's own bound
   (`Portfolixir.Portfolios.Performance.Benchmark.valid_rate?/1`, -99.9999 %
-  to 1000 % p.a.) — and stores the rate as the normalised decimal fraction
-  the comparison engine reads (`rate:0.02` for 2 %, whether typed as `2` or
-  `2.0`).
+  to 1000 % p.a.) and exact at the engine's scale
+  (`Benchmark.exact_rate/1`) — and stores the rate as the normalised decimal
+  fraction the comparison engine reads (`rate:0.02` for 2 %, whether typed as
+  `2` or `2.0`), a short string by construction. The query, the picker form
+  and the remembered cookie all pass through `parse_rate/1`, so a selector
+  remembered before a bound existed is dropped on the next request and the
+  cookie rewritten without it (E25 S4, F06).
   Whether an id still names a flagged benchmark is decided where the
   selection is used, so an unflagged or deleted security degrades to
   "not selected". An explicit choice with no valid selector (the form
@@ -33,6 +37,9 @@ defmodule PortfolixirWeb.BenchmarkScope do
   @max_age 60 * 60 * 24 * 365
   @max_benchmarks 2
   @hundred Decimal.new(100)
+  # Longer than any rate the engine holds exactly (sign, two integer digits,
+  # the point and fifteen places), so a raw value past it is never parsed.
+  @max_rate_chars 32
   # The largest id the securities table can hold (int8).
   @max_id 9_223_372_036_854_775_807
 
@@ -81,16 +88,39 @@ defmodule PortfolixirWeb.BenchmarkScope do
     normalize_selectors(entries ++ rate_selector(Map.get(params, "benchmark_rate")))
   end
 
+  @doc """
+  The rate a remembered `rate:<fraction>` selector names, through the one
+  bound every path shares: `{:ok, rate}` exact at the engine's scale, or
+  `:error`.
+  """
+  @spec parse_rate(term()) :: {:ok, Decimal.t()} | :error
+  def parse_rate(raw) when is_binary(raw) do
+    with {:ok, fraction} <- parse_decimal(raw), do: Benchmark.exact_rate(fraction)
+  end
+
+  def parse_rate(_raw), do: :error
+
   # The picker's rate field is a percentage; the stored selector carries the
   # fraction the engine reads.
   defp rate_selector(raw) when is_binary(raw) do
-    case Decimal.parse(String.trim(raw)) do
-      {%Decimal{} = percent, ""} -> rate_fraction(Decimal.div(percent, @hundred))
-      _malformed -> []
+    case parse_decimal(raw) do
+      {:ok, percent} -> rate_fraction(Decimal.div(percent, @hundred))
+      :error -> []
     end
   end
 
   defp rate_selector(_raw), do: []
+
+  defp parse_decimal(raw) do
+    trimmed = String.trim(raw)
+
+    with true <- byte_size(trimmed) <= @max_rate_chars,
+         {%Decimal{} = decimal, ""} <- Decimal.parse(trimmed) do
+      {:ok, decimal}
+    else
+      _malformed -> :error
+    end
+  end
 
   defp normalize_selector("security:" <> id) do
     case Integer.parse(String.trim(id)) do
@@ -100,20 +130,21 @@ defmodule PortfolixirWeb.BenchmarkScope do
   end
 
   defp normalize_selector("rate:" <> rate) do
-    case Decimal.parse(String.trim(rate)) do
-      {%Decimal{} = fraction, ""} -> rate_fraction(fraction)
-      _ -> []
+    case parse_decimal(rate) do
+      {:ok, fraction} -> rate_fraction(fraction)
+      :error -> []
     end
   end
 
   defp normalize_selector(_other), do: []
 
-  # The engine's bound, and one spelling per rate so `2` and `2.0` cannot
-  # fill both slots with the same benchmark.
+  # The engine's bound and scale, and one spelling per rate so `2` and `2.0`
+  # cannot fill both slots with the same benchmark.
   defp rate_fraction(fraction) do
-    if Benchmark.valid_rate?(fraction),
-      do: ["rate:" <> Decimal.to_string(Decimal.normalize(fraction), :normal)],
-      else: []
+    case Benchmark.exact_rate(fraction) do
+      {:ok, rate} -> ["rate:" <> Decimal.to_string(rate, :normal)]
+      :error -> []
+    end
   end
 
   defp apply_choice(conn, []) do
@@ -128,13 +159,17 @@ defmodule PortfolixirWeb.BenchmarkScope do
     |> put_resp_cookie(@cookie, Enum.join(selectors, ","), max_age: @max_age, same_site: "Lax")
   end
 
+  # The remembered selection is re-validated on every request; one that no
+  # longer passes is dropped from the session and from the cookie.
   defp carry_cookie(conn) do
-    selectors =
-      case conn.cookies[@cookie] do
-        raw when is_binary(raw) -> raw |> String.split(",") |> normalize_selectors()
-        _none -> []
-      end
+    case conn.cookies[@cookie] do
+      raw when is_binary(raw) ->
+        selectors = raw |> String.split(",") |> normalize_selectors()
+        conn = put_session(conn, @session_key, selectors)
+        if Enum.join(selectors, ",") == raw, do: conn, else: apply_choice(conn, selectors)
 
-    put_session(conn, @session_key, selectors)
+      _none ->
+        put_session(conn, @session_key, [])
+    end
   end
 end
