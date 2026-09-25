@@ -194,6 +194,52 @@ defmodule Portfolixir.Lifecycle.FormerNamesBackfillTest do
              ]
     end
 
+    # User story:
+    # As the operator who had two accounts of one name before the name guard
+    # existed, and renamed them one after the other,
+    # I want the backfill to decide each rename by the names live at that
+    # moment, as the writer rule would have,
+    # so that the old name lands on the account the rule gives it, and a
+    # drifted re-import books onto that account rather than onto the other.
+    #
+    # Acceptance criteria:
+    # - While another account still carries the previous name as its live
+    #   name, a rename records nothing, even when that other account is
+    #   renamed away later.
+    # - The later rename, once no other account carries the name, keeps it,
+    #   and nothing is refused.
+    test "a rename is replayed against the names live at its moment", %{portfolio: portfolio} do
+      first = legacy_cash!(portfolio, "Twin")
+      second = legacy_cash!(portfolio, "Twin")
+
+      old_rename!(first, "Twin A")
+      old_rename!(second, "Twin B")
+
+      assert {:ok, report} = FormerNamesBackfill.run(job())
+
+      assert reload(first).former_names == []
+      assert reload(second).former_names == ["Twin"]
+      assert report.refused == []
+
+      assert report.written == [
+               %{kind: :cash_account, account_id: second.id, former_names: ["Twin"]}
+             ]
+    end
+
+    test "an account created before the journal was armed carries its first previous name from the start",
+         %{portfolio: portfolio} do
+      first = unjournaled_cash!(portfolio, "Twin")
+      second = unjournaled_cash!(portfolio, "Twin")
+
+      old_rename!(first, "Twin A")
+      old_rename!(second, "Twin B")
+
+      assert {:ok, %{refused: []}} = FormerNamesBackfill.run(job())
+
+      assert reload(first).former_names == []
+      assert reload(second).former_names == ["Twin"]
+    end
+
     test "a rename of an account deleted since is skipped", %{portfolio: portfolio} do
       gone = cash!(portfolio, "Giro") |> old_rename!("Main account")
 
@@ -229,6 +275,50 @@ defmodule Portfolixir.Lifecycle.FormerNamesBackfillTest do
       })
 
     depot
+  end
+
+  # An account from before the name guard: created through the old writer,
+  # journaled, with no check against the other accounts' names — so two live
+  # accounts may share one.
+  defp legacy_cash!(portfolio, name) do
+    {:ok, %{account: cash}} =
+      Multi.new()
+      |> Multi.insert(
+        :account,
+        Ecto.Changeset.change(%CashAccount{},
+          portfolio_id: portfolio.id,
+          name: name,
+          currency_code: "EUR"
+        )
+      )
+      |> Journal.record(Actor.api_token_rw("synthetic-agent"),
+        resource_type: "cash_account",
+        operation: :create,
+        source: :account
+      )
+      |> Repo.transaction()
+
+    cash
+  end
+
+  # An account from before the journal was armed: the row exists, no journal
+  # entry says when it was made. The table's actor guard is satisfied the way
+  # a journaled write satisfies it, without writing an entry.
+  defp unjournaled_cash!(portfolio, name) do
+    {:ok, cash} =
+      Repo.transaction(fn ->
+        Repo.query!("SELECT set_config('portfolixir.journal_actor', 'system_job:legacy', true)")
+
+        Repo.insert!(
+          Ecto.Changeset.change(%CashAccount{},
+            portfolio_id: portfolio.id,
+            name: name,
+            currency_code: "EUR"
+          )
+        )
+      end)
+
+    cash
   end
 
   # The writer before ADR-0050 §4: the name changes, the change is journaled,
