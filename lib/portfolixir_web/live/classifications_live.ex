@@ -14,7 +14,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   alias PortfolixirWeb.ClassificationName
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
-  alias PortfolixirWeb.PolicyRuleLabel
+  alias PortfolixirWeb.PolicyRuleReferences
 
   @zero Decimal.new("0")
   @hundred Decimal.new("100")
@@ -213,7 +213,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
         {workspace_attrs(@tree)}
       >
         <%= if @error do %>
-          <p class="alert-error" role="alert"><%= @error %></p>
+          <p class="alert-error" role="alert"><PolicyRuleReferences.message message={@error} /></p>
         <% end %>
         <%= if @success do %>
           <p class="alert-success" role="status"><%= @success %></p>
@@ -426,7 +426,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
     <AppShell.shell current_path={@current_path} page_title={gettext("New classification")}>
       <div class="workspace-page">
         <%= if @error do %>
-          <p class="alert-error" role="alert"><%= @error %></p>
+          <p class="alert-error" role="alert"><PolicyRuleReferences.message message={@error} /></p>
         <% end %>
         <section class="workspace-section">
           <h2><%= gettext("Create classification") %></h2>
@@ -2417,7 +2417,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   defp error_message(:not_found), do: gettext("Not found")
   defp error_message(:category_not_found), do: gettext("Category not found")
   defp error_message(:not_reclassifiable), do: gettext("This tree cannot be reassigned")
-  defp error_message({:policy_rules, rules}), do: PolicyRuleLabel.read_by(rules)
+  defp error_message({:policy_rules, rules}), do: PolicyRuleReferences.refusal(rules)
   defp error_message(%Ecto.Changeset{} = changeset), do: changeset_error(changeset)
   defp error_message(_other), do: gettext("Something went wrong")
 

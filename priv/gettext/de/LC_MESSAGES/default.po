@@ -7425,18 +7425,17 @@ msgstr "zu wenig Historie"
 msgid "undetermined"
 msgstr "nicht bestimmbar"
 
-#: lib/portfolixir_web/live/securities/row_context_menu.ex:213
-#: lib/portfolixir_web/policy_rule_label.ex:94
+#: lib/portfolixir_web/components/policy_rule_references.ex:108
 #, elixir-autogen, elixir-format
-msgid "“%{name}” (%{status})"
-msgstr "„%{name}“ (%{status})"
+msgid "“%{name}” (%{status}, view “%{view}”)"
+msgstr "„%{name}“ (%{status}, Ansicht „%{view}“)"
 
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:210
 #, elixir-autogen, elixir-format
 msgid "%{name} is read by policy rules:"
 msgstr "%{name} wird von eigenen Regeln gelesen:"
 
-#: lib/portfolixir_web/policy_rule_label.ex:84
+#: lib/portfolixir_web/components/policy_rule_references.ex:80
 #, elixir-autogen, elixir-format
 msgid "Read by policy rules: %{names}. A rule that has been in force keeps its subject as part of its history; retiring it on Wealth → Risk stops its evaluation."
 msgstr "Wird von eigenen Regeln gelesen: %{names}. Eine Regel, die gegolten hat, behält ihren Bezug als Teil ihrer Geschichte; sie auf „Vermögen → Risiko“ zu beenden, stoppt ihre Auswertung."

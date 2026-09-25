@@ -7424,10 +7424,9 @@ msgstr ""
 msgid "undetermined"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/row_context_menu.ex:213
-#: lib/portfolixir_web/policy_rule_label.ex:94
+#: lib/portfolixir_web/components/policy_rule_references.ex:108
 #, elixir-autogen, elixir-format
-msgid "“%{name}” (%{status})"
+msgid "“%{name}” (%{status}, view “%{view}”)"
 msgstr ""
 
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:210
@@ -7435,7 +7434,7 @@ msgstr ""
 msgid "%{name} is read by policy rules:"
 msgstr ""
 
-#: lib/portfolixir_web/policy_rule_label.ex:84
+#: lib/portfolixir_web/components/policy_rule_references.ex:80
 #, elixir-autogen, elixir-format
 msgid "Read by policy rules: %{names}. A rule that has been in force keeps its subject as part of its history; retiring it on Wealth → Risk stops its evaluation."
 msgstr ""

@@ -1578,7 +1578,11 @@ The **Risk** tab of the Wealth area shows two things that answer one question
   retired. A rename changes only the label: it creates no version, the new
   name reads for the rule with all its versions, and the audit journal keeps
   the previous name. A retired rule is renamed the same way from the list of
-  retired rules.
+  retired rules. Risk shows the rules of the active view, so a rule that
+  applies in another view is found in that view: when deleting a view, a
+  category, a classification or a security is refused because rules read it,
+  the refusal names the rules with their status and view, and each name links
+  to Risk in the view the rule applies in.
 - **Portfolio metrics**, one year: the annualized **volatility**, the
   **maximum drawdown** with the day it started, its low and the day it
   recovered, the **risk-adjusted return** (at a risk-free rate of 0 it is

@@ -1331,6 +1331,22 @@ defmodule Portfolixir.DocsTest do
     end
   end
 
+  # User story (#871, pick G6-A):
+  # As the operator whose delete was refused because rules read the object,
+  # I want the handbook to say where the named rules are,
+  # so that I know the names take me to the rule in the view it applies in.
+  test "the docs state that a refusal links each rule to Risk in its view" do
+    for {path, fragment} <- [
+          {"docs/product-documentation.md",
+           "each name links to Risk in the view the rule applies in"},
+          {"docs/de/product-documentation.md",
+           "jeder Name führt auf „Risiko“ in der Ansicht, in der die Regel gilt"}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+      assert doc =~ fragment, "#{path}: #{fragment}"
+    end
+  end
+
   # User story (#872, ADR-0049 §4 and §8 as amended by the Sprint 16 plan D-6):
   # As the operator, or the operator's agent, reading the handbook,
   # I want a policy rule's rename stated where the rules are described,
