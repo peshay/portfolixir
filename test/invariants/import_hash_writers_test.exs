@@ -52,7 +52,9 @@ defmodule Portfolixir.Invariants.ImportHashWritersTest do
   # - The functions that cast `:import_hash`, or call
   #   `Transaction.import_changeset/2`, are exactly the expected set.
   # - No code writes `import_hash` through put_change/force_change/change,
-  #   an insert_all/update_all, or a raw SQL INSERT or UPDATE.
+  #   an insert_all/update_all, a `%Transaction{}` struct literal or update
+  #   naming it, or a raw SQL INSERT or UPDATE; and no code bulk-writes the
+  #   transactions table at all (rows built elsewhere could carry a hash).
   test "the writers of import_hash are exactly the two ADR-0050 §3 names and the retired table" do
     found = @lib_sources |> Enum.flat_map(&writers_in/1) |> MapSet.new()
 
@@ -85,13 +87,25 @@ defmodule Portfolixir.Invariants.ImportHashWritersTest do
       def b(cs), do: put_change(cs, :import_hash, "x")
       def c, do: Repo.query!("UPDATE transactions SET import_hash = $1", ["x"])
       def d(row, attrs), do: row |> cast(attrs, @fields)
+      def e(h), do: Repo.insert(%Transaction{type: "deposit", import_hash: h})
+      def f(tx, h), do: persist(%Transaction{tx | import_hash: h})
+      def g(rows), do: Repo.insert_all(Transaction, rows)
+      def h(q), do: Repo.update_all(from(t in "transactions", where: t.id > 0), set: [notes: q])
+      def read(%Transaction{import_hash: h}), do: h
     end
     """
 
     assert [{"sample.ex", :a, :import_changeset}, {"sample.ex", :d, :casts}] =
              "sample.ex" |> writers_in_source(sample) |> Enum.sort()
 
-    assert [_put_change, _raw_sql] = side_writes_in_source("sample.ex", sample)
+    offenders = side_writes_in_source("sample.ex", sample)
+
+    # put_change, the raw SQL, the struct literal and the struct update, and
+    # the two bulk writes on the table whatever their rows or sets name; the
+    # pattern in read/1's head writes nothing.
+    assert length(offenders) == 6, Enum.join(offenders, "\n")
+    assert Enum.count(offenders, &(&1 =~ "struct")) == 2
+    assert Enum.count(offenders, &(&1 =~ ~r/insert_all|update_all/)) == 2
   end
 
   describe "a retired hash is refused at the database, on both writers (§16 invariant 4)" do
@@ -484,20 +498,27 @@ defmodule Portfolixir.Invariants.ImportHashWritersTest do
 
   defp side_writes_in(path), do: side_writes_in_source(path, File.read!(path))
 
+  # A side write: put_change/force_change/change naming `import_hash`; any
+  # insert_all/update_all naming it, or on the transactions table at all
+  # (its rows or its set may be built elsewhere); a raw SQL INSERT or UPDATE
+  # naming it; or, inside a function body, a `%Transaction{}` literal or
+  # update naming it (a pattern in a function head reads, it does not write).
   defp side_writes_in_source(path, source) do
+    ast = Code.string_to_quoted!(source)
+
     {_ast, offenders} =
-      source
-      |> Code.string_to_quoted!()
-      |> Macro.prewalk([], fn
+      Macro.prewalk(ast, [], fn
         {fun, meta, args} = node, acc when fun in @changeset_writes and is_list(args) ->
           {node, maybe_offender(acc, mentions_import_hash?(args), path, meta, fun)}
 
-        {{:., _, [_mod, fun]}, meta, args} = node, acc
-        when fun in @changeset_writes or fun in @bulk_writes ->
+        {{:., _, [_mod, fun]}, meta, args} = node, acc when fun in @changeset_writes ->
           {node, maybe_offender(acc, mentions_import_hash?(args), path, meta, fun)}
 
+        {{:., _, [_mod, fun]}, meta, args} = node, acc when fun in @bulk_writes ->
+          {node, maybe_offender(acc, bulk_write?(args), path, meta, fun)}
+
         {fun, meta, args} = node, acc when fun in @bulk_writes and is_list(args) ->
-          {node, maybe_offender(acc, mentions_import_hash?(args), path, meta, fun)}
+          {node, maybe_offender(acc, bulk_write?(args), path, meta, fun)}
 
         binary = node, acc when is_binary(binary) ->
           {node, maybe_offender(acc, raw_sql_write?(binary), path, [], :raw_sql)}
@@ -506,7 +527,38 @@ defmodule Portfolixir.Invariants.ImportHashWritersTest do
           {node, acc}
       end)
 
-    Enum.reverse(offenders)
+    struct_writes =
+      for {_name, body} <- defs(ast),
+          {line, :struct} <- transaction_structs(body),
+          do: "#{path}:#{line} struct"
+
+    Enum.reverse(offenders) ++ struct_writes
+  end
+
+  defp bulk_write?([]), do: false
+
+  defp bulk_write?([target | _] = args) do
+    mentions_import_hash?(args) or
+      found?(target, fn
+        {:__aliases__, _, segments} -> List.last(segments) == :Transaction
+        "transactions" -> true
+        _other -> false
+      end)
+  end
+
+  defp transaction_structs(body) do
+    {_ast, found} =
+      Macro.prewalk(body, [], fn
+        {:%, meta, [{:__aliases__, _, segments}, {:%{}, _, fields}]} = node, acc ->
+          if List.last(segments) == :Transaction and mentions_import_hash?(fields),
+            do: {node, [{Keyword.get(meta, :line, "?"), :struct} | acc]},
+            else: {node, acc}
+
+        node, acc ->
+          {node, acc}
+      end)
+
+    Enum.reverse(found)
   end
 
   defp maybe_offender(acc, false, _path, _meta, _what), do: acc
