@@ -1546,10 +1546,6 @@ defmodule PortfolixirWeb.ImportsLive do
         max: PortfolioPerformance.max_rows()
       )
 
-  # A refusal this page has no words for yet is still a named file error.
-  defp parse_error_message(_reason),
-    do: gettext("The file could not be read as a Portfolio Performance export.")
-
   # A per-row insert rejection (e.g. a currency that does not match the
   # resolved cash account, issue #343) carries the rejecting changeset.
   # Surface its validation messages instead of an opaque struct dump so the
