@@ -217,6 +217,25 @@ defmodule Portfolixir.Ledger.Transaction do
     |> validate_changeset()
   end
 
+  # ADR-0050 §1: an imported row keeps its content hash, and no balance anchor
+  # or split carries one — so an imported row never becomes either kind. The
+  # refusal names the field the caller sent (the database check behind it
+  # would name `import_hash`, which no caller sets).
+  defp refuse_imported_retype(%Ecto.Changeset{data: %{import_hash: hash}} = changeset)
+       when is_binary(hash) do
+    if get_change(changeset, :type) in ["balance_adjustment", "split"] do
+      add_error(
+        changeset,
+        :type,
+        "cannot become a balance anchor or a split: the row was imported"
+      )
+    else
+      changeset
+    end
+  end
+
+  defp refuse_imported_retype(changeset), do: changeset
+
   defp refuse_import_hash(changeset, attrs) do
     if Map.has_key?(attrs, :import_hash) or Map.has_key?(attrs, "import_hash") do
       add_error(changeset, :import_hash, "is set by the importer")
@@ -232,6 +251,7 @@ defmodule Portfolixir.Ledger.Transaction do
     |> put_decimal_default(:taxes)
     |> validate_required([:portfolio_id, :type, :date, :currency_code])
     |> validate_inclusion(:type, @kinds)
+    |> refuse_imported_retype()
     |> validate_length(:currency_code, is: 3)
     |> validate_required_for_kind()
     |> validate_split_ratio_scope()

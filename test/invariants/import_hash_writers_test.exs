@@ -254,6 +254,39 @@ defmodule Portfolixir.Invariants.ImportHashWritersTest do
       refute Repo.exists?(from(t in Transaction, where: not is_nil(t.import_hash)))
     end
 
+    # User story:
+    # As an agent editing a booking over the API,
+    # I want a re-type of an imported row into an anchor or a split refused on
+    # the field I sent,
+    # so that the answer names the type I asked for, not an import hash I
+    # never set, and no hashed anchor or split appears through an edit.
+    #
+    # Acceptance criteria:
+    # - `Ledger.update_transaction/3` refuses a hashed row's change of type to
+    #   `balance_adjustment` or `split` with an error on `type`.
+    # - The row keeps its type and its hash.
+    test "an imported row is never re-typed into an anchor or a split", %{world: world} do
+      {:ok, deposit} =
+        Ledger.create_transaction(Actor.import_session(), deposit_attrs(world, "2026-01-05"),
+          import_hash: "synthetic-imported-deposit"
+        )
+
+      for type <- ~w(balance_adjustment split) do
+        assert {:error, changeset} =
+                 Ledger.update_transaction(Actor.api_token_rw("synthetic-agent"), deposit, %{
+                   "type" => type
+                 })
+
+        assert "cannot become a balance anchor or a split: the row was imported" in errors_on(
+                 changeset
+               ).type
+      end
+
+      stored = Repo.get!(Transaction, deposit.id)
+      assert stored.type == "deposit"
+      assert stored.import_hash == "synthetic-imported-deposit"
+    end
+
     test "the database refuses a hash on an anchor or a split from any writer", %{
       world: world,
       security: security

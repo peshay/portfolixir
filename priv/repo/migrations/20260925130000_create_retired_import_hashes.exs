@@ -27,9 +27,20 @@ defmodule Portfolixir.Repo.Migrations.CreateRetiredImportHashes do
   4. **No balance anchor and no split carries an import hash** (§1): the rows a
      declared restatement removes (§7's folded anchors, §9's collapsed splits)
      therefore hold no hash that would have to be retired. Neither kind is
-     ever imported, so no existing row is expected to violate the check.
+     ever imported, but before this check an imported, hashed row could be
+     re-typed to `balance_adjustment` over `PATCH /api/v1/transactions/:id`
+     and keep its hash. So the check is added over the data as it stands
+     (`add_kind_check/1`): validated when no row violates it, otherwise
+     `NOT VALID` — it then holds for every new or edited row, the upgrade does
+     not stop, and each such row is logged with its id, its kind and the
+     remedy. The row keeps its hash, so a re-import still skips the booking
+     it came from.
   """
   use Ecto.Migration
+
+  require Logger
+
+  @kind_check "import_hash IS NULL OR type NOT IN ('balance_adjustment', 'split')"
 
   def up do
     create table(:retired_import_hashes) do
@@ -133,11 +144,42 @@ defmodule Portfolixir.Repo.Migrations.CreateRetiredImportHashes do
       FOR EACH ROW EXECUTE FUNCTION portfolixir_refuse_retired_import_hash();
     """)
 
-    create(
-      constraint(:transactions, :transactions_import_hash_kind_check,
-        check: "import_hash IS NULL OR type NOT IN ('balance_adjustment', 'split')"
-      )
+    add_kind_check(repo())
+  end
+
+  @doc """
+  Adds `transactions_import_hash_kind_check` on `repo` over the rows as they
+  stand, and returns the rows that already violate it (`%{id, type}`, in id
+  order): with none it is added validated, otherwise `NOT VALID`, and each
+  row is logged. Runs at once, inside the migration's transaction.
+  """
+  def add_kind_check(repo) do
+    %{rows: rows} =
+      repo.query!("""
+      SELECT id, type FROM transactions
+      WHERE import_hash IS NOT NULL AND type IN ('balance_adjustment', 'split')
+      ORDER BY id
+      """)
+
+    offenders = Enum.map(rows, fn [id, type] -> %{id: id, type: type} end)
+    not_valid = if offenders == [], do: "", else: " NOT VALID"
+
+    repo.query!(
+      "ALTER TABLE transactions ADD CONSTRAINT transactions_import_hash_kind_check " <>
+        "CHECK (#{@kind_check})#{not_valid}"
     )
+
+    for %{id: id, type: type} <- offenders do
+      Logger.warning(
+        "import-hash kind check (ADR-0050 §1): transaction ##{id} (#{type}) carries an " <>
+          "import hash — it was imported as another kind and re-typed later. It keeps the " <>
+          "hash, so a re-import still skips the booking; the check is added NOT VALID. " <>
+          "Change its type back to the kind it was imported as (the audit journal shows " <>
+          "it) or delete it; until then every edit of the row is refused by the check."
+      )
+    end
+
+    offenders
   end
 
   def down do
