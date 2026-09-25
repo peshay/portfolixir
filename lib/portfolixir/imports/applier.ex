@@ -39,6 +39,11 @@ defmodule Portfolixir.Imports.Applier do
     portfolio, then a former name. An ambiguous tier is refused when a row
     that passed the hash check needs the name (`{:ambiguous_account_name,
     kind, name, ids}`), never guessed.
+  - **The account-identity lock first** (§4): both apply paths take the
+    portfolio's `AccountNames.lock_identity/2` right after the portfolio is
+    known, before any row is read for update or inserted, so an import keeps
+    the lock order of every other writer of account names (the advisory lock,
+    then row locks) and a concurrent rename waits instead of deadlocking.
   - **The mapping is revalidated and remembered at apply start** (§4, §10):
     an `{:existing, id}` account that has gone since the preview aborts with
     `{:resolution_diverged, %{kind, name, id, merged_into}}` (the survivor
@@ -222,6 +227,7 @@ defmodule Portfolixir.Imports.Applier do
     Repo.transaction(fn ->
       with {:ok, portfolio_id, result} <-
              resolve_portfolio(Map.get(params, :portfolio), %Result{}),
+           :ok <- AccountNames.lock_identity(portfolio_id),
            {:ok, cash_plan} <-
              plan_mapped_cash(params.cash_accounts, cash_currencies, default_currency),
            {:ok, depot_plan} <- plan_mapped_depots(params.depots, params.cash_accounts),
@@ -258,6 +264,8 @@ defmodule Portfolixir.Imports.Applier do
     flat_entries = Entry.flatten(entries)
 
     Repo.transaction(fn ->
+      :ok = AccountNames.lock_identity(portfolio_id)
+
       state =
         base_state(portfolio_id, default_currency, params, %Result{})
         |> Map.merge(%{

@@ -499,6 +499,109 @@ defmodule Portfolixir.Imports.ReimportContractTest do
     end
   end
 
+  describe "the import takes the account-identity lock before any row lock (§4, §10)" do
+    # User story:
+    # As the operator renaming an account while an import runs,
+    # I want the import to take the account-identity lock before it books
+    # onto an existing account,
+    # so that the rename and the import queue in one order and neither ends
+    # in a deadlock.
+    #
+    # Acceptance criteria:
+    # - On both apply paths, the portfolio's account-identity lock is taken
+    #   before the first transaction is inserted, also when the first row
+    #   books onto an existing account and a later row creates one, and when
+    #   nothing is remembered.
+    test "on both apply paths the identity lock precedes the first booking", %{
+      portfolio: portfolio
+    } do
+      giro = cash!(portfolio, "Giro")
+
+      auto = [
+        deposit(1, "Giro", "100.00", "2025-01-02"),
+        deposit(2, "New", "50.00", "2025-01-03")
+      ]
+
+      queries =
+        capture_queries(fn ->
+          assert {:ok, %Result{created_transactions: 2}} =
+                   Imports.apply(parse!(auto), %{portfolio_id: portfolio.id})
+        end)
+
+      assert_identity_lock_first(queries, portfolio.id)
+
+      mapped = [
+        deposit(1, "Giro", "300.00", "2025-02-02"),
+        deposit(2, "Other", "70.00", "2025-02-03")
+      ]
+
+      queries =
+        capture_queries(fn ->
+          assert {:ok, %Result{created_transactions: 2}} =
+                   Imports.apply(parse!(mapped), %{
+                     portfolio: {:existing, portfolio.id},
+                     cash_accounts: %{
+                       "Giro" => {:existing, giro.id},
+                       "Other" => {:create, "Other"}
+                     },
+                     depots: %{},
+                     remember: %{cash_accounts: %{"Giro" => false}}
+                   })
+        end)
+
+      assert_identity_lock_first(queries, portfolio.id)
+    end
+  end
+
+  defp assert_identity_lock_first(queries, portfolio_id) do
+    lock_params = [Lifecycle.AccountNames.lock_key(), portfolio_id]
+
+    lock =
+      Enum.find_index(queries, fn {query, params} ->
+        query =~ "pg_advisory_xact_lock" and params == lock_params
+      end)
+
+    insert =
+      Enum.find_index(queries, fn {query, _} -> query =~ ~s(INSERT INTO "transactions") end)
+
+    assert lock, "the import never took the account-identity lock"
+    assert insert, "the import inserted no transaction"
+
+    assert lock < insert,
+           "the identity lock came after the first booking (query #{lock} > #{insert})"
+  end
+
+  defp capture_queries(fun) do
+    test_pid = self()
+    handler = "reimport-identity-lock-#{System.unique_integer([:positive])}"
+
+    :ok =
+      :telemetry.attach(
+        handler,
+        [:portfolixir, :repo, :query],
+        fn _event, _measurements, %{query: query, params: params}, _config ->
+          if self() == test_pid, do: send(test_pid, {:query, query, params})
+        end,
+        nil
+      )
+
+    try do
+      fun.()
+    after
+      :telemetry.detach(handler)
+    end
+
+    collect_queries([])
+  end
+
+  defp collect_queries(acc) do
+    receive do
+      {:query, query, params} -> collect_queries([{query, params} | acc])
+    after
+      0 -> Enum.reverse(acc)
+    end
+  end
+
   # --- the synthetic export ---------------------------------------------------
 
   defp household do
