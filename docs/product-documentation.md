@@ -1645,12 +1645,20 @@ band above the drop zone, and the drop zone takes the next file at once:
   one preview, far more than an ordinary export carries: create smaller
   exports in Portfolio Performance, for example one per account or depot, and
   import them one after another.
+- **A file that expands into more entries than the import is sized for**,
+  counting each row and every tax refund a row splits off: split the export
+  in Portfolio Performance, for example by year.
 
 A single row the import could never book is a parser warning instead: it is
 listed with its row number, left out of the entries, and the rest of the file
 previews and imports. A security entry that names nothing (no name, ISIN, WKN
 or ticker) is such a row: *security without a name and without an ISIN — row
-not imported*. An entry with only a WKN or only a ticker is a security like
+not imported*. So is a row with a value no ledger column can hold (an
+amount, fee, tax, split-off tax refund or derived price with more digits
+before the decimal point than its column keeps, after rounding to the
+column's decimals), a number the parser cannot read, and a transaction with
+more fee and tax units than one booking carries: each is named with the field
+and its row, and never fails the import after you confirm. An entry with only a WKN or only a ticker is a security like
 any other and resolves through the matching ladder below. A preview is kept
 for your next visit (a language switch, a reload) only once it has been shown.
 

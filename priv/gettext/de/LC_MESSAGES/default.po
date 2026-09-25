@@ -7877,3 +7877,53 @@ msgstr "Wertpapier ohne Name und ohne ISIN — Zeile nicht übernommen"
 #, elixir-autogen, elixir-format
 msgid "The file names too many different accounts, depots or securities for one preview. Remedy: create smaller exports in Portfolio Performance, for example one per account or depot, and import them one after another."
 msgstr "Die Datei enthält zu viele unterschiedliche Konto-, Depot- oder Wertpapiernamen für eine Vorschau. Abhilfe: in Portfolio Performance kleinere Exporte anlegen, etwa je Konto oder Depot, und nacheinander importieren."
+
+#: lib/portfolixir_web/live/imports_live.ex:1500
+#, elixir-autogen, elixir-format
+msgid "The file expands to %{n} entries (its rows and the tax refunds they split off); the import is sized for at most %{max}."
+msgstr "Die Datei ergibt %{n} Einträge (ihre Zeilen und die daraus abgespaltenen Steuererstattungen); der Import ist auf höchstens %{max} ausgelegt."
+
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:276
+#, elixir-autogen, elixir-format
+msgid "more units (fees and taxes) than one booking carries"
+msgstr "mehr Positionen (Gebühren und Steuern), als eine Buchung trägt"
+
+#: lib/portfolixir/imports/portfolio_performance.ex:120
+#, elixir-autogen, elixir-format
+msgid "%{field} has more than %{digits} digits before the decimal point"
+msgstr "%{field} hat mehr als %{digits} Stellen vor dem Komma"
+
+#: lib/portfolixir/imports/portfolio_performance.ex:130
+#, elixir-autogen, elixir-format
+msgid "tax refund"
+msgstr "Steuererstattung"
+
+#: lib/portfolixir/imports/portfolio_performance.ex:133
+#, elixir-autogen, elixir-format
+msgid "gross amount"
+msgstr "Betrag"
+
+#: lib/portfolixir/imports/portfolio_performance.ex:134
+#, elixir-autogen, elixir-format
+msgid "quantity"
+msgstr "Stückzahl"
+
+#: lib/portfolixir/imports/portfolio_performance.ex:135
+#, elixir-autogen, elixir-format
+msgid "price"
+msgstr "Kurs"
+
+#: lib/portfolixir/imports/portfolio_performance.ex:136
+#, elixir-autogen, elixir-format
+msgid "fees"
+msgstr "Gebühren"
+
+#: lib/portfolixir/imports/portfolio_performance.ex:137
+#, elixir-autogen, elixir-format
+msgid "taxes"
+msgstr "Steuern"
+
+#: lib/portfolixir/imports/portfolio_performance.ex:150
+#, elixir-autogen, elixir-format
+msgid "number %{value} cannot be read or is out of range"
+msgstr "Zahl %{value} ist nicht lesbar oder außerhalb des Bereichs"

@@ -67,7 +67,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
 
       [header_row | data_rows] ->
         with :ok <- validate_header(header_row),
-             :ok <- validate_row_count(data_rows) do
+             :ok <- validate_row_count(data_rows),
+             :ok <- validate_entry_count(header_row, data_rows) do
           {entries, errors} =
             data_rows
             |> Enum.with_index(1)
@@ -101,6 +102,28 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
     max = PortfolioPerformance.max_rows()
     count = length(rows)
     if count > max, do: {:error, {:too_many_rows, count}}, else: :ok
+  end
+
+  # E25 S5 (F38): the cap counts the entries the file expands into — each
+  # row plus the tax refund a negative `Steuern` cell splits off — before any
+  # is built.
+  defp validate_entry_count(header_row, rows) do
+    max = PortfolioPerformance.max_rows()
+    taxes_at = Enum.find_index(header_row, &(&1 == "Steuern"))
+
+    count =
+      Enum.reduce(rows, 0, fn row, count ->
+        count + 1 + refund_cell(Enum.at(row, taxes_at))
+      end)
+
+    if count > max, do: {:error, {:too_many_entries, count}}, else: :ok
+  end
+
+  defp refund_cell(cell) do
+    case Decimals.parse_de(cell) do
+      {:ok, %Decimal{} = taxes} -> if Decimal.negative?(taxes), do: 1, else: 0
+      _other -> 0
+    end
   end
 
   defp validate_header(header_row) do
@@ -205,6 +228,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
       end
     else
       {:error, reason} when is_binary(reason) -> {:error, reason}
+      {:error, {:invalid_decimal, value}} -> {:error, PortfolioPerformance.decimal_message(value)}
       {:error, reason} -> {:error, inspect(reason)}
     end
   end
