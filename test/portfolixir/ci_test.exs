@@ -1,6 +1,39 @@
 defmodule Portfolixir.CITest do
   use ExUnit.Case, async: true
 
+  @migration_gate "Reject any change to an existing migration"
+
+  # A scratch repository's git reads neither the user's nor the system's
+  # configuration (no rename default, hook or signing setting of the machine
+  # running the suite), and commits under a synthetic identity.
+  @git_env [
+    {"GIT_CONFIG_GLOBAL", "/dev/null"},
+    {"GIT_CONFIG_NOSYSTEM", "1"},
+    {"GIT_AUTHOR_NAME", "Synthetic Author"},
+    {"GIT_AUTHOR_EMAIL", "author@example.invalid"},
+    {"GIT_COMMITTER_NAME", "Synthetic Author"},
+    {"GIT_COMMITTER_EMAIL", "author@example.invalid"}
+  ]
+
+  # Long enough that an edit keeps it above git's 50% rename-similarity
+  # threshold, so a renamed-and-edited copy is reported as a rename.
+  @migration """
+  defmodule Portfolixir.Repo.Migrations.CreateWidgets do
+    use Ecto.Migration
+
+    def change do
+      create table(:widgets) do
+        add :name, :string, null: false
+        add :size, :integer
+        add :colour, :string
+        timestamps()
+      end
+
+      create index(:widgets, [:name])
+    end
+  end
+  """
+
   # User story:
   # As a maintainer keeping CI focused,
   # I want CI to run code coverage without deployment workflows,
@@ -666,9 +699,46 @@ defmodule Portfolixir.CITest do
     assert Enum.sum(for {scripts, _} <- checked, do: scripts) > 0
     assert Enum.sum(for {_, checkouts} <- checked, do: checkouts) > 0
 
-    gate = step!(ci_workflow(), "Reject edits or deletions of existing migrations")
+    gate = step!(ci_workflow(), @migration_gate)
     assert gate =~ ~r/^\s+BASE_SHA: \$\{\{ github\.event\.pull_request\.base\.sha \}\}$/m
     assert gate =~ ~s("$BASE_SHA"...HEAD)
+  end
+
+  # User story (E25 S8, F55 -- #893):
+  # As a maintainer relying on applied migrations being immutable,
+  # I want the migration gate to see every way an existing migration file can
+  # change, not only the two statuses it used to list,
+  # so that renaming a migration while editing it -- which git reports as a
+  # rename, neither a modification nor a deletion -- cannot carry an edited
+  # migration past the gate.
+  #
+  # Acceptance criteria:
+  # - The gate diffs with rename detection off (`--no-renames`), so a moved
+  #   file is a deletion plus an addition.
+  # - It lists every status except an addition (`--diff-filter=a`): the only
+  #   change it lets through under priv/repo/migrations/ is a new file.
+  # - Run against a scratch repository, the gate's own script passes a new
+  #   migration and fails an edit, a deletion, a rename, a rename with an
+  #   edit, a mode change and a type change.
+  test "the migration gate turns rename detection off and permits only additions" do
+    [script] = ci_workflow() |> step!(@migration_gate) |> run_scripts()
+
+    assert {"No existing migration was changed.\n", 0} = run_migration_gate(script, :add)
+
+    for change <- [:edit, :delete, :rename, :rename_and_edit, :mode, :type] do
+      {output, status} = run_migration_gate(script, change)
+      assert status != 0, "the gate let an existing migration's #{change} through:\n#{output}"
+      # Refused by the gate itself, naming the file, not by a script error.
+      assert output =~ "Applied migrations are immutable"
+      assert output =~ "20260101000000_create_widgets.exs"
+    end
+
+    # The flags that make it so, pinned where the behaviour above would only
+    # show a symptom.
+    assert [diff] = Regex.run(~r/git diff [^\n]* -- priv\/repo\/migrations\//, script)
+    assert diff =~ " --no-renames "
+    assert diff =~ " --diff-filter=a "
+    refute script =~ "--diff-filter=MD"
   end
 
   defp ci_workflow, do: File.read!(".github/workflows/ci.yml")
@@ -677,17 +747,31 @@ defmodule Portfolixir.CITest do
     for path <- Path.wildcard(".github/workflows/*.yml"), do: {path, File.read!(path)}
   end
 
-  # The value under every `run:` key: the inline scalar, or a block scalar's
+  # The script under every `run:` key: the inline scalar, or a block scalar's
   # lines -- every following line indented deeper than the key, blank lines
-  # included, which is where YAML ends a block scalar.
+  # included, which is where YAML ends a block scalar -- with the block's
+  # indentation removed, as the runner hands it to bash.
   defp run_scripts(yaml) do
     lines = String.split(yaml, "\n")
 
     for {line, index} <- Enum.with_index(lines),
         [_, indent, dash, value] <- [Regex.run(~r/^(\s*)(- )?run:(.*)$/, line)] do
       key_column = String.length(indent) + String.length(dash)
-      Enum.join([value | block_after(lines, index, key_column)], "\n")
+      body = block_after(lines, index, key_column)
+
+      if String.trim(value) =~ ~r/^[|>][-+]?$/ do
+        dedent(body)
+      else
+        Enum.join([String.trim(value) | body], "\n")
+      end
     end
+  end
+
+  defp dedent(lines) do
+    column =
+      lines |> Enum.reject(&(String.trim(&1) == "")) |> Enum.map(&indentation/1) |> Enum.min()
+
+    Enum.map_join(lines, "\n", &String.slice(&1, column..-1//1))
   end
 
   # Every step of every job: its `- ` line plus every following line indented
@@ -713,4 +797,67 @@ defmodule Portfolixir.CITest do
   end
 
   defp indentation(line), do: String.length(line) - String.length(String.trim_leading(line, " "))
+
+  # Runs the gate's script in a scratch repository whose base commit holds one
+  # migration and whose HEAD applies `change` to it, as the pull_request event
+  # would: BASE_SHA in the environment, the change checked out, `bash -e` as
+  # the runner invokes a `run:` script.
+  defp run_migration_gate(script, change) do
+    dir = Path.join(System.tmp_dir!(), "migration-gate-#{System.unique_integer([:positive])}")
+    migrations = Path.join(dir, "priv/repo/migrations")
+    File.mkdir_p!(migrations)
+
+    try do
+      git!(dir, ["init", "--quiet"])
+      File.write!(Path.join(migrations, "20260101000000_create_widgets.exs"), @migration)
+      git!(dir, ["add", "--all"])
+      git!(dir, ["commit", "--quiet", "--message", "base"])
+      base = dir |> git!(["rev-parse", "HEAD"]) |> String.trim()
+
+      change_migration(change, Path.join(migrations, "20260101000000_create_widgets.exs"))
+      git!(dir, ["add", "--all"])
+      git!(dir, ["commit", "--quiet", "--message", "#{change}"])
+
+      System.cmd("bash", ["-e", "-c", script],
+        cd: dir,
+        env: [{"BASE_SHA", base} | @git_env],
+        stderr_to_stdout: true
+      )
+    after
+      File.rm_rf!(dir)
+    end
+  end
+
+  defp change_migration(:add, path) do
+    File.write!(Path.join(Path.dirname(path), "20260102000000_create_gadgets.exs"), @migration)
+  end
+
+  defp change_migration(:edit, path),
+    do: File.write!(path, String.replace(@migration, ":integer", ":bigint"))
+
+  defp change_migration(:delete, path), do: File.rm!(path)
+
+  defp change_migration(:rename, path),
+    do: File.rename!(path, String.replace(path, "create_widgets", "make_widgets"))
+
+  defp change_migration(:rename_and_edit, path) do
+    change_migration(:rename, path)
+
+    File.write!(
+      String.replace(path, "create_widgets", "make_widgets"),
+      String.replace(@migration, ":integer", ":bigint")
+    )
+  end
+
+  defp change_migration(:mode, path), do: File.chmod!(path, 0o755)
+
+  defp change_migration(:type, path) do
+    File.rm!(path)
+    File.ln_s!("20260102000000_elsewhere.exs", path)
+  end
+
+  defp git!(dir, args) do
+    {output, 0} = System.cmd("git", args, cd: dir, env: @git_env, stderr_to_stdout: true)
+    output
+  end
 end
