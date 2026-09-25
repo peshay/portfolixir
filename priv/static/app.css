@@ -1646,10 +1646,13 @@ li + li {
   padding: 2px 0;
 }
 
+/* The track does not clip (issue 875, review round): `overflow: hidden`
+   cut the options' outset focus ring off at its edge. The outer options
+   round their own outer corners instead, so the active fill still follows
+   the track. */
 .segmented-control {
   display: inline-flex;
   flex: 0 0 auto;
-  overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-bg);
@@ -1668,8 +1671,15 @@ li + li {
   white-space: nowrap;
 }
 
+.segmented-control__option:first-child {
+  border-start-start-radius: calc(var(--radius-md) - 1px);
+  border-end-start-radius: calc(var(--radius-md) - 1px);
+}
+
 .segmented-control__option:last-child {
   border-right: 0;
+  border-start-end-radius: calc(var(--radius-md) - 1px);
+  border-end-end-radius: calc(var(--radius-md) - 1px);
 }
 
 .segmented-control__option:hover {
@@ -1687,8 +1697,12 @@ li + li {
 }
 
 /* Focus treatment (issue 669): the solid 2px accent outline IS the
-   indicator; the offset keeps it clear of the option's own fill. */
+   indicator; the offset keeps it clear of the option's own fill. The
+   focused option paints above its neighbours, so a later sibling's fill
+   does not cover the ring (issue 875, review round). */
 .segmented-control__option:focus-visible {
+  position: relative;
+  z-index: 1;
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
