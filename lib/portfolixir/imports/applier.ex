@@ -298,9 +298,12 @@ defmodule Portfolixir.Imports.Applier do
   carries on either leg. Read-only; the hash names `portfolio_id`, and without
   one every importable row is new.
 
-  A row counted `:new` may still be skipped at apply by a later layer (an
-  equal economic booking, an internal transfer, an in-run collapse or an
-  undecided security); an account whose rows are all `:hash`, `:retired` or
+  A row repeating an earlier row of the same file exactly (the same content
+  hash) counts `:hash`: the apply skips it on that layer once the first copy
+  is booked, or on whatever later layer skipped the first. A row counted
+  `:new` may still be skipped at apply by a later layer (an equal economic
+  booking, an internal transfer, an in-run collapse or an undecided
+  security); an account whose rows are all `:hash`, `:retired` or
   `:unimportable` is never created.
   """
   @spec reimport_counts(Preview.t(), integer() | nil) :: %{
@@ -313,29 +316,46 @@ defmodule Portfolixir.Imports.Applier do
     layer_of = row_layers(flat_entries, portfolio_id)
     empty = %{hash: 0, retired: 0, unimportable: 0, new: 0}
 
-    Enum.reduce(flat_entries, %{total: empty, cash_accounts: %{}, depots: %{}}, fn entry, acc ->
-      layer = layer_of.(entry)
-      bump = &Map.update!(&1, layer, fn n -> n + 1 end)
+    initial = {%{total: empty, cash_accounts: %{}, depots: %{}}, MapSet.new()}
 
-      %{
-        total: bump.(acc.total),
-        cash_accounts:
-          count_names(
-            acc.cash_accounts,
-            [entry.pp_account_name, entry.pp_counter_account_name],
-            empty,
-            bump
-          ),
-        depots:
-          count_names(
-            acc.depots,
-            [entry.pp_portfolio_name, entry.pp_counter_portfolio_name],
-            empty,
-            bump
-          )
-      }
-    end)
+    {counts, _seen} =
+      Enum.reduce(flat_entries, initial, fn entry, {acc, seen} ->
+        {layer, seen} = in_file_repeat(layer_of.(entry), seen)
+        {count_row(acc, entry, layer, empty), seen}
+      end)
+
+    counts
   end
+
+  defp count_row(acc, entry, layer, empty) do
+    bump = &Map.update!(&1, layer, fn n -> n + 1 end)
+
+    %{
+      total: bump.(acc.total),
+      cash_accounts:
+        count_names(
+          acc.cash_accounts,
+          [entry.pp_account_name, entry.pp_counter_account_name],
+          empty,
+          bump
+        ),
+      depots:
+        count_names(
+          acc.depots,
+          [entry.pp_portfolio_name, entry.pp_counter_portfolio_name],
+          empty,
+          bump
+        )
+    }
+  end
+
+  # A new row whose content hash an earlier row of the file already carries
+  # is held by the time the apply reaches it.
+  defp in_file_repeat({:new, key}, seen) do
+    if MapSet.member?(seen, key), do: {:hash, seen}, else: {:new, MapSet.put(seen, key)}
+  end
+
+  defp in_file_repeat({layer, _key}, seen), do: {layer, seen}
 
   @typedoc "Rows per first-check layer, as `reimport_counts/2` counts them."
   @type layer_counts :: %{
@@ -362,15 +382,20 @@ defmodule Portfolixir.Imports.Applier do
     held = held_hashes(Transaction, Map.values(hashes))
     retired = held_hashes(RetiredImportHash, Map.values(hashes))
 
+    # `{layer, key}`: the key finds a repeat inside the file, and stands in
+    # for the hash with no portfolio yet (no real portfolio has id 0).
     fn entry ->
       hash = Map.get(hashes, entry)
 
-      cond do
-        unimportable(entry) != nil -> :unimportable
-        hash != nil and MapSet.member?(held, hash) -> :hash
-        hash != nil and MapSet.member?(retired, hash) -> :retired
-        true -> :new
-      end
+      layer =
+        cond do
+          unimportable(entry) != nil -> :unimportable
+          hash != nil and MapSet.member?(held, hash) -> :hash
+          hash != nil and MapSet.member?(retired, hash) -> :retired
+          true -> :new
+        end
+
+      {layer, hash || compute_hash(entry, 0)}
     end
   end
 

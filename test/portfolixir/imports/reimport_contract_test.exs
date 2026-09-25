@@ -497,6 +497,31 @@ defmodule Portfolixir.Imports.ReimportContractTest do
 
       assert counts.depots == %{"Depot" => %{hash: 1, retired: 0, unimportable: 0, new: 0}}
     end
+
+    # Acceptance criteria (review round):
+    # - A row repeating an earlier row of the same file exactly (the same
+    #   content hash) counts `hash`, the layer that skips it at the apply
+    #   once the first copy is booked; only the first copy counts `new`.
+    test "a repeat of an earlier row in the same file counts as held, as the apply skips it", %{
+      portfolio: portfolio
+    } do
+      rows = [
+        deposit(1, "Giro", "40.00", "2025-07-01"),
+        deposit(2, "Giro", "40.00", "2025-07-01"),
+        deposit(3, "Giro", "41.00", "2025-07-01")
+      ]
+
+      counts = Imports.reimport_counts(parse!(rows), portfolio_id: portfolio.id)
+
+      assert counts.total == %{hash: 1, retired: 0, unimportable: 0, new: 2}
+      assert counts.cash_accounts == %{"Giro" => %{hash: 1, retired: 0, unimportable: 0, new: 2}}
+
+      assert {:ok, %Result{} = result} =
+               Imports.apply(parse!(rows), %{portfolio_id: portfolio.id})
+
+      assert result.created_transactions == 2
+      assert Enum.map(result.duplicate_entries, &{&1.row, &1.layer}) == [{2, :hash}]
+    end
   end
 
   describe "the import takes the account-identity lock before any row lock (§4, §10)" do
