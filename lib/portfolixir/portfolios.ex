@@ -6,6 +6,7 @@ defmodule Portfolixir.Portfolios do
   alias Ecto.Multi
   alias Portfolixir.Actor
   alias Portfolixir.Journal
+  alias Portfolixir.Lifecycle.AccountNames
   alias Portfolixir.Lifecycle.Delete
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.Portfolio
@@ -247,6 +248,27 @@ defmodule Portfolixir.Portfolios do
     Delete.delete(actor, cash_account)
   end
 
+  @doc """
+  Removes `name` from a cash account's former names on behalf of `actor`,
+  journaled (ADR-0050 §4). A former name routes an import row that names it
+  onto this account; once removed, an import that still names it creates a
+  new account. Answers `{:error, :not_a_former_name}` for a name the account
+  does not carry and `{:error, :not_found}` for a vanished account.
+  """
+  def remove_cash_account_former_name(%Actor{} = actor, %CashAccount{} = cash_account, name)
+      when is_binary(name) do
+    AccountNames.remove_former_name(actor, cash_account, name)
+  end
+
+  @doc """
+  The name guard's answer for a new depot named `name` in `portfolio_id`
+  (ADR-0050 §4) — the message a create would fail with, or `nil` when the
+  name is free — for a form that creates something else first.
+  """
+  def securities_account_name_error(portfolio_id, name) when is_binary(name) do
+    AccountNames.name_error(SecuritiesAccount, portfolio_id, name)
+  end
+
   def list_securities_accounts do
     Repo.all(
       from(account in SecuritiesAccount,
@@ -323,5 +345,21 @@ defmodule Portfolixir.Portfolios do
   """
   def delete_securities_account(%Actor{} = actor, %SecuritiesAccount{} = securities_account) do
     Delete.delete(actor, securities_account)
+  end
+
+  @doc """
+  Removes `name` from a depot's former names on behalf of `actor`, journaled
+  (ADR-0050 §4); see `remove_cash_account_former_name/3`.
+  """
+  def remove_securities_account_former_name(
+        %Actor{} = actor,
+        %SecuritiesAccount{} = securities_account,
+        name
+      )
+      when is_binary(name) do
+    case AccountNames.remove_former_name(actor, securities_account, name) do
+      {:ok, updated} -> {:ok, Repo.preload(updated, :cash_account, force: true)}
+      other -> other
+    end
   end
 end

@@ -54,7 +54,11 @@ defmodule PortfolixirWeb.ApiV1IncomeTest do
     security = WorldFixtures.create_security!(name: "Payer Inc", ticker: "PAY")
 
     fx_world =
-      WorldFixtures.add_depot(world.portfolio, cash_currency: "USD", cash_name: "USD Cash")
+      WorldFixtures.add_depot(world.portfolio,
+        cash_currency: "USD",
+        cash_name: "USD Cash",
+        depot_name: "USD Depot"
+      )
 
     usd_security =
       WorldFixtures.create_security!(name: "US Payer", ticker: "USP", currency: "USD")

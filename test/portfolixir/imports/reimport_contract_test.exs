@@ -621,29 +621,25 @@ defmodule Portfolixir.Imports.ReimportContractTest do
     }
   end
 
-  # The preview's prefill (`ImportsLive.initial_mapping_for/2`): an exact live
-  # name maps to its account, any other name to "+ Create new".
+  # The preview's prefill (`ImportsLive`): the shared resolution
+  # (`Imports.resolve_accounts/2`, ADR-0050 §4) maps an exact live name, then
+  # a former name, to its account, and any other name to "+ Create new".
   defp prefilled_mapping(preview) do
-    cash_by_name = Map.new(Portfolios.list_cash_accounts(), &{&1.name, &1.id})
-    depot_by_name = Map.new(Portfolios.list_securities_accounts(), &{&1.name, &1.id})
+    %{cash_accounts: cash, depots: depots} = Imports.resolve_accounts(preview)
     cash_names = Mapping.unique_cash_pp_names(preview)
 
     %{
-      cash_accounts: Map.new(cash_names, &{&1, choice(cash_by_name, &1)}),
+      cash_accounts: Map.new(cash, fn {name, resolution} -> {name, choice(resolution, name)} end),
       depots:
-        Map.new(Mapping.unique_depot_pp_names(preview), fn name ->
+        Map.new(depots, fn {name, resolution} ->
           {name,
-           %{target: choice(depot_by_name, name), cash: default_cash(preview, name, cash_names)}}
+           %{target: choice(resolution, name), cash: default_cash(preview, name, cash_names)}}
         end)
     }
   end
 
-  defp choice(by_name, name) do
-    case Map.fetch(by_name, name) do
-      {:ok, id} -> {:existing, id}
-      :error -> {:create, name}
-    end
-  end
+  defp choice({:ok, id, _tier}, _name), do: {:existing, id}
+  defp choice(:none, name), do: {:create, name}
 
   defp default_cash(preview, depot_name, cash_names) do
     cash = Mapping.default_cash_for_depot(preview, depot_name)

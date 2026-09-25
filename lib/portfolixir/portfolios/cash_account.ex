@@ -2,6 +2,7 @@ defmodule Portfolixir.Portfolios.CashAccount do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Portfolixir.Lifecycle.AccountNames
   alias Portfolixir.Lifecycle.Freeze
   alias Portfolixir.Portfolios.Portfolio
 
@@ -42,9 +43,21 @@ defmodule Portfolixir.Portfolios.CashAccount do
     |> validate_length(:currency_code, is: 3)
     |> validate_inclusion(:liquidity_role, @liquidity_roles)
     |> assoc_constraint(:portfolio)
+    # ADR-0050 §4: the name guard, and on a rename the rename rule, under the
+    # account-identity lock (taken before the freeze's row lock).
+    |> AccountNames.validate()
     # ADR-0050 §11: `currency_code` and `portfolio_id` freeze once a
     # transaction (either leg) or a linked depot references the account.
     |> Freeze.validate()
+  end
+
+  @doc """
+  The write of `former_names` alone (ADR-0050 §4), for the writers in
+  `Portfolixir.Lifecycle.AccountNames` that hold the account-identity lock and
+  have run the name guard: the remembered remap and the removal.
+  """
+  def former_names_changeset(cash_account, former_names) when is_list(former_names) do
+    change(cash_account, former_names: former_names)
   end
 
   defp normalize_currency_code(changeset) do

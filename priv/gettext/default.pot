@@ -7763,3 +7763,13 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "a row with this content was removed by a merge (retired content hash)"
 msgstr ""
+
+#: lib/portfolixir_web/live/imports_live.ex:717
+#, elixir-autogen, elixir-format
+msgid "An account mapped in this preview was merged or deleted since it was opened. The account mapping was refreshed from the current accounts; review it before confirming again. Nothing was written."
+msgstr ""
+
+#: lib/portfolixir_web/live/imports_live.ex:1442
+#, elixir-autogen, elixir-format
+msgid "Several accounts are named %{name}. Pick the one this export's %{name} books to, then confirm again. Nothing was written."
+msgstr ""

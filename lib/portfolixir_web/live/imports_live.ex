@@ -240,6 +240,12 @@ defmodule PortfolixirWeb.ImportsLive do
                     <%= pp_name %>
                   </div>
                   <select name={"cash[#{pp_name}]"}>
+                    <%!-- ADR-0050 §4: an ambiguous name is prefilled with
+                         nothing, and the select says so rather than showing
+                         its first option as if it were chosen. --%>
+                    <option :if={cash_value(@mapping, pp_name) in [nil, ""]} value="" selected>
+                      <%= gettext("Decide…") %>
+                    </option>
                     <option value={"create:#{pp_name}"} selected={cash_value(@mapping, pp_name) == "create:#{pp_name}"}>
                       <%= gettext("+ Create new: %{name}", name: pp_name) %>
                     </option>
@@ -266,6 +272,9 @@ defmodule PortfolixirWeb.ImportsLive do
                     <%= pp_name %>
                   </div>
                   <select name={"depot[#{pp_name}][target]"}>
+                    <option :if={depot_target_value(@mapping, pp_name) in [nil, ""]} value="" selected>
+                      <%= gettext("Decide…") %>
+                    </option>
                     <option value={"create:#{pp_name}"} selected={depot_target_value(@mapping, pp_name) == "create:#{pp_name}"}>
                       <%= gettext("+ Create new: %{name}", name: pp_name) %>
                     </option>
@@ -683,6 +692,33 @@ defmodule PortfolixirWeb.ImportsLive do
      |> reload_lookups()}
   end
 
+  # ADR-0050 §10: an account the mapping names has been merged away (or
+  # deleted) since the preview opened. Nothing was written; the account
+  # mapping is recomputed from the current accounts, keeping the bucket tag
+  # and the security choices, and the user reviews it before confirming.
+  def handle_async(
+        :apply_import,
+        {:ok, {:error, {:resolution_diverged, %{kind: kind}}}},
+        socket
+      )
+      when kind in [:cash_account, :securities_account] do
+    socket = reload_lookups(socket)
+    fresh = initial_mapping_for(socket.assigns.preview)
+    mapping = %{socket.assigns.mapping | cash: fresh.cash, depot: fresh.depot}
+    PreviewStore.put_mapping(socket.assigns.session_token, mapping)
+
+    {:noreply,
+     socket
+     |> assign(:applying, false)
+     |> assign(:mapping, mapping)
+     |> assign(
+       :error,
+       gettext(
+         "An account mapped in this preview was merged or deleted since it was opened. The account mapping was refreshed from the current accounts; review it before confirming again. Nothing was written."
+       )
+     )}
+  end
+
   # Preview→apply revalidation abort (ADR-0029 §2): the data changed while
   # the preview was open. Re-run the ladder so the user reviews the CURRENT
   # resolutions before confirming again.
@@ -733,7 +769,7 @@ defmodule PortfolixirWeb.ImportsLive do
             |> reload_lookups()
             |> assign_preview_pp_names(preview)
             |> assign_security_resolutions(preview)
-            |> assign(:mapping, initial_mapping_for(preview, socket))
+            |> assign(:mapping, initial_mapping_for(preview))
 
           PreviewStore.put(socket.assigns.session_token, preview, socket.assigns.mapping)
 
@@ -800,7 +836,10 @@ defmodule PortfolixirWeb.ImportsLive do
       bucket_skip: false,
       cash: %{},
       depot: %{},
-      security: %{}
+      security: %{},
+      # ADR-0050 §4: the per-name "remember" of a remap, on by default; only a
+      # "false" is ever stored. Its control is the preview's board-04 work.
+      remember: %{"cash" => %{}, "depot" => %{}}
     }
   end
 
@@ -810,29 +849,24 @@ defmodule PortfolixirWeb.ImportsLive do
     "PP Import #{Date.to_iso8601(Date.utc_today())}"
   end
 
-  # Auto-prefill: existing-name match → existing; otherwise create-new.
-  defp initial_mapping_for(%Preview{} = preview, socket) do
-    existing_cash_by_name = Map.new(socket.assigns.existing_cash, &{&1.name, &1.id})
-    existing_depot_by_name = Map.new(socket.assigns.existing_depots, &{&1.name, &1.id})
+  # Auto-prefill (ADR-0050 §4) through the resolution the apply uses: an
+  # exact live name, then a former name → that account; a name found by
+  # neither → create-new; an ambiguous name → nothing ("Decide…").
+  defp initial_mapping_for(%Preview{} = preview) do
+    %{cash_accounts: cash_resolutions, depots: depot_resolutions} =
+      Imports.resolve_accounts(preview)
 
     cash_pp_names = Mapping.unique_cash_pp_names(preview)
     depot_pp_names = Mapping.unique_depot_pp_names(preview)
 
     cash =
       Map.new(cash_pp_names, fn pp_name ->
-        case Map.fetch(existing_cash_by_name, pp_name) do
-          {:ok, id} -> {pp_name, "existing:#{id}"}
-          :error -> {pp_name, "create:#{pp_name}"}
-        end
+        {pp_name, prefill(Map.fetch!(cash_resolutions, pp_name), pp_name)}
       end)
 
     depot =
       Map.new(depot_pp_names, fn pp_name ->
-        target =
-          case Map.fetch(existing_depot_by_name, pp_name) do
-            {:ok, id} -> "existing:#{id}"
-            :error -> "create:#{pp_name}"
-          end
+        target = prefill(Map.fetch!(depot_resolutions, pp_name), pp_name)
 
         default_cash_pp = Mapping.default_cash_for_depot(preview, pp_name)
 
@@ -847,14 +881,33 @@ defmodule PortfolixirWeb.ImportsLive do
     %{blank_mapping() | cash: cash, depot: depot}
   end
 
+  defp prefill({:ok, id, _tier}, _pp_name), do: "existing:#{id}"
+  defp prefill(:none, pp_name), do: "create:#{pp_name}"
+  defp prefill({:ambiguous, _tier, _ids}, _pp_name), do: ""
+
   defp mapping_from_params(params, current) do
     %{
       bucket_tag: Map.get(params, "bucket_tag", current.bucket_tag),
       bucket_skip: parse_bucket_skip(Map.get(params, "bucket_skip"), current.bucket_skip),
       cash: Map.merge(current.cash, Map.get(params, "cash", %{})),
       depot: Map.merge(current.depot, Map.get(params, "depot", %{})),
-      security: merge_security_mapping(Map.get(current, :security, %{}), params)
+      security: merge_security_mapping(Map.get(current, :security, %{}), params),
+      remember: merge_remember(Map.get(current, :remember, blank_mapping().remember), params)
     }
+  end
+
+  # "remember[cash][<name>]" / "remember[depot][<name>]" = "false" switches a
+  # remap's remembering off; anything else leaves it on (the default).
+  defp merge_remember(current, params) do
+    case Map.get(params, "remember") do
+      %{} = given ->
+        Map.new(["cash", "depot"], fn group ->
+          {group, Map.merge(Map.get(current, group, %{}), Map.get(given, group, %{}))}
+        end)
+
+      _absent ->
+        current
+    end
   end
 
   # Per-key deep merge so a change event carrying only some of a row's fields
@@ -1027,7 +1080,7 @@ defmodule PortfolixirWeb.ImportsLive do
   # True iff every dropdown is filled: every depot row needs a `target` and
   # a `cash`. The bucket tag never blocks — blank behaves like skip.
   defp mapping_complete?(%{mapping: m, cash_pp_names: cashes, depot_pp_names: depots} = assigns) do
-    cash_ok? = Enum.all?(cashes, fn pp -> is_binary(Map.get(m.cash, pp)) end)
+    cash_ok? = Enum.all?(cashes, &chosen?(Map.get(m.cash, &1)))
 
     depot_ok? =
       Enum.all?(depots, fn pp ->
@@ -1078,10 +1131,12 @@ defmodule PortfolixirWeb.ImportsLive do
   end
 
   defp cash_missing(m, cashes) do
-    for pp <- cashes, not is_binary(Map.get(m.cash, pp)) do
+    for pp <- cashes, not chosen?(Map.get(m.cash, pp)) do
       gettext("cash account: %{name}", name: pp)
     end
   end
+
+  defp chosen?(value), do: is_binary(value) and value != ""
 
   defp depot_missing(m, depots) do
     Enum.flat_map(depots, fn pp ->
@@ -1117,11 +1172,27 @@ defmodule PortfolixirWeb.ImportsLive do
        %{
          cash_accounts: cash_params,
          depots: depot_params,
+         remember: remember_params(mapping),
          bucket_tag: bucket_tag,
          security_mappings: security_mappings,
          approved_resolutions: approved
        }}
     end
+  end
+
+  # ADR-0050 §4: only a name switched off is passed; the applier remembers
+  # every other remap by default.
+  defp remember_params(mapping) do
+    remember = Map.get(mapping, :remember, %{})
+
+    %{
+      cash_accounts: switched_off(Map.get(remember, "cash", %{})),
+      depots: switched_off(Map.get(remember, "depot", %{}))
+    }
+  end
+
+  defp switched_off(names) do
+    for {pp_name, "false"} <- names, into: %{}, do: {pp_name, false}
   end
 
   # Splits the reviewed security resolutions into the applier's explicit
@@ -1363,6 +1434,14 @@ defmodule PortfolixirWeb.ImportsLive do
 
   defp apply_error_message({:portfolio_create_failed, %Ecto.Changeset{} = changeset}) do
     gettext("Creating the portfolio failed: %{errors}", errors: changeset_error_text(changeset))
+  end
+
+  # ADR-0050 §4: an account name two accounts carry is never guessed.
+  defp apply_error_message({:ambiguous_account_name, _kind, name, _ids}) do
+    gettext(
+      "Several accounts are named %{name}. Pick the one this export's %{name} books to, then confirm again. Nothing was written.",
+      name: name
+    )
   end
 
   # Named messages only (#769): no reason is shown as an inspected term.

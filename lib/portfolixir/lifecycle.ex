@@ -24,12 +24,18 @@ defmodule Portfolixir.Lifecycle do
   `Portfolixir.Lifecycle.Delete` (§11).
   """
 
+  import Ecto.Query, only: [from: 2]
+
   alias Ecto.Multi
   alias Portfolixir.Actor
   alias Portfolixir.Journal
   alias Portfolixir.Lifecycle.MergeRecord
   alias Portfolixir.Lifecycle.RetiredImportHash
   alias Portfolixir.Repo
+
+  # Ids are never reused, so a merge chain cannot cycle; the bound only keeps
+  # a corrupted record set from looping.
+  @max_chain 1_000
 
   @doc """
   Writes the record of a merge on behalf of `actor`, journaled as a
@@ -56,6 +62,32 @@ defmodule Portfolixir.Lifecycle do
     attrs
     |> RetiredImportHash.changeset()
     |> journaled_insert(actor, "retired_import_hash")
+  end
+
+  @doc """
+  The survivor of a merged-away row: the target of the merge record whose
+  source is `id` under `kind`, followed through every later merge of that
+  target to the live end of the chain (ADR-0050 §10, §12). `nil` when no merge
+  record names `id` as its source.
+  """
+  @spec merged_into(:cash_account | :securities_account | :security, integer()) ::
+          integer() | nil
+  def merged_into(kind, id)
+      when kind in [:cash_account, :securities_account, :security] and is_integer(id),
+      do: follow(kind, id, nil, @max_chain)
+
+  defp follow(_kind, _id, found, 0), do: found
+
+  defp follow(kind, id, found, hops) do
+    case Repo.one(
+           from(m in MergeRecord,
+             where: m.kind == ^kind and m.source_id == ^id,
+             select: m.target_id
+           )
+         ) do
+      nil -> found
+      target -> follow(kind, target, target, hops - 1)
+    end
   end
 
   defp journaled_insert(changeset, actor, resource_type) do

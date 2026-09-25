@@ -32,6 +32,19 @@ defmodule Portfolixir.Imports.Applier do
     cash account or depot is materialized on the first row actually
     inserted, never up front. A choice whose rows are all skipped creates
     nothing, and the bucket tag touches exactly the accounts created.
+  - **Accounts resolve by name, then by former name** (§4): a file name the
+    mapping does not name resolves through
+    `Portfolixir.Lifecycle.AccountNames.resolve/2`, the function the
+    preview's prefill uses — the exact live name of the kind in the
+    portfolio, then a former name. An ambiguous tier is refused when a row
+    that passed the hash check needs the name (`{:ambiguous_account_name,
+    kind, name, ids}`), never guessed.
+  - **The mapping is revalidated and remembered at apply start** (§4, §10):
+    an `{:existing, id}` account that has gone since the preview aborts with
+    `{:resolution_diverged, %{kind, name, id, merged_into}}` (the survivor
+    when a merge record names one); then every `{:existing, id}` choice whose
+    file name differs from the account's is remembered as a former name of
+    it (`remember`, on by default per name), reported in `remembered_names`.
   - **Internal transfers are void** (§5): a `cash_transfer` or
     `security_transfer` whose two legs resolve to one account is skipped
     unconditionally and reported in `internal_transfers`, never an abort.
@@ -73,8 +86,9 @@ defmodule Portfolixir.Imports.Applier do
     run are deduplicated and surfaced in `collapsed_duplicates`, never
     double-inserted. Two same-day bookings distinct only by time keep
     importing separately.
-  - Resolves cash accounts and depots by name *within the chosen
-    portfolio*. Missing ones are created with their first inserted row.
+  - Resolves cash accounts and depots by name, then by former name,
+    *within the chosen portfolio*. Missing ones are created with their first
+    inserted row, through the name guard.
   - Inserts one ledger row per entry, branching by kind.
   - Skips degenerate rows that can never form a valid transaction — a
     cash kind with a zero or missing gross_amount (e.g. a 0 EUR tax
@@ -99,6 +113,8 @@ defmodule Portfolixir.Imports.Applier do
   alias Portfolixir.Journal
   alias Portfolixir.Ledger.SettlementGuard
   alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Lifecycle
+  alias Portfolixir.Lifecycle.AccountNames
   alias Portfolixir.Lifecycle.RetiredImportHash
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CashAccount
@@ -127,7 +143,10 @@ defmodule Portfolixir.Imports.Applier do
               # ADR-0050 §3: the skipped duplicates counted per layer.
               already_imported: %{hash: 0, retired: 0, economics: 0},
               # ADR-0050 §5: transfers whose two legs resolve to one account.
-              internal_transfers: []
+              internal_transfers: [],
+              # ADR-0050 §4: what remembering each remapped file name did —
+              # :appended, {:moved, from_id} or {:not_offered, live_on_id}.
+              remembered_names: []
 
     @type t :: %__MODULE__{}
   end
@@ -163,10 +182,22 @@ defmodule Portfolixir.Imports.Applier do
           optional(:approved_resolutions) => %{String.t() => approved_resolution()}
         }
 
+  @typedoc """
+  The per-name "remember" of the mapping (ADR-0050 §4), **on by default**: a
+  file name absent here, or `true`, is remembered as a former name of the
+  `{:existing, id}` account it is mapped onto; `false` keeps the remap to this
+  import.
+  """
+  @type remember :: %{
+          optional(:cash_accounts) => %{String.t() => boolean()},
+          optional(:depots) => %{String.t() => boolean()}
+        }
+
   @type mapped_apply_params :: %{
           optional(:portfolio) => portfolio_choice(),
           required(:cash_accounts) => %{String.t() => account_choice()},
           required(:depots) => %{String.t() => depot_mapping()},
+          optional(:remember) => remember(),
           optional(:bucket_tag) => String.t() | nil,
           optional(:default_currency_code) => String.t(),
           optional(:security_mappings) => %{String.t() => security_mapping()},
@@ -194,11 +225,14 @@ defmodule Portfolixir.Imports.Applier do
            {:ok, cash_plan} <-
              plan_mapped_cash(params.cash_accounts, cash_currencies, default_currency),
            {:ok, depot_plan} <- plan_mapped_depots(params.depots, params.cash_accounts),
+           :ok <- revalidate_mapped_accounts(params, portfolio_id),
            state =
              portfolio_id
              |> base_state(default_currency, params, result)
              |> Map.merge(cash_plan)
              |> Map.merge(depot_plan),
+           {:ok, state} <- remember_mapped_names(state, params),
+           state = resolve_unmapped_names(state, flat_entries),
            {:ok, state} <- execute_security_mappings(flat_entries, state),
            {:ok, final_state} <- reduce_entries(flat_entries, state),
            {:ok, final_result} <- apply_bucket_tag(bucket_tag, final_state.result) do
@@ -211,7 +245,8 @@ defmodule Portfolixir.Imports.Applier do
   end
 
   # Original auto-resolve path: kept for the JSON-API entry point and
-  # the existing applier_test.exs suite. Creates missing securities,
+  # the existing applier_test.exs suite. Resolves every file name by live
+  # name, then former name (ADR-0050 §4), and creates missing securities,
   # cash accounts and depots inside the chosen portfolio with the PP
   # names verbatim, each with its first inserted row. Depots without an
   # explicit cash account fall back to the first cash account in the
@@ -226,11 +261,12 @@ defmodule Portfolixir.Imports.Applier do
       state =
         base_state(portfolio_id, default_currency, params, %Result{})
         |> Map.merge(%{
-          cash_by_name: load_cash_by_name(portfolio_id),
+          cash_by_name: %{},
           pending_cash: %{},
-          depot_by_name: load_depots_by_name(portfolio_id),
+          depot_by_name: %{},
           pending_depots: %{}
         })
+        |> resolve_unmapped_names(flat_entries)
 
       with {:ok, state} <- execute_security_mappings(flat_entries, state),
            {:ok, final_state} <- reduce_entries(flat_entries, state) do
@@ -361,6 +397,9 @@ defmodule Portfolixir.Imports.Applier do
       approved_resolutions: Map.get(params, :approved_resolutions),
       key_resolutions: %{},
       seen_run_keys: MapSet.new(),
+      # ADR-0050 §4: `{:cash | :depot, file_name}` => the ids of an ambiguous
+      # tier, refused when a row needs the name.
+      ambiguous_names: %{},
       result: result,
       existing_dedup_keys: load_existing_dedup_keys(portfolio_id)
     }
@@ -480,6 +519,146 @@ defmodule Portfolixir.Imports.Applier do
     {:error, {:invalid_depot_choice, pp_name, other}}
   end
 
+  # --- the mapping at apply start (ADR-0050 §4, §10) ---
+
+  # Stale-mapping revalidation (§10): every account the mapping names by id
+  # must still exist in the import's portfolio. One that has gone aborts the
+  # apply before anything is written, naming the survivor at the live end of
+  # its merge chain when a merge record says so; one in another portfolio is
+  # an invalid choice, as it always was.
+  defp revalidate_mapped_accounts(params, portfolio_id) do
+    cash =
+      for {pp_name, {:existing, id}} <- params.cash_accounts,
+          do: {:cash_account, CashAccount, pp_name, id}
+
+    depots =
+      for {pp_name, %{target: target, cash: cash}} <- params.depots,
+          {kind, schema, id} <- mapped_depot_ids(target, cash),
+          do: {kind, schema, pp_name, id}
+
+    (cash ++ depots)
+    |> Enum.sort()
+    |> Enum.find_value(:ok, fn {kind, schema, pp_name, id} ->
+      case Repo.one(from(a in schema, where: a.id == ^id, select: a.portfolio_id)) do
+        ^portfolio_id ->
+          nil
+
+        nil ->
+          diverged = %{
+            kind: kind,
+            name: pp_name,
+            id: id,
+            merged_into: Lifecycle.merged_into(kind, id)
+          }
+
+          {:error, {:resolution_diverged, diverged}}
+
+        _another_portfolio ->
+          {:error, {:invalid_account_choice, kind, pp_name, {:existing, id}}}
+      end
+    end)
+  end
+
+  defp mapped_depot_ids(target, cash) do
+    Enum.flat_map(
+      [{:securities_account, SecuritiesAccount, target}, {:cash_account, CashAccount, cash}],
+      fn
+        {kind, schema, {:existing, id}} when is_integer(id) -> [{kind, schema, id}]
+        _create_or_file_name -> []
+      end
+    )
+  end
+
+  # The remembered remap (§4), run from the mapping at apply start so it takes
+  # effect when every row of the name is a hash hit: each `{:existing, id}`
+  # choice is remembered unless its per-name "remember" is false.
+  # `AccountNames.remember/4` decides what that means — nothing for the
+  # account's own names, an append, a move from another account's former
+  # names, or nothing for another account's live name — and every outcome but
+  # the first is reported.
+  defp remember_mapped_names(state, params) do
+    remember = Map.get(params, :remember, %{})
+
+    cash =
+      for {pp_name, {:existing, id}} <- params.cash_accounts,
+          remember?(remember, :cash_accounts, pp_name),
+          do: {:cash_account, CashAccount, pp_name, id}
+
+    depots =
+      for {pp_name, %{target: {:existing, id}}} <- params.depots,
+          remember?(remember, :depots, pp_name),
+          do: {:securities_account, SecuritiesAccount, pp_name, id}
+
+    (cash ++ depots)
+    |> Enum.sort()
+    |> Enum.reduce_while({:ok, state}, fn {kind, schema, pp_name, id}, {:ok, state} ->
+      case AccountNames.remember(Actor.import_session(), schema, id, pp_name) do
+        {:ok, outcome} when outcome in [:same_name, :already] ->
+          {:cont, {:ok, state}}
+
+        {:ok, outcome} ->
+          {:cont, {:ok, record_remembered(state, kind, pp_name, id, outcome)}}
+
+        {:error, reason} ->
+          {:halt, {:error, {:remember_failed, kind, pp_name, reason}}}
+      end
+    end)
+  end
+
+  defp remember?(remember, group, pp_name) do
+    remember |> Map.get(group, %{}) |> Map.get(pp_name, true) != false
+  end
+
+  defp record_remembered(state, kind, pp_name, account_id, outcome) do
+    remembered = %{kind: kind, name: pp_name, account_id: account_id, outcome: outcome}
+
+    Map.update!(state, :result, fn %Result{} = r ->
+      %Result{r | remembered_names: r.remembered_names ++ [remembered]}
+    end)
+  end
+
+  # Account resolution (§4): every file name the mapping does not name
+  # resolves through the function the preview's prefill uses — the exact live
+  # name of the kind in the portfolio, then a former name. A name found by
+  # neither stays unmatched and is created lazily, through the name guard; an
+  # ambiguous tier is held, and refused when a row needs the name.
+  defp resolve_unmapped_names(state, flat_entries) do
+    state
+    |> resolve_names(
+      :cash,
+      file_names(flat_entries, [:pp_account_name, :pp_counter_account_name]),
+      AccountNames.index(CashAccount, state.portfolio_id),
+      {:cash_by_name, :pending_cash}
+    )
+    |> resolve_names(
+      :depot,
+      file_names(flat_entries, [:pp_portfolio_name, :pp_counter_portfolio_name]),
+      AccountNames.index(SecuritiesAccount, state.portfolio_id),
+      {:depot_by_name, :pending_depots}
+    )
+  end
+
+  defp file_names(flat_entries, fields) do
+    flat_entries
+    |> Enum.flat_map(fn entry -> Enum.map(fields, &Map.fetch!(entry, &1)) end)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+  end
+
+  defp resolve_names(state, kind, names, index, {by_name, pending}) do
+    Enum.reduce(names, state, fn pp_name, state ->
+      if Map.has_key?(state[by_name], pp_name) or Map.has_key?(state[pending], pp_name) do
+        state
+      else
+        case AccountNames.resolve(index, pp_name) do
+          {:ok, id, _tier} -> put_in(state, [by_name, pp_name], id)
+          :none -> state
+          {:ambiguous, _tier, ids} -> put_in(state, [:ambiguous_names, {kind, pp_name}], ids)
+        end
+      end
+    end)
+  end
+
   # --- bucket tag for newly created accounts (ADR-0024 story 5) ---
 
   defp normalize_bucket_tag(nil), do: nil
@@ -561,26 +740,6 @@ defmodule Portfolixir.Imports.Applier do
     end)
   end
 
-  defp load_cash_by_name(portfolio_id) do
-    Repo.all(
-      from(c in CashAccount,
-        where: c.portfolio_id == ^portfolio_id,
-        select: {c.name, c.id}
-      )
-    )
-    |> Map.new()
-  end
-
-  defp load_depots_by_name(portfolio_id) do
-    Repo.all(
-      from(d in SecuritiesAccount,
-        where: d.portfolio_id == ^portfolio_id,
-        select: {d.name, d.id}
-      )
-    )
-    |> Map.new()
-  end
-
   # Kinds that move shares but settle no cash, so they legitimately carry no
   # gross_amount. Everything else (except balance_adjustment, whose amount is an
   # absolute balance) needs a positive gross_amount.
@@ -638,29 +797,55 @@ defmodule Portfolixir.Imports.Applier do
   defp do_process_entry(%Entry{} = entry, import_hash, state) do
     refs = account_refs(entry, state)
 
-    if internal_transfer?(entry, refs) do
-      {:ok, record_internal_transfer(state, entry)}
-    else
-      case resolve_security(entry, state) do
-        # A surfaced-but-undecided security (§2 fail closed): the entry is
-        # reported in `unresolved_entries` and creates nothing.
-        {:skip, state} ->
-          {:ok, state}
+    cond do
+      internal_transfer?(entry, refs) ->
+        {:ok, record_internal_transfer(state, entry)}
 
-        {:ok, state, security_id} ->
-          ids = Map.put(refs, :security_id, security_id)
+      ambiguous = ambiguous_ref(refs) ->
+        {:error, ambiguous_account_error(ambiguous, state)}
 
-          insert_transaction(
-            entry,
-            build_transaction_attrs(entry, state, ids, import_hash),
-            state
-          )
-
-        {:error, _} = error ->
-          error
-      end
+      true ->
+        resolve_and_insert(entry, import_hash, refs, state)
     end
   end
+
+  defp resolve_and_insert(entry, import_hash, refs, state) do
+    case resolve_security(entry, state) do
+      # A surfaced-but-undecided security (§2 fail closed): the entry is
+      # reported in `unresolved_entries` and creates nothing.
+      {:skip, state} ->
+        {:ok, state}
+
+      {:ok, state, security_id} ->
+        ids = Map.put(refs, :security_id, security_id)
+
+        insert_transaction(
+          entry,
+          build_transaction_attrs(entry, state, ids, import_hash),
+          state
+        )
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  # ADR-0050 §4: an ambiguous name is never guessed. The row passed the hash
+  # check, so it needs the name, and the apply refuses it unmapped.
+  defp ambiguous_ref(refs) do
+    Enum.find_value(refs, fn
+      {_leg, {:ambiguous, _kind, _pp_name} = ref} -> ref
+      _other -> nil
+    end)
+  end
+
+  defp ambiguous_account_error({:ambiguous, kind, pp_name}, state) do
+    ids = Map.fetch!(state.ambiguous_names, {kind, pp_name})
+    {:ambiguous_account_name, account_kind(kind), pp_name, ids}
+  end
+
+  defp account_kind(:cash), do: :cash_account
+  defp account_kind(:depot), do: :securities_account
 
   # --- security resolution (ADR-0029 §2 ladder) ---
 
@@ -844,7 +1029,16 @@ defmodule Portfolixir.Imports.Applier do
   defp apply_existing_mapping(ref, key, id, record_change?, state) do
     case Map.fetch(state.live_index.securities_by_id, id) do
       :error ->
-        {:error, {:invalid_security_mapping, key}}
+        # ADR-0050 §10: a remap onto a security merged away since the preview
+        # names the survivor; one deleted without a merge is invalid.
+        case Lifecycle.merged_into(:security, id) do
+          nil ->
+            {:error, {:invalid_security_mapping, key}}
+
+          survivor ->
+            diverged = %{kind: :security, key: key, id: id, merged_into: survivor}
+            {:error, {:resolution_diverged, diverged}}
+        end
 
       {:ok, security} ->
         case maybe_record_isin_change(state, security, ref, key, record_change?) do
@@ -1023,25 +1217,30 @@ defmodule Portfolixir.Imports.Applier do
   # --- account resolution (ADR-0050 §4: resolving creates nothing) ---
 
   # Each of a row's four account names resolves to the id of an account that
-  # exists (mapped onto an existing record, found by name, or materialized
-  # earlier in this run) or to `{:pending, :cash | :depot, pp_name}`, one a
-  # `create` choice or an unmatched name would create. Two legs are one account
-  # when their refs are equal: the same id, or the same pending file name.
+  # exists (mapped onto an existing record, found by live or former name, or
+  # materialized earlier in this run), to `{:ambiguous, kind, pp_name}` for a
+  # name whose resolution tier names several accounts, or to
+  # `{:pending, :cash | :depot, pp_name}`, one a `create` choice or an
+  # unmatched name would create. Two legs are one account when their refs are
+  # equal: the same id, or the same file name.
   defp account_refs(%Entry{} = entry, state) do
     %{
-      cash_id: account_ref(:cash, entry.pp_account_name, state.cash_by_name),
-      counter_cash_id: account_ref(:cash, entry.pp_counter_account_name, state.cash_by_name),
-      depot_id: account_ref(:depot, entry.pp_portfolio_name, state.depot_by_name),
-      counter_depot_id: account_ref(:depot, entry.pp_counter_portfolio_name, state.depot_by_name)
+      cash_id: account_ref(:cash, entry.pp_account_name, state.cash_by_name, state),
+      counter_cash_id:
+        account_ref(:cash, entry.pp_counter_account_name, state.cash_by_name, state),
+      depot_id: account_ref(:depot, entry.pp_portfolio_name, state.depot_by_name, state),
+      counter_depot_id:
+        account_ref(:depot, entry.pp_counter_portfolio_name, state.depot_by_name, state)
     }
   end
 
-  defp account_ref(_kind, nil, _by_name), do: nil
+  defp account_ref(_kind, nil, _by_name, _state), do: nil
 
-  defp account_ref(kind, pp_name, by_name) do
-    case Map.fetch(by_name, pp_name) do
-      {:ok, id} -> id
-      :error -> {:pending, kind, pp_name}
+  defp account_ref(kind, pp_name, by_name, state) do
+    cond do
+      Map.has_key?(by_name, pp_name) -> Map.fetch!(by_name, pp_name)
+      Map.has_key?(state.ambiguous_names, {kind, pp_name}) -> {:ambiguous, kind, pp_name}
+      true -> {:pending, kind, pp_name}
     end
   end
 
@@ -1196,10 +1395,21 @@ defmodule Portfolixir.Imports.Applier do
   end
 
   defp unmatched_depot_cash(pp_name, _entry, state, :counter) do
-    case List.first(Map.values(state.cash_by_name)) do
+    case List.first(Map.values(state.cash_by_name)) || first_cash_account_id(state) do
       nil -> {:error, {:counter_depot_needs_cash, pp_name}}
       cash_id -> {:ok, state, pp_name, cash_id}
     end
+  end
+
+  defp first_cash_account_id(state) do
+    Repo.one(
+      from(c in CashAccount,
+        where: c.portfolio_id == ^state.portfolio_id,
+        order_by: [asc: c.name, asc: c.id],
+        limit: 1,
+        select: c.id
+      )
+    )
   end
 
   defp create_depot(pp_name, name, cash_id, state) do

@@ -7,6 +7,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
   alias Portfolixir.Imports.PreviewStore
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
+  alias Portfolixir.Repo
 
   @fixtures Path.expand("../../support/fixtures/portfolio_performance", __DIR__)
 
@@ -1382,6 +1383,222 @@ defmodule PortfolixirWeb.ImportsLiveTest do
 
     assert html =~
              "Zeile 1: eine Zeile mit diesem Inhalt wurde bei einer Zusammenführung entfernt (stillgelegter Inhalts-Hash)"
+  end
+
+  describe "former names in the mapping step (ADR-0050 §4, §10; L2, #884)" do
+    # User story:
+    # As the operator re-importing after renaming an imported account,
+    # I want the preview to prefill the renamed account for the old name,
+    # so that the import books there instead of creating the old name again.
+    #
+    # Acceptance criteria:
+    # - The file's old name is prefilled with the renamed account.
+    # - Confirming books the new row there and creates no account.
+    test "the preview prefills a renamed account by its former name", %{conn: conn} do
+      portfolio = setup_portfolio()
+      giro = cash_account!(portfolio, "Giro")
+
+      {:ok, main} =
+        Portfolios.update_cash_account(Portfolixir.Actor.owner_ui(), giro, %{
+          name: "Main account"
+        })
+
+      body =
+        pp_json([
+          %{
+            "type" => "DEPOSIT",
+            "account" => "Giro",
+            "date" => "2025-01-02",
+            "amount" => "100.00"
+          }
+        ])
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_payload(view, "renamed.json", body, "application/json")
+
+      assert has_element?(
+               view,
+               ~s(select[name="cash[Giro]"] option[value="existing:#{main.id}"][selected])
+             )
+
+      view |> element("form#pp-import-apply") |> render_submit()
+      html = render_async(view, 1_000)
+
+      assert html =~ "Created transactions: 1"
+      assert Portfolios.count_cash_accounts() == 1
+      assert [%{cash_account_id: cash_id}] = Ledger.list_transactions()
+      assert cash_id == main.id
+    end
+
+    # User story:
+    # As the operator with two accounts of one name from before the name
+    # guard,
+    # I want the preview to leave that name undecided and hold the import,
+    # so that no row books onto whichever account happens to be read last.
+    #
+    # Acceptance criteria:
+    # - The name's select offers "Decide…", selected, and prefills nothing.
+    # - Confirm is disabled and the hint names the cash account.
+    test "an ambiguous name is not prefilled and holds the import", %{conn: conn} do
+      portfolio = setup_portfolio()
+      legacy_cash_account!(portfolio, "Giro")
+      legacy_cash_account!(portfolio, "Giro")
+
+      body =
+        pp_json([
+          %{
+            "type" => "DEPOSIT",
+            "account" => "Giro",
+            "date" => "2025-01-02",
+            "amount" => "100.00"
+          }
+        ])
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_payload(view, "ambiguous.json", body, "application/json")
+
+      assert has_element?(view, ~s(select[name="cash[Giro]"] option[value=""][selected]))
+      assert has_element?(view, "#pp-import-confirm[disabled]")
+      assert view |> element("#import-missing-hint") |> render() =~ "cash account: Giro"
+    end
+
+    # User story:
+    # As the operator mapping an export's account onto one of mine under
+    # another name,
+    # I want the mapping remembered by default,
+    # so that the next import prefills it by itself.
+    #
+    # Acceptance criteria:
+    # - Confirming a remap onto a differently named account leaves the file
+    #   name as a former name of that account.
+    # - A remap submitted with remember false is not remembered.
+    test "a manual remap is remembered by default, and not when switched off", %{conn: conn} do
+      portfolio = setup_portfolio()
+      broker = cash_account!(portfolio, "Broker EUR")
+      second = cash_account!(portfolio, "Second EUR")
+
+      body =
+        pp_json([
+          %{
+            "type" => "DEPOSIT",
+            "account" => "Cash EUR",
+            "date" => "2025-01-02",
+            "amount" => "100.00"
+          },
+          %{"type" => "DEPOSIT", "account" => "Other", "date" => "2025-01-03", "amount" => "5.00"}
+        ])
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_payload(view, "remap.json", body, "application/json")
+
+      view
+      |> element("form#pp-import-apply")
+      |> render_submit(%{
+        "cash" => %{"Cash EUR" => "existing:#{broker.id}", "Other" => "existing:#{second.id}"},
+        "remember" => %{"cash" => %{"Other" => "false"}}
+      })
+
+      assert render_async(view, 1_000) =~ "Created transactions: 2"
+
+      assert Repo.get!(Portfolixir.Portfolios.CashAccount, broker.id).former_names == [
+               "Cash EUR"
+             ]
+
+      assert Repo.get!(Portfolixir.Portfolios.CashAccount, second.id).former_names == []
+    end
+
+    # User story:
+    # As the operator whose preview sat open while its account was merged
+    # away,
+    # I want the confirm to stop, say why, and refresh the account mapping,
+    # so that nothing books onto an account that is gone.
+    #
+    # Acceptance criteria:
+    # - The apply writes nothing and the page names the cause.
+    # - The account mapping is recomputed from the current accounts.
+    test "a mapping that names an account merged away since is refreshed", %{conn: conn} do
+      portfolio = setup_portfolio()
+      old = cash_account!(portfolio, "Savings (old)")
+      survivor = cash_account!(portfolio, "Savings")
+
+      body =
+        pp_json([
+          %{
+            "type" => "DEPOSIT",
+            "account" => "Savings (old)",
+            "date" => "2025-01-02",
+            "amount" => "100.00"
+          }
+        ])
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_payload(view, "stale.json", body, "application/json")
+
+      assert has_element?(
+               view,
+               ~s|select[name="cash[Savings (old)]"] option[value="existing:#{old.id}"][selected]|
+             )
+
+      {:ok, _} =
+        Portfolixir.Lifecycle.record_merge(Portfolixir.Actor.owner_ui(), %{
+          kind: "cash_account",
+          source_id: old.id,
+          target_id: survivor.id,
+          portfolio_id: portfolio.id,
+          source_snapshot: %{"name" => "Savings (old)"},
+          manifest: %{},
+          plan_digest: "sha256:synthetic-plan"
+        })
+
+      {:ok, _} = Portfolios.delete_cash_account(Portfolixir.Actor.owner_ui(), old)
+
+      view |> element("form#pp-import-apply") |> render_submit()
+      html = render_async(view, 1_000)
+
+      assert html =~
+               "An account mapped in this preview was merged or deleted since it was opened"
+
+      assert Ledger.list_transactions() == []
+
+      assert has_element?(
+               view,
+               ~s|select[name="cash[Savings (old)]"] option[value="create:Savings (old)"][selected]|
+             )
+    end
+  end
+
+  defp cash_account!(portfolio, name) do
+    {:ok, cash} =
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        name: name,
+        currency_code: "EUR"
+      })
+
+    cash
+  end
+
+  # A duplicate name from before the name guard, inserted the way the old
+  # writer did.
+  defp legacy_cash_account!(portfolio, name) do
+    {:ok, %{account: account}} =
+      Ecto.Multi.new()
+      |> Ecto.Multi.insert(
+        :account,
+        Ecto.Changeset.change(%Portfolixir.Portfolios.CashAccount{}, %{
+          portfolio_id: portfolio.id,
+          name: name,
+          currency_code: "EUR"
+        })
+      )
+      |> Portfolixir.Journal.record(Portfolixir.Actor.owner_ui(),
+        resource_type: "cash_account",
+        operation: :create,
+        source: :account
+      )
+      |> Repo.transaction()
+
+    account
   end
 
   # A synthetic Portfolio Performance JSON export; amounts stay strings, never

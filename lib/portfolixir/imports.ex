@@ -20,10 +20,14 @@ defmodule Portfolixir.Imports do
   """
 
   alias Portfolixir.Imports.Applier
+  alias Portfolixir.Imports.Mapping
   alias Portfolixir.Imports.PortfolioPerformance
   alias Portfolixir.Imports.Preview
   alias Portfolixir.Imports.SecurityResolver
+  alias Portfolixir.Lifecycle.AccountNames
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.CashAccount
+  alias Portfolixir.Portfolios.SecuritiesAccount
 
   @spec parse_portfolio_performance(binary(), keyword()) :: {:ok, Preview.t()} | {:error, term()}
   def parse_portfolio_performance(body, opts \\ []) when is_binary(body) do
@@ -71,15 +75,65 @@ defmodule Portfolixir.Imports do
           depots: %{String.t() => Applier.layer_counts()}
         }
   def reimport_counts(%Preview{} = preview, opts \\ []) when is_list(opts) do
-    portfolio_id =
-      Keyword.get_lazy(opts, :portfolio_id, fn ->
-        case Portfolios.first_portfolio() do
-          nil -> nil
-          portfolio -> portfolio.id
-        end
-      end)
+    Applier.reimport_counts(preview, import_portfolio_id(opts))
+  end
 
-    Applier.reimport_counts(preview, portfolio_id)
+  @doc """
+  How each Portfolio Performance cash-account and depot name of a parsed
+  preview resolves (ADR-0050 §4), for the preview's prefill: the one function
+  the applier resolves an unmapped name with
+  (`Portfolixir.Lifecycle.AccountNames.resolve/2`) — the exact live name of
+  the kind in the portfolio, then a former name.
+
+    * `{:ok, id, :live | :former}` — prefill that account;
+    * `:none` — prefill "+ Create new";
+    * `{:ambiguous, tier, ids}` — prefill nothing: the apply refuses the name
+      unmapped.
+
+  Read-only. The portfolio is `:portfolio_id` when given, otherwise the
+  internal default portfolio the Imports view binds to (ADR-0024), read
+  without creating it.
+  """
+  @spec resolve_accounts(Preview.t(), keyword()) :: %{
+          cash_accounts: %{String.t() => AccountNames.resolution()},
+          depots: %{String.t() => AccountNames.resolution()}
+        }
+  def resolve_accounts(%Preview{} = preview, opts \\ []) when is_list(opts) do
+    portfolio_id = import_portfolio_id(opts)
+    cash = AccountNames.index(CashAccount, portfolio_id)
+    depots = AccountNames.index(SecuritiesAccount, portfolio_id)
+
+    %{
+      cash_accounts:
+        Map.new(Mapping.unique_cash_pp_names(preview), &{&1, AccountNames.resolve(cash, &1)}),
+      depots:
+        Map.new(Mapping.unique_depot_pp_names(preview), &{&1, AccountNames.resolve(depots, &1)})
+    }
+  end
+
+  @doc """
+  What remembering the Portfolio Performance name `name` on the account
+  `account_id` would do, for the preview to say before the import is applied
+  (ADR-0050 §4): `:same_name`, `:already`, `:append`, `{:move, from_id}` (a
+  former name of that account moves), `{:not_offered, live_on_id}` (the live
+  name of that account: the choice holds for this import only; merge or
+  rename that account to change it), or `:not_found`. Read-only.
+  """
+  @spec remember_outcome(:cash_account | :securities_account, String.t(), integer()) ::
+          AccountNames.remember_outcome() | :not_found
+  def remember_outcome(:cash_account, name, account_id),
+    do: AccountNames.remember_outcome(CashAccount, account_id, name)
+
+  def remember_outcome(:securities_account, name, account_id),
+    do: AccountNames.remember_outcome(SecuritiesAccount, account_id, name)
+
+  defp import_portfolio_id(opts) do
+    Keyword.get_lazy(opts, :portfolio_id, fn ->
+      case Portfolios.first_portfolio() do
+        nil -> nil
+        portfolio -> portfolio.id
+      end
+    end)
   end
 
   @spec apply(Preview.t(), Applier.apply_params()) :: {:ok, Applier.Result.t()} | {:error, term()}
