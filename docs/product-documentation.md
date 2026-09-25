@@ -2042,6 +2042,17 @@ naming the already-booked event) stays inline in the dialog.
   financial values.
 - Date fields accept and display ISO dates (`YYYY-MM-DD`) — the same format
   every displayed date uses; the browser's locale date picker is not used.
+- Number fields (quantity, price, fees and taxes, the settlement amount and
+  rate, a rule's line, the Tax figures, a cash balance) show and accept figures
+  in the page's language: a decimal comma on a German page (`1664,40`), a
+  point on an English one. They never show a thousands separator, and they
+  stand right-aligned in tabular digits. The other language's separator is
+  accepted too (`45.60` on a German page, `45,60` on an English one) — except
+  when the figure could be a thousands group (`1.664` on a German page,
+  `1,664` on an English one): such a figure reads two ways and is refused on
+  its field with the request to enter it without a thousands separator, as is
+  a figure with two separators (`1.664,40`). A refused figure saves nothing,
+  and what you typed stays as you typed it.
 - While values compute, the affected slot shows a placeholder plus a
   "computing" cue instead of a loading message; headline values settle with
   a brief count-up. Under a reduced-motion system preference all decorative

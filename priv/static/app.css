@@ -8411,10 +8411,16 @@ dialog.booking-drawer {
    at the same specificity as `th.num` (`.perf-data-table th`, `.drift-table
    th`, …), and only source order lets a later rule win that tie. The third
    selector lifts the header cell over `.data-table thead th`'s
-   `text-align: left`, which `th.num` cannot outrank by order alone. */
+   `text-align: left`, which `th.num` cannot outrank by order alone.
+   A decimal field joins the family (issue 869, DESIGN.md → Numeric inputs;
+   board ux-design-2026-09-24/05-numeric-inputs): `input.num` outranks the
+   bare `input` rule by specificity and a scoped `… input` rule of equal
+   specificity by source order, so an amount and a rate typed one under the
+   other end on one edge, as they will in their column. */
 th.num,
 td.num,
-.data-table thead th.num {
+.data-table thead th.num,
+input.num {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }

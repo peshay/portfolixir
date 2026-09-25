@@ -167,3 +167,7 @@ msgid "must be at most %{count} bytes as JSON"
 msgid_plural "must be at most %{count} bytes as JSON"
 msgstr[0] ""
 msgstr[1] ""
+
+## A decimal input that reads two ways (#869, PortfolixirWeb.DecimalInput).
+msgid "is ambiguous: enter it without a thousands separator"
+msgstr ""

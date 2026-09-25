@@ -23,6 +23,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.DecimalInput
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PortfolioAccounts.AccountFormDialog
@@ -370,7 +371,13 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                   <span>
                     <%= gettext("Balance") %> (<%= @balance_dialog.currency_code %>)
                   </span>
-                  <input name="balance[amount]" inputmode="decimal" required placeholder="4250.00" />
+                  <input
+                    name="balance[amount]"
+                    inputmode="decimal"
+                    class="num"
+                    required
+                    placeholder={DecimalInput.value(Decimal.new("4250.00"))}
+                  />
                 </label>
                 <p class="hint">
                   <%= gettext("State the balance the bank shows; only later bookings adjust it.") %>
@@ -636,17 +643,22 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   def handle_event("set_balance", %{"balance" => params}, socket) do
     case socket.assigns.balance_dialog do
       %CashAccount{} = account ->
-        case Ledger.set_cash_balance(Actor.owner_ui(), account, LiveParam.map(params)) do
-          {:ok, _tx} ->
-            # Quiet feedback: the row's balance updating in place is the
-            # confirmation — no toast, no success banner (#566 direction).
-            {:noreply,
-             socket
-             |> assign(balance_dialog: nil, balance_error: nil)
-             |> load_state()}
-
+        # #869: the balance is read by the one decimal-input rule, from a payload
+        # read through the one reader of client input (E25 S4).
+        with {:ok, read} <- DecimalInput.cast(LiveParam.map(params), ["amount"]),
+             {:ok, _tx} <- Ledger.set_cash_balance(Actor.owner_ui(), account, read) do
+          # Quiet feedback: the row's balance updating in place is the
+          # confirmation — no toast, no success banner (#566 direction).
+          {:noreply,
+           socket
+           |> assign(balance_dialog: nil, balance_error: nil)
+           |> load_state()}
+        else
           {:error, %Ecto.Changeset{} = changeset} ->
             {:noreply, assign(socket, :balance_error, changeset_error(changeset))}
+
+          {:error, %{"amount" => message}} ->
+            {:noreply, assign(socket, :balance_error, "#{gettext("Balance")} #{message}")}
         end
 
       _ ->

@@ -163,3 +163,6 @@ msgid "must be at most %{count} bytes as JSON"
 msgid_plural "must be at most %{count} bytes as JSON"
 msgstr[0] "darf als JSON höchstens %{count} Byte groß sein"
 msgstr[1] "darf als JSON höchstens %{count} Byte groß sein"
+
+msgid "is ambiguous: enter it without a thousands separator"
+msgstr "ist mehrdeutig: ohne Tausendertrennzeichen eingeben"

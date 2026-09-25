@@ -2206,6 +2206,18 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
 - Datumsfelder nehmen ISO-Daten (`YYYY-MM-DD`) entgegen und zeigen sie auch so
   an — dasselbe Format wie jedes angezeigte Datum; der lokalisierte
   Browser-Datumswähler kommt nicht zum Einsatz.
+- Zahlenfelder (Stückzahl, Preis, Gebühren und Steuern, Abrechnungsbetrag und
+  Kurs, die Grenze einer Regel, die Zahlen unter Steuern, ein Kontosaldo)
+  zeigen und lesen Zahlen in der Sprache der Seite: auf einer deutschen Seite
+  mit Dezimalkomma (`1664,40`), auf einer englischen mit Punkt. Sie zeigen nie
+  einen Tausenderpunkt und stehen rechtsbündig in Tabellenziffern. Das
+  Trennzeichen der anderen Sprache wird ebenfalls gelesen (`45.60` auf einer
+  deutschen, `45,60` auf einer englischen Seite) — außer wenn die Zahl eine
+  Tausendergruppe sein könnte (`1.664` auf einer deutschen, `1,664` auf einer
+  englischen Seite): Eine solche Zahl ist mehrdeutig und wird am Feld mit der
+  Bitte abgelehnt, sie ohne Tausendertrennzeichen einzugeben, ebenso eine Zahl
+  mit zwei Trennzeichen (`1.664,40`). Eine abgelehnte Zahl speichert nichts,
+  und das Getippte bleibt, wie es getippt wurde.
 - Während Werte berechnet werden, zeigt der betroffene Platz einen
   Platzhalter plus den Hinweis „wird berechnet" statt eines Ladetexts;
   Kopfzahlen zählen kurz sichtbar hoch. Bei reduzierter Bewegung als

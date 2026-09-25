@@ -18,7 +18,7 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
   security (the latter with the classification whose plan carries its
   position target); the HHI and the two portfolio metrics for the whole
   basis, the metrics with a window. Thresholds are typed on the measure's own
-  scale, and a decimal comma is accepted.
+  scale, shown and read in the page's locale (`PortfolixirWeb.DecimalInput`).
 
   Retire is a confirmed action; a rule none of whose versions has been in
   force is deleted instead, because nothing was ever measured against it.
@@ -29,10 +29,10 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Clock
-  alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Portfolios.PolicyRules
   alias Portfolixir.Portfolios.PolicyRuleVersion
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.DecimalInput
   alias PortfolixirWeb.LiveEventGuard
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PolicyRuleLabel
@@ -131,8 +131,10 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
 
   defp decimal_input(nil), do: ""
 
+  # #869: the line opens in the page's locale ("7,5" on a German page), as
+  # the sentence under it and the version list already write it.
   defp decimal_input(%Decimal{} = value),
-    do: value |> Decimal.normalize() |> Decimal.to_string(:normal)
+    do: value |> Decimal.normalize() |> DecimalInput.value()
 
   @impl true
   def render(assigns) do
@@ -408,27 +410,27 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
 
   # The version a save would write, without its start: a form whose predicate
   # equals the one the dialog opened on changes only the name. Decimals are
-  # compared as numbers, so "2" and "2,0" are the same line; they are read
-  # through the bounded parser every page shares (E25 S4) and kept as the
-  # normalised decimal, never expanded into a string.
+  # compared as numbers, so "2" and "2,0" are the same line; they are read by
+  # the one decimal-input rule (#869), which parses through the bounded parser
+  # every page shares (E25 S4), and kept as the normalised decimal, never
+  # expanded into a string. A line that does not read is compared as typed.
   defp predicate(form) do
-    form
-    |> version_attrs()
-    |> Map.delete("valid_from")
-    |> Map.new(fn
-      {key, value} when key in ~w(threshold lower upper) -> {key, decimal_key(value)}
-      pair -> pair
-    end)
-  end
+    case version_attrs(form) do
+      {:ok, attrs} ->
+        attrs
+        |> Map.delete("valid_from")
+        |> Map.new(fn
+          {key, value} when key in ~w(threshold lower upper) -> {key, decimal_key(value)}
+          pair -> pair
+        end)
 
-  defp decimal_key(nil), do: nil
-
-  defp decimal_key(text) do
-    case BoundedDecimal.parse(text) do
-      {:ok, decimal} -> Decimal.normalize(decimal)
-      :error -> text
+      {:error, _refused} ->
+        {:unreadable, Map.take(form, ~w(threshold lower upper))}
     end
   end
+
+  defp decimal_key(%Decimal{} = decimal), do: Decimal.normalize(decimal)
+  defp decimal_key(nil), do: nil
 
   defp threshold_label(""), do: gettext("Line")
   defp threshold_label(unit), do: gettext("Line (%{unit})", unit: unit)
@@ -602,36 +604,12 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
       |> fit_classification(socket.assigns.options)
 
     socket = assign(socket, :form, form)
-    version = version_attrs(form)
 
-    result =
-      case socket.assigns.rule do
-        nil ->
-          PolicyRules.create_rule(Actor.owner_ui(), %{
-            "portfolio_id" => socket.assigns.portfolio_id,
-            "view_id" => socket.assigns.view_id,
-            "name" => form["name"],
-            "version" => version
-          })
-
-        rule ->
-          save_edit(rule, form, version, socket.assigns.baseline)
-      end
-
-    case result do
-      {:ok, _saved} ->
-        send(self(), {__MODULE__, {:saved, gettext("Rule saved")}})
-        {:noreply, socket}
-
-      {:error, {:version, changeset}} ->
-        {:noreply, assign(socket, errors: errors(changeset), alert: nil)}
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        {:noreply, assign(socket, errors: errors(changeset), alert: nil)}
-
-      # Deleted from another tab since the dialog opened (LD-3).
-      {:error, :not_found} ->
-        {:noreply, assign(socket, :alert, gettext("This rule no longer exists."))}
+    # #869: the line is read by the one decimal-input rule; a figure that
+    # reads two ways is named on its field and nothing is saved.
+    case version_attrs(form) do
+      {:ok, version} -> {:noreply, save(socket, form, version)}
+      {:error, errors} -> {:noreply, assign(socket, errors: errors, alert: nil)}
     end
   end
 
@@ -696,21 +674,57 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
     end
   end
 
-  # The form's strings as the version's attrs: the subject decoded, a decimal
-  # comma read as a point, the fields the kind and measure do not use left out.
+  defp save(socket, form, version) do
+    result =
+      case socket.assigns.rule do
+        nil ->
+          PolicyRules.create_rule(Actor.owner_ui(), %{
+            "portfolio_id" => socket.assigns.portfolio_id,
+            "view_id" => socket.assigns.view_id,
+            "name" => form["name"],
+            "version" => version
+          })
+
+        rule ->
+          save_edit(rule, form, version, socket.assigns.baseline)
+      end
+
+    case result do
+      {:ok, _saved} ->
+        send(self(), {__MODULE__, {:saved, gettext("Rule saved")}})
+        socket
+
+      {:error, {:version, changeset}} ->
+        assign(socket, errors: errors(changeset), alert: nil)
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        assign(socket, errors: errors(changeset), alert: nil)
+
+      # Deleted from another tab since the dialog opened (LD-3).
+      {:error, :not_found} ->
+        assign(socket, :alert, gettext("This rule no longer exists."))
+    end
+  end
+
+  # The form's strings as the version's attrs: the subject decoded, the line
+  # read by the one decimal-input rule (#869), the fields the kind and measure
+  # do not use left out — a stale value in a hidden field is never read.
   defp version_attrs(form) do
-    %{
-      "measure" => form["measure"],
-      "kind" => form["kind"],
-      "severity" => form["severity"],
-      "valid_from" => blank_to_nil(form["valid_from"]),
-      "note" => blank_to_nil(form["note"])
-    }
-    |> Map.merge(subject_attrs(form))
-    |> Map.merge(threshold_attrs(form))
-    |> Map.merge(
-      if form["measure"] in @metric_measures, do: %{"window" => form["window"]}, else: %{}
-    )
+    with {:ok, threshold} <- threshold_attrs(form) do
+      {:ok,
+       %{
+         "measure" => form["measure"],
+         "kind" => form["kind"],
+         "severity" => form["severity"],
+         "valid_from" => blank_to_nil(form["valid_from"]),
+         "note" => blank_to_nil(form["note"])
+       }
+       |> Map.merge(subject_attrs(form))
+       |> Map.merge(threshold)
+       |> Map.merge(
+         if form["measure"] in @metric_measures, do: %{"window" => form["window"]}, else: %{}
+       )}
+    end
   end
 
   defp subject_attrs(form) do
@@ -743,19 +757,17 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
       else: base
   end
 
-  defp threshold_attrs(%{"kind" => "band"} = form),
-    do: %{"lower" => decimal_text(form["lower"]), "upper" => decimal_text(form["upper"])}
+  defp threshold_attrs(%{"kind" => "band"} = form), do: read_figures(form, ~w(lower upper))
+  defp threshold_attrs(form), do: read_figures(form, ~w(threshold))
 
-  defp threshold_attrs(form), do: %{"threshold" => decimal_text(form["threshold"])}
-
-  defp decimal_text(value) when is_binary(value) do
-    case String.trim(value) do
-      "" -> nil
-      text -> String.replace(text, ",", ".")
+  defp read_figures(form, fields) do
+    with {:ok, read} <- DecimalInput.cast(Map.take(form, fields), fields) do
+      {:ok, Map.new(fields, &{&1, figure(read[&1])})}
     end
   end
 
-  defp decimal_text(_value), do: nil
+  defp figure(%Decimal{} = value), do: value
+  defp figure(_blank), do: nil
 
   defp blank_to_nil(value) when value in [nil, ""], do: nil
   defp blank_to_nil(value), do: value

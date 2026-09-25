@@ -40,6 +40,7 @@ defmodule PortfolixirWeb.TaxLive do
   alias Portfolixir.Tax.Budget
   alias Portfolixir.Tax.StatementSnapshot
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.DecimalInput
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
 
@@ -136,8 +137,11 @@ defmodule PortfolixirWeb.TaxLive do
          |> load_year()
          |> load_editing()}
 
-      {:error, changeset} ->
+      {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, :form_errors, changeset_errors(changeset))}
+
+      {:error, errors} when is_map(errors) ->
+        {:noreply, assign(socket, :form_errors, errors)}
     end
   end
 
@@ -172,17 +176,17 @@ defmodule PortfolixirWeb.TaxLive do
   def handle_event("put_allowance_order", %{"order" => params}, socket) do
     params = LiveParam.map(params)
 
-    attrs = %{
-      holder: socket.assigns.holder,
-      institution: params["institution"],
-      tax_year: socket.assigns.tax_year,
-      amount_granted: params["amount_granted"]
-    }
-
-    case Tax.put_allowance_order(Actor.owner_ui(), attrs) do
-      {:ok, _order} ->
-        {:noreply, socket |> assign(order_errors: nil, order_form_open?: false) |> load_year()}
-
+    # #869: the amount is read by the one decimal-input rule.
+    with {:ok, %{amount_granted: amount}} <- read_figures(params, [:amount_granted], nil),
+         {:ok, _order} <-
+           Tax.put_allowance_order(Actor.owner_ui(), %{
+             holder: socket.assigns.holder,
+             institution: params["institution"],
+             tax_year: socket.assigns.tax_year,
+             amount_granted: amount
+           }) do
+      {:noreply, socket |> assign(order_errors: nil, order_form_open?: false) |> load_year()}
+    else
       # The order being replaced was deleted in the meantime (E25 S6, F49):
       # the panel says so (review round, R5).
       {:error, :not_found} ->
@@ -196,8 +200,11 @@ defmodule PortfolixirWeb.TaxLive do
          )
          |> load_year()}
 
-      {:error, changeset} ->
+      {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, :order_errors, changeset_errors(changeset))}
+
+      {:error, errors} when is_map(errors) ->
+        {:noreply, assign(socket, :order_errors, errors)}
     end
   end
 
@@ -239,50 +246,52 @@ defmodule PortfolixirWeb.TaxLive do
   def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   defp save_statement(socket, params) do
-    attrs = statement_attrs(socket, params)
+    with {:ok, attrs} <- statement_attrs(socket, params) do
+      case socket.assigns.editing_id do
+        nil ->
+          Tax.create_snapshot(Actor.owner_ui(), attrs, today: socket.assigns.today)
 
-    case socket.assigns.editing_id do
-      nil ->
-        Tax.create_snapshot(Actor.owner_ui(), attrs, today: socket.assigns.today)
-
-      id ->
-        with {:ok, snapshot} <- Tax.fetch_snapshot(id) do
-          Tax.update_snapshot(Actor.owner_ui(), snapshot, attrs, today: socket.assigns.today)
-        end
+        id ->
+          with {:ok, snapshot} <- Tax.fetch_snapshot(id) do
+            Tax.update_snapshot(Actor.owner_ui(), snapshot, attrs, today: socket.assigns.today)
+          end
+      end
     end
   end
 
   # The form carries its own taxpayer and year (defaulting to the scope), so
   # a first statement for a new taxpayer or an older year is recordable
-  # without a scope control that lists it.
+  # without a scope control that lists it. The figures are read by the one
+  # decimal-input rule (#869), so a German statement goes in as printed.
   defp statement_attrs(socket, params) do
-    money =
-      Map.new(StatementSnapshot.money_fields(), fn field ->
-        {field, blank_to_zero(params[Atom.to_string(field)])}
-      end)
-
-    Map.merge(money, %{
-      institution: params["institution"],
-      holder: form_holder(params["holder"]) || socket.assigns.holder,
-      tax_year: LiveParam.year(params["tax_year"]) || socket.assigns.tax_year,
-      as_of: params["as_of"],
-      note: params["note"]
-    })
-  end
-
-  # An empty field means "not on this statement", which is zero — not a cast
-  # error the maintainer has to fix field by field.
-  defp blank_to_zero(nil), do: "0"
-
-  defp blank_to_zero(value) when is_binary(value) do
-    case String.trim(value) do
-      "" -> "0"
-      trimmed -> trimmed
+    with {:ok, money} <- read_figures(params, StatementSnapshot.money_fields(), Decimal.new(0)) do
+      {:ok,
+       Map.merge(money, %{
+         institution: params["institution"],
+         holder: form_holder(params["holder"]) || socket.assigns.holder,
+         tax_year: LiveParam.year(params["tax_year"]) || socket.assigns.tax_year,
+         as_of: params["as_of"],
+         note: params["note"]
+       })}
     end
   end
 
-  # Not a form's string: the changeset refuses it as a field error.
-  defp blank_to_zero(value), do: value
+  # `{:ok, %{field => Decimal}}` or the refused fields in the page's
+  # changeset-error shape; an empty field reads as `blank`. On a statement an
+  # empty field means "not on this statement", which is zero — not a cast
+  # error the maintainer has to fix field by field.
+  defp read_figures(params, fields, blank) do
+    {read, errors} =
+      Enum.reduce(fields, {%{}, %{}}, fn field, {read, errors} ->
+        case DecimalInput.parse(params[Atom.to_string(field)]) do
+          {:ok, value} -> {Map.put(read, field, value), errors}
+          :blank -> {Map.put(read, field, blank), errors}
+          {:error, reason} -> {read, Map.put(errors, field, [DecimalInput.message(reason)])}
+        end
+      end)
+
+    if errors == %{}, do: {:ok, read}, else: {:error, errors}
+  end
 
   defp load_year(socket) do
     %{holder: holder, tax_year: tax_year, today: today} = socket.assigns
@@ -509,12 +518,17 @@ defmodule PortfolixirWeb.TaxLive do
     end)
   end
 
+  defp field_label_or_name(:amount_granted), do: gettext("Amount granted")
+
   defp field_label_or_name(field) do
     if field in StatementSnapshot.money_fields(), do: field_label(field), else: to_string(field)
   end
 
   defp value_of(nil, _field), do: nil
-  defp value_of(row, field), do: Decimal.to_string(Map.fetch!(row, field), :normal)
+  # #869: a stored figure opens in the page's locale, its trailing zeros
+  # dropped as every stored figure opening in a field is ("12000", "140,25").
+  defp value_of(row, field),
+    do: row |> Map.fetch!(field) |> Decimal.normalize() |> DecimalInput.value()
 
   defp orders_summary([]), do: gettext("none configured")
 
@@ -758,6 +772,7 @@ defmodule PortfolixirWeb.TaxLive do
                   <input
                     type="text"
                     inputmode="decimal"
+                    class="num"
                     name={"statement[#{field}]"}
                     value={value_of(@editing, field)}
                     aria-invalid={invalid?(@form_errors, field) && "true"}
@@ -794,7 +809,7 @@ defmodule PortfolixirWeb.TaxLive do
               </label>
               <label>
                 <%= gettext("Amount granted") %>
-                <input type="text" inputmode="decimal" name="order[amount_granted]" required />
+                <input type="text" inputmode="decimal" class="num" name="order[amount_granted]" required />
               </label>
               <button type="submit" class="button"><%= gettext("Record order") %></button>
             </form>

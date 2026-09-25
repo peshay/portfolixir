@@ -17,8 +17,7 @@ defmodule PortfolixirWeb.DesignConformanceCssTest do
   test "a numeric cell is right-aligned with tabular numerals in any table" do
     app_css = File.read!(@app_css)
 
-    [generic] =
-      Regex.run(~r/\nth\.num,\s*td\.num,\s*\.data-table thead th\.num \{[^}]*\}/s, app_css)
+    generic = generic_num_rule(app_css)
 
     assert generic =~ "text-align: right"
     assert generic =~ "font-variant-numeric: tabular-nums"
@@ -36,6 +35,39 @@ defmodule PortfolixirWeb.DesignConformanceCssTest do
 
     assert left_aligned_cell_resets != []
     assert Enum.all?(left_aligned_cell_resets, &(&1 < generic_at))
+  end
+
+  # User story (#869, numeric half; DESIGN.md → Numeric inputs; board
+  # ux-design-2026-09-24/05-numeric-inputs, "after"):
+  # As the operator typing figures into a form,
+  # I want a decimal field to stand right-aligned in tabular digits like the
+  # column it will end up in,
+  # so that an amount and a rate typed one under the other end on one edge.
+  #
+  # Acceptance criteria:
+  # - `input.num` joins the generic `.num` rule, which sits last in the file,
+  #   so it outranks the bare `input` rule by specificity and any scoped
+  #   `… input` rule of equal specificity by source order.
+  # - No rule after it sets an input's `text-align`.
+  test "a decimal input is right-aligned with tabular numerals" do
+    app_css = File.read!(@app_css)
+    generic = generic_num_rule(app_css)
+
+    assert generic =~ ~r/\ninput\.num \{/
+    {generic_at, generic_size} = :binary.match(app_css, String.trim_leading(generic))
+    rule_end = generic_at + generic_size
+    after_rule = binary_part(app_css, rule_end, byte_size(app_css) - rule_end)
+    refute after_rule =~ ~r/\binput[^{}]*\{[^}]*text-align/
+  end
+
+  defp generic_num_rule(app_css) do
+    [generic] =
+      Regex.run(
+        ~r/\nth\.num,\s*td\.num,\s*\.data-table thead th\.num(?:,\s*input\.num)? \{[^}]*\}/s,
+        app_css
+      )
+
+    generic
   end
 
   # User story (#834, DESIGN.md → Do's and Don'ts, EXPERIENCE.md → the

@@ -937,6 +937,56 @@ Precisely: app.css already styles the *container* — `input, select, textarea` 
 
 The checkbox is one control: box and label sit on one line, the label is the hit target, and the pair is spaced on the scale. The classification form's broken checkbox stack — a bare box alone on a line with its label underneath, running into the next field's label — is the failure this rule prevents.
 
+### Numeric inputs — one rule for every decimal field *(issue 869, Sprint 16; board `ux-design-2026-09-24/05-numeric-inputs`, before/after)*
+
+Every text input with `inputmode="decimal"` shows and reads its figure through
+**one helper**, `PortfolixirWeb.DecimalInput`, and carries `class="num"`. Twelve
+places in five surfaces use it: the booking drawer (quantity, price, fees,
+taxes), its settlement block (amount, rate), the rule dialog (line, from, to),
+Tax (the statement's figures, the amount of a Freistellungsauftrag) and the
+set-balance dialog on Accounts & depots.
+
+- **Shown in the page's locale, never grouped.** A German page shows a decimal
+  comma (`1664,40`), an English page a point. The helper swaps the separator and
+  nothing else: the caller owns the digits — a derived settlement amount keeps two
+  places, a derived rate six, and a stored figure opens with its trailing zeros
+  dropped (`45,6`, `12000`) and every other digit as stored. **Money fields are
+  not padded** (the board's open point, decided here): a field is for editing, a
+  trailing zero carries nothing, and one rule for every stored figure beats a
+  second one per field kind. What the operator typed renders back exactly as
+  typed — a refusal never rewrites `2,5` into `2.5`.
+- **No thousands separator in a field, ever.** Tables and running text keep
+  grouping (`Format.decimal/3`, `1.664,40`): a figure there is read, not edited
+  and read back. A field's value *is* read back, and a grouped `1.664` would
+  return as 1.664.
+- **Read strictly, never guessed.** The page's own separator is always the
+  decimal separator. The other language's separator is one too — a German page
+  accepts a typed `45.60`, an English page a pasted `45,60` — **unless the figure
+  has the shape of a thousands group** (`1.664` on a German page, `1,664` on an
+  English one): that figure reads two ways and is refused on its field with
+  "is ambiguous: enter it without a thousands separator" /
+  "ist mehrdeutig: ohne Tausendertrennzeichen eingeben". A figure with two
+  separators (`1.664,40`) is refused the same way; an exponent, `NaN`, an inner
+  space or a trailing separator is invalid. A refused figure saves nothing.
+- **`input.num` joins the generic `.num` rule** — right-aligned, tabular
+  numerals — which sits last in `app.css`, so it outranks the bare `input` rule by
+  specificity and any scoped `… input` rule by source order. An amount and a rate
+  typed one under the other end on one edge, as they will in their column.
+- **Out of the rule: browser number inputs** (`type="number"`: the plan editor's
+  weights, the fixed-rate benchmark, the tax year, the split ratio). Their
+  `value` must carry a point whatever the page's language, and the browser draws
+  their digits; the plan editor's are already right-aligned
+  (`.soll-table input[type="number"]`).
+- **Dates are not part of it.** A date field is the ISO text input of UX-DR19
+  above (`YYYY-MM-DD` in every locale), and the ISO date in the settlement
+  block's source hint is fixed by the Amendment 2026-09-24 below; #869's two date
+  bullets close as spec-conformant.
+
+Pinned by `decimal_input_test.exs` (the rule, both locales, the ambiguous
+shapes), `test/invariants/decimal_input_test.exs` (every decimal text input
+carries `num`; no second comma rule in the web layer) and
+`design_conformance_css_test.exs` (`input.num`).
+
 ### Inventory (as built)
 
 - **App shell** (`.app-shell`) — fixed sidebar with grouped nav (`.nav-group`, uppercase group heads, icon + label rows), active link per {components.selected-nav}. The Classifications group is **one static entry** (`nav_groups/0`, `app_shell.ex:266-294`); the per-tree list and its `+` affordance live on `/classifications` itself — corrected 2026-08-05 against the build, per ADR-0024 (a tree is an entity, not a task). The sidebar background is viewport-height rather than page-height, leaving a cut edge on long pages — a defect. Nav entries follow ADR-0024: navigation reflects user tasks, not the storage model; a new entity does not get a sidebar entry by default.
