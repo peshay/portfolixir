@@ -1214,8 +1214,11 @@ Example account payloads:
   id, "target_weight": "0.25"}]}` and may carry an optional `"view": id` to write
   that view's plan (omitted = Gesamt). Each `target_weight` is a string fraction
   in `[0, 1]` with at most 6 decimal places (four in percent); a finer weight
-  answers `422` on `target_weight`, and the database refuses it too. Targets
-  need not sum to `1`. Only the supplied categories are
+  answers `422` on `target_weight`, and the database refuses it too unless the
+  instance already held a finer weight when it was upgraded (the upgrade then
+  logs how many). Duplicating a plan, or saving it in the SOLL editor, rounds
+  such a stored weight half up to 6 decimal places. Targets need not sum to
+  `1`. Only the supplied categories are
   changed. A category from another tree returns `422 Unprocessable Entity`, and an
   unknown classification returns `404 Not Found`. A batch names each category
   row once and carries at most one row per category and one per security

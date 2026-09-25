@@ -8,6 +8,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CategoryResult
+  alias Portfolixir.Portfolios.Target
   alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Portfolios.Valuation
   alias PortfolixirWeb.AppShell
@@ -2372,9 +2373,15 @@ defmodule PortfolixirWeb.ClassificationsLive do
   defp parse_decimal(value), do: BoundedDecimal.parse(value)
 
   # A stored fraction in [0, 1] → its percentage as a plain display string
-  # ("0.6" → "60", "0.125" → "12.5"), trimming trailing zeros.
+  # ("0.6" → "60", "0.125" → "12.5"), trimming trailing zeros. A weight stored
+  # before the scale bound (E25 S4, G14) shows at the places a plan holds, so
+  # the form's untouched rows save as shown instead of being refused.
   defp fraction_to_percent(%Decimal{} = fraction) do
-    fraction |> Decimal.mult(@hundred) |> Decimal.normalize() |> Decimal.to_string(:normal)
+    fraction
+    |> BoundedDecimal.round_to_scale(Target.weight_scale())
+    |> Decimal.mult(@hundred)
+    |> Decimal.normalize()
+    |> Decimal.to_string(:normal)
   end
 
   defp fraction_to_percent_or_nil(nil), do: nil
