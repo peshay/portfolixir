@@ -376,7 +376,9 @@ defmodule Portfolixir.Portfolios.Targets do
   category write. A plan carries at most **one** position row per security:
   filing a security under a second category — within the batch or against an
   existing row — is rejected, as is naming the same `(category, security)`
-  twice in one batch.
+  twice in one batch. The database holds the one-row rule as well (E25 S6,
+  G13), so a write that loses a race to file the security under another
+  category gets the same `{:error, {:duplicate_position, security_id}}`.
 
   Returns `{:ok, [%Target{}]}`, `{:error, :not_found}` (unknown classification),
   `{:error, :category_mismatch}` (a category from another tree),
@@ -472,7 +474,7 @@ defmodule Portfolixir.Portfolios.Targets do
         Enum.map(entries, fn entry ->
           case upsert_target(actor, plan, portfolio_id, classification_id, entry) do
             {:ok, target} -> target
-            {:error, changeset} -> Repo.rollback(changeset)
+            {:error, changeset} -> Repo.rollback(position_race_or(changeset))
           end
         end)
       else
@@ -517,6 +519,24 @@ defmodule Portfolixir.Portfolios.Targets do
       end)
     end
   end
+
+  # The check above reads rows nothing holds, so a concurrent write can file
+  # the security under another category after it: the (plan, security) index
+  # refuses the insert, answered as the same refusal (E25 S6, G13).
+  defp position_race_or(%Ecto.Changeset{errors: errors, changes: changes} = changeset) do
+    case errors[:security_id] do
+      {_message, opts} ->
+        if opts[:constraint] == :unique and
+             opts[:constraint_name] == "portfolio_targets_plan_security_index",
+           do: {:duplicate_position, changes.security_id},
+           else: changeset
+
+      nil ->
+        changeset
+    end
+  end
+
+  defp position_race_or(reason), do: reason
 
   # A racing first-writer beat this call to the active-unique index: one fresh
   # attempt converges on the winner's plan instead of surfacing a spurious save

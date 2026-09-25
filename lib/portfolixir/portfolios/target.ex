@@ -25,7 +25,8 @@ defmodule Portfolixir.Portfolios.Target do
   (`security_id` NULL), and a position is unique within a plan per
   `(category, security)`. So one category row and N position rows can coexist for
   the same category; a category's effective target rolls up from its positions
-  (see `Portfolixir.Portfolios.Targets`).
+  (see `Portfolixir.Portfolios.Targets`). A third partial unique index (E25 S6,
+  G13) keeps a security to one position row per plan, whatever its category.
   """
 
   use Ecto.Schema
@@ -108,5 +109,10 @@ defmodule Portfolixir.Portfolios.Target do
     |> unique_constraint([:plan_id, :category_id, :security_id],
       name: :portfolio_targets_plan_category_security_index
     )
+    # E25 S6 (G13): one position row per security in a plan, held by the
+    # database, so a write that loses a race to file the security under
+    # another category is refused here; `Targets` answers it as the
+    # duplicate-position refusal.
+    |> unique_constraint(:security_id, name: :portfolio_targets_plan_security_index)
   end
 end
