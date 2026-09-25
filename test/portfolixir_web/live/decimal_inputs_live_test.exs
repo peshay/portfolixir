@@ -158,6 +158,85 @@ defmodule PortfolixirWeb.DecimalInputsLiveTest do
     assert Decimal.equal?(stored.fees, Decimal.new("1.5"))
   end
 
+  # User story (#869, Lane C review round DC-C6; board 05, "Abrechnungsbetrag"):
+  # As the operator correcting a stored cross-currency booking,
+  # I want its settlement amount to open in the form the drawer derives it in,
+  # so that the field does not switch from "1664,4" to "1664,40" under me the
+  # moment I type a rate.
+  #
+  # Acceptance criteria:
+  # - A stored settlement amount of 1664.4 opens as "1664,40": the form its
+  #   derivation writes (two places), never fewer; a stored figure with more
+  #   places keeps them.
+  # - A changed quantity leaves the amount as it is (the rate follows it); a
+  #   typed rate derives the amount at two places — the same form.
+  # - Saved unchanged, the booking keeps its settlement amount exactly.
+  test "an edited booking's settlement amount keeps one form", %{conn: conn} do
+    %{world: w, usd: usd} = usd_world()
+
+    {:ok, tx} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: w.portfolio.id,
+        securities_account_id: w.depot.id,
+        cash_account_id: w.cash.id,
+        security_id: usd.id,
+        type: "buy",
+        date: ~D[2026-04-01],
+        quantity: "40",
+        price: "45.5",
+        currency_code: "USD",
+        security_amount: "1820",
+        settlement_amount: "1664.4",
+        gross_amount: "1664.4"
+      })
+
+    view = conn |> german() |> open_booking()
+    render_click(view, "edit_transaction", %{"id" => to_string(tx.id)})
+
+    assert input_value(view, "#transaction-form", "transaction[settlement_amount]") == "1664,40"
+
+    edited =
+      trade(w, usd, %{
+        "quantity" => "40",
+        "price" => "45,5",
+        "settlement_mode" => "security",
+        "settlement_source" => "amount",
+        "settlement_amount" => "1664,40",
+        "settlement_fx_rate" =>
+          input_value(view, "#transaction-form", "transaction[settlement_fx_rate]")
+      })
+
+    change(view, Map.put(edited, "quantity", "41"), "quantity")
+    assert input_value(view, "#transaction-form", "transaction[settlement_amount]") == "1664,40"
+
+    change(view, Map.put(edited, "settlement_fx_rate", "0,9"), "settlement_fx_rate")
+    assert input_value(view, "#transaction-form", "transaction[settlement_amount]") == "1638,00"
+
+    view |> element("#transaction-form") |> render_submit(%{"transaction" => edited})
+
+    stored = Repo.get!(Transaction, tx.id)
+    assert Decimal.equal?(stored.settlement_amount, Decimal.new("1664.4"))
+
+    {:ok, long} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: w.portfolio.id,
+        securities_account_id: w.depot.id,
+        cash_account_id: w.cash.id,
+        security_id: usd.id,
+        type: "buy",
+        date: ~D[2026-04-01],
+        quantity: "40",
+        price: "45.5",
+        currency_code: "USD",
+        security_amount: "1820",
+        settlement_amount: "1664.4035",
+        gross_amount: "1664.4035"
+      })
+
+    render_click(view, "edit_transaction", %{"id" => to_string(long.id)})
+    assert input_value(view, "#transaction-form", "transaction[settlement_amount]") == "1664,4035"
+  end
+
   # User story (#869; board 05, "Warum ohne Tausenderpunkt"):
   # As the operator typing a figure,
   # I want a figure that reads two ways to be refused and named on its field,
