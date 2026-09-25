@@ -15,6 +15,10 @@ defmodule PortfolixirWeb.Endpoint do
 
   socket("/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]])
 
+  # First of all, so a body or a read that runs away fails its own process
+  # rather than the node (E25 S4, G05).
+  plug(PortfolixirWeb.HeapCap)
+
   # Ahead of everything, including static files: a request under a foreign
   # Host never reaches the router (ADR-0045 §2, #758).
   plug(PortfolixirWeb.HostGuard)

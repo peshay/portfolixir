@@ -652,6 +652,14 @@ Datenbanksicherung zurück.
   Warnungen und Fehler. Die Datenbankabfragen, die Parameter jeder Anfrage
   und jedes Seitenereignisses und die Sitzungsinhalte, die die Stufe `debug`
   schreibt, bleiben aus dem Log.
+- Jede Anfrage und jede offene Seite läuft in einem eigenen Prozess unter
+  einer Heap-Grenze von 512 MiB, die die großen Binärdaten des Prozesses
+  mitzählt: Eine Anfrage, die darüber wächst, scheitert allein und wird
+  protokolliert, statt den Speicher der Maschine zu erschöpfen. Kein
+  gewöhnliches Lesen oder Schreiben kommt in ihre Nähe; `max_heap_bytes`
+  unter `PortfolixirWeb.HeapCap` in `config/config.exs` ändert sie. Der
+  Arbeitsspeicher-Cache abgeleiteter Kennzahlen hält sein eigenes Budget ein
+  (5000 Einträge, 128 MiB).
 - Das Release startet ohne Erlang-Distribution und öffnet deshalb keinen
   Listener zu den anderen Containern: `bin/portfolixir eval` funktioniert im
   Container, `remote` und `rpc` nicht.

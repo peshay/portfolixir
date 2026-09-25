@@ -54,6 +54,7 @@ defmodule PortfolixirWeb.Router do
 
     live_session :browser,
       on_mount: [
+        PortfolixirWeb.HeapCap,
         PortfolixirWeb.LiveUiAuth,
         PortfolixirWeb.LiveIdRange,
         PortfolixirWeb.LiveLocale,
