@@ -3144,4 +3144,13 @@ describe("Portfolixir MCP tools", () => {
       callTool(client, "portfolixir.portfolios.risk", { portfolio_id: 1, top_n: 1001 })
     );
   });
+
+  // E25 S4, G12 (#889): a security's splits, each by its own magnitude,
+  // multiply to at most 10^12; the split tools say so.
+  it("states the cumulative split bound on the split tools", () => {
+    for (const name of ["portfolixir.splits.preview", "portfolixir.splits.create"]) {
+      const description = listTools().find((tool) => tool.name === name)?.description ?? "";
+      assert.match(description, /10\^12/, name);
+    }
+  });
 });

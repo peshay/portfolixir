@@ -3895,6 +3895,11 @@ msgstr "Wirkung des %{ratio}-Splits je Portfolio:"
 msgid "Effective date"
 msgstr "Stichtag"
 
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:352
+#, elixir-autogen, elixir-format
+msgid "This ratio, together with the splits already booked for this security, would scale it by more than 10^12."
+msgstr "Dieses Verhältnis würde das Wertpapier zusammen mit den schon gebuchten Splits um mehr als 10^12 skalieren."
+
 #: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:349
 #, elixir-autogen, elixir-format
 msgid "Enter a valid effective date."

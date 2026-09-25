@@ -348,6 +348,12 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
 
   defp error_message(:invalid_date), do: gettext("Enter a valid effective date.")
 
+  defp error_message(:cumulative_factor_out_of_range),
+    do:
+      gettext(
+        "This ratio, together with the splits already booked for this security, would scale it by more than 10^12."
+      )
+
   defp error_message(:future_effective_date),
     do: gettext("The effective date must not be in the future.")
 

@@ -495,8 +495,20 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp serve_previous_analysis(socket, view_id, base_currency) do
     case Performance.previous_view_analysis(view_id, base_currency: base_currency) do
       %{daily: [_ | _]} = previous ->
-        {:ok, performance} = Performance.summarise(previous, socket.assigns.period)
+        serve_previous_summary(socket, previous)
 
+      _none ->
+        socket
+        |> assign(:performance_stale, false)
+        |> assign(:performance_failed, false)
+    end
+  end
+
+  # A superseded series that cannot be summarised is not served: the page
+  # waits for the fresh one instead (E25 S4, G12).
+  defp serve_previous_summary(socket, previous) do
+    case Performance.summarise(previous, socket.assigns.period) do
+      {:ok, performance} ->
         socket
         |> assign(:analysis, previous)
         |> assign(:performance, performance)
@@ -504,7 +516,7 @@ defmodule PortfolixirWeb.PortfolioLive do
         |> assign(:performance_failed, false)
         |> assign_comparisons()
 
-      _none ->
+      {:error, _reason} ->
         socket
         |> assign(:performance_stale, false)
         |> assign(:performance_failed, false)
@@ -603,18 +615,24 @@ defmodule PortfolixirWeb.PortfolioLive do
     {:noreply, assign_allocation(socket, allocation)}
   end
 
+  # A summary the walk cannot give is the failed-performance state, the same
+  # one a dead recomputation lands in, never a crash (E25 S4, G12).
   def handle_async(:performance, {:ok, analysis}, socket) do
-    {:ok, performance} = Performance.summarise(analysis, socket.assigns.period)
+    case Performance.summarise(analysis, socket.assigns.period) do
+      {:ok, performance} ->
+        {:noreply,
+         socket
+         |> assign(
+           analysis: analysis,
+           performance: performance,
+           performance_stale: false,
+           performance_failed: false
+         )
+         |> assign_comparisons()}
 
-    {:noreply,
-     socket
-     |> assign(
-       analysis: analysis,
-       performance: performance,
-       performance_stale: false,
-       performance_failed: false
-     )
-     |> assign_comparisons()}
+      {:error, _reason} ->
+        {:noreply, assign(socket, performance_failed: true)}
+    end
   end
 
   # The background rate sync (issue #432, UAT fix rounds): the outcome lands
@@ -4177,13 +4195,20 @@ defmodule PortfolixirWeb.PortfolioLive do
 
     if socket.assigns.analysis do
       # The analysis is cached — re-chaining a period is pure and instant.
-      {:ok, performance} = Performance.summarise(socket.assigns.analysis, period)
+      case Performance.summarise(socket.assigns.analysis, period) do
+        {:ok, performance} ->
+          {:noreply,
+           socket
+           |> assign(period: period, performance: performance)
+           |> assign_comparisons()
+           |> push_event("close-popover", %{id: "period-custom"})}
 
-      {:noreply,
-       socket
-       |> assign(period: period, performance: performance)
-       |> assign_comparisons()
-       |> push_event("close-popover", %{id: "period-custom"})}
+        {:error, _reason} ->
+          {:noreply,
+           socket
+           |> assign(period: period, performance: nil, performance_failed: true)
+           |> push_event("close-popover", %{id: "period-custom"})}
+      end
     else
       {:noreply,
        socket

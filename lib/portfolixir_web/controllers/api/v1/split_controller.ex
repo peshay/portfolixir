@@ -64,6 +64,14 @@ defmodule PortfolixirWeb.Api.V1.SplitController do
   defp error_shape(:identity_ratio),
     do: %{ratio: ["must change the share count (a 1:1 split is meaningless)"]}
 
+  defp error_shape(:cumulative_factor_out_of_range),
+    do: %{
+      ratio: [
+        "would take the security's splits, each counted by its own magnitude, past a " <>
+          "combined factor of 10^12"
+      ]
+    }
+
   defp error_shape(:no_position),
     do: %{security_id: ["no portfolio holds a position in this security at the effective date"]}
 

@@ -3894,6 +3894,11 @@ msgstr ""
 msgid "Effective date"
 msgstr ""
 
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:352
+#, elixir-autogen, elixir-format
+msgid "This ratio, together with the splits already booked for this security, would scale it by more than 10^12."
+msgstr ""
+
 #: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:349
 #, elixir-autogen, elixir-format
 msgid "Enter a valid effective date."

@@ -2011,7 +2011,11 @@ Handelspreis) eine Nach-Split-Position nie zum unbereinigten Preis bewertet.
 Für Anbieter, die ihre Historie nie rückwirkend anpassen, bieten die
 Stammdaten des Wertpapiers (hinter **Bearbeiten** in der Kopfzeile der
 Detailansicht) den Schalter **Synchronisierte Kurse als roh behandeln**, der
-die Roh-Basis für dessen synchronisierte Zeilen erzwingt.
+die Roh-Basis für dessen synchronisierte Zeilen erzwingt. Die Splits eines
+Wertpapiers, jeder mit seinem eigenen Betrag gezählt (2:1 und 1:2 zählen
+beide 2), multiplizieren sich auf höchstens 10^12: Der Split-Assistent lehnt
+ein Verhältnis darüber ab und bucht nichts, denn keine echte Aktienhistorie
+kommt in die Nähe.
 
 **Der Reiter Übersicht liest, Bearbeiten schreibt.** Die Detailansicht
 öffnet auf **Übersicht**, einer Lesefläche (Issue #804): sechs Kennzahlen —

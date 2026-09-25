@@ -506,7 +506,11 @@ defmodule Portfolixir.Portfolios.Performance do
         "prices and exchange rates carry the most recent stored point on or " <>
           "before each day forward; a security with no quote yet is priced by " <>
           "its own latest trade; a missing conversion path contributes zero " <>
-          "(ADR-0010)"
+          "(ADR-0010). irr and mwr are null when no rate solves the window's " <>
+          "cashflows: fewer than two, one shared date, no sign change, no root in " <>
+          "the solver's budget, or an amount outside the range its one float step " <>
+          "carries (a non-zero magnitude below 1e-300 or above 1e300, which only " <>
+          "implausible stored data reaches)"
     }
   end
 
