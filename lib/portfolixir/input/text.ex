@@ -31,6 +31,24 @@ defmodule Portfolixir.Input.Text do
   @type opts :: [max: pos_integer(), multiline: boolean()]
   @type refusal :: :invalid_encoding | :control_characters | :too_long
 
+  # The code-point caps of free text in a `text` column (E25 S6, G01, G02):
+  # the column bounds nothing itself, and the journal copies a row whole on
+  # every change, so the changeset bounds it and a CHECK of the same number
+  # stands behind it (the migrations name the number, since they are frozen).
+  @free_text_max 10_000
+  @entry_body_max 20_000
+
+  @doc """
+  The code-point cap of a free-text note or description: a record's notes, an
+  event's note, a rule version's note, a thesis's invalidation condition.
+  """
+  @spec free_text_max() :: pos_integer()
+  def free_text_max, do: @free_text_max
+
+  @doc "The code-point cap of a research-log entry's body."
+  @spec entry_body_max() :: pos_integer()
+  def entry_body_max, do: @entry_body_max
+
   @doc """
   The verdict on one value: `:ok` or the first refusal. `nil` is `:ok`.
   """

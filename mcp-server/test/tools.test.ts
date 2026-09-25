@@ -1084,6 +1084,34 @@ describe("Portfolixir MCP tools", () => {
     }
   });
 
+  // E25 S6, G01: the append-only and journaled knowledge text is capped in
+  // code points, and the schemas carry the cap where the agent reads them.
+  it("caps the research, event and rule-version text in code points", () => {
+    const find = (name: string) => listTools().find((tool) => tool.name === name);
+    const at = (name: string, path: string[]) => {
+      let node: any = find(name)?.inputSchema;
+      for (const key of path) node = node?.properties?.[key];
+      return node;
+    };
+
+    assert.equal(at("portfolixir.notes.append", ["note", "body"]).maxLength, 20000);
+    assert.equal(at("portfolixir.notes.append", ["note", "invalidation_condition"]).maxLength, 10000);
+    assert.equal(at("portfolixir.events.create", ["event", "note"]).maxLength, 10000);
+    assert.equal(at("portfolixir.events.update", ["event", "note"]).maxLength, 10000);
+    assert.equal(at("portfolixir.policy_rules.create", ["rule", "version", "note"]).maxLength, 10000);
+    assert.equal(at("portfolixir.policy_rules.add_version", ["version", "note"]).maxLength, 10000);
+
+    const append = find("portfolixir.notes.append");
+    const note = (body: string) => ({
+      security_id: 1,
+      note: { kind: "evidence", body, source_quality: "primary", as_of: "2026-01-02" }
+    });
+    // The cap counts code points, as the server does: 20000 astral characters
+    // are 40000 UTF-16 units and still inside it.
+    assert.doesNotThrow(() => append?.zodSchema.parse(note("\u{1F4C8}".repeat(20000))));
+    assert.throws(() => append?.zodSchema.parse(note("a".repeat(20001))));
+  });
+
   // E25 S6, F20: a tax statement's source is the system's to state.
   it("offers no source on the tax statement write tools", () => {
     for (const name of ["portfolixir.tax_snapshots.create", "portfolixir.tax_snapshots.update"]) {

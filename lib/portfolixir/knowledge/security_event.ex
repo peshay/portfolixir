@@ -126,7 +126,7 @@ defmodule Portfolixir.Knowledge.SecurityEvent do
     # The column is varchar(255); without this a tracking-laden link is a
     # Postgrex 22001 and a 500 instead of a field error the caller can read.
     |> Text.validate(:source_url, max: @max_source_url)
-    |> Text.validate(:note, multiline: true)
+    |> Text.validate(:note, multiline: true, max: Text.free_text_max())
     |> validate_window()
     |> validate_machine_generated_source()
     |> foreign_key_constraint(:security_id)
@@ -135,6 +135,7 @@ defmodule Portfolixir.Knowledge.SecurityEvent do
     |> check_constraint(:source_quality, name: :security_events_source_quality_check)
     |> check_constraint(:date_end, name: :security_events_window_end_check)
     |> check_constraint(:source_url, name: :security_events_machine_generated_source_check)
+    |> check_constraint(:note, name: :security_events_note_length_check)
   end
 
   defp validate_checked_by(changeset, today) do

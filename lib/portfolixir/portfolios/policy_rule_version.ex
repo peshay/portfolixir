@@ -173,7 +173,7 @@ defmodule Portfolixir.Portfolios.PolicyRuleVersion do
     ])
     # E25 S4, F70: the start a rule is checked against is the start stored.
     |> BoundedDate.validate([:valid_from])
-    |> Text.validate(:note, multiline: true)
+    |> Text.validate(:note, multiline: true, max: Text.free_text_max())
     |> validate_matrix()
     |> validate_subject()
     |> validate_window()
@@ -192,6 +192,7 @@ defmodule Portfolixir.Portfolios.PolicyRuleVersion do
     |> check_constraint(:subject_type, name: :policy_rule_versions_subject_check)
     |> check_constraint(:threshold, name: :policy_rule_versions_thresholds_check)
     |> check_constraint(:valid_until, name: :policy_rule_versions_period_check)
+    |> check_constraint(:note, name: :policy_rule_versions_note_length_check)
     |> exclusion_constraint(:valid_from,
       name: :policy_rule_versions_no_overlap,
       message: "overlaps another version of this rule"
