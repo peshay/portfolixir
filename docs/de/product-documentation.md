@@ -1659,7 +1659,11 @@ zusammengesetzt, ohne unsichtbare Zeichen und mit einfachen Leerzeichen
 gespeichert und ohne Rücksicht auf Groß- und Kleinschreibung abgeglichen.
 „Anna Muster" und „ANNA MUSTER" sind daher ein Eintrag im Steuerelement mit
 einem Budget, und eine als „Bank Eins" und als „bank eins" erfasste Bank ist
-darin ein Institut (E25 S6). Das Budget erscheint als Füllstandsanzeige: der
+darin ein Institut (E25 S6). Namen, die vor dieser Regel erfasst wurden,
+speichert das Upgrade ebenso, jede Änderung im Prüfprotokoll; ein Name, der
+danach einem anderen Eintrag desselben Schlüssels gliche, bleibt, wie er war,
+und wird im Log des Upgrades genannt, damit Sie einen der beiden auf dieser
+Seite korrigieren oder entfernen. Das Budget erscheint als Füllstandsanzeige: der
 verbleibende Betrag als Wert, die Ausschöpfung des Freistellungsauftrags als
 Füllstand ohne Schwellenfärbung, Stichtag und erfasste Institute auf der
 Basiszeile, daneben die Zusammensetzung — Verlusttopf Aktien, verbleibender

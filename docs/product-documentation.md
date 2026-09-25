@@ -1533,8 +1533,11 @@ taxpayer or institution is one identity however it was typed: the name is
 stored composed, without invisible characters and with single spaces, and
 matched without regard to case, so "Anna Muster" and "ANNA MUSTER" are one
 entry in the taxpayer control with one budget, and a bank recorded as
-"Bank Eins" and as "bank eins" is one institution in it (E25 S6). The
-budget renders as a meter: the remaining amount as the value, the allowance
+"Bank Eins" and as "bank eins" is one institution in it (E25 S6). Names
+recorded before that rule are stored the same way by the upgrade, each change
+in the audit journal; a name that would then equal another record of the same
+key is left as it was and named in the upgrade's log, for you to correct or
+remove one of the two on this page. The budget renders as a meter: the remaining amount as the value, the allowance
 utilisation as a fill level with no threshold colouring, the as-of date and
 the covered institutions on the basis line, and the composition — equity loss
 pot, remaining allowance, the statutory ceiling — beside it with an ⓘ for the
