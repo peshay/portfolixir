@@ -1239,8 +1239,11 @@ Beispiel-Payloads für Konten:
   `"view": id` tragen, um den Plan dieser View zu schreiben (weggelassen =
   Gesamt). Jedes `target_weight` ist ein String-Bruch in `[0, 1]` mit höchstens
   6 Nachkommastellen (vier in Prozent); ein feineres Gewicht liefert `422` auf
-  `target_weight`, und die Datenbank lehnt es ebenfalls ab. Ziele müssen sich
-  nicht zu `1` summieren. Nur die übergebenen Kategorien werden geändert.
+  `target_weight`, und die Datenbank lehnt es ebenfalls ab, sofern die Instanz
+  beim Upgrade nicht schon ein feineres Gewicht hielt (das Upgrade protokolliert
+  dann, wie viele). Das Duplizieren eines Plans oder sein Speichern im
+  SOLL-Editor rundet ein solches gespeichertes Gewicht kaufmännisch auf 6
+  Nachkommastellen. Ziele müssen sich nicht zu `1` summieren. Nur die übergebenen Kategorien werden geändert.
   Eine Kategorie aus einem anderen Baum liefert `422 Unprocessable Entity`, und
   eine unbekannte Klassifizierung liefert `404 Not Found`. Ein Stapel nennt jede
   Kategoriezeile einmal und trägt höchstens eine Zeile je Kategorie und eine je

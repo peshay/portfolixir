@@ -32,6 +32,7 @@ defmodule Portfolixir.Portfolios.Targets do
   alias Portfolixir.Actor
   alias Portfolixir.Buckets.View
   alias Portfolixir.Classifications
+  alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Journal
   alias Portfolixir.Portfolios.Target
   alias Portfolixir.Portfolios.TargetPlan
@@ -652,7 +653,7 @@ defmodule Portfolixir.Portfolios.Targets do
         portfolio_id: source.portfolio_id,
         view_id: attr(attrs, :view_id, source.view_id),
         classification_id: source.classification_id,
-        cash_target_weight: source.cash_target_weight,
+        cash_target_weight: plan_weight(source.cash_target_weight),
         # The default copy name is clamped to the 120-char limit so a
         # maximum-length source name still duplicates (review finding).
         name: attr(attrs, :name, String.slice(source.name <> " (copy)", 0, 120)),
@@ -680,7 +681,7 @@ defmodule Portfolixir.Portfolios.Targets do
               classification_id: target.classification_id,
               category_id: target.category_id,
               security_id: target.security_id,
-              target_weight: target.target_weight
+              target_weight: plan_weight(target.target_weight)
             })
 
           case journaled_insert(actor, changeset, "target") do
@@ -693,6 +694,14 @@ defmodule Portfolixir.Portfolios.Targets do
       end)
     end
   end
+
+  # A copy is a new write, so it meets the weight scale (E25 S4, G14): a
+  # weight stored before the bound is rounded half up to the places a plan
+  # holds (ADR-0016 §2), never refused, so such a plan still duplicates.
+  defp plan_weight(nil), do: nil
+
+  defp plan_weight(%Decimal{} = weight),
+    do: BoundedDecimal.round_to_scale(weight, Target.weight_scale())
 
   @doc """
   Activates a plan version (ADR-0027), on behalf of `actor`: the previously
