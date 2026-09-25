@@ -867,7 +867,11 @@ Example account payloads:
   same-day split for the same security is rejected with `422` naming the
   existing event (a retried timeout cannot compound the multiplicative
   event); a future-dated effective date and a security nobody held at the
-  effective date are rejected with `422` too. The generic
+  effective date are rejected with `422` too. The security's splits, each
+  counted by its own magnitude (`2:1` and `1:2` both count 2), may multiply to
+  at most `10^12` with the new one included; a ratio past that answers `422`
+  on `ratio` from preview and booking alike, and nothing is written (E25 S4).
+  The generic
   `POST /api/v1/transactions` endpoint rejects the `split` kind — these two
   routes are the only split write path.
 - `GET /api/v1/portfolios/:portfolio_id/holdings` lists derived holdings for a
@@ -1086,7 +1090,10 @@ Example account payloads:
   (`NPV(r) = Σ cf/(1+r)^(days/365) = 0`), the figure Portfolio Performance
   shows next to TTWROR. It is a Decimal string, or `null` when no rate exists
   (fewer than two flows, all flows the same sign, or the solver does not
-  converge). Securities without quotes are priced at the latest own trade
+  converge) or when an amount lies outside the range the solver's one float
+  step carries, which only implausible stored data reaches; the read never
+  fails on such an amount, and `computation_basis.gaps` names these cases
+  (E25 S4). Securities without quotes are priced at the latest own trade
   price (see the valuation endpoint). Unknown portfolios return
   `404 Not Found`. Since the daily walk may be served from a durable derived
   value (ADR-0039), the response is **never silent about freshness**: `as_of`

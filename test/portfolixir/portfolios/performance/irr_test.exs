@@ -189,4 +189,33 @@ defmodule Portfolixir.Portfolios.Performance.IRRTest do
     assert Decimal.to_string(rate, :normal) == "0.000000"
     assert Decimal.to_string(IRR.period_rate(rate, 10), :normal) == "0.000000"
   end
+
+  # User story (E25 S4, G12):
+  # As the operator whose stored history holds an amount beyond what the
+  # solver's one float step can carry,
+  # I want the IRR to be absent with its reason instead of failing the read,
+  # so that every later performance read still renders.
+  #
+  # Acceptance criteria:
+  # - An amount past the float range, either way, yields nil from compute/2
+  #   and {:error, :amount_out_of_range} from solve/2, never a raise.
+  # - Ordinary inputs solve as before, and the other degenerate cases name
+  #   their own reason.
+  test "an out-of-range amount yields nil with a reason, never a raise" do
+    huge = [cf(~D[2024-01-01], "-1e400"), cf(~D[2025-01-01], "2e400")]
+    tiny = [cf(~D[2024-01-01], "-1e-400"), cf(~D[2025-01-01], "1000")]
+
+    for cashflows <- [huge, tiny] do
+      assert IRR.compute(cashflows) == nil
+      assert IRR.solve(cashflows) == {:error, :amount_out_of_range}
+    end
+
+    assert {:ok, rate} = IRR.solve([cf(~D[2025-01-01], "-1000"), cf(~D[2026-01-01], "1100")])
+    assert Decimal.equal?(rate, dec("0.1"))
+
+    assert IRR.solve([cf(~D[2024-01-01], "-1000")]) == {:error, :too_few_cashflows}
+
+    assert IRR.solve([cf(~D[2024-01-01], "-1000"), cf(~D[2025-01-01], "-1")]) ==
+             {:error, :no_sign_change}
+  end
 end

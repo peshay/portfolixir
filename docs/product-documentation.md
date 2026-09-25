@@ -1870,7 +1870,10 @@ latest-own-trade-price fallback) never values a post-split position at the
 unsplit price. For providers that never back-adjust their history, the
 security's master data (behind **Edit** in the detail header) offers a
 **Treat synced quotes as raw** toggle that forces the raw basis for its
-synced rows.
+synced rows. A security's splits, each counted by its own magnitude (2:1
+and 1:2 both count 2), multiply to at most 10^12: the split wizard refuses
+a ratio past that and books nothing, since no real share history comes near
+it.
 
 **The Overview tab reads; Edit writes.** The detail pane opens on
 **Overview**, a reading surface (issue #801's sibling, issue #804): six

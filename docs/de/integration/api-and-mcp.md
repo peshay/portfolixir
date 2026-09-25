@@ -869,7 +869,11 @@ Beispiel-Payloads für Konten:
   abgelehnt und benennt das bestehende Ereignis (ein wiederholter Timeout
   kann den multiplikativen Effekt nicht verdoppeln); ein Datum in der
   Zukunft und ein Wertpapier ohne Bestand am Wirksamkeitsdatum werden
-  ebenfalls mit `422` abgelehnt. Der generische Endpunkt
+  ebenfalls mit `422` abgelehnt. Die Splits eines Wertpapiers, jeder mit
+  seinem eigenen Betrag gezählt (`2:1` und `1:2` zählen beide 2), dürfen sich
+  einschließlich des neuen auf höchstens `10^12` multiplizieren; ein
+  Verhältnis darüber liefert bei Vorschau und Buchung `422` an `ratio`, und
+  nichts wird geschrieben (E25 S4). Der generische Endpunkt
   `POST /api/v1/transactions` lehnt die Art `split` ab — diese beiden Routen
   sind der einzige Schreibpfad für Splits.
 - `GET /api/v1/portfolios/:portfolio_id/holdings` listet abgeleitete Bestände
@@ -1097,7 +1101,10 @@ Beispiel-Payloads für Konten:
   abzinst (`NPV(r) = Σ cf/(1+r)^(days/365) = 0`), die Zahl, die Portfolio
   Performance neben TTWROR zeigt. Es ist ein Decimal-String oder `null`, wenn keine
   Rate existiert (weniger als zwei Flüsse, alle Flüsse mit gleichem Vorzeichen oder
-  der Solver konvergiert nicht). Wertpapiere ohne Kurse werden mit dem zuletzt
+  der Solver konvergiert nicht) oder ein Betrag außerhalb des Bereichs liegt, den
+  der eine Gleitkommaschritt des Solvers trägt, was nur unplausible gespeicherte
+  Daten erreichen; die Abfrage scheitert an einem solchen Betrag nie, und
+  `computation_basis.gaps` nennt diese Fälle (E25 S4). Wertpapiere ohne Kurse werden mit dem zuletzt
   eigenen Handelspreis bepreist (siehe den Bewertungs-Endpunkt). Unbekannte
   Portfolios liefern `404 Not Found`. Da der tägliche Walk aus einem dauerhaft
   materialisierten abgeleiteten Wert bedient werden kann (ADR-0039), schweigt
