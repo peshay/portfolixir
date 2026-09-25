@@ -5,6 +5,7 @@ defmodule Portfolixir.Input.BoundedDateSweepTest do
   # it fails here by name.
   use ExUnit.Case, async: true
 
+  alias Portfolixir.Catalog.MarketDataBounds
   alias Portfolixir.Input.BoundedDate
 
   # Date fields no changeset casts, each with the writer that sets it.
@@ -57,10 +58,10 @@ defmodule Portfolixir.Input.BoundedDateSweepTest do
     changeset =
       {%{}, %{date: :date, close: :decimal}}
       |> Ecto.Changeset.cast(%{"date" => "1899-12-31", "close" => "1"}, [:date, :close])
-      |> Portfolixir.Catalog.MarketDataBounds.validate(:date, :close)
+      |> MarketDataBounds.validate(:date, :close)
 
     assert [date: {message, _}] = changeset.errors
     assert message == BoundedDate.message()
-    refute Portfolixir.Catalog.MarketDataBounds.plausible?(~D[1899-12-31], "1")
+    refute MarketDataBounds.plausible?(~D[1899-12-31], "1")
   end
 end

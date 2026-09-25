@@ -32,8 +32,8 @@ defmodule Portfolixir.Tax do
 
   alias Ecto.Multi
   alias Portfolixir.Actor
-  alias Portfolixir.Journal
   alias Portfolixir.Input.BoundedDate
+  alias Portfolixir.Journal
   alias Portfolixir.Repo
   alias Portfolixir.Tax.AllowanceOrder
   alias Portfolixir.Tax.Budget
