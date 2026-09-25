@@ -1155,16 +1155,24 @@ ADR-0040 gegen den auf den zugeordneten Anteil normierten Plan gemessen, nicht
 gegen die rohe Soll-Spalte. Bei einem Plan mit 83 % Summe ist eine Kategorie
 mit 21,2 % Ist gegen 55 % gespeichertes Soll also 45 pp entfernt, nicht 34 —
 und Chips, Drift-Spalte, Dashboard und `min_drift=` sind sich über diese Zahl
-einig. Ein Umschalter **Baum |
-Positionen** tauscht die Hierarchie gegen eine flache Rebalancing-Arbeitsliste:
+einig. Die Grundlagenzeile sagt das dort, wo die Zahl gelesen wird: Hinter der
+Σ der obersten Ebene steht **„— Abweichung gegen den verteilten Anteil"**,
+sobald der Plan weniger als 100 % verteilt, und die Σ steht nur dann in der
+Warnfarbe, wenn der Plan **mehr** als 100 % verteilt — ein Plan mit bewusstem
+Rest ist kein Fehler (Issue #875). Ein Umschalter **Baum |
+Positionen** — ein Segment-Schalter, dessen aktive Option gefüllt ist —
+tauscht die Hierarchie gegen eine flache Rebalancing-Arbeitsliste:
 eine Zeile je Wertpapier (inkl. Cash) mit der Kategorie als Kontext,
 standardmäßig nach vorzeichenbehafteter Drift sortiert (stärkstes Übergewicht
 zuerst, stärkstes Untergewicht zuletzt) und über die Spaltenköpfe (Wert, Drift
-oder Kategorie) umsortierbar. Eine Kategorie mit direkt zugeordneten Wertpapieren klappt in
+oder Kategorie) umsortierbar. Die Kategorie der Cash-Zeile lautet „—": Cash hat
+ein eigenes Soll und ist nie „Nicht zugeordnet". Eine Kategorie mit direkt zugeordneten Wertpapieren klappt in
 ihre Wertpapiere auf — jedes mit Wert, Gewicht, seinem Anteil an der
 Kategorie-Drift und einem reinen **Anzeige-Rebalancing-Hinweis**: die indikative
 Stückzahl, die zum Bewertungskurs zu verkaufen (positive Drift) oder zu kaufen
-(negative) wäre, um die Lücke zu schließen (ADR-0023). Der Hinweis modelliert
+(negative) wäre, um die Lücke zu schließen (ADR-0023). Ein Hinweis, der auf
+zwei Stellen gerundet null Stück ergibt, wird nicht gezeigt („—"); die Drift
+bleibt. Der Hinweis modelliert
 keine Gebühren oder Steuern, und hinter ihm steht bewusst kein Order-Knopf —
 das Handeln bleibt vollständig manuell.
 

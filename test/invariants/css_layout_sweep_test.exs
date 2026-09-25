@@ -109,6 +109,25 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
     assert rows =~ ~r/\.cat-summary \.cat-result \{[^}]*grid-column: 4;[^}]*grid-row: 2;/
   end
 
+  # User story (#875, ①; board ux-design-2026-09-24/09-allocation-positions;
+  # ADR-0023's hint anatomy):
+  # As the operator reading the rebalancing hints on a German page,
+  # I want "Verkauf" to fit its column,
+  # so that the verb never runs into the "≈" and the "≈" stays on one vertical
+  # line across the rows.
+  #
+  # Acceptance criteria:
+  # - The verb track is `max-content`; the ≈, quantity and unit tracks keep
+  #   their widths and the grid still packs to the end.
+  test "the rebalancing hint's verb column is as wide as its word" do
+    hint = block(".rebalance-hint")
+
+    assert hint =~
+             ~r/grid-template-columns:\s*max-content 0\.9em minmax\(4\.2em, max-content\) max-content;/
+
+    assert hint =~ ~r/justify-content:\s*end;/
+  end
+
   test "a labelled tooltip summary grows with its label" do
     assert block(".metric-tooltip--labelled summary") =~ ~r/width:\s*auto/
   end

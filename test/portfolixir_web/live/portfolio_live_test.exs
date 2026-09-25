@@ -609,8 +609,9 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   # from saving freely chosen weights.
   #
   # Acceptance criteria:
-  # - The allocation header shows "Σ target top level: Z%", highlighted when
-  #   Z ≠ 100%.
+  # - The allocation header shows "Σ target top level: Z%", highlighted only
+  #   when Z > 100% (amended by #875: ADR-0040 §3, DESIGN.md D3 — under 100 %
+  #   is a choice, and the header names the drift's basis instead).
   # - A parent category with child targets shows "subcategories: X% of Y%",
   #   shown yellow when X ≠ Y.
   # - The hints are advisory only; the target save path stays unchanged.
@@ -645,10 +646,12 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     {:ok, view, _html} = live(conn, "/portfolio?tab=allocation")
     html = render_async(view)
 
-    # Top-level Σ hint, highlighted because 60% ≠ 100%.
+    # Top-level Σ hint: 60 % is a plan with a remainder, not a mismatch — no
+    # warning colour, and the drift's basis named (#875).
     top = view |> element(~s([data-role="target-sum-top-level"])) |> render()
     assert top =~ "60.0"
-    assert top =~ "is-target-mismatch"
+    refute top =~ "is-target-mismatch"
+    assert top =~ "drift against the allocated portion"
 
     # Parent hint under Core: subcategories 50% of 60%, yellow.
     parent = view |> element(~s([data-role="target-consistency-hint"])) |> render()
@@ -1383,7 +1386,9 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   #
   # Acceptance criteria:
   # - The basis line carries the plan (classification), the Σ of the top
-  #   level, the view and the as-of date; the Σ keeps its mismatch marking.
+  #   level, the view and the as-of date. Amended by #875 (board 09, ADR-0040
+  #   §2/§3, DESIGN.md D3): a plan under 100 % carries no warning colour; the
+  #   Σ names the drift's basis, the allocated portion, instead.
   # - The centre is a polite live region carrying the reference value, or the
   #   touched segment's name, value and actual against target.
   # - The legend shows the value next to the share.
@@ -1404,7 +1409,8 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     assert basis =~ "Everything"
     assert basis =~ Date.to_iso8601(Date.utc_today())
     assert basis =~ ~s(data-role="target-sum-top-level")
-    assert basis =~ "is-target-mismatch"
+    refute basis =~ "is-target-mismatch"
+    assert basis =~ "drift against the allocated portion"
 
     centre = view |> element(~s([data-role="sunburst-centre"])) |> render()
     assert centre =~ ~s(aria-live="polite")

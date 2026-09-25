@@ -1147,6 +1147,30 @@ than on the tint (UX-DR7). No new colour, no new radius, no new type size.
   is the visible half of ADR-0040: a deliberate choice must not render like a
   mistake.
 
+*Built for the allocation's basis line and its Positions list by issue 875
+(Sprint 16, board `ux-design-2026-09-24/09-allocation-positions`,
+before/after):*
+
+- **The Σ in the basis line** carries the warning colour only **above** 100 %
+  (ADR-0040 §3, the overshoot the data note above the table names). A plan that
+  allocates less gains the clause **"— drift against the allocated portion"**
+  (de "— Abweichung gegen den verteilten Anteil") exactly when the payload's
+  `drift_basis` is `allocated_portion` (ADR-0040 §2): the Σ in front of it *is*
+  that portion, so the number is not repeated. A plan at 0 % on top with targets
+  deeper in the tree keeps its own clause and no colour.
+- **A rebalancing hint that rounds to nothing is not shown** — "Sell ≈ 0.00
+  units" asks for nothing. The cell reads "—" in the worklist and the tree shows
+  no hint; the drift stays, and the API keeps the unrounded quantity.
+- **The hint's verb track is `max-content`** (`.rebalance-hint`), so "Verkauf"
+  fits; the ≈, quantity and unit tracks keep their widths, the grid packs to the
+  end, and the ≈ stays on one vertical line.
+- **The cash row's category reads "—"**, never "Unassigned": cash has its own
+  target and drift, and "Unassigned" names the tree's other row. A held security
+  filed nowhere keeps the word.
+- **Tree / Positions is the segmented group** (`.segmented-control`, UX-DR16
+  class 2): the active option filled, the pair a real toggle to the eye and not
+  only to `aria-pressed`.
+
 ### View switcher: prefix removed, manage control named *(D4)*
 
 - The visible `View:` / `Ansicht:` prefix is **removed**. The group keeps its

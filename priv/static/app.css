@@ -5623,10 +5623,14 @@ button.income-bar-label.is-active {
 }
 /* Aligned hint parts (UAT fix round): verb | ≈ | right-aligned quantity |
    unit on fixed grid tracks, so the ≈ signs and quantities line up
-   vertically across rows in both the tree and the flat worklist. */
+   vertically across rows in both the tree and the flat worklist. The verb
+   track sizes to its word (issue 875, board
+   ux-design-2026-09-24/09-allocation-positions): "Verkauf" does not fit a
+   fixed 2.9em and ran into the ≈. The grid still packs to the end, so the ≈
+   stays on one vertical line and each verb ends flush before it. */
 .rebalance-hint {
   display: grid;
-  grid-template-columns: 2.9em 0.9em minmax(4.2em, max-content) max-content;
+  grid-template-columns: max-content 0.9em minmax(4.2em, max-content) max-content;
   column-gap: 0.25em;
   justify-content: end;
   font-size: 0.85em;

@@ -1537,11 +1537,13 @@ defmodule PortfolixirWeb.PortfolioLive do
               <%!-- Tree answers "is my structure on plan?"; Positions is the
                    flat rebalancing worklist - sorting belongs to a flat list,
                    not to a hierarchy (owner request). --%>
-              <div class="chart-toggle" role="group" aria-label={gettext("Allocation view")}>
+              <%!-- #875: the segmented group ({components.selected-segment}),
+                   so the two states look different, not only sound different. --%>
+              <div class="segmented-control" role="group" aria-label={gettext("Allocation view")}>
                 <button
                   type="button"
                   data-role="allocation-mode-tree"
-                  class={["button-mini", @allocation_mode == :tree && "is-active"]}
+                  class={["segmented-control__option", @allocation_mode == :tree && "is-active"]}
                   phx-click="set_allocation_mode"
                   phx-value-mode="tree"
                   aria-pressed={to_string(@allocation_mode == :tree)}
@@ -1551,7 +1553,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                 <button
                   type="button"
                   data-role="allocation-mode-flat"
-                  class={["button-mini", @allocation_mode == :flat && "is-active"]}
+                  class={["segmented-control__option", @allocation_mode == :flat && "is-active"]}
                   phx-click="set_allocation_mode"
                   phx-value-mode="flat"
                   aria-pressed={to_string(@allocation_mode == :flat)}
@@ -1588,11 +1590,12 @@ defmodule PortfolixirWeb.PortfolioLive do
                 <%= gettext("Plan on %{classification}",
                   classification: allocation_tree_name(@allocation)
                 ) %>
+                <%!-- #875: the warning colour only above 100 % (ADR-0040 §3,
+                     DESIGN.md D3); a plan that allocates less says what its
+                     drift measures against (§2) — the Σ before it is that
+                     allocated portion. --%>
                 · <span
-                  class={[
-                    "target-sum",
-                    target_mismatch?(@allocation.top_level_target_sum, 1) && "is-target-mismatch"
-                  ]}
+                  class={["target-sum", plan_overshoot(@allocation) && "is-target-mismatch"]}
                   data-role="target-sum-top-level"
                 >
                   <%= gettext("Σ target top level:") %>
@@ -1601,6 +1604,12 @@ defmodule PortfolixirWeb.PortfolioLive do
                     — <%= gettext("targets deeper in the tree:") %>
                     <%= Format.percent(@allocation.deep_target_sum) %>%
                   <% end %>
+                  <span
+                    :if={Map.get(@allocation, :drift_basis) == "allocated_portion"}
+                    data-role="drift-basis"
+                  >
+                    — <%= gettext("drift against the allocated portion") %>
+                  </span>
                 </span>
               <% else %>
                 <%= gettext("Actual allocation on %{classification}",
@@ -2125,17 +2134,23 @@ defmodule PortfolixirWeb.PortfolioLive do
                         <.position_soll_chips position={entry} />
                       </td>
                       <td>
-                        <%= if entry.category_name do %>
-                          <span
-                            :if={entry.category_color}
-                            class="cat-swatch"
-                            style={"background:#{entry.category_color}"}
-                            aria-hidden="true"
-                          >
-                          </span>
-                          <%= entry.category_name %>
-                        <% else %>
-                          <span class="hint"><%= gettext("Unassigned") %></span>
+                        <%!-- #875: cash is never "unassigned" — it has its own
+                             target and its own drift; its cell is empty like any
+                             cell without a value. --%>
+                        <%= cond do %>
+                          <% entry.cash? -> %>
+                            —
+                          <% entry.category_name -> %>
+                            <span
+                              :if={entry.category_color}
+                              class="cat-swatch"
+                              style={"background:#{entry.category_color}"}
+                              aria-hidden="true"
+                            >
+                            </span>
+                            <%= entry.category_name %>
+                          <% true -> %>
+                            <span class="hint"><%= gettext("Unassigned") %></span>
                         <% end %>
                       </td>
                       <td class="num">
@@ -3578,11 +3593,16 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp rebalance_hint_parts(nil), do: nil
 
+  # A hint that rounds to nothing is no hint (#875): "Sell ≈ 0.00 units" asks
+  # for an action that is nothing. The drift stays, and the API keeps the
+  # unrounded quantity — the suppression is display only.
   defp rebalance_hint_parts(%Decimal{} = quantity) do
-    case Decimal.compare(quantity, 0) do
-      :gt -> %{verb: gettext("Sell"), quantity: Format.decimal(quantity, 2)}
-      :lt -> %{verb: gettext("Buy"), quantity: Format.decimal(Decimal.abs(quantity), 2)}
-      :eq -> nil
+    shown = quantity |> Decimal.abs() |> Decimal.round(2)
+
+    cond do
+      Decimal.eq?(shown, 0) -> nil
+      Decimal.gt?(quantity, 0) -> %{verb: gettext("Sell"), quantity: Format.decimal(shown, 2)}
+      true -> %{verb: gettext("Buy"), quantity: Format.decimal(shown, 2)}
     end
   end
 
