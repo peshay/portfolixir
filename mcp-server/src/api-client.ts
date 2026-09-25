@@ -8,8 +8,17 @@ export interface ApiClientOptions {
   timeoutMs?: number;
 }
 
+/**
+ * What a call tells the client about itself (E25 S7 review round, R3):
+ * `readOnly` for a tool that changes nothing whatever its method, so a
+ * timeout is answered as a read's.
+ */
+export interface RequestOptions {
+  readOnly?: boolean;
+}
+
 export interface ApiClient {
-  request(method: string, path: string, body?: unknown): Promise<unknown>;
+  request(method: string, path: string, body?: unknown, options?: RequestOptions): Promise<unknown>;
 }
 
 /**
@@ -52,6 +61,26 @@ export class ApiOutcomeUnknownError extends Error {
       `Portfolixir API outcome unknown: ${method} ${path} got no answer within ` +
         `${timeoutMs / 1000} s, and the server may still have committed it. Re-read the ` +
         "records it would have changed before retrying: a blind retry can store a duplicate."
+    );
+  }
+}
+
+/**
+ * A read got no answer before its deadline: a GET, or a tool that changes
+ * nothing routed through POST (E25 S7 review round, R3). Nothing was
+ * changed, so retrying is safe.
+ */
+export class ApiReadTimeoutError extends Error {
+  override readonly name = "ApiReadTimeoutError";
+
+  constructor(
+    readonly method: string,
+    readonly path: string,
+    timeoutMs: number
+  ) {
+    super(
+      `Portfolixir API timeout: ${method} ${path} got no answer within ${timeoutMs / 1000} s. ` +
+        "The call changes nothing, so it can be retried."
     );
   }
 }
@@ -99,12 +128,22 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   };
 
   return {
-    async request(method: string, path: string, body?: unknown): Promise<unknown> {
+    async request(
+      method: string,
+      path: string,
+      body?: unknown,
+      requestOptions: RequestOptions = {}
+    ): Promise<unknown> {
       try {
         return await send(method, path, body);
       } catch (error) {
-        // A write the deadline cut off may still commit on the server (G31).
-        if (method !== "GET" && isAbort(error)) {
+        if (isAbort(error)) {
+          // A write the deadline cut off may still commit on the server
+          // (G31); a read changes nothing, whatever its method (R3).
+          if (method === "GET" || requestOptions.readOnly) {
+            throw new ApiReadTimeoutError(method, path, timeoutMs);
+          }
+
           throw new ApiOutcomeUnknownError(method, path, timeoutMs);
         }
 

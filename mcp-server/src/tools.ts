@@ -2686,7 +2686,7 @@ const declaredTools: DeclaredTool[] = [
     since: optionalString()
   })),
   tool("portfolixir.securities.get", "Get security", "Read one security's full record, including its identifier_aliases — the former ISINs recorded via portfolixir.securities.isin_change that keep old exports matching this security — and its thesis_state (ADR-0044): the current thesis derived from the research log (status none|intact|retracted, thesis text, conviction tier, invalidation_condition, time_stop, as_of, last_reviewed_at/by, the derived_from_entry_id and, when retracted, the retracted_by_entry_id whose body carries the reason). The state is a projection over portfolixir.notes.list entries, never stored; read the log itself for the evidence.", idSchema, idZ),
-  tool("portfolixir.securities.create", "Create security", "Create a local security. To keep a position (e.g. Bitcoin) in the totals and performance but out of the allocation steering basis (the 100%) and drift, tag it with a bucket and exclude that bucket from the active view. Every key of attributes, at any depth, is one-line text of at most 255 characters, and every text value carries no control character other than tab and line break; otherwise the API answers 422 on attributes.", securitySchema, securityZ),
+  tool("portfolixir.securities.create", "Create security", "Create a local security. When the instance's enrichment is enabled, a create also queues a quote backfill from the configured provider and a logo lookup, so it reaches outside the instance (openWorldHint). To keep a position (e.g. Bitcoin) in the totals and performance but out of the allocation steering basis (the 100%) and drift, tag it with a bucket and exclude that bucket from the active view. Every key of attributes, at any depth, is one-line text of at most 255 characters, and every text value carries no control character other than tab and line break; otherwise the API answers 422 on attributes.", securitySchema, securityZ),
   tool("portfolixir.securities.update", "Update security", "Patch a local security's master data. To keep a position visible in totals/performance but out of the allocation steering basis and drift, tag it with a bucket and exclude that bucket from the active view. Do NOT use this to change an ISIN after a corporate action — use portfolixir.securities.isin_change instead, which keeps the former ISIN as an import-matching alias; a plain rename is just a name edit here. The currency_code freezes once the security has a transaction or a quote (ADR-0050 §11): a change then answers 422 with errors.currency_code counting them (e.g. \"is frozen once referenced (120 quotes, 3 transactions)\") and writes nothing — a listing in another currency is a different price series, not a correction. Every key of attributes, at any depth, is one-line text of at most 255 characters, and every text value carries no control character other than tab and line break; otherwise the API answers 422 on attributes. An identifier changed here meets the catalog's rules or answers 422 naming the field: an isin of two letters, nine letters or digits and a check digit that agrees, a WKN of six letters or digits, a ticker_symbol of printable ASCII only; resending the stored value is no change. The name is stored without format characters (zero-width spaces and joiners, bidirectional controls).", securityUpdateSchema, securityUpdateZ),
   tool(
     "portfolixir.securities.delete",
@@ -3519,17 +3519,32 @@ const REMOVING_POSTS = new Set([
   "portfolixir.quotes.release"
 ]);
 
+// Routed through POST but change or remove stored rows (E25 S7 review round,
+// R1), so they are hinted as a PUT is: destructive, and idempotent, since a
+// repeat changes nothing more — a second retirement answers 409, a second
+// activation is a no-op, and a second ISIN change is a named conflict.
+const MODIFYING_POSTS = new Set([
+  // Closes the version in force and drops every scheduled one.
+  "portfolixir.policy_rules.retire",
+  // Archives the plan that was active in the same scope.
+  "portfolixir.plans.activate",
+  // Writes the new ISIN onto the security; the former one becomes an alias.
+  "portfolixir.securities.isin_change"
+]);
+
 // Reach an external provider through the API, so their answer depends on
-// something outside the instance.
+// something outside the instance. The security create queues a provider
+// quote backfill and a logo lookup when enrichment is enabled (R6).
 const OPEN_WORLD_TOOLS = new Set([
   "portfolixir.securities.search_online",
+  "portfolixir.securities.create",
   "portfolixir.quotes.sync",
   "portfolixir.exchange_rates.sync"
 ]);
 
 function hintsFor(name: string, method: string): ToolHints {
   const readOnly = method === "GET" || READ_ONLY_POSTS.has(name);
-  const hintedAs = REMOVING_POSTS.has(name) ? "DELETE" : method;
+  const hintedAs = REMOVING_POSTS.has(name) ? "DELETE" : MODIFYING_POSTS.has(name) ? "PUT" : method;
 
   return {
     readOnlyHint: readOnly,
@@ -3623,7 +3638,13 @@ export async function callTool(
   const parsedArgs = definition
     ? (definition.zodSchema.parse(args ?? {}) as Record<string, any>)
     : (args ?? {});
-  const payload = await apiCall(client, name, parsedArgs);
+  // A tool that changes nothing tells the client so, whatever its method,
+  // so a timeout is answered as a read's, never as an unknown outcome (E25
+  // S7 review round, R3).
+  const scoped: ApiClient = definition?.annotations.readOnlyHint
+    ? { request: (method, path, body) => client.request(method, path, body, { readOnly: true }) }
+    : client;
+  const payload = await apiCall(scoped, name, parsedArgs);
 
   return {
     content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],

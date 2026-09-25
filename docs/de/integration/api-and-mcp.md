@@ -2247,9 +2247,19 @@ Die Ausnahmen sind benannt: `portfolixir.splits.preview` und
 sind deshalb nur lesend; `portfolixir.quotes.release` läuft über `POST`,
 entfernt aber die manuellen Kurse in seinem Zeitraum und trägt deshalb die
 Hinweise eines `DELETE`: destruktiv und idempotent, weil eine Wiederholung
-nichts mehr zu entfernen findet; `openWorldHint` ist nur für
+nichts mehr zu entfernen findet; `portfolixir.policy_rules.retire`,
+`portfolixir.plans.activate` und `portfolixir.securities.isin_change` laufen
+über `POST`, ändern aber gespeicherte Zeilen — ein Ruhestand schließt die
+geltende Version und verwirft die geplanten, eine Aktivierung archiviert den
+bisher aktiven Plan, ein ISIN-Wechsel schreibt die neue ISIN auf das
+Wertpapier — und tragen deshalb die Hinweise eines `PUT`: destruktiv und
+idempotent, weil eine Wiederholung nichts weiter ändert (ein zweiter Ruhestand
+antwortet mit `409`, eine zweite Aktivierung ändert nichts, ein zweiter
+ISIN-Wechsel ist ein benannter Konflikt); `openWorldHint` ist wahr für
 `portfolixir.securities.search_online`, `portfolixir.quotes.sync` und
-`portfolixir.exchange_rates.sync` wahr, die einen externen Anbieter erreichen.
+`portfolixir.exchange_rates.sync`, die einen externen Anbieter erreichen, und
+für `portfolixir.securities.create`, das bei eingeschalteter Anreicherung der
+Instanz einen Kursnachlauf beim Anbieter und eine Logo-Suche anstößt.
 Die nur anfügenden Schreibvorgänge, `portfolixir.notes.append` und die
 Versionen einer Regel, sind nicht destruktiv, und ihre Beschreibungen sagen,
 dass das Angefügte dauerhaft ist.
@@ -2272,15 +2282,16 @@ Variable. Der Schalter schränkt den Begleitdienst ein, nicht das Token:
 `PORTFOLIXIR_API_TOKEN` behält seine volle Befugnis über die API.
 
 **Ein Schreibvorgang ohne Antwort.** Jeder API-Aufruf hat eine Frist von 30
-Sekunden. Ein Lesezugriff, der sie verpasst, ändert nichts; ein
-Schreibvorgang, der sie verpasst (`POST`, `PUT`, `PATCH` oder `DELETE`),
-ergibt `ApiOutcomeUnknownError`: Der Begleitdienst hat aufgehört zu warten,
-der Server kann den Schreibvorgang aber trotzdem übernommen haben, also lesen
-Sie vor einer Wiederholung neu, was er geändert hätte. Eine blinde
-Wiederholung eines Schreibvorgangs, der einen Datensatz anfügt, kann ein
-Duplikat speichern, und jedes solche Tool (jedes über `POST`) sagt das in
-seiner Beschreibung; die Server-Anweisungen sagen es einmal für jeden
-Schreibvorgang.
+Sekunden. Ein Lesezugriff, der sie verpasst — ein `GET` oder eines der über
+`POST` laufenden Tools, die nichts ändern (`readOnlyHint: true`) —, ändert
+nichts und ergibt `ApiReadTimeoutError`, darf also wiederholt werden; jeder
+andere Aufruf, der sie verpasst, ergibt `ApiOutcomeUnknownError`: Der
+Begleitdienst hat aufgehört zu warten, der Server kann den Schreibvorgang aber
+trotzdem übernommen haben, also lesen Sie vor einer Wiederholung neu, was er
+geändert hätte. Eine blinde Wiederholung eines Schreibvorgangs, der einen
+Datensatz anfügt, kann ein Duplikat speichern, und jedes solche Tool (jeder
+nicht idempotente Schreibvorgang) sagt das in seiner Beschreibung; die
+Server-Anweisungen sagen es einmal für jeden Schreibvorgang.
 
 - `portfolixir.contract.get` — der Kontraktversions-Read (ADR-0044 §8): was
   die Oberfläche bietet und wann sie sich zuletzt geändert hat, abfragbar mit
