@@ -1843,6 +1843,16 @@ Board `ux-design-2026-09-23/02-position-soll-entry`, variant A, as built.
 - **Fits at 390 px.** The plan table opts out of the scroller's
   `min-width: max-content` (the Risk tables' fit pattern) and position names
   wrap anywhere, so every input stays on screen.
+- **The children Σ is live** *(issue 874, board
+  `ux-design-2026-09-24/08-classification-detail`, before/after)*. A parent's
+  "children Σ n%" hint (#467, `.hint.target-consistency`, the mismatch colour
+  when it disagrees with the parent's own weight, never blocking a save) is
+  recomputed on every input, exactly as the Σ footer is, and on load by the
+  same computation: each child counts with the weight it steers by, so a child
+  that follows its positions counts with their sum. Its form and colour are
+  unchanged; it simply no longer vanishes between the first keystroke and the
+  save — it is the only place a parent at 65 % over children adding up to 60 %
+  shows, because the Σ footer counts the parent alone.
 
 ## Amendment 2026-09-25 — Wealth → Risk: the rule's name as a link, and the rename *(Sprint 16 pick G7-A, issue 872)*
 

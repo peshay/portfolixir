@@ -729,7 +729,11 @@ The states are:
   **Cash** target input below them; **Save plan** writes the whole
   `(view, classification)` plan at once. A live **Σ** footer sums the category
   weights plus the cash target and shows a ✓ at exactly 100% or a ✗ with the
-  yellow mismatch cue otherwise, updating on input.
+  yellow mismatch cue otherwise, updating on input. A parent category whose
+  children carry weights shows their sum beside its name (**children Σ**),
+  in the mismatch colour when it disagrees with the parent's own weight; it
+  follows every input as the Σ footer does (a child that follows its position
+  targets counts with their sum), and it never blocks saving.
 - **Delete plan** (*Plan löschen*) removes the view's plan; the Wealth page
   then falls back to **actual-only** (no target, no drift) for that view.
 

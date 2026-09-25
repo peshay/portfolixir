@@ -788,6 +788,11 @@ Die Zustände sind:
   `(Sicht, Klassifizierung)`-Plan auf einmal. Eine Live-**Σ**-Fußzeile summiert
   die Kategoriegewichte plus das Cash-Ziel und zeigt bei genau 100 % ein ✓, sonst
   ein ✗ mit dem gelben Abweichungshinweis — und aktualisiert sich beim Tippen.
+  Eine Elternkategorie, deren Kinder Gewichte tragen, zeigt deren Summe neben
+  ihrem Namen (**Kinder Σ**), in der Abweichungsfarbe, wenn sie vom eigenen
+  Gewicht der Elternkategorie abweicht; sie folgt jeder Eingabe wie die
+  Σ-Fußzeile (ein Kind, das seinen Positionszielen folgt, zählt mit deren
+  Summe) und blockiert das Speichern nie.
 - **Plan löschen** entfernt den Plan der Sicht; die Vermögensseite fällt für
   diese Sicht dann auf **nur IST** zurück (kein SOLL, keine Drift).
 

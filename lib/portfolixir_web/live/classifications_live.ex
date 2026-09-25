@@ -1577,11 +1577,12 @@ defmodule PortfolixirWeb.ClassificationsLive do
       cash_target: cash_target,
       top_level_ids: top_level_ids(assigns.tree.flat),
       children_by_parent: children_by_parent(assigns.tree.flat),
-      child_sums: child_sums(assigns.tree.flat, weights),
       copy_sources: copy_sources(portfolio_id, classification_id, view_id, assigns.views)
     }
 
-    put_sum(soll)
+    soll
+    |> put_child_sums()
+    |> put_sum()
   end
 
   # The integer ids of the top-level categories (those without a parent). The
@@ -1607,16 +1608,14 @@ defmodule PortfolixirWeb.ClassificationsLive do
   end
 
   # Live Σ from the in-flight form values: recompute the running total and the
-  # per-parent children sums without touching the database.
+  # per-parent children sums without touching the database (#874: the same
+  # computation as on load, so the hints never vanish until the save).
   defp recompute_soll_sum(soll, params) do
-    weights = parse_percent_map(params["weights"])
-    cash = parse_percent_string(params["cash_target"])
-
     soll
-    |> Map.put(:weights, weights)
+    |> Map.put(:weights, parse_percent_map(params["weights"]))
     |> Map.put(:position_weights, parse_position_map(params["positions"]))
-    |> Map.put(:cash_target, cash)
-    |> Map.put(:child_sums, child_sums_from_decimals(weights))
+    |> Map.put(:cash_target, parse_percent_string(params["cash_target"]))
+    |> put_child_sums()
     |> put_sum()
   end
 
@@ -1662,7 +1661,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
     |> Map.put(:members, position_members(classification_id, positions))
     |> Map.put(:expanded, position_weights |> Map.keys() |> MapSet.new())
     |> Map.put(:cash_target, cash)
-    |> Map.put(:child_sums, child_sums(assigns.tree.flat, weights))
+    |> put_child_sums()
     |> put_sum()
   end
 
@@ -1785,32 +1784,36 @@ defmodule PortfolixirWeb.ClassificationsLive do
     end
   end
 
-  # Sum of each parent's direct children's percentages, keyed by parent id, only
-  # where at least one child carries a weight (advisory hint, display-only).
-  defp child_sums(flat, weights) do
-    flat
-    |> Enum.group_by(fn {category, _depth} -> category.parent_id end)
-    |> Enum.reduce(%{}, fn {parent_id, children}, acc ->
-      case sum_child_weights(children, weights) do
-        nil -> acc
-        sum -> Map.put(acc, parent_id, sum)
-      end
-    end)
+  # The per-parent "children Σ" hint (#467), keyed by parent id: the sum of
+  # each parent's direct children, only where at least one child carries a
+  # weight (advisory, display-only). A child counts with the weight it steers
+  # by — a child that follows its position targets with their sum (ADR-0030
+  # §2), as the Σ row counts it. One computation on load and on every change
+  # (#874); the tree shape travels in `children_by_parent`.
+  defp put_child_sums(soll) do
+    weights = steering_weights(soll)
+
+    sums =
+      soll
+      |> Map.get(:children_by_parent, %{})
+      |> Enum.reduce(%{}, fn {parent_id, child_ids}, acc ->
+        case sum_child_weights(child_ids, weights) do
+          nil -> acc
+          sum -> Map.put(acc, parent_id, sum)
+        end
+      end)
+
+    Map.put(soll, :child_sums, sums)
   end
 
-  defp sum_child_weights(children, weights) do
-    Enum.reduce(children, nil, fn {category, _depth}, acc ->
-      case Map.get(weights, category.id) do
+  defp sum_child_weights(child_ids, weights) do
+    Enum.reduce(child_ids, nil, fn id, acc ->
+      case Map.get(weights, id) do
         nil -> acc
         value -> Decimal.add(acc || @zero, to_decimal(value))
       end
     end)
   end
-
-  # Children sums during live typing: weights here are already parsed Decimals,
-  # but we lack the tree shape, so we only flag the top-level (parent nil) row.
-  # The full per-parent hints come back on the next server load.
-  defp child_sums_from_decimals(_weights), do: %{}
 
   defp load_show(socket, classification_id) do
     tree = Enum.find(Classifications.list_trees(), &(&1.classification.id == classification_id))
@@ -2152,7 +2155,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   # percentage (advisory; never blocks saving). Reuses the portfolio page's
   # `is-target-mismatch` styling.
   defp child_mismatch_class(soll, category_id) do
-    own = Map.get(soll.weights, category_id)
+    own = soll |> steering_weights() |> Map.get(category_id)
     sum = Map.get(soll.child_sums, category_id)
 
     if not is_nil(own) and not is_nil(sum) and not Decimal.equal?(to_decimal(own), sum) do
