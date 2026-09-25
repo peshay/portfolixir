@@ -27,6 +27,7 @@ defmodule Portfolixir.Fx.RateSync do
 
   alias Portfolixir.Catalog.MarketDataBounds
   alias Portfolixir.Fx
+  alias Portfolixir.SingleFlight
 
   @default_interval :timer.hours(12)
   @default_startup_delay :timer.seconds(5)
@@ -92,6 +93,15 @@ defmodule Portfolixir.Fx.RateSync do
     * `:provider` – adapter module, overrides config.
   """
   def backfill(opts \\ []) do
+    # One backfill at a time (E25, G04): a second one while it runs is
+    # {:error, :backfill_in_progress} and calls no provider.
+    case SingleFlight.run(:fx_backfill, fn -> backfill_unlocked(opts) end) do
+      {:ok, result} -> result
+      {:error, :in_progress} -> {:error, :backfill_in_progress}
+    end
+  end
+
+  defp backfill_unlocked(opts) do
     provider = Keyword.get(opts, :provider, runtime_provider())
 
     if function_exported?(provider, :fetch_history, 1) do

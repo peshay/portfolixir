@@ -12,6 +12,7 @@ defmodule Portfolixir.Catalog do
   alias Portfolixir.Catalog.LogoDiscovery
   alias Portfolixir.Catalog.LogoLookup
   alias Portfolixir.Catalog.LogoStore
+  alias Portfolixir.Catalog.QuoteEnrichment
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.QuoteSync
   alias Portfolixir.Catalog.Security
@@ -304,22 +305,14 @@ defmodule Portfolixir.Catalog do
   end
 
   @doc false
-  # One supervised task syncs the batch sequentially. Spawning a task per
-  # security (a large import creates hundreds) floods the provider and
-  # exhausts the DB connection pool — page loads right after an import then
-  # time out with 500s. Logos already queue through the LogoDiscovery server.
+  # Every quote backfill, an import's batch and a single create alike, queues
+  # on the one serial, deduplicating QuoteEnrichment worker (E25, G04).
+  # Spawning a task per security (a large import creates hundreds, an agent
+  # creates one call after another) floods the provider and exhausts the DB
+  # connection pool — page loads then time out with 500s. Logos queue through
+  # the LogoDiscovery server the same way.
   def enrich_security_ids_async(ids) when is_list(ids) do
-    if quote_enrichment_enabled?() and ids != [] do
-      Task.Supervisor.start_child(Portfolixir.LogoSupervisor, fn ->
-        Enum.each(ids, fn id ->
-          case get_security(id) do
-            %Security{} = security -> QuoteSync.sync_security(security)
-            nil -> :ok
-          end
-        end)
-      end)
-    end
-
+    if quote_enrichment_enabled?(), do: QuoteEnrichment.enqueue(ids)
     if logo_enrichment_enabled?(), do: LogoDiscovery.enqueue_security_ids(ids)
     :ok
   end
@@ -332,19 +325,7 @@ defmodule Portfolixir.Catalog do
   @doc false
   def enrich_security_async(%Security{id: id}), do: enrich_security_async(id)
 
-  def enrich_security_async(id) when is_integer(id) do
-    if quote_enrichment_enabled?() do
-      Task.Supervisor.start_child(Portfolixir.LogoSupervisor, fn ->
-        case get_security(id) do
-          %Security{} = security -> QuoteSync.sync_security(security)
-          nil -> :ok
-        end
-      end)
-    end
-
-    if logo_enrichment_enabled?(), do: LogoDiscovery.enqueue_security_ids([id])
-    :ok
-  end
+  def enrich_security_async(id) when is_integer(id), do: enrich_security_ids_async([id])
 
   defp maybe_enrich_security(%Security{} = security) do
     if Repo.in_transaction?() do

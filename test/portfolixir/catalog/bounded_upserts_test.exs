@@ -4,7 +4,9 @@ defmodule Portfolixir.Catalog.BoundedUpsertsTest do
   # database's bind-parameter limit, inside one transaction, and a failure to
   # persist one security's quotes is that security's error, not the end of the
   # whole sync run.
-  use PortfolixirWeb.ConnCase, async: true
+  # Not async: the FX backfill is single-flight across the node (G04), and
+  # this module runs one.
+  use PortfolixirWeb.ConnCase, async: false
 
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Quote

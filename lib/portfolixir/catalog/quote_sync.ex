@@ -21,6 +21,7 @@ defmodule Portfolixir.Catalog.QuoteSync do
   alias Portfolixir.Catalog.MarketDataBounds
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.SingleFlight
 
   @default_interval :timer.hours(6)
 
@@ -115,7 +116,18 @@ defmodule Portfolixir.Catalog.QuoteSync do
 
   # -- per-security sync ----------------------------------------------------
 
-  defp sync_one(%Security{provider: provider} = security, adapter_for, opts) do
+  # One sync of a security at a time, whichever path asks (E25, G04): while
+  # one runs, another is skipped as sync_in_progress and calls no provider.
+  defp sync_one(%Security{} = security, adapter_for, opts) do
+    case SingleFlight.run({:quote_sync, security.id}, fn ->
+           sync_unlocked(security, adapter_for, opts)
+         end) do
+      {:ok, result} -> result
+      {:error, :in_progress} -> result(security, :skipped, :sync_in_progress)
+    end
+  end
+
+  defp sync_unlocked(%Security{provider: provider} = security, adapter_for, opts) do
     case Map.get(adapter_for, provider) do
       nil ->
         result(security, :skipped, :no_provider_adapter)

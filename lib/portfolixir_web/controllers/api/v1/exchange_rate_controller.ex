@@ -39,6 +39,13 @@ defmodule PortfolixirWeb.Api.V1.ExchangeRateController do
   defp respond(conn, {:error, :history_unsupported}),
     do: unprocessable(conn, %{scope: ["the configured provider publishes no history"]})
 
+  # Single-flight (E25, G04): one backfill at a time.
+  defp respond(conn, {:error, :backfill_in_progress}) do
+    conn
+    |> put_status(:conflict)
+    |> json(%{errors: %{detail: "a backfill of the historical rates is already running"}})
+  end
+
   # A fixed message (#770): the provider's error term is logged, not echoed.
   defp respond(conn, {:error, reason}) do
     Logger.warning("exchange-rate sync failed: #{inspect(reason)}")

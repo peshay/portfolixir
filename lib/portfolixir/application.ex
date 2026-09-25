@@ -32,8 +32,12 @@ defmodule Portfolixir.Application do
       Portfolixir.Repo,
       {Phoenix.PubSub, name: Portfolixir.PubSub},
       {Task.Supervisor, name: Portfolixir.LogoSupervisor},
+      # One run per key for a security's sync and the FX backfill (E25, G04).
+      Portfolixir.SingleFlight,
       Portfolixir.Auth.Throttle,
       {Portfolixir.Catalog.LogoDiscovery, []},
+      # The one serial queue for new securities' quote backfill (E25, G04).
+      {Portfolixir.Catalog.QuoteEnrichment, []},
       {Portfolixir.Catalog.QuoteSync,
        Application.get_env(:portfolixir, Portfolixir.Catalog.QuoteSync, [])},
       {Portfolixir.Fx.RateSync, Application.get_env(:portfolixir, Portfolixir.Fx.RateSync, [])},

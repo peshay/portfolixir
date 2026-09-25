@@ -5,7 +5,9 @@ defmodule Portfolixir.Catalog.ProviderDataBoundsTest do
   # implausible row can neither become the valuation price nor hide a stale
   # one. Adapters drop such points instead of failing the batch, and the
   # latest-quote and latest-rate reads never serve a row dated past the bound.
-  use Portfolixir.DataCase, async: true
+  # Not async: the FX backfill is single-flight across the node (G04), and
+  # this module runs one.
+  use Portfolixir.DataCase, async: false
 
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.DataQuality

@@ -554,7 +554,11 @@ Example create payload:
   `missing_ticker` or `no_provider_adapter`, and `persist_failed` when the
   fetched quotes could not be stored. A history of any length is stored in
   one sync, and in the scheduled sync one security that fails is that
-  security's error while the others are still synced.
+  security's error while the others are still synced. One sync of a security
+  runs at a time: while one runs, from any path, a second answers
+  `409 Conflict` and calls no provider. A newly created security's quote
+  history is fetched in the background on one queue, one security at a time,
+  whether it came from the API, the page or an import.
 
 Example quote upsert payload:
 
@@ -1733,7 +1737,8 @@ level (d)).
   backfill fills dates, it does not relax the "exact booking-date rate"
   basis. An unknown `scope` is a `422`, a provider without a history answers
   `422` naming `scope`, and a provider failure, or rates the database cannot
-  store, returns `502 Bad Gateway` with nothing stored. The
+  store, returns `502 Bad Gateway` with nothing stored. One backfill runs at a
+  time: while one runs, a second answers `409 Conflict`. The
   human view is the **Backfill historical rates** control inside the
   exclusion notes on `/cashflow`.
 
