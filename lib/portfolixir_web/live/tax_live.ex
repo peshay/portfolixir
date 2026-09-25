@@ -120,6 +120,13 @@ defmodule PortfolixirWeb.TaxLive do
 
         {:noreply, socket}
 
+      # The statement being edited was deleted in the meantime (E25 S6, F49).
+      {:error, :not_found} ->
+        {:noreply,
+         socket
+         |> assign(form_errors: nil, editing_id: nil, statement_form_open?: false)
+         |> load_year()}
+
       {:error, changeset} ->
         {:noreply, assign(socket, :form_errors, changeset_errors(changeset))}
     end
@@ -166,6 +173,10 @@ defmodule PortfolixirWeb.TaxLive do
     case Tax.put_allowance_order(Actor.owner_ui(), attrs) do
       {:ok, _order} ->
         {:noreply, socket |> assign(order_errors: nil, order_form_open?: false) |> load_year()}
+
+      # The order being replaced was deleted in the meantime (E25 S6, F49).
+      {:error, :not_found} ->
+        {:noreply, load_year(socket)}
 
       {:error, changeset} ->
         {:noreply, assign(socket, :order_errors, changeset_errors(changeset))}

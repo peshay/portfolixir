@@ -223,6 +223,7 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
 
       case Targets.set_cash_target(conn.assigns.actor, pid, weight, ViewParam.opts(view)) do
         :ok -> json(conn, %{data: JSON.cash_target(weight)})
+        {:error, :not_found} -> not_found(conn)
         {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
       end
     else

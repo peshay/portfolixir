@@ -3157,7 +3157,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.journal.list",
     "List audit journal",
-    "List append-only audit-journal entries (FR-28), newest first: who (actor_type/label), what (operation on resource_type/resource_id) and the before/after snapshots of every financial write, including deletions. Optional filters: resource_type, resource_id, actor_type, operation, limit. Real writes only unless include_scenarios=true. The response echoes as_of, the filters applied and the ordering.",
+    "List append-only audit-journal entries (FR-28), newest first: who (actor_type/label), what (operation on resource_type/resource_id) and the before/after snapshots of every financial write, including deletions. An update's or a delete's before is the row as stored when the write took its lock and an update's after is the row as stored after it, so two writes made from one read chain (the second's before is the first's after). Optional filters: resource_type, resource_id, actor_type, operation, limit. Real writes only unless include_scenarios=true. The response echoes as_of, the filters applied and the ordering.",
     journalListSchema,
     journalListZ
   ),

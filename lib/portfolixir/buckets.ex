@@ -74,7 +74,7 @@ defmodule Portfolixir.Buckets do
   @doc "Updates a bucket on behalf of `actor` (journaled with the pre-image)."
   def update_bucket(%Actor{} = actor, %Bucket{} = bucket, attrs) when is_map(attrs) do
     Multi.new()
-    |> Multi.update(:bucket, Bucket.changeset(bucket, attrs))
+    |> Multi.update(:bucket, &Bucket.changeset(Journal.locked_row(&1), attrs))
     |> Journal.record(actor,
       resource_type: "bucket",
       operation: :update,
@@ -85,6 +85,8 @@ defmodule Portfolixir.Buckets do
     |> case do
       {:ok, %{bucket: bucket}} -> {:ok, bucket}
       {:error, :bucket, %Ecto.Changeset{} = changeset, _} -> {:error, changeset}
+      # The row was deleted before the write took its lock (E25 S6, F49).
+      {:error, {:journal_lock, _}, :not_found, _} -> {:error, :not_found}
     end
   end
 
@@ -105,6 +107,7 @@ defmodule Portfolixir.Buckets do
     |> case do
       {:ok, %{bucket: bucket}} -> {:ok, bucket}
       {:error, :bucket, %Ecto.Changeset{} = changeset, _} -> {:error, changeset}
+      {:error, {:journal_lock, _}, :not_found, _} -> {:error, :not_found}
     end
   end
 
@@ -434,6 +437,7 @@ defmodule Portfolixir.Buckets do
     |> case do
       {:ok, %{view: deleted}} -> {:ok, deleted}
       {:error, :view, changeset, _changes} -> {:error, changeset}
+      {:error, {:journal_lock, _}, :not_found, _changes} -> {:error, :not_found}
     end
   end
 

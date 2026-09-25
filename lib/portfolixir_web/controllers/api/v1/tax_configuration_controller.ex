@@ -44,6 +44,7 @@ defmodule PortfolixirWeb.Api.V1.TaxConfigurationController do
 
     case Tax.upsert_parameters(conn.assigns.actor, attrs) do
       {:ok, parameters} -> json(conn, %{data: JSON.tax_parameters(parameters)})
+      {:error, :not_found} -> not_found(conn)
       {:error, changeset} -> unprocessable(conn, changeset)
     end
   end
@@ -74,6 +75,7 @@ defmodule PortfolixirWeb.Api.V1.TaxConfigurationController do
          {:ok, profile} <- Tax.fetch_profile(profile_id) do
       case Tax.update_profile(conn.assigns.actor, profile, attrs) do
         {:ok, updated} -> json(conn, %{data: JSON.tax_profile(updated)})
+        {:error, :not_found} -> not_found(conn)
         {:error, changeset} -> unprocessable(conn, changeset)
       end
     else
@@ -112,6 +114,7 @@ defmodule PortfolixirWeb.Api.V1.TaxConfigurationController do
 
     case Tax.put_allowance_order(conn.assigns.actor, attrs) do
       {:ok, order} -> json(conn, %{data: JSON.allowance_order(order)})
+      {:error, :not_found} -> not_found(conn)
       {:error, changeset} -> unprocessable(conn, changeset)
     end
   end

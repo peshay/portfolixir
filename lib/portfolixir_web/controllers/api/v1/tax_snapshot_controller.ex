@@ -70,6 +70,7 @@ defmodule PortfolixirWeb.Api.V1.TaxSnapshotController do
          {:ok, snapshot} <- Tax.fetch_snapshot(snapshot_id) do
       case Tax.update_snapshot(conn.assigns.actor, snapshot, attrs) do
         {:ok, updated} -> json(conn, %{data: serialize(updated)})
+        {:error, :not_found} -> not_found(conn)
         {:error, changeset} -> unprocessable(conn, changeset)
       end
     else

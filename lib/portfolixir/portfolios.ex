@@ -126,7 +126,7 @@ defmodule Portfolixir.Portfolios do
   """
   def update_portfolio(%Actor{} = actor, %Portfolio{} = portfolio, attrs) when is_map(attrs) do
     Multi.new()
-    |> Multi.update(:portfolio, Portfolio.changeset(portfolio, attrs))
+    |> Multi.update(:portfolio, &Portfolio.changeset(Journal.locked_row(&1), attrs))
     |> Journal.record(actor,
       resource_type: "portfolio",
       operation: :update,
@@ -143,6 +143,10 @@ defmodule Portfolixir.Portfolios do
   defp portfolio_write_result({:error, :portfolio, %Ecto.Changeset{} = changeset, _changes}),
     do: {:error, changeset}
 
+  # The row was deleted before the write took its lock (E25 S6, F49).
+  defp portfolio_write_result({:error, {:journal_lock, _}, :not_found, _changes}),
+    do: {:error, :not_found}
+
   # Unwraps a journaled account Multi (the business write under `key`, plus the
   # journal steps) into the bare `{:ok, record}` / `{:error, changeset}` the
   # callers expect.
@@ -150,6 +154,9 @@ defmodule Portfolixir.Portfolios do
 
   defp account_write_result({:error, key, %Ecto.Changeset{} = changeset, _changes}, key),
     do: {:error, changeset}
+
+  defp account_write_result({:error, {:journal_lock, _}, :not_found, _changes}, _key),
+    do: {:error, :not_found}
 
   @doc """
   Sets (or clears) a portfolio's cash target weight, the SOLL share of cash in
@@ -228,7 +235,7 @@ defmodule Portfolixir.Portfolios do
     cash_account
     |> AccountNames.with_stored(CashAccount.changeset(cash_account, attrs), fn account ->
       Multi.new()
-      |> Multi.update(:cash_account, CashAccount.changeset(account, attrs))
+      |> Multi.update(:cash_account, &CashAccount.changeset(Journal.locked_row(&1), attrs))
       |> Journal.record(actor,
         resource_type: "cash_account",
         operation: :update,
@@ -328,7 +335,10 @@ defmodule Portfolixir.Portfolios do
     securities_account
     |> AccountNames.with_stored(probe, fn account ->
       Multi.new()
-      |> Multi.update(:securities_account, SecuritiesAccount.changeset(account, attrs))
+      |> Multi.update(
+        :securities_account,
+        &SecuritiesAccount.changeset(Journal.locked_row(&1), attrs)
+      )
       |> Journal.record(actor,
         resource_type: "securities_account",
         operation: :update,

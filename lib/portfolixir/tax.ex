@@ -121,7 +121,7 @@ defmodule Portfolixir.Tax do
 
   defp update_parameters(actor, existing, attrs) do
     Multi.new()
-    |> Multi.update(:parameters, Parameters.changeset(existing, attrs))
+    |> Multi.update(:parameters, &Parameters.changeset(Journal.locked_row(&1), attrs))
     |> Journal.record(actor,
       resource_type: "tax_parameters",
       operation: :update,
@@ -278,7 +278,7 @@ defmodule Portfolixir.Tax do
           {:ok, Profile.t()} | {:error, Ecto.Changeset.t()}
   def update_profile(%Actor{} = actor, %Profile{} = profile, attrs) when is_map(attrs) do
     Multi.new()
-    |> Multi.update(:profile, Profile.changeset(profile, attrs))
+    |> Multi.update(:profile, &Profile.changeset(Journal.locked_row(&1), attrs))
     |> Journal.record(actor,
       resource_type: "tax_profile",
       operation: :update,
@@ -376,7 +376,7 @@ defmodule Portfolixir.Tax do
 
   defp update_allowance_order(actor, existing, attrs) do
     Multi.new()
-    |> Multi.update(:order, AllowanceOrder.changeset(existing, attrs))
+    |> Multi.update(:order, &AllowanceOrder.changeset(Journal.locked_row(&1), attrs))
     |> Journal.record(actor,
       resource_type: "allowance_order",
       operation: :update,
@@ -493,7 +493,10 @@ defmodule Portfolixir.Tax do
     today = Keyword.get(opts, :today, Date.utc_today())
 
     Multi.new()
-    |> Multi.update(:snapshot, StatementSnapshot.changeset(snapshot, attrs, today))
+    |> Multi.update(
+      :snapshot,
+      &StatementSnapshot.changeset(Journal.locked_row(&1), attrs, today)
+    )
     |> Journal.record(actor,
       resource_type: "tax_statement_snapshot",
       operation: :update,
@@ -716,4 +719,8 @@ defmodule Portfolixir.Tax do
 
   defp normalize({:ok, changes}, step), do: {:ok, Map.fetch!(changes, step)}
   defp normalize({:error, step, changeset, _changes}, step), do: {:error, changeset}
+
+  # The row was deleted before the write took its lock (E25 S6, F49).
+  defp normalize({:error, {:journal_lock, _}, :not_found, _changes}, _step),
+    do: {:error, :not_found}
 end

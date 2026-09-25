@@ -101,7 +101,7 @@ defmodule Portfolixir.Knowledge.Events do
     today = Keyword.get(opts, :today, Clock.today())
 
     Multi.new()
-    |> Multi.update(:event, SecurityEvent.changeset(event, attrs, today))
+    |> Multi.update(:event, &SecurityEvent.changeset(Journal.locked_row(&1), attrs, today))
     |> Journal.record(actor,
       resource_type: "security_event",
       operation: :update,
@@ -138,6 +138,8 @@ defmodule Portfolixir.Knowledge.Events do
     case Repo.transaction(multi) do
       {:ok, %{event: event}} -> {:ok, event}
       {:error, _step, %Ecto.Changeset{} = invalid, _changes} -> {:error, invalid}
+      # The row was deleted before the write took its lock (E25 S6, F49).
+      {:error, {:journal_lock, _}, :not_found, _changes} -> {:error, :stale}
       {:error, step, reason, _changes} -> {:error, {step, reason}}
     end
   rescue

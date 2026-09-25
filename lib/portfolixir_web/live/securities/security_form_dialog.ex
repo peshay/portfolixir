@@ -657,6 +657,10 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
             notify_parent(socket, {:updated, security})
             {:noreply, socket}
 
+          # Deleted in the meantime (E25 S6, F49).
+          {:error, :not_found} ->
+            {:noreply, assign(socket, :errors, %{"name" => gettext("Not found")})}
+
           {:error, changeset} ->
             {:noreply, assign(socket, :errors, changeset_errors(changeset))}
         end
@@ -669,6 +673,10 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
           {:ok, security} ->
             notify_parent(socket, {:updated, security})
             {:noreply, socket}
+
+          # Deleted in the meantime (E25 S6, F49).
+          {:error, :not_found} ->
+            {:noreply, assign(socket, :errors, %{"name" => gettext("Not found")})}
 
           {:error, changeset} ->
             {:noreply, assign(socket, :errors, changeset_errors(changeset))}

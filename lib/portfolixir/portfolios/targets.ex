@@ -579,16 +579,24 @@ defmodule Portfolixir.Portfolios.Targets do
     |> delete_targets(actor)
   end
 
+  # The rows are re-read under their lock first, so each per-row delete finds
+  # its row: one another writer removed in the meantime is simply not listed
+  # (E25 S6, F49).
   defp delete_targets(targets, actor) do
     Repo.transaction(fn ->
-      Enum.each(targets, fn target ->
+      ids = Enum.map(targets, & &1.id)
+
+      locked =
+        Repo.all(from(t in Target, where: t.id in ^ids, order_by: t.id, lock: "FOR UPDATE"))
+
+      Enum.each(locked, fn target ->
         case journaled_delete(actor, target, "target") do
           {:ok, _} -> :ok
           {:error, changeset} -> Repo.rollback(changeset)
         end
       end)
 
-      length(targets)
+      length(locked)
     end)
   end
 
@@ -838,7 +846,7 @@ defmodule Portfolixir.Portfolios.Targets do
 
   defp journaled_update(actor, record, attrs, resource_type) do
     Multi.new()
-    |> Multi.update(:record, TargetPlan.changeset(record, attrs))
+    |> Multi.update(:record, &TargetPlan.changeset(Journal.locked_row(&1), attrs))
     |> Journal.record(actor,
       resource_type: resource_type,
       operation: :update,
@@ -864,6 +872,10 @@ defmodule Portfolixir.Portfolios.Targets do
 
   defp normalize_write({:ok, %{record: record}}), do: {:ok, record}
   defp normalize_write({:error, :record, changeset, _changes}), do: {:error, changeset}
+
+  # The row was deleted before the write took its lock (E25 S6, F49).
+  defp normalize_write({:error, {:journal_lock, _}, :not_found, _changes}),
+    do: {:error, :not_found}
 
   # -- plan resolution -----------------------------------------------------------
 

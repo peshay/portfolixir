@@ -349,11 +349,23 @@ defmodule Portfolixir.Catalog do
   journal entry (with the pre-image as `before`) commit in one transaction.
   """
   def update_security(%Actor{} = actor, %Security{} = security, attrs) when is_map(attrs) do
-    changeset = Security.changeset(security, attrs)
+    # Built on the row as stored, re-read under its lock by the journal step
+    # (E25 S6, F49): the guard and the write see the same changes.
+    changeset = &Security.changeset(Journal.locked_row(&1), attrs)
 
     multi =
       Multi.new()
-      |> alias_guard(changeset)
+      |> Multi.run(:alias_guard, fn repo, changes ->
+        # An invalid changeset is refused by the write below; the guard would
+        # only query with a value the column cannot hold.
+        case changeset.(changes) do
+          %Ecto.Changeset{valid?: true} = valid ->
+            IdentifierAliases.guard_isin_not_aliased(repo, valid)
+
+          _invalid ->
+            {:ok, :not_applicable}
+        end
+      end)
       |> Multi.update(:security, changeset)
       |> Journal.record(actor,
         resource_type: "security",
@@ -365,6 +377,8 @@ defmodule Portfolixir.Catalog do
     case Repo.transaction(multi) do
       {:ok, %{security: updated}} -> {:ok, updated}
       {:error, _step, %Ecto.Changeset{} = changeset, _changes} -> {:error, changeset}
+      # The row was deleted before the write took its lock (E25 S6, F49).
+      {:error, {:journal_lock, _}, :not_found, _changes} -> {:error, :not_found}
     end
   end
 
@@ -374,11 +388,9 @@ defmodule Portfolixir.Catalog do
   system actor like every other logo write; a nil value removes the key.
   """
   def put_logo_attributes(%Security{} = security, logo_attrs) when is_map(logo_attrs) do
-    changeset = Security.logo_changeset(security, logo_attrs)
-
     multi =
       Multi.new()
-      |> Multi.update(:security, changeset)
+      |> Multi.update(:security, &Security.logo_changeset(Journal.locked_row(&1), logo_attrs))
       |> Journal.record(Actor.system_job("logo"),
         resource_type: "security",
         operation: :update,
@@ -389,6 +401,8 @@ defmodule Portfolixir.Catalog do
     case Repo.transaction(multi) do
       {:ok, %{security: updated}} -> {:ok, updated}
       {:error, _step, %Ecto.Changeset{} = changeset, _changes} -> {:error, changeset}
+      # The row was deleted before the write took its lock (E25 S6, F49).
+      {:error, {:journal_lock, _}, :not_found, _changes} -> {:error, :not_found}
     end
   end
 

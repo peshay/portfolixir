@@ -279,7 +279,10 @@ defmodule Portfolixir.Classifications do
 
   def update_classification(%Actor{} = actor, %Classification{} = classification, attrs) do
     Multi.new()
-    |> Multi.update(:classification, Classification.changeset(classification, attrs))
+    |> Multi.update(
+      :classification,
+      &Classification.changeset(Journal.locked_row(&1), attrs)
+    )
     |> Journal.record(actor,
       resource_type: "classification",
       operation: :update,
@@ -325,10 +328,16 @@ defmodule Portfolixir.Classifications do
   defp classification_result({:error, :classification, %Ecto.Changeset{} = changeset, _}),
     do: {:error, changeset}
 
+  # The row was deleted before the write took its lock (E25 S6, F49).
+  defp classification_result({:error, {:journal_lock, _}, :not_found, _}),
+    do: {:error, :not_found}
+
   defp category_result({:ok, %{category: category}}), do: {:ok, category}
 
   defp category_result({:error, :category, %Ecto.Changeset{} = changeset, _}),
     do: {:error, changeset}
+
+  defp category_result({:error, {:journal_lock, _}, :not_found, _}), do: {:error, :not_found}
 
   # -- custom categories ----------------------------------------------------
 
@@ -354,8 +363,8 @@ defmodule Portfolixir.Classifications do
     with :ok <- ensure_custom_category(category) do
       Multi.new()
       |> lock_tree(category.classification_id)
-      |> Multi.update(:category, fn _ ->
-        category |> Category.changeset(attrs) |> validate_parent()
+      |> Multi.update(:category, fn changes ->
+        changes |> Journal.locked_row() |> Category.changeset(attrs) |> validate_parent()
       end)
       |> Journal.record(actor,
         resource_type: "category",
@@ -508,7 +517,7 @@ defmodule Portfolixir.Classifications do
   """
   def recolor_category(%Actor{} = actor, %Category{} = category, color) do
     Multi.new()
-    |> Multi.update(:category, Category.color_changeset(category, color))
+    |> Multi.update(:category, &Category.color_changeset(Journal.locked_row(&1), color))
     |> Journal.record(actor,
       resource_type: "category",
       operation: :update,
@@ -580,6 +589,8 @@ defmodule Portfolixir.Classifications do
   defp assignment_result({:error, :assignment, %Ecto.Changeset{} = changeset, _}),
     do: {:error, changeset}
 
+  defp assignment_result({:error, {:journal_lock, _}, :not_found, _}), do: {:error, :not_found}
+
   @doc """
   The set of security ids carrying at least one stored (custom-tree) category
   assignment. Used by the import ladder's config-at-risk warning and pre-apply
@@ -603,7 +614,12 @@ defmodule Portfolixir.Classifications do
         {:ok, 0}
 
       %Assignment{} = assignment ->
-        with {:ok, _} <- delete_assignment(actor, assignment), do: {:ok, 1}
+        # An assignment another writer removed first is already gone (F49).
+        case delete_assignment(actor, assignment) do
+          {:ok, _} -> {:ok, 1}
+          {:error, :not_found} -> {:ok, 0}
+          {:error, reason} -> {:error, reason}
+        end
     end
   end
 
@@ -644,6 +660,9 @@ defmodule Portfolixir.Classifications do
           [a],
           a.classification_id == ^classification_id and a.security_id in ^security_ids
         )
+        # Locked, so each per-row delete below finds its row (E25 S6, F49):
+        # one removed by another writer first is simply not listed.
+        |> lock("FOR UPDATE")
         |> Repo.all()
 
       Enum.each(assignments, fn assignment ->

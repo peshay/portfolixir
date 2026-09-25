@@ -53,6 +53,9 @@ defmodule PortfolixirWeb.Api.V1.PortfolioController do
         {:ok, updated} ->
           json(conn, %{data: JSON.portfolio(updated)})
 
+        {:error, :not_found} ->
+          not_found(conn)
+
         {:error, changeset} ->
           conn
           |> put_status(:unprocessable_entity)

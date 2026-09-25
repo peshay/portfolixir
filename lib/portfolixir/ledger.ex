@@ -1146,13 +1146,17 @@ defmodule Portfolixir.Ledger do
   """
   def update_transaction(%Actor{} = actor, %Transaction{} = transaction, attrs)
       when is_map(attrs) do
-    changeset =
-      transaction
-      |> Transaction.changeset(derive_settlement_fx_rate(attrs))
-      |> validate_cash_account_currency()
+    attrs = derive_settlement_fx_rate(attrs)
 
+    # The changeset starts from the row as stored, re-read under its lock by
+    # the journal step, never from the caller's earlier read (E25 S6, F49).
     Multi.new()
-    |> Multi.update(:transaction, changeset)
+    |> Multi.update(:transaction, fn changes ->
+      changes
+      |> Journal.locked_row()
+      |> Transaction.changeset(attrs)
+      |> validate_cash_account_currency()
+    end)
     |> Journal.record(actor,
       resource_type: "transaction",
       operation: :update,
@@ -1184,6 +1188,10 @@ defmodule Portfolixir.Ledger do
 
   defp transaction_write_result({:error, :transaction, %Ecto.Changeset{} = changeset, _changes}),
     do: {:error, changeset}
+
+  # The row was deleted before the write took its lock (E25 S6, F49).
+  defp transaction_write_result({:error, {:journal_lock, _}, :not_found, _changes}),
+    do: {:error, :not_found}
 
   # Cross-record currency check (issue #343): a transaction is booked in
   # its cash account's currency, so its `currency_code` must equal the
