@@ -53,4 +53,48 @@ defmodule Portfolixir.Derived.BeforeImageRadiusTest do
     assert portfolio_version(world.portfolio) > p_before,
            "the old portfolio's basis must bump when a booking leaves it"
   end
+
+  # User story (E25 S6 review round, M3):
+  # As the operator whose agent resends a definition it already stored,
+  # I want a write that changes nothing to leave the derived values alone,
+  # so that a no-op never makes every portfolio's figures recompute.
+  #
+  # Acceptance criteria:
+  # - An update that changes nothing writes no journal entry and bumps no
+  #   basis: resending a view's sets leaves the global basis and each
+  #   portfolio's basis where they were; resending a booking's own values
+  #   leaves its portfolio's and its security's bases.
+  # - A real change still bumps them.
+  test "an update that changes nothing bumps no basis" do
+    world = base_world(name: "Unchanged")
+    security = create_security!(name: "Security U", ticker: "SU")
+    tx = buy!(world, security, quantity: "1", price: "10")
+
+    {:ok, bucket} =
+      Portfolixir.Buckets.create_bucket(Actor.owner_ui(), %{
+        name: "Resent #{System.unique_integer([:positive])}"
+      })
+
+    {:ok, view} =
+      Portfolixir.Buckets.create_view(Actor.owner_ui(), %{
+        name: "Resent view #{System.unique_integer([:positive])}",
+        include_all: false
+      })
+
+    :ok = Portfolixir.Buckets.set_view_buckets(Actor.owner_ui(), view, [bucket.id], [])
+
+    global = fn -> DataVersion.current(DataVersion.global_basis()) end
+
+    versions = fn ->
+      {global.(), portfolio_version(world.portfolio), security_version(security)}
+    end
+
+    before = versions.()
+    :ok = Portfolixir.Buckets.set_view_buckets(Actor.owner_ui(), view, [bucket.id], [])
+    {:ok, _} = Ledger.update_transaction(Actor.owner_ui(), tx, %{notes: tx.notes})
+    assert versions.() == before
+
+    {:ok, _} = Ledger.update_transaction(Actor.owner_ui(), tx, %{notes: "changed"})
+    assert portfolio_version(world.portfolio) > elem(before, 1)
+  end
 end
