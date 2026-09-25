@@ -33,7 +33,6 @@ alias Portfolixir.{
   Tax
 }
 
-alias Portfolixir.Catalog.Quotes
 alias Portfolixir.Portfolios.Snapshots
 
 owner = Actor.owner_ui()
@@ -135,38 +134,30 @@ unless depot && cash, do: raise("demo depot/cash not found")
   )
 
 # The closes are an upsert keyed by date, so writing them is safe to repeat.
-# Dropping the newer ones is what makes the *surface* idempotent: the quote
+# Releasing the newer ones is what makes the *surface* idempotent: the quote
 # seed above prices every security up to today, this one included, which would
-# silently un-stale the one row the stale finding exists to show. A demo seed
-# owns its own data, so it clears them directly rather than growing a
-# delete-quotes API the product does not otherwise need.
+# silently un-stale the one row the stale finding exists to show. Both go
+# through the authored, journaled quote paths (E25 S6, T-9), and the demo is
+# offline, so every row here is manual and the release clears it.
 :rand.seed(:exsss, {7, 7, 7})
 
 stale_rows =
   for back <- 60..5//-1 do
     %{
       date: Date.add(today, -back * 7),
-      close: Float.to_string(Float.round(38.0 + :rand.uniform() * 8, 2)),
-      source: "manual"
+      close: Float.to_string(Float.round(38.0 + :rand.uniform() * 8, 2))
     }
   end
 
-{:ok, _} = Quotes.upsert_many(timber.id, stale_rows)
-
-import Ecto.Query, only: [from: 2]
+{:ok, _} = Catalog.upsert_quotes(owner, timber.id, stale_rows)
 
 stale_cutoff = Date.add(today, -5 * 7)
 
-{dropped, _} =
-  Portfolixir.Repo.delete_all(
-    from(q in Portfolixir.Catalog.Quote,
-      where: q.security_id == ^timber.id and q.date > ^stale_cutoff
-    )
-  )
+{:ok, %{released: dropped}} =
+  Catalog.release_manual_quotes(owner, timber.id, Date.add(stale_cutoff, 1), Date.add(today, 1))
 
-if dropped > 0 do
-  Portfolixir.Derived.Invalidation.after_quote_write(timber.id)
-  IO.puts("stale surface: dropped #{dropped} quote(s) newer than #{stale_cutoff}")
+if dropped != [] do
+  IO.puts("stale surface: released #{length(dropped)} quote(s) newer than #{stale_cutoff}")
 end
 
 # 2. A position delivered in with no quote at all and no asset class (fires
@@ -594,12 +585,10 @@ end
   )
 
 {:ok, _} =
-  Quotes.upsert_many(
+  Catalog.upsert_quotes(
+    owner,
     kestrel.id,
-    for(
-      back <- 3..0//-1,
-      do: %{date: Date.add(today, -back), close: "24.#{back}0", source: "manual"}
-    )
+    for(back <- 3..0//-1, do: %{date: Date.add(today, -back), close: "24.#{back}0"})
   )
 
 neu = bucket.("Neuzugang")
@@ -674,9 +663,9 @@ alpine_date = Date.add(today, -10)
   )
 
 {:ok, _} =
-  Quotes.upsert_many(alpine.id, [
-    %{date: alpine_date, close: "45.60", source: "manual"},
-    %{date: today, close: "46.10", source: "manual"}
+  Catalog.upsert_quotes(owner, alpine.id, [
+    %{date: alpine_date, close: "45.60"},
+    %{date: today, close: "46.10"}
   ])
 
 # 13. Position targets in one category (#481, Sprint 15 Lane D1): the three

@@ -86,9 +86,11 @@ const securityZ = z.object({
   })
 });
 
-// Mirrors Catalog.Quote @sources: a closed set, so the schema describes the
-// accepted values instead of letting an LLM guess a free-form string (#508).
-const quoteSources = ["auto", "manual", "coingecko", "portfolio_performance"] as const;
+// E25 S6, F20 (decision T-9): an authored quote is manual. The API stores
+// every row it is given as manual, so the schema offers that one value and
+// lets it be omitted; the provider sources of Catalog.Quote @sources are the
+// sync's to state (#508's closed set, narrowed).
+const quoteSources = ["manual"] as const;
 
 const quoteUpsertZ = z.object({
   security_id: z.number().int().positive(),
@@ -96,9 +98,15 @@ const quoteUpsertZ = z.object({
     z.object({
       date: z.string(),
       close: z.string(),
-      source: z.enum(quoteSources)
+      source: z.enum(quoteSources).optional()
     })
   )
+});
+
+const quoteReleaseZ = z.object({
+  security_id: z.number().int().positive(),
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 });
 
 const portfolioZ = z.object({
@@ -420,7 +428,7 @@ const quoteUpsertSchema = {
       type: "array",
       items: {
         type: "object",
-        required: ["date", "close", "source"],
+        required: ["date", "close"],
         properties: {
           date: { type: "string", format: "date", description: boundedDate() },
           close: { type: "string" },
@@ -428,11 +436,26 @@ const quoteUpsertSchema = {
             type: "string",
             enum: [...quoteSources],
             description:
-              "Quote origin. Use `manual` for user- or LLM-supplied quotes; `auto`, `coingecko` and `portfolio_performance` are reserved for the respective providers."
+              "Optional. Every quote written here is stored as manual whatever this says; the provider sources are set by the quote sync alone."
           }
         },
         additionalProperties: false
       }
+    }
+  }
+};
+
+const quoteReleaseSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["security_id", "from", "to"],
+  properties: {
+    security_id: { type: "integer", minimum: 1 },
+    from: { type: "string", format: "date", description: boundedDate("First date of the range, inclusive.") },
+    to: {
+      type: "string",
+      format: "date",
+      description: boundedDate("Last date of the range, inclusive; on or after from.")
     }
   }
 };
@@ -1983,7 +2006,6 @@ const taxSnapshotCreateSchema = {
     holder: { type: "string", minLength: 1 },
     tax_year: { type: "integer", minimum: 1990, maximum: 2200 },
     as_of: { type: "string", description: boundedDate("Not in the future.") },
-    source: { type: "string", enum: ["manual", "pdf_import"] },
     church_tax_rate: {
       type: "string",
       description: "Decimal string fraction; omit to take the holder's profile in force at as_of"
@@ -1998,7 +2020,6 @@ const taxSnapshotCreateZ = z.object({
   holder: z.string().min(1),
   tax_year: z.number().int().min(1990).max(2200),
   as_of: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  source: z.enum(["manual", "pdf_import"]).optional(),
   church_tax_rate: z.string().optional(),
   note: z.string().optional(),
   ...taxSnapshotMoneyZ
@@ -2010,7 +2031,6 @@ const taxSnapshotUpdateSchema = {
   required: ["snapshot_id"],
   properties: {
     snapshot_id: { type: "integer", minimum: 1 },
-    source: { type: "string", enum: ["manual", "pdf_import"] },
     church_tax_rate: { type: "string" },
     note: { type: "string" },
     ...taxSnapshotMoneyProperties
@@ -2019,7 +2039,6 @@ const taxSnapshotUpdateSchema = {
 
 const taxSnapshotUpdateZ = z.object({
   snapshot_id: z.number().int().positive(),
-  source: z.enum(["manual", "pdf_import"]).optional(),
   church_tax_rate: z.string().optional(),
   note: z.string().optional(),
   ...taxSnapshotMoneyZ
@@ -2741,7 +2760,8 @@ const toolDefinitions: ToolDefinition[] = [
       limit: { type: "integer", minimum: 1 }
     }
   }, z.object({ security_id: z.number().int().positive(), from: optionalString(), to: optionalString(), limit: z.number().int().min(1).optional() })),
-  tool("portfolixir.quotes.upsert", "Upsert quotes", "Upsert manual quote history. Every close must be positive once rounded half up to the 6 decimal places a close is stored with (a finer close is stored rounded), have at most 14 digits before the decimal point, and every date must be no later than tomorrow (the instance's calendar day plus one day of zone slack); a row outside that bound answers 422 naming the field, and nothing is written. Name each date once per call: a repeated date answers 422 on date naming it, and nothing is written.", quoteUpsertSchema, quoteUpsertZ),
+  tool("portfolixir.quotes.upsert", "Upsert quotes", "Upsert manual quote history. Every row is stored as manual whatever source it names: a manual close wins over provider data, so the quote sync leaves it alone until it is released (portfolixir.quotes.release). The write replaces any stored row of its dates, provider rows included, and is journaled under your token with the replaced rows' closes and sources as its before-image; the answer carries upserted (the rows now stored as given) and replaced (the dates whose stored row the write changed; a new date is not listed). A call that changes nothing writes no journal entry. Every close must be positive once rounded half up to the 6 decimal places a close is stored with (a finer close is stored rounded), have at most 14 digits before the decimal point, and every date must be no later than tomorrow (the instance's calendar day plus one day of zone slack); a row outside that bound answers 422 naming the field, and nothing is written. Name each date once per call: a repeated date answers 422 on date naming it, and nothing is written.", quoteUpsertSchema, quoteUpsertZ),
+  tool("portfolixir.quotes.release", "Release manual quotes", "Release one security's MANUAL quotes dated from through to (both required, inclusive) back to provider data: the manual rows in the range are removed, journaled under your token with their closes as the before-image, and the answer lists the released dates. Provider rows in the range stay, and a range without manual rows changes nothing. The next quote sync (portfolixir.quotes.sync) stores the provider's close for a released date; a security without a provider keeps no quote for it. A missing, malformed or out-of-range date, or to before from, answers 422 naming the field. Agent-first: quotes have no write control on the security page yet; the release control there lands no later than Sprint 17.", quoteReleaseSchema, quoteReleaseZ),
   tool("portfolixir.portfolios.list", "List portfolios", "List local portfolios. Deprecated (ADR-0024): portfolios are internal compatibility records, not the user-facing grouping — use portfolixir.buckets.list and portfolixir.views.list to group and scope holdings.", emptyObjectSchema, emptyObjectZ),
   tool("portfolixir.portfolios.create", "Create portfolio", "Create a portfolio. Deprecated (ADR-0024, compatibility only — the API answers with a Deprecation header): grouping happens through buckets and views, so prefer portfolixir.buckets.create and portfolixir.views.create; depots and cash accounts no longer need a portfolio_id (a deterministic internal default is bound automatically).", portfolioSchema, portfolioZ),
   tool(
@@ -3391,7 +3411,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.tax_snapshots.create",
     "Record a tax statement",
-    "Transcribe the tax block of a broker statement for one (institution, holder, tax_year, as_of). Every money field is a POSITIVE MAGNITUDE Decimal string - a loss pot is the volume of loss available for offsetting, NOT the negative number the statement prints; a negative input is rejected rather than silently flipped. as_of must not be in the future. Omit church_tax_rate to take the holder's profile in force at as_of, which is then frozen on the row. Arithmetic advisories come back in the response and never block the write." + TAX_AMOUNTS,
+    "Transcribe the tax block of a broker statement for one (institution, holder, tax_year, as_of). The source of a recorded statement is manual, set by the system and never by the request. Every money field is a POSITIVE MAGNITUDE Decimal string - a loss pot is the volume of loss available for offsetting, NOT the negative number the statement prints; a negative input is rejected rather than silently flipped. as_of must not be in the future. Omit church_tax_rate to take the holder's profile in force at as_of, which is then frozen on the row. Arithmetic advisories come back in the response and never block the write." + TAX_AMOUNTS,
     taxSnapshotCreateSchema,
     taxSnapshotCreateZ
   ),
@@ -3569,6 +3589,11 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
     case "portfolixir.quotes.upsert":
       return client.request("PUT", `/api/v1/securities/${args.security_id}/quotes`, {
         quotes: args.quotes
+      });
+    case "portfolixir.quotes.release":
+      return client.request("POST", `/api/v1/securities/${args.security_id}/quotes/release`, {
+        from: args.from,
+        to: args.to
       });
     case "portfolixir.portfolios.list":
       return client.request("GET", "/api/v1/portfolios");

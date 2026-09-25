@@ -613,6 +613,18 @@ Example create payload:
   `limit` keeps the newest rows of the window, still ascending (default 20000,
   max 50000; zero, negative or non-numeric is a `422`).
 - `PUT /api/v1/securities/:security_id/quotes` upserts manual quote rows.
+  Every row is stored with source `manual`, whatever `source` it names: a
+  close written over the API is a manual close, and the provider sources are
+  the quote sync's to state. A manual close wins over provider data, so the
+  write replaces a stored row of any source for its dates, and the sync
+  leaves a manual row alone until it is released (below). The write is
+  journaled under the token (`resource_type=security_quotes`, filed under the
+  security's id, operation `upsert`) with the stored rows it replaced — their
+  closes and sources — as the before-image. The answer is
+  `{"upserted": n, "replaced": [dates]}`: `upserted` counts the rows now
+  stored as given, and `replaced` lists the ISO dates whose stored row the
+  write changed (a new date is not listed). A write that changes nothing
+  leaves no journal entry.
   Every quote row, manual or synced, is bounded: a `close` that is positive
   once rounded to its 6 decimal places, with at most 14 digits before the
   decimal point, on a `date` no later than tomorrow (the instance's calendar day plus one day for
@@ -623,6 +635,19 @@ Example create payload:
   names each date once and carries only quote objects: a repeated date answers
   `422` with `errors.date` naming it, a row that is not an object `422` on
   `quotes`, and nothing is written.
+- `POST /api/v1/securities/:security_id/quotes/release` releases the
+  security's **manual** quotes dated `from` through `to` (both required,
+  inclusive, in the body or the query) back to provider data: the manual rows
+  in the range are removed, journaled under the token (operation `delete`)
+  with the released rows as the before-image, and the answer is
+  `{"security_id", "from", "to", "released": [dates]}`. Provider rows in the
+  range stay, and a range without manual rows changes nothing and writes no
+  entry. The next quote sync stores the provider's close for a released date;
+  a security without a provider keeps no quote for it. A missing or invalid
+  date answers `422` naming it, `to` before `from` `422` on `to`, an unknown
+  security `404`. The release ships agent-first (API and MCP): quotes have no
+  write control on the security page yet, and the page's release control
+  lands no later than Sprint 17.
 - `POST /api/v1/securities/:security_id/sync_quotes` triggers quote sync for
   one security. The response includes `status` (`ok`, `skipped`, or `error`);
   skipped and error responses may include a `reason` such as
@@ -642,10 +667,20 @@ Example quote upsert payload:
   "quotes": [
     {
       "date": "2026-05-15",
-      "close": "123.45",
-      "source": "manual"
+      "close": "123.45"
     }
   ]
+}
+```
+
+Example quote upsert response, the first date having replaced a synced row:
+
+```json
+{
+  "data": {
+    "upserted": 2,
+    "replaced": ["2026-05-15"]
+  }
 }
 ```
 
@@ -1375,6 +1410,8 @@ under "Transactions and Holdings" above.)
   `as_of`; the resolved rate is then frozen on the row, so a later profile edit
   never rewrites a recorded transcription. Re-recording the same
   `(institution, holder, tax_year, as_of)` is a `422`, not a silent duplicate.
+  A recorded statement's `source` is `manual`, set by the system: a `source`
+  in the body of a create or a correction is ignored.
 - `GET /api/v1/tax/trim_budget` rolls the latest statement per institution up
   to one holder and year (required `holder` and `tax_year`). It reports which
   `institutions` it covers, the `as_of` of its **oldest** component, the
@@ -2147,7 +2184,10 @@ Every financial write (create, update, delete) is recorded in an append-only
 audit journal in the same database transaction as the write itself, so any
 change — including deletions — stays attributable and reversible by inspection.
 Market-data ingestion (quote and exchange-rate sync) is operational data and is
-deliberately **not** journaled.
+deliberately **not** journaled. A quote someone writes is not ingestion: the
+quote upsert and the release of manual quotes are journaled under
+`resource_type=security_quotes`, filed under the security's id, with the rows
+they replaced or released as the before-image.
 
 - `GET /api/v1/journal` lists journal entries, newest first. Each entry carries
   `actor_type` (`owner_ui`, `api_token_rw`, `api_token_ro`, `import_session`,
@@ -2214,7 +2254,11 @@ in MCP schemas are strings.
 - `portfolixir.notes.expiring` — dated blocks expiring within N days.
 - `portfolixir.quotes.sync`
 - `portfolixir.quotes.list`
-- `portfolixir.quotes.upsert`
+- `portfolixir.quotes.upsert` — every row stored as manual; its schema offers
+  `source: manual` only, and the answer names the replaced dates.
+- `portfolixir.quotes.release` — the journaled release of a range's manual
+  quotes back to provider data; agent-first, its page control lands no later
+  than Sprint 17.
 - `portfolixir.portfolios.list` — deprecated (ADR-0024): steers to
   buckets/views in its description.
 - `portfolixir.portfolios.create` — deprecated (ADR-0024): compatibility only;

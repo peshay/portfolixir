@@ -36,6 +36,7 @@ defmodule Portfolixir.Derived.BlastRadius do
 
   import Ecto.Query
 
+  alias Portfolixir.Catalog.QuoteWrite
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Lifecycle.MergeRecord
@@ -76,6 +77,13 @@ defmodule Portfolixir.Derived.BlastRadius do
   # struct, never a default.
   def for_write("merge_record", %{__struct__: MergeRecord}), do: []
   def for_write("retired_import_hash", %{__struct__: RetiredImportHash}), do: []
+
+  # An authored write to a security's quotes (E25 S6, T-9) is journaled as
+  # one aggregate of the security's rows: its radius is a quote write's, every
+  # portfolio that ever transacted the security — resolved per struct.
+  def for_write("security_quotes", %{__struct__: QuoteWrite, security_id: id})
+      when is_integer(id),
+      do: for_quote(id)
 
   # Everything else — unlisted resource types, and listed ones whose record
   # cannot be resolved (a bulk write journals an aggregate with no id). Widening
@@ -138,6 +146,11 @@ defmodule Portfolixir.Derived.BlastRadius do
   # The bulk asset-class write journals an aggregate carrying the affected ids.
   def securities_for_write("security", %{security_ids: ids}) when is_list(ids),
     do: ids |> Enum.uniq() |> Enum.sort()
+
+  # An authored quote write (E25 S6, T-9): the security's own quotes.
+  def securities_for_write("security_quotes", %{__struct__: QuoteWrite, security_id: id})
+      when is_integer(id),
+      do: securities_for_quote(id)
 
   def securities_for_write(resource_type, _record)
       when resource_type in @feeds_no_security_data,

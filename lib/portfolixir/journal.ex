@@ -40,6 +40,9 @@ defmodule Portfolixir.Journal do
       `resource_id`.
     * `:before` — the prior record/changeset-data struct (for `update`/`delete`);
       serialized into `before`. Defaults to `nil` (creates).
+    * `:resource_id` — the id the entry is filed under when the `:source`
+      record is an aggregate without one of its own (a security's quotes are
+      filed under the security's id, E25 S6); defaults to the record's `id`.
     * `:scenario_id` — marks a persisted what-if write; defaults to `nil` (real).
     * `:journal_step` — the Multi step name for the insert; defaults to
       `:journal_entry`.
@@ -55,12 +58,14 @@ defmodule Portfolixir.Journal do
     before = Keyword.get(opts, :before)
     scenario_id = Keyword.get(opts, :scenario_id)
     journal_step = Keyword.get(opts, :journal_step, :journal_entry)
+    filed_under = Keyword.get(opts, :resource_id)
 
     multi
     |> Multi.prepend(set_actor_multi(actor))
     |> Multi.run(journal_step, fn repo, changes ->
       record = Map.fetch!(changes, source)
-      insert_entry(repo, actor, operation, resource_type, record, before, scenario_id)
+      id = if filed_under, do: to_string(filed_under), else: resource_id(record)
+      insert_entry(repo, actor, {operation, resource_type, id}, record, before, scenario_id)
     end)
     |> Multi.run(:derived_invalidation, fn repo, changes ->
       # ADR-0032 §3.4 / ADR-0039 I5: the data version of every basis this
@@ -96,7 +101,14 @@ defmodule Portfolixir.Journal do
     |> Repo.all()
   end
 
-  defp insert_entry(repo, %Actor{} = actor, operation, resource_type, record, before, scenario_id) do
+  defp insert_entry(
+         repo,
+         %Actor{} = actor,
+         {operation, resource_type, id},
+         record,
+         before,
+         scenario_id
+       ) do
     {actor_type, actor_label} = Actor.to_columns(actor)
 
     attrs = %{
@@ -104,7 +116,7 @@ defmodule Portfolixir.Journal do
       actor_label: actor_label,
       operation: operation,
       resource_type: resource_type,
-      resource_id: resource_id(record),
+      resource_id: id,
       before: Serializer.snapshot(before),
       after: Serializer.snapshot(record),
       scenario_id: scenario_id

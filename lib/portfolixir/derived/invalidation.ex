@@ -71,9 +71,10 @@ defmodule Portfolixir.Derived.Invalidation do
   defp union(one, other), do: (one ++ other) |> Enum.uniq() |> Enum.sort()
 
   @doc """
-  Bumps after a quote write. Quotes are allowlisted out of the audit journal
-  (market data, ADR-0017), so they cannot ride the journal seam and announce
-  themselves here directly.
+  Bumps after a quote sync write. The sync's quotes are allowlisted out of
+  the audit journal (market data, ADR-0017), so they cannot ride the journal
+  seam and announce themselves here directly; an authored quote write is
+  journaled and bumps the same radius through `after_write/4` (T-9).
 
   Two radii, one insert: every portfolio that ever transacted the security
   (plus the global basis), and the security's own basis (#825). The second

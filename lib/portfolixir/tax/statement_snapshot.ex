@@ -94,7 +94,10 @@ defmodule Portfolixir.Tax.StatementSnapshot do
   """
   def changeset(snapshot, attrs, today, opts \\ []) do
     snapshot
-    |> cast(attrs, [:institution, :holder, :tax_year, :as_of, :source, :church_tax_rate, :note])
+    # `source` is the system's to state (E25 S6, F20): the public changeset
+    # never casts it, so every writer stores the default `manual`, and a
+    # future PDF intake (ADR-0021) sets `pdf_import` on its own path.
+    |> cast(attrs, [:institution, :holder, :tax_year, :as_of, :church_tax_rate, :note])
     |> cast(attrs, @money_fields)
     |> apply_default_church_tax_rate(Keyword.get(opts, :default_church_tax_rate))
     |> bound_to_columns()

@@ -119,15 +119,20 @@ defmodule Portfolixir.Tax.StatementSnapshotsTest do
     assert %{as_of: [_ | _]} = errors_on(changeset)
   end
 
-  test "an unknown source is rejected" do
-    assert {:error, changeset} =
-             Tax.create_snapshot(
-               Actor.owner_ui(),
-               statement_attrs(%{source: "guesswork"}),
-               today: ~D[2026-01-15]
-             )
+  # E25 S6, F20: provenance is the system's to state. The public changeset
+  # never casts a source, so neither an unknown value nor the reserved
+  # `pdf_import` reaches the row; the database CHECK stays the backstop.
+  test "a source in the attributes is never stored" do
+    for source <- ["guesswork", "pdf_import"] do
+      assert {:ok, snapshot} =
+               Tax.create_snapshot(
+                 Actor.owner_ui(),
+                 statement_attrs(%{source: source, institution: "Example Bank #{source}"}),
+                 today: ~D[2026-01-15]
+               )
 
-    assert %{source: [_ | _]} = errors_on(changeset)
+      assert snapshot.source == "manual"
+    end
   end
 
   # Re-recording the same statement is a conflict, not a silent duplicate.

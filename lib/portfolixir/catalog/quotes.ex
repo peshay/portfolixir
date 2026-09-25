@@ -4,8 +4,10 @@ defmodule Portfolixir.Catalog.Quotes do
 
   Quotes are stored as an append/upsert log keyed by `(security_id, date)`.
   This module provides the read paths used by the list and detail views
-  (latest, last-two, range, performance) and the write path used by both
-  manual entries and the background sync (`upsert_many/2`).
+  (latest, last-two, range, performance) and the two write paths: the
+  journaled **authored** writes (`upsert_authored/3`, `release_manual/4`) and
+  the unjournaled market-data writer of the background sync
+  (`upsert_many/3`, ADR-0017 as amended by T-9).
 
   Since ADR-0028 §2 this module is also the **loading shell** for the pure
   split-adjustment engine (`Portfolixir.Catalog.QuoteAdjustment`): the
@@ -25,12 +27,16 @@ defmodule Portfolixir.Catalog.Quotes do
 
   import Ecto.Query
 
+  alias Ecto.Multi
+  alias Portfolixir.Actor
   alias Portfolixir.Catalog.MarketDataBounds
   alias Portfolixir.Catalog.Quote, as: SecurityQuote
   alias Portfolixir.Catalog.QuoteAdjustment
+  alias Portfolixir.Catalog.QuoteWrite
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Catalog.SecurityWithMetrics
   alias Portfolixir.Derived.Invalidation
+  alias Portfolixir.Journal
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Repo
 
@@ -235,7 +241,193 @@ defmodule Portfolixir.Catalog.Quotes do
   end
 
   @doc """
-  Bulk upsert (insert-or-overwrite-close) keyed by `(security_id, date)`.
+  The **authored** quote write (E25 S6, G27 and F20 under decision T-9): the
+  path the API takes, and the MCP companion and the demo seeds through it.
+
+  Every row is stored with source `"manual"`, whatever source it names — a
+  provenance value is the system's to state, and a close someone typed is a
+  manual close. A manual row still wins over provider data (ADR-0028), so an
+  authored write may replace a stored row of any source; the rows it replaces
+  are therefore kept, as the before-image of one journal entry
+  (`resource_type: "security_quotes"`, filed under the security's id,
+  operation `upsert`) written in the same transaction as the rows, under
+  `actor`. The security row is locked first, so a concurrent writer of the
+  same security's quotes — authored or the sync — cannot slip a row between
+  the read of the before-image and the write.
+
+  Rows validated as in `upsert_many/3`; a row that fails is
+  `{:error, changeset}` and nothing is written. A row equal to the stored
+  manual row is left alone, and a call that changes nothing writes no row and
+  no journal entry.
+
+  Returns `{:ok, %{upserted: n, replaced: dates}}`: `upserted` is the number
+  of rows now stored as given, `replaced` the ascending dates whose stored row
+  the write changed (a new date is not one of them).
+  """
+  @spec upsert_authored(Actor.t(), integer(), list()) ::
+          {:ok, %{upserted: non_neg_integer(), replaced: [Date.t()]}}
+          | {:error, Ecto.Changeset.t() | :not_found}
+  def upsert_authored(%Actor{} = actor, security_id, rows)
+      when is_integer(security_id) and is_list(rows) do
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+
+    with {:ok, prepared} <- prepare_rows(security_id, Enum.map(rows, &authored_row/1), now) do
+      locked(security_id, fn ->
+        prior =
+          security_id
+          |> stored_rows_for_update(dates: Enum.map(prepared, & &1.date))
+          |> Map.new(&{&1.date, &1})
+
+        changed = Enum.reject(prepared, &unchanged?(&1, prior))
+        replaced = for row <- changed, stored = prior[row.date], do: stored
+
+        journaled(changed, fn ->
+          Multi.new()
+          |> Multi.run(:quotes, fn _repo, _changes ->
+            insert_in_chunks(changed, on_conflict(false))
+            {:ok, QuoteWrite.new(security_id, changed)}
+          end)
+          |> Journal.record(actor,
+            resource_type: "security_quotes",
+            resource_id: security_id,
+            operation: :upsert,
+            source: :quotes,
+            before: QuoteWrite.new(security_id, replaced)
+          )
+        end)
+
+        %{
+          upserted: length(prepared),
+          replaced: replaced |> Enum.map(& &1.date) |> Enum.sort(Date)
+        }
+      end)
+    end
+  end
+
+  @doc """
+  Releases a security's **manual** rows dated `from` through `to` back to
+  provider data (E25 S6, decision T-9): the rows are removed, journaled under
+  `actor` with the released rows as the before-image of one `delete` entry
+  (`resource_type: "security_quotes"`, filed under the security's id), so the
+  next quote sync can store the provider's close for those dates again. A
+  provider row in the range is left alone, and a range without manual rows
+  writes nothing and no entry.
+
+  A security without a provider keeps no quote for a released date: the
+  release removes the pin, and only a sync puts a provider close back.
+
+  Returns `{:ok, %{released: dates}}` (ascending), `{:error, :not_found}` for
+  an unknown security, or `{:error, :invalid_range}` when `from` is after `to`.
+  """
+  @spec release_manual(Actor.t(), integer(), Date.t(), Date.t()) ::
+          {:ok, %{released: [Date.t()]}} | {:error, :not_found | :invalid_range}
+  def release_manual(%Actor{} = actor, security_id, %Date{} = from, %Date{} = to)
+      when is_integer(security_id) do
+    if Date.compare(from, to) == :gt do
+      {:error, :invalid_range}
+    else
+      locked(security_id, fn ->
+        released = stored_rows_for_update(security_id, from: from, to: to, source: "manual")
+        ids = Enum.map(released, & &1.id)
+
+        journaled(released, fn ->
+          Multi.new()
+          |> Multi.run(:quotes, fn repo, _changes ->
+            {_count, _} = repo.delete_all(where(SecurityQuote, [q], q.id in ^ids))
+            {:ok, QuoteWrite.new(security_id, [])}
+          end)
+          |> Journal.record(actor,
+            resource_type: "security_quotes",
+            resource_id: security_id,
+            operation: :delete,
+            source: :quotes,
+            before: QuoteWrite.new(security_id, released)
+          )
+        end)
+
+        %{released: Enum.map(released, & &1.date)}
+      end)
+    end
+  end
+
+  # One transaction that first locks the security row: every quote insert
+  # checks its foreign key under a key-share lock of that row, which this
+  # lock excludes, so no writer of the security's quotes interleaves.
+  defp locked(security_id, fun) do
+    Repo.transaction(fn ->
+      Security
+      |> where([s], s.id == ^security_id)
+      |> lock("FOR UPDATE")
+      |> select([s], s.id)
+      |> Repo.one()
+      |> case do
+        nil -> Repo.rollback(:not_found)
+        _id -> fun.()
+      end
+    end)
+  end
+
+  # The journaled step runs only when there is something to journal (E25 S6,
+  # G02): a write that changes nothing leaves no entry.
+  defp journaled([], _multi_fun), do: :unchanged
+
+  defp journaled(_rows, multi_fun) do
+    case Repo.transaction(multi_fun.()) do
+      {:ok, _changes} -> :journaled
+      {:error, _step, reason, _changes} -> Repo.rollback(reason)
+    end
+  end
+
+  defp stored_rows_for_update(security_id, filters) do
+    SecurityQuote
+    |> where([q], q.security_id == ^security_id)
+    |> filter_stored(filters)
+    |> order_by([q], asc: q.date)
+    |> lock("FOR UPDATE")
+    |> Repo.all()
+  end
+
+  defp filter_stored(query, []), do: query
+
+  defp filter_stored(query, [{:dates, dates} | rest]),
+    do: query |> where([q], q.date in ^dates) |> filter_stored(rest)
+
+  defp filter_stored(query, [{:from, from} | rest]),
+    do: query |> where([q], q.date >= ^from) |> filter_stored(rest)
+
+  defp filter_stored(query, [{:to, to} | rest]),
+    do: query |> where([q], q.date <= ^to) |> filter_stored(rest)
+
+  defp filter_stored(query, [{:source, source} | rest]),
+    do: query |> where([q], q.source == ^source) |> filter_stored(rest)
+
+  defp unchanged?(row, prior) do
+    case Map.fetch(prior, row.date) do
+      {:ok, stored} -> stored.source == row.source and Decimal.equal?(stored.close, row.close)
+      :error -> false
+    end
+  end
+
+  # F20: an authored row is manual whatever it names. The key form follows
+  # the row's own (the changeset casts string- or atom-keyed params, never a
+  # mix), and a row that is not a map is left for `prepare_rows/3` to refuse.
+  defp authored_row(row) when is_map(row) do
+    row = Map.drop(row, [:source, "source"])
+
+    if Enum.any?(Map.keys(row), &is_binary/1),
+      do: Map.put(row, "source", "manual"),
+      else: Map.put(row, :source, "manual")
+  end
+
+  defp authored_row(row), do: row
+
+  @doc """
+  Bulk upsert (insert-or-overwrite-close) keyed by `(security_id, date)`,
+  **outside the journal**: the market-data writer ADR-0017 exempts, called by
+  the quote sync (`protect_manual: true`) and by test fixtures. Every authored
+  write goes through `upsert_authored/3` instead, and
+  `test/portfolixir/catalog/quotes_authored_test.exs` pins that no other
+  writer in `lib/` or the seeds calls this one (E25 S6, T-9).
 
   Returns `{:ok, count}` on success. Validates each row through the schema
   changeset first; if any row fails validation we return
@@ -244,8 +436,7 @@ defmodule Portfolixir.Catalog.Quotes do
   With `protect_manual: true` (the sync path) existing rows whose stored
   source is `"manual"` are left untouched — manual entries win over provider
   data — and the return shape becomes `{:ok, upserted, skipped_manual}`.
-  Without the option (the manual entry path) every conflicting row is
-  replaced, so a human correcting a value can still overwrite anything.
+  Without the option every conflicting row is replaced.
   """
   def upsert_many(security_id, rows, opts \\ [])
       when is_integer(security_id) and is_list(rows) do
