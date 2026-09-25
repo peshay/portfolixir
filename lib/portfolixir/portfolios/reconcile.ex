@@ -36,6 +36,7 @@ defmodule Portfolixir.Portfolios.Reconcile do
 
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog.Isin
+  alias Portfolixir.Clock
   alias Portfolixir.Imports.SecurityResolver
   alias Portfolixir.Imports.SecurityResolver.Index
   alias Portfolixir.Ledger
@@ -92,7 +93,7 @@ defmodule Portfolixir.Portfolios.Reconcile do
       end
 
     %{
-      as_of: Date.utc_today(),
+      as_of: Clock.today(),
       scope: scope,
       portfolio_id: portfolio_id,
       view_id: view_id,

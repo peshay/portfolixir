@@ -31,6 +31,7 @@ defmodule Portfolixir.Portfolios.SnapshotComparison do
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.QuoteAdjustment
   alias Portfolixir.Catalog.Quotes
+  alias Portfolixir.Clock
   alias Portfolixir.Fx
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Projection
@@ -49,13 +50,13 @@ defmodule Portfolixir.Portfolios.SnapshotComparison do
   page's performance walk uses).
 
   Options:
-    * `:today` — end date override (for tests); defaults to `Date.utc_today()`.
+    * `:today` — end date override (for tests); defaults to `Clock.today()`.
 
   Returns `{:ok, comparison}`, `{:error, :not_found}` (unknown snapshot), or
   `{:error, :view_not_found}` (the snapshot's view vanished).
   """
   def for_snapshot(snapshot_or_id, portfolio_id, opts \\ []) when is_integer(portfolio_id) do
-    today = Keyword.get(opts, :today, Date.utc_today())
+    today = Keyword.get(opts, :today, Clock.today())
 
     with {:ok, snapshot} <- Snapshots.fetch_snapshot(snapshot_or_id),
          scope when not is_tuple(scope) <- Buckets.load_scope(portfolio_id, snapshot.view_id) do

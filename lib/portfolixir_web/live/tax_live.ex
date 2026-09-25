@@ -35,6 +35,7 @@ defmodule PortfolixirWeb.TaxLive do
   use PortfolixirWeb, :live_view
 
   alias Portfolixir.Actor
+  alias Portfolixir.Clock
   alias Portfolixir.Tax
   alias Portfolixir.Tax.Budget
   alias Portfolixir.Tax.StatementSnapshot
@@ -54,7 +55,7 @@ defmodule PortfolixirWeb.TaxLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    today = Date.utc_today()
+    today = Clock.today()
 
     socket =
       socket

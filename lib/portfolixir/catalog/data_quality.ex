@@ -41,6 +41,7 @@ defmodule Portfolixir.Catalog.DataQuality do
 
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.SecurityWithMetrics
+  alias Portfolixir.Clock
   alias Portfolixir.Fx
 
   @stale_days 7
@@ -161,7 +162,7 @@ defmodule Portfolixir.Catalog.DataQuality do
   end
 
   def refine(rows, id, today) when id in @ids do
-    today = today || Date.utc_today()
+    today = today || Clock.today()
     Enum.filter(rows, &matches?(&1, id, today))
   end
 

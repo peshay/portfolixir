@@ -25,6 +25,7 @@ defmodule PortfolixirWeb.SnapshotsLive do
 
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
+  alias Portfolixir.Clock
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.SnapshotComparison
   alias Portfolixir.Portfolios.Snapshots
@@ -582,7 +583,7 @@ defmodule PortfolixirWeb.SnapshotsLive do
                   pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
                   maxlength="10"
                   name="snapshot[as_of]"
-                  value={Date.to_iso8601(Date.utc_today())}
+                  value={Date.to_iso8601(Clock.today())}
                   required
                   aria-invalid={invalid?(@form_errors, :as_of) && "true"}
                   aria-describedby={invalid?(@form_errors, :as_of) && "snapshot-form-error"}

@@ -59,8 +59,11 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "and view definitions journaled, a bucket delete journaling its cascade with an " <>
           "emptied override kept explicit-empty (F45, T-10) — and every other delete " <>
           "journaling the rows it removes, one entry each (F43) — and a delta read's as_of " <>
-          "that no long write can slip under (G06) — and the races and integrity " <>
-          "round (G10 and the rest of E25 S6 part c).",
+          "that no long write can slip under (G06) — and the races and integrity round: " <>
+          "assignment writes that hold their account, one position row per security, rule " <>
+          "writes that hold their rule, the settlement guard on the cash booked, split rows " <>
+          "changed through the split flow only, a cash target written only when asked, one " <>
+          "tax identity per taxpayer, and one clock (G10, G13, F48, F71, G07, G18, G21, G22, G08).",
       endpoints: [
         "DELETE /api/v1/cash_accounts/:id/former_names",
         "DELETE /api/v1/securities_accounts/:id/former_names",
@@ -121,7 +124,8 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "POST /api/v1/transactions and PATCH /api/v1/transactions/:id (portfolixir.transactions.create, .update) check a cross-currency buy or sell without gross_amount against the cash the ledger books for it, quantity × price with fees and taxes, and answer 422 on gross_amount naming both amounts when it misses the settlement by more than 0.01; such a trade used to pass unchecked and book the security currency's units as the account's cash. On a booking without gross_amount a PATCH of quantity or price re-checks it (E25 S6, F71)",
         "PATCH /api/v1/transactions/:id (portfolixir.transactions.update) changes only the notes of a stored split row: a change of its date, security_id, portfolio_id, type or split ratio answers 422 naming the field, and a wrong split is deleted and booked again through POST /api/v1/splits; it used to re-date, re-rate or re-target a split past the split flow's checks (E25 S6, G07)",
         "PATCH /api/v1/portfolios/:portfolio_id (deprecated) and POST /api/v1/portfolios (portfolixir.portfolios.create) write the Gesamt cash target only when the body carries cash_target_weight, in the portfolio's own transaction: a patch without it leaves the cash target and its journal untouched (it used to rewrite, or since the before-image round clear, the cash target from the portfolio it had read), and a refused cash-target write answers 422 with the rest of the write rolled back (it used to fail after the portfolio had committed) (E25 S6, G18)",
-        "Every tax endpoint that writes or filters on holder or institution (the profiles, allowance orders, statement snapshots and the trim budget; portfolixir.tax_profiles.*, portfolixir.allowance_orders.*, portfolixir.tax_snapshots.*) normalises the value to NFC without format characters and with every run of Unicode spaces one space, answers 422 for a value left empty, and matches it by the database's case fold on both sides; GET /api/v1/tax/trim_budget (portfolixir.tax_snapshots.trim_budget) groups institutions by that fold, and GET /api/v1/portfolios/:portfolio_id/allocation?tax_context=true (portfolixir.portfolios.allocation) carries one trim budget per holder identity; case spellings of one taxpayer used to yield one budget each (E25 S6, G21, G22)"
+        "Every tax endpoint that writes or filters on holder or institution (the profiles, allowance orders, statement snapshots and the trim budget; portfolixir.tax_profiles.*, portfolixir.allowance_orders.*, portfolixir.tax_snapshots.*) normalises the value to NFC without format characters and with every run of Unicode spaces one space, answers 422 for a value left empty, and matches it by the database's case fold on both sides; GET /api/v1/tax/trim_budget (portfolixir.tax_snapshots.trim_budget) groups institutions by that fold, and GET /api/v1/portfolios/:portfolio_id/allocation?tax_context=true (portfolixir.portfolios.allocation) carries one trim budget per holder identity; case spellings of one taxpayer used to yield one budget each (E25 S6, G21, G22)",
+        "Every as_of an API read reports for today (the valuation, holdings, reconciliation and allocation reads, the portfolio metrics) and every date check a write makes against today (quotes, snapshots, statements, events, notes, rule versions, splits) reads the instance's calendar day in its TZ, which the database session also takes on connect; the reads used to report the UTC day (E25 S6, G08)"
       ],
       removed_endpoints: [],
       removed_tools: []

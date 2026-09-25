@@ -128,6 +128,10 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
       {:config, "the proxies whose forwarded headers the throttle and the scheme believe (#771)"},
     "PORTFOLIXIR_LOGO_DIR" => {:config, "the directory stored logos are written to (E25 S2)"},
     "PORTFOLIXIR_SESSION_DAYS" => {:config, "how long a UI login stays valid (ADR-0045)"},
+    "TZ" =>
+      {:config,
+       "the host clock's zone: what \"today\" is, and the zone each database session takes " <>
+         "on connect (E25 S6, G08)"},
     "DATABASE_URL" =>
       {:credential,
        "the production database URL, which carries the database role's password; it names " <>

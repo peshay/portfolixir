@@ -39,6 +39,7 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
 
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Clock
   alias Portfolixir.Derived
   alias Portfolixir.Engines.PortfolioMetrics
   alias Portfolixir.Fx
@@ -81,7 +82,7 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
   @spec for_portfolio(integer(), [integer()], keyword()) :: map() | {:error, :view_not_found}
   def for_portfolio(portfolio_id, top_security_ids, opts \\ [])
       when is_integer(portfolio_id) and is_list(top_security_ids) do
-    as_of = Keyword.get(opts, :as_of) || Date.utc_today()
+    as_of = Keyword.get(opts, :as_of) || Clock.today()
     rate = Keyword.get(opts, :risk_free_rate) || @zero
     view = Keyword.get(opts, :view)
     leading_ids = Enum.take(top_security_ids, @max_correlated_names)

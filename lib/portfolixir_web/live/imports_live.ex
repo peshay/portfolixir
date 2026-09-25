@@ -3,6 +3,7 @@ defmodule PortfolixirWeb.ImportsLive do
 
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog
+  alias Portfolixir.Clock
   alias Portfolixir.Imports
   alias Portfolixir.Imports.Mapping
   alias Portfolixir.Imports.PortfolioPerformance
@@ -905,7 +906,7 @@ defmodule PortfolixirWeb.ImportsLive do
   # The date-stamped default bucket name is data (a bucket name), not UI
   # copy — deliberately not translated.
   defp default_bucket_tag do
-    "PP Import #{Date.to_iso8601(Date.utc_today())}"
+    "PP Import #{Date.to_iso8601(Clock.today())}"
   end
 
   # Auto-prefill (ADR-0050 §4) through the resolution the apply uses: an

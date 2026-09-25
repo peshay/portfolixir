@@ -35,6 +35,7 @@ defmodule Portfolixir.Catalog.Quotes do
   alias Portfolixir.Catalog.QuoteWrite
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Catalog.SecurityWithMetrics
+  alias Portfolixir.Clock
   alias Portfolixir.Derived.Invalidation
   alias Portfolixir.Journal
   alias Portfolixir.Ledger.Transaction
@@ -516,7 +517,7 @@ defmodule Portfolixir.Catalog.Quotes do
   """
   def performance(security_id, days_back)
       when is_integer(security_id) and is_integer(days_back) and days_back > 0 do
-    today = Date.utc_today()
+    today = Clock.today()
     baseline_date = Date.add(today, -days_back)
 
     with %{close: latest_close} <- adjusted_latest(security_id),
@@ -563,7 +564,7 @@ defmodule Portfolixir.Catalog.Quotes do
   # sobelow_skip ["SQL.Query"]
   def attach_metrics(securities) when is_list(securities) do
     ids = Enum.map(securities, & &1.id)
-    today = Date.utc_today()
+    today = Clock.today()
     cutoff_1m = Date.add(today, -30)
     cutoff_1y = Date.add(today, -365)
 

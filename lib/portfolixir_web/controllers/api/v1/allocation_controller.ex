@@ -1,6 +1,7 @@
 defmodule PortfolixirWeb.Api.V1.AllocationController do
   use PortfolixirWeb, :controller
 
+  alias Portfolixir.Clock
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Allocation
   alias Portfolixir.Portfolios.Portfolio
@@ -64,7 +65,7 @@ defmodule PortfolixirWeb.Api.V1.AllocationController do
   defp tax_context_block(false), do: nil
 
   defp tax_context_block(true) do
-    year = Date.utc_today().year
+    year = Clock.today().year
 
     budgets =
       for holder <- Tax.list_snapshot_holders(),

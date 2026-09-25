@@ -31,6 +31,7 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
   alias Portfolixir.Catalog.IdentifierAlias
   alias Portfolixir.Catalog.Isin
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Clock
   alias Portfolixir.Journal
   alias Portfolixir.Repo
 
@@ -52,7 +53,7 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
 
   def record_isin_change(%Actor{} = actor, %Security{} = security, new_isin, opts)
       when is_list(opts) do
-    changed_on = Keyword.get(opts, :changed_on) || Date.utc_today()
+    changed_on = Keyword.get(opts, :changed_on) || Clock.today()
     note = Keyword.get(opts, :note)
 
     Repo.transaction(fn ->
