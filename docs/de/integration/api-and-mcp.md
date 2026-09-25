@@ -1590,7 +1590,13 @@ Beispiel-Payloads für Konten:
   Ein Client, der nur das alte Feld kennt, funktioniert also unverändert weiter;
   nutze `PUT /cash_target?view=<id>` für ein View-spezifisches Cash-Ziel. Gewichte
   außerhalb des Bereichs liefern `422 Unprocessable Entity`; unbekannte Portfolios
-  liefern `404 Not Found`. Das `cash_target_weight` ist auch in den von
+  liefern `404 Not Found`. Das Cash-Ziel wird **nur geschrieben, wenn der
+  Rumpf `cash_target_weight` trägt**, in derselben Transaktion wie der Rest des
+  Patches: Ein Patch ohne das Feld (etwa ein Umbenennen) lässt das gespeicherte
+  Cash-Ziel und sein Journal unberührt, und ein abgelehntes Schreiben des
+  Cash-Ziels antwortet mit `422`, ohne dass etwas geschrieben wird, auch nicht
+  der Rest des Patches. Die Antwort trägt das Cash-Ziel, wie es nach dem
+  Schreiben gespeichert ist. Das `cash_target_weight` ist auch in den von
   `GET`/`POST /api/v1/portfolios` zurückgegebenen Portfolio-Objekten enthalten
   (das Gesamt-Cash-Ziel).
 - `GET /api/v1/securities/:security_id/trades` liefert FIFO-gematchte Trades eines

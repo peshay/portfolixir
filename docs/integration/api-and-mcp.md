@@ -1746,6 +1746,12 @@ church tax withheld at a zero church-tax rate.
   that only knows the old field keeps working unchanged; use `PUT
   /cash_target?view=<id>` to steer a per-view cash target. Out-of-range weights
   return `422 Unprocessable Entity`; unknown portfolios return `404 Not Found`.
+  The cash target is written **only when the body carries
+  `cash_target_weight`**, in the same transaction as the rest of the patch: a
+  patch without it (a rename, say) leaves the stored cash target and its
+  journal untouched, and a refused cash-target write answers `422` with
+  nothing written, the rest of the patch included. The response carries the
+  cash target as stored after the write.
   The `cash_target_weight` is also included in the portfolio objects returned by
   `GET`/`POST /api/v1/portfolios` (the Gesamt cash target).
 - `GET /api/v1/securities/:security_id/trades` returns FIFO-matched trades for
