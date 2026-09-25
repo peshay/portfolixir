@@ -51,8 +51,8 @@ defmodule Portfolixir.Portfolios.PolicyFindings do
   alias Portfolixir.Clock
   alias Portfolixir.Derived
   alias Portfolixir.Engines.PolicyEvaluation
-  alias Portfolixir.Portfolios.Allocation
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.Allocation
   alias Portfolixir.Portfolios.PolicyRules
   alias Portfolixir.Portfolios.PricingContext
   alias Portfolixir.Portfolios.Risk
