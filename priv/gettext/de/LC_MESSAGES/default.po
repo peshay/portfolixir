@@ -7139,8 +7139,10 @@ msgstr "Anlageklassen-Obergrenzen"
 
 #: lib/portfolixir_web/live/risk_live.ex:275
 #, elixir-autogen, elixir-format
-msgid "Basis: the flow-adjusted daily return factors of the TTWROR chain, in %{currency}, annualized by √365 — a deposit is not a return. A day without a return base yields no observation, never a zero. Correlations convert to %{currency} first and run over the %{count} largest positions."
-msgstr "Grundlage: die um Zahlungen bereinigten täglichen Renditefaktoren der TTWROR-Kette, in %{currency}, annualisiert mit √365 — eine Einzahlung ist keine Rendite. Ein Tag ohne Renditebasis liefert keine Beobachtung, nie eine Null. Korrelationen rechnen zuerst in %{currency} um und laufen über die %{count} größten Einzelpositionen."
+msgid "Basis: the flow-adjusted daily return factors of the TTWROR chain, in %{currency}, annualized by √365 — a deposit is not a return. A day without a return base yields no observation, never a zero. Correlations convert to %{currency} first and run over the %{count} largest position."
+msgid_plural "Basis: the flow-adjusted daily return factors of the TTWROR chain, in %{currency}, annualized by √365 — a deposit is not a return. A day without a return base yields no observation, never a zero. Correlations convert to %{currency} first and run over the %{count} largest positions."
+msgstr[0] "Grundlage: die um Zahlungen bereinigten täglichen Renditefaktoren der TTWROR-Kette, in %{currency}, annualisiert mit √365 — eine Einzahlung ist keine Rendite. Ein Tag ohne Renditebasis liefert keine Beobachtung, nie eine Null. Korrelationen rechnen zuerst in %{currency} um und laufen über die %{count} größte Einzelposition."
+msgstr[1] "Grundlage: die um Zahlungen bereinigten täglichen Renditefaktoren der TTWROR-Kette, in %{currency}, annualisiert mit √365 — eine Einzahlung ist keine Rendite. Ein Tag ohne Renditebasis liefert keine Beobachtung, nie eine Null. Korrelationen rechnen zuerst in %{currency} um und laufen über die %{count} größten Einzelpositionen."
 
 #: lib/portfolixir_web/live/risk_live.ex:270
 #, elixir-autogen, elixir-format

@@ -273,10 +273,11 @@ defmodule PortfolixirWeb.RiskLive do
                  so the sentence stays true below the list's length. --%>
             <p class="summary-basis" data-role="risk-basis">
               <%= if @risk.metrics.correlations.leading_names >= 2 do %>
-                <%= gettext(
+                <%= ngettext(
+                  "Basis: the flow-adjusted daily return factors of the TTWROR chain, in %{currency}, annualized by √365 — a deposit is not a return. A day without a return base yields no observation, never a zero. Correlations convert to %{currency} first and run over the %{count} largest position.",
                   "Basis: the flow-adjusted daily return factors of the TTWROR chain, in %{currency}, annualized by √365 — a deposit is not a return. A day without a return base yields no observation, never a zero. Correlations convert to %{currency} first and run over the %{count} largest positions.",
-                  currency: @risk.base_currency,
-                  count: @risk.metrics.correlations.leading_names
+                  @risk.metrics.correlations.leading_names,
+                  currency: @risk.base_currency
                 ) %>
               <% else %>
                 <%= gettext(
