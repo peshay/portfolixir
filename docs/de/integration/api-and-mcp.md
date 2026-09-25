@@ -22,7 +22,13 @@ API-Anfragen benötigen ein lokales Bearer-Token:
 Authorization: Bearer <PORTFOLIXIR_API_TOKEN>
 ```
 
-Der MCP-Begleitdienst nutzt `PORTFOLIXIR_API_TOKEN`, um Portfolixir aufzurufen.
+Der MCP-Begleitdienst nutzt `PORTFOLIXIR_API_TOKEN`, um Portfolixir unter
+`PORTFOLIXIR_API_BASE_URL` aufzurufen, und folgt dort keiner Weiterleitung:
+Eine `3xx`-Antwort wird als `ApiRedirectError` abgelehnt, der die Anfrage und
+die Variable nennt, damit der Body einer Anfrage und das Token nie dorthin
+erneut gesendet werden, wohin die Weiterleitung zeigt. Richten Sie
+`PORTFOLIXIR_API_BASE_URL` auf die Adresse, unter der die API ohne
+Weiterleitung antwortet.
 `PORTFOLIXIR_MCP_TOKEN` ist für den HTTP-Transport erforderlich, damit sich
 lokale HTTP-Clients beim Begleitdienst authentifizieren können. Es folgt der
 Regel des API-Tokens: Der Begleitdienst startet nicht mit einem Token, das

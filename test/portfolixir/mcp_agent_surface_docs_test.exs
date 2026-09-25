@@ -65,4 +65,30 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
        ]}
     ])
   end
+
+  # User story (E25 S7, F23, the companion's half):
+  # As an operator whose API sits behind a redirect,
+  # I want the reference to say that the companion follows none and how the
+  # refusal reads,
+  # so that the fix (the base URL) is found from the error.
+  #
+  # Acceptance criteria:
+  # - The EN and DE MCP pages name ApiRedirectError, say that nothing is
+  #   resent, and name PORTFOLIXIR_API_BASE_URL as the remedy.
+  test "the MCP pages state that the companion follows no redirect" do
+    assert_fragments([
+      {"docs/integration/api-and-mcp.md",
+       [
+         "it follows no redirect from there: a `3xx` answer is refused as `ApiRedirectError`",
+         "a request's body and the token are never resent",
+         "Point `PORTFOLIXIR_API_BASE_URL` at the address the API answers on without a redirect"
+       ]},
+      {"docs/de/integration/api-and-mcp.md",
+       [
+         "folgt dort keiner Weiterleitung: Eine `3xx`-Antwort wird als `ApiRedirectError` abgelehnt",
+         "das Token nie dorthin erneut gesendet werden",
+         "unter der die API ohne Weiterleitung antwortet"
+       ]}
+    ])
+  end
 end

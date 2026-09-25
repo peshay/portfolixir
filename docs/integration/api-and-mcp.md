@@ -21,7 +21,12 @@ API requests require a local bearer token:
 Authorization: Bearer <PORTFOLIXIR_API_TOKEN>
 ```
 
-The MCP companion uses `PORTFOLIXIR_API_TOKEN` to call Portfolixir.
+The MCP companion uses `PORTFOLIXIR_API_TOKEN` to call Portfolixir at
+`PORTFOLIXIR_API_BASE_URL`, and it follows no redirect from there: a `3xx`
+answer is refused as `ApiRedirectError`, naming the request and the variable,
+so a request's body and the token are never resent to wherever the redirect
+points. Point `PORTFOLIXIR_API_BASE_URL` at the address the API answers on
+without a redirect.
 `PORTFOLIXIR_MCP_TOKEN` is required for HTTP transport so local HTTP clients can
 authenticate to the companion. It meets the API token's policy: the companion
 refuses to start with a token shorter than 32 bytes or equal to a placeholder,
