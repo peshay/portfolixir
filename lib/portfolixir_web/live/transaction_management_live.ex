@@ -61,6 +61,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
      |> assign(:column_picker_open?, false)
      |> assign(:booking_open?, false)
      |> assign(:editing_id, nil)
+     |> assign(:editing_split, nil)
      |> assign(:row_menu_id, nil)
      |> assign(:filter_sheet_open?, false)
      |> load_state()}
@@ -474,8 +475,14 @@ defmodule PortfolixirWeb.TransactionManagementLive do
             </button>
           </AppShell.row_menu>
         </section>
+        <.split_drawer
+          :if={@booking_open? and @editing_split != nil}
+          split={@editing_split}
+          securities={@securities}
+          form_errors={@form_errors}
+        />
         <.booking_drawer
-          :if={@booking_open?}
+          :if={@booking_open? and @editing_split == nil}
           editing?={@editing_id != nil}
           transaction_form={@transaction_form}
           form_errors={@form_errors}
@@ -509,6 +516,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
      socket
      |> assign(:booking_open?, false)
      |> assign(:editing_id, nil)
+     |> assign(:editing_split, nil)
      |> assign(:transaction_form, @transaction_form)
      |> assign(:form_errors, %{})
      |> assign(:sell_preview, nil)}
@@ -600,6 +608,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
        socket
        |> assign(:row_menu_id, nil)
        |> assign(:editing_id, id)
+       # E25 S6 (G07, pick G12.3 = A): a split row opens its own drawer
+       # state — the facts fixed, only the note editable.
+       |> assign(:editing_split, if(transaction.type == "split", do: transaction))
        |> assign(:transaction_form, form_from_transaction(transaction, socket.assigns.securities))
        |> assign(:form_errors, %{})
        |> assign(:sell_preview, nil)
@@ -693,9 +704,49 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     end
   end
 
+  # E25 S6 (G07): the split drawer's one write, the note. The ledger refuses
+  # every other change to a split row, so nothing else is sent.
+  def handle_event("save_split_note", %{"split" => %{"notes" => notes}}, socket)
+      when is_binary(notes) do
+    case socket.assigns.editing_split do
+      %Transaction{id: id} -> save_split_note(socket, id, notes)
+      nil -> {:noreply, socket}
+    end
+  end
+
   # An event this page does not know, or a payload it cannot read, changes
   # nothing (E25 S4, F17).
   def handle_event(_event, _params, socket), do: {:noreply, socket}
+
+  defp save_split_note(socket, id, notes) do
+    case book(id, %{"notes" => notes}) do
+      {:ok, _transaction} ->
+        {:noreply,
+         socket
+         |> assign(:transaction_form, @transaction_form)
+         |> assign(:form_errors, %{})
+         |> assign(:booking_open?, false)
+         |> assign(:editing_id, nil)
+         |> assign(:editing_split, nil)
+         |> success(gettext("Note saved"))
+         |> load_state()}
+
+      {:error, changeset} ->
+        {:noreply,
+         socket
+         |> assign(:form_errors, field_errors(changeset))
+         |> failure(changeset_error(changeset))}
+
+      :gone ->
+        {:noreply,
+         socket
+         |> assign(:booking_open?, false)
+         |> assign(:editing_id, nil)
+         |> assign(:editing_split, nil)
+         |> failure(gettext("That transaction no longer exists."))
+         |> load_state()}
+    end
+  end
 
   defp save_booking(socket, params, prepared) do
     case book(socket.assigns.editing_id, prepared) do
@@ -708,6 +759,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
          |> assign(:booking_open?, false)
          |> success(saved_message(socket.assigns.editing_id))
          |> assign(:editing_id, nil)
+         |> assign(:editing_split, nil)
          |> load_state()}
 
       {:error, changeset} ->
@@ -1512,6 +1564,111 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       Gettext.dgettext(PortfolixirWeb.Gettext, "errors", msg, opts)
     end
   end
+
+  # E25 S6 (G07), pick G12.3 = A (board 12): a booked split in the drawer.
+  # A split is a fact about the security, booked through "Record split"
+  # (`Splits.book_split/2`); its type, effective date, security and ratio are
+  # shown with that flow's words, disabled, and only the note is a field. No
+  # depot: the row has none. The help line states the limit where the
+  # correction is tried, without a link, because no screen deletes a booking
+  # yet (UX-DR26; DESIGN.md, "The booking drawer's split state").
+  attr(:split, Transaction, required: true)
+  attr(:securities, :list, required: true)
+  attr(:form_errors, :map, required: true)
+
+  defp split_drawer(assigns) do
+    assigns =
+      assign(
+        assigns,
+        :security,
+        Enum.find(assigns.securities, &(&1.id == assigns.split.security_id))
+      )
+
+    ~H"""
+    <dialog
+      id="booking-drawer"
+      class="detail-pane booking-drawer"
+      phx-hook="ModalDialog"
+      data-close-event="close_booking"
+      data-sheet-below="720"
+      aria-labelledby="booking-drawer-title"
+    >
+      <header class="detail-pane-head">
+        <div class="detail-pane-head__title">
+          <div>
+            <h2 id="booking-drawer-title"><%= gettext("Edit transaction") %></h2>
+            <p class="detail-pane-sub">
+              <%= gettext(
+                "A split is a fact about the security; only the note changes here, and the change is journaled."
+              ) %>
+            </p>
+          </div>
+        </div>
+        <div class="detail-pane-head__actions">
+          <button
+            type="button"
+            class="icon-button"
+            aria-label={gettext("Close")}
+            phx-click="close_booking"
+          >
+            <AppShell.icon name={:x} />
+          </button>
+        </div>
+      </header>
+      <form id="split-note-form" phx-submit="save_split_note">
+        <div id="split-facts" class="form-grid">
+          <label>
+            <span><%= gettext("Type") %></span>
+            <select name="split[type]" disabled>
+              <option value="split" selected><%= tx_type_label("split") %></option>
+            </select>
+          </label>
+          <label>
+            <span><%= gettext("Effective date") %></span>
+            <input type="text" name="split[date]" value={Date.to_iso8601(@split.date)} disabled />
+          </label>
+          <label>
+            <span><%= gettext("Security") %></span>
+            <select name="split[security_id]" disabled>
+              <option value={@split.security_id} selected>
+                <%= if @security, do: security_option_label(@security), else: "—" %>
+              </option>
+            </select>
+          </label>
+          <label>
+            <span><%= gettext("Ratio (new:old shares)") %></span>
+            <input type="text" name="split[ratio]" value={split_ratio_label(@split)} disabled />
+          </label>
+        </div>
+        <p id="split-edit-help" class="form-help">
+          <%= gettext(
+            "The effective date, ratio and security of a booked split are fixed. A wrong split cannot be corrected here; it is deleted over the API or MCP and then recorded again on the security with “Record split”."
+          ) %>
+        </p>
+        <label>
+          <span><%= gettext("Notes") %></span>
+          <textarea
+            name="split[notes]"
+            aria-invalid={@form_errors["notes"] && "true"}
+            aria-describedby={@form_errors["notes"] && "tx-error-notes"}
+          ><%= @split.notes %></textarea>
+          <.field_error errors={@form_errors} field="notes" />
+        </label>
+        <div class="booking-drawer__foot">
+          <button type="submit" class="button-primary"><%= gettext("Save note") %></button>
+          <button type="button" id="booking-cancel" class="button-ghost" phx-click="close_booking">
+            <%= gettext("Cancel") %>
+          </button>
+        </div>
+      </form>
+    </dialog>
+    """
+  end
+
+  defp security_option_label(%{ticker_symbol: ticker} = security) when ticker in [nil, ""],
+    do: security.name
+
+  defp security_option_label(security), do: "#{security.name} (#{security.ticker_symbol})"
 
   # The booking drawer (#803, review C6 pick C): the securities detail pane's
   # shape — an elevated panel headed by its title with a close control — as a

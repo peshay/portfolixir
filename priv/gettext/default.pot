@@ -6804,6 +6804,31 @@ msgstr ""
 msgid "Edit transaction"
 msgstr ""
 
+#: lib/portfolixir_web/live/transaction_management_live.ex
+#, elixir-autogen, elixir-format
+msgid "A split is a fact about the security; only the note changes here, and the change is journaled."
+msgstr ""
+
+#: lib/portfolixir_web/live/transaction_management_live.ex
+#, elixir-autogen, elixir-format
+msgid "Ratio (new:old shares)"
+msgstr ""
+
+#: lib/portfolixir_web/live/transaction_management_live.ex
+#, elixir-autogen, elixir-format
+msgid "The effective date, ratio and security of a booked split are fixed. A wrong split cannot be corrected here; it is deleted over the API or MCP and then recorded again on the security with “Record split”."
+msgstr ""
+
+#: lib/portfolixir_web/live/transaction_management_live.ex
+#, elixir-autogen, elixir-format
+msgid "Save note"
+msgstr ""
+
+#: lib/portfolixir_web/live/transaction_management_live.ex
+#, elixir-autogen, elixir-format
+msgid "Note saved"
+msgstr ""
+
 #: lib/portfolixir_web/live/transaction_management_live.ex:708
 #, elixir-autogen, elixir-format
 msgid "That transaction no longer exists."

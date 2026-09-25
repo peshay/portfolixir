@@ -943,7 +943,12 @@ Example account payloads:
   mis-imported booking); the per-kind validation still applies. An imported
   row keeps its content hash, and a balance anchor or a split never carries
   one (ADR-0050 §1), so changing an imported row's `type` to
-  `balance_adjustment` or `split` answers 422 on `errors.type`.
+  `balance_adjustment` or `split` answers 422 on `errors.type`. A stored
+  **split** row changes only its `notes` (E25 S6): a change of its `date`,
+  `security_id`, `portfolio_id`, `type` or ratio answers 422 naming the field,
+  because a split is booked through `POST /api/v1/splits`, whose checks a
+  generic update would pass by. A wrong split is deleted (each of its rows)
+  and booked again.
 - `DELETE /api/v1/transactions/:id` deletes a transaction. Because trades and
   holdings are derived, correcting or removing the transaction fixes them too.
 - `POST /api/v1/splits/preview` previews a stock split booking (ADR-0028)

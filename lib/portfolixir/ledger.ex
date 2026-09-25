@@ -1143,6 +1143,14 @@ defmodule Portfolixir.Ledger do
   @doc """
   Updates a transaction on behalf of `actor` (FR-28). The update and its audit
   journal entry (with the pre-image as `before`) commit in one transaction.
+
+  A stored **split** row changes only its note (E25 S6, G07): a split is
+  booked through `Splits.book_split/2`, whose checks (effective date,
+  positions, a conflicting same-day ratio, the cumulative factor) and
+  fan-out a generic update would bypass, so a change of any other field — the
+  date, security, portfolio, type or ratio among them — is a changeset error
+  on that field, and a wrong split is deleted and booked again. For the same
+  reason no other booking becomes a split here.
   """
   def update_transaction(%Actor{} = actor, %Transaction{} = transaction, attrs)
       when is_map(attrs) do
@@ -1155,6 +1163,7 @@ defmodule Portfolixir.Ledger do
       changes
       |> Journal.locked_row()
       |> Transaction.changeset(attrs)
+      |> keep_split_facts()
       |> validate_cash_account_currency()
     end)
     |> Journal.record(actor,
@@ -1182,6 +1191,41 @@ defmodule Portfolixir.Ledger do
     )
     |> Repo.transaction()
     |> transaction_write_result()
+  end
+
+  # E25 S6 (#891), G07: the fields a split row may change outside the split
+  # flow. Everything else on a stored split — its date, security, portfolio,
+  # type, ratio — is a fact the split flow checked and fanned out.
+  @split_editable_fields [:notes]
+
+  defp keep_split_facts(%Ecto.Changeset{data: %Transaction{type: "split"}} = changeset) do
+    changeset.changes
+    |> Map.keys()
+    |> Enum.reject(&(&1 in @split_editable_fields))
+    |> Enum.reduce(changeset, fn field, acc ->
+      Ecto.Changeset.add_error(
+        acc,
+        field,
+        "is fixed on a booked split; only its note changes here. A wrong split is " <>
+          "deleted (DELETE /api/v1/transactions/:id, each of its rows) and booked " <>
+          "again (POST /api/v1/splits)",
+        validation: :split_fact
+      )
+    end)
+  end
+
+  defp keep_split_facts(%Ecto.Changeset{} = changeset) do
+    if Ecto.Changeset.get_change(changeset, :type) == "split" do
+      Ecto.Changeset.add_error(
+        changeset,
+        :type,
+        "cannot become split: a split is booked through the split flow " <>
+          "(POST /api/v1/splits), never made from another booking",
+        validation: :split_fact
+      )
+    else
+      changeset
+    end
   end
 
   defp transaction_write_result({:ok, %{transaction: transaction}}), do: {:ok, transaction}
