@@ -65,6 +65,9 @@ services:
       # the mapping below keeps it on the host's loopback.
       PHX_BIND_ALL: "true"
       PORT: 4000
+      # The zone that decides what "today" is; each database session takes
+      # the same zone on connect (docs/home-deployment.md).
+      TZ: ${TZ:-}
     ports:
       - "127.0.0.1:4000:4000"
     volumes:

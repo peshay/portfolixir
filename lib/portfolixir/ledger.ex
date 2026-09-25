@@ -25,6 +25,7 @@ defmodule Portfolixir.Ledger do
   alias Portfolixir.Catalog.QuoteAdjustment
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Clock
   alias Portfolixir.Fx
   alias Portfolixir.Journal
   alias Portfolixir.Ledger.PnlDecomposition
@@ -1414,7 +1415,7 @@ defmodule Portfolixir.Ledger do
       |> Enum.sort_by(& &1.security_name)
 
     %{
-      as_of: Date.utc_today(),
+      as_of: Clock.today(),
       note:
         "Positions whose derived holding quantity is negative — import " <>
           "debris from unmodeled corporate actions, listed per depot with " <>

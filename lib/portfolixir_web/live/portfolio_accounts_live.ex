@@ -17,6 +17,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
 
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
+  alias Portfolixir.Clock
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CashAccount
@@ -362,7 +363,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                     pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
                     maxlength="10"
                     name="balance[date]"
-                    value={Date.to_iso8601(Date.utc_today())}
+                    value={Date.to_iso8601(Clock.today())}
                   />
                 </label>
                 <label>

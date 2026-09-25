@@ -11,6 +11,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   alias Portfolixir.Classifications.Assignment
   alias Portfolixir.Classifications.Category
   alias Portfolixir.Classifications.Classification
+  alias Portfolixir.Clock
   alias Portfolixir.Fx.ExchangeRate
   alias Portfolixir.Journal.Entry, as: JournalEntry
   alias Portfolixir.Knowledge.SecurityEvent
@@ -509,7 +510,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       # read date.
       currency_basis: "security_currency",
       currency_basis_note: holdings_currency_basis_note(),
-      as_of: date(Date.utc_today()),
+      as_of: date(Clock.today()),
       data: Enum.map(holdings, &holding(&1, portfolio_id))
     }
   end
@@ -764,7 +765,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       # FR-13: describe the read date and the chosen basis so a consumer never
       # has to assume how totals were built. There is no stored snapshot, so
       # `as_of` documents the read date (mirrors the income report).
-      as_of: date(Date.utc_today()),
+      as_of: date(Clock.today()),
       valuation_note: valuation_note(valuation.base_currency),
       total_value: decimal(valuation.total_value),
       total_cash: decimal(valuation.total_cash),
@@ -813,7 +814,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       base_currency: valuation.base_currency,
       # FR-13: `as_of` documents the read date (no stored snapshot exists) and
       # the note states the cross-portfolio, count-once basis of the totals.
-      as_of: date(Date.utc_today()),
+      as_of: date(Clock.today()),
       valuation_note: view_valuation_note(valuation.base_currency),
       total_value: decimal(valuation.total_value),
       total_cash: decimal(valuation.total_cash),
@@ -1281,7 +1282,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       # the live valuation, so there is no stored snapshot date to report. The
       # note states the basis so a consumer never has to assume what the weights
       # and HHI are a share of.
-      as_of: date(Date.utc_today()),
+      as_of: date(Clock.today()),
       risk_note: risk_note(),
       steerable_basis: decimal(risk.steerable_basis),
       top_n: risk.top_n,
@@ -1867,7 +1868,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   """
   def tax_statement_snapshot(%StatementSnapshot{} = snapshot, opts \\ []) do
     findings = Keyword.get(opts, :findings, [])
-    today = Keyword.get(opts, :today, Date.utc_today())
+    today = Keyword.get(opts, :today, Clock.today())
 
     snapshot
     |> Map.take(StatementSnapshot.money_fields())

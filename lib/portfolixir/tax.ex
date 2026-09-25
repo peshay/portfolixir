@@ -33,6 +33,7 @@ defmodule Portfolixir.Tax do
 
   alias Ecto.Multi
   alias Portfolixir.Actor
+  alias Portfolixir.Clock
   alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Journal
   alias Portfolixir.Repo
@@ -495,7 +496,7 @@ defmodule Portfolixir.Tax do
   @doc """
   Records a statement snapshot on behalf of `actor`.
 
-  `opts[:today]` injects the clock (AR-2) and defaults to `Date.utc_today/0`;
+  `opts[:today]` injects the clock (AR-2) and defaults to `Portfolixir.Clock.today/0`;
   an `as_of` after it is rejected. When the caller supplies no
   `church_tax_rate`, the holder's profile in force at `as_of` supplies it and
   the resolved value is then **frozen on the row** — a later profile edit
@@ -504,7 +505,7 @@ defmodule Portfolixir.Tax do
   @spec create_snapshot(Actor.t(), map(), keyword()) ::
           {:ok, StatementSnapshot.t()} | {:error, Ecto.Changeset.t()}
   def create_snapshot(%Actor{} = actor, attrs, opts \\ []) when is_map(attrs) do
-    today = Keyword.get(opts, :today, Date.utc_today())
+    today = Keyword.get(opts, :today, Clock.today())
 
     Multi.new()
     |> Multi.insert(:snapshot, snapshot_changeset(attrs, today))
@@ -525,7 +526,7 @@ defmodule Portfolixir.Tax do
           {:ok, StatementSnapshot.t()} | {:error, Ecto.Changeset.t() | :not_found}
   def update_snapshot(%Actor{} = actor, %StatementSnapshot{} = snapshot, attrs, opts \\ [])
       when is_map(attrs) do
-    today = Keyword.get(opts, :today, Date.utc_today())
+    today = Keyword.get(opts, :today, Clock.today())
 
     Multi.new()
     |> Multi.update(
@@ -696,7 +697,7 @@ defmodule Portfolixir.Tax do
   statement, nothing to assess.
   """
   @spec staleness(Date.t() | nil, Date.t()) :: map() | nil
-  def staleness(as_of, today \\ Date.utc_today())
+  def staleness(as_of, today \\ Clock.today())
 
   def staleness(nil, %Date{}), do: nil
 

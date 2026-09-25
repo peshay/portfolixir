@@ -49,6 +49,7 @@ defmodule Portfolixir.Portfolios.Valuation do
   alias Portfolixir.Catalog.DataQuality
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Clock
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.PricingContext
@@ -100,7 +101,7 @@ defmodule Portfolixir.Portfolios.Valuation do
   `as_of` read date and a `note`. The map-keyed `holdings_by_security/1` stays
   the LiveView contract; this shape is what crosses the API boundary.
 
-  `as_of` is the read date (`Date.utc_today/0`): the valuation is derived on
+  `as_of` is the read date (`Portfolixir.Clock.today/0`): the valuation is derived on
   read from the latest quote/trade price and FX rate, so there is no single
   stored snapshot date to report.
 
@@ -115,7 +116,7 @@ defmodule Portfolixir.Portfolios.Valuation do
       end)
       |> Enum.sort_by(& &1.security_id)
 
-    %{currency: @hub, as_of: Date.utc_today(), note: report_note(), holdings: holdings}
+    %{currency: @hub, as_of: Clock.today(), note: report_note(), holdings: holdings}
   end
 
   @doc """

@@ -22,6 +22,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Catalog.SecurityMetrics
   alias Portfolixir.Catalog.SecurityWithMetrics
   alias Portfolixir.Classifications
+  alias Portfolixir.Clock
   alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Knowledge
   alias Portfolixir.Knowledge.Events
@@ -5183,7 +5184,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   defp range_to_dates(range, security_id) do
-    today = Date.utc_today()
+    today = Clock.today()
 
     case range do
       "1M" -> {Date.add(today, -30), today}
@@ -5243,7 +5244,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp sync_reason(reason), do: inspect(reason)
 
   defp oldest_date(security_id) do
-    case Quotes.range(security_id, ~D[1900-01-01], Date.utc_today()) do
+    case Quotes.range(security_id, ~D[1900-01-01], Clock.today()) do
       [] -> nil
       [first | _] -> first.date
     end

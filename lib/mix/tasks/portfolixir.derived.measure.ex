@@ -50,6 +50,7 @@ defmodule Mix.Tasks.Portfolixir.Derived.Measure do
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Classifications
+  alias Portfolixir.Clock
   alias Portfolixir.Derived
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
@@ -225,7 +226,7 @@ defmodule Mix.Tasks.Portfolixir.Derived.Measure do
         portfolio_id: portfolio.id,
         cash_account_id: cash.id,
         type: "deposit",
-        date: Date.add(Date.utc_today(), -365 * years - 1),
+        date: Date.add(Clock.today(), -365 * years - 1),
         gross_amount: Decimal.new(10_000_000),
         currency_code: "EUR"
       })
@@ -257,7 +258,7 @@ defmodule Mix.Tasks.Portfolixir.Derived.Measure do
   end
 
   defp seed_catalog(owner, count, years) do
-    today = Date.utc_today()
+    today = Clock.today()
 
     Enum.map(1..count, fn n ->
       {:ok, security} =
@@ -290,7 +291,7 @@ defmodule Mix.Tasks.Portfolixir.Derived.Measure do
   end
 
   defp seed_bookings(owner, portfolio, cash, depot, catalog, count, years) do
-    today = Date.utc_today()
+    today = Clock.today()
     span = 365 * years
     held = :counters.new(length(catalog), [])
 

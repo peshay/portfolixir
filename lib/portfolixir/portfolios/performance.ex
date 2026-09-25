@@ -68,6 +68,7 @@ defmodule Portfolixir.Portfolios.Performance do
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog.QuoteAdjustment
   alias Portfolixir.Catalog.Quotes
+  alias Portfolixir.Clock
   alias Portfolixir.Derived
   alias Portfolixir.Fx
   alias Portfolixir.Ledger
@@ -89,7 +90,7 @@ defmodule Portfolixir.Portfolios.Performance do
 
   Options:
     * `:period` — one of #{inspect(@periods)} (default `"max"`).
-    * `:today` — end date override (for tests); defaults to `Date.utc_today()`.
+    * `:today` — end date override (for tests); defaults to `Clock.today()`.
 
   Returns `{:ok, result}` or `{:error, :invalid_period}`. The result carries
   `ttwror`, the money-weighted `irr` (`Decimal.t() | nil`) and its
@@ -170,15 +171,15 @@ defmodule Portfolixir.Portfolios.Performance do
   # layer itself (ADR-0039's full key).
   defp entry_key(opts) do
     view = Keyword.get(opts, :view) || "unscoped"
-    "view=#{view}|today=#{Keyword.get(opts, :today, Date.utc_today())}"
+    "view=#{view}|today=#{Keyword.get(opts, :today, Clock.today())}"
   end
 
   defp view_entry_key(view_id, base, opts) do
-    "view=#{view_id || "unscoped"}|base=#{base}|today=#{Keyword.get(opts, :today, Date.utc_today())}"
+    "view=#{view_id || "unscoped"}|base=#{base}|today=#{Keyword.get(opts, :today, Clock.today())}"
   end
 
   defp scoped_analysis(portfolio_id, scope, opts) do
-    today = Keyword.get(opts, :today, Date.utc_today())
+    today = Keyword.get(opts, :today, Clock.today())
     walk_portfolio(portfolio_id, scope, base_currency(portfolio_id), today)
   end
 
@@ -252,7 +253,7 @@ defmodule Portfolixir.Portfolios.Performance do
 
       scope ->
         base = Keyword.get(opts, :base_currency, @hub)
-        today = Keyword.get(opts, :today, Date.utc_today())
+        today = Keyword.get(opts, :today, Clock.today())
 
         {:fresh, analysis} =
           Derived.fetch(
