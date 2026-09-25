@@ -9,6 +9,10 @@ defmodule Portfolixir.Portfolios.SecuritiesAccount do
   schema "securities_accounts" do
     field(:name, :string)
     field(:notes, :string)
+    # ADR-0050 §4: the names this depot was known by, which the importer
+    # resolves after the live name. Never cast from a request; written by the
+    # rename rule, the remembered remap, the removal and the merge.
+    field(:former_names, {:array, :string}, default: [])
 
     belongs_to(:portfolio, Portfolio)
     belongs_to(:cash_account, CashAccount)
