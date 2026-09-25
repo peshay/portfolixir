@@ -22,7 +22,6 @@ defmodule PortfolixirWeb.Api.V1.RenameReimportTest do
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CashAccount
-  alias Portfolixir.Portfolios.SecuritiesAccount
   alias Portfolixir.Repo
 
   setup %{conn: conn} do
@@ -49,7 +48,7 @@ defmodule PortfolixirWeb.Api.V1.RenameReimportTest do
   #
   # Acceptance criteria:
   # - After PATCH renames "Giro" to "Main account" and "Depot" to "Broker
-  #   depot", each keeps its old name as a former name, and the preview
+  #   depot", both answers list the old name in former_names, and the preview
   #   prefills the renamed account and depot for the old names.
   # - Applying the byte-identical export with that prefill creates zero
   #   transactions, cash accounts, depots and securities.
@@ -138,8 +137,8 @@ defmodule PortfolixirWeb.Api.V1.RenameReimportTest do
       |> json_response(200)
       |> Map.fetch!("data")
 
-    assert Repo.get!(CashAccount, main["id"]).former_names == ["Giro"]
-    assert Repo.get!(SecuritiesAccount, broker["id"]).former_names == ["Depot"]
+    assert main["former_names"] == ["Giro"]
+    assert broker["former_names"] == ["Depot"]
 
     %{main: main, broker: broker}
   end

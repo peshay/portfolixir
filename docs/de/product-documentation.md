@@ -428,6 +428,23 @@ gebuchte Historie wird nie umdenominiert oder verschoben. Name, Notizen und
 Liquiditätsrolle bleiben änderbar. Die API verschiebt ein Konto oder Depot
 ohnehin nie in ein anderes Portfolio.
 
+**Namen und frühere Namen** (ADR-0050 §4). Zwei Verrechnungskonten teilen nie
+einen Namen, und zwei Depots auch nicht: Ein Name, den ein anderes Konto der
+Art als Namen oder als einen seiner früheren Namen trägt, wird beim Anlegen
+und Umbenennen abgelehnt, weil ein Portfolio-Performance-Import, der ihn nennt,
+schon auf jenes Konto bucht. Ein umbenanntes Konto behält seinen bisherigen
+Namen als **früheren Namen**, sodass ein Export, der noch das alte Konto
+nennt, auf das umbenannte bucht; die Rückbenennung auf einen früheren Namen
+nimmt ihn zurück. Solange ein anderes Konto der Art den alten Namen noch als
+Namen trägt, wird der alte Name nicht behalten, und ein Import, der ihn nennt,
+bucht auf jenes andere Konto. Konten, die sich schon vor dieser Regel einen
+Namen teilten, bleiben, wie sie sind; eines davon umzubenennen beendet die
+Mehrdeutigkeit. Die früheren Namen stehen in den API- und MCP-Nutzlasten
+(`former_names`) und lassen sich dort entfernen; ein Import, der einen
+entfernten Namen noch nennt, legt dann ein neues Konto an. Die Bedienelemente
+zum Umbenennen und Entfernen auf dieser Seite folgen mit dem Zeilenmenü der
+Konten.
+
 Durchgearbeitete Beispiele — Haushalts-Aufteilung, Strategie-Ansichten mit
 eigenen SOLL-Plänen, Übersetzen von Portfolio-Performance-Gewohnheiten und
 das Ausschließen einer Position aus der Steuerung — stehen im Leitfaden
@@ -1767,11 +1784,32 @@ Buchung**, nie vorab. Ein Konto, das auf *+ Neu anlegen* zugeordnet ist und
 dessen Zeilen alle schon gebucht oder aus einem anderen Grund übersprungen
 sind, wird nicht angelegt, und der Bucket-Tag landet auf genau den Konten, die
 der Import angelegt hat. Ein importiertes Konto umzubenennen und denselben
-Export erneut abzulegen, legt kein leeres Konto unter dem alten Namen an. Ein
-Export, der sich in Portfolio Performance verändert hat (eine andere
-Nachkommagenauigkeit, eine bearbeitete Buchung), hasht anders: den alten Namen
-in der Vorschau auf das umbenannte Konto zuordnen, sonst landen seine Zeilen
-auf einem neuen Konto unter dem alten Namen.
+Export erneut abzulegen, legt kein leeres Konto unter dem alten Namen an.
+
+**Konten werden über den Namen gefunden, dann über einen früheren Namen.** Die
+Vorschau belegt jedes Verrechnungskonto und Depot der Datei mit dem Konto
+genau dieses Namens vor, sonst mit dem Konto, das ihn als früheren Namen trägt
+(siehe [Konten und Depots](#konten-und-depots)). Eine Umbenennung behält den
+bisherigen Namen, sodass auch ein Export, der sich in Portfolio Performance
+verändert hat (eine andere Nachkommagenauigkeit, eine bearbeitete Buchung),
+das umbenannte Konto findet und nichts doppelt bucht. Ein Name, den zwei
+Konten tragen, wird mit nichts vorbelegt: Die Auswahl zeigt *Entscheiden…*,
+und der Import wartet, bis das Konto gewählt ist; er rät nie. Wird ein Name
+einem Konto anderen Namens zugeordnet, wird die Zuordnung standardmäßig
+**gemerkt**: Der Name wird früherer Name dieses Kontos, und der nächste Import
+belegt ihn selbst vor. Ist der Name früherer Name eines anderen Kontos, wandert
+er beim Merken herüber; ist er der Name eines anderen Kontos, gilt die Wahl
+nur für diesen Import. Wird ein in der Vorschau zugeordnetes Konto vor dem
+Bestätigen zusammengeführt oder gelöscht, hält der Import an, bevor er etwas
+schreibt, und die Kontenzuordnung wird neu vorbelegt.
+
+Umbenennungen von vor diesem Release werden ebenfalls gemerkt: das Update
+spielt die Umbenennungen nach, die das Audit-Journal hält. Einen Namen, den
+ein neueres Konto schon trägt (etwa ein leeres Konto, das ein früherer Import
+unter dem alten Namen angelegt hat), protokolliert das Update und lässt ihn,
+wo er ist; dieses Konto in das umbenannte zusammenzuführen, behebt das. Eine
+Umbenennung, die älter ist als das Audit-Journal der Konten, hat keine Spur
+hinterlassen; ihr alter Name wird einmal von Hand zugeordnet.
 
 Eine **Umbuchung, deren beide Seiten auf dasselbe Konto oder Depot führen**
 (etwa zwei Portfolio-Performance-Konten, die auf ein Portfolixir-Konto

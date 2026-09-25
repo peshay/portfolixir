@@ -235,6 +235,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       currency_code: account.currency_code,
       notes: account.notes,
       liquidity_role: account.liquidity_role,
+      # ADR-0050 §4: the names an import still books onto this account.
+      former_names: account.former_names,
       inserted_at: timestamp(account.inserted_at),
       updated_at: timestamp(account.updated_at)
     }
@@ -253,6 +255,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       cash_account_id: account.cash_account_id,
       name: account.name,
       notes: account.notes,
+      # ADR-0050 §4: the names an import still books onto this depot.
+      former_names: account.former_names,
       cash_account: cash_account,
       inserted_at: timestamp(account.inserted_at),
       updated_at: timestamp(account.updated_at)

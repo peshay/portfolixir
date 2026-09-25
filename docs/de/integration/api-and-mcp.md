@@ -584,7 +584,17 @@ Beispiel-Antwort für Kurssynchronisierung:
   `reserve` ist ein sichtbarer, aber ausgeschlossener Topf. Nur `free_cash`-Konten
   mit nicht-negativem Saldo gehen in das verfügbare Cash der Bewertung und ihre
   `cash_quote` ein. Ein unbekannter Wert wird mit `422 Unprocessable Entity`
-  abgelehnt.
+  abgelehnt. Ein `name`, den ein anderes Geldkonto im Portfolio als Namen oder
+  als einen seiner früheren Namen trägt, antwortet `422` mit `errors.name`,
+  weil ein Import, der ihn nennt, schon auf jenes Konto bucht (ADR-0050 §4).
+- Jede Nutzlast eines Geld- oder Wertpapierkontos trägt **`former_names`**
+  (ADR-0050 §4), eine Liste von Strings: die Namen, unter denen das Konto
+  bekannt war. Der Portfolio-Performance-Import löst den Kontonamen einer Datei
+  zuerst über den aktuellen Namen auf, dann über die früheren Namen, sodass
+  eine Zeile, die einen früheren Namen nennt, auf dieses Konto bucht. Zwei
+  Konten einer Art in einem Portfolio teilen nie einen aktuellen oder früheren
+  Namen; Namen, die zwei Konten schon vor dieser Regel teilten, lösen auf keines
+  der beiden auf, und der Import wartet, bis der Betreiber eines wählt.
 - `GET /api/v1/cash_accounts/:id` liefert ein Geldkonto.
 - `PATCH /api/v1/cash_accounts/:id` aktualisiert ein Geldkonto (`name`,
   `currency_code`, `notes`, `liquidity_role`); `portfolio_id` kann nicht
@@ -594,6 +604,18 @@ Beispiel-Antwort für Kurssynchronisierung:
   `422` mit `errors.currency_code`, das die Verweise zählt, etwa
   `["is frozen once referenced (1 securities account, 12 transactions)"]`,
   und nichts wird geschrieben — gebuchte Historie wird nie umdenominiert.
+  Eine Umbenennung behält den bisherigen Namen in `former_names`, und die
+  Rückbenennung auf einen früheren Namen verbraucht ihn. Solange ein anderes
+  Geldkonto im Portfolio den bisherigen Namen noch als aktuellen Namen trägt,
+  wird der bisherige Name nicht behalten: Ein Import, der ihn nennt, bucht auf
+  jenes andere Konto (jenes Konto zusammenführen oder umbenennen, um das zu
+  ändern). Ein neuer Name, den ein anderes Geldkonto als aktuellen oder
+  früheren Namen trägt, antwortet `422` mit `errors.name`.
+- `DELETE /api/v1/cash_accounts/:id/former_names?name=` entfernt einen
+  früheren Namen, journalisiert, und antwortet mit dem Konto
+  (`portfolixir.cash_accounts.remove_former_name`). Ein Import, der '<name>'
+  noch nennt, legt dann ein neues Konto an. Ein Name, den das Konto nicht
+  trägt, antwortet `404`, ein fehlender `name` `422`.
 - `DELETE /api/v1/cash_accounts/:id` löscht ein Geldkonto, auf das keine
   Transaktion über eines ihrer beiden Konten verweist und das kein
   Wertpapierkonto verknüpft. Sonst liefert es `409 Conflict` mit
@@ -608,10 +630,21 @@ Beispiel-Antwort für Kurssynchronisierung:
 - `POST /api/v1/securities_accounts` legt ein Depot/Wertpapierkonto mit einem
   `securities_account`-Objekt an. `portfolio_id` ist optional (ADR-0024):
   fehlt sie, wird das Depot an das deterministische interne Standard-Portfolio
-  gebunden.
+  gebunden. Ein `name`, den ein anderes Depot im Portfolio als Namen oder als
+  einen seiner früheren Namen trägt, antwortet `422` mit `errors.name`
+  (ADR-0050 §4).
 - `GET /api/v1/securities_accounts/:id` liefert ein Wertpapierkonto.
 - `PATCH /api/v1/securities_accounts/:id` aktualisiert ein Wertpapierkonto
   (`name`, `notes`, `cash_account_id`); `portfolio_id` kann nicht geändert werden.
+  Eine Umbenennung behält den bisherigen Namen in `former_names` nach denselben
+  Regeln wie bei einem Geldkonto: Die Rückbenennung verbraucht ihn, ein
+  bisheriger Name, den ein anderes Depot noch als aktuellen Namen trägt, wird
+  nicht behalten, und ein Name, den ein anderes Depot als aktuellen oder
+  früheren Namen trägt, antwortet `422` mit `errors.name`.
+- `DELETE /api/v1/securities_accounts/:id/former_names?name=` entfernt einen
+  früheren Namen eines Depots, journalisiert, und antwortet mit dem Depot
+  (`portfolixir.securities_accounts.remove_former_name`). Ein Import, der
+  '<name>' noch nennt, legt dann ein neues Depot an.
 - `DELETE /api/v1/securities_accounts/:id` löscht ein Wertpapierkonto, auf das
   keine Transaktion über eines ihrer beiden Konten verweist. Sonst liefert es
   `409 Conflict` mit `errors.referenced_by`, `errors.remedy` `merge` und
@@ -1700,18 +1733,24 @@ neben der importierten Historie:
   bereits vorhandene Transaktionszeile wird als Duplikat übersprungen; kein
   Wertpapier wird doppelt angelegt; die Antwort des Anwendens meldet die
   übersprungene Anzahl.
-- **Eine Umbenennung ist sicher für den nächsten Import desselben Exports
-  (ADR-0050 §3, §4).** Der Hash wird geprüft, bevor irgendetwas aufgelöst
-  wird, und ein Verrechnungskonto oder Depot entsteht erst mit seiner ersten
-  neuen Buchung, sodass eine Umbenennung über
+- **Eine Umbenennung ist sicher für den nächsten Import (ADR-0050 §3, §4).**
+  Der Hash wird geprüft, bevor irgendetwas aufgelöst wird, und ein
+  Verrechnungskonto oder Depot entsteht erst mit seiner ersten neuen Buchung,
+  sodass eine Umbenennung über
   `PATCH /api/v1/cash_accounts/:id` oder `PATCH /api/v1/securities_accounts/:id`
   (`portfolixir.cash_accounts.update`, `portfolixir.securities_accounts.update`,
   deren Beschreibungen das sagen) kein leeres Konto unter dem alten Namen
-  hinterlässt. Die Grenze: Ein Export, der sich in Portfolio Performance
-  verändert hat, hasht anders, und seine Zeilen landen auf einem neuen Konto
-  unter dem alten Namen, es sei denn, der Betreiber ordnet den alten Namen in
-  der Vorschau zu. Eine Umbuchung, deren beide Seiten auf ein Konto führen,
-  wird übersprungen und aufgeführt, nie ein gescheiterter Import.
+  hinterlässt. Die Umbenennung behält den alten Namen in `former_names`, und der
+  Import löst den Kontonamen einer Datei zuerst über den aktuellen Namen auf,
+  dann über die früheren Namen, sodass auch ein Export, der sich in Portfolio
+  Performance verändert hat (andere Nachkommastellen, eine bearbeitete
+  Buchung), auf das umbenannte Konto bucht und nichts doppelt. Was außen
+  bleibt: Ein alter Name, den ein anderes Konto noch als aktuellen Namen trägt,
+  bucht auf jenes Konto, und eine Umbenennung, die älter ist als das
+  Audit-Journal der Konten, hat nichts zum Merken hinterlassen. Eine Zuordnung
+  in der Vorschau auf ein Konto anderen Namens wird standardmäßig als früherer
+  Name dieses Kontos gemerkt. Eine Umbuchung, deren beide Seiten auf ein Konto
+  führen, wird übersprungen und aufgeführt, nie ein gescheiterter Import.
 - **Was einen erneuten Import unverändert übersteht, gleiche ids, exakte
   `Decimal`-Werte:** Klassifizierungs-Zuordnungen; jede Zielplan-Version mit
   ihren Kategorie- und Positionszielen sowie dem Cash-Ziel; `note` und

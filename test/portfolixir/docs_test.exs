@@ -1209,7 +1209,7 @@ defmodule Portfolixir.DocsTest do
   #   rename case, the internal-transfer skip, and the collapse scoped by the
   #   file's accounts.
   # - The API page, both languages, states the rename case for the two
-  #   account update routes and tools, and its limit.
+  #   account update routes and tools.
   test "the docs state the re-import contract's importer half in English and German" do
     for {path, fragments} <- [
           {"docs/product-documentation.md",
@@ -1238,15 +1238,87 @@ defmodule Portfolixir.DocsTest do
            [
              "The hash is checked before anything resolves",
              "a cash account or depot is created only with its first new booking",
-             "leaves no empty account under the old name",
-             "the operator remaps the old name in the preview"
+             "leaves no empty account under the old name"
            ]},
           {"docs/de/integration/api-and-mcp.md",
            [
              "Der Hash wird geprüft, bevor irgendetwas aufgelöst wird",
              "ein Verrechnungskonto oder Depot entsteht erst mit seiner ersten neuen Buchung",
-             "kein leeres Konto unter dem alten Namen hinterlässt",
-             "der Betreiber ordnet den alten Namen in der Vorschau zu"
+             "kein leeres Konto unter dem alten Namen hinterlässt"
+           ]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+  end
+
+  # User story:
+  # As the operator or the agent renaming an imported account, or mapping an
+  # export's account onto one of another name,
+  # I want the handbook and the API page to say, in English and German, that
+  # the old name is kept as a former name, how the import resolves a name,
+  # what remembering a remap does and what removing a former name costs,
+  # so that a routed row is expected and a refused name is understood
+  # (ADR-0050 §4, §10; L2, #884).
+  #
+  # Acceptance criteria:
+  # - The handbook, both languages, states the name rule on Accounts &
+  #   depots, and on the import the live-then-former resolution, the drifted
+  #   re-export, the undecided ambiguous name, the remembered remap with its
+  #   move and its limit, the refreshed stale mapping and the upgrade's
+  #   backfill.
+  # - The API page, both languages, states former_names on the payloads, the
+  #   rename cases, the guard's 422 and the removal route with its cost.
+  test "the docs state former names, the name guard and the remembered remap in English and German" do
+    for {path, fragments} <- [
+          {"docs/product-documentation.md",
+           [
+             "**Names and former names** (ADR-0050 §4)",
+             "keeps its previous name as a **former name**",
+             "**Accounts are found by name, then by former name.**",
+             "a re-export that changed inside Portfolio Performance",
+             "A name two accounts carry is prefilled with nothing",
+             "**remembers** the mapping by default",
+             "remembering moves it over",
+             "the choice holds for this import only",
+             "merged or deleted before you confirm",
+             "the upgrade replays the renames the audit journal holds"
+           ]},
+          {"docs/de/product-documentation.md",
+           [
+             "**Namen und frühere Namen** (ADR-0050 §4)",
+             "behält seinen bisherigen Namen als **früheren Namen**",
+             "**Konten werden über den Namen gefunden, dann über einen früheren Namen.**",
+             "ein Export, der sich in Portfolio Performance verändert hat",
+             "Ein Name, den zwei Konten tragen, wird mit nichts vorbelegt",
+             "wird die Zuordnung standardmäßig **gemerkt**",
+             "wandert er beim Merken herüber",
+             "gilt die Wahl nur für diesen Import",
+             "vor dem Bestätigen zusammengeführt oder gelöscht",
+             "das Update spielt die Umbenennungen nach, die das Audit-Journal hält"
+           ]},
+          {"docs/integration/api-and-mcp.md",
+           [
+             "`former_names`",
+             "`DELETE /api/v1/cash_accounts/:id/former_names?name=`",
+             "`DELETE /api/v1/securities_accounts/:id/former_names?name=`",
+             "An import that still names '<name>' will then create a new account.",
+             "the previous name is not kept: an import naming it books to that other account",
+             "answers `422` with `errors.name`",
+             "resolves a file's account name by the live name first, then by the former names"
+           ]},
+          {"docs/de/integration/api-and-mcp.md",
+           [
+             "`former_names`",
+             "`DELETE /api/v1/cash_accounts/:id/former_names?name=`",
+             "`DELETE /api/v1/securities_accounts/:id/former_names?name=`",
+             "Ein Import, der '<name>' noch nennt, legt dann ein neues Konto an.",
+             "wird der bisherige Name nicht behalten: Ein Import, der ihn nennt, bucht auf jenes andere Konto",
+             "antwortet `422` mit `errors.name`",
+             "löst den Kontonamen einer Datei zuerst über den aktuellen Namen auf, dann über die früheren Namen"
            ]}
         ] do
       doc = path |> File.read!() |> String.replace(~r/\s+/, " ")

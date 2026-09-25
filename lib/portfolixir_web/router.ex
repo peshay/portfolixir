@@ -305,12 +305,19 @@ defmodule PortfolixirWeb.Router do
     patch("/cash_accounts/:id", CashAccountController, :update)
     post("/cash_accounts/:id/balance", CashAccountController, :set_balance)
     delete("/cash_accounts/:id", CashAccountController, :delete)
+    delete("/cash_accounts/:id/former_names", CashAccountController, :remove_former_name)
 
     get("/securities_accounts", SecuritiesAccountController, :index)
     post("/securities_accounts", SecuritiesAccountController, :create)
     get("/securities_accounts/:id", SecuritiesAccountController, :show)
     patch("/securities_accounts/:id", SecuritiesAccountController, :update)
     delete("/securities_accounts/:id", SecuritiesAccountController, :delete)
+
+    delete(
+      "/securities_accounts/:id/former_names",
+      SecuritiesAccountController,
+      :remove_former_name
+    )
 
     get("/buckets", BucketController, :index)
     post("/buckets", BucketController, :create)
