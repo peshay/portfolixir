@@ -191,6 +191,42 @@ defmodule Portfolixir.Lifecycle.AccountNames do
     end
   end
 
+  @doc """
+  Runs `write` — a function of the account that builds and runs the write's
+  `Ecto.Multi` — on the account **as stored** when `changeset` renames it or
+  moves it, and on `account` as given otherwise.
+
+  A rename's rule re-reads the stored former names under the lock, so the
+  write's changeset and its journal before-image must start from the same
+  stored row: a copy the caller loaded earlier would credit a former-name
+  change someone made in between to the rename. The stored row is read in
+  one transaction under the account-identity lock, then `FOR UPDATE` — the
+  order every writer of account names takes them in. `write`'s Multi result
+  (`{:ok, changes}` or `{:error, step, value, changes}`) is returned as is.
+  """
+  @spec with_stored(account(), Changeset.t(), (account() -> tuple())) :: tuple()
+  def with_stored(%schema{id: id} = account, %Changeset{} = changeset, write)
+      when schema in @schemas and is_function(write, 1) do
+    if Map.has_key?(changeset.changes, :name) or Map.has_key?(changeset.changes, :portfolio_id) do
+      fn ->
+        lock_identity([account.portfolio_id, Changeset.get_field(changeset, :portfolio_id)])
+        stored = Repo.one(from(a in schema, where: a.id == ^id, lock: "FOR UPDATE"))
+
+        case write.(stored || account) do
+          {:ok, changes} -> changes
+          {:error, step, value, changes} -> Repo.rollback({step, value, changes})
+        end
+      end
+      |> Repo.transaction()
+      |> case do
+        {:ok, changes} -> {:ok, changes}
+        {:error, {step, value, changes}} -> {:error, step, value, changes}
+      end
+    else
+      write.(account)
+    end
+  end
+
   defp guard_new(%Changeset{data: %schema{}} = changeset) do
     portfolio_id = Changeset.get_field(changeset, :portfolio_id)
     lock_identity(portfolio_id, changeset.repo)
