@@ -1181,7 +1181,7 @@ const policyVersionSchema = {
     note: {
       type: "string",
       maxLength: FREE_TEXT_MAX,
-      description: `the operator's words, never parsed. ${capNote(FREE_TEXT_MAX)}`
+      description: `the rule's words, never parsed. ${capNote(FREE_TEXT_MAX)}`
     },
     valid_from: {
       type: "string",
@@ -1245,7 +1245,7 @@ const policyRuleCreateSchema = {
       additionalProperties: false,
       required: ["name", "version"],
       properties: {
-        name: { type: "string", description: "the operator's name for the rule" },
+        name: { type: "string", description: "the rule's name; a label, never parsed" },
         view_id: {
           type: "integer",
           minimum: 1,
@@ -1294,7 +1294,7 @@ const policyRuleRenameSchema = {
       type: "string",
       minLength: 1,
       maxLength: 255,
-      description: "the operator's new name for the rule; a label, never parsed"
+      description: "the rule's new name; a label, never parsed"
     }
   }
 } as const;
@@ -2494,6 +2494,15 @@ const POLICY_REIMPORT_GUARANTEE =
   "and categories and views are Portfolixir's own. A security, category, classification or view " +
   "a rule reads cannot be deleted: the delete answers 409 naming the rules.";
 
+// E25 S7, G30 (T-8): an API token, the agent's own among them, writes rules
+// as the Risk page does, so no description presents a rule as the
+// operator's; each points to the journal for who wrote it.
+const POLICY_RULE_AUTHOR =
+  " Every rule here is a stored rule, whoever wrote it: the operator on the Risk page or an " +
+  "API token, the agent's own among them. Who wrote a rule or a version is in the audit " +
+  "journal (portfolixir.journal.list with resource_type policy_rule or policy_rule_version; " +
+  "actor_type owner_ui is the Risk page, api_token_rw an API token).";
+
 const notesListSchema = {
   type: "object",
   additionalProperties: false,
@@ -3078,36 +3087,36 @@ const declaredTools: DeclaredTool[] = [
   ),
   tool(
     "portfolixir.policy_rules.list",
-    "The operator's own rules",
-    "The operator's policy rules for a portfolio (ADR-0049): caps, floors and bands on a figure the product already serves — a weight, a drift, the HHI, the portfolio volatility or maximum drawdown — stored as objects instead of prose in a prompt. READ THE STANDARD HERE rather than restating it from memory: the rule in force is the one the operator set. Each rule carries status (in_force | scheduled | retired, relative to as_of), version_in_force (the predicate: subject_type and its ids, measure, kind, threshold or lower/upper as Decimal strings, window, severity, note, valid_from, valid_until) and next_version when one is scheduled. as_of (default today) answers \"what was the standard on date D\"; include_retired=true adds retired rules; view narrows to one evaluation context (default: every context — view_id null is the portfolio-wide one); since is the row delta (a rule counts as changed when its row or any version changed). Whether a rule holds is the findings read, not this one." + POLICY_REIMPORT_GUARANTEE,
+    "Stored policy rules",
+    "The stored policy rules for a portfolio (ADR-0049): caps, floors and bands on a figure the product already serves — a weight, a drift, the HHI, the portfolio volatility or maximum drawdown — stored as objects instead of prose in a prompt. READ THE RULES HERE rather than restating them from memory: the rule in force is the one stored. Each rule carries status (in_force | scheduled | retired, relative to as_of), version_in_force (the predicate: subject_type and its ids, measure, kind, threshold or lower/upper as Decimal strings, window, severity, note, valid_from, valid_until) and next_version when one is scheduled. as_of (default today) answers \"what was the standard on date D\"; include_retired=true adds retired rules; view narrows to one evaluation context (default: every context — view_id null is the portfolio-wide one); since is the row delta (a rule counts as changed when its row or any version changed). Whether a rule holds is the findings read, not this one." + POLICY_RULE_AUTHOR + POLICY_REIMPORT_GUARANTEE,
     policyRulesListSchema,
     policyRulesListZ
   ),
   tool(
     "portfolixir.policy_rules.get",
     "One rule and its whole history",
-    "One policy rule with its WHOLE version history, oldest first (ADR-0049 §4): each version is the standard of its own period [valid_from, valid_until], so a raised cap leaves the old cap readable as what applied before. Use it to answer why a finding changed between two runs." + POLICY_REIMPORT_GUARANTEE,
+    "One policy rule with its WHOLE version history, oldest first (ADR-0049 §4): each version is the standard of its own period [valid_from, valid_until], so a raised cap leaves the old cap readable as what applied before. Use it to answer why a finding changed between two runs." + POLICY_RULE_AUTHOR + POLICY_REIMPORT_GUARANTEE,
     idSchema,
     idZ
   ),
   tool(
     "portfolixir.policy_rules.create",
     "Store a rule",
-    "Create a policy rule with its first version (ADR-0049). The subject must fit the measure: weight is read for a security, a category, cash or a view (a view is how a bucket is capped: a weight cap on the view that selects it, evaluated portfolio-wide); drift for a category or a security (a security also names the classification whose active plan carries its position target); hhi, volatility and max_drawdown for the basis, the last two with a window (30d | 90d | 365d). kind cap is breached STRICTLY above threshold, floor strictly below, band outside [lower, upper] — the risk lens's own reading of a line. Thresholds are Decimal strings on the measure's scale: weight percent 0-100, drift percentage points -100..100, hhi 0-10000, volatility percent >= 0, max_drawdown percent -100..0. view_id sets the evaluation context (absent = portfolio-wide). valid_from defaults to today and is never earlier: a rule is never replayed over a period that did not have it. PERMANENT once in force: from its valid_from on, a version is never changed or deleted, the rule can only be retired, and portfolixir.policy_rules.delete answers only while none of its versions has been in force. Journaled under the API token. A rule is the operator's standard, never an instruction: nothing evaluates it into a trade.",
+    "Create a policy rule with its first version (ADR-0049). The subject must fit the measure: weight is read for a security, a category, cash or a view (a view is how a bucket is capped: a weight cap on the view that selects it, evaluated portfolio-wide); drift for a category or a security (a security also names the classification whose active plan carries its position target); hhi, volatility and max_drawdown for the basis, the last two with a window (30d | 90d | 365d). kind cap is breached STRICTLY above threshold, floor strictly below, band outside [lower, upper] — the risk lens's own reading of a line. Thresholds are Decimal strings on the measure's scale: weight percent 0-100, drift percentage points -100..100, hhi 0-10000, volatility percent >= 0, max_drawdown percent -100..0. view_id sets the evaluation context (absent = portfolio-wide). valid_from defaults to today and is never earlier: a rule is never replayed over a period that did not have it. PERMANENT once in force: from its valid_from on, a version is never changed or deleted, the rule can only be retired, and portfolixir.policy_rules.delete answers only while none of its versions has been in force. Journaled under the API token. A stored rule is a line to measure against, never an instruction: nothing evaluates it into a trade." + POLICY_RULE_AUTHOR,
     policyRuleCreateSchema,
     policyRuleCreateZ
   ),
   tool(
     "portfolixir.policy_rules.add_version",
     "Change a rule (a new version)",
-    "The edit of a policy rule: adds a new version from valid_from (default today, never earlier), and the previous version is closed the day before — both stay readable, so the standard in force on any date is a read. PERMANENT once in force: a version that has been in force is never changed or deleted. A version that is only scheduled (valid_from still in the future) is replaced by adding a version from the same or an earlier future date. The version carries the whole predicate (see portfolixir.policy_rules.create for the matrix and scales). Holds the rule while it reads its versions, so it takes its turn with a concurrent retirement; a rule deleted meanwhile answers 404. Journaled under the API token.",
+    "The edit of a policy rule: adds a new version from valid_from (default today, never earlier), and the previous version is closed the day before — both stay readable, so the standard in force on any date is a read. PERMANENT once in force: a version that has been in force is never changed or deleted. A version that is only scheduled (valid_from still in the future) is replaced by adding a version from the same or an earlier future date. The version carries the whole predicate (see portfolixir.policy_rules.create for the matrix and scales). Holds the rule while it reads its versions, so it takes its turn with a concurrent retirement; a rule deleted meanwhile answers 404. Journaled under the API token." + POLICY_RULE_AUTHOR,
     policyRuleAddVersionSchema,
     policyRuleAddVersionZ
   ),
   tool(
     "portfolixir.policy_rules.rename",
     "Rename a rule (no new version)",
-    "Rename a policy rule (ADR-0049 §4 as amended): the name is the operator's label on the rule, never parsed, so a rename is a rule-level edit OUTSIDE the versioning — it creates NO version, and the versions do not change: each keeps its predicate and its period, and the new name reads for the rule with all its versions. Use it when a raised or lowered line has left the name saying the old figure; retiring and re-creating the rule would split its history. Journaled under the API token; the journal keeps the previous name. Allowed on a retired rule; names need not be unique; the context (portfolio, view) never changes. Only the name is accepted: a new line, subject or severity is a new version (portfolixir.policy_rules.add_version), and the API refuses predicate or context fields sent here.",
+    "Rename a policy rule (ADR-0049 §4 as amended): the name is a label on the rule, never parsed, so a rename is a rule-level edit OUTSIDE the versioning — it creates NO version, and the versions do not change: each keeps its predicate and its period, and the new name reads for the rule with all its versions. Use it when a raised or lowered line has left the name saying the old figure; retiring and re-creating the rule would split its history. Journaled under the API token; the journal keeps the previous name. Allowed on a retired rule; names need not be unique; the context (portfolio, view) never changes. Only the name is accepted: a new line, subject or severity is a new version (portfolixir.policy_rules.add_version), and the API refuses predicate or context fields sent here.",
     policyRuleRenameSchema,
     policyRuleRenameZ
   ),
@@ -3128,7 +3137,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.portfolios.policy_findings",
     "Did anything cross a line?",
-    "The operator's policy rules in force TODAY for one evaluation context (ADR-0049), evaluated at read over the figures the product already serves — one call instead of re-deriving weights, drift or HHI yourself. One finding per rule, sorted breached, undetermined, ok: state breached (strictly beyond the line), ok, or undetermined — the figure could not be read (reason insufficient_data with the metric's required and observations, undefined, no_active_plan, no_target, empty_basis, unvalued, subject_not_found, not_measured), which is NEVER a pass and is never filtered out by default. Each finding carries the rule's words (rule_name, subject, measure, kind, severity, note), the thresholds and the measured value as Decimal strings on the measure's scale, the signed distance to the nearest line, and its computation_basis naming the read it used; the payload carries summary (counts per state) and computation_basis. status narrows (status=breached is the retrievable alarm list); view selects the context. PULL ONLY: nothing is pushed anywhere. A finding is the operator's own rule applied to a figure and carries no action — it neither proposes nor sizes a trade." + POLICY_REIMPORT_GUARANTEE,
+    "The stored policy rules in force TODAY for one evaluation context (ADR-0049), evaluated at read over the figures the product already serves — one call instead of re-deriving weights, drift or HHI yourself. One finding per rule, sorted breached, undetermined, ok: state breached (strictly beyond the line), ok, or undetermined — the figure could not be read (reason insufficient_data with the metric's required and observations, undefined, no_active_plan, no_target, empty_basis, unvalued, subject_not_found, not_measured), which is NEVER a pass and is never filtered out by default. Each finding carries the rule's words (rule_name, subject, measure, kind, severity, note), the thresholds and the measured value as Decimal strings on the measure's scale, the signed distance to the nearest line, and its computation_basis naming the read it used; the payload carries summary (counts per state) and computation_basis. status narrows (status=breached is the retrievable alarm list); view selects the context. PULL ONLY: nothing is pushed anywhere. A finding is a stored rule applied to a figure and carries no action — it neither proposes nor sizes a trade." + POLICY_REIMPORT_GUARANTEE,
     policyFindingsSchema,
     policyFindingsZ
   ),

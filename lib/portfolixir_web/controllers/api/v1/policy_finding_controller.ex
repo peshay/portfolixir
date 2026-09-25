@@ -26,7 +26,7 @@ defmodule PortfolixirWeb.Api.V1.PolicyFindingController do
   alias PortfolixirWeb.Api.V1.PolicyJSON
   alias PortfolixirWeb.Api.V1.ViewParam
 
-  @findings_note "A finding is the operator's own rule applied to a figure the product already " <>
+  @findings_note "A finding is a stored rule applied to a figure the product already " <>
                    "serves, evaluated today: breached (strictly beyond the line), ok, or " <>
                    "undetermined (the figure could not be read — never a pass). It names the " <>
                    "rule, the measured value and the signed distance to the line, and carries " <>

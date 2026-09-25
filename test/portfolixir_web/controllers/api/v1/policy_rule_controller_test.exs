@@ -83,6 +83,34 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleControllerTest do
     assert [%{"threshold" => "10"}] = shown["versions"]
   end
 
+  # User story (E25 S7, G30, the wording half; T-8):
+  # As the operator whose agent's own token can store policy rules,
+  # I want the rules and findings reads to call a rule a stored rule and to
+  # point to the audit journal for who wrote it,
+  # so that a rule the agent wrote is not presented as my own standard.
+  #
+  # Acceptance criteria:
+  # - Neither the list's rules_note nor the findings' findings_note calls a
+  #   rule the operator's.
+  # - The rules_note names the audit journal as where a rule's author is read.
+  test "the notes call a rule a stored rule and point to the journal for its author",
+       %{conn: conn, world: world} do
+    %{"data" => list} =
+      conn |> get("/api/v1/portfolios/#{world.portfolio.id}/policy_rules") |> json_response(200)
+
+    refute list["rules_note"] =~ "operator's"
+    assert list["rules_note"] =~ "A rule is a stored standard"
+    assert list["rules_note"] =~ "the audit journal"
+
+    %{"data" => findings} =
+      conn
+      |> get("/api/v1/portfolios/#{world.portfolio.id}/policy_findings")
+      |> json_response(200)
+
+    refute findings["findings_note"] =~ "operator's"
+    assert findings["findings_note"] =~ "A finding is a stored rule"
+  end
+
   # Acceptance criteria (ADR-0049 §4, §8):
   # - POST .../versions is the edit: it adds a version from today and the
   #   previous one is closed the day before, both readable.
