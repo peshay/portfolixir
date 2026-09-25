@@ -30,6 +30,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias Portfolixir.Portfolios.Valuation
   alias Portfolixir.Settings
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.BenchmarkScope
   alias PortfolixirWeb.ClassificationName
   alias PortfolixirWeb.ColumnPicker
   alias PortfolixirWeb.Components.SecurityChart
@@ -2713,10 +2714,12 @@ defmodule PortfolixirWeb.PortfolioLive do
     end
   end
 
+  # The plug's one bound (E25 S4, F06), so the page resolves exactly the
+  # selectors the plug would store.
   defp resolve_benchmark_rate(rate) do
-    case Decimal.parse(rate) do
-      {%Decimal{} = rate, ""} -> if Benchmark.valid_rate?(rate), do: [{:rate, rate}], else: []
-      _malformed -> []
+    case BenchmarkScope.parse_rate(rate) do
+      {:ok, rate} -> [{:rate, rate}]
+      :error -> []
     end
   end
 

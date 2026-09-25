@@ -1279,7 +1279,10 @@ to two benchmarks: a security marked as a benchmark on the Securities page
 (an index proxied by an ETF, gold by an ETC, quoted through the ordinary
 sync) or a fixed annual rate typed as a percentage (the savings-account
 alternative; in this version also how inflation is expressed). The choice
-rides in the URL and is remembered like the active view. Two comparisons
+rides in the URL and is remembered like the active view; a rate is kept
+only when the comparison can use it exactly (between −99.9999 % and 1000 %
+p.a., with at most 15 decimal places as a fraction), and a remembered rate
+that no longer meets that is dropped on the next visit. Two comparisons
 appear, both the ones Portfolio Performance shows. **Bought once** — the
 benchmark rebased to the period start, drawn as a dashed overlay on the
 TTWROR chart with its own legend and in the chart tooltip — answers whether
