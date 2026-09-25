@@ -617,6 +617,12 @@ added migrations, restore the database backup taken before that upgrade.
   connect with its CSRF token filtered out, warnings and errors. The database
   queries, the parameters of each request and page event, and the session
   contents that the `debug` level writes stay out of the log.
+- Every request and every open page runs in its own process under a heap
+  cap of 512 MiB, counting the large binaries it holds: a request that grows
+  past it fails alone, logged, instead of exhausting the machine's memory.
+  No ordinary read or write comes near it; `max_heap_bytes` under
+  `PortfolixirWeb.HeapCap` in `config/config.exs` changes it. The in-memory
+  cache of derived figures keeps to its own budget (5000 entries, 128 MiB).
 - The release starts without Erlang distribution, so it opens no listener
   towards the other containers: `bin/portfolixir eval` works inside the
   container, `remote` and `rpc` do not.
