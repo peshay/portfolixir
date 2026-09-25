@@ -650,37 +650,10 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
 
     cond do
       socket.assigns.editing ->
-        attrs = to_overrides(params)
-
-        case Catalog.update_security(Actor.owner_ui(), socket.assigns.editing, attrs) do
-          {:ok, security} ->
-            notify_parent(socket, {:updated, security})
-            {:noreply, socket}
-
-          # Deleted in the meantime (E25 S6, F49).
-          {:error, :not_found} ->
-            {:noreply, assign(socket, :errors, %{"name" => gettext("Not found")})}
-
-          {:error, changeset} ->
-            {:noreply, assign(socket, :errors, changeset_errors(changeset))}
-        end
+        update_security(socket, socket.assigns.editing, params)
 
       socket.assigns.conflict ->
-        existing = socket.assigns.conflict
-        attrs = to_overrides(params)
-
-        case Catalog.update_security(Actor.owner_ui(), existing, attrs) do
-          {:ok, security} ->
-            notify_parent(socket, {:updated, security})
-            {:noreply, socket}
-
-          # Deleted in the meantime (E25 S6, F49).
-          {:error, :not_found} ->
-            {:noreply, assign(socket, :errors, %{"name" => gettext("Not found")})}
-
-          {:error, changeset} ->
-            {:noreply, assign(socket, :errors, changeset_errors(changeset))}
-        end
+        update_security(socket, socket.assigns.conflict, params)
 
       is_nil(socket.assigns.selected_result) ->
         # Manual entry (#491): create straight from the form, no provider
@@ -834,6 +807,23 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
     |> Map.new()
   rescue
     ArgumentError -> %{}
+  end
+
+  # Editing a security, or merging the online fields into the one that
+  # conflicts: the same write and the same answers.
+  defp update_security(socket, security, params) do
+    case Catalog.update_security(Actor.owner_ui(), security, to_overrides(params)) do
+      {:ok, updated} ->
+        notify_parent(socket, {:updated, updated})
+        {:noreply, socket}
+
+      # Deleted in the meantime (E25 S6, F49).
+      {:error, :not_found} ->
+        {:noreply, assign(socket, :errors, %{"name" => gettext("Not found")})}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, :errors, changeset_errors(changeset))}
+    end
   end
 
   defp changeset_errors(changeset) do
