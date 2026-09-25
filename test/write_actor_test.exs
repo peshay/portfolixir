@@ -22,7 +22,8 @@ defmodule Portfolixir.WriteActorTest do
     Portfolixir.Imports => "lib/portfolixir/imports.ex",
     Portfolixir.Buckets => "lib/portfolixir/buckets.ex",
     Portfolixir.Tax => "lib/portfolixir/tax.ex",
-    Portfolixir.Knowledge => "lib/portfolixir/knowledge.ex"
+    Portfolixir.Knowledge => "lib/portfolixir/knowledge.ex",
+    Portfolixir.Lifecycle => "lib/portfolixir/lifecycle.ex"
   }
 
   # Contexts whose actor-first refactor + table arming has landed (leaf-first:
@@ -35,7 +36,9 @@ defmodule Portfolixir.WriteActorTest do
     Portfolixir.Ledger,
     Portfolixir.Classifications,
     Portfolixir.Tax,
-    Portfolixir.Knowledge
+    Portfolixir.Knowledge,
+    # ADR-0050: born actor-first, its two tables armed at creation.
+    Portfolixir.Lifecycle
   ]
 
   # Migration-only data backfills: arity locked by immutable migrations (which run
@@ -96,7 +99,11 @@ defmodule Portfolixir.WriteActorTest do
                   # the journal records WHO changed a standard while the
                   # versions record WHAT it was.
                   "policy_rules",
-                  "policy_rule_versions"
+                  "policy_rule_versions",
+                  # ADR-0050 §12: the merge records, append-only and armed in
+                  # the migration that creates them — the journal records who
+                  # merged.
+                  "merge_records"
                 ])
 
   # Derived-value tables (ADR-0039): materializations of ledger-derived reads,
