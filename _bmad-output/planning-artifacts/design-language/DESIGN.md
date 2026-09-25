@@ -951,12 +951,16 @@ set-balance dialog on Accounts & depots.
 - **Shown in the page's locale, never grouped.** A German page shows a decimal
   comma (`1664,40`), an English page a point. The helper swaps the separator and
   nothing else: the caller owns the digits — a derived settlement amount keeps two
-  places, a derived rate six, and a stored figure opens with its trailing zeros
-  dropped (`45,6`, `12000`) and every other digit as stored. **Money fields are
-  not padded** (the board's open point, decided here): a field is for editing, a
-  trailing zero carries nothing, and one rule for every stored figure beats a
-  second one per field kind. What the operator typed renders back exactly as
-  typed — a refusal never rewrites `2,5` into `2.5`.
+  places, a derived rate is rounded to six and trimmed, and a stored figure opens
+  with its trailing zeros dropped (`45,6`, `12000`) and every other digit as
+  stored. **Money fields are not padded** (the board's open point, decided here):
+  a field is for editing, and a trailing zero carries nothing. **One exception,
+  so a field never changes its form mid-edit: a field the drawer derives opens
+  in the form its derivation writes.** The settlement amount opens at two places
+  (`1664,40`, as a typed rate derives it), padded but never rounded — a stored
+  `1664,4035` keeps its places; the rate needs nothing, since its derivation
+  trims too (review round, 2026-09-25). What the operator typed renders back
+  exactly as typed — a refusal never rewrites `2,5` into `2.5`.
 - **No thousands separator in a field, ever.** Tables and running text keep
   grouping (`Format.decimal/3`, `1.664,40`): a figure there is read, not edited
   and read back. A field's value *is* read back, and a grouped `1.664` would

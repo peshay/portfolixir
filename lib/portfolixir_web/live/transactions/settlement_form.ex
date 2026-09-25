@@ -297,7 +297,7 @@ defmodule PortfolixirWeb.Transactions.SettlementForm do
       _booked_in_the_security_currency ->
         %{
           "settlement_mode" => "security",
-          "settlement_amount" => plain(transaction.settlement_amount),
+          "settlement_amount" => amount_form(transaction.settlement_amount),
           "settlement_fx_rate" =>
             transaction.settlement_fx_rate && plain(transaction.settlement_fx_rate),
           "settlement_source" => "amount"
@@ -325,6 +325,18 @@ defmodule PortfolixirWeb.Transactions.SettlementForm do
   end
 
   defp plain(decimal), do: decimal |> Decimal.normalize() |> DecimalInput.value()
+
+  # The settlement amount opens in the form its derivation writes (#869
+  # review round): two places, as `put_amount/2` rounds, so the field does
+  # not switch from "1664,4" to "1664,40" once a rate is typed. Only padded,
+  # never rounded: a stored figure with more places keeps them.
+  defp amount_form(decimal) do
+    normalized = Decimal.normalize(decimal)
+
+    normalized
+    |> Decimal.round(max(-normalized.exp, 2))
+    |> DecimalInput.value()
+  end
 
   # The ISO date in running text must not break at its hyphens in the narrow
   # drawer; a non-breaking hyphen (U+2011) keeps it one word.
