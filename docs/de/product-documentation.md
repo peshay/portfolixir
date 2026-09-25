@@ -1653,7 +1653,13 @@ damit eine erfasste Zeile mit dem Papier vergleichbar bleibt.
 
 **Die Seite ist eine Budget-Anzeige plus Prüfliste.** Steuerpflichtige Person
 und Steuerjahr sind segmentierte Steuerelemente (der Bereich steht in der
-URL, `?holder=…&year=…`). Das Budget erscheint als Füllstandsanzeige: der
+URL, `?holder=…&year=…`). Eine steuerpflichtige Person oder ein Institut ist
+eine Identität, wie auch immer sie getippt wurde: Der Name wird
+zusammengesetzt, ohne unsichtbare Zeichen und mit einfachen Leerzeichen
+gespeichert und ohne Rücksicht auf Groß- und Kleinschreibung abgeglichen.
+„Anna Muster" und „ANNA MUSTER" sind daher ein Eintrag im Steuerelement mit
+einem Budget, und eine als „Bank Eins" und als „bank eins" erfasste Bank ist
+darin ein Institut (E25 S6). Das Budget erscheint als Füllstandsanzeige: der
 verbleibende Betrag als Wert, die Ausschöpfung des Freistellungsauftrags als
 Füllstand ohne Schwellenfärbung, Stichtag und erfasste Institute auf der
 Basiszeile, daneben die Zusammensetzung — Verlusttopf Aktien, verbleibender

@@ -312,10 +312,10 @@ defmodule PortfolixirWeb.TaxLive do
     end
   end
 
-  # The taxpayers with a recorded statement, plus the one in scope.
-  defp holders(holder) do
-    [holder | Tax.list_snapshot_holders()] |> Enum.uniq() |> Enum.sort()
-  end
+  # The taxpayers with a recorded statement, one entry per identity as the
+  # database folds it, with the one in scope in its identity's place (E25 S6,
+  # G22).
+  defp holders(holder), do: Tax.holder_choices(holder)
 
   # The years with a recorded statement for the taxpayer, the two years a
   # statement can currently arrive for, and the one in scope.

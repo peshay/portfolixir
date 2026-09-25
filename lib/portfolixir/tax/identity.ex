@@ -10,27 +10,55 @@ defmodule Portfolixir.Tax.Identity do
   missing Freistellungsauftrag that is not missing — a wrong advisory that looks
   like a real finding.
 
-  The rule is therefore fixed here once: normalise on write (trim, collapse
-  internal whitespace runs, reject empty), store **case-preserving** because the
-  operator's capitalisation is theirs, and match **case-folded** — the unique
-  indexes are on `lower(...)`, so lookups have to fold the same way.
+  The rule is therefore fixed here once: normalise on write (compose, drop
+  invisible format characters, collapse every run of Unicode spaces, reject
+  empty), store **case-preserving** because the operator's capitalisation is
+  theirs, and match **case-folded by the database** — the unique indexes are
+  on `lower(...)`, and every lookup, roll-up and enumeration folds with that
+  same `lower()` on both sides (`folded/1`), never with an Elixir fold that
+  can disagree with it (E25 S6, G21, G22).
   """
 
+  alias Portfolixir.Input.Text
+
+  # Every Unicode space separator (Zs: the no-break, figure, narrow and
+  # ideographic spaces among them) and every other white-space character.
+  @spaces ~r/[\s\p{Zs}]+/u
+
   @doc """
-  Trims and collapses internal whitespace runs to a single space.
+  Composes to NFC, removes Unicode format characters (zero-width spaces and
+  joiners, the byte-order mark, the soft hyphen, bidi marks), and collapses
+  every run of Unicode spaces to a single space, trimmed. A value that was
+  only such characters becomes `""`, which the changesets' required check
+  refuses as blank.
 
   Only ever called from `update_change/3`, which runs after a successful cast —
-  a non-string never reaches here, it is already a changeset type error.
+  a non-string never reaches here, it is already a changeset type error. A
+  string that is not valid UTF-8 is returned unchanged for the text check to
+  refuse.
   """
   @spec normalize(String.t()) :: String.t()
   def normalize(value) when is_binary(value) do
-    value |> String.split() |> Enum.join(" ")
+    if String.valid?(value) do
+      value
+      |> Text.strip_format_characters()
+      |> :unicode.characters_to_nfc_binary()
+      |> String.split(@spaces, trim: true)
+      |> Enum.join(" ")
+    else
+      value
+    end
   end
 
   @doc """
-  The case-folded form used for matching. Mirrors the `lower(...)` expression
-  in the unique indexes.
+  The database's fold of an identity column or value inside an Ecto query:
+  the `lower(...)` the unique indexes are built on. Both sides of a match,
+  and every grouping key, are folded here, so the database's case rule is
+  the only one.
   """
-  @spec fold(String.t()) :: String.t()
-  def fold(value) when is_binary(value), do: value |> normalize() |> String.downcase()
+  defmacro folded(expr) do
+    quote do
+      fragment("lower(?)", unquote(expr))
+    end
+  end
 end

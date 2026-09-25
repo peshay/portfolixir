@@ -73,18 +73,20 @@ defmodule Portfolixir.Tax.Budget do
   Rolls the latest snapshot per institution up to one `(holder, tax_year)`
   view.
 
-  `snapshots` may contain several as-ofs per institution; only the latest per
-  institution is counted. `expected_institutions` are the institutions the
-  holder has a configured allowance order for — an institution present there
-  and missing from `snapshots` makes the roll-up incomplete, and it says so
-  rather than quietly summing a partial picture.
+  `latest` carries exactly one snapshot per institution — the latest — and
+  `missing_institutions` the institutions the holder has a configured
+  allowance order for with no snapshot for the year. Which rows are the same
+  institution is the database's decision (E25 S6, G21): the caller
+  (`Portfolixir.Tax.holder_summary/2`) groups both by the folded key the
+  unique indexes use, so nothing here folds a name. A missing institution
+  makes the roll-up incomplete, and it says so rather than quietly summing a
+  partial picture.
   """
   @spec roll_up([StatementSnapshot.t()], [String.t()], Parameters.t() | nil, String.t()) ::
           roll_up()
-  def roll_up(snapshots, expected_institutions, parameters, assessment_type) do
-    latest = latest_per_institution(snapshots)
+  def roll_up(latest, missing_institutions, parameters, assessment_type) do
     covered = Enum.map(latest, & &1.institution)
-    missing = missing_institutions(expected_institutions, covered)
+    missing = Enum.sort(missing_institutions)
 
     %{
       holder: holder_of(latest),
@@ -101,20 +103,6 @@ defmodule Portfolixir.Tax.Budget do
       complete?: missing == [],
       missing_institutions: missing
     }
-  end
-
-  defp latest_per_institution(snapshots) do
-    snapshots
-    |> Enum.group_by(&String.downcase(&1.institution))
-    |> Enum.map(fn {_key, group} -> Enum.max_by(group, & &1.as_of, Date) end)
-  end
-
-  defp missing_institutions(expected, covered) do
-    folded = MapSet.new(covered, &String.downcase/1)
-
-    expected
-    |> Enum.reject(&MapSet.member?(folded, String.downcase(&1)))
-    |> Enum.sort()
   end
 
   # The roll-up is only as current as its oldest component: quoting the newest
