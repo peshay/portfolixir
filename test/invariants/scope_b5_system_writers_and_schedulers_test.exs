@@ -24,8 +24,8 @@ defmodule Portfolixir.Invariants.ScopeB5SystemWritersAndSchedulersTest do
   #   with a reason; a new one fails until registered, and a registered one
   #   that no longer exists fails as stale.
   # - Every module in lib/ that schedules its own wake-up (a timer message, an
-  #   interval, a sleep loop) is registered with a reason, under the same
-  #   two-way rule.
+  #   interval, a sleep loop, a GenServer timeout, a `receive ... after`, a
+  #   cron library) is registered with a reason, under the same two-way rule.
   # - The audit journal's `scenario_id` (ADR-0017's marker for persisted
   #   what-if writes, FR-27, level (d)) stays dormant: only the registered
   #   modules name it, no call passes it, no table is named for a scenario and
@@ -227,6 +227,64 @@ defmodule Portfolixir.Invariants.ScopeB5SystemWritersAndSchedulersTest do
                MapSet.new(["Portfolixir.SyntheticPoller", "Portfolixir.SyntheticPoller.Loop"])
     end
 
+    test "a process that wakes itself by timeout, receive-after or a cron library is found" do
+      source = """
+      defmodule Portfolixir.SyntheticTimeout do
+        use GenServer
+        @interval 3_600_000
+        def init(state), do: {:ok, state, 3_600_000}
+        def handle_info(:timeout, state), do: {:noreply, state, @interval}
+      end
+
+      defmodule Portfolixir.SyntheticReplyTimeout do
+        def handle_call(:x, _from, state), do: {:reply, :ok, state, :timer.hours(1)}
+      end
+
+      defmodule Portfolixir.SyntheticLoop do
+        def loop do
+          receive do
+            :stop -> :ok
+          after
+            60_000 -> loop()
+          end
+        end
+      end
+
+      defmodule Portfolixir.SyntheticCron do
+        use Quantum, otp_app: :portfolixir
+      end
+
+      defmodule Portfolixir.SyntheticObanCron do
+        def plugins, do: [{Oban.Plugins.Cron, crontab: [{"@daily", Worker}]}]
+      end
+
+      defmodule Portfolixir.SyntheticDrain do
+        def drain do
+          receive do
+            _message -> drain()
+          after
+            0 -> :ok
+          end
+        end
+      end
+
+      defmodule Portfolixir.SyntheticHibernate do
+        def init(state), do: {:ok, state, :hibernate}
+        def handle_info(:x, state), do: {:noreply, state, {:continue, :more}}
+        def fetch(id), do: {:ok, id, "label"}
+      end
+      """
+
+      assert MapSet.new(self_scheduling(source)) ==
+               MapSet.new([
+                 "Portfolixir.SyntheticTimeout",
+                 "Portfolixir.SyntheticReplyTimeout",
+                 "Portfolixir.SyntheticLoop",
+                 "Portfolixir.SyntheticCron",
+                 "Portfolixir.SyntheticObanCron"
+               ])
+    end
+
     test "a synthetic scenario write is caught" do
       source = """
       defmodule Portfolixir.SyntheticWhatIf do
@@ -334,7 +392,9 @@ defmodule Portfolixir.Invariants.ScopeB5SystemWritersAndSchedulersTest do
   defp label([label | _]) when is_binary(label), do: label
   defp label(_computed), do: :computed
 
-  # Every module that schedules its own wake-up.
+  # Every module that schedules its own wake-up: a timer call, a GenServer
+  # callback returning a timeout (`{:ok, state, 3_600_000}`), a `receive` with
+  # a non-zero `after`, or a cron library (`use Quantum`, Oban's cron plugin).
   defp self_scheduling(source) do
     source
     |> module_hits(fn
@@ -344,12 +404,62 @@ defmodule Portfolixir.Invariants.ScopeB5SystemWritersAndSchedulersTest do
       {{:., _, [module, fun]}, _, _} when module in [:erlang, :timer] ->
         if fun in @scheduler_calls[module], do: [:scheduler], else: []
 
+      {kind, _, [head, body]} when kind in [:def, :defp] ->
+        if callback?(head) and returns_timeout?(body), do: [:timeout], else: []
+
+      {:receive, _, [clauses]} when is_list(clauses) ->
+        if wakes_after?(Keyword.get(clauses, :after)), do: [:receive_after], else: []
+
+      {:use, _, [{:__aliases__, _, [:Quantum | _]} | _]} ->
+        [:cron]
+
+      {:__aliases__, _, [:Oban, :Plugins, :Cron]} ->
+        [:cron]
+
       _node ->
         []
     end)
     |> Enum.map(&elem(&1, 0))
     |> Enum.uniq()
   end
+
+  # A GenServer callback's name — `{:ok, 0, 0}` elsewhere is a count, not a
+  # timeout.
+  defp callback?({:when, _, [head | _guards]}), do: callback?(head)
+
+  defp callback?({name, _, _args}),
+    do: name in [:init, :handle_call, :handle_cast, :handle_info, :handle_continue]
+
+  defp callback?(_head), do: false
+
+  defp returns_timeout?(body) do
+    {_ast, found} =
+      Macro.prewalk(body, false, fn
+        {:{}, _, [tag, _state, timeout]} = node, acc when tag in [:ok, :noreply] ->
+          {node, acc or timeout?(timeout)}
+
+        {:{}, _, [:reply, _reply, _state, timeout]} = node, acc ->
+          {node, acc or timeout?(timeout)}
+
+        node, acc ->
+          {node, acc}
+      end)
+
+    found
+  end
+
+  # A GenServer timeout: an integer, a module attribute or a `:timer` duration
+  # — never `:hibernate` or `{:continue, _}`.
+  defp timeout?(timeout) when is_integer(timeout), do: true
+  defp timeout?({:@, _, [{name, _, _}]}) when is_atom(name), do: true
+  defp timeout?({{:., _, [:timer, _fun]}, _, _args}), do: true
+  defp timeout?(_other), do: false
+
+  # `after 0` drains a mailbox without waiting; any other `after` wakes the
+  # process when nothing arrived.
+  defp wakes_after?([{:->, _, [[0], _body]}]), do: false
+  defp wakes_after?([_clause | _]), do: true
+  defp wakes_after?(_none), do: false
 
   defp scenario_mentions(source) do
     source
