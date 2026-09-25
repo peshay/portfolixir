@@ -522,6 +522,33 @@ defmodule PortfolixirWeb.ImportsLive do
         </div>
       <% end %>
 
+      <%!-- ADR-0050 §5: a transfer whose two sides lead to one account or
+           depot is void, skipped and listed, never an abort. --%>
+      <%= if @result.internal_transfers != [] do %>
+        <div class="import-skipped" data-role="internal-transfers">
+          <p class="muted">
+            <%= ngettext(
+              "Skipped one internal transfer: both sides lead to the same account or depot.",
+              "Skipped %{count} internal transfers: both sides lead to the same account or depot.",
+              length(@result.internal_transfers)
+            ) %>
+          </p>
+          <ul>
+            <%= for transfer <- @result.internal_transfers do %>
+              <li>
+                <%= gettext("Row %{row}: %{kind} %{date} · %{from} → %{to}",
+                  row: transfer.row,
+                  kind: kind_label(transfer.kind),
+                  date: transfer.date && Date.to_iso8601(transfer.date),
+                  from: transfer.pp_name,
+                  to: transfer.pp_counter_name
+                ) %>
+              </li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+
       <%= if @result.skipped_entries != [] do %>
         <div class="import-skipped" data-role="skipped-entries">
           <p class="muted">
@@ -1244,6 +1271,11 @@ defmodule PortfolixirWeb.ImportsLive do
   # page's (#769), so the German page is German here too.
   defp duplicate_reason(%{layer: :hash}),
     do: gettext("an identical row was imported before (stored content hash)")
+
+  # ADR-0050 §3: the row's content hash was retired when a merge removed the
+  # booking that held it.
+  defp duplicate_reason(%{layer: :retired}),
+    do: gettext("a row with this content was removed by a merge (retired content hash)")
 
   defp duplicate_reason(%{layer: :economics}),
     do: gettext("an existing booking has the same date, security, quantity and amount")

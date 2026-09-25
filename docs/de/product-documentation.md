@@ -1753,6 +1753,39 @@ die alte Buchung von Hand entfernen oder korrigieren. Dieselbe Aussage steht
 in der [API- und MCP-Referenz](integration/api-and-mcp.html), damit ein Agent
 sie dort liest, wo er die Endpunkte liest.
 
+### Was ein erneuter Import zuerst prüft (ADR-0050)
+
+Der Inhalts-Hash jeder Zeile wird geprüft, **bevor irgendetwas aufgelöst oder
+angelegt wird**. Eine Zeile, die die Datenbank schon hält, steht bei den bereits
+gebuchten Datensätzen und legt nichts an: kein Wertpapier, kein Konto, keine
+Transaktion. Dasselbe gilt für eine Zeile, die eine Zusammenführung entfernt
+hat: Ihr Hash bleibt als **stillgelegter Inhalts-Hash** erhalten, und das
+Ergebnis nennt ihn so.
+
+Verrechnungskonten und Depots entstehen **mit ihrer ersten importierten
+Buchung**, nie vorab. Ein Konto, das auf *+ Neu anlegen* zugeordnet ist und
+dessen Zeilen alle schon gebucht oder aus einem anderen Grund übersprungen
+sind, wird nicht angelegt, und der Bucket-Tag landet auf genau den Konten, die
+der Import angelegt hat. Ein importiertes Konto umzubenennen und denselben
+Export erneut abzulegen, legt kein leeres Konto unter dem alten Namen an. Ein
+Export, der sich in Portfolio Performance verändert hat (eine andere
+Nachkommagenauigkeit, eine bearbeitete Buchung), hasht anders: den alten Namen
+in der Vorschau auf das umbenannte Konto zuordnen, sonst landen seine Zeilen
+auf einem neuen Konto unter dem alten Namen.
+
+Eine **Umbuchung, deren beide Seiten auf dasselbe Konto oder Depot führen**
+(etwa zwei Portfolio-Performance-Konten, die auf ein Portfolixir-Konto
+zugeordnet sind), ist nichtig. Sie wird übersprungen und bei den internen
+Umbuchungen mit Zeile, Art, Datum und beiden Namen aus der Datei aufgeführt,
+und der Rest der Datei wird importiert; sie lässt nicht mehr den ganzen Import
+scheitern.
+
+Das Ergebnis listet jeden übersprungenen Datensatz mit der Prüfung, die ihn
+übersprungen hat: eine identische, schon importierte Zeile (gespeicherter
+Inhalts-Hash), eine Zeile, die eine Zusammenführung entfernt hat
+(stillgelegter Inhalts-Hash), oder eine bestehende Buchung mit demselben Datum,
+Wertpapier, derselben Stückzahl und demselben Betrag.
+
 ### Wertpapier-Matching und der Zuordnungsschritt
 
 Wertpapiere in der Datei werden über eine deterministische **Leiter stabiler
@@ -1800,7 +1833,10 @@ ab, wenn sich etwas anders auflöst als im bestätigten Stand (Vorschauen könne
 länger offen stehen); und Zeilen, die sich zur **selben Buchung auf
 demselben Wertpapier** auflösen — ein Export, der ein Papier unter alter
 und neuer ISIN führt — werden zu einer Transaktion zusammengefasst und
-ausgewiesen, nie doppelt importiert.
+ausgewiesen, nie doppelt importiert. Zusammengefasst werden nur Zeilen
+desselben Portfolio-Performance-Kontos: Zwei gleiche Buchungen aus zwei
+verschiedenen Konten der Datei, die auf ein Konto zugeordnet sind (etwa zwei
+gleiche Gebühren), werden beide importiert.
 
 **Ein-/Auslieferungszeilen** behalten ihren geparsten Stückpreis (die
 CSV-Spalte `Kurs`), sodass eine Einlieferung mit Preis mit ihrem echten

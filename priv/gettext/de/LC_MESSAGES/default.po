@@ -7747,3 +7747,20 @@ msgstr "%{security} liegt nicht mehr unter %{category} – leere dort sein Posit
 #, elixir-autogen, elixir-format
 msgid "A target must lie between 0 and 100 %"
 msgstr "Ein Ziel muss zwischen 0 und 100 % liegen"
+
+#: lib/portfolixir_web/live/imports_live.ex:530
+#, elixir-autogen, elixir-format
+msgid "Skipped one internal transfer: both sides lead to the same account or depot."
+msgid_plural "Skipped %{count} internal transfers: both sides lead to the same account or depot."
+msgstr[0] "Eine interne Umbuchung übersprungen: Beide Seiten führen auf dasselbe Konto oder Depot."
+msgstr[1] "%{count} interne Umbuchungen übersprungen: Beide Seiten führen auf dasselbe Konto oder Depot."
+
+#: lib/portfolixir_web/live/imports_live.ex:539
+#, elixir-autogen, elixir-format
+msgid "Row %{row}: %{kind} %{date} · %{from} → %{to}"
+msgstr "Zeile %{row}: %{kind} %{date} · %{from} → %{to}"
+
+#: lib/portfolixir_web/live/imports_live.ex:1278
+#, elixir-autogen, elixir-format
+msgid "a row with this content was removed by a merge (retired content hash)"
+msgstr "eine Zeile mit diesem Inhalt wurde bei einer Zusammenführung entfernt (stillgelegter Inhalts-Hash)"

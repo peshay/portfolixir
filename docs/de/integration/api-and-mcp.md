@@ -1700,6 +1700,18 @@ neben der importierten Historie:
   bereits vorhandene Transaktionszeile wird als Duplikat übersprungen; kein
   Wertpapier wird doppelt angelegt; die Antwort des Anwendens meldet die
   übersprungene Anzahl.
+- **Eine Umbenennung ist sicher für den nächsten Import desselben Exports
+  (ADR-0050 §3, §4).** Der Hash wird geprüft, bevor irgendetwas aufgelöst
+  wird, und ein Verrechnungskonto oder Depot entsteht erst mit seiner ersten
+  neuen Buchung, sodass eine Umbenennung über
+  `PATCH /api/v1/cash_accounts/:id` oder `PATCH /api/v1/securities_accounts/:id`
+  (`portfolixir.cash_accounts.update`, `portfolixir.securities_accounts.update`,
+  deren Beschreibungen das sagen) kein leeres Konto unter dem alten Namen
+  hinterlässt. Die Grenze: Ein Export, der sich in Portfolio Performance
+  verändert hat, hasht anders, und seine Zeilen landen auf einem neuen Konto
+  unter dem alten Namen, es sei denn, der Betreiber ordnet den alten Namen in
+  der Vorschau zu. Eine Umbuchung, deren beide Seiten auf ein Konto führen,
+  wird übersprungen und aufgeführt, nie ein gescheiterter Import.
 - **Was einen erneuten Import unverändert übersteht, gleiche ids, exakte
   `Decimal`-Werte:** Klassifizierungs-Zuordnungen; jede Zielplan-Version mit
   ihren Kategorie- und Positionszielen sowie dem Cash-Ziel; `note` und

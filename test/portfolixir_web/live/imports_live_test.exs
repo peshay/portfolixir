@@ -1264,4 +1264,132 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     assert html =~ "Row 1: an identical row was imported before (stored content hash)"
     refute html =~ "already booked: an"
   end
+
+  # User story (ADR-0050 §5, #884):
+  # As an operator whose two Portfolio Performance accounts map onto one
+  # account,
+  # I want a transfer between them skipped and listed on the result,
+  # so that one void row never aborts the whole import and the skip is not
+  # silent.
+  #
+  # Acceptance criteria:
+  # - The import completes and books the other rows.
+  # - The result lists the internal transfer with its row, kind, date and the
+  #   two file names.
+  test "the result lists an internal transfer instead of failing", %{conn: conn} do
+    portfolio = setup_portfolio()
+
+    {:ok, main} =
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        name: "Main account",
+        currency_code: "EUR"
+      })
+
+    body =
+      pp_json([
+        %{"type" => "DEPOSIT", "account" => "Giro", "date" => "2025-01-02", "amount" => "100.00"},
+        %{
+          "type" => "CASH_TRANSFER",
+          "account" => "Giro",
+          "otherAccount" => "Tagesgeld",
+          "date" => "2025-02-01",
+          "amount" => "40.00"
+        }
+      ])
+
+    {:ok, view, _html} = live(conn, "/imports")
+    upload_payload(view, "transfer.json", body, "application/json")
+
+    view
+    |> element("form#pp-import-apply")
+    |> render_submit(%{
+      "cash" => %{"Giro" => "existing:#{main.id}", "Tagesgeld" => "existing:#{main.id}"}
+    })
+
+    html = render_async(view, 1_000)
+
+    assert html =~ "Import complete"
+    assert html =~ "Created transactions: 1"
+    assert has_element?(view, "[data-role='internal-transfers']")
+    assert html =~ "Skipped one internal transfer: both sides lead to the same account or depot."
+    assert html =~ "Row 2: Cash transfer 2025-02-01 · Giro → Tagesgeld"
+  end
+
+  # User story (ADR-0050 §3, #884):
+  # As a German-speaking operator re-importing an export after a merge removed
+  # one of its rows,
+  # I want the result to say in my language why that row was skipped,
+  # so that a row a merge removed is never mistaken for a lost booking.
+  #
+  # Acceptance criteria:
+  # - The row whose content hash a merge retired is listed among the records
+  #   already booked, with the retired-hash reason in German.
+  test "a row a merge removed is named as such, in German", %{conn: conn} do
+    portfolio = setup_portfolio()
+
+    body =
+      pp_json([
+        %{
+          "type" => "CASH_TRANSFER",
+          "account" => "Savings (old)",
+          "otherAccount" => "Savings",
+          "date" => "2025-02-01",
+          "amount" => "250.00"
+        }
+      ])
+
+    {:ok, preview} = Portfolixir.Imports.parse_portfolio_performance(body)
+
+    {:ok, _} =
+      Portfolixir.Imports.apply(preview, %{
+        cash_accounts: %{
+          "Savings (old)" => {:create, "Savings (old)"},
+          "Savings" => {:create, "Savings"}
+        },
+        depots: %{}
+      })
+
+    [transfer] = Ledger.list_transactions()
+    {:ok, _} = Ledger.delete_transaction(Portfolixir.Actor.owner_ui(), transfer)
+
+    {:ok, record} =
+      Portfolixir.Lifecycle.record_merge(Portfolixir.Actor.owner_ui(), %{
+        kind: "cash_account",
+        source_id: transfer.cash_account_id,
+        target_id: transfer.counter_cash_account_id,
+        portfolio_id: portfolio.id,
+        source_snapshot: %{"name" => "Savings (old)"},
+        manifest: %{},
+        plan_digest: "sha256:synthetic-plan"
+      })
+
+    {:ok, _} =
+      Portfolixir.Lifecycle.retire_import_hash(Portfolixir.Actor.owner_ui(), %{
+        import_hash: transfer.import_hash,
+        former_transaction_id: transfer.id,
+        merge_record_id: record.id,
+        reason: "internal_transfer"
+      })
+
+    conn = put_req_header(conn, "accept-language", "de-DE,de;q=0.9")
+    {:ok, view, _html} = live(conn, "/imports")
+    upload_payload(view, "transfer.json", body, "application/json")
+    html = view |> element("form#pp-import-apply") |> render_submit()
+    html = if html =~ "Import abgeschlossen", do: html, else: render_async(view, 1_000)
+
+    assert html =~ "Ein bereits gebuchter Datensatz übersprungen:"
+
+    assert html =~
+             "Zeile 1: eine Zeile mit diesem Inhalt wurde bei einer Zusammenführung entfernt (stillgelegter Inhalts-Hash)"
+  end
+
+  # A synthetic Portfolio Performance JSON export; amounts stay strings, never
+  # floats, and every row books in EUR.
+  defp pp_json(rows) do
+    Jason.encode!(%{
+      "version" => 1,
+      "transactions" => Enum.map(rows, &Map.put(&1, "currency", "EUR"))
+    })
+  end
 end

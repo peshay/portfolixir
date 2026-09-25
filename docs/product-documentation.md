@@ -1627,6 +1627,35 @@ correct the old booking by hand. The same statement lives in the
 [API and MCP](integration/api-and-mcp.html) reference so an agent reads it
 where it reads the endpoints.
 
+### What a re-import checks first (ADR-0050)
+
+Each row's content hash is checked **before anything is resolved or
+created**. A row the database already holds is listed among the records
+already booked and creates nothing: no security, no account, no transaction.
+The same holds for a row a merge removed: its hash is kept as a **retired
+content hash**, and the result names it as such.
+
+Cash accounts and depots are created **with their first imported booking**,
+never up front. An account mapped to *+ Create new* whose rows are all
+already booked, or all skipped for another reason, is not created, and the
+bucket tag lands on exactly the accounts the import created. Renaming an
+imported account and dropping the same export again therefore creates no
+empty account under the old name. A re-export that changed inside Portfolio
+Performance (a different decimal precision, an edited booking) hashes
+differently: map the old name onto the renamed account in the preview, or
+its rows land on a new account under the old name.
+
+A **transfer whose two sides lead to the same account or depot** (two
+Portfolio Performance accounts mapped onto one Portfolixir account, say) is
+void. It is skipped and listed under the internal transfers with its row,
+kind, date and both names from the file, and the rest of the file imports; it
+no longer fails the whole import.
+
+The result lists every record it skipped with the check that skipped it: an
+identical row imported before (stored content hash), a row a merge removed
+(retired content hash), or an existing booking with the same date, security,
+quantity and amount.
+
 ### Security matching and the mapping step
 
 Securities in the file resolve against existing records through a
@@ -1672,7 +1701,9 @@ anything resolved differently than the approved set (previews can sit open
 for a while); and rows that resolve to the **same booking on the same
 security** — an export listing one paper under both its old and its new
 ISIN — are collapsed to a single transaction and reported, never
-double-imported.
+double-imported. Only rows of the same Portfolio Performance account collapse
+this way: two equal bookings from two different accounts of the file that map
+onto one account (twin fees, say) are both imported.
 
 Inbound and outbound **delivery** rows keep their parsed per-share price (the
 CSV `Kurs` column), so a priced inbound delivery enters the holdings cost
