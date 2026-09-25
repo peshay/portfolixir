@@ -2184,7 +2184,9 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
   der verborgenen Positionen ist ein gedämpftes Suffix des Kategorienamens,
   und die Basis des Ergebnisses („heutige Zusammensetzung, keine
   Periodenrendite") ist eine Basiszeile mit ⓘ; auf dem Telefon behält die
-  Zeile Wert und Ergebnis.
+  Zeile Wert und Ergebnis, auf zwei Zeilen: der Kategoriename (umbrochen statt
+  abgeschnitten) mit dem Zähler der verborgenen Positionen oben, Wert und
+  Ergebnis darunter unter ihren Spaltenköpfen.
 - Die Seitenleiste ist in aufgabenorientierte Bereiche organisiert (ADR-0022):
   **Übersicht**, **Vermögen**, **Wertpapiere** und **Transaktionen** auf der
   obersten Ebene, plus eine Gruppe **Verwaltung** mit **Konten & Depots**,

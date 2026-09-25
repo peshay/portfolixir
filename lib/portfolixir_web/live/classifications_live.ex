@@ -848,8 +848,14 @@ defmodule PortfolixirWeb.ClassificationsLive do
             <%= gettext("Duplicate plan") %>
           </button>
           <%= if @soll.plan do %>
+            <%!-- #873: the one disclosure marker (#854), never the browser's
+                 triangle; the accent colour stays, because Rename opens an
+                 action, as "Positions (n)" beside it does. --%>
             <details class="plan-rename">
-              <summary><%= gettext("Rename") %></summary>
+              <summary class="disclosure-summary">
+                <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
+                <%= gettext("Rename") %>
+              </summary>
               <form phx-submit="rename_soll_plan">
                 <label class="sr-only" for="plan-rename-input"><%= gettext("New plan name") %></label>
                 <input

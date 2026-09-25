@@ -2023,7 +2023,9 @@ naming the already-booked event) stays inline in the dialog.
   each column instead of a row of zeros, the hidden-positions count is a
   muted suffix of the category name, and the result's basis ("today's
   composition, not a period return") is a basis line with an ⓘ; on the phone
-  the row keeps the value and the result.
+  the row keeps the value and the result, on two lines: the category's name
+  (wrapped rather than cut) with its hidden-positions count first, the value
+  and the result under their column heads below it.
 - The sidebar is organised into task-oriented areas (ADR-0022): **Overview**,
   **Wealth**, **Securities**, and **Transactions** at the top level, plus an
   **Administration** group with **Accounts & depots**, **Views**, and

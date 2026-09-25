@@ -193,7 +193,7 @@ spacing:
   sidebar-rail: 72px
   topbar-height: 52px
   section-pad-block: 'clamp(18px, 2.4vw, 28px)'
-  section-pad-inline: 'clamp(14px, 2.4vw, 28px)'
+  section-pad-inline: 'clamp(16px, 2.4vw, 28px)'
   panel-pad: 'clamp(18px, 3vw, 26px)'
   # Breakpoints and target sizes, tokenised 2026-08-05 so both spines can
   # reference them instead of repeating literals. Values as built:
@@ -354,6 +354,7 @@ components:
     rule: 'UX-DR10 (defined in EXPERIENCE.md), UX-DR19 for the marker'
     control: 'quiet text summary — {typography.control-label} in {colors.text-muted}, pointer cursor'
     marker: 'defined chevron, never the raw browser triangle'
+    action-summary: 'a disclosure that opens an action rather than data keeps the accent colour (the plan editor''s "Rename" and "Positions (n)", issue 873 and F2-A); the marker and the size are the class''s'
     purpose-line: 'exactly one sentence, ≤ 90 characters in the source (English) msgid, of the form "<what the table holds> — <why it is here>". Example shape: "Every plotted point as a row — the chart data without the chart." No second sentence, no link. Over 90 characters is a review reject; the bound is what makes UX-DR10 verifiable on a diff.'
     label: '"Data as table" — one wording app-wide (decided 2026-08-05, designer; de: "Daten als Tabelle"). Copy rule in EXPERIENCE.md Voice and Tone'
     body: '{components.data-table} for the data-as-table case'
@@ -726,7 +727,7 @@ Inter is used at variable-font weights (500, 540, 600, 650, 680, 700, 740, 760, 
 
 ## Layout & Spacing *(carries the spacing-scale half of UX-DR14, and UX-DR15 in full — every wide block owns its scroller)*
 
-The shell is a fixed left sidebar ({spacing.sidebar-width}) plus a sticky, blur-backed top bar ({spacing.topbar-height}). On desktop the sidebar collapses to an icon rail ({spacing.sidebar-rail}) via the toggle; content reflows. Workspace pages are full-bleed vertical stacks of `.workspace-section` bands separated by 1px borders, padded {spacing.section-pad-block} block / {spacing.section-pad-inline} inline; card grids use `repeat(auto-fit, minmax(220px, 1fr))` with {spacing.4} gaps.
+The shell is a fixed left sidebar ({spacing.sidebar-width}) plus a sticky, blur-backed top bar ({spacing.topbar-height}). On desktop the sidebar collapses to an icon rail ({spacing.sidebar-rail}) via the toggle; content reflows. Workspace pages are full-bleed vertical stacks of `.workspace-section` bands separated by 1px borders, padded {spacing.section-pad-block} block / {spacing.section-pad-inline} inline; card grids use `repeat(auto-fit, minmax(220px, 1fr))` with {spacing.4} gaps. **A page whose blocks are not all bands gives the others the band's gutter** — {spacing.section-pad-inline} inline, the heading {spacing.section-pad-block} above and the last block as much below — so nothing starts at the screen's or the sidebar's edge (issue 873: the classification detail, whose only band is the plan editor; the floor is the 16 px issue 790 built).
 
 **The spacing scale exists and is binding.** Eight steps on a 4px base ({spacing.1} … {spacing.8}, app.css:51-58), covering every margin, padding and gap. `test/invariants/css_spacing_scale_test.exs` enforces both that the tokens are defined and that they are actually adopted — the scale cannot be defined and then ignored. Values off the scale are permitted only for the structural constants listed in the frontmatter and for `clamp()` expressions that interpolate between two of them; anything else is drift.
 
@@ -1625,7 +1626,14 @@ categories, so the figures line up at any depth. An empty category prints
 "—" in each figure column; the result cell stacks the signed amount over
 its signed percentage, in the sign colours. Under 560 px the row keeps the
 name, the value and the result; positions and cost stay in the cells' titles
-and on the desktop. The unassigned notice is the attention data note it
+and on the desktop. **Under 560 px the row lies on two lines** *(issue 873,
+pick G8 = A of board `ux-design-2026-09-24/08-classification-detail`)*: the
+marker, the swatch (which never shrinks), the name — allowed to wrap — and its
+"+N without holdings" on the first, the actions at its end; the value and the
+result on the second, in their own columns under the head. With the page's
+16 px gutter, one line left the name some 70 px and cut it to a few letters;
+two lines give it the row's width, which is UX-DR27's phone row applied to the
+tree. On the desktop the row is one line as before. The unassigned notice is the attention data note it
 became with issue 791; the result's basis is a `.summary-basis` line with
 the full ADR-0041 sentence behind its ⓘ.
 

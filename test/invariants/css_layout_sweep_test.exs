@@ -62,6 +62,53 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
     assert tab =~ ~r/white-space:\s*nowrap/
   end
 
+  # User story (#873; board ux-design-2026-09-24/08-classification-detail, ①
+  # and pick G8 = A; DESIGN.md → Layout & Spacing and Classification tree
+  # rows; EXPERIENCE.md → App shell, "nothing is flush with the screen edge"):
+  # As the operator reading a classification on a 390 px phone,
+  # I want the page's heading, controls, form and tree to keep the gutter
+  # every other page keeps, and a category row to keep its name,
+  # so that nothing starts at the screen's edge and "Growth" is not cut to
+  # "Gr…" by the gutter that fixes the edge.
+  #
+  # Acceptance criteria:
+  # - Every direct block of `.classifications-detail` that is not a band takes
+  #   the band's inline gutter (16 px floor), the heading the band's top
+  #   padding and the last block its bottom padding — no new value.
+  # - Under 560 px a category row lies on two lines of the same grid: marker,
+  #   swatch, name (which may wrap) and its "+N without holdings" first, the
+  #   actions at the end; value and result under their column heads second.
+  #   The swatch never shrinks.
+  test "the classification detail's own blocks keep the band gutter" do
+    assert block(".classifications-detail > :not(.workspace-section)") =~
+             ~r/margin-inline:\s*clamp\(16px, 2\.4vw, 28px\)/
+
+    assert block(".classifications-detail > .detail-head") =~
+             ~r/margin-top:\s*clamp\(18px, 2\.4vw, 28px\)/
+
+    assert block(".classifications-detail > :last-child") =~
+             ~r/margin-bottom:\s*clamp\(18px, 2\.4vw, 28px\)/
+  end
+
+  test "under 560 px a category row wraps to two lines and keeps its name" do
+    rows =
+      case Regex.run(
+             ~r/@media \(max-width: 560px\) \{\n  \/\* category rows on two lines[^\n]*\n(.*?)\n\}\n/s,
+             @css
+           ) do
+        [_, body] -> body
+        nil -> flunk("no 560 px block for the two-line category row")
+      end
+
+    assert rows =~ ~r/\.cat-summary \.cat-name \{[^}]*grid-column: 2 \/ 5;[^}]*grid-row: 1;/
+    assert rows =~ ~r/\.cat-summary \.cat-name \{[^}]*flex-wrap: wrap;/
+    assert rows =~ ~r/\.cat-summary \.cat-name__text \{[^}]*white-space: normal;/
+    assert rows =~ ~r/\.cat-summary \.cat-swatch \{[^}]*flex: none;/
+    assert rows =~ ~r/\.cat-summary \.cat-actions \{[^}]*grid-column: 5;[^}]*grid-row: 1;/
+    assert rows =~ ~r/\.cat-summary \.cat-value \{[^}]*grid-column: 3;[^}]*grid-row: 2;/
+    assert rows =~ ~r/\.cat-summary \.cat-result \{[^}]*grid-column: 4;[^}]*grid-row: 2;/
+  end
+
   test "a labelled tooltip summary grows with its label" do
     assert block(".metric-tooltip--labelled summary") =~ ~r/width:\s*auto/
   end
