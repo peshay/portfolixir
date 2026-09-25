@@ -47,7 +47,7 @@ defmodule Portfolixir.Portfolios.PolicyRuleDatabaseGuardTest do
 
   # A raw statement with the journal actor set, so the journal guard is not
   # what refuses it; the rolled-back savepoint keeps the sandbox usable.
-  defp raw(sql, params \\ []) do
+  defp raw(sql, params) do
     Repo.transaction(fn ->
       Repo.query!("SELECT set_config('portfolixir.journal_actor', 'owner_ui', true)")
       Repo.query!(sql, params)
