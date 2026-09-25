@@ -18,6 +18,7 @@ defmodule Portfolixir.Catalog.QuoteSync do
   require Logger
 
   alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.MarketDataBounds
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
 
@@ -157,6 +158,32 @@ defmodule Portfolixir.Catalog.QuoteSync do
   defp persist(security, [], _provider), do: result(security, :ok, nil, 0)
 
   defp persist(security, rows, provider) do
+    case drop_implausible(security, rows) do
+      [] -> result(security, :ok, nil, 0)
+      plausible -> upsert(security, plausible, provider)
+    end
+  end
+
+  # Whatever an adapter returns, an implausible point (F26) is dropped here,
+  # so one bad point never fails the security's batch.
+  defp drop_implausible(security, rows) do
+    {plausible, dropped} =
+      Enum.split_with(rows, fn row ->
+        is_map(row) and MarketDataBounds.plausible?(field(row, :date), field(row, :close))
+      end)
+
+    if dropped != [] do
+      Logger.warning(
+        "quote sync dropped #{length(dropped)} implausible provider point(s) for security ##{security.id}"
+      )
+    end
+
+    plausible
+  end
+
+  defp field(row, key), do: Map.get(row, key, Map.get(row, Atom.to_string(key)))
+
+  defp upsert(security, rows, provider) do
     case Quotes.upsert_many(
            security.id,
            Enum.map(rows, &Map.put(&1, :source, provider)),

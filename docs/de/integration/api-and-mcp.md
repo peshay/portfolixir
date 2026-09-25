@@ -503,7 +503,14 @@ Regel über einer Kennzahl ist FR-43 und bleibt verschlossen.
   (Standard 20000, max. 50000; null, negativ oder nicht numerisch ist ein
   `422`).
 - `PUT /api/v1/securities/:security_id/quotes` führt manuelle Kurszeilen ein
-  (Upsert).
+  (Upsert). Jede Kurszeile, manuell oder synchronisiert, ist begrenzt: ein
+  positiver `close` an einem `date`, das nicht nach morgen liegt (dem
+  Kalendertag der Instanz plus einem Tag für Zeitzonen). Eine Zeile außerhalb
+  der Grenze liefert `422` mit dem Feld, und eine Synchronisierung verwirft
+  einen solchen Anbieterpunkt, statt den Lauf scheitern zu lassen. Die
+  Lesepfade für den jüngsten Kurs (der Bewertungskurs, der jüngste Kurs im
+  Katalog und die Prüfung auf veraltete Kurse) nutzen nie eine gespeicherte
+  Zeile nach dieser Grenze.
 - `POST /api/v1/securities/:security_id/sync_quotes` löst die
   Kurssynchronisierung eines Wertpapiers aus. Die Antwort enthält `status` (`ok`,
   `skipped` oder `error`); übersprungene und Fehler-Antworten können einen
@@ -1535,6 +1542,11 @@ Scope-Leiter).
   Paare werden durch Triangulation abgeleitet, und `GBX` (Pence) wird als
   `GBP × 100` behandelt.
   `limit` behält die jüngsten Kurse (Standard 50000, max. 200000).
+  Jeder gespeicherte Wechselkurs ist wie ein Kurs begrenzt: positiv und nicht
+  nach morgen datiert. Eine Synchronisierung verwirft einen Anbieterkurs
+  außerhalb der Grenze, statt den Lauf scheitern zu lassen, und die
+  Lesepfade für den jüngsten Wechselkurs nutzen nie eine gespeicherte Zeile
+  nach dieser Grenze.
 - `POST /api/v1/exchange_rates/sync` holt Kurse vom konfigurierten Anbieter
   (standardmäßig EZB) und liefert `{provider, status, upserted, scope}`.
   `scope=latest` (Standard) holt den **täglichen** Feed — die heutigen Kurse,

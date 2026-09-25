@@ -2671,7 +2671,7 @@ const toolDefinitions: ToolDefinition[] = [
       limit: { type: "integer", minimum: 1 }
     }
   }, z.object({ security_id: z.number().int().positive(), from: optionalString(), to: optionalString(), limit: z.number().int().min(1).optional() })),
-  tool("portfolixir.quotes.upsert", "Upsert quotes", "Upsert manual quote history.", quoteUpsertSchema, quoteUpsertZ),
+  tool("portfolixir.quotes.upsert", "Upsert quotes", "Upsert manual quote history. Every close must be positive and every date no later than tomorrow (the instance's calendar day plus one day of zone slack); a row outside that bound answers 422 naming the field, and nothing is written.", quoteUpsertSchema, quoteUpsertZ),
   tool("portfolixir.portfolios.list", "List portfolios", "List local portfolios. Deprecated (ADR-0024): portfolios are internal compatibility records, not the user-facing grouping — use portfolixir.buckets.list and portfolixir.views.list to group and scope holdings.", emptyObjectSchema, emptyObjectZ),
   tool("portfolixir.portfolios.create", "Create portfolio", "Create a portfolio. Deprecated (ADR-0024, compatibility only — the API answers with a Deprecation header): grouping happens through buckets and views, so prefer portfolixir.buckets.create and portfolixir.views.create; depots and cash accounts no longer need a portfolio_id (a deterministic internal default is bound automatically).", portfolioSchema, portfolioZ),
   tool(

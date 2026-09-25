@@ -25,6 +25,7 @@ defmodule Portfolixir.Fx.RateSync do
   use GenServer
   require Logger
 
+  alias Portfolixir.Catalog.MarketDataBounds
   alias Portfolixir.Fx
 
   @default_interval :timer.hours(12)
@@ -174,7 +175,7 @@ defmodule Portfolixir.Fx.RateSync do
   end
 
   defp persist(provider, rows, scope \\ :latest) do
-    case Fx.upsert_many(rows) do
+    case Fx.upsert_many(drop_implausible(rows)) do
       {:ok, count} ->
         {:ok, %{provider: provider.id(), status: :ok, upserted: count, scope: scope}}
 
@@ -183,6 +184,23 @@ defmodule Portfolixir.Fx.RateSync do
         {:error, {:upsert_failed, reason}}
     end
   end
+
+  # Whatever a provider returns, an implausible rate (F26) is dropped here, so
+  # one bad row never fails the batch.
+  defp drop_implausible(rows) do
+    {plausible, dropped} =
+      Enum.split_with(rows, fn row ->
+        is_map(row) and MarketDataBounds.plausible?(field(row, :date), field(row, :rate))
+      end)
+
+    if dropped != [] do
+      Logger.warning("fx rate sync dropped #{length(dropped)} implausible provider rate(s)")
+    end
+
+    plausible
+  end
+
+  defp field(row, key), do: Map.get(row, key, Map.get(row, Atom.to_string(key)))
 
   defp runtime_provider do
     Application.get_env(:portfolixir, __MODULE__, [])

@@ -15,6 +15,7 @@ defmodule Portfolixir.Fx do
 
   import Ecto.Query
 
+  alias Portfolixir.Catalog.MarketDataBounds
   alias Portfolixir.Derived.Invalidation
   alias Portfolixir.Fx.ExchangeRate
   alias Portfolixir.Repo
@@ -63,9 +64,15 @@ defmodule Portfolixir.Fx do
     |> Repo.one()
   end
 
-  @doc "Most recent stored rate for `base/quote`, or nil."
+  @doc """
+  Most recent stored rate for `base/quote`, or nil. Like `hub_rates/1`, it
+  never serves a row dated past `MarketDataBounds.latest_date/0` (E25 S3, F26).
+  """
   def latest(base, quote) do
+    latest_date = MarketDataBounds.latest_date()
+
     base_quote(base, quote)
+    |> where([r], r.date <= ^latest_date)
     |> order_by([r], desc: r.date)
     |> limit(1)
     |> Repo.one()
@@ -183,9 +190,13 @@ defmodule Portfolixir.Fx do
   defp latest_hub_rates([]), do: %{}
 
   defp latest_hub_rates(currencies) do
+    latest_date = MarketDataBounds.latest_date()
+
     Repo.all(
       from(r in ExchangeRate,
-        where: r.base_currency == ^@hub and r.quote_currency in ^currencies,
+        where:
+          r.base_currency == ^@hub and r.quote_currency in ^currencies and
+            r.date <= ^latest_date,
         order_by: [asc: r.quote_currency, desc: r.date],
         distinct: r.quote_currency,
         select: {r.quote_currency, r.rate}
