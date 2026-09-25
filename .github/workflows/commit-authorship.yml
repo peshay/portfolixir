@@ -25,18 +25,29 @@ jobs:
         with:
           # Full history so the commit range against the base resolves.
           fetch-depth: 0
+          # Nothing here pushes: the job token does not stay in .git/config
+          # for the check script (F61).
+          persist-credentials: false
 
+      # The event's SHAs reach the script through env, as data: a context
+      # expression inside `run:` is pasted into the script as shell text
+      # before bash reads it (F61). GITHUB_EVENT_NAME and GITHUB_SHA are the
+      # runner's own variables.
       - name: Verify every commit is authored by an accountable human
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            range="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            range="$PR_BASE_SHA..$PR_HEAD_SHA"
           else
-            before="${{ github.event.before }}"
+            before="$PUSH_BEFORE_SHA"
             if printf '%s' "$before" | grep -qE '^0+$'; then
               # Branch creation / no parent recorded: check the tip commit only.
               range="HEAD~1..HEAD"
             else
-              range="$before..${{ github.sha }}"
+              range="$before..$GITHUB_SHA"
             fi
           fi
           echo "Checking commit range: $range"

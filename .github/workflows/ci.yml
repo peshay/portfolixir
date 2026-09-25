@@ -17,6 +17,12 @@ permissions:
 # comment (#772, the 2026-09-05 triage's L11): a tag can be moved, a commit
 # cannot, and Dependabot's github-actions ecosystem bumps the SHA and the
 # comment together.
+#
+# No job here pushes, so every checkout sets persist-credentials: false and
+# the job token does not stay in .git/config for the steps after it -- a
+# dependency's install code, a hook, a test (F61). For the same reason no
+# `run:` script contains a context expression: refs and SHAs reach a script
+# through `env:`, as data rather than as shell text.
 
 jobs:
   pre-commit:
@@ -25,6 +31,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -69,6 +77,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Elixir
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
@@ -118,6 +128,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Elixir
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
@@ -232,18 +244,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Full history so the diff against the base branch resolves.
+          # Full history, so the pull request's base commit is already here
+          # and the gate needs no fetch (and so no token) of its own.
           fetch-depth: 0
+          persist-credentials: false
 
       # Applied migrations are immutable (see the migration-roundtrip job): an
       # already-merged migration must never be edited or deleted, only new ones
       # added. --diff-filter=MD lists files that this branch Modified or
       # Deleted under priv/repo/migrations/; any such file fails the gate.
+      # The base is the pull request's base commit, an immutable SHA handed to
+      # the script through env: a context expression inside `run:` is pasted
+      # into the script as shell text before bash reads it (F61).
       - name: Reject edits or deletions of existing migrations
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          base="origin/${{ github.base_ref }}"
-          git fetch origin "${{ github.base_ref }}"
-          changed="$(git diff --diff-filter=MD --name-only "$base"...HEAD -- priv/repo/migrations/)"
+          git cat-file -e "${BASE_SHA:?no pull request base commit}^{commit}"
+          changed="$(git diff --diff-filter=MD --name-only "$BASE_SHA"...HEAD -- priv/repo/migrations/)"
           if [ -n "$changed" ]; then
             echo "Applied migrations are immutable; the following existing files were modified or deleted:"
             echo "$changed"
@@ -274,6 +292,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Elixir
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
