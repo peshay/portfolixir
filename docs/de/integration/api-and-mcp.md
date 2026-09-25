@@ -531,6 +531,11 @@ Regel über einer Kennzahl ist FR-43 und bleibt verschlossen.
   Eine Historie beliebiger Länge wird in einer Synchronisierung gespeichert,
   und in der geplanten Synchronisierung ist ein scheiterndes Wertpapier der
   Fehler dieses Wertpapiers, während die übrigen weiter synchronisiert werden.
+  Eine Synchronisierung eines Wertpapiers läuft zur Zeit: Während eine läuft,
+  gleich über welchen Weg, liefert eine zweite `409 Conflict` und ruft keinen
+  Anbieter auf. Die Kurshistorie eines neu angelegten Wertpapiers wird im
+  Hintergrund über eine Warteschlange geholt, ein Wertpapier nach dem anderen,
+  ob es über die API, die Seite oder einen Import entstand.
 
 Beispiel-Payload für Kurs-Upsert:
 
@@ -1586,7 +1591,9 @@ Scope-Leiter).
   Buchungstagskurs“ nicht. Ein unbekannter `scope` ist ein `422`, ein
   Anbieter ohne Historie antwortet mit `422` und benennt `scope`, ein
   Anbieterfehler oder Kurse, die die Datenbank nicht speichern kann, liefern
-  `502 Bad Gateway`, und nichts wird gespeichert. Die menschliche Sicht ist die
+  `502 Bad Gateway`, und nichts wird gespeichert. Ein Backfill läuft zur Zeit:
+  Während einer läuft, liefert ein zweiter `409 Conflict`. Die menschliche
+  Sicht ist die
   Schaltfläche **Historische Kurse nachladen** in den Ausschluss-Hinweisen
   auf `/cashflow`.
 

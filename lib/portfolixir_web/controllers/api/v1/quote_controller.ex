@@ -66,8 +66,16 @@ defmodule PortfolixirWeb.Api.V1.QuoteController do
   def sync(conn, %{"security_id" => security_id}) do
     with {:ok, id} <- IdParam.parse(security_id),
          security when not is_nil(security) <- Catalog.get_security(id) do
-      result = QuoteSync.sync_security(security)
-      json(conn, %{data: sync_result(result)})
+      case QuoteSync.sync_security(security) do
+        # Single-flight (E25, G04): one sync of a security at a time.
+        %{reason: :sync_in_progress} ->
+          conn
+          |> put_status(:conflict)
+          |> json(%{errors: %{detail: "a quote sync for this security is already running"}})
+
+        result ->
+          json(conn, %{data: sync_result(result)})
+      end
     else
       :error -> not_found(conn)
       nil -> not_found(conn)
