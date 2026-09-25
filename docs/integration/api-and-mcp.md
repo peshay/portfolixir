@@ -773,7 +773,10 @@ Example account payloads:
   never refused by it.
 - `GET /api/v1/transactions/:id` returns one transaction.
 - `PATCH /api/v1/transactions/:id` updates a transaction (e.g. to fix a
-  mis-imported booking); the per-kind validation still applies.
+  mis-imported booking); the per-kind validation still applies. An imported
+  row keeps its content hash, and a balance anchor or a split never carries
+  one (ADR-0050 §1), so changing an imported row's `type` to
+  `balance_adjustment` or `split` answers 422 on `errors.type`.
 - `DELETE /api/v1/transactions/:id` deletes a transaction. Because trades and
   holdings are derived, correcting or removing the transaction fixes them too.
 - `POST /api/v1/splits/preview` previews a stock split booking (ADR-0028)

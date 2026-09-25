@@ -763,6 +763,10 @@ Beispiel-Payloads für Konten:
 - `GET /api/v1/transactions/:id` liefert eine Transaktion.
 - `PATCH /api/v1/transactions/:id` aktualisiert eine Transaktion (z. B. um eine
   falsch importierte Buchung zu korrigieren); die Validierung je Art gilt weiter.
+  Eine importierte Zeile behält ihren Inhalts-Hash, und ein Saldo-Snapshot
+  oder ein Split trägt nie einen (ADR-0050 §1): Wird der `type` einer
+  importierten Zeile auf `balance_adjustment` oder `split` geändert, antwortet
+  die API mit 422 auf `errors.type`.
 - `DELETE /api/v1/transactions/:id` löscht eine Transaktion. Da Trades und
   Bestände abgeleitet sind, korrigiert oder entfernt das Korrigieren oder Entfernen
   der Transaktion auch sie.
