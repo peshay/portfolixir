@@ -108,14 +108,20 @@ defmodule Portfolixir.Journal do
       # #851: the before-image rides along, so an edit that MOVES a record
       # (a transaction to another security or portfolio) also bumps what the
       # record used to affect — the radius is the union of both images.
-      Invalidation.after_write(
-        repo,
-        resource_type,
-        Map.fetch!(changes, source),
-        locked_before(changes, image_step, before)
-      )
+      # An update that changed nothing (no entry, G02) changes no derived
+      # value either, so it bumps nothing (E25 S6 review round, M3).
+      if Map.fetch!(changes, journal_step) == :unchanged do
+        {:ok, :unchanged}
+      else
+        Invalidation.after_write(
+          repo,
+          resource_type,
+          Map.fetch!(changes, source),
+          locked_before(changes, image_step, before)
+        )
 
-      {:ok, :invalidated}
+        {:ok, :invalidated}
+      end
     end)
     |> Multi.run(:journal_reset_actor, fn repo, _changes -> reset_actor(repo) end)
   end
