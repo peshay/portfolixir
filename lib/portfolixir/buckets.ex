@@ -220,16 +220,23 @@ defmodule Portfolixir.Buckets do
     end)
   end
 
+  # A view deleted by another writer in the meantime took its links with it:
+  # nothing is left to release.
   defp release_view(actor, view_id, bucket_id) do
-    view = Repo.get!(View, view_id)
-    definition = ViewDefinition.of(Repo, view)
+    case Repo.get(View, view_id) do
+      nil ->
+        :ok
 
-    set_view_buckets(
-      actor,
-      view,
-      definition.include_bucket_ids -- [bucket_id],
-      definition.exclude_bucket_ids -- [bucket_id]
-    )
+      view ->
+        definition = ViewDefinition.of(Repo, view)
+
+        set_view_buckets(
+          actor,
+          view,
+          definition.include_bucket_ids -- [bucket_id],
+          definition.exclude_bucket_ids -- [bucket_id]
+        )
+    end
   end
 
   defp release_depot(actor, securities_account_id, bucket_id) do
@@ -251,14 +258,19 @@ defmodule Portfolixir.Buckets do
   # The override keeps its other buckets; one left with none is written as
   # explicit-empty, never cleared to inherit (T-10).
   defp release_override(actor, %{securities_account_id: sa_id, security_id: sec_id}, bucket_id) do
-    {:explicit, bucket_ids} = position_override(sa_id, sec_id)
+    case position_override(sa_id, sec_id) do
+      {:explicit, bucket_ids} ->
+        set_position_override(
+          actor,
+          %SecuritiesAccount{id: sa_id},
+          %Security{id: sec_id},
+          bucket_ids -- [bucket_id]
+        )
 
-    set_position_override(
-      actor,
-      %SecuritiesAccount{id: sa_id},
-      %Security{id: sec_id},
-      bucket_ids -- [bucket_id]
-    )
+      # Cleared by another writer in the meantime: nothing names the bucket.
+      _inherit_or_empty ->
+        :ok
+    end
   end
 
   defp delete_bucket_row(actor, bucket, members) do
