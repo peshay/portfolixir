@@ -16,7 +16,10 @@ defmodule Portfolixir.Input.Text do
 
   `validate/3` is the changeset form every schema uses; `check/2` returns the
   same verdict for a value outside a changeset, so the import parsers name the
-  row that carries it before anything is written.
+  row that carries it before anything is written. `validate_map/3` and
+  `check_map/2` apply the rule to a free-form map stored as `jsonb` (a
+  security's `attributes`) at any depth: PostgreSQL refuses a NUL there too,
+  in a key or in a value.
   """
 
   import Ecto.Changeset
@@ -85,6 +88,74 @@ defmodule Portfolixir.Input.Text do
       end
     end)
   end
+
+  @doc """
+  The verdict on a free-form map at any depth: every key is one-line text of
+  at most `key_max:` code points (default 255); every string value, in a
+  nested map or list too, is text by `multiline:` (default `true`: a value is
+  free text and keeps its tabs and line breaks). A number, a boolean or `nil`
+  passes; a key that is not a string is `:invalid_key`.
+  """
+  @spec check_map(term(), keyword()) :: :ok | {:error, refusal() | :invalid_key}
+  def check_map(value, opts \\ []) do
+    key_opts = [max: Keyword.get(opts, :key_max, 255)]
+    value_opts = [multiline: Keyword.get(opts, :multiline, true)]
+    walk(value, key_opts, value_opts)
+  end
+
+  defp walk(map, key_opts, value_opts) when is_map(map) do
+    Enum.reduce_while(map, :ok, fn {key, nested}, :ok ->
+      map_entry(key, nested, key_opts, value_opts)
+    end)
+  end
+
+  defp walk(list, key_opts, value_opts) when is_list(list) do
+    Enum.reduce_while(list, :ok, fn nested, :ok ->
+      halt_on_refusal(walk(nested, key_opts, value_opts))
+    end)
+  end
+
+  defp walk(text, _key_opts, value_opts) when is_binary(text), do: check(text, value_opts)
+  defp walk(_scalar, _key_opts, _value_opts), do: :ok
+
+  defp map_entry(key, nested, key_opts, value_opts) when is_binary(key) do
+    case check(key, key_opts) do
+      :ok -> halt_on_refusal(walk(nested, key_opts, value_opts))
+      refused -> {:halt, refused}
+    end
+  end
+
+  defp map_entry(_key, _nested, _key_opts, _value_opts), do: {:halt, {:error, :invalid_key}}
+
+  defp halt_on_refusal(:ok), do: {:cont, :ok}
+  defp halt_on_refusal(refused), do: {:halt, refused}
+
+  @doc """
+  Adds `check_map/2` to a changeset's map `field` (options as there), with
+  one field error per refusal.
+  """
+  @spec validate_map(Ecto.Changeset.t(), atom(), keyword()) :: Ecto.Changeset.t()
+  def validate_map(changeset, field, opts \\ []) when is_atom(field) do
+    validate_change(changeset, field, fn ^field, value ->
+      case check_map(value, opts) do
+        :ok -> []
+        {:error, refusal} -> [{field, map_message(refusal, opts)}]
+      end
+    end)
+  end
+
+  defp map_message(:invalid_key, _opts), do: {"must have text keys", validation: :text}
+  defp map_message(:invalid_encoding, _opts), do: {"must be valid UTF-8 text", validation: :text}
+
+  defp map_message(:control_characters, _opts),
+    do:
+      {"must not contain control characters (a value keeps its tabs and line breaks)",
+       validation: :text}
+
+  defp map_message(:too_long, opts),
+    do:
+      {"must have keys of at most %{count} character(s)",
+       count: Keyword.get(opts, :key_max, 255), validation: :text}
 
   defp controls(opts) do
     if opts[:multiline], do: @multiline_controls, else: @single_line_controls

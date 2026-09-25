@@ -57,4 +57,22 @@ defmodule Portfolixir.Input.TextTest do
     assert Text.check(String.duplicate("a", 256), max: 255) == {:error, :too_long}
     assert Text.check(<<0xFF>>, max: 255) == {:error, :invalid_encoding}
   end
+
+  test "check_map/2 judges every key and text value of a free-form map at any depth" do
+    assert Text.check_map(%{"sector" => "Tech", "rank" => 3, "listed" => true, "gone" => nil}) ==
+             :ok
+
+    assert Text.check_map(%{"summary" => "line one\nline two\ttab"}) == :ok
+    assert Text.check_map(%{"a" => %{"b" => ["ok", 1]}}) == :ok
+
+    assert Text.check_map(%{"sector" => "Tech\u0000"}) == {:error, :control_characters}
+    assert Text.check_map(%{"a\u0000b" => "Tech"}) == {:error, :control_characters}
+    assert Text.check_map(%{"line\nbreak" => "Tech"}) == {:error, :control_characters}
+
+    assert Text.check_map(%{"a" => %{"b" => ["ok", "bad\u0000"]}}) ==
+             {:error, :control_characters}
+
+    assert Text.check_map(%{String.duplicate("k", 256) => "v"}) == {:error, :too_long}
+    assert Text.check_map(%{1 => "v"}) == {:error, :invalid_key}
+  end
 end

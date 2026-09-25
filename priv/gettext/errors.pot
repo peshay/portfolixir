@@ -135,3 +135,15 @@ msgstr ""
 
 msgid "would make the category its own ancestor"
 msgstr ""
+
+## Portfolixir.Input.Text: a free-form map the database refuses (G24).
+msgid "must have text keys"
+msgstr ""
+
+msgid "must not contain control characters (a value keeps its tabs and line breaks)"
+msgstr ""
+
+msgid "must have keys of at most %{count} character(s)"
+msgid_plural "must have keys of at most %{count} character(s)"
+msgstr[0] ""
+msgstr[1] ""

@@ -116,7 +116,11 @@ research-log entry, an event's or a rule version's `note`, a description)
 keeps tabs and line breaks but no other control character, a NUL included.
 Anything else answers `422` naming the field, never a server error. A
 Portfolio Performance import names a row whose names or note break the same
-rule in its preview.
+rule in its preview. A security's free-form `attributes` map meets the rule at
+any depth: every key is one-line text of at most 255 characters, and every
+text value, in a nested object or list too, is free text; otherwise the write
+answers `422` on `attributes`. A search provider's property that breaks the
+rule is dropped before it reaches the attributes.
 
 **Wrapped bodies.** A write whose attributes travel under one key —
 `{"transaction": {…}}`, `{"view": {…}}`, `{"rule": {…}}` and their siblings —

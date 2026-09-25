@@ -41,7 +41,8 @@ defmodule Portfolixir.Catalog.SecuritySearch.SearchPayloadBoundsTest do
   # - A text field of the wrong type or over its bound is absent from the
   #   result; a result whose name is unusable is dropped.
   # - Markets keep only type-matched, bounded fields; properties keep only
-  #   bounded scalars.
+  #   bounded scalars whose key and text meet the text rule (no control
+  #   character, which the database refuses in a stored attribute).
   # - The raw echo carries only the allow-listed keys, as bounded scalars, and
   #   the serialized result contains no unlisted provider field.
   # - The attributes a result writes are bounded scalars.
@@ -63,7 +64,10 @@ defmodule Portfolixir.Catalog.SecuritySearch.SearchPayloadBoundsTest do
             "properties" => %{
               "nested" => %{"a" => 1},
               "ok" => "fine",
-              "big" => String.duplicate("b", 5000)
+              "big" => String.duplicate("b", 5000),
+              "nul_value" => "a\u0000b",
+              "nul\u0000key" => "x",
+              "control" => "a\u0007b"
             }
           },
           %{"symbol" => ["not", "a", "symbol"], "currency" => "EUR"}
