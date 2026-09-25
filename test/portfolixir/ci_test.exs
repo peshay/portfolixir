@@ -741,6 +741,60 @@ defmodule Portfolixir.CITest do
     refute script =~ "--diff-filter=MD"
   end
 
+  # User story (E25 S8, F58 -- #893):
+  # As an operator building the MCP companion's image, or installing the
+  # companion on its own,
+  # I want the dependency install to run no dependency lifecycle script, as
+  # CI's install already runs none,
+  # so that a compromised package in the tree cannot execute code in the image
+  # build or on my machine merely by being installed.
+  #
+  # Acceptance criteria:
+  # - Every npm install in mcp-server/Dockerfile is `npm ci --ignore-scripts`.
+  # - The image is built in two stages, and the runtime stage copies only the
+  #   package manifest, the production modules and dist/ from the build: no
+  #   source, no compiler, no dev dependency, no install of its own.
+  # - mcp-server/.npmrc sets ignore-scripts=true, so an ad-hoc `npm install`
+  #   in the companion's folder runs none either.
+  # - The documented standalone install (README, CONTRIBUTING, the home
+  #   deployment guide in English and German) is
+  #   `npm ci --ignore-scripts --prefix mcp-server`.
+  test "the MCP image and the documented install run no dependency lifecycle scripts" do
+    dockerfile = File.read!("mcp-server/Dockerfile")
+
+    installs = Regex.scan(~r/\bnpm (?:ci|install|i|add)\b[^\n]*/, dockerfile)
+    assert installs != []
+
+    for [install] <- installs do
+      assert install =~ ~r/^npm ci --ignore-scripts\b/, "mcp-server/Dockerfile: #{install}"
+    end
+
+    assert [build, runtime] = String.split(dockerfile, ~r/^FROM /m) |> tl()
+    assert build =~ ~r/ AS build\n/
+    assert build =~ "npm run build"
+
+    copied = Regex.scan(~r/^COPY (.*)$/m, runtime, capture: :all_but_first)
+
+    assert copied == [
+             ["--from=build /app/package.json ./"],
+             ["--from=build /app/node_modules ./node_modules"],
+             ["--from=build /app/dist ./dist"]
+           ]
+
+    refute runtime =~ ~r/^RUN /m, "the runtime stage installs or builds on its own"
+
+    assert File.read!("mcp-server/.npmrc") =~ ~r/^ignore-scripts=true$/m
+
+    for doc <- ~w(README.md CONTRIBUTING.md docs/home-deployment.md docs/de/home-deployment.md) do
+      text = File.read!(doc)
+
+      assert text =~ "npm ci --ignore-scripts --prefix mcp-server",
+             "#{doc}: no script-free install"
+
+      refute text =~ "npm install --prefix mcp-server", "#{doc}: still runs install scripts"
+    end
+  end
+
   defp ci_workflow, do: File.read!(".github/workflows/ci.yml")
 
   defp workflows do

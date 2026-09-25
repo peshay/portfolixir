@@ -610,10 +610,12 @@ that is slow, failing or switched off costs latency and never freshness.
 ## Separate MCP Install
 
 The MCP server is developed in this repository but can be installed and run
-separately:
+separately. `npm ci` installs exactly the versions in `package-lock.json`, and
+`--ignore-scripts` keeps every dependency's install-time script from running
+on your machine — the same install CI and the companion's image run:
 
 ```bash
-npm install --prefix mcp-server
+npm ci --ignore-scripts --prefix mcp-server
 npm run build --prefix mcp-server
 PORTFOLIXIR_API_BASE_URL=http://127.0.0.1:4000 \
 PORTFOLIXIR_API_TOKEN=replace-me \
