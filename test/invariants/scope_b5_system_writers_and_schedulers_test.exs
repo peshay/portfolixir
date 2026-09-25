@@ -61,6 +61,9 @@ defmodule Portfolixir.Invariants.ScopeB5SystemWritersAndSchedulersTest do
         "writes presentation metadata only",
     "Portfolixir.Derived.Refresher" =>
       "debounces the rebuild of durable derived values after a write (ADR-0039)",
+    "Portfolixir.Derived.PostCommit" =>
+      "bumps a data version once more after the commit of the write that marked it " <>
+        "pending (E25 S6, F47); it writes derived bookkeeping only",
     "Portfolixir.Portfolios.Performance.Warmup" =>
       "re-warms the performance basis at the local day rollover (ADR-0039 amendment)",
     "Portfolixir.Auth.Throttle" =>

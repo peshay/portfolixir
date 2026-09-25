@@ -71,10 +71,11 @@ defmodule Portfolixir.Derived.Invalidation do
   defp union(one, other), do: (one ++ other) |> Enum.uniq() |> Enum.sort()
 
   @doc """
-  Bumps after a quote sync write. The sync's quotes are allowlisted out of
-  the audit journal (market data, ADR-0017), so they cannot ride the journal
-  seam and announce themselves here directly; an authored quote write is
-  journaled and bumps the same radius through `after_write/4` (T-9).
+  Bumps after a quote sync write, on the writing transaction's `repo` (E25
+  S6, F47). The sync's quotes are allowlisted out of the audit journal
+  (market data, ADR-0017), so they cannot ride the journal seam and announce
+  themselves here directly; an authored quote write is journaled and bumps
+  the same radius through `after_write/4` (T-9).
 
   Two radii, one insert: every portfolio that ever transacted the security
   (plus the global basis), and the security's own basis (#825). The second
@@ -82,12 +83,12 @@ defmodule Portfolixir.Derived.Invalidation do
   benchmark, a watch-only candidate — bump a counter that exists, where the
   portfolio radius alone is the empty list.
   """
-  @spec after_quote_write(integer()) :: :ok
-  def after_quote_write(security_id),
+  @spec after_quote_write(integer(), Ecto.Repo.t()) :: :ok
+  def after_quote_write(security_id, repo \\ Repo),
     do:
       DataVersion.bump(
         BlastRadius.for_quote(security_id),
-        Repo,
+        repo,
         BlastRadius.securities_for_quote(security_id)
       )
 
@@ -105,11 +106,12 @@ defmodule Portfolixir.Derived.Invalidation do
     do: DataVersion.bump_rules(portfolio_id, repo)
 
   @doc """
-  Bumps after an exchange-rate write. Allowlisted out of the journal for the
-  same reason as quotes. No security basis is bumped: a security's own data is
+  Bumps after an exchange-rate write, on the writing transaction's `repo`
+  (F47). Allowlisted out of the journal for the same reason as quotes. No security basis is bumped: a security's own data is
   its row, its quotes and its splits in its own currency, and no value keyed
   under a security basis reads an exchange rate (ADR-0047 §1).
   """
-  @spec after_exchange_rate_write() :: :ok
-  def after_exchange_rate_write, do: DataVersion.bump(BlastRadius.for_exchange_rate(), Repo)
+  @spec after_exchange_rate_write(Ecto.Repo.t()) :: :ok
+  def after_exchange_rate_write(repo \\ Repo),
+    do: DataVersion.bump(BlastRadius.for_exchange_rate(), repo)
 end
