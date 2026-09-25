@@ -2551,7 +2551,7 @@ msgstr ""
 
 #: lib/portfolixir_web/live/buckets_live.ex:565
 #, elixir-autogen, elixir-format
-msgid "Delete this bucket? It is removed from every assignment and view."
+msgid "Delete this bucket? It is removed from every assignment and view. A position whose only specific bucket is this one stays at “no buckets (excluded)” and does not inherit from its depot."
 msgstr ""
 
 #: lib/portfolixir_web/live/buckets_live.ex:531

@@ -176,4 +176,9 @@ heute*: Das Chart beantwortet „Wie hätte sich diese Ansicht mit ihrer
 heutigen Zusammensetzung entwickelt?", nicht „Was habe ich letztes Jahr
 gesehen?". Bucket-Änderungen stehen im Audit-Journal; wann sich eine
 Zugehörigkeit geändert hat, bleibt also nachvollziehbar — aber historische
-Ansichtswerte bewegen sich, wenn Buckets umsortiert werden.
+Ansichtswerte bewegen sich, wenn Buckets umsortiert werden. Auch die
+Definition einer Ansicht wird journalisiert — ihre Include-/Exclude-Sets vor
+und nach jeder Änderung —, und das Löschen eines Buckets schreibt jede
+Ansicht und jede Zuordnung, die ihn nannte, um, jeweils journalisiert; eine
+Position, deren bestimmte Buckets nur aus dem gelöschten bestanden, steht
+danach auf *keine Buckets (ausgeschlossen)* und erbt nicht vom Depot.

@@ -553,7 +553,11 @@ defmodule PortfolixirWeb.BucketsLive do
         role="menuitem"
         phx-click="delete_bucket"
         phx-value-id={@id}
-        data-confirm={gettext("Delete this bucket? It is removed from every assignment and view.")}
+        data-confirm={
+          gettext(
+            "Delete this bucket? It is removed from every assignment and view. A position whose only specific bucket is this one stays at “no buckets (excluded)” and does not inherit from its depot."
+          )
+        }
       >
         <AppShell.icon name={:trash} />
         <span><%= gettext("Delete") %></span>

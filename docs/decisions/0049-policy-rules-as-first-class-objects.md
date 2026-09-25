@@ -12,7 +12,9 @@ description: "Decision for gate B3.6 (FR-43). A policy rule is a stored predicat
   signature). **Amended by the Sprint 16 planning PR** (its D-6, signed by
   that PR's merge): a rule's name is a label outside the versioning and may be
   renamed (§4), §8's write list gains the rename, and §8's remedy sentence is
-  corrected to the built behaviour.
+  corrected to the built behaviour. **Amended in Sprint 16 by the security
+  review's F45** (see "Amendment" after §11): the view a rule reads is
+  journaled with every change to its definition.
 - **Date:** 2026-09-23
 - **Answers:** FR-43. §11 lists the asks it answers and the ones it defers, per
   [ADR-0043](0043-a-gate-closing-adr-names-its-asks.html).
@@ -345,6 +347,21 @@ which recorded the two questions this gate was to answer.
 | Historical findings ("breached on date D") | FR-48's input | **Deferred** to FR-48. §4 makes it computable, and §10 fixes the (c)/(d) boundary it must respect. |
 | The lens defaulting its caps from stored rules | this record | **Deferred**: §7. It changes an existing payload's meaning, and no caller asked. |
 | The rebalancing digest | P0-2 | **Out of scope, gated**: B3.5, §10 |
+
+## Amendment: the views a rule reads are journaled (Sprint 16, F45)
+
+A rule is evaluated under a view (its context) or over one (its subject),
+and §8 protects a referenced view from deletion — but its *definition* could
+change with no journal entry (ADR-0018's parameter 5), so a finding could
+shift under a rule in force with no audit trace. Since Sprint 16 every write
+of a view's definition is journaled with the whole definition — `include_all`
+and both bucket sets — before and after, and a bucket delete rewrites every
+view naming the bucket through that journaled writer
+([ADR-0018](0018-buckets-tag-based-wealth-scoping.html), amendment). Why a
+finding moved is therefore always in the journal: in the rule's versions,
+in a measured figure's own writes, or in the view's definition. Nothing
+about evaluation changes: findings stay computed at read and never stored
+(§5).
 
 ## Consequences
 

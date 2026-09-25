@@ -160,4 +160,8 @@ the label *Composition as of today*: the chart answers "how would this view
 have developed with its current composition?", not "what did I see last
 year?". Bucket changes are recorded in the audit journal, so when a
 membership changed stays reconstructable — but historical view figures move
-when buckets are reorganized.
+when buckets are reorganized. A view's own definition is journaled as well —
+its include/exclude sets before and after every change — and deleting a
+bucket rewrites every view and assignment that named it, each journaled; a
+position whose only specific bucket was the deleted one stays at *no buckets
+(excluded)* and does not start inheriting its depot's buckets.

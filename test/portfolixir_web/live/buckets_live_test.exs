@@ -643,6 +643,38 @@ defmodule PortfolixirWeb.BucketsLiveTest do
       assert text(menu) =~ "Rename"
       assert [_] = Floki.find(menu, ~s(button[phx-click="delete_bucket"][data-confirm]))
     end
+
+    # User story (E25 S6, G19, decision T-10; board 12, before/after):
+    # As the operator deleting a bucket some positions carry as their own,
+    # I want the confirm to say that a position whose only specific bucket
+    # this is stays at "no buckets (excluded)",
+    # so that I know it will not start inheriting its depot's buckets and
+    # appear in views it was not in.
+    #
+    # Acceptance criteria:
+    # - The bucket delete's confirm keeps the removal sentence and adds the
+    #   board's sentence, in the words the position itself shows.
+    test "the bucket delete confirm says an emptied position stays excluded", %{conn: conn} do
+      %{crypto: crypto} = seeded()
+      {:ok, live, _html} = live(conn, "/buckets")
+
+      live
+      |> element(
+        ~s(button.row-actions__kebab[phx-value-kind="bucket"][phx-value-id="#{crypto.id}"])
+      )
+      |> render_click()
+
+      [button] =
+        Floki.parse_document!(render(live))
+        |> Floki.find(~s([role="menu"] button[phx-click="delete_bucket"]))
+
+      [confirm] = Floki.attribute(button, "data-confirm")
+      assert confirm =~ "It is removed from every assignment and view."
+
+      assert confirm =~
+               "A position whose only specific bucket is this one stays at " <>
+                 "“no buckets (excluded)” and does not inherit from its depot."
+    end
   end
 
   # User story (#836):

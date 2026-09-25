@@ -2552,8 +2552,8 @@ msgstr "Notizen konnten nicht gespeichert werden."
 
 #: lib/portfolixir_web/live/buckets_live.ex:565
 #, elixir-autogen, elixir-format
-msgid "Delete this bucket? It is removed from every assignment and view."
-msgstr "Diesen Bucket löschen? Er wird aus jeder Zuordnung und Ansicht entfernt."
+msgid "Delete this bucket? It is removed from every assignment and view. A position whose only specific bucket is this one stays at “no buckets (excluded)” and does not inherit from its depot."
+msgstr "Diesen Bucket löschen? Er wird aus jeder Zuordnung und Ansicht entfernt. Eine Position, deren bestimmte Buckets nur aus diesem bestehen, steht danach auf „keine Buckets (ausgeschlossen)“ und erbt nicht vom Depot."
 
 #: lib/portfolixir_web/live/buckets_live.ex:531
 #, elixir-autogen, elixir-format

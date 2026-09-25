@@ -3192,7 +3192,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.buckets.delete",
     "Delete bucket",
-    "Delete a bucket. The deletion cascades: the bucket is removed from every assignment and view set.",
+    "Delete a bucket. It is first removed from every view and assignment that names it, each rewrite journaled as its own owner's entry: a view's include/exclude sets before and after, a depot's default set, a cash account's set, each position override. A position override whose only bucket this was stays explicit-empty (\"no buckets\") and does not inherit its depot's buckets, so it enters no view it was not in. The bucket's own journal entry lists every membership it had. No refusal: a bucket a policy rule's view reads is deleted too, and the rewritten view is journaled.",
     idSchema,
     idZ
   ),
@@ -3220,21 +3220,21 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.views.update",
     "Update view",
-    "Patch a view's name or include_all flag.",
+    "Patch a view's name or include_all flag. Journaled (resource_type view) with the view's whole definition — include_all and both bucket sets — before and after, because a policy rule may read the view; resending the stored values journals nothing.",
     viewUpdateSchema,
     viewUpdateZ
   ),
   tool(
     "portfolixir.views.delete",
     "Delete view",
-    "Delete a view and its include/exclude bucket sets.",
+    "Delete a view and its include/exclude bucket sets, journaled with the view's whole definition (include_all and both sets) as the before-image.",
     idSchema,
     idZ
   ),
   tool(
     "portfolixir.views.set_buckets",
     "Set view buckets",
-    "Replace a view's include and exclude bucket sets in one call. include and exclude are arrays of bucket ids (default empty); an id named twice in one list counts once. A holding matches when it is included (always under include_all, otherwise carries an included bucket) and carries no excluded bucket; exclude always wins.",
+    "Replace a view's include and exclude bucket sets in one call. include and exclude are arrays of bucket ids (default empty); an id named twice in one list counts once. A holding matches when it is included (always under include_all, otherwise carries an included bucket) and carries no excluded bucket; exclude always wins. Journaled (resource_type view) with the view's sets before and after, because a policy rule may read the view; resending the same sets journals nothing.",
     viewBucketsSchema,
     viewBucketsZ
   ),

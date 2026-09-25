@@ -26,9 +26,9 @@ defmodule Portfolixir.Journal.Allowlist do
 
   # ADR-0018 §5: view definitions, bucket assignments and the snapshot markers
   # (ADR-0027) are *scope* — which accounts and positions a view reads — not
-  # financial records. Their writes are actor-first and, where they cascade
-  # into armed tables (deleting a view drops its plans), journaled, but the
-  # tables themselves are deliberately not guard-armed. Recorded here (#767,
+  # financial records. Their writes are actor-first and journaled (a view's
+  # definition too since Sprint 16, E25 S6, F45: a policy rule in force reads
+  # it), but the tables themselves are deliberately not guard-armed. Recorded here (#767,
   # E21) so the exemption is a closed list under the same meta-test as the
   # market-data set instead of a comment in a migration.
   # `settings` holds the operator's default view (a preference, scope again),

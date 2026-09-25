@@ -3,9 +3,10 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
   JSON API for views (ADR-0018): named global filters over buckets, expressed as
   `{include | "all", exclude}` sets where exclude always wins.
 
-  View-definition writes are actor-first (for the uniform write signature) but,
-  per ADR-0018 §5, are deliberately not journaled. The controller routes every
-  write through `Portfolixir.Buckets` and never touches the Repo.
+  View-definition writes are actor-first and journaled with the view's whole
+  definition before and after (ADR-0018 §5 as amended in Sprint 16; E25 S6,
+  F45). The controller routes every write through `Portfolixir.Buckets` and
+  never touches the Repo.
   """
   use PortfolixirWeb, :controller
 
@@ -58,6 +59,7 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
     else
       nil -> not_found(conn)
       :error -> not_found(conn)
+      {:error, :not_found} -> not_found(conn)
       {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
     end
   end
@@ -91,6 +93,7 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
     else
       nil -> not_found(conn)
       :error -> not_found(conn)
+      {:error, :not_found} -> not_found(conn)
       {:error, field} when is_atom(field) -> unprocessable(conn, %{field => ["is invalid"]})
       {:error, _reason} -> unprocessable(conn, %{detail: ["could not set view buckets"]})
     end
