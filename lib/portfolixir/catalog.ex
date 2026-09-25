@@ -373,6 +373,7 @@ defmodule Portfolixir.Catalog do
         source: :security,
         before: security
       )
+      |> Multi.prepend(isin_write_lock(attrs))
 
     case Repo.transaction(multi) do
       {:ok, %{security: updated}} -> {:ok, updated}
@@ -380,6 +381,17 @@ defmodule Portfolixir.Catalog do
       # The row was deleted before the write took its lock (E25 S6, F49).
       {:error, {:journal_lock, _}, :not_found, _changes} -> {:error, :not_found}
     end
+  end
+
+  # An edit that may change the ISIN takes the ISIN write lock ahead of the
+  # journal's row lock (E25 S6 review round, F49): every ISIN writer — the
+  # ISIN change, an import, an alias edit — takes the advisory lock first and
+  # the security's row after it, and two writers taking the two in opposite
+  # orders could deadlock.
+  defp isin_write_lock(attrs) do
+    if Map.has_key?(attrs, :isin) or Map.has_key?(attrs, "isin"),
+      do: Multi.run(Multi.new(), :isin_write_lock, &IdentifierAliases.lock_isin_writes/2),
+      else: Multi.new()
   end
 
   @doc """
