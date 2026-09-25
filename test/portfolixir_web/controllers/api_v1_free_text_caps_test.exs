@@ -8,8 +8,12 @@ defmodule PortfolixirWeb.ApiV1FreeTextCapsTest do
 
   import Portfolixir.WorldFixtures, only: [base_world: 1, create_security!: 1]
 
+  alias Portfolixir.Actor
+  alias Portfolixir.Catalog
+  alias Portfolixir.Classifications
   alias Portfolixir.Input.Text
   alias Portfolixir.Knowledge
+  alias Portfolixir.Knowledge.Events
   alias Portfolixir.Repo
 
   setup %{conn: conn} do
@@ -124,7 +128,7 @@ defmodule PortfolixirWeb.ApiV1FreeTextCapsTest do
   #   even from a writer that skips the changeset.
   test "the database refuses an over-cap value behind the changeset", %{security: security} do
     {:ok, event} =
-      Portfolixir.Knowledge.Events.create_event(Portfolixir.Actor.owner_ui(), %{
+      Events.create_event(Actor.owner_ui(), %{
         security_id: security.id,
         kind: "earnings",
         date: ~D[2026-11-20],
@@ -184,7 +188,7 @@ defmodule PortfolixirWeb.ApiV1FreeTextCapsTest do
     over = text(Text.free_text_max() + 1)
 
     {:ok, classification} =
-      Portfolixir.Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{
+      Classifications.create_classification(Actor.owner_ui(), %{
         name: "Themes"
       })
 
@@ -295,7 +299,7 @@ defmodule PortfolixirWeb.ApiV1FreeTextCapsTest do
     assert [message] = body["errors"]["attributes"]
     assert message =~ "at most"
 
-    stored = Portfolixir.Catalog.get_security(security.id).attributes
+    stored = Catalog.get_security(security.id).attributes
     assert Map.has_key?(stored, "first")
     refute Map.has_key?(stored, "second")
   end

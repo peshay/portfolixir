@@ -3,6 +3,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
 
   alias Portfolixir.Imports.PortfolioPerformance.CsvParser
   alias Portfolixir.Imports.Preview
+  alias Portfolixir.Input.Text
 
   @fixtures Path.expand("../../../support/fixtures/portfolio_performance", __DIR__)
 
@@ -184,7 +185,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
     # - A note longer than the ledger's free-text cap is a row error naming
     #   the note and the cap; a note at the cap previews.
     test "names the row whose note is longer than the free-text cap" do
-      max = Portfolixir.Input.Text.free_text_max()
+      max = Text.free_text_max()
 
       body =
         "Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle\n" <>

@@ -7,6 +7,8 @@ defmodule PortfolixirWeb.SecuritiesResearchTabTest do
   import Phoenix.LiveViewTest
 
   alias Portfolixir.Actor
+  alias Portfolixir.Clock
+  alias Portfolixir.Input.Text
   alias Portfolixir.Knowledge
   alias Portfolixir.WorldFixtures
 
@@ -309,7 +311,7 @@ defmodule PortfolixirWeb.SecuritiesResearchTabTest do
        %{conn: conn} do
     security = security!()
     kept = append!(security, %{kind: "invalidation_check", as_of: ~D[2026-09-02]})
-    future = Portfolixir.Clock.today() |> Date.add(365) |> Date.to_iso8601()
+    future = Clock.today() |> Date.add(365) |> Date.to_iso8601()
 
     {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=research&locale=de")
     before_state = view |> element(~s([data-role="thesis-state"])) |> render()
@@ -350,7 +352,7 @@ defmodule PortfolixirWeb.SecuritiesResearchTabTest do
   #   nothing is appended.
   test "an entry body past its cap is refused in the form's error list", %{conn: conn} do
     security = security!()
-    max = Portfolixir.Input.Text.entry_body_max()
+    max = Text.entry_body_max()
 
     {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=research")
 
