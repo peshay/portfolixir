@@ -103,3 +103,22 @@ msgstr ""
 ## Portfolixir.Input.BoundedDecimal: an amount past its column's precision.
 msgid "must have at most %{digits} digits before the decimal point"
 msgstr ""
+
+## Portfolixir.Input.Text: text the database refuses.
+msgid "should be at most %{count} character(s)"
+msgid_plural "should be at most %{count} character(s)"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "must be valid UTF-8 text"
+msgstr ""
+
+msgid "must not contain control characters or line breaks"
+msgstr ""
+
+msgid "must not contain control characters other than tabs and line breaks"
+msgstr ""
+
+## Portfolixir.Catalog.Isin: the new ISIN of an ISIN change.
+msgid "is not an ISIN (two letters, nine letters or digits and a check digit)"
+msgstr ""

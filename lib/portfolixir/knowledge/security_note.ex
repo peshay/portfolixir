@@ -23,6 +23,7 @@ defmodule Portfolixir.Knowledge.SecurityNote do
 
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Input.BoundedDate
+  alias Portfolixir.Input.Text
 
   @kinds ~w(thesis evidence invalidation_check event_result risk retraction decision)a
   @source_qualities ~w(primary secondary_multi awareness unverified)a
@@ -102,7 +103,8 @@ defmodule Portfolixir.Knowledge.SecurityNote do
     |> validate_format(:source_url, ~r{\Ahttps?://\S+\z}i, message: "must be an http(s) URL")
     # The column is varchar(255); without this a tracking-laden link is a
     # Postgrex 22001 and a 500 instead of a field error the caller can read.
-    |> validate_length(:source_url, max: @max_source_url, count: :codepoints)
+    |> Text.validate(:source_url, max: @max_source_url)
+    |> Text.validate([:body, :invalidation_condition], multiline: true)
     |> validate_machine_generated_source()
     |> validate_retraction_supersedes()
     |> validate_thesis_fields()

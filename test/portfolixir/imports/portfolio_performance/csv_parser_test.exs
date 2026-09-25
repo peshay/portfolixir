@@ -149,5 +149,35 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
       assert message =~ "implausible date 3019-03-07"
       assert message =~ "re-import"
     end
+
+    # User story:
+    # As an operator importing a file whose names the ledger cannot store,
+    # I want the preview to name the row and the field,
+    # so that I fix the source instead of meeting a failed apply.
+    #
+    # Acceptance criteria (E25 S4, G24):
+    # - A security or account name carrying a control character, or longer
+    #   than 255 characters, and a note carrying a NUL are row errors naming
+    #   the field; the other rows still preview.
+    test "names the row whose text the ledger cannot store" do
+      long = String.duplicate("a", 256)
+
+      body =
+        "Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle\n" <>
+          "2026-03-07 00:00:00;Einlage;;;;250,00;;;250,00;Giro\u0007konto;;;\n" <>
+          "2026-03-08 00:00:00;Einlage;;;;250,00;;;250,00;#{long};;;\n" <>
+          "2026-03-09 00:00:00;Einlage;;;;250,00;;;250,00;Girokonto;;broken\u0000note;\n" <>
+          "2026-03-10 00:00:00;Einlage;;;;250,00;;;250,00;Girokonto;;;\n"
+
+      assert {:ok, %Preview{entries: [entry], errors: errors}} = CsvParser.parse(body)
+      assert entry.source_row == 4
+
+      assert [%{row: 1, message: first}, %{row: 2, message: second}, %{row: 3, message: third}] =
+               errors
+
+      assert first =~ "account"
+      assert second =~ "account"
+      assert third =~ "note"
+    end
   end
 end

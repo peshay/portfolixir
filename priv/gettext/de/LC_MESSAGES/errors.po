@@ -99,3 +99,22 @@ msgstr "muss ein Datum zwischen dem 1900-01-01 und dem 2999-12-31 sein"
 ## Portfolixir.Input.BoundedDecimal: an amount past its column's precision.
 msgid "must have at most %{digits} digits before the decimal point"
 msgstr "darf höchstens %{digits} Stellen vor dem Komma haben"
+
+## Portfolixir.Input.Text: text the database refuses.
+msgid "should be at most %{count} character(s)"
+msgid_plural "should be at most %{count} character(s)"
+msgstr[0] "darf höchstens %{count} Zeichen lang sein"
+msgstr[1] "darf höchstens %{count} Zeichen lang sein"
+
+msgid "must be valid UTF-8 text"
+msgstr "muss gültiger UTF-8-Text sein"
+
+msgid "must not contain control characters or line breaks"
+msgstr "darf keine Steuerzeichen und keine Zeilenumbrüche enthalten"
+
+msgid "must not contain control characters other than tabs and line breaks"
+msgstr "darf außer Tabulatoren und Zeilenumbrüchen keine Steuerzeichen enthalten"
+
+## Portfolixir.Catalog.Isin: the new ISIN of an ISIN change.
+msgid "is not an ISIN (two letters, nine letters or digits and a check digit)"
+msgstr "ist keine ISIN (zwei Buchstaben, neun Buchstaben oder Ziffern und eine Prüfziffer)"

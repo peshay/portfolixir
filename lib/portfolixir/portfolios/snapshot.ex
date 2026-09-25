@@ -15,6 +15,7 @@ defmodule Portfolixir.Portfolios.Snapshot do
 
   alias Portfolixir.Buckets.View
   alias Portfolixir.Input.BoundedDate
+  alias Portfolixir.Input.Text
 
   @type t :: %__MODULE__{}
 
@@ -37,7 +38,7 @@ defmodule Portfolixir.Portfolios.Snapshot do
     |> cast(attrs, [:name, :as_of, :view_id])
     |> validate_required([:name, :as_of])
     |> BoundedDate.validate([:as_of])
-    |> validate_length(:name, max: 120)
+    |> Text.validate(:name, max: 120)
     |> validate_not_future(today)
     |> assoc_constraint(:view)
     |> unique_constraint([:name, :view_id], name: :depot_snapshots_name_per_scope_index)

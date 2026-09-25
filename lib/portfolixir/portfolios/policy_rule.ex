@@ -20,6 +20,7 @@ defmodule Portfolixir.Portfolios.PolicyRule do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Portfolixir.Input.Text
   alias Portfolixir.Portfolios.PolicyRuleVersion
 
   # Mirrors the `policy_rules.name` column width.
@@ -49,7 +50,7 @@ defmodule Portfolixir.Portfolios.PolicyRule do
     |> cast(attrs, [:portfolio_id, :view_id, :name])
     |> update_change(:name, &String.trim/1)
     |> validate_required([:portfolio_id, :name])
-    |> validate_length(:name, max: @max_name, count: :codepoints)
+    |> Text.validate(:name, max: @max_name)
     |> foreign_key_constraint(:portfolio_id)
     |> foreign_key_constraint(:view_id)
   end

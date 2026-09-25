@@ -197,7 +197,11 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
         companion_entries: companions
       }
 
-      {:ok, entry}
+      # E25 S4 (G24): text the ledger would refuse is this row's error.
+      case PortfolioPerformance.text_error(entry) do
+        nil -> {:ok, entry}
+        message -> {:error, message}
+      end
     else
       {:error, reason} when is_binary(reason) -> {:error, reason}
       {:error, reason} -> {:error, inspect(reason)}

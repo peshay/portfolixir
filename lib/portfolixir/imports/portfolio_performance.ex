@@ -11,9 +11,13 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
   formats.
   """
 
+  use Gettext, backend: PortfolixirWeb.Gettext
+
+  alias Portfolixir.Imports.Entry
   alias Portfolixir.Imports.PortfolioPerformance.CsvParser
   alias Portfolixir.Imports.PortfolioPerformance.JsonParser
   alias Portfolixir.Imports.Preview
+  alias Portfolixir.Input.Text
 
   @default_max_rows 100_000
 
@@ -36,6 +40,50 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
     # must never reach that process boundary as an exception (#768).
     _exception -> {:error, :malformed_payload}
   end
+
+  # The text of an entry the ledger stores, each with the rule its column
+  # applies (E25 S4, G24): a name is one line within its column's width, a
+  # note keeps its line breaks.
+  @name_rule [max: 255]
+  @note_rule [multiline: true]
+
+  @doc """
+  The first piece of an entry's text the ledger would refuse, as the row's
+  error message, or `nil` (E25 S4, G24). Both parsers run it on every entry
+  they build, so the preview names the row instead of the apply failing on
+  it; the changesets apply the same rule (`Portfolixir.Input.Text`).
+  """
+  @spec text_error(Entry.t()) :: String.t() | nil
+  def text_error(%Entry{} = entry) do
+    security = entry.security || %{}
+
+    [
+      {gettext("security name"), Map.get(security, :name), @name_rule},
+      {gettext("security ISIN"), Map.get(security, :isin), @name_rule},
+      {gettext("security WKN"), Map.get(security, :wkn), @name_rule},
+      {gettext("security ticker"), Map.get(security, :ticker), @name_rule},
+      {gettext("portfolio"), entry.pp_portfolio_name, @name_rule},
+      {gettext("account"), entry.pp_account_name, @name_rule},
+      {gettext("counter portfolio"), entry.pp_counter_portfolio_name, @name_rule},
+      {gettext("counter account"), entry.pp_counter_account_name, @name_rule},
+      {gettext("note"), entry.note, @note_rule}
+    ]
+    |> Enum.find_value(fn {label, value, rule} ->
+      case Text.check(value, rule) do
+        :ok -> nil
+        {:error, refusal} -> refusal_message(label, refusal)
+      end
+    end)
+  end
+
+  defp refusal_message(label, :too_long),
+    do: gettext("%{field} is longer than 255 characters", field: label)
+
+  defp refusal_message(label, :control_characters),
+    do: gettext("%{field} contains a control character", field: label)
+
+  defp refusal_message(label, :invalid_encoding),
+    do: gettext("%{field} is not valid UTF-8 text", field: label)
 
   defp detect_format(body, filename) do
     cond do

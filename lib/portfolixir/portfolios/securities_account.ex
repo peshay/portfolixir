@@ -2,6 +2,7 @@ defmodule Portfolixir.Portfolios.SecuritiesAccount do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Portfolixir.Input.Text
   alias Portfolixir.Lifecycle.AccountNames
   alias Portfolixir.Lifecycle.Freeze
   alias Portfolixir.Portfolios.CashAccount
@@ -25,6 +26,10 @@ defmodule Portfolixir.Portfolios.SecuritiesAccount do
     securities_account
     |> cast(attrs, [:portfolio_id, :cash_account_id, :name, :notes])
     |> validate_required([:portfolio_id, :cash_account_id, :name])
+    # E25 S4 (G17, G24): the column's width in code points, no control
+    # characters; after L1's identity freezes, which stay as they are.
+    |> Text.validate(:name, max: 255)
+    |> Text.validate(:notes, multiline: true)
     |> assoc_constraint(:portfolio)
     |> assoc_constraint(:cash_account)
     |> foreign_key_constraint(:cash_account_id,

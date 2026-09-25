@@ -97,6 +97,18 @@ also der gerundete Wert, und ein positiver Betrag, der auf `0` rundet, liefert
 `422`. Ein Wert mit mehr als 14 Stellen vor dem Komma (eine Menge mit mehr als
 18) liefert `422` mit dem Namen des Felds, statt in der Datenbank zu scheitern.
 
+**Text.** Ein Name, eine Kennung oder jeder andere einzeilige Text, den ein
+Schreibzugriff speichert, ist höchstens so lang wie seine Spalte — 255 Zeichen,
+sofern keine engere Grenze genannt ist (der Name eines Buckets oder einer
+Ansicht 100, der eines Plans oder Snapshots 120), gezählt in
+Unicode-Codepunkten, der Einheit der Datenbank — und enthält weder Steuerzeichen
+noch Zeilenumbrüche. Freitext (die `notes` einer Buchung, ein
+Research-Log-Eintrag, die `note` eines Termins oder einer Regelversion, eine
+Beschreibung) behält Tabulatoren und Zeilenumbrüche, aber kein anderes
+Steuerzeichen, auch kein NUL. Alles andere liefert `422` mit dem Namen des
+Felds, nie einen Serverfehler. Ein Portfolio-Performance-Import nennt eine
+Zeile, deren Namen oder Notiz gegen dieselbe Regel verstoßen, in der Vorschau.
+
 **Eingepackte Rümpfe.** Ein Schreibzugriff, dessen Attribute unter einem
 Schlüssel reisen — `{"transaction": {…}}`, `{"view": {…}}`, `{"rule": {…}}`
 und ihre Geschwister — liefert `422` mit dem Namen dieses Schlüssels, wenn
@@ -277,7 +289,10 @@ ISIN-Wechsel — sie ist nur eine Namensänderung.
   einem `isin_change`-Objekt auf: Pflichtfeld `new_isin` (normalisiert auf
   getrimmte Großschreibung), optional `changed_on` (ISO-Datum, Standard heute)
   und `note`. Liefert das aktualisierte Wertpapier einschließlich seiner
-  `identifier_aliases`. Abgelehnt mit `422` und benanntem Konflikt, wenn
+  `identifier_aliases`. Eine `new_isin`, die nicht zwölf Zeichen in der Form
+  einer ISIN hat (zwei Buchstaben, neun Buchstaben oder Ziffern und eine
+  Prüfziffer), liefert `422` auf `new_isin`, eine `note` über 255 Zeichen `422`
+  auf `note`. Abgelehnt mit `422` und benanntem Konflikt, wenn
   `new_isin` der aktuellen ISIN entspricht, auf einem anderen Wertpapier live
   ist oder als frühere ISIN eines anderen Wertpapiers aufgezeichnet ist; ein
   Wechsel zurück auf eine eigene frühere ISIN verbraucht diesen Alias (ein

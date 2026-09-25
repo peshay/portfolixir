@@ -4210,6 +4210,66 @@ msgstr "Unplausibles Datum %{date} (vor 1900) — korrigiere die Buchung in der 
 msgid "implausible date %{date} (after %{latest}) — fix the booking in the source and re-import"
 msgstr "Unplausibles Datum %{date} (nach %{latest}) — korrigiere die Buchung in der Quelle und importiere erneut"
 
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "security name"
+msgstr "Wertpapiername"
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "security ISIN"
+msgstr "ISIN des Wertpapiers"
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "security WKN"
+msgstr "WKN des Wertpapiers"
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "security ticker"
+msgstr "Ticker des Wertpapiers"
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "portfolio"
+msgstr "Depot"
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "account"
+msgstr "Konto"
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "counter portfolio"
+msgstr "Gegendepot"
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "counter account"
+msgstr "Gegenkonto"
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "note"
+msgstr "Notiz"
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "%{field} is longer than 255 characters"
+msgstr "%{field} ist länger als 255 Zeichen"
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "%{field} contains a control character"
+msgstr "%{field} enthält ein Steuerzeichen"
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "%{field} is not valid UTF-8 text"
+msgstr "%{field} ist kein gültiger UTF-8-Text"
+
 #: lib/portfolixir/imports/portfolio_performance/json_parser.ex:122
 #, elixir-autogen, elixir-format
 msgid "missing transaction type"

@@ -436,12 +436,12 @@ defmodule Portfolixir.Imports.ReimportContractTest do
     end
 
     test "old and new ISIN of one booking under one account still collapse" do
-      security = security!(%{name: "Example Fund", isin: "DE000000000A"})
-      {:ok, _} = Catalog.record_isin_change(Actor.owner_ui(), security, "DE000000000B")
+      security = security!(%{name: "Example Fund", isin: "DE00000000A1"})
+      {:ok, _} = Catalog.record_isin_change(Actor.owner_ui(), security, "DE00000000B2")
 
       rows = [
-        purchase(1, security: Map.put(@fund, "isin", "DE000000000A")),
-        purchase(2, security: Map.put(@fund, "isin", "DE000000000B"))
+        purchase(1, security: Map.put(@fund, "isin", "DE00000000A1")),
+        purchase(2, security: Map.put(@fund, "isin", "DE00000000B2"))
       ]
 
       preview = parse!(rows)

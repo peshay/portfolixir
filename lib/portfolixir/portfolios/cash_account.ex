@@ -2,6 +2,7 @@ defmodule Portfolixir.Portfolios.CashAccount do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Portfolixir.Input.Text
   alias Portfolixir.Lifecycle.AccountNames
   alias Portfolixir.Lifecycle.Freeze
   alias Portfolixir.Portfolios.Portfolio
@@ -40,6 +41,10 @@ defmodule Portfolixir.Portfolios.CashAccount do
     |> cast(attrs, [:portfolio_id, :name, :currency_code, :notes, :liquidity_role])
     |> normalize_currency_code()
     |> validate_required([:portfolio_id, :name, :currency_code, :liquidity_role])
+    # E25 S4 (G17, G24): the column's width in code points, no control
+    # characters; after L1's identity freezes, which stay as they are.
+    |> Text.validate([:name, :currency_code], max: 255)
+    |> Text.validate(:notes, multiline: true)
     |> validate_length(:currency_code, is: 3)
     |> validate_inclusion(:liquidity_role, @liquidity_roles)
     |> assoc_constraint(:portfolio)

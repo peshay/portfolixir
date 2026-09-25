@@ -244,6 +244,44 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
       assert message =~ "implausible date 3019-03-07"
       assert message =~ "re-import"
     end
+
+    # Acceptance criteria (E25 S4, G24): a name or note the ledger cannot
+    # store is the row's error, naming the field.
+    test "names the row whose text the ledger cannot store" do
+      deposit = fn overrides ->
+        Map.merge(
+          %{
+            type: "DEPOSIT",
+            account: "Girokonto",
+            date: "2026-03-07",
+            currency: "EUR",
+            amount: 250.0
+          },
+          overrides
+        )
+      end
+
+      body =
+        Jason.encode!(%{
+          version: 1,
+          transactions: [
+            deposit.(%{security: %{name: String.duplicate("a", 256), currency: "EUR"}}),
+            deposit.(%{portfolio: "Depot\u0000A"}),
+            deposit.(%{note: "broken\u0000note"}),
+            deposit.(%{})
+          ]
+        })
+
+      assert {:ok, %Preview{entries: [entry], errors: errors}} = JsonParser.parse(body)
+      assert entry.source_row == 4
+
+      assert [%{row: 1, message: first}, %{row: 2, message: second}, %{row: 3, message: third}] =
+               errors
+
+      assert first =~ "security name"
+      assert second =~ "portfolio"
+      assert third =~ "note"
+    end
   end
 
   test "an entry struct exposes the expected fields" do

@@ -332,20 +332,20 @@ defmodule Portfolixir.Imports.ApplierSecurityLadderTest do
   describe "apply/2 N:1 within-run dedup" do
     test "old+new ISIN of one paper collapse to one booking, surfaced" do
       portfolio = setup_portfolio()
-      security = security!(%{isin: "DE000000000A"})
+      security = security!(%{isin: "DE00000000A1"})
 
       {:ok, %{security: security}} =
-        Catalog.record_isin_change(Actor.owner_ui(), security, "DE000000000B")
+        Catalog.record_isin_change(Actor.owner_ui(), security, "DE00000000B2")
 
       old_row =
         buy_entry(
-          %{isin: "DE000000000A", wkn: nil, ticker: nil, name: "Example AG", currency: "EUR"},
+          %{isin: "DE00000000A1", wkn: nil, ticker: nil, name: "Example AG", currency: "EUR"},
           row: 1
         )
 
       new_row =
         buy_entry(
-          %{isin: "DE000000000B", wkn: nil, ticker: nil, name: "Example AG", currency: "EUR"},
+          %{isin: "DE00000000B2", wkn: nil, ticker: nil, name: "Example AG", currency: "EUR"},
           row: 2
         )
 
@@ -362,18 +362,18 @@ defmodule Portfolixir.Imports.ApplierSecurityLadderTest do
 
     test "two same-day bookings distinct only by intraday time both import" do
       portfolio = setup_portfolio()
-      _security = security!(%{isin: "DE000000000A"})
+      _security = security!(%{isin: "DE00000000A1"})
 
       first =
         buy_entry(
-          %{isin: "DE000000000A", wkn: nil, ticker: nil, name: "Example AG", currency: "EUR"},
+          %{isin: "DE00000000A1", wkn: nil, ticker: nil, name: "Example AG", currency: "EUR"},
           row: 1,
           time: ~T[10:00:00]
         )
 
       second =
         buy_entry(
-          %{isin: "DE000000000A", wkn: nil, ticker: nil, name: "Example AG", currency: "EUR"},
+          %{isin: "DE00000000A1", wkn: nil, ticker: nil, name: "Example AG", currency: "EUR"},
           row: 2,
           time: ~T[10:05:00]
         )

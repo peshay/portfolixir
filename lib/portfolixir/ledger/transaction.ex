@@ -5,6 +5,7 @@ defmodule Portfolixir.Ledger.Transaction do
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Input.BoundedDecimal
+  alias Portfolixir.Input.Text
   alias Portfolixir.Ledger.SettlementGuard
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.Portfolio
@@ -257,9 +258,11 @@ defmodule Portfolixir.Ledger.Transaction do
     |> bound_to_columns()
     |> validate_required([:portfolio_id, :type, :date, :currency_code])
     |> BoundedDate.validate([:date])
+    |> Text.validate(:notes, multiline: true)
     |> validate_inclusion(:type, @kinds)
     |> refuse_imported_retype()
     |> validate_length(:currency_code, is: 3)
+    |> Text.validate(:currency_code, max: 3)
     |> validate_required_for_kind()
     |> validate_split_ratio_scope()
     |> validate_decimal_signs()

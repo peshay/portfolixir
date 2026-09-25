@@ -28,6 +28,7 @@ defmodule Portfolixir.Portfolios.TargetPlan do
 
   alias Portfolixir.Buckets.View
   alias Portfolixir.Classifications.Classification
+  alias Portfolixir.Input.Text
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.Target
 
@@ -63,7 +64,7 @@ defmodule Portfolixir.Portfolios.TargetPlan do
       :status
     ])
     |> validate_required([:portfolio_id, :name, :status])
-    |> validate_length(:name, max: 120)
+    |> Text.validate(:name, max: 120)
     |> validate_inclusion(:status, @statuses)
     |> validate_cash_target_weight()
     |> assoc_constraint(:portfolio)
