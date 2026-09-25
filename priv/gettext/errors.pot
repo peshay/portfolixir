@@ -99,3 +99,7 @@ msgstr ""
 ## The shared input bounds (E25 S4): Portfolixir.Input.BoundedDate.
 msgid "must be a date between 1900-01-01 and 2999-12-31"
 msgstr ""
+
+## Portfolixir.Input.BoundedDecimal: an amount past its column's precision.
+msgid "must have at most %{digits} digits before the decimal point"
+msgstr ""

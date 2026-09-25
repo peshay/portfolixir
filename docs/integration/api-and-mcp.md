@@ -80,6 +80,15 @@ stores nothing, so the date stored, answered and journaled is the date sent.
 A Portfolio Performance import names a row dated outside the range in its
 preview instead of booking it.
 
+**Ledger amounts.** A booking's money fields and prices (`gross_amount`,
+`price`, `fees`, `taxes`, `security_amount`, `settlement_amount`,
+`settlement_fx_rate`) keep 6 decimal places and its `quantity` 12
+(ADR-0016). A finer value is rounded half up to that scale **before** it is
+checked, so the value stored, answered and journaled is the rounded one, and a
+positive amount that rounds to `0` answers `422`. A value with more than 14
+digits before the decimal point (a quantity more than 18) answers `422` naming
+the field instead of failing in the database.
+
 **Wrapped bodies.** A write whose attributes travel under one key —
 `{"transaction": {…}}`, `{"view": {…}}`, `{"rule": {…}}` and their siblings —
 answers `422` naming that key when its value is not a JSON object (a string, a
