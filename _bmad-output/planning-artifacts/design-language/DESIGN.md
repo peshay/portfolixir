@@ -985,10 +985,15 @@ set-balance dialog on Accounts & depots.
   (review round, 2026-09-25).
 - **`input.num` joins the generic `.num` rule** — right-aligned, tabular
   numerals — which sits last in `app.css`, so it outranks the bare `input` rule by
-  specificity and any scoped `… input` rule by source order. An amount and a rate
-  typed one under the other end on one edge, as they will in their column.
+  specificity and any scoped `… input` rule of equal specificity by source order.
+  A more specific rule still wins (`.soll-table input[type="number"]`); none sets
+  the alignment or the numerals against it today. An amount and a rate typed one
+  under the other end on one edge, as they will in their column.
 - **Out of the rule: browser number inputs** (`type="number"`: the plan editor's
-  weights, the fixed-rate benchmark, the tax year, the split ratio). Their
+  weights, the fixed-rate benchmark, the tax year, the split ratio, and the
+  securities filter popover's value field, whose type follows the filtered
+  field — `number` for a decimal or integer field; none of those is filterable
+  today, so the popover renders none yet). Their
   `value` must carry a point whatever the page's language, and the browser draws
   their digits; the plan editor's are already right-aligned
   (`.soll-table input[type="number"]`).

@@ -31,7 +31,9 @@ defmodule PortfolixirWeb.DecimalInput do
   Browser number inputs (`type="number"`) are not covered: their `value`
   must carry a point whatever the page's language, and the browser decides
   how they show it (the plan editor's weights, the benchmark rate, the tax
-  year, the split ratio).
+  year, the split ratio, and the securities filter popover's value field for
+  a decimal or integer field, whose type attribute is computed — none of
+  those fields is filterable today).
   """
 
   use Gettext, backend: PortfolixirWeb.Gettext
