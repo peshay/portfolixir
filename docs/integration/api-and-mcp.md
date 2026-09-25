@@ -928,10 +928,16 @@ Example account payloads:
   fees and taxes included) must equal `settlement_amount + fees + taxes`, a
   sell's (the cash received) `settlement_amount - fees - taxes`, within 0.01
   compared at full precision; otherwise the write answers 422 with a
-  `gross_amount` error naming the implied amount. The check runs on create and
-  on a `PATCH` that changes `gross_amount`, `settlement_amount`, `fees`,
-  `taxes` or `type` — a `PATCH` of the notes or the date of an older booking is
-  never refused by it.
+  `gross_amount` error naming the implied amount. **Without a
+  `gross_amount`** the ledger books `quantity × price` (plus fees and taxes on
+  a buy, less them on a sale) as the cash, so that is what is compared: a
+  trade priced in the security's currency and sent without its cash amount
+  answers 422 on `gross_amount` naming both the amount it would book and the
+  one the settlement implies — send the cash the broker settled. The check
+  runs on create and on a `PATCH` that changes `gross_amount`,
+  `settlement_amount`, `fees`, `taxes` or `type`, or, on a booking without a
+  `gross_amount`, its `quantity` or `price` — a `PATCH` of the notes or the
+  date of an older booking is never refused by it.
 - `GET /api/v1/transactions/:id` returns one transaction.
 - `PATCH /api/v1/transactions/:id` updates a transaction (e.g. to fix a
   mis-imported booking); the per-kind validation still applies. An imported

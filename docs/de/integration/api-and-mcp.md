@@ -939,10 +939,18 @@ Beispiel-Payloads für Konten:
   Gebühren und Steuern) muss `settlement_amount + fees + taxes` sein, das eines
   Verkaufs (der erhaltene Betrag) `settlement_amount - fees - taxes`, auf 0,01
   genau bei voller Genauigkeit verglichen; sonst antwortet der Schreibzugriff mit
-  422 und einem `gross_amount`-Fehler, der den abgeleiteten Betrag nennt. Die
+  422 und einem `gross_amount`-Fehler, der den abgeleiteten Betrag nennt.
+  **Ohne `gross_amount`** bucht das Hauptbuch `quantity × price` (bei einem
+  Kauf zuzüglich, bei einem Verkauf abzüglich Gebühren und Steuern) als
+  Geldbetrag, und genau das wird verglichen: Ein Handel, der in der Währung des
+  Wertpapiers bepreist und ohne Geldbetrag gesendet wird, antwortet mit 422
+  auf `gross_amount` und nennt den Betrag, der gebucht würde, und den, den die
+  Abrechnung ergibt — sende den Betrag, den der Broker abgerechnet hat. Die
   Prüfung läuft beim Anlegen und bei einem `PATCH`, das `gross_amount`,
-  `settlement_amount`, `fees`, `taxes` oder `type` ändert — ein `PATCH` der
-  Notiz oder des Datums einer älteren Buchung wird deswegen nie abgelehnt.
+  `settlement_amount`, `fees`, `taxes` oder `type` ändert, oder bei einer
+  Buchung ohne `gross_amount` ihre `quantity` oder ihren `price` — ein `PATCH`
+  der Notiz oder des Datums einer älteren Buchung wird deswegen nie
+  abgelehnt.
 - `GET /api/v1/transactions/:id` liefert eine Transaktion.
 - `PATCH /api/v1/transactions/:id` aktualisiert eine Transaktion (z. B. um eine
   falsch importierte Buchung zu korrigieren); die Validierung je Art gilt weiter.

@@ -446,6 +446,20 @@ defmodule PortfolixirWeb.ApiV1Test do
     assert errors["gross_amount"] == [
              "must equal the settlement amount plus fees and taxes (1823.081818), within 0.01"
            ]
+
+    # E25 S6 (F71): without a cash amount the ledger would book quantity ×
+    # price, dollars as euros; that is checked, and named, the same way.
+    errors =
+      conn
+      |> post_json("/api/v1/transactions", %{
+        "transaction" => Map.delete(attrs, "gross_amount")
+      })
+      |> json_response(422)
+      |> Map.fetch!("errors")
+
+    assert [message] = errors["gross_amount"]
+    assert message =~ "(2000)"
+    assert message =~ "(1818.181818)"
   end
 
   # User story:

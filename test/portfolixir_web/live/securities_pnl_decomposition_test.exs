@@ -32,7 +32,9 @@ defmodule PortfolixirWeb.SecuritiesPnlDecompositionTest do
         currency_code: "USD",
         security_amount: "1000.00",
         settlement_amount: "800.00",
-        settlement_fx_rate: "0.80"
+        settlement_fx_rate: "0.80",
+        # The cash settled in EUR (E25 S6, F71).
+        gross_amount: "800.00"
       })
   end
 
