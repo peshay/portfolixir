@@ -23,6 +23,11 @@ const BOUNDED_DATE =
 const boundedDate = (description?: string) =>
   description ? `${description} ${BOUNDED_DATE}` : BOUNDED_DATE;
 
+// E25 S4, G24 (the S3/S4 review round): a read's text filter meets the text
+// rule the writers meet; the API refuses anything else with a 422.
+const TEXT_FILTER =
+  "One-line text of at most 255 characters without control characters; anything else answers 422 naming the parameter.";
+
 // E25 S4, G16 and G17: the ledger's columns hold 6 decimal places for money,
 // prices and rates and 12 for a quantity.
 const LEDGER_AMOUNTS =
@@ -1154,7 +1159,7 @@ const policyRulesListSchema = {
       minimum: 1,
       description: "narrow to the rules evaluated in this view's context (default: every context)"
     },
-    as_of: { type: "string", description: "ISO date the status is read on (default today)" },
+    as_of: { type: "string", description: boundedDate("The date the status is read on (default today).") },
     include_retired: { type: "boolean", description: "also list rules retired by as_of" },
     since: { type: "string", description: "ISO8601 instant (UTC) or date; rules whose row or any version changed after it" },
     limit: { type: "integer", minimum: 1 }
@@ -1669,8 +1674,8 @@ const journalListSchema = {
   type: "object",
   additionalProperties: false,
   properties: {
-    resource_type: { type: "string" },
-    resource_id: { type: "string" },
+    resource_type: { type: "string", description: TEXT_FILTER },
+    resource_id: { type: "string", description: TEXT_FILTER },
     actor_type: { type: "string", enum: [...journalActorTypes] },
     operation: { type: "string", enum: [...journalOperations] },
     include_scenarios: { type: "boolean" },
@@ -1810,7 +1815,7 @@ const taxHolderSchema = {
   type: "object",
   additionalProperties: false,
   required: ["holder"],
-  properties: { holder: { type: "string", minLength: 1 } }
+  properties: { holder: { type: "string", minLength: 1, description: TEXT_FILTER } }
 };
 
 const taxHolderZ = z.object({ holder: z.string().min(1) });
@@ -1874,8 +1879,8 @@ const allowanceOrdersListSchema = {
   type: "object",
   additionalProperties: false,
   properties: {
-    holder: { type: "string" },
-    institution: { type: "string" },
+    holder: { type: "string", description: TEXT_FILTER },
+    institution: { type: "string", description: TEXT_FILTER },
     tax_year: { type: "integer", minimum: 1990, maximum: 2200 }
   }
 };
@@ -1948,8 +1953,8 @@ const taxSnapshotsListSchema = {
   type: "object",
   additionalProperties: false,
   properties: {
-    holder: { type: "string" },
-    institution: { type: "string" },
+    holder: { type: "string", description: TEXT_FILTER },
+    institution: { type: "string", description: TEXT_FILTER },
     tax_year: { type: "integer", minimum: 1990, maximum: 2200 }
   }
 };
@@ -2025,7 +2030,7 @@ const taxTrimBudgetSchema = {
   additionalProperties: false,
   required: ["holder", "tax_year"],
   properties: {
-    holder: { type: "string", minLength: 1 },
+    holder: { type: "string", minLength: 1, description: TEXT_FILTER },
     tax_year: { type: "integer", minimum: 1990, maximum: 2200 }
   }
 };
@@ -2356,7 +2361,7 @@ const securityMetricsSchema = {
   required: ["security_id"],
   properties: {
     security_id: { type: "integer", minimum: 1 },
-    as_of: { type: "string", description: "ISO8601 date; closes after it are not read (default: today)" }
+    as_of: { type: "string", description: boundedDate("Closes after it are not read (default: today).") }
   }
 } as const;
 
@@ -2575,7 +2580,7 @@ const toolDefinitions: ToolDefinition[] = [
     type: "object",
     additionalProperties: false,
     properties: {
-      query: { type: "string" },
+      query: { type: "string", description: TEXT_FILTER },
       sort: { type: "string" },
       direction: { type: "string", enum: ["asc", "desc"] },
       holding_status: { type: "string", enum: ["held", "not_held", "all"] },
@@ -2731,8 +2736,8 @@ const toolDefinitions: ToolDefinition[] = [
     required: ["security_id"],
     properties: {
       security_id: { type: "integer", minimum: 1 },
-      from: { type: "string", format: "date" },
-      to: { type: "string", format: "date" },
+      from: { type: "string", format: "date", description: boundedDate() },
+      to: { type: "string", format: "date", description: boundedDate() },
       limit: { type: "integer", minimum: 1 }
     }
   }, z.object({ security_id: z.number().int().positive(), from: optionalString(), to: optionalString(), limit: z.number().int().min(1).optional() })),
@@ -2833,8 +2838,8 @@ const toolDefinitions: ToolDefinition[] = [
     type: "object",
     additionalProperties: false,
     properties: {
-      from: { type: "string", format: "date" },
-      to: { type: "string", format: "date" },
+      from: { type: "string", format: "date", description: boundedDate() },
+      to: { type: "string", format: "date", description: boundedDate() },
       portfolio_id: { type: "integer", minimum: 1 },
       security_id: { type: "integer", minimum: 1 },
       securities_account_id: { type: "integer", minimum: 1 },
@@ -2933,8 +2938,8 @@ const toolDefinitions: ToolDefinition[] = [
       required: ["security_id"],
       properties: {
         security_id: { type: "integer", minimum: 1 },
-        from: { type: "string", format: "date" },
-        to: { type: "string", format: "date" }
+        from: { type: "string", format: "date", description: boundedDate() },
+        to: { type: "string", format: "date", description: boundedDate() }
       }
     },
     z.object({

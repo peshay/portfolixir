@@ -3,6 +3,7 @@ defmodule PortfolixirWeb.Api.V1.TradeController do
 
   alias Portfolixir.Catalog
   alias Portfolixir.Ledger
+  alias PortfolixirWeb.Api.V1.DateParam
   alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
 
@@ -44,19 +45,11 @@ defmodule PortfolixirWeb.Api.V1.TradeController do
 
   defp in_range?(_date, _from, _to), do: true
 
+  # The bounded date every writer meets (DateParam, F70 review round).
   defp date_param(params, key, field) do
-    case Map.get(params, key) do
-      value when value in [nil, ""] ->
-        {:ok, nil}
-
-      value when is_binary(value) ->
-        case Date.from_iso8601(value) do
-          {:ok, date} -> {:ok, date}
-          _ -> {:error, field}
-        end
-
-      _ ->
-        {:error, field}
+    case DateParam.parse(params, key) do
+      {:ok, date} -> {:ok, date}
+      :error -> {:error, field}
     end
   end
 

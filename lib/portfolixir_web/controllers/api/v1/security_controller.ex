@@ -14,6 +14,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
   alias PortfolixirWeb.Api.V1.PolicyConflict
   alias PortfolixirWeb.Api.V1.ReferencedConflict
   alias PortfolixirWeb.Api.V1.SinceParam
+  alias PortfolixirWeb.Api.V1.TextParam
 
   @sortable_fields Map.new(SecurityFields.sortable(), fn field ->
                      {Atom.to_string(field.key), field.key}
@@ -163,7 +164,8 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
   end
 
   defp list_opts(params) do
-    with {:ok, sort} <- sort_param(params),
+    with {:ok, query} <- text_param(params, "query"),
+         {:ok, sort} <- sort_param(params),
          {:ok, holding_status} <- holding_status_param(params),
          {:ok, is_benchmark} <- benchmark_flag_param(params),
          {:ok, logo_status} <- logo_status_param(params),
@@ -171,7 +173,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
          {:ok, offset} <- offset_param(params) do
       opts =
         []
-        |> put_if_present(:query, params["query"])
+        |> put_if_present(:query, query)
         |> put_if_present(:sort, sort)
         |> put_if_present(:holding_status, holding_status)
         |> put_if_present(:is_benchmark, is_benchmark)
@@ -180,6 +182,14 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
         |> put_if_present(:offset, offset)
 
       {:ok, opts}
+    end
+  end
+
+  # The text rule every writer meets (TextParam, G24 review round).
+  defp text_param(params, key) do
+    case TextParam.parse(params, key) do
+      {:ok, text} -> {:ok, text}
+      :error -> {:error, String.to_existing_atom(key)}
     end
   end
 

@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.Api.V1.QuoteController do
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.QuoteSync
+  alias PortfolixirWeb.Api.V1.DateParam
   alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ListLimit
@@ -11,8 +12,8 @@ defmodule PortfolixirWeb.Api.V1.QuoteController do
   def index(conn, %{"security_id" => security_id} = params) do
     with {:ok, id} <- IdParam.parse(security_id),
          security when not is_nil(security) <- Catalog.get_security(id),
-         {:ok, from} <- parse_date(Map.get(params, "from"), ~D[0001-01-01], :from),
-         {:ok, to} <- parse_date(Map.get(params, "to"), ~D[9999-12-31], :to),
+         {:ok, from} <- parse_date(params, "from", ~D[0001-01-01], :from),
+         {:ok, to} <- parse_date(params, "to", ~D[9999-12-31], :to),
          {:ok, limit} <- limit_param(params) do
       # Stored rows plus their display-basis adjustment (ADR-0028 §2),
       # derived from ONE fetch: computing the adjusted view from the same
@@ -82,16 +83,15 @@ defmodule PortfolixirWeb.Api.V1.QuoteController do
     end
   end
 
-  defp parse_date(nil, default, _field), do: {:ok, default}
-
-  defp parse_date(value, _default, field) when is_binary(value) do
-    case Date.from_iso8601(value) do
+  # The bounded date every writer meets (DateParam, F70 review round); an
+  # absent bound reads the whole stored history.
+  defp parse_date(params, key, default, field) do
+    case DateParam.parse(params, key) do
+      {:ok, nil} -> {:ok, default}
       {:ok, date} -> {:ok, date}
-      {:error, _} -> {:invalid_param, field}
+      :error -> {:invalid_param, field}
     end
   end
-
-  defp parse_date(_value, _default, field), do: {:invalid_param, field}
 
   defp not_found(conn) do
     conn

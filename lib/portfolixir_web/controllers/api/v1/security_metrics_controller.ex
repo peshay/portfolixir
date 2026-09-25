@@ -15,6 +15,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityMetricsController do
   use PortfolixirWeb, :controller
 
   alias Portfolixir.Catalog.SecurityMetrics
+  alias PortfolixirWeb.Api.V1.DateParam
   alias PortfolixirWeb.Api.V1.JSON
 
   def show(conn, %{"security_id" => security_id} = params) do
@@ -33,19 +34,11 @@ defmodule PortfolixirWeb.Api.V1.SecurityMetricsController do
   defp as_of_opts(nil), do: []
   defp as_of_opts(%Date{} = as_of), do: [as_of: as_of]
 
+  # The bounded date every writer meets (DateParam, F70 review round).
   defp as_of_param(params) do
-    case Map.get(params, "as_of") do
-      value when value in [nil, ""] ->
-        {:ok, nil}
-
-      value when is_binary(value) ->
-        case Date.from_iso8601(value) do
-          {:ok, date} -> {:ok, date}
-          _ -> {:error, :as_of}
-        end
-
-      _ ->
-        {:error, :as_of}
+    case DateParam.parse(params, "as_of") do
+      {:ok, date} -> {:ok, date}
+      :error -> {:error, :as_of}
     end
   end
 
