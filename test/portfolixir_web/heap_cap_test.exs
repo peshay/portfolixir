@@ -43,5 +43,8 @@ defmodule PortfolixirWeb.HeapCapTest do
 
     {:ok, view, _html} = live(build_conn(), "/")
     assert capped?(view.pid)
+
+    # The page's own loads finish inside the test's database ownership.
+    render_async(view)
   end
 end
