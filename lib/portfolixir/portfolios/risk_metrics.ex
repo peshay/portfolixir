@@ -295,7 +295,11 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
           "index points for max_drawdown, #{PortfolioMetrics.min_pair_observations()} " <>
           "overlapping returns per correlation pair. A risk_adjusted_return over a " <>
           "volatility of exactly 0, and a correlation where either side never moved, is " <>
-          "null without insufficient_data: the figure is undefined, not short of data",
+          "null without insufficient_data: the figure is undefined, not short of data. " <>
+          "So is a figure whose square root the one float step cannot carry, a magnitude " <>
+          "outside the double range that only implausible stored prices or rates reach: " <>
+          "that volatility and the risk_adjusted_return beside it, or that correlation pair, " <>
+          "is null without insufficient_data, never a number over such data (E25, F73)",
       assumptions:
         "volatility is the POPULATION standard deviation of the window's daily returns " <>
           "(divided by the observation count), annualized by " <>
