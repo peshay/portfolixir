@@ -4203,6 +4203,12 @@ msgstr ""
 msgid "implausible date %{date} (before 1900) — fix the booking in the source and re-import"
 msgstr ""
 
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex
+#, elixir-autogen, elixir-format
+msgid "implausible date %{date} (after %{latest}) — fix the booking in the source and re-import"
+msgstr ""
+
 #: lib/portfolixir/imports/portfolio_performance/json_parser.ex:122
 #, elixir-autogen, elixir-format
 msgid "missing transaction type"

@@ -6,6 +6,7 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Performance
   alias Portfolixir.WorldFixtures
@@ -481,15 +482,27 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
     # A PP export typo: year 0219 instead of 2019. Walking from year 0219
     # would mean ~660,000 daily steps — the walk must start at the first
     # plausible booking instead, with the ancient cash effect preserved.
-    {:ok, _} =
+    # Every writer refuses such a date since E25 S4 (F70), so the row is
+    # history already in a database: written past the changeset.
+    {:ok, removal} =
       Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
         portfolio_id: world.portfolio.id,
         cash_account_id: world.cash.id,
         type: "removal",
-        date: ~D[0219-03-07],
+        date: ~D[2019-03-07],
         gross_amount: "300",
         currency_code: "EUR"
       })
+
+    {:ok, {1, _}} =
+      Repo.transaction(fn ->
+        {type, _label} = Actor.to_columns(Actor.owner_ui())
+        Repo.query!("SELECT set_config('portfolixir.journal_actor', $1, true)", [type])
+
+        Transaction
+        |> where(id: ^removal.id)
+        |> Repo.update_all(set: [date: ~D[0219-03-07]])
+      end)
 
     deposit!(world, "1000", ~D[2026-01-01])
 

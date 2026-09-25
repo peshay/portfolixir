@@ -60,11 +60,11 @@ defmodule Portfolixir.Input.BoundedDateTest do
   test "parse/1 applies the same rule to a date that does not travel in a changeset" do
     assert BoundedDate.parse("2024-02-29") == {:ok, ~D[2024-02-29]}
     assert BoundedDate.parse(~D[2024-02-29]) == {:ok, ~D[2024-02-29]}
-    assert BoundedDate.parse("9999-12-31") == :error
-    assert BoundedDate.parse(Date.new!(6_000_000, 1, 1)) == :error
-    assert BoundedDate.parse(%{"year" => 2024, "month" => 1, "day" => 1}) == :error
-    assert BoundedDate.parse("not a date") == :error
-    assert BoundedDate.parse(nil) == :error
+    assert BoundedDate.parse("9999-12-31") == {:error, :out_of_range}
+    assert BoundedDate.parse(Date.new!(6_000_000, 1, 1)) == {:error, :out_of_range}
+    assert BoundedDate.parse(%{"year" => 2024, "month" => 1, "day" => 1}) == {:error, :invalid}
+    assert BoundedDate.parse("not a date") == {:error, :invalid}
+    assert BoundedDate.parse(nil) == {:error, :invalid}
   end
 
   test "the refusal names the accepted range" do

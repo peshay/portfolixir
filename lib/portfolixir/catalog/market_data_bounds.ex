@@ -4,8 +4,8 @@ defmodule Portfolixir.Catalog.MarketDataBounds do
   or an exchange rate, defined once for every writer and every latest read
   (E25 S3, F26).
 
-  A point is plausible when its value is positive and its date is no later
-  than `latest_date/0`: the host's calendar day (`Portfolixir.Clock`) plus
+  A point is plausible when its value is positive and its date is a bounded
+  date (`Portfolixir.Input.BoundedDate`) no later than `latest_date/0`: the host's calendar day (`Portfolixir.Clock`) plus
   one day of zone slack, because a provider dates its points in UTC or in its
   own zone, which can already be tomorrow where the instance runs.
 
@@ -25,6 +25,7 @@ defmodule Portfolixir.Catalog.MarketDataBounds do
   import Ecto.Changeset
 
   alias Portfolixir.Clock
+  alias Portfolixir.Input.BoundedDate
 
   @doc "The latest date a stored market-data point may carry."
   @spec latest_date() :: Date.t()
@@ -38,7 +39,7 @@ defmodule Portfolixir.Catalog.MarketDataBounds do
   """
   @spec plausible?(term(), term()) :: boolean()
   def plausible?(%Date{} = date, value) do
-    Date.compare(date, latest_date()) != :gt and positive?(value)
+    BoundedDate.within?(date) and Date.compare(date, latest_date()) != :gt and positive?(value)
   end
 
   def plausible?(date, value) when is_binary(date) do
@@ -51,7 +52,8 @@ defmodule Portfolixir.Catalog.MarketDataBounds do
   def plausible?(_date, _value), do: false
 
   @doc """
-  Adds the bounds to a changeset: `date_field` no later than `latest_date/0`,
+  Adds the bounds to a changeset: `date_field` a bounded date
+  (`Portfolixir.Input.BoundedDate`, E25 S4) no later than `latest_date/0`,
   `value_field` greater than zero.
   """
   @spec validate(Ecto.Changeset.t(), atom(), atom()) :: Ecto.Changeset.t()
@@ -59,6 +61,7 @@ defmodule Portfolixir.Catalog.MarketDataBounds do
     latest = latest_date()
 
     changeset
+    |> BoundedDate.validate([date_field])
     |> validate_change(date_field, fn ^date_field, date ->
       if Date.compare(date, latest) == :gt,
         do: [{date_field, "must not be later than #{Date.to_iso8601(latest)}"}],

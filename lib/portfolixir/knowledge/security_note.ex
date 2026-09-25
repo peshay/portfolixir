@@ -22,6 +22,7 @@ defmodule Portfolixir.Knowledge.SecurityNote do
   import Ecto.Changeset
 
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Input.BoundedDate
 
   @kinds ~w(thesis evidence invalidation_check event_result risk retraction decision)a
   @source_qualities ~w(primary secondary_multi awareness unverified)a
@@ -94,6 +95,7 @@ defmodule Portfolixir.Knowledge.SecurityNote do
     |> update_change(:source_url, &blank_to_nil/1)
     |> update_change(:invalidation_condition, &blank_to_nil/1)
     |> validate_required([:security_id, :author, :kind, :body, :source_quality, :as_of])
+    |> BoundedDate.validate([:as_of, :valid_until, :time_stop])
     |> validate_length(:body, min: 1)
     # The link is rendered as an anchor on the timeline and handed to an agent
     # as a source: only http(s) — never javascript:, data: or a bare path.

@@ -29,6 +29,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
   alias Portfolixir.Imports.Decimals
   alias Portfolixir.Imports.Entry
   alias Portfolixir.Imports.PortfolioPerformance
+  alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Imports.Preview
 
   NimbleCSV.define(__MODULE__.Parser, separator: ";", escape: "\"")
@@ -254,9 +255,24 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
            date: String.trim(value)
          )}
 
+      # The ledger's bounded date (E25 S4, F70), named here as the row's error
+      # rather than failing the apply.
+      {:ok, date} ->
+        if BoundedDate.within?(date),
+          do: {:ok, date},
+          else: {:error, too_late(String.trim(value))}
+
       other ->
         other
     end
+  end
+
+  defp too_late(value) do
+    gettext(
+      "implausible date %{date} (after %{latest}) — fix the booking in the source and re-import",
+      date: value,
+      latest: Date.to_iso8601(BoundedDate.latest())
+    )
   end
 
   # For trades (Kauf/Verkauf) the PP CSV uses Konto=depot,

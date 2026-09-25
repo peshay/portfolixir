@@ -52,6 +52,7 @@ defmodule Portfolixir.Ledger.Splits do
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Clock
+  alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Positions
   alias Portfolixir.Ledger.Projection
@@ -143,16 +144,13 @@ defmodule Portfolixir.Ledger.Splits do
     end
   end
 
-  defp parse_date(%Date{} = date), do: {:ok, date}
-
-  defp parse_date(value) when is_binary(value) do
-    case Date.from_iso8601(value) do
+  # The one bounded date every writer shares (E25 S4, F70).
+  defp parse_date(value) do
+    case BoundedDate.parse(value) do
       {:ok, date} -> {:ok, date}
-      _invalid -> {:error, :invalid_date}
+      {:error, _invalid_or_out_of_range} -> {:error, :invalid_date}
     end
   end
-
-  defp parse_date(_other), do: {:error, :invalid_date}
 
   # Normalized to lowest terms at write time (ADR-0028 §1): identity and
   # equality always use the canonical pair, and a pair that reduces to 1:1

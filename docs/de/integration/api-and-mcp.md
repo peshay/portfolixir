@@ -77,6 +77,17 @@ nicht-negative Ganzzahl ist, liefert `422` mit dem Namen des Parameters.
 den Wertpapier-Terminen. Ein Jahr außerhalb von `1`–`9999` gilt als
 fehlerhaftes Jahr.
 
+**Datumsangaben.** Jedes Datum, das ein Schreibzugriff speichert — das
+`date` einer Buchung, `valid_from` einer Regelversion und `valid_until` einer
+Stilllegung, `as_of` eines Snapshots, die Daten eines Research-Log-Eintrags,
+eines Termins, eines Steuerprofils, eines ISIN-Wechsels, eines Kurses und eines
+Splits — ist ein ISO-8601-Kalenderdatum (`YYYY-MM-DD`) von `1900-01-01` bis
+`2999-12-31`. Ein Datum außerhalb dieses Bereichs oder in anderer Form (ein
+Objekt aus Teilen, ein Datum mit Uhrzeit) liefert `422` mit dem Namen des Felds
+und speichert nichts; das gespeicherte, gemeldete und im Journal festgehaltene
+Datum ist also das gesendete. Ein Portfolio-Performance-Import nennt eine Zeile
+mit einem Datum außerhalb des Bereichs in der Vorschau, statt sie zu buchen.
+
 **Eingepackte Rümpfe.** Ein Schreibzugriff, dessen Attribute unter einem
 Schlüssel reisen — `{"transaction": {…}}`, `{"view": {…}}`, `{"rule": {…}}`
 und ihre Geschwister — liefert `422` mit dem Namen dieses Schlüssels, wenn

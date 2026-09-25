@@ -52,23 +52,25 @@ defmodule Portfolixir.Input.BoundedDate do
 
   @doc """
   Parses a date that reaches a write without a changeset cast: a `Date` or an
-  ISO 8601 `YYYY-MM-DD` string inside the range is `{:ok, date}`; anything
-  else is `:error`.
+  ISO 8601 `YYYY-MM-DD` string inside the range is `{:ok, date}`; a date
+  outside it is `{:error, :out_of_range}`, anything else
+  `{:error, :invalid}`.
   """
-  @spec parse(term()) :: {:ok, Date.t()} | :error
-  def parse(%Date{} = date), do: if(within?(date), do: {:ok, date}, else: :error)
+  @spec parse(term()) :: {:ok, Date.t()} | {:error, :invalid | :out_of_range}
+  def parse(%Date{} = date) do
+    if within?(date), do: {:ok, date}, else: {:error, :out_of_range}
+  end
 
   def parse(value) when is_binary(value) do
     with true <- Regex.match?(@iso_date, value),
-         {:ok, date} <- Date.from_iso8601(value),
-         true <- within?(date) do
-      {:ok, date}
+         {:ok, date} <- Date.from_iso8601(value) do
+      parse(date)
     else
-      _refused -> :error
+      _malformed -> {:error, :invalid}
     end
   end
 
-  def parse(_value), do: :error
+  def parse(_value), do: {:error, :invalid}
 
   @doc """
   Refuses a change of each of `fields` that is outside the range, or that was

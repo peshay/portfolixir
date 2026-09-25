@@ -70,6 +70,16 @@ non-negative integer, answers `422` naming the parameter. `limit` keeps its
 capped-and-echoed contract, and so does the security events' `days`. A year
 outside `1`–`9999` reads as a malformed year.
 
+**Dates.** Every date a write stores — a booking's `date`, a rule version's
+`valid_from` and a retirement's `valid_until`, a snapshot's `as_of`, a
+research-log entry's, an event's, a tax profile's, an ISIN change's, a quote's
+and a split's dates — is an ISO 8601 calendar date (`YYYY-MM-DD`) from
+`1900-01-01` to `2999-12-31`. A date outside that range, or sent in any other
+form (an object of parts, a date-time), answers `422` naming the field and
+stores nothing, so the date stored, answered and journaled is the date sent.
+A Portfolio Performance import names a row dated outside the range in its
+preview instead of booking it.
+
 **Wrapped bodies.** A write whose attributes travel under one key —
 `{"transaction": {…}}`, `{"view": {…}}`, `{"rule": {…}}` and their siblings —
 answers `422` naming that key when its value is not a JSON object (a string, a

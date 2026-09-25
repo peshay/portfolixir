@@ -29,6 +29,7 @@ defmodule Portfolixir.Tax.StatementSnapshot do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Tax.Identity
 
   @type t :: %__MODULE__{}
@@ -94,6 +95,7 @@ defmodule Portfolixir.Tax.StatementSnapshot do
     |> update_change(:institution, &Identity.normalize/1)
     |> update_change(:holder, &Identity.normalize/1)
     |> validate_required([:institution, :holder, :tax_year, :as_of, :source, :church_tax_rate])
+    |> BoundedDate.validate([:as_of])
     |> validate_length(:institution, min: 1)
     |> validate_length(:holder, min: 1)
     |> validate_inclusion(:source, @sources)

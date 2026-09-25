@@ -46,6 +46,7 @@ defmodule Portfolixir.Portfolios.PolicyRules do
   alias Portfolixir.Classifications.Category
   alias Portfolixir.Clock
   alias Portfolixir.Derived.Invalidation
+  alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Journal
   alias Portfolixir.Portfolios.PolicyRule
   alias Portfolixir.Portfolios.PolicyRuleVersion
@@ -491,16 +492,15 @@ defmodule Portfolixir.Portfolios.PolicyRules do
     end
   end
 
-  defp parse_date(%Date{} = date), do: {:ok, date}
-
-  defp parse_date(value) when is_binary(value) do
-    case Date.from_iso8601(value) do
+  # The retirement date reaches the version without a cast, so it meets the
+  # shared bounded date here (E25 S4, F70).
+  defp parse_date(value) do
+    case BoundedDate.parse(value) do
       {:ok, date} -> {:ok, date}
-      _malformed -> {:error, retire_error("is invalid")}
+      {:error, :out_of_range} -> {:error, retire_error(BoundedDate.message())}
+      {:error, :invalid} -> {:error, retire_error("is invalid")}
     end
   end
-
-  defp parse_date(_value), do: {:error, retire_error("is invalid")}
 
   defp not_before(date, floor) do
     if Date.compare(date, floor) == :lt,

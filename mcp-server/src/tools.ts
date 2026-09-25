@@ -16,6 +16,13 @@ export interface ToolResult {
   structuredContent: unknown;
 }
 
+// E25 S4, F70: every date a write stores is one ISO calendar date inside one
+// range; the API refuses anything else with a 422 naming the field.
+const BOUNDED_DATE =
+  "An ISO date (YYYY-MM-DD) from 1900-01-01 to 2999-12-31; outside that range, or in any other form, the API answers 422 naming the field and stores nothing.";
+const boundedDate = (description?: string) =>
+  description ? `${description} ${BOUNDED_DATE}` : BOUNDED_DATE;
+
 const emptyObjectSchema = {
   type: "object",
   additionalProperties: false,
@@ -302,7 +309,7 @@ const isinChangeSchema = {
     changed_on: {
       type: "string",
       format: "date",
-      description: "Effective date of the ISIN change (YYYY-MM-DD); defaults to today."
+      description: boundedDate("Effective date of the ISIN change; defaults to today.")
     },
     note: { type: "string", description: "Optional note, e.g. the corporate action." }
   }
@@ -347,7 +354,7 @@ const splitRequestSchema = {
     date: {
       type: "string",
       format: "date",
-      description: "Effective date (YYYY-MM-DD), not in the future."
+      description: boundedDate("Effective date, not in the future.")
     },
     ratio_numerator: {
       type: "integer",
@@ -399,7 +406,7 @@ const quoteUpsertSchema = {
         type: "object",
         required: ["date", "close", "source"],
         properties: {
-          date: { type: "string", format: "date" },
+          date: { type: "string", format: "date", description: boundedDate() },
           close: { type: "string" },
           source: {
             type: "string",
@@ -458,7 +465,7 @@ const transactionSchema = objectWith("transaction", {
     counter_securities_account_id: { type: "integer", minimum: 1 },
     security_id: { type: "integer", minimum: 1 },
     type: { type: "string", enum: [...bookableKinds] },
-    date: { type: "string", format: "date" },
+    date: { type: "string", format: "date", description: boundedDate() },
     quantity: { type: "string" },
     price: { type: "string" },
     gross_amount: { type: "string" },
@@ -721,7 +728,7 @@ const transactionUpdateSchema = {
         counter_securities_account_id: { type: "integer", minimum: 1 },
         security_id: { type: "integer", minimum: 1 },
         type: { type: "string", enum: [...bookableKinds] },
-        date: { type: "string", format: "date" },
+        date: { type: "string", format: "date", description: boundedDate() },
         quantity: { type: "string" },
         price: { type: "string" },
         gross_amount: { type: "string" },
@@ -1092,7 +1099,7 @@ const policyVersionSchema = {
     note: { type: "string", description: "the operator's words, never parsed" },
     valid_from: {
       type: "string",
-      description: "ISO date the version is in force from (default today; never before today)"
+      description: boundedDate("The day the version is in force from (default today; never before today).")
     }
   }
 } as const;
@@ -1196,8 +1203,9 @@ const policyRuleRetireSchema = {
     id: { type: "integer", minimum: 1 },
     valid_until: {
       type: "string",
-      description:
-        "ISO date the version in force ends on (default yesterday, or today when it only started today; never earlier)"
+      description: boundedDate(
+        "The day the version in force ends on (default yesterday, or today when it only started today; never earlier)."
+      )
     }
   }
 } as const;
@@ -1313,7 +1321,7 @@ const cashBalanceSchema = {
   required: ["id", "date", "amount"],
   properties: {
     id: { type: "integer", minimum: 1 },
-    date: { type: "string", format: "date" },
+    date: { type: "string", format: "date", description: boundedDate() },
     amount: { type: "string" },
     notes: { type: "string" }
   }
@@ -1762,7 +1770,7 @@ const taxProfileCreateSchema = {
   required: ["holder", "valid_from"],
   properties: {
     holder: { type: "string", minLength: 1 },
-    valid_from: { type: "string", description: "ISO date (YYYY-MM-DD)" },
+    valid_from: { type: "string", description: boundedDate() },
     church_tax_liable: { type: "boolean" },
     church_tax_rate: { type: "string", description: "Decimal string fraction; 0 when not liable" },
     assessment_type: { type: "string", enum: ["single", "joint"] },
@@ -1785,7 +1793,7 @@ const taxProfileUpdateSchema = {
   required: ["profile_id"],
   properties: {
     profile_id: { type: "integer", minimum: 1 },
-    valid_from: { type: "string", description: "ISO date (YYYY-MM-DD)" },
+    valid_from: { type: "string", description: boundedDate() },
     church_tax_liable: { type: "boolean" },
     church_tax_rate: { type: "string" },
     assessment_type: { type: "string", enum: ["single", "joint"] },
@@ -1918,7 +1926,7 @@ const taxSnapshotCreateSchema = {
     institution: { type: "string", minLength: 1 },
     holder: { type: "string", minLength: 1 },
     tax_year: { type: "integer", minimum: 1990, maximum: 2200 },
-    as_of: { type: "string", description: "ISO date (YYYY-MM-DD), not in the future" },
+    as_of: { type: "string", description: boundedDate("Not in the future.") },
     source: { type: "string", enum: ["manual", "pdf_import"] },
     church_tax_rate: {
       type: "string",
@@ -1982,7 +1990,7 @@ const snapshotCreateSchema = {
   required: ["name", "as_of"],
   properties: {
     name: { type: "string", minLength: 1, maxLength: 120 },
-    as_of: { type: "string", description: "ISO date (YYYY-MM-DD), not in the future" },
+    as_of: { type: "string", description: boundedDate("Not in the future.") },
     view_id: { type: "integer", minimum: 1 }
   }
 };
@@ -2137,13 +2145,13 @@ const eventBodySchema = {
   additionalProperties: false,
   properties: {
     kind: { type: "string", enum: [...EVENT_KINDS] },
-    date: { type: "string", description: "ISO8601 date" },
-    date_end: { type: "string", description: "ISO8601 date; ONLY on timing=window" },
+    date: { type: "string", description: boundedDate() },
+    date_end: { type: "string", description: boundedDate("ONLY on timing=window.") },
     timing: { type: "string", enum: [...EVENT_TIMINGS] },
     confirmed: { type: "boolean" },
     source_url: { type: "string" },
     source_quality: { type: "string", enum: [...EVENT_SOURCE_QUALITIES] },
-    checked_at: { type: "string", description: "ISO8601 date the fact was last re-read" },
+    checked_at: { type: "string", description: boundedDate("The day the fact was last re-read.") },
     note: { type: "string" }
   }
 } as const;
@@ -2402,12 +2410,18 @@ const noteAppendSchema = {
         body: { type: "string", minLength: 1 },
         source_quality: { type: "string", enum: [...noteSourceQualities] },
         source_url: { type: "string" },
-        as_of: { type: "string", description: "ISO date: the statement's cut-off date, not the write time" },
+        as_of: {
+          type: "string",
+          description: boundedDate("The statement's cut-off date, not the write time.")
+        },
         supersedes_id: { type: "integer", minimum: 1, description: "the earlier entry this one replaces (same security); required for a retraction" },
-        valid_until: { type: "string", description: "ISO date of a dated block (lockup, self-imposed buying block)" },
+        valid_until: {
+          type: "string",
+          description: boundedDate("The end of a dated block (lockup, self-imposed buying block).")
+        },
         conviction: { type: "string", enum: [...noteConvictions], description: "thesis entries only" },
         invalidation_condition: { type: "string", description: "thesis entries only" },
-        time_stop: { type: "string", description: "ISO date; thesis entries only" }
+        time_stop: { type: "string", description: boundedDate("Thesis entries only.") }
       }
     }
   }

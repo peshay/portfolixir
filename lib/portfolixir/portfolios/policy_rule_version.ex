@@ -51,6 +51,7 @@ defmodule Portfolixir.Portfolios.PolicyRuleVersion do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Portfolios.PolicyRule
 
   @subject_types ~w(basis security category view cash)a
@@ -160,6 +161,8 @@ defmodule Portfolixir.Portfolios.PolicyRuleVersion do
       :severity,
       :valid_from
     ])
+    # E25 S4, F70: the start a rule is checked against is the start stored.
+    |> BoundedDate.validate([:valid_from])
     |> validate_matrix()
     |> validate_subject()
     |> validate_window()

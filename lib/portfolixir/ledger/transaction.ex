@@ -3,6 +3,7 @@ defmodule Portfolixir.Ledger.Transaction do
   import Ecto.Changeset
 
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Ledger.SettlementGuard
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.Portfolio
@@ -250,6 +251,7 @@ defmodule Portfolixir.Ledger.Transaction do
     |> put_decimal_default(:fees)
     |> put_decimal_default(:taxes)
     |> validate_required([:portfolio_id, :type, :date, :currency_code])
+    |> BoundedDate.validate([:date])
     |> validate_inclusion(:type, @kinds)
     |> refuse_imported_retype()
     |> validate_length(:currency_code, is: 3)
