@@ -145,4 +145,63 @@ defmodule PortfolixirWeb.ImportsFileErrorsTest do
     assert has_element?(remounted, "form#pp-import-form.import-drop-zone")
     assert parked() == nil
   end
+
+  # User story (E25 S5, F35, board 11):
+  # As an operator dropping an export that names more accounts, depots or
+  # securities than one preview can show,
+  # I want a named file error that says how to split the export,
+  # so that the page never renders a preview too large to use.
+  #
+  # Acceptance criteria:
+  # - A file past the cap is a named file error in the error band, the text
+  #   names no number, and nothing is parked.
+  # - A file at the cap previews, and its rendered size stays bounded: every
+  #   depot row offers each cash account of the file exactly once.
+  test "a file past the distinct-name cap is a named file error; at the cap it renders bounded",
+       %{conn: conn} do
+    %{accounts: cap} = Portfolixir.Imports.PortfolioPerformance.max_names()
+    half = div(cap, 2)
+    long = String.duplicate("x", 40)
+
+    rows = fn depots ->
+      for i <- 1..depots do
+        "2024-01-15 10:01:00;Kauf;Synthetic AG;1;1,00;1,00;;;1,00;Depot #{long} #{i};Cash #{long} #{i};;"
+      end
+    end
+
+    {:ok, view, _html} = live(conn, "/imports")
+    upload(view, "too-many.csv", csv(rows.(half + 1)))
+
+    message =
+      view
+      |> element(".alert-error[role=alert]")
+      |> render()
+      |> Floki.parse_fragment!()
+      |> Floki.text()
+
+    assert message =~
+             "The file names too many different accounts, depots or securities for one preview."
+
+    refute message =~ ~r/\d/
+    assert parked() == nil
+
+    upload(view, "at-cap.csv", csv(rows.(half)))
+    html = render(view)
+    assert html =~ "Preview"
+
+    doc = Floki.parse_document!(html)
+    depot_rows = Floki.find(doc, ".mapping-row.depot")
+    assert length(depot_rows) == half
+
+    for row <- depot_rows do
+      [_target, cash_select] = Floki.find(row, "select")
+
+      import_options =
+        cash_select |> Floki.find("option") |> Enum.filter(&(Floki.text(&1) =~ "(import)"))
+
+      assert length(import_options) == half
+    end
+
+    assert byte_size(html) < 2_000_000
+  end
 end

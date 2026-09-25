@@ -7872,3 +7872,8 @@ msgstr "Die Datei ist nicht in UTF-8 kodiert. Abhilfe: in Portfolio Performance 
 #, elixir-autogen, elixir-format
 msgid "security without a name and without an ISIN — row not imported"
 msgstr "Wertpapier ohne Name und ohne ISIN — Zeile nicht übernommen"
+
+#: lib/portfolixir_web/live/imports_live.ex:1478
+#, elixir-autogen, elixir-format
+msgid "The file names too many different accounts, depots or securities for one preview. Remedy: create smaller exports in Portfolio Performance, for example one per account or depot, and import them one after another."
+msgstr "Die Datei enthält zu viele unterschiedliche Konto-, Depot- oder Wertpapiernamen für eine Vorschau. Abhilfe: in Portfolio Performance kleinere Exporte anlegen, etwa je Konto oder Depot, und nacheinander importieren."

@@ -1770,6 +1770,10 @@ nimmt sofort die nächste Datei:
   eine Tabellenkalkulation einen Export neu gespeichert hat: in Portfolio
   Performance neu exportieren und die Datei ablegen, ohne sie vorher in einer
   Tabellenkalkulation zu öffnen.
+- **Eine Datei mit zu vielen unterschiedlichen Konto-, Depot- oder
+  Wertpapiernamen** für eine Vorschau, weit mehr, als ein gewöhnlicher Export
+  enthält: in Portfolio Performance kleinere Exporte anlegen, etwa je Konto
+  oder Depot, und nacheinander importieren.
 
 Eine einzelne Zeile, die der Import nie buchen könnte, ist stattdessen eine
 Parser-Warnung: Sie steht mit ihrer Zeilennummer im Warnungsfeld, zählt nicht

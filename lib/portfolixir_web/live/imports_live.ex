@@ -133,6 +133,9 @@ defmodule PortfolixirWeb.ImportsLive do
         # unique reference of the resolution plan, whatever it carries.
         unique_securities_count: length(resolutions),
         total_entries: total_entries(assigns.preview),
+        # E25 S5 (F35): a depot row's cash choices, built once for every
+        # depot row rather than once per depot.
+        depot_cash_choices: depot_cash_choices(assigns.cash_pp_names, assigns.existing_cash),
         matched_resolutions: Enum.filter(resolutions, &(&1.status == :matched)),
         plain_create_resolutions: Enum.filter(resolutions, &(&1.status == :create)),
         decision_resolutions:
@@ -291,19 +294,13 @@ defmodule PortfolixirWeb.ImportsLive do
                       </option>
                     <% end %>
                   </select>
+                  <% chosen_cash = depot_cash_value(@mapping, pp_name) %>
                   <select name={"depot[#{pp_name}][cash]"}>
-                    <option value="" selected={depot_cash_value(@mapping, pp_name) in [nil, ""]}>
+                    <option value="" selected={chosen_cash in [nil, ""]}>
                       <%= gettext("Pick a cash account…") %>
                     </option>
-                    <%= for cash_pp <- @cash_pp_names do %>
-                      <option value={"pp:#{cash_pp}"} selected={depot_cash_value(@mapping, pp_name) == "pp:#{cash_pp}"}>
-                        <%= gettext("(import) %{name}", name: cash_pp) %>
-                      </option>
-                    <% end %>
-                    <%= for c <- @existing_cash do %>
-                      <option value={"existing:#{c.id}"} selected={depot_cash_value(@mapping, pp_name) == "existing:#{c.id}"}>
-                        <%= c.name %>
-                      </option>
+                    <%= for {value, label} <- @depot_cash_choices do %>
+                      <option value={value} selected={chosen_cash == value}><%= label %></option>
                     <% end %>
                   </select>
                 </div>
@@ -605,6 +602,11 @@ defmodule PortfolixirWeb.ImportsLive do
     """
   end
 
+  defp depot_cash_choices(cash_pp_names, existing_cash) do
+    Enum.map(cash_pp_names, &{"pp:#{&1}", gettext("(import) %{name}", name: &1)}) ++
+      Enum.map(existing_cash, &{"existing:#{&1.id}", &1.name})
+  end
+
   defp kind_label(kind) do
     case kind do
       "buy" -> gettext("Buy")
@@ -900,6 +902,8 @@ defmodule PortfolixirWeb.ImportsLive do
 
     cash_pp_names = Mapping.unique_cash_pp_names(preview)
     depot_pp_names = Mapping.unique_depot_pp_names(preview)
+    # E25 S5 (F35): every depot's default cash account in one pass.
+    default_cash = Mapping.default_cash_by_depot(preview)
 
     cash =
       Map.new(cash_pp_names, fn pp_name ->
@@ -910,7 +914,7 @@ defmodule PortfolixirWeb.ImportsLive do
       Map.new(depot_pp_names, fn pp_name ->
         target = prefill(Map.fetch!(depot_resolutions, pp_name), pp_name)
 
-        default_cash_pp = Mapping.default_cash_for_depot(preview, pp_name)
+        default_cash_pp = Map.get(default_cash, pp_name)
 
         cash_value =
           if default_cash_pp && default_cash_pp in cash_pp_names,
@@ -1471,12 +1475,24 @@ defmodule PortfolixirWeb.ImportsLive do
   defp parse_error_message(:malformed_payload),
     do: gettext("The file could not be read as a Portfolio Performance export.")
 
+  # E25 S5 (F35, board 11): what is too much and what a file that fits looks
+  # like; the cap itself is named nowhere on the page.
+  defp parse_error_message(:too_many_names),
+    do:
+      gettext(
+        "The file names too many different accounts, depots or securities for one preview. Remedy: create smaller exports in Portfolio Performance, for example one per account or depot, and import them one after another."
+      )
+
   defp parse_error_message({:too_many_rows, n}),
     do:
       gettext("The file has %{n} rows; the import is sized for at most %{max}.",
         n: n,
         max: PortfolioPerformance.max_rows()
       )
+
+  # A refusal this page has no words for yet is still a named file error.
+  defp parse_error_message(_reason),
+    do: gettext("The file could not be read as a Portfolio Performance export.")
 
   # A per-row insert rejection (e.g. a currency that does not match the
   # resolved cash account, issue #343) carries the rejecting changeset.

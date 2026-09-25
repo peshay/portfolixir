@@ -29,6 +29,28 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
   @spec max_rows() :: pos_integer()
   def max_rows, do: Application.get_env(:portfolixir, :import_max_rows, @default_max_rows)
 
+  # E25 S5 (F35): how many distinct names one preview renders a mapping row
+  # for. Account and depot names are counted together, because the preview
+  # offers every cash account of the file on every depot row; securities are
+  # counted by their unique reference, one mapping row each.
+  @default_max_names %{accounts: 100, securities: 1_000}
+
+  @doc """
+  The most distinct names one export may carry (E25 S5, F35): `accounts`
+  bounds the cash-account and depot names of the file together, `securities`
+  its unique security references. Past either, the file is refused as
+  `{:error, :too_many_names}`: the preview renders one mapping row per name,
+  and a depot row offers every cash account of the file. Configurable as
+  `:import_max_names`.
+  """
+  @spec max_names() :: %{accounts: pos_integer(), securities: pos_integer()}
+  def max_names do
+    Map.merge(
+      @default_max_names,
+      Map.new(Application.get_env(:portfolixir, :import_max_names, []))
+    )
+  end
+
   @spec parse(binary(), keyword()) :: {:ok, Preview.t()} | {:error, term()}
   def parse(body, opts \\ []) when is_binary(body) do
     # E25 S5 (F34): a body that is not UTF-8 is a named file error before any
@@ -45,12 +67,51 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
   end
 
   defp parse_valid(body, opts) do
-    case detect_format(body, Keyword.get(opts, :filename)) do
-      :json -> JsonParser.parse(body, opts)
-      :csv -> CsvParser.parse(body, opts)
-      :unknown -> {:error, :unknown_format}
+    parsed =
+      case detect_format(body, Keyword.get(opts, :filename)) do
+        :json -> JsonParser.parse(body, opts)
+        :csv -> CsvParser.parse(body, opts)
+        :unknown -> {:error, :unknown_format}
+      end
+
+    with {:ok, preview} <- parsed,
+         :ok <- within_name_caps(preview) do
+      {:ok, preview}
     end
   end
+
+  # One pass over every entry and its companions (E25 S5, F35).
+  defp within_name_caps(%Preview{entries: entries}) do
+    %{accounts: max_accounts, securities: max_securities} = max_names()
+
+    {cash, depots, securities} =
+      entries
+      |> Entry.flatten()
+      |> Enum.reduce({MapSet.new(), MapSet.new(), MapSet.new()}, fn entry, {cash, depots, refs} ->
+        {
+          put_names(cash, [entry.pp_account_name, entry.pp_counter_account_name]),
+          put_names(depots, [entry.pp_portfolio_name, entry.pp_counter_portfolio_name]),
+          put_ref(refs, entry)
+        }
+      end)
+
+    if MapSet.size(cash) + MapSet.size(depots) > max_accounts or
+         MapSet.size(securities) > max_securities,
+       do: {:error, :too_many_names},
+       else: :ok
+  end
+
+  defp put_names(set, names) do
+    Enum.reduce(names, set, fn
+      nil, set -> set
+      name, set -> MapSet.put(set, name)
+    end)
+  end
+
+  defp put_ref(refs, %Entry{security: nil}), do: refs
+
+  defp put_ref(refs, %Entry{} = entry),
+    do: MapSet.put(refs, SecurityResolver.effective_ref(entry))
 
   # The text of an entry the ledger stores, each with the rule its column
   # applies (E25 S4, G24): a name is one line within its column's width, a
