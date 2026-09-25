@@ -1794,12 +1794,17 @@ bisherigen Namen, sodass auch ein Export, der sich in Portfolio Performance
 verändert hat (eine andere Nachkommagenauigkeit, eine bearbeitete Buchung),
 das umbenannte Konto findet und nichts doppelt bucht. Ein Name, den zwei
 Konten tragen, wird mit nichts vorbelegt: Die Auswahl zeigt *Entscheiden…*,
-und der Import wartet, bis das Konto gewählt ist; er rät nie. Wird ein Name
-einem Konto anderen Namens zugeordnet, wird die Zuordnung standardmäßig
-**gemerkt**: Der Name wird früherer Name dieses Kontos, und der nächste Import
-belegt ihn selbst vor. Ist der Name früherer Name eines anderen Kontos, wandert
-er beim Merken herüber; ist er der Name eines anderen Kontos, gilt die Wahl
-nur für diesen Import. Wird ein in der Vorschau zugeordnetes Konto vor dem
+und der Import wartet, bis das Konto gewählt ist; er rät nie. Wird eine
+Vorbelegung auf ein Konto anderen Namens geändert, wird die Zuordnung
+standardmäßig **gemerkt**: Der Name wird früherer Name dieses Kontos, und der
+nächste Import belegt ihn selbst vor. Eine unveränderte Vorbelegung merkt
+nichts. Ist der Name der Name eines anderen Kontos, gilt die Wahl nur für
+diesen Import. Ist er früherer Name eines anderen Kontos, gilt die Wahl
+vorerst ebenfalls nur für diesen Import: Die Importseite verschiebt einen
+früheren Namen erst dann auf ein anderes Konto, wenn die Vorschau das vor dem
+Bestätigen sagen kann. Um ihn zu verschieben, zuerst aus den früheren Namen
+des anderen Kontos entfernen (über API oder MCP) und dann erneut zuordnen.
+Wird ein in der Vorschau zugeordnetes Konto vor dem
 Bestätigen zusammengeführt oder gelöscht, hält der Import an, bevor er etwas
 schreibt, und die Kontenzuordnung wird neu vorbelegt.
 
