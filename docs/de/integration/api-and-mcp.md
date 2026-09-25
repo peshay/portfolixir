@@ -1272,7 +1272,9 @@ Beispiel-Payloads für Konten:
   behaltene Zeilen kommen flach zurück (ein Vorfahre unter der Schwelle
   fehlt). Die Antwort benennt ihre eigene Basis: `positions_included`, das
   angewandte `min_drift` und `categories_total` (die Zeilenzahl vor dem
-  Filter). Ungültige Werte sind ein `422`. Die Allokationsseite trägt
+  Filter). Ungültige Werte sind ein `422`, ebenso ein Wert, der keine
+  endliche Dezimalzahl ist (`NaN`, `Infinity`), hier und bei
+  `position_targets`. Die Allokationsseite trägt
   denselben Filter als Abweichungs-Chips (ein gemeinsames Prädikat, die
   beiden Oberflächen können also keine unterschiedlichen Kategorien
   auswählen); die Chips sprechen Prozentpunkte, `≥ 5 pp` auf dem Bildschirm

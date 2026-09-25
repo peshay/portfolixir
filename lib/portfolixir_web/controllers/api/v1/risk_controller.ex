@@ -1,6 +1,7 @@
 defmodule PortfolixirWeb.Api.V1.RiskController do
   use PortfolixirWeb, :controller
 
+  alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Performance.Benchmark
   alias Portfolixir.Portfolios.Portfolio
@@ -115,15 +116,15 @@ defmodule PortfolixirWeb.Api.V1.RiskController do
   # compounded daily by the same function; negative rates inside that bound
   # are legitimate and accepted.
   defp risk_free_rate_param(%{"risk_free_rate" => value}) when is_binary(value) do
-    case Decimal.parse(value) do
-      {%Decimal{} = rate, ""} ->
+    case BoundedDecimal.parse(value) do
+      {:ok, rate} ->
         # Normalised once, so equal rates read and memoise equal
         # ("0.020000" is "0.02", "-0" is "0").
         if Benchmark.valid_rate?(rate),
           do: {:ok, normalize_rate(rate)},
           else: {:error, :risk_free_rate}
 
-      _malformed ->
+      :error ->
         {:error, :risk_free_rate}
     end
   end
@@ -167,18 +168,15 @@ defmodule PortfolixirWeb.Api.V1.RiskController do
     end
   end
 
+  # NaN and Infinity parse but are not thresholds: NaN crashed the
+  # comparison and Infinity silently disabled the check (closing act). The
+  # shared finite-decimal parser refuses both (E25 S4, G15).
   defp to_decimal(value) when is_binary(value) do
-    case Decimal.parse(value) do
-      # NaN and Infinity parse but are not thresholds: NaN crashed the
-      # comparison and Infinity silently disabled the check (closing act).
-      {decimal, ""} ->
-        cond do
-          Decimal.nan?(decimal) or Decimal.inf?(decimal) -> :error
-          Decimal.compare(decimal, @zero) == :lt -> :error
-          true -> {:ok, decimal}
-        end
+    case BoundedDecimal.parse(value) do
+      {:ok, decimal} ->
+        if Decimal.compare(decimal, @zero) == :lt, do: :error, else: {:ok, decimal}
 
-      _ ->
+      :error ->
         :error
     end
   end

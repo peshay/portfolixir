@@ -1463,7 +1463,8 @@ church tax withheld at a zero church-tax rate.
   ancestor under the threshold is absent). The response states its own
   basis: `positions_included`, the applied `min_drift` and
   `categories_total` (the pre-filter category count). Invalid values are a
-  `422`. The allocation page carries the same filter as its
+  `422`, and so is a value that is not a finite decimal (`NaN`, `Infinity`),
+  here and on `position_targets`. The allocation page carries the same filter as its
   drift-threshold chips (one shared predicate, so the two surfaces cannot
   select different categories); the chips speak percentage points, so
   `≥ 5 pp` on screen is `min_drift=0.05` here. `tax_context=true` (#667) additionally attaches the current-year
