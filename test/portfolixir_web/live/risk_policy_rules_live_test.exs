@@ -594,6 +594,59 @@ defmodule PortfolixirWeb.RiskPolicyRulesLiveTest do
   #   stays "Save new version", and one save does both.
   # - A blank name is refused at the field, and nothing is written.
   # - A retired rule is renamed from its dialog the same way.
+  # User story (the S3/S4/D review round, LD-1):
+  # As the operator whose rule reads a security I have since retired — the
+  # remedy ADR-0049 §8 gives for a security a rule reads —
+  # I want to rename the rule from its dialog,
+  # so that the rename stays a rename and never moves the rule to another
+  # security or puts a retired rule back in force.
+  #
+  # Acceptance criteria:
+  # - The dialog keeps the rule's own subject selected, even though a retired
+  #   security is not offered for a new rule.
+  # - Changing only the name saves "Save name": no version is added and the
+  #   subject is unchanged, for a rule in force and for a retired rule.
+  test "renames a rule on a retired security without moving it", %{conn: conn} do
+    world = rules_world()
+    past = Date.add(today(), -30)
+
+    in_force =
+      rule!(world, "Deckel Nordic", single_cap(world, %{valid_from: past}), today: past)
+
+    retired =
+      rule!(world, "Alter Deckel Nordic", single_cap(world, %{valid_from: past}), today: past)
+
+    {:ok, _} = PolicyRules.retire_rule(Actor.owner_ui(), retired, %{})
+
+    {:ok, _} =
+      Portfolixir.Catalog.update_security(Actor.owner_ui(), world.nordic, %{is_retired: true})
+
+    for {rule, list, name} <- [
+          {in_force, "#policy-findings", "Deckel Nordic neu"},
+          {retired, "#policy-rules-retired", "Alter Deckel Nordic neu"}
+        ] do
+      {:ok, view, _html} = live(conn, "/risk")
+      view |> element("#{list} button[phx-value-id='#{rule.id}']") |> render_click()
+
+      assert has_element?(
+               view,
+               "select[name='rule[subject]'] option[selected][value='security:#{world.nordic.id}']"
+             )
+
+      view |> form("#policy-rule-form", rule: %{name: name}) |> render_change()
+      assert has_element?(view, "dialog#policy-rule-dialog button[type=submit]", "Save name")
+
+      view |> form("#policy-rule-form", rule: %{name: name}) |> render_submit()
+
+      stored = PolicyRules.get_rule(rule.id)
+      assert stored.name == name
+      assert [version] = stored.versions
+      assert version.security_id == world.nordic.id
+    end
+
+    assert PolicyRules.get_rule(retired.id).versions |> hd() |> Map.get(:valid_until)
+  end
+
   test "renames a rule from its dialog without a new version", %{conn: conn} do
     world = rules_world()
 
