@@ -246,7 +246,6 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
 
   defp put_if_present(opts, _key, nil), do: opts
   defp put_if_present(opts, _key, ""), do: opts
-  defp put_if_present(opts, _key, []), do: opts
   defp put_if_present(opts, key, value), do: Keyword.put(opts, key, value)
 
   defp not_found(conn) do
