@@ -2196,9 +2196,11 @@ through this API lives next to the imported history:
   row that already exists is skipped as a duplicate; no security is created
   twice; the response of the apply reports the skipped count. The hash is
   injective (two different rows never share one) and every hash stored before
-  it became so is still found. A tax refund split off a row books or skips
-  with that row, so two equal refunds of two different sales both book, and a
-  refund already imported is recognised through its sale.
+  it became so is still found. A tax refund split off a row is hashed with
+  that row and checked by its own hashes and economic key, so two equal
+  refunds of two different sales both book, a refund already imported is
+  found under either formula, and a refund added to a row already imported
+  books; a refund whose row is not imported is skipped with it.
 - **A rename is safe for the next import (ADR-0050 §3, §4).** The hash is
   checked before anything resolves, and a cash account or depot is created
   only with its first new booking, so a rename over

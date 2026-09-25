@@ -468,16 +468,30 @@ hash, and the second refund was skipped as already imported.
 - A companion's hash folds in its parent's hash and its position among the
   parent's companions (`ImportHash.companion/4`), so equal refunds of
   different rows hash apart.
-- A companion is **skipped or inserted together with its parent**: it books
-  when its parent booked in the same run, and when its parent is skipped it
-  is skipped on the same layer (a parent already booked, retired, economically
-  equal or collapsed) or with the parent's reason. A companion stored under
-  the Sprint 15 formula is therefore recognised through its parent on
-  re-import, and nothing books twice; the preview counts a companion under
-  its parent's layer.
-- What this does not repair: a refund the old formula skipped wrongly is not
-  booked by a re-import, since its row is already booked; and a refund whose
-  row was deleted by hand and is re-imported books again with it.
+- A companion is **judged by its own identity, with its parent** (amended
+  by the S5 review round, 2026-09-25). The parent's hash and economic key
+  leave the split-off refund out — the parsers move the negative tax off the
+  row — so the parent's outcome cannot say whether the refund is booked.
+  Once its parent was imported or found already booked, a companion is
+  skipped when a transaction or a merge holds its own hash or the hash the
+  Sprint 15 formula gave it as a row of its own, or when a booking stored
+  before the run has its economic key; it collapses onto an earlier
+  companion of the file only when its parent collapsed onto that
+  companion's parent (the in-run key alone would take two equal refunds of
+  two different rows for one); otherwise it books. A companion of a row
+  that is not imported (unimportable, an internal transfer, an undecided
+  security) is skipped with it and names that row. The preview counts a
+  companion by the same hashes.
+- So a re-import books nothing twice — a refund stored under either formula
+  is found by its own hash, and a drifted export's refund by its economic
+  key — a row deleted by hand books again without its refund, and a refund
+  added in Portfolio Performance to a row already imported books on the next
+  import.
+- What this does not repair, the closed direction: a refund the Sprint 15
+  formula skipped wrongly is not booked by a re-import, because its twin
+  holds the hash that formula gives both; a standalone refund row with the
+  same fields holds that hash too; and a corrected refund amount on a row
+  already imported books as a new refund beside the old one.
 
 **Within-file duplicates collapse, and this is deliberate.** A row that
 repeats an earlier row of the same file exactly holds the same content hash:
@@ -490,7 +504,11 @@ kind, date, time, security, amounts and accounts — therefore book once; the
 result names the collapsed row, so the operator can book the second by hand.
 Pinned by `companion_hash_test.exs` (two different parents with equal refunds
 book both; a companion stored under the Sprint 15 formula is recognised on
-re-import; a companion is skipped with a parent that is not imported).
+re-import; a companion is skipped with a parent that is not imported; a sale
+deleted by hand books again alone, its refund stored under either formula; a
+refund added to a sale already imported books on the next import; a
+re-export whose sale drifted books no refund twice; a collapsed row's refund
+collapses with its twin's, and books when its twin has none).
 
 ## References
 
