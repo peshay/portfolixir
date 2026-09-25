@@ -165,4 +165,138 @@ defmodule PortfolixirWeb.ApiV1FreeTextCapsTest do
       assert definition =~ "char_length(#{column})", "#{table}.#{column}: #{definition}"
     end
   end
+
+  # User story (G02):
+  # As the operator whose records are journaled whole on every change,
+  # I want every free-text note and description bounded, and a security's
+  # attributes bounded once merged,
+  # so that no writer can grow a row — and every journal entry of it —
+  # without end.
+  #
+  # Acceptance criteria:
+  # - A note or description one code point past the cap answers 422 naming
+  #   the field on every writer, and a CHECK of the cap stands behind each
+  #   column.
+  # - An attributes write whose merge with the stored attributes passes the
+  #   bound answers 422 on attributes and stores nothing.
+  test "every other free-text column and the merged attributes are bounded",
+       %{conn: conn, world: world, security: security} do
+    over = text(Text.free_text_max() + 1)
+
+    {:ok, classification} =
+      Portfolixir.Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{
+        name: "Themes"
+      })
+
+    writes = [
+      {:post, "/api/v1/portfolios",
+       %{"portfolio" => %{"name" => "Notes", "base_currency_code" => "EUR", "notes" => over}},
+       "notes"},
+      {:post, "/api/v1/cash_accounts",
+       %{
+         "cash_account" => %{
+           "portfolio_id" => world.portfolio.id,
+           "name" => "Notes cash",
+           "currency_code" => "EUR",
+           "notes" => over
+         }
+       }, "notes"},
+      {:patch, "/api/v1/securities_accounts/#{world.depot.id}",
+       %{"securities_account" => %{"notes" => over}}, "notes"},
+      {:post, "/api/v1/transactions",
+       %{
+         "transaction" => %{
+           "portfolio_id" => world.portfolio.id,
+           "cash_account_id" => world.cash.id,
+           "type" => "deposit",
+           "date" => "2026-01-02",
+           "gross_amount" => "100",
+           "currency_code" => "EUR",
+           "notes" => over
+         }
+       }, "notes"},
+      {:patch, "/api/v1/securities/#{security.id}", %{"security" => %{"note" => over}}, "note"},
+      {:patch, "/api/v1/classifications/#{classification.id}",
+       %{"classification" => %{"description" => over}}, "description"},
+      {:post, "/api/v1/tax/profiles",
+       %{
+         "profile" => %{
+           "holder" => "Owner",
+           "valid_from" => "2026-01-01",
+           "assessment_type" => "single",
+           "note" => over
+         }
+       }, "note"},
+      {:put, "/api/v1/tax/allowance_orders",
+       %{
+         "allowance_order" => %{
+           "holder" => "Owner",
+           "institution" => "Example Bank",
+           "tax_year" => 2026,
+           "amount_granted" => "1000",
+           "note" => over
+         }
+       }, "note"},
+      {:post, "/api/v1/tax/statement_snapshots",
+       %{
+         "statement_snapshot" => %{
+           "institution" => "Example Bank",
+           "holder" => "Owner",
+           "tax_year" => 2025,
+           "as_of" => "2025-12-31",
+           "note" => over
+         }
+       }, "note"}
+    ]
+
+    for {verb, path, body, field} <- writes do
+      conn = Phoenix.ConnTest.dispatch(conn, @endpoint, verb, path, body)
+      assert conn.status == 422, "#{verb} #{path}: #{conn.status}"
+
+      assert [message] = Jason.decode!(conn.resp_body)["errors"][field],
+             "#{verb} #{path}: #{conn.resp_body}"
+
+      assert message =~ "at most"
+    end
+
+    for {table, column} <- [
+          {"portfolios", "notes"},
+          {"cash_accounts", "notes"},
+          {"securities_accounts", "notes"},
+          {"transactions", "notes"},
+          {"securities", "note"},
+          {"classifications", "description"},
+          {"classification_categories", "description"},
+          {"tax_profiles", "note"},
+          {"allowance_orders", "note"},
+          {"tax_statement_snapshots", "note"},
+          {"securities", "attributes"}
+        ] do
+      assert %{rows: [[true]]} =
+               Repo.query!(
+                 "SELECT convalidated FROM pg_constraint WHERE conrelid = $1::text::regclass AND conname = $2",
+                 [table, "#{table}_#{column}_length_check"]
+               ),
+             "#{table}.#{column}"
+    end
+
+    half = fn key -> %{key => String.duplicate("x", div(Text.attributes_max_bytes(), 2) + 1)} end
+    path = "/api/v1/securities/#{security.id}"
+
+    assert conn
+           |> patch(path, %{"security" => %{"attributes" => half.("first")}})
+           |> json_response(200)
+
+    body =
+      conn
+      |> patch(path, %{"security" => %{"attributes" => half.("second")}})
+      |> json_response(422)
+
+    assert [message] = body["errors"]["attributes"]
+    assert message =~ "at most"
+
+    stored = Portfolixir.Catalog.get_security(security.id).attributes
+    assert Map.has_key?(stored, "first")
+    refute Map.has_key?(stored, "second")
+  end
 end

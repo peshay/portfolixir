@@ -45,7 +45,8 @@ defmodule Portfolixir.Tax.AllowanceOrder do
     |> validate_length(:holder, min: 1)
     |> validate_length(:institution, min: 1)
     |> Text.validate([:holder, :institution], max: 255)
-    |> Text.validate(:note, multiline: true)
+    |> Text.validate(:note, multiline: true, max: Text.free_text_max())
+    |> check_constraint(:note, name: :allowance_orders_note_length_check)
     |> validate_number(:tax_year,
       greater_than_or_equal_to: @min_tax_year,
       less_than_or_equal_to: @max_tax_year

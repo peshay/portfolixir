@@ -179,5 +179,24 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
       assert second =~ "account"
       assert third =~ "note"
     end
+
+    # Acceptance criteria (E25 S6, G02):
+    # - A note longer than the ledger's free-text cap is a row error naming
+    #   the note and the cap; a note at the cap previews.
+    test "names the row whose note is longer than the free-text cap" do
+      max = Portfolixir.Input.Text.free_text_max()
+
+      body =
+        "Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle\n" <>
+          "2026-03-09 00:00:00;Einlage;;;;250,00;;;250,00;Girokonto;;#{String.duplicate("n", max + 1)};\n" <>
+          "2026-03-10 00:00:00;Einlage;;;;250,00;;;250,00;Girokonto;;#{String.duplicate("n", max)};\n"
+
+      assert {:ok, %Preview{entries: [entry], errors: [%{row: 1, message: message}]}} =
+               CsvParser.parse(body)
+
+      assert entry.source_row == 2
+      assert message =~ "note"
+      assert message =~ Integer.to_string(max)
+    end
   end
 end

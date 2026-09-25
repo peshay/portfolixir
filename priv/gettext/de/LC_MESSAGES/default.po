@@ -4253,8 +4253,8 @@ msgstr "Notiz"
 
 #: lib/portfolixir/imports/portfolio_performance.ex
 #, elixir-autogen, elixir-format
-msgid "%{field} is longer than 255 characters"
-msgstr "%{field} ist länger als 255 Zeichen"
+msgid "%{field} is longer than %{count} characters"
+msgstr "%{field} ist länger als %{count} Zeichen"
 
 #: lib/portfolixir/imports/portfolio_performance.ex
 #, elixir-autogen, elixir-format

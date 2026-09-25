@@ -25,7 +25,8 @@ defmodule Portfolixir.Portfolios.Portfolio do
     |> normalize_currency_code()
     |> validate_required([:name, :base_currency_code])
     |> Text.validate([:name, :base_currency_code], max: 255)
-    |> Text.validate(:notes, multiline: true)
+    |> Text.validate(:notes, multiline: true, max: Text.free_text_max())
+    |> check_constraint(:notes, name: :portfolios_notes_length_check)
     |> validate_length(:base_currency_code, is: 3)
     |> validate_cash_target_weight()
   end

@@ -82,6 +82,11 @@ defmodule Portfolixir.Catalog.Security do
     # value, which would otherwise be a failed write.
     |> Text.validate_map(:attributes)
     |> protect_attributes()
+    # The map as it will be stored, merged with what is there, is bounded
+    # (E25 S6, G02): a writer adding keys on every call cannot grow the row,
+    # and each journal entry of it, without end.
+    |> Text.validate_map_size(:attributes, max_bytes: Text.attributes_max_bytes())
+    |> check_constraint(:attributes, name: :securities_attributes_length_check)
     # E25 S5 (G23): a name is stored without the format characters that
     # render as nothing, so no two names differ only by what cannot be seen.
     |> normalize_text(:name, &Text.strip_format_characters/1)
@@ -125,7 +130,8 @@ defmodule Portfolixir.Catalog.Security do
       ],
       max: 255
     )
-    |> Text.validate(:note, multiline: true)
+    |> Text.validate(:note, multiline: true, max: Text.free_text_max())
+    |> check_constraint(:note, name: :securities_note_length_check)
     # A ticker and a provider id travel in provider request paths (#763, F31):
     # no whitespace, no URL syntax, not made only of dots (a relative-path
     # segment), bounded length. Real shapes (BRK-B, ^GDAXI, EURUSD=X, 0005.HK,

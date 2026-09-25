@@ -29,7 +29,8 @@ defmodule Portfolixir.Portfolios.SecuritiesAccount do
     # E25 S4 (G17, G24): the column's width in code points, no control
     # characters; after L1's identity freezes, which stay as they are.
     |> Text.validate(:name, max: 255)
-    |> Text.validate(:notes, multiline: true)
+    |> Text.validate(:notes, multiline: true, max: Text.free_text_max())
+    |> check_constraint(:notes, name: :securities_accounts_notes_length_check)
     |> assoc_constraint(:portfolio)
     |> assoc_constraint(:cash_account)
     |> foreign_key_constraint(:cash_account_id,

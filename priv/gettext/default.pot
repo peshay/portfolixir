@@ -4252,7 +4252,7 @@ msgstr ""
 
 #: lib/portfolixir/imports/portfolio_performance.ex
 #, elixir-autogen, elixir-format
-msgid "%{field} is longer than 255 characters"
+msgid "%{field} is longer than %{count} characters"
 msgstr ""
 
 #: lib/portfolixir/imports/portfolio_performance.ex

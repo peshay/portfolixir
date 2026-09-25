@@ -49,6 +49,17 @@ defmodule Portfolixir.Input.Text do
   @spec entry_body_max() :: pos_integer()
   def entry_body_max, do: @entry_body_max
 
+  # A security's free-form attributes, as stored after a write merges them
+  # with the stored ones (E25 S6, G02): at most this many bytes as compact
+  # JSON. The database CHECK behind it bounds the jsonb's text form at twice
+  # this, which a map the changeset accepts never reaches (the text form adds
+  # at most a space after each separator).
+  @attributes_max_bytes 65_536
+
+  @doc "The byte bound of a security's attributes map, encoded as compact JSON."
+  @spec attributes_max_bytes() :: pos_integer()
+  def attributes_max_bytes, do: @attributes_max_bytes
+
   @doc """
   The verdict on one value: `:ok` or the first refusal. `nil` is `:ok`.
   """
@@ -174,6 +185,26 @@ defmodule Portfolixir.Input.Text do
     do:
       {"must have keys of at most %{count} character(s)",
        count: Keyword.get(opts, :key_max, 255), validation: :text}
+
+  @doc """
+  Refuses a change of the map `field` whose compact JSON encoding is longer
+  than `max_bytes:` bytes (E25 S6, G02). Run it on the map as it will be
+  stored, after any merge with the stored map.
+  """
+  @spec validate_map_size(Ecto.Changeset.t(), atom(), keyword()) :: Ecto.Changeset.t()
+  def validate_map_size(changeset, field, opts) when is_atom(field) do
+    max = Keyword.fetch!(opts, :max_bytes)
+
+    validate_change(changeset, field, fn ^field, value ->
+      case Jason.encode(value) do
+        {:ok, json} when byte_size(json) <= max ->
+          []
+
+        _too_large_or_unencodable ->
+          [{field, {"must be at most %{count} bytes as JSON", count: max, validation: :length}}]
+      end
+    end)
+  end
 
   @doc """
   The length of `text` in Unicode code points, the unit the database counts

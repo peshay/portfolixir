@@ -157,3 +157,9 @@ msgstr "darf nicht in der Zukunft liegen"
 
 msgid "must not be later than tomorrow"
 msgstr "darf nicht nach morgen liegen"
+
+## E25 S6 (G02): a security's attributes, bounded as stored.
+msgid "must be at most %{count} bytes as JSON"
+msgid_plural "must be at most %{count} bytes as JSON"
+msgstr[0] "darf als JSON höchstens %{count} Byte groß sein"
+msgstr[1] "darf als JSON höchstens %{count} Byte groß sein"
