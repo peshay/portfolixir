@@ -138,4 +138,39 @@ defmodule Portfolixir.Journal.BeforeImageLockTest do
       assert Journal.list_entries(resource_type: type) == before
     end
   end
+
+  # User story (E25 S6 review round, M5):
+  # As the operator correcting an alias's note back to what I read while
+  # another edit changed it in between,
+  # I want my edit written,
+  # so that a write built from a stale read is never computed as "no change"
+  # and dropped.
+  #
+  # Acceptance criteria:
+  # - An alias edit builds its changeset on the row as stored under the
+  #   write's lock: two edits from one read leave the second one's value,
+  #   and the journal chains them.
+  test "an alias edit from a stale read that sets a field back is written, not dropped" do
+    {:ok, security} =
+      Catalog.create_security(owner(), %{
+        name: "Alias Rail AG",
+        isin: "DE000ALIAS03",
+        currency_code: "EUR"
+      })
+
+    {:ok, %{alias: stale}} =
+      Catalog.record_isin_change(owner(), security, "DE000ALIAS11", note: "read note")
+
+    assert {:ok, _} =
+             Catalog.update_identifier_alias(owner(), stale, %{note: "changed meanwhile"})
+
+    assert {:ok, written} = Catalog.update_identifier_alias(owner(), stale, %{note: "read note"})
+
+    assert written.note == "read note"
+    assert Repo.get!(Portfolixir.Catalog.IdentifierAlias, stale.id).note == "read note"
+
+    assert [later, earlier] = entries("security_identifier_alias", stale.id, :update)
+    assert later.before == earlier.after
+    assert later.after["note"] == "read note"
+  end
 end
