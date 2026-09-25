@@ -28,6 +28,7 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
 
   alias Portfolixir.Actor
   alias Portfolixir.Clock
+  alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Portfolios.PolicyRules
   alias Portfolixir.Portfolios.PolicyRuleVersion
   alias PortfolixirWeb.AppShell
@@ -403,7 +404,9 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
 
   # The version a save would write, without its start: a form whose predicate
   # equals the one the dialog opened on changes only the name. Decimals are
-  # compared as numbers, so "2" and "2,0" are the same line.
+  # compared as numbers, so "2" and "2,0" are the same line; they are read
+  # through the bounded parser every page shares (E25 S4) and kept as the
+  # normalised decimal, never expanded into a string.
   defp predicate(form) do
     form
     |> version_attrs()
@@ -417,9 +420,9 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
   defp decimal_key(nil), do: nil
 
   defp decimal_key(text) do
-    case Decimal.parse(text) do
-      {decimal, ""} -> decimal |> Decimal.normalize() |> Decimal.to_string(:normal)
-      _unparsed -> text
+    case BoundedDecimal.parse(text) do
+      {:ok, decimal} -> Decimal.normalize(decimal)
+      :error -> text
     end
   end
 
