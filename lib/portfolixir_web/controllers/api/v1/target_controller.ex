@@ -19,7 +19,8 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
                 "renaming or editing a plan version re-delivers that plan's rows. Deletions " <>
                 "are not represented - a row removed, or left behind by a plan that stopped " <>
                 "being active, is only visible on a full read. Use this response's `as_of` " <>
-                "as the next `since`."
+                "as the next `since`: it lies no later than the start of the oldest write " <>
+                "still in flight, so the next read may re-deliver a row but never skips one."
 
   # Since ADR-0020 a SOLL plan belongs to a view: the target read/write endpoints
   # accept an optional `view` query/body param (omitted/null = the Gesamt plan).
