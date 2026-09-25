@@ -1471,7 +1471,9 @@ Beispiel-Payloads für Konten:
   (die Zeilenzahl vor dem Filter) und `drift_basis`. Ohne `min_drift` ist die
   Form unverändert. `tax_context=true` (#667) hängt
   zusätzlich die steuerfreien Trim-Budgets des laufenden Jahres an — ein
-  Eintrag je Inhaber mit erfassten Auszügen, jeweils mit seiner
+  Eintrag je Inhaber-Identität mit erfassten Auszügen (Schreibweisen einer
+  Person, die sich nur in Groß- und Kleinschreibung unterscheiden, sind ein
+  Eintrag; Institute werden ebenso abgeglichen), jeweils mit seiner
   aktivitätsbewussten `staleness` — sodass der Steuer-Spielraum dort lesbar
   ist, wo die Trim-Entscheidung fällt; der Block benennt, dass er je
   `(Inhaber, Steuerjahr)` über Institute rollt und nie auf Portfolio oder

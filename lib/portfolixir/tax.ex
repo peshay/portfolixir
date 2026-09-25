@@ -29,6 +29,7 @@ defmodule Portfolixir.Tax do
   """
 
   import Ecto.Query
+  import Portfolixir.Tax.Identity, only: [folded: 1]
 
   alias Ecto.Multi
   alias Portfolixir.Actor
@@ -423,16 +424,50 @@ defmodule Portfolixir.Tax do
   end
 
   @doc """
-  The distinct holders that have at least one recorded statement, alphabetical.
-  The entry surface uses it to offer the taxpayers already on file instead of
-  making the operator retype a free-text key.
+  The taxpayers that have at least one recorded statement, one entry per
+  identity, ordered by the folded key. The entry surface uses it to offer the
+  taxpayers already on file instead of making the operator retype a
+  free-text key, and the trim-budget roll-ups iterate it.
+
+  An identity is the database's fold of the holder (E25 S6, G22), the
+  `lower()` the unique indexes and every lookup use, so case spellings of
+  one taxpayer are one entry; its display spelling is the one most recently
+  recorded.
   """
   @spec list_snapshot_holders() :: [String.t()]
-  def list_snapshot_holders do
-    StatementSnapshot
-    |> select([s], s.holder)
-    |> distinct(true)
-    |> order_by([s], asc: s.holder)
+  def list_snapshot_holders, do: Enum.map(snapshot_holder_identities(), &elem(&1, 1))
+
+  @doc """
+  The taxpayer choices of the Tax page: `list_snapshot_holders/0`, with
+  `current` in the place of the entry for its identity (or added, when it
+  has none), so the scope's own spelling is the one shown and selected and
+  no identity appears twice (E25 S6, G22).
+  """
+  @spec holder_choices(String.t()) :: [String.t()]
+  def holder_choices(current) when is_binary(current) do
+    normalized = Identity.normalize(current)
+
+    current_key =
+      Repo.one(from(x in fragment("SELECT 1"), select: folded(type(^normalized, :string))))
+
+    identities = snapshot_holder_identities()
+
+    if List.keymember?(identities, current_key, 0),
+      do:
+        Enum.map(identities, fn {key, holder} ->
+          if key == current_key, do: current, else: holder
+        end),
+      else: Enum.map([{current_key, current} | identities] |> List.keysort(0), &elem(&1, 1))
+  end
+
+  # One `{folded_key, display_spelling}` per holder identity, the key computed
+  # by the database; the display spelling is the latest recorded one.
+  defp snapshot_holder_identities do
+    from(s in StatementSnapshot,
+      distinct: [asc: folded(s.holder)],
+      order_by: [desc: s.id],
+      select: {folded(s.holder), s.holder}
+    )
     |> Repo.all()
   end
 
@@ -542,10 +577,17 @@ defmodule Portfolixir.Tax do
   defp consistency_context(%StatementSnapshot{} = snapshot) do
     holder_orders = list_allowance_orders(holder: snapshot.holder, tax_year: snapshot.tax_year)
 
+    # The order for the snapshot's institution is found by the database's
+    # fold, as every identity match is (E25 S6, G21).
+    allowance_order =
+      [holder: snapshot.holder, institution: snapshot.institution, tax_year: snapshot.tax_year]
+      |> list_allowance_orders()
+      |> List.first()
+
     %{
       parameters: parameters_for(snapshot),
       earlier_snapshots: earlier_snapshots(snapshot),
-      allowance_order: Enum.find(holder_orders, &same_institution?(&1, snapshot)),
+      allowance_order: allowance_order,
       holder_orders: holder_orders,
       assessment_type: assessment_type_for(snapshot)
     }
@@ -566,10 +608,6 @@ defmodule Portfolixir.Tax do
     |> Repo.all()
   end
 
-  defp same_institution?(order, snapshot) do
-    Identity.fold(order.institution) == Identity.fold(snapshot.institution)
-  end
-
   defp assessment_type_for(%StatementSnapshot{} = snapshot) do
     case profile_in_force(snapshot.holder, snapshot.as_of) do
       nil -> "single"
@@ -587,15 +625,44 @@ defmodule Portfolixir.Tax do
   """
   @spec holder_summary(String.t(), integer()) :: Budget.roll_up()
   def holder_summary(holder, tax_year) when is_binary(holder) do
-    snapshots = list_snapshots(holder: holder, tax_year: tax_year)
-    expected = list_allowance_orders(holder: holder, tax_year: tax_year)
+    latest = latest_per_institution(holder, tax_year)
 
     Budget.roll_up(
-      snapshots,
-      Enum.map(expected, & &1.institution),
+      latest,
+      institutions_without_snapshot(holder, tax_year),
       parameters_for_year(tax_year),
-      assessment_type_at(holder, snapshots)
+      assessment_type_at(holder, Enum.sort_by(latest, & &1.as_of, {:desc, Date}))
     )
+  end
+
+  # The latest statement per institution of one holder and year, grouped by
+  # the database's folded institution key (E25 S6, G21): case spellings of
+  # one bank are one institution, and a later statement under another
+  # spelling replaces an earlier one.
+  defp latest_per_institution(holder, tax_year) do
+    StatementSnapshot
+    |> filter_folded(:holder, holder)
+    |> where([s], s.tax_year == ^tax_year)
+    |> distinct([s], asc: folded(s.institution))
+    |> order_by([s], desc: s.as_of, desc: s.id)
+    |> Repo.all()
+  end
+
+  # The institutions the holder has an allowance order for in the year and no
+  # statement, compared by the database's fold on both sides.
+  defp institutions_without_snapshot(holder, tax_year) do
+    covered =
+      StatementSnapshot
+      |> filter_folded(:holder, holder)
+      |> where([s], s.tax_year == ^tax_year)
+      |> select([s], folded(s.institution))
+
+    AllowanceOrder
+    |> filter_folded(:holder, holder)
+    |> where([o], o.tax_year == ^tax_year)
+    |> where([o], folded(o.institution) not in subquery(covered))
+    |> select([o], o.institution)
+    |> Repo.all()
   end
 
   defp parameters_for_year(tax_year) do
@@ -691,17 +758,21 @@ defmodule Portfolixir.Tax do
 
   # -- internals -------------------------------------------------------------
 
-  defp for_holder(query, holder) do
-    where(query, [r], fragment("lower(?)", r.holder) == ^Identity.fold(holder))
-  end
+  # Both sides are folded by the database, with the `lower()` the unique
+  # indexes use; the value is normalised as a stored one is (E25 S6, G21).
+  defp for_holder(query, holder), do: filter_folded(query, :holder, holder)
 
   defp filter_folded(query, _field, nil), do: query
 
-  defp filter_folded(query, :holder, value),
-    do: where(query, [r], fragment("lower(?)", r.holder) == ^Identity.fold(value))
+  defp filter_folded(query, :holder, value) do
+    value = Identity.normalize(value)
+    where(query, [r], folded(r.holder) == folded(type(^value, :string)))
+  end
 
-  defp filter_folded(query, :institution, value),
-    do: where(query, [r], fragment("lower(?)", r.institution) == ^Identity.fold(value))
+  defp filter_folded(query, :institution, value) do
+    value = Identity.normalize(value)
+    where(query, [r], folded(r.institution) == folded(type(^value, :string)))
+  end
 
   defp filter_eq(query, _field, nil), do: query
   defp filter_eq(query, field, value), do: where(query, [r], field(r, ^field) == ^value)

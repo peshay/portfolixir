@@ -1426,7 +1426,11 @@ under "Transactions and Holdings" above.)
 - `GET /api/v1/tax/allowance_orders` lists the Freistellungsaufträge the
   taxpayer **instructed** (optional `holder`, `institution`, `tax_year`;
   free-text filters fold case, so `comdirect` and `Comdirect` are one
-  institution).
+  institution). Every `holder` and `institution` the tax endpoints write or
+  filter on is normalised one way — composed to NFC, invisible format
+  characters removed, every run of Unicode spaces one space, a value that is
+  only such characters a `422` — and matched by the database's own case
+  fold on both sides, the fold of the unique indexes (E25 S6).
 - `PUT /api/v1/tax/allowance_orders` records or replaces the instructed amount
   for one `(holder, institution, tax_year)`
   (`{"allowance_order": {...}}`).
@@ -1455,7 +1459,9 @@ under "Transactions and Holdings" above.)
   A recorded statement's `source` is `manual`, set by the system: a `source`
   in the body of a create or a correction is ignored.
 - `GET /api/v1/tax/trim_budget` rolls the latest statement per institution up
-  to one holder and year (required `holder` and `tax_year`). It reports which
+  to one holder and year (required `holder` and `tax_year`); institutions are
+  grouped by the database's case fold, so a later statement under another
+  case spelling of one bank replaces the earlier one. It reports which
   `institutions` it covers, the `as_of` of its **oldest** component, the
   summed `allowance_granted` and `allowance_used` the fill level on the Tax
   page is read from (beside `allowance_remaining`), and
@@ -1633,7 +1639,8 @@ church tax withheld at a zero church-tax rate.
   drift-threshold chips (one shared predicate, so the two surfaces cannot
   select different categories); the chips speak percentage points, so
   `≥ 5 pp` on screen is `min_drift=0.05` here. `tax_context=true` (#667) additionally attaches the current-year
-  tax-free trim budgets — one entry per holder with recorded statements,
+  tax-free trim budgets — one entry per holder identity with recorded
+  statements (case spellings of one taxpayer are one entry),
   each with its activity-aware `staleness` — so the tax headroom is
   readable where the trim decision is made; the block states that it rolls
   up per `(holder, tax_year)` across institutions and is never scoped to

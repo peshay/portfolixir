@@ -1528,7 +1528,12 @@ with the statement's printed sign, so a recorded row stays visually comparable
 to the paper.
 
 **The page is a budget dashboard plus a check list.** Taxpayer and tax year
-are segmented controls (the scope is in the URL, `?holder=…&year=…`). The
+are segmented controls (the scope is in the URL, `?holder=…&year=…`). A
+taxpayer or institution is one identity however it was typed: the name is
+stored composed, without invisible characters and with single spaces, and
+matched without regard to case, so "Anna Muster" and "ANNA MUSTER" are one
+entry in the taxpayer control with one budget, and a bank recorded as
+"Bank Eins" and as "bank eins" is one institution in it (E25 S6). The
 budget renders as a meter: the remaining amount as the value, the allowance
 utilisation as a fill level with no threshold colouring, the as-of date and
 the covered institutions on the basis line, and the composition — equity loss
