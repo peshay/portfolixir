@@ -626,4 +626,91 @@ defmodule Portfolixir.CITest do
     refute audit_step =~ "|| true"
     refute audit_step =~ "continue-on-error"
   end
+
+  # User story (E25 S8, F61 -- #893):
+  # As a maintainer whose workflows run on pull requests from anyone,
+  # I want every run script to read refs and SHAs from its environment, and
+  # every checkout that never pushes to drop the job token once it is done,
+  # so that a crafted ref name reaches a script as data rather than as shell
+  # text, and no later step -- a dependency's install script, a hook -- finds
+  # the token in .git/config.
+  #
+  # Acceptance criteria:
+  # - No `run:` script in any workflow contains a `${{ }}` context expression;
+  #   the values reach the script through the step's `env:`.
+  # - Every actions/checkout step sets `persist-credentials: false`: no
+  #   workflow here pushes.
+  # - The migration gate diffs against the pull request's immutable base SHA,
+  #   passed through env, instead of a branch name fetched at run time.
+  test "run scripts read no context expressions and checkouts keep no token" do
+    checked =
+      for {path, workflow} <- workflows() do
+        scripts = run_scripts(workflow)
+
+        for script <- scripts do
+          refute script =~ "${{",
+                 "#{path}: a run script interpolates a context expression:\n#{script}"
+        end
+
+        checkouts = for step <- steps(workflow), step =~ "uses: actions/checkout@", do: step
+
+        for checkout <- checkouts do
+          assert checkout =~ ~r/^\s+persist-credentials: false$/m,
+                 "#{path}: a checkout leaves the job token in .git/config:\n#{checkout}"
+        end
+
+        {length(scripts), length(checkouts)}
+      end
+
+    # The parser found what it polices, so a passing run is not a vacuous one.
+    assert Enum.sum(for {scripts, _} <- checked, do: scripts) > 0
+    assert Enum.sum(for {_, checkouts} <- checked, do: checkouts) > 0
+
+    gate = step!(ci_workflow(), "Reject edits or deletions of existing migrations")
+    assert gate =~ ~r/^\s+BASE_SHA: \$\{\{ github\.event\.pull_request\.base\.sha \}\}$/m
+    assert gate =~ ~s("$BASE_SHA"...HEAD)
+  end
+
+  defp ci_workflow, do: File.read!(".github/workflows/ci.yml")
+
+  defp workflows do
+    for path <- Path.wildcard(".github/workflows/*.yml"), do: {path, File.read!(path)}
+  end
+
+  # The value under every `run:` key: the inline scalar, or a block scalar's
+  # lines -- every following line indented deeper than the key, blank lines
+  # included, which is where YAML ends a block scalar.
+  defp run_scripts(yaml) do
+    lines = String.split(yaml, "\n")
+
+    for {line, index} <- Enum.with_index(lines),
+        [_, indent, dash, value] <- [Regex.run(~r/^(\s*)(- )?run:(.*)$/, line)] do
+      key_column = String.length(indent) + String.length(dash)
+      Enum.join([value | block_after(lines, index, key_column)], "\n")
+    end
+  end
+
+  # Every step of every job: its `- ` line plus every following line indented
+  # deeper than the dash, which is where YAML ends a block sequence item.
+  defp steps(yaml) do
+    lines = String.split(yaml, "\n")
+
+    for {line, index} <- Enum.with_index(lines),
+        [_, indent] <- [Regex.run(~r/^(\s*)- (?:name|uses|run):/, line)] do
+      Enum.join([line | block_after(lines, index, String.length(indent))], "\n")
+    end
+  end
+
+  defp step!(yaml, name) do
+    [step] = for step <- steps(yaml), step =~ ~r/^\s*- name: #{Regex.escape(name)}$/m, do: step
+    step
+  end
+
+  defp block_after(lines, index, column) do
+    lines
+    |> Enum.drop(index + 1)
+    |> Enum.take_while(&(String.trim(&1) == "" or indentation(&1) > column))
+  end
+
+  defp indentation(line), do: String.length(line) - String.length(String.trim_leading(line, " "))
 end
