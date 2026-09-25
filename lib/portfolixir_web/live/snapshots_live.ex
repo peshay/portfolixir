@@ -89,6 +89,8 @@ defmodule PortfolixirWeb.SnapshotsLive do
 
   @impl true
   def handle_event("create_snapshot", %{"snapshot" => params}, socket) do
+    params = LiveParam.map(params)
+
     attrs = %{
       name: params["name"],
       as_of: params["as_of"],
@@ -160,6 +162,10 @@ defmodule PortfolixirWeb.SnapshotsLive do
   def handle_event("close_row_menu", _params, socket) do
     {:noreply, assign(socket, :row_menu_id, nil)}
   end
+
+  # An event this page does not know, or a payload it cannot read, changes
+  # nothing (E25 S4, F17).
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   defp load_snapshots(socket) do
     assign(socket, :snapshots, Snapshots.list_snapshots())

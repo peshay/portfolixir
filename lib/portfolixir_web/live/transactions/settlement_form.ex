@@ -36,6 +36,8 @@ defmodule PortfolixirWeb.Transactions.SettlementForm do
   use Gettext, backend: PortfolixirWeb.Gettext
 
   alias Portfolixir.Fx
+  alias Portfolixir.Input.BoundedDate
+  alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Ledger.SettlementGuard
   alias Portfolixir.Ledger.Transaction
 
@@ -154,7 +156,7 @@ defmodule PortfolixirWeb.Transactions.SettlementForm do
   end
 
   defp stored_rate(pair, date) do
-    with {:ok, date} <- Date.from_iso8601(to_string(date)),
+    with {:ok, date} <- BoundedDate.parse(date),
          {:ok, rate} <- Fx.rate(pair.security, pair.account, date) do
       {:ok, rate}
     else
@@ -325,9 +327,10 @@ defmodule PortfolixirWeb.Transactions.SettlementForm do
         do: String.replace(trimmed, ",", "."),
         else: trimmed
 
-    case Decimal.parse(normalized) do
-      {decimal, ""} -> decimal
-      _invalid -> nil
+    # Finite only (E25 S4, F17): `NaN` or `Infinity` is no amount or rate.
+    case BoundedDecimal.parse(normalized) do
+      {:ok, decimal} -> decimal
+      :error -> nil
     end
   end
 

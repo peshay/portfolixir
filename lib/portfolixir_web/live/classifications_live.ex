@@ -5,6 +5,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog
   alias Portfolixir.Classifications
+  alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CategoryResult
   alias Portfolixir.Portfolios.Targets
@@ -1089,7 +1090,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   @impl true
   def handle_event("create_classification", %{"classification" => params}, socket) do
-    case Classifications.create_classification(Actor.owner_ui(), params) do
+    case Classifications.create_classification(Actor.owner_ui(), LiveParam.map(params)) do
       {:ok, classification} ->
         {:noreply, push_navigate(socket, to: "/classifications/#{classification.id}")}
 
@@ -1099,7 +1100,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   end
 
   def handle_event("create_category", %{"category" => params}, socket) do
-    case Classifications.create_category(Actor.owner_ui(), params) do
+    case Classifications.create_category(Actor.owner_ui(), LiveParam.map(params)) do
       {:ok, _category} ->
         {:noreply, socket |> success(gettext("Category created")) |> reload()}
 
@@ -1109,7 +1110,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   end
 
   def handle_event("edit_category", %{"id" => id}, socket) do
-    case coerce_id(id) do
+    case LiveParam.fetch_id(id) do
       {:ok, category_id} -> {:noreply, assign(socket, :editing_id, category_id)}
       :error -> {:noreply, socket}
     end
@@ -1120,7 +1121,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   end
 
   def handle_event("update_category", %{"category" => %{"id" => id} = params}, socket) do
-    with {:ok, category_id} <- coerce_id(id),
+    with {:ok, category_id} <- LiveParam.fetch_id(id),
          category when not is_nil(category) <- Classifications.get_category(category_id),
          {:ok, _} <- Classifications.update_category(Actor.owner_ui(), category, params) do
       {:noreply,
@@ -1135,7 +1136,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   end
 
   def handle_event("recolor_category", %{"category_id" => id, "color" => color}, socket) do
-    with {:ok, category_id} <- coerce_id(id),
+    with {:ok, category_id} <- LiveParam.fetch_id(id),
          category when not is_nil(category) <- Classifications.get_category(category_id),
          {:ok, _} <- Classifications.recolor_category(Actor.owner_ui(), category, color) do
       {:noreply, reload(socket)}
@@ -1146,7 +1147,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   end
 
   def handle_event("delete_category", %{"id" => id}, socket) do
-    with {:ok, category_id} <- coerce_id(id),
+    with {:ok, category_id} <- LiveParam.fetch_id(id),
          category when not is_nil(category) <- Classifications.get_category(category_id),
          {:ok, _} <- Classifications.delete_category(Actor.owner_ui(), category) do
       {:noreply, socket |> success(gettext("Category deleted")) |> reload()}
@@ -1160,9 +1161,9 @@ defmodule PortfolixirWeb.ClassificationsLive do
   # detail head uses; only the id travels differently, because the index has
   # no selected tree.
   def handle_event("open_tree_menu", %{"id" => id_str}, socket) do
-    case Integer.parse(to_string(id_str)) do
-      {id, ""} -> {:noreply, assign(socket, :tree_menu_id, id)}
-      _ -> {:noreply, socket}
+    case LiveParam.id(id_str) do
+      nil -> {:noreply, socket}
+      id -> {:noreply, assign(socket, :tree_menu_id, id)}
     end
   end
 
@@ -1171,7 +1172,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   end
 
   def handle_event("delete_classification_row", %{"id" => id_str}, socket) do
-    with {id, ""} <- Integer.parse(to_string(id_str)),
+    with {:ok, id} <- LiveParam.fetch_id(id_str),
          classification when not is_nil(classification) <- Classifications.get_classification(id),
          {:ok, _} <- Classifications.delete_classification(Actor.owner_ui(), classification) do
       {:noreply, push_navigate(socket, to: "/classifications")}
@@ -1208,9 +1209,9 @@ defmodule PortfolixirWeb.ClassificationsLive do
   # -- plan versions (ADR-0027) ----------------------------------------------
 
   def handle_event("select_soll_plan", %{"soll_plan" => value}, socket) do
-    case Integer.parse(value) do
-      {plan_id, ""} -> {:noreply, socket |> assign(:soll_plan_id, plan_id) |> load_soll()}
-      _ -> {:noreply, socket}
+    case LiveParam.id(value) do
+      nil -> {:noreply, socket}
+      plan_id -> {:noreply, socket |> assign(:soll_plan_id, plan_id) |> load_soll()}
     end
   end
 
@@ -1240,7 +1241,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
     end
   end
 
-  def handle_event("rename_soll_plan", %{"plan_name" => name}, socket) do
+  def handle_event("rename_soll_plan", %{"plan_name" => name}, socket) when is_binary(name) do
     with %{plan: %{id: plan_id}} <- socket.assigns.soll,
          {:ok, renamed} <- Targets.rename_plan(Actor.owner_ui(), plan_id, String.trim(name)) do
       {:noreply,
@@ -1268,8 +1269,8 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   # Live Σ: recompute the running total (categories + cash) from the form as the
   # maintainer types, without persisting anything.
-  def handle_event("soll_sum", params, socket) do
-    {:noreply, assign(socket, :soll, recompute_soll_sum(socket.assigns.soll, params))}
+  def handle_event("soll_sum", params, %{assigns: %{soll: %{} = soll}} = socket) do
+    {:noreply, assign(socket, :soll, recompute_soll_sum(soll, params))}
   end
 
   def handle_event("save_soll_plan", params, socket) do
@@ -1302,7 +1303,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   # #481: a category's position rows open and close in place; closed rows
   # stay in the form (hidden), so closing never reads as clearing.
   def handle_event("toggle_soll_positions", %{"id" => id}, socket) do
-    with {:ok, category_id} <- coerce_id(id),
+    with {:ok, category_id} <- LiveParam.fetch_id(id),
          %{expanded: expanded} = soll <- socket.assigns.soll do
       expanded =
         if MapSet.member?(expanded, category_id),
@@ -1346,12 +1347,13 @@ defmodule PortfolixirWeb.ClassificationsLive do
   # without persisting until the maintainer saves.
   def handle_event("copy_soll_plan", %{"copy_from" => ""}, socket), do: {:noreply, socket}
 
-  def handle_event("copy_soll_plan", %{"copy_from" => value}, socket) do
+  # Only an open editor has a plan to prefill (E25 S4, F17).
+  def handle_event("copy_soll_plan", %{"copy_from" => value}, %{assigns: %{soll: %{}}} = socket) do
     {:noreply, assign(socket, :soll, copy_soll_from(socket.assigns, parse_soll_view(value)))}
   end
 
   def handle_event("filter_tree", %{"query" => query}, socket) do
-    {:noreply, socket |> assign(:query, query) |> reload()}
+    {:noreply, socket |> assign(:query, LiveParam.string(query) || "") |> reload()}
   end
 
   def handle_event("toggle_current_only", params, socket) do
@@ -1360,9 +1362,9 @@ defmodule PortfolixirWeb.ClassificationsLive do
   end
 
   def handle_event("assign_security", params, socket) do
-    with {:ok, security_id} <- coerce_id(params["security_id"]),
-         {:ok, classification_id} <- coerce_id(params["classification_id"]),
-         {:ok, category_id} <- coerce_id(params["category_id"]),
+    with {:ok, security_id} <- LiveParam.fetch_id(params["security_id"]),
+         {:ok, classification_id} <- LiveParam.fetch_id(params["classification_id"]),
+         {:ok, category_id} <- LiveParam.fetch_id(params["category_id"]),
          {:ok, _assignment} <-
            Classifications.assign_security(
              Actor.owner_ui(),
@@ -1378,8 +1380,8 @@ defmodule PortfolixirWeb.ClassificationsLive do
   end
 
   def handle_event("unassign", params, socket) do
-    with {:ok, security_id} <- coerce_id(params["security_id"]),
-         {:ok, classification_id} <- coerce_id(params["classification_id"]) do
+    with {:ok, security_id} <- LiveParam.fetch_id(params["security_id"]),
+         {:ok, classification_id} <- LiveParam.fetch_id(params["classification_id"]) do
       {:ok, _} =
         Classifications.unassign_security(Actor.owner_ui(), security_id, classification_id)
 
@@ -1391,8 +1393,8 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   def handle_event("assign_securities", params, socket) do
     with {:ok, ids} <- coerce_ids(params["security_ids"]),
-         {:ok, classification_id} <- coerce_id(params["classification_id"]),
-         {:ok, category_id} <- coerce_id(params["category_id"]) do
+         {:ok, classification_id} <- LiveParam.fetch_id(params["classification_id"]),
+         {:ok, category_id} <- LiveParam.fetch_id(params["category_id"]) do
       do_assign(socket, ids, classification_id, category_id)
     else
       :error -> {:noreply, socket}
@@ -1401,12 +1403,16 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   def handle_event("unassign_many", params, socket) do
     with {:ok, ids} <- coerce_ids(params["security_ids"]),
-         {:ok, classification_id} <- coerce_id(params["classification_id"]) do
+         {:ok, classification_id} <- LiveParam.fetch_id(params["classification_id"]) do
       do_unassign(socket, ids, classification_id)
     else
       :error -> {:noreply, socket}
     end
   end
+
+  # An event this page does not know, or a payload it cannot read, changes
+  # nothing (E25 S4, F17).
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   # Writes into the picked plan version when one is loaded; with no plan yet
   # (e.g. saving a copy-prefilled empty scope) the view-addressed write creates
@@ -2117,29 +2123,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   defp swatch(nil), do: nil
   defp swatch(color), do: "background:#{color}"
 
-  defp coerce_id(value) when is_integer(value), do: {:ok, value}
-
-  defp coerce_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> {:ok, id}
-      _ -> :error
-    end
-  end
-
-  defp coerce_id(_value), do: :error
-
-  defp coerce_ids(values) when is_list(values) do
-    ids =
-      Enum.flat_map(values, fn value ->
-        case coerce_id(value) do
-          {:ok, id} -> [id]
-          :error -> []
-        end
-      end)
-
-    {:ok, ids}
-  end
-
+  defp coerce_ids(values) when is_list(values), do: {:ok, LiveParam.ids(values)}
   defp coerce_ids(_values), do: :error
 
   # -- SOLL render helpers ---------------------------------------------------
@@ -2183,7 +2167,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   defp parse_weight_entries(weights) when is_map(weights) do
     Enum.reduce_while(weights, {:ok, []}, fn {key, value}, {:ok, acc} ->
-      with {:ok, category_id} <- coerce_id(key),
+      with {:ok, category_id} <- LiveParam.fetch_id(key),
            {:ok, fraction} <- parse_percent_fraction(value) do
         case fraction do
           nil -> {:cont, {:ok, acc}}
@@ -2211,9 +2195,9 @@ defmodule PortfolixirWeb.ClassificationsLive do
   defp parse_position_entries(_positions), do: {:ok, []}
 
   defp position_entries_for(category_key, by_security) when is_map(by_security) do
-    with {:ok, category_id} <- coerce_id(category_key) do
+    with {:ok, category_id} <- LiveParam.fetch_id(category_key) do
       Enum.reduce_while(by_security, {:ok, []}, fn {security_key, value}, {:ok, acc} ->
-        with {:ok, security_id} <- coerce_id(security_key),
+        with {:ok, security_id} <- LiveParam.fetch_id(security_key),
              {:ok, fraction} <- parse_percent_fraction(value) do
           entry = %{category_id: category_id, security_id: security_id, target_weight: fraction}
           {:cont, {:ok, if(fraction, do: [entry | acc], else: acc)}}
@@ -2347,7 +2331,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   defp parse_percent_map(weights) when is_map(weights) do
     Enum.reduce(weights, %{}, fn {key, value}, acc ->
-      case {coerce_id(key), parse_percent_string(value)} do
+      case {LiveParam.fetch_id(key), parse_percent_string(value)} do
         {{:ok, id}, %Decimal{} = decimal} -> Map.put(acc, id, decimal)
         _ -> acc
       end
@@ -2360,7 +2344,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   # Decimal}}`, blanks dropped: an empty position input is no target.
   defp parse_position_map(positions) when is_map(positions) do
     Enum.reduce(positions, %{}, fn {category_key, by_security}, acc ->
-      with {:ok, category_id} <- coerce_id(category_key),
+      with {:ok, category_id} <- LiveParam.fetch_id(category_key),
            parsed when parsed != %{} <- parse_percent_map(by_security) do
         Map.put(acc, category_id, parsed)
       else
@@ -2387,18 +2371,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   # `Decimal.parse/1` also accepts the IEEE special values ("NaN", "Inf",
   # "Infinity", any case/sign), which the `:decimal` Ecto cast then rejects with
-  # an uncaught `ArgumentError`. Treat any non-finite result as invalid here so a
-  # crafted form payload can never crash the editor — it surfaces as a normal
-  # "invalid weight" instead.
-  defp parse_decimal(value) do
-    case Decimal.parse(value) do
-      {%Decimal{} = decimal, ""} ->
-        if Decimal.nan?(decimal) or Decimal.inf?(decimal), do: :error, else: {:ok, decimal}
-
-      _ ->
-        :error
-    end
-  end
+  # an uncaught `ArgumentError`. The shared finite-decimal rule treats any
+  # non-finite result as invalid, so a crafted form payload can never crash the
+  # editor — it surfaces as a normal "invalid weight" instead.
+  defp parse_decimal(value), do: BoundedDecimal.parse(value)
 
   # A stored fraction in [0, 1] → its percentage as a plain display string
   # ("0.6" → "60", "0.125" → "12.5"), trimming trailing zeros.

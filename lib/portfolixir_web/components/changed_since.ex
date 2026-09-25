@@ -44,10 +44,15 @@ defmodule PortfolixirWeb.ChangedSince do
     ]
   end
 
-  @doc "The URL value the active chip would toggle to, or nil to clear."
+  @doc """
+  The URL value the active chip would toggle to, or nil to clear. A key no
+  chip carries toggles nothing: the current value comes back (E25 S4, F17).
+  """
   def toggle_value(since, preset_key) do
-    {_key, _label, iso} = List.keyfind!(presets(), preset_key, 0)
-    if since && since.raw == iso, do: nil, else: iso
+    case List.keyfind(presets(), preset_key, 0) do
+      {_key, _label, iso} -> if since && since.raw == iso, do: nil, else: iso
+      nil -> since && since.raw
+    end
   end
 
   attr(:id, :string, required: true)

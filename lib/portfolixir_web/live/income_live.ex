@@ -22,6 +22,7 @@ defmodule PortfolixirWeb.IncomeLive do
   alias Portfolixir.Portfolios.RealizedGains
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.LiveParam
 
   @months 1..12
 
@@ -147,7 +148,10 @@ defmodule PortfolixirWeb.IncomeLive do
 
   @impl true
   def handle_event("select_year", %{"year" => year}, socket) do
-    {:noreply, assign(socket, :selected_year, String.to_integer(year))}
+    case LiveParam.year(year) do
+      nil -> {:noreply, socket}
+      year -> {:noreply, assign(socket, :selected_year, year)}
+    end
   end
 
   def handle_event("clear_year", _params, socket) do
@@ -167,6 +171,10 @@ defmodule PortfolixirWeb.IncomeLive do
 
     {:noreply, socket}
   end
+
+  # An event this page does not know, or a payload it cannot read, changes
+  # nothing (E25 S4, F17).
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   @impl true
   def handle_async(:backfill_rates, {:ok, {:ok, %{upserted: count}}}, socket) do

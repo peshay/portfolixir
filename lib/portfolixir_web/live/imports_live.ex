@@ -10,8 +10,13 @@ defmodule PortfolixirWeb.ImportsLive do
   alias Portfolixir.Imports.PreviewStore
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.LiveParam
 
   @max_upload_bytes 20_000_000
+
+  # The fields a mapping row carries, as its form sends them.
+  @depot_fields ~w(target cash)
+  @security_fields ~w(choice ack record_isin_change)
 
   @impl true
   def mount(_params, session, socket) do
@@ -679,6 +684,10 @@ defmodule PortfolixirWeb.ImportsLive do
     {:noreply, push_event(socket, "copy-to-clipboard", %{text: text})}
   end
 
+  # An event this page does not know, or a payload it cannot read, changes
+  # nothing (E25 S4, F17).
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
   @impl true
   def handle_async(:apply_import, {:ok, {:ok, result}}, socket) do
     PreviewStore.delete(socket.assigns.session_token)
@@ -900,13 +909,24 @@ defmodule PortfolixirWeb.ImportsLive do
   defp prefill(:none, pp_name), do: "create:#{pp_name}"
   defp prefill({:ambiguous, _tier, _ids}, _pp_name), do: ""
 
+  # The mapping takes only the shapes its form sends (E25 S4, F17): a string
+  # per cash name, a map of strings per depot and per security row, a string
+  # tag. Anything else changes nothing — the mapping is parked in the preview
+  # store, so a shape the page cannot render would crash every remount.
   defp mapping_from_params(params, current) do
+    params = LiveParam.map(params)
+
     %{
-      bucket_tag: Map.get(params, "bucket_tag", current.bucket_tag),
+      bucket_tag: LiveParam.string(Map.get(params, "bucket_tag")) || current.bucket_tag,
       bucket_skip: parse_bucket_skip(Map.get(params, "bucket_skip"), current.bucket_skip),
-      cash: Map.merge(current.cash, Map.get(params, "cash", %{})),
-      depot: Map.merge(current.depot, Map.get(params, "depot", %{})),
-      security: merge_security_mapping(Map.get(current, :security, %{}), params),
+      cash: Map.merge(current.cash, LiveParam.form(Map.get(params, "cash"))),
+      depot: merge_rows(current.depot, Map.get(params, "depot"), @depot_fields),
+      security:
+        merge_rows(
+          Map.get(current, :security, %{}),
+          Map.get(params, "security"),
+          @security_fields
+        ),
       remember: merge_remember(Map.get(current, :remember, blank_mapping().remember), params),
       prefill: Map.get(current, :prefill, blank_mapping().prefill)
     }
@@ -918,7 +938,7 @@ defmodule PortfolixirWeb.ImportsLive do
     case Map.get(params, "remember") do
       %{} = given ->
         Map.new(["cash", "depot"], fn group ->
-          {group, Map.merge(Map.get(current, group, %{}), Map.get(given, group, %{}))}
+          {group, Map.merge(Map.get(current, group, %{}), LiveParam.form(Map.get(given, group)))}
         end)
 
       _absent ->
@@ -927,10 +947,17 @@ defmodule PortfolixirWeb.ImportsLive do
   end
 
   # Per-key deep merge so a change event carrying only some of a row's fields
-  # (choice / ack / record_isin_change) never drops the others.
-  defp merge_security_mapping(current, params) do
-    Map.merge(current, Map.get(params, "security", %{}), fn _key, old, new ->
-      if is_map(old) and is_map(new), do: Map.merge(old, new), else: new
+  # (a depot's target / cash, a security's choice / ack / record_isin_change)
+  # never drops the others; a row that is not a map, and a field that is not
+  # a string or not the row's, is ignored.
+  defp merge_rows(current, given, fields) do
+    rows =
+      for {key, row} <- LiveParam.map(given), is_binary(key) and is_map(row), into: %{} do
+        {key, row |> LiveParam.form() |> Map.take(fields)}
+      end
+
+    Map.merge(current, rows, fn _key, old, new ->
+      if is_map(old), do: Map.merge(old, new), else: new
     end)
   end
 
@@ -963,9 +990,9 @@ defmodule PortfolixirWeb.ImportsLive do
   defp chosen_existing_security(mapping, res, existing_securities) do
     case security_choice(mapping, res) do
       "existing:" <> id_str ->
-        case Integer.parse(id_str) do
-          {id, ""} -> Enum.find(existing_securities, &(&1.id == id))
-          _other -> nil
+        case LiveParam.id(id_str) do
+          nil -> nil
+          id -> Enum.find(existing_securities, &(&1.id == id))
         end
 
       _other ->
@@ -1231,9 +1258,9 @@ defmodule PortfolixirWeb.ImportsLive do
   end
 
   defp append?(kind, pp_name, raw_id) do
-    case Integer.parse(raw_id) do
-      {id, ""} -> Imports.remember_outcome(kind, pp_name, id) == :append
-      _invalid -> false
+    case LiveParam.fetch_id(raw_id) do
+      {:ok, id} -> Imports.remember_outcome(kind, pp_name, id) == :append
+      :error -> false
     end
   end
 
@@ -1263,9 +1290,9 @@ defmodule PortfolixirWeb.ImportsLive do
   defp security_apply_decision(res, mapping) do
     case {res.status, security_choice(mapping, res)} do
       {_status, "existing:" <> id_str} ->
-        case Integer.parse(id_str) do
-          {id, ""} -> {:mapping, existing_security_mapping(res, mapping, id)}
-          _other -> {:error, gettext("Invalid security id.")}
+        case LiveParam.fetch_id(id_str) do
+          {:ok, id} -> {:mapping, existing_security_mapping(res, mapping, id)}
+          :error -> {:error, gettext("Invalid security id.")}
         end
 
       {:create, "create"} ->
@@ -1333,9 +1360,9 @@ defmodule PortfolixirWeb.ImportsLive do
     Enum.reduce_while(pp_names, {:ok, %{}}, fn pp_name, {:ok, acc} ->
       case Map.get(mapping.cash, pp_name) do
         "existing:" <> id_str ->
-          case Integer.parse(id_str) do
-            {id, ""} -> {:cont, {:ok, Map.put(acc, pp_name, {:existing, id})}}
-            _ -> {:halt, {:error, gettext("Invalid cash account id.")}}
+          case LiveParam.fetch_id(id_str) do
+            {:ok, id} -> {:cont, {:ok, Map.put(acc, pp_name, {:existing, id})}}
+            :error -> {:halt, {:error, gettext("Invalid cash account id.")}}
           end
 
         "create:" <> name ->
@@ -1361,20 +1388,14 @@ defmodule PortfolixirWeb.ImportsLive do
   end
 
   defp parse_depot_target("existing:" <> id_str) do
-    case Integer.parse(id_str) do
-      {id, ""} -> {:ok, {:existing, id}}
-      _ -> :error
-    end
+    with {:ok, id} <- LiveParam.fetch_id(id_str), do: {:ok, {:existing, id}}
   end
 
   defp parse_depot_target("create:" <> name), do: {:ok, {:create, name}}
   defp parse_depot_target(_), do: :error
 
   defp parse_depot_cash("existing:" <> id_str) do
-    case Integer.parse(id_str) do
-      {id, ""} -> {:ok, {:existing, id}}
-      _ -> :error
-    end
+    with {:ok, id} <- LiveParam.fetch_id(id_str), do: {:ok, {:existing, id}}
   end
 
   defp parse_depot_cash("pp:" <> name), do: {:ok, name}

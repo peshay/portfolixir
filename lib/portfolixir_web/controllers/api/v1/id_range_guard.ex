@@ -51,12 +51,18 @@ defmodule PortfolixirWeb.Api.V1.IdRangeGuard do
     end
   end
 
-  # The first key (depth first) carrying an out-of-range id, or nil.
-  defp out_of_range_key(%{} = params) when not is_struct(params) do
+  @doc """
+  The first key (depth first) of a params map that carries an id past the
+  `bigint` range, or nil. The pages' event guard
+  (`PortfolixirWeb.LiveEventGuard`) reads an event payload with the same
+  rule, so a page and the API refuse the same ids.
+  """
+  @spec out_of_range_key(term()) :: String.t() | nil
+  def out_of_range_key(%{} = params) when not is_struct(params) do
     Enum.find_value(params, fn {key, value} -> check(to_string(key), value) end)
   end
 
-  defp out_of_range_key(_params), do: nil
+  def out_of_range_key(_params), do: nil
 
   defp check(key, _value) when key in @opaque_subtrees or key in @text_keys, do: nil
 

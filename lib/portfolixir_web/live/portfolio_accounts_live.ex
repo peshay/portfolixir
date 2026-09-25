@@ -23,6 +23,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PortfolioAccounts.AccountFormDialog
 
   @color_format ~r/^#[0-9a-fA-F]{3,8}$/
@@ -624,7 +625,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
 
   @impl true
   def handle_event("open_balance_dialog", %{"id" => id}, socket) do
-    with {parsed, ""} <- Integer.parse(id),
+    with {:ok, parsed} <- LiveParam.fetch_id(id),
          %CashAccount{} = account <- Portfolios.get_cash_account(parsed) do
       {:noreply, assign(socket, balance_dialog: account, balance_error: nil)}
     else
@@ -639,7 +640,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   def handle_event("set_balance", %{"balance" => params}, socket) do
     case socket.assigns.balance_dialog do
       %CashAccount{} = account ->
-        case Ledger.set_cash_balance(Actor.owner_ui(), account, params) do
+        case Ledger.set_cash_balance(Actor.owner_ui(), account, LiveParam.map(params)) do
           {:ok, _tx} ->
             # Quiet feedback: the row's balance updating in place is the
             # confirmation — no toast, no success banner (#566 direction).
@@ -666,7 +667,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
         %{"account_id" => id, "liquidity_role" => role},
         socket
       ) do
-    with {account_id, ""} <- Integer.parse(id),
+    with {:ok, account_id} <- LiveParam.fetch_id(id),
          %CashAccount{} = account <- Portfolios.get_cash_account(account_id),
          {:ok, _updated} <-
            Portfolios.update_cash_account(Actor.owner_ui(), account, %{liquidity_role: role}) do
@@ -681,7 +682,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
 
   def handle_event("open_bucket_picker", %{"owner" => owner, "id" => id}, socket)
       when owner in ["depot", "cash", "pair"] do
-    case coerce_id(id) do
+    case LiveParam.fetch_id(id) do
       {:ok, owner_id} ->
         {:noreply,
          socket
@@ -696,9 +697,9 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   # Session-only split of a merged pair: from here on the depot and its cash
   # account carry their own chip groups (no write happens).
   def handle_event("open_account_menu", %{"id" => id_str}, socket) do
-    case Integer.parse(to_string(id_str)) do
-      {id, ""} -> {:noreply, assign(socket, :account_menu_id, id)}
-      _ -> {:noreply, socket}
+    case LiveParam.id(id_str) do
+      nil -> {:noreply, socket}
+      id -> {:noreply, assign(socket, :account_menu_id, id)}
     end
   end
 
@@ -707,7 +708,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   end
 
   def handle_event("split_pair", %{"id" => id}, socket) do
-    case coerce_id(id) do
+    case LiveParam.fetch_id(id) do
       {:ok, depot_id} ->
         {:noreply,
          socket
@@ -723,7 +724,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
 
   def handle_event("toggle_bucket_overflow", %{"owner" => owner, "id" => id}, socket)
       when owner in ["depot", "cash", "pair"] do
-    case coerce_id(id) do
+    case LiveParam.fetch_id(id) do
       {:ok, owner_id} ->
         key = {owner, owner_id}
         open = socket.assigns.overflow_open
@@ -747,7 +748,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
 
   def handle_event("add_bucket", %{"owner" => owner, "id" => id, "bucket" => bucket}, socket) do
     change_buckets(socket, owner, id, fn current ->
-      case coerce_id(bucket) do
+      case LiveParam.fetch_id(bucket) do
         {:ok, bucket_id} -> current ++ [bucket_id]
         :error -> current
       end
@@ -756,7 +757,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
 
   def handle_event("remove_bucket", %{"owner" => owner, "id" => id, "bucket" => bucket}, socket) do
     change_buckets(socket, owner, id, fn current ->
-      case coerce_id(bucket) do
+      case LiveParam.fetch_id(bucket) do
         {:ok, bucket_id} -> current -- [bucket_id]
         :error -> current
       end
@@ -767,7 +768,8 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
         "create_and_add_bucket",
         %{"owner" => owner, "owner_id" => id, "bucket_name" => name},
         socket
-      ) do
+      )
+      when is_binary(name) do
     case Buckets.ensure_tag_bucket(Actor.owner_ui(), name) do
       {:ok, bucket} ->
         change_buckets(socket, owner, id, fn current -> current ++ [bucket.id] end)
@@ -786,6 +788,10 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
         {:noreply, bucket_failure(socket, owner, id, changeset_error(changeset))}
     end
   end
+
+  # An event this page does not know, or a payload it cannot read, changes
+  # nothing (E25 S4, F17).
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   @impl true
   def handle_info({:dialog, "account-form-dialog", :close}, socket) do
@@ -810,7 +816,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   # write fails the sets have diverged, so the reload auto-splits the band and
   # the error keys on the cash group that the split reveals.
   defp change_buckets(socket, "pair", id, fun) do
-    with {:ok, depot_id} <- coerce_id(id),
+    with {:ok, depot_id} <- LiveParam.fetch_id(id),
          {:ok, %SecuritiesAccount{} = depot} <- fetch_owner("depot", depot_id),
          {:ok, %CashAccount{} = cash} <- paired_cash(depot) do
       current = Buckets.depot_default_bucket_ids(depot_id)
@@ -829,7 +835,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   end
 
   defp change_buckets(socket, owner, id, fun) when owner in ["depot", "cash"] do
-    with {:ok, owner_id} <- coerce_id(id),
+    with {:ok, owner_id} <- LiveParam.fetch_id(id),
          {:ok, record} <- fetch_owner(owner, owner_id) do
       current = owner_bucket_ids(owner, owner_id)
 
@@ -897,7 +903,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
     do: Buckets.set_cash_account_buckets(Actor.owner_ui(), cash, ids)
 
   defp bucket_failure(socket, owner, id, message) do
-    case coerce_id(id) do
+    case LiveParam.fetch_id(id) do
       {:ok, owner_id} -> assign(socket, :bucket_error, {owner, owner_id, message})
       :error -> socket
     end
@@ -1030,17 +1036,6 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
 
   defp success(socket, message), do: assign(socket, success: message, error: nil)
   defp failure(socket, message), do: assign(socket, error: message, success: nil)
-
-  defp coerce_id(value) when is_integer(value), do: {:ok, value}
-
-  defp coerce_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> {:ok, id}
-      _ -> :error
-    end
-  end
-
-  defp coerce_id(_value), do: :error
 
   defp changeset_error(changeset) do
     changeset.errors

@@ -46,6 +46,7 @@ defmodule PortfolixirWeb.RiskLive do
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.ClassificationName
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PolicyRuleLabel
   alias PortfolixirWeb.Risk.PolicyRuleDialog
   alias PortfolixirWeb.Risk.PolicyRuleFormat
@@ -141,7 +142,7 @@ defmodule PortfolixirWeb.RiskLive do
   end
 
   def handle_event("edit_rule", %{"id" => id}, socket) do
-    with {rule_id, ""} <- Integer.parse(to_string(id)),
+    with {:ok, rule_id} <- LiveParam.fetch_id(id),
          %{} = rule <- Enum.find(socket.assigns.rules, &(&1.id == rule_id)) do
       {:noreply, socket |> assign(:rule_dialog, rule) |> assign(:notice, nil)}
     else
@@ -152,6 +153,10 @@ defmodule PortfolixirWeb.RiskLive do
   def handle_event("close_policy_rule_dialog", _params, socket) do
     {:noreply, assign(socket, :rule_dialog, nil)}
   end
+
+  # An event this page does not know, or a payload it cannot read, changes
+  # nothing (E25 S4, F17).
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   @impl true
   def handle_info({PolicyRuleDialog, {:saved, message}}, socket) do

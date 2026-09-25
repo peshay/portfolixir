@@ -83,4 +83,17 @@ defmodule PortfolixirWeb.LiveParam do
   @spec map(term()) :: map()
   def map(value) when is_map(value) and not is_struct(value), do: value
   def map(_value), do: %{}
+
+  @doc """
+  A flat form payload: `map/1` keeping only the fields a form's inputs send,
+  a string under a string key. A field that arrived as a list, a map or a
+  number is dropped, as if the input had not been there.
+  """
+  @spec form(term()) :: %{optional(String.t()) => String.t()}
+  def form(value) do
+    for {key, field} <- map(value),
+        is_binary(key) and is_binary(field),
+        into: %{},
+        do: {key, field}
+  end
 end

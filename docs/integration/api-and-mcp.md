@@ -66,7 +66,11 @@ carries — never a server error. Every other id-valued or integer page
 parameter is read by the same id rule and reads as absent when it cannot hold
 the value: `/snapshots?snapshot=` opens the newest snapshot,
 `/classifications/:id?soll_view=` the whole-portfolio plan, and
-`/tax?year=` (a year outside `1`–`9999`) the default year.
+`/tax?year=` (a year outside `1`–`9999`) the default year. An event a page
+or one of its dialogs receives with a payload that is not an object, an id
+past the bound at any depth (the same rule the API answers with `422`), a
+field of the wrong shape, or a name it does not know changes nothing: the page
+stays as it was.
 
 **Bounded integers.** `offset` on the securities list accepts at most
 `1000000`, and `days` on the research log's `unreviewed` and `expiring` reads

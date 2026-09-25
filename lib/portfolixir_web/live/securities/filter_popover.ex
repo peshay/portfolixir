@@ -8,11 +8,18 @@ defmodule PortfolixirWeb.Securities.FilterPopover do
   alias Portfolixir.Catalog.DataQuality
   alias Portfolixir.Catalog.SecurityFields
   alias Portfolixir.Catalog.SecurityFields.Field
+  alias PortfolixirWeb.LiveEventGuard
+  alias PortfolixirWeb.LiveParam
+
+  # Every operator a field of the registry offers, the list's own
+  # `filter[]=` whitelist in `PortfolixirWeb.SecuritiesLive`.
+  @operators [:eq, :neq, :contains, :starts_with, :gt, :lt, :is_true, :is_false, :is_nil]
 
   @impl true
   def mount(socket) do
     {:ok,
      socket
+     |> LiveEventGuard.attach()
      |> assign(:field_key, default_field_key())
      |> assign(:operator, nil)
      |> assign(:dq, nil)
@@ -117,22 +124,22 @@ defmodule PortfolixirWeb.Securities.FilterPopover do
   end
 
   def handle_event("filter_change", params, socket) do
-    field_key = atom_or_default(params["field"], socket.assigns.field_key)
+    field_key = field_or_default(params["field"], socket.assigns.field_key)
     field = SecurityFields.get(field_key)
-    operator = atom_or_default(params["operator"], default_operator(field))
+    operator = operator_or_default(params["operator"], default_operator(field))
 
     {:noreply,
      socket
      |> assign(:field_key, field_key)
      |> assign(:field, field)
      |> assign(:operator, operator)
-     |> assign(:value, params["value"] || "")}
+     |> assign(:value, LiveParam.string(params["value"]) || "")}
   end
 
   def handle_event("apply_filter", params, socket) do
-    field_key = atom_or_default(params["field"], socket.assigns.field_key)
-    operator = atom_or_default(params["operator"], socket.assigns.operator)
-    value = params["value"] || socket.assigns.value
+    field_key = field_or_default(params["field"], socket.assigns.field_key)
+    operator = operator_or_default(params["operator"], socket.assigns.operator)
+    value = LiveParam.string(params["value"]) || socket.assigns.value
 
     case build_filter(field_key, operator, value) do
       {:ok, filter} ->
@@ -146,6 +153,10 @@ defmodule PortfolixirWeb.Securities.FilterPopover do
         {:noreply, socket}
     end
   end
+
+  # An event this component does not know, or a payload it cannot read,
+  # changes nothing (E25 S4, F17).
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   defp build_filter(nil, _op, _value), do: :error
   defp build_filter(_key, nil, _value), do: :error
@@ -168,16 +179,24 @@ defmodule PortfolixirWeb.Securities.FilterPopover do
 
   defp build_filter(_, _, _), do: :error
 
-  defp atom_or_default(nil, default), do: default
-  defp atom_or_default("", default), do: default
-
-  defp atom_or_default(value, default) when is_binary(value) do
-    String.to_existing_atom(value)
-  rescue
-    ArgumentError -> default
+  # A field or an operator is read against the registry's own names, so a
+  # payload can name only a filterable field and a known operator; anything
+  # else keeps the current choice (E25 S4, F17). No atom is looked up from
+  # the payload itself.
+  defp field_or_default(value, default) when is_binary(value) do
+    case Enum.find(SecurityFields.filterable(), &(Atom.to_string(&1.key) == value)) do
+      %Field{key: key} -> key
+      nil -> default
+    end
   end
 
-  defp atom_or_default(value, _default) when is_atom(value), do: value
+  defp field_or_default(_value, default), do: default
+
+  defp operator_or_default(value, default) when is_binary(value) do
+    Enum.find(@operators, default, &(Atom.to_string(&1) == value))
+  end
+
+  defp operator_or_default(_value, default), do: default
 
   defp default_field_key do
     case SecurityFields.filterable() do

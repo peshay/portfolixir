@@ -3,6 +3,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
+  alias Portfolixir.Input.BoundedDate
+  alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Projection
   alias Portfolixir.Ledger.Transaction
@@ -10,6 +12,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.ChangedSince
   alias PortfolixirWeb.ColumnPicker
+  alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.TransactionKindLabel
   alias PortfolixirWeb.Transactions.SettlementForm
 
@@ -512,9 +515,13 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   end
 
   def handle_event("form_changed", %{"transaction" => params} = event, socket) do
+    # The drawer's inputs send strings only; anything else is not a field
+    # (E25 S4, F17).
+    params = LiveParam.form(params)
+
     # #395: a cross-currency trade's settlement amount and rate derive each
     # other from whichever the operator just typed (the event's `_target`).
-    target = event |> Map.get("_target", []) |> List.wrap() |> List.last()
+    target = event |> Map.get("_target", []) |> List.wrap() |> List.last() |> LiveParam.string()
 
     # Which settlement figure was typed last travels in the form's hidden
     # field; an event that omits it keeps the drawer's last known one.
@@ -541,9 +548,12 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     # must not silently release the account the reader narrowed to.
     chips = Map.take(socket.assigns.filters, @chip_families)
 
+    fields =
+      filters |> LiveParam.form() |> Map.take(Map.keys(default_filters()) -- @chip_families)
+
     {:noreply,
      socket
-     |> assign(:filters, default_filters() |> Map.merge(filters) |> Map.merge(chips))
+     |> assign(:filters, default_filters() |> Map.merge(fields) |> Map.merge(chips))
      |> apply_current_filters()}
   end
 
@@ -555,7 +565,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # directly. Found by the Sprint 7 UAT walkthrough in a real browser; pinned
   # by test/invariants/phx_value_value_test.exs.
   def handle_event("toggle_filter", %{"family" => family, "option" => option}, socket)
-      when family in ["type", "account"] do
+      when family in ["type", "account"] and is_binary(option) do
     key = if family == "type", do: "types", else: "account_ids"
     active = Map.fetch!(socket.assigns.filters, key)
     toggled = if option in active, do: List.delete(active, option), else: [option | active]
@@ -568,9 +578,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   # #809: one row menu open at a time; click-away and Escape close it.
   def handle_event("open_row_menu", %{"id" => id_str}, socket) do
-    case Integer.parse(to_string(id_str)) do
-      {id, ""} -> {:noreply, assign(socket, :row_menu_id, id)}
-      _ -> {:noreply, socket}
+    case LiveParam.id(id_str) do
+      nil -> {:noreply, socket}
+      id -> {:noreply, assign(socket, :row_menu_id, id)}
     end
   end
 
@@ -584,7 +594,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # preview — only pre-filled, and `editing_id` is what tells the save which
   # of the two ledger calls to make.
   def handle_event("edit_transaction", %{"id" => id_str}, socket) do
-    with {id, ""} <- Integer.parse(to_string(id_str)),
+    with {:ok, id} <- LiveParam.fetch_id(id_str),
          %Transaction{} = transaction <- Ledger.get_transaction(id) do
       {:noreply,
        socket
@@ -655,6 +665,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   end
 
   def handle_event("save_transaction", %{"transaction" => params}, socket) do
+    params = LiveParam.form(params)
+
     # The currency is authoritative from the chosen depot's cash account, never a
     # free-text field the user could mistype (#473).
     currency =
@@ -680,6 +692,10 @@ defmodule PortfolixirWeb.TransactionManagementLive do
          |> failure(gettext("The settlement amount is missing."))}
     end
   end
+
+  # An event this page does not know, or a payload it cannot read, changes
+  # nothing (E25 S4, F17).
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   defp save_booking(socket, params, prepared) do
     case book(socket.assigns.editing_id, prepared) do
@@ -871,7 +887,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp from_match?(_tx, blank) when blank in ["", nil], do: true
 
   defp from_match?(tx, str) do
-    case Date.from_iso8601(str) do
+    case BoundedDate.parse(str) do
       {:ok, date} -> Date.compare(tx.date, date) != :lt
       _ -> true
     end
@@ -880,7 +896,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp to_match?(_tx, blank) when blank in ["", nil], do: true
 
   defp to_match?(tx, str) do
-    case Date.from_iso8601(str) do
+    case BoundedDate.parse(str) do
       {:ok, date} -> Date.compare(tx.date, date) != :gt
       _ -> true
     end
@@ -1273,7 +1289,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # latest stored close). The entered price is read as the security's own
   # currency — the same currency a bookable manual sell is priced in.
   defp compute_sell_preview(%{"type" => "sell"} = params) do
-    with {:ok, security_id} <- parse_form_int(params["security_id"]),
+    with {:ok, security_id} <- LiveParam.fetch_id(params["security_id"]),
          {:ok, quantity} <- parse_form_decimal(params["quantity"]) do
       opts =
         case parse_form_decimal(params["price"]) do
@@ -1289,21 +1305,14 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   defp compute_sell_preview(_params), do: nil
 
-  defp parse_form_int(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {int, ""} -> {:ok, int}
-      _invalid -> :error
-    end
-  end
-
-  defp parse_form_int(_value), do: :error
-
+  # A finite decimal only (E25 S4, F17): `NaN` or `Infinity` typed into the
+  # drawer is not a quantity, and would raise in the comparison below.
   defp parse_form_decimal(value) when is_binary(value) do
-    case value |> normalize_decimal_comma() |> String.trim() |> Decimal.parse() do
-      {%Decimal{} = decimal, ""} ->
+    case value |> normalize_decimal_comma() |> String.trim() |> BoundedDecimal.parse() do
+      {:ok, decimal} ->
         if Decimal.compare(decimal, 0) == :gt, do: {:ok, decimal}, else: :error
 
-      _invalid ->
+      :error ->
         :error
     end
   end

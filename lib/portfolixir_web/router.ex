@@ -57,6 +57,7 @@ defmodule PortfolixirWeb.Router do
         PortfolixirWeb.HeapCap,
         PortfolixirWeb.LiveUiAuth,
         PortfolixirWeb.LiveIdRange,
+        PortfolixirWeb.LiveEventGuard,
         PortfolixirWeb.LiveLocale,
         PortfolixirWeb.LiveViewScope,
         PortfolixirWeb.LiveBenchmarkScope
