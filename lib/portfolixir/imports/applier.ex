@@ -467,12 +467,31 @@ defmodule Portfolixir.Imports.Applier do
     }
   end
 
+  # The recorders prepend (E25 S5, F40): appending copied every list once per
+  # row, quadratic inside the import transaction on a large re-import. Each
+  # list is reversed once here, into the file's row order.
+  @recorded_lists [
+    :skipped_entries,
+    :duplicate_entries,
+    :collapsed_duplicates,
+    :unresolved_entries,
+    :internal_transfers,
+    :alias_matches,
+    :security_overrides,
+    :remembered_names
+  ]
+
   defp enrich_after_commit({:ok, %Result{} = result}) do
     created_ids = Enum.reverse(result.created_security_ids)
     resolved_ids = result.resolved_security_ids |> Enum.reverse() |> Enum.uniq()
 
     Catalog.enrich_security_ids_async(created_ids)
     Catalog.enqueue_missing_security_logos_async()
+
+    result =
+      Enum.reduce(@recorded_lists, result, fn field, acc ->
+        Map.update!(acc, field, &Enum.reverse/1)
+      end)
 
     {:ok,
      %Result{result | created_security_ids: created_ids, resolved_security_ids: resolved_ids}}
@@ -675,7 +694,7 @@ defmodule Portfolixir.Imports.Applier do
     remembered = %{kind: kind, name: pp_name, account_id: account_id, outcome: outcome}
 
     Map.update!(state, :result, fn %Result{} = r ->
-      %Result{r | remembered_names: r.remembered_names ++ [remembered]}
+      %Result{r | remembered_names: [remembered | r.remembered_names]}
     end)
   end
 
@@ -964,7 +983,7 @@ defmodule Portfolixir.Imports.Applier do
     |> Map.update!(:result, fn %Result{} = r ->
       %Result{
         r
-        | skipped_entries: r.skipped_entries ++ [%{row: entry.source_row, reason: reason}]
+        | skipped_entries: [%{row: entry.source_row, reason: reason} | r.skipped_entries]
       }
     end)
   end
@@ -1308,7 +1327,7 @@ defmodule Portfolixir.Imports.Applier do
   defp maybe_record_alias(state, %Entry{} = entry, ref, :former_isin, security_id) do
     Map.update!(state, :result, fn %Result{} = r ->
       match = %{row: entry.source_row, former_isin: ref.isin, security_id: security_id}
-      %Result{r | alias_matches: r.alias_matches ++ [match]}
+      %Result{r | alias_matches: [match | r.alias_matches]}
     end)
   end
 
@@ -1319,7 +1338,7 @@ defmodule Portfolixir.Imports.Applier do
     |> Map.put(:outcome, {:unresolved, key, reason})
     |> Map.update!(:result, fn %Result{} = r ->
       unresolved = %{row: entry.source_row, key: key, reason: reason}
-      %Result{r | unresolved_entries: r.unresolved_entries ++ [unresolved]}
+      %Result{r | unresolved_entries: [unresolved | r.unresolved_entries]}
     end)
   end
 
@@ -1331,7 +1350,7 @@ defmodule Portfolixir.Imports.Applier do
         recorded_isin_change: recorded_isin_change?
       }
 
-      %Result{r | security_overrides: r.security_overrides ++ [override]}
+      %Result{r | security_overrides: [override | r.security_overrides]}
     end)
   end
 
@@ -1461,7 +1480,7 @@ defmodule Portfolixir.Imports.Applier do
     state
     |> Map.put(:outcome, :skipped)
     |> Map.update!(:result, fn %Result{} = r ->
-      %Result{r | internal_transfers: r.internal_transfers ++ [transfer]}
+      %Result{r | internal_transfers: [transfer | r.internal_transfers]}
     end)
   end
 
@@ -1802,8 +1821,9 @@ defmodule Portfolixir.Imports.Applier do
     |> Map.update!(:result, fn %Result{} = r ->
       %Result{
         r
-        | duplicate_entries:
-            r.duplicate_entries ++ [%{row: entry.source_row, reason: reason, layer: layer}],
+        | duplicate_entries: [
+            %{row: entry.source_row, reason: reason, layer: layer} | r.duplicate_entries
+          ],
           already_imported: Map.update!(r.already_imported, layer, &(&1 + 1))
       }
     end)
@@ -1818,7 +1838,7 @@ defmodule Portfolixir.Imports.Applier do
         reason: "collapsed: resolves to the same booking as an earlier row in this file"
       }
 
-      %Result{r | collapsed_duplicates: r.collapsed_duplicates ++ [collapsed]}
+      %Result{r | collapsed_duplicates: [collapsed | r.collapsed_duplicates]}
     end)
   end
 
