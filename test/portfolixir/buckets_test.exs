@@ -502,6 +502,32 @@ defmodule Portfolixir.BucketsTest do
       assert {:error, :bucket_ids} =
                Buckets.set_view_buckets(Actor.owner_ui(), view, [], [@unknown_bucket_id])
     end
+
+    # User story (E25 S4, F12):
+    # As the operator's agent setting a view's buckets,
+    # I want a bucket named twice in one list to count once,
+    # so that an otherwise valid request is not a server error.
+    #
+    # Acceptance criteria:
+    # - Repeated include and exclude ids are de-duplicated, like the sibling
+    #   writers; the view ends up with each bucket once.
+    test "set_view_buckets de-duplicates repeated include and exclude ids" do
+      {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Twice", include_all: false})
+      {:ok, alpha} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Alpha"})
+      {:ok, beta} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Beta"})
+
+      assert :ok =
+               Buckets.set_view_buckets(
+                 Actor.owner_ui(),
+                 view,
+                 [alpha.id, alpha.id],
+                 [beta.id, beta.id, beta.id]
+               )
+
+      assert {:ok, %{include: [alpha_id], exclude: [beta_id]}} = Buckets.view_filter(view.id)
+      assert alpha_id == alpha.id
+      assert beta_id == beta.id
+    end
   end
 
   # User story (ADR-0024 modification 2, epic story 2):

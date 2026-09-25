@@ -1726,7 +1726,8 @@ View-Definitions-Schreibvorgänge bewusst nicht (ADR-0018 §5).
 - `DELETE /api/v1/views/:id` löscht eine View und ihre Bucket-Sets (`204`).
 - `PUT /api/v1/views/:id/buckets` ersetzt die Include-/Exclude-Bucket-Sets einer
   View. Body: `{"include": [..], "exclude": [..]}` (beide optional, Standard
-  `[]`, Listen von Bucket-ids). Eine fehlerhafte id-Liste ergibt `422`.
+  `[]`, Listen von Bucket-ids). Eine fehlerhafte id-Liste ergibt `422`; ein
+  Bucket, der in einer Liste zweimal steht, zählt einmal.
 - `GET /api/v1/views/:view_id/valuation` liefert die Live-Bewertung einer View
   **über alle Portfolios** (ADR-0024) in der Form der Portfolio-Bewertung mit
   `view_id` statt `portfolio_id`; jedes zur View passende Konto zählt genau

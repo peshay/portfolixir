@@ -1870,7 +1870,8 @@ writes are deliberately not journaled (ADR-0018 §5).
 - `DELETE /api/v1/views/:id` deletes a view and its bucket sets (`204`).
 - `PUT /api/v1/views/:id/buckets` replaces a view's include/exclude bucket sets.
   Body: `{"include": [..], "exclude": [..]}` (both optional, default `[]`,
-  arrays of bucket ids). A malformed id list returns `422`.
+  arrays of bucket ids). A malformed id list returns `422`; a bucket named
+  twice in one list counts once.
 - `GET /api/v1/views/:view_id/valuation` returns the live valuation of a view
   **across all portfolios** (ADR-0024): the deduplicated union of every depot,
   position and cash account matching the view — an account tagged into several

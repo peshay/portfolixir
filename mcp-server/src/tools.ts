@@ -3130,7 +3130,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.views.set_buckets",
     "Set view buckets",
-    "Replace a view's include and exclude bucket sets in one call. include and exclude are arrays of bucket ids (default empty). A holding matches when it is included (always under include_all, otherwise carries an included bucket) and carries no excluded bucket; exclude always wins.",
+    "Replace a view's include and exclude bucket sets in one call. include and exclude are arrays of bucket ids (default empty); an id named twice in one list counts once. A holding matches when it is included (always under include_all, otherwise carries an included bucket) and carries no excluded bucket; exclude always wins.",
     viewBucketsSchema,
     viewBucketsZ
   ),
