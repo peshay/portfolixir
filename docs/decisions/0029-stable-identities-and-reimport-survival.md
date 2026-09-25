@@ -15,6 +15,9 @@ description: Decision that strategy configuration survives a PP re-import throug
   ahead of all resolution and consults retired hashes; the in-run collapse key
   is scoped by the file's account names; account resolution gains a
   former-name tier; and §3's manual repair points at the security merge.
+  **Amended by the security pass E25 S5** (2026-09-25, Sprint 16, adopted
+  with its triage): the content hash and the reference key are injective
+  with every stored hash still valid (see the amendment below).
 - **Date:** 2026-07-19
 
 ## Context
@@ -427,6 +430,33 @@ Shape (binding for Story 18.3, hardened 2026-07-22):
   reconcile request/response contract, identifier normalization, and the
   FR-29 rescope wording — are applied to the sections above. The draft is
   review-hardened and ready for owner sign-off.
+
+## Amendment: the content hash and the reference key are injective (2026-09-25, E25 S5)
+
+Two identity keys of this record joined their fields with an unescaped `|`:
+the content `import_hash` (#533) and the preview's security reference key
+(§2). A separator moved from one field into its neighbour gave two different
+rows one hash, so the second was skipped as already imported, and two
+different references one key, so one preview decision applied to both
+(security triage 2026-09-24, F36; risk-tier: idempotency, ADR-0036).
+
+- **The content hash stays byte-identical for every row without the
+  separator in a field** — such a join has one reading — so every hash
+  stored for such a row stays valid. A row with the separator in a field is
+  hashed over its length-prefixed fields behind a leading byte no joined form
+  begins with (`Portfolixir.Imports.ImportHash`), and also consults the hash
+  the joined formula gave it, so a row stored before the change is still
+  recognised. That lookup is ambiguous by construction; it errs towards
+  "already booked" (nothing books twice), matches only rows stored before
+  the change, and the result lists the row it skipped.
+- **The reference key is length-prefixed per field**, an absent field marked
+  as such. It lives only as long as a preview, so no stored value depends on
+  its form. One key standing for two references **fails closed**: both are
+  a decision no choice settles, and the apply is refused.
+- Pinned by `import_hash_test.exs` (a digest computed with the Sprint 15
+  formula) and `import_hash_reimport_test.exs` (a re-import of a row stored
+  under that formula books nothing; two rows that joined to one string both
+  book; two references that joined to one string resolve separately).
 
 ## References
 

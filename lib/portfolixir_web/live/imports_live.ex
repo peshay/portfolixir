@@ -1161,6 +1161,13 @@ defmodule PortfolixirWeb.ImportsLive do
     )
   end
 
+  # E25 S5 (F36): one key standing for two references fails closed.
+  defp decision_text(%{conflict: %{type: :key_collision}}) do
+    gettext(
+      "Two securities of this file cannot be told apart, so the import is refused. Correct them in Portfolio Performance and export again."
+    )
+  end
+
   defp decision_text(%{conflict: %{type: :cross_tier}}) do
     gettext(
       "Different identifiers point at different existing securities. Decide which one this entry belongs to."
@@ -1599,6 +1606,12 @@ defmodule PortfolixirWeb.ImportsLive do
     gettext(
       "Several accounts are named %{name}. Pick the one this export's %{name} books to, then confirm again. Nothing was written.",
       name: name
+    )
+  end
+
+  defp apply_error_message({:security_key_collision, _key}) do
+    gettext(
+      "Two securities of this file cannot be told apart, so the import is refused. Correct them in Portfolio Performance and export again."
     )
   end
 

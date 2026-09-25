@@ -238,18 +238,52 @@ defmodule Portfolixir.Imports.SecurityResolver do
 
   @doc """
   A stable, form-field-safe key for a normalized reference: the SHA-256 (hex,
-  truncated to 128 bits) of the canonical identity string. The preview's
-  override form, the applier's `security_mappings`, and the preview→apply
-  revalidation all address a reference by this key.
+  truncated to 128 bits) of the reference's identity fields, each
+  length-prefixed and an absent one marked as such (E25 S5, F36), so two
+  different references never encode to one string — the fields used to be
+  joined with an unescaped `|`, and a separator moved from one field into its
+  neighbour gave two references one key and one preview decision. The
+  preview's override form, the applier's `security_mappings`, and the
+  preview→apply revalidation all address a reference by this key; it lives
+  only as long as a preview, so no stored value depends on its form.
   """
   @spec key(ref()) :: String.t()
   def key(%{} = ref) do
     [ref.isin, ref.wkn, ref.ticker, ref.name, ref.currency]
-    |> Enum.map(&(&1 || ""))
-    |> Enum.join("|")
+    |> Enum.map(fn
+      nil -> "-"
+      field -> [Integer.to_string(byte_size(field)), ":", field]
+    end)
     |> then(&:crypto.hash(:sha256, &1))
     |> Base.encode16(case: :lower)
     |> binary_part(0, 32)
+  end
+
+  @doc """
+  The references keyed by `key_fun` (`key/1` by default), one entry per
+  distinct reference in first-seen order — or, **failing closed** (E25 S5,
+  F36), `{:error, {:security_key_collision, key}}` when one key stands for
+  two distinct references: one decision would otherwise apply to a security
+  nobody decided. `key/1` is injective up to its 128-bit digest, so this is
+  a tripwire, not a path.
+  """
+  @spec unique_keys([ref()], (ref() -> String.t())) ::
+          {:ok, [{String.t(), ref()}]} | {:error, {:security_key_collision, String.t()}}
+  def unique_keys(refs, key_fun \\ &key/1) do
+    refs
+    |> Enum.uniq()
+    |> Enum.reduce_while({[], %{}}, fn ref, {keyed, seen} ->
+      key = key_fun.(ref)
+
+      case Map.fetch(seen, key) do
+        :error -> {:cont, {[{key, ref} | keyed], Map.put(seen, key, ref)}}
+        {:ok, _other} -> {:halt, {:error, {:security_key_collision, key}}}
+      end
+    end)
+    |> case do
+      {:error, _} = collision -> collision
+      {keyed, _seen} -> {:ok, Enum.reverse(keyed)}
+    end
   end
 
   @doc "True when the reference carries no usable identity at all."
@@ -436,16 +470,45 @@ defmodule Portfolixir.Imports.SecurityResolver do
     * `conflict` / `candidates` — the surfaced decision for `:needs_decision`,
     * `at_risk` — the `config_at_risk/2` list for `:config_at_risk`.
   """
-  @spec resolution_plan(Preview.t(), Index.t()) :: [map()]
-  def resolution_plan(%Preview{entries: entries}, %Index{} = index) do
-    entries
-    |> Entry.flatten()
-    |> Enum.filter(& &1.security)
-    |> Enum.map(fn entry -> {effective_ref(entry), entry.source_row} end)
-    |> Enum.reject(fn {ref, _row} -> blank_ref?(ref) end)
-    |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
-    |> Enum.map(fn {ref, rows} -> classify(ref, rows, index) end)
+  #
+  # A key that stands for two references (E25 S5, F36) fails closed: every
+  # reference behind it is a decision no choice can settle, and the apply
+  # refuses the file (`unique_keys/2`).
+  @spec resolution_plan(Preview.t(), Index.t(), (ref() -> String.t())) :: [map()]
+  def resolution_plan(%Preview{entries: entries}, %Index{} = index, key_fun \\ &key/1) do
+    grouped =
+      entries
+      |> Entry.flatten()
+      |> Enum.filter(& &1.security)
+      |> Enum.map(fn entry -> {effective_ref(entry), entry.source_row} end)
+      |> Enum.reject(fn {ref, _row} -> blank_ref?(ref) end)
+      |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+
+    colliding =
+      grouped
+      |> Map.keys()
+      |> Enum.frequencies_by(key_fun)
+      |> Enum.flat_map(fn {key, count} -> if count > 1, do: [key], else: [] end)
+      |> MapSet.new()
+
+    grouped
+    |> Enum.map(fn {ref, rows} ->
+      key = key_fun.(ref)
+
+      if MapSet.member?(colliding, key),
+        do: key_collision(ref, key, rows),
+        else: classify(ref, key, rows, index)
+    end)
     |> Enum.sort_by(&{status_rank(&1.status), &1.label})
+  end
+
+  defp key_collision(ref, key, rows) do
+    ref
+    |> base_row(key, rows)
+    |> Map.merge(%{
+      status: :needs_decision,
+      conflict: %{type: :key_collision, tier: nil, candidates: []}
+    })
   end
 
   @doc """
@@ -460,9 +523,9 @@ defmodule Portfolixir.Imports.SecurityResolver do
     %{normalized | currency: normalized.currency || normalize_code(entry.currency_code)}
   end
 
-  defp classify(ref, rows, index) do
-    base = %{
-      key: key(ref),
+  defp base_row(ref, key, rows) do
+    %{
+      key: key,
       ref: ref,
       label: ref.name || ref.isin || ref.wkn || ref.ticker,
       rows: Enum.sort(rows),
@@ -472,6 +535,10 @@ defmodule Portfolixir.Imports.SecurityResolver do
       candidates: [],
       at_risk: []
     }
+  end
+
+  defp classify(ref, key, rows, index) do
+    base = base_row(ref, key, rows)
 
     case resolve(ref, index) do
       {:match, security, tier} ->

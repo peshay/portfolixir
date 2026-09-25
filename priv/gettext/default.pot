@@ -7931,3 +7931,8 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "ISIN %{isin} is not a valid ISIN (shape or check digit) — row not imported"
 msgstr ""
+
+#: lib/portfolixir_web/live/imports_live.ex:1170
+#, elixir-autogen, elixir-format
+msgid "Two securities of this file cannot be told apart, so the import is refused. Correct them in Portfolio Performance and export again."
+msgstr ""
