@@ -23,6 +23,7 @@ defmodule Portfolixir.Imports do
   alias Portfolixir.Imports.PortfolioPerformance
   alias Portfolixir.Imports.Preview
   alias Portfolixir.Imports.SecurityResolver
+  alias Portfolixir.Portfolios
 
   @spec parse_portfolio_performance(binary(), keyword()) :: {:ok, Preview.t()} | {:error, term()}
   def parse_portfolio_performance(body, opts \\ []) when is_binary(body) do
@@ -51,6 +52,34 @@ defmodule Portfolixir.Imports do
       unmatched_config: SecurityResolver.unmatched_config_securities(resolutions, index),
       unmatched_config_scope: SecurityResolver.unmatched_config_scope(resolutions, index)
     }
+  end
+
+  @doc """
+  The already-imported counts of a parsed preview (ADR-0050 §3), before the
+  apply: per first-check layer (`:hash`, `:retired`, `:unimportable`,
+  `:new`) in `total`, and per file cash-account and depot name, where a row
+  counts under every name it carries. See `Portfolixir.Imports.Applier.reimport_counts/2`.
+
+  Read-only. The hash names the portfolio the import binds to: `:portfolio_id`
+  when given, otherwise the internal default portfolio the Imports view binds
+  to (ADR-0024), read without creating it — before the first import there is
+  none, and every importable row is new.
+  """
+  @spec reimport_counts(Preview.t(), keyword()) :: %{
+          total: Applier.layer_counts(),
+          cash_accounts: %{String.t() => Applier.layer_counts()},
+          depots: %{String.t() => Applier.layer_counts()}
+        }
+  def reimport_counts(%Preview{} = preview, opts \\ []) when is_list(opts) do
+    portfolio_id =
+      Keyword.get_lazy(opts, :portfolio_id, fn ->
+        case Portfolios.first_portfolio() do
+          nil -> nil
+          portfolio -> portfolio.id
+        end
+      end)
+
+    Applier.reimport_counts(preview, portfolio_id)
   end
 
   @spec apply(Preview.t(), Applier.apply_params()) :: {:ok, Applier.Result.t()} | {:error, term()}
