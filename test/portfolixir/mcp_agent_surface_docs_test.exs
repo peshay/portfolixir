@@ -210,4 +210,33 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
        ]}
     ])
   end
+
+  # User story (E25 S7, G30, the wording half; T-8):
+  # As the operator reading the policy-rule reference,
+  # I want it to call a rule a stored rule and say where its author is read,
+  # so that the reference does not present an agent-written rule as mine.
+  #
+  # Acceptance criteria:
+  # - The EN and DE policy-rule sections call a rule a stored standard and
+  #   name the audit journal for its author; neither calls a rule the
+  #   operator's own standard any more.
+  test "the policy-rule reference calls a rule a stored rule and names the journal" do
+    assert_fragments([
+      {"docs/integration/api-and-mcp.md",
+       [
+         "A **policy rule** is a stored standard over a figure the product already serves",
+         "says who wrote each rule and each version",
+         "`portfolixir.policy_rules.list` — the stored rules with the version in force"
+       ]},
+      {"docs/de/integration/api-and-mcp.md",
+       [
+         "Eine **eigene Regel** ist ein gespeicherter Maßstab über eine Zahl",
+         "sagt, wer jede Regel und jede Version geschrieben hat",
+         "`portfolixir.policy_rules.list` — die gespeicherten Regeln mit der am `as_of` geltenden Version"
+       ]}
+    ])
+
+    refute File.read!("docs/integration/api-and-mcp.md") =~ "the operator's own standard"
+    refute File.read!("docs/de/integration/api-and-mcp.md") =~ "Maßstab des Betreibers"
+  end
 end

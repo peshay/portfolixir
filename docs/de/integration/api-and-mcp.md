@@ -1646,12 +1646,17 @@ Beispiel-Payloads für Konten:
 
 ## Eigene Regeln (ADR-0049)
 
-Eine **eigene Regel** ist ein Maßstab des Betreibers über eine Zahl, die das
+Eine **eigene Regel** ist ein gespeicherter Maßstab über eine Zahl, die das
 Produkt ohnehin liefert: „kein Einzeltitel über 10 %", „Barmittel nie unter
 5 %", „die Kategorie Anleihen innerhalb von ±3 Prozentpunkten ihres Ziels",
 „die 90-Tage-Volatilität des Portfolios unter 15 %". Sie wird als Objekt
 gespeichert, statt als Fließtext in einem geplanten Prompt zu stehen — dort,
-wo solche Grenzen bisher auseinanderliefen.
+wo solche Grenzen bisher auseinanderliefen. Der Betreiber legt Regeln auf der
+Seite Risiko an, ein Agent über die API mit seinem Token; eine Regel ist also
+eine gespeicherte Regel, wer sie auch geschrieben hat: Das Audit-Journal
+(`resource_type` `policy_rule` und `policy_rule_version`) sagt, wer jede Regel
+und jede Version geschrieben hat, und die `rules_note` der Liste verweist
+dorthin.
 
 **Was eine Regel ist.** Eine Aussage über **eine benannte Kennzahl**, für
 einen Bezug, in einem Auswertungskontext:
@@ -1682,7 +1687,7 @@ einen Bezug, in einem Auswertungskontext:
   (strikt unterhalb) oder `band` (außerhalb von `[lower, upper]`) — dieselbe
   Lesart einer Linie wie die Risikolinse;
 - der **Schweregrad** ist `warn` oder `hard`; `name` und `note` sind die
-  Worte des Betreibers und werden nie ausgewertet. Der `name` ist eine
+  Worte der Regel, wer sie auch geschrieben hat, und werden nie ausgewertet. Der `name` ist eine
   **Bezeichnung der Regel**, nicht Teil ihrer Identität: Er lässt sich jederzeit
   ohne neue Version ändern (siehe das Umbenennen unten) und muss nicht
   eindeutig sein.
@@ -2380,9 +2385,11 @@ Schreibvorgang.
 - `portfolixir.targets.delete`
 - `portfolixir.portfolios.allocation`
 - `portfolixir.portfolios.risk`
-- `portfolixir.policy_rules.list` — die eigenen Regeln mit der am `as_of`
-  geltenden Version (ADR-0049); die Beschreibung weist den Agenten an, den
-  Maßstab hier zu lesen, statt ihn zu wiederholen.
+- `portfolixir.policy_rules.list` — die gespeicherten Regeln mit der am
+  `as_of` geltenden Version (ADR-0049); die Beschreibung weist den Agenten an,
+  sie hier zu lesen, statt sie zu wiederholen, nennt jede eine gespeicherte
+  Regel, wer sie auch geschrieben hat, und verweist für ihren Autor auf das
+  Audit-Journal.
 - `portfolixir.policy_rules.get` — eine Regel mit ihrer ganzen
   Versionsgeschichte.
 - `portfolixir.policy_rules.create` — legt eine Regel mit ihrer ersten Version

@@ -37,14 +37,19 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
   alias PortfolixirWeb.Api.V1.SinceParam
   alias PortfolixirWeb.Api.V1.ViewParam
 
-  @rules_note "A rule is the operator's own standard over a figure the product already " <>
-                "serves (ADR-0049): a cap, floor or band on a weight, a drift, the HHI, or a " <>
-                "portfolio metric. Rules are versioned: an edit adds a version from a date and " <>
-                "closes the previous one the day before, so the standard in force on any date " <>
-                "stays readable (as_of=). A version that has been in force is never changed or " <>
-                "deleted. Evaluating the rules is the findings read; a finding is the rule " <>
-                "applied to the figure, never an action, and nothing here places, proposes or " <>
-                "sizes a trade."
+  # E25 S7, G30 (T-8): a rule is worded as a stored rule, not as the
+  # operator's, because an API token writes rules as well as the Risk page;
+  # who wrote each rule and version is the audit journal's to say.
+  @rules_note "A rule is a stored standard over a figure the product already serves " <>
+                "(ADR-0049): a cap, floor or band on a weight, a drift, the HHI, or a " <>
+                "portfolio metric. Who wrote a rule or a version, the operator on the Risk " <>
+                "page or an API token, is in the audit journal (resource_type policy_rule " <>
+                "and policy_rule_version). Rules are versioned: an edit adds a version from a " <>
+                "date and closes the previous one the day before, so the standard in force on " <>
+                "any date stays readable (as_of=). A version that has been in force is never " <>
+                "changed or deleted. Evaluating the rules is the findings read; a finding is " <>
+                "the rule applied to the figure, never an action, and nothing here places, " <>
+                "proposes or sizes a trade."
 
   @default_limit 1_000
   @max_limit 10_000

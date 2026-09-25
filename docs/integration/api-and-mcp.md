@@ -1792,11 +1792,15 @@ church tax withheld at a zero church-tax rate.
 
 ## Policy rules (ADR-0049)
 
-A **policy rule** is the operator's own standard over a figure the product
-already serves: "no single name above 10 %", "cash never below 5 %", "the
-bond category within ±3 percentage points of its target", "the portfolio's
-90-day volatility under 15 %". It is stored as an object instead of living as
-prose in a scheduled prompt, which is where such limits used to drift.
+A **policy rule** is a stored standard over a figure the product already
+serves: "no single name above 10 %", "cash never below 5 %", "the bond
+category within ±3 percentage points of its target", "the portfolio's 90-day
+volatility under 15 %". It is stored as an object instead of living as prose
+in a scheduled prompt, which is where such limits used to drift. The operator
+writes rules on the Risk page and an agent writes them over the API with its
+token, so a rule is a stored rule whoever wrote it: the audit journal
+(`resource_type` `policy_rule` and `policy_rule_version`) says who wrote each
+rule and each version, and the list's `rules_note` points there.
 
 **What a rule is.** A predicate over **one named measure**, for one subject,
 in one evaluation context:
@@ -1825,8 +1829,8 @@ in one evaluation context:
 - the **kind** is `cap` (breached strictly above `threshold`), `floor`
   (strictly below) or `band` (outside `[lower, upper]`) — the risk lens's own
   reading of a line, so a rule and the lens never disagree about where one is;
-- the **severity** is `warn` or `hard`; `name` and `note` are the operator's
-  words and are never parsed. The `name` is a **label on the rule**, not part
+- the **severity** is `warn` or `hard`; `name` and `note` are the rule's
+  words, whoever wrote them, and are never parsed. The `name` is a **label on the rule**, not part
   of its identity: it can be changed at any time without a new version (see
   the rename below), and it need not be unique.
 
@@ -2485,9 +2489,10 @@ every write.
 - `portfolixir.targets.delete_position`
 - `portfolixir.portfolios.allocation`
 - `portfolixir.portfolios.risk`
-- `portfolixir.policy_rules.list` — the operator's rules with the version in
-  force on `as_of` (ADR-0049); the description tells the agent to read the
-  standard here instead of restating it.
+- `portfolixir.policy_rules.list` — the stored rules with the version in
+  force on `as_of` (ADR-0049); the description tells the agent to read them
+  here instead of restating them, calls each a stored rule whoever wrote it,
+  and points to the audit journal for its author.
 - `portfolixir.policy_rules.get` — one rule with its whole version history.
 - `portfolixir.policy_rules.create` — stores a rule with its first version; the
   description carries the measure matrix and the scales, and states that a

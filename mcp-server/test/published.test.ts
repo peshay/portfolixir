@@ -449,6 +449,39 @@ describe("the companion's published tool surface", () => {
     assert.match(description("portfolixir.policy_rules.add_version"), /PERMANENT once in force/);
   });
 
+  // User story (E25 S7, G30, the wording half; T-8):
+  // As the operator whose agent's own token can store policy rules,
+  // I want the rule tools to call a rule a stored rule and to point to the
+  // audit journal for who wrote it,
+  // so that a rule the agent wrote is not presented to it as my standard.
+  //
+  // Acceptance criteria:
+  // - No policy-rule tool and not the findings read calls a rule the
+  //   operator's, in its title, its description or its schema.
+  // - The list, show, create and add_version descriptions point to the audit
+  //   journal for who wrote a rule or a version.
+  it("words the policy-rule tools neutrally and points to the journal for the author", async () => {
+    const published = await publishedTools();
+    const ruleTools = published.filter(
+      (tool) =>
+        tool.name.startsWith("portfolixir.policy_rules.") ||
+        tool.name === "portfolixir.portfolios.policy_findings"
+    );
+
+    assert.equal(ruleTools.length, 8);
+
+    for (const tool of ruleTools) {
+      const words = `${tool.title} ${tool.description} ${JSON.stringify(tool.inputSchema)}`;
+      assert.doesNotMatch(words, /operator's/i, tool.name);
+    }
+
+    for (const name of ["list", "get", "create", "add_version"]) {
+      const tool = ruleTools.find((candidate) => candidate.name === `portfolixir.policy_rules.${name}`);
+      assert.match(tool?.description ?? "", /a stored rule/, name);
+      assert.match(tool?.description ?? "", /audit journal \(portfolixir\.journal\.list/, name);
+    }
+  });
+
   // User story (E25 S7, G26, T-8):
   // As the operator who wants an agent to read the instance but never write it,
   // I want one opt-in switch that makes the companion read-only,
