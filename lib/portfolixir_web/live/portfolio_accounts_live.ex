@@ -867,6 +867,11 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
     gettext("Only one scope bucket per account — remove its current scope bucket first.")
   end
 
+  # The account was deleted before the write took its lock (E25 S6, G10).
+  defp bucket_write_error(:not_found) do
+    gettext("That account no longer exists. Refresh and try again.")
+  end
+
   defp bucket_write_error(_reason) do
     gettext("That bucket no longer exists. Refresh and try again.")
   end

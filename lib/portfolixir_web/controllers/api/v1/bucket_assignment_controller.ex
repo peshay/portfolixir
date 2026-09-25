@@ -33,6 +33,8 @@ defmodule PortfolixirWeb.Api.V1.BucketAssignmentController do
     else
       nil -> not_found(conn)
       :error -> not_found(conn)
+      # The account was deleted before the write took its lock (E25 S6, G10).
+      {:error, :not_found} -> not_found(conn)
       {:error, :bucket_ids} -> unprocessable(conn, %{bucket_ids: ["is invalid"]})
       {:error, :exclusive_bucket_conflict} -> exclusive_conflict(conn)
       {:error, _reason} -> unprocessable(conn, %{detail: ["could not assign buckets"]})
@@ -51,6 +53,8 @@ defmodule PortfolixirWeb.Api.V1.BucketAssignmentController do
     else
       nil -> not_found(conn)
       :error -> not_found(conn)
+      # The account was deleted before the write took its lock (E25 S6, G10).
+      {:error, :not_found} -> not_found(conn)
       {:error, :bucket_ids} -> unprocessable(conn, %{bucket_ids: ["is invalid"]})
       {:error, :exclusive_bucket_conflict} -> exclusive_conflict(conn)
       {:error, _reason} -> unprocessable(conn, %{detail: ["could not assign buckets"]})
@@ -75,6 +79,8 @@ defmodule PortfolixirWeb.Api.V1.BucketAssignmentController do
     else
       nil -> not_found(conn)
       :error -> not_found(conn)
+      # The account was deleted before the write took its lock (E25 S6, G10).
+      {:error, :not_found} -> not_found(conn)
       {:error, :bucket_ids} -> unprocessable(conn, %{bucket_ids: ["is invalid"]})
       # The exclusive dimension holds for overrides too (fix round): at most
       # one scope bucket per position, same 422 as the account endpoints.
@@ -97,6 +103,8 @@ defmodule PortfolixirWeb.Api.V1.BucketAssignmentController do
     else
       nil -> not_found(conn)
       :error -> not_found(conn)
+      # The account was deleted before the write took its lock (E25 S6, G10).
+      {:error, :not_found} -> not_found(conn)
       {:error, _reason} -> unprocessable(conn, %{detail: ["could not clear override"]})
     end
   end

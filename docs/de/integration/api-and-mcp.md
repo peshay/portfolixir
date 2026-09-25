@@ -1962,6 +1962,12 @@ nicht journalisiert: Noch keine Regel kann sie lesen.
 - `DELETE /api/v1/securities_accounts/:id/positions/:security_id/buckets` setzt
   die Überschreibung zurück, sodass die Position wieder den Depot-Standard erbt.
 
+Die vier Zuordnungs-Schreibvorgänge oben halten das Depot oder Geldkonto,
+während sie sein Set ersetzen. Zwei Schreibvorgänge auf dasselbe Konto kommen
+daher nacheinander dran: Es bleibt das Set dessen, der zuletzt festschreibt,
+nie eine Mischung aus beiden. Ein Konto, das gelöscht wird, während der
+Schreibvorgang wartet, antwortet mit `404` und es wird nichts geschrieben.
+
 Die Analyse-Endpunkte akzeptieren einen optionalen `view`-Query-Parameter (eine
 View-id), um das Ergebnis auf die Bestände der View einzugrenzen:
 

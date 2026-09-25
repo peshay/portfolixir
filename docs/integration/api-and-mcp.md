@@ -2092,6 +2092,11 @@ a view is not journaled: no rule can read it yet.
 - `DELETE /api/v1/securities_accounts/:id/positions/:security_id/buckets` clears
   the override, returning the position to inherit the depot default.
 
+The four assignment writes above hold the depot or cash account while they
+replace its set, so two writes to one account take turns: the one that
+commits last is the set that stays, never a mix of both. An account deleted
+while the write waits answers `404` and writes nothing.
+
 The analytics endpoints accept an optional `view` query param (a view id) to
 scope the result to the holdings matching that view:
 

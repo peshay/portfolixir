@@ -193,7 +193,10 @@ defmodule Portfolixir.BucketsTest do
       assert Buckets.effective_position_buckets(depot.id, security.id) == [b.id]
     end
 
-    test "position_override raises on a corrupt mixed (nil + bucket) row set", %{
+    # E25 S6 (#891), G10: a mixed set used to raise in every scoped read; it
+    # is now logged and read as explicit-empty (fail closed). The full
+    # contract is pinned in buckets/assignment_lock_test.exs.
+    test "position_override reads a corrupt mixed (nil + bucket) row set as explicit-empty", %{
       depot: depot,
       security: security
     } do
@@ -206,9 +209,9 @@ defmodule Portfolixir.BucketsTest do
         %{securities_account_id: depot.id, security_id: security.id, bucket_id: b.id}
       ])
 
-      assert_raise RuntimeError, ~r/mixes the explicit-empty marker/, fn ->
-        Buckets.position_override(depot.id, security.id)
-      end
+      assert ExUnit.CaptureLog.capture_log(fn ->
+               assert Buckets.position_override(depot.id, security.id) == :explicit_empty
+             end) =~ "explicit-empty marker next to bucket rows"
     end
   end
 
