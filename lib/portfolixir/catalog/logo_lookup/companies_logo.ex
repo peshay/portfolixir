@@ -18,6 +18,7 @@ defmodule Portfolixir.Catalog.LogoLookup.CompaniesLogo do
   """
 
   alias Portfolixir.Net.Http
+  alias Portfolixir.Net.PathSegment
 
   @base_url "https://companieslogo.com"
   # The only hosts a request or a redirect hop may reach (F27).
@@ -49,20 +50,22 @@ defmodule Portfolixir.Catalog.LogoLookup.CompaniesLogo do
   end
 
   defp fetch_slug(slug, opts) do
-    url = @base_url <> "/" <> slug <> "/logo/"
+    # Slugs are letters, digits and dashes; they still pass the one path
+    # segment helper every adapter uses (F31).
+    with {:ok, segment} <- PathSegment.encode(slug) do
+      case Http.get(build_req(opts), url: @base_url <> "/" <> segment <> "/logo/") do
+        {:ok, %Req.Response{status: 200, body: body}} when is_binary(body) ->
+          extract_og_image(body)
 
-    case Http.get(build_req(opts), url: url) do
-      {:ok, %Req.Response{status: 200, body: body}} when is_binary(body) ->
-        extract_og_image(body)
+        {:ok, %Req.Response{status: 404}} ->
+          :not_found
 
-      {:ok, %Req.Response{status: 404}} ->
-        :not_found
+        {:ok, %Req.Response{status: status}} ->
+          {:error, {:http_status, status}}
 
-      {:ok, %Req.Response{status: status}} ->
-        {:error, {:http_status, status}}
-
-      {:error, reason} ->
-        {:error, reason}
+        {:error, reason} ->
+          {:error, reason}
+      end
     end
   end
 

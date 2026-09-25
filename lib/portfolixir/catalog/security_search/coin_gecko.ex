@@ -14,6 +14,7 @@ defmodule Portfolixir.Catalog.SecuritySearch.CoinGecko do
 
   alias Portfolixir.Catalog.SecuritySearch.SearchResult
   alias Portfolixir.Net.Http
+  alias Portfolixir.Net.PathSegment
 
   @endpoint "https://api.coingecko.com/api/v3/search"
   @coins_endpoint "https://api.coingecko.com/api/v3/coins"
@@ -53,31 +54,31 @@ defmodule Portfolixir.Catalog.SecuritySearch.CoinGecko do
   @spec fetch_image_url(String.t(), keyword()) ::
           {:ok, String.t()} | :not_found | {:error, term()}
   def fetch_image_url(coin_id, opts \\ []) when is_binary(coin_id) do
-    req = req(opts)
-    url = @coins_endpoint <> "/" <> URI.encode(coin_id, &URI.char_unreserved?/1)
+    # One path segment (F31): a stored coin id cannot move the request.
+    with {:ok, segment} <- PathSegment.encode(coin_id) do
+      case Http.get(req(opts),
+             url: @coins_endpoint <> "/" <> segment,
+             params: [
+               localization: "false",
+               tickers: "false",
+               market_data: "false",
+               community_data: "false",
+               developer_data: "false"
+             ]
+           ) do
+        {:ok, %Req.Response{status: 200, body: %{"image" => %{"large" => large}}}}
+        when is_binary(large) ->
+          {:ok, large}
 
-    case Http.get(req,
-           url: url,
-           params: [
-             localization: "false",
-             tickers: "false",
-             market_data: "false",
-             community_data: "false",
-             developer_data: "false"
-           ]
-         ) do
-      {:ok, %Req.Response{status: 200, body: %{"image" => %{"large" => large}}}}
-      when is_binary(large) ->
-        {:ok, large}
+        {:ok, %Req.Response{status: 200}} ->
+          :not_found
 
-      {:ok, %Req.Response{status: 200}} ->
-        :not_found
+        {:ok, %Req.Response{status: status}} ->
+          {:error, {:http_status, status}}
 
-      {:ok, %Req.Response{status: status}} ->
-        {:error, {:http_status, status}}
-
-      {:error, reason} ->
-        {:error, reason}
+        {:error, reason} ->
+          {:error, reason}
+      end
     end
   end
 
