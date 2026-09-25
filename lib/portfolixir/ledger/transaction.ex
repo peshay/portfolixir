@@ -4,6 +4,7 @@ defmodule Portfolixir.Ledger.Transaction do
 
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Input.BoundedDate
+  alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Ledger.SettlementGuard
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.Portfolio
@@ -250,6 +251,10 @@ defmodule Portfolixir.Ledger.Transaction do
     |> normalize_currency_code()
     |> put_decimal_default(:fees)
     |> put_decimal_default(:taxes)
+    # E25 S4 (G16, G17): every amount is rounded to its column's scale and
+    # bounded by its column's precision BEFORE the sign checks below, so the
+    # value checked is the value stored, answered and journaled.
+    |> bound_to_columns()
     |> validate_required([:portfolio_id, :type, :date, :currency_code])
     |> BoundedDate.validate([:date])
     |> validate_inclusion(:type, @kinds)
@@ -305,6 +310,28 @@ defmodule Portfolixir.Ledger.Transaction do
       name: :transactions_one_split_per_portfolio_security_day_index,
       message: "a split for this security and portfolio is already booked on this date"
     )
+  end
+
+  # The `numeric(precision, scale)` of each amount column (ADR-0016 §2).
+  @money_fields [
+    :price,
+    :fees,
+    :taxes,
+    :gross_amount,
+    :security_amount,
+    :settlement_amount,
+    :settlement_fx_rate
+  ]
+  @money_column {20, 6}
+  @quantity_column {30, 12}
+
+  defp bound_to_columns(changeset) do
+    [{:quantity, @quantity_column} | Enum.map(@money_fields, &{&1, @money_column})]
+    |> Enum.reduce(changeset, fn {field, {_precision, scale} = column}, acc ->
+      acc
+      |> BoundedDecimal.quantize(field, scale)
+      |> BoundedDecimal.validate_column(field, column)
+    end)
   end
 
   # Per-kind required-field matrix. Keep this aligned with the per-kind

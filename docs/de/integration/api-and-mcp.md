@@ -88,6 +88,15 @@ und speichert nichts; das gespeicherte, gemeldete und im Journal festgehaltene
 Datum ist also das gesendete. Ein Portfolio-Performance-Import nennt eine Zeile
 mit einem Datum außerhalb des Bereichs in der Vorschau, statt sie zu buchen.
 
+**Buchungsbeträge.** Die Geldfelder und Preise einer Buchung (`gross_amount`,
+`price`, `fees`, `taxes`, `security_amount`, `settlement_amount`,
+`settlement_fx_rate`) halten 6 Nachkommastellen, ihre `quantity` 12
+(ADR-0016). Ein feinerer Wert wird **vor** der Prüfung kaufmännisch auf diese
+Stellenzahl gerundet; gespeichert, gemeldet und im Journal festgehalten wird
+also der gerundete Wert, und ein positiver Betrag, der auf `0` rundet, liefert
+`422`. Ein Wert mit mehr als 14 Stellen vor dem Komma (eine Menge mit mehr als
+18) liefert `422` mit dem Namen des Felds, statt in der Datenbank zu scheitern.
+
 **Eingepackte Rümpfe.** Ein Schreibzugriff, dessen Attribute unter einem
 Schlüssel reisen — `{"transaction": {…}}`, `{"view": {…}}`, `{"rule": {…}}`
 und ihre Geschwister — liefert `422` mit dem Namen dieses Schlüssels, wenn

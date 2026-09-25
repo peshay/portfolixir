@@ -3068,4 +3068,18 @@ describe("Portfolixir MCP tools", () => {
     assert.ok(found.includes("portfolixir.policy_rules.create rule.version.valid_from"));
     assert.ok(found.includes("portfolixir.snapshots.create as_of"));
   });
+
+  // E25 S4, G16 and G17 (#889): a ledger amount is rounded to the column's
+  // scale before it is checked, and one past the column's precision is a 422.
+  it("states the ledger's amount scale and bound on the booking tools", () => {
+    for (const name of [
+      "portfolixir.transactions.create",
+      "portfolixir.transactions.update",
+      "portfolixir.cash_accounts.set_balance"
+    ]) {
+      const description = listTools().find((tool) => tool.name === name)?.description ?? "";
+      assert.match(description, /rounded half up to 6 decimal places/, name);
+      assert.match(description, /14 digits before the decimal point/, name);
+    }
+  });
 });
