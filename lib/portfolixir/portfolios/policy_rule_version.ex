@@ -104,6 +104,15 @@ defmodule Portfolixir.Portfolios.PolicyRuleVersion do
     timestamps()
   end
 
+  @doc """
+  Every field of a version's predicate and period, as strings: what a rename
+  of the rule refuses to carry (#872), because it belongs to a version.
+  """
+  def predicate_fields do
+    (__schema__(:fields) -- [:id, :policy_rule_id, :inserted_at, :updated_at])
+    |> Enum.map(&Atom.to_string/1)
+  end
+
   @doc "The closed subject set, as strings (API/MCP schema mirror)."
   def subject_types, do: Enum.map(@subject_types, &Atom.to_string/1)
 

@@ -7,8 +7,11 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
   **An edit is a new version** (§4), and the dialog says so before the
   operator saves: "Saving creates version N", with the version in force named
   beside it and the whole version list below — an operator who believes they
-  overwrote a cap will not look for its history. The rule's name and context
-  are its identity and are not edited here.
+  overwrote a cap will not look for its history. The context is the rule's
+  identity and is not edited here. **The name is its label** (#872, plan D-6,
+  board `ux-design-2026-09-24/07-rule-name-affordance`): changed alone, it
+  is saved as a rename that creates no version ("Save name"), and the dialog
+  says so first; changed with the predicate, both are saved in one write.
 
   The subject control follows the measure (the §2 matrix): a weight is read
   for a security, a category, cash or a view; a drift for a category or a
@@ -44,8 +47,13 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
 
     socket =
       if changed?(socket, :rule) or not Map.has_key?(socket.assigns, :form) do
+        form = initial_form(socket.assigns[:rule])
+
         socket
-        |> assign(:form, initial_form(socket.assigns[:rule]))
+        |> assign(:form, form)
+        # What the rule stands at when the dialog opens: the rename-only
+        # save is decided against it (#872).
+        |> assign(:baseline, predicate(form))
         |> assign(:errors, %{})
         |> assign(:alert, nil)
       else
@@ -123,13 +131,17 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
 
   @impl true
   def render(assigns) do
+    name_changed? = name_changed?(assigns.rule, assigns.form)
+
     assigns =
       assign(assigns,
         subject_options: subject_options(assigns.form["measure"], assigns.options),
         drift_security?: drift_security?(assigns.form),
         band?: assigns.form["kind"] == "band",
         metric?: assigns.form["measure"] in @metric_measures,
-        unit: PolicyRuleFormat.unit(assigns.form["measure"])
+        unit: PolicyRuleFormat.unit(assigns.form["measure"]),
+        name_changed?: name_changed?,
+        rename_only?: name_changed? and predicate(assigns.form) == assigns.baseline
       )
 
     ~H"""
@@ -166,7 +178,9 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
           </p>
 
           <div class="form-grid">
-            <label :if={is_nil(@rule)}>
+            <%!-- On create and on edit (#872): the name is the operator's
+                 label on the rule, outside the versioning. --%>
+            <label>
               <span><%= gettext("Name") %></span>
               <input type="text" name="rule[name]" value={@form["name"]} maxlength="255" required />
               <.field_error errors={@errors} field="name" />
@@ -302,8 +316,19 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
           </div>
 
           <%= if @rule do %>
-            <p class="hint" data-role="policy-rule-version-note">
+            <%!-- What saving does, said before it happens (board 07, Part 1):
+                 a rename alone creates no version; with a new line, the
+                 version note stays and says what the new name covers. --%>
+            <p :if={@rename_only?} class="hint" data-role="policy-rule-rename-note">
+              <%= gettext(
+                "Only the name changes: saving creates no new version. The name applies to the rule with all its versions; the change is journaled, and the previous name stays readable there."
+              ) %>
+            </p>
+            <p :if={not @rename_only?} class="hint" data-role="policy-rule-version-note">
               <%= version_note(@rule) %>
+              <span :if={@name_changed?} class="hint__line" data-role="policy-rule-rename-note">
+                <%= gettext("The new name applies to the rule with all its versions.") %>
+              </span>
             </p>
             <details class="perf-table-disclosure" id="policy-rule-versions" open>
               <summary class="disclosure-summary">
@@ -349,7 +374,7 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
             <%= gettext("Cancel") %>
           </button>
           <button type="submit" class="button-primary">
-            <%= if @rule, do: gettext("Save new version"), else: gettext("Save rule") %>
+            <%= submit_label(@rule, @rename_only?) %>
           </button>
         </div>
         </div>
@@ -365,6 +390,37 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
     ~H"""
     <span :if={msg = @errors[@field]} class="field-error"><%= msg %></span>
     """
+  end
+
+  defp submit_label(nil, _rename_only?), do: gettext("Save rule")
+  defp submit_label(_rule, true), do: gettext("Save name")
+  defp submit_label(_rule, false), do: gettext("Save new version")
+
+  # -- the rename (#872) --------------------------------------------------------
+
+  defp name_changed?(nil, _form), do: false
+  defp name_changed?(rule, form), do: String.trim(form["name"] || "") != rule.name
+
+  # The version a save would write, without its start: a form whose predicate
+  # equals the one the dialog opened on changes only the name. Decimals are
+  # compared as numbers, so "2" and "2,0" are the same line.
+  defp predicate(form) do
+    form
+    |> version_attrs()
+    |> Map.delete("valid_from")
+    |> Map.new(fn
+      {key, value} when key in ~w(threshold lower upper) -> {key, decimal_key(value)}
+      pair -> pair
+    end)
+  end
+
+  defp decimal_key(nil), do: nil
+
+  defp decimal_key(text) do
+    case Decimal.parse(text) do
+      {decimal, ""} -> decimal |> Decimal.normalize() |> Decimal.to_string(:normal)
+      _unparsed -> text
+    end
   end
 
   defp threshold_label(""), do: gettext("Line")
@@ -527,7 +583,7 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
           })
 
         rule ->
-          PolicyRules.add_version(Actor.owner_ui(), rule, version)
+          save_edit(rule, form, version, socket.assigns.baseline)
       end
 
     case result do
@@ -585,6 +641,23 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
           do: {key, value}
 
     Map.merge(form, submitted)
+  end
+
+  # A rename alone is a rule-level edit and creates no version; with a new
+  # predicate, the rename and the version are one write (#872, D-6).
+  defp save_edit(rule, form, version, baseline) do
+    name = %{"name" => form["name"]}
+
+    cond do
+      not name_changed?(rule, form) ->
+        PolicyRules.add_version(Actor.owner_ui(), rule, version)
+
+      predicate(form) == baseline ->
+        PolicyRules.rename_rule(Actor.owner_ui(), rule, name)
+
+      true ->
+        PolicyRules.rename_and_add_version(Actor.owner_ui(), rule, name, version)
+    end
   end
 
   # The form's strings as the version's attrs: the subject decoded, a decimal

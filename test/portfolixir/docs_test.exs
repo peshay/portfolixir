@@ -1330,4 +1330,50 @@ defmodule Portfolixir.DocsTest do
       end
     end
   end
+
+  # User story (#872, ADR-0049 §4 and §8 as amended by the Sprint 16 plan D-6):
+  # As the operator, or the operator's agent, reading the handbook,
+  # I want a policy rule's rename stated where the rules are described,
+  # so that a rename is not mistaken for a new version, nor replaced by a
+  # retire-and-recreate that splits the rule's history.
+  #
+  # Acceptance criteria:
+  # - The product docs, in English and German, say the rule's name opens its
+  #   dialog and that a rename creates no version.
+  # - The integration docs, in English and German, document the PATCH route,
+  #   that it is outside the versioning, what it refuses, and the MCP tool.
+  test "the docs state a policy rule's rename in English and German" do
+    for {path, fragments} <- [
+          {"docs/product-documentation.md",
+           [
+             "A rule's **name is a link** that opens its dialog",
+             "A rename changes only the label: it creates no version"
+           ]},
+          {"docs/de/product-documentation.md",
+           [
+             "Der **Name einer Regel ist ein Link** und öffnet ihren Dialog",
+             "Umbenennen ändert nur die Bezeichnung: Es entsteht keine Version"
+           ]},
+          {"docs/integration/api-and-mcp.md",
+           [
+             "`PATCH /api/v1/policy_rules/:id` — body `{\"name\": \"…\"}`",
+             "a rule-level edit **outside the versioning**",
+             "a `422` naming each such field, and nothing is written",
+             "`portfolixir.policy_rules.rename`"
+           ]},
+          {"docs/de/integration/api-and-mcp.md",
+           [
+             "`PATCH /api/v1/policy_rules/:id` — Rumpf `{\"name\": \"…\"}`",
+             "**außerhalb der Versionen**",
+             "ein `422`, das jedes solche Feld nennt, und nichts wird geschrieben",
+             "`portfolixir.policy_rules.rename`"
+           ]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+  end
 end

@@ -528,4 +528,149 @@ defmodule Portfolixir.Portfolios.PolicyRulesTest do
     assert [%{subject_view_id: view_id}] = versions(rule)
     assert view_id == view.id
   end
+
+  # User story (#872, ADR-0049 §4 and §8 as amended by the Sprint 16 plan D-6):
+  # As the operator whose raised floor still carries its old figure in its
+  # name,
+  # I want to rename the rule without retiring it,
+  # so that the name says what the standard is while the history stays on the
+  # rule it belongs to.
+  #
+  # Acceptance criteria:
+  # - A rename changes the rule's name and nothing else: no version is added
+  #   or changed, and the context (portfolio, view) stays, whatever else the
+  #   attrs carry.
+  # - It is journaled under the actor with the previous name in the entry's
+  #   before-image, and it bumps the rules counter, because a finding carries
+  #   the rule's name.
+  # - A retired rule can be renamed, and two rules may share a name.
+  # - A blank or over-long name is refused on the name, and nothing is
+  #   written; resending the stored name writes nothing.
+  test "a rename is a journaled rule-level edit outside the versioning",
+       %{world: world, security: security} do
+    {:ok, context} = Buckets.create_view(Actor.owner_ui(), %{name: "Langfristig"})
+
+    rule =
+      rule!(world.portfolio, weight_cap(security, %{valid_from: Date.add(today(), -30)}),
+        today: Date.add(today(), -30),
+        view_id: context.id,
+        name: "Cash at least 1 %"
+      )
+
+    {:ok, _raised} =
+      PolicyRules.add_version(
+        Actor.owner_ui(),
+        rule,
+        weight_cap(security, %{threshold: "12"}),
+        today: today()
+      )
+
+    before_versions = versions(rule)
+    before_counter = DataVersion.current(DataVersion.rules_basis(world.portfolio.id))
+
+    assert {:ok, %PolicyRule{} = renamed} =
+             PolicyRules.rename_rule(Actor.api_token_rw(), rule, %{
+               "name" => "  Cash at least 2 %  ",
+               "view_id" => nil,
+               "portfolio_id" => world.portfolio.id + 1
+             })
+
+    assert renamed.name == "Cash at least 2 %"
+    stored = PolicyRules.get_rule(rule.id)
+    assert stored.name == "Cash at least 2 %"
+    assert stored.view_id == context.id
+    assert stored.portfolio_id == world.portfolio.id
+    assert stored.versions == before_versions
+
+    assert [entry | _] = Journal.list_entries(resource_type: "policy_rule")
+    assert entry.operation == :update
+    assert entry.actor_type == :api_token_rw
+    assert entry.resource_id == to_string(rule.id)
+    assert entry.before["name"] == "Cash at least 1 %"
+    assert entry.after["name"] == "Cash at least 2 %"
+    assert DataVersion.current(DataVersion.rules_basis(world.portfolio.id)) > before_counter
+
+    # Retired, and sharing its name with another rule: both allowed.
+    {:ok, _closed} = PolicyRules.retire_rule(Actor.owner_ui(), stored, %{}, today: today())
+    rule!(world.portfolio, weight_cap(security), name: "Single name capped")
+
+    assert {:ok, %PolicyRule{name: "Single name capped"}} =
+             PolicyRules.rename_rule(Actor.owner_ui(), stored, %{"name" => "Single name capped"})
+
+    # Refused on the name, nothing written.
+    entries = length(Journal.list_entries())
+
+    assert {:error, %Ecto.Changeset{} = blank} =
+             PolicyRules.rename_rule(Actor.owner_ui(), stored, %{"name" => "   "})
+
+    assert %{name: ["can't be blank"]} = errors_on(blank)
+
+    assert {:error, %Ecto.Changeset{} = missing} =
+             PolicyRules.rename_rule(Actor.owner_ui(), stored, %{})
+
+    assert %{name: ["can't be blank"]} = errors_on(missing)
+
+    assert {:error, %Ecto.Changeset{} = long} =
+             PolicyRules.rename_rule(Actor.owner_ui(), stored, %{
+               "name" => String.duplicate("x", 256)
+             })
+
+    assert %{name: [_too_long]} = errors_on(long)
+
+    assert {:ok, %PolicyRule{name: "Single name capped"}} =
+             PolicyRules.rename_rule(Actor.owner_ui(), stored, %{"name" => "Single name capped"})
+
+    assert length(Journal.list_entries()) == entries
+    assert PolicyRules.get_rule(rule.id).name == "Single name capped"
+  end
+
+  # Acceptance criteria (#872, board 07 Part 1, the dialog's combined save):
+  # - A rename together with a new version is one write: a refused version
+  #   leaves the name as it was, and a refused name adds no version.
+  test "a rename with a new version is one write", %{world: world, security: security} do
+    rule =
+      rule!(world.portfolio, weight_cap(security, %{valid_from: Date.add(today(), -30)}),
+        today: Date.add(today(), -30)
+      )
+
+    entries = length(Journal.list_entries())
+
+    assert {:error, %Ecto.Changeset{} = backdated} =
+             PolicyRules.rename_and_add_version(
+               Actor.owner_ui(),
+               rule,
+               %{"name" => "Single name at most 12 %"},
+               weight_cap(security, %{threshold: "12", valid_from: Date.add(today(), -1)}),
+               today: today()
+             )
+
+    assert %{valid_from: [_]} = errors_on(backdated)
+
+    assert {:error, %Ecto.Changeset{} = blank} =
+             PolicyRules.rename_and_add_version(
+               Actor.owner_ui(),
+               rule,
+               %{"name" => ""},
+               weight_cap(security, %{threshold: "12"}),
+               today: today()
+             )
+
+    assert %{name: ["can't be blank"]} = errors_on(blank)
+    assert PolicyRules.get_rule(rule.id).name == "Single name at most 10 %"
+    assert length(versions(rule)) == 1
+    assert length(Journal.list_entries()) == entries
+
+    assert {:ok, %PolicyRuleVersion{}} =
+             PolicyRules.rename_and_add_version(
+               Actor.owner_ui(),
+               rule,
+               %{"name" => "Single name at most 12 %"},
+               weight_cap(security, %{threshold: "12"}),
+               today: today()
+             )
+
+    both = PolicyRules.get_rule(rule.id)
+    assert both.name == "Single name at most 12 %"
+    assert length(both.versions) == 2
+  end
 end

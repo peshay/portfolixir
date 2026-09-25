@@ -7857,3 +7857,13 @@ msgstr "Ein in dieser Vorschau zugeordnetes Konto wurde seit dem Öffnen zusamme
 #, elixir-autogen, elixir-format
 msgid "Several accounts are named %{name}. Pick the one this export's %{name} books to, then confirm again. Nothing was written."
 msgstr "Mehrere Konten heißen %{name}. Das Konto wählen, auf das %{name} aus diesem Export bucht, und erneut bestätigen. Es wurde nichts geschrieben."
+
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:314
+#, elixir-autogen, elixir-format
+msgid "Only the name changes: saving creates no new version. The name applies to the rule with all its versions; the change is journaled, and the previous name stays readable there."
+msgstr "Nur der Name ändert sich: Speichern legt keine neue Version an. Der Name gilt für die Regel mit allen Versionen; die Änderung wird journalisiert, der bisherige Name bleibt dort lesbar."
+
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:321
+#, elixir-autogen, elixir-format
+msgid "The new name applies to the rule with all its versions."
+msgstr "Der neue Name gilt für die Regel mit allen Versionen."

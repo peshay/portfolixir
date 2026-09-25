@@ -1691,7 +1691,9 @@ in one evaluation context:
   (strictly below) or `band` (outside `[lower, upper]`) — the risk lens's own
   reading of a line, so a rule and the lens never disagree about where one is;
 - the **severity** is `warn` or `hard`; `name` and `note` are the operator's
-  words and are never parsed.
+  words and are never parsed. The `name` is a **label on the rule**, not part
+  of its identity: it can be changed at any time without a new version (see
+  the rename below), and it need not be unique.
 
 Thresholds are Decimal strings (ADR-0016). A predicate that does not fit its
 measure — a subject outside the matrix, a missing or superfluous `window`, a
@@ -1727,6 +1729,16 @@ The writes:
   first version (`201`).
 - `POST /api/v1/policy_rules/:id/versions` — body `{"version": {…}}`; the edit
   (`201`).
+- `PATCH /api/v1/policy_rules/:id` — body `{"name": "…"}`; the **rename**, a
+  rule-level edit **outside the versioning**: no version is added or changed,
+  and the new name reads for the rule with all its versions (`200`, the rule
+  with its versions). The journal keeps the previous name and who changed it.
+  Allowed on a retired rule. Only `name` is read, as on
+  `PATCH /api/v1/plans/:id`: a blank, missing or non-text name is a `422` on
+  `name`; a predicate field, a `version` or the context (`view_id`,
+  `portfolio_id`) in the same body is a `422` naming each such field, and
+  nothing is written — a new line is a new version, and a rule in another
+  context is a new rule. Any other key is ignored.
 - `POST /api/v1/policy_rules/:id/retire` — optional `valid_until`; ends the
   version in force yesterday by default (tonight when it only started today)
   and drops any version scheduled after it. The rule stays readable with
@@ -2231,6 +2243,8 @@ in MCP schemas are strings.
   description carries the measure matrix and the scales.
 - `portfolixir.policy_rules.add_version` — the edit: a new version, never an
   overwrite.
+- `portfolixir.policy_rules.rename` — the name only; the description states
+  that a rename creates no version and the versions do not change.
 - `portfolixir.policy_rules.retire` — ends the version in force; everything
   stays readable.
 - `portfolixir.policy_rules.delete` — only for a rule nobody was ever measured

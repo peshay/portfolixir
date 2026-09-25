@@ -27,6 +27,7 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.PolicyRule
   alias Portfolixir.Portfolios.PolicyRules
+  alias Portfolixir.Portfolios.PolicyRuleVersion
   alias Portfolixir.Portfolios.Portfolio
   alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
@@ -152,6 +153,51 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
     else
       _missing -> not_found(conn)
     end
+  end
+
+  # The rename (#872; ADR-0049 §4 and §8 as amended by the Sprint 16 plan
+  # D-6): the name is the operator's label, so it changes outside the
+  # versioning — no version is added or changed. Only `name` is read, as on
+  # PATCH /api/v1/plans/:id. A field of the predicate or of the context in the
+  # same body is refused rather than dropped: an agent that sent a new line
+  # with a new name would otherwise read a 200 as "the line changed".
+  def rename(conn, %{"id" => id} = params) do
+    with {:ok, rule_id} <- IdParam.parse(id),
+         %PolicyRule{} = rule <- PolicyRules.get_rule(rule_id) do
+      case not_a_rename(params, rule_id) do
+        refused when map_size(refused) > 0 ->
+          unprocessable(conn, refused)
+
+        _none ->
+          case PolicyRules.rename_rule(conn.assigns.actor, rule, Map.take(params, ["name"])) do
+            {:ok, renamed} -> json(conn, %{data: PolicyJSON.rule_with_versions(renamed)})
+            {:error, %Ecto.Changeset{} = changeset} -> unprocessable(conn, JSON.errors(changeset))
+          end
+      end
+    else
+      _missing -> not_found(conn)
+    end
+  end
+
+  @context_fields ~w(portfolio_id view_id)
+
+  defp not_a_rename(params, rule_id) do
+    version_fields = ["version" | PolicyRuleVersion.predicate_fields()]
+
+    version_error =
+      "is not changed by a rename; a new line is a new version " <>
+        "(POST /api/v1/policy_rules/#{rule_id}/versions)"
+
+    context_error =
+      "is the rule's context and never changes; a rule in another context is a new rule"
+
+    Enum.reduce(params, %{}, fn {key, _value}, acc ->
+      cond do
+        key in version_fields -> Map.put(acc, key, [version_error])
+        key in @context_fields -> Map.put(acc, key, [context_error])
+        true -> acc
+      end
+    end)
   end
 
   def retire(conn, %{"id" => id} = params) do
