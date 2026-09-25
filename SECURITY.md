@@ -100,7 +100,11 @@ park one, so an instance bound beyond loopback without a UI password lets
 anyone who reaches it fill that budget; and the WebSocket handshake is dispatched ahead of the Host guard and rests on
 `check_origin`, built from the same allow-list. The policy's `style-src` admits inline `style`
 attributes (the data-driven colours and tree indents the pages render), so it
-guards against script injection, not against CSS injection.
+guards against script injection, not against CSS injection. The MCP companion
+calls the API with the one `PORTFOLIXIR_API_TOKEN`, and that token has full
+authority: the opt-in `PORTFOLIXIR_MCP_READ_ONLY` switch narrows the tools the
+companion lists and calls, not what the token can do, so whoever holds the
+token can still write through the API directly (E25).
 
 ## Sensitive data examples
 

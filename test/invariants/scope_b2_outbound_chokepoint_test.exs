@@ -165,7 +165,9 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
     "PORTFOLIXIR_MCP_HOST" => {:config, "the address the companion's HTTP listener binds"},
     "PORTFOLIXIR_MCP_PORT" => {:config, "the port the companion's HTTP listener binds"},
     "PORTFOLIXIR_MCP_ALLOWED_HOSTS" =>
-      {:config, "further Host names the companion's listener answers under; inbound only"}
+      {:config, "further Host names the companion's listener answers under; inbound only"},
+    "PORTFOLIXIR_MCP_READ_ONLY" =>
+      {:config, "the companion's opt-in switch to list and call only reading tools (E25 S7)"}
   }
 
   # `{module, call} => reason`: where a host name may be resolved.

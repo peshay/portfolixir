@@ -4,13 +4,24 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 
 import { createApiClient } from "./api-client.js";
 import { requireMcpToken, startHttpServer } from "./http.js";
-import { createPortfolixirMcpServer } from "./server.js";
+import { createPortfolixirMcpServer, readOnlySwitch } from "./server.js";
 
 const apiBaseUrl = process.env.PORTFOLIXIR_API_BASE_URL ?? "http://127.0.0.1:4000";
 const apiToken = process.env.PORTFOLIXIR_API_TOKEN;
 
 if (!apiToken) {
   console.error("PORTFOLIXIR_API_TOKEN is required");
+  process.exit(1);
+}
+
+// The opt-in read-only switch (E25 S7, G26): a value it cannot read stops the
+// companion with the variable named rather than running it with writes open.
+let readOnly: boolean;
+
+try {
+  readOnly = readOnlySwitch(process.env.PORTFOLIXIR_MCP_READ_ONLY);
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);
 }
 
@@ -35,10 +46,11 @@ if (transport === "http") {
     token,
     host: process.env.PORTFOLIXIR_MCP_HOST ?? "127.0.0.1",
     port: Number.parseInt(process.env.PORTFOLIXIR_MCP_PORT ?? "4001", 10),
-    extraHosts: (process.env.PORTFOLIXIR_MCP_ALLOWED_HOSTS ?? "").split(",")
+    extraHosts: (process.env.PORTFOLIXIR_MCP_ALLOWED_HOSTS ?? "").split(","),
+    readOnly
   });
 } else if (transport === "stdio") {
-  const server = createPortfolixirMcpServer(client);
+  const server = createPortfolixirMcpServer(client, { readOnly });
   await server.connect(new StdioServerTransport());
 } else {
   console.error(`Unsupported PORTFOLIXIR_MCP_TRANSPORT: ${transport}`);

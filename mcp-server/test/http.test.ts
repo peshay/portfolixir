@@ -192,7 +192,10 @@ describe("MCP HTTP security helpers", () => {
 // The companion's HTTP app on a loopback port the OS picks, answering under
 // the Host names that port gives it; nothing leaves the machine and the API
 // client is never called.
-async function withApp(run: (base: string, port: number) => Promise<void>): Promise<void> {
+async function withApp(
+  run: (base: string, port: number) => Promise<void>,
+  readOnly = false
+): Promise<void> {
   const server = createServer();
   server.listen(0, "127.0.0.1");
   await once(server, "listening");
@@ -205,7 +208,8 @@ async function withApp(run: (base: string, port: number) => Promise<void>): Prom
       }
     },
     token: soundToken,
-    allowedHosts: allowedHostsFor("127.0.0.1", port)
+    allowedHosts: allowedHostsFor("127.0.0.1", port),
+    readOnly
   });
   server.on("request", app);
 
@@ -394,6 +398,30 @@ describe("MCP HTTP transport", () => {
       assert.equal(admitted.status, 200, admitted.body);
       assert.match(admitted.body, /"serverInfo":\{"name":"portfolixir"/);
     });
+  });
+
+  // E25 S7, G26: the switch reaches the HTTP transport, whose every request
+  // builds its own server.
+  it("serves the read-only tool list over HTTP when the switch is on", async () => {
+    const listTools = JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });
+
+    for (const readOnly of [true, false]) {
+      await withApp(async (_base, port) => {
+        const answer = await rawRequest(
+          port,
+          {
+            host: `127.0.0.1:${port}`,
+            authorization: `Bearer ${soundToken}`,
+            "content-type": "application/json",
+            accept: "application/json, text/event-stream"
+          },
+          listTools
+        );
+        assert.equal(answer.status, 200, answer.body);
+        assert.equal(answer.body.includes('"name":"portfolixir.transactions.delete"'), !readOnly);
+        assert.ok(answer.body.includes('"name":"portfolixir.transactions.list"'));
+      }, readOnly);
+    }
   });
 
   it("runs in Express's production mode", () => {
