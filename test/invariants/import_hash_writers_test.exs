@@ -203,15 +203,15 @@ defmodule Portfolixir.Invariants.ImportHashWritersTest do
           reason: "internal_transfer"
         })
 
-      # Re-importing the same export: the retired hash never lands. Until the
-      # hash-first applier of ADR-0050 L2 reports it as a skip with layer
-      # `retired`, the database refusal is what stops it, and the import rolls
-      # back whole with the refusal on `import_hash`.
-      assert {:error, %{reason: {:insert_failed, changeset}}} =
+      # Re-importing the same export: the retired hash never lands. The
+      # hash-first applier (§3) recognises it before anything resolves and
+      # reports the row as a skip with layer `retired`, never an error; the
+      # database refusal above stays the backstop.
+      assert {:ok, result} =
                Imports.apply(parse!(transfer_export()), %{portfolio_id: world.portfolio.id})
 
-      assert %{import_hash: ["was retired by a merge and cannot be booked again"]} =
-               errors_on(changeset)
+      assert result.created_transactions == 0
+      assert [%{row: 1, layer: :retired}] = result.duplicate_entries
 
       refute Repo.exists?(from(t in Transaction, where: t.import_hash == ^transfer.import_hash))
     end

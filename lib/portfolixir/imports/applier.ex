@@ -14,6 +14,35 @@ defmodule Portfolixir.Imports.Applier do
   rejects re-inserts; the applier counts those as `skipped_duplicates`
   and continues.
 
+  The re-import contract (ADR-0050 §2–§6) fixes the order of the checks:
+
+  - **Hash first** (§3). The content hash covers only file-side fields
+    plus the portfolio, so it is computed before anything resolves. A row
+    whose hash a transaction holds (layer `:hash`) or a merge retired
+    (layer `:retired`, `retired_import_hashes`) is reported in
+    `duplicate_entries` and triggers no security, cash or depot
+    resolution, no creation and no insert.
+  - **Preview decisions run from the mapping at apply start** (§3): every
+    `{:existing, id}` security mapping of a key the file carries is
+    executed before the first row — its `:record_isin_change` recorded —
+    so it takes effect even when every row of its key is a hash hit.
+    A `:create` mapping stays lazy: it creates on the first row that
+    reaches it.
+  - **Accounts are created lazily** (§4): a `create`-mapped or unmatched
+    cash account or depot is materialized on the first row actually
+    inserted, never up front. A choice whose rows are all skipped creates
+    nothing, and the bucket tag touches exactly the accounts created.
+  - **Internal transfers are void** (§5): a `cash_transfer` or
+    `security_transfer` whose two legs resolve to one account is skipped
+    unconditionally and reported in `internal_transfers`, never an abort.
+  - **The in-run collapse key is scoped by the file's account names**
+    (§6): `{dedup_key, time, pp_portfolio_name, pp_account_name,
+    pp_counter_portfolio_name, pp_counter_account_name}`.
+
+  `already_imported` counts the skipped duplicates per layer (`:hash`,
+  `:retired`, `:economics`); `reimport_counts/2` is the same count before
+  the apply, per file account and depot name, for the preview.
+
   Behavior:
 
   - Resolves securities through the full ADR-0029 §2 stable-identity
@@ -45,7 +74,7 @@ defmodule Portfolixir.Imports.Applier do
     double-inserted. Two same-day bookings distinct only by time keep
     importing separately.
   - Resolves cash accounts and depots by name *within the chosen
-    portfolio*. Missing ones are created.
+    portfolio*. Missing ones are created with their first inserted row.
   - Inserts one ledger row per entry, branching by kind.
   - Skips degenerate rows that can never form a valid transaction — a
     cash kind with a zero or missing gross_amount (e.g. a 0 EUR tax
@@ -70,6 +99,7 @@ defmodule Portfolixir.Imports.Applier do
   alias Portfolixir.Journal
   alias Portfolixir.Ledger.SettlementGuard
   alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Lifecycle.RetiredImportHash
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.SecuritiesAccount
@@ -93,7 +123,11 @@ defmodule Portfolixir.Imports.Applier do
               created_transactions: 0,
               skipped_duplicates: 0,
               skipped_entries: [],
-              duplicate_entries: []
+              duplicate_entries: [],
+              # ADR-0050 §3: the skipped duplicates counted per layer.
+              already_imported: %{hash: 0, retired: 0, economics: 0},
+              # ADR-0050 §5: transfers whose two legs resolve to one account.
+              internal_transfers: []
 
     @type t :: %__MODULE__{}
   end
@@ -157,26 +191,18 @@ defmodule Portfolixir.Imports.Applier do
     Repo.transaction(fn ->
       with {:ok, portfolio_id, result} <-
              resolve_portfolio(Map.get(params, :portfolio), %Result{}),
-           {:ok, cash_by_pp_name, result} <-
-             resolve_mapped_cash(
-               params.cash_accounts,
-               portfolio_id,
-               cash_currencies,
-               default_currency,
-               result
-             ),
-           {:ok, depot_by_pp_name, result} <-
-             resolve_mapped_depots(params.depots, portfolio_id, cash_by_pp_name, result) do
-        state =
-          base_state(portfolio_id, default_currency, params, result)
-          |> Map.merge(%{cash_by_name: cash_by_pp_name, depot_by_name: depot_by_pp_name})
-
-        with {:ok, final_state} <- reduce_entries(flat_entries, state),
-             {:ok, final_result} <- apply_bucket_tag(bucket_tag, final_state.result) do
-          final_result
-        else
-          {:error, reason} -> Repo.rollback(reason)
-        end
+           {:ok, cash_plan} <-
+             plan_mapped_cash(params.cash_accounts, cash_currencies, default_currency),
+           {:ok, depot_plan} <- plan_mapped_depots(params.depots, params.cash_accounts),
+           state =
+             portfolio_id
+             |> base_state(default_currency, params, result)
+             |> Map.merge(cash_plan)
+             |> Map.merge(depot_plan),
+           {:ok, state} <- execute_security_mappings(flat_entries, state),
+           {:ok, final_state} <- reduce_entries(flat_entries, state),
+           {:ok, final_result} <- apply_bucket_tag(bucket_tag, final_state.result) do
+        final_result
       else
         {:error, reason} -> Repo.rollback(reason)
       end
@@ -187,9 +213,10 @@ defmodule Portfolixir.Imports.Applier do
   # Original auto-resolve path: kept for the JSON-API entry point and
   # the existing applier_test.exs suite. Creates missing securities,
   # cash accounts and depots inside the chosen portfolio with the PP
-  # names verbatim. Depots without an explicit cash account fall back
-  # to the first cash account in the portfolio (matching counter_depot
-  # behaviour before mapping was introduced).
+  # names verbatim, each with its first inserted row. Depots without an
+  # explicit cash account fall back to the first cash account in the
+  # portfolio (matching counter_depot behaviour before mapping was
+  # introduced).
   def apply(%Preview{entries: entries}, %{portfolio_id: portfolio_id} = params)
       when is_integer(portfolio_id) do
     default_currency = Map.get(params, :default_currency_code, "EUR")
@@ -200,15 +227,113 @@ defmodule Portfolixir.Imports.Applier do
         base_state(portfolio_id, default_currency, params, %Result{})
         |> Map.merge(%{
           cash_by_name: load_cash_by_name(portfolio_id),
-          depot_by_name: load_depots_by_name(portfolio_id)
+          pending_cash: %{},
+          depot_by_name: load_depots_by_name(portfolio_id),
+          pending_depots: %{}
         })
 
-      case reduce_entries(flat_entries, state) do
-        {:ok, final_state} -> final_state.result
+      with {:ok, state} <- execute_security_mappings(flat_entries, state),
+           {:ok, final_state} <- reduce_entries(flat_entries, state) do
+        final_state.result
+      else
         {:error, reason} -> Repo.rollback(reason)
       end
     end)
     |> enrich_after_commit()
+  end
+
+  @doc """
+  The already-imported counts of a parsed preview, before any apply (ADR-0050
+  §3): every row classified by the first check the applier would run on it —
+  `:unimportable` (a cash kind without a positive amount), `:hash` (a
+  transaction holds its content hash), `:retired` (a merge retired it) or
+  `:new` — in `total`, and again per file cash-account name (`cash_accounts`)
+  and per file depot name (`depots`), where a row counts under every name it
+  carries on either leg. Read-only; the hash names `portfolio_id`, and without
+  one every importable row is new.
+
+  A row counted `:new` may still be skipped at apply by a later layer (an
+  equal economic booking, an internal transfer, an in-run collapse or an
+  undecided security); an account whose rows are all `:hash`, `:retired` or
+  `:unimportable` is never created.
+  """
+  @spec reimport_counts(Preview.t(), integer() | nil) :: %{
+          total: layer_counts(),
+          cash_accounts: %{String.t() => layer_counts()},
+          depots: %{String.t() => layer_counts()}
+        }
+  def reimport_counts(%Preview{entries: entries}, portfolio_id) do
+    flat_entries = Entry.flatten(entries)
+    layer_of = row_layers(flat_entries, portfolio_id)
+    empty = %{hash: 0, retired: 0, unimportable: 0, new: 0}
+
+    Enum.reduce(flat_entries, %{total: empty, cash_accounts: %{}, depots: %{}}, fn entry, acc ->
+      layer = layer_of.(entry)
+      bump = &Map.update!(&1, layer, fn n -> n + 1 end)
+
+      %{
+        total: bump.(acc.total),
+        cash_accounts:
+          count_names(
+            acc.cash_accounts,
+            [entry.pp_account_name, entry.pp_counter_account_name],
+            empty,
+            bump
+          ),
+        depots:
+          count_names(
+            acc.depots,
+            [entry.pp_portfolio_name, entry.pp_counter_portfolio_name],
+            empty,
+            bump
+          )
+      }
+    end)
+  end
+
+  @typedoc "Rows per first-check layer, as `reimport_counts/2` counts them."
+  @type layer_counts :: %{
+          hash: non_neg_integer(),
+          retired: non_neg_integer(),
+          unimportable: non_neg_integer(),
+          new: non_neg_integer()
+        }
+
+  defp count_names(acc, names, empty, bump) do
+    names
+    |> Enum.reject(&is_nil/1)
+    |> Enum.uniq()
+    |> Enum.reduce(acc, fn name, acc -> Map.update(acc, name, bump.(empty), bump) end)
+  end
+
+  # One query per layer over the whole file, instead of one per row.
+  defp row_layers(flat_entries, portfolio_id) do
+    hashes =
+      if is_integer(portfolio_id),
+        do: Map.new(flat_entries, &{&1, compute_hash(&1, portfolio_id)}),
+        else: %{}
+
+    held = held_hashes(Transaction, Map.values(hashes))
+    retired = held_hashes(RetiredImportHash, Map.values(hashes))
+
+    fn entry ->
+      hash = Map.get(hashes, entry)
+
+      cond do
+        skip_unimportable?(entry) -> :unimportable
+        hash != nil and MapSet.member?(held, hash) -> :hash
+        hash != nil and MapSet.member?(retired, hash) -> :retired
+        true -> :new
+      end
+    end
+  end
+
+  defp held_hashes(_schema, []), do: MapSet.new()
+
+  defp held_hashes(schema, hashes) do
+    from(row in schema, where: row.import_hash in ^hashes, select: row.import_hash)
+    |> Repo.all()
+    |> MapSet.new()
   end
 
   # Shared per-run state. The security index is loaded once inside the import
@@ -218,6 +343,12 @@ defmodule Portfolixir.Imports.Applier do
   # later rows of the same file resolve consistently. `key_resolutions`
   # memoizes the decision per unique reference key — N:1 friendly and
   # guaranteed stable within one run.
+  #
+  # Accounts (ADR-0050 §4): `cash_by_name` and `depot_by_name` map a file name
+  # to an account id that exists — mapped onto an existing record, found by
+  # name, or materialized earlier in this run. `pending_cash` and
+  # `pending_depots` hold the `create` choices not yet materialized; a file
+  # name in neither is unmatched and is created by name, lazily too.
   defp base_state(portfolio_id, default_currency, params, %Result{} = result) do
     index = SecurityResolver.load_index()
 
@@ -294,114 +425,58 @@ defmodule Portfolixir.Imports.Applier do
 
   defp put_account_currency(acc, _name, _currency), do: acc
 
-  defp resolve_mapped_cash(
-         mapping,
-         portfolio_id,
-         cash_currencies,
-         default_currency,
-         %Result{} = result
-       ) do
-    Enum.reduce_while(mapping, {:ok, %{}, result}, fn {pp_name, choice},
-                                                      {:ok, acc, %Result{} = res} ->
-      ccy = Map.get(cash_currencies, pp_name, default_currency)
+  # The mapping is validated up front and nothing is created (ADR-0050 §4): an
+  # `{:existing, id}` choice binds the file name to that account, a
+  # `{:create, name}` choice is held pending until a row that names it is
+  # inserted.
+  defp plan_mapped_cash(mapping, cash_currencies, default_currency) do
+    Enum.reduce_while(mapping, {:ok, %{cash_by_name: %{}, pending_cash: %{}}}, fn
+      {pp_name, {:existing, id}}, {:ok, plan} when is_integer(id) ->
+        {:cont, {:ok, put_in(plan, [:cash_by_name, pp_name], id)}}
 
-      case resolve_cash_choice(pp_name, choice, portfolio_id, ccy) do
-        {:ok, id, ^choice} ->
-          {:cont, {:ok, Map.put(acc, pp_name, id), res}}
+      {pp_name, {:create, name}}, {:ok, plan} when is_binary(name) ->
+        currency = Map.get(cash_currencies, pp_name, default_currency)
+        pending = %{name: name, currency_code: currency}
+        {:cont, {:ok, put_in(plan, [:pending_cash, pp_name], pending)}}
 
-        {:ok, id, :created} ->
-          res = %Result{
-            res
-            | created_cash_accounts: res.created_cash_accounts + 1,
-              created_cash_account_ids: [id | res.created_cash_account_ids]
-          }
-
-          {:cont, {:ok, Map.put(acc, pp_name, id), res}}
-
-        {:error, _} = err ->
-          {:halt, err}
-      end
+      {pp_name, other}, _acc ->
+        {:halt, {:error, {:invalid_cash_choice, pp_name, other}}}
     end)
   end
 
-  defp resolve_cash_choice(_pp_name, {:existing, id}, _portfolio_id, _ccy) when is_integer(id) do
-    {:ok, id, {:existing, id}}
-  end
-
-  defp resolve_cash_choice(_pp_name, {:create, name}, portfolio_id, ccy) when is_binary(name) do
-    case Portfolios.create_cash_account(Actor.import_session(), %{
-           portfolio_id: portfolio_id,
-           name: name,
-           currency_code: ccy
-         }) do
-      {:ok, %{id: id}} -> {:ok, id, :created}
-      {:error, changeset} -> {:error, {:cash_create_failed, name, changeset}}
-    end
-  end
-
-  defp resolve_cash_choice(pp_name, other, _portfolio_id, _ccy) do
-    {:error, {:invalid_cash_choice, pp_name, other}}
-  end
-
-  defp resolve_mapped_depots(mapping, portfolio_id, cash_by_pp_name, %Result{} = result) do
-    Enum.reduce_while(mapping, {:ok, %{}, result}, fn {pp_name, depot_spec},
-                                                      {:ok, acc, %Result{} = res} ->
-      with {:ok, cash_id} <- resolve_depot_cash_ref(depot_spec.cash, cash_by_pp_name),
-           {:ok, id, mode} <-
-             resolve_depot_choice(pp_name, depot_spec.target, portfolio_id, cash_id) do
-        res =
-          case mode do
-            :created ->
-              %Result{
-                res
-                | created_securities_accounts: res.created_securities_accounts + 1,
-                  created_securities_account_ids: [id | res.created_securities_account_ids]
-              }
-
-            _ ->
-              res
-          end
-
-        entry = %{id: id, cash_account_id: cash_id}
-        {:cont, {:ok, Map.put(acc, pp_name, entry), res}}
-      else
-        {:error, _} = err -> {:halt, err}
-      end
+  defp plan_mapped_depots(mapping, cash_mapping) do
+    Enum.reduce_while(mapping, {:ok, %{depot_by_name: %{}, pending_depots: %{}}}, fn
+      {pp_name, depot_spec}, {:ok, plan} ->
+        with {:ok, cash_ref} <- depot_cash_ref(depot_spec.cash, cash_mapping),
+             {:ok, plan} <- plan_depot_choice(plan, pp_name, depot_spec.target, cash_ref) do
+          {:cont, {:ok, plan}}
+        else
+          {:error, _} = err -> {:halt, err}
+        end
     end)
   end
 
-  defp resolve_depot_cash_ref(cash_ref, cash_by_pp_name) when is_binary(cash_ref) do
-    case Map.fetch(cash_by_pp_name, cash_ref) do
-      {:ok, id} -> {:ok, id}
-      :error -> {:error, {:unresolved_depot_cash_ref, cash_ref}}
-    end
+  defp depot_cash_ref(cash_ref, cash_mapping) when is_binary(cash_ref) do
+    if Map.has_key?(cash_mapping, cash_ref),
+      do: {:ok, {:pp, cash_ref}},
+      else: {:error, {:unresolved_depot_cash_ref, cash_ref}}
   end
 
-  defp resolve_depot_cash_ref({:existing, id}, _cash_by_pp_name) when is_integer(id),
-    do: {:ok, id}
+  defp depot_cash_ref({:existing, id}, _cash_mapping) when is_integer(id),
+    do: {:ok, {:existing, id}}
 
-  defp resolve_depot_cash_ref(other, _cash_by_pp_name) do
-    {:error, {:invalid_depot_cash_ref, other}}
-  end
+  defp depot_cash_ref(other, _cash_mapping), do: {:error, {:invalid_depot_cash_ref, other}}
 
-  defp resolve_depot_choice(_pp_name, {:existing, id}, _portfolio_id, _cash_id)
+  defp plan_depot_choice(plan, pp_name, {:existing, id}, _cash_ref)
        when is_integer(id) do
-    {:ok, id, :existing}
+    {:ok, put_in(plan, [:depot_by_name, pp_name], id)}
   end
 
-  defp resolve_depot_choice(_pp_name, {:create, name}, portfolio_id, cash_id)
-       when is_binary(name) and is_integer(cash_id) do
-    case Portfolios.create_securities_account(Actor.import_session(), %{
-           portfolio_id: portfolio_id,
-           cash_account_id: cash_id,
-           name: name
-         }) do
-      {:ok, %{id: id}} -> {:ok, id, :created}
-      {:error, changeset} -> {:error, {:depot_create_failed, name, changeset}}
-    end
+  defp plan_depot_choice(plan, pp_name, {:create, name}, cash_ref) when is_binary(name) do
+    {:ok, put_in(plan, [:pending_depots, pp_name], %{name: name, cash: cash_ref})}
   end
 
-  defp resolve_depot_choice(pp_name, other, _portfolio_id, _cash_id) do
+  defp plan_depot_choice(_plan, pp_name, other, _cash_ref) do
     {:error, {:invalid_depot_choice, pp_name, other}}
   end
 
@@ -500,7 +575,7 @@ defmodule Portfolixir.Imports.Applier do
     Repo.all(
       from(d in SecuritiesAccount,
         where: d.portfolio_id == ^portfolio_id,
-        select: {d.name, %{id: d.id, cash_account_id: d.cash_account_id}}
+        select: {d.name, d.id}
       )
     )
     |> Map.new()
@@ -511,6 +586,9 @@ defmodule Portfolixir.Imports.Applier do
   # absolute balance) needs a positive gross_amount.
   @cashless_kinds ~w(inbound_delivery outbound_delivery security_transfer)
 
+  # The order of the checks is the re-import contract (ADR-0050 §2, §3): an
+  # unimportable row first, then the content hash — held by a transaction or
+  # retired by a merge — before anything resolves or is created.
   defp process_entry(%Entry{} = entry, state) do
     if skip_unimportable?(entry) do
       # A degenerate row (e.g. a 0 EUR tax line) can't become a valid
@@ -519,13 +597,29 @@ defmodule Portfolixir.Imports.Applier do
       reason = "skipped: zero or missing gross_amount for #{entry.kind}"
       {:ok, record_skip(state, entry, reason)}
     else
-      do_process_entry(entry, state)
+      import_hash = compute_hash(entry, state.portfolio_id)
+
+      case hash_layer(import_hash) do
+        nil -> do_process_entry(entry, import_hash, state)
+        layer -> {:ok, record_duplicate(state, entry, layer)}
+      end
     end
   end
 
   defp skip_unimportable?(%Entry{kind: kind, gross_amount: amount}) do
     kind not in @cashless_kinds and kind != "balance_adjustment" and
       (is_nil(amount) or Decimal.compare(amount, Decimal.new(0)) != :gt)
+  end
+
+  # `:hash` when a transaction holds the hash (an exact re-insert, or an exact
+  # duplicate earlier in this file: the query sees this transaction's own
+  # inserts), `:retired` when a merge removed the row that held it (§3).
+  defp hash_layer(import_hash) do
+    cond do
+      Repo.exists?(from(t in Transaction, where: t.import_hash == ^import_hash)) -> :hash
+      Repo.exists?(from(r in RetiredImportHash, where: r.import_hash == ^import_hash)) -> :retired
+      true -> nil
+    end
   end
 
   defp record_skip(state, %Entry{} = entry, reason) when is_binary(reason) do
@@ -537,31 +631,34 @@ defmodule Portfolixir.Imports.Applier do
     end)
   end
 
-  defp do_process_entry(%Entry{} = entry, state) do
-    case resolve_security(entry, state) do
-      # A surfaced-but-undecided security (§2 fail closed): the entry is
-      # reported in `unresolved_entries` and creates nothing.
-      {:skip, state} ->
-        {:ok, state}
+  # Past the hash: the accounts resolve first, without creating anything, so
+  # an internal transfer (§5) is recognised before its security could be
+  # created; then the security; then the economic and in-run layers decide;
+  # only a row that inserts materializes the accounts it names (§4).
+  defp do_process_entry(%Entry{} = entry, import_hash, state) do
+    refs = account_refs(entry, state)
 
-      {:ok, state, security_id} ->
-        with {:ok, state, cash_id} <- resolve_cash(entry, state),
-             {:ok, state, counter_cash_id} <- resolve_counter_cash(entry, state),
-             {:ok, state, depot_id} <- resolve_depot(entry, state, cash_id),
-             {:ok, state, counter_depot_id} <- resolve_counter_depot(entry, state),
-             attrs <-
-               build_transaction_attrs(entry, state, %{
-                 security_id: security_id,
-                 cash_id: cash_id,
-                 counter_cash_id: counter_cash_id,
-                 depot_id: depot_id,
-                 counter_depot_id: counter_depot_id
-               }) do
-          insert_transaction(entry, attrs, state)
-        end
+    if internal_transfer?(entry, refs) do
+      {:ok, record_internal_transfer(state, entry)}
+    else
+      case resolve_security(entry, state) do
+        # A surfaced-but-undecided security (§2 fail closed): the entry is
+        # reported in `unresolved_entries` and creates nothing.
+        {:skip, state} ->
+          {:ok, state}
 
-      {:error, _} = error ->
-        error
+        {:ok, state, security_id} ->
+          ids = Map.put(refs, :security_id, security_id)
+
+          insert_transaction(
+            entry,
+            build_transaction_attrs(entry, state, ids, import_hash),
+            state
+          )
+
+        {:error, _} = error ->
+          error
+      end
     end
   end
 
@@ -596,10 +693,15 @@ defmodule Portfolixir.Imports.Applier do
     end
   end
 
+  # A remap ran at apply start and left its resolution cached, so the only
+  # mapping a first resolution can meet is a `:create` acknowledgment.
   defp first_resolution(entry, ref, key, state) do
     case Map.fetch(state.security_mappings, key) do
-      {:ok, mapping} ->
-        apply_security_mapping(entry, ref, key, mapping, state)
+      {:ok, :create} ->
+        create_security(entry, ref, key, state)
+
+      {:ok, _executed_at_start} ->
+        {:error, {:invalid_security_mapping, key}}
 
       :error ->
         with :ok <- revalidate_against_approval(ref, key, state) do
@@ -696,24 +798,50 @@ defmodule Portfolixir.Imports.Applier do
 
   # --- explicit security mappings (§2 overrides / API-shaped twin) ---
 
-  defp apply_security_mapping(entry, ref, key, :create, state) do
-    create_security(entry, ref, key, state)
+  # ADR-0050 §3: the operator's remaps — and the ISIN change a remap records —
+  # run from the mapping at apply start, in the order the file first names
+  # their keys, not from the first row that reaches them, so a key whose rows
+  # are all hash hits still gets the decision the preview confirmed. A
+  # `:create` acknowledgment stays lazy: it creates on the first row that
+  # reaches it, because a security no inserted row needs would be exactly the
+  # duplicate the hash-first order prevents. A mapping of a key the file does
+  # not carry is not executed.
+  defp execute_security_mappings(flat_entries, state) do
+    flat_entries
+    |> Enum.flat_map(&keyed_ref/1)
+    |> Enum.uniq_by(fn {key, _ref} -> key end)
+    |> Enum.reduce_while({:ok, state}, fn {key, ref}, {:ok, state} ->
+      case execute_security_mapping(ref, key, Map.get(state.security_mappings, key), state) do
+        {:ok, state} -> {:cont, {:ok, state}}
+        {:error, _} = error -> {:halt, error}
+      end
+    end)
   end
 
-  defp apply_security_mapping(entry, ref, key, {:existing, id}, state) when is_integer(id) do
-    apply_existing_mapping(entry, ref, key, id, false, state)
+  defp keyed_ref(%Entry{security: nil}), do: []
+
+  defp keyed_ref(%Entry{} = entry) do
+    ref = SecurityResolver.effective_ref(entry)
+    if SecurityResolver.blank_ref?(ref), do: [], else: [{SecurityResolver.key(ref), ref}]
   end
 
-  defp apply_security_mapping(entry, ref, key, {:existing, id, :record_isin_change}, state)
+  defp execute_security_mapping(_ref, _key, nil, state), do: {:ok, state}
+  defp execute_security_mapping(_ref, _key, :create, state), do: {:ok, state}
+
+  defp execute_security_mapping(ref, key, {:existing, id}, state) when is_integer(id) do
+    apply_existing_mapping(ref, key, id, false, state)
+  end
+
+  defp execute_security_mapping(ref, key, {:existing, id, :record_isin_change}, state)
        when is_integer(id) do
-    apply_existing_mapping(entry, ref, key, id, true, state)
+    apply_existing_mapping(ref, key, id, true, state)
   end
 
-  defp apply_security_mapping(_entry, _ref, key, _other, _state) do
+  defp execute_security_mapping(_ref, key, _other, _state) do
     {:error, {:invalid_security_mapping, key}}
   end
 
-  defp apply_existing_mapping(_entry, ref, key, id, record_change?, state) do
+  defp apply_existing_mapping(ref, key, id, record_change?, state) do
     case Map.fetch(state.live_index.securities_by_id, id) do
       :error ->
         {:error, {:invalid_security_mapping, key}}
@@ -725,9 +853,8 @@ defmodule Portfolixir.Imports.Applier do
               state
               |> cache_resolution(key, {:security, security.id, :override})
               |> track_security_override(key, security.id, recorded?)
-              |> track_resolved_security(security.id)
 
-            {:ok, state, security.id}
+            {:ok, state}
 
           {:error, _} = error ->
             error
@@ -893,109 +1020,210 @@ defmodule Portfolixir.Imports.Applier do
   defp group_put_if(map, map_key, security),
     do: Map.update(map, map_key, [security], &(&1 ++ [security]))
 
-  # --- cash account resolution ---
+  # --- account resolution (ADR-0050 §4: resolving creates nothing) ---
 
-  defp resolve_cash(%Entry{pp_account_name: nil}, state), do: {:ok, state, nil}
-
-  defp resolve_cash(%Entry{pp_account_name: name} = entry, state) do
-    case Map.fetch(state.cash_by_name, name) do
-      {:ok, id} -> {:ok, state, id}
-      :error -> create_cash(name, entry, state)
-    end
-  end
-
-  defp resolve_counter_cash(%Entry{pp_counter_account_name: nil}, state),
-    do: {:ok, state, nil}
-
-  defp resolve_counter_cash(%Entry{pp_counter_account_name: name} = entry, state) do
-    case Map.fetch(state.cash_by_name, name) do
-      {:ok, id} -> {:ok, state, id}
-      :error -> create_cash(name, entry, state)
-    end
-  end
-
-  defp create_cash(name, entry, state) do
-    attrs = %{
-      portfolio_id: state.portfolio_id,
-      name: name,
-      currency_code: entry.currency_code || state.default_currency
+  # Each of a row's four account names resolves to the id of an account that
+  # exists (mapped onto an existing record, found by name, or materialized
+  # earlier in this run) or to `{:pending, :cash | :depot, pp_name}`, one a
+  # `create` choice or an unmatched name would create. Two legs are one account
+  # when their refs are equal: the same id, or the same pending file name.
+  defp account_refs(%Entry{} = entry, state) do
+    %{
+      cash_id: account_ref(:cash, entry.pp_account_name, state.cash_by_name),
+      counter_cash_id: account_ref(:cash, entry.pp_counter_account_name, state.cash_by_name),
+      depot_id: account_ref(:depot, entry.pp_portfolio_name, state.depot_by_name),
+      counter_depot_id: account_ref(:depot, entry.pp_counter_portfolio_name, state.depot_by_name)
     }
+  end
+
+  defp account_ref(_kind, nil, _by_name), do: nil
+
+  defp account_ref(kind, pp_name, by_name) do
+    case Map.fetch(by_name, pp_name) do
+      {:ok, id} -> id
+      :error -> {:pending, kind, pp_name}
+    end
+  end
+
+  # ADR-0050 §5: a transfer whose two legs resolve to one account can never be
+  # inserted (its CHECK rejects equal legs), and it is economically void.
+  defp internal_transfer?(%Entry{kind: "cash_transfer"}, %{cash_id: a, counter_cash_id: b}),
+    do: not is_nil(a) and a == b
+
+  defp internal_transfer?(%Entry{kind: "security_transfer"}, %{depot_id: a, counter_depot_id: b}),
+    do: not is_nil(a) and a == b
+
+  defp internal_transfer?(_entry, _refs), do: false
+
+  defp record_internal_transfer(state, %Entry{} = entry) do
+    {pp_name, pp_counter_name} =
+      case entry.kind do
+        "security_transfer" -> {entry.pp_portfolio_name, entry.pp_counter_portfolio_name}
+        _cash_transfer -> {entry.pp_account_name, entry.pp_counter_account_name}
+      end
+
+    transfer = %{
+      row: entry.source_row,
+      kind: entry.kind,
+      date: entry.date,
+      gross_amount: entry.gross_amount,
+      quantity: entry.quantity,
+      currency_code: entry.currency_code,
+      security_name: entry.security && entry.security[:name],
+      pp_name: pp_name,
+      pp_counter_name: pp_counter_name,
+      reason: "skipped: both legs resolve to one account, so the transfer is void"
+    }
+
+    Map.update!(state, :result, fn %Result{} = r ->
+      %Result{r | internal_transfers: r.internal_transfers ++ [transfer]}
+    end)
+  end
+
+  # --- lazy creation (ADR-0050 §4) ---
+
+  # Runs only for a row that inserts: every pending account the row's attrs
+  # name is created now, a depot's linked cash account with it where that is
+  # pending too. A pending depot of the primary leg links to the row's own cash
+  # account; an unmapped counter depot falls back to the portfolio's first
+  # cash account (a SECURITY_TRANSFER may carry no cash side). The user can
+  # re-wire either after the import.
+  defp materialize_accounts(%Entry{} = entry, attrs, state) do
+    with {:ok, state, attrs} <-
+           materialize(attrs, :cash_account_id, state, &materialize_cash(&1, entry, &2)),
+         {:ok, state, attrs} <-
+           materialize(attrs, :counter_cash_account_id, state, &materialize_cash(&1, entry, &2)),
+         {:ok, state, attrs} <-
+           materialize(
+             attrs,
+             :securities_account_id,
+             state,
+             &materialize_depot(&1, entry, &2, :row)
+           ) do
+      materialize(
+        attrs,
+        :counter_securities_account_id,
+        state,
+        &materialize_depot(&1, entry, &2, :counter)
+      )
+    end
+  end
+
+  defp materialize(attrs, field, state, create) do
+    case Map.get(attrs, field) do
+      {:pending, _kind, pp_name} ->
+        with {:ok, state, id} <- create.(pp_name, state) do
+          {:ok, state, Map.put(attrs, field, id)}
+        end
+
+      _id_or_nil ->
+        {:ok, state, attrs}
+    end
+  end
+
+  defp materialize_cash(pp_name, %Entry{} = entry, state) do
+    case Map.fetch(state.cash_by_name, pp_name) do
+      {:ok, id} ->
+        {:ok, state, id}
+
+      :error ->
+        # A `create` choice carries its name and the currency of the file's
+        # bookings on that account; an unmatched name is created as named, in
+        # the currency of the row that creates it.
+        %{name: name, currency_code: currency} =
+          Map.get(state.pending_cash, pp_name, %{
+            name: pp_name,
+            currency_code: entry.currency_code || state.default_currency
+          })
+
+        create_cash(pp_name, name, currency, state)
+    end
+  end
+
+  defp create_cash(pp_name, name, currency, state) do
+    attrs = %{portfolio_id: state.portfolio_id, name: name, currency_code: currency}
 
     case Portfolios.create_cash_account(Actor.import_session(), attrs) do
       {:ok, cash} ->
         state =
           state
-          |> Map.update!(:cash_by_name, &Map.put(&1, cash.name, cash.id))
+          |> Map.update!(:cash_by_name, &Map.put(&1, pp_name, cash.id))
+          |> Map.update!(:pending_cash, &Map.delete(&1, pp_name))
           |> bump_result(:created_cash_accounts)
           |> track_created_account(:created_cash_account_ids, cash.id)
 
         {:ok, state, cash.id}
 
       {:error, changeset} ->
-        {:error, {:cash_create_failed, changeset}}
+        {:error, {:cash_create_failed, name, changeset}}
     end
   end
 
-  # --- depot resolution ---
-
-  defp resolve_depot(%Entry{pp_portfolio_name: nil}, state, _cash_id), do: {:ok, state, nil}
-
-  defp resolve_depot(%Entry{pp_portfolio_name: name}, state, cash_id) do
-    case Map.fetch(state.depot_by_name, name) do
-      {:ok, %{id: id}} -> {:ok, state, id}
-      :error -> create_depot(name, cash_id, state)
-    end
-  end
-
-  defp resolve_counter_depot(%Entry{pp_counter_portfolio_name: nil}, state),
-    do: {:ok, state, nil}
-
-  defp resolve_counter_depot(%Entry{pp_counter_portfolio_name: name}, state) do
-    case Map.fetch(state.depot_by_name, name) do
-      {:ok, %{id: id}} ->
+  defp materialize_depot(pp_name, %Entry{} = entry, state, leg) do
+    case Map.fetch(state.depot_by_name, pp_name) do
+      {:ok, id} ->
         {:ok, state, id}
 
       :error ->
-        # A counter depot for a SECURITY_TRANSFER may not have its own
-        # cash account in the source export — fall back to the same
-        # portfolio's first cash account. The user can re-wire after
-        # import.
-        case List.first(Map.values(state.cash_by_name)) do
-          nil -> {:error, {:counter_depot_needs_cash, name}}
-          cash_id -> create_depot(name, cash_id, state)
+        with {:ok, state, name, cash_id} <- depot_spec(pp_name, entry, state, leg) do
+          create_depot(pp_name, name, cash_id, state)
         end
     end
   end
 
-  defp create_depot(name, nil, _state), do: {:error, {:depot_needs_cash, name}}
+  defp depot_spec(pp_name, entry, state, leg) do
+    case Map.fetch(state.pending_depots, pp_name) do
+      {:ok, %{name: name, cash: {:existing, cash_id}}} ->
+        {:ok, state, name, cash_id}
 
-  defp create_depot(name, cash_id, state) do
-    attrs = %{
-      portfolio_id: state.portfolio_id,
-      cash_account_id: cash_id,
-      name: name
-    }
+      {:ok, %{name: name, cash: {:pp, pp_cash}}} ->
+        with {:ok, state, cash_id} <- materialize_cash(pp_cash, entry, state) do
+          {:ok, state, name, cash_id}
+        end
+
+      :error ->
+        unmatched_depot_cash(pp_name, entry, state, leg)
+    end
+  end
+
+  defp unmatched_depot_cash(pp_name, %Entry{pp_account_name: nil}, _state, :row),
+    do: {:error, {:depot_needs_cash, pp_name}}
+
+  defp unmatched_depot_cash(pp_name, %Entry{pp_account_name: pp_cash} = entry, state, :row) do
+    with {:ok, state, cash_id} <- materialize_cash(pp_cash, entry, state) do
+      {:ok, state, pp_name, cash_id}
+    end
+  end
+
+  defp unmatched_depot_cash(pp_name, _entry, state, :counter) do
+    case List.first(Map.values(state.cash_by_name)) do
+      nil -> {:error, {:counter_depot_needs_cash, pp_name}}
+      cash_id -> {:ok, state, pp_name, cash_id}
+    end
+  end
+
+  defp create_depot(pp_name, name, cash_id, state) do
+    attrs = %{portfolio_id: state.portfolio_id, cash_account_id: cash_id, name: name}
 
     case Portfolios.create_securities_account(Actor.import_session(), attrs) do
       {:ok, depot} ->
         state =
           state
-          |> Map.update!(:depot_by_name, fn map ->
-            Map.put(map, depot.name, %{id: depot.id, cash_account_id: cash_id})
-          end)
+          |> Map.update!(:depot_by_name, &Map.put(&1, pp_name, depot.id))
+          |> Map.update!(:pending_depots, &Map.delete(&1, pp_name))
           |> bump_result(:created_securities_accounts)
           |> track_created_account(:created_securities_account_ids, depot.id)
 
         {:ok, state, depot.id}
 
       {:error, changeset} ->
-        {:error, {:depot_create_failed, changeset}}
+        {:error, {:depot_create_failed, name, changeset}}
     end
   end
 
   # --- transaction attrs by kind ---
 
-  defp build_transaction_attrs(%Entry{} = entry, state, ids) do
+  defp build_transaction_attrs(%Entry{} = entry, state, ids, import_hash) do
     base = %{
       portfolio_id: state.portfolio_id,
       type: entry.kind,
@@ -1005,7 +1233,7 @@ defmodule Portfolixir.Imports.Applier do
       gross_amount: entry.gross_amount,
       fees: entry.fees || Decimal.new(0),
       taxes: entry.taxes || Decimal.new(0),
-      import_hash: compute_hash(entry, state.portfolio_id)
+      import_hash: import_hash
     }
 
     extras =
@@ -1112,56 +1340,74 @@ defmodule Portfolixir.Imports.Applier do
     key = dedup_key(attrs)
 
     # Two-layer idempotency (#533): the stored content `import_hash` skips exact
-    # re-inserts (and exact within-file duplicates — `hash_already_imported?`
-    # sees uncommitted inserts in this transaction). On top of that, a stable,
-    # formatting-tolerant key over the *resolved* DB identity (portfolio,
-    # security/account ids, normalized decimals) skips a re-import whose only
-    # difference is PP-export drift (decimal precision, or a security rename when
-    # matched by ISIN). The key set is a PRE-import snapshot and is deliberately
-    # NOT extended during the import: `time` is not persisted on a transaction, so
-    # two legitimate same-day/same-amount bookings (distinct only by time) must
-    # not collapse — within-file de-duplication is the hash's job, not this key's.
-    # N:1 within-run dedup (ADR-0029 §2): two file rows carrying different
-    # identities of ONE paper (old + new ISIN) resolve to the same security
-    # and therefore to an identical resolved dedup key while their content
-    # hashes differ — they must collapse to one insert, surfaced in the
-    # result. `entry.time` joins the run key so two legitimate same-day
-    # bookings distinct only by their intraday time never collapse.
-    run_key = {key, entry.time}
-
+    # re-inserts (and exact within-file duplicates), and since ADR-0050 §3 it
+    # runs first, in `process_entry/2`, before anything resolves. On top of
+    # that, a stable, formatting-tolerant key over the *resolved* DB identity
+    # (portfolio, security/account ids, normalized decimals) skips a re-import
+    # whose only difference is PP-export drift (decimal precision, or a
+    # security rename when matched by ISIN). The key set is a PRE-import
+    # snapshot and is deliberately NOT extended during the import: `time` is
+    # not persisted on a transaction, so two legitimate same-day/same-amount
+    # bookings (distinct only by time) must not collapse — within-file
+    # de-duplication is the hash's job, not this key's.
+    #
+    # A row naming a pending account (ADR-0050 §4) carries a
+    # `{:pending, kind, pp_name}` placeholder in its key, which matches no
+    # existing and no earlier inserted booking: nothing was booked on an
+    # account that does not exist yet.
     cond do
-      hash_already_imported?(attrs.import_hash) ->
-        {:ok, state |> bump_result(:skipped_duplicates) |> record_duplicate(entry, :hash)}
-
       MapSet.member?(state.existing_dedup_keys, key) ->
-        {:ok, state |> bump_result(:skipped_duplicates) |> record_duplicate(entry, :economics)}
+        {:ok, record_duplicate(state, entry, :economics)}
 
-      MapSet.member?(state.seen_run_keys, run_key) ->
+      MapSet.member?(state.seen_run_keys, run_key(key, entry)) ->
         {:ok, state |> bump_result(:skipped_duplicates) |> record_collapsed(entry)}
 
       true ->
-        insert_new_transaction(entry, attrs, run_key, state)
+        with {:ok, state, attrs} <- materialize_accounts(entry, attrs, state) do
+          insert_new_transaction(entry, attrs, run_key(dedup_key(attrs), entry), state)
+        end
     end
+  end
+
+  # N:1 within-run dedup (ADR-0029 §2): two file rows carrying different
+  # identities of ONE paper (old + new ISIN) resolve to the same security and
+  # therefore to an identical resolved dedup key while their content hashes
+  # differ — they collapse to one insert, surfaced in the result. `entry.time`
+  # joins the run key so two legitimate same-day bookings distinct only by
+  # their intraday time never collapse, and the file's four account names join
+  # it (ADR-0050 §6) so two equal rows from different file accounts that
+  # resolve to one account (twin fees, twin savings plans after a merge) are
+  # both inserted.
+  defp run_key(key, %Entry{} = entry) do
+    {key, entry.time, entry.pp_portfolio_name, entry.pp_account_name,
+     entry.pp_counter_portfolio_name, entry.pp_counter_account_name}
   end
 
   # #769: a skipped duplicate names its source row and the layer that skipped
   # it, next to the unimportable rows, so a silent skip is visible where the
-  # operator reads the result.
+  # operator reads the result. ADR-0050 §3 adds the layer `:retired` and counts
+  # each layer in `already_imported`.
   defp record_duplicate(state, %Entry{} = entry, layer) do
     reason =
       case layer do
         :hash ->
           "already booked: an identical row was imported before (stored content hash)"
 
+        :retired ->
+          "already booked: a merge removed the row with this content (retired content hash)"
+
         :economics ->
           "already booked: an existing booking has the same date, security, quantity and amount"
       end
 
-    Map.update!(state, :result, fn %Result{} = r ->
+    state
+    |> bump_result(:skipped_duplicates)
+    |> Map.update!(:result, fn %Result{} = r ->
       %Result{
         r
         | duplicate_entries:
-            r.duplicate_entries ++ [%{row: entry.source_row, reason: reason, layer: layer}]
+            r.duplicate_entries ++ [%{row: entry.source_row, reason: reason, layer: layer}],
+          already_imported: Map.update!(r.already_imported, layer, &(&1 + 1))
       }
     end)
   end
@@ -1226,10 +1472,6 @@ defmodule Portfolixir.Imports.Applier do
         Repo.all(from(c in CashAccount, where: c.id in ^ids, select: {c.id, c.currency_code}))
         |> Map.new()
     end
-  end
-
-  defp hash_already_imported?(hash) when is_binary(hash) do
-    Repo.exists?(from(t in Transaction, where: t.import_hash == ^hash))
   end
 
   # The portfolio's existing bookings as a set of stable dedup keys (#533). Loaded
