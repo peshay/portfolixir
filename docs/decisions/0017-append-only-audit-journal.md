@@ -229,6 +229,17 @@ its tables are guard-armed. The grandfather list is empty. The follow-up #529
 (seed built-in trees at startup instead of on read paths) is orthogonal to
 journaling and tracked separately.
 
+### Amendment: two resource codes for the lifecycle merges (ADR-0050 §13)
+
+[ADR-0050](0050-lifecycle-merges-under-a-reimport-contract.html) adds two
+codes to the `resource_type` list: `merge_record`, one per merge of a cash
+account, depot or security (table `merge_records`), and
+`retired_import_hash`, one per row a merge removes (table
+`retired_import_hashes`). Both tables are append-only (UPDATE, DELETE and
+TRUNCATE raise) and armed with the journal-actor guard in the migrations that
+create them, and both are written by the `Portfolixir.Lifecycle` context,
+actor-first. The operations stay `create | update | delete | upsert`.
+
 ## Consequences
 
 - **Every change to financial data becomes attributable and reversible by

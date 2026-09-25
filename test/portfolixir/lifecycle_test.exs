@@ -1,8 +1,10 @@
 defmodule Portfolixir.LifecycleTest do
-  # ADR-0050 §12 and §13 (risk-tier: audit, ADR-0036): the record a merge
-  # leaves behind. A merge record says what was merged into what, by whom and
-  # under which approved plan. It is append-only at the database and
-  # journal-armed from the migration that creates it; the unboxed half of
+  # ADR-0050 §3, §12 and §13 (risk-tier: audit, ADR-0036): the two records a
+  # merge leaves behind. A merge record says what was merged into what, by
+  # whom and under which approved plan; a retired import hash keeps the
+  # content hash of every row a merge removed, so a re-import can never book
+  # that row again (obligation O1). Both are append-only at the database and
+  # journal-armed from the migration that creates them; the unboxed half of
   # that (a raw write without a journal actor) is pinned in
   # test/portfolixir/journal/append_only_test.exs.
   use Portfolixir.DataCase, async: true
@@ -12,6 +14,7 @@ defmodule Portfolixir.LifecycleTest do
   alias Portfolixir.Journal
   alias Portfolixir.Lifecycle
   alias Portfolixir.Lifecycle.MergeRecord
+  alias Portfolixir.Lifecycle.RetiredImportHash
   alias Portfolixir.Portfolios
   alias Portfolixir.WorldFixtures
 
@@ -172,18 +175,173 @@ defmodule Portfolixir.LifecycleTest do
     end
   end
 
-  describe "the derived-value radius of the merge_record code (ADR-0050 §13, ADR-0039)" do
+  describe "retired import hashes (ADR-0050 §3)" do
+    # User story:
+    # As the operator re-importing a Portfolio Performance export after a
+    # merge removed an internal transfer or a collapsed duplicate,
+    # I want the removed row's content hash kept as retired,
+    # so that the same export can never book that row a second time.
+    #
     # Acceptance criteria:
-    # - A merge record feeds no portfolio walk and no security's own series:
-    #   the rows a merge moves or deletes bump their own radius, so the record
-    #   of the merge answers "none" — resolved per struct, never as a default.
-    test "a merge record bumps no derived basis of its own" do
+    # - A retirement keeps the hash, the removed row's id, the merge record,
+    #   the reason and (for a collapse) the surviving row, and its create is
+    #   journaled under the resource code `retired_import_hash`.
+    # - A hash is retired at most once.
+    test "a retired hash is written once and journaled" do
+      record = merge_record!(world())
+
+      attrs = %{
+        import_hash: "synthetic-hash-transfer",
+        former_transaction_id: 4_101,
+        merge_record_id: record.id,
+        reason: "internal_transfer"
+      }
+
+      assert {:ok, %RetiredImportHash{} = retired} = Lifecycle.retire_import_hash(agent(), attrs)
+
+      assert retired.import_hash == "synthetic-hash-transfer"
+      assert retired.former_transaction_id == 4_101
+      assert retired.merge_record_id == record.id
+      assert retired.reason == :internal_transfer
+      assert retired.superseded_by_transaction_id == nil
+      assert %DateTime{} = retired.inserted_at
+
+      assert [entry] =
+               Journal.list_entries(
+                 resource_type: "retired_import_hash",
+                 resource_id: "#{retired.id}"
+               )
+
+      assert entry.operation == :create
+      assert entry.after["import_hash"] == "synthetic-hash-transfer"
+
+      assert {:error, changeset} = Lifecycle.retire_import_hash(agent(), attrs)
+      assert %{import_hash: ["has already been retired"]} = errors_on(changeset)
+    end
+
+    # Acceptance criteria (ADR-0050 §3, §5, §8):
+    # - The reason is `internal_transfer` or `collapsed_duplicate`.
+    # - A collapsed duplicate names the target row that superseded it; an
+    #   internal transfer is void and names none.
+    test "a retirement says why: a void transfer supersedes nothing, a collapse names its survivor" do
+      record = merge_record!(world())
+
+      base = %{
+        import_hash: "synthetic-hash-pair",
+        former_transaction_id: 4_102,
+        merge_record_id: record.id
+      }
+
+      assert {:error, changeset} =
+               Lifecycle.retire_import_hash(agent(), Map.put(base, :reason, "moved"))
+
+      assert {"is invalid", _opts} = changeset.errors[:reason]
+
+      assert {:error, changeset} =
+               Lifecycle.retire_import_hash(
+                 agent(),
+                 Map.put(base, :reason, "collapsed_duplicate")
+               )
+
+      assert %{superseded_by_transaction_id: ["can't be blank"]} = errors_on(changeset)
+
+      assert {:error, changeset} =
+               Lifecycle.retire_import_hash(
+                 agent(),
+                 Map.merge(base, %{reason: "internal_transfer", superseded_by_transaction_id: 7})
+               )
+
+      assert %{superseded_by_transaction_id: ["must be empty for an internal transfer"]} =
+               errors_on(changeset)
+
+      assert {:ok,
+              %RetiredImportHash{reason: :collapsed_duplicate, superseded_by_transaction_id: 7}} =
+               Lifecycle.retire_import_hash(
+                 agent(),
+                 Map.merge(base, %{reason: "collapsed_duplicate", superseded_by_transaction_id: 7})
+               )
+    end
+
+    # Acceptance criteria (ADR-0050 §3, §12):
+    # - Every retirement belongs to a merge record that exists. The check is
+    #   deferred to the commit, so a merge may retire hashes before it writes
+    #   its record (ADR-0050 §7's step order); forced immediate here.
+    test "a retirement belongs to a merge record that exists" do
+      parent = self()
+
+      Repo.transaction(fn ->
+        Repo.query!("SET CONSTRAINTS retired_import_hashes_merge_record_id_fkey IMMEDIATE")
+
+        result =
+          Lifecycle.retire_import_hash(agent(), %{
+            import_hash: "synthetic-hash-orphan",
+            former_transaction_id: 4_103,
+            merge_record_id: -1,
+            reason: "internal_transfer"
+          })
+
+        send(parent, {:retired, result})
+      end)
+
+      assert_received {:retired, {:error, changeset}}
+      assert %{merge_record_id: ["does not exist"]} = errors_on(changeset)
+    end
+
+    # Acceptance criteria (ADR-0050 §3, §16 invariant 11):
+    # - A retired hash is never updated or deleted, and the table is never
+    #   truncated: the database refuses all three.
+    test "a retired hash is never updated or deleted, at the database" do
+      record = merge_record!(world())
+
+      {:ok, retired} =
+        Lifecycle.retire_import_hash(agent(), %{
+          import_hash: "synthetic-hash-kept",
+          former_transaction_id: 4_104,
+          merge_record_id: record.id,
+          reason: "internal_transfer"
+        })
+
+      assert_raise Postgrex.Error, ~r/retired_import_hashes is append-only/, fn ->
+        raw_write!("UPDATE retired_import_hashes SET import_hash = 'freed' WHERE id = $1", [
+          retired.id
+        ])
+      end
+
+      assert_raise Postgrex.Error, ~r/retired_import_hashes is append-only/, fn ->
+        raw_write!("DELETE FROM retired_import_hashes WHERE id = $1", [retired.id])
+      end
+
+      # The sandbox never commits, so the deferred merge-record check of the
+      # insert above is still pending, and PostgreSQL refuses a TRUNCATE with
+      # pending trigger events before any trigger runs. Firing the check first
+      # puts the table where a committed merge leaves it.
+      assert_raise Postgrex.Error, ~r/retired_import_hashes is append-only/, fn ->
+        Repo.transaction(fn ->
+          Repo.query!("SET CONSTRAINTS retired_import_hashes_merge_record_id_fkey IMMEDIATE")
+          Repo.query!("SELECT set_config('portfolixir.journal_actor', 'owner_ui', true)")
+          Repo.query!("TRUNCATE retired_import_hashes")
+        end)
+      end
+
+      assert Repo.get!(RetiredImportHash, retired.id).import_hash == "synthetic-hash-kept"
+    end
+  end
+
+  describe "the derived-value radius of the two resource codes (ADR-0050 §13, ADR-0039)" do
+    # Acceptance criteria:
+    # - Neither record feeds a portfolio walk or a security's own series: the
+    #   rows a merge moves or deletes bump their own radius, so the record of
+    #   the merge answers "none" — resolved per struct, never as a default.
+    test "a merge record and a retired hash bump no derived basis of their own" do
       record = %MergeRecord{id: 1, kind: :cash_account, portfolio_id: 1}
+      retired = %RetiredImportHash{id: 1, import_hash: "synthetic", merge_record_id: 1}
 
       assert BlastRadius.for_write("merge_record", record) == []
+      assert BlastRadius.for_write("retired_import_hash", retired) == []
       assert BlastRadius.securities_for_write("merge_record", record) == []
+      assert BlastRadius.securities_for_write("retired_import_hash", retired) == []
 
-      # An unresolvable record still widens.
+      # An unresolvable record of either code still widens.
       assert BlastRadius.for_write("merge_record", %{id: nil}) == :all
     end
   end

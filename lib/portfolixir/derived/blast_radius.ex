@@ -39,6 +39,7 @@ defmodule Portfolixir.Derived.BlastRadius do
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Lifecycle.MergeRecord
+  alias Portfolixir.Lifecycle.RetiredImportHash
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.PolicyRule
   alias Portfolixir.Portfolios.PolicyRuleVersion
@@ -68,11 +69,13 @@ defmodule Portfolixir.Derived.BlastRadius do
   def for_write("policy_rule", %{__struct__: PolicyRule}), do: []
   def for_write("policy_rule_version", %{__struct__: PolicyRuleVersion}), do: []
 
-  # The record a lifecycle merge leaves behind (ADR-0050 §12) is read by no
-  # walk: the rows the merge moves, restates or deletes are journaled one by
-  # one and bump their own radius (#851's union of both images). The record
-  # of the merge adds nothing to that — resolved per struct, never a default.
+  # The two records a lifecycle merge leaves behind (ADR-0050 §3, §12) are
+  # read by no walk: the rows the merge moves, restates or deletes are
+  # journaled one by one and bump their own radius (#851's union of both
+  # images). The record of the merge adds nothing to that — resolved per
+  # struct, never a default.
   def for_write("merge_record", %{__struct__: MergeRecord}), do: []
+  def for_write("retired_import_hash", %{__struct__: RetiredImportHash}), do: []
 
   # Everything else — unlisted resource types, and listed ones whose record
   # cannot be resolved (a bulk write journals an aggregate with no id). Widening
@@ -105,7 +108,7 @@ defmodule Portfolixir.Derived.BlastRadius do
   @feeds_no_security_data ~w(
     allowance_order bucket cash_account cash_account_bucket_assignment category
     classification depot_bucket_assignment merge_record policy_rule policy_rule_version
-    portfolio position_bucket_override securities_account
+    portfolio position_bucket_override retired_import_hash securities_account
     security_category_assignment security_event security_identifier_alias security_note
     snapshot target target_plan tax_parameters tax_profile tax_statement_snapshot view
   )

@@ -100,10 +100,11 @@ defmodule Portfolixir.WriteActorTest do
                   # versions record WHAT it was.
                   "policy_rules",
                   "policy_rule_versions",
-                  # ADR-0050 §12: the merge records, append-only and armed in
-                  # the migration that creates them — the journal records who
-                  # merged.
-                  "merge_records"
+                  # ADR-0050 §3, §12: the merge records and the retired import
+                  # hashes, append-only and armed in the migrations that create
+                  # them — the journal records who merged and who retired.
+                  "merge_records",
+                  "retired_import_hashes"
                 ])
 
   # Derived-value tables (ADR-0039): materializations of ledger-derived reads,
