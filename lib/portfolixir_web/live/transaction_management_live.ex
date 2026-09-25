@@ -731,9 +731,12 @@ defmodule PortfolixirWeb.TransactionManagementLive do
          |> success(gettext("Note saved"))
          |> load_state()}
 
+      # The drawer keeps what was typed (E25 S6 review round, R4): a refusal
+      # names what to correct, never what to type again (board 11's rule).
       {:error, changeset} ->
         {:noreply,
          socket
+         |> assign(:editing_split, %{socket.assigns.editing_split | notes: notes})
          |> assign(:form_errors, field_errors(changeset))
          |> failure(changeset_error(changeset))}
 
