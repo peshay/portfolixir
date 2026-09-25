@@ -2065,10 +2065,14 @@ in MCP schemas are strings.
   `currency_code` property state the currency freeze (ADR-0050 §11).
 - `portfolixir.cash_accounts.delete`
 - `portfolixir.cash_accounts.set_balance`
+- `portfolixir.cash_accounts.remove_former_name` — removes one former name
+  (ADR-0050 §4); its description says what that costs: an import that still
+  names it then creates a new account.
 - `portfolixir.securities_accounts.list`
 - `portfolixir.securities_accounts.create`
 - `portfolixir.securities_accounts.update`
 - `portfolixir.securities_accounts.delete`
+- `portfolixir.securities_accounts.remove_former_name` — the same for a depot.
 - `portfolixir.transactions.list`
 - `portfolixir.transactions.create`
 - `portfolixir.transactions.update`

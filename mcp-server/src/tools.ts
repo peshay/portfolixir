@@ -2307,11 +2307,10 @@ const securityMetricsZ = z.object({
 });
 
 // ADR-0050 §3, §4 (L2, #884): what a rename means for the next Portfolio
-// Performance import, on the two tools that rename an account (#831's lesson:
-// agents read descriptions, not docs). The behaviour is pinned by
+// Performance import, and which of the two former-name cases applies, on the
+// two tools that rename an account (#831's lesson: agents read descriptions,
+// not docs). The behaviour is pinned by
 // test/portfolixir_web/controllers/api/v1/rename_reimport_test.exs.
-// ADR-0050 §3, §4 (L2, #884): what a rename means for the next Portfolio
-// Performance import, and which of the two former-name cases applies.
 const renameReimport = (noun: string) =>
   " A rename keeps the previous name as a former name of this account (listed in former_names), and the " +
   "Portfolio Performance import resolves a file's account name by the live name first, then by the former names " +

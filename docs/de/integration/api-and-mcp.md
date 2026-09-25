@@ -1913,10 +1913,15 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
   `currency_code`-Eigenschaft nennen das Einfrieren der Währung (ADR-0050 §11).
 - `portfolixir.cash_accounts.delete`
 - `portfolixir.cash_accounts.set_balance`
+- `portfolixir.cash_accounts.remove_former_name` — entfernt einen früheren
+  Namen (ADR-0050 §4); die Beschreibung sagt, was das kostet: Ein Import, der
+  ihn noch nennt, legt dann ein neues Konto an.
 - `portfolixir.securities_accounts.list`
 - `portfolixir.securities_accounts.create`
 - `portfolixir.securities_accounts.update`
 - `portfolixir.securities_accounts.delete`
+- `portfolixir.securities_accounts.remove_former_name` — dasselbe für ein
+  Depot.
 - `portfolixir.transactions.list`
 - `portfolixir.transactions.create`
 - `portfolixir.transactions.update`

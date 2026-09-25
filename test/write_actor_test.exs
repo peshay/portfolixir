@@ -64,9 +64,14 @@ defmodule Portfolixir.WriteActorTest do
   @grandfathered MapSet.new([])
 
   # Journaled tables currently guard-armed. Grows as contexts convert. `buckets`
-  # is the root tag table of the born-actor-first Buckets context (ADR-0018); its
-  # assignment join tables stay un-armed because they FK-cascade from
-  # Portfolios-owned tables that are not yet actor-first (architecture amendment 1).
+  # is the root tag table of the born-actor-first Buckets context (ADR-0018). Its
+  # assignment join tables stay un-armed as ADR-0018 §5 scope tables
+  # (`Portfolixir.Journal.Allowlist.unarmed_scope_tables/0`): their writers journal
+  # one aggregate entry per account or position. Since ADR-0050 §11 their foreign
+  # keys onto accounts, depots and securities RESTRICT instead of cascading, so
+  # the database refuses to delete a row that still carries a membership — but
+  # with no guard trigger, that a membership removal is journaled rests on the
+  # Buckets context writers (ADR-0050 §13), not on the database.
   @armed_tables MapSet.new([
                   "securities",
                   "security_identifier_aliases",
