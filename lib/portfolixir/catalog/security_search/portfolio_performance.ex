@@ -24,6 +24,8 @@ defmodule Portfolixir.Catalog.SecuritySearch.PortfolioPerformance do
   alias Portfolixir.Net.Http
 
   @endpoint "https://api.portfolio-performance.info/v1/search"
+  # The only host a request or a redirect hop may reach (F27).
+  @allowed_hosts ["api.portfolio-performance.info"]
   @feed_id "PORTFOLIO_PERFORMANCE"
 
   @impl true
@@ -50,6 +52,7 @@ defmodule Portfolixir.Catalog.SecuritySearch.PortfolioPerformance do
       Http.new(
         headers: [{"user-agent", "portfolixir/0.1 (+https://github.com/portfolixir)"}],
         receive_timeout: 5_000,
+        allowed_hosts: @allowed_hosts,
         max_bytes: 2 * 1024 * 1024,
         deadline_ms: 15_000
       )

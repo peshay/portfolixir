@@ -23,6 +23,8 @@ defmodule Portfolixir.Fx.RateSync.Ecb do
 
   @endpoint "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"
   @history_endpoint "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.xml"
+  # The only host a request or a redirect hop may reach (F27).
+  @allowed_hosts ["www.ecb.europa.eu"]
   @hub "EUR"
   @source "ecb"
 
@@ -117,7 +119,8 @@ defmodule Portfolixir.Fx.RateSync.Ecb do
       Http.new(
         [
           headers: [{"user-agent", "portfolixir/0.1 (+https://github.com/portfolixir)"}],
-          receive_timeout: 10_000
+          receive_timeout: 10_000,
+          allowed_hosts: @allowed_hosts
         ] ++ bounds
       )
 

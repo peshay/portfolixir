@@ -32,7 +32,11 @@ defmodule Portfolixir.Net.UrlPolicy do
   @doc """
   `:ok`, or `{:error, {:url_not_allowed, reason}}`.
 
-  Options: `:allowed_hosts` (`:any` or a list; default `:any`), `:resolver`.
+  Options: `:allowed_hosts` (`:any` or a list; default `:any`), `:resolver`,
+  and `:resolve` (default `true`). With `resolve: false` a host name is not
+  resolved, so only the scheme, the userinfo, the allow-list and a literal
+  address are judged: the check `Portfolixir.Net.Http` runs on a client's own
+  compiled-in endpoint, where the full check runs on every redirect hop.
   """
   @spec check(String.t() | nil, keyword()) :: :ok | {:error, {:url_not_allowed, reason()}}
   def check(url, opts \\ [])
@@ -44,7 +48,8 @@ defmodule Portfolixir.Net.UrlPolicy do
          :ok <- check_userinfo(uri),
          {:ok, host} <- check_host(uri),
          :ok <- check_allowed(host, Keyword.get(opts, :allowed_hosts, :any)),
-         {:ok, addresses} <- addresses_for(host, resolver(opts)),
+         {:ok, addresses} <-
+           addresses_for(host, resolver(opts), Keyword.get(opts, :resolve, true)),
          :ok <- check_public(addresses) do
       :ok
     else
@@ -136,10 +141,13 @@ defmodule Portfolixir.Net.UrlPolicy do
     if host_allowed?(host, allowed), do: :ok, else: {:error, :host_not_allowed}
   end
 
-  defp addresses_for(host, resolver) do
+  defp addresses_for(host, resolver, resolve?) do
     case :inet.parse_strict_address(String.to_charlist(host)) do
       {:ok, address} ->
         {:ok, [address]}
+
+      {:error, _not_literal} when not resolve? ->
+        {:ok, []}
 
       {:error, _not_literal} ->
         case resolver.(host) do

@@ -17,6 +17,9 @@ defmodule Portfolixir.Catalog.SecuritySearch.CoinGecko do
 
   @endpoint "https://api.coingecko.com/api/v3/search"
   @coins_endpoint "https://api.coingecko.com/api/v3/coins"
+  # The only host a request or a redirect hop may reach (F27); the optional
+  # API-key header never leaves it.
+  @allowed_hosts ["api.coingecko.com"]
   @feed_id "COINGECKO"
 
   @impl true
@@ -86,6 +89,7 @@ defmodule Portfolixir.Catalog.SecuritySearch.CoinGecko do
       Http.new(
         headers: headers,
         receive_timeout: 5_000,
+        allowed_hosts: @allowed_hosts,
         max_bytes: 2 * 1024 * 1024,
         deadline_ms: 15_000
       )

@@ -20,6 +20,8 @@ defmodule Portfolixir.Catalog.LogoLookup.CompaniesLogo do
   alias Portfolixir.Net.Http
 
   @base_url "https://companieslogo.com"
+  # The only hosts a request or a redirect hop may reach (F27).
+  @allowed_hosts ["companieslogo.com", ".companieslogo.com"]
 
   @og_image ~r/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i
   @og_image_rev ~r/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i
@@ -94,6 +96,7 @@ defmodule Portfolixir.Catalog.LogoLookup.CompaniesLogo do
         headers: [{"user-agent", "portfolixir/0.1 (logo-lookup)"}],
         receive_timeout: 5_000,
         decode_body: false,
+        allowed_hosts: @allowed_hosts,
         max_bytes: 2 * 1024 * 1024,
         deadline_ms: 15_000
       )

@@ -26,6 +26,8 @@ defmodule Portfolixir.Catalog.QuoteSync.Yahoo do
   alias Portfolixir.Net.Http
 
   @endpoint "https://query1.finance.yahoo.com/v8/finance/chart"
+  # The only hosts a request or a redirect hop may reach (F27).
+  @allowed_hosts ["query1.finance.yahoo.com", "query2.finance.yahoo.com"]
   @interval "1d"
 
   @impl true
@@ -109,6 +111,7 @@ defmodule Portfolixir.Catalog.QuoteSync.Yahoo do
       Http.new(
         headers: [{"user-agent", "portfolixir/0.1 (+https://github.com/portfolixir)"}],
         receive_timeout: 10_000,
+        allowed_hosts: @allowed_hosts,
         max_bytes: 8 * 1024 * 1024,
         deadline_ms: 30_000
       )

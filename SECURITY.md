@@ -29,7 +29,11 @@ asks everyone to wait, the operator included, while existing sessions keep
 working, and restarting the application clears it, because the counts live in
 memory only; every server-side fetch of a caller- or provider-supplied URL
 passes a deny-by-default policy (https only, public addresses only, provider
-hosts only); and the documented deployment is a production release with no
+hosts only), and every outbound client, the provider adapters included,
+follows a redirect only when the hop passes the same policy on that client's
+own hosts, never to plain http, for a few hops at most, and without any header
+that could carry a credential once the host changes (E25); and the documented
+deployment is a production release with no
 secret defaults. Since Sprint 11 (#382, #772): every browser page carries a
 `Content-Security-Policy` — scripts only from the instance and from the root
 layout's inline boot scripts through a per-request nonce, no inline event
