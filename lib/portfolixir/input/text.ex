@@ -182,6 +182,22 @@ defmodule Portfolixir.Input.Text do
     |> Enum.join()
   end
 
+  # Unicode format characters (general category Cf): zero-width spaces and
+  # joiners, the byte-order mark, the soft hyphen, bidirectional controls.
+  @format_characters ~r/\p{Cf}/u
+
+  @doc """
+  `text` without its Unicode format characters (general category `Cf`: the
+  zero-width space and joiners, the word joiner, the byte-order mark, the
+  soft hyphen, the bidirectional controls). They render as nothing, so two
+  names that differ only by them look identical (E25 S5, G23). Text that is
+  not valid UTF-8 is returned unchanged for `check/2` to refuse.
+  """
+  @spec strip_format_characters(String.t()) :: String.t()
+  def strip_format_characters(text) when is_binary(text) do
+    if String.valid?(text), do: String.replace(text, @format_characters, ""), else: text
+  end
+
   defp controls(opts) do
     if opts[:multiline], do: @multiline_controls, else: @single_line_controls
   end

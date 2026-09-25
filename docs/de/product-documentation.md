@@ -249,7 +249,12 @@ als „über frühere ISIN zugeordnet"). Aliasse sind korrigierbar: sie werden i
 Wertpapier-Detail (`GET /api/v1/securities/:id`) gelistet und können
 (journalisiert) gelöscht werden, wenn sie versehentlich aufgezeichnet wurden.
 Eine bloße Umbenennung braucht keinen ISIN-Wechsel — sie ist nur eine
-Namensänderung.
+Namensänderung. Die neue ISIN muss eine gültige ISIN sein, Prüfziffer
+eingeschlossen, ebenso eine ISIN, eine WKN (sechs Buchstaben oder Ziffern)
+oder ein Ticker (druckbares ASCII), die an einem bestehenden Wertpapier
+geändert werden: Ein Doppelgänger ersetzt nie das Kennzeichen, das die
+Exporte tragen. Der Name eines Wertpapiers wird ohne unsichtbare
+Formatzeichen gespeichert.
 
 ### Identitätsfelder, die einfrieren (ADR-0050 §11)
 
@@ -1789,7 +1794,10 @@ Steuererstattung oder ein abgeleiteter Kurs mit mehr Stellen vor dem Komma,
 als die Spalte nach dem Runden auf ihre Nachkommastellen fasst), eine Zahl, die
 der Parser nicht lesen kann, und eine Transaktion mit mehr Gebühren- und
 Steuerpositionen, als eine Buchung trägt: Jede wird mit Feld und Zeile
-benannt und lässt den Import nach dem Bestätigen nie scheitern. Ein Eintrag nur mit WKN oder nur mit Ticker ist ein
+benannt und lässt den Import nach dem Bestätigen nie scheitern. Eine Zeile,
+deren ISIN keine gültige ISIN ist (Form oder Prüfziffer, auch ein Buchstabe aus
+einer anderen Schrift), bleibt ebenso draußen, damit ein Doppelgänger nie zu
+einem zweiten Wertpapier wird. Ein Eintrag nur mit WKN oder nur mit Ticker ist ein
 Wertpapier wie jedes andere und wird über die Zuordnungsleiter unten
 aufgelöst. Eine Vorschau wird für den nächsten Besuch (Sprachwechsel,
 Neuladen) erst aufbewahrt, wenn sie einmal angezeigt wurde.
@@ -1910,6 +1918,10 @@ Das Vorschau-Panel **Wertpapiere aus dem Export** zeigt das Ergebnis:
   bestehenden ähnelt, das Kategorie-Zuordnungen oder Positionsziele trägt,
   verlangt die Zeile eine eigene ausdrückliche Bestätigung — ein Duplikat
   würde diese Konfiguration auf einer bestandslosen Zeile stranden lassen.
+  Ein Name, der einem gespeicherten nur ähnlich sieht (unsichtbare Zeichen,
+  Doppelgänger-Buchstaben aus einer anderen Schrift, andere Groß- und
+  Kleinschreibung oder Leerzeichen), gilt als solche Ähnlichkeit, und die
+  Zuordnung selbst übergeht unsichtbare Zeichen in Namen.
 
 Wird ein Eintrag ummappt, dessen ISIN von der aktuellen ISIN des
 gewählten Wertpapiers abweicht, bietet die Vorschau an, die Differenz im

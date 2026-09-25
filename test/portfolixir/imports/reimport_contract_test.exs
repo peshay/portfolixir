@@ -25,7 +25,7 @@ defmodule Portfolixir.Imports.ReimportContractTest do
 
   @fund %{
     "name" => "Example Fund",
-    "isin" => "DE000EXMPL01",
+    "isin" => "DE000EXMPL17",
     "wkn" => "EXF001",
     "currency" => "EUR"
   }
@@ -181,8 +181,8 @@ defmodule Portfolixir.Imports.ReimportContractTest do
     # - A re-import whose rows are all hash hits still records the ISIN change
     #   the mapping asks for, and reports the override.
     test "an ISIN-change override takes effect when all its rows are hash hits" do
-      existing = security!(%{name: "Example Fund", isin: "DE000OLD0001"})
-      new_identity = Map.put(@fund, "isin", "DE000NEW0001")
+      existing = security!(%{name: "Example Fund", isin: "DE000OLD0006"})
+      new_identity = Map.put(@fund, "isin", "DE000NEW0003")
 
       rows = [
         purchase(1, security: new_identity),
@@ -218,8 +218,8 @@ defmodule Portfolixir.Imports.ReimportContractTest do
       assert id == existing.id
 
       updated = Catalog.get_security!(existing.id)
-      assert updated.isin == "DE000NEW0001"
-      assert [%{former_isin: "DE000OLD0001"}] = Catalog.list_identifier_aliases(updated)
+      assert updated.isin == "DE000NEW0003"
+      assert [%{former_isin: "DE000OLD0006"}] = Catalog.list_identifier_aliases(updated)
     end
   end
 
@@ -436,12 +436,12 @@ defmodule Portfolixir.Imports.ReimportContractTest do
     end
 
     test "old and new ISIN of one booking under one account still collapse" do
-      security = security!(%{name: "Example Fund", isin: "DE00000000A1"})
-      {:ok, _} = Catalog.record_isin_change(Actor.owner_ui(), security, "DE00000000B2")
+      security = security!(%{name: "Example Fund", isin: "DE00000000A3"})
+      {:ok, _} = Catalog.record_isin_change(Actor.owner_ui(), security, "DE00000000B1")
 
       rows = [
-        purchase(1, security: Map.put(@fund, "isin", "DE00000000A1")),
-        purchase(2, security: Map.put(@fund, "isin", "DE00000000B2"))
+        purchase(1, security: Map.put(@fund, "isin", "DE00000000A3")),
+        purchase(2, security: Map.put(@fund, "isin", "DE00000000B1"))
       ]
 
       preview = parse!(rows)

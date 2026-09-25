@@ -201,9 +201,10 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
       is_nil(normalized) ->
         {:error, error_changeset(:new_isin, "can't be blank")}
 
-      # E25 S4 (G17): twelve characters of the ISIN shape, before anything is
-      # looked up or moved into the alias table.
-      not Isin.shape?(normalized) ->
+      # E25 S4 (G17) and S5 (G23): twelve characters of the ISIN shape with a
+      # check digit that agrees, before anything is looked up or moved into
+      # the alias table.
+      not Isin.valid?(normalized) ->
         {:error,
          error_changeset(
            :new_isin,

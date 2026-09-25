@@ -7926,3 +7926,8 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "number %{value} cannot be read or is out of range"
 msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance.ex:108
+#, elixir-autogen, elixir-format
+msgid "ISIN %{isin} is not a valid ISIN (shape or check digit) — row not imported"
+msgstr ""

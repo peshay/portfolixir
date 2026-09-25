@@ -147,3 +147,10 @@ msgid "must have keys of at most %{count} character(s)"
 msgid_plural "must have keys of at most %{count} character(s)"
 msgstr[0] ""
 msgstr[1] ""
+
+## Portfolixir.Catalog.Security: an identifier changed on a stored security (E25 S5, G23).
+msgid "is not a WKN (six letters or digits)"
+msgstr ""
+
+msgid "must be printable ASCII characters"
+msgstr ""

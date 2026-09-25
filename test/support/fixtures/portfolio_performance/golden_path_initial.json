@@ -31,7 +31,7 @@
       "shares": 10.0,
       "security": {
         "name": "Acme AG",
-        "isin": "DE000ACME001",
+        "isin": "DE000ACME016",
         "wkn": "ACM111",
         "ticker": "ACM",
         "currency": "EUR"

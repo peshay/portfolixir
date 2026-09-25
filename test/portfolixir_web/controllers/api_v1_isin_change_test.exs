@@ -40,23 +40,23 @@ defmodule PortfolixirWeb.ApiV1IsinChangeTest do
   # - Guard violations (A->A, collisions) return 422 with named errors.
   # - The write is journaled under the API-token actor.
   test "records an ISIN change over the API", %{conn: conn} do
-    security = create_security!(%{isin: "DE0001234567"})
+    security = create_security!(%{isin: "DE0001234565"})
 
     response =
       conn
       |> post_json("/api/v1/securities/#{security.id}/isin-change", %{
         "isin_change" => %{
-          "new_isin" => "de0007654321",
+          "new_isin" => "de0007654329",
           "changed_on" => "2026-07-01",
           "note" => "merger rename"
         }
       })
       |> json_response(200)
 
-    assert response["data"]["isin"] == "DE0007654321"
+    assert response["data"]["isin"] == "DE0007654329"
 
     assert [alias_row] = response["data"]["identifier_aliases"]
-    assert alias_row["former_isin"] == "DE0001234567"
+    assert alias_row["former_isin"] == "DE0001234565"
     assert alias_row["changed_on"] == "2026-07-01"
     assert alias_row["note"] == "merger rename"
 
@@ -70,12 +70,12 @@ defmodule PortfolixirWeb.ApiV1IsinChangeTest do
   end
 
   test "rejects an A->A change with 422", %{conn: conn} do
-    security = create_security!(%{isin: "DE0001234567"})
+    security = create_security!(%{isin: "DE0001234565"})
 
     response =
       conn
       |> post_json("/api/v1/securities/#{security.id}/isin-change", %{
-        "isin_change" => %{"new_isin" => "DE0001234567"}
+        "isin_change" => %{"new_isin" => "DE0001234565"}
       })
       |> json_response(422)
 
@@ -83,13 +83,13 @@ defmodule PortfolixirWeb.ApiV1IsinChangeTest do
   end
 
   test "rejects a collision with another security's live ISIN, naming it", %{conn: conn} do
-    _other = create_security!(%{name: "Other AG", isin: "DE0009999999"})
-    security = create_security!(%{isin: "DE0001234567"})
+    _other = create_security!(%{name: "Other AG", isin: "DE0009999995"})
+    security = create_security!(%{isin: "DE0001234565"})
 
     response =
       conn
       |> post_json("/api/v1/securities/#{security.id}/isin-change", %{
-        "isin_change" => %{"new_isin" => "DE0009999999"}
+        "isin_change" => %{"new_isin" => "DE0009999995"}
       })
       |> json_response(422)
 
@@ -98,12 +98,12 @@ defmodule PortfolixirWeb.ApiV1IsinChangeTest do
   end
 
   test "rejects an invalid changed_on date with 422", %{conn: conn} do
-    security = create_security!(%{isin: "DE0001234567"})
+    security = create_security!(%{isin: "DE0001234565"})
 
     response =
       conn
       |> post_json("/api/v1/securities/#{security.id}/isin-change", %{
-        "isin_change" => %{"new_isin" => "DE0007654321", "changed_on" => "not-a-date"}
+        "isin_change" => %{"new_isin" => "DE0007654329", "changed_on" => "not-a-date"}
       })
       |> json_response(422)
 
@@ -114,7 +114,7 @@ defmodule PortfolixirWeb.ApiV1IsinChangeTest do
     response =
       conn
       |> post_json("/api/v1/securities/999999/isin-change", %{
-        "isin_change" => %{"new_isin" => "DE0007654321"}
+        "isin_change" => %{"new_isin" => "DE0007654329"}
       })
       |> json_response(404)
 
@@ -132,10 +132,10 @@ defmodule PortfolixirWeb.ApiV1IsinChangeTest do
   # - DELETE /api/v1/securities/:security_id/identifier_aliases/:id removes
   #   the alias, journaled, and returns 204.
   test "lists aliases on the security detail and deletes one", %{conn: conn} do
-    security = create_security!(%{isin: "DE0001234567"})
+    security = create_security!(%{isin: "DE0001234565"})
 
     {:ok, %{alias: alias_row}} =
-      Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654321")
+      Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654329")
 
     detail =
       conn
@@ -145,7 +145,7 @@ defmodule PortfolixirWeb.ApiV1IsinChangeTest do
 
     assert [listed] = detail["data"]["identifier_aliases"]
     assert listed["id"] == alias_row.id
-    assert listed["former_isin"] == "DE0001234567"
+    assert listed["former_isin"] == "DE0001234565"
 
     conn =
       build_conn()
@@ -165,11 +165,11 @@ defmodule PortfolixirWeb.ApiV1IsinChangeTest do
   end
 
   test "alias delete returns 404 for an alias of another security", %{conn: conn} do
-    security = create_security!(%{isin: "DE0001234567"})
-    other = create_security!(%{name: "Other AG", isin: "DE0009999999"})
+    security = create_security!(%{isin: "DE0001234565"})
+    other = create_security!(%{name: "Other AG", isin: "DE0009999995"})
 
     {:ok, %{alias: alias_row}} =
-      Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654321")
+      Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654329")
 
     response =
       conn
@@ -189,7 +189,7 @@ defmodule PortfolixirWeb.ApiV1IsinChangeTest do
   # Acceptance criteria:
   # - POST isin-change with a non-object isin_change is a 422 naming the field.
   test "rejects a non-object isin_change payload with 422", %{conn: conn} do
-    security = create_security!(%{isin: "DE0001234567"})
+    security = create_security!(%{isin: "DE0001234565"})
 
     response =
       conn
@@ -209,7 +209,7 @@ defmodule PortfolixirWeb.ApiV1IsinChangeTest do
   # Acceptance criteria:
   # - DELETE identifier_aliases/<non-numeric> returns a 404 not-found.
   test "alias delete returns 404 for a malformed alias id", %{conn: conn} do
-    security = create_security!(%{isin: "DE0001234567"})
+    security = create_security!(%{isin: "DE0001234565"})
 
     response =
       conn

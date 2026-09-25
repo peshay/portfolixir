@@ -159,10 +159,10 @@ defmodule Portfolixir.Imports.ApplierSecurityLadderTest do
 
     test "a veto conflict (unrecorded ISIN change shape) is reported unresolved" do
       portfolio = setup_portfolio()
-      _existing = security!(%{isin: "DE000OLD0009", wkn: "WRG111"})
+      _existing = security!(%{isin: "DE000OLD0014", wkn: "WRG111"})
 
       flagged =
-        buy_entry(%{isin: "DE000NEW0007", wkn: "WRG111", ticker: nil, name: "X", currency: "EUR"})
+        buy_entry(%{isin: "DE000NEW0011", wkn: "WRG111", ticker: nil, name: "X", currency: "EUR"})
 
       assert {:ok, %Result{} = result} =
                Imports.apply(preview([flagged]), %{portfolio_id: portfolio.id})
@@ -278,10 +278,10 @@ defmodule Portfolixir.Imports.ApplierSecurityLadderTest do
 
     test "remap with :record_isin_change records the journaled §3 change" do
       portfolio = setup_portfolio()
-      existing = security!(%{isin: "DE000OLD0009", wkn: "WRG111"})
+      existing = security!(%{isin: "DE000OLD0014", wkn: "WRG111"})
 
       entry =
-        buy_entry(%{isin: "DE000NEW0007", wkn: "WRG111", ticker: nil, name: "X", currency: "EUR"})
+        buy_entry(%{isin: "DE000NEW0011", wkn: "WRG111", ticker: nil, name: "X", currency: "EUR"})
 
       assert {:ok, %Result{} = result} =
                Imports.apply(preview([entry]), %{
@@ -298,9 +298,9 @@ defmodule Portfolixir.Imports.ApplierSecurityLadderTest do
       assert mapped_id == existing.id
 
       updated = Catalog.get_security!(existing.id)
-      assert updated.isin == "DE000NEW0007"
+      assert updated.isin == "DE000NEW0011"
       assert [alias_row] = Catalog.list_identifier_aliases(updated)
-      assert alias_row.former_isin == "DE000OLD0009"
+      assert alias_row.former_isin == "DE000OLD0014"
     end
 
     test "a mapping onto a missing security id rolls the import back" do
@@ -332,20 +332,20 @@ defmodule Portfolixir.Imports.ApplierSecurityLadderTest do
   describe "apply/2 N:1 within-run dedup" do
     test "old+new ISIN of one paper collapse to one booking, surfaced" do
       portfolio = setup_portfolio()
-      security = security!(%{isin: "DE00000000A1"})
+      security = security!(%{isin: "DE00000000A3"})
 
       {:ok, %{security: security}} =
-        Catalog.record_isin_change(Actor.owner_ui(), security, "DE00000000B2")
+        Catalog.record_isin_change(Actor.owner_ui(), security, "DE00000000B1")
 
       old_row =
         buy_entry(
-          %{isin: "DE00000000A1", wkn: nil, ticker: nil, name: "Example AG", currency: "EUR"},
+          %{isin: "DE00000000A3", wkn: nil, ticker: nil, name: "Example AG", currency: "EUR"},
           row: 1
         )
 
       new_row =
         buy_entry(
-          %{isin: "DE00000000B2", wkn: nil, ticker: nil, name: "Example AG", currency: "EUR"},
+          %{isin: "DE00000000B1", wkn: nil, ticker: nil, name: "Example AG", currency: "EUR"},
           row: 2
         )
 
@@ -362,18 +362,18 @@ defmodule Portfolixir.Imports.ApplierSecurityLadderTest do
 
     test "two same-day bookings distinct only by intraday time both import" do
       portfolio = setup_portfolio()
-      _security = security!(%{isin: "DE00000000A1"})
+      _security = security!(%{isin: "DE00000000A3"})
 
       first =
         buy_entry(
-          %{isin: "DE00000000A1", wkn: nil, ticker: nil, name: "Example AG", currency: "EUR"},
+          %{isin: "DE00000000A3", wkn: nil, ticker: nil, name: "Example AG", currency: "EUR"},
           row: 1,
           time: ~T[10:00:00]
         )
 
       second =
         buy_entry(
-          %{isin: "DE00000000A1", wkn: nil, ticker: nil, name: "Example AG", currency: "EUR"},
+          %{isin: "DE00000000A3", wkn: nil, ticker: nil, name: "Example AG", currency: "EUR"},
           row: 2,
           time: ~T[10:05:00]
         )
@@ -400,11 +400,11 @@ defmodule Portfolixir.Imports.ApplierSecurityLadderTest do
   describe "apply/2 preview→apply revalidation" do
     test "aborts when an approved match no longer holds" do
       portfolio = setup_portfolio()
-      security = security!(%{isin: "DE0001234567"})
+      security = security!(%{isin: "DE0001234565"})
 
       entry =
         buy_entry(%{
-          isin: "DE0001234567",
+          isin: "DE0001234565",
           wkn: nil,
           ticker: nil,
           name: "Example AG",
@@ -416,9 +416,9 @@ defmodule Portfolixir.Imports.ApplierSecurityLadderTest do
       # The data changes between preview and apply: the ISIN moves to a
       # different (new) security, so the ladder now selects another id.
       {:ok, _} =
-        Catalog.update_security(Actor.owner_ui(), security, %{isin: "DE0009999999"})
+        Catalog.update_security(Actor.owner_ui(), security, %{isin: "DE0009999995"})
 
-      other = security!(%{name: "Impostor AG", isin: "DE0001234567"})
+      other = security!(%{name: "Impostor AG", isin: "DE0001234565"})
 
       assert {:error, {:resolution_diverged, _key}} =
                Imports.apply(preview([entry]), %{
@@ -432,11 +432,11 @@ defmodule Portfolixir.Imports.ApplierSecurityLadderTest do
 
     test "applies normally when the approved baseline still holds" do
       portfolio = setup_portfolio()
-      security = security!(%{isin: "DE0001234567"})
+      security = security!(%{isin: "DE0001234565"})
 
       entry =
         buy_entry(%{
-          isin: "DE0001234567",
+          isin: "DE0001234565",
           wkn: nil,
           ticker: nil,
           name: "Example AG",
@@ -483,11 +483,11 @@ defmodule Portfolixir.Imports.ApplierSecurityLadderTest do
 
     test "aborts when an entry key is missing from the approved baseline" do
       portfolio = setup_portfolio()
-      _security = security!(%{isin: "DE0001234567"})
+      _security = security!(%{isin: "DE0001234565"})
 
       entry =
         buy_entry(%{
-          isin: "DE0001234567",
+          isin: "DE0001234565",
           wkn: nil,
           ticker: nil,
           name: "Example AG",

@@ -13,6 +13,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
 
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  alias Portfolixir.Catalog.IdentifierAlias
+  alias Portfolixir.Catalog.Isin
   alias Portfolixir.Imports.Entry
   alias Portfolixir.Imports.PortfolioPerformance.CsvParser
   alias Portfolixir.Imports.PortfolioPerformance.JsonParser
@@ -139,12 +141,33 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
 
     * a security reference that names nothing — no name, ISIN, WKN or ticker
       in catalog normal form — is not a security (E25 S5, F33);
+    * an ISIN that fails the catalog's predicate (`Portfolixir.Catalog.Isin`,
+      check digit included) is no ISIN (E25 S5, G23);
     * text the ledger would refuse (`text_error/1`, E25 S4, G24).
   """
   @spec row_error(Entry.t()) :: String.t() | nil
   def row_error(%Entry{} = entry) do
-    blank_security_error(entry) || text_error(entry) || bounds_error(entry)
+    blank_security_error(entry) || isin_error(entry) || text_error(entry) ||
+      bounds_error(entry)
   end
+
+  # E25 S5 (G23): an ISIN is checked with the catalog's one predicate, check
+  # digit included; a lookalike never reaches the matching or a creation.
+  defp isin_error(%Entry{security: %{} = security}) do
+    case IdentifierAlias.normalize_isin(Map.get(security, :isin)) do
+      nil ->
+        nil
+
+      isin ->
+        unless Isin.valid?(isin),
+          do:
+            gettext("ISIN %{isin} is not a valid ISIN (shape or check digit) — row not imported",
+              isin: inspect(isin)
+            )
+    end
+  end
+
+  defp isin_error(%Entry{}), do: nil
 
   # E25 S5 (F39): every amount of the entry and of its split-off refunds,
   # rounded to its column's scale as the ledger rounds it, fits its column.

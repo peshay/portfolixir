@@ -318,6 +318,38 @@ defmodule Portfolixir.Imports.ParserRobustnessTest do
     assert message =~ "gross amount"
   end
 
+  # User story (E25 S5, G23):
+  # As an operator importing an export whose security carries an ISIN that
+  # is not one (a wrong check digit, a letter from another script),
+  # I want that row named as a parser warning and left out,
+  # so that a lookalike never becomes a new security next to the real one.
+  #
+  # Acceptance criteria:
+  # - A row whose ISIN fails the catalog's ISIN predicate is a row warning
+  #   naming the ISIN rule, and is not an entry.
+  # - A row with a valid ISIN next to it is an entry.
+  test "a malformed ISIN is a row warning" do
+    with_isin = fn isin ->
+      Map.put(base_tx(), "security", %{
+        "name" => "Synthetic AG",
+        "isin" => isin,
+        "currency" => "EUR"
+      })
+    end
+
+    for isin <- ["DE000ACME009", "D\u0415000ACME008", "DE000ACME008\u200B"] do
+      assert {:ok, %Preview{entries: [entry], errors: [%{row: 2, message: message}]}} =
+               PortfolioPerformance.parse(json([with_isin.("DE000ACME008"), with_isin.(isin)]),
+                 filename: "isin.json"
+               ),
+             isin
+
+      assert entry.security.isin == "DE000ACME008"
+      assert message =~ "is not a valid ISIN", isin
+      assert message =~ "row not imported", isin
+    end
+  end
+
   test "a version-1 payload whose transactions are not a list is malformed, and a BOM is not a column" do
     assert {:error, :malformed_payload} =
              PortfolioPerformance.parse(~s({"version":1,"transactions":"x"}), filename: "x.json")

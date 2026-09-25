@@ -8,7 +8,8 @@ defmodule Portfolixir.Imports.SecurityResolver do
   4 `(name, currency)`. Determinism rules, all binding:
 
     * a tier applies only when its field is present on **both** sides, in the
-      catalog normal form (trimmed, upcased ISIN/WKN/ticker; trimmed name);
+      catalog normal form (trimmed, upcased ISIN/WKN/ticker; trimmed name
+      without format characters, E25 S5 G23);
     * a tier with zero candidates falls through to the next tier;
     * a tier matching **ambiguously** (>= 2 candidates) neither picks nor
       falls through — the entry becomes a surfaced decision;
@@ -32,7 +33,7 @@ defmodule Portfolixir.Imports.SecurityResolver do
   `resolution_plan/2` (one classified row per unique reference, with a stable
   form-safe key), `config_at_risk/2` (a to-be-created reference near-matching
   an existing security that carries stored category assignments or position
-  targets, ADR-0030), and `unmatched_config_securities/2` (the pre-apply
+  targets, ADR-0030; names compared by `skeleton/1`), and `unmatched_config_securities/2` (the pre-apply
   inverse check: config-bearing, transacted securities matched by zero
   entries).
   """
@@ -43,6 +44,7 @@ defmodule Portfolixir.Imports.SecurityResolver do
   alias Portfolixir.Classifications
   alias Portfolixir.Imports.Entry
   alias Portfolixir.Imports.Preview
+  alias Portfolixir.Input.Text
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Repo
@@ -76,6 +78,7 @@ defmodule Portfolixir.Imports.SecurityResolver do
               by_ticker_ccy: %{},
               by_name_ccy: %{},
               by_name: %{},
+              by_skeleton: %{},
               by_ticker: %{},
               assignment_ids: MapSet.new(),
               position_target_ids: MapSet.new(),
@@ -106,6 +109,7 @@ defmodule Portfolixir.Imports.SecurityResolver do
       by_ticker_ccy: group_by_field(securities, &ticker_ccy_key/1),
       by_name_ccy: group_by_field(securities, &name_ccy_key/1),
       by_name: group_by_field(securities, &normalize_name(&1.name)),
+      by_skeleton: group_by_field(securities, &skeleton(&1.name)),
       by_ticker: group_by_field(securities, & &1.ticker_symbol),
       assignment_ids: Classifications.security_ids_with_assignments(),
       position_target_ids: Targets.security_ids_with_position_targets(),
@@ -156,14 +160,81 @@ defmodule Portfolixir.Imports.SecurityResolver do
 
   defp normalize_code(_value), do: nil
 
+  # The catalog normal form of a name drops the format characters that render
+  # as nothing (E25 S5, G23), as the catalog does when it stores one, so a
+  # name differing from a stored one only by them matches it.
   defp normalize_name(value) when is_binary(value) do
-    case String.trim(value) do
+    case value |> Text.strip_format_characters() |> String.trim() do
       "" -> nil
       trimmed -> trimmed
     end
   end
 
   defp normalize_name(_value), do: nil
+
+  # Lookalike letters from other scripts, folded onto the Latin letter they
+  # render as once lowercased: Cyrillic and Greek.
+  @confusables %{
+    "\u0430" => "a",
+    "\u0432" => "b",
+    "\u0441" => "c",
+    "\u0501" => "d",
+    "\u0435" => "e",
+    "\u04BB" => "h",
+    "\u0456" => "i",
+    "\u0458" => "j",
+    "\u043A" => "k",
+    "\u04CF" => "l",
+    "\u043C" => "m",
+    "\u043D" => "h",
+    "\u043E" => "o",
+    "\u0440" => "p",
+    "\u051B" => "q",
+    "\u0455" => "s",
+    "\u0442" => "t",
+    "\u0443" => "y",
+    "\u051D" => "w",
+    "\u0445" => "x",
+    "\u03B1" => "a",
+    "\u03B2" => "b",
+    "\u03B5" => "e",
+    "\u03B9" => "i",
+    "\u03BA" => "k",
+    "\u03BD" => "v",
+    "\u03BF" => "o",
+    "\u03C1" => "p",
+    "\u03C4" => "t",
+    "\u03C5" => "u",
+    "\u03C7" => "x"
+  }
+
+  @doc """
+  The skeleton a name is compared by in the configuration-at-risk check
+  (E25 S5, G23): no format characters, compatibility-normalized (NFKC, so a
+  full-width or styled letter is its plain one), lowercased, lookalike
+  Cyrillic and Greek letters folded onto the Latin letter they render as, and
+  every run of whitespace one space. Two names with one skeleton look alike
+  to a reader; `nil` for a name with nothing left.
+  """
+  @spec skeleton(String.t() | nil) :: String.t() | nil
+  def skeleton(name) when is_binary(name) do
+    if String.valid?(name) do
+      name
+      |> Text.strip_format_characters()
+      |> String.normalize(:nfkc)
+      |> String.downcase()
+      |> String.graphemes()
+      |> Enum.map_join(&Map.get(@confusables, &1, &1))
+      |> String.split()
+      |> Enum.join(" ")
+      |> case do
+        "" -> nil
+        folded -> folded
+      end
+    end
+  end
+
+  def skeleton(_name), do: nil
 
   @doc """
   A stable, form-field-safe key for a normalized reference: the SHA-256 (hex,
@@ -327,7 +398,15 @@ defmodule Portfolixir.Imports.SecurityResolver do
   """
   @spec config_at_risk(ref(), Index.t()) :: [map()]
   def config_at_risk(%{} = ref, %Index{} = index) do
-    (Map.get(index.by_name, ref.name, []) ++ Map.get(index.by_ticker, ref.ticker, []))
+    # By skeleton (E25 S5, G23): a name that only looks like a stored one
+    # (invisible characters, lookalike letters, case) near-matches it.
+    by_name =
+      case skeleton(ref.name) do
+        nil -> []
+        folded -> Map.get(Map.get(index, :by_skeleton, %{}), folded, [])
+      end
+
+    (by_name ++ Map.get(index.by_ticker, ref.ticker, []))
     |> Enum.uniq_by(& &1.id)
     |> Enum.filter(&config_bearing?(&1.id, index))
     |> Enum.map(fn security ->

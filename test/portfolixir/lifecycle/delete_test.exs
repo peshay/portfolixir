@@ -538,7 +538,7 @@ defmodule Portfolixir.Lifecycle.DeleteTest do
       world = WorldFixtures.base_world()
 
       security =
-        WorldFixtures.create_security!(name: "Race ETF", ticker: "RCE", isin: "XS0000000011")
+        WorldFixtures.create_security!(name: "Race ETF", ticker: "RCE", isin: "XS0000000017")
 
       {strategy, core} = custom_category!("Strategy", "Core")
 
@@ -557,7 +557,7 @@ defmodule Portfolixir.Lifecycle.DeleteTest do
         )
 
       {:ok, %{security: security}} =
-        Catalog.record_isin_change(Actor.owner_ui(), security, "XS0000000029")
+        Catalog.record_isin_change(Actor.owner_ui(), security, "XS0000000025")
 
       queries =
         capture_queries(fn -> assert {:ok, _} = Catalog.delete_security(agent(), security) end)

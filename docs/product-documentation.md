@@ -230,6 +230,10 @@ duplicate bookings (the import marks such rows as "matched via former ISIN").
 Aliases are correctable: they are listed on the security detail
 (`GET /api/v1/securities/:id`) and can be deleted (journaled) when recorded
 by mistake. A plain rename needs no ISIN change — it is just a name edit.
+The new ISIN must be a valid ISIN, check digit included, and so must an ISIN,
+a WKN (six letters or digits) or a ticker (printable ASCII) edited on an
+existing security: a lookalike never replaces the identifier your exports
+carry. A security's name is stored without invisible format characters.
 
 ### Identity fields that freeze (ADR-0050 §11)
 
@@ -1658,7 +1662,10 @@ amount, fee, tax, split-off tax refund or derived price with more digits
 before the decimal point than its column keeps, after rounding to the
 column's decimals), a number the parser cannot read, and a transaction with
 more fee and tax units than one booking carries: each is named with the field
-and its row, and never fails the import after you confirm. An entry with only a WKN or only a ticker is a security like
+and its row, and never fails the import after you confirm. A row whose ISIN
+is not a valid ISIN (its shape or its check digit, a letter from another
+script included) is left out the same way, so a lookalike never becomes a
+second security. An entry with only a WKN or only a ticker is a security like
 any other and resolves through the matching ladder below. A preview is kept
 for your next visit (a language switch, a reload) only once it has been shown.
 
@@ -1767,7 +1774,10 @@ The preview's **Securities from the export** panel shows the outcome:
 - **Configuration-at-risk warnings**: when a to-be-created security
   near-matches an existing one that carries category assignments or position
   targets, the row requires its own explicit confirmation — a duplicate
-  would strand that configuration on a position-less row.
+  would strand that configuration on a position-less row. A name that only
+  looks like a stored one (invisible characters, lookalike letters from
+  another script, a different case or spacing) is such a near-match, and the
+  matching itself ignores invisible characters in names.
 
 When an entry is remapped and its ISIN differs from the chosen security's
 current ISIN, the preview offers to **record the difference as an ISIN
