@@ -267,6 +267,18 @@ defmodule Portfolixir.Ledger.Transaction do
     |> check_constraint(:type, name: :transactions_split_required_fields_check)
     |> check_constraint(:type, name: :transactions_split_ratio_only_for_split_check)
     |> unique_constraint(:import_hash, name: :transactions_import_hash_unique_index)
+    # ADR-0050 §3: a hash a merge retired is held as firmly as a live one; the
+    # database trigger raises this constraint name for either writer.
+    |> unique_constraint(:import_hash,
+      name: :transactions_import_hash_retired,
+      message: "was retired by a merge and cannot be booked again"
+    )
+    # ADR-0050 §1: anchors and splits are never imported, so they never hold a
+    # hash a merge would have to retire.
+    |> check_constraint(:import_hash,
+      name: :transactions_import_hash_kind_check,
+      message: "is never set on a balance anchor or a split"
+    )
     |> unique_constraint(:date,
       name: :transactions_one_split_per_portfolio_security_day_index,
       message: "a split for this security and portfolio is already booked on this date"

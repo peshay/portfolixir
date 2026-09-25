@@ -136,9 +136,9 @@ defmodule Portfolixir.Journal.AppendOnlyTest do
     end
   end
 
-  # ADR-0050 §12 (risk-tier: audit): the record a merge leaves behind is
-  # journal-armed in the migration that creates it. Its append-only half is
-  # pinned in test/portfolixir/lifecycle_test.exs.
+  # ADR-0050 §3 and §12 (risk-tier: audit): the two records a merge leaves
+  # behind are journal-armed in the migrations that create them. Their
+  # append-only half is pinned in test/portfolixir/lifecycle_test.exs.
   describe "lifecycle records are armed at creation (ADR-0050)" do
     test "a raw merge record without a journal actor is rejected" do
       Sandbox.unboxed_run(Repo, fn ->
@@ -147,6 +147,18 @@ defmodule Portfolixir.Journal.AppendOnlyTest do
             "INSERT INTO merge_records (kind, source_id, target_id, source_snapshot, manifest, " <>
               "plan_digest, actor_type, inserted_at) " <>
               "VALUES ('security', 1, 2, '{}', '{}', 'probe', 'system_job', now())"
+          )
+        end
+      end)
+    end
+
+    test "a raw retired hash without a journal actor is rejected" do
+      Sandbox.unboxed_run(Repo, fn ->
+        assert_raise Postgrex.Error, ~r/requires a journal actor/, fn ->
+          Repo.query!(
+            "INSERT INTO retired_import_hashes (import_hash, former_transaction_id, " <>
+              "merge_record_id, reason, inserted_at) " <>
+              "VALUES ('probe', 1, 1, 'internal_transfer', now())"
           )
         end
       end)
