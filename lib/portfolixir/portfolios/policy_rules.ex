@@ -119,7 +119,11 @@ defmodule Portfolixir.Portfolios.PolicyRules do
   the new start; a version not yet in force that starts on or after the new
   one is replaced.
 
-  Returns `{:ok, version}` or `{:error, changeset}`.
+  The rule row is locked before its versions are read (E25 S6, F48), so an
+  edit and a retirement of one rule take turns.
+
+  Returns `{:ok, version}`, `{:error, changeset}`, or `{:error, :not_found}`
+  for a rule deleted since it was read.
   """
   @spec add_version(Actor.t(), PolicyRule.t(), map(), keyword()) ::
           {:ok, PolicyRuleVersion.t()} | {:error, write_error()}
@@ -131,9 +135,9 @@ defmodule Portfolixir.Portfolios.PolicyRules do
       valid_from = Ecto.Changeset.get_field(changeset, :valid_from)
 
       transaction(fn ->
-        versions = versions_of(rule.id)
-
-        with :ok <- starts_after_in_force(changeset, versions, valid_from, today),
+        with :ok <- lock_rule(rule.id),
+             versions = versions_of(rule.id),
+             :ok <- starts_after_in_force(changeset, versions, valid_from, today),
              :ok <- replace_scheduled(actor, versions, valid_from, today),
              :ok <- close_predecessor(actor, versions, valid_from),
              {:ok, version} <- journaled_insert(actor, changeset, "policy_rule_version") do
@@ -154,6 +158,9 @@ defmodule Portfolixir.Portfolios.PolicyRules do
   retired: `{:error, :never_in_force}`. A rule already retired but scheduled
   to restart has the restart cancelled (its versions that have not started
   are dropped); one with nothing scheduled answers `{:error, :already_retired}`.
+  The rule row is locked before its versions are read (E25 S6, F48), so no
+  version added concurrently survives the retirement; a rule deleted since it
+  was read answers `{:error, :not_found}`.
   """
   @spec retire_rule(Actor.t(), PolicyRule.t(), map(), keyword()) ::
           {:ok, PolicyRuleVersion.t()} | {:error, write_error()}
@@ -161,9 +168,9 @@ defmodule Portfolixir.Portfolios.PolicyRules do
     today = today(opts)
 
     transaction(fn ->
-      versions = versions_of(rule.id)
-
-      with {:ok, current} <- latest_started(versions, today) do
+      with :ok <- lock_rule(rule.id),
+           versions = versions_of(rule.id),
+           {:ok, current} <- latest_started(versions, today) do
         case retirement_date(current, attr(attrs, :valid_until), today) do
           {:ok, until} -> retire_current(actor, rule, versions, current, until, today)
           {:error, :already_retired} -> cancel_restart(actor, rule, versions, current, today)
@@ -268,6 +275,8 @@ defmodule Portfolixir.Portfolios.PolicyRules do
   @doc """
   Deletes `rule` and its versions — only while none of them has ever been in
   force (§8): `{:error, :in_force}` otherwise, and the remedy is retiring it.
+  The rule row is locked before its versions are read (E25 S6, F48); a rule
+  already deleted answers `{:error, :not_found}`.
   """
   @spec delete_rule(Actor.t(), PolicyRule.t(), keyword()) ::
           {:ok, PolicyRule.t()} | {:error, write_error()}
@@ -275,15 +284,17 @@ defmodule Portfolixir.Portfolios.PolicyRules do
     today = today(opts)
 
     transaction(fn ->
-      versions = versions_of(rule.id)
+      with :ok <- lock_rule(rule.id) do
+        versions = versions_of(rule.id)
 
-      if Enum.any?(versions, &started?(&1, today)) do
-        Repo.rollback(:in_force)
-      else
-        Enum.each(versions, &ok!(journaled_delete(actor, &1, "policy_rule_version")))
-        deleted = ok!(journaled_delete(actor, %{rule | versions: []}, "policy_rule"))
-        Invalidation.after_rule_write(rule.portfolio_id, Repo)
-        deleted
+        if Enum.any?(versions, &started?(&1, today)) do
+          Repo.rollback(:in_force)
+        else
+          Enum.each(versions, &ok!(journaled_delete(actor, &1, "policy_rule_version")))
+          deleted = ok!(journaled_delete(actor, %{rule | versions: []}, "policy_rule"))
+          Invalidation.after_rule_write(rule.portfolio_id, Repo)
+          deleted
+        end
       end
     end)
   end
@@ -616,6 +627,24 @@ defmodule Portfolixir.Portfolios.PolicyRules do
   end
 
   defp latest_date(a, b), do: if(Date.compare(a, b) == :lt, do: b, else: a)
+
+  # E25 S6 (#891), F48: the rule row is locked FOR UPDATE, in a statement of
+  # its own, before its versions are read. Locking the versions holds only
+  # the rows that exist; a version added concurrently is an insert, which
+  # waits on this lock through its foreign key, so a retirement or a delete
+  # can no longer read the versions while another write adds one that then
+  # survives it. A rule deleted in the meantime answers `:not_found`.
+  defp lock_rule(rule_id) do
+    PolicyRule
+    |> where([r], r.id == ^rule_id)
+    |> lock("FOR UPDATE")
+    |> select([r], r.id)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      _id -> :ok
+    end
+  end
 
   defp versions_of(rule_id) do
     PolicyRuleVersion

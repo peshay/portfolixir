@@ -148,6 +148,10 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
         {:ok, version} ->
           conn |> put_status(:created) |> json(%{data: PolicyJSON.version(version)})
 
+        # Deleted between the read and the write's lock (E25 S6, F48).
+        {:error, :not_found} ->
+          not_found(conn)
+
         {:error, %Ecto.Changeset{} = changeset} ->
           unprocessable(conn, JSON.errors(changeset))
       end
@@ -225,6 +229,9 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
         {:error, :already_retired} ->
           conflict(conn, "this rule is already retired")
 
+        {:error, :not_found} ->
+          not_found(conn)
+
         {:error, %Ecto.Changeset{} = changeset} ->
           unprocessable(conn, JSON.errors(changeset))
       end
@@ -239,6 +246,9 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
       case PolicyRules.delete_rule(conn.assigns.actor, rule) do
         {:ok, _deleted} ->
           send_resp(conn, :no_content, "")
+
+        {:error, :not_found} ->
+          not_found(conn)
 
         {:error, :in_force} ->
           conflict(

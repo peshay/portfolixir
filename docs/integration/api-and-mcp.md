@@ -1851,6 +1851,11 @@ The writes:
 - `DELETE /api/v1/policy_rules/:id` — only while **no** version has ever been
   in force (`204`); otherwise `409`, and the remedy is retiring it.
 
+A new version, a retirement and a delete each hold the rule while they read
+its versions, so two of them on one rule take turns: a version added while a
+retirement runs waits for it and is judged against the retired rule, never
+surviving it. A rule deleted since it was read is a `404` on all three.
+
 **What a rule reads is protected.** Deleting a security, a category, a
 classification or a view that a rule version (or a rule's context) references
 answers **`409`** with `errors.policy_rules` — each rule's `id`, `name` and

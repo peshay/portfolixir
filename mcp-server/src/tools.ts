@@ -3080,7 +3080,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.policy_rules.add_version",
     "Change a rule (a new version)",
-    "The edit of a policy rule: adds a new version from valid_from (default today, never earlier), and the previous version is closed the day before — both stay readable, so the standard in force on any date is a read. A version that has been in force is never changed or deleted. A version that is only scheduled (valid_from still in the future) is replaced by adding a version from the same or an earlier future date. The version carries the whole predicate (see portfolixir.policy_rules.create for the matrix and scales). Journaled under the API token.",
+    "The edit of a policy rule: adds a new version from valid_from (default today, never earlier), and the previous version is closed the day before — both stay readable, so the standard in force on any date is a read. A version that has been in force is never changed or deleted. A version that is only scheduled (valid_from still in the future) is replaced by adding a version from the same or an earlier future date. The version carries the whole predicate (see portfolixir.policy_rules.create for the matrix and scales). Holds the rule while it reads its versions, so it takes its turn with a concurrent retirement; a rule deleted meanwhile answers 404. Journaled under the API token.",
     policyRuleAddVersionSchema,
     policyRuleAddVersionZ
   ),
@@ -3094,14 +3094,14 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.policy_rules.retire",
     "Retire a rule",
-    "Retire a policy rule: its version in force ends on valid_until (default yesterday, or today when it only started today; never earlier), any scheduled version after that is dropped, and the rule and all its versions stay readable (list with include_retired=true). A rule none of whose versions has ever been in force answers 409 — delete it instead. Journaled under the API token.",
+    "Retire a policy rule: its version in force ends on valid_until (default yesterday, or today when it only started today; never earlier), any scheduled version after that is dropped, and the rule and all its versions stay readable (list with include_retired=true). A rule none of whose versions has ever been in force answers 409 — delete it instead. A version added while the retirement runs waits for it and never survives it; a rule deleted meanwhile answers 404. Journaled under the API token.",
     policyRuleRetireSchema,
     policyRuleRetireZ
   ),
   tool(
     "portfolixir.policy_rules.delete",
     "Delete a rule nobody was measured against",
-    "Delete a policy rule and its versions — ONLY while none of its versions has ever been in force (all start in the future). A standard that was in force is never removed: that answers 409 and the remedy is portfolixir.policy_rules.retire. Journaled under the API token.",
+    "Delete a policy rule and its versions — ONLY while none of its versions has ever been in force (all start in the future). A standard that was in force is never removed: that answers 409 and the remedy is portfolixir.policy_rules.retire. A rule already deleted answers 404. Journaled under the API token.",
     idSchema,
     idZ
   ),
