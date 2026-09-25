@@ -157,6 +157,7 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
       else
         nil -> not_found(conn)
         :error -> not_found(conn)
+        {:error, :not_found} -> not_found(conn)
         {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
       end
     end
@@ -176,6 +177,7 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
     else
       nil -> not_found(conn)
       :error -> not_found(conn)
+      {:error, :not_found} -> not_found(conn)
       {:error, _changeset} -> conflict(conn)
     end
   end

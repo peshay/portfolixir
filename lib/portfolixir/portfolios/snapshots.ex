@@ -85,6 +85,9 @@ defmodule Portfolixir.Portfolios.Snapshots do
   defp normalize({:ok, %{snapshot: snapshot}}), do: {:ok, snapshot}
   defp normalize({:error, :snapshot, changeset, _changes}), do: {:error, changeset}
 
+  # The row was deleted before the write took its lock (E25 S6, F49).
+  defp normalize({:error, {:journal_lock, _}, :not_found, _changes}), do: {:error, :not_found}
+
   defp filter_view(query, opts) do
     case Keyword.fetch(opts, :view) do
       :error -> query

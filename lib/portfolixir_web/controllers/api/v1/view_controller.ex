@@ -71,6 +71,7 @@ defmodule PortfolixirWeb.Api.V1.ViewController do
       {:error, {:policy_rules, rules}} -> PolicyConflict.render(conn, rules, "view")
       nil -> not_found(conn)
       :error -> not_found(conn)
+      {:error, :not_found} -> not_found(conn)
       {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
     end
   end

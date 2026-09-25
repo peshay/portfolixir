@@ -64,6 +64,7 @@ defmodule PortfolixirWeb.Api.V1.CashAccountController do
     else
       nil -> not_found(conn)
       :error -> not_found(conn)
+      {:error, :not_found} -> not_found(conn)
       {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
     end
   end

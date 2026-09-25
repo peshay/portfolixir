@@ -2225,6 +2225,11 @@ they replaced or released as the before-image.
   (`inserted_at:desc,id:desc`), the `count` and the `filters` applied.
   SOLL target writes (category and position rows alike) are journaled under
   `resource_type=target`; plan-version writes under `resource_type=target_plan`.
+- An update's or a delete's `before` is the row as stored when the write took
+  its lock, and an update's `after` is the row as stored after it — decimals
+  at their column's scale. Two writes made from one read therefore chain: the
+  second's `before` is the first's `after`. A write to a record deleted in
+  the meantime answers `404` and leaves no entry.
 
 The journal currently covers the Catalog/Fx contexts (security master-data
 writes); the remaining write contexts are armed in sequence.

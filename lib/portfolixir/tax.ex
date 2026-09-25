@@ -92,7 +92,7 @@ defmodule Portfolixir.Tax do
   corrected seed row stays recognisable to the rollback.
   """
   @spec upsert_parameters(Actor.t(), map()) ::
-          {:ok, Parameters.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, Parameters.t()} | {:error, Ecto.Changeset.t() | :not_found}
   def upsert_parameters(%Actor{} = actor, attrs) when is_map(attrs) do
     fresh = Parameters.changeset(%Parameters{}, attrs)
     jurisdiction = Ecto.Changeset.get_field(fresh, :jurisdiction)
@@ -121,7 +121,7 @@ defmodule Portfolixir.Tax do
 
   defp update_parameters(actor, existing, attrs) do
     Multi.new()
-    |> Multi.update(:parameters, Parameters.changeset(existing, attrs))
+    |> Multi.update(:parameters, &Parameters.changeset(Journal.locked_row(&1), attrs))
     |> Journal.record(actor,
       resource_type: "tax_parameters",
       operation: :update,
@@ -275,10 +275,10 @@ defmodule Portfolixir.Tax do
 
   @doc "Updates a taxpayer profile on behalf of `actor`."
   @spec update_profile(Actor.t(), Profile.t(), map()) ::
-          {:ok, Profile.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, Profile.t()} | {:error, Ecto.Changeset.t() | :not_found}
   def update_profile(%Actor{} = actor, %Profile{} = profile, attrs) when is_map(attrs) do
     Multi.new()
-    |> Multi.update(:profile, Profile.changeset(profile, attrs))
+    |> Multi.update(:profile, &Profile.changeset(Journal.locked_row(&1), attrs))
     |> Journal.record(actor,
       resource_type: "tax_profile",
       operation: :update,
@@ -333,7 +333,7 @@ defmodule Portfolixir.Tax do
   then cross-check against itself.
   """
   @spec put_allowance_order(Actor.t(), map()) ::
-          {:ok, AllowanceOrder.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, AllowanceOrder.t()} | {:error, Ecto.Changeset.t() | :not_found}
   def put_allowance_order(%Actor{} = actor, attrs) when is_map(attrs) do
     fresh = AllowanceOrder.changeset(%AllowanceOrder{}, attrs)
 
@@ -376,7 +376,7 @@ defmodule Portfolixir.Tax do
 
   defp update_allowance_order(actor, existing, attrs) do
     Multi.new()
-    |> Multi.update(:order, AllowanceOrder.changeset(existing, attrs))
+    |> Multi.update(:order, &AllowanceOrder.changeset(Journal.locked_row(&1), attrs))
     |> Journal.record(actor,
       resource_type: "allowance_order",
       operation: :update,
@@ -487,13 +487,16 @@ defmodule Portfolixir.Tax do
   the same statement date. The frozen `church_tax_rate` is not re-resolved.
   """
   @spec update_snapshot(Actor.t(), StatementSnapshot.t(), map(), keyword()) ::
-          {:ok, StatementSnapshot.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, StatementSnapshot.t()} | {:error, Ecto.Changeset.t() | :not_found}
   def update_snapshot(%Actor{} = actor, %StatementSnapshot{} = snapshot, attrs, opts \\ [])
       when is_map(attrs) do
     today = Keyword.get(opts, :today, Date.utc_today())
 
     Multi.new()
-    |> Multi.update(:snapshot, StatementSnapshot.changeset(snapshot, attrs, today))
+    |> Multi.update(
+      :snapshot,
+      &StatementSnapshot.changeset(Journal.locked_row(&1), attrs, today)
+    )
     |> Journal.record(actor,
       resource_type: "tax_statement_snapshot",
       operation: :update,
@@ -716,4 +719,8 @@ defmodule Portfolixir.Tax do
 
   defp normalize({:ok, changes}, step), do: {:ok, Map.fetch!(changes, step)}
   defp normalize({:error, step, changeset, _changes}, step), do: {:error, changeset}
+
+  # The row was deleted before the write took its lock (E25 S6, F49).
+  defp normalize({:error, {:journal_lock, _}, :not_found, _changes}, _step),
+    do: {:error, :not_found}
 end

@@ -31,6 +31,9 @@ defmodule PortfolixirWeb.Api.V1.IsinChangeController do
       {:ok, %{security: updated}} ->
         json(conn, %{data: JSON.security(Catalog.with_identifier_aliases(updated))})
 
+      {:error, :not_found} ->
+        not_found(conn)
+
       {:error, changeset} ->
         validation_error(conn, changeset)
     end
@@ -52,6 +55,7 @@ defmodule PortfolixirWeb.Api.V1.IsinChangeController do
     else
       nil -> not_found(conn)
       :error -> not_found(conn)
+      {:error, :not_found} -> not_found(conn)
       {:error, changeset} -> validation_error(conn, changeset)
     end
   end

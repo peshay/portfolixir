@@ -186,6 +186,9 @@ defmodule Portfolixir.Catalog.LogoLookup.WikipediaMalformedTest do
   # - A failure after the logo was found, while it is stored, is
   #   {:error, :store_failed} and logged as a storage failure, not as a
   #   malformed upstream answer.
+  # - A security deleted by the time its found logo is recorded answers
+  #   {:error, :not_found} (the journal's locked re-read, E25 S6, F49), not a
+  #   malformed upstream answer either.
   test "a local failure while storing a found logo is not blamed on the upstream" do
     tmp = Path.join(System.tmp_dir!(), "portfolixir-logos-#{System.unique_integer([:positive])}")
     File.mkdir_p!(tmp)
@@ -210,16 +213,28 @@ defmodule Portfolixir.Catalog.LogoLookup.WikipediaMalformedTest do
       end
     end
 
-    # The row is gone by the time the found logo is recorded: a local fault.
-    vanished = %{security | id: security.id + 1_000_000}
+    # A struct that names no stored row cannot be recorded at all: a local
+    # fault in the store path.
+    unstored = %{security | id: nil}
 
     log =
       ExUnit.CaptureLog.capture_log(fn ->
         assert {:error, :store_failed} =
-                 LogoLookup.run(vanished, req: [plug: answer], storage_dir: tmp)
+                 LogoLookup.run(unstored, req: [plug: answer], storage_dir: tmp)
       end)
 
     assert log =~ "could not be stored"
+    refute log =~ "malformed upstream"
+
+    # The row is gone by the time the found logo is recorded.
+    vanished = %{security | id: security.id + 1_000_000}
+
+    log =
+      ExUnit.CaptureLog.capture_log(fn ->
+        assert {:error, :not_found} =
+                 LogoLookup.run(vanished, req: [plug: answer], storage_dir: tmp)
+      end)
+
     refute log =~ "malformed upstream"
   end
 end

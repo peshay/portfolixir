@@ -2106,6 +2106,13 @@ ignoriert.
   selbstbeschreibend: ein `meta`-Objekt nennt den `as_of`-Zeitpunkt, die
   Sortierung `order` (`inserted_at:desc,id:desc`), die Anzahl `count` und die
   angewandten `filters`.
+- Das `before` einer Änderung oder Löschung ist die Zeile, wie sie gespeichert
+  war, als der Schreibvorgang sie gesperrt hat, und das `after` einer Änderung
+  die Zeile, wie sie danach gespeichert ist — Dezimalwerte in der Skala ihrer
+  Spalte. Zwei Schreibvorgänge auf Grundlage eines Lesevorgangs reihen sich
+  daher aneinander: Das `before` des zweiten ist das `after` des ersten. Ein
+  Schreibvorgang auf einen inzwischen gelöschten Datensatz antwortet mit `404`
+  und hinterlässt keinen Eintrag.
 
 Das Journal deckt derzeit die Kontexte Catalog/Fx ab (Wertpapier-Stammdaten);
 die übrigen Schreibkontexte werden nacheinander scharfgeschaltet.

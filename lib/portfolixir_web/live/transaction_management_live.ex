@@ -734,7 +734,11 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp book(id, params) do
     case Ledger.get_transaction(id) do
       %Transaction{} = transaction ->
-        Ledger.update_transaction(Actor.owner_ui(), transaction, params)
+        # Deleted between this read and the write's lock (E25 S6, F49).
+        case Ledger.update_transaction(Actor.owner_ui(), transaction, params) do
+          {:error, :not_found} -> :gone
+          result -> result
+        end
 
       nil ->
         :gone

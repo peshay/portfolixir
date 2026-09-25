@@ -58,15 +58,25 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
     Repo.transaction(fn ->
       acquire_isin_write_lock(Repo)
 
-      with {:ok, normalized} <- validate_new_isin(security, new_isin),
+      # The ISIN that becomes the alias is the stored one, read under the
+      # row's lock, not the caller's copy (E25 S6, F49).
+      with {:ok, security} <- lock_security(security),
+           {:ok, normalized} <- validate_new_isin(security, new_isin),
            :ok <- consume_own_alias(actor, security, normalized),
            {:ok, alias_row} <- insert_alias(actor, security, changed_on, note),
            {:ok, updated} <- write_new_isin(actor, security, normalized) do
         %{security: updated, alias: alias_row}
       else
-        {:error, %Changeset{} = changeset} -> Repo.rollback(changeset)
+        {:error, reason} -> Repo.rollback(reason)
       end
     end)
+  end
+
+  defp lock_security(%Security{id: id}) do
+    case Repo.one(from(s in Security, where: s.id == ^id, lock: "FOR UPDATE")) do
+      nil -> {:error, :not_found}
+      stored -> {:ok, stored}
+    end
   end
 
   @doc "Lists a security's identifier aliases, newest change first."
@@ -105,6 +115,8 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
     case Repo.transaction(multi) do
       {:ok, %{alias: deleted}} -> {:ok, deleted}
       {:error, :alias, %Changeset{} = changeset, _changes} -> {:error, changeset}
+      # The row was deleted before the write took its lock (E25 S6, F49).
+      {:error, {:journal_lock, _}, :not_found, _changes} -> {:error, :not_found}
     end
   end
 
@@ -123,7 +135,7 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
            {:ok, updated} <- journaled_alias_update(actor, alias_row, changeset) do
         updated
       else
-        {:error, %Changeset{} = error_changeset} -> Repo.rollback(error_changeset)
+        {:error, reason} -> Repo.rollback(reason)
       end
     end)
   end
@@ -309,6 +321,7 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
     case Repo.transaction(multi) do
       {:ok, %{security: updated}} -> {:ok, updated}
       {:error, :security, %Changeset{} = error, _changes} -> {:error, error}
+      {:error, {:journal_lock, _}, :not_found, _changes} -> {:error, :not_found}
     end
   end
 
@@ -326,6 +339,7 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
     case Repo.transaction(multi) do
       {:ok, %{alias: updated}} -> {:ok, updated}
       {:error, :alias, %Changeset{} = error, _changes} -> {:error, error}
+      {:error, {:journal_lock, _}, :not_found, _changes} -> {:error, :not_found}
     end
   end
 

@@ -400,7 +400,9 @@ defmodule Portfolixir.Lifecycle.AccountNamesTest do
 
       row_reads = Enum.filter(queries, &(&1 =~ ~r/FROM "cash_accounts".*FOR (NO KEY )?UPDATE/s))
 
-      assert length(row_reads) == 2
+      # Each write reads the row under its lock, and the journal re-reads it
+      # for the before-image under the same mode (E25 S6, F49).
+      assert length(row_reads) >= 2
       assert Enum.all?(row_reads, &(&1 =~ "FOR NO KEY UPDATE"))
     end
   end

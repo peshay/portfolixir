@@ -134,6 +134,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
       json(conn, %{data: JSON.security(updated)})
     else
       nil -> not_found(conn)
+      {:error, :not_found} -> not_found(conn)
       {:error, changeset} -> validation_error(conn, changeset)
     end
   end

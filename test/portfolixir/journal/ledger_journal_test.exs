@@ -63,9 +63,10 @@ defmodule Portfolixir.LedgerJournalTest do
 
     {:ok, _} = Ledger.update_transaction(Actor.owner_ui(), tx, %{quantity: "12"})
 
+    # Both images are the row as stored, at its column's scale (E25 S6, F49).
     assert [entry] = Journal.list_entries(resource_type: "transaction", operation: :update)
-    assert entry.before["quantity"] == "10"
-    assert entry.after["quantity"] == "12"
+    assert Decimal.equal?(entry.before["quantity"], "10")
+    assert Decimal.equal?(entry.after["quantity"], "12")
     assert entry.resource_id == to_string(tx.id)
   end
 

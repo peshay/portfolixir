@@ -52,6 +52,23 @@ defmodule Portfolixir.Journal do
 
   An `update` whose record equals its `:before` snapshot changed nothing and
   records no entry: the step answers `:unchanged` (E25 S6, G02).
+
+  **The before-image is read under a lock** (E25 S6, F49). When `:before` is
+  a stored row (a schema struct with an id) of an `update`, a `delete` or an
+  `upsert`, a step `{:journal_lock, journal_step}` runs first — right after
+  the actor is set, ahead of the business write — and re-reads that row under
+  the lock the write itself takes (`FOR NO KEY UPDATE` for an update or an
+  upsert, `FOR UPDATE` for a delete). The re-read row, not the struct the
+  caller read earlier outside the transaction, is the entry's before-image,
+  and a business step builds its changeset on it through `locked_row/2`; an
+  `update`'s after-image is the row re-read after the write, as stored. Two
+  writers acting on one read therefore chain in the journal (the second's
+  before-image is the first's after-image) instead of both claiming the same
+  prior state. A row that is gone by then fails the lock step with
+  `:not_found`, before anything is written: the transaction answers
+  `{:error, {:journal_lock, step}, :not_found, changes}`. An upsert's prior
+  row that is gone leaves no before-image instead: the upsert inserts it
+  afresh.
   """
   @spec record(Multi.t(), Actor.t(), keyword()) :: Multi.t()
   def record(%Multi{} = multi, %Actor{} = actor, opts) when is_list(opts) do
@@ -62,11 +79,14 @@ defmodule Portfolixir.Journal do
     scenario_id = Keyword.get(opts, :scenario_id)
     journal_step = Keyword.get(opts, :journal_step, :journal_entry)
     filed_under = Keyword.get(opts, :resource_id)
+    lock_step = lock_step(operation, before, journal_step)
 
     multi
+    |> Multi.prepend(lock_before_multi(lock_step, operation, before))
     |> Multi.prepend(set_actor_multi(actor))
     |> Multi.run(journal_step, fn repo, changes ->
-      record = Map.fetch!(changes, source)
+      before = locked_before(changes, lock_step, before)
+      record = stored_after(repo, operation, lock_step, Map.fetch!(changes, source))
 
       if unchanged?(operation, before, record) do
         {:ok, :unchanged}
@@ -84,11 +104,36 @@ defmodule Portfolixir.Journal do
       # #851: the before-image rides along, so an edit that MOVES a record
       # (a transaction to another security or portfolio) also bumps what the
       # record used to affect — the radius is the union of both images.
-      Invalidation.after_write(repo, resource_type, Map.fetch!(changes, source), before)
+      Invalidation.after_write(
+        repo,
+        resource_type,
+        Map.fetch!(changes, source),
+        locked_before(changes, lock_step, before)
+      )
+
       {:ok, :invalidated}
     end)
     |> Multi.run(:journal_reset_actor, fn repo, _changes -> reset_actor(repo) end)
   end
+
+  @doc """
+  The row the lock step of `journal_step` re-read under its lock (F49), for a
+  business step to build its changeset on: `Multi.update(:x,
+  &Schema.changeset(Journal.locked_row(&1), attrs))`. The changeset then
+  starts from the stored row, as the before-image does, not from the
+  caller's earlier read.
+  """
+  @spec locked_row(map(), atom()) :: struct()
+  def locked_row(changes, journal_step \\ :journal_entry),
+    do: Map.fetch!(changes, {:journal_lock, journal_step})
+
+  @doc """
+  Whether a transaction result is the journal's lock step finding its row
+  gone (F49): `{:error, {:journal_lock, _}, :not_found, _}`.
+  """
+  @spec row_gone?(term()) :: boolean()
+  def row_gone?({:error, {:journal_lock, _step}, :not_found, _changes}), do: true
+  def row_gone?(_result), do: false
 
   @doc """
   Lists journal entries, newest first. Filters (all optional):
@@ -150,6 +195,61 @@ defmodule Portfolixir.Journal do
     repo.query!("SELECT set_config($1, NULL, true)", [@actor_setting])
     {:ok, :reset}
   end
+
+  # F49: only a stored row of an update, a delete or an upsert is re-read
+  # under a lock; an aggregate (a map, a struct without a table or an id)
+  # keeps the image its caller built.
+  defp lock_step(operation, %schema{id: id}, journal_step)
+       when operation in [:update, :delete, :upsert] and not is_nil(id) do
+    if function_exported?(schema, :__schema__, 1) and schema.__schema__(:source) != nil,
+      do: {:journal_lock, journal_step},
+      else: nil
+  end
+
+  defp lock_step(_operation, _before, _journal_step), do: nil
+
+  defp lock_before_multi(nil, _operation, _before), do: Multi.new()
+
+  # The lock is the one the write itself takes, only earlier: an update of
+  # non-key columns holds FOR NO KEY UPDATE, so a booking's foreign-key check
+  # (KEY SHARE) on the row does not wait for it; a delete holds FOR UPDATE.
+  defp lock_before_multi(step, :delete, before),
+    do: lock_row_multi(step, before, from(r in before.__struct__, lock: "FOR UPDATE"), :not_found)
+
+  # An upsert whose prior row is gone inserts it afresh: its before-image is
+  # then none, not an error.
+  defp lock_before_multi(step, :upsert, before),
+    do: lock_row_multi(step, before, from(r in before.__struct__, lock: "FOR NO KEY UPDATE"), nil)
+
+  defp lock_before_multi(step, :update, before),
+    do:
+      lock_row_multi(
+        step,
+        before,
+        from(r in before.__struct__, lock: "FOR NO KEY UPDATE"),
+        :not_found
+      )
+
+  defp lock_row_multi(step, %{id: id}, query, when_gone) do
+    Multi.run(Multi.new(), step, fn repo, _changes ->
+      case {repo.one(from(r in query, where: r.id == ^id)), when_gone} do
+        {nil, nil} -> {:ok, nil}
+        {nil, :not_found} -> {:error, :not_found}
+        {row, _when_gone} -> {:ok, row}
+      end
+    end)
+  end
+
+  defp locked_before(_changes, nil, before), do: before
+  defp locked_before(changes, step, _before), do: Map.fetch!(changes, step)
+
+  # An update's after-image is the row as stored: the struct Ecto returns is
+  # the caller's read with the changes applied, which misses what another
+  # writer changed in between.
+  defp stored_after(repo, :update, step, %schema{id: id} = record) when not is_nil(step),
+    do: repo.get(schema, id) || record
+
+  defp stored_after(_repo, _operation, _step, record), do: record
 
   # An update whose after-image equals its before-image changed nothing: a
   # valid changeset without changes is not written (Ecto returns the row

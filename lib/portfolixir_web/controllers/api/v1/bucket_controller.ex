@@ -52,6 +52,7 @@ defmodule PortfolixirWeb.Api.V1.BucketController do
     else
       nil -> not_found(conn)
       :error -> not_found(conn)
+      {:error, :not_found} -> not_found(conn)
       {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
     end
   end
@@ -61,6 +62,7 @@ defmodule PortfolixirWeb.Api.V1.BucketController do
          %Bucket{} = bucket <- Buckets.get_bucket(bid) do
       case Buckets.delete_bucket(conn.assigns.actor, bucket) do
         {:ok, _} -> send_resp(conn, :no_content, "")
+        {:error, :not_found} -> not_found(conn)
         {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
       end
     else
