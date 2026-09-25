@@ -63,7 +63,10 @@ defmodule PortfolixirWeb.Api.V1.BucketController do
       case Buckets.delete_bucket(conn.assigns.actor, bucket) do
         {:ok, _} -> send_resp(conn, :no_content, "")
         {:error, :not_found} -> not_found(conn)
-        {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
+        {:error, %Ecto.Changeset{} = changeset} -> unprocessable(conn, JSON.errors(changeset))
+        # A set a membership could not be released from (E25 S6 review
+        # round, G19): named, never a server error.
+        {:error, _reason} -> unprocessable(conn, %{detail: ["could not delete the bucket"]})
       end
     else
       nil -> not_found(conn)

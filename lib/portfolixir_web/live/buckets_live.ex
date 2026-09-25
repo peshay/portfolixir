@@ -647,11 +647,23 @@ defmodule PortfolixirWeb.BucketsLive do
     socket = assign(socket, :row_menu, nil)
 
     with {:ok, bucket_id} <- LiveParam.fetch_id(id),
-         bucket when not is_nil(bucket) <- Buckets.get_bucket(bucket_id),
+         {:ok, bucket} <- bucket_to_delete(bucket_id),
          {:ok, _} <- Buckets.delete_bucket(Actor.owner_ui(), bucket) do
       {:noreply, socket |> success(gettext("Bucket deleted")) |> load_state()}
     else
-      _ -> {:noreply, socket}
+      # E25 S6 review round (G19): a delete that does not happen says why.
+      {:error, :not_found} ->
+        {:noreply,
+         socket
+         |> failure(gettext("That bucket no longer exists. Refresh and try again."))
+         |> load_state()}
+
+      {:error, _reason} ->
+        {:noreply,
+         failure(socket, gettext("The bucket could not be deleted. Nothing was changed."))}
+
+      _unreadable_id ->
+        {:noreply, socket}
     end
   end
 
@@ -942,5 +954,12 @@ defmodule PortfolixirWeb.BucketsLive do
     changeset.errors
     |> Enum.map(fn {field, {message, _opts}} -> "#{field} #{message}" end)
     |> Enum.join(", ")
+  end
+
+  defp bucket_to_delete(bucket_id) do
+    case Buckets.get_bucket(bucket_id) do
+      nil -> {:error, :not_found}
+      bucket -> {:ok, bucket}
+    end
   end
 end

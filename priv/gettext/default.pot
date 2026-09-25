@@ -2637,6 +2637,11 @@ msgstr ""
 msgid "That bucket no longer exists. Refresh and try again."
 msgstr ""
 
+#: lib/portfolixir_web/live/buckets_live.ex
+#, elixir-autogen, elixir-format
+msgid "The bucket could not be deleted. Nothing was changed."
+msgstr ""
+
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:872
 #, elixir-autogen, elixir-format
 msgid "That account no longer exists. Refresh and try again."

@@ -194,6 +194,54 @@ defmodule Portfolixir.Buckets.ViewDefinitionJournalTest do
              ])
   end
 
+  # User story (E25 S6 review round, G19/T-10):
+  # As the operator whose position override was stored before the exclusive
+  # scope rule held for overrides,
+  # I want deleting an unrelated tag bucket to go through,
+  # so that a set the rule would refuse today never blocks a delete that
+  # only removes a bucket from it.
+  #
+  # Acceptance criteria:
+  # - The delete succeeds; the override keeps its other buckets, journaled.
+  # - Removing a bucket never re-checks the exclusive dimension, since it
+  #   cannot add a conflict; the remaining buckets must still exist.
+  test "a stored set that breaks the exclusive dimension does not block a bucket delete" do
+    world = base_world(name: "Legacy Portfolio")
+    security = create_security!(name: "Harbor Light Utilities SE", ticker: "HLU")
+    scope_one = bucket!("Scope one", "scope")
+    scope_two = bucket!("Scope two", "scope")
+    tag = bucket!("Tag")
+
+    legacy_override!(world.depot.id, security.id, [scope_one.id, scope_two.id, tag.id])
+
+    assert {:ok, _} = Buckets.delete_bucket(owner(), tag)
+
+    assert Buckets.position_override(world.depot.id, security.id) ==
+             {:explicit, Enum.sort([scope_one.id, scope_two.id])}
+
+    assert {:error, :exclusive_bucket_conflict} =
+             Buckets.set_position_override(owner(), world.depot, security, [
+               scope_one.id,
+               scope_two.id
+             ])
+  end
+
+  # A set as a writer before the fix round stored it: rows inserted raw.
+  defp legacy_override!(depot_id, security_id, bucket_ids) do
+    {:ok, _} =
+      Repo.transaction(fn ->
+        Repo.query!("SELECT set_config('portfolixir.journal_actor', 'test', true)")
+
+        Repo.insert_all(
+          Portfolixir.Buckets.PositionBucketOverride,
+          Enum.map(
+            bucket_ids,
+            &%{securities_account_id: depot_id, security_id: security_id, bucket_id: &1}
+          )
+        )
+      end)
+  end
+
   test "a bucket or a view deleted in the meantime answers not found" do
     bucket = bucket!("Gone")
     view = view!("Gone view")
