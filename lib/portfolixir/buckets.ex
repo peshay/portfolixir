@@ -246,7 +246,7 @@ defmodule Portfolixir.Buckets do
     |> write_depot_default_buckets(
       %SecuritiesAccount{id: securities_account_id},
       depot_default_bucket_ids(securities_account_id) -- [bucket_id],
-      :release
+      :exists
     )
     |> owner_gone_is_released()
   end
@@ -256,7 +256,7 @@ defmodule Portfolixir.Buckets do
     |> write_cash_account_buckets(
       %CashAccount{id: cash_account_id},
       cash_account_bucket_ids(cash_account_id) -- [bucket_id],
-      :release
+      :exists
     )
     |> owner_gone_is_released()
   end
@@ -275,7 +275,7 @@ defmodule Portfolixir.Buckets do
         |> write_position_override(
           {%SecuritiesAccount{id: sa_id}, %Security{id: sec_id}},
           bucket_ids -- [bucket_id],
-          :release
+          :exists
         )
         |> owner_gone_is_released()
 
@@ -754,31 +754,34 @@ defmodule Portfolixir.Buckets do
     include_ids = Enum.uniq(include_ids)
     exclude_ids = Enum.uniq(exclude_ids)
 
-    with :ok <- validate_bucket_ids(include_ids ++ exclude_ids) do
-      include_entries = Enum.map(include_ids, &%{view_id: view_id, bucket_id: &1})
-      exclude_entries = Enum.map(exclude_ids, &%{view_id: view_id, bucket_id: &1})
+    include_entries = Enum.map(include_ids, &%{view_id: view_id, bucket_id: &1})
+    exclude_entries = Enum.map(exclude_ids, &%{view_id: view_id, bucket_id: &1})
 
-      Multi.new()
-      |> lock_view(view_id, :edit)
-      |> Multi.delete_all(:clear_in, from(x in ViewIncludeBucket, where: x.view_id == ^view_id))
-      |> Multi.delete_all(:clear_ex, from(x in ViewExcludeBucket, where: x.view_id == ^view_id))
-      |> insert_all_step(:include, ViewIncludeBucket, include_entries)
-      |> insert_all_step(:exclude, ViewExcludeBucket, exclude_entries)
-      |> Multi.run(:definition, fn repo, %{locked_view: view} ->
-        {:ok, ViewDefinition.of(repo, view)}
-      end)
-      |> Journal.record(actor,
-        resource_type: "view",
-        operation: :update,
-        source: :definition,
-        before_step: :before_definition
-      )
-      |> Repo.transaction()
-      |> case do
-        {:ok, _} -> :ok
-        {:error, :locked_view, :not_found, _} -> {:error, :not_found}
-        {:error, _, reason, _} -> {:error, reason}
-      end
+    # The buckets are checked under the view's lock and read FOR SHARE (E25
+    # S6 review round, M2), as the assignment writers check theirs: a bucket
+    # deleted meanwhile answers `{:error, :bucket_ids}`, never a foreign-key
+    # error from the insert.
+    Multi.new()
+    |> lock_view(view_id, :edit)
+    |> validate_assignment(include_ids ++ exclude_ids, :exists)
+    |> Multi.delete_all(:clear_in, from(x in ViewIncludeBucket, where: x.view_id == ^view_id))
+    |> Multi.delete_all(:clear_ex, from(x in ViewExcludeBucket, where: x.view_id == ^view_id))
+    |> insert_all_step(:include, ViewIncludeBucket, include_entries)
+    |> insert_all_step(:exclude, ViewExcludeBucket, exclude_entries)
+    |> Multi.run(:definition, fn repo, %{locked_view: view} ->
+      {:ok, ViewDefinition.of(repo, view)}
+    end)
+    |> Journal.record(actor,
+      resource_type: "view",
+      operation: :update,
+      source: :definition,
+      before_step: :before_definition
+    )
+    |> Repo.transaction()
+    |> case do
+      {:ok, _} -> :ok
+      {:error, :locked_view, :not_found, _} -> {:error, :not_found}
+      {:error, _, reason, _} -> {:error, reason}
     end
   end
 
@@ -1313,10 +1316,11 @@ defmodule Portfolixir.Buckets do
   # the exclusive "scope" dimension (ADR-0024, `{:error,
   # :exclusive_bucket_conflict}`), so scope-scoped totals always add up.
   #
-  # A bucket delete's `:release` of the bucket from a set skips the scope
-  # count (E25 S6 review round, G19): removing a bucket cannot add a
-  # conflict, and a set stored before the rule held for overrides must not
-  # block a delete that only shrinks it.
+  # `:exists` checks existence only (E25 S6 review round): a bucket delete
+  # releasing the bucket from a set skips the scope count (G19), since
+  # removing a bucket cannot add a conflict and a set stored before the rule
+  # held for overrides must not block a delete that only shrinks it; a
+  # view's include and exclude sets carry no exclusive rule at all (M2).
   defp validate_assignment(multi, bucket_ids, check) do
     ids = Enum.uniq(bucket_ids)
 
@@ -1342,23 +1346,6 @@ defmodule Portfolixir.Buckets do
           {:ok, ids}
       end
     end)
-  end
-
-  # Rejects view-set requests that reference a non-existent bucket with
-  # `{:error, :bucket_ids}` (a clean 422 at the web/MCP layer) instead of letting
-  # the FK violation raise. `bucket_ids` are already integers by the time they
-  # reach here (the web layer validates the shape).
-  defp validate_bucket_ids([]), do: :ok
-
-  defp validate_bucket_ids(bucket_ids) do
-    existing =
-      from(b in Bucket, where: b.id in ^bucket_ids, select: b.id)
-      |> Repo.all()
-      |> MapSet.new()
-
-    if Enum.all?(bucket_ids, &MapSet.member?(existing, &1)),
-      do: :ok,
-      else: {:error, :bucket_ids}
   end
 
   defp position_override_query(sa_id, sec_id) do
