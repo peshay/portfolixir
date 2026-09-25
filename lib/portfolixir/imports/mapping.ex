@@ -46,17 +46,33 @@ defmodule Portfolixir.Imports.Mapping do
   "linked cash" dropdown when the user picks "create new" for the
   depot.
   """
-  def default_cash_for_depot(%Preview{entries: entries}, depot_pp_name) do
+  def default_cash_for_depot(%Preview{} = preview, depot_pp_name) do
+    Map.get(default_cash_by_depot(preview), depot_pp_name)
+  end
+
+  @doc """
+  `default_cash_for_depot/2` for every PP depot name of the preview at once,
+  in one pass over the entries (E25 S5, F35): `%{depot_name => cash_name}`,
+  a depot whose entries name no cash account absent.
+  """
+  def default_cash_by_depot(%Preview{entries: entries}) do
     entries
     |> flatten_entries()
-    |> Enum.filter(fn e ->
-      e.pp_portfolio_name == depot_pp_name or e.pp_counter_portfolio_name == depot_pp_name
+    |> Enum.reduce(%{}, fn e, acc ->
+      [e.pp_portfolio_name, e.pp_counter_portfolio_name]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+      |> Enum.reduce(acc, &count_cash(&2, &1, e.pp_account_name))
     end)
-    |> Enum.map(& &1.pp_account_name)
-    |> Enum.reject(&is_nil/1)
-    |> Enum.frequencies()
-    |> Enum.max_by(fn {_name, count} -> count end, fn -> {nil, 0} end)
-    |> elem(0)
+    |> Map.new(fn {depot, frequencies} ->
+      {depot, frequencies |> Enum.max_by(fn {_name, count} -> count end) |> elem(0)}
+    end)
+  end
+
+  defp count_cash(acc, _depot, nil), do: acc
+
+  defp count_cash(acc, depot, cash) do
+    Map.update(acc, depot, %{cash => 1}, &Map.update(&1, cash, 1, fn n -> n + 1 end))
   end
 
   defp flatten_entries(entries) do

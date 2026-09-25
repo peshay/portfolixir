@@ -1641,6 +1641,10 @@ band above the drop zone, and the drop zone takes the next file at once:
 - **A file that is not UTF-8 encoded**, which is what a spreadsheet often
   leaves behind after re-saving an export: export it again from Portfolio
   Performance and drop the file without opening it in a spreadsheet first.
+- **A file that names too many different accounts, depots or securities** for
+  one preview, far more than an ordinary export carries: create smaller
+  exports in Portfolio Performance, for example one per account or depot, and
+  import them one after another.
 
 A single row the import could never book is a parser warning instead: it is
 listed with its row number, left out of the entries, and the rest of the file

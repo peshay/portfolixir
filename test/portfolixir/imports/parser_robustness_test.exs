@@ -185,6 +185,51 @@ defmodule Portfolixir.Imports.ParserRobustnessTest do
     assert Enum.map(entries, & &1.source_row) == [1, 3, 4]
   end
 
+  # User story (E25 S5, F35, board 11):
+  # As an operator dropping an export,
+  # I want a file naming more accounts, depots or securities than one preview
+  # can show refused with a named file error,
+  # so that the preview never grows past what the page can render.
+  #
+  # Acceptance criteria:
+  # - A file past the distinct account-and-depot name cap, or past the
+  #   distinct security cap, is refused as {:error, :too_many_names}, in both
+  #   formats.
+  # - A file exactly at each cap still parses.
+  test "a file past the distinct-name cap is refused with a named file error" do
+    %{accounts: accounts, securities: securities} = PortfolioPerformance.max_names()
+
+    deposit = fn i -> "2024-01-15;Einlage;;;;100,00;;;100,00;Cash-#{i};;;" end
+
+    assert {:ok, %Preview{}} =
+             PortfolioPerformance.parse(csv(Enum.map(1..accounts, deposit)), filename: "a.csv")
+
+    assert {:error, :too_many_names} =
+             PortfolioPerformance.parse(csv(Enum.map(1..(accounts + 1), deposit)),
+               filename: "a.csv"
+             )
+
+    buy = fn i ->
+      "2024-01-15 10:01:00;Kauf;Synthetic #{i} AG;1;1,00;1,00;;;1,00;Test-Depot;Test-Cash;;"
+    end
+
+    assert {:ok, %Preview{}} =
+             PortfolioPerformance.parse(csv(Enum.map(1..securities, buy)), filename: "s.csv")
+
+    assert {:error, :too_many_names} =
+             PortfolioPerformance.parse(csv(Enum.map(1..(securities + 1), buy)),
+               filename: "s.csv"
+             )
+
+    depots =
+      Enum.map(1..(accounts + 1), fn i ->
+        base_tx() |> Map.put("portfolio", "Depot-#{i}") |> Map.put("account", "Test-Cash")
+      end)
+
+    assert {:error, :too_many_names} =
+             PortfolioPerformance.parse(json(depots), filename: "d.json")
+  end
+
   test "a version-1 payload whose transactions are not a list is malformed, and a BOM is not a column" do
     assert {:error, :malformed_payload} =
              PortfolioPerformance.parse(~s({"version":1,"transactions":"x"}), filename: "x.json")
