@@ -226,6 +226,57 @@ defmodule Portfolixir.Buckets.ViewDefinitionJournalTest do
              ])
   end
 
+  # User story (E25 S6 review round, M2):
+  # As the operator setting a view's buckets while someone deletes one of them,
+  # I want the write refused as naming a bucket that no longer exists,
+  # so that it never fails with a server error.
+  #
+  # Acceptance criteria:
+  # - The buckets are checked under the view's lock, read FOR SHARE: a bucket
+  #   deleted between the page's read and the write answers
+  #   `{:error, :bucket_ids}` and nothing is written.
+  test "a bucket deleted while a view's sets are written answers bucket_ids" do
+    view = view!("Racing view", %{include_all: false})
+    kept = bucket!("Kept")
+    doomed = bucket!("Doomed")
+
+    result =
+      with_bucket_deleted_after_view_lock(doomed, fn ->
+        Buckets.set_view_buckets(owner(), view, [kept.id, doomed.id], [])
+      end)
+
+    assert result == {:error, :bucket_ids}
+    assert view_entries(view.id) == []
+  end
+
+  # A concurrent delete that commits after the page read the buckets and
+  # before the write reads them: the hook deletes the bucket right after the
+  # write has locked its view, in the same transaction.
+  defp with_bucket_deleted_after_view_lock(bucket, fun) do
+    test_pid = self()
+    handler = "view-bucket-race-#{System.unique_integer([:positive])}"
+
+    :ok =
+      :telemetry.attach(
+        handler,
+        [:portfolixir, :repo, :query],
+        fn _event, _measurements, %{query: query}, _config ->
+          if self() == test_pid and query =~ ~r/FROM "views".*FOR NO KEY UPDATE/s and
+               Process.get(:deleted) == nil do
+            Process.put(:deleted, true)
+            {:ok, _} = Buckets.delete_bucket(owner(), bucket)
+          end
+        end,
+        nil
+      )
+
+    try do
+      fun.()
+    after
+      :telemetry.detach(handler)
+    end
+  end
+
   # A set as a writer before the fix round stored it: rows inserted raw.
   defp legacy_override!(depot_id, security_id, bucket_ids) do
     {:ok, _} =
