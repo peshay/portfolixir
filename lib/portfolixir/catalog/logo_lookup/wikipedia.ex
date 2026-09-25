@@ -29,6 +29,9 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
   # Special:FilePath with a width renders SVG logos to PNG (Special:Redirect only
   # 301-redirects to the raw SVG, which the logo store then rejects — #483).
   @commons_file_path "https://commons.wikimedia.org/wiki/Special:FilePath/"
+  # The page size the search asks for, and the most candidates one search may
+  # turn into summary lookups, whatever the answer carries (F30).
+  @search_limit 5
 
   # A candidate is accepted when its description/excerpt looks like a company
   # or fund and does NOT look like an unrelated topic (a fruit, a genus, a
@@ -73,9 +76,10 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
   def search_logo(query, opts \\ []) when is_binary(query) do
     req = build_req(opts)
 
-    case Http.get(req, url: @search_endpoint, params: [q: query, limit: 5]) do
+    case Http.get(req, url: @search_endpoint, params: [q: query, limit: @search_limit]) do
       {:ok, %Req.Response{status: 200, body: %{"pages" => pages}}} when is_list(pages) ->
         pages
+        |> Enum.take(@search_limit)
         |> Enum.filter(&company_like?/1)
         |> Enum.filter(&title_matches_query?(&1, query))
         |> first_candidate_image(opts)
@@ -94,18 +98,31 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
   defp first_candidate_image([], _opts), do: :not_found
 
   defp first_candidate_image([page | rest], opts) do
-    case lookup(page["key"] || page["title"], opts) do
-      {:ok, url} -> {:ok, url}
+    with title when is_binary(title) <- candidate_title(page),
+         {:ok, url} <- lookup(title, opts) do
+      {:ok, url}
+    else
       _ -> first_candidate_image(rest, opts)
     end
   end
 
-  defp company_like?(page) when is_map(page) do
-    is_binary(page["title"]) and
-      looks_like_company?("#{page["description"] || ""} #{page["excerpt"] || ""}")
+  # Every field of an upstream candidate is type-matched before use (F30).
+  defp candidate_title(%{"key" => key}) when is_binary(key) and key != "", do: key
+  defp candidate_title(%{"title" => title}) when is_binary(title), do: title
+  defp candidate_title(_page), do: nil
+
+  defp company_like?(%{"title" => title} = page) when is_binary(title) do
+    looks_like_company?(text_field(page, "description") <> " " <> text_field(page, "excerpt"))
   end
 
   defp company_like?(_page), do: false
+
+  defp text_field(page, key) do
+    case Map.get(page, key) do
+      value when is_binary(value) -> value
+      _ -> ""
+    end
+  end
 
   defp looks_like_company?(text) do
     Regex.match?(@company_signal, text) and not Regex.match?(@non_company_signal, text)
@@ -208,10 +225,10 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
     end
   end
 
+  # Every level of the entity is type-matched before it is read (F30).
   defp logo_url_from_entity(body, id) do
-    with %{"entities" => entities} <- body,
-         %{} = entity <- Map.get(entities, id),
-         claims when is_list(claims) <- get_in(entity, ["claims", "P154"]),
+    with %{"entities" => %{} = entities} <- body,
+         %{"claims" => %{"P154" => claims}} when is_list(claims) <- Map.get(entities, id),
          filename when is_binary(filename) and filename != "" <- first_logo_filename(claims),
          {:ok, segment} <- PathSegment.encode(filename) do
       {:ok, commons_logo_redirect(segment)}
@@ -221,8 +238,9 @@ defmodule Portfolixir.Catalog.LogoLookup.Wikipedia do
   end
 
   defp first_logo_filename(claims) do
-    Enum.find_value(claims, fn claim ->
-      get_in(claim, ["mainsnak", "datavalue", "value"])
+    Enum.find_value(claims, fn
+      %{"mainsnak" => %{"datavalue" => %{"value" => value}}} when is_binary(value) -> value
+      _claim -> nil
     end)
   end
 
