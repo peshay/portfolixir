@@ -2306,6 +2306,13 @@ writes); the remaining write contexts are armed in sequence.
 The MCP companion exposes the same local contract as tool calls. Decimal inputs
 in MCP schemas are strings.
 
+The schema a host receives from `tools/list` is each tool's own definition,
+its property descriptions and its closed objects (`additionalProperties:
+false`) included, and the companion checks every call against the same
+properties before it calls the API: a refused argument answers a tool error
+naming the tool and the field, and no request is made. A call the API answers
+without a body, a delete's `204`, is a result without structured content.
+
 - `portfolixir.contract.get` — the contract-version read (ADR-0044 §8):
   what the surface offers and when it last changed, pollable with `since=`.
 - `portfolixir.securities.list`

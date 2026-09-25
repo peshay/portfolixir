@@ -426,6 +426,7 @@ const securitySchema = objectWith("security", {
     feed_url: { type: "string" },
     provider: { type: "string" },
     online_id: { type: "string" },
+    is_benchmark: { type: "boolean" },
     attributes: { type: "object", additionalProperties: true }
   }
 });

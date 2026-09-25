@@ -225,6 +225,9 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
       {:all, "the stdio transport: the agent's own process pipes"},
     "@modelcontextprotocol/sdk/server/streamableHttp.js" =>
       {:all, "the HTTP transport behind the companion's own inbound listener"},
+    "@modelcontextprotocol/sdk/types.js" =>
+      {["CallToolRequestSchema", "ListToolsRequestSchema", "CallToolResult", "Tool"],
+       "the protocol's request schemas and result types the server answers with; data only"},
     "express" => {:all, "the companion's inbound HTTP listener (#761)"},
     "zod" => {:all, "the tools' input schemas"},
     "node:crypto" => {:all, "the constant-time bearer-token compare"},

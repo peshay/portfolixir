@@ -1,0 +1,275 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+
+import { z } from "zod";
+
+import { listTools } from "../src/tools.js";
+import { connectCompanion, publishedTools } from "./support/companion.js";
+import { createRecordingClient } from "./support/recording-client.js";
+
+// The properties a structural comparison keeps: what a schema lets through
+// (types, enums, properties, required, array items), not how it words it.
+function structure(schema: any): any {
+  if (schema === null || typeof schema !== "object") {
+    return schema;
+  }
+
+  if (Array.isArray(schema.anyOf)) {
+    const present = schema.anyOf.filter((branch: any) => branch.type !== "null");
+
+    if (present.length === 1 && present.length < schema.anyOf.length) {
+      const inner = structure(present[0]);
+      return { ...inner, type: [inner.type, "null"].flat().sort() };
+    }
+
+    return { anyOf: schema.anyOf.map(structure) };
+  }
+
+  const out: Record<string, unknown> = {};
+
+  if (schema.type !== undefined) {
+    out.type = Array.isArray(schema.type) ? [...schema.type].sort() : schema.type;
+  }
+
+  if (Array.isArray(schema.enum)) {
+    out.enum = schema.enum.filter((value: unknown) => value !== null).sort();
+  }
+
+  if (schema.properties !== undefined) {
+    out.properties = Object.fromEntries(
+      Object.keys(schema.properties)
+        .sort()
+        .map((key) => [key, structure(schema.properties[key])])
+    );
+    out.required = [...(schema.required ?? [])].sort();
+  }
+
+  if (schema.items !== undefined) {
+    out.items = structure(schema.items);
+  }
+
+  return out;
+}
+
+// Every property of a published schema, with the path that reaches it.
+function* propertiesOf(schema: any, path: string): Generator<[string, string, any]> {
+  if (schema === null || typeof schema !== "object") {
+    return;
+  }
+
+  for (const [key, value] of Object.entries<any>(schema.properties ?? {})) {
+    yield [`${path}.${key}`, key, value];
+    yield* propertiesOf(value, `${path}.${key}`);
+  }
+
+  if (schema.items !== undefined) {
+    yield* propertiesOf(schema.items, `${path}[]`);
+  }
+
+  for (const branch of schema.anyOf ?? []) {
+    yield* propertiesOf(branch, path);
+  }
+}
+
+// The Decimal-valued inputs the API takes (money, quantities, prices, rates,
+// weights, thresholds, the recorded tax figures): each one is a string on the
+// wire, never a JSON number.
+const DECIMAL_NAMES = new Set([
+  "quantity",
+  "price",
+  "gross_amount",
+  "fees",
+  "taxes",
+  "security_amount",
+  "settlement_amount",
+  "settlement_fx_rate",
+  "amount",
+  "close",
+  "target_weight",
+  "cash_target_weight",
+  "threshold",
+  "lower",
+  "upper",
+  "warn",
+  "hard",
+  "low",
+  "high",
+  "min_drift",
+  "risk_free_rate",
+  "amount_granted",
+  "allowance_granted",
+  "allowance_used",
+  "saver_allowance_single",
+  "saver_allowance_joint",
+  "capital_gains_tax_rate",
+  "solidarity_surcharge_rate",
+  "church_tax_rate",
+  "capital_gains_tax_withheld",
+  "solidarity_surcharge_withheld",
+  "church_tax_withheld",
+  "taxable_income",
+  "loss_pot_equities",
+  "loss_pot_other",
+  "loss_carryforward_prior_years",
+  "withholding_tax_pot",
+  "withholding_tax_credited"
+]);
+
+describe("the companion's published tool surface", () => {
+  // User story (E25 S7, F21):
+  // As the operator relying on the companion's schema tests,
+  // I want the schema those tests pin to be the one an MCP host receives,
+  // so that a pinned property (a decimal typed as a string, a field left out)
+  // is a property of what ships and not of a definition nobody publishes.
+  //
+  // Acceptance criteria:
+  // - tools/list over a real transport publishes, for every tool, exactly the
+  //   inputSchema of its definition, descriptions and closed objects included.
+  // - The validator the companion enforces before any API request accepts the
+  //   same properties, types, enums and required fields the published schema names.
+  it("publishes every tool's input schema exactly as its definition", async () => {
+    const published = await publishedTools();
+    const definitions = listTools();
+
+    assert.deepEqual(
+      published.map((tool) => tool.name),
+      definitions.map((tool) => tool.name)
+    );
+
+    for (const definition of definitions) {
+      const tool = published.find((candidate) => candidate.name === definition.name);
+      assert.deepEqual(tool?.inputSchema, definition.inputSchema, definition.name);
+      assert.equal(tool?.title, definition.title, definition.name);
+      assert.equal(tool?.description, definition.description, definition.name);
+    }
+  });
+
+  it("enforces the properties its published schema names", async () => {
+    for (const definition of listTools()) {
+      const enforced = z.toJSONSchema(definition.zodSchema, { io: "input" });
+      assert.deepEqual(
+        structure(enforced),
+        structure(definition.inputSchema),
+        `${definition.name}: the validator and the published schema disagree`
+      );
+    }
+  });
+
+  it("types every published decimal as a string and no property as a JSON number", async () => {
+    let decimals = 0;
+
+    for (const tool of await publishedTools()) {
+      for (const [path, key, property] of propertiesOf(tool.inputSchema, tool.name)) {
+        const types = [property.type ?? []].flat();
+        assert.ok(!types.includes("number"), `${path} is published as a JSON number`);
+
+        if (DECIMAL_NAMES.has(key) && property.type !== undefined) {
+          decimals += 1;
+          assert.ok(types.includes("string"), `${path} is a decimal not published as a string`);
+        }
+      }
+    }
+
+    assert.ok(decimals >= 60, `the scan found too few decimal properties: ${decimals}`);
+  });
+
+  // User story (E25 S7, F21, with #766):
+  // As the operator reading the research log,
+  // I want the append tool to publish no author and no provenance field,
+  // so that the agent cannot claim to be the operator or mark its own entry
+  // as confirmed: the server sets both.
+  //
+  // Acceptance criteria:
+  // - The published notes.append schema closes the entry object and names no
+  //   author, machine_generated or provenance field.
+  // - An entry sent with those fields reaches the API without them.
+  it("publishes no author or provenance field on a research-log append", async () => {
+    const append = (await publishedTools()).find((tool) => tool.name === "portfolixir.notes.append");
+    const note = (append?.inputSchema as any).properties.note;
+
+    assert.equal(note.additionalProperties, false);
+
+    for (const field of ["author", "machine_generated", "provenance", "actor", "source_type"]) {
+      assert.equal(note.properties[field], undefined, field);
+    }
+
+    const { client, requests } = createRecordingClient({ data: { id: 1 } });
+    const companion = await connectCompanion(client);
+
+    try {
+      await companion.mcp.callTool({
+        name: "portfolixir.notes.append",
+        arguments: {
+          security_id: 7,
+          note: {
+            kind: "evidence",
+            body: "a synthetic finding",
+            source_quality: "primary",
+            as_of: "2026-08-01",
+            author: "operator",
+            machine_generated: false
+          }
+        }
+      });
+    } finally {
+      await companion.close();
+    }
+
+    assert.equal(requests.length, 1);
+    assert.deepEqual(requests[0].body, {
+      note: {
+        kind: "evidence",
+        body: "a synthetic finding",
+        source_quality: "primary",
+        as_of: "2026-08-01"
+      }
+    });
+  });
+
+  // User story (E25 S7, F21):
+  // As the agent calling a tool through an MCP host,
+  // I want every answer the companion gives to reach me as a tool result,
+  // so that a delete the API answered without a body does not read as a
+  // failure I would retry, and a refused argument names what was wrong.
+  //
+  // Acceptance criteria:
+  // - A call the API answers with no body reaches the host as a result, not
+  //   as a protocol error.
+  // - An argument the validator refuses reaches the host as a tool error
+  //   naming the tool and the field, and no API request is made.
+  // - An unknown tool reaches the host as a tool error naming it.
+  it("answers every call as a tool result the host accepts", async () => {
+    const requests: string[] = [];
+    const companion = await connectCompanion({
+      request: async (method, path) => {
+        requests.push(`${method} ${path}`);
+        return null;
+      }
+    });
+
+    try {
+      const deleted = await companion.mcp.callTool({
+        name: "portfolixir.views.delete",
+        arguments: { id: 3 }
+      });
+      assert.equal(deleted.isError, undefined);
+      assert.deepEqual(deleted.content, [{ type: "text", text: "null" }]);
+      assert.deepEqual(requests, ["DELETE /api/v1/views/3"]);
+
+      const refused = await companion.mcp.callTool({
+        name: "portfolixir.views.delete",
+        arguments: { id: "three" }
+      });
+      assert.equal(refused.isError, true);
+      assert.match((refused.content as any)[0].text, /portfolixir\.views\.delete/);
+      assert.match((refused.content as any)[0].text, /\bid\b/);
+      assert.equal(requests.length, 1);
+
+      const unknown = await companion.mcp.callTool({ name: "portfolixir.nope", arguments: {} });
+      assert.equal(unknown.isError, true);
+      assert.match((unknown.content as any)[0].text, /portfolixir\.nope/);
+    } finally {
+      await companion.close();
+    }
+  });
+});
