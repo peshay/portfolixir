@@ -29,6 +29,11 @@ defmodule Portfolixir.Invariants.ScopeB1NoStoredCredentialsTest do
   # - The matcher catches synthetic violations of each kind, so a clean tree
   #   cannot pass vacuously.
   # - An allowlist entry carries a reason and still excuses something real.
+  #
+  # The limit, stated rather than hidden: B1 reads names, not values. A
+  # free-form value — a security's `attributes` map, a `notes` text — can hold
+  # anything a caller writes into it, a credential included; what keeps one
+  # out is that nothing in the app asks for one, and review, not this test.
 
   # Name tokens that mean "this holds a credential". A name matches when one of
   # its snake_case / CamelCase tokens is in this list, so `pinned` or `tangent`
@@ -36,11 +41,13 @@ defmodule Portfolixir.Invariants.ScopeB1NoStoredCredentialsTest do
   @credential_words ~w(
     password passwords passwd passphrase pwd secret secrets token tokens pin pins
     tan tans otp totp hotp mfa credential credentials login logins logon logons
-    username usernames apikey apikeys privkey mnemonic mnemonics
+    username usernames apikey apikeys privkey mnemonic mnemonics passcode passcodes
+    pincode pincodes cred creds
   )
 
   # Two-token phrases whose single words are innocent on their own (a settings
-  # `key`, a PP `online_id`) but mean a credential together.
+  # `key`, a PP `online_id`) but mean a credential together. The last word
+  # also matches in its plural (`api_keys`, the Ecto name of a table of them).
   @credential_phrases [
     ~w(api key),
     ~w(access key),
@@ -117,12 +124,15 @@ defmodule Portfolixir.Invariants.ScopeB1NoStoredCredentialsTest do
   describe "the matcher (self-test: a clean tree cannot pass vacuously)" do
     test "credential names match, innocent neighbours do not" do
       for name <- ~w(password_hash api_token broker_pin tan_list client_secret api_key
-                     online_banking_login seed_phrase BrokerCredential totp_secret) do
+                     online_banking_login seed_phrase BrokerCredential totp_secret
+                     api_keys access_keys private_keys signing_keys auth_codes passcode
+                     pincode broker_creds APIToken OTPSecret) do
         assert credential_name?(name), "#{name} should read as a credential"
       end
 
       for name <- ~w(key online_id import_hash pinned_at tangent isin settlement_amount
-                     classification_key TokenizerLabel) do
+                     classification_key TokenizerLabel credit credits PolicyJSON
+                     SessionHTML sort_keys) do
         refute credential_name?(name), "#{name} should not read as a credential"
       end
     end
@@ -137,10 +147,16 @@ defmodule Portfolixir.Invariants.ScopeB1NoStoredCredentialsTest do
     end
 
     test "synthetic credential tables and columns are caught" do
-      rows = [{"bank_logins", "id"}, {"accounts", "online_banking_pin"}, {"accounts", "name"}]
+      rows = [
+        {"bank_logins", "id"},
+        {"api_keys", "key_hash"},
+        {"accounts", "online_banking_pin"},
+        {"accounts", "name"}
+      ]
 
       assert structure_names(rows) == [
                {:table, "bank_logins"},
+               {:table, "api_keys"},
                {:column, "accounts", "online_banking_pin"}
              ]
     end
@@ -166,6 +182,33 @@ defmodule Portfolixir.Invariants.ScopeB1NoStoredCredentialsTest do
       assert Enum.filter(keys, &credential_name?/1) == ["broker_api_token", "bank_password"]
       assert [computed_call] = computed
       assert computed_call =~ "Settings.get"
+    end
+
+    test "the raw store's own local calls and piped calls are read too" do
+      source = """
+      defmodule Portfolixir.Settings do
+        @default_view_key "default_view_id"
+
+        def get(key) when is_binary(key), do: {:read, key}
+        def put(key, value), do: {:write, key, value}
+
+        def default_view_id, do: get(@default_view_key)
+        def set_broker_pin(pin), do: put("broker_pin", pin)
+        def remember(name, value), do: put(name, value)
+      end
+
+      defmodule Portfolixir.SyntheticCaller do
+        def load, do: "bank_password" |> Portfolixir.Settings.get()
+      end
+      """
+
+      {keys, computed} = settings_keys(source, "synthetic.ex")
+
+      assert "default_view_id" in keys
+      assert "broker_pin" in keys
+      assert "bank_password" in keys
+      assert [computed_call] = computed
+      assert computed_call =~ "Settings.put"
     end
   end
 
@@ -203,14 +246,19 @@ defmodule Portfolixir.Invariants.ScopeB1NoStoredCredentialsTest do
     tokens = tokens(name)
 
     Enum.any?(tokens, &(&1 in @credential_words)) or
-      Enum.any?(Enum.chunk_every(tokens, 2, 1, :discard), &(&1 in @credential_phrases))
+      Enum.any?(Enum.chunk_every(tokens, 2, 1, :discard), fn [first, last] ->
+        [first, last] in @credential_phrases or
+          [first, String.replace_suffix(last, "s", "")] in @credential_phrases
+      end)
   end
 
   # `OnlineBankingPin`, `online_banking_pin` and `online-banking.pin` all read
-  # as ["online", "banking", "pin"].
+  # as ["online", "banking", "pin"]; an acronym fused to the next word splits
+  # off it (`APIToken` reads as ["api", "token"]), as Elixir spells acronyms.
   defp tokens(name) do
     name
     |> to_string()
+    |> String.replace(~r/([A-Z]+)([A-Z][a-z])/, "\\1_\\2")
     |> String.replace(~r/([a-z0-9])([A-Z])/, "\\1_\\2")
     |> String.downcase()
     |> String.split(~r/[^a-z0-9]+/, trim: true)
@@ -283,33 +331,97 @@ defmodule Portfolixir.Invariants.ScopeB1NoStoredCredentialsTest do
 
   # `{keys, computed_calls}` of one source file: every `@*_key` string
   # attribute (the settings module's keys, and the session and browser-storage
-  # keys elsewhere) and every literal key handed to the raw
-  # `Settings.get/put/delete` store; a call whose key is not a literal is
-  # returned in `computed_calls`, because the scan cannot read what it stores.
+  # keys elsewhere) and every key handed to the raw `get/put/delete` store —
+  # called as `Settings.get/put/delete` from anywhere (pipes expanded first),
+  # or locally inside `Portfolixir.Settings` itself, where the store's own
+  # helpers call it. A literal key, or a module attribute holding one, is read;
+  # any other key is returned in `computed_calls`, because the scan cannot read
+  # what it stores.
   defp settings_keys(source, path) do
-    ast = Code.string_to_quoted!(source)
+    ast = source |> Code.string_to_quoted!() |> Macro.prewalk(&unpipe/1)
+    attributes = string_attributes(ast)
 
-    collect(ast, fn
-      {:@, _, [{name, _, [value]}]} when is_binary(value) ->
-        if String.ends_with?(Atom.to_string(name), "_key"), do: [{:key, value}], else: []
+    attribute_keys =
+      for {name, value} <- attributes,
+          String.ends_with?(Atom.to_string(name), "_key"),
+          do: {:key, value}
 
-      {{:., _, [{:__aliases__, _, segments}, fun]}, _, [key | _]}
-      when fun in [:get, :put, :delete] ->
-        cond do
-          List.last(segments) != :Settings -> []
-          is_binary(key) -> [{:key, key}]
-          true -> [{:computed, "#{path}: Settings.#{fun}/_ with a computed key"}]
-        end
+    remote =
+      collect(ast, fn
+        {{:., _, [{:__aliases__, _, segments}, fun]}, _, [key | _]}
+        when fun in [:get, :put, :delete] ->
+          if List.last(segments) == :Settings,
+            do: [store_key(key, attributes, path, fun)],
+            else: []
 
-      _other ->
-        []
-    end)
+        _other ->
+          []
+      end)
+
+    local =
+      for body <- settings_store_bodies(ast),
+          hit <-
+            collect(body, fn
+              {fun, _, [key | _]} when fun in [:get, :put, :delete] ->
+                [store_key(key, attributes, path, fun)]
+
+              _other ->
+                []
+            end),
+          do: hit
+
+    (attribute_keys ++ remote ++ local)
     |> Enum.reduce({[], []}, fn
       {:key, key}, {keys, computed} -> {keys ++ [key], computed}
       {:computed, call}, {keys, computed} -> {keys, computed ++ [call]}
     end)
     |> then(fn {keys, computed} -> {Enum.uniq(keys), computed} end)
   end
+
+  defp store_key(key, _attributes, _path, _fun) when is_binary(key), do: {:key, key}
+
+  defp store_key({:@, _, [{name, _, context}]} = key, attributes, path, fun)
+       when is_atom(name) and is_atom(context) do
+    case Keyword.fetch(attributes, name) do
+      {:ok, value} -> {:key, value}
+      :error -> store_key({:computed, key}, attributes, path, fun)
+    end
+  end
+
+  defp store_key(_computed, _attributes, path, fun),
+    do: {:computed, "#{path}: Settings.#{fun}/_ with a computed key"}
+
+  # `[{name, value}]` of every string module attribute, in source order.
+  defp string_attributes(ast) do
+    collect(ast, fn
+      {:@, _, [{name, _, [value]}]} when is_atom(name) and is_binary(value) -> [{name, value}]
+      _other -> []
+    end)
+  end
+
+  # The function bodies of `Portfolixir.Settings`, where the raw store is
+  # called locally; function heads are left out, so `def get(key)` itself is
+  # not read as a call with a computed key.
+  defp settings_store_bodies(ast) do
+    collect(ast, fn
+      {:defmodule, _, [{:__aliases__, _, [:Portfolixir, :Settings]}, [do: module_body]]} ->
+        collect(module_body, fn
+          {kind, _, [_head, body]} when kind in [:def, :defp] -> [body]
+          _other -> []
+        end)
+
+      _other ->
+        []
+    end)
+  end
+
+  defp unpipe({:|>, _, [left, right]} = node) do
+    Macro.pipe(left, right, 0)
+  rescue
+    ArgumentError -> node
+  end
+
+  defp unpipe(node), do: node
 
   defp reject_allowlisted(names), do: Enum.reject(names, &Map.has_key?(@allowlist, &1))
 
