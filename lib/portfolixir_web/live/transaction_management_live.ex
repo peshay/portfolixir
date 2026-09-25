@@ -4,7 +4,6 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Input.BoundedDate
-  alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Projection
   alias Portfolixir.Ledger.Transaction
@@ -12,6 +11,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.ChangedSince
   alias PortfolixirWeb.ColumnPicker
+  alias PortfolixirWeb.DecimalInput
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.TransactionKindLabel
   alias PortfolixirWeb.Transactions.SettlementForm
@@ -34,6 +34,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   @tx_column_defaults ["date", "type", "security", "quantity", "price", "gross_amount"]
   @tx_column_keys @tx_column_defaults ++ ["currency", "fees", "taxes", "notes"]
   @numeric_columns ["quantity", "price", "gross_amount", "fees", "taxes"]
+
+  # The drawer's decimal fields, read by the one decimal-input rule (#869).
+  @decimal_fields ~w(quantity price fees taxes settlement_amount settlement_fx_rate)
 
   @transaction_form %{
     "type" => "buy",
@@ -685,22 +688,24 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
     params =
       params
-      |> normalize_decimal_inputs()
       |> put_portfolio_from_depot(socket.assigns.securities_accounts)
       |> maybe_put_currency(currency)
 
+    # #869: the figures are read by the one decimal-input rule; the form keeps
+    # them exactly as typed, so a refusal never rewrites "2,5" into "2.5".
     # #395: a cross-currency trade is booked in the security's currency with
     # its settlement; a missing settlement amount is named on its field.
-    case SettlementForm.prepare(params, settlement_pair(params, socket.assigns)) do
-      {:ok, prepared} ->
-        save_booking(socket, params, prepared)
+    with {:figures, {:ok, figures}} <- {:figures, DecimalInput.cast(params, @decimal_fields)},
+         {:ok, prepared} <-
+           SettlementForm.prepare(figures, settlement_pair(params, socket.assigns)) do
+      save_booking(socket, params, prepared)
+    else
+      {:figures, {:error, errors}} ->
+        {:noreply,
+         refuse(socket, params, errors, gettext("A figure cannot be read; its field says why."))}
 
       {:error, errors} ->
-        {:noreply,
-         socket
-         |> assign(:transaction_form, params)
-         |> assign(:form_errors, errors)
-         |> failure(gettext("The settlement amount is missing."))}
+        {:noreply, refuse(socket, params, errors, gettext("The settlement amount is missing."))}
     end
   end
 
@@ -749,6 +754,13 @@ defmodule PortfolixirWeb.TransactionManagementLive do
          |> failure(gettext("That transaction no longer exists."))
          |> load_state()}
     end
+  end
+
+  defp refuse(socket, params, errors, message) do
+    socket
+    |> assign(:transaction_form, params)
+    |> assign(:form_errors, errors)
+    |> failure(message)
   end
 
   defp save_booking(socket, params, prepared) do
@@ -827,8 +839,10 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   defp to_form_value(nil), do: ""
 
+  # #869: a stored figure opens in the page's locale ("45,6" on a German
+  # page), its digits as stored.
   defp to_form_value(%Decimal{} = value),
-    do: value |> Decimal.normalize() |> Decimal.to_string(:normal)
+    do: value |> Decimal.normalize() |> DecimalInput.value()
 
   defp to_form_value(value), do: to_string(value)
 
@@ -1370,18 +1384,15 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp compute_sell_preview(_params), do: nil
 
   # A finite decimal only (E25 S4, F17): `NaN` or `Infinity` typed into the
-  # drawer is not a quantity, and would raise in the comparison below.
-  defp parse_form_decimal(value) when is_binary(value) do
-    case value |> normalize_decimal_comma() |> String.trim() |> BoundedDecimal.parse() do
-      {:ok, decimal} ->
-        if Decimal.compare(decimal, 0) == :gt, do: {:ok, decimal}, else: :error
-
-      :error ->
-        :error
+  # drawer is not a quantity, and would raise in the comparison below. Read by
+  # the one decimal-input rule (#869), which parses through the same bounded
+  # parser.
+  defp parse_form_decimal(value) do
+    case DecimalInput.parse(value) do
+      {:ok, decimal} -> if Decimal.compare(decimal, 0) == :gt, do: {:ok, decimal}, else: :error
+      _blank_or_refused -> :error
     end
   end
-
-  defp parse_form_decimal(_value), do: :error
 
   # The decomposition columns appear only when a tranche's settlement leg is
   # denominated in another currency than the security — the same-currency
@@ -1522,33 +1533,6 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   defp success(socket, message), do: assign(socket, success: message, error: nil)
   defp failure(socket, message), do: assign(socket, error: message, success: nil)
-
-  # German decimal commas (fix round, UAT): "10,50" means 10.50 to a German
-  # user. Normalized ONLY at this form boundary — a single comma becomes a dot
-  # when the string carries no dot; anything else (thousands separators,
-  # already-dotted input) passes through untouched for the changeset to judge.
-  # Persisted parsing elsewhere is deliberately not changed.
-  @comma_decimal_fields ~w(quantity price fees taxes)
-
-  defp normalize_decimal_inputs(params) do
-    Enum.reduce(@comma_decimal_fields, params, fn field, acc ->
-      case Map.get(acc, field) do
-        value when is_binary(value) -> Map.put(acc, field, normalize_decimal_comma(value))
-        _ -> acc
-      end
-    end)
-  end
-
-  defp normalize_decimal_comma(value) do
-    trimmed = String.trim(value)
-
-    if not String.contains?(trimmed, ".") and
-         length(String.split(trimmed, ",")) == 2 do
-      String.replace(trimmed, ",", ".")
-    else
-      value
-    end
-  end
 
   # Per-field changeset errors keyed by the form field name, so each input can
   # carry aria-invalid + an associated message (UX-DR13, #412 follow-up).
@@ -1820,6 +1804,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               name="transaction[quantity]"
               value={@transaction_form["quantity"]}
               inputmode="decimal"
+              class="num"
               required
               aria-invalid={@form_errors["quantity"] && "true"}
               aria-describedby={@form_errors["quantity"] && "tx-error-quantity"}
@@ -1836,6 +1821,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               name="transaction[price]"
               value={@transaction_form["price"]}
               inputmode="decimal"
+              class="num"
               required
               aria-invalid={@form_errors["price"] && "true"}
               aria-describedby={@form_errors["price"] && "tx-error-price"}
@@ -1879,7 +1865,13 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           <% end %>
         </p>
 
-        <details id="transaction-costs" class="transaction-costs">
+        <%!-- A refused fee or tax opens the costs (#869): an error the reader
+             cannot see is no answer. --%>
+        <details
+          id="transaction-costs"
+          class="transaction-costs"
+          open={(@form_errors["fees"] || @form_errors["taxes"]) && true}
+        >
           <summary class="disclosure-summary">
             <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
             <%= gettext("Costs and note") %>
@@ -1887,11 +1879,27 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           <div class="form-grid">
             <label>
               <span><%= gettext("Fees") %></span>
-              <input name="transaction[fees]" value={@transaction_form["fees"]} inputmode="decimal" />
+              <input
+                name="transaction[fees]"
+                value={@transaction_form["fees"]}
+                inputmode="decimal"
+                class="num"
+                aria-invalid={@form_errors["fees"] && "true"}
+                aria-describedby={@form_errors["fees"] && "tx-error-fees"}
+              />
+              <.field_error errors={@form_errors} field="fees" />
             </label>
             <label>
               <span><%= gettext("Taxes") %></span>
-              <input name="transaction[taxes]" value={@transaction_form["taxes"]} inputmode="decimal" />
+              <input
+                name="transaction[taxes]"
+                value={@transaction_form["taxes"]}
+                inputmode="decimal"
+                class="num"
+                aria-invalid={@form_errors["taxes"] && "true"}
+                aria-describedby={@form_errors["taxes"] && "tx-error-taxes"}
+              />
+              <.field_error errors={@form_errors} field="taxes" />
             </label>
           </div>
         <label>

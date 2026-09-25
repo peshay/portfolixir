@@ -7986,3 +7986,8 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "Two securities of this file cannot be told apart, so the import is refused. Correct them in Portfolio Performance and export again."
 msgstr ""
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:680
+#, elixir-autogen, elixir-format
+msgid "A figure cannot be read; its field says why."
+msgstr ""

@@ -7987,3 +7987,8 @@ msgstr "ISIN %{isin} ist keine gültige ISIN (Form oder Prüfziffer) — Zeile n
 #, elixir-autogen, elixir-format
 msgid "Two securities of this file cannot be told apart, so the import is refused. Correct them in Portfolio Performance and export again."
 msgstr "Zwei Wertpapiere dieser Datei lassen sich nicht unterscheiden, daher wird der Import abgelehnt. In Portfolio Performance korrigieren und erneut exportieren."
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:680
+#, elixir-autogen, elixir-format
+msgid "A figure cannot be read; its field says why."
+msgstr "Eine Zahl ist nicht lesbar; ihr Feld sagt, warum."

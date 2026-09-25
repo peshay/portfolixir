@@ -37,9 +37,9 @@ defmodule PortfolixirWeb.Transactions.SettlementForm do
 
   alias Portfolixir.Fx
   alias Portfolixir.Input.BoundedDate
-  alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Ledger.SettlementGuard
   alias Portfolixir.Ledger.Transaction
+  alias PortfolixirWeb.DecimalInput
 
   @trade_types ["buy", "sell"]
   @fields ["settlement_amount", "settlement_fx_rate", "settlement_source", "settlement_mode"]
@@ -164,6 +164,8 @@ defmodule PortfolixirWeb.Transactions.SettlementForm do
     end
   end
 
+  # A derived figure is written in the page's locale (#869): only the
+  # separator follows the page; the rate keeps six places, the amount two.
   defp put_rate(params, nil), do: params
 
   defp put_rate(params, rate),
@@ -172,12 +174,7 @@ defmodule PortfolixirWeb.Transactions.SettlementForm do
   defp put_amount(params, nil), do: params
 
   defp put_amount(params, amount),
-    do:
-      Map.put(
-        params,
-        "settlement_amount",
-        amount |> Decimal.round(2) |> Decimal.to_string(:normal)
-      )
+    do: Map.put(params, "settlement_amount", amount |> Decimal.round(2) |> DecimalInput.value())
 
   @doc """
   The params the ledger receives on save. `{:error, errors}` when a
@@ -317,26 +314,17 @@ defmodule PortfolixirWeb.Transactions.SettlementForm do
     end
   end
 
-  # The form boundary's German comma (one comma, no dot, means a decimal
-  # point) — the same rule the booking form applies to its other amounts.
-  defp decimal(value) when is_binary(value) do
-    trimmed = String.trim(value)
-
-    normalized =
-      if not String.contains?(trimmed, ".") and length(String.split(trimmed, ",")) == 2,
-        do: String.replace(trimmed, ",", "."),
-        else: trimmed
-
-    # Finite only (E25 S4, F17): `NaN` or `Infinity` is no amount or rate.
-    case BoundedDecimal.parse(normalized) do
+  # The one decimal-input rule (#869): typed text in the page's locale, or a
+  # figure the booking form's boundary has already read. Finite only (E25 S4,
+  # F17): `NaN` or `Infinity` is no amount or rate.
+  defp decimal(value) do
+    case DecimalInput.parse(value) do
       {:ok, decimal} -> decimal
-      :error -> nil
+      _blank_or_refused -> nil
     end
   end
 
-  defp decimal(_value), do: nil
-
-  defp plain(decimal), do: decimal |> Decimal.normalize() |> Decimal.to_string(:normal)
+  defp plain(decimal), do: decimal |> Decimal.normalize() |> DecimalInput.value()
 
   # The ISO date in running text must not break at its hyphens in the narrow
   # drawer; a non-breaking hyphen (U+2011) keeps it one word.
@@ -371,6 +359,7 @@ defmodule PortfolixirWeb.Transactions.SettlementForm do
             name="transaction[settlement_amount]"
             value={@form["settlement_amount"]}
             inputmode="decimal"
+            class="num"
             aria-invalid={@errors["settlement_amount"] && "true"}
             aria-describedby={
               if @errors["settlement_amount"],
@@ -398,8 +387,22 @@ defmodule PortfolixirWeb.Transactions.SettlementForm do
             name="transaction[settlement_fx_rate]"
             value={@form["settlement_fx_rate"]}
             inputmode="decimal"
-            aria-describedby="settlement-help"
+            class="num"
+            aria-invalid={@errors["settlement_fx_rate"] && "true"}
+            aria-describedby={
+              if @errors["settlement_fx_rate"],
+                do: "tx-error-settlement_fx_rate settlement-help",
+                else: "settlement-help"
+            }
           />
+          <p
+            :if={@errors["settlement_fx_rate"]}
+            id="tx-error-settlement_fx_rate"
+            class="field-error"
+            role="alert"
+          >
+            <%= @errors["settlement_fx_rate"] %>
+          </p>
         </label>
       </div>
       <p id="settlement-help" class="form-help" data-role="settlement-help">
