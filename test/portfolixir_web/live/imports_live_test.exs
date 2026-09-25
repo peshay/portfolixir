@@ -6,6 +6,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
   alias Portfolixir.Buckets
   alias Portfolixir.Imports.PreviewStore
   alias Portfolixir.Ledger
+  alias Portfolixir.Lifecycle.AccountNames
   alias Portfolixir.Portfolios
   alias Portfolixir.Repo
 
@@ -1588,7 +1589,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
              )
 
       {:ok, _} =
-        Portfolixir.Lifecycle.AccountNames.remove_former_name(
+        AccountNames.remove_former_name(
           Portfolixir.Actor.api_token_rw("synthetic-agent"),
           main,
           "Giro"
