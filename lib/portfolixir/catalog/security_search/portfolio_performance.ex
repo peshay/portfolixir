@@ -63,13 +63,18 @@ defmodule Portfolixir.Catalog.SecuritySearch.PortfolioPerformance do
     end
   end
 
+  # Every hit is type-matched and bounded (F29) before it leaves the adapter.
   defp decode(body) when is_list(body) do
     body
     |> Enum.map(&to_result/1)
+    |> Enum.map(&bound/1)
     |> Enum.reject(&is_nil/1)
   end
 
   defp decode(_), do: []
+
+  defp bound(nil), do: nil
+  defp bound(%SearchResult{} = result), do: SearchResult.bound(result)
 
   defp to_result(%{"description" => description} = entry) when is_binary(description) do
     isin = nilify(Map.get(entry, "isin"))
@@ -96,13 +101,14 @@ defmodule Portfolixir.Catalog.SecuritySearch.PortfolioPerformance do
       asset_class: map_asset_class(Map.get(entry, "type"), description),
       feed: @feed_id,
       markets: markets,
-      raw: entry
+      # The allow-listed keys only, never the whole provider entry (F29).
+      raw: Map.take(entry, ["type"])
     }
   end
 
   defp to_result(_), do: nil
 
-  defp to_market(%{"symbol" => _} = entry) do
+  defp to_market(%{"symbol" => symbol} = entry) when is_binary(symbol) do
     %Market{
       symbol: nilify(Map.get(entry, "symbol")),
       currency_code: nilify(Map.get(entry, "currency")),
@@ -207,7 +213,8 @@ defmodule Portfolixir.Catalog.SecuritySearch.PortfolioPerformance do
   defp nilify(nil), do: nil
   defp nilify(""), do: nil
   defp nilify(value) when is_binary(value), do: value |> String.trim() |> empty_to_nil()
-  defp nilify(value), do: value
+  # A provider field of the wrong type is absent, never passed through (F29).
+  defp nilify(_value), do: nil
 
   defp empty_to_nil(""), do: nil
   defp empty_to_nil(value), do: value

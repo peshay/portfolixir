@@ -3823,7 +3823,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp display_value(:feed, value), do: Feeds.label(value)
   defp display_value(:latest_feed, value), do: Feeds.label(value)
-  defp display_value(_key, value), do: to_string(value)
+
+  # Attributes are free-form JSON a provider or a token holder wrote (F29): a
+  # scalar reads as text, anything else as an empty cell, never a crash.
+  defp display_value(_key, value)
+       when is_binary(value) or is_number(value) or is_boolean(value) or is_atom(value),
+       do: to_string(value)
+
+  defp display_value(_key, _value), do: ""
 
   defp safe_to_string({:safe, iodata}), do: IO.iodata_to_binary(iodata)
 
