@@ -14,6 +14,8 @@ export interface HttpServerOptions {
   port?: number;
   /** Extra Host names this listener answers under (a reverse-proxy name). */
   extraHosts?: string[];
+  /** The opt-in read-only switch (E25 S7, G26). */
+  readOnly?: boolean;
 }
 
 export function isAllowedOrigin(origin: string | undefined): boolean {
@@ -266,6 +268,8 @@ export interface HttpAppOptions {
   token: string;
   /** The Host values the companion answers under (its guard and the SDK's). */
   allowedHosts: string[];
+  /** The opt-in read-only switch (E25 S7, G26). */
+  readOnly?: boolean;
 }
 
 /**
@@ -327,7 +331,7 @@ export function createHttpApp(options: HttpAppOptions): Express {
   app.use(express.json({ limit: "1mb" }));
 
   app.all("/mcp", async (req: Request, res: Response) => {
-    const server = createPortfolixirMcpServer(options.client);
+    const server = createPortfolixirMcpServer(options.client, { readOnly: options.readOnly });
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableDnsRebindingProtection: true,
@@ -359,7 +363,12 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
   const port = options.port ?? 4001;
   const token = requireMcpToken(options.token);
   const allowedHosts = allowedHostsFor(host, port, ...(options.extraHosts ?? []));
-  const app = createHttpApp({ client: options.client, token, allowedHosts });
+  const app = createHttpApp({
+    client: options.client,
+    token,
+    allowedHosts,
+    readOnly: options.readOnly
+  });
 
   await new Promise<void>((resolve) => {
     app.listen(port, host, () => resolve());

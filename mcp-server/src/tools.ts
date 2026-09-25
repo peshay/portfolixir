@@ -3554,19 +3554,39 @@ const toolDefinitions: ToolDefinition[] = declaredTools.map((tool) => {
   return { ...tool, method, annotations: hintsFor(tool.name, method) };
 });
 
-export function listTools(): ToolDefinition[] {
-  return toolDefinitions;
+/**
+ * How the companion runs (E25 S7, G26, T-8). Read-only, it lists only the
+ * tools that change nothing, and refuses every other tool again at the call,
+ * so a tool an agent guessed or cached from another session is refused too.
+ */
+export interface ToolPolicy {
+  readOnly?: boolean;
+}
+
+export function listTools(policy: ToolPolicy = {}): ToolDefinition[] {
+  return policy.readOnly
+    ? toolDefinitions.filter((tool) => tool.annotations.readOnlyHint)
+    : toolDefinitions;
 }
 
 export async function callTool(
   client: ApiClient,
   name: string,
-  args: Record<string, any>
+  args: Record<string, any>,
+  policy: ToolPolicy = {}
 ): Promise<ToolResult> {
+  const definition = toolDefinitions.find((tool) => tool.name === name);
+
+  if (policy.readOnly && definition !== undefined && !definition.annotations.readOnlyHint) {
+    throw new Error(
+      `${name} is not available: this companion runs read-only ` +
+        "(PORTFOLIXIR_MCP_READ_ONLY=true) and calls only the tools that change nothing."
+    );
+  }
+
   // Validate here, not only in the SDK layer: guards like the delivery-price
   // rule must hold for every caller of callTool, and a zod failure must
   // surface BEFORE any API request is made.
-  const definition = toolDefinitions.find((tool) => tool.name === name);
   const parsedArgs = definition
     ? (definition.zodSchema.parse(args ?? {}) as Record<string, any>)
     : (args ?? {});

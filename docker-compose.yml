@@ -98,6 +98,8 @@ services:
       PORTFOLIXIR_MCP_PORT: 4001
       # Further Host names the companion answers under (a proxy name).
       PORTFOLIXIR_MCP_ALLOWED_HOSTS: ${PORTFOLIXIR_MCP_ALLOWED_HOSTS:-}
+      # true: the companion lists and calls only the tools that change nothing.
+      PORTFOLIXIR_MCP_READ_ONLY: ${PORTFOLIXIR_MCP_READ_ONLY:-false}
     ports:
       - "127.0.0.1:4001:4001"
     restart: unless-stopped

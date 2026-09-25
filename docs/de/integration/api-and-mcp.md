@@ -2247,6 +2247,15 @@ Rückfrage, wenn Ihnen das wichtig ist. Ein Host, der vor jedem anderen Tool
 fragt, mindestens aber vor jedem mit `destructiveHint: true`, behält jeden
 Schreibvorgang im Blick.
 
+**Nur-Lese-Modus.** Mit `PORTFOLIXIR_MCP_READ_ONLY=true` läuft der
+Begleitdienst nur lesend: `tools/list` listet dann nur die Tools mit
+`readOnlyHint: true`, und ein Aufruf jedes anderen Tools, gelistet oder nicht,
+wird als Tool-Fehler abgelehnt, der den Schalter nennt, bevor eine Anfrage
+hinausgeht. Standardmäßig ist er aus, und jeder andere Wert als `true`,
+`false`, `1`, `0` oder leer stoppt den Begleitdienst mit dem Namen der
+Variable. Der Schalter schränkt den Begleitdienst ein, nicht das Token:
+`PORTFOLIXIR_API_TOKEN` behält seine volle Befugnis über die API.
+
 - `portfolixir.contract.get` — der Kontraktversions-Read (ADR-0044 §8): was
   die Oberfläche bietet und wann sie sich zuletzt geändert hat, abfragbar mit
   `since=`.

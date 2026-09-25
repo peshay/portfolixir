@@ -4,7 +4,8 @@ import { describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { listTools } from "../src/tools.js";
+import { readOnlySwitch } from "../src/server.js";
+import { callTool, listTools } from "../src/tools.js";
 import { connectCompanion, publishedTools } from "./support/companion.js";
 import { createRecordingClient } from "./support/recording-client.js";
 
@@ -341,6 +342,99 @@ describe("the companion's published tool surface", () => {
       const tool = published.find((candidate) => candidate.name === name);
       assert.equal(tool?.annotations?.destructiveHint, false, name);
       assert.match(tool?.description ?? "", /PERMANENT/, `${name} states its permanence`);
+    }
+  });
+
+  // User story (E25 S7, G26, T-8):
+  // As the operator who wants an agent to read the instance but never write it,
+  // I want one opt-in switch that makes the companion read-only,
+  // so that a prompt-injected agent in that session cannot change anything
+  // through the companion, even with a tool it guessed or cached.
+  //
+  // Acceptance criteria:
+  // - Read-only, tools/list lists exactly the tools with readOnlyHint, and no
+  //   write tool.
+  // - A call to a write tool is refused again at call time, as a tool error
+  //   naming the switch, with no API request, whether or not it was listed.
+  // - Read tools work as before; without the switch every tool is listed.
+  it("in read-only mode lists and calls no write tool", async () => {
+    const reads = listTools().filter((tool) => tool.annotations.readOnlyHint);
+    const listed = await publishedTools({ readOnly: true });
+
+    assert.deepEqual(
+      listed.map((tool) => tool.name),
+      reads.map((tool) => tool.name)
+    );
+    assert.ok(listed.every((tool) => tool.annotations?.readOnlyHint === true));
+    assert.ok(listed.some((tool) => tool.name === "portfolixir.securities.search_online"));
+    assert.equal((await publishedTools()).length, listTools().length);
+
+    const { client, requests } = createRecordingClient({ data: { id: 1 } });
+    const companion = await connectCompanion(client, { readOnly: true });
+
+    try {
+      for (const [name, args] of [
+        ["portfolixir.transactions.delete", { id: 1 }],
+        ["portfolixir.notes.append", {
+          security_id: 7,
+          note: { kind: "evidence", body: "x", source_quality: "primary", as_of: "2026-08-01" }
+        }],
+        ["portfolixir.quotes.sync", { security_id: 7 }]
+      ] as const) {
+        const refused = await companion.mcp.callTool({ name, arguments: args });
+        assert.equal(refused.isError, true, name);
+        assert.match((refused.content as any)[0].text, /read-only/, name);
+        assert.match((refused.content as any)[0].text, /PORTFOLIXIR_MCP_READ_ONLY/, name);
+      }
+
+      assert.equal(requests.length, 0);
+
+      const read = await companion.mcp.callTool({
+        name: "portfolixir.securities.get",
+        arguments: { id: 7 }
+      });
+      assert.equal(read.isError, undefined);
+      assert.deepEqual(
+        requests.map((request) => `${request.method} ${request.path}`),
+        ["GET /api/v1/securities/7"]
+      );
+    } finally {
+      await companion.close();
+    }
+  });
+
+  it("refuses a write in read-only mode at the call itself", async () => {
+    const { client, requests } = createRecordingClient({ data: {} });
+
+    await assert.rejects(
+      callTool(client, "portfolixir.transactions.delete", { id: 1 }, { readOnly: true }),
+      /read-only.*PORTFOLIXIR_MCP_READ_ONLY/
+    );
+    assert.equal(requests.length, 0);
+
+    await callTool(client, "portfolixir.splits.preview", {
+      security_id: 7,
+      date: "2026-08-01",
+      ratio_numerator: 2,
+      ratio_denominator: 1
+    }, { readOnly: true });
+    assert.deepEqual(
+      requests.map((request) => `${request.method} ${request.path}`),
+      ["POST /api/v1/splits/preview"]
+    );
+  });
+
+  it("reads the read-only switch strictly, off by default", () => {
+    for (const value of [undefined, "", "0", "false", "FALSE", " false "]) {
+      assert.equal(readOnlySwitch(value), false, String(value));
+    }
+
+    for (const value of ["1", "true", "TRUE", " true "]) {
+      assert.equal(readOnlySwitch(value), true, value);
+    }
+
+    for (const value of ["yes", "on", "readonly", "2"]) {
+      assert.throws(() => readOnlySwitch(value), /PORTFOLIXIR_MCP_READ_ONLY/, value);
     }
   });
 

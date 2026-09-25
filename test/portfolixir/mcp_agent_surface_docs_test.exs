@@ -119,4 +119,41 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
        ]}
     ])
   end
+
+  # User story (E25 S7, G26, T-8):
+  # As the operator who wants an agent to read but never write,
+  # I want the switch documented where I configure the companion, and its
+  # limit stated where the known limits are,
+  # so that I know it narrows the companion and not the token.
+  #
+  # Acceptance criteria:
+  # - The EN and DE MCP pages and deployment tables name
+  #   PORTFOLIXIR_MCP_READ_ONLY, what it lists and refuses, and its default.
+  # - SECURITY.md states the full-authority token as a known limit.
+  # - The Compose file passes the switch through and .env.example carries it.
+  test "the read-only switch and the token's full authority are documented" do
+    assert_fragments([
+      {"docs/integration/api-and-mcp.md",
+       [
+         "Set `PORTFOLIXIR_MCP_READ_ONLY=true` to run the companion read-only",
+         "a call to any other tool, listed or not, is refused as a tool error naming the switch",
+         "`PORTFOLIXIR_API_TOKEN` keeps its full authority over the API"
+       ]},
+      {"docs/de/integration/api-and-mcp.md",
+       [
+         "Mit `PORTFOLIXIR_MCP_READ_ONLY=true` läuft der Begleitdienst nur lesend",
+         "gelistet oder nicht, wird als Tool-Fehler abgelehnt, der den Schalter nennt",
+         "`PORTFOLIXIR_API_TOKEN` behält seine volle Befugnis über die API"
+       ]},
+      {"docs/home-deployment.md", ["| `PORTFOLIXIR_MCP_READ_ONLY` | no |"]},
+      {"docs/de/home-deployment.md", ["| `PORTFOLIXIR_MCP_READ_ONLY` | nein |"]},
+      {"SECURITY.md",
+       [
+         "calls the API with the one `PORTFOLIXIR_API_TOKEN`, and that token has full authority",
+         "whoever holds the token can still write through the API directly"
+       ]},
+      {"docker-compose.yml", ["PORTFOLIXIR_MCP_READ_ONLY: ${PORTFOLIXIR_MCP_READ_ONLY:-false}"]},
+      {".env.example", ["PORTFOLIXIR_MCP_READ_ONLY=false"]}
+    ])
+  end
 end

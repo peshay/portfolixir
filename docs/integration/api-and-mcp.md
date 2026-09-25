@@ -2353,6 +2353,14 @@ configured provider, so keep it behind a prompt if that matters to you. A host
 that asks before every other tool, and at the least before each one with
 `destructiveHint: true`, keeps every write in view.
 
+**Read-only mode.** Set `PORTFOLIXIR_MCP_READ_ONLY=true` to run the companion
+read-only: `tools/list` then lists only the tools with `readOnlyHint: true`,
+and a call to any other tool, listed or not, is refused as a tool error naming
+the switch before any request is made. It is off by default, and a value other
+than `true`, `false`, `1`, `0` or empty stops the companion with the variable
+named. The switch narrows the companion, not the token: `PORTFOLIXIR_API_TOKEN`
+keeps its full authority over the API.
+
 - `portfolixir.contract.get` — the contract-version read (ADR-0044 §8):
   what the surface offers and when it last changed, pollable with `since=`.
 - `portfolixir.securities.list`
