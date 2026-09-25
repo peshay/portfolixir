@@ -8,6 +8,10 @@ defmodule Portfolixir.Imports.ImportHash do
   name), quantity, price, gross amount, fees and taxes, its four Portfolio
   Performance account and depot names, and the portfolio id.
 
+  A tax refund the parser splits off a row (a companion) is hashed with its
+  row, `companion/4` (E25 S5, F37), and the applier books or skips it with
+  that row.
+
   **Injective, and every stored hash stays valid** (E25 S5, F36; risk-tier:
   idempotency, ADR-0036). Up to Sprint 15 the fields were joined with `|`
   and hashed, so two rows whose fields joined to one string (a separator
@@ -42,6 +46,22 @@ defmodule Portfolixir.Imports.ImportHash do
     if separator_bearing?(parts),
       do: digest(["\0" | length_prefixed(parts)]),
       else: joined(parts)
+  end
+
+  @doc """
+  The content hash of the `index`-th companion `entry` split off the row
+  whose hash is `parent_hash` (E25 S5, F37): the parent's hash, the
+  companion's position and the companion's own hash, length-prefixed behind
+  a leading byte no other form begins with. Two equal refunds split off two
+  different rows hash apart; the same file hashes the same.
+  """
+  @spec companion(String.t(), pos_integer(), Entry.t(), integer()) :: String.t()
+  def companion(parent_hash, index, %Entry{} = entry, portfolio_id)
+      when is_binary(parent_hash) and is_integer(index) and is_integer(portfolio_id) do
+    digest([
+      "\x01"
+      | length_prefixed([parent_hash, Integer.to_string(index), compute(entry, portfolio_id)])
+    ])
   end
 
   @doc """

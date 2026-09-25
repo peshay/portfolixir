@@ -1913,7 +1913,12 @@ neben der importierten Historie:
 - **Dasselbe Export erneut anwenden ist ein No-op per Inhalts-Hash.** Jede
   bereits vorhandene Transaktionszeile wird als Duplikat übersprungen; kein
   Wertpapier wird doppelt angelegt; die Antwort des Anwendens meldet die
-  übersprungene Anzahl.
+  übersprungene Anzahl. Der Hash ist eindeutig (zwei verschiedene Zeilen
+  teilen nie einen), und jeder Hash, der vorher gespeichert wurde, wird weiter
+  gefunden. Eine von einer Zeile abgespaltene Steuererstattung wird mit dieser
+  Zeile gebucht oder übersprungen, sodass zwei gleiche Erstattungen zweier
+  verschiedener Verkäufe beide gebucht werden und eine bereits importierte
+  Erstattung über ihren Verkauf erkannt wird.
 - **Eine Umbenennung ist sicher für den nächsten Import (ADR-0050 §3, §4).**
   Der Hash wird geprüft, bevor irgendetwas aufgelöst wird, und ein
   Verrechnungskonto oder Depot entsteht erst mit seiner ersten neuen Buchung,
