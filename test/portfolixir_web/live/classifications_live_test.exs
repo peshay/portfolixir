@@ -374,13 +374,17 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     Classifications.ensure_builtins()
     asset = Classifications.get_classification_by_key("asset_class")
 
+    # A category of the tree itself: an id no category carries is an
+    # unreadable payload, which the page ignores (E25 S4, F17).
+    [category | _] = Classifications.list_categories(asset.id)
+
     {:ok, view, _html} = live_drained(conn, "/classifications/#{asset.id}")
 
     html =
       render_hook(view, "assign_security", %{
         "security_id" => security.id,
         "classification_id" => asset.id,
-        "category_id" => 0
+        "category_id" => category.id
       })
 
     assert html =~ "cannot be edited"

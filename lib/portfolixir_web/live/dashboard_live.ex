@@ -167,6 +167,11 @@ defmodule PortfolixirWeb.DashboardLive do
     {:noreply, assign(socket, :error, gettext("Couldn't load the dashboard figures."))}
   end
 
+  # The overview handles no events of its own; one pushed to it changes
+  # nothing (E25 S4, F17).
+  @impl true
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
   @impl true
   def render(assigns) do
     ~H"""

@@ -111,7 +111,7 @@ defmodule PortfolixirWeb.TaxLive do
   end
 
   def handle_event("record_statement", %{"statement" => params}, socket) do
-    case save_statement(socket, params) do
+    case save_statement(socket, LiveParam.map(params)) do
       {:ok, snapshot} ->
         socket =
           socket
@@ -154,6 +154,8 @@ defmodule PortfolixirWeb.TaxLive do
   end
 
   def handle_event("put_allowance_order", %{"order" => params}, socket) do
+    params = LiveParam.map(params)
+
     attrs = %{
       holder: socket.assigns.holder,
       institution: params["institution"],
@@ -203,6 +205,10 @@ defmodule PortfolixirWeb.TaxLive do
     {:noreply, assign(socket, :row_menu, nil)}
   end
 
+  # An event this page does not know, or a payload it cannot read, changes
+  # nothing (E25 S4, F17).
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
   defp save_statement(socket, params) do
     attrs = statement_attrs(socket, params)
 
@@ -245,6 +251,9 @@ defmodule PortfolixirWeb.TaxLive do
       trimmed -> trimmed
     end
   end
+
+  # Not a form's string: the changeset refuses it as a field error.
+  defp blank_to_zero(value), do: value
 
   defp load_year(socket) do
     %{holder: holder, tax_year: tax_year, today: today} = socket.assigns

@@ -72,7 +72,12 @@ ID- oder Ganzzahl-Parameter einer Seite wird nach derselben ID-Regel gelesen
 und gilt als nicht angegeben, wenn er den Wert nicht fassen kann:
 `/snapshots?snapshot=` öffnet den neuesten Snapshot,
 `/classifications/:id?soll_view=` den Plan für das Gesamtportfolio und
-`/tax?year=` (ein Jahr außerhalb von `1`–`9999`) das voreingestellte Jahr.
+`/tax?year=` (ein Jahr außerhalb von `1`–`9999`) das voreingestellte Jahr. Ein
+Ereignis, das eine Seite oder einen ihrer Dialoge mit einer Nutzlast erreicht,
+die kein Objekt ist, mit einer ID jenseits der Grenze in beliebiger Tiefe
+(dieselbe Regel, die die API mit `422` beantwortet), mit einem Feld in falscher
+Form oder mit einem unbekannten Namen, ändert nichts: Die Seite bleibt, wie sie
+war.
 
 **Begrenzte Ganzzahlen.** `offset` auf der Wertpapierliste nimmt höchstens
 `1000000` an, `days` auf den Research-Log-Abfragen `unreviewed` und `expiring`

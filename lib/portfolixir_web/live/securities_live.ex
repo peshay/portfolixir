@@ -22,6 +22,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Catalog.SecurityMetrics
   alias Portfolixir.Catalog.SecurityWithMetrics
   alias Portfolixir.Classifications
+  alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Knowledge
   alias Portfolixir.Knowledge.Events
   alias Portfolixir.Knowledge.SecurityEvent
@@ -52,6 +53,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
   @default_tab "overview"
   @holding_statuses ~w(all held not_held)
   @default_holding_status "all"
+
+  # The deepest classification level a column key may name; the key is then
+  # checked against the tree's real depth. Only a bound, never a limit a tree
+  # meets (E25 S4, F17).
+  @max_tree_level 1_000
 
   # Data-quality shortcut filters (#561): conditions that are not expressible
   # as a plain column filter — stale/missing quotes are metric-derived and the
@@ -3194,8 +3200,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp parse_classification_key("classification:" <> rest, classification_specs) do
     with [id_str, level_str] <- String.split(rest, ":"),
-         {id, ""} <- Integer.parse(id_str),
-         {level, ""} <- Integer.parse(level_str),
+         {:ok, id} <- LiveParam.fetch_id(id_str),
+         level when is_integer(level) <- LiveParam.integer(level_str, 1..@max_tree_level),
          %Field{} = field <-
            classification_field({:classification, id, level}, classification_specs) do
       field.key
@@ -3865,6 +3871,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   @impl true
   def handle_event("search", %{"query" => query}, socket) do
+    query = LiveParam.string(query) || ""
+
     # `replace: true` — typing must not stack one history entry per keystroke.
     {:noreply,
      push_patch(socket,
@@ -3959,7 +3967,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   def handle_event("toggle_chip_family", %{"family" => family, "option" => option}, socket)
-      when family in ["cur", "class"] do
+      when family in ["cur", "class"] and is_binary(option) do
     key = String.to_existing_atom(family)
     active = Map.fetch!(socket.assigns, key)
     toggled = if option in active, do: List.delete(active, option), else: active ++ [option]
@@ -4071,11 +4079,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
         %{"classification_id" => classification_id} = params,
         %{assigns: %{selected_security: %Security{id: id}}} = socket
       ) do
-    case Integer.parse(classification_id) do
-      {cid, ""} ->
+    case LiveParam.fetch_id(classification_id) do
+      {:ok, cid} ->
         {:noreply, choose_security_category(socket, id, cid, params["category_id"])}
 
-      _ ->
+      :error ->
         {:noreply, socket}
     end
   end
@@ -4087,7 +4095,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         %{"classification_id" => classification_id, "name" => name},
         %{assigns: %{selected_security: %Security{id: id}}} = socket
       ) do
-    with {cid, ""} <- Integer.parse(classification_id),
+    with {:ok, cid} <- LiveParam.fetch_id(classification_id),
          {:ok, category} <-
            Classifications.create_category(Actor.owner_ui(), %{
              "classification_id" => cid,
@@ -4116,6 +4124,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
       %Security{id: id} ->
         attrs =
           params
+          |> LiveParam.map()
           |> Map.put("security_id", id)
           |> Map.put("author", "operator")
           |> drop_blank_values()
@@ -4188,7 +4197,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         %{"id" => id_str, "asset_class" => class},
         socket
       ) do
-    with {id, ""} <- Integer.parse(to_string(id_str)),
+    with {:ok, id} <- LiveParam.fetch_id(id_str),
          %Security{} = security <- Catalog.get_security(id),
          {:ok, _} <- Catalog.update_security(Actor.owner_ui(), security, %{asset_class: class}) do
       {:noreply,
@@ -4261,7 +4270,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     security = socket.assigns.selected_security
 
     with %Security{} <- security,
-         {depot_id, ""} <- Integer.parse(depot_id),
+         {:ok, depot_id} <- LiveParam.fetch_id(depot_id),
          depot when not is_nil(depot) <- Portfolios.get_securities_account(depot_id),
          {:ok, _} <- apply_position_override(depot, security, params) do
       {:noreply,
@@ -4311,8 +4320,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   def handle_event("toggle_detail_ma", %{"window" => window_str}, socket) do
-    case Integer.parse(window_str) do
-      {window, ""} when window in [30, 50, 200] ->
+    case LiveParam.integer(window_str, 30..200) do
+      window when window in [30, 50, 200] ->
         {:noreply, update(socket, :detail_ma, &Map.update!(&1, window, fn b -> !b end))}
 
       _ ->
@@ -4337,13 +4346,22 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   def handle_event("remove_filter", %{"idx" => idx}, socket) do
-    idx = String.to_integer(idx)
-    filters = List.delete_at(socket.assigns.filters, idx)
+    filters = socket.assigns.filters
 
-    {:noreply,
-     push_patch(socket,
-       to: securities_path(socket.assigns, tab: :current, override: %{filters: filters})
-     )}
+    case LiveParam.integer(idx, 0..(length(filters) - 1)//1) do
+      nil ->
+        {:noreply, socket}
+
+      idx ->
+        {:noreply,
+         push_patch(socket,
+           to:
+             securities_path(socket.assigns,
+               tab: :current,
+               override: %{filters: List.delete_at(filters, idx)}
+             )
+         )}
+    end
   end
 
   def handle_event("retry_missing_logos", _params, socket) do
@@ -4398,7 +4416,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   def handle_event("set_columns", _params, socket), do: {:noreply, socket}
 
   def handle_event("open_row_menu", %{"id" => id_str}, socket) do
-    with {id, ""} <- Integer.parse(to_string(id_str)),
+    with {:ok, id} <- LiveParam.fetch_id(id_str),
          row when not is_nil(row) <-
            Enum.find(socket.assigns.securities, &(security_id(&1) == id)) do
       {:noreply, assign(socket, :row_menu_id, id)}
@@ -4421,13 +4439,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   def handle_event("save_logo_url", %{"logo" => %{"url" => url}}, socket) do
     case socket.assigns.logo_dialog_security do
-      %Security{} = sec -> store_logo_url(socket, sec, String.trim(to_string(url)))
+      %Security{} = sec -> store_logo_url(socket, sec, String.trim(LiveParam.string(url) || ""))
       _ -> {:noreply, socket}
     end
   end
 
   def handle_event("remove_logo_override", %{"id" => id_str}, socket) do
-    with {id, ""} <- Integer.parse(to_string(id_str)),
+    with {:ok, id} <- LiveParam.fetch_id(id_str),
          %Security{} = sec <- Catalog.get_security(id),
          {:ok, _updated} <- Catalog.remove_logo(sec, logo_opts()) do
       {:noreply,
@@ -4445,7 +4463,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   def handle_event("row_action", %{"action" => action, "id" => id_str}, socket) do
-    with {id, ""} <- Integer.parse(to_string(id_str)),
+    with {:ok, id} <- LiveParam.fetch_id(id_str),
          %Security{} = sec <- Catalog.get_security(id) do
       socket
       |> assign(:row_menu_id, nil)
@@ -4454,6 +4472,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
       _ -> {:noreply, assign(socket, :row_menu_id, nil)}
     end
   end
+
+  # An event this page does not know, or a payload it cannot read, changes
+  # nothing (E25 S4, F17).
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   defp dispatch_row_action(socket, "edit", %Security{} = sec) do
     {:noreply,
@@ -4708,11 +4730,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp safe_holding_status(status) when status in @holding_statuses, do: status
   defp safe_holding_status(_), do: @default_holding_status
 
-  defp safe_atom(string) when is_binary(string) do
-    String.to_existing_atom(string)
-  rescue
-    ArgumentError -> nil
-  end
+  # The popovers the page has; any other name opens nothing (E25 S4, F17).
+  defp safe_atom("filter"), do: :filter
+  defp safe_atom("columns"), do: :columns
+  defp safe_atom(_name), do: nil
 
   # -- messages from child components --------------------------------------
 
@@ -5009,12 +5030,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
       params
       |> Map.get("bucket_ids", [])
       |> List.wrap()
-      |> Enum.flat_map(fn value ->
-        case Integer.parse(to_string(value)) do
-          {id, ""} -> [id]
-          _ -> []
-        end
-      end)
+      |> LiveParam.ids()
 
     case Buckets.set_position_override(Actor.owner_ui(), depot, security, ids) do
       :ok -> {:ok, :explicit}
@@ -5121,8 +5137,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   defp apply_classification_change(security_id, classification_id, category_id) do
-    case Integer.parse(category_id) do
-      {category, ""} ->
+    case LiveParam.fetch_id(category_id) do
+      {:ok, category} ->
         Classifications.assign_security(
           Actor.owner_ui(),
           security_id,
@@ -5348,9 +5364,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
     end
   end
 
+  # The shared date rule (E25 S4): an ISO date inside the ledger's range, so a
+  # year far outside it is the field's error, not a chart range.
   defp parse_detail_range(from_str, to_str) do
-    with {:from, {:ok, from}} <- {:from, Date.from_iso8601(to_string(from_str))},
-         {:to, {:ok, to}} <- {:to, Date.from_iso8601(to_string(to_str))},
+    with {:from, {:ok, from}} <- {:from, BoundedDate.parse(from_str)},
+         {:to, {:ok, to}} <- {:to, BoundedDate.parse(to_str)},
          {:order, false} <- {:order, Date.compare(from, to) == :gt} do
       {:ok, from, to}
     else

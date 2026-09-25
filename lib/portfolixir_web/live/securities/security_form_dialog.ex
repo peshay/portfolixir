@@ -13,11 +13,14 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   alias Portfolixir.Catalog.SecuritySearch
   alias Portfolixir.Catalog.SecuritySearch.SearchResult
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.LiveEventGuard
+  alias PortfolixirWeb.LiveParam
 
   @impl true
   def mount(socket) do
     {:ok,
      socket
+     |> LiveEventGuard.attach()
      |> assign(:step, :choose)
      |> assign(:mode, nil)
      |> assign(:query, "")
@@ -557,7 +560,8 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
      |> assign(:step, :confirm)}
   end
 
-  def handle_event("choose_mode", %{"mode" => mode}, socket) do
+  def handle_event("choose_mode", %{"mode" => mode}, socket)
+      when mode in ["security", "crypto"] do
     {:noreply,
      socket
      |> assign(:mode, mode)
@@ -567,15 +571,15 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   end
 
   def handle_event("search_change", %{"dialog_query" => query}, socket) do
-    {:noreply, run_search(assign(socket, :query, query))}
+    {:noreply, run_search(assign(socket, :query, LiveParam.string(query) || ""))}
   end
 
   def handle_event("search_submit", %{"dialog_query" => query}, socket) do
-    {:noreply, run_search(assign(socket, :query, query))}
+    {:noreply, run_search(assign(socket, :query, LiveParam.string(query) || ""))}
   end
 
   def handle_event("pick_result", %{"idx" => idx}, socket) do
-    case Enum.at(socket.assigns.results, String.to_integer(idx)) do
+    case pick(socket.assigns.results, idx) do
       nil ->
         {:noreply, socket}
 
@@ -601,16 +605,18 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   end
 
   def handle_event("pick_market", %{"idx" => idx}, socket) do
-    result = socket.assigns.selected_result
-    market = Enum.at(result.markets, String.to_integer(idx))
-
-    {:noreply,
-     socket
-     |> assign(:selected_market, market)
-     |> assign(:step, :confirm)
-     |> assign(:form, build_form(result, market, socket.assigns.mode))
-     |> assign(:conflict, nil)
-     |> check_conflict()}
+    with %SearchResult{} = result <- socket.assigns.selected_result,
+         market when not is_nil(market) <- pick(result.markets, idx) do
+      {:noreply,
+       socket
+       |> assign(:selected_market, market)
+       |> assign(:step, :confirm)
+       |> assign(:form, build_form(result, market, socket.assigns.mode))
+       |> assign(:conflict, nil)
+       |> check_conflict()}
+    else
+      _nothing_picked -> {:noreply, socket}
+    end
   end
 
   def handle_event("back_to_search", _params, socket) do
@@ -636,10 +642,12 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   end
 
   def handle_event("form_change", %{"security" => params}, socket) do
-    {:noreply, assign(socket, :form, Map.merge(socket.assigns.form, params))}
+    {:noreply, assign(socket, :form, Map.merge(socket.assigns.form, LiveParam.form(params)))}
   end
 
   def handle_event("save", %{"security" => params}, socket) do
+    params = LiveParam.form(params)
+
     cond do
       socket.assigns.editing ->
         attrs = to_overrides(params)
@@ -699,9 +707,14 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
     end
   end
 
-  def handle_event("merge_into_existing", _params, socket) do
-    existing = socket.assigns.conflict
-    result = socket.assigns.selected_result
+  # The merge and the open act on the conflict the dialog found; without one
+  # a push of either changes nothing (E25 S4, F17).
+  def handle_event(
+        "merge_into_existing",
+        _params,
+        %{assigns: %{conflict: %Security{} = existing, selected_result: %SearchResult{} = result}} =
+          socket
+      ) do
     market = socket.assigns.selected_market
     form_overrides = to_overrides(socket.assigns.form)
 
@@ -715,9 +728,21 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
     end
   end
 
-  def handle_event("open_existing", %{"id" => _id}, socket) do
+  def handle_event("open_existing", %{"id" => _id}, %{assigns: %{conflict: %Security{}}} = socket) do
     notify_parent(socket, {:open_existing, socket.assigns.conflict})
     {:noreply, socket}
+  end
+
+  # An event this component does not know, or a payload it cannot read,
+  # changes nothing (E25 S4, F17).
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
+  # The entry a list index names, or nil for an index that is not one.
+  defp pick(entries, idx) do
+    case LiveParam.integer(idx, 0..(length(entries) - 1)//1) do
+      nil -> nil
+      index -> Enum.at(entries, index)
+    end
   end
 
   defp run_search(socket) do

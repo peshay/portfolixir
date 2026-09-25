@@ -31,6 +31,34 @@ defmodule PortfolixirWeb.LiveSource do
     |> Enum.sort()
   end
 
+  @doc """
+  Whether the module's last `handle_event/3` clause takes any event, any
+  payload and any socket: three plain variables and no guard.
+  """
+  @spec catch_all_event?(module()) :: boolean()
+  def catch_all_event?(module) do
+    module
+    |> clauses()
+    |> Enum.filter(&match?({{:handle_event, 3}, _args, _body}, &1))
+    |> List.last()
+    |> case do
+      {_fun, args, _body} -> Enum.all?(args, &variable?/1) and not guarded_last?(module)
+      nil -> false
+    end
+  end
+
+  defp variable?({name, _meta, context}) when is_atom(name) and is_atom(context), do: true
+  defp variable?(_pattern), do: false
+
+  defp guarded_last?(module) do
+    module
+    |> source_ast()
+    |> heads()
+    |> Enum.filter(fn {name, arity, _guarded?} -> name == :handle_event and arity == 3 end)
+    |> List.last()
+    |> elem(2)
+  end
+
   @doc "The string keys read from `mount/3` and `handle_params/3` onwards."
   @spec param_keys(module()) :: [String.t()]
   def param_keys(module) do
@@ -100,10 +128,34 @@ defmodule PortfolixirWeb.LiveSource do
     Enum.uniq(keys)
   end
 
-  # `{{name, arity}, args, body}` for every `def`/`defp` clause in the source.
-  defp clauses(module) do
+  defp source_ast(module) do
     source = module.module_info(:compile)[:source] |> to_string()
     {:ok, ast} = source |> File.read!() |> Code.string_to_quoted()
+    ast
+  end
+
+  # `{name, arity, guarded?}` for every `def` head, in source order.
+  defp heads(ast) do
+    {_ast, heads} =
+      Macro.prewalk(ast, [], fn
+        {:def, _meta, [{:when, _, [{name, _, args} | _guards]} | _body]} = node, acc
+        when is_atom(name) and is_list(args) ->
+          {node, [{name, length(args), true} | acc]}
+
+        {:def, _meta, [{name, _, args} | _body]} = node, acc
+        when is_atom(name) and is_list(args) ->
+          {node, [{name, length(args), false} | acc]}
+
+        node, acc ->
+          {node, acc}
+      end)
+
+    Enum.reverse(heads)
+  end
+
+  # `{{name, arity}, args, body}` for every `def`/`defp` clause in the source.
+  defp clauses(module) do
+    ast = source_ast(module)
 
     {_ast, clauses} =
       Macro.prewalk(ast, [], fn

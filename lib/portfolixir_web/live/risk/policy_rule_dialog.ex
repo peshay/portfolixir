@@ -28,10 +28,15 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
   alias Portfolixir.Portfolios.PolicyRules
   alias Portfolixir.Portfolios.PolicyRuleVersion
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.LiveEventGuard
+  alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PolicyRuleLabel
   alias PortfolixirWeb.Risk.PolicyRuleFormat
 
   @metric_measures ~w(volatility max_drawdown)
+
+  @impl true
+  def mount(socket), do: {:ok, LiveEventGuard.attach(socket)}
 
   @impl true
   def update(assigns, socket) do
@@ -494,7 +499,7 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
   def handle_event("change", %{"rule" => params}, socket) do
     form =
       socket.assigns.form
-      |> Map.merge(Map.take(params, Map.keys(socket.assigns.form)))
+      |> merge_form(params)
       |> fit_subject(socket.assigns.options)
       |> fit_classification(socket.assigns.options)
 
@@ -504,7 +509,7 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
   def handle_event("save", %{"rule" => params}, socket) do
     form =
       socket.assigns.form
-      |> Map.merge(Map.take(params, Map.keys(socket.assigns.form)))
+      |> merge_form(params)
       |> fit_subject(socket.assigns.options)
       |> fit_classification(socket.assigns.options)
 
@@ -538,8 +543,11 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
     end
   end
 
-  def handle_event("retire", _params, socket) do
-    case PolicyRules.retire_rule(Actor.owner_ui(), socket.assigns.rule, %{}) do
+  # Retire and delete act on the rule the dialog was opened on; the new-rule
+  # dialog has none, and a push of either event to it changes nothing
+  # (E25 S4, F17).
+  def handle_event("retire", _params, %{assigns: %{rule: %{} = rule}} = socket) do
+    case PolicyRules.retire_rule(Actor.owner_ui(), rule, %{}) do
       {:ok, _closed} ->
         send(self(), {__MODULE__, {:saved, gettext("Rule retired")}})
         {:noreply, socket}
@@ -552,8 +560,8 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
     end
   end
 
-  def handle_event("delete", _params, socket) do
-    case PolicyRules.delete_rule(Actor.owner_ui(), socket.assigns.rule) do
+  def handle_event("delete", _params, %{assigns: %{rule: %{} = rule}} = socket) do
+    case PolicyRules.delete_rule(Actor.owner_ui(), rule) do
       {:ok, _deleted} ->
         send(self(), {__MODULE__, {:saved, gettext("Rule deleted")}})
         {:noreply, socket}
@@ -561,6 +569,22 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
       {:error, _reason} ->
         {:noreply, assign(socket, :alert, gettext("The rule could not be deleted."))}
     end
+  end
+
+  # An event this dialog does not know, or a payload it cannot read, changes
+  # nothing (E25 S4, F17).
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
+  # The submitted fields the form knows, and only as the strings a form
+  # sends: a payload of another shape leaves the form as it was.
+  defp merge_form(form, params) do
+    submitted =
+      for {key, value} <- LiveParam.map(params),
+          Map.has_key?(form, key) and is_binary(value),
+          into: %{},
+          do: {key, value}
+
+    Map.merge(form, submitted)
   end
 
   # The form's strings as the version's attrs: the subject decoded, a decimal

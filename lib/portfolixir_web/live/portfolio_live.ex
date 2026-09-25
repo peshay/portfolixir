@@ -20,6 +20,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias Portfolixir.Catalog.DataQuality
   alias Portfolixir.Classifications
   alias Portfolixir.Fx.RateSync
+  alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Allocation
@@ -2724,7 +2725,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp resolve_benchmarks(_selectors), do: []
 
   defp resolve_benchmark_security(id) do
-    with {id, ""} <- Integer.parse(id),
+    with {:ok, id} <- LiveParam.fetch_id(id),
          %Portfolixir.Catalog.Security{is_benchmark: true} = security <-
            Portfolixir.Catalog.get_security(id) do
       [{:security, security}]
@@ -3037,7 +3038,13 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # -- events -----------------------------------------------------------------
 
+  # The empty page (no depot, no cash account) offers no control, so an event
+  # pushed to it meets none of the state a control assumes, and changes
+  # nothing (E25 S4, F17).
   @impl true
+  def handle_event(_event, _params, %{assigns: %{portfolio: nil}} = socket),
+    do: {:noreply, socket}
+
   def handle_event("select_period", %{"period" => period}, socket) do
     if period in Performance.periods() do
       apply_period(socket, period)
@@ -3056,7 +3063,7 @@ defmodule PortfolixirWeb.PortfolioLive do
     do: {:noreply, push_event(socket, "close-popover", %{id: "period-custom"})}
 
   def handle_event("select_year", %{"year" => raw}, socket) do
-    with {year, ""} <- Integer.parse(raw),
+    with year when is_integer(year) <- LiveParam.year(raw),
          true <- year in available_years(socket.assigns.analysis) do
       apply_period(socket, {:year, year})
     else
@@ -3156,10 +3163,10 @@ defmodule PortfolixirWeb.PortfolioLive do
   # Values are display strings straight from our own render; HEEx escapes them.
   def handle_event("select_segment", params, socket) do
     segment = %{
-      name: to_string(params["name"] || ""),
-      percent: to_string(params["percent"] || ""),
-      value: to_string(params["amount"] || ""),
-      target: to_string(params["target"] || ""),
+      name: LiveParam.string(params["name"]) || "",
+      percent: LiveParam.string(params["percent"]) || "",
+      value: LiveParam.string(params["amount"]) || "",
+      target: LiveParam.string(params["target"]) || "",
       color: safe_color(params["color"])
     }
 
@@ -3301,6 +3308,10 @@ defmodule PortfolixirWeb.PortfolioLive do
 
     {:noreply, assign(socket, :flat_sort, sort)}
   end
+
+  # An event this page does not know, or a payload it cannot read, changes
+  # nothing (E25 S4, F17).
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   defp flip_dir(:desc), do: :asc
   defp flip_dir(:asc), do: :desc
@@ -4294,9 +4305,11 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # Prefill for the range inputs: the picked range, else the shown period's
   # effective bounds (honest clamping included), else blank.
+  # The shared date rule (E25 S4): an ISO date inside the ledger's range, so a
+  # typed or pushed year far outside it is the field's error, not a period.
   defp parse_range(from_str, to_str) do
-    with {:from, {:ok, from}} <- {:from, Date.from_iso8601(to_string(from_str))},
-         {:to, {:ok, to}} <- {:to, Date.from_iso8601(to_string(to_str))},
+    with {:from, {:ok, from}} <- {:from, BoundedDate.parse(from_str)},
+         {:to, {:ok, to}} <- {:to, BoundedDate.parse(to_str)},
          {:order, false} <- {:order, Date.compare(from, to) == :gt} do
       {:ok, from, to}
     else
