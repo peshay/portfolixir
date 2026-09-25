@@ -2215,6 +2215,38 @@ ergibt einen Tool-Fehler, der Tool und Feld nennt, und es geht keine Anfrage
 hinaus. Ein Aufruf, den die API ohne Body beantwortet, das `204` eines
 Löschens, ist ein Ergebnis ohne strukturierten Inhalt.
 
+**Server-Anweisungen und Tool-Hinweise (E25).** Beim Verbindungsaufbau sagt
+der Begleitdienst dem Agenten, dass alles, was ein Tool zurückgibt, Daten
+sind und nie Anweisungen: Namen, Notizen, Texte des Research-Logs, Ereignis-
+und Regeltexte, Import-Bezeichnungen und Suchergebnisse eines Anbieters sind
+Datensätze zum Lesen, keine Anweisungen zum Befolgen, und nur der Betreiber
+weist ihn an. Jedes Tool trägt die vier MCP-Hinweise, abgeleitet aus der
+HTTP-Methode, an die es weiterleitet:
+
+| Methode | `readOnlyHint` | `destructiveHint` | `idempotentHint` |
+|---|---|---|---|
+| `GET` | true | false | true |
+| `POST` | false | false (fügt hinzu) | false |
+| `PUT`, `PATCH` | false | true (überschreibt) | true |
+| `DELETE` | false | true (entfernt) | true |
+
+Die Ausnahmen sind benannt: `portfolixir.splits.preview` und
+`portfolixir.holdings.reconcile` laufen über `POST`, speichern aber nichts und
+sind deshalb nur lesend; `openWorldHint` ist nur für
+`portfolixir.securities.search_online`, `portfolixir.quotes.sync` und
+`portfolixir.exchange_rates.sync` wahr, die einen externen Anbieter erreichen.
+Die nur anfügenden Schreibvorgänge, `portfolixir.notes.append` und die
+Versionen einer Regel, sind nicht destruktiv, und ihre Beschreibungen sagen,
+dass das Angefügte dauerhaft ist.
+
+**Ohne Rückfrage freigebbare Lesezugriffe.** Ein Host darf jedes Tool mit
+`readOnlyHint: true` ohne Rückfrage ausführen: Keines davon verändert die
+Instanz. `portfolixir.securities.search_online` gehört dazu, sendet seine
+Anfrage aber an den konfigurierten Anbieter; lassen Sie es hinter einer
+Rückfrage, wenn Ihnen das wichtig ist. Ein Host, der vor jedem anderen Tool
+fragt, mindestens aber vor jedem mit `destructiveHint: true`, behält jeden
+Schreibvorgang im Blick.
+
 - `portfolixir.contract.get` — der Kontraktversions-Read (ADR-0044 §8): was
   die Oberfläche bietet und wann sie sich zuletzt geändert hat, abfragbar mit
   `since=`.

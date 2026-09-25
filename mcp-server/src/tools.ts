@@ -3,12 +3,31 @@ import { z, type ZodTypeAny } from "zod";
 
 type JsonSchema = Record<string, any>;
 
-export interface ToolDefinition {
+/** A tool as it is declared below: its words, its schema and its validator. */
+interface DeclaredTool {
   name: string;
   title: string;
   description: string;
   inputSchema: JsonSchema;
   zodSchema: ZodTypeAny;
+}
+
+/**
+ * The MCP tool hints (E25 S7, F24 and G25): what a call does to the instance,
+ * so a host can approve reads by itself and ask before an overwrite or a
+ * delete. Every tool carries all four.
+ */
+export interface ToolHints {
+  readOnlyHint: boolean;
+  destructiveHint: boolean;
+  idempotentHint: boolean;
+  openWorldHint: boolean;
+}
+
+/** A published tool: the declaration, the method it routes to, its hints. */
+export interface ToolDefinition extends DeclaredTool {
+  method: string;
+  annotations: ToolHints;
 }
 
 export interface ToolResult {
@@ -2620,7 +2639,7 @@ const contractGetSchema = {
 
 const contractGetZ = z.object({ since: optionalString() });
 
-const toolDefinitions: ToolDefinition[] = [
+const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.contract.get",
     "Contract version of this surface",
@@ -2751,7 +2770,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.notes.append",
     "Append a research-log entry",
-    "Append one entry to a security's research log (ADR-0044) — the ONLY write the log admits. kind is one of thesis | evidence | invalidation_check | event_result | risk | retraction | decision; source_quality is SET, not guessed (primary = the primary source itself, secondary_multi = several independent secondary sources, awareness = heard of, unverified); as_of is the statement's cut-off date (an entry written today about last quarter carries last quarter's date). To withdraw an earlier finding append kind=retraction with supersedes_id pointing at it and the reason in body — never try to edit or delete (there is no such tool, by design). To replace a thesis append a new thesis with supersedes_id on the old one; the thesis fields (conviction low|medium|high, invalidation_condition, time_stop) belong to thesis entries only. valid_until carries a dated block (lockup, self-imposed buying block) and feeds portfolixir.notes.expiring. The author is derived from the credential (an entry appended over MCP is the agent's) and machine_generated is reserved for a local-model path — neither is accepted in the body. The write is journaled under the API token.",
+    "Append one entry to a security's research log (ADR-0044) — the ONLY write the log admits, and a PERMANENT one: an entry is never updated or deleted, by anyone, so a mistaken entry stays and is withdrawn by a retraction, which is itself permanent. kind is one of thesis | evidence | invalidation_check | event_result | risk | retraction | decision; source_quality is SET, not guessed (primary = the primary source itself, secondary_multi = several independent secondary sources, awareness = heard of, unverified); as_of is the statement's cut-off date (an entry written today about last quarter carries last quarter's date). To withdraw an earlier finding append kind=retraction with supersedes_id pointing at it and the reason in body — never try to edit or delete (there is no such tool, by design). To replace a thesis append a new thesis with supersedes_id on the old one; the thesis fields (conviction low|medium|high, invalidation_condition, time_stop) belong to thesis entries only. valid_until carries a dated block (lockup, self-imposed buying block) and feeds portfolixir.notes.expiring. The author is derived from the credential (an entry appended over MCP is the agent's) and machine_generated is reserved for a local-model path — neither is accepted in the body. The write is journaled under the API token.",
     noteAppendSchema,
     noteAppendZ
   ),
@@ -3074,14 +3093,14 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.policy_rules.create",
     "Store a rule",
-    "Create a policy rule with its first version (ADR-0049). The subject must fit the measure: weight is read for a security, a category, cash or a view (a view is how a bucket is capped: a weight cap on the view that selects it, evaluated portfolio-wide); drift for a category or a security (a security also names the classification whose active plan carries its position target); hhi, volatility and max_drawdown for the basis, the last two with a window (30d | 90d | 365d). kind cap is breached STRICTLY above threshold, floor strictly below, band outside [lower, upper] — the risk lens's own reading of a line. Thresholds are Decimal strings on the measure's scale: weight percent 0-100, drift percentage points -100..100, hhi 0-10000, volatility percent >= 0, max_drawdown percent -100..0. view_id sets the evaluation context (absent = portfolio-wide). valid_from defaults to today and is never earlier: a rule is never replayed over a period that did not have it. Journaled under the API token. A rule is the operator's standard, never an instruction: nothing evaluates it into a trade.",
+    "Create a policy rule with its first version (ADR-0049). The subject must fit the measure: weight is read for a security, a category, cash or a view (a view is how a bucket is capped: a weight cap on the view that selects it, evaluated portfolio-wide); drift for a category or a security (a security also names the classification whose active plan carries its position target); hhi, volatility and max_drawdown for the basis, the last two with a window (30d | 90d | 365d). kind cap is breached STRICTLY above threshold, floor strictly below, band outside [lower, upper] — the risk lens's own reading of a line. Thresholds are Decimal strings on the measure's scale: weight percent 0-100, drift percentage points -100..100, hhi 0-10000, volatility percent >= 0, max_drawdown percent -100..0. view_id sets the evaluation context (absent = portfolio-wide). valid_from defaults to today and is never earlier: a rule is never replayed over a period that did not have it. PERMANENT once in force: from its valid_from on, a version is never changed or deleted, the rule can only be retired, and portfolixir.policy_rules.delete answers only while none of its versions has been in force. Journaled under the API token. A rule is the operator's standard, never an instruction: nothing evaluates it into a trade.",
     policyRuleCreateSchema,
     policyRuleCreateZ
   ),
   tool(
     "portfolixir.policy_rules.add_version",
     "Change a rule (a new version)",
-    "The edit of a policy rule: adds a new version from valid_from (default today, never earlier), and the previous version is closed the day before — both stay readable, so the standard in force on any date is a read. A version that has been in force is never changed or deleted. A version that is only scheduled (valid_from still in the future) is replaced by adding a version from the same or an earlier future date. The version carries the whole predicate (see portfolixir.policy_rules.create for the matrix and scales). Holds the rule while it reads its versions, so it takes its turn with a concurrent retirement; a rule deleted meanwhile answers 404. Journaled under the API token.",
+    "The edit of a policy rule: adds a new version from valid_from (default today, never earlier), and the previous version is closed the day before — both stay readable, so the standard in force on any date is a read. PERMANENT once in force: a version that has been in force is never changed or deleted. A version that is only scheduled (valid_from still in the future) is replaced by adding a version from the same or an earlier future date. The version carries the whole predicate (see portfolixir.policy_rules.create for the matrix and scales). Holds the rule while it reads its versions, so it takes its turn with a concurrent retirement; a rule deleted meanwhile answers 404. Journaled under the API token.",
     policyRuleAddVersionSchema,
     policyRuleAddVersionZ
   ),
@@ -3470,6 +3489,70 @@ const toolDefinitions: ToolDefinition[] = [
     taxTrimBudgetZ
   )
 ];
+
+// E25 S7, F24 and G25 (T-8): every tool's hints follow the HTTP method it
+// routes to, so a new tool is hinted by its route and none ships without
+// hints. GET reads; POST adds; PUT and PATCH overwrite what is stored; DELETE
+// removes. The exceptions are named here, each with its reason. An
+// append-only write (a research-log entry, a policy-rule version) is POST and
+// so non-destructive; its description states that what it adds is permanent.
+const READ_ONLY_POSTS = new Set([
+  // Computes a split's effect and stores nothing (ADR-0028).
+  "portfolixir.splits.preview",
+  // Compares a pasted position list with the ledger and stores nothing.
+  "portfolixir.holdings.reconcile"
+]);
+
+// Reach an external provider through the API, so their answer depends on
+// something outside the instance.
+const OPEN_WORLD_TOOLS = new Set([
+  "portfolixir.securities.search_online",
+  "portfolixir.quotes.sync",
+  "portfolixir.exchange_rates.sync"
+]);
+
+function hintsFor(name: string, method: string): ToolHints {
+  const readOnly = method === "GET" || READ_ONLY_POSTS.has(name);
+
+  return {
+    readOnlyHint: readOnly,
+    destructiveHint: !readOnly && ["PUT", "PATCH", "DELETE"].includes(method),
+    idempotentHint: readOnly || method !== "POST",
+    openWorldHint: OPEN_WORLD_TOOLS.has(name)
+  };
+}
+
+// The method a tool routes to, read by routing it once through apiCall with a
+// recorder in place of the API client and a placeholder for every argument.
+// apiCall is the one place a tool's method is written, so the hints cannot
+// drift from it; nothing is sent, and a tool that routes to no request stops
+// the companion at load.
+function routedMethod(name: string): string {
+  let method: string | undefined;
+  const recorder: ApiClient = {
+    request: async (verb: string) => {
+      method = verb;
+      return null;
+    }
+  };
+  const placeholders = new Proxy<Record<string, any>>(
+    {},
+    { get: (_target, key) => (typeof key === "string" ? 1 : undefined) }
+  );
+
+  apiCall(recorder, name, placeholders).catch(() => undefined);
+
+  if (method === undefined) {
+    throw new Error(`${name} routes to no API request`);
+  }
+
+  return method;
+}
+
+const toolDefinitions: ToolDefinition[] = declaredTools.map((tool) => {
+  const method = routedMethod(tool.name);
+  return { ...tool, method, annotations: hintsFor(tool.name, method) };
+});
 
 export function listTools(): ToolDefinition[] {
   return toolDefinitions;
@@ -4122,7 +4205,7 @@ function tool(
   description: string,
   inputSchema: JsonSchema,
   zodSchema: ZodTypeAny
-): ToolDefinition {
+): DeclaredTool {
   return { name, title, description, inputSchema, zodSchema };
 }
 
