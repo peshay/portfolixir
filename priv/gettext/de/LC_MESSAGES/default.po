@@ -7862,3 +7862,8 @@ msgstr "Nur der Name ändert sich: Speichern legt keine neue Version an. Der Nam
 #, elixir-autogen, elixir-format
 msgid "The new name applies to the rule with all its versions."
 msgstr "Der neue Name gilt für die Regel mit allen Versionen."
+
+#: lib/portfolixir_web/live/imports_live.ex:1445
+#, elixir-autogen, elixir-format
+msgid "The file is not UTF-8 encoded. Remedy: export it again from Portfolio Performance and drop the file without saving it in a spreadsheet first."
+msgstr "Die Datei ist nicht in UTF-8 kodiert. Abhilfe: in Portfolio Performance neu exportieren und die Datei ablegen, ohne sie vorher in einer Tabellenkalkulation zu speichern."

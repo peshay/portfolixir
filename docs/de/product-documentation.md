@@ -1759,6 +1759,18 @@ kopierte Text nutzt stabile `Row N: message`-Zeilen, sodass die Diagnose beim
 Quell-Export verbleiben kann. Das Anwenden des Imports ist atomar und nutzt
 Inhalts-Hashes, um Duplikate bei erneutem Lauf zu überspringen.
 
+### Dateien, die die Vorschau ablehnt
+
+Eine Datei, die die Vorschau nicht sicher halten kann, wird als Ganzes
+abgelehnt, bevor etwas für den nächsten Besuch aufbewahrt wird. Der Grund steht
+mit seiner Abhilfe im Meldungsband über dem Ablagefeld, und das Ablagefeld
+nimmt sofort die nächste Datei:
+
+- **Eine Datei, die nicht in UTF-8 kodiert ist**, wie sie oft entsteht, wenn
+  eine Tabellenkalkulation einen Export neu gespeichert hat: in Portfolio
+  Performance neu exportieren und die Datei ablegen, ohne sie vorher in einer
+  Tabellenkalkulation zu öffnen.
+
 ### Was ein erneuter Import bewahrt
 
 Das erneute Anwenden **desselben** Portfolio-Performance-Exports ist ein

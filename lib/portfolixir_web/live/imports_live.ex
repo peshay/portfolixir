@@ -1438,6 +1438,13 @@ defmodule PortfolixirWeb.ImportsLive do
 
   defp parse_error_message(:empty_csv), do: gettext("The CSV file is empty.")
 
+  # E25 S5 (F34, board 11): the finding and the remedy, in the error band.
+  defp parse_error_message(:invalid_encoding),
+    do:
+      gettext(
+        "The file is not UTF-8 encoded. Remedy: export it again from Portfolio Performance and drop the file without saving it in a spreadsheet first."
+      )
+
   defp parse_error_message(:malformed_payload),
     do: gettext("The file could not be read as a Portfolio Performance export.")
 

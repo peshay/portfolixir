@@ -1632,6 +1632,16 @@ uses stable `Row N: message` lines so the diagnostics can be kept with the
 source export. Applying the import is atomic and uses content hashes to skip
 duplicates on re-run.
 
+### Files the preview refuses
+
+A file the preview cannot hold safely is refused as a whole, before anything
+is kept for the next visit. The reason appears with its remedy in the error
+band above the drop zone, and the drop zone takes the next file at once:
+
+- **A file that is not UTF-8 encoded**, which is what a spreadsheet often
+  leaves behind after re-saving an export: export it again from Portfolio
+  Performance and drop the file without opening it in a spreadsheet first.
+
 ### What a re-import preserves
 
 Re-applying the **same** Portfolio Performance export is a **content-hash
