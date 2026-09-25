@@ -113,16 +113,20 @@ defmodule Portfolixir.Imports.PreviewStore do
 
   def delete(_key), do: :ok
 
-  # Drops the oldest-touched entries until one slot is free.
+  # Drops the oldest-touched entries until one slot is free. Only keys and
+  # timestamps leave the table (E25 S5, F41): copying every parked preview
+  # into the caller's heap to find the oldest cost as much as all of them.
+  @keys_and_touched [{{:"$1", :_, :_, :"$2"}, [], [{{:"$2", :"$1"}}]}]
+
   defp evict_past_budget do
     overflow = :ets.info(@table, :size) - max_entries() + 1
 
     if overflow > 0 do
       @table
-      |> :ets.tab2list()
-      |> Enum.sort_by(&elem(&1, 3))
+      |> :ets.select(@keys_and_touched)
+      |> Enum.sort()
       |> Enum.take(overflow)
-      |> Enum.each(fn {key, _preview, _mapping, _touched} -> :ets.delete(@table, key) end)
+      |> Enum.each(fn {_touched, key} -> :ets.delete(@table, key) end)
     end
   end
 
