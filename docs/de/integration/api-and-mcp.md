@@ -2361,9 +2361,16 @@ Schreibvorgang.
 - `portfolixir.classifications.create`
 - `portfolixir.classifications.categories.create`
 - `portfolixir.classifications.update`
-- `portfolixir.classifications.delete`
+- `portfolixir.classifications.delete` — ein Aufruf entfernt den Baum mit
+  jeder Kategorie, jeder Zuordnung eines Wertpapiers darin, jedem Zielgewicht
+  auf seinen Kategorien und jedem Zielplan dazu; die Beschreibung nennt jedes
+  davon und dass das Audit-Journal jede dieser Zeilen als eigene Löschung
+  vor der Klassifizierung festhält (E25).
 - `portfolixir.classifications.categories.update`
-- `portfolixir.classifications.categories.delete`
+- `portfolixir.classifications.categories.delete` — ein Aufruf entfernt die
+  Kategorie mit ihren Unterkategorien in jeder Tiefe, den Zuordnungen zu
+  einer davon und den Zielgewichten auf einer davon; das Journal hält jede
+  als eigene Löschung fest, die Kategorie selbst zuletzt.
 - `portfolixir.classifications.assign`
 - `portfolixir.classifications.assign_bulk`
 - `portfolixir.classifications.unassign`
@@ -2379,9 +2386,11 @@ Schreibvorgang.
 - `portfolixir.policy_rules.get` — eine Regel mit ihrer ganzen
   Versionsgeschichte.
 - `portfolixir.policy_rules.create` — legt eine Regel mit ihrer ersten Version
-  an; die Beschreibung enthält die Kennzahl-Tabelle und die Skalen.
+  an; die Beschreibung enthält die Kennzahl-Tabelle und die Skalen und sagt,
+  dass eine Version dauerhaft ist, sobald sie gilt: Die Regel lässt sich dann
+  nur noch beenden.
 - `portfolixir.policy_rules.add_version` — die Änderung: eine neue Version,
-  nie ein Überschreiben.
+  nie ein Überschreiben, und dauerhaft, sobald sie gilt.
 - `portfolixir.policy_rules.rename` — nur der Name; die Beschreibung sagt,
   dass Umbenennen keine Version anlegt und die Versionen unverändert bleiben.
 - `portfolixir.policy_rules.retire` — beendet die geltende Version; alles
@@ -2407,7 +2416,10 @@ Schreibvorgang.
 - `portfolixir.views.get`
 - `portfolixir.views.create`
 - `portfolixir.views.update`
-- `portfolixir.views.delete`
+- `portfolixir.views.delete` — ein Aufruf entfernt die View mit ihren
+  Bucket-Mengen, jedem auf sie bezogenen Zielplan und jedem in ihrem Bereich
+  angelegten Depot-Snapshot; das Journal hält jede als eigene Löschung vor
+  der View fest.
 - `portfolixir.views.set_buckets`
 - `portfolixir.views.performance`
 - `portfolixir.views.benchmark`

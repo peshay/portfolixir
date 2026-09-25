@@ -398,6 +398,57 @@ describe("the companion's published tool surface", () => {
     }
   });
 
+  // User story (E25 S7, G28):
+  // As the agent about to delete a tree, a category or a view, or to store a
+  // policy rule,
+  // I want the description to name everything one call removes or makes
+  // permanent, and what the journal keeps of it,
+  // so that I do not take a one-row delete for what is a cascade.
+  //
+  // Acceptance criteria:
+  // - The classification, category and view deletes name each kind of row the
+  //   delete removes with them, and say that the journal keeps each removed
+  //   row as its own delete.
+  // - The policy-rule create and add_version state that a version is permanent
+  //   once in force, and create names retire as the only way to end it.
+  it("names what a cascading delete removes and what a rule makes permanent", async () => {
+    const published = await publishedTools();
+    const description = (name: string) =>
+      published.find((tool) => tool.name === name)?.description ?? "";
+
+    const classification = description("portfolixir.classifications.delete");
+    assert.match(classification, /every category of the tree, at every depth/);
+    assert.match(classification, /every security's assignment in it/);
+    assert.match(classification, /every target weight on its categories/);
+    assert.match(classification, /every target plan of the tree/);
+    assert.match(classification, /journaled as its own delete before the classification's/);
+
+    const category = description("portfolixir.classifications.categories.delete");
+    assert.match(category, /its sub-categories at every depth/);
+    assert.match(category, /assignments to any of them/);
+    assert.match(category, /target weights on any of them/);
+    assert.match(category, /journaled as its own delete, the lowest categories first/);
+
+    const view = description("portfolixir.views.delete");
+    assert.match(view, /include and exclude bucket sets/);
+    assert.match(view, /every target plan scoped to the view/);
+    assert.match(view, /every depot snapshot taken in its scope/);
+    assert.match(view, /journaled one delete each before the view's/);
+
+    for (const name of [
+      "portfolixir.classifications.delete",
+      "portfolixir.classifications.categories.delete",
+      "portfolixir.views.delete"
+    ]) {
+      assert.match(description(name), /ONE CALL REMOVES/, name);
+    }
+
+    const create = description("portfolixir.policy_rules.create");
+    assert.match(create, /PERMANENT once in force/);
+    assert.match(create, /can only be retired/);
+    assert.match(description("portfolixir.policy_rules.add_version"), /PERMANENT once in force/);
+  });
+
   // User story (E25 S7, G26, T-8):
   // As the operator who wants an agent to read the instance but never write it,
   // I want one opt-in switch that makes the companion read-only,

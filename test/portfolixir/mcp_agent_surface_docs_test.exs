@@ -179,4 +179,35 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
        ]}
     ])
   end
+
+  # User story (E25 S7, G28):
+  # As the operator reading what my agent's delete tools do,
+  # I want each cascading delete's bullet to say what one call removes, and
+  # the rule tools to say what becomes permanent,
+  # so that the reference does not understate a delete.
+  #
+  # Acceptance criteria:
+  # - The EN and DE bullets of the classification, category and view deletes
+  #   name the cascade and that the journal keeps each removed row; the
+  #   policy-rule create and add_version bullets state permanence once in force.
+  test "the MCP pages name what a cascading delete removes" do
+    assert_fragments([
+      {"docs/integration/api-and-mcp.md",
+       [
+         "`portfolixir.classifications.delete` — one call removes the tree with every category",
+         "`portfolixir.classifications.categories.delete` — one call removes the category with its sub-categories at every depth",
+         "`portfolixir.views.delete` — one call removes the view with its bucket sets",
+         "each is journaled as its own delete before the view's",
+         "a version is permanent once in force: the rule can then only be retired"
+       ]},
+      {"docs/de/integration/api-and-mcp.md",
+       [
+         "`portfolixir.classifications.delete` — ein Aufruf entfernt den Baum mit jeder Kategorie",
+         "`portfolixir.classifications.categories.delete` — ein Aufruf entfernt die Kategorie mit ihren Unterkategorien in jeder Tiefe",
+         "`portfolixir.views.delete` — ein Aufruf entfernt die View mit ihren Bucket-Mengen",
+         "das Journal hält jede als eigene Löschung vor der View fest",
+         "dass eine Version dauerhaft ist, sobald sie gilt"
+       ]}
+    ])
+  end
 end

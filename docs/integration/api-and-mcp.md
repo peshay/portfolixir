@@ -2464,9 +2464,16 @@ every write.
 - `portfolixir.classifications.create`
 - `portfolixir.classifications.categories.create`
 - `portfolixir.classifications.update`
-- `portfolixir.classifications.delete`
+- `portfolixir.classifications.delete` — one call removes the tree with every
+  category, every security's assignment in it, every target weight on its
+  categories and every target plan of it; the description names each, and
+  that each of those rows is journaled as its own delete before the
+  classification's (E25).
 - `portfolixir.classifications.categories.update`
-- `portfolixir.classifications.categories.delete`
+- `portfolixir.classifications.categories.delete` — one call removes the
+  category with its sub-categories at every depth, the assignments to any of
+  them and the target weights on any of them; the journal keeps each as its
+  own delete, the category itself last.
 - `portfolixir.classifications.assign`
 - `portfolixir.classifications.assign_bulk`
 - `portfolixir.classifications.unassign`
@@ -2483,9 +2490,10 @@ every write.
   standard here instead of restating it.
 - `portfolixir.policy_rules.get` — one rule with its whole version history.
 - `portfolixir.policy_rules.create` — stores a rule with its first version; the
-  description carries the measure matrix and the scales.
+  description carries the measure matrix and the scales, and states that a
+  version is permanent once in force: the rule can then only be retired.
 - `portfolixir.policy_rules.add_version` — the edit: a new version, never an
-  overwrite.
+  overwrite, and permanent once in force.
 - `portfolixir.policy_rules.rename` — the name only; the description states
   that a rename creates no version and the versions do not change.
 - `portfolixir.policy_rules.retire` — ends the version in force; everything
@@ -2510,7 +2518,9 @@ every write.
 - `portfolixir.views.get`
 - `portfolixir.views.create`
 - `portfolixir.views.update`
-- `portfolixir.views.delete`
+- `portfolixir.views.delete` — one call removes the view with its bucket
+  sets, every target plan scoped to it and every depot snapshot taken in its
+  scope; each is journaled as its own delete before the view's.
 - `portfolixir.views.set_buckets`
 - `portfolixir.views.valuation`
 - `portfolixir.views.performance`
