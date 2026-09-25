@@ -39,6 +39,7 @@ defmodule Portfolixir.Classifications.Category do
     |> validate_required([:name, :classification_id])
     |> Text.validate(:name, max: 255)
     |> Text.validate(:description, max: 2000, multiline: true)
+    |> check_constraint(:description, name: :classification_categories_description_length_check)
     |> validate_format(:color, @color_format, message: "must be a hex color like #1a2b3c")
     |> assoc_constraint(:classification)
     |> foreign_key_constraint(:parent_id)

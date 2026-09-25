@@ -129,13 +129,21 @@ Unicode-Codepunkten, der Einheit der Datenbank — und enthält weder Steuerzeic
 noch Zeilenumbrüche. Freitext (die `notes` einer Buchung, ein
 Research-Log-Eintrag, die `note` eines Termins oder einer Regelversion, eine
 Beschreibung) behält Tabulatoren und Zeilenumbrüche, aber kein anderes
-Steuerzeichen, auch kein NUL. Alles andere liefert `422` mit dem Namen des
-Felds, nie einen Serverfehler. Ein Portfolio-Performance-Import nennt eine
-Zeile, deren Namen oder Notiz gegen dieselbe Regel verstoßen, in der Vorschau.
-Die freie Zuordnung `attributes` eines Wertpapiers erfüllt die Regel in jeder
-Tiefe: Jeder Schlüssel ist einzeiliger Text mit höchstens 255 Zeichen, und
-jeder Textwert, auch in einem verschachtelten Objekt oder einer Liste, ist
-Freitext; sonst liefert der Schreibzugriff `422` auf `attributes`. Eine
+Steuerzeichen, auch kein NUL, und ist höchstens 10000 Zeichen lang (der
+`body` eines Research-Log-Eintrags 20000, die `description` einer Kategorie
+2000), gezählt in Codepunkten; auch die Datenbank lehnt einen längeren Wert
+ab. Alles andere liefert `422` mit dem Namen des Felds, nie einen
+Serverfehler. Ein Portfolio-Performance-Import nennt eine Zeile, deren Namen
+oder Notiz gegen dieselbe Regel verstoßen, in der Vorschau. Die freie
+Zuordnung `attributes` eines Wertpapiers erfüllt die Regel in jeder Tiefe:
+Jeder Schlüssel ist einzeiliger Text mit höchstens 255 Zeichen, und jeder
+Textwert, auch in einem verschachtelten Objekt oder einer Liste, ist
+Freitext; sonst liefert der Schreibzugriff `422` auf `attributes`. Die
+Zuordnung, wie sie gespeichert wird — zusammengeführt mit den vorhandenen
+Attributen —, ist als kompaktes JSON höchstens 65536 Byte groß; ein
+Schreibzugriff darüber liefert `422` auf `attributes` und speichert nichts.
+Eine Änderung, die nichts ändert, schreibt keine Zeile und hinterlässt keinen
+Journaleintrag. Eine
 Eigenschaft eines Suchanbieters, die gegen die Regel verstößt, wird verworfen,
 bevor sie die Attribute erreicht. Ein Textfilter eines Lesezugriffs — `query`
 bei den Wertpapieren, `resource_type` und `resource_id` im Journal, `holder`,

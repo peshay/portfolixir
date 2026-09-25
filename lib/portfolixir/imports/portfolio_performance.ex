@@ -132,7 +132,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
   # applies (E25 S4, G24): a name is one line within its column's width, a
   # note keeps its line breaks.
   @name_rule [max: 255]
-  @note_rule [multiline: true]
+  @note_rule [multiline: true, max: Text.free_text_max()]
 
   @doc """
   Why a parsed entry cannot be a row of the preview, as the row's message, or
@@ -260,18 +260,18 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
     |> Enum.find_value(fn {label, value, rule} ->
       case Text.check(value, rule) do
         :ok -> nil
-        {:error, refusal} -> refusal_message(label, refusal)
+        {:error, refusal} -> refusal_message(label, refusal, rule)
       end
     end)
   end
 
-  defp refusal_message(label, :too_long),
-    do: gettext("%{field} is longer than 255 characters", field: label)
+  defp refusal_message(label, :too_long, rule),
+    do: gettext("%{field} is longer than %{count} characters", field: label, count: rule[:max])
 
-  defp refusal_message(label, :control_characters),
+  defp refusal_message(label, :control_characters, _rule),
     do: gettext("%{field} contains a control character", field: label)
 
-  defp refusal_message(label, :invalid_encoding),
+  defp refusal_message(label, :invalid_encoding, _rule),
     do: gettext("%{field} is not valid UTF-8 text", field: label)
 
   defp detect_format(body, filename) do

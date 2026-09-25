@@ -44,7 +44,8 @@ defmodule Portfolixir.Portfolios.CashAccount do
     # E25 S4 (G17, G24): the column's width in code points, no control
     # characters; after L1's identity freezes, which stay as they are.
     |> Text.validate([:name, :currency_code], max: 255)
-    |> Text.validate(:notes, multiline: true)
+    |> Text.validate(:notes, multiline: true, max: Text.free_text_max())
+    |> check_constraint(:notes, name: :cash_accounts_notes_length_check)
     |> validate_length(:currency_code, is: 3)
     |> validate_inclusion(:liquidity_role, @liquidity_roles)
     |> assoc_constraint(:portfolio)

@@ -49,6 +49,9 @@ defmodule Portfolixir.Journal do
 
   Returns the augmented `Ecto.Multi`. The actor is set first (so the guard
   trigger sees it during the business write) and reset last.
+
+  An `update` whose record equals its `:before` snapshot changed nothing and
+  records no entry: the step answers `:unchanged` (E25 S6, G02).
   """
   @spec record(Multi.t(), Actor.t(), keyword()) :: Multi.t()
   def record(%Multi{} = multi, %Actor{} = actor, opts) when is_list(opts) do
@@ -64,8 +67,13 @@ defmodule Portfolixir.Journal do
     |> Multi.prepend(set_actor_multi(actor))
     |> Multi.run(journal_step, fn repo, changes ->
       record = Map.fetch!(changes, source)
-      id = if filed_under, do: to_string(filed_under), else: resource_id(record)
-      insert_entry(repo, actor, {operation, resource_type, id}, record, before, scenario_id)
+
+      if unchanged?(operation, before, record) do
+        {:ok, :unchanged}
+      else
+        id = if filed_under, do: to_string(filed_under), else: resource_id(record)
+        insert_entry(repo, actor, {operation, resource_type, id}, record, before, scenario_id)
+      end
     end)
     |> Multi.run(:derived_invalidation, fn repo, changes ->
       # ADR-0032 §3.4 / ADR-0039 I5: the data version of every basis this
@@ -142,6 +150,15 @@ defmodule Portfolixir.Journal do
     repo.query!("SELECT set_config($1, NULL, true)", [@actor_setting])
     {:ok, :reset}
   end
+
+  # An update whose after-image equals its before-image changed nothing: a
+  # valid changeset without changes is not written (Ecto returns the row
+  # untouched), and it leaves no entry either (E25 S6, G02). A real change
+  # keeps ADR-0017's full before and after snapshots.
+  defp unchanged?(:update, before, record) when not is_nil(before),
+    do: Serializer.snapshot(before) == Serializer.snapshot(record)
+
+  defp unchanged?(_operation, _before, _record), do: false
 
   defp resource_id(%{id: id}) when not is_nil(id), do: to_string(id)
   defp resource_id(_record), do: nil

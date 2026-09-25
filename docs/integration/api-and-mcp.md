@@ -116,13 +116,19 @@ stated (a bucket's or view's name 100, a plan's or snapshot's name 120),
 counted in Unicode code points, the unit the database counts — and carries no
 control character and no line break. Free text (a booking's `notes`, a
 research-log entry, an event's or a rule version's `note`, a description)
-keeps tabs and line breaks but no other control character, a NUL included.
-Anything else answers `422` naming the field, never a server error. A
-Portfolio Performance import names a row whose names or note break the same
-rule in its preview. A security's free-form `attributes` map meets the rule at
-any depth: every key is one-line text of at most 255 characters, and every
-text value, in a nested object or list too, is free text; otherwise the write
-answers `422` on `attributes`. A search provider's property that breaks the
+keeps tabs and line breaks but no other control character, a NUL included,
+and is at most 10000 characters long (a research-log entry's `body` 20000, a
+category's `description` 2000), counted in code points; the database refuses
+a longer value as well. Anything else answers `422` naming the field, never a
+server error. A Portfolio Performance import names a row whose names or note
+break the same rule in its preview. A security's free-form `attributes` map
+meets the rule at any depth: every key is one-line text of at most 255
+characters, and every text value, in a nested object or list too, is free
+text; otherwise the write answers `422` on `attributes`. The map as stored,
+merged with the attributes already there, is at most 65536 bytes as compact
+JSON; a write that would pass that answers `422` on `attributes` and stores
+nothing. An update that changes nothing writes no row and leaves no journal
+entry. A search provider's property that breaks the
 rule is dropped before it reaches the attributes. A read's text filter — the
 securities `query`, the journal's `resource_type` and `resource_id`, the tax
 reads' `holder`, `institution` and `jurisdiction` — is one-line text of at

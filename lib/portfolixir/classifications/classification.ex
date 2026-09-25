@@ -32,7 +32,8 @@ defmodule Portfolixir.Classifications.Classification do
     |> update_change(:name, &normalize_name/1)
     |> validate_required([:name])
     |> Text.validate(:name, max: 255)
-    |> Text.validate(:description, multiline: true)
+    |> Text.validate(:description, multiline: true, max: Text.free_text_max())
+    |> check_constraint(:description, name: :classifications_description_length_check)
   end
 
   @doc false

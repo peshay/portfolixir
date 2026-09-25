@@ -161,3 +161,9 @@ msgstr ""
 
 msgid "must not be later than tomorrow"
 msgstr ""
+
+## E25 S6 (G02): a security's attributes, bounded as stored.
+msgid "must be at most %{count} bytes as JSON"
+msgid_plural "must be at most %{count} bytes as JSON"
+msgstr[0] ""
+msgstr[1] ""
