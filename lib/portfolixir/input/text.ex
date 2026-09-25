@@ -157,10 +157,35 @@ defmodule Portfolixir.Input.Text do
       {"must have keys of at most %{count} character(s)",
        count: Keyword.get(opts, :key_max, 255), validation: :text}
 
+  @doc """
+  The length of `text` in Unicode code points, the unit the database counts
+  a column's width in (a grapheme can be several code points).
+  """
+  @spec codepoint_length(String.t()) :: non_neg_integer()
+  def codepoint_length(text) when is_binary(text), do: text |> String.codepoints() |> length()
+
+  @doc """
+  Cuts `text` to at most `max` code points without splitting a grapheme: the
+  bound a name a context derives itself (a copy's name, a seeded name) must
+  meet, counted the way `validate/3` counts it.
+  """
+  @spec truncate(String.t(), non_neg_integer()) :: String.t()
+  def truncate(text, max) when is_binary(text) and is_integer(max) and max >= 0 do
+    text
+    |> String.graphemes()
+    |> Enum.reduce_while({[], 0}, fn grapheme, {kept, count} ->
+      count = count + codepoint_length(grapheme)
+      if count <= max, do: {:cont, {[grapheme | kept], count}}, else: {:halt, {kept, count}}
+    end)
+    |> elem(0)
+    |> Enum.reverse()
+    |> Enum.join()
+  end
+
   defp controls(opts) do
     if opts[:multiline], do: @multiline_controls, else: @single_line_controls
   end
 
   defp too_long?(_value, nil), do: false
-  defp too_long?(value, max), do: length(String.codepoints(value)) > max
+  defp too_long?(value, max), do: codepoint_length(value) > max
 end
