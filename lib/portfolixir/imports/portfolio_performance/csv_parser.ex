@@ -106,10 +106,13 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
 
   # E25 S5 (F38): the cap counts the entries the file expands into — each
   # row plus the tax refund a negative `Steuern` cell splits off — before any
-  # is built.
+  # is built. A header naming a column twice is read as `to_entry/3` reads it,
+  # the last cell winning, so the count and the rows agree.
   defp validate_entry_count(header_row, rows) do
     max = PortfolioPerformance.max_rows()
-    taxes_at = Enum.find_index(header_row, &(&1 == "Steuern"))
+
+    taxes_at =
+      length(header_row) - 1 - Enum.find_index(Enum.reverse(header_row), &(&1 == "Steuern"))
 
     count =
       Enum.reduce(rows, 0, fn row, count ->

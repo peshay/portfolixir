@@ -183,11 +183,20 @@ defmodule Portfolixir.Imports.Applier do
   @typedoc "The preview's approved ladder baseline for non-overridden entries."
   @type approved_resolution :: {:matched, integer()} | :create
 
+  @typedoc """
+  The reference key the apply addresses a security decision by
+  (`SecurityResolver.key/1`). A test seam only, so the fail-closed refusal of
+  a key standing for two references (E25 S5, F36) can be driven: the key is
+  injective up to its 128-bit digest, and neither the page nor the API sets it.
+  """
+  @type security_key :: (SecurityResolver.ref() -> String.t())
+
   @type apply_params :: %{
           required(:portfolio_id) => integer(),
           optional(:default_currency_code) => String.t(),
           optional(:security_mappings) => %{String.t() => security_mapping()},
-          optional(:approved_resolutions) => %{String.t() => approved_resolution()}
+          optional(:approved_resolutions) => %{String.t() => approved_resolution()},
+          optional(:security_key) => security_key()
         }
 
   @typedoc """
@@ -209,7 +218,8 @@ defmodule Portfolixir.Imports.Applier do
           optional(:bucket_tag) => String.t() | nil,
           optional(:default_currency_code) => String.t(),
           optional(:security_mappings) => %{String.t() => security_mapping()},
-          optional(:approved_resolutions) => %{String.t() => approved_resolution()}
+          optional(:approved_resolutions) => %{String.t() => approved_resolution()},
+          optional(:security_key) => security_key()
         }
 
   @spec apply(Preview.t(), apply_params() | mapped_apply_params()) ::
@@ -467,6 +477,7 @@ defmodule Portfolixir.Imports.Applier do
       pristine_index: index,
       live_index: index,
       security_mappings: Map.get(params, :security_mappings, %{}),
+      security_key: Map.get(params, :security_key, &SecurityResolver.key/1),
       approved_resolutions: Map.get(params, :approved_resolutions),
       key_resolutions: %{},
       seen_run_keys: MapSet.new(),
@@ -1224,7 +1235,9 @@ defmodule Portfolixir.Imports.Applier do
   # F36): the apply is refused before any row, never decided twice.
   defp execute_security_mappings(flat_entries, state) do
     with {:ok, keyed} <-
-           flat_entries |> Enum.flat_map(&file_ref/1) |> SecurityResolver.unique_keys() do
+           flat_entries
+           |> Enum.flat_map(&file_ref/1)
+           |> SecurityResolver.unique_keys(state.security_key) do
       Enum.reduce_while(keyed, {:ok, state}, fn {key, ref}, {:ok, state} ->
         case execute_security_mapping(ref, key, Map.get(state.security_mappings, key), state) do
           {:ok, state} -> {:cont, {:ok, state}}

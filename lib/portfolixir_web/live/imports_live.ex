@@ -635,7 +635,7 @@ defmodule PortfolixirWeb.ImportsLive do
   def handle_event("parse", _params, socket), do: {:noreply, socket}
 
   def handle_event("mapping_changed", params, socket) do
-    mapping = mapping_from_params(params, socket.assigns.mapping, socket.assigns.row_names)
+    mapping = mapping_from_params(params, socket.assigns)
     PreviewStore.put_mapping(socket.assigns.session_token, mapping)
     {:noreply, assign(socket, :mapping, mapping)}
   end
@@ -645,7 +645,7 @@ defmodule PortfolixirWeb.ImportsLive do
   end
 
   def handle_event("apply", params, socket) do
-    mapping = mapping_from_params(params, socket.assigns.mapping, socket.assigns.row_names)
+    mapping = mapping_from_params(params, socket.assigns)
     socket = assign(socket, :mapping, mapping)
 
     case build_apply_params(mapping, socket.assigns) do
@@ -961,7 +961,7 @@ defmodule PortfolixirWeb.ImportsLive do
   # file name never becomes part of a field name, where brackets in it would
   # nest into another row's parameters. A key the preview did not hand out is
   # ignored.
-  defp mapping_from_params(params, current, row_names) do
+  defp mapping_from_params(params, %{mapping: current, row_names: row_names} = assigns) do
     params = LiveParam.map(params)
 
     %{
@@ -981,7 +981,7 @@ defmodule PortfolixirWeb.ImportsLive do
       security:
         merge_rows(
           Map.get(current, :security, %{}),
-          Map.get(params, "security"),
+          params |> Map.get("security") |> handed_out(assigns.security_resolutions),
           @security_fields
         ),
       remember:
@@ -997,6 +997,13 @@ defmodule PortfolixirWeb.ImportsLive do
         name != nil,
         into: %{},
         do: {name, value}
+  end
+
+  # E25 S5 review round (F42): a security row is kept only under a key the
+  # page's resolution plan handed out; any other key addresses nothing.
+  defp handed_out(given, resolutions) do
+    keys = MapSet.new(resolutions, & &1.key)
+    for {key, row} <- LiveParam.map(given), MapSet.member?(keys, key), into: %{}, do: {key, row}
   end
 
   # "remember[cash][<key>]" / "remember[depot][<key>]" = "false" switches a

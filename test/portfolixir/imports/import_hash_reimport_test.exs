@@ -227,4 +227,40 @@ defmodule Portfolixir.Imports.ImportHashReimportTest do
              %{status: :needs_decision, conflict: %{type: :key_collision}}
            ] = plan
   end
+
+  # User story (E25 S5 review round, F36):
+  # As the operator,
+  # I want an apply refused as a whole when one key would stand for two
+  # references,
+  # so that no decision lands on a security I did not decide and nothing of
+  # the file is written.
+  #
+  # Acceptance criteria:
+  # - The apply answers the named collision and rolls back: no transaction,
+  #   no security, no account is written.
+  test "an apply whose key stands for two references is refused and writes nothing" do
+    portfolio = portfolio!()
+
+    refs = [
+      %{isin: nil, wkn: nil, ticker: "A", name: "One", currency: "EUR"},
+      %{isin: nil, wkn: nil, ticker: "B", name: "Two", currency: "EUR"}
+    ]
+
+    preview = %Preview{entries: [buy(1, Enum.at(refs, 0)), buy(2, Enum.at(refs, 1))]}
+    securities = Repo.aggregate(Portfolixir.Catalog.Security, :count)
+
+    assert {:error, {:security_key_collision, "0000"}} =
+             Imports.apply(preview, %{
+               portfolio_id: portfolio.id,
+               security_key: fn _ref -> "0000" end
+             })
+
+    assert Repo.aggregate(Transaction, :count) == 0
+    assert Repo.aggregate(Portfolixir.Catalog.Security, :count) == securities
+
+    assert Repo.aggregate(
+             from(c in Portfolixir.Portfolios.CashAccount, where: c.portfolio_id == ^portfolio.id),
+             :count
+           ) == 0
+  end
 end
