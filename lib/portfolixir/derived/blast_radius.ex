@@ -38,6 +38,8 @@ defmodule Portfolixir.Derived.BlastRadius do
 
   alias Portfolixir.Catalog.QuoteWrite
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Knowledge.SecurityEvent
+  alias Portfolixir.Knowledge.SecurityNote
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Lifecycle.MergeRecord
   alias Portfolixir.Lifecycle.RetiredImportHash
@@ -77,6 +79,13 @@ defmodule Portfolixir.Derived.BlastRadius do
   # struct, never a default.
   def for_write("merge_record", %{__struct__: MergeRecord}), do: []
   def for_write("retired_import_hash", %{__struct__: RetiredImportHash}), do: []
+
+  # A research entry (ADR-0044) and a security event (ADR-0048) are knowledge
+  # about a security, not figures: no walk, quote, rate or rule reads them,
+  # so no portfolio's derived values move (E25 S6, F53). Resolved per struct,
+  # like the policy rules above — a record of another shape still widens.
+  def for_write("security_note", %{__struct__: SecurityNote}), do: []
+  def for_write("security_event", %{__struct__: SecurityEvent}), do: []
 
   # An authored write to a security's quotes (E25 S6, T-9) is journaled as
   # one aggregate of the security's rows: its radius is a quote write's, every
