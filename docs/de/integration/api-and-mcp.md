@@ -1677,6 +1677,10 @@ neu zugeordnet werden.
 - `PATCH /api/v1/classifications/:classification_id/categories/:id` patcht eine
   `category` (`name`, `color`, `description`, `parent_id`, `position` — alle
   optional). Die `classification_id` der Kategorie kann so nicht geändert werden.
+  Bei beiden Schreibzugriffen muss `parent_id` eine Kategorie derselben
+  Klassifizierung sein, die weder die Kategorie selbst noch eine ihrer
+  Unterkategorien ist; jede andere Oberkategorie liefert `422` an `parent_id`,
+  und nichts wird geschrieben, sodass ein Baum nie im Kreis läuft (E25 S4).
 - `DELETE /api/v1/classifications/:classification_id/categories/:id` löscht eine
   Kategorie und kaskadiert ihre Unterkategorien und Zuordnungen.
 - `PUT /api/v1/classifications/:classification_id/assignments` ordnet ein

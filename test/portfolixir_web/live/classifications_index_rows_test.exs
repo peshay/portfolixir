@@ -4,8 +4,12 @@ defmodule PortfolixirWeb.ClassificationsIndexRowsTest do
   import Phoenix.LiveViewTest
   import Portfolixir.WorldFixtures, only: [base_world: 1, buy!: 3, create_security!: 1]
 
+  import Ecto.Query
+
   alias Portfolixir.Actor
   alias Portfolixir.Classifications
+  alias Portfolixir.Classifications.Category
+  alias Portfolixir.Repo
 
   # User story (#808, review C11; #815 is the closing act's duplicate of it and
   # is closed by hand with this as the evidence — D-4 of the Sprint 13 plan):
@@ -116,6 +120,9 @@ defmodule PortfolixirWeb.ClassificationsIndexRowsTest do
   # - A parent cycle (and a self-parent) renders instead of looping: the
   #   walk is bounded the way `Classifications`' own root path already is.
   # - The row still renders its counts.
+  #
+  # Since E25 S4 (F11) the write path refuses such a parent, so the loops here
+  # are history already stored: written past the changeset.
   @tag timeout: 20_000
   test "a category parent cycle does not hang the index", %{conn: conn} do
     {:ok, cyc} =
@@ -131,7 +138,7 @@ defmodule PortfolixirWeb.ClassificationsIndexRowsTest do
         parent_id: a.id
       })
 
-    {:ok, _} = Classifications.update_category(Actor.owner_ui(), a, %{parent_id: b.id})
+    store_parent!(a, b.id)
 
     {:ok, _view, html} = live(conn, "/classifications")
     assert html =~ "Cyc"
@@ -145,9 +152,21 @@ defmodule PortfolixirWeb.ClassificationsIndexRowsTest do
         name: "Only"
       })
 
-    {:ok, _} = Classifications.update_category(Actor.owner_ui(), only, %{parent_id: only.id})
+    store_parent!(only, only.id)
 
     {:ok, _view, html} = live(conn, "/classifications")
     assert html =~ "Selfie"
+  end
+
+  defp store_parent!(%Category{id: id}, parent_id) do
+    {:ok, {1, _}} =
+      Repo.transaction(fn ->
+        {type, _label} = Actor.to_columns(Actor.owner_ui())
+        Repo.query!("SELECT set_config('portfolixir.journal_actor', $1, true)", [type])
+
+        Category
+        |> where(id: ^id)
+        |> Repo.update_all(set: [parent_id: parent_id])
+      end)
   end
 end

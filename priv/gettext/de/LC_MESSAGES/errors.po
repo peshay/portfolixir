@@ -124,3 +124,10 @@ msgid "must have at most %{count} decimal places"
 msgid_plural "must have at most %{count} decimal places"
 msgstr[0] "darf höchstens %{count} Nachkommastelle haben"
 msgstr[1] "darf höchstens %{count} Nachkommastellen haben"
+
+## Portfolixir.Classifications: a category's parent (F11).
+msgid "must belong to the same classification"
+msgstr "muss zur selben Klassifikation gehören"
+
+msgid "would make the category its own ancestor"
+msgstr "würde die Kategorie zu ihrer eigenen Oberkategorie machen"

@@ -143,18 +143,24 @@ defmodule Portfolixir.Portfolios.CategoryResult do
   end
 
   # Each category's ancestors, so a member rolls into every level above it.
+  # The walk carries the ids it has met: a parent loop stored before the write
+  # guard (F11) ends it where the loop closes, and a member then counts once
+  # per category on the loop, never forever.
   defp ancestor_index(categories) do
     parents = Map.new(categories, &{&1.id, &1.parent_id})
 
     Map.new(categories, fn category ->
-      {category.id, ancestors_of(category.parent_id, parents, [])}
+      {category.id, ancestors_of(category.parent_id, parents, [], MapSet.new([category.id]))}
     end)
   end
 
-  defp ancestors_of(nil, _parents, acc), do: Enum.reverse(acc)
+  defp ancestors_of(nil, _parents, acc, _seen), do: Enum.reverse(acc)
 
-  defp ancestors_of(id, parents, acc),
-    do: ancestors_of(Map.get(parents, id), parents, [id | acc])
+  defp ancestors_of(id, parents, acc, seen) do
+    if MapSet.member?(seen, id),
+      do: Enum.reverse(acc),
+      else: ancestors_of(Map.get(parents, id), parents, [id | acc], MapSet.put(seen, id))
+  end
 
   # A member is covered when its base-currency cost AND its base-currency total
   # return are both derivable. Anything else is excluded and named (§4).

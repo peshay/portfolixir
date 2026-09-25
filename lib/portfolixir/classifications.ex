@@ -336,17 +336,27 @@ defmodule Portfolixir.Classifications do
     with {:ok, classification} <- fetch_classification(attrs),
          :ok <- ensure_custom(classification) do
       Multi.new()
-      |> Multi.insert(:category, Category.changeset(%Category{}, attrs))
+      |> lock_tree(classification.id)
+      |> Multi.insert(:category, fn _ ->
+        %Category{} |> Category.changeset(attrs) |> validate_parent()
+      end)
       |> Journal.record(actor, resource_type: "category", operation: :create, source: :category)
       |> Repo.transaction()
       |> category_result()
     end
   end
 
+  # A category stays in the classification it was created in: moving it
+  # would leave its children and its parent in another tree.
   def update_category(%Actor{} = actor, %Category{} = category, attrs) do
+    attrs = Map.drop(attrs, ["classification_id", :classification_id])
+
     with :ok <- ensure_custom_category(category) do
       Multi.new()
-      |> Multi.update(:category, Category.changeset(category, attrs))
+      |> lock_tree(category.classification_id)
+      |> Multi.update(:category, fn _ ->
+        category |> Category.changeset(attrs) |> validate_parent()
+      end)
       |> Journal.record(actor,
         resource_type: "category",
         operation: :update,
@@ -380,6 +390,75 @@ defmodule Portfolixir.Classifications do
   end
 
   def get_category(id) when is_integer(id), do: Repo.get(Category, id)
+
+  # Parent writes in one classification run one at a time, so two re-homings
+  # that are each acyclic cannot commit a loop between them.
+  defp lock_tree(multi, classification_id) do
+    Multi.run(multi, :tree_lock, fn repo, _changes ->
+      Classification
+      |> where(id: ^classification_id)
+      |> lock("FOR UPDATE")
+      |> select([c], c.id)
+      |> repo.one()
+      |> then(&{:ok, &1})
+    end)
+  end
+
+  # A parent is a category of the same classification that is neither the
+  # category itself nor one of its descendants. Checked only when the parent
+  # changes, so a loop stored before this guard can still be renamed or
+  # re-homed out of. An id that names no category is the foreign key's.
+  defp validate_parent(%Ecto.Changeset{valid?: true} = changeset) do
+    case Ecto.Changeset.fetch_change(changeset, :parent_id) do
+      {:ok, parent_id} when is_integer(parent_id) ->
+        check_parent(changeset, parent_id)
+
+      _ ->
+        changeset
+    end
+  end
+
+  defp validate_parent(changeset), do: changeset
+
+  defp check_parent(changeset, parent_id) do
+    classification_id = Ecto.Changeset.get_field(changeset, :classification_id)
+
+    parents =
+      Category
+      |> where(classification_id: ^classification_id)
+      |> select([c], {c.id, c.parent_id})
+      |> Repo.all()
+      |> Map.new()
+
+    cond do
+      not Map.has_key?(parents, parent_id) and Repo.exists?(where(Category, id: ^parent_id)) ->
+        Ecto.Changeset.add_error(changeset, :parent_id, "must belong to the same classification")
+
+      ancestor_or_self?(parent_id, changeset.data.id, parents) ->
+        Ecto.Changeset.add_error(
+          changeset,
+          :parent_id,
+          "would make the category its own ancestor"
+        )
+
+      true ->
+        changeset
+    end
+  end
+
+  # Whether walking up from `id` meets `target` (a new category has no id and
+  # meets nothing). The visited set ends the walk on a loop already stored.
+  defp ancestor_or_self?(_id, nil, _parents), do: false
+  defp ancestor_or_self?(id, target, parents), do: walk_up(id, target, parents, MapSet.new())
+
+  defp walk_up(nil, _target, _parents, _seen), do: false
+  defp walk_up(target, target, _parents, _seen), do: true
+
+  defp walk_up(id, target, parents, seen) do
+    if MapSet.member?(seen, id),
+      do: false,
+      else: walk_up(Map.get(parents, id), target, parents, MapSet.put(seen, id))
+  end
 
   # ADR-0049 §8: the rules that read an object answer its delete, by name.
   defp not_read_by_rules(kind, id) do

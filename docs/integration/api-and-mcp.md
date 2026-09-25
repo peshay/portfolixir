@@ -1818,6 +1818,10 @@ tree stays intrinsic and cannot be reassigned.
 - `PATCH /api/v1/classifications/:classification_id/categories/:id` patches a
   `category` (`name`, `color`, `description`, `parent_id`, `position` — all
   optional). The category's `classification_id` cannot be changed this way.
+  On both writes a `parent_id` must name a category of the same classification
+  that is neither the category itself nor one of its descendants; any other
+  parent answers `422` on `parent_id` and nothing is written, so a tree never
+  loops (E25 S4).
 - `DELETE /api/v1/classifications/:classification_id/categories/:id` deletes a
   category and cascades its child categories and assignments.
 - `PUT /api/v1/classifications/:classification_id/assignments` assigns a security

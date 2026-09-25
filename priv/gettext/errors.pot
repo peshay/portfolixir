@@ -128,3 +128,10 @@ msgid "must have at most %{count} decimal places"
 msgid_plural "must have at most %{count} decimal places"
 msgstr[0] ""
 msgstr[1] ""
+
+## Portfolixir.Classifications: a category's parent (F11).
+msgid "must belong to the same classification"
+msgstr ""
+
+msgid "would make the category its own ancestor"
+msgstr ""
