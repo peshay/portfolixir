@@ -115,14 +115,22 @@ defmodule Portfolixir.Portfolios do
     Multi.new()
     |> Multi.insert(:portfolio, Portfolio.changeset(%Portfolio{}, attrs))
     |> Journal.record(actor, resource_type: "portfolio", operation: :create, source: :portfolio)
+    |> write_cash_target(actor, attrs)
     |> Repo.transaction()
     |> portfolio_write_result()
-    |> persist_cash_target(actor)
+    |> with_stored_cash_target()
   end
 
   @doc """
   Updates a portfolio on behalf of `actor` (FR-28). The update and its audit
   journal entry (with the pre-image as `before`) commit in one transaction.
+
+  The cash target is written only when `attrs` carries `cash_target_weight`
+  (a fraction, or `nil` to stop steering), as a step of that same
+  transaction (E25 S6, G18): a write that says nothing about it leaves the
+  Gesamt cash plan and its journal untouched, and a refused cash-target
+  write rolls the portfolio change back and answers its error. The returned
+  portfolio carries the cash target as stored after the write.
   """
   def update_portfolio(%Actor{} = actor, %Portfolio{} = portfolio, attrs) when is_map(attrs) do
     Multi.new()
@@ -133,15 +141,19 @@ defmodule Portfolixir.Portfolios do
       source: :portfolio,
       before: portfolio
     )
+    |> write_cash_target(actor, attrs)
     |> Repo.transaction()
     |> portfolio_write_result()
-    |> persist_cash_target(actor)
+    |> with_stored_cash_target()
   end
 
   defp portfolio_write_result({:ok, %{portfolio: portfolio}}), do: {:ok, portfolio}
 
   defp portfolio_write_result({:error, :portfolio, %Ecto.Changeset{} = changeset, _changes}),
     do: {:error, changeset}
+
+  # The cash-target step refused the weight (E25 S6, G18).
+  defp portfolio_write_result({:error, :cash_target, reason, _changes}), do: {:error, reason}
 
   # The row was deleted before the write took its lock (E25 S6, F49).
   defp portfolio_write_result({:error, {:journal_lock, _}, :not_found, _changes}),
@@ -185,16 +197,30 @@ defmodule Portfolixir.Portfolios do
     %{portfolio | cash_target_weight: Targets.get_cash_target(portfolio.id)}
   end
 
-  # Write-through: after a portfolio write, persist the virtual cash target onto
-  # the Gesamt cash plan when the changeset carried one (it casts and validates a
-  # `[0, 1]` fraction). A nil weight clears the steered quote.
-  defp persist_cash_target({:ok, %Portfolio{} = portfolio}, %Actor{} = actor) do
-    weight = portfolio.cash_target_weight
-    :ok = Targets.set_cash_target(actor, portfolio.id, weight)
-    {:ok, %{portfolio | cash_target_weight: weight}}
+  # Write-through (E25 S6, G18): when the request carries a cash target, the
+  # virtual field the portfolio changeset cast and validated (a `[0, 1]`
+  # fraction, or nil to clear) is written onto the Gesamt cash plan as a step
+  # of the portfolio's own transaction, so a refusal rolls the portfolio
+  # write back and is answered, never matched. A request that does not carry
+  # one never touches the plan: the portfolio's virtual field is not a read
+  # of it.
+  defp write_cash_target(multi, %Actor{} = actor, attrs) do
+    if Map.has_key?(attrs, :cash_target_weight) or Map.has_key?(attrs, "cash_target_weight") do
+      Multi.run(multi, :cash_target, fn _repo, %{portfolio: portfolio} ->
+        case Targets.set_cash_target(actor, portfolio.id, portfolio.cash_target_weight) do
+          :ok -> {:ok, portfolio.cash_target_weight}
+          {:error, reason} -> {:error, reason}
+        end
+      end)
+    else
+      multi
+    end
   end
 
-  defp persist_cash_target(other, _actor), do: other
+  defp with_stored_cash_target({:ok, %Portfolio{} = portfolio}),
+    do: {:ok, load_cash_target(portfolio)}
+
+  defp with_stored_cash_target(other), do: other
 
   def list_cash_accounts do
     Repo.all(from(account in CashAccount, order_by: [asc: account.name, asc: account.id]))
