@@ -411,29 +411,20 @@ defmodule Portfolixir.Catalog.LogoLookup do
   Caller is expected to log failures — this function does so itself when
   invoked from a supervised task.
 
-  An exception anywhere in the lookup (an upstream answer of a shape no
-  adapter expected) is `{:error, :malformed_upstream}`, logged here, so the
+  An exception while the logo is looked up (an upstream answer of a shape no
+  adapter expected) is `{:error, :malformed_upstream}`; one while a found logo
+  is downloaded and stored (a local fault, such as a failed write) is
+  `{:error, :store_failed}`. Each is logged by its class here, so the
   discovery job, the securities page and the API's rediscover action all see
-  a value, never a crash (E25 S3, F30).
+  a value, never a crash, and a local fault is never blamed on the provider
+  (E25 S3, F30; the S3/S4 review round).
   """
   @spec run(Security.t(), keyword()) ::
           {:ok, Security.t()} | :skip | {:error, term()}
   def run(%Security{} = security, opts \\ []) do
-    do_run(security, opts)
-  rescue
-    exception ->
-      Logger.warning(
-        "logo lookup for security ##{security.id} met a malformed upstream answer: " <>
-          inspect(exception.__struct__)
-      )
-
-      {:error, :malformed_upstream}
-  end
-
-  defp do_run(security, opts) do
-    case find_url(security, opts) do
+    case lookup_url(security, opts) do
       {:ok, url, source} ->
-        case LogoStore.download_and_store(security, url, source, opts) do
+        case store(security, url, source, opts) do
           {:ok, updated} ->
             {:ok, updated}
 
@@ -453,5 +444,29 @@ defmodule Portfolixir.Catalog.LogoLookup do
 
         {:error, reason}
     end
+  end
+
+  defp lookup_url(security, opts) do
+    find_url(security, opts)
+  rescue
+    exception ->
+      Logger.warning(
+        "logo lookup for security ##{security.id} met a malformed upstream answer: " <>
+          inspect(exception.__struct__)
+      )
+
+      {:error, :malformed_upstream}
+  end
+
+  defp store(security, url, source, opts) do
+    LogoStore.download_and_store(security, url, source, opts)
+  rescue
+    exception ->
+      Logger.warning(
+        "logo for security ##{security.id} was found but could not be stored: " <>
+          inspect(exception.__struct__)
+      )
+
+      {:error, :store_failed}
   end
 end

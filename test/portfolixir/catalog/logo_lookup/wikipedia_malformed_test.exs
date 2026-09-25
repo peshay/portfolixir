@@ -5,6 +5,8 @@ defmodule Portfolixir.Catalog.LogoLookup.WikipediaMalformedTest do
   # an unexpected failure as a value for every caller.
   use Portfolixir.DataCase, async: true
 
+  alias Portfolixir.Actor
+  alias Portfolixir.Catalog
   alias Portfolixir.Catalog.LogoLookup
   alias Portfolixir.Catalog.LogoLookup.Wikipedia
   alias Portfolixir.Catalog.Security
@@ -167,5 +169,57 @@ defmodule Portfolixir.Catalog.LogoLookup.WikipediaMalformedTest do
              LogoLookup.run(security, req: [plug: answer, not_a_req_option: true])
 
     requests()
+  end
+
+  # 1x1 PNG
+  @png <<137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8,
+         6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 120, 156, 99, 250, 207, 0, 0,
+         0, 3, 0, 1, 5, 12, 60, 192, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130>>
+
+  # User story (the S3/S4 review round):
+  # As an operator reading why a logo lookup failed,
+  # I want a local failure while storing a found logo reported as that,
+  # so that the log and the rediscover answer do not blame a provider for a
+  # fault of my own instance.
+  #
+  # Acceptance criteria:
+  # - A failure after the logo was found, while it is stored, is
+  #   {:error, :store_failed} and logged as a storage failure, not as a
+  #   malformed upstream answer.
+  test "a local failure while storing a found logo is not blamed on the upstream" do
+    tmp = Path.join(System.tmp_dir!(), "portfolixir-logos-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(tmp)
+    on_exit(fn -> File.rm_rf!(tmp) end)
+
+    {:ok, security} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Synthetic Coin",
+        currency_code: "USD",
+        provider: "coingecko",
+        asset_class: "crypto",
+        online_id: "synthetic-coin"
+      })
+
+    answer = fn conn ->
+      case conn.host do
+        "api.coingecko.com" ->
+          json(conn, %{"image" => %{"large" => "https://coingecko/synthetic.png"}})
+
+        _image_host ->
+          conn |> Plug.Conn.put_resp_content_type("image/png") |> Plug.Conn.send_resp(200, @png)
+      end
+    end
+
+    # The row is gone by the time the found logo is recorded: a local fault.
+    vanished = %{security | id: security.id + 1_000_000}
+
+    log =
+      ExUnit.CaptureLog.capture_log(fn ->
+        assert {:error, :store_failed} =
+                 LogoLookup.run(vanished, req: [plug: answer], storage_dir: tmp)
+      end)
+
+    assert log =~ "could not be stored"
+    refute log =~ "malformed upstream"
   end
 end
