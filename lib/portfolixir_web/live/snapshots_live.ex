@@ -644,18 +644,13 @@ defmodule PortfolixirWeb.SnapshotsLive do
                       <td><%= view_name(@views, snapshot.view_id) %></td>
                       <td><%= snapshot.as_of %></td>
                       <td class="row-actions">
-                        <button
-                          type="button"
+                        <AppShell.row_kebab
                           id={"snapshot-kebab-#{snapshot.id}"}
-                          class="row-actions__kebab"
+                          row={snapshot.name}
+                          open={@row_menu_id == snapshot.id}
                           phx-click="open_row_menu"
                           phx-value-id={snapshot.id}
-                          aria-label={gettext("Open actions menu")}
-                          aria-haspopup="menu"
-                          aria-expanded={to_string(@row_menu_id == snapshot.id)}
-                        >
-                          <AppShell.icon name={:ellipsis_vertical} />
-                        </button>
+                        />
                       </td>
                     </tr>
                   <% end %>

@@ -780,19 +780,14 @@ defmodule PortfolixirWeb.TaxLive do
                   · <%= gettext("Tax year %{year}", year: entry.row.tax_year) %>
                   · <%= source_label(entry.row.source) %>
                 </span>
-                <button
-                  type="button"
+                <AppShell.row_kebab
                   id={"tax-row-kebab-statement-#{entry.row.id}"}
-                  class="row-actions__kebab"
+                  row={AppShell.row_name([entry.row.institution, Format.date(entry.row.as_of)])}
+                  open={@row_menu == {:statement, entry.row.id}}
                   phx-click="open_row_menu"
                   phx-value-kind="statement"
                   phx-value-id={entry.row.id}
-                  aria-label={gettext("Open actions menu")}
-                  aria-haspopup="menu"
-                  aria-expanded={to_string(@row_menu == {:statement, entry.row.id})}
-                >
-                  <AppShell.icon name={:ellipsis_vertical} />
-                </button>
+                />
               </div>
 
               <dl class="tax-statement__figures">
@@ -884,19 +879,14 @@ defmodule PortfolixirWeb.TaxLive do
               <li :for={order <- @orders} id={"tax-order-#{order.id}"}>
                 <span><%= order.institution %></span>
                 <span class="num"><%= Format.money(order.amount_granted) %></span>
-                <button
-                  type="button"
+                <AppShell.row_kebab
                   id={"tax-row-kebab-order-#{order.id}"}
-                  class="row-actions__kebab"
+                  row={order.institution}
+                  open={@row_menu == {:order, order.id}}
                   phx-click="open_row_menu"
                   phx-value-kind="order"
                   phx-value-id={order.id}
-                  aria-label={gettext("Open actions menu")}
-                  aria-haspopup="menu"
-                  aria-expanded={to_string(@row_menu == {:order, order.id})}
-                >
-                  <AppShell.icon name={:ellipsis_vertical} />
-                </button>
+                />
               </li>
             </ul>
           </details>

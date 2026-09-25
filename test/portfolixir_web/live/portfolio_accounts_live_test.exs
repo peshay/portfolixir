@@ -1277,8 +1277,9 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
     assert html =~ "Gilt für Depot und Verrechnungskonto"
     assert html =~ "Kein Bucket"
     # "Getrennt taggen" moved into the row menu, which renders when opened;
-    # what the page carries at rest is the control that opens it.
-    assert html =~ "Aktionsmenü öffnen"
+    # what the page carries at rest is the control that opens it, named for
+    # its row (#870).
+    assert html =~ "Aktionen für Depot A"
     refute html =~ "Add to portfolio"
     refute html =~ "Create portfolio"
   end

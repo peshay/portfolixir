@@ -685,18 +685,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
                       role="link"
                     >
                       <td class="row-actions">
-                        <button
-                          type="button"
+                        <AppShell.row_kebab
                           id={"row-kebab-#{sec_id}"}
-                          class="row-actions__kebab"
+                          row={inner_security.name}
+                          open={@row_menu_id == sec_id}
                           phx-click="open_row_menu"
                           phx-value-id={sec_id}
-                          aria-label={gettext("Open actions menu")}
-                          aria-haspopup="menu"
-                          aria-expanded={to_string(@row_menu_id == sec_id)}
-                        >
-                          <AppShell.icon name={:ellipsis_vertical} />
-                        </button>
+                        />
                       </td>
                       <%= for column <- visible do %>
                         <td class={numeric_column?(column) && "num"}>
@@ -772,18 +767,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
                     </span>
                     <span class="phone-row__figure2"><%= phone_change(row) %></span>
                   </span>
-                  <button
-                    type="button"
+                  <AppShell.row_kebab
                     id={"phone-kebab-#{sec_id}"}
-                    class="row-actions__kebab"
+                    row={inner_security.name}
+                    open={@row_menu_id == sec_id}
                     phx-click="open_row_menu"
                     phx-value-id={sec_id}
-                    aria-label={gettext("Open actions menu")}
-                    aria-haspopup="menu"
-                    aria-expanded={to_string(@row_menu_id == sec_id)}
-                  >
-                    <AppShell.icon name={:ellipsis_vertical} />
-                  </button>
+                  />
                 </li>
               <% end %>
             </ul>

@@ -987,6 +987,7 @@ The checkbox is one control: box and label sit on one line, the label is the hit
 | Soft, large-blur shadows ({components.panel}) for elevation | Hard drop shadows, or any shadow inside a table |
 | Define every new token in both themes | Light-only tokens ({colors.warning-soft} is the live example) |
 | Give every control a visible 2px focus outline | `outline: none` with a background change as the substitute |
+| Name every row kebab for its row — "Actions for Nordic Timber Holdings AB", a booking by kind, subject and date — through the one trigger, `AppShell.row_kebab/1` (issue 870) | Give every kebab on a page the same name, or draw a kebab of a surface's own |
 | Grow interactive targets to ≥44px under `@media (pointer: coarse)` | Ship the 32–34px desktop density untouched to iPhone/iPad |
 | Pair every semantic hue with a sign or shape (+/−, ▲/▼, glyph) | Encode gain/loss, buy/sell, staleness, value-slot state or note severity in hue alone |
 | Carry every state in text, glyph or border as well as colour, so it survives `forced-colors: active` | Let a colour step be the only difference between pending, settling and final |

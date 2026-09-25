@@ -550,18 +550,13 @@ defmodule PortfolixirWeb.ClassificationsLive do
                 <% end %>
               </span>
 
-              <button
-                type="button"
+              <AppShell.row_kebab
                 id={"tree-kebab-#{row.classification.id}"}
-                class="row-actions__kebab"
+                row={ClassificationName.display(row.classification)}
+                open={@tree_menu_id == row.classification.id}
                 phx-click="open_tree_menu"
                 phx-value-id={row.classification.id}
-                aria-label={gettext("Open actions menu")}
-                aria-haspopup="menu"
-                aria-expanded={to_string(@tree_menu_id == row.classification.id)}
-              >
-                <AppShell.icon name={:ellipsis_vertical} />
-              </button>
+              />
             </li>
           </ul>
 
