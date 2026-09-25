@@ -210,7 +210,12 @@ defmodule Portfolixir.Fx.RateSync do
   defp drop_implausible(rows) do
     {plausible, dropped} =
       Enum.split_with(rows, fn row ->
-        is_map(row) and MarketDataBounds.plausible?(field(row, :date), field(row, :rate))
+        is_map(row) and
+          MarketDataBounds.plausible?(
+            field(row, :date),
+            field(row, :rate),
+            MarketDataBounds.rate_column()
+          )
       end)
 
     if dropped != [] do

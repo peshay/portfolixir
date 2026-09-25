@@ -330,10 +330,8 @@ defmodule Portfolixir.Ledger.Transaction do
 
   defp bound_to_columns(changeset) do
     [{:quantity, @quantity_column} | Enum.map(@money_fields, &{&1, @money_column})]
-    |> Enum.reduce(changeset, fn {field, {_precision, scale} = column}, acc ->
-      acc
-      |> BoundedDecimal.quantize(field, scale)
-      |> BoundedDecimal.validate_column(field, column)
+    |> Enum.reduce(changeset, fn {field, column}, acc ->
+      BoundedDecimal.bound_to_column(acc, field, column)
     end)
   end
 

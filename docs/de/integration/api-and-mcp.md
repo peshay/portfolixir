@@ -107,6 +107,17 @@ also der gerundete Wert, und ein positiver Betrag, der auf `0` rundet, liefert
 `422`. Ein Wert mit mehr als 14 Stellen vor dem Komma (eine Menge mit mehr als
 18) liefert `422` mit dem Namen des Felds, statt in der Datenbank zu scheitern.
 
+**Andere gespeicherte Beträge.** Dieselbe Regel gilt für jeden anderen Betrag,
+den ein Schreibzugriff speichert: den `close` eines Kurses (6
+Nachkommastellen), einen Wechselkurs (15) sowie die Geldfelder (6) und Sätze
+(4) der Steuer-Schreibzugriffe — die Töpfe und einbehaltenen Steuern einer
+Steuerbescheinigung, `amount_granted` eines Freistellungsauftrags, die
+Freibeträge und Sätze eines Steuerjahrs, `church_tax_rate` eines Profils. Ein
+feinerer Wert wird vor der Prüfung kaufmännisch auf seine Stellenzahl
+gerundet; ein positiver `close`, der auf `0` rundet, liefert also `422` und
+wird nie als Null gespeichert. Ein Geldwert mit mehr als 14 Stellen vor dem
+Komma liefert `422` mit dem Namen des Felds.
+
 **Text.** Ein Name, eine Kennung oder jeder andere einzeilige Text, den ein
 Schreibzugriff speichert, ist höchstens so lang wie seine Spalte — 255 Zeichen,
 sofern keine engere Grenze genannt ist (der Name eines Buckets oder einer
@@ -561,7 +572,8 @@ Regel über einer Kennzahl ist FR-43 und bleibt verschlossen.
   `422`).
 - `PUT /api/v1/securities/:security_id/quotes` führt manuelle Kurszeilen ein
   (Upsert). Jede Kurszeile, manuell oder synchronisiert, ist begrenzt: ein
-  positiver `close` an einem `date`, das nicht nach morgen liegt (dem
+  `close`, der auf seine 6 Nachkommastellen gerundet positiv ist und höchstens
+  14 Stellen vor dem Komma hat, an einem `date`, das nicht nach morgen liegt (dem
   Kalendertag der Instanz plus einem Tag für Zeitzonen). Eine Zeile außerhalb
   der Grenze liefert `422` mit dem Feld, und eine Synchronisierung verwirft
   einen solchen Anbieterpunkt, statt den Lauf scheitern zu lassen. Die

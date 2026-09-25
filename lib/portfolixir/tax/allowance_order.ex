@@ -16,6 +16,7 @@ defmodule Portfolixir.Tax.AllowanceOrder do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Input.Text
   alias Portfolixir.Tax.Identity
 
@@ -49,6 +50,9 @@ defmodule Portfolixir.Tax.AllowanceOrder do
       greater_than_or_equal_to: @min_tax_year,
       less_than_or_equal_to: @max_tax_year
     )
+    # E25 S4 (G16, G17): rounded to its numeric(20,6) column and bounded by
+    # it before the sign check, so the amount checked is the amount stored.
+    |> BoundedDecimal.bound_to_column(:amount_granted, {20, 6})
     |> validate_non_negative(:amount_granted)
     |> unique_constraint(:institution,
       name: :allowance_orders_holder_institution_year_index

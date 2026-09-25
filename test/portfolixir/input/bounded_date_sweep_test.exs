@@ -58,10 +58,10 @@ defmodule Portfolixir.Input.BoundedDateSweepTest do
     changeset =
       {%{}, %{date: :date, close: :decimal}}
       |> Ecto.Changeset.cast(%{"date" => "1899-12-31", "close" => "1"}, [:date, :close])
-      |> MarketDataBounds.validate(:date, :close)
+      |> MarketDataBounds.validate(:date, :close, MarketDataBounds.close_column())
 
     assert [date: {message, _}] = changeset.errors
     assert message == BoundedDate.message()
-    refute MarketDataBounds.plausible?(~D[1899-12-31], "1")
+    refute MarketDataBounds.plausible?(~D[1899-12-31], "1", MarketDataBounds.close_column())
   end
 end

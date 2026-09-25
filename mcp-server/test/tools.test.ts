@@ -3150,6 +3150,24 @@ describe("Portfolixir MCP tools", () => {
     }
   });
 
+  // E25 S4, G16 and G17, with S3 F26 (the S3/S4 review round): the same column
+  // rule reaches the quote and tax writers, and the tools say so.
+  it("states the stored scale and bound on the quote and tax write tools", () => {
+    for (const name of [
+      "portfolixir.quotes.upsert",
+      "portfolixir.tax_parameters.upsert",
+      "portfolixir.tax_profiles.create",
+      "portfolixir.tax_profiles.update",
+      "portfolixir.allowance_orders.put",
+      "portfolixir.tax_snapshots.create",
+      "portfolixir.tax_snapshots.update"
+    ]) {
+      const description = listTools().find((tool) => tool.name === name)?.description ?? "";
+      assert.match(description, /rounded half up to/, name);
+      assert.match(description, /14 digits before the decimal point/, name);
+    }
+  });
+
   // E25 S4, F11 (#889): a parent that loops the tree or sits in another
   // classification is refused; the category tools say so.
   it("states the parent rule on the category write tools", () => {

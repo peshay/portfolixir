@@ -11,6 +11,10 @@ defmodule Portfolixir.Input.BoundedDecimal do
       is the value stored, answered and journaled (G16).
     * `validate_column/3` — a magnitude past the column's precision is a field
       error, never a failed write (G17).
+    * `bound_to_column/3` — both, in that order, for one `numeric(precision,
+      scale)` column: every schema that casts such a column runs it before its
+      own checks, so a sign or range check judges the value the column keeps
+      (the S3/S4 review round swept it over every writer, F26 and G17).
     * `validate_scale/3` — a value carries at most a fixed number of decimal
       places (the target weights, G14).
   """
@@ -44,14 +48,43 @@ defmodule Portfolixir.Input.BoundedDecimal do
   @spec quantize(Ecto.Changeset.t(), atom(), non_neg_integer()) :: Ecto.Changeset.t()
   def quantize(changeset, field, scale) do
     update_change(changeset, field, fn
-      %Decimal{} = value ->
-        if finite?(value) and decimal_places(value) > scale,
-          do: Decimal.round(value, scale, :half_up),
-          else: value
-
-      other ->
-        other
+      %Decimal{} = value -> round_to_scale(value, scale)
+      other -> other
     end)
+  end
+
+  @doc """
+  The value a `numeric(_, scale)` column keeps: `value` rounded half up to
+  `scale` decimal places when it carries more, otherwise `value` exactly as
+  given.
+  """
+  @spec round_to_scale(Decimal.t(), non_neg_integer()) :: Decimal.t()
+  def round_to_scale(%Decimal{} = value, scale) do
+    if finite?(value) and decimal_places(value) > scale,
+      do: Decimal.round(value, scale, :half_up),
+      else: value
+  end
+
+  @doc """
+  Whether a finite `value` fits a `numeric(precision, scale)` column: at most
+  `precision - scale` digits before the decimal point.
+  """
+  @spec fits_column?(Decimal.t(), {pos_integer(), non_neg_integer()}) :: boolean()
+  def fits_column?(value, {precision, scale}) do
+    finite?(value) and Decimal.compare(Decimal.abs(value), column_limit(precision, scale)) == :lt
+  end
+
+  @doc """
+  Rounds a change of `field` to the column's scale (`quantize/3`), then
+  refuses a magnitude past its precision (`validate_column/3`). Run it before
+  any sign or range check, so the check judges the value stored.
+  """
+  @spec bound_to_column(Ecto.Changeset.t(), atom(), {pos_integer(), non_neg_integer()}) ::
+          Ecto.Changeset.t()
+  def bound_to_column(changeset, field, {_precision, scale} = column) do
+    changeset
+    |> quantize(field, scale)
+    |> validate_column(field, column)
   end
 
   @doc """
@@ -61,12 +94,11 @@ defmodule Portfolixir.Input.BoundedDecimal do
   """
   @spec validate_column(Ecto.Changeset.t(), atom(), {pos_integer(), non_neg_integer()}) ::
           Ecto.Changeset.t()
-  def validate_column(changeset, field, {precision, scale}) do
+  def validate_column(changeset, field, {precision, scale} = column) do
     integer_digits = precision - scale
-    limit = Decimal.new(1, 1, integer_digits)
 
     validate_change(changeset, field, fn ^field, value ->
-      if finite?(value) and Decimal.compare(Decimal.abs(value), limit) == :lt do
+      if fits_column?(value, column) do
         []
       else
         [
@@ -108,4 +140,6 @@ defmodule Portfolixir.Input.BoundedDecimal do
       _whole -> 0
     end
   end
+
+  defp column_limit(precision, scale), do: Decimal.new(1, 1, precision - scale)
 end

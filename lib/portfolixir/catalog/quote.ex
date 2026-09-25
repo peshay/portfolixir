@@ -32,9 +32,10 @@ defmodule Portfolixir.Catalog.Quote do
     quote_
     |> cast(attrs, [:security_id, :date, :close, :source])
     |> validate_required([:security_id, :date, :close, :source])
-    # Plausibility bounds for every writer (E25 S3, F26): a positive close on
-    # a date no later than MarketDataBounds.latest_date/0.
-    |> MarketDataBounds.validate(:date, :close)
+    # Plausibility bounds for every writer (E25 S3, F26): a close rounded to
+    # its column, within it and positive, on a date no later than
+    # MarketDataBounds.latest_date/0.
+    |> MarketDataBounds.validate(:date, :close, MarketDataBounds.close_column())
     |> validate_inclusion(:source, @sources, message: "is invalid")
     |> unique_constraint([:security_id, :date],
       name: :security_quotes_security_id_date_index

@@ -98,6 +98,15 @@ positive amount that rounds to `0` answers `422`. A value with more than 14
 digits before the decimal point (a quantity more than 18) answers `422` naming
 the field instead of failing in the database.
 
+**Other stored amounts.** The same rule holds for every other amount a write
+stores: a quote's `close` (6 decimal places), an exchange rate (15), and the
+tax writes' money fields (6) and rates (4) — a statement snapshot's pots and
+withheld taxes, an allowance order's `amount_granted`, a tax year's
+allowances and rates, a profile's `church_tax_rate`. A finer value is rounded
+half up to its scale before it is checked, so a positive `close` that rounds
+to `0` answers `422` and is never stored as zero; a money value with more than
+14 digits before the decimal point answers `422` naming the field.
+
 **Text.** A name, an identifier or any other one-line text a write stores is
 at most as long as its column — 255 characters unless a narrower limit is
 stated (a bucket's or view's name 100, a plan's or snapshot's name 120),
@@ -584,8 +593,9 @@ Example create payload:
   `limit` keeps the newest rows of the window, still ascending (default 20000,
   max 50000; zero, negative or non-numeric is a `422`).
 - `PUT /api/v1/securities/:security_id/quotes` upserts manual quote rows.
-  Every quote row, manual or synced, is bounded: a positive `close` on a
-  `date` no later than tomorrow (the instance's calendar day plus one day for
+  Every quote row, manual or synced, is bounded: a `close` that is positive
+  once rounded to its 6 decimal places, with at most 14 digits before the
+  decimal point, on a `date` no later than tomorrow (the instance's calendar day plus one day for
   time zones). A row outside the bound answers `422` naming the field, and a
   sync drops such a provider point instead of failing the run. The
   latest-quote reads (the valuation price, the catalog's latest price and the
