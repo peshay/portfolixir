@@ -175,7 +175,7 @@ defmodule Portfolixir.Fx.RateSync do
   end
 
   defp persist(provider, rows, scope \\ :latest) do
-    case Fx.upsert_many(drop_implausible(rows)) do
+    case safe_upsert(drop_implausible(rows)) do
       {:ok, count} ->
         {:ok, %{provider: provider.id(), status: :ok, upserted: count, scope: scope}}
 
@@ -183,6 +183,16 @@ defmodule Portfolixir.Fx.RateSync do
         Logger.warning("fx rate upsert failed: #{inspect(reason)}")
         {:error, {:upsert_failed, reason}}
     end
+  end
+
+  # Rows the database refuses are the run's error, answered like an upstream
+  # failure (the API's 502), never a crash (F28).
+  defp safe_upsert(rows) do
+    Fx.upsert_many(rows)
+  rescue
+    exception ->
+      Logger.warning("fx rate persistence failed: #{Exception.message(exception)}")
+      {:error, :persist_failed}
   end
 
   # Whatever a provider returns, an implausible rate (F26) is dropped here, so

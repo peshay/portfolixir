@@ -22,6 +22,10 @@ defmodule Portfolixir.Fx do
 
   @hub "EUR"
   @gbx_per_gbp Decimal.new(100)
+  # Rows per INSERT, below PostgreSQL's 65,535 bind parameters per statement
+  # at seven parameters a row (E25 S3, F28): the full ECB series is written in
+  # chunks inside one transaction.
+  @insert_chunk 5_000
   @one Decimal.new(1)
 
   @doc """
@@ -38,11 +42,20 @@ defmodule Portfolixir.Fx do
         {:ok, 0}
 
       {:ok, prepared} ->
-        {count, _} =
-          Repo.insert_all(ExchangeRate, prepared,
-            on_conflict: {:replace, [:rate, :source, :updated_at]},
-            conflict_target: [:base_currency, :quote_currency, :date]
-          )
+        {:ok, count} =
+          Repo.transaction(fn ->
+            prepared
+            |> Enum.chunk_every(@insert_chunk)
+            |> Enum.reduce(0, fn chunk, total ->
+              {count, _} =
+                Repo.insert_all(ExchangeRate, chunk,
+                  on_conflict: {:replace, [:rate, :source, :updated_at]},
+                  conflict_target: [:base_currency, :quote_currency, :date]
+                )
+
+              total + count
+            end)
+          end)
 
         # Allowlisted out of the journal for the same reason as quotes, so the
         # invalidation is announced here (ADR-0032 §3.4).

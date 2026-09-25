@@ -544,7 +544,10 @@ Example create payload:
 - `POST /api/v1/securities/:security_id/sync_quotes` triggers quote sync for
   one security. The response includes `status` (`ok`, `skipped`, or `error`);
   skipped and error responses may include a `reason` such as
-  `missing_ticker` or `no_provider_adapter`.
+  `missing_ticker` or `no_provider_adapter`, and `persist_failed` when the
+  fetched quotes could not be stored. A history of any length is stored in
+  one sync, and in the scheduled sync one security that fails is that
+  security's error while the others are still synced.
 
 Example quote upsert payload:
 
@@ -1722,7 +1725,8 @@ level (d)).
   weekend, a currency it does not list) stays excluded and named; the
   backfill fills dates, it does not relax the "exact booking-date rate"
   basis. An unknown `scope` is a `422`, a provider without a history answers
-  `422` naming `scope`, and a provider failure returns `502 Bad Gateway`. The
+  `422` naming `scope`, and a provider failure, or rates the database cannot
+  store, returns `502 Bad Gateway` with nothing stored. The
   human view is the **Backfill historical rates** control inside the
   exclusion notes on `/cashflow`.
 
