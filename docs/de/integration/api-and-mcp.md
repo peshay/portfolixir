@@ -30,8 +30,13 @@ kürzer als 32 Bytes oder ein Platzhalter ist, und nennt dabei die Variable;
 wiederholt falsche Tokens von einer verbindenden Adresse werden mit `429` und
 `Retry-After` für ein wachsendes Intervall beantwortet. Hinter dem
 veröffentlichten Port verbindet jeder Client über die Docker-Bridge, ein
-Rater dort bremst also auch den Agenten. Das Token wird geprüft, bevor der
-Body der Anfrage gelesen wird. Die Fehler, die der Begleitdienst selbst
+Rater dort bremst also auch den Agenten. Vor allem anderen prüft der
+Begleitdienst den `Host`-Header genau, Name und Port: Eine Anfrage unter einem
+`Host`, auf den der Listener nicht antwortet (die Loopback-Namen und seine
+gebundene Adresse mit seinem Port sowie die Namen in
+`PORTFOLIXIR_MCP_ALLOWED_HOSTS`), wird mit `403` beantwortet, bevor ihr
+Origin oder ihr Token betrachtet wird, und zählt als kein Fehlversuch. Das
+Token wird geprüft, bevor der Body der Anfrage gelesen wird. Die Fehler, die der Begleitdienst selbst
 beantwortet, ein unbekannter Pfad eingeschlossen, haben die Form der API,
 `{"errors": {"detail": "Bad Request"}}`, ohne Stacktrace und ohne lokalen
 Pfad; die Ablehnungen des MCP-Protokolls selbst auf `/mcp` behalten dessen

@@ -222,10 +222,33 @@ export function mcpAuthMiddleware(
 }
 
 /**
- * The Host values the SDK's DNS-rebinding protection accepts: the loopback
- * names with and without the port, plus any name the operator adds for a
- * reverse proxy. A wildcard bind (0.0.0.0) is not itself a Host a browser
- * sends, so it is not listed.
+ * The companion's own DNS-rebinding guard (E25 S7, F22), the first check a
+ * request meets: its Host must be one of the allowed values exactly, name and
+ * port together (a name compared without its case), or it is answered 403
+ * before its origin, its token or its body is read, and it counts no failed
+ * token attempt. The SDK transport's Host check stays behind it as a second
+ * layer.
+ */
+export function hostGuard(allowedHosts: string[]) {
+  const allowed = new Set(allowedHosts.map((host) => host.toLowerCase()));
+
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const host = req.headers.host;
+
+    if (host === undefined || !allowed.has(host.toLowerCase())) {
+      res.status(403).json({ errors: { detail: "host not allowed" } });
+      return;
+    }
+
+    next();
+  };
+}
+
+/**
+ * The Host values the companion answers under: the loopback names with and
+ * without the port, plus any name the operator adds for a reverse proxy. A
+ * wildcard bind (0.0.0.0) is not itself a Host a browser sends, so it is not
+ * listed. Both the companion's own guard and the SDK's check read this list.
  */
 export function allowedHostsFor(host: string, port: number, ...extraHosts: string[]): string[] {
   const names = ["127.0.0.1", "localhost", ...extraHosts.map((name) => name.trim()).filter(Boolean)];
@@ -241,7 +264,7 @@ export interface HttpAppOptions {
   client: ApiClient;
   /** A token `requireMcpToken` has accepted. */
   token: string;
-  /** The Host values the SDK's DNS-rebinding protection accepts. */
+  /** The Host values the companion answers under (its guard and the SDK's). */
   allowedHosts: string[];
 }
 
@@ -289,15 +312,17 @@ function errorStatus(error: unknown): number {
 }
 
 /**
- * The companion's HTTP app, without a listener. The gate runs before any
- * body is read (E25 S2, F19): an unauthenticated request is refused without
- * being parsed. Express runs in production mode whatever NODE_ENV says, so
- * its own last-resort handler never renders a stack trace either.
+ * The companion's HTTP app, without a listener. The Host guard runs first
+ * (E25 S7, F22), then the gate, both before any body is read (E25 S2, F19):
+ * an unauthenticated request is refused without being parsed. Express runs in
+ * production mode whatever NODE_ENV says, so its own last-resort handler never
+ * renders a stack trace either.
  */
 export function createHttpApp(options: HttpAppOptions): Express {
   const app = express();
   app.set("env", "production");
 
+  app.use(hostGuard(options.allowedHosts));
   app.use(mcpAuthMiddleware(options.token));
   app.use(express.json({ limit: "1mb" }));
 

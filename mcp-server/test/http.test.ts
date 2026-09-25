@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
-import { STATUS_CODES } from "node:http";
+import { STATUS_CODES, createServer, request as httpRequest } from "node:http";
 import type { AddressInfo } from "node:net";
 import { describe, it } from "node:test";
 
@@ -189,9 +189,15 @@ describe("MCP HTTP security helpers", () => {
   });
 });
 
-// The companion's HTTP app on a loopback port the OS picks; nothing leaves
-// the machine and the API client is never called.
-async function withApp(run: (base: string) => Promise<void>): Promise<void> {
+// The companion's HTTP app on a loopback port the OS picks, answering under
+// the Host names that port gives it; nothing leaves the machine and the API
+// client is never called.
+async function withApp(run: (base: string, port: number) => Promise<void>): Promise<void> {
+  const server = createServer();
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const port = (server.address() as AddressInfo).port;
+
   const app = createHttpApp({
     client: {
       request: async () => {
@@ -199,18 +205,54 @@ async function withApp(run: (base: string) => Promise<void>): Promise<void> {
       }
     },
     token: soundToken,
-    allowedHosts: allowedHostsFor("127.0.0.1", 0)
+    allowedHosts: allowedHostsFor("127.0.0.1", port)
   });
-  const server = app.listen(0, "127.0.0.1");
-  await once(server, "listening");
+  server.on("request", app);
 
   try {
-    await run(`http://127.0.0.1:${(server.address() as AddressInfo).port}`);
+    await run(`http://127.0.0.1:${port}`, port);
   } finally {
     server.close();
     await once(server, "close");
   }
 }
+
+interface RawAnswer {
+  status: number;
+  body: string;
+}
+
+// A request with headers the fetch API would not let a test set (Host).
+function rawRequest(
+  port: number,
+  headers: Record<string, string>,
+  body = "{}"
+): Promise<RawAnswer> {
+  return new Promise((resolve, reject) => {
+    const request = httpRequest(
+      { host: "127.0.0.1", port, path: "/mcp", method: "POST", headers },
+      (response) => {
+        let text = "";
+        response.setEncoding("utf8");
+        response.on("data", (chunk: string) => (text += chunk));
+        response.on("end", () => resolve({ status: response.statusCode ?? 0, body: text }));
+      }
+    );
+    request.on("error", reject);
+    request.end(body);
+  });
+}
+
+const initialize = JSON.stringify({
+  jsonrpc: "2.0",
+  id: 1,
+  method: "initialize",
+  params: {
+    protocolVersion: "2025-06-18",
+    capabilities: {},
+    clientInfo: { name: "portfolixir-test-host", version: "0.0.0" }
+  }
+});
 
 function post(base: string, body: string, authorization?: string): Promise<globalThis.Response> {
   const headers: Record<string, string> = { "content-type": "application/json" };
@@ -287,6 +329,70 @@ describe("MCP HTTP transport", () => {
 
       const anonymous = await fetch(`${base}/elsewhere`);
       assert.equal(anonymous.status, 401);
+    });
+  });
+
+  // User story (E25 S7, F22):
+  // As an operator whose companion listens over HTTP,
+  // I want a request under a Host this listener does not answer to refused
+  // before anything else about it is read,
+  // so that a page that rebinds its own name onto my loopback cannot drive the
+  // companion, whatever the SDK's own check does.
+  //
+  // Acceptance criteria:
+  // - A foreign Host is answered 403 before the origin and the token are
+  //   checked, and it counts no failed token attempt.
+  // - A loopback name under another port than the listener's is foreign.
+  // - Under an allowed Host, a foreign Origin is answered 403 and a missing
+  //   bearer 401; the right Host, Origin and token reach the MCP server.
+  it("refuses a foreign Host ahead of the origin and the token", async () => {
+    await withApp(async (_base, port) => {
+      const bearer = `Bearer ${soundToken}`;
+      const foreignHosts = ["rebound.example", `rebound.example:${port}`, "127.0.0.1:1", `localhost:${port + 1}`];
+
+      for (const host of foreignHosts) {
+        const answer = await rawRequest(port, {
+          host,
+          origin: "https://rebound.example",
+          "content-type": "application/json"
+        });
+        assert.equal(answer.status, 403, host);
+        assert.deepEqual(JSON.parse(answer.body), { errors: { detail: "host not allowed" } }, host);
+      }
+
+      // The refused Hosts counted no failed attempts: the right token passes.
+      for (let attempt = 0; attempt < 12; attempt += 1) {
+        await rawRequest(port, { host: "rebound.example", authorization: "Bearer wrong" });
+      }
+
+      const foreignOrigin = await rawRequest(port, {
+        host: `127.0.0.1:${port}`,
+        origin: "https://rebound.example",
+        authorization: bearer,
+        "content-type": "application/json"
+      });
+      assert.equal(foreignOrigin.status, 403);
+      assert.deepEqual(JSON.parse(foreignOrigin.body), { errors: { detail: "origin not allowed" } });
+
+      const anonymous = await rawRequest(port, {
+        host: `localhost:${port}`,
+        "content-type": "application/json"
+      });
+      assert.equal(anonymous.status, 401);
+
+      const admitted = await rawRequest(
+        port,
+        {
+          host: `127.0.0.1:${port}`,
+          origin: `http://127.0.0.1:${port}`,
+          authorization: bearer,
+          "content-type": "application/json",
+          accept: "application/json, text/event-stream"
+        },
+        initialize
+      );
+      assert.equal(admitted.status, 200, admitted.body);
+      assert.match(admitted.body, /"serverInfo":\{"name":"portfolixir"/);
     });
   });
 

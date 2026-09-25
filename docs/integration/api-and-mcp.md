@@ -28,7 +28,12 @@ refuses to start with a token shorter than 32 bytes or equal to a placeholder,
 naming the variable, and repeated wrong tokens from one connecting address are
 answered `429` with `Retry-After` for a growing interval. Behind the published
 port every client connects from the Docker bridge, so a guesser there delays
-the agent as well. The token is checked before the request body is read. The
+the agent as well. Before anything else, the companion checks the `Host`
+header exactly, name and port: a request under a `Host` the listener does not
+answer to (the loopback names and its bound address with its port, and the
+names in `PORTFOLIXIR_MCP_ALLOWED_HOSTS`) is answered `403` before its origin
+or its token is looked at, and counts no failed attempt. The token is checked
+before the request body is read. The
 errors the companion answers itself, an unknown path among them, take the
 API's shape, `{"errors": {"detail": "Bad Request"}}`, with no stack trace or
 local path in it; the refusals of the MCP protocol itself on `/mcp` keep the
