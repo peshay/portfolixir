@@ -20,6 +20,7 @@ defmodule Portfolixir.Lifecycle.DeleteTest do
   alias Portfolixir.Lifecycle.Delete
   alias Portfolixir.Lifecycle.ForeignKeys
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.Targets
   alias Portfolixir.WorldFixtures
 
   defp agent, do: Actor.api_token_rw("synthetic-agent")
@@ -540,7 +541,7 @@ defmodule Portfolixir.Lifecycle.DeleteTest do
         Classifications.assign_security(Actor.owner_ui(), security.id, strategy.id, core.id)
 
       {:ok, _} =
-        Portfolixir.Portfolios.Targets.set_targets(
+        Targets.set_targets(
           Actor.owner_ui(),
           world.portfolio.id,
           strategy.id,
