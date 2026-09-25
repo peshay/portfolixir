@@ -230,7 +230,8 @@ defmodule Portfolixir.Invariants.ImportHashWritersTest do
     #   `balance_adjustment` and a `split` with a changeset error.
     # - The database refuses either kind with a hash from any writer.
     # - The applier builds a row only for the importable kinds: an entry of
-    #   either kind never lands as a hashed row.
+    #   either kind is a reported skip, counted unimportable before the apply,
+    #   and never lands as a hashed row.
     setup do
       world = WorldFixtures.base_world()
       security = WorldFixtures.create_security!(name: "Split Co.", ticker: "SPLT")
@@ -338,17 +339,16 @@ defmodule Portfolixir.Invariants.ImportHashWritersTest do
 
         preview = %Imports.Preview{format: :json, entries: [entry], errors: []}
 
-        # Whatever the applier answers for a kind no export carries, it must
-        # not commit a row of that kind.
-        outcome =
-          try do
-            Imports.apply(preview, %{portfolio_id: world.portfolio.id})
-          rescue
-            error -> {:raised, error}
-          end
+        # No export carries either kind (the parsers map none to it), so an
+        # entry of one is a reported skip — never a row, never a crash.
+        assert {:ok, result} = Imports.apply(preview, %{portfolio_id: world.portfolio.id})
 
-        refute match?({:ok, %{created_transactions: created}} when created > 0, outcome)
+        assert result.created_transactions == 0
+        assert result.skipped_entries == [%{row: 1, reason: "skipped: #{kind} is never imported"}]
         refute Repo.exists?(from(t in Transaction, where: t.type == ^kind))
+
+        assert Imports.reimport_counts(preview, portfolio_id: world.portfolio.id).total ==
+                 %{hash: 0, retired: 0, unimportable: 1, new: 0}
       end
     end
   end
