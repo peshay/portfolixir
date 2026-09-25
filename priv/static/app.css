@@ -1077,8 +1077,13 @@ form {
   gap: var(--space-4);
 }
 
+/* A label stacks from the top (issue 869, review round): stretched to a
+   taller neighbour in a grid row, as a paired field with an error beneath
+   it makes it, its own tracks would share out the extra height and grow the
+   control. */
 label {
   display: grid;
+  align-content: start;
   gap: var(--space-1);
 }
 
