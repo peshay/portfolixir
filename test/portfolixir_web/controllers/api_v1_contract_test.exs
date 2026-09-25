@@ -53,6 +53,9 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     # envelope of the errors the server answers itself (E25 S2, F68).
     assert newest["version"] == 8
     assert Enum.any?(newest["parameters"], &(&1 =~ ~s({"errors": {"detail")))
+    # ADR-0050 §11 L1: the identity-field freezes answer 422 on the PATCHes
+    # that expose a currency, extending the same entry.
+    assert Enum.any?(newest["parameters"], &(&1 =~ "is frozen once referenced"))
 
     # Sprint 15 (version 7): the policy-rules family (ADR-0049) — its reads,
     # its writes and their MCP twins. Found by version from here on.

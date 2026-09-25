@@ -251,6 +251,22 @@ Wertpapier-Detail (`GET /api/v1/securities/:id`) gelistet und können
 Eine bloße Umbenennung braucht keinen ISIN-Wechsel — sie ist nur eine
 Namensänderung.
 
+### Identitätsfelder, die einfrieren (ADR-0050 §11)
+
+Die **Währung eines Wertpapiers friert ein, sobald es eine Transaktion oder
+einen Kurs hat**: Buchungen und Kurshistorie sind in dieser Währung
+angegeben, eine Änderung würde sie stillschweigend umdenominieren. Jeder Weg
+lehnt die Änderung mit einem Feldfehler ab, der zählt, was sie einfriert —
+*is frozen once referenced (120 quotes, 3 transactions)* — und schreibt
+nichts: das Bearbeiten-Formular (unter der Währungsauswahl), im Suchdialog
+**Online-Felder übernehmen** und **Vorhandenes aktualisieren**, wenn das
+gewählte Listing in einer anderen Währung handelt (ein Xetra-Listing in EUR
+eines in USD gebuchten Wertpapiers ist eine andere Kursreihe, keine
+Korrektur), sowie `PATCH /api/v1/securities/:id` mit dem MCP-Tool darüber
+(`422`). Die übrigen Felder bleiben änderbar, und ein Wertpapier ohne
+Buchungen und Kurse wechselt die Währung weiterhin. Dieselbe Regel gilt für
+Konten, siehe *Konten und Depots* unten.
+
 ### Abgeleitete Kennzahlen im Chart-Tab (ADR-0047)
 
 Der **Chart**-Tab des Detailbereichs trägt die abgeleiteten Kennzahlen des
@@ -401,6 +417,16 @@ passiert ausschließlich über Buckets und Ansichten. Wird ein Depot oder
 Geldkonto angelegt — im Dialog oder über API/MCP — löst sich die interne
 Bindung deterministisch auf ein Standard-Portfolio auf (den ältesten
 Datensatz, sonst ein frisch angelegtes „Default“), ohne nachzufragen.
+
+**Währung und Bindung frieren ein, sobald verwiesen** (ADR-0050 §11). Die
+Währung eines Geldkontos und seine interne Portfolio-Bindung frieren ein,
+sobald eine Transaktion über eines ihrer beiden Konten auf das Konto
+verweist oder ein Depot es verknüpft; die Bindung eines Depots friert ein,
+sobald eine Transaktion darauf verweist. Eine Änderung wird mit einem
+Feldfehler abgelehnt, der die Verweise zählt, und schreibt nichts —
+gebuchte Historie wird nie umdenominiert oder verschoben. Name, Notizen und
+Liquiditätsrolle bleiben änderbar. Die API verschiebt ein Konto oder Depot
+ohnehin nie in ein anderes Portfolio.
 
 Durchgearbeitete Beispiele — Haushalts-Aufteilung, Strategie-Ansichten mit
 eigenen SOLL-Plänen, Übersetzen von Portfolio-Performance-Gewohnheiten und

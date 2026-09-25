@@ -207,7 +207,13 @@ verengen, was der Betreiber sieht.
   die ADR-0028-Notluke für Anbieter, die ihre Historie nach einem
   Aktiensplit nie rückwirkend anpassen: Mit gesetztem Flag werden die
   synchronisierten Kurszeilen des Wertpapiers als roh (wie gehandelt)
-  behandelt, sodass die Split-Anpassungsfaktoren auch auf sie wirken.
+  behandelt, sodass die Split-Anpassungsfaktoren auch auf sie wirken. Der
+  `currency_code` eines Wertpapiers **friert ein**, sobald es eine
+  Transaktion oder einen Kurs hat (ADR-0050 §11): Eine Änderung liefert dann
+  `422` mit `errors.currency_code`, das beides zählt, etwa
+  `["is frozen once referenced (120 quotes, 3 transactions)"]`, und nichts
+  wird geschrieben. Die gespeicherte Währung erneut zu senden ist keine
+  Änderung, und die übrigen Felder bleiben änderbar.
 - `DELETE /api/v1/securities/:id` löscht ein Wertpapier, wenn nichts darauf
   verweist. Liest eine Policy-Regel es, antwortet der Aufruf mit
   `409 Conflict` und `errors.policy_rules`. Buchungen, Kurshistorie,
@@ -582,7 +588,12 @@ Beispiel-Antwort für Kurssynchronisierung:
 - `GET /api/v1/cash_accounts/:id` liefert ein Geldkonto.
 - `PATCH /api/v1/cash_accounts/:id` aktualisiert ein Geldkonto (`name`,
   `currency_code`, `notes`, `liquidity_role`); `portfolio_id` kann nicht
-  geändert werden.
+  geändert werden. Der `currency_code` **friert ein**, sobald eine
+  Transaktion über eines ihrer beiden Konten auf das Konto verweist oder ein
+  Wertpapierkonto es verknüpft (ADR-0050 §11): Eine Änderung liefert dann
+  `422` mit `errors.currency_code`, das die Verweise zählt, etwa
+  `["is frozen once referenced (1 securities account, 12 transactions)"]`,
+  und nichts wird geschrieben — gebuchte Historie wird nie umdenominiert.
 - `DELETE /api/v1/cash_accounts/:id` löscht ein Geldkonto, auf das keine
   Transaktion über eines ihrer beiden Konten verweist und das kein
   Wertpapierkonto verknüpft. Sonst liefert es `409 Conflict` mit
@@ -1797,7 +1808,8 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
   einschließlich seiner `identifier_aliases` (aufgezeichnete frühere ISINs)
   und seines abgeleiteten `thesis_state` (ADR-0044).
 - `portfolixir.securities.create`
-- `portfolixir.securities.update`
+- `portfolixir.securities.update` — Beschreibung und `currency_code`-Eigenschaft
+  nennen das Einfrieren der Währung (ADR-0050 §11).
 - `portfolixir.securities.delete`
 - `portfolixir.securities.isin_change` — zeichnet einen
   Kapitalmaßnahmen-ISIN-Wechsel auf, damit Importe über die frühere ISIN
@@ -1837,7 +1849,8 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
   bevorzuge `portfolixir.buckets.create` / `portfolixir.views.create`.
 - `portfolixir.cash_accounts.list`
 - `portfolixir.cash_accounts.create`
-- `portfolixir.cash_accounts.update`
+- `portfolixir.cash_accounts.update` — Beschreibung und
+  `currency_code`-Eigenschaft nennen das Einfrieren der Währung (ADR-0050 §11).
 - `portfolixir.cash_accounts.delete`
 - `portfolixir.cash_accounts.set_balance`
 - `portfolixir.securities_accounts.list`

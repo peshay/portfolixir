@@ -203,7 +203,12 @@ full list.
   hatch for providers that never back-adjust their history after a stock
   split: with the flag set, the security's provider-synced quote rows are
   treated as raw (as-traded), so the split-adjustment factors apply to them
-  too.
+  too. A security's `currency_code` **freezes** once it has a transaction or
+  a quote (ADR-0050 §11): a change then answers `422` with
+  `errors.currency_code` counting them, for example
+  `["is frozen once referenced (120 quotes, 3 transactions)"]`, and nothing
+  is written. Resending the stored currency is no change, and the other
+  fields stay editable.
 - `DELETE /api/v1/securities/:id` deletes a security when nothing references
   it. A policy rule that reads it answers `409 Conflict` with
   `errors.policy_rules`. Bookings, quote history, research notes, security
@@ -605,7 +610,12 @@ Example quote sync response:
 - `GET /api/v1/cash_accounts/:id` returns one cash account.
 - `PATCH /api/v1/cash_accounts/:id` updates a cash account (`name`,
   `currency_code`, `notes`, `liquidity_role`); `portfolio_id` cannot
-  be changed.
+  be changed. The `currency_code` **freezes** once a transaction references
+  the account through either leg or a securities account links to it
+  (ADR-0050 §11): a change then answers `422` with `errors.currency_code`
+  counting the references, for example
+  `["is frozen once referenced (1 securities account, 12 transactions)"]`,
+  and nothing is written, so booked history is never re-denominated.
 - `DELETE /api/v1/cash_accounts/:id` deletes a cash account that no
   transaction references through either leg and no securities account links
   to. Otherwise it returns `409 Conflict` with `errors.referenced_by` (for
@@ -1954,7 +1964,8 @@ in MCP schemas are strings.
   `identifier_aliases` (recorded former ISINs) and its derived
   `thesis_state` (ADR-0044).
 - `portfolixir.securities.create`
-- `portfolixir.securities.update`
+- `portfolixir.securities.update` — its description and its `currency_code`
+  property state the currency freeze (ADR-0050 §11).
 - `portfolixir.securities.delete`
 - `portfolixir.securities.isin_change` — records a corporate-action ISIN
   change so imports keep matching via the former ISIN (ADR-0029).
@@ -1997,7 +2008,8 @@ in MCP schemas are strings.
   prefer `portfolixir.buckets.create` / `portfolixir.views.create`.
 - `portfolixir.cash_accounts.list`
 - `portfolixir.cash_accounts.create`
-- `portfolixir.cash_accounts.update`
+- `portfolixir.cash_accounts.update` — its description and its
+  `currency_code` property state the currency freeze (ADR-0050 §11).
 - `portfolixir.cash_accounts.delete`
 - `portfolixir.cash_accounts.set_balance`
 - `portfolixir.securities_accounts.list`

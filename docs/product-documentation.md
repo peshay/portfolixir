@@ -231,6 +231,21 @@ Aliases are correctable: they are listed on the security detail
 (`GET /api/v1/securities/:id`) and can be deleted (journaled) when recorded
 by mistake. A plain rename needs no ISIN change — it is just a name edit.
 
+### Identity fields that freeze (ADR-0050 §11)
+
+A security's **currency freezes once it has a transaction or a quote**: its
+bookings and its price history are stated in that currency, so changing it
+would silently re-denominate them. Every path refuses the change with a field
+error that counts what froze it — *is frozen once referenced (120 quotes,
+3 transactions)* — and writes nothing: the edit form (under the currency
+select), the search dialog's **Merge online fields** and **Update existing**
+when the picked listing trades in another currency (a Xetra listing in EUR of
+a security booked in USD is a different price series, not a correction), and
+`PATCH /api/v1/securities/:id` with the MCP tool over it (`422`). The other
+fields stay editable, and a security with neither bookings nor quotes still
+changes currency. The same rule holds for accounts, see *Accounts and
+Depots* below.
+
 ### Derived metrics on the chart tab (issue #814's sibling, ADR-0047)
 
 The detail pane's **Chart** tab carries the security's derived metrics under
@@ -374,6 +389,15 @@ exclusively through buckets and views. When a depot or cash account is
 created — in the dialog or over the API/MCP — its internal binding resolves
 to one deterministic default portfolio (the earliest record, or a freshly
 created "Default"), without asking.
+
+**Currency and binding freeze once referenced** (ADR-0050 §11). A cash
+account's currency, and its internal portfolio binding, freeze once a
+transaction references the account through either leg or a depot links to
+it; a depot's binding freezes once a transaction references it. A change is
+refused with a field error that counts the references and writes nothing —
+booked history is never re-denominated or moved. Name, notes and liquidity
+role stay editable. The API never moves an account or a depot to another
+portfolio at all.
 
 For worked examples — a household split, strategy views with their own target
 plans, translating Portfolio Performance habits, and excluding a position from
