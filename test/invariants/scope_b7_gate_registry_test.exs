@@ -30,11 +30,14 @@ defmodule Portfolixir.Invariants.ScopeB7GateRegistryTest do
   # - The extraction and the coupling catch a synthetic amendment in each
   #   direction, so a clean tree cannot pass vacuously.
   #
-  # B2 (the outbound chokepoint) lands after Lane S3 changes Net.Http's
-  # redirect handling; it joins the entries for external LLM calls, B3.3 data
-  # acquisition and Phase 3 then, with its own `gate:` lines.
+  # B2 (the outbound chokepoint) landed after Lane S3 changed Net.Http's
+  # redirect handling. It backs every gate whose capability needs a new
+  # outbound connection: a write to an external endpoint (an order, a push),
+  # a new host (an LLM API, a data source beyond quotes and FX, a bank), or a
+  # new credential in the environment.
 
   @b1 "test/invariants/scope_b1_no_stored_credentials_test.exs"
+  @b2 "test/invariants/scope_b2_outbound_chokepoint_test.exs"
   @b3 "test/invariants/scope_b3_dependency_classes_test.exs"
   @b4 "test/invariants/scope_b4_non_goal_names_test.exs"
   @b5 "test/invariants/scope_b5_system_writers_and_schedulers_test.exs"
@@ -53,7 +56,7 @@ defmodule Portfolixir.Invariants.ScopeB7GateRegistryTest do
     %{
       id: "nongoal.order_placing_connection",
       sentence: {:non_goal, "no order-placing broker connection"},
-      backstops: [@b1, @b3, @b4]
+      backstops: [@b1, @b2, @b3, @b4]
     },
     %{
       id: "nongoal.order_creation",
@@ -78,7 +81,7 @@ defmodule Portfolixir.Invariants.ScopeB7GateRegistryTest do
       id: "nongoal.external_llm_calls",
       sentence: {:non_goal, "no external LLM calls from the app"},
       hard_rule: ["LLM behavior"],
-      backstops: [@b3, @b4]
+      backstops: [@b2, @b3, @b4]
     },
     %{
       id: "gated.level_d_backtesting",
@@ -89,12 +92,12 @@ defmodule Portfolixir.Invariants.ScopeB7GateRegistryTest do
     %{
       id: "gated.b3_3_data_acquisition",
       sentence: {:gated, "data acquisition beyond quotes and FX (B3.3)"},
-      backstops: [@b3, @b4, @b5]
+      backstops: [@b2, @b3, @b4, @b5]
     },
     %{
       id: "gated.b3_7_push_delivery",
       sentence: {:gated, "push delivery to external endpoints (B3.7)"},
-      backstops: [@b3, @b4, @b5]
+      backstops: [@b2, @b3, @b4, @b5]
     },
     %{
       id: "gated.b3_8_local_model",
@@ -109,7 +112,7 @@ defmodule Portfolixir.Invariants.ScopeB7GateRegistryTest do
          "read-only acquisition stays permitted in principle and gated in practice " <>
            "(Phase 3, still forbidden here until its ADR lands)"},
       hard_rule: ["broker sync", "bank sync"],
-      backstops: [@b1, @b3, @b4, @b5]
+      backstops: [@b1, @b2, @b3, @b4, @b5]
     },
     %{
       id: "gated.document_intake",
