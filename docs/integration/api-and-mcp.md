@@ -580,7 +580,10 @@ Example create payload:
   time zones). A row outside the bound answers `422` naming the field, and a
   sync drops such a provider point instead of failing the run. The
   latest-quote reads (the valuation price, the catalog's latest price and the
-  stale-quote check) never use a stored row dated past the bound.
+  stale-quote check) never use a stored row dated past the bound. One batch
+  names each date once and carries only quote objects: a repeated date answers
+  `422` with `errors.date` naming it, a row that is not an object `422` on
+  `quotes`, and nothing is written.
 - `POST /api/v1/securities/:security_id/sync_quotes` triggers quote sync for
   one security. The response includes `status` (`ok`, `skipped`, or `error`);
   skipped and error responses may include a `reason` such as

@@ -498,31 +498,54 @@ defmodule Portfolixir.Catalog.Quotes do
     end
   end
 
+  # Every row is a quote object, and one date appears once (E25 S4, F13): a
+  # row of another shape or a repeated date is the batch's changeset error,
+  # never a raise in the insert (the upsert cannot write one row twice).
   defp prepare_rows(security_id, rows, now) do
-    Enum.reduce_while(rows, {:ok, []}, fn row, {:ok, acc} ->
-      changeset =
-        SecurityQuote.changeset(%SecurityQuote{}, put_security_id(row, security_id))
+    rows
+    |> Enum.reduce_while({:ok, [], MapSet.new()}, fn
+      row, {:ok, acc, seen} when is_map(row) ->
+        changeset =
+          SecurityQuote.changeset(%SecurityQuote{}, put_security_id(row, security_id))
 
-      if changeset.valid? do
-        data = Ecto.Changeset.apply_changes(changeset)
+        prepare_row(changeset, acc, seen, now)
 
-        {:cont,
-         {:ok,
-          [
-            %{
-              security_id: data.security_id,
-              date: data.date,
-              close: data.close,
-              source: data.source,
-              inserted_at: now,
-              updated_at: now
-            }
-            | acc
-          ]}}
-      else
-        {:halt, {:error, changeset}}
-      end
+      _not_a_row, _acc ->
+        {:halt, {:error, batch_error(:quotes, "must be a list of quote objects")}}
     end)
+    |> case do
+      {:ok, prepared, _seen} -> {:ok, prepared}
+      {:error, _changeset} = error -> error
+    end
+  end
+
+  defp prepare_row(%Ecto.Changeset{valid?: false} = changeset, _acc, _seen, _now),
+    do: {:halt, {:error, changeset}}
+
+  defp prepare_row(changeset, acc, seen, now) do
+    data = Ecto.Changeset.apply_changes(changeset)
+
+    if MapSet.member?(seen, data.date) do
+      message = "#{Date.to_iso8601(data.date)} is given more than once"
+      {:halt, {:error, batch_error(:date, message)}}
+    else
+      row = %{
+        security_id: data.security_id,
+        date: data.date,
+        close: data.close,
+        source: data.source,
+        inserted_at: now,
+        updated_at: now
+      }
+
+      {:cont, {:ok, [row | acc], MapSet.put(seen, data.date)}}
+    end
+  end
+
+  defp batch_error(field, message) do
+    %SecurityQuote{}
+    |> Ecto.Changeset.change()
+    |> Ecto.Changeset.add_error(field, message)
   end
 
   defp put_security_id(row, security_id) do
