@@ -23,7 +23,9 @@ defmodule Portfolixir.Invariants.ScopeB1NoStoredCredentialsTest do
   #   handed to the raw settings store is a literal the scan can read (a
   #   computed key could store any name).
   # - The UI password and the API tokens are environment configuration, never
-  #   stored, so nothing is allowlisted for them.
+  #   stored. The one allowlisted name is the session key that binds a login to
+  #   the UI password by a keyed HMAC of it (E25 S1, #886): not the password,
+  #   and nothing a cookie reader can test guesses against.
   # - The matcher catches synthetic violations of each kind, so a clean tree
   #   cannot pass vacuously.
   # - An allowlist entry carries a reason and still excuses something real.
@@ -55,11 +57,16 @@ defmodule Portfolixir.Invariants.ScopeB1NoStoredCredentialsTest do
     ~w(online banking)
   ]
 
-  # `{kind, name} => reason`. Empty by design: nothing stored in Portfolixir is
-  # a credential. An entry needs a written reason and must still excuse a real
-  # name; the UI password and the API tokens live in the environment and never
-  # need one.
-  @allowlist %{}
+  # `{kind, name} => reason`. Nothing stored in Portfolixir is a credential. An
+  # entry needs a written reason and must still excuse a real name; the UI
+  # password and the API tokens live in the environment and never need one.
+  @allowlist %{
+    {:settings_key, "ui_password_fingerprint"} =>
+      "a signed session-cookie key, not a settings row: it holds a keyed HMAC of the " <>
+        "environment's UI password (key derived from SECRET_KEY_BASE) so that changing " <>
+        "the password ends every session (E25 S1 F02, #886); it is not the password, " <>
+        "cannot be tested against without the server's secret, and opens no bank or broker"
+  }
 
   describe "the stored structure" do
     test "no Ecto schema field, virtual field or redacted field names a credential" do
@@ -88,11 +95,7 @@ defmodule Portfolixir.Invariants.ScopeB1NoStoredCredentialsTest do
     end
 
     test "every settings key is a literal and none names a credential" do
-      {keys, computed} =
-        "lib/**/*.ex"
-        |> Path.wildcard()
-        |> Enum.map(&settings_keys(File.read!(&1), &1))
-        |> Enum.reduce({[], []}, fn {k, c}, {ks, cs} -> {ks ++ k, cs ++ c} end)
+      {keys, computed} = lib_settings_keys()
 
       assert keys != [], "the settings scan found no keys; the extraction is broken"
 
@@ -167,8 +170,12 @@ defmodule Portfolixir.Invariants.ScopeB1NoStoredCredentialsTest do
   end
 
   test "every allowlist entry carries a reason and still excuses a real name" do
+    {keys, _computed} = lib_settings_keys()
+
     live =
-      (Enum.flat_map(app_schemas(), &schema_names/1) ++ structure_names(database_rows()))
+      (Enum.flat_map(app_schemas(), &schema_names/1) ++
+         structure_names(database_rows()) ++
+         for(key <- keys, credential_name?(key), do: {:settings_key, key}))
       |> MapSet.new()
 
     for {entry, reason} <- @allowlist do
@@ -264,6 +271,14 @@ defmodule Portfolixir.Invariants.ScopeB1NoStoredCredentialsTest do
     columns = for {table, column} <- rows, credential_name?(column), do: {:column, table, column}
 
     tables ++ columns
+  end
+
+  # `{keys, computed_calls}` over every source file in lib/.
+  defp lib_settings_keys do
+    "lib/**/*.ex"
+    |> Path.wildcard()
+    |> Enum.map(&settings_keys(File.read!(&1), &1))
+    |> Enum.reduce({[], []}, fn {k, c}, {ks, cs} -> {ks ++ k, cs ++ c} end)
   end
 
   # `{keys, computed_calls}` of one source file: every `@*_key` string
