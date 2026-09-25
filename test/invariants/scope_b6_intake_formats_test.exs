@@ -212,6 +212,7 @@ defmodule Portfolixir.Invariants.ScopeB6IntakeFormatsTest do
           |> allow_upload(:b, accept: :any)
           |> allow_upload(:c, accept: [".portfolio"])
           |> allow_upload(:d, accept: ~w(.json))
+          |> Phoenix.LiveView.allow_upload(:f, accept: ~w(.portfolio))
           |> then(&{:ok, allow_upload(&1, :e, accept: ~w(application/zip))})
         end
       end
@@ -219,9 +220,9 @@ defmodule Portfolixir.Invariants.ScopeB6IntakeFormatsTest do
 
       accepts = upload_accepts(source, "synthetic.ex")
 
-      assert length(accepts) == 5
+      assert length(accepts) == 6
 
-      assert accepts |> Enum.reject(&csv_or_json_only?(elem(&1, 1))) |> length() == 4
+      assert accepts |> Enum.reject(&csv_or_json_only?(elem(&1, 1))) |> length() == 5
     end
 
     test "a synthetic multipart intake and synthetic decoders are caught" do
@@ -257,8 +258,11 @@ defmodule Portfolixir.Invariants.ScopeB6IntakeFormatsTest do
     test "names for XML are caught, innocent neighbours are not" do
       assert xml_name?("POST /api/v1/imports/xml")
       assert xml_name?("Portfolixir.Imports.PortfolioPerformance.XmlParser")
+      assert xml_name?("Portfolixir.Imports.PortfolioPerformance.XMLParser")
+      assert xml_name?("Portfolixir.Imports.PPXMLImport")
       assert xml_name?("portfolixir.imports.parse_xml")
       refute xml_name?("Portfolixir.Fx.RateSync.Ecb")
+      refute xml_name?("PortfolixirWeb.SessionHTML")
       refute xml_name?("portfolixir.imports.preview")
     end
   end
@@ -270,7 +274,8 @@ defmodule Portfolixir.Invariants.ScopeB6IntakeFormatsTest do
 
   defp csv_or_json_only?(_any_or_computed), do: false
 
-  # `[{"path:line", accept}]` for every `allow_upload/2,3` call, piped or not.
+  # `[{"path:line", accept}]` for every `allow_upload/2,3` call, piped or not,
+  # imported or called as `Phoenix.LiveView.allow_upload`.
   # `accept` is the literal list, `:any`, or `:computed` when the scan cannot
   # read it (which fails: an upload's formats must be visible).
   defp upload_accepts(source, path) do
@@ -279,6 +284,11 @@ defmodule Portfolixir.Invariants.ScopeB6IntakeFormatsTest do
       |> Code.string_to_quoted!()
       |> Macro.prewalk([], fn
         {:allow_upload, meta, args} = node, acc when is_list(args) and args != [] ->
+          {node, acc ++ [{"#{path}:#{meta[:line]}", accept_of(List.last(args))}]}
+
+        {{:., _, [{:__aliases__, _, [:Phoenix, :LiveView]}, :allow_upload]}, meta, args} = node,
+        acc
+        when args != [] ->
           {node, acc ++ [{"#{path}:#{meta[:line]}", accept_of(List.last(args))}]}
 
         node, acc ->
@@ -356,12 +366,17 @@ defmodule Portfolixir.Invariants.ScopeB6IntakeFormatsTest do
   defp parser_name({:__aliases__, _, segments}), do: Enum.join(segments, ".")
   defp parser_name(parser), do: parser
 
+  # An acronym fused to the next word splits off it first (`XMLParser` reads
+  # as ["xml", "parser"]), as Elixir spells acronyms; `xml` is distinctive
+  # enough to match inside a token too (`PPXMLImport` reads as ["ppxml",
+  # "import"], two acronyms no tokenizer can part).
   defp xml_name?(name) do
     name
+    |> String.replace(~r/([A-Z]+)([A-Z][a-z])/, "\\1_\\2")
     |> String.replace(~r/([a-z0-9])([A-Z])/, "\\1_\\2")
     |> String.downcase()
     |> String.split(~r/[^a-z0-9]+/, trim: true)
-    |> Enum.member?("xml")
+    |> Enum.any?(&String.contains?(&1, "xml"))
   end
 
   # --- sources -------------------------------------------------------------
