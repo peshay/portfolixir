@@ -2343,7 +2343,10 @@ from the HTTP method it routes to:
 
 The exceptions are named: `portfolixir.splits.preview` and
 `portfolixir.holdings.reconcile` are routed through `POST` but store nothing,
-so they are read-only; `openWorldHint` is true only for
+so they are read-only; `portfolixir.quotes.release` is routed through `POST`
+but removes the manual quotes in its range, so it is hinted as a `DELETE` is:
+destructive, and idempotent, since a repeat finds nothing left to remove;
+`openWorldHint` is true only for
 `portfolixir.securities.search_online`, `portfolixir.quotes.sync` and
 `portfolixir.exchange_rates.sync`, which reach an external provider. The
 append-only writes, `portfolixir.notes.append` and the policy-rule versions,
