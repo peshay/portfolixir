@@ -230,6 +230,94 @@ defmodule Portfolixir.Imports.ParserRobustnessTest do
              PortfolioPerformance.parse(json(depots), filename: "d.json")
   end
 
+  # User story (E25 S5, F38):
+  # As an operator,
+  # I want the row cap to count the entries a file expands into,
+  # so that one transaction splitting into tax refunds cannot multiply what
+  # the preview holds.
+  #
+  # Acceptance criteria:
+  # - A file within the row cap whose rows and split-off tax refunds together
+  #   pass it is refused as {:error, {:too_many_entries, n}}, in both formats,
+  #   before any entry is built.
+  # - A row with more units than one booking carries is a row error, and the
+  #   sound row next to it survives.
+  test "the row cap counts the entries a file expands into" do
+    cap = PortfolioPerformance.max_rows()
+    rows = div(cap, 2) + 1
+
+    refund_tx =
+      Map.put(base_tx(), "units", [%{"type" => "TAX", "amount" => "-1.00"}])
+
+    assert {:error, {:too_many_entries, n}} =
+             PortfolioPerformance.parse(json(List.duplicate(refund_tx, rows)), filename: "r.json")
+
+    assert n == rows * 2
+
+    refund_row =
+      "2024-01-16 10:01:00;Kauf;Synthetic AG;10;150,25;1.502,50;;-1,00;1.502,50;Test-Depot;Test-Cash;;"
+
+    assert {:error, {:too_many_entries, ^n}} =
+             PortfolioPerformance.parse(csv(List.duplicate(refund_row, rows)), filename: "r.csv")
+
+    many_units =
+      Map.put(
+        base_tx(),
+        "units",
+        List.duplicate(
+          %{"type" => "TAX", "amount" => "-1.00"},
+          PortfolioPerformance.max_units() + 1
+        )
+      )
+
+    assert {:ok, %Preview{entries: [_sound], errors: [%{row: 2, message: message}]}} =
+             PortfolioPerformance.parse(json([base_tx(), many_units]), filename: "u.json")
+
+    assert message =~ "units"
+  end
+
+  # User story (E25 S5, F39):
+  # As an operator importing an export with a value no ledger column holds,
+  # I want that row named as a row error in the preview,
+  # so that the apply never fails on it after I confirmed.
+  #
+  # Acceptance criteria:
+  # - A quantity, price, amount, fee, tax or split-off refund past its
+  #   column's integer digits (after rounding to the column's scale) is a
+  #   named row error naming the field; a derived price counts too.
+  # - A number past the parser's bound is a named row error, not an
+  #   inspected term.
+  # - The sound row next to each survives.
+  test "values past their ledger column are named row errors" do
+    for {label, hostile, field} <- [
+          {"amount", Map.put(base_tx(), "amount", "123456789012345678"), "gross amount"},
+          {"shares", Map.put(base_tx(), "shares", "1234567890123456789"), "quantity"},
+          {"derived price",
+           base_tx() |> Map.put("amount", "99999999999999") |> Map.put("shares", "0.0000001"),
+           "price"},
+          {"fee", Map.put(base_tx(), "units", [%{"type" => "FEE", "amount" => "1e15"}]), "fees"},
+          {"refund", Map.put(base_tx(), "units", [%{"type" => "TAX", "amount" => "-1e15"}]),
+           "tax refund"},
+          {"rounds past", Map.put(base_tx(), "amount", "99999999999999.9999999"), "gross amount"},
+          {"parser bound", Map.put(base_tx(), "amount", "1e40"), "number"}
+        ] do
+      assert {:ok, %Preview{entries: [_sound], errors: [%{row: 2, message: message}]}} =
+               PortfolioPerformance.parse(json([base_tx(), hostile]), filename: "b.json"),
+             label
+
+      assert message =~ field, "#{label}: #{message}"
+      refute message =~ "{", "#{label}: #{message}"
+    end
+
+    csv_row =
+      "2024-01-16 10:01:00;Kauf;Synthetic AG;10;150,25;123.456.789.012.345.678,00;;;1.502,50;Test-Depot;Test-Cash;;"
+
+    assert {:ok, %Preview{entries: [_], errors: [%{row: 2, message: message}]}} =
+             PortfolioPerformance.parse(csv([@csv_ok, csv_row]), filename: "b.csv")
+
+    assert message =~ "gross amount"
+  end
+
   test "a version-1 payload whose transactions are not a list is malformed, and a BOM is not a column" do
     assert {:error, :malformed_payload} =
              PortfolioPerformance.parse(~s({"version":1,"transactions":"x"}), filename: "x.json")

@@ -1774,13 +1774,22 @@ nimmt sofort die nächste Datei:
   Wertpapiernamen** für eine Vorschau, weit mehr, als ein gewöhnlicher Export
   enthält: in Portfolio Performance kleinere Exporte anlegen, etwa je Konto
   oder Depot, und nacheinander importieren.
+- **Eine Datei, die mehr Einträge ergibt, als der Import fasst**, gezählt
+  jede Zeile und jede Steuererstattung, die eine Zeile abspaltet: den Export in
+  Portfolio Performance teilen, etwa nach Jahren.
 
 Eine einzelne Zeile, die der Import nie buchen könnte, ist stattdessen eine
 Parser-Warnung: Sie steht mit ihrer Zeilennummer im Warnungsfeld, zählt nicht
 zu den Einträgen, und der Rest der Datei wird angezeigt und importiert. Ein
 Wertpapiereintrag, der nichts benennt (kein Name, keine ISIN, WKN oder kein
 Ticker), ist eine solche Zeile: *Wertpapier ohne Name und ohne ISIN — Zeile
-nicht übernommen*. Ein Eintrag nur mit WKN oder nur mit Ticker ist ein
+nicht übernommen*. Ebenso eine Zeile mit einem Wert, den keine Spalte des
+Ledgers hält (ein Betrag, eine Gebühr, eine Steuer, eine abgespaltene
+Steuererstattung oder ein abgeleiteter Kurs mit mehr Stellen vor dem Komma,
+als die Spalte nach dem Runden auf ihre Nachkommastellen fasst), eine Zahl, die
+der Parser nicht lesen kann, und eine Transaktion mit mehr Gebühren- und
+Steuerpositionen, als eine Buchung trägt: Jede wird mit Feld und Zeile
+benannt und lässt den Import nach dem Bestätigen nie scheitern. Ein Eintrag nur mit WKN oder nur mit Ticker ist ein
 Wertpapier wie jedes andere und wird über die Zuordnungsleiter unten
 aufgelöst. Eine Vorschau wird für den nächsten Besuch (Sprachwechsel,
 Neuladen) erst aufbewahrt, wenn sie einmal angezeigt wurde.

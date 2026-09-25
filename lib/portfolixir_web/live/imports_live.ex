@@ -1530,6 +1530,15 @@ defmodule PortfolixirWeb.ImportsLive do
         max: PortfolioPerformance.max_rows()
       )
 
+  # E25 S5 (F38): the cap counts the entries a file expands into.
+  defp parse_error_message({:too_many_entries, n}),
+    do:
+      gettext(
+        "The file expands to %{n} entries (its rows and the tax refunds they split off); the import is sized for at most %{max}.",
+        n: n,
+        max: PortfolioPerformance.max_rows()
+      )
+
   # A refusal this page has no words for yet is still a named file error.
   defp parse_error_message(_reason),
     do: gettext("The file could not be read as a Portfolio Performance export.")

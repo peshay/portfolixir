@@ -7876,3 +7876,53 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "The file names too many different accounts, depots or securities for one preview. Remedy: create smaller exports in Portfolio Performance, for example one per account or depot, and import them one after another."
 msgstr ""
+
+#: lib/portfolixir_web/live/imports_live.ex:1500
+#, elixir-autogen, elixir-format
+msgid "The file expands to %{n} entries (its rows and the tax refunds they split off); the import is sized for at most %{max}."
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:276
+#, elixir-autogen, elixir-format
+msgid "more units (fees and taxes) than one booking carries"
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance.ex:120
+#, elixir-autogen, elixir-format
+msgid "%{field} has more than %{digits} digits before the decimal point"
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance.ex:130
+#, elixir-autogen, elixir-format
+msgid "tax refund"
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance.ex:133
+#, elixir-autogen, elixir-format
+msgid "gross amount"
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance.ex:134
+#, elixir-autogen, elixir-format
+msgid "quantity"
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance.ex:135
+#, elixir-autogen, elixir-format
+msgid "price"
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance.ex:136
+#, elixir-autogen, elixir-format
+msgid "fees"
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance.ex:137
+#, elixir-autogen, elixir-format
+msgid "taxes"
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance.ex:150
+#, elixir-autogen, elixir-format
+msgid "number %{value} cannot be read or is out of range"
+msgstr ""

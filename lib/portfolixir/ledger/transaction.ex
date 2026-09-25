@@ -328,8 +328,18 @@ defmodule Portfolixir.Ledger.Transaction do
   @money_column {20, 6}
   @quantity_column {30, 12}
 
+  @doc """
+  The `numeric(precision, scale)` of every amount column, as
+  `[{field, {precision, scale}}]` (ADR-0016 §2): the bounds the changeset
+  applies, which the import parsers mirror to name a row that would not fit
+  (E25 S5, F39).
+  """
+  @spec amount_columns() :: [{atom(), {pos_integer(), non_neg_integer()}}]
+  def amount_columns,
+    do: [{:quantity, @quantity_column} | Enum.map(@money_fields, &{&1, @money_column})]
+
   defp bound_to_columns(changeset) do
-    [{:quantity, @quantity_column} | Enum.map(@money_fields, &{&1, @money_column})]
+    amount_columns()
     |> Enum.reduce(changeset, fn {field, column}, acc ->
       BoundedDecimal.bound_to_column(acc, field, column)
     end)

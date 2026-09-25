@@ -18,7 +18,9 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
   alias Portfolixir.Imports.PortfolioPerformance.JsonParser
   alias Portfolixir.Imports.Preview
   alias Portfolixir.Imports.SecurityResolver
+  alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Input.Text
+  alias Portfolixir.Ledger.Transaction
 
   @default_max_rows 100_000
 
@@ -28,6 +30,17 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
   """
   @spec max_rows() :: pos_integer()
   def max_rows, do: Application.get_env(:portfolixir, :import_max_rows, @default_max_rows)
+
+  # E25 S5 (F38): the most units (fees and taxes) one transaction of a JSON
+  # export may carry; each negative tax unit becomes an entry of its own.
+  @max_units 64
+
+  @doc """
+  The most units one JSON transaction may carry (E25 S5, F38); a row with
+  more is a row error.
+  """
+  @spec max_units() :: pos_integer()
+  def max_units, do: @max_units
 
   # E25 S5 (F35): how many distinct names one preview renders a mapping row
   # for. Account and depot names are counted together, because the preview
@@ -130,7 +143,67 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
   """
   @spec row_error(Entry.t()) :: String.t() | nil
   def row_error(%Entry{} = entry) do
-    blank_security_error(entry) || text_error(entry)
+    blank_security_error(entry) || text_error(entry) || bounds_error(entry)
+  end
+
+  # E25 S5 (F39): every amount of the entry and of its split-off refunds,
+  # rounded to its column's scale as the ledger rounds it, fits its column.
+  #
+  # The values the file wrote are named before the price the JSON parser
+  # derives from them.
+  @bounds_order [:quantity, :gross_amount, :fees, :taxes, :price]
+
+  defp bounds_error(%Entry{} = entry) do
+    columns =
+      Transaction.amount_columns()
+      |> Enum.filter(fn {field, _column} -> field in @bounds_order end)
+      |> Enum.sort_by(fn {field, _column} -> Enum.find_index(@bounds_order, &(&1 == field)) end)
+
+    [entry | entry.companion_entries]
+    |> Enum.flat_map(fn row ->
+      for {field, column} <- columns,
+          value = Map.fetch!(row, field),
+          match?(%Decimal{}, value),
+          do: {amount_label(row, field), value, column}
+    end)
+    |> Enum.find_value(fn {label, value, {precision, scale} = column} ->
+      unless BoundedDecimal.fits_column?(BoundedDecimal.round_to_scale(value, scale), column) do
+        gettext("%{field} has more than %{digits} digits before the decimal point",
+          field: label,
+          digits: precision - scale
+        )
+      end
+    end)
+  end
+
+  # A split-off refund's source row is "<row>.tax_refund.<n>".
+  defp amount_label(%Entry{source_row: row}, :gross_amount) when is_binary(row),
+    do: gettext("tax refund")
+
+  defp amount_label(_row, :gross_amount), do: gettext("gross amount")
+  defp amount_label(_row, :quantity), do: gettext("quantity")
+  defp amount_label(_row, :price), do: gettext("price")
+  defp amount_label(_row, :fees), do: gettext("fees")
+  defp amount_label(_row, :taxes), do: gettext("taxes")
+  defp amount_label(_row, field), do: to_string(field)
+
+  @doc """
+  The row message for a number the parser could not read or that is past
+  its bound (`Portfolixir.Imports.Decimals`), naming the value as the file
+  wrote it, shortened (E25 S5, F39).
+  """
+  @spec decimal_message(term()) :: String.t()
+  def decimal_message(value) do
+    shown =
+      case value do
+        %Decimal{} = decimal -> Decimal.to_string(decimal)
+        value when is_binary(value) or is_integer(value) -> to_string(value)
+        other -> inspect(other, limit: 5)
+      end
+
+    gettext("number %{value} cannot be read or is out of range",
+      value: String.slice(shown, 0, 40)
+    )
   end
 
   defp blank_security_error(%Entry{security: %{} = security}) do
