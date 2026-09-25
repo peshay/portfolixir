@@ -88,7 +88,10 @@ Disaster recovery against the triggers is documented in `docs/backup-restore.md`
   journal story.
 - `before` is the changeset's `data` serialized; `after` is built in a
   `Multi.run` step placed after the named business step, from that step's
-  result. No `Multi` introspection magic.
+  result. No `Multi` introspection magic. *(Amended in Sprint 16: `before` is
+  the row re-read under the write's own lock inside the transaction, `after`
+  the row as stored, and an update that changes nothing writes no entry — see
+  "Amendment: before-images under the write's lock" below.)*
 
 ### Mechanical completeness via a session-variable guard
 
@@ -228,6 +231,45 @@ built-in tree seeding, journal internally under a fixed `system_job` actor) and
 its tables are guard-armed. The grandfather list is empty. The follow-up #529
 (seed built-in trees at startup instead of on read paths) is orthogonal to
 journaling and tracked separately.
+
+### Amendment: before-images under the write's lock, and no entry for no change (Sprint 16, F49, G02)
+
+The security review of Sprint 16 (E25, findings F49 and G02 of its triage)
+found that a before-image was the struct the caller had read earlier, outside
+the writing transaction and without a lock: two writers acting on one read
+both claimed the same prior state, and the journal's change history did not
+chain. It also found that an update changing nothing copied the whole row
+twice into the append-only table. `Journal.record/3` now holds these rules
+for every writer at once:
+
+- **The before-image is the row as stored under the write's lock.** For an
+  `update`, a `delete` or an `upsert` whose `:before` is a stored row, a step
+  `{:journal_lock, step}` runs right after the actor is set and ahead of the
+  business write, and re-reads that row under the lock the write itself takes
+  — `FOR NO KEY UPDATE` for an update or an upsert, so a booking's
+  foreign-key check does not wait, and `FOR UPDATE` for a delete. That row is
+  the entry's `before`, and an update's changeset is built on it
+  (`Journal.locked_row/2`), so the write and its before-image start from the
+  same state. Two writes from one read chain: the second's `before` is the
+  first's `after`.
+- **The after-image of an update is the row re-read after the write**, as
+  stored, not the caller's struct with the changes applied.
+- **A row gone by then answers not found**: the lock step fails with
+  `:not_found` before anything is written, and the contexts answer
+  `{:error, :not_found}` (a 404 over the API; a named message on the pages).
+  An upsert whose prior row is gone inserts it afresh, with no before-image.
+- **An update that changes nothing writes no entry** (G02), and — since the
+  review round — bumps no derived-data basis either: nothing it could affect
+  changed. ADR-0017's full `before` and `after` snapshots stay for every real
+  change.
+- A writer that must hold another lock first keeps its order by taking that
+  lock as the transaction's first step, ahead of the journal's: every ISIN
+  writer takes the ISIN write lock before the security's row (review round).
+
+Pinned by `test/portfolixir/journal/before_image_lock_test.exs`,
+`test/portfolixir/journal/no_op_update_test.exs` and
+`test/portfolixir/derived/before_image_radius_test.exs` ("an update that
+changes nothing bumps no basis").
 
 ### Amendment: two resource codes for the lifecycle merges (ADR-0050 §13)
 
