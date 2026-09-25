@@ -1909,11 +1909,15 @@ Inhalts-Hash), eine Zeile, die eine Zusammenführung entfernt hat
 Wertpapier, derselben Stückzahl und demselben Betrag.
 
 Eine **von einer Zeile abgespaltene Steuererstattung** (etwa eine negative
-Steuer auf einen Verkauf) wird zusammen mit dieser Zeile gebucht oder
-übersprungen: Zwei gleiche Erstattungen zweier verschiedener Verkäufe werden
-beide gebucht, und ein erneuter Import der Datei bucht keine doppelt. Innerhalb
-einer Datei wird eine Zeile, die eine frühere genau wiederholt, einmal
-gebucht, und die Wiederholung steht bei den bereits gebuchten.
+Steuer auf einen Verkauf) wird mit dieser Zeile gehasht und für sich geprüft:
+Zwei gleiche Erstattungen zweier verschiedener Verkäufe werden beide gebucht,
+und ein erneuter Import der Datei bucht keine doppelt. Ein von Hand gelöschter
+Verkauf wird wieder gebucht, ohne dass seine Erstattung ein zweites Mal
+gebucht wird, und eine Erstattung, die in Portfolio Performance zu einem schon
+importierten Verkauf hinzukam, wird beim nächsten Import gebucht. Eine
+Erstattung, deren Zeile nicht importiert wird, wird mit ihr übersprungen.
+Innerhalb einer Datei wird eine Zeile, die eine frühere genau wiederholt,
+einmal gebucht, und die Wiederholung steht bei den bereits gebuchten.
 
 ### Wertpapier-Matching und der Zuordnungsschritt
 

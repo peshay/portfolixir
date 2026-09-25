@@ -2073,9 +2073,12 @@ neben der importierten Historie:
   übersprungene Anzahl. Der Hash ist eindeutig (zwei verschiedene Zeilen
   teilen nie einen), und jeder Hash, der vorher gespeichert wurde, wird weiter
   gefunden. Eine von einer Zeile abgespaltene Steuererstattung wird mit dieser
-  Zeile gebucht oder übersprungen, sodass zwei gleiche Erstattungen zweier
-  verschiedener Verkäufe beide gebucht werden und eine bereits importierte
-  Erstattung über ihren Verkauf erkannt wird.
+  Zeile gehasht und über ihre eigenen Hashes und ihren wirtschaftlichen
+  Schlüssel geprüft, sodass zwei gleiche Erstattungen zweier verschiedener
+  Verkäufe beide gebucht werden, eine bereits importierte Erstattung unter
+  beiden Formeln gefunden wird und eine Erstattung, die zu einer schon
+  importierten Zeile hinzukam, gebucht wird; eine Erstattung, deren Zeile nicht
+  importiert wird, wird mit ihr übersprungen.
 - **Eine Umbenennung ist sicher für den nächsten Import (ADR-0050 §3, §4).**
   Der Hash wird geprüft, bevor irgendetwas aufgelöst wird, und ein
   Verrechnungskonto oder Depot entsteht erst mit seiner ersten neuen Buchung,

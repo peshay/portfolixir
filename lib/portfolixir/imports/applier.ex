@@ -300,10 +300,11 @@ defmodule Portfolixir.Imports.Applier do
   carries on either leg. Read-only; the hash names `portfolio_id`, and without
   one every importable row is new.
 
-  A tax refund split off a row counts under that row's layer: it is booked
-  or skipped with it (E25 S5, F37). A row repeating an earlier row of the
-  same file exactly (the same content hash) counts `:hash`: the apply skips it on that layer once the first copy
-  is booked, or on whatever later layer skipped the first. A row counted
+  A tax refund split off a row counts by its own hashes, as the apply judges
+  it, and `:unimportable` with a row that is (E25 S5, F37). A row repeating
+  an earlier row of the same file exactly (the same content hash) counts
+  `:hash`: the apply skips it on that layer once the first copy is booked,
+  or on whatever later layer skipped the first. A row counted
   `:new` may still be skipped at apply by a later layer (an equal economic
   booking, an internal transfer, an in-run collapse or an undecided
   security); an account whose rows are all `:hash`, `:retired` or
@@ -316,21 +317,28 @@ defmodule Portfolixir.Imports.Applier do
         }
   def reimport_counts(%Preview{entries: entries}, portfolio_id) do
     flat_entries = Entry.flatten(entries)
-    layer_of = row_layers(flat_entries, portfolio_id)
+    layers = row_layers(flat_entries, portfolio_id)
     empty = %{hash: 0, retired: 0, unimportable: 0, new: 0}
 
     initial = {%{total: empty, cash_accounts: %{}, depots: %{}}, MapSet.new(), nil}
 
-    # A companion counts under its parent's layer: it is booked or skipped
-    # with it (E25 S5, F37).
+    # A companion counts by its own hashes, as the apply judges it; one whose
+    # row is unimportable is skipped with it (E25 S5, F37).
     {counts, _seen, _parent_layer} =
-      Enum.reduce(flat_entries, initial, fn
-        %Entry{companion_index: nil} = entry, {acc, seen, _parent_layer} ->
-          {layer, seen} = in_file_repeat(layer_of.(entry), seen)
+      flat_entries
+      |> Enum.zip(layers)
+      |> Enum.reduce(initial, fn
+        {%Entry{companion_index: nil} = entry, layer_key}, {acc, seen, _parent_layer} ->
+          {layer, seen} = in_file_repeat(layer_key, seen)
           {count_row(acc, entry, layer, empty), seen, layer}
 
-        entry, {acc, seen, parent_layer} ->
-          {count_row(acc, entry, parent_layer || :unimportable, empty), seen, parent_layer}
+        {entry, _layer_key}, {acc, seen, parent_layer}
+        when parent_layer in [nil, :unimportable] ->
+          {count_row(acc, entry, :unimportable, empty), seen, parent_layer}
+
+        {entry, layer_key}, {acc, seen, parent_layer} ->
+          {layer, seen} = in_file_repeat(layer_key, seen)
+          {count_row(acc, entry, layer, empty), seen, parent_layer}
       end)
 
     counts
@@ -383,47 +391,50 @@ defmodule Portfolixir.Imports.Applier do
 
   # One query per layer over the whole file, instead of one per row. A row
   # whose fields carry the hash's separator also consults the hash the
-  # Sprint 15 formula gave it (E25 S5, F36), as the apply does.
+  # Sprint 15 formula gave it (E25 S5, F36), and a companion its own hashes
+  # (F37), as the apply does. Answers `{layer, key}` per row, in file order:
+  # the key finds a repeat inside the file, and stands in for the hash with
+  # no portfolio yet (no real portfolio has id 0).
   defp row_layers(flat_entries, portfolio_id) do
-    parents = Enum.filter(flat_entries, &is_nil(&1.companion_index))
+    identities = row_identities(flat_entries, portfolio_id || 0)
 
-    hashes =
+    lookups =
       if is_integer(portfolio_id),
-        do: Map.new(parents, &{&1, ImportHash.compute(&1, portfolio_id)}),
-        else: %{}
+        do: Enum.flat_map(identities, fn {_key, hashes} -> hashes end),
+        else: []
 
-    legacy =
-      if is_integer(portfolio_id),
-        do:
-          for(
-            entry <- parents,
-            hash = ImportHash.legacy(entry, portfolio_id),
-            hash != nil,
-            into: %{},
-            do: {entry, hash}
-          ),
-        else: %{}
-
-    lookups = Map.values(hashes) ++ Map.values(legacy)
     held = held_hashes(Transaction, lookups)
     retired = held_hashes(RetiredImportHash, lookups)
 
-    # `{layer, key}`: the key finds a repeat inside the file, and stands in
-    # for the hash with no portfolio yet (no real portfolio has id 0).
-    fn entry ->
-      hash = Map.get(hashes, entry)
-      hashes_of_row = Enum.reject([hash, Map.get(legacy, entry)], &is_nil/1)
-
+    Enum.zip_with(flat_entries, identities, fn entry, {key, hashes} ->
       layer =
         cond do
           unimportable(entry) != nil -> :unimportable
-          Enum.any?(hashes_of_row, &MapSet.member?(held, &1)) -> :hash
-          Enum.any?(hashes_of_row, &MapSet.member?(retired, &1)) -> :retired
+          Enum.any?(hashes, &MapSet.member?(held, &1)) -> :hash
+          Enum.any?(hashes, &MapSet.member?(retired, &1)) -> :retired
           true -> :new
         end
 
-      {layer, hash || ImportHash.compute(entry, 0)}
-    end
+      {layer, key}
+    end)
+  end
+
+  # Each row's content hash and every stored hash that identifies it; a
+  # companion is hashed with the row before it.
+  defp row_identities(flat_entries, portfolio_id) do
+    {identities, _parent_hash} =
+      Enum.map_reduce(flat_entries, nil, fn
+        %Entry{companion_index: nil} = entry, _parent_hash ->
+          hash = ImportHash.compute(entry, portfolio_id)
+          hashes = Enum.reject([hash, ImportHash.legacy(entry, portfolio_id)], &is_nil/1)
+          {{hash, hashes}, hash}
+
+        %Entry{companion_index: index} = entry, parent_hash ->
+          hash = ImportHash.companion(parent_hash, index, entry, portfolio_id)
+          {{hash, companion_hashes(hash, entry, portfolio_id)}, parent_hash}
+      end)
+
+    identities
   end
 
   defp held_hashes(_schema, []), do: MapSet.new()
@@ -825,7 +836,7 @@ defmodule Portfolixir.Imports.Applier do
 
   # A row of the file is processed on its own and remembered as the parent of
   # the companions `Entry.flatten/1` placed right after it; a companion (a tax
-  # refund split off that row) follows its parent (E25 S5, F37). The recorders
+  # refund split off that row) is judged after its parent (E25 S5, F37). The recorders
   # and the insert leave the row's outcome in `state.outcome`.
   defp process_row(%Entry{companion_index: nil} = entry, state) do
     with {:ok, state} <- process_entry(entry, %{state | outcome: nil}) do
@@ -842,30 +853,35 @@ defmodule Portfolixir.Imports.Applier do
   defp process_row(%Entry{companion_index: index} = entry, state),
     do: process_companion(entry, index, state)
 
-  # E25 S5 (F37): a companion is skipped or inserted together with its
-  # parent. It books when its parent booked in this run, under a hash that
-  # folds in the parent's hash and its position, so two equal refunds split
-  # off two different rows book both; a parent already booked (or skipped by
-  # any later layer) skips its companions on the same layer, so a companion
-  # stored under the Sprint 15 formula is recognised through its parent and
-  # nothing books twice.
-  defp process_companion(
-         entry,
-         index,
-         %{parent: %{outcome: :inserted, hash: parent_hash}} = state
-       ) do
-    insert_companion(
-      entry,
-      ImportHash.companion(parent_hash, index, entry, state.portfolio_id),
-      state
-    )
+  # E25 S5 (F37, and its review round): a companion is hashed with its parent
+  # — the parent's hash and its position fold into its own — so two equal
+  # refunds split off two different rows hash apart. Once its parent was
+  # imported or found already booked, the companion is judged by its own
+  # identity, never by its parent's outcome: the parent's hash and economic
+  # key leave the split-off refund out, so they cannot say whether the refund
+  # is booked. It is skipped when a transaction or a merge holds its hash or
+  # the hash an import before this change gave it (a refund stored as a row
+  # of its own), or when a booking stored before the run has its economic
+  # key; it collapses onto an earlier companion of the file only when its
+  # parent collapsed onto that companion's parent; otherwise it books. A
+  # companion of a row that is not imported (unimportable, an internal
+  # transfer, an undecided security) is skipped with it.
+  defp process_companion(entry, index, %{parent: %{outcome: outcome, hash: parent_hash}} = state)
+       when outcome in [:inserted, :collapsed] or
+              (is_tuple(outcome) and elem(outcome, 0) == :duplicate) do
+    case unimportable(entry) do
+      reason when is_binary(reason) ->
+        {:ok, record_skip(state, entry, reason)}
+
+      nil ->
+        import_hash = ImportHash.companion(parent_hash, index, entry, state.portfolio_id)
+
+        case hash_layer(companion_hashes(import_hash, entry, state.portfolio_id)) do
+          nil -> insert_companion(entry, import_hash, outcome == :collapsed, state)
+          layer -> {:ok, record_duplicate(state, entry, layer)}
+        end
+    end
   end
-
-  defp process_companion(entry, _index, %{parent: %{outcome: {:duplicate, layer}}} = state),
-    do: {:ok, record_duplicate(state, entry, layer)}
-
-  defp process_companion(entry, _index, %{parent: %{outcome: :collapsed}} = state),
-    do: {:ok, state |> bump_result(:skipped_duplicates) |> record_collapsed(entry)}
 
   defp process_companion(
          entry,
@@ -885,10 +901,27 @@ defmodule Portfolixir.Imports.Applier do
      )}
   end
 
-  # The companion of a row booked in this run: its accounts and security are
-  # its parent's, and the later layers (the economic key, the in-run
-  # collapse) judged its parent already, so it books.
-  defp insert_companion(%Entry{} = entry, import_hash, state) do
+  # Every hash that identifies a stored companion: its own, and the one the
+  # Sprint 15 formula gave it as a row of its own (a standalone refund row
+  # with the same fields holds that one too — the closed direction, as for
+  # F36's legacy hash).
+  defp companion_hashes(import_hash, %Entry{} = entry, portfolio_id) do
+    Enum.reject(
+      [
+        import_hash,
+        ImportHash.compute(entry, portfolio_id),
+        ImportHash.legacy(entry, portfolio_id)
+      ],
+      &is_nil/1
+    )
+  end
+
+  # A companion no stored hash holds: its accounts and security are its
+  # parent's, resolved as any row's are. It is checked against the bookings
+  # stored before the run (the economic key), and against the file's earlier
+  # rows only when its parent collapsed: two equal refunds of two different
+  # rows would share the in-run key, and must both book.
+  defp insert_companion(%Entry{} = entry, import_hash, collapse?, state) do
     refs = account_refs(entry, state)
 
     case ambiguous_ref(refs) do
@@ -906,9 +939,7 @@ defmodule Portfolixir.Imports.Applier do
                 import_hash
               )
 
-            with {:ok, state, attrs} <- materialize_accounts(entry, attrs, state) do
-              insert_new_transaction(entry, attrs, run_key(dedup_key(attrs), entry), state)
-            end
+            insert_transaction(entry, attrs, state, collapse?)
 
           {:error, _} = error ->
             error
@@ -942,8 +973,9 @@ defmodule Portfolixir.Imports.Applier do
 
       nil ->
         import_hash = ImportHash.compute(entry, state.portfolio_id)
+        legacy_hash = ImportHash.legacy(entry, state.portfolio_id)
 
-        case hash_layer(import_hash, ImportHash.legacy(entry, state.portfolio_id)) do
+        case hash_layer(Enum.reject([import_hash, legacy_hash], &is_nil/1)) do
           nil -> do_process_entry(entry, import_hash, state)
           layer -> {:ok, record_duplicate(state, entry, layer)}
         end
@@ -967,9 +999,7 @@ defmodule Portfolixir.Imports.Applier do
   # A row whose fields carry the hash's separator is also looked up by the
   # hash the Sprint 15 formula gave it (E25 S5, F36): a row stored before the
   # hash became injective keeps being recognised, so nothing books twice.
-  defp hash_layer(import_hash, legacy_hash) do
-    hashes = Enum.reject([import_hash, legacy_hash], &is_nil/1)
-
+  defp hash_layer(hashes) do
     cond do
       Repo.exists?(from(t in Transaction, where: t.import_hash in ^hashes)) -> :hash
       Repo.exists?(from(r in RetiredImportHash, where: r.import_hash in ^hashes)) -> :retired
@@ -1751,7 +1781,10 @@ defmodule Portfolixir.Imports.Applier do
     end
   end
 
-  defp insert_transaction(entry, attrs, state) do
+  # `collapse?` is false only for a companion whose parent did not collapse
+  # (E25 S5, F37): the in-run key would take two equal refunds of two
+  # different rows for one.
+  defp insert_transaction(entry, attrs, state, collapse? \\ true) do
     key = dedup_key(attrs)
 
     # Two-layer idempotency (#533): the stored content `import_hash` skips exact
@@ -1774,7 +1807,7 @@ defmodule Portfolixir.Imports.Applier do
       MapSet.member?(state.existing_dedup_keys, key) ->
         {:ok, record_duplicate(state, entry, :economics)}
 
-      MapSet.member?(state.seen_run_keys, run_key(key, entry)) ->
+      collapse? and MapSet.member?(state.seen_run_keys, run_key(key, entry)) ->
         {:ok, state |> bump_result(:skipped_duplicates) |> record_collapsed(entry)}
 
       true ->

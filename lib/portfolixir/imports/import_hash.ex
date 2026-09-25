@@ -9,8 +9,8 @@ defmodule Portfolixir.Imports.ImportHash do
   Performance account and depot names, and the portfolio id.
 
   A tax refund the parser splits off a row (a companion) is hashed with its
-  row, `companion/4` (E25 S5, F37), and the applier books or skips it with
-  that row.
+  row, `companion/4` (E25 S5, F37), and the applier checks it by that hash
+  and the one this module gave it before as a row of its own.
 
   **Injective, and every stored hash stays valid** (E25 S5, F36; risk-tier:
   idempotency, ADR-0036). Up to Sprint 15 the fields were joined with `|`

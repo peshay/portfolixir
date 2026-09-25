@@ -70,7 +70,7 @@ defmodule Portfolixir.Imports.Entry do
   Flattens an entry list so each parent's `companion_entries` becomes
   a top-level entry of its own, ordered right after the parent and marked
   with its `companion_index` (1-based), so the applier can hash it with its
-  parent and book or skip it together with it (E25 S5, F37).
+  parent and judge it after it (E25 S5, F37).
   """
   @spec flatten([t()]) :: [t()]
   def flatten(entries) do
