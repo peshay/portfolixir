@@ -1332,7 +1332,11 @@ Beispiel-Payloads für Konten:
   in der Klassifizierung zugeordnetem Wertpapier, nie mehr als `10000` Zeilen;
   eine wiederholte Kategoriezeile oder ein größerer Stapel liefert `422`
   (`errors.detail` nennt die Kategorie, `errors.targets` die Grenze) und
-  schreibt nichts.
+  schreibt nichts. Ein Plan trägt höchstens **eine Positionszeile je
+  Wertpapier**: Ein Wertpapier unter einer zweiten Kategorie abzulegen liefert
+  `422`. Die Datenbank hält diese Regel ebenfalls, sodass auch ein
+  Schreibvorgang, der das Rennen um dasselbe Wertpapier unter einer anderen
+  Kategorie verliert, `422` liefert und nichts speichert.
 - `DELETE /api/v1/portfolios/:portfolio_id/targets/:category_id` entfernt das
   Zielgewicht eines Portfolios für eine Kategorie und liefert `{deleted}` (die Zahl
   der entfernten Zeilen). Optionales `view` wählt den Plan (weggelassen = Gesamt).

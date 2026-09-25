@@ -1306,8 +1306,10 @@ Example account payloads:
   returns `422` instead of being coerced into a category write. A plan carries
   at most **one position row per security**: filing a security under a second
   category, or naming the same `(category, security)` twice in one batch,
-  returns `422`. Each serialized target carries `security_id` (`null` for a
-  category row).
+  returns `422`. The database holds the rule as well, so a write that loses a
+  race to file the security under another category answers the same `422`
+  and stores nothing. Each serialized target carries `security_id` (`null` for
+  a category row).
 - `DELETE /api/v1/portfolios/:portfolio_id/targets/:category_id` removes a
   portfolio's **category** target for one category and returns `{deleted}` (the
   number of rows removed). Position rows for the category are left in place.
