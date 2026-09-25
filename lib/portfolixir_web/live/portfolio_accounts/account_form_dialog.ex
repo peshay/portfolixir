@@ -343,9 +343,11 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
   end
 
   defp create_records("depot", form, socket) do
-    # The depot name is pre-validated so a blank one can never leave a freshly
-    # created cash account dangling without its depot.
+    # The depot name is pre-validated so a blank one, or one another depot
+    # already answers to (ADR-0050 §4), can never leave a freshly created cash
+    # account dangling without its depot.
     with :ok <- require_field(form, "depot_name"),
+         :ok <- require_free_depot_name(form),
          {:ok, cash, created?} <- resolve_cash_account(form, socket),
          {:ok, depot} <- create_depot(form, cash) do
       {:ok, %{depot: depot, cash: cash, cash_created?: created?}}
@@ -416,6 +418,15 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
     form
     |> Map.merge(Map.take(params, Map.keys(@empty_form)))
     |> Map.put("bucket_ids", List.wrap(params["bucket_ids"]))
+  end
+
+  defp require_free_depot_name(form) do
+    portfolio_id = Portfolios.default_portfolio(Actor.owner_ui()).id
+
+    case Portfolios.securities_account_name_error(portfolio_id, form["depot_name"]) do
+      nil -> :ok
+      message -> {:error, {:field_errors, %{"depot_name" => message}}}
+    end
   end
 
   defp require_field(form, field) do

@@ -31,7 +31,10 @@ defmodule Portfolixir.Invariants.IdentityFreezeWritersTest do
   #                    freeze (shown refused in the dynamic half);
   #   :isin_only     — `changeset/2` with an ISIN alone (ADR-0029 §3), so it
   #                    carries the freeze and changes no frozen field;
-  #   :logo_only     — `logo_changeset/2`, which writes `attributes` alone.
+  #   :logo_only     — `logo_changeset/2`, which writes `attributes` alone;
+  #   :former_names_only — `former_names_changeset/2` (ADR-0050 §4), which
+  #                    writes `former_names` alone, for the remembered remap
+  #                    and the removal.
   @expected_writers %{
     {"lib/portfolixir/portfolios.ex", :create_cash_account, "CashAccount.changeset"} => :insert,
     {"lib/portfolixir/portfolios.ex", :update_cash_account, "CashAccount.changeset"} => :update,
@@ -43,7 +46,11 @@ defmodule Portfolixir.Invariants.IdentityFreezeWritersTest do
     {"lib/portfolixir/catalog.ex", :update_security, "Security.changeset"} => :update,
     {"lib/portfolixir/catalog.ex", :put_logo_attributes, "Security.logo_changeset"} => :logo_only,
     {"lib/portfolixir/catalog/identifier_aliases.ex", :write_new_isin, "Security.changeset"} =>
-      :isin_only
+      :isin_only,
+    {"lib/portfolixir/lifecycle/account_names.ex", :former_names_changeset,
+     "CashAccount.former_names_changeset"} => :former_names_only,
+    {"lib/portfolixir/lifecycle/account_names.ex", :former_names_changeset,
+     "SecuritiesAccount.former_names_changeset"} => :former_names_only
   }
 
   @changeset_writes ~w(put_change force_change change)a

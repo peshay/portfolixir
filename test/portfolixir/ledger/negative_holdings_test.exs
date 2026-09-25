@@ -39,7 +39,9 @@ defmodule Portfolixir.Ledger.NegativeHoldingsTest do
 
   test "lists negative positions per depot with per-security totals" do
     world = base_world(depot_name: "Main Depot")
-    second = add_depot(world.portfolio, name: "Second Depot")
+    # Distinct names: two accounts of one kind may not share a name in a
+    # portfolio (ADR-0050 §4).
+    second = add_depot(world.portfolio, depot_name: "Second Depot", cash_name: "Second Cash")
 
     doomed = create_security!(name: "Doomed Co.", ticker: "DOOM", asset_class: "equity")
     fine = create_security!(name: "Fine Co.", ticker: "FINE", asset_class: "equity")
