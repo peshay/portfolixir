@@ -34,41 +34,82 @@ export class ApiRedirectError extends Error {
   }
 }
 
+/**
+ * A write got no answer before its deadline (E25 S7, G31). The companion
+ * stopped waiting, but the server may still commit the request, so the
+ * outcome is unknown: a retry without a re-read can store a second record.
+ * A read that times out changes nothing and is not this error.
+ */
+export class ApiOutcomeUnknownError extends Error {
+  override readonly name = "ApiOutcomeUnknownError";
+
+  constructor(
+    readonly method: string,
+    readonly path: string,
+    timeoutMs: number
+  ) {
+    super(
+      `Portfolixir API outcome unknown: ${method} ${path} got no answer within ` +
+        `${timeoutMs / 1000} s, and the server may still have committed it. Re-read the ` +
+        "records it would have changed before retrying: a blind retry can store a duplicate."
+    );
+  }
+}
+
+// The deadline's abort, or any other abort of the request.
+function isAbort(error: unknown): boolean {
+  const name = typeof error === "object" && error !== null ? (error as { name?: unknown }).name : undefined;
+  return name === "TimeoutError" || name === "AbortError";
+}
+
 export function createApiClient(options: ApiClientOptions): ApiClient {
   const fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis);
   const baseUrl = options.baseUrl.replace(/\/+$/, "");
   const timeoutMs = options.timeoutMs ?? 30_000;
 
+  const send = async (method: string, path: string, body?: unknown): Promise<unknown> => {
+    // A hung upstream must not hang the tool call: every request carries a
+    // deadline (#761). A redirect is answered, never followed (F23).
+    const response = await fetchImpl(`${baseUrl}${path}`, {
+      method,
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+        authorization: `Bearer ${options.token}`
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      redirect: "manual",
+      signal: AbortSignal.timeout(timeoutMs)
+    });
+
+    if (response.status >= 300 && response.status < 400) {
+      await response.body?.cancel().catch(() => undefined);
+      throw new ApiRedirectError(method, path, response.status);
+    }
+
+    const payload = await parseJson(response);
+
+    if (!response.ok) {
+      throw new Error(
+        `Portfolixir API request failed: ${response.status} ${JSON.stringify(payload)}`
+      );
+    }
+
+    return payload;
+  };
+
   return {
     async request(method: string, path: string, body?: unknown): Promise<unknown> {
-      // A hung upstream must not hang the tool call: every request carries a
-      // deadline (#761). A redirect is answered, never followed (F23).
-      const response = await fetchImpl(`${baseUrl}${path}`, {
-        method,
-        headers: {
-          accept: "application/json",
-          "content-type": "application/json",
-          authorization: `Bearer ${options.token}`
-        },
-        body: body === undefined ? undefined : JSON.stringify(body),
-        redirect: "manual",
-        signal: AbortSignal.timeout(timeoutMs)
-      });
+      try {
+        return await send(method, path, body);
+      } catch (error) {
+        // A write the deadline cut off may still commit on the server (G31).
+        if (method !== "GET" && isAbort(error)) {
+          throw new ApiOutcomeUnknownError(method, path, timeoutMs);
+        }
 
-      if (response.status >= 300 && response.status < 400) {
-        await response.body?.cancel().catch(() => undefined);
-        throw new ApiRedirectError(method, path, response.status);
+        throw error;
       }
-
-      const payload = await parseJson(response);
-
-      if (!response.ok) {
-        throw new Error(
-          `Portfolixir API request failed: ${response.status} ${JSON.stringify(payload)}`
-        );
-      }
-
-      return payload;
     }
   };
 }

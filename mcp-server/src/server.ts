@@ -44,8 +44,10 @@ export const SERVER_INSTRUCTIONS =
   "strings, never as numbers. Every tool carries hints: a readOnlyHint tool changes nothing " +
   "and a host may run it without asking; every other tool writes, destructiveHint marks the " +
   "writes that overwrite or delete what is stored, and openWorldHint marks the tools that " +
-  "reach an external provider. The system prepares decisions and the operator executes them: " +
-  "nothing here places, proposes or sizes a trade.";
+  "reach an external provider. A write that times out answers outcome unknown: the API may " +
+  "still have committed it, so re-read what it would have changed before retrying. The " +
+  "system prepares decisions and the operator executes them: nothing here places, proposes " +
+  "or sizes a trade.";
 
 /**
  * The companion's MCP server. It publishes each tool's own definition (E25

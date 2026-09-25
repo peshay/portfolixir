@@ -156,4 +156,27 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
       {".env.example", ["PORTFOLIXIR_MCP_READ_ONLY=false"]}
     ])
   end
+
+  # User story (E25 S7, G31):
+  # As the operator whose agent retries a write that timed out,
+  # I want the reference to say that the outcome is unknown and a re-read comes first,
+  # so that a retry does not leave a duplicate record.
+  #
+  # Acceptance criteria:
+  # - The EN and DE MCP pages name ApiOutcomeUnknownError, which calls answer
+  #   it, and the re-read before a retry.
+  test "the MCP pages state the outcome-unknown answer of a write that times out" do
+    assert_fragments([
+      {"docs/integration/api-and-mcp.md",
+       [
+         "a write that misses it (`POST`, `PUT`, `PATCH` or `DELETE`) answers `ApiOutcomeUnknownError`",
+         "re-read what it would have changed before retrying"
+       ]},
+      {"docs/de/integration/api-and-mcp.md",
+       [
+         "ein Schreibvorgang, der sie verpasst (`POST`, `PUT`, `PATCH` oder `DELETE`), ergibt `ApiOutcomeUnknownError`",
+         "lesen Sie vor einer Wiederholung neu, was er geändert hätte"
+       ]}
+    ])
+  end
 end

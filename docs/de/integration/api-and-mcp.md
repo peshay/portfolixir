@@ -2256,6 +2256,17 @@ hinausgeht. Standardmäßig ist er aus, und jeder andere Wert als `true`,
 Variable. Der Schalter schränkt den Begleitdienst ein, nicht das Token:
 `PORTFOLIXIR_API_TOKEN` behält seine volle Befugnis über die API.
 
+**Ein Schreibvorgang ohne Antwort.** Jeder API-Aufruf hat eine Frist von 30
+Sekunden. Ein Lesezugriff, der sie verpasst, ändert nichts; ein
+Schreibvorgang, der sie verpasst (`POST`, `PUT`, `PATCH` oder `DELETE`),
+ergibt `ApiOutcomeUnknownError`: Der Begleitdienst hat aufgehört zu warten,
+der Server kann den Schreibvorgang aber trotzdem übernommen haben, also lesen
+Sie vor einer Wiederholung neu, was er geändert hätte. Eine blinde
+Wiederholung eines Schreibvorgangs, der einen Datensatz anfügt, kann ein
+Duplikat speichern, und jedes solche Tool (jedes über `POST`) sagt das in
+seiner Beschreibung; die Server-Anweisungen sagen es einmal für jeden
+Schreibvorgang.
+
 - `portfolixir.contract.get` — der Kontraktversions-Read (ADR-0044 §8): was
   die Oberfläche bietet und wann sie sich zuletzt geändert hat, abfragbar mit
   `since=`.

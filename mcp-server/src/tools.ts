@@ -3549,9 +3549,25 @@ function routedMethod(name: string): string {
   return method;
 }
 
+// E25 S7, G31: a write whose retry adds a second record (a non-idempotent
+// write, each POST-routed one) says where the agent reads it what a timeout
+// means. The API's idempotency key is a later story; until then the re-read
+// is the guard.
+const OUTCOME_UNKNOWN_NOTE =
+  " A call that times out answers outcome unknown (ApiOutcomeUnknownError): the API may " +
+  "still have committed it, so re-read before retrying; a blind retry can store a duplicate.";
+
 const toolDefinitions: ToolDefinition[] = declaredTools.map((tool) => {
   const method = routedMethod(tool.name);
-  return { ...tool, method, annotations: hintsFor(tool.name, method) };
+  const annotations = hintsFor(tool.name, method);
+  const retryAdds = !annotations.readOnlyHint && !annotations.idempotentHint;
+
+  return {
+    ...tool,
+    description: retryAdds ? tool.description + OUTCOME_UNKNOWN_NOTE : tool.description,
+    method,
+    annotations
+  };
 });
 
 /**
