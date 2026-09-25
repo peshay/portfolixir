@@ -557,7 +557,10 @@ Regel über einer Kennzahl ist FR-43 und bleibt verschlossen.
   einen solchen Anbieterpunkt, statt den Lauf scheitern zu lassen. Die
   Lesepfade für den jüngsten Kurs (der Bewertungskurs, der jüngste Kurs im
   Katalog und die Prüfung auf veraltete Kurse) nutzen nie eine gespeicherte
-  Zeile nach dieser Grenze.
+  Zeile nach dieser Grenze. Ein Stapel nennt jedes Datum einmal und enthält
+  nur Kursobjekte: Ein wiederholtes Datum liefert `422` mit `errors.date`, das
+  es nennt, eine Zeile, die kein Objekt ist, `422` auf `quotes`, und nichts
+  wird geschrieben.
 - `POST /api/v1/securities/:security_id/sync_quotes` löst die
   Kurssynchronisierung eines Wertpapiers aus. Die Antwort enthält `status` (`ok`,
   `skipped` oder `error`); übersprungene und Fehler-Antworten können einen
