@@ -1609,7 +1609,11 @@ sidebar keeps Wealth current on `/risk`.
    volatility is 0", which is a different statement from "short of data".
 3. **Basis line** (`.summary-basis`) under the cards: the flow-adjusted TTWROR
    factors, the base currency, `√365`, the gap rule, the conversion of the
-   matrix (UX-DR26: the limit is stated on the surface).
+   matrix (UX-DR26: the limit is stated on the surface), and how many of the
+   largest names the correlations run over — the number the answer carries
+   (`correlations.leading_names`), never a constant of the page, because the
+   matrix is bounded below the list's maximum length (E25 S4, board
+   `ux-design-2026-09-24/11-security-visible-states`, part 3).
 4. **Largest single names** — a `.data-table`: security, asset class, value
    and weight as `.num` columns, and a **threshold** badge that names the
    threshold rather than pronouncing on it: "above 10 %" (`.badge--danger`,

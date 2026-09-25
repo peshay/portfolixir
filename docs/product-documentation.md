@@ -1585,6 +1585,8 @@ The **Risk** tab of the Wealth area shows two things that answer one question
 - **Asset-class caps**, where a cap is set over the API.
 - **Correlations** of the largest positions behind a disclosure, converted to
   the base currency first and computed only on days both securities closed.
+  The basis line names how many of the largest positions they run over: the
+  matrix covers at most the 20 largest, however long the list.
 
 The page reports; it does not recommend. The same figures are on
 `GET /api/v1/portfolios/:portfolio_id/risk` and the MCP tool

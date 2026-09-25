@@ -48,9 +48,19 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
   @hub "EUR"
   @gbx_per_gbp Decimal.new(100)
   @factor_scale 15
+  @max_correlated_names 20
 
   @doc """
-  The metrics for `portfolio_id` over the lens's Top-N `top_security_ids`.
+  How many leading Top-N names the correlation matrix covers at most. The
+  pair count grows with the square of the names, so the matrix is bounded
+  while the Top-N list is not (E25 S4, F72).
+  """
+  @spec max_correlated_names() :: pos_integer()
+  def max_correlated_names, do: @max_correlated_names
+
+  @doc """
+  The metrics for `portfolio_id` over the lens's Top-N `top_security_ids`;
+  the correlation matrix covers the leading `max_correlated_names/0` of them.
 
   Options:
 
@@ -70,6 +80,7 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
     as_of = Keyword.get(opts, :as_of) || Date.utc_today()
     rate = Keyword.get(opts, :risk_free_rate) || @zero
     view = Keyword.get(opts, :view)
+    leading_ids = Enum.take(top_security_ids, @max_correlated_names)
 
     case Performance.analysis(portfolio_id, view: view, today: as_of) do
       {:error, :view_not_found} = error ->
@@ -82,8 +93,8 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
           Derived.fetch(
             :portfolio_metrics,
             Derived.portfolio_basis(portfolio_id),
-            entry_key(view, as_of, rate, top_security_ids, base),
-            fn -> compute(analysis, top_security_ids, as_of, rate, base) end
+            entry_key(view, as_of, rate, leading_ids, base),
+            fn -> compute(analysis, leading_ids, as_of, rate, base) end
           )
 
         metrics
@@ -95,14 +106,14 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
       "base=#{base}|top=#{Enum.join(ids, ",")}"
   end
 
-  defp compute(analysis, top_security_ids, as_of, rate, base) do
+  defp compute(analysis, leading_ids, as_of, rate, base) do
     walk =
       PortfolioMetrics.compute(observations(analysis.daily), as_of,
         risk_free_rate: rate,
         daily_rate_factor: &Benchmark.daily_rate_factor/1
       )
 
-    {series, excluded} = converted_series(top_security_ids, as_of, base)
+    {series, excluded} = converted_series(leading_ids, as_of, base)
     correlations = PortfolioMetrics.correlations(series, as_of)
 
     %{
@@ -114,6 +125,7 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
       risk_adjusted_return: walk.risk_adjusted_return,
       correlations:
         Map.merge(correlations, %{
+          leading_names: length(leading_ids),
           security_ids: Enum.map(series, &elem(&1, 0)),
           excluded: excluded
         })
@@ -272,8 +284,11 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
           "return factors of the TTWROR chain over the daily valuation walk (ADR-0010), " <>
           "in the base currency #{base}, scoped by the active view — never the " <>
           "day-over-day change of the portfolio's value, so a deposit or a withdrawal " <>
-          "is not a return (ADR-0047 §2). correlations: the Top-N single names' own " <>
-          "stored closes in the ADR-0028 §2 display basis, CONVERTED to #{base} at the " <>
+          "is not a return (ADR-0047 §2). correlations: at most the " <>
+          "#{@max_correlated_names} leading names of the Top-N list, largest first " <>
+          "(correlations.leading_names states how many; the pair count grows with the " <>
+          "square of the names, so the matrix is bounded while the list is not), by their " <>
+          "own stored closes in the ADR-0028 §2 display basis, CONVERTED to #{base} at the " <>
           "exchange rate stored on or before each close's day (ADR-0047 §3)",
       window:
         "per metric: every metric carries the span it was measured over, or the span it " <>

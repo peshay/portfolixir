@@ -60,7 +60,9 @@ defmodule Portfolixir.Derived.Registry do
     # the risk read. `:request` like its neighbours, keyed under the portfolio
     # basis exactly as `performance_analysis` is -- every write that moves the
     # walk, a held security's quote or an exchange rate bumps that basis.
-    portfolio_metrics: %{computation_version: 1, default_lifetime: :request},
+    # v2 (E25 S4, F72): the correlation matrix covers a bounded number of
+    # leading names and says how many (`leading_names`); a v1 payload lacks it.
+    portfolio_metrics: %{computation_version: 2, default_lifetime: :request},
     # The policy findings (ADR-0049 §5, Sprint 15 Lane A2): the operator's
     # rules evaluated over the reads above. `:request`, keyed under the
     # portfolio basis AND the portfolio's rules counter (carried in the entry

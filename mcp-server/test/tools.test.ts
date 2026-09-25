@@ -3129,4 +3129,19 @@ describe("Portfolixir MCP tools", () => {
         ?.description ?? "";
     assert.match(update, /nor one of its descendants/);
   });
+
+  // E25 S4, F72 (#889): the risk read's top_n has a maximum, and the
+  // correlation matrix covers a bounded number of leading names.
+  it("bounds the risk read's top_n and states the correlation bound", async () => {
+    const risk = listTools().find((tool) => tool.name === "portfolixir.portfolios.risk");
+    assert.equal(risk?.inputSchema.properties.top_n.maximum, 1000);
+    assert.match(risk?.description ?? "", /capped at 1000/);
+    assert.match(risk?.description ?? "", /at most the 20 leading names/);
+    assert.match(risk?.description ?? "", /leading_names/);
+
+    const { client } = createRecordingClient();
+    await assert.rejects(
+      callTool(client, "portfolixir.portfolios.risk", { portfolio_id: 1, top_n: 1001 })
+    );
+  });
 });
