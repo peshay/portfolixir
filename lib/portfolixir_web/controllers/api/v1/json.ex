@@ -1284,6 +1284,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       as_of: date(Date.utc_today()),
       risk_note: risk_note(),
       steerable_basis: decimal(risk.steerable_basis),
+      top_n: risk.top_n,
       top_holdings: Enum.map(risk.top_holdings, &risk_holding/1),
       hhi: risk_hhi(risk.hhi),
       asset_class_violations: Enum.map(risk.asset_class_violations, &risk_violation/1),
@@ -1320,6 +1321,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   defp correlations(matrix) do
     %{
       window: metric_window(matrix.window),
+      leading_names: matrix.leading_names,
       security_ids: matrix.security_ids,
       pairs:
         Enum.map(matrix.pairs, fn pair ->

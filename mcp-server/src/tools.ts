@@ -1019,7 +1019,12 @@ const riskSchema = {
   properties: {
     portfolio_id: { type: "integer", minimum: 1 },
     view: { type: "integer", minimum: 1 },
-    top_n: { type: "integer", minimum: 1 },
+    top_n: {
+      type: "integer",
+      minimum: 1,
+      maximum: 1000,
+      description: "Top-N length (default 10, at most 1000); the answer echoes the applied top_n"
+    },
     asset_class_caps: decimalMapSchema,
     hhi_bands: {
       type: "object",
@@ -1046,7 +1051,7 @@ const riskSchema = {
 const riskZ = z.object({
   portfolio_id: z.number().int().positive(),
   view: z.number().int().positive().optional(),
-  top_n: z.number().int().positive().optional(),
+  top_n: z.number().int().positive().max(1000).optional(),
   asset_class_caps: z.record(z.string(), z.string()).optional(),
   hhi_bands: z
     .object({ low: optionalString(), high: optionalString() })
@@ -2960,7 +2965,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.portfolios.risk",
     "Portfolio risk/concentration lens",
-    "Risk/concentration lens for a portfolio over the steerable basis (the valued positions, scoped by the active view): single-name Top-N (default 10, override top_n) with a severity (ok/warn/hard) per instrument type (stock warn>7/hard>10, ETF warn>25), the Herfindahl-Hirschman Index (hhi) on the 0-10000 scale with a band (low<1500, moderate, concentrated>2500), and opt-in asset-class cap violations (asset_class_caps, e.g. {\"equity\":\"50\"}) returning only classes over cap with the overage in percentage points. Weights, caps and HHI are 0-100 percentage Decimal strings. Thresholds and bands are overridable per call. Pass an optional view (a view id) to scope the lens to the holdings matching that bucket view; the response then echoes the active view. The response also carries metrics (ADR-0047, FR-40), the portfolio's or view's derived figures on this same read: volatility, max_drawdown (with peak_date, trough_date, recovery_date) and risk_adjusted_return over 30d/90d/365d, read from the TTWROR chain's flow-adjusted daily return factors — NEVER the day-over-day change of the value, so a deposit or a withdrawal is not a return and a saver reads the same risk as a holder. Volatility is the population standard deviation of daily returns annualized by the square root of 365 (the walk is a calendar walk). risk_adjusted_return is the annualized mean daily excess return over risk_free_rate (a Decimal fraction, default 0 — at 0 it is return per unit of risk, and the rate is never inferred or fetched) divided by the volatility; it is null when the volatility is exactly 0. A volatility, a risk_adjusted_return or a correlation pair whose square root lies outside the double range (a magnitude only implausible stored prices or exchange rates reach) is null WITHOUT insufficient_data: undefined, not short of data, and not a reason to retry. correlations is the Pearson matrix of the Top-N names' daily returns, converted to the base currency first and computed over the days BOTH securities closed on, each pair with its overlap count; a security whose currency has no stored rate path is listed in excluded instead. Every metric carries its window, its observations and required — the minimum it needs — in both states; below it the value is null with insufficient_data true at HTTP 200, a gap marker and not a reason to retry. metrics.computation_basis states the series, gaps and assumptions once. THIS READ REPORTS, IT DOES NOT EVALUATE: there is no signal, recommendation, rating, score or action in the payload.",
+    "Risk/concentration lens for a portfolio over the steerable basis (the valued positions, scoped by the active view): single-name Top-N (default 10, override top_n, capped at 1000; the answer echoes the applied top_n) with a severity (ok/warn/hard) per instrument type (stock warn>7/hard>10, ETF warn>25), the Herfindahl-Hirschman Index (hhi) on the 0-10000 scale with a band (low<1500, moderate, concentrated>2500), and opt-in asset-class cap violations (asset_class_caps, e.g. {\"equity\":\"50\"}) returning only classes over cap with the overage in percentage points. Weights, caps and HHI are 0-100 percentage Decimal strings. Thresholds and bands are overridable per call. Pass an optional view (a view id) to scope the lens to the holdings matching that bucket view; the response then echoes the active view. The response also carries metrics (ADR-0047, FR-40), the portfolio's or view's derived figures on this same read: volatility, max_drawdown (with peak_date, trough_date, recovery_date) and risk_adjusted_return over 30d/90d/365d, read from the TTWROR chain's flow-adjusted daily return factors — NEVER the day-over-day change of the value, so a deposit or a withdrawal is not a return and a saver reads the same risk as a holder. Volatility is the population standard deviation of daily returns annualized by the square root of 365 (the walk is a calendar walk). risk_adjusted_return is the annualized mean daily excess return over risk_free_rate (a Decimal fraction, default 0 — at 0 it is return per unit of risk, and the rate is never inferred or fetched) divided by the volatility; it is null when the volatility is exactly 0. A volatility, a risk_adjusted_return or a correlation pair whose square root lies outside the double range (a magnitude only implausible stored prices or exchange rates reach) is null WITHOUT insufficient_data: undefined, not short of data, and not a reason to retry. correlations is the Pearson matrix of at most the 20 leading names of the Top-N list (correlations.leading_names states how many; the pair count grows with the square of the names, so the matrix is bounded while the list is not), their daily returns converted to the base currency first and computed over the days BOTH securities closed on, each pair with its overlap count; a security whose currency has no stored rate path is listed in excluded instead. Every metric carries its window, its observations and required — the minimum it needs — in both states; below it the value is null with insufficient_data true at HTTP 200, a gap marker and not a reason to retry. metrics.computation_basis states the series, gaps and assumptions once. THIS READ REPORTS, IT DOES NOT EVALUATE: there is no signal, recommendation, rating, score or action in the payload.",
     riskSchema,
     riskZ
   ),

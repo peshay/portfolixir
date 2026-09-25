@@ -1343,7 +1343,10 @@ Beispiel-Payloads für Konten:
   - `steerable_basis` ist die Basis, deren Anteil die Gewichte sind, und
     `base_currency` die Basiswährung des Portfolios.
   - `top_holdings` sind die größten Einzeltitel-Positionen, größte zuerst,
-    Standard **N = 10** (überschreibbar mit dem `top_n`-Query-Parameter). Jeder
+    Standard **N = 10** (überschreibbar mit dem `top_n`-Query-Parameter).
+    `top_n` folgt dem Vertrag der Listen-Abfragen: höchstens `1000`, ein
+    größerer Wert wird gekappt, und die Antwort nennt das angewandte `top_n`
+    (E25 S4). Jeder
     Eintrag trägt `security_id`, `security_name`, `asset_class`, `market_value`,
     `weight` und einen `severity` (`ok`/`warn`/`hard`). Der `severity` ist
     **instrumententyp-abhängig**: eine Einzelaktie warnt über `7` und wird hart
@@ -1399,9 +1402,12 @@ Beispiel-Payloads für Konten:
     Rendite daneben oder dieses Korrelationspaar. Die Abfrage scheitert an
     solchen Daten nie und liefert über ihnen nie eine Zahl; die Risiko-Seite
     zeigt ein solches Paar als „nicht berechenbar“ mit seinen Beobachtungen.
-  - `correlations` ist die Pearson-Matrix der Tagesrenditen der Top-N-
-    Einzeltitel (`security_ids` in Top-N-Reihenfolge, `pairs` mit
-    `security_id_a`, `security_id_b`, `value`) über ein `365d`-Fenster. Die
+  - `correlations` ist die Pearson-Matrix der Tagesrenditen **höchstens der
+    20 führenden** Top-N-Einzeltitel (`leading_names` nennt, über wie viele
+    sie lief; die Zahl der Paare wächst mit dem Quadrat der Titel, darum ist
+    die Matrix begrenzt, die Liste nicht, und `computation_basis` sagt es),
+    mit `security_ids` in Top-N-Reihenfolge und `pairs` mit `security_id_a`,
+    `security_id_b`, `value`, über ein `365d`-Fenster. Die
     Kurse werden **zuerst in die Basiswährung umgerechnet**, und ein Paar
     liest nur Tage, an denen **beide** Wertpapiere einen Kurs haben. Ein
     Wertpapier ohne gespeicherten Wechselkurspfad fehlt in der Matrix und

@@ -1712,7 +1712,9 @@ beantworten — wie konzentriert ist das Portfolio, und wie stark schwankt es �
   1.500, konzentriert ab 2.500).
 - **Anlageklassen-Obergrenzen**, sofern über die API gesetzt.
 - **Korrelationen** der größten Positionen hinter einer Aufklappfläche, zuerst
-  in die Basiswährung umgerechnet und nur über Tage mit Kurs für beide.
+  in die Basiswährung umgerechnet und nur über Tage mit Kurs für beide. Die
+  Grundlagenzeile nennt, über wie viele der größten Positionen sie laufen: die
+  Matrix erfasst höchstens die 20 größten, wie lang die Liste auch ist.
 
 Die Seite berichtet, sie empfiehlt nicht. Dieselben Zahlen liefert
 `GET /api/v1/portfolios/:portfolio_id/risk` und das MCP-Werkzeug

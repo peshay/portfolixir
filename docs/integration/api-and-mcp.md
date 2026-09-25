@@ -1519,7 +1519,9 @@ church tax withheld at a zero church-tax rate.
   - `steerable_basis` is the basis the weights are a share of, and
     `base_currency` the portfolio's base currency.
   - `top_holdings` is the largest single-name exposures, largest first, default
-    **N = 10** (override with the `top_n` query param). Each entry carries
+    **N = 10** (override with the `top_n` query param). `top_n` keeps the
+    list reads' capped-and-echoed contract: at most `1000`, a larger value is
+    capped, and the answer echoes the applied `top_n` (E25 S4). Each entry carries
     `security_id`, `security_name`, `asset_class`, `market_value`, `weight` and a
     `severity` (`ok`/`warn`/`hard`). The severity is **instrument-type aware**: a
     single stock warns above `7` and goes hard above `10`; an **ETF** (the `etf`
@@ -1572,9 +1574,12 @@ church tax withheld at a zero church-tax rate.
     and the risk-adjusted return beside it, or that correlation pair. The
     read never fails on such data, and never answers a number over it; the
     Risk page shows such a pair as "not computable" with its observations.
-  - `correlations` is the Pearson matrix of the Top-N single names' daily
-    returns (`security_ids` in Top-N order, `pairs` with `security_id_a`,
-    `security_id_b`, `value`), over a `365d` window. The closes are
+  - `correlations` is the Pearson matrix of the daily returns of **at most
+    the 20 leading** Top-N single names (`leading_names` states how many it
+    ran over; the pair count grows with the square of the names, so the
+    matrix is bounded while the list is not, and `computation_basis` says so),
+    with `security_ids` in Top-N order and `pairs` with `security_id_a`,
+    `security_id_b`, `value`, over a `365d` window. The closes are
     **converted to the base currency first** — the opposite of the
     per-security metrics, because two holdings sharing an FX leg do move
     together in the operator's money — and a pair reads only the days on

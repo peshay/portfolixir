@@ -268,11 +268,22 @@ defmodule PortfolixirWeb.RiskLive do
 
               <.correlation_card correlations={@risk.metrics.correlations} />
             </div>
+            <%!-- E25 S4, F72 (board 11, part 3): the number comes from the
+                 answer, how many leading names the matrix actually ran over,
+                 so the sentence stays true below the list's length. --%>
             <p class="summary-basis" data-role="risk-basis">
-              <%= gettext(
-                "Basis: the flow-adjusted daily return factors of the TTWROR chain, in %{currency}, annualized by √365 — a deposit is not a return. A day without a return base yields no observation, never a zero. Correlations convert to %{currency} first.",
-                currency: @risk.base_currency
-              ) %>
+              <%= if @risk.metrics.correlations.leading_names >= 2 do %>
+                <%= gettext(
+                  "Basis: the flow-adjusted daily return factors of the TTWROR chain, in %{currency}, annualized by √365 — a deposit is not a return. A day without a return base yields no observation, never a zero. Correlations convert to %{currency} first and run over the %{count} largest positions.",
+                  currency: @risk.base_currency,
+                  count: @risk.metrics.correlations.leading_names
+                ) %>
+              <% else %>
+                <%= gettext(
+                  "Basis: the flow-adjusted daily return factors of the TTWROR chain, in %{currency}, annualized by √365 — a deposit is not a return. A day without a return base yields no observation, never a zero. Correlations convert to %{currency} first.",
+                  currency: @risk.base_currency
+                ) %>
+              <% end %>
             </p>
           </section>
 
