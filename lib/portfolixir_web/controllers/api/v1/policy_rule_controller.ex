@@ -172,6 +172,7 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
         _none ->
           case PolicyRules.rename_rule(conn.assigns.actor, rule, Map.take(params, ["name"])) do
             {:ok, renamed} -> json(conn, %{data: PolicyJSON.rule_with_versions(renamed)})
+            {:error, :not_found} -> not_found(conn)
             {:error, %Ecto.Changeset{} = changeset} -> unprocessable(conn, JSON.errors(changeset))
           end
       end
@@ -182,8 +183,14 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
 
   @context_fields ~w(portfolio_id view_id)
 
+  # The rule's own read shape carries its versions too (version_in_force,
+  # next_version, versions): sent back with a new name, they are refused like
+  # a version, never silently dropped (the S3/S4/D review round, LD-2).
+  @read_shape_version_fields ~w(version_in_force next_version versions)
+
   defp not_a_rename(params, rule_id) do
-    version_fields = ["version" | PolicyRuleVersion.predicate_fields()]
+    version_fields =
+      ["version" | PolicyRuleVersion.predicate_fields()] ++ @read_shape_version_fields
 
     version_error =
       "is not changed by a rename; a new line is a new version " <>

@@ -539,5 +539,25 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleControllerTest do
 
     conn |> patch("/api/v1/policy_rules/999999999", %{"name" => "x"}) |> json_response(404)
     conn |> patch("/api/v1/policy_rules/abc", %{"name" => "x"}) |> json_response(404)
+
+    # The S3/S4/D review round (LD-2): the rule's own read shape carries its
+    # versions too; sent back with a new name, they are refused the same way
+    # rather than silently dropped.
+    %{"errors" => errors} =
+      conn
+      |> patch("/api/v1/policy_rules/#{rule.id}", %{
+        "name" => "Read shape sent back",
+        "version_in_force" => %{"threshold" => "12"},
+        "next_version" => nil,
+        "versions" => []
+      })
+      |> json_response(422)
+
+    for key <- ["version_in_force", "next_version", "versions"] do
+      assert [message] = errors[key], key
+      assert message =~ "POST /api/v1/policy_rules/#{rule.id}/versions"
+    end
+
+    assert PolicyRules.get_rule(rule.id).name == "Old single-name cap"
   end
 end

@@ -1612,11 +1612,13 @@ Die Schreibzugriffe:
   Versionen). Das Journal hält den bisherigen Namen und wer ihn geändert hat.
   Auch bei einer beendeten Regel erlaubt. Gelesen wird nur `name`, wie bei
   `PATCH /api/v1/plans/:id`: Ein leerer, fehlender oder nicht-textueller Name
-  ist ein `422` auf `name`; ein Feld der Aussage, eine `version` oder der
-  Kontext (`view_id`, `portfolio_id`) im selben Rumpf ist ein `422`, das jedes
-  solche Feld nennt, und nichts wird geschrieben — eine neue Linie ist eine
-  neue Version, und eine Regel in einem anderen Kontext ist eine neue Regel.
-  Jeder andere Schlüssel wird ignoriert.
+  ist ein `422` auf `name`; ein Feld der Aussage, eine `version`, die
+  Versionsschlüssel der eigenen Leseform der Regel (`version_in_force`,
+  `next_version`, `versions`) oder der Kontext (`view_id`, `portfolio_id`) im
+  selben Rumpf ist ein `422`, das jedes solche Feld nennt, und nichts wird
+  geschrieben — eine neue Linie ist eine neue Version, und eine Regel in einem
+  anderen Kontext ist eine neue Regel. Jeder andere Schlüssel wird ignoriert.
+  Eine Regel, die seit dem Lesen gelöscht wurde, ist ein `404`.
 - `POST /api/v1/policy_rules/:id/retire` — optional `valid_until`; beendet
   die geltende Version standardmäßig gestern (heute Abend, wenn sie erst heute
   begann) und verwirft danach geplante Versionen. Die Regel bleibt mit

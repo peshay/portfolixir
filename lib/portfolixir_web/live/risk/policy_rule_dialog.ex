@@ -628,6 +628,10 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, errors: errors(changeset), alert: nil)}
+
+      # Deleted from another tab since the dialog opened (LD-3).
+      {:error, :not_found} ->
+        {:noreply, assign(socket, :alert, gettext("This rule no longer exists."))}
     end
   end
 
