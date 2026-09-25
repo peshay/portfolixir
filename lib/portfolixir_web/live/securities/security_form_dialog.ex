@@ -831,7 +831,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
          assign(socket, :errors, %{
            @record_error =>
              gettext(
-               "This security no longer exists: it was deleted after you opened it, so nothing was saved."
+               "This security no longer exists: it was deleted after the dialog opened, so nothing was saved."
              )
          })}
 

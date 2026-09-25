@@ -130,7 +130,7 @@ defmodule PortfolixirWeb.TaxLive do
          |> assign(
            :form_errors,
            gettext(
-             "This statement no longer exists: it was deleted after you opened it, so the correction was not saved. Record it again if it should stay."
+             "This statement no longer exists: it was deleted after the form opened, so the correction was not saved. Record it again if it should stay."
            )
          )
          |> load_year()
@@ -191,7 +191,7 @@ defmodule PortfolixirWeb.TaxLive do
          |> assign(
            :order_errors,
            gettext(
-             "This allowance order no longer exists: it was deleted while yours was recorded, so nothing was saved. Record it again."
+             "This allowance order no longer exists: it was deleted while the new one was recorded, so nothing was saved. Record it again."
            )
          )
          |> load_year()}

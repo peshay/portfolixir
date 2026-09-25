@@ -4454,17 +4454,17 @@ msgstr ""
 
 #: lib/portfolixir_web/live/tax_live.ex
 #, elixir-autogen, elixir-format
-msgid "This statement no longer exists: it was deleted after you opened it, so the correction was not saved. Record it again if it should stay."
+msgid "This statement no longer exists: it was deleted after the form opened, so the correction was not saved. Record it again if it should stay."
 msgstr ""
 
 #: lib/portfolixir_web/live/tax_live.ex
 #, elixir-autogen, elixir-format
-msgid "This allowance order no longer exists: it was deleted while yours was recorded, so nothing was saved. Record it again."
+msgid "This allowance order no longer exists: it was deleted while the new one was recorded, so nothing was saved. Record it again."
 msgstr ""
 
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex
 #, elixir-autogen, elixir-format
-msgid "This security no longer exists: it was deleted after you opened it, so nothing was saved."
+msgid "This security no longer exists: it was deleted after the dialog opened, so nothing was saved."
 msgstr ""
 
 #: lib/portfolixir_web/live/tax_live.ex:492
