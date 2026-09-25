@@ -795,6 +795,55 @@ defmodule Portfolixir.CITest do
     end
   end
 
+  # User story (E25 S8, F60 -- #893):
+  # As a maintainer whose pre-commit gate runs third-party code on every CI run,
+  # I want pre-commit installed from a hash-pinned requirements file and every
+  # hook repository frozen to a commit,
+  # so that neither a new upload to the package index nor a moved tag in a
+  # hook repository changes what the gate runs without a commit here.
+  #
+  # Acceptance criteria:
+  # - Every remote hook repository's `rev:` is a 40-hex commit SHA, with the
+  #   tag it was resolved from in a `# frozen: vX.Y.Z` comment.
+  # - CI installs pre-commit with `--require-hashes`, wheels only, from
+  #   .github/pre-commit/requirements.txt; `pip install --upgrade
+  #   pre-commit` is gone.
+  # - Every requirement in that file, pre-commit's own dependencies included,
+  #   is pinned with `==` and carries at least one sha256 hash.
+  test "pre-commit is hash-pinned and its hook repositories are frozen to commits" do
+    config = File.read!(".pre-commit-config.yaml")
+    remote_repos = Regex.scan(~r/^\s*- repo: https:\/\//m, config)
+    revs = Regex.scan(~r/^\s+rev: (.*)$/m, config, capture: :all_but_first)
+
+    assert remote_repos != []
+    assert length(revs) == length(remote_repos), "a remote hook repository has no rev"
+
+    for [rev] <- revs do
+      assert rev =~ ~r/^[0-9a-f]{40}\s+# frozen: v\d+(\.\d+)*$/,
+             ".pre-commit-config.yaml: rev is not frozen to a commit: #{rev}"
+    end
+
+    [install] = ci_workflow() |> step!("Install pre-commit") |> run_scripts()
+    assert install =~ "python3 -m pip install --require-hashes --only-binary :all:"
+    assert install =~ "-r .github/pre-commit/requirements.txt"
+    refute install =~ "--upgrade"
+
+    requirements =
+      ".github/pre-commit/requirements.txt"
+      |> File.read!()
+      |> String.replace("\\\n", " ")
+      |> String.split("\n")
+      |> Enum.map(&(&1 |> String.split() |> Enum.join(" ")))
+      |> Enum.reject(&(&1 == "" or String.starts_with?(&1, "#")))
+
+    assert Enum.any?(requirements, &String.starts_with?(&1, "pre-commit=="))
+
+    for requirement <- requirements do
+      assert requirement =~ ~r/^[A-Za-z0-9._-]+==\S+( --hash=sha256:[0-9a-f]{64})+$/,
+             "not pinned by version and hash: #{requirement}"
+    end
+  end
+
   defp ci_workflow, do: File.read!(".github/workflows/ci.yml")
 
   defp workflows do

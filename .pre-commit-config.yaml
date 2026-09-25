@@ -3,8 +3,11 @@ default_install_hook_types:
   - commit-msg
 
 repos:
+  # Every remote hook repository is frozen to the commit its tag named when
+  # it was pinned (E25 S8, F60): a tag can be moved, a commit cannot.
+  # `pre-commit autoupdate --freeze` moves the SHA and the comment together.
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: cef0300fd0fc4d2a87a85fa2093c6b283ea36f4b  # frozen: v5.0.0
     hooks:
       - id: trailing-whitespace
         args:

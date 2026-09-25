@@ -235,13 +235,17 @@ its first run, so it is slow once rather than every time. `mix hex.audit` and
 green — a gate that turns red with nobody pushing anything is an advisory
 published since, not a regression.
 
-Install hooks once:
+Install pre-commit itself from the hash-pinned file CI installs from, then the
+hooks, once:
 
 ```bash
+python3 -m pip install --require-hashes --only-binary :all: -r .github/pre-commit/requirements.txt
 pre-commit install --install-hooks
 ```
 
 The pre-commit setup uses standard hygiene hooks and `mix format --check-formatted`.
+Remote hook repositories are frozen to commit SHAs; `pre-commit autoupdate
+--freeze` moves one.
 
 ## Test Rules
 

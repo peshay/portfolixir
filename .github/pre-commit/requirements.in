@@ -1,0 +1,11 @@
+# pre-commit for CI's `pre-commit` job and for a local install, pinned with
+# every dependency by version and sha256 (E25 S8, F60). requirements.txt is
+# generated from this file, from inside this directory, by pip-tools on the
+# Python CI runs (3.12):
+#
+#   pip-compile --generate-hashes --output-file=requirements.txt requirements.in
+#
+# and installed with
+#
+#   python3 -m pip install --require-hashes --only-binary :all: -r requirements.txt
+pre-commit==4.6.2
