@@ -1818,6 +1818,15 @@ D-6, ADR-0049 §4 as amended). Built by Sprint 16 Lane D in
   or neither. A blank name is the field's own error, as on create.
 - **A retired rule** opens the same dialog from the retired list and is
   renamed the same way; a rename there creates no version either.
+- **The German button reads "Namen speichern"** (the accusative the verb
+  takes), where the board drew „Name speichern“; the build reuses the
+  catalogue's existing entry for "Save name" rather than adding a second
+  spelling of one action. Recorded by the Sprint 16 S3/S4/D review round
+  (LD-5), so the board and the spec agree.
+- **The dialog keeps the rule's own subject** among its choices even when
+  that security is retired (the remedy ADR-0049 §8 gives), so a rename of
+  such a rule stays a rename and never moves it to another security (review
+  round, LD-1). A new rule is still not offered a retired security.
 
 ## Amendment 2026-09-25 — A refusal that names rules makes each one reachable *(Sprint 16 pick G6-A, issue 871)*
 
@@ -1853,3 +1862,9 @@ owner's pick, plan D-5). Built by Sprint 16 Lane D in
 - **The rules arrive as data**, never as a finished sentence: the translated
   templates are split around their placeholders before any stored name is
   put in, so a rule's or a view's name is only ever text.
+- **Known limit: the link carries the view, not the portfolio.** A rule's
+  context is its portfolio and its view, and Risk shows the first portfolio
+  only, so a rule of another portfolio (one created over the API, say) is
+  named in the refusal but its link opens Risk without it. The limit is
+  Risk's, inherited rather than introduced by this pick; a per-portfolio Risk
+  is its own follow-up (recorded by the Sprint 16 S3/S4/D review round, LD-4).
