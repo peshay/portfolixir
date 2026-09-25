@@ -2069,8 +2069,9 @@ naming the already-booked event) stays inline in the dialog.
   when the figure could be a thousands group (`1.664` on a German page,
   `1,664` on an English one): such a figure reads two ways and is refused on
   its field with the request to enter it without a thousands separator, as is
-  a figure with two separators (`1.664,40`). A refused figure saves nothing,
-  and what you typed stays as you typed it.
+  a figure with two separators (`1.664,40`) or one grouped with a space or an
+  apostrophe (`1 664,40`, `1'664.40`, as bank pages and PDFs print figures). A
+  refused figure saves nothing, and what you typed stays as you typed it.
 - While values compute, the affected slot shows a placeholder plus a
   "computing" cue instead of a loading message; headline values settle with
   a brief count-up. Under a reduced-motion system preference all decorative

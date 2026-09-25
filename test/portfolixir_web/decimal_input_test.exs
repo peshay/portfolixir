@@ -21,7 +21,12 @@ defmodule PortfolixirWeb.DecimalInputTest do
   #   one) — that reads two ways and is refused, never guessed.
   # - A figure carrying two separators ("1.664,40", "1,664.40", "1.234.567")
   #   is refused as ambiguous; anything that is not a plain decimal
-  #   ("1e3", "NaN", "12 000", "abc") is refused as invalid.
+  #   ("1e3", "NaN", "12 5", "abc") is refused as invalid.
+  # - A figure grouped in threes with a space, a no-break space, a narrow
+  #   no-break space, a thin space or an apostrophe ("1 664,40", "1'664.40",
+  #   "12 000") is a thousands-separated figure too: it is refused with the
+  #   same "enter it without a thousands separator" reason, not the generic
+  #   "is invalid" that names no fix (review round DC-C5).
   # - Every rendered value parses back to the same Decimal in its own locale.
   describe "value/2 renders in the page's locale" do
     test "a German page shows a decimal comma, never a thousands separator" do
@@ -121,10 +126,46 @@ defmodule PortfolixirWeb.DecimalInputTest do
 
     test "anything but a plain decimal is invalid" do
       for locale <- ["de", "en"],
-          text <- ["abc", "1e3", "NaN", "Infinity", "12 000", "1.", "5,", "--1", "1-", "٣"] do
+          text <- [
+            "abc",
+            "1e3",
+            "NaN",
+            "Infinity",
+            "12 5",
+            "1 2,5",
+            "1  664",
+            "1.",
+            "5,",
+            "--1",
+            "1-",
+            "٣"
+          ] do
         assert DecimalInput.parse(text, locale) == {:error, :invalid},
                "#{inspect(text)} on a #{locale} page"
       end
+    end
+
+    test "a figure grouped with a space or an apostrophe names the thousands separator" do
+      grouped = [
+        "1 664,40",
+        "1\u00A0664,40",
+        "1\u202F664,40",
+        "1\u2009664,40",
+        "1'664.40",
+        "1\u2019664.40",
+        "12 000",
+        "-1 234 567",
+        "1 664.4"
+      ]
+
+      for locale <- ["de", "en"], text <- grouped do
+        assert DecimalInput.parse(text, locale) == {:error, :ambiguous},
+               "#{inspect(text)} on a #{locale} page"
+      end
+
+      Gettext.put_locale(PortfolixirWeb.Gettext, "de")
+      assert {:error, errors} = DecimalInput.cast(%{"amount" => "1 664,40"}, ["amount"])
+      assert errors["amount"] == "ist mehrdeutig: ohne Tausendertrennzeichen eingeben"
     end
 
     test "an overlong figure is invalid" do

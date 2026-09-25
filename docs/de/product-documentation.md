@@ -2237,8 +2237,10 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
   Tausendergruppe sein könnte (`1.664` auf einer deutschen, `1,664` auf einer
   englischen Seite): Eine solche Zahl ist mehrdeutig und wird am Feld mit der
   Bitte abgelehnt, sie ohne Tausendertrennzeichen einzugeben, ebenso eine Zahl
-  mit zwei Trennzeichen (`1.664,40`). Eine abgelehnte Zahl speichert nichts,
-  und das Getippte bleibt, wie es getippt wurde.
+  mit zwei Trennzeichen (`1.664,40`) oder eine mit Leerzeichen oder Apostroph
+  gruppierte (`1 664,40`, `1'664.40`, wie Bankseiten und PDFs Zahlen drucken).
+  Eine abgelehnte Zahl speichert nichts, und das Getippte bleibt, wie es
+  getippt wurde.
 - Während Werte berechnet werden, zeigt der betroffene Platz einen
   Platzhalter plus den Hinweis „wird berechnet" statt eines Ladetexts;
   Kopfzahlen zählen kurz sichtbar hoch. Bei reduzierter Bewegung als
