@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 
 import { z } from "zod";
 
+import { ApiOutcomeUnknownError } from "../src/api-client.js";
 import { readOnlySwitch } from "../src/server.js";
 import { callTool, listTools } from "../src/tools.js";
 import { connectCompanion, publishedTools } from "./support/companion.js";
@@ -342,6 +343,58 @@ describe("the companion's published tool surface", () => {
       const tool = published.find((candidate) => candidate.name === name);
       assert.equal(tool?.annotations?.destructiveHint, false, name);
       assert.match(tool?.description ?? "", /PERMANENT/, `${name} states its permanence`);
+    }
+  });
+
+  // User story (E25 S7, G31):
+  // As the agent about to retry a write that timed out,
+  // I want every write whose retry can add a second record to say, where I
+  // read it, that a timeout means the outcome is unknown,
+  // so that I re-read before I retry instead of storing a duplicate.
+  //
+  // Acceptance criteria:
+  // - Every tool that writes and is not idempotent (each POST-routed write)
+  //   states the outcome-unknown rule and the re-read in its description.
+  // - The server instructions state it once for every write.
+  // - A timed-out write reaches the host as a tool error carrying that rule.
+  it("states the outcome-unknown rule on every write a retry could duplicate", async () => {
+    const published = await publishedTools();
+    const irreversible = published.filter(
+      (tool) => tool.annotations?.readOnlyHint === false && tool.annotations?.idempotentHint === false
+    );
+
+    assert.ok(irreversible.length > 20, `too few irreversible writes: ${irreversible.length}`);
+
+    for (const tool of irreversible) {
+      assert.match(tool.description ?? "", /outcome unknown/, tool.name);
+      assert.match(tool.description ?? "", /re-read before retrying/, tool.name);
+    }
+
+    for (const name of ["portfolixir.notes.append", "portfolixir.transactions.create", "portfolixir.splits.create"]) {
+      assert.ok(irreversible.some((tool) => tool.name === name), name);
+    }
+
+    const companion = await connectCompanion({
+      request: async (method, path) => {
+        throw new ApiOutcomeUnknownError(method, path, 30_000);
+      }
+    });
+
+    try {
+      assert.match(companion.mcp.getInstructions() ?? "", /outcome unknown/);
+
+      const timedOut = await companion.mcp.callTool({
+        name: "portfolixir.notes.append",
+        arguments: {
+          security_id: 7,
+          note: { kind: "evidence", body: "x", source_quality: "primary", as_of: "2026-08-01" }
+        }
+      });
+      assert.equal(timedOut.isError, true);
+      assert.match((timedOut.content as any)[0].text, /outcome unknown/);
+      assert.match((timedOut.content as any)[0].text, /POST \/api\/v1\/securities\/7\/notes/);
+    } finally {
+      await companion.close();
     }
   });
 

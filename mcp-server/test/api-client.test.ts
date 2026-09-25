@@ -4,7 +4,7 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { describe, it } from "node:test";
 
-import { ApiRedirectError, createApiClient } from "../src/api-client.js";
+import { ApiOutcomeUnknownError, ApiRedirectError, createApiClient } from "../src/api-client.js";
 
 async function listen(server: Server): Promise<number> {
   server.listen(0, "127.0.0.1");
@@ -62,6 +62,64 @@ describe("the companion's API client", () => {
     }
 
     assert.ok(inits.length === 6 && inits.every((init) => init.redirect === "manual"));
+  });
+
+  // User story (E25 S7, G31):
+  // As the agent whose write got no answer in time,
+  // I want the companion to tell me the outcome is unknown and to re-read
+  // before retrying,
+  // so that a retry does not leave a permanent duplicate the server had
+  // already committed.
+  //
+  // Acceptance criteria:
+  // - A POST, PUT, PATCH or DELETE that times out or is aborted answers
+  //   ApiOutcomeUnknownError, naming the request, the unknown outcome and the
+  //   re-read.
+  // - A GET that times out answers no such error: a read changes nothing.
+  it("answers a write that got no answer in time as outcome unknown", async () => {
+    const hanging = (reason?: () => unknown) =>
+      createApiClient({
+        baseUrl: "http://portfolixir.test",
+        token: "api-token",
+        timeoutMs: 20,
+        fetch: (_url, init) =>
+          new Promise<Response>((_resolve, reject) => {
+            if (reason !== undefined) {
+              reject(reason());
+              return;
+            }
+
+            // The deadline's own timer does not hold the event loop open; this
+            // one does, and fails the test if the deadline never fires.
+            const guard = setTimeout(() => reject(new Error("the deadline never fired")), 5_000);
+            init?.signal?.addEventListener("abort", () => {
+              clearTimeout(guard);
+              reject(init.signal?.reason);
+            });
+          })
+      });
+
+    for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+      await assert.rejects(hanging().request(method, "/api/v1/transactions/9", {}), (error: unknown) => {
+        assert.ok(error instanceof ApiOutcomeUnknownError, `${method}: ${String(error)}`);
+        assert.equal(error.name, "ApiOutcomeUnknownError");
+        assert.match(error.message, new RegExp(`${method} /api/v1/transactions/9`));
+        assert.match(error.message, /outcome unknown/);
+        assert.match(error.message, /may still have committed it/);
+        assert.match(error.message, /Re-read/);
+        return true;
+      });
+    }
+
+    await assert.rejects(
+      hanging(() => new DOMException("aborted", "AbortError")).request("POST", "/api/v1/splits", {}),
+      ApiOutcomeUnknownError
+    );
+
+    await assert.rejects(hanging().request("GET", "/api/v1/transactions"), (error: unknown) => {
+      assert.ok(!(error instanceof ApiOutcomeUnknownError), String(error));
+      return true;
+    });
   });
 
   it("never contacts a redirect's target", async () => {

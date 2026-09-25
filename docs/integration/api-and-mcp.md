@@ -2361,6 +2361,15 @@ than `true`, `false`, `1`, `0` or empty stops the companion with the variable
 named. The switch narrows the companion, not the token: `PORTFOLIXIR_API_TOKEN`
 keeps its full authority over the API.
 
+**A write that times out.** Every API call carries a 30-second deadline. A
+read that misses it changes nothing; a write that misses it (`POST`, `PUT`,
+`PATCH` or `DELETE`) answers `ApiOutcomeUnknownError`: the companion stopped
+waiting, but the server may still have committed the write, so re-read what it
+would have changed before retrying. A blind retry of a write that adds a
+record can store a duplicate, and every such tool (each one routed through
+`POST`) says so in its description; the server instructions say it once for
+every write.
+
 - `portfolixir.contract.get` — the contract-version read (ADR-0044 §8):
   what the surface offers and when it last changed, pollable with `since=`.
 - `portfolixir.securities.list`
