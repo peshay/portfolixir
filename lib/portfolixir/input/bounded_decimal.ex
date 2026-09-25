@@ -97,7 +97,12 @@ defmodule Portfolixir.Input.BoundedDecimal do
     end)
   end
 
-  defp decimal_places(%Decimal{} = value) do
+  @doc """
+  The decimal places a finite decimal carries, trailing zeros not counted:
+  `2.50` has one, `100` none.
+  """
+  @spec decimal_places(Decimal.t()) :: non_neg_integer()
+  def decimal_places(%Decimal{} = value) do
     case Decimal.normalize(value) do
       %Decimal{exp: exp} when exp < 0 -> -exp
       _whole -> 0

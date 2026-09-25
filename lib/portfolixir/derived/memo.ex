@@ -22,6 +22,13 @@ defmodule Portfolixir.Derived.Memo do
   carried forward: the superseded series a surface renders, labelled, while a
   fresh one computes). The sweep on insert keeps one previous generation per
   entry key and age-bounds the rest.
+
+  **A budget bounds the table** (E25 S4, G03): at most `memo_max_entries`
+  entries and `memo_max_bytes` bytes (the `Portfolixir.Derived` configuration,
+  5000 entries and 128 MiB by default). A put that would leave the table
+  over either empties it and keeps only the value just put, and a value larger
+  than the whole budget is not kept. Emptying costs recomputation and nothing
+  else, because nothing here is ever authoritative.
   """
 
   use GenServer
@@ -31,6 +38,8 @@ defmodule Portfolixir.Derived.Memo do
   # the next insert for their basis once they are this old.
   @max_age_seconds 7 * 86_400
   @generations_kept 2
+  @default_max_entries 5_000
+  @default_max_bytes 128 * 1024 * 1024
 
   @doc false
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -86,12 +95,27 @@ defmodule Portfolixir.Derived.Memo do
   @spec put(tuple(), term(), DateTime.t()) :: :ok
   def put({analytic, basis, entry_key, _version, comp} = key, value, %DateTime{} = as_of) do
     if table?() do
-      :ets.insert(@table, {key, value, as_of, System.system_time(:second)})
+      row = {key, value, as_of, System.system_time(:second)}
+      :ets.insert(@table, row)
       sweep_generations(analytic, basis, entry_key, comp)
       sweep_age(analytic, basis)
+      keep_budget(key, row)
     end
 
     :ok
+  end
+
+  @doc "The table's current size: entries and bytes."
+  @spec usage() :: %{entries: non_neg_integer(), bytes: non_neg_integer()}
+  def usage do
+    if table?() do
+      %{
+        entries: :ets.info(@table, :size),
+        bytes: :ets.info(@table, :memory) * :erlang.system_info(:wordsize)
+      }
+    else
+      %{entries: 0, bytes: 0}
+    end
   end
 
   @doc "Empties the memo. For tests and for the restart-equivalence proof."
@@ -130,6 +154,24 @@ defmodule Portfolixir.Derived.Memo do
     :ets.select_delete(@table, [
       {{{analytic, basis, :_, :_, :_}, :_, :_, :"$1"}, [{:<, :"$1", cutoff}], [true]}
     ])
+  end
+
+  # Over budget, the table is emptied and refilled with the one value just
+  # put; if that value alone is over, it goes too. Both checks are O(1).
+  defp keep_budget(key, row) do
+    if over_budget?() do
+      :ets.delete_all_objects(@table)
+      :ets.insert(@table, row)
+      if over_budget?(), do: :ets.delete(@table, key)
+    end
+  end
+
+  defp over_budget? do
+    config = Application.get_env(:portfolixir, Portfolixir.Derived, [])
+    %{entries: entries, bytes: bytes} = usage()
+
+    entries > Keyword.get(config, :memo_max_entries, @default_max_entries) or
+      bytes > Keyword.get(config, :memo_max_bytes, @default_max_bytes)
   end
 
   defp table?, do: :ets.whereis(@table) != :undefined
