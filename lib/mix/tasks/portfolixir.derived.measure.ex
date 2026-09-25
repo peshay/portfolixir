@@ -267,29 +267,26 @@ defmodule Mix.Tasks.Portfolixir.Derived.Measure do
           currency_code: "EUR"
         })
 
-      seed_quotes(security, today, years)
+      seed_quotes(owner, security, today, years)
       security
     end)
   end
 
   # Weekly closes, a seeded random walk anchored at 100 — the same shape as the
   # demo quote seed, and the same weekly resolution the ADR's Context table
-  # used.
-  defp seed_quotes(security, today, years) do
+  # used. Written through the authored, journaled quote path (E25 S6, T-9).
+  defp seed_quotes(owner, security, today, years) do
     weeks = div(365 * years, 7)
 
     {rows, _price} =
       Enum.map_reduce(weeks..0//-1, 100.0, fn back, price ->
         next = max(price * (1.0 + (:rand.uniform() - 0.48) * 0.06), 1.0)
 
-        {%{
-           date: Date.add(today, -7 * back),
-           close: Decimal.from_float(Float.round(next, 4)),
-           source: "manual"
-         }, next}
+        {%{date: Date.add(today, -7 * back), close: Decimal.from_float(Float.round(next, 4))},
+         next}
       end)
 
-    {:ok, _count} = Quotes.upsert_many(security.id, rows)
+    {:ok, _written} = Catalog.upsert_quotes(owner, security.id, rows)
   end
 
   defp seed_bookings(owner, portfolio, cash, depot, catalog, count, years) do

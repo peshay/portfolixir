@@ -139,6 +139,8 @@ defmodule PortfolixirWeb.Router do
 
     get("/securities/:security_id/quotes", QuoteController, :index)
     put("/securities/:security_id/quotes", QuoteController, :upsert)
+    # E25 S6, T-9: a journaled release of manual rows back to provider data.
+    post("/securities/:security_id/quotes/release", QuoteController, :release)
     post("/securities/:security_id/sync_quotes", QuoteController, :sync)
 
     get("/securities/:security_id/trades", TradeController, :index)

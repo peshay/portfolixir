@@ -445,6 +445,21 @@ defmodule Portfolixir.Catalog do
     to: IdentifierAliases,
     as: :update_alias
 
+  @doc """
+  Writes a security's quotes on behalf of `actor`, journaled with the rows
+  it replaced, every row stored as manual (E25 S6, T-9). See
+  `Portfolixir.Catalog.Quotes.upsert_authored/3`.
+  """
+  defdelegate upsert_quotes(actor, security_id, rows), to: Quotes, as: :upsert_authored
+
+  @doc """
+  Releases a security's manual quotes of a date range back to provider data,
+  journaled (E25 S6, T-9). See `Portfolixir.Catalog.Quotes.release_manual/4`.
+  """
+  defdelegate release_manual_quotes(actor, security_id, from, to),
+    to: Quotes,
+    as: :release_manual
+
   @doc "Preloads the security's identifier aliases (newest change first)."
   def with_identifier_aliases(%Security{} = security) do
     Repo.preload(security,

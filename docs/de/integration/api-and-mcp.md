@@ -594,7 +594,22 @@ Regel über einer Kennzahl ist FR-43 und bleibt verschlossen.
   (Standard 20000, max. 50000; null, negativ oder nicht numerisch ist ein
   `422`).
 - `PUT /api/v1/securities/:security_id/quotes` führt manuelle Kurszeilen ein
-  (Upsert). Jede Kurszeile, manuell oder synchronisiert, ist begrenzt: ein
+  (Upsert). Jede Zeile wird mit der Quelle `manual` gespeichert, gleich welche
+  `source` sie nennt: Ein über die API geschriebener Kurs ist ein manueller
+  Kurs, und die Anbieterquellen setzt allein die Kurssynchronisierung. Ein
+  manueller Kurs hat Vorrang vor Anbieterdaten, deshalb ersetzt das Schreiben
+  eine gespeicherte Zeile jeder Quelle an seinen Daten, und die
+  Synchronisierung lässt eine manuelle Zeile stehen, bis sie freigegeben wird
+  (unten). Das Schreiben wird unter dem Token journalisiert
+  (`resource_type=security_quotes`, unter der Id des Wertpapiers, Operation
+  `upsert`), mit den ersetzten gespeicherten Zeilen — ihren Kursen und
+  Quellen — als Vorher-Abbild. Die Antwort ist
+  `{"upserted": n, "replaced": [Daten]}`: `upserted` zählt die Zeilen, die
+  nun wie übergeben gespeichert sind, `replaced` nennt die ISO-Daten, deren
+  gespeicherte Zeile das Schreiben geändert hat (ein neues Datum steht nicht
+  darin). Ein Schreiben, das nichts ändert, hinterlässt keinen
+  Journaleintrag.
+  Jede Kurszeile, manuell oder synchronisiert, ist begrenzt: ein
   `close`, der auf seine 6 Nachkommastellen gerundet positiv ist und höchstens
   14 Stellen vor dem Komma hat, an einem `date`, das nicht nach morgen liegt (dem
   Kalendertag der Instanz plus einem Tag für Zeitzonen). Eine Zeile außerhalb
@@ -606,6 +621,21 @@ Regel über einer Kennzahl ist FR-43 und bleibt verschlossen.
   nur Kursobjekte: Ein wiederholtes Datum liefert `422` mit `errors.date`, das
   es nennt, eine Zeile, die kein Objekt ist, `422` auf `quotes`, und nichts
   wird geschrieben.
+- `POST /api/v1/securities/:security_id/quotes/release` gibt die
+  **manuellen** Kurse eines Wertpapiers von `from` bis `to` (beide Pflicht,
+  einschließlich, im Body oder in der Query) an die Anbieterdaten zurück: Die
+  manuellen Zeilen des Zeitraums werden entfernt, unter dem Token
+  journalisiert (Operation `delete`) mit den freigegebenen Zeilen als
+  Vorher-Abbild, und die Antwort ist
+  `{"security_id", "from", "to", "released": [Daten]}`. Anbieterzeilen im
+  Zeitraum bleiben, und ein Zeitraum ohne manuelle Zeilen ändert nichts und
+  schreibt keinen Eintrag. Die nächste Kurssynchronisierung speichert den
+  Anbieterkurs für ein freigegebenes Datum; ein Wertpapier ohne Anbieter
+  behält dafür keinen Kurs. Ein fehlendes oder ungültiges Datum liefert `422`
+  mit dem Feld, `to` vor `from` `422` auf `to`, ein unbekanntes Wertpapier
+  `404`. Die Freigabe kommt zuerst für Agenten (API und MCP): Kurse haben auf
+  der Wertpapierseite noch kein Schreib-Bedienelement, und ihr
+  Freigabe-Bedienelement folgt spätestens in Sprint 17.
 - `POST /api/v1/securities/:security_id/sync_quotes` löst die
   Kurssynchronisierung eines Wertpapiers aus. Die Antwort enthält `status` (`ok`,
   `skipped` oder `error`); übersprungene und Fehler-Antworten können einen
@@ -627,10 +657,21 @@ Beispiel-Payload für Kurs-Upsert:
   "quotes": [
     {
       "date": "2026-05-15",
-      "close": "123.45",
-      "source": "manual"
+      "close": "123.45"
     }
   ]
+}
+```
+
+Beispiel-Antwort für Kurs-Upsert, dessen erstes Datum eine synchronisierte
+Zeile ersetzt hat:
+
+```json
+{
+  "data": {
+    "upserted": 2,
+    "replaced": ["2026-05-15"]
+  }
 }
 ```
 
@@ -2019,7 +2060,13 @@ Jeder finanzielle Schreibvorgang (Anlegen, Ändern, Löschen) wird in einem
 append-only Audit-Journal in derselben Datenbanktransaktion wie der Schreibvorgang
 selbst festgehalten, sodass jede Änderung — auch Löschungen — nachvollziehbar und
 zurechenbar bleibt. Marktdaten-Synchronisierung (Kurse und Wechselkurse) ist
-betriebliche Datenpflege und wird bewusst **nicht** journalisiert.
+betriebliche Datenpflege und wird bewusst **nicht** journalisiert. Ein Kurs,
+den jemand schreibt, ist keine Synchronisierung: Der Kurs-Upsert und die
+Freigabe manueller Kurse werden unter `resource_type=security_quotes`
+journalisiert, unter der Id des Wertpapiers, mit den ersetzten oder
+freigegebenen Zeilen als Vorher-Abbild. Die Quelle einer erfassten
+Steuerbescheinigung setzt das System (`manual`); eine `source` im Body wird
+ignoriert.
 
 - `GET /api/v1/journal` listet Journal-Einträge, neueste zuerst. Jeder Eintrag
   trägt `actor_type` (`owner_ui`, `api_token_rw`, `api_token_ro`,
@@ -2084,7 +2131,12 @@ Decimal-Eingaben in MCP-Schemata sind Strings.
 - `portfolixir.notes.expiring` — datierte Sperren, die in N Tagen ablaufen.
 - `portfolixir.quotes.sync`
 - `portfolixir.quotes.list`
-- `portfolixir.quotes.upsert`
+- `portfolixir.quotes.upsert` — jede Zeile wird als manuell gespeichert; das
+  Schema bietet nur `source: manual`, und die Antwort nennt die ersetzten
+  Daten.
+- `portfolixir.quotes.release` — die journalisierte Freigabe der manuellen
+  Kurse eines Zeitraums an die Anbieterdaten; zuerst für Agenten, das
+  Bedienelement auf der Seite folgt spätestens in Sprint 17.
 - `portfolixir.portfolios.list` — veraltet (ADR-0024): die Beschreibung
   verweist auf Buckets/Ansichten.
 - `portfolixir.portfolios.create` — veraltet (ADR-0024): nur Kompatibilität;

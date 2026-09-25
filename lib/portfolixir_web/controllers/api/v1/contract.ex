@@ -53,16 +53,20 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "Performance import still books onto them, a rename keeps the previous name, a name " <>
           "another account answers to is refused, and a former name is removable — and a " <>
           "policy rule's rename (ADR-0049 §4 as amended, #872): the name is a label outside the " <>
-          "versioning, so a rename creates no version and changes none.",
+          "versioning, so a rename creates no version and changes none — and every authored " <>
+          "quote write journaled, with a journaled release of manual quotes back to provider " <>
+          "data (T-9).",
       endpoints: [
         "DELETE /api/v1/cash_accounts/:id/former_names",
         "DELETE /api/v1/securities_accounts/:id/former_names",
-        "PATCH /api/v1/policy_rules/:id"
+        "PATCH /api/v1/policy_rules/:id",
+        "POST /api/v1/securities/:security_id/quotes/release"
       ],
       tools: [
         "portfolixir.cash_accounts.remove_former_name",
         "portfolixir.securities_accounts.remove_former_name",
-        "portfolixir.policy_rules.rename"
+        "portfolixir.policy_rules.rename",
+        "portfolixir.quotes.release"
       ],
       parameters: [
         "Every /api/v1 error the server answers itself rather than an endpoint (an unreadable body 400, a body over the size bound 413, an unknown route 404, an internal error 500) answers {\"errors\": {\"detail\": <reason phrase>}} with its own status (E25 S2, F68); it used to be {\"status\", \"error\"} for 404 and 500 and a bodyless 500 for every other status",
@@ -93,6 +97,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "GET /api/v1/portfolios/:portfolio_id/risk (portfolixir.portfolios.risk) caps top_n at 1000 and echoes the applied top_n (10 when absent); the MCP schema carries maximum 1000. metrics.correlations covers at most the 20 leading names of the Top-N list and carries leading_names, how many it ran over, and metrics.computation_basis.input_series states the bound; both used to grow with an unbounded top_n (E25 S4, F72)",
         "POST /api/v1/splits/preview and POST /api/v1/splits (portfolixir.splits.preview, .create) answer 422 on ratio when the security's splits, each counted by its own magnitude, would multiply past 10^12 with the new one included, and write nothing. The performance reads' irr (and mwr) are null when an amount lies outside the range the solver's one float step carries, and computation_basis.gaps names why irr can be null; such a read used to fail with a 500 (E25 S4, G12)",
         "POST /api/v1/securities/:security_id/isin-change (portfolixir.securities.isin_change) answers 422 on new_isin when its check digit does not agree, as well as for the shape. PATCH /api/v1/securities/:id (portfolixir.securities.update) answers 422 naming the field for an isin, wkn or ticker_symbol it changes that fails the catalog's rules: an ISIN of the shape with a check digit that agrees, a WKN of six letters or digits, a ticker of printable ASCII; resending the stored value is no change, and POST /api/v1/securities keeps what a new security is created with. POST and PATCH store a security's name without Unicode format characters (E25 S5, G23)",
+        "PUT /api/v1/securities/:security_id/quotes (portfolixir.quotes.upsert) stores every row as manual whatever source it names, and the MCP schema offers source manual only and lets it be omitted; the write is journaled under the token (resource_type security_quotes, filed under the security's id, operation upsert) with the stored rows it replaced as the before-image, and the answer carries replaced, the ISO dates whose stored row the write changed, beside upserted; a call that changes nothing writes no journal entry. It used to store the named source and replace a provider close with no trace (E25 S6, F20, G27, T-9)",
+        "POST /api/v1/securities/:security_id/quotes/release (portfolixir.quotes.release) takes from and to (both required, inclusive) and removes the security's manual quotes in the range, journaled (operation delete) with the released rows as the before-image, answering {security_id, from, to, released}; provider rows stay, and the next quote sync stores the provider's close for a released date. A missing or invalid date answers 422 naming it, to before from 422 on to, an unknown security 404. Agent-first: its control on the security page lands no later than Sprint 17 (E25 S6, T-9)",
+        "POST and PATCH /api/v1/tax/statement_snapshots (portfolixir.tax_snapshots.create, .update) never take source from the body: a recorded statement's source is manual, and the MCP schemas no longer offer it; it used to store a caller's pdf_import (E25 S6, F20)",
         "PATCH /api/v1/policy_rules/:id (portfolixir.policy_rules.rename) takes {\"name\"} only and answers the rule with its versions, none added or changed; journaled under the token with the previous name; allowed on a retired rule; names need not be unique. A blank, missing or non-text name answers 422 on name; a predicate field, a version, the version keys of the rule's read shape (version_in_force, next_version, versions) or the context (view_id, portfolio_id) in the same body answers 422 naming each such field, and nothing is written; any other key is ignored, as on PATCH /api/v1/plans/:id; a rule deleted since it was read answers 404 (ADR-0049 §4 and §8 as amended by the Sprint 16 plan D-6, #872)"
       ],
       removed_endpoints: [],

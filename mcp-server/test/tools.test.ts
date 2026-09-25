@@ -36,6 +36,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.quotes.sync",
       "portfolixir.quotes.list",
       "portfolixir.quotes.upsert",
+      "portfolixir.quotes.release",
       "portfolixir.portfolios.list",
       "portfolixir.portfolios.create",
       "portfolixir.cash_accounts.list",
@@ -196,26 +197,30 @@ describe("Portfolixir MCP tools", () => {
       "string"
     );
 
-    // The quote `source` is a closed set in the backend (Catalog.Quote @sources);
-    // expose it as an enum so an LLM does not guess a free-form value and hit an
-    // opaque 422 (#508).
+    // E25 S6, F20 (decision T-9): a quote an agent writes is manual, so the
+    // schema offers `manual` alone and may omit it; a provider source is the
+    // sync's to state and is refused before any request (#508's closed set,
+    // narrowed).
     const quoteUpsert = tools.find((tool) => tool.name === "portfolixir.quotes.upsert");
     assert.deepEqual(
       quoteUpsert?.inputSchema.properties.quotes.items.properties.source.enum,
-      ["auto", "manual", "coingecko", "portfolio_performance"]
+      ["manual"]
     );
-    assert.doesNotThrow(() =>
-      quoteUpsert?.zodSchema.parse({
-        security_id: 1,
-        quotes: [{ date: "2026-06-19", close: "100.00", source: "manual" }]
-      })
-    );
-    assert.throws(() =>
-      quoteUpsert?.zodSchema.parse({
-        security_id: 1,
-        quotes: [{ date: "2026-06-19", close: "100.00", source: "e2e" }]
-      })
-    );
+    assert.deepEqual(quoteUpsert?.inputSchema.properties.quotes.items.required, ["date", "close"]);
+    for (const quote of [
+      { date: "2026-06-19", close: "100.00", source: "manual" },
+      { date: "2026-06-19", close: "100.00" }
+    ]) {
+      assert.doesNotThrow(() => quoteUpsert?.zodSchema.parse({ security_id: 1, quotes: [quote] }));
+    }
+    for (const source of ["e2e", "auto", "coingecko", "portfolio_performance"]) {
+      assert.throws(() =>
+        quoteUpsert?.zodSchema.parse({
+          security_id: 1,
+          quotes: [{ date: "2026-06-19", close: "100.00", source }]
+        })
+      );
+    }
 
     assert.doesNotThrow(() =>
       securitiesCreate?.zodSchema.parse({
@@ -1033,6 +1038,43 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(requests[0].path, "/api/v1/classifications/3/assignments");
     assert.deepEqual(requests[0].body, { security_id: 7, category_id: 9 });
     assert.match(result.content[0].text, /category_id/);
+  });
+
+  // E25 S6, G27 under decision T-9: the journaled release of manual quotes,
+  // agent-first — its control on the security page is Sprint 17's.
+  it("releases a security's manual quotes of a range through the API", async () => {
+    const { client, requests } = createRecordingClient({
+      data: { security_id: 42, from: "2026-02-01", to: "2026-02-28", released: ["2026-02-02"] }
+    });
+
+    const result = await callTool(client, "portfolixir.quotes.release", {
+      security_id: 42,
+      from: "2026-02-01",
+      to: "2026-02-28"
+    });
+
+    assert.equal(requests[0].method, "POST");
+    assert.equal(requests[0].path, "/api/v1/securities/42/quotes/release");
+    assert.deepEqual(requests[0].body, { from: "2026-02-01", to: "2026-02-28" });
+    assert.match(result.content[0].text, /2026-02-02/);
+
+    const release = listTools().find((tool) => tool.name === "portfolixir.quotes.release");
+    assert.deepEqual(release?.inputSchema.required, ["security_id", "from", "to"]);
+    assert.match(release?.description ?? "", /journal/i);
+    assert.match(release?.description ?? "", /Sprint 17/);
+    assert.throws(() => release?.zodSchema.parse({ security_id: 42, from: "2026-02-01" }));
+
+    const upsert = listTools().find((tool) => tool.name === "portfolixir.quotes.upsert");
+    assert.match(upsert?.description ?? "", /stored as manual/);
+    assert.match(upsert?.description ?? "", /replaced/);
+  });
+
+  // E25 S6, F20: a tax statement's source is the system's to state.
+  it("offers no source on the tax statement write tools", () => {
+    for (const name of ["portfolixir.tax_snapshots.create", "portfolixir.tax_snapshots.update"]) {
+      const tool = listTools().find((candidate) => candidate.name === name);
+      assert.equal(tool?.inputSchema.properties.source, undefined, name);
+    }
   });
 
   it("passes richer quote sync status responses through unchanged", async () => {

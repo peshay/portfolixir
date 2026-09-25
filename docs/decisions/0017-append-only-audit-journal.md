@@ -240,6 +240,36 @@ TRUNCATE raise) and armed with the journal-actor guard in the migrations that
 create them, and both are written by the `Portfolixir.Lifecycle` context,
 actor-first. The operations stay `create | update | delete | upsert`.
 
+### Amendment: the quote exemption covers the sync writers only (Sprint 16, T-9)
+
+The security review of Sprint 16 (E25, finding G27, decision T-9 of its
+triage) found that the quote exemption above covered more than market-data
+ingestion: the quote upsert of the API, and of the MCP companion through it,
+wrote closes an agent or a person authored through the same unjournaled path,
+so an authored write could replace a stored close of any source and leave no
+before-image. The exemption is narrowed to the writers that ingest:
+
+- **Exempt:** the quote sync (`Portfolixir.Catalog.QuoteSync`, through
+  `Quotes.upsert_many/3`) and the exchange-rate sync, as before; and the
+  security merge writer of [ADR-0050](0050-lifecycle-merges-under-a-reimport-contract.html)
+  §13, whose moved and dropped quotes are recorded in the append-only merge
+  manifest instead.
+- **Journaled:** every **authored** quote write — the upsert
+  (`Catalog.upsert_quotes/3`) and the new release of manual quotes back to
+  provider data (`Catalog.release_manual_quotes/4`), over the API and MCP, and
+  the demo seeds through the same path. Each is one entry of the new
+  `resource_type` `security_quotes`, filed under the security's id (the new
+  `:resource_id` option of `Journal.record/3`), operation `upsert` or
+  `delete`, with the stored rows it replaced or released as the before-image,
+  in the same transaction as the rows. An authored row is always stored as
+  `manual` (finding F20), and ADR-0028's rule that a manual close wins over
+  provider data stays.
+
+The `security_quotes` table stays unarmed — the sync still writes it without
+an actor — so the split rests on the writers: a test pins that no module in
+`lib/` or the seeds other than the sync calls the unjournaled upsert. The
+operations stay `create | update | delete | upsert`.
+
 ## Consequences
 
 - **Every change to financial data becomes attributable and reversible by

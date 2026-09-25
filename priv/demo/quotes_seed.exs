@@ -4,8 +4,8 @@
 # Run after importing the demo dataset:
 #
 #   DATABASE_NAME=portfolixir_demo PORT=4003 mix run priv/demo/quotes_seed.exs
+alias Portfolixir.Actor
 alias Portfolixir.Catalog
-alias Portfolixir.Catalog.Quotes
 alias Portfolixir.Ledger
 
 :rand.seed(:exsss, {42, 42, 42})
@@ -29,9 +29,11 @@ for security <- Catalog.list_securities() do
       drift = 1.0 + (:rand.uniform() - 0.47) * 0.05
       next = max(price * drift, 0.01)
       date = Date.add(today, -back * 7)
-      {%{date: date, close: Float.round(next, 2) |> Float.to_string(), source: "manual"}, next}
+      {%{date: date, close: Float.round(next, 2) |> Float.to_string()}, next}
     end)
 
-  {:ok, _} = Quotes.upsert_many(security.id, rows)
+  # The authored, journaled quote path (E25 S6, T-9): a seeded close is a
+  # manual close, written as the operator.
+  {:ok, _} = Catalog.upsert_quotes(Actor.owner_ui(), security.id, rows)
   IO.puts("quotes seeded: #{security.name}")
 end

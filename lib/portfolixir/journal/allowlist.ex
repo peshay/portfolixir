@@ -8,6 +8,14 @@ defmodule Portfolixir.Journal.Allowlist do
   exempt from the audit journal and its tables are never armed with the
   actor-guard trigger.
 
+  The exemption is per writer, not per table (ADR-0017 as amended in Sprint 16,
+  T-9): an **authored** quote write — the API and MCP upsert and the release of
+  manual quotes — is journaled under `resource_type: "security_quotes"`
+  (`Portfolixir.Catalog.Quotes.upsert_authored/3`, `release_manual/4`). Only
+  the sync writers and ADR-0050 §13's merge writer write `security_quotes`
+  outside the journal; `test/portfolixir/catalog/quotes_authored_test.exs`
+  pins the unjournaled upsert to the sync.
+
   This list is governed by a meta-test so the exception set can only **shrink**,
   never grow silently. The `idempotency_keys` table (future) is operational
   state, not a journaled table, so it does not belong here — the allowlist
