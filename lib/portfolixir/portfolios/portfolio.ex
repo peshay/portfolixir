@@ -2,7 +2,9 @@ defmodule Portfolixir.Portfolios.Portfolio do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Input.Text
+  alias Portfolixir.Portfolios.Target
 
   schema "portfolios" do
     field(:name, :string)
@@ -33,10 +35,13 @@ defmodule Portfolixir.Portfolios.Portfolio do
   # per-category target weights: a fraction in `[0, 1]`, or `nil` when the
   # maintainer does not steer a cash quote. See ADR-0009 and issue #335.
   defp validate_cash_target_weight(changeset) do
-    validate_number(changeset, :cash_target_weight,
+    changeset
+    |> validate_number(:cash_target_weight,
       greater_than_or_equal_to: 0,
       less_than_or_equal_to: 1
     )
+    # The plan's scale (E25 S4, G14), refused before the portfolio is written.
+    |> BoundedDecimal.validate_scale(:cash_target_weight, Target.weight_scale())
   end
 
   defp normalize_currency_code(changeset) do

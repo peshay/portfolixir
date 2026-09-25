@@ -28,6 +28,7 @@ defmodule Portfolixir.Portfolios.TargetPlan do
 
   alias Portfolixir.Buckets.View
   alias Portfolixir.Classifications.Classification
+  alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Input.Text
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.Target
@@ -78,9 +79,15 @@ defmodule Portfolixir.Portfolios.TargetPlan do
   # The cash target is a fraction in `[0, 1]` (e.g. `0.05` for 5%), or `nil` when
   # the plan does not steer a cash quote — mirroring the per-category weights.
   defp validate_cash_target_weight(changeset) do
-    validate_number(changeset, :cash_target_weight,
+    changeset
+    |> validate_number(:cash_target_weight,
       greater_than_or_equal_to: 0,
       less_than_or_equal_to: 1
+    )
+    # E25 S4 (G14): the target weights' scale, at the database too.
+    |> BoundedDecimal.validate_scale(:cash_target_weight, Target.weight_scale())
+    |> check_constraint(:cash_target_weight,
+      name: :portfolio_target_plans_cash_target_weight_scale_check
     )
   end
 end

@@ -7814,6 +7814,11 @@ msgstr "%{security} liegt nicht mehr unter %{category} – leere dort sein Posit
 msgid "A target must lie between 0 and 100 %"
 msgstr "Ein Ziel muss zwischen 0 und 100 % liegen"
 
+#: lib/portfolixir_web/live/classifications_live.ex
+#, elixir-autogen, elixir-format
+msgid "A target carries at most four decimal places in percent"
+msgstr "Ein Ziel hat in Prozent höchstens vier Nachkommastellen"
+
 #: lib/portfolixir_web/live/imports_live.ex:530
 #, elixir-autogen, elixir-format
 msgid "Skipped one internal transfer: both sides lead to the same account or depot."

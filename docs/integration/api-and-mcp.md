@@ -1176,7 +1176,9 @@ Example account payloads:
   classification. The body is `{"classification_id": id, "targets": [{"category_id":
   id, "target_weight": "0.25"}]}` and may carry an optional `"view": id` to write
   that view's plan (omitted = Gesamt). Each `target_weight` is a string fraction
-  in `[0, 1]`; targets need not sum to `1`. Only the supplied categories are
+  in `[0, 1]` with at most 6 decimal places (four in percent); a finer weight
+  answers `422` on `target_weight`, and the database refuses it too. Targets
+  need not sum to `1`. Only the supplied categories are
   changed. A category from another tree returns `422 Unprocessable Entity`, and an
   unknown classification returns `404 Not Found`. A batch names each category
   row once and carries at most one row per category and one per security
@@ -1418,7 +1420,11 @@ church tax withheld at a zero church-tax rate.
   category drift) and `rebalance_quantity` (indicative units to sell
   (positive) or buy (negative) at the valuation's implied base-currency unit
   price; no fee/tax modelling, never an order). Both hints are `null` without
-  a plan and for `unassigned` positions without their own position SOLL.
+  a plan, for `unassigned` positions without their own position SOLL, and for a
+  position valued at `0` without its own SOLL, which holds no share of its
+  category's drift (E25 S4); the page shows "—" and sorts such a row after the
+  rows that drift. With the position rows, the payload's `computation_basis`
+  states the drift share's basis (`drift_value`) and lists these gaps.
   Entries come largest first,
   securities merged across depots;
   this is what the sunburst's outermost ring renders. **Position-level SOLL
@@ -1593,8 +1599,8 @@ church tax withheld at a zero church-tax rate.
 - `PUT /api/v1/portfolios/:portfolio_id/cash_target` sets (or clears with
   `null`) a plan's cash target. The body is `{"cash_target_weight": "0.05"}` and
   may carry an optional `"view": id` (omitted = Gesamt). It echoes the stored
-  value back. Out-of-range weights return `422 Unprocessable Entity`. The cash
-  target feeds the allocation's `cash` row and the `top_level_target_sum` for the
+  value back. Out-of-range weights, and weights with more than 6 decimal places,
+  return `422 Unprocessable Entity`. The cash target feeds the allocation's `cash` row and the `top_level_target_sum` for the
   addressed view.
 - `PATCH /api/v1/portfolios/:portfolio_id` patches a portfolio's master data.
   **Deprecated (ADR-0024)** — answers with `Deprecation: true`; compatibility

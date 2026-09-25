@@ -1114,7 +1114,15 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       deep_target_sum: decimal(Map.get(allocation, :deep_target_sum)),
       unassigned: allocation_unassigned(allocation.unassigned, include_positions?)
     }
+    |> put_positions_basis(include_positions?)
   end
+
+  # The position rows' drift-share basis and its gaps (AGENTS.md; E25 S4,
+  # G14) travel with the position rows: a roll-up-only read carries none.
+  defp put_positions_basis(payload, true),
+    do: Map.put(payload, :computation_basis, Allocation.computation_basis())
+
+  defp put_positions_basis(payload, false), do: payload
 
   @doc """
   Per-category result (ADR-0041 slice one, #712).

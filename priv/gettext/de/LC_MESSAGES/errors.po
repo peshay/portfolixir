@@ -118,3 +118,9 @@ msgstr "darf außer Tabulatoren und Zeilenumbrüchen keine Steuerzeichen enthalt
 ## Portfolixir.Catalog.Isin: the new ISIN of an ISIN change.
 msgid "is not an ISIN (two letters, nine letters or digits and a check digit)"
 msgstr "ist keine ISIN (zwei Buchstaben, neun Buchstaben oder Ziffern und eine Prüfziffer)"
+
+## Portfolixir.Input.BoundedDecimal: a target weight's scale (G14).
+msgid "must have at most %{count} decimal places"
+msgid_plural "must have at most %{count} decimal places"
+msgstr[0] "darf höchstens %{count} Nachkommastelle haben"
+msgstr[1] "darf höchstens %{count} Nachkommastellen haben"

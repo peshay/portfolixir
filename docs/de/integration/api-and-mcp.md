@@ -1195,8 +1195,10 @@ Beispiel-Payloads für Konten:
   Klassifizierung ein (Upsert). Der Body ist `{"classification_id": id, "targets":
   [{"category_id": id, "target_weight": "0.25"}]}` und kann ein optionales
   `"view": id` tragen, um den Plan dieser View zu schreiben (weggelassen =
-  Gesamt). Jedes `target_weight` ist ein String-Bruch in `[0, 1]`; Ziele müssen
-  sich nicht zu `1` summieren. Nur die übergebenen Kategorien werden geändert.
+  Gesamt). Jedes `target_weight` ist ein String-Bruch in `[0, 1]` mit höchstens
+  6 Nachkommastellen (vier in Prozent); ein feineres Gewicht liefert `422` auf
+  `target_weight`, und die Datenbank lehnt es ebenfalls ab. Ziele müssen sich
+  nicht zu `1` summieren. Nur die übergebenen Kategorien werden geändert.
   Eine Kategorie aus einem anderen Baum liefert `422 Unprocessable Entity`, und
   eine unbekannte Klassifizierung liefert `404 Not Found`. Ein Stapel nennt jede
   Kategoriezeile einmal und trägt höchstens eine Zeile je Kategorie und eine je
@@ -1234,8 +1236,12 @@ Beispiel-Payloads für Konten:
   der Kategorie-Drift) und `rebalance_quantity` (indikative Stückzahl, die zum
   impliziten Stückpreis der Bewertung zu verkaufen (positiv) oder zu kaufen
   (negativ) wäre; ohne Gebühren-/Steuermodell, nie eine Order). Beide Hinweise
-  sind ohne Plan und für `unassigned`-Positionen ohne eigenes Positions-Soll
-  `null`. Einträge kommen größte zuerst, Wertpapiere über Depots
+  sind ohne Plan, für `unassigned`-Positionen ohne eigenes Positions-Soll und
+  für eine mit `0` bewertete Position ohne eigenes Soll `null`, die keinen
+  Anteil an der Drift ihrer Kategorie hat (E25 S4); die Seite zeigt „—“ und
+  sortiert eine solche Zeile hinter die Zeilen mit Drift. Mit den
+  Positionszeilen nennt `computation_basis` im Payload die Grundlage des
+  Drift-Anteils (`drift_value`) und diese Lücken. Einträge kommen größte zuerst, Wertpapiere über Depots
   zusammengeführt; das ist es, was der äußerste Ring des Sunburst rendert.
   **Positions-Soll (ADR-0030 Slice 2a):** die `positions` einer Kategorie sind
   die Vereinigung ihrer gehaltenen Positionen und der Positions-Ziel-Zeilen des
@@ -1418,8 +1424,8 @@ Beispiel-Payloads für Konten:
 - `PUT /api/v1/portfolios/:portfolio_id/cash_target` setzt (oder löscht mit
   `null`) das Cash-Ziel eines Plans. Der Body ist `{"cash_target_weight":
   "0.05"}` und kann ein optionales `"view": id` tragen (weggelassen = Gesamt). Es
-  gibt den gespeicherten Wert zurück. Gewichte außerhalb des Bereichs liefern
-  `422 Unprocessable Entity`. Das Cash-Ziel speist die `cash`-Zeile der Allokation
+  gibt den gespeicherten Wert zurück. Gewichte außerhalb des Bereichs und
+  Gewichte mit mehr als 6 Nachkommastellen liefern `422 Unprocessable Entity`. Das Cash-Ziel speist die `cash`-Zeile der Allokation
   und den `top_level_target_sum` der adressierten View.
 - `PATCH /api/v1/portfolios/:portfolio_id` patcht die Stammdaten eines Portfolios.
   **Veraltet (ADR-0024)** — antwortet mit `Deprecation: true`; nur

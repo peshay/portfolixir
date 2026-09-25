@@ -417,7 +417,9 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     zero_entry = Enum.find(core_row.positions, &(&1.security_name == "Worthless Co"))
 
     assert Decimal.equal?(zero_entry.market_value, Decimal.new("0"))
-    assert Decimal.equal?(zero_entry.drift_value, Decimal.new("0"))
+    # E25 S4, G14 (board 12, zero-value drift): no share of the category's
+    # drift either — nil, as for an unassigned position, not a signed zero.
+    assert is_nil(zero_entry.drift_value)
     assert is_nil(zero_entry.rebalance_quantity)
   end
 

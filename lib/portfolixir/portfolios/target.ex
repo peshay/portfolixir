@@ -34,6 +34,7 @@ defmodule Portfolixir.Portfolios.Target do
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Classifications.Category
   alias Portfolixir.Classifications.Classification
+  alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.TargetPlan
 
@@ -58,6 +59,15 @@ defmodule Portfolixir.Portfolios.Target do
     timestamps()
   end
 
+  @weight_scale 6
+
+  @doc """
+  The most decimal places a target or cash-target weight carries (E25 S4,
+  G14): a fraction to a millionth, a percentage to four places.
+  """
+  @spec weight_scale() :: pos_integer()
+  def weight_scale, do: @weight_scale
+
   def changeset(target, attrs) do
     target
     |> cast(attrs, [
@@ -79,6 +89,11 @@ defmodule Portfolixir.Portfolios.Target do
       greater_than_or_equal_to: 0,
       less_than_or_equal_to: 1
     )
+    # E25 S4 (G14): a weight carries at most `weight_scale/0` decimal places,
+    # so the allocation's renormalisation never works at a precision the plan
+    # does not hold. The database refuses a finer one as well.
+    |> BoundedDecimal.validate_scale(:target_weight, weight_scale())
+    |> check_constraint(:target_weight, name: :portfolio_targets_target_weight_scale_check)
     |> assoc_constraint(:plan)
     |> assoc_constraint(:portfolio)
     |> assoc_constraint(:classification)

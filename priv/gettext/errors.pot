@@ -122,3 +122,9 @@ msgstr ""
 ## Portfolixir.Catalog.Isin: the new ISIN of an ISIN change.
 msgid "is not an ISIN (two letters, nine letters or digits and a check digit)"
 msgstr ""
+
+## Portfolixir.Input.BoundedDecimal: a target weight's scale (G14).
+msgid "must have at most %{count} decimal places"
+msgid_plural "must have at most %{count} decimal places"
+msgstr[0] ""
+msgstr[1] ""
