@@ -40,4 +40,29 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
        ]}
     ])
   end
+
+  # User story (E25 S7, F22):
+  # As an operator running the companion over HTTP,
+  # I want the reference to say that a foreign Host is refused first,
+  # so that a proxy name I forgot to allow is recognised by its answer.
+  #
+  # Acceptance criteria:
+  # - The EN and DE MCP pages state the exact Host check, name and port, its
+  #   403 ahead of the origin and the token, and the variable that widens it.
+  test "the MCP pages state the companion's Host check" do
+    assert_fragments([
+      {"docs/integration/api-and-mcp.md",
+       [
+         "checks the `Host` header exactly, name and port",
+         "is answered `403` before its origin or its token is looked at",
+         "`PORTFOLIXIR_MCP_ALLOWED_HOSTS`"
+       ]},
+      {"docs/de/integration/api-and-mcp.md",
+       [
+         "prüft der Begleitdienst den `Host`-Header genau, Name und Port",
+         "wird mit `403` beantwortet, bevor ihr Origin oder ihr Token betrachtet wird",
+         "`PORTFOLIXIR_MCP_ALLOWED_HOSTS`"
+       ]}
+    ])
+  end
 end
