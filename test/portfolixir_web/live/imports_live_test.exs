@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
   import Phoenix.LiveViewTest
 
   alias Portfolixir.Buckets
+  alias Portfolixir.Imports.Mapping
   alias Portfolixir.Imports.PreviewStore
   alias Portfolixir.Ledger
   alias Portfolixir.Lifecycle.AccountNames
@@ -59,9 +60,21 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     assert html =~ "Buy"
     assert html =~ "Dividend"
     assert has_element?(view, "form#pp-import-apply input[name='bucket_tag']")
-    assert has_element?(view, "form#pp-import-apply select[name=\"cash[Test-Cash]\"]")
-    assert has_element?(view, "form#pp-import-apply select[name=\"depot[Test-Depot][target]\"]")
-    assert has_element?(view, "form#pp-import-apply select[name=\"depot[Test-Depot][cash]\"]")
+
+    assert has_element?(
+             view,
+             ~s(form#pp-import-apply select[name="cash[#{row_key("cash", "Test-Cash")}]"])
+           )
+
+    assert has_element?(
+             view,
+             ~s(form#pp-import-apply select[name="depot[#{row_key("depot", "Test-Depot")}][target]"])
+           )
+
+    assert has_element?(
+             view,
+             ~s(form#pp-import-apply select[name="depot[#{row_key("depot", "Test-Depot")}][cash]"])
+           )
   end
 
   # User story:
@@ -191,7 +204,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     # The auto-detected initial mapping leaves Test-Depot-2 without a linked cash
     # account (no account field on SECURITY_TRANSFER rows), so we must supply the
     # full mapping before checking the enabled/disabled state.
-    view |> element("form#pp-import-apply") |> render_change(submit_params)
+    view |> element("form#pp-import-apply") |> render_change(keyed(submit_params))
 
     # Before submit: confirm button is enabled and carries phx-disable-with.
     assert has_element?(
@@ -203,7 +216,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
 
     # Trigger submit; the handler sets :applying and starts the async task.
     # render_submit returns the intermediate (applying) HTML before the task finishes.
-    applying_html = view |> element("form#pp-import-apply") |> render_submit(submit_params)
+    applying_html = view |> element("form#pp-import-apply") |> render_submit(keyed(submit_params))
 
     # The returned HTML reflects the applying state: button text changes and disabled is set.
     # We assert on applying_html (not `view`) because the async task may complete before
@@ -244,16 +257,18 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     # Completing the mapping clears the hint and enables Confirm.
     view
     |> element("form#pp-import-apply")
-    |> render_change(%{
-      "cash" => %{
-        "Test-Cash" => "create:Test-Cash",
-        "Test-Cash-2" => "create:Test-Cash-2"
-      },
-      "depot" => %{
-        "Test-Depot" => %{"target" => "create:Test-Depot", "cash" => "pp:Test-Cash"},
-        "Test-Depot-2" => %{"target" => "create:Test-Depot-2", "cash" => "pp:Test-Cash"}
-      }
-    })
+    |> render_change(
+      keyed(%{
+        "cash" => %{
+          "Test-Cash" => "create:Test-Cash",
+          "Test-Cash-2" => "create:Test-Cash-2"
+        },
+        "depot" => %{
+          "Test-Depot" => %{"target" => "create:Test-Depot", "cash" => "pp:Test-Cash"},
+          "Test-Depot-2" => %{"target" => "create:Test-Depot-2", "cash" => "pp:Test-Cash"}
+        }
+      })
+    )
 
     refute has_element?(view, "#pp-import-confirm[disabled]")
     refute has_element?(view, "#import-missing-hint")
@@ -278,8 +293,8 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       "depot" => %{"Depot" => %{"target" => "create:Depot", "cash" => "pp:Cash"}}
     }
 
-    view |> element("form#pp-import-apply") |> render_change(submit_params)
-    view |> element("form#pp-import-apply") |> render_submit(submit_params)
+    view |> element("form#pp-import-apply") |> render_change(keyed(submit_params))
+    view |> element("form#pp-import-apply") |> render_submit(keyed(submit_params))
     done_html = render_async(view, 1_000)
 
     assert done_html =~ "Import complete"
@@ -342,7 +357,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       }
     }
 
-    view |> element("form#pp-import-apply") |> render_submit(submit_params)
+    view |> element("form#pp-import-apply") |> render_submit(keyed(submit_params))
     html = render_async(view, 1_000)
 
     assert html =~ "Import complete"
@@ -405,7 +420,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       }
     }
 
-    html = view |> element("form#pp-import-apply") |> render_submit(submit_params)
+    html = view |> element("form#pp-import-apply") |> render_submit(keyed(submit_params))
 
     refute html =~ "Import complete"
     assert has_element?(view, "p.alert-error")
@@ -437,7 +452,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       }
     }
 
-    html = view |> element("form#pp-import-apply") |> render_submit(submit_params)
+    html = view |> element("form#pp-import-apply") |> render_submit(keyed(submit_params))
 
     refute html =~ "Import complete"
     assert has_element?(view, "p.alert-error")
@@ -464,7 +479,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       }
     }
 
-    view |> element("form#pp-import-apply") |> render_submit(submit_params)
+    view |> element("form#pp-import-apply") |> render_submit(keyed(submit_params))
     assert render_async(view, 1_000) =~ "Import complete"
 
     [bucket] = Buckets.list_buckets()
@@ -494,7 +509,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
 
     view |> element("button", "Import another file") |> render_click()
     upload_sample(view)
-    view |> element("form#pp-import-apply") |> render_submit(second_params)
+    view |> element("form#pp-import-apply") |> render_submit(keyed(second_params))
     html = render_async(view, 1_000)
 
     assert html =~ "Import complete"
@@ -557,7 +572,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       }
     }
 
-    view |> element("form#pp-import-apply") |> render_submit(submit_params)
+    view |> element("form#pp-import-apply") |> render_submit(keyed(submit_params))
     assert render_async(view, 1_000) =~ "Import complete"
 
     # No third bucket appeared; the entered name reused "Familie".
@@ -591,7 +606,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     }
 
     # Skip wins over the entered name.
-    view |> element("form#pp-import-apply") |> render_submit(submit_params)
+    view |> element("form#pp-import-apply") |> render_submit(keyed(submit_params))
     assert render_async(view, 1_000) =~ "Import complete"
     assert Buckets.list_buckets() == []
 
@@ -616,7 +631,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       }
     }
 
-    view |> element("form#pp-import-apply") |> render_submit(submit_params)
+    view |> element("form#pp-import-apply") |> render_submit(keyed(submit_params))
     assert render_async(view, 1_000) =~ "Import complete"
     assert Buckets.list_buckets() == []
   end
@@ -660,14 +675,16 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     # Change the mapping so we can verify it is preserved after remount.
     view
     |> element("form#pp-import-apply")
-    |> render_change(%{
-      "bucket_tag" => "My Preserved Tag",
-      "cash" => %{"Test-Cash" => "create:Test-Cash", "Test-Cash-2" => "create:Test-Cash-2"},
-      "depot" => %{
-        "Test-Depot" => %{"target" => "create:Test-Depot", "cash" => "pp:Test-Cash"},
-        "Test-Depot-2" => %{"target" => "create:Test-Depot-2", "cash" => "pp:Test-Cash"}
-      }
-    })
+    |> render_change(
+      keyed(%{
+        "bucket_tag" => "My Preserved Tag",
+        "cash" => %{"Test-Cash" => "create:Test-Cash", "Test-Cash-2" => "create:Test-Cash-2"},
+        "depot" => %{
+          "Test-Depot" => %{"target" => "create:Test-Depot", "cash" => "pp:Test-Cash"},
+          "Test-Depot-2" => %{"target" => "create:Test-Depot-2", "cash" => "pp:Test-Cash"}
+        }
+      })
+    )
 
     # Verify PreviewStore holds the entry under our session token.
     # The store is keyed by a hash of the session token (#768), never the token.
@@ -689,17 +706,19 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     # Cleanup: verify the store entry is deleted after a successful import.
     view2
     |> element("form#pp-import-apply")
-    |> render_submit(%{
-      "bucket_tag" => "My Preserved Tag",
-      "cash" => %{
-        "Test-Cash" => "create:Test-Cash",
-        "Test-Cash-2" => "create:Test-Cash-2"
-      },
-      "depot" => %{
-        "Test-Depot" => %{"target" => "create:Test-Depot", "cash" => "pp:Test-Cash"},
-        "Test-Depot-2" => %{"target" => "create:Test-Depot-2", "cash" => "pp:Test-Cash"}
-      }
-    })
+    |> render_submit(
+      keyed(%{
+        "bucket_tag" => "My Preserved Tag",
+        "cash" => %{
+          "Test-Cash" => "create:Test-Cash",
+          "Test-Cash-2" => "create:Test-Cash-2"
+        },
+        "depot" => %{
+          "Test-Depot" => %{"target" => "create:Test-Depot", "cash" => "pp:Test-Cash"},
+          "Test-Depot-2" => %{"target" => "create:Test-Depot-2", "cash" => "pp:Test-Cash"}
+        }
+      })
+    )
 
     html3 = render_async(view2, 1_000)
 
@@ -793,7 +812,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       }
     }
 
-    view |> element("form#pp-import-apply") |> render_submit(submit_params)
+    view |> element("form#pp-import-apply") |> render_submit(keyed(submit_params))
     html = render_async(view, 1_000)
 
     # The import must not have succeeded — we stay on preview, not done.
@@ -1137,8 +1156,8 @@ defmodule PortfolixirWeb.ImportsLiveTest do
         "security" => %{decision_key => %{"choice" => "create"}}
       }
 
-      view |> element("form#pp-import-apply") |> render_change(mapping)
-      view |> element("form#pp-import-apply") |> render_submit(mapping)
+      view |> element("form#pp-import-apply") |> render_change(keyed(mapping))
+      view |> element("form#pp-import-apply") |> render_submit(keyed(mapping))
 
       html = render_async(view, 1_000)
 
@@ -1200,6 +1219,32 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     end
   end
 
+  # E25 S5 (F42): the page addresses cash and depot rows by an opaque key;
+  # these tests name the rows by their file name and translate here.
+  defp row_key(kind, name), do: Mapping.row_key(kind, name)
+
+  defp keyed(%{} = params) do
+    params
+    |> key_rows("cash", "cash")
+    |> key_rows("depot", "depot")
+    |> Map.update("remember", nil, fn
+      %{} = remember -> remember |> key_rows("cash", "cash") |> key_rows("depot", "depot")
+      other -> other
+    end)
+    |> Enum.reject(fn {_field, value} -> is_nil(value) end)
+    |> Map.new()
+  end
+
+  defp key_rows(params, field, kind) do
+    case Map.get(params, field) do
+      %{} = rows ->
+        Map.put(params, field, Map.new(rows, fn {name, v} -> {row_key(kind, name), v} end))
+
+      _other ->
+        params
+    end
+  end
+
   defp setup_portfolio do
     {:ok, p} =
       Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
@@ -1253,12 +1298,12 @@ defmodule PortfolixirWeb.ImportsLiveTest do
 
     {:ok, view, _html} = live(conn, "/imports")
     upload_sample(view)
-    view |> element("form#pp-import-apply") |> render_submit(mapping)
+    view |> element("form#pp-import-apply") |> render_submit(keyed(mapping))
     assert render_async(view, 1_000) =~ "Created transactions: 13"
 
     {:ok, view, _html} = live(conn, "/imports")
     upload_sample(view)
-    view |> element("form#pp-import-apply") |> render_change(mapping)
+    view |> element("form#pp-import-apply") |> render_change(keyed(mapping))
     html = view |> element("form#pp-import-apply") |> render_submit()
     html = if html =~ "Import complete", do: html, else: render_async(view, 1_000)
 
@@ -1305,9 +1350,11 @@ defmodule PortfolixirWeb.ImportsLiveTest do
 
     view
     |> element("form#pp-import-apply")
-    |> render_submit(%{
-      "cash" => %{"Giro" => "existing:#{main.id}", "Tagesgeld" => "existing:#{main.id}"}
-    })
+    |> render_submit(
+      keyed(%{
+        "cash" => %{"Giro" => "existing:#{main.id}", "Tagesgeld" => "existing:#{main.id}"}
+      })
+    )
 
     html = render_async(view, 1_000)
 
@@ -1419,7 +1466,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
 
       assert has_element?(
                view,
-               ~s(select[name="cash[Giro]"] option[value="existing:#{main.id}"][selected])
+               ~s(select[name="cash[#{row_key("cash", "Giro")}]"] option[value="existing:#{main.id}"][selected])
              )
 
       view |> element("form#pp-import-apply") |> render_submit()
@@ -1458,7 +1505,11 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       {:ok, view, _html} = live(conn, "/imports")
       upload_payload(view, "ambiguous.json", body, "application/json")
 
-      assert has_element?(view, ~s(select[name="cash[Giro]"] option[value=""][selected]))
+      assert has_element?(
+               view,
+               ~s(select[name="cash[#{row_key("cash", "Giro")}]"] option[value=""][selected])
+             )
+
       assert has_element?(view, "#pp-import-confirm[disabled]")
       assert view |> element("#import-missing-hint") |> render() =~ "cash account: Giro"
     end
@@ -1494,10 +1545,12 @@ defmodule PortfolixirWeb.ImportsLiveTest do
 
       view
       |> element("form#pp-import-apply")
-      |> render_submit(%{
-        "cash" => %{"Cash EUR" => "existing:#{broker.id}", "Other" => "existing:#{second.id}"},
-        "remember" => %{"cash" => %{"Other" => "false"}}
-      })
+      |> render_submit(
+        keyed(%{
+          "cash" => %{"Cash EUR" => "existing:#{broker.id}", "Other" => "existing:#{second.id}"},
+          "remember" => %{"cash" => %{"Other" => "false"}}
+        })
+      )
 
       assert render_async(view, 1_000) =~ "Created transactions: 2"
 
@@ -1544,7 +1597,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
 
       view
       |> element("form#pp-import-apply")
-      |> render_submit(%{"cash" => %{"Giro" => "existing:#{household.id}"}})
+      |> render_submit(keyed(%{"cash" => %{"Giro" => "existing:#{household.id}"}}))
 
       assert render_async(view, 1_000) =~ "Created transactions: 1"
       assert [%{cash_account_id: cash_id}] = Ledger.list_transactions()
@@ -1585,7 +1638,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
 
       assert has_element?(
                view,
-               ~s(select[name="cash[Giro]"] option[value="existing:#{main.id}"][selected])
+               ~s(select[name="cash[#{row_key("cash", "Giro")}]"] option[value="existing:#{main.id}"][selected])
              )
 
       {:ok, _} =
@@ -1630,7 +1683,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
 
       assert has_element?(
                view,
-               ~s|select[name="cash[Savings (old)]"] option[value="existing:#{old.id}"][selected]|
+               ~s|select[name="cash[#{row_key("cash", "Savings (old)")}]"] option[value="existing:#{old.id}"][selected]|
              )
 
       {:ok, _} =
@@ -1656,7 +1709,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
 
       assert has_element?(
                view,
-               ~s|select[name="cash[Savings (old)]"] option[value="create:Savings (old)"][selected]|
+               ~s|select[name="cash[#{row_key("cash", "Savings (old)")}]"] option[value="create:Savings (old)"][selected]|
              )
     end
   end

@@ -7,6 +7,7 @@ defmodule PortfolixirWeb.ImportsMalformedMappingTest do
   import Phoenix.LiveViewTest
 
   alias Portfolixir.Actor
+  alias Portfolixir.Imports.Mapping
   alias Portfolixir.Imports.PreviewStore
   alias Portfolixir.Portfolios
 
@@ -47,6 +48,11 @@ defmodule PortfolixirWeb.ImportsMalformedMappingTest do
     upload_sample(view)
     assert render(view) =~ "Preview"
 
+    # E25 S5 (F42): rows are addressed by their opaque key, so the malformed
+    # shapes below reach the rows the page knows.
+    cash = Mapping.row_key("cash", "Test-Cash")
+    depot = Mapping.row_key("depot", "Test-Depot")
+
     payloads = [
       %{"cash" => "x"},
       %{"depot" => "x"},
@@ -54,15 +60,16 @@ defmodule PortfolixirWeb.ImportsMalformedMappingTest do
       %{"remember" => "x"},
       %{"bucket_tag" => %{"a" => "b"}},
       %{"bucket_tag" => ["a"]},
-      %{"cash" => %{"Test-Cash" => %{"a" => "b"}}},
-      %{"cash" => %{"Test-Cash" => ["existing:1"]}},
-      %{"depot" => %{"Test-Depot" => "existing:1"}},
-      %{"depot" => %{"Test-Depot" => %{"target" => %{"a" => "b"}, "cash" => ["x"]}}},
+      %{"cash" => %{cash => %{"a" => "b"}}},
+      %{"cash" => %{cash => ["existing:1"]}},
+      %{"cash" => %{"not-a-key" => "existing:1", "Test-Cash" => "existing:1"}},
+      %{"depot" => %{depot => "existing:1"}},
+      %{"depot" => %{depot => %{"target" => %{"a" => "b"}, "cash" => ["x"]}}},
       %{"security" => %{"k" => "x"}},
       %{"security" => %{"k" => %{"choice" => %{"a" => "b"}}}},
       %{"remember" => %{"cash" => "x", "depot" => ["x"]}},
-      %{"cash" => %{"Test-Cash" => "existing:#{@past_bigint}"}},
-      %{"depot" => %{"Test-Depot" => %{"target" => "existing:#{@past_bigint}", "cash" => ""}}}
+      %{"cash" => %{cash => "existing:#{@past_bigint}"}},
+      %{"depot" => %{depot => %{"target" => "existing:#{@past_bigint}", "cash" => ""}}}
     ]
 
     for event <- ["mapping_changed", "apply"], payload <- payloads do
@@ -80,6 +87,8 @@ defmodule PortfolixirWeb.ImportsMalformedMappingTest do
     assert {_preview, mapping} = PreviewStore.get(PreviewStore.key_for(@session_token))
     assert is_binary(mapping.bucket_tag)
     assert Enum.all?(mapping.cash, fn {name, choice} -> is_binary(name) and is_binary(choice) end)
+    # A key the preview did not hand out, or a bare file name, addresses no row.
+    assert Map.keys(mapping.cash) |> Enum.sort() == ["Test-Cash", "Test-Cash-2"]
     assert Enum.all?(mapping.depot, fn {_name, row} -> is_map(row) end)
     assert Enum.all?(mapping.security, fn {_key, row} -> is_map(row) end)
 

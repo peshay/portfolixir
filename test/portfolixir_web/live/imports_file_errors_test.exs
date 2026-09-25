@@ -204,4 +204,102 @@ defmodule PortfolixirWeb.ImportsFileErrorsTest do
 
     assert byte_size(html) < 2_000_000
   end
+
+  # The form as a browser sends it: every cash and depot select of the
+  # mapping step under the name the page gave it, URL-encoded in page order
+  # and decoded the way the socket decodes a form. `picks` overrides the
+  # selected value by {row kind, file name}; any other select sends its
+  # current choice.
+  defp browser_form(view, picks) do
+    doc = view |> render() |> Floki.parse_document!()
+
+    pairs =
+      for row <- Floki.find(doc, "#pp-import-apply .mapping-row"),
+          selects = Floki.find(row, "select"),
+          [first | _] = selects,
+          [name] = Floki.attribute(first, "name"),
+          String.starts_with?(name, ["cash[", "depot["]),
+          {select, field} <- Enum.zip(selects, fields_of(row)),
+          do: {select_name(select), pick(picks, field, source_name(row), select)}
+
+    pairs |> URI.encode_query() |> Plug.Conn.Query.decode()
+  end
+
+  defp fields_of(row) do
+    if row |> Floki.attribute("class") |> Enum.join(" ") =~ "depot",
+      do: [:depot_target, :depot_cash],
+      else: [:cash]
+  end
+
+  defp select_name(select), do: select |> Floki.attribute("name") |> hd()
+
+  defp source_name(row) do
+    [source] = Floki.find(row, ".source")
+    label = source |> Floki.find("small") |> Floki.text()
+    source |> Floki.text() |> String.replace(label, "") |> String.trim()
+  end
+
+  defp pick(picks, field, name, select) do
+    Map.get_lazy(picks, {field, name}, fn ->
+      case Floki.find(select, "option[selected]") do
+        [option | _] -> option |> Floki.attribute("value") |> hd()
+        [] -> ""
+      end
+    end)
+  end
+
+  # User story (E25 S5, F42):
+  # As an operator mapping an export whose account names contain brackets,
+  # I want each cash-account and depot row to keep exactly the choice I make,
+  # so that a name from the file can never rewrite another row's choice.
+  #
+  # Acceptance criteria:
+  # - Rows are addressed by an opaque key: no file name appears in a field
+  #   name.
+  # - A bracket-bearing name neither changes a sibling row's choice nor
+  #   crashes the page; the operator's pick applies to each row.
+  test "bracket-bearing account names neither change sibling rows nor lose the operator's pick",
+       %{conn: conn} do
+    [portfolio] = Portfolios.list_portfolios()
+
+    {:ok, main} =
+      Portfolios.create_cash_account(Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        name: "Main",
+        currency_code: "EUR"
+      })
+
+    export =
+      csv([
+        "2024-01-15;Einlage;;;;100,00;;;100,00;Victim;;;",
+        "2024-01-15;Einlage;;;;200,00;;;200,00;Victim][x;;;",
+        "2024-01-15 10:01:00;Kauf;Synthetic AG;1;1,00;1,00;;;1,00;D1;Victim;;",
+        "2024-01-15 10:02:00;Kauf;Synthetic AG;1;1,00;1,00;;;1,00;D1][cash;Victim;;"
+      ])
+
+    {:ok, view, _html} = live(conn, "/imports")
+    upload(view, "brackets.csv", export)
+    assert render(view) =~ "Preview"
+
+    for name <- view |> render() |> Floki.parse_document!() |> Floki.attribute("select", "name") do
+      refute name =~ ~r/Victim|D1/, name
+    end
+
+    main_choice = "existing:#{main.id}"
+
+    params =
+      browser_form(view, %{
+        {:cash, "Victim][x"} => main_choice,
+        {:depot_cash, "D1"} => main_choice
+      })
+
+    render_hook(view, "mapping_changed", params)
+    assert Process.alive?(view.pid)
+
+    assert {_preview, mapping} = parked()
+    assert mapping.cash["Victim"] == "create:Victim"
+    assert mapping.cash["Victim][x"] == main_choice
+    assert mapping.depot["D1"] == %{"target" => "create:D1", "cash" => main_choice}
+    assert mapping.depot["D1][cash"] == %{"target" => "create:D1][cash", "cash" => "pp:Victim"}
+  end
 end

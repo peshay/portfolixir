@@ -11,6 +11,21 @@ defmodule Portfolixir.Imports.Mapping do
   alias Portfolixir.Imports.Preview
 
   @doc """
+  The opaque key a mapping row of the preview is addressed by (E25 S5, F42):
+  a truncated SHA-256 over the row's kind (`"cash"` or `"depot"`) and the
+  file's name, in lowercase hex. A file name never becomes part of a form
+  field's name, where brackets in it would nest into another row's
+  parameters; the page maps the key back to the name on the server.
+  """
+  @spec row_key(String.t(), String.t()) :: String.t()
+  def row_key(kind, name) when kind in ["cash", "depot"] and is_binary(name) do
+    :sha256
+    |> :crypto.hash([kind, 0, name])
+    |> Base.encode16(case: :lower)
+    |> binary_part(0, 32)
+  end
+
+  @doc """
   Returns the set of unique PP cash account names referenced anywhere
   in the preview (parent + companion entries).
   """
