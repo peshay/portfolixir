@@ -1178,7 +1178,12 @@ Example account payloads:
   that view's plan (omitted = Gesamt). Each `target_weight` is a string fraction
   in `[0, 1]`; targets need not sum to `1`. Only the supplied categories are
   changed. A category from another tree returns `422 Unprocessable Entity`, and an
-  unknown classification returns `404 Not Found`. **Position-level SOLL
+  unknown classification returns `404 Not Found`. A batch names each category
+  row once and carries at most one row per category and one per security
+  assigned in the classification, and never more than `10000` rows; a repeated
+  category row or a larger batch answers `422` (`errors.detail` naming the
+  category, or `errors.targets` stating the bound) and writes nothing.
+  **Position-level SOLL
   (ADR-0030):** a target entry that also carries a `"security_id"` sets a weight
   on that individual position under the category (the security must sit under it,
   else `422`); a category entry (no `security_id`) and its position entries are

@@ -280,6 +280,21 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
             "target under its current category"
       })
 
+  # E25 S4 (G11): one row per category and per position, and a bounded batch.
+  defp render_error(conn, {:duplicate_category, category_id}),
+    do:
+      unprocessable(conn, %{
+        detail: "category #{category_id} appears more than once in this batch as a category row"
+      })
+
+  defp render_error(conn, {:too_many_targets, cap}),
+    do:
+      unprocessable(conn, %{
+        targets: [
+          "at most #{cap} rows per request: one per category and one per assigned security"
+        ]
+      })
+
   defp render_error(conn, :invalid_entry),
     do:
       unprocessable(conn, %{targets: ["must be a list of {category_id, target_weight} objects"]})

@@ -3069,6 +3069,25 @@ describe("Portfolixir MCP tools", () => {
     assert.ok(found.includes("portfolixir.snapshots.create as_of"));
   });
 
+  // E25 S4, G11 (#889): a target batch is bounded, and the schema says so
+  // with the API's fixed maximum.
+  it("caps the target batch at the API's maximum", async () => {
+    const setTool = listTools().find((tool) => tool.name === "portfolixir.targets.set");
+    assert.equal(setTool?.inputSchema.properties.targets.maxItems, 10000);
+    assert.match(setTool?.description ?? "", /once per batch/);
+
+    const { client } = createRecordingClient();
+    const row = { category_id: 1, target_weight: "0.1" };
+
+    await assert.rejects(
+      callTool(client, "portfolixir.targets.set", {
+        portfolio_id: 1,
+        classification_id: 1,
+        targets: Array.from({ length: 10001 }, () => row)
+      })
+    );
+  });
+
   // E25 S4, G16 and G17 (#889): a ledger amount is rounded to the column's
   // scale before it is checked, and one past the column's precision is a 422.
   it("states the ledger's amount scale and bound on the booking tools", () => {
