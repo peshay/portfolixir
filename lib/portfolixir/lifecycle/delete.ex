@@ -52,6 +52,15 @@ defmodule Portfolixir.Lifecycle.Delete do
 
   @type record :: %CashAccount{} | %SecuritiesAccount{} | Security.t()
 
+  # The referencing columns as atoms, fixed when this module compiles, from
+  # the static disposition map and never from input — so counting references
+  # does not depend on a schema naming the column having been loaded first
+  # (`String.to_existing_atom/1` failed on a fresh node until one was).
+  @column_fields for %{columns: columns} <- ForeignKeys.dispositions(),
+                     column <- columns,
+                     into: %{},
+                     do: {column, String.to_atom(column)}
+
   @typedoc "Referencing table => number of referencing rows; only tables that reference."
   @type referenced_by :: %{optional(String.t()) => pos_integer()}
 
@@ -339,7 +348,7 @@ defmodule Portfolixir.Lifecycle.Delete do
   defp count_referencing(table, columns, id) do
     condition =
       Enum.reduce(columns, dynamic(false), fn column, acc ->
-        column = String.to_existing_atom(column)
+        column = Map.fetch!(@column_fields, column)
         dynamic([r], field(r, ^column) == ^id or ^acc)
       end)
 
