@@ -88,16 +88,24 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
 
       %{} = analysis ->
         base = analysis.base_currency || Keyword.get(opts, :base_currency, @hub)
+        compute = fn -> compute(analysis, leading_ids, as_of, rate, base) end
 
-        {:fresh, metrics} =
-          Derived.fetch(
-            :portfolio_metrics,
-            Derived.portfolio_basis(portfolio_id),
-            entry_key(view, as_of, rate, leading_ids, base),
-            fn -> compute(analysis, leading_ids, as_of, rate, base) end
-          )
+        # Only a whole-basis-point risk-free rate is remembered: a finer one
+        # is computed on every read, so a sweep of distinct rates adds no
+        # memo entry (E25 S4, G03).
+        if Benchmark.memoisable_rate?(rate) do
+          {:fresh, metrics} =
+            Derived.fetch(
+              :portfolio_metrics,
+              Derived.portfolio_basis(portfolio_id),
+              entry_key(view, as_of, rate, leading_ids, base),
+              compute
+            )
 
-        metrics
+          metrics
+        else
+          compute.()
+        end
     end
   end
 

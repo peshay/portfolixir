@@ -61,7 +61,9 @@ config :portfolixir, Portfolixir.Fx.RateSync,
 # daily walks cost seconds and their second call costs the same as the first,
 # while every other figure a surface waits on lands in tens to a few hundred
 # milliseconds. Further activations are one line each, added with their
-# measurement.
+# measurement. The in-memory tier keeps to a budget, `memo_max_entries` and
+# `memo_max_bytes` (5000 entries and 128 MiB unless set here), and empties
+# itself when a put would leave it over (E25 S4).
 config :portfolixir, Portfolixir.Derived,
   lifetimes: [performance_analysis: :durable, performance_view_analysis: :durable]
 

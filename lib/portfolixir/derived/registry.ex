@@ -43,7 +43,9 @@ defmodule Portfolixir.Derived.Registry do
     # over a walk and a benchmark's price series, keyed under the global
     # basis because a benchmark the portfolio never held is outside the
     # portfolio's own blast radius.
-    benchmark_comparison: %{computation_version: 1, default_lifetime: :request},
+    # v2 (E25 S4, G03): the stored value carries the walk it was built from
+    # (`%{walk:, comparison:}`), checked on every hit instead of keyed.
+    benchmark_comparison: %{computation_version: 2, default_lifetime: :request},
     # The per-security derived metrics (ADR-0047 §8, Sprint 13 Lane A1).
     # `:none` is the DEFAULT WITH A REASON, not a placeholder. The portfolio
     # radius of a quote write is empty for a security no portfolio has ever
