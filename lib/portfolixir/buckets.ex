@@ -442,6 +442,11 @@ defmodule Portfolixir.Buckets do
   """
   def set_view_buckets(%Actor{} = _actor, %View{id: view_id}, include_ids, exclude_ids)
       when is_list(include_ids) and is_list(exclude_ids) do
+    # A bucket named twice counts once, as in the sibling writers (E25 S4,
+    # F12): the join tables hold each (view, bucket) pair once.
+    include_ids = Enum.uniq(include_ids)
+    exclude_ids = Enum.uniq(exclude_ids)
+
     with :ok <- validate_bucket_ids(include_ids ++ exclude_ids) do
       include_entries = Enum.map(include_ids, &%{view_id: view_id, bucket_id: &1})
       exclude_entries = Enum.map(exclude_ids, &%{view_id: view_id, bucket_id: &1})

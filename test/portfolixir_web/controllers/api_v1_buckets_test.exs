@@ -273,6 +273,15 @@ defmodule PortfolixirWeb.ApiV1BucketsTest do
     assert %{"errors" => %{"exclude" => ["is invalid"]}} =
              put_json(conn, "/api/v1/views/#{view.id}/buckets", %{"exclude" => "nope"})
              |> json_response(422)
+
+    # E25 S4, F12: a bucket named twice counts once, instead of a 500.
+    assert %{"data" => %{"include" => [included_id]}} =
+             put_json(conn, "/api/v1/views/#{view.id}/buckets", %{
+               "include" => [included.id, included.id]
+             })
+             |> json_response(200)
+
+    assert included_id == included.id
   end
 
   # User story:
