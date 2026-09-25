@@ -251,4 +251,118 @@ defmodule Portfolixir.Ledger.SettlementGuardTest do
              )
     end
   end
+
+  # E25 S6 (#891), F71 (risk-tier: the cash projection). Without a cash
+  # amount the projection books quantity × price, plus fees and taxes on a
+  # buy and less them on a sale, into the account — and the guard used to
+  # skip such a row, so a cross-currency trade priced in the security's
+  # currency booked that currency's units as the account's cash. The guard
+  # now compares the settlement with the cash the projection will book.
+  describe "a cross-currency trade without a cash amount (F71)" do
+    # User story:
+    # As the agent booking a USD security through a EUR cash account,
+    # I want a trade sent without its cash amount checked against the cash
+    # the ledger will book from quantity × price,
+    # so that a trade priced in dollars never moves dollars' worth of euros.
+    #
+    # Acceptance criteria:
+    # - A buy or a sell without gross_amount whose quantity × price (with
+    #   fees and taxes) misses the settlement's cash by more than 0.01 is
+    #   refused, the error on gross_amount naming both amounts.
+    # - Nothing is written.
+    test "a trade lacking gross whose quantity × price misses the settlement is refused" do
+      w = world()
+
+      assert {:error, changeset} = trade(w, "buy", %{})
+      assert [message] = gross_error(changeset)
+      assert message =~ "2004.9"
+      assert message =~ "1823.08"
+
+      assert {:error, changeset} =
+               trade(w, "sell", %{taxes: Decimal.new("12.50"), fees: Decimal.new("5.00")})
+
+      assert [message] = gross_error(changeset)
+      assert message =~ "1982.5"
+      assert message =~ "1800.68"
+
+      assert Repo.all(Transaction) |> Enum.filter(&(&1.security_id == w.security.id)) == []
+    end
+
+    # Acceptance criteria:
+    # - A trade without gross_amount whose quantity × price is the
+    #   settlement — the shape the settlement backfill and the Portfolio
+    #   Performance import store for a row without a cash amount — passes,
+    #   and its update of the note is not re-checked.
+    test "a legacy trade whose quantity × price is its settlement still passes" do
+      w = world()
+
+      assert {:ok, tx} =
+               trade(w, "buy", %{
+                 price: Decimal.new("181.818"),
+                 currency_code: "EUR",
+                 settlement_amount: Decimal.new("1818.18")
+               })
+
+      assert tx.gross_amount == nil
+      assert {:ok, _} = Ledger.update_transaction(Actor.owner_ui(), tx, %{notes: "backfilled"})
+    end
+
+    # Acceptance criteria:
+    # - Without a cash amount, a change of quantity or price changes the
+    #   cash booked, so it is re-checked; with one, it is not (D-5).
+    test "without a cash amount a quantity or price edit is re-checked" do
+      w = world()
+
+      {:ok, tx} =
+        trade(w, "buy", %{
+          price: Decimal.new("181.818"),
+          currency_code: "EUR",
+          settlement_amount: Decimal.new("1818.18")
+        })
+
+      assert {:error, changeset} =
+               Ledger.update_transaction(Actor.owner_ui(), tx, %{price: Decimal.new("200.00")})
+
+      assert [_message] = gross_error(changeset)
+
+      {:ok, with_gross} = trade(w, "buy", %{gross_amount: Decimal.new("1823.08")})
+
+      assert {:ok, _} =
+               Ledger.update_transaction(Actor.owner_ui(), with_gross, %{
+                 price: Decimal.new("201.00")
+               })
+    end
+
+    # Acceptance criteria:
+    # - The read-only check lists a stored trade without gross_amount whose
+    #   booked cash misses its settlement, with the booked amount as its
+    #   gross and the difference, and rewrites nothing.
+    test "the read-only check lists a stored trade lacking gross that misses" do
+      w = world()
+
+      {:ok, tx} =
+        trade(w, "buy", %{
+          price: Decimal.new("181.818"),
+          currency_code: "EUR",
+          settlement_amount: Decimal.new("1818.18")
+        })
+
+      {:ok, {1, _}} =
+        Repo.transaction(fn ->
+          {type, _label} = Actor.to_columns(Actor.owner_ui())
+          Repo.query!("SELECT set_config('portfolixir.journal_actor', $1, true)", [type])
+
+          Transaction
+          |> where(id: ^tx.id)
+          |> Repo.update_all(set: [price: Decimal.new("200.00")])
+        end)
+
+      assert [row] = SettlementGuard.violations()
+      assert row.id == tx.id
+      assert row.gross_amount == nil
+      assert Decimal.equal?(row.booked_cash, Decimal.new("2004.90"))
+      assert Decimal.equal?(row.expected_cash, Decimal.new("1823.08"))
+      assert Decimal.equal?(row.difference, Decimal.new("181.82"))
+    end
+  end
 end

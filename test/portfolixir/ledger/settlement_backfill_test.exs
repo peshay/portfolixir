@@ -176,7 +176,10 @@ defmodule Portfolixir.Ledger.SettlementBackfillTest do
         currency_code: "USD",
         security_amount: "1000.00",
         settlement_amount: "800.00",
-        settlement_fx_rate: "0.80"
+        settlement_fx_rate: "0.80",
+        # The cash the broker settled: without it the ledger would book
+        # quantity × price in the security's units (E25 S6, F71).
+        gross_amount: "800.00"
       })
 
     assert {:ok, summary} = SettlementBackfill.run(Actor.system_job("settlement_backfill"))

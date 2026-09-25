@@ -22,12 +22,25 @@ defmodule Portfolixir.Ledger.SettlementGuard do
   statement, and three cent-rounded figures can disagree with their exact sum
   by that much and no more.
 
+  **The cash compared is the cash booked** (E25 S6, F71). Without a
+  `gross_amount` the projection books `quantity × price`, plus fees and taxes
+  on a buy and less them on a sale (`Ledger.Projection`), so that is what
+  the settlement is compared with. A trade priced in the security's currency
+  and sent without its cash amount would otherwise book that currency's
+  units as the account's cash. The error still lands on `gross_amount`: the
+  remedy is recording the cash the broker settled. A row the settlement
+  backfill or the Portfolio Performance import stored without a cash amount
+  carries `quantity × price` as its settlement, so it meets the guard by
+  construction.
+
   **Risk-tier (ADR-0036).** The guard is a ledger invariant. When it runs is
   fixed by the Sprint 15 plan's D-5: on insert, and on an update that changes
-  `gross_amount`, `settlement_amount`, `fees`, `taxes` or the type. A row that
-  predates the guard is never revalidated behind the operator's back — editing
-  its note must not start failing — and `violations/0` lists such rows
-  read-only; repairing one is the operator's decision (NFR-2).
+  `gross_amount`, `settlement_amount`, `fees`, `taxes` or the type — and,
+  for a row without a cash amount, its quantity or price, which then change
+  the cash booked (F71). A row that predates the guard is never revalidated
+  behind the operator's back — editing its note must not start failing — and
+  `violations/0` lists such rows read-only; repairing one is the operator's
+  decision (NFR-2).
   """
 
   import Ecto.Changeset, only: [get_field: 2, add_error: 4, changed?: 2]
@@ -39,6 +52,8 @@ defmodule Portfolixir.Ledger.SettlementGuard do
   @tolerance Decimal.new("0.01")
   @guarded_types ["buy", "sell"]
   @trigger_fields [:gross_amount, :settlement_amount, :fees, :taxes, :type]
+  # Without a cash amount the booked cash follows these as well (F71).
+  @fallback_trigger_fields [:quantity, :price]
 
   @doc "The accepted difference: one minor unit at ADR-0016's money scale."
   @spec tolerance() :: Decimal.t()
@@ -79,6 +94,22 @@ defmodule Portfolixir.Ledger.SettlementGuard do
   def trade_amount(_type, _gross, _fees, _taxes), do: nil
 
   @doc """
+  The cash the projection books for a trade (F71): `gross_amount` where it
+  is recorded, else `quantity × price` plus fees and taxes on a buy and less
+  them on a sale — `Ledger.Projection`'s own fallback — or `nil` for another
+  kind or without the figures. Exact: nothing is rounded.
+  """
+  @spec booked_cash(String.t(), map()) :: Decimal.t() | nil
+  def booked_cash(type, %{gross_amount: %Decimal{} = gross}) when type in @guarded_types,
+    do: gross
+
+  def booked_cash(type, %{quantity: %Decimal{} = quantity, price: %Decimal{} = price} = row)
+      when type in @guarded_types,
+      do: expected_cash(type, Decimal.mult(quantity, price), row.fees, row.taxes)
+
+  def booked_cash(_type, _row), do: nil
+
+  @doc """
   The changeset step (D-5): checks a cross-currency buy or sell on insert and
   on an update that changes an amount or the type; leaves every other write
   alone. The error lands on `gross_amount` and names the implied amount —
@@ -90,20 +121,26 @@ defmodule Portfolixir.Ledger.SettlementGuard do
   end
 
   defp runs?(%Ecto.Changeset{data: %{__meta__: %{state: :built}}}), do: true
-  defp runs?(changeset), do: Enum.any?(@trigger_fields, &changed?(changeset, &1))
+
+  defp runs?(changeset) do
+    Enum.any?(@trigger_fields, &changed?(changeset, &1)) or
+      (is_nil(get_field(changeset, :gross_amount)) and
+         Enum.any?(@fallback_trigger_fields, &changed?(changeset, &1)))
+  end
 
   defp check(changeset) do
     type = get_field(changeset, :type)
-    gross = get_field(changeset, :gross_amount)
     settlement = get_field(changeset, :settlement_amount)
+    row = figures(changeset)
 
     with true <- type in @guarded_types,
-         %Decimal{} <- gross,
          %Decimal{} <- settlement,
-         expected = expected_cash(type, settlement, fees(changeset), taxes(changeset)),
-         false <- within?(gross, expected) do
-      add_error(changeset, :gross_amount, message(type),
+         %Decimal{} = booked <- booked_cash(type, row),
+         expected = expected_cash(type, settlement, row.fees, row.taxes),
+         false <- within?(booked, expected) do
+      add_error(changeset, :gross_amount, message(type, row.gross_amount),
         expected: display(expected),
+        booked: display(booked),
         tolerance: display(@tolerance),
         validation: :settlement_guard
       )
@@ -112,17 +149,31 @@ defmodule Portfolixir.Ledger.SettlementGuard do
     end
   end
 
-  defp fees(changeset), do: get_field(changeset, :fees)
-  defp taxes(changeset), do: get_field(changeset, :taxes)
+  defp figures(changeset) do
+    Map.new([:gross_amount, :quantity, :price, :fees, :taxes], &{&1, get_field(changeset, &1)})
+  end
 
-  defp message("buy"),
+  defp message("buy", %Decimal{}),
     do:
       "must equal the settlement amount plus fees and taxes (%{expected}), " <>
         "within %{tolerance}"
 
-  defp message("sell"),
+  defp message("sell", %Decimal{}),
     do:
       "must equal the settlement amount less fees and taxes (%{expected}), " <>
+        "within %{tolerance}"
+
+  # No cash amount: the cash booked is quantity × price with fees and taxes.
+  defp message("buy", nil),
+    do:
+      "is missing, so quantity × price plus fees and taxes (%{booked}) would be booked; " <>
+        "it must equal the settlement amount plus fees and taxes (%{expected}), " <>
+        "within %{tolerance}"
+
+  defp message("sell", nil),
+    do:
+      "is missing, so quantity × price less fees and taxes (%{booked}) would be booked; " <>
+        "it must equal the settlement amount less fees and taxes (%{expected}), " <>
         "within %{tolerance}"
 
   defp within?(gross, expected) do
@@ -131,15 +182,15 @@ defmodule Portfolixir.Ledger.SettlementGuard do
 
   @doc """
   The stored cross-currency trades that miss the guard — read-only, rows
-  listed and never rewritten. Each carries the stored figures, the cash
-  amount the settlement implies and the difference (`gross - expected`).
+  listed and never rewritten. Each carries the stored figures, the cash the
+  projection books for it (`booked_cash`: the gross amount, or quantity ×
+  price with fees and taxes where none is recorded — F71), the cash amount
+  the settlement implies and the difference (`booked - expected`).
   """
   @spec violations() :: [map()]
   def violations do
     from(t in Transaction,
-      where:
-        t.type in ^@guarded_types and not is_nil(t.settlement_amount) and
-          not is_nil(t.gross_amount),
+      where: t.type in ^@guarded_types and not is_nil(t.settlement_amount),
       order_by: [t.date, t.id],
       select:
         map(t, [
@@ -148,6 +199,8 @@ defmodule Portfolixir.Ledger.SettlementGuard do
           :date,
           :type,
           :gross_amount,
+          :quantity,
+          :price,
           :settlement_amount,
           :fees,
           :taxes
@@ -155,15 +208,17 @@ defmodule Portfolixir.Ledger.SettlementGuard do
     )
     |> Repo.all()
     |> Enum.flat_map(fn row ->
+      booked = booked_cash(row.type, row)
       expected = expected_cash(row.type, row.settlement_amount, row.fees, row.taxes)
 
-      if within?(row.gross_amount, expected) do
+      if is_nil(booked) or within?(booked, expected) do
         []
       else
         [
           Map.merge(row, %{
+            booked_cash: booked,
             expected_cash: expected,
-            difference: Decimal.sub(row.gross_amount, expected)
+            difference: Decimal.sub(booked, expected)
           })
         ]
       end

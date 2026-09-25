@@ -79,7 +79,9 @@ defmodule Portfolixir.Portfolios.PricingContextEdgeCasesTest do
         currency_code: security.currency_code,
         security_amount: Decimal.to_string(security_amount),
         settlement_amount: security_amount |> Decimal.mult(Decimal.new(rate)) |> to_string(),
-        settlement_fx_rate: rate
+        settlement_fx_rate: rate,
+        # The cash settled in the account's currency (E25 S6, F71).
+        gross_amount: security_amount |> Decimal.mult(Decimal.new(rate)) |> to_string()
       })
 
     tx

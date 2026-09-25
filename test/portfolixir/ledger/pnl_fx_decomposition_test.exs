@@ -34,7 +34,10 @@ defmodule Portfolixir.Ledger.PnlFxDecompositionTest do
         currency_code: "USD",
         security_amount: Keyword.get(opts, :security_amount, "1000.00"),
         settlement_amount: Keyword.get(opts, :settlement_amount, "800.00"),
-        settlement_fx_rate: Keyword.get(opts, :settlement_fx_rate, "0.80")
+        settlement_fx_rate: Keyword.get(opts, :settlement_fx_rate, "0.80"),
+        # The cash settled in EUR; without it the ledger would book quantity ×
+        # price in dollars (E25 S6, F71).
+        gross_amount: Keyword.get(opts, :settlement_amount, "800.00")
       })
 
     tx
@@ -408,7 +411,8 @@ defmodule Portfolixir.Ledger.PnlFxDecompositionTest do
         currency_code: "USD",
         security_amount: "600.00",
         settlement_amount: "540.00",
-        settlement_fx_rate: "0.90"
+        settlement_fx_rate: "0.90",
+        gross_amount: "540.00"
       })
 
     put_quote!(w.security, ~D[2026-07-31], "110.00")
