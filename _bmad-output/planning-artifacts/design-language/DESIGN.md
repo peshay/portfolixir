@@ -316,11 +316,12 @@ components:
   selected-segment:
     scope: 'toggles, filters, period selection — anything picking one of N adjacent options'
     rule: 'UX-DR16 (mapping in EXPERIENCE.md), UX-DR18 for the reserved metrics'
-    group: 'inline-flex, 1px solid {colors.border}, radius {rounded.md}, background {colors.bg}, overflow hidden'
-    option: 'min-height 30px, padding 4px 9px, {typography.control-label} in {colors.text-muted}, 1px {colors.border} divider, no radius, no shadow. The 30px is the DESKTOP density only; it is a third desktop step alongside {spacing.density-control} (34px) and is left unreconciled here — recorded as a follow-up, not solved opportunistically.'
+    group: 'inline-flex, 1px solid {colors.border}, radius {rounded.md}, background {colors.bg}. No overflow hidden (#875 review round, 2026-09-25): the clip cut the options'' outset focus ring off at the track''s edge, so an option next to the filled one showed no focus at all; the outer options round their own outer corners ({rounded.md} less the 1px border) and the active fill follows the track without it'
+    option: 'min-height 30px, padding 4px 9px, {typography.control-label} in {colors.text-muted}, 1px {colors.border} divider, no radius except the outer corners of the first and last option, no shadow. The 30px is the DESKTOP density only; it is a third desktop step alongside {spacing.density-control} (34px) and is left unreconciled here — recorded as a follow-up, not solved opportunistically.'
     target-size: 'under @media (pointer: coarse) the option takes {spacing.touch-target} min-height with the label unchanged at 12px (UX-DR6, added 2026-08-05 — the definition previously wrote a 30px target and named no floor, which is what let the whole segmented family ship uncovered). This clause binds every call site the class absorbs: .segmented-control__option, .range-button, .chart-toggle, .period-buttons .button-mini, .view-chip. Only .view-chip has the clause today (app.css:4888-4891).'
     option-hover: 'background {colors.hover}, text {colors.text}'
     option-active: 'filled {colors.accent}, text {colors.on-accent}'
+    option-focus: 'the solid 2px {colors.accent} outline at a 2px offset, clear of the option''s own fill; the focused option paints above its neighbours (position relative, z-index 1), and the track never clips the ring'
     width-reserved: 'required — {components.width-reserve}, technique: fixed track width — the group sizes to its widest option in its active appearance and does not resize when the selection moves'
   selected-row:
     scope: 'selection inside lists, tables and trees'

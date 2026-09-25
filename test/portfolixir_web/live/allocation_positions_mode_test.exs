@@ -192,4 +192,39 @@ defmodule PortfolixirWeb.AllocationPositionsModeTest do
              "Abweichung gegen den verteilten Anteil"
            )
   end
+
+  # User story (#875, Lane C review round DC-C2; board 09 ④, DESIGN.md →
+  # {components.selected-segment}):
+  # As the operator moving through Allocation with the keyboard,
+  # I want the Tree / Positions toggle to show which option has the focus,
+  # so that tabbing to "Positions" is not a step into nothing.
+  #
+  # Acceptance criteria:
+  # - The group does not clip its options: no `overflow: hidden`, which cut
+  #   the outset ring off at the track's edge (Positions, next to the filled
+  #   Tree, showed no focus at all).
+  # - The outer options round their own outer corners, so the active fill
+  #   still follows the track's radius without the clip.
+  # - Focus stays the 2 px accent outline at a 2 px offset (board 09 ④,
+  #   DESIGN.md: at least 2 px wherever the option's own fill is the accent),
+  #   and the focused option paints above its neighbours.
+  test "the segmented toggle's focus ring is not clipped by its track" do
+    app_css = File.read!("priv/static/app.css")
+
+    [group] = Regex.run(~r/\n\.segmented-control \{[^}]*\}/s, app_css)
+    refute group =~ "overflow: hidden"
+    assert group =~ "border-radius: var(--radius-md)"
+
+    assert app_css =~
+             ~r/\.segmented-control__option:first-child \{[^}]*border-start-start-radius: calc\(var\(--radius-md\) - 1px\);[^}]*border-end-start-radius: calc\(var\(--radius-md\) - 1px\);/s
+
+    assert app_css =~
+             ~r/\.segmented-control__option:last-child \{[^}]*border-start-end-radius: calc\(var\(--radius-md\) - 1px\);[^}]*border-end-end-radius: calc\(var\(--radius-md\) - 1px\);/s
+
+    [focus] = Regex.run(~r/\.segmented-control__option:focus-visible \{[^}]*\}/s, app_css)
+    assert focus =~ "outline: 2px solid var(--color-accent)"
+    assert focus =~ "outline-offset: 2px"
+    assert focus =~ "position: relative"
+    assert focus =~ "z-index: 1"
+  end
 end
