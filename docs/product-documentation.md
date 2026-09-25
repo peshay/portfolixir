@@ -1070,15 +1070,22 @@ dashboard's attention list, which under ADR-0040 is measured against the plan
 renormalised to the allocated portion — not against the raw Target column. So
 with a plan summing to 83 %, a category at 21.2 % actual against a stored 55 %
 target is 45 pp off, not 34, and the chips, the Drift column, the dashboard
-and `min_drift=` all agree on that number.
-A **Tree | Positions** switch swaps the hierarchy for a flat
+and `min_drift=` all agree on that number. The basis line says so where the
+figure is read: behind the plan's top-level Σ it adds **"— drift against the
+allocated portion"** whenever the plan allocates less than 100 %, and it shows
+that Σ in the warning colour only when the plan allocates **more** than 100 %
+— a plan with a deliberate remainder is not a mistake (issue #875).
+A **Tree | Positions** switch — a segmented control whose active option is
+filled — swaps the hierarchy for a flat
 rebalancing worklist: one row per security (cash included) with its category
 as context, sorted by signed drift by default (most overweight first, most
 underweight last) and re-sortable via the column heads (value, drift, or
-category). A category with directly assigned securities expands into its member securities, each with its value,
+category). The cash row's category reads "—": cash has its own target and is
+never "Unassigned". A category with directly assigned securities expands into its member securities, each with its value,
 weight, its share of the category drift, and a display-only **rebalancing
 hint**: the indicative number of units to sell (positive drift) or buy
-(negative) at the valuation's price to close the gap (ADR-0023). The hint
+(negative) at the valuation's price to close the gap (ADR-0023). A hint that
+rounds to zero units at two decimals is not shown ("—"); the drift stays. The hint
 models no fees or taxes, and there is deliberately no order button behind it —
 acting on it stays entirely manual.
 

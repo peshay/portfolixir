@@ -7992,3 +7992,8 @@ msgstr "Zwei Wertpapiere dieser Datei lassen sich nicht unterscheiden, daher wir
 #, elixir-autogen, elixir-format
 msgid "A figure cannot be read; its field says why."
 msgstr "Eine Zahl ist nicht lesbar; ihr Feld sagt, warum."
+
+#: lib/portfolixir_web/live/portfolio_live.ex:1591
+#, elixir-autogen, elixir-format
+msgid "drift against the allocated portion"
+msgstr "Abweichung gegen den verteilten Anteil"
