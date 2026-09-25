@@ -35,7 +35,9 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
                 "is ever deleted: a retraction arrives as a new entry naming what it " <>
                 "supersedes, and superseded_by_ids on an older entry is only complete on a " <>
                 "full read. thesis_state always derives from the whole log. Use this " <>
-                "response's `as_of` as the next `since`."
+                "response's `as_of` as the next `since`: it lies no later than the start of " <>
+                "the oldest write still in flight, so the next read may re-deliver an entry " <>
+                "but never skips one."
 
   @default_unreviewed_days 90
   @default_expiring_days 30

@@ -1069,6 +1069,25 @@ describe("Portfolixir MCP tools", () => {
     assert.match(upsert?.description ?? "", /replaced/);
   });
 
+  // E25 S6, G06: a delta read's as_of lies no later than the oldest write
+  // still in flight, and the tools say so where the agent reads them: the
+  // next read may re-deliver a row, never skip one.
+  it("states that a delta read's as_of may re-deliver a row but never skips one", () => {
+    const description = (name: string) =>
+      listTools().find((tool) => tool.name === name)?.description ?? "";
+
+    for (const name of [
+      "portfolixir.securities.list",
+      "portfolixir.transactions.list",
+      "portfolixir.notes.list",
+      "portfolixir.events.list",
+      "portfolixir.targets.list",
+      "portfolixir.targets.list_positions"
+    ]) {
+      assert.match(description(name), /never skips? one/, name);
+    }
+  });
+
   // E25 S6, F43: a delete removes its children through their journaled
   // writers first, one entry per row, and the tools say what goes with it.
   it("states the per-row journaled children of the classification, category, plan and view deletes", () => {

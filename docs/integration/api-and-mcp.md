@@ -145,8 +145,13 @@ number, a list).
 `?since=<ISO8601>` (a datetime with offset, a naive UTC datetime, or a plain
 date meaning start of that day, UTC) and then return only the rows created or
 updated strictly after that instant, judged by `updated_at`. The response
-echoes `since`, carries `as_of` (the read instant — use it as the next
-`since`) and a `delta_note` stating the semantics. **Deletions are not
+echoes `since`, carries `as_of` — use it as the next `since` — and a
+`delta_note` stating the semantics. `as_of` lies one second before the read
+instant, or before the start of the oldest transaction that has written and
+is still open, whichever is earlier: a row is stamped when its transaction
+writes it, not when that transaction commits, so a cursor at the read instant
+would skip a row a long write (an import) commits after the read. The next
+read may therefore re-deliver a row, but never skips one. **Deletions are not
 represented** in a delta read; a caller that must detect deletions performs a
 full read. An invalid `since` is a `422`. Delta reads are **pull-only**: push
 delivery (webhooks to a user-configured endpoint) is a separate, still-gated

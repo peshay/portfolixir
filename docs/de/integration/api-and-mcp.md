@@ -161,8 +161,14 @@ sein Wert kein JSON-Objekt ist (ein String, eine Zahl, eine Liste).
 `?since=<ISO8601>` (Datetime mit Offset, naive UTC-Datetime oder ein reines
 Datum als Tagesbeginn, UTC) und liefern dann nur die Zeilen, die strikt nach
 diesem Zeitpunkt angelegt oder geändert wurden (nach `updated_at`). Die
-Antwort spiegelt `since`, trägt `as_of` (den Lesezeitpunkt — als nächstes
-`since` verwenden) und eine `delta_note` mit der Semantik. **Löschungen sind
+Antwort spiegelt `since`, trägt `as_of` — als nächstes `since` verwenden —
+und eine `delta_note` mit der Semantik. `as_of` liegt eine Sekunde vor dem
+Lesezeitpunkt oder vor dem Beginn der ältesten Transaktion, die geschrieben
+hat und noch offen ist, je nachdem, was früher liegt: Eine Zeile wird
+gestempelt, wenn ihre Transaktion sie schreibt, nicht wenn diese committet,
+sodass ein Cursor zum Lesezeitpunkt eine Zeile überspränge, die ein langer
+Schreibvorgang (ein Import) nach dem Read committet. Der nächste Read kann
+eine Zeile daher erneut liefern, überspringt aber keine. **Löschungen sind
 in einem Delta-Read nicht repräsentiert**; wer Löschungen erkennen muss,
 macht einen vollen Read. Ein ungültiges `since` ist ein `422`. Delta-Reads
 sind **pull-only**: Push-Zustellung (Webhooks an einen konfigurierten
