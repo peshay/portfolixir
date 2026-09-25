@@ -96,4 +96,113 @@ defmodule Portfolixir.Portfolios.PortfolioCashTargetWriteTest do
     assert Portfolios.get_portfolio(portfolio.id).name == "Steered"
     assert Decimal.equal?(Targets.get_cash_target(portfolio.id), Decimal.new("0.3"))
   end
+
+  # User story (E25 S6 review round, G18):
+  # As the agent setting a portfolio's first cash target over the deprecated
+  # update while the operator saves the portfolio's first plan,
+  # I want the two writes to take turns creating the plan,
+  # so that neither fails because the other created it first — a failure the
+  # portfolio write's own transaction could not retry.
+  #
+  # Acceptance criteria:
+  # - A write that creates a portfolio's active plan holds the portfolio row
+  #   before it checks whether the plan exists, so concurrent first writers
+  #   serialise and the later one finds the earlier one's plan.
+  # - Activating a plan holds the portfolio row before it reads the scope's
+  #   active plan.
+  test "a first plan write and a plan activation hold the portfolio before they read the active plan" do
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(owner(), %{name: "First Plan World", base_currency_code: "EUR"})
+
+    # The portfolio write holds its row from its first step (the journal's
+    # lock); the targets writer, over its own route, must hold it too, or the
+    # two do not take turns.
+    first_target =
+      capture_queries(fn ->
+        assert :ok = Targets.set_cash_target(owner(), portfolio.id, Decimal.new("0.2"))
+      end)
+
+    assert_portfolio_held_before_plan_check(first_target, "the first targets write")
+
+    {:ok, second} =
+      Portfolios.create_portfolio(owner(), %{name: "Second Plan World", base_currency_code: "EUR"})
+
+    first_portfolio_write =
+      capture_queries(fn ->
+        assert {:ok, _} =
+                 Portfolios.update_portfolio(owner(), second, %{cash_target_weight: "0.2"})
+      end)
+
+    assert_portfolio_held_before_plan_check(first_portfolio_write, "the first portfolio write")
+
+    {:ok, active} = Targets.ensure_plan(owner(), portfolio.id, classification!().id)
+    {:ok, draft} = Targets.duplicate_plan(owner(), active)
+
+    activate = capture_queries(fn -> assert {:ok, _} = Targets.activate_plan(owner(), draft) end)
+    assert_portfolio_held_before_plan_check(activate, "the activation")
+  end
+
+  defp classification! do
+    {:ok, classification} =
+      Portfolixir.Classifications.create_classification(owner(), %{
+        name: "Plan Lock #{System.unique_integer([:positive])}"
+      })
+
+    classification
+  end
+
+  # The read that decides the write — the last read of the scope's active
+  # plan before the plan row is inserted or updated — comes after the
+  # portfolio is held. (A write may read the plan earlier, unlocked, to find
+  # its fast path; that read decides nothing.)
+  defp assert_portfolio_held_before_plan_check(queries, writer) do
+    lock = Enum.find_index(queries, &(&1 =~ ~r/FROM "portfolios".*FOR (NO KEY )?UPDATE/s))
+    write = Enum.find_index(queries, &(&1 =~ ~r/^(INSERT INTO|UPDATE) "portfolio_target_plans"/))
+
+    check =
+      queries
+      |> Enum.with_index()
+      |> Enum.filter(fn {query, index} ->
+        index < (write || 0) and query =~ ~r/FROM "portfolio_target_plans".*"status" = 'active'/s
+      end)
+      |> List.last()
+
+    assert lock, "#{writer} does not hold the portfolio"
+    assert write, "#{writer} writes no plan row"
+    assert check, "#{writer} reads no active plan before it writes"
+
+    assert lock < elem(check, 1),
+           "#{writer} decides on the active plan before it holds the portfolio"
+  end
+
+  defp capture_queries(fun) do
+    test_pid = self()
+    handler = "plan-create-lock-#{System.unique_integer([:positive])}"
+
+    :ok =
+      :telemetry.attach(
+        handler,
+        [:portfolixir, :repo, :query],
+        fn _event, _measurements, %{query: query}, _config ->
+          if self() == test_pid, do: send(test_pid, {:query, query})
+        end,
+        nil
+      )
+
+    try do
+      fun.()
+    after
+      :telemetry.detach(handler)
+    end
+
+    collect_queries([])
+  end
+
+  defp collect_queries(acc) do
+    receive do
+      {:query, query} -> collect_queries([query | acc])
+    after
+      0 -> Enum.reverse(acc)
+    end
+  end
 end
