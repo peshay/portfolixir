@@ -48,8 +48,14 @@ jobs:
       - name: Install dependencies
         run: mix deps.get
 
+      # pre-commit and every dependency it pulls, pinned by version and sha256
+      # (E25 S8, F60): --require-hashes refuses anything the file does not
+      # name with a matching hash, and --only-binary installs wheels only, so
+      # no package's build script runs either. The hook repositories are
+      # frozen to commits in .pre-commit-config.yaml.
       - name: Install pre-commit
-        run: python3 -m pip install --upgrade pre-commit
+        run: |
+          python3 -m pip install --require-hashes --only-binary :all: -r .github/pre-commit/requirements.txt
 
       - name: Run pre-commit quality gates
         run: pre-commit run --all-files

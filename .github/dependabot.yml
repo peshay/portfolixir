@@ -1,12 +1,13 @@
 # Dependency update visibility (#676, Quality Gate Roadmap item 3).
 #
 # Dependabot opens update PRs for the ecosystems this repository actually
-# uses: Mix, npm, GitHub Actions, the Dockerfiles and the Compose files.
-# Update PRs are reviewed like any dependency PR and are NEVER auto-merged
-# (standing decision, Dependency Update Policy in
-# _bmad-output/project-context.md). The per-batch maintenance lane
-# (AGENTS.md, Epic-Batch Workflow) remains the deciding reviewer; a
-# fuller point-in-time picture comes from scripts/version-report.sh.
+# uses: Mix, npm, pip (CI's pre-commit install), GitHub Actions, the
+# Dockerfiles and the Compose files. Update PRs are reviewed like any
+# dependency PR and are NEVER auto-merged (standing decision, Dependency
+# Update Policy in _bmad-output/project-context.md). The per-batch
+# maintenance lane (AGENTS.md, Epic-Batch Workflow) remains the deciding
+# reviewer; a fuller point-in-time picture comes from
+# scripts/version-report.sh.
 version: 2
 updates:
   - package-ecosystem: "mix"
@@ -31,6 +32,19 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+
+  # pre-commit and its dependencies, pinned by version and sha256 for CI's
+  # install (E25 S8, F60): the bot regenerates requirements.txt from
+  # requirements.in with pip-compile --generate-hashes, so the hash pin does
+  # not harden into a stale version. One grouped PR rather than one per
+  # package.
+  - package-ecosystem: "pip"
+    directory: "/.github/pre-commit"
+    schedule:
+      interval: "weekly"
+    groups:
+      pre-commit:
+        patterns: ["*"]
 
   # The images (#760, #761, E25 S2): exact tags pinned by digest (ADR-0045
   # §2), kept current here instead of by hand; an update moves tag and digest
