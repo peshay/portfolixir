@@ -32,7 +32,12 @@ defmodule Portfolixir.Journal.BeforeImageLockTest do
     security = WorldFixtures.create_security!(name: "Lockstep Rail AG", ticker: "LRA")
     tx = WorldFixtures.deposit!(world, "250", ~D[2026-02-02])
     {:ok, classification} = Classifications.create_classification(owner(), %{name: "Style"})
-    {:ok, bucket} = Buckets.create_bucket(owner(), %{name: "Core", dimension: "tag"})
+    # Bucket names are unique instance-wide: one per test run.
+    {:ok, bucket} =
+      Buckets.create_bucket(owner(), %{
+        name: "Core #{System.unique_integer([:positive])}",
+        dimension: "tag"
+      })
 
     {:ok, event} =
       Events.create_event(owner(), %{
@@ -51,8 +56,10 @@ defmodule Portfolixir.Journal.BeforeImageLockTest do
        &Classifications.update_classification(owner(), &1, %{name: "Style one"}),
        &Classifications.update_classification(owner(), &1, %{description: "Second write"}),
        &Classifications.delete_classification(owner(), &1)},
-      {"bucket", bucket, &Buckets.update_bucket(owner(), &1, %{name: "Core one"}),
-       &Buckets.update_bucket(owner(), &1, %{color: "#123abc"}),
+      {"bucket", bucket,
+       &Buckets.update_bucket(owner(), &1, %{
+         name: "Core one #{System.unique_integer([:positive])}"
+       }), &Buckets.update_bucket(owner(), &1, %{color: "#123abc"}),
        &Buckets.delete_bucket(owner(), &1)},
       {"security", security, &Catalog.update_security(owner(), &1, %{name: "Lockstep one"}),
        &Catalog.update_security(owner(), &1, %{note: "Second write"}), nil},

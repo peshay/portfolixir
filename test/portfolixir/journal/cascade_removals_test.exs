@@ -140,7 +140,9 @@ defmodule Portfolixir.Journal.CascadeRemovalsTest do
   #   depot snapshot scoped to it, and then the view.
   test "deleting a view removes its plans, their targets and its snapshots per row" do
     t = tree()
-    {:ok, view} = Buckets.create_view(owner(), %{name: "Strategy scope"})
+
+    {:ok, view} =
+      Buckets.create_view(owner(), %{name: "Strategy scope #{System.unique_integer([:positive])}"})
 
     {:ok, [view_target]} =
       Targets.set_targets(
