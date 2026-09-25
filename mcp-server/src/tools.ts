@@ -935,7 +935,8 @@ const positionTargetsListSchema = {
     // #740: the allocation read's threshold, same spelling, one level down.
     min_drift: {
       type: "string",
-      description: "absolute drift-weight threshold as a Decimal string, e.g. \"0.02\""
+      description:
+        "absolute drift-weight threshold as a finite, non-negative Decimal string, e.g. \"0.02\"; NaN or Infinity answers 422"
     },
     since: { type: "string", description: "ISO8601 instant (UTC) or date; delta read, see the tool description" }
   }
@@ -1249,7 +1250,11 @@ const allocationSchema = {
     classification_id: { type: "integer", minimum: 1 },
     view: { type: "integer", minimum: 1 },
     include_positions: { type: "boolean" },
-    min_drift: { type: "string" },
+    min_drift: {
+      type: "string",
+      description:
+        "absolute drift-weight threshold as a finite, non-negative Decimal string, e.g. \"0.02\"; NaN or Infinity answers 422"
+    },
     tax_context: { type: "boolean" }
   }
 };
