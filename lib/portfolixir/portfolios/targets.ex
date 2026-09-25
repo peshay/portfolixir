@@ -35,6 +35,7 @@ defmodule Portfolixir.Portfolios.Targets do
   alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Input.Text
   alias Portfolixir.Journal
+  alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.Target
   alias Portfolixir.Portfolios.TargetPlan
   alias Portfolixir.Repo
@@ -825,6 +826,7 @@ defmodule Portfolixir.Portfolios.Targets do
         {:ok, plan}
       else
         Repo.transaction(fn ->
+          lock_portfolio(plan.portfolio_id)
           archive_current_active!(actor, plan)
 
           case journaled_update(actor, plan, %{status: "active"}, "target_plan") do
@@ -1016,21 +1018,52 @@ defmodule Portfolixir.Portfolios.Targets do
 
   defp ensure_plan_journaled(actor, portfolio_id, classification_id, view_id) do
     case get_active_plan(portfolio_id, classification_id, view_id) do
-      %TargetPlan{} = plan ->
-        {:ok, plan}
-
-      nil ->
-        changeset =
-          TargetPlan.changeset(%TargetPlan{}, %{
-            portfolio_id: portfolio_id,
-            view_id: view_id,
-            classification_id: classification_id,
-            name: "Plan",
-            status: "active"
-          })
-
-        journaled_insert(actor, changeset, "target_plan")
+      %TargetPlan{} = plan -> {:ok, plan}
+      nil -> create_active_plan(actor, portfolio_id, classification_id, view_id)
     end
+  end
+
+  # E25 S6 review round (G18): every write that makes a plan active holds the
+  # portfolio row first and then reads the scope's active plan again, so two
+  # first writers take turns and the later one finds the earlier one's plan.
+  # A unique violation inside a caller's transaction (the portfolio write's
+  # cash target) cannot be retried — it aborts that transaction — so the
+  # writers must not collide in the first place.
+  defp create_active_plan(actor, portfolio_id, classification_id, view_id) do
+    Repo.transaction(fn ->
+      lock_portfolio(portfolio_id)
+
+      case get_active_plan(portfolio_id, classification_id, view_id) do
+        %TargetPlan{} = plan ->
+          plan
+
+        nil ->
+          changeset =
+            TargetPlan.changeset(%TargetPlan{}, %{
+              portfolio_id: portfolio_id,
+              view_id: view_id,
+              classification_id: classification_id,
+              name: "Plan",
+              status: "active"
+            })
+
+          case journaled_insert(actor, changeset, "target_plan") do
+            {:ok, plan} -> plan
+            {:error, reason} -> Repo.rollback(reason)
+          end
+      end
+    end)
+  end
+
+  # FOR NO KEY UPDATE: the lock a portfolio write takes, which a booking's
+  # foreign-key check does not wait on. A portfolio that is gone locks
+  # nothing; the insert then answers its constraint error.
+  defp lock_portfolio(portfolio_id) do
+    Repo.all(
+      from(p in Portfolio, where: p.id == ^portfolio_id, lock: "FOR NO KEY UPDATE", select: p.id)
+    )
+
+    :ok
   end
 
   defp unique_violation?(errors) do
