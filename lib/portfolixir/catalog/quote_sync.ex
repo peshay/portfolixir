@@ -181,7 +181,12 @@ defmodule Portfolixir.Catalog.QuoteSync do
   defp drop_implausible(security, rows) do
     {plausible, dropped} =
       Enum.split_with(rows, fn row ->
-        is_map(row) and MarketDataBounds.plausible?(field(row, :date), field(row, :close))
+        is_map(row) and
+          MarketDataBounds.plausible?(
+            field(row, :date),
+            field(row, :close),
+            MarketDataBounds.close_column()
+          )
       end)
 
     if dropped != [] do

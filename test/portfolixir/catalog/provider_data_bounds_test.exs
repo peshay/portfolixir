@@ -287,4 +287,90 @@ defmodule Portfolixir.Catalog.ProviderDataBoundsTest do
     assert {:ok, rate} = Fx.rate("EUR", "USD")
     assert Decimal.equal?(rate, Decimal.new("1.1"))
   end
+
+  # User story:
+  # As an operator whose valuation prices every position from the latest close
+  # and converts every currency through a stored rate,
+  # I want a close or a rate the database would round to zero, or one past what
+  # its column holds, refused on every writer and dropped at the sync,
+  # so that no stored zero becomes a valuation price or a divisor, and one bad
+  # provider point still never fails the batch.
+  #
+  # Acceptance criteria:
+  # - The Quote and ExchangeRate changesets round the value to its column's
+  #   scale before the positive check: a value that rounds to zero is refused,
+  #   a finer positive value is kept rounded half up.
+  # - A value past its column's precision is refused on the value.
+  # - Stubbed Yahoo and ECB points that round to zero at their column, or that
+  #   overflow it, store nothing; the plausible points of the batch land.
+  test "a value that rounds to zero or overflows its column is refused and dropped" do
+    quote = fn close ->
+      Quote.changeset(%Quote{}, %{
+        security_id: 1,
+        source: "manual",
+        close: close,
+        date: Clock.today()
+      })
+    end
+
+    assert %{close: [_]} = errors_on(quote.("0.0000004"))
+    assert %{close: [_]} = errors_on(quote.("100000000000000"))
+    assert Decimal.equal?(Ecto.Changeset.get_change(quote.("0.0000005"), :close), "0.000001")
+
+    rate = fn value ->
+      ExchangeRate.changeset(%ExchangeRate{}, %{
+        base_currency: "EUR",
+        quote_currency: "USD",
+        rate: value,
+        date: Clock.today(),
+        source: "manual"
+      })
+    end
+
+    assert %{rate: [_]} = errors_on(rate.("0.0000000000000004"))
+    assert %{rate: [_]} = errors_on(rate.("1000000000000000"))
+
+    refute MarketDataBounds.plausible?(Clock.today(), 1.0e-7, MarketDataBounds.close_column())
+    refute MarketDataBounds.plausible?(Clock.today(), "1e15", MarketDataBounds.close_column())
+
+    assert MarketDataBounds.plausible?(
+             Clock.today(),
+             "0.0000005",
+             MarketDataBounds.close_column()
+           )
+
+    security = security!()
+    today = Clock.today()
+    good = Date.add(today, -3)
+
+    stub =
+      yahoo_stub([
+        {Date.add(today, -5), 1.0e-7},
+        {Date.add(today, -4), 1.0e15},
+        {good, 103.0}
+      ])
+
+    assert %{status: :ok, upserted: 1} =
+             QuoteSync.sync_security(security,
+               adapter_for: %{"portfolio_performance" => Yahoo},
+               req: stub
+             )
+
+    assert stored_quote_dates(security.id) == [good]
+
+    past = today |> Date.add(-5) |> Date.to_iso8601()
+
+    history = """
+    <Cube>
+      <Cube time="#{past}">
+        <Cube currency="USD" rate="1.1"/>
+        <Cube currency="GBP" rate="0.0000000000000001"/>
+        <Cube currency="JPY" rate="1000000000000000"/>
+      </Cube>
+    </Cube>
+    """
+
+    assert {:ok, %{upserted: 1}} = RateSync.backfill(provider: Ecb, req: ecb_stub(history))
+    assert [%ExchangeRate{quote_currency: "USD"}] = Repo.all(ExchangeRate)
+  end
 end

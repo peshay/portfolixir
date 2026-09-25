@@ -19,7 +19,13 @@ defmodule Portfolixir.Tax.Parameters do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Portfolixir.Input.BoundedDecimal
+
   @type t :: %__MODULE__{}
+
+  # The `numeric(precision, scale)` of each bounded column (ADR-0016 §2).
+  @rate_column {6, 4}
+  @allowance_column {20, 6}
 
   @jurisdictions ~w(DE)
   @min_tax_year 1990
@@ -77,6 +83,12 @@ defmodule Portfolixir.Tax.Parameters do
       :saver_allowance_joint
     ])
     |> validate_inclusion(:jurisdiction, @jurisdictions)
+    # E25 S4 (G16, G17): each amount rounded to its column and bounded by it
+    # before the range checks, so the value checked is the value stored.
+    |> BoundedDecimal.bound_to_column(:capital_gains_tax_rate, @rate_column)
+    |> BoundedDecimal.bound_to_column(:solidarity_surcharge_rate, @rate_column)
+    |> BoundedDecimal.bound_to_column(:saver_allowance_single, @allowance_column)
+    |> BoundedDecimal.bound_to_column(:saver_allowance_joint, @allowance_column)
     |> validate_number(:tax_year,
       greater_than_or_equal_to: @min_tax_year,
       less_than_or_equal_to: @max_tax_year

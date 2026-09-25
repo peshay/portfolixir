@@ -30,12 +30,16 @@ defmodule Portfolixir.Tax.StatementSnapshot do
   import Ecto.Changeset
 
   alias Portfolixir.Input.BoundedDate
+  alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Input.Text
   alias Portfolixir.Tax.Identity
 
   @type t :: %__MODULE__{}
 
   @sources ~w(manual pdf_import)
+  # The `numeric(precision, scale)` of the money and rate columns (ADR-0016 §2).
+  @money_column {20, 6}
+  @rate_column {6, 4}
   @min_tax_year 1990
   @max_tax_year 2200
 
@@ -93,6 +97,7 @@ defmodule Portfolixir.Tax.StatementSnapshot do
     |> cast(attrs, [:institution, :holder, :tax_year, :as_of, :source, :church_tax_rate, :note])
     |> cast(attrs, @money_fields)
     |> apply_default_church_tax_rate(Keyword.get(opts, :default_church_tax_rate))
+    |> bound_to_columns()
     |> update_change(:institution, &Identity.normalize/1)
     |> update_change(:holder, &Identity.normalize/1)
     |> validate_required([:institution, :holder, :tax_year, :as_of, :source, :church_tax_rate])
@@ -116,6 +121,15 @@ defmodule Portfolixir.Tax.StatementSnapshot do
     |> check_constraint(:church_tax_rate, name: :tax_statement_snapshots_church_tax_rate_check)
     |> check_constraint(:source, name: :tax_statement_snapshots_source_check)
     |> check_constraint(:tax_year, name: :tax_statement_snapshots_tax_year_check)
+  end
+
+  # E25 S4 (G16, G17): every amount is rounded to its column's scale and
+  # bounded by its precision before the sign and consistency checks, so the
+  # value checked is the value stored, answered and journaled.
+  defp bound_to_columns(changeset) do
+    @money_fields
+    |> Enum.reduce(changeset, &BoundedDecimal.bound_to_column(&2, &1, @money_column))
+    |> BoundedDecimal.bound_to_column(:church_tax_rate, @rate_column)
   end
 
   defp validate_magnitudes(changeset) do

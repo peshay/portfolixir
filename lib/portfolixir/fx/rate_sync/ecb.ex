@@ -111,7 +111,8 @@ defmodule Portfolixir.Fx.RateSync.Ecb do
   defp row([_, currency, rate], date) do
     code = String.upcase(currency)
 
-    if Currencies.supported?(code) and MarketDataBounds.plausible?(date, rate) do
+    if Currencies.supported?(code) and
+         MarketDataBounds.plausible?(date, rate, MarketDataBounds.rate_column()) do
       [%{base_currency: @hub, quote_currency: code, date: date, rate: rate, source: @source}]
     else
       []

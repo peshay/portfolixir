@@ -37,6 +37,22 @@ defmodule Portfolixir.Catalog.BoundedUpsertsTest do
     security
   end
 
+  # A write the database refuses whatever its value: a trigger created inside
+  # this test's sandbox transaction and rolled back with it. Since the S3/S4
+  # review round, a value wider than its column is dropped at the sync as
+  # implausible, so it no longer reaches the database to fail there.
+  defp refuse_inserts!(table, condition) do
+    Repo.query!("""
+    CREATE FUNCTION refuse_synthetic_insert() RETURNS trigger LANGUAGE plpgsql AS $$
+    BEGIN RAISE EXCEPTION 'synthetic persistence failure'; END $$
+    """)
+
+    Repo.query!("""
+    CREATE TRIGGER refuse_synthetic_insert BEFORE INSERT ON #{table}
+    FOR EACH ROW WHEN (#{condition}) EXECUTE FUNCTION refuse_synthetic_insert()
+    """)
+  end
+
   defp history(count, fun) do
     today = Clock.today()
     for back <- 1..count, do: fun.(Date.add(today, -back), back)
@@ -107,10 +123,12 @@ defmodule Portfolixir.Catalog.BoundedUpsertsTest do
     healthy = security!("Synthetic Healthy", "SYNH")
     today = Clock.today()
 
-    # Plausible (positive, not in the future), but wider than the column holds.
+    # Plausible, but the database refuses to store it.
+    refuse_inserts!("security_quotes", "NEW.security_id = #{failing.id}")
+
     Fake.put_response(
       failing.id,
-      {:ok, [%{date: Date.add(today, -1), close: Decimal.new("1E+15")}]}
+      {:ok, [%{date: Date.add(today, -1), close: Decimal.new("41")}]}
     )
 
     Fake.put_response(healthy.id, {:ok, [%{date: Date.add(today, -1), close: Decimal.new("42")}]})
@@ -137,6 +155,8 @@ defmodule Portfolixir.Catalog.BoundedUpsertsTest do
   # - A history whose persistence fails in the database answers 502 with the
   #   fixed detail, and stores nothing.
   test "a backfill that cannot be stored answers 502", %{conn: conn} do
+    refuse_inserts!("exchange_rates", "NEW.quote_currency = 'GBP'")
+
     Portfolixir.Fx.RateSync.Fake.put_history_response(
       {:ok,
        [
@@ -151,7 +171,7 @@ defmodule Portfolixir.Catalog.BoundedUpsertsTest do
            base_currency: "EUR",
            quote_currency: "GBP",
            date: Date.add(Clock.today(), -2),
-           rate: "1E+20",
+           rate: "0.86",
            source: "ecb"
          }
        ]}

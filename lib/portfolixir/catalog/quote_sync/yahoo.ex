@@ -99,7 +99,7 @@ defmodule Portfolixir.Catalog.QuoteSync.Yahoo do
   defp to_row({ts, close}) when is_integer(ts) and is_number(close) do
     with {:ok, dt} <- DateTime.from_unix(ts),
          date = DateTime.to_date(dt),
-         true <- MarketDataBounds.plausible?(date, close) do
+         true <- MarketDataBounds.plausible?(date, close, MarketDataBounds.close_column()) do
       [%{date: date, close: close |> to_string() |> Decimal.new()}]
     else
       _ -> []

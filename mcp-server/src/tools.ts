@@ -28,6 +28,11 @@ const boundedDate = (description?: string) =>
 const LEDGER_AMOUNTS =
   " Amounts are rounded half up to 6 decimal places (a quantity to 12) before they are checked, so the stored, answered and journaled value is the rounded one, and a positive amount that rounds to 0 answers 422; an amount with more than 14 digits before the decimal point (a quantity more than 18) answers 422 naming the field.";
 
+// E25 S4, G16 and G17 (the S3/S4 review round): the tax tables hold 6 decimal
+// places for money and 4 for a rate, and money 14 digits before the point.
+const TAX_AMOUNTS =
+  " Amounts and rates are rounded half up to their stored scale (6 decimal places for money, 4 for a rate) before they are checked, so the stored and answered value is the rounded one; a money value with more than 14 digits before the decimal point answers 422 naming the field.";
+
 const emptyObjectSchema = {
   type: "object",
   additionalProperties: false,
@@ -2731,7 +2736,7 @@ const toolDefinitions: ToolDefinition[] = [
       limit: { type: "integer", minimum: 1 }
     }
   }, z.object({ security_id: z.number().int().positive(), from: optionalString(), to: optionalString(), limit: z.number().int().min(1).optional() })),
-  tool("portfolixir.quotes.upsert", "Upsert quotes", "Upsert manual quote history. Every close must be positive and every date no later than tomorrow (the instance's calendar day plus one day of zone slack); a row outside that bound answers 422 naming the field, and nothing is written. Name each date once per call: a repeated date answers 422 on date naming it, and nothing is written.", quoteUpsertSchema, quoteUpsertZ),
+  tool("portfolixir.quotes.upsert", "Upsert quotes", "Upsert manual quote history. Every close must be positive once rounded half up to the 6 decimal places a close is stored with (a finer close is stored rounded), have at most 14 digits before the decimal point, and every date must be no later than tomorrow (the instance's calendar day plus one day of zone slack); a row outside that bound answers 422 naming the field, and nothing is written. Name each date once per call: a repeated date answers 422 on date naming it, and nothing is written.", quoteUpsertSchema, quoteUpsertZ),
   tool("portfolixir.portfolios.list", "List portfolios", "List local portfolios. Deprecated (ADR-0024): portfolios are internal compatibility records, not the user-facing grouping — use portfolixir.buckets.list and portfolixir.views.list to group and scope holdings.", emptyObjectSchema, emptyObjectZ),
   tool("portfolixir.portfolios.create", "Create portfolio", "Create a portfolio. Deprecated (ADR-0024, compatibility only — the API answers with a Deprecation header): grouping happens through buckets and views, so prefer portfolixir.buckets.create and portfolixir.views.create; depots and cash accounts no longer need a portfolio_id (a deterministic internal default is bound automatically).", portfolioSchema, portfolioZ),
   tool(
@@ -3311,7 +3316,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.tax_parameters.upsert",
     "Record statutory tax parameters for a year",
-    "Insert or replace the statutory parameters of one tax year. Use this only when the law for a year is known and missing (e.g. a newly legislated year); the built-in German history is already seeded. Rates are Decimal string fractions in [0,1).",
+    "Insert or replace the statutory parameters of one tax year. Use this only when the law for a year is known and missing (e.g. a newly legislated year); the built-in German history is already seeded. Rates are Decimal string fractions in [0,1)." + TAX_AMOUNTS,
     taxParametersUpsertSchema,
     taxParametersUpsertZ
   ),
@@ -3325,14 +3330,14 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.tax_profiles.create",
     "Record a taxpayer profile from a date",
-    "Record the taxpayer situation in force from valid_from: church-tax liability and rate, and single/joint assessment (which selects the Sparer-Pauschbetrag ceiling). Effective-dated on purpose - a new row never rewrites what an already-recorded statement reconstructs to. A non-zero church_tax_rate on a not-liable profile is rejected.",
+    "Record the taxpayer situation in force from valid_from: church-tax liability and rate, and single/joint assessment (which selects the Sparer-Pauschbetrag ceiling). Effective-dated on purpose - a new row never rewrites what an already-recorded statement reconstructs to. A non-zero church_tax_rate on a not-liable profile is rejected." + TAX_AMOUNTS,
     taxProfileCreateSchema,
     taxProfileCreateZ
   ),
   tool(
     "portfolixir.tax_profiles.update",
     "Correct a taxpayer profile",
-    "Correct one profile row. To record a CHANGE in the taxpayer's situation, create a new row with a later valid_from instead - editing rewrites history, adding does not.",
+    "Correct one profile row. To record a CHANGE in the taxpayer's situation, create a new row with a later valid_from instead - editing rewrites history, adding does not." + TAX_AMOUNTS,
     taxProfileUpdateSchema,
     taxProfileUpdateZ
   ),
@@ -3353,7 +3358,7 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.allowance_orders.put",
     "Record a configured Freistellungsauftrag",
-    "Record or replace the instructed allowance for one (holder, institution, tax_year). amount_granted is a non-negative Decimal string. Recording the same triple again updates it - identity folds case, so it never silently becomes a second order.",
+    "Record or replace the instructed allowance for one (holder, institution, tax_year). amount_granted is a non-negative Decimal string. Recording the same triple again updates it - identity folds case, so it never silently becomes a second order." + TAX_AMOUNTS,
     allowanceOrderPutSchema,
     allowanceOrderPutZ
   ),
@@ -3381,14 +3386,14 @@ const toolDefinitions: ToolDefinition[] = [
   tool(
     "portfolixir.tax_snapshots.create",
     "Record a tax statement",
-    "Transcribe the tax block of a broker statement for one (institution, holder, tax_year, as_of). Every money field is a POSITIVE MAGNITUDE Decimal string - a loss pot is the volume of loss available for offsetting, NOT the negative number the statement prints; a negative input is rejected rather than silently flipped. as_of must not be in the future. Omit church_tax_rate to take the holder's profile in force at as_of, which is then frozen on the row. Arithmetic advisories come back in the response and never block the write.",
+    "Transcribe the tax block of a broker statement for one (institution, holder, tax_year, as_of). Every money field is a POSITIVE MAGNITUDE Decimal string - a loss pot is the volume of loss available for offsetting, NOT the negative number the statement prints; a negative input is rejected rather than silently flipped. as_of must not be in the future. Omit church_tax_rate to take the holder's profile in force at as_of, which is then frozen on the row. Arithmetic advisories come back in the response and never block the write." + TAX_AMOUNTS,
     taxSnapshotCreateSchema,
     taxSnapshotCreateZ
   ),
   tool(
     "portfolixir.tax_snapshots.update",
     "Correct a recorded tax statement",
-    "Correct a recorded statement in place - the case of a re-issued statement for the same position date. Same magnitude rules as create.",
+    "Correct a recorded statement in place - the case of a re-issued statement for the same position date. Same magnitude rules as create." + TAX_AMOUNTS,
     taxSnapshotUpdateSchema,
     taxSnapshotUpdateZ
   ),
