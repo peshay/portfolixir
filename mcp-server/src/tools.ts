@@ -1,4 +1,4 @@
-import type { ApiClient } from "./api-client.js";
+import { readOnlyClient, type ApiClient } from "./api-client.js";
 import { z, type ZodTypeAny } from "zod";
 
 type JsonSchema = Record<string, any>;
@@ -3641,9 +3641,7 @@ export async function callTool(
   // A tool that changes nothing tells the client so, whatever its method,
   // so a timeout is answered as a read's, never as an unknown outcome (E25
   // S7 review round, R3).
-  const scoped: ApiClient = definition?.annotations.readOnlyHint
-    ? { request: (method, path, body) => client.request(method, path, body, { readOnly: true }) }
-    : client;
+  const scoped = definition?.annotations.readOnlyHint ? readOnlyClient(client) : client;
   const payload = await apiCall(scoped, name, parsedArgs);
 
   return {

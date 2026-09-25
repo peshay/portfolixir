@@ -85,6 +85,16 @@ export class ApiReadTimeoutError extends Error {
   }
 }
 
+/**
+ * `client` for a tool that changes nothing (E25 S7 review round, R3): every
+ * request it sends says so, so a timeout is answered as a read's.
+ */
+export function readOnlyClient(client: ApiClient): ApiClient {
+  return {
+    request: (method, path, body) => client.request(method, path, body, { readOnly: true })
+  };
+}
+
 // The deadline's abort, or any other abort of the request.
 function isAbort(error: unknown): boolean {
   const name = typeof error === "object" && error !== null ? (error as { name?: unknown }).name : undefined;
