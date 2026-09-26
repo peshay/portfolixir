@@ -56,7 +56,8 @@ base64 would break the connection string.
 | `PORTFOLIXIR_SESSION_DAYS` | no | How many days a UI login stays valid (default 30). The window slides: using the instance renews it, so you are asked again only after a full period of not using it. `0` turns the server-side expiry off: the browser forgets the login when it closes, but a copy of the session cookie never expires, so prefer a number of days. A logout clears the login in that browser only, and a copy of the session cookie taken earlier stays valid; to end every login, change `PORTFOLIXIR_UI_PASSWORD` or rotate `SECRET_KEY_BASE`. |
 | `PHX_HOST` | no | The name the reverse proxy serves (default `localhost`). Requests under any other `Host` are refused with 421. |
 | `PORTFOLIXIR_ALLOWED_HOSTS` | no | Further names, comma-separated (a LAN address, a second proxy name). The Compose file adds `app`, the name the MCP companion reaches the application under. |
-| `PHX_FORCE_SSL` | no | `true` redirects plain HTTP to HTTPS and sets HSTS. Set it once the reverse proxy terminates TLS and sends `X-Forwarded-Proto` from loopback or from an address named in `PORTFOLIXIR_TRUSTED_PROXIES`; off by default, because a loopback instance has no TLS to redirect to and the application never terminates TLS itself. |
+| `PHX_FORCE_SSL` | no | `true` redirects plain HTTP to HTTPS and sets HSTS. Set it once the reverse proxy terminates TLS and sends `X-Forwarded-Proto` from loopback or from an address named in `PORTFOLIXIR_TRUSTED_PROXIES`; off by default, because a loopback instance has no TLS to redirect to and the application never terminates TLS itself. `localhost` is never redirected. |
+| `PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS` | no | Host names, comma-separated, that `PHX_FORCE_SSL` leaves on plain HTTP: no redirect and no HSTS for a request under them. The Compose file sets it to `app`, the name the MCP companion calls the application under on the Compose network, where there is no TLS; leave it alone in Compose. Name only internal names here, never the one the reverse proxy serves. |
 | `PORTFOLIXIR_TRUSTED_PROXIES` | no | Addresses or CIDR blocks, comma-separated, whose `X-Forwarded-For` (the login and token throttle's source) and `X-Forwarded-Proto` (the scheme) the application believes. Empty, the throttle counts the connecting address, which behind a proxy is the proxy, and only a proxy on loopback can mark a request as HTTPS. |
 | `PORTFOLIXIR_MCP_ALLOWED_HOSTS` | no | Further `Host` names the MCP companion answers under (a proxy name), comma-separated. |
 | `PORTFOLIXIR_MCP_READ_ONLY` | no | `true` makes the MCP companion read-only: it lists and calls only the tools that change nothing (off by default; any value other than `true`, `false`, `1`, `0` or empty stops it with the variable named). It narrows the companion, not `PORTFOLIXIR_API_TOKEN`, which can still write through the API. |
@@ -290,7 +291,11 @@ in four lines:
    application serves what it is given; with it, a proxy that forgets
    `X-Forwarded-Proto`, or whose address is neither loopback nor named in
    `PORTFOLIXIR_TRUSTED_PROXIES`, produces a redirect loop, which is the
-   variable telling you the header is missing or not believed.
+   variable telling you the header is missing or not believed. The MCP
+   companion calls the application over plain HTTP on the Compose network
+   under `app`, which `PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS` exempts, so its
+   calls are never redirected; the companion refuses a redirect by name
+   rather than following it (E25).
 4. The proxy passes the application's response headers through unchanged and
    injects nothing into the pages. Every page carries a Content-Security-Policy
    (next section); a proxy that adds a script or a stylesheet — a banner, an

@@ -348,6 +348,16 @@ defmodule Portfolixir.CITest do
     assert runtime =~ "check_origin: Enum.map(Portfolixir.RuntimeConfig.allowed_hosts()"
     assert runtime =~ "Portfolixir.RuntimeConfig.trusted_proxies()"
 
+    # E25 S7, F23: with PHX_FORCE_SSL on, the companion's plain-HTTP calls
+    # under the Compose name are left unredirected; runtime.exs reads the
+    # variable through force_ssl_opts/0, which takes it as its second input.
+    assert compose =~ ~s(PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS: app)
+    assert compose =~ "PORTFOLIXIR_API_BASE_URL: http://app:4000"
+    assert runtime =~ "Portfolixir.RuntimeConfig.force_ssl_opts()"
+
+    assert File.read!("lib/portfolixir/runtime_config.ex") =~
+             ~s[System.get_env("PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS")]
+
     for variable <-
           ~w(PORTFOLIXIR_TRUSTED_PROXIES PORTFOLIXIR_MCP_ALLOWED_HOSTS POSTGRES_PASSWORD) do
       assert env_example =~ variable <> "="

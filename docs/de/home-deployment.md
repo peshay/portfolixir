@@ -58,7 +58,8 @@ Base64 die Verbindungszeichenkette zerlegen würde.
 | `PORTFOLIXIR_SESSION_DAYS` | nein | Wie viele Tage eine Anmeldung gilt (Standard 30). Das Fenster wandert: die Nutzung der Instanz verlängert es, gefragt wird also erst nach einer vollen Periode ohne Nutzung. `0` schaltet den serverseitigen Ablauf ab: der Browser vergisst die Anmeldung beim Schließen, eine Kopie des Sitzungs-Cookies läuft aber nie ab; wähle deshalb lieber eine Zahl von Tagen. Eine Abmeldung beendet die Anmeldung nur in diesem Browser, eine vorher genommene Kopie des Sitzungs-Cookies bleibt gültig; um jede Anmeldung zu beenden, ändere `PORTFOLIXIR_UI_PASSWORD` oder rotiere `SECRET_KEY_BASE`. |
 | `PHX_HOST` | nein | Der Name, unter dem der Reverse-Proxy ausliefert (Standard `localhost`). Anfragen unter einem anderen `Host` werden mit 421 abgewiesen. |
 | `PORTFOLIXIR_ALLOWED_HOSTS` | nein | Weitere Namen, kommagetrennt (eine LAN-Adresse, ein zweiter Proxy-Name). Die Compose-Datei ergänzt `app`, den Namen, unter dem der MCP-Begleitdienst die Anwendung erreicht. |
-| `PHX_FORCE_SSL` | nein | `true` leitet unverschlüsseltes HTTP auf HTTPS um und setzt HSTS. Setze es, sobald der Reverse-Proxy TLS terminiert und `X-Forwarded-Proto` von Loopback oder von einer in `PORTFOLIXIR_TRUSTED_PROXIES` genannten Adresse sendet; standardmäßig aus, weil eine Loopback-Instanz kein TLS hat, auf das sie umleiten könnte, und die Anwendung TLS nie selbst terminiert. |
+| `PHX_FORCE_SSL` | nein | `true` leitet unverschlüsseltes HTTP auf HTTPS um und setzt HSTS. Setze es, sobald der Reverse-Proxy TLS terminiert und `X-Forwarded-Proto` von Loopback oder von einer in `PORTFOLIXIR_TRUSTED_PROXIES` genannten Adresse sendet; standardmäßig aus, weil eine Loopback-Instanz kein TLS hat, auf das sie umleiten könnte, und die Anwendung TLS nie selbst terminiert. `localhost` wird nie umgeleitet. |
+| `PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS` | nein | Host-Namen, durch Kommas getrennt, die `PHX_FORCE_SSL` bei unverschlüsseltem HTTP belässt: keine Umleitung und kein HSTS für eine Anfrage unter ihnen. Die Compose-Datei setzt sie auf `app`, den Namen, unter dem der MCP-Begleitdienst die Anwendung im Compose-Netz ohne TLS aufruft; lass sie in Compose unverändert. Nenne hier nur interne Namen, nie den, den der Reverse-Proxy ausliefert. |
 | `PORTFOLIXIR_TRUSTED_PROXIES` | nein | Adressen oder CIDR-Blöcke, kommagetrennt, deren `X-Forwarded-For` (die Quelle der Anmelde- und Token-Drossel) und `X-Forwarded-Proto` (das Schema) die Anwendung glaubt. Leer zählt die Drossel die verbindende Adresse, hinter einem Proxy also den Proxy, und nur ein Proxy auf Loopback kann eine Anfrage als HTTPS kennzeichnen. |
 | `PORTFOLIXIR_MCP_ALLOWED_HOSTS` | nein | Weitere `Host`-Namen, unter denen der MCP-Begleitdienst antwortet (ein Proxy-Name), kommagetrennt. |
 | `PORTFOLIXIR_MCP_READ_ONLY` | nein | `true` macht den MCP-Begleitdienst nur lesend: Er listet und ruft nur die Tools auf, die nichts ändern (standardmäßig aus; jeder andere Wert als `true`, `false`, `1`, `0` oder leer stoppt ihn mit dem Namen der Variable). Er schränkt den Begleitdienst ein, nicht `PORTFOLIXIR_API_TOKEN`, das über die API weiterhin schreiben kann. |
@@ -304,7 +305,11 @@ Vertrag in vier Zeilen:
    liefert die Anwendung aus, was sie bekommt; mit ihr erzeugt ein Proxy, der
    `X-Forwarded-Proto` vergisst oder dessen Adresse weder Loopback ist noch in
    `PORTFOLIXIR_TRUSTED_PROXIES` steht, eine Umleitungsschleife — so sagt dir
-   die Variable, dass der Header fehlt oder nicht geglaubt wird.
+   die Variable, dass der Header fehlt oder nicht geglaubt wird. Der
+   MCP-Begleitdienst ruft die Anwendung im Compose-Netz unverschlüsselt unter
+   `app` auf, das `PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS` ausnimmt; seine Aufrufe
+   werden also nie umgeleitet, und eine Umleitung lehnt er mit Namen ab, statt
+   ihr zu folgen (E25).
 4. Der Proxy reicht die Antwort-Header der Anwendung unverändert durch und
    fügt den Seiten nichts hinzu. Jede Seite trägt eine Content-Security-Policy
    (nächster Abschnitt); ein Proxy, der ein Skript oder ein Stylesheet

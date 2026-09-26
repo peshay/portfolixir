@@ -114,15 +114,35 @@ defmodule Portfolixir.RuntimeConfig do
   on, plain HTTP is redirected and HSTS is set, with the scheme read from the
   proxy's `x-forwarded-proto`, which `PortfolixirWeb.TrustedProxy` keeps only
   from loopback or a trusted proxy (E25 S1, F09).
-  """
-  @spec force_ssl_opts(String.t() | nil) :: false | keyword()
-  def force_ssl_opts(value \\ System.get_env("PHX_FORCE_SSL"))
 
-  def force_ssl_opts(value) when is_binary(value) do
-    if truthy?(value), do: [rewrite_on: [:x_forwarded_proto], hsts: true], else: false
+  `localhost` is always left on plain HTTP (the container's own health
+  check), and so is every host `PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS` names,
+  comma-separated (E25 S7, F23): the internal name the MCP companion calls
+  the app under on the Compose network, where there is no TLS to redirect
+  to. Names are normalised like `allowed_hosts/2` (trimmed, lower-cased, a
+  port dropped); an excluded host gets neither the redirect nor HSTS.
+  """
+  @spec force_ssl_opts(String.t() | nil, String.t() | nil) :: false | keyword()
+  def force_ssl_opts(
+        value \\ System.get_env("PHX_FORCE_SSL"),
+        excluded \\ System.get_env("PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS")
+      )
+
+  def force_ssl_opts(value, excluded) when is_binary(value) do
+    if truthy?(value) do
+      hosts =
+        (["localhost"] ++ split_hosts(excluded))
+        |> Enum.map(&normalize_host/1)
+        |> Enum.reject(&(&1 == ""))
+        |> Enum.uniq()
+
+      [rewrite_on: [:x_forwarded_proto], hsts: true, exclude: hosts]
+    else
+      false
+    end
   end
 
-  def force_ssl_opts(_value), do: false
+  def force_ssl_opts(_value, _excluded), do: false
 
   @min_token_bytes 32
   @placeholder_prefixes ~w(dev-api-token dev-mcp-token test-api-token replace change secret token password example)

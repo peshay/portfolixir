@@ -82,7 +82,10 @@ defmodule Portfolixir.RuntimeConfigTest do
     assert RuntimeConfig.bind_ip() == RuntimeConfig.bind_ip(System.get_env("PHX_BIND_ALL"))
 
     assert RuntimeConfig.force_ssl_opts() ==
-             RuntimeConfig.force_ssl_opts(System.get_env("PHX_FORCE_SSL"))
+             RuntimeConfig.force_ssl_opts(
+               System.get_env("PHX_FORCE_SSL"),
+               System.get_env("PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS")
+             )
 
     assert RuntimeConfig.allowed_hosts() ==
              RuntimeConfig.allowed_hosts(

@@ -57,6 +57,9 @@ services:
       # "app" is the name the MCP companion reaches the app under.
       PORTFOLIXIR_ALLOWED_HOSTS: app,${PORTFOLIXIR_ALLOWED_HOSTS:-}
       PHX_FORCE_SSL: ${PHX_FORCE_SSL:-false}
+      # The companion calls the app over plain HTTP under "app" on the
+      # Compose network; PHX_FORCE_SSL leaves that name unredirected.
+      PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS: app
       # The reverse proxy reaches the container through the Docker bridge;
       # name that exact address so the throttle sees the client behind it and
       # the forwarded scheme is believed (docs/home-deployment.md).

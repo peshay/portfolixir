@@ -33,7 +33,9 @@ if config_env() == :prod do
 
   # PHX_FORCE_SSL=true redirects plain HTTP and sets HSTS, reading the scheme
   # from the proxy's x-forwarded-proto (#759). Off by default so a loopback
-  # instance without TLS keeps working.
+  # instance without TLS keeps working. localhost and the hosts
+  # PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS names (Compose: "app", the name the
+  # MCP companion calls over plain HTTP) are never redirected (E25 S7, F23).
   config :portfolixir, :force_ssl, Portfolixir.RuntimeConfig.force_ssl_opts()
 
   # Stored logos live outside the release, which stays read-only for the user
