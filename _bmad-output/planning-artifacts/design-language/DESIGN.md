@@ -2437,6 +2437,10 @@ variation selectors); the note marks a row stored before that rule.
   Cash accounts and depots have no rename on screen, so they carry no note
   there (a follow-up names it).
 - **Stored text inside running text is isolated in `<bdi>`**: the stored
-  subject of a rule's words line and a retraction's reason in the thesis
-  card, so a direction control reorders at most the stored text. No picture
-  changes by it.
+  subject of a rule's words line, a retraction's reason in the thesis card,
+  and in the rule dialog the rule's name in its heading and the view's name
+  in its first hint (the S7 review round), so a direction control reorders
+  at most the stored text. The translated sentence is split around its
+  placeholder before the stored text is put in. No picture changes by it.
+  Flash messages and other headings that interpolate a stored name are not
+  isolated yet (a follow-up).

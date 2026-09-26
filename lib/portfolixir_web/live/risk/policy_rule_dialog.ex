@@ -136,6 +136,29 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
   defp decimal_input(%Decimal{} = value),
     do: value |> Decimal.normalize() |> DecimalInput.value()
 
+  # A translated sentence around one stored name (E25 S7 review round,
+  # S7E-8; pick G12.2 = B): the template is split on a placeholder no
+  # translation carries, before any stored text is put in, and the name is
+  # set in <bdi>, so a direction control a legacy name still carries
+  # reorders at most the name, never the sentence around it.
+  @stored_marker "\u0000stored\u0000"
+
+  defp frame(translated) do
+    case String.split(translated, @stored_marker, parts: 2) do
+      [before, rest] -> {before, rest}
+      [whole] -> {whole, nil}
+    end
+  end
+
+  attr(:frame, :any, required: true)
+  attr(:text, :string, required: true)
+
+  defp isolated(assigns) do
+    ~H"""
+    <%= case @frame do %><% {before, rest} when is_binary(rest) -> %><%= before %><bdi><%= @text %></bdi><%= rest %><% {whole, nil} -> %><%= whole %><% end %>
+    """
+  end
+
   @impl true
   def render(assigns) do
     name_changed? = name_changed?(assigns.rule, assigns.form)
@@ -148,7 +171,14 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
         metric?: assigns.form["measure"] in @metric_measures,
         unit: PolicyRuleFormat.unit(assigns.form["measure"]),
         name_changed?: name_changed?,
-        rename_only?: name_changed? and predicate(assigns.form) == assigns.baseline
+        rename_only?: name_changed? and predicate(assigns.form) == assigns.baseline,
+        title_frame: frame(gettext("Change rule — “%{name}”", name: @stored_marker)),
+        view_frame:
+          frame(
+            gettext("Evaluated in the view “%{view}”, on its steerable basis.",
+              view: @stored_marker
+            )
+          )
       )
 
     ~H"""
@@ -163,9 +193,7 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
     >
       <header class="modal-head">
         <h2 id={"#{@id}-title"}>
-          <%= if @rule,
-            do: gettext("Change rule — “%{name}”", name: @rule.name),
-            else: gettext("New rule") %>
+          <%= if @rule do %><.isolated frame={@title_frame} text={@rule.name} /><% else %><%= gettext("New rule") %><% end %>
         </h2>
         <button
           type="button"
@@ -181,7 +209,7 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
         <div class="modal-body">
           <p :if={@alert} class="alert-error" role="alert"><%= @alert %></p>
           <p class="hint">
-            <%= gettext("Evaluated in the view “%{view}”, on its steerable basis.", view: @view_name) %>
+            <.isolated frame={@view_frame} text={@view_name} />
           </p>
 
           <%!-- E25 S7, G20; pick G12.2 = B: a name or a note stored before
