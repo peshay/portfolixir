@@ -98,11 +98,10 @@ defmodule Portfolixir.Lifecycle.CashMerge do
           | {:already_merged, MergeRecord.t()}
           | {:refused, [guard()]}
           | {:plan_changed, map()}
-          | {:choice_required, :collapse_key_equal}
+          | {:choice_required, :collapse_key_equal, pos_integer()}
           | {:invalid, :plan_digest | :collapse_key_equal, String.t()}
           | {:identity_check_failed, map()}
           | {:write_refused, String.t(), integer(), Ecto.Changeset.t()}
-          | :raced
 
   # --- the preview ---------------------------------------------------------------
 
@@ -189,9 +188,16 @@ defmodule Portfolixir.Lifecycle.CashMerge do
     end
     |> Repo.transaction()
     |> case do
-      {:ok, {outcome, record}} -> {:ok, record, outcome}
-      {:error, :plan_changed} -> fresh_preview(source_id, target_id)
-      {:error, reason} -> {:error, reason}
+      {:ok, {outcome, record}} ->
+        {:ok, record, outcome}
+
+      # A row or a depot another writer removed under the merge (the locks
+      # make it a bug catcher) is a changed plan like a stale digest.
+      {:error, reason} when reason in [:plan_changed, :raced] ->
+        fresh_preview(source_id, target_id)
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -238,7 +244,9 @@ defmodule Portfolixir.Lifecycle.CashMerge do
   defp same_digest(%{digest: digest}, digest), do: :ok
   defp same_digest(_plan, _approved), do: {:error, :plan_changed}
 
-  defp choose(%{pairs: [_ | _]}, nil), do: {:error, {:choice_required, :collapse_key_equal}}
+  defp choose(%{pairs: [_ | _] = pairs}, nil),
+    do: {:error, {:choice_required, :collapse_key_equal, length(pairs)}}
+
   defp choose(_plan, collapse), do: {:ok, collapse == true}
 
   defp fresh_preview(source_id, target_id) do

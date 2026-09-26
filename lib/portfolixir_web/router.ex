@@ -312,6 +312,10 @@ defmodule PortfolixirWeb.Router do
     post("/cash_accounts/:id/balance", CashAccountController, :set_balance)
     delete("/cash_accounts/:id", CashAccountController, :delete)
     delete("/cash_accounts/:id/former_names", CashAccountController, :remove_former_name)
+    # ADR-0050 §7, §10: the merge of a cash account into another — a read
+    # that previews it, and the apply under the preview's digest.
+    get("/cash_accounts/:id/merge_preview", MergeController, :cash_account_preview)
+    post("/cash_accounts/:id/merge", MergeController, :cash_account_merge)
 
     get("/securities_accounts", SecuritiesAccountController, :index)
     post("/securities_accounts", SecuritiesAccountController, :create)

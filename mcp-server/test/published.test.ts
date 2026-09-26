@@ -152,7 +152,10 @@ const REMOVING_POSTS = [
 const MODIFYING_POSTS = [
   "portfolixir.policy_rules.retire", // closes the version in force, drops scheduled ones
   "portfolixir.plans.activate", // archives the plan that was active
-  "portfolixir.securities.isin_change" // writes the new ISIN onto the security
+  "portfolixir.securities.isin_change", // writes the new ISIN onto the security
+  // ADR-0050 §7, §10: moves every booking, deletes the source; a retry of a
+  // completed merge answers the original record, so it is idempotent.
+  "portfolixir.cash_accounts.merge"
 ];
 
 const OPEN_WORLD = [

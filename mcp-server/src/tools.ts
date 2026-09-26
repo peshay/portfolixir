@@ -2475,6 +2475,52 @@ const formerNameRemovalSchema = {
 
 const formerNameRemovalZ = z.object({ id: z.number().int().positive(), name: z.string().min(1) });
 
+// ADR-0050 §7, §8, §10 (L3a, #328): the cash-account merge, a preview that
+// writes nothing and an apply under the preview's digest.
+const cashMergePreviewSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "target_id"],
+  properties: {
+    id: { type: "integer", minimum: 1, description: "The cash account to merge away (the source)." },
+    target_id: { type: "integer", minimum: 1, description: "The cash account to keep (the target)." }
+  }
+};
+
+const cashMergePreviewZ = z.object({
+  id: z.number().int().positive(),
+  target_id: z.number().int().positive()
+});
+
+const cashMergeSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "target_id", "plan_digest"],
+  properties: {
+    id: { type: "integer", minimum: 1, description: "The cash account to merge away (the source)." },
+    target_id: { type: "integer", minimum: 1, description: "The cash account to keep (the target)." },
+    plan_digest: {
+      type: "string",
+      minLength: 1,
+      description: "The plan_digest of the preview the operator approved (portfolixir.cash_accounts.merge_preview)."
+    },
+    collapse_key_equal: {
+      type: "boolean",
+      description:
+        "The operator's answer for the preview's key_equal_pairs, required when it lists any and never " +
+        "preselected: true deletes each paired booking of the source (its content hash retired), false keeps " +
+        "both on the target."
+    }
+  }
+};
+
+const cashMergeZ = z.object({
+  id: z.number().int().positive(),
+  target_id: z.number().int().positive(),
+  plan_digest: z.string().min(1),
+  collapse_key_equal: z.boolean().optional()
+});
+
 // #831: the re-import guarantee, stated where the consumer reads — in the
 // description of every read it protects — rather than only on a documentation
 // page. Pinned by test/portfolixir/imports/reimport_preservation_test.exs.
@@ -2860,7 +2906,8 @@ const declaredTools: DeclaredTool[] = [
     "Delete a cash account that no transaction references through either leg and no depot links to. Otherwise 409 " +
       "with errors.referenced_by (the referencing tables, counted: transactions, securities_accounts), " +
       "errors.remedy \"merge\" and errors.remedy_route, the merge preview " +
-      "GET /api/v1/cash_accounts/:id/merge_preview?target_id=<the account to keep> — a merge moves the history onto " +
+      "GET /api/v1/cash_accounts/:id/merge_preview?target_id=<the account to keep> " +
+      "(portfolixir.cash_accounts.merge_preview) — a merge moves the history onto " +
       "the account you keep; a delete never discards it. An unreferenced account's bucket links are removed first, " +
       "journaled under the API token.",
     idSchema,
@@ -2872,6 +2919,43 @@ const declaredTools: DeclaredTool[] = [
     removeFormerName("cash account"),
     formerNameRemovalSchema,
     formerNameRemovalZ
+  ),
+  tool(
+    "portfolixir.cash_accounts.merge_preview",
+    "Preview a cash-account merge",
+    "Preview merging a cash account (id, the source) into another cash account of the same portfolio " +
+      "(target_id, the one to keep) — a read that writes nothing (ADR-0050 §7, §10). Answers the plan_digest " +
+      "portfolixir.cash_accounts.merge takes, both accounts (balance, transaction_count, bucket_ids, " +
+      "former_names), the guards, the transfers between the two (the merge deletes them), the key_equal_pairs " +
+      "(a source booking whose day, kind and amounts equal a target booking's), the names the target gains " +
+      "(former_names.after), and outcome_by_collapse_key_equal with \"false\" and \"true\": the target's " +
+      "balance and booking count after, the bookings moved and deleted, every balance anchor as stated + " +
+      "other_balance = after (a restated anchor absorbs a later import row dated on or before it), the external " +
+      "flows a collapse removes or moves, and the third accounts and positions a collapsed booking changes. " +
+      "Show the operator both outcomes; the choice is theirs. Decimals are strings. A pair that may not merge " +
+      "answers 409 with errors.code (same_account, not_live, portfolio_mismatch, currency_mismatch, " +
+      "liquidity_role_mismatch, buckets_mismatch or legacy_hashed_anchor) and errors.guards; a source already " +
+      "merged answers 409 already_merged with errors.merged_into.",
+    cashMergePreviewSchema,
+    cashMergePreviewZ
+  ),
+  tool(
+    "portfolixir.cash_accounts.merge",
+    "Merge a cash account into another",
+    "Merge a cash account (id) into another (target_id) under the preview the operator approved " +
+      "(portfolixir.cash_accounts.merge_preview): pass its plan_digest. collapse_key_equal is required when the " +
+      "preview lists key_equal_pairs and is never preselected — ask the operator: true deletes each paired " +
+      "booking of the source, false keeps both on the target. The source's bookings, its balance anchors " +
+      "(restated to the combined balance) and its linked depots move onto the target, one audit-journal entry " +
+      "per row under your token; transfers between the two are deleted; the source is deleted, which cannot be " +
+      "undone. Its name, and each of its former names, becomes a former name of the target, so a later Portfolio " +
+      "Performance import that names it books onto the target, and a re-import of an export already applied " +
+      "creates nothing: the content hash of every booking the merge deletes is retired. Answers 201 with the " +
+      "merge record. If a booking, a figure or a guard changed since the preview, it answers 409 plan_changed " +
+      "with the fresh preview in errors.preview and writes nothing — show it and ask again. A retry of a " +
+      "completed merge of the same pair answers 200 with the original merge record (already_applied true).",
+    cashMergeSchema,
+    cashMergeZ
   ),
   tool(
     "portfolixir.securities_accounts.list",
@@ -3529,7 +3613,10 @@ const MODIFYING_POSTS = new Set([
   // Archives the plan that was active in the same scope.
   "portfolixir.plans.activate",
   // Writes the new ISIN onto the security; the former one becomes an alias.
-  "portfolixir.securities.isin_change"
+  "portfolixir.securities.isin_change",
+  // Moves every booking of the source onto the target and deletes the source
+  // (ADR-0050 §7); a retry of a completed merge answers the original record.
+  "portfolixir.cash_accounts.merge"
 ]);
 
 // Reach an external provider through the API, so their answer depends on
@@ -3799,6 +3886,17 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       return client.request("DELETE", `/api/v1/cash_accounts/${args.id}`);
     case "portfolixir.cash_accounts.remove_former_name":
       return client.request("DELETE", withQuery(`/api/v1/cash_accounts/${args.id}/former_names`, args, ["name"]));
+    case "portfolixir.cash_accounts.merge_preview":
+      return client.request(
+        "GET",
+        withQuery(`/api/v1/cash_accounts/${args.id}/merge_preview`, args, ["target_id"])
+      );
+    case "portfolixir.cash_accounts.merge":
+      return client.request("POST", `/api/v1/cash_accounts/${args.id}/merge`, {
+        target_id: args.target_id,
+        plan_digest: args.plan_digest,
+        ...(args.collapse_key_equal === undefined ? {} : { collapse_key_equal: args.collapse_key_equal })
+      });
     case "portfolixir.securities_accounts.list":
       return client.request("GET", "/api/v1/securities_accounts");
     case "portfolixir.securities_accounts.create":

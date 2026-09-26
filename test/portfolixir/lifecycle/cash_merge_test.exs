@@ -562,7 +562,7 @@ defmodule Portfolixir.Lifecycle.CashMergeTest do
     #   fresh_preview} and writes nothing; the fresh preview's digest applies.
     # - Without a digest the apply answers {:invalid, :plan_digest, _}; with
     #   key-equal pairs and no collapse_key_equal it answers
-    #   {:choice_required, :collapse_key_equal}; neither writes anything.
+    #   {:choice_required, :collapse_key_equal, pairs}; neither writes anything.
     test "a stale digest answers plan_changed with the fresh preview, and writes nothing", ctx do
       rows = worked_example!(ctx)
       {:ok, preview} = Lifecycle.preview_cash_merge(ctx.source.id, ctx.target.id)
@@ -585,7 +585,7 @@ defmodule Portfolixir.Lifecycle.CashMergeTest do
                  collapse_key_equal: false
                })
 
-      assert {:error, {:choice_required, :collapse_key_equal}} =
+      assert {:error, {:choice_required, :collapse_key_equal, 2}} =
                Lifecycle.merge_cash_account(agent(), ctx.source.id, ctx.target.id, %{
                  plan_digest: fresh.plan_digest
                })
