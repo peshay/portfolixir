@@ -230,6 +230,39 @@ defmodule Portfolixir.Net.HttpRedirectTest do
     assert {"user-agent", "portfolixir-test"} in other
   end
 
+  # User story (the closing act's mutation re-run, F27):
+  # As an operator whose client hands its credential to Req as the `auth`
+  # option rather than as a header,
+  # I want that option dropped on a hop to another origin too,
+  # so that the credential is not rebuilt for the other host.
+  #
+  # Acceptance criteria:
+  # - The first hop carries the authorization Req builds from `auth`; the hop
+  #   to another host carries none.
+  test "drops Req's auth option on a hop to another origin" do
+    test_pid = self()
+    req = Http.new(max_bytes: 1_000, allowed_hosts: ["a.example.com", "b.example.com"])
+
+    plug =
+      recording_plug(test_pid, fn conn ->
+        case {conn.host, conn.request_path} do
+          {"a.example.com", "/start"} -> redirect(conn, "https://b.example.com/other")
+          _ -> Plug.Conn.send_resp(conn, 200, "final")
+        end
+      end)
+
+    assert {:ok, %Req.Response{status: 200}} =
+             Http.get(req,
+               url: "https://a.example.com/start",
+               auth: {:bearer, "synthetic-token"},
+               plug: plug
+             )
+
+    [{_, _, "a.example.com", _, start}, {_, _, "b.example.com", _, other}] = collect_hops()
+    assert {"authorization", "Bearer synthetic-token"} in start
+    refute "authorization" in Enum.map(other, &elem(&1, 0))
+  end
+
   test "the whole chain runs under one deadline" do
     req = Http.new(max_bytes: 1_000, allowed_hosts: ["a.example.com"], deadline_ms: 100)
 
