@@ -1,3 +1,5 @@
+import { escapeInvisible } from "./invisible-text.js";
+
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
 export interface ApiClientOptions {
@@ -163,6 +165,8 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   };
 }
 
+// Every answer reaches the agent with the characters an operator cannot see
+// spelled out (E25 S7, G20): the one place the companion escapes them.
 async function parseJson(response: Response): Promise<unknown> {
   const text = await response.text();
 
@@ -170,5 +174,5 @@ async function parseJson(response: Response): Promise<unknown> {
     return null;
   }
 
-  return JSON.parse(text);
+  return escapeInvisible(JSON.parse(text));
 }

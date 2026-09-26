@@ -47,7 +47,9 @@ language choice in a link from another site (`Sec-Fetch-Site` other than
 (E25). Text an agent reads carries no character the operator cannot see:
 every writer, the importer included, refuses Unicode tag characters,
 bidirectional controls, the other invisible format characters and runs of
-variation selectors, naming them by code point (E25). The HTTPS posture is
+variation selectors, naming them by code point, and the MCP companion hands
+the agent any such character a row stored before the rule still carries
+spelled as `[U+XXXX]` (E25). The HTTPS posture is
 the reverse-proxy contract in `docs/home-deployment.md`: TLS is terminated by
 the proxy, the application never redirects on its own, and `PHX_FORCE_SSL` is
 the opt-in for the redirect and HSTS once the proxy sets `X-Forwarded-Proto`
