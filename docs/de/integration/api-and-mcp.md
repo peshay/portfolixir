@@ -27,9 +27,10 @@ Authorization: Bearer <PORTFOLIXIR_API_TOKEN>
 hat 1 bis 32 Zeichen aus `a-z`, `0-9`, `_` und `-`). Ein Schreibzugriff mit
 einem davon wird mit diesem Namen als `actor_label` im Journal verbucht
 (`GET /api/v1/journal`), genommen aus dem Eintrag, zu dem das vorgelegte Token
-passt, nie aus der Anfrage. `PORTFOLIXIR_API_TOKEN` bleibt der unbenannte
-Standard und wird wie bisher ohne Label verbucht; das Compose-Deployment nennt
-ihn `mcp`, die Schreibzugriffe des Begleitdienstes lauten also `mcp`. Jeder
+passt, nie aus der Anfrage. `PORTFOLIXIR_API_TOKEN` bleibt der Standard und
+wird wie bisher ohne Label verbucht, es sei denn, `PORTFOLIXIR_API_PRINCIPAL`
+benennt ihn; das Compose-Deployment nennt ihn so `mcp`, die Schreibzugriffe
+des Begleitdienstes lauten also `mcp`. Jeder
 Eintrag wird beim Start wie das eine Token geprüft, und ein Name oder ein Token
 darf nur einmal vorkommen. Ein Name ordnet einen Schreibzugriff zu, er
 beschränkt nicht, was das Token darf: Jedes Token hat dieselbe volle Befugnis.

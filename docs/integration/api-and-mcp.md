@@ -26,8 +26,9 @@ Authorization: Bearer <PORTFOLIXIR_API_TOKEN>
 characters of `a-z`, `0-9`, `_` and `-`). A write made with one is journaled
 with that name as `actor_label` (`GET /api/v1/journal`), taken from the entry
 the presented token matched, never from the request. `PORTFOLIXIR_API_TOKEN`
-stays the unnamed default, journaled without a label, as before; the Compose
-deployment names it `mcp`, so the companion's writes read `mcp`. Every entry is
+stays the default, journaled without a label, as before, unless
+`PORTFOLIXIR_API_PRINCIPAL` names it; the Compose deployment names it `mcp`
+that way, so the companion's writes read `mcp`. Every entry is
 checked at boot like the one token, and a name or a token may appear only
 once. A name attributes a write; it does not narrow what the token may do:
 every token has the same full authority.

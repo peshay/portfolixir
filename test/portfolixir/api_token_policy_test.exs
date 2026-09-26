@@ -105,6 +105,67 @@ defmodule Portfolixir.ApiTokenPolicyTest do
     assert runtime =~ ~s[System.get_env("PORTFOLIXIR_API_TOKENS")]
   end
 
+  # User story (E25 S7 review round, S7E-5):
+  # As an operator upgrading a Compose deployment whose PORTFOLIXIR_API_TOKEN
+  # the old check accepted — one with a comma, or with a space at an edge —
+  # I want the app to take that token as it is and still name it "mcp",
+  # so that the upgrade neither stops the boot nor leaves the companion's
+  # token unmatched.
+  #
+  # Acceptance criteria:
+  # - PORTFOLIXIR_API_PRINCIPAL names PORTFOLIXIR_API_TOKEN: the default
+  #   becomes {name, token}, the token taken whole, checked only by
+  #   validate_api_token!/1 as before; unset or blank, it stays unnamed.
+  # - Its name follows the entry names' rule; a name PORTFOLIXIR_API_TOKENS
+  #   uses too, or a name with no PORTFOLIXIR_API_TOKEN to name, stops the
+  #   boot naming the variable, never a token.
+  # - Compose passes the token through PORTFOLIXIR_API_TOKEN and names it
+  #   "mcp" through PORTFOLIXIR_API_PRINCIPAL; runtime.exs reads all three.
+  test "the one token is named by its own variable and taken whole" do
+    comma = String.duplicate("c", 20) <> "," <> String.duplicate("d", 20)
+    edged = " " <> String.duplicate("e", 40) <> " "
+    scripts = String.duplicate("s", 40)
+
+    assert RuntimeConfig.api_tokens!(comma, nil, "mcp") == [{"mcp", comma}]
+    assert RuntimeConfig.api_tokens!(edged, "", " mcp ") == [{"mcp", edged}]
+
+    assert RuntimeConfig.api_tokens!(comma, "scripts=#{scripts}", "mcp") ==
+             [{"scripts", scripts}, {"mcp", comma}]
+
+    assert RuntimeConfig.api_tokens!(comma, nil, nil) == [{nil, comma}]
+    assert RuntimeConfig.api_tokens!(comma, nil, "") == [{nil, comma}]
+
+    refusals = [
+      {{comma, nil, "MCP"}, ~r/^PORTFOLIXIR_API_PRINCIPAL.*"MCP"/},
+      {{comma, "mcp=#{scripts}", "mcp"},
+       ~r/PORTFOLIXIR_API_PRINCIPAL and PORTFOLIXIR_API_TOKENS both name "mcp"/},
+      {{nil, "scripts=#{scripts}", "mcp"}, ~r/^PORTFOLIXIR_API_PRINCIPAL.*not set/},
+      {{"short", nil, "mcp"}, ~r/^PORTFOLIXIR_API_TOKEN must be/}
+    ]
+
+    for {{single, named, name}, message} <- refusals do
+      error =
+        assert_raise ArgumentError, fn -> RuntimeConfig.api_tokens!(single, named, name) end
+
+      assert error.message =~ message
+      refute error.message =~ comma
+      refute error.message =~ scripts
+    end
+
+    runtime = File.read!("config/runtime.exs")
+    assert runtime =~ ~s[System.get_env("PORTFOLIXIR_API_PRINCIPAL")]
+
+    compose = File.read!("docker-compose.yml")
+    [app_service] = Regex.run(~r/^  app:\n(?:    .*\n|\n)*/m, compose)
+
+    assert app_service =~
+             "PORTFOLIXIR_API_TOKEN: ${PORTFOLIXIR_API_TOKEN:?set PORTFOLIXIR_API_TOKEN in .env}"
+
+    assert app_service =~ ~r/^      PORTFOLIXIR_API_PRINCIPAL: mcp$/m
+    assert app_service =~ "PORTFOLIXIR_API_TOKENS: ${PORTFOLIXIR_API_TOKENS:-}"
+    refute app_service =~ "mcp=${PORTFOLIXIR_API_TOKEN"
+  end
+
   # User story (E25 S1, F01):
   # As a maintainer,
   # I want the MCP companion's token policy pinned to the API token's,

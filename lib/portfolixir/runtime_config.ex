@@ -200,21 +200,32 @@ defmodule Portfolixir.RuntimeConfig do
   name is 1 to 32 characters of `a-z`, `0-9`, `_` and `-`, starting with a
   letter or a digit. `single` is `PORTFOLIXIR_API_TOKEN`, kept as the
   **unnamed default** (`{nil, token}`, no label, as before names existed) so
-  an upgrade changes nothing; it comes last. Every token meets
-  `validate_api_token!/1`'s rules. Raises at boot, naming the variable and the
-  entry but never a token, for a malformed entry, a name used twice, a token
-  given twice (in either variable: one credential, two names, would make the
-  label a guess), and when neither variable holds a token.
+  an upgrade changes nothing; it comes last. `single_name` is
+  `PORTFOLIXIR_API_PRINCIPAL` (E25 S7 review round, S7E-5): set, it names
+  the default (`{name, token}`) under the same name rule, while the token
+  itself is taken whole, as before, rather than spliced into
+  `PORTFOLIXIR_API_TOKENS`, where a comma or an edge space would split or
+  trim it. Compose names the companion's token `mcp` this way. Every token
+  meets `validate_api_token!/1`'s rules. Raises at boot, naming the variable
+  and the entry but never a token, for a malformed entry, a name used twice
+  (across both variables too), a name with no `PORTFOLIXIR_API_TOKEN` to
+  name, a token given twice (in either variable: one credential, two names,
+  would make the label a guess), and when neither variable holds a token.
   """
-  @spec api_tokens!(String.t() | nil, String.t() | nil) :: [{String.t() | nil, String.t()}]
-  def api_tokens!(single, named) do
+  @spec api_tokens!(String.t() | nil, String.t() | nil, String.t() | nil) ::
+          [{String.t() | nil, String.t()}]
+  def api_tokens!(single, named, single_name \\ nil) do
     named = named |> named_entries() |> Enum.map(&named_principal!/1)
     reject_repeated_names!(named)
 
     default =
       case single do
-        value when is_binary(value) and value != "" -> [{nil, validate_api_token!(value)}]
-        _unset -> []
+        value when is_binary(value) and value != "" ->
+          [{default_name!(single_name, named), validate_api_token!(value)}]
+
+        _unset ->
+          reject_orphan_name!(single_name)
+          []
       end
 
     principals = named ++ default
@@ -228,6 +239,41 @@ defmodule Portfolixir.RuntimeConfig do
 
     principals
   end
+
+  # The default token's name, when PORTFOLIXIR_API_PRINCIPAL gives one.
+  defp default_name!(name, named) when is_binary(name) do
+    case String.trim(name) do
+      "" ->
+        nil
+
+      name ->
+        unless Regex.match?(@principal_name, name) do
+          raise ArgumentError,
+                "PORTFOLIXIR_API_PRINCIPAL: the name #{inspect(name)} must be 1 to 32 " <>
+                  "characters of a-z, 0-9, _ and -, starting with a letter or a digit"
+        end
+
+        if List.keymember?(named, name, 0) do
+          raise ArgumentError,
+                "PORTFOLIXIR_API_PRINCIPAL and PORTFOLIXIR_API_TOKENS both name " <>
+                  "#{inspect(name)}; each name is one token"
+        end
+
+        name
+    end
+  end
+
+  defp default_name!(_unset, _named), do: nil
+
+  defp reject_orphan_name!(name) when is_binary(name) do
+    if String.trim(name) != "" do
+      raise ArgumentError,
+            "PORTFOLIXIR_API_PRINCIPAL names PORTFOLIXIR_API_TOKEN, which is not set; set " <>
+              "the token or remove the name"
+    end
+  end
+
+  defp reject_orphan_name!(_unset), do: :ok
 
   defp named_entries(value) when is_binary(value) do
     value
@@ -255,7 +301,7 @@ defmodule Portfolixir.RuntimeConfig do
       [_no_separator] ->
         raise ArgumentError,
               "PORTFOLIXIR_API_TOKENS entry #{position} is not name=token; write each entry " <>
-                "as name=token, comma-separated"
+                "as name=token, comma-separated (a token there cannot contain a comma)"
     end
   end
 

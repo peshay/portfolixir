@@ -4,11 +4,13 @@ defmodule PortfolixirWeb.ApiAuthPlug do
 
   **Named principals** (E25 S7, G26; the architecture's FU-6): the API
   accepts a list of `{name, token}` entries (`config :portfolixir,
-  :api_tokens`, built at boot by `Portfolixir.RuntimeConfig.api_tokens!/2`
-  from `PORTFOLIXIR_API_TOKENS` and `PORTFOLIXIR_API_TOKEN`). The actor of a
-  request is derived from the entry the presented token matches — its name
-  becomes the journal's actor label — never from anything the caller sends.
-  The unnamed default (`PORTFOLIXIR_API_TOKEN`) journals no label, as before.
+  :api_tokens`, built at boot by `Portfolixir.RuntimeConfig.api_tokens!/3`
+  from `PORTFOLIXIR_API_TOKENS`, `PORTFOLIXIR_API_TOKEN` and
+  `PORTFOLIXIR_API_PRINCIPAL`). The actor of a request is derived from the
+  entry the presented token matches — its name becomes the journal's actor
+  label — never from anything the caller sends. The default
+  (`PORTFOLIXIR_API_TOKEN`) journals no label, as before, unless
+  `PORTFOLIXIR_API_PRINCIPAL` names it.
   Every entry carries the same full authority: a name attributes a write, it
   does not narrow what the token may do.
   """
@@ -76,7 +78,7 @@ defmodule PortfolixirWeb.ApiAuthPlug do
   end
 
   # Every entry is compared, so the time taken does not depend on which one
-  # matched; tokens are distinct by construction (`api_tokens!/2`).
+  # matched; tokens are distinct by construction (`api_tokens!/3`).
   defp matching_principal(provided, principals) when is_binary(provided) do
     Enum.reduce(principals, :error, fn {name, token}, found ->
       if valid_token?(provided, token), do: {:ok, name}, else: found
