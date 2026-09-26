@@ -2170,7 +2170,14 @@ in a scheduled prompt, which is where such limits used to drift. The operator
 writes rules on the Risk page and an agent writes them over the API with its
 token, so a rule is a stored rule whoever wrote it: the audit journal
 (`resource_type` `policy_rule` and `policy_rule_version`) says who wrote each
-rule and each version, and the list's `rules_note` points there.
+rule and each version, and the list's `rules_note` points there. Every
+version also carries **`author`** (E25): `operator` for a version saved on
+the Risk page, `agent` for one written with an API or MCP token, derived from
+the write's credential and never read from the body; a finding carries the
+`author` of the version in force. A version stored before authors existed
+takes the author its journaled creation names, `null` only without one.
+Risk marks the agent's rules with the word "Agent"; when a rule is in force
+does not depend on its author.
 
 **What a rule is.** A predicate over **one named measure**, for one subject,
 in one evaluation context:

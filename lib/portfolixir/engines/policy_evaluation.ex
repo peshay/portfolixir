@@ -126,7 +126,10 @@ defmodule Portfolixir.Engines.PolicyEvaluation do
       threshold: version.threshold,
       lower: version.lower,
       upper: version.upper,
-      note: version.note
+      note: version.note,
+      # Who drew the line in force (E25 S7, G30): the Risk page marks the
+      # agent's, and the findings read serializes it.
+      author: version.author
     }
   end
 

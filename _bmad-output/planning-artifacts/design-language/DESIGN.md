@@ -2367,3 +2367,32 @@ and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
   figures and the reason): identical rows of a re-import — the expected
   mass — stay **closed**; a retired hash and the economic layer stand open.
   Each row reads "Row N: <kind, date, security, amount, accounts>".
+
+## Amendment 2026-09-26 — The author of a policy rule *(Sprint 16 pick G12.1-A, E25 S7, G30)*
+
+Board `mockups/ux-design-2026-09-24/12-e25-new-marks`, G12.1 variant A (the
+owner's pick, plan D-5), as built in `PortfolixirWeb.RiskLive` and
+`PortfolixirWeb.Risk.PolicyRuleDialog`. Every rule version stores its author,
+derived from the write's actor: the Risk page writes as the operator, an API
+or MCP token as the agent (decision T-8).
+
+- **The word, only at the exception.** A finding whose version in force the
+  agent wrote ends its words line (`.policy-rule__words`) with "· Agent", the
+  research log's word for the same fact ("#16 · 22.09.2026 · Agent"). A
+  hidden lead (`.visually-hidden`: "Version in force by:" / "Version in Kraft
+  von:") tells a reader what the word is. The operator's own rules carry no
+  word, so a portfolio without the agent's rules reads exactly as before.
+- **Scheduled and retired rules alike.** The muted line of a scheduled rule
+  (its coming version) and of a retired rule (its last version) ends with the
+  same "· Agent", hidden lead "Version by:" / "Version von:".
+- **No badge, no colour.** Every pill in the findings table is taken:
+  `.badge--neutral` is "met", dashed means undetermined, accent means "yours"
+  and warning is a severity. The word stays in the muted line, survives
+  forced colours as text and wraps with its line at 390 px.
+- **The dialog.** Every entry of the version list names its author after the
+  severity: "· Operator" or "· Agent". A version stored before authors
+  existed and without a journaled creation names none.
+- **A rename is no version** (D-6) and moves no mark: the word follows the
+  line, not the name; the journal names who renamed.
+- **The title stays "Own rules".** It sets the portfolio's rules apart from
+  the lens's generic thresholds (ADR-0049 §7), not from the agent.

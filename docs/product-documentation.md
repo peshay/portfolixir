@@ -1779,7 +1779,12 @@ The **Risk** tab of the Wealth area shows two things that answer one question
   applies in another view is found in that view: when deleting a view, a
   category, a classification or a security is refused because rules read it,
   the refusal names the rules with their status and view, and each name links
-  to Risk in the view the rule applies in.
+  to Risk in the view the rule applies in. A rule whose line in force the
+  agent wrote with its API token ends its words with **"Agent"** — scheduled
+  and retired rules too — and the dialog's version list names the author of
+  every version, "Operator" or "Agent" (E25). Your own rules carry no word.
+  The agent's rules are in force like yours; the word only says who drew the
+  line.
 - **Portfolio metrics**, one year: the annualized **volatility**, the
   **maximum drawdown** with the day it started, its low and the day it
   recovered, the **risk-adjusted return** (at a risk-free rate of 0 it is

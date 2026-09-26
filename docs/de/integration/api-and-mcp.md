@@ -2068,7 +2068,14 @@ Seite Risiko an, ein Agent über die API mit seinem Token; eine Regel ist also
 eine gespeicherte Regel, wer sie auch geschrieben hat: Das Audit-Journal
 (`resource_type` `policy_rule` und `policy_rule_version`) sagt, wer jede Regel
 und jede Version geschrieben hat, und die `rules_note` der Liste verweist
-dorthin.
+dorthin. Jede Version trägt zudem **`author`** (E25): `operator` für eine auf
+der Seite Risiko gespeicherte Version, `agent` für eine mit einem API- oder
+MCP-Token geschriebene, abgeleitet aus dem Zugang des Schreibzugriffs und nie
+aus dem Body gelesen; ein Befund trägt den `author` der gültigen Version.
+Eine Version von vor den Autoren erhält den Autor, den ihr Anlegen im Journal
+nennt, `null` nur ohne einen solchen Eintrag. Risiko markiert die Regeln des
+Agenten mit dem Wort „Agent"; ab wann eine Regel gilt, hängt nicht von ihrem
+Autor ab.
 
 **Was eine Regel ist.** Eine Aussage über **eine benannte Kennzahl**, für
 einen Bezug, in einem Auswertungskontext:

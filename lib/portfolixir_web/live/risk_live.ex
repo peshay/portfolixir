@@ -478,7 +478,7 @@ defmodule PortfolixirWeb.RiskLive do
                   >
                     <%= finding.rule_name %>
                   </button>
-                  <span class="policy-rule__words"><%= PolicyRuleFormat.words(finding, @names) %></span>
+                  <span class="policy-rule__words"><%= PolicyRuleFormat.words(finding, @names) %><.author_mark author={finding.author} lead={gettext("Version in force by:")} /></span>
                   <%!-- A planned change is part of the rule's standard; it
                        is shown where the rule is, with the day it starts. --%>
                   <span
@@ -536,6 +536,7 @@ defmodule PortfolixirWeb.RiskLive do
             <span class="muted">
               · <%= gettext("from %{date}", date: Format.date(rule.next_version.valid_from)) %>
               · <%= PolicyRuleFormat.line(rule.next_version) %>
+              <.author_mark author={rule.next_version.author} lead={gettext("Version by:")} />
             </span>
           </li>
         </ul>
@@ -554,11 +555,25 @@ defmodule PortfolixirWeb.RiskLive do
             <span class="muted">
               · <%= PolicyRuleFormat.period(List.last(rule.versions)) %>
               · <%= PolicyRuleFormat.line(List.last(rule.versions)) %>
+              <.author_mark author={List.last(rule.versions).author} lead={gettext("Version by:")} />
             </span>
           </li>
         </ul>
       </details>
     </section>
+    """
+  end
+
+  attr(:author, :atom, required: true)
+  attr(:lead, :string, required: true, doc: "the hidden words before the author, for a reader")
+
+  # E25 S7, G30; pick G12.1 = A (board 12-e25-new-marks): "Agent" as the
+  # last word of a rule's line when the agent wrote its version — the
+  # research log's word, no badge and no colour. The operator's own rules
+  # carry no word, so a portfolio without the agent's rules reads as before.
+  defp author_mark(assigns) do
+    ~H"""
+    <%= if @author == :agent do %> <span data-role="policy-rule-author">· <span class="visually-hidden"><%= @lead %> </span><%= gettext("Agent") %></span><% end %>
     """
   end
 

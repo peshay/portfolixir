@@ -71,7 +71,9 @@ defmodule Portfolixir.Derived.Registry do
     # key): a write that moves a measure bumps the first, a rule write the
     # second, and a finding that outlived an edited cap would be a stale
     # answer to the only question the read exists for.
-    policy_findings: %{computation_version: 1, default_lifetime: :request}
+    # v2 (E25 S7, G30): a finding carries the author of its version; a v1
+    # payload lacks it.
+    policy_findings: %{computation_version: 2, default_lifetime: :request}
   }
 
   @doc "All registered analytic ids."

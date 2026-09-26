@@ -14,7 +14,9 @@ description: "Decision for gate B3.6 (FR-43). A policy rule is a stored predicat
   renamed (§4), §8's write list gains the rename, and §8's remedy sentence is
   corrected to the built behaviour. **Amended in Sprint 16 by the security
   review's F45** (see "Amendment" after §11): the view a rule reads is
-  journaled with every change to its definition.
+  journaled with every change to its definition. **Amended in Sprint 16 by
+  the security review's G30 and decision T-8** (the second amendment after
+  §11): every version names its author, operator or agent.
 - **Date:** 2026-09-23
 - **Answers:** FR-43. §11 lists the asks it answers and the ones it defers, per
   [ADR-0043](0043-a-gate-closing-adr-names-its-asks.html).
@@ -362,6 +364,28 @@ finding moved is therefore always in the journal: in the rule's versions,
 in a measured figure's own writes, or in the view's definition. Nothing
 about evaluation changes: findings stay computed at read and never stored
 (§5).
+
+## Amendment: every version names its author (Sprint 16, G30, T-8)
+
+§1 and §4 stored a version's predicate and period but not who wrote it, and
+the agent's own token writes rules exactly as the Risk page does (§9), so an
+agent's line read as the operator's standard everywhere but the journal.
+Since Sprint 16 (the security triage of 2026-09-24, decision T-8) every
+version carries an **author**, `operator` or `agent`, derived from the actor
+of the write — an API or MCP token writes as the agent, every other writer,
+the Risk page among them, as the operator — and never taken from input. The
+rules read serializes it on every version, the findings read on every
+finding (the author of the version in force), and Wealth → Risk marks the
+agent's lines with the word "Agent" at the end of the rule's words, the
+author on every entry of the dialog's version list (board
+`12-e25-new-marks`, pick G12.1 A). The database refuses a change of a
+recorded author, like the rest of a version's identity (§4). Versions stored
+before the amendment take the author their journaled creation names; one
+without a creation entry names none. **What does not change:** when a rule is
+in force. An agent-written rule is not held back until the operator adopts it
+(T-8 weighed and declined that); the author makes the difference visible, and
+the journal still names the token (`actor_label`, the architecture's FU-6). A
+rename (§4 as amended by D-6) is no version and carries no author.
 
 ## Consequences
 
