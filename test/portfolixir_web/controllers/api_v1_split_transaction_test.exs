@@ -118,6 +118,50 @@ defmodule PortfolixirWeb.ApiV1SplitTransactionTest do
     assert Ledger.get_transaction(buy.id).type == "buy"
   end
 
+  # User story (ADR-0050 §1, review round #884):
+  # As an agent editing a booking over the API,
+  # I want a re-type of an imported row into a balance anchor refused on
+  # `type`,
+  # so that the answer names the field I sent and no anchor carries an import
+  # hash.
+  #
+  # Acceptance criteria:
+  # - PATCH with type "balance_adjustment" on an imported row answers 422 on
+  #   errors.type; the row is untouched.
+  test "PATCH /api/v1/transactions/:id refuses to re-type an imported row into an anchor", %{
+    conn: conn
+  } do
+    world = base_world(name: "Api Retype World")
+
+    {:ok, deposit} =
+      Ledger.create_transaction(
+        Actor.import_session(),
+        %{
+          portfolio_id: world.portfolio.id,
+          cash_account_id: world.cash.id,
+          type: "deposit",
+          date: ~D[2026-01-02],
+          currency_code: "EUR",
+          gross_amount: Decimal.new("250")
+        },
+        import_hash: "synthetic-api-imported-deposit"
+      )
+
+    response =
+      conn
+      |> authed()
+      |> patch("/api/v1/transactions/#{deposit.id}", %{
+        "transaction" => %{"type" => "balance_adjustment"}
+      })
+      |> json_response(422)
+
+    assert response["errors"]["type"] == [
+             "cannot become a balance anchor or a split: the row was imported"
+           ]
+
+    assert Ledger.get_transaction(deposit.id).type == "deposit"
+  end
+
   test "POST /api/v1/transactions still creates a normal buy (regression)", %{conn: conn} do
     world = base_world(name: "Api Buy World")
     security = create_security!(name: "Buy Co", ticker: "BUY")

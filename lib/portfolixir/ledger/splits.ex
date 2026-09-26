@@ -52,6 +52,7 @@ defmodule Portfolixir.Ledger.Splits do
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Clock
+  alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Positions
   alias Portfolixir.Ledger.Projection
@@ -77,10 +78,13 @@ defmodule Portfolixir.Ledger.Splits do
   the portfolio already carries the identical row, so booking would skip it,
   E17 UX review finding 2). Errors: `:security_not_found`,
   `:invalid_date`, `:future_effective_date`, `:invalid_ratio`,
-  `:identity_ratio`, `:no_position`.
+  `:identity_ratio`, `:cumulative_factor_out_of_range` (the security's
+  splits, each by its own magnitude, would multiply past
+  `max_cumulative_factor/0`), `:no_position`.
   """
   def preview_split(attrs) when is_map(attrs) do
-    with {:ok, params} <- validate(attrs) do
+    with {:ok, params} <- validate(attrs),
+         :ok <- check_cumulative_factor(params) do
       build_preview(params)
     end
   end
@@ -104,6 +108,7 @@ defmodule Portfolixir.Ledger.Splits do
     with {:ok, params} <- validate(attrs),
          existing = existing_split_rows(params),
          :ok <- check_ratio_conflict(params, existing),
+         :ok <- check_cumulative_factor(params),
          {:ok, positions} <- positioned_portfolios(params) do
       already_booked = MapSet.new(existing, & &1.portfolio_id)
 
@@ -143,16 +148,13 @@ defmodule Portfolixir.Ledger.Splits do
     end
   end
 
-  defp parse_date(%Date{} = date), do: {:ok, date}
-
-  defp parse_date(value) when is_binary(value) do
-    case Date.from_iso8601(value) do
+  # The one bounded date every writer shares (E25 S4, F70).
+  defp parse_date(value) do
+    case BoundedDate.parse(value) do
       {:ok, date} -> {:ok, date}
-      _invalid -> {:error, :invalid_date}
+      {:error, _invalid_or_out_of_range} -> {:error, :invalid_date}
     end
   end
-
-  defp parse_date(_other), do: {:error, :invalid_date}
 
   # Normalized to lowest terms at write time (ADR-0028 §1): identity and
   # equality always use the canonical pair, and a pair that reduces to 1:1
@@ -217,6 +219,34 @@ defmodule Portfolixir.Ledger.Splits do
       nil -> :ok
       conflicting -> {:error, {:conflicting_split_ratio, conflicting}}
     end
+  end
+
+  # The security's splits, each by its own magnitude (2:1 and 1:2 both count
+  # 2), multiply to at most 10^12 with the new one included: no real share
+  # history comes near it, and past it a quantity or a value leaves what the
+  # later reads compute (the IRR's float step first). The event on the same
+  # day is the one being extended, never counted twice (E25 S4, G12).
+  @max_cumulative_factor 1_000_000_000_000
+
+  @doc "The bound on a security's splits taken together, each by its own magnitude."
+  @spec max_cumulative_factor() :: pos_integer()
+  def max_cumulative_factor, do: @max_cumulative_factor
+
+  defp check_cumulative_factor(%{security: security, date: date, ratio: ratio}) do
+    {numerator, denominator} =
+      from(t in Transaction,
+        where: t.type == "split" and t.security_id == ^security.id and t.date != ^date,
+        distinct: [t.date],
+        order_by: [t.date, t.id]
+      )
+      |> Repo.all()
+      |> Enum.map(&normalized_row_ratio/1)
+      |> Enum.concat([ratio])
+      |> Enum.reduce({1, 1}, fn {p, q}, {n, d} -> {n * max(p, q), d * min(p, q)} end)
+
+    if numerator <= @max_cumulative_factor * denominator,
+      do: :ok,
+      else: {:error, :cumulative_factor_out_of_range}
   end
 
   # Stored rows are normalized at write time, but rows created through the

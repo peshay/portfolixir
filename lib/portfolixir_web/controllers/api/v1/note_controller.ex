@@ -21,6 +21,7 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
   alias PortfolixirWeb.Api.V1.IntegerParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ListLimit
+  alias PortfolixirWeb.Api.V1.MergedAway
   alias PortfolixirWeb.Api.V1.SinceParam
 
   @log_note "Entries are append-only: never updated, never deleted. A refuted finding is " <>
@@ -35,7 +36,9 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
                 "is ever deleted: a retraction arrives as a new entry naming what it " <>
                 "supersedes, and superseded_by_ids on an older entry is only complete on a " <>
                 "full read. thesis_state always derives from the whole log. Use this " <>
-                "response's `as_of` as the next `since`."
+                "response's `as_of` as the next `since`: it lies no later than the start of " <>
+                "the oldest write still in flight, so the next read may re-deliver an entry " <>
+                "but never skips one."
 
   @default_unreviewed_days 90
   @default_expiring_days 30
@@ -69,7 +72,7 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
       json(conn, SinceParam.put_envelope(payload, since, @delta_note))
     else
       {:error, field} -> unprocessable(conn, %{field => ["is invalid"]})
-      nil -> not_found(conn)
+      nil -> MergedAway.not_found(conn, :security, security_id)
     end
   end
 
@@ -92,7 +95,7 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
         end
 
       nil ->
-        not_found(conn)
+        MergedAway.not_found(conn, :security, security_id)
     end
   end
 
@@ -255,11 +258,5 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
     conn
     |> put_status(:unprocessable_entity)
     |> json(%{errors: errors})
-  end
-
-  defp not_found(conn) do
-    conn
-    |> put_status(:not_found)
-    |> json(%{errors: %{detail: "not found"}})
   end
 end

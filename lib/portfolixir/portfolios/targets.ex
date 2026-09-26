@@ -32,7 +32,10 @@ defmodule Portfolixir.Portfolios.Targets do
   alias Portfolixir.Actor
   alias Portfolixir.Buckets.View
   alias Portfolixir.Classifications
+  alias Portfolixir.Input.BoundedDecimal
+  alias Portfolixir.Input.Text
   alias Portfolixir.Journal
+  alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.Target
   alias Portfolixir.Portfolios.TargetPlan
   alias Portfolixir.Repo
@@ -374,10 +377,16 @@ defmodule Portfolixir.Portfolios.Targets do
   category write. A plan carries at most **one** position row per security:
   filing a security under a second category — within the batch or against an
   existing row — is rejected, as is naming the same `(category, security)`
-  twice in one batch.
+  twice in one batch. The database holds the one-row rule as well (E25 S6,
+  G13), so a write that loses a race to file the security under another
+  category gets the same `{:error, {:duplicate_position, security_id}}`.
 
   Returns `{:ok, [%Target{}]}`, `{:error, :not_found}` (unknown classification),
   `{:error, :category_mismatch}` (a category from another tree),
+  `{:error, {:duplicate_category, category_id}}` (a category row named twice in
+  the batch), `{:error, {:too_many_targets, cap}}` (more rows than the
+  classification's categories plus its assigned securities, or than
+  `max_batch/0` — E25 S4, G11),
   `{:error, {:security_category_mismatch, security_id, category_id}}` (a
   position whose security is not under the named category — the ids identify
   the offending pair), `{:error, :invalid_security_id}` (a present but
@@ -388,9 +397,12 @@ defmodule Portfolixir.Portfolios.Targets do
   """
   def set_targets(%Actor{} = actor, portfolio_id, classification_id, entries, opts \\ [])
       when is_integer(portfolio_id) and is_integer(classification_id) and is_list(entries) do
-    with {:ok, _classification} <- fetch_classification(classification_id),
+    with :ok <- ensure_within_max_batch(entries),
+         {:ok, _classification} <- fetch_classification(classification_id),
          :ok <- ensure_entries_are_maps(entries),
          :ok <- ensure_security_ids(entries),
+         :ok <- ensure_unique_category_rows(entries),
+         :ok <- ensure_within_classification(classification_id, entries),
          :ok <- ensure_categories(classification_id, entries),
          :ok <- ensure_positions(classification_id, entries) do
       batch = fn -> run_targets_batch(actor, portfolio_id, classification_id, entries, opts) end
@@ -463,7 +475,7 @@ defmodule Portfolixir.Portfolios.Targets do
         Enum.map(entries, fn entry ->
           case upsert_target(actor, plan, portfolio_id, classification_id, entry) do
             {:ok, target} -> target
-            {:error, changeset} -> Repo.rollback(changeset)
+            {:error, changeset} -> Repo.rollback(position_race_or(changeset))
           end
         end)
       else
@@ -508,6 +520,24 @@ defmodule Portfolixir.Portfolios.Targets do
       end)
     end
   end
+
+  # The check above reads rows nothing holds, so a concurrent write can file
+  # the security under another category after it: the (plan, security) index
+  # refuses the insert, answered as the same refusal (E25 S6, G13).
+  defp position_race_or(%Ecto.Changeset{errors: errors, changes: changes} = changeset) do
+    case errors[:security_id] do
+      {_message, opts} ->
+        if opts[:constraint] == :unique and
+             opts[:constraint_name] == "portfolio_targets_plan_security_index",
+           do: {:duplicate_position, changes.security_id},
+           else: changeset
+
+      nil ->
+        changeset
+    end
+  end
+
+  defp position_race_or(reason), do: reason
 
   # A racing first-writer beat this call to the active-unique index: one fresh
   # attempt converges on the winner's plan instead of surfacing a spurious save
@@ -557,11 +587,11 @@ defmodule Portfolixir.Portfolios.Targets do
   `actor`, journaled per row (ADR-0017), in one transaction. Returns
   `{:ok, count}`.
 
-  This is the explicit seam `Portfolixir.Catalog.delete_security/2` calls
-  (#481 fix round) so removing a security leaves a `"target"` journal delete
-  entry for each SOLL row it takes with it, instead of relying on the silent
-  `ON DELETE CASCADE` of the `security_id` foreign key (which stays in place as
-  a backstop only).
+  This is the explicit seam the hardened security delete path
+  (`Portfolixir.Lifecycle.Delete`, ADR-0050 §11; #481 fix round) calls so
+  removing a security leaves a `"target"` journal delete entry for each SOLL
+  row it takes with it. The `security_id` foreign key restricts, so no cascade
+  removes a position target silently.
   """
   def delete_position_targets_for_security(%Actor{} = actor, security_id)
       when is_integer(security_id) do
@@ -570,26 +600,82 @@ defmodule Portfolixir.Portfolios.Targets do
     |> delete_targets(actor)
   end
 
+  @doc """
+  Moves one **position** row onto the security `security_id` on behalf of
+  `actor` (ADR-0050 §9: a security merge re-points the source's position
+  targets, in any plan status, where they neither collide nor go stale): the
+  same row, one journaled `target` update with the row as stored under its
+  lock as the before-image. Answers `{:ok, target}`, `{:error, :not_found}`
+  for a row gone, or `{:error, changeset}`.
+  """
+  @spec reassign_position_target(Actor.t(), Target.t(), integer()) ::
+          {:ok, Target.t()} | {:error, :not_found | Ecto.Changeset.t()}
+  def reassign_position_target(%Actor{} = actor, %Target{} = target, security_id)
+      when is_integer(security_id) do
+    Multi.new()
+    |> Multi.update(:record, fn changes ->
+      changes |> Journal.locked_row() |> Target.reassign_changeset(security_id)
+    end)
+    |> Journal.record(actor,
+      resource_type: "target",
+      operation: :update,
+      source: :record,
+      before: target
+    )
+    |> Repo.transaction()
+    |> normalize_write()
+  end
+
+  @doc """
+  Deletes the given target rows on behalf of `actor`, one journaled `target`
+  delete per row, each re-read under its lock first (a row another writer
+  removed meanwhile is not counted). The seam a security merge deletes the
+  source's colliding and stale position targets through (ADR-0050 §9).
+  Returns `{:ok, count}`.
+  """
+  @spec delete_target_rows(Actor.t(), [Target.t()]) :: {:ok, non_neg_integer()} | {:error, term()}
+  def delete_target_rows(%Actor{} = actor, targets) when is_list(targets),
+    do: delete_targets(targets, actor)
+
+  @doc """
+  For each of `categories` (one classification's), the set of its own id and
+  every ancestor's: a position filed under category `c` sits under it when
+  its security's category `a` has `c` in `category_ancestors(categories)[a]`
+  — the rule the stale flag reads, and the one a security merge evaluates a
+  moved position target against (ADR-0030, ADR-0050 §9).
+  """
+  @spec category_ancestors([map()]) :: %{optional(integer()) => MapSet.t(integer())}
+  def category_ancestors(categories) when is_list(categories), do: ancestor_sets(categories)
+
+  # The rows are re-read under their lock first, so each per-row delete finds
+  # its row: one another writer removed in the meantime is simply not listed
+  # (E25 S6, F49).
   defp delete_targets(targets, actor) do
     Repo.transaction(fn ->
-      Enum.each(targets, fn target ->
+      ids = Enum.map(targets, & &1.id)
+
+      locked =
+        Repo.all(from(t in Target, where: t.id in ^ids, order_by: t.id, lock: "FOR UPDATE"))
+
+      Enum.each(locked, fn target ->
         case journaled_delete(actor, target, "target") do
           {:ok, _} -> :ok
           {:error, changeset} -> Repo.rollback(changeset)
         end
       end)
 
-      length(targets)
+      length(locked)
     end)
   end
 
   @doc """
   Removes the addressed **active** plan for `(portfolio, view, classification)`
-  (default `view: nil` = Gesamt), on behalf of `actor`: the plan row and — via
-  the `plan_id` foreign key's `ON DELETE CASCADE` — every category target
-  hanging off it, plus the plan's cash target. Draft/archived versions of the
-  scope are untouched. After this `plan_exists?/3` is `false`, so the portfolio
-  page falls back to IST-only for that `(view, classification)`. Returns
+  (default `view: nil` = Gesamt), on behalf of `actor`: every target hanging
+  off it, one journaled delete per row, then the plan row and with it the
+  plan's cash target (E25 S6, F43: the `plan_id` foreign key's cascade stays
+  as a backstop that finds nothing left). Draft/archived versions of the scope
+  are untouched. After this `plan_exists?/3` is `false`, so the portfolio page
+  falls back to IST-only for that `(view, classification)`. Returns
   `{:ok, count}` with the number of plan rows removed (0 when there was none).
   """
   def delete_plan(%Actor{} = actor, portfolio_id, classification_id, opts \\ [])
@@ -601,7 +687,7 @@ defmodule Portfolixir.Portfolios.Targets do
         {:ok, 0}
 
       %TargetPlan{} = plan ->
-        with {:ok, _} <- journaled_delete(actor, plan, "target_plan") do
+        with {:ok, _} <- delete_plan_rows(actor, plan) do
           {:ok, 1}
         end
     end
@@ -609,12 +695,90 @@ defmodule Portfolixir.Portfolios.Targets do
 
   @doc """
   Deletes one plan **version** by id (any status), on behalf of `actor` — the
-  cleanup path for drafts and archived plans. Cascades its targets. Returns
-  `{:ok, %TargetPlan{}}` or `{:error, :not_found}`.
+  cleanup path for drafts and archived plans. Its targets are deleted first,
+  one journaled delete per row (F43). Returns `{:ok, %TargetPlan{}}` or
+  `{:error, :not_found}`.
   """
   def delete_plan_version(%Actor{} = actor, plan_or_id) do
     with {:ok, plan} <- fetch_plan(plan_or_id) do
-      journaled_delete(actor, plan, "target_plan")
+      delete_plan_rows(actor, plan)
+    end
+  end
+
+  @doc """
+  Deletes every plan version of a classification — all portfolios, views and
+  statuses — each with its targets, one journaled delete per row (E25 S6,
+  F43). The seam the classification delete calls before its row goes.
+  Returns `{:ok, count}` with the number of plans removed.
+  """
+  @spec delete_plans_for_classification(Actor.t(), integer()) ::
+          {:ok, non_neg_integer()} | {:error, term()}
+  def delete_plans_for_classification(%Actor{} = actor, classification_id)
+      when is_integer(classification_id) do
+    delete_plans(actor, from(p in TargetPlan, where: p.classification_id == ^classification_id))
+  end
+
+  @doc """
+  Deletes every plan version scoped to a view — all portfolios,
+  classifications and statuses — each with its targets, one journaled delete
+  per row (F43). The seam the view delete calls before its row goes.
+  Returns `{:ok, count}` with the number of plans removed.
+  """
+  @spec delete_plans_for_view(Actor.t(), integer()) ::
+          {:ok, non_neg_integer()} | {:error, term()}
+  def delete_plans_for_view(%Actor{} = actor, view_id) when is_integer(view_id) do
+    delete_plans(actor, from(p in TargetPlan, where: p.view_id == ^view_id))
+  end
+
+  @doc """
+  Deletes every target — category and position rows, across all plans —
+  filed under one of `category_ids`, one journaled delete per row (F43). The
+  seam a category delete calls for its subtree before the categories go.
+  Returns `{:ok, count}`.
+  """
+  @spec delete_targets_for_categories(Actor.t(), [integer()]) ::
+          {:ok, non_neg_integer()} | {:error, term()}
+  def delete_targets_for_categories(%Actor{} = actor, category_ids) when is_list(category_ids) do
+    from(t in Target, where: t.category_id in ^category_ids)
+    |> Repo.all()
+    |> delete_targets(actor)
+  end
+
+  # The plans are locked first, in id order, so a target written onto one
+  # waits for its delete instead of landing after its targets were read.
+  defp delete_plans(actor, query) do
+    Repo.transaction(fn ->
+      plans = Repo.all(from(p in query, order_by: p.id, lock: "FOR UPDATE"))
+
+      Enum.each(plans, fn plan ->
+        case delete_plan_rows(actor, plan) do
+          {:ok, _} -> :ok
+          {:error, reason} -> Repo.rollback(reason)
+        end
+      end)
+
+      length(plans)
+    end)
+  end
+
+  # One plan: locked first, so no target lands on it after its targets were
+  # read; its targets per row, journaled; then the plan row, journaled.
+  defp delete_plan_rows(actor, %TargetPlan{id: plan_id}) do
+    Repo.transaction(fn ->
+      with {:ok, plan} <- lock_plan(plan_id),
+           {:ok, _} <- plan_id |> targets_of_plan() |> delete_targets(actor),
+           {:ok, deleted} <- journaled_delete(actor, plan, "target_plan") do
+        deleted
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+  end
+
+  defp lock_plan(plan_id) do
+    case Repo.one(from(p in TargetPlan, where: p.id == ^plan_id, lock: "FOR UPDATE")) do
+      nil -> {:error, :not_found}
+      plan -> {:ok, plan}
     end
   end
 
@@ -645,10 +809,11 @@ defmodule Portfolixir.Portfolios.Targets do
         portfolio_id: source.portfolio_id,
         view_id: attr(attrs, :view_id, source.view_id),
         classification_id: source.classification_id,
-        cash_target_weight: source.cash_target_weight,
+        cash_target_weight: plan_weight(source.cash_target_weight),
         # The default copy name is clamped to the 120-char limit so a
-        # maximum-length source name still duplicates (review finding).
-        name: attr(attrs, :name, String.slice(source.name <> " (copy)", 0, 120)),
+        # maximum-length source name still duplicates (review finding),
+        # counted in code points as the name bound counts it (E25 S4, R2).
+        name: attr(attrs, :name, Text.truncate(source.name <> " (copy)", 120)),
         status: "draft"
       }
 
@@ -673,7 +838,7 @@ defmodule Portfolixir.Portfolios.Targets do
               classification_id: target.classification_id,
               category_id: target.category_id,
               security_id: target.security_id,
-              target_weight: target.target_weight
+              target_weight: plan_weight(target.target_weight)
             })
 
           case journaled_insert(actor, changeset, "target") do
@@ -686,6 +851,14 @@ defmodule Portfolixir.Portfolios.Targets do
       end)
     end
   end
+
+  # A copy is a new write, so it meets the weight scale (E25 S4, G14): a
+  # weight stored before the bound is rounded half up to the places a plan
+  # holds (ADR-0016 §2), never refused, so such a plan still duplicates.
+  defp plan_weight(nil), do: nil
+
+  defp plan_weight(%Decimal{} = weight),
+    do: BoundedDecimal.round_to_scale(weight, Target.weight_scale())
 
   @doc """
   Activates a plan version (ADR-0027), on behalf of `actor`: the previously
@@ -700,6 +873,7 @@ defmodule Portfolixir.Portfolios.Targets do
         {:ok, plan}
       else
         Repo.transaction(fn ->
+          lock_portfolio(plan.portfolio_id)
           archive_current_active!(actor, plan)
 
           case journaled_update(actor, plan, %{status: "active"}, "target_plan") do
@@ -820,7 +994,7 @@ defmodule Portfolixir.Portfolios.Targets do
 
   defp journaled_update(actor, record, attrs, resource_type) do
     Multi.new()
-    |> Multi.update(:record, TargetPlan.changeset(record, attrs))
+    |> Multi.update(:record, &TargetPlan.changeset(Journal.locked_row(&1), attrs))
     |> Journal.record(actor,
       resource_type: resource_type,
       operation: :update,
@@ -846,6 +1020,10 @@ defmodule Portfolixir.Portfolios.Targets do
 
   defp normalize_write({:ok, %{record: record}}), do: {:ok, record}
   defp normalize_write({:error, :record, changeset, _changes}), do: {:error, changeset}
+
+  # The row was deleted before the write took its lock (E25 S6, F49).
+  defp normalize_write({:error, {:journal_lock, _}, :not_found, _changes}),
+    do: {:error, :not_found}
 
   # -- plan resolution -----------------------------------------------------------
 
@@ -887,21 +1065,52 @@ defmodule Portfolixir.Portfolios.Targets do
 
   defp ensure_plan_journaled(actor, portfolio_id, classification_id, view_id) do
     case get_active_plan(portfolio_id, classification_id, view_id) do
-      %TargetPlan{} = plan ->
-        {:ok, plan}
-
-      nil ->
-        changeset =
-          TargetPlan.changeset(%TargetPlan{}, %{
-            portfolio_id: portfolio_id,
-            view_id: view_id,
-            classification_id: classification_id,
-            name: "Plan",
-            status: "active"
-          })
-
-        journaled_insert(actor, changeset, "target_plan")
+      %TargetPlan{} = plan -> {:ok, plan}
+      nil -> create_active_plan(actor, portfolio_id, classification_id, view_id)
     end
+  end
+
+  # E25 S6 review round (G18): every write that makes a plan active holds the
+  # portfolio row first and then reads the scope's active plan again, so two
+  # first writers take turns and the later one finds the earlier one's plan.
+  # A unique violation inside a caller's transaction (the portfolio write's
+  # cash target) cannot be retried — it aborts that transaction — so the
+  # writers must not collide in the first place.
+  defp create_active_plan(actor, portfolio_id, classification_id, view_id) do
+    Repo.transaction(fn ->
+      lock_portfolio(portfolio_id)
+
+      case get_active_plan(portfolio_id, classification_id, view_id) do
+        %TargetPlan{} = plan ->
+          plan
+
+        nil ->
+          changeset =
+            TargetPlan.changeset(%TargetPlan{}, %{
+              portfolio_id: portfolio_id,
+              view_id: view_id,
+              classification_id: classification_id,
+              name: "Plan",
+              status: "active"
+            })
+
+          case journaled_insert(actor, changeset, "target_plan") do
+            {:ok, plan} -> plan
+            {:error, reason} -> Repo.rollback(reason)
+          end
+      end
+    end)
+  end
+
+  # FOR NO KEY UPDATE: the lock a portfolio write takes, which a booking's
+  # foreign-key check does not wait on. A portfolio that is gone locks
+  # nothing; the insert then answers its constraint error.
+  defp lock_portfolio(portfolio_id) do
+    Repo.all(
+      from(p in Portfolio, where: p.id == ^portfolio_id, lock: "FOR NO KEY UPDATE", select: p.id)
+    )
+
+    :ok
   end
 
   defp unique_violation?(errors) do
@@ -1000,6 +1209,55 @@ defmodule Portfolixir.Portfolios.Targets do
 
   # Each entry must be an object; a bare scalar (e.g. `targets: [1]`) is rejected
   # here so it surfaces as a 422 instead of crashing on `entry["category_id"]`.
+  # E25 S4 (G11): one request writes a bounded number of journaled rows. The
+  # fixed maximum is checked before anything is read; the classification's
+  # own bound — one row per category and one per assigned security, the most
+  # a plan can meaningfully carry — after the entries are known to be maps.
+  @max_batch 10_000
+
+  @doc "The most target rows one `set_targets/5` call accepts, whatever the tree."
+  @spec max_batch() :: pos_integer()
+  def max_batch, do: @max_batch
+
+  defp ensure_within_max_batch(entries) do
+    if length(entries) > @max_batch, do: {:error, {:too_many_targets, @max_batch}}, else: :ok
+  end
+
+  defp ensure_within_classification(classification_id, entries) do
+    count = length(entries)
+    categories = classification_id |> Classifications.list_categories() |> length()
+
+    # The assignments are read only when the categories alone do not cover
+    # the batch.
+    if count <= categories do
+      :ok
+    else
+      case Classifications.security_category_map(classification_id) do
+        {:ok, assigned} ->
+          cap = categories + map_size(assigned)
+          if count > cap, do: {:error, {:too_many_targets, cap}}, else: :ok
+
+        {:error, :not_found} = error ->
+          error
+      end
+    end
+  end
+
+  # A category row (no security_id) names its category once per batch, as a
+  # position row names its security once (E25 S4, G11).
+  defp ensure_unique_category_rows(entries) do
+    entries
+    |> Enum.reject(&position_entry?/1)
+    |> Enum.map(&normalize_id(&1["category_id"] || &1[:category_id]))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.frequencies()
+    |> Enum.find(fn {_category_id, count} -> count > 1 end)
+    |> case do
+      nil -> :ok
+      {category_id, _count} -> {:error, {:duplicate_category, category_id}}
+    end
+  end
+
   defp ensure_entries_are_maps(entries) do
     if Enum.all?(entries, &is_map/1), do: :ok, else: {:error, :invalid_entry}
   end

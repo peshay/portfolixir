@@ -13,16 +13,22 @@ defmodule Portfolixir.Fx.RateSync.Ecb do
   The feed is EUR-based (`1 EUR = rate <currency>`) — exactly Portfolixir's hub
   convention — and publishes one `<Cube currency=.. rate=..>` per currency under
   a dated `<Cube time=..>`. Currencies outside `Catalog.Currencies` are dropped
-  so the upsert only ever sees supported codes.
+  so the upsert only ever sees supported codes, and an implausible row (a rate
+  that is not positive, or a date past
+  `Portfolixir.Catalog.MarketDataBounds.latest_date/0`) is dropped rather than
+  failing the batch (E25 S3, F26).
   """
 
   @behaviour Portfolixir.Fx.RateSync.Provider
 
   alias Portfolixir.Catalog.Currencies
+  alias Portfolixir.Catalog.MarketDataBounds
   alias Portfolixir.Net.Http
 
   @endpoint "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"
   @history_endpoint "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.xml"
+  # The only host a request or a redirect hop may reach (F27).
+  @allowed_hosts ["www.ecb.europa.eu"]
   @hub "EUR"
   @source "ecb"
 
@@ -105,7 +111,8 @@ defmodule Portfolixir.Fx.RateSync.Ecb do
   defp row([_, currency, rate], date) do
     code = String.upcase(currency)
 
-    if Currencies.supported?(code) do
+    if Currencies.supported?(code) and
+         MarketDataBounds.plausible?(date, rate, MarketDataBounds.rate_column()) do
       [%{base_currency: @hub, quote_currency: code, date: date, rate: rate, source: @source}]
     else
       []
@@ -117,7 +124,8 @@ defmodule Portfolixir.Fx.RateSync.Ecb do
       Http.new(
         [
           headers: [{"user-agent", "portfolixir/0.1 (+https://github.com/portfolixir)"}],
-          receive_timeout: 10_000
+          receive_timeout: 10_000,
+          allowed_hosts: @allowed_hosts
         ] ++ bounds
       )
 

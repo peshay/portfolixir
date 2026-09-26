@@ -11,8 +11,11 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
   alias PortfolixirWeb.Api.V1.IntegerParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ListLimit
+  alias PortfolixirWeb.Api.V1.MergedAway
   alias PortfolixirWeb.Api.V1.PolicyConflict
+  alias PortfolixirWeb.Api.V1.ReferencedConflict
   alias PortfolixirWeb.Api.V1.SinceParam
+  alias PortfolixirWeb.Api.V1.TextParam
 
   @sortable_fields Map.new(SecurityFields.sortable(), fn field ->
                      {Atom.to_string(field.key), field.key}
@@ -95,8 +98,9 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
 
   def show(conn, %{"id" => id}) do
     case Catalog.get_security(id) do
+      # ADR-0050 §12: a merged-away security names the one it lives on.
       nil ->
-        not_found(conn)
+        MergedAway.not_found(conn, :security, id)
 
       security ->
         # The detail carries the recorded former-ISIN aliases (ADR-0029 §3)
@@ -132,6 +136,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
       json(conn, %{data: JSON.security(updated)})
     else
       nil -> not_found(conn)
+      {:error, :not_found} -> not_found(conn)
       {:error, changeset} -> validation_error(conn, changeset)
     end
   end
@@ -149,14 +154,21 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
           {:error, {:policy_rules, rules}} ->
             PolicyConflict.render(conn, rules, "security")
 
-          {:error, _changeset} ->
-            conflict(conn)
+          {:error, {:referenced, referenced_by}} ->
+            ReferencedConflict.render(conn, security, referenced_by)
+
+          {:error, :not_found} ->
+            not_found(conn)
+
+          {:error, %Ecto.Changeset{} = changeset} ->
+            validation_error(conn, changeset)
         end
     end
   end
 
   defp list_opts(params) do
-    with {:ok, sort} <- sort_param(params),
+    with {:ok, query} <- text_param(params, "query"),
+         {:ok, sort} <- sort_param(params),
          {:ok, holding_status} <- holding_status_param(params),
          {:ok, is_benchmark} <- benchmark_flag_param(params),
          {:ok, logo_status} <- logo_status_param(params),
@@ -164,7 +176,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
          {:ok, offset} <- offset_param(params) do
       opts =
         []
-        |> put_if_present(:query, params["query"])
+        |> put_if_present(:query, query)
         |> put_if_present(:sort, sort)
         |> put_if_present(:holding_status, holding_status)
         |> put_if_present(:is_benchmark, is_benchmark)
@@ -173,6 +185,14 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
         |> put_if_present(:offset, offset)
 
       {:ok, opts}
+    end
+  end
+
+  # The text rule every writer meets (TextParam, G24 review round).
+  defp text_param(params, key) do
+    case TextParam.parse(params, key) do
+      {:ok, text} -> {:ok, text}
+      :error -> {:error, String.to_existing_atom(key)}
     end
   end
 
@@ -229,7 +249,6 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
 
   defp put_if_present(opts, _key, nil), do: opts
   defp put_if_present(opts, _key, ""), do: opts
-  defp put_if_present(opts, _key, []), do: opts
   defp put_if_present(opts, key, value), do: Keyword.put(opts, key, value)
 
   defp not_found(conn) do
@@ -242,11 +261,5 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
     conn
     |> put_status(:unprocessable_entity)
     |> json(%{errors: JSON.errors(changeset)})
-  end
-
-  defp conflict(conn) do
-    conn
-    |> put_status(:conflict)
-    |> json(%{errors: %{detail: "security is referenced by existing records"}})
   end
 end

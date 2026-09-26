@@ -832,4 +832,659 @@ defmodule Portfolixir.DocsTest do
     assert de =~ "SOLL-Pläne"
     assert de =~ "Audit-Journal"
   end
+
+  # User story (E25 S1, F05; T-4 of the 2026-09-24 triage):
+  # As an operator deciding how to end a login,
+  # I want SECURITY.md and the deployment guide to say what a logout and a
+  # zero session lifetime actually do,
+  # so that I reach for the lever that also ends a copied session cookie.
+  #
+  # Acceptance criteria:
+  # - SECURITY.md and the EN and DE deployment pages say that a logout clears
+  #   the login in that browser only, and that a copy of the cookie stays valid.
+  # - All three say that a lifetime of 0 turns the server-side expiry off.
+  # - All three name the two levers that end every session: changing the UI
+  #   password and rotating SECRET_KEY_BASE.
+  # - The former wording (a logout ends the session; 0 ends the login when the
+  #   browser closes) is gone; .env.example carries the corrected lifetime line.
+  test "the revocation and lifetime wording says what the code does" do
+    read = fn path -> path |> File.read!() |> String.replace(~r/\s+/, " ") end
+
+    security = read.("SECURITY.md")
+    assert security =~ "a logout clears the login in that browser only"
+    assert security =~ "a copy of the session cookie taken earlier stays valid"
+    assert security =~ "`PORTFOLIXIR_SESSION_DAYS=0` turns the server-side expiry off"
+    assert security =~ "changing `PORTFOLIXIR_UI_PASSWORD`"
+    assert security =~ "rotating `SECRET_KEY_BASE` ends every session everywhere"
+    refute security =~ "a logout ends that session"
+
+    en = read.("docs/home-deployment.md")
+    assert en =~ "A logout clears the login in that browser only"
+    assert en =~ "a copy of the session cookie taken earlier stays valid"
+    assert en =~ "`0` turns the server-side expiry off"
+    assert en =~ "change `PORTFOLIXIR_UI_PASSWORD` or rotate `SECRET_KEY_BASE`"
+    refute en =~ "`0` ends the login when the browser closes."
+
+    de = read.("docs/de/home-deployment.md")
+    assert de =~ "Eine Abmeldung beendet die Anmeldung nur in diesem Browser"
+    assert de =~ "eine vorher genommene Kopie des Sitzungs-Cookies bleibt gültig"
+    assert de =~ "`0` schaltet den serverseitigen Ablauf ab"
+    assert de =~ "ändere `PORTFOLIXIR_UI_PASSWORD` oder rotiere `SECRET_KEY_BASE`"
+    refute de =~ "`0` beendet die Anmeldung mit dem Schließen des Browsers."
+
+    env_example = read.(".env.example")
+    assert env_example =~ "0 turns the server-side expiry off"
+    refute env_example =~ "0 means the login ends when the browser closes"
+  end
+
+  # User story (E25 S1, F57):
+  # As an operator configuring the reverse proxy,
+  # I want the proxy contract to have the proxy set or append the forwarding
+  # headers itself, and to name one exact proxy address,
+  # so that no client can hand the throttle a source of its own choosing.
+  #
+  # Acceptance criteria:
+  # - EN and DE say the proxy appends the connecting address to X-Forwarded-For
+  #   or overwrites it, sets X-Forwarded-Proto itself, and never passes a value
+  #   the client sent through; the "forwarded unchanged" wording is gone.
+  # - Both give the nginx and the HAProxy directives.
+  # - Both recommend a single trusted-proxy address and no longer suggest a
+  #   broad private block.
+  # - SECURITY.md states the same contract.
+  test "the reverse-proxy contract has the proxy set or append the forwarding headers" do
+    read = fn path -> path |> File.read!() |> String.replace(~r/\s+/, " ") end
+
+    for {path, append, never, unchanged} <- [
+          {"docs/home-deployment.md",
+           "appends the connecting address to `X-Forwarded-For` or overwrites it",
+           "never passes a value the client sent through", "`X-Forwarded-For` unchanged"},
+          {"docs/de/home-deployment.md",
+           "hängt die verbindende Adresse an `X-Forwarded-For` an oder überschreibt den Header",
+           "reicht nie einen Wert durch, den der Client geschickt hat",
+           "`X-Forwarded-For` unverändert"}
+        ] do
+      doc = read.(path)
+      assert doc =~ append, path
+      assert doc =~ never, path
+      refute doc =~ unchanged, path
+
+      assert doc =~ "proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;", path
+      assert doc =~ "proxy_set_header X-Forwarded-Proto $scheme;", path
+      assert doc =~ "option forwardfor", path
+      assert doc =~ "http-request set-header X-Forwarded-Proto https if { ssl_fc }", path
+
+      assert doc =~ "PORTFOLIXIR_TRUSTED_PROXIES=172.18.0.1", path
+      refute doc =~ "172.16.0.0/12", path
+    end
+
+    security = read.("SECURITY.md")
+    assert security =~ "appends the connecting address to `X-Forwarded-For` or overwrites it"
+    assert security =~ "never passes a value the client sent through"
+    refute security =~ "`X-Forwarded-For` unchanged"
+  end
+
+  # User story (E25 S2, F54):
+  # As an operator restoring a backup,
+  # I want the restore to be all or nothing, the instance started only after
+  # it succeeded, and a check that the database's guards came back,
+  # so that a failed restore can never leave a database without its
+  # append-only and journal triggers behind a running instance.
+  #
+  # Acceptance criteria:
+  # - The restore step (EN, DE) runs pg_restore with --exit-on-error and
+  #   --single-transaction.
+  # - Both say to start the instance only once the restore ended without error.
+  # - Both compare the number of database triggers before the backup and
+  #   after the restore.
+  test "the restore is one transaction, and its check counts the triggers" do
+    trigger_count = "SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal"
+
+    for {path, start_only} <- [
+          {"docs/home-deployment.md", "Only if step 3 ended without an error"},
+          {"docs/de/home-deployment.md", "Nur wenn Schritt 3 ohne Fehler endete"}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s*\\\n\s*/, " ")
+
+      assert doc =~
+               "pg_restore -U portfolixir -d portfolixir_prod --no-owner --exit-on-error --single-transaction",
+             path
+
+      assert doc =~ start_only, path
+      assert doc =~ trigger_count, path
+    end
+  end
+
+  # User story (E25 S2, F50; T-6 of the 2026-09-24 triage: documented, not
+  # migrated):
+  # As an operator setting up a new instance,
+  # I want the deployment guide to give me a table-owner role that is not a
+  # superuser and a runtime role without TRUNCATE, with the SQL,
+  # so that the append-only and journal triggers bind the credential the
+  # application holds, not only its code.
+  #
+  # Acceptance criteria:
+  # - EN and DE carry the SQL: the two roles, the database handed to the owner,
+  #   and the runtime role's grants by default privileges, with no TRUNCATE.
+  # - Both wire it: the application connects as the runtime role, the
+  #   migrations run as the owner in a one-off service, and a restore runs as
+  #   the owner.
+  # - Both say it is for a new install and that an existing instance's move is
+  #   not described; SECURITY.md names the shipped default as a known limit.
+  test "the deployment guide recommends an owner role and a runtime role without TRUNCATE" do
+    read = fn path -> path |> File.read!() |> String.replace(~r/\s+/, " ") end
+
+    for {path, owner_words, runtime_words, new_install} <- [
+          {"docs/home-deployment.md", "not a superuser", "holds no `TRUNCATE`",
+           "Moving an existing instance onto these roles"},
+          {"docs/de/home-deployment.md", "kein Superuser", "hat kein `TRUNCATE`",
+           "Eine bestehende Instanz auf diese Rollen umzustellen"}
+        ] do
+      doc = read.(path)
+
+      for fragment <- [
+            "CREATE ROLE portfolixir_owner LOGIN",
+            "CREATE ROLE portfolixir_app LOGIN",
+            "ALTER DATABASE portfolixir_prod OWNER TO portfolixir_owner;",
+            "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO portfolixir_app;",
+            "GRANT USAGE, SELECT ON SEQUENCES TO portfolixir_app;",
+            "DATABASE_URL: postgres://portfolixir_app:",
+            "DATABASE_URL: postgres://portfolixir_owner:",
+            "docker compose run --rm --build migrate",
+            "--role=portfolixir_owner",
+            owner_words,
+            runtime_words,
+            new_install
+          ] do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+
+      refute doc =~ ~r/GRANT[^;]*TRUNCATE[^;]*TO portfolixir_app/, path
+    end
+
+    security = read.("SECURITY.md")
+    assert security =~ "connects as the database's bootstrap superuser"
+  end
+
+  # User story (E25 S2, F76):
+  # As an operator running the Compose deployment,
+  # I want the guide to say what actually keeps the instance on my machine,
+  # which Docker Engine that needs, and why the startup warning appears,
+  # so that I rely on the loopback reach only where it holds, and set a UI
+  # password where it does not.
+  #
+  # Acceptance criteria:
+  # - EN and DE name Docker Engine 28.3.3 or newer as a prerequisite, with why.
+  # - Both qualify the reach: in Compose the port mapping, not the application,
+  #   keeps it on the host's loopback; the unqualified "binds loopback" claim
+  #   for the Compose instance is gone.
+  # - Both recommend a UI password for a Compose install and explain why the
+  #   warning appears there.
+  # - ADR-0045 records the qualification as an amendment.
+  test "the Compose reach is qualified and the engine prerequisite named" do
+    read = fn path -> path |> File.read!() |> String.replace(~r/\s+/, " ") end
+
+    for {path, engine, reach, password, gone} <- [
+          {"docs/home-deployment.md", "Docker Engine 28.3.3 or newer",
+           "the port mapping, not the application, keeps it on the host's loopback",
+           "Set `PORTFOLIXIR_UI_PASSWORD` for a Compose install",
+           "the instance binds loopback and refuses"},
+          {"docs/de/home-deployment.md", "Docker Engine 28.3.3 oder neuer",
+           "die Port-Zuordnung, nicht die Anwendung, hält sie auf dem Loopback des Hosts",
+           "Setze für eine Compose-Installation `PORTFOLIXIR_UI_PASSWORD`",
+           "die Instanz bindet Loopback und weist"}
+        ] do
+      doc = read.(path)
+      assert doc =~ engine, path
+      assert doc =~ "CVE-2025-54388", path
+      assert doc =~ reach, path
+      assert doc =~ password, path
+      refute doc =~ gone, path
+    end
+
+    adr = read.("docs/decisions/0045-optional-built-in-authentication.md")
+    assert adr =~ "Amendment, 2026-09-24 (E25 S2, #887): the loopback-only reach, qualified."
+    assert adr =~ "Docker Engine 28.3.3"
+  end
+
+  # User story (E25 S1 and S2, review round):
+  # As an operator upgrading an instance that already runs,
+  # I want the upgrade steps to name what this security pass changes for it,
+  # and the guide to say how the login comes back when the ceiling holds it,
+  # so that the upgrade brings no redirect loop, no cookie silently without
+  # Secure, no refused start and no login I cannot reach.
+  #
+  # Acceptance criteria:
+  # - The Upgrade section (EN, DE) says to name a proxy that reaches the
+  #   container through the Docker bridge in PORTFOLIXIR_TRUSTED_PROXIES before
+  #   upgrading, or PHX_FORCE_SSL loops and the cookie loses Secure; that every
+  #   browser logs in once; and that the MCP token and SECRET_KEY_BASE must meet
+  #   their floors.
+  # - EN, DE and SECURITY.md say that restarting the application lifts the
+  #   login ceiling, and that sessions already logged in keep working.
+  # - EN and DE say to check the bridge gateway's address again when the
+  #   stack's network is recreated.
+  test "the upgrade names the security pass's changes and the ceiling its way out" do
+    read = fn path -> path |> File.read!() |> String.replace(~r/\s+/, " ") end
+
+    upgrade_section = fn doc ->
+      [_, rest] = String.split(doc, "## Upgrade ", parts: 2)
+      rest |> String.split(" ## ", parts: 2) |> hd()
+    end
+
+    for {path, from, login, restart, recheck} <- [
+          {"docs/home-deployment.md", "Upgrading from 0.15.x or earlier",
+           "every browser logs in once after the upgrade",
+           "Restarting the application clears the counts, the ceiling's included",
+           "check it again whenever the stack's network is recreated"},
+          {"docs/de/home-deployment.md", "Beim Upgrade von 0.15.x oder älter",
+           "jeder Browser meldet sich nach dem Upgrade einmal neu an",
+           "Ein Neustart der Anwendung löscht die Zählungen, die der Obergrenze eingeschlossen",
+           "prüfe sie erneut, wann immer das Netzwerk des Stacks neu angelegt wird"}
+        ] do
+      doc = read.(path)
+      upgrade = upgrade_section.(doc)
+
+      for fragment <- [
+            from,
+            login,
+            "PORTFOLIXIR_TRUSTED_PROXIES",
+            "PHX_FORCE_SSL=true",
+            "`Secure`",
+            "PORTFOLIXIR_MCP_TOKEN",
+            "SECRET_KEY_BASE"
+          ] do
+        assert upgrade =~ fragment, "#{path} (Upgrade): #{fragment}"
+      end
+
+      assert doc =~ restart, path
+      assert doc =~ recheck, path
+    end
+
+    security = read.("SECURITY.md")
+    assert security =~ "restarting the application clears it"
+  end
+
+  # User story (E25 S2, F56):
+  # As an operator keeping the instance's secrets and backups,
+  # I want the guide's commands to create them readable by me only, outside
+  # the checkout, and to keep the token off every command line,
+  # so that another local user cannot read my secrets file, a full backup of
+  # my data, or the token in the process list.
+  #
+  # Acceptance criteria:
+  # - EN and DE create .env with mode 600 and take backups under umask 077 into
+  #   a directory outside the checkout, and say to encrypt a copy that leaves
+  #   the machine.
+  # - The restore check passes the token to curl on standard input, never as a
+  #   command-line argument.
+  # - .gitignore covers dump files and the logo archives.
+  test "secrets and backups are created private and the token stays off the command line" do
+    for {path, encrypt} <- [
+          {"docs/home-deployment.md", "encrypt it first"},
+          {"docs/de/home-deployment.md", "vorher verschlüsseln"}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- [
+            "install -m 600 .env.example .env",
+            "umask 077",
+            "> ~/portfolixir-backups/portfolixir-$(date +%F).dump",
+            "< ~/portfolixir-backups/portfolixir-2026-09-23.dump",
+            "curl -s -H @-",
+            encrypt
+          ] do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+
+      refute doc =~ ~s(-H "Authorization: Bearer $TOKEN"), path
+    end
+
+    assert File.read!("README.md") =~ "install -m 600 .env.example .env"
+
+    gitignore = File.read!(".gitignore")
+    assert gitignore =~ ~r/^\*\.dump$/m
+    assert gitignore =~ ~r/^portfolixir-logos-\*\.tar$/m
+  end
+
+  # User story:
+  # As the operator or the agent correcting an account or a security,
+  # I want the handbook and the API page to say, in English and German, when
+  # a currency or a portfolio binding freezes and what a frozen change
+  # answers,
+  # so that a refused edit is expected, not a surprise (ADR-0050 §11).
+  #
+  # Acceptance criteria:
+  # - The API page, both languages, states the currency freeze on the
+  #   security and the cash-account PATCH with its 422 and its counted error.
+  # - The handbook, both languages, states the security freeze on every path
+  #   including the search dialog's merge, and the accounts' currency and
+  #   binding freeze.
+  test "the docs state the identity-field freezes in English and German" do
+    for {path, fragments} <- [
+          {"docs/integration/api-and-mcp.md",
+           [
+             "`currency_code` **freezes** once it has a transaction or a quote",
+             "`currency_code` **freezes** once a transaction references the account",
+             "is frozen once referenced (1 securities account, 12 transactions)"
+           ]},
+          {"docs/de/integration/api-and-mcp.md",
+           [
+             "**friert ein**, sobald es eine Transaktion oder einen Kurs hat",
+             "**friert ein**, sobald eine Transaktion über eines ihrer beiden Konten",
+             "is frozen once referenced (1 securities account, 12 transactions)"
+           ]},
+          {"docs/product-documentation.md",
+           [
+             "### Identity fields that freeze (ADR-0050 §11)",
+             "**Merge online fields** and **Update existing**",
+             "**Currency and binding freeze once referenced**"
+           ]},
+          {"docs/de/product-documentation.md",
+           [
+             "### Identitätsfelder, die einfrieren (ADR-0050 §11)",
+             "**Online-Felder übernehmen** und **Vorhandenes aktualisieren**",
+             "**Währung und Bindung frieren ein, sobald verwiesen**"
+           ]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+  end
+
+  # User story:
+  # As the operator re-importing an export, or the agent that renamed an
+  # imported account,
+  # I want the handbook and the API page to say, in English and German, what
+  # the import checks before it creates anything, when an account is created,
+  # what happens to an internal transfer and which rows collapse,
+  # so that a skipped row or an account that was not created is expected
+  # (ADR-0050 §3–§6, L2, #884).
+  #
+  # Acceptance criteria:
+  # - The handbook, both languages, states the hash-first check with the
+  #   retired hash, the lazy account creation with the bucket tag and the
+  #   rename case, the internal-transfer skip, and the collapse scoped by the
+  #   file's accounts.
+  # - The API page, both languages, states the rename case for the two
+  #   account update routes and tools.
+  test "the docs state the re-import contract's importer half in English and German" do
+    for {path, fragments} <- [
+          {"docs/product-documentation.md",
+           [
+             "### What a re-import checks first (ADR-0050)",
+             "**before anything is resolved or created**",
+             "**retired content hash**",
+             "created **with their first imported booking**, never up front",
+             "the bucket tag lands on exactly the accounts the import created",
+             "creates no empty account under the old name",
+             "**transfer whose two sides lead to the same account or depot**",
+             "Only rows of the same Portfolio Performance account collapse"
+           ]},
+          {"docs/de/product-documentation.md",
+           [
+             "### Was ein erneuter Import zuerst prüft (ADR-0050)",
+             "**bevor irgendetwas aufgelöst oder angelegt wird**",
+             "**stillgelegter Inhalts-Hash**",
+             "entstehen **mit ihrer ersten importierten Buchung**, nie vorab",
+             "der Bucket-Tag landet auf genau den Konten, die der Import angelegt hat",
+             "legt kein leeres Konto unter dem alten Namen an",
+             "**Umbuchung, deren beide Seiten auf dasselbe Konto oder Depot führen**",
+             "Zusammengefasst werden nur Zeilen desselben Portfolio-Performance-Kontos"
+           ]},
+          {"docs/integration/api-and-mcp.md",
+           [
+             "The hash is checked before anything resolves",
+             "a cash account or depot is created only with its first new booking",
+             "leaves no empty account under the old name"
+           ]},
+          {"docs/de/integration/api-and-mcp.md",
+           [
+             "Der Hash wird geprüft, bevor irgendetwas aufgelöst wird",
+             "ein Verrechnungskonto oder Depot entsteht erst mit seiner ersten neuen Buchung",
+             "kein leeres Konto unter dem alten Namen hinterlässt"
+           ]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+  end
+
+  # User story:
+  # As the operator or the agent renaming an imported account, or mapping an
+  # export's account onto one of another name,
+  # I want the handbook and the API page to say, in English and German, that
+  # the old name is kept as a former name, how the import resolves a name,
+  # what remembering a remap does and what removing a former name costs,
+  # so that a routed row is expected and a refused name is understood
+  # (ADR-0050 §4, §10; L2, #884).
+  #
+  # Acceptance criteria:
+  # - The handbook, both languages, states the name rule on Accounts &
+  #   depots, and on the import the live-then-former resolution, the drifted
+  #   re-export, the undecided ambiguous name, the remembered remap (a
+  #   changed prefill only; a move said in the row before the confirm, L5b)
+  #   and its limit, the refreshed stale mapping and the upgrade's backfill.
+  # - The API page, both languages, states former_names on the payloads, the
+  #   rename cases, the guard's 422 and the removal route with its cost.
+  test "the docs state former names, the name guard and the remembered remap in English and German" do
+    for {path, fragments} <- [
+          {"docs/product-documentation.md",
+           [
+             "**Names and former names** (ADR-0050 §4)",
+             "keeps its previous name as a **former name**",
+             "**Accounts are found by name, then by former name.**",
+             "a re-export that changed inside Portfolio Performance",
+             "A name two accounts carry is prefilled with nothing",
+             "**remembers** the mapping by default",
+             "A prefill you leave as it is remembers nothing",
+             "remembering **moves** it",
+             "the choice holds for this import only",
+             "merged or deleted before you confirm",
+             "the upgrade replays the renames the audit journal holds"
+           ]},
+          {"docs/de/product-documentation.md",
+           [
+             "**Namen und frühere Namen** (ADR-0050 §4)",
+             "behält seinen bisherigen Namen als **früheren Namen**",
+             "**Konten werden über den Namen gefunden, dann über einen früheren Namen.**",
+             "ein Export, der sich in Portfolio Performance verändert hat",
+             "Ein Name, den zwei Konten tragen, wird mit nichts vorbelegt",
+             "wird die Zuordnung standardmäßig **gemerkt**",
+             "Eine unveränderte Vorbelegung merkt nichts",
+             "**verschiebt** das Merken ihn",
+             "gilt die Wahl nur für diesen Import",
+             "vor dem Bestätigen zusammengeführt oder gelöscht",
+             "das Update spielt die Umbenennungen nach, die das Audit-Journal hält"
+           ]},
+          {"docs/integration/api-and-mcp.md",
+           [
+             "`former_names`",
+             "`DELETE /api/v1/cash_accounts/:id/former_names?name=`",
+             "`DELETE /api/v1/securities_accounts/:id/former_names?name=`",
+             "An import that still names '<name>' will then create a new account.",
+             "the previous name is not kept: an import naming it books to that other account",
+             "answers `422` with `errors.name`",
+             "resolves a file's account name by the live name first, then by the former names"
+           ]},
+          {"docs/de/integration/api-and-mcp.md",
+           [
+             "`former_names`",
+             "`DELETE /api/v1/cash_accounts/:id/former_names?name=`",
+             "`DELETE /api/v1/securities_accounts/:id/former_names?name=`",
+             "Ein Import, der '<name>' noch nennt, legt dann ein neues Konto an.",
+             "wird der bisherige Name nicht behalten: Ein Import, der ihn nennt, bucht auf jenes andere Konto",
+             "antwortet `422` mit `errors.name`",
+             "löst den Kontonamen einer Datei zuerst über den aktuellen Namen auf, dann über die früheren Namen"
+           ]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+  end
+
+  # User story (L5b, #608, #884):
+  # As the operator merging a duplicate security on the securities page, or
+  # reading what an import preview's account rows now say,
+  # I want the handbook, in English and German, to describe the security
+  # merge dialog and the import preview's per-row states, and the API page
+  # to stop announcing both as "to follow",
+  # so that the screen and the handbook say the same thing.
+  #
+  # Acceptance criteria:
+  # - The handbook, both languages, names the row menu's Merge into…, the
+  #   searched target, the ISIN choice without a default, the disabled
+  #   confirm, "Merge the other way" and the survivor's overview line.
+  # - The handbook, both languages, names the per-row counts, "Remember this
+  #   mapping", the told-apart same-named accounts, the disabled "+ Create
+  #   new", and the result's remembered names, grouped duplicates and the
+  #   bookings a restated set balance absorbs.
+  # - Neither API page says the security merge dialog still follows or that
+  #   the import page never moves a former name.
+  test "the docs describe the security merge dialog and the import preview's row states" do
+    for {path, fragments} <- [
+          {"docs/product-documentation.md",
+           [
+             "**Merge into…** in the duplicate's row menu",
+             "the first step searches the security to keep",
+             "neither is preselected",
+             "stays disabled, with the missing choice named beside it",
+             "**Merge the other way**",
+             "its overview line names the former ISIN and the merge",
+             "**already imported**",
+             "*nothing to create*",
+             "**Remember this mapping**",
+             "Two accounts of the same name are told apart",
+             "stays in the list, disabled, with the reason",
+             "grouped by the check that skipped it",
+             "that balance absorbs its amount"
+           ]},
+          {"docs/de/product-documentation.md",
+           [
+             "**Zusammenführen in…** im Zeilenmenü des Duplikats",
+             "sucht der erste Schritt das Wertpapier, das bleibt",
+             "keine ist vorausgewählt",
+             "bleibt gesperrt, die fehlende Wahl daneben genannt",
+             "**Andersherum zusammenführen**",
+             "seine Übersichtszeile nennt die frühere ISIN und die Zusammenführung",
+             "**bereits importiert**",
+             "*nichts anzulegen*",
+             "**Zuordnung merken**",
+             "Zwei Konten gleichen Namens werden in der Liste durch das unterschieden",
+             "bleibt in der Liste, gesperrt, mit dem Grund",
+             "gruppiert nach der Prüfung, die ihn übersprungen hat",
+             "dieser Stand nimmt ihren Betrag auf"
+           ]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+
+    for {path, stale} <- [
+          {"docs/integration/api-and-mcp.md",
+           ["merge dialog on the securities page follows", "The import page never moves"]},
+          {"docs/de/integration/api-and-mcp.md",
+           ["auf der Wertpapierseite folgt im selben Batch", "Vorschau kann das noch nicht"]},
+          {"docs/product-documentation.md", ["the dialog on the securities page follows"]},
+          {"docs/de/product-documentation.md", ["der Dialog auf der Wertpapierseite folgt"]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- stale do
+        refute doc =~ fragment, "#{path} still says: #{fragment}"
+      end
+    end
+  end
+
+  # User story (#871, pick G6-A):
+  # As the operator whose delete was refused because rules read the object,
+  # I want the handbook to say where the named rules are,
+  # so that I know the names take me to the rule in the view it applies in.
+  test "the docs state that a refusal links each rule to Risk in its view" do
+    for {path, fragment} <- [
+          {"docs/product-documentation.md",
+           "each name links to Risk in the view the rule applies in"},
+          {"docs/de/product-documentation.md",
+           "jeder Name führt auf „Risiko“ in der Ansicht, in der die Regel gilt"}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+      assert doc =~ fragment, "#{path}: #{fragment}"
+    end
+  end
+
+  # User story (#872, ADR-0049 §4 and §8 as amended by the Sprint 16 plan D-6):
+  # As the operator, or the operator's agent, reading the handbook,
+  # I want a policy rule's rename stated where the rules are described,
+  # so that a rename is not mistaken for a new version, nor replaced by a
+  # retire-and-recreate that splits the rule's history.
+  #
+  # Acceptance criteria:
+  # - The product docs, in English and German, say the rule's name opens its
+  #   dialog and that a rename creates no version.
+  # - The integration docs, in English and German, document the PATCH route,
+  #   that it is outside the versioning, what it refuses, and the MCP tool.
+  test "the docs state a policy rule's rename in English and German" do
+    for {path, fragments} <- [
+          {"docs/product-documentation.md",
+           [
+             "A rule's **name is a link** that opens its dialog",
+             "A rename changes only the label: it creates no version"
+           ]},
+          {"docs/de/product-documentation.md",
+           [
+             "Der **Name einer Regel ist ein Link** und öffnet ihren Dialog",
+             "Umbenennen ändert nur die Bezeichnung: Es entsteht keine Version"
+           ]},
+          {"docs/integration/api-and-mcp.md",
+           [
+             "`PATCH /api/v1/policy_rules/:id` — body `{\"name\": \"…\"}`",
+             "a rule-level edit **outside the versioning**",
+             "a `422` naming each such field, and nothing is written",
+             "`portfolixir.policy_rules.rename`"
+           ]},
+          {"docs/de/integration/api-and-mcp.md",
+           [
+             "`PATCH /api/v1/policy_rules/:id` — Rumpf `{\"name\": \"…\"}`",
+             "**außerhalb der Versionen**",
+             "ein `422`, das jedes solche Feld nennt, und nichts wird geschrieben",
+             "`portfolixir.policy_rules.rename`"
+           ]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+  end
+
+  # E25 S3, F32 (#888), the S3/S4 review round (R3): the local-use NAT64
+  # prefix is a special-purpose block the outbound policy refuses; an
+  # IPv6-only operator reads which prefix works before a logo download fails.
+  test "the docs state which NAT64 prefix the outbound policy accepts" do
+    for {path, fragments} <- [
+          {"docs/home-deployment.md",
+           ["well-known NAT64 prefix `64:ff9b::/96`", "`64:ff9b:1::/48` is a special-purpose"]},
+          {"docs/de/home-deployment.md",
+           ["bekannte NAT64-Präfix `64:ff9b::/96`", "`64:ff9b:1::/48` ist wie die privaten"]},
+          {"SECURITY.md", ["local-use IPv4/IPv6 translation prefix (`64:ff9b:1::/48`)"]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+  end
 end

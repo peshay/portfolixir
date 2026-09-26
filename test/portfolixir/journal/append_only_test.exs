@@ -113,8 +113,10 @@ defmodule Portfolixir.Journal.AppendOnlyTest do
         assert body == "a finding that must never vanish"
 
         # A security carrying log entries cannot be deleted either: the log
-        # would vanish with it (ADR-0044 §3), so the FK restricts.
-        assert {:error, %Ecto.Changeset{}} = Catalog.delete_security(actor, security)
+        # would vanish with it (ADR-0044 §3), so the FK restricts and the
+        # hardened delete (ADR-0050 §11) names the reference, counted.
+        assert {:error, {:referenced, %{"security_notes" => 1}}} =
+                 Catalog.delete_security(actor, security)
 
         # Test hygiene only: the append-only triggers are dropped for THIS
         # connection's cleanup and re-created — production never does this.
@@ -130,6 +132,35 @@ defmodule Portfolixir.Journal.AppendOnlyTest do
           Repo.query!(
             "INSERT INTO security_notes (security_id, author, kind, body, source_quality, as_of, inserted_at) " <>
               "VALUES (1, 'agent', 'evidence', 'probe', 'primary', '2026-08-01', now())"
+          )
+        end
+      end)
+    end
+  end
+
+  # ADR-0050 §3 and §12 (risk-tier: audit): the two records a merge leaves
+  # behind are journal-armed in the migrations that create them. Their
+  # append-only half is pinned in test/portfolixir/lifecycle_test.exs.
+  describe "lifecycle records are armed at creation (ADR-0050)" do
+    test "a raw merge record without a journal actor is rejected" do
+      Sandbox.unboxed_run(Repo, fn ->
+        assert_raise Postgrex.Error, ~r/requires a journal actor/, fn ->
+          Repo.query!(
+            "INSERT INTO merge_records (kind, source_id, target_id, source_snapshot, manifest, " <>
+              "plan_digest, actor_type, inserted_at) " <>
+              "VALUES ('security', 1, 2, '{}', '{}', 'probe', 'system_job', now())"
+          )
+        end
+      end)
+    end
+
+    test "a raw retired hash without a journal actor is rejected" do
+      Sandbox.unboxed_run(Repo, fn ->
+        assert_raise Postgrex.Error, ~r/requires a journal actor/, fn ->
+          Repo.query!(
+            "INSERT INTO retired_import_hashes (import_hash, former_transaction_id, " <>
+              "merge_record_id, reason, inserted_at) " <>
+              "VALUES ('probe', 1, 1, 'internal_transfer', now())"
           )
         end
       end)

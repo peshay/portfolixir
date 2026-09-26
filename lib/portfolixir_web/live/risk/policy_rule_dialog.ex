@@ -7,15 +7,18 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
   **An edit is a new version** (§4), and the dialog says so before the
   operator saves: "Saving creates version N", with the version in force named
   beside it and the whole version list below — an operator who believes they
-  overwrote a cap will not look for its history. The rule's name and context
-  are its identity and are not edited here.
+  overwrote a cap will not look for its history. The context is the rule's
+  identity and is not edited here. **The name is its label** (#872, plan D-6,
+  board `ux-design-2026-09-24/07-rule-name-affordance`): changed alone, it
+  is saved as a rename that creates no version ("Save name"), and the dialog
+  says so first; changed with the predicate, both are saved in one write.
 
   The subject control follows the measure (the §2 matrix): a weight is read
   for a security, a category, cash or a view; a drift for a category or a
   security (the latter with the classification whose plan carries its
   position target); the HHI and the two portfolio metrics for the whole
   basis, the metrics with a window. Thresholds are typed on the measure's own
-  scale, and a decimal comma is accepted.
+  scale, shown and read in the page's locale (`PortfolixirWeb.DecimalInput`).
 
   Retire is a confirmed action; a rule none of whose versions has been in
   force is deleted instead, because nothing was ever measured against it.
@@ -24,23 +27,38 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
   use Gettext, backend: PortfolixirWeb.Gettext
 
   alias Portfolixir.Actor
+  alias Portfolixir.Catalog
   alias Portfolixir.Clock
   alias Portfolixir.Portfolios.PolicyRules
   alias Portfolixir.Portfolios.PolicyRuleVersion
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.DecimalInput
+  alias PortfolixirWeb.LiveEventGuard
+  alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PolicyRuleLabel
   alias PortfolixirWeb.Risk.PolicyRuleFormat
 
   @metric_measures ~w(volatility max_drawdown)
 
   @impl true
+  def mount(socket), do: {:ok, LiveEventGuard.attach(socket)}
+
+  @impl true
   def update(assigns, socket) do
     socket = assign(socket, assigns)
 
     socket =
+      assign(socket, :options, with_own_subject(socket.assigns[:options], socket.assigns[:rule]))
+
+    socket =
       if changed?(socket, :rule) or not Map.has_key?(socket.assigns, :form) do
+        form = initial_form(socket.assigns[:rule])
+
         socket
-        |> assign(:form, initial_form(socket.assigns[:rule]))
+        |> assign(:form, form)
+        # What the rule stands at when the dialog opens: the rename-only
+        # save is decided against it (#872).
+        |> assign(:baseline, predicate(form))
         |> assign(:errors, %{})
         |> assign(:alert, nil)
       else
@@ -113,18 +131,54 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
 
   defp decimal_input(nil), do: ""
 
+  # #869: the line opens in the page's locale ("7,5" on a German page), as
+  # the sentence under it and the version list already write it.
   defp decimal_input(%Decimal{} = value),
-    do: value |> Decimal.normalize() |> Decimal.to_string(:normal)
+    do: value |> Decimal.normalize() |> DecimalInput.value()
+
+  # A translated sentence around one stored name (E25 S7 review round,
+  # S7E-8; pick G12.2 = B): the template is split on a placeholder no
+  # translation carries, before any stored text is put in, and the name is
+  # set in <bdi>, so a direction control a legacy name still carries
+  # reorders at most the name, never the sentence around it.
+  @stored_marker "\u0000stored\u0000"
+
+  defp frame(translated) do
+    case String.split(translated, @stored_marker, parts: 2) do
+      [before, rest] -> {before, rest}
+      [whole] -> {whole, nil}
+    end
+  end
+
+  attr(:frame, :any, required: true)
+  attr(:text, :string, required: true)
+
+  defp isolated(assigns) do
+    ~H"""
+    <%= case @frame do %><% {before, rest} when is_binary(rest) -> %><%= before %><bdi><%= @text %></bdi><%= rest %><% {whole, nil} -> %><%= whole %><% end %>
+    """
+  end
 
   @impl true
   def render(assigns) do
+    name_changed? = name_changed?(assigns.rule, assigns.form)
+
     assigns =
       assign(assigns,
         subject_options: subject_options(assigns.form["measure"], assigns.options),
         drift_security?: drift_security?(assigns.form),
         band?: assigns.form["kind"] == "band",
         metric?: assigns.form["measure"] in @metric_measures,
-        unit: PolicyRuleFormat.unit(assigns.form["measure"])
+        unit: PolicyRuleFormat.unit(assigns.form["measure"]),
+        name_changed?: name_changed?,
+        rename_only?: name_changed? and predicate(assigns.form) == assigns.baseline,
+        title_frame: frame(gettext("Change rule — “%{name}”", name: @stored_marker)),
+        view_frame:
+          frame(
+            gettext("Evaluated in the view “%{view}”, on its steerable basis.",
+              view: @stored_marker
+            )
+          )
       )
 
     ~H"""
@@ -139,9 +193,7 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
     >
       <header class="modal-head">
         <h2 id={"#{@id}-title"}>
-          <%= if @rule,
-            do: gettext("Change rule — “%{name}”", name: @rule.name),
-            else: gettext("New rule") %>
+          <%= if @rule do %><.isolated frame={@title_frame} text={@rule.name} /><% else %><%= gettext("New rule") %><% end %>
         </h2>
         <button
           type="button"
@@ -157,11 +209,23 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
         <div class="modal-body">
           <p :if={@alert} class="alert-error" role="alert"><%= @alert %></p>
           <p class="hint">
-            <%= gettext("Evaluated in the view “%{view}”, on its steerable basis.", view: @view_name) %>
+            <.isolated frame={@view_frame} text={@view_name} />
           </p>
 
+          <%!-- E25 S7, G20; pick G12.2 = B: a name or a note stored before
+               the refusal that carries characters the operator cannot see,
+               marked where it is changed; retyped, the field is clean. --%>
+          <AppShell.invisible_text_note :if={@rule} subject={:name} texts={[@form["name"]]}>
+            <%= gettext("Typed in anew, it is clean.") %>
+          </AppShell.invisible_text_note>
+          <AppShell.invisible_text_note :if={@rule} texts={[@form["note"]]}>
+            <%= gettext("Typed in anew, it is clean.") %>
+          </AppShell.invisible_text_note>
+
           <div class="form-grid">
-            <label :if={is_nil(@rule)}>
+            <%!-- On create and on edit (#872): the name is the operator's
+                 label on the rule, outside the versioning. --%>
+            <label>
               <span><%= gettext("Name") %></span>
               <input type="text" name="rule[name]" value={@form["name"]} maxlength="255" required />
               <.field_error errors={@errors} field="name" />
@@ -247,19 +311,39 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
                 name="rule[threshold]"
                 value={@form["threshold"]}
                 autocomplete="off"
+                aria-invalid={@errors["threshold"] && "true"}
+                aria-describedby={@errors["threshold"] && "rule-error-threshold"}
               />
               <.field_error errors={@errors} field="threshold" />
             </label>
 
             <label :if={@band?}>
               <span><%= gettext("From") %> <%= unit_suffix(@unit) %></span>
-              <input type="text" inputmode="decimal" class="num" name="rule[lower]" value={@form["lower"]} autocomplete="off" />
+              <input
+                type="text"
+                inputmode="decimal"
+                class="num"
+                name="rule[lower]"
+                value={@form["lower"]}
+                autocomplete="off"
+                aria-invalid={@errors["lower"] && "true"}
+                aria-describedby={@errors["lower"] && "rule-error-lower"}
+              />
               <.field_error errors={@errors} field="lower" />
             </label>
 
             <label :if={@band?}>
               <span><%= gettext("To") %> <%= unit_suffix(@unit) %></span>
-              <input type="text" inputmode="decimal" class="num" name="rule[upper]" value={@form["upper"]} autocomplete="off" />
+              <input
+                type="text"
+                inputmode="decimal"
+                class="num"
+                name="rule[upper]"
+                value={@form["upper"]}
+                autocomplete="off"
+                aria-invalid={@errors["upper"] && "true"}
+                aria-describedby={@errors["upper"] && "rule-error-upper"}
+              />
               <.field_error errors={@errors} field="upper" />
             </label>
 
@@ -297,8 +381,19 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
           </div>
 
           <%= if @rule do %>
-            <p class="hint" data-role="policy-rule-version-note">
+            <%!-- What saving does, said before it happens (board 07, Part 1):
+                 a rename alone creates no version; with a new line, the
+                 version note stays and says what the new name covers. --%>
+            <p :if={@rename_only?} class="hint" data-role="policy-rule-rename-note">
+              <%= gettext(
+                "Only the name changes: saving creates no new version. The name applies to the rule with all its versions; the change is journaled, and the previous name stays readable there."
+              ) %>
+            </p>
+            <p :if={not @rename_only?} class="hint" data-role="policy-rule-version-note">
               <%= version_note(@rule) %>
+              <span :if={@name_changed?} class="hint__line" data-role="policy-rule-rename-note">
+                <%= gettext("The new name applies to the rule with all its versions.") %>
+              </span>
             </p>
             <details class="perf-table-disclosure" id="policy-rule-versions" open>
               <summary class="disclosure-summary">
@@ -309,6 +404,10 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
                 <li :for={{version, index} <- Enum.with_index(@rule.versions, 1)}>
                   <%= gettext("Version %{n}", n: index) %> · <%= PolicyRuleFormat.period(version) %> ·
                   <%= PolicyRuleFormat.line(version) %> · <%= PolicyRuleLabel.severity(version.severity) %>
+                  <%!-- E25 S7, G30; pick G12.1 (board 12): who wrote each
+                       version, in the research log's words. A rename is no
+                       version and carries no author. --%>
+                  <span :if={version.author} data-role="policy-rule-version-author">· <%= author_label(version.author) %></span>
                 </li>
               </ol>
             </details>
@@ -344,7 +443,7 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
             <%= gettext("Cancel") %>
           </button>
           <button type="submit" class="button-primary">
-            <%= if @rule, do: gettext("Save new version"), else: gettext("Save rule") %>
+            <%= submit_label(@rule, @rename_only?) %>
           </button>
         </div>
         </div>
@@ -356,11 +455,48 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
   attr(:errors, :map, required: true)
   attr(:field, :string, required: true)
 
+  # A refusal is announced and tied to its field (#869 review round,
+  # UX-DR13): an input names this id in aria-describedby.
   defp field_error(assigns) do
     ~H"""
-    <span :if={msg = @errors[@field]} class="field-error"><%= msg %></span>
+    <span :if={msg = @errors[@field]} id={"rule-error-#{@field}"} class="field-error" role="alert">
+      <%= msg %>
+    </span>
     """
   end
+
+  defp submit_label(nil, _rename_only?), do: gettext("Save rule")
+  defp submit_label(_rule, true), do: gettext("Save name")
+  defp submit_label(_rule, false), do: gettext("Save new version")
+
+  # -- the rename (#872) --------------------------------------------------------
+
+  defp name_changed?(nil, _form), do: false
+  defp name_changed?(rule, form), do: String.trim(form["name"] || "") != rule.name
+
+  # The version a save would write, without its start: a form whose predicate
+  # equals the one the dialog opened on changes only the name. Decimals are
+  # compared as numbers, so "2" and "2,0" are the same line; they are read by
+  # the one decimal-input rule (#869), which parses through the bounded parser
+  # every page shares (E25 S4), and kept as the normalised decimal, never
+  # expanded into a string. A line that does not read is compared as typed.
+  defp predicate(form) do
+    case version_attrs(form) do
+      {:ok, attrs} ->
+        attrs
+        |> Map.delete("valid_from")
+        |> Map.new(fn
+          {key, value} when key in ~w(threshold lower upper) -> {key, decimal_key(value)}
+          pair -> pair
+        end)
+
+      {:error, _refused} ->
+        {:unreadable, Map.take(form, ~w(threshold lower upper))}
+    end
+  end
+
+  defp decimal_key(%Decimal{} = decimal), do: Decimal.normalize(decimal)
+  defp decimal_key(nil), do: nil
 
   defp threshold_label(""), do: gettext("Line")
   defp threshold_label(unit), do: gettext("Line (%{unit})", unit: unit)
@@ -449,6 +585,31 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
     |> Enum.reject(fn {_group, entries} -> entries == [] end)
   end
 
+  # The rule's own subject stays a choice of its dialog (the S3/S4/D review
+  # round, LD-1): a retired security is not offered for a new rule, but a
+  # rule that reads one keeps it, so the dialog never swaps it for another
+  # security and a rename stays a rename.
+  defp with_own_subject(%{securities: securities} = options, %{} = rule) do
+    case reference_version(rule) do
+      %{subject_type: :security, security_id: id} when is_integer(id) ->
+        if List.keymember?(securities, id, 0),
+          do: options,
+          else: %{options | securities: securities ++ [{id, own_security_name(id)}]}
+
+      _other_subject ->
+        options
+    end
+  end
+
+  defp with_own_subject(options, _rule), do: options
+
+  defp own_security_name(id) do
+    case Catalog.get_security(id) do
+      %{name: name} -> name
+      nil -> PolicyRuleLabel.subject_type(:security)
+    end
+  end
+
   defp measure_atom(measure) do
     Enum.find(Map.keys(PolicyRuleVersion.matrix()), :weight, &(Atom.to_string(&1) == measure))
   end
@@ -494,7 +655,7 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
   def handle_event("change", %{"rule" => params}, socket) do
     form =
       socket.assigns.form
-      |> Map.merge(Map.take(params, Map.keys(socket.assigns.form)))
+      |> merge_form(params)
       |> fit_subject(socket.assigns.options)
       |> fit_classification(socket.assigns.options)
 
@@ -504,42 +665,25 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
   def handle_event("save", %{"rule" => params}, socket) do
     form =
       socket.assigns.form
-      |> Map.merge(Map.take(params, Map.keys(socket.assigns.form)))
+      |> merge_form(params)
       |> fit_subject(socket.assigns.options)
       |> fit_classification(socket.assigns.options)
 
     socket = assign(socket, :form, form)
-    version = version_attrs(form)
 
-    result =
-      case socket.assigns.rule do
-        nil ->
-          PolicyRules.create_rule(Actor.owner_ui(), %{
-            "portfolio_id" => socket.assigns.portfolio_id,
-            "view_id" => socket.assigns.view_id,
-            "name" => form["name"],
-            "version" => version
-          })
-
-        rule ->
-          PolicyRules.add_version(Actor.owner_ui(), rule, version)
-      end
-
-    case result do
-      {:ok, _saved} ->
-        send(self(), {__MODULE__, {:saved, gettext("Rule saved")}})
-        {:noreply, socket}
-
-      {:error, {:version, changeset}} ->
-        {:noreply, assign(socket, errors: errors(changeset), alert: nil)}
-
-      {:error, %Ecto.Changeset{} = changeset} ->
-        {:noreply, assign(socket, errors: errors(changeset), alert: nil)}
+    # #869: the line is read by the one decimal-input rule; a figure that
+    # reads two ways is named on its field and nothing is saved.
+    case version_attrs(form) do
+      {:ok, version} -> {:noreply, save(socket, form, version)}
+      {:error, errors} -> {:noreply, assign(socket, errors: errors, alert: nil)}
     end
   end
 
-  def handle_event("retire", _params, socket) do
-    case PolicyRules.retire_rule(Actor.owner_ui(), socket.assigns.rule, %{}) do
+  # Retire and delete act on the rule the dialog was opened on; the new-rule
+  # dialog has none, and a push of either event to it changes nothing
+  # (E25 S4, F17).
+  def handle_event("retire", _params, %{assigns: %{rule: %{} = rule}} = socket) do
+    case PolicyRules.retire_rule(Actor.owner_ui(), rule, %{}) do
       {:ok, _closed} ->
         send(self(), {__MODULE__, {:saved, gettext("Rule retired")}})
         {:noreply, socket}
@@ -552,8 +696,8 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
     end
   end
 
-  def handle_event("delete", _params, socket) do
-    case PolicyRules.delete_rule(Actor.owner_ui(), socket.assigns.rule) do
+  def handle_event("delete", _params, %{assigns: %{rule: %{} = rule}} = socket) do
+    case PolicyRules.delete_rule(Actor.owner_ui(), rule) do
       {:ok, _deleted} ->
         send(self(), {__MODULE__, {:saved, gettext("Rule deleted")}})
         {:noreply, socket}
@@ -563,21 +707,90 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
     end
   end
 
-  # The form's strings as the version's attrs: the subject decoded, a decimal
-  # comma read as a point, the fields the kind and measure do not use left out.
+  # An event this dialog does not know, or a payload it cannot read, changes
+  # nothing (E25 S4, F17).
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
+  # The submitted fields the form knows, and only as the strings a form
+  # sends: a payload of another shape leaves the form as it was.
+  defp merge_form(form, params) do
+    submitted =
+      for {key, value} <- LiveParam.map(params),
+          Map.has_key?(form, key) and is_binary(value),
+          into: %{},
+          do: {key, value}
+
+    Map.merge(form, submitted)
+  end
+
+  # A rename alone is a rule-level edit and creates no version; with a new
+  # predicate, the rename and the version are one write (#872, D-6).
+  defp save_edit(rule, form, version, baseline) do
+    name = %{"name" => form["name"]}
+
+    cond do
+      not name_changed?(rule, form) ->
+        PolicyRules.add_version(Actor.owner_ui(), rule, version)
+
+      predicate(form) == baseline ->
+        PolicyRules.rename_rule(Actor.owner_ui(), rule, name)
+
+      true ->
+        PolicyRules.rename_and_add_version(Actor.owner_ui(), rule, name, version)
+    end
+  end
+
+  defp save(socket, form, version) do
+    result =
+      case socket.assigns.rule do
+        nil ->
+          PolicyRules.create_rule(Actor.owner_ui(), %{
+            "portfolio_id" => socket.assigns.portfolio_id,
+            "view_id" => socket.assigns.view_id,
+            "name" => form["name"],
+            "version" => version
+          })
+
+        rule ->
+          save_edit(rule, form, version, socket.assigns.baseline)
+      end
+
+    case result do
+      {:ok, _saved} ->
+        send(self(), {__MODULE__, {:saved, gettext("Rule saved")}})
+        socket
+
+      {:error, {:version, changeset}} ->
+        assign(socket, errors: errors(changeset), alert: nil)
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        assign(socket, errors: errors(changeset), alert: nil)
+
+      # Deleted from another tab since the dialog opened (LD-3).
+      {:error, :not_found} ->
+        assign(socket, :alert, gettext("This rule no longer exists."))
+    end
+  end
+
+  # The form's strings as the version's attrs: the subject decoded, the line
+  # read by the one decimal-input rule (#869), the fields the kind and measure
+  # do not use left out — a stale value in a hidden field is never read.
   defp version_attrs(form) do
-    %{
-      "measure" => form["measure"],
-      "kind" => form["kind"],
-      "severity" => form["severity"],
-      "valid_from" => blank_to_nil(form["valid_from"]),
-      "note" => blank_to_nil(form["note"])
-    }
-    |> Map.merge(subject_attrs(form))
-    |> Map.merge(threshold_attrs(form))
-    |> Map.merge(
-      if form["measure"] in @metric_measures, do: %{"window" => form["window"]}, else: %{}
-    )
+    with {:ok, threshold} <- threshold_attrs(form) do
+      {:ok,
+       %{
+         "measure" => form["measure"],
+         "kind" => form["kind"],
+         "severity" => form["severity"],
+         "valid_from" => blank_to_nil(form["valid_from"]),
+         "note" => blank_to_nil(form["note"])
+       }
+       |> Map.merge(subject_attrs(form))
+       |> Map.merge(threshold)
+       |> Map.merge(
+         if form["measure"] in @metric_measures, do: %{"window" => form["window"]}, else: %{}
+       )}
+    end
   end
 
   defp subject_attrs(form) do
@@ -610,22 +823,24 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
       else: base
   end
 
-  defp threshold_attrs(%{"kind" => "band"} = form),
-    do: %{"lower" => decimal_text(form["lower"]), "upper" => decimal_text(form["upper"])}
+  defp threshold_attrs(%{"kind" => "band"} = form), do: read_figures(form, ~w(lower upper))
+  defp threshold_attrs(form), do: read_figures(form, ~w(threshold))
 
-  defp threshold_attrs(form), do: %{"threshold" => decimal_text(form["threshold"])}
-
-  defp decimal_text(value) when is_binary(value) do
-    case String.trim(value) do
-      "" -> nil
-      text -> String.replace(text, ",", ".")
+  defp read_figures(form, fields) do
+    with {:ok, read} <- DecimalInput.cast(Map.take(form, fields), fields) do
+      {:ok, Map.new(fields, &{&1, figure(read[&1])})}
     end
   end
 
-  defp decimal_text(_value), do: nil
+  defp figure(%Decimal{} = value), do: value
+  defp figure(_blank), do: nil
 
   defp blank_to_nil(value) when value in [nil, ""], do: nil
   defp blank_to_nil(value), do: value
+
+  # The research log's words for who wrote a record (securities_live.ex).
+  defp author_label(:operator), do: gettext("Operator")
+  defp author_label(:agent), do: gettext("Agent")
 
   @subject_fields ~w(subject_type security_id category_id subject_view_id)
 

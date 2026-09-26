@@ -1077,8 +1077,13 @@ form {
   gap: var(--space-4);
 }
 
+/* A label stacks from the top (issue 869, review round): stretched to a
+   taller neighbour in a grid row, as a paired field with an error beneath
+   it makes it, its own tracks would share out the extra height and grow the
+   control. */
 label {
   display: grid;
+  align-content: start;
   gap: var(--space-1);
 }
 
@@ -1292,6 +1297,16 @@ li + li {
   border: 1px solid color-mix(in srgb, var(--color-danger) 32%, transparent);
 }
 
+/* A rule named in a refusal links to Risk in the view it applies in
+   (issue 871, pick G6-A, board ux-design-2026-09-24/06-view-rule-reach): the
+   band's own colour, underlined, the rule `.data-note__body a` carries. */
+.alert-error a,
+.confirm-delete-blocked .modal-body a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .alert-success {
   color: var(--color-accent);
   background: var(--color-accent-soft);
@@ -1337,6 +1352,16 @@ li + li {
   color: inherit;
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+
+/* E25 S7, G20 (pick G12.2 = B, board 12-e25-new-marks): the stored text a
+   note spells out, [U+200B] and all, wraps like a research entry's body, so
+   it keeps its line breaks and a run of escapes cannot overflow the note at
+   390 px. It keeps the note's colour. */
+.data-note__body .mono {
+  margin: var(--space-1) 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .data-note--attention {
@@ -1636,10 +1661,13 @@ li + li {
   padding: 2px 0;
 }
 
+/* The track does not clip (issue 875, review round): `overflow: hidden`
+   cut the options' outset focus ring off at its edge. The outer options
+   round their own outer corners instead, so the active fill still follows
+   the track. */
 .segmented-control {
   display: inline-flex;
   flex: 0 0 auto;
-  overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-bg);
@@ -1658,8 +1686,15 @@ li + li {
   white-space: nowrap;
 }
 
+.segmented-control__option:first-child {
+  border-start-start-radius: calc(var(--radius-md) - 1px);
+  border-end-start-radius: calc(var(--radius-md) - 1px);
+}
+
 .segmented-control__option:last-child {
   border-right: 0;
+  border-start-end-radius: calc(var(--radius-md) - 1px);
+  border-end-end-radius: calc(var(--radius-md) - 1px);
 }
 
 .segmented-control__option:hover {
@@ -1677,8 +1712,12 @@ li + li {
 }
 
 /* Focus treatment (issue 669): the solid 2px accent outline IS the
-   indicator; the offset keeps it clear of the option's own fill. */
+   indicator; the offset keeps it clear of the option's own fill. The
+   focused option paints above its neighbours, so a later sibling's fill
+   does not cover the ring (issue 875, review round). */
 .segmented-control__option:focus-visible {
+  position: relative;
+  z-index: 1;
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
@@ -3895,7 +3934,9 @@ input[pattern]:invalid:not(:placeholder-shown) {
   display: grid;
   grid-template-columns: minmax(10rem, 1fr) minmax(14rem, 1.4fr);
   gap: 0.75rem;
-  align-items: center;
+  /* The columns start at the top, because the target column grows with its
+     notes (board 04). */
+  align-items: start;
   padding: 0.6rem 0.85rem;
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
@@ -3925,6 +3966,59 @@ input[pattern]:invalid:not(:placeholder-shown) {
 
 .mapping-row select {
   width: 100%;
+}
+
+/* What each mapping row says before the import (ADR-0050 §3, §4; board
+   04-import-memory G4-A, board 04b-import-memory-ambiguity): under the file's
+   name how many of its bookings are already imported and how many are new;
+   under the choice only what is not obvious — a former-name prefill, the
+   "remember" box of a changed prefill, why remembering is not offered, an
+   ambiguous name's note. */
+.mapping-row .source .mapping-count {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.mapping-count b {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.mapping-target {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.mapping-basis {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.mapping-remember {
+  display: grid;
+  gap: 2px;
+}
+
+.mapping-remember > small {
+  padding-left: 22px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* Under 720 px a row is one column: source, choice, its notes, and a depot
+   row's cash account last (board 04 at 390 px). Before, the depot row's three
+   minimum columns widened the grid past the phone. */
+@media (max-width: 720px) {
+  .mapping-row,
+  .mapping-row.depot {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
 }
 
 .panel.inner {
@@ -3973,6 +4067,49 @@ input[pattern]:invalid:not(:placeholder-shown) {
   display: flex;
   gap: 0.5rem;
   justify-content: center;
+}
+
+/* The result's lists read left-aligned in one column (board 04): the
+   remembered names, the skipped duplicates grouped by layer, the internal
+   transfers, the rows behind a set balance a merge adjusted. */
+.import-done .import-skipped {
+  justify-self: stretch;
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  max-width: 46rem;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.import-done .import-skipped > p {
+  margin: 0;
+}
+
+.import-done .import-skipped ul {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  font-size: 12.5px;
+}
+
+.import-done .import-skipped ul li + li {
+  margin-top: 2px;
+}
+
+.import-done .dup-group > ul {
+  margin: 4px 0 6px 22px;
+}
+
+.dup-group .disclosure-summary {
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.dup-group .disclosure-summary b {
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Classifications workspace */
@@ -4666,6 +4803,25 @@ details[open] > .cat-summary::before {
 }
 .cat-edit-form input[name="category[description]"] {
   flex: 1 1 14rem;
+}
+
+/* The page's own blocks take the band's gutter (issue 873, board
+   ux-design-2026-09-24/08-classification-detail ①; DESIGN.md → Layout &
+   Spacing): only the plan editor is a `.workspace-section` band, and the
+   heading, the notice, the search, the forms and the tree otherwise start
+   at x = 0 — at the screen's edge on a phone, at the sidebar's on the
+   desktop. No new value: the band's own padding, the one the page's alerts
+   already take (`.workspace-page > .alert-*`). */
+.classifications-detail > :not(.workspace-section) {
+  margin-inline: clamp(16px, 2.4vw, 28px);
+}
+
+.classifications-detail > .detail-head {
+  margin-top: clamp(18px, 2.4vw, 28px);
+}
+
+.classifications-detail > :last-child {
+  margin-bottom: clamp(18px, 2.4vw, 28px);
 }
 
 /* Mobile: keep the classification detail header from overflowing sideways */
@@ -5481,6 +5637,13 @@ button.income-bar-label.is-active {
      overflow and no tab sits under it. */
   mask-image: linear-gradient(to right, black calc(100% - 40px), transparent 100%);
   scrollbar-width: none;
+  /* The row's end is a tab boundary (issue 876, pick G10 = A of board
+     ux-design-2026-09-24/10-area-tab-end): when the row overflows, the
+     AreaTabs hook writes the distance from its maximum scroll to the next
+     tab start on the row itself, so it can rest with a whole tab at its
+     left. Zero without script and on a row that does not overflow. */
+  --area-tabs-tail: 0px;
+  padding-inline-end: var(--area-tabs-tail);
 }
 /* No scrollbar under the tabs: the fade and the snap are the affordance, and
    a phone renders no scrollbar anyway. Keyboard users reach the off-screen
@@ -5594,10 +5757,14 @@ button.income-bar-label.is-active {
 }
 /* Aligned hint parts (UAT fix round): verb | ≈ | right-aligned quantity |
    unit on fixed grid tracks, so the ≈ signs and quantities line up
-   vertically across rows in both the tree and the flat worklist. */
+   vertically across rows in both the tree and the flat worklist. The verb
+   track sizes to its word (issue 875, board
+   ux-design-2026-09-24/09-allocation-positions): "Verkauf" does not fit a
+   fixed 2.9em and ran into the ≈. The grid still packs to the end, so the ≈
+   stays on one vertical line and each verb ends flush before it. */
 .rebalance-hint {
   display: grid;
-  grid-template-columns: 2.9em 0.9em minmax(4.2em, max-content) max-content;
+  grid-template-columns: max-content 0.9em minmax(4.2em, max-content) max-content;
   column-gap: 0.25em;
   justify-content: end;
   font-size: 0.85em;
@@ -7997,6 +8164,54 @@ dialog.booking-drawer {
   }
 }
 
+@media (max-width: 560px) {
+  /* category rows on two lines (issue 873, pick G8 = A of board
+     ux-design-2026-09-24/08-classification-detail): with the page's gutter
+     in, one line leaves the name some 70 px beside two 6 rem figures and the
+     actions — "Growth" became "Gr…". The row lies on two lines of the same
+     grid instead: marker, swatch, name (which may wrap) and its "+N without
+     holdings" on the first, the actions at its end; value and result on the
+     second, under their column heads. The column widths of C8-A stay. */
+  .cat-summary {
+    row-gap: 2px;
+  }
+
+  .cat-summary::before {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .cat-summary .cat-name {
+    grid-column: 2 / 5;
+    grid-row: 1;
+    flex-wrap: wrap;
+    row-gap: 0;
+  }
+
+  .cat-summary .cat-swatch {
+    flex: none;
+  }
+
+  .cat-summary .cat-name__text {
+    white-space: normal;
+  }
+
+  .cat-summary .cat-actions {
+    grid-column: 5;
+    grid-row: 1;
+  }
+
+  .cat-summary .cat-value {
+    grid-column: 3;
+    grid-row: 2;
+  }
+
+  .cat-summary .cat-result {
+    grid-column: 4;
+    grid-row: 2;
+  }
+}
+
 /* ===== Custom range popover (issue 801, review C5 variant A) ===== */
 /* The disclosure body floats on its trigger, so the section heading and the
    chart stay put; from/to in one row, the walked years as chips, Cancel and
@@ -8231,15 +8446,13 @@ dialog.booking-drawer {
   color: var(--color-text-muted);
 }
 
+/* The name is the way into the rule's dialog, so it reads as a link at rest
+   (issue 872, pick G7-A, board ux-design-2026-09-24/07-rule-name-affordance):
+   colour and underline come from `.link-button`, as on the scheduled and
+   retired names below the table; bold, because it heads its row. */
 .policy-rule__name {
-  color: var(--color-text);
   font-weight: 700;
   text-align: left;
-  text-decoration: none;
-}
-
-.policy-rule__name:hover {
-  text-decoration: underline;
 }
 
 .policy-rule__name:focus-visible {
@@ -8321,6 +8534,13 @@ dialog.booking-drawer {
   grid-column: 1 / -1;
 }
 
+/* A second sentence of a hint on its own line (issue 872: the rename's line under
+   the rule dialog's version note, board 07). */
+.hint__line {
+  display: block;
+  margin-top: var(--space-1);
+}
+
 @media (pointer: coarse) {
   .policy-rule__name {
     min-height: 44px;
@@ -8396,10 +8616,749 @@ dialog.booking-drawer {
    at the same specificity as `th.num` (`.perf-data-table th`, `.drift-table
    th`, …), and only source order lets a later rule win that tie. The third
    selector lifts the header cell over `.data-table thead th`'s
-   `text-align: left`, which `th.num` cannot outrank by order alone. */
+   `text-align: left`, which `th.num` cannot outrank by order alone.
+   A decimal field joins the family (issue 869, DESIGN.md → Numeric inputs;
+   board ux-design-2026-09-24/05-numeric-inputs): `input.num` outranks the
+   bare `input` rule by specificity and a scoped `… input` rule of equal
+   specificity by source order, so an amount and a rate typed one under the
+   other end on one edge, as they will in their column. */
 th.num,
 td.num,
-.data-table thead th.num {
+.data-table thead th.num,
+input.num {
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+/* ===== Accounts & depots: lifecycle controls (ADR-0050, L5a; board
+   01-accounts-lifecycle G1-A, board 02-merge-preview G2-B, board
+   13-l5a-merged-from G13.1-A) ===== */
+
+/* A former name, and what a survivor was merged from, read as their own
+   lines under the name, at the 12 px of the bucket scope line (board 01 ①,
+   board 13). */
+.account-sub--former,
+.account-sub--merged {
+  display: block;
+  width: fit-content;
+  font-size: 12px;
+}
+
+/* The former-names list inside the rename dialog (board 01 ②). */
+.former-names {
+  list-style: none;
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.former-names li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  font-size: 13px;
+}
+
+.former-names li + li {
+  border-top: 1px solid var(--color-border);
+}
+
+.former-names li > span {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.former-names__origin {
+  display: block;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* The row menu names its row on the phone sheet only, where it no longer
+   hangs at its row (board 01 ③). */
+.row-context-menu__caption {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .row-context-menu__caption {
+    display: block;
+    padding: var(--space-1) var(--space-3) var(--space-2);
+    margin-bottom: var(--space-1);
+    border-bottom: 1px solid var(--color-border);
+    font-size: 13px;
+    color: var(--color-text-muted);
+  }
+
+  .row-context-menu__caption b {
+    color: var(--color-text);
+    font-weight: 600;
+  }
+}
+
+/* Under 640 px every entity's kebab sits at the end of its own name line,
+   now that a band carries two (board 01 ④). */
+@media (max-width: 640px) {
+  .accounts-table tbody.account-pair tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .accounts-table tbody.account-pair td {
+    grid-column: 1;
+  }
+
+  .accounts-table tbody.account-pair td.row-actions {
+    grid-column: 2;
+    grid-row: 1;
+    width: auto;
+    padding-block: 0;
+  }
+
+  /* The hover tint covers the whole line, the kebab's column included. */
+  .accounts-table tbody.account-pair:hover tr {
+    background: var(--color-hover);
+  }
+}
+
+/* The merge (board 02, G2-B): a dialog whose foot is a fixed band while the
+   body scrolls; under 720 px the same dialog is a bottom sheet in the shape
+   of the booking drawer. */
+dialog.merge-dialog {
+  overflow: hidden;
+}
+
+.merge-dialog {
+  max-height: calc(100vh - 76px);
+}
+
+.merge-dialog--target {
+  max-width: 420px;
+}
+
+.merge-dialog > .modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* The body scrolls; its blocks keep their height (a table wrapper is a
+   scroll container, which a flex column would otherwise shrink to nothing). */
+.merge-dialog > .modal-body > * {
+  flex-shrink: 0;
+}
+
+.modal-head__step {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+/* The existing footer as a band below the body (board 02: the one class the
+   board adds). */
+.modal-footer.modal-footer--band {
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 0;
+  padding: 12px 18px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg-elevated);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.merge-footer__why {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* A disabled destructive button reads disabled, never merely pale: its
+   reason stands beside it as text (.merge-footer__why). */
+.button-danger:disabled,
+.button-danger[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.merge-route {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.merge-route b {
+  font-weight: 700;
+}
+
+.merge-route__arrow,
+.merge-route__meta {
+  color: var(--color-text-muted);
+}
+
+.merge-route__meta {
+  font-size: 12px;
+}
+
+.merge-basis {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+.merge-rounding {
+  padding-left: 18px;
+}
+
+.merge-empty {
+  margin: 0;
+}
+
+.merge-block-head {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.merge-block-head small {
+  margin-left: 6px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+/* Step 1: every account, the ones that cannot take the history disabled
+   with their reason as text (board 02). */
+.merge-targets {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.merge-targets legend {
+  padding: 0;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.merge-target {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 2px 10px;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 9px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.merge-target input {
+  margin-top: 3px;
+}
+
+.merge-target__name {
+  display: grid;
+  gap: 1px;
+  font-size: 13px;
+}
+
+.merge-target__name b {
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.merge-target__name small {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.merge-target__balance {
+  font-size: 12.5px;
+  text-align: right;
+}
+
+.merge-target__why {
+  grid-column: 2 / -1;
+  font-size: 12px;
+  color: var(--color-text);
+}
+
+/* Selected (UX-DR16 class 3): tint and a 3 px leading edge. */
+.merge-target.is-on,
+.merge-option.is-on {
+  background: var(--color-selected);
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.merge-target.is-off {
+  background: var(--color-bg-muted);
+  cursor: not-allowed;
+}
+
+.merge-target.is-off .merge-target__name b,
+.merge-target.is-off .merge-target__balance {
+  color: var(--color-text-muted);
+}
+
+.merge-sub-caps {
+  margin: 6px 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+/* Step 2: the balances as a sum. */
+.merge-identity {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1.2fr);
+  align-items: end;
+  gap: 4px 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+.merge-identity__term {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.merge-identity__term i {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.merge-identity__term b {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.merge-identity__term b small {
+  margin-left: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.merge-identity__op {
+  padding-bottom: 2px;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.merge-identity__result {
+  padding-left: 10px;
+  border-left: 2px solid var(--color-accent);
+}
+
+.merge-identity__alt {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 12px;
+  text-align: right;
+  color: var(--color-text-muted);
+}
+
+.merge-counts {
+  display: grid;
+  grid-template-columns: 3.2em 1fr;
+  gap: 4px 10px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.merge-counts dt {
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.merge-counts dd {
+  margin: 0;
+}
+
+.merge-counts dd small,
+.merge-anchors td small,
+.merge-positions td small {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.merge-anchors td small,
+.merge-positions td small {
+  display: block;
+  font-size: 11px;
+}
+
+.merge-anchors__after,
+.merge-positions td.num b {
+  font-weight: 700;
+}
+
+.merge-positions td.num b {
+  display: block;
+}
+
+/* The equal bookings' choice: no preselection (ADR-0050 §8). */
+.merge-choice {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+}
+
+.merge-choice legend {
+  padding: 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.merge-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.merge-option input {
+  margin-top: 3px;
+}
+
+.merge-option > span {
+  display: grid;
+  gap: 2px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.merge-option small {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.merge-option small b {
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.merge-refusal__lead,
+.merge-refusal__position,
+.merge-refusal__remedy {
+  margin: 0 0 4px;
+}
+
+.merge-refusal__remedy {
+  margin-bottom: 8px;
+}
+
+/* The security merge (board 03-security-merge, pick G3-A): the source and
+   the target as two cards, because their names can be equal; the role word
+   above each, "deleted" in the danger colour and as a word (UX-DR7). */
+.merge-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: stretch;
+}
+
+.merge-pair__side {
+  display: grid;
+  gap: 2px;
+  align-content: start;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.merge-pair__side b {
+  font-weight: 700;
+}
+
+.merge-pair__side small {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.merge-pair__role {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.merge-pair__role--gone {
+  color: var(--color-danger);
+}
+
+.merge-pair__arrow {
+  align-self: center;
+  font-size: 18px;
+  color: var(--color-text-muted);
+}
+
+/* An option card with a title, a tag and one consequence line (G3-A); the
+   date of an ISIN change follows the "Adopt" card, aligned with its text. */
+.merge-option__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.merge-option__tag {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.merge-option-field {
+  display: grid;
+  gap: 3px;
+  max-width: 220px;
+  margin: -2px 0 2px 34px;
+}
+
+.merge-option-field label {
+  font-size: 12px;
+}
+
+.merge-option-field input {
+  font-family: var(--font-mono);
+}
+
+/* The preview's compact tables: pairs, colliding quotes, settings, events,
+   master data. A cell's reason stands under its value, muted. */
+.merge-table th,
+.merge-table td {
+  padding: 6px 8px;
+  font-size: 12.5px;
+}
+
+.merge-table td small {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.merge-table__keep {
+  font-weight: 600;
+}
+
+.merge-table__drop {
+  color: var(--color-text-muted);
+}
+
+.merge-outcome {
+  font-weight: 600;
+}
+
+.merge-outcome--moves::before {
+  content: "→ ";
+  color: var(--color-text-muted);
+}
+
+.merge-outcome--dropped::before {
+  content: "✕ ";
+  color: var(--color-text-muted);
+}
+
+.merge-more > summary {
+  font-size: 13px;
+}
+
+.merge-refusal__rules {
+  margin: 0 0 4px;
+  padding-left: 18px;
+}
+
+.merge-refusal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 720px) {
+  /* Under 720 px the cards stack and the arrow points down (board 03 at
+     390 px). */
+  .merge-pair {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .merge-pair__arrow {
+    justify-self: center;
+    transform: rotate(90deg);
+    font-size: 14px;
+    line-height: 1;
+  }
+}
+
+/* An empty live region takes no room in the body's gap. */
+.merge-region:empty {
+  display: none;
+}
+
+/* A wide table of the preview, and its two-line form under 720 px (board
+   02 at 390 px): only one of the two is ever displayed. */
+.merge-narrow {
+  display: none;
+}
+
+.merge-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.merge-lines li {
+  display: grid;
+  gap: 1px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 13px;
+}
+
+.merge-lines__head {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.merge-lines__figure {
+  text-align: right;
+}
+
+.merge-lines__figure small {
+  display: block;
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+.merge-stale__changes {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  dialog.modal.merge-dialog {
+    position: fixed;
+    inset: auto 0 0 0;
+    width: 100%;
+    max-width: none;
+    max-height: 88vh;
+    margin: 0;
+    border-radius: var(--radius-md, 8px) var(--radius-md, 8px) 0 0;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.18);
+  }
+
+  .merge-dialog > .modal-body {
+    padding: 12px 16px;
+  }
+
+  /* The foot stays; the confirm takes a full line, Back the next (board
+     02 at 390 px), so no account name breaks inside the button. */
+  .merge-dialog .modal-footer--band {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    padding: 10px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+    border-radius: 0;
+  }
+
+  .merge-dialog .modal-footer--band > button {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .merge-dialog .modal-footer__spacer {
+    display: none;
+  }
+
+  .merge-footer__why {
+    order: 1;
+  }
+
+  .merge-dialog .modal-footer--band > .button-primary,
+  .merge-dialog .modal-footer--band > .button-danger {
+    order: 2;
+  }
+
+  .merge-dialog .modal-footer--band > .button-ghost {
+    order: 3;
+  }
+
+  .merge-footer__why::before {
+    content: "↓ ";
+  }
+
+  .merge-wide {
+    display: none;
+  }
+
+  .merge-narrow {
+    display: block;
+  }
+
+  .merge-identity {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .merge-identity__op {
+    display: none;
+  }
+
+  .merge-identity__term {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+  }
+
+  .merge-identity__result {
+    padding-left: 0;
+    padding-top: 4px;
+    border-left: 0;
+    border-top: 1px solid var(--color-border-strong);
+  }
 }

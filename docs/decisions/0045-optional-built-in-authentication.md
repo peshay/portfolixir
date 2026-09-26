@@ -86,6 +86,19 @@ session's LiveViews, and rotating `SECRET_KEY_BASE` invalidates every session
 everywhere. With longer-lived cookies that second lever is the one to
 document, and `SECURITY.md` now does.
 
+**Amendment, 2026-09-24 (E25 S1, #886): a session is bound to the password.**
+The 2026-09-24 security review (F02) found that changing
+`PORTFOLIXIR_UI_PASSWORD` left every existing session valid, because a session
+carried only the flag and its stamp. A login now also stores a keyed HMAC
+fingerprint of the configured password (keyed with a key derived from
+`SECRET_KEY_BASE` for this purpose, so the signed but unencrypted cookie
+carries nothing a reader could test guesses against), and every browser request and every LiveView mount recomputes it and
+compares in constant time. A changed password ends every session issued under
+the old one; a session without the fingerprint counts as logged out, so the
+first start after this change asks for the password once. The revocation
+decision above is unchanged (T-4 of the 2026-09-24 triage): this is a second
+lever beside rotating `SECRET_KEY_BASE`, not a server-side session list.
+
 ### 2. The deployment contract
 
 - **Production binds loopback by default.** `config/runtime.exs` gains the
@@ -106,6 +119,24 @@ document, and `SECURITY.md` now does.
   published, the application port published on loopback for the operator's
   reverse proxy, non-root users and digest-pinned images. The current Compose
   file is kept as the development configuration under its own name.
+
+**Amendment, 2026-09-24 (E25 S2, #887): the loopback-only reach, qualified.**
+The 2026-09-24 security review (F76) found that the documents overstated what
+"loopback by default" means for the documented deployment. In Compose the
+application sets `PHX_BIND_ALL` and listens on every interface inside its
+container, because a port mapping forwards to the container's network
+interface, never to its loopback; the `127.0.0.1` port mapping, not the
+application, keeps it on the host's loopback. It is therefore reachable from
+the host, through the mapping and through the container's own address, and
+from the other containers of the stack, and from nothing else on the network
+only on Docker Engine 28.3.3 or newer (28.0 blocked other machines from
+reaching loopback-published ports directly; 28.3.3 closed the firewall-reload
+case, CVE-2025-54388). The startup warning of the first bullet is kept: the
+application cannot tell a mapped container interface from an opened port, so
+it appears in every Compose install without a UI password, and the deployment
+guide now recommends that password for Compose installs and names the engine
+prerequisite. The decision itself is unchanged: a release started on its own
+still binds loopback unless told otherwise.
 
 ### 3. What this is not
 

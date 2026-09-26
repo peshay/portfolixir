@@ -6,6 +6,7 @@ defmodule PortfolixirWeb.UiAuthTest do
 
   import Phoenix.LiveViewTest
 
+  alias Plug.Crypto.KeyGenerator
   alias Portfolixir.Auth.Throttle
   alias Portfolixir.Catalog.LogoStore
   alias PortfolixirWeb.UiAuth
@@ -179,6 +180,120 @@ defmodule PortfolixirWeb.UiAuthTest do
       assert redirected_to(get(fresh, "/")) == "/login?to=%2F"
     end
 
+    # User story (E25 S1, F10):
+    # As an operator logging in to the web UI,
+    # I want the login to start a fresh CSRF token,
+    # so that a token minted before I authenticated cannot act on my session.
+    #
+    # Acceptance criteria:
+    # - The CSRF token in the session differs after a successful login.
+    # - A form token minted before the login is rejected on the logout POST.
+    # - Preference keys in the session (the locale) survive the login.
+    test "a login rotates the CSRF token", %{conn: conn} do
+      Throttle.success(:ui, Throttle.source_key(conn.remote_ip))
+
+      login_page = conn |> with_csrf() |> get("/login?locale=de")
+      pre_login_token = form_csrf_token(html_response(login_page, 200))
+      pre_login_session_token = Plug.Conn.get_session(login_page, "_csrf_token")
+      assert is_binary(pre_login_session_token)
+
+      logged_in =
+        login_page
+        |> recycle_session_cookie()
+        |> post("/login", %{
+          "_csrf_token" => pre_login_token,
+          "session" => %{"password" => @password}
+        })
+
+      # The pre-login token was valid: the login POST it carried went through.
+      assert redirected_to(logged_in) == "/"
+      refute Plug.Conn.get_session(logged_in, "_csrf_token") == pre_login_session_token
+      assert Plug.Conn.get_session(logged_in, "locale") == "de"
+
+      # A page behind the login answers 200 only to a logged-in session.
+      home = logged_in |> recycle_session_cookie() |> get("/")
+      assert html_response(home, 200)
+
+      # Through the endpoint, the pre-login token is refused on the logout
+      # POST, and the session it tried to end is still logged in.
+      assert_error_sent(403, fn ->
+        home
+        |> recycle_session_cookie()
+        |> post("/logout", %{"_csrf_token" => pre_login_token})
+      end)
+
+      assert home |> recycle_session_cookie() |> get("/") |> html_response(200)
+
+      # The token the logged-in page carries is the one that logs out.
+      logged_out =
+        home
+        |> recycle_session_cookie()
+        |> post("/logout", %{"_csrf_token" => form_csrf_token(html_response(home, 200))})
+
+      assert redirected_to(logged_out) == "/login"
+    end
+
+    # User story (E25 S1, F02):
+    # As an operator who changes the UI password,
+    # I want every session logged in under the old password to end,
+    # so that changing the password is a lever against a copied session cookie.
+    #
+    # Acceptance criteria:
+    # - After the configured password changes, an existing session is sent to
+    #   the login page and the LiveView mount halts.
+    # - A session carrying the flag and a fresh stamp but no password binding
+    #   (one issued before this change) is logged out.
+    # - Logging in again with the new password works.
+    test "a password change ends existing sessions", %{conn: conn} do
+      Throttle.success(:ui, Throttle.source_key(conn.remote_ip))
+      conn = recycle_session(conn, login(conn, @password))
+      assert conn |> get("/portfolio") |> html_response(200)
+      assert {:ok, _view, _html} = live(conn, "/portfolio")
+
+      # The binding is a keyed fingerprint, never the password itself.
+      fingerprint = Plug.Conn.get_session(conn, UiAuth.fingerprint_key())
+      assert is_binary(fingerprint)
+      refute fingerprint =~ @password
+
+      Application.put_env(:portfolixir, :ui_password, "a-different-operator-password")
+
+      assert redirected_to(get(conn, "/portfolio")) == "/login?to=%2Fportfolio"
+      assert {:error, {:redirect, %{to: "/login" <> _}}} = live(conn, "/portfolio")
+
+      fresh = Phoenix.ConnTest.build_conn()
+      Throttle.success(:ui, Throttle.source_key(fresh.remote_ip))
+      again = recycle_session(fresh, login(fresh, "a-different-operator-password"))
+      assert again |> get("/portfolio") |> html_response(200)
+    end
+
+    test "a session without the password binding is logged out", %{conn: conn} do
+      unbound =
+        Plug.Test.init_test_session(conn, %{
+          UiAuth.session_key() => true,
+          UiAuth.stamp_key() => System.os_time(:second)
+        })
+
+      assert redirected_to(get(unbound, "/portfolio")) =~ "/login"
+      assert {:error, {:redirect, %{to: "/login" <> _}}} = live(unbound, "/portfolio")
+    end
+
+    # Key hygiene (E25 S1, F02, review round): the fingerprint's HMAC key is
+    # derived from SECRET_KEY_BASE for this one purpose, the way the cookie
+    # signing keys are, never the raw secret itself.
+    test "the password fingerprint is keyed with a key derived for it" do
+      secret_key_base = PortfolixirWeb.Endpoint.config(:secret_key_base)
+      message = "portfolixir.ui_password." <> @password
+
+      keyed_with = fn key ->
+        :hmac |> :crypto.mac(:sha256, key, message) |> Base.url_encode64(padding: false)
+      end
+
+      derived = KeyGenerator.generate(secret_key_base, "portfolixir.ui_password_fingerprint")
+
+      refute UiAuth.password_fingerprint() == keyed_with.(secret_key_base)
+      assert UiAuth.password_fingerprint() == keyed_with.(derived)
+    end
+
     test "the API stays on its bearer token", %{conn: conn} do
       assert conn
              |> put_req_header("accept", "application/json")
@@ -228,7 +343,11 @@ defmodule PortfolixirWeb.UiAuthTest do
 
     test "a session issued before this change carries no timestamp and is refused",
          %{conn: conn} do
-      unstamped = Plug.Test.init_test_session(conn, %{UiAuth.session_key() => true})
+      unstamped =
+        Plug.Test.init_test_session(conn, %{
+          UiAuth.session_key() => true,
+          UiAuth.fingerprint_key() => UiAuth.password_fingerprint()
+        })
 
       assert redirected_to(get(unstamped, "/portfolio")) =~ "/login"
     end
@@ -263,7 +382,8 @@ defmodule PortfolixirWeb.UiAuthTest do
     defp authenticated_at(conn, stamp) do
       Plug.Test.init_test_session(conn, %{
         UiAuth.session_key() => true,
-        UiAuth.stamp_key() => stamp
+        UiAuth.stamp_key() => stamp,
+        UiAuth.fingerprint_key() => UiAuth.password_fingerprint()
       })
     end
   end
@@ -280,6 +400,24 @@ defmodule PortfolixirWeb.UiAuthTest do
     File.write!(path, @png)
     on_exit(fn -> File.rm(path) end)
     file
+  end
+
+  # ConnTest skips CSRF protection by default; these requests keep it on.
+  defp with_csrf(conn), do: Plug.Conn.put_private(conn, :plug_skip_csrf_protection, false)
+
+  # The next browser request: the response's cookies, CSRF protection on.
+  defp recycle_session_cookie(response) do
+    response
+    |> Phoenix.ConnTest.recycle()
+    |> Map.put(:remote_ip, response.remote_ip)
+    |> with_csrf()
+  end
+
+  defp form_csrf_token(html) do
+    [_, token] =
+      Regex.run(~r/(?:name="_csrf_token" value|name="csrf-token" content)="([^"]+)"/, html)
+
+    token
   end
 
   defp recycle_session(conn, response) do

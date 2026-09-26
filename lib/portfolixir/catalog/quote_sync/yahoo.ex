@@ -17,15 +17,22 @@ defmodule Portfolixir.Catalog.QuoteSync.Yahoo do
     * `"portfolio_performance"` — bare `ticker_symbol` (e.g. `AAPL`, `APC.DE`).
     * `"coingecko"` — `<ticker_symbol>-<currency_code>` (e.g. `BTC-USD`).
 
-  Null closes (non-trading days) are dropped.
+  Null closes (non-trading days) are dropped, and so is an implausible point
+  (a close that is not positive, or a date past
+  `Portfolixir.Catalog.MarketDataBounds.latest_date/0`), so one bad point never
+  fails the batch (E25 S3, F26).
   """
 
   @behaviour Portfolixir.Catalog.QuoteSync.Provider
 
+  alias Portfolixir.Catalog.MarketDataBounds
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Net.Http
+  alias Portfolixir.Net.PathSegment
 
   @endpoint "https://query1.finance.yahoo.com/v8/finance/chart"
+  # The only hosts a request or a redirect hop may reach (F27).
+  @allowed_hosts ["query1.finance.yahoo.com", "query2.finance.yahoo.com"]
   @interval "1d"
 
   @impl true
@@ -37,33 +44,27 @@ defmodule Portfolixir.Catalog.QuoteSync.Yahoo do
   end
 
   def fetch(%Security{} = security, opts) do
-    case build_symbol(security) do
-      {:error, _} = err ->
-        err
+    # One path segment (#763, F31): a ticker can neither change the endpoint,
+    # nor the query, nor, as a relative segment, the path.
+    with {:ok, symbol} <- build_symbol(security),
+         {:ok, segment} <- PathSegment.encode(symbol) do
+      case Http.get(req(opts),
+             url: "#{@endpoint}/#{segment}",
+             params: [
+               period1: 0,
+               period2: DateTime.utc_now() |> DateTime.to_unix(),
+               interval: @interval
+             ]
+           ) do
+        {:ok, %Req.Response{status: 200, body: body}} ->
+          {:ok, decode(body)}
 
-      {:ok, symbol} ->
-        req = req(opts)
-        # One unreserved path segment (#763): a ticker can neither change
-        # the endpoint nor the query.
-        url = "#{@endpoint}/#{URI.encode(symbol, &URI.char_unreserved?/1)}"
+        {:ok, %Req.Response{status: status}} ->
+          {:error, {:http_status, status}}
 
-        case Http.get(req,
-               url: url,
-               params: [
-                 period1: 0,
-                 period2: DateTime.utc_now() |> DateTime.to_unix(),
-                 interval: @interval
-               ]
-             ) do
-          {:ok, %Req.Response{status: 200, body: body}} ->
-            {:ok, decode(body)}
-
-          {:ok, %Req.Response{status: status}} ->
-            {:error, {:http_status, status}}
-
-          {:error, reason} ->
-            {:error, reason}
-        end
+        {:error, reason} ->
+          {:error, reason}
+      end
     end
   end
 
@@ -96,8 +97,11 @@ defmodule Portfolixir.Catalog.QuoteSync.Yahoo do
   defp to_row({_ts, nil}), do: []
 
   defp to_row({ts, close}) when is_integer(ts) and is_number(close) do
-    case DateTime.from_unix(ts) do
-      {:ok, dt} -> [%{date: DateTime.to_date(dt), close: close |> to_string() |> Decimal.new()}]
+    with {:ok, dt} <- DateTime.from_unix(ts),
+         date = DateTime.to_date(dt),
+         true <- MarketDataBounds.plausible?(date, close, MarketDataBounds.close_column()) do
+      [%{date: date, close: close |> to_string() |> Decimal.new()}]
+    else
       _ -> []
     end
   end
@@ -109,6 +113,7 @@ defmodule Portfolixir.Catalog.QuoteSync.Yahoo do
       Http.new(
         headers: [{"user-agent", "portfolixir/0.1 (+https://github.com/portfolixir)"}],
         receive_timeout: 10_000,
+        allowed_hosts: @allowed_hosts,
         max_bytes: 8 * 1024 * 1024,
         deadline_ms: 30_000
       )

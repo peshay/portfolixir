@@ -11,6 +11,7 @@ defmodule Portfolixir.Classifications.Classification do
   import Ecto.Changeset
 
   alias Portfolixir.Classifications.Category
+  alias Portfolixir.Input.Text
 
   schema "classifications" do
     field(:name, :string)
@@ -30,7 +31,9 @@ defmodule Portfolixir.Classifications.Classification do
     |> cast(attrs, [:name, :position, :description])
     |> update_change(:name, &normalize_name/1)
     |> validate_required([:name])
-    |> validate_length(:name, max: 255)
+    |> Text.validate(:name, max: 255)
+    |> Text.validate(:description, multiline: true, max: Text.free_text_max())
+    |> check_constraint(:description, name: :classifications_description_length_check)
   end
 
   @doc false

@@ -1,6 +1,8 @@
 defmodule Portfolixir.Ledger.SplitsTest do
   use Portfolixir.DataCase, async: true
 
+  import Ecto.Query
+
   import Portfolixir.WorldFixtures,
     only: [base_world: 1, buy!: 3, create_security!: 1, put_quote!: 3, sell!: 3]
 
@@ -10,6 +12,7 @@ defmodule Portfolixir.Ledger.SplitsTest do
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Splits
   alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Repo
 
   defp split_attrs(security, opts \\ []) do
     %{
@@ -472,6 +475,56 @@ defmodule Portfolixir.Ledger.SplitsTest do
     # The upper bound itself is still a valid integer.
     assert {:ok, _} =
              Splits.preview_split(split_attrs(security, numerator: 2_147_483_647))
+  end
+
+  # User story (E25 S4, G12):
+  # As the operator (or the agent) booking a security's splits,
+  # I want a split refused when it would take the security's splits, taken
+  # together, past a bound no real share history reaches,
+  # so that quantities and values stay inside what every later read can
+  # compute.
+  #
+  # Acceptance criteria:
+  # - Each booked split counts by its own magnitude (2:1 and 1:2 both count
+  #   2), and the product over the security's splits, the new one included,
+  #   may reach 10^12 but not pass it: past it, preview and book answer
+  #   {:error, :cumulative_factor_out_of_range} and nothing is written.
+  # - Re-booking an identical split extends it without counting it twice.
+  test "a split that takes the cumulative factor past the bound is refused" do
+    world = base_world(name: "Factor World", cash_name: "F Cash", depot_name: "F Depot")
+    other = base_world(name: "Factor Other", cash_name: "FO Cash", depot_name: "FO Depot")
+    security = create_security!(name: "Factor Co", ticker: "FCO")
+    buy!(world, security, quantity: "10", price: "100", date: ~D[2026-01-02])
+
+    assert {:ok, _} =
+             Splits.book_split(
+               Actor.owner_ui(),
+               split_attrs(security, date: ~D[2026-01-10], numerator: 1_000_000)
+             )
+
+    assert {:ok, _} =
+             Splits.book_split(
+               Actor.owner_ui(),
+               split_attrs(security, date: ~D[2026-01-20], numerator: 1, denominator: 1_000_000)
+             )
+
+    past = split_attrs(security, date: ~D[2026-02-02], numerator: 2)
+
+    assert {:error, :cumulative_factor_out_of_range} = Splits.preview_split(past)
+    assert {:error, :cumulative_factor_out_of_range} = Splits.book_split(Actor.owner_ui(), past)
+
+    assert Repo.aggregate(
+             from(t in Transaction, where: t.security_id == ^security.id and t.type == "split"),
+             :count
+           ) == 2
+
+    buy!(other, security, quantity: "1", price: "100", date: ~D[2026-01-05])
+
+    assert {:ok, [_extended]} =
+             Splits.book_split(
+               Actor.owner_ui(),
+               split_attrs(security, date: ~D[2026-01-10], numerator: 1_000_000)
+             )
   end
 
   # User story (E17 closing-act review, finding 5 — preview/book divergence):

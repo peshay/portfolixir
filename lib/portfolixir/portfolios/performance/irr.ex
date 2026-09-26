@@ -39,11 +39,16 @@ defmodule Portfolixir.Portfolios.Performance.IRR do
   and options.
 
   Returns `Decimal.t()` on success and `nil` for every degenerate case —
-  fewer than two cashflows, all flows the same sign, no root found by either
-  method within `max_iterations`. It never raises.
+  fewer than two cashflows, all flows the same sign, one shared date, an
+  amount outside the range the one float step carries (a non-zero magnitude
+  below #{"1e-300"} or above #{"1e300"}, which only implausible stored data
+  reaches), no root found by either method within `max_iterations`. It never
+  raises; `solve/2` names the reason (E25 S4, G12).
   """
 
   @type cashflow :: {Date.t(), Decimal.t()}
+  @type reason ::
+          :too_few_cashflows | :no_sign_change | :single_date | :amount_out_of_range | :no_root
 
   @zero Decimal.new("0")
   @days_per_year 365.0
@@ -57,6 +62,10 @@ defmodule Portfolixir.Portfolios.Performance.IRR do
   # Newton stays inside (−1, 1e3]: below −1 the NPV is undefined, and beyond
   # 1000 (100,000% p.a.) a "root" is a numeric artefact, not a return.
   @newton_max_rate 1.0e3
+  # The magnitudes the solver's float step carries with room to sum and
+  # discount: a non-zero amount outside them is not converted (E25 S4, G12).
+  @min_amount Decimal.new("1e-300")
+  @max_amount Decimal.new("1e300")
 
   @doc """
   Computes the IRR for a period summary (a `summarise/2` result).
@@ -87,15 +96,39 @@ defmodule Portfolixir.Portfolios.Performance.IRR do
   the investor. Returns `Decimal.t()` or `nil`.
   """
   @spec compute([cashflow()], keyword()) :: Decimal.t() | nil
-  def compute(cashflows, opts \\ [])
+  def compute(cashflows, opts \\ []) do
+    case solve(cashflows, opts) do
+      {:ok, rate} -> rate
+      {:error, _reason} -> nil
+    end
+  end
 
-  def compute(cashflows, _opts) when length(cashflows) < 2, do: nil
+  @doc """
+  Solves `NPV(r) = 0` like `compute/2`, naming why there is no rate:
+  `{:ok, rate}` or `{:error, reason}` with `reason` one of
+  `:too_few_cashflows`, `:no_sign_change`, `:single_date`,
+  `:amount_out_of_range` and `:no_root`.
+  """
+  @spec solve([cashflow()], keyword()) :: {:ok, Decimal.t()} | {:error, reason()}
+  def solve(cashflows, opts \\ [])
 
-  def compute(cashflows, opts) do
-    if sign_change?(cashflows) and not single_dated?(cashflows) do
-      solve(cashflows, opts)
-    else
-      nil
+  def solve(cashflows, _opts) when length(cashflows) < 2, do: {:error, :too_few_cashflows}
+
+  def solve(cashflows, opts) do
+    cond do
+      not sign_change?(cashflows) ->
+        {:error, :no_sign_change}
+
+      single_dated?(cashflows) ->
+        {:error, :single_date}
+
+      true ->
+        with {:ok, points} <- numeric_points(cashflows) do
+          case root(points, opts) do
+            %Decimal{} = rate -> {:ok, rate}
+            nil -> {:error, :no_root}
+          end
+        end
     end
   end
 
@@ -122,6 +155,10 @@ defmodule Portfolixir.Portfolios.Performance.IRR do
     |> :math.pow(years)
     |> Kernel.-(1.0)
     |> finalize()
+  rescue
+    # A solved rate compounded over a century-scale window can leave the
+    # float range; that period figure is absent, never a raise (E25 S4, G12).
+    ArithmeticError -> nil
   end
 
   def period_rate(_rate, _days), do: nil
@@ -187,10 +224,9 @@ defmodule Portfolixir.Portfolios.Performance.IRR do
     length(signs) > 1
   end
 
-  defp solve(cashflows, opts) do
+  defp root(points, opts) do
     tolerance = Keyword.get(opts, :tolerance, @default_tolerance)
     max_iterations = Keyword.get(opts, :max_iterations, @default_max_iterations)
-    points = numeric_points(cashflows)
 
     case attempt_newton(points, tolerance, max_iterations) do
       {:ok, rate} -> finalize(rate)
@@ -255,12 +291,27 @@ defmodule Portfolixir.Portfolios.Performance.IRR do
 
   # Converts the dated Decimal cashflows to `{years_from_first, amount_float}`
   # once, at the solver boundary; the bisection then works purely on floats.
+  # An amount the float step cannot carry is refused here, before the
+  # conversion would raise (E25 S4, G12).
   defp numeric_points(cashflows) do
     {first_date, _amount} = hd(cashflows)
 
-    Enum.map(cashflows, fn {date, amount} ->
-      {Date.diff(date, first_date) / @days_per_year, Decimal.to_float(amount)}
-    end)
+    if Enum.all?(cashflows, fn {_date, amount} -> float_range?(amount) end) do
+      {:ok,
+       Enum.map(cashflows, fn {date, amount} ->
+         {Date.diff(date, first_date) / @days_per_year, Decimal.to_float(amount)}
+       end)}
+    else
+      {:error, :amount_out_of_range}
+    end
+  end
+
+  defp float_range?(%Decimal{} = amount) do
+    magnitude = Decimal.abs(amount)
+
+    Decimal.equal?(magnitude, @zero) or
+      (Decimal.compare(magnitude, @min_amount) != :lt and
+         Decimal.compare(magnitude, @max_amount) != :gt)
   end
 
   defp npv(points, rate) do

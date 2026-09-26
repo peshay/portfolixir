@@ -26,10 +26,14 @@ defmodule PortfolixirWeb.Api.V1.SinceParam do
   a poller needs. Those reads ignore `since` like any undefined parameter.
   """
 
+  alias Portfolixir.DeltaCursor
+
   @delta_note "Rows created or updated strictly after `since` (UTC), by " <>
                 "their updated_at. Deletions are not represented - a caller " <>
                 "that must detect deletions performs a full read. Use this " <>
-                "response's `as_of` as the next `since`."
+                "response's `as_of` as the next `since`: it lies no later " <>
+                "than the start of the oldest write still in flight, so the " <>
+                "next read may re-deliver a row but never skips one."
 
   @doc "Parses `since`; `{:ok, nil}` when absent, `{:error, :since}` when invalid."
   def parse(params) do
@@ -48,11 +52,16 @@ defmodule PortfolixirWeb.Api.V1.SinceParam do
       {:error, :since}
     else
       # `as_of` is captured here, BEFORE the controller runs its query, and
-      # backdated one second: `updated_at` carries second precision, so a row
-      # committed after the query but inside the stamp's own wall-clock
-      # second would satisfy `updated_at == as_of` and be excluded forever
-      # by the strictly-after cut. Both give a harmless overlap — the next
-      # poll re-delivers a row rather than losing one (review findings).
+      # it is no later than one second before the start of the oldest
+      # transaction that has written and is still open (E25 S6, G06;
+      # `Portfolixir.DeltaCursor`). A row's `updated_at` is stamped when its
+      # transaction writes it, not when that transaction commits: an `as_of`
+      # of "now" lost every row a transaction open during the read stamped
+      # before now and committed after, and the second's margin alone only
+      # covered transactions that commit within it. `updated_at` carries
+      # second precision, so the margin also keeps a row stamped inside the
+      # cursor's own second in the next poll's window. Both give a harmless
+      # overlap — the next poll re-delivers a row rather than losing one.
       # A cut the database cannot encode (a year before 1) is not a cut:
       # the timestamp encoder raises on it, so it is refused here as the
       # 422 the contract promises (closing-act finding).
@@ -60,12 +69,7 @@ defmodule PortfolixirWeb.Api.V1.SinceParam do
         {:error, :since}
 
       {:ok, naive} ->
-        as_of =
-          DateTime.utc_now()
-          |> DateTime.truncate(:second)
-          |> DateTime.add(-1, :second)
-
-        {:ok, %{raw: value, cut: naive, as_of: as_of}}
+        {:ok, %{raw: value, cut: naive, as_of: DeltaCursor.as_of()}}
     end
   end
 

@@ -66,6 +66,36 @@ defmodule Portfolixir.RuntimeConfig do
        "(ADR-0045)."}
   end
 
+  @min_ui_password_length 12
+
+  @doc "The UI password length below which a network-bound instance warns at boot (T-2)."
+  @spec min_ui_password_length() :: pos_integer()
+  def min_ui_password_length, do: @min_ui_password_length
+
+  @doc """
+  The startup check behind T-2 of the 2026-09-24 triage (E25 S1, F67): bound
+  beyond loopback with a UI password shorter than `min_ui_password_length/0`
+  is named in the log. A warning, never a refusal: an instance that already
+  runs keeps booting (ADR-0045 §1). No password at all is
+  `exposure_warning/2`'s case. Pure; `Portfolixir.Application` logs it.
+  """
+  @spec password_warning(:inet.ip_address(), String.t() | nil) :: :ok | {:warn, String.t()}
+  def password_warning(@loopback, _password), do: :ok
+  def password_warning({0, 0, 0, 0, 0, 0, 0, 1}, _password), do: :ok
+
+  def password_warning(_ip, password) when is_binary(password) and password != "" do
+    if String.length(password) < @min_ui_password_length do
+      {:warn,
+       "The web UI is bound beyond loopback and PORTFOLIXIR_UI_PASSWORD is shorter " <>
+         "than #{@min_ui_password_length} characters: the login throttle slows guessing, " <>
+         "it does not stop it. Choose a longer password (ADR-0045)."}
+    else
+      :ok
+    end
+  end
+
+  def password_warning(_ip, _password), do: :ok
+
   @doc """
   A signing salt derived from `SECRET_KEY_BASE` for one named purpose (#759):
   no installation shares a salt printed in the repository, and the two salts
@@ -82,19 +112,51 @@ defmodule Portfolixir.RuntimeConfig do
   @doc """
   The `Plug.SSL` options behind `PHX_FORCE_SSL` (#759): off unless asked for;
   on, plain HTTP is redirected and HSTS is set, with the scheme read from the
-  proxy's `x-forwarded-proto`.
-  """
-  @spec force_ssl_opts(String.t() | nil) :: false | keyword()
-  def force_ssl_opts(value \\ System.get_env("PHX_FORCE_SSL"))
+  proxy's `x-forwarded-proto`, which `PortfolixirWeb.TrustedProxy` keeps only
+  from loopback or a trusted proxy (E25 S1, F09).
 
-  def force_ssl_opts(value) when is_binary(value) do
-    if truthy?(value), do: [rewrite_on: [:x_forwarded_proto], hsts: true], else: false
+  The two loopback names, `localhost` and `127.0.0.1`, are always left on
+  plain HTTP — `Plug.SSL`'s own default, which any `:exclude` replaces: the
+  container's own health check, and the standalone MCP companion's default
+  base URL (E25 S7 review round). So is every host
+  `PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS` names, comma-separated (E25 S7,
+  F23): the internal name the MCP companion calls the app under on the
+  Compose network, where there is no TLS to redirect to. Names are
+  normalised like `allowed_hosts/2` (trimmed, lower-cased, a port dropped);
+  an excluded host gets neither the redirect nor HSTS.
+  """
+  @spec force_ssl_opts(String.t() | nil, String.t() | nil) :: false | keyword()
+  def force_ssl_opts(
+        value \\ System.get_env("PHX_FORCE_SSL"),
+        excluded \\ System.get_env("PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS")
+      )
+
+  def force_ssl_opts(value, excluded) when is_binary(value) do
+    if truthy?(value) do
+      hosts =
+        (@always_allowed_hosts ++ split_hosts(excluded))
+        |> Enum.map(&normalize_host/1)
+        |> Enum.reject(&(&1 == ""))
+        |> Enum.uniq()
+
+      [rewrite_on: [:x_forwarded_proto], hsts: true, exclude: hosts]
+    else
+      false
+    end
   end
 
-  def force_ssl_opts(_value), do: false
+  def force_ssl_opts(_value, _excluded), do: false
 
   @min_token_bytes 32
   @placeholder_prefixes ~w(dev-api-token dev-mcp-token test-api-token replace change secret token password example)
+
+  @doc "The bearer tokens' length floor; the MCP companion holds its token to it too (F01)."
+  @spec min_token_bytes() :: pos_integer()
+  def min_token_bytes, do: @min_token_bytes
+
+  @doc "The placeholder prefixes a bearer token may not start with; mirrored by the companion."
+  @spec token_placeholder_prefixes() :: [String.t()]
+  def token_placeholder_prefixes, do: @placeholder_prefixes
 
   @doc """
   The bearer token a production instance boots with (#761): at least 32 bytes
@@ -124,9 +186,237 @@ defmodule Portfolixir.RuntimeConfig do
           "PORTFOLIXIR_API_TOKEN is required; generate one with `openssl rand -base64 48`"
   end
 
-  defp placeholder?(token) do
+  # A token's name is written into the journal's actor label and read back by
+  # agents, so it is a short identifier, never free text.
+  @principal_name ~r/\A[a-z0-9][a-z0-9_-]{0,31}\z/
+
+  @doc """
+  The API's principals (E25 S7, G26; the architecture's FU-6, named
+  principals): `{name, token}` pairs, the name becoming the journal's actor
+  label for every write made with that token.
+
+  `named` is `PORTFOLIXIR_API_TOKENS`, comma-separated `name=token` entries
+  (the token is everything after the first `=`; blank entries are skipped); a
+  name is 1 to 32 characters of `a-z`, `0-9`, `_` and `-`, starting with a
+  letter or a digit. `single` is `PORTFOLIXIR_API_TOKEN`, kept as the
+  **unnamed default** (`{nil, token}`, no label, as before names existed) so
+  an upgrade changes nothing; it comes last. `single_name` is
+  `PORTFOLIXIR_API_PRINCIPAL` (E25 S7 review round, S7E-5): set, it names
+  the default (`{name, token}`) under the same name rule, while the token
+  itself is taken whole, as before, rather than spliced into
+  `PORTFOLIXIR_API_TOKENS`, where a comma or an edge space would split or
+  trim it. Compose names the companion's token `mcp` this way. Every token
+  meets `validate_api_token!/1`'s rules. Raises at boot, naming the variable
+  and the entry but never a token, for a malformed entry, a name used twice
+  (across both variables too), a name with no `PORTFOLIXIR_API_TOKEN` to
+  name, a token given twice (in either variable: one credential, two names,
+  would make the label a guess), and when neither variable holds a token.
+  """
+  @spec api_tokens!(String.t() | nil, String.t() | nil, String.t() | nil) ::
+          [{String.t() | nil, String.t()}]
+  def api_tokens!(single, named, single_name \\ nil) do
+    named = named |> named_entries() |> Enum.map(&named_principal!/1)
+    reject_repeated_names!(named)
+
+    default =
+      case single do
+        value when is_binary(value) and value != "" ->
+          [{default_name!(single_name, named), validate_api_token!(value)}]
+
+        _unset ->
+          reject_orphan_name!(single_name)
+          []
+      end
+
+    principals = named ++ default
+    reject_repeated_tokens!(principals)
+
+    if principals == [] do
+      raise ArgumentError,
+            "PORTFOLIXIR_API_TOKEN or PORTFOLIXIR_API_TOKENS is required; generate a token " <>
+              "with `openssl rand -base64 48`"
+    end
+
+    principals
+  end
+
+  @doc """
+  The principals a development instance (`mix phx.server`) uses (E25 S7
+  review round, S7E-7): `nil` — the API's fallback to
+  `PORTFOLIXIR_API_TOKEN` alone, unchecked, as before — unless
+  `PORTFOLIXIR_API_TOKENS` or `PORTFOLIXIR_API_PRINCIPAL` is set; then
+  `api_tokens!/3`, under the rules a release boots with.
+  """
+  @spec dev_api_tokens(String.t() | nil, String.t() | nil, String.t() | nil) ::
+          [{String.t() | nil, String.t()}] | nil
+  def dev_api_tokens(single, named, principal) do
+    if blank?(named) and blank?(principal), do: nil, else: api_tokens!(single, named, principal)
+  end
+
+  defp blank?(value) when is_binary(value), do: String.trim(value) == ""
+  defp blank?(_unset), do: true
+
+  # The default token's name, when PORTFOLIXIR_API_PRINCIPAL gives one.
+  defp default_name!(name, named) when is_binary(name) do
+    case String.trim(name) do
+      "" ->
+        nil
+
+      name ->
+        unless Regex.match?(@principal_name, name) do
+          raise ArgumentError,
+                "PORTFOLIXIR_API_PRINCIPAL: the name #{inspect(name)} must be 1 to 32 " <>
+                  "characters of a-z, 0-9, _ and -, starting with a letter or a digit"
+        end
+
+        if List.keymember?(named, name, 0) do
+          raise ArgumentError,
+                "PORTFOLIXIR_API_PRINCIPAL and PORTFOLIXIR_API_TOKENS both name " <>
+                  "#{inspect(name)}; each name is one token"
+        end
+
+        name
+    end
+  end
+
+  defp default_name!(_unset, _named), do: nil
+
+  defp reject_orphan_name!(name) when is_binary(name) do
+    if String.trim(name) != "" do
+      raise ArgumentError,
+            "PORTFOLIXIR_API_PRINCIPAL names PORTFOLIXIR_API_TOKEN, which is not set; set " <>
+              "the token or remove the name"
+    end
+  end
+
+  defp reject_orphan_name!(_unset), do: :ok
+
+  defp named_entries(value) when is_binary(value) do
+    value
+    |> String.split(",")
+    |> Enum.map(&String.trim/1)
+    |> Enum.with_index(1)
+    |> Enum.reject(fn {entry, _position} -> entry == "" end)
+  end
+
+  defp named_entries(_unset), do: []
+
+  defp named_principal!({entry, position}) do
+    case String.split(entry, "=", parts: 2) do
+      [name, token] ->
+        name = String.trim(name)
+
+        unless Regex.match?(@principal_name, name) do
+          raise ArgumentError,
+                "PORTFOLIXIR_API_TOKENS entry #{position}: the name #{inspect(name)} must be 1 " <>
+                  "to 32 characters of a-z, 0-9, _ and -, starting with a letter or a digit"
+        end
+
+        {name, named_token!(name, token)}
+
+      [_no_separator] ->
+        raise ArgumentError,
+              "PORTFOLIXIR_API_TOKENS entry #{position} is not name=token; write each entry " <>
+                "as name=token, comma-separated (a token there cannot contain a comma)"
+    end
+  end
+
+  defp named_token!(name, token) do
+    cond do
+      byte_size(token) < @min_token_bytes ->
+        raise ArgumentError,
+              "PORTFOLIXIR_API_TOKENS: the token named #{inspect(name)} must be at least " <>
+                "#{@min_token_bytes} bytes (got #{byte_size(token)}); generate one with " <>
+                "`openssl rand -base64 48`"
+
+      placeholder?(token) ->
+        raise ArgumentError,
+              "PORTFOLIXIR_API_TOKENS: the token named #{inspect(name)} is a placeholder " <>
+                "value; generate a real token with `openssl rand -base64 48`"
+
+      true ->
+        token
+    end
+  end
+
+  defp reject_repeated_names!(named) do
+    named
+    |> Enum.map(&elem(&1, 0))
+    |> Enum.frequencies()
+    |> Enum.find(fn {_name, count} -> count > 1 end)
+    |> case do
+      nil ->
+        :ok
+
+      {name, _count} ->
+        raise ArgumentError,
+              "PORTFOLIXIR_API_TOKENS names #{inspect(name)} twice; each name is one token"
+    end
+  end
+
+  # The same credential under two entries would make the journal's label a
+  # guess, so it is refused rather than resolved by order.
+  defp reject_repeated_tokens!(principals) do
+    principals
+    |> Enum.reduce_while(%{}, fn {name, token}, seen ->
+      case Map.fetch(seen, token) do
+        {:ok, first} -> {:halt, {:repeated, first, name}}
+        :error -> {:cont, Map.put(seen, token, name)}
+      end
+    end)
+    |> case do
+      {:repeated, first, second} ->
+        raise ArgumentError,
+              "PORTFOLIXIR_API_TOKENS gives #{describe_principal(second)} the same token as " <>
+                "#{describe_principal(first)}; each token has one name"
+
+      _distinct ->
+        :ok
+    end
+  end
+
+  defp describe_principal(nil), do: "PORTFOLIXIR_API_TOKEN"
+  defp describe_principal(name), do: inspect(name)
+
+  defp placeholder?(token, prefixes \\ @placeholder_prefixes) do
     lowered = String.downcase(token)
-    Enum.any?(@placeholder_prefixes, &String.starts_with?(lowered, &1))
+    Enum.any?(prefixes, &String.starts_with?(lowered, &1))
+  end
+
+  # What the cookie store needs, and what `openssl rand -base64 48` prints.
+  @min_secret_key_base_bytes 64
+  # The placeholders, plus the prefixes of the literals committed in
+  # config/dev.exs and config/test.exs, which anyone can read.
+  @secret_key_base_placeholders @placeholder_prefixes ++
+                                  ~w(dev_secret_key_base test_secret_key_base)
+
+  @doc """
+  The `SECRET_KEY_BASE` a production instance boots with (E25 S1, F67): at
+  least #{@min_secret_key_base_bytes} bytes, not a placeholder the example
+  files ship, and not a literal committed in this repository. Raises with the
+  variable's name, mirroring `validate_api_token!/1`.
+  """
+  @spec validate_secret_key_base!(String.t() | nil) :: String.t()
+  def validate_secret_key_base!(secret) when is_binary(secret) do
+    cond do
+      byte_size(secret) < @min_secret_key_base_bytes ->
+        raise ArgumentError,
+              "SECRET_KEY_BASE must be at least #{@min_secret_key_base_bytes} bytes " <>
+                "(got #{byte_size(secret)}); generate one with `openssl rand -base64 48`"
+
+      placeholder?(secret, @secret_key_base_placeholders) ->
+        raise ArgumentError,
+              "SECRET_KEY_BASE is a placeholder or a value committed in the repository; " <>
+                "generate a real one with `openssl rand -base64 48`"
+
+      true ->
+        secret
+    end
+  end
+
+  def validate_secret_key_base!(_missing) do
+    raise ArgumentError,
+          "SECRET_KEY_BASE is required; generate one with `openssl rand -base64 48`"
   end
 
   defp truthy?(value) do
@@ -162,6 +452,34 @@ defmodule Portfolixir.RuntimeConfig do
 
   defp ensure_bracket(host), do: if(String.ends_with?(host, "]"), do: host, else: host <> "]")
 
+  @doc """
+  The directory stored logos are written to and served from, from
+  `PORTFOLIXIR_LOGO_DIR` (E25 S2, F59). Unset or blank leaves the default, the
+  release's own `priv/static/security_logos` (`nil` here); the release image
+  names a directory of its own, on a volume outside the read-only release
+  tree. A relative path is refused, naming the variable: a release would
+  resolve it against that read-only tree.
+  """
+  @spec logo_dir(String.t() | nil) :: Path.t() | nil
+  def logo_dir(value \\ System.get_env("PORTFOLIXIR_LOGO_DIR"))
+
+  def logo_dir(value) when is_binary(value) do
+    case String.trim(value) do
+      "" ->
+        nil
+
+      dir ->
+        if Path.type(dir) == :absolute do
+          dir
+        else
+          raise ArgumentError,
+                "PORTFOLIXIR_LOGO_DIR must be an absolute path, got a relative one"
+        end
+    end
+  end
+
+  def logo_dir(_value), do: nil
+
   @default_session_days 30
 
   @doc """
@@ -186,10 +504,13 @@ defmodule Portfolixir.RuntimeConfig do
   def session_max_age(_value), do: @default_session_days * 86_400
 
   @doc """
-  The proxies whose `x-forwarded-for` the throttle may believe (#771):
+  The proxies whose forwarding headers the application believes (#771, E25 S1
+  F09): their `x-forwarded-for` names the throttle's source, and their
+  `x-forwarded-proto` the scheme, which loopback may also set.
   `PORTFOLIXIR_TRUSTED_PROXIES`, comma-separated addresses or CIDR blocks
-  (`127.0.0.1`, `172.16.0.0/12`, `::1`). Empty by default: a header nobody
-  vouches for is never a source. Entries that do not parse are dropped.
+  (`127.0.0.1`, `172.18.0.1`, `::1`, a block such as `192.0.2.0/29`). Empty
+  by default: a header nobody vouches for is never a source. Entries that do
+  not parse are dropped.
   """
   @spec trusted_proxies(String.t() | nil) :: [{:inet.ip_address(), non_neg_integer()}]
   def trusted_proxies(value \\ System.get_env("PORTFOLIXIR_TRUSTED_PROXIES"))

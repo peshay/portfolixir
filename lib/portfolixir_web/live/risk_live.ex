@@ -46,6 +46,7 @@ defmodule PortfolixirWeb.RiskLive do
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.ClassificationName
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PolicyRuleLabel
   alias PortfolixirWeb.Risk.PolicyRuleDialog
   alias PortfolixirWeb.Risk.PolicyRuleFormat
@@ -141,7 +142,7 @@ defmodule PortfolixirWeb.RiskLive do
   end
 
   def handle_event("edit_rule", %{"id" => id}, socket) do
-    with {rule_id, ""} <- Integer.parse(to_string(id)),
+    with {:ok, rule_id} <- LiveParam.fetch_id(id),
          %{} = rule <- Enum.find(socket.assigns.rules, &(&1.id == rule_id)) do
       {:noreply, socket |> assign(:rule_dialog, rule) |> assign(:notice, nil)}
     else
@@ -152,6 +153,10 @@ defmodule PortfolixirWeb.RiskLive do
   def handle_event("close_policy_rule_dialog", _params, socket) do
     {:noreply, assign(socket, :rule_dialog, nil)}
   end
+
+  # An event this page does not know, or a payload it cannot read, changes
+  # nothing (E25 S4, F17).
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   @impl true
   def handle_info({PolicyRuleDialog, {:saved, message}}, socket) do
@@ -268,11 +273,23 @@ defmodule PortfolixirWeb.RiskLive do
 
               <.correlation_card correlations={@risk.metrics.correlations} />
             </div>
+            <%!-- E25 S4, F72 (board 11, part 3): the number comes from the
+                 answer, how many leading names the matrix actually ran over,
+                 so the sentence stays true below the list's length. --%>
             <p class="summary-basis" data-role="risk-basis">
-              <%= gettext(
-                "Basis: the flow-adjusted daily return factors of the TTWROR chain, in %{currency}, annualized by √365 — a deposit is not a return. A day without a return base yields no observation, never a zero. Correlations convert to %{currency} first.",
-                currency: @risk.base_currency
-              ) %>
+              <%= if @risk.metrics.correlations.leading_names >= 2 do %>
+                <%= ngettext(
+                  "Basis: the flow-adjusted daily return factors of the TTWROR chain, in %{currency}, annualized by √365 — a deposit is not a return. A day without a return base yields no observation, never a zero. Correlations convert to %{currency} first and run over the %{count} largest position.",
+                  "Basis: the flow-adjusted daily return factors of the TTWROR chain, in %{currency}, annualized by √365 — a deposit is not a return. A day without a return base yields no observation, never a zero. Correlations convert to %{currency} first and run over the %{count} largest positions.",
+                  @risk.metrics.correlations.leading_names,
+                  currency: @risk.base_currency
+                ) %>
+              <% else %>
+                <%= gettext(
+                  "Basis: the flow-adjusted daily return factors of the TTWROR chain, in %{currency}, annualized by √365 — a deposit is not a return. A day without a return base yields no observation, never a zero. Correlations convert to %{currency} first.",
+                  currency: @risk.base_currency
+                ) %>
+              <% end %>
             </p>
           </section>
 
@@ -461,7 +478,7 @@ defmodule PortfolixirWeb.RiskLive do
                   >
                     <%= finding.rule_name %>
                   </button>
-                  <span class="policy-rule__words"><%= PolicyRuleFormat.words(finding, @names) %></span>
+                  <span class="policy-rule__words"><.rule_words parts={PolicyRuleFormat.word_parts(finding, @names)} /><.author_mark author={finding.author} lead={gettext("Version in force by:")} /></span>
                   <%!-- A planned change is part of the rule's standard; it
                        is shown where the rule is, with the day it starts. --%>
                   <span
@@ -519,6 +536,7 @@ defmodule PortfolixirWeb.RiskLive do
             <span class="muted">
               · <%= gettext("from %{date}", date: Format.date(rule.next_version.valid_from)) %>
               · <%= PolicyRuleFormat.line(rule.next_version) %>
+              <.author_mark author={rule.next_version.author} lead={gettext("Version by:")} />
             </span>
           </li>
         </ul>
@@ -537,11 +555,36 @@ defmodule PortfolixirWeb.RiskLive do
             <span class="muted">
               · <%= PolicyRuleFormat.period(List.last(rule.versions)) %>
               · <%= PolicyRuleFormat.line(List.last(rule.versions)) %>
+              <.author_mark author={List.last(rule.versions).author} lead={gettext("Version by:")} />
             </span>
           </li>
         </ul>
       </details>
     </section>
+    """
+  end
+
+  attr(:parts, :list, required: true)
+
+  # A rule's words, the stored subject name isolated in <bdi> (E25 S7, G20;
+  # pick G12.2 = B): a direction control a legacy name still carries
+  # reorders at most the name, never the line.
+  defp rule_words(assigns) do
+    ~H"""
+    <%= for {{kind, text}, index} <- Enum.with_index(@parts) do %><%= if index > 0 do %> · <% end %><%= if kind == :stored do %><bdi><%= text %></bdi><% else %><%= text %><% end %><% end %>
+    """
+  end
+
+  attr(:author, :atom, required: true)
+  attr(:lead, :string, required: true, doc: "the hidden words before the author, for a reader")
+
+  # E25 S7, G30; pick G12.1 = A (board 12-e25-new-marks): "Agent" as the
+  # last word of a rule's line when the agent wrote its version — the
+  # research log's word, no badge and no colour. The operator's own rules
+  # carry no word, so a portfolio without the agent's rules reads as before.
+  defp author_mark(assigns) do
+    ~H"""
+    <%= if @author == :agent do %> <span data-role="policy-rule-author">· <span class="visually-hidden"><%= @lead %> </span><%= gettext("Agent") %></span><% end %>
     """
   end
 

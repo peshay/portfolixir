@@ -134,7 +134,10 @@ defmodule Portfolixir.Catalog.SecurityMetrics do
           "(ADR-0047 §5). A stored close of zero or below is not a price and is dropped " <>
           "before any metric reads the series, so the observation counts are prices " <>
           "actually read. Below its stated minimum a metric is null " <>
-          "with insufficient_data and its observation count, never a number: " <>
+          "with insufficient_data and its observation count, never a number; a " <>
+          "volatility whose square root the one float step cannot carry, a magnitude " <>
+          "outside the double range that only implausible stored closes reach, is null " <>
+          "without insufficient_data: undefined, not short of data (E25, F73). The minimums: " <>
           "#{PriceMetrics.min_return_observations()} return observations for volatility, " <>
           "n closes for an n-day moving average, 2 closes for the drawdown, and a close " <>
           "on or before the window's start for the momentum and the 52-week extremes. " <>

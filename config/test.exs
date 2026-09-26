@@ -10,7 +10,10 @@ config :portfolixir, Portfolixir.Repo,
   hostname: System.get_env("DATABASE_HOST", "127.0.0.1"),
   port: String.to_integer(System.get_env("DATABASE_PORT", "5432")),
   pool: Ecto.Adapters.SQL.Sandbox,
-  pool_size: 5
+  # One connection per concurrent test case: ExUnit runs up to twice the
+  # schedulers' cases at once, and a smaller pool leaves a long test holding
+  # a connection while a queued case's sandbox checkout is dropped.
+  pool_size: System.schedulers_online() * 2
 
 config :portfolixir, PortfolixirWeb.Endpoint,
   url: [host: System.get_env("PHX_HOST", "localhost"), port: 4002],
@@ -40,6 +43,7 @@ config :portfolixir, :api_token, "test-api-token"
 config :portfolixir, Portfolixir.Derived, enabled?: false
 config :portfolixir, Portfolixir.Portfolios.Performance.Warmup, enabled?: false
 config :portfolixir, Portfolixir.Derived.Refresher, enabled?: false
+config :portfolixir, Portfolixir.Derived.PostCommit, enabled?: false
 
 config :portfolixir, Portfolixir.Catalog.SecuritySearch,
   providers: [Portfolixir.Catalog.SecuritySearch.Fake],

@@ -16,6 +16,7 @@ defmodule Portfolixir.Portfolios.Snapshots do
   alias Ecto.Multi
   alias Portfolixir.Actor
   alias Portfolixir.Buckets.View
+  alias Portfolixir.Clock
   alias Portfolixir.Journal
   alias Portfolixir.Portfolios.Snapshot
   alias Portfolixir.Repo
@@ -28,7 +29,7 @@ defmodule Portfolixir.Portfolios.Snapshots do
   `{:ok, %Snapshot{}}` or `{:error, %Ecto.Changeset{}}`.
   """
   def create_snapshot(%Actor{} = actor, attrs, opts \\ []) when is_map(attrs) do
-    today = Keyword.get(opts, :today, Date.utc_today())
+    today = Keyword.get(opts, :today, Clock.today())
 
     Multi.new()
     |> Multi.insert(:snapshot, Snapshot.changeset(%Snapshot{}, attrs, today))
@@ -84,6 +85,9 @@ defmodule Portfolixir.Portfolios.Snapshots do
 
   defp normalize({:ok, %{snapshot: snapshot}}), do: {:ok, snapshot}
   defp normalize({:error, :snapshot, changeset, _changes}), do: {:error, changeset}
+
+  # The row was deleted before the write took its lock (E25 S6, F49).
+  defp normalize({:error, {:journal_lock, _}, :not_found, _changes}), do: {:error, :not_found}
 
   defp filter_view(query, opts) do
     case Keyword.fetch(opts, :view) do

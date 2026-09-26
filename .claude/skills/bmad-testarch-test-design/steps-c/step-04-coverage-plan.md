@@ -2,7 +2,7 @@
 name: 'step-04-coverage-plan'
 description: 'Design test coverage, priorities, execution strategy, and estimates'
 nextStepFile: '{skill-root}/steps-c/step-05-generate-output.md'
-outputFile: '{test_artifacts}/test-design-progress.md'
+outputFile: '{test_artifacts}/test-design-progress-{run_key}.md'
 ---
 
 # Step 4: Coverage Plan & Execution Strategy
@@ -45,13 +45,17 @@ For each requirement or risk-driven scenario:
 - Ensure no duplicate coverage across levels
 - Assign priorities (P0–P3) using `test-priorities-matrix.md`
 - Map NFR-derived risks to planned validation scenarios and evidence sources
+- Use the exact `Risk ID` assigned in the risk register in every `Risk Link` cell. A prose description alone is not a traceable mapping.
+- Give every material risk at least one coverage row whose `Test Level` is suitable for that risk under `test-levels-framework.md`. Explain the suitability in the row notes when the level is not obvious. Preserve the risk ID when rows are split across priorities or test levels.
 
-**Priority rules:**
+**Priority rules:** decide each priority on business impact, user reach, and workaround
+availability. Risk score is supporting evidence and is not a required condition for any priority.
+Walk the Priority Decision Tree in `test-priorities-matrix.md` for each scenario.
 
-- P0: Blocks core functionality + high risk + no workaround
-- P1: Critical paths + medium/high risk
-- P2: Secondary flows + low/medium risk
-- P3: Nice-to-have, exploratory, benchmarks
+- P0: Critical business, security, data-integrity, or compliance impact with no safe workaround
+- P1: Core, frequent, or complex behavior with material user reach and a limited workaround
+- P2: Secondary behavior with narrower user reach and an acceptable workaround
+- P3: Rare, cosmetic, or experimental behavior with minimal impact and an easy workaround
 
 ---
 
@@ -111,6 +115,8 @@ Define thresholds:
 
   ```yaml
   ---
+  runScope: '{run_scope}'
+  runKey: '{run_key}'
   workflowStatus: 'in-progress'
   totalSteps: 5
   stepsCompleted: ['step-04-coverage-plan']
@@ -123,6 +129,7 @@ Define thresholds:
   Then write this step's output below the frontmatter.
 
 - **If `{outputFile}` already exists**, update:
+  - Leave `runScope` and `runKey` exactly as step 1 wrote them
   - Set `workflowStatus: 'in-progress'`
   - Set `totalSteps: 5`
   - Add `'step-04-coverage-plan'` to `stepsCompleted` array (only if not already present)

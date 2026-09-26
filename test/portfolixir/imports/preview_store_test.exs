@@ -148,6 +148,47 @@ defmodule Portfolixir.Imports.PreviewStoreTest do
       assert Enum.all?(rest, &(PreviewStore.get(&1) != nil))
     end
 
+    # User story (E25 S5, F41):
+    # As the operator of a small instance,
+    # I want parking a preview in a full store to cost the same whatever the
+    # other previews hold,
+    # so that one upload never copies every parked preview into its process.
+    #
+    # Acceptance criteria:
+    # - Eviction selects only keys and timestamps: a put into a full store of
+    #   large previews runs in a process whose heap could not hold one of
+    #   them, and still evicts the oldest-touched key.
+    test "eviction removes the oldest keys without reading any preview payload" do
+      PreviewStore.clear()
+      on_exit(&PreviewStore.clear/0)
+
+      large = Enum.to_list(1..100_000)
+      keys = for i <- 1..PreviewStore.max_entries(), do: token("heavy-#{i}")
+
+      keys
+      |> Enum.with_index()
+      |> Enum.each(fn {key, index} ->
+        :ok = PreviewStore.put(key, {:preview, index, large}, :mapping, touched_at: index)
+      end)
+
+      newcomer = token("newcomer")
+
+      {pid, ref} =
+        spawn_monitor(fn ->
+          # A heap smaller than one parked preview.
+          Process.flag(:max_heap_size, %{size: 150_000, kill: true, error_logger: false})
+          :ok = PreviewStore.put(newcomer, :small, :mapping)
+        end)
+
+      assert_receive {:DOWN, ^ref, :process, ^pid, reason}, 5_000
+      assert reason == :normal
+
+      [oldest | rest] = keys
+      assert PreviewStore.get(oldest) == nil
+      assert PreviewStore.get(newcomer) == {:small, :mapping}
+      assert Enum.all?(rest, &(PreviewStore.get(&1) != nil))
+    end
+
     test "put_mapping/2 replaces only the mapping" do
       key = token("mapping")
       assert :ok = PreviewStore.put(key, :preview, :m1)

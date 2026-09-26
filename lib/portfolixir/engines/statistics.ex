@@ -16,10 +16,20 @@ defmodule Portfolixir.Engines.Statistics do
   engines: Decimals in, one float operation, `Decimal.from_float/1` out, and
   the callers round at scale 6 — the IRR solver's boundary convention. Nothing
   float is persisted.
+
+  The crossing is total (E25 S3, F73): it never raises. A value the float
+  step cannot carry — outside the double range, which only implausible stored
+  prices or rates reach — or one without a real root (negative, NaN, an
+  infinity) answers `nil`, and every figure built on it is `nil`: undefined,
+  the way a correlation of a series that never moved already is, rather than
+  a number over data no reader should act on.
   """
 
   @scale 6
   @zero Decimal.new(0)
+  # A Decimal whose leading digit sits at 10^e for e in -307..307 converts to a
+  # double without overflow or underflow (DBL_MAX ~ 1.8e308, DBL_MIN ~ 2.2e-308).
+  @float_exponent_bound 307
 
   @doc "The scale every metric is rounded to on the way out (ADR-0047 §4)."
   @spec scale() :: pos_integer()
@@ -56,7 +66,7 @@ defmodule Portfolixir.Engines.Statistics do
   the caller's statement about its series (§4): 252 for stored closes, 365
   for the calendar walk.
   """
-  @spec annualized_deviation([Decimal.t(), ...], pos_integer()) :: Decimal.t()
+  @spec annualized_deviation([Decimal.t(), ...], pos_integer()) :: Decimal.t() | nil
   def annualized_deviation([_ | _] = returns, observations_per_year) do
     returns
     |> population_variance()
@@ -82,13 +92,13 @@ defmodule Portfolixir.Engines.Statistics do
     spread_x = dx |> Enum.map(&square/1) |> sum()
     spread_y = dy |> Enum.map(&square/1) |> sum()
 
-    if zero?(spread_x) or zero?(spread_y) do
-      nil
+    # One square root of the product, so the island is crossed once per pair.
+    with false <- zero?(spread_x) or zero?(spread_y),
+         %Decimal{} = root <- square_root(Decimal.mult(spread_x, spread_y)),
+         false <- zero?(root) do
+      covariance |> Decimal.div(root) |> round_scale()
     else
-      # One square root of the product, so the island is crossed once per pair.
-      covariance
-      |> Decimal.div(square_root(Decimal.mult(spread_x, spread_y)))
-      |> round_scale()
+      _undefined -> nil
     end
   end
 
@@ -165,10 +175,25 @@ defmodule Portfolixir.Engines.Statistics do
   @doc """
   AR-3's float island, for the one operation `Decimal` does not have (§4).
   Unrounded — every caller rounds its own figure at scale 6.
+
+  Total (F73): inside the double range this is the single float step it has
+  always been, and it never raises. Zero is zero; a value outside the double
+  range, a negative value, NaN or an infinity answers `nil` — undefined.
   """
-  @spec square_root(Decimal.t()) :: Decimal.t()
-  def square_root(%Decimal{} = value) do
-    value |> Decimal.to_float() |> :math.sqrt() |> Decimal.from_float()
+  @spec square_root(Decimal.t()) :: Decimal.t() | nil
+  def square_root(%Decimal{coef: coef}) when not is_integer(coef), do: nil
+  def square_root(%Decimal{coef: 0}), do: @zero
+  def square_root(%Decimal{sign: -1}), do: nil
+
+  def square_root(%Decimal{coef: coef, exp: exp} = value) do
+    # The decimal exponent of the leading digit: value is in [10^e, 10^(e+1)).
+    leading = exp + length(Integer.digits(coef)) - 1
+
+    if leading >= -@float_exponent_bound and leading <= @float_exponent_bound do
+      value |> Decimal.to_float() |> :math.sqrt() |> Decimal.from_float()
+    else
+      nil
+    end
   end
 
   defp square(value), do: Decimal.mult(value, value)

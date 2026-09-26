@@ -17,6 +17,12 @@ permissions:
 # comment (#772, the 2026-09-05 triage's L11): a tag can be moved, a commit
 # cannot, and Dependabot's github-actions ecosystem bumps the SHA and the
 # comment together.
+#
+# No job here pushes, so every checkout sets persist-credentials: false and
+# the job token does not stay in .git/config for the steps after it -- a
+# dependency's install code, a hook, a test (F61). For the same reason no
+# `run:` script contains a context expression: refs and SHAs reach a script
+# through `env:`, as data rather than as shell text.
 
 jobs:
   pre-commit:
@@ -25,6 +31,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -40,8 +48,14 @@ jobs:
       - name: Install dependencies
         run: mix deps.get
 
+      # pre-commit and every dependency it pulls, pinned by version and sha256
+      # (E25 S8, F60): --require-hashes refuses anything the file does not
+      # name with a matching hash, and --only-binary installs wheels only, so
+      # no package's build script runs either. The hook repositories are
+      # frozen to commits in .pre-commit-config.yaml.
       - name: Install pre-commit
-        run: python3 -m pip install --upgrade pre-commit
+        run: |
+          python3 -m pip install --require-hashes --only-binary :all: -r .github/pre-commit/requirements.txt
 
       - name: Run pre-commit quality gates
         run: pre-commit run --all-files
@@ -52,7 +66,11 @@ jobs:
 
     services:
       db:
-        image: postgres:18
+        # An exact tag and its digest (E25 S8, F60): the digest is what gets
+        # pulled, the tag says which release that is. Dependabot does not read
+        # service images, so the maintenance lane's PostgreSQL review moves
+        # the pin, in both jobs at once -- ci_test holds them equal.
+        image: postgres:18.6@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -69,6 +87,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Elixir
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
@@ -118,6 +138,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Elixir
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
@@ -232,24 +254,35 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Full history so the diff against the base branch resolves.
+          # Full history, so the pull request's base commit is already here
+          # and the gate needs no fetch (and so no token) of its own.
           fetch-depth: 0
+          persist-credentials: false
 
       # Applied migrations are immutable (see the migration-roundtrip job): an
-      # already-merged migration must never be edited or deleted, only new ones
-      # added. --diff-filter=MD lists files that this branch Modified or
-      # Deleted under priv/repo/migrations/; any such file fails the gate.
-      - name: Reject edits or deletions of existing migrations
+      # already-merged migration must never change in any way, only new ones
+      # be added. --no-renames reports a moved or renamed file as a deletion
+      # plus an addition, and --diff-filter=a lists every status except
+      # Added -- a modification, a deletion, a mode or type change -- so the
+      # only change the gate lets through under priv/repo/migrations/ is a new
+      # file. (F55: the former allow-list, --diff-filter=MD with rename
+      # detection on, passed a renamed-and-edited migration as a rename.)
+      # ci_test runs this script against a scratch repository.
+      # The base is the pull request's base commit, an immutable SHA handed to
+      # the script through env: a context expression inside `run:` is pasted
+      # into the script as shell text before bash reads it (F61).
+      - name: Reject any change to an existing migration
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          base="origin/${{ github.base_ref }}"
-          git fetch origin "${{ github.base_ref }}"
-          changed="$(git diff --diff-filter=MD --name-only "$base"...HEAD -- priv/repo/migrations/)"
+          git cat-file -e "${BASE_SHA:?no pull request base commit}^{commit}"
+          changed="$(git diff --no-renames --diff-filter=a --name-status "$BASE_SHA"...HEAD -- priv/repo/migrations/)"
           if [ -n "$changed" ]; then
-            echo "Applied migrations are immutable; the following existing files were modified or deleted:"
+            echo "Applied migrations are immutable; only new files may be added. These existing files changed:"
             echo "$changed"
             exit 1
           fi
-          echo "No existing migration was modified or deleted."
+          echo "No existing migration was changed."
 
   migration-roundtrip:
     runs-on: ubuntu-latest
@@ -257,7 +290,8 @@ jobs:
 
     services:
       db:
-        image: postgres:18
+        # The test job's pin, tag and digest alike (E25 S8, F60).
+        image: postgres:18.6@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -274,6 +308,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Elixir
         uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1

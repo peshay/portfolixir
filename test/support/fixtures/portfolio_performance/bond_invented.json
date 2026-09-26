@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "transactions": [
+    {
+      "type": "DEPOSIT",
+      "account": "Bond-Cash",
+      "date": "2025-02-03",
+      "currency": "EUR",
+      "amount": 10000.00
+    },
+    {
+      "type": "PURCHASE",
+      "account": "Bond-Cash",
+      "portfolio": "Bond-Depot",
+      "date": "2025-02-10",
+      "time": "11:30",
+      "currency": "EUR",
+      "amount": 9855.00,
+      "shares": 100.0,
+      "security": {
+        "name": "Republic of Examplia 2.25% 2035",
+        "isin": "XSEXMPL20355",
+        "currency": "EUR"
+      },
+      "units": [
+        {"type": "FEE", "amount": 5.00}
+      ]
+    },
+    {
+      "type": "INTEREST",
+      "account": "Bond-Cash",
+      "date": "2026-02-10",
+      "currency": "EUR",
+      "amount": 225.00,
+      "security": {
+        "name": "Republic of Examplia 2.25% 2035",
+        "isin": "XSEXMPL20355",
+        "currency": "EUR"
+      }
+    }
+  ]
+}

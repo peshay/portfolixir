@@ -40,6 +40,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
   alias Portfolixir.Imports.Entry
   alias Portfolixir.Imports.PortfolioPerformance
   alias Portfolixir.Imports.Preview
+  alias Portfolixir.Input.BoundedDate
 
   @kind_map %{
     "PURCHASE" => "buy",
@@ -69,10 +70,14 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
 
     case Jason.decode(body, floats: :decimals) do
       {:ok, %{"version" => 1, "transactions" => txs}} when is_list(txs) ->
-        if length(txs) > max_rows do
-          {:error, {:too_many_rows, length(txs)}}
-        else
-          {:ok, preview(txs, opts)}
+        rows = length(txs)
+
+        # E25 S5 (F38): the cap counts the entries the file expands into —
+        # each row plus the tax refunds it splits off — before any is built.
+        cond do
+          rows > max_rows -> {:error, {:too_many_rows, rows}}
+          (entries = expanded_count(txs)) > max_rows -> {:error, {:too_many_entries, entries}}
+          true -> {:ok, preview(txs, opts)}
         end
 
       # Version 1 with a transactions value that is not a list (#768).
@@ -89,6 +94,29 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
         {:error, {:invalid_json, Exception.message(e)}}
     end
   end
+
+  defp expanded_count(txs) do
+    Enum.reduce(txs, 0, fn tx, count -> count + 1 + refund_units(tx) end)
+  end
+
+  # The companions `sum_units/1` would split off: negative TAX units of a
+  # units list within the per-row cap (a longer one is a row error).
+  defp refund_units(%{"units" => units}) when is_list(units) do
+    if length(units) > PortfolioPerformance.max_units(),
+      do: 0,
+      else: Enum.count(units, &refund_unit?/1)
+  end
+
+  defp refund_units(_tx), do: 0
+
+  defp refund_unit?(%{"type" => "TAX"} = unit) do
+    case Decimals.parse(Map.get(unit, "amount", 0)) do
+      {:ok, %Decimal{} = amount} -> Decimal.negative?(amount)
+      _other -> false
+    end
+  end
+
+  defp refund_unit?(_unit), do: false
 
   defp preview(txs, opts) do
     {entries, errors} =
@@ -174,9 +202,15 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
         companion_entries: companions
       }
 
-      {:ok, entry}
+      # E25 S4 (G24) and S5 (F33): a security that names nothing, and text
+      # the ledger would refuse, are this row's error.
+      case PortfolioPerformance.row_error(entry) do
+        nil -> {:ok, entry}
+        message -> {:error, message}
+      end
     else
       {:error, reason} when is_binary(reason) -> {:error, reason}
+      {:error, {:invalid_decimal, value}} -> {:error, PortfolioPerformance.decimal_message(value)}
       {:error, reason} -> {:error, inspect(reason)}
     end
   end
@@ -192,8 +226,19 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
            date: value
          )}
 
-      {:ok, _date} = ok ->
-        ok
+      # The ledger's bounded date (E25 S4, F70), named here as the row's error
+      # rather than failing the apply.
+      {:ok, date} = ok ->
+        if BoundedDate.within?(date) do
+          ok
+        else
+          {:error,
+           gettext(
+             "implausible date %{date} (after %{latest}) — fix the booking in the source and re-import",
+             date: value,
+             latest: Date.to_iso8601(BoundedDate.latest())
+           )}
+        end
 
       {:error, _} = err ->
         err
@@ -228,7 +273,16 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
   # absolute value (PP has no "fee refund" kind).
   # A unit that is not a map, or whose amount is not a finite decimal, fails
   # the row instead of the process (#768).
+  # E25 S5 (F38): a units list past the per-row cap is a row error.
   defp sum_units(units) when is_list(units) do
+    if length(units) > PortfolioPerformance.max_units(),
+      do: {:error, gettext("more units (fees and taxes) than one booking carries")},
+      else: sum_bounded_units(units)
+  end
+
+  defp sum_units(_), do: {:ok, {Decimal.new(0), Decimal.new(0), []}}
+
+  defp sum_bounded_units(units) do
     Enum.reduce_while(units, {:ok, {Decimal.new(0), Decimal.new(0), []}}, fn
       %{} = unit, {:ok, {fees, taxes, refunds}} ->
         case Decimals.parse(Map.get(unit, "amount", 0)) do
@@ -239,8 +293,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
             {:cont, {:ok, fold_unit(Map.get(unit, "type"), amount, fees, taxes, refunds)}}
 
           {:error, _} ->
-            {:halt,
-             {:error, gettext("invalid unit amount %{amount}", amount: inspect(unit["amount"]))}}
+            {:halt, {:error, PortfolioPerformance.decimal_message(unit["amount"])}}
         end
 
       other, _acc ->
@@ -251,8 +304,6 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
       {:error, _} = error -> error
     end
   end
-
-  defp sum_units(_), do: {:ok, {Decimal.new(0), Decimal.new(0), []}}
 
   defp fold_unit(type, amount, fees, taxes, refunds) do
     abs_amount = Decimal.abs(amount)

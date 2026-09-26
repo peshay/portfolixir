@@ -3,6 +3,7 @@ defmodule PortfolixirWeb.ImportsLive do
 
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog
+  alias Portfolixir.Clock
   alias Portfolixir.Imports
   alias Portfolixir.Imports.Mapping
   alias Portfolixir.Imports.PortfolioPerformance
@@ -10,8 +11,15 @@ defmodule PortfolixirWeb.ImportsLive do
   alias Portfolixir.Imports.PreviewStore
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.Format
+  alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.TransactionKindLabel
 
   @max_upload_bytes 20_000_000
+
+  # The fields a mapping row carries, as its form sends them.
+  @depot_fields ~w(target cash)
+  @security_fields ~w(choice ack record_isin_change)
 
   @impl true
   def mount(_params, session, socket) do
@@ -42,6 +50,8 @@ defmodule PortfolixirWeb.ImportsLive do
       |> assign(:mapping, mapping)
       |> maybe_assign_preview_pp_names(preview)
       |> assign_security_resolutions(preview)
+      |> assign_account_states(preview)
+      |> assign_remember_outcomes()
       |> allow_upload(:pp_file,
         accept: ~w(.csv .json application/json text/csv text/plain),
         max_entries: 1,
@@ -124,8 +134,14 @@ defmodule PortfolixirWeb.ImportsLive do
     assigns =
       assign(assigns,
         kind_counts: Enum.sort(Preview.counts_by_kind(assigns.preview)),
-        unique_securities_count: length(Preview.unique_securities(assigns.preview)),
+        # The securities the mapping step lists (E25 S5, F33): one per
+        # unique reference of the resolution plan, whatever it carries.
+        unique_securities_count: length(resolutions),
         total_entries: total_entries(assigns.preview),
+        # E25 S5 (F35): a depot row's cash choices, built once for every
+        # depot row rather than once per depot.
+        depot_cash_choices:
+          depot_cash_choices(assigns.cash_pp_names, assigns.existing_cash, assigns.option_tags),
         matched_resolutions: Enum.filter(resolutions, &(&1.status == :matched)),
         plain_create_resolutions: Enum.filter(resolutions, &(&1.status == :create)),
         decision_resolutions:
@@ -234,21 +250,35 @@ defmodule PortfolixirWeb.ImportsLive do
             <h3><%= gettext("Cash accounts from the export") %></h3>
             <div class="mapping-grid">
               <%= for pp_name <- @cash_pp_names do %>
-                <div class="mapping-row">
+                <% key = Mapping.row_key("cash", pp_name) %>
+                <% chosen = cash_value(@mapping, pp_name) %>
+                <div class="mapping-row" id={"mapping-cash-#{key}"}>
                   <div class="source">
                     <small><%= gettext("PP account") %></small>
                     <%= pp_name %>
+                    <.mapping_count counts={row_counts(@account_states, "cash", pp_name)} />
                   </div>
-                  <select name={"cash[#{pp_name}]"}>
-                    <option value={"create:#{pp_name}"} selected={cash_value(@mapping, pp_name) == "create:#{pp_name}"}>
-                      <%= gettext("+ Create new: %{name}", name: pp_name) %>
-                    </option>
-                    <%= for c <- @existing_cash do %>
-                      <option value={"existing:#{c.id}"} selected={cash_value(@mapping, pp_name) == "existing:#{c.id}"}>
-                        <%= c.name %>
+                  <div class="mapping-target">
+                    <select name={"cash[#{key}]"}>
+                      <%!-- ADR-0050 §4: an ambiguous name is prefilled with
+                           nothing, and the select says so rather than showing
+                           its first option as if it were chosen. --%>
+                      <option :if={chosen in [nil, ""]} value="" selected>
+                        <%= gettext("Decide…") %>
                       </option>
-                    <% end %>
-                  </select>
+                      <.create_option
+                        name={pp_name}
+                        chosen={chosen}
+                        refusal={create_refusal(@account_states, "cash", pp_name, @account_names)}
+                      />
+                      <%= for c <- @existing_cash do %>
+                        <option value={"existing:#{c.id}"} selected={chosen == "existing:#{c.id}"}>
+                          <%= account_label(@option_tags, :cash, c) %>
+                        </option>
+                      <% end %>
+                    </select>
+                    <.mapping_notes group="cash" key={key} name={pp_name} chosen={chosen} {row_note_assigns(assigns, "cash", pp_name)} />
+                  </div>
                 </div>
               <% end %>
             </div>
@@ -260,34 +290,39 @@ defmodule PortfolixirWeb.ImportsLive do
             <h3><%= gettext("Depots from the export") %></h3>
             <div class="mapping-grid">
               <%= for pp_name <- @depot_pp_names do %>
-                <div class="mapping-row depot">
+                <% key = Mapping.row_key("depot", pp_name) %>
+                <% chosen = depot_target_value(@mapping, pp_name) %>
+                <div class="mapping-row depot" id={"mapping-depot-#{key}"}>
                   <div class="source">
                     <small><%= gettext("PP depot") %></small>
                     <%= pp_name %>
+                    <.mapping_count counts={row_counts(@account_states, "depot", pp_name)} />
                   </div>
-                  <select name={"depot[#{pp_name}][target]"}>
-                    <option value={"create:#{pp_name}"} selected={depot_target_value(@mapping, pp_name) == "create:#{pp_name}"}>
-                      <%= gettext("+ Create new: %{name}", name: pp_name) %>
-                    </option>
-                    <%= for d <- @existing_depots do %>
-                      <option value={"existing:#{d.id}"} selected={depot_target_value(@mapping, pp_name) == "existing:#{d.id}"}>
-                        <%= d.name %>
+                  <div class="mapping-target">
+                    <select name={"depot[#{key}][target]"}>
+                      <option :if={chosen in [nil, ""]} value="" selected>
+                        <%= gettext("Decide…") %>
                       </option>
-                    <% end %>
-                  </select>
-                  <select name={"depot[#{pp_name}][cash]"}>
-                    <option value="" selected={depot_cash_value(@mapping, pp_name) in [nil, ""]}>
+                      <.create_option
+                        name={pp_name}
+                        chosen={chosen}
+                        refusal={create_refusal(@account_states, "depot", pp_name, @account_names)}
+                      />
+                      <%= for d <- @existing_depots do %>
+                        <option value={"existing:#{d.id}"} selected={chosen == "existing:#{d.id}"}>
+                          <%= account_label(@option_tags, :depot, d) %>
+                        </option>
+                      <% end %>
+                    </select>
+                    <.mapping_notes group="depot" key={key} name={pp_name} chosen={chosen} {row_note_assigns(assigns, "depot", pp_name)} />
+                  </div>
+                  <% chosen_cash = depot_cash_value(@mapping, pp_name) %>
+                  <select name={"depot[#{key}][cash]"}>
+                    <option value="" selected={chosen_cash in [nil, ""]}>
                       <%= gettext("Pick a cash account…") %>
                     </option>
-                    <%= for cash_pp <- @cash_pp_names do %>
-                      <option value={"pp:#{cash_pp}"} selected={depot_cash_value(@mapping, pp_name) == "pp:#{cash_pp}"}>
-                        <%= gettext("(import) %{name}", name: cash_pp) %>
-                      </option>
-                    <% end %>
-                    <%= for c <- @existing_cash do %>
-                      <option value={"existing:#{c.id}"} selected={depot_cash_value(@mapping, pp_name) == "existing:#{c.id}"}>
-                        <%= c.name %>
-                      </option>
+                    <%= for {value, label} <- @depot_cash_choices do %>
+                      <option value={value} selected={chosen_cash == value}><%= label %></option>
                     <% end %>
                   </select>
                 </div>
@@ -423,6 +458,17 @@ defmodule PortfolixirWeb.ImportsLive do
           </section>
         <% end %>
 
+        <%!-- ADR-0050 §2: a file already applied is a no-op; the preview says
+             so once, above the confirm, instead of in every row (board 04,
+             "Randfall"). The confirm stays: it writes nothing and reports
+             every duplicate with its layer. --%>
+        <% total = @account_states.counts.total %>
+        <AppShell.data_note
+          :if={total.new == 0 and nothing_new?(total)}
+          severity={:note}
+          data-role="nothing-to-import"
+        ><%= nothing_to_import(total) %></AppShell.data_note>
+
         <% missing = missing_mappings(assigns) %>
         <%= if not @applying and missing != [] do %>
           <p id="import-missing-hint" class="form-help" role="status">
@@ -505,6 +551,24 @@ defmodule PortfolixirWeb.ImportsLive do
         </div>
       <% end %>
 
+      <%!-- ADR-0050 §4 (board 04, board 04b): what remembering each remapped
+           file name did, so a remembered name never changes master data
+           without a word. --%>
+      <%= if @result.remembered_names != [] do %>
+        <div class="import-skipped" data-role="remembered-names">
+          <p class="muted"><%= gettext("Remembered for future imports:") %></p>
+          <ul>
+            <li :for={remembered <- @result.remembered_names}>
+              <%= remembered_line(remembered, @existing_cash, @existing_depots) %>
+            </li>
+          </ul>
+        </div>
+      <% end %>
+
+      <%!-- ADR-0050 §3 (board 04): the skipped duplicates grouped by the layer
+           that caught them. The identical rows of a re-import are the
+           expected mass and stay closed; a retired hash and the economic
+           layer are worth a look and stand open. --%>
       <%= if @result.duplicate_entries != [] do %>
         <div class="import-skipped" data-role="duplicate-entries">
           <p class="muted">
@@ -514,9 +578,77 @@ defmodule PortfolixirWeb.ImportsLive do
               length(@result.duplicate_entries)
             ) %>
           </p>
+          <%= for {layer, entries} <- duplicate_groups(@result.duplicate_entries) do %>
+            <details
+              class="dup-group"
+              data-role="duplicate-group"
+              data-layer={layer}
+              open={layer != :hash}
+            >
+              <summary class="disclosure-summary">
+                <AppShell.icon name={:chevron_right} size={14} class="disclosure-chevron" />
+                <span><b><%= length(entries) %></b> · <%= duplicate_reason(%{layer: layer}) %></span>
+              </summary>
+              <ul>
+                <li :for={dup <- entries}>
+                  <%= gettext("Row %{row}: %{description}",
+                    row: dup.row,
+                    description: row_description(@preview, dup.row)
+                  ) %>
+                </li>
+              </ul>
+            </details>
+          <% end %>
+        </div>
+      <% end %>
+
+      <%!-- ADR-0050 §2's third limit (board 04b): a row booked on or before a
+           set balance a merge adjusted is inserted, and that balance absorbs
+           its amount. Listed with the balance, never silent. --%>
+      <%= if @result.behind_restated_anchor != [] do %>
+        <div class="import-skipped" data-role="behind-restated-anchor">
+          <p class="muted">
+            <%= ngettext(
+              "One booking lies on or before a set balance a merge adjusted; that balance absorbs its amount:",
+              "%{count} bookings lie on or before a set balance a merge adjusted; that balance absorbs their amounts:",
+              length(@result.behind_restated_anchor)
+            ) %>
+          </p>
           <ul>
-            <%= for dup <- @result.duplicate_entries do %>
-              <li><%= gettext("Row %{row}: %{reason}", row: dup.row, reason: duplicate_reason(dup)) %></li>
+            <li :for={behind <- @result.behind_restated_anchor}>
+              <%= gettext("Row %{row}: %{description} — set balance of %{account} on %{date}",
+                row: behind.row,
+                description: row_description(@preview, behind.row),
+                account: account_name(@existing_cash, behind.cash_account_id),
+                date: Date.to_iso8601(behind.anchor_date)
+              ) %>
+            </li>
+          </ul>
+        </div>
+      <% end %>
+
+      <%!-- ADR-0050 §5: a transfer whose two sides lead to one account or
+           depot is void, skipped and listed, never an abort. --%>
+      <%= if @result.internal_transfers != [] do %>
+        <div class="import-skipped" data-role="internal-transfers">
+          <p class="muted">
+            <%= ngettext(
+              "Skipped one internal transfer: both sides lead to the same account or depot.",
+              "Skipped %{count} internal transfers: both sides lead to the same account or depot.",
+              length(@result.internal_transfers)
+            ) %>
+          </p>
+          <ul>
+            <%= for transfer <- @result.internal_transfers do %>
+              <li>
+                <%= gettext("Row %{row}: %{kind} %{date} · %{from} → %{to}",
+                  row: transfer.row,
+                  kind: kind_label(transfer.kind),
+                  date: transfer.date && Date.to_iso8601(transfer.date),
+                  from: transfer.pp_name,
+                  to: transfer.pp_counter_name
+                ) %>
+              </li>
             <% end %>
           </ul>
         </div>
@@ -562,24 +694,17 @@ defmodule PortfolixirWeb.ImportsLive do
     """
   end
 
-  defp kind_label(kind) do
-    case kind do
-      "buy" -> gettext("Buy")
-      "sell" -> gettext("Sell")
-      "dividend" -> gettext("Dividend")
-      "interest" -> gettext("Interest")
-      "deposit" -> gettext("Deposit")
-      "removal" -> gettext("Removal")
-      "fee" -> gettext("Fee")
-      "tax" -> gettext("Tax")
-      "tax_refund" -> gettext("Tax refund")
-      "cash_transfer" -> gettext("Cash transfer")
-      "inbound_delivery" -> gettext("Inbound delivery")
-      "outbound_delivery" -> gettext("Outbound delivery")
-      "security_transfer" -> gettext("Security transfer")
-      other -> other
-    end
+  defp depot_cash_choices(cash_pp_names, existing_cash, option_tags) do
+    Enum.map(cash_pp_names, &{"pp:#{&1}", gettext("(import) %{name}", name: &1)}) ++
+      Enum.map(existing_cash, &{"existing:#{&1.id}", account_label(option_tags, :cash, &1)})
   end
+
+  # The one label per kind (PortfolixirWeb.TransactionKindLabel); a kind the
+  # ledger does not know is shown as it is.
+  @labelled_kinds Portfolixir.Ledger.Transaction.kinds()
+
+  defp kind_label(kind) when kind in @labelled_kinds, do: TransactionKindLabel.label(kind)
+  defp kind_label(other), do: other
 
   # --- upload + parse + mapping events ---
 
@@ -589,9 +714,9 @@ defmodule PortfolixirWeb.ImportsLive do
   def handle_event("parse", _params, socket), do: {:noreply, socket}
 
   def handle_event("mapping_changed", params, socket) do
-    mapping = mapping_from_params(params, socket.assigns.mapping)
+    mapping = mapping_from_params(params, socket.assigns)
     PreviewStore.put_mapping(socket.assigns.session_token, mapping)
-    {:noreply, assign(socket, :mapping, mapping)}
+    {:noreply, socket |> assign(:mapping, mapping) |> assign_remember_outcomes()}
   end
 
   def handle_event("apply", _params, socket) when socket.assigns.applying do
@@ -599,7 +724,7 @@ defmodule PortfolixirWeb.ImportsLive do
   end
 
   def handle_event("apply", params, socket) do
-    mapping = mapping_from_params(params, socket.assigns.mapping)
+    mapping = mapping_from_params(params, socket.assigns)
     socket = assign(socket, :mapping, mapping)
 
     case build_apply_params(mapping, socket.assigns) do
@@ -629,6 +754,8 @@ defmodule PortfolixirWeb.ImportsLive do
      |> assign(:error, nil)
      |> assign(:mapping, blank_mapping())
      |> assign_security_resolutions(nil)
+     |> assign_account_states(nil)
+     |> assign_remember_outcomes()
      |> reload_lookups()}
   end
 
@@ -643,6 +770,27 @@ defmodule PortfolixirWeb.ImportsLive do
     {:noreply, push_event(socket, "copy-to-clipboard", %{text: text})}
   end
 
+  # An event this page does not know, or a payload it cannot read, changes
+  # nothing (E25 S4, F17).
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
+  @impl true
+  def handle_info({:park_preview, park}, socket) do
+    # Only the preview this page still shows: a reset, an apply or another
+    # upload in between has moved on, and parking it would bring it back.
+    if socket.assigns.stage == :preview and Map.get(socket.assigns, :park) == park do
+      PreviewStore.put(
+        socket.assigns.session_token,
+        socket.assigns.preview,
+        socket.assigns.mapping
+      )
+    end
+
+    {:noreply, socket}
+  end
+
+  def handle_info(_message, socket), do: {:noreply, socket}
+
   @impl true
   def handle_async(:apply_import, {:ok, {:ok, result}}, socket) do
     PreviewStore.delete(socket.assigns.session_token)
@@ -654,6 +802,41 @@ defmodule PortfolixirWeb.ImportsLive do
      |> assign(:result, result)
      |> assign(:error, nil)
      |> reload_lookups()}
+  end
+
+  # ADR-0050 §10: an account the mapping names has been merged away (or
+  # deleted) since the preview opened. Nothing was written; the account
+  # mapping is recomputed from the current accounts, keeping the bucket tag
+  # and the security choices, and the user reviews it before confirming.
+  def handle_async(
+        :apply_import,
+        {:ok, {:error, {:resolution_diverged, %{kind: kind}}}},
+        socket
+      )
+      when kind in [:cash_account, :securities_account] do
+    socket = socket |> reload_lookups() |> assign_account_states(socket.assigns.preview)
+    fresh = initial_mapping_for(socket.assigns.preview, socket.assigns.account_states)
+
+    mapping =
+      Map.merge(socket.assigns.mapping, %{
+        cash: fresh.cash,
+        depot: fresh.depot,
+        prefill: fresh.prefill
+      })
+
+    PreviewStore.put_mapping(socket.assigns.session_token, mapping)
+
+    {:noreply,
+     socket
+     |> assign(:applying, false)
+     |> assign(:mapping, mapping)
+     |> assign_remember_outcomes()
+     |> assign(
+       :error,
+       gettext(
+         "An account mapped in this preview was merged or deleted since it was opened. The account mapping was refreshed from the current accounts; review it before confirming again. Nothing was written."
+       )
+     )}
   end
 
   # Preview→apply revalidation abort (ADR-0029 §2): the data changed while
@@ -706,11 +889,20 @@ defmodule PortfolixirWeb.ImportsLive do
             |> reload_lookups()
             |> assign_preview_pp_names(preview)
             |> assign_security_resolutions(preview)
-            |> assign(:mapping, initial_mapping_for(preview, socket))
+            |> assign_account_states(preview)
 
-          PreviewStore.put(socket.assigns.session_token, preview, socket.assigns.mapping)
+          socket =
+            socket
+            |> assign(:mapping, initial_mapping_for(preview, socket.assigns.account_states))
+            |> assign_remember_outcomes()
 
-          {:noreply, socket}
+          # E25 S5 (F33): parked only once it has rendered. The message is
+          # handled after this callback's render, so a preview whose first
+          # render fails is never parked to fail again on every remount.
+          park = make_ref()
+          send(self(), {:park_preview, park})
+
+          {:noreply, assign(socket, :park, park)}
 
         {:error, reason} ->
           {:noreply, assign(socket, :error, parse_error_message(reason))}
@@ -729,20 +921,623 @@ defmodule PortfolixirWeb.ImportsLive do
     socket
     |> assign(:existing_cash, existing_cash)
     |> assign(:existing_depots, existing_depots)
+    |> assign(:option_tags, option_tags(existing_cash, existing_depots))
+    |> assign(:account_names, %{
+      "cash" => Map.new(existing_cash, &{&1.id, &1.name}),
+      "depot" => Map.new(existing_depots, &{&1.id, &1.name})
+    })
     |> assign_new(:cash_pp_names, fn -> [] end)
     |> assign_new(:depot_pp_names, fn -> [] end)
+    |> assign_new(:row_names, fn -> row_names([], []) end)
   end
 
   defp assign_preview_pp_names(socket, preview) do
+    cash_pp_names = Mapping.unique_cash_pp_names(preview)
+    depot_pp_names = Mapping.unique_depot_pp_names(preview)
+
     socket
-    |> assign(:cash_pp_names, Mapping.unique_cash_pp_names(preview))
-    |> assign(:depot_pp_names, Mapping.unique_depot_pp_names(preview))
+    |> assign(:cash_pp_names, cash_pp_names)
+    |> assign(:depot_pp_names, depot_pp_names)
+    |> assign(:row_names, row_names(cash_pp_names, depot_pp_names))
+  end
+
+  # E25 S5 (F42): the server-side map from a row's opaque key, the only thing
+  # a field name carries, back to the file's name. A key the preview did not
+  # hand out addresses nothing.
+  defp row_names(cash_pp_names, depot_pp_names) do
+    %{
+      "cash" => Map.new(cash_pp_names, &{Mapping.row_key("cash", &1), &1}),
+      "depot" => Map.new(depot_pp_names, &{Mapping.row_key("depot", &1), &1})
+    }
   end
 
   defp maybe_assign_preview_pp_names(socket, nil), do: socket
 
   defp maybe_assign_preview_pp_names(socket, preview),
     do: assign_preview_pp_names(socket, preview)
+
+  # --- what each account row says (ADR-0050 §3, §4; boards 04 and 04b) ---
+
+  @empty_counts %{
+    hash: 0,
+    retired: 0,
+    unimportable: 0,
+    economics: 0,
+    internal_transfer: 0,
+    new: 0
+  }
+
+  # How each file name resolves (the prefill's own resolution) and how many
+  # of the file's bookings each name carries per first-check layer, read
+  # once per preview: both are reads of the database as it is now, and the
+  # apply re-checks both.
+  defp assign_account_states(socket, nil) do
+    assign(socket, :account_states, %{
+      resolutions: %{"cash" => %{}, "depot" => %{}},
+      counts: %{"cash" => %{}, "depot" => %{}, total: @empty_counts}
+    })
+  end
+
+  defp assign_account_states(socket, %Preview{} = preview) do
+    %{cash_accounts: cash, depots: depots} = Imports.resolve_accounts(preview)
+    counts = Imports.reimport_counts(preview)
+
+    assign(socket, :account_states, %{
+      resolutions: %{"cash" => cash, "depot" => depots},
+      counts: %{"cash" => counts.cash_accounts, "depot" => counts.depots, total: counts.total}
+    })
+  end
+
+  defp row_counts(states, group, pp_name),
+    do: states.counts |> Map.fetch!(group) |> Map.get(pp_name, @empty_counts)
+
+  defp resolution(states, group, pp_name),
+    do: states.resolutions |> Map.fetch!(group) |> Map.get(pp_name, :none)
+
+  # ADR-0050 §4 (board 04b, G4b-A): "+ Create new: X" is impossible when the
+  # name guard refuses X — another account's live or former name. That is
+  # exactly what the prefill's resolution found, so the reason is read from
+  # it: nil when X is free.
+  defp create_refusal(states, group, pp_name, account_names) do
+    case resolution(states, group, pp_name) do
+      :none ->
+        nil
+
+      {:ok, _id, :live} ->
+        gettext("an account already has this name")
+
+      {:ok, id, :former} ->
+        gettext("a former name of %{account}",
+          account: Map.get(account_names[group], id, "##{id}")
+        )
+
+      {:ambiguous, :live, ids} ->
+        ngettext("the name of %{count} account", "the name of %{count} accounts", length(ids))
+
+      {:ambiguous, :former, ids} ->
+        ngettext(
+          "a former name of %{count} account",
+          "a former name of %{count} accounts",
+          length(ids)
+        )
+    end
+  end
+
+  # A row whose file name is ambiguous needs no decision when none of its
+  # bookings is new: a hash hit resolves nothing (ADR-0050 §3; board 04,
+  # note 4).
+  defp decision_needed?(states, group, pp_name) do
+    case resolution(states, group, pp_name) do
+      {:ambiguous, _tier, _ids} -> row_counts(states, group, pp_name).new > 0
+      _resolved -> true
+    end
+  end
+
+  # What remembering each changed row would do, read when the mapping
+  # changes (ADR-0050 §4): only a row whose prefill the operator changed onto
+  # an existing, differently named account is a remap to remember.
+  defp assign_remember_outcomes(socket) do
+    %{mapping: mapping, account_names: names} = socket.assigns
+    prefill = Map.get(mapping, :prefill, %{})
+
+    choices = %{
+      "cash" => mapping.cash,
+      "depot" => Map.new(mapping.depot, fn {pp_name, row} -> {pp_name, row["target"]} end)
+    }
+
+    outcomes =
+      for {group, rows} <- choices,
+          {pp_name, "existing:" <> raw = choice} <- rows,
+          choice != get_in(prefill, [group, pp_name]),
+          {:ok, id} <- [LiveParam.fetch_id(raw)],
+          Map.get(names[group], id) != pp_name,
+          into: %{} do
+        {{group, pp_name}, Imports.remember_outcome(remember_kind(group), pp_name, id)}
+      end
+
+    assign(socket, :remember_outcomes, outcomes)
+  end
+
+  defp remember_kind("cash"), do: :cash_account
+  defp remember_kind("depot"), do: :securities_account
+
+  defp row_note_assigns(assigns, group, pp_name) do
+    %{
+      counts: row_counts(assigns.account_states, group, pp_name),
+      resolution: resolution(assigns.account_states, group, pp_name),
+      prefill: get_in(assigns.mapping, [:prefill, group, pp_name]),
+      remember_outcome: Map.get(assigns.remember_outcomes, {group, pp_name}),
+      remember_on: get_in(assigns.mapping, [:remember, group, pp_name]) != "false",
+      account_names: assigns.account_names[group],
+      option_tags: assigns.option_tags
+    }
+  end
+
+  # --- same-named accounts told apart (#884 F1, board 04b) ---
+
+  # Per account whose name another account of its kind also carries, what
+  # tells it apart: the first of its features whose values differ across the
+  # accounts of that name. A cash account: its linked depots, its currency,
+  # its creation date, its number; a depot: its cash account, its creation
+  # date, its number. Accounts with a unique name carry none.
+  defp option_tags(existing_cash, existing_depots) do
+    depots_by_cash = Enum.group_by(existing_depots, & &1.cash_account_id, & &1.name)
+    cash_names = Map.new(existing_cash, &{&1.id, &1.name})
+
+    cash_features = [
+      fn c ->
+        case depots_by_cash |> Map.get(c.id, []) |> Enum.sort() do
+          [] -> gettext("no depot")
+          names -> gettext("at %{depots}", depots: Enum.join(names, ", "))
+        end
+      end,
+      & &1.currency_code,
+      &created_tag/1,
+      &number_tag/1
+    ]
+
+    depot_features = [
+      &gettext("with %{cash}", cash: Map.get(cash_names, &1.cash_account_id, "—")),
+      &created_tag/1,
+      &number_tag/1
+    ]
+
+    %{cash: tags(existing_cash, cash_features), depot: tags(existing_depots, depot_features)}
+  end
+
+  defp tags(accounts, features) do
+    accounts
+    |> Enum.group_by(& &1.name)
+    |> Enum.flat_map(fn
+      {_name, [_single]} ->
+        []
+
+      {_name, same} ->
+        feature =
+          Enum.find(features, List.last(features), fn feature ->
+            values = Enum.map(same, feature)
+            length(Enum.uniq(values)) == length(values)
+          end)
+
+        Enum.map(same, &{&1.id, feature.(&1)})
+    end)
+    |> Map.new()
+  end
+
+  defp created_tag(account),
+    do:
+      gettext("created %{date}",
+        date: account.inserted_at |> NaiveDateTime.to_date() |> Date.to_iso8601()
+      )
+
+  defp number_tag(account), do: gettext("no. %{id}", id: account.id)
+
+  defp account_label(option_tags, kind, account) do
+    case Map.get(option_tags[kind], account.id) do
+      nil -> account.name
+      tag -> "#{account.name} · #{tag}"
+    end
+  end
+
+  # --- the row's parts ---
+
+  attr(:counts, :map, required: true)
+
+  # Per row (board 04): how many of its bookings are already imported (by
+  # content hash, a merge's retired hash, or an equal booking the apply finds
+  # by its economics), how many internal transfers are dropped, and how many
+  # are new — "nothing to create" when none is. A booking that names two
+  # accounts counts in both rows.
+  defp mapping_count(assigns) do
+    counts = assigns.counts
+    assigns = assign(assigns, hits: already_imported(counts), transfers: counts.internal_transfer)
+
+    ~H"""
+    <span class="mapping-count" data-role="mapping-count"><%= if @hits > 0 do %><%= ngettext(
+          "%{count} booking already imported",
+          "%{count} bookings already imported",
+          @hits
+        ) %> · <% end %><%= if @transfers > 0 do %><%= ngettext(
+          "%{count} internal transfer dropped",
+          "%{count} internal transfers dropped",
+          @transfers
+        ) %> · <% end %><b><%= cond do
+          @counts.new == 0 -> gettext("nothing to create")
+          @hits + @transfers > 0 -> ngettext("%{count} new", "%{count} new", @counts.new)
+          true -> ngettext("%{count} booking new", "%{count} bookings new", @counts.new)
+        end %></b></span>
+    """
+  end
+
+  # Rows the apply skips as already booked, on any of its layers.
+  defp already_imported(counts), do: counts.hash + counts.retired + counts.economics
+
+  # Nothing new, but something the import recognises: a file already applied.
+  defp nothing_new?(counts), do: already_imported(counts) + counts.internal_transfer > 0
+
+  attr(:name, :string, required: true)
+  attr(:chosen, :string, default: nil)
+  attr(:refusal, :string, default: nil)
+
+  # "+ Create new: X" — disabled, with its reason in its own label, when the
+  # name guard would refuse X (board 04b, G4b-A).
+  defp create_option(assigns) do
+    ~H"""
+    <%= if @refusal do %>
+      <option value={"create:#{@name}"} disabled selected={@chosen == "create:#{@name}"}>
+        <%= gettext("+ Create new: %{name} — not possible: %{reason}", name: @name, reason: @refusal) %>
+      </option>
+    <% else %>
+      <option value={"create:#{@name}"} selected={@chosen == "create:#{@name}"}>
+        <%= gettext("+ Create new: %{name}", name: @name) %>
+      </option>
+    <% end %>
+    """
+  end
+
+  attr(:group, :string, required: true)
+  attr(:key, :string, required: true)
+  attr(:name, :string, required: true)
+  attr(:chosen, :string, default: nil)
+  attr(:counts, :map, required: true)
+  attr(:resolution, :any, required: true)
+  attr(:prefill, :string, default: nil)
+  attr(:remember_outcome, :any, default: nil)
+  attr(:remember_on, :boolean, default: true)
+  attr(:account_names, :map, required: true)
+  attr(:option_tags, :map, required: true)
+
+  # Under the select, only what is not obvious (board 04): why the row is
+  # prefilled when a former name did it, that "+ Create new" creates nothing
+  # without a new booking, the "remember" box of a changed prefill (G4-A),
+  # why remembering is not offered, and an ambiguous name's note.
+  defp mapping_notes(assigns) do
+    assigns = assign(assigns, basis: basis(assigns), remember: remember_mode(assigns))
+
+    ~H"""
+    <%= case @basis do %>
+      <% {:former, account} -> %>
+        <span class="mapping-basis" data-role="mapping-basis">
+          <%= gettext("matched by a former name — %{account}, formerly “%{name}”",
+            account: account,
+            name: @name
+          ) %>
+        </span>
+      <% :create_nothing -> %>
+        <span class="mapping-basis" data-role="mapping-basis">
+          <%= gettext("no account under this name; it is created only with its first new booking") %>
+        </span>
+      <% {:ambiguous, sentence} -> %>
+        <AppShell.data_note severity={:attention} data-role="mapping-ambiguous">
+          <%= sentence %>
+          <%= gettext(
+            "The choice holds for this import's new bookings and cannot be remembered while more than one account carries the name. Once only one does, the import maps the name to it: renaming or merging under"
+          ) %>
+          <.link href="/portfolios"><%= gettext("Accounts & depots") %></.link>.
+        </AppShell.data_note>
+      <% nil -> %>
+    <% end %>
+    <%= case @remember do %>
+      <% :box -> %>
+        <div class="mapping-remember" data-role="mapping-remember">
+          <label>
+            <input type="hidden" name={"remember[#{@group}][#{@key}]"} value="false" />
+            <input
+              type="checkbox"
+              name={"remember[#{@group}][#{@key}]"}
+              value="true"
+              checked={@remember_on}
+              aria-describedby={"remember-#{@group}-#{@key}"}
+            />
+            <span><%= gettext("Remember this mapping") %></span>
+          </label>
+          <small id={"remember-#{@group}-#{@key}"}><%= remember_sentence(assigns) %></small>
+        </div>
+      <% :not_offered -> %>
+        <span class="mapping-basis" data-role="mapping-not-remembered">
+          <%= gettext(
+            "“%{name}” is already the name of another account; the choice holds for this import only. Merging or renaming that account changes this:",
+            name: @name
+          ) %>
+          <.link href="/portfolios"><%= gettext("Accounts & depots") %></.link>.
+        </span>
+      <% nil -> %>
+    <% end %>
+    """
+  end
+
+  # Why the row is prefilled, said only where it is not obvious (board 04).
+  defp basis(%{resolution: {:ok, id, :former}} = assigns) do
+    if assigns.chosen == "existing:#{id}",
+      do: {:former, Map.get(assigns.account_names, id, "##{id}")}
+  end
+
+  defp basis(%{resolution: :none, counts: counts} = assigns) do
+    if assigns.chosen == "create:#{assigns.name}" and counts.new == 0 and nothing_new?(counts),
+      do: :create_nothing
+  end
+
+  defp basis(%{resolution: {:ambiguous, tier, ids}, counts: %{new: new}} = assigns)
+       when new > 0 do
+    {:ambiguous,
+     ambiguous_sentence(
+       assigns.group,
+       assigns.name,
+       tier,
+       ids,
+       assigns.account_names,
+       assigns.option_tags
+     )}
+  end
+
+  defp basis(_assigns), do: nil
+
+  # The "remember" box of a changed prefill (G4-A) where remembering appends
+  # or moves the name; where the name is another account's live name, why it
+  # is not offered — except on an ambiguous row, whose note already says so.
+  defp remember_mode(%{remember_outcome: :append}), do: :box
+  defp remember_mode(%{remember_outcome: {:move, _from}}), do: :box
+
+  defp remember_mode(%{remember_outcome: {:not_offered, _live_on}, resolution: resolution}) do
+    if match?({:ambiguous, _tier, _ids}, resolution), do: nil, else: :not_offered
+  end
+
+  defp remember_mode(_assigns), do: nil
+
+  defp remember_sentence(%{remember_on: false} = assigns) do
+    gettext("Holds for this import only. A future import suggests “%{prefill}” again.",
+      prefill: prefill_label(assigns)
+    )
+  end
+
+  defp remember_sentence(%{remember_outcome: {:move, from_id}} = assigns) do
+    gettext(
+      "“%{name}” becomes a former name of %{account} and is then no longer a former name of %{from}.",
+      name: assigns.name,
+      account: chosen_name(assigns),
+      from: Map.get(assigns.account_names, from_id, "##{from_id}")
+    )
+  end
+
+  defp remember_sentence(assigns) do
+    gettext(
+      "“%{name}” becomes a former name of %{account}; a future import maps the name by itself.",
+      name: assigns.name,
+      account: chosen_name(assigns)
+    )
+  end
+
+  defp chosen_name(%{chosen: "existing:" <> raw, account_names: names}) do
+    case LiveParam.fetch_id(raw) do
+      {:ok, id} -> Map.get(names, id, "##{id}")
+      :error -> "—"
+    end
+  end
+
+  # The option the next import would prefill again, as the list names it.
+  defp prefill_label(%{prefill: "create:" <> name}),
+    do: gettext("+ Create new: %{name}", name: name)
+
+  defp prefill_label(%{prefill: "existing:" <> _raw} = assigns),
+    do: chosen_name(%{assigns | chosen: assigns.prefill})
+
+  defp prefill_label(_assigns), do: gettext("Decide…")
+
+  defp ambiguous_sentence(group, name, tier, ids, account_names, option_tags) do
+    kind = if group == "cash", do: :cash, else: :depot
+
+    labels =
+      Enum.map_join(ids, "; ", fn id ->
+        case tier do
+          :live -> Map.get(option_tags[kind], id) || Map.get(account_names, id, "##{id}")
+          :former -> Map.get(account_names, id, "##{id}")
+        end
+      end)
+
+    case {group, tier} do
+      {"cash", :live} ->
+        ngettext(
+          "%{count} cash account is named “%{name}” (%{labels}), so there is no prefill.",
+          "%{count} cash accounts are named “%{name}” (%{labels}), so there is no prefill.",
+          length(ids),
+          name: name,
+          labels: labels
+        )
+
+      {"cash", :former} ->
+        ngettext(
+          "%{count} cash account carries “%{name}” as a former name (%{labels}), so there is no prefill.",
+          "%{count} cash accounts carry “%{name}” as a former name (%{labels}), so there is no prefill.",
+          length(ids),
+          name: name,
+          labels: labels
+        )
+
+      {"depot", :live} ->
+        ngettext(
+          "%{count} depot is named “%{name}” (%{labels}), so there is no prefill.",
+          "%{count} depots are named “%{name}” (%{labels}), so there is no prefill.",
+          length(ids),
+          name: name,
+          labels: labels
+        )
+
+      {"depot", :former} ->
+        ngettext(
+          "%{count} depot carries “%{name}” as a former name (%{labels}), so there is no prefill.",
+          "%{count} depots carry “%{name}” as a former name (%{labels}), so there is no prefill.",
+          length(ids),
+          name: name,
+          labels: labels
+        )
+    end
+  end
+
+  # ADR-0050 §2: a file already applied is a no-op — said once, for the
+  # whole file (board 04, "Randfall").
+  defp nothing_to_import(total) do
+    hits = already_imported(total)
+    transfers = total.internal_transfer
+
+    already =
+      cond do
+        hits == 0 ->
+          []
+
+        total.unimportable > 0 ->
+          [
+            ngettext(
+              "%{count} entry is already imported; the others cannot be imported.",
+              "%{count} entries are already imported; the others cannot be imported.",
+              hits
+            )
+          ]
+
+        transfers > 0 ->
+          [
+            ngettext(
+              "%{count} entry is already imported.",
+              "%{count} entries are already imported.",
+              hits
+            )
+          ]
+
+        true ->
+          [
+            ngettext(
+              "The entry is already imported.",
+              "All %{count} entries are already imported.",
+              hits
+            )
+          ]
+      end
+
+    dropped =
+      if transfers > 0,
+        do: [
+          ngettext(
+            "%{count} internal transfer is dropped: both of its accounts are one account now.",
+            "%{count} internal transfers are dropped: both accounts of each are one account now.",
+            transfers
+          )
+        ],
+        else: []
+
+    Enum.join(
+      already ++
+        dropped ++
+        [gettext("The import creates nothing: no booking, no account, no depot, no security.")],
+      " "
+    )
+  end
+
+  # --- the result's lists (boards 04 and 04b) ---
+
+  defp remembered_line(%{kind: kind, name: name, account_id: id, outcome: outcome}, cash, depots) do
+    accounts = if kind == :cash_account, do: cash, else: depots
+    account = account_name(accounts, id)
+
+    case outcome do
+      :appended ->
+        gettext("“%{name}” is now a former name of %{account}.", name: name, account: account)
+
+      {:moved, from_id} ->
+        gettext("“%{name}” is now a former name of %{account} and no longer of %{from}.",
+          name: name,
+          account: account,
+          from: account_name(accounts, from_id)
+        )
+
+      {:not_offered, holder_id} ->
+        gettext("“%{name}” was not remembered: it is the name of %{holder}.",
+          name: name,
+          holder: account_name(accounts, holder_id)
+        )
+    end
+  end
+
+  defp account_name(accounts, id) do
+    case Enum.find(accounts, &(&1.id == id)) do
+      nil -> "##{id}"
+      account -> account.name
+    end
+  end
+
+  @duplicate_layers [:hash, :retired, :economics]
+
+  defp duplicate_groups(duplicates) do
+    grouped = Enum.group_by(duplicates, & &1.layer)
+
+    for layer <- @duplicate_layers,
+        entries = Map.get(grouped, layer, []),
+        entries != [],
+        do: {layer, entries}
+  end
+
+  # What a file row books, in the page's words: its kind and date, the
+  # security, the amount (or the quantity), and the file's account names.
+  defp row_description(%Preview{entries: entries}, row) do
+    case Enum.find(entries, &(&1.source_row == row)) do
+      nil -> gettext("a row of the file")
+      entry -> entry_description(entry)
+    end
+  end
+
+  defp row_description(_preview, _row), do: gettext("a row of the file")
+
+  defp entry_description(entry) do
+    [
+      "#{kind_label(entry.kind)} #{entry.date && Date.to_iso8601(entry.date)}",
+      entry.security && entry.security[:name],
+      entry_amount(entry),
+      entry_names(entry)
+    ]
+    |> Enum.reject(&(&1 in [nil, ""]))
+    |> Enum.join(" · ")
+  end
+
+  defp entry_amount(%{gross_amount: %Decimal{} = amount, currency_code: currency}),
+    do: String.trim("#{Format.money(amount)} #{currency}")
+
+  defp entry_amount(%{quantity: %Decimal{} = quantity}),
+    do: gettext("%{quantity} shares", quantity: Format.exact(quantity))
+
+  defp entry_amount(_entry), do: nil
+
+  defp entry_names(%{kind: "security_transfer"} = entry),
+    do: arrow(entry.pp_portfolio_name, entry.pp_counter_portfolio_name)
+
+  defp entry_names(entry) do
+    case entry.pp_account_name do
+      nil -> arrow(entry.pp_portfolio_name, entry.pp_counter_portfolio_name)
+      account -> arrow(account, entry.pp_counter_account_name)
+    end
+  end
+
+  defp arrow(nil, nil), do: nil
+  defp arrow(from, nil), do: from
+  defp arrow(nil, to), do: to
+  defp arrow(from, to), do: "#{from} → #{to}"
 
   # The ADR-0029 §2 security-mapping step: one classified resolution row per
   # unique security reference plus the pre-apply inverse check, recomputed on
@@ -773,41 +1568,43 @@ defmodule PortfolixirWeb.ImportsLive do
       bucket_skip: false,
       cash: %{},
       depot: %{},
-      security: %{}
+      security: %{},
+      # ADR-0050 §4: the per-name "remember" of a remap, on by default; only a
+      # "false" is ever stored. Its control is the preview's board-04 work.
+      remember: %{"cash" => %{}, "depot" => %{}},
+      # The choice the preview prefilled per file name, as shown: only a
+      # choice the operator changed from it is a remap to remember.
+      prefill: %{"cash" => %{}, "depot" => %{}}
     }
   end
 
   # The date-stamped default bucket name is data (a bucket name), not UI
   # copy — deliberately not translated.
   defp default_bucket_tag do
-    "PP Import #{Date.to_iso8601(Date.utc_today())}"
+    "PP Import #{Date.to_iso8601(Clock.today())}"
   end
 
-  # Auto-prefill: existing-name match → existing; otherwise create-new.
-  defp initial_mapping_for(%Preview{} = preview, socket) do
-    existing_cash_by_name = Map.new(socket.assigns.existing_cash, &{&1.name, &1.id})
-    existing_depot_by_name = Map.new(socket.assigns.existing_depots, &{&1.name, &1.id})
+  # Auto-prefill (ADR-0050 §4) through the resolution the apply uses: an
+  # exact live name, then a former name → that account; a name found by
+  # neither → create-new; an ambiguous name → nothing ("Decide…").
+  defp initial_mapping_for(%Preview{} = preview, %{resolutions: resolutions}) do
+    %{"cash" => cash_resolutions, "depot" => depot_resolutions} = resolutions
 
     cash_pp_names = Mapping.unique_cash_pp_names(preview)
     depot_pp_names = Mapping.unique_depot_pp_names(preview)
+    # E25 S5 (F35): every depot's default cash account in one pass.
+    default_cash = Mapping.default_cash_by_depot(preview)
 
     cash =
       Map.new(cash_pp_names, fn pp_name ->
-        case Map.fetch(existing_cash_by_name, pp_name) do
-          {:ok, id} -> {pp_name, "existing:#{id}"}
-          :error -> {pp_name, "create:#{pp_name}"}
-        end
+        {pp_name, prefill(Map.fetch!(cash_resolutions, pp_name), pp_name)}
       end)
 
     depot =
       Map.new(depot_pp_names, fn pp_name ->
-        target =
-          case Map.fetch(existing_depot_by_name, pp_name) do
-            {:ok, id} -> "existing:#{id}"
-            :error -> "create:#{pp_name}"
-          end
+        target = prefill(Map.fetch!(depot_resolutions, pp_name), pp_name)
 
-        default_cash_pp = Mapping.default_cash_for_depot(preview, pp_name)
+        default_cash_pp = Map.get(default_cash, pp_name)
 
         cash_value =
           if default_cash_pp && default_cash_pp in cash_pp_names,
@@ -817,24 +1614,99 @@ defmodule PortfolixirWeb.ImportsLive do
         {pp_name, %{"target" => target, "cash" => cash_value}}
       end)
 
-    %{blank_mapping() | cash: cash, depot: depot}
+    prefill = %{
+      "cash" => cash,
+      "depot" => Map.new(depot, fn {pp_name, %{"target" => target}} -> {pp_name, target} end)
+    }
+
+    %{blank_mapping() | cash: cash, depot: depot, prefill: prefill}
   end
 
-  defp mapping_from_params(params, current) do
+  defp prefill({:ok, id, _tier}, _pp_name), do: "existing:#{id}"
+  defp prefill(:none, pp_name), do: "create:#{pp_name}"
+  defp prefill({:ambiguous, _tier, _ids}, _pp_name), do: ""
+
+  # The mapping takes only the shapes its form sends (E25 S4, F17): a string
+  # per cash name, a map of strings per depot and per security row, a string
+  # tag. Anything else changes nothing — the mapping is parked in the preview
+  # store, so a shape the page cannot render would crash every remount.
+  #
+  # Cash and depot rows are addressed by their opaque key (E25 S5, F42): a
+  # file name never becomes part of a field name, where brackets in it would
+  # nest into another row's parameters. A key the preview did not hand out is
+  # ignored.
+  defp mapping_from_params(params, %{mapping: current, row_names: row_names} = assigns) do
+    params = LiveParam.map(params)
+
     %{
-      bucket_tag: Map.get(params, "bucket_tag", current.bucket_tag),
+      bucket_tag: LiveParam.string(Map.get(params, "bucket_tag")) || current.bucket_tag,
       bucket_skip: parse_bucket_skip(Map.get(params, "bucket_skip"), current.bucket_skip),
-      cash: Map.merge(current.cash, Map.get(params, "cash", %{})),
-      depot: Map.merge(current.depot, Map.get(params, "depot", %{})),
-      security: merge_security_mapping(Map.get(current, :security, %{}), params)
+      cash:
+        Map.merge(
+          current.cash,
+          params |> Map.get("cash") |> by_name(row_names["cash"]) |> LiveParam.form()
+        ),
+      depot:
+        merge_rows(
+          current.depot,
+          params |> Map.get("depot") |> by_name(row_names["depot"]),
+          @depot_fields
+        ),
+      security:
+        merge_rows(
+          Map.get(current, :security, %{}),
+          params |> Map.get("security") |> handed_out(assigns.security_resolutions),
+          @security_fields
+        ),
+      remember:
+        merge_remember(Map.get(current, :remember, blank_mapping().remember), params, row_names),
+      prefill: Map.get(current, :prefill, blank_mapping().prefill)
     }
   end
 
+  defp by_name(given, names) do
+    for {key, value} <- LiveParam.map(given),
+        is_binary(key),
+        name = Map.get(names, key),
+        name != nil,
+        into: %{},
+        do: {name, value}
+  end
+
+  # E25 S5 review round (F42): a security row is kept only under a key the
+  # page's resolution plan handed out; any other key addresses nothing.
+  defp handed_out(given, resolutions) do
+    keys = MapSet.new(resolutions, & &1.key)
+    for {key, row} <- LiveParam.map(given), MapSet.member?(keys, key), into: %{}, do: {key, row}
+  end
+
+  # "remember[cash][<key>]" / "remember[depot][<key>]" = "false" switches a
+  # remap's remembering off; anything else leaves it on (the default).
+  defp merge_remember(current, params, row_names) do
+    case Map.get(params, "remember") do
+      %{} = given ->
+        Map.new(["cash", "depot"], fn group ->
+          given_names = given |> Map.get(group) |> by_name(row_names[group]) |> LiveParam.form()
+          {group, Map.merge(Map.get(current, group, %{}), given_names)}
+        end)
+
+      _absent ->
+        current
+    end
+  end
+
   # Per-key deep merge so a change event carrying only some of a row's fields
-  # (choice / ack / record_isin_change) never drops the others.
-  defp merge_security_mapping(current, params) do
-    Map.merge(current, Map.get(params, "security", %{}), fn _key, old, new ->
-      if is_map(old) and is_map(new), do: Map.merge(old, new), else: new
+  # (a depot's target / cash, a security's choice / ack / record_isin_change)
+  # never drops the others; a row that is not a map, and a field that is not
+  # a string or not the row's, is ignored.
+  defp merge_rows(current, given, fields) do
+    rows =
+      for {key, row} <- LiveParam.map(given), is_binary(key) and is_map(row), into: %{} do
+        {key, row |> LiveParam.form() |> Map.take(fields)}
+      end
+
+    Map.merge(current, rows, fn _key, old, new ->
+      if is_map(old), do: Map.merge(old, new), else: new
     end)
   end
 
@@ -867,9 +1739,9 @@ defmodule PortfolixirWeb.ImportsLive do
   defp chosen_existing_security(mapping, res, existing_securities) do
     case security_choice(mapping, res) do
       "existing:" <> id_str ->
-        case Integer.parse(id_str) do
-          {id, ""} -> Enum.find(existing_securities, &(&1.id == id))
-          _other -> nil
+        case LiveParam.id(id_str) do
+          nil -> nil
+          id -> Enum.find(existing_securities, &(&1.id == id))
         end
 
       _other ->
@@ -971,6 +1843,13 @@ defmodule PortfolixirWeb.ImportsLive do
     )
   end
 
+  # E25 S5 (F36): one key standing for two references fails closed.
+  defp decision_text(%{conflict: %{type: :key_collision}}) do
+    gettext(
+      "Two securities of this file cannot be told apart, so the import is refused. Correct them in Portfolio Performance and export again."
+    )
+  end
+
   defp decision_text(%{conflict: %{type: :cross_tier}}) do
     gettext(
       "Different identifiers point at different existing securities. Decide which one this entry belongs to."
@@ -997,25 +1876,72 @@ defmodule PortfolixirWeb.ImportsLive do
     Enum.reduce(entries, 0, fn e, acc -> acc + 1 + length(e.companion_entries || []) end)
   end
 
-  # True iff every dropdown is filled: every depot row needs a `target` and
-  # a `cash`. The bucket tag never blocks — blank behaves like skip.
-  defp mapping_complete?(%{mapping: m, cash_pp_names: cashes, depot_pp_names: depots} = assigns) do
-    cash_ok? = Enum.all?(cashes, fn pp -> is_binary(Map.get(m.cash, pp)) end)
-
-    depot_ok? =
-      Enum.all?(depots, fn pp ->
-        case Map.get(m.depot, pp) do
-          %{"target" => t, "cash" => c}
-          when is_binary(t) and t != "" and is_binary(c) and c != "" ->
-            true
-
-          _ ->
-            false
-        end
-      end)
-
-    cash_ok? and depot_ok? and security_decisions_complete?(assigns)
+  # True iff every row that needs a decision has one the apply can carry out:
+  # a cash row a choice, a depot row a target and a cash account. A choice of
+  # "+ Create new" for a name the guard refuses is no choice (board 04b); an
+  # ambiguous row with no new booking needs none (board 04, note 4). The
+  # bucket tag never blocks — blank behaves like skip.
+  defp mapping_complete?(%{cash_pp_names: cashes, depot_pp_names: depots} = assigns) do
+    Enum.all?(cashes, &(cash_row_state(assigns, &1) in [:ok, :skip])) and
+      Enum.all?(depots, &(depot_row_state(assigns, &1) in [:ok, :skip])) and
+      security_decisions_complete?(assigns)
   end
+
+  # :ok, :skip (undecided, and no decision needed) or :missing.
+  defp cash_row_state(assigns, pp_name) do
+    choice = Map.get(assigns.mapping.cash, pp_name)
+
+    cond do
+      not chosen?(choice) ->
+        if decision_needed?(assigns.account_states, "cash", pp_name), do: :missing, else: :skip
+
+      refused_create?(assigns, "cash", pp_name, choice) ->
+        :missing
+
+      true ->
+        :ok
+    end
+  end
+
+  # :ok, :skip, or {:missing, :both | :target | :cash}.
+  defp depot_row_state(assigns, pp_name) do
+    mapped = Map.get(assigns.mapping.depot, pp_name) || %{}
+    target = mapped["target"]
+    cash = mapped["cash"]
+
+    if not chosen?(target) and not decision_needed?(assigns.account_states, "depot", pp_name) do
+      :skip
+    else
+      target_ok? = chosen?(target) and not refused_create?(assigns, "depot", pp_name, target)
+      cash_ok? = chosen?(cash) and depot_cash_ok?(assigns, target, cash)
+
+      case {target_ok?, cash_ok?} do
+        {true, true} -> :ok
+        {false, false} -> {:missing, :both}
+        {false, true} -> {:missing, :target}
+        {true, false} -> {:missing, :cash}
+      end
+    end
+  end
+
+  # A depot's cash account named by a file cash name the mapping leaves
+  # undecided (an ambiguous name with nothing new) links nothing; that is
+  # fine for an existing depot, whose own cash account stays, and not for a
+  # depot the import would create.
+  defp depot_cash_ok?(assigns, target, "pp:" <> cash_name) do
+    chosen?(Map.get(assigns.mapping.cash, cash_name)) or match?("existing:" <> _, target)
+  end
+
+  defp depot_cash_ok?(_assigns, _target, _cash), do: true
+
+  # Only where the row has a new booking: without one nothing is created,
+  # and the choice cannot fail the import.
+  defp refused_create?(assigns, group, pp_name, "create:" <> _name) do
+    row_counts(assigns.account_states, group, pp_name).new > 0 and
+      create_refusal(assigns.account_states, group, pp_name, assigns.account_names) != nil
+  end
+
+  defp refused_create?(_assigns, _group, _pp_name, _choice), do: false
 
   # ADR-0029 §2: a surfaced decision requires an explicit choice; a
   # config-at-risk creation requires a remap or the per-row acknowledgment.
@@ -1040,8 +1966,8 @@ defmodule PortfolixirWeb.ImportsLive do
   # The human-readable list of still-missing mappings, derived from the SAME
   # data `mapping_complete?/1` inspects, so the Confirm hint can never disagree
   # with the button's disabled state (#475).
-  defp missing_mappings(%{mapping: m, cash_pp_names: cashes, depot_pp_names: depots} = assigns) do
-    cash_missing(m, cashes) ++ depot_missing(m, depots) ++ security_missing(assigns)
+  defp missing_mappings(%{cash_pp_names: cashes, depot_pp_names: depots} = assigns) do
+    cash_missing(assigns, cashes) ++ depot_missing(assigns, depots) ++ security_missing(assigns)
   end
 
   defp security_missing(%{security_resolutions: resolutions, mapping: m}) do
@@ -1050,30 +1976,21 @@ defmodule PortfolixirWeb.ImportsLive do
     end
   end
 
-  defp cash_missing(m, cashes) do
-    for pp <- cashes, not is_binary(Map.get(m.cash, pp)) do
+  defp cash_missing(assigns, cashes) do
+    for pp <- cashes, cash_row_state(assigns, pp) == :missing do
       gettext("cash account: %{name}", name: pp)
     end
   end
 
-  defp depot_missing(m, depots) do
+  defp chosen?(value), do: is_binary(value) and value != ""
+
+  defp depot_missing(assigns, depots) do
     Enum.flat_map(depots, fn pp ->
-      mapped = Map.get(m.depot, pp) || %{}
-      target_ok? = is_binary(mapped["target"]) and mapped["target"] != ""
-      cash_ok? = is_binary(mapped["cash"]) and mapped["cash"] != ""
-
-      cond do
-        not target_ok? and not cash_ok? ->
-          [gettext("depot and its cash account: %{name}", name: pp)]
-
-        not target_ok? ->
-          [gettext("target depot: %{name}", name: pp)]
-
-        not cash_ok? ->
-          [gettext("cash account for depot: %{name}", name: pp)]
-
-        true ->
-          []
+      case depot_row_state(assigns, pp) do
+        {:missing, :both} -> [gettext("depot and its cash account: %{name}", name: pp)]
+        {:missing, :target} -> [gettext("target depot: %{name}", name: pp)]
+        {:missing, :cash} -> [gettext("cash account for depot: %{name}", name: pp)]
+        _complete -> []
       end
     end)
   end
@@ -1081,8 +1998,10 @@ defmodule PortfolixirWeb.ImportsLive do
   # The portfolio binding is internal (ADR-0024): the applier resolves
   # `Portfolios.default_portfolio/1` itself — no portfolio param here.
   defp build_apply_params(mapping, assigns) do
-    with {:ok, cash_params} <- cash_params(mapping, assigns.cash_pp_names),
-         {:ok, depot_params} <- depot_params(mapping, assigns.depot_pp_names),
+    assigns = %{assigns | mapping: mapping}
+
+    with {:ok, cash_params} <- cash_params(assigns),
+         {:ok, depot_params} <- depot_params(assigns, cash_params),
          {:ok, security_mappings, approved} <- security_params(mapping, assigns),
          bucket_tag = effective_bucket_tag(mapping),
          :ok <- validate_bucket_tag(bucket_tag) do
@@ -1090,10 +2009,57 @@ defmodule PortfolixirWeb.ImportsLive do
        %{
          cash_accounts: cash_params,
          depots: depot_params,
+         remember: remember_params(mapping),
          bucket_tag: bucket_tag,
          security_mappings: security_mappings,
          approved_resolutions: approved
        }}
+    end
+  end
+
+  # ADR-0050 §4 and board 04 (G4-A): a remembered remap is a choice the
+  # operator changed from the prefill onto an existing account, remembered
+  # unless switched off. Every name mapped onto an existing account is passed
+  # explicitly, because the applier remembers an absent name by default:
+  #
+  #   * an unchanged prefill is not remembered — it is the preview's choice,
+  #     and a former name removed since the preview opened must not be
+  #     written back;
+  #   * an append is remembered, and so is a move of another account's
+  #     former name, which the row states before the import is applied; a
+  #     live name of another account is never remembered (the row says why).
+  defp remember_params(mapping) do
+    remember = Map.get(mapping, :remember, %{})
+    prefill = Map.get(mapping, :prefill, %{})
+    depot_targets = Map.new(mapping.depot, fn {pp_name, m} -> {pp_name, m["target"]} end)
+
+    %{
+      cash_accounts: remembered(:cash_account, mapping.cash, prefill["cash"], remember["cash"]),
+      depots: remembered(:securities_account, depot_targets, prefill["depot"], remember["depot"])
+    }
+  end
+
+  defp remembered(kind, choices, prefill, switches) do
+    for {pp_name, "existing:" <> raw_id = choice} <- choices, into: %{} do
+      remember? =
+        Map.get(switches || %{}, pp_name) != "false" and
+          Map.get(prefill || %{}, pp_name) != choice and remembers?(kind, pp_name, raw_id)
+
+      {pp_name, remember?}
+    end
+  end
+
+  defp remembers?(kind, pp_name, raw_id) do
+    case LiveParam.fetch_id(raw_id) do
+      {:ok, id} ->
+        case Imports.remember_outcome(kind, pp_name, id) do
+          :append -> true
+          {:move, _from_id} -> true
+          _nothing_to_remember -> false
+        end
+
+      :error ->
+        false
     end
   end
 
@@ -1123,9 +2089,9 @@ defmodule PortfolixirWeb.ImportsLive do
   defp security_apply_decision(res, mapping) do
     case {res.status, security_choice(mapping, res)} do
       {_status, "existing:" <> id_str} ->
-        case Integer.parse(id_str) do
-          {id, ""} -> {:mapping, existing_security_mapping(res, mapping, id)}
-          _other -> {:error, gettext("Invalid security id.")}
+        case LiveParam.fetch_id(id_str) do
+          {:ok, id} -> {:mapping, existing_security_mapping(res, mapping, id)}
+          :error -> {:error, gettext("Invalid security id.")}
         end
 
       {:create, "create"} ->
@@ -1189,31 +2155,40 @@ defmodule PortfolixirWeb.ImportsLive do
 
   defp effective_bucket_tag(_mapping), do: nil
 
-  defp cash_params(mapping, pp_names) do
+  defp cash_params(%{mapping: mapping, cash_pp_names: pp_names} = assigns) do
     Enum.reduce_while(pp_names, {:ok, %{}}, fn pp_name, {:ok, acc} ->
-      case Map.get(mapping.cash, pp_name) do
-        "existing:" <> id_str ->
-          case Integer.parse(id_str) do
-            {id, ""} -> {:cont, {:ok, Map.put(acc, pp_name, {:existing, id})}}
-            _ -> {:halt, {:error, gettext("Invalid cash account id.")}}
+      case {cash_row_state(assigns, pp_name), Map.get(mapping.cash, pp_name)} do
+        # Undecided and nothing new to book: the applier resolves the name
+        # itself and holds it (ADR-0050 §3, §4).
+        {:skip, _choice} ->
+          {:cont, {:ok, acc}}
+
+        {:ok, "existing:" <> id_str} ->
+          case LiveParam.fetch_id(id_str) do
+            {:ok, id} -> {:cont, {:ok, Map.put(acc, pp_name, {:existing, id})}}
+            :error -> {:halt, {:error, gettext("Invalid cash account id.")}}
           end
 
-        "create:" <> name ->
+        {:ok, "create:" <> name} ->
           {:cont, {:ok, Map.put(acc, pp_name, {:create, name})}}
 
-        _ ->
+        _missing ->
           {:halt, {:error, gettext("Pick a target for cash account %{n}.", n: pp_name)}}
       end
     end)
   end
 
-  defp depot_params(mapping, pp_names) do
+  defp depot_params(%{mapping: mapping, depot_pp_names: pp_names} = assigns, cash_params) do
     Enum.reduce_while(pp_names, {:ok, %{}}, fn pp_name, {:ok, acc} ->
-      with %{"target" => target_str, "cash" => cash_str} <- Map.get(mapping.depot, pp_name),
+      with :ok <- depot_row_state(assigns, pp_name),
+           %{"target" => target_str, "cash" => cash_str} <- Map.get(mapping.depot, pp_name),
            {:ok, target} <- parse_depot_target(target_str),
-           {:ok, cash} <- parse_depot_cash(cash_str) do
+           {:ok, cash} <- parse_depot_cash(cash_str, target, cash_params, assigns) do
         {:cont, {:ok, Map.put(acc, pp_name, %{target: target, cash: cash})}}
       else
+        :skip ->
+          {:cont, {:ok, acc}}
+
         _ ->
           {:halt, {:error, gettext("Pick a target and cash account for depot %{n}.", n: pp_name)}}
       end
@@ -1221,34 +2196,44 @@ defmodule PortfolixirWeb.ImportsLive do
   end
 
   defp parse_depot_target("existing:" <> id_str) do
-    case Integer.parse(id_str) do
-      {id, ""} -> {:ok, {:existing, id}}
-      _ -> :error
-    end
+    with {:ok, id} <- LiveParam.fetch_id(id_str), do: {:ok, {:existing, id}}
   end
 
   defp parse_depot_target("create:" <> name), do: {:ok, {:create, name}}
   defp parse_depot_target(_), do: :error
 
-  defp parse_depot_cash("existing:" <> id_str) do
-    case Integer.parse(id_str) do
-      {id, ""} -> {:ok, {:existing, id}}
-      _ -> :error
+  defp parse_depot_cash("existing:" <> id_str, _target, _cash_params, _assigns) do
+    with {:ok, id} <- LiveParam.fetch_id(id_str), do: {:ok, {:existing, id}}
+  end
+
+  # A file cash name the mapping leaves undecided links nothing: an existing
+  # depot keeps its own cash account (`depot_cash_ok?/3`).
+  defp parse_depot_cash("pp:" <> name, {:existing, depot_id}, cash_params, assigns) do
+    if Map.has_key?(cash_params, name) do
+      {:ok, name}
+    else
+      case Enum.find(assigns.existing_depots, &(&1.id == depot_id)) do
+        %{cash_account_id: cash_id} -> {:ok, {:existing, cash_id}}
+        nil -> :error
+      end
     end
   end
 
-  defp parse_depot_cash("pp:" <> name), do: {:ok, name}
-  defp parse_depot_cash(_), do: :error
+  defp parse_depot_cash("pp:" <> name, _target, _cash_params, _assigns), do: {:ok, name}
+  defp parse_depot_cash(_cash, _target, _cash_params, _assigns), do: :error
 
   # The applier names the layer that caught the duplicate; the words are the
   # page's (#769), so the German page is German here too.
   defp duplicate_reason(%{layer: :hash}),
     do: gettext("an identical row was imported before (stored content hash)")
 
+  # ADR-0050 §3: the row's content hash was retired when a merge removed the
+  # booking that held it.
+  defp duplicate_reason(%{layer: :retired}),
+    do: gettext("a row with this content was removed by a merge (retired content hash)")
+
   defp duplicate_reason(%{layer: :economics}),
     do: gettext("an existing booking has the same date, security, quantity and amount")
-
-  defp duplicate_reason(%{reason: reason}), do: reason
 
   defp error_to_string(:too_large), do: gettext("File too large.")
   defp error_to_string(:not_accepted), do: gettext("File type not accepted.")
@@ -1272,12 +2257,36 @@ defmodule PortfolixirWeb.ImportsLive do
 
   defp parse_error_message(:empty_csv), do: gettext("The CSV file is empty.")
 
+  # E25 S5 (F34, board 11): the finding and the remedy, in the error band.
+  defp parse_error_message(:invalid_encoding),
+    do:
+      gettext(
+        "The file is not UTF-8 encoded. Remedy: export it again from Portfolio Performance and drop the file without saving it in a spreadsheet first."
+      )
+
   defp parse_error_message(:malformed_payload),
     do: gettext("The file could not be read as a Portfolio Performance export.")
+
+  # E25 S5 (F35, board 11): what is too much and what a file that fits looks
+  # like; the cap itself is named nowhere on the page.
+  defp parse_error_message(:too_many_names),
+    do:
+      gettext(
+        "The file names too many different accounts, depots or securities for one preview. Remedy: create smaller exports in Portfolio Performance, for example one per account or depot, and import them one after another."
+      )
 
   defp parse_error_message({:too_many_rows, n}),
     do:
       gettext("The file has %{n} rows; the import is sized for at most %{max}.",
+        n: n,
+        max: PortfolioPerformance.max_rows()
+      )
+
+  # E25 S5 (F38): the cap counts the entries a file expands into.
+  defp parse_error_message({:too_many_entries, n}),
+    do:
+      gettext(
+        "The file expands to %{n} entries (its rows and the tax refunds they split off); the import is sized for at most %{max}.",
         n: n,
         max: PortfolioPerformance.max_rows()
       )
@@ -1331,6 +2340,20 @@ defmodule PortfolixirWeb.ImportsLive do
 
   defp apply_error_message({:portfolio_create_failed, %Ecto.Changeset{} = changeset}) do
     gettext("Creating the portfolio failed: %{errors}", errors: changeset_error_text(changeset))
+  end
+
+  # ADR-0050 §4: an account name two accounts carry is never guessed.
+  defp apply_error_message({:ambiguous_account_name, _kind, name, _ids}) do
+    gettext(
+      "Several accounts are named %{name}. Pick the one this export's %{name} books to, then confirm again. Nothing was written.",
+      name: name
+    )
+  end
+
+  defp apply_error_message({:security_key_collision, _key}) do
+    gettext(
+      "Two securities of this file cannot be told apart, so the import is refused. Correct them in Portfolio Performance and export again."
+    )
   end
 
   # Named messages only (#769): no reason is shown as an inspected term.

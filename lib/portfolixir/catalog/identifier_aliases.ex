@@ -29,7 +29,9 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
   alias Ecto.Multi
   alias Portfolixir.Actor
   alias Portfolixir.Catalog.IdentifierAlias
+  alias Portfolixir.Catalog.Isin
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Clock
   alias Portfolixir.Journal
   alias Portfolixir.Repo
 
@@ -51,21 +53,79 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
 
   def record_isin_change(%Actor{} = actor, %Security{} = security, new_isin, opts)
       when is_list(opts) do
-    changed_on = Keyword.get(opts, :changed_on) || Date.utc_today()
+    changed_on = Keyword.get(opts, :changed_on) || Clock.today()
     note = Keyword.get(opts, :note)
 
     Repo.transaction(fn ->
       acquire_isin_write_lock(Repo)
 
-      with {:ok, normalized} <- validate_new_isin(security, new_isin),
+      # The ISIN that becomes the alias is the stored one, read under the
+      # row's lock, not the caller's copy (E25 S6, F49).
+      with {:ok, security} <- lock_security(security),
+           {:ok, normalized} <- validate_new_isin(security, new_isin),
            :ok <- consume_own_alias(actor, security, normalized),
-           {:ok, alias_row} <- insert_alias(actor, security, changed_on, note),
+           {:ok, alias_row} <- insert_alias(actor, security, security.isin, changed_on, note),
            {:ok, updated} <- write_new_isin(actor, security, normalized) do
         %{security: updated, alias: alias_row}
       else
-        {:error, %Changeset{} = changeset} -> Repo.rollback(changeset)
+        {:error, reason} -> Repo.rollback(reason)
       end
     end)
+  end
+
+  defp lock_security(%Security{id: id}) do
+    case Repo.one(from(s in Security, where: s.id == ^id, lock: "FOR UPDATE")) do
+      nil -> {:error, :not_found}
+      stored -> {:ok, stored}
+    end
+  end
+
+  @doc """
+  Records `former_isin` — the ISIN of a security a merge takes away — as a
+  former ISIN of `security` on behalf of `actor` (ADR-0050 §9, the identity
+  choice `keep_target_isin`): one journaled alias row (`changed_on` defaults
+  to today, optional `:note`), so an export still carrying that ISIN resolves
+  to `security` through the ladder's alias tier. `security`'s own ISIN is
+  unchanged.
+
+  The same guards as `record_isin_change/4`, under the same ISIN write lock:
+  the ISIN must not be live on any security — the merge clears the source's
+  first — nor recorded as a former ISIN already (the unique index). Returns
+  `{:ok, alias_row}` or `{:error, changeset}` with the violation on
+  `:former_isin`.
+  """
+  @spec record_merged_isin(Actor.t(), Security.t(), String.t(), keyword()) ::
+          {:ok, IdentifierAlias.t()} | {:error, Changeset.t()}
+  def record_merged_isin(%Actor{} = actor, %Security{} = security, former_isin, opts \\ [])
+      when is_binary(former_isin) and is_list(opts) do
+    changed_on = Keyword.get(opts, :changed_on) || Clock.today()
+    normalized = IdentifierAlias.normalize_isin(former_isin)
+
+    Repo.transaction(fn ->
+      acquire_isin_write_lock(Repo)
+
+      with :ok <- ensure_merged_isin_not_live(normalized),
+           {:ok, alias_row} <-
+             insert_alias(actor, security, normalized, changed_on, Keyword.get(opts, :note)) do
+        alias_row
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+  end
+
+  defp ensure_merged_isin_not_live(isin) do
+    case Repo.get_by(Security, isin: isin) do
+      nil ->
+        :ok
+
+      %Security{} = other ->
+        {:error,
+         error_changeset(
+           :former_isin,
+           "is still the current ISIN of \"#{other.name}\" (security ##{other.id})"
+         )}
+    end
   end
 
   @doc "Lists a security's identifier aliases, newest change first."
@@ -104,6 +164,8 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
     case Repo.transaction(multi) do
       {:ok, %{alias: deleted}} -> {:ok, deleted}
       {:error, :alias, %Changeset{} = changeset, _changes} -> {:error, changeset}
+      # The row was deleted before the write took its lock (E25 S6, F49).
+      {:error, {:journal_lock, _}, :not_found, _changes} -> {:error, :not_found}
     end
   end
 
@@ -113,23 +175,40 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
   alias-alias collisions are held by the unique index.
   """
   def update_alias(%Actor{} = actor, %IdentifierAlias{} = alias_row, attrs) when is_map(attrs) do
-    changeset = IdentifierAlias.changeset(alias_row, attrs)
+    # Built on the row as stored, re-read under its lock by the journal step
+    # (E25 S6 review round, M5): an edit from a stale read that sets a field
+    # back to the value it read is a change, never dropped as none. The ISIN
+    # write lock comes first, as in every ISIN writer.
+    changeset = &IdentifierAlias.changeset(Journal.locked_row(&1), attrs)
 
-    Repo.transaction(fn ->
-      acquire_isin_write_lock(Repo)
-
-      with :ok <- ensure_changed_former_isin_not_live(changeset),
-           {:ok, updated} <- journaled_alias_update(actor, alias_row, changeset) do
-        updated
-      else
-        {:error, %Changeset{} = error_changeset} -> Repo.rollback(error_changeset)
+    Multi.new()
+    |> Multi.run(:former_isin_guard, fn _repo, changes ->
+      case ensure_changed_former_isin_not_live(changeset.(changes)) do
+        :ok -> {:ok, :clear}
+        {:error, _changeset} = refused -> refused
       end
     end)
+    |> Multi.update(:alias, changeset)
+    |> Journal.record(actor,
+      resource_type: "security_identifier_alias",
+      operation: :update,
+      source: :alias,
+      before: alias_row
+    )
+    |> Multi.prepend(Multi.run(Multi.new(), :isin_write_lock, &lock_isin_writes/2))
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{alias: updated}} -> {:ok, updated}
+      {:error, :former_isin_guard, %Changeset{} = error, _changes} -> {:error, error}
+      {:error, :alias, %Changeset{} = error, _changes} -> {:error, error}
+      {:error, {:journal_lock, _}, :not_found, _changes} -> {:error, :not_found}
+    end
   end
 
   @doc """
   Deletes all alias rows of a security, journaled per row — used by the
-  security delete path so the FK cascade stays a silent backstop only.
+  hardened security delete path (`Portfolixir.Lifecycle.Delete`, ADR-0050
+  §11). The foreign key restricts, so no cascade removes an alias silently.
   """
   def delete_all_for_security(%Actor{} = actor, security_id) when is_integer(security_id) do
     Repo.transaction(fn ->
@@ -199,6 +278,16 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
       is_nil(normalized) ->
         {:error, error_changeset(:new_isin, "can't be blank")}
 
+      # E25 S4 (G17) and S5 (G23): twelve characters of the ISIN shape with a
+      # check digit that agrees, before anything is looked up or moved into
+      # the alias table.
+      not Isin.valid?(normalized) ->
+        {:error,
+         error_changeset(
+           :new_isin,
+           "is not an ISIN (two letters, nine letters or digits and a check digit)"
+         )}
+
       normalized == security.isin ->
         {:error, error_changeset(:new_isin, "must differ from the current ISIN")}
 
@@ -259,11 +348,11 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
     end
   end
 
-  defp insert_alias(%Actor{} = actor, %Security{} = security, changed_on, note) do
+  defp insert_alias(%Actor{} = actor, %Security{} = security, former_isin, changed_on, note) do
     changeset =
       IdentifierAlias.changeset(%IdentifierAlias{}, %{
         security_id: security.id,
-        former_isin: security.isin,
+        former_isin: former_isin,
         changed_on: changed_on,
         note: note
       })
@@ -297,23 +386,7 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
     case Repo.transaction(multi) do
       {:ok, %{security: updated}} -> {:ok, updated}
       {:error, :security, %Changeset{} = error, _changes} -> {:error, error}
-    end
-  end
-
-  defp journaled_alias_update(%Actor{} = actor, %IdentifierAlias{} = before, changeset) do
-    multi =
-      Multi.new()
-      |> Multi.update(:alias, changeset)
-      |> Journal.record(actor,
-        resource_type: "security_identifier_alias",
-        operation: :update,
-        source: :alias,
-        before: before
-      )
-
-    case Repo.transaction(multi) do
-      {:ok, %{alias: updated}} -> {:ok, updated}
-      {:error, :alias, %Changeset{} = error, _changes} -> {:error, error}
+      {:error, {:journal_lock, _}, :not_found, _changes} -> {:error, :not_found}
     end
   end
 
@@ -336,6 +409,17 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
              )}
         end
     end
+  end
+
+  @doc """
+  Takes the ISIN write lock as an `Ecto.Multi` step, for a writer that must
+  hold it before the journal's row lock (E25 S6 review round, F49): the
+  lock every ISIN writer takes first.
+  """
+  @spec lock_isin_writes(Ecto.Repo.t(), map()) :: {:ok, :locked}
+  def lock_isin_writes(repo, _changes) do
+    :ok = acquire_isin_write_lock(repo)
+    {:ok, :locked}
   end
 
   defp acquire_isin_write_lock(repo) do

@@ -209,6 +209,23 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
   # freshly discovered logos to replace the initials placeholder without a page
   # reload. LogoStore broadcasts on the "security_logos" topic after every
   # store/remove so subscribed LiveViews can patch the affected row.
+  # E25 S2, F59: the directory is configuration, so a release keeps its logos
+  # on a volume outside its own tree. Unconfigured, it is the release's own
+  # priv directory, as before.
+  test "stores into the configured directory, and storage_dir/0 names it",
+       %{tmp: tmp, security: sec} do
+    assert LogoStore.storage_dir() ==
+             Application.app_dir(:portfolixir, "priv/static/security_logos")
+
+    previous = Application.get_env(:portfolixir, LogoStore, [])
+    Application.put_env(:portfolixir, LogoStore, Keyword.put(previous, :storage_dir, tmp))
+    on_exit(fn -> Application.put_env(:portfolixir, LogoStore, previous) end)
+
+    assert LogoStore.storage_dir() == tmp
+    assert {:ok, _} = LogoStore.store_manual_bytes(sec, @png, "image/png")
+    assert File.read!(Path.join(tmp, "#{sec.id}.png")) == @png
+  end
+
   describe "PubSub broadcast" do
     test "download_and_store broadcasts the updated security id",
          %{tmp: tmp, security: sec} do

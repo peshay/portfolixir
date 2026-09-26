@@ -15,6 +15,10 @@ description: Decision that strategy configuration survives a PP re-import throug
   ahead of all resolution and consults retired hashes; the in-run collapse key
   is scoped by the file's account names; account resolution gains a
   former-name tier; and §3's manual repair points at the security merge.
+  **Amended by the security pass E25 S5** (2026-09-25, Sprint 16, adopted
+  with its triage): the content hash and the reference key are injective
+  with every stored hash still valid, and a split-off tax refund books with
+  its row (see the amendment below).
 - **Date:** 2026-07-19
 
 ## Context
@@ -40,6 +44,19 @@ What the import actually does today (verified in
   identity (portfolio, security/account ids, normalized Decimals) skips
   re-imports whose only difference is PP-export drift.
 
+> **Amended by [ADR-0050](0050-lifecycle-merges-under-a-reimport-contract.html)
+> §4 (2026-09-24):** cash accounts and depots resolve by the exact live name
+> first, then by a **former name** — a name the account was renamed from, a
+> merged-away account's name, or a remembered remap — through one function
+> the preview's prefill and the apply share; an ambiguous tier prefills
+> nothing and the apply refuses the name unmapped.
+>
+> **Amended by ADR-0050 §3 (2026-09-24):** the content-hash check runs
+> **ahead of all resolution**, and a hash a merge retired
+> (`retired_import_hashes`) counts like a live one: a row whose hash is held
+> or retired triggers no security, cash or depot resolution, no creation and
+> no insert, and is reported with its layer (`hash` or `retired`).
+
 So the golden path — re-import a mutated export into a **live** database —
 already mostly works for ISIN-bearing securities. What is actually at risk,
 verified against the schemas:
@@ -59,6 +76,15 @@ verified against the schemas:
    identity** problem; bucket/view membership keys to depots/cash accounts,
    whose renames are covered by the existing user-driven mapping step (which
    any future non-interactive path must mirror, see §2).
+
+   > **Amended by [ADR-0050](0050-lifecycle-merges-under-a-reimport-contract.html)
+   > (2026-09-24):** this sentence held only while the operator remapped by
+   > hand on every import. A rename over the API created an empty account
+   > under the old name on the next import, and with a drifted export booked
+   > the history a second time. Accounts now remember their former names
+   > (§4 there), are created only with their first new booking (§4), and a
+   > merge of two accounts leaves the source's name as a former name of the
+   > target (§7).
 2. **ISIN-less securities** (crypto, watch-only, some certificates): `isin`
    is nullable and only unique-when-present. The `(name, currency)` fallback
    breaks on any rename in PP — the import then creates a duplicate and the
@@ -185,6 +211,14 @@ Hardened by the 2026-07-22 adversarial-review round, equally binding:
   merged target, and within one apply run rows collapsing to an identical
   resolved dedup key are deduplicated and surfaced in the result, not
   double-inserted.
+
+  > **Amended by [ADR-0050](0050-lifecycle-merges-under-a-reimport-contract.html)
+  > §6 (2026-09-24):** the in-run key is scoped by the file's account names,
+  > `{dedup_key, time, pp_portfolio_name, pp_account_name,
+  > pp_counter_portfolio_name, pp_counter_account_name}`. Old and new ISIN of
+  > one booking under one account still collapse; two equal rows from
+  > different file accounts that resolve to one account (twin fees after a
+  > merge) are both inserted.
 - **Non-interactive paths fail closed:** no API/MCP import path exists
   today (the applier's "JSON-API entry point" auto-resolve is a stale
   premise — there is no `/api/v1` imports route); if one ships, entries
@@ -253,6 +287,18 @@ Guards, made precise by the 2026-07-22 review round:
   follow-up — the securities analogue of #328 — per scope lock). The §4
   round-trip test gains a wrong-ordering variant asserting the conflict is
   surfaced, not silently merged.
+
+  > **Amended by [ADR-0050](0050-lifecycle-merges-under-a-reimport-contract.html)
+  > §9 (2026-09-24):** the journaled security merge named here as a
+  > follow-up is decided there. For the wrong-order case, merging the
+  > duplicate into the original with the identity choice
+  > `adopt_source_isin` (the original takes the new ISIN, its old one becomes
+  > the alias) and `collapse_key_equal: true` (the duplicated bookings are
+  > deleted with their content hashes retired) is the repair; the manual
+  > steps above stand only until that merge ships. It shipped in Sprint 16
+  > over the API and MCP (`POST /api/v1/securities/:id/merge`,
+  > `portfolixir.securities.merge`); the operator's dialog follows in the
+  > same batch.
 
 **Rejected: a first-class ledger kind** (`isin_change`). Unlike a split it
 has **no projection effect** — no quantity leg, no cash leg, no external
@@ -427,6 +473,84 @@ Shape (binding for Story 18.3, hardened 2026-07-22):
   reconcile request/response contract, identifier normalization, and the
   FR-29 rescope wording — are applied to the sections above. The draft is
   review-hardened and ready for owner sign-off.
+
+## Amendment: injective identity keys, and a refund books with its row (2026-09-25, E25 S5)
+
+Two identity keys of this record joined their fields with an unescaped `|`:
+the content `import_hash` (#533) and the preview's security reference key
+(§2). A separator moved from one field into its neighbour gave two different
+rows one hash, so the second was skipped as already imported, and two
+different references one key, so one preview decision applied to both
+(security triage 2026-09-24, F36; risk-tier: idempotency, ADR-0036).
+
+- **The content hash stays byte-identical for every row without the
+  separator in a field** — such a join has one reading — so every hash
+  stored for such a row stays valid. A row with the separator in a field is
+  hashed over its length-prefixed fields behind a leading byte no joined form
+  begins with (`Portfolixir.Imports.ImportHash`), and also consults the hash
+  the joined formula gave it, so a row stored before the change is still
+  recognised. That lookup is ambiguous by construction; it errs towards
+  "already booked" (nothing books twice), matches only rows stored before
+  the change, and the result lists the row it skipped.
+- **The reference key is length-prefixed per field**, an absent field marked
+  as such. It lives only as long as a preview, so no stored value depends on
+  its form. One key standing for two references **fails closed**: both are
+  a decision no choice settles, and the apply is refused.
+- Pinned by `import_hash_test.exs` (a digest computed with the Sprint 15
+  formula) and `import_hash_reimport_test.exs` (a re-import of a row stored
+  under that formula books nothing; two rows that joined to one string both
+  book; two references that joined to one string resolve separately).
+
+**A split-off tax refund books with its row** (F37; risk-tier: idempotency).
+The parsers split a negative tax of a row into a `tax_refund` companion
+entry. It used to be hashed as a row of its own, so two different rows with
+equal refunds (one date, account, security and amount) gave their refunds one
+hash, and the second refund was skipped as already imported.
+
+- A companion's hash folds in its parent's hash and its position among the
+  parent's companions (`ImportHash.companion/4`), so equal refunds of
+  different rows hash apart.
+- A companion is **judged by its own identity, with its parent** (amended
+  by the S5 review round, 2026-09-25). The parent's hash and economic key
+  leave the split-off refund out — the parsers move the negative tax off the
+  row — so the parent's outcome cannot say whether the refund is booked.
+  Once its parent was imported or found already booked, a companion is
+  skipped when a transaction or a merge holds its own hash or the hash the
+  Sprint 15 formula gave it as a row of its own, or when a booking stored
+  before the run has its economic key; it collapses onto an earlier
+  companion of the file only when its parent collapsed onto that
+  companion's parent (the in-run key alone would take two equal refunds of
+  two different rows for one); otherwise it books. A companion of a row
+  that is not imported (unimportable, an internal transfer, an undecided
+  security) is skipped with it and names that row. The preview counts a
+  companion by the same hashes.
+- So a re-import books nothing twice — a refund stored under either formula
+  is found by its own hash, and a drifted export's refund by its economic
+  key — a row deleted by hand books again without its refund, and a refund
+  added in Portfolio Performance to a row already imported books on the next
+  import.
+- What this does not repair, the closed direction: a refund the Sprint 15
+  formula skipped wrongly is not booked by a re-import, because its twin
+  holds the hash that formula gives both; a standalone refund row with the
+  same fields holds that hash too; and a corrected refund amount on a row
+  already imported books as a new refund beside the old one.
+
+**Within-file duplicates collapse, and this is deliberate.** A row that
+repeats an earlier row of the same file exactly holds the same content hash:
+the first copy books, and the repeat is reported as already booked (layer
+`hash`) with its companions. Rows that differ in the file but resolve to one
+booking (§2's N:1 case) collapse on the in-run key of ADR-0050 §6, scoped by
+the file's account names and the time of day. Two genuinely separate
+bookings that a Portfolio Performance export renders identically — the same
+kind, date, time, security, amounts and accounts — therefore book once; the
+result names the collapsed row, so the operator can book the second by hand.
+Pinned by `companion_hash_test.exs` (two different parents with equal refunds
+book both; a companion stored under the Sprint 15 formula is recognised on
+re-import; a companion is skipped with a parent that is not imported; a sale
+deleted by hand books again alone, its refund stored under either formula; a
+refund added to a sale already imported books on the next import; a
+re-export whose sale drifted books no refund twice; a collapsed row's refund
+collapses with its twin's, and books when its twin has none).
 
 ## References
 

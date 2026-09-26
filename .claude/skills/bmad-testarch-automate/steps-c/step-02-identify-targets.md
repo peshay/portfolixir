@@ -75,6 +75,19 @@ Use CLI to explore the application and identify testable pages/flows:
 - Map service-to-service integrations and message queue consumers/producers
 - Check for existing contract tests (Pact, etc.)
 
+**If {detected_stack} is `mobile`:**
+
+**Source & Screen Analysis (no browser exploration; `playwright-cli` cannot drive a native app):**
+
+- Map the navigation graph: screens, routes, tab structure, modal presentation
+- Extract accessibility identifiers from source (`testID` in React Native, `accessibilityIdentifier` on iOS, `android:id` / `resource-id` on Android, `Semantics` in Flutter). These are the selectors flows will use, so a screen with none is a testability finding, not a flow to improvise around.
+- Identify OS-integration points: permission requests, deep links, push handlers, background and foreground hooks, biometric prompts
+- Identify local persistence: keychain, secure storage, local database, and what an upgrade migrates
+- Map the app's HTTP boundary for subagent A
+- Check for existing `maestro/` flows and read them for repo conventions before generating alongside them
+
+**If `maestro studio` is available and a simulator is booted**, it may be used to confirm element identifiers interactively. Never assume a device is available; when it is not, work from source and record unresolved identifiers as assumptions rather than guessing them.
+
 ---
 
 **If `use_pactjs_utils` is enabled — Provider Endpoint Mapping (all stacks):**
@@ -90,12 +103,12 @@ When consumer-driven contract tests will be generated, build a Provider Endpoint
    - OpenAPI spec path (if available, e.g., `server/openapi.yaml`)
 3. **Output as "Provider Endpoint Map" table** in the coverage plan:
 
-```markdown
-| Consumer Endpoint     | Provider File                     | Route                     | Validation Schema                   | Response Type   | OpenAPI Spec                                      |
-| --------------------- | --------------------------------- | ------------------------- | ----------------------------------- | --------------- | ------------------------------------------------- |
-| GET /api/v2/users/:id | server/src/routes/userHandlers.ts | GET /api/v2/users/:userId | server/src/validation/user.ts       | UserResponseDto | server/openapi.yaml#/paths/~1api~1v2~1users~1{id} |
-| POST /api/v2/users    | server/src/routes/userHandlers.ts | POST /api/v2/users        | server/src/validation/createUser.ts | UserResponseDto | server/openapi.yaml#/paths/~1api~1v2~1users       |
-```
+   ```markdown
+   | Consumer Endpoint     | Provider File                     | Route                     | Validation Schema                   | Response Type   | OpenAPI Spec                                      |
+   | --------------------- | --------------------------------- | ------------------------- | ----------------------------------- | --------------- | ------------------------------------------------- |
+   | GET /api/v2/users/:id | server/src/routes/userHandlers.ts | GET /api/v2/users/:userId | server/src/validation/user.ts       | UserResponseDto | server/openapi.yaml#/paths/~1api~1v2~1users~1{id} |
+   | POST /api/v2/users    | server/src/routes/userHandlers.ts | POST /api/v2/users        | server/src/validation/createUser.ts | UserResponseDto | server/openapi.yaml#/paths/~1api~1v2~1users       |
+   ```
 
 4. **If provider source not accessible**: Mark entries with `TODO — provider source not accessible` and note in coverage plan that provider scrutiny will use graceful degradation (see `contract-testing.md` Provider Scrutiny Protocol)
 

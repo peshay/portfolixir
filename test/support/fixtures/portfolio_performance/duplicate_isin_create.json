@@ -11,7 +11,7 @@
    "shares": 5.0,
    "security": {
     "name": "First AG",
-    "isin": "DE000COLL001",
+    "isin": "DE000COLL006",
     "currency": "EUR"
    }
   },
@@ -26,7 +26,7 @@
    "security": {
     "name": "Second AG",
     "wkn": "AMB001",
-    "isin": "DE000COLL001",
+    "isin": "DE000COLL006",
     "currency": "EUR"
    }
   }

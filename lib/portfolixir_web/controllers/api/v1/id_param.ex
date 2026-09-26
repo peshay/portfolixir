@@ -12,7 +12,10 @@ defmodule PortfolixirWeb.Api.V1.IdParam do
 
   `PortfolixirWeb.Api.V1.IdRangeGuard` applies `int8?/1` to every id-shaped
   param before a controller runs, so a route added later cannot forget it;
-  the controllers use `parse/1` for their own well-formedness checks.
+  the controllers use `parse/1` for their own well-formedness checks. The
+  pages read every id they are handed through it too, by way of
+  `PortfolixirWeb.LiveParam` (E25 S4), so a page and the API accept exactly
+  the same ids.
   """
 
   @max_int8 9_223_372_036_854_775_807

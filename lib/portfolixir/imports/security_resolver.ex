@@ -8,7 +8,8 @@ defmodule Portfolixir.Imports.SecurityResolver do
   4 `(name, currency)`. Determinism rules, all binding:
 
     * a tier applies only when its field is present on **both** sides, in the
-      catalog normal form (trimmed, upcased ISIN/WKN/ticker; trimmed name);
+      catalog normal form (trimmed, upcased ISIN/WKN/ticker; trimmed name
+      without format characters, E25 S5 G23);
     * a tier with zero candidates falls through to the next tier;
     * a tier matching **ambiguously** (>= 2 candidates) neither picks nor
       falls through — the entry becomes a surfaced decision;
@@ -32,7 +33,7 @@ defmodule Portfolixir.Imports.SecurityResolver do
   `resolution_plan/2` (one classified row per unique reference, with a stable
   form-safe key), `config_at_risk/2` (a to-be-created reference near-matching
   an existing security that carries stored category assignments or position
-  targets, ADR-0030), and `unmatched_config_securities/2` (the pre-apply
+  targets, ADR-0030; names compared by `skeleton/1`), and `unmatched_config_securities/2` (the pre-apply
   inverse check: config-bearing, transacted securities matched by zero
   entries).
   """
@@ -43,6 +44,7 @@ defmodule Portfolixir.Imports.SecurityResolver do
   alias Portfolixir.Classifications
   alias Portfolixir.Imports.Entry
   alias Portfolixir.Imports.Preview
+  alias Portfolixir.Input.Text
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Repo
@@ -76,6 +78,7 @@ defmodule Portfolixir.Imports.SecurityResolver do
               by_ticker_ccy: %{},
               by_name_ccy: %{},
               by_name: %{},
+              by_skeleton: %{},
               by_ticker: %{},
               assignment_ids: MapSet.new(),
               position_target_ids: MapSet.new(),
@@ -91,12 +94,42 @@ defmodule Portfolixir.Imports.SecurityResolver do
   """
   @spec load_index() :: Index.t()
   def load_index do
-    securities = Repo.all(from(s in Security, order_by: s.id))
+    %Index{
+      ladder_index()
+      | assignment_ids: Classifications.security_ids_with_assignments(),
+        position_target_ids: Targets.security_ids_with_position_targets(),
+        transacted_ids: Ledger.security_ids_with_transactions()
+    }
+  end
+
+  @doc """
+  The ladder's part of `load_index/0` — every security and the former-ISIN
+  alias table as stored — without the configuration sets the preview
+  machinery adds: what `resolve/2` reads.
+  """
+  @spec ladder_index() :: Index.t()
+  def ladder_index do
+    index_from(Repo.all(from(s in Security, order_by: s.id)), IdentifierAliases.by_former_isin())
+  end
+
+  @doc """
+  The ladder's index over `securities` and the former-ISIN map
+  `former_isins` (`former_isin => security_id`), as `load_index/0` builds it
+  from the stored catalog. A security merge builds it over the catalog it
+  would leave behind (ADR-0050 §9's resolvability precondition): the source
+  gone, the target with the identifiers it will carry, and every former ISIN
+  of either a former ISIN of the target. An entry of `former_isins` naming a
+  security that is not in `securities` is left out.
+  """
+  @spec index_from([Security.t()], %{optional(String.t()) => integer()}) :: Index.t()
+  def index_from(securities, former_isins) when is_list(securities) and is_map(former_isins) do
     by_id = Map.new(securities, &{&1.id, &1})
 
     by_former_isin =
-      IdentifierAliases.by_former_isin()
-      |> Map.new(fn {former, security_id} -> {former, Map.fetch!(by_id, security_id)} end)
+      for {former, security_id} <- former_isins,
+          %Security{} = security <- [Map.get(by_id, security_id)],
+          into: %{},
+          do: {former, security}
 
     %Index{
       securities_by_id: by_id,
@@ -106,10 +139,8 @@ defmodule Portfolixir.Imports.SecurityResolver do
       by_ticker_ccy: group_by_field(securities, &ticker_ccy_key/1),
       by_name_ccy: group_by_field(securities, &name_ccy_key/1),
       by_name: group_by_field(securities, &normalize_name(&1.name)),
-      by_ticker: group_by_field(securities, & &1.ticker_symbol),
-      assignment_ids: Classifications.security_ids_with_assignments(),
-      position_target_ids: Targets.security_ids_with_position_targets(),
-      transacted_ids: Ledger.security_ids_with_transactions()
+      by_skeleton: group_by_field(securities, &skeleton(&1.name)),
+      by_ticker: group_by_field(securities, & &1.ticker_symbol)
     }
   end
 
@@ -156,8 +187,11 @@ defmodule Portfolixir.Imports.SecurityResolver do
 
   defp normalize_code(_value), do: nil
 
+  # The catalog normal form of a name drops the format characters that render
+  # as nothing (E25 S5, G23), as the catalog does when it stores one, so a
+  # name differing from a stored one only by them matches it.
   defp normalize_name(value) when is_binary(value) do
-    case String.trim(value) do
+    case value |> Text.strip_format_characters() |> String.trim() do
       "" -> nil
       trimmed -> trimmed
     end
@@ -165,20 +199,118 @@ defmodule Portfolixir.Imports.SecurityResolver do
 
   defp normalize_name(_value), do: nil
 
+  # Lookalike letters from other scripts, folded onto the Latin letter they
+  # render as once lowercased: Cyrillic and Greek.
+  @confusables %{
+    "\u0430" => "a",
+    "\u0432" => "b",
+    "\u0441" => "c",
+    "\u0501" => "d",
+    "\u0435" => "e",
+    "\u04BB" => "h",
+    "\u0456" => "i",
+    "\u0458" => "j",
+    "\u043A" => "k",
+    "\u04CF" => "l",
+    "\u043C" => "m",
+    "\u043D" => "h",
+    "\u043E" => "o",
+    "\u0440" => "p",
+    "\u051B" => "q",
+    "\u0455" => "s",
+    "\u0442" => "t",
+    "\u0443" => "y",
+    "\u051D" => "w",
+    "\u0445" => "x",
+    "\u03B1" => "a",
+    "\u03B2" => "b",
+    "\u03B5" => "e",
+    "\u03B9" => "i",
+    "\u03BA" => "k",
+    "\u03BD" => "v",
+    "\u03BF" => "o",
+    "\u03C1" => "p",
+    "\u03C4" => "t",
+    "\u03C5" => "u",
+    "\u03C7" => "x"
+  }
+
+  @doc """
+  The skeleton a name is compared by in the configuration-at-risk check
+  (E25 S5, G23): no format characters, compatibility-normalized (NFKC, so a
+  full-width or styled letter is its plain one), lowercased, lookalike
+  Cyrillic and Greek letters folded onto the Latin letter they render as, and
+  every run of whitespace one space. Two names with one skeleton look alike
+  to a reader; `nil` for a name with nothing left.
+  """
+  @spec skeleton(String.t() | nil) :: String.t() | nil
+  def skeleton(name) when is_binary(name) do
+    if String.valid?(name) do
+      name
+      |> Text.strip_format_characters()
+      |> String.normalize(:nfkc)
+      |> String.downcase()
+      |> String.graphemes()
+      |> Enum.map_join(&Map.get(@confusables, &1, &1))
+      |> String.split()
+      |> Enum.join(" ")
+      |> case do
+        "" -> nil
+        folded -> folded
+      end
+    end
+  end
+
+  def skeleton(_name), do: nil
+
   @doc """
   A stable, form-field-safe key for a normalized reference: the SHA-256 (hex,
-  truncated to 128 bits) of the canonical identity string. The preview's
-  override form, the applier's `security_mappings`, and the preview→apply
-  revalidation all address a reference by this key.
+  truncated to 128 bits) of the reference's identity fields, each
+  length-prefixed and an absent one marked as such (E25 S5, F36), so two
+  different references never encode to one string — the fields used to be
+  joined with an unescaped `|`, and a separator moved from one field into its
+  neighbour gave two references one key and one preview decision. The
+  preview's override form, the applier's `security_mappings`, and the
+  preview→apply revalidation all address a reference by this key; it lives
+  only as long as a preview, so no stored value depends on its form.
   """
   @spec key(ref()) :: String.t()
   def key(%{} = ref) do
     [ref.isin, ref.wkn, ref.ticker, ref.name, ref.currency]
-    |> Enum.map(&(&1 || ""))
-    |> Enum.join("|")
+    |> Enum.map(fn
+      nil -> "-"
+      field -> [Integer.to_string(byte_size(field)), ":", field]
+    end)
     |> then(&:crypto.hash(:sha256, &1))
     |> Base.encode16(case: :lower)
     |> binary_part(0, 32)
+  end
+
+  @doc """
+  The references keyed by `key_fun` (`key/1` by default), one entry per
+  distinct reference in first-seen order — or, **failing closed** (E25 S5,
+  F36), `{:error, {:security_key_collision, key}}` when one key stands for
+  two distinct references: one decision would otherwise apply to a security
+  nobody decided. `key/1` is injective up to its 128-bit digest, so this is
+  a tripwire, not a path.
+  """
+  @spec unique_keys([ref()], (ref() -> String.t())) ::
+          {:ok, [{String.t(), ref()}]} | {:error, {:security_key_collision, String.t()}}
+  def unique_keys(refs, key_fun \\ &key/1) do
+    refs
+    |> Enum.uniq()
+    |> Enum.reduce_while({[], %{}}, fn ref, {keyed, seen} ->
+      key = key_fun.(ref)
+
+      case Map.fetch(seen, key) do
+        :error -> {:cont, {[{key, ref} | keyed], Map.put(seen, key, ref)}}
+        {:ok, _other} -> {:halt, {:error, {:security_key_collision, key}}}
+      end
+    end)
+    |> case do
+      {:error, _} = collision -> collision
+      {keyed, _seen} -> {:ok, Enum.reverse(keyed)}
+    end
   end
 
   @doc "True when the reference carries no usable identity at all."
@@ -327,7 +459,15 @@ defmodule Portfolixir.Imports.SecurityResolver do
   """
   @spec config_at_risk(ref(), Index.t()) :: [map()]
   def config_at_risk(%{} = ref, %Index{} = index) do
-    (Map.get(index.by_name, ref.name, []) ++ Map.get(index.by_ticker, ref.ticker, []))
+    # By skeleton (E25 S5, G23): a name that only looks like a stored one
+    # (invisible characters, lookalike letters, case) near-matches it.
+    by_name =
+      case skeleton(ref.name) do
+        nil -> []
+        folded -> Map.get(Map.get(index, :by_skeleton, %{}), folded, [])
+      end
+
+    (by_name ++ Map.get(index.by_ticker, ref.ticker, []))
     |> Enum.uniq_by(& &1.id)
     |> Enum.filter(&config_bearing?(&1.id, index))
     |> Enum.map(fn security ->
@@ -357,16 +497,45 @@ defmodule Portfolixir.Imports.SecurityResolver do
     * `conflict` / `candidates` — the surfaced decision for `:needs_decision`,
     * `at_risk` — the `config_at_risk/2` list for `:config_at_risk`.
   """
-  @spec resolution_plan(Preview.t(), Index.t()) :: [map()]
-  def resolution_plan(%Preview{entries: entries}, %Index{} = index) do
-    entries
-    |> Entry.flatten()
-    |> Enum.filter(& &1.security)
-    |> Enum.map(fn entry -> {effective_ref(entry), entry.source_row} end)
-    |> Enum.reject(fn {ref, _row} -> blank_ref?(ref) end)
-    |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
-    |> Enum.map(fn {ref, rows} -> classify(ref, rows, index) end)
+  #
+  # A key that stands for two references (E25 S5, F36) fails closed: every
+  # reference behind it is a decision no choice can settle, and the apply
+  # refuses the file (`unique_keys/2`).
+  @spec resolution_plan(Preview.t(), Index.t(), (ref() -> String.t())) :: [map()]
+  def resolution_plan(%Preview{entries: entries}, %Index{} = index, key_fun \\ &key/1) do
+    grouped =
+      entries
+      |> Entry.flatten()
+      |> Enum.filter(& &1.security)
+      |> Enum.map(fn entry -> {effective_ref(entry), entry.source_row} end)
+      |> Enum.reject(fn {ref, _row} -> blank_ref?(ref) end)
+      |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+
+    colliding =
+      grouped
+      |> Map.keys()
+      |> Enum.frequencies_by(key_fun)
+      |> Enum.flat_map(fn {key, count} -> if count > 1, do: [key], else: [] end)
+      |> MapSet.new()
+
+    grouped
+    |> Enum.map(fn {ref, rows} ->
+      key = key_fun.(ref)
+
+      if MapSet.member?(colliding, key),
+        do: key_collision(ref, key, rows),
+        else: classify(ref, key, rows, index)
+    end)
     |> Enum.sort_by(&{status_rank(&1.status), &1.label})
+  end
+
+  defp key_collision(ref, key, rows) do
+    ref
+    |> base_row(key, rows)
+    |> Map.merge(%{
+      status: :needs_decision,
+      conflict: %{type: :key_collision, tier: nil, candidates: []}
+    })
   end
 
   @doc """
@@ -381,9 +550,9 @@ defmodule Portfolixir.Imports.SecurityResolver do
     %{normalized | currency: normalized.currency || normalize_code(entry.currency_code)}
   end
 
-  defp classify(ref, rows, index) do
-    base = %{
-      key: key(ref),
+  defp base_row(ref, key, rows) do
+    %{
+      key: key,
       ref: ref,
       label: ref.name || ref.isin || ref.wkn || ref.ticker,
       rows: Enum.sort(rows),
@@ -393,6 +562,10 @@ defmodule Portfolixir.Imports.SecurityResolver do
       candidates: [],
       at_risk: []
     }
+  end
+
+  defp classify(ref, key, rows, index) do
+    base = base_row(ref, key, rows)
 
     case resolve(ref, index) do
       {:match, security, tier} ->

@@ -51,6 +51,8 @@ defmodule Portfolixir.Portfolios.PolicyRuleVersion do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Portfolixir.Input.BoundedDate
+  alias Portfolixir.Input.Text
   alias Portfolixir.Portfolios.PolicyRule
 
   @subject_types ~w(basis security category view cash)a
@@ -58,6 +60,9 @@ defmodule Portfolixir.Portfolios.PolicyRuleVersion do
   @kinds ~w(cap floor band)a
   @severities ~w(warn hard)a
   @windows [:"30d", :"90d", :"365d"]
+  # The research log's words for who wrote a record (ADR-0044 §2), minus the
+  # local model, which writes no rule.
+  @authors [:operator, :agent]
 
   @metric_measures [:volatility, :max_drawdown]
 
@@ -96,10 +101,23 @@ defmodule Portfolixir.Portfolios.PolicyRuleVersion do
     field(:note, :string)
     field(:valid_from, :date)
     field(:valid_until, :date)
+    # Who wrote the version (E25 S7, G30): set by the context from the
+    # write's actor (`author_for/1`), never cast from input; `nil` only on a
+    # version stored before authors existed that has no journaled creation.
+    field(:author, Ecto.Enum, values: @authors)
 
     belongs_to(:policy_rule, PolicyRule)
 
     timestamps()
+  end
+
+  @doc """
+  Every field of a version's predicate and period, as strings: what a rename
+  of the rule refuses to carry (#872), because it belongs to a version.
+  """
+  def predicate_fields do
+    (__schema__(:fields) -- [:id, :policy_rule_id, :inserted_at, :updated_at])
+    |> Enum.map(&Atom.to_string/1)
   end
 
   @doc "The closed subject set, as strings (API/MCP schema mirror)."
@@ -116,6 +134,33 @@ defmodule Portfolixir.Portfolios.PolicyRuleVersion do
 
   @doc "The ADR-0047 windows a metric rule reads, as strings."
   def windows, do: Enum.map(@windows, &Atom.to_string/1)
+
+  @doc "The closed author set, as strings."
+  def authors, do: Enum.map(@authors, &Atom.to_string/1)
+
+  @doc """
+  The author of a version written by `actor` (E25 S7, G30, T-8): `:agent`
+  for an API or MCP token, read-write or read-only, named or not; `:operator`
+  for every other writer — the Risk page, and the instance's own jobs, none
+  of which writes a rule today. The mark exists to tell the agent's lines
+  from the operator's own, so only a token's write is the agent's.
+  """
+  @spec author_for(Portfolixir.Actor.t()) :: :operator | :agent
+  def author_for(%Portfolixir.Actor{type: type}) when type in [:api_token_rw, :api_token_ro],
+    do: :agent
+
+  def author_for(%Portfolixir.Actor{}), do: :operator
+
+  @doc """
+  Sets the author of a new version's changeset from the actor of the write
+  (`author_for/1`); the input never carries it.
+  """
+  @spec put_author(Ecto.Changeset.t(), Portfolixir.Actor.t()) :: Ecto.Changeset.t()
+  def put_author(changeset, actor) do
+    changeset
+    |> put_change(:author, author_for(actor))
+    |> check_constraint(:author, name: :policy_rule_versions_author_check)
+  end
 
   @doc "The subjects each measure is read for (§2)."
   @spec matrix() :: %{atom() => [atom()]}
@@ -160,6 +205,9 @@ defmodule Portfolixir.Portfolios.PolicyRuleVersion do
       :severity,
       :valid_from
     ])
+    # E25 S4, F70: the start a rule is checked against is the start stored.
+    |> BoundedDate.validate([:valid_from])
+    |> Text.validate(:note, multiline: true, max: Text.free_text_max())
     |> validate_matrix()
     |> validate_subject()
     |> validate_window()
@@ -178,6 +226,7 @@ defmodule Portfolixir.Portfolios.PolicyRuleVersion do
     |> check_constraint(:subject_type, name: :policy_rule_versions_subject_check)
     |> check_constraint(:threshold, name: :policy_rule_versions_thresholds_check)
     |> check_constraint(:valid_until, name: :policy_rule_versions_period_check)
+    |> check_constraint(:note, name: :policy_rule_versions_note_length_check)
     |> exclusion_constraint(:valid_from,
       name: :policy_rule_versions_no_overlap,
       message: "overlaps another version of this rule"

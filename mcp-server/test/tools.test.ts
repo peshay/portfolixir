@@ -19,6 +19,8 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.securities.delete",
       "portfolixir.securities.isin_change",
       "portfolixir.securities.delete_isin_alias",
+      "portfolixir.securities.merge_preview",
+      "portfolixir.securities.merge",
       "portfolixir.securities.search_online",
       "portfolixir.securities.metrics",
       "portfolixir.events.list",
@@ -36,16 +38,23 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.quotes.sync",
       "portfolixir.quotes.list",
       "portfolixir.quotes.upsert",
+      "portfolixir.quotes.release",
       "portfolixir.portfolios.list",
       "portfolixir.portfolios.create",
       "portfolixir.cash_accounts.list",
       "portfolixir.cash_accounts.create",
       "portfolixir.cash_accounts.update",
       "portfolixir.cash_accounts.delete",
+      "portfolixir.cash_accounts.remove_former_name",
+      "portfolixir.cash_accounts.merge_preview",
+      "portfolixir.cash_accounts.merge",
       "portfolixir.securities_accounts.list",
       "portfolixir.securities_accounts.create",
       "portfolixir.securities_accounts.update",
       "portfolixir.securities_accounts.delete",
+      "portfolixir.securities_accounts.remove_former_name",
+      "portfolixir.securities_accounts.merge_preview",
+      "portfolixir.securities_accounts.merge",
       "portfolixir.transactions.list",
       "portfolixir.transactions.create",
       "portfolixir.transactions.update",
@@ -85,6 +94,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.policy_rules.get",
       "portfolixir.policy_rules.create",
       "portfolixir.policy_rules.add_version",
+      "portfolixir.policy_rules.rename",
       "portfolixir.policy_rules.retire",
       "portfolixir.policy_rules.delete",
       "portfolixir.portfolios.policy_findings",
@@ -95,6 +105,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.portfolios.performance",
       "portfolixir.portfolios.benchmark",
       "portfolixir.journal.list",
+      "portfolixir.merges.list",
       "portfolixir.buckets.list",
       "portfolixir.buckets.get",
       "portfolixir.buckets.create",
@@ -193,26 +204,30 @@ describe("Portfolixir MCP tools", () => {
       "string"
     );
 
-    // The quote `source` is a closed set in the backend (Catalog.Quote @sources);
-    // expose it as an enum so an LLM does not guess a free-form value and hit an
-    // opaque 422 (#508).
+    // E25 S6, F20 (decision T-9): a quote an agent writes is manual, so the
+    // schema offers `manual` alone and may omit it; a provider source is the
+    // sync's to state and is refused before any request (#508's closed set,
+    // narrowed).
     const quoteUpsert = tools.find((tool) => tool.name === "portfolixir.quotes.upsert");
     assert.deepEqual(
       quoteUpsert?.inputSchema.properties.quotes.items.properties.source.enum,
-      ["auto", "manual", "coingecko", "portfolio_performance"]
+      ["manual"]
     );
-    assert.doesNotThrow(() =>
-      quoteUpsert?.zodSchema.parse({
-        security_id: 1,
-        quotes: [{ date: "2026-06-19", close: "100.00", source: "manual" }]
-      })
-    );
-    assert.throws(() =>
-      quoteUpsert?.zodSchema.parse({
-        security_id: 1,
-        quotes: [{ date: "2026-06-19", close: "100.00", source: "e2e" }]
-      })
-    );
+    assert.deepEqual(quoteUpsert?.inputSchema.properties.quotes.items.required, ["date", "close"]);
+    for (const quote of [
+      { date: "2026-06-19", close: "100.00", source: "manual" },
+      { date: "2026-06-19", close: "100.00" }
+    ]) {
+      assert.doesNotThrow(() => quoteUpsert?.zodSchema.parse({ security_id: 1, quotes: [quote] }));
+    }
+    for (const source of ["e2e", "auto", "coingecko", "portfolio_performance"]) {
+      assert.throws(() =>
+        quoteUpsert?.zodSchema.parse({
+          security_id: 1,
+          quotes: [{ date: "2026-06-19", close: "100.00", source }]
+        })
+      );
+    }
 
     assert.doesNotThrow(() =>
       securitiesCreate?.zodSchema.parse({
@@ -1032,6 +1047,144 @@ describe("Portfolixir MCP tools", () => {
     assert.match(result.content[0].text, /category_id/);
   });
 
+  // E25 S6, G27 under decision T-9: the journaled release of manual quotes,
+  // agent-first — its control on the security page is Sprint 17's.
+  it("releases a security's manual quotes of a range through the API", async () => {
+    const { client, requests } = createRecordingClient({
+      data: { security_id: 42, from: "2026-02-01", to: "2026-02-28", released: ["2026-02-02"] }
+    });
+
+    const result = await callTool(client, "portfolixir.quotes.release", {
+      security_id: 42,
+      from: "2026-02-01",
+      to: "2026-02-28"
+    });
+
+    assert.equal(requests[0].method, "POST");
+    assert.equal(requests[0].path, "/api/v1/securities/42/quotes/release");
+    assert.deepEqual(requests[0].body, { from: "2026-02-01", to: "2026-02-28" });
+    assert.match(result.content[0].text, /2026-02-02/);
+
+    const release = listTools().find((tool) => tool.name === "portfolixir.quotes.release");
+    assert.deepEqual(release?.inputSchema.required, ["security_id", "from", "to"]);
+    assert.match(release?.description ?? "", /journal/i);
+    assert.match(release?.description ?? "", /Sprint 17/);
+    assert.throws(() => release?.zodSchema.parse({ security_id: 42, from: "2026-02-01" }));
+
+    const upsert = listTools().find((tool) => tool.name === "portfolixir.quotes.upsert");
+    assert.match(upsert?.description ?? "", /stored as manual/);
+    assert.match(upsert?.description ?? "", /replaced/);
+  });
+
+  // E25 S6, G06: a delta read's as_of lies no later than the oldest write
+  // still in flight, and the tools say so where the agent reads them: the
+  // next read may re-deliver a row, never skip one.
+  it("states that a delta read's as_of may re-deliver a row but never skips one", () => {
+    const description = (name: string) =>
+      listTools().find((tool) => tool.name === name)?.description ?? "";
+
+    for (const name of [
+      "portfolixir.securities.list",
+      "portfolixir.transactions.list",
+      "portfolixir.notes.list",
+      "portfolixir.events.list",
+      "portfolixir.targets.list",
+      "portfolixir.targets.list_positions"
+    ]) {
+      assert.match(description(name), /never skips? one/, name);
+    }
+  });
+
+  // E25 S6, F43: a delete removes its children through their journaled
+  // writers first, one entry per row, and the tools say what goes with it.
+  it("states the per-row journaled children of the classification, category, plan and view deletes", () => {
+    const description = (name: string) =>
+      listTools().find((tool) => tool.name === name)?.description ?? "";
+
+    for (const name of [
+      "portfolixir.classifications.delete",
+      "portfolixir.classifications.categories.delete",
+      "portfolixir.plans.delete",
+      "portfolixir.views.delete"
+    ]) {
+      assert.match(description(name), /journaled as its own delete|journaled one delete each/);
+    }
+
+    assert.match(description("portfolixir.classifications.delete"), /assignments/);
+    assert.match(description("portfolixir.views.delete"), /snapshots/);
+  });
+
+  // E25 S6, F45 and T-10: view-definition writes are journaled with the sets
+  // before and after, and a bucket delete rewrites every owner through its
+  // journaled writer, an emptied override staying explicit-empty.
+  it("states the journaled view writes and the bucket delete's explicit-empty rule", () => {
+    const description = (name: string) =>
+      listTools().find((tool) => tool.name === name)?.description ?? "";
+
+    for (const name of ["portfolixir.views.update", "portfolixir.views.set_buckets"]) {
+      assert.match(description(name), /journaled/i);
+      assert.match(description(name), /before and after/);
+    }
+
+    assert.match(description("portfolixir.views.delete"), /journaled/);
+
+    const bucketDelete = description("portfolixir.buckets.delete");
+    assert.match(bucketDelete, /journaled/);
+    assert.match(bucketDelete, /explicit-empty/);
+    assert.match(bucketDelete, /does not inherit/);
+  });
+
+  // E25 S6, F44 and G09: an entry's as_of and an event's checked_at cannot
+  // lie in the future, and the tools say so where the agent reads the schema.
+  it("states the future-date refusals on the research and event writes", () => {
+    const property = (name: string, path: string[]) => {
+      let node: any = listTools().find((tool) => tool.name === name)?.inputSchema;
+      for (const key of path) node = node?.properties?.[key];
+      return (node?.description as string | undefined) ?? "";
+    };
+
+    assert.match(property("portfolixir.notes.append", ["note", "as_of"]), /not after today/);
+    for (const name of ["portfolixir.events.create", "portfolixir.events.update"]) {
+      assert.match(property(name, ["event", "checked_at"]), /no later than tomorrow/, name);
+    }
+  });
+
+  // E25 S6, G01: the append-only and journaled knowledge text is capped in
+  // code points, and the schemas carry the cap where the agent reads them.
+  it("caps the research, event and rule-version text in code points", () => {
+    const find = (name: string) => listTools().find((tool) => tool.name === name);
+    const at = (name: string, path: string[]) => {
+      let node: any = find(name)?.inputSchema;
+      for (const key of path) node = node?.properties?.[key];
+      return node;
+    };
+
+    assert.equal(at("portfolixir.notes.append", ["note", "body"]).maxLength, 20000);
+    assert.equal(at("portfolixir.notes.append", ["note", "invalidation_condition"]).maxLength, 10000);
+    assert.equal(at("portfolixir.events.create", ["event", "note"]).maxLength, 10000);
+    assert.equal(at("portfolixir.events.update", ["event", "note"]).maxLength, 10000);
+    assert.equal(at("portfolixir.policy_rules.create", ["rule", "version", "note"]).maxLength, 10000);
+    assert.equal(at("portfolixir.policy_rules.add_version", ["version", "note"]).maxLength, 10000);
+
+    const append = find("portfolixir.notes.append");
+    const note = (body: string) => ({
+      security_id: 1,
+      note: { kind: "evidence", body, source_quality: "primary", as_of: "2026-01-02" }
+    });
+    // The cap counts code points, as the server does: 20000 astral characters
+    // are 40000 UTF-16 units and still inside it.
+    assert.doesNotThrow(() => append?.zodSchema.parse(note("\u{1F4C8}".repeat(20000))));
+    assert.throws(() => append?.zodSchema.parse(note("a".repeat(20001))));
+  });
+
+  // E25 S6, F20: a tax statement's source is the system's to state.
+  it("offers no source on the tax statement write tools", () => {
+    for (const name of ["portfolixir.tax_snapshots.create", "portfolixir.tax_snapshots.update"]) {
+      const tool = listTools().find((candidate) => candidate.name === name);
+      assert.equal(tool?.inputSchema.properties.source, undefined, name);
+    }
+  });
+
   it("passes richer quote sync status responses through unchanged", async () => {
     const { client, requests } = createRecordingClient({
       data: { status: "skipped", reason: "missing_ticker" }
@@ -1402,6 +1555,421 @@ describe("Portfolixir MCP tools", () => {
       ratio_numerator: 2,
       ratio_denominator: 1
     });
+  });
+
+  // ADR-0050 §11 (#831's lesson: agents read descriptions, not docs): the
+  // three lifecycle deletes say what a referenced row answers — the counted
+  // referenced_by, the remedy and its route — and that the memberships an
+  // unreferenced row carries are removed journaled, never by a cascade.
+  it("states the hardened delete answer on the three lifecycle delete tools", () => {
+    const tools = listTools();
+    const describe = (name: string) => tools.find((tool) => tool.name === name)?.description ?? "";
+
+    const cash = describe("portfolixir.cash_accounts.delete");
+    assert.match(cash, /either leg/);
+    assert.match(cash, /referenced_by/);
+    assert.match(cash, /remedy "merge"/);
+    assert.match(cash, /GET \/api\/v1\/cash_accounts\/:id\/merge_preview\?target_id=/);
+    assert.match(cash, /bucket links are removed first, journaled/);
+
+    const depot = describe("portfolixir.securities_accounts.delete");
+    assert.match(depot, /either leg/);
+    assert.match(depot, /referenced_by/);
+    assert.match(depot, /remedy "merge"/);
+    assert.match(depot, /GET \/api\/v1\/securities_accounts\/:id\/merge_preview\?target_id=/);
+    assert.match(depot, /position overrides are removed first, journaled/);
+
+    const security = describe("portfolixir.securities.delete");
+    assert.match(security, /referenced_by/);
+    assert.match(security, /GET \/api\/v1\/securities\/:id\/merge_preview\?target_id=/);
+    assert.match(security, /retire/);
+    assert.match(security, /policy_rules/);
+    assert.match(security, /category assignments, position targets, position bucket overrides/);
+    assert.match(security, /no cascade/);
+  });
+
+  // ADR-0050 §11 first bullet, §16 invariant 15 (#831's lesson: agents read
+  // descriptions, not docs): the two update tools that expose a currency say
+  // when it freezes and what a frozen change answers, on the tool and on the
+  // currency_code property itself; the depot update exposes no portfolio_id,
+  // so its binding cannot be moved from here at all.
+  it("states the identity-field freezes on the update tools that expose a currency", () => {
+    const tools = listTools();
+    const find = (name: string) => tools.find((tool) => tool.name === name);
+    const currencyDescription = (name: string, wrapper: string) => {
+      const schema = find(name)?.inputSchema as {
+        properties: Record<string, { properties: Record<string, { description?: string }> }>;
+      };
+      return schema.properties[wrapper].properties.currency_code.description ?? "";
+    };
+
+    const cash = find("portfolixir.cash_accounts.update")?.description ?? "";
+    assert.match(cash, /currency_code and its portfolio binding freeze/);
+    assert.match(cash, /either leg/);
+    assert.match(cash, /linked depot/);
+    assert.match(cash, /422/);
+    assert.match(
+      currencyDescription("portfolixir.cash_accounts.update", "cash_account"),
+      /Frozen once a transaction \(either leg\) or a linked depot references the account/
+    );
+
+    const security = find("portfolixir.securities.update")?.description ?? "";
+    assert.match(security, /currency_code freezes once the security has a transaction or a quote/);
+    assert.match(security, /422/);
+    assert.match(
+      currencyDescription("portfolixir.securities.update", "security"),
+      /Frozen once the security has a transaction or a quote/
+    );
+
+    const depotSchema = find("portfolixir.securities_accounts.update")?.inputSchema as {
+      properties: { securities_account: { properties: Record<string, unknown> } };
+    };
+    assert.equal("portfolio_id" in depotSchema.properties.securities_account.properties, false);
+  });
+
+  // ADR-0050 §3, §4 (L2, #884; #831's lesson: agents read descriptions, not
+  // docs): a rename over these tools is the agent's half of the re-import
+  // hazard, so the two account update tools say what the next import of the
+  // same export does after a rename, and where that stops.
+  it("states what a rename means for the next import on the account update tools", () => {
+    const tools = listTools();
+    const describe = (name: string) => tools.find((tool) => tool.name === name)?.description ?? "";
+
+    for (const name of ["portfolixir.cash_accounts.update", "portfolixir.securities_accounts.update"]) {
+      const description = describe(name);
+      assert.match(description, /checks each row's content hash before it resolves an account/);
+      assert.match(description, /creates an account only with its first new booking/);
+      assert.match(description, /no empty account appears under the old name/);
+    }
+  });
+
+  // ADR-0050 §4 (L2, #884; #831's lesson: agents read descriptions, not
+  // docs): a rename keeps the previous name as a former name, the import
+  // resolves a file's account name by live name, then former name, and the
+  // rename tools say which case applies; the removal tools say what a
+  // removal costs; create and rename name the guard's 422.
+  it("states the former-name cases on the account tools", () => {
+    const tools = listTools();
+    const describe = (name: string) => tools.find((tool) => tool.name === name)?.description ?? "";
+
+    for (const [kind, noun] of [
+      ["cash_accounts", "cash account"],
+      ["securities_accounts", "securities account"]
+    ]) {
+      const update = describe(`portfolixir.${kind}.update`);
+      assert.match(update, /keeps the previous name as a former name of this account/);
+      assert.match(update, /listed in former_names/);
+      assert.match(update, /live name first, then by the former names/);
+      assert.match(update, /re-export that changed inside Portfolio Performance/);
+      assert.match(update, /Renaming back to a former name consumes it/);
+      assert.match(
+        update,
+        new RegExp(`While another ${noun} in the portfolio still carries the previous name as its live name, the previous name is not kept`)
+      );
+      assert.match(update, /an import naming it books to that other account/);
+      assert.match(update, /422/);
+
+      assert.match(describe(`portfolixir.${kind}.create`), /live or former name.*422/);
+      assert.match(describe(`portfolixir.${kind}.list`), /former_names/);
+
+      const remove = describe(`portfolixir.${kind}.remove_former_name`);
+      assert.match(remove, /journaled/);
+      assert.match(remove, /An import that still names '<name>' will then create a new account\./);
+      // E25 S7 review round, S7E-6: a legacy name reaches the agent escaped,
+      // and the API takes it back in that spelling.
+      assert.match(remove, /spelled \[U\+XXXX\].*pass it as listed/);
+    }
+  });
+
+  // User story (ADR-0050 §7, §8, §10, L3a, #328):
+  // As the agent tidying up a household's accounts,
+  // I want the merge preview and the merge as tools that say what the merge
+  // does to the next import and what my choices mean,
+  // so that I show the operator the consequence and send back exactly what
+  // was approved.
+  //
+  // Acceptance criteria:
+  // - merge_preview routes to GET /api/v1/cash_accounts/:id/merge_preview
+  //   with target_id as a query parameter; merge routes to POST
+  //   /api/v1/cash_accounts/:id/merge with target_id, plan_digest and, when
+  //   given, collapse_key_equal in the body.
+  // - The merge tool says that the source is deleted and cannot be restored,
+  //   that its name becomes a former name so a later import books onto the
+  //   target and a re-import of an applied export creates nothing, that
+  //   collapse_key_equal is required when the preview lists key-equal pairs
+  //   and never preselected, that a changed plan answers plan_changed with a
+  //   fresh preview, and that a retry answers the original record.
+  // - The preview tool says it writes nothing and states both outcomes.
+  it("routes the cash-account merge preview and merge, and states the re-import contract", async () => {
+    const { client, requests } = createRecordingClient({ data: { id: 1 } });
+
+    await callTool(client, "portfolixir.cash_accounts.merge_preview", { id: 3, target_id: 5 });
+    await callTool(client, "portfolixir.cash_accounts.merge", {
+      id: 3,
+      target_id: 5,
+      plan_digest: "sha256:abc",
+      collapse_key_equal: true
+    });
+    await callTool(client, "portfolixir.cash_accounts.merge", {
+      id: 3,
+      target_id: 5,
+      plan_digest: "sha256:abc"
+    });
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/cash_accounts/3/merge_preview?target_id=5");
+    assert.equal(requests[1].method, "POST");
+    assert.equal(requests[1].path, "/api/v1/cash_accounts/3/merge");
+    assert.deepEqual(requests[1].body, { target_id: 5, plan_digest: "sha256:abc", collapse_key_equal: true });
+    assert.deepEqual(requests[2].body, { target_id: 5, plan_digest: "sha256:abc" });
+
+    await assert.rejects(
+      callTool(client, "portfolixir.cash_accounts.merge", { id: 3, target_id: 5 }),
+      /plan_digest/
+    );
+    await assert.rejects(
+      callTool(client, "portfolixir.cash_accounts.merge", {
+        id: 3,
+        target_id: 5,
+        plan_digest: "sha256:abc",
+        collapse_key_equal: "yes"
+      }),
+      /collapse_key_equal/
+    );
+
+    const tools = listTools();
+    const describe = (name: string) => tools.find((tool) => tool.name === name)?.description ?? "";
+    const merge = describe("portfolixir.cash_accounts.merge");
+    assert.match(merge, /deleted/);
+    assert.match(merge, /cannot be undone/);
+    assert.match(merge, /former name of the target/);
+    assert.match(merge, /books onto the target/);
+    assert.match(merge, /re-import of an export already applied creates nothing/);
+    // A name another account still carries is not kept (L3–L5 review, F4).
+    assert.match(merge, /not kept/);
+    assert.match(merge, /former_names\.not_kept/);
+    assert.match(merge, /books to that other account/);
+    assert.match(merge, /collapse_key_equal is required when the preview lists key_equal_pairs/);
+    assert.match(merge, /plan_changed/);
+    assert.match(merge, /retry.*original merge record/);
+
+    const preview = describe("portfolixir.cash_accounts.merge_preview");
+    assert.match(preview, /writes nothing/);
+    assert.match(preview, /outcome_by_collapse_key_equal/);
+    assert.match(preview, /plan_digest/);
+    assert.match(describe("portfolixir.cash_accounts.delete"), /portfolixir\.cash_accounts\.merge_preview/);
+  });
+
+  // User story:
+  // As an agent merging a depot into another under the operator's approval,
+  // I want the preview and the merge as tools that say what the merge does to
+  // the positions, the view membership and the next import,
+  // so that I show the operator the consequence and send back exactly what
+  // was approved.
+  //
+  // Acceptance criteria:
+  // - merge_preview routes to GET /api/v1/securities_accounts/:id/merge_preview
+  //   with target_id as a query parameter; merge routes to POST
+  //   /api/v1/securities_accounts/:id/merge with target_id, plan_digest and,
+  //   when given, collapse_key_equal in the body.
+  // - The merge tool says that the source depot is deleted and cannot be
+  //   restored, that bookings keep their cash account, that each position
+  //   keeps its view membership, that the source's name becomes a former name
+  //   so a later import books onto the target and a re-import of an applied
+  //   export creates nothing, that collapse_key_equal is required when the
+  //   preview lists key-equal pairs, that a changed plan answers plan_changed,
+  //   and that a retry answers the original record.
+  // - The preview tool says it writes nothing and states positions before and
+  //   after for both outcomes, with their computation basis.
+  it("routes the depot merge preview and merge, and states what the merge does", async () => {
+    const { client, requests } = createRecordingClient({ data: { id: 1 } });
+
+    await callTool(client, "portfolixir.securities_accounts.merge_preview", { id: 4, target_id: 6 });
+    await callTool(client, "portfolixir.securities_accounts.merge", {
+      id: 4,
+      target_id: 6,
+      plan_digest: "sha256:def",
+      collapse_key_equal: false
+    });
+    await callTool(client, "portfolixir.securities_accounts.merge", {
+      id: 4,
+      target_id: 6,
+      plan_digest: "sha256:def"
+    });
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/securities_accounts/4/merge_preview?target_id=6");
+    assert.equal(requests[1].method, "POST");
+    assert.equal(requests[1].path, "/api/v1/securities_accounts/4/merge");
+    assert.deepEqual(requests[1].body, { target_id: 6, plan_digest: "sha256:def", collapse_key_equal: false });
+    assert.deepEqual(requests[2].body, { target_id: 6, plan_digest: "sha256:def" });
+
+    await assert.rejects(
+      callTool(client, "portfolixir.securities_accounts.merge", { id: 4, target_id: 6 }),
+      /plan_digest/
+    );
+    await assert.rejects(
+      callTool(client, "portfolixir.securities_accounts.merge", {
+        id: 4,
+        target_id: 6,
+        plan_digest: "sha256:def",
+        collapse_key_equal: "no"
+      }),
+      /collapse_key_equal/
+    );
+
+    const tools = listTools();
+    const find = (name: string) => tools.find((tool) => tool.name === name);
+    const describe = (name: string) => find(name)?.description ?? "";
+    const merge = describe("portfolixir.securities_accounts.merge");
+    assert.match(merge, /deleted/);
+    assert.match(merge, /cannot be undone/);
+    assert.match(merge, /cash account/);
+    assert.match(merge, /view membership/);
+    assert.match(merge, /former name of the target/);
+    assert.match(merge, /books onto the target/);
+    assert.match(merge, /re-import of an export already applied creates nothing/);
+    assert.match(merge, /collapse_key_equal is required when the preview lists key_equal_pairs/);
+    assert.match(merge, /plan_changed/);
+    assert.match(merge, /retry.*original merge record/);
+    assert.match(merge, /not kept/);
+    assert.match(merge, /books to that other\s+depot/);
+    assert.equal(find("portfolixir.securities_accounts.merge")?.annotations?.destructiveHint, true);
+    assert.equal(find("portfolixir.securities_accounts.merge")?.annotations?.idempotentHint, true);
+
+    const preview = describe("portfolixir.securities_accounts.merge_preview");
+    assert.match(preview, /writes nothing/);
+    assert.match(preview, /outcome_by_collapse_key_equal/);
+    assert.match(preview, /realized_result/);
+    assert.match(preview, /positions_basis/);
+    assert.match(preview, /plan_digest/);
+    assert.equal(find("portfolixir.securities_accounts.merge_preview")?.annotations?.readOnlyHint, true);
+    assert.match(
+      describe("portfolixir.securities_accounts.delete"),
+      /portfolixir\.securities_accounts\.merge_preview/
+    );
+  });
+
+  // User story:
+  // As an agent repairing a duplicate security under the operator's approval,
+  // I want the security merge preview and the merge as tools that say what
+  // the merge does to the quotes, the configuration, the identifiers and the
+  // next import, and what each of my choices means,
+  // so that I show the operator the consequence and send back exactly what
+  // was approved.
+  //
+  // Acceptance criteria:
+  // - merge_preview routes to GET /api/v1/securities/:id/merge_preview with
+  //   target_id as a query parameter; merge routes to POST
+  //   /api/v1/securities/:id/merge with target_id, plan_digest and, when
+  //   given, collapse_key_equal, identity_choice and isin_changed_on.
+  // - identity_choice takes keep_target_isin or adopt_source_isin only.
+  // - The merge tool says that the source is deleted and cannot be undone,
+  //   that identity_choice is required when both carry an ISIN and never
+  //   preselected, what each value does, that the quotes fill the target's
+  //   gaps with the target winning a collision, that the source's category
+  //   assignments, position targets and events move, that afterwards every
+  //   identity of the source resolves to the target so a later import books
+  //   onto it and a re-import of an applied export creates nothing, that a
+  //   merge leaving an identity unresolved is refused as
+  //   identity_unresolvable, that a changed plan answers plan_changed, and
+  //   that a retry answers the original record.
+  // - The preview tool says it writes nothing and names what it states.
+  // - portfolixir.securities.get says a merged-away id answers 404 naming
+  //   the survivor in errors.merged_into.
+  it("routes the security merge preview and merge, and states what the merge carries", async () => {
+    const { client, requests } = createRecordingClient({ data: { id: 1 } });
+
+    await callTool(client, "portfolixir.securities.merge_preview", { id: 7, target_id: 9 });
+    await callTool(client, "portfolixir.securities.merge", {
+      id: 7,
+      target_id: 9,
+      plan_digest: "sha256:ghi",
+      collapse_key_equal: true,
+      identity_choice: "adopt_source_isin",
+      isin_changed_on: "2025-05-01"
+    });
+    await callTool(client, "portfolixir.securities.merge", {
+      id: 7,
+      target_id: 9,
+      plan_digest: "sha256:ghi"
+    });
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/securities/7/merge_preview?target_id=9");
+    assert.equal(requests[1].method, "POST");
+    assert.equal(requests[1].path, "/api/v1/securities/7/merge");
+    assert.deepEqual(requests[1].body, {
+      target_id: 9,
+      plan_digest: "sha256:ghi",
+      collapse_key_equal: true,
+      identity_choice: "adopt_source_isin",
+      isin_changed_on: "2025-05-01"
+    });
+    assert.deepEqual(requests[2].body, { target_id: 9, plan_digest: "sha256:ghi" });
+
+    await assert.rejects(
+      callTool(client, "portfolixir.securities.merge", {
+        id: 7,
+        target_id: 9,
+        plan_digest: "sha256:ghi",
+        identity_choice: "keep_both"
+      }),
+      /identity_choice/
+    );
+
+    const tools = listTools();
+    const find = (name: string) => tools.find((tool) => tool.name === name);
+    const describe = (name: string) => find(name)?.description ?? "";
+    const merge = describe("portfolixir.securities.merge");
+    assert.match(merge, /deleted/);
+    assert.match(merge, /cannot be undone/);
+    assert.match(merge, /identity_choice is required when both securities carry an ISIN/);
+    assert.match(merge, /never preselected/);
+    assert.match(merge, /keep_target_isin/);
+    assert.match(merge, /adopt_source_isin/);
+    assert.match(merge, /target's quote wins/);
+    assert.match(merge, /category assignments, position targets/);
+    assert.match(merge, /books onto the target/);
+    assert.match(merge, /re-import of an export already applied creates nothing/);
+    assert.match(merge, /identity_unresolvable/);
+    // It claims only the identities the merge checks (L3–L5 review, F4).
+    assert.doesNotMatch(merge, /every identity of the source resolves/);
+    assert.match(merge, /every identity the merge checks resolves to the target/);
+    assert.match(merge, /securities merged into\s+either before/);
+    assert.match(merge, /plan_changed/);
+    assert.match(merge, /retry.*original merge record/);
+    assert.equal(find("portfolixir.securities.merge")?.annotations?.destructiveHint, true);
+    assert.equal(find("portfolixir.securities.merge")?.annotations?.idempotentHint, true);
+
+    const preview = describe("portfolixir.securities.merge_preview");
+    assert.match(preview, /writes nothing/);
+    assert.match(preview, /outcome_by_collapse_key_equal/);
+    assert.match(preview, /after_by_identity_choice/);
+    assert.match(preview, /manual_collisions/);
+    assert.match(preview, /plan_digest/);
+    assert.equal(find("portfolixir.securities.merge_preview")?.annotations?.readOnlyHint, true);
+    assert.match(describe("portfolixir.securities.delete"), /portfolixir\.securities\.merge_preview/);
+    assert.match(describe("portfolixir.securities.get"), /merged_into/);
+  });
+
+  it("routes the former-name removal to DELETE with the name as a query parameter", async () => {
+    const { client, requests } = createRecordingClient({ data: { id: 3 } });
+
+    await callTool(client, "portfolixir.cash_accounts.remove_former_name", {
+      id: 3,
+      name: "Giro & Savings"
+    });
+    await callTool(client, "portfolixir.securities_accounts.remove_former_name", {
+      id: 4,
+      name: "Depot"
+    });
+
+    assert.equal(requests[0].method, "DELETE");
+    assert.equal(requests[0].path, "/api/v1/cash_accounts/3/former_names?name=Giro+%26+Savings");
+    assert.equal(requests[0].body, undefined);
+    assert.equal(requests[1].method, "DELETE");
+    assert.equal(requests[1].path, "/api/v1/securities_accounts/4/former_names?name=Depot");
   });
 
   it("routes update/delete tools to PATCH/DELETE on the right paths", async () => {
@@ -1801,6 +2369,39 @@ describe("Portfolixir MCP tools", () => {
     assert.equal((result.structuredContent as any).data[0].resource_type, "security");
   });
 
+  // User story (ADR-0050 §12, L5a, #328):
+  // As the agent auditing what happened to a household's accounts,
+  // I want the merge records as a read-only tool,
+  // so that I can explain a missing account or a former name.
+  //
+  // Acceptance criteria:
+  // - portfolixir.merges.list routes to GET /api/v1/merges with limit.
+  // - It is read-only, and its description says what each record carries,
+  //   that the manifest is summarized as counts, that there is no unmerge,
+  //   and that the operator's list view lands no later than Sprint 17.
+  it("routes portfolixir.merges.list to GET /api/v1/merges and says what it answers", async () => {
+    const { client, requests } = createRecordingClient({ data: [], meta: { count: 0 } });
+
+    await callTool(client, "portfolixir.merges.list", {});
+    await callTool(client, "portfolixir.merges.list", { limit: 5 });
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/merges");
+    assert.equal(requests[1].path, "/api/v1/merges?limit=5");
+    await assert.rejects(callTool(client, "portfolixir.merges.list", { limit: 0 }), /limit/);
+
+    const tool = listTools().find((entry) => entry.name === "portfolixir.merges.list");
+    assert.equal(tool?.annotations.readOnlyHint, true);
+    assert.match(tool?.description ?? "", /newest first/);
+    assert.match(tool?.description ?? "", /manifest_summary/);
+    assert.match(tool?.description ?? "", /merged_into/);
+    // It names where a merged-away id answers so (L3–L5 review, SF-1).
+    assert.match(tool?.description ?? "", /every route under a security/);
+    assert.doesNotMatch(tool?.description ?? "", /elsewhere/);
+    assert.match(tool?.description ?? "", /no unmerge/);
+    assert.match(tool?.description ?? "", /Sprint 17/);
+  });
+
   it("forwards the view scope param on the analytics tools", async () => {
     const { client, requests } = createRecordingClient({ data: { portfolio_id: 3 } });
 
@@ -2122,6 +2723,21 @@ describe("Portfolixir MCP tools", () => {
         note: "merger rename"
       }
     });
+  });
+
+  // User story (E25 S5, G23):
+  // As the operating agent, I want the ISIN-change and security-update tools
+  // to state which identifiers the catalog refuses, so that a lookalike never
+  // replaces the identifier the exports carry and a 422 reads as a rule.
+  it("states the catalog's identifier rules on isin_change and securities.update", () => {
+    const find = (name: string) => listTools().find((tool) => tool.name === name);
+    const isin = find("portfolixir.securities.isin_change")?.description ?? "";
+    assert.match(isin, /check digit/);
+    const update = find("portfolixir.securities.update")?.description ?? "";
+    assert.match(update, /check digit/);
+    assert.match(update, /WKN of six letters or digits/);
+    assert.match(update, /printable ASCII/);
+    assert.match(update, /format characters/);
   });
 
   it("rejects an isin_change call without new_isin before any API request", async () => {
@@ -2468,6 +3084,42 @@ describe("Portfolixir MCP tools", () => {
       const description = listTools().find((tool) => tool.name === name)?.description ?? "";
       assert.match(description, /re-import does not destroy the policy rules/, name);
     }
+  });
+
+  // #872 (ADR-0049 §4 and §8 as amended by the Sprint 16 plan D-6): the name
+  // is the operator's label, so a rename is a rule-level edit outside the
+  // versioning, and the description says so where the agent reads it.
+  it("wraps the rename of a policy rule: the name only, no version", async () => {
+    const { client, requests } = createRecordingClient({ data: { id: 9 } });
+
+    await callTool(client, "portfolixir.policy_rules.rename", {
+      id: 9,
+      name: "Cash at least 2 %"
+    });
+
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].method, "PATCH");
+    assert.equal(requests[0].path, "/api/v1/policy_rules/9");
+    assert.deepEqual(requests[0].body, { name: "Cash at least 2 %" });
+
+    const rename = listTools().find((tool) => tool.name === "portfolixir.policy_rules.rename");
+    const description = rename?.description ?? "";
+    assert.match(description, /creates NO version/);
+    assert.match(description, /versions do not change/);
+    assert.match(description, /journal/i);
+    assert.match(description, /retired/);
+    assert.match(description, /portfolixir\.policy_rules\.add_version/);
+    assert.deepEqual((rename?.inputSchema as any).required, ["id", "name"]);
+    assert.equal((rename?.inputSchema as any).additionalProperties, false);
+    assert.equal((rename?.inputSchema as any).properties.name.maxLength, 255);
+
+    // The validator agrees with the schema: an empty name and a predicate
+    // field are refused before the round trip.
+    await assert.rejects(callTool(client, "portfolixir.policy_rules.rename", { id: 9, name: "" }));
+    await assert.rejects(
+      callTool(client, "portfolixir.policy_rules.rename", { id: 9, name: "x", threshold: "12" })
+    );
+    assert.equal(requests.length, 1);
   });
 
   // ADR-0049 §5: the findings read — did anything cross a line? — as one
@@ -2862,4 +3514,213 @@ describe("Portfolixir MCP tools", () => {
     assert.ok(!("machine_generated" in noteProperties));
   });
 
+  // E25 S4, F70 (#889): every date a write stores is an ISO date inside one
+  // bounded range; each write tool's date fields say so where the agent reads
+  // the schema.
+  it("states the bounded date range on every date a write tool stores", () => {
+    const dateKeys = new Set([
+      "date",
+      "date_end",
+      "checked_at",
+      "as_of",
+      "valid_from",
+      "valid_until",
+      "time_stop",
+      "changed_on"
+    ]);
+    const writeTools = [
+      "portfolixir.securities.isin_change",
+      "portfolixir.events.create",
+      "portfolixir.events.update",
+      "portfolixir.notes.append",
+      "portfolixir.quotes.upsert",
+      "portfolixir.transactions.create",
+      "portfolixir.transactions.update",
+      "portfolixir.splits.preview",
+      "portfolixir.splits.create",
+      "portfolixir.policy_rules.create",
+      "portfolixir.policy_rules.add_version",
+      "portfolixir.policy_rules.retire",
+      "portfolixir.cash_accounts.set_balance",
+      "portfolixir.snapshots.create",
+      "portfolixir.tax_profiles.create",
+      "portfolixir.tax_profiles.update",
+      "portfolixir.tax_snapshots.create"
+    ];
+
+    const found: string[] = [];
+
+    const walk = (toolName: string, schema: unknown, path: string) => {
+      if (!schema || typeof schema !== "object") return;
+      const node = schema as { properties?: Record<string, unknown>; items?: unknown };
+
+      for (const [key, child] of Object.entries(node.properties ?? {})) {
+        if (dateKeys.has(key)) {
+          const description = (child as { description?: string }).description ?? "";
+          found.push(`${toolName} ${path}${key}`);
+          assert.match(description, /1900-01-01/, `${toolName} ${path}${key}`);
+          assert.match(description, /2999-12-31/, `${toolName} ${path}${key}`);
+        }
+
+        walk(toolName, child, `${path}${key}.`);
+      }
+
+      walk(toolName, node.items, `${path}[].`);
+    };
+
+    for (const name of writeTools) {
+      const definition = listTools().find((candidate) => candidate.name === name);
+      assert.ok(definition, name);
+      walk(name, definition?.inputSchema, "");
+    }
+
+    assert.ok(found.includes("portfolixir.transactions.create transaction.date"));
+    assert.ok(found.includes("portfolixir.policy_rules.create rule.version.valid_from"));
+    assert.ok(found.includes("portfolixir.snapshots.create as_of"));
+  });
+
+  // E25 S4, G11 (#889): a target batch is bounded, and the schema says so
+  // with the API's fixed maximum.
+  it("caps the target batch at the API's maximum", async () => {
+    const setTool = listTools().find((tool) => tool.name === "portfolixir.targets.set");
+    assert.equal(setTool?.inputSchema.properties.targets.maxItems, 10000);
+    assert.match(setTool?.description ?? "", /once per batch/);
+
+    const { client } = createRecordingClient();
+    const row = { category_id: 1, target_weight: "0.1" };
+
+    await assert.rejects(
+      callTool(client, "portfolixir.targets.set", {
+        portfolio_id: 1,
+        classification_id: 1,
+        targets: Array.from({ length: 10001 }, () => row)
+      })
+    );
+  });
+
+  // E25 S4, G14 (#889): the weight scale and the zero-value gap are stated
+  // where the agent reads the tools.
+  it("states the weight scale and the zero-value drift gap", () => {
+    const describe = (name: string) =>
+      listTools().find((tool) => tool.name === name)?.description ?? "";
+
+    assert.match(describe("portfolixir.targets.set"), /at most 6 decimal places/);
+    assert.match(describe("portfolixir.portfolios.allocation"), /valued at 0/);
+    assert.match(describe("portfolixir.portfolios.allocation"), /computation_basis/);
+  });
+
+  // E25 S4, G16 and G17 (#889): a ledger amount is rounded to the column's
+  // scale before it is checked, and one past the column's precision is a 422.
+  it("states the ledger's amount scale and bound on the booking tools", () => {
+    for (const name of [
+      "portfolixir.transactions.create",
+      "portfolixir.transactions.update",
+      "portfolixir.cash_accounts.set_balance"
+    ]) {
+      const description = listTools().find((tool) => tool.name === name)?.description ?? "";
+      assert.match(description, /rounded half up to 6 decimal places/, name);
+      assert.match(description, /14 digits before the decimal point/, name);
+    }
+  });
+
+  // E25 S4, G16 and G17, with S3 F26 (the S3/S4 review round): the same column
+  // rule reaches the quote and tax writers, and the tools say so.
+  it("states the stored scale and bound on the quote and tax write tools", () => {
+    for (const name of [
+      "portfolixir.quotes.upsert",
+      "portfolixir.tax_parameters.upsert",
+      "portfolixir.tax_profiles.create",
+      "portfolixir.tax_profiles.update",
+      "portfolixir.allowance_orders.put",
+      "portfolixir.tax_snapshots.create",
+      "portfolixir.tax_snapshots.update"
+    ]) {
+      const description = listTools().find((tool) => tool.name === name)?.description ?? "";
+      assert.match(description, /rounded half up to/, name);
+      assert.match(description, /14 digits before the decimal point/, name);
+    }
+  });
+
+  // E25 S4, F70 and G24 (the S3/S4 review round): a read's date and text
+  // filters meet the writers' rules, and the read tools say so.
+  it("states the bounded date and the text rule on the read tools' filters", () => {
+    const property = (name: string, key: string) => {
+      const schema = listTools().find((tool) => tool.name === name)?.inputSchema as
+        | { properties?: Record<string, { description?: string }> }
+        | undefined;
+      return schema?.properties?.[key]?.description ?? "";
+    };
+
+    for (const [name, key] of [
+      ["portfolixir.transactions.list", "from"],
+      ["portfolixir.transactions.list", "to"],
+      ["portfolixir.quotes.list", "from"],
+      ["portfolixir.quotes.list", "to"],
+      ["portfolixir.trades.list", "from"],
+      ["portfolixir.securities.metrics", "as_of"],
+      ["portfolixir.policy_rules.list", "as_of"]
+    ]) {
+      assert.match(property(name, key), /1900-01-01/, `${name} ${key}`);
+    }
+
+    for (const [name, key] of [
+      ["portfolixir.securities.list", "query"],
+      ["portfolixir.journal.list", "resource_type"],
+      ["portfolixir.tax_profiles.list", "holder"],
+      ["portfolixir.allowance_orders.list", "institution"],
+      ["portfolixir.tax_snapshots.list", "holder"]
+    ]) {
+      assert.match(property(name, key), /at most 255 characters/, `${name} ${key}`);
+    }
+  });
+
+  // E25 S4, G24 (the S3/S4 review round): a security's free-form attributes
+  // meet the text rule at any depth, and the security tools say so.
+  it("states the attributes text rule on the security write tools", () => {
+    for (const name of ["portfolixir.securities.create", "portfolixir.securities.update"]) {
+      const description = listTools().find((tool) => tool.name === name)?.description ?? "";
+      assert.match(description, /Every key of attributes, at any depth/, name);
+    }
+  });
+
+  // E25 S4, F11 (#889): a parent that loops the tree or sits in another
+  // classification is refused; the category tools say so.
+  it("states the parent rule on the category write tools", () => {
+    for (const name of [
+      "portfolixir.classifications.categories.create",
+      "portfolixir.classifications.categories.update"
+    ]) {
+      const description = listTools().find((tool) => tool.name === name)?.description ?? "";
+      assert.match(description, /same classification/, name);
+    }
+
+    const update =
+      listTools().find((tool) => tool.name === "portfolixir.classifications.categories.update")
+        ?.description ?? "";
+    assert.match(update, /nor one of its descendants/);
+  });
+
+  // E25 S4, F72 (#889): the risk read's top_n has a maximum, and the
+  // correlation matrix covers a bounded number of leading names.
+  it("bounds the risk read's top_n and states the correlation bound", async () => {
+    const risk = listTools().find((tool) => tool.name === "portfolixir.portfolios.risk");
+    assert.equal(risk?.inputSchema.properties.top_n.maximum, 1000);
+    assert.match(risk?.description ?? "", /capped at 1000/);
+    assert.match(risk?.description ?? "", /at most the 20 leading names/);
+    assert.match(risk?.description ?? "", /leading_names/);
+
+    const { client } = createRecordingClient();
+    await assert.rejects(
+      callTool(client, "portfolixir.portfolios.risk", { portfolio_id: 1, top_n: 1001 })
+    );
+  });
+
+  // E25 S4, G12 (#889): a security's splits, each by its own magnitude,
+  // multiply to at most 10^12; the split tools say so.
+  it("states the cumulative split bound on the split tools", () => {
+    for (const name of ["portfolixir.splits.preview", "portfolixir.splits.create"]) {
+      const description = listTools().find((tool) => tool.name === name)?.description ?? "";
+      assert.match(description, /10\^12/, name);
+    }
+  });
 });

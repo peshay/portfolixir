@@ -57,6 +57,19 @@ defmodule Portfolixir.Imports.PreviewTest do
     assert Enum.count(securities, &(&1[:name] == "C")) == 1
   end
 
+  # E25 S5 (F33): a reference with neither an ISIN nor a name is a security
+  # keyed by what it carries, never a crash.
+  test "unique_securities/1 keys a reference with only a WKN or a ticker by what it carries" do
+    pv =
+      preview([
+        entry(security: %{isin: nil, wkn: "A0RPWH", ticker: nil, name: nil, currency: "EUR"}),
+        entry(security: %{isin: nil, wkn: "A0RPWH", ticker: nil, name: nil, currency: "EUR"}),
+        entry(security: %{isin: nil, wkn: nil, ticker: "SYN", name: nil, currency: "EUR"})
+      ])
+
+    assert length(Preview.unique_securities(pv)) == 2
+  end
+
   test "unique_pp_account_pairs/1 dedupes pairs and drops the empty pair" do
     pv =
       preview([

@@ -17,6 +17,8 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
   alias Portfolixir.Catalog.Currencies
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.LiveEventGuard
+  alias PortfolixirWeb.LiveParam
 
   @empty_form %{
     "depot_name" => "",
@@ -31,6 +33,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
   def mount(socket) do
     {:ok,
      socket
+     |> LiveEventGuard.attach()
      |> assign(:step, :choose)
      |> assign(:mode, nil)
      |> assign(:form, @empty_form)
@@ -268,7 +271,9 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
     {:noreply, assign(socket, :form, normalize_form(socket.assigns.form, params["account"]))}
   end
 
-  def handle_event("save", params, socket) do
+  # Only a chosen mode has a form to save (E25 S4, F17).
+  def handle_event("save", params, %{assigns: %{mode: mode}} = socket)
+      when mode in ["depot", "cash"] do
     form = normalize_form(socket.assigns.form, params["account"])
     socket = assign(socket, :form, form)
 
@@ -304,13 +309,17 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
     end
   end
 
+  # An event this component does not know, or a payload it cannot read,
+  # changes nothing (E25 S4, F17).
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
   # -- create flow ------------------------------------------------------------
 
   # Resolves the checked buckets plus the optional inline tag into one id set,
   # rejecting more than one exclusive scope bucket BEFORE anything is created —
   # the invariant fails loud and early, never after a partial write.
   defp resolve_initial_buckets(form) do
-    selected = coerce_id_list(form["bucket_ids"])
+    selected = LiveParam.ids(form["bucket_ids"])
 
     with {:ok, ids} <- add_new_tag(selected, form["new_tag"]) do
       known = Buckets.list_buckets() |> Map.new(&{&1.id, &1})
@@ -343,9 +352,11 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
   end
 
   defp create_records("depot", form, socket) do
-    # The depot name is pre-validated so a blank one can never leave a freshly
-    # created cash account dangling without its depot.
+    # The depot name is pre-validated so a blank one, or one another depot
+    # already answers to (ADR-0050 §4), can never leave a freshly created cash
+    # account dangling without its depot.
     with :ok <- require_field(form, "depot_name"),
+         :ok <- require_free_depot_name(form),
          {:ok, cash, created?} <- resolve_cash_account(form, socket),
          {:ok, depot} <- create_depot(form, cash) do
       {:ok, %{depot: depot, cash: cash, cash_created?: created?}}
@@ -412,10 +423,23 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
 
   defp normalize_form(form, nil), do: form
 
+  # The form's own fields, as the strings its inputs send; anything else is
+  # not a field (E25 S4, F17).
   defp normalize_form(form, params) when is_map(params) do
     form
-    |> Map.merge(Map.take(params, Map.keys(@empty_form)))
-    |> Map.put("bucket_ids", List.wrap(params["bucket_ids"]))
+    |> Map.merge(params |> LiveParam.form() |> Map.take(Map.keys(@empty_form)))
+    |> Map.put("bucket_ids", params["bucket_ids"] |> List.wrap() |> Enum.filter(&is_binary/1))
+  end
+
+  defp normalize_form(form, _params), do: form
+
+  defp require_free_depot_name(form) do
+    portfolio_id = Portfolios.default_portfolio(Actor.owner_ui()).id
+
+    case Portfolios.securities_account_name_error(portfolio_id, form["depot_name"]) do
+      nil -> :ok
+      message -> {:error, {:field_errors, %{"depot_name" => message}}}
+    end
   end
 
   defp require_field(form, field) do
@@ -438,17 +462,6 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
 
     {:error, {:field_errors, errors}}
   end
-
-  defp coerce_id_list(values) when is_list(values) do
-    Enum.flat_map(values, fn value ->
-      case Integer.parse(to_string(value)) do
-        {id, ""} -> [id]
-        _ -> []
-      end
-    end)
-  end
-
-  defp coerce_id_list(_values), do: []
 
   defp notify_parent(socket, message) do
     send(self(), {:dialog, socket.assigns.id, message})

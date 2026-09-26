@@ -12,6 +12,7 @@ defmodule Portfolixir.Catalog do
   alias Portfolixir.Catalog.LogoDiscovery
   alias Portfolixir.Catalog.LogoLookup
   alias Portfolixir.Catalog.LogoStore
+  alias Portfolixir.Catalog.QuoteEnrichment
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.QuoteSync
   alias Portfolixir.Catalog.Security
@@ -21,8 +22,8 @@ defmodule Portfolixir.Catalog do
   alias Portfolixir.Catalog.SecurityWithMetrics
   alias Portfolixir.Journal
   alias Portfolixir.Ledger.HeldSecurities
+  alias Portfolixir.Lifecycle.Delete
   alias Portfolixir.Portfolios.PolicyRules
-  alias Portfolixir.Portfolios.Targets, as: PortfolioTargets
   alias Portfolixir.Repo
 
   @doc """
@@ -304,22 +305,14 @@ defmodule Portfolixir.Catalog do
   end
 
   @doc false
-  # One supervised task syncs the batch sequentially. Spawning a task per
-  # security (a large import creates hundreds) floods the provider and
-  # exhausts the DB connection pool — page loads right after an import then
-  # time out with 500s. Logos already queue through the LogoDiscovery server.
+  # Every quote backfill, an import's batch and a single create alike, queues
+  # on the one serial, deduplicating QuoteEnrichment worker (E25, G04).
+  # Spawning a task per security (a large import creates hundreds, an agent
+  # creates one call after another) floods the provider and exhausts the DB
+  # connection pool — page loads then time out with 500s. Logos queue through
+  # the LogoDiscovery server the same way.
   def enrich_security_ids_async(ids) when is_list(ids) do
-    if quote_enrichment_enabled?() and ids != [] do
-      Task.Supervisor.start_child(Portfolixir.LogoSupervisor, fn ->
-        Enum.each(ids, fn id ->
-          case get_security(id) do
-            %Security{} = security -> QuoteSync.sync_security(security)
-            nil -> :ok
-          end
-        end)
-      end)
-    end
-
+    if quote_enrichment_enabled?(), do: QuoteEnrichment.enqueue(ids)
     if logo_enrichment_enabled?(), do: LogoDiscovery.enqueue_security_ids(ids)
     :ok
   end
@@ -332,19 +325,7 @@ defmodule Portfolixir.Catalog do
   @doc false
   def enrich_security_async(%Security{id: id}), do: enrich_security_async(id)
 
-  def enrich_security_async(id) when is_integer(id) do
-    if quote_enrichment_enabled?() do
-      Task.Supervisor.start_child(Portfolixir.LogoSupervisor, fn ->
-        case get_security(id) do
-          %Security{} = security -> QuoteSync.sync_security(security)
-          nil -> :ok
-        end
-      end)
-    end
-
-    if logo_enrichment_enabled?(), do: LogoDiscovery.enqueue_security_ids([id])
-    :ok
-  end
+  def enrich_security_async(id) when is_integer(id), do: enrich_security_ids_async([id])
 
   defp maybe_enrich_security(%Security{} = security) do
     if Repo.in_transaction?() do
@@ -368,11 +349,23 @@ defmodule Portfolixir.Catalog do
   journal entry (with the pre-image as `before`) commit in one transaction.
   """
   def update_security(%Actor{} = actor, %Security{} = security, attrs) when is_map(attrs) do
-    changeset = Security.changeset(security, attrs)
+    # Built on the row as stored, re-read under its lock by the journal step
+    # (E25 S6, F49): the guard and the write see the same changes.
+    changeset = &Security.changeset(Journal.locked_row(&1), attrs)
 
     multi =
       Multi.new()
-      |> alias_guard(changeset)
+      |> Multi.run(:alias_guard, fn repo, changes ->
+        # An invalid changeset is refused by the write below; the guard would
+        # only query with a value the column cannot hold.
+        case changeset.(changes) do
+          %Ecto.Changeset{valid?: true} = valid ->
+            IdentifierAliases.guard_isin_not_aliased(repo, valid)
+
+          _invalid ->
+            {:ok, :not_applicable}
+        end
+      end)
       |> Multi.update(:security, changeset)
       |> Journal.record(actor,
         resource_type: "security",
@@ -380,11 +373,25 @@ defmodule Portfolixir.Catalog do
         source: :security,
         before: security
       )
+      |> Multi.prepend(isin_write_lock(attrs))
 
     case Repo.transaction(multi) do
       {:ok, %{security: updated}} -> {:ok, updated}
       {:error, _step, %Ecto.Changeset{} = changeset, _changes} -> {:error, changeset}
+      # The row was deleted before the write took its lock (E25 S6, F49).
+      {:error, {:journal_lock, _}, :not_found, _changes} -> {:error, :not_found}
     end
+  end
+
+  # An edit that may change the ISIN takes the ISIN write lock ahead of the
+  # journal's row lock (E25 S6 review round, F49): every ISIN writer — the
+  # ISIN change, an import, an alias edit — takes the advisory lock first and
+  # the security's row after it, and two writers taking the two in opposite
+  # orders could deadlock.
+  defp isin_write_lock(attrs) do
+    if Map.has_key?(attrs, :isin) or Map.has_key?(attrs, "isin"),
+      do: Multi.run(Multi.new(), :isin_write_lock, &IdentifierAliases.lock_isin_writes/2),
+      else: Multi.new()
   end
 
   @doc """
@@ -393,11 +400,9 @@ defmodule Portfolixir.Catalog do
   system actor like every other logo write; a nil value removes the key.
   """
   def put_logo_attributes(%Security{} = security, logo_attrs) when is_map(logo_attrs) do
-    changeset = Security.logo_changeset(security, logo_attrs)
-
     multi =
       Multi.new()
-      |> Multi.update(:security, changeset)
+      |> Multi.update(:security, &Security.logo_changeset(Journal.locked_row(&1), logo_attrs))
       |> Journal.record(Actor.system_job("logo"),
         resource_type: "security",
         operation: :update,
@@ -408,46 +413,39 @@ defmodule Portfolixir.Catalog do
     case Repo.transaction(multi) do
       {:ok, %{security: updated}} -> {:ok, updated}
       {:error, _step, %Ecto.Changeset{} = changeset, _changes} -> {:error, changeset}
+      # The row was deleted before the write took its lock (E25 S6, F49).
+      {:error, {:journal_lock, _}, :not_found, _changes} -> {:error, :not_found}
     end
   end
 
   @doc """
-  Deletes a security on behalf of `actor` (FR-28). The deletion is journaled
-  with the full `before` snapshot, so a removed security stays traceable in the
-  audit journal.
-
-  Any position-target rows referencing the security (ADR-0030, #481 fix round)
-  are removed **explicitly and journaled per row** in the same transaction —
-  across active, draft and archived SOLL plans — via
-  `Portfolixir.Portfolios.Targets.delete_position_targets_for_security/2`,
-  mirroring how other dependent records are handled instead of leaving the
-  cleanup to the silent `security_id` FK cascade (which remains as a backstop).
+  Deletes a security on behalf of `actor` (FR-28), through the hardened delete
+  path of ADR-0050 §11 (`Portfolixir.Lifecycle.Delete`). The deletion is
+  journaled with the full `before` snapshot, so a removed security stays
+  traceable in the audit journal.
 
   A security a policy rule reads is not deleted (ADR-0049 §8): the answer is
   `{:error, {:policy_rules, rules}}`, naming them. A version that has been in
   force keeps its subject as part of its history, so retiring the rule stops
   its evaluation but does not free the security; retiring the security does.
+
+  Otherwise the row is locked `FOR UPDATE`, and a security that bookings,
+  quotes, research notes, security events or rule versions reference answers
+  `{:error, {:referenced, referenced_by}}` (the referencing tables, counted)
+  and is left alone. An unreferenced security's memberships are removed first,
+  each through its journaled writer: category assignments and position
+  targets (ADR-0030, #481) per row, position bucket overrides per position,
+  identifier aliases per row (ADR-0029 §3). No cascade removes any of them;
+  the foreign keys restrict. A vanished security answers `{:error,
+  :not_found}`.
   """
   def delete_security(%Actor{} = actor, %Security{} = security) do
     # ADR-0049 §8: a security a policy rule reads is protected, and the answer
     # names the rules rather than a foreign key.
     case PolicyRules.referencing(:security, security.id) do
-      [] -> delete_unreferenced_security(actor, security)
+      [] -> Delete.delete(actor, security)
       rules -> {:error, {:policy_rules, rules}}
     end
-  end
-
-  defp delete_unreferenced_security(actor, security) do
-    Repo.transaction(fn ->
-      with {:ok, _count} <-
-             PortfolioTargets.delete_position_targets_for_security(actor, security.id),
-           {:ok, _} <- IdentifierAliases.delete_all_for_security(actor, security.id),
-           {:ok, deleted} <- delete_security_row(actor, security) do
-        deleted
-      else
-        {:error, %Ecto.Changeset{} = changeset} -> Repo.rollback(changeset)
-      end
-    end)
   end
 
   @doc """
@@ -473,28 +471,26 @@ defmodule Portfolixir.Catalog do
     to: IdentifierAliases,
     as: :update_alias
 
+  @doc """
+  Writes a security's quotes on behalf of `actor`, journaled with the rows
+  it replaced, every row stored as manual (E25 S6, T-9). See
+  `Portfolixir.Catalog.Quotes.upsert_authored/3`.
+  """
+  defdelegate upsert_quotes(actor, security_id, rows), to: Quotes, as: :upsert_authored
+
+  @doc """
+  Releases a security's manual quotes of a date range back to provider data,
+  journaled (E25 S6, T-9). See `Portfolixir.Catalog.Quotes.release_manual/4`.
+  """
+  defdelegate release_manual_quotes(actor, security_id, from, to),
+    to: Quotes,
+    as: :release_manual
+
   @doc "Preloads the security's identifier aliases (newest change first)."
   def with_identifier_aliases(%Security{} = security) do
     Repo.preload(security,
       identifier_aliases: from(a in IdentifierAlias, order_by: [desc: a.changed_on, desc: a.id])
     )
-  end
-
-  defp delete_security_row(%Actor{} = actor, %Security{} = security) do
-    multi =
-      Multi.new()
-      |> Multi.delete(:security, Security.delete_changeset(security))
-      |> Journal.record(actor,
-        resource_type: "security",
-        operation: :delete,
-        source: :security,
-        before: security
-      )
-
-    case Repo.transaction(multi) do
-      {:ok, %{security: deleted}} -> {:ok, deleted}
-      {:error, :security, %Ecto.Changeset{} = changeset, _changes} -> {:error, changeset}
-    end
   end
 
   @doc """
@@ -551,7 +547,10 @@ defmodule Portfolixir.Catalog do
   This bulk reclassification is journaled as a single aggregate `update` entry
   on `resource_type: "security"` (resource_id `nil`) carrying the affected ids —
   the guard-armed `securities` table still requires the actor on every row, so
-  the whole `update_all` runs inside one actor-set transaction (ADR-0017).
+  the whole `update_all` runs inside one actor-set transaction (ADR-0017). Its
+  before-image lists every affected security with the asset class it had,
+  read under the rows' lock in the same transaction (E25 S6, F43), so a
+  mistaken bulk move can be read back.
   """
   def set_asset_class(%Actor{} = _actor, [], _code), do: 0
 
@@ -560,6 +559,19 @@ defmodule Portfolixir.Catalog do
 
     multi =
       Multi.new()
+      |> Multi.run(:prior_asset_classes, fn repo, _changes ->
+        prior =
+          repo.all(
+            from(s in Security,
+              where: s.id in ^security_ids,
+              order_by: s.id,
+              lock: "FOR NO KEY UPDATE",
+              select: %{security_id: s.id, asset_class: s.asset_class}
+            )
+          )
+
+        {:ok, %{id: nil, security_ids: security_ids, asset_classes: prior}}
+      end)
       |> Multi.update_all(
         :bulk,
         from(s in Security, where: s.id in ^security_ids),
@@ -571,7 +583,8 @@ defmodule Portfolixir.Catalog do
       |> Journal.record(actor,
         resource_type: "security",
         operation: :update,
-        source: :bulk_record
+        source: :bulk_record,
+        before_step: :prior_asset_classes
       )
 
     {:ok, %{bulk: {count, _}}} = Repo.transaction(multi)

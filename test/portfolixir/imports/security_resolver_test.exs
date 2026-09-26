@@ -208,11 +208,11 @@ defmodule Portfolixir.Imports.SecurityResolverTest do
   #   different current ISIN.
   describe "resolve/2 stronger-identifier veto and cross-tier disagreement" do
     test "a WKN match with a differing entry ISIN is surfaced, not merged" do
-      security = security!(%{isin: "DE000OLD0009", wkn: "WRG111"})
+      security = security!(%{isin: "DE000OLD0014", wkn: "WRG111"})
 
       assert {:conflict, %{type: :identifier_veto, tier: :wkn, candidates: [candidate]}} =
                resolve(%{
-                 isin: "DE000NEW0007",
+                 isin: "DE000NEW0011",
                  wkn: "WRG111",
                  ticker: nil,
                  name: "X",
@@ -240,13 +240,13 @@ defmodule Portfolixir.Imports.SecurityResolverTest do
     end
 
     test "an alias hit resolves despite the candidate's different current ISIN" do
-      security = security!(%{isin: "DE0001234567"})
+      security = security!(%{isin: "DE0001234565"})
 
       {:ok, %{security: security}} =
-        Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654321")
+        Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654329")
 
       assert {:match, matched, :former_isin} =
-               resolve(%{isin: "DE0001234567", wkn: nil, ticker: nil, name: "X", currency: "EUR"})
+               resolve(%{isin: "DE0001234565", wkn: nil, ticker: nil, name: "X", currency: "EUR"})
 
       assert matched.id == security.id
     end
@@ -357,6 +357,51 @@ defmodule Portfolixir.Imports.SecurityResolverTest do
       refute at_risk.position_targets?
     end
 
+    # User story (E25 S5, G23):
+    # As the operator whose securities carry strategy configuration,
+    # I want a file's name that differs from mine only by invisible
+    # characters or letters from another script to raise the
+    # configuration-at-risk warning,
+    # so that a lookalike cannot create a silent duplicate that strands it.
+    #
+    # Acceptance criteria:
+    # - A name with a format character inside, or with lookalike letters,
+    #   near-matches a config-bearing security for the warning.
+    # - With the same currency, a name differing only by format characters
+    #   matches at the name tier: the catalog normal form drops them.
+    test "names differing by invisible characters or lookalike letters still raise the warning" do
+      security = security!(%{name: "Config AG", currency_code: "USD"})
+      attach_assignment!(security)
+      index = SecurityResolver.load_index()
+
+      for name <- ["Config\u200B AG", "\u0421onfig AG", "C\u043Enfig\u00A0AG", "CONFIG AG"] do
+        ref =
+          SecurityResolver.normalize_ref(%{
+            isin: nil,
+            wkn: nil,
+            ticker: nil,
+            name: name,
+            currency: "EUR"
+          })
+
+        assert :create = SecurityResolver.resolve(ref, index), name
+        assert [at_risk] = SecurityResolver.config_at_risk(ref, index), name
+        assert at_risk.security.id == security.id
+      end
+
+      same_currency =
+        SecurityResolver.normalize_ref(%{
+          isin: nil,
+          wkn: nil,
+          ticker: nil,
+          name: "Config\u200B AG\u2060",
+          currency: "USD"
+        })
+
+      assert {:match, %{id: id}, :name} = SecurityResolver.resolve(same_currency, index)
+      assert id == security.id
+    end
+
     test "a creation near a security without config is not flagged" do
       _security = security!(%{name: "Plain AG", currency_code: "USD"})
 
@@ -408,9 +453,9 @@ defmodule Portfolixir.Imports.SecurityResolverTest do
     end
 
     test "the inverse check lists config-bearing transacted securities matching zero entries" do
-      leftover = security!(%{name: "Leftover AG", isin: "DE000LEFT001"})
+      leftover = security!(%{name: "Leftover AG", isin: "DE000LEFT003"})
       matched = security!(%{name: "Matched AG", isin: "DE000MTCH001"})
-      watch_only = security!(%{name: "Watch Only AG", isin: "DE000WTCH001"})
+      watch_only = security!(%{name: "Watch Only AG", isin: "DE000WTCH000"})
 
       attach_assignment!(leftover)
 
@@ -577,7 +622,7 @@ defmodule Portfolixir.Imports.SecurityResolverTest do
     # - An identical name (ignoring case and surrounding whitespace) does not.
     # - Nothing about the stored security changes.
     test "a matched row flags a name that differs in the file" do
-      stored = security!(%{isin: "DE000RENAME1", name: "Stored AG"})
+      stored = security!(%{isin: "DE000RENAME9", name: "Stored AG"})
 
       entry = fn row, name ->
         %Entry{
@@ -589,7 +634,7 @@ defmodule Portfolixir.Imports.SecurityResolverTest do
           quantity: Decimal.new("1"),
           price: Decimal.new("10"),
           security: %{
-            isin: "DE000RENAME1",
+            isin: "DE000RENAME9",
             wkn: nil,
             ticker: nil,
             name: name,
@@ -681,9 +726,9 @@ defmodule Portfolixir.Imports.SecurityResolverTest do
     end
 
     test "a full re-export still surfaces its leftovers" do
-      a = configured!("Alpha AG", "DE000SCOPE01")
-      b = configured!("Beta AG", "DE000SCOPE02")
-      _left = configured!("Gamma AG", "DE000SCOPE03")
+      a = configured!("Alpha AG", "DE000SCOPE05")
+      b = configured!("Beta AG", "DE000SCOPE39")
+      _left = configured!("Gamma AG", "DE000SCOPE47")
 
       result = Imports.resolve_securities(import_of([a, b]))
 
@@ -693,11 +738,11 @@ defmodule Portfolixir.Imports.SecurityResolverTest do
 
     test "a short leftover list is shown even on an incremental file" do
       a = configured!("Alpha AG", "DE000SCOPE21")
-      _left = configured!("Beta AG", "DE000SCOPE22")
+      _left = configured!("Beta AG", "DE000SCOPE54")
 
       # Coverage is 1 of 2 here; the point of the assertion is the floor, so
       # add transacted securities the import does not touch to push it down.
-      for isin <- ~w(DE000SCOPE23 DE000SCOPE24 DE000SCOPE25 DE000SCOPE26) do
+      for isin <- ~w(DE000SCOPE62 DE000SCOPE70 DE000SCOPE88 DE000SCOPE96) do
         isin |> then(&security!(%{name: "Plain " <> &1, isin: &1})) |> transact!()
       end
 

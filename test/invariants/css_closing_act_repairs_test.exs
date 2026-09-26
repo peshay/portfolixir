@@ -52,6 +52,56 @@ defmodule Portfolixir.Invariants.CssClosingActRepairsTest do
     assert open_toggle =~ ~r/font-weight:\s*700;/
   end
 
+  # User story (#872, pick G7-A, board
+  # ux-design-2026-09-24/07-rule-name-affordance):
+  # As the operator on a phone, where nothing hovers,
+  # I want a rule's name to look like the control it is,
+  # so that I can tell the name is the way into the rule's dialog — the only
+  # way to change, rename or retire it.
+  #
+  # Acceptance criteria:
+  # - `.policy-rule__name` no longer overrides `.link-button`'s colour and
+  #   underline, so the name reads as a link at rest, and it stays bold — the
+  #   treatment the scheduled and retired names below it already carry.
+  # - The hover rule that would change nothing is gone; the focus ring and
+  #   the 44 px under a coarse pointer (asserted above) stay.
+  test "a rule's name reads as a link at rest" do
+    name = block(".policy-rule__name")
+    assert name =~ ~r/font-weight:\s*700;/
+    refute name =~ "color:"
+    refute name =~ "text-decoration"
+    refute @css =~ ".policy-rule__name:hover"
+
+    assert block(".policy-rule__name:focus-visible") =~
+             ~r/outline:\s*2px solid var\(--color-accent\);/
+  end
+
+  # User story (#871, pick G6-A, board ux-design-2026-09-24/06-view-rule-reach):
+  # As the operator reading a refusal that names rules,
+  # I want the rule names to read as links in the refusal's own colour,
+  # so that the way to each rule is visible without the band turning into a
+  # second colour of alarm.
+  #
+  # Acceptance criteria:
+  # - A link inside the error band and inside the delete-blocked dialog's body
+  #   inherits the surrounding colour and is underlined with a 2 px offset —
+  #   the rule `.data-note__body a` already carries, so the links survive the
+  #   band's move into a data note unchanged.
+  test "a rule named in a refusal is a link in the refusal's own colour" do
+    rule =
+      case Regex.run(
+             ~r/\n\.alert-error a,\n\.confirm-delete-blocked \.modal-body a \{([^}]*)\}/,
+             @css
+           ) do
+        [_, body] -> body
+        nil -> flunk("no shared link rule for the error band and the delete-blocked dialog")
+      end
+
+    assert rule =~ ~r/color:\s*inherit;/
+    assert rule =~ ~r/text-decoration:\s*underline;/
+    assert rule =~ ~r/text-underline-offset:\s*2px;/
+  end
+
   defp block(selector) do
     case Regex.run(~r/\n#{Regex.escape(selector)} \{([^}]*)\}/, @css) do
       [_, body] -> body

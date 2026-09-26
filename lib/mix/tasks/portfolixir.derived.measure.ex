@@ -50,6 +50,7 @@ defmodule Mix.Tasks.Portfolixir.Derived.Measure do
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Classifications
+  alias Portfolixir.Clock
   alias Portfolixir.Derived
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
@@ -225,7 +226,7 @@ defmodule Mix.Tasks.Portfolixir.Derived.Measure do
         portfolio_id: portfolio.id,
         cash_account_id: cash.id,
         type: "deposit",
-        date: Date.add(Date.utc_today(), -365 * years - 1),
+        date: Date.add(Clock.today(), -365 * years - 1),
         gross_amount: Decimal.new(10_000_000),
         currency_code: "EUR"
       })
@@ -257,7 +258,7 @@ defmodule Mix.Tasks.Portfolixir.Derived.Measure do
   end
 
   defp seed_catalog(owner, count, years) do
-    today = Date.utc_today()
+    today = Clock.today()
 
     Enum.map(1..count, fn n ->
       {:ok, security} =
@@ -267,33 +268,30 @@ defmodule Mix.Tasks.Portfolixir.Derived.Measure do
           currency_code: "EUR"
         })
 
-      seed_quotes(security, today, years)
+      seed_quotes(owner, security, today, years)
       security
     end)
   end
 
   # Weekly closes, a seeded random walk anchored at 100 — the same shape as the
   # demo quote seed, and the same weekly resolution the ADR's Context table
-  # used.
-  defp seed_quotes(security, today, years) do
+  # used. Written through the authored, journaled quote path (E25 S6, T-9).
+  defp seed_quotes(owner, security, today, years) do
     weeks = div(365 * years, 7)
 
     {rows, _price} =
       Enum.map_reduce(weeks..0//-1, 100.0, fn back, price ->
         next = max(price * (1.0 + (:rand.uniform() - 0.48) * 0.06), 1.0)
 
-        {%{
-           date: Date.add(today, -7 * back),
-           close: Decimal.from_float(Float.round(next, 4)),
-           source: "manual"
-         }, next}
+        {%{date: Date.add(today, -7 * back), close: Decimal.from_float(Float.round(next, 4))},
+         next}
       end)
 
-    {:ok, _count} = Quotes.upsert_many(security.id, rows)
+    {:ok, _written} = Catalog.upsert_quotes(owner, security.id, rows)
   end
 
   defp seed_bookings(owner, portfolio, cash, depot, catalog, count, years) do
-    today = Date.utc_today()
+    today = Clock.today()
     span = 365 * years
     held = :counters.new(length(catalog), [])
 

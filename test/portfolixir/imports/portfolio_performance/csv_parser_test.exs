@@ -3,6 +3,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
 
   alias Portfolixir.Imports.PortfolioPerformance.CsvParser
   alias Portfolixir.Imports.Preview
+  alias Portfolixir.Input.Text
 
   @fixtures Path.expand("../../../support/fixtures/portfolio_performance", __DIR__)
 
@@ -134,6 +135,110 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
       assert [%{row: 1, message: message}] = errors
       assert message =~ "implausible date 0219-03-07"
       assert message =~ "re-import"
+    end
+
+    # E25 S4, F70: the ledger refuses a date past its bounded range, so the
+    # parser names the row instead of letting the apply fail on it.
+    test "rejects bookings dated past the ledger's range per row" do
+      body = """
+      Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
+      3019-03-07 00:00:00;Entnahme;;;;250,00;;;250,00;Girokonto;;;
+      """
+
+      assert {:ok, %Preview{entries: [], errors: errors}} = CsvParser.parse(body)
+      assert [%{row: 1, message: message}] = errors
+      assert message =~ "implausible date 3019-03-07"
+      assert message =~ "re-import"
+    end
+
+    # User story:
+    # As an operator importing a file whose names the ledger cannot store,
+    # I want the preview to name the row and the field,
+    # so that I fix the source instead of meeting a failed apply.
+    #
+    # Acceptance criteria (E25 S4, G24):
+    # - A security or account name carrying a control character, or longer
+    #   than 255 characters, and a note carrying a NUL are row errors naming
+    #   the field; the other rows still preview.
+    test "names the row whose text the ledger cannot store" do
+      long = String.duplicate("a", 256)
+
+      body =
+        "Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle\n" <>
+          "2026-03-07 00:00:00;Einlage;;;;250,00;;;250,00;Giro\u0007konto;;;\n" <>
+          "2026-03-08 00:00:00;Einlage;;;;250,00;;;250,00;#{long};;;\n" <>
+          "2026-03-09 00:00:00;Einlage;;;;250,00;;;250,00;Girokonto;;broken\u0000note;\n" <>
+          "2026-03-10 00:00:00;Einlage;;;;250,00;;;250,00;Girokonto;;;\n"
+
+      assert {:ok, %Preview{entries: [entry], errors: errors}} = CsvParser.parse(body)
+      assert entry.source_row == 4
+
+      assert [%{row: 1, message: first}, %{row: 2, message: second}, %{row: 3, message: third}] =
+               errors
+
+      assert first =~ "account"
+      assert second =~ "account"
+      assert third =~ "note"
+    end
+
+    # User story (E25 S7, G20):
+    # As an operator importing a file whose text carries characters I cannot
+    # see,
+    # I want the preview to name the row, the field and the characters,
+    # so that nothing hidden reaches the ledger an agent reads, and I know what
+    # to fix in the source.
+    #
+    # Acceptance criteria:
+    # - A note or an account name carrying an invisible character (a
+    #   zero-width space, a bidirectional control) is a row error naming the
+    #   field and the character by code point; the other rows still preview.
+    # - A security name's format characters are dropped as the catalog drops
+    #   them (E25 S5, G23), so a zero-width space there is no error; a run of
+    #   variation selectors, which that does not drop, is.
+    test "names the row whose text carries invisible characters" do
+      zwsp = <<0x200B::utf8>>
+      rlo = <<0x202E::utf8>>
+      selectors = <<0xFE00::utf8, 0xFE01::utf8>>
+
+      header =
+        "Datum;Typ;Wertpapier;ISIN;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle\n"
+
+      body =
+        header <>
+          "2026-03-07 00:00:00;Einlage;;;;;250,00;;;250,00;Girokonto;;hidden#{zwsp}note;\n" <>
+          "2026-03-08 00:00:00;Einlage;;;;;250,00;;;250,00;Giro#{rlo}konto;;;\n" <>
+          "2026-03-09 00:00:00;Kauf;Nordic#{zwsp} Timber;;1;10,00;10,00;;;10,00;Girokonto;;;\n" <>
+          "2026-03-10 00:00:00;Kauf;Helios#{selectors} Solar;;1;10,00;10,00;;;10,00;Girokonto;;;\n" <>
+          "2026-03-11 00:00:00;Einlage;;;;;250,00;;;250,00;Girokonto;;;\n"
+
+      assert {:ok, %Preview{entries: entries, errors: errors}} = CsvParser.parse(body)
+      assert Enum.map(entries, & &1.source_row) == [3, 5]
+
+      assert [%{row: 1, message: note}, %{row: 2, message: account}, %{row: 4, message: security}] =
+               errors
+
+      assert note =~ "note" and note =~ "invisible" and note =~ "U+200B"
+      assert account =~ "account" and account =~ "U+202E"
+      assert security =~ "security name" and security =~ "U+FE00, U+FE01"
+    end
+
+    # Acceptance criteria (E25 S6, G02):
+    # - A note longer than the ledger's free-text cap is a row error naming
+    #   the note and the cap; a note at the cap previews.
+    test "names the row whose note is longer than the free-text cap" do
+      max = Text.free_text_max()
+
+      body =
+        "Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle\n" <>
+          "2026-03-09 00:00:00;Einlage;;;;250,00;;;250,00;Girokonto;;#{String.duplicate("n", max + 1)};\n" <>
+          "2026-03-10 00:00:00;Einlage;;;;250,00;;;250,00;Girokonto;;#{String.duplicate("n", max)};\n"
+
+      assert {:ok, %Preview{entries: [entry], errors: [%{row: 1, message: message}]}} =
+               CsvParser.parse(body)
+
+      assert entry.source_row == 2
+      assert message =~ "note"
+      assert message =~ Integer.to_string(max)
     end
   end
 end

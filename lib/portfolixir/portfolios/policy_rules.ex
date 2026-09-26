@@ -4,7 +4,8 @@ defmodule Portfolixir.Portfolios.PolicyRules do
   floors and bands, stored as rows instead of prose in a scheduled prompt.
 
   A rule is a **standard in force over a period** (§4). Its identity
-  (`Portfolixir.Portfolios.PolicyRule`: context and name) is stable; its
+  (`Portfolixir.Portfolios.PolicyRule`: its id and context) is stable, and
+  its name is the operator's label on it; its
   predicate lives on **versions** (`Portfolixir.Portfolios.PolicyRuleVersion`),
   each in force over `[valid_from, valid_until]`. So "what was the standard on
   date D" is a read (`version_on/2`), not a reconstruction from the journal.
@@ -16,10 +17,18 @@ defmodule Portfolixir.Portfolios.PolicyRules do
       (today by default, never earlier); the previous version is closed the
       day before. A version not yet in force that starts on or after the new
       one is replaced — that is how a scheduled version is edited.
+    * `rename_rule/4` — the label, outside the versioning (#872): no version
+      is added or changed; the journal keeps the previous name.
     * `retire_rule/4` — closes the version in force (yesterday by default).
       The rule and every version stay readable.
     * `delete_rule/3` — only while **no** version has ever been in force:
       nothing was ever measured against it.
+
+  **Every version stores its author** (E25 S7, G30, T-8): `operator` or
+  `agent`, derived from the write's actor by
+  `PolicyRuleVersion.author_for/1` and never taken from input, so the agent's
+  lines are told apart from the operator's own; the database keeps a recorded
+  author. A rename is no version and moves no author.
 
   **A version that has been in force is immutable**: never updated, never
   deleted; only its `valid_until` is set when an edit or a retirement closes
@@ -46,6 +55,7 @@ defmodule Portfolixir.Portfolios.PolicyRules do
   alias Portfolixir.Classifications.Category
   alias Portfolixir.Clock
   alias Portfolixir.Derived.Invalidation
+  alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Journal
   alias Portfolixir.Portfolios.PolicyRule
   alias Portfolixir.Portfolios.PolicyRuleVersion
@@ -58,6 +68,7 @@ defmodule Portfolixir.Portfolios.PolicyRules do
           | :in_force
           | :never_in_force
           | :already_retired
+          | :not_found
 
   # -- writes ------------------------------------------------------------------
 
@@ -87,10 +98,9 @@ defmodule Portfolixir.Portfolios.PolicyRules do
              {:ok, _version} <-
                journaled_insert(
                  actor,
-                 PolicyRuleVersion.changeset(
-                   %PolicyRuleVersion{},
-                   Map.put(version_attrs, "policy_rule_id", rule.id)
-                 ),
+                 %PolicyRuleVersion{}
+                 |> PolicyRuleVersion.changeset(Map.put(version_attrs, "policy_rule_id", rule.id))
+                 |> PolicyRuleVersion.put_author(actor),
                  "policy_rule_version"
                )
                |> tag_version_error() do
@@ -114,7 +124,11 @@ defmodule Portfolixir.Portfolios.PolicyRules do
   the new start; a version not yet in force that starts on or after the new
   one is replaced.
 
-  Returns `{:ok, version}` or `{:error, changeset}`.
+  The rule row is locked before its versions are read (E25 S6, F48), so an
+  edit and a retirement of one rule take turns.
+
+  Returns `{:ok, version}`, `{:error, changeset}`, or `{:error, :not_found}`
+  for a rule deleted since it was read.
   """
   @spec add_version(Actor.t(), PolicyRule.t(), map(), keyword()) ::
           {:ok, PolicyRuleVersion.t()} | {:error, write_error()}
@@ -126,12 +140,17 @@ defmodule Portfolixir.Portfolios.PolicyRules do
       valid_from = Ecto.Changeset.get_field(changeset, :valid_from)
 
       transaction(fn ->
-        versions = versions_of(rule.id)
-
-        with :ok <- starts_after_in_force(changeset, versions, valid_from, today),
+        with :ok <- lock_rule(rule.id),
+             versions = versions_of(rule.id),
+             :ok <- starts_after_in_force(changeset, versions, valid_from, today),
              :ok <- replace_scheduled(actor, versions, valid_from, today),
              :ok <- close_predecessor(actor, versions, valid_from),
-             {:ok, version} <- journaled_insert(actor, changeset, "policy_rule_version") do
+             {:ok, version} <-
+               journaled_insert(
+                 actor,
+                 PolicyRuleVersion.put_author(changeset, actor),
+                 "policy_rule_version"
+               ) do
           Invalidation.after_rule_write(rule.portfolio_id, Repo)
           version
         end
@@ -149,6 +168,9 @@ defmodule Portfolixir.Portfolios.PolicyRules do
   retired: `{:error, :never_in_force}`. A rule already retired but scheduled
   to restart has the restart cancelled (its versions that have not started
   are dropped); one with nothing scheduled answers `{:error, :already_retired}`.
+  The rule row is locked before its versions are read (E25 S6, F48), so no
+  version added concurrently survives the retirement; a rule deleted since it
+  was read answers `{:error, :not_found}`.
   """
   @spec retire_rule(Actor.t(), PolicyRule.t(), map(), keyword()) ::
           {:ok, PolicyRuleVersion.t()} | {:error, write_error()}
@@ -156,9 +178,9 @@ defmodule Portfolixir.Portfolios.PolicyRules do
     today = today(opts)
 
     transaction(fn ->
-      versions = versions_of(rule.id)
-
-      with {:ok, current} <- latest_started(versions, today) do
+      with :ok <- lock_rule(rule.id),
+           versions = versions_of(rule.id),
+           {:ok, current} <- latest_started(versions, today) do
         case retirement_date(current, attr(attrs, :valid_until), today) do
           {:ok, until} -> retire_current(actor, rule, versions, current, until, today)
           {:error, :already_retired} -> cancel_restart(actor, rule, versions, current, today)
@@ -188,8 +210,83 @@ defmodule Portfolixir.Portfolios.PolicyRules do
   end
 
   @doc """
+  Renames `rule` (#872; ADR-0049 §4 and §8 as amended by the Sprint 16 plan
+  D-6), journaled under `actor`.
+
+  The name is the operator's label on the rule, never parsed, so a rename is
+  a **rule-level edit outside the versioning**: no version is added or
+  changed, and the new name reads for the rule with all its versions. The
+  journal keeps the previous name (the entry's before-image is the stored
+  row) and who changed it. Only `name` is read from `attrs`: the context
+  (portfolio, view) never changes. Allowed on a retired rule; a name need not
+  be unique. The rules counter is bumped, because a finding carries the name.
+
+  Returns `{:ok, rule}` (versions preloaded) or `{:error, changeset}` — a
+  blank or over-long name is refused, never silently kept — or
+  `{:error, :not_found}` for a rule deleted since it was read. Resending the
+  stored name writes nothing.
+  """
+  @spec rename_rule(Actor.t(), PolicyRule.t(), map(), keyword()) ::
+          {:ok, PolicyRule.t()} | {:error, write_error()}
+  def rename_rule(%Actor{} = actor, %PolicyRule{} = rule, attrs, opts \\ []) when is_map(attrs) do
+    attrs = %{"name" => attr(attrs, :name)}
+
+    transaction(fn ->
+      case PolicyRule |> lock("FOR UPDATE") |> Repo.get(rule.id) do
+        nil -> {:error, :not_found}
+        stored -> rename_stored(actor, stored, attrs)
+      end
+    end)
+    |> reload(opts)
+  end
+
+  defp rename_stored(actor, stored, attrs) do
+    changeset = PolicyRule.rename_changeset(stored, attrs)
+
+    cond do
+      not changeset.valid? ->
+        {:error, %{changeset | action: :update}}
+
+      changeset.changes == %{} ->
+        stored.id
+
+      true ->
+        with {:ok, renamed} <- journaled_update(actor, changeset, stored, "policy_rule") do
+          Invalidation.after_rule_write(renamed.portfolio_id, Repo)
+          renamed.id
+        end
+    end
+  end
+
+  @doc """
+  The dialog's edit when both the name and the predicate changed (#872): the
+  rename and the new version in **one** transaction, so a refused version
+  leaves the name as it was, and a refused name adds no version. Returns what
+  `add_version/4` returns.
+  """
+  @spec rename_and_add_version(Actor.t(), PolicyRule.t(), map(), map(), keyword()) ::
+          {:ok, PolicyRuleVersion.t()} | {:error, write_error()}
+  def rename_and_add_version(
+        %Actor{} = actor,
+        %PolicyRule{} = rule,
+        name_attrs,
+        attrs,
+        opts \\ []
+      )
+      when is_map(name_attrs) and is_map(attrs) do
+    transaction(fn ->
+      with {:ok, renamed} <- rename_rule(actor, rule, name_attrs, opts),
+           {:ok, version} <- add_version(actor, renamed, attrs, opts) do
+        version
+      end
+    end)
+  end
+
+  @doc """
   Deletes `rule` and its versions — only while none of them has ever been in
   force (§8): `{:error, :in_force}` otherwise, and the remedy is retiring it.
+  The rule row is locked before its versions are read (E25 S6, F48); a rule
+  already deleted answers `{:error, :not_found}`.
   """
   @spec delete_rule(Actor.t(), PolicyRule.t(), keyword()) ::
           {:ok, PolicyRule.t()} | {:error, write_error()}
@@ -197,15 +294,17 @@ defmodule Portfolixir.Portfolios.PolicyRules do
     today = today(opts)
 
     transaction(fn ->
-      versions = versions_of(rule.id)
+      with :ok <- lock_rule(rule.id) do
+        versions = versions_of(rule.id)
 
-      if Enum.any?(versions, &started?(&1, today)) do
-        Repo.rollback(:in_force)
-      else
-        Enum.each(versions, &ok!(journaled_delete(actor, &1, "policy_rule_version")))
-        deleted = ok!(journaled_delete(actor, %{rule | versions: []}, "policy_rule"))
-        Invalidation.after_rule_write(rule.portfolio_id, Repo)
-        deleted
+        if Enum.any?(versions, &started?(&1, today)) do
+          Repo.rollback(:in_force)
+        else
+          Enum.each(versions, &ok!(journaled_delete(actor, &1, "policy_rule_version")))
+          deleted = ok!(journaled_delete(actor, %{rule | versions: []}, "policy_rule"))
+          Invalidation.after_rule_write(rule.portfolio_id, Repo)
+          deleted
+        end
       end
     end)
   end
@@ -259,13 +358,36 @@ defmodule Portfolixir.Portfolios.PolicyRules do
     |> where([r], r.portfolio_id == ^portfolio_id)
     |> maybe_context(Keyword.get(opts, :view, :any))
     |> maybe_updated_since(Keyword.get(opts, :updated_since))
+    |> maybe_not_retired(include_retired, as_of)
     |> order_by([r], asc: r.id)
+    |> maybe_limit(Keyword.get(opts, :limit))
     |> preload(:versions)
     |> Repo.all()
     |> Enum.map(&annotate(&1, as_of))
-    |> Enum.filter(&(include_retired or &1.status != :retired))
-    |> take(Keyword.get(opts, :limit))
   end
+
+  # The retired filter and the limit run in the query (E25 S4, F74), so a long
+  # rule history is not loaded to answer a short list. A rule is not retired
+  # on `as_of` exactly when one of its versions has not ended by then: such a
+  # version is in force if it has started, scheduled if it has not — the same
+  # status `annotate/2` gives.
+  defp maybe_not_retired(query, true, _as_of), do: query
+
+  defp maybe_not_retired(query, false, as_of) do
+    open =
+      from(v in PolicyRuleVersion,
+        where: v.policy_rule_id == parent_as(:rule).id,
+        where: is_nil(v.valid_until) or v.valid_until >= ^as_of,
+        select: 1
+      )
+
+    query
+    |> from(as: :rule)
+    |> where(exists(subquery(open)))
+  end
+
+  defp maybe_limit(query, nil), do: query
+  defp maybe_limit(query, n) when is_integer(n) and n > 0, do: limit(query, ^n)
 
   @doc """
   The `{rule, version}` pairs in force on `date` for one evaluation context
@@ -333,13 +455,14 @@ defmodule Portfolixir.Portfolios.PolicyRules do
 
   defp today(opts), do: Keyword.get(opts, :today) || Clock.today()
 
-  # The version's attrs with `valid_from` defaulted to today; `valid_until`
-  # and the rule reference are never taken from input.
+  # The version's attrs with `valid_from` defaulted to today; `valid_until`,
+  # the rule reference and the author (the write's actor decides it, E25 S7,
+  # G30) are never taken from input.
   defp version_attrs(attrs, today) when is_map(attrs) do
     attrs =
       attrs
       |> Map.new(fn {key, value} -> {to_string(key), value} end)
-      |> Map.drop(["valid_until", "policy_rule_id", "id"])
+      |> Map.drop(["valid_until", "policy_rule_id", "id", "author"])
 
     if attrs["valid_from"] in [nil, ""],
       do: Map.put(attrs, "valid_from", today),
@@ -491,16 +614,15 @@ defmodule Portfolixir.Portfolios.PolicyRules do
     end
   end
 
-  defp parse_date(%Date{} = date), do: {:ok, date}
-
-  defp parse_date(value) when is_binary(value) do
-    case Date.from_iso8601(value) do
+  # The retirement date reaches the version without a cast, so it meets the
+  # shared bounded date here (E25 S4, F70).
+  defp parse_date(value) do
+    case BoundedDate.parse(value) do
       {:ok, date} -> {:ok, date}
-      _malformed -> {:error, retire_error("is invalid")}
+      {:error, :out_of_range} -> {:error, retire_error(BoundedDate.message())}
+      {:error, :invalid} -> {:error, retire_error("is invalid")}
     end
   end
-
-  defp parse_date(_value), do: {:error, retire_error("is invalid")}
 
   defp not_before(date, floor) do
     if Date.compare(date, floor) == :lt,
@@ -517,6 +639,24 @@ defmodule Portfolixir.Portfolios.PolicyRules do
 
   defp latest_date(a, b), do: if(Date.compare(a, b) == :lt, do: b, else: a)
 
+  # E25 S6 (#891), F48: the rule row is locked FOR UPDATE, in a statement of
+  # its own, before its versions are read. Locking the versions holds only
+  # the rows that exist; a version added concurrently is an insert, which
+  # waits on this lock through its foreign key, so a retirement or a delete
+  # can no longer read the versions while another write adds one that then
+  # survives it. A rule deleted in the meantime answers `:not_found`.
+  defp lock_rule(rule_id) do
+    PolicyRule
+    |> where([r], r.id == ^rule_id)
+    |> lock("FOR UPDATE")
+    |> select([r], r.id)
+    |> Repo.one()
+    |> case do
+      nil -> {:error, :not_found}
+      _id -> :ok
+    end
+  end
+
   defp versions_of(rule_id) do
     PolicyRuleVersion
     |> where([v], v.policy_rule_id == ^rule_id)
@@ -529,6 +669,19 @@ defmodule Portfolixir.Portfolios.PolicyRules do
     Multi.new()
     |> Multi.insert(:record, changeset)
     |> Journal.record(actor, resource_type: resource_type, operation: :create, source: :record)
+    |> Repo.transaction()
+    |> normalize_write()
+  end
+
+  defp journaled_update(actor, changeset, before, resource_type) do
+    Multi.new()
+    |> Multi.update(:record, changeset)
+    |> Journal.record(actor,
+      resource_type: resource_type,
+      operation: :update,
+      source: :record,
+      before: before
+    )
     |> Repo.transaction()
     |> normalize_write()
   end
@@ -580,8 +733,12 @@ defmodule Portfolixir.Portfolios.PolicyRules do
     end)
   end
 
-  defp reload({:ok, rule_id}), do: {:ok, get_rule(rule_id)}
-  defp reload(error), do: error
+  defp reload(result, opts \\ [])
+
+  defp reload({:ok, rule_id}, opts),
+    do: {:ok, get_rule(rule_id, as_of: Keyword.get(opts, :today))}
+
+  defp reload(error, _opts), do: error
 
   defp attr(attrs, key), do: Map.get(attrs, key, Map.get(attrs, to_string(key)))
 
@@ -631,7 +788,4 @@ defmodule Portfolixir.Portfolios.PolicyRules do
   defp in_force_on?(%PolicyRuleVersion{valid_from: from, valid_until: until}, date) do
     Date.compare(from, date) != :gt and (is_nil(until) or Date.compare(until, date) != :lt)
   end
-
-  defp take(rows, nil), do: rows
-  defp take(rows, n) when is_integer(n) and n > 0, do: Enum.take(rows, n)
 end

@@ -55,6 +55,7 @@ defmodule Portfolixir.Portfolios.Risk do
   @zero Decimal.new("0")
   @hundred Decimal.new("100")
   @default_top_n 10
+  @max_top_n 1_000
 
   # Default HHI bands on the 0–10000 scale (FR8).
   @default_low Decimal.new("1500")
@@ -66,6 +67,10 @@ defmodule Portfolixir.Portfolios.Risk do
   @default_etf_warn Decimal.new("25")
 
   @etf_asset_class "etf"
+
+  @doc "The largest Top-N one read serves; a larger request is capped to it."
+  @spec max_top_n() :: pos_integer()
+  def max_top_n, do: @max_top_n
 
   @doc """
   The shipped single-name thresholds and HHI bands (FR8/FR10), for a surface
@@ -86,7 +91,8 @@ defmodule Portfolixir.Portfolios.Risk do
 
   Options:
 
-    * `:top_n` – number of single-name entries to return (default `10`), or
+    * `:top_n` – number of single-name entries to return (default `10`,
+      capped at `max_top_n/0` and echoed as applied under `:top_n`), or
       `:all` for every one.
     * `:metrics` – `false` skips ADR-0047's portfolio metrics (default
       `true`); a caller that needs only the lens's weights and HHI does not
@@ -97,6 +103,9 @@ defmodule Portfolixir.Portfolios.Risk do
     * `:etf_thresholds` – `%{warn: Decimal}` ETF cutoff.
     * forwarded to `Valuation.for_portfolio/2` for tests: `:prices`,
       `:base_currency`.
+    * `:valuation` – the context's valuation when the caller already holds
+      it (the findings read values its context once, E25 S4); it must be
+      the valuation `:view` names.
     * forwarded to `RiskMetrics.for_portfolio/3` (FR-40, ADR-0047):
       `:risk_free_rate` (a Decimal fraction, default `0`) and `:as_of`.
 
@@ -111,9 +120,10 @@ defmodule Portfolixir.Portfolios.Risk do
 
     {metrics_opts, risk_opts} = Keyword.split(risk_opts, [:risk_free_rate, :as_of])
     {with_metrics?, risk_opts} = Keyword.pop(risk_opts, :metrics, true)
+    {given, risk_opts} = Keyword.pop(risk_opts, :valuation)
 
     # A vanished view degrades to `{:error, :view_not_found}` (fix round).
-    with %{} = valuation <- Valuation.for_portfolio(portfolio_id, valuation_opts),
+    with %{} = valuation <- given || Valuation.for_portfolio(portfolio_id, valuation_opts),
          %{} = risk <- build_risk(valuation, risk_opts) do
       if with_metrics?,
         do: put_metrics(portfolio_id, risk, valuation_opts, metrics_opts),
@@ -150,11 +160,14 @@ defmodule Portfolixir.Portfolios.Risk do
     basis = sum_values(exposures)
     weighted = Enum.map(exposures, &put_weight(&1, basis))
 
+    top_n = applied_top_n(Keyword.get(risk_opts, :top_n))
+
     %{
       portfolio_id: valuation.portfolio_id,
       base_currency: valuation.base_currency,
       steerable_basis: basis,
-      top_holdings: top_holdings(weighted, risk_opts),
+      top_n: top_n,
+      top_holdings: top_holdings(weighted, top_n, risk_opts),
       hhi: hhi(weighted, risk_opts),
       asset_class_violations: asset_class_violations(weighted, basis, risk_opts)
     }
@@ -191,8 +204,7 @@ defmodule Portfolixir.Portfolios.Risk do
   # The largest single-name exposures first, capped at N (default 10), each
   # tagged with its instrument-type-aware severity (FR8/FR10). Ties on weight
   # break by security_id so the order is deterministic.
-  defp top_holdings(weighted, opts) do
-    top_n = Keyword.get(opts, :top_n, @default_top_n)
+  defp top_holdings(weighted, top_n, opts) do
     {stock, etf} = thresholds(opts)
 
     weighted
@@ -209,6 +221,12 @@ defmodule Portfolixir.Portfolios.Risk do
       }
     end)
   end
+
+  # The list-limit contract (E25 S4, F72): absent is the default, a larger
+  # request is capped at the maximum, and the payload echoes what was applied.
+  defp applied_top_n(nil), do: @default_top_n
+  defp applied_top_n(:all), do: :all
+  defp applied_top_n(top_n) when is_integer(top_n) and top_n > 0, do: min(top_n, @max_top_n)
 
   # `:all` is every single-name exposure — the policy-rules read (ADR-0049 §2)
   # needs the weight of a name outside the Top-N, and reads it here rather

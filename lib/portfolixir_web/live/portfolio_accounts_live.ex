@@ -17,13 +17,20 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
 
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
+  alias Portfolixir.Clock
   alias Portfolixir.Ledger
+  alias Portfolixir.Lifecycle
+  alias Portfolixir.Lifecycle.Delete
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.DecimalInput
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PortfolioAccounts.AccountFormDialog
+  alias PortfolixirWeb.PortfolioAccounts.MergeDialog
+  alias PortfolixirWeb.PortfolioAccounts.RenameDialog
 
   @color_format ~r/^#[0-9a-fA-F]{3,8}$/
 
@@ -38,9 +45,16 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
      |> assign(:error, nil)
      |> assign(:success, nil)
      |> assign(:account_dialog?, false)
-     |> assign(:account_menu_id, nil)
+     # ADR-0050 (L5a, G1-A): the open row menu, and the one lifecycle dialog
+     # it opened — rename, merge, or the refusal of a delete.
+     |> assign(:account_menu, nil)
+     |> assign(:rename, nil)
+     |> assign(:merge, nil)
+     |> assign(:delete_blocked, nil)
+     |> assign(:result, nil)
      |> assign(:balance_dialog, nil)
      |> assign(:balance_error, nil)
+     |> assign(:balance_invalid, [])
      |> assign(:picker, nil)
      # Session-only: bucket cells whose "+N" overflow is expanded in place
      # (issue 842, pick E2-A), keyed by {owner, owner_id}.
@@ -81,6 +95,8 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
             </button>
           </div>
 
+          <AppShell.inline_result id="accounts-result" result={@result} />
+
           <%= if @rows == [] do %>
             <p class="hint" data-role="accounts-empty">
               <%= gettext("No accounts yet — add a first depot and cash account.") %>
@@ -113,6 +129,10 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                     <tr class="account-row--depot">
                       <td class="cell-name cell-name--depot">
                         <span class="account-name"><%= row.depot.name %></span>
+                        <.account_lines
+                          account={row.depot}
+                          merged={Map.get(@merged_from.depot, row.depot.id, [])}
+                        />
                       </td>
                       <td class="cell-currency cell-currency--empty"></td>
                       <td class="cell-role cell-role--empty"></td>
@@ -146,19 +166,14 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                         </td>
                       <% end %>
                       <td class="row-actions">
-                        <button
-                          :if={merged?(row, @split_pairs)}
-                          type="button"
+                        <AppShell.row_kebab
                           id={"account-kebab-#{row.depot.id}"}
-                          class="row-actions__kebab"
+                          row={row.depot.name}
+                          open={menu_open?(@account_menu, "depot", row.depot.id)}
                           phx-click="open_account_menu"
+                          phx-value-kind="depot"
                           phx-value-id={row.depot.id}
-                          aria-label={gettext("Open actions menu")}
-                          aria-haspopup="menu"
-                          aria-expanded={to_string(@account_menu_id == row.depot.id)}
-                        >
-                          <AppShell.icon name={:ellipsis_vertical} />
-                        </button>
+                        />
                       </td>
                     </tr>
                     <%= cond do %>
@@ -166,6 +181,10 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                         <tr class="account-row--cash">
                           <td class="cell-name cell-name--cash">
                             <span class="account-cash-name"><%= row.cash.name %></span>
+                            <.account_lines
+                              account={row.cash}
+                              merged={Map.get(@merged_from.cash, row.cash.id, [])}
+                            />
                           </td>
                           <td class="cell-currency"><%= row.cash.currency_code %></td>
                           <td class="cell-role"><.liquidity_role_field cash={row.cash} /></td>
@@ -189,7 +208,9 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                               scope_line={scope_line(:cash)}
                             />
                           </td>
-                          <td class="row-actions"></td>
+                          <td class="row-actions">
+                            <.cash_kebab cash={row.cash} menu={@account_menu} />
+                          </td>
                         </tr>
                       <% row.cash -> %>
                         <tr class="account-row--cash account-row--shared">
@@ -222,6 +243,10 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                       <td class="cell-name cell-name--lone">
                         <span class="account-name"><%= row.cash.name %></span>
                         <span class="account-microtag"><%= gettext("Cash account") %></span>
+                        <.account_lines
+                          account={row.cash}
+                          merged={Map.get(@merged_from.cash, row.cash.id, [])}
+                        />
                       </td>
                       <td class="cell-currency"><%= row.cash.currency_code %></td>
                       <td class="cell-role"><.liquidity_role_field cash={row.cash} /></td>
@@ -245,33 +270,16 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                           scope_line={scope_line(:cash)}
                         />
                       </td>
-                      <td class="row-actions"></td>
+                      <td class="row-actions">
+                        <.cash_kebab cash={row.cash} menu={@account_menu} />
+                      </td>
                     </tr>
                   <% end %>
                 </tbody>
               </table>
             </div>
 
-            <% open_pair = @account_menu_id && Enum.find(@rows, &pair_row?(&1, @account_menu_id)) %>
-            <AppShell.row_menu
-              :if={open_pair}
-              id={"account-row-menu-#{open_pair.depot.id}"}
-              trigger={"account-kebab-#{open_pair.depot.id}"}
-              label={gettext("Account actions")}
-            >
-              <button
-                type="button"
-                id={"split-pair-#{open_pair.depot.id}"}
-                class="row-context-menu__item"
-                role="menuitem"
-                data-role="split-pair"
-                phx-click="split_pair"
-                phx-value-id={open_pair.depot.id}
-              >
-                <AppShell.icon name={:layers} />
-                <%= gettext("Tag separately") %>
-              </button>
-            </AppShell.row_menu>
+            <.account_menu :if={@account_menu} menu={@account_menu} split_pairs={@split_pairs} rows={@rows} />
           <% end %>
         </section>
 
@@ -324,6 +332,23 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
           />
         <% end %>
 
+        <%!-- ADR-0050 (L5a, G1-A): one dialog per action of the row menu. --%>
+        <.live_component
+          :if={@rename}
+          module={RenameDialog}
+          id="rename-dialog"
+          kind={elem(@rename, 0)}
+          account_id={elem(@rename, 1)}
+        />
+        <.live_component
+          :if={@merge}
+          module={MergeDialog}
+          id="merge-dialog"
+          kind={elem(@merge, 0)}
+          source_id={elem(@merge, 1)}
+        />
+        <.delete_blocked_dialog :if={@delete_blocked} blocked={@delete_blocked} />
+
         <%!-- Set-balance dialog (#670, UX-DR3/UX-DR11): the account is
              pre-chosen by the row that opened it — never re-picked in the
              form. Native dialog per UX-DR9 (issue 646). --%>
@@ -352,6 +377,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
               <form phx-submit="set_balance" class="balance-dialog-form">
                 <p
                   :if={@balance_error}
+                  id="balance-error"
                   class="field-error"
                   data-role="balance-error"
                   role="alert"
@@ -366,14 +392,24 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                     pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
                     maxlength="10"
                     name="balance[date]"
-                    value={Date.to_iso8601(Date.utc_today())}
+                    value={Date.to_iso8601(Clock.today())}
+                    aria-invalid={"date" in @balance_invalid && "true"}
+                    aria-describedby={"date" in @balance_invalid && "balance-error"}
                   />
                 </label>
                 <label>
                   <span>
                     <%= gettext("Balance") %> (<%= @balance_dialog.currency_code %>)
                   </span>
-                  <input name="balance[amount]" inputmode="decimal" required placeholder="4250.00" />
+                  <input
+                    name="balance[amount]"
+                    inputmode="decimal"
+                    class="num"
+                    required
+                    placeholder={DecimalInput.value(Decimal.new("4250.00"))}
+                    aria-invalid={"amount" in @balance_invalid && "true"}
+                    aria-describedby={"amount" in @balance_invalid && "balance-error"}
+                  />
                 </label>
                 <p class="hint">
                   <%= gettext("State the balance the bank shows; only later bookings adjust it.") %>
@@ -427,6 +463,178 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
     >
       <%= gettext("Set balance") %>
     </button>
+    """
+  end
+
+  # ADR-0050 §4, §12 (board 01, board 13 G13.1-A): under the name, readable
+  # without a click, what the account was merged from and the names an
+  # import still books here. A merged source's name is said once, on its own
+  # line; the former-name line names the newest other former name and counts
+  # the rest.
+  attr(:account, :map, required: true)
+  attr(:merged, :list, default: [])
+
+  defp account_lines(assigns) do
+    sources = Enum.map(assigns.merged, & &1.source_name)
+    former = Enum.reject(assigns.account.former_names, &(&1 in sources))
+    assigns = assign(assigns, former: former)
+
+    ~H"""
+    <span :if={@merged != []} class="account-sub account-sub--merged" data-role="account-merged-from">
+      <%= merged_line(@merged) %>
+    </span>
+    <span :if={@former != []} class="account-sub account-sub--former" data-role="account-former">
+      <%= gettext("former: %{name}", name: List.last(@former)) %><%= more(length(@former) - 1) %>
+    </span>
+    """
+  end
+
+  defp merged_line(merged) do
+    newest = List.last(merged)
+
+    gettext("merged from %{name} · %{date}",
+      name: newest.source_name,
+      date: Format.date(newest.merged_on)
+    ) <> more(length(merged) - 1)
+  end
+
+  defp more(0), do: ""
+  defp more(count), do: " +#{count}"
+
+  attr(:cash, CashAccount, required: true)
+  attr(:menu, :any, required: true)
+
+  defp cash_kebab(assigns) do
+    ~H"""
+    <AppShell.row_kebab
+      id={"cash-kebab-#{@cash.id}"}
+      row={@cash.name}
+      open={menu_open?(@menu, "cash", @cash.id)}
+      phx-click="open_account_menu"
+      phx-value-kind="cash"
+      phx-value-id={@cash.id}
+    />
+    """
+  end
+
+  # The row menu (G1-A): ordered by consequence — Rename, Tag separately (the
+  # depot row of a pair tagged together only), Merge into…, then Delete last
+  # in the danger colour. A delete of an account something still references
+  # opens its refusal directly; a free one asks once (board 01).
+  attr(:menu, :map, required: true)
+  attr(:split_pairs, :any, required: true)
+  attr(:rows, :list, required: true)
+
+  defp account_menu(assigns) do
+    %{kind: kind, account: account} = assigns.menu
+    row = Enum.find(assigns.rows, &(&1.depot && &1.depot.id == account.id))
+
+    assigns =
+      assign(assigns,
+        kind: kind,
+        account: account,
+        split?: kind == "depot" and row != nil and merged?(row, assigns.split_pairs)
+      )
+
+    ~H"""
+    <AppShell.row_menu
+      id={menu_dom_id(@kind, @account.id)}
+      trigger={kebab_dom_id(@kind, @account.id)}
+      label={gettext("Actions for %{row}", row: @account.name)}
+      caption_name={@account.name}
+      caption_kind={kind_label(@kind)}
+    >
+      <button
+        type="button"
+        class="row-context-menu__item"
+        role="menuitem"
+        data-role="menu-rename"
+        phx-click="row_rename"
+        phx-value-kind={@kind}
+        phx-value-id={@account.id}
+      >
+        <AppShell.icon name={:edit} />
+        <span><%= gettext("Rename") %></span>
+      </button>
+      <button
+        :if={@split?}
+        type="button"
+        id={"split-pair-#{@account.id}"}
+        class="row-context-menu__item"
+        role="menuitem"
+        data-role="split-pair"
+        phx-click="split_pair"
+        phx-value-id={@account.id}
+      >
+        <AppShell.icon name={:layers} />
+        <span><%= gettext("Tag separately") %></span>
+      </button>
+      <button
+        type="button"
+        class="row-context-menu__item"
+        role="menuitem"
+        data-role="menu-merge"
+        phx-click="row_merge"
+        phx-value-kind={@kind}
+        phx-value-id={@account.id}
+      >
+        <AppShell.icon name={:merge} />
+        <span><%= gettext("Merge into…") %></span>
+      </button>
+      <button
+        type="button"
+        class="row-context-menu__item row-context-menu__item--danger"
+        role="menuitem"
+        data-role="menu-delete"
+        phx-click="row_delete"
+        phx-value-kind={@kind}
+        phx-value-id={@account.id}
+        data-confirm={if @menu.refs == %{}, do: delete_confirmation(@kind, @account, @menu.buckets?)}
+      >
+        <AppShell.icon name={:trash} />
+        <span><%= gettext("Delete") %></span>
+      </button>
+    </AppShell.row_menu>
+    """
+  end
+
+  # "Cannot delete" (board 01): the securities page's dialog with another way
+  # out — the merge, whose first step opens for this account.
+  attr(:blocked, :map, required: true)
+
+  defp delete_blocked_dialog(assigns) do
+    ~H"""
+    <dialog
+      id="delete-blocked-dialog"
+      class="modal confirm-delete-blocked"
+      phx-hook="ModalDialog"
+      data-close-event="close_delete_blocked"
+      aria-labelledby="delete-blocked-title"
+    >
+      <header class="modal-head">
+        <h2 id="delete-blocked-title"><%= gettext("Cannot delete") %></h2>
+        <button
+          type="button"
+          class="icon-button"
+          aria-label={gettext("Close")}
+          phx-click="close_delete_blocked"
+        >
+          <AppShell.icon name={:x} />
+        </button>
+      </header>
+      <div class="modal-body">
+        <p><%= blocked_sentence(@blocked) %></p>
+        <p class="muted"><%= blocked_remedy(@blocked.kind) %></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="button-ghost" phx-click="close_delete_blocked">
+          <%= gettext("Cancel") %>
+        </button>
+        <button type="button" class="button-primary" data-role="merge-instead" phx-click="merge_instead">
+          <%= gettext("Merge into…") %>
+        </button>
+      </div>
+    </dialog>
     """
   end
 
@@ -624,32 +832,45 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
 
   @impl true
   def handle_event("open_balance_dialog", %{"id" => id}, socket) do
-    with {parsed, ""} <- Integer.parse(id),
+    with {:ok, parsed} <- LiveParam.fetch_id(id),
          %CashAccount{} = account <- Portfolios.get_cash_account(parsed) do
-      {:noreply, assign(socket, balance_dialog: account, balance_error: nil)}
+      {:noreply, assign(socket, balance_dialog: account, balance_error: nil, balance_invalid: [])}
     else
       _ -> {:noreply, socket}
     end
   end
 
   def handle_event("close_balance_dialog", _params, socket) do
-    {:noreply, assign(socket, balance_dialog: nil, balance_error: nil)}
+    {:noreply, assign(socket, balance_dialog: nil, balance_error: nil, balance_invalid: [])}
   end
 
   def handle_event("set_balance", %{"balance" => params}, socket) do
     case socket.assigns.balance_dialog do
       %CashAccount{} = account ->
-        case Ledger.set_cash_balance(Actor.owner_ui(), account, params) do
-          {:ok, _tx} ->
-            # Quiet feedback: the row's balance updating in place is the
-            # confirmation — no toast, no success banner (#566 direction).
-            {:noreply,
-             socket
-             |> assign(balance_dialog: nil, balance_error: nil)
-             |> load_state()}
-
+        # #869: the balance is read by the one decimal-input rule, from a payload
+        # read through the one reader of client input (E25 S4).
+        with {:ok, read} <- DecimalInput.cast(LiveParam.map(params), ["amount"]),
+             {:ok, _tx} <- Ledger.set_cash_balance(Actor.owner_ui(), account, read) do
+          # Quiet feedback: the row's balance updating in place is the
+          # confirmation — no toast, no success banner (#566 direction).
+          {:noreply,
+           socket
+           |> assign(balance_dialog: nil, balance_error: nil, balance_invalid: [])
+           |> load_state()}
+        else
           {:error, %Ecto.Changeset{} = changeset} ->
-            {:noreply, assign(socket, :balance_error, changeset_error(changeset))}
+            {:noreply,
+             assign(socket,
+               balance_error: changeset_error(changeset),
+               balance_invalid: balance_invalid(changeset)
+             )}
+
+          {:error, %{"amount" => message}} ->
+            {:noreply,
+             assign(socket,
+               balance_error: "#{gettext("Balance")} #{message}",
+               balance_invalid: ["amount"]
+             )}
         end
 
       _ ->
@@ -666,7 +887,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
         %{"account_id" => id, "liquidity_role" => role},
         socket
       ) do
-    with {account_id, ""} <- Integer.parse(id),
+    with {:ok, account_id} <- LiveParam.fetch_id(id),
          %CashAccount{} = account <- Portfolios.get_cash_account(account_id),
          {:ok, _updated} <-
            Portfolios.update_cash_account(Actor.owner_ui(), account, %{liquidity_role: role}) do
@@ -681,7 +902,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
 
   def handle_event("open_bucket_picker", %{"owner" => owner, "id" => id}, socket)
       when owner in ["depot", "cash", "pair"] do
-    case coerce_id(id) do
+    case LiveParam.fetch_id(id) do
       {:ok, owner_id} ->
         {:noreply,
          socket
@@ -695,24 +916,82 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
 
   # Session-only split of a merged pair: from here on the depot and its cash
   # account carry their own chip groups (no write happens).
-  def handle_event("open_account_menu", %{"id" => id_str}, socket) do
-    case Integer.parse(to_string(id_str)) do
-      {id, ""} -> {:noreply, assign(socket, :account_menu_id, id)}
-      _ -> {:noreply, socket}
+  # ADR-0050 (L5a, G1-A): every entity row's menu. What references the
+  # account is read as the menu opens, so Delete knows whether to ask once
+  # or to open the refusal.
+  def handle_event("open_account_menu", %{"kind" => kind, "id" => id}, socket) do
+    case fetch_account(kind, id) do
+      {:ok, account} ->
+        refs = Delete.referenced_by(account)
+
+        {:noreply,
+         assign(socket, :account_menu, %{
+           kind: kind,
+           id: account.id,
+           account: account,
+           refs: refs,
+           buckets?: owner_bucket_ids(owner_of(kind), account.id) != []
+         })}
+
+      :error ->
+        {:noreply, socket}
     end
   end
 
   def handle_event("close_row_menu", _params, socket) do
-    {:noreply, assign(socket, :account_menu_id, nil)}
+    {:noreply, assign(socket, :account_menu, nil)}
+  end
+
+  def handle_event("row_rename", %{"kind" => kind, "id" => id}, socket) do
+    case fetch_account(kind, id) do
+      {:ok, account} ->
+        {:noreply, socket |> close_lifecycle() |> assign(:rename, {kind, account.id})}
+
+      :error ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("row_merge", %{"kind" => kind, "id" => id}, socket) do
+    case fetch_account(kind, id) do
+      {:ok, account} ->
+        {:noreply, socket |> close_lifecycle() |> assign(:merge, {kind, account.id})}
+
+      :error ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("row_delete", %{"kind" => kind, "id" => id}, socket) do
+    case fetch_account(kind, id) do
+      {:ok, account} -> {:noreply, socket |> close_lifecycle() |> delete_account(kind, account)}
+      :error -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("close_delete_blocked", _params, socket) do
+    {:noreply, assign(socket, :delete_blocked, nil)}
+  end
+
+  def handle_event(
+        "merge_instead",
+        _params,
+        %{assigns: %{delete_blocked: %{} = blocked}} = socket
+      ) do
+    {:noreply, socket |> close_lifecycle() |> assign(:merge, {blocked.kind, blocked.account.id})}
+  end
+
+  def handle_event("dismiss_result", _params, socket) do
+    {:noreply, assign(socket, :result, nil)}
   end
 
   def handle_event("split_pair", %{"id" => id}, socket) do
-    case coerce_id(id) do
+    case LiveParam.fetch_id(id) do
       {:ok, depot_id} ->
         {:noreply,
          socket
          |> assign(:split_pairs, MapSet.put(socket.assigns.split_pairs, depot_id))
-         |> assign(:account_menu_id, nil)
+         |> assign(:account_menu, nil)
          |> assign(:picker, nil)
          |> assign(:bucket_error, nil)}
 
@@ -723,7 +1002,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
 
   def handle_event("toggle_bucket_overflow", %{"owner" => owner, "id" => id}, socket)
       when owner in ["depot", "cash", "pair"] do
-    case coerce_id(id) do
+    case LiveParam.fetch_id(id) do
       {:ok, owner_id} ->
         key = {owner, owner_id}
         open = socket.assigns.overflow_open
@@ -747,7 +1026,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
 
   def handle_event("add_bucket", %{"owner" => owner, "id" => id, "bucket" => bucket}, socket) do
     change_buckets(socket, owner, id, fn current ->
-      case coerce_id(bucket) do
+      case LiveParam.fetch_id(bucket) do
         {:ok, bucket_id} -> current ++ [bucket_id]
         :error -> current
       end
@@ -756,7 +1035,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
 
   def handle_event("remove_bucket", %{"owner" => owner, "id" => id, "bucket" => bucket}, socket) do
     change_buckets(socket, owner, id, fn current ->
-      case coerce_id(bucket) do
+      case LiveParam.fetch_id(bucket) do
         {:ok, bucket_id} -> current -- [bucket_id]
         :error -> current
       end
@@ -767,7 +1046,8 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
         "create_and_add_bucket",
         %{"owner" => owner, "owner_id" => id, "bucket_name" => name},
         socket
-      ) do
+      )
+      when is_binary(name) do
     case Buckets.ensure_tag_bucket(Actor.owner_ui(), name) do
       {:ok, bucket} ->
         change_buckets(socket, owner, id, fn current -> current ++ [bucket.id] end)
@@ -787,9 +1067,41 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
     end
   end
 
+  # An event this page does not know, or a payload it cannot read, changes
+  # nothing (E25 S4, F17).
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
   @impl true
   def handle_info({:dialog, "account-form-dialog", :close}, socket) do
     {:noreply, assign(socket, :account_dialog?, false)}
+  end
+
+  def handle_info({:dialog, "rename-dialog", :close}, socket) do
+    {:noreply, assign(socket, :rename, nil)}
+  end
+
+  # The row changing in place is the confirmation of a rename (board 01):
+  # no banner.
+  def handle_info({:dialog, "rename-dialog", :renamed}, socket) do
+    {:noreply, socket |> assign(:rename, nil) |> load_state()}
+  end
+
+  # A former name removed: the dialog stays open, the row follows.
+  def handle_info({:dialog, "rename-dialog", :changed}, socket) do
+    {:noreply, load_state(socket)}
+  end
+
+  def handle_info({:dialog, "merge-dialog", :close}, socket) do
+    {:noreply, assign(socket, :merge, nil)}
+  end
+
+  # Board 02: confirming closes the dialog and reports the result inline
+  # above the table, until the next action or its dismiss.
+  def handle_info({:dialog, "merge-dialog", {:merged, message}}, socket) do
+    {:noreply,
+     socket
+     |> assign(merge: nil, result: {:note, message})
+     |> load_state()}
   end
 
   def handle_info({:dialog, "account-form-dialog", {:created, message}}, socket) do
@@ -798,6 +1110,129 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
      |> assign(:account_dialog?, false)
      |> success(message)
      |> load_state()}
+  end
+
+  # -- lifecycle (ADR-0050, L5a) ---------------------------------------------------
+
+  defp fetch_account(kind, id) when kind in ["cash", "depot"] do
+    with {:ok, parsed} <- LiveParam.fetch_id(id) do
+      fetch_owner(owner_of(kind), parsed)
+    end
+  end
+
+  defp fetch_account(_kind, _id), do: :error
+
+  defp owner_of("cash"), do: "cash"
+  defp owner_of("depot"), do: "depot"
+
+  # One lifecycle dialog at a time; the menu that opened it closes.
+  defp close_lifecycle(socket),
+    do: assign(socket, account_menu: nil, rename: nil, merge: nil, delete_blocked: nil)
+
+  # ADR-0050 §11 through the hardened delete: an account something references
+  # is never deleted — the refusal names what references it and offers the
+  # merge instead; an unreferenced one goes, its bucket links first,
+  # journaled. The row disappearing is the confirmation.
+  defp delete_account(socket, kind, account) do
+    case Delete.referenced_by(account) do
+      refs when map_size(refs) > 0 ->
+        block_delete(socket, kind, account, refs)
+
+      _free ->
+        case delete(account) do
+          {:ok, _deleted} -> socket |> assign(:result, nil) |> load_state()
+          {:error, {:referenced, refs}} -> block_delete(socket, kind, account, refs)
+          {:error, _gone} -> load_state(socket)
+        end
+    end
+  end
+
+  defp delete(%CashAccount{} = account),
+    do: Portfolios.delete_cash_account(Actor.owner_ui(), account)
+
+  defp delete(%SecuritiesAccount{} = account),
+    do: Portfolios.delete_securities_account(Actor.owner_ui(), account)
+
+  defp block_delete(socket, kind, account, refs) do
+    depots =
+      case account do
+        %CashAccount{id: id} ->
+          for depot <- Portfolios.list_securities_accounts(),
+              depot.cash_account_id == id,
+              do: depot.name
+
+        _depot ->
+          []
+      end
+
+    assign(socket, :delete_blocked, %{kind: kind, account: account, refs: refs, depots: depots})
+  end
+
+  defp menu_open?(%{kind: kind, id: id}, kind, id), do: true
+  defp menu_open?(_menu, _kind, _id), do: false
+
+  defp menu_dom_id("depot", id), do: "account-row-menu-#{id}"
+  defp menu_dom_id("cash", id), do: "cash-row-menu-#{id}"
+
+  defp kebab_dom_id("depot", id), do: "account-kebab-#{id}"
+  defp kebab_dom_id("cash", id), do: "cash-kebab-#{id}"
+
+  defp kind_label("depot"), do: gettext("Depot")
+  defp kind_label("cash"), do: gettext("Cash account")
+
+  defp delete_confirmation("cash", account, buckets?) do
+    gettext("Delete “%{name}”? The account has no bookings and no linked depot.",
+      name: account.name
+    ) <>
+      buckets_removed(buckets?)
+  end
+
+  defp delete_confirmation("depot", account, buckets?) do
+    gettext("Delete “%{name}”? The depot has no bookings.", name: account.name) <>
+      buckets_removed(buckets?)
+  end
+
+  defp buckets_removed(true), do: " " <> gettext("Its bucket assignments are removed with it.")
+  defp buckets_removed(false), do: ""
+
+  defp blocked_sentence(%{account: account, refs: refs, depots: depots}) do
+    parts =
+      [
+        refs["transactions"] &&
+          ngettext("%{count} booking", "%{count} bookings", refs["transactions"]),
+        depots != [] &&
+          ngettext(
+            "%{count} linked depot (%{names})",
+            "%{count} linked depots (%{names})",
+            length(depots),
+            names: Enum.join(depots, ", ")
+          )
+      ]
+      |> Enum.filter(& &1)
+
+    references =
+      case parts do
+        [one] -> one
+        [first, second] -> gettext("%{first} and %{second}", first: first, second: second)
+        [] -> gettext("references")
+      end
+
+    gettext("“%{name}” still has %{references} — merge it first.",
+      name: account.name,
+      references: references
+    )
+  end
+
+  defp blocked_remedy("cash") do
+    gettext(
+      "A merge moves the bookings and the depot into an account of the same currency, liquidity role and buckets; the name stays there as a former name."
+    )
+  end
+
+  defp blocked_remedy("depot") do
+    gettext(
+      "A merge moves the bookings into a depot with the same default buckets; the name stays there as a former name."
+    )
   end
 
   # -- bucket writes -------------------------------------------------------------
@@ -810,7 +1245,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   # write fails the sets have diverged, so the reload auto-splits the band and
   # the error keys on the cash group that the split reveals.
   defp change_buckets(socket, "pair", id, fun) do
-    with {:ok, depot_id} <- coerce_id(id),
+    with {:ok, depot_id} <- LiveParam.fetch_id(id),
          {:ok, %SecuritiesAccount{} = depot} <- fetch_owner("depot", depot_id),
          {:ok, %CashAccount{} = cash} <- paired_cash(depot) do
       current = Buckets.depot_default_bucket_ids(depot_id)
@@ -829,7 +1264,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   end
 
   defp change_buckets(socket, owner, id, fun) when owner in ["depot", "cash"] do
-    with {:ok, owner_id} <- coerce_id(id),
+    with {:ok, owner_id} <- LiveParam.fetch_id(id),
          {:ok, record} <- fetch_owner(owner, owner_id) do
       current = owner_bucket_ids(owner, owner_id)
 
@@ -866,6 +1301,11 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
     gettext("Only one scope bucket per account — remove its current scope bucket first.")
   end
 
+  # The account was deleted before the write took its lock (E25 S6, G10).
+  defp bucket_write_error(:not_found) do
+    gettext("That account no longer exists. Refresh and try again.")
+  end
+
   defp bucket_write_error(_reason) do
     gettext("That bucket no longer exists. Refresh and try again.")
   end
@@ -897,7 +1337,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
     do: Buckets.set_cash_account_buckets(Actor.owner_ui(), cash, ids)
 
   defp bucket_failure(socket, owner, id, message) do
-    case coerce_id(id) do
+    case LiveParam.fetch_id(id) do
       {:ok, owner_id} -> assign(socket, :bucket_error, {owner, owner_id, message})
       :error -> socket
     end
@@ -909,16 +1349,23 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
     buckets = Buckets.list_buckets()
     buckets_by_id = Map.new(buckets, &{&1.id, &1})
     cash_accounts = Portfolios.list_cash_accounts()
+    rows = build_rows(cash_accounts, buckets_by_id)
+    depot_ids = for %{depot: %SecuritiesAccount{id: id}} <- rows, do: id
 
     assign(socket,
       buckets: buckets,
       cash_accounts: cash_accounts,
-      rows: build_rows(cash_accounts, buckets_by_id),
+      rows: rows,
       # Balance read surface per row (#670): derived balances plus the date
       # of the newest cash-affecting booking, in the account's own currency.
       cash_balances_by_id: Ledger.cash_balances(),
       cash_balance_dates: Ledger.cash_activity_dates(),
-      portfolio_records: Portfolios.portfolio_admin_list()
+      portfolio_records: Portfolios.portfolio_admin_list(),
+      # ADR-0050 §12 (board 13, G13.1-A): what each survivor was merged from.
+      merged_from: %{
+        cash: Lifecycle.merged_from(:cash_account, Enum.map(cash_accounts, & &1.id)),
+        depot: Lifecycle.merged_from(:securities_account, depot_ids)
+      }
     )
   end
 
@@ -987,9 +1434,6 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   # its own (first-claimed) cash account carry the same bucket set and the
   # user has not chosen to tag them separately this session. Diverged sets —
   # however they diverged — always render split, so "Both" never lies.
-  defp pair_row?(%{depot: %SecuritiesAccount{id: id}}, menu_id), do: id == menu_id
-  defp pair_row?(_row, _menu_id), do: false
-
   # #806 (variant A): the scope of a chip set, as a sub-line that can be read
   # without interacting. Deliberately NOT the issue's "inherits from the
   # depot" wording for a cash account: in this model a cash account carries
@@ -1031,20 +1475,22 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   defp success(socket, message), do: assign(socket, success: message, error: nil)
   defp failure(socket, message), do: assign(socket, error: message, success: nil)
 
-  defp coerce_id(value) when is_integer(value), do: {:ok, value}
-
-  defp coerce_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> {:ok, id}
-      _ -> :error
-    end
-  end
-
-  defp coerce_id(_value), do: :error
-
   defp changeset_error(changeset) do
     changeset.errors
     |> Enum.map(fn {field, {message, _opts}} -> "#{field} #{message}" end)
     |> Enum.join(", ")
   end
+
+  # The balance dialog's fields a refused balance names (#869 review round,
+  # UX-DR13): the one error paragraph is tied to each of them.
+  defp balance_invalid(changeset) do
+    for {field, _error} <- changeset.errors,
+        name = balance_field(field),
+        uniq: true,
+        do: name
+  end
+
+  defp balance_field(:date), do: "date"
+  defp balance_field(:gross_amount), do: "amount"
+  defp balance_field(_field), do: nil
 end

@@ -49,12 +49,20 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
+    # Sprint 16 (version 8): the batch's one entry, opened by the error
+    # envelope of the errors the server answers itself (E25 S2, F68).
+    assert newest["version"] == 8
+    assert Enum.any?(newest["parameters"], &(&1 =~ ~s({"errors": {"detail")))
+    # ADR-0050 §11 L1: the identity-field freezes answer 422 on the PATCHes
+    # that expose a currency, extending the same entry.
+    assert Enum.any?(newest["parameters"], &(&1 =~ "is frozen once referenced"))
+
     # Sprint 15 (version 7): the policy-rules family (ADR-0049) — its reads,
-    # its writes and their MCP twins.
-    assert newest["version"] == 7
-    assert "GET /api/v1/portfolios/:portfolio_id/policy_rules" in newest["endpoints"]
-    assert "POST /api/v1/policy_rules/:id/versions" in newest["endpoints"]
-    assert "portfolixir.policy_rules.add_version" in newest["tools"]
+    # its writes and their MCP twins. Found by version from here on.
+    sprint15 = Enum.find(data["entries"], &(&1["version"] == 7))
+    assert "GET /api/v1/portfolios/:portfolio_id/policy_rules" in sprint15["endpoints"]
+    assert "POST /api/v1/policy_rules/:id/versions" in sprint15["endpoints"]
+    assert "portfolixir.policy_rules.add_version" in sprint15["tools"]
 
     # Sprint 14 (version 6) moved parameters only: the portfolio metrics on
     # the risk read, `required` on both metric payloads (#838), since= on the

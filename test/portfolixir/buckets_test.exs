@@ -193,7 +193,10 @@ defmodule Portfolixir.BucketsTest do
       assert Buckets.effective_position_buckets(depot.id, security.id) == [b.id]
     end
 
-    test "position_override raises on a corrupt mixed (nil + bucket) row set", %{
+    # E25 S6 (#891), G10: a mixed set used to raise in every scoped read; it
+    # is now logged and read as explicit-empty (fail closed). The full
+    # contract is pinned in buckets/assignment_lock_test.exs.
+    test "position_override reads a corrupt mixed (nil + bucket) row set as explicit-empty", %{
       depot: depot,
       security: security
     } do
@@ -206,9 +209,9 @@ defmodule Portfolixir.BucketsTest do
         %{securities_account_id: depot.id, security_id: security.id, bucket_id: b.id}
       ])
 
-      assert_raise RuntimeError, ~r/mixes the explicit-empty marker/, fn ->
-        Buckets.position_override(depot.id, security.id)
-      end
+      assert ExUnit.CaptureLog.capture_log(fn ->
+               assert Buckets.position_override(depot.id, security.id) == :explicit_empty
+             end) =~ "explicit-empty marker next to bucket rows"
     end
   end
 
@@ -228,12 +231,12 @@ defmodule Portfolixir.BucketsTest do
 
   # User story:
   # As a local portfolio maintainer,
-  # I want to define global views as include/exclude bucket sets that are NOT
-  # journaled,
-  # so that I can reshape my analytic lens freely without polluting the financial
-  # audit trail (ADR-0018 §5).
-  describe "views (definition not journaled)" do
-    test "create_view + set_view_buckets produce a filter and emit no journal entries" do
+  # I want to define global views as include/exclude bucket sets, each change
+  # to a view's definition journaled,
+  # so that a policy rule reading the view has an audit trace when the view
+  # changes (ADR-0018 §5 as amended in Sprint 16; E25 S6, F45).
+  describe "views (definition journaled)" do
+    test "create_view is not journaled; set_view_buckets produces a filter and one entry" do
       before = length(Journal.list_entries([]))
 
       {:ok, b_in} = Buckets.create_bucket(Actor.owner_ui(), %{name: "In"})
@@ -241,13 +244,16 @@ defmodule Portfolixir.BucketsTest do
       bucket_entries = length(Journal.list_entries([]))
 
       {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Strategy", include_all: false})
+      assert length(Journal.list_entries([])) == bucket_entries
+
       :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [b_in.id], [b_ex.id])
 
       assert Buckets.view_filter(view.id) == {:ok, %{include: [b_in.id], exclude: [b_ex.id]}}
 
-      # Only the two bucket creates were journaled; no view-definition entries.
-      assert length(Journal.list_entries([])) == bucket_entries
+      # The two bucket creates, then one view-definition entry for the sets.
       assert bucket_entries - before == 2
+      assert [%{operation: :update}] = Journal.list_entries(resource_type: "view")
+      assert length(Journal.list_entries([])) == bucket_entries + 1
     end
 
     test "include_all yields an :all include filter" do
@@ -257,7 +263,7 @@ defmodule Portfolixir.BucketsTest do
       assert Buckets.view_filter(view.id) == {:ok, %{include: :all, exclude: []}}
     end
 
-    test "update_view edits the definition without journaling; delete_view is journaled" do
+    test "update_view and delete_view are journaled with the view's definition" do
       before = length(Journal.list_entries([]))
       {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Draft", include_all: true})
 
@@ -267,17 +273,26 @@ defmodule Portfolixir.BucketsTest do
       assert renamed.name == "Final"
       assert renamed.include_all == false
 
-      # Create/update of a view definition are not journaled.
-      assert length(Journal.list_entries([])) == before
+      # The create is not journaled; the edit is, with the definition before
+      # and after (F45).
+      assert [%{operation: :update} = edit] = Journal.list_entries(resource_type: "view")
+      assert edit.before["name"] == "Draft"
+      assert edit.after["name"] == "Final"
+      assert length(Journal.list_entries([])) == before + 1
 
-      # Deleting a view IS journaled (ADR-0027): the delete cascades the view's
-      # target plans, so it is a financial-steering write and must set the
-      # journal actor for the armed plan tables.
+      # Deleting a view is journaled with its definition as the before-image
+      # (ADR-0027: the delete cascades the view's target plans, so it is a
+      # financial-steering write and must set the journal actor for the armed
+      # plan tables).
       assert {:ok, _} = Buckets.delete_view(Actor.owner_ui(), renamed)
       refute Buckets.get_view(renamed.id)
 
-      assert [%{operation: :delete}] = Journal.list_entries(resource_type: "view")
-      assert length(Journal.list_entries([])) == before + 1
+      assert [%{operation: :delete} = deleted, _edit] =
+               Journal.list_entries(resource_type: "view")
+
+      assert deleted.before["name"] == "Final"
+      assert deleted.before["include_bucket_ids"] == []
+      assert length(Journal.list_entries([])) == before + 2
     end
 
     test "view name is required and unique" do
@@ -501,6 +516,32 @@ defmodule Portfolixir.BucketsTest do
 
       assert {:error, :bucket_ids} =
                Buckets.set_view_buckets(Actor.owner_ui(), view, [], [@unknown_bucket_id])
+    end
+
+    # User story (E25 S4, F12):
+    # As the operator's agent setting a view's buckets,
+    # I want a bucket named twice in one list to count once,
+    # so that an otherwise valid request is not a server error.
+    #
+    # Acceptance criteria:
+    # - Repeated include and exclude ids are de-duplicated, like the sibling
+    #   writers; the view ends up with each bucket once.
+    test "set_view_buckets de-duplicates repeated include and exclude ids" do
+      {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Twice", include_all: false})
+      {:ok, alpha} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Alpha"})
+      {:ok, beta} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Beta"})
+
+      assert :ok =
+               Buckets.set_view_buckets(
+                 Actor.owner_ui(),
+                 view,
+                 [alpha.id, alpha.id],
+                 [beta.id, beta.id, beta.id]
+               )
+
+      assert {:ok, %{include: [alpha_id], exclude: [beta_id]}} = Buckets.view_filter(view.id)
+      assert alpha_id == alpha.id
+      assert beta_id == beta.id
     end
   end
 

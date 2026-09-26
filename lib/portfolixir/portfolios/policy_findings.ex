@@ -51,8 +51,10 @@ defmodule Portfolixir.Portfolios.PolicyFindings do
   alias Portfolixir.Clock
   alias Portfolixir.Derived
   alias Portfolixir.Engines.PolicyEvaluation
+  alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Allocation
   alias Portfolixir.Portfolios.PolicyRules
+  alias Portfolixir.Portfolios.PricingContext
   alias Portfolixir.Portfolios.Risk
   alias Portfolixir.Portfolios.RiskMetrics
   alias Portfolixir.Portfolios.Valuation
@@ -142,23 +144,48 @@ defmodule Portfolixir.Portfolios.PolicyFindings do
 
   defp load(%{keys: []}), do: %{}
 
+  # The context is valued ONCE (E25 S4, F74): the lens, the breakdowns, the
+  # cash share, the context total, the unvalued set and a view subject's
+  # membership are all read off that one valuation, and its pricing pass
+  # (ADR-0035) is shared with the subject views, which cost one valuation
+  # each. A vanished context view leaves `context` nil, which every read
+  # answers as before: an empty basis or a subject not found.
   defp load(%{portfolio_id: pid, view_id: view_id, today: today, keys: keys}) do
+    context = lazy_if(Enum.any?(keys, &(not metric_key?(&1))), fn -> context(pid, view_id) end)
+    valuation = context && context.valuation
+
     %{
-      risk: lazy_if(Enum.any?(keys, &risk_key?/1), fn -> risk(pid, view_id) end),
-      allocations: allocations(pid, view_id, keys),
+      context: context,
+      risk: lazy_if(Enum.any?(keys, &risk_key?/1), fn -> risk(pid, view_id, valuation) end),
+      allocations: allocations(pid, view_id, keys, valuation),
       cash:
-        lazy_if({:weight, :cash} in keys, fn -> Allocation.cash_weight(pid, view: view_id) end),
+        lazy_if({:weight, :cash} in keys, fn ->
+          valuation && Allocation.cash_weight(pid, view: view_id, valuation: valuation)
+        end),
       metrics:
         lazy_if(Enum.any?(keys, &metric_key?/1), fn ->
           RiskMetrics.for_portfolio(pid, [], view: view_id, as_of: today)
         end),
-      context_total:
-        lazy_if(Enum.any?(keys, &match?({:weight, :view, _}, &1)), fn ->
-          valuation_total(pid, view_id)
-        end),
+      context_total: valuation && valuation.total_value,
       unvalued:
-        lazy_if(Enum.any?(keys, &unvalued_key?/1), fn -> unvalued_security_ids(pid, view_id) end)
+        lazy_if(Enum.any?(keys, &unvalued_key?/1), fn -> unvalued_security_ids(valuation) end)
     }
+  end
+
+  defp context(pid, view_id) do
+    pricing = PricingContext.for_portfolio(pid, base_currency(pid))
+
+    case Valuation.for_portfolio(pid, view: view_id, pricing_context: pricing) do
+      %{} = valuation -> %{valuation: valuation, pricing: pricing}
+      _vanished -> nil
+    end
+  end
+
+  defp base_currency(pid) do
+    case Portfolios.get_portfolio(pid) do
+      %{base_currency_code: code} -> code
+      _gone -> nil
+    end
   end
 
   defp lazy_if(true, fun), do: fun.()
@@ -171,15 +198,10 @@ defmodule Portfolixir.Portfolios.PolicyFindings do
   # The positions held but not valued (a quote with no rate, no price at all):
   # they are outside the steerable basis, so a subject made only of them has
   # no weight to read — which is not 0 % (ADR-0049 §4, never a pass).
-  defp unvalued_security_ids(pid, view_id) do
-    case Valuation.for_portfolio(pid, view: view_id) do
-      %{positions: positions} ->
-        for %{valued: false, security_id: id} <- positions, into: MapSet.new(), do: id
+  defp unvalued_security_ids(%{positions: positions}),
+    do: for(%{valued: false, security_id: id} <- positions, into: MapSet.new(), do: id)
 
-      _vanished ->
-        MapSet.new()
-    end
-  end
+  defp unvalued_security_ids(_vanished), do: MapSet.new()
 
   defp risk_key?({:weight, :security, _}), do: true
   defp risk_key?({:hhi}), do: true
@@ -188,13 +210,17 @@ defmodule Portfolixir.Portfolios.PolicyFindings do
   defp metric_key?({metric, _window}) when metric in [:volatility, :max_drawdown], do: true
   defp metric_key?(_key), do: false
 
-  defp risk(pid, view_id) do
-    Risk.for_portfolio(pid, view: view_id, top_n: :all, metrics: false)
+  defp risk(_pid, _view_id, nil), do: nil
+
+  defp risk(pid, view_id, valuation) do
+    Risk.for_portfolio(pid, view: view_id, top_n: :all, metrics: false, valuation: valuation)
   end
 
   # One breakdown per classification a rule reads. Cash needs none: its share
   # is the same under every tree (`Allocation.cash_weight/2`).
-  defp allocations(pid, view_id, keys) do
+  defp allocations(_pid, _view_id, _keys, nil), do: %{}
+
+  defp allocations(pid, view_id, keys, valuation) do
     classification_ids =
       keys
       |> Enum.flat_map(fn
@@ -205,35 +231,34 @@ defmodule Portfolixir.Portfolios.PolicyFindings do
       |> Enum.uniq()
 
     Map.new(classification_ids, fn classification_id ->
-      {classification_id, Allocation.for_portfolio(pid, classification_id, view: view_id)}
+      {classification_id,
+       Allocation.for_portfolio(pid, classification_id, view: view_id, valuation: valuation)}
     end)
   end
 
   # The subject view's valued positions that lie inside the context (§2: the
   # weight is a share of the context's basis, 0–100). Portfolio-wide, that is
   # the subject's whole basis; inside a view, only the positions both views
-  # hold count.
-  defp subject_total(pid, subject_view_id, nil), do: valuation_total(pid, subject_view_id)
+  # hold count — the membership read off the context's one valuation.
+  defp subject_total(_pid, _subject_view_id, _context_view_id, nil), do: nil
 
-  defp subject_total(pid, subject_view_id, context_view_id) do
-    with %{positions: subject} <- Valuation.for_portfolio(pid, view: subject_view_id),
-         %{positions: context} <- Valuation.for_portfolio(pid, view: context_view_id) do
-      inside = MapSet.new(context, &{&1.securities_account_id, &1.security_id})
+  defp subject_total(pid, subject_view_id, context_view_id, context) do
+    case Valuation.for_portfolio(pid, view: subject_view_id, pricing_context: context.pricing) do
+      %{total_value: total} when is_nil(context_view_id) ->
+        total
 
-      subject
-      |> Enum.filter(
-        &(&1.valued and MapSet.member?(inside, {&1.securities_account_id, &1.security_id}))
-      )
-      |> Enum.reduce(@zero, &Decimal.add(&1.market_value, &2))
-    else
-      _vanished -> nil
-    end
-  end
+      %{positions: subject} ->
+        inside =
+          MapSet.new(context.valuation.positions, &{&1.securities_account_id, &1.security_id})
 
-  defp valuation_total(pid, view_id) do
-    case Valuation.for_portfolio(pid, view: view_id) do
-      %{total_value: total} -> total
-      _vanished -> nil
+        subject
+        |> Enum.filter(
+          &(&1.valued and MapSet.member?(inside, {&1.securities_account_id, &1.security_id}))
+        )
+        |> Enum.reduce(@zero, &Decimal.add(&1.market_value, &2))
+
+      _vanished ->
+        nil
     end
   end
 
@@ -281,7 +306,11 @@ defmodule Portfolixir.Portfolios.PolicyFindings do
     end)
   end
 
-  defp read({:weight, :view, subject_view_id}, %{context_total: context_total}, sources) do
+  defp read(
+         {:weight, :view, subject_view_id},
+         %{context_total: context_total, context: context},
+         sources
+       ) do
     basis = %{
       source:
         "valuation: the subject view's steerable basis (its valued positions) within the " <>
@@ -295,7 +324,7 @@ defmodule Portfolixir.Portfolios.PolicyFindings do
     with_basis(basis, fn ->
       with :ok <- non_empty(context_total),
            subject when not is_nil(subject) <-
-             subject_total(sources.portfolio_id, subject_view_id, sources.view_id) do
+             subject_total(sources.portfolio_id, subject_view_id, sources.view_id, context) do
         {:ok, subject |> Decimal.div(context_total) |> Decimal.mult(@hundred)}
       else
         nil -> {:undetermined, :subject_not_found}

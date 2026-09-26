@@ -35,7 +35,8 @@ defmodule PortfolixirWeb.BucketsLive do
   alias Portfolixir.Settings
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
-  alias PortfolixirWeb.PolicyRuleLabel
+  alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.PolicyRuleReferences
 
   @impl true
   def mount(_params, _session, socket) do
@@ -62,7 +63,7 @@ defmodule PortfolixirWeb.BucketsLive do
     >
       <div id="buckets-workspace" class="workspace-page">
         <%= if @error do %>
-          <p class="alert-error" role="alert"><%= @error %></p>
+          <p class="alert-error" role="alert"><PolicyRuleReferences.message message={@error} /></p>
         <% end %>
         <%= if @success do %>
           <p class="alert-success" role="status"><%= @success %></p>
@@ -147,6 +148,10 @@ defmodule PortfolixirWeb.BucketsLive do
                       <%= gettext("Cancel") %>
                     </button>
                   </form>
+                  <%!-- E25 S7, G20; pick G12.2 = B: marked where it is renamed. --%>
+                  <AppShell.invisible_text_note subject={:name} texts={[row.name]}>
+                    <%= gettext("Typed in anew, it is clean.") %>
+                  </AppShell.invisible_text_note>
                 <% else %>
                   <div class="bucket-list__main">
                     <span class="bucket-list__name">
@@ -170,19 +175,14 @@ defmodule PortfolixirWeb.BucketsLive do
                     </span>
                   </div>
                   <.view_figures figures={row.figures} />
-                  <button
-                    type="button"
+                  <AppShell.row_kebab
                     id={"view-kebab-#{row.id}"}
-                    class="row-actions__kebab"
+                    row={row.name}
+                    open={@row_menu == {:view, row.id}}
                     phx-click="open_row_menu"
                     phx-value-kind="view"
                     phx-value-id={row.id}
-                    aria-label={gettext("Open actions menu")}
-                    aria-haspopup="menu"
-                    aria-expanded={to_string(@row_menu == {:view, row.id})}
-                  >
-                    <AppShell.icon name={:ellipsis_vertical} />
-                  </button>
+                  />
                 <% end %>
               </li>
             <% end %>
@@ -262,6 +262,9 @@ defmodule PortfolixirWeb.BucketsLive do
                       <%= gettext("Cancel") %>
                     </button>
                   </form>
+                  <AppShell.invisible_text_note subject={:name} texts={[bucket.name]}>
+                    <%= gettext("Typed in anew, it is clean.") %>
+                  </AppShell.invisible_text_note>
                 <% else %>
                   <div class="bucket-list__main">
                     <span class="bucket-list__name">
@@ -278,19 +281,14 @@ defmodule PortfolixirWeb.BucketsLive do
                       <.bucket_usage usage={Map.fetch!(@bucket_usage, bucket.id)} />
                     </span>
                   </div>
-                  <button
-                    type="button"
+                  <AppShell.row_kebab
                     id={"bucket-kebab-#{bucket.id}"}
-                    class="row-actions__kebab"
+                    row={bucket.name}
+                    open={@row_menu == {:bucket, bucket.id}}
                     phx-click="open_row_menu"
                     phx-value-kind="bucket"
                     phx-value-id={bucket.id}
-                    aria-label={gettext("Open actions menu")}
-                    aria-haspopup="menu"
-                    aria-expanded={to_string(@row_menu == {:bucket, bucket.id})}
-                  >
-                    <AppShell.icon name={:ellipsis_vertical} />
-                  </button>
+                  />
                 <% end %>
               </li>
             <% end %>
@@ -562,7 +560,11 @@ defmodule PortfolixirWeb.BucketsLive do
         role="menuitem"
         phx-click="delete_bucket"
         phx-value-id={@id}
-        data-confirm={gettext("Delete this bucket? It is removed from every assignment and view.")}
+        data-confirm={
+          gettext(
+            "Delete this bucket? It is removed from every assignment and view. A position whose only specific bucket is this one stays at “no buckets (excluded)” and does not inherit from its depot."
+          )
+        }
       >
         <AppShell.icon name={:trash} />
         <span><%= gettext("Delete") %></span>
@@ -584,7 +586,7 @@ defmodule PortfolixirWeb.BucketsLive do
 
   def handle_event("open_row_menu", %{"kind" => kind, "id" => id}, socket) do
     menu =
-      case {kind, coerce_id(id)} do
+      case {kind, LiveParam.fetch_id(id)} do
         {"view", {:ok, view_id}} ->
           if Enum.any?(socket.assigns.view_rows, &(&1.id == view_id)), do: {:view, view_id}
 
@@ -605,7 +607,7 @@ defmodule PortfolixirWeb.BucketsLive do
   # -- bucket events ----------------------------------------------------------
 
   def handle_event("create_bucket", %{"bucket" => params}, socket) do
-    case Buckets.create_bucket(Actor.owner_ui(), normalize_color(params)) do
+    case Buckets.create_bucket(Actor.owner_ui(), normalize_color(LiveParam.map(params))) do
       {:ok, _bucket} ->
         {:noreply,
          socket
@@ -619,7 +621,7 @@ defmodule PortfolixirWeb.BucketsLive do
   end
 
   def handle_event("edit_bucket", %{"id" => id}, socket) do
-    case coerce_id(id) do
+    case LiveParam.fetch_id(id) do
       {:ok, bucket_id} -> {:noreply, assign(socket, editing_bucket_id: bucket_id, row_menu: nil)}
       :error -> {:noreply, socket}
     end
@@ -630,9 +632,10 @@ defmodule PortfolixirWeb.BucketsLive do
   end
 
   def handle_event("rename_bucket", %{"bucket_id" => id, "bucket" => params}, socket) do
-    with {:ok, bucket_id} <- coerce_id(id),
+    with {:ok, bucket_id} <- LiveParam.fetch_id(id),
          bucket when not is_nil(bucket) <- Buckets.get_bucket(bucket_id),
-         {:ok, _} <- Buckets.update_bucket(Actor.owner_ui(), bucket, normalize_color(params)) do
+         {:ok, _} <-
+           Buckets.update_bucket(Actor.owner_ui(), bucket, normalize_color(LiveParam.map(params))) do
       {:noreply,
        socket
        |> assign(:editing_bucket_id, nil)
@@ -650,19 +653,31 @@ defmodule PortfolixirWeb.BucketsLive do
   def handle_event("delete_bucket", %{"id" => id}, socket) do
     socket = assign(socket, :row_menu, nil)
 
-    with {:ok, bucket_id} <- coerce_id(id),
-         bucket when not is_nil(bucket) <- Buckets.get_bucket(bucket_id),
+    with {:ok, bucket_id} <- LiveParam.fetch_id(id),
+         {:ok, bucket} <- bucket_to_delete(bucket_id),
          {:ok, _} <- Buckets.delete_bucket(Actor.owner_ui(), bucket) do
       {:noreply, socket |> success(gettext("Bucket deleted")) |> load_state()}
     else
-      _ -> {:noreply, socket}
+      # E25 S6 review round (G19): a delete that does not happen says why.
+      {:error, :not_found} ->
+        {:noreply,
+         socket
+         |> failure(gettext("That bucket no longer exists. Refresh and try again."))
+         |> load_state()}
+
+      {:error, _reason} ->
+        {:noreply,
+         failure(socket, gettext("The bucket could not be deleted. Nothing was changed."))}
+
+      _unreadable_id ->
+        {:noreply, socket}
     end
   end
 
   # -- view events ------------------------------------------------------------
 
   def handle_event("create_view", %{"view" => params}, socket) do
-    case Buckets.create_view(Actor.owner_ui(), params) do
+    case Buckets.create_view(Actor.owner_ui(), LiveParam.map(params)) do
       {:ok, _view} ->
         {:noreply,
          socket
@@ -676,7 +691,7 @@ defmodule PortfolixirWeb.BucketsLive do
   end
 
   def handle_event("edit_view", %{"id" => id}, socket) do
-    case coerce_id(id) do
+    case LiveParam.fetch_id(id) do
       {:ok, view_id} -> {:noreply, assign(socket, editing_view_id: view_id, row_menu: nil)}
       :error -> {:noreply, socket}
     end
@@ -687,9 +702,9 @@ defmodule PortfolixirWeb.BucketsLive do
   end
 
   def handle_event("rename_view", %{"view_id" => id, "view" => params}, socket) do
-    with {:ok, view_id} <- coerce_id(id),
+    with {:ok, view_id} <- LiveParam.fetch_id(id),
          view when not is_nil(view) <- Buckets.get_view(view_id),
-         {:ok, _} <- Buckets.update_view(Actor.owner_ui(), view, params) do
+         {:ok, _} <- Buckets.update_view(Actor.owner_ui(), view, LiveParam.map(params)) do
       {:noreply,
        socket
        |> assign(:editing_view_id, nil)
@@ -707,15 +722,16 @@ defmodule PortfolixirWeb.BucketsLive do
   def handle_event("delete_view", %{"id" => id}, socket) do
     socket = assign(socket, :row_menu, nil)
 
-    with {:ok, view_id} <- coerce_id(id),
+    with {:ok, view_id} <- LiveParam.fetch_id(id),
          view when not is_nil(view) <- Buckets.get_view(view_id),
          {:ok, _} <- Buckets.delete_view(Actor.owner_ui(), view) do
       {:noreply, socket |> success(gettext("View deleted")) |> load_state()}
     else
       # ADR-0049 §8: a view a rule reads is refused by name, where the delete
-      # used to fail with no message at all (board 06-rule-reference-409).
+      # used to fail with no message at all (board 06-rule-reference-409);
+      # each name links to Risk in the view the rule applies in (#871, G6-A).
       {:error, {:policy_rules, rules}} ->
-        {:noreply, failure(socket, PolicyRuleLabel.read_by(rules))}
+        {:noreply, failure(socket, PolicyRuleReferences.refusal(rules))}
 
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, failure(socket, changeset_error(changeset))}
@@ -728,7 +744,7 @@ defmodule PortfolixirWeb.BucketsLive do
   def handle_event("edit_view_buckets", %{"id" => id}, socket) do
     socket = assign(socket, :row_menu, nil)
 
-    with {:ok, view_id} <- coerce_id(id),
+    with {:ok, view_id} <- LiveParam.fetch_id(id),
          view when not is_nil(view) <- Buckets.get_view(view_id),
          {:ok, filter} <- Buckets.view_filter(view_id) do
       include = if filter.include == :all, do: [], else: filter.include
@@ -756,16 +772,16 @@ defmodule PortfolixirWeb.BucketsLive do
     {:noreply,
      socket
      |> assign(:picker_include_all, include_all?)
-     |> assign(:picker_include, coerce_id_list(params["include"]))
-     |> assign(:picker_exclude, coerce_id_list(params["exclude"]))}
+     |> assign(:picker_include, LiveParam.ids(params["include"]))
+     |> assign(:picker_exclude, LiveParam.ids(params["exclude"]))}
   end
 
   def handle_event("save_view_buckets", params, socket) do
-    with {:ok, view_id} <- coerce_id(params["view_id"]),
+    with {:ok, view_id} <- LiveParam.fetch_id(params["view_id"]),
          view when not is_nil(view) <- Buckets.get_view(view_id),
          include_all? <- params["include_all"] == "true",
-         include <- coerce_id_list(params["include"]),
-         exclude <- coerce_id_list(params["exclude"]),
+         include <- LiveParam.ids(params["include"]),
+         exclude <- LiveParam.ids(params["exclude"]),
          {:ok, _} <- Buckets.update_view(Actor.owner_ui(), view, %{include_all: include_all?}),
          :ok <-
            Buckets.set_view_buckets(
@@ -791,6 +807,10 @@ defmodule PortfolixirWeb.BucketsLive do
         {:noreply, socket}
     end
   end
+
+  # An event this page does not know, or a payload it cannot read, changes
+  # nothing (E25 S4, F17).
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   # -- data loading -----------------------------------------------------------
 
@@ -934,30 +954,6 @@ defmodule PortfolixirWeb.BucketsLive do
   defp normalize_color(%{"color" => ""} = params), do: Map.delete(params, "color")
   defp normalize_color(params), do: params
 
-  defp coerce_id(value) when is_integer(value), do: {:ok, value}
-
-  defp coerce_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> {:ok, id}
-      _ -> :error
-    end
-  end
-
-  defp coerce_id(_value), do: :error
-
-  defp coerce_id_list(nil), do: []
-
-  defp coerce_id_list(values) when is_list(values) do
-    Enum.flat_map(values, fn value ->
-      case coerce_id(value) do
-        {:ok, id} -> [id]
-        :error -> []
-      end
-    end)
-  end
-
-  defp coerce_id_list(_values), do: []
-
   defp success(socket, message), do: assign(socket, success: message, error: nil)
   defp failure(socket, message), do: assign(socket, error: message, success: nil)
 
@@ -965,5 +961,12 @@ defmodule PortfolixirWeb.BucketsLive do
     changeset.errors
     |> Enum.map(fn {field, {message, _opts}} -> "#{field} #{message}" end)
     |> Enum.join(", ")
+  end
+
+  defp bucket_to_delete(bucket_id) do
+    case Buckets.get_bucket(bucket_id) do
+      nil -> {:error, :not_found}
+      bucket -> {:ok, bucket}
+    end
   end
 end

@@ -80,6 +80,38 @@ defmodule PortfolixirWeb.Risk.PolicyRuleFormat do
     |> Enum.join(" · ")
   end
 
+  @doc """
+  `words/2` as parts, for a line that renders them (E25 S7, G20; pick G12.2
+  = B): `{:stored, text}` for the subject when it is a stored name (a
+  security's, a category's, a view's), which the line isolates in `<bdi>`, so
+  a direction control a legacy name still carries reorders at most the name;
+  `{:text, text}` for every other part. Joined by " · ", the parts read
+  exactly as `words/2`.
+  """
+  @spec word_parts(map(), map()) :: [{:text | :stored, String.t()}]
+  def word_parts(version_or_finding, names) do
+    [
+      {:text, PolicyRuleLabel.measure(version_or_finding.measure)},
+      {:text, version_or_finding.window && PolicyRuleLabel.window(version_or_finding.window)},
+      subject_part(version_or_finding, names),
+      {:text, PolicyRuleLabel.kind(version_or_finding.kind)},
+      {:text, PolicyRuleLabel.severity(version_or_finding.severity)}
+    ]
+    |> Enum.reject(fn {_kind, text} -> is_nil(text) end)
+  end
+
+  defp subject_part(%{subject_type: type} = version, names)
+       when type in [:security, :category, :view] do
+    fallback = PolicyRuleLabel.subject_type(type)
+
+    case subject(version, names) do
+      ^fallback -> {:text, fallback}
+      stored -> {:stored, stored}
+    end
+  end
+
+  defp subject_part(version, names), do: {:text, subject(version, names)}
+
   defp subject(%{subject_type: :basis}, _names), do: nil
   defp subject(%{subject_type: :cash}, _names), do: PolicyRuleLabel.subject_type(:cash)
 

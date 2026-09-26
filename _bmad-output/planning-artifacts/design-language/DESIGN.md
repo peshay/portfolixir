@@ -193,7 +193,7 @@ spacing:
   sidebar-rail: 72px
   topbar-height: 52px
   section-pad-block: 'clamp(18px, 2.4vw, 28px)'
-  section-pad-inline: 'clamp(14px, 2.4vw, 28px)'
+  section-pad-inline: 'clamp(16px, 2.4vw, 28px)'
   panel-pad: 'clamp(18px, 3vw, 26px)'
   # Breakpoints and target sizes, tokenised 2026-08-05 so both spines can
   # reference them instead of repeating literals. Values as built:
@@ -316,11 +316,12 @@ components:
   selected-segment:
     scope: 'toggles, filters, period selection — anything picking one of N adjacent options'
     rule: 'UX-DR16 (mapping in EXPERIENCE.md), UX-DR18 for the reserved metrics'
-    group: 'inline-flex, 1px solid {colors.border}, radius {rounded.md}, background {colors.bg}, overflow hidden'
-    option: 'min-height 30px, padding 4px 9px, {typography.control-label} in {colors.text-muted}, 1px {colors.border} divider, no radius, no shadow. The 30px is the DESKTOP density only; it is a third desktop step alongside {spacing.density-control} (34px) and is left unreconciled here — recorded as a follow-up, not solved opportunistically.'
+    group: 'inline-flex, 1px solid {colors.border}, radius {rounded.md}, background {colors.bg}. No overflow hidden (#875 review round, 2026-09-25): the clip cut the options'' outset focus ring off at the track''s edge, so an option next to the filled one showed no focus at all; the outer options round their own outer corners ({rounded.md} less the 1px border) and the active fill follows the track without it'
+    option: 'min-height 30px, padding 4px 9px, {typography.control-label} in {colors.text-muted}, 1px {colors.border} divider, no radius except the outer corners of the first and last option, no shadow. The 30px is the DESKTOP density only; it is a third desktop step alongside {spacing.density-control} (34px) and is left unreconciled here — recorded as a follow-up, not solved opportunistically.'
     target-size: 'under @media (pointer: coarse) the option takes {spacing.touch-target} min-height with the label unchanged at 12px (UX-DR6, added 2026-08-05 — the definition previously wrote a 30px target and named no floor, which is what let the whole segmented family ship uncovered). This clause binds every call site the class absorbs: .segmented-control__option, .range-button, .chart-toggle, .period-buttons .button-mini, .view-chip. Only .view-chip has the clause today (app.css:4888-4891).'
     option-hover: 'background {colors.hover}, text {colors.text}'
     option-active: 'filled {colors.accent}, text {colors.on-accent}'
+    option-focus: 'the solid 2px {colors.accent} outline at a 2px offset, clear of the option''s own fill; the focused option paints above its neighbours (position relative, z-index 1), and the track never clips the ring'
     width-reserved: 'required — {components.width-reserve}, technique: fixed track width — the group sizes to its widest option in its active appearance and does not resize when the selection moves'
   selected-row:
     scope: 'selection inside lists, tables and trees'
@@ -354,6 +355,7 @@ components:
     rule: 'UX-DR10 (defined in EXPERIENCE.md), UX-DR19 for the marker'
     control: 'quiet text summary — {typography.control-label} in {colors.text-muted}, pointer cursor'
     marker: 'defined chevron, never the raw browser triangle'
+    action-summary: 'a disclosure that opens an action rather than data keeps the accent colour (the plan editor''s "Rename" and "Positions (n)", issue 873 and F2-A); the marker and the size are the class''s'
     purpose-line: 'exactly one sentence, ≤ 90 characters in the source (English) msgid, of the form "<what the table holds> — <why it is here>". Example shape: "Every plotted point as a row — the chart data without the chart." No second sentence, no link. Over 90 characters is a review reject; the bound is what makes UX-DR10 verifiable on a diff.'
     label: '"Data as table" — one wording app-wide (decided 2026-08-05, designer; de: "Daten als Tabelle"). Copy rule in EXPERIENCE.md Voice and Tone'
     body: '{components.data-table} for the data-as-table case'
@@ -726,7 +728,7 @@ Inter is used at variable-font weights (500, 540, 600, 650, 680, 700, 740, 760, 
 
 ## Layout & Spacing *(carries the spacing-scale half of UX-DR14, and UX-DR15 in full — every wide block owns its scroller)*
 
-The shell is a fixed left sidebar ({spacing.sidebar-width}) plus a sticky, blur-backed top bar ({spacing.topbar-height}). On desktop the sidebar collapses to an icon rail ({spacing.sidebar-rail}) via the toggle; content reflows. Workspace pages are full-bleed vertical stacks of `.workspace-section` bands separated by 1px borders, padded {spacing.section-pad-block} block / {spacing.section-pad-inline} inline; card grids use `repeat(auto-fit, minmax(220px, 1fr))` with {spacing.4} gaps.
+The shell is a fixed left sidebar ({spacing.sidebar-width}) plus a sticky, blur-backed top bar ({spacing.topbar-height}). On desktop the sidebar collapses to an icon rail ({spacing.sidebar-rail}) via the toggle; content reflows. Workspace pages are full-bleed vertical stacks of `.workspace-section` bands separated by 1px borders, padded {spacing.section-pad-block} block / {spacing.section-pad-inline} inline; card grids use `repeat(auto-fit, minmax(220px, 1fr))` with {spacing.4} gaps. **A page whose blocks are not all bands gives the others the band's gutter** — {spacing.section-pad-inline} inline, the heading {spacing.section-pad-block} above and the last block as much below — so nothing starts at the screen's or the sidebar's edge (issue 873: the classification detail, whose only band is the plan editor; the floor is the 16 px issue 790 built).
 
 **The spacing scale exists and is binding.** Eight steps on a 4px base ({spacing.1} … {spacing.8}, app.css:51-58), covering every margin, padding and gap. `test/invariants/css_spacing_scale_test.exs` enforces both that the tokens are defined and that they are actually adopted — the scale cannot be defined and then ignored. Values off the scale are permitted only for the structural constants listed in the frontmatter and for `clamp()` expressions that interpolate between two of them; anything else is drift.
 
@@ -937,6 +939,74 @@ Precisely: app.css already styles the *container* — `input, select, textarea` 
 
 The checkbox is one control: box and label sit on one line, the label is the hit target, and the pair is spaced on the scale. The classification form's broken checkbox stack — a bare box alone on a line with its label underneath, running into the next field's label — is the failure this rule prevents.
 
+### Numeric inputs — one rule for every decimal field *(issue 869, Sprint 16; board `ux-design-2026-09-24/05-numeric-inputs`, before/after)*
+
+Every text input with `inputmode="decimal"` shows and reads its figure through
+**one helper**, `PortfolixirWeb.DecimalInput`, and carries `class="num"`. Twelve
+places in five surfaces use it: the booking drawer (quantity, price, fees,
+taxes), its settlement block (amount, rate), the rule dialog (line, from, to),
+Tax (the statement's figures, the amount of a Freistellungsauftrag) and the
+set-balance dialog on Accounts & depots.
+
+- **Shown in the page's locale, never grouped.** A German page shows a decimal
+  comma (`1664,40`), an English page a point. The helper swaps the separator and
+  nothing else: the caller owns the digits — a derived settlement amount keeps two
+  places, a derived rate is rounded to six and trimmed, and a stored figure opens
+  with its trailing zeros dropped (`45,6`, `12000`) and every other digit as
+  stored. **Money fields are not padded** (the board's open point, decided here):
+  a field is for editing, and a trailing zero carries nothing. **One exception,
+  so a field never changes its form mid-edit: a field the drawer derives opens
+  in the form its derivation writes.** The settlement amount opens at two places
+  (`1664,40`, as a typed rate derives it), padded but never rounded — a stored
+  `1664,4035` keeps its places; the rate needs nothing, since its derivation
+  trims too (review round, 2026-09-25). What the operator typed renders back
+  exactly as typed — a refusal never rewrites `2,5` into `2.5`.
+- **No thousands separator in a field, ever.** Tables and running text keep
+  grouping (`Format.decimal/3`, `1.664,40`): a figure there is read, not edited
+  and read back. A field's value *is* read back, and a grouped `1.664` would
+  return as 1.664.
+- **Read strictly, never guessed.** The page's own separator is always the
+  decimal separator. The other language's separator is one too — a German page
+  accepts a typed `45.60`, an English page a pasted `45,60` — **unless the figure
+  has the shape of a thousands group** (`1.664` on a German page, `1,664` on an
+  English one): that figure reads two ways and is refused on its field with
+  "is ambiguous: enter it without a thousands separator" /
+  "ist mehrdeutig: ohne Tausendertrennzeichen eingeben". A figure with two
+  separators (`1.664,40`) is refused the same way, and so is one grouped in
+  threes with a space, a no-break, narrow no-break or thin space, or an
+  apostrophe (`1 664,40`, `1'664.40` — the way a bank page or a PDF prints
+  it), so the field names the fix rather than a bare "is invalid" (review
+  round, 2026-09-25). An exponent, `NaN`, any other inner space or a trailing
+  separator is invalid. A refused figure saves nothing.
+- **A refusal does not reshape its row.** A label stacks its caption and
+  control from the top (`label { align-content: start }`), so the error under
+  one field of a paired row (quantity · price) leaves the other field at its
+  own height; the grid row still grows, the neighbour's control does not
+  (review round, 2026-09-25).
+- **`input.num` joins the generic `.num` rule** — right-aligned, tabular
+  numerals — which sits last in `app.css`, so it outranks the bare `input` rule by
+  specificity and any scoped `… input` rule of equal specificity by source order.
+  A more specific rule still wins (`.soll-table input[type="number"]`); none sets
+  the alignment or the numerals against it today. An amount and a rate typed one
+  under the other end on one edge, as they will in their column.
+- **Out of the rule: browser number inputs** (`type="number"`: the plan editor's
+  weights, the fixed-rate benchmark, the tax year, the split ratio, and the
+  securities filter popover's value field, whose type follows the filtered
+  field — `number` for a decimal or integer field; none of those is filterable
+  today, so the popover renders none yet). Their
+  `value` must carry a point whatever the page's language, and the browser draws
+  their digits; the plan editor's are already right-aligned
+  (`.soll-table input[type="number"]`).
+- **Dates are not part of it.** A date field is the ISO text input of UX-DR19
+  above (`YYYY-MM-DD` in every locale), and the ISO date in the settlement
+  block's source hint is fixed by the Amendment 2026-09-24 below; #869's two date
+  bullets close as spec-conformant.
+
+Pinned by `decimal_input_test.exs` (the rule, both locales, the ambiguous
+shapes), `test/invariants/decimal_input_test.exs` (every decimal text input
+carries `num`; no second comma rule in the web layer) and
+`design_conformance_css_test.exs` (`input.num`).
+
 ### Inventory (as built)
 
 - **App shell** (`.app-shell`) — fixed sidebar with grouped nav (`.nav-group`, uppercase group heads, icon + label rows), active link per {components.selected-nav}. The Classifications group is **one static entry** (`nav_groups/0`, `app_shell.ex:266-294`); the per-tree list and its `+` affordance live on `/classifications` itself — corrected 2026-08-05 against the build, per ADR-0024 (a tree is an entity, not a task). The sidebar background is viewport-height rather than page-height, leaving a cut edge on long pages — a defect. Nav entries follow ADR-0024: navigation reflects user tasks, not the storage model; a new entity does not get a sidebar entry by default.
@@ -987,6 +1057,7 @@ The checkbox is one control: box and label sit on one line, the label is the hit
 | Soft, large-blur shadows ({components.panel}) for elevation | Hard drop shadows, or any shadow inside a table |
 | Define every new token in both themes | Light-only tokens ({colors.warning-soft} is the live example) |
 | Give every control a visible 2px focus outline | `outline: none` with a background change as the substitute |
+| Name every row kebab for its row — "Actions for Nordic Timber Holdings AB", a booking by kind, subject and date — through the one trigger, `AppShell.row_kebab/1` (issue 870) | Give every kebab on a page the same name, or draw a kebab of a surface's own |
 | Grow interactive targets to ≥44px under `@media (pointer: coarse)` | Ship the 32–34px desktop density untouched to iPhone/iPad |
 | Pair every semantic hue with a sign or shape (+/−, ▲/▼, glyph) | Encode gain/loss, buy/sell, staleness, value-slot state or note severity in hue alone |
 | Carry every state in text, glyph or border as well as colour, so it survives `forced-colors: active` | Let a colour step be the only difference between pending, settling and final |
@@ -1095,6 +1166,30 @@ than on the tint (UX-DR7). No new colour, no new radius, no new type size.
   is the visible half of ADR-0040: a deliberate choice must not render like a
   mistake.
 
+*Built for the allocation's basis line and its Positions list by issue 875
+(Sprint 16, board `ux-design-2026-09-24/09-allocation-positions`,
+before/after):*
+
+- **The Σ in the basis line** carries the warning colour only **above** 100 %
+  (ADR-0040 §3, the overshoot the data note above the table names). A plan that
+  allocates less gains the clause **"— drift against the allocated portion"**
+  (de "— Abweichung gegen den verteilten Anteil") exactly when the payload's
+  `drift_basis` is `allocated_portion` (ADR-0040 §2): the Σ in front of it *is*
+  that portion, so the number is not repeated. A plan at 0 % on top with targets
+  deeper in the tree keeps its own clause and no colour.
+- **A rebalancing hint that rounds to nothing is not shown** — "Sell ≈ 0.00
+  units" asks for nothing. The cell reads "—" in the worklist and the tree shows
+  no hint; the drift stays, and the API keeps the unrounded quantity.
+- **The hint's verb track is `max-content`** (`.rebalance-hint`), so "Verkauf"
+  fits; the ≈, quantity and unit tracks keep their widths, the grid packs to the
+  end, and the ≈ stays on one vertical line.
+- **The cash row's category reads "—"**, never "Unassigned": cash has its own
+  target and drift, and "Unassigned" names the tree's other row. A held security
+  filed nowhere keeps the word.
+- **Tree / Positions is the segmented group** (`.segmented-control`, UX-DR16
+  class 2): the active option filled, the pair a real toggle to the eye and not
+  only to `aria-pressed`.
+
 ### View switcher: prefix removed, manage control named *(D4)*
 
 - The visible `View:` / `Ansicht:` prefix is **removed**. The group keeps its
@@ -1145,6 +1240,19 @@ Shipped as #702; recorded here so every tab row is held to it.
   one and a fixed right fade would cover it; a row resting on both edges (no
   overflow, desktop) carries no mask. Without script the row keeps the
   one-sided right fade above;
+- **the row's end is a tab boundary** *(issue 876, pick G10 = A of board
+  `ux-design-2026-09-24/10-area-tab-end`)*: when the row overflows, the
+  `AreaTabs` hook gives it a trailing inset (`padding-inline-end` from
+  `--area-tabs-tail`, 0 by default on `.area-tabs`) as wide as the distance
+  from its maximum scroll to the next tab start, and brings the active tab to
+  rest on the last tab start at or before its centring target at which it is
+  whole (else the first after); a row that does not overflow gets no inset. The
+  browser clamps a target past the maximum scroll, and the maximum scroll lay
+  mid-tab, which is how Tax and Risk rested with a fragment of "Cashflow" under
+  the left fade. The inset is re-measured on resize and restored after a patch,
+  like the edge marks; its cost is a little empty space after the last tab at
+  the row's end. Measured in Chromium at 390 px: every Wealth page rests with a
+  whole tab at the left, on arrival and when swiped to the end;
 - **no scrollbar** — a phone renders none anyway, and the fade plus snap carry
   it; keyboard users reach off-screen tabs by tabbing, which scrolls them in;
 - **the baseline is an inset box-shadow, not `border-bottom`.** This is the
@@ -1516,7 +1624,11 @@ readable and scrollable. Under 720 px the same dialog opens modally as a
 bottom sheet (full width, 88 vh maximum, the modal backdrop tints). The
 fields stack — type, date, the depot the booking books to, security — with
 quantity and price paired on one row, costs and note behind one disclosure,
-the sell-lot preview beneath; the foot carries **Record transaction**
+the sell-lot preview beneath. The disclosure opens itself when a fee or a tax
+is refused, and it stays open, by whoever opened it, while the operator types:
+LiveView drops an `open` the server did not render on the next patch, so the
+`DisclosureState` hook remembers the toggle and restores it (#869 review
+round). The foot carries **Record transaction**
 (primary) and **Cancel** (ghost). Recording closes the drawer; Cancel and
 Esc discard the draft; focus returns to the control. Built for creating a
 booking and shaped — one panel, stacked, pre-fillable fields — for the edit
@@ -1574,7 +1686,14 @@ categories, so the figures line up at any depth. An empty category prints
 "—" in each figure column; the result cell stacks the signed amount over
 its signed percentage, in the sign colours. Under 560 px the row keeps the
 name, the value and the result; positions and cost stay in the cells' titles
-and on the desktop. The unassigned notice is the attention data note it
+and on the desktop. **Under 560 px the row lies on two lines** *(issue 873,
+pick G8 = A of board `ux-design-2026-09-24/08-classification-detail`)*: the
+marker, the swatch (which never shrinks), the name — allowed to wrap — and its
+"+N without holdings" on the first, the actions at its end; the value and the
+result on the second, in their own columns under the head. With the page's
+16 px gutter, one line left the name some 70 px and cut it to a few letters;
+two lines give it the row's width, which is UX-DR27's phone row applied to the
+tree. On the desktop the row is one line as before. The unassigned notice is the attention data note it
 became with issue 791; the result's basis is a `.summary-basis` line with
 the full ADR-0041 sentence behind its ⓘ.
 
@@ -1609,7 +1728,11 @@ sidebar keeps Wealth current on `/risk`.
    volatility is 0", which is a different statement from "short of data".
 3. **Basis line** (`.summary-basis`) under the cards: the flow-adjusted TTWROR
    factors, the base currency, `√365`, the gap rule, the conversion of the
-   matrix (UX-DR26: the limit is stated on the surface).
+   matrix (UX-DR26: the limit is stated on the surface), and how many of the
+   largest names the correlations run over — the number the answer carries
+   (`correlations.leading_names`), never a constant of the page, because the
+   matrix is bounded below the list's maximum length (E25 S4, board
+   `ux-design-2026-09-24/11-security-visible-states`, part 3).
 4. **Largest single names** — a `.data-table`: security, asset class, value
    and weight as `.num` columns, and a **threshold** badge that names the
    threshold rather than pronouncing on it: "above 10 %" (`.badge--danger`,
@@ -1662,10 +1785,12 @@ B and C of the board).
    secondary "New rule" button.
 2. **Findings table** (`.data-table.policy-findings-table`), sorted breached,
    then undetermined, then met; hard before warning within a state. Columns:
-   - **Rule**: the name as a quiet button (`.policy-rule__name`, bold text
-     colour, underline on hover, the focus ring; `.link-button` carries none
-     of the base button's shadow, radius or 34 px floor, only the 44 px under
-     a coarse pointer) that opens the edit dialog, and under it the rule's
+   - **Rule**: the name as a **link at rest** (`.policy-rule__name` on
+     `.link-button`: accent colour and underline without hovering, bold, the
+     focus ring; `.link-button` carries none of the base button's shadow,
+     radius or 34 px floor, only the 44 px under a coarse pointer) that opens
+     the edit dialog — *amended 2026-09-25 by pick G7-A, below; it was a quiet
+     button in text colour, underlined on hover only* — and under it the rule's
      **words** (`.policy-rule__words`: measure and window · subject · kind ·
      severity). A built-in tree's category reads in the page's language
      (`ClassificationName.category/2`), never its stored English name;
@@ -1700,8 +1825,9 @@ a weight that carries both an operator's breached rule and the lens's "above
 
 A native `<dialog>` (UX-DR9), one component for create and edit:
 
-- **Fields** in `.form-grid`: name (create only — the name and the context
-  view are the rule's identity), measure, subject, the plan's classification
+- **Fields** in `.form-grid`: name (on create and on edit — *amended
+  2026-09-25, G7-A:* the context view is the rule's identity, the name is its
+  label), measure, subject, the plan's classification
   (only for the drift of a security), window (only for volatility and
   drawdown), kind, the line (or "From"/"To" for a band) with the measure's
   unit in its label, severity, "In force from" (the ISO text input, UX-DR19),
@@ -1777,3 +1903,547 @@ Board `ux-design-2026-09-23/02-position-soll-entry`, variant A, as built.
 - **Fits at 390 px.** The plan table opts out of the scroller's
   `min-width: max-content` (the Risk tables' fit pattern) and position names
   wrap anywhere, so every input stays on screen.
+- **The children Σ is live** *(issue 874, board
+  `ux-design-2026-09-24/08-classification-detail`, before/after)*. A parent's
+  "children Σ n%" hint (#467, `.hint.target-consistency`, the mismatch colour
+  when it disagrees with the parent's own weight, never blocking a save) is
+  recomputed on every input, exactly as the Σ footer is, and on load by the
+  same computation: each child counts with the weight it steers by, so a child
+  that follows its positions counts with their sum. Its form and colour are
+  unchanged; it simply no longer vanishes between the first keystroke and the
+  save — it is the only place a parent at 65 % over children adding up to 60 %
+  shows, because the Σ footer counts the parent alone.
+
+## Amendment 2026-09-25 — Wealth → Risk: the rule's name as a link, and the rename *(Sprint 16 pick G7-A, issue 872)*
+
+Board `mockups/ux-design-2026-09-24/07-rule-name-affordance`, variant A (the
+owner's pick, plan D-5), with Part 1 of the same board for the rename (plan
+D-6, ADR-0049 §4 as amended). Built by Sprint 16 Lane D in
+`PortfolixirWeb.RiskLive` and `PortfolixirWeb.Risk.PolicyRuleDialog`.
+
+- **The name is the one way into the rule, and it looks like it.** In the
+  findings table the rule's name carries the link treatment **at rest**:
+  `.link-button`'s accent colour and underline, bold because it heads its row.
+  `.policy-rule__name` no longer overrides the colour or the underline, and
+  its `:hover` rule is gone; the focus ring and the 44 px under a coarse
+  pointer stay. One treatment for "open this rule" across the section: the
+  scheduled and retired names below the table already carried it. No kebab
+  and no standing "Edit" button (variants B and C): at 390 px the table keeps
+  its three columns. Colour and underline are two cues, so the control does
+  not rest on colour alone, `forced-colors` included. The coral accent's
+  light-mode contrast for body-size link text is the token question every
+  `.link-button` already has, not a property of this pick.
+- **The dialog names the rule on edit too.** The name field is the first
+  field of `.form-grid` on create **and** on edit (`maxlength` 255). The
+  heading keeps the stored name until the rename is saved.
+- **What saving does is said before it happens.** With only the name changed,
+  the hint under the fields reads "Only the name changes: saving creates no
+  new version …" in place of the version note, and the primary button reads
+  **"Save name"**; the "In force from" date plays no part. With the name and
+  any field of the predicate changed, the version note stays and gains a
+  second line (`.hint__line`): "The new name applies to the rule with all its
+  versions."; the button stays "Save new version", and one save writes both
+  or neither. A blank name is the field's own error, as on create.
+- **A retired rule** opens the same dialog from the retired list and is
+  renamed the same way; a rename there creates no version either.
+- **The German button reads "Namen speichern"** (the accusative the verb
+  takes), where the board drew „Name speichern“; the build reuses the
+  catalogue's existing entry for "Save name" rather than adding a second
+  spelling of one action. Recorded by the Sprint 16 S3/S4/D review round
+  (LD-5), so the board and the spec agree.
+- **The dialog keeps the rule's own subject** among its choices even when
+  that security is retired (the remedy ADR-0049 §8 gives), so a rename of
+  such a rule stays a rename and never moves it to another security (review
+  round, LD-1). A new rule is still not offered a retired security.
+
+## Amendment 2026-09-25 — A refusal that names rules makes each one reachable *(Sprint 16 pick G6-A, issue 871)*
+
+Board `mockups/ux-design-2026-09-24/06-view-rule-reach`, variant A (the
+owner's pick, plan D-5). Built by Sprint 16 Lane D in
+`PortfolixirWeb.PolicyRuleReferences`, used by `BucketsLive`,
+`ClassificationsLive` and the securities delete-blocked dialog.
+
+- **The form stays.** A delete of a view, a category or a classification that
+  rules read is refused in the page's existing message band, as Sprint 15's
+  board `06-rule-reference-409` fixed; a security keeps its "Cannot delete"
+  dialog. No new element. The refusal dialog for view deletes (variant C) is
+  declined: it would reopen that pick for one of three kinds of delete, and a
+  view has no second way out to offer.
+- **Each rule is a link to where it lives.** A rule belongs to the view it
+  applies in (its context, ADR-0049 §1), and Risk shows only the active
+  view's rules. So each rule reads `“name” (status, view “View”)` —
+  `„Name“ (gilt, Ansicht „Alles“)` in German — and **only the name** is the
+  link, to `/risk?view=<its context>` (`view=total` for a portfolio-wide
+  rule). The parenthesis names the view **before** the click, because the
+  link changes the active view on every Wealth tab, as a view chip does. The
+  band's second sentence is unchanged.
+- **A plain `href`, never `navigate`**: a full navigation, so the view scope
+  takes the choice and Risk's header names the view on arrival (UX-DR26).
+  Arrival is the page as it is; no jump to the row and no highlight. A retired
+  rule is behind the page's "retired rules" disclosure, which the "(retired)"
+  in the band points to.
+- **Link style**: the band's own colour, underlined at a 2 px offset —
+  `.alert-error a` and `.confirm-delete-blocked .modal-body a` share the rule
+  `.data-note__body a` carries, so the links survive the band's move into a
+  data note unchanged. In running text the links take the inline exception of
+  the target-size rule (WCAG 2.5.8), as a data note's remedy link does.
+- **The rules arrive as data**, never as a finished sentence: the translated
+  templates are split around their placeholders before any stored name is
+  put in, so a rule's or a view's name is only ever text.
+- **Known limit: the link carries the view, not the portfolio.** A rule's
+  context is its portfolio and its view, and Risk shows the first portfolio
+  only, so a rule of another portfolio (one created over the API, say) is
+  named in the refusal but its link opens Risk without it. The limit is
+  Risk's, inherited rather than introduced by this pick; a per-portfolio Risk
+  is its own follow-up (recorded by the Sprint 16 S3/S4/D review round, LD-4).
+
+## Amendment 2026-09-25 — The booking drawer's split state *(Sprint 16 pick G12.3-A, E25 S6, G07)*
+
+Board `mockups/ux-design-2026-09-24/12-e25-new-marks`, G12.3 variant A (the
+owner's pick, plan D-5), as built in `TransactionManagementLive`.
+
+- **When.** **Edit** on a history row whose type is split opens this state of
+  the booking drawer instead of the booking form. A split is a fact about the
+  security, booked through **Record split** on it; the ledger refuses every
+  change to a split row but its note, on the API and MCP as here.
+- **Anatomy.** The same `dialog.detail-pane.booking-drawer`, titled "Edit
+  transaction". The sub line says what the drawer does before anything is
+  tried: a split is a fact about the security, only the note changes here,
+  and the change is journaled. Then a `.form-grid` of four **disabled**
+  fields with the words of **Record split**: Type ("Split"), Effective date
+  (ISO), Security (name and ticker) and "Ratio (new:old shares)" as "2:1",
+  the form the history shows. No depot (the row has none), no quantity or
+  price, no settlement block and no costs disclosure: a split carries none of
+  them. One `.form-help` line states the limit where the correction is tried
+  — the effective date, ratio and security are fixed; a wrong split is
+  deleted over the API or MCP and recorded again with **Record split** —
+  **without a link** (UX-DR26), because no screen deletes a booking yet; the
+  link arrives with a "Delete split" action (Part 13, item 5 of the design
+  pass). The **Notes** textarea stands open under it, and the foot carries
+  **Save note** (primary) and **Cancel** (ghost).
+- **Behaviour.** Saving sends the note only and closes the drawer with
+  "Note saved"; a refused write keeps the drawer open with the page's error
+  band.
+
+## Amendment 2026-09-26 — Accounts & depots: lifecycle controls *(Sprint 16 pick G1-A, issue 328, ADR-0050 §4, §11, §12; board 13 pick G13.1-A)*
+
+Board `mockups/ux-design-2026-09-24/01-accounts-lifecycle`, variant A (the
+owner's pick, plan D-5), and board `13-l5a-merged-from`, variant A (drawn in
+the batch; silence adopts it). Built by Sprint 16 Lane L5a in
+`PortfolixirWeb.PortfolioAccountsLive` and
+`PortfolixirWeb.PortfolioAccounts.RenameDialog`.
+
+- **Every entity row carries its own kebab** — the depot row, the cash row
+  of a pair and a lone cash account; the repeated row of a shared account
+  carries none. Each is named for its row through the shared
+  `AppShell.row_kebab` (issue 870): "Actions for Tagesgeld (alt)". A split
+  pair's depot row keeps its kebab.
+- **The menu is ordered by consequence:** Rename (the edit glyph) · Tag
+  separately (the depot row of a pair tagged together only) · Merge into…
+  (the new `:merge` glyph, two lines joining into one arrow — no existing
+  glyph carried the meaning, UX-DR16) · Delete, last, in
+  `.row-context-menu__item--danger`. Merge into… is not danger-coloured: it
+  opens a preview, and only the preview's confirm writes.
+- **Under 720 px the menu is the existing bottom sheet and names its row**:
+  `AppShell.row_menu` takes an optional `caption_name` / `caption_kind` and
+  renders `.row-context-menu__caption` ("**Tagesgeld (alt)** · Cash
+  account"), shown under 720 px only, where the sheet no longer hangs at its
+  row. **Under 640 px** each band's rows become a two-column grid, so every
+  kebab sits at the end of its own name line; the hover tint covers the
+  whole line.
+- **Two sub-lines under the name**, both `.account-sub` at 12 px as their own
+  lines (`.account-sub--merged`, `.account-sub--former`), readable without a
+  click: "merged from <source> · <date>" (the newest merge, then "+N"), and
+  "former: <newest former name>" (then "+N"). A merged source's name is said
+  once, on the first line; its own earlier names stay in the second, because
+  they were renames. The line links nothing: the list of merges is
+  `GET /api/v1/merges` until its view lands (Sprint 17 at the latest).
+- **Rename** opens a native `<dialog class="modal rename-dialog">` titled
+  "Rename — <name>": one field (only the name is editable; currency and
+  portfolio freeze once referenced, §11; role, balance and buckets stay in
+  the row), then a `.hint` that states the rename rule's case before
+  anything is written — "The current name “X” stays a former name: an import
+  that still names it keeps booking to this account (depot)", or, while
+  another account of the kind carries X live, "…so the current name is not
+  kept: an import that names it books to that account. Merge or rename that
+  account to change this." A name another account answers to is refused
+  **at the field** (`.field-error`, `aria-invalid`), naming the holder and
+  the way out — a former name names the account it belongs to and says to
+  remove it there; a live name says "Choose another name, or merge or rename
+  that account" (board 14 ⑤); nothing is written. Saving closes the dialog; the row
+  changing in place is the confirmation — no banner.
+- **Former names** are the dialog's open `.perf-table-disclosure` "Former
+  names" with a bordered `.former-names` list: each name, a muted
+  `.former-names__origin` line ("merged on <date>") when it arrived by a
+  merge, and a ghost **Remove** whose native confirmation says what it costs:
+  "Remove “X” as a former name? An import that still names 'X' will then
+  create a new account." (a new depot for a depot). Removing acts at once;
+  the dialog stays open and a typed name stays typed. No list, no
+  disclosure, when there are no former names.
+- **Delete asks only when it can succeed.** The page reads what references
+  the account as the menu opens. Referenced: Delete opens "Cannot delete"
+  directly (the securities page's `.confirm-delete-blocked` dialog) —
+  "“X” still has 151 bookings and 1 linked depot (Depot 2) — merge it
+  first.", a muted line saying what a merge moves, and **Merge into…** as
+  the primary way out, which opens the merge's step 1 for that account.
+  Free: one native confirmation naming the account ("…has no bookings and
+  no linked depot."), plus "Its bucket assignments are removed with it."
+  when it carries any; the row disappearing is the confirmation.
+
+## Amendment 2026-09-26 — Lifecycle merge — preview and confirm *(Sprint 16 pick G2-B, issue 328, ADR-0050 §7, §8, §10)*
+
+Board `mockups/ux-design-2026-09-24/02-merge-preview`, variant B (the
+owner's pick, plan D-5), with the three lines board `13-l5a-merged-from`
+adds. Built by Sprint 16 Lane L5a in
+`PortfolixirWeb.PortfolioAccounts.MergeDialog` (the state) and
+`PortfolixirWeb.PortfolioAccounts.MergePreview` (step 2).
+
+- **Placement.** Opened from a row's "Merge into…" or from "Cannot delete".
+  One native `<dialog class="modal merge-dialog">` in two steps; the head
+  names the source ("Merge Tagesgeld (alt)") with the step under it
+  (`.modal-head__step`, "Step 1 of 2 · Target"). The body scrolls; the foot
+  is a fixed band (`.modal-footer.modal-footer--band`, the one class board 02
+  adds: a top rule, the elevated background, the body's padding). Under
+  720 px the same dialog is a bottom sheet in the booking drawer's shape
+  (full width, at most 88 % high); its foot stacks — the reason a confirm
+  waits (`.merge-footer__why`, with "↓ "), the confirm on a line of its own,
+  then Back or Cancel — so no account name breaks inside a button.
+- **Step 1 — the target.** `.merge-route` names the source with its currency,
+  role, buckets, bookings and balance (a depot: buckets and bookings). Every
+  other account of the kind is a `.merge-target` radio row (44 px minimum)
+  with its name, a muted meta line and its balance. The legal ones come
+  first under "Target — receives every booking"; the rest follow under the
+  `.merge-sub-caps` "Not selectable (N)", disabled on `--color-bg-muted`,
+  each naming every reason as text ("different currency, different
+  buckets"). The only legal target is chosen; the chosen row takes UX-DR16
+  class 3 (tint plus a 3 px leading edge). A basis line states the rule
+  ("Selectable: same currency, same liquidity role, same buckets." — "same
+  default buckets" for a depot). With no legal target the step says "No
+  account meets the conditions." and the foot offers only Close.
+- **Step 2 — the preview of exactly that pair, cash.** `.merge-route`
+  "Source → Target" with the target's currency and role; the balances as a
+  sum in `.merge-identity` (source + target = target after, the result
+  marked by the accent edge) with the balance if the equal bookings are
+  removed under it; a basis line (as of today, computed from the bookings,
+  checked before saving); `.merge-counts` (bookings that move, transfers
+  dropped, set balances adjusted and dropped, equal bookings, and — board 13
+  — the linked depots that move); the restated set balances as a table
+  (Date · Account · Set · + other account · After), each only where the
+  merge changes it; the equal bookings as `fieldset.merge-choice` with its
+  table and two `.merge-option` radios, **neither checked**, each stating
+  the balance it leads to — "remove as duplicates" also naming, in a muted
+  line, what it changes outside the two accounts (board 13); then a note
+  (the former names the target gains) and an attention note (the source is
+  deleted; cannot be undone; journaled). The figures that depend on the
+  choice follow it, and read "keep both" until one is made.
+- **Under 720 px the two tables become two-line rows** (`.merge-lines`):
+  "date · account" over "set + other = **after**", and "date · kind" over
+  the amount and where it stands. Exactly one of the two forms is displayed
+  (`.merge-wide` / `.merge-narrow`).
+- **The depot variant** has no balances: its route names the target's
+  buckets, its counts the bookings that move, the security transfers
+  dropped and the equal bookings; "Affected positions" is a table with, per
+  position the source holds, the quantity as "source + target →" over the
+  after figure, and the average cost and the realized result as
+  "source · target →" over theirs ("—" where the target holds none); a basis
+  line; and — board 13 — one line per split whose combined rounding differs
+  from the two rounded apart, with its date and ratio. Its note adds that
+  the target keeps its cash account.
+- **The confirm** is `.button-danger` "Merge into <target>" at the band's
+  end. While the equal bookings' choice is missing it is disabled —
+  `.button-danger:disabled` at 45 % opacity with the not-allowed cursor,
+  never merely pale: its reason stands beside it as text ("Choice for 2
+  equal bookings missing"). Confirming applies the plan the preview's digest
+  covers, closes the dialog and reports the result inline above the table
+  (`AppShell.inline_result`, a note: "Merged X into Y: 3 bookings moved, 3
+  removed."), until the next action or its dismiss.
+- **A changed plan** re-renders step 2 with the fresh preview under an
+  attention note — "The accounts changed while the preview was open.
+  Nothing was merged; the preview now shows the new state." — and a line
+  naming what changed ("balance of Tagesgeld 8,400.00 → 8,450.00 EUR").
+  **A choice made before does not survive** (decided here, design pass
+  Part 2's open point): a changed plan is a new question, so the confirm
+  waits again.
+- **A refusal the preview finds** (a position whose buckets differ between
+  two depots, say) is a problem note in step 2 — the reason in the
+  operator's words, each refused position with both bucket sets, the remedy,
+  and **Check again** — and the foot offers Back and Close, never a confirm.
+  A refusal that means particular bookings names each on a
+  `.merge-refusal__position` line, the account bold, the date and the number
+  last (board 14, L3–L5 review round): "Set balance of **Tagesgeld (alt)** on
+  2025-06-30 · no. 4711" for a set balance that still carries an import hash
+  or whose adjusted amount the amount column cannot hold, and "Buy (Sell)
+  without an amount in **<account>** on <date> · no. <id>" for the booking
+  that makes it so, whose remedy is to record that booking's amount.
+- **Live regions:** one `role="status"` region for the changed-plan note and
+  one `role="alert"` region for a refusal of the confirm just pressed, both
+  present before any note (UX-DR17: politeness per region, never per note).
+- **A link to a merged-away security** lands on the survivor with board 03's
+  note at the top of its detail ("The link led to a security that was merged
+  into this one on <date>."), and a benchmark naming one redirects the
+  Wealth page to the survivor with the same note under the performance head
+  (board 13); both dismissible, both gone with the next navigation, both
+  shown only when the merge records say so.
+- **Dialog count:** the lifecycle adds three native dialogs (rename, merge,
+  and Accounts & depots' "Cannot delete"), all on the `ModalDialog` hook,
+  none with `aria-modal`. The Overlays bullet's record of nine (2026-09-15)
+  now reads fifteen `<dialog>` elements in `lib/portfolixir_web/`, still
+  with zero `aria-modal`.
+
+## Amendment 2026-09-26 — Security merge — target, identity, preview *(Sprint 16 pick G3-A, issue 608, ADR-0050 §8, §9, §10, §12)*
+
+Board `mockups/ux-design-2026-09-24/03-security-merge`, variant A (the
+owner's pick, plan D-5). Built by Sprint 16 Lane L5b in
+`PortfolixirWeb.Securities.MergeDialog` (the state and step 1) and
+`PortfolixirWeb.Securities.MergePreview` (step 2). The flow is G2-B's
+anatomy — the same `<dialog class="modal merge-dialog">`, band foot, bottom
+sheet under 720 px, live regions and changed-plan rule — and this amendment
+records only what the security adds.
+
+- **Entry.** The row menu's "Merge into…" (the `:merge` glyph) sits after
+  "Mark as benchmark" and before Delete, not danger-coloured. "Cannot
+  delete" offers it too, as a ghost button under a muted line saying what a
+  merge moves, where bookings or quotes are what block the delete; where a
+  policy rule or a research entry blocks it, a merge would be refused as
+  well, and the dialog stays as it was.
+- **Step 1 — the target is searched, not listed.** The securities list is
+  too long for G2's radio list, so `.merge-route` names the source (ISIN,
+  currency, bookings, created date) above a `.search-field` ("Name, ISIN,
+  WKN or ticker", at most 100 characters); the matches (at most 25, the
+  source left out) are G2's `.merge-target` rows, each with its bookings
+  count and a meta line (ISIN · currency · asset class, plus "Benchmark" or
+  "Retired"). The legal ones come first under "Target — receives bookings,
+  quotes and settings"; the rest under "Not selectable (N)", disabled, each
+  naming its reasons as text ("different currency", "only one of the two is
+  a benchmark", "retired", "other quote basis"). A single legal match is
+  chosen; nothing else is. The basis line states the rule: "Selectable: the
+  same currency, both or neither a benchmark, the target not retired; with
+  quotes also the same “treat synced quotes as raw”. The preview checks
+  everything else."
+- **Step 2 — two cards, because the names can be equal.** `.merge-pair`
+  sets the source and the target side by side (a 1fr · arrow · 1fr grid,
+  stacked with a ↓ under 720 px), each card a role line in 10.5 px caps —
+  "Source · deleted" in `--color-danger` (`.merge-pair__role--gone`),
+  "Target · stays" muted — then the name, the ISIN in mono, and "N bookings ·
+  created <date>". Nothing else tells two equal names apart.
+- **The ISIN choice (G3-A)** is `fieldset.merge-choice` "ISIN afterwards"
+  with two `.merge-option` cards, **neither checked**: "Keep <target ISIN>"
+  tagged "the target's ISIN" ("<source ISIN> becomes a former ISIN of this
+  security."), and "Adopt <source ISIN>" tagged "the source's ISIN"
+  ("<target ISIN> becomes a former ISIN; the target carries <source ISIN>
+  afterwards."). The tag is `.merge-option__tag` (11 px, muted, after the
+  title). Only when Adopt is chosen does `.merge-option-field` follow that
+  card — "ISIN change on", an ISO date field in mono, today by default,
+  with its `.field-error` at the field. The fieldset is absent when the
+  engine says no choice is required (the two share an ISIN, or one has
+  none).
+- **Everything that follows the choice is one form** (board 03, why A): the
+  holdings as G2's `.merge-identity` sum in shares — "Source + Target =
+  Holdings afterwards" (the sides carry their own gettext context, "merge
+  side", because a bare "Target" is the allocation column's "Soll") — with
+  the figure if the equal bookings go under it; a basis line (every depot,
+  as of today, from the bookings; the sum holds per depot on every day and
+  is checked before saving); `.merge-counts` (bookings that move, equal
+  bookings "— choice below", days with quotes in both "— the target's
+  applies" and how many of them manual, the source's settings that move and
+  are dropped, the events that move); the equal bookings as G2's
+  `fieldset.merge-choice`, its table cut to three rows with "Show the other
+  N pairs" (`.merge-more`) and the two unpreselected options.
+- **Four tables, each only when it has rows** (`.merge-table`, a cell's
+  reason muted under its value): the colliding **manual** quotes ("Date ·
+  Target · applies · Source · dropped", the source's struck through in
+  `.merge-table__drop`; the synced collisions are only counted, the rest go
+  to the manifest); the source's settings in active, draft and archived
+  plans (category per tree, position targets, position buckets), each with
+  "moves" or "is dropped" and why; the events that stand the same in the
+  target ("both stay", with where a duplicate is deleted afterwards); and
+  the master data that differ ("Field · Source · Target · Afterwards", with
+  "adopted: the target had none." where the target takes a value). Then a
+  note (an import that names the source books to the target) and the
+  deletion warning.
+- **The confirm** is "Merge into <target>" (`.button-danger`), disabled with
+  its reasons beside it while the ISIN or the duplicates' choice is missing
+  ("Choice for the ISIN missing · Choice for the equal booking missing"). It
+  applies `plan_digest` with both choices and `isin_changed_on` (sent only
+  for Adopt), closes the dialog, opens the survivor's detail and reports the
+  result inline (`AppShell.inline_result`, a note: "Merged X into Y: …"),
+  kept through that one navigation. A write the database refuses (an ISIN
+  whose check digit is wrong, say) is a problem in the `role="alert"` region
+  quoting the refused field; nothing is merged.
+- **A refusal** is one problem note that names **every** failed guard: the
+  first as "Merging is not possible: …", the rest as "Also: …" — the
+  currency pair, the research entries with their count and newest date, the
+  policy rules as a list of links (`.merge-refusal__rules`, each rule by name
+  with its state and view, G6-A's reference) plus "A rule that has been in
+  force keeps its subject as part of its history.", a split one side lacks
+  with its date, ratio and the side's earlier booking or quote, a split that
+  would restate a depot it did not restate before. Where the reverse merge
+  passes, the remedy says so ("merge the other way — <ISIN> into this
+  security") and **Merge the other way** opens that pair's preview; where it
+  is refused too, "The other way is refused too: …" and "No direction is
+  possible; both securities stay unchanged.", with no remedy the version
+  does not have. A split mismatch offers **Check again** after its remedy;
+  two ratios on one day say to delete the split with the wrong ratio in the
+  Transactions tab (board 03, board 14 ④), and that remedy speaks alone. A
+  source split that still carries an import hash is named "Split on <date>
+  · no. <id>" with its remedy (change its kind back, or delete it) and
+  **Check again** (board 14 ③).
+  The foot offers Back and Close, never a confirm.
+- **The survivor names its history** on its detail overview's basis line,
+  after the asset class: "former ISIN <ISIN> (until <date>)" and "merged on
+  <date> from “<name>” (then <ISIN>)" — one clause per merge record, readable
+  without a click.
+- **Dialog count:** one more native dialog; the lifecycle's record above now
+  reads sixteen `<dialog>` elements in `lib/portfolixir_web/`, still with
+  zero `aria-modal`.
+
+## Amendment 2026-09-26 — Import preview after ADR-0050 — what each row will do *(Sprint 16 picks G4-A and G4b-A, issue 884, ADR-0050 §2–§5)*
+
+Board `mockups/ux-design-2026-09-24/04-import-memory`, variant A (the
+owner's pick, plan D-5), and board `04b-import-memory-ambiguity` (drawn in
+the batch before the code: F1 as a before/after, G4b variant A recommended
+and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
+`PortfolixirWeb.ImportsLive`.
+
+- **A mapping row reads left to right as source, count, choice.** Each cash
+  and depot row of the mapping step is a `.mapping-row` (grid, aligned to
+  the top): the file's name, then `.mapping-count` — "N already imported ·
+  K internal transfers dropped · **M new**", or "**nothing to create**" when
+  none of the row's bookings is new — then `.mapping-target`, the select with
+  its notes under it. Each segment shows only when its count is above zero;
+  board 04 draws the transfer segment ("2 interne Umbuchungen entfallen"),
+  added by the L3–L5 review round (F2). The count is the apply's own run
+  under the prefill, rolled back: "already imported" is every layer that
+  skips a booking (content hash, a merge's retired hash, an equal booking by
+  its economics), so a file saved again after a merge reads "nothing to
+  create". Under
+  720 px a row is one column (source, count, choice, notes; a depot's cash
+  select last).
+- **Notes under the select say only what is not obvious** (`.mapping-basis`,
+  12 px muted): "matched by a former name — <account>, formerly “<name>”"
+  when a former name did the prefill; "no account under this name; it is
+  created only with its first new booking" when "+ Create new" has nothing
+  new to create. A file with nothing new at all says once, above the
+  confirm, how many entries are already imported and how many internal
+  transfers are dropped, then: "The import creates nothing: no booking, no
+  account, no depot, no security."
+- **"Remember this mapping" (G4-A)** is `.mapping-remember`, a checkbox in
+  the row, **ticked by default**, shown only where the operator changed a
+  prefill onto a differently named account and remembering is possible. Its
+  line (12 px muted, indented under the label, the box's
+  `aria-describedby`) says what happens: "“<name>” becomes a former name of
+  <account>; a future import maps the name by itself.", or, where the name
+  is another account's former name, "…and is then no longer a former name of
+  <other>." (the move ADR-0050 §4 added). Unticked: "Holds for this import
+  only. A future import suggests “<prefill>” again." Where the name is
+  another account's live name, no box: a muted line says the choice holds
+  for this import only and links Accounts & depots, where a merge or a
+  rename changes it. The box posts through the existing
+  `remember[<group>][<opaque row key>]` path.
+- **Same-named accounts are told apart in the options (F1).** An option
+  whose name another option of the same list carries adds, after a middle
+  dot, what differs: a cash account its linked depots ("at Depot 1", "no
+  depot"), else its currency, else "created <date>"; a depot its cash
+  account ("with Giro"), else its created date; "no. <id>" only when nothing
+  else differs. Unique names are unchanged. An ambiguous row gets no prefill
+  ("Decide…") and an attention note naming the candidates by the same labels,
+  saying the choice holds for this import and cannot be remembered while
+  more than one account carries the name, with the Accounts & depots link.
+- **"+ Create new" for a name the guard refuses (G4b-A)** stays in the list,
+  **disabled**, its own label saying why: "+ Create new: <name> — not
+  possible: an account already has this name" / "a former name of
+  <account>" / "the name of N accounts". Only a row with new bookings shows
+  it so; a stored choice that points at a name taken since counts as not
+  made. Nothing the list offers can fail the import at the end.
+- **The result adds three lists in `.import-skipped`'s existing form** (a
+  muted sentence, then the rows): "Remembered for future imports:" with one
+  line per name ("“X” is now a former name of Y.", "…and no longer of Z." for
+  a move, or "was not remembered: it is the name of …"); the rows booked on
+  or before a set balance a merge adjusted, each "Row N: <what> — set
+  balance of <account> on <date>"; and the internal transfers skipped, each
+  "Row N: <kind> <date> · <from> → <to>".
+- **The skipped duplicates are grouped by the layer that caught them**
+  (`.dup-group`, a `<details>` per layer with the count in bold tabular
+  figures and the reason): identical rows of a re-import — the expected
+  mass — stay **closed**; a retired hash and the economic layer stand open.
+  Each row reads "Row N: <kind, date, security, amount, accounts>".
+
+## Amendment 2026-09-26 — The author of a policy rule *(Sprint 16 pick G12.1-A, E25 S7, G30)*
+
+Board `mockups/ux-design-2026-09-24/12-e25-new-marks`, G12.1 variant A (the
+owner's pick, plan D-5), as built in `PortfolixirWeb.RiskLive` and
+`PortfolixirWeb.Risk.PolicyRuleDialog`. Every rule version stores its author,
+derived from the write's actor: the Risk page writes as the operator, an API
+or MCP token as the agent (decision T-8).
+
+- **The word, only at the exception.** A finding whose version in force the
+  agent wrote ends its words line (`.policy-rule__words`) with "· Agent", the
+  research log's word for the same fact ("#16 · 22.09.2026 · Agent"). A
+  hidden lead (`.visually-hidden`: "Version in force by:" / "Version in Kraft
+  von:") tells a reader what the word is. The operator's own rules carry no
+  word, so a portfolio without the agent's rules reads exactly as before.
+- **Scheduled and retired rules alike.** The muted line of a scheduled rule
+  (its coming version) and of a retired rule (its last version) ends with the
+  same "· Agent", hidden lead "Version by:" / "Version von:".
+- **No badge, no colour.** Every pill in the findings table is taken:
+  `.badge--neutral` is "met", dashed means undetermined, accent means "yours"
+  and warning is a severity. The word stays in the muted line, survives
+  forced colours as text and wraps with its line at 390 px.
+- **The dialog.** Every entry of the version list names its author after the
+  severity: "· Operator" or "· Agent". A version stored before authors
+  existed and without a journaled creation names none.
+- **A rename is no version** (D-6) and moves no mark: the word follows the
+  line, not the name; the journal names who renamed.
+- **The title stays "Own rules".** It sets the portfolio's rules apart from
+  the lens's generic thresholds (ADR-0049 §7), not from the agent.
+
+## Amendment 2026-09-26 — Stored text with invisible characters *(Sprint 16 pick G12.2-B, E25 S7, G20)*
+
+Board `mockups/ux-design-2026-09-24/12-e25-new-marks`, G12.2 variant B (the
+owner's pick, plan D-5), as built in `AppShell.invisible_text_note/1`. Every
+writer now refuses the characters an operator cannot see (tag characters,
+bidirectional controls, the other invisible format characters, runs of
+variation selectors); the note marks a row stored before that rule.
+
+- **One note, whatever the count.** An `attention` data note
+  (`AppShell.data_note`, glyph, word and colour) where the stored text
+  renders: "The text contains 2 invisible characters." or, for a name, "The
+  name contains 1 invisible character." It carries no live-region role; a
+  list of entries is one region, as rule 4 of the data note says.
+- **The remedy is a child of the note.** A research entry or the thesis:
+  "The log only appends: an entry that supersedes this one carries the text
+  without them." and the link-button "Append an entry that supersedes #n",
+  which preselects the entry in the append form's "Supersedes". A security's
+  name: "Typed in anew, it is clean." and "Edit master data", the head's own
+  action once more. Where the text is edited in place (a booking's notes, a
+  rule's name and note, a view's, a bucket's and a category's name) the
+  sentence alone; an appointment's note says it is corrected over the API or
+  MCP, since the page has no appointment edit.
+- **The text behind a disclosure.** `details.perf-table-disclosure`, "Text
+  with the characters made visible" / "Name with …", closed by default,
+  holding each affected text as a `p.mono` with every such character spelled
+  `[U+XXXX]` — the spelling the MCP companion hands the agent. **The one
+  `app.css` rule of the pick:** `.data-note__body .mono { margin:
+  var(--space-1) 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }`, the
+  wrap `.research-entry__body` has, so line breaks stay and a run of escapes
+  cannot overflow the note at 390 px.
+- **Where it stands.** In the research entry under its body (body and
+  invalidation condition counted together) and under the thesis text; in an
+  appointment under its note; under the security detail pane's head; in the
+  booking drawer above "Costs and note", which then stands open; in the rule
+  dialog under its first hint (the name and the version's note, each its own
+  note); after the inline rename form of a view, a bucket and a category.
+  Lists, selects, headings and the history's "Notes" column stay unmarked.
+  Cash accounts and depots had no rename on screen when this pick was drawn;
+  Lane L5a's rename dialog (G1-A above) now is one, and it carries no note
+  yet: its field refuses such a name like every writer, and the note for a
+  name stored before the rule waits for the follow-up that names it, boarded
+  before it is built.
+- **Stored text inside running text is isolated in `<bdi>`**: the stored
+  subject of a rule's words line, a retraction's reason in the thesis card,
+  and in the rule dialog the rule's name in its heading and the view's name
+  in its first hint (the S7 review round), so a direction control reorders
+  at most the stored text. The translated sentence is split around its
+  placeholder before the stored text is put in. No picture changes by it.
+  Flash messages and other headings that interpolate a stored name are not
+  isolated yet (a follow-up).

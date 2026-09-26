@@ -88,7 +88,10 @@ Disaster recovery against the triggers is documented in `docs/backup-restore.md`
   journal story.
 - `before` is the changeset's `data` serialized; `after` is built in a
   `Multi.run` step placed after the named business step, from that step's
-  result. No `Multi` introspection magic.
+  result. No `Multi` introspection magic. *(Amended in Sprint 16: `before` is
+  the row re-read under the write's own lock inside the transaction, `after`
+  the row as stored, and an update that changes nothing writes no entry — see
+  "Amendment: before-images under the write's lock" below.)*
 
 ### Mechanical completeness via a session-variable guard
 
@@ -228,6 +231,91 @@ built-in tree seeding, journal internally under a fixed `system_job` actor) and
 its tables are guard-armed. The grandfather list is empty. The follow-up #529
 (seed built-in trees at startup instead of on read paths) is orthogonal to
 journaling and tracked separately.
+
+### Amendment: before-images under the write's lock, and no entry for no change (Sprint 16, F49, G02)
+
+The security review of Sprint 16 (E25, findings F49 and G02 of its triage)
+found that a before-image was the struct the caller had read earlier, outside
+the writing transaction and without a lock: two writers acting on one read
+both claimed the same prior state, and the journal's change history did not
+chain. It also found that an update changing nothing copied the whole row
+twice into the append-only table. `Journal.record/3` now holds these rules
+for every writer at once:
+
+- **The before-image is the row as stored under the write's lock.** For an
+  `update`, a `delete` or an `upsert` whose `:before` is a stored row, a step
+  `{:journal_lock, step}` runs right after the actor is set and ahead of the
+  business write, and re-reads that row under the lock the write itself takes
+  — `FOR NO KEY UPDATE` for an update or an upsert, so a booking's
+  foreign-key check does not wait, and `FOR UPDATE` for a delete. That row is
+  the entry's `before`, and an update's changeset is built on it
+  (`Journal.locked_row/2`), so the write and its before-image start from the
+  same state. Two writes from one read chain: the second's `before` is the
+  first's `after`.
+- **The after-image of an update is the row re-read after the write**, as
+  stored, not the caller's struct with the changes applied.
+- **A row gone by then answers not found**: the lock step fails with
+  `:not_found` before anything is written, and the contexts answer
+  `{:error, :not_found}` (a 404 over the API; a named message on the pages).
+  An upsert whose prior row is gone inserts it afresh, with no before-image.
+- **An update that changes nothing writes no entry** (G02), and — since the
+  review round — bumps no derived-data basis either: nothing it could affect
+  changed. ADR-0017's full `before` and `after` snapshots stay for every real
+  change.
+- A writer that must hold another lock first keeps its order by taking that
+  lock as the transaction's first step, ahead of the journal's: every ISIN
+  writer takes the ISIN write lock before the security's row (review round).
+
+Pinned by `test/portfolixir/journal/before_image_lock_test.exs`,
+`test/portfolixir/journal/no_op_update_test.exs` and
+`test/portfolixir/derived/before_image_radius_test.exs` ("an update that
+changes nothing bumps no basis").
+
+### Amendment: two resource codes for the lifecycle merges (ADR-0050 §13)
+
+[ADR-0050](0050-lifecycle-merges-under-a-reimport-contract.html) adds two
+codes to the `resource_type` list: `merge_record`, one per merge of a cash
+account, depot or security (table `merge_records`), and
+`retired_import_hash`, one per row a merge removes (table
+`retired_import_hashes`). Both tables are append-only (UPDATE, DELETE and
+TRUNCATE raise) and armed with the journal-actor guard in the migrations that
+create them, and both are written by the `Portfolixir.Lifecycle` context,
+actor-first. The operations stay `create | update | delete | upsert`.
+
+### Amendment: the quote exemption covers the sync writers only (Sprint 16, T-9)
+
+The security review of Sprint 16 (E25, finding G27, decision T-9 of its
+triage) found that the quote exemption above covered more than market-data
+ingestion: the quote upsert of the API, and of the MCP companion through it,
+wrote closes an agent or a person authored through the same unjournaled path,
+so an authored write could replace a stored close of any source and leave no
+before-image. The exemption is narrowed to the writers that ingest:
+
+- **Exempt:** the quote sync (`Portfolixir.Catalog.QuoteSync`, through
+  `Quotes.upsert_many/3`) and the exchange-rate sync, as before; and the
+  security merge writer of [ADR-0050](0050-lifecycle-merges-under-a-reimport-contract.html)
+  §13 (`Quotes.merge_gap_fill/4`, called by the security merge alone), whose
+  moved and dropped quotes are recorded in the append-only merge manifest
+  instead, the dropped closes with the target's close that won.
+- **Journaled:** every **authored** quote write — the upsert
+  (`Catalog.upsert_quotes/3`) and the new release of manual quotes back to
+  provider data (`Catalog.release_manual_quotes/4`), over the API and MCP, and
+  the demo seeds through the same path. Each is one entry of the new
+  `resource_type` `security_quotes`, filed under the security's id (the new
+  `:resource_id` option of `Journal.record/3`), operation `upsert` or
+  `delete`, with the stored rows it replaced or released as the before-image,
+  in the same transaction as the rows. An authored row is always stored as
+  `manual` (finding F20), and ADR-0028's rule that a manual close wins over
+  provider data stays.
+
+The `security_quotes` table stays unarmed — the sync still writes it without
+an actor — so the split rests on the writers: a test pins, from the compiled
+call graph, that no module other than the sync calls the unjournaled upsert
+under any alias and none other than the security merge calls the merge
+writer, and, by a scan of `lib/` and the seeds, that no file other
+than the quote module writes the quote schema or the `security_quotes` table
+by a Repo write, a changeset or SQL (review round). The operations stay
+`create | update | delete | upsert`.
 
 ## Consequences
 

@@ -1,6 +1,8 @@
 defmodule Portfolixir.WriteActorTest do
   use Portfolixir.DataCase, async: true
 
+  alias Portfolixir.Journal.Allowlist
+
   # User story:
   # As a maintainer rolling out the audit journal leaf-first,
   # I want a mechanical gate that fails when a public context write function
@@ -22,7 +24,8 @@ defmodule Portfolixir.WriteActorTest do
     Portfolixir.Imports => "lib/portfolixir/imports.ex",
     Portfolixir.Buckets => "lib/portfolixir/buckets.ex",
     Portfolixir.Tax => "lib/portfolixir/tax.ex",
-    Portfolixir.Knowledge => "lib/portfolixir/knowledge.ex"
+    Portfolixir.Knowledge => "lib/portfolixir/knowledge.ex",
+    Portfolixir.Lifecycle => "lib/portfolixir/lifecycle.ex"
   }
 
   # Contexts whose actor-first refactor + table arming has landed (leaf-first:
@@ -35,7 +38,9 @@ defmodule Portfolixir.WriteActorTest do
     Portfolixir.Ledger,
     Portfolixir.Classifications,
     Portfolixir.Tax,
-    Portfolixir.Knowledge
+    Portfolixir.Knowledge,
+    # ADR-0050: born actor-first, its two tables armed at creation.
+    Portfolixir.Lifecycle
   ]
 
   # Migration-only data backfills: arity locked by immutable migrations (which run
@@ -61,9 +66,14 @@ defmodule Portfolixir.WriteActorTest do
   @grandfathered MapSet.new([])
 
   # Journaled tables currently guard-armed. Grows as contexts convert. `buckets`
-  # is the root tag table of the born-actor-first Buckets context (ADR-0018); its
-  # assignment join tables stay un-armed because they FK-cascade from
-  # Portfolios-owned tables that are not yet actor-first (architecture amendment 1).
+  # is the root tag table of the born-actor-first Buckets context (ADR-0018). Its
+  # assignment join tables stay un-armed as ADR-0018 §5 scope tables
+  # (`Portfolixir.Journal.Allowlist.unarmed_scope_tables/0`): their writers journal
+  # one aggregate entry per account or position. Since ADR-0050 §11 their foreign
+  # keys onto accounts, depots and securities RESTRICT instead of cascading, so
+  # the database refuses to delete a row that still carries a membership — but
+  # with no guard trigger, that a membership removal is journaled rests on the
+  # Buckets context writers (ADR-0050 §13), not on the database.
   @armed_tables MapSet.new([
                   "securities",
                   "security_identifier_aliases",
@@ -96,7 +106,12 @@ defmodule Portfolixir.WriteActorTest do
                   # the journal records WHO changed a standard while the
                   # versions record WHAT it was.
                   "policy_rules",
-                  "policy_rule_versions"
+                  "policy_rule_versions",
+                  # ADR-0050 §3, §12: the merge records and the retired import
+                  # hashes, append-only and armed in the migrations that create
+                  # them — the journal records who merged and who retired.
+                  "merge_records",
+                  "retired_import_hashes"
                 ])
 
   # Derived-value tables (ADR-0039): materializations of ledger-derived reads,
@@ -105,6 +120,10 @@ defmodule Portfolixir.WriteActorTest do
   # table class EXPLICIT, because implicit non-coverage is how the journal gate
   # would be bypassed rather than weakened (ADR-0039 §5, sign-off condition).
   @derived_tables MapSet.new(["derived_values", "derived_data_version_events"])
+
+  # The two tables outside every class: Ecto's migration ledger and the
+  # journal itself, which the guard exists to feed.
+  @bookkeeping_tables MapSet.new(["schema_migrations", "audit_journal"])
 
   # `Repo.transaction` is deliberately NOT a write marker: a read-only
   # transaction is not a write. Writing transactions are detected through the
@@ -167,6 +186,61 @@ defmodule Portfolixir.WriteActorTest do
            "a derived-value table gained a journal guard trigger — a materialization " <>
              "write is not a financial write (ADR-0039); arming it would make every " <>
              "read-path store fail for want of an actor"
+  end
+
+  # User story (E25 S6, F52):
+  # As the maintainer of the audit journal,
+  # I want every table in the database to sit in exactly one classification —
+  # armed, unarmed scope, non-journaled market data or derived,
+  # so that a table added without a decision on its journaling fails the
+  # build by name instead of passing every guard-coverage test unnoticed.
+  #
+  # Acceptance criteria:
+  # - The database's tables, minus the migration ledger and the journal, are
+  #   the disjoint union of the four classification sets.
+  # - A table in none of them is named; a table in two of them is named.
+  test "every database table is classified exactly once" do
+    gaps = classification_gaps(tables_in_db())
+
+    assert gaps.unclassified == [],
+           "tables in no journal classification (armed, unarmed scope, non-journaled " <>
+             "or derived) — decide and list each one:\n" <> Enum.join(gaps.unclassified, "\n")
+
+    assert gaps.overlapping == [],
+           "tables in more than one journal classification:\n" <>
+             Enum.join(gaps.overlapping, "\n")
+  end
+
+  # The classification must not pass vacuously: a table nobody listed is
+  # named, and so is one listed twice.
+  test "a table missing from every classification list is named" do
+    gaps = classification_gaps(MapSet.put(tables_in_db(), "an_unclassified_table"))
+    assert gaps.unclassified == ["an_unclassified_table"]
+
+    assert classification_gaps(tables_in_db(), [MapSet.new(["securities"])]).overlapping ==
+             ["securities"]
+  end
+
+  defp classification_gaps(tables, extra_sets \\ []) do
+    sets =
+      [
+        @armed_tables,
+        MapSet.new(Allowlist.unarmed_scope_tables()),
+        MapSet.new(Allowlist.non_journaled_tables()),
+        @derived_tables
+      ] ++ extra_sets
+
+    counts = sets |> Enum.flat_map(&MapSet.to_list/1) |> Enum.frequencies()
+    classified = MapSet.new(Map.keys(counts))
+
+    %{
+      unclassified:
+        tables
+        |> MapSet.difference(@bookkeeping_tables)
+        |> MapSet.difference(classified)
+        |> Enum.sort(),
+      overlapping: for({table, count} <- counts, count > 1, do: table) |> Enum.sort()
+    }
   end
 
   # -- AST classifier --------------------------------------------------------

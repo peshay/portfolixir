@@ -25,12 +25,14 @@ defmodule PortfolixirWeb.SnapshotsLive do
 
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
+  alias Portfolixir.Clock
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.SnapshotComparison
   alias Portfolixir.Portfolios.Snapshots
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.LiveParam
 
   @impl true
   def mount(_params, _session, socket) do
@@ -73,7 +75,8 @@ defmodule PortfolixirWeb.SnapshotsLive do
   def handle_params(params, _uri, socket) do
     socket = assign(socket, :row_menu_id, nil)
 
-    case parse_int(params["snapshot"] || "") do
+    # An id no snapshot can carry reads as absent (#868): the newest opens.
+    case LiveParam.id(params["snapshot"]) do
       nil ->
         case socket.assigns.snapshots do
           [newest | _rest] -> {:noreply, select_snapshot(socket, newest.id)}
@@ -87,10 +90,12 @@ defmodule PortfolixirWeb.SnapshotsLive do
 
   @impl true
   def handle_event("create_snapshot", %{"snapshot" => params}, socket) do
+    params = LiveParam.map(params)
+
     attrs = %{
       name: params["name"],
       as_of: params["as_of"],
-      view_id: parse_view_id(params["view_id"])
+      view_id: LiveParam.id(params["view_id"])
     }
 
     case Snapshots.create_snapshot(Actor.owner_ui(), attrs) do
@@ -109,14 +114,14 @@ defmodule PortfolixirWeb.SnapshotsLive do
   end
 
   def handle_event("select_snapshot", %{"id" => id}, socket) do
-    case parse_int(id) do
+    case LiveParam.id(id) do
       nil -> {:noreply, socket}
       id -> {:noreply, push_patch(socket, to: snapshot_path(id))}
     end
   end
 
   def handle_event("delete_snapshot", %{"id" => id}, socket) do
-    case parse_int(id) do
+    case LiveParam.id(id) do
       nil ->
         {:noreply, socket}
 
@@ -142,7 +147,7 @@ defmodule PortfolixirWeb.SnapshotsLive do
   # The row menu (Part 4 rule 11 of the 2026-09-12 review): deletion lives
   # behind the row's kebab, never as a standing button on every row.
   def handle_event("open_row_menu", %{"id" => id}, socket) do
-    case parse_int(id) do
+    case LiveParam.id(id) do
       nil ->
         {:noreply, socket}
 
@@ -158,6 +163,10 @@ defmodule PortfolixirWeb.SnapshotsLive do
   def handle_event("close_row_menu", _params, socket) do
     {:noreply, assign(socket, :row_menu_id, nil)}
   end
+
+  # An event this page does not know, or a payload it cannot read, changes
+  # nothing (E25 S4, F17).
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   defp load_snapshots(socket) do
     assign(socket, :snapshots, Snapshots.list_snapshots())
@@ -180,19 +189,6 @@ defmodule PortfolixirWeb.SnapshotsLive do
   end
 
   defp snapshot_path(id), do: "/snapshots?snapshot=#{id}"
-
-  defp parse_view_id(nil), do: nil
-  defp parse_view_id(""), do: nil
-  defp parse_view_id(value) when is_binary(value), do: parse_int(value)
-
-  defp parse_int(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {int, ""} -> int
-      _ -> nil
-    end
-  end
-
-  defp parse_int(_value), do: nil
 
   # Field -> messages map, so each input can carry aria-invalid and reference
   # the error text (UX-DR13; a11y review finding).
@@ -587,7 +583,7 @@ defmodule PortfolixirWeb.SnapshotsLive do
                   pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
                   maxlength="10"
                   name="snapshot[as_of]"
-                  value={Date.to_iso8601(Date.utc_today())}
+                  value={Date.to_iso8601(Clock.today())}
                   required
                   aria-invalid={invalid?(@form_errors, :as_of) && "true"}
                   aria-describedby={invalid?(@form_errors, :as_of) && "snapshot-form-error"}
@@ -649,18 +645,13 @@ defmodule PortfolixirWeb.SnapshotsLive do
                       <td><%= view_name(@views, snapshot.view_id) %></td>
                       <td><%= snapshot.as_of %></td>
                       <td class="row-actions">
-                        <button
-                          type="button"
+                        <AppShell.row_kebab
                           id={"snapshot-kebab-#{snapshot.id}"}
-                          class="row-actions__kebab"
+                          row={snapshot.name}
+                          open={@row_menu_id == snapshot.id}
                           phx-click="open_row_menu"
                           phx-value-id={snapshot.id}
-                          aria-label={gettext("Open actions menu")}
-                          aria-haspopup="menu"
-                          aria-expanded={to_string(@row_menu_id == snapshot.id)}
-                        >
-                          <AppShell.icon name={:ellipsis_vertical} />
-                        </button>
+                        />
                       </td>
                     </tr>
                   <% end %>

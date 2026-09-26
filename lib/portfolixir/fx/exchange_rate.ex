@@ -13,6 +13,7 @@ defmodule Portfolixir.Fx.ExchangeRate do
   import Ecto.Changeset
 
   alias Portfolixir.Catalog.Currencies
+  alias Portfolixir.Catalog.MarketDataBounds
 
   @sources ~w(auto manual ecb)
 
@@ -36,7 +37,10 @@ defmodule Portfolixir.Fx.ExchangeRate do
     |> update_change(:quote_currency, &normalize_code/1)
     |> validate_currency(:base_currency)
     |> validate_currency(:quote_currency)
-    |> validate_number(:rate, greater_than: 0)
+    # Plausibility bounds for every writer (E25 S3, F26): a rate rounded to
+    # its column, within it and positive, on a date no later than
+    # MarketDataBounds.latest_date/0.
+    |> MarketDataBounds.validate(:date, :rate, MarketDataBounds.rate_column())
     |> validate_inclusion(:source, @sources, message: "is invalid")
     |> unique_constraint([:base_currency, :quote_currency, :date],
       name: :exchange_rates_base_currency_quote_currency_date_index

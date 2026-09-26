@@ -15,12 +15,17 @@ defmodule Portfolixir.Fx do
 
   import Ecto.Query
 
+  alias Portfolixir.Catalog.MarketDataBounds
   alias Portfolixir.Derived.Invalidation
   alias Portfolixir.Fx.ExchangeRate
   alias Portfolixir.Repo
 
   @hub "EUR"
   @gbx_per_gbp Decimal.new(100)
+  # Rows per INSERT, below PostgreSQL's 65,535 bind parameters per statement
+  # at seven parameters a row (E25 S3, F28): the full ECB series is written in
+  # chunks inside one transaction.
+  @insert_chunk 5_000
   @one Decimal.new(1)
 
   @doc """
@@ -37,15 +42,27 @@ defmodule Portfolixir.Fx do
         {:ok, 0}
 
       {:ok, prepared} ->
-        {count, _} =
-          Repo.insert_all(ExchangeRate, prepared,
-            on_conflict: {:replace, [:rate, :source, :updated_at]},
-            conflict_target: [:base_currency, :quote_currency, :date]
-          )
+        {:ok, count} =
+          Repo.transaction(fn ->
+            count =
+              prepared
+              |> Enum.chunk_every(@insert_chunk)
+              |> Enum.reduce(0, fn chunk, total ->
+                {count, _} =
+                  Repo.insert_all(ExchangeRate, chunk,
+                    on_conflict: {:replace, [:rate, :source, :updated_at]},
+                    conflict_target: [:base_currency, :quote_currency, :date]
+                  )
 
-        # Allowlisted out of the journal for the same reason as quotes, so the
-        # invalidation is announced here (ADR-0032 §3.4).
-        Invalidation.after_exchange_rate_write()
+                total + count
+              end)
+
+            # Allowlisted out of the journal for the same reason as quotes, so
+            # the invalidation is announced here (ADR-0032 §3.4) — in the
+            # same transaction as the rates (E25 S6, F47).
+            Invalidation.after_exchange_rate_write(Repo)
+            count
+          end)
 
         {:ok, count}
 
@@ -63,9 +80,15 @@ defmodule Portfolixir.Fx do
     |> Repo.one()
   end
 
-  @doc "Most recent stored rate for `base/quote`, or nil."
+  @doc """
+  Most recent stored rate for `base/quote`, or nil. Like `hub_rates/1`, it
+  never serves a row dated past `MarketDataBounds.latest_date/0` (E25 S3, F26).
+  """
   def latest(base, quote) do
+    latest_date = MarketDataBounds.latest_date()
+
     base_quote(base, quote)
+    |> where([r], r.date <= ^latest_date)
     |> order_by([r], desc: r.date)
     |> limit(1)
     |> Repo.one()
@@ -183,9 +206,13 @@ defmodule Portfolixir.Fx do
   defp latest_hub_rates([]), do: %{}
 
   defp latest_hub_rates(currencies) do
+    latest_date = MarketDataBounds.latest_date()
+
     Repo.all(
       from(r in ExchangeRate,
-        where: r.base_currency == ^@hub and r.quote_currency in ^currencies,
+        where:
+          r.base_currency == ^@hub and r.quote_currency in ^currencies and
+            r.date <= ^latest_date,
         order_by: [asc: r.quote_currency, desc: r.date],
         distinct: r.quote_currency,
         select: {r.quote_currency, r.rate}

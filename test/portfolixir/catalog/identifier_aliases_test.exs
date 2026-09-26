@@ -31,22 +31,22 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
   #   one transaction.
   describe "record_isin_change/4" do
     test "moves the current ISIN into an alias and writes the new ISIN" do
-      security = create_security!(%{isin: "DE0001234567"})
+      security = create_security!(%{isin: "DE0001234565"})
 
       assert {:ok, %{security: updated, alias: alias_row}} =
-               Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654321",
+               Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654329",
                  changed_on: ~D[2026-07-01],
                  note: "merger rename"
                )
 
-      assert updated.isin == "DE0007654321"
+      assert updated.isin == "DE0007654329"
       assert alias_row.security_id == security.id
-      assert alias_row.former_isin == "DE0001234567"
+      assert alias_row.former_isin == "DE0001234565"
       assert alias_row.changed_on == ~D[2026-07-01]
       assert alias_row.note == "merger rename"
 
       assert [listed] = Catalog.list_identifier_aliases(updated)
-      assert listed.former_isin == "DE0001234567"
+      assert listed.former_isin == "DE0001234565"
 
       assert [alias_entry] =
                Journal.list_entries(
@@ -63,50 +63,50 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
                  operation: :update
                )
 
-      assert update_entry.after["isin"] == "DE0007654321"
-      assert update_entry.before["isin"] == "DE0001234567"
+      assert update_entry.after["isin"] == "DE0007654329"
+      assert update_entry.before["isin"] == "DE0001234565"
     end
 
     test "normalizes the new ISIN to catalog normal form (trimmed, upcased)" do
-      security = create_security!(%{isin: "DE0001234567"})
+      security = create_security!(%{isin: "DE0001234565"})
 
       assert {:ok, %{security: updated}} =
-               Catalog.record_isin_change(Actor.owner_ui(), security, "  de0007654321  ")
+               Catalog.record_isin_change(Actor.owner_ui(), security, "  de0007654329  ")
 
-      assert updated.isin == "DE0007654321"
+      assert updated.isin == "DE0007654329"
     end
 
     test "rejects recording the current ISIN as the new one (A->A)" do
-      security = create_security!(%{isin: "DE0001234567"})
+      security = create_security!(%{isin: "DE0001234565"})
 
       assert {:error, %Ecto.Changeset{} = changeset} =
-               Catalog.record_isin_change(Actor.owner_ui(), security, "de0001234567")
+               Catalog.record_isin_change(Actor.owner_ui(), security, "de0001234565")
 
       assert {"must differ from the current ISIN", _} = changeset.errors[:new_isin]
-      assert Catalog.get_security!(security.id).isin == "DE0001234567"
+      assert Catalog.get_security!(security.id).isin == "DE0001234565"
       assert Catalog.list_identifier_aliases(security) == []
     end
 
     test "rejects a new ISIN that is live on another security, naming it" do
-      _other = create_security!(%{name: "Other AG", isin: "DE0009999999"})
-      security = create_security!(%{isin: "DE0001234567"})
+      _other = create_security!(%{name: "Other AG", isin: "DE0009999995"})
+      security = create_security!(%{isin: "DE0001234565"})
 
       assert {:error, %Ecto.Changeset{} = changeset} =
-               Catalog.record_isin_change(Actor.owner_ui(), security, "DE0009999999")
+               Catalog.record_isin_change(Actor.owner_ui(), security, "DE0009999995")
 
       assert {message, _} = changeset.errors[:new_isin]
       assert message =~ "Other AG"
     end
 
     test "rejects a new ISIN that is aliased to another security, naming it" do
-      other = create_security!(%{name: "Other AG", isin: "DE0009999999"})
+      other = create_security!(%{name: "Other AG", isin: "DE0009999995"})
 
-      {:ok, _} = Catalog.record_isin_change(Actor.owner_ui(), other, "DE0008888888")
+      {:ok, _} = Catalog.record_isin_change(Actor.owner_ui(), other, "DE0008888884")
 
-      security = create_security!(%{isin: "DE0001234567"})
+      security = create_security!(%{isin: "DE0001234565"})
 
       assert {:error, %Ecto.Changeset{} = changeset} =
-               Catalog.record_isin_change(Actor.owner_ui(), security, "DE0009999999")
+               Catalog.record_isin_change(Actor.owner_ui(), security, "DE0009999995")
 
       assert {message, _} = changeset.errors[:new_isin]
       assert message =~ "Other AG"
@@ -116,13 +116,13 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
       security = create_security!(%{})
 
       assert {:error, %Ecto.Changeset{} = changeset} =
-               Catalog.record_isin_change(Actor.owner_ui(), security, "DE0001234567")
+               Catalog.record_isin_change(Actor.owner_ui(), security, "DE0001234565")
 
       assert changeset.errors[:new_isin]
     end
 
     test "rejects a blank new ISIN" do
-      security = create_security!(%{isin: "DE0001234567"})
+      security = create_security!(%{isin: "DE0001234565"})
 
       assert {:error, %Ecto.Changeset{}} =
                Catalog.record_isin_change(Actor.owner_ui(), security, "   ")
@@ -134,19 +134,19 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
     # ADR-0029 §3 "chains and reverts": B->A consumes the security's own alias
     # row (journaled) instead of deadlocking on the uniqueness guard.
     test "reverting to an own former ISIN consumes that alias row (B->A)" do
-      security = create_security!(%{isin: "DE000000000A"})
+      security = create_security!(%{isin: "DE00000000A3"})
 
       {:ok, %{security: security}} =
-        Catalog.record_isin_change(Actor.owner_ui(), security, "DE000000000B")
+        Catalog.record_isin_change(Actor.owner_ui(), security, "DE00000000B1")
 
       assert {:ok, %{security: reverted, alias: new_alias}} =
-               Catalog.record_isin_change(Actor.owner_ui(), security, "DE000000000A")
+               Catalog.record_isin_change(Actor.owner_ui(), security, "DE00000000A3")
 
-      assert reverted.isin == "DE000000000A"
+      assert reverted.isin == "DE00000000A3"
       # The A alias was consumed; only the B alias remains.
       assert [remaining] = Catalog.list_identifier_aliases(reverted)
-      assert remaining.former_isin == "DE000000000B"
-      assert new_alias.former_isin == "DE000000000B"
+      assert remaining.former_isin == "DE00000000B1"
+      assert new_alias.former_isin == "DE00000000B1"
 
       assert [delete_entry] =
                Journal.list_entries(
@@ -154,19 +154,19 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
                  operation: :delete
                )
 
-      assert delete_entry.before["former_isin"] == "DE000000000A"
+      assert delete_entry.before["former_isin"] == "DE00000000A3"
     end
 
     test "supports chains: A->B->C keeps both former ISINs as aliases" do
-      security = create_security!(%{isin: "DE000000000A"})
+      security = create_security!(%{isin: "DE00000000A3"})
 
       {:ok, %{security: security}} =
-        Catalog.record_isin_change(Actor.owner_ui(), security, "DE000000000B")
+        Catalog.record_isin_change(Actor.owner_ui(), security, "DE00000000B1")
 
       {:ok, %{security: security}} =
-        Catalog.record_isin_change(Actor.owner_ui(), security, "DE000000000C")
+        Catalog.record_isin_change(Actor.owner_ui(), security, "DE00000000C9")
 
-      assert security.isin == "DE000000000C"
+      assert security.isin == "DE00000000C9"
 
       former =
         security
@@ -174,7 +174,7 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
         |> Enum.map(& &1.former_isin)
         |> Enum.sort()
 
-      assert former == ["DE000000000A", "DE000000000B"]
+      assert former == ["DE00000000A3", "DE00000000B1"]
     end
   end
 
@@ -189,10 +189,10 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
   #   and correct its fields, journaled.
   describe "delete_identifier_alias/2 and update_identifier_alias/3" do
     test "deletes an alias with a journaled delete entry" do
-      security = create_security!(%{isin: "DE0001234567"})
+      security = create_security!(%{isin: "DE0001234565"})
 
       {:ok, %{alias: alias_row}} =
-        Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654321")
+        Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654329")
 
       assert {:ok, _deleted} = Catalog.delete_identifier_alias(Actor.owner_ui(), alias_row)
       assert Catalog.list_identifier_aliases(security) == []
@@ -203,15 +203,15 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
                  operation: :delete
                )
 
-      assert entry.before["former_isin"] == "DE0001234567"
+      assert entry.before["former_isin"] == "DE0001234565"
     end
 
     test "reassigns an alias to another security, journaled" do
-      security = create_security!(%{isin: "DE0001234567"})
-      other = create_security!(%{name: "Other AG", isin: "DE0009999999"})
+      security = create_security!(%{isin: "DE0001234565"})
+      other = create_security!(%{name: "Other AG", isin: "DE0009999995"})
 
       {:ok, %{alias: alias_row}} =
-        Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654321")
+        Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654329")
 
       assert {:ok, moved} =
                Catalog.update_identifier_alias(Actor.owner_ui(), alias_row, %{
@@ -231,17 +231,17 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
     end
 
     test "corrects an alias former_isin to a value live on no security" do
-      security = create_security!(%{isin: "DE0001234567"})
+      security = create_security!(%{isin: "DE0001234565"})
 
       {:ok, %{alias: alias_row}} =
-        Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654321")
+        Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654329")
 
       assert {:ok, corrected} =
                Catalog.update_identifier_alias(Actor.owner_ui(), alias_row, %{
-                 former_isin: "DE0001111111"
+                 former_isin: "DE0001111110"
                })
 
-      assert corrected.former_isin == "DE0001111111"
+      assert corrected.former_isin == "DE0001111110"
 
       assert [entry | _] =
                Journal.list_entries(
@@ -249,19 +249,19 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
                  operation: :update
                )
 
-      assert entry.after["former_isin"] == "DE0001111111"
+      assert entry.after["former_isin"] == "DE0001111110"
     end
 
     test "rejects updating an alias onto a live ISIN" do
-      security = create_security!(%{isin: "DE0001234567"})
-      _other = create_security!(%{name: "Other AG", isin: "DE0009999999"})
+      security = create_security!(%{isin: "DE0001234565"})
+      _other = create_security!(%{name: "Other AG", isin: "DE0009999995"})
 
       {:ok, %{alias: alias_row}} =
-        Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654321")
+        Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654329")
 
       assert {:error, %Ecto.Changeset{} = changeset} =
                Catalog.update_identifier_alias(Actor.owner_ui(), alias_row, %{
-                 former_isin: "DE0009999999"
+                 former_isin: "DE0009999995"
                })
 
       assert {message, _} = changeset.errors[:former_isin]
@@ -284,10 +284,10 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
   #   rejected.
   describe "bidirectional alias guard" do
     setup do
-      security = create_security!(%{name: "Aliased AG", isin: "DE0001234567"})
+      security = create_security!(%{name: "Aliased AG", isin: "DE0001234565"})
 
       {:ok, %{security: security}} =
-        Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654321")
+        Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654329")
 
       %{aliased: security}
     end
@@ -297,7 +297,7 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
                Catalog.create_security(Actor.owner_ui(), %{
                  name: "Fresh",
                  currency_code: "EUR",
-                 isin: "DE0001234567"
+                 isin: "DE0001234565"
                })
 
       assert {message, _} = changeset.errors[:isin]
@@ -309,7 +309,7 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
                Catalog.create_security(Actor.import_session(), %{
                  name: "Fresh from import",
                  currency_code: "EUR",
-                 isin: "de0001234567"
+                 isin: "de0001234565"
                })
 
       assert {message, _} = changeset.errors[:isin]
@@ -317,10 +317,10 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
     end
 
     test "update_security rejects an ISIN present in the alias table", %{aliased: aliased} do
-      other = create_security!(%{name: "Innocent", isin: "DE0005555555"})
+      other = create_security!(%{name: "Innocent", isin: "DE0005555551"})
 
       assert {:error, %Ecto.Changeset{} = changeset} =
-               Catalog.update_security(Actor.owner_ui(), other, %{isin: "DE0001234567"})
+               Catalog.update_security(Actor.owner_ui(), other, %{isin: "DE0001234565"})
 
       assert {message, _} = changeset.errors[:isin]
       assert message =~ aliased.name
@@ -345,10 +345,10 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
   # - The alias removals are journaled.
   describe "delete_security/2 with aliases" do
     test "removes alias rows with the security, journaled" do
-      security = create_security!(%{isin: "DE0001234567"})
+      security = create_security!(%{isin: "DE0001234565"})
 
       {:ok, %{security: security}} =
-        Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654321")
+        Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654329")
 
       assert {:ok, _} = Catalog.delete_security(Actor.owner_ui(), security)
 
@@ -358,14 +358,14 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
                  operation: :delete
                )
 
-      assert entry.before["former_isin"] == "DE0001234567"
+      assert entry.before["former_isin"] == "DE0001234565"
 
       # The formerly aliased ISIN is free again for a new security.
       assert {:ok, _} =
                Catalog.create_security(Actor.owner_ui(), %{
                  name: "Fresh",
                  currency_code: "EUR",
-                 isin: "DE0001234567"
+                 isin: "DE0001234565"
                })
     end
   end

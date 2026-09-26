@@ -35,11 +35,14 @@ defmodule PortfolixirWeb.TaxLive do
   use PortfolixirWeb, :live_view
 
   alias Portfolixir.Actor
+  alias Portfolixir.Clock
   alias Portfolixir.Tax
   alias Portfolixir.Tax.Budget
   alias Portfolixir.Tax.StatementSnapshot
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.DecimalInput
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.LiveParam
 
   # Rendered with the statement's printed sign: the loss pots and the
   # allowance-consumption figures appear as negatives on the paper even though
@@ -53,7 +56,7 @@ defmodule PortfolixirWeb.TaxLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    today = Date.utc_today()
+    today = Clock.today()
 
     socket =
       socket
@@ -77,7 +80,8 @@ defmodule PortfolixirWeb.TaxLive do
     socket =
       socket
       |> assign(:holder, scope_holder(params["holder"]))
-      |> assign(:tax_year, parse_int(params["year"]) || socket.assigns.today.year - 1)
+      # A year no calendar or `int4` column holds reads as absent (#868).
+      |> assign(:tax_year, LiveParam.year(params["year"]) || socket.assigns.today.year - 1)
       |> assign(:editing_id, nil)
       |> assign(:row_menu, nil)
       |> load_year()
@@ -109,7 +113,7 @@ defmodule PortfolixirWeb.TaxLive do
   end
 
   def handle_event("record_statement", %{"statement" => params}, socket) do
-    case save_statement(socket, params) do
+    case save_statement(socket, LiveParam.map(params)) do
       {:ok, snapshot} ->
         socket =
           socket
@@ -118,15 +122,33 @@ defmodule PortfolixirWeb.TaxLive do
 
         {:noreply, socket}
 
-      {:error, changeset} ->
+      # The statement being edited was deleted in the meantime (E25 S6, F49):
+      # the panel stays open and says so (review round, R5).
+      {:error, :not_found} ->
+        {:noreply,
+         socket
+         |> assign(editing_id: nil, statement_form_open?: true)
+         |> assign(
+           :form_errors,
+           gettext(
+             "This statement no longer exists: it was deleted after the form opened, so the correction was not saved. Record it again if it should stay."
+           )
+         )
+         |> load_year()
+         |> load_editing()}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, :form_errors, changeset_errors(changeset))}
+
+      {:error, errors} when is_map(errors) ->
+        {:noreply, assign(socket, :form_errors, errors)}
     end
   end
 
   def handle_event("edit_statement", %{"id" => id}, socket) do
     {:noreply,
      socket
-     |> assign(editing_id: parse_int(id), form_errors: nil)
+     |> assign(editing_id: LiveParam.id(id), form_errors: nil)
      |> assign(statement_form_open?: true, row_menu: nil)
      |> load_editing()}
   end
@@ -141,35 +163,57 @@ defmodule PortfolixirWeb.TaxLive do
   def handle_event("delete_statement", %{"id" => id}, socket) do
     # Already deleted elsewhere (other tab, API, MCP) is not an error — the row
     # is gone either way.
-    case Tax.delete_snapshot(Actor.owner_ui(), parse_int(id)) do
-      {:ok, _snapshot} -> :ok
-      {:error, :not_found} -> :ok
+    with id when is_integer(id) <- LiveParam.id(id) do
+      case Tax.delete_snapshot(Actor.owner_ui(), id) do
+        {:ok, _snapshot} -> :ok
+        {:error, :not_found} -> :ok
+      end
     end
 
     {:noreply, socket |> assign(editing_id: nil, row_menu: nil) |> load_year()}
   end
 
   def handle_event("put_allowance_order", %{"order" => params}, socket) do
-    attrs = %{
-      holder: socket.assigns.holder,
-      institution: params["institution"],
-      tax_year: socket.assigns.tax_year,
-      amount_granted: params["amount_granted"]
-    }
+    params = LiveParam.map(params)
 
-    case Tax.put_allowance_order(Actor.owner_ui(), attrs) do
-      {:ok, _order} ->
-        {:noreply, socket |> assign(order_errors: nil, order_form_open?: false) |> load_year()}
+    # #869: the amount is read by the one decimal-input rule.
+    with {:ok, %{amount_granted: amount}} <- read_figures(params, [:amount_granted], nil),
+         {:ok, _order} <-
+           Tax.put_allowance_order(Actor.owner_ui(), %{
+             holder: socket.assigns.holder,
+             institution: params["institution"],
+             tax_year: socket.assigns.tax_year,
+             amount_granted: amount
+           }) do
+      {:noreply, socket |> assign(order_errors: nil, order_form_open?: false) |> load_year()}
+    else
+      # The order being replaced was deleted in the meantime (E25 S6, F49):
+      # the panel says so (review round, R5).
+      {:error, :not_found} ->
+        {:noreply,
+         socket
+         |> assign(
+           :order_errors,
+           gettext(
+             "This allowance order no longer exists: it was deleted while the new one was recorded, so nothing was saved. Record it again."
+           )
+         )
+         |> load_year()}
 
-      {:error, changeset} ->
+      {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, :order_errors, changeset_errors(changeset))}
+
+      {:error, errors} when is_map(errors) ->
+        {:noreply, assign(socket, :order_errors, errors)}
     end
   end
 
   def handle_event("delete_allowance_order", %{"id" => id}, socket) do
-    case Tax.delete_allowance_order(Actor.owner_ui(), parse_int(id)) do
-      {:ok, _order} -> :ok
-      {:error, :not_found} -> :ok
+    with id when is_integer(id) <- LiveParam.id(id) do
+      case Tax.delete_allowance_order(Actor.owner_ui(), id) do
+        {:ok, _order} -> :ok
+        {:error, :not_found} -> :ok
+      end
     end
 
     {:noreply, socket |> assign(:row_menu, nil) |> load_year()}
@@ -179,7 +223,7 @@ defmodule PortfolixirWeb.TaxLive do
   # delete for a statement, delete for an order; one menu open at a time.
   def handle_event("open_row_menu", %{"kind" => kind, "id" => id}, socket) do
     menu =
-      case {kind, parse_int(id)} do
+      case {kind, LiveParam.id(id)} do
         {"statement", id} when is_integer(id) ->
           if Enum.any?(socket.assigns.snapshots, &(&1.row.id == id)), do: {:statement, id}
 
@@ -197,47 +241,56 @@ defmodule PortfolixirWeb.TaxLive do
     {:noreply, assign(socket, :row_menu, nil)}
   end
 
+  # An event this page does not know, or a payload it cannot read, changes
+  # nothing (E25 S4, F17).
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
   defp save_statement(socket, params) do
-    attrs = statement_attrs(socket, params)
+    with {:ok, attrs} <- statement_attrs(socket, params) do
+      case socket.assigns.editing_id do
+        nil ->
+          Tax.create_snapshot(Actor.owner_ui(), attrs, today: socket.assigns.today)
 
-    case socket.assigns.editing_id do
-      nil ->
-        Tax.create_snapshot(Actor.owner_ui(), attrs, today: socket.assigns.today)
-
-      id ->
-        with {:ok, snapshot} <- Tax.fetch_snapshot(id) do
-          Tax.update_snapshot(Actor.owner_ui(), snapshot, attrs, today: socket.assigns.today)
-        end
+        id ->
+          with {:ok, snapshot} <- Tax.fetch_snapshot(id) do
+            Tax.update_snapshot(Actor.owner_ui(), snapshot, attrs, today: socket.assigns.today)
+          end
+      end
     end
   end
 
   # The form carries its own taxpayer and year (defaulting to the scope), so
   # a first statement for a new taxpayer or an older year is recordable
-  # without a scope control that lists it.
+  # without a scope control that lists it. The figures are read by the one
+  # decimal-input rule (#869), so a German statement goes in as printed.
   defp statement_attrs(socket, params) do
-    money =
-      Map.new(StatementSnapshot.money_fields(), fn field ->
-        {field, blank_to_zero(params[Atom.to_string(field)])}
-      end)
-
-    Map.merge(money, %{
-      institution: params["institution"],
-      holder: form_holder(params["holder"]) || socket.assigns.holder,
-      tax_year: parse_int(params["tax_year"]) || socket.assigns.tax_year,
-      as_of: params["as_of"],
-      note: params["note"]
-    })
+    with {:ok, money} <- read_figures(params, StatementSnapshot.money_fields(), Decimal.new(0)) do
+      {:ok,
+       Map.merge(money, %{
+         institution: params["institution"],
+         holder: form_holder(params["holder"]) || socket.assigns.holder,
+         tax_year: LiveParam.year(params["tax_year"]) || socket.assigns.tax_year,
+         as_of: params["as_of"],
+         note: params["note"]
+       })}
+    end
   end
 
-  # An empty field means "not on this statement", which is zero — not a cast
+  # `{:ok, %{field => Decimal}}` or the refused fields in the page's
+  # changeset-error shape; an empty field reads as `blank`. On a statement an
+  # empty field means "not on this statement", which is zero — not a cast
   # error the maintainer has to fix field by field.
-  defp blank_to_zero(nil), do: "0"
+  defp read_figures(params, fields, blank) do
+    {read, errors} =
+      Enum.reduce(fields, {%{}, %{}}, fn field, {read, errors} ->
+        case DecimalInput.parse(params[Atom.to_string(field)]) do
+          {:ok, value} -> {Map.put(read, field, value), errors}
+          :blank -> {Map.put(read, field, blank), errors}
+          {:error, reason} -> {read, Map.put(errors, field, [DecimalInput.message(reason)])}
+        end
+      end)
 
-  defp blank_to_zero(value) when is_binary(value) do
-    case String.trim(value) do
-      "" -> "0"
-      trimmed -> trimmed
-    end
+    if errors == %{}, do: {:ok, read}, else: {:error, errors}
   end
 
   defp load_year(socket) do
@@ -286,10 +339,10 @@ defmodule PortfolixirWeb.TaxLive do
     end
   end
 
-  # The taxpayers with a recorded statement, plus the one in scope.
-  defp holders(holder) do
-    [holder | Tax.list_snapshot_holders()] |> Enum.uniq() |> Enum.sort()
-  end
+  # The taxpayers with a recorded statement, one entry per identity as the
+  # database folds it, with the one in scope in its identity's place (E25 S6,
+  # G22).
+  defp holders(holder), do: Tax.holder_choices(holder)
 
   # The years with a recorded statement for the taxpayer, the two years a
   # statement can currently arrive for, and the one in scope.
@@ -322,6 +375,8 @@ defmodule PortfolixirWeb.TaxLive do
     end
   end
 
+  defp scope_holder(_not_a_name), do: default_holder()
+
   defp scope_path(holder, year), do: "/tax?holder=#{URI.encode_www_form(holder)}&year=#{year}"
 
   # The warning names its reason: activity first (the substantive condition),
@@ -353,17 +408,6 @@ defmodule PortfolixirWeb.TaxLive do
       end)
     end)
   end
-
-  defp parse_int(value) when is_integer(value), do: value
-
-  defp parse_int(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {int, ""} -> int
-      _other -> nil
-    end
-  end
-
-  defp parse_int(_value), do: nil
 
   # -- display ---------------------------------------------------------------
 
@@ -456,6 +500,8 @@ defmodule PortfolixirWeb.TaxLive do
   defp order_finding?(%{code: code}), do: code in [:c7, :c8]
 
   defp invalid?(nil, _field), do: false
+  # A message about the record, not a field (E25 S6 review round, R5).
+  defp invalid?(message, _field) when is_binary(message), do: false
   defp invalid?(errors, field), do: Map.has_key?(errors, field)
 
   # A money input is described by the sign convention, and by the error
@@ -464,18 +510,25 @@ defmodule PortfolixirWeb.TaxLive do
     if invalid?(errors, field), do: "tax-amount-help tax-form-error", else: "tax-amount-help"
   end
 
+  defp error_text(message) when is_binary(message), do: message
+
   defp error_text(errors) do
     Enum.map_join(errors, "; ", fn {field, messages} ->
       "#{field_label_or_name(field)}: #{Enum.join(messages, ", ")}"
     end)
   end
 
+  defp field_label_or_name(:amount_granted), do: gettext("Amount granted")
+
   defp field_label_or_name(field) do
     if field in StatementSnapshot.money_fields(), do: field_label(field), else: to_string(field)
   end
 
   defp value_of(nil, _field), do: nil
-  defp value_of(row, field), do: Decimal.to_string(Map.fetch!(row, field), :normal)
+  # #869: a stored figure opens in the page's locale, its trailing zeros
+  # dropped as every stored figure opening in a field is ("12000", "140,25").
+  defp value_of(row, field),
+    do: row |> Map.fetch!(field) |> Decimal.normalize() |> DecimalInput.value()
 
   defp orders_summary([]), do: gettext("none configured")
 
@@ -719,6 +772,7 @@ defmodule PortfolixirWeb.TaxLive do
                   <input
                     type="text"
                     inputmode="decimal"
+                    class="num"
                     name={"statement[#{field}]"}
                     value={value_of(@editing, field)}
                     aria-invalid={invalid?(@form_errors, field) && "true"}
@@ -755,7 +809,7 @@ defmodule PortfolixirWeb.TaxLive do
               </label>
               <label>
                 <%= gettext("Amount granted") %>
-                <input type="text" inputmode="decimal" name="order[amount_granted]" required />
+                <input type="text" inputmode="decimal" class="num" name="order[amount_granted]" required />
               </label>
               <button type="submit" class="button"><%= gettext("Record order") %></button>
             </form>
@@ -774,19 +828,14 @@ defmodule PortfolixirWeb.TaxLive do
                   · <%= gettext("Tax year %{year}", year: entry.row.tax_year) %>
                   · <%= source_label(entry.row.source) %>
                 </span>
-                <button
-                  type="button"
+                <AppShell.row_kebab
                   id={"tax-row-kebab-statement-#{entry.row.id}"}
-                  class="row-actions__kebab"
+                  row={AppShell.row_name([entry.row.institution, Format.date(entry.row.as_of)])}
+                  open={@row_menu == {:statement, entry.row.id}}
                   phx-click="open_row_menu"
                   phx-value-kind="statement"
                   phx-value-id={entry.row.id}
-                  aria-label={gettext("Open actions menu")}
-                  aria-haspopup="menu"
-                  aria-expanded={to_string(@row_menu == {:statement, entry.row.id})}
-                >
-                  <AppShell.icon name={:ellipsis_vertical} />
-                </button>
+                />
               </div>
 
               <dl class="tax-statement__figures">
@@ -878,19 +927,14 @@ defmodule PortfolixirWeb.TaxLive do
               <li :for={order <- @orders} id={"tax-order-#{order.id}"}>
                 <span><%= order.institution %></span>
                 <span class="num"><%= Format.money(order.amount_granted) %></span>
-                <button
-                  type="button"
+                <AppShell.row_kebab
                   id={"tax-row-kebab-order-#{order.id}"}
-                  class="row-actions__kebab"
+                  row={order.institution}
+                  open={@row_menu == {:order, order.id}}
                   phx-click="open_row_menu"
                   phx-value-kind="order"
                   phx-value-id={order.id}
-                  aria-label={gettext("Open actions menu")}
-                  aria-haspopup="menu"
-                  aria-expanded={to_string(@row_menu == {:order, order.id})}
-                >
-                  <AppShell.icon name={:ellipsis_vertical} />
-                </button>
+                />
               </li>
             </ul>
           </details>

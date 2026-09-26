@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Ablehnungen der Zusammenführung, Review-Runde L3–L5 (ADR-0050 §7, §9; #328, #608)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  /* Board chrome only. Every rule the product uses is app.css's own: the
+     refusal is board 02's "Abgelehnt" note (.data-note--problem with
+     .merge-refusal__lead / __position / __remedy); nothing new is styled. */
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 1px; border-radius: 6px; }
+  .pair { display: flex; flex-wrap: wrap; gap: 16px; }
+  .pair > .mock-frame { flex: 1 1 420px; }
+  .note-p { margin: 0; }
+  .note-p + .note-p { margin-top: 4px; }
+  .field-err { margin: 6px 0 0; font-size: 12.5px; color: var(--color-negative, #b42318); }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<div class="pickbar"><b>Keine Wahl — vorher/nachher.</b> Die Review-Runde zu ADR-0050 L3–L5 ändert fünf Texte in Formen, die Board 02 und Board 03 schon zeichnen (die Ablehnung als Problem-Notiz: Grund, dann eine Zeile je betroffenem Eintrag, dann die Abhilfe; der Fehler am Feld im Dialog „Umbenennen“). Keine neue Form, keine neue Regel in app.css. Alle Namen, Beträge, Daten und Nummern sind erfunden.</div>
+
+<!-- ============================ ① ============================ -->
+<section class="mock-board">
+  <h2>① Gesetzter Saldo mit Import-Hash — Konten &amp; Depots, Schritt 2 <small>nennt jetzt, welcher Saldo gemeint ist</small></h2>
+  <p class="mock-note">Die Abhilfe sagt „die Art dieser Buchung zurücksetzen“, aber der Dialog nannte die Buchung nicht; nur die API tat es. Jetzt steht je Saldo eine Zeile da, in der Form der Positionszeilen von Board 02: Konto, Datum, Nummer als letzter Unterscheider (wie F1 auf Board 04b).</p>
+  <div class="pair">
+    <div class="mock-frame mock-before"><span class="mock-tag">Vorher</span><div class="workspace-section">
+      <div class="data-note data-note--problem"><span class="data-note__word">Problem</span><div class="data-note__body">
+        <p class="merge-refusal__lead">Zusammenführen nicht möglich: Ein gesetzter Saldo trägt noch einen Import-Hash aus der Zeit vor der Import-Hash-Prüfung und kann nicht angepasst werden.</p>
+        <p class="merge-refusal__remedy">Abhilfe: die Art dieser Buchung auf die zurücksetzen, als die sie importiert wurde, oder sie löschen, dann erneut prüfen.</p>
+        <button type="button" class="button">Erneut prüfen</button>
+      </div></div>
+    </div></div>
+    <div class="mock-frame mock-after"><span class="mock-tag">Nachher</span><div class="workspace-section">
+      <div class="data-note data-note--problem"><span class="data-note__word">Problem</span><div class="data-note__body">
+        <p class="merge-refusal__lead">Zusammenführen nicht möglich: Ein gesetzter Saldo trägt noch einen Import-Hash aus der Zeit vor der Import-Hash-Prüfung und kann nicht angepasst werden.</p>
+        <p class="merge-refusal__position is-new">Gesetzter Saldo von <b>Tagesgeld (alt)</b> am 2025-06-30 · Nr. 4711</p>
+        <p class="merge-refusal__remedy">Abhilfe: die Art dieser Buchung auf die zurücksetzen, als die sie importiert wurde, oder sie löschen, dann erneut prüfen.</p>
+        <button type="button" class="button">Erneut prüfen</button>
+      </div></div>
+    </div></div>
+  </div>
+</section>
+
+<!-- ============================ ② ============================ -->
+<section class="mock-board">
+  <h2>② Ein Saldo, den die Betragsspalte nicht halten kann — Konten &amp; Depots, Schritt 2 <small>neu: vorher scheiterte erst das Bestätigen</small></h2>
+  <p class="mock-note">Ein Kauf ohne erfassten Betrag bucht Stückzahl × Kurs, etwa 1,111110999998888889 EUR. Ein angepasster gesetzter Saldo bräuchte dann mehr als die 6 Nachkommastellen eines Betrags. Vorher zeigte die Vorschau den Betrag, und das Bestätigen scheiterte mit „Eine Prüfung der Zusammenführung hat nicht gehalten“. Jetzt lehnt schon die Vorschau ab, in derselben Form wie ①: der Saldo, der Kauf, die Abhilfe.</p>
+  <div class="pair">
+    <div class="mock-frame mock-before"><span class="mock-tag">Vorher — nach dem Bestätigen</span><div class="workspace-section">
+      <div class="data-note data-note--problem"><span class="data-note__word">Problem</span><div class="data-note__body">
+        <p class="merge-refusal__lead">Zusammenführen nicht möglich: Eine Prüfung der Zusammenführung hat nicht gehalten.</p>
+        <p class="merge-refusal__remedy">Abhilfe: die beiden angleichen oder zurückgehen und ein anderes Ziel wählen, dann erneut prüfen.</p>
+      </div></div>
+    </div></div>
+    <div class="mock-frame mock-after"><span class="mock-tag">Nachher — schon in der Vorschau</span><div class="workspace-section">
+      <div class="data-note data-note--problem is-new"><span class="data-note__word">Problem</span><div class="data-note__body">
+        <p class="merge-refusal__lead">Zusammenführen nicht möglich: Ein gesetzter Saldo bräuchte mehr Nachkommastellen, als ein Betrag halten kann, weil ein Kauf oder Verkauf ohne Betrag gebucht wurde.</p>
+        <p class="merge-refusal__position">Gesetzter Saldo von <b>Tagesgeld</b> am 2025-02-01 · Nr. 5120</p>
+        <p class="merge-refusal__position">Kauf ohne Betrag in <b>Tagesgeld (alt)</b> am 2025-01-10 · Nr. 5102</p>
+        <p class="merge-refusal__remedy">Abhilfe: den Betrag dieser Buchung im Tab Transaktionen erfassen, dann erneut prüfen.</p>
+        <button type="button" class="button">Erneut prüfen</button>
+      </div></div>
+    </div></div>
+  </div>
+</section>
+
+<!-- ============================ ③ ============================ -->
+<section class="mock-board">
+  <h2>③ Split mit Import-Hash — Wertpapiere, Schritt 2 <small>neu: vorher scheiterte erst das Bestätigen</small></h2>
+  <p class="mock-note">Das Gegenstück zu ① für einen Split, den die Zusammenführung verschieben müsste (Board 03, „Die übrigen Ablehnungen“: Grund, dann Abhilfe). Ein solcher Split, den sie mit dem Split des Ziels zusammenlegt, lehnt nicht ab: er entfällt, sein Hash bleibt stillgelegt.</p>
+  <div class="pair">
+    <div class="mock-frame mock-before"><span class="mock-tag">Vorher — nach dem Bestätigen</span><div class="workspace-section">
+      <div class="data-note data-note--problem"><span class="data-note__word">Problem</span><div class="data-note__body">
+        <p class="merge-refusal__lead">Zusammenführen nicht möglich: Eine Prüfung der Zusammenführung hat nicht gehalten.</p>
+      </div></div>
+    </div></div>
+    <div class="mock-frame mock-after"><span class="mock-tag">Nachher — schon in der Vorschau</span><div class="workspace-section">
+      <div class="data-note data-note--problem is-new"><span class="data-note__word">Problem</span><div class="data-note__body">
+        <p class="merge-refusal__lead">Zusammenführen nicht möglich: Ein Split der Quelle trägt noch einen Import-Hash aus der Zeit vor der Import-Hash-Prüfung und kann nicht verschoben werden.</p>
+        <p class="merge-refusal__position">Split am 2025-03-01 · Nr. 6034</p>
+        <p class="merge-refusal__remedy">Abhilfe: seine Art auf die zurücksetzen, als die er importiert wurde, oder ihn löschen, dann erneut prüfen.</p>
+        <span class="merge-refusal__actions"><button type="button" class="button">Erneut prüfen</button></span>
+      </div></div>
+    </div></div>
+  </div>
+</section>
+
+<!-- ============================ ④ ============================ -->
+<section class="mock-board">
+  <h2>④ Split mit anderem Verhältnis — Wertpapiere, Schritt 2 <small>die Abhilfe, die Board 03 schon nennt</small></h2>
+  <p class="mock-note">Beide Seiten tragen an dem Tag schon einen Split; „den Split zuerst auf jener Seite buchen“ ist hier keine Abhilfe. Board 03 sagt: „den falschen Split im Tab Transaktionen löschen“. Die Abhilfe für einen fehlenden Split und die Linearität bleibt, wie sie war.</p>
+  <div class="pair">
+    <div class="mock-frame mock-before"><span class="mock-tag">Vorher</span><div class="workspace-section">
+      <div class="data-note data-note--problem"><span class="data-note__word">Problem</span><div class="data-note__body">
+        <p class="merge-refusal__lead">Zusammenführen nicht möglich: am 2025-03-01 in „Mein Depot“ teilt die Quelle 2:1 und das Ziel 3:1; ein Split kann nicht zwei Verhältnisse haben.</p>
+        <p class="merge-refusal__remedy">Abhilfe: den Split zuerst auf jener Seite buchen oder den falschen Split löschen, dann erneut prüfen.</p>
+      </div></div>
+    </div></div>
+    <div class="mock-frame mock-after"><span class="mock-tag">Nachher</span><div class="workspace-section">
+      <div class="data-note data-note--problem"><span class="data-note__word">Problem</span><div class="data-note__body">
+        <p class="merge-refusal__lead">Zusammenführen nicht möglich: am 2025-03-01 in „Mein Depot“ teilt die Quelle 2:1 und das Ziel 3:1; ein Split kann nicht zwei Verhältnisse haben.</p>
+        <p class="merge-refusal__remedy is-new">Abhilfe: den Split mit dem falschen Verhältnis im Tab Transaktionen löschen, dann erneut prüfen.</p>
+      </div></div>
+    </div></div>
+  </div>
+</section>
+
+<!-- ============================ ⑤ ============================ -->
+<section class="mock-board">
+  <h2>⑤ Umbenennen in einen vergebenen Namen — der Fehler am Feld <small>der Ausweg, den DESIGN.md G1-A verlangt</small></h2>
+  <p class="mock-note">DESIGN.md G1-A: ein vergebener Name wird am Feld abgelehnt, „mit dem Inhaber und dem Ausweg“. Beim früheren Namen tat der Satz das schon; beim lebenden Namen nannte er nur, dass es ihn gibt. Jetzt sagt er den Ausweg — denselben, den die Import-Vorschau für einen solchen Namen nennt (Board 04b).</p>
+  <div class="pair">
+    <div class="mock-frame mock-before"><span class="mock-tag">Vorher</span><div class="workspace-section">
+      <div class="form-grid"><label><span>Name</span><input type="text" value="Tagesgeld"></label></div>
+      <p class="field-err">„Tagesgeld“ heißt bereits ein anderes Verrechnungskonto.</p>
+    </div></div>
+    <div class="mock-frame mock-after"><span class="mock-tag">Nachher</span><div class="workspace-section">
+      <div class="form-grid"><label><span>Name</span><input type="text" value="Tagesgeld"></label></div>
+      <p class="field-err is-new">„Tagesgeld“ heißt bereits ein anderes Verrechnungskonto. Wählen Sie einen anderen Namen, oder führen Sie jenes Konto zusammen oder benennen Sie es um.</p>
+    </div></div>
+  </div>
+</section>
+
+</body>
+</html>

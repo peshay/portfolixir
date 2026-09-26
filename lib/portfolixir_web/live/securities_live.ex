@@ -22,6 +22,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Catalog.SecurityMetrics
   alias Portfolixir.Catalog.SecurityWithMetrics
   alias Portfolixir.Classifications
+  alias Portfolixir.Clock
+  alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Knowledge
   alias Portfolixir.Knowledge.Events
   alias Portfolixir.Knowledge.SecurityEvent
@@ -29,6 +31,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Knowledge.ThesisState
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Projection
+  alias Portfolixir.Lifecycle
+  alias Portfolixir.Lifecycle.Delete
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Valuation
   alias PortfolixirWeb.AppShell
@@ -37,8 +41,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias PortfolixirWeb.ColumnPicker
   alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.PolicyRuleReferences
   alias PortfolixirWeb.Securities.FilterPopover
   alias PortfolixirWeb.Securities.LogoOverrideDialog
+  alias PortfolixirWeb.Securities.MergeDialog
   alias PortfolixirWeb.Securities.RowContextMenu
   alias PortfolixirWeb.Securities.SecurityFormDialog
   alias PortfolixirWeb.Securities.SplitWizardDialog
@@ -51,6 +58,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
   @default_tab "overview"
   @holding_statuses ~w(all held not_held)
   @default_holding_status "all"
+
+  # The deepest classification level a column key may name; the key is then
+  # checked against the tree's real depth. Only a bound, never a limit a tree
+  # meets (E25 S4, F17).
+  @max_tree_level 1_000
+
+  # The fields the research form renders (`research_tab_panel/1`), and the
+  # only ones its submit is read for (E25 S6, F15, decision T-5).
+  @research_form_keys ~w(kind source_quality as_of supersedes_id body source_url
+                         valid_until conviction invalidation_condition time_stop)
 
   # Data-quality shortcut filters (#561): conditions that are not expressible
   # as a plain column filter — stale/missing quotes are metric-derived and the
@@ -129,10 +146,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:detail_note_editing?, false)
      |> assign(:research_form_kind, "evidence")
      |> assign(:research_form_errors, [])
+     |> assign(:research_form_values, %{})
      |> assign(:row_menu_id, nil)
      |> assign(:editing_security, nil)
      |> assign(:delete_blocked, nil)
      |> assign(:delete_blocked_rules, [])
+     |> assign(:delete_blocked_merge?, false)
+     # ADR-0050 §9 (board 03): the security whose merge dialog is open.
+     |> assign(:merge_source_id, nil)
+     # A merge's result survives the one patch that opens its survivor.
+     |> assign(:keep_result_once, false)
+     |> assign(:detail_lineage, %{former_isins: [], merged_from: []})
+     # ADR-0050 §12 (board 03): the note a link to a merged-away security
+     # leaves on its survivor's detail, until the next navigation.
+     |> assign(:merged_notice, nil)
      |> assign(:logo_dialog_security, nil)
      |> assign(:securities, [])}
   end
@@ -161,20 +188,62 @@ defmodule PortfolixirWeb.SecuritiesLive do
       |> reset_logo_retry()
       |> load_securities()
 
-    case params["id"] do
+    # The selection is read through the shared id rule (E25 S4, F16): an id
+    # no security can carry selects nothing, as an unknown one does.
+    case LiveParam.id(params["id"]) do
       nil ->
-        {:noreply, clear_selection(socket) |> assign(:detail_tab, tab)}
+        {:noreply,
+         socket |> assign(:merged_notice, nil) |> clear_selection() |> assign(:detail_tab, tab)}
 
       id ->
         case Catalog.get_security(id) do
           %Security{} = security ->
-            {:noreply, socket |> assign(:detail_tab, tab) |> select_security(security)}
+            {:noreply,
+             socket
+             |> assign(:merged_notice, merged_notice(params, id))
+             |> assign(:detail_tab, tab)
+             |> select_security(security)}
 
           nil ->
-            {:noreply, clear_selection(socket) |> assign(:detail_tab, tab)}
+            follow_merge(socket, id, params, tab)
         end
     end
   end
+
+  # ADR-0050 §12: a link naming a security a merge took away patches to the
+  # survivor — followed through every later merge to the live end — carrying
+  # the id it came from, so the survivor's detail says so once (board 03).
+  # An id no merge names selects nothing.
+  defp follow_merge(socket, id, params, tab) do
+    case Lifecycle.merged_into(:security, id) do
+      survivor when is_integer(survivor) ->
+        query =
+          params
+          |> Map.drop(["id"])
+          |> Map.put("merged_from", Integer.to_string(id))
+          |> URI.encode_query()
+
+        {:noreply, push_patch(socket, to: "/securities/#{survivor}?" <> query, replace: true)}
+
+      nil ->
+        {:noreply,
+         socket |> assign(:merged_notice, nil) |> clear_selection() |> assign(:detail_tab, tab)}
+    end
+  end
+
+  # The note says only what the records say: `merged_from` names a security a
+  # merge took away into the one shown, or nothing is noted.
+  defp merged_notice(%{"merged_from" => raw}, id) do
+    with {:ok, from} <- LiveParam.fetch_id(raw),
+         ^id <- Lifecycle.merged_into(:security, from),
+         %Lifecycle.MergeRecord{} = record <- Lifecycle.merge_of(:security, from) do
+      %{merged_on: Portfolixir.Clock.local_date(record.inserted_at)}
+    else
+      _no_merge -> nil
+    end
+  end
+
+  defp merged_notice(_params, _id), do: nil
 
   defp safe_tab(tab) when is_binary(tab) and tab in @tabs, do: tab
   defp safe_tab(_), do: @default_tab
@@ -214,6 +283,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # dismiss, or a navigation (#566) — this is the navigation case. A busy
   # state survives the patch: the action is still running and its result
   # message will replace it.
+  defp clear_action_result_on_navigation(%{assigns: %{keep_result_once: true}} = socket),
+    do: assign(socket, :keep_result_once, false)
+
   defp clear_action_result_on_navigation(socket) do
     case socket.assigns[:action_result] do
       {:busy, _message} -> socket
@@ -284,44 +356,52 @@ defmodule PortfolixirWeb.SecuritiesLive do
   #   * `:tab` — detail tab; `:current` keeps the active one.
   #   * `:override` — map merged over the current list-filter state.
   defp securities_path(assigns, opts) do
-    id =
-      case Keyword.fetch(opts, :id) do
-        {:ok, value} -> value
-        :error -> assigns.selected_security && assigns.selected_security.id
-      end
-
+    id = path_id(assigns, opts)
     base = if id, do: "/securities/#{id}", else: "/securities"
-
-    tab =
-      case Keyword.get(opts, :tab) do
-        :current -> id && assigns.detail_tab != @default_tab && assigns.detail_tab
-        tab -> tab
-      end
-
     state = Map.merge(list_state(assigns), Keyword.get(opts, :override, %{}))
 
     params =
       %{}
-      |> maybe_put_param("tab", tab)
-      |> maybe_put_param("q", String.trim(state.query) != "" && state.query)
-      |> maybe_put_param(
-        "holding",
-        state.holding_status != @default_holding_status && state.holding_status
-      )
-      |> maybe_put_param("dq", state.dq)
-      |> maybe_put_param("cur", state.cur != [] && state.cur)
-      |> maybe_put_param("class", state.class != [] && state.class)
-      |> maybe_put_param("since", state.since)
-      |> maybe_put_param(
-        "filter",
-        state.filters != [] && Enum.map(state.filters, &filter_param/1)
-      )
+      |> maybe_put_param("tab", path_tab(assigns, opts, id))
+      |> put_list_params(state)
 
     if params == %{} do
       base
     else
       base <> "?" <> Query.encode(params)
     end
+  end
+
+  defp path_id(assigns, opts) do
+    case Keyword.fetch(opts, :id) do
+      {:ok, value} -> value
+      :error -> assigns.selected_security && assigns.selected_security.id
+    end
+  end
+
+  defp path_tab(assigns, opts, id) do
+    case Keyword.get(opts, :tab) do
+      :current -> id && assigns.detail_tab != @default_tab && assigns.detail_tab
+      tab -> tab
+    end
+  end
+
+  # The list-filter state's non-default values, as query parameters.
+  defp put_list_params(params, state) do
+    params
+    |> maybe_put_param("q", String.trim(state.query) != "" && state.query)
+    |> maybe_put_param(
+      "holding",
+      state.holding_status != @default_holding_status && state.holding_status
+    )
+    |> maybe_put_param("dq", state.dq)
+    |> maybe_put_param("cur", state.cur != [] && state.cur)
+    |> maybe_put_param("class", state.class != [] && state.class)
+    |> maybe_put_param("since", state.since)
+    |> maybe_put_param(
+      "filter",
+      state.filters != [] && Enum.map(state.filters, &filter_param/1)
+    )
   end
 
   defp maybe_put_param(params, _key, value) when value in [nil, false], do: params
@@ -675,18 +755,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
                       role="link"
                     >
                       <td class="row-actions">
-                        <button
-                          type="button"
+                        <AppShell.row_kebab
                           id={"row-kebab-#{sec_id}"}
-                          class="row-actions__kebab"
+                          row={inner_security.name}
+                          open={@row_menu_id == sec_id}
                           phx-click="open_row_menu"
                           phx-value-id={sec_id}
-                          aria-label={gettext("Open actions menu")}
-                          aria-haspopup="menu"
-                          aria-expanded={to_string(@row_menu_id == sec_id)}
-                        >
-                          <AppShell.icon name={:ellipsis_vertical} />
-                        </button>
+                        />
                       </td>
                       <%= for column <- visible do %>
                         <td class={numeric_column?(column) && "num"}>
@@ -762,18 +837,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
                     </span>
                     <span class="phone-row__figure2"><%= phone_change(row) %></span>
                   </span>
-                  <button
-                    type="button"
+                  <AppShell.row_kebab
                     id={"phone-kebab-#{sec_id}"}
-                    class="row-actions__kebab"
+                    row={inner_security.name}
+                    open={@row_menu_id == sec_id}
                     phx-click="open_row_menu"
                     phx-value-id={sec_id}
-                    aria-label={gettext("Open actions menu")}
-                    aria-haspopup="menu"
-                    aria-expanded={to_string(@row_menu_id == sec_id)}
-                  >
-                    <AppShell.icon name={:ellipsis_vertical} />
-                  </button>
+                  />
                 </li>
               <% end %>
             </ul>
@@ -829,6 +899,15 @@ defmodule PortfolixirWeb.SecuritiesLive do
         <RowContextMenu.delete_blocked_dialog
           security={@delete_blocked}
           rules={@delete_blocked_rules}
+          merge?={@delete_blocked_merge?}
+        />
+      <% end %>
+
+      <%= if @merge_source_id do %>
+        <.live_component
+          module={MergeDialog}
+          id="security-merge-dialog"
+          source_id={@merge_source_id}
         />
       <% end %>
 
@@ -858,6 +937,29 @@ defmodule PortfolixirWeb.SecuritiesLive do
       id="security-detail-pane"
       aria-label={gettext("Selected security")}
     >
+      <%!-- ADR-0050 §12 (board 03): an old link to a merged-away security
+           landed here; said once, dismissible, gone with the next
+           navigation. --%>
+      <div
+        :if={@merged_notice}
+        class="inline-result"
+        role="status"
+      >
+        <AppShell.data_note severity={:note} data-role="merged-notice">
+          <%= gettext("The link led to a security that was merged into this one on %{date}.",
+            date: Format.date(@merged_notice.merged_on)
+          ) %>
+          <button
+            type="button"
+            class="inline-result__dismiss"
+            phx-click="dismiss_merged_notice"
+            aria-label={gettext("Dismiss")}
+            title={gettext("Dismiss")}
+          >
+            &times;
+          </button>
+        </AppShell.data_note>
+      </div>
       <header class="detail-pane-head">
         <div class="detail-pane-head__title">
           <.security_logo security={@selected_security} variant="lg" />
@@ -931,6 +1033,22 @@ defmodule PortfolixirWeb.SecuritiesLive do
           </.link>
         </div>
       </header>
+
+      <%!-- E25 S7, G20; pick G12.2 = B: a name stored before the refusal
+           that carries characters the operator cannot see, marked where it
+           is changed; the remedy is the head's own Edit, once more. --%>
+      <AppShell.invisible_text_note subject={:name} texts={[@selected_security.name]}>
+        <%= gettext("Typed in anew, it is clean.") %>
+        <button
+          type="button"
+          class="link-button"
+          phx-click="row_action"
+          phx-value-action="edit"
+          phx-value-id={@selected_security.id}
+        >
+          <%= gettext("Edit master data") %>
+        </button>
+      </AppShell.invisible_text_note>
 
       <%!-- #837 (plan D-3, pick E4-A): a tab widget — it switches panels in
            one pane and changes no route — so the role stays and the pattern
@@ -1226,6 +1344,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
           holdings={@detail_holdings}
           quotes={@detail_quotes}
           classifications={@detail_classifications}
+          lineage={@detail_lineage}
           thesis_state={@detail_thesis_state}
           note_editing?={@detail_note_editing?}
         />
@@ -1275,6 +1394,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
           thesis_state={@detail_thesis_state}
           form_kind={@research_form_kind}
           form_errors={@research_form_errors}
+          form_values={@research_form_values}
         />
       <% end %>
 
@@ -1321,6 +1441,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   </span>
                 </div>
                 <p :if={event.note} class="research-entry__body"><%= event.note %></p>
+                <AppShell.invisible_text_note texts={[event.note]}>
+                  <%= gettext("It is corrected over the API or MCP.") %>
+                </AppShell.invisible_text_note>
                 <p class="research-entry__meta">
                   <a :if={event.source_url} href={event.source_url} rel="noopener noreferrer" target="_blank">
                     <%= gettext("Source") %>
@@ -1404,6 +1527,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   attr(:holdings, :list, required: true)
   attr(:quotes, :list, required: true)
   attr(:classifications, :list, required: true)
+  # ADR-0050 §9, §12 (board 03, "Danach"): the former ISINs and the merges
+  # the security carries, for the basis line.
+  attr(:lineage, :map, default: %{former_isins: [], merged_from: []})
   attr(:thesis_state, :map, required: true)
   attr(:note_editing?, :boolean, default: false)
 
@@ -1522,11 +1648,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
           </div>
 
           <p
-            :if={overview_basis(@security, @classifications) != "" or @security.is_retired}
+            :if={overview_basis(@security, @classifications, @lineage) != "" or @security.is_retired}
             class="summary-basis"
             data-role="overview-basis"
           >
-            <%= overview_basis(@security, @classifications) %>
+            <%= overview_basis(@security, @classifications, @lineage) %>
             <span :if={@security.is_retired} class="badge badge--retired">
               <%= gettext("Retired") %>
             </span>
@@ -1669,18 +1795,47 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # The reading surface's basis line: where the quotes come from, what the
   # security is, where it is classified, and the identifier the header does
   # not carry. Every value reads as a word (#785), never as a stored constant.
-  defp overview_basis(security, classifications) do
-    [
-      feed_clause(security),
-      latest_feed_clause(security),
-      class_clause(security),
-      classification_clause(classifications),
-      security.wkn && security.wkn != "" && gettext("WKN %{wkn}", wkn: security.wkn),
-      security.exchange_code && security.exchange_code != "" &&
-        gettext("Exchange %{code}", code: security.exchange_code)
-    ]
+  defp overview_basis(security, classifications, lineage) do
+    ([
+       feed_clause(security),
+       latest_feed_clause(security),
+       class_clause(security),
+       classification_clause(classifications),
+       security.wkn && security.wkn != "" && gettext("WKN %{wkn}", wkn: security.wkn),
+       security.exchange_code && security.exchange_code != "" &&
+         gettext("Exchange %{code}", code: security.exchange_code)
+     ] ++ lineage_clauses(lineage))
     |> Enum.filter(&is_binary/1)
     |> Enum.join(" · ")
+  end
+
+  # ADR-0029 §3, ADR-0050 §9, §12 (board 03, "Danach"): where the numbers
+  # come from also means which ISINs lead here and what was merged in. The
+  # merged source is named with the ISIN it carried then, because after an
+  # adopted ISIN the survivor carries it itself.
+  defp lineage_clauses(%{former_isins: aliases, merged_from: merges}) do
+    Enum.map(aliases, fn alias_row ->
+      gettext("former ISIN %{isin} (until %{date})",
+        isin: alias_row.former_isin,
+        date: Date.to_iso8601(alias_row.changed_on)
+      )
+    end) ++
+      Enum.map(merges, fn merge ->
+        case merge.source_isin do
+          nil ->
+            gettext("merged on %{date} from “%{name}”",
+              date: Date.to_iso8601(merge.merged_on),
+              name: merge.source_name
+            )
+
+          isin ->
+            gettext("merged on %{date} from “%{name}” (then %{isin})",
+              date: Date.to_iso8601(merge.merged_on),
+              name: merge.source_name,
+              isin: isin
+            )
+        end
+      end)
   end
 
   defp feed_clause(%Security{feed: feed}) when feed not in [nil, ""],
@@ -2233,6 +2388,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   attr(:thesis_state, :map, required: true)
   attr(:form_kind, :string, required: true)
   attr(:form_errors, :list, default: [])
+  # What a refused submit carried, drawn back into the form (E25 S6, board 11):
+  # a refusal names what to correct, never what to type again.
+  attr(:form_values, :map, default: %{})
 
   # ADR-0044 §6: the research timeline. Newest first; kind and source quality
   # visible; a superseded entry stays in the list marked as superseded; a
@@ -2268,6 +2426,17 @@ defmodule PortfolixirWeb.SecuritiesLive do
           <p class="detail-tab-empty"><%= gettext("No thesis recorded yet.") %></p>
         <% else %>
           <p class="research-thesis__text"><%= @thesis_state.thesis %></p>
+          <AppShell.invisible_text_note texts={[@thesis_state.thesis, @thesis_state.invalidation_condition]}>
+            <%= gettext("The log only appends: an entry that supersedes this one carries the text without them.") %>
+            <button
+              type="button"
+              class="link-button"
+              phx-click="supersede_research_entry"
+              phx-value-id={@thesis_state.derived_from_entry_id}
+            >
+              <%= gettext("Append an entry that supersedes #%{id}", id: @thesis_state.derived_from_entry_id) %>
+            </button>
+          </AppShell.invisible_text_note>
           <dl class="research-thesis__facts">
             <div>
               <dt><%= gettext("Conviction") %></dt>
@@ -2301,10 +2470,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
           </dl>
           <%= if @retraction do %>
             <AppShell.data_note severity={:attention} id="thesis-retracted">
-              <%= gettext("Retracted by #%{id}: %{reason}",
-                id: @retraction.id,
-                reason: @retraction.body
-              ) %>
+              <%!-- The stored reason isolated in <bdi> (E25 S7, G20; pick
+                   G12.2 = B): a direction control it still carries reorders
+                   at most the reason, never the sentence. --%>
+              <%= gettext("Retracted by #%{id}:", id: @retraction.id) %> <bdi><%= @retraction.body %></bdi>
             </AppShell.data_note>
           <% end %>
         <% end %>
@@ -2331,20 +2500,22 @@ defmodule PortfolixirWeb.SecuritiesLive do
             <span><%= gettext("Source quality") %></span>
             <select name="note[source_quality]">
               <%= for quality <- SecurityNote.source_qualities() do %>
-                <option value={quality}><%= source_quality_label(quality) %></option>
+                <option value={quality} selected={@form_values["source_quality"] == quality}>
+                  <%= source_quality_label(quality) %>
+                </option>
               <% end %>
             </select>
           </label>
           <label>
             <span><%= gettext("As of") %></span>
-            <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="note[as_of]" value={@today} required />
+            <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="note[as_of]" value={Map.get(@form_values, "as_of", @today)} required />
           </label>
           <label>
             <span><%= gettext("Supersedes") %></span>
             <select name="note[supersedes_id]">
               <option value=""><%= gettext("— nothing —") %></option>
               <%= for note <- @notes do %>
-                <option value={note.id}>
+                <option value={note.id} selected={@form_values["supersedes_id"] == to_string(note.id)}>
                   #<%= note.id %> · <%= kind_label(note.kind) %> · <%= Format.date(note.as_of) %>
                 </option>
               <% end %>
@@ -2352,15 +2523,15 @@ defmodule PortfolixirWeb.SecuritiesLive do
           </label>
           <label class="research-entry-form__full">
             <span><%= gettext("Entry") %></span>
-            <textarea name="note[body]" rows="3" required></textarea>
+            <textarea name="note[body]" rows="3" required><%= @form_values["body"] %></textarea>
           </label>
           <label class="research-entry-form__full">
             <span><%= gettext("Source link") %></span>
-            <input type="url" name="note[source_url]" inputmode="url" />
+            <input type="url" name="note[source_url]" inputmode="url" value={@form_values["source_url"]} />
           </label>
           <label>
             <span><%= gettext("Valid until") %></span>
-            <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="note[valid_until]" />
+            <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="note[valid_until]" value={@form_values["valid_until"]} />
           </label>
           <%= if @form_kind == "thesis" do %>
             <label>
@@ -2368,17 +2539,19 @@ defmodule PortfolixirWeb.SecuritiesLive do
               <select name="note[conviction]">
                 <option value=""><%= gettext("— not stated —") %></option>
                 <%= for tier <- SecurityNote.convictions() do %>
-                  <option value={tier}><%= conviction_label(tier) %></option>
+                  <option value={tier} selected={@form_values["conviction"] == tier}>
+                    <%= conviction_label(tier) %>
+                  </option>
                 <% end %>
               </select>
             </label>
             <label class="research-entry-form__full">
               <span><%= gettext("Invalidation condition") %></span>
-              <input type="text" name="note[invalidation_condition]" />
+              <input type="text" name="note[invalidation_condition]" value={@form_values["invalidation_condition"]} />
             </label>
             <label>
               <span><%= gettext("Time stop") %></span>
-              <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="note[time_stop]" />
+              <input type="text" placeholder="YYYY-MM-DD" pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" name="note[time_stop]" value={@form_values["time_stop"]} />
             </label>
           <% end %>
         </div>
@@ -2431,6 +2604,21 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 </p>
               <% end %>
               <p class="research-entry__body"><%= note.body %></p>
+              <%!-- E25 S7, G20; pick G12.2 = B: an entry stored before the
+                   refusal that carries characters the operator cannot see.
+                   The log only appends, so the remedy is a superseding
+                   entry. --%>
+              <AppShell.invisible_text_note texts={[note.body, note.invalidation_condition]}>
+                <%= gettext("The log only appends: an entry that supersedes this one carries the text without them.") %>
+                <button
+                  type="button"
+                  class="link-button"
+                  phx-click="supersede_research_entry"
+                  phx-value-id={note.id}
+                >
+                  <%= gettext("Append an entry that supersedes #%{id}", id: note.id) %>
+                </button>
+              </AppShell.invisible_text_note>
               <dl class="research-entry__facts">
                 <%= if note.source_url do %>
                   <div>
@@ -3191,8 +3379,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp parse_classification_key("classification:" <> rest, classification_specs) do
     with [id_str, level_str] <- String.split(rest, ":"),
-         {id, ""} <- Integer.parse(id_str),
-         {level, ""} <- Integer.parse(level_str),
+         {:ok, id} <- LiveParam.fetch_id(id_str),
+         level when is_integer(level) <- LiveParam.integer(level_str, 1..@max_tree_level),
          %Field{} = field <-
            classification_field({:classification, id, level}, classification_specs) do
       field.key
@@ -3823,7 +4011,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp display_value(:feed, value), do: Feeds.label(value)
   defp display_value(:latest_feed, value), do: Feeds.label(value)
-  defp display_value(_key, value), do: to_string(value)
+
+  # Attributes are free-form JSON a provider or a token holder wrote (F29): a
+  # scalar reads as text, anything else as an empty cell, never a crash.
+  defp display_value(_key, value)
+       when is_binary(value) or is_number(value) or is_boolean(value) or is_atom(value),
+       do: to_string(value)
+
+  defp display_value(_key, _value), do: ""
 
   defp safe_to_string({:safe, iodata}), do: IO.iodata_to_binary(iodata)
 
@@ -3855,6 +4050,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   @impl true
   def handle_event("search", %{"query" => query}, socket) do
+    query = LiveParam.string(query) || ""
+
     # `replace: true` — typing must not stack one history entry per keystroke.
     {:noreply,
      push_patch(socket,
@@ -3949,7 +4146,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   def handle_event("toggle_chip_family", %{"family" => family, "option" => option}, socket)
-      when family in ["cur", "class"] do
+      when family in ["cur", "class"] and is_binary(option) do
     key = String.to_existing_atom(family)
     active = Map.fetch!(socket.assigns, key)
     toggled = if option in active, do: List.delete(active, option), else: active ++ [option]
@@ -4061,11 +4258,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
         %{"classification_id" => classification_id} = params,
         %{assigns: %{selected_security: %Security{id: id}}} = socket
       ) do
-    case Integer.parse(classification_id) do
-      {cid, ""} ->
+    case LiveParam.fetch_id(classification_id) do
+      {:ok, cid} ->
         {:noreply, choose_security_category(socket, id, cid, params["category_id"])}
 
-      _ ->
+      :error ->
         {:noreply, socket}
     end
   end
@@ -4077,7 +4274,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         %{"classification_id" => classification_id, "name" => name},
         %{assigns: %{selected_security: %Security{id: id}}} = socket
       ) do
-    with {cid, ""} <- Integer.parse(classification_id),
+    with {:ok, cid} <- LiveParam.fetch_id(classification_id),
          {:ok, category} <-
            Classifications.create_category(Actor.owner_ui(), %{
              "classification_id" => cid,
@@ -4101,11 +4298,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   # ADR-0044 §6: the operator appends from the pane; author is the operator,
   # never guessed from the form. Nothing here edits or removes an entry.
+  # Only the keys the form renders are read (E25 S6, F15, decision T-5): a
+  # provenance field — the machine-generated marker, the author — and the
+  # security are the system's to state, whatever a submit carries.
   def handle_event("append_research_entry", %{"note" => params}, socket) do
     case socket.assigns.selected_security do
       %Security{id: id} ->
+        typed = params |> LiveParam.map() |> Map.take(@research_form_keys)
+
         attrs =
-          params
+          typed
           |> Map.put("security_id", id)
           |> Map.put("author", "operator")
           |> drop_blank_values()
@@ -4115,6 +4317,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
             {:noreply,
              socket
              |> assign(:research_form_errors, [])
+             |> assign(:research_form_values, %{})
              |> assign(:research_form_kind, "evidence")
              |> load_research_log()
              |> put_action_result(:note, gettext("Entry appended."))}
@@ -4123,6 +4326,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
             {:noreply,
              socket
              |> assign(:research_form_errors, research_form_errors(changeset))
+             |> assign(:research_form_values, text_values(typed))
              |> put_action_result(:problem, gettext("Could not append the entry."))}
         end
 
@@ -4138,6 +4342,23 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   def handle_event("research_entry_changed", _params, socket), do: {:noreply, socket}
+
+  # E25 S7, G20: the remedy of an entry carrying invisible characters opens
+  # the append form with that entry as the one it supersedes.
+  def handle_event("supersede_research_entry", %{"id" => id}, socket) do
+    case LiveParam.fetch_id(id) do
+      {:ok, entry_id} ->
+        values =
+          Map.put(socket.assigns.research_form_values, "supersedes_id", to_string(entry_id))
+
+        {:noreply, assign(socket, :research_form_values, values)}
+
+      :error ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("supersede_research_entry", _params, socket), do: {:noreply, socket}
 
   # #804: the note card reads by default; its field exists only while the
   # operator is writing one.
@@ -4178,7 +4399,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         %{"id" => id_str, "asset_class" => class},
         socket
       ) do
-    with {id, ""} <- Integer.parse(to_string(id_str)),
+    with {:ok, id} <- LiveParam.fetch_id(id_str),
          %Security{} = security <- Catalog.get_security(id),
          {:ok, _} <- Catalog.update_security(Actor.owner_ui(), security, %{asset_class: class}) do
       {:noreply,
@@ -4251,7 +4472,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     security = socket.assigns.selected_security
 
     with %Security{} <- security,
-         {depot_id, ""} <- Integer.parse(depot_id),
+         {:ok, depot_id} <- LiveParam.fetch_id(depot_id),
          depot when not is_nil(depot) <- Portfolios.get_securities_account(depot_id),
          {:ok, _} <- apply_position_override(depot, security, params) do
       {:noreply,
@@ -4301,8 +4522,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   def handle_event("toggle_detail_ma", %{"window" => window_str}, socket) do
-    case Integer.parse(window_str) do
-      {window, ""} when window in [30, 50, 200] ->
+    case LiveParam.integer(window_str, 30..200) do
+      window when window in [30, 50, 200] ->
         {:noreply, update(socket, :detail_ma, &Map.update!(&1, window, fn b -> !b end))}
 
       _ ->
@@ -4326,14 +4547,27 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply, assign(socket, :action_result, nil)}
   end
 
-  def handle_event("remove_filter", %{"idx" => idx}, socket) do
-    idx = String.to_integer(idx)
-    filters = List.delete_at(socket.assigns.filters, idx)
+  def handle_event("dismiss_merged_notice", _params, socket) do
+    {:noreply, assign(socket, :merged_notice, nil)}
+  end
 
-    {:noreply,
-     push_patch(socket,
-       to: securities_path(socket.assigns, tab: :current, override: %{filters: filters})
-     )}
+  def handle_event("remove_filter", %{"idx" => idx}, socket) do
+    filters = socket.assigns.filters
+
+    case LiveParam.integer(idx, 0..(length(filters) - 1)//1) do
+      nil ->
+        {:noreply, socket}
+
+      idx ->
+        {:noreply,
+         push_patch(socket,
+           to:
+             securities_path(socket.assigns,
+               tab: :current,
+               override: %{filters: List.delete_at(filters, idx)}
+             )
+         )}
+    end
   end
 
   def handle_event("retry_missing_logos", _params, socket) do
@@ -4388,7 +4622,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   def handle_event("set_columns", _params, socket), do: {:noreply, socket}
 
   def handle_event("open_row_menu", %{"id" => id_str}, socket) do
-    with {id, ""} <- Integer.parse(to_string(id_str)),
+    with {:ok, id} <- LiveParam.fetch_id(id_str),
          row when not is_nil(row) <-
            Enum.find(socket.assigns.securities, &(security_id(&1) == id)) do
       {:noreply, assign(socket, :row_menu_id, id)}
@@ -4411,13 +4645,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   def handle_event("save_logo_url", %{"logo" => %{"url" => url}}, socket) do
     case socket.assigns.logo_dialog_security do
-      %Security{} = sec -> store_logo_url(socket, sec, String.trim(to_string(url)))
+      %Security{} = sec -> store_logo_url(socket, sec, String.trim(LiveParam.string(url) || ""))
       _ -> {:noreply, socket}
     end
   end
 
   def handle_event("remove_logo_override", %{"id" => id_str}, socket) do
-    with {id, ""} <- Integer.parse(to_string(id_str)),
+    with {:ok, id} <- LiveParam.fetch_id(id_str),
          %Security{} = sec <- Catalog.get_security(id),
          {:ok, _updated} <- Catalog.remove_logo(sec, logo_opts()) do
       {:noreply,
@@ -4435,7 +4669,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   def handle_event("row_action", %{"action" => action, "id" => id_str}, socket) do
-    with {id, ""} <- Integer.parse(to_string(id_str)),
+    with {:ok, id} <- LiveParam.fetch_id(id_str),
          %Security{} = sec <- Catalog.get_security(id) do
       socket
       |> assign(:row_menu_id, nil)
@@ -4444,6 +4678,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
       _ -> {:noreply, assign(socket, :row_menu_id, nil)}
     end
   end
+
+  # An event this page does not know, or a payload it cannot read, changes
+  # nothing (E25 S4, F17).
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   defp dispatch_row_action(socket, "edit", %Security{} = sec) do
     {:noreply,
@@ -4561,13 +4799,47 @@ defmodule PortfolixirWeb.SecuritiesLive do
          |> load_securities()}
 
       # ADR-0049 §8: the rules that read the security are named, not
-      # disguised as bookings (board 06-rule-reference-409).
+      # disguised as bookings (board 06-rule-reference-409), each linked to
+      # Risk in the view it applies in (#871, G6-A).
       {:error, {:policy_rules, rules}} ->
-        {:noreply, socket |> assign(:delete_blocked, sec) |> assign(:delete_blocked_rules, rules)}
+        {:noreply,
+         socket
+         |> assign(:delete_blocked, sec)
+         |> assign(:delete_blocked_rules, PolicyRuleReferences.references(rules))
+         |> assign(:delete_blocked_merge?, false)}
 
-      {:error, _changeset} ->
-        {:noreply, socket |> assign(:delete_blocked, sec) |> assign(:delete_blocked_rules, [])}
+      # ADR-0050 §11: gone already (another writer deleted it) — the row just
+      # goes; nothing references a security that is not there.
+      {:error, :not_found} ->
+        {:noreply, socket |> assign(:delete_blocked, nil) |> load_securities()}
+
+      # Referenced by bookings, quotes, notes, events or rule versions
+      # ({:referenced, counts}): nothing was written. Where a merge could
+      # carry what blocks it, the dialog offers one (ADR-0050 §9, board 03).
+      {:error, {:referenced, counts}} ->
+        {:noreply,
+         socket
+         |> assign(:delete_blocked, sec)
+         |> assign(:delete_blocked_rules, [])
+         |> assign(:delete_blocked_merge?, Delete.remedy(sec, counts) == :merge)}
+
+      {:error, _reason} ->
+        {:noreply,
+         socket
+         |> assign(:delete_blocked, sec)
+         |> assign(:delete_blocked_rules, [])
+         |> assign(:delete_blocked_merge?, false)}
     end
+  end
+
+  # ADR-0050 §9 (board 03): "Merge into…" from the row menu or from "Cannot
+  # delete" opens the merge's first step for that security — never a dialog
+  # from a dialog (UX-DR9): "Cannot delete" closes first.
+  defp dispatch_row_action(socket, "merge", %Security{} = sec) do
+    {:noreply,
+     socket
+     |> assign(:delete_blocked, nil)
+     |> assign(:merge_source_id, sec.id)}
   end
 
   # Re-trigger protection (#566): while a lookup is running (busy state in the
@@ -4691,11 +4963,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp safe_holding_status(status) when status in @holding_statuses, do: status
   defp safe_holding_status(_), do: @default_holding_status
 
-  defp safe_atom(string) when is_binary(string) do
-    String.to_existing_atom(string)
-  rescue
-    ArgumentError -> nil
-  end
+  # The popovers the page has; any other name opens nothing (E25 S4, F17).
+  defp safe_atom("filter"), do: :filter
+  defp safe_atom("columns"), do: :columns
+  defp safe_atom(_name), do: nil
 
   # -- messages from child components --------------------------------------
 
@@ -4733,6 +5004,22 @@ defmodule PortfolixirWeb.SecuritiesLive do
        ngettext("Split booked for one portfolio.", "Split booked for %{count} portfolios.", count)
      )
      |> load_detail_data()}
+  end
+
+  def handle_info({:dialog, "security-merge-dialog", :close}, socket) do
+    {:noreply, assign(socket, :merge_source_id, nil)}
+  end
+
+  # ADR-0050 §9 (board 03, "Danach"): the dialog closes, the result stands
+  # inline above the table until the next action, and the survivor's row is
+  # selected with its detail open.
+  def handle_info({:dialog, "security-merge-dialog", {:merged, message, target_id}}, socket) do
+    {:noreply,
+     socket
+     |> assign(:merge_source_id, nil)
+     |> put_action_result(:note, message)
+     |> assign(:keep_result_once, true)
+     |> push_patch(to: securities_path(socket.assigns, id: target_id))}
   end
 
   def handle_info({:dialog, _id, :close}, socket) do
@@ -4831,11 +5118,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:detail_events, [])
     |> assign(:detail_status, nil)
     |> assign(:detail_classifications, [])
+    |> assign(:detail_lineage, %{former_isins: [], merged_from: []})
     |> assign(:detail_new_category_for, nil)
     |> assign(:detail_notes, [])
     |> assign(:detail_thesis_state, ThesisState.none())
     |> assign(:detail_note_editing?, false)
     |> assign(:research_form_errors, [])
+    |> assign(:research_form_values, %{})
   end
 
   defp load_detail_data(%{assigns: %{selected_security: nil}} = socket), do: socket
@@ -4908,6 +5197,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
     # without any stored rate).
     |> assign(:detail_status, Valuation.security_status(id, holding_base_currencies(holdings)))
     |> assign(:detail_classifications, load_security_classifications(id))
+    |> assign(:detail_lineage, %{
+      former_isins: Catalog.list_identifier_aliases(socket.assigns.selected_security),
+      merged_from: Map.get(Lifecycle.merged_from(:security, [id]), id, [])
+    })
     |> load_research_log()
   end
 
@@ -4992,12 +5285,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
       params
       |> Map.get("bucket_ids", [])
       |> List.wrap()
-      |> Enum.flat_map(fn value ->
-        case Integer.parse(to_string(value)) do
-          {id, ""} -> [id]
-          _ -> []
-        end
-      end)
+      |> LiveParam.ids()
 
     case Buckets.set_position_override(Actor.owner_ui(), depot, security, ids) do
       :ok -> {:ok, :explicit}
@@ -5011,16 +5299,31 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> Map.new()
   end
 
+  # "Field: message", the message through the "errors" Gettext domain like the
+  # booking form's (E25 S6, board 11), so a German page reads "darf nicht in
+  # der Zukunft liegen" rather than the changeset's English.
   defp research_form_errors(changeset) do
     changeset
-    |> Ecto.Changeset.traverse_errors(fn {message, opts} ->
-      Enum.reduce(opts, message, fn {key, value}, acc ->
-        String.replace(acc, "%{#{key}}", to_string(value))
-      end)
-    end)
+    |> Ecto.Changeset.traverse_errors(&translate_research_error/1)
     |> Enum.flat_map(fn {field, messages} ->
       Enum.map(messages, &"#{research_field_label(field)}: #{&1}")
     end)
+  end
+
+  defp translate_research_error({message, opts}) do
+    if count = opts[:count] do
+      Gettext.dngettext(PortfolixirWeb.Gettext, "errors", message, message, count, opts)
+    else
+      Gettext.dgettext(PortfolixirWeb.Gettext, "errors", message, opts)
+    end
+  end
+
+  # Only text goes back into the form: a value that is not a string (a
+  # crafted nested map) is dropped rather than drawn.
+  defp text_values(typed) do
+    typed
+    |> Enum.filter(fn {_key, value} -> is_binary(value) end)
+    |> Map.new()
   end
 
   defp research_field_label(:body), do: gettext("Entry")
@@ -5104,8 +5407,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   defp apply_classification_change(security_id, classification_id, category_id) do
-    case Integer.parse(category_id) do
-      {category, ""} ->
+    case LiveParam.fetch_id(category_id) do
+      {:ok, category} ->
         Classifications.assign_security(
           Actor.owner_ui(),
           security_id,
@@ -5119,7 +5422,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   defp range_to_dates(range, security_id) do
-    today = Date.utc_today()
+    today = Clock.today()
 
     case range do
       "1M" -> {Date.add(today, -30), today}
@@ -5179,7 +5482,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp sync_reason(reason), do: inspect(reason)
 
   defp oldest_date(security_id) do
-    case Quotes.range(security_id, ~D[1900-01-01], Date.utc_today()) do
+    case Quotes.range(security_id, ~D[1900-01-01], Clock.today()) do
       [] -> nil
       [first | _] -> first.date
     end
@@ -5331,9 +5634,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
     end
   end
 
+  # The shared date rule (E25 S4): an ISO date inside the ledger's range, so a
+  # year far outside it is the field's error, not a chart range.
   defp parse_detail_range(from_str, to_str) do
-    with {:from, {:ok, from}} <- {:from, Date.from_iso8601(to_string(from_str))},
-         {:to, {:ok, to}} <- {:to, Date.from_iso8601(to_string(to_str))},
+    with {:from, {:ok, from}} <- {:from, BoundedDate.parse(from_str)},
+         {:to, {:ok, to}} <- {:to, BoundedDate.parse(to_str)},
          {:order, false} <- {:order, Date.compare(from, to) == :gt} do
       {:ok, from, to}
     else

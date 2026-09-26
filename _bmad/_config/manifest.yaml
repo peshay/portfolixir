@@ -1,44 +1,45 @@
 installation:
-  version: 6.11.0
+  version: 6.12.0
   installDate: 2026-06-11T18:59:51.668Z
-  lastUpdated: 2026-08-14T13:12:08.563Z
+  lastUpdated: 2026-09-24T20:18:54.950Z
+  installShims: true
 modules:
   - name: core
-    version: 6.11.0
+    version: 6.12.0
     installDate: 2026-06-11T18:59:51.446Z
-    lastUpdated: 2026-08-14T13:12:08.539Z
+    lastUpdated: 2026-09-24T20:18:54.937Z
     source: built-in
     npmPackage: null
     repoUrl: null
   - name: bmm
-    version: 6.11.0
+    version: 6.12.0
     installDate: 2026-06-11T18:59:51.435Z
-    lastUpdated: 2026-08-14T13:12:08.543Z
+    lastUpdated: 2026-09-24T20:18:54.938Z
     source: built-in
     npmPackage: null
     repoUrl: null
   - name: tea
-    version: v1.19.0
+    version: v1.27.2
     installDate: 2026-06-11T18:59:51.571Z
-    lastUpdated: 2026-08-14T13:12:08.547Z
+    lastUpdated: 2026-09-24T20:18:54.941Z
     source: external
     npmPackage: bmad-method-test-architecture-enterprise
     repoUrl: https://github.com/bmad-code-org/bmad-method-test-architecture-enterprise
     channel: pinned
-    sha: 8734d51f24071ddbcb3617390b5fcddb4128ef77
+    sha: d99ad29c62697c152e3393351406686d5bcd323c
   - name: cis
-    version: v0.2.1
+    version: v0.3.2
     installDate: 2026-06-11T18:59:51.580Z
-    lastUpdated: 2026-08-14T13:12:08.551Z
+    lastUpdated: 2026-09-24T20:18:54.943Z
     source: external
     npmPackage: bmad-creative-intelligence-suite
     repoUrl: https://github.com/bmad-code-org/bmad-module-creative-intelligence-suite
     channel: pinned
-    sha: 07a8dd03d196a762f21c241d985293fe5b0f90e7
+    sha: 97298b22fee1c7e482710d3a8414adb5cfccccd9
   - name: automator
     version: main
     installDate: 2026-06-11T18:59:51.601Z
-    lastUpdated: 2026-08-14T13:12:08.554Z
+    lastUpdated: 2026-09-24T20:18:54.946Z
     source: external
     npmPackage: bmad-story-automator
     repoUrl: https://github.com/bmad-code-org/bmad-automator
@@ -47,7 +48,7 @@ modules:
   - name: bmb
     version: v1.8.1
     installDate: 2026-06-11T18:59:51.624Z
-    lastUpdated: 2026-08-14T13:12:08.563Z
+    lastUpdated: 2026-09-24T20:18:54.950Z
     source: external
     npmPackage: bmad-builder
     repoUrl: https://github.com/bmad-code-org/bmad-builder

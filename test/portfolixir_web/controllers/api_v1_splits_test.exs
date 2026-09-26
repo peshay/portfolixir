@@ -278,6 +278,41 @@ defmodule PortfolixirWeb.ApiV1SplitsTest do
     end
   end
 
+  # User story (E25 S4, G12):
+  # As an agent booking splits over the API,
+  # I want a split that takes the security's splits past their bound
+  # answered with a ratio error,
+  # so that the refusal reads like every other ratio refusal, never a 500.
+  #
+  # Acceptance criteria:
+  # - Preview and create answer 422 on ratio naming the bound, and create
+  #   writes nothing.
+  test "split endpoints answer a split past the cumulative bound with 422", %{conn: conn} do
+    %{security: security} = split_world()
+
+    {:ok, _} =
+      Splits.book_split(Actor.owner_ui(), %{
+        security_id: security.id,
+        date: ~D[2026-01-10],
+        ratio_numerator: 1_000_000_000,
+        ratio_denominator: 1
+      })
+
+    for path <- ["/api/v1/splits/preview", "/api/v1/splits"] do
+      response =
+        conn
+        |> api_conn()
+        |> post(path, Jason.encode!(split_body(security, %{"ratio_numerator" => 10_000})))
+        |> json_response(422)
+
+      assert [message] = response["errors"]["ratio"]
+      assert message =~ "10^12"
+    end
+
+    assert Ledger.list_transactions_for_security(security.id)
+           |> Enum.count(&(&1.type == "split")) == 2
+  end
+
   # User story (E17 closing-act review, finding 5 — divergence made explicit):
   # As an agent previewing a split nobody held at the effective date,
   # I want each row's bookable flag serialized and the

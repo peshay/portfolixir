@@ -72,3 +72,103 @@ msgstr "überschneidet sich mit einer anderen Version dieser Regel"
 
 msgid "is required for the drift of a security (the plan's classification)"
 msgstr "ist für die Abweichung eines Wertpapiers erforderlich (die Klassifizierung des Plans)"
+
+## The status line of the error page (E25 S2).
+msgid "Bad Request"
+msgstr "Ungültige Anfrage"
+
+msgid "Forbidden"
+msgstr "Zugriff verweigert"
+
+msgid "Not Found"
+msgstr "Nicht gefunden"
+
+msgid "Not Acceptable"
+msgstr "Format nicht verfügbar"
+
+msgid "Request Entity Too Large"
+msgstr "Anfrage zu groß"
+
+msgid "Internal Server Error"
+msgstr "Interner Fehler"
+
+## The shared input bounds (E25 S4): Portfolixir.Input.BoundedDate.
+msgid "must be a date between 1900-01-01 and 2999-12-31"
+msgstr "muss ein Datum zwischen dem 1900-01-01 und dem 2999-12-31 sein"
+
+## Portfolixir.Input.BoundedDecimal: an amount past its column's precision.
+msgid "must have at most %{digits} digits before the decimal point"
+msgstr "darf höchstens %{digits} Stellen vor dem Komma haben"
+
+## Portfolixir.Input.Text: text the database refuses.
+msgid "should be at most %{count} character(s)"
+msgid_plural "should be at most %{count} character(s)"
+msgstr[0] "darf höchstens %{count} Zeichen lang sein"
+msgstr[1] "darf höchstens %{count} Zeichen lang sein"
+
+msgid "must be valid UTF-8 text"
+msgstr "muss gültiger UTF-8-Text sein"
+
+msgid "must not contain control characters or line breaks"
+msgstr "darf keine Steuerzeichen und keine Zeilenumbrüche enthalten"
+
+msgid "must not contain control characters other than tabs and line breaks"
+msgstr "darf außer Tabulatoren und Zeilenumbrüchen keine Steuerzeichen enthalten"
+
+## Portfolixir.Catalog.Isin: the new ISIN of an ISIN change.
+msgid "is not an ISIN (two letters, nine letters or digits and a check digit)"
+msgstr "ist keine ISIN (zwei Buchstaben, neun Buchstaben oder Ziffern und eine Prüfziffer)"
+
+## Portfolixir.Input.BoundedDecimal: a target weight's scale (G14).
+msgid "must have at most %{count} decimal places"
+msgid_plural "must have at most %{count} decimal places"
+msgstr[0] "darf höchstens %{count} Nachkommastelle haben"
+msgstr[1] "darf höchstens %{count} Nachkommastellen haben"
+
+## Portfolixir.Classifications: a category's parent (F11).
+msgid "must belong to the same classification"
+msgstr "muss zur selben Klassifikation gehören"
+
+msgid "would make the category its own ancestor"
+msgstr "würde die Kategorie zu ihrer eigenen Oberkategorie machen"
+
+## Portfolixir.Input.Text: a free-form map the database refuses (G24).
+msgid "must have text keys"
+msgstr "muss Textschlüssel haben"
+
+msgid "must not contain control characters (a value keeps its tabs and line breaks)"
+msgstr "darf keine Steuerzeichen enthalten (ein Wert behält seine Tabulatoren und Zeilenumbrüche)"
+
+msgid "must have keys of at most %{count} character(s)"
+msgid_plural "must have keys of at most %{count} character(s)"
+msgstr[0] "darf nur Schlüssel mit höchstens %{count} Zeichen haben"
+msgstr[1] "darf nur Schlüssel mit höchstens %{count} Zeichen haben"
+
+## Portfolixir.Catalog.Security: an identifier changed on a stored security (E25 S5, G23).
+msgid "is not a WKN (six letters or digits)"
+msgstr "ist keine WKN (sechs Buchstaben oder Ziffern)"
+
+msgid "must be printable ASCII characters"
+msgstr "darf nur aus druckbaren ASCII-Zeichen bestehen"
+
+## E25 S6 (F44, G09): a research-log entry's as_of, and an event's checked_at.
+msgid "must not be in the future"
+msgstr "darf nicht in der Zukunft liegen"
+
+msgid "must not be later than tomorrow"
+msgstr "darf nicht nach morgen liegen"
+
+## E25 S6 (G02): a security's attributes, bounded as stored.
+msgid "must be at most %{count} bytes as JSON"
+msgid_plural "must be at most %{count} bytes as JSON"
+msgstr[0] "darf als JSON höchstens %{count} Byte groß sein"
+msgstr[1] "darf als JSON höchstens %{count} Byte groß sein"
+
+msgid "is ambiguous: enter it without a thousands separator"
+msgstr "ist mehrdeutig: ohne Tausendertrennzeichen eingeben"
+
+msgid "must not contain invisible characters (%{characters}); retype the text without them"
+msgstr "darf keine unsichtbaren Zeichen enthalten (%{characters}); gib den Text ohne sie neu ein"
+
+msgid "must not contain invisible characters (format, bidirectional or tag characters)"
+msgstr "darf keine unsichtbaren Zeichen enthalten (Format-, Schreibrichtungs- oder Tag-Zeichen)"

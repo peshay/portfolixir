@@ -7,8 +7,14 @@ defmodule PortfolixirWeb.Router do
   # never a foreign script admitted. PortfolixirWeb.ContentSecurityPolicy
   # replaces it per request with the same text plus the nonce and the
   # socket origin.
+  #
+  # Cross-Origin-Resource-Policy (E25 S7, F07): a page, a stored logo — the
+  # route behind the UI login, whose files name the companies the operator
+  # holds — and every other browser response is readable by this origin only,
+  # so another site open in the same browser can neither embed nor probe them.
   @secure_headers %{
-    "content-security-policy" => PortfolixirWeb.ContentSecurityPolicy.static_policy()
+    "content-security-policy" => PortfolixirWeb.ContentSecurityPolicy.static_policy(),
+    "cross-origin-resource-policy" => "same-origin"
   }
 
   pipeline :browser do
@@ -54,8 +60,10 @@ defmodule PortfolixirWeb.Router do
 
     live_session :browser,
       on_mount: [
+        PortfolixirWeb.HeapCap,
         PortfolixirWeb.LiveUiAuth,
         PortfolixirWeb.LiveIdRange,
+        PortfolixirWeb.LiveEventGuard,
         PortfolixirWeb.LiveLocale,
         PortfolixirWeb.LiveViewScope,
         PortfolixirWeb.LiveBenchmarkScope
@@ -109,6 +117,10 @@ defmodule PortfolixirWeb.Router do
 
     get("/journal", JournalController, :index)
 
+    # ADR-0050 §12: the merge records, the audit read of a destructive write
+    # (agent-first; its list view lands no later than Sprint 17).
+    get("/merges", MergeController, :index)
+
     # The contract-version read (ADR-0044 §8): what this surface offers and
     # when it last changed, pollable with ?since=.
     get("/contract", ContractController, :show)
@@ -119,6 +131,10 @@ defmodule PortfolixirWeb.Router do
     get("/securities/:id", SecurityController, :show)
     patch("/securities/:id", SecurityController, :update)
     delete("/securities/:id", SecurityController, :delete)
+    # ADR-0050 §9, §10: the merge of a security into another — a read that
+    # previews it, and the apply under the preview's digest and choices.
+    get("/securities/:id/merge_preview", MergeController, :security_preview)
+    post("/securities/:id/merge", MergeController, :security_merge)
 
     # ISIN-change aliases (ADR-0029 §3): record a corporate-action ISIN change
     # and correct recorded aliases; imports keep matching via former ISINs.
@@ -137,6 +153,8 @@ defmodule PortfolixirWeb.Router do
 
     get("/securities/:security_id/quotes", QuoteController, :index)
     put("/securities/:security_id/quotes", QuoteController, :upsert)
+    # E25 S6, T-9: a journaled release of manual rows back to provider data.
+    post("/securities/:security_id/quotes/release", QuoteController, :release)
     post("/securities/:security_id/sync_quotes", QuoteController, :sync)
 
     get("/securities/:security_id/trades", TradeController, :index)
@@ -201,6 +219,8 @@ defmodule PortfolixirWeb.Router do
     get("/portfolios/:portfolio_id/policy_rules", PolicyRuleController, :index)
     post("/portfolios/:portfolio_id/policy_rules", PolicyRuleController, :create)
     get("/policy_rules/:id", PolicyRuleController, :show)
+    # The rename (#872, D-6): the name is a label outside the versioning.
+    patch("/policy_rules/:id", PolicyRuleController, :rename)
     post("/policy_rules/:id/versions", PolicyRuleController, :add_version)
     post("/policy_rules/:id/retire", PolicyRuleController, :retire)
     delete("/policy_rules/:id", PolicyRuleController, :delete)
@@ -305,12 +325,28 @@ defmodule PortfolixirWeb.Router do
     patch("/cash_accounts/:id", CashAccountController, :update)
     post("/cash_accounts/:id/balance", CashAccountController, :set_balance)
     delete("/cash_accounts/:id", CashAccountController, :delete)
+    delete("/cash_accounts/:id/former_names", CashAccountController, :remove_former_name)
+    # ADR-0050 §7, §10: the merge of a cash account into another — a read
+    # that previews it, and the apply under the preview's digest.
+    get("/cash_accounts/:id/merge_preview", MergeController, :cash_account_preview)
+    post("/cash_accounts/:id/merge", MergeController, :cash_account_merge)
 
     get("/securities_accounts", SecuritiesAccountController, :index)
     post("/securities_accounts", SecuritiesAccountController, :create)
     get("/securities_accounts/:id", SecuritiesAccountController, :show)
     patch("/securities_accounts/:id", SecuritiesAccountController, :update)
     delete("/securities_accounts/:id", SecuritiesAccountController, :delete)
+
+    delete(
+      "/securities_accounts/:id/former_names",
+      SecuritiesAccountController,
+      :remove_former_name
+    )
+
+    # ADR-0050 §7, §10: the merge of a depot into another — a read that
+    # previews it, and the apply under the preview's digest.
+    get("/securities_accounts/:id/merge_preview", MergeController, :securities_account_preview)
+    post("/securities_accounts/:id/merge", MergeController, :securities_account_merge)
 
     get("/buckets", BucketController, :index)
     post("/buckets", BucketController, :create)

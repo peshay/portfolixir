@@ -22,6 +22,44 @@ defmodule PortfolixirWeb.ApiV1BucketsTest do
   defp patch_json(conn, path, body), do: conn |> api_conn() |> patch(path, Jason.encode!(body))
   defp delete_json(conn, path), do: conn |> api_conn() |> delete(path)
 
+  # User story (E25 S6 review round, G19/T-10):
+  # As an API client deleting a tag bucket,
+  # I want the delete to go through when a position override stored before
+  # the exclusive scope rule held carries the bucket,
+  # so that a delete never fails with a server error on data it only shrinks.
+  #
+  # Acceptance criteria:
+  # - DELETE answers 204 and the override keeps its other buckets.
+  test "a bucket in a set stored before the exclusive rule deletes with 204", %{conn: conn} do
+    world = base_world()
+    security = create_security!(name: "Harbor Light Utilities SE", ticker: "HLU")
+
+    [scope_one, scope_two, tag] =
+      for {name, dimension} <- [{"Scope one", "scope"}, {"Scope two", "scope"}, {"Tag", "tag"}] do
+        {:ok, bucket} =
+          Buckets.create_bucket(Actor.owner_ui(), %{name: name, dimension: dimension})
+
+        bucket
+      end
+
+    {:ok, _} =
+      Portfolixir.Repo.transaction(fn ->
+        Portfolixir.Repo.query!("SELECT set_config('portfolixir.journal_actor', 'test', true)")
+
+        Portfolixir.Repo.insert_all(
+          Portfolixir.Buckets.PositionBucketOverride,
+          for id <- [scope_one.id, scope_two.id, tag.id] do
+            %{securities_account_id: world.depot.id, security_id: security.id, bucket_id: id}
+          end
+        )
+      end)
+
+    assert conn |> delete_json("/api/v1/buckets/#{tag.id}") |> response(204)
+
+    assert Buckets.position_override(world.depot.id, security.id) ==
+             {:explicit, Enum.sort([scope_one.id, scope_two.id])}
+  end
+
   # User story:
   # As an API client (and the LLM I connect over MCP),
   # I want to manage buckets through the JSON API,
@@ -273,6 +311,15 @@ defmodule PortfolixirWeb.ApiV1BucketsTest do
     assert %{"errors" => %{"exclude" => ["is invalid"]}} =
              put_json(conn, "/api/v1/views/#{view.id}/buckets", %{"exclude" => "nope"})
              |> json_response(422)
+
+    # E25 S4, F12: a bucket named twice counts once, instead of a 500.
+    assert %{"data" => %{"include" => [included_id]}} =
+             put_json(conn, "/api/v1/views/#{view.id}/buckets", %{
+               "include" => [included.id, included.id]
+             })
+             |> json_response(200)
+
+    assert included_id == included.id
   end
 
   # User story:

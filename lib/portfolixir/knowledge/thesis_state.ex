@@ -103,10 +103,20 @@ defmodule Portfolixir.Knowledge.ThesisState do
     end
   end
 
+  # The review's day is its as_of, but no later than the day it was written
+  # (E25 S6, F44): a stored future-dated entry cannot claim a review that has
+  # not happened. The entry itself keeps its as_of.
   defp put_last_reviewed(state, sorted) do
     case Enum.find(sorted, &(&1.kind in [:thesis, :invalidation_check])) do
-      nil -> state
-      review -> %{state | last_reviewed_at: review.as_of, last_reviewed_by: review.author}
+      nil ->
+        state
+
+      review ->
+        %{
+          state
+          | last_reviewed_at: SecurityNote.review_date(review),
+            last_reviewed_by: review.author
+        }
     end
   end
 

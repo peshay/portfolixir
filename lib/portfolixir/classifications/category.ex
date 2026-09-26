@@ -11,6 +11,7 @@ defmodule Portfolixir.Classifications.Category do
   import Ecto.Changeset
 
   alias Portfolixir.Classifications.Classification
+  alias Portfolixir.Input.Text
 
   @color_format ~r/^#[0-9a-fA-F]{6}$/
 
@@ -36,8 +37,9 @@ defmodule Portfolixir.Classifications.Category do
     |> update_change(:color, &normalize_color/1)
     |> update_change(:description, &normalize_description/1)
     |> validate_required([:name, :classification_id])
-    |> validate_length(:name, max: 255)
-    |> validate_length(:description, max: 2000)
+    |> Text.validate(:name, max: 255)
+    |> Text.validate(:description, max: 2000, multiline: true)
+    |> check_constraint(:description, name: :classification_categories_description_length_check)
     |> validate_format(:color, @color_format, message: "must be a hex color like #1a2b3c")
     |> assoc_constraint(:classification)
     |> foreign_key_constraint(:parent_id)

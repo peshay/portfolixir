@@ -15,6 +15,7 @@ defmodule PortfolixirWeb.Api.V1.BenchmarkParam do
 
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Portfolios.Performance.Benchmark
   alias PortfolixirWeb.Api.V1.IdParam
 
@@ -32,14 +33,15 @@ defmodule PortfolixirWeb.Api.V1.BenchmarkParam do
   end
 
   defp rate(raw) when is_binary(raw) do
-    case Decimal.parse(raw) do
-      {%Decimal{} = rate, ""} ->
+    # The shared finite-decimal parser (E25 S4, G15).
+    case BoundedDecimal.parse(raw) do
+      {:ok, rate} ->
         # One bound, the engine's (the IRR solver's domain, -99.9999 % to
         # 1000 % p.a.): a rate outside it crashed the arithmetic before the
         # comparison could refuse it (closing-act finding).
         if Benchmark.valid_rate?(rate), do: {:ok, {:rate, rate}}, else: invalid()
 
-      _malformed ->
+      :error ->
         invalid()
     end
   end

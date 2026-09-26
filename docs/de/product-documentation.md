@@ -249,7 +249,121 @@ als „über frühere ISIN zugeordnet"). Aliasse sind korrigierbar: sie werden i
 Wertpapier-Detail (`GET /api/v1/securities/:id`) gelistet und können
 (journalisiert) gelöscht werden, wenn sie versehentlich aufgezeichnet wurden.
 Eine bloße Umbenennung braucht keinen ISIN-Wechsel — sie ist nur eine
-Namensänderung.
+Namensänderung. Die neue ISIN muss eine gültige ISIN sein, Prüfziffer
+eingeschlossen, ebenso eine ISIN, eine WKN (sechs Buchstaben oder Ziffern)
+oder ein Ticker (druckbares ASCII), die an einem bestehenden Wertpapier
+geändert werden: Ein Doppelgänger ersetzt nie das Kennzeichen, das die
+Exporte tragen. Der Name eines Wertpapiers wird ohne unsichtbare
+Formatzeichen gespeichert.
+
+### Ein doppeltes Wertpapier zusammenführen (ADR-0050 §9)
+
+Wenn ein Instrument zweimal existiert — ein Export mit neuerer ISIN wurde
+importiert, bevor der ISIN-Wechsel erfasst war, und legte eine zweite Kopie
+mit einer zweiten Kopie der Historie an, oder ein von Hand angelegtes
+Wertpapier wurde vom nächsten Import noch einmal angelegt —, führt man das
+Duplikat in das Wertpapier zusammen, das bleibt: **Zusammenführen in…** im
+Zeilenmenü des Duplikats auf der Wertpapierseite, oder derselbe Knopf im
+Dialog *Kann nicht gelöscht werden*, wenn Buchungen oder Kurse das Löschen
+verhindern. Ihr Agent hat dieselbe Zusammenführung
+(`GET /api/v1/securities/:id/merge_preview` und
+`POST /api/v1/securities/:id/merge` oder die MCP-Tools
+`portfolixir.securities.merge_preview` und `portfolixir.securities.merge`),
+und beide lesen dieselbe Vorschau.
+
+Die Vorschau zeigt alles, was die Zusammenführung tut, bevor etwas
+geschrieben wird: die Position beider Wertpapiere in jedem Depot vorher und
+nachher, die Buchungen, die bei beiden stehen (Sie entscheiden, ob es
+Duplikate sind — nichts ist vorausgewählt), die Splits, die zusammenfallen,
+die Kurse, die Klassifizierungs- und Planzeilen, die Termine und die
+Kennzeichen. Was die Zusammenführung tut:
+
+- **Buchungen** gehen in jedem Depot auf das Wertpapier über, das bleibt;
+  eine Buchung, die Sie als Duplikat bestätigen, wird gelöscht, und ein
+  Split, den beide am selben Tag tragen, bleibt einmal erhalten. Die
+  Stückzahl jedes Tages in jedem Depot wird gegen beide Historien geprüft.
+- **Kurse** füllen die Lücken des Wertpapiers, das bleibt; an einem Tag, an
+  dem beide einen Kurs haben, gewinnt der des bleibenden. Ein von Hand
+  erfasster Schlusskurs, der so entfiele, wird vorher aufgeführt. Die
+  verworfenen Schlusskurse bleiben im Protokoll der Zusammenführung.
+- **Klassifizierung und Pläne**: Eine Zuordnung wandert, wo das bleibende
+  Wertpapier in dieser Klassifizierung keine hat, sonst bleibt seine; ein
+  Positionsziel wandert, außer der Plan hat schon eines für das bleibende
+  Wertpapier oder es läge nicht mehr unter dessen Kategorie — dann wird es
+  entfernt, und die Vorschau sagt, warum.
+- **Termine** wandern; zwei gleicher Art am selben Tag werden als mögliches
+  Duplikat aufgeführt, das Sie selbst bereinigen.
+- **Kennzeichen**: Tragen beide eine ISIN, wählen Sie ohne Vorgabe, auf
+  welche das bleibende Wertpapier hört — seine eigene behalten (die ISIN des
+  Duplikats wird eine frühere ISIN) oder die des Duplikats übernehmen (seine
+  eigene wird die frühere ISIN; das repariert das Duplikat, das ein Export
+  mit der neueren ISIN angelegt hat, bevor der Wechsel erfasst war),
+  wahlweise mit dem Tag des ISIN-Wechsels. Eine
+  WKN, einen Ticker oder eine Kursquelle, die dem bleibenden Wertpapier
+  fehlen, übernimmt es; Name, Anlageklasse und Logo bleiben seine.
+
+**Im Dialog** sucht der erste Schritt das Wertpapier, das bleibt, nach Name,
+ISIN, WKN oder Ticker. Ein Treffer, der die Historie des Duplikats nicht
+aufnehmen kann, bleibt in der Liste, gesperrt, mit seinem Grund: andere
+Währung, nur eines der beiden ein Benchmark, stillgelegt oder eine andere
+Kursbasis. Der zweite Schritt zeigt genau dieses Paar als Vorschau, zuerst als
+zwei Karten — die Namen sind oft gleich, deshalb zeigt jede ihre ISIN, ihre
+Buchungen und den Tag, an dem sie angelegt wurde. Dann folgt die Wahl der ISIN
+als zwei Optionen, jede mit dem Satz, welche ISIN die frühere wird; keine ist
+vorausgewählt, und *übernehmen* fragt nach dem Tag des Wechsels. Danach der
+Bestand in Stück vorher und nachher (und nach dem Entfernen der gleichen
+Buchungen), die Zahlen, die gleichen Buchungen mit ihrer eigenen Wahl, die von
+Hand erfassten Schlusskurse, die die Kurse des bleibenden Wertpapiers
+ersetzen, die Einstellungen, die wandern oder entfallen, die Termine, die bei
+beiden stehen, und die Stammdaten, die sich unterscheiden. **In … zusammenführen**
+bleibt gesperrt, die fehlende Wahl daneben genannt, bis jede Wahl getroffen
+ist, die das Paar braucht. Nach der Zusammenführung öffnet sich das
+Wertpapier, das bleibt, mit dem Ergebnis über der Tabelle, und seine
+Übersichtszeile nennt die frühere ISIN und die Zusammenführung
+(*zusammengeführt am 2026-09-26 aus „…“ (damals …)*).
+
+Die Zusammenführung wird mit Grund abgelehnt, wo sie nicht alles exakt
+erhalten kann: verschiedene Währungen, eines ein Benchmark und das andere
+nicht, Recherche-Notizen oder eine eigene Regel am Duplikat (in die andere
+Richtung zusammenführen, wenn das gelingt, oder beide behalten), Positionen in
+verschiedenen Ansichten, Splits, die sich widersprechen (zwei Verhältnisse an
+einem Tag: den Split mit dem falschen Verhältnis löschen), ein Split des
+Duplikats, der noch einen Import-Hash aus der Zeit vor der
+Import-Hash-Prüfung trägt (der Dialog nennt ihn: seine Art zurücksetzen oder
+ihn löschen), oder ein Kennzeichen eines der beiden Wertpapiere —
+gespeichert, wie sein Portfolio-Performance-Import es aufgezeichnet hat, eine
+frühere ISIN oder das eines zuvor in eines der beiden zusammengeführten
+Wertpapiers —, das das bleibende Wertpapier nicht mehr fände. Der Dialog nennt jeden Grund
+auf einmal, jede Regel beim Namen, und bietet **Andersherum zusammenführen**
+an, wo diese Richtung gelingt; wird auch sie abgelehnt, stehen beide Gründe da,
+und nichts anderes wird angeboten. Diese letzte Prüfung macht den
+nächsten Import sicher: Nach einer Zusammenführung legt ein erneut
+importierter, schon angewendeter Export nichts an, welche ISIN er auch trägt,
+und neue Zeilen unter den Kennzeichen des Duplikats werden einmal gebucht,
+auf das Wertpapier, das bleibt. Ein Lesen der ID des Duplikats antwortet
+danach mit dem Wertpapier, auf dem es jetzt liegt, und der Bildschirm ebenso:
+Ein Link oder Lesezeichen auf die Seite des Duplikats öffnet das Wertpapier,
+in das es zusammengeführt wurde, mit einem Hinweis darauf und dem Tag der
+Zusammenführung, und ein Benchmark, der das Duplikat nannte, stellt den
+Vergleich der Vermögens-Seite auf dieses Wertpapier um, mit demselben Hinweis
+unter der Performance-Überschrift. Ein Rückgängigmachen gibt es nicht; das
+Protokoll der Zusammenführung und das Audit-Journal zeigen, was sie getan hat.
+
+### Identitätsfelder, die einfrieren (ADR-0050 §11)
+
+Die **Währung eines Wertpapiers friert ein, sobald es eine Transaktion oder
+einen Kurs hat**: Buchungen und Kurshistorie sind in dieser Währung
+angegeben, eine Änderung würde sie stillschweigend umdenominieren. Jeder Weg
+lehnt die Änderung mit einem Feldfehler ab, der zählt, was sie einfriert —
+*is frozen once referenced (120 quotes, 3 transactions)* — und schreibt
+nichts: das Bearbeiten-Formular (unter der Währungsauswahl), im Suchdialog
+**Online-Felder übernehmen** und **Vorhandenes aktualisieren**, wenn das
+gewählte Listing in einer anderen Währung handelt (ein Xetra-Listing in EUR
+eines in USD gebuchten Wertpapiers ist eine andere Kursreihe, keine
+Korrektur), sowie `PATCH /api/v1/securities/:id` mit dem MCP-Tool darüber
+(`422`). Die übrigen Felder bleiben änderbar, und ein Wertpapier ohne
+Buchungen und Kurse wechselt die Währung weiterhin. Dieselbe Regel gilt für
+Konten, siehe *Konten und Depots* unten.
 
 ### Abgeleitete Kennzahlen im Chart-Tab (ADR-0047)
 
@@ -334,6 +448,25 @@ einschließlich der drei Hygiene-Reads — gehaltene Positionen ohne Eintrag
 seit N Tagen, Einträge, die noch bestätigt werden müssen, und datierte
 Sperren, die in N Tagen ablaufen.
 
+**Unsichtbare Zeichen** (E25). Kein Text wird mehr mit einem Zeichen
+gespeichert, das als nichts dargestellt wird — ein Leerzeichen der Breite
+null, ein Steuerzeichen der Schreibrichtung, ein Tag-Zeichen, eine Folge von
+Variantenselektoren: Jedes Formular, die API, MCP und der Import lehnen es ab
+und nennen es (`U+200B`). Ein Emoji aus mehreren, verbunden durch einen
+Verbinder der Breite null (eine Person am Laptop, die Regenbogenflagge), wird
+gespeichert, denn der Verbinder erscheint als das Emoji; die Flaggen von
+England, Schottland und Wales, aus Tag-Zeichen gebaut, und der
+Nicht-Verbinder der Breite null mancher Schriften werden abgelehnt. Ein zuvor gespeicherter Text trägt dort, wo er
+steht, eine Notiz **Achtung** — „Der Text enthält 2 unsichtbare Zeichen.“ (ein
+Name: „Der Name enthält …“) — mit der Abhilfe und, hinter *Text mit sichtbar
+gemachten Zeichen*, dem Text in der Schreibweise, die der Agent bekommt
+(`Auftrags[U+200B]bestand`). Im Research-Log ist die Abhilfe **Eintrag
+anhängen, der #n ersetzt**, das den Eintrag im Formular vorwählt; der Name
+eines Wertpapiers wird mit **Stammdaten bearbeiten** korrigiert; die Notizen
+einer Buchung, Name und Notiz einer Regel sowie die Namen von Ansichten,
+Buckets und Kategorien tragen die Notiz dort, wo sie bearbeitet werden, und
+eine saubere Neueingabe entfernt sie.
+
 **Benchmark-Wertpapiere.** Ein Wertpapier lässt sich aus seinem Zeilenmenü
 als Benchmark markieren („Als Benchmark markieren“): eine Referenzreihe, mit
 der das Portfolio verglichen wird — ein Index über einen ETF, Gold über einen
@@ -402,10 +535,124 @@ Geldkonto angelegt — im Dialog oder über API/MCP — löst sich die interne
 Bindung deterministisch auf ein Standard-Portfolio auf (den ältesten
 Datensatz, sonst ein frisch angelegtes „Default“), ohne nachzufragen.
 
+**Währung und Bindung frieren ein, sobald verwiesen** (ADR-0050 §11). Die
+Währung eines Geldkontos und seine interne Portfolio-Bindung frieren ein,
+sobald eine Transaktion über eines ihrer beiden Konten auf das Konto
+verweist oder ein Depot es verknüpft; die Bindung eines Depots friert ein,
+sobald eine Transaktion darauf verweist. Eine Änderung wird mit einem
+Feldfehler abgelehnt, der die Verweise zählt, und schreibt nichts —
+gebuchte Historie wird nie umdenominiert oder verschoben. Name, Notizen und
+Liquiditätsrolle bleiben änderbar. Die API verschiebt ein Konto oder Depot
+ohnehin nie in ein anderes Portfolio.
+
+**Namen und frühere Namen** (ADR-0050 §4). Zwei Verrechnungskonten teilen nie
+einen Namen, und zwei Depots auch nicht: Ein Name, den ein anderes Konto der
+Art als Namen oder als einen seiner früheren Namen trägt, wird beim Anlegen
+und Umbenennen abgelehnt, weil ein Portfolio-Performance-Import, der ihn nennt,
+schon auf jenes Konto bucht. Ein umbenanntes Konto behält seinen bisherigen
+Namen als **früheren Namen**, sodass ein Export, der noch das alte Konto
+nennt, auf das umbenannte bucht; die Rückbenennung auf einen früheren Namen
+nimmt ihn zurück. Solange ein anderes Konto der Art den alten Namen noch als
+Namen trägt, wird der alte Name nicht behalten, und ein Import, der ihn nennt,
+bucht auf jenes andere Konto. Konten, die sich schon vor dieser Regel einen
+Namen teilten, bleiben, wie sie sind; eines davon umzubenennen beendet die
+Mehrdeutigkeit. Die früheren Namen stehen in den API- und MCP-Nutzlasten
+(`former_names`) und lassen sich dort entfernen; ein Import, der einen
+entfernten Namen noch nennt, legt dann ein neues Konto an. Auf dieser Seite
+liegen beide im Zeilenmenü, siehe *Umbenennen, zusammenführen und löschen*
+unten.
+
 Durchgearbeitete Beispiele — Haushalts-Aufteilung, Strategie-Ansichten mit
 eigenen SOLL-Plänen, Übersetzen von Portfolio-Performance-Gewohnheiten und
 das Ausschließen einer Position aus der Steuerung — stehen im Leitfaden
 [Buckets & Ansichten](guides/buckets-and-views.html).
+
+### Umbenennen, zusammenführen und löschen (ADR-0050 §4, §7, §8, §10)
+
+Jede Zeile — ein Depot, das Verrechnungskonto darunter, ein Geldkonto für
+sich — hat ihr eigenes **⋮**-Menü, benannt nach ihrer Zeile (*Aktionen für
+Tagesgeld*): **Umbenennen**, **Getrennt taggen** (an einem Depot, das
+gemeinsam mit seinem Verrechnungskonto getaggt ist), **Zusammenführen in…**
+und **Löschen**, in dieser Reihenfolge. Auf einem schmalen Bildschirm öffnet
+sich das Menü als Blatt von unten und nennt oben seine Zeile.
+
+**Umbenennen** ändert nur den Namen; Währung und Portfolio-Bindung frieren
+wie oben beschrieben ein, Rolle und Buckets bleiben in der Zeile. Vor dem
+Speichern sagt der Dialog, was mit dem aktuellen Namen geschieht: Er bleibt
+ein **früherer Name** des Kontos, sodass ein Import, der ihn noch nennt,
+weiter hierher bucht — oder, solange ein anderes Konto der Art noch so heißt,
+wird er nicht behalten, und ein solcher Import bucht auf jenes andere Konto.
+Ein Name, auf den ein anderes Konto hört, als Namen oder als früheren Namen,
+wird am Feld abgelehnt, zusammen mit dem Konto, das ihn trägt, und nichts
+wird geschrieben. Dass sich die Zeile ändert, ist die Bestätigung.
+
+Derselbe Dialog listet die **früheren Namen** des Kontos; ein Name, der mit
+einer Zusammenführung kam, sagt, an welchem Tag. **Entfernen** nimmt einen
+nach einer Rückfrage weg, die sagt, was das kostet: *Ein Import, der noch
+„Tagesgeld 2019“ nennt, legt dann ein neues Konto an.* Unter dem Namen des
+Kontos zeigt die Zeile den neuesten früheren Namen (*früher: …*) und, an
+einem Konto, in das andere zusammengeführt wurden, die neueste
+Zusammenführung (*zusammengeführt aus Tagesgeld (alt) · Datum*), jeweils mit
+*+N*, wenn es mehr gibt.
+
+**Zusammenführen in…** vereint zwei Konten, die eigentlich eines sind —
+typischerweise ein Konto, das ein Import unter anderem Namen ein zweites Mal
+angelegt hat. Das Konto, das Sie zusammenführen (die Quelle), verschwindet;
+das Konto, das Sie wählen (das Ziel), behält alles. Es sind zwei Schritte in
+einem Dialog:
+
+1. **Ziel.** Die Quelle steht mit Währung, Liquiditätsrolle, Buckets,
+   Buchungen und Saldo da, und jedes andere Konto der Art ist aufgeführt.
+   Wählbar ist nur ein Konto mit derselben Währung, derselben
+   Liquiditätsrolle und denselben Buckets — bei einem Depot mit denselben
+   Standard-Buckets. Die übrigen stehen unter *Nicht wählbar*, jedes mit
+   seinem Grund, sodass klar ist, was zuerst anzugleichen ist.
+2. **Vorschau.** Noch ist nichts geschrieben. Für Geldkonten zeigt die
+   Vorschau beide Salden und ihre Summe, die Buchungen, die umziehen, die
+   Umbuchungen zwischen den beiden, die entfallen (sie heben sich auf,
+   sobald die beiden eines sind), die verknüpften Depots, die umziehen, und
+   die gesetzten Salden, die angepasst werden — jeder mit seinem Datum und
+   seinem Wert danach — oder entfallen. Für Depots zeigt sie je betroffener
+   Position Stückzahl, Durchschnittskosten und realisierten Gewinn/Verlust
+   vorher und nachher sowie einen Split, dessen Rundung sich unterscheidet,
+   sobald beide Historien vereint sind. **Buchungen, die in beiden Konten
+   gleich sind** — gleicher Tag, gleiche Art, gleiche Beträge, typischerweise
+   ein Import, der zweimal ankam — stehen mit zwei Wahlmöglichkeiten da,
+   *als Duplikate entfernen* oder *beide behalten*, jede mit dem Saldo, zu
+   dem sie führt (bei Geldkonten); *als Duplikate entfernen* nennt außerdem,
+   was es außerhalb der beiden ändert, etwa den Saldo eines anderen Kontos
+   oder die Stückzahl einer Position. Keine ist vorausgewählt, und der Knopf
+   **In … zusammenführen** bleibt deaktiviert, mit dem Grund daneben, bis
+   Sie wählen.
+
+Die Bestätigung wendet genau den Plan an, den die Vorschau zeigte: Die
+Buchungen, die verknüpften Depots und die angepassten gesetzten Salden ziehen
+zum Ziel, die Namen der Quelle werden frühere Namen des Ziels — sodass der
+nächste Import unter dem alten Namen auf das Ziel bucht —, und die Quelle
+wird gelöscht. Das Ergebnis steht über der Tabelle (*Tagesgeld (alt) in
+Tagesgeld zusammengeführt: 151 Buchungen verschoben, 2 entfernt.*). Hat sich
+eines der Konten geändert, während die Vorschau offen war, wird nichts
+zusammengeführt: Der Dialog zeigt die neue Vorschau, sagt, was sich geändert
+hat, und fragt die Wahl erneut ab. Eine Zusammenführung, die nicht jede
+Position in ihren Ansichten halten kann — zwei Depots, die ein Wertpapier in
+verschiedenen Buckets halten, etwa —, wird schon in der Vorschau mit Grund
+und Abhilfe abgelehnt; **Erneut prüfen** liest sie nach dem Angleichen neu.
+Ebenso eine Geldkonto-Zusammenführung, die einen gesetzten Saldo mit mehr
+Nachkommastellen speichern müsste, als ein Betrag hält — ein Kauf oder
+Verkauf ohne Betrag, dessen Geld Stückzahl × Kurs ist, kann das auslösen —,
+und eine, deren gesetzter Saldo noch einen Import-Hash aus der Zeit vor der
+Import-Hash-Prüfung trägt: Der Dialog nennt jeden gesetzten Saldo und jede
+Buchung mit Konto, Datum und Nummer und sagt, was zu ändern ist.
+Ein Rückgängigmachen gibt es nicht; das Protokoll der Zusammenführung und das
+Audit-Journal zeigen, was sie getan hat. Ihr Agent liest die Protokolle mit
+`GET /api/v1/merges` (MCP `portfolixir.merges.list`); eine Liste auf dem
+Bildschirm folgt spätestens in Sprint 17.
+
+**Löschen** entfernt ein Konto nur, wenn nichts darauf verweist — keine
+Buchung und bei einem Geldkonto kein verknüpftes Depot — und fragt einmal
+nach, mit dem Namen des Kontos. Ein Konto mit Buchungen wird nicht gelöscht:
+*Kann nicht gelöscht werden* sagt, was es noch hat, und bietet stattdessen
+**Zusammenführen in…** an — so verschwindet ein Konto mit Historie.
 
 ### Portfoliodatensätze (Kompatibilität)
 
@@ -460,6 +707,17 @@ zweite Buchung, die abgeleiteten Bestände folgen, und die Änderung wird mit
 den vorherigen Werten im Audit-Journal festgehalten. Das ist die menschliche
 Sicht auf eine Fähigkeit, die API und MCP-Begleiter schon vor der
 Zwei-Wege-Regel hatten; an beiden wurde nichts ergänzt.
+
+**Ein gebuchter Split** ist die Ausnahme (E25 S6): Ein Split ist eine
+Tatsache am Wertpapier, gebucht über **Split erfassen** am Wertpapier, dessen
+Prüfungen (der Stichtag, die Bestände, ein anderes Verhältnis am selben Tag)
+eine gewöhnliche Änderung umgehen würde. **Bearbeiten** an einer Split-Zeile
+öffnet die Schublade daher mit Typ, Stichtag, Wertpapier und Verhältnis des
+Splits, fest, und nur die **Notiz** ist änderbar (**Notiz speichern**). Ein
+falscher Split wird nicht an Ort und Stelle korrigiert: Seine Zeilen werden
+über die API oder den MCP-Begleiter gelöscht, und der Split wird mit **Split
+erfassen** neu erfasst. API und MCP antworten auf eine Änderung an etwas
+anderem als der Notiz einer Split-Zeile mit `422`.
 
 Während ein **Verkauf** erfasst wird, zeigt das Formular eine Vorschau,
 welche FIFO-Kauftranchen (Lots) der Verkauf verbrauchen würde und den
@@ -729,6 +987,11 @@ Die Zustände sind:
   `(Sicht, Klassifizierung)`-Plan auf einmal. Eine Live-**Σ**-Fußzeile summiert
   die Kategoriegewichte plus das Cash-Ziel und zeigt bei genau 100 % ein ✓, sonst
   ein ✗ mit dem gelben Abweichungshinweis — und aktualisiert sich beim Tippen.
+  Eine Elternkategorie, deren Kinder Gewichte tragen, zeigt deren Summe neben
+  ihrem Namen (**Kinder Σ**), in der Abweichungsfarbe, wenn sie vom eigenen
+  Gewicht der Elternkategorie abweicht; sie folgt jeder Eingabe wie die
+  Σ-Fußzeile (ein Kind, das seinen Positionszielen folgt, zählt mit deren
+  Summe) und blockiert das Speichern nie.
 - **Plan löschen** entfernt den Plan der Sicht; die Vermögensseite fällt für
   diese Sicht dann auf **nur IST** zurück (kein SOLL, keine Drift).
 
@@ -1091,16 +1354,24 @@ ADR-0040 gegen den auf den zugeordneten Anteil normierten Plan gemessen, nicht
 gegen die rohe Soll-Spalte. Bei einem Plan mit 83 % Summe ist eine Kategorie
 mit 21,2 % Ist gegen 55 % gespeichertes Soll also 45 pp entfernt, nicht 34 —
 und Chips, Drift-Spalte, Dashboard und `min_drift=` sind sich über diese Zahl
-einig. Ein Umschalter **Baum |
-Positionen** tauscht die Hierarchie gegen eine flache Rebalancing-Arbeitsliste:
+einig. Die Grundlagenzeile sagt das dort, wo die Zahl gelesen wird: Hinter der
+Σ der obersten Ebene steht **„— Abweichung gegen den verteilten Anteil"**,
+sobald der Plan weniger als 100 % verteilt, und die Σ steht nur dann in der
+Warnfarbe, wenn der Plan **mehr** als 100 % verteilt — ein Plan mit bewusstem
+Rest ist kein Fehler (Issue #875). Ein Umschalter **Baum |
+Positionen** — ein Segment-Schalter, dessen aktive Option gefüllt ist —
+tauscht die Hierarchie gegen eine flache Rebalancing-Arbeitsliste:
 eine Zeile je Wertpapier (inkl. Cash) mit der Kategorie als Kontext,
 standardmäßig nach vorzeichenbehafteter Drift sortiert (stärkstes Übergewicht
 zuerst, stärkstes Untergewicht zuletzt) und über die Spaltenköpfe (Wert, Drift
-oder Kategorie) umsortierbar. Eine Kategorie mit direkt zugeordneten Wertpapieren klappt in
+oder Kategorie) umsortierbar. Die Kategorie der Cash-Zeile lautet „—": Cash hat
+ein eigenes Soll und ist nie „Nicht zugeordnet". Eine Kategorie mit direkt zugeordneten Wertpapieren klappt in
 ihre Wertpapiere auf — jedes mit Wert, Gewicht, seinem Anteil an der
 Kategorie-Drift und einem reinen **Anzeige-Rebalancing-Hinweis**: die indikative
 Stückzahl, die zum Bewertungskurs zu verkaufen (positive Drift) oder zu kaufen
-(negative) wäre, um die Lücke zu schließen (ADR-0023). Der Hinweis modelliert
+(negative) wäre, um die Lücke zu schließen (ADR-0023). Ein Hinweis, der auf
+zwei Stellen gerundet null Stück ergibt, wird nicht gezeigt („—"); die Drift
+bleibt. Der Hinweis modelliert
 keine Gebühren oder Steuern, und hinter ihm steht bewusst kein Order-Knopf —
 das Handeln bleibt vollständig manuell.
 
@@ -1158,7 +1429,13 @@ Bucket-Abschnitts verlinkt.
 **Als Standard festlegen** merkt sich
 die Wahl serverseitig, sodass Vermögensseite und Übersicht mit dieser Ansicht
 öffnen, solange keine andere ausdrücklich gewählt ist (eine ausdrückliche
-Wahl — auch von „Alles" — gewinnt immer). Teilen sich die Buckets der aktiven
+Wahl — auch von „Alles" — gewinnt immer). Eine Ansicht, eine Benchmark oder
+eine Sprache, die mit einem Link von einer anderen Website kommt, gilt für die
+Seite, die dieser Link öffnet, und wird nicht gemerkt (E25): Nur eine Wahl auf
+der Instanz selbst oder eine in die Adresszeile getippte ändert, was die
+nächste Seite zeigt. Die eigenen Links dieser Seite (Sprachwechsel, Reiter)
+geben die fremde Ansicht nicht weiter, und eine Anmeldung dazwischen entfernt
+Ansicht, Benchmark und Sprache aus der Adresse, zu der sie zurückführt. Teilen sich die Buckets der aktiven
 Ansicht ein Konto, erinnert ein Badge neben der Summe — *Überlappende Buckets –
 Konten nur einmal gezählt* — daran, dass sich Werte je Bucket überschneiden und
 nicht summiert werden dürfen; die Summe selbst ist bereits dedupliziert.
@@ -1339,8 +1616,11 @@ sich bis zu zwei Benchmarks wählen: ein auf der Wertpapierseite als
 Benchmark markiertes Wertpapier (ein Index über einen ETF, Gold über einen
 ETC, per gewöhnlichem Kurs-Sync) oder ein fester Jahreszins als Prozentwert
 (die Tagesgeld-Alternative; in dieser Version auch die Ausdrucksform der
-Inflation). Die Wahl steht in der URL und wird wie die aktive View gemerkt.
-Zwei Vergleiche erscheinen, beide so, wie Portfolio Performance sie zeigt.
+Inflation). Die Wahl steht in der URL und wird wie die aktive View gemerkt;
+ein Zins wird nur behalten, wenn der Vergleich ihn exakt verwenden kann
+(zwischen −99,9999 % und 1000 % p. a., als Bruch mit höchstens 15
+Nachkommastellen), und ein gemerkter Zins, der das nicht mehr erfüllt,
+fällt beim nächsten Aufruf weg. Zwei Vergleiche erscheinen, beide so, wie Portfolio Performance sie zeigt.
 **Einmal gekauft** — die auf den Periodenbeginn rebasierte Benchmark als
 gestrichelte Linie über dem TTWROR-Chart, mit eigener Legende und im
 Chart-Tooltip — beantwortet, ob die Auswahl den Index geschlagen hat.
@@ -1591,7 +1871,17 @@ damit eine erfasste Zeile mit dem Papier vergleichbar bleibt.
 
 **Die Seite ist eine Budget-Anzeige plus Prüfliste.** Steuerpflichtige Person
 und Steuerjahr sind segmentierte Steuerelemente (der Bereich steht in der
-URL, `?holder=…&year=…`). Das Budget erscheint als Füllstandsanzeige: der
+URL, `?holder=…&year=…`). Eine steuerpflichtige Person oder ein Institut ist
+eine Identität, wie auch immer sie getippt wurde: Der Name wird
+zusammengesetzt, ohne unsichtbare Zeichen und mit einfachen Leerzeichen
+gespeichert und ohne Rücksicht auf Groß- und Kleinschreibung abgeglichen.
+„Anna Muster" und „ANNA MUSTER" sind daher ein Eintrag im Steuerelement mit
+einem Budget, und eine als „Bank Eins" und als „bank eins" erfasste Bank ist
+darin ein Institut (E25 S6). Namen, die vor dieser Regel erfasst wurden,
+speichert das Upgrade ebenso, jede Änderung im Prüfprotokoll; ein Name, der
+danach einem anderen Eintrag desselben Schlüssels gliche, bleibt, wie er war,
+und wird im Log des Upgrades genannt, damit Sie einen der beiden auf dieser
+Seite korrigieren oder entfernen. Das Budget erscheint als Füllstandsanzeige: der
 verbleibende Betrag als Wert, die Ausschöpfung des Freistellungsauftrags als
 Füllstand ohne Schwellenfärbung, Stichtag und erfasste Institute auf der
 Basiszeile, daneben die Zusammensetzung — Verlusttopf Aktien, verbleibender
@@ -1653,6 +1943,25 @@ Der Reiter **Risiko** im Bereich Vermögen zeigt zwei Dinge, die eine Frage
 beantworten — wie konzentriert ist das Portfolio, und wie stark schwankt es —
 über der **steuerbaren Basis** der aktiven Ansicht (die Ansicht steht im Kopf).
 
+- **Eigene Regeln** ganz oben: die Obergrenzen, Untergrenzen und Bänder des
+  Betreibers (ADR-0049) mit ihren Befunden, verletzte und nicht bestimmbare
+  zuerst. Der **Name einer Regel ist ein Link** und öffnet ihren Dialog, den
+  einen Ort, an dem die Regel geändert (eine neue Version ab einem Datum; die
+  bisherige bleibt lesbar), **umbenannt** oder beendet wird. Umbenennen ändert
+  nur die Bezeichnung: Es entsteht keine Version, der neue Name gilt für die
+  Regel mit allen Versionen, und das Audit-Journal behält den bisherigen
+  Namen. Eine beendete Regel wird genauso aus der Liste der beendeten Regeln
+  umbenannt. „Risiko“ zeigt die Regeln der aktiven Ansicht; eine Regel, die in
+  einer anderen Ansicht gilt, steht in jener Ansicht. Wird das Löschen einer
+  Ansicht, einer Kategorie, einer Klassifizierung oder eines Wertpapiers
+  abgelehnt, weil Regeln es lesen, nennt die Ablehnung die Regeln mit Stand und
+  Ansicht, und jeder Name führt auf „Risiko“ in der Ansicht, in der die Regel
+  gilt. Eine Regel, deren gültige Linie der Agent mit seinem API-Token gezogen
+  hat, endet in ihrer Wortzeile mit **„Agent“** — geplante und beendete Regeln
+  ebenso —, und die Versionsliste im Dialog nennt bei jeder Version den Autor,
+  „Operator“ oder „Agent“ (E25). Eigene Regeln tragen kein Wort. Die Regeln
+  des Agenten gelten wie die eigenen; das Wort sagt nur, wer die Linie gezogen
+  hat.
 - **Kennzahlen des Portfolios**, ein Jahr: die annualisierte **Volatilität**,
   der **maximale Rückgang** mit Beginn, Tiefpunkt und Erholung, die
   **risikoadjustierte Rendite** (bei einem risikofreien Satz von 0 ist sie
@@ -1669,7 +1978,9 @@ beantworten — wie konzentriert ist das Portfolio, und wie stark schwankt es �
   1.500, konzentriert ab 2.500).
 - **Anlageklassen-Obergrenzen**, sofern über die API gesetzt.
 - **Korrelationen** der größten Positionen hinter einer Aufklappfläche, zuerst
-  in die Basiswährung umgerechnet und nur über Tage mit Kurs für beide.
+  in die Basiswährung umgerechnet und nur über Tage mit Kurs für beide. Die
+  Grundlagenzeile nennt, über wie viele der größten Positionen sie laufen: die
+  Matrix erfasst höchstens die 20 größten, wie lang die Liste auch ist.
 
 Die Seite berichtet, sie empfiehlt nicht. Dieselben Zahlen liefert
 `GET /api/v1/portfolios/:portfolio_id/risk` und das MCP-Werkzeug
@@ -1696,6 +2007,44 @@ Parser-Warnungen erscheinen in einem scrollbaren Feld mit Kopier-Button. Der
 kopierte Text nutzt stabile `Row N: message`-Zeilen, sodass die Diagnose beim
 Quell-Export verbleiben kann. Das Anwenden des Imports ist atomar und nutzt
 Inhalts-Hashes, um Duplikate bei erneutem Lauf zu überspringen.
+
+### Dateien und Zeilen, die die Vorschau ablehnt
+
+Eine Datei, die die Vorschau nicht sicher halten kann, wird als Ganzes
+abgelehnt, bevor etwas für den nächsten Besuch aufbewahrt wird. Der Grund steht
+mit seiner Abhilfe im Meldungsband über dem Ablagefeld, und das Ablagefeld
+nimmt sofort die nächste Datei:
+
+- **Eine Datei, die nicht in UTF-8 kodiert ist**, wie sie oft entsteht, wenn
+  eine Tabellenkalkulation einen Export neu gespeichert hat: in Portfolio
+  Performance neu exportieren und die Datei ablegen, ohne sie vorher in einer
+  Tabellenkalkulation zu öffnen.
+- **Eine Datei mit zu vielen unterschiedlichen Konto-, Depot- oder
+  Wertpapiernamen** für eine Vorschau, weit mehr, als ein gewöhnlicher Export
+  enthält: in Portfolio Performance kleinere Exporte anlegen, etwa je Konto
+  oder Depot, und nacheinander importieren.
+- **Eine Datei, die mehr Einträge ergibt, als der Import fasst**, gezählt
+  jede Zeile und jede Steuererstattung, die eine Zeile abspaltet: den Export in
+  Portfolio Performance teilen, etwa nach Jahren.
+
+Eine einzelne Zeile, die der Import nie buchen könnte, ist stattdessen eine
+Parser-Warnung: Sie steht mit ihrer Zeilennummer im Warnungsfeld, zählt nicht
+zu den Einträgen, und der Rest der Datei wird angezeigt und importiert. Ein
+Wertpapiereintrag, der nichts benennt (kein Name, keine ISIN, WKN oder kein
+Ticker), ist eine solche Zeile: *Wertpapier ohne Name und ohne ISIN — Zeile
+nicht übernommen*. Ebenso eine Zeile mit einem Wert, den keine Spalte des
+Ledgers hält (ein Betrag, eine Gebühr, eine Steuer, eine abgespaltene
+Steuererstattung oder ein abgeleiteter Kurs mit mehr Stellen vor dem Komma,
+als die Spalte nach dem Runden auf ihre Nachkommastellen fasst), eine Zahl, die
+der Parser nicht lesen kann, und eine Transaktion mit mehr Gebühren- und
+Steuerpositionen, als eine Buchung trägt: Jede wird mit Feld und Zeile
+benannt und lässt den Import nach dem Bestätigen nie scheitern. Eine Zeile,
+deren ISIN keine gültige ISIN ist (Form oder Prüfziffer, auch ein Buchstabe aus
+einer anderen Schrift), bleibt ebenso draußen, damit ein Doppelgänger nie zu
+einem zweiten Wertpapier wird. Ein Eintrag nur mit WKN oder nur mit Ticker ist ein
+Wertpapier wie jedes andere und wird über die Zuordnungsleiter unten
+aufgelöst. Eine Vorschau wird für den nächsten Besuch (Sprachwechsel,
+Neuladen) erst aufbewahrt, wenn sie einmal angezeigt wurde.
 
 ### Was ein erneuter Import bewahrt
 
@@ -1727,6 +2076,105 @@ die alte Buchung von Hand entfernen oder korrigieren. Dieselbe Aussage steht
 in der [API- und MCP-Referenz](integration/api-and-mcp.html), damit ein Agent
 sie dort liest, wo er die Endpunkte liest.
 
+### Was ein erneuter Import zuerst prüft (ADR-0050)
+
+Der Inhalts-Hash jeder Zeile wird geprüft, **bevor irgendetwas aufgelöst oder
+angelegt wird**. Eine Zeile, die die Datenbank schon hält, steht bei den bereits
+gebuchten Datensätzen und legt nichts an: kein Wertpapier, kein Konto, keine
+Transaktion. Dasselbe gilt für eine Zeile, die eine Zusammenführung entfernt
+hat: Ihr Hash bleibt als **stillgelegter Inhalts-Hash** erhalten, und das
+Ergebnis nennt ihn so.
+
+Verrechnungskonten und Depots entstehen **mit ihrer ersten importierten
+Buchung**, nie vorab. Ein Konto, das auf *+ Neu anlegen* zugeordnet ist und
+dessen Zeilen alle schon gebucht oder aus einem anderen Grund übersprungen
+sind, wird nicht angelegt, und der Bucket-Tag landet auf genau den Konten, die
+der Import angelegt hat. Ein importiertes Konto umzubenennen und denselben
+Export erneut abzulegen, legt kein leeres Konto unter dem alten Namen an.
+
+**Konten werden über den Namen gefunden, dann über einen früheren Namen.** Die
+Vorschau belegt jedes Verrechnungskonto und Depot der Datei mit dem Konto
+genau dieses Namens vor, sonst mit dem Konto, das ihn als früheren Namen trägt
+(siehe [Konten und Depots](#konten-und-depots)). Eine Umbenennung behält den
+bisherigen Namen, sodass auch ein Export, der sich in Portfolio Performance
+verändert hat (eine andere Nachkommagenauigkeit, eine bearbeitete Buchung),
+das umbenannte Konto findet und nichts doppelt bucht. Ein Name, den zwei
+Konten tragen, wird mit nichts vorbelegt: Die Auswahl zeigt *Entscheiden…*,
+und der Import wartet, bis das Konto gewählt ist; er rät nie. Wird eine
+Vorbelegung auf ein Konto anderen Namens geändert, wird die Zuordnung
+standardmäßig **gemerkt**: Der Name wird früherer Name dieses Kontos, und der
+nächste Import belegt ihn selbst vor. Eine unveränderte Vorbelegung merkt
+nichts. Ist der Name der Name eines anderen Kontos, gilt die Wahl nur für
+diesen Import. Ist er früherer Name eines anderen Kontos, **verschiebt** das
+Merken ihn, und die Zeile sagt das vor dem Bestätigen (*„X“ wird früherer Name
+von A und ist dann kein früherer Name von B mehr*). Das Kästchen **Zuordnung
+merken** der Zeile — angehakt und nur dort gezeigt, wo Sie eine Vorbelegung
+geändert haben — lässt die Zuordnung für diesen Import allein gelten, wenn Sie
+es abwählen. Wird ein in der Vorschau zugeordnetes Konto vor dem
+Bestätigen zusammengeführt oder gelöscht, hält der Import an, bevor er etwas
+schreibt, und die Kontenzuordnung wird neu vorbelegt.
+
+**Was jede Zeile des Zuordnungsschritts sagt.** Jedes Verrechnungskonto und
+Depot der Datei zählt seine Buchungen: wie viele **bereits importiert** sind,
+wie viele **interne Umbuchungen entfallen** und wie viele neu sind, oder
+*nichts anzulegen*, wenn keine neu ist. Die Zählung ist das, was der Import
+unter der Vorbelegung tun wird: Eine Buchung ist bereits importiert, wenn ihr
+Inhalt einer früher gespeicherten gleicht oder wenn auf dem Konto, zu dem der
+Name führt, schon eine Buchung mit demselben Tag, derselben Art und denselben
+Beträgen steht — der Fall eines erneut gespeicherten Exports, nachdem Sie
+zwei seiner Konten zusammengeführt haben —, und eine Umbuchung zwischen zwei
+Namen, die jetzt zu einem Konto führen, entfällt. Eine Entscheidung, die Sie
+in der Vorschau noch treffen (ein Wertpapier, ein anderes Konto), kann
+ändern, was mit den neuen Buchungen einer Zeile geschieht. Eine
+Vorbelegung über einen früheren Namen sagt das unter der Auswahl, und *+ Neu
+anlegen* auf einer Zeile ohne neue Buchung sagt, dass es nichts anlegt. Zwei
+Konten gleichen Namens werden in der Liste durch das unterschieden, was
+abweicht — bei einem Verrechnungskonto seine verknüpften Depots, sonst seine
+Währung, sonst der Tag, an dem es angelegt wurde; bei einem Depot sein
+Verrechnungskonto —, und eine mehrdeutige Zeile nennt ihre Kandidaten ebenso.
+*+ Neu anlegen* für einen Namen, den der Import nicht anlegen darf (der Name
+eines anderen Kontos, ein früherer Name eines anderen Kontos oder der Name
+mehrerer Konten), bleibt in der Liste, gesperrt, mit dem Grund, sodass nichts,
+was Sie wählen, den Import am Ende scheitern lässt.
+
+Umbenennungen von vor diesem Release werden ebenfalls gemerkt: das Update
+spielt die Umbenennungen nach, die das Audit-Journal hält. Einen Namen, den
+ein neueres Konto schon trägt (etwa ein leeres Konto, das ein früherer Import
+unter dem alten Namen angelegt hat), protokolliert das Update und lässt ihn,
+wo er ist; dieses Konto in das umbenannte zusammenzuführen, behebt das. Eine
+Umbenennung, die älter ist als das Audit-Journal der Konten, hat keine Spur
+hinterlassen; ihr alter Name wird einmal von Hand zugeordnet.
+
+Eine **Umbuchung, deren beide Seiten auf dasselbe Konto oder Depot führen**
+(etwa zwei Portfolio-Performance-Konten, die auf ein Portfolixir-Konto
+zugeordnet sind), ist nichtig. Sie wird übersprungen und bei den internen
+Umbuchungen mit Zeile, Art, Datum und beiden Namen aus der Datei aufgeführt,
+und der Rest der Datei wird importiert; sie lässt nicht mehr den ganzen Import
+scheitern.
+
+Das Ergebnis listet jeden übersprungenen Datensatz, gruppiert nach der
+Prüfung, die ihn übersprungen hat: eine identische, schon importierte Zeile
+(gespeicherter Inhalts-Hash; die erwartete Masse eines erneuten Imports,
+deshalb bleibt ihre Gruppe zugeklappt), eine Zeile, die eine Zusammenführung
+entfernt hat (stillgelegter Inhalts-Hash), oder eine bestehende Buchung mit
+demselben Datum, Wertpapier, derselben Stückzahl und demselben Betrag. Es
+listet außerdem die gemerkten Namen (und bei einem verschobenen Namen das
+Konto, das ihn abgab) und jede Buchung, die am oder vor einem gesetzten Stand
+liegt, den eine Zusammenführung angepasst hat: Diese Buchung wird importiert,
+und dieser Stand nimmt ihren Betrag auf, sodass der Saldo des Kontos bleibt,
+wo der gesetzte Stand ihn festlegt.
+
+Eine **von einer Zeile abgespaltene Steuererstattung** (etwa eine negative
+Steuer auf einen Verkauf) wird mit dieser Zeile gehasht und für sich geprüft:
+Zwei gleiche Erstattungen zweier verschiedener Verkäufe werden beide gebucht,
+und ein erneuter Import der Datei bucht keine doppelt. Ein von Hand gelöschter
+Verkauf wird wieder gebucht, ohne dass seine Erstattung ein zweites Mal
+gebucht wird, und eine Erstattung, die in Portfolio Performance zu einem schon
+importierten Verkauf hinzukam, wird beim nächsten Import gebucht. Eine
+Erstattung, deren Zeile nicht importiert wird, wird mit ihr übersprungen.
+Innerhalb einer Datei wird eine Zeile, die eine frühere genau wiederholt,
+einmal gebucht, und die Wiederholung steht bei den bereits gebuchten.
+
 ### Wertpapier-Matching und der Zuordnungsschritt
 
 Wertpapiere in der Datei werden über eine deterministische **Leiter stabiler
@@ -1754,6 +2202,10 @@ Das Vorschau-Panel **Wertpapiere aus dem Export** zeigt das Ergebnis:
   bestehenden ähnelt, das Kategorie-Zuordnungen oder Positionsziele trägt,
   verlangt die Zeile eine eigene ausdrückliche Bestätigung — ein Duplikat
   würde diese Konfiguration auf einer bestandslosen Zeile stranden lassen.
+  Ein Name, der einem gespeicherten nur ähnlich sieht (unsichtbare Zeichen,
+  Doppelgänger-Buchstaben aus einer anderen Schrift, andere Groß- und
+  Kleinschreibung oder Leerzeichen), gilt als solche Ähnlichkeit, und die
+  Zuordnung selbst übergeht unsichtbare Zeichen in Namen.
 
 Wird ein Eintrag ummappt, dessen ISIN von der aktuellen ISIN des
 gewählten Wertpapiers abweicht, bietet die Vorschau an, die Differenz im
@@ -1774,7 +2226,10 @@ ab, wenn sich etwas anders auflöst als im bestätigten Stand (Vorschauen könne
 länger offen stehen); und Zeilen, die sich zur **selben Buchung auf
 demselben Wertpapier** auflösen — ein Export, der ein Papier unter alter
 und neuer ISIN führt — werden zu einer Transaktion zusammengefasst und
-ausgewiesen, nie doppelt importiert.
+ausgewiesen, nie doppelt importiert. Zusammengefasst werden nur Zeilen
+desselben Portfolio-Performance-Kontos: Zwei gleiche Buchungen aus zwei
+verschiedenen Konten der Datei, die auf ein Konto zugeordnet sind (etwa zwei
+gleiche Gebühren), werden beide importiert.
 
 **Ein-/Auslieferungszeilen** behalten ihren geparsten Stückpreis (die
 CSV-Spalte `Kurs`), sodass eine Einlieferung mit Preis mit ihrem echten
@@ -1901,7 +2356,11 @@ Handelspreis) eine Nach-Split-Position nie zum unbereinigten Preis bewertet.
 Für Anbieter, die ihre Historie nie rückwirkend anpassen, bieten die
 Stammdaten des Wertpapiers (hinter **Bearbeiten** in der Kopfzeile der
 Detailansicht) den Schalter **Synchronisierte Kurse als roh behandeln**, der
-die Roh-Basis für dessen synchronisierte Zeilen erzwingt.
+die Roh-Basis für dessen synchronisierte Zeilen erzwingt. Die Splits eines
+Wertpapiers, jeder mit seinem eigenen Betrag gezählt (2:1 und 1:2 zählen
+beide 2), multiplizieren sich auf höchstens 10^12: Der Split-Assistent lehnt
+ein Verhältnis darüber ab und bucht nichts, denn keine echte Aktienhistorie
+kommt in die Nähe.
 
 **Der Reiter Übersicht liest, Bearbeiten schreibt.** Die Detailansicht
 öffnet auf **Übersicht**, einer Lesefläche (Issue #804): sechs Kennzahlen —
@@ -1977,7 +2436,9 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
   der verborgenen Positionen ist ein gedämpftes Suffix des Kategorienamens,
   und die Basis des Ergebnisses („heutige Zusammensetzung, keine
   Periodenrendite") ist eine Basiszeile mit ⓘ; auf dem Telefon behält die
-  Zeile Wert und Ergebnis.
+  Zeile Wert und Ergebnis, auf zwei Zeilen: der Kategoriename (umbrochen statt
+  abgeschnitten) mit dem Zähler der verborgenen Positionen oben, Wert und
+  Ergebnis darunter unter ihren Spaltenköpfen.
 - Die Seitenleiste ist in aufgabenorientierte Bereiche organisiert (ADR-0022):
   **Übersicht**, **Vermögen**, **Wertpapiere** und **Transaktionen** auf der
   obersten Ebene, plus eine Gruppe **Verwaltung** mit **Konten & Depots**,
@@ -1988,6 +2449,12 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
   (ADR-0024): sie werden als Chips auf den Zeilen von Konten & Depots und auf
   der Ansichten-Seite verwaltet, die der Link **Ansichten** des
   Sicht-Umschalters öffnet.
+- Auf dem Telefon scrollt die Reiterzeile eines Bereichs (Vermögen,
+  Transaktionen) seitlich, statt umzubrechen: Der Reiter, auf dem man steht,
+  ist beim Öffnen einer Seite sichtbar, ein Verlauf markiert jede Seite, hinter
+  der weitere Reiter liegen, und die Zeile kommt immer mit einem ganzen Reiter
+  am linken Rand zur Ruhe — auch an ihrem Ende, wo nach dem letzten Reiter ein
+  wenig Leerraum folgt.
 - Theme: System-, hell- und dunkel-Modus werden unterstützt.
 - Akzent: violette, türkise und korallenfarbene Logo-Akzentwahlen werden
   unterstützt.
@@ -1999,6 +2466,20 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
 - Datumsfelder nehmen ISO-Daten (`YYYY-MM-DD`) entgegen und zeigen sie auch so
   an — dasselbe Format wie jedes angezeigte Datum; der lokalisierte
   Browser-Datumswähler kommt nicht zum Einsatz.
+- Zahlenfelder (Stückzahl, Preis, Gebühren und Steuern, Abrechnungsbetrag und
+  Kurs, die Grenze einer Regel, die Zahlen unter Steuern, ein Kontosaldo)
+  zeigen und lesen Zahlen in der Sprache der Seite: auf einer deutschen Seite
+  mit Dezimalkomma (`1664,40`), auf einer englischen mit Punkt. Sie zeigen nie
+  einen Tausenderpunkt und stehen rechtsbündig in Tabellenziffern. Das
+  Trennzeichen der anderen Sprache wird ebenfalls gelesen (`45.60` auf einer
+  deutschen, `45,60` auf einer englischen Seite) — außer wenn die Zahl eine
+  Tausendergruppe sein könnte (`1.664` auf einer deutschen, `1,664` auf einer
+  englischen Seite): Eine solche Zahl ist mehrdeutig und wird am Feld mit der
+  Bitte abgelehnt, sie ohne Tausendertrennzeichen einzugeben, ebenso eine Zahl
+  mit zwei Trennzeichen (`1.664,40`) oder eine mit Leerzeichen oder Apostroph
+  gruppierte (`1 664,40`, `1'664.40`, wie Bankseiten und PDFs Zahlen drucken).
+  Eine abgelehnte Zahl speichert nichts, und das Getippte bleibt, wie es
+  getippt wurde.
 - Während Werte berechnet werden, zeigt der betroffene Platz einen
   Platzhalter plus den Hinweis „wird berechnet" statt eines Ladetexts;
   Kopfzahlen zählen kurz sichtbar hoch. Bei reduzierter Bewegung als
@@ -2029,6 +2510,15 @@ und Wechselkurse) ist betrieblich und wird nicht journalisiert. Das Journal ist
 abfragbar (siehe [API und MCP](integration/api-and-mcp.html)). Es deckt derzeit
 Wertpapier-Stammdaten ab; die übrigen Schreibbereiche folgen nacheinander. Eine
 eigene Ansicht in der App ist als Folgeschritt geplant.
+
+Das Löschen eines Geldkontos, eines Depots oder eines Wertpapiers nimmt nie
+stillschweigend etwas mit (ADR-0050 §11). Eine Zeile, auf die noch Buchungen
+verweisen — bei einem Wertpapier auch Kurse, Recherche-Notizen oder
+Ereignisse —, wird gar nicht gelöscht: Der Weg ist dann, sie mit der Zeile
+zusammenzuführen, die bleibt. Bei einer unreferenzierten Zeile werden
+Bucket-Verknüpfungen, Positions-Overrides und Kategorie-Zuordnungen vorher
+entfernt, jeweils über ihren eigenen journalisierten Schreibpfad, sodass das
+Journal jede Mitgliedschaft zeigt, die das Löschen beendet hat.
 
 ## Heutige Nicht-Ziele
 

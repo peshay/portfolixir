@@ -53,11 +53,14 @@ docker compose up --build
 ```
 
 The Compose setup starts PostgreSQL, the Phoenix app, and the MCP companion.
-Set local bearer tokens through `.env` or the shell:
+Both local bearer tokens must be at least 32 bytes and not a placeholder, or
+the app and the companion refuse to start. In `.env`, paste the output of
+`openssl rand -base64 48` as each value: Compose reads `.env` literally and
+runs no command there. In the shell, export them before `docker compose`:
 
 ```bash
-PORTFOLIXIR_API_TOKEN=replace-me
-PORTFOLIXIR_MCP_TOKEN=replace-me-too
+export PORTFOLIXIR_API_TOKEN="$(openssl rand -base64 48)"
+export PORTFOLIXIR_MCP_TOKEN="$(openssl rand -base64 48)"
 ```
 
 Reset local Docker volumes when you need a clean database:
@@ -75,10 +78,12 @@ mix ecto.setup
 mix phx.server
 ```
 
-MCP companion workflow:
+MCP companion workflow (`--ignore-scripts`: no dependency's install-time
+script runs, as in CI; `mcp-server/.npmrc` sets the same for an ad-hoc
+`npm install` in that folder):
 
 ```bash
-npm install --prefix mcp-server
+npm ci --ignore-scripts --prefix mcp-server
 npm run build --prefix mcp-server
 PORTFOLIXIR_API_BASE_URL=http://127.0.0.1:4000 \
 PORTFOLIXIR_API_TOKEN=replace-me \
@@ -230,13 +235,26 @@ its first run, so it is slow once rather than every time. `mix hex.audit` and
 green — a gate that turns red with nobody pushing anything is an advisory
 published since, not a regression.
 
-Install hooks once:
+Install pre-commit itself from the hash-pinned file CI installs from, then the
+hooks, once. The install goes into a virtual environment, because the system
+Python on current Debian, Ubuntu and Homebrew is externally managed (PEP 668)
+and refuses a global `pip install`; on Debian and Ubuntu, `python3 -m venv`
+needs the `python3-venv` package. The environment lives outside the checkout,
+so neither git nor the image build context ever sees it:
 
 ```bash
+python3 -m venv ~/.venvs/portfolixir-pre-commit
+. ~/.venvs/portfolixir-pre-commit/bin/activate
+python -m pip install --require-hashes --only-binary :all: -r .github/pre-commit/requirements.txt
 pre-commit install --install-hooks
 ```
 
+The Git hooks find that environment by themselves; activate it again in a new
+shell before running `pre-commit run --all-files` from the list above.
+
 The pre-commit setup uses standard hygiene hooks and `mix format --check-formatted`.
+Remote hook repositories are frozen to commit SHAs; `pre-commit autoupdate
+--freeze` moves one.
 
 ## Test Rules
 

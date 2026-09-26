@@ -30,6 +30,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
   alias Portfolixir.Imports.Entry
   alias Portfolixir.Imports.PortfolioPerformance
   alias Portfolixir.Imports.Preview
+  alias Portfolixir.Input.BoundedDate
 
   NimbleCSV.define(__MODULE__.Parser, separator: ";", escape: "\"")
 
@@ -66,7 +67,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
 
       [header_row | data_rows] ->
         with :ok <- validate_header(header_row),
-             :ok <- validate_row_count(data_rows) do
+             :ok <- validate_row_count(data_rows),
+             :ok <- validate_entry_count(header_row, data_rows) do
           {entries, errors} =
             data_rows
             |> Enum.with_index(1)
@@ -100,6 +102,31 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
     max = PortfolioPerformance.max_rows()
     count = length(rows)
     if count > max, do: {:error, {:too_many_rows, count}}, else: :ok
+  end
+
+  # E25 S5 (F38): the cap counts the entries the file expands into — each
+  # row plus the tax refund a negative `Steuern` cell splits off — before any
+  # is built. A header naming a column twice is read as `to_entry/3` reads it,
+  # the last cell winning, so the count and the rows agree.
+  defp validate_entry_count(header_row, rows) do
+    max = PortfolioPerformance.max_rows()
+
+    taxes_at =
+      length(header_row) - 1 - Enum.find_index(Enum.reverse(header_row), &(&1 == "Steuern"))
+
+    count =
+      Enum.reduce(rows, 0, fn row, count ->
+        count + 1 + refund_cell(Enum.at(row, taxes_at))
+      end)
+
+    if count > max, do: {:error, {:too_many_entries, count}}, else: :ok
+  end
+
+  defp refund_cell(cell) do
+    case Decimals.parse_de(cell) do
+      {:ok, %Decimal{} = taxes} -> if Decimal.negative?(taxes), do: 1, else: 0
+      _other -> 0
+    end
   end
 
   defp validate_header(header_row) do
@@ -196,9 +223,15 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
         companion_entries: companions
       }
 
-      {:ok, entry}
+      # E25 S4 (G24) and S5 (F33): a security that names nothing, and text
+      # the ledger would refuse, are this row's error.
+      case PortfolioPerformance.row_error(entry) do
+        nil -> {:ok, entry}
+        message -> {:error, message}
+      end
     else
       {:error, reason} when is_binary(reason) -> {:error, reason}
+      {:error, {:invalid_decimal, value}} -> {:error, PortfolioPerformance.decimal_message(value)}
       {:error, reason} -> {:error, inspect(reason)}
     end
   end
@@ -254,9 +287,24 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
            date: String.trim(value)
          )}
 
+      # The ledger's bounded date (E25 S4, F70), named here as the row's error
+      # rather than failing the apply.
+      {:ok, date} ->
+        if BoundedDate.within?(date),
+          do: {:ok, date},
+          else: {:error, too_late(String.trim(value))}
+
       other ->
         other
     end
+  end
+
+  defp too_late(value) do
+    gettext(
+      "implausible date %{date} (after %{latest}) — fix the booking in the source and re-import",
+      date: value,
+      latest: Date.to_iso8601(BoundedDate.latest())
+    )
   end
 
   # For trades (Kauf/Verkauf) the PP CSV uses Konto=depot,

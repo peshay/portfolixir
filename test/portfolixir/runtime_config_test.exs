@@ -82,7 +82,10 @@ defmodule Portfolixir.RuntimeConfigTest do
     assert RuntimeConfig.bind_ip() == RuntimeConfig.bind_ip(System.get_env("PHX_BIND_ALL"))
 
     assert RuntimeConfig.force_ssl_opts() ==
-             RuntimeConfig.force_ssl_opts(System.get_env("PHX_FORCE_SSL"))
+             RuntimeConfig.force_ssl_opts(
+               System.get_env("PHX_FORCE_SSL"),
+               System.get_env("PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS")
+             )
 
     assert RuntimeConfig.allowed_hosts() ==
              RuntimeConfig.allowed_hosts(
@@ -153,5 +156,100 @@ defmodule Portfolixir.RuntimeConfigTest do
     assert RuntimeConfig.session_max_age(1) == day
     assert RuntimeConfig.session_max_age("0") == nil
     assert RuntimeConfig.session_max_age(0) == nil
+  end
+
+  # User story (E25 S1, F67):
+  # As an operator starting a production instance,
+  # I want a short, placeholder or publicly committed SECRET_KEY_BASE refused at
+  # boot with the variable named,
+  # so that no instance signs its sessions with a value anyone can read.
+  #
+  # Acceptance criteria:
+  # - A value shorter than 64 bytes (what the cookie store needs) raises, naming SECRET_KEY_BASE.
+  # - A missing value raises the same way.
+  # - The .env.example placeholder and the other placeholder prefixes are
+  #   refused whatever their length.
+  # - The literals committed in config/dev.exs and config/test.exs are refused.
+  # - A 64-byte random value is returned unchanged, and config/runtime.exs
+  #   reads the variable through this check.
+  test "refuses short, placeholder and committed secret key bases" do
+    sound = Base.encode64(:crypto.strong_rand_bytes(48))
+    assert byte_size(sound) == 64
+    assert RuntimeConfig.validate_secret_key_base!(sound) == sound
+
+    assert_raise ArgumentError, ~r/SECRET_KEY_BASE/, fn ->
+      RuntimeConfig.validate_secret_key_base!(binary_part(sound, 0, 63))
+    end
+
+    assert_raise ArgumentError, ~r/SECRET_KEY_BASE/, fn ->
+      RuntimeConfig.validate_secret_key_base!(nil)
+    end
+
+    for placeholder <- ["replace-with-openssl-rand-base64-48", "changeme", "secret", "example"] do
+      assert_raise ArgumentError, ~r/SECRET_KEY_BASE.*placeholder/, fn ->
+        RuntimeConfig.validate_secret_key_base!(String.pad_trailing(placeholder, 64, "x"))
+      end
+    end
+
+    for config <- ["config/dev.exs", "config/test.exs"] do
+      [_, committed] = Regex.run(~r/secret_key_base:\s*"([^"]+)"/, File.read!(config))
+
+      assert_raise ArgumentError, ~r/SECRET_KEY_BASE/, fn ->
+        RuntimeConfig.validate_secret_key_base!(committed)
+      end
+    end
+
+    assert File.read!("config/runtime.exs") =~
+             ~s{RuntimeConfig.validate_secret_key_base!(System.get_env("SECRET_KEY_BASE"))}
+  end
+
+  # User story (E25 S1, F67; T-2 of the 2026-09-24 triage):
+  # As an operator who opened the instance beyond loopback with a UI password,
+  # I want a startup warning when that password is short,
+  # so that a weak password is named in the log without an upgrade refusing to boot.
+  #
+  # Acceptance criteria:
+  # - Bound beyond loopback with a password shorter than the floor: a warning
+  #   naming PORTFOLIXIR_UI_PASSWORD and ADR-0045; never an exception.
+  # - A password at the floor, or any password on loopback: no warning.
+  # - No password at all is the exposure warning's case, not this one.
+  test "warns about a short UI password beyond loopback" do
+    floor = RuntimeConfig.min_ui_password_length()
+    short = String.duplicate("p", floor - 1)
+
+    assert {:warn, message} = RuntimeConfig.password_warning({0, 0, 0, 0}, short)
+    assert message =~ "PORTFOLIXIR_UI_PASSWORD"
+    assert message =~ "ADR-0045"
+    refute message =~ short
+
+    assert RuntimeConfig.password_warning({0, 0, 0, 0}, String.duplicate("p", floor)) == :ok
+    assert RuntimeConfig.password_warning({127, 0, 0, 1}, short) == :ok
+    assert RuntimeConfig.password_warning({0, 0, 0, 0, 0, 0, 0, 1}, short) == :ok
+    assert RuntimeConfig.password_warning({0, 0, 0, 0}, nil) == :ok
+    assert RuntimeConfig.password_warning({0, 0, 0, 0}, "") == :ok
+  end
+
+  # User story (E25 S2, F59):
+  # As an operator running the release image,
+  # I want the directory stored logos live in to be configuration,
+  # so that the logos sit on a volume of their own, outside the release tree
+  # the running user cannot write, survive a rebuild and are backed up.
+  #
+  # Acceptance criteria:
+  # - PORTFOLIXIR_LOGO_DIR unset or blank leaves the default (nil here).
+  # - A value is taken trimmed; a relative path is refused, naming the variable,
+  #   because a release resolves it against its own read-only tree.
+  # - config/runtime.exs reads the variable through this function.
+  test "reads the logo directory from PORTFOLIXIR_LOGO_DIR" do
+    assert RuntimeConfig.logo_dir(nil) == nil
+    assert RuntimeConfig.logo_dir("") == nil
+    assert RuntimeConfig.logo_dir("  ") == nil
+    assert RuntimeConfig.logo_dir(" /var/lib/portfolixir/logos ") == "/var/lib/portfolixir/logos"
+
+    assert_raise ArgumentError, ~r/PORTFOLIXIR_LOGO_DIR.*absolute/, fn ->
+      RuntimeConfig.logo_dir("logos")
+    end
+
+    assert File.read!("config/runtime.exs") =~ "Portfolixir.RuntimeConfig.logo_dir()"
   end
 end

@@ -19,7 +19,8 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
                 "renaming or editing a plan version re-delivers that plan's rows. Deletions " <>
                 "are not represented - a row removed, or left behind by a plan that stopped " <>
                 "being active, is only visible on a full read. Use this response's `as_of` " <>
-                "as the next `since`."
+                "as the next `since`: it lies no later than the start of the oldest write " <>
+                "still in flight, so the next read may re-deliver a row but never skips one."
 
   # Since ADR-0020 a SOLL plan belongs to a view: the target read/write endpoints
   # accept an optional `view` query/body param (omitted/null = the Gesamt plan).
@@ -223,6 +224,7 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
 
       case Targets.set_cash_target(conn.assigns.actor, pid, weight, ViewParam.opts(view)) do
         :ok -> json(conn, %{data: JSON.cash_target(weight)})
+        {:error, :not_found} -> not_found(conn)
         {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
       end
     else
@@ -278,6 +280,21 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
           "security #{security_id} is not under category #{category_id} in this " <>
             "classification — assign it there (or a descendant) first, or file the " <>
             "target under its current category"
+      })
+
+  # E25 S4 (G11): one row per category and per position, and a bounded batch.
+  defp render_error(conn, {:duplicate_category, category_id}),
+    do:
+      unprocessable(conn, %{
+        detail: "category #{category_id} appears more than once in this batch as a category row"
+      })
+
+  defp render_error(conn, {:too_many_targets, cap}),
+    do:
+      unprocessable(conn, %{
+        targets: [
+          "at most #{cap} rows per request: one per category and one per assigned security"
+        ]
       })
 
   defp render_error(conn, :invalid_entry),

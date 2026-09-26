@@ -82,9 +82,15 @@ defmodule Portfolixir.Derived do
   else recomputes. The version is captured **before** the computation runs, so
   a write landing mid-compute leaves the stored result already superseded —
   failing toward recomputation, never toward a stale number.
+
+  `opts` may carry `:current?`, a predicate over a stored value: a hit it
+  refuses is a miss, recomputed and stored under the same key. An input
+  identity that changes on every computation (the instant a walk was
+  computed) is checked here instead of being carried in `entry_key`, where
+  each new value would be a new entry (E25 S4, G03).
   """
-  @spec fetch(atom(), String.t(), String.t(), (-> term())) :: {:fresh, term()}
-  def fetch(analytic_id, basis, entry_key, compute)
+  @spec fetch(atom(), String.t(), String.t(), (-> term()), keyword()) :: {:fresh, term()}
+  def fetch(analytic_id, basis, entry_key, compute, opts \\ [])
       when is_binary(basis) and is_binary(entry_key) and is_function(compute, 0) do
     case Registry.lifetime(analytic_id) do
       :none ->
@@ -94,9 +100,10 @@ defmodule Portfolixir.Derived do
         comp = Registry.computation_version!(analytic_id)
         version = DataVersion.current(basis)
         key = {analytic_id, basis, entry_key, version, comp}
+        current? = Keyword.get(opts, :current?, fn _value -> true end)
 
-        with :miss <- Memo.get(key),
-             :miss <- durable_get(lifetime, key) do
+        with :miss <- current_hit(Memo.get(key), current?),
+             :miss <- current_hit(durable_get(lifetime, key), current?) do
           value = compute.()
           as_of = DateTime.truncate(DateTime.utc_now(), :second)
           Memo.put(key, value, as_of)
@@ -107,6 +114,11 @@ defmodule Portfolixir.Derived do
         end
     end
   end
+
+  defp current_hit({:hit, value, _as_of} = hit, current?),
+    do: if(current?.(value), do: hit, else: :miss)
+
+  defp current_hit(:miss, _current?), do: :miss
 
   @doc """
   The non-computing read (I4 shape): `{:fresh, value}` when a current-version

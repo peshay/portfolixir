@@ -1105,6 +1105,70 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
     assert Portfolios.list_securities_accounts() == []
   end
 
+  # User story (ADR-0050 §4, #884):
+  # As a local portfolio maintainer creating a depot with a new cash account,
+  # I want a depot name another depot already answers to refused before
+  # anything is written,
+  # so that the refusal never leaves the new cash account behind.
+  #
+  # Acceptance criteria:
+  # - A depot name that is another depot's name, or one of its former names,
+  #   answers a field error on the depot name.
+  # - The new cash account is not created.
+  test "a depot name another depot answers to fails before creating the cash account", %{
+    conn: conn
+  } do
+    portfolio = Portfolios.default_portfolio(Portfolixir.Actor.owner_ui())
+
+    {:ok, cash} =
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        name: "Giro",
+        currency_code: "EUR"
+      })
+
+    {:ok, depot} =
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        name: "Depot"
+      })
+
+    {:ok, _} =
+      Portfolios.update_securities_account(Portfolixir.Actor.owner_ui(), depot, %{
+        name: "Broker depot"
+      })
+
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    for taken <- ["Broker depot", "Depot"] do
+      view |> element("#add-account-button") |> render_click()
+
+      view
+      |> element("#account-form-dialog button[phx-value-mode='depot']")
+      |> render_click()
+
+      html =
+        view
+        |> form("#account-dialog-form", %{
+          "account" => %{
+            "depot_name" => taken,
+            "cash_account_id" => "",
+            "cash_name" => "New cash",
+            "currency_code" => "EUR",
+            "new_tag" => ""
+          }
+        })
+        |> render_submit()
+
+      assert html =~ "field-error"
+      assert html =~ "securities account ##{depot.id}"
+      assert Enum.map(Portfolios.list_cash_accounts(), & &1.name) == ["Giro"]
+
+      view |> element("#account-form-dialog header button.icon-button") |> render_click()
+    end
+  end
+
   # Superseded by #491 item 6: a malformed currency can no longer be entered
   # — the field is a constrained dropdown of known codes, so the UI-level
   # "EU" scenario is impossible by construction. The changeset's
@@ -1213,8 +1277,9 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
     assert html =~ "Gilt für Depot und Verrechnungskonto"
     assert html =~ "Kein Bucket"
     # "Getrennt taggen" moved into the row menu, which renders when opened;
-    # what the page carries at rest is the control that opens it.
-    assert html =~ "Aktionsmenü öffnen"
+    # what the page carries at rest is the control that opens it, named for
+    # its row (#870).
+    assert html =~ "Aktionen für Depot A"
     refute html =~ "Add to portfolio"
     refute html =~ "Create portfolio"
   end

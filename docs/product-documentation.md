@@ -230,6 +230,108 @@ duplicate bookings (the import marks such rows as "matched via former ISIN").
 Aliases are correctable: they are listed on the security detail
 (`GET /api/v1/securities/:id`) and can be deleted (journaled) when recorded
 by mistake. A plain rename needs no ISIN change — it is just a name edit.
+The new ISIN must be a valid ISIN, check digit included, and so must an ISIN,
+a WKN (six letters or digits) or a ticker (printable ASCII) edited on an
+existing security: a lookalike never replaces the identifier your exports
+carry. A security's name is stored without invisible format characters.
+
+### Merging a duplicate security (ADR-0050 §9)
+
+When one instrument exists twice — an export carrying a newer ISIN was
+imported before the ISIN change was recorded and created a second copy with
+a second copy of the history, or a security created by hand was created again
+by the next import — merge the duplicate into the security you keep:
+**Merge into…** in the duplicate's row menu on the securities page, or the
+same button in the *Cannot delete* dialog when bookings or quotes are what
+block the delete. Your agent has the same merge
+(`GET /api/v1/securities/:id/merge_preview` and
+`POST /api/v1/securities/:id/merge`, or the
+`portfolixir.securities.merge_preview` and `portfolixir.securities.merge` MCP
+tools), and both read the same preview.
+
+The preview shows everything the merge does before anything is written: each
+depot's position of both securities before and after, the bookings that
+appear on both (you decide whether they are duplicates — nothing is
+preselected), the splits that coincide, the quotes, the classification and
+plan rows, the calendar events and the identifiers. What the merge does:
+
+- **Bookings** move onto the security you keep, in every depot; a booking you
+  confirm as a duplicate is deleted, and a split both carry on the same day is
+  kept once. Every day's quantity in every depot is checked against both
+  histories.
+- **Quotes** fill the gaps of the security you keep; on a day both have a
+  quote, the kept security's wins. A close you typed by hand that would be
+  dropped this way is listed first. The dropped closes stay in the merge
+  record.
+- **Classification and plans**: an assignment moves where the kept security
+  has none in that classification, otherwise the kept one's stays; a
+  position target moves, unless the plan already has one for the kept
+  security or it would no longer sit under the kept security's category —
+  then it is removed, and the preview says why.
+- **Events** move; two of the same kind on the same day are listed as a
+  possible duplicate for you to clean up.
+- **Identifiers**: when both carry an ISIN you choose, without a default,
+  which one the kept security answers to — keep its own (the duplicate's ISIN
+  becomes a former ISIN) or take the duplicate's (its own becomes the former
+  ISIN; this repairs the duplicate an export with the newer ISIN created
+  before the change was recorded), optionally with the day the ISIN changed. A WKN, ticker or quote feed the kept security
+  lacks is taken over; its name, asset class and logo stay.
+
+**In the dialog**, the first step searches the security to keep by name,
+ISIN, WKN or ticker. A match that cannot take the duplicate's history stays in
+the list, disabled, with its reason: another currency, only one of the two a
+benchmark, retired, or another quote basis. The second step previews exactly
+that pair, starting with two cards — the names are often equal, so each shows
+its ISIN, its bookings and the day it was created. The ISIN choice follows as
+two options, each saying which ISIN becomes the former one; neither is
+preselected, and *Adopt* asks for the day of the change. Then the holdings in
+shares before and after (and after removing the equal bookings), the counts,
+the equal bookings with their own choice, the closes you typed by hand that
+the kept security's quotes replace, the settings that move or are dropped, the
+events that stand on both, and the master data that differ. **Merge into …**
+stays disabled, with the missing choice named beside it, until every choice
+the pair needs is made. After the merge the security you kept opens with the result above
+the table, and its overview line names the former ISIN and the merge
+(*merged on 2026-09-26 from “…” (then …)*).
+
+The merge is refused, with the reason, where it cannot keep everything exact:
+different currencies, one a benchmark and the other not, research notes or a
+policy rule on the duplicate (merge the other way if that passes, or keep
+both), positions in different views, splits that disagree (two ratios on one
+day: delete the split with the wrong ratio), a split of the duplicate that
+still carries an import hash from before the import-hash check (the dialog
+names it: change its kind back, or delete it), or an identifier of either
+security — as stored, as its Portfolio Performance import recorded it, a
+former ISIN, or that of a security merged into either before — that would no
+longer find the kept security. The dialog
+names every reason at once, each rule by name, and offers **Merge the other
+way** where that direction passes; where it is refused as well, both reasons
+stand and nothing else is offered. That last
+check is what makes the next import safe: after a merge, re-importing any
+export already applied creates nothing, whichever ISIN it carries, and new
+rows under the duplicate's identifiers are booked once, on the security you
+kept. A read of the duplicate's id afterwards answers with the security it
+now lives on, and so does the screen: a link or bookmark to the duplicate's
+page opens the security it was merged into, with a note saying so and the
+day of the merge, and a benchmark that named the duplicate switches the
+Wealth page's comparison to that security, with the same note under the
+performance heading. There is no unmerge; the merge record and the audit
+journal show what it did.
+
+### Identity fields that freeze (ADR-0050 §11)
+
+A security's **currency freezes once it has a transaction or a quote**: its
+bookings and its price history are stated in that currency, so changing it
+would silently re-denominate them. Every path refuses the change with a field
+error that counts what froze it — *is frozen once referenced (120 quotes,
+3 transactions)* — and writes nothing: the edit form (under the currency
+select), the search dialog's **Merge online fields** and **Update existing**
+when the picked listing trades in another currency (a Xetra listing in EUR of
+a security booked in USD is a different price series, not a correction), and
+`PATCH /api/v1/securities/:id` with the MCP tool over it (`422`). The other
+fields stay editable, and a security with neither bookings nor quotes still
+changes currency. The same rule holds for accounts, see *Accounts and
+Depots* below.
 
 ### Derived metrics on the chart tab (issue #814's sibling, ADR-0047)
 
@@ -315,6 +417,24 @@ writable over the API and MCP (`/api/v1/securities/:id/notes` and the
 positions with no entry for N days, entries that still need corroboration,
 and dated blocks expiring within N days.
 
+**Invisible characters** (E25). No text is stored any more with a character
+that renders as nothing — a zero-width space, a direction control, a tag
+character, a run of variation selectors: every form, the API, MCP and the
+import refuse it, naming it (`U+200B`). An emoji built from several joined by
+a zero-width joiner (a person at a laptop, the rainbow flag) is stored, since
+the joiner renders as the emoji; the England, Scotland and Wales flags, built
+from tag characters, and the zero-width non-joiner some scripts use are
+refused. A text stored before carries an
+**Attention** note where it is shown — "The text contains 2 invisible
+characters." (a name: "The name contains …") — with what to do about it
+and, behind *Text with the characters made visible*, the text spelled the
+way the agent receives it (`Auftrags[U+200B]bestand`). In the research log
+the remedy is **Append an entry that supersedes #n**, which preselects the
+entry in the form; a security's name is corrected with **Edit master data**;
+a booking's notes, a rule's name and note, and the names of views, buckets
+and categories carry the note where they are edited, and a clean retype
+removes it.
+
 **Benchmark securities.** A security can be marked as a benchmark from its
 row menu ("Mark as benchmark"): a reference series the portfolio is compared
 against — an index proxied by an ETF, gold by an ETC — fed by the ordinary
@@ -375,9 +495,111 @@ created — in the dialog or over the API/MCP — its internal binding resolves
 to one deterministic default portfolio (the earliest record, or a freshly
 created "Default"), without asking.
 
+**Currency and binding freeze once referenced** (ADR-0050 §11). A cash
+account's currency, and its internal portfolio binding, freeze once a
+transaction references the account through either leg or a depot links to
+it; a depot's binding freezes once a transaction references it. A change is
+refused with a field error that counts the references and writes nothing —
+booked history is never re-denominated or moved. Name, notes and liquidity
+role stay editable. The API never moves an account or a depot to another
+portfolio at all.
+
+**Names and former names** (ADR-0050 §4). Two cash accounts never share a
+name, and neither do two depots: a name another account of the kind carries,
+as its name or as one of its former names, is refused when an account is
+created or renamed, because a Portfolio Performance import that names it
+already books to that account. A renamed account keeps its previous name as a
+**former name**, so an export that still names the old account books onto the
+renamed one; renaming back to a former name takes it back. While another
+account of the kind still carries the old name as its name, the old name is
+not kept, and an import naming it books to that other account. Accounts that
+already shared a name before this rule stay as they are; renaming one of them
+ends the ambiguity. The former names are listed on the API and MCP payloads
+(`former_names`) and can be removed there; an import that still names a
+removed name then creates a new account. On this page both live in the row
+menu, see *Rename, merge and delete* below.
+
 For worked examples — a household split, strategy views with their own target
 plans, translating Portfolio Performance habits, and excluding a position from
 steering — see the [Buckets & Views Guide](guides/buckets-and-views.html).
+
+### Rename, merge and delete (ADR-0050 §4, §7, §8, §10)
+
+Every row — a depot, the cash account under it, a cash account on its own —
+has its own **⋮** menu, named for its row (*Actions for Savings*): **Rename**,
+**Tag separately** (on a depot tagged together with its cash account),
+**Merge into…** and **Delete**, in that order. On a narrow screen the menu
+opens as a sheet from the bottom and names its row at the top.
+
+**Rename** changes the name only; currency and portfolio binding freeze as
+described above, and role and buckets stay in the row. Before you save, the
+dialog says what happens to the current name: it stays a **former name** of
+the account, so an import that still names it keeps booking here — or, while
+another account of the kind is still called that, it is not kept, and such an
+import books to that other account. A name another account answers to, as its
+name or as a former name, is refused at the field together with the account
+that holds it, and nothing is written. The row changing is the confirmation.
+
+The same dialog lists the account's **former names**; a name that arrived with
+a merge says on which day. **Remove** takes one away after a confirmation
+that says what it costs: *An import that still names 'Savings 2019' will then
+create a new account.* Under the account's name the row shows the newest
+former name (*former: …*) and, on an account others were merged into, the
+newest merge (*merged from Savings (old) · date*), each with *+N* when there
+are more.
+
+**Merge into…** joins two accounts that are really one — typically an
+account an import created a second time under another name. The account you
+merge (the source) goes away; the account you pick (the target) keeps
+everything. It takes two steps in one dialog:
+
+1. **Target.** The source is named with its currency, liquidity role,
+   buckets, bookings and balance, and every other account of the kind is
+   listed. Only an account with the same currency, the same liquidity role
+   and the same buckets can be picked — for a depot, the same default
+   buckets. The others are listed under *Not selectable*, each with its
+   reason, so it is clear what to align first.
+2. **Preview.** Nothing is written yet. For cash accounts the preview shows
+   both balances and their sum, the bookings that move, the transfers
+   between the two that are dropped (they cancel out once the two are one),
+   the linked depots that move, and the set balances that are adjusted —
+   each with its date and its value afterwards — or dropped. For depots it
+   shows each affected position's quantity, average cost and realized
+   gain/loss before and after, and a split whose rounding differs once both
+   histories are combined. **Bookings that are equal in both accounts** —
+   same day, same kind, same amounts, typically one import that landed twice
+   — are listed with two choices, *remove as duplicates* or *keep both*,
+   each with the balance it leads to (for cash accounts); *remove as
+   duplicates* also names what it changes outside the two, such as another
+   account's balance or a position's quantity. Neither is preselected, and
+   the **Merge into …** button stays disabled, with the reason beside it,
+   until you choose.
+
+Confirming applies exactly the plan the preview showed: the bookings, the
+linked depots and the adjusted set balances move to the target, the source's
+names become former names of the target — so the next import under the old
+name books onto the target — and the source is deleted. The result is
+reported above the table (*Merged Savings (old) into Savings: 151 bookings
+moved, 2 removed.*). If either account changed while the preview was open,
+nothing is merged: the dialog shows the new preview, says what changed, and
+asks for the choice again. A merge that cannot keep every position in its
+views — two depots holding one security in different buckets, say — is
+refused in the preview with the reason and the remedy; **Check again**
+re-reads it after you have aligned the two. So is a cash merge that would
+have to store a set balance with more decimal places than an amount holds —
+a buy or sell booked without its amount, whose cash is quantity × price, can
+cause it — and one whose set balance still carries an import hash from
+before the import-hash check: the dialog names each set balance and booking
+by account, date and number, and says what to change. There is no unmerge; the merge
+record and the audit journal show what a merge did. Your agent reads the
+merge records with `GET /api/v1/merges` (MCP `portfolixir.merges.list`); a
+list of them on a screen lands no later than Sprint 17.
+
+**Delete** removes an account only when nothing references it — no booking,
+and for a cash account no linked depot — and asks once, naming the account.
+An account with bookings is not deleted: *Cannot delete* says what it still
+has and offers **Merge into…** instead, which is how an account with history
+goes away.
 
 ### Portfolio records (compatibility)
 
@@ -431,6 +653,16 @@ holdings follow, and the change is recorded in the audit journal with the
 previous values as its before-image. This is the human view of a capability
 the API and the MCP companion have had since before the two-way coverage
 rule; nothing new was added to either.
+
+**A booked split** is the exception (E25 S6): a split is a fact about the
+security, booked through **Record split** on the security, whose checks
+(the effective date, the positions, a conflicting ratio on the same day)
+an ordinary edit would pass by. **Edit** on a split row therefore opens the
+drawer with the split's type, effective date, security and ratio shown and
+fixed, and only its **note** editable (**Save note**). A wrong split is not
+corrected in place: its rows are deleted over the API or the MCP companion
+and the split is recorded again with **Record split**. The API and MCP
+answer a change to anything but the note of a split row with `422`.
 
 While entering a **sell**, the form previews which FIFO purchase tranches
 (lots) the sale would consume and the resulting **gross gain** per tranche
@@ -676,7 +908,11 @@ The states are:
   **Cash** target input below them; **Save plan** writes the whole
   `(view, classification)` plan at once. A live **Σ** footer sums the category
   weights plus the cash target and shows a ✓ at exactly 100% or a ✗ with the
-  yellow mismatch cue otherwise, updating on input.
+  yellow mismatch cue otherwise, updating on input. A parent category whose
+  children carry weights shows their sum beside its name (**children Σ**),
+  in the mismatch colour when it disagrees with the parent's own weight; it
+  follows every input as the Σ footer does (a child that follows its position
+  targets counts with their sum), and it never blocks saving.
 - **Delete plan** (*Plan löschen*) removes the view's plan; the Wealth page
   then falls back to **actual-only** (no target, no drift) for that view.
 
@@ -1013,15 +1249,22 @@ dashboard's attention list, which under ADR-0040 is measured against the plan
 renormalised to the allocated portion — not against the raw Target column. So
 with a plan summing to 83 %, a category at 21.2 % actual against a stored 55 %
 target is 45 pp off, not 34, and the chips, the Drift column, the dashboard
-and `min_drift=` all agree on that number.
-A **Tree | Positions** switch swaps the hierarchy for a flat
+and `min_drift=` all agree on that number. The basis line says so where the
+figure is read: behind the plan's top-level Σ it adds **"— drift against the
+allocated portion"** whenever the plan allocates less than 100 %, and it shows
+that Σ in the warning colour only when the plan allocates **more** than 100 %
+— a plan with a deliberate remainder is not a mistake (issue #875).
+A **Tree | Positions** switch — a segmented control whose active option is
+filled — swaps the hierarchy for a flat
 rebalancing worklist: one row per security (cash included) with its category
 as context, sorted by signed drift by default (most overweight first, most
 underweight last) and re-sortable via the column heads (value, drift, or
-category). A category with directly assigned securities expands into its member securities, each with its value,
+category). The cash row's category reads "—": cash has its own target and is
+never "Unassigned". A category with directly assigned securities expands into its member securities, each with its value,
 weight, its share of the category drift, and a display-only **rebalancing
 hint**: the indicative number of units to sell (positive drift) or buy
-(negative) at the valuation's price to close the gap (ADR-0023). The hint
+(negative) at the valuation's price to close the gap (ADR-0023). A hint that
+rounds to zero units at two decimals is not shown ("—"); the drift stays. The hint
 models no fees or taxes, and there is deliberately no order button behind it —
 acting on it stays entirely manual.
 
@@ -1072,7 +1315,13 @@ Accounts & depots, which the buckets section's basis line links to.
 **Set as default** (*Als Standard festlegen*) remembers the choice
 server-side, so the Wealth page and the Overview page open on that view
 whenever no other view has been explicitly picked (an explicit pick — including
-Everything — always wins). When the active view's buckets share an account, a
+Everything — always wins). A view, a benchmark or a language that arrives in a
+link from another site applies to the page that link opens and is not
+remembered (E25): only a choice made on the instance itself, or typed into the
+address bar, changes what the next page shows. That page's own links (the
+language switch, the tabs) do not pass the foreign view on, and a login in
+between drops the view, benchmark and language from the address it returns
+to. When the active view's buckets share an account, a
 badge next to the total — *Overlapping buckets — accounts counted once* —
 states that per-bucket figures overlap and must not be summed; the total
 itself is already deduplicated. View-scoped performance series carry the label
@@ -1240,7 +1489,10 @@ to two benchmarks: a security marked as a benchmark on the Securities page
 (an index proxied by an ETF, gold by an ETC, quoted through the ordinary
 sync) or a fixed annual rate typed as a percentage (the savings-account
 alternative; in this version also how inflation is expressed). The choice
-rides in the URL and is remembered like the active view. Two comparisons
+rides in the URL and is remembered like the active view; a rate is kept
+only when the comparison can use it exactly (between −99.9999 % and 1000 %
+p.a., with at most 15 decimal places as a fraction), and a remembered rate
+that no longer meets that is dropped on the next visit. Two comparisons
 appear, both the ones Portfolio Performance shows. **Bought once** — the
 benchmark rebased to the period start, drawn as a dashed overlay on the
 TTWROR chart with its own legend and in the chart tooltip — answers whether
@@ -1472,8 +1724,16 @@ with the statement's printed sign, so a recorded row stays visually comparable
 to the paper.
 
 **The page is a budget dashboard plus a check list.** Taxpayer and tax year
-are segmented controls (the scope is in the URL, `?holder=…&year=…`). The
-budget renders as a meter: the remaining amount as the value, the allowance
+are segmented controls (the scope is in the URL, `?holder=…&year=…`). A
+taxpayer or institution is one identity however it was typed: the name is
+stored composed, without invisible characters and with single spaces, and
+matched without regard to case, so "Anna Muster" and "ANNA MUSTER" are one
+entry in the taxpayer control with one budget, and a bank recorded as
+"Bank Eins" and as "bank eins" is one institution in it (E25 S6). Names
+recorded before that rule are stored the same way by the upgrade, each change
+in the audit journal; a name that would then equal another record of the same
+key is left as it was and named in the upgrade's log, for you to correct or
+remove one of the two on this page. The budget renders as a meter: the remaining amount as the value, the allowance
 utilisation as a fill level with no threshold colouring, the as-of date and
 the covered institutions on the basis line, and the composition — equity loss
 pot, remaining allowance, the statutory ceiling — beside it with an ⓘ for the
@@ -1529,6 +1789,23 @@ The **Risk** tab of the Wealth area shows two things that answer one question
 — how concentrated is the portfolio, and how much does it move — over the
 **steerable basis** of the active view (the view is named in the header).
 
+- **Own rules** at the top: the operator's caps, floors and bands (ADR-0049)
+  with their findings, breached and undetermined first. A rule's **name is a
+  link** that opens its dialog, the one place where the rule is changed (a new
+  version from a date; the previous one stays readable), **renamed** or
+  retired. A rename changes only the label: it creates no version, the new
+  name reads for the rule with all its versions, and the audit journal keeps
+  the previous name. A retired rule is renamed the same way from the list of
+  retired rules. Risk shows the rules of the active view, so a rule that
+  applies in another view is found in that view: when deleting a view, a
+  category, a classification or a security is refused because rules read it,
+  the refusal names the rules with their status and view, and each name links
+  to Risk in the view the rule applies in. A rule whose line in force the
+  agent wrote with its API token ends its words with **"Agent"** — scheduled
+  and retired rules too — and the dialog's version list names the author of
+  every version, "Operator" or "Agent" (E25). Your own rules carry no word.
+  The agent's rules are in force like yours; the word only says who drew the
+  line.
 - **Portfolio metrics**, one year: the annualized **volatility**, the
   **maximum drawdown** with the day it started, its low and the day it
   recovered, the **risk-adjusted return** (at a risk-free rate of 0 it is
@@ -1546,6 +1823,8 @@ The **Risk** tab of the Wealth area shows two things that answer one question
 - **Asset-class caps**, where a cap is set over the API.
 - **Correlations** of the largest positions behind a disclosure, converted to
   the base currency first and computed only on days both securities closed.
+  The basis line names how many of the largest positions they run over: the
+  matrix covers at most the 20 largest, however long the list.
 
 The page reports; it does not recommend. The same figures are on
 `GET /api/v1/portfolios/:portfolio_id/risk` and the MCP tool
@@ -1576,6 +1855,39 @@ uses stable `Row N: message` lines so the diagnostics can be kept with the
 source export. Applying the import is atomic and uses content hashes to skip
 duplicates on re-run.
 
+### Files and rows the preview refuses
+
+A file the preview cannot hold safely is refused as a whole, before anything
+is kept for the next visit. The reason appears with its remedy in the error
+band above the drop zone, and the drop zone takes the next file at once:
+
+- **A file that is not UTF-8 encoded**, which is what a spreadsheet often
+  leaves behind after re-saving an export: export it again from Portfolio
+  Performance and drop the file without opening it in a spreadsheet first.
+- **A file that names too many different accounts, depots or securities** for
+  one preview, far more than an ordinary export carries: create smaller
+  exports in Portfolio Performance, for example one per account or depot, and
+  import them one after another.
+- **A file that expands into more entries than the import is sized for**,
+  counting each row and every tax refund a row splits off: split the export
+  in Portfolio Performance, for example by year.
+
+A single row the import could never book is a parser warning instead: it is
+listed with its row number, left out of the entries, and the rest of the file
+previews and imports. A security entry that names nothing (no name, ISIN, WKN
+or ticker) is such a row: *security without a name and without an ISIN — row
+not imported*. So is a row with a value no ledger column can hold (an
+amount, fee, tax, split-off tax refund or derived price with more digits
+before the decimal point than its column keeps, after rounding to the
+column's decimals), a number the parser cannot read, and a transaction with
+more fee and tax units than one booking carries: each is named with the field
+and its row, and never fails the import after you confirm. A row whose ISIN
+is not a valid ISIN (its shape or its check digit, a letter from another
+script included) is left out the same way, so a lookalike never becomes a
+second security. An entry with only a WKN or only a ticker is a security like
+any other and resolves through the matching ladder below. A preview is kept
+for your next visit (a language switch, a reload) only once it has been shown.
+
 ### What a re-import preserves
 
 Re-applying the **same** Portfolio Performance export is a **content-hash
@@ -1603,6 +1915,91 @@ correct the old booking by hand. The same statement lives in the
 [API and MCP](integration/api-and-mcp.html) reference so an agent reads it
 where it reads the endpoints.
 
+### What a re-import checks first (ADR-0050)
+
+Each row's content hash is checked **before anything is resolved or
+created**. A row the database already holds is listed among the records
+already booked and creates nothing: no security, no account, no transaction.
+The same holds for a row a merge removed: its hash is kept as a **retired
+content hash**, and the result names it as such.
+
+Cash accounts and depots are created **with their first imported booking**,
+never up front. An account mapped to *+ Create new* whose rows are all
+already booked, or all skipped for another reason, is not created, and the
+bucket tag lands on exactly the accounts the import created. Renaming an
+imported account and dropping the same export again therefore creates no
+empty account under the old name.
+
+**Accounts are found by name, then by former name.** The preview prefills
+each cash account and depot of the file with the account of that exact name,
+and otherwise with the account that carries it as a former name (see
+[Accounts and Depots](#accounts-and-depots)). A rename keeps the previous
+name, so a re-export that changed inside Portfolio Performance (a different
+decimal precision, an edited booking) finds the renamed account as well and
+books nothing twice. A name two accounts carry is prefilled with nothing:
+the select reads *Decide…*, and the import waits until you pick the account;
+it never guesses. Changing a prefilled choice to an account with a different
+name **remembers** the mapping by default: the name becomes a former name of
+that account, and the next import prefills it by itself. A prefill you leave
+as it is remembers nothing. When the name is another account's name, the
+choice holds for this import only. When it is another account's former name,
+remembering **moves** it, and the row says so before you confirm (*“X”
+becomes a former name of A and is then no longer a former name of B*). The
+row's **Remember this mapping** box — ticked, and shown only where you changed
+a prefill — keeps the mapping to this import when you untick it. An account
+mapped in a preview that is merged or deleted before you confirm stops the
+import before it writes anything, and the account mapping is refreshed.
+
+**What each row of the mapping step says.** Every cash account and depot of
+the file counts its bookings: how many are **already imported**, how many
+**internal transfers are dropped**, and how many are new, or *nothing to
+create* when none is. The count is what the import will do under the
+prefill: a booking is already imported when its content matches one stored
+before, or when a booking with the same day, kind and amounts already stands
+on the account the name leads to — the case of an export saved again after
+you merged two of its accounts — and a transfer between two names that now
+lead to one account is dropped. A decision you still make in the preview (a
+security, another account) can change what a row's new bookings do. A prefill found
+through a former name says so under the select, and *+ Create new* on a row
+with nothing new says it creates nothing. Two accounts of the same name are
+told apart in the list by what differs — a cash account's linked depots, else
+its currency, else the day it was created; a depot's cash account — and an
+ambiguous row names its candidates the same way. *+ Create new* for a name
+the import may not create (another account's name, another account's former
+name, or the name of several accounts) stays in the list, disabled, with the
+reason, so nothing you pick fails the import at the end.
+
+Renames made before this release are remembered too: the upgrade replays the
+renames the audit journal holds. A name a newer account already carries (an
+empty account an earlier import created under the old name, say) is logged by
+the upgrade and left alone; merging that account into the renamed one repairs
+it. A rename older than the accounts' audit journal left no trace, and its
+old name is mapped by hand once.
+
+A **transfer whose two sides lead to the same account or depot** (two
+Portfolio Performance accounts mapped onto one Portfolixir account, say) is
+void. It is skipped and listed under the internal transfers with its row,
+kind, date and both names from the file, and the rest of the file imports; it
+no longer fails the whole import.
+
+The result lists every record it skipped, grouped by the check that skipped
+it: an identical row imported before (stored content hash; the expected mass
+of a re-import, so its group stays collapsed), a row a merge removed (retired
+content hash), or an existing booking with the same date, security, quantity
+and amount. It also lists the names it remembered (and, for a moved name, the
+account it left), and every booking dated on or before a set balance a merge
+adjusted: that booking is imported, and that balance absorbs its amount, so
+the account's balance stays where the set balance puts it.
+
+A **tax refund split off a row** (a negative tax on a sale, say) is hashed
+with that row and checked on its own: two equal refunds of two different sales
+both book, and re-importing the file books neither twice. A sale you deleted by
+hand books again without its refund booking a second time, and a refund you
+added in Portfolio Performance to a sale already imported books on the next
+import. A refund whose row is not imported is skipped with it. Within one file,
+a row that repeats an earlier row exactly books once, and the repeat is listed
+as already booked.
+
 ### Security matching and the mapping step
 
 Securities in the file resolve against existing records through a
@@ -1628,7 +2025,10 @@ The preview's **Securities from the export** panel shows the outcome:
 - **Configuration-at-risk warnings**: when a to-be-created security
   near-matches an existing one that carries category assignments or position
   targets, the row requires its own explicit confirmation — a duplicate
-  would strand that configuration on a position-less row.
+  would strand that configuration on a position-less row. A name that only
+  looks like a stored one (invisible characters, lookalike letters from
+  another script, a different case or spacing) is such a near-match, and the
+  matching itself ignores invisible characters in names.
 
 When an entry is remapped and its ISIN differs from the chosen security's
 current ISIN, the preview offers to **record the difference as an ISIN
@@ -1648,7 +2048,9 @@ anything resolved differently than the approved set (previews can sit open
 for a while); and rows that resolve to the **same booking on the same
 security** — an export listing one paper under both its old and its new
 ISIN — are collapsed to a single transaction and reported, never
-double-imported.
+double-imported. Only rows of the same Portfolio Performance account collapse
+this way: two equal bookings from two different accounts of the file that map
+onto one account (twin fees, say) are both imported.
 
 Inbound and outbound **delivery** rows keep their parsed per-share price (the
 CSV `Kurs` column), so a priced inbound delivery enters the holdings cost
@@ -1771,7 +2173,10 @@ latest-own-trade-price fallback) never values a post-split position at the
 unsplit price. For providers that never back-adjust their history, the
 security's master data (behind **Edit** in the detail header) offers a
 **Treat synced quotes as raw** toggle that forces the raw basis for its
-synced rows.
+synced rows. A security's splits, each counted by its own magnitude (2:1
+and 1:2 both count 2), multiply to at most 10^12: the split wizard refuses
+a ratio past that and books nothing, since no real share history comes near
+it.
 
 **The Overview tab reads; Edit writes.** The detail pane opens on
 **Overview**, a reading surface (issue #801's sibling, issue #804): six
@@ -1842,7 +2247,9 @@ naming the already-booked event) stays inline in the dialog.
   each column instead of a row of zeros, the hidden-positions count is a
   muted suffix of the category name, and the result's basis ("today's
   composition, not a period return") is a basis line with an ⓘ; on the phone
-  the row keeps the value and the result.
+  the row keeps the value and the result, on two lines: the category's name
+  (wrapped rather than cut) with its hidden-positions count first, the value
+  and the result under their column heads below it.
 - The sidebar is organised into task-oriented areas (ADR-0022): **Overview**,
   **Wealth**, **Securities**, and **Transactions** at the top level, plus an
   **Administration** group with **Accounts & depots**, **Views**, and
@@ -1852,6 +2259,11 @@ naming the already-booked event) stays inline in the dialog.
   of their own (ADR-0024): they are managed as chips on the Accounts & depots
   rows and on the Views page, which the view switcher's **Views** link
   opens.
+- On a phone, a section's tab row (Wealth, Transactions) scrolls sideways
+  instead of wrapping: the tab you are on is in view when a page opens, a fade
+  marks each side beyond which more tabs lie, and the row always comes to rest
+  with a whole tab at its left edge — also at its end, where a little empty
+  space follows the last tab.
 - Theme: system, light, and dark modes are supported.
 - Accent: violet, teal, and coral logo accent choices are supported.
 - Language: first load follows the browser language when it is English or
@@ -1861,6 +2273,18 @@ naming the already-booked event) stays inline in the dialog.
   financial values.
 - Date fields accept and display ISO dates (`YYYY-MM-DD`) — the same format
   every displayed date uses; the browser's locale date picker is not used.
+- Number fields (quantity, price, fees and taxes, the settlement amount and
+  rate, a rule's line, the Tax figures, a cash balance) show and accept figures
+  in the page's language: a decimal comma on a German page (`1664,40`), a
+  point on an English one. They never show a thousands separator, and they
+  stand right-aligned in tabular digits. The other language's separator is
+  accepted too (`45.60` on a German page, `45,60` on an English one) — except
+  when the figure could be a thousands group (`1.664` on a German page,
+  `1,664` on an English one): such a figure reads two ways and is refused on
+  its field with the request to enter it without a thousands separator, as is
+  a figure with two separators (`1.664,40`) or one grouped with a space or an
+  apostrophe (`1 664,40`, `1'664.40`, as bank pages and PDFs print figures). A
+  refused figure saves nothing, and what you typed stays as you typed it.
 - While values compute, the affected slot shows a placeholder plus a
   "computing" cue instead of a loading message; headline values settle with
   a brief count-up. Under a reduced-motion system preference all decorative
@@ -1887,6 +2311,13 @@ The journal is queryable through `GET /api/v1/journal` and the matching
 [API and MCP](integration/api-and-mcp.html)). It currently covers security
 master-data writes; the remaining write areas are covered in sequence. A
 dedicated in-app viewer is a planned follow-up.
+
+Deleting a cash account, a depot or a security never takes anything with it
+silently (ADR-0050 §11). A row that bookings still reference — or, for a
+security, quotes, research notes or events — is not deleted at all: merge it
+into the one you keep instead. An unreferenced row's bucket links, position
+overrides and category assignments are removed first, each through its own
+journaled writer, so the journal shows every membership the deletion ended.
 
 ## Non-goals today
 

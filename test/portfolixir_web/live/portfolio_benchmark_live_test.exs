@@ -299,6 +299,41 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
       assert get_session(conn, BenchmarkScope.session_key()) == ["security:7"]
     end
 
+    # User story (E25 S4, F06):
+    # As the operator whose Wealth page remembers a benchmark rate,
+    # I want a rate the engine cannot hold exactly refused before it is
+    # remembered, and one remembered earlier dropped on the next request,
+    # so that the stored selector is always one short, exact value.
+    #
+    # Acceptance criteria:
+    # - A rate with more decimal places than the engine's scale is not stored,
+    #   whether it comes as a selector or as the picker's percentage.
+    # - A rate exactly at the engine's scale is kept.
+    # - A cookie carrying such a rate loses it on the next request: the
+    #   session holds the rest, and the cookie is rewritten without it.
+    test "a rate past the engine's scale is not stored, and a stored one is dropped" do
+      for query <- [
+            "benchmark[]=rate:1e-400",
+            "benchmark[]=rate:0.02000000000000000001",
+            "benchmark_rate=2.0000000000000000001"
+          ] do
+        conn = query |> with_query() |> run_plug()
+        assert get_session(conn, BenchmarkScope.session_key()) == [], query
+      end
+
+      conn = "benchmark[]=rate:0.123456789012345" |> with_query() |> run_plug()
+      assert get_session(conn, BenchmarkScope.session_key()) == ["rate:0.123456789012345"]
+
+      conn =
+        ""
+        |> with_query()
+        |> Plug.Test.put_req_cookie(BenchmarkScope.cookie_name(), "rate:1e-400,security:3")
+        |> run_plug()
+
+      assert get_session(conn, BenchmarkScope.session_key()) == ["security:3"]
+      assert %{value: "security:3"} = conn.resp_cookies[BenchmarkScope.cookie_name()]
+    end
+
     test "one spelling per rate: 2 and 2.0 are the same selector" do
       conn = "benchmark[]=rate:0.020&benchmark_rate=2.0" |> with_query() |> run_plug()
       assert get_session(conn, BenchmarkScope.session_key()) == ["rate:0.02"]

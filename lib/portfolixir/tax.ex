@@ -29,9 +29,12 @@ defmodule Portfolixir.Tax do
   """
 
   import Ecto.Query
+  import Portfolixir.Tax.Identity, only: [folded: 1]
 
   alias Ecto.Multi
   alias Portfolixir.Actor
+  alias Portfolixir.Clock
+  alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Journal
   alias Portfolixir.Repo
   alias Portfolixir.Tax.AllowanceOrder
@@ -91,7 +94,7 @@ defmodule Portfolixir.Tax do
   corrected seed row stays recognisable to the rollback.
   """
   @spec upsert_parameters(Actor.t(), map()) ::
-          {:ok, Parameters.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, Parameters.t()} | {:error, Ecto.Changeset.t() | :not_found}
   def upsert_parameters(%Actor{} = actor, attrs) when is_map(attrs) do
     fresh = Parameters.changeset(%Parameters{}, attrs)
     jurisdiction = Ecto.Changeset.get_field(fresh, :jurisdiction)
@@ -120,7 +123,7 @@ defmodule Portfolixir.Tax do
 
   defp update_parameters(actor, existing, attrs) do
     Multi.new()
-    |> Multi.update(:parameters, Parameters.changeset(existing, attrs))
+    |> Multi.update(:parameters, &Parameters.changeset(Journal.locked_row(&1), attrs))
     |> Journal.record(actor,
       resource_type: "tax_parameters",
       operation: :update,
@@ -274,10 +277,10 @@ defmodule Portfolixir.Tax do
 
   @doc "Updates a taxpayer profile on behalf of `actor`."
   @spec update_profile(Actor.t(), Profile.t(), map()) ::
-          {:ok, Profile.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, Profile.t()} | {:error, Ecto.Changeset.t() | :not_found}
   def update_profile(%Actor{} = actor, %Profile{} = profile, attrs) when is_map(attrs) do
     Multi.new()
-    |> Multi.update(:profile, Profile.changeset(profile, attrs))
+    |> Multi.update(:profile, &Profile.changeset(Journal.locked_row(&1), attrs))
     |> Journal.record(actor,
       resource_type: "tax_profile",
       operation: :update,
@@ -332,7 +335,7 @@ defmodule Portfolixir.Tax do
   then cross-check against itself.
   """
   @spec put_allowance_order(Actor.t(), map()) ::
-          {:ok, AllowanceOrder.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, AllowanceOrder.t()} | {:error, Ecto.Changeset.t() | :not_found}
   def put_allowance_order(%Actor{} = actor, attrs) when is_map(attrs) do
     fresh = AllowanceOrder.changeset(%AllowanceOrder{}, attrs)
 
@@ -341,6 +344,11 @@ defmodule Portfolixir.Tax do
       existing -> update_allowance_order(actor, existing, attrs)
     end
   end
+
+  # An invalid order is the changeset's error, never a lookup: a value the
+  # changeset refuses, such as a control character, would fail in the query
+  # instead (E25 S4, G24).
+  defp existing_order(%Ecto.Changeset{valid?: false}), do: nil
 
   defp existing_order(changeset) do
     holder = Ecto.Changeset.get_field(changeset, :holder)
@@ -370,7 +378,7 @@ defmodule Portfolixir.Tax do
 
   defp update_allowance_order(actor, existing, attrs) do
     Multi.new()
-    |> Multi.update(:order, AllowanceOrder.changeset(existing, attrs))
+    |> Multi.update(:order, &AllowanceOrder.changeset(Journal.locked_row(&1), attrs))
     |> Journal.record(actor,
       resource_type: "allowance_order",
       operation: :update,
@@ -417,16 +425,50 @@ defmodule Portfolixir.Tax do
   end
 
   @doc """
-  The distinct holders that have at least one recorded statement, alphabetical.
-  The entry surface uses it to offer the taxpayers already on file instead of
-  making the operator retype a free-text key.
+  The taxpayers that have at least one recorded statement, one entry per
+  identity, ordered by the folded key. The entry surface uses it to offer the
+  taxpayers already on file instead of making the operator retype a
+  free-text key, and the trim-budget roll-ups iterate it.
+
+  An identity is the database's fold of the holder (E25 S6, G22), the
+  `lower()` the unique indexes and every lookup use, so case spellings of
+  one taxpayer are one entry; its display spelling is the one most recently
+  recorded.
   """
   @spec list_snapshot_holders() :: [String.t()]
-  def list_snapshot_holders do
-    StatementSnapshot
-    |> select([s], s.holder)
-    |> distinct(true)
-    |> order_by([s], asc: s.holder)
+  def list_snapshot_holders, do: Enum.map(snapshot_holder_identities(), &elem(&1, 1))
+
+  @doc """
+  The taxpayer choices of the Tax page: `list_snapshot_holders/0`, with
+  `current` in the place of the entry for its identity (or added, when it
+  has none), so the scope's own spelling is the one shown and selected and
+  no identity appears twice (E25 S6, G22).
+  """
+  @spec holder_choices(String.t()) :: [String.t()]
+  def holder_choices(current) when is_binary(current) do
+    normalized = Identity.normalize(current)
+
+    current_key =
+      Repo.one(from(x in fragment("SELECT 1"), select: folded(type(^normalized, :string))))
+
+    identities = snapshot_holder_identities()
+
+    if List.keymember?(identities, current_key, 0),
+      do:
+        Enum.map(identities, fn {key, holder} ->
+          if key == current_key, do: current, else: holder
+        end),
+      else: Enum.map([{current_key, current} | identities] |> List.keysort(0), &elem(&1, 1))
+  end
+
+  # One `{folded_key, display_spelling}` per holder identity, the key computed
+  # by the database; the display spelling is the latest recorded one.
+  defp snapshot_holder_identities do
+    from(s in StatementSnapshot,
+      distinct: [asc: folded(s.holder)],
+      order_by: [desc: s.id],
+      select: {folded(s.holder), s.holder}
+    )
     |> Repo.all()
   end
 
@@ -454,7 +496,7 @@ defmodule Portfolixir.Tax do
   @doc """
   Records a statement snapshot on behalf of `actor`.
 
-  `opts[:today]` injects the clock (AR-2) and defaults to `Date.utc_today/0`;
+  `opts[:today]` injects the clock (AR-2) and defaults to `Portfolixir.Clock.today/0`;
   an `as_of` after it is rejected. When the caller supplies no
   `church_tax_rate`, the holder's profile in force at `as_of` supplies it and
   the resolved value is then **frozen on the row** — a later profile edit
@@ -463,7 +505,7 @@ defmodule Portfolixir.Tax do
   @spec create_snapshot(Actor.t(), map(), keyword()) ::
           {:ok, StatementSnapshot.t()} | {:error, Ecto.Changeset.t()}
   def create_snapshot(%Actor{} = actor, attrs, opts \\ []) when is_map(attrs) do
-    today = Keyword.get(opts, :today, Date.utc_today())
+    today = Keyword.get(opts, :today, Clock.today())
 
     Multi.new()
     |> Multi.insert(:snapshot, snapshot_changeset(attrs, today))
@@ -481,13 +523,16 @@ defmodule Portfolixir.Tax do
   the same statement date. The frozen `church_tax_rate` is not re-resolved.
   """
   @spec update_snapshot(Actor.t(), StatementSnapshot.t(), map(), keyword()) ::
-          {:ok, StatementSnapshot.t()} | {:error, Ecto.Changeset.t()}
+          {:ok, StatementSnapshot.t()} | {:error, Ecto.Changeset.t() | :not_found}
   def update_snapshot(%Actor{} = actor, %StatementSnapshot{} = snapshot, attrs, opts \\ [])
       when is_map(attrs) do
-    today = Keyword.get(opts, :today, Date.utc_today())
+    today = Keyword.get(opts, :today, Clock.today())
 
     Multi.new()
-    |> Multi.update(:snapshot, StatementSnapshot.changeset(snapshot, attrs, today))
+    |> Multi.update(
+      :snapshot,
+      &StatementSnapshot.changeset(Journal.locked_row(&1), attrs, today)
+    )
     |> Journal.record(actor,
       resource_type: "tax_statement_snapshot",
       operation: :update,
@@ -533,10 +578,17 @@ defmodule Portfolixir.Tax do
   defp consistency_context(%StatementSnapshot{} = snapshot) do
     holder_orders = list_allowance_orders(holder: snapshot.holder, tax_year: snapshot.tax_year)
 
+    # The order for the snapshot's institution is found by the database's
+    # fold, as every identity match is (E25 S6, G21).
+    allowance_order =
+      [holder: snapshot.holder, institution: snapshot.institution, tax_year: snapshot.tax_year]
+      |> list_allowance_orders()
+      |> List.first()
+
     %{
       parameters: parameters_for(snapshot),
       earlier_snapshots: earlier_snapshots(snapshot),
-      allowance_order: Enum.find(holder_orders, &same_institution?(&1, snapshot)),
+      allowance_order: allowance_order,
       holder_orders: holder_orders,
       assessment_type: assessment_type_for(snapshot)
     }
@@ -557,10 +609,6 @@ defmodule Portfolixir.Tax do
     |> Repo.all()
   end
 
-  defp same_institution?(order, snapshot) do
-    Identity.fold(order.institution) == Identity.fold(snapshot.institution)
-  end
-
   defp assessment_type_for(%StatementSnapshot{} = snapshot) do
     case profile_in_force(snapshot.holder, snapshot.as_of) do
       nil -> "single"
@@ -578,15 +626,44 @@ defmodule Portfolixir.Tax do
   """
   @spec holder_summary(String.t(), integer()) :: Budget.roll_up()
   def holder_summary(holder, tax_year) when is_binary(holder) do
-    snapshots = list_snapshots(holder: holder, tax_year: tax_year)
-    expected = list_allowance_orders(holder: holder, tax_year: tax_year)
+    latest = latest_per_institution(holder, tax_year)
 
     Budget.roll_up(
-      snapshots,
-      Enum.map(expected, & &1.institution),
+      latest,
+      institutions_without_snapshot(holder, tax_year),
       parameters_for_year(tax_year),
-      assessment_type_at(holder, snapshots)
+      assessment_type_at(holder, Enum.sort_by(latest, & &1.as_of, {:desc, Date}))
     )
+  end
+
+  # The latest statement per institution of one holder and year, grouped by
+  # the database's folded institution key (E25 S6, G21): case spellings of
+  # one bank are one institution, and a later statement under another
+  # spelling replaces an earlier one.
+  defp latest_per_institution(holder, tax_year) do
+    StatementSnapshot
+    |> filter_folded(:holder, holder)
+    |> where([s], s.tax_year == ^tax_year)
+    |> distinct([s], asc: folded(s.institution))
+    |> order_by([s], desc: s.as_of, desc: s.id)
+    |> Repo.all()
+  end
+
+  # The institutions the holder has an allowance order for in the year and no
+  # statement, compared by the database's fold on both sides.
+  defp institutions_without_snapshot(holder, tax_year) do
+    covered =
+      StatementSnapshot
+      |> filter_folded(:holder, holder)
+      |> where([s], s.tax_year == ^tax_year)
+      |> select([s], folded(s.institution))
+
+    AllowanceOrder
+    |> filter_folded(:holder, holder)
+    |> where([o], o.tax_year == ^tax_year)
+    |> where([o], folded(o.institution) not in subquery(covered))
+    |> select([o], o.institution)
+    |> Repo.all()
   end
 
   defp parameters_for_year(tax_year) do
@@ -620,7 +697,7 @@ defmodule Portfolixir.Tax do
   statement, nothing to assess.
   """
   @spec staleness(Date.t() | nil, Date.t()) :: map() | nil
-  def staleness(as_of, today \\ Date.utc_today())
+  def staleness(as_of, today \\ Clock.today())
 
   def staleness(nil, %Date{}), do: nil
 
@@ -668,7 +745,9 @@ defmodule Portfolixir.Tax do
     as_of = Ecto.Changeset.get_field(probe, :as_of)
 
     with nil <- Ecto.Changeset.get_change(probe, :church_tax_rate),
-         true <- is_binary(holder) and match?(%Date{}, as_of),
+         # A date outside the shared bound is the probe's field error, never
+         # a lookup (E25 S4, F70).
+         true <- is_binary(holder) and BoundedDate.within?(as_of),
          %Profile{} = profile <- profile_in_force(holder, as_of) do
       StatementSnapshot.changeset(%StatementSnapshot{}, attrs, today,
         default_church_tax_rate: profile.church_tax_rate
@@ -680,17 +759,21 @@ defmodule Portfolixir.Tax do
 
   # -- internals -------------------------------------------------------------
 
-  defp for_holder(query, holder) do
-    where(query, [r], fragment("lower(?)", r.holder) == ^Identity.fold(holder))
-  end
+  # Both sides are folded by the database, with the `lower()` the unique
+  # indexes use; the value is normalised as a stored one is (E25 S6, G21).
+  defp for_holder(query, holder), do: filter_folded(query, :holder, holder)
 
   defp filter_folded(query, _field, nil), do: query
 
-  defp filter_folded(query, :holder, value),
-    do: where(query, [r], fragment("lower(?)", r.holder) == ^Identity.fold(value))
+  defp filter_folded(query, :holder, value) do
+    value = Identity.normalize(value)
+    where(query, [r], folded(r.holder) == folded(type(^value, :string)))
+  end
 
-  defp filter_folded(query, :institution, value),
-    do: where(query, [r], fragment("lower(?)", r.institution) == ^Identity.fold(value))
+  defp filter_folded(query, :institution, value) do
+    value = Identity.normalize(value)
+    where(query, [r], folded(r.institution) == folded(type(^value, :string)))
+  end
 
   defp filter_eq(query, _field, nil), do: query
   defp filter_eq(query, field, value), do: where(query, [r], field(r, ^field) == ^value)
@@ -708,4 +791,8 @@ defmodule Portfolixir.Tax do
 
   defp normalize({:ok, changes}, step), do: {:ok, Map.fetch!(changes, step)}
   defp normalize({:error, step, changeset, _changes}, step), do: {:error, changeset}
+
+  # The row was deleted before the write took its lock (E25 S6, F49).
+  defp normalize({:error, {:journal_lock, _}, :not_found, _changes}, _step),
+    do: {:error, :not_found}
 end

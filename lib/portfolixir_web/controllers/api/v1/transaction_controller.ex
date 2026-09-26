@@ -8,6 +8,7 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CashAccount
+  alias PortfolixirWeb.Api.V1.DateParam
   alias PortfolixirWeb.Api.V1.FieldSelection
   alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
@@ -156,6 +157,7 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
       else
         nil -> not_found(conn)
         :error -> not_found(conn)
+        {:error, :not_found} -> not_found(conn)
         {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
       end
     end
@@ -175,6 +177,7 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
     else
       nil -> not_found(conn)
       :error -> not_found(conn)
+      {:error, :not_found} -> not_found(conn)
       {:error, _changeset} -> conflict(conn)
     end
   end
@@ -200,19 +203,11 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
     end
   end
 
+  # The bounded date every writer meets (DateParam, F70 review round).
   defp date_param(params, key, field) do
-    case Map.get(params, key) do
-      value when value in [nil, ""] ->
-        {:ok, nil}
-
-      value when is_binary(value) ->
-        case Date.from_iso8601(value) do
-          {:ok, date} -> {:ok, date}
-          _ -> {:error, field}
-        end
-
-      _ ->
-        {:error, field}
+    case DateParam.parse(params, key) do
+      {:ok, date} -> {:ok, date}
+      :error -> {:error, field}
     end
   end
 

@@ -6,7 +6,8 @@ defmodule Portfolixir.Portfolios do
   alias Ecto.Multi
   alias Portfolixir.Actor
   alias Portfolixir.Journal
-  alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Lifecycle.AccountNames
+  alias Portfolixir.Lifecycle.Delete
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.SecuritiesAccount
@@ -114,33 +115,49 @@ defmodule Portfolixir.Portfolios do
     Multi.new()
     |> Multi.insert(:portfolio, Portfolio.changeset(%Portfolio{}, attrs))
     |> Journal.record(actor, resource_type: "portfolio", operation: :create, source: :portfolio)
+    |> write_cash_target(actor, attrs)
     |> Repo.transaction()
     |> portfolio_write_result()
-    |> persist_cash_target(actor)
+    |> with_stored_cash_target()
   end
 
   @doc """
   Updates a portfolio on behalf of `actor` (FR-28). The update and its audit
   journal entry (with the pre-image as `before`) commit in one transaction.
+
+  The cash target is written only when `attrs` carries `cash_target_weight`
+  (a fraction, or `nil` to stop steering), as a step of that same
+  transaction (E25 S6, G18): a write that says nothing about it leaves the
+  Gesamt cash plan and its journal untouched, and a refused cash-target
+  write rolls the portfolio change back and answers its error. The returned
+  portfolio carries the cash target as stored after the write.
   """
   def update_portfolio(%Actor{} = actor, %Portfolio{} = portfolio, attrs) when is_map(attrs) do
     Multi.new()
-    |> Multi.update(:portfolio, Portfolio.changeset(portfolio, attrs))
+    |> Multi.update(:portfolio, &Portfolio.changeset(Journal.locked_row(&1), attrs))
     |> Journal.record(actor,
       resource_type: "portfolio",
       operation: :update,
       source: :portfolio,
       before: portfolio
     )
+    |> write_cash_target(actor, attrs)
     |> Repo.transaction()
     |> portfolio_write_result()
-    |> persist_cash_target(actor)
+    |> with_stored_cash_target()
   end
 
   defp portfolio_write_result({:ok, %{portfolio: portfolio}}), do: {:ok, portfolio}
 
   defp portfolio_write_result({:error, :portfolio, %Ecto.Changeset{} = changeset, _changes}),
     do: {:error, changeset}
+
+  # The cash-target step refused the weight (E25 S6, G18).
+  defp portfolio_write_result({:error, :cash_target, reason, _changes}), do: {:error, reason}
+
+  # The row was deleted before the write took its lock (E25 S6, F49).
+  defp portfolio_write_result({:error, {:journal_lock, _}, :not_found, _changes}),
+    do: {:error, :not_found}
 
   # Unwraps a journaled account Multi (the business write under `key`, plus the
   # journal steps) into the bare `{:ok, record}` / `{:error, changeset}` the
@@ -149,6 +166,9 @@ defmodule Portfolixir.Portfolios do
 
   defp account_write_result({:error, key, %Ecto.Changeset{} = changeset, _changes}, key),
     do: {:error, changeset}
+
+  defp account_write_result({:error, {:journal_lock, _}, :not_found, _changes}, _key),
+    do: {:error, :not_found}
 
   @doc """
   Sets (or clears) a portfolio's cash target weight, the SOLL share of cash in
@@ -177,16 +197,30 @@ defmodule Portfolixir.Portfolios do
     %{portfolio | cash_target_weight: Targets.get_cash_target(portfolio.id)}
   end
 
-  # Write-through: after a portfolio write, persist the virtual cash target onto
-  # the Gesamt cash plan when the changeset carried one (it casts and validates a
-  # `[0, 1]` fraction). A nil weight clears the steered quote.
-  defp persist_cash_target({:ok, %Portfolio{} = portfolio}, %Actor{} = actor) do
-    weight = portfolio.cash_target_weight
-    :ok = Targets.set_cash_target(actor, portfolio.id, weight)
-    {:ok, %{portfolio | cash_target_weight: weight}}
+  # Write-through (E25 S6, G18): when the request carries a cash target, the
+  # virtual field the portfolio changeset cast and validated (a `[0, 1]`
+  # fraction, or nil to clear) is written onto the Gesamt cash plan as a step
+  # of the portfolio's own transaction, so a refusal rolls the portfolio
+  # write back and is answered, never matched. A request that does not carry
+  # one never touches the plan: the portfolio's virtual field is not a read
+  # of it.
+  defp write_cash_target(multi, %Actor{} = actor, attrs) do
+    if Map.has_key?(attrs, :cash_target_weight) or Map.has_key?(attrs, "cash_target_weight") do
+      Multi.run(multi, :cash_target, fn _repo, %{portfolio: portfolio} ->
+        case Targets.set_cash_target(actor, portfolio.id, portfolio.cash_target_weight) do
+          :ok -> {:ok, portfolio.cash_target_weight}
+          {:error, reason} -> {:error, reason}
+        end
+      end)
+    else
+      multi
+    end
   end
 
-  defp persist_cash_target(other, _actor), do: other
+  defp with_stored_cash_target({:ok, %Portfolio{} = portfolio}),
+    do: {:ok, load_cash_target(portfolio)}
+
+  defp with_stored_cash_target(other), do: other
 
   def list_cash_accounts do
     Repo.all(from(account in CashAccount, order_by: [asc: account.name, asc: account.id]))
@@ -219,49 +253,59 @@ defmodule Portfolixir.Portfolios do
 
   def get_cash_account(id) when is_integer(id), do: Repo.get(CashAccount, id)
 
+  # A rename or a move starts from the row as stored (ADR-0050 §4): its
+  # changeset and its journal before-image agree with the former names the
+  # rename rule reads (`AccountNames.with_stored/3`).
   def update_cash_account(%Actor{} = actor, %CashAccount{} = cash_account, attrs)
       when is_map(attrs) do
-    Multi.new()
-    |> Multi.update(:cash_account, CashAccount.changeset(cash_account, attrs))
-    |> Journal.record(actor,
-      resource_type: "cash_account",
-      operation: :update,
-      source: :cash_account,
-      before: cash_account
-    )
-    |> Repo.transaction()
+    cash_account
+    |> AccountNames.with_stored(CashAccount.changeset(cash_account, attrs), fn account ->
+      Multi.new()
+      |> Multi.update(:cash_account, &CashAccount.changeset(Journal.locked_row(&1), attrs))
+      |> Journal.record(actor,
+        resource_type: "cash_account",
+        operation: :update,
+        source: :cash_account,
+        before: account
+      )
+      |> Repo.transaction()
+    end)
     |> account_write_result(:cash_account)
   end
 
   @doc """
-  Deletes a cash account on behalf of `actor`. All account FKs are
-  `on_delete: :restrict`, so an account still referenced by a transaction or a
-  securities account cannot be removed; this returns `{:error, :referenced}`
-  instead of raising. The deletion is journaled with the full `before` snapshot.
+  Deletes a cash account on behalf of `actor`, through the hardened delete
+  path of ADR-0050 §11 (`Portfolixir.Lifecycle.Delete`): the row is locked
+  `FOR UPDATE`; an account a transaction references through either leg, or a
+  depot links to, answers `{:error, {:referenced, referenced_by}}` (the
+  referencing tables, counted) and is left alone — merging it is the remedy;
+  otherwise its bucket links are removed through `Buckets`, journaled, and the
+  deletion is journaled with the full `before` snapshot. A vanished account
+  answers `{:error, :not_found}`.
   """
   def delete_cash_account(%Actor{} = actor, %CashAccount{} = cash_account) do
-    if cash_account_referenced?(cash_account.id) do
-      {:error, :referenced}
-    else
-      Multi.new()
-      |> Multi.delete(:cash_account, cash_account)
-      |> Journal.record(actor,
-        resource_type: "cash_account",
-        operation: :delete,
-        source: :cash_account,
-        before: cash_account
-      )
-      |> Repo.transaction()
-      |> account_write_result(:cash_account)
-    end
+    Delete.delete(actor, cash_account)
   end
 
-  defp cash_account_referenced?(id) do
-    Repo.exists?(
-      from(t in Transaction,
-        where: t.cash_account_id == ^id or t.counter_cash_account_id == ^id
-      )
-    ) or Repo.exists?(from(s in SecuritiesAccount, where: s.cash_account_id == ^id))
+  @doc """
+  Removes `name` from a cash account's former names on behalf of `actor`,
+  journaled (ADR-0050 §4). A former name routes an import row that names it
+  onto this account; once removed, an import that still names it creates a
+  new account. Answers `{:error, :not_a_former_name}` for a name the account
+  does not carry and `{:error, :not_found}` for a vanished account.
+  """
+  def remove_cash_account_former_name(%Actor{} = actor, %CashAccount{} = cash_account, name)
+      when is_binary(name) do
+    AccountNames.remove_former_name(actor, cash_account, name)
+  end
+
+  @doc """
+  The name guard's answer for a new depot named `name` in `portfolio_id`
+  (ADR-0050 §4) — the message a create would fail with, or `nil` when the
+  name is free — for a form that creates something else first.
+  """
+  def securities_account_name_error(portfolio_id, name) when is_binary(name) do
+    AccountNames.name_error(SecuritiesAccount, portfolio_id, name)
   end
 
   def list_securities_accounts do
@@ -312,15 +356,23 @@ defmodule Portfolixir.Portfolios do
         attrs
       )
       when is_map(attrs) do
-    Multi.new()
-    |> Multi.update(:securities_account, SecuritiesAccount.changeset(securities_account, attrs))
-    |> Journal.record(actor,
-      resource_type: "securities_account",
-      operation: :update,
-      source: :securities_account,
-      before: securities_account
-    )
-    |> Repo.transaction()
+    probe = SecuritiesAccount.changeset(securities_account, attrs)
+
+    securities_account
+    |> AccountNames.with_stored(probe, fn account ->
+      Multi.new()
+      |> Multi.update(
+        :securities_account,
+        &SecuritiesAccount.changeset(Journal.locked_row(&1), attrs)
+      )
+      |> Journal.record(actor,
+        resource_type: "securities_account",
+        operation: :update,
+        source: :securities_account,
+        before: account
+      )
+      |> Repo.transaction()
+    end)
     |> account_write_result(:securities_account)
     |> case do
       {:ok, updated} -> {:ok, Repo.preload(updated, :cash_account, force: true)}
@@ -329,33 +381,32 @@ defmodule Portfolixir.Portfolios do
   end
 
   @doc """
-  Deletes a securities account on behalf of `actor`. Its FKs are
-  `on_delete: :restrict`, so an account still referenced by a transaction cannot
-  be removed; this returns `{:error, :referenced}` instead of raising. The
-  deletion is journaled with the full `before` snapshot.
+  Deletes a securities account (depot) on behalf of `actor`, through the
+  hardened delete path of ADR-0050 §11 (`Portfolixir.Lifecycle.Delete`): the
+  row is locked `FOR UPDATE`; a depot a transaction references through either
+  leg answers `{:error, {:referenced, referenced_by}}` and is left alone —
+  merging it is the remedy; otherwise its default buckets (one aggregate
+  entry) and its position overrides (one entry per position) are removed
+  through `Buckets`, journaled, and the deletion is journaled with the full
+  `before` snapshot. A vanished depot answers `{:error, :not_found}`.
   """
   def delete_securities_account(%Actor{} = actor, %SecuritiesAccount{} = securities_account) do
-    if securities_account_referenced?(securities_account.id) do
-      {:error, :referenced}
-    else
-      Multi.new()
-      |> Multi.delete(:securities_account, securities_account)
-      |> Journal.record(actor,
-        resource_type: "securities_account",
-        operation: :delete,
-        source: :securities_account,
-        before: securities_account
-      )
-      |> Repo.transaction()
-      |> account_write_result(:securities_account)
-    end
+    Delete.delete(actor, securities_account)
   end
 
-  defp securities_account_referenced?(id) do
-    Repo.exists?(
-      from(t in Transaction,
-        where: t.securities_account_id == ^id or t.counter_securities_account_id == ^id
+  @doc """
+  Removes `name` from a depot's former names on behalf of `actor`, journaled
+  (ADR-0050 §4); see `remove_cash_account_former_name/3`.
+  """
+  def remove_securities_account_former_name(
+        %Actor{} = actor,
+        %SecuritiesAccount{} = securities_account,
+        name
       )
-    )
+      when is_binary(name) do
+    case AccountNames.remove_former_name(actor, securities_account, name) do
+      {:ok, updated} -> {:ok, Repo.preload(updated, :cash_account, force: true)}
+      other -> other
+    end
   end
 end

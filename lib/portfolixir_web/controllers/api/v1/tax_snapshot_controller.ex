@@ -26,16 +26,23 @@ defmodule PortfolixirWeb.Api.V1.TaxSnapshotController do
   alias Portfolixir.Tax
   alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.TextParam
 
   def index(conn, params) do
-    snapshots =
-      Tax.list_snapshots(
-        holder: params["holder"],
-        institution: params["institution"],
-        tax_year: parse_year(params["tax_year"])
-      )
+    case TextParam.parse_all(params, ["holder", "institution"]) do
+      {:ok, %{"holder" => holder, "institution" => institution}} ->
+        snapshots =
+          Tax.list_snapshots(
+            holder: holder,
+            institution: institution,
+            tax_year: parse_year(params["tax_year"])
+          )
 
-    json(conn, %{data: Enum.map(snapshots, &serialize/1)})
+        json(conn, %{data: Enum.map(snapshots, &serialize/1)})
+
+      {:error, key} ->
+        invalid_param(conn, key)
+    end
   end
 
   def show(conn, %{"id" => id}) do
@@ -63,6 +70,7 @@ defmodule PortfolixirWeb.Api.V1.TaxSnapshotController do
          {:ok, snapshot} <- Tax.fetch_snapshot(snapshot_id) do
       case Tax.update_snapshot(conn.assigns.actor, snapshot, attrs) do
         {:ok, updated} -> json(conn, %{data: serialize(updated)})
+        {:error, :not_found} -> not_found(conn)
         {:error, changeset} -> unprocessable(conn, changeset)
       end
     else
@@ -84,21 +92,21 @@ defmodule PortfolixirWeb.Api.V1.TaxSnapshotController do
   institution, summed, with the institutions it covers and whether the picture
   is complete.
   """
-  def trim_budget(conn, %{"holder" => holder} = params) do
-    case parse_year(params["tax_year"]) do
-      nil ->
-        missing_param(conn, "tax_year")
+  def trim_budget(conn, params) do
+    with {:ok, %{"holder" => holder}} when is_binary(holder) <-
+           TextParam.parse_all(params, ["holder"]),
+         year when is_integer(year) <- parse_year(params["tax_year"]) do
+      summary = Tax.holder_summary(holder, year)
 
-      year ->
-        summary = Tax.holder_summary(holder, year)
-
-        json(conn, %{
-          data: JSON.tax_trim_budget(summary, staleness: Tax.staleness(summary.as_of))
-        })
+      json(conn, %{
+        data: JSON.tax_trim_budget(summary, staleness: Tax.staleness(summary.as_of))
+      })
+    else
+      {:error, key} -> invalid_param(conn, key)
+      {:ok, %{"holder" => nil}} -> missing_param(conn, "holder")
+      nil -> missing_param(conn, "tax_year")
     end
   end
-
-  def trim_budget(conn, _params), do: missing_param(conn, "holder")
 
   defp serialize(snapshot) do
     JSON.tax_statement_snapshot(snapshot,
@@ -121,6 +129,10 @@ defmodule PortfolixirWeb.Api.V1.TaxSnapshotController do
 
   defp parse_year(value) when is_integer(value) and value >= 1 and value <= 9999, do: value
   defp parse_year(_value), do: nil
+
+  defp invalid_param(conn, param) do
+    conn |> put_status(422) |> json(%{errors: %{param => ["is invalid"]}})
+  end
 
   defp missing_param(conn, param) do
     conn |> put_status(422) |> json(%{errors: %{param => ["is required"]}})

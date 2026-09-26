@@ -159,6 +159,30 @@ defmodule Portfolixir.Portfolios.Allocation do
     do: Decimal.compare(Decimal.abs(drift), threshold) != :lt
 
   @doc """
+  The computation basis of the position rows' drift share (AGENTS.md: every
+  metric states its inputs and its treatment of gaps in the payload). The
+  gaps list the cases where a position's share is `nil`, among them a position
+  valued at 0 (E25 S4, G14). The category rows' drift is named by
+  `drift_basis`.
+  """
+  @spec computation_basis() :: map()
+  def computation_basis do
+    %{
+      drift_value:
+        "drift_weight restated in base currency; a position without its own target carries " <>
+          "its category's drift_value shared by market value within the category's rolled-up " <>
+          "value, and rebalance_quantity is that share at the position's implied unit price " <>
+          "(market_value / quantity)",
+      gaps: [
+        "without a plan no drift figure is computed",
+        "an unassigned position without its own target carries no drift share",
+        "a position valued at 0 carries no drift share and no rebalance_quantity (null): it " <>
+          "holds no share of its category's value and has no implied unit price"
+      ]
+    }
+  end
+
+  @doc """
   The cash row's actual weight on its own: the counting cash as a share of the
   steering basis (valued positions plus deployable cash) — the same figure as
   `for_portfolio/3`'s `cash.actual_weight` under **any** classification, since
@@ -171,7 +195,7 @@ defmodule Portfolixir.Portfolios.Allocation do
   """
   @spec cash_weight(integer(), keyword()) :: map() | {:error, :view_not_found}
   def cash_weight(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
-    with %{} = valuation <- Valuation.for_portfolio(portfolio_id, opts) do
+    with %{} = valuation <- given_or_valued(portfolio_id, opts) do
       total = Decimal.add(valuation.total_value, valuation.counting_cash)
       %{actual_weight: weight(valuation.counting_cash, total), total_value: total}
     end
@@ -182,7 +206,8 @@ defmodule Portfolixir.Portfolios.Allocation do
 
   Options are passed through to `Valuation.for_portfolio/2` (e.g. `:prices`,
   `:base_currency`, and `:pricing_context` — the one pricing pass a caller
-  computing both a total and its drift shares between them, ADR-0035).
+  computing both a total and its drift shares between them, ADR-0035), or
+  `:valuation`, the scope's valuation when the caller already holds it.
   `:view` (a `%View{}`, a view id, or `nil` = Gesamt) scopes
   **both** the IST valuation (#444) and the SOLL plan (ADR-0020): only the
   addressed view's `(view, classification)` plan is loaded. Returns
@@ -202,7 +227,7 @@ defmodule Portfolixir.Portfolios.Allocation do
 
         # A vanished view degrades to `{:error, :view_not_found}` (fix round)
         # instead of raising out of an async render or API request.
-        with %{} = valuation <- Valuation.for_portfolio(portfolio_id, opts) do
+        with %{} = valuation <- given_or_valued(portfolio_id, opts) do
           soll =
             plan_soll(portfolio_id, classification_id, view, security_categories, categories)
 
@@ -212,6 +237,12 @@ defmodule Portfolixir.Portfolios.Allocation do
         end
     end
   end
+
+  # A caller that already valued this scope passes it as `:valuation` (the
+  # findings read values its context once, E25 S4); it must be the valuation
+  # `:view` names.
+  defp given_or_valued(portfolio_id, opts),
+    do: Keyword.get_lazy(opts, :valuation, fn -> Valuation.for_portfolio(portfolio_id, opts) end)
 
   # The SOLL side is the active view's plan only (ADR-0020). A view "has a plan"
   # for this surface when it carries a `(view, classification)` category plan OR
@@ -974,17 +1005,29 @@ defmodule Portfolixir.Portfolios.Allocation do
             position
 
           position ->
-            %{
-              position
-              | drift_value:
-                  row.drift_value
-                  |> Decimal.mult(position.market_value)
-                  |> Decimal.div(row.market_value),
-                rebalance_quantity: rebalance_quantity(position, row)
-            }
+            category_share(position, row)
         end)
 
       %{row | positions: positions}
+    end
+  end
+
+  # A position valued at 0 has no share of the category's drift (E25 S4,
+  # G14): its figures stay nil, the way an unassigned position's do, never a
+  # signed zero that sorts among the tradeable rows. The payload's
+  # computation_basis names the case as a gap.
+  defp category_share(position, row) do
+    if Decimal.equal?(position.market_value, @zero) do
+      position
+    else
+      %{
+        position
+        | drift_value:
+            row.drift_value
+            |> Decimal.mult(position.market_value)
+            |> Decimal.div(row.market_value),
+          rebalance_quantity: rebalance_quantity(position, row)
+      }
     end
   end
 

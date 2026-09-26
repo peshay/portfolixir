@@ -25,6 +25,7 @@ defmodule Portfolixir.Ledger do
   alias Portfolixir.Catalog.QuoteAdjustment
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Clock
   alias Portfolixir.Fx
   alias Portfolixir.Journal
   alias Portfolixir.Ledger.PnlDecomposition
@@ -509,6 +510,84 @@ defmodule Portfolixir.Ledger do
     end)
     |> Enum.sort_by(& &1.portfolio.name)
   end
+
+  @doc """
+  The moving-average figures of every `{securities_account, security}`
+  position over `transactions`: the cost fold of `holdings_for_portfolio/2`
+  (`cost_lots/1`), read per position, with the result its sales realized.
+
+    * `quantity` — the canonical position quantity (`Ledger.Positions`);
+    * `cost_basis` — the lot's cost in the security's own currency, `nil`
+      when a contributing acquisition had no derivable security-currency leg;
+    * `avg_cost` — `cost_basis / quantity`, as the holdings read states it
+      (zero for a non-positive quantity), `nil` with the cost basis;
+    * `realized_result` — the sum, over the position's sales, of the sale's
+      quantity times its price in the security's currency less the cost the
+      sale removed at the running average. Fees and taxes are not in it, as
+      they are not in the cost basis. `nil` when a sale's security-currency
+      price or the cost it removed is not derivable.
+
+  A position's figures depend only on its own bookings and its portfolio's
+  split rows of the security, so a caller passes those — every booking of
+  the positions it wants and the splits — each with its `:security` and
+  `:cash_account` preloaded, as the holdings' own read loads them. The
+  lifecycle depot merge states these before and after (ADR-0050 §7), from
+  this one fold, so the figures a merge promises are the holdings read
+  afterwards.
+  """
+  @spec position_costs([%Transaction{}]) :: %{{term(), term()} => map()}
+  def position_costs(transactions) when is_list(transactions) do
+    ordered = Projection.replay_sort(transactions)
+    accounts = Projection.account_portfolios(ordered)
+    positions = Positions.calculate(ordered)
+
+    {lots, realized} =
+      Enum.reduce(ordered, {%{}, %{}}, fn tx, {lots, realized} ->
+        {apply_cost_effect(tx, lots, accounts), realize(tx, lots, realized)}
+      end)
+
+    (Map.keys(lots) ++ Map.keys(realized))
+    |> Enum.uniq()
+    |> Map.new(fn key ->
+      lot = lot_for(lots, key)
+      quantity = Map.get(positions, key, @zero)
+      cost_basis = if lot.cost_known, do: lot.cost, else: nil
+
+      {key,
+       %{
+         quantity: quantity,
+         cost_basis: cost_basis,
+         avg_cost: cost_basis && average_unit_cost(quantity, cost_basis),
+         realized_result:
+           case Map.get(realized, key, @zero) do
+             :unknown -> nil
+             result -> result
+           end
+       }}
+    end)
+  end
+
+  # A sale's realized result under the moving average: its quantity times its
+  # security-currency price, less the cost `remove_cost/3` takes out of the
+  # lot as it stands before the sale — the same removal the cost fold makes.
+  defp realize(%{type: "sell"} = tx, lots, realized) do
+    key = lot_key(tx)
+    {_lots, removed} = remove_cost(lots, key, tx.quantity)
+    price = native_unit_price(tx, transaction_security_currency(tx))
+
+    result =
+      if removed.cost_known and match?(%Decimal{}, price),
+        do: tx.quantity |> Decimal.mult(price) |> Decimal.sub(removed.cost),
+        else: :unknown
+
+    Map.update(realized, key, result, &add_realized(&1, result))
+  end
+
+  defp realize(_tx, _lots, realized), do: realized
+
+  defp add_realized(:unknown, _result), do: :unknown
+  defp add_realized(_sum, :unknown), do: :unknown
+  defp add_realized(sum, result), do: Decimal.add(sum, result)
 
   # Depot (and owning portfolio) structs per securities-account id, taken from
   # the preloaded transactions. The counter account of a `security_transfer`
@@ -1057,6 +1136,25 @@ defmodule Portfolixir.Ledger do
   end
 
   @doc """
+  The number of bookings of each of `security_ids`, split rows included, as
+  `%{security_id => count}` — a security without one is absent. One query,
+  for a list that names each candidate's bookings (the security merge's
+  target search, ADR-0050 §9).
+  """
+  @spec count_transactions_by_security([integer()]) :: %{integer() => pos_integer()}
+  def count_transactions_by_security([]), do: %{}
+
+  def count_transactions_by_security(security_ids) when is_list(security_ids) do
+    from(t in Transaction,
+      where: t.security_id in ^security_ids,
+      group_by: t.security_id,
+      select: {t.security_id, count(t.id)}
+    )
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  @doc """
   Counts transactions of the given kinds dated strictly after `date` — the
   activity half of the tax-statement staleness assessment (issue #667).
   """
@@ -1143,16 +1241,29 @@ defmodule Portfolixir.Ledger do
   @doc """
   Updates a transaction on behalf of `actor` (FR-28). The update and its audit
   journal entry (with the pre-image as `before`) commit in one transaction.
+
+  A stored **split** row changes only its note (E25 S6, G07): a split is
+  booked through `Splits.book_split/2`, whose checks (effective date,
+  positions, a conflicting same-day ratio, the cumulative factor) and
+  fan-out a generic update would bypass, so a change of any other field — the
+  date, security, portfolio, type or ratio among them — is a changeset error
+  on that field, and a wrong split is deleted and booked again. For the same
+  reason no other booking becomes a split here.
   """
   def update_transaction(%Actor{} = actor, %Transaction{} = transaction, attrs)
       when is_map(attrs) do
-    changeset =
-      transaction
-      |> Transaction.changeset(derive_settlement_fx_rate(attrs))
-      |> validate_cash_account_currency()
+    attrs = derive_settlement_fx_rate(attrs)
 
+    # The changeset starts from the row as stored, re-read under its lock by
+    # the journal step, never from the caller's earlier read (E25 S6, F49).
     Multi.new()
-    |> Multi.update(:transaction, changeset)
+    |> Multi.update(:transaction, fn changes ->
+      changes
+      |> Journal.locked_row()
+      |> Transaction.changeset(attrs)
+      |> keep_split_facts()
+      |> validate_cash_account_currency()
+    end)
     |> Journal.record(actor,
       resource_type: "transaction",
       operation: :update,
@@ -1180,10 +1291,49 @@ defmodule Portfolixir.Ledger do
     |> transaction_write_result()
   end
 
+  # E25 S6 (#891), G07: the fields a split row may change outside the split
+  # flow. Everything else on a stored split — its date, security, portfolio,
+  # type, ratio — is a fact the split flow checked and fanned out.
+  @split_editable_fields [:notes]
+
+  defp keep_split_facts(%Ecto.Changeset{data: %Transaction{type: "split"}} = changeset) do
+    changeset.changes
+    |> Map.keys()
+    |> Enum.reject(&(&1 in @split_editable_fields))
+    |> Enum.reduce(changeset, fn field, acc ->
+      Ecto.Changeset.add_error(
+        acc,
+        field,
+        "is fixed on a booked split; only its note changes here. A wrong split is " <>
+          "deleted (DELETE /api/v1/transactions/:id, each of its rows) and booked " <>
+          "again (POST /api/v1/splits)",
+        validation: :split_fact
+      )
+    end)
+  end
+
+  defp keep_split_facts(%Ecto.Changeset{} = changeset) do
+    if Ecto.Changeset.get_change(changeset, :type) == "split" do
+      Ecto.Changeset.add_error(
+        changeset,
+        :type,
+        "cannot become split: a split is booked through the split flow " <>
+          "(POST /api/v1/splits), never made from another booking",
+        validation: :split_fact
+      )
+    else
+      changeset
+    end
+  end
+
   defp transaction_write_result({:ok, %{transaction: transaction}}), do: {:ok, transaction}
 
   defp transaction_write_result({:error, :transaction, %Ecto.Changeset{} = changeset, _changes}),
     do: {:error, changeset}
+
+  # The row was deleted before the write took its lock (E25 S6, F49).
+  defp transaction_write_result({:error, {:journal_lock, _}, :not_found, _changes}),
+    do: {:error, :not_found}
 
   # Cross-record currency check (issue #343): a transaction is booked in
   # its cash account's currency, so its `currency_code` must equal the
@@ -1362,7 +1512,7 @@ defmodule Portfolixir.Ledger do
       |> Enum.sort_by(& &1.security_name)
 
     %{
-      as_of: Date.utc_today(),
+      as_of: Clock.today(),
       note:
         "Positions whose derived holding quantity is negative — import " <>
           "debris from unmodeled corporate actions, listed per depot with " <>

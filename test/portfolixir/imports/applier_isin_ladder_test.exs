@@ -74,19 +74,19 @@ defmodule Portfolixir.Imports.ApplierIsinLadderTest do
   describe "apply/2 ISIN tier with aliases" do
     test "resolves an entry via a former-ISIN alias and labels the match" do
       portfolio = setup_portfolio()
-      security = create_security!(%{isin: "DE0001234567"})
+      security = create_security!(%{isin: "DE0001234565"})
 
       {:ok, %{security: security}} =
-        Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654321")
+        Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654329")
 
       assert {:ok, %Result{} = result} =
-               Imports.apply(buy_preview("DE0001234567"), %{portfolio_id: portfolio.id})
+               Imports.apply(buy_preview("DE0001234565"), %{portfolio_id: portfolio.id})
 
       assert result.created_securities == 0
       assert result.created_transactions == 1
       assert result.resolved_security_ids == [security.id]
 
-      assert [%{row: 1, former_isin: "DE0001234567", security_id: matched_id}] =
+      assert [%{row: 1, former_isin: "DE0001234565", security_id: matched_id}] =
                result.alias_matches
 
       assert matched_id == security.id
@@ -97,10 +97,10 @@ defmodule Portfolixir.Imports.ApplierIsinLadderTest do
 
     test "matches a lowercase ISIN in the file against the stored current ISIN" do
       portfolio = setup_portfolio()
-      security = create_security!(%{isin: "DE0001234567"})
+      security = create_security!(%{isin: "DE0001234565"})
 
       assert {:ok, %Result{} = result} =
-               Imports.apply(buy_preview("de0001234567"), %{portfolio_id: portfolio.id})
+               Imports.apply(buy_preview("de0001234565"), %{portfolio_id: portfolio.id})
 
       assert result.created_securities == 0
       assert result.resolved_security_ids == [security.id]
@@ -109,17 +109,17 @@ defmodule Portfolixir.Imports.ApplierIsinLadderTest do
 
     test "matches a lowercase ISIN in the file against a former-ISIN alias" do
       portfolio = setup_portfolio()
-      security = create_security!(%{isin: "DE0001234567"})
+      security = create_security!(%{isin: "DE0001234565"})
 
       {:ok, %{security: security}} =
-        Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654321")
+        Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654329")
 
       assert {:ok, %Result{} = result} =
-               Imports.apply(buy_preview(" de0001234567 "), %{portfolio_id: portfolio.id})
+               Imports.apply(buy_preview(" de0001234565 "), %{portfolio_id: portfolio.id})
 
       assert result.created_securities == 0
       assert result.resolved_security_ids == [security.id]
-      assert [%{former_isin: "DE0001234567"}] = result.alias_matches
+      assert [%{former_isin: "DE0001234565"}] = result.alias_matches
     end
   end
 
@@ -140,12 +140,12 @@ defmodule Portfolixir.Imports.ApplierIsinLadderTest do
 
       # Initial import establishes the booking under the old ISIN A.
       {:ok, %Result{created_transactions: 1, created_securities: 1}} =
-        Imports.apply(buy_preview("DE000000000A"), %{portfolio_id: portfolio.id})
+        Imports.apply(buy_preview("DE00000000A3"), %{portfolio_id: portfolio.id})
 
-      security = Enum.find(Catalog.list_securities(), &(&1.isin == "DE000000000A"))
+      security = Enum.find(Catalog.list_securities(), &(&1.isin == "DE00000000A3"))
 
       {:ok, %{security: security}} =
-        Catalog.record_isin_change(Actor.owner_ui(), security, "DE000000000B")
+        Catalog.record_isin_change(Actor.owner_ui(), security, "DE00000000B1")
 
       {:ok, portfolio: portfolio, security: security}
     end
@@ -155,7 +155,7 @@ defmodule Portfolixir.Imports.ApplierIsinLadderTest do
       # The new export carries the new ISIN and drifted decimal formatting, so
       # the content import_hash differs — the resolved dedup key must hold.
       preview =
-        buy_preview("DE000000000B",
+        buy_preview("DE00000000B1",
           gross: Decimal.new("1500"),
           quantity: Decimal.new("10.0"),
           price: Decimal.new("150.000")
@@ -168,13 +168,13 @@ defmodule Portfolixir.Imports.ApplierIsinLadderTest do
       assert result.skipped_duplicates == 1
       assert result.alias_matches == []
       assert Ledger.count_transactions() == 1
-      assert Catalog.get_security!(security.id).isin == "DE000000000B"
+      assert Catalog.get_security!(security.id).isin == "DE00000000B1"
     end
 
     test "an OLD export (former ISIN) resolves via the alias tier and dedups",
          %{portfolio: portfolio, security: security} do
       preview =
-        buy_preview("DE000000000A",
+        buy_preview("DE00000000A3",
           gross: Decimal.new("1500"),
           quantity: Decimal.new("10.0"),
           price: Decimal.new("150.000")
@@ -185,7 +185,7 @@ defmodule Portfolixir.Imports.ApplierIsinLadderTest do
       assert result.created_securities == 0
       assert result.created_transactions == 0
       assert result.skipped_duplicates == 1
-      assert [%{former_isin: "DE000000000A", security_id: matched_id}] = result.alias_matches
+      assert [%{former_isin: "DE00000000A3", security_id: matched_id}] = result.alias_matches
       assert matched_id == security.id
       assert Ledger.count_transactions() == 1
     end

@@ -3,6 +3,8 @@ defmodule PortfolixirWeb.AppShell do
   use Phoenix.Component
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  alias Portfolixir.Input.Text
+
   attr(:current_path, :string, default: "/")
   attr(:page_title, :string, default: nil)
   attr(:page_subtitle, :string, default: nil)
@@ -518,6 +520,67 @@ defmodule PortfolixirWeb.AppShell do
   end
 
   @doc """
+  The note for stored text that carries characters the operator cannot see
+  (E25 S7, G20; the owner's pick G12.2 = B on board 12-e25-new-marks).
+
+  Every writer refuses such characters now (`Portfolixir.Input.Text`), so
+  the note only ever marks a row stored before the rule. It is ONE
+  `attention` data note, whatever the count, placed where the stored text
+  renders: the sentence ("The text contains 2 invisible characters." or, for
+  `subject: :name`, "The name contains …"), the caller's remedy as a child
+  (`inner_block`: a sentence and the control), and the text in a disclosure
+  with every such character spelled `[U+XXXX]` — the spelling the MCP
+  companion gives the agent. `texts` are the stored texts the note is about
+  (`nil` ones are skipped); nothing renders when none carries any.
+  """
+  attr(:id, :string, default: nil)
+  attr(:texts, :list, required: true)
+  attr(:subject, :atom, values: [:text, :name], default: :text)
+  slot(:inner_block)
+
+  def invisible_text_note(assigns) do
+    marked = Enum.filter(assigns.texts, &(Text.invisible_count(&1) > 0))
+
+    assigns =
+      assigns
+      |> assign(:marked, marked)
+      |> assign(:count, marked |> Enum.map(&Text.invisible_count/1) |> Enum.sum())
+
+    ~H"""
+    <.data_note :if={@count > 0} severity={:attention} id={@id} data-role="invisible-text-note">
+      <%= invisible_sentence(@subject, @count) %>
+      <%= render_slot(@inner_block) %>
+      <details class="perf-table-disclosure">
+        <summary class="disclosure-summary">
+          <.icon name={:chevron_right} size={12} class="disclosure-chevron" />
+          <%= invisible_summary(@subject) %>
+        </summary>
+        <p :for={text <- @marked} class="mono"><%= Text.escape_invisible(text) %></p>
+      </details>
+    </.data_note>
+    """
+  end
+
+  defp invisible_sentence(:text, count),
+    do:
+      ngettext(
+        "The text contains %{count} invisible character.",
+        "The text contains %{count} invisible characters.",
+        count
+      )
+
+  defp invisible_sentence(:name, count),
+    do:
+      ngettext(
+        "The name contains %{count} invisible character.",
+        "The name contains %{count} invisible characters.",
+        count
+      )
+
+  defp invisible_summary(:text), do: gettext("Text with the characters made visible")
+  defp invisible_summary(:name), do: gettext("Name with the characters made visible")
+
+  @doc """
   The row menu's shell (Part 4 rule 11 of the 2026-09-12 review): a row's
   actions — a destructive one above all — live behind its kebab, never as
   standing buttons on every row. The same popover-or-bottom-sheet markup the
@@ -529,6 +592,19 @@ defmodule PortfolixirWeb.AppShell do
   attr(:id, :string, required: true)
   attr(:trigger, :string, required: true, doc: "the DOM id of the kebab that opened it")
   attr(:label, :string, required: true)
+
+  attr(:caption_name, :string,
+    default: nil,
+    doc:
+      "the row's name, shown as the sheet's head under 720 px only, where the menu no " <>
+        "longer hangs at its row (board 01, rule 3)"
+  )
+
+  attr(:caption_kind, :string,
+    default: nil,
+    doc: "what the row is, after its name in the caption"
+  )
+
   slot(:inner_block, required: true)
 
   def row_menu(assigns) do
@@ -544,9 +620,56 @@ defmodule PortfolixirWeb.AppShell do
       phx-hook="PositionedMenu"
       data-trigger={@trigger}
     >
+      <div :if={@caption_name} class="row-context-menu__caption" aria-hidden="true">
+        <b><%= @caption_name %></b><%= if @caption_kind, do: " · " <> @caption_kind %>
+      </div>
       <%= render_slot(@inner_block) %>
     </div>
     """
+  end
+
+  @doc """
+  A row's kebab — the one trigger every row menu opens from (issue 870).
+
+  Its accessible name says which row it acts on — "Actions for Nordic Timber
+  Holdings AB" — so a screen reader tabbing a list, or listing the page's
+  buttons, can tell the kebabs apart (WCAG 2.4.6, 4.1.2). `row` is the row's
+  name as the reader hears it; `row_name/1` composes one from several parts
+  (a transaction's kind, subject and date). The picture is unchanged: the
+  name is `aria-label` only. The caller passes the event bindings
+  (`phx-click`, `phx-value-*`) through; the kebab's DOM id is what the row
+  menu's `trigger` names.
+  """
+  attr(:id, :string, required: true)
+  attr(:row, :string, required: true, doc: "the row's name, as the reader hears it")
+  attr(:open, :boolean, required: true, doc: "whether this row's menu is open")
+  attr(:rest, :global)
+
+  def row_kebab(assigns) do
+    ~H"""
+    <button
+      type="button"
+      id={@id}
+      class="row-actions__kebab"
+      aria-label={gettext("Actions for %{row}", row: @row)}
+      aria-haspopup="menu"
+      aria-expanded={to_string(@open)}
+      {@rest}
+    >
+      <.icon name={:ellipsis_vertical} />
+    </button>
+    """
+  end
+
+  @doc """
+  A row's name from its parts, for `row_kebab/1`: the parts that are there,
+  joined by commas ("Buy, Nordic Timber Holdings AB, 2026-09-01").
+  """
+  @spec row_name([String.t() | nil]) :: String.t()
+  def row_name(parts) do
+    parts
+    |> Enum.reject(&(&1 in [nil, ""]))
+    |> Enum.join(", ")
   end
 
   @doc """
@@ -693,6 +816,12 @@ defmodule PortfolixirWeb.AppShell do
     do: ~s(<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>)
 
   defp icon_paths(:edit), do: ~s(<path d="M4 20h4l10-10-4-4L4 16Z"/>)
+
+  # Merge (ADR-0050, board 01): two lines joining into one arrow — an
+  # addition, because no existing glyph carries the meaning and a second
+  # meaning for one is banned (UX-DR16).
+  defp icon_paths(:merge),
+    do: ~s(<path d="M4 6h4.5l5.5 6h6"/><path d="M4 18h4.5l5.5-6"/><path d="m17 9 3 3-3 3"/>)
 
   defp icon_paths(:archive),
     do: ~s(<rect x="3" y="4" width="18" height="4"/><path d="M5 8v12h14V8M10 12h4"/>)

@@ -5,8 +5,10 @@ config :portfolixir,
 
 # The reconcile endpoint's external position list must never be logged
 # (ADR-0029 §6 boundary / NFR-4): filter the `rows` request parameter from
-# Phoenix parameter logging alongside the default password filter.
-config :phoenix, :filter_parameters, ["password", "rows"]
+# Phoenix parameter logging alongside the default password filter. The CSRF
+# token is bound to the session, and a live page's socket connect is logged
+# with its parameters at info, the production level (E25 S2, F66).
+config :phoenix, :filter_parameters, ["password", "rows", "_csrf_token"]
 
 config :portfolixir, PortfolixirWeb.Endpoint,
   # Bandit serves HTTP and the LiveView socket (#772); the http: options in
@@ -59,7 +61,9 @@ config :portfolixir, Portfolixir.Fx.RateSync,
 # daily walks cost seconds and their second call costs the same as the first,
 # while every other figure a surface waits on lands in tens to a few hundred
 # milliseconds. Further activations are one line each, added with their
-# measurement.
+# measurement. The in-memory tier keeps to a budget, `memo_max_entries` and
+# `memo_max_bytes` (5000 entries and 128 MiB unless set here), and empties
+# itself when a put would leave it over (E25 S4).
 config :portfolixir, Portfolixir.Derived,
   lifetimes: [performance_analysis: :durable, performance_view_analysis: :durable]
 

@@ -33,6 +33,57 @@ defmodule PortfolixirWeb.SessionHardeningTest do
     assert cookie =~ ~r/;\s*secure/i
   end
 
+  # User story (E25 S1, F09):
+  # As an operator behind a reverse proxy,
+  # I want x-forwarded-proto believed only from loopback or from a proxy I named,
+  # so that the scheme follows the same trust rule as the forwarded address.
+  #
+  # Acceptance criteria:
+  # - An untrusted peer's forwarded-proto header leaves the scheme http: the
+  #   cookie is not Secure, and with force_ssl on the request is redirected.
+  # - A loopback proxy still gets Secure cookies.
+  # - A named proxy is judged by the address it connects from, before the
+  #   forwarded-for rewrite names the client behind it.
+  test "x-forwarded-proto is believed only from loopback or a trusted proxy", %{conn: conn} do
+    previous_proxies = Application.get_env(:portfolixir, :trusted_proxies)
+    previous_ssl = Application.get_env(:portfolixir, :force_ssl)
+
+    on_exit(fn ->
+      Application.put_env(:portfolixir, :trusted_proxies, previous_proxies)
+      Application.put_env(:portfolixir, :force_ssl, previous_ssl)
+    end)
+
+    Application.put_env(:portfolixir, :trusted_proxies, [{{172, 16, 0, 0}, 12}])
+
+    untrusted =
+      %{conn | remote_ip: {192, 168, 1, 50}}
+      |> put_req_header("x-forwarded-proto", "https")
+      |> get("/")
+
+    refute session_cookie(untrusted) =~ ~r/;\s*secure/i
+
+    loopback = conn |> put_req_header("x-forwarded-proto", "https") |> get("/")
+    assert session_cookie(loopback) =~ ~r/;\s*secure/i
+
+    proxied =
+      %{conn | remote_ip: {172, 18, 0, 1}}
+      |> put_req_header("x-forwarded-proto", "https")
+      |> put_req_header("x-forwarded-for", "203.0.113.5")
+      |> get("/")
+
+    assert session_cookie(proxied) =~ ~r/;\s*secure/i
+
+    Application.put_env(:portfolixir, :force_ssl, RuntimeConfig.force_ssl_opts("true"))
+
+    redirected =
+      %{conn | remote_ip: {192, 168, 1, 50}}
+      |> put_req_header("x-forwarded-proto", "https")
+      |> get("/health")
+
+    assert redirected.status in [301, 302]
+    assert get_resp_header(redirected, "strict-transport-security") == []
+  end
+
   # User story:
   # As an operator,
   # I want the cookie signing salts derived from my SECRET_KEY_BASE,
@@ -78,10 +129,84 @@ defmodule PortfolixirWeb.SessionHardeningTest do
   # - PHX_FORCE_SSL true: a plain-HTTP request is redirected to https; a
   #   request forwarded as https is served with strict-transport-security.
   test "force_ssl is off unless asked for" do
-    assert RuntimeConfig.force_ssl_opts(nil) == false
-    assert RuntimeConfig.force_ssl_opts("false") == false
+    assert RuntimeConfig.force_ssl_opts(nil, nil) == false
+    assert RuntimeConfig.force_ssl_opts("false", "app") == false
 
-    assert [rewrite_on: [:x_forwarded_proto], hsts: true] = RuntimeConfig.force_ssl_opts("true")
+    assert [rewrite_on: [:x_forwarded_proto], hsts: true, exclude: ["localhost", "127.0.0.1"]] =
+             RuntimeConfig.force_ssl_opts("true", nil)
+  end
+
+  # User story (E25 S7, F23):
+  # As an operator who turned PHX_FORCE_SSL on for the Compose deployment,
+  # I want the MCP companion's plain-HTTP calls on the Compose network to reach
+  # the app without a redirect,
+  # so that the companion never meets a redirect it would have to follow to
+  # an address it was not configured for.
+  #
+  # Acceptance criteria:
+  # - PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS names hosts (comma-separated, trimmed,
+  #   lower-cased, a port dropped) that force_ssl leaves on plain HTTP, beside
+  #   localhost and 127.0.0.1, which it always leaves (the container's own
+  #   health check; the standalone companion's default base URL).
+  # - A plain-HTTP request under an excluded host is served, without HSTS;
+  #   the public host is still redirected.
+  test "force_ssl leaves the named internal hosts on plain HTTP" do
+    assert [
+             rewrite_on: [:x_forwarded_proto],
+             hsts: true,
+             exclude: ["localhost", "127.0.0.1", "app", "mcp"]
+           ] = RuntimeConfig.force_ssl_opts("true", " App:4000, ,mcp,app")
+  end
+
+  # User story (E25 S7 review round, S7E-1):
+  # As an operator who runs the MCP companion outside Compose against an
+  # instance with PHX_FORCE_SSL on,
+  # I want the companion's calls to its default base URL, http://127.0.0.1:4000,
+  # to reach the app without a redirect,
+  # so that turning PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS into a variable did not
+  # take away the loopback address Plug's own default always left alone.
+  #
+  # Acceptance criteria:
+  # - With force_ssl on and no excluded hosts named, a plain-HTTP request under
+  #   Host 127.0.0.1 is served, without HSTS; under localhost too.
+  # - The public host is still redirected.
+  test "with force_ssl on, the loopback names are served on plain HTTP", %{conn: conn} do
+    previous = Application.get_env(:portfolixir, :force_ssl)
+    Application.put_env(:portfolixir, :force_ssl, RuntimeConfig.force_ssl_opts("true", nil))
+    on_exit(fn -> Application.put_env(:portfolixir, :force_ssl, previous) end)
+
+    for host <- ["127.0.0.1", "localhost"] do
+      served = get(%{conn | host: host}, "/api/v1/portfolios")
+      assert served.status not in [301, 302], "#{host} was redirected"
+      assert get_resp_header(served, "strict-transport-security") == []
+    end
+
+    assert get(conn, "/health").status in [301, 302]
+  end
+
+  test "with force_ssl on, an excluded internal host is served while the public one redirects",
+       %{conn: conn} do
+    previous = Application.get_env(:portfolixir, :force_ssl)
+    previous_hosts = Application.get_env(:portfolixir, PortfolixirWeb.HostGuard)
+    Application.put_env(:portfolixir, :force_ssl, RuntimeConfig.force_ssl_opts("true", "app"))
+
+    Application.put_env(:portfolixir, PortfolixirWeb.HostGuard,
+      hosts: ["app" | Keyword.fetch!(previous_hosts, :hosts)]
+    )
+
+    on_exit(fn ->
+      Application.put_env(:portfolixir, :force_ssl, previous)
+      Application.put_env(:portfolixir, PortfolixirWeb.HostGuard, previous_hosts)
+    end)
+
+    internal = get(%{conn | host: "app"}, "/health")
+    assert internal.status == 200
+    assert get_resp_header(internal, "strict-transport-security") == []
+
+    public = get(conn, "/health")
+    assert public.status in [301, 302]
+    assert [location] = get_resp_header(public, "location")
+    assert location =~ ~r{^https://www\.example\.com}
   end
 
   test "with force_ssl on, plain HTTP redirects and forwarded https gets HSTS", %{conn: conn} do

@@ -30,13 +30,16 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
   `portfolio_metrics` registers with ADR-0039 §2 at computation version 1 and
   lifetime `:request`, keyed under `Derived.portfolio_basis/1` exactly as
   `performance_analysis` is (§8): every write that can move the walk, a held
-  security's quote or an exchange rate already bumps that basis.
+  security's quote or an exchange rate already bumps that basis. The entry
+  key carries the basis version read before the walk (E25 S6, F46), so
+  metrics are never filed under a version their walk did not see.
   """
 
   import Ecto.Query
 
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Clock
   alias Portfolixir.Derived
   alias Portfolixir.Engines.PortfolioMetrics
   alias Portfolixir.Fx
@@ -48,9 +51,19 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
   @hub "EUR"
   @gbx_per_gbp Decimal.new(100)
   @factor_scale 15
+  @max_correlated_names 20
 
   @doc """
-  The metrics for `portfolio_id` over the lens's Top-N `top_security_ids`.
+  How many leading Top-N names the correlation matrix covers at most. The
+  pair count grows with the square of the names, so the matrix is bounded
+  while the Top-N list is not (E25 S4, F72).
+  """
+  @spec max_correlated_names() :: pos_integer()
+  def max_correlated_names, do: @max_correlated_names
+
+  @doc """
+  The metrics for `portfolio_id` over the lens's Top-N `top_security_ids`;
+  the correlation matrix covers the leading `max_correlated_names/0` of them.
 
   Options:
 
@@ -61,48 +74,71 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
       default `0`.
     * `:base_currency` — the currency correlations are converted into; the
       walk's own base wins when the walk has one.
+    * `:analysis` — the function the walk is read through, `(portfolio_id,
+      opts) -> analysis`; `Performance.analysis/2` unless a test injects one.
 
   Returns the metrics map or `{:error, :view_not_found}`.
   """
   @spec for_portfolio(integer(), [integer()], keyword()) :: map() | {:error, :view_not_found}
   def for_portfolio(portfolio_id, top_security_ids, opts \\ [])
       when is_integer(portfolio_id) and is_list(top_security_ids) do
-    as_of = Keyword.get(opts, :as_of) || Date.utc_today()
+    as_of = Keyword.get(opts, :as_of) || Clock.today()
     rate = Keyword.get(opts, :risk_free_rate) || @zero
     view = Keyword.get(opts, :view)
+    leading_ids = Enum.take(top_security_ids, @max_correlated_names)
 
-    case Performance.analysis(portfolio_id, view: view, today: as_of) do
+    read_walk = Keyword.get(opts, :analysis, &Performance.analysis/2)
+    basis = Derived.portfolio_basis(portfolio_id)
+
+    # The basis's version is read BEFORE the walk and carried in the entry
+    # key (E25 S6, F46): a write landing between the walk and the metrics
+    # stores them under the walk's version, which the next read — reading a
+    # newer one — never asks for. The version `Derived.fetch/5` composes is
+    # read later, at the fetch, and alone would file the old walk's metrics
+    # as current.
+    walk_version = Derived.current_version(basis)
+
+    case read_walk.(portfolio_id, view: view, today: as_of) do
       {:error, :view_not_found} = error ->
         error
 
       %{} = analysis ->
         base = analysis.base_currency || Keyword.get(opts, :base_currency, @hub)
+        compute = fn -> compute(analysis, leading_ids, as_of, rate, base) end
 
-        {:fresh, metrics} =
-          Derived.fetch(
-            :portfolio_metrics,
-            Derived.portfolio_basis(portfolio_id),
-            entry_key(view, as_of, rate, top_security_ids, base),
-            fn -> compute(analysis, top_security_ids, as_of, rate, base) end
-          )
+        # Only a whole-basis-point risk-free rate is remembered: a finer one
+        # is computed on every read, so a sweep of distinct rates adds no
+        # memo entry (E25 S4, G03). A walk served stale is never the basis
+        # of a remembered result (F46).
+        if Benchmark.memoisable_rate?(rate) and not Map.get(analysis, :stale, false) do
+          {:fresh, metrics} =
+            Derived.fetch(
+              :portfolio_metrics,
+              basis,
+              entry_key(walk_version, view, as_of, rate, leading_ids, base),
+              compute
+            )
 
-        metrics
+          metrics
+        else
+          compute.()
+        end
     end
   end
 
-  defp entry_key(view, as_of, rate, ids, base) do
-    "view=#{view || "unscoped"}|as_of=#{as_of}|rf=#{Decimal.to_string(rate, :normal)}|" <>
-      "base=#{base}|top=#{Enum.join(ids, ",")}"
+  defp entry_key(walk_version, view, as_of, rate, ids, base) do
+    "walk=#{walk_version}|view=#{view || "unscoped"}|as_of=#{as_of}|" <>
+      "rf=#{Decimal.to_string(rate, :normal)}|base=#{base}|top=#{Enum.join(ids, ",")}"
   end
 
-  defp compute(analysis, top_security_ids, as_of, rate, base) do
+  defp compute(analysis, leading_ids, as_of, rate, base) do
     walk =
       PortfolioMetrics.compute(observations(analysis.daily), as_of,
         risk_free_rate: rate,
         daily_rate_factor: &Benchmark.daily_rate_factor/1
       )
 
-    {series, excluded} = converted_series(top_security_ids, as_of, base)
+    {series, excluded} = converted_series(leading_ids, as_of, base)
     correlations = PortfolioMetrics.correlations(series, as_of)
 
     %{
@@ -114,6 +150,7 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
       risk_adjusted_return: walk.risk_adjusted_return,
       correlations:
         Map.merge(correlations, %{
+          leading_names: length(leading_ids),
           security_ids: Enum.map(series, &elem(&1, 0)),
           excluded: excluded
         })
@@ -272,8 +309,11 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
           "return factors of the TTWROR chain over the daily valuation walk (ADR-0010), " <>
           "in the base currency #{base}, scoped by the active view — never the " <>
           "day-over-day change of the portfolio's value, so a deposit or a withdrawal " <>
-          "is not a return (ADR-0047 §2). correlations: the Top-N single names' own " <>
-          "stored closes in the ADR-0028 §2 display basis, CONVERTED to #{base} at the " <>
+          "is not a return (ADR-0047 §2). correlations: at most the " <>
+          "#{@max_correlated_names} leading names of the Top-N list, largest first " <>
+          "(correlations.leading_names states how many; the pair count grows with the " <>
+          "square of the names, so the matrix is bounded while the list is not), by their " <>
+          "own stored closes in the ADR-0028 §2 display basis, CONVERTED to #{base} at the " <>
           "exchange rate stored on or before each close's day (ADR-0047 §3)",
       window:
         "per metric: every metric carries the span it was measured over, or the span it " <>
@@ -295,7 +335,11 @@ defmodule Portfolixir.Portfolios.RiskMetrics do
           "index points for max_drawdown, #{PortfolioMetrics.min_pair_observations()} " <>
           "overlapping returns per correlation pair. A risk_adjusted_return over a " <>
           "volatility of exactly 0, and a correlation where either side never moved, is " <>
-          "null without insufficient_data: the figure is undefined, not short of data",
+          "null without insufficient_data: the figure is undefined, not short of data. " <>
+          "So is a figure whose square root the one float step cannot carry, a magnitude " <>
+          "outside the double range that only implausible stored prices or rates reach: " <>
+          "that volatility and the risk_adjusted_return beside it, or that correlation pair, " <>
+          "is null without insufficient_data, never a number over such data (E25, F73)",
       assumptions:
         "volatility is the POPULATION standard deviation of the window's daily returns " <>
           "(divided by the observation count), annualized by " <>

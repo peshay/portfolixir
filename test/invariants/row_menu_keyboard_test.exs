@@ -65,4 +65,38 @@ defmodule Portfolixir.Invariants.RowMenuKeyboardTest do
     assert hook =~ "this.opener = document.activeElement"
     assert hook =~ ~r/opener\.isConnected && opener\.offsetParent !== null/
   end
+
+  # User story (#870; WCAG 2.4.6, 4.1.2):
+  # As an operator using a screen reader,
+  # I want every row's kebab named for its row,
+  # so that a list of buttons is not the same name dozens of times — and the
+  # surfaces cannot drift apart again, because there is only one kebab.
+  #
+  # Acceptance criteria:
+  # - No module in the web layer draws a kebab of its own: the
+  #   `row-actions__kebab` markup lives only in `AppShell.row_kebab/1`, whose
+  #   `row` is required and whose name is "Actions for <row>".
+  # - The generic "Open actions menu" name is gone from the web layer.
+  test "every row kebab is the shared trigger, named for its row" do
+    shell = "lib/portfolixir_web/components/app_shell.ex"
+
+    own_kebabs =
+      "lib/portfolixir_web/**/*.ex"
+      |> Path.wildcard()
+      |> Enum.reject(&(&1 == shell))
+      |> Enum.filter(&(File.read!(&1) =~ "row-actions__kebab"))
+
+    assert own_kebabs == [], "kebabs drawn outside AppShell.row_kebab/1: #{inspect(own_kebabs)}"
+
+    source = File.read!(shell)
+    assert source =~ ~S|attr(:row, :string, required: true|
+    assert source =~ ~S|aria-label={gettext("Actions for %{row}", row: @row)}|
+
+    generic =
+      "lib/portfolixir_web/**/*.ex"
+      |> Path.wildcard()
+      |> Enum.filter(&(File.read!(&1) =~ "Open actions menu"))
+
+    assert generic == []
+  end
 end

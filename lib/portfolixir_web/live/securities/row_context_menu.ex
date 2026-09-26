@@ -12,7 +12,7 @@ defmodule PortfolixirWeb.Securities.RowContextMenu do
   use Gettext, backend: PortfolixirWeb.Gettext
 
   alias PortfolixirWeb.AppShell
-  alias PortfolixirWeb.PolicyRuleLabel
+  alias PortfolixirWeb.PolicyRuleReferences
 
   attr(:security, :map, required: true)
   attr(:has_transactions?, :boolean, default: false)
@@ -154,6 +154,22 @@ defmodule PortfolixirWeb.Securities.RowContextMenu do
         </span>
       </button>
 
+      <%!-- ADR-0050 §9 (board 03, G3-A): merge a duplicate into another
+           security. Not danger-coloured: it opens a preview, and only the
+           preview's confirm writes. --%>
+      <button
+        type="button"
+        class="row-context-menu__item"
+        role="menuitem"
+        data-role="menu-merge"
+        phx-click="row_action"
+        phx-value-action="merge"
+        phx-value-id={@security.id}
+      >
+        <AppShell.icon name={:merge} />
+        <span><%= gettext("Merge into…") %></span>
+      </button>
+
       <button
         type="button"
         class="row-context-menu__item row-context-menu__item--danger"
@@ -172,8 +188,15 @@ defmodule PortfolixirWeb.Securities.RowContextMenu do
 
   attr(:security, :map, required: true)
   # ADR-0049 §8: the policy rules that read the security, when they are what
-  # blocks the delete; empty for a booking or a quote.
+  # blocks the delete; empty for a booking or a quote. References
+  # (`PortfolixirWeb.PolicyRuleReferences`), so each name links to Risk in the
+  # view the rule applies in (#871, G6-A).
   attr(:rules, :list, default: [])
+  # ADR-0050 §9 (board 03, second entry): where bookings or quotes block the
+  # delete and a merge could carry them, "Merge into…" is the way out beside
+  # "Retire instead"; where a rule or a research entry holds the security,
+  # a merge would be refused as well, and the dialog stays as it is.
+  attr(:merge?, :boolean, default: false)
 
   def delete_blocked_dialog(assigns) do
     ~H"""
@@ -206,15 +229,15 @@ defmodule PortfolixirWeb.Securities.RowContextMenu do
                 name: @security.name
               ) %>
             </p>
+            <p :if={@merge?} class="muted">
+              <%= gettext(
+                "If it is a duplicate, “Merge into…” moves its bookings and quotes into the other security."
+              ) %>
+            </p>
           <% else %>
             <p><%= gettext("%{name} is read by policy rules:", name: @security.name) %></p>
             <ul>
-              <li :for={rule <- @rules}>
-                <%= gettext("“%{name}” (%{status})",
-                  name: rule.name,
-                  status: PolicyRuleLabel.status(rule.status)
-                ) %>
-              </li>
+              <li :for={reference <- @rules}><PolicyRuleReferences.rule reference={reference} /></li>
             </ul>
             <p class="muted">
               <%= gettext(
@@ -227,6 +250,17 @@ defmodule PortfolixirWeb.Securities.RowContextMenu do
         <div class="modal-footer">
           <button type="button" class="button-ghost" phx-click="close_delete_blocked">
             <%= gettext("Cancel") %>
+          </button>
+          <button
+            :if={@merge?}
+            type="button"
+            class="button-ghost"
+            data-role="delete-blocked-merge"
+            phx-click="row_action"
+            phx-value-action="merge"
+            phx-value-id={@security.id}
+          >
+            <%= gettext("Merge into…") %>
           </button>
           <button
             type="button"

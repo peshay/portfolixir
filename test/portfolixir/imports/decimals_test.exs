@@ -59,4 +59,32 @@ defmodule Portfolixir.Imports.DecimalsTest do
       assert {:error, {:invalid_decimal, _}} = Decimals.parse(1.5)
     end
   end
+
+  # User story (E25 S5, F39):
+  # As an operator importing an export I did not write,
+  # I want a number too large for any ledger column refused where it is read,
+  # so that no later arithmetic on it runs past what a Decimal can hold.
+  #
+  # Acceptance criteria:
+  # - A value with more integer digits than the importer bounds is
+  #   {:error, {:invalid_decimal, original}} on every input path: a German
+  #   string, a plain string, an integer and an already-decoded Decimal.
+  # - A value at the bound still parses.
+  describe "integer-digit bound" do
+    test "refuses a value past the bound on every path and keeps one at it" do
+      max = Decimals.max_integer_digits()
+      at = String.duplicate("9", max)
+      past = String.duplicate("9", max + 1)
+
+      assert {:ok, _} = Decimals.parse(at)
+      assert {:ok, _} = Decimals.parse_de(at)
+
+      assert {:error, {:invalid_decimal, ^past}} = Decimals.parse(past)
+      assert {:error, {:invalid_decimal, ^past}} = Decimals.parse_de(past)
+      assert {:error, {:invalid_decimal, _}} = Decimals.parse(String.to_integer(past))
+      assert {:error, {:invalid_decimal, _}} = Decimals.parse(Decimal.new("9e999"))
+      assert {:error, {:invalid_decimal, "1e40"}} = Decimals.parse("1e40")
+      assert {:error, {:invalid_decimal, "1e40"}} = Decimals.parse_de("1e40")
+    end
+  end
 end

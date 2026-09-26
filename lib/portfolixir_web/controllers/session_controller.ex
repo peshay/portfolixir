@@ -78,6 +78,11 @@ defmodule PortfolixirWeb.SessionController do
     if UiAuth.enabled?() and UiAuth.valid_password?(password) do
       Throttle.success(:ui, source)
 
+      # A login starts a fresh CSRF token (E25 S1, F10): one minted before the
+      # login, and the Imports preview key derived from it, do not carry over.
+      # The session's other keys (locale, view, benchmarks) are kept.
+      Plug.CSRFProtection.delete_csrf_token()
+
       conn
       |> configure_session(renew: true)
       |> UiAuth.put_authenticated()

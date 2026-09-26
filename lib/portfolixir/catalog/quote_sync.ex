@@ -18,8 +18,10 @@ defmodule Portfolixir.Catalog.QuoteSync do
   require Logger
 
   alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.MarketDataBounds
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.SingleFlight
 
   @default_interval :timer.hours(6)
 
@@ -114,7 +116,18 @@ defmodule Portfolixir.Catalog.QuoteSync do
 
   # -- per-security sync ----------------------------------------------------
 
-  defp sync_one(%Security{provider: provider} = security, adapter_for, opts) do
+  # One sync of a security at a time, whichever path asks (E25, G04): while
+  # one runs, another is skipped as sync_in_progress and calls no provider.
+  defp sync_one(%Security{} = security, adapter_for, opts) do
+    case SingleFlight.run({:quote_sync, security.id}, fn ->
+           sync_unlocked(security, adapter_for, opts)
+         end) do
+      {:ok, result} -> result
+      {:error, :in_progress} -> result(security, :skipped, :sync_in_progress)
+    end
+  end
+
+  defp sync_unlocked(%Security{provider: provider} = security, adapter_for, opts) do
     case Map.get(adapter_for, provider) do
       nil ->
         result(security, :skipped, :no_provider_adapter)
@@ -157,11 +170,38 @@ defmodule Portfolixir.Catalog.QuoteSync do
   defp persist(security, [], _provider), do: result(security, :ok, nil, 0)
 
   defp persist(security, rows, provider) do
-    case Quotes.upsert_many(
-           security.id,
-           Enum.map(rows, &Map.put(&1, :source, provider)),
-           protect_manual: true
-         ) do
+    case drop_implausible(security, rows) do
+      [] -> result(security, :ok, nil, 0)
+      plausible -> upsert(security, plausible, provider)
+    end
+  end
+
+  # Whatever an adapter returns, an implausible point (F26) is dropped here,
+  # so one bad point never fails the security's batch.
+  defp drop_implausible(security, rows) do
+    {plausible, dropped} =
+      Enum.split_with(rows, fn row ->
+        is_map(row) and
+          MarketDataBounds.plausible?(
+            field(row, :date),
+            field(row, :close),
+            MarketDataBounds.close_column()
+          )
+      end)
+
+    if dropped != [] do
+      Logger.warning(
+        "quote sync dropped #{length(dropped)} implausible provider point(s) for security ##{security.id}"
+      )
+    end
+
+    plausible
+  end
+
+  defp field(row, key), do: Map.get(row, key, Map.get(row, Atom.to_string(key)))
+
+  defp upsert(security, rows, provider) do
+    case safe_upsert(security, rows, provider) do
       {:ok, count, skipped_manual} ->
         if skipped_manual > 0 do
           Logger.warning(
@@ -171,10 +211,30 @@ defmodule Portfolixir.Catalog.QuoteSync do
 
         result(security, :ok, nil, count, skipped_manual)
 
+      {:error, :persist_failed} ->
+        result(security, :error, :persist_failed)
+
       {:error, reason} ->
         Logger.warning("quote upsert failed for security ##{security.id}: #{inspect(reason)}")
         result(security, :error, {:upsert_failed, reason})
     end
+  end
+
+  # A security whose quotes cannot be stored is that security's error, never
+  # the end of the run (F28): the next security is still synced.
+  defp safe_upsert(security, rows, provider) do
+    Quotes.upsert_many(
+      security.id,
+      Enum.map(rows, &Map.put(&1, :source, provider)),
+      protect_manual: true
+    )
+  rescue
+    exception ->
+      Logger.warning(
+        "quote persistence failed for security ##{security.id}: #{Exception.message(exception)}"
+      )
+
+      {:error, :persist_failed}
   end
 
   defp result(security, status, reason, upserted \\ nil, skipped_manual \\ 0) do

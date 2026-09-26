@@ -51,15 +51,14 @@ defmodule Portfolixir.Invariants.DerivedNeverAWriteSourceTest do
     # The policy-rule write path (ADR-0049 §5) announces its own rules
     # counter; it reads nothing derived.
     "lib/portfolixir/portfolios/policy_rules.ex" => [[:Portfolixir, :Derived, :Invalidation]],
-    # View definitions are not journaled (ADR-0018 §5), so the two view
-    # writes announce their change themselves; they read nothing derived.
-    "lib/portfolixir/buckets.ex" => [[:Portfolixir, :Derived, :Invalidation]],
-    # Supervision only: the memo table's owner and the background refresher
-    # start with the app, and the refresher is handed the warm-up it must call.
-    # Starting a process is not reading a derived value.
+    # Supervision only: the memo table's owner, the background refresher and
+    # the post-commit bump (E25 S6, F47) start with the app, and the
+    # refresher is handed the warm-up it must call. Starting a process is not
+    # reading a derived value.
     "lib/portfolixir/application.ex" => [
       [:Portfolixir, :Derived, :Memo],
-      [:Portfolixir, :Derived, :Refresher]
+      [:Portfolixir, :Derived, :Refresher],
+      [:Portfolixir, :Derived, :PostCommit]
     ],
     # The release twin of `mix portfolixir.derived.rebuild` (ADR-0045 §2,
     # #760): the same drop-and-rebuild call the Mix task makes, reachable
@@ -85,6 +84,33 @@ defmodule Portfolixir.Invariants.DerivedNeverAWriteSourceTest do
            "Only the ledger is authoritative: write paths and surfaces must not " <>
              "read the derived layer (ADR-0039 I7). Offenders:\n" <>
              Enum.join(Enum.uniq(offenders), "\n")
+  end
+
+  # ADR-0050 §13: a lifecycle merge restates balance anchors and checks the
+  # merged balance from the Ledger projection over stored rows (§7 steps 4
+  # and 6), and a depot or security merge states positions and checks the
+  # merged quantities from the Ledger's own folds (§7's depot linearity, §9's
+  # security linearity), never from a derived value — its writes announce through the journal like every
+  # other write. Its modules are named here, so a move
+  # out of the scanned tree, or an allowlist entry, cannot take them out of
+  # the gate.
+  @merge_sources ~w(
+    lib/portfolixir/lifecycle/cash_merge.ex
+    lib/portfolixir/lifecycle/depot_merge.ex
+    lib/portfolixir/lifecycle/merge_figures.ex
+    lib/portfolixir/lifecycle/merge_flow.ex
+    lib/portfolixir/lifecycle/merge_writer.ex
+    lib/portfolixir/lifecycle/plan_digest.ex
+    lib/portfolixir/lifecycle/position_membership.ex
+    lib/portfolixir/lifecycle/security_merge.ex
+  )
+
+  test "the lifecycle merge modules are scanned and read nothing derived" do
+    for path <- @merge_sources do
+      assert path in @sources, "#{path} left the ADR-0039 I7 scan"
+      refute Map.has_key?(@allowed, path), "#{path} may not be allowlisted"
+      assert derived_references(File.read!(path)) == [], "#{path} references the derived layer"
+    end
   end
 
   test "the write seams reference the announcer only, never the reading API" do

@@ -23,10 +23,33 @@ OTP_VERSION="${OTP_VERSION:-27.3.4.18}"
 OTP_MAJOR="27"
 UBUNTU="ubuntu-24.04"
 
+# SHA-256 of each archive this script downloads, for the default versions
+# above (E25 S8, F60), so a tampered or swapped download is refused rather
+# than unpacked. OTP: OTP-27.3.4.18.tar.gz for ubuntu-24.04, as the fourth
+# column of that builds.txt publishes it. Elixir: elixir-otp-27.zip of
+# v1.18.5, as the release's .sha256sum asset and builds.hex.pm's
+# builds/elixir/builds.txt both publish it. Each was also recomputed from the
+# downloaded archive. A version override needs its own checksum override
+# (OTP_SHA256, ELIXIR_SHA256), or the download is refused.
+OTP_SHA256="${OTP_SHA256:-39870293dd82bdf17dd06c7925c4c3c3099dfcfc3258bcd33e1812cdce6584ca}"
+ELIXIR_SHA256="${ELIXIR_SHA256:-56a065fa2bc609f49a4a3950d509a6a9aa9a827e8610b717e6cfca74a9090580}"
+
 OTP_DIR=/opt/otp
 ELIXIR_DIR=/opt/elixir
 
 export DEBIAN_FRONTEND=noninteractive
+
+# Downloads $1 to $2 and keeps it only if its SHA-256 is $3; otherwise the file
+# is removed and the script stops. Every download below goes through here.
+fetch_verified() {
+  local url="$1" dest="$2" sha256="$3"
+  curl -fsSL "${url}" -o "${dest}"
+  if ! printf '%s  %s\n' "${sha256}" "${dest}" | sha256sum --check --status -; then
+    rm -f "${dest}"
+    echo "SHA-256 mismatch for ${url}; refusing to install it." >&2
+    exit 1
+  fi
+}
 
 # 1. System packages: PostgreSQL, fetch tools, CA bundle, UTF-8 locale.
 # The base web image preconfigures unrelated third-party PPAs (deadsnakes,
@@ -49,8 +72,9 @@ installed_otp() {
 }
 if [ ! -x "${OTP_DIR}/bin/erl" ] || ! "${OTP_DIR}/bin/erl" -noshell -eval 'halt()' 2>/dev/null \
   || [ "$(installed_otp)" != "${OTP_VERSION}" ]; then
-  # Download before removing, so a failed fetch leaves the old toolchain usable.
-  curl -fsSL "https://builds.hex.pm/builds/otp/${UBUNTU}/OTP-${OTP_VERSION}.tar.gz" -o /tmp/otp.tar.gz
+  # Download and verify before removing, so a failed or refused fetch leaves
+  # the old toolchain usable.
+  fetch_verified "https://builds.hex.pm/builds/otp/${UBUNTU}/OTP-${OTP_VERSION}.tar.gz" /tmp/otp.tar.gz "${OTP_SHA256}"
   rm -rf "${OTP_DIR}"
   mkdir -p "${OTP_DIR}"
   tar -xzf /tmp/otp.tar.gz -C "${OTP_DIR}" --strip-components=1
@@ -61,7 +85,7 @@ fi
 # 3. Elixir — precompiled release matching the OTP major version, replaced
 # when the installed one is another version.
 if [ ! -x "${ELIXIR_DIR}/bin/elixir" ] || [ "$(cat "${ELIXIR_DIR}/VERSION" 2>/dev/null)" != "${ELIXIR_VERSION}" ]; then
-  curl -fsSL "https://github.com/elixir-lang/elixir/releases/download/v${ELIXIR_VERSION}/elixir-otp-${OTP_MAJOR}.zip" -o /tmp/elixir.zip
+  fetch_verified "https://github.com/elixir-lang/elixir/releases/download/v${ELIXIR_VERSION}/elixir-otp-${OTP_MAJOR}.zip" /tmp/elixir.zip "${ELIXIR_SHA256}"
   rm -rf "${ELIXIR_DIR}"
   mkdir -p "${ELIXIR_DIR}"
   unzip -q -o /tmp/elixir.zip -d "${ELIXIR_DIR}"

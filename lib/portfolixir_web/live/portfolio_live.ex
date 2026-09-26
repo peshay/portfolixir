@@ -20,6 +20,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias Portfolixir.Catalog.DataQuality
   alias Portfolixir.Classifications
   alias Portfolixir.Fx.RateSync
+  alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Allocation
@@ -30,10 +31,12 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias Portfolixir.Portfolios.Valuation
   alias Portfolixir.Settings
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.BenchmarkScope
   alias PortfolixirWeb.ClassificationName
   alias PortfolixirWeb.ColumnPicker
   alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.LiveParam
   import PortfolixirWeb.ViewSwitcher
 
   @unassigned_color "#9ca3af"
@@ -91,20 +94,37 @@ defmodule PortfolixirWeb.PortfolioLive do
   @unpriced_names_shown 6
 
   @impl true
-  def mount(params, _session, socket) do
+  def mount(params, session, socket) do
+    # ADR-0050 §12: a remembered or linked benchmark naming a security a
+    # merge took away redirects to the same page naming its survivor, so the
+    # BenchmarkScope plug remembers the survivor, and the page says so once.
+    case merged_benchmarks(socket.assigns[:active_benchmark_selectors]) do
+      [] ->
+        mount_page(params, session, socket)
+
+      merged ->
+        selectors = socket.assigns[:active_benchmark_selectors]
+        {:ok, redirect(socket, to: survivor_benchmark_path(params, selectors, merged))}
+    end
+  end
+
+  defp mount_page(params, session, socket) do
     wealth_tab = wealth_tab(params)
+    carried_view = carried_view(params, session)
 
     socket =
       socket
       # The tab rides in current_path so the view/locale switchers (which
       # derive their hrefs from it) keep the user on the active tab — and an
-      # explicit ?view= rides along too, so a tab or locale switch keeps the
-      # picked view in the URL (ADR-0024).
-      |> assign(:current_path, wealth_tab |> wealth_tab_path() |> keep_view_param(params))
+      # explicit, remembered ?view= rides along too, so a tab or locale switch
+      # keeps the picked view in the URL (ADR-0024).
+      |> assign(:carried_view, carried_view)
+      |> assign(:current_path, wealth_tab |> wealth_tab_path() |> keep_view_param(carried_view))
       |> assign(:wealth_tab, wealth_tab)
       |> assign(:error, nil)
       |> assign(:view_gone_notice, false)
       |> assign(:classification_gone_notice, false)
+      |> assign(:benchmark_merged, benchmark_merged_notes(params, socket))
       |> assign_migration_notice()
 
     # ADR-0024: the empty state keys on the bookkeeping entities (depots and
@@ -178,11 +198,25 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp wealth_tab_path(:allocation), do: "/portfolio?tab=allocation"
   defp wealth_tab_path(_tab), do: "/portfolio"
 
-  # Merges an explicit ?view= from the mount params into current_path (same
-  # query-merging pattern as the switcher's own hrefs), so the tab bar and the
-  # locale switcher — which derive their links from current_path — carry the
-  # picked view along instead of dropping it.
-  defp keep_view_param(path, %{"view" => view}) when is_binary(view) do
+  # The explicit ?view= the page's links may carry: the one in the address
+  # when it is the remembered choice the session holds. A view that arrived
+  # from another site is not in the session (`PortfolixirWeb.FetchSite`), so
+  # the page shows it but its links do not pass it on: a click on one is a
+  # request from the instance, which would remember it (E25 S7 review round,
+  # S7E-2).
+  defp carried_view(%{"view" => view}, session) when is_binary(view) do
+    if PortfolixirWeb.ViewScope.choice(view) ==
+         Map.get(session, PortfolixirWeb.ViewScope.session_key()),
+       do: view
+  end
+
+  defp carried_view(_params, _session), do: nil
+
+  # Merges the carried ?view= into current_path (same query-merging pattern as
+  # the switcher's own hrefs), so the tab bar and the locale switcher — which
+  # derive their links from current_path — carry the picked view along
+  # instead of dropping it.
+  defp keep_view_param(path, view) when is_binary(view) do
     uri = URI.parse(path)
 
     query =
@@ -194,7 +228,7 @@ defmodule PortfolixirWeb.PortfolioLive do
     URI.to_string(%{uri | query: query})
   end
 
-  defp keep_view_param(path, _params), do: path
+  defp keep_view_param(path, _view), do: path
 
   @impl true
   # URL → state for the allocation selections (mobile-reconnect fix). mount
@@ -217,8 +251,10 @@ defmodule PortfolixirWeb.PortfolioLive do
     current_path =
       case socket.assigns.wealth_tab do
         :allocation ->
+          # The mount's carried view, never the address's own (S7E-2): an
+          # allocation patch keeps what the page's links may pass on.
           allocation_current_path(
-            params["view"],
+            socket.assigns.carried_view,
             classification_id,
             allocation_mode,
             min_drift_pp
@@ -284,7 +320,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   # default tree instead of crashing.
   defp param_classification_id(params, classifications) do
     with id when is_binary(id) <- Map.get(params, "classification"),
-         {:ok, parsed} <- coerce_id(id),
+         {:ok, parsed} <- LiveParam.fetch_id(id),
          true <- Enum.any?(classifications, &(&1.id == parsed)) do
       parsed
     else
@@ -494,8 +530,20 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp serve_previous_analysis(socket, view_id, base_currency) do
     case Performance.previous_view_analysis(view_id, base_currency: base_currency) do
       %{daily: [_ | _]} = previous ->
-        {:ok, performance} = Performance.summarise(previous, socket.assigns.period)
+        serve_previous_summary(socket, previous)
 
+      _none ->
+        socket
+        |> assign(:performance_stale, false)
+        |> assign(:performance_failed, false)
+    end
+  end
+
+  # A superseded series that cannot be summarised is not served: the page
+  # waits for the fresh one instead (E25 S4, G12).
+  defp serve_previous_summary(socket, previous) do
+    case Performance.summarise(previous, socket.assigns.period) do
+      {:ok, performance} ->
         socket
         |> assign(:analysis, previous)
         |> assign(:performance, performance)
@@ -503,7 +551,7 @@ defmodule PortfolixirWeb.PortfolioLive do
         |> assign(:performance_failed, false)
         |> assign_comparisons()
 
-      _none ->
+      {:error, _reason} ->
         socket
         |> assign(:performance_stale, false)
         |> assign(:performance_failed, false)
@@ -602,18 +650,24 @@ defmodule PortfolixirWeb.PortfolioLive do
     {:noreply, assign_allocation(socket, allocation)}
   end
 
+  # A summary the walk cannot give is the failed-performance state, the same
+  # one a dead recomputation lands in, never a crash (E25 S4, G12).
   def handle_async(:performance, {:ok, analysis}, socket) do
-    {:ok, performance} = Performance.summarise(analysis, socket.assigns.period)
+    case Performance.summarise(analysis, socket.assigns.period) do
+      {:ok, performance} ->
+        {:noreply,
+         socket
+         |> assign(
+           analysis: analysis,
+           performance: performance,
+           performance_stale: false,
+           performance_failed: false
+         )
+         |> assign_comparisons()}
 
-    {:noreply,
-     socket
-     |> assign(
-       analysis: analysis,
-       performance: performance,
-       performance_stale: false,
-       performance_failed: false
-     )
-     |> assign_comparisons()}
+      {:error, _reason} ->
+        {:noreply, assign(socket, performance_failed: true)}
+    end
   end
 
   # The background rate sync (issue #432, UAT fix rounds): the outcome lands
@@ -1419,6 +1473,29 @@ defmodule PortfolixirWeb.PortfolioLive do
                banner names the data it CONTAINS (booking count, newest booking,
                compute time), not just its age; a failed recomputation flips to
                an error state instead of letting the old number settle. --%>
+          <%!-- ADR-0050 §12 (board 13): the benchmark link named a security
+               a merge took away; the page compares with its survivor and
+               says so once, until the next navigation or the dismiss. --%>
+          <div :if={@benchmark_merged != []} class="inline-result" role="status">
+            <AppShell.data_note severity={:note} data-role="benchmark-merged">
+              <%= for note <- @benchmark_merged do %>
+                <%= gettext(
+                  "The benchmark named a security that was merged into “%{name}” on %{date}; the comparison now uses it.",
+                  name: note.name,
+                  date: Format.date(note.merged_on)
+                ) %>
+              <% end %>
+              <button
+                type="button"
+                class="inline-result__dismiss"
+                phx-click="dismiss_benchmark_merged"
+                aria-label={gettext("Dismiss")}
+                title={gettext("Dismiss")}
+              >
+                &times;
+              </button>
+            </AppShell.data_note>
+          </div>
           <p
             :if={@performance_stale and not @performance_failed and @analysis}
             class="perf-stale-banner"
@@ -1516,11 +1593,13 @@ defmodule PortfolixirWeb.PortfolioLive do
               <%!-- Tree answers "is my structure on plan?"; Positions is the
                    flat rebalancing worklist - sorting belongs to a flat list,
                    not to a hierarchy (owner request). --%>
-              <div class="chart-toggle" role="group" aria-label={gettext("Allocation view")}>
+              <%!-- #875: the segmented group ({components.selected-segment}),
+                   so the two states look different, not only sound different. --%>
+              <div class="segmented-control" role="group" aria-label={gettext("Allocation view")}>
                 <button
                   type="button"
                   data-role="allocation-mode-tree"
-                  class={["button-mini", @allocation_mode == :tree && "is-active"]}
+                  class={["segmented-control__option", @allocation_mode == :tree && "is-active"]}
                   phx-click="set_allocation_mode"
                   phx-value-mode="tree"
                   aria-pressed={to_string(@allocation_mode == :tree)}
@@ -1530,7 +1609,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                 <button
                   type="button"
                   data-role="allocation-mode-flat"
-                  class={["button-mini", @allocation_mode == :flat && "is-active"]}
+                  class={["segmented-control__option", @allocation_mode == :flat && "is-active"]}
                   phx-click="set_allocation_mode"
                   phx-value-mode="flat"
                   aria-pressed={to_string(@allocation_mode == :flat)}
@@ -1567,11 +1646,12 @@ defmodule PortfolixirWeb.PortfolioLive do
                 <%= gettext("Plan on %{classification}",
                   classification: allocation_tree_name(@allocation)
                 ) %>
+                <%!-- #875: the warning colour only above 100 % (ADR-0040 §3,
+                     DESIGN.md D3); a plan that allocates less says what its
+                     drift measures against (§2) — the Σ before it is that
+                     allocated portion. --%>
                 · <span
-                  class={[
-                    "target-sum",
-                    target_mismatch?(@allocation.top_level_target_sum, 1) && "is-target-mismatch"
-                  ]}
+                  class={["target-sum", plan_overshoot(@allocation) && "is-target-mismatch"]}
                   data-role="target-sum-top-level"
                 >
                   <%= gettext("Σ target top level:") %>
@@ -1580,6 +1660,12 @@ defmodule PortfolixirWeb.PortfolioLive do
                     — <%= gettext("targets deeper in the tree:") %>
                     <%= Format.percent(@allocation.deep_target_sum) %>%
                   <% end %>
+                  <span
+                    :if={Map.get(@allocation, :drift_basis) == "allocated_portion"}
+                    data-role="drift-basis"
+                  >
+                    — <%= gettext("drift against the allocated portion") %>
+                  </span>
                 </span>
               <% else %>
                 <%= gettext("Actual allocation on %{classification}",
@@ -2104,17 +2190,23 @@ defmodule PortfolixirWeb.PortfolioLive do
                         <.position_soll_chips position={entry} />
                       </td>
                       <td>
-                        <%= if entry.category_name do %>
-                          <span
-                            :if={entry.category_color}
-                            class="cat-swatch"
-                            style={"background:#{entry.category_color}"}
-                            aria-hidden="true"
-                          >
-                          </span>
-                          <%= entry.category_name %>
-                        <% else %>
-                          <span class="hint"><%= gettext("Unassigned") %></span>
+                        <%!-- #875: cash is never "unassigned" — it has its own
+                             target and its own drift; its cell is empty like any
+                             cell without a value. --%>
+                        <%= cond do %>
+                          <% entry.cash? -> %>
+                            —
+                          <% entry.category_name -> %>
+                            <span
+                              :if={entry.category_color}
+                              class="cat-swatch"
+                              style={"background:#{entry.category_color}"}
+                              aria-hidden="true"
+                            >
+                            </span>
+                            <%= entry.category_name %>
+                          <% true -> %>
+                            <span class="hint"><%= gettext("Unassigned") %></span>
                         <% end %>
                       </td>
                       <td class="num">
@@ -2703,8 +2795,82 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp resolve_benchmarks(_selectors), do: []
 
+  # The selectors naming a security a merge took away, each with the live
+  # end of its merge chain: `[{old_id, survivor_id}]`.
+  defp merged_benchmarks(selectors) when is_list(selectors) do
+    for "security:" <> raw <- selectors,
+        {:ok, id} <- [LiveParam.fetch_id(raw)],
+        is_nil(Portfolixir.Catalog.get_security(id)),
+        survivor = Portfolixir.Lifecycle.merged_into(:security, id),
+        is_integer(survivor),
+        do: {id, survivor}
+  end
+
+  defp merged_benchmarks(_selectors), do: []
+
+  # The same page — every other parameter of the link kept — with every
+  # active selector, remembered or linked, naming the survivor, the rate
+  # kept, and the merged ids in `benchmark_merged` for the note. The
+  # selectors ride as `benchmark[]`, so the plug remembers them.
+  defp survivor_benchmark_path(params, active, merged) do
+    survivors = Map.new(merged)
+
+    selectors =
+      Enum.map(active, fn
+        "security:" <> raw = selector ->
+          case LiveParam.fetch_id(raw) do
+            {:ok, id} -> if s = survivors[id], do: "security:#{s}", else: selector
+            :error -> selector
+          end
+
+        selector ->
+          selector
+      end)
+
+    query =
+      params
+      |> Map.drop(["benchmark", "benchmark_merged"])
+      |> Enum.sort()
+      |> Enum.flat_map(&kept_param/1)
+      |> Kernel.++(Enum.map(Enum.uniq(selectors), &{"benchmark[]", &1}))
+      |> Kernel.++([{"benchmark_merged", Enum.map_join(merged, ",", &elem(&1, 0))}])
+      |> URI.encode_query()
+
+    "/portfolio?" <> query
+  end
+
+  # Every other parameter of the link rides along as it came (review finding
+  # M-8): the redirect changes the benchmark only, never the period or the
+  # view a bookmark carries. A list stays a list; anything else is dropped.
+  defp kept_param({key, value}) when is_binary(key) and is_binary(value), do: [{key, value}]
+
+  defp kept_param({key, values}) when is_binary(key) and is_list(values),
+    do: for(value <- values, is_binary(value), do: {key <> "[]", value})
+
+  defp kept_param(_other), do: []
+
+  # The note says only what the records say: each id in `benchmark_merged`
+  # must name a security a merge took away into an active benchmark.
+  defp benchmark_merged_notes(%{"benchmark_merged" => raw}, socket) when is_binary(raw) do
+    active =
+      for "security:" <> id <- socket.assigns[:active_benchmark_selectors] || [],
+          {:ok, parsed} <- [LiveParam.fetch_id(id)],
+          do: parsed
+
+    for part <- raw |> String.split(",") |> Enum.take(2),
+        {:ok, from} <- [LiveParam.fetch_id(part)],
+        survivor = Portfolixir.Lifecycle.merged_into(:security, from),
+        survivor in active,
+        record = Portfolixir.Lifecycle.merge_of(:security, from),
+        security = Portfolixir.Catalog.get_security(survivor),
+        not is_nil(record) and not is_nil(security),
+        do: %{name: security.name, merged_on: Portfolixir.Clock.local_date(record.inserted_at)}
+  end
+
+  defp benchmark_merged_notes(_params, _socket), do: []
+
   defp resolve_benchmark_security(id) do
-    with {id, ""} <- Integer.parse(id),
+    with {:ok, id} <- LiveParam.fetch_id(id),
          %Portfolixir.Catalog.Security{is_benchmark: true} = security <-
            Portfolixir.Catalog.get_security(id) do
       [{:security, security}]
@@ -2713,10 +2879,12 @@ defmodule PortfolixirWeb.PortfolioLive do
     end
   end
 
+  # The plug's one bound (E25 S4, F06), so the page resolves exactly the
+  # selectors the plug would store.
   defp resolve_benchmark_rate(rate) do
-    case Decimal.parse(rate) do
-      {%Decimal{} = rate, ""} -> if Benchmark.valid_rate?(rate), do: [{:rate, rate}], else: []
-      _malformed -> []
+    case BenchmarkScope.parse_rate(rate) do
+      {:ok, rate} -> [{:rate, rate}]
+      :error -> []
     end
   end
 
@@ -3015,7 +3183,17 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # -- events -----------------------------------------------------------------
 
+  # The empty page (no depot, no cash account) offers no control, so an event
+  # pushed to it meets none of the state a control assumes, and changes
+  # nothing (E25 S4, F17).
   @impl true
+  def handle_event("dismiss_benchmark_merged", _params, socket) do
+    {:noreply, assign(socket, :benchmark_merged, [])}
+  end
+
+  def handle_event(_event, _params, %{assigns: %{portfolio: nil}} = socket),
+    do: {:noreply, socket}
+
   def handle_event("select_period", %{"period" => period}, socket) do
     if period in Performance.periods() do
       apply_period(socket, period)
@@ -3034,7 +3212,7 @@ defmodule PortfolixirWeb.PortfolioLive do
     do: {:noreply, push_event(socket, "close-popover", %{id: "period-custom"})}
 
   def handle_event("select_year", %{"year" => raw}, socket) do
-    with {year, ""} <- Integer.parse(raw),
+    with year when is_integer(year) <- LiveParam.year(raw),
          true <- year in available_years(socket.assigns.analysis) do
       apply_period(socket, {:year, year})
     else
@@ -3077,7 +3255,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   # shows the default; re-selecting the active tree is a no-op — no duplicate
   # history entry.
   def handle_event("select_classification", %{"classification_id" => id}, socket) do
-    with {:ok, classification_id} <- coerce_id(id),
+    with {:ok, classification_id} <- LiveParam.fetch_id(id),
          true <- Enum.any?(socket.assigns.classifications, &(&1.id == classification_id)),
          false <- classification_id == socket.assigns.classification_id do
       {:noreply,
@@ -3114,7 +3292,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   end
 
   def handle_event("toggle_category_positions", %{"category-id" => id}, socket) do
-    case coerce_id(id) do
+    case LiveParam.fetch_id(id) do
       {:ok, category_id} ->
         expanded = socket.assigns.expanded_categories
 
@@ -3134,10 +3312,10 @@ defmodule PortfolixirWeb.PortfolioLive do
   # Values are display strings straight from our own render; HEEx escapes them.
   def handle_event("select_segment", params, socket) do
     segment = %{
-      name: to_string(params["name"] || ""),
-      percent: to_string(params["percent"] || ""),
-      value: to_string(params["amount"] || ""),
-      target: to_string(params["target"] || ""),
+      name: LiveParam.string(params["name"]) || "",
+      percent: LiveParam.string(params["percent"]) || "",
+      value: LiveParam.string(params["amount"]) || "",
+      target: LiveParam.string(params["target"]) || "",
       color: safe_color(params["color"])
     }
 
@@ -3279,6 +3457,10 @@ defmodule PortfolixirWeb.PortfolioLive do
 
     {:noreply, assign(socket, :flat_sort, sort)}
   end
+
+  # An event this page does not know, or a payload it cannot read, changes
+  # nothing (E25 S4, F17).
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   defp flip_dir(:desc), do: :asc
   defp flip_dir(:asc), do: :desc
@@ -3545,11 +3727,16 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp rebalance_hint_parts(nil), do: nil
 
+  # A hint that rounds to nothing is no hint (#875): "Sell ≈ 0.00 units" asks
+  # for an action that is nothing. The drift stays, and the API keeps the
+  # unrounded quantity — the suppression is display only.
   defp rebalance_hint_parts(%Decimal{} = quantity) do
-    case Decimal.compare(quantity, 0) do
-      :gt -> %{verb: gettext("Sell"), quantity: Format.decimal(quantity, 2)}
-      :lt -> %{verb: gettext("Buy"), quantity: Format.decimal(Decimal.abs(quantity), 2)}
-      :eq -> nil
+    shown = quantity |> Decimal.abs() |> Decimal.round(2)
+
+    cond do
+      Decimal.eq?(shown, 0) -> nil
+      Decimal.gt?(quantity, 0) -> %{verb: gettext("Sell"), quantity: Format.decimal(shown, 2)}
+      true -> %{verb: gettext("Buy"), quantity: Format.decimal(shown, 2)}
     end
   end
 
@@ -4174,13 +4361,20 @@ defmodule PortfolixirWeb.PortfolioLive do
 
     if socket.assigns.analysis do
       # The analysis is cached — re-chaining a period is pure and instant.
-      {:ok, performance} = Performance.summarise(socket.assigns.analysis, period)
+      case Performance.summarise(socket.assigns.analysis, period) do
+        {:ok, performance} ->
+          {:noreply,
+           socket
+           |> assign(period: period, performance: performance)
+           |> assign_comparisons()
+           |> push_event("close-popover", %{id: "period-custom"})}
 
-      {:noreply,
-       socket
-       |> assign(period: period, performance: performance)
-       |> assign_comparisons()
-       |> push_event("close-popover", %{id: "period-custom"})}
+        {:error, _reason} ->
+          {:noreply,
+           socket
+           |> assign(period: period, performance: nil, performance_failed: true)
+           |> push_event("close-popover", %{id: "period-custom"})}
+      end
     else
       {:noreply,
        socket
@@ -4265,9 +4459,11 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # Prefill for the range inputs: the picked range, else the shown period's
   # effective bounds (honest clamping included), else blank.
+  # The shared date rule (E25 S4): an ISO date inside the ledger's range, so a
+  # typed or pushed year far outside it is the field's error, not a period.
   defp parse_range(from_str, to_str) do
-    with {:from, {:ok, from}} <- {:from, Date.from_iso8601(to_string(from_str))},
-         {:to, {:ok, to}} <- {:to, Date.from_iso8601(to_string(to_str))},
+    with {:from, {:ok, from}} <- {:from, BoundedDate.parse(from_str)},
+         {:to, {:ok, to}} <- {:to, BoundedDate.parse(to_str)},
          {:order, false} <- {:order, Date.compare(from, to) == :gt} do
       {:ok, from, to}
     else
@@ -4301,15 +4497,6 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp range_to({:range, _from, to}, _performance), do: to
   defp range_to(_period, %{end_date: %Date{} = end_date}), do: end_date
   defp range_to(_period, _performance), do: nil
-
-  defp coerce_id(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {id, ""} -> {:ok, id}
-      _ -> :error
-    end
-  end
-
-  defp coerce_id(_value), do: :error
 
   # The colour lands in a style attribute, so only a literal hex colour from
   # our own render is accepted — anything else falls back to neutral grey.

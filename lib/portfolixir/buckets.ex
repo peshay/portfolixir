@@ -13,17 +13,21 @@ defmodule Portfolixir.Buckets do
   (`seed_portfolio_scope_buckets/1`) seeds a scope bucket + view per portfolio.
 
   This context is the **only** writer of the bucket/view tables and is born
-  actor-first (ADR-0017): bucket-definition and assignment writes are routed
-  through `Journal.record/3` in the same `Ecto.Multi`, so each is attributable in
-  the audit journal. **View-definition writes are deliberately not journaled**
-  (ADR-0018 §5); they still take an `Actor` first argument for the uniform
-  write-path signature (and so the P2 write-actor gate accepts them).
+  actor-first (ADR-0017): bucket-definition, assignment and view-definition
+  writes are routed through `Journal.record/3` in the same `Ecto.Multi`, so
+  each is attributable in the audit journal. View-definition writes were
+  deliberately unjournaled until Sprint 16 (ADR-0018 §5 as amended; E25 S6,
+  F45): a policy rule in force reads a view, so its definition is journaled
+  with both bucket sets. Creating a view is the one unjournaled view write.
+  The tables stay unarmed scope tables (`Portfolixir.Journal.Allowlist`).
 
   Resolution helpers delegate the algebra to the pure engine
   `Portfolixir.Engines.BucketResolution` (architecture D2/P3) — this context only
   loads the data the engine needs.
   """
   import Ecto.Query
+
+  require Logger
 
   alias Ecto.Multi
   alias Portfolixir.Actor
@@ -32,16 +36,21 @@ defmodule Portfolixir.Buckets do
   alias Portfolixir.Buckets.PositionBucketOverride
   alias Portfolixir.Buckets.SecuritiesAccountBucket
   alias Portfolixir.Buckets.View
+  alias Portfolixir.Buckets.ViewDefinition
   alias Portfolixir.Buckets.ViewExcludeBucket
   alias Portfolixir.Buckets.ViewIncludeBucket
   alias Portfolixir.Catalog.Security
-  alias Portfolixir.Derived.Invalidation
   alias Portfolixir.Engines.BucketResolution
+  alias Portfolixir.Input.Text
   alias Portfolixir.Journal
+  alias Portfolixir.Journal.Serializer
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.PolicyRules
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.SecuritiesAccount
+  alias Portfolixir.Portfolios.Snapshot
+  alias Portfolixir.Portfolios.Snapshots
+  alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Repo
 
   @scope_dimension "scope"
@@ -73,7 +82,7 @@ defmodule Portfolixir.Buckets do
   @doc "Updates a bucket on behalf of `actor` (journaled with the pre-image)."
   def update_bucket(%Actor{} = actor, %Bucket{} = bucket, attrs) when is_map(attrs) do
     Multi.new()
-    |> Multi.update(:bucket, Bucket.changeset(bucket, attrs))
+    |> Multi.update(:bucket, &Bucket.changeset(Journal.locked_row(&1), attrs))
     |> Journal.record(actor,
       resource_type: "bucket",
       operation: :update,
@@ -84,21 +93,206 @@ defmodule Portfolixir.Buckets do
     |> case do
       {:ok, %{bucket: bucket}} -> {:ok, bucket}
       {:error, :bucket, %Ecto.Changeset{} = changeset, _} -> {:error, changeset}
+      # The row was deleted before the write took its lock (E25 S6, F49).
+      {:error, {:journal_lock, _}, :not_found, _} -> {:error, :not_found}
     end
   end
 
   @doc """
-  Deletes a bucket on behalf of `actor` (journaled with the pre-image). Cascade
-  removes the bucket from every assignment and view set.
+  Deletes a bucket on behalf of `actor` (ADR-0018 as amended, T-10; E25 S6,
+  G19, G29), in one transaction.
+
+  Every place the bucket sits is rewritten first, through its journaled
+  writer, so each affected owner gets its own entry: every view that
+  includes or excludes it (`set_view_buckets/4`, the view's prior and new
+  sets), every depot default set and cash-account set
+  (`set_depot_default_buckets/3`, `set_cash_account_buckets/3`), and every
+  position override (`set_position_override/4`). **An override that loses
+  its last bucket stays explicit-empty**: the position keeps "no buckets"
+  and does not start inheriting its depot's set, so it enters no view it
+  was not in. Then the bucket is deleted, journaled with its row and every
+  membership it had (`memberships`) as the before-image. The foreign keys
+  still cascade, as a backstop that finds nothing left to remove.
+
+  The owners are locked before the bucket, the order every assignment
+  writer takes them in; the bucket's `FOR UPDATE` lock then keeps a new
+  membership from being added while they are rewritten. No new refusal: a
+  bucket a policy rule's view reads is deleted as well, and the rewritten
+  view is journaled. A bucket that is gone answers `{:error, :not_found}`.
   """
-  def delete_bucket(%Actor{} = actor, %Bucket{} = bucket) do
+  def delete_bucket(%Actor{} = actor, %Bucket{id: bucket_id}) do
+    fn ->
+      lock_owners(memberships(bucket_id))
+
+      with {:ok, bucket} <- lock_bucket(bucket_id),
+           members = memberships(bucket_id),
+           :ok <- lock_owners(members),
+           :ok <- release_memberships(actor, bucket_id, members),
+           {:ok, deleted} <- delete_bucket_row(actor, bucket, members) do
+        deleted
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end
+    |> Repo.transaction()
+  end
+
+  # Where a bucket sits: the views naming it, the owners carrying it.
+  defp memberships(bucket_id) do
+    %{
+      view_include: owner_ids(ViewIncludeBucket, :view_id, bucket_id),
+      view_exclude: owner_ids(ViewExcludeBucket, :view_id, bucket_id),
+      depot_defaults: owner_ids(SecuritiesAccountBucket, :securities_account_id, bucket_id),
+      cash_accounts: owner_ids(CashAccountBucket, :cash_account_id, bucket_id),
+      position_overrides:
+        Repo.all(
+          from(o in PositionBucketOverride,
+            where: o.bucket_id == ^bucket_id,
+            distinct: true,
+            order_by: [o.securities_account_id, o.security_id],
+            select: %{securities_account_id: o.securities_account_id, security_id: o.security_id}
+          )
+        )
+    }
+  end
+
+  defp owner_ids(schema, owner, bucket_id) do
+    Repo.all(
+      from(x in schema,
+        where: x.bucket_id == ^bucket_id,
+        distinct: true,
+        order_by: field(x, ^owner),
+        select: field(x, ^owner)
+      )
+    )
+  end
+
+  # Views, then depots, then cash accounts, each in id order, FOR NO KEY
+  # UPDATE: the lock their writers take, which a booking's foreign-key check
+  # does not wait on.
+  defp lock_owners(members) do
+    lock_rows(View, Enum.uniq(members.view_include ++ members.view_exclude))
+
+    lock_rows(
+      SecuritiesAccount,
+      Enum.uniq(
+        members.depot_defaults ++ Enum.map(members.position_overrides, & &1.securities_account_id)
+      )
+    )
+
+    lock_rows(CashAccount, members.cash_accounts)
+    :ok
+  end
+
+  defp lock_rows(_schema, []), do: []
+
+  defp lock_rows(schema, ids) do
+    Repo.all(
+      from(r in schema,
+        where: r.id in ^ids,
+        order_by: r.id,
+        lock: "FOR NO KEY UPDATE",
+        select: r.id
+      )
+    )
+  end
+
+  defp lock_bucket(bucket_id) do
+    case Repo.one(from(b in Bucket, where: b.id == ^bucket_id, lock: "FOR UPDATE")) do
+      nil -> {:error, :not_found}
+      bucket -> {:ok, bucket}
+    end
+  end
+
+  defp release_memberships(actor, bucket_id, members) do
+    views = Enum.uniq(members.view_include ++ members.view_exclude)
+
+    [
+      Enum.map(views, &fn -> release_view(actor, &1, bucket_id) end),
+      Enum.map(members.depot_defaults, &fn -> release_depot(actor, &1, bucket_id) end),
+      Enum.map(members.cash_accounts, &fn -> release_cash_account(actor, &1, bucket_id) end),
+      Enum.map(members.position_overrides, &fn -> release_override(actor, &1, bucket_id) end)
+    ]
+    |> List.flatten()
+    |> Enum.reduce_while(:ok, fn release, :ok ->
+      case release.() do
+        :ok -> {:cont, :ok}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  # A view deleted by another writer in the meantime took its links with it:
+  # nothing is left to release.
+  defp release_view(actor, view_id, bucket_id) do
+    case Repo.get(View, view_id) do
+      nil ->
+        :ok
+
+      view ->
+        definition = ViewDefinition.of(Repo, view)
+
+        set_view_buckets(
+          actor,
+          view,
+          definition.include_bucket_ids -- [bucket_id],
+          definition.exclude_bucket_ids -- [bucket_id]
+        )
+    end
+  end
+
+  defp release_depot(actor, securities_account_id, bucket_id) do
+    actor
+    |> write_depot_default_buckets(
+      %SecuritiesAccount{id: securities_account_id},
+      depot_default_bucket_ids(securities_account_id) -- [bucket_id],
+      :exists
+    )
+    |> owner_gone_is_released()
+  end
+
+  defp release_cash_account(actor, cash_account_id, bucket_id) do
+    actor
+    |> write_cash_account_buckets(
+      %CashAccount{id: cash_account_id},
+      cash_account_bucket_ids(cash_account_id) -- [bucket_id],
+      :exists
+    )
+    |> owner_gone_is_released()
+  end
+
+  # An account deleted by another writer in the meantime took its
+  # memberships with it (E25 S6, G10): nothing is left to release.
+  defp owner_gone_is_released({:error, :not_found}), do: :ok
+  defp owner_gone_is_released(result), do: result
+
+  # The override keeps its other buckets; one left with none is written as
+  # explicit-empty, never cleared to inherit (T-10).
+  defp release_override(actor, %{securities_account_id: sa_id, security_id: sec_id}, bucket_id) do
+    case position_override(sa_id, sec_id) do
+      {:explicit, bucket_ids} ->
+        actor
+        |> write_position_override(
+          {%SecuritiesAccount{id: sa_id}, %Security{id: sec_id}},
+          bucket_ids -- [bucket_id],
+          :exists
+        )
+        |> owner_gone_is_released()
+
+      # Cleared by another writer in the meantime: nothing names the bucket.
+      _inherit_or_empty ->
+        :ok
+    end
+  end
+
+  defp delete_bucket_row(actor, bucket, members) do
     Multi.new()
     |> Multi.delete(:bucket, bucket)
     |> Journal.record(actor,
       resource_type: "bucket",
       operation: :delete,
       source: :bucket,
-      before: bucket
+      before: bucket |> Serializer.snapshot() |> Map.put("memberships", members)
     )
     |> Repo.transaction()
     |> case do
@@ -141,7 +335,7 @@ defmodule Portfolixir.Buckets do
     trimmed = String.trim(name)
 
     cond do
-      String.length(trimmed) > @name_max_length ->
+      Text.codepoint_length(trimmed) > @name_max_length ->
         {:error, :name_too_long}
 
       match?(%Bucket{dimension: @scope_dimension}, Repo.get_by(Bucket, name: trimmed)) ->
@@ -157,32 +351,37 @@ defmodule Portfolixir.Buckets do
   @doc """
   Replaces the depot's default bucket set with `bucket_ids` on behalf of `actor`.
   Recorded as one aggregate `depot_bucket_assignment` journal entry.
+
+  The depot row is locked first (E25 S6, G10), so two writers of one set
+  take turns and the later one's set is the one stored. A depot deleted in
+  the meantime answers `{:error, :not_found}`.
   """
-  def set_depot_default_buckets(%Actor{} = actor, %SecuritiesAccount{id: sa_id}, bucket_ids)
-      when is_list(bucket_ids) do
+  def set_depot_default_buckets(%Actor{} = actor, %SecuritiesAccount{} = depot, bucket_ids)
+      when is_list(bucket_ids),
+      do: write_depot_default_buckets(actor, depot, bucket_ids, :assign)
+
+  defp write_depot_default_buckets(actor, %SecuritiesAccount{id: sa_id}, bucket_ids, check) do
     bucket_ids = Enum.uniq(bucket_ids)
+    entries = Enum.map(bucket_ids, &%{securities_account_id: sa_id, bucket_id: &1})
 
-    with :ok <- validate_bucket_ids(bucket_ids),
-         :ok <- validate_exclusive_dimension(bucket_ids) do
-      entries = Enum.map(bucket_ids, &%{securities_account_id: sa_id, bucket_id: &1})
-
-      Multi.new()
-      |> Multi.delete_all(
-        :clear,
-        from(x in SecuritiesAccountBucket, where: x.securities_account_id == ^sa_id)
-      )
-      |> insert_all_step(:assign, SecuritiesAccountBucket, entries)
-      |> Multi.run(:record, fn _repo, _changes ->
-        {:ok, %{id: nil, securities_account_id: sa_id, bucket_ids: bucket_ids}}
-      end)
-      |> Journal.record(actor,
-        resource_type: "depot_bucket_assignment",
-        operation: :update,
-        source: :record
-      )
-      |> Repo.transaction()
-      |> normalize_assignment_result()
-    end
+    Multi.new()
+    |> lock_owner(SecuritiesAccount, sa_id)
+    |> validate_assignment(bucket_ids, check)
+    |> Multi.delete_all(
+      :clear,
+      from(x in SecuritiesAccountBucket, where: x.securities_account_id == ^sa_id)
+    )
+    |> insert_all_step(:assign, SecuritiesAccountBucket, entries)
+    |> Multi.run(:record, fn _repo, _changes ->
+      {:ok, %{id: nil, securities_account_id: sa_id, bucket_ids: bucket_ids}}
+    end)
+    |> Journal.record(actor,
+      resource_type: "depot_bucket_assignment",
+      operation: :update,
+      source: :record
+    )
+    |> Repo.transaction()
+    |> normalize_assignment_result()
   end
 
   @doc "Bucket ids in a depot's default set."
@@ -201,32 +400,37 @@ defmodule Portfolixir.Buckets do
   @doc """
   Replaces a cash account's bucket set with `bucket_ids` on behalf of `actor`.
   Recorded as one aggregate `cash_account_bucket_assignment` journal entry.
+
+  The cash-account row is locked first (E25 S6, G10), as the depot writer
+  locks its depot. A cash account deleted in the meantime answers
+  `{:error, :not_found}`.
   """
-  def set_cash_account_buckets(%Actor{} = actor, %CashAccount{id: ca_id}, bucket_ids)
-      when is_list(bucket_ids) do
+  def set_cash_account_buckets(%Actor{} = actor, %CashAccount{} = cash_account, bucket_ids)
+      when is_list(bucket_ids),
+      do: write_cash_account_buckets(actor, cash_account, bucket_ids, :assign)
+
+  defp write_cash_account_buckets(actor, %CashAccount{id: ca_id}, bucket_ids, check) do
     bucket_ids = Enum.uniq(bucket_ids)
+    entries = Enum.map(bucket_ids, &%{cash_account_id: ca_id, bucket_id: &1})
 
-    with :ok <- validate_bucket_ids(bucket_ids),
-         :ok <- validate_exclusive_dimension(bucket_ids) do
-      entries = Enum.map(bucket_ids, &%{cash_account_id: ca_id, bucket_id: &1})
-
-      Multi.new()
-      |> Multi.delete_all(
-        :clear,
-        from(x in CashAccountBucket, where: x.cash_account_id == ^ca_id)
-      )
-      |> insert_all_step(:assign, CashAccountBucket, entries)
-      |> Multi.run(:record, fn _repo, _changes ->
-        {:ok, %{id: nil, cash_account_id: ca_id, bucket_ids: bucket_ids}}
-      end)
-      |> Journal.record(actor,
-        resource_type: "cash_account_bucket_assignment",
-        operation: :update,
-        source: :record
-      )
-      |> Repo.transaction()
-      |> normalize_assignment_result()
-    end
+    Multi.new()
+    |> lock_owner(CashAccount, ca_id)
+    |> validate_assignment(bucket_ids, check)
+    |> Multi.delete_all(
+      :clear,
+      from(x in CashAccountBucket, where: x.cash_account_id == ^ca_id)
+    )
+    |> insert_all_step(:assign, CashAccountBucket, entries)
+    |> Multi.run(:record, fn _repo, _changes ->
+      {:ok, %{id: nil, cash_account_id: ca_id, bucket_ids: bucket_ids}}
+    end)
+    |> Journal.record(actor,
+      resource_type: "cash_account_bucket_assignment",
+      operation: :update,
+      source: :record
+    )
+    |> Repo.transaction()
+    |> normalize_assignment_result()
   end
 
   @doc "Bucket ids assigned to a cash account."
@@ -252,45 +456,57 @@ defmodule Portfolixir.Buckets do
   rejected with `{:error, :exclusive_bucket_conflict}` before anything is
   written — otherwise an override could double-count a position into two
   scope-scoped totals.
+
+  The depot row is locked first (E25 S6, G10), so two override writes of
+  one position leave one request's set, never the explicit-empty marker next
+  to bucket rows. A depot deleted in the meantime answers
+  `{:error, :not_found}`.
   """
   def set_position_override(
         %Actor{} = actor,
-        %SecuritiesAccount{id: sa_id},
-        %Security{id: sec_id},
+        %SecuritiesAccount{} = depot,
+        %Security{} = security,
         bucket_ids
       )
-      when is_list(bucket_ids) do
-    with :ok <- validate_bucket_ids(bucket_ids),
-         :ok <- validate_exclusive_dimension(bucket_ids) do
-      entries =
-        case Enum.uniq(bucket_ids) do
-          [] ->
-            [%{securities_account_id: sa_id, security_id: sec_id, bucket_id: nil}]
+      when is_list(bucket_ids),
+      do: write_position_override(actor, {depot, security}, bucket_ids, :assign)
 
-          ids ->
-            Enum.map(ids, &%{securities_account_id: sa_id, security_id: sec_id, bucket_id: &1})
-        end
+  defp write_position_override(
+         actor,
+         {%SecuritiesAccount{id: sa_id}, %Security{id: sec_id}},
+         bucket_ids,
+         check
+       ) do
+    entries =
+      case Enum.uniq(bucket_ids) do
+        [] ->
+          [%{securities_account_id: sa_id, security_id: sec_id, bucket_id: nil}]
 
-      Multi.new()
-      |> Multi.delete_all(:clear, position_override_query(sa_id, sec_id))
-      |> Multi.insert_all(:assign, PositionBucketOverride, entries)
-      |> Multi.run(:record, fn _repo, _changes ->
-        {:ok,
-         %{id: nil, securities_account_id: sa_id, security_id: sec_id, bucket_ids: bucket_ids}}
-      end)
-      |> Journal.record(actor,
-        resource_type: "position_bucket_override",
-        operation: :update,
-        source: :record
-      )
-      |> Repo.transaction()
-      |> normalize_assignment_result()
-    end
+        ids ->
+          Enum.map(ids, &%{securities_account_id: sa_id, security_id: sec_id, bucket_id: &1})
+      end
+
+    Multi.new()
+    |> lock_owner(SecuritiesAccount, sa_id)
+    |> validate_assignment(bucket_ids, check)
+    |> Multi.delete_all(:clear, position_override_query(sa_id, sec_id))
+    |> Multi.insert_all(:assign, PositionBucketOverride, entries)
+    |> Multi.run(:record, fn _repo, _changes ->
+      {:ok, %{id: nil, securities_account_id: sa_id, security_id: sec_id, bucket_ids: bucket_ids}}
+    end)
+    |> Journal.record(actor,
+      resource_type: "position_bucket_override",
+      operation: :update,
+      source: :record
+    )
+    |> Repo.transaction()
+    |> normalize_assignment_result()
   end
 
   @doc """
   Clears the per-position override, returning the position to **inherit** the
-  depot default. Recorded as a `position_bucket_override` delete.
+  depot default. Recorded as a `position_bucket_override` delete. Takes the
+  depot's lock first, like the override writer (E25 S6, G10).
   """
   def clear_position_override(
         %Actor{} = actor,
@@ -298,6 +514,7 @@ defmodule Portfolixir.Buckets do
         %Security{id: sec_id}
       ) do
     Multi.new()
+    |> lock_owner(SecuritiesAccount, sa_id)
     |> Multi.delete_all(:clear, position_override_query(sa_id, sec_id))
     |> Multi.run(:record, fn _repo, _changes ->
       {:ok, %{id: nil, securities_account_id: sa_id, security_id: sec_id}}
@@ -321,7 +538,7 @@ defmodule Portfolixir.Buckets do
       select: o.bucket_id
     )
     |> Repo.all()
-    |> classify_override()
+    |> classify_override({securities_account_id, security_id})
   end
 
   @doc "The resolved effective bucket ids for a position (override wins over depot default)."
@@ -374,9 +591,20 @@ defmodule Portfolixir.Buckets do
     end
   end
 
-  # -- views (writes, actor-first but NOT journaled, ADR-0018 §5) -------------
+  # -- views (writes) -----------------------------------------------------------
+  #
+  # A view's definition is what a policy rule in force reads (ADR-0049 §1),
+  # so every write that changes one is journaled under `resource_type: "view"`
+  # with the whole definition — the row and both bucket sets
+  # (`Portfolixir.Buckets.ViewDefinition`) — as its before- and after-image,
+  # read under the view row's lock in the writing transaction (ADR-0018 §5 as
+  # amended in Sprint 16; E25 S6, F45). The journal seam bumps every
+  # portfolio's data version in the same transaction: which holdings a view
+  # reaches is itself what changed. Creating a view stays unjournaled: no
+  # rule can read a view before it exists, and its first edit's before-image
+  # is the view as created.
 
-  @doc "Creates a view. Actor-first for signature uniformity; view definition is not journaled."
+  @doc "Creates a view. Actor-first for signature uniformity; a new view reaches no rule yet."
   def create_view(%Actor{} = _actor, attrs) when is_map(attrs) do
     %View{}
     |> View.changeset(attrs)
@@ -384,20 +612,59 @@ defmodule Portfolixir.Buckets do
   end
 
   @doc """
-  Updates a view definition (not journaled). Every derived value computed under
-  the view is invalidated, because the view's reach may have changed.
+  Updates a view's name or `include_all`, journaled with the view's whole
+  definition before and after (F45). A view that is gone answers
+  `{:error, :not_found}`.
   """
-  def update_view(%Actor{} = _actor, %View{} = view, attrs) when is_map(attrs) do
-    view
-    |> View.changeset(attrs)
-    |> Repo.update()
-    |> tap(&if(match?({:ok, _}, &1), do: Invalidation.after_view_write()))
+  def update_view(%Actor{} = actor, %View{id: view_id}, attrs) when is_map(attrs) do
+    Multi.new()
+    |> lock_view(view_id, :edit)
+    |> Multi.update(:view, &View.changeset(&1.locked_view, attrs))
+    |> Multi.run(:definition, fn repo, %{view: view} -> {:ok, ViewDefinition.of(repo, view)} end)
+    |> Journal.record(actor,
+      resource_type: "view",
+      operation: :update,
+      source: :definition,
+      before_step: :before_definition
+    )
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{view: view}} -> {:ok, view}
+      {:error, :locked_view, :not_found, _changes} -> {:error, :not_found}
+      {:error, :view, %Ecto.Changeset{} = changeset, _changes} -> {:error, changeset}
+    end
   end
 
+  # The view's row under the lock its write takes, and its definition as it
+  # stands under that lock: the before-image of the write.
+  defp lock_view(multi, view_id, write) do
+    multi
+    |> Multi.run(:locked_view, fn repo, _changes ->
+      case repo.one(view_lock_query(view_id, write)) do
+        nil -> {:error, :not_found}
+        view -> {:ok, view}
+      end
+    end)
+    |> Multi.run(:before_definition, fn repo, %{locked_view: view} ->
+      {:ok, ViewDefinition.of(repo, view)}
+    end)
+  end
+
+  # The lock the write itself takes: a delete FOR UPDATE, an edit of the row
+  # or its sets FOR NO KEY UPDATE, which a plan's or a rule's foreign-key
+  # check on the view does not wait on.
+  defp view_lock_query(view_id, :delete),
+    do: from(v in View, where: v.id == ^view_id, lock: "FOR UPDATE")
+
+  defp view_lock_query(view_id, :edit),
+    do: from(v in View, where: v.id == ^view_id, lock: "FOR NO KEY UPDATE")
+
   @doc """
-  Deletes a view definition. Journaled: deleting a view cascades the view's
-  target plans (ADR-0027) — a financial-steering write, and the armed plan
-  tables require the journal actor to be set when the cascade fires.
+  Deletes a view, journaled with its whole definition — the row and both
+  bucket sets — as the before-image (F45). The plans scoped to the view
+  (ADR-0027) and its depot snapshots are deleted first, one journaled entry
+  per row, targets included (F43). A view that is gone answers
+  `{:error, :not_found}`.
   """
   def delete_view(%Actor{} = actor, %View{} = view) do
     # ADR-0049 §8: a view a policy rule reads — as its evaluation context or
@@ -408,10 +675,47 @@ defmodule Portfolixir.Buckets do
     end
   end
 
-  defp delete_unreferenced_view(actor, view) do
+  # E25 S6, F43: the rows scoped to the view go first, each through its
+  # journaled writer — every plan with its targets, every depot snapshot —
+  # then the view, whose entry carries both bucket sets; the cascades stay as
+  # a backstop that finds nothing left. The view is locked first, so no plan
+  # or snapshot lands on it in between.
+  defp delete_unreferenced_view(actor, %View{id: view_id}) do
+    fn ->
+      with {:ok, _view} <- lock_view_row(view_id),
+           {:ok, _} <- Targets.delete_plans_for_view(actor, view_id),
+           :ok <- delete_view_snapshots(actor, view_id),
+           {:ok, deleted} <- delete_view_row(actor, view_id) do
+        deleted
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end
+    |> Repo.transaction()
+  end
+
+  defp lock_view_row(view_id) do
+    case Repo.one(view_lock_query(view_id, :delete)) do
+      nil -> {:error, :not_found}
+      view -> {:ok, view}
+    end
+  end
+
+  defp delete_view_snapshots(actor, view_id) do
+    from(s in Snapshot, where: s.view_id == ^view_id, order_by: s.id, lock: "FOR UPDATE")
+    |> Repo.all()
+    |> Enum.reduce_while(:ok, fn snapshot, :ok ->
+      case Snapshots.delete_snapshot(actor, snapshot) do
+        {:ok, _} -> {:cont, :ok}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  defp delete_view_row(actor, view_id) do
     Multi.new()
-    |> Multi.delete(
-      :view,
+    |> lock_view(view_id, :delete)
+    |> Multi.delete(:view, fn %{locked_view: view} ->
       view
       |> Ecto.Changeset.change()
       |> Ecto.Changeset.foreign_key_constraint(:id,
@@ -422,40 +726,62 @@ defmodule Portfolixir.Buckets do
         name: :policy_rule_versions_subject_view_id_fkey,
         message: "is read by a policy rule"
       )
-    )
+    end)
     |> Journal.record(actor,
       resource_type: "view",
       operation: :delete,
       source: :view,
-      before: view
+      before_step: :before_definition
     )
     |> Repo.transaction()
     |> case do
       {:ok, %{view: deleted}} -> {:ok, deleted}
+      {:error, :locked_view, :not_found, _changes} -> {:error, :not_found}
       {:error, :view, changeset, _changes} -> {:error, changeset}
     end
   end
 
   @doc """
-  Replaces a view's include and exclude bucket sets (not journaled). Runs in one
-  transaction so a view never observes a half-applied filter.
+  Replaces a view's include and exclude bucket sets in one transaction, so a
+  view never observes a half-applied filter, journaled with the view's whole
+  definition before and after (F45); resending the same sets journals
+  nothing. A view that is gone answers `{:error, :not_found}`.
   """
-  def set_view_buckets(%Actor{} = _actor, %View{id: view_id}, include_ids, exclude_ids)
+  def set_view_buckets(%Actor{} = actor, %View{id: view_id}, include_ids, exclude_ids)
       when is_list(include_ids) and is_list(exclude_ids) do
-    with :ok <- validate_bucket_ids(include_ids ++ exclude_ids) do
-      include_entries = Enum.map(include_ids, &%{view_id: view_id, bucket_id: &1})
-      exclude_entries = Enum.map(exclude_ids, &%{view_id: view_id, bucket_id: &1})
+    # A bucket named twice counts once, as in the sibling writers (E25 S4,
+    # F12): the join tables hold each (view, bucket) pair once.
+    include_ids = Enum.uniq(include_ids)
+    exclude_ids = Enum.uniq(exclude_ids)
 
-      Multi.new()
-      |> Multi.delete_all(:clear_in, from(x in ViewIncludeBucket, where: x.view_id == ^view_id))
-      |> Multi.delete_all(:clear_ex, from(x in ViewExcludeBucket, where: x.view_id == ^view_id))
-      |> insert_all_step(:include, ViewIncludeBucket, include_entries)
-      |> insert_all_step(:exclude, ViewExcludeBucket, exclude_entries)
-      |> Repo.transaction()
-      |> case do
-        {:ok, _} -> Invalidation.after_view_write()
-        {:error, _, reason, _} -> {:error, reason}
-      end
+    include_entries = Enum.map(include_ids, &%{view_id: view_id, bucket_id: &1})
+    exclude_entries = Enum.map(exclude_ids, &%{view_id: view_id, bucket_id: &1})
+
+    # The buckets are checked under the view's lock and read FOR SHARE (E25
+    # S6 review round, M2), as the assignment writers check theirs: a bucket
+    # deleted meanwhile answers `{:error, :bucket_ids}`, never a foreign-key
+    # error from the insert.
+    Multi.new()
+    |> lock_view(view_id, :edit)
+    |> validate_assignment(include_ids ++ exclude_ids, :exists)
+    |> Multi.delete_all(:clear_in, from(x in ViewIncludeBucket, where: x.view_id == ^view_id))
+    |> Multi.delete_all(:clear_ex, from(x in ViewExcludeBucket, where: x.view_id == ^view_id))
+    |> insert_all_step(:include, ViewIncludeBucket, include_entries)
+    |> insert_all_step(:exclude, ViewExcludeBucket, exclude_entries)
+    |> Multi.run(:definition, fn repo, %{locked_view: view} ->
+      {:ok, ViewDefinition.of(repo, view)}
+    end)
+    |> Journal.record(actor,
+      resource_type: "view",
+      operation: :update,
+      source: :definition,
+      before_step: :before_definition
+    )
+    |> Repo.transaction()
+    |> case do
+      {:ok, _} -> :ok
+      {:error, :locked_view, :not_found, _} -> {:error, :not_found}
+      {:error, _, reason, _} -> {:error, reason}
     end
   end
 
@@ -806,8 +1132,9 @@ defmodule Portfolixir.Buckets do
     |> Enum.find(free?)
   end
 
+  # Counted in code points, as the name bound counts it (E25 S4, R2).
   defp fit_name(base, suffix) do
-    String.slice(base, 0, max(@name_max_length - String.length(suffix), 1)) <> suffix
+    Text.truncate(base, max(@name_max_length - Text.codepoint_length(suffix), 1)) <> suffix
   end
 
   defp tag_portfolio_accounts(%Actor{} = actor, %Portfolio{id: pid}, %Bucket{} = bucket, acc) do
@@ -932,7 +1259,7 @@ defmodule Portfolixir.Buckets do
   defp classify_grouped_overrides(rows) do
     rows
     |> Enum.group_by(fn {sa, sec, _b} -> {sa, sec} end, fn {_sa, _sec, b} -> b end)
-    |> Map.new(fn {key, bucket_ids} -> {key, classify_override(bucket_ids)} end)
+    |> Map.new(fn {key, bucket_ids} -> {key, classify_override(bucket_ids, key)} end)
   end
 
   defp group_owner_ids(rows) do
@@ -941,48 +1268,84 @@ defmodule Portfolixir.Buckets do
 
   # Resolves the raw override bucket-id rows for one position into its assignment
   # state. A single NULL row is the explicit-empty marker; the marker must never
-  # coexist with real bucket rows — the context always writes one kind in a single
-  # transaction, so a mixed set is corruption and fails loud (crash-by-design).
-  defp classify_override([]), do: :inherit
-  defp classify_override([nil]), do: :explicit_empty
+  # coexist with real bucket rows — the writers replace a position's set under
+  # its depot's lock (E25 S6, G10), so a mixed set is damage. It is logged and
+  # read as explicit-empty, the state that adds no bucket (fail closed): one
+  # damaged row neither raises in every view-scoped read nor lets the
+  # position into a view through a bucket its owner may have removed.
+  defp classify_override([], _position), do: :inherit
+  defp classify_override([nil], _position), do: :explicit_empty
 
-  defp classify_override(bucket_ids) do
+  defp classify_override(bucket_ids, {securities_account_id, security_id}) do
     if Enum.any?(bucket_ids, &is_nil/1) do
-      raise "position_bucket_overrides mixes the explicit-empty marker with bucket rows"
-    end
-
-    {:explicit, bucket_ids}
-  end
-
-  # Rejects assignment/view-set requests that reference a non-existent bucket with
-  # `{:error, :bucket_ids}` (a clean 422 at the web/MCP layer) instead of letting
-  # the FK violation raise. `bucket_ids` are already integers by the time they
-  # reach here (the web layer validates the shape).
-  defp validate_bucket_ids([]), do: :ok
-
-  defp validate_bucket_ids(bucket_ids) do
-    existing =
-      from(b in Bucket, where: b.id in ^bucket_ids, select: b.id)
-      |> Repo.all()
-      |> MapSet.new()
-
-    if Enum.all?(bucket_ids, &MapSet.member?(existing, &1)),
-      do: :ok,
-      else: {:error, :bucket_ids}
-  end
-
-  # ADR-0024 invariant: an account carries AT MOST ONE bucket of the exclusive
-  # "scope" dimension, so scope-scoped totals always add up. Free "tag" buckets
-  # stay unrestricted. Rejected with `{:error, :exclusive_bucket_conflict}` (a
-  # clean 422 at the web/MCP layer) before anything is written.
-  defp validate_exclusive_dimension(bucket_ids) do
-    scope_count =
-      Repo.aggregate(
-        from(b in Bucket, where: b.id in ^bucket_ids and b.dimension == @scope_dimension),
-        :count
+      Logger.warning(
+        "position_bucket_overrides holds the explicit-empty marker next to bucket rows " <>
+          "for securities account #{securities_account_id} and security #{security_id}; " <>
+          "read as explicit-empty"
       )
 
-    if scope_count > 1, do: {:error, :exclusive_bucket_conflict}, else: :ok
+      :explicit_empty
+    else
+      {:explicit, bucket_ids}
+    end
+  end
+
+  # E25 S6 (#891), G10: the first step of every assignment writer. The owning
+  # depot or cash account is locked before its set is read or replaced, so
+  # two writers of one set take turns and the later one replaces the earlier
+  # one's set instead of merging with it. FOR NO KEY UPDATE, the lock
+  # `delete_bucket/2` takes on the same owners in the same order: it excludes
+  # every other writer of the set without making a booking's foreign-key
+  # check on the account wait. An owner deleted in the meantime answers
+  # `{:error, :not_found}` before anything is written.
+  defp lock_owner(multi, schema, owner_id) do
+    Multi.run(multi, :owner, fn repo, _changes ->
+      from(o in schema, where: o.id == ^owner_id, lock: "FOR NO KEY UPDATE", select: o.id)
+      |> repo.one()
+      |> case do
+        nil -> {:error, :not_found}
+        id -> {:ok, id}
+      end
+    end)
+  end
+
+  # Checks the requested buckets under the owner's lock, reading them FOR
+  # SHARE, so a bucket deleted or re-dimensioned while the set is written is
+  # refused here rather than failing the insert: every bucket must exist
+  # (`{:error, :bucket_ids}`, a clean 422), and at most one may belong to
+  # the exclusive "scope" dimension (ADR-0024, `{:error,
+  # :exclusive_bucket_conflict}`), so scope-scoped totals always add up.
+  #
+  # `:exists` checks existence only (E25 S6 review round): a bucket delete
+  # releasing the bucket from a set skips the scope count (G19), since
+  # removing a bucket cannot add a conflict and a set stored before the rule
+  # held for overrides must not block a delete that only shrinks it; a
+  # view's include and exclude sets carry no exclusive rule at all (M2).
+  defp validate_assignment(multi, bucket_ids, check) do
+    ids = Enum.uniq(bucket_ids)
+
+    Multi.run(multi, :buckets, fn repo, _changes ->
+      dimensions =
+        repo.all(
+          from(b in Bucket,
+            where: b.id in ^ids,
+            order_by: b.id,
+            lock: "FOR SHARE",
+            select: b.dimension
+          )
+        )
+
+      cond do
+        length(dimensions) < length(ids) ->
+          {:error, :bucket_ids}
+
+        check == :assign and Enum.count(dimensions, &(&1 == @scope_dimension)) > 1 ->
+          {:error, :exclusive_bucket_conflict}
+
+        true ->
+          {:ok, ids}
+      end
+    end)
   end
 
   defp position_override_query(sa_id, sec_id) do

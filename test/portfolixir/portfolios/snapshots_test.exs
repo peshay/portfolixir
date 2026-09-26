@@ -67,7 +67,7 @@ defmodule Portfolixir.Portfolios.SnapshotsTest do
     assert %{name: _} = errors_on(changeset)
   end
 
-  test "snapshot writes are journaled; deleting a view cascades its snapshots" do
+  test "snapshot writes are journaled; deleting a view deletes its snapshots, journaled" do
     {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Crypto"})
 
     {:ok, scoped} =
@@ -91,10 +91,15 @@ defmodule Portfolixir.Portfolios.SnapshotsTest do
 
     {:ok, _} = Snapshots.delete_snapshot(Actor.owner_ui(), unscoped.id)
 
-    assert Enum.count(
-             Journal.list_entries(resource_type: "snapshot"),
-             &(&1.operation == :delete)
-           ) == 1
+    # The view's snapshot is deleted through the journaled writer before the
+    # view (E25 S6, F43), then the unscoped one directly: two entries.
+    deletes =
+      [resource_type: "snapshot", operation: :delete]
+      |> Journal.list_entries()
+      |> Enum.map(&String.to_integer(&1.resource_id))
+      |> Enum.sort()
+
+    assert deletes == Enum.sort([scoped.id, unscoped.id])
   end
 
   test "struct-addressed listing and deletion work like id addressing" do

@@ -12,6 +12,8 @@ defmodule Portfolixir.Catalog.IdentifierAlias do
   import Ecto.Changeset
 
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Input.BoundedDate
+  alias Portfolixir.Input.Text
 
   @type t :: %__MODULE__{}
 
@@ -31,6 +33,8 @@ defmodule Portfolixir.Catalog.IdentifierAlias do
     |> update_change(:former_isin, &normalize_isin/1)
     |> update_change(:note, &normalize_note/1)
     |> validate_required([:security_id, :former_isin, :changed_on])
+    |> BoundedDate.validate([:changed_on])
+    |> Text.validate([:former_isin, :note], max: 255)
     |> foreign_key_constraint(:security_id)
     |> unique_constraint(:former_isin,
       name: :security_identifier_aliases_former_isin_unique_index,

@@ -6,6 +6,8 @@ defmodule PortfolixirWeb.Api.V1.CashAccountController do
   alias Portfolixir.Portfolios.CashAccount
   alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.MergedAway
+  alias PortfolixirWeb.Api.V1.ReferencedConflict
 
   def index(conn, _params) do
     balances = Ledger.cash_balances()
@@ -28,7 +30,8 @@ defmodule PortfolixirWeb.Api.V1.CashAccountController do
          %CashAccount{} = account <- Portfolios.get_cash_account(cid) do
       json(conn, %{data: JSON.cash_account(account)})
     else
-      _ -> not_found(conn)
+      # ADR-0050 §12: a merged-away account names the one it lives on.
+      _ -> MergedAway.not_found(conn, :cash_account, id)
     end
   end
 
@@ -63,6 +66,7 @@ defmodule PortfolixirWeb.Api.V1.CashAccountController do
     else
       nil -> not_found(conn)
       :error -> not_found(conn)
+      {:error, :not_found} -> not_found(conn)
       {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
     end
   end
@@ -71,9 +75,17 @@ defmodule PortfolixirWeb.Api.V1.CashAccountController do
     with {:ok, cid} <- IdParam.parse(id),
          %CashAccount{} = account <- Portfolios.get_cash_account(cid) do
       case Portfolios.delete_cash_account(conn.assigns.actor, account) do
-        {:ok, _} -> send_resp(conn, :no_content, "")
-        {:error, :referenced} -> conflict(conn)
-        {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
+        {:ok, _} ->
+          send_resp(conn, :no_content, "")
+
+        {:error, {:referenced, referenced_by}} ->
+          ReferencedConflict.render(conn, account, referenced_by)
+
+        {:error, :not_found} ->
+          not_found(conn)
+
+        {:error, %Ecto.Changeset{} = changeset} ->
+          unprocessable(conn, JSON.errors(changeset))
       end
     else
       nil -> not_found(conn)
@@ -114,21 +126,40 @@ defmodule PortfolixirWeb.Api.V1.CashAccountController do
 
   defp default_portfolio_binding(attrs, _actor), do: attrs
 
+  @doc """
+  Removes one former name of the account (ADR-0050 §4), journaled under the
+  token, and answers the account:
+  `DELETE /api/v1/cash_accounts/:id/former_names?name=<name>`. An import that still
+  names the removed name then creates a new account. A name the account does
+  not carry answers 404, a missing `name` 422.
+  """
+  def remove_former_name(conn, %{"id" => id} = params) do
+    with {:ok, account_id} <- IdParam.parse(id),
+         %CashAccount{} = account <- Portfolios.get_cash_account(account_id),
+         {:ok, name} <- former_name_param(params),
+         {:ok, updated} <-
+           Portfolios.remove_cash_account_former_name(conn.assigns.actor, account, name) do
+      json(conn, %{data: JSON.cash_account(updated)})
+    else
+      :blank -> unprocessable(conn, %{name: ["can't be blank"]})
+      {:error, :not_a_former_name} -> not_found(conn, "not a former name of this account")
+      {:error, %Ecto.Changeset{} = changeset} -> unprocessable(conn, JSON.errors(changeset))
+      _not_found -> not_found(conn)
+    end
+  end
+
+  defp former_name_param(%{"name" => name}) when is_binary(name) and name != "", do: {:ok, name}
+  defp former_name_param(_params), do: :blank
+
   defp unprocessable(conn, errors) do
     conn
     |> put_status(:unprocessable_entity)
     |> json(%{errors: errors})
   end
 
-  defp not_found(conn) do
+  defp not_found(conn, detail \\ "not found") do
     conn
     |> put_status(:not_found)
-    |> json(%{errors: %{detail: "not found"}})
-  end
-
-  defp conflict(conn) do
-    conn
-    |> put_status(:conflict)
-    |> json(%{errors: %{detail: "cash account is referenced by existing records"}})
+    |> json(%{errors: %{detail: detail}})
   end
 end

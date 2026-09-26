@@ -1,7 +1,25 @@
 import Config
 
+# Named API tokens under `mix phx.server` too (E25 S7 review round, S7E-7):
+# with PORTFOLIXIR_API_TOKENS or PORTFOLIXIR_API_PRINCIPAL set, development
+# builds the principals by the release's rules; with neither, the API keeps
+# its fallback to PORTFOLIXIR_API_TOKEN alone.
+if config_env() == :dev do
+  if api_tokens =
+       Portfolixir.RuntimeConfig.dev_api_tokens(
+         System.get_env("PORTFOLIXIR_API_TOKEN"),
+         System.get_env("PORTFOLIXIR_API_TOKENS"),
+         System.get_env("PORTFOLIXIR_API_PRINCIPAL")
+       ) do
+    config :portfolixir, :api_tokens, api_tokens
+  end
+end
+
 if config_env() == :prod do
-  secret_key_base = System.fetch_env!("SECRET_KEY_BASE")
+  # Checked at boot (E25 S1, F67): length, no placeholder, no committed
+  # literal, with the variable named in the failure.
+  secret_key_base =
+    Portfolixir.RuntimeConfig.validate_secret_key_base!(System.get_env("SECRET_KEY_BASE"))
 
   config :portfolixir, PortfolixirWeb.Endpoint,
     server: true,
@@ -30,17 +48,34 @@ if config_env() == :prod do
 
   # PHX_FORCE_SSL=true redirects plain HTTP and sets HSTS, reading the scheme
   # from the proxy's x-forwarded-proto (#759). Off by default so a loopback
-  # instance without TLS keeps working.
+  # instance without TLS keeps working. localhost, 127.0.0.1 and the hosts
+  # PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS names (Compose: "app", the name the
+  # MCP companion calls over plain HTTP) are never redirected (E25 S7, F23).
   config :portfolixir, :force_ssl, Portfolixir.RuntimeConfig.force_ssl_opts()
 
-  # The proxies whose x-forwarded-for names the throttle's source (#771).
+  # Stored logos live outside the release, which stays read-only for the user
+  # it runs as (E25 S2, F59); the release image names a volume's directory.
+  if logo_dir = Portfolixir.RuntimeConfig.logo_dir() do
+    config :portfolixir, Portfolixir.Catalog.LogoStore, storage_dir: logo_dir
+  end
+
+  # The proxies whose x-forwarded-for names the throttle's source (#771) and
+  # whose x-forwarded-proto, like loopback's, names the scheme (E25 S1, F09).
   config :portfolixir, :trusted_proxies, Portfolixir.RuntimeConfig.trusted_proxies()
 
-  # The agent's credential is checked at boot (#761): length and no
-  # placeholder, with the variable named in the failure.
+  # The agent's credentials are checked at boot (#761): length and no
+  # placeholder, with the variable named in the failure. Named principals
+  # (E25 S7, G26): PORTFOLIXIR_API_TOKENS holds name=token entries whose name
+  # the journal records for every write made with the token;
+  # PORTFOLIXIR_API_TOKEN stays the default, unnamed unless
+  # PORTFOLIXIR_API_PRINCIPAL names it (Compose: "mcp").
   config :portfolixir,
-         :api_token,
-         Portfolixir.RuntimeConfig.validate_api_token!(System.get_env("PORTFOLIXIR_API_TOKEN"))
+         :api_tokens,
+         Portfolixir.RuntimeConfig.api_tokens!(
+           System.get_env("PORTFOLIXIR_API_TOKEN"),
+           System.get_env("PORTFOLIXIR_API_TOKENS"),
+           System.get_env("PORTFOLIXIR_API_PRINCIPAL")
+         )
 
   config :portfolixir, Portfolixir.Repo,
     url: System.fetch_env!("DATABASE_URL"),

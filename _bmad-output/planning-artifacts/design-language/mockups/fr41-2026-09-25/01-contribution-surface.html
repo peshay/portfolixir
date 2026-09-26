@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Beitrag je Position neben der TTWROR (FR-41, ADR-0051 §12, für die Planungs-PR von Sprint 17)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  /* Board chrome only. Markup inside the page frames follows
+     portfolio_live.ex (the Performance section of Wealth → Holdings: the
+     section head with the series and period controls, the period badge, the
+     chart, the basis line; the Positions section's data table) with
+     synthetic data. The contribution table itself is new and uses only
+     components the spec already names: .data-table with .num columns, the
+     drift bar's anatomy (.drift-bar, DESIGN.md → issue 798), the attention
+     data note (UX-DR17, UX-DR25) and the muted basis line (UX-DR11). */
+  .mock-note code, .callout code { font-size: 11.5px; }
+  .callout { border: 1px solid var(--color-border); border-left: 4px solid var(--color-accent); border-radius: var(--radius-md); background: var(--color-bg-elevated); padding: 10px 14px; display: grid; gap: 6px; font-size: 12.5px; max-width: 1090px; margin: 12px 0 0; }
+  .callout.keep { border-left-color: var(--color-positive); }
+  .callout.risk { border-left-color: var(--color-danger); }
+  .callout h4 { margin: 0; font-size: 13px; }
+  .callout p, .callout ul { margin: 0; }
+  .callout ul { padding-left: 18px; }
+  .callout li + li { margin-top: 4px; }
+  .seg-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .sec-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .sec-head h2 { margin: 0; font-size: 18px; }
+  .sec-head h3 { margin: 0; font-size: 15px; }
+  .disc-sum { font-size: 12px; color: var(--color-text-muted); }
+  .chart-mock { display: block; width: 100%; height: 170px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); }
+  .new-block { outline: 2px dashed var(--color-accent); outline-offset: 6px; border-radius: 4px; }
+  th.new-col { outline: 2px dashed var(--color-accent); outline-offset: -2px; }
+  .data-table tbody td.new-col { background: color-mix(in srgb, var(--color-accent-soft) 70%, transparent); }
+  .data-table td.sub small { display: block; font-size: 11.5px; color: var(--color-text-muted); font-weight: 500; }
+  .data-table tr.rest td { background: var(--color-bg-muted); }
+  .data-table tr.rest-head td { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); background: var(--color-bg-muted); padding-top: 10px; }
+  .data-table tr.sum td { font-weight: 700; border-top: 2px solid var(--color-border-strong); }
+  /* the bar rides under its own figure, right-aligned with it */
+  td.contrib .drift-bar { display: block; width: 110px; min-width: 110px; margin: 5px 0 0 auto; }
+  .zero-mark { display: inline-block; margin-left: 6px; padding: 0 6px; border: 1px dashed var(--color-warning); border-radius: 999px; font-size: 11px; font-weight: 600; color: var(--color-warning); white-space: nowrap; }
+  .flow { color: var(--color-text); }
+  /* Variant B: horizontal diverging bars in place of the time series */
+  .cbars { display: grid; gap: 6px; padding: 12px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); }
+  .cbar { display: grid; grid-template-columns: 230px 1fr 110px; align-items: center; gap: 10px; font-size: 12.5px; }
+  .cbar .track { position: relative; height: 14px; }
+  .cbar .track::before { content: ""; position: absolute; top: -3px; bottom: -3px; left: 50%; width: 1px; background: var(--color-border-strong); }
+  .cbar .track i { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
+  .cbar .track i.pos { left: 50%; background: var(--color-positive); }
+  .cbar .track i.neg { right: 50%; background: var(--color-danger); }
+  .cbar b { text-align: right; font-variant-numeric: tabular-nums; }
+  .cbar.rest { color: var(--color-text-muted); }
+  .mismatch { display: inline-block; padding: 2px 8px; border: 1px solid var(--color-danger); border-radius: var(--radius-md); background: var(--color-danger-soft); color: var(--color-danger); font-size: 12px; font-weight: 600; }
+  /* phone sketch: two-line rows (UX-DR27) */
+  .phone { width: 390px; border: 1px solid var(--color-border-strong); border-radius: 20px; overflow: hidden; background: var(--color-bg-elevated); }
+  .phone .ph-head { padding: 10px 12px; border-bottom: 1px solid var(--color-border); font-size: 13px; font-weight: 700; display: flex; justify-content: space-between; }
+  .phone .row2 .r.pos { color: var(--color-positive); }
+  .phone .row2 .r.neg { color: var(--color-danger); }
+  .phone .row2.rest { background: var(--color-bg-muted); }
+  .phone .row2.sum { font-weight: 700; border-top: 2px solid var(--color-border-strong); }
+  /* the desktop frame takes the board's full width; the phone sketch sits
+     below it with its note beside it */
+  .cols { display: grid; gap: 16px; }
+  .phone-row { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+</style>
+</head>
+<body data-widths="1200">
+
+<div class="pickbar"><b>Wahl FR-41: Wo steht die Beitragstabelle neben der TTWROR?</b> Das Board gehört zu ADR-0051 §12, dem Entscheidungsprotokoll für FR-41. Es wurde in Sprint 16 geschrieben und wird mit der Planungs-PR von Sprint 17 unterschrieben. Es gibt drei Platzierungen, und <b>A</b> ist empfohlen. Ein Kommentar auf der Planungs-PR, der eine andere Variante nennt, ändert die Wahl. Ohne Kommentar gilt die Empfehlung. Die gewählte Anatomie schreibt die Story, die sie baut, in <code>DESIGN.md</code>. Alle Namen, Mengen und Beträge sind erfunden.</div>
+
+<!-- ============================ VARIANTE A ============================ -->
+<section class="mock-board">
+  <h2>Variante A: eine Tabelle direkt unter dem Diagramm, im selben Abschnitt „Performance“ <small>empfohlen</small></h2>
+  <p class="mock-note">Die Tabelle beantwortet die Frage, die das Abzeichen darüber aufwirft: Welche Position hat wie viel von den <b>+8.412,35 EUR</b> gemacht? Sie liest dieselbe Zeitraum-Steuerung und dieselbe Ansicht wie das Diagramm. Ihre Summenzeile ist genau der Betrag im Abzeichen (ADR-0051 §3, I1), sodass man nichts nachrechnen muss. Auch verkaufte Positionen stehen in der Tabelle. Restposten, die keiner Position gehören, sind einzeln aufgeführt und nie verrechnet. Es gibt keinen Anteil in Prozent (§2): Die Balken zeigen die Größe. Die Tabelle liegt zwischen Diagramm und „Positionen“, also auf dem Reiter, auf dem die TTWROR steht, und nicht im Klassifikationsbaum.</p>
+  <div class="cols">
+    <div class="mock-frame"><div class="workspace-section">
+      <div class="page">
+        <div class="top"><h3>Vermögen</h3><span class="u-muted">Ansicht: Alles</span></div>
+        <div class="atabs"><span class="on">Bestände</span><span>Allokation &amp; Ziele</span><span>Cashflow</span><span>Snapshots</span><span>Steuern</span><span>Risiko</span></div>
+        <div class="body">
+          <div class="sec-head">
+            <h2>Performance</h2>
+            <div class="seg-row">
+              <div class="segmented-control" role="group" aria-label="Diagrammreihe">
+                <button type="button" class="segmented-control__option is-active">% (TTWROR)</button>
+                <button type="button" class="segmented-control__option">Wert (EUR)</button>
+              </div>
+              <div class="segmented-control" role="group" aria-label="Zeitraum">
+                <button type="button" class="segmented-control__option">YTD</button>
+                <button type="button" class="segmented-control__option is-active">1J</button>
+                <button type="button" class="segmented-control__option">3J</button>
+                <button type="button" class="segmented-control__option">5J</button>
+                <button type="button" class="segmented-control__option">Max</button>
+              </div>
+              <span class="disc-sum">› Benutzerdefinierter Zeitraum …</span>
+            </div>
+          </div>
+          <p class="perf-badge is-positive"><strong>+6,8 %</strong><span class="perf-badge-sep">·</span><span>+8.412,35 EUR</span><span class="perf-badge-period">(1J)</span></p>
+          <svg class="chart-mock" viewBox="0 0 700 170" preserveAspectRatio="none" aria-hidden="true">
+            <line x1="0" y1="120" x2="700" y2="120" stroke="var(--color-border)" stroke-width="1"/>
+            <polyline fill="none" stroke="var(--color-accent)" stroke-width="2" points="0,120 40,118 80,112 120,116 160,104 200,98 240,102 280,90 320,94 360,84 400,88 440,76 480,70 520,74 560,62 600,58 640,64 700,52"/>
+          </svg>
+          <p class="hint">2025-09-25 – 2026-09-24 · berechnet 2026-09-24 21:10 UTC</p>
+
+          <div class="new-block u-gap">
+            <div class="sec-head">
+              <h3>Beitrag je Position <span class="mock-pill">neu</span></h3>
+              <span class="disc-sum">1J · Ansicht: Alles · sortiert nach Beitrag</span>
+            </div>
+            <div class="data-table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Wertpapier</th>
+                    <th class="num">Anfangswert</th>
+                    <th class="num">Zu-/Abflüsse</th>
+                    <th class="num">Erträge</th>
+                    <th class="num">Kosten</th>
+                    <th class="num">Endwert</th>
+                    <th class="num">Beitrag</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Meridian Global Equity ETF</td>
+                    <td class="num">38.200,00</td><td class="num flow">+3.000,00</td><td class="num">0,00</td><td class="num">4,50</td><td class="num">46.184,70</td>
+                    <td class="num contrib"><span class="is-positive">+4.980,20</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-over" style="width:45%"></span></span></td>
+                  </tr>
+                  <tr>
+                    <td>Nordic Timber Holdings AB</td>
+                    <td class="num">19.850,00</td><td class="num flow">0,00</td><td class="num">+612,00</td><td class="num">0,00</td><td class="num">21.548,75</td>
+                    <td class="num contrib"><span class="is-positive">+2.310,75</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-over" style="width:20.9%"></span></span></td>
+                  </tr>
+                  <tr>
+                    <td class="sub">Aurora Biotech Inc.<span class="zero-mark">9 Tage null</span><small>verkauft 2026-04-17</small></td>
+                    <td class="num">6.320,00</td><td class="num flow">−7.730,80</td><td class="num">0,00</td><td class="num">7,90</td><td class="num">0,00</td>
+                    <td class="num contrib"><span class="is-positive">+1.402,90</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-over" style="width:12.7%"></span></span></td>
+                  </tr>
+                  <tr>
+                    <td class="sub">Kestrel Industrial Group NV<small>gekauft 2026-01-12</small></td>
+                    <td class="num">0,00</td><td class="num flow">+8.900,00</td><td class="num">+145,20</td><td class="num">6,90</td><td class="num">9.149,85</td>
+                    <td class="num contrib"><span class="is-positive">+388,15</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-over" style="width:3.5%"></span></span></td>
+                  </tr>
+                  <tr>
+                    <td>Republic of Examplia 2,25 % 2035</td>
+                    <td class="num">9.822,40</td><td class="num flow">0,00</td><td class="num">0,00</td><td class="num">0,00</td><td class="num">9.726,00</td>
+                    <td class="num contrib"><span class="is-negative">−96,40</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-under" style="width:1%"></span></span></td>
+                  </tr>
+                  <tr>
+                    <td>Helios Solar Systems SE</td>
+                    <td class="num">12.400,00</td><td class="num flow">+2.500,00</td><td class="num">0,00</td><td class="num">5,90</td><td class="num">13.760,30</td>
+                    <td class="num contrib"><span class="is-negative">−1.145,60</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-under" style="width:10.4%"></span></span></td>
+                  </tr>
+                  <tr class="rest-head"><td colspan="7">Keiner Position zugeordnet</td></tr>
+                  <tr class="rest">
+                    <td class="sub">Zinsen<small>Konto und Kupons; Zinsen tragen kein Wertpapier</small></td>
+                    <td class="num u-muted">—</td><td class="num u-muted">—</td><td class="num u-muted">—</td><td class="num u-muted">—</td><td class="num u-muted">—</td>
+                    <td class="num"><span class="is-positive">+412,50</span></td>
+                  </tr>
+                  <tr class="rest">
+                    <td class="sub">Einzelne Gebühren und Steuern<small>ohne Handelsbezug, auch mit Wertpapier</small></td>
+                    <td class="num u-muted">—</td><td class="num u-muted">—</td><td class="num u-muted">—</td><td class="num u-muted">—</td><td class="num u-muted">—</td>
+                    <td class="num"><span class="is-negative">−71,85</span></td>
+                  </tr>
+                  <tr class="rest">
+                    <td class="sub">Währungseffekt auf Bargeld<small>Fremdwährungskonten und Abrechnungsdifferenzen</small></td>
+                    <td class="num u-muted">—</td><td class="num u-muted">—</td><td class="num u-muted">—</td><td class="num u-muted">—</td><td class="num u-muted">—</td>
+                    <td class="num"><span class="is-positive">+231,70</span></td>
+                  </tr>
+                  <tr class="sum">
+                    <td>Summe = Ergebnis im Zeitraum</td>
+                    <td class="num">86.592,40</td><td class="num">+6.669,20</td><td class="num">+757,20</td><td class="num">25,20</td><td class="num">100.369,60</td>
+                    <td class="num"><span class="is-positive">+8.412,35</span> <small class="value-suffix">EUR</small></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="summary-basis" style="margin:0;font-size:12px;color:var(--color-text-muted)">Beitrag = Endwert − Anfangswert − Zu-/Abflüsse + Erträge − Kosten, je Position in EUR und einschließlich der Währungsbewegung. Grundlage ist die tägliche Bewertung der Performance, und der Anfangswert ist der Schluss des Vortags. Positionen und Restposten ergeben zusammen genau das Ergebnis im Zeitraum. Einzahlungen und Entnahmen sind kein Ergebnis und stehen deshalb nirgends.</p>
+            <div class="data-note data-note--attention" role="status">
+              <span class="data-note__icon" aria-hidden="true">▲</span>
+              <span class="data-note__word">Achtung</span>
+              <div class="data-note__body">Eine Position zählte an 9 Tagen null, weil kein Wechselkurs gespeichert war: <b>Aurora Biotech Inc.</b> Sie bleibt in der Summe, so wie im Ergebnis darüber.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+
+    <p class="cap u-caps" style="margin:0">Dieselbe Tabelle unter 560 px (Skizze)</p>
+    <div class="phone-row">
+      <div class="phone">
+        <div class="ph-head"><span>Beitrag je Position · 1J</span><span class="u-pos">+8.412,35</span></div>
+        <div class="row2"><span class="avatar">ME</span><span class="t">Meridian Global Equity ETF</span><span class="r pos">+4.980,20</span><span class="s">38.200,00 → 46.184,70 · Zufluss 3.000,00</span></div>
+        <div class="row2"><span class="avatar">NT</span><span class="t">Nordic Timber Holdings AB</span><span class="r pos">+2.310,75</span><span class="s">19.850,00 → 21.548,75 · Erträge 612,00</span></div>
+        <div class="row2"><span class="avatar">AB</span><span class="t">Aurora Biotech Inc.</span><span class="r pos">+1.402,90</span><span class="s">verkauft 2026-04-17 · 9 Tage null</span></div>
+        <div class="row2"><span class="avatar">KI</span><span class="t">Kestrel Industrial Group NV</span><span class="r pos">+388,15</span><span class="s">gekauft 2026-01-12 · Erträge 145,20</span></div>
+        <div class="row2"><span class="avatar">RE</span><span class="t">Republic of Examplia 2,25 % 2035</span><span class="r neg">−96,40</span><span class="s">9.822,40 → 9.726,00</span></div>
+        <div class="row2"><span class="avatar">HS</span><span class="t">Helios Solar Systems SE</span><span class="r neg">−1.145,60</span><span class="s">12.400,00 → 13.760,30 · Zufluss 2.500,00</span></div>
+        <div class="row2 rest"><span class="avatar">·</span><span class="t">Keiner Position zugeordnet</span><span class="r pos">+572,35</span><span class="s">Zinsen +412,50 · Gebühren/Steuern −71,85 · Währung +231,70</span></div>
+        <div class="row2 sum"><span class="avatar">Σ</span><span class="t">Ergebnis im Zeitraum</span><span class="r pos">+8.412,35</span><span class="s">= Abzeichen oben</span></div>
+      </div>
+      <p class="note-muted" style="max-width:48ch">Unter 560 px wird aus der Tabelle eine Liste mit zwei Zeilen pro Eintrag (UX-DR27). Oben stehen Name und Beitrag, darunter „Anfang → Ende“ und das Nächstwichtigste. Die Balken entfallen, wie beim Drift-Balken. Die Restposten bilden eine Zeile, und die drei Posten stehen darunter.</p>
+    </div>
+  </div>
+  <div class="callout keep">
+    <h4>Warum A</h4>
+    <ul>
+      <li><b>Die Summe steht neben dem Betrag, den sie erklärt.</b> Abzeichen und Summenzeile liegen im selben Abschnitt unter derselben Zeitraum-Steuerung. Beim Wechsel des Zeitraums ändern sich beide gemeinsam.</li>
+      <li><b>Jede Zahl lässt sich nachprüfen.</b> Anfangswert, Zu-/Abflüsse, Erträge, Kosten und Endwert stehen in der Zeile (ADR-0041 §3: eine Summe braucht eine Adresse).</li>
+      <li><b>Zu-/Abflüsse sind nicht eingefärbt.</b> Ihr Vorzeichen gibt die Richtung an (Kauf oder Verkauf) und ist kein Gewinn oder Verlust. Grün und Rot gelten nur für den Beitrag, die Restposten und die Summe.</li>
+      <li><b>Kein neuer Baustein.</b> Die Tabelle nutzt <code>.data-table</code> und <code>.num</code>, die Balken die Anatomie des Drift-Balkens (dekorativ, <code>aria-hidden</code>), die Meldung die Achtungs-Notiz, und die Grundlagenzeile ist die gedämpfte Basiszeile.</li>
+      <li><b>Das kostet es:</b> Der Reiter „Bestände“ wird um eine Tabelle länger. Stehen mehr als zehn Positionen darin, zeigt die Story die zehn mit dem größten Betrag und „alle N anzeigen“. Die Summenzeile gilt immer für alle.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE B ============================ -->
+<section class="mock-board">
+  <h2>Variante B: ein dritter Diagrammschalter „Beitrag“ ersetzt die Zeitreihe durch Balken <small>kompakter</small></h2>
+  <p class="mock-note">Der Schalter „Diagrammreihe“ erhält eine dritte Option. Sie zeigt statt der Zeitreihe waagerechte Balken je Position, links negativ und rechts positiv. Die Zerlegung (Anfangswert bis Endwert) liegt hinter „Daten als Tabelle“ (UX-DR10), die standardmäßig zugeklappt ist. Die Seite wird nicht länger.</p>
+  <div class="mock-frame"><div class="workspace-section">
+    <div class="page">
+      <div class="top"><h3>Vermögen</h3><span class="u-muted">Ansicht: Alles</span></div>
+      <div class="atabs"><span class="on">Bestände</span><span>Allokation &amp; Ziele</span><span>Cashflow</span><span>Snapshots</span><span>Steuern</span><span>Risiko</span></div>
+      <div class="body">
+        <div class="sec-head">
+          <h2>Performance</h2>
+          <div class="seg-row">
+            <div class="segmented-control" role="group" aria-label="Diagrammreihe">
+              <button type="button" class="segmented-control__option">% (TTWROR)</button>
+              <button type="button" class="segmented-control__option">Wert (EUR)</button>
+              <button type="button" class="segmented-control__option is-active" style="outline:2px dashed var(--color-accent);outline-offset:2px">Beitrag</button>
+            </div>
+            <div class="segmented-control" role="group" aria-label="Zeitraum">
+              <button type="button" class="segmented-control__option">YTD</button>
+              <button type="button" class="segmented-control__option is-active">1J</button>
+              <button type="button" class="segmented-control__option">3J</button>
+              <button type="button" class="segmented-control__option">5J</button>
+              <button type="button" class="segmented-control__option">Max</button>
+            </div>
+          </div>
+        </div>
+        <p class="perf-badge is-positive"><strong>+6,8 %</strong><span class="perf-badge-sep">·</span><span>+8.412,35 EUR</span><span class="perf-badge-period">(1J)</span></p>
+        <div class="cbars" aria-hidden="true">
+          <div class="cbar"><span>Meridian Global Equity ETF</span><span class="track"><i class="pos" style="width:45%"></i></span><b class="u-pos">+4.980,20</b></div>
+          <div class="cbar"><span>Nordic Timber Holdings AB</span><span class="track"><i class="pos" style="width:20.9%"></i></span><b class="u-pos">+2.310,75</b></div>
+          <div class="cbar"><span>Aurora Biotech Inc. (verkauft)</span><span class="track"><i class="pos" style="width:12.7%"></i></span><b class="u-pos">+1.402,90</b></div>
+          <div class="cbar"><span>Kestrel Industrial Group NV</span><span class="track"><i class="pos" style="width:3.5%"></i></span><b class="u-pos">+388,15</b></div>
+          <div class="cbar"><span>Republic of Examplia 2,25 % 2035</span><span class="track"><i class="neg" style="width:1%"></i></span><b class="u-neg">−96,40</b></div>
+          <div class="cbar"><span>Helios Solar Systems SE</span><span class="track"><i class="neg" style="width:10.4%"></i></span><b class="u-neg">−1.145,60</b></div>
+          <div class="cbar rest"><span>Keiner Position zugeordnet</span><span class="track"><i class="pos" style="width:5.2%;opacity:.55"></i></span><b>+572,35</b></div>
+        </div>
+        <p class="disc-sum">› Daten als Tabelle</p>
+        <p class="hint">2025-09-25 – 2026-09-24 · Summe der Balken = +8.412,35 EUR</p>
+      </div>
+    </div>
+  </div></div>
+  <div class="callout">
+    <h4>Abwägung</h4>
+    <ul>
+      <li><b>Vorteil:</b> Die Seite wird nicht länger, und die Größenordnung ist auf einen Blick zu sehen.</li>
+      <li><b>Nachteil:</b> Der Schalter schaltet heute <em>eine</em> Reihe zwischen Prozent und Wert um. Eine dritte Option stellt eine <em>andere Frage</em>, nämlich die nach den Positionen statt nach der Zeit. Damit bedeutet ein Steuerelement zwei Dinge (DESIGN.md: eine Facettenmechanik, eine Bedeutung).</li>
+      <li><b>Nachteil:</b> Das Nachprüfbare, also die Zerlegung, liegt zwei Klicks entfernt hinter einer zugeklappten Offenlegung. Die Restposten erscheinen als ein einziger Balken.</li>
+      <li><b>Nachteil:</b> Auf „Beitrag“ ist die TTWROR-Kurve weg, obwohl die Frage „neben der TTWROR“ lautet.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE C ============================ -->
+<section class="mock-board">
+  <h2>Variante C: eine Spalte „Beitrag (1J)“ in der Tabelle „Positionen“ <small>nicht empfohlen</small></h2>
+  <p class="mock-note">Die Tabelle „Positionen“ steht auf demselben Reiter und zeigt die Bestandsprojektion: eine Zeile je Depot und Wertpapier, bewertet zum letzten Kurs. Eine Beitragsspalte käme dort ohne neuen Abschnitt aus. Das Board zeigt, warum sie trotzdem nicht passt.</p>
+  <div class="mock-frame"><div class="workspace-section">
+    <div class="page">
+      <div class="top"><h3>Vermögen</h3><span class="u-muted">Ansicht: Alles</span></div>
+      <div class="atabs"><span class="on">Bestände</span><span>Allokation &amp; Ziele</span><span>Cashflow</span><span>Snapshots</span><span>Steuern</span><span>Risiko</span></div>
+      <div class="body">
+        <div class="sec-head"><h2>Positionen</h2></div>
+        <div class="data-table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr><th>Depot</th><th>Wertpapier</th><th class="num">Stückzahl</th><th class="num">Marktwert</th><th class="num">G&amp;V</th><th class="num new-col">Beitrag (1J)</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Depot 1</td><td>Meridian Global Equity ETF</td><td class="num">312</td><td class="num">28.936,20</td><td class="num"><span class="is-positive">+6.804,10</span></td><td class="num new-col"><span class="is-positive">+3.120,40</span></td></tr>
+              <tr><td>Depot 2</td><td>Meridian Global Equity ETF</td><td class="num">186</td><td class="num">17.248,50</td><td class="num"><span class="is-positive">+3.911,70</span></td><td class="num new-col"><span class="is-positive">+1.859,80</span></td></tr>
+              <tr><td>Depot 1</td><td>Nordic Timber Holdings AB</td><td class="num">425</td><td class="num">21.548,75</td><td class="num"><span class="is-positive">+4.102,25</span></td><td class="num new-col"><span class="is-positive">+2.310,75</span></td></tr>
+              <tr><td>Depot 1</td><td>Kestrel Industrial Group NV</td><td class="num">150</td><td class="num">9.149,85</td><td class="num"><span class="is-positive">+249,85</span></td><td class="num new-col"><span class="is-positive">+388,15</span></td></tr>
+              <tr><td>Depot 2</td><td>Republic of Examplia 2,25 % 2035</td><td class="num">100</td><td class="num">9.726,00</td><td class="num"><span class="is-negative">−124,00</span></td><td class="num new-col"><span class="is-negative">−96,40</span></td></tr>
+              <tr><td>Depot 1</td><td>Helios Solar Systems SE</td><td class="num">640</td><td class="num">13.760,30</td><td class="num"><span class="is-negative">−2.861,70</span></td><td class="num new-col"><span class="is-negative">−1.145,60</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="u-flex" style="margin:0"><span class="mismatch">Σ Spalte +6.437,10 ≠ Ergebnis im Zeitraum +8.412,35</span><span class="note-muted">Aurora Biotech Inc. (+1.402,90) wurde im Zeitraum verkauft und hat hier keine Zeile. Die Restposten (+572,35) haben hier keinen Platz.</span></p>
+      </div>
+    </div>
+  </div></div>
+  <div class="callout risk">
+    <h4>Warum nicht</h4>
+    <ul>
+      <li><b>Die Spalte kann nicht aufgehen.</b> Eine im Zeitraum verkaufte Position hat keine Zeile, und die Restposten haben keinen Platz. Die Summe weicht also vom Abzeichen ab, und zwar in genau den Fällen, nach denen FR-41 fragt.</li>
+      <li><b>Zwei Grundlagen in einer Tabelle.</b> G&amp;V beschreibt den heutigen Bestand, der Beitrag einen Zeitraum. Nebeneinander verleiten sie zum Vergleich zweier Zahlen, die nichts miteinander zu tun haben. Das ist die Falle, die ADR-0041 §1 für die Kategorie vermieden hat.</li>
+      <li><b>Die Zeilen sind nach Depot geteilt.</b> Ein Wertpapier in zwei Depots bekommt zwei Beiträge, während FR-41 nach der Position fragt.</li>
+    </ul>
+  </div>
+</section>
+
+</body>
+</html>

@@ -171,6 +171,37 @@ defmodule PortfolixirWeb.BucketsLiveTest do
     assert Buckets.get_bucket(bucket.id) == nil
   end
 
+  # User story (E25 S6 review round, G19):
+  # As the operator deleting a bucket that someone else removed a moment ago,
+  # I want to be told it is gone,
+  # so that a delete never fails without a word.
+  #
+  # Acceptance criteria:
+  # - The page names the gone bucket in its failure message and shows the
+  #   list as stored.
+  test "a bucket deleted meanwhile is named as gone", %{conn: conn} do
+    world()
+    {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Core"})
+
+    {:ok, view, _html} = live(conn, "/buckets")
+
+    view
+    |> element(
+      ~s(button.row-actions__kebab[phx-value-kind="bucket"][phx-value-id="#{bucket.id}"])
+    )
+    |> render_click()
+
+    {:ok, _} = Buckets.delete_bucket(Actor.owner_ui(), bucket)
+
+    html =
+      view
+      |> element(~s([role="menu"] button[phx-click="delete_bucket"][phx-value-id="#{bucket.id}"]))
+      |> render_click()
+
+    assert html =~ "That bucket no longer exists."
+    refute has_element?(view, "#bucket-#{bucket.id}")
+  end
+
   test "renames and deletes a view", %{conn: conn} do
     world()
     {:ok, v} = Buckets.create_view(Actor.owner_ui(), %{name: "Old"})
@@ -389,7 +420,10 @@ defmodule PortfolixirWeb.BucketsLiveTest do
     assert has_element?(view, "#buckets-workspace")
   end
 
-  test "deleting or editing-buckets of a vanished bucket or view is a silent no-op",
+  # A vanished bucket's delete is named since the E25 S6 review round ("a
+  # bucket deleted meanwhile is named as gone"); the edit-buckets control of
+  # a vanished view stays a no-op.
+  test "deleting or editing-buckets of a vanished bucket or view never crashes",
        %{conn: conn} do
     world()
     {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Core"})
@@ -402,11 +436,12 @@ defmodule PortfolixirWeb.BucketsLiveTest do
     {:ok, _} = Buckets.delete_bucket(Actor.owner_ui(), bucket)
     {:ok, _} = Buckets.delete_view(Actor.owner_ui(), v)
 
-    menu_click(view, "bucket", bucket.id, "delete_bucket")
-
     menu_click(view, "view", v.id, "edit_view_buckets")
 
     refute has_element?(view, "#view-bucket-modal")
+
+    menu_click(view, "bucket", bucket.id, "delete_bucket")
+
     assert has_element?(view, "#buckets-workspace")
   end
 
@@ -642,6 +677,38 @@ defmodule PortfolixirWeb.BucketsLiveTest do
       menu = Floki.parse_document!(render(live)) |> Floki.find(~s([role="menu"]))
       assert text(menu) =~ "Rename"
       assert [_] = Floki.find(menu, ~s(button[phx-click="delete_bucket"][data-confirm]))
+    end
+
+    # User story (E25 S6, G19, decision T-10; board 12, before/after):
+    # As the operator deleting a bucket some positions carry as their own,
+    # I want the confirm to say that a position whose only specific bucket
+    # this is stays at "no buckets (excluded)",
+    # so that I know it will not start inheriting its depot's buckets and
+    # appear in views it was not in.
+    #
+    # Acceptance criteria:
+    # - The bucket delete's confirm keeps the removal sentence and adds the
+    #   board's sentence, in the words the position itself shows.
+    test "the bucket delete confirm says an emptied position stays excluded", %{conn: conn} do
+      %{crypto: crypto} = seeded()
+      {:ok, live, _html} = live(conn, "/buckets")
+
+      live
+      |> element(
+        ~s(button.row-actions__kebab[phx-value-kind="bucket"][phx-value-id="#{crypto.id}"])
+      )
+      |> render_click()
+
+      [button] =
+        Floki.parse_document!(render(live))
+        |> Floki.find(~s([role="menu"] button[phx-click="delete_bucket"]))
+
+      [confirm] = Floki.attribute(button, "data-confirm")
+      assert confirm =~ "It is removed from every assignment and view."
+
+      assert confirm =~
+               "A position whose only specific bucket is this one stays at " <>
+                 "“no buckets (excluded)” and does not inherit from its depot."
     end
   end
 

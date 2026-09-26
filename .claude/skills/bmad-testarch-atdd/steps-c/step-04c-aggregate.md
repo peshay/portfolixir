@@ -66,12 +66,27 @@ const e2eTestsOutput = JSON.parse(fs.readFileSync(e2eTestsPath, 'utf8'));
 - Check `apiTestsOutput.success === true`
 - Check `e2eTestsOutput.success === true`
 - If either failed, report error and stop (don't proceed)
+- Require both workers' `criterion_registry` to match the persisted Step 1 registry exactly, including order, ids, `idSource`, and text
 
 ---
 
 ### 2. Verify TDD Red Phase Compliance
 
 **CRITICAL TDD Validation:**
+
+Load the exact criterion registry persisted by Step 1. For every leaf `test.skip()` title from both worker outputs, extract all tokens matching `\bAC-\d+\b`. Require exactly one token, then require that token to be a member of the registry. Reject titles with zero ids, multiple ids, repeated copies of one id, or an undeclared id. Count mapped leaf titles per criterion across both worker outputs. Require exactly one red-phase leaf for every declared criterion. An id present only on a containing `test.describe()` does not count. Record secondary branches and journeys in the implementation checklist for green-phase automation.
+
+For each criterion's primary scaffold, verify that the criterion-defining assertion is the first assertion that can fail and directly isolates the exact newly promised status, scalar, or property. Broad object, schema, and secondary assertions must follow it. An API setup call to an unimplemented endpoint must remain opaque before this assertion: no body parsing, result branching, explicit throw, status assertion, or cleanup-data derivation. In E2E scaffolds the criterion assertion must also be the first potentially failing operation and must own the complete browser journey. For a state-transition criterion, verify that the primary scaffold exercises the transition-bearing branch and directly asserts the newly promised state.
+
+Use this title guard as written:
+
+```javascript
+const declaredIds = new Set(criterionRegistry.map(({ id }) => id));
+const ids = title.match(/\bAC-\d+\b/g) ?? [];
+if (ids.length !== 1 || !declaredIds.has(ids[0])) {
+  throw new Error(`ATDD ERROR: leaf title must carry exactly one declared criterion id: ${title}`);
+}
+```
 
 **Check API tests:**
 
@@ -115,9 +130,12 @@ e2eTestsOutput.tests.forEach((test) => {
 
 **If validation passes:**
 
-```
+```text
 ✅ TDD Red Phase Validation: PASS
 - All tests use test.skip()
+- Every leaf test maps to exactly one declared acceptance criterion
+- Every declared acceptance criterion has exactly one red-phase leaf scaffold
+- Each primary scaffold reaches a direct, exact criterion-defining assertion first
 - All tests assert expected behavior (not placeholders)
 - All tests marked as expected_to_fail
 ```
@@ -164,7 +182,41 @@ const uniqueFixtures = [...new Set(allFixtureNeeds)];
 **Create fixtures needed by ATDD tests:**
 (Similar to automate workflow, but may be simpler for ATDD since feature not implemented)
 
-**Minimal fixtures for TDD red phase:**
+**If `use_playwright_utils` is `true` (the default), the merged-fixtures file is not optional.** Per `playwright-utils-mandate.md`. Both workers generated specs importing `test` from `../support/merged-fixtures`. If that file does not exist, every scaffold fails to resolve at green time. Create it here.
+
+```typescript
+// {test_dir}/support/merged-fixtures.ts
+import { mergeTests } from '@playwright/test';
+import { log } from '@seontechnologies/playwright-utils';
+import { test as apiRequestFixture } from '@seontechnologies/playwright-utils/api-request/fixtures';
+import { test as interceptFixture } from '@seontechnologies/playwright-utils/intercept-network-call/fixtures';
+import { test as networkErrorFixture } from '@seontechnologies/playwright-utils/network-error-monitor/fixtures';
+import { test as recurseFixture } from '@seontechnologies/playwright-utils/recurse/fixtures';
+
+export const test = mergeTests(apiRequestFixture, interceptFixture, networkErrorFixture, recurseFixture);
+
+export { expect } from '@playwright/test';
+export { log };
+```
+
+Merge in the project's auth fixture (`setAuthProvider` + `createAuthFixtures()`, per `auth-session.md`) when the story's criteria describe authenticated behavior. If the project has no auth endpoint to point at, leave the auth fixture out and list the missing wiring in the ATDD checklist so it lands before green phase, rather than emitting a form-driven login fixture.
+
+If `{test_dir}/support/merged-fixtures.ts` already exists, extend the existing `mergeTests` call instead of replacing the file.
+
+**Minimal data fixtures for TDD red phase:**
+
+```typescript
+// {test_dir}/support/factories.ts
+import { faker } from '@faker-js/faker';
+
+export const registrationPayload = (overrides = {}) => ({
+  email: faker.internet.email(),
+  password: 'SecurePass123!',
+  ...overrides,
+});
+```
+
+**When `use_playwright_utils` is `false`**, generate the simpler vanilla shape:
 
 ```typescript
 // tests/fixtures/test-data.ts
@@ -175,6 +227,8 @@ export const testUserData = {
 ```
 
 Note: More complete fixtures will be needed when moving to green phase.
+
+**Playwright Utils deviation roll-up:** collect `playwright_utils_deviations` from both worker outputs. Carry any entries into the ATDD checklist under a `Playwright Utils deviations` heading with file, line, and reason, so the developer sees them before un-skipping.
 
 ---
 
@@ -288,7 +342,7 @@ fs.writeFileSync('/tmp/tea-atdd-summary-{{timestamp}}.json', JSON.stringify(summ
 
 Display to user:
 
-```
+```text
 ✅ ATDD Test Generation Complete (TDD RED PHASE)
 
 🔴 TDD Red Phase: Test Scaffolds Generated

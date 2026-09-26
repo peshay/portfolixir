@@ -27,7 +27,9 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.PolicyRule
   alias Portfolixir.Portfolios.PolicyRules
+  alias Portfolixir.Portfolios.PolicyRuleVersion
   alias Portfolixir.Portfolios.Portfolio
+  alias PortfolixirWeb.Api.V1.DateParam
   alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ListLimit
@@ -35,14 +37,20 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
   alias PortfolixirWeb.Api.V1.SinceParam
   alias PortfolixirWeb.Api.V1.ViewParam
 
-  @rules_note "A rule is the operator's own standard over a figure the product already " <>
-                "serves (ADR-0049): a cap, floor or band on a weight, a drift, the HHI, or a " <>
-                "portfolio metric. Rules are versioned: an edit adds a version from a date and " <>
-                "closes the previous one the day before, so the standard in force on any date " <>
-                "stays readable (as_of=). A version that has been in force is never changed or " <>
-                "deleted. Evaluating the rules is the findings read; a finding is the rule " <>
-                "applied to the figure, never an action, and nothing here places, proposes or " <>
-                "sizes a trade."
+  # E25 S7, G30 (T-8): a rule is worded as a stored rule, not as the
+  # operator's, because an API token writes rules as well as the Risk page;
+  # who wrote each rule and version is the audit journal's to say.
+  @rules_note "A rule is a stored standard over a figure the product already serves " <>
+                "(ADR-0049): a cap, floor or band on a weight, a drift, the HHI, or a " <>
+                "portfolio metric. Every version carries author: operator for the Risk page, " <>
+                "agent for an API token; which token wrote a rule or a version is in the " <>
+                "audit journal (resource_type policy_rule and policy_rule_version). Rules " <>
+                "are versioned: an edit adds a version from a " <>
+                "date and closes the previous one the day before, so the standard in force on " <>
+                "any date stays readable (as_of=). A version that has been in force is never " <>
+                "changed or deleted. Evaluating the rules is the findings read; a finding is " <>
+                "the rule applied to the figure, never an action, and nothing here places, " <>
+                "proposes or sizes a trade."
 
   @default_limit 1_000
   @max_limit 10_000
@@ -146,12 +154,68 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
         {:ok, version} ->
           conn |> put_status(:created) |> json(%{data: PolicyJSON.version(version)})
 
+        # Deleted between the read and the write's lock (E25 S6, F48).
+        {:error, :not_found} ->
+          not_found(conn)
+
         {:error, %Ecto.Changeset{} = changeset} ->
           unprocessable(conn, JSON.errors(changeset))
       end
     else
       _missing -> not_found(conn)
     end
+  end
+
+  # The rename (#872; ADR-0049 §4 and §8 as amended by the Sprint 16 plan
+  # D-6): the name is the operator's label, so it changes outside the
+  # versioning — no version is added or changed. Only `name` is read, as on
+  # PATCH /api/v1/plans/:id. A field of the predicate or of the context in the
+  # same body is refused rather than dropped: an agent that sent a new line
+  # with a new name would otherwise read a 200 as "the line changed".
+  def rename(conn, %{"id" => id} = params) do
+    with {:ok, rule_id} <- IdParam.parse(id),
+         %PolicyRule{} = rule <- PolicyRules.get_rule(rule_id) do
+      case not_a_rename(params, rule_id) do
+        refused when map_size(refused) > 0 ->
+          unprocessable(conn, refused)
+
+        _none ->
+          case PolicyRules.rename_rule(conn.assigns.actor, rule, Map.take(params, ["name"])) do
+            {:ok, renamed} -> json(conn, %{data: PolicyJSON.rule_with_versions(renamed)})
+            {:error, :not_found} -> not_found(conn)
+            {:error, %Ecto.Changeset{} = changeset} -> unprocessable(conn, JSON.errors(changeset))
+          end
+      end
+    else
+      _missing -> not_found(conn)
+    end
+  end
+
+  @context_fields ~w(portfolio_id view_id)
+
+  # The rule's own read shape carries its versions too (version_in_force,
+  # next_version, versions): sent back with a new name, they are refused like
+  # a version, never silently dropped (the S3/S4/D review round, LD-2).
+  @read_shape_version_fields ~w(version_in_force next_version versions)
+
+  defp not_a_rename(params, rule_id) do
+    version_fields =
+      ["version" | PolicyRuleVersion.predicate_fields()] ++ @read_shape_version_fields
+
+    version_error =
+      "is not changed by a rename; a new line is a new version " <>
+        "(POST /api/v1/policy_rules/#{rule_id}/versions)"
+
+    context_error =
+      "is the rule's context and never changes; a rule in another context is a new rule"
+
+    Enum.reduce(params, %{}, fn {key, _value}, acc ->
+      cond do
+        key in version_fields -> Map.put(acc, key, [version_error])
+        key in @context_fields -> Map.put(acc, key, [context_error])
+        true -> acc
+      end
+    end)
   end
 
   def retire(conn, %{"id" => id} = params) do
@@ -171,6 +235,9 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
         {:error, :already_retired} ->
           conflict(conn, "this rule is already retired")
 
+        {:error, :not_found} ->
+          not_found(conn)
+
         {:error, %Ecto.Changeset{} = changeset} ->
           unprocessable(conn, JSON.errors(changeset))
       end
@@ -185,6 +252,9 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
       case PolicyRules.delete_rule(conn.assigns.actor, rule) do
         {:ok, _deleted} ->
           send_resp(conn, :no_content, "")
+
+        {:error, :not_found} ->
+          not_found(conn)
 
         {:error, :in_force} ->
           conflict(
@@ -210,19 +280,11 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
     end
   end
 
+  # The bounded date every writer meets (DateParam, F70 review round).
   defp date_param(params, key) do
-    case Map.get(params, key) do
-      value when value in [nil, ""] ->
-        {:ok, nil}
-
-      value when is_binary(value) ->
-        case Date.from_iso8601(value) do
-          {:ok, date} -> {:ok, date}
-          _malformed -> {:error, String.to_existing_atom(key)}
-        end
-
-      _other ->
-        {:error, String.to_existing_atom(key)}
+    case DateParam.parse(params, key) do
+      {:ok, date} -> {:ok, date}
+      :error -> {:error, String.to_existing_atom(key)}
     end
   end
 

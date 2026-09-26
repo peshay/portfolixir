@@ -26,10 +26,17 @@ defmodule PortfolixirWeb.Api.V1.TaxConfigurationController do
   alias Portfolixir.Tax
   alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.TextParam
 
   def index_parameters(conn, params) do
-    parameters = Tax.list_parameters(jurisdiction: params["jurisdiction"])
-    json(conn, %{data: Enum.map(parameters, &JSON.tax_parameters/1)})
+    case text_filters(params, ["jurisdiction"]) do
+      {:ok, %{"jurisdiction" => jurisdiction}} ->
+        parameters = Tax.list_parameters(jurisdiction: jurisdiction)
+        json(conn, %{data: Enum.map(parameters, &JSON.tax_parameters/1)})
+
+      {:error, key} ->
+        invalid_param(conn, key)
+    end
   end
 
   def upsert_parameters(conn, params) do
@@ -37,15 +44,20 @@ defmodule PortfolixirWeb.Api.V1.TaxConfigurationController do
 
     case Tax.upsert_parameters(conn.assigns.actor, attrs) do
       {:ok, parameters} -> json(conn, %{data: JSON.tax_parameters(parameters)})
+      {:error, :not_found} -> not_found(conn)
       {:error, changeset} -> unprocessable(conn, changeset)
     end
   end
 
-  def index_profiles(conn, %{"holder" => holder}) do
-    json(conn, %{data: Enum.map(Tax.list_profiles(holder), &JSON.tax_profile/1)})
+  def index_profiles(conn, params) do
+    case text_filters(params, ["holder"]) do
+      {:ok, %{"holder" => nil}} -> missing_param(conn, "holder")
+      {:ok, %{"holder" => holder}} -> json(conn, %{data: profiles(holder)})
+      {:error, key} -> invalid_param(conn, key)
+    end
   end
 
-  def index_profiles(conn, _params), do: missing_param(conn, "holder")
+  defp profiles(holder), do: holder |> Tax.list_profiles() |> Enum.map(&JSON.tax_profile/1)
 
   def create_profile(conn, params) do
     attrs = Map.get(params, "profile", %{})
@@ -63,6 +75,7 @@ defmodule PortfolixirWeb.Api.V1.TaxConfigurationController do
          {:ok, profile} <- Tax.fetch_profile(profile_id) do
       case Tax.update_profile(conn.assigns.actor, profile, attrs) do
         {:ok, updated} -> json(conn, %{data: JSON.tax_profile(updated)})
+        {:error, :not_found} -> not_found(conn)
         {:error, changeset} -> unprocessable(conn, changeset)
       end
     else
@@ -80,14 +93,20 @@ defmodule PortfolixirWeb.Api.V1.TaxConfigurationController do
   end
 
   def index_allowance_orders(conn, params) do
-    orders =
-      Tax.list_allowance_orders(
-        holder: params["holder"],
-        institution: params["institution"],
-        tax_year: parse_year(params["tax_year"])
-      )
+    case text_filters(params, ["holder", "institution"]) do
+      {:ok, %{"holder" => holder, "institution" => institution}} ->
+        orders =
+          Tax.list_allowance_orders(
+            holder: holder,
+            institution: institution,
+            tax_year: parse_year(params["tax_year"])
+          )
 
-    json(conn, %{data: Enum.map(orders, &JSON.allowance_order/1)})
+        json(conn, %{data: Enum.map(orders, &JSON.allowance_order/1)})
+
+      {:error, key} ->
+        invalid_param(conn, key)
+    end
   end
 
   def put_allowance_order(conn, params) do
@@ -95,6 +114,7 @@ defmodule PortfolixirWeb.Api.V1.TaxConfigurationController do
 
     case Tax.put_allowance_order(conn.assigns.actor, attrs) do
       {:ok, order} -> json(conn, %{data: JSON.allowance_order(order)})
+      {:error, :not_found} -> not_found(conn)
       {:error, changeset} -> unprocessable(conn, changeset)
     end
   end
@@ -122,6 +142,12 @@ defmodule PortfolixirWeb.Api.V1.TaxConfigurationController do
 
   defp parse_year(value) when is_integer(value) and value >= 1 and value <= 9999, do: value
   defp parse_year(_value), do: nil
+
+  defp text_filters(params, keys), do: TextParam.parse_all(params, keys)
+
+  defp invalid_param(conn, param) do
+    conn |> put_status(422) |> json(%{errors: %{param => ["is invalid"]}})
+  end
 
   defp missing_param(conn, param) do
     conn |> put_status(422) |> json(%{errors: %{param => ["is required"]}})

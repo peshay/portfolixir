@@ -55,6 +55,7 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Derived
   alias Portfolixir.Fx
+  alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Portfolios.Performance.IRR
 
@@ -68,6 +69,11 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
   @hub "EUR"
   @gbx_per_gbp Decimal.new(100)
   @days_per_year 365
+  # A whole basis point of a rate fraction (E25 S4, G03).
+  @memo_rate_places 4
+  # The engine's scale for a rate: `daily_rate_factor/1` rounds to it before
+  # the float boundary, so a rate with more places is not what is computed.
+  @engine_rate_places 15
 
   @type benchmark :: {:rate, Decimal.t()} | {:security, Security.t()}
 
@@ -118,22 +124,29 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
   walk (the one a surface renders while the fresh walk computes) is never
   memoised: stored under the current data version it would be served as
   fresh after the write it does not contain (closing-act finding). The
-  walk's own compute instant is part of the key for the same reason.
+  walk's own compute instant is checked on the memoised value for the same
+  reason; it is not part of the key, where every recomputed walk would add an
+  entry (E25 S4, G03). Only the fixed periods and whole-basis-point rates
+  are memoised: a custom range or a finer rate is computed on every read, so
+  a sweep of distinct values adds nothing to the memo.
   """
   @spec compare(map(), term(), benchmark(), keyword()) :: {:ok, map()} | {:error, atom()}
   def compare(analysis, period, benchmark, opts \\ []) do
     with {:ok, benchmark} <- validate_benchmark(benchmark),
          :ok <- Performance.validate_period(period) do
       comparison =
-        if Map.get(analysis, :stale, false) do
+        if Map.get(analysis, :stale, false) or not memoisable?(analysis, period, benchmark) do
           build(analysis, period, benchmark)
         else
-          {:fresh, comparison} =
+          walk = analysis.basis.computed_at
+
+          {:fresh, %{comparison: comparison}} =
             Derived.fetch(
               :benchmark_comparison,
               Derived.global_basis(),
               entry_key(analysis, period, benchmark, opts),
-              fn -> build(analysis, period, benchmark) end
+              fn -> %{walk: walk, comparison: build(analysis, period, benchmark)} end,
+              current?: &(&1.walk == walk)
             )
 
           comparison
@@ -163,6 +176,35 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
 
   def valid_rate?(_other), do: false
 
+  @doc """
+  A rate as the engine computes it: inside `valid_rate?/1` and exact at the
+  engine's scale (at most #{@engine_rate_places} decimal places, trailing
+  zeros not counted), normalised to one spelling. Anything else is `:error`.
+  A remembered selector passes through this on every read (E25 S4, F06).
+  """
+  @spec exact_rate(term()) :: {:ok, Decimal.t()} | :error
+  def exact_rate(%Decimal{} = rate) do
+    if valid_rate?(rate) and BoundedDecimal.decimal_places(rate) <= @engine_rate_places do
+      normalized = Decimal.normalize(rate)
+      {:ok, if(Decimal.equal?(normalized, @zero), do: @zero, else: normalized)}
+    else
+      :error
+    end
+  end
+
+  def exact_rate(_other), do: :error
+
+  @doc """
+  Whether a read at `rate` may be memoised: a whole number of basis points
+  (at most #{@memo_rate_places} decimal places of the fraction), the grain the
+  page's rate field and an ordinary request use. A finer rate is computed on
+  every read and never remembered, so distinct custom rates cannot fill the
+  memo (E25 S4, G03).
+  """
+  @spec memoisable_rate?(Decimal.t()) :: boolean()
+  def memoisable_rate?(%Decimal{} = rate),
+    do: BoundedDecimal.finite?(rate) and BoundedDecimal.decimal_places(rate) <= @memo_rate_places
+
   defp validate_benchmark({:rate, %Decimal{} = rate}) do
     if valid_rate?(rate), do: {:ok, {:rate, rate}}, else: {:error, :invalid_benchmark}
   end
@@ -172,6 +214,18 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
 
   # -- memo identity ------------------------------------------------------------
 
+  # A fixed period (a named one, or a calendar year the walk has reached) and
+  # a security or a whole-basis-point rate: a finite set per scope.
+  defp memoisable?(analysis, period, benchmark),
+    do: fixed_period?(analysis, period) and memoisable_benchmark?(benchmark)
+
+  defp fixed_period?(analysis, {:year, year}), do: year <= analysis.today.year
+  defp fixed_period?(_analysis, period) when is_binary(period), do: true
+  defp fixed_period?(_analysis, _range), do: false
+
+  defp memoisable_benchmark?({:rate, rate}), do: memoisable_rate?(rate)
+  defp memoisable_benchmark?({:security, _security}), do: true
+
   defp entry_key(analysis, period, benchmark, opts) do
     scope =
       if Map.has_key?(analysis, :view_id),
@@ -179,7 +233,6 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
         else: "portfolio:#{analysis.portfolio_id}|view=#{Keyword.get(opts, :view) || "unscoped"}"
 
     "scope=#{scope}|base=#{analysis.base_currency}|today=#{analysis.today}" <>
-      "|walk=#{analysis.basis.computed_at}" <>
       "|period=#{period_key(period)}|benchmark=#{benchmark_key(benchmark)}"
   end
 
@@ -408,15 +461,20 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
       "a fixed annual rate of #{Decimal.to_string(rate, :normal)} compounding daily from a " <>
         "base of 1 (effective annual rate, Act/365)"
 
+  # E25 S7, F75: the basis names the benchmark security by its id and
+  # currency only. Its stored name is free text an agent reads as the method
+  # of a figure here; the name travels as data in the `benchmark` object.
   defp series_text({:security, %Security{} = security}),
     do:
-      "the stored quotes of #{security.name} (security #{security.id}, " <>
-        "#{security.currency_code}) in the current display basis (ADR-0028)"
+      "the stored quotes of #{security_reference(security)} in the current display basis " <>
+        "(ADR-0028)"
 
   defp reference_text({:rate, rate}), do: "fixed rate #{Decimal.to_string(rate, :normal)} p.a."
 
-  defp reference_text({:security, %Security{} = security}),
-    do: "security #{security.id} #{security.name} (#{security.currency_code})"
+  defp reference_text({:security, %Security{} = security}), do: security_reference(security)
+
+  defp security_reference(%Security{id: id, currency_code: currency}),
+    do: "security #{id} (#{currency})"
 
   # -- the benchmark price series ------------------------------------------------
 
@@ -483,7 +541,7 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
     # 1e-400 is inside the bound but below DBL_MIN, and `Decimal.to_float/1`
     # raises on it (closing-act finding). At 15 places it is exactly 0, which
     # is also what a float would make of it.
-    rate = Decimal.round(rate, 15)
+    rate = Decimal.round(rate, @engine_rate_places)
 
     if Decimal.equal?(rate, @zero) do
       @one

@@ -11,6 +11,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   alias Portfolixir.Classifications.Assignment
   alias Portfolixir.Classifications.Category
   alias Portfolixir.Classifications.Classification
+  alias Portfolixir.Clock
   alias Portfolixir.Fx.ExchangeRate
   alias Portfolixir.Journal.Entry, as: JournalEntry
   alias Portfolixir.Knowledge.SecurityEvent
@@ -235,6 +236,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       currency_code: account.currency_code,
       notes: account.notes,
       liquidity_role: account.liquidity_role,
+      # ADR-0050 §4: the names an import still books onto this account.
+      former_names: account.former_names,
       inserted_at: timestamp(account.inserted_at),
       updated_at: timestamp(account.updated_at)
     }
@@ -253,6 +256,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       cash_account_id: account.cash_account_id,
       name: account.name,
       notes: account.notes,
+      # ADR-0050 §4: the names an import still books onto this depot.
+      former_names: account.former_names,
       cash_account: cash_account,
       inserted_at: timestamp(account.inserted_at),
       updated_at: timestamp(account.updated_at)
@@ -505,7 +510,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       # read date.
       currency_basis: "security_currency",
       currency_basis_note: holdings_currency_basis_note(),
-      as_of: date(Date.utc_today()),
+      as_of: date(Clock.today()),
       data: Enum.map(holdings, &holding(&1, portfolio_id))
     }
   end
@@ -760,7 +765,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       # FR-13: describe the read date and the chosen basis so a consumer never
       # has to assume how totals were built. There is no stored snapshot, so
       # `as_of` documents the read date (mirrors the income report).
-      as_of: date(Date.utc_today()),
+      as_of: date(Clock.today()),
       valuation_note: valuation_note(valuation.base_currency),
       total_value: decimal(valuation.total_value),
       total_cash: decimal(valuation.total_cash),
@@ -809,7 +814,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       base_currency: valuation.base_currency,
       # FR-13: `as_of` documents the read date (no stored snapshot exists) and
       # the note states the cross-portfolio, count-once basis of the totals.
-      as_of: date(Date.utc_today()),
+      as_of: date(Clock.today()),
       valuation_note: view_valuation_note(valuation.base_currency),
       total_value: decimal(valuation.total_value),
       total_cash: decimal(valuation.total_cash),
@@ -1110,7 +1115,15 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       deep_target_sum: decimal(Map.get(allocation, :deep_target_sum)),
       unassigned: allocation_unassigned(allocation.unassigned, include_positions?)
     }
+    |> put_positions_basis(include_positions?)
   end
+
+  # The position rows' drift-share basis and its gaps (AGENTS.md; E25 S4,
+  # G14) travel with the position rows: a roll-up-only read carries none.
+  defp put_positions_basis(payload, true),
+    do: Map.put(payload, :computation_basis, Allocation.computation_basis())
+
+  defp put_positions_basis(payload, false), do: payload
 
   @doc """
   Per-category result (ADR-0041 slice one, #712).
@@ -1269,9 +1282,10 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       # the live valuation, so there is no stored snapshot date to report. The
       # note states the basis so a consumer never has to assume what the weights
       # and HHI are a share of.
-      as_of: date(Date.utc_today()),
+      as_of: date(Clock.today()),
       risk_note: risk_note(),
       steerable_basis: decimal(risk.steerable_basis),
+      top_n: risk.top_n,
       top_holdings: Enum.map(risk.top_holdings, &risk_holding/1),
       hhi: risk_hhi(risk.hhi),
       asset_class_violations: Enum.map(risk.asset_class_violations, &risk_violation/1),
@@ -1308,6 +1322,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   defp correlations(matrix) do
     %{
       window: metric_window(matrix.window),
+      leading_names: matrix.leading_names,
       security_ids: matrix.security_ids,
       pairs:
         Enum.map(matrix.pairs, fn pair ->
@@ -1853,7 +1868,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   """
   def tax_statement_snapshot(%StatementSnapshot{} = snapshot, opts \\ []) do
     findings = Keyword.get(opts, :findings, [])
-    today = Keyword.get(opts, :today, Date.utc_today())
+    today = Keyword.get(opts, :today, Clock.today())
 
     snapshot
     |> Map.take(StatementSnapshot.money_fields())

@@ -69,12 +69,17 @@ defmodule Portfolixir.Knowledge.Events do
   `attrs` carries the ADR-0048 §6 fields (`security_id`, `kind`, `date`,
   `date_end`, `timing`, `confirmed`, `source_url`, `source_quality`,
   `checked_at`, `note`).
+
+  `opts[:today]` injects the clock (AR-2) and defaults to `Clock.today/0`; a
+  `checked_at` later than the day after it is refused (E25 S6, G09).
   """
-  @spec create_event(Actor.t(), map()) ::
+  @spec create_event(Actor.t(), map(), keyword()) ::
           {:ok, SecurityEvent.t()} | {:error, Ecto.Changeset.t() | :stale | {atom(), term()}}
-  def create_event(%Actor{} = actor, attrs) when is_map(attrs) do
+  def create_event(%Actor{} = actor, attrs, opts \\ []) when is_map(attrs) do
+    today = Keyword.get(opts, :today, Clock.today())
+
     Multi.new()
-    |> Multi.insert(:event, SecurityEvent.changeset(%SecurityEvent{}, attrs))
+    |> Multi.insert(:event, SecurityEvent.changeset(%SecurityEvent{}, attrs, today))
     |> Journal.record(actor, resource_type: "security_event", operation: :create, source: :event)
     |> commit()
   end
@@ -83,15 +88,46 @@ defmodule Portfolixir.Knowledge.Events do
   Updates one event, journaled under `actor` with the previous row recorded as
   the `before` snapshot.
 
+  `opts[:today]` injects the clock as in `create_event/3`.
+
   A rescheduled date replaces the old one (§4): two rows for one reporting
   date is a calendar an operator cannot read, and "which of these three is
   current?" is exactly the question the object exists to answer.
   """
-  @spec update_event(Actor.t(), SecurityEvent.t(), map()) ::
+  @spec update_event(Actor.t(), SecurityEvent.t(), map(), keyword()) ::
           {:ok, SecurityEvent.t()} | {:error, Ecto.Changeset.t() | :stale | {atom(), term()}}
-  def update_event(%Actor{} = actor, %SecurityEvent{} = event, attrs) when is_map(attrs) do
+  def update_event(%Actor{} = actor, %SecurityEvent{} = event, attrs, opts \\ [])
+      when is_map(attrs) do
+    today = Keyword.get(opts, :today, Clock.today())
+
     Multi.new()
-    |> Multi.update(:event, SecurityEvent.changeset(event, attrs))
+    |> Multi.update(:event, &SecurityEvent.changeset(Journal.locked_row(&1), attrs, today))
+    |> Journal.record(actor,
+      resource_type: "security_event",
+      operation: :update,
+      source: :event,
+      before: event
+    )
+    |> commit()
+  end
+
+  @doc """
+  Moves one event onto the security `security_id`, journaled under `actor`
+  as one `security_event` update with the row as stored under its lock as
+  the `before` snapshot (ADR-0050 §9: a security merge moves the source's
+  events onto the target; a same-kind, same-day pair it lists and leaves for
+  the operator). Only `security_id` changes; the event's facts are not
+  re-validated.
+  """
+  @spec reassign_event(Actor.t(), SecurityEvent.t(), integer()) ::
+          {:ok, SecurityEvent.t()} | {:error, Ecto.Changeset.t() | :stale | {atom(), term()}}
+  def reassign_event(%Actor{} = actor, %SecurityEvent{} = event, security_id)
+      when is_integer(security_id) do
+    Multi.new()
+    |> Multi.update(
+      :event,
+      &SecurityEvent.reassign_changeset(Journal.locked_row(&1), security_id)
+    )
     |> Journal.record(actor,
       resource_type: "security_event",
       operation: :update,
@@ -128,6 +164,8 @@ defmodule Portfolixir.Knowledge.Events do
     case Repo.transaction(multi) do
       {:ok, %{event: event}} -> {:ok, event}
       {:error, _step, %Ecto.Changeset{} = invalid, _changes} -> {:error, invalid}
+      # The row was deleted before the write took its lock (E25 S6, F49).
+      {:error, {:journal_lock, _}, :not_found, _changes} -> {:error, :stale}
       {:error, step, reason, _changes} -> {:error, {step, reason}}
     end
   rescue
@@ -229,7 +267,9 @@ defmodule Portfolixir.Knowledge.Events do
 
   A never-checked event is listed with `days_since_checked: nil` — it is at
   least as unre-read as one checked long ago, and hiding it would make the
-  read answer a narrower question than it claims.
+  read answer a narrower question than it claims. An event whose stored
+  `checked_at` is later than tomorrow (written before E25 S6, G09 refused
+  one) is listed too, with a negative `days_since_checked`.
 
   Options: `:days`, `:today`, `:security_id`, `:kind`, `:held_only`, `:limit`.
   """
@@ -239,8 +279,12 @@ defmodule Portfolixir.Knowledge.Events do
     today = Keyword.get(opts, :today, Clock.today())
     cutoff = Date.add(today, -days)
 
+    # A checked_at later than tomorrow was stored before the refusal existed
+    # (E25 S6, G09); it is no re-read, so the event is listed as stale.
+    latest = Date.add(today, 1)
+
     SecurityEvent
-    |> where([e], is_nil(e.checked_at) or e.checked_at < ^cutoff)
+    |> where([e], is_nil(e.checked_at) or e.checked_at < ^cutoff or e.checked_at > ^latest)
     |> maybe_security(Keyword.get(opts, :security_id))
     |> maybe_kind(Keyword.get(opts, :kind))
     |> maybe_held_only(Keyword.get(opts, :held_only, false))

@@ -73,7 +73,7 @@ defmodule Portfolixir.Imports.ReimportSurvivalTest do
              Imports.apply(initial, %{portfolio_id: portfolio.id})
 
     btc = find_security!(&(&1.name == "Bitcoin"))
-    acme = find_security!(&(&1.isin == "DE000ACME001"))
+    acme = find_security!(&(&1.isin == "DE000ACME016"))
 
     # --- attach the strategy configuration --------------------------------
     owner = Actor.owner_ui()
@@ -133,7 +133,7 @@ defmodule Portfolixir.Imports.ReimportSurvivalTest do
     assert Enum.count(snapshot_targets, & &1.security_id) == 6
 
     # --- the §3 ISIN change is recorded BEFORE the re-import ---------------
-    {:ok, %{security: acme}} = Catalog.record_isin_change(owner, acme, "DE000ACME119")
+    {:ok, %{security: acme}} = Catalog.record_isin_change(owner, acme, "DE000ACME115")
 
     # --- preview of the mutated export surfaces the rename -----------------
     mutated = parse_fixture!("golden_path_mutated.json")
@@ -141,7 +141,7 @@ defmodule Portfolixir.Imports.ReimportSurvivalTest do
     %{resolutions: resolutions, unmatched_config: unmatched} =
       Imports.resolve_securities(mutated)
 
-    acme_res = Enum.find(resolutions, &(&1.ref.isin == "DE000ACME001"))
+    acme_res = Enum.find(resolutions, &(&1.ref.isin == "DE000ACME016"))
     assert acme_res.status == :matched
     assert acme_res.matched == %{security_id: acme.id, tier: :former_isin}
 
@@ -168,7 +168,7 @@ defmodule Portfolixir.Imports.ReimportSurvivalTest do
     assert result.created_transactions == 1
     assert result.skipped_duplicates == 3
     assert result.unresolved_entries == []
-    assert Enum.all?(result.alias_matches, &(&1.former_isin == "DE000ACME001"))
+    assert Enum.all?(result.alias_matches, &(&1.former_isin == "DE000ACME016"))
     assert [%{security_id: override_id, recorded_isin_change: false}] = result.security_overrides
     assert override_id == btc.id
 
@@ -189,8 +189,8 @@ defmodule Portfolixir.Imports.ReimportSurvivalTest do
 
     # Security ids and the recorded identity survive.
     assert Catalog.get_security!(btc.id).name == "Bitcoin"
-    assert Catalog.get_security!(acme.id).isin == "DE000ACME119"
-    assert [%{former_isin: "DE000ACME001"}] = Catalog.list_identifier_aliases(acme)
+    assert Catalog.get_security!(acme.id).isin == "DE000ACME115"
+    assert [%{former_isin: "DE000ACME016"}] = Catalog.list_identifier_aliases(acme)
   end
 
   # Plan versions with name/status/cash weight, Decimal serialized exactly so
@@ -264,8 +264,8 @@ defmodule Portfolixir.Imports.ReimportSurvivalTest do
 
     test "two securities sharing (name, currency)" do
       portfolio = setup_portfolio()
-      _a = security!(%{name: "Duplicate Name AG", isin: "DE000DUPA001"})
-      _b = security!(%{name: "Duplicate Name AG", isin: "DE000DUPB001"})
+      _a = security!(%{name: "Duplicate Name AG", isin: "DE000DUPA005"})
+      _b = security!(%{name: "Duplicate Name AG", isin: "DE000DUPB003"})
 
       preview = parse_fixture!("ambiguous_name_currency.json")
 
@@ -294,7 +294,7 @@ defmodule Portfolixir.Imports.ReimportSurvivalTest do
     initial = parse_fixture!("golden_path_initial.json")
     {:ok, _} = Imports.apply(initial, %{portfolio_id: portfolio.id})
 
-    acme = find_security!(&(&1.isin == "DE000ACME001"))
+    acme = find_security!(&(&1.isin == "DE000ACME016"))
 
     owner = Actor.owner_ui()
     {:ok, classification} = Classifications.create_classification(owner, %{name: "Strategy"})
@@ -320,7 +320,7 @@ defmodule Portfolixir.Imports.ReimportSurvivalTest do
     assert reason =~ "stronger identifier"
     assert result.created_securities == 0
     assert result.created_transactions == 0
-    assert Catalog.get_security!(acme.id).isin == "DE000ACME001"
+    assert Catalog.get_security!(acme.id).isin == "DE000ACME016"
   end
 
   # User story (ADR-0029 §2/§4 preview→apply divergence):
@@ -338,13 +338,13 @@ defmodule Portfolixir.Imports.ReimportSurvivalTest do
     initial = parse_fixture!("golden_path_initial.json")
     {:ok, _} = Imports.apply(initial, %{portfolio_id: portfolio.id})
 
-    acme = find_security!(&(&1.isin == "DE000ACME001"))
+    acme = find_security!(&(&1.isin == "DE000ACME016"))
     transactions_before = Ledger.count_transactions()
 
     mutated = parse_fixture!("golden_path_mutated.json")
     %{resolutions: resolutions} = Imports.resolve_securities(mutated)
 
-    acme_res = Enum.find(resolutions, &(&1.ref.isin == "DE000ACME001"))
+    acme_res = Enum.find(resolutions, &(&1.ref.isin == "DE000ACME016"))
     btc_res = Enum.find(resolutions, &(&1.ref.name == "BTC (Cold Wallet)"))
     assert acme_res.status == :matched
 
@@ -353,8 +353,8 @@ defmodule Portfolixir.Imports.ReimportSurvivalTest do
     # alias tier... which still selects the same id, so to force a real
     # divergence the security instead disappears behind a NEW identity: the
     # ISIN is edited away and a different security takes it over.
-    {:ok, _} = Catalog.update_security(Actor.owner_ui(), acme, %{isin: "DE000GONE001"})
-    _impostor = security!(%{name: "Impostor AG", isin: "DE000ACME001"})
+    {:ok, _} = Catalog.update_security(Actor.owner_ui(), acme, %{isin: "DE000GONE008"})
+    _impostor = security!(%{name: "Impostor AG", isin: "DE000ACME016"})
 
     assert {:error, {:resolution_diverged, _key}} =
              Imports.apply(mutated, %{

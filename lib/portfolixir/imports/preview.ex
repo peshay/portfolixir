@@ -52,6 +52,11 @@ defmodule Portfolixir.Imports.Preview do
 
   defp security_key(%{name: name}) when is_binary(name), do: {:name, name, nil}
 
+  # Total (E25 S5, F33): a reference with neither an ISIN nor a name (a WKN or
+  # a ticker only) is keyed by all it carries, never a crash.
+  defp security_key(%{} = ref),
+    do: {:ref, Map.take(ref, [:isin, :wkn, :ticker, :name, :currency])}
+
   @doc """
   Unique `(pp_portfolio_name, pp_account_name)` combinations across
   entries — used by the UI to drive the account-mapping form.

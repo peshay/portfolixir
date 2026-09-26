@@ -6,7 +6,10 @@ description: Decision to introduce buckets as overlapping tags on holdings (depo
 
 # ADR-0018: Buckets — tag-based wealth scoping with view filters
 
-- **Status:** Accepted
+- **Status:** Accepted. **Amended in Sprint 16** (the security review's
+  decision T-10 and finding F45, adopted by the merge of the Sprint 16
+  planning PR): resolved parameter 5 now journals view definitions, and a
+  bucket delete journals its cascade — see "Amendment" below.
 - **Date:** 2026-06-18
 
 ## Context
@@ -148,4 +151,37 @@ These were decided with the maintainer and are part of this Accepted decision:
 5. **Journaling granularity.** **Bucket *assignment* changes are journaled**
    (they change reported attribution); pure view-*definition* edits (create /
    rename / delete a view) are operational config and are **not** journaled
-   (cf. idempotency keys, AR-5).
+   (cf. idempotency keys, AR-5). *Amended in Sprint 16 — see below: a view's
+   definition is journaled, because a policy rule in force reads it.*
+
+## Amendment: view definitions and bucket deletes are journaled (Sprint 16, T-10, F45)
+
+The security review of Sprint 16 (E25, findings F45, G19 and G29, decisions
+of its triage adopted with the Sprint 16 planning PR) found that parameter 5
+no longer held once policy rules existed. A rule in force
+([ADR-0049](0049-policy-rules-as-first-class-objects.html)) is evaluated
+under a view, or over a view as its subject, so a view's definition is part
+of what a finding means; a definition that changed with no entry left a
+shifted finding with no audit trace. Two paths changed it silently: the view
+writers, and the database cascade of a bucket delete, which also turned a
+position override that lost its last bucket into inheritance.
+
+- **A view's definition is journaled.** Editing a view (name,
+  `include_all`), replacing its bucket sets and deleting it each leave one
+  entry of `resource_type` `view`, filed under the view, whose before- and
+  after-image is the whole definition — the row and both bucket sets —
+  read under the view row's lock in the writing transaction. Resending the
+  stored definition leaves none. Creating a view stays unjournaled: no rule
+  can read a view before it exists, and its first edit's before-image is the
+  view as created.
+- **A bucket delete journals its cascade (T-10).** Before the row goes,
+  every view and assignment that names the bucket is rewritten through its
+  journaled writer, so each affected owner gets its own entry, and the
+  bucket's own entry carries every membership it had as its before-image.
+  **An override that loses its last bucket stays explicit-empty**: the
+  position keeps "no buckets" and does not start inheriting its depot's set.
+  The delete confirm and the tool description say so. No new refusal is
+  added: a bucket stays deletable, and its delete stays visible. The foreign
+  keys still cascade, as a backstop that finds nothing left to remove.
+- **The tables stay unarmed scope tables.** The journaling rests on the
+  `Portfolixir.Buckets` writers, as the assignment writers' already did.

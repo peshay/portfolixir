@@ -1497,6 +1497,32 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       assert updated.name == "Apple Inc. (edited)"
       assert updated.ticker_symbol == "AAPL2"
     end
+
+    # User story (E25 S6 review round, R5):
+    # As the operator editing a security another tab or the agent deleted
+    # meanwhile,
+    # I want the dialog to say the security is gone,
+    # so that I do not read it as a problem with the name I typed.
+    #
+    # Acceptance criteria:
+    # - The dialog shows a form-level alert naming the gone security, and no
+    #   error on the Name field.
+    test "saving the dialog for a security deleted meanwhile names it as gone",
+         %{conn: conn, apple: apple} do
+      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+
+      view |> element("#detail-edit") |> render_click()
+      {:ok, _} = Catalog.delete_security(Portfolixir.Actor.owner_ui(), apple)
+
+      html =
+        view
+        |> form("#security-dialog-form", %{"security" => %{"name" => "Apple Inc. (edited)"}})
+        |> render_submit()
+
+      assert html =~ "This security no longer exists"
+      assert has_element?(view, "#security-dialog-form [role=alert]", "no longer exists")
+      refute html =~ "Not found"
+    end
   end
 
   describe "detail pane — transactions tab" do

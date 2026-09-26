@@ -1,5 +1,19 @@
 defmodule PortfolixirWeb.ApiAuthPlug do
-  @moduledoc false
+  @moduledoc """
+  The JSON API's bearer-token check (FR-28, ADR-0017, #761, #771).
+
+  **Named principals** (E25 S7, G26; the architecture's FU-6): the API
+  accepts a list of `{name, token}` entries (`config :portfolixir,
+  :api_tokens`, built at boot by `Portfolixir.RuntimeConfig.api_tokens!/3`
+  from `PORTFOLIXIR_API_TOKENS`, `PORTFOLIXIR_API_TOKEN` and
+  `PORTFOLIXIR_API_PRINCIPAL`). The actor of a request is derived from the
+  entry the presented token matches — its name becomes the journal's actor
+  label — never from anything the caller sends. The default
+  (`PORTFOLIXIR_API_TOKEN`) journals no label, as before, unless
+  `PORTFOLIXIR_API_PRINCIPAL` names it.
+  Every entry carries the same full authority: a name attributes a write, it
+  does not narrow what the token may do.
+  """
 
   import Plug.Conn
   import Phoenix.Controller, only: [json: 2]
@@ -21,18 +35,20 @@ defmodule PortfolixirWeb.ApiAuthPlug do
   end
 
   defp authenticate(conn, source) do
-    if valid_token?(bearer_token(conn), api_token()) do
-      Throttle.success(:api, source)
-      # The single configured bearer token is read-write (FR-28 / ADR-0017).
-      # A future read-only token (D4) assigns :api_token_ro here instead.
-      assign(conn, :actor, Portfolixir.Actor.api_token_rw())
-    else
-      Throttle.failure(:api, source)
+    case matching_principal(bearer_token(conn), principals()) do
+      {:ok, name} ->
+        Throttle.success(:api, source)
+        # Every configured token is read-write (FR-28 / ADR-0017). A future
+        # read-only token (D4) assigns :api_token_ro here instead.
+        assign(conn, :actor, Portfolixir.Actor.api_token_rw(name))
 
-      conn
-      |> put_status(:unauthorized)
-      |> json(%{errors: %{detail: "unauthorized"}})
-      |> halt()
+      :error ->
+        Throttle.failure(:api, source)
+
+        conn
+        |> put_status(:unauthorized)
+        |> json(%{errors: %{detail: "unauthorized"}})
+        |> halt()
     end
   end
 
@@ -44,10 +60,34 @@ defmodule PortfolixirWeb.ApiAuthPlug do
     |> halt()
   end
 
-  defp api_token do
-    Application.get_env(:portfolixir, :api_token) ||
-      System.get_env("PORTFOLIXIR_API_TOKEN")
+  # The configured principals. A release has them from runtime.exs, and so
+  # does development when PORTFOLIXIR_API_TOKENS or PORTFOLIXIR_API_PRINCIPAL
+  # is set (S7E-7); otherwise (development without them, the test
+  # configuration) the one token of `:api_token` or PORTFOLIXIR_API_TOKEN is
+  # the unnamed default, unchecked as before.
+  defp principals do
+    case Application.get_env(:portfolixir, :api_tokens) do
+      list when is_list(list) ->
+        list
+
+      _unset ->
+        case Application.get_env(:portfolixir, :api_token) ||
+               System.get_env("PORTFOLIXIR_API_TOKEN") do
+          token when is_binary(token) and token != "" -> [{nil, token}]
+          _none -> []
+        end
+    end
   end
+
+  # Every entry is compared, so the time taken does not depend on which one
+  # matched; tokens are distinct by construction (`api_tokens!/3`).
+  defp matching_principal(provided, principals) when is_binary(provided) do
+    Enum.reduce(principals, :error, fn {name, token}, found ->
+      if valid_token?(provided, token), do: {:ok, name}, else: found
+    end)
+  end
+
+  defp matching_principal(_provided, _principals), do: :error
 
   defp bearer_token(conn) do
     case get_req_header(conn, "authorization") do

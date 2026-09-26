@@ -5,6 +5,9 @@ defmodule Portfolixir.Catalog.Security do
   alias Portfolixir.Catalog.AssetClasses
   alias Portfolixir.Catalog.Currencies
   alias Portfolixir.Catalog.Feeds
+  alias Portfolixir.Catalog.Isin
+  alias Portfolixir.Input.Text
+  alias Portfolixir.Lifecycle.Freeze
 
   @providers ~w(portfolio_performance coingecko manual)
 
@@ -74,7 +77,19 @@ defmodule Portfolixir.Catalog.Security do
   def changeset(security, attrs) do
     security
     |> cast(attrs, @castable)
+    # The caller's attributes meet the text rule at any depth before they are
+    # merged (E25 S4, G24): the database refuses a NUL in a jsonb key or
+    # value, which would otherwise be a failed write.
+    |> Text.validate_map(:attributes)
     |> protect_attributes()
+    # The map as it will be stored, merged with what is there, is bounded
+    # (E25 S6, G02): a writer adding keys on every call cannot grow the row,
+    # and each journal entry of it, without end.
+    |> Text.validate_map_size(:attributes, max_bytes: Text.attributes_max_bytes())
+    |> check_constraint(:attributes, name: :securities_attributes_length_check)
+    # E25 S5 (G23): a name is stored without the format characters that
+    # render as nothing, so no two names differ only by what cannot be seen.
+    |> normalize_text(:name, &Text.strip_format_characters/1)
     |> normalize_text(:ticker_symbol, &String.upcase/1)
     |> normalize_text(:currency_code, &String.upcase/1)
     |> normalize_text(:exchange_code, &String.upcase/1)
@@ -97,11 +112,37 @@ defmodule Portfolixir.Catalog.Security do
     |> default_attributes()
     |> infer_asset_class()
     |> validate_required([:name, :currency_code])
-    # A ticker travels in provider request paths (#763): no whitespace, no URL
-    # syntax, bounded length. Real shapes (BRK-B, ^GDAXI, EURUSD=X, 0005.HK) pass.
-    |> validate_format(:ticker_symbol, ~r/\A[^\s\/?#%]{1,64}\z/,
+    # The width of the columns they are stored in (E25 S3, F29), counted in
+    # code points, and no character the database refuses (E25 S4, G17, G24):
+    # an over-long or garbled name, identifier or quote-feed URL, typed,
+    # imported or taken from a search provider, is a field error rather than a
+    # failed write. After L1's identity freeze, which stays as it is.
+    |> Text.validate(
+      [
+        :name,
+        :ticker_symbol,
+        :isin,
+        :wkn,
+        :exchange_code,
+        :feed_url,
+        :latest_feed_url,
+        :online_id
+      ],
+      max: 255
+    )
+    |> Text.validate(:note, multiline: true, max: Text.free_text_max())
+    |> check_constraint(:note, name: :securities_note_length_check)
+    # A ticker and a provider id travel in provider request paths (#763, F31):
+    # no whitespace, no URL syntax, not made only of dots (a relative-path
+    # segment), bounded length. Real shapes (BRK-B, ^GDAXI, EURUSD=X, 0005.HK,
+    # an ISIN, a CoinGecko coin id) pass.
+    |> validate_format(:ticker_symbol, ~r/\A(?!\.+\z)[^\s\/?#%]{1,64}\z/,
       message: "is not a ticker symbol"
     )
+    |> validate_format(:online_id, ~r/\A(?!\.+\z)[^\s\/?#%]{1,128}\z/,
+      message: "is not a provider id"
+    )
+    |> validate_changed_identifiers()
     |> validate_length(:currency_code, is: 3)
     |> validate_inclusion(:currency_code, Currencies.codes(), message: "is invalid")
     |> validate_inclusion(:asset_class, AssetClasses.codes(), message: "is invalid")
@@ -112,42 +153,48 @@ defmodule Portfolixir.Catalog.Security do
       name: :securities_provider_online_id_unique_index
     )
     |> unique_constraint(:isin, name: :securities_isin_unique_index)
+    # ADR-0050 §11: `currency_code` freezes once the security has a
+    # transaction or a quote — whichever writer built this changeset (a form,
+    # the API, a search result merged into an existing security).
+    |> Freeze.validate()
   end
 
-  def delete_changeset(security) do
-    security
-    |> change()
-    |> foreign_key_constraint(:id,
-      name: :transactions_security_id_fkey,
-      message: "is referenced by existing records"
-    )
-    |> foreign_key_constraint(:id,
-      name: :security_quotes_security_id_fkey,
-      message: "is referenced by existing records"
-    )
-    # ADR-0044 §3: research-log entries never vanish, so a security carrying
-    # any is not deletable (the FK restricts; the API answers 409).
-    |> foreign_key_constraint(:id,
-      name: :security_notes_security_id_fkey,
-      message: "is referenced by existing records"
-    )
-    # ADR-0048: security events restrict for the same reason, and the
-    # constraint has to be declared here or the restriction surfaces as an
-    # `Ecto.ConstraintError` — a 500 and a LiveView crash — instead of the
-    # 409 the rest of the family answers. Every `:restrict` reference to
-    # `securities` belongs in this list.
-    |> foreign_key_constraint(:id,
-      name: :security_events_security_id_fkey,
-      message: "is referenced by existing records"
-    )
-    # ADR-0049 §8: policy-rule versions restrict too. `Catalog.delete_security/2`
-    # names the rules before this is reached; the declaration is the backstop
-    # that keeps a race a 409 rather than a 500.
-    |> foreign_key_constraint(:id,
-      name: :policy_rule_versions_security_id_fkey,
-      message: "is referenced by existing records"
-    )
+  # E25 S5 (G23): an identifier CHANGED on a stored security meets the
+  # catalog's rules, so a lookalike can never replace the identifier the
+  # exports carry: the ISIN predicate with its check digit, a WKN of six
+  # letters or digits, a ticker of printable ASCII. A value resent unchanged
+  # is no change, and a new security keeps what it is created with (its
+  # identifiers come from providers and exports, and an import checks its
+  # ISINs at parse).
+  @wkn_shape ~r/\A[A-Z0-9]{6}\z/
+  @printable_ascii ~r/\A[\x21-\x7E]+\z/
+
+  defp validate_changed_identifiers(%Ecto.Changeset{data: data} = changeset) do
+    if Ecto.get_meta(data, :state) == :loaded do
+      changeset
+      |> validate_change(:isin, fn :isin, isin ->
+        if Isin.valid?(isin),
+          do: [],
+          else: [
+            isin:
+              {"is not an ISIN (two letters, nine letters or digits and a check digit)",
+               validation: :isin}
+          ]
+      end)
+      |> validate_format(:wkn, @wkn_shape, message: "is not a WKN (six letters or digits)")
+      |> validate_format(:ticker_symbol, @printable_ascii,
+        message: "must be printable ASCII characters"
+      )
+    else
+      changeset
+    end
   end
+
+  # The delete changeset lives with the hardened delete path
+  # (`Portfolixir.Lifecycle.Delete.delete_changeset/1`, ADR-0050 §11): it
+  # declares every foreign key onto `securities` from the disposition map, so
+  # a reference added later — research notes (ADR-0044 §3), events
+  # (ADR-0048), rule versions (ADR-0049 §8) — is a 409, never a 500.
 
   def asset_classes, do: AssetClasses.codes()
   def providers, do: @providers

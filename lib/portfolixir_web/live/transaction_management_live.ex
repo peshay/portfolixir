@@ -3,6 +3,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
+  alias Portfolixir.Input.BoundedDate
+  alias Portfolixir.Input.Text
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Projection
   alias Portfolixir.Ledger.Transaction
@@ -10,6 +12,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.ChangedSince
   alias PortfolixirWeb.ColumnPicker
+  alias PortfolixirWeb.DecimalInput
+  alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.TransactionKindLabel
   alias PortfolixirWeb.Transactions.SettlementForm
 
@@ -31,6 +35,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   @tx_column_defaults ["date", "type", "security", "quantity", "price", "gross_amount"]
   @tx_column_keys @tx_column_defaults ++ ["currency", "fees", "taxes", "notes"]
   @numeric_columns ["quantity", "price", "gross_amount", "fees", "taxes"]
+
+  # The drawer's decimal fields, read by the one decimal-input rule (#869).
+  @decimal_fields ~w(quantity price fees taxes settlement_amount settlement_fx_rate)
 
   @transaction_form %{
     "type" => "buy",
@@ -58,6 +65,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
      |> assign(:column_picker_open?, false)
      |> assign(:booking_open?, false)
      |> assign(:editing_id, nil)
+     |> assign(:editing_split, nil)
      |> assign(:row_menu_id, nil)
      |> assign(:filter_sheet_open?, false)
      |> load_state()}
@@ -471,8 +479,14 @@ defmodule PortfolixirWeb.TransactionManagementLive do
             </button>
           </AppShell.row_menu>
         </section>
+        <.split_drawer
+          :if={@booking_open? and @editing_split != nil}
+          split={@editing_split}
+          securities={@securities}
+          form_errors={@form_errors}
+        />
         <.booking_drawer
-          :if={@booking_open?}
+          :if={@booking_open? and @editing_split == nil}
           editing?={@editing_id != nil}
           transaction_form={@transaction_form}
           form_errors={@form_errors}
@@ -506,15 +520,20 @@ defmodule PortfolixirWeb.TransactionManagementLive do
      socket
      |> assign(:booking_open?, false)
      |> assign(:editing_id, nil)
+     |> assign(:editing_split, nil)
      |> assign(:transaction_form, @transaction_form)
      |> assign(:form_errors, %{})
      |> assign(:sell_preview, nil)}
   end
 
   def handle_event("form_changed", %{"transaction" => params} = event, socket) do
+    # The drawer's inputs send strings only; anything else is not a field
+    # (E25 S4, F17).
+    params = LiveParam.form(params)
+
     # #395: a cross-currency trade's settlement amount and rate derive each
     # other from whichever the operator just typed (the event's `_target`).
-    target = event |> Map.get("_target", []) |> List.wrap() |> List.last()
+    target = event |> Map.get("_target", []) |> List.wrap() |> List.last() |> LiveParam.string()
 
     # Which settlement figure was typed last travels in the form's hidden
     # field; an event that omits it keeps the drawer's last known one.
@@ -541,9 +560,12 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     # must not silently release the account the reader narrowed to.
     chips = Map.take(socket.assigns.filters, @chip_families)
 
+    fields =
+      filters |> LiveParam.form() |> Map.take(Map.keys(default_filters()) -- @chip_families)
+
     {:noreply,
      socket
-     |> assign(:filters, default_filters() |> Map.merge(filters) |> Map.merge(chips))
+     |> assign(:filters, default_filters() |> Map.merge(fields) |> Map.merge(chips))
      |> apply_current_filters()}
   end
 
@@ -555,7 +577,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # directly. Found by the Sprint 7 UAT walkthrough in a real browser; pinned
   # by test/invariants/phx_value_value_test.exs.
   def handle_event("toggle_filter", %{"family" => family, "option" => option}, socket)
-      when family in ["type", "account"] do
+      when family in ["type", "account"] and is_binary(option) do
     key = if family == "type", do: "types", else: "account_ids"
     active = Map.fetch!(socket.assigns.filters, key)
     toggled = if option in active, do: List.delete(active, option), else: [option | active]
@@ -568,9 +590,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   # #809: one row menu open at a time; click-away and Escape close it.
   def handle_event("open_row_menu", %{"id" => id_str}, socket) do
-    case Integer.parse(to_string(id_str)) do
-      {id, ""} -> {:noreply, assign(socket, :row_menu_id, id)}
-      _ -> {:noreply, socket}
+    case LiveParam.id(id_str) do
+      nil -> {:noreply, socket}
+      id -> {:noreply, assign(socket, :row_menu_id, id)}
     end
   end
 
@@ -584,12 +606,15 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # preview — only pre-filled, and `editing_id` is what tells the save which
   # of the two ledger calls to make.
   def handle_event("edit_transaction", %{"id" => id_str}, socket) do
-    with {id, ""} <- Integer.parse(to_string(id_str)),
+    with {:ok, id} <- LiveParam.fetch_id(id_str),
          %Transaction{} = transaction <- Ledger.get_transaction(id) do
       {:noreply,
        socket
        |> assign(:row_menu_id, nil)
        |> assign(:editing_id, id)
+       # E25 S6 (G07, pick G12.3 = A): a split row opens its own drawer
+       # state — the facts fixed, only the note editable.
+       |> assign(:editing_split, if(transaction.type == "split", do: transaction))
        |> assign(:transaction_form, form_from_transaction(transaction, socket.assigns.securities))
        |> assign(:form_errors, %{})
        |> assign(:sell_preview, nil)
@@ -655,6 +680,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   end
 
   def handle_event("save_transaction", %{"transaction" => params}, socket) do
+    params = LiveParam.form(params)
+
     # The currency is authoritative from the chosen depot's cash account, never a
     # free-text field the user could mistype (#473).
     currency =
@@ -662,23 +689,79 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
     params =
       params
-      |> normalize_decimal_inputs()
       |> put_portfolio_from_depot(socket.assigns.securities_accounts)
       |> maybe_put_currency(currency)
 
+    # #869: the figures are read by the one decimal-input rule; the form keeps
+    # them exactly as typed, so a refusal never rewrites "2,5" into "2.5".
     # #395: a cross-currency trade is booked in the security's currency with
     # its settlement; a missing settlement amount is named on its field.
-    case SettlementForm.prepare(params, settlement_pair(params, socket.assigns)) do
-      {:ok, prepared} ->
-        save_booking(socket, params, prepared)
+    with {:figures, {:ok, figures}} <- {:figures, DecimalInput.cast(params, @decimal_fields)},
+         {:ok, prepared} <-
+           SettlementForm.prepare(figures, settlement_pair(params, socket.assigns)) do
+      save_booking(socket, params, prepared)
+    else
+      {:figures, {:error, errors}} ->
+        {:noreply,
+         refuse(socket, params, errors, gettext("A figure cannot be read; its field says why."))}
 
       {:error, errors} ->
+        {:noreply, refuse(socket, params, errors, gettext("The settlement amount is missing."))}
+    end
+  end
+
+  # E25 S6 (G07): the split drawer's one write, the note. The ledger refuses
+  # every other change to a split row, so nothing else is sent.
+  def handle_event("save_split_note", %{"split" => %{"notes" => notes}}, socket)
+      when is_binary(notes) do
+    case socket.assigns.editing_split do
+      %Transaction{id: id} -> save_split_note(socket, id, notes)
+      nil -> {:noreply, socket}
+    end
+  end
+
+  # An event this page does not know, or a payload it cannot read, changes
+  # nothing (E25 S4, F17).
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
+  defp save_split_note(socket, id, notes) do
+    case book(id, %{"notes" => notes}) do
+      {:ok, _transaction} ->
         {:noreply,
          socket
-         |> assign(:transaction_form, params)
-         |> assign(:form_errors, errors)
-         |> failure(gettext("The settlement amount is missing."))}
+         |> assign(:transaction_form, @transaction_form)
+         |> assign(:form_errors, %{})
+         |> assign(:booking_open?, false)
+         |> assign(:editing_id, nil)
+         |> assign(:editing_split, nil)
+         |> success(gettext("Note saved"))
+         |> load_state()}
+
+      # The drawer keeps what was typed (E25 S6 review round, R4): a refusal
+      # names what to correct, never what to type again (board 11's rule).
+      {:error, changeset} ->
+        {:noreply,
+         socket
+         |> assign(:editing_split, %{socket.assigns.editing_split | notes: notes})
+         |> assign(:form_errors, field_errors(changeset))
+         |> failure(changeset_error(changeset))}
+
+      :gone ->
+        {:noreply,
+         socket
+         |> assign(:booking_open?, false)
+         |> assign(:editing_id, nil)
+         |> assign(:editing_split, nil)
+         |> failure(gettext("That transaction no longer exists."))
+         |> load_state()}
     end
+  end
+
+  defp refuse(socket, params, errors, message) do
+    socket
+    |> assign(:transaction_form, params)
+    |> assign(:form_errors, errors)
+    |> failure(message)
   end
 
   defp save_booking(socket, params, prepared) do
@@ -692,6 +775,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
          |> assign(:booking_open?, false)
          |> success(saved_message(socket.assigns.editing_id))
          |> assign(:editing_id, nil)
+         |> assign(:editing_split, nil)
          |> load_state()}
 
       {:error, changeset} ->
@@ -718,7 +802,11 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp book(id, params) do
     case Ledger.get_transaction(id) do
       %Transaction{} = transaction ->
-        Ledger.update_transaction(Actor.owner_ui(), transaction, params)
+        # Deleted between this read and the write's lock (E25 S6, F49).
+        case Ledger.update_transaction(Actor.owner_ui(), transaction, params) do
+          {:error, :not_found} -> :gone
+          result -> result
+        end
 
       nil ->
         :gone
@@ -752,8 +840,10 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   defp to_form_value(nil), do: ""
 
+  # #869: a stored figure opens in the page's locale ("45,6" on a German
+  # page), its digits as stored.
   defp to_form_value(%Decimal{} = value),
-    do: value |> Decimal.normalize() |> Decimal.to_string(:normal)
+    do: value |> Decimal.normalize() |> DecimalInput.value()
 
   defp to_form_value(value), do: to_string(value)
 
@@ -871,7 +961,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp from_match?(_tx, blank) when blank in ["", nil], do: true
 
   defp from_match?(tx, str) do
-    case Date.from_iso8601(str) do
+    case BoundedDate.parse(str) do
       {:ok, date} -> Date.compare(tx.date, date) != :lt
       _ -> true
     end
@@ -880,7 +970,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp to_match?(_tx, blank) when blank in ["", nil], do: true
 
   defp to_match?(tx, str) do
-    case Date.from_iso8601(str) do
+    case BoundedDate.parse(str) do
       {:ok, date} -> Date.compare(tx.date, date) != :gt
       _ -> true
     end
@@ -910,21 +1000,26 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   attr(:transaction, :map, required: true)
   attr(:open?, :boolean, required: true)
 
+  # #870: named for its row through the shared trigger, the booking composed
+  # from its kind, its subject and its date.
   defp row_kebab(assigns) do
     ~H"""
-    <button
-      type="button"
+    <AppShell.row_kebab
       id={@id}
-      class="row-actions__kebab"
+      row={row_name(@transaction)}
+      open={@open?}
       phx-click="open_row_menu"
       phx-value-id={@transaction.id}
-      aria-label={gettext("Open actions menu")}
-      aria-haspopup="menu"
-      aria-expanded={to_string(@open?)}
-    >
-      <AppShell.icon name={:ellipsis_vertical} />
-    </button>
+    />
     """
+  end
+
+  defp row_name(transaction) do
+    AppShell.row_name([
+      tx_type_label(transaction.type),
+      phone_subject(transaction),
+      PortfolixirWeb.Format.date(transaction.date)
+    ])
   end
 
   # #816: the three chip families, rendered twice — once as the desktop row
@@ -1273,7 +1368,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # latest stored close). The entered price is read as the security's own
   # currency — the same currency a bookable manual sell is priced in.
   defp compute_sell_preview(%{"type" => "sell"} = params) do
-    with {:ok, security_id} <- parse_form_int(params["security_id"]),
+    with {:ok, security_id} <- LiveParam.fetch_id(params["security_id"]),
          {:ok, quantity} <- parse_form_decimal(params["quantity"]) do
       opts =
         case parse_form_decimal(params["price"]) do
@@ -1289,26 +1384,16 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   defp compute_sell_preview(_params), do: nil
 
-  defp parse_form_int(value) when is_binary(value) do
-    case Integer.parse(value) do
-      {int, ""} -> {:ok, int}
-      _invalid -> :error
+  # A finite decimal only (E25 S4, F17): `NaN` or `Infinity` typed into the
+  # drawer is not a quantity, and would raise in the comparison below. Read by
+  # the one decimal-input rule (#869), which parses through the same bounded
+  # parser.
+  defp parse_form_decimal(value) do
+    case DecimalInput.parse(value) do
+      {:ok, decimal} -> if Decimal.compare(decimal, 0) == :gt, do: {:ok, decimal}, else: :error
+      _blank_or_refused -> :error
     end
   end
-
-  defp parse_form_int(_value), do: :error
-
-  defp parse_form_decimal(value) when is_binary(value) do
-    case value |> normalize_decimal_comma() |> String.trim() |> Decimal.parse() do
-      {%Decimal{} = decimal, ""} ->
-        if Decimal.compare(decimal, 0) == :gt, do: {:ok, decimal}, else: :error
-
-      _invalid ->
-        :error
-    end
-  end
-
-  defp parse_form_decimal(_value), do: :error
 
   # The decomposition columns appear only when a tranche's settlement leg is
   # denominated in another currency than the security — the same-currency
@@ -1450,33 +1535,6 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp success(socket, message), do: assign(socket, success: message, error: nil)
   defp failure(socket, message), do: assign(socket, error: message, success: nil)
 
-  # German decimal commas (fix round, UAT): "10,50" means 10.50 to a German
-  # user. Normalized ONLY at this form boundary — a single comma becomes a dot
-  # when the string carries no dot; anything else (thousands separators,
-  # already-dotted input) passes through untouched for the changeset to judge.
-  # Persisted parsing elsewhere is deliberately not changed.
-  @comma_decimal_fields ~w(quantity price fees taxes)
-
-  defp normalize_decimal_inputs(params) do
-    Enum.reduce(@comma_decimal_fields, params, fn field, acc ->
-      case Map.get(acc, field) do
-        value when is_binary(value) -> Map.put(acc, field, normalize_decimal_comma(value))
-        _ -> acc
-      end
-    end)
-  end
-
-  defp normalize_decimal_comma(value) do
-    trimmed = String.trim(value)
-
-    if not String.contains?(trimmed, ".") and
-         length(String.split(trimmed, ",")) == 2 do
-      String.replace(trimmed, ",", ".")
-    else
-      value
-    end
-  end
-
   # Per-field changeset errors keyed by the form field name, so each input can
   # carry aria-invalid + an associated message (UX-DR13, #412 follow-up).
   # Messages run through the "errors" Gettext domain (fix round), so a German
@@ -1494,6 +1552,111 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       Gettext.dgettext(PortfolixirWeb.Gettext, "errors", msg, opts)
     end
   end
+
+  # E25 S6 (G07), pick G12.3 = A (board 12): a booked split in the drawer.
+  # A split is a fact about the security, booked through "Record split"
+  # (`Splits.book_split/2`); its type, effective date, security and ratio are
+  # shown with that flow's words, disabled, and only the note is a field. No
+  # depot: the row has none. The help line states the limit where the
+  # correction is tried, without a link, because no screen deletes a booking
+  # yet (UX-DR26; DESIGN.md, "The booking drawer's split state").
+  attr(:split, Transaction, required: true)
+  attr(:securities, :list, required: true)
+  attr(:form_errors, :map, required: true)
+
+  defp split_drawer(assigns) do
+    assigns =
+      assign(
+        assigns,
+        :security,
+        Enum.find(assigns.securities, &(&1.id == assigns.split.security_id))
+      )
+
+    ~H"""
+    <dialog
+      id="booking-drawer"
+      class="detail-pane booking-drawer"
+      phx-hook="ModalDialog"
+      data-close-event="close_booking"
+      data-sheet-below="720"
+      aria-labelledby="booking-drawer-title"
+    >
+      <header class="detail-pane-head">
+        <div class="detail-pane-head__title">
+          <div>
+            <h2 id="booking-drawer-title"><%= gettext("Edit transaction") %></h2>
+            <p class="detail-pane-sub">
+              <%= gettext(
+                "A split is a fact about the security; only the note changes here, and the change is journaled."
+              ) %>
+            </p>
+          </div>
+        </div>
+        <div class="detail-pane-head__actions">
+          <button
+            type="button"
+            class="icon-button"
+            aria-label={gettext("Close")}
+            phx-click="close_booking"
+          >
+            <AppShell.icon name={:x} />
+          </button>
+        </div>
+      </header>
+      <form id="split-note-form" phx-submit="save_split_note">
+        <div id="split-facts" class="form-grid">
+          <label>
+            <span><%= gettext("Type") %></span>
+            <select name="split[type]" disabled>
+              <option value="split" selected><%= tx_type_label("split") %></option>
+            </select>
+          </label>
+          <label>
+            <span><%= gettext("Effective date") %></span>
+            <input type="text" name="split[date]" value={Date.to_iso8601(@split.date)} disabled />
+          </label>
+          <label>
+            <span><%= gettext("Security") %></span>
+            <select name="split[security_id]" disabled>
+              <option value={@split.security_id} selected>
+                <%= if @security, do: security_option_label(@security), else: "—" %>
+              </option>
+            </select>
+          </label>
+          <label>
+            <span><%= gettext("Ratio (new:old shares)") %></span>
+            <input type="text" name="split[ratio]" value={split_ratio_label(@split)} disabled />
+          </label>
+        </div>
+        <p id="split-edit-help" class="form-help">
+          <%= gettext(
+            "The effective date, ratio and security of a booked split are fixed. A wrong split cannot be corrected here; it is deleted over the API or MCP and then recorded again on the security with “Record split”."
+          ) %>
+        </p>
+        <label>
+          <span><%= gettext("Notes") %></span>
+          <textarea
+            name="split[notes]"
+            aria-invalid={@form_errors["notes"] && "true"}
+            aria-describedby={@form_errors["notes"] && "tx-error-notes"}
+          ><%= @split.notes %></textarea>
+          <.field_error errors={@form_errors} field="notes" />
+        </label>
+        <div class="booking-drawer__foot">
+          <button type="submit" class="button-primary"><%= gettext("Save note") %></button>
+          <button type="button" id="booking-cancel" class="button-ghost" phx-click="close_booking">
+            <%= gettext("Cancel") %>
+          </button>
+        </div>
+      </form>
+    </dialog>
+    """
+  end
+
+  defp security_option_label(%{ticker_symbol: ticker} = security) when ticker in [nil, ""],
+    do: security.name
+
+  defp security_option_label(security), do: "#{security.name} (#{security.ticker_symbol})"
 
   # The booking drawer (#803, review C6 pick C): the securities detail pane's
   # shape — an elevated panel headed by its title with a close control — as a
@@ -1642,6 +1805,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               name="transaction[quantity]"
               value={@transaction_form["quantity"]}
               inputmode="decimal"
+              class="num"
               required
               aria-invalid={@form_errors["quantity"] && "true"}
               aria-describedby={@form_errors["quantity"] && "tx-error-quantity"}
@@ -1658,6 +1822,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               name="transaction[price]"
               value={@transaction_form["price"]}
               inputmode="decimal"
+              class="num"
               required
               aria-invalid={@form_errors["price"] && "true"}
               aria-describedby={@form_errors["price"] && "tx-error-price"}
@@ -1701,7 +1866,25 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           <% end %>
         </p>
 
-        <details id="transaction-costs" class="transaction-costs">
+        <%!-- E25 S7, G20; pick G12.2 = B: notes stored before the refusal
+             that carry characters the operator cannot see are marked above
+             the disclosure that holds them, which then stands open. --%>
+        <AppShell.invisible_text_note texts={[@transaction_form["notes"]]}>
+          <%= gettext("Typed in anew, it is clean.") %>
+        </AppShell.invisible_text_note>
+
+        <%!-- A refused fee or tax opens the costs (#869): an error the reader
+             cannot see is no answer. The hook keeps them open, by whoever
+             opened them, across the patch each keystroke brings. --%>
+        <details
+          id="transaction-costs"
+          class="transaction-costs"
+          phx-hook="DisclosureState"
+          open={
+            (@form_errors["fees"] || @form_errors["taxes"] ||
+               Text.invisible_count(@transaction_form["notes"]) > 0) && true
+          }
+        >
           <summary class="disclosure-summary">
             <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
             <%= gettext("Costs and note") %>
@@ -1709,11 +1892,27 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           <div class="form-grid">
             <label>
               <span><%= gettext("Fees") %></span>
-              <input name="transaction[fees]" value={@transaction_form["fees"]} inputmode="decimal" />
+              <input
+                name="transaction[fees]"
+                value={@transaction_form["fees"]}
+                inputmode="decimal"
+                class="num"
+                aria-invalid={@form_errors["fees"] && "true"}
+                aria-describedby={@form_errors["fees"] && "tx-error-fees"}
+              />
+              <.field_error errors={@form_errors} field="fees" />
             </label>
             <label>
               <span><%= gettext("Taxes") %></span>
-              <input name="transaction[taxes]" value={@transaction_form["taxes"]} inputmode="decimal" />
+              <input
+                name="transaction[taxes]"
+                value={@transaction_form["taxes"]}
+                inputmode="decimal"
+                class="num"
+                aria-invalid={@form_errors["taxes"] && "true"}
+                aria-describedby={@form_errors["taxes"] && "tx-error-taxes"}
+              />
+              <.field_error errors={@form_errors} field="taxes" />
             </label>
           </div>
         <label>

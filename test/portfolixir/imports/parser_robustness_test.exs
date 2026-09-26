@@ -121,6 +121,255 @@ defmodule Portfolixir.Imports.ParserRobustnessTest do
              PortfolioPerformance.parse(json(txs), filename: "big.json")
   end
 
+  # User story (E25 S5, F34):
+  # As an operator dropping an export that was saved in another encoding,
+  # I want the file refused with a named file error before anything is parked,
+  # so that the import page stays usable and says how to fix the file.
+  #
+  # Acceptance criteria:
+  # - A body with bytes that are not UTF-8, in any cell of a CSV or anywhere
+  #   in a JSON export, is refused as {:error, :invalid_encoding}.
+  # - A UTF-8 body, with or without a byte-order mark, still parses.
+  test "a body that is not UTF-8 is refused with a named file error" do
+    for cell <- ["Wertpapier", "Quelle", "Typ"] do
+      row =
+        case cell do
+          "Wertpapier" ->
+            <<"2024-01-16 10:01:00;Kauf;Synthetic M", 0xFC,
+              "nchen AG;10;150,25;1.502,50;2,50;;1.502,50;Test-Depot;Test-Cash;;">>
+
+          "Quelle" ->
+            <<"2024-01-16 10:01:00;Kauf;Synthetic AG;10;150,25;1.502,50;2,50;;1.502,50;Test-Depot;Test-Cash;;M",
+              0xFC, "nchen">>
+
+          "Typ" ->
+            <<"2024-01-16 10:01:00;K", 0xE4,
+              "uf;Synthetic AG;10;150,25;1.502,50;2,50;;1.502,50;Test-Depot;Test-Cash;;">>
+        end
+
+      assert {:error, :invalid_encoding} =
+               PortfolioPerformance.parse(csv([@csv_ok, row]), filename: "latin1.csv"),
+             cell
+    end
+
+    body =
+      <<(~s({"version":1,"transactions":[{"type":"DEPOSIT","note":"M)), 0xFC, ~s(nchen"}]})>>
+
+    assert {:error, :invalid_encoding} = PortfolioPerformance.parse(body, filename: "x.json")
+
+    assert {:ok, %Preview{entries: [_]}} =
+             PortfolioPerformance.parse("\uFEFF" <> csv([@csv_ok]), filename: "bom.csv")
+  end
+
+  # User story (E25 S5, F33, board 11):
+  # As an operator importing an export with a security entry that names nothing,
+  # I want that row listed as a parser warning and left out,
+  # so that the rest of the file previews and imports.
+  #
+  # Acceptance criteria:
+  # - A row whose security carries no name, ISIN, WKN or ticker is a row
+  #   warning naming the reason, and is not an entry.
+  # - A security with only a WKN or a ticker is a partial reference and stays.
+  # - The sound rows next to it are entries.
+  test "a security reference that names nothing is a row warning, a partial one stays" do
+    blank = Map.put(base_tx(), "security", %{"currency" => "EUR", "name" => "  "})
+    wkn_only = Map.put(base_tx(), "security", %{"wkn" => "A0RPWH", "currency" => "EUR"})
+    ticker_only = Map.put(base_tx(), "security", %{"ticker" => "SYN", "currency" => "EUR"})
+
+    assert {:ok, %Preview{entries: entries, errors: [%{row: 2, message: message}]}} =
+             PortfolioPerformance.parse(json([base_tx(), blank, wkn_only, ticker_only]),
+               filename: "blank.json"
+             )
+
+    assert message == "security without a name and without an ISIN — row not imported"
+    assert Enum.map(entries, & &1.source_row) == [1, 3, 4]
+  end
+
+  # User story (E25 S5, F35, board 11):
+  # As an operator dropping an export,
+  # I want a file naming more accounts, depots or securities than one preview
+  # can show refused with a named file error,
+  # so that the preview never grows past what the page can render.
+  #
+  # Acceptance criteria:
+  # - A file past the distinct account-and-depot name cap, or past the
+  #   distinct security cap, is refused as {:error, :too_many_names}, in both
+  #   formats.
+  # - A file exactly at each cap still parses.
+  test "a file past the distinct-name cap is refused with a named file error" do
+    %{accounts: accounts, securities: securities} = PortfolioPerformance.max_names()
+
+    deposit = fn i -> "2024-01-15;Einlage;;;;100,00;;;100,00;Cash-#{i};;;" end
+
+    assert {:ok, %Preview{}} =
+             PortfolioPerformance.parse(csv(Enum.map(1..accounts, deposit)), filename: "a.csv")
+
+    assert {:error, :too_many_names} =
+             PortfolioPerformance.parse(csv(Enum.map(1..(accounts + 1), deposit)),
+               filename: "a.csv"
+             )
+
+    buy = fn i ->
+      "2024-01-15 10:01:00;Kauf;Synthetic #{i} AG;1;1,00;1,00;;;1,00;Test-Depot;Test-Cash;;"
+    end
+
+    assert {:ok, %Preview{}} =
+             PortfolioPerformance.parse(csv(Enum.map(1..securities, buy)), filename: "s.csv")
+
+    assert {:error, :too_many_names} =
+             PortfolioPerformance.parse(csv(Enum.map(1..(securities + 1), buy)),
+               filename: "s.csv"
+             )
+
+    depots =
+      Enum.map(1..(accounts + 1), fn i ->
+        base_tx() |> Map.put("portfolio", "Depot-#{i}") |> Map.put("account", "Test-Cash")
+      end)
+
+    assert {:error, :too_many_names} =
+             PortfolioPerformance.parse(json(depots), filename: "d.json")
+  end
+
+  # User story (E25 S5, F38):
+  # As an operator,
+  # I want the row cap to count the entries a file expands into,
+  # so that one transaction splitting into tax refunds cannot multiply what
+  # the preview holds.
+  #
+  # Acceptance criteria:
+  # - A file within the row cap whose rows and split-off tax refunds together
+  #   pass it is refused as {:error, {:too_many_entries, n}}, in both formats,
+  #   before any entry is built.
+  # - A row with more units than one booking carries is a row error, and the
+  #   sound row next to it survives.
+  test "the row cap counts the entries a file expands into" do
+    cap = PortfolioPerformance.max_rows()
+    rows = div(cap, 2) + 1
+
+    refund_tx =
+      Map.put(base_tx(), "units", [%{"type" => "TAX", "amount" => "-1.00"}])
+
+    assert {:error, {:too_many_entries, n}} =
+             PortfolioPerformance.parse(json(List.duplicate(refund_tx, rows)), filename: "r.json")
+
+    assert n == rows * 2
+
+    refund_row =
+      "2024-01-16 10:01:00;Kauf;Synthetic AG;10;150,25;1.502,50;;-1,00;1.502,50;Test-Depot;Test-Cash;;"
+
+    assert {:error, {:too_many_entries, ^n}} =
+             PortfolioPerformance.parse(csv(List.duplicate(refund_row, rows)), filename: "r.csv")
+
+    many_units =
+      Map.put(
+        base_tx(),
+        "units",
+        List.duplicate(
+          %{"type" => "TAX", "amount" => "-1.00"},
+          PortfolioPerformance.max_units() + 1
+        )
+      )
+
+    assert {:ok, %Preview{entries: [_sound], errors: [%{row: 2, message: message}]}} =
+             PortfolioPerformance.parse(json([base_tx(), many_units]), filename: "u.json")
+
+    assert message =~ "units"
+  end
+
+  # User story (E25 S5 review round, F38):
+  # As the operator of an instance with a row cap,
+  # I want the cap to count the refund cell the row is built from,
+  # so that a header naming a column twice cannot hide split-off refunds.
+  #
+  # Acceptance criteria:
+  # - With a repeated tax column, the pre-count reads the same cell as the
+  #   row builder, and a file expanding past the cap is refused.
+  test "the entry cap reads the tax cell the row is built from" do
+    cap = PortfolioPerformance.max_rows()
+    rows = div(cap, 2) + 1
+
+    header = "Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Konto;Steuern"
+    row = "2024-01-02 00:00:00;Zinsen;;;;10,00;0,00;0,00;Cash;-1,00"
+    body = Enum.join([header | List.duplicate(row, rows)], "\n")
+
+    assert {:error, {:too_many_entries, n}} = PortfolioPerformance.parse(body, filename: "t.csv")
+    assert n == rows * 2
+  end
+
+  # User story (E25 S5, F39):
+  # As an operator importing an export with a value no ledger column holds,
+  # I want that row named as a row error in the preview,
+  # so that the apply never fails on it after I confirmed.
+  #
+  # Acceptance criteria:
+  # - A quantity, price, amount, fee, tax or split-off refund past its
+  #   column's integer digits (after rounding to the column's scale) is a
+  #   named row error naming the field; a derived price counts too.
+  # - A number past the parser's bound is a named row error, not an
+  #   inspected term.
+  # - The sound row next to each survives.
+  test "values past their ledger column are named row errors" do
+    for {label, hostile, field} <- [
+          {"amount", Map.put(base_tx(), "amount", "123456789012345678"), "gross amount"},
+          {"shares", Map.put(base_tx(), "shares", "1234567890123456789"), "quantity"},
+          {"derived price",
+           base_tx() |> Map.put("amount", "99999999999999") |> Map.put("shares", "0.0000001"),
+           "price"},
+          {"fee", Map.put(base_tx(), "units", [%{"type" => "FEE", "amount" => "1e15"}]), "fees"},
+          {"refund", Map.put(base_tx(), "units", [%{"type" => "TAX", "amount" => "-1e15"}]),
+           "tax refund"},
+          {"rounds past", Map.put(base_tx(), "amount", "99999999999999.9999999"), "gross amount"},
+          {"parser bound", Map.put(base_tx(), "amount", "1e40"), "number"}
+        ] do
+      assert {:ok, %Preview{entries: [_sound], errors: [%{row: 2, message: message}]}} =
+               PortfolioPerformance.parse(json([base_tx(), hostile]), filename: "b.json"),
+             label
+
+      assert message =~ field, "#{label}: #{message}"
+      refute message =~ "{", "#{label}: #{message}"
+    end
+
+    csv_row =
+      "2024-01-16 10:01:00;Kauf;Synthetic AG;10;150,25;123.456.789.012.345.678,00;;;1.502,50;Test-Depot;Test-Cash;;"
+
+    assert {:ok, %Preview{entries: [_], errors: [%{row: 2, message: message}]}} =
+             PortfolioPerformance.parse(csv([@csv_ok, csv_row]), filename: "b.csv")
+
+    assert message =~ "gross amount"
+  end
+
+  # User story (E25 S5, G23):
+  # As an operator importing an export whose security carries an ISIN that
+  # is not one (a wrong check digit, a letter from another script),
+  # I want that row named as a parser warning and left out,
+  # so that a lookalike never becomes a new security next to the real one.
+  #
+  # Acceptance criteria:
+  # - A row whose ISIN fails the catalog's ISIN predicate is a row warning
+  #   naming the ISIN rule, and is not an entry.
+  # - A row with a valid ISIN next to it is an entry.
+  test "a malformed ISIN is a row warning" do
+    with_isin = fn isin ->
+      Map.put(base_tx(), "security", %{
+        "name" => "Synthetic AG",
+        "isin" => isin,
+        "currency" => "EUR"
+      })
+    end
+
+    for isin <- ["DE000ACME009", "D\u0415000ACME008", "DE000ACME008\u200B"] do
+      assert {:ok, %Preview{entries: [entry], errors: [%{row: 2, message: message}]}} =
+               PortfolioPerformance.parse(json([with_isin.("DE000ACME008"), with_isin.(isin)]),
+                 filename: "isin.json"
+               ),
+             isin
+
+      assert entry.security.isin == "DE000ACME008"
+      assert message =~ "is not a valid ISIN", isin
+      assert message =~ "row not imported", isin
+    end
+  end
+
   test "a version-1 payload whose transactions are not a list is malformed, and a BOM is not a column" do
     assert {:error, :malformed_payload} =
              PortfolioPerformance.parse(~s({"version":1,"transactions":"x"}), filename: "x.json")

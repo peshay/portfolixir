@@ -38,6 +38,8 @@ defmodule Portfolixir.Knowledge.SecurityEvent do
   import Ecto.Changeset
 
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Input.BoundedDate
+  alias Portfolixir.Input.Text
 
   @kinds ~w(earnings ex_dividend dividend_payment lockup_expiry index_review
             shareholder_meeting regulatory_decision guidance_update)a
@@ -103,20 +105,39 @@ defmodule Portfolixir.Knowledge.SecurityEvent do
 
   @closed_sets [kind: @kinds, timing: @timings, source_quality: @source_qualities]
 
-  @doc false
-  def changeset(event, attrs) do
+  @doc """
+  Re-points an event onto `security_id` and nothing else (ADR-0050 §9: a
+  security merge moves the source's events onto the target). The event's
+  facts are not re-validated: they are stored as they were.
+  """
+  def reassign_changeset(%__MODULE__{} = event, security_id) when is_integer(security_id) do
+    event
+    |> change(security_id: security_id)
+    |> assoc_constraint(:security)
+  end
+
+  @doc """
+  Builds an event's changeset. `today` is injected by the context shell (the
+  clock stays out of schemas, AR-2): a `checked_at` later than `today` plus
+  one day of zone slack is refused (E25 S6, G09) — it is the day the source
+  was re-read, and a future one hid the event from the stale-calendar read.
+  """
+  def changeset(event, attrs, %Date{} = today) do
     event
     |> cast(attrs, @castable)
     |> cast_closed_sets(attrs)
     |> update_change(:source_url, &trim_text/1)
     |> update_change(:note, &trim_text/1)
     |> validate_required([:security_id, :kind, :date, :timing, :source_quality])
+    |> BoundedDate.validate([:date, :date_end, :checked_at])
+    |> validate_checked_by(today)
     # The link is rendered as an anchor and handed to an agent as a source:
     # only http(s) — never javascript:, data: or a bare path.
     |> validate_format(:source_url, ~r{\Ahttps?://\S+\z}i, message: "must be an http(s) URL")
     # The column is varchar(255); without this a tracking-laden link is a
     # Postgrex 22001 and a 500 instead of a field error the caller can read.
-    |> validate_length(:source_url, max: @max_source_url, count: :codepoints)
+    |> Text.validate(:source_url, max: @max_source_url)
+    |> Text.validate(:note, multiline: true, max: Text.free_text_max())
     |> validate_window()
     |> validate_machine_generated_source()
     |> foreign_key_constraint(:security_id)
@@ -125,6 +146,17 @@ defmodule Portfolixir.Knowledge.SecurityEvent do
     |> check_constraint(:source_quality, name: :security_events_source_quality_check)
     |> check_constraint(:date_end, name: :security_events_window_end_check)
     |> check_constraint(:source_url, name: :security_events_machine_generated_source_check)
+    |> check_constraint(:note, name: :security_events_note_length_check)
+  end
+
+  defp validate_checked_by(changeset, today) do
+    latest = Date.add(today, 1)
+
+    validate_change(changeset, :checked_at, fn :checked_at, checked_at ->
+      if Date.compare(checked_at, latest) == :gt,
+        do: [checked_at: {"must not be later than tomorrow", validation: :not_future}],
+        else: []
+    end)
   end
 
   # §3: only a window carries a range, and it never runs backwards. Stating it

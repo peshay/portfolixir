@@ -133,7 +133,8 @@ _All screenshots use the synthetic demo dataset in
 
 ### Run with Docker Compose
 
-Copy `.env.example` to `.env`, set the secrets, then:
+Create `.env` from `.env.example`, readable by you only
+(`install -m 600 .env.example .env`), set the secrets, then:
 
 ```sh
 docker compose up --build
@@ -174,10 +175,13 @@ Set a local API token before using `/api/v1`:
 export PORTFOLIXIR_API_TOKEN=replace-me
 ```
 
-Run the MCP companion separately when you do not use Docker Compose:
+Run the MCP companion separately when you do not use Docker Compose.
+`npm ci` installs exactly the versions in `package-lock.json`, and
+`--ignore-scripts` keeps every dependency's install-time script from running,
+as CI's install does:
 
 ```sh
-npm install --prefix mcp-server
+npm ci --ignore-scripts --prefix mcp-server
 npm run build --prefix mcp-server
 PORTFOLIXIR_API_BASE_URL=http://127.0.0.1:4000 \
 PORTFOLIXIR_API_TOKEN=replace-me \

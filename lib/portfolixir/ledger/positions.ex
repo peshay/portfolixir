@@ -26,13 +26,24 @@ defmodule Portfolixir.Ledger.Positions do
     ordered = Projection.replay_sort(transactions)
     account_portfolios = Projection.account_portfolios(ordered)
 
-    Enum.reduce(ordered, %{}, fn transaction, positions ->
-      Enum.reduce(
-        Projection.effects(transaction).quantities,
-        positions,
-        &apply_quantity_leg(&1, &2, account_portfolios)
-      )
-    end)
+    Enum.reduce(ordered, %{}, &apply_transaction(&2, &1, account_portfolios))
+  end
+
+  @doc """
+  One step of `calculate/1`: `positions` after `transaction`'s quantity legs,
+  for a fold that needs the positions after each booking rather than only at
+  the end (the depot merge's day-by-day linearity check, ADR-0050 §7).
+  `account_portfolios` is `Projection.account_portfolios/1` over the whole
+  stream, and the caller replays in `Projection.replay_sort/1` order — the
+  same two things `calculate/1` does, so a step-wise fold ends where it does.
+  """
+  @spec apply_transaction(map(), map(), map()) :: map()
+  def apply_transaction(positions, transaction, account_portfolios) do
+    Enum.reduce(
+      Projection.effects(transaction).quantities,
+      positions,
+      &apply_quantity_leg(&1, &2, account_portfolios)
+    )
   end
 
   # A scale leg multiplies the held quantity of every `{account, security}`

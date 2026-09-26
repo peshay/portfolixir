@@ -18,12 +18,15 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
   alias Portfolixir.Ledger.Transaction
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.LiveEventGuard
+  alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.SecuritiesLive
 
   @impl true
   def mount(socket) do
     {:ok,
      socket
+     |> LiveEventGuard.attach()
      |> assign(:form, %{"ratio_numerator" => "", "ratio_denominator" => "", "date" => ""})
      |> assign(:preview, nil)
      |> assign(:error, nil)}
@@ -214,12 +217,13 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
     {:noreply, socket}
   end
 
+  # The wizard's fields, as the strings its inputs send (E25 S4, F17).
   def handle_event("preview", %{"split" => params}, socket) do
-    {:noreply, socket |> assign(:form, params) |> run_preview()}
+    {:noreply, socket |> assign(:form, split_form(params)) |> run_preview()}
   end
 
   def handle_event("confirm", %{"split" => params}, socket) do
-    socket = assign(socket, :form, params)
+    socket = assign(socket, :form, split_form(params))
 
     case Splits.book_split(Actor.owner_ui(), split_attrs(socket)) do
       {:ok, transactions} ->
@@ -229,6 +233,17 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
       {:error, reason} ->
         {:noreply, socket |> assign(:error, error_message(reason)) |> assign(:preview, nil)}
     end
+  end
+
+  # An event this component does not know, or a payload it cannot read,
+  # changes nothing (E25 S4, F17).
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
+  defp split_form(params) do
+    Map.merge(
+      %{"date" => "", "ratio_numerator" => "", "ratio_denominator" => ""},
+      params |> LiveParam.form() |> Map.take(~w(date ratio_numerator ratio_denominator))
+    )
   end
 
   defp run_preview(%{assigns: %{form: form}} = socket) do
@@ -347,6 +362,12 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
     do: gettext("The ratio must change the share count — a 1:1 split does nothing.")
 
   defp error_message(:invalid_date), do: gettext("Enter a valid effective date.")
+
+  defp error_message(:cumulative_factor_out_of_range),
+    do:
+      gettext(
+        "This ratio, together with the splits already booked for this security, would scale it by more than 10^12."
+      )
 
   defp error_message(:future_effective_date),
     do: gettext("The effective date must not be in the future.")

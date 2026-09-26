@@ -32,8 +32,12 @@ defmodule Portfolixir.Application do
       Portfolixir.Repo,
       {Phoenix.PubSub, name: Portfolixir.PubSub},
       {Task.Supervisor, name: Portfolixir.LogoSupervisor},
+      # One run per key for a security's sync and the FX backfill (E25, G04).
+      Portfolixir.SingleFlight,
       Portfolixir.Auth.Throttle,
       {Portfolixir.Catalog.LogoDiscovery, []},
+      # The one serial queue for new securities' quote backfill (E25, G04).
+      {Portfolixir.Catalog.QuoteEnrichment, []},
       {Portfolixir.Catalog.QuoteSync,
        Application.get_env(:portfolixir, Portfolixir.Catalog.QuoteSync, [])},
       {Portfolixir.Fx.RateSync, Application.get_env(:portfolixir, Portfolixir.Fx.RateSync, [])},
@@ -48,25 +52,37 @@ defmodule Portfolixir.Application do
        :portfolixir
        |> Application.get_env(Portfolixir.Derived.Refresher, [])
        |> Keyword.put_new(:refresh, &Warmup.warm_basis/1)},
+      # The post-commit bump (E25 S6, F47): settles the data-version events a
+      # writer marked pending once its transaction has committed.
+      {Portfolixir.Derived.PostCommit,
+       Application.get_env(:portfolixir, Portfolixir.Derived.PostCommit, [])},
       PortfolixirWeb.Endpoint
     ]
   end
 
-  # ADR-0045 §2 (#758): bound beyond loopback with no UI password is named in
-  # the log at startup. The decision is a pure function so it is unit-tested;
-  # this is only the wiring.
+  # ADR-0045 §2 (#758): bound beyond loopback with no UI password, or (T-2,
+  # E25 S1 F67) with a short one, is named in the log at startup. The decisions
+  # are pure functions so they are unit-tested; this is only the wiring.
   defp warn_if_exposed do
-    ip =
-      :portfolixir
-      |> Application.get_env(PortfolixirWeb.Endpoint, [])
-      |> get_in([:http, :ip])
+    ip = listen_ip()
 
     password =
       Application.get_env(:portfolixir, :ui_password) || System.get_env("PORTFOLIXIR_UI_PASSWORD")
 
-    case Portfolixir.RuntimeConfig.exposure_warning(ip || {127, 0, 0, 1}, password) do
-      :ok -> :ok
-      {:warn, message} -> Logger.warning(message)
+    for {:warn, message} <- [
+          Portfolixir.RuntimeConfig.exposure_warning(ip, password),
+          Portfolixir.RuntimeConfig.password_warning(ip, password)
+        ] do
+      Logger.warning(message)
+    end
+
+    :ok
+  end
+
+  defp listen_ip do
+    case get_in(Application.get_env(:portfolixir, PortfolixirWeb.Endpoint, []), [:http, :ip]) do
+      nil -> {127, 0, 0, 1}
+      ip -> ip
     end
   end
 

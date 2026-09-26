@@ -25,7 +25,8 @@ defmodule Portfolixir.Portfolios.Target do
   (`security_id` NULL), and a position is unique within a plan per
   `(category, security)`. So one category row and N position rows can coexist for
   the same category; a category's effective target rolls up from its positions
-  (see `Portfolixir.Portfolios.Targets`).
+  (see `Portfolixir.Portfolios.Targets`). A third partial unique index (E25 S6,
+  G13) keeps a security to one position row per plan, whatever its category.
   """
 
   use Ecto.Schema
@@ -34,8 +35,11 @@ defmodule Portfolixir.Portfolios.Target do
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Classifications.Category
   alias Portfolixir.Classifications.Classification
+  alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.TargetPlan
+
+  @type t :: %__MODULE__{}
 
   schema "portfolio_targets" do
     field(:target_weight, :decimal)
@@ -58,6 +62,15 @@ defmodule Portfolixir.Portfolios.Target do
     timestamps()
   end
 
+  @weight_scale 6
+
+  @doc """
+  The most decimal places a target or cash-target weight carries (E25 S4,
+  G14): a fraction to a millionth, a percentage to four places.
+  """
+  @spec weight_scale() :: pos_integer()
+  def weight_scale, do: @weight_scale
+
   def changeset(target, attrs) do
     target
     |> cast(attrs, [
@@ -79,6 +92,11 @@ defmodule Portfolixir.Portfolios.Target do
       greater_than_or_equal_to: 0,
       less_than_or_equal_to: 1
     )
+    # E25 S4 (G14): a weight carries at most `weight_scale/0` decimal places,
+    # so the allocation's renormalisation never works at a precision the plan
+    # does not hold. The database refuses a finer one as well.
+    |> BoundedDecimal.validate_scale(:target_weight, weight_scale())
+    |> check_constraint(:target_weight, name: :portfolio_targets_target_weight_scale_check)
     |> assoc_constraint(:plan)
     |> assoc_constraint(:portfolio)
     |> assoc_constraint(:classification)
@@ -93,5 +111,28 @@ defmodule Portfolixir.Portfolios.Target do
     |> unique_constraint([:plan_id, :category_id, :security_id],
       name: :portfolio_targets_plan_category_security_index
     )
+    # E25 S6 (G13): one position row per security in a plan, held by the
+    # database, so a write that loses a race to file the security under
+    # another category is refused here; `Targets` answers it as the
+    # duplicate-position refusal.
+    |> unique_constraint(:security_id, name: :portfolio_targets_plan_security_index)
+  end
+
+  @doc """
+  Re-points a **position** row onto `security_id` and nothing else (ADR-0050
+  §9: a security merge moves the source's position targets onto the target
+  where they neither collide nor go stale). Plan, category and weight stay;
+  the partial unique indexes are declared, so a target that gained a row in
+  the plan meanwhile is a changeset error.
+  """
+  def reassign_changeset(%__MODULE__{security_id: from} = target, security_id)
+      when is_integer(from) and is_integer(security_id) do
+    target
+    |> change(security_id: security_id)
+    |> assoc_constraint(:security)
+    |> unique_constraint([:plan_id, :category_id, :security_id],
+      name: :portfolio_targets_plan_category_security_index
+    )
+    |> unique_constraint(:security_id, name: :portfolio_targets_plan_security_index)
   end
 end

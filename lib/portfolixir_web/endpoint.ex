@@ -15,25 +15,35 @@ defmodule PortfolixirWeb.Endpoint do
 
   socket("/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]])
 
+  # First of all, so a body or a read that runs away fails its own process
+  # rather than the node (E25 S4, G05).
+  plug(PortfolixirWeb.HeapCap)
+
   # Ahead of everything, including static files: a request under a foreign
   # Host never reaches the router (ADR-0045 §2, #758).
   plug(PortfolixirWeb.HostGuard)
 
   # Behind a proxy the operator has named, the throttle sees the client the
-  # proxy vouches for rather than the proxy (#771).
+  # proxy vouches for rather than the proxy (#771). Behind a TLS-terminating
+  # proxy the scheme arrives in x-forwarded-proto, which is what lets the
+  # session cookie carry Secure and the opt-in SSL plug see https (#759); the
+  # same plug believes it only from loopback or a named proxy (E25 S1, F09).
   plug(PortfolixirWeb.TrustedProxy)
-
-  # Behind a TLS-terminating proxy the scheme arrives in x-forwarded-proto;
-  # rewriting it here is what lets the session cookie carry Secure and the
-  # opt-in SSL plug see https (#759).
-  plug(Plug.RewriteOn, [:x_forwarded_proto])
   plug(PortfolixirWeb.OptionalSsl)
+
+  # Every static response says what the browser pipeline's pages say:
+  # nosniff (#763), and this origin as the only reader (E25 S7, F07), so a
+  # page on another site can neither embed nor probe the instance's assets.
+  @static_headers [
+    {"x-content-type-options", "nosniff"},
+    {"cross-origin-resource-policy", "same-origin"}
+  ]
 
   plug(Plug.Static,
     at: "/",
     from: :portfolixir,
     gzip: false,
-    headers: [{"x-content-type-options", "nosniff"}],
+    headers: @static_headers,
     # Stored logos are named by security id and say which companies the
     # operator holds; they are served by a route behind the UI login (#764).
     only: ~w(app.css favicon.ico favicon.svg images)
@@ -43,7 +53,7 @@ defmodule PortfolixirWeb.Endpoint do
     at: "/vendor",
     from: {:phoenix, "priv/static"},
     gzip: false,
-    headers: [{"x-content-type-options", "nosniff"}],
+    headers: @static_headers,
     only: ~w(phoenix.min.js)
   )
 
@@ -51,7 +61,7 @@ defmodule PortfolixirWeb.Endpoint do
     at: "/vendor",
     from: {:phoenix_live_view, "priv/static"},
     gzip: false,
-    headers: [{"x-content-type-options", "nosniff"}],
+    headers: @static_headers,
     only: ~w(phoenix_live_view.min.js)
   )
 

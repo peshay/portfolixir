@@ -23,6 +23,7 @@ defmodule Portfolixir.Classifications do
   alias Portfolixir.Classifications.Classification
   alias Portfolixir.Journal
   alias Portfolixir.Portfolios.PolicyRules
+  alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Repo
 
   @builtin_keys ~w(asset_class currency)
@@ -279,7 +280,10 @@ defmodule Portfolixir.Classifications do
 
   def update_classification(%Actor{} = actor, %Classification{} = classification, attrs) do
     Multi.new()
-    |> Multi.update(:classification, Classification.changeset(classification, attrs))
+    |> Multi.update(
+      :classification,
+      &Classification.changeset(Journal.locked_row(&1), attrs)
+    )
     |> Journal.record(actor,
       resource_type: "classification",
       operation: :update,
@@ -301,7 +305,27 @@ defmodule Portfolixir.Classifications do
     end
   end
 
-  defp delete_unreferenced_classification(actor, classification) do
+  # E25 S6, F43: the tree's rows go first, each through its journaled writer
+  # — every plan with its targets, every stored assignment, every category
+  # leaves first — then the classification; the foreign keys' cascades stay
+  # as a backstop that finds nothing left. The classification row is locked
+  # first, so no category, assignment or plan lands on it in between.
+  defp delete_unreferenced_classification(actor, %Classification{id: id} = classification) do
+    fn ->
+      with {:ok, _locked} <- lock_classification(id),
+           {:ok, _} <- Targets.delete_plans_for_classification(actor, id),
+           :ok <- unassign_where(actor, dynamic([a], a.classification_id == ^id)),
+           :ok <- delete_categories(actor, list_categories(id)),
+           {:ok, deleted} <- delete_classification_row(actor, classification) do
+        deleted
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end
+    |> Repo.transaction()
+  end
+
+  defp delete_classification_row(actor, classification) do
     Multi.new()
     |> Multi.delete(
       :classification,
@@ -320,47 +344,105 @@ defmodule Portfolixir.Classifications do
     |> classification_result()
   end
 
-  defp classification_result({:ok, %{classification: classification}}), do: {:ok, classification}
-
-  defp classification_result({:error, :classification, %Ecto.Changeset{} = changeset, _}),
-    do: {:error, changeset}
-
-  defp category_result({:ok, %{category: category}}), do: {:ok, category}
-
-  defp category_result({:error, :category, %Ecto.Changeset{} = changeset, _}),
-    do: {:error, changeset}
-
-  # -- custom categories ----------------------------------------------------
-
-  def create_category(%Actor{} = actor, attrs) when is_map(attrs) do
-    with {:ok, classification} <- fetch_classification(attrs),
-         :ok <- ensure_custom(classification) do
-      Multi.new()
-      |> Multi.insert(:category, Category.changeset(%Category{}, attrs))
-      |> Journal.record(actor, resource_type: "category", operation: :create, source: :category)
-      |> Repo.transaction()
-      |> category_result()
+  defp lock_classification(id) do
+    case Repo.one(from(c in Classification, where: c.id == ^id, lock: "FOR UPDATE")) do
+      nil -> {:error, :not_found}
+      classification -> {:ok, classification}
     end
   end
 
-  def update_category(%Actor{} = actor, %Category{} = category, attrs) do
-    with :ok <- ensure_custom_category(category) do
-      Multi.new()
-      |> Multi.update(:category, Category.changeset(category, attrs))
-      |> Journal.record(actor,
-        resource_type: "category",
-        operation: :update,
-        source: :category,
-        before: category
-      )
-      |> Repo.transaction()
-      |> category_result()
+  # The stored assignments matching `condition`, locked and removed one by
+  # one through the journaled delete.
+  defp unassign_where(actor, condition) do
+    from(a in Assignment, where: ^condition, order_by: a.id, lock: "FOR UPDATE")
+    |> Repo.all()
+    |> Enum.reduce_while(:ok, fn assignment, :ok ->
+      case delete_assignment(actor, assignment) do
+        {:ok, _} -> {:cont, :ok}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  # Categories are deleted leaves first, so a parent's delete never cascades
+  # to a child the journal has not recorded. A loop stored before the parent
+  # guard (E25 S4, F11) has no leaf: it is broken first by a journaled update
+  # of its lowest id, whose parent becomes none (E25 S6 review round, M4), so
+  # every category of the loop is then deleted with its own entry. A row the
+  # backstop cascade removed first is still skipped.
+  defp delete_categories(actor, categories) do
+    with {:ok, categories} <- break_loops(actor, categories) do
+      categories
+      |> leaves_first()
+      |> Enum.reduce_while(:ok, fn category, :ok ->
+        case delete_category_row(actor, category) do
+          {:ok, _} -> {:cont, :ok}
+          :gone -> {:cont, :ok}
+          {:error, reason} -> {:halt, {:error, reason}}
+        end
+      end)
     end
   end
 
-  def delete_category(%Actor{} = actor, %Category{} = category) do
-    with :ok <- ensure_custom_category(category),
-         :ok <- subtree_not_read_by_rules(category) do
+  defp break_loops(actor, categories) do
+    heads = loop_heads(categories)
+
+    Enum.reduce_while(categories, {:ok, []}, fn category, {:ok, acc} ->
+      if MapSet.member?(heads, category.id) do
+        case break_loop(actor, category) do
+          {:ok, broken} -> {:cont, {:ok, [broken | acc]}}
+          {:error, reason} -> {:halt, {:error, reason}}
+        end
+      else
+        {:cont, {:ok, [category | acc]}}
+      end
+    end)
+    |> case do
+      {:ok, categories} -> {:ok, Enum.reverse(categories)}
+      error -> error
+    end
+  end
+
+  # The lowest id of every parent loop among `categories` (a self-parent is
+  # a loop of one).
+  defp loop_heads(categories) do
+    parents = Map.new(categories, &{&1.id, &1.parent_id})
+
+    Enum.reduce(Map.keys(parents), MapSet.new(), fn id, heads ->
+      case loop_from(id, parents, []) do
+        nil -> heads
+        loop -> MapSet.put(heads, Enum.min(loop))
+      end
+    end)
+  end
+
+  # Follows parent links from `id`; the members of the loop the walk enters,
+  # or nil when it leaves the set or reaches a root. `path` is the walk so
+  # far, latest first.
+  defp loop_from(id, parents, path) do
+    cond do
+      id in path -> [id | Enum.take_while(path, &(&1 != id))]
+      not Map.has_key?(parents, id) -> nil
+      is_nil(Map.fetch!(parents, id)) -> nil
+      true -> loop_from(Map.fetch!(parents, id), parents, [id | path])
+    end
+  end
+
+  defp break_loop(actor, %Category{} = category) do
+    Multi.new()
+    |> Multi.update(:category, &Ecto.Changeset.change(Journal.locked_row(&1), parent_id: nil))
+    |> Journal.record(actor,
+      resource_type: "category",
+      operation: :update,
+      source: :category,
+      before: category
+    )
+    |> Repo.transaction()
+    |> category_result()
+  end
+
+  defp delete_category_row(actor, %Category{id: id} = category) do
+    if Repo.exists?(from(c in Category, where: c.id == ^id)) do
       Multi.new()
       |> Multi.delete(
         :category,
@@ -376,10 +458,189 @@ defmodule Portfolixir.Classifications do
       )
       |> Repo.transaction()
       |> category_result()
+    else
+      :gone
     end
   end
 
+  defp leaves_first(categories) do
+    parents = Map.new(categories, &{&1.id, &1.parent_id})
+
+    Enum.sort_by(categories, &{-depth(&1.id, parents, MapSet.new()), &1.id})
+  end
+
+  defp depth(id, parents, seen) do
+    case Map.get(parents, id) do
+      nil ->
+        0
+
+      parent_id ->
+        if MapSet.member?(seen, id) or not Map.has_key?(parents, parent_id),
+          do: 0,
+          else: 1 + depth(parent_id, parents, MapSet.put(seen, id))
+    end
+  end
+
+  defp classification_result({:ok, %{classification: classification}}), do: {:ok, classification}
+
+  defp classification_result({:error, :classification, %Ecto.Changeset{} = changeset, _}),
+    do: {:error, changeset}
+
+  # The row was deleted before the write took its lock (E25 S6, F49).
+  defp classification_result({:error, {:journal_lock, _}, :not_found, _}),
+    do: {:error, :not_found}
+
+  defp category_result({:ok, %{category: category}}), do: {:ok, category}
+
+  defp category_result({:error, :category, %Ecto.Changeset{} = changeset, _}),
+    do: {:error, changeset}
+
+  defp category_result({:error, {:journal_lock, _}, :not_found, _}), do: {:error, :not_found}
+
+  # -- custom categories ----------------------------------------------------
+
+  def create_category(%Actor{} = actor, attrs) when is_map(attrs) do
+    with {:ok, classification} <- fetch_classification(attrs),
+         :ok <- ensure_custom(classification) do
+      Multi.new()
+      |> lock_tree(classification.id)
+      |> Multi.insert(:category, fn _ ->
+        %Category{} |> Category.changeset(attrs) |> validate_parent()
+      end)
+      |> Journal.record(actor, resource_type: "category", operation: :create, source: :category)
+      |> Repo.transaction()
+      |> category_result()
+    end
+  end
+
+  # A category stays in the classification it was created in: moving it
+  # would leave its children and its parent in another tree.
+  def update_category(%Actor{} = actor, %Category{} = category, attrs) do
+    attrs = Map.drop(attrs, ["classification_id", :classification_id])
+
+    with :ok <- ensure_custom_category(category) do
+      Multi.new()
+      |> Multi.update(:category, fn changes ->
+        changes |> Journal.locked_row() |> Category.changeset(attrs) |> validate_parent()
+      end)
+      |> Journal.record(actor,
+        resource_type: "category",
+        operation: :update,
+        source: :category,
+        before: category
+      )
+      # The tree first, then the row: the order a category delete takes them
+      # in (F43), so the two never wait on each other.
+      |> Multi.prepend(lock_tree(Multi.new(), category.classification_id))
+      |> Repo.transaction()
+      |> category_result()
+    end
+  end
+
+  # E25 S6, F43: the subtree's rows go first, each through its journaled
+  # writer — the targets filed under its categories, the securities assigned
+  # there, the categories below it leaves first — then the category itself.
+  # The tree is locked first, as every parent write locks it.
+  def delete_category(%Actor{} = actor, %Category{} = category) do
+    with :ok <- ensure_custom_category(category),
+         :ok <- subtree_not_read_by_rules(category) do
+      fn ->
+        with {:ok, _tree} <- lock_classification(category.classification_id),
+             subtree = subtree(category),
+             ids = Enum.map(subtree, & &1.id),
+             {:ok, _} <- Targets.delete_targets_for_categories(actor, ids),
+             :ok <- unassign_where(actor, dynamic([a], a.category_id in ^ids)),
+             :ok <- delete_categories(actor, subtree) do
+          category
+        else
+          {:error, reason} -> Repo.rollback(reason)
+        end
+      end
+      |> Repo.transaction()
+      |> case do
+        {:ok, _} -> {:ok, category}
+        {:error, reason} -> {:error, reason}
+      end
+    end
+  end
+
+  # The category and every category below it, as stored now.
+  defp subtree(%Category{id: id, classification_id: classification_id}) do
+    categories = list_categories(classification_id)
+    ids = subtree_ids(categories, MapSet.new([id]))
+    Enum.filter(categories, &MapSet.member?(ids, &1.id))
+  end
+
   def get_category(id) when is_integer(id), do: Repo.get(Category, id)
+
+  # Parent writes in one classification run one at a time, so two re-homings
+  # that are each acyclic cannot commit a loop between them.
+  defp lock_tree(multi, classification_id) do
+    Multi.run(multi, :tree_lock, fn repo, _changes ->
+      Classification
+      |> where(id: ^classification_id)
+      |> lock("FOR UPDATE")
+      |> select([c], c.id)
+      |> repo.one()
+      |> then(&{:ok, &1})
+    end)
+  end
+
+  # A parent is a category of the same classification that is neither the
+  # category itself nor one of its descendants. Checked only when the parent
+  # changes, so a loop stored before this guard can still be renamed or
+  # re-homed out of. An id that names no category is the foreign key's.
+  defp validate_parent(%Ecto.Changeset{valid?: true} = changeset) do
+    case Ecto.Changeset.fetch_change(changeset, :parent_id) do
+      {:ok, parent_id} when is_integer(parent_id) ->
+        check_parent(changeset, parent_id)
+
+      _ ->
+        changeset
+    end
+  end
+
+  defp validate_parent(changeset), do: changeset
+
+  defp check_parent(changeset, parent_id) do
+    classification_id = Ecto.Changeset.get_field(changeset, :classification_id)
+
+    parents =
+      Category
+      |> where(classification_id: ^classification_id)
+      |> select([c], {c.id, c.parent_id})
+      |> Repo.all()
+      |> Map.new()
+
+    cond do
+      not Map.has_key?(parents, parent_id) and Repo.exists?(where(Category, id: ^parent_id)) ->
+        Ecto.Changeset.add_error(changeset, :parent_id, "must belong to the same classification")
+
+      ancestor_or_self?(parent_id, changeset.data.id, parents) ->
+        Ecto.Changeset.add_error(
+          changeset,
+          :parent_id,
+          "would make the category its own ancestor"
+        )
+
+      true ->
+        changeset
+    end
+  end
+
+  # Whether walking up from `id` meets `target` (a new category has no id and
+  # meets nothing). The visited set ends the walk on a loop already stored.
+  defp ancestor_or_self?(_id, nil, _parents), do: false
+  defp ancestor_or_self?(id, target, parents), do: walk_up(id, target, parents, MapSet.new())
+
+  defp walk_up(nil, _target, _parents, _seen), do: false
+  defp walk_up(target, target, _parents, _seen), do: true
+
+  defp walk_up(id, target, parents, seen) do
+    if MapSet.member?(seen, id),
+      do: false,
+      else: walk_up(Map.get(parents, id), target, parents, MapSet.put(seen, id))
+  end
 
   # ADR-0049 §8: the rules that read an object answer its delete, by name.
   defp not_read_by_rules(kind, id) do
@@ -429,7 +690,7 @@ defmodule Portfolixir.Classifications do
   """
   def recolor_category(%Actor{} = actor, %Category{} = category, color) do
     Multi.new()
-    |> Multi.update(:category, Category.color_changeset(category, color))
+    |> Multi.update(:category, &Category.color_changeset(Journal.locked_row(&1), color))
     |> Journal.record(actor,
       resource_type: "category",
       operation: :update,
@@ -483,6 +744,32 @@ defmodule Portfolixir.Classifications do
     |> assignment_result()
   end
 
+  @doc """
+  Moves a stored assignment onto the security `security_id` on behalf of
+  `actor` (ADR-0050 §9: a security merge re-points the source's assignment
+  where the target has none in that classification): the same row, one
+  journaled `security_category_assignment` update with the row as stored
+  under its lock as the before-image. Answers `{:ok, assignment}`,
+  `{:error, :not_found}` for a row gone, or `{:error, changeset}`.
+  """
+  @spec reassign_assignment(Actor.t(), Assignment.t(), integer()) ::
+          {:ok, Assignment.t()} | {:error, :not_found | Ecto.Changeset.t()}
+  def reassign_assignment(%Actor{} = actor, %Assignment{} = assignment, security_id)
+      when is_integer(security_id) do
+    Multi.new()
+    |> Multi.update(:assignment, fn changes ->
+      changes |> Journal.locked_row() |> Assignment.reassign_changeset(security_id)
+    end)
+    |> Journal.record(actor,
+      resource_type: "security_category_assignment",
+      operation: :update,
+      source: :assignment,
+      before: assignment
+    )
+    |> Repo.transaction()
+    |> assignment_result()
+  end
+
   defp delete_assignment(actor, %Assignment{} = assignment) do
     Multi.new()
     |> Multi.delete(:assignment, assignment)
@@ -500,6 +787,8 @@ defmodule Portfolixir.Classifications do
 
   defp assignment_result({:error, :assignment, %Ecto.Changeset{} = changeset, _}),
     do: {:error, changeset}
+
+  defp assignment_result({:error, {:journal_lock, _}, :not_found, _}), do: {:error, :not_found}
 
   @doc """
   The set of security ids carrying at least one stored (custom-tree) category
@@ -524,7 +813,12 @@ defmodule Portfolixir.Classifications do
         {:ok, 0}
 
       %Assignment{} = assignment ->
-        with {:ok, _} <- delete_assignment(actor, assignment), do: {:ok, 1}
+        # An assignment another writer removed first is already gone (F49).
+        case delete_assignment(actor, assignment) do
+          {:ok, _} -> {:ok, 1}
+          {:error, :not_found} -> {:ok, 0}
+          {:error, reason} -> {:error, reason}
+        end
     end
   end
 
@@ -565,6 +859,9 @@ defmodule Portfolixir.Classifications do
           [a],
           a.classification_id == ^classification_id and a.security_id in ^security_ids
         )
+        # Locked, so each per-row delete below finds its row (E25 S6, F49):
+        # one removed by another writer first is simply not listed.
+        |> lock("FOR UPDATE")
         |> Repo.all()
 
       Enum.each(assignments, fn assignment ->
@@ -748,10 +1045,13 @@ defmodule Portfolixir.Classifications do
 
       %Category{color: nil} = category when not is_nil(color) ->
         # Backfill a default color, but never overwrite a user-chosen one. This
-        # one-time write is journaled under the same built-in seed actor.
+        # one-time write is journaled under the same built-in seed actor. It
+        # decides on the row as stored under the write's lock (E25 S6 review
+        # round, M5): a color chosen after the read above stays, and the
+        # unchanged row leaves no entry.
         {:ok, updated} =
           Multi.new()
-          |> Multi.update(:category, Ecto.Changeset.change(category, color: color))
+          |> Multi.update(:category, &backfill_color(Journal.locked_row(&1), color))
           |> Journal.record(builtin_actor(),
             resource_type: "category",
             operation: :update,
@@ -767,6 +1067,11 @@ defmodule Portfolixir.Classifications do
         category
     end
   end
+
+  defp backfill_color(%Category{color: nil} = category, color),
+    do: Ecto.Changeset.change(category, color: color)
+
+  defp backfill_color(%Category{} = category, _color), do: Ecto.Changeset.change(category)
 
   # -- internals ------------------------------------------------------------
 

@@ -42,6 +42,11 @@ builds a pick writes its anatomy into `DESIGN.md`.
 | **G12.2** | Stored text carrying invisible characters (G20) | `12-e25-new-marks` | an inline escape chip per character · one attention data note with the escaped text in a disclosure | **B** |
 | **G12.3** | Editing a stored split row (G07) | `12-e25-new-marks` | the split's facts disabled, only the note editable · no edit item on split rows | **A** |
 | — | The bucket-delete confirm (G19, T-10) and a zero-value position's drift (G14) | `12-e25-new-marks` | none (before/after) | n/a |
+| **G13.1** | "Merged from …" on a surviving account or depot (ADR-0050 §12), drawn in the batch by L5a (Part 14) | `13-l5a-merged-from` | a sub-line of its own, the source name not repeated under "former" · the former-name line carries the merge in brackets | **A** (recommended; open to a comment) |
+| — | Wealth: a benchmark link naming a merged-away security (ADR-0050 §12) | `13-l5a-merged-from` | none (before/after) | n/a |
+| — | Import preview: same-named accounts told apart in the mapping's lists (#884 F1), and two lists of the result: a moved remembered name, rows behind a set balance a merge adjusted (ADR-0050 §2, §4), drawn in the batch by L5b (Part 15) | `04b-import-memory-ambiguity` | none (before/after) | n/a |
+| **G4b** | Import preview: "+ Create new" for a name the name guard refuses (ADR-0050 §4, #884 F7), drawn in the batch by L5b (Part 15) | `04b-import-memory-ambiguity` | the option stays, disabled, its reason in its own label · the option is left out · the option stays choosable and the row reports a problem | **A** (recommended; open to a comment) |
+| — | Merge refusals and the rename field error the L3–L5 review round changes: the set balance a legacy-hash refusal means, a set balance the amount column cannot hold, a legacy-hash split, the remedy for two split ratios, the way out of a taken name (ADR-0050 §7, §9; drawn before the code, Part 16) | `14-l3l5-review-refusals` | none (before/after) | n/a |
 
 **Items with no board.** #870 (every row kebab named for its row) changes the
 accessible name and nothing a sighted reader sees, which is the rule's stated
@@ -482,3 +487,129 @@ later plan picks each up with its own board.
 6. **The history's split-ratio cell** (board 12): "2:1" sits at the left of
    the right-aligned quantity column and carries no `.num`, the alignment
    family `DESIGN.md` already names.
+
+---
+
+## Part 14 — Drawn in the batch: the survivor of a merge (L5a, board 13)
+
+Two surfaces ADR-0050 §12 names had no board when L5a started, so it drew
+board `13-l5a-merged-from` before building them (the rule: a surface
+discovered mid-batch is boarded before its story is implemented).
+
+**G13.1 — where a surviving account or depot says it was merged from
+another.** Board 01 draws the "former: …" sub-line and board 02 the preview;
+neither draws the survivor afterwards, and after a merge the source's name is
+simply a former name, so a rename and a merge look alike.
+
+- **Variant A (recommended): a sub-line of its own.** Under the name, in the
+  same 12 px `.account-sub` treatment, "merged from <source> · <date>" (the
+  newest, then "+N"); the source's own name is not repeated in the "former"
+  line, its earlier names are. In the rename dialog a former name that
+  arrived by a merge carries a muted origin line; "Remove" is unchanged.
+- **Variant B: the former-name line carries it in brackets.** One line fewer,
+  but two facts in one bracket, and a later rename hides the merge behind
+  "+N".
+
+**Why A.** One fact per line, readable without a click, no new form. The
+batch cannot wait for a pick, so A is built; a comment naming B on the PR
+changes it.
+
+**Three lines board 02's step 2 lacks (before/after, no pick).** Each only
+when it applies, each in a form board 02 already has: a linked depot of the
+source that moves with it (§7 step 5) is one more line in the counts; what
+"remove as duplicates" changes outside the two accounts (§16 invariant 9:
+third accounts, positions, a flow an anchor absorbs) is a muted line inside
+that option, under its consequence line; a split whose rounding differs once
+two positions combine (§7) is a line in the basis under the positions table,
+with its date and ratio.
+
+**The Wealth benchmark note (before/after, no pick).** A remembered or linked
+benchmark naming a merged-away security used to drop silently. After: the
+page redirects to the survivor's selector and shows board 03's note under the
+performance head, dismissible, gone with the next navigation.
+
+---
+
+## Part 15 — Drawn in the batch: two states of the import preview (L5b, board 04b)
+
+Two states of the mapping step that board 04 does not draw were left open by
+the L1/L2 review round (#884, F1 and F7). L5b drew board
+`04b-import-memory-ambiguity`, next to board 04, before building either.
+
+**F1 — same-named accounts told apart (before/after, no pick).** Accounts of
+one name from before the name guard stay (ADR-0050 §4 migrates none), so a
+file name that matches two of them is ambiguous, gets no prefill, and waits
+for a choice. Before, the list showed two identical lines. After, an option
+whose name another account of the same list also carries adds what tells it
+apart, after a middle dot: for a cash account its linked depots ("bei Depot
+1", or "ohne Depot"), else its currency, else its creation date; for a depot
+its cash account ("mit Giro"), else its creation date; the id ("Nr. 14") only
+when nothing else differs. Options with a unique name are unchanged. The
+ambiguous row's attention note names the same labels.
+
+**Two lists of the result (before/after, no pick).** Board 04 draws the
+result with the duplicates by layer, the internal transfers and one appended
+remembered name. It lacks a remembered name that **moved** from another
+account (§4), which says from which, and the rows an import booked **on or
+before a set balance a merge adjusted** (ADR-0050 §2's third limit, §7 step
+4): each is inserted, but that balance absorbs its amount, so the account's
+balance does not change. Before, the result said nothing. After, both are
+lists in the result's existing form (`.import-skipped`: a sentence, then the
+rows), each row with its date, amount, account and the set balance's date.
+
+**G4b — "+ Create new: X" for a name the guard refuses (F7).** An account is
+created with its first new booking, through the name guard. A name that is
+another account's live name, another account's former name, or the name of
+two accounts can never be created, yet the list offered it, and choosing it
+rolled the whole import back at the end.
+
+- **Variant A (recommended): the option stays, disabled, and its own label
+  says why** — "— nicht möglich: Name von Girokonto", "früherer Name von
+  Girokonto" or "Name von 2 Konten", read from the guard itself. The reason
+  stands where it is looked for, and nothing the list offers can fail the
+  import. A stored choice that points at a name taken since counts as not
+  made.
+- **Variant B: the option is left out.** No trap, but the one row without
+  "+ Create new" says nothing about why.
+- **Variant C: the option stays choosable, and the row reports a problem
+  once it is chosen.** The reason is complete, but it follows a choice the
+  page then refuses.
+
+**Why A.** The shape board 02 uses for a target that cannot be chosen (the
+reason as text at the option), no trap, and nothing new to style. The batch
+cannot wait for a pick, so A is built; a comment naming B or C on the PR
+changes it.
+
+## Part 16 — Drawn in the batch: the refusals the L3–L5 review round changes (board 14)
+
+The review round of ADR-0050 L3–L5 changes five texts, each in a form
+boards 02 and 03 already draw, so there is no pick: board
+`14-l3l5-review-refusals` shows each as a before/after, drawn before the
+code.
+
+1. **A set balance that carries an import hash** (Accounts & depots): the
+   refusal now names the balance it means — account, date, number — in the
+   form of board 02's position lines, because its remedy says "change that
+   booking's kind back" and the dialog never said which booking.
+2. **A set balance the amount column cannot hold** (new): a trade booked
+   without its amount books quantity × price, which can carry more than the
+   6 places of an amount, and a set balance adjusted by it could not be
+   stored. The preview now refuses, naming the balance, the trade and the
+   remedy (record the trade's amount), where the confirm used to fail.
+3. **A split that carries an import hash** (securities): the same refusal
+   for a split the merge would have to move; one the merge collapses into
+   the target's split of that day is deleted with its hash retired and
+   refuses nothing.
+4. **Two split ratios on one day**: the remedy board 03 already names —
+   delete the split with the wrong ratio in the Transactions tab — instead
+   of "book the split on that side first", which cannot apply when both
+   sides carry one.
+5. **Renaming to a taken name**: the field error now says the way out
+   (choose another name, or merge or rename that account), as DESIGN.md
+   G1-A asks for every taken name.
+
+Two lines the round also changes reuse board 13's drawn phrases unchanged:
+"a set balance of <account> on <date> absorbs <amount>" now names a third
+account's balance where a collapsed transfer moves a flow into it, and
+"<security> in <depot> <change> shares" names a third depot a collapsed
+transfer changes.

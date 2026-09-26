@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Import: gleichnamige Konten unterscheidbar, „+ Neu anlegen“ für einen vergebenen Namen (ADR-0050 §4, #884, zu Board 04)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  /* Board chrome only. Inside the frames: the live classes of imports_live.ex
+     (.panel.inner, .mapping-grid, .mapping-row, .form-help) and board 04's
+     proposed row anatomy (.mapping-count, .mapping-target, .mapping-basis,
+     .mapping-remember), which the story that builds G4-A writes into app.css.
+     A native <select> cannot be drawn open, so each open list is drawn as the
+     same <select> with size=N — the options, their order and their disabled
+     state are what the browser shows when the list opens. */
+  .mock-frame { overflow: visible; }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .notes { flex: 1 1 300px; display: grid; gap: 10px; align-content: start; font-size: 12.5px; }
+  .notes p, .notes ol, .notes ul { margin: 0; }
+  .notes ol, .notes ul { padding-left: 18px; }
+  .notes li { margin: 0 0 6px; }
+  .col { flex: 1 1 520px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+  .mapping-row { align-items: start; }
+  .mapping-row .source .mapping-count { display: block; margin-top: 3px; font-size: 12px; font-weight: 400; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+  .mapping-count b { font-weight: 600; color: var(--color-text); }
+  .mapping-target { display: grid; gap: 5px; min-width: 0; }
+  .mapping-basis { font-size: 12px; color: var(--color-text-muted); }
+  select.open { height: auto; padding: 4px; background-image: none; width: max-content; min-width: 100%; max-width: none; position: relative; z-index: 1; }
+  select.open option { padding: 4px 6px; }
+  select.open option:disabled { color: var(--color-text-muted); }
+  .vs { font-size: 12px; color: var(--color-text-muted); margin: 0; }
+  table.check { width: 100%; border-collapse: collapse; font-size: 12.5px; background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+  table.check th { text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); background: var(--color-bg-muted); padding: 7px 10px; }
+  table.check td { padding: 8px 10px; border-top: 1px solid var(--color-border); vertical-align: top; }
+  table.check td.win { background: color-mix(in srgb, #ecfdf5 70%, transparent); }
+</style>
+</head>
+<body>
+
+<div class="pickbar"><b>Entscheidung G4b — offen.</b> Zwei Zustände der Import-Vorschau, die Board 04 nicht zeichnet und die der Review von L2 offen ließ (ADR-0050 §4). <b>F1</b> und zwei Listen des Ergebnisses sind Reparaturen ohne Wahl (vorher / nachher): Zwei Konten gleichen Namens stehen heute in der Auswahl als zwei gleiche Zeilen. <b>F7</b> hat eine Wahl: „+ Neu anlegen: X“ für einen Namen, den der Namensschutz verweigert — <b>A</b> die Option bleibt, gesperrt, und sagt in ihrem eigenen Text warum · <b>B</b> die Option fehlt · <b>C</b> die Option bleibt wählbar, und die Zeile meldet danach ein Problem. Empfehlung: <b>A</b>. Ein Kommentar mit dem Buchstaben auf der PR entscheidet; ohne Kommentar gilt die Empfehlung. Alle Namen, Zahlen und Daten sind erfunden.</div>
+
+<!-- ============================ F1 ============================ -->
+<section class="mock-board">
+  <h2>F1 — gleichnamige Konten in der Auswahl unterscheidbar <small>vorher / nachher, keine Wahl</small></h2>
+  <p class="mock-note">Zwei Verrechnungskonten heißen „Verrechnungskonto“ — angelegt vor dem Namensschutz (§4: bestehende Doppelungen werden nicht migriert). Der Name aus der Datei ist deshalb mehrdeutig, bekommt keine Vorbelegung, und der Import wartet auf eine Wahl. Heute zeigt die Auswahl <code>c.name</code>: zwei gleiche Zeilen, die Wahl ist ein Raten. <b>Nachher</b> trägt eine Option, deren Name ein anderes Konto derselben Liste auch trägt, das, was sie trennt, nach einem Mittelpunkt: beim Verrechnungskonto das verknüpfte Depot („bei Depot 1“), sonst die Währung, sonst das Anlagedatum; beim Depot sein Verrechnungskonto („mit Giro“). Optionen mit eindeutigem Namen bleiben, wie sie sind. Die Achtung-Notiz der Zeile nennt dieselben Merkmale, damit Notiz und Liste dieselben Wörter sprechen.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before" style="flex:1 1 100%"><span class="mock-tag">Vorher</span><div class="workspace-section">
+      <div class="mapping-grid" style="margin:0">
+        <div class="mapping-row">
+          <div class="source"><small>PP-Konto</small>Verrechnungskonto<span class="mapping-count">9 Buchungen bereits importiert · <b>3 neu</b></span></div>
+          <div class="mapping-target">
+            <select class="open" size="5" aria-label="Ziel für Verrechnungskonto">
+              <option selected>Entscheiden…</option>
+              <option>+ Neu anlegen: Verrechnungskonto</option>
+              <option>Tagesgeld</option>
+              <option>Verrechnungskonto</option>
+              <option>Verrechnungskonto</option>
+            </select>
+            <p class="vs">Welches der beiden ist das bei Depot 1? Die Liste sagt es nicht.</p>
+          </div>
+        </div>
+      </div>
+    </div></div>
+
+    <div class="mock-frame mock-after" style="flex:1 1 100%"><span class="mock-tag">Nachher</span><div class="workspace-section">
+      <div class="mapping-grid" style="margin:0">
+        <div class="mapping-row">
+          <div class="source"><small>PP-Konto</small>Verrechnungskonto<span class="mapping-count">9 Buchungen bereits importiert · <b>3 neu</b></span></div>
+          <div class="mapping-target">
+            <select class="open" size="5" aria-label="Ziel für Verrechnungskonto">
+              <option selected>Entscheiden…</option>
+              <option disabled>+ Neu anlegen: Verrechnungskonto — nicht möglich: Name von 2 Konten</option>
+              <option>Tagesgeld</option>
+              <option class="is-new">Verrechnungskonto · bei Depot 1</option>
+              <option class="is-new">Verrechnungskonto · bei Depot 2</option>
+            </select>
+            <div class="data-note data-note--attention">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/></svg></span>
+              <span class="data-note__word">Achtung</span>
+              <div class="data-note__body">2 Verrechnungskonten heißen „Verrechnungskonto“ (<span class="is-new">bei Depot 1, bei Depot 2</span>), daher keine Vorbelegung. Die Wahl gilt für die neuen Buchungen dieses Imports und lässt sich nicht merken, solange mehrere so heißen. Heißt nur noch eines so, ordnet der Import den Namen diesem zu: umbenennen oder zusammenführen unter <a href="#">Konten &amp; Depots</a>.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+
+  <div class="mock-row" style="margin-top:20px">
+    <div class="col">
+      <p class="cap">Was trennt, der Reihe nach — das erste Merkmal, das die gleichnamigen Konten unterscheidet</p>
+      <table class="check">
+        <thead><tr><th style="width:26%">Art</th><th>Merkmal</th><th>Beispiel</th></tr></thead>
+        <tbody>
+          <tr><td>Verrechnungskonto</td><td>1. die verknüpften Depots</td><td>Verrechnungskonto · bei Depot 1<br>Verrechnungskonto · ohne Depot</td></tr>
+          <tr><td></td><td>2. die Währung</td><td>Verrechnungskonto · USD</td></tr>
+          <tr><td></td><td>3. das Anlagedatum</td><td>Verrechnungskonto · angelegt 2024-03-01</td></tr>
+          <tr><td>Depot</td><td>1. sein Verrechnungskonto</td><td>Depot · mit Giro</td></tr>
+          <tr><td></td><td>2. das Anlagedatum</td><td>Depot · angelegt 2024-03-01</td></tr>
+        </tbody>
+      </table>
+      <p class="vs">Unterscheidet ein Merkmal nicht (beide ohne Depot, beide in EUR), gilt das nächste. Das Anlagedatum trennt immer, wenn nicht zwei Konten in derselben Sekunde angelegt wurden; dann steht als letztes Merkmal die Nummer („Nr. 14“). Die Liste bleibt nach Namen sortiert.</p>
+    </div>
+    <div class="notes">
+      <p class="cap">Wo es gilt</p>
+      <ul>
+        <li>In jeder Auswahl der Zuordnung, die Konten eines Namens mehrfach enthält: der Verrechnungskonten-Zeile, dem Ziel der Depot-Zeile und dem Verrechnungskonto der Depot-Zeile.</li>
+        <li>Nur an gleichnamigen Optionen. Eine Liste ohne Doppelung sieht aus wie heute; dasselbe Merkmal an jeder Option wäre Rauschen.</li>
+        <li>Die Achtung-Notiz nennt die Merkmale in derselben Reihenfolge wie die Liste.</li>
+        <li><b>Nicht</b> hier: Die Doppelung selbst aufzulösen. Das tun Umbenennen und Zusammenführen auf Konten &amp; Depots (ADR-0050 §4: einen von zwei gleichnamigen Konten umzubenennen ist die Abhilfe).</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ F7 ============================ -->
+<section class="mock-board">
+  <h2>F7 — „+ Neu anlegen: X“, wenn der Name vergeben ist <small>die Wahl</small></h2>
+  <p class="mock-note">Ein Konto entsteht erst mit seiner ersten neuen Buchung (§4), und zwar durch den Namensschutz: Ein neuer Name darf weder der lebende noch ein früherer Name eines anderen Kontos derselben Art sein. Heute bietet die Auswahl „+ Neu anlegen: Giro“ an, auch wenn „Giro“ genau das ist — der Name von Girokonto, ein früherer Name von Girokonto, oder der Name zweier Konten. Wer es wählt, bestätigt, und der ganze Import rollt am Ende zurück: „Anlegen des Kontos Giro fehlgeschlagen: name is already the name of cash account #3 in this portfolio“. Nichts ist geschrieben, aber die Zeile hat es nicht vorher gesagt. Die Vorbelegung ist in keinem dieser Fälle „+ Neu anlegen“ (ein vergebener Name belegt das Konto vor, ein mehrdeutiger nichts) — die Falle ist die Option, die der Betreiber selbst wählt.</p>
+
+  <div class="mock-frame mock-before" style="max-width:720px"><span class="mock-tag">Vorher</span><div class="workspace-section">
+    <div class="mapping-grid" style="margin:0">
+      <div class="mapping-row">
+        <div class="source"><small>PP-Konto</small>Giro<span class="mapping-count">182 Buchungen bereits importiert · <b>4 neu</b></span></div>
+        <div class="mapping-target">
+          <select class="open" size="4" aria-label="Ziel für Giro">
+            <option>+ Neu anlegen: Giro</option>
+            <option selected>Girokonto</option>
+            <option>Haushaltskonto</option>
+            <option>Tagesgeld</option>
+          </select>
+          <span class="mapping-basis">über früheren Namen zugeordnet — Girokonto, früher „Giro“</span>
+        </div>
+      </div>
+    </div>
+    <p class="alert-error" role="alert" style="margin:12px 0 0">Anlegen des Kontos Giro fehlgeschlagen: name is a former name of cash account #3 ("Girokonto") …</p>
+    <p class="vs" style="margin-top:6px">… nach dem Bestätigen, wenn „+ Neu anlegen: Giro“ gewählt war. Nichts wurde geschrieben.</p>
+  </div></div>
+
+  <div class="mock-row" style="margin-top:20px">
+    <div class="mock-frame mock-after" style="flex:1 1 100%"><span class="mock-tag">A — gesperrt, mit Grund · empfohlen</span><div class="workspace-section">
+      <div class="mapping-grid" style="margin:0">
+        <div class="mapping-row">
+          <div class="source"><small>PP-Konto</small>Giro<span class="mapping-count">182 Buchungen bereits importiert · <b>4 neu</b></span></div>
+          <div class="mapping-target">
+            <select class="open" size="4" aria-label="Ziel für Giro">
+              <option disabled class="is-new">+ Neu anlegen: Giro — nicht möglich: früherer Name von Girokonto</option>
+              <option selected>Girokonto</option>
+              <option>Haushaltskonto</option>
+              <option>Tagesgeld</option>
+            </select>
+            <span class="mapping-basis">über früheren Namen zugeordnet — Girokonto, früher „Giro“</span>
+          </div>
+        </div>
+      </div>
+      <p class="vs" style="margin-top:10px">Die Option steht an ihrem Platz, grau, nicht wählbar, und ihr Text sagt, wem der Name gehört (die geöffnete Liste ist so breit wie ihr längster Eintrag, wie die native Liste): „Name von Girokonto“, „früherer Name von Girokonto“ oder „Name von 2 Konten“. Der Grund steht da, wo er gesucht wird: in der geöffneten Liste, an der Option, die fehlt.</p>
+    </div></div>
+
+    <div class="mock-frame" style="flex:1 1 300px"><span class="mock-tag" style="display:block;padding:4px 10px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:var(--color-bg-muted)">B — die Option fehlt</span><div class="workspace-section">
+      <div class="mapping-grid" style="margin:0">
+        <div class="mapping-row" style="grid-template-columns:1fr">
+          <div class="source"><small>PP-Konto</small>Giro<span class="mapping-count">182 Buchungen bereits importiert · <b>4 neu</b></span></div>
+          <div class="mapping-target">
+            <select class="open" size="3" aria-label="Ziel für Giro">
+              <option selected>Girokonto</option>
+              <option>Haushaltskonto</option>
+              <option>Tagesgeld</option>
+            </select>
+            <span class="mapping-basis">über früheren Namen zugeordnet — Girokonto, früher „Giro“</span>
+          </div>
+        </div>
+      </div>
+      <p class="vs" style="margin-top:10px">Kürzer, keine Falle. Aber jede andere Zeile hat „+ Neu anlegen“ ganz oben; hier fehlt es ohne Wort. Wer ein neues Konto erwartet, sucht es und findet keinen Grund.</p>
+    </div></div>
+
+    <div class="mock-frame" style="flex:1 1 300px"><span class="mock-tag" style="display:block;padding:4px 10px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:var(--color-bg-muted)">C — wählbar, dann Problem</span><div class="workspace-section">
+      <div class="mapping-grid" style="margin:0">
+        <div class="mapping-row" style="grid-template-columns:1fr">
+          <div class="source"><small>PP-Konto</small>Giro<span class="mapping-count">182 Buchungen bereits importiert · <b>4 neu</b></span></div>
+          <div class="mapping-target">
+            <select aria-label="Ziel für Giro"><option selected>+ Neu anlegen: Giro</option></select>
+            <div class="data-note data-note--problem">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z"/><path d="M12 8v4"/><circle cx="12" cy="16" r=".6"/></svg></span>
+              <span class="data-note__word">Problem</span>
+              <div class="data-note__body">„Giro“ ist ein früherer Name von Girokonto; ein neues Konto dieses Namens ist nicht möglich. Girokonto wählen, oder den Namen dort entfernen.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="form-help" style="margin-top:8px">Vor dem Import noch zuzuordnen: Verrechnungskonto: Giro</p>
+      <p class="vs" style="margin-top:6px">Der Grund steht ausführlich, aber erst nach der Wahl, die nicht gelingen kann: Die Liste bietet etwas an, das die Seite dann zurückweist.</p>
+    </div></div>
+  </div>
+
+  <div class="mock-row" style="margin-top:20px">
+    <div class="col">
+      <p class="cap">A gegen B und C, gehalten an Spezifikation und ADR</p>
+      <table class="check">
+        <thead><tr><th style="width:30%">Frage</th><th>A — gesperrt, mit Grund</th><th>B — fehlt</th><th>C — wählbar, dann Problem</th></tr></thead>
+        <tbody>
+          <tr><td><b>Kann der Import daran scheitern?</b> (ADR-0050 §4 sagt es für die Vorgabe des Merkens: „so the default never makes an apply fail“; hier für jede Wahl)</td><td class="win">nein — nicht wählbar</td><td class="win">nein — nicht da</td><td>nein, aber erst die Problem-Notiz hält den Knopf an</td></tr>
+          <tr><td><b>Folge benannt</b> (Voice: Tatsache plus Folge)</td><td class="win">in der Option: wem der Name gehört</td><td>nirgends</td><td class="win">in einer Notiz, ausführlich</td></tr>
+          <tr><td><b>Nähe</b> (die Platzierungsregel von UX-DR17, übertragen: der Grund steht bei dem, was er erklärt)</td><td class="win">an der Option</td><td>—</td><td>unter der Zeile, nach der Wahl</td></tr>
+          <tr><td><b>Keine Falle</b> (kein Spec-Satz; sinngemäß ADR-0050 §4: nichts, was die Vorschau anbietet, lässt den Import scheitern)</td><td class="win">erfüllt</td><td class="win">erfüllt</td><td>verletzt</td></tr>
+          <tr><td><b>Zugänglichkeit</b></td><td>eine gesperrte Option wird als „nicht verfügbar“ mit ihrem Text vorgelesen</td><td>—</td><td>die Notiz ist Text der Zeile</td></tr>
+          <tr><td><b>Gleiches Muster wie Board 02</b> (nicht wählbares Ziel mit Grund als Text)</td><td class="win">ja, in der Form einer Option</td><td>nein</td><td>nein</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="notes">
+      <p class="cap">Was A festlegt</p>
+      <ol>
+        <li><b>Drei Gründe, ein Satzbau:</b> „— nicht möglich: Name von Girokonto“, „— nicht möglich: früherer Name von Girokonto“, „— nicht möglich: Name von 2 Konten“. Geprüft wird mit dem Namensschutz selbst (<code>AccountNames.name_error/3</code>), nicht mit einer zweiten Regel.</li>
+        <li><b>Nur die Option ändert sich.</b> Vorbelegung, Zählung und „über früheren Namen zugeordnet“ bleiben wie auf Board 04.</li>
+        <li><b>Eine gespeicherte Wahl</b> (etwa nach einem Sprachwechsel), die auf einen inzwischen vergebenen Namen zeigt, gilt als nicht getroffen: Der Knopf bleibt gesperrt, und „Vor dem Import noch zuzuordnen“ nennt die Zeile.</li>
+        <li><b>Die Depot-Zeile</b> folgt derselben Regel für Depots.</li>
+        <li><b>Bei 390 px</b> ändert sich nichts: Die Zeile ist dort schon einspaltig (Board 04), und das Telefon zeigt die Liste im eigenen Auswahlblatt, gesperrte Einträge grau.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ERGEBNIS ============================ -->
+<section class="mock-board">
+  <h2>Ergebnis — zwei Listen, die Board 04 nicht zeigt <small>vorher / nachher, keine Wahl</small></h2>
+  <p class="mock-note">Board 04 zeichnet das Ergebnis mit den Duplikaten nach Schicht, den internen Umbuchungen und einer angehängten gemerkten Zuordnung. Zwei Fälle fehlen, und beide nehmen nur die Form, die das Ergebnis schon hat (<code>.import-skipped</code>: Satz, dann Liste). <b>Gemerkt, als Verschiebung:</b> Ein früherer Name, der von einem anderen Konto herüberkam (§4), sagt, von welchem. <b>Hinter einem angepassten Saldo:</b> Eine Zusammenführung hat einen gesetzten Saldo angepasst (§7 Schritt 4); eine Buchung dieses Imports, die am oder vor diesem Tag auf dem Konto landet, wird gebucht, aber der Saldo nimmt ihren Betrag auf — der Kontostand ändert sich nicht (ADR-0050 §2, dritte Grenze). Heute steht das nirgends; die Buchung zählt nur in „Erzeugte Transaktionen“.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before" style="flex:0 1 330px"><span class="mock-tag">Vorher</span><div class="workspace-section import-done" style="padding:18px">
+      <h2 style="font-size:17px">Import abgeschlossen</h2>
+      <p class="muted" style="margin:0">Erzeugte Transaktionen: 3 · Übersprungene Duplikate: 6</p>
+      <p class="vs">… und kein Wort dazu, dass zwei der drei Buchungen den Saldo von Tagesgeld nicht verändern.</p>
+    </div></div>
+    <div class="mock-frame mock-after" style="flex:1 1 640px"><span class="mock-tag">Nachher</span>
+      <section class="workspace-section import-done" style="padding:18px">
+        <h2 style="font-size:17px">Import abgeschlossen</h2>
+        <p class="muted" style="margin:0">Erzeugte Transaktionen: 3 · Übersprungene Duplikate: 6</p>
+        <div class="import-skipped is-new" style="justify-self:stretch;max-width:46rem;width:100%;margin:0 auto;text-align:left;display:grid;gap:4px">
+          <p class="muted" style="margin:0">Für künftige Importe gemerkt:</p>
+          <ul style="margin:0;padding-left:0;list-style:none;font-size:12.5px">
+            <li>„Giro“ ist jetzt früherer Name von Haushaltskonto und nicht mehr von Girokonto.</li>
+          </ul>
+        </div>
+        <div class="import-skipped is-new" style="justify-self:stretch;max-width:46rem;width:100%;margin:0 auto;text-align:left;display:grid;gap:4px">
+          <p class="muted" style="margin:0">2 Buchungen liegen am oder vor einem Saldo, den eine Zusammenführung angepasst hat; der Saldo nimmt ihren Betrag auf:</p>
+          <ul style="margin:0;padding-left:0;list-style:none;font-size:12.5px">
+            <li>Zeile 7: Einlage 2025-04-15 · 50,00 EUR · Tagesgeld — gesetzter Saldo von Tagesgeld am 2025-05-31</li>
+            <li>Zeile 8: Einlage 2025-05-31 · 20,00 EUR · Tagesgeld (alt) — gesetzter Saldo von Tagesgeld am 2025-05-31</li>
+          </ul>
+        </div>
+      </section>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

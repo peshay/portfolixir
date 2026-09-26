@@ -220,6 +220,34 @@ defmodule PortfolixirWeb.SecuritiesSplitWizardTest do
     assert has_element?(view, "#split-wizard-dialog")
   end
 
+  # User story (E25 S4, G12):
+  # As a maintainer entering a ratio that, with the splits already booked,
+  # would scale the security past its bound,
+  # I want the wizard to say so inline,
+  # so that the dialog stays usable and nothing is booked.
+  test "a ratio past the cumulative split bound renders an inline error and books nothing", %{
+    conn: conn
+  } do
+    {_world, security} = world_with_position()
+
+    {:ok, _} =
+      Splits.book_split(Actor.owner_ui(), %{
+        security_id: security.id,
+        date: Date.add(Date.utc_today(), -20),
+        ratio_numerator: 1_000_000_000,
+        ratio_denominator: 1
+      })
+
+    view = open_wizard(conn, security)
+    wizard_change(view, "10000", "1", Date.add(Date.utc_today(), -10))
+
+    assert view |> element("#split-wizard-error") |> render() =~ "10^12"
+
+    wizard_submit(view, "10000", "1", Date.add(Date.utc_today(), -10))
+    assert length(split_transactions(security)) == 1
+    assert has_element?(view, "#split-wizard-dialog")
+  end
+
   # User story (ADR-0028 §1 write idempotency, issue #591):
   # As a maintainer retrying a booking that already exists,
   # I want the same-day duplicate rejected with a message naming the existing

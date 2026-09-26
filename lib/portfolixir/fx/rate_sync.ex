@@ -25,7 +25,9 @@ defmodule Portfolixir.Fx.RateSync do
   use GenServer
   require Logger
 
+  alias Portfolixir.Catalog.MarketDataBounds
   alias Portfolixir.Fx
+  alias Portfolixir.SingleFlight
 
   @default_interval :timer.hours(12)
   @default_startup_delay :timer.seconds(5)
@@ -91,6 +93,15 @@ defmodule Portfolixir.Fx.RateSync do
     * `:provider` – adapter module, overrides config.
   """
   def backfill(opts \\ []) do
+    # One backfill at a time (E25, G04): a second one while it runs is
+    # {:error, :backfill_in_progress} and calls no provider.
+    case SingleFlight.run(:fx_backfill, fn -> backfill_unlocked(opts) end) do
+      {:ok, result} -> result
+      {:error, :in_progress} -> {:error, :backfill_in_progress}
+    end
+  end
+
+  defp backfill_unlocked(opts) do
     provider = Keyword.get(opts, :provider, runtime_provider())
 
     if function_exported?(provider, :fetch_history, 1) do
@@ -174,7 +185,7 @@ defmodule Portfolixir.Fx.RateSync do
   end
 
   defp persist(provider, rows, scope \\ :latest) do
-    case Fx.upsert_many(rows) do
+    case safe_upsert(drop_implausible(rows)) do
       {:ok, count} ->
         {:ok, %{provider: provider.id(), status: :ok, upserted: count, scope: scope}}
 
@@ -183,6 +194,38 @@ defmodule Portfolixir.Fx.RateSync do
         {:error, {:upsert_failed, reason}}
     end
   end
+
+  # Rows the database refuses are the run's error, answered like an upstream
+  # failure (the API's 502), never a crash (F28).
+  defp safe_upsert(rows) do
+    Fx.upsert_many(rows)
+  rescue
+    exception ->
+      Logger.warning("fx rate persistence failed: #{Exception.message(exception)}")
+      {:error, :persist_failed}
+  end
+
+  # Whatever a provider returns, an implausible rate (F26) is dropped here, so
+  # one bad row never fails the batch.
+  defp drop_implausible(rows) do
+    {plausible, dropped} =
+      Enum.split_with(rows, fn row ->
+        is_map(row) and
+          MarketDataBounds.plausible?(
+            field(row, :date),
+            field(row, :rate),
+            MarketDataBounds.rate_column()
+          )
+      end)
+
+    if dropped != [] do
+      Logger.warning("fx rate sync dropped #{length(dropped)} implausible provider rate(s)")
+    end
+
+    plausible
+  end
+
+  defp field(row, key), do: Map.get(row, key, Map.get(row, Atom.to_string(key)))
 
   defp runtime_provider do
     Application.get_env(:portfolixir, __MODULE__, [])

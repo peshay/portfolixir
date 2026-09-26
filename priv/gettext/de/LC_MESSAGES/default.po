@@ -1032,19 +1032,10 @@ msgstr "Wertpapier bearbeiten"
 msgid "ISIN copied"
 msgstr "ISIN kopiert"
 
-#: lib/portfolixir_web/live/buckets_live.ex:180
-#: lib/portfolixir_web/live/buckets_live.ex:288
-#: lib/portfolixir_web/live/classifications_live.ex:557
-#: lib/portfolixir_web/live/portfolio_accounts_live.ex:156
-#: lib/portfolixir_web/live/securities_live.ex:683
-#: lib/portfolixir_web/live/securities_live.ex:770
-#: lib/portfolixir_web/live/snapshots_live.ex:658
-#: lib/portfolixir_web/live/tax_live.ex:784
-#: lib/portfolixir_web/live/tax_live.ex:888
-#: lib/portfolixir_web/live/transaction_management_live.ex:920
+#: lib/portfolixir_web/components/app_shell.ex:575
 #, elixir-autogen, elixir-format
-msgid "Open actions menu"
-msgstr "Aktionsmenü öffnen"
+msgid "Actions for %{row}"
+msgstr "Aktionen für %{row}"
 
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:66
 #, elixir-autogen, elixir-format
@@ -2561,8 +2552,8 @@ msgstr "Notizen konnten nicht gespeichert werden."
 
 #: lib/portfolixir_web/live/buckets_live.ex:565
 #, elixir-autogen, elixir-format
-msgid "Delete this bucket? It is removed from every assignment and view."
-msgstr "Diesen Bucket löschen? Er wird aus jeder Zuordnung und Ansicht entfernt."
+msgid "Delete this bucket? It is removed from every assignment and view. A position whose only specific bucket is this one stays at “no buckets (excluded)” and does not inherit from its depot."
+msgstr "Diesen Bucket löschen? Er wird aus jeder Zuordnung und Ansicht entfernt. Eine Position, deren bestimmte Buckets nur aus diesem bestehen, steht danach auf „keine Buckets (ausgeschlossen)“ und erbt nicht vom Depot."
 
 #: lib/portfolixir_web/live/buckets_live.ex:531
 #, elixir-autogen, elixir-format
@@ -2646,6 +2637,16 @@ msgstr "Eingegrenzt auf Ansicht: %{name}"
 #, elixir-autogen, elixir-format
 msgid "That bucket no longer exists. Refresh and try again."
 msgstr "Dieser Bucket existiert nicht mehr. Aktualisiere die Seite und versuche es erneut."
+
+#: lib/portfolixir_web/live/buckets_live.ex
+#, elixir-autogen, elixir-format
+msgid "The bucket could not be deleted. Nothing was changed."
+msgstr "Der Bucket konnte nicht gelöscht werden. Es wurde nichts geändert."
+
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex:872
+#, elixir-autogen, elixir-format
+msgid "That account no longer exists. Refresh and try again."
+msgstr "Dieses Konto existiert nicht mehr. Aktualisiere die Seite und versuche es erneut."
 
 #: lib/portfolixir_web/live/buckets_live.ex:780
 #, elixir-autogen, elixir-format
@@ -3895,6 +3896,11 @@ msgstr "Wirkung des %{ratio}-Splits je Portfolio:"
 msgid "Effective date"
 msgstr "Stichtag"
 
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:352
+#, elixir-autogen, elixir-format
+msgid "This ratio, together with the splits already booked for this security, would scale it by more than 10^12."
+msgstr "Dieses Verhältnis würde das Wertpapier zusammen mit den schon gebuchten Splits um mehr als 10^12 skalieren."
+
 #: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:349
 #, elixir-autogen, elixir-format
 msgid "Enter a valid effective date."
@@ -4204,6 +4210,72 @@ msgstr "Zeile %{row}: %{message}"
 msgid "implausible date %{date} (before 1900) — fix the booking in the source and re-import"
 msgstr "Unplausibles Datum %{date} (vor 1900) — korrigiere die Buchung in der Quelle und importiere erneut"
 
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex
+#, elixir-autogen, elixir-format
+msgid "implausible date %{date} (after %{latest}) — fix the booking in the source and re-import"
+msgstr "Unplausibles Datum %{date} (nach %{latest}) — korrigiere die Buchung in der Quelle und importiere erneut"
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "security name"
+msgstr "Wertpapiername"
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "security ISIN"
+msgstr "ISIN des Wertpapiers"
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "security WKN"
+msgstr "WKN des Wertpapiers"
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "security ticker"
+msgstr "Ticker des Wertpapiers"
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "portfolio"
+msgstr "Depot"
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "account"
+msgstr "Konto"
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "counter portfolio"
+msgstr "Gegendepot"
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "counter account"
+msgstr "Gegenkonto"
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "note"
+msgstr "Notiz"
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "%{field} is longer than %{count} characters"
+msgstr "%{field} ist länger als %{count} Zeichen"
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "%{field} contains a control character"
+msgstr "%{field} enthält ein Steuerzeichen"
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "%{field} is not valid UTF-8 text"
+msgstr "%{field} ist kein gültiger UTF-8-Text"
+
 #: lib/portfolixir/imports/portfolio_performance/json_parser.ex:122
 #, elixir-autogen, elixir-format
 msgid "missing transaction type"
@@ -4380,6 +4452,21 @@ msgstr "Auftrag hinterlegen"
 #, elixir-autogen, elixir-format
 msgid "Record statement"
 msgstr "Abrechnung erfassen"
+
+#: lib/portfolixir_web/live/tax_live.ex
+#, elixir-autogen, elixir-format
+msgid "This statement no longer exists: it was deleted after the form opened, so the correction was not saved. Record it again if it should stay."
+msgstr "Diese Abrechnung gibt es nicht mehr: Sie wurde nach dem Öffnen gelöscht, die Korrektur wurde daher nicht gespeichert. Soll sie bleiben, erneut erfassen."
+
+#: lib/portfolixir_web/live/tax_live.ex
+#, elixir-autogen, elixir-format
+msgid "This allowance order no longer exists: it was deleted while the new one was recorded, so nothing was saved. Record it again."
+msgstr "Diesen Freistellungsauftrag gibt es nicht mehr: Er wurde während des Hinterlegens gelöscht, es wurde nichts gespeichert. Bitte erneut hinterlegen."
+
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex
+#, elixir-autogen, elixir-format
+msgid "This security no longer exists: it was deleted after the dialog opened, so nothing was saved."
+msgstr "Dieses Wertpapier gibt es nicht mehr: Es wurde nach dem Öffnen gelöscht, es wurde nichts gespeichert."
 
 #: lib/portfolixir_web/live/tax_live.ex:492
 #, elixir-autogen, elixir-format
@@ -6738,6 +6825,31 @@ msgstr "Korrigiert die Buchung an Ort und Stelle; die abgeleiteten Bestände fol
 msgid "Edit transaction"
 msgstr "Transaktion bearbeiten"
 
+#: lib/portfolixir_web/live/transaction_management_live.ex
+#, elixir-autogen, elixir-format
+msgid "A split is a fact about the security; only the note changes here, and the change is journaled."
+msgstr "Ein Split ist eine Tatsache am Wertpapier; hier ändert sich nur die Notiz, und die Änderung wird journalisiert."
+
+#: lib/portfolixir_web/live/transaction_management_live.ex
+#, elixir-autogen, elixir-format
+msgid "Ratio (new:old shares)"
+msgstr "Verhältnis (neue:alte Aktien)"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex
+#, elixir-autogen, elixir-format
+msgid "The effective date, ratio and security of a booked split are fixed. A wrong split cannot be corrected here; it is deleted over the API or MCP and then recorded again on the security with “Record split”."
+msgstr "Stichtag, Verhältnis und Wertpapier eines gebuchten Splits stehen fest. Ein falscher Split lässt sich hier nicht korrigieren; er wird über API oder MCP gelöscht und danach am Wertpapier mit „Split erfassen“ neu erfasst."
+
+#: lib/portfolixir_web/live/transaction_management_live.ex
+#, elixir-autogen, elixir-format
+msgid "Save note"
+msgstr "Notiz speichern"
+
+#: lib/portfolixir_web/live/transaction_management_live.ex
+#, elixir-autogen, elixir-format
+msgid "Note saved"
+msgstr "Notiz gespeichert"
+
 #: lib/portfolixir_web/live/transaction_management_live.ex:708
 #, elixir-autogen, elixir-format
 msgid "That transaction no longer exists."
@@ -7066,6 +7178,13 @@ msgstr "0 · niedrig unter %{low} · ab %{high} konzentriert · 10.000"
 msgid "Asset-class caps"
 msgstr "Anlageklassen-Obergrenzen"
 
+#: lib/portfolixir_web/live/risk_live.ex:275
+#, elixir-autogen, elixir-format
+msgid "Basis: the flow-adjusted daily return factors of the TTWROR chain, in %{currency}, annualized by √365 — a deposit is not a return. A day without a return base yields no observation, never a zero. Correlations convert to %{currency} first and run over the %{count} largest position."
+msgid_plural "Basis: the flow-adjusted daily return factors of the TTWROR chain, in %{currency}, annualized by √365 — a deposit is not a return. A day without a return base yields no observation, never a zero. Correlations convert to %{currency} first and run over the %{count} largest positions."
+msgstr[0] "Grundlage: die um Zahlungen bereinigten täglichen Renditefaktoren der TTWROR-Kette, in %{currency}, annualisiert mit √365 — eine Einzahlung ist keine Rendite. Ein Tag ohne Renditebasis liefert keine Beobachtung, nie eine Null. Korrelationen rechnen zuerst in %{currency} um und laufen über die %{count} größte Einzelposition."
+msgstr[1] "Grundlage: die um Zahlungen bereinigten täglichen Renditefaktoren der TTWROR-Kette, in %{currency}, annualisiert mit √365 — eine Einzahlung ist keine Rendite. Ein Tag ohne Renditebasis liefert keine Beobachtung, nie eine Null. Korrelationen rechnen zuerst in %{currency} um und laufen über die %{count} größten Einzelpositionen."
+
 #: lib/portfolixir_web/live/risk_live.ex:270
 #, elixir-autogen, elixir-format
 msgid "Basis: the flow-adjusted daily return factors of the TTWROR chain, in %{currency}, annualized by √365 — a deposit is not a return. A day without a return base yields no observation, never a zero. Correlations convert to %{currency} first."
@@ -7347,18 +7466,17 @@ msgstr "zu wenig Historie"
 msgid "undetermined"
 msgstr "nicht bestimmbar"
 
-#: lib/portfolixir_web/live/securities/row_context_menu.ex:213
-#: lib/portfolixir_web/policy_rule_label.ex:94
+#: lib/portfolixir_web/components/policy_rule_references.ex:108
 #, elixir-autogen, elixir-format
-msgid "“%{name}” (%{status})"
-msgstr "„%{name}“ (%{status})"
+msgid "“%{name}” (%{status}, view “%{view}”)"
+msgstr "„%{name}“ (%{status}, Ansicht „%{view}“)"
 
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:210
 #, elixir-autogen, elixir-format
 msgid "%{name} is read by policy rules:"
 msgstr "%{name} wird von eigenen Regeln gelesen:"
 
-#: lib/portfolixir_web/policy_rule_label.ex:84
+#: lib/portfolixir_web/components/policy_rule_references.ex:80
 #, elixir-autogen, elixir-format
 msgid "Read by policy rules: %{names}. A rule that has been in force keeps its subject as part of its history; retiring it on Wealth → Risk stops its evaluation."
 msgstr "Wird von eigenen Regeln gelesen: %{names}. Eine Regel, die gegolten hat, behält ihren Bezug als Teil ihrer Geschichte; sie auf „Vermögen → Risiko“ zu beenden, stoppt ihre Auswertung."
@@ -7552,6 +7670,11 @@ msgstr "Bezug"
 #, elixir-autogen, elixir-format
 msgid "The rule could not be deleted."
 msgstr "Die Regel ließ sich nicht löschen."
+
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex
+#, elixir-autogen, elixir-format
+msgid "This rule no longer exists."
+msgstr "Diese Regel existiert nicht mehr."
 
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:551
 #, elixir-autogen, elixir-format
@@ -7747,3 +7870,1564 @@ msgstr "%{security} liegt nicht mehr unter %{category} – leere dort sein Posit
 #, elixir-autogen, elixir-format
 msgid "A target must lie between 0 and 100 %"
 msgstr "Ein Ziel muss zwischen 0 und 100 % liegen"
+
+#: lib/portfolixir_web/live/classifications_live.ex
+#, elixir-autogen, elixir-format
+msgid "A target carries at most four decimal places in percent"
+msgstr "Ein Ziel hat in Prozent höchstens vier Nachkommastellen"
+
+#: lib/portfolixir_web/live/imports_live.ex:530
+#, elixir-autogen, elixir-format
+msgid "Skipped one internal transfer: both sides lead to the same account or depot."
+msgid_plural "Skipped %{count} internal transfers: both sides lead to the same account or depot."
+msgstr[0] "Eine interne Umbuchung übersprungen: Beide Seiten führen auf dasselbe Konto oder Depot."
+msgstr[1] "%{count} interne Umbuchungen übersprungen: Beide Seiten führen auf dasselbe Konto oder Depot."
+
+#: lib/portfolixir_web/live/imports_live.ex:539
+#, elixir-autogen, elixir-format
+msgid "Row %{row}: %{kind} %{date} · %{from} → %{to}"
+msgstr "Zeile %{row}: %{kind} %{date} · %{from} → %{to}"
+
+#: lib/portfolixir_web/live/imports_live.ex:1278
+#, elixir-autogen, elixir-format
+msgid "a row with this content was removed by a merge (retired content hash)"
+msgstr "eine Zeile mit diesem Inhalt wurde bei einer Zusammenführung entfernt (stillgelegter Inhalts-Hash)"
+
+#: lib/portfolixir_web/live/imports_live.ex:717
+#, elixir-autogen, elixir-format
+msgid "An account mapped in this preview was merged or deleted since it was opened. The account mapping was refreshed from the current accounts; review it before confirming again. Nothing was written."
+msgstr "Ein in dieser Vorschau zugeordnetes Konto wurde seit dem Öffnen zusammengeführt oder gelöscht. Die Kontenzuordnung wurde aus den aktuellen Konten neu vorbelegt — vor dem erneuten Bestätigen prüfen. Es wurde nichts geschrieben."
+
+#: lib/portfolixir_web/live/imports_live.ex:1442
+#, elixir-autogen, elixir-format
+msgid "Several accounts are named %{name}. Pick the one this export's %{name} books to, then confirm again. Nothing was written."
+msgstr "Mehrere Konten heißen %{name}. Das Konto wählen, auf das %{name} aus diesem Export bucht, und erneut bestätigen. Es wurde nichts geschrieben."
+
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:314
+#, elixir-autogen, elixir-format
+msgid "Only the name changes: saving creates no new version. The name applies to the rule with all its versions; the change is journaled, and the previous name stays readable there."
+msgstr "Nur der Name ändert sich: Speichern legt keine neue Version an. Der Name gilt für die Regel mit allen Versionen; die Änderung wird journalisiert, der bisherige Name bleibt dort lesbar."
+
+#: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:321
+#, elixir-autogen, elixir-format
+msgid "The new name applies to the rule with all its versions."
+msgstr "Der neue Name gilt für die Regel mit allen Versionen."
+
+#: lib/portfolixir_web/live/imports_live.ex:1445
+#, elixir-autogen, elixir-format
+msgid "The file is not UTF-8 encoded. Remedy: export it again from Portfolio Performance and drop the file without saving it in a spreadsheet first."
+msgstr "Die Datei ist nicht in UTF-8 kodiert. Abhilfe: in Portfolio Performance neu exportieren und die Datei ablegen, ohne sie vorher in einer Tabellenkalkulation zu speichern."
+
+#: lib/portfolixir/imports/portfolio_performance.ex:77
+#, elixir-autogen, elixir-format
+msgid "security without a name and without an ISIN — row not imported"
+msgstr "Wertpapier ohne Name und ohne ISIN — Zeile nicht übernommen"
+
+#: lib/portfolixir_web/live/imports_live.ex:1478
+#, elixir-autogen, elixir-format
+msgid "The file names too many different accounts, depots or securities for one preview. Remedy: create smaller exports in Portfolio Performance, for example one per account or depot, and import them one after another."
+msgstr "Die Datei enthält zu viele unterschiedliche Konto-, Depot- oder Wertpapiernamen für eine Vorschau. Abhilfe: in Portfolio Performance kleinere Exporte anlegen, etwa je Konto oder Depot, und nacheinander importieren."
+
+#: lib/portfolixir_web/live/imports_live.ex:1500
+#, elixir-autogen, elixir-format
+msgid "The file expands to %{n} entries (its rows and the tax refunds they split off); the import is sized for at most %{max}."
+msgstr "Die Datei ergibt %{n} Einträge (ihre Zeilen und die daraus abgespaltenen Steuererstattungen); der Import ist auf höchstens %{max} ausgelegt."
+
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:276
+#, elixir-autogen, elixir-format
+msgid "more units (fees and taxes) than one booking carries"
+msgstr "mehr Positionen (Gebühren und Steuern), als eine Buchung trägt"
+
+#: lib/portfolixir/imports/portfolio_performance.ex:120
+#, elixir-autogen, elixir-format
+msgid "%{field} has more than %{digits} digits before the decimal point"
+msgstr "%{field} hat mehr als %{digits} Stellen vor dem Komma"
+
+#: lib/portfolixir/imports/portfolio_performance.ex:130
+#, elixir-autogen, elixir-format
+msgid "tax refund"
+msgstr "Steuererstattung"
+
+#: lib/portfolixir/imports/portfolio_performance.ex:133
+#, elixir-autogen, elixir-format
+msgid "gross amount"
+msgstr "Betrag"
+
+#: lib/portfolixir/imports/portfolio_performance.ex:134
+#, elixir-autogen, elixir-format
+msgid "quantity"
+msgstr "Stückzahl"
+
+#: lib/portfolixir/imports/portfolio_performance.ex:135
+#, elixir-autogen, elixir-format
+msgid "price"
+msgstr "Kurs"
+
+#: lib/portfolixir/imports/portfolio_performance.ex:136
+#, elixir-autogen, elixir-format
+msgid "fees"
+msgstr "Gebühren"
+
+#: lib/portfolixir/imports/portfolio_performance.ex:137
+#, elixir-autogen, elixir-format
+msgid "taxes"
+msgstr "Steuern"
+
+#: lib/portfolixir/imports/portfolio_performance.ex:150
+#, elixir-autogen, elixir-format
+msgid "number %{value} cannot be read or is out of range"
+msgstr "Zahl %{value} ist nicht lesbar oder außerhalb des Bereichs"
+
+#: lib/portfolixir/imports/portfolio_performance.ex:108
+#, elixir-autogen, elixir-format
+msgid "ISIN %{isin} is not a valid ISIN (shape or check digit) — row not imported"
+msgstr "ISIN %{isin} ist keine gültige ISIN (Form oder Prüfziffer) — Zeile nicht übernommen"
+
+#: lib/portfolixir_web/live/imports_live.ex:1170
+#, elixir-autogen, elixir-format
+msgid "Two securities of this file cannot be told apart, so the import is refused. Correct them in Portfolio Performance and export again."
+msgstr "Zwei Wertpapiere dieser Datei lassen sich nicht unterscheiden, daher wird der Import abgelehnt. In Portfolio Performance korrigieren und erneut exportieren."
+
+#: lib/portfolixir_web/live/transaction_management_live.ex:680
+#, elixir-autogen, elixir-format
+msgid "A figure cannot be read; its field says why."
+msgstr "Eine Zahl ist nicht lesbar; ihr Feld sagt, warum."
+
+#: lib/portfolixir_web/live/portfolio_live.ex:1591
+#, elixir-autogen, elixir-format
+msgid "drift against the allocated portion"
+msgstr "Abweichung gegen den verteilten Anteil"
+
+## ADR-0050 on Accounts & depots (L5a, #328): the row menu, rename, delete,
+## former names, merged from and the two-step merge (boards 01, 02, 13).
+
+#, elixir-autogen, elixir-format
+msgid "former: %{name}"
+msgstr "früher: %{name}"
+
+#, elixir-autogen, elixir-format
+msgid "merged from %{name} · %{date}"
+msgstr "zusammengeführt aus %{name} · %{date}"
+
+#, elixir-autogen, elixir-format
+msgid "Merge into…"
+msgstr "Zusammenführen in…"
+
+#, elixir-autogen, elixir-format
+msgid "Delete “%{name}”? The account has no bookings and no linked depot."
+msgstr "„%{name}“ löschen? Das Konto hat keine Buchungen und kein verknüpftes Depot."
+
+#, elixir-autogen, elixir-format
+msgid "Delete “%{name}”? The depot has no bookings."
+msgstr "„%{name}“ löschen? Das Depot hat keine Buchungen."
+
+#, elixir-autogen, elixir-format
+msgid "Its bucket assignments are removed with it."
+msgstr "Seine Bucket-Zuordnungen werden mit entfernt."
+
+#, elixir-autogen, elixir-format
+msgid "%{first} and %{second}"
+msgstr "%{first} und %{second}"
+
+#, elixir-autogen, elixir-format
+msgid "references"
+msgstr "Verweise"
+
+#, elixir-autogen, elixir-format
+msgid "“%{name}” still has %{references} — merge it first."
+msgstr "„%{name}“ hat noch %{references} — zuerst zusammenführen."
+
+#, elixir-autogen, elixir-format
+msgid "A merge moves the bookings and the depot into an account of the same currency, liquidity role and buckets; the name stays there as a former name."
+msgstr "Beim Zusammenführen ziehen Buchungen und Depot in ein Konto gleicher Währung, Liquiditätsrolle und Buckets um; der Name bleibt dort als früherer Name."
+
+#, elixir-autogen, elixir-format
+msgid "A merge moves the bookings into a depot with the same default buckets; the name stays there as a former name."
+msgstr "Beim Zusammenführen ziehen die Buchungen in ein Depot mit gleichen Standard-Buckets um; der Name bleibt dort als früherer Name."
+
+#, elixir-autogen, elixir-format
+msgid "Rename — %{name}"
+msgstr "Umbenennen — %{name}"
+
+#, elixir-autogen, elixir-format
+msgid "Former names"
+msgstr "Frühere Namen"
+
+#, elixir-autogen, elixir-format
+msgid "merged on %{date}"
+msgstr "zusammengeführt am %{date}"
+
+#, elixir-autogen, elixir-format
+msgid "Remove “%{name}”"
+msgstr "„%{name}“ entfernen"
+
+#, elixir-autogen, elixir-format
+msgid "Remove"
+msgstr "Entfernen"
+
+#, elixir-autogen, elixir-format
+msgid "Enter a name."
+msgstr "Einen Namen eingeben."
+
+#, elixir-autogen, elixir-format
+msgid "That account no longer exists."
+msgstr "Dieses Konto gibt es nicht mehr."
+
+#, elixir-autogen, elixir-format
+msgid "The current name “%{name}” stays a former name: an import that still names it keeps booking to this account."
+msgstr "Der bisherige Name „%{name}“ bleibt als früherer Name gespeichert: Ein Import, der ihn noch nennt, bucht weiter auf dieses Konto."
+
+#, elixir-autogen, elixir-format
+msgid "The current name “%{name}” stays a former name: an import that still names it keeps booking to this depot."
+msgstr "Der bisherige Name „%{name}“ bleibt als früherer Name gespeichert: Ein Import, der ihn noch nennt, bucht weiter auf dieses Depot."
+
+#, elixir-autogen, elixir-format
+msgid "Another cash account is also named “%{name}”, so the current name is not kept: an import that names it books to that account. Merge or rename that account to change this."
+msgstr "Ein anderes Verrechnungskonto heißt ebenfalls „%{name}“, daher bleibt der bisherige Name nicht gespeichert: Ein Import, der ihn nennt, bucht auf jenes Konto. Um das zu ändern, jenes Konto zusammenführen oder umbenennen."
+
+#, elixir-autogen, elixir-format
+msgid "Another depot is also named “%{name}”, so the current name is not kept: an import that names it books to that depot. Merge or rename that depot to change this."
+msgstr "Ein anderes Depot heißt ebenfalls „%{name}“, daher bleibt der bisherige Name nicht gespeichert: Ein Import, der ihn nennt, bucht auf jenes Depot. Um das zu ändern, jenes Depot zusammenführen oder umbenennen."
+
+#, elixir-autogen, elixir-format
+msgid "Remove “%{name}” as a former name? An import that still names '%{name}' will then create a new account."
+msgstr "„%{name}“ als früheren Namen entfernen? Ein Import, der noch „%{name}“ nennt, legt dann ein neues Konto an."
+
+#, elixir-autogen, elixir-format
+msgid "Remove “%{name}” as a former name? An import that still names '%{name}' will then create a new depot."
+msgstr "„%{name}“ als früheren Namen entfernen? Ein Import, der noch „%{name}“ nennt, legt dann ein neues Depot an."
+
+#, elixir-autogen, elixir-format
+msgid "“%{name}” is a former name of “%{holder}”: an import under this name books there. Choose another name or remove it from “%{holder}”."
+msgstr "„%{name}“ ist ein früherer Name von „%{holder}“ — ein Import unter diesem Namen bucht dorthin. Einen anderen Namen wählen oder ihn bei „%{holder}“ entfernen."
+
+#, elixir-autogen, elixir-format
+msgid "Merge %{name}"
+msgstr "%{name} zusammenführen"
+
+#, elixir-autogen, elixir-format
+msgid "Not selectable (%{count})"
+msgid_plural "Not selectable (%{count})"
+msgstr[0] "Nicht wählbar (%{count})"
+msgstr[1] "Nicht wählbar (%{count})"
+
+#, elixir-autogen, elixir-format
+msgid "Continue to preview"
+msgstr "Weiter zur Vorschau"
+
+#, elixir-autogen, elixir-format
+msgid "The account no longer exists. Nothing was merged."
+msgstr "Das Konto gibt es nicht mehr. Nichts wurde zusammengeführt."
+
+#, elixir-autogen, elixir-format
+msgid "The account was merged into another one meanwhile. Nothing was merged now."
+msgstr "Das Konto wurde inzwischen in ein anderes zusammengeführt. Jetzt wurde nichts zusammengeführt."
+
+#, elixir-autogen, elixir-format
+msgid "Nothing was merged: the check of the merged figures did not hold, so the merge was rolled back. Check again; if it recurs, the audit journal shows both accounts' bookings."
+msgstr "Nichts wurde zusammengeführt: Die Prüfung der zusammengeführten Zahlen ging nicht auf, daher wurde alles zurückgerollt. Erneut prüfen; tritt es wieder auf, zeigt das Audit-Journal die Buchungen beider Konten."
+
+#, elixir-autogen, elixir-format
+msgid "Merged %{source} into %{target}: %{moved}, %{removed}."
+msgstr "%{source} in %{target} zusammengeführt: %{moved}, %{removed}."
+
+#, elixir-autogen, elixir-format
+msgid "Step 1 of 2 · Target"
+msgstr "Schritt 1 von 2 · Ziel"
+
+#, elixir-autogen, elixir-format
+msgid "Step 2 of 2 · Preview"
+msgstr "Schritt 2 von 2 · Vorschau"
+
+#, elixir-autogen, elixir-format
+msgid "Target — receives every booking"
+msgstr "Ziel — bekommt alle Buchungen"
+
+#, elixir-autogen, elixir-format
+msgid "No account meets the conditions."
+msgstr "Kein Konto erfüllt die Bedingungen."
+
+#, elixir-autogen, elixir-format
+msgid "No depot meets the conditions."
+msgstr "Kein Depot erfüllt die Bedingungen."
+
+#, elixir-autogen, elixir-format
+msgid "Selectable: same currency, same liquidity role, same buckets."
+msgstr "Wählbar: gleiche Währung, gleiche Liquiditätsrolle, gleiche Buckets."
+
+#, elixir-autogen, elixir-format
+msgid "Selectable: same default buckets."
+msgstr "Wählbar: gleiche Standard-Buckets."
+
+#, elixir-autogen, elixir-format
+msgid "different portfolio record"
+msgstr "anderer Portfoliodatensatz"
+
+#, elixir-autogen, elixir-format
+msgid "different currency"
+msgstr "andere Währung"
+
+#, elixir-autogen, elixir-format
+msgid "different liquidity role"
+msgstr "andere Liquiditätsrolle"
+
+#, elixir-autogen, elixir-format
+msgid "different buckets"
+msgstr "andere Buckets"
+
+#, elixir-autogen, elixir-format
+msgid "Buckets: %{names}"
+msgstr "Buckets: %{names}"
+
+#, elixir-autogen, elixir-format
+msgid "no buckets"
+msgstr "keine Buckets"
+
+#, elixir-autogen, elixir-format
+msgid "The accounts changed while the preview was open. Nothing was merged; the preview now shows the new state."
+msgstr "Die Konten haben sich geändert, während die Vorschau offen war. Nichts wurde zusammengeführt; die Vorschau zeigt jetzt den neuen Stand."
+
+#, elixir-autogen, elixir-format
+msgid "Changed since opening: %{changes}"
+msgstr "Geändert seit dem Öffnen: %{changes}"
+
+#, elixir-autogen, elixir-format
+msgid "into"
+msgstr "in"
+
+#, elixir-autogen, elixir-format
+msgid "Merge into %{name}"
+msgstr "In %{name} zusammenführen"
+
+#, elixir-autogen, elixir-format
+msgid "%{name} after"
+msgstr "%{name} danach"
+
+#, elixir-autogen, elixir-format
+msgid "Balances as of %{date}, computed from the bookings. The sum holds on every day either account has a booking and is checked before anything is saved."
+msgstr "Salden am %{date}, aus den Buchungen berechnet. Die Summe gilt an jedem Tag, an dem eines der Konten eine Buchung hat, und wird vor dem Speichern geprüft."
+
+#, elixir-autogen, elixir-format
+msgid "— they cancel out in the balance"
+msgstr "— im Saldo heben sie sich auf"
+
+#, elixir-autogen, elixir-format
+msgid "— table"
+msgstr "— Tabelle"
+
+#, elixir-autogen, elixir-format
+msgid "— choice below"
+msgstr "— Wahl unten"
+
+#, elixir-autogen, elixir-format
+msgid "Set balances"
+msgstr "Gesetzte Salden"
+
+#, elixir-autogen, elixir-format
+msgid "adjusted so the merged history holds"
+msgstr "angepasst, damit der zusammengeführte Verlauf stimmt"
+
+#, elixir-autogen, elixir-format
+msgid "Set"
+msgstr "Gesetzt"
+
+#, elixir-autogen, elixir-format
+msgid "+ other account"
+msgstr "+ anderes Konto"
+
+#, elixir-autogen, elixir-format
+msgid "After"
+msgstr "Danach"
+
+#, elixir-autogen, elixir-format
+msgid "the one of %{name} on this day is dropped"
+msgstr "der von %{name} an diesem Tag entfällt"
+
+#, elixir-autogen, elixir-format
+msgid "“+ other account”: the other account's balance at the end of that day, from its bookings before the merge. On a day with two set balances, the target's carries the sum."
+msgstr "„+ anderes Konto“: Saldo des anderen Kontos am Ende dieses Tages, aus seinen Buchungen vor dem Zusammenführen. An einem Tag mit zwei gesetzten Salden trägt der des Ziels die Summe."
+
+#, elixir-autogen, elixir-format
+msgid "Affected positions"
+msgstr "Betroffene Positionen"
+
+#, elixir-autogen, elixir-format
+msgid "Avg. cost"
+msgstr "Ø Kosten"
+
+#, elixir-autogen, elixir-format
+msgid "Realized gain/loss"
+msgstr "Realisierter G/V"
+
+#, elixir-autogen, elixir-format
+msgid "In each cell before above (%{source} + %{target}, or %{source} · %{target}), after below. Average cost and realized gain/loss in the security's currency, a moving average over both depots' buys, fees and taxes not included. Quantity per security = the sum of both depots, checked on every day; the market value of both depots together stays the same."
+msgstr "Je Zelle oben vorher (%{source} + %{target} bzw. %{source} · %{target}), unten danach. Ø Kosten und realisierter G/V in der Währung des Wertpapiers, gleitender Durchschnitt über die Käufe beider Depots, ohne Gebühren und Steuern. Stückzahl je Wertpapier = Summe beider Depots, an jedem Tag geprüft; der Marktwert beider Depots zusammen bleibt gleich."
+
+#, elixir-autogen, elixir-format
+msgid "Rounding at a split: %{security} on %{date} (%{ratio}) — combined %{combined}, rounded apart %{separate} (%{difference}). Expected, not a refusal."
+msgstr "Rundung beim Split: %{security} am %{date} (%{ratio}) — zusammen %{combined}, getrennt gerundet %{separate} (%{difference}). Erwartet, keine Ablehnung."
+
+#, elixir-autogen, elixir-format
+msgid "Stands in"
+msgstr "Steht in"
+
+#, elixir-autogen, elixir-format
+msgid "%{source} and %{target}"
+msgstr "%{source} und %{target}"
+
+#, elixir-autogen, elixir-format
+msgid "remove as duplicates"
+msgstr "als Duplikate entfernen"
+
+#, elixir-autogen, elixir-format
+msgid "Balance after"
+msgstr "Saldo danach"
+
+#, elixir-autogen, elixir-format
+msgid "Also changes: %{changes}"
+msgstr "Ändert auch: %{changes}"
+
+#, elixir-autogen, elixir-format
+msgid "keep both"
+msgstr "beide behalten"
+
+#, elixir-autogen, elixir-format
+msgid "Every booking stands in %{target} afterwards."
+msgstr "Alle Buchungen stehen danach in %{target}."
+
+#, elixir-autogen, elixir-format
+msgid "Equal means: same day, same kind, same amounts."
+msgstr "Gleich heißt: gleicher Tag, gleiche Art, gleiche Beträge."
+
+#, elixir-autogen, elixir-format
+msgid "%{quantity} shares"
+msgstr "%{quantity} Stück"
+
+#, elixir-autogen, elixir-format
+msgid "%{security} in %{depot} %{change} shares"
+msgstr "%{security} in %{depot} %{change} Stück"
+
+#, elixir-autogen, elixir-format
+msgid "a set balance of %{name} on %{date} absorbs %{amount}"
+msgstr "ein gesetzter Saldo von %{name} am %{date} nimmt %{amount} auf"
+
+#, elixir-autogen, elixir-format
+msgid "“%{name}” is not kept: an import that names it already books to another account."
+msgstr "„%{name}“ wird nicht übernommen: Ein Import, der ihn nennt, bucht schon auf ein anderes Konto."
+
+#, elixir-autogen, elixir-format
+msgid "%{target} keeps its cash account; the cash account of %{source} stays an account of its own."
+msgstr "%{target} behält sein Verrechnungskonto; das Verrechnungskonto von %{source} bleibt als eigenes Konto bestehen."
+
+#, elixir-autogen, elixir-format
+msgid "%{source} is deleted afterwards. This cannot be undone; every changed booking is journaled."
+msgstr "%{source} wird danach gelöscht. Das lässt sich nicht rückgängig machen; jede geänderte Buchung wird journalisiert."
+
+#, elixir-autogen, elixir-format
+msgid "“%{name}” becomes a former name of %{target}. An import that names this account books to %{target} afterwards."
+msgstr "„%{name}“ wird früherer Name von %{target}. Ein Import, der dieses Konto nennt, bucht danach auf %{target}."
+
+#, elixir-autogen, elixir-format
+msgid "%{names} become former names of %{target}. An import that names them books to %{target} afterwards."
+msgstr "%{names} werden frühere Namen von %{target}. Ein Import, der sie nennt, bucht danach auf %{target}."
+
+#, elixir-autogen, elixir-format
+msgid "Merging is not possible: %{reason}"
+msgstr "Zusammenführen nicht möglich: %{reason}"
+
+#, elixir-autogen, elixir-format
+msgid "Check again"
+msgstr "Erneut prüfen"
+
+#, elixir-autogen, elixir-format
+msgid "an account cannot be merged into itself."
+msgstr "Ein Konto kann nicht in sich selbst zusammengeführt werden."
+
+#, elixir-autogen, elixir-format
+msgid "a depot cannot be merged into itself."
+msgstr "Ein Depot kann nicht in sich selbst zusammengeführt werden."
+
+#, elixir-autogen, elixir-format
+msgid "the target no longer exists."
+msgstr "Das Ziel gibt es nicht mehr."
+
+#, elixir-autogen, elixir-format
+msgid "the two belong to different portfolio records."
+msgstr "Die beiden gehören zu verschiedenen Portfoliodatensätzen."
+
+#, elixir-autogen, elixir-format
+msgid "the accounts hold different currencies, and a merge never converts an amount."
+msgstr "Die Konten führen verschiedene Währungen, und beim Zusammenführen wird nie ein Betrag umgerechnet."
+
+#, elixir-autogen, elixir-format
+msgid "the accounts have different liquidity roles."
+msgstr "Die Konten haben verschiedene Liquiditätsrollen."
+
+#, elixir-autogen, elixir-format
+msgid "the two sit in different buckets, so the views would change retroactively."
+msgstr "Die beiden liegen in verschiedenen Buckets, die Ansichten würden sich rückwirkend ändern."
+
+#, elixir-autogen, elixir-format
+msgid "a set balance still carries an import hash from before the import-hash check and cannot be adjusted."
+msgstr "Ein gesetzter Saldo trägt noch einen Import-Hash aus der Zeit vor der Import-Hash-Prüfung und kann nicht angepasst werden."
+
+#, elixir-autogen, elixir-format
+msgid "a check of the merge did not hold."
+msgstr "Eine Prüfung der Zusammenführung ging nicht auf."
+
+#, elixir-autogen, elixir-format
+msgid "Remedy: give the position the same buckets in both depots, then check again."
+msgstr "Abhilfe: die Buckets der Position in beiden Depots angleichen, dann erneut prüfen."
+
+#, elixir-autogen, elixir-format
+msgid "Remedy: change that booking's kind back to the one it was imported as, or delete it, then check again."
+msgstr "Abhilfe: die Art dieser Buchung auf die zurücksetzen, mit der sie importiert wurde, oder sie löschen, dann erneut prüfen."
+
+#, elixir-autogen, elixir-format
+msgid "Remedy: go back and choose another target."
+msgstr "Abhilfe: zurückgehen und ein anderes Ziel wählen."
+
+#, elixir-autogen, elixir-format
+msgid "Remedy: align the two, or go back and choose another target, then check again."
+msgstr "Abhilfe: die beiden angleichen oder zurückgehen und ein anderes Ziel wählen, dann erneut prüfen."
+
+#, elixir-autogen, elixir-format
+msgid "balance of %{name} %{before} → %{after} %{currency}"
+msgstr "Saldo %{name} %{before} → %{after} %{currency}"
+
+#, elixir-autogen, elixir-format
+msgid "bookings of %{name} %{before} → %{after}"
+msgstr "Buchungen %{name} %{before} → %{after}"
+
+#, elixir-autogen, elixir-format
+msgid "%{count} booking"
+msgid_plural "%{count} bookings"
+msgstr[0] "%{count} Buchung"
+msgstr[1] "%{count} Buchungen"
+
+#, elixir-autogen, elixir-format
+msgid "%{count} linked depot (%{names})"
+msgid_plural "%{count} linked depots (%{names})"
+msgstr[0] "%{count} verknüpftes Depot (%{names})"
+msgstr[1] "%{count} verknüpfte Depots (%{names})"
+
+#, elixir-autogen, elixir-format
+msgid "Choose what to do with the equal booking."
+msgid_plural "Choose what to do with the %{count} equal bookings."
+msgstr[0] "Wählen, was mit der gleichen Buchung geschieht."
+msgstr[1] "Wählen, was mit den %{count} gleichen Buchungen geschieht."
+
+#, elixir-autogen, elixir-format
+msgid "%{count} booking moved"
+msgid_plural "%{count} bookings moved"
+msgstr[0] "%{count} Buchung verschoben"
+msgstr[1] "%{count} Buchungen verschoben"
+
+#, elixir-autogen, elixir-format
+msgid "%{count} removed"
+msgid_plural "%{count} removed"
+msgstr[0] "%{count} entfernt"
+msgstr[1] "%{count} entfernt"
+
+#, elixir-autogen, elixir-format
+msgid "Choice for the equal booking missing"
+msgid_plural "Choice for %{count} equal bookings missing"
+msgstr[0] "Wahl für die gleiche Buchung fehlt"
+msgstr[1] "Wahl für %{count} gleiche Buchungen fehlt"
+
+#, elixir-autogen, elixir-format
+msgid "%{amount} %{currency} if the equal booking is removed (%{difference})"
+msgid_plural "%{amount} %{currency} if the %{count} equal bookings are removed (%{difference})"
+msgstr[0] "%{amount} %{currency}, wenn die gleiche Buchung entfernt wird (%{difference})"
+msgstr[1] "%{amount} %{currency}, wenn die %{count} gleichen Buchungen entfernt werden (%{difference})"
+
+#, elixir-autogen, elixir-format
+msgid "booking moves to %{name}"
+msgid_plural "bookings move to %{name}"
+msgstr[0] "Buchung wechselt nach %{name}"
+msgstr[1] "Buchungen wechseln nach %{name}"
+
+#, elixir-autogen, elixir-format
+msgid "transfer between the two accounts is dropped"
+msgid_plural "transfers between the two accounts are dropped"
+msgstr[0] "Umbuchung zwischen beiden Konten entfällt"
+msgstr[1] "Umbuchungen zwischen beiden Konten entfallen"
+
+#, elixir-autogen, elixir-format
+msgid "set balance is adjusted"
+msgid_plural "set balances are adjusted"
+msgstr[0] "gesetzter Saldo wird angepasst"
+msgstr[1] "gesetzte Salden werden angepasst"
+
+#, elixir-autogen, elixir-format
+msgid ", %{count} is dropped"
+msgid_plural ", %{count} are dropped"
+msgstr[0] ", %{count} entfällt"
+msgstr[1] ", %{count} entfallen"
+
+#, elixir-autogen, elixir-format
+msgid "booking is equal in both accounts"
+msgid_plural "bookings are equal in both accounts"
+msgstr[0] "Buchung ist in beiden Konten gleich"
+msgstr[1] "Buchungen sind in beiden Konten gleich"
+
+#, elixir-autogen, elixir-format
+msgid "linked depot moves to %{name}"
+msgid_plural "linked depots move to %{name}"
+msgstr[0] "verknüpftes Depot wechselt nach %{name}"
+msgstr[1] "verknüpfte Depots wechseln nach %{name}"
+
+#, elixir-autogen, elixir-format
+msgid "security transfer between the two depots is dropped"
+msgid_plural "security transfers between the two depots are dropped"
+msgstr[0] "Wertpapierumbuchung zwischen beiden Depots entfällt"
+msgstr[1] "Wertpapierumbuchungen zwischen beiden Depots entfallen"
+
+#, elixir-autogen, elixir-format
+msgid "equal booking"
+msgid_plural "equal bookings"
+msgstr[0] "gleiche Buchung"
+msgstr[1] "gleiche Buchungen"
+
+#, elixir-autogen, elixir-format
+msgid "%{count} equal booking in both accounts"
+msgid_plural "%{count} equal bookings in both accounts"
+msgstr[0] "%{count} gleiche Buchung in beiden Konten"
+msgstr[1] "%{count} gleiche Buchungen in beiden Konten"
+
+#, elixir-autogen, elixir-format
+msgid "The booking from %{source} is deleted."
+msgid_plural "The %{count} bookings from %{source} are deleted."
+msgstr[0] "Die Buchung aus %{source} wird gelöscht."
+msgstr[1] "Die %{count} Buchungen aus %{source} werden gelöscht."
+
+#, elixir-autogen, elixir-format
+msgid "for %{count} position the buckets differ, so the views would change retroactively."
+msgid_plural "for %{count} positions the buckets differ, so the views would change retroactively."
+msgstr[0] "Bei %{count} Position unterscheiden sich die Buckets, die Ansichten würden sich rückwirkend ändern."
+msgstr[1] "Bei %{count} Positionen unterscheiden sich die Buckets, die Ansichten würden sich rückwirkend ändern."
+
+#, elixir-autogen, elixir-format
+msgid "in %{source} and %{target}"
+msgstr "in %{source} und %{target}"
+
+## ADR-0050 §12 (L5a): a link naming a merged-away security (boards 03, 13).
+
+#, elixir-autogen, elixir-format
+msgid "The link led to a security that was merged into this one on %{date}."
+msgstr "Der Link führte zu einem Wertpapier, das am %{date} hierher zusammengeführt wurde."
+
+#, elixir-autogen, elixir-format
+msgid "The benchmark named a security that was merged into “%{name}” on %{date}; the comparison now uses it."
+msgstr "Der Benchmark nannte ein Wertpapier, das am %{date} in „%{name}“ zusammengeführt wurde; verglichen wird jetzt damit."
+
+## ADR-0050 §3, §4 (L5b): what the import preview's rows and result say (boards 04, 04b).
+
+#, elixir-autogen, elixir-format
+msgid "%{count} booking already imported"
+msgid_plural "%{count} bookings already imported"
+msgstr[0] "%{count} Buchung bereits importiert"
+msgstr[1] "%{count} Buchungen bereits importiert"
+
+#, elixir-autogen, elixir-format
+msgid "%{count} new"
+msgid_plural "%{count} new"
+msgstr[0] "%{count} neu"
+msgstr[1] "%{count} neu"
+
+#, elixir-autogen, elixir-format
+msgid "%{count} booking new"
+msgid_plural "%{count} bookings new"
+msgstr[0] "%{count} Buchung neu"
+msgstr[1] "%{count} Buchungen neu"
+
+#, elixir-autogen, elixir-format
+msgid "nothing to create"
+msgstr "nichts anzulegen"
+
+#, elixir-autogen, elixir-format
+msgid "matched by a former name — %{account}, formerly “%{name}”"
+msgstr "über früheren Namen zugeordnet — %{account}, früher „%{name}“"
+
+#, elixir-autogen, elixir-format
+msgid "no account under this name; it is created only with its first new booking"
+msgstr "kein Konto unter diesem Namen; angelegt wird es erst mit seiner ersten neuen Buchung"
+
+#, elixir-autogen, elixir-format
+msgid "Remember this mapping"
+msgstr "Zuordnung merken"
+
+#, elixir-autogen, elixir-format
+msgid "“%{name}” becomes a former name of %{account}; a future import maps the name by itself."
+msgstr "„%{name}“ wird früherer Name von %{account}; ein künftiger Import ordnet den Namen selbst zu."
+
+#, elixir-autogen, elixir-format
+msgid "“%{name}” becomes a former name of %{account} and is then no longer a former name of %{from}."
+msgstr "„%{name}“ wird früherer Name von %{account} und ist dann nicht mehr früherer Name von %{from}."
+
+#, elixir-autogen, elixir-format
+msgid "Holds for this import only. A future import suggests “%{prefill}” again."
+msgstr "Gilt nur für diesen Import. Ein künftiger Import schlägt wieder „%{prefill}“ vor."
+
+#, elixir-autogen, elixir-format
+msgid "“%{name}” is already the name of another account; the choice holds for this import only. Merging or renaming that account changes this:"
+msgstr "„%{name}“ heißt schon ein anderes Konto; die Wahl gilt nur für diesen Import. Das ändert Zusammenführen oder Umbenennen dieses Kontos:"
+
+#, elixir-autogen, elixir-format
+msgid "%{count} cash account is named “%{name}” (%{labels}), so there is no prefill."
+msgid_plural "%{count} cash accounts are named “%{name}” (%{labels}), so there is no prefill."
+msgstr[0] "%{count} Verrechnungskonto heißt „%{name}“ (%{labels}), daher keine Vorbelegung."
+msgstr[1] "%{count} Verrechnungskonten heißen „%{name}“ (%{labels}), daher keine Vorbelegung."
+
+#, elixir-autogen, elixir-format
+msgid "%{count} cash account carries “%{name}” as a former name (%{labels}), so there is no prefill."
+msgid_plural "%{count} cash accounts carry “%{name}” as a former name (%{labels}), so there is no prefill."
+msgstr[0] "%{count} Verrechnungskonto trägt „%{name}“ als früheren Namen (%{labels}), daher keine Vorbelegung."
+msgstr[1] "%{count} Verrechnungskonten tragen „%{name}“ als früheren Namen (%{labels}), daher keine Vorbelegung."
+
+#, elixir-autogen, elixir-format
+msgid "%{count} depot is named “%{name}” (%{labels}), so there is no prefill."
+msgid_plural "%{count} depots are named “%{name}” (%{labels}), so there is no prefill."
+msgstr[0] "%{count} Depot heißt „%{name}“ (%{labels}), daher keine Vorbelegung."
+msgstr[1] "%{count} Depots heißen „%{name}“ (%{labels}), daher keine Vorbelegung."
+
+#, elixir-autogen, elixir-format
+msgid "%{count} depot carries “%{name}” as a former name (%{labels}), so there is no prefill."
+msgid_plural "%{count} depots carry “%{name}” as a former name (%{labels}), so there is no prefill."
+msgstr[0] "%{count} Depot trägt „%{name}“ als früheren Namen (%{labels}), daher keine Vorbelegung."
+msgstr[1] "%{count} Depots tragen „%{name}“ als früheren Namen (%{labels}), daher keine Vorbelegung."
+
+#, elixir-autogen, elixir-format
+msgid "The choice holds for this import's new bookings and cannot be remembered while more than one account carries the name. Once only one does, the import maps the name to it: renaming or merging under"
+msgstr "Die Wahl gilt für die neuen Buchungen dieses Imports und lässt sich nicht merken, solange mehrere Konten den Namen tragen. Trägt ihn nur noch eines, ordnet der Import den Namen diesem zu: umbenennen oder zusammenführen unter"
+
+#, elixir-autogen, elixir-format
+msgid "+ Create new: %{name} — not possible: %{reason}"
+msgstr "+ Neu anlegen: %{name} — nicht möglich: %{reason}"
+
+#, elixir-autogen, elixir-format
+msgid "an account already has this name"
+msgstr "ein Konto heißt schon so"
+
+#, elixir-autogen, elixir-format
+msgid "a former name of %{account}"
+msgstr "früherer Name von %{account}"
+
+#, elixir-autogen, elixir-format
+msgid "the name of %{count} account"
+msgid_plural "the name of %{count} accounts"
+msgstr[0] "Name von %{count} Konto"
+msgstr[1] "Name von %{count} Konten"
+
+#, elixir-autogen, elixir-format
+msgid "a former name of %{count} account"
+msgid_plural "a former name of %{count} accounts"
+msgstr[0] "früherer Name von %{count} Konto"
+msgstr[1] "früherer Name von %{count} Konten"
+
+#, elixir-autogen, elixir-format
+msgid "at %{depots}"
+msgstr "bei %{depots}"
+
+#, elixir-autogen, elixir-format
+msgid "no depot"
+msgstr "ohne Depot"
+
+#, elixir-autogen, elixir-format
+msgid "with %{cash}"
+msgstr "mit %{cash}"
+
+#, elixir-autogen, elixir-format
+msgid "created %{date}"
+msgstr "angelegt %{date}"
+
+#, elixir-autogen, elixir-format
+msgid "no. %{id}"
+msgstr "Nr. %{id}"
+
+#, elixir-autogen, elixir-format
+msgid "The entry is already imported."
+msgid_plural "All %{count} entries are already imported."
+msgstr[0] "Der Eintrag ist bereits importiert."
+msgstr[1] "Alle %{count} Einträge sind bereits importiert."
+
+#, elixir-autogen, elixir-format
+msgid "%{count} entry is already imported; the others cannot be imported."
+msgid_plural "%{count} entries are already imported; the others cannot be imported."
+msgstr[0] "%{count} Eintrag ist bereits importiert; die übrigen lassen sich nicht importieren."
+msgstr[1] "%{count} Einträge sind bereits importiert; die übrigen lassen sich nicht importieren."
+
+#, elixir-autogen, elixir-format
+msgid "The import creates nothing: no booking, no account, no depot, no security."
+msgstr "Der Import legt nichts an: keine Buchung, kein Konto, kein Depot, kein Wertpapier."
+
+#, elixir-autogen, elixir-format
+msgid "Remembered for future imports:"
+msgstr "Für künftige Importe gemerkt:"
+
+#, elixir-autogen, elixir-format
+msgid "“%{name}” is now a former name of %{account}."
+msgstr "„%{name}“ ist jetzt früherer Name von %{account}."
+
+#, elixir-autogen, elixir-format
+msgid "“%{name}” is now a former name of %{account} and no longer of %{from}."
+msgstr "„%{name}“ ist jetzt früherer Name von %{account} und nicht mehr von %{from}."
+
+#, elixir-autogen, elixir-format
+msgid "“%{name}” was not remembered: it is the name of %{holder}."
+msgstr "„%{name}“ wurde nicht gemerkt: Es ist der Name von %{holder}."
+
+#, elixir-autogen, elixir-format
+msgid "Row %{row}: %{description}"
+msgstr "Zeile %{row}: %{description}"
+
+#, elixir-autogen, elixir-format
+msgid "a row of the file"
+msgstr "eine Zeile der Datei"
+
+#, elixir-autogen, elixir-format
+msgid "One booking lies on or before a set balance a merge adjusted; that balance absorbs its amount:"
+msgid_plural "%{count} bookings lie on or before a set balance a merge adjusted; that balance absorbs their amounts:"
+msgstr[0] "Eine Buchung liegt am oder vor einem gesetzten Saldo, den eine Zusammenführung angepasst hat; der Saldo nimmt ihren Betrag auf:"
+msgstr[1] "%{count} Buchungen liegen am oder vor einem gesetzten Saldo, den eine Zusammenführung angepasst hat; der Saldo nimmt ihre Beträge auf:"
+
+#, elixir-autogen, elixir-format
+msgid "Row %{row}: %{description} — set balance of %{account} on %{date}"
+msgstr "Zeile %{row}: %{description} — gesetzter Saldo von %{account} am %{date}"
+
+## ADR-0050 §9, §12 (L5b): the security merge on the securities page (board 03, G3-A).
+
+#, elixir-autogen, elixir-format
+msgid "Target — receives bookings, quotes and settings"
+msgstr "Ziel — bekommt Buchungen, Kurse und Einstellungen"
+
+#, elixir-autogen, elixir-format
+msgid "Search the target: name, ISIN, WKN or ticker"
+msgstr "Ziel suchen: Name, ISIN, WKN oder Ticker"
+
+#, elixir-autogen, elixir-format
+msgid "Name, ISIN, WKN or ticker"
+msgstr "Name, ISIN, WKN oder Ticker"
+
+#, elixir-autogen, elixir-format
+msgid "No other security matches."
+msgstr "Kein anderes Wertpapier passt."
+
+#, elixir-autogen, elixir-format
+msgid "Selectable: the same currency, both or neither a benchmark, the target not retired; with quotes also the same “treat synced quotes as raw”. The preview checks everything else."
+msgstr "Wählbar: gleiche Währung, gleiche Benchmark-Markierung, Ziel nicht stillgelegt; mit Kursen auch dieselbe Einstellung „Synchronisierte Kurse als roh behandeln“. Alles Weitere prüft die Vorschau."
+
+#, elixir-autogen, elixir-format
+msgid "only one of the two is a benchmark"
+msgstr "nur eines der beiden ist Benchmark"
+
+#, elixir-autogen, elixir-format
+msgid "other quote basis"
+msgstr "andere Kursbasis"
+
+#, elixir-autogen, elixir-format
+msgid "Source · deleted"
+msgstr "Quelle · wird gelöscht"
+
+#, elixir-autogen, elixir-format
+msgid "Target · stays"
+msgstr "Ziel · bleibt"
+
+#, elixir-autogen, elixir-format
+msgid "ISIN afterwards"
+msgstr "ISIN danach"
+
+#, elixir-autogen, elixir-format
+msgid "Keep %{isin}"
+msgstr "%{isin} behalten"
+
+#, elixir-autogen, elixir-format
+msgid "Adopt %{isin}"
+msgstr "%{isin} übernehmen"
+
+#, elixir-autogen, elixir-format
+msgid "the target's ISIN"
+msgstr "ISIN des Ziels"
+
+#, elixir-autogen, elixir-format
+msgid "the source's ISIN"
+msgstr "ISIN der Quelle"
+
+#, elixir-autogen, elixir-format
+msgid "%{isin} becomes a former ISIN of this security."
+msgstr "%{isin} wird frühere ISIN dieses Wertpapiers."
+
+#, elixir-autogen, elixir-format
+msgid "%{target} becomes a former ISIN; the target carries %{source} afterwards."
+msgstr "%{target} wird frühere ISIN; das Ziel trägt danach %{source}."
+
+#, elixir-autogen, elixir-format
+msgid "ISIN change on"
+msgstr "ISIN-Wechsel am"
+
+#, elixir-autogen, elixir-format
+msgid "is not a date in the range the app accepts (YYYY-MM-DD)"
+msgstr "ist kein Datum im zulässigen Bereich (JJJJ-MM-TT)"
+
+#, elixir-autogen, elixir-format
+msgid "shares"
+msgstr "Stück"
+
+#, elixir-autogen, elixir-format
+msgid "Holdings afterwards"
+msgstr "Bestand danach"
+
+#, elixir-autogen, elixir-format
+msgid "%{quantity} shares if the equal booking is removed (%{difference})"
+msgid_plural "%{quantity} shares if the %{count} equal bookings are removed (%{difference})"
+msgstr[0] "%{quantity} Stück, wenn die gleiche Buchung entfernt wird (%{difference})"
+msgstr[1] "%{quantity} Stück, wenn die %{count} gleichen Buchungen entfernt werden (%{difference})"
+
+#, elixir-autogen, elixir-format
+msgid "Holdings in every depot as of %{date}, computed from the bookings. The sum holds per depot on every day and is checked before anything is saved."
+msgstr "Bestand in allen Depots am %{date}, aus den Buchungen berechnet. Die Summe gilt je Depot an jedem Tag und wird vor dem Speichern geprüft."
+
+#, elixir-autogen, elixir-format
+msgid "booking moves to the target"
+msgid_plural "bookings move to the target"
+msgstr[0] "Buchung wechselt zum Ziel"
+msgstr[1] "Buchungen wechseln zum Ziel"
+
+#, elixir-autogen, elixir-format
+msgid "booking is equal in both securities"
+msgid_plural "bookings are equal in both securities"
+msgstr[0] "Buchung ist in beiden gleich"
+msgstr[1] "Buchungen sind in beiden gleich"
+
+#, elixir-autogen, elixir-format
+msgid "split stands the same in both — the target's stays"
+msgid_plural "splits stand the same in both — the target's stay"
+msgstr[0] "Split steht gleich in beiden — der des Ziels bleibt"
+msgstr[1] "Splits stehen gleich in beiden — die des Ziels bleiben"
+
+#, elixir-autogen, elixir-format
+msgid "quote of the source fills a gap in the target"
+msgid_plural "quotes of the source fill gaps in the target"
+msgstr[0] "Kurs der Quelle füllt eine Lücke im Ziel"
+msgstr[1] "Kurse der Quelle füllen Lücken im Ziel"
+
+#, elixir-autogen, elixir-format
+msgid "day with a quote in both — the target's applies"
+msgid_plural "days with a quote in both — the target's applies"
+msgstr[0] "Tag mit Kurs in beiden — der des Ziels gilt"
+msgstr[1] "Tage mit Kurs in beiden — der des Ziels gilt"
+
+#, elixir-autogen, elixir-format
+msgid "— %{count} of them manual, table"
+msgid_plural "— %{count} of them manual, table"
+msgstr[0] "— %{count} davon manuell, Tabelle"
+msgstr[1] "— %{count} davon manuell, Tabelle"
+
+#, elixir-autogen, elixir-format
+msgid "setting of the source"
+msgid_plural "settings of the source"
+msgstr[0] "Einstellung der Quelle"
+msgstr[1] "Einstellungen der Quelle"
+
+#, elixir-autogen, elixir-format
+msgid "%{count} moves"
+msgid_plural "%{count} move"
+msgstr[0] "%{count} wechselt"
+msgstr[1] "%{count} wechseln"
+
+#, elixir-autogen, elixir-format
+msgid "%{count} is dropped"
+msgid_plural "%{count} are dropped"
+msgstr[0] "%{count} entfällt"
+msgstr[1] "%{count} entfallen"
+
+#, elixir-autogen, elixir-format
+msgid "event moves"
+msgid_plural "events move"
+msgstr[0] "Termin wechselt"
+msgstr[1] "Termine wechseln"
+
+#, elixir-autogen, elixir-format
+msgid "— %{count} of them stands the same in the target, table"
+msgid_plural "— %{count} of them stand the same in the target, table"
+msgstr[0] "— %{count} davon steht gleich im Ziel, Tabelle"
+msgstr[1] "— %{count} davon stehen gleich im Ziel, Tabelle"
+
+#, elixir-autogen, elixir-format
+msgid "%{count} equal booking in both securities"
+msgid_plural "%{count} equal bookings in both securities"
+msgstr[0] "%{count} gleiche Buchung in beiden Wertpapieren"
+msgstr[1] "%{count} gleiche Buchungen in beiden Wertpapieren"
+
+#, elixir-autogen, elixir-format
+msgid "Show the other pair"
+msgid_plural "Show the other %{count} pairs"
+msgstr[0] "Das weitere Paar anzeigen"
+msgstr[1] "Die weiteren %{count} Paare anzeigen"
+
+#, elixir-autogen, elixir-format
+msgid "The booking of the source is deleted."
+msgid_plural "The %{count} bookings of the source are deleted."
+msgstr[0] "Die Buchung der Quelle wird gelöscht."
+msgstr[1] "Die %{count} Buchungen der Quelle werden gelöscht."
+
+#, elixir-autogen, elixir-format
+msgid "The booking stands at the target afterwards."
+msgid_plural "All %{count} bookings stand at the target afterwards."
+msgstr[0] "Die Buchung steht danach beim Ziel."
+msgstr[1] "Alle %{count} Buchungen stehen danach beim Ziel."
+
+#, elixir-autogen, elixir-format
+msgid "Equal means: same day, same kind, same depot and account, same quantity and amounts."
+msgstr "Gleich heißt: gleicher Tag, gleiche Art, gleiches Depot und Konto, gleiche Stückzahl und Beträge."
+
+#, elixir-autogen, elixir-format
+msgid "Depot / account"
+msgstr "Depot / Konto"
+
+#, elixir-autogen, elixir-format
+msgid "Quotes on days with both values"
+msgstr "Kurse an Tagen mit beiden Werten"
+
+#, elixir-autogen, elixir-format
+msgid "only days with a manual quote"
+msgstr "nur Tage mit einem manuellen Kurs"
+
+#, elixir-autogen, elixir-format
+msgid "Target · applies"
+msgstr "Ziel · gilt"
+
+#, elixir-autogen, elixir-format
+msgid "Source · dropped"
+msgstr "Quelle · entfällt"
+
+#, elixir-autogen, elixir-format
+msgid "Every dropped quote stands in the merge's record with its date, value and source. The quote that moves keeps its source and so its price basis."
+msgid_plural "Every dropped quote stands in the merge's record with its date, value and source. The %{count} quotes that move keep their source and so their price basis."
+msgstr[0] "Jeder entfallende Kurs steht mit Datum, Wert und Quelle im Protokoll der Zusammenführung. Der übernommene Kurs behält seine Quelle und damit seine Kursbasis."
+msgstr[1] "Jeder entfallende Kurs steht mit Datum, Wert und Quelle im Protokoll der Zusammenführung. Die %{count} übernommenen Kurse behalten ihre Quelle und damit ihre Kursbasis."
+
+#, elixir-autogen, elixir-format
+msgid "tree “%{name}”"
+msgstr "Baum „%{name}“"
+
+#, elixir-autogen, elixir-format
+msgid "The target has none in this tree."
+msgstr "Das Ziel hat in diesem Baum keine."
+
+#, elixir-autogen, elixir-format
+msgid "The target stands in “%{name}” there."
+msgstr "Das Ziel steht dort in „%{name}“."
+
+#, elixir-autogen, elixir-format
+msgid "Position target"
+msgstr "Positionsziel"
+
+#, elixir-autogen, elixir-format
+msgid "%{weight} % in “%{category}”"
+msgstr "%{weight} % in „%{category}“"
+
+#, elixir-autogen, elixir-format
+msgid "The target takes it over in its category."
+msgstr "Das Ziel übernimmt es in seiner Kategorie."
+
+#, elixir-autogen, elixir-format
+msgid "The target already has a position target in this plan."
+msgstr "Das Ziel hat in diesem Plan schon ein Positionsziel."
+
+#, elixir-autogen, elixir-format
+msgid "The target does not stand in “%{name}”; the target would be stale."
+msgstr "Das Ziel steht nicht in „%{name}“; das Positionsziel wäre veraltet."
+
+#, elixir-autogen, elixir-format
+msgid "Position buckets"
+msgstr "Buckets der Position"
+
+#, elixir-autogen, elixir-format
+msgid "The target holds nothing there; the views stay the same."
+msgstr "Das Ziel hat dort keinen Bestand; die Ansichten bleiben gleich."
+
+#, elixir-autogen, elixir-format
+msgid "The target's position has the same buckets."
+msgstr "Die Position des Ziels hat dieselben Buckets."
+
+#, elixir-autogen, elixir-format
+msgid "The source holds nothing there."
+msgstr "Die Quelle hat dort keinen Bestand."
+
+#, elixir-autogen, elixir-format
+msgid "The target's own buckets there are cleared: the source's position inherits."
+msgstr "Die eigenen Buckets des Ziels dort entfallen: Die Position der Quelle erbt die des Depots."
+
+#, elixir-autogen, elixir-format
+msgid "Settings of the source"
+msgstr "Einstellungen der Quelle"
+
+#, elixir-autogen, elixir-format
+msgid "in active, draft and archived plans"
+msgstr "in aktiven, Entwurfs- und archivierten Plänen"
+
+#, elixir-autogen, elixir-format
+msgid "What"
+msgstr "Was"
+
+#, elixir-autogen, elixir-format
+msgid "Consequence"
+msgstr "Folge"
+
+#, elixir-autogen, elixir-format
+msgid "moves"
+msgstr "wechselt"
+
+#, elixir-autogen, elixir-format
+msgid "is dropped"
+msgstr "entfällt"
+
+#, elixir-autogen, elixir-format
+msgid "Events that stand the same in the target"
+msgstr "Termine, die gleich im Ziel stehen"
+
+#, elixir-autogen, elixir-format
+msgid "the same kind on the same day"
+msgstr "gleiche Art am gleichen Tag"
+
+#, elixir-autogen, elixir-format
+msgid "both stay"
+msgstr "beide bleiben"
+
+#, elixir-autogen, elixir-format
+msgid "An event books nothing. A duplicate can be deleted afterwards in the Events tab."
+msgstr "Ein Termin bucht nichts. Ein doppelter lässt sich danach im Tab Termine löschen."
+
+#, elixir-autogen, elixir-format
+msgid "adopted: the target had none."
+msgstr "übernommen: Das Ziel hatte keine."
+
+#, elixir-autogen, elixir-format
+msgid "The target's value applies."
+msgstr "Der Wert des Ziels gilt."
+
+#, elixir-autogen, elixir-format
+msgid "Master data that differ"
+msgstr "Stammdaten, die sich unterscheiden"
+
+#, elixir-autogen, elixir-format
+msgid "Field"
+msgstr "Feld"
+
+#, elixir-autogen, elixir-format
+msgid "Afterwards"
+msgstr "Danach"
+
+#, elixir-autogen, elixir-format
+msgid "Name, asset class and logo follow the target; WKN, ticker and quote source are adopted only where the target has none."
+msgstr "Name, Anlageklasse und Logo folgen dem Ziel; WKN, Ticker und Kursquelle werden nur übernommen, wo das Ziel keine hat."
+
+#, elixir-autogen, elixir-format
+msgid "Quote source"
+msgstr "Kursquelle"
+
+#, elixir-autogen, elixir-format
+msgid "Quote source address"
+msgstr "Adresse der Kursquelle"
+
+#, elixir-autogen, elixir-format
+msgid "Logo"
+msgstr "Logo"
+
+#, elixir-autogen, elixir-format
+msgid "a logo"
+msgstr "ein Logo"
+
+#, elixir-autogen, elixir-format
+msgid "An import that names the source books to the target afterwards."
+msgstr "Ein Import, der die Quelle nennt, bucht danach zum Ziel."
+
+#, elixir-autogen, elixir-format
+msgid "After the merge, %{isins} leads to this security; an import that names it books here."
+msgid_plural "After the merge, %{isins} lead to this security; an import that names any of them books here."
+msgstr[0] "Nach der Zusammenführung führt %{isins} zu diesem Wertpapier; ein Import, der sie nennt, bucht hierher."
+msgstr[1] "Nach der Zusammenführung führen %{isins} zu diesem Wertpapier; ein Import, der eine davon nennt, bucht hierher."
+
+#, elixir-autogen, elixir-format
+msgid "The source (created %{date}) is deleted afterwards — the entry, not its ISIN. This cannot be undone; every changed row is journaled."
+msgstr "Die Quelle (angelegt %{date}) wird danach gelöscht — der Eintrag, nicht ihre ISIN. Das lässt sich nicht rückgängig machen; jede geänderte Zeile wird journalisiert."
+
+#, elixir-autogen, elixir-format
+msgid "The securities changed while the preview was open. Nothing was merged; the preview now shows the new state."
+msgstr "Die Wertpapiere haben sich geändert, während die Vorschau offen war. Nichts wurde zusammengeführt; die Vorschau zeigt jetzt den neuen Stand."
+
+#, elixir-autogen, elixir-format
+msgid "Also: %{reason}"
+msgstr "Außerdem: %{reason}"
+
+#, elixir-autogen, elixir-format
+msgid "The other way is refused too: %{reason}"
+msgstr "Andersherum ebenso nicht: %{reason}"
+
+#, elixir-autogen, elixir-format
+msgid "No direction is possible; both securities stay unchanged."
+msgstr "Keine Richtung ist möglich; beide Wertpapiere bleiben unverändert."
+
+#, elixir-autogen, elixir-format
+msgid "Remedy: merge the other way — %{target} into this security."
+msgstr "Abhilfe: in die andere Richtung zusammenführen — %{target} in dieses Wertpapier."
+
+#, elixir-autogen, elixir-format
+msgid "Merge the other way"
+msgstr "Andersherum zusammenführen"
+
+#, elixir-autogen, elixir-format
+msgid "A rule that has been in force keeps its subject as part of its history."
+msgstr "Eine Regel, die gegolten hat, behält ihren Bezug als Teil ihrer Geschichte."
+
+#, elixir-autogen, elixir-format
+msgid "the securities trade in %{source} and %{target}, and a merge never converts a booked amount."
+msgstr "Die Wertpapiere notieren in %{source} und %{target}, und eine Zusammenführung rechnet nie einen gebuchten Betrag um."
+
+#, elixir-autogen, elixir-format
+msgid "only one of the two is marked as a benchmark."
+msgstr "Nur eines der beiden ist als Benchmark markiert."
+
+#, elixir-autogen, elixir-format
+msgid "the target is retired while the source is live."
+msgstr "Das Ziel ist stillgelegt, die Quelle nicht."
+
+#, elixir-autogen, elixir-format
+msgid "the source is retired while the target is live."
+msgstr "Die Quelle ist stillgelegt, das Ziel nicht."
+
+#, elixir-autogen, elixir-format
+msgid "the quotes would change their basis: only one of the two treats its synced quotes as raw."
+msgstr "Die Kurse würden ihre Basis wechseln: Nur eines der beiden behandelt synchronisierte Kurse als roh."
+
+#, elixir-autogen, elixir-format
+msgid "the source has %{count} research entry, the last of %{date}. Research entries are never moved or deleted; a security with entries can only be the target."
+msgid_plural "the source has %{count} research entries, the last of %{date}. Research entries are never moved or deleted; a security with entries can only be the target."
+msgstr[0] "Die Quelle hat %{count} Research-Eintrag vom %{date}. Research-Einträge werden nie verschoben oder gelöscht; ein Wertpapier mit Einträgen kann nur Ziel sein."
+msgstr[1] "Die Quelle hat %{count} Research-Einträge, der letzte vom %{date}. Research-Einträge werden nie verschoben oder gelöscht; ein Wertpapier mit Einträgen kann nur Ziel sein."
+
+#, elixir-autogen, elixir-format
+msgid "the target has %{count} research entry, the last of %{date}, and research entries are never moved or deleted."
+msgid_plural "the target has %{count} research entries, the last of %{date}, and research entries are never moved or deleted."
+msgstr[0] "Das Ziel hat %{count} Research-Eintrag vom %{date}, und Research-Einträge werden nie verschoben oder gelöscht."
+msgstr[1] "Das Ziel hat %{count} Research-Einträge, der letzte vom %{date}, und Research-Einträge werden nie verschoben oder gelöscht."
+
+#, elixir-autogen, elixir-format
+msgid "the source is read by policy rules:"
+msgstr "Die Quelle wird von eigenen Regeln gelesen:"
+
+#, elixir-autogen, elixir-format
+msgid "the target is read by policy rules: %{names}."
+msgstr "Das Ziel wird von eigenen Regeln gelesen: %{names}."
+
+#, elixir-autogen, elixir-format
+msgid "on %{date} in %{portfolio} the source splits %{source} and the target %{target}; one split cannot carry two ratios."
+msgstr "Am %{date} in %{portfolio} splittet die Quelle %{source} und das Ziel %{target}; ein Split trägt nicht zwei Verhältnisse."
+
+#, elixir-autogen, elixir-format
+msgid "the split of %{date} would rescale bookings in %{depot} it did not scale before."
+msgstr "Der Split vom %{date} würde Buchungen in %{depot} umrechnen, die er vorher nicht umgerechnet hat."
+
+#, elixir-autogen, elixir-format
+msgid "a split would rescale bookings it did not scale before."
+msgstr "Ein Split würde Buchungen umrechnen, die er vorher nicht umgerechnet hat."
+
+#, elixir-autogen, elixir-format
+msgid "after the merge, an identifier of the two would no longer lead to the target: %{identifiers}."
+msgstr "Nach der Zusammenführung führte eine Kennung der beiden nicht mehr zum Ziel: %{identifiers}."
+
+#, elixir-autogen, elixir-format
+msgid "a security cannot be merged into itself."
+msgstr "Ein Wertpapier lässt sich nicht mit sich selbst zusammenführen."
+
+#, elixir-autogen, elixir-format
+msgid "on %{date} the securities split %{ratios}; one event cannot carry two ratios."
+msgstr "Am %{date} splitten die Wertpapiere %{ratios}; ein Ereignis trägt nicht zwei Verhältnisse."
+
+#, elixir-autogen, elixir-format
+msgid "the source's split of %{date} (%{ratio}) is not a split of the target, which has %{earlier} before it."
+msgstr "Der Split der Quelle vom %{date} (%{ratio}) ist kein Split des Ziels, das davor %{earlier} hat."
+
+#, elixir-autogen, elixir-format
+msgid "the target's split of %{date} (%{ratio}) is not a split of the source, which has %{earlier} before it."
+msgstr "Der Split des Ziels vom %{date} (%{ratio}) ist kein Split der Quelle, die davor %{earlier} hat."
+
+#, elixir-autogen, elixir-format
+msgid "source"
+msgstr "Quelle"
+
+#, elixir-autogen, elixir-format
+msgid "a booking of %{date}"
+msgstr "eine Buchung vom %{date}"
+
+#, elixir-autogen, elixir-format
+msgid "a quote of %{date}"
+msgstr "einen Kurs vom %{date}"
+
+#, elixir-autogen, elixir-format
+msgid "ISIN %{isin}"
+msgstr "ISIN %{isin}"
+
+#, elixir-autogen, elixir-format
+msgid "ticker %{ticker} (%{currency})"
+msgstr "Ticker %{ticker} (%{currency})"
+
+#, elixir-autogen, elixir-format
+msgid "name “%{name}” (%{currency})"
+msgstr "Name „%{name}“ (%{currency})"
+
+#, elixir-autogen, elixir-format
+msgid "%{depot} — source: %{source} · target: %{target}"
+msgstr "%{depot} — Quelle: %{source} · Ziel: %{target}"
+
+#, elixir-autogen, elixir-format
+msgid "Remedy: go back and choose a target in the same currency."
+msgstr "Abhilfe: zurückgehen und ein Ziel in derselben Währung wählen."
+
+#, elixir-autogen, elixir-format
+msgid "Remedy: mark both the same, then check again."
+msgstr "Abhilfe: beide gleich markieren, dann erneut prüfen."
+
+#, elixir-autogen, elixir-format
+msgid "Remedy: reactivate the target, then check again."
+msgstr "Abhilfe: das Ziel reaktivieren, dann erneut prüfen."
+
+#, elixir-autogen, elixir-format
+msgid "Remedy: set “treat synced quotes as raw” the same on both, then check again."
+msgstr "Abhilfe: „Synchronisierte Kurse als roh behandeln“ bei beiden gleich setzen, dann erneut prüfen."
+
+#, elixir-autogen, elixir-format
+msgid "Remedy: give the position the same buckets in both, then check again."
+msgstr "Abhilfe: der Position in beiden dieselben Buckets geben, dann erneut prüfen."
+
+#, elixir-autogen, elixir-format
+msgid "Remedy: book the split on that side first, or delete the wrong split, then check again."
+msgstr "Abhilfe: den Split zuerst auf dieser Seite buchen oder den falschen Split löschen, dann erneut prüfen."
+
+#, elixir-autogen, elixir-format
+msgid "This version has no way around it; both securities stay unchanged."
+msgstr "Diese Version kennt keinen Weg darum herum; beide Wertpapiere bleiben unverändert."
+
+#, elixir-autogen, elixir-format
+msgid "Choice for the ISIN missing"
+msgstr "Wahl der ISIN fehlt"
+
+#, elixir-autogen, elixir-format
+msgid "Choose which ISIN the security carries afterwards."
+msgstr "Die ISIN danach ist noch nicht gewählt."
+
+#, elixir-autogen, elixir-format
+msgid "The security no longer exists. Nothing was merged."
+msgstr "Das Wertpapier gibt es nicht mehr. Nichts wurde zusammengeführt."
+
+#, elixir-autogen, elixir-format
+msgid "The security was merged into another one meanwhile. Nothing was merged now."
+msgstr "Das Wertpapier wurde inzwischen in ein anderes zusammengeführt. Jetzt wurde nichts zusammengeführt."
+
+#, elixir-autogen, elixir-format
+msgid "Nothing was merged: after the merge an identifier of the two would no longer have led to the target, so the merge was rolled back. Check again."
+msgstr "Nichts wurde zusammengeführt: Danach hätte eine Kennung der beiden nicht mehr zum Ziel geführt, also wurde die Zusammenführung zurückgerollt. Erneut prüfen."
+
+#, elixir-autogen, elixir-format
+msgid "Nothing was merged: a row could not be written (%{errors}). Check again."
+msgstr "Nichts wurde zusammengeführt: Eine Zeile ließ sich nicht schreiben (%{errors}). Erneut prüfen."
+
+#, elixir-autogen, elixir-format
+msgid "Nothing was merged: the check of the merged figures did not hold, so the merge was rolled back. Check again; if it recurs, the audit journal shows both securities' bookings."
+msgstr "Nichts wurde zusammengeführt: Die Prüfung der zusammengeführten Zahlen hielt nicht, also wurde die Zusammenführung zurückgerollt. Erneut prüfen; kehrt es wieder, zeigt das Journal die Buchungen beider Wertpapiere."
+
+#, elixir-autogen, elixir-format
+msgid "%{count} duplicate removed"
+msgid_plural "%{count} duplicates removed"
+msgstr[0] "%{count} Duplikat entfernt"
+msgstr[1] "%{count} Duplikate entfernt"
+
+#, elixir-autogen, elixir-format
+msgid "%{count} quote added"
+msgid_plural "%{count} quotes added"
+msgstr[0] "%{count} Kurs ergänzt"
+msgstr[1] "%{count} Kurse ergänzt"
+
+#, elixir-autogen, elixir-format
+msgid "%{count} setting dropped"
+msgid_plural "%{count} settings dropped"
+msgstr[0] "%{count} Einstellung entfallen"
+msgstr[1] "%{count} Einstellungen entfallen"
+
+#, elixir-autogen, elixir-format
+msgid "Merged into %{target}: %{parts}."
+msgstr "Zusammengeführt in %{target}: %{parts}."
+
+#, elixir-autogen, elixir-format
+msgid "ISIN now %{isin}."
+msgstr "ISIN jetzt %{isin}."
+
+#, elixir-autogen, elixir-format
+msgid "bookings of the source"
+msgstr "Buchungen der Quelle"
+
+#, elixir-autogen, elixir-format
+msgid "bookings of the target"
+msgstr "Buchungen des Ziels"
+
+#, elixir-autogen, elixir-format
+msgid "quotes of the source"
+msgstr "Kurse der Quelle"
+
+#, elixir-autogen, elixir-format
+msgid "If it is a duplicate, “Merge into…” moves its bookings and quotes into the other security."
+msgstr "Ist es ein Duplikat, führt „Zusammenführen in…“ seine Buchungen und Kurse in das andere Wertpapier."
+
+#, elixir-autogen, elixir-format
+msgid "former ISIN %{isin} (until %{date})"
+msgstr "frühere ISIN %{isin} (bis %{date})"
+
+#, elixir-autogen, elixir-format
+msgid "merged on %{date} from “%{name}”"
+msgstr "zusammengeführt am %{date} aus „%{name}“"
+
+#, elixir-autogen, elixir-format
+msgid "merged on %{date} from “%{name}” (then %{isin})"
+msgstr "zusammengeführt am %{date} aus „%{name}“ (damals %{isin})"
+
+#, elixir-autogen, elixir-format
+msgctxt "merge side"
+msgid "Source"
+msgstr "Quelle"
+
+#, elixir-autogen, elixir-format
+msgctxt "merge side"
+msgid "Target"
+msgstr "Ziel"
+
+## L3–L5 review round (F2): the import preview names what the economic layer and an internal transfer skip (board 04).
+
+#, elixir-autogen, elixir-format
+msgid "%{count} entry is already imported."
+msgid_plural "%{count} entries are already imported."
+msgstr[0] "%{count} Eintrag ist bereits importiert."
+msgstr[1] "%{count} Einträge sind bereits importiert."
+
+#, elixir-autogen, elixir-format
+msgid "%{count} internal transfer dropped"
+msgid_plural "%{count} internal transfers dropped"
+msgstr[0] "%{count} interne Umbuchung entfällt"
+msgstr[1] "%{count} interne Umbuchungen entfallen"
+
+#, elixir-autogen, elixir-format
+msgid "%{count} internal transfer is dropped: both of its accounts are one account now."
+msgid_plural "%{count} internal transfers are dropped: both accounts of each are one account now."
+msgstr[0] "%{count} interne Umbuchung entfällt: Ihre beiden Konten sind jetzt ein Konto."
+msgstr[1] "%{count} interne Umbuchungen entfallen: Die beiden Konten jeder Umbuchung sind jetzt ein Konto."
+
+## L3–L5 review round: the refusals and the rename field error board 14 draws.
+
+#, elixir-autogen, elixir-format
+msgid "Buy without an amount in %{account} on %{date} · no. %{id}"
+msgstr "Kauf ohne Betrag in %{account} am %{date} · Nr. %{id}"
+
+#, elixir-autogen, elixir-format
+msgid "Sell without an amount in %{account} on %{date} · no. %{id}"
+msgstr "Verkauf ohne Betrag in %{account} am %{date} · Nr. %{id}"
+
+#, elixir-autogen, elixir-format
+msgid "Set balance of %{account} on %{date} · no. %{id}"
+msgstr "Gesetzter Saldo von %{account} am %{date} · Nr. %{id}"
+
+#, elixir-autogen, elixir-format
+msgid "Split on %{date} · no. %{id}"
+msgstr "Split am %{date} · Nr. %{id}"
+
+#, elixir-autogen, elixir-format
+msgid "Remedy: change its kind back to the one it was imported as, or delete it, then check again."
+msgstr "Abhilfe: seine Art auf die zurücksetzen, als die er importiert wurde, oder ihn löschen, dann erneut prüfen."
+
+#, elixir-autogen, elixir-format
+msgid "Remedy: delete the split with the wrong ratio in the Transactions tab, then check again."
+msgstr "Abhilfe: den Split mit dem falschen Verhältnis im Tab Transaktionen löschen, dann erneut prüfen."
+
+#, elixir-autogen, elixir-format
+msgid "Remedy: record that booking's amount in the Transactions tab, then check again."
+msgstr "Abhilfe: den Betrag dieser Buchung im Tab Transaktionen erfassen, dann erneut prüfen."
+
+#, elixir-autogen, elixir-format
+msgid "a set balance would need more decimal places than an amount can hold, because a trade was booked without its amount."
+msgstr "Ein gesetzter Saldo bräuchte mehr Nachkommastellen, als ein Betrag halten kann, weil ein Kauf oder Verkauf ohne Betrag gebucht wurde."
+
+#, elixir-autogen, elixir-format
+msgid "a split of the source still carries an import hash from before the import-hash check and cannot be moved."
+msgstr "Ein Split der Quelle trägt noch einen Import-Hash aus der Zeit vor der Import-Hash-Prüfung und kann nicht verschoben werden."
+
+#, elixir-autogen, elixir-format
+msgid "“%{name}” is already the name of another cash account. Choose another name, or merge or rename that account."
+msgstr "„%{name}“ heißt bereits ein anderes Verrechnungskonto. Wählen Sie einen anderen Namen, oder führen Sie jenes Konto zusammen oder benennen Sie es um."
+
+#, elixir-autogen, elixir-format
+msgid "“%{name}” is already the name of another depot. Choose another name, or merge or rename that depot."
+msgstr "„%{name}“ heißt bereits ein anderes Depot. Wählen Sie einen anderen Namen, oder führen Sie jenes Depot zusammen oder benennen Sie es um."
+
+#: lib/portfolixir_web/live/risk_live.ex:481
+#, elixir-autogen, elixir-format
+msgid "Version in force by:"
+msgstr "Version in Kraft von:"
+
+#: lib/portfolixir_web/live/risk_live.ex:539
+#: lib/portfolixir_web/live/risk_live.ex:558
+#, elixir-autogen, elixir-format
+msgid "Version by:"
+msgstr "Version von:"
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "%{field} contains invisible characters (%{characters})"
+msgstr "%{field} enthält unsichtbare Zeichen (%{characters})"
+
+#: lib/portfolixir_web/components/app_shell.ex
+#, elixir-autogen, elixir-format
+msgid "The text contains %{count} invisible character."
+msgid_plural "The text contains %{count} invisible characters."
+msgstr[0] "Der Text enthält %{count} unsichtbares Zeichen."
+msgstr[1] "Der Text enthält %{count} unsichtbare Zeichen."
+
+#: lib/portfolixir_web/components/app_shell.ex
+#, elixir-autogen, elixir-format
+msgid "The name contains %{count} invisible character."
+msgid_plural "The name contains %{count} invisible characters."
+msgstr[0] "Der Name enthält %{count} unsichtbares Zeichen."
+msgstr[1] "Der Name enthält %{count} unsichtbare Zeichen."
+
+#: lib/portfolixir_web/components/app_shell.ex
+#, elixir-autogen, elixir-format
+msgid "Text with the characters made visible"
+msgstr "Text mit sichtbar gemachten Zeichen"
+
+#: lib/portfolixir_web/components/app_shell.ex
+#, elixir-autogen, elixir-format
+msgid "Name with the characters made visible"
+msgstr "Name mit sichtbar gemachten Zeichen"
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "The log only appends: an entry that supersedes this one carries the text without them."
+msgstr "Das Log hängt nur an: Ein Eintrag, der diesen ersetzt, trägt den Text ohne sie."
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "Append an entry that supersedes #%{id}"
+msgstr "Eintrag anhängen, der #%{id} ersetzt"
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "It is corrected over the API or MCP."
+msgstr "Er wird über die API oder MCP korrigiert."
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "Typed in anew, it is clean."
+msgstr "Neu eingegeben ist er sauber."
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "Retracted by #%{id}:"
+msgstr "Zurückgezogen durch #%{id}:"

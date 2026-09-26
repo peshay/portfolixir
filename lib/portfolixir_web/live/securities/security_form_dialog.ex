@@ -3,6 +3,10 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   use Phoenix.LiveComponent
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  # The errors key of a message about the security itself rather than one of
+  # its fields; no input carries this name.
+  @record_error "_record"
+
   alias Phoenix.LiveView.JS
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
@@ -13,11 +17,14 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   alias Portfolixir.Catalog.SecuritySearch
   alias Portfolixir.Catalog.SecuritySearch.SearchResult
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.LiveEventGuard
+  alias PortfolixirWeb.LiveParam
 
   @impl true
   def mount(socket) do
     {:ok,
      socket
+     |> LiveEventGuard.attach()
      |> assign(:step, :choose)
      |> assign(:mode, nil)
      |> assign(:query, "")
@@ -295,8 +302,11 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   end
 
   defp render_confirm(assigns) do
+    assigns = assign(assigns, :record_error, assigns.errors[@record_error])
+
     ~H"""
     <form id="security-dialog-form" phx-change="form_change" phx-submit="save" phx-target={@myself}>
+      <p :if={@record_error} class="alert-error" role="alert"><%= @record_error %></p>
       <%= if @conflict do %>
         <div class="alert-warning" role="alert">
           <strong><%= gettext("This security already exists") %></strong>
@@ -557,7 +567,8 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
      |> assign(:step, :confirm)}
   end
 
-  def handle_event("choose_mode", %{"mode" => mode}, socket) do
+  def handle_event("choose_mode", %{"mode" => mode}, socket)
+      when mode in ["security", "crypto"] do
     {:noreply,
      socket
      |> assign(:mode, mode)
@@ -567,15 +578,15 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   end
 
   def handle_event("search_change", %{"dialog_query" => query}, socket) do
-    {:noreply, run_search(assign(socket, :query, query))}
+    {:noreply, run_search(assign(socket, :query, LiveParam.string(query) || ""))}
   end
 
   def handle_event("search_submit", %{"dialog_query" => query}, socket) do
-    {:noreply, run_search(assign(socket, :query, query))}
+    {:noreply, run_search(assign(socket, :query, LiveParam.string(query) || ""))}
   end
 
   def handle_event("pick_result", %{"idx" => idx}, socket) do
-    case Enum.at(socket.assigns.results, String.to_integer(idx)) do
+    case pick(socket.assigns.results, idx) do
       nil ->
         {:noreply, socket}
 
@@ -601,16 +612,18 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   end
 
   def handle_event("pick_market", %{"idx" => idx}, socket) do
-    result = socket.assigns.selected_result
-    market = Enum.at(result.markets, String.to_integer(idx))
-
-    {:noreply,
-     socket
-     |> assign(:selected_market, market)
-     |> assign(:step, :confirm)
-     |> assign(:form, build_form(result, market, socket.assigns.mode))
-     |> assign(:conflict, nil)
-     |> check_conflict()}
+    with %SearchResult{} = result <- socket.assigns.selected_result,
+         market when not is_nil(market) <- pick(result.markets, idx) do
+      {:noreply,
+       socket
+       |> assign(:selected_market, market)
+       |> assign(:step, :confirm)
+       |> assign(:form, build_form(result, market, socket.assigns.mode))
+       |> assign(:conflict, nil)
+       |> check_conflict()}
+    else
+      _nothing_picked -> {:noreply, socket}
+    end
   end
 
   def handle_event("back_to_search", _params, socket) do
@@ -636,35 +649,18 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   end
 
   def handle_event("form_change", %{"security" => params}, socket) do
-    {:noreply, assign(socket, :form, Map.merge(socket.assigns.form, params))}
+    {:noreply, assign(socket, :form, Map.merge(socket.assigns.form, LiveParam.form(params)))}
   end
 
   def handle_event("save", %{"security" => params}, socket) do
+    params = LiveParam.form(params)
+
     cond do
       socket.assigns.editing ->
-        attrs = to_overrides(params)
-
-        case Catalog.update_security(Actor.owner_ui(), socket.assigns.editing, attrs) do
-          {:ok, security} ->
-            notify_parent(socket, {:updated, security})
-            {:noreply, socket}
-
-          {:error, changeset} ->
-            {:noreply, assign(socket, :errors, changeset_errors(changeset))}
-        end
+        update_security(socket, socket.assigns.editing, params)
 
       socket.assigns.conflict ->
-        existing = socket.assigns.conflict
-        attrs = to_overrides(params)
-
-        case Catalog.update_security(Actor.owner_ui(), existing, attrs) do
-          {:ok, security} ->
-            notify_parent(socket, {:updated, security})
-            {:noreply, socket}
-
-          {:error, changeset} ->
-            {:noreply, assign(socket, :errors, changeset_errors(changeset))}
-        end
+        update_security(socket, socket.assigns.conflict, params)
 
       is_nil(socket.assigns.selected_result) ->
         # Manual entry (#491): create straight from the form, no provider
@@ -699,9 +695,14 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
     end
   end
 
-  def handle_event("merge_into_existing", _params, socket) do
-    existing = socket.assigns.conflict
-    result = socket.assigns.selected_result
+  # The merge and the open act on the conflict the dialog found; without one
+  # a push of either changes nothing (E25 S4, F17).
+  def handle_event(
+        "merge_into_existing",
+        _params,
+        %{assigns: %{conflict: %Security{} = existing, selected_result: %SearchResult{} = result}} =
+          socket
+      ) do
     market = socket.assigns.selected_market
     form_overrides = to_overrides(socket.assigns.form)
 
@@ -715,9 +716,21 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
     end
   end
 
-  def handle_event("open_existing", %{"id" => _id}, socket) do
+  def handle_event("open_existing", %{"id" => _id}, %{assigns: %{conflict: %Security{}}} = socket) do
     notify_parent(socket, {:open_existing, socket.assigns.conflict})
     {:noreply, socket}
+  end
+
+  # An event this component does not know, or a payload it cannot read,
+  # changes nothing (E25 S4, F17).
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
+  # The entry a list index names, or nil for an index that is not one.
+  defp pick(entries, idx) do
+    case LiveParam.integer(idx, 0..(length(entries) - 1)//1) do
+      nil -> nil
+      index -> Enum.at(entries, index)
+    end
   end
 
   defp run_search(socket) do
@@ -801,6 +814,30 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
     |> Map.new()
   rescue
     ArgumentError -> %{}
+  end
+
+  # Editing a security, or merging the online fields into the one that
+  # conflicts: the same write and the same answers.
+  defp update_security(socket, security, params) do
+    case Catalog.update_security(Actor.owner_ui(), security, to_overrides(params)) do
+      {:ok, updated} ->
+        notify_parent(socket, {:updated, updated})
+        {:noreply, socket}
+
+      # Deleted in the meantime (E25 S6, F49): a form-level alert about the
+      # record, never an error on a field (review round, R5).
+      {:error, :not_found} ->
+        {:noreply,
+         assign(socket, :errors, %{
+           @record_error =>
+             gettext(
+               "This security no longer exists: it was deleted after the dialog opened, so nothing was saved."
+             )
+         })}
+
+      {:error, changeset} ->
+        {:noreply, assign(socket, :errors, changeset_errors(changeset))}
+    end
   end
 
   defp changeset_errors(changeset) do

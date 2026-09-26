@@ -6,6 +6,8 @@ msgid ""
 msgstr ""
 "Language: en\n"
 
+#: lib/portfolixir_web/decimal_input.ex:170
+#, elixir-autogen
 msgid "is invalid"
 msgstr ""
 
@@ -73,4 +75,109 @@ msgid "overlaps another version of this rule"
 msgstr ""
 
 msgid "is required for the drift of a security (the plan's classification)"
+msgstr ""
+
+## The status line of the error page (E25 S2): the HTTP reason phrase of a
+## status, looked up at runtime by PortfolixirWeb.ErrorView. A status without
+## an entry shows its English reason phrase.
+msgid "Bad Request"
+msgstr ""
+
+msgid "Forbidden"
+msgstr ""
+
+msgid "Not Found"
+msgstr ""
+
+msgid "Not Acceptable"
+msgstr ""
+
+msgid "Request Entity Too Large"
+msgstr ""
+
+msgid "Internal Server Error"
+msgstr ""
+
+## The shared input bounds (E25 S4): Portfolixir.Input.BoundedDate.
+msgid "must be a date between 1900-01-01 and 2999-12-31"
+msgstr ""
+
+## Portfolixir.Input.BoundedDecimal: an amount past its column's precision.
+msgid "must have at most %{digits} digits before the decimal point"
+msgstr ""
+
+## Portfolixir.Input.Text: text the database refuses.
+msgid "should be at most %{count} character(s)"
+msgid_plural "should be at most %{count} character(s)"
+msgstr[0] ""
+msgstr[1] ""
+
+msgid "must be valid UTF-8 text"
+msgstr ""
+
+msgid "must not contain control characters or line breaks"
+msgstr ""
+
+msgid "must not contain control characters other than tabs and line breaks"
+msgstr ""
+
+## Portfolixir.Catalog.Isin: the new ISIN of an ISIN change.
+msgid "is not an ISIN (two letters, nine letters or digits and a check digit)"
+msgstr ""
+
+## Portfolixir.Input.BoundedDecimal: a target weight's scale (G14).
+msgid "must have at most %{count} decimal places"
+msgid_plural "must have at most %{count} decimal places"
+msgstr[0] ""
+msgstr[1] ""
+
+## Portfolixir.Classifications: a category's parent (F11).
+msgid "must belong to the same classification"
+msgstr ""
+
+msgid "would make the category its own ancestor"
+msgstr ""
+
+## Portfolixir.Input.Text: a free-form map the database refuses (G24).
+msgid "must have text keys"
+msgstr ""
+
+msgid "must not contain control characters (a value keeps its tabs and line breaks)"
+msgstr ""
+
+msgid "must have keys of at most %{count} character(s)"
+msgid_plural "must have keys of at most %{count} character(s)"
+msgstr[0] ""
+msgstr[1] ""
+
+## Portfolixir.Catalog.Security: an identifier changed on a stored security (E25 S5, G23).
+msgid "is not a WKN (six letters or digits)"
+msgstr ""
+
+msgid "must be printable ASCII characters"
+msgstr ""
+
+## E25 S6 (F44, G09): a research-log entry's as_of, and an event's checked_at.
+msgid "must not be in the future"
+msgstr ""
+
+msgid "must not be later than tomorrow"
+msgstr ""
+
+## E25 S6 (G02): a security's attributes, bounded as stored.
+msgid "must be at most %{count} bytes as JSON"
+msgid_plural "must be at most %{count} bytes as JSON"
+msgstr[0] ""
+msgstr[1] ""
+
+## A decimal input that reads two ways (#869, PortfolixirWeb.DecimalInput).
+#: lib/portfolixir_web/decimal_input.ex:168
+#, elixir-autogen
+msgid "is ambiguous: enter it without a thousands separator"
+msgstr ""
+
+msgid "must not contain invisible characters (%{characters}); retype the text without them"
+msgstr ""
+
+msgid "must not contain invisible characters (format, bidirectional or tag characters)"
 msgstr ""

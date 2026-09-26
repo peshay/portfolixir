@@ -7,6 +7,8 @@ defmodule PortfolixirWeb.SecuritiesResearchTabTest do
   import Phoenix.LiveViewTest
 
   alias Portfolixir.Actor
+  alias Portfolixir.Clock
+  alias Portfolixir.Input.Text
   alias Portfolixir.Knowledge
   alias Portfolixir.WorldFixtures
 
@@ -230,7 +232,8 @@ defmodule PortfolixirWeb.SecuritiesResearchTabTest do
 
     state = view |> element(~s([data-role="thesis-state"])) |> render()
     assert state =~ "Retracted"
-    assert state =~ "Retracted by ##{retraction.id}: management guided down twice"
+    # The stored reason isolated in <bdi> (E25 S7, G20).
+    assert state =~ "Retracted by ##{retraction.id}: <bdi>management guided down twice</bdi>"
     # A thesis without a conviction tier shows the dash, not a crash.
     assert state =~ "—"
 
@@ -253,5 +256,120 @@ defmodule PortfolixirWeb.SecuritiesResearchTabTest do
     |> render_submit(%{note: %{as_of: "not-a-date"}})
 
     assert render(view) =~ "As of: is invalid"
+  end
+
+  # User story (E25 S6, F15, decision T-5):
+  # As the operator reading the research log,
+  # I want an entry I append from the page to carry only what the form asks
+  # for, with its provenance stated by the system,
+  # so that no crafted submit can mark my entry a machine-generated proposal
+  # or file it under another security.
+  #
+  # Acceptance criteria:
+  # - A submit carrying machine_generated, author, security_id or any other
+  #   key the form does not render stores an operator entry, not
+  #   machine-generated, on the security the page shows.
+  test "the research form stores only the keys it renders", %{conn: conn} do
+    security = security!()
+    other = WorldFixtures.create_security!(name: "Elsewhere Co.", ticker: "ELSW")
+
+    {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=research")
+
+    view
+    |> element("#research-entry-form")
+    |> render_submit(%{
+      note: %{
+        kind: "evidence",
+        body: "Order book read from the half-year report.",
+        source_quality: "primary",
+        as_of: "2026-09-01",
+        source_url: "https://example.invalid/report",
+        machine_generated: "true",
+        author: "local_model",
+        security_id: other.id
+      }
+    })
+
+    assert render(view) =~ "Entry appended."
+    assert [note] = Knowledge.list_notes(security.id)
+    assert note.machine_generated == false
+    assert note.author == :operator
+    assert Knowledge.list_notes(other.id) == []
+  end
+
+  # User story (E25 S6, F44; board 11, before/after 2):
+  # As the operator appending to a research log that is never edited,
+  # I want an entry dated after today refused in the form's error list, in my
+  # language, with what I typed still there,
+  # so that I correct the year instead of writing the entry again.
+  #
+  # Acceptance criteria:
+  # - A future as_of is named in the error list ("Field: message"), the
+  #   message translated through errors.po; nothing is appended.
+  # - The refused submit keeps the typed body and dates in the form.
+  # - The timeline and the thesis state are unchanged.
+  test "a future as of is refused in the form's error list and the typing stays",
+       %{conn: conn} do
+    security = security!()
+    kept = append!(security, %{kind: "invalidation_check", as_of: ~D[2026-09-02]})
+    future = Clock.today() |> Date.add(365) |> Date.to_iso8601()
+
+    {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=research&locale=de")
+    before_state = view |> element(~s([data-role="thesis-state"])) |> render()
+
+    view
+    |> form("#research-entry-form",
+      note: %{
+        kind: "invalidation_check",
+        body: "Half-year figures read; the condition is not met.",
+        source_quality: "primary",
+        as_of: future,
+        valid_until: "2030-01-31"
+      }
+    )
+    |> render_submit()
+
+    errors = view |> element(".research-entry-form__errors") |> render()
+    assert errors =~ "Stichtag: darf nicht in der Zukunft liegen"
+    assert render(view) =~ "Eintrag konnte nicht angehängt werden."
+
+    form = view |> element("#research-entry-form") |> render()
+    assert form =~ ~s(value="#{future}")
+    assert form =~ ~s(value="2030-01-31")
+    assert form =~ "Half-year figures read; the condition is not met."
+
+    assert [%{id: id}] = Knowledge.list_notes(security.id)
+    assert id == kept.id
+    assert view |> element(~s([data-role="thesis-state"])) |> render() == before_state
+  end
+
+  # User story (E25 S6, G01):
+  # As the operator appending to the research log from the page,
+  # I want an entry body past its bound refused in the form's error list,
+  # so that the page meets the same cap as the API.
+  #
+  # Acceptance criteria:
+  # - A body one code point past the cap is named in the error list and
+  #   nothing is appended.
+  test "an entry body past its cap is refused in the form's error list", %{conn: conn} do
+    security = security!()
+    max = Text.entry_body_max()
+
+    {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=research")
+
+    view
+    |> form("#research-entry-form",
+      note: %{
+        kind: "evidence",
+        body: String.duplicate("a", max + 1),
+        source_quality: "primary",
+        as_of: "2026-09-01"
+      }
+    )
+    |> render_submit()
+
+    errors = view |> element(".research-entry-form__errors") |> render()
+    assert errors =~ "Entry: should be at most #{max} character(s)"
+    assert Knowledge.list_notes(security.id) == []
   end
 end

@@ -83,6 +83,100 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleControllerTest do
     assert [%{"threshold" => "10"}] = shown["versions"]
   end
 
+  # User story (E25 S7, G30, the wording half; T-8):
+  # As the operator whose agent's own token can store policy rules,
+  # I want the rules and findings reads to call a rule a stored rule and to
+  # point to the audit journal for who wrote it,
+  # so that a rule the agent wrote is not presented as my own standard.
+  #
+  # Acceptance criteria:
+  # - Neither the list's rules_note nor the findings' findings_note calls a
+  #   rule the operator's.
+  # - The rules_note names the audit journal as where a rule's author is read.
+  test "the notes call a rule a stored rule and point to the journal for its author",
+       %{conn: conn, world: world} do
+    %{"data" => list} =
+      conn |> get("/api/v1/portfolios/#{world.portfolio.id}/policy_rules") |> json_response(200)
+
+    refute list["rules_note"] =~ "operator's"
+    assert list["rules_note"] =~ "A rule is a stored standard"
+    assert list["rules_note"] =~ "the audit journal"
+
+    %{"data" => findings} =
+      conn
+      |> get("/api/v1/portfolios/#{world.portfolio.id}/policy_findings")
+      |> json_response(200)
+
+    refute findings["findings_note"] =~ "operator's"
+    assert findings["findings_note"] =~ "A finding is a stored rule"
+  end
+
+  # User story (E25 S7, G30, the author half; T-8):
+  # As the operator whose agent writes rules with its API token,
+  # I want every version in the rules read and every finding to say who
+  # wrote it,
+  # so that the agent reads, and I can check, which lines are its own
+  # without the journal.
+  #
+  # Acceptance criteria:
+  # - A version created or added over the API reads author "agent", whatever
+  #   the body says; one saved on the Risk page reads "operator".
+  # - The list read carries author on version_in_force and next_version, the
+  #   show read on every version, oldest first.
+  # - A finding carries author, the author of the version in force.
+  test "versions and findings carry the author the write's actor decided",
+       %{conn: conn, world: world, security: security} do
+    {:ok, rule} =
+      PolicyRules.create_rule(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        name: "Cap",
+        version: weight_cap(security)
+      })
+
+    %{"data" => added} =
+      conn
+      |> post("/api/v1/policy_rules/#{rule.id}/versions", %{
+        "version" =>
+          weight_cap(security)
+          |> Map.put("threshold", "12")
+          |> Map.put("valid_from", Date.to_iso8601(Date.add(today(), 1)))
+          |> Map.put("author", "operator")
+      })
+      |> json_response(201)
+
+    assert added["author"] == "agent"
+
+    %{"data" => created} =
+      conn
+      |> post("/api/v1/portfolios/#{world.portfolio.id}/policy_rules", %{
+        "rule" => %{
+          "name" => "Written by the agent",
+          "version" => Map.put(weight_cap(security), "author", "operator")
+        }
+      })
+      |> json_response(201)
+
+    assert created["version_in_force"]["author"] == "agent"
+
+    %{"data" => list} =
+      conn |> get("/api/v1/portfolios/#{world.portfolio.id}/policy_rules") |> json_response(200)
+
+    by_id = Map.new(list["rules"], &{&1["id"], &1})
+    assert by_id[rule.id]["version_in_force"]["author"] == "operator"
+    assert by_id[rule.id]["next_version"]["author"] == "agent"
+
+    %{"data" => shown} = conn |> get("/api/v1/policy_rules/#{rule.id}") |> json_response(200)
+    assert Enum.map(shown["versions"], & &1["author"]) == ["operator", "agent"]
+
+    %{"data" => findings} =
+      conn
+      |> get("/api/v1/portfolios/#{world.portfolio.id}/policy_findings")
+      |> json_response(200)
+
+    authors = Map.new(findings["findings"], &{&1["rule_id"], &1["author"]})
+    assert authors == %{rule.id => "operator", created["id"] => "agent"}
+  end
+
   # Acceptance criteria (ADR-0049 §4, §8):
   # - POST .../versions is the edit: it adds a version from today and the
   #   previous one is closed the day before, both readable.
@@ -442,5 +536,122 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleControllerTest do
     ids = Enum.map(delta, & &1["id"])
     assert edited.id in ids
     refute untouched.id in ids
+  end
+
+  # User story (#872, ADR-0049 §4 and §8 as amended by the Sprint 16 plan D-6):
+  # As the operator's agent,
+  # I want to rename a rule over the API,
+  # so that a rule whose line was raised can say so without being retired —
+  # retiring and re-creating it would split the history the rule exists to
+  # keep.
+  #
+  # Acceptance criteria:
+  # - PATCH /api/v1/policy_rules/:id with a name answers 200 with the rule and
+  #   its versions, unchanged in number and content; the rename is journaled
+  #   under the token with the previous name.
+  # - Only the name is read, as on PATCH /api/v1/plans/:id. A predicate field,
+  #   a version, or the context in the same body is refused 422 naming each
+  #   such field and where it belongs, and nothing is written; any other key
+  #   is ignored.
+  # - A retired rule can be renamed. A blank, missing or non-text name is 422
+  #   on name; an unknown or malformed id is 404.
+  test "renames a rule outside the versioning", %{conn: conn, world: world, security: security} do
+    {:ok, rule} =
+      PolicyRules.create_rule(
+        Actor.owner_ui(),
+        %{
+          portfolio_id: world.portfolio.id,
+          name: "Single name at most 8 %",
+          version: Map.put(weight_cap(security), "valid_from", Date.add(today(), -30))
+        },
+        today: Date.add(today(), -30)
+      )
+
+    %{"data" => before} = conn |> get("/api/v1/policy_rules/#{rule.id}") |> json_response(200)
+
+    %{"data" => renamed} =
+      conn
+      |> patch("/api/v1/policy_rules/#{rule.id}", %{
+        "name" => "Single name at most 10 %",
+        "status" => "retired"
+      })
+      |> json_response(200)
+
+    assert renamed["id"] == rule.id
+    assert renamed["name"] == "Single name at most 10 %"
+    assert renamed["status"] == "in_force"
+    assert renamed["view_id"] == nil
+    assert renamed["versions"] == before["versions"]
+
+    assert [%{actor_type: :api_token_rw, operation: :update} = entry | _] =
+             Journal.list_entries(resource_type: "policy_rule")
+
+    assert entry.before["name"] == "Single name at most 8 %"
+    assert entry.after["name"] == "Single name at most 10 %"
+
+    # The predicate and the context are not a rename's: named, nothing written.
+    %{"errors" => errors} =
+      conn
+      |> patch("/api/v1/policy_rules/#{rule.id}", %{
+        "name" => "Changed twice",
+        "threshold" => "12",
+        "version" => %{"threshold" => "12"},
+        "view_id" => 7
+      })
+      |> json_response(422)
+
+    assert [threshold_error] = errors["threshold"]
+    assert threshold_error =~ "POST /api/v1/policy_rules/#{rule.id}/versions"
+    assert [_] = errors["version"]
+    assert [view_error] = errors["view_id"]
+    assert view_error =~ "context"
+    refute Map.has_key?(errors, "name")
+
+    %{"data" => unchanged} = conn |> get("/api/v1/policy_rules/#{rule.id}") |> json_response(200)
+    assert unchanged["name"] == "Single name at most 10 %"
+    assert unchanged["versions"] == before["versions"]
+
+    # Retired, the rule is still renamable.
+    conn |> post("/api/v1/policy_rules/#{rule.id}/retire", %{}) |> json_response(200)
+
+    %{"data" => retired} =
+      conn
+      |> patch("/api/v1/policy_rules/#{rule.id}", %{"name" => "Old single-name cap"})
+      |> json_response(200)
+
+    assert retired["name"] == "Old single-name cap"
+    assert retired["status"] == "retired"
+
+    %{"errors" => %{"name" => [_ | _]}} =
+      conn |> patch("/api/v1/policy_rules/#{rule.id}", %{"name" => "  "}) |> json_response(422)
+
+    %{"errors" => %{"name" => [_ | _]}} =
+      conn |> patch("/api/v1/policy_rules/#{rule.id}", %{}) |> json_response(422)
+
+    %{"errors" => %{"name" => [_ | _]}} =
+      conn |> patch("/api/v1/policy_rules/#{rule.id}", %{"name" => 42}) |> json_response(422)
+
+    conn |> patch("/api/v1/policy_rules/999999999", %{"name" => "x"}) |> json_response(404)
+    conn |> patch("/api/v1/policy_rules/abc", %{"name" => "x"}) |> json_response(404)
+
+    # The S3/S4/D review round (LD-2): the rule's own read shape carries its
+    # versions too; sent back with a new name, they are refused the same way
+    # rather than silently dropped.
+    %{"errors" => errors} =
+      conn
+      |> patch("/api/v1/policy_rules/#{rule.id}", %{
+        "name" => "Read shape sent back",
+        "version_in_force" => %{"threshold" => "12"},
+        "next_version" => nil,
+        "versions" => []
+      })
+      |> json_response(422)
+
+    for key <- ["version_in_force", "next_version", "versions"] do
+      assert [message] = errors[key], key
+      assert message =~ "POST /api/v1/policy_rules/#{rule.id}/versions"
+    end
+
+    assert PolicyRules.get_rule(rule.id).name == "Old single-name cap"
   end
 end

@@ -36,8 +36,13 @@ defmodule Portfolixir.Derived.BlastRadius do
 
   import Ecto.Query
 
+  alias Portfolixir.Catalog.QuoteWrite
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Knowledge.SecurityEvent
+  alias Portfolixir.Knowledge.SecurityNote
   alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Lifecycle.MergeRecord
+  alias Portfolixir.Lifecycle.RetiredImportHash
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.PolicyRule
   alias Portfolixir.Portfolios.PolicyRuleVersion
@@ -66,6 +71,28 @@ defmodule Portfolixir.Derived.BlastRadius do
   # "none", resolved per struct — never a default.
   def for_write("policy_rule", %{__struct__: PolicyRule}), do: []
   def for_write("policy_rule_version", %{__struct__: PolicyRuleVersion}), do: []
+
+  # The two records a lifecycle merge leaves behind (ADR-0050 §3, §12) are
+  # read by no walk: the rows the merge moves, restates or deletes are
+  # journaled one by one and bump their own radius (#851's union of both
+  # images). The record of the merge adds nothing to that — resolved per
+  # struct, never a default.
+  def for_write("merge_record", %{__struct__: MergeRecord}), do: []
+  def for_write("retired_import_hash", %{__struct__: RetiredImportHash}), do: []
+
+  # A research entry (ADR-0044) and a security event (ADR-0048) are knowledge
+  # about a security, not figures: no walk, quote, rate or rule reads them,
+  # so no portfolio's derived values move (E25 S6, F53). Resolved per struct,
+  # like the policy rules above — a record of another shape still widens.
+  def for_write("security_note", %{__struct__: SecurityNote}), do: []
+  def for_write("security_event", %{__struct__: SecurityEvent}), do: []
+
+  # An authored write to a security's quotes (E25 S6, T-9) is journaled as
+  # one aggregate of the security's rows: its radius is a quote write's, every
+  # portfolio that ever transacted the security — resolved per struct.
+  def for_write("security_quotes", %{__struct__: QuoteWrite, security_id: id})
+      when is_integer(id),
+      do: for_quote(id)
 
   # Everything else — unlisted resource types, and listed ones whose record
   # cannot be resolved (a bulk write journals an aggregate with no id). Widening
@@ -97,10 +124,10 @@ defmodule Portfolixir.Derived.BlastRadius do
   # type is absent from it and so widens.
   @feeds_no_security_data ~w(
     allowance_order bucket cash_account cash_account_bucket_assignment category
-    classification depot_bucket_assignment policy_rule policy_rule_version portfolio
-    position_bucket_override securities_account security_category_assignment security_event
-    security_identifier_alias security_note snapshot target target_plan
-    tax_parameters tax_profile tax_statement_snapshot view
+    classification depot_bucket_assignment merge_record policy_rule policy_rule_version
+    portfolio position_bucket_override retired_import_hash securities_account
+    security_category_assignment security_event security_identifier_alias security_note
+    snapshot target target_plan tax_parameters tax_profile tax_statement_snapshot view
   )
 
   @doc """
@@ -128,6 +155,11 @@ defmodule Portfolixir.Derived.BlastRadius do
   # The bulk asset-class write journals an aggregate carrying the affected ids.
   def securities_for_write("security", %{security_ids: ids}) when is_list(ids),
     do: ids |> Enum.uniq() |> Enum.sort()
+
+  # An authored quote write (E25 S6, T-9): the security's own quotes.
+  def securities_for_write("security_quotes", %{__struct__: QuoteWrite, security_id: id})
+      when is_integer(id),
+      do: securities_for_quote(id)
 
   def securities_for_write(resource_type, _record)
       when resource_type in @feeds_no_security_data,

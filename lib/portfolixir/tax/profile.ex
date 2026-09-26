@@ -20,6 +20,9 @@ defmodule Portfolixir.Tax.Profile do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Portfolixir.Input.BoundedDate
+  alias Portfolixir.Input.BoundedDecimal
+  alias Portfolixir.Input.Text
   alias Portfolixir.Tax.Identity
 
   @type t :: %__MODULE__{}
@@ -55,7 +58,14 @@ defmodule Portfolixir.Tax.Profile do
       :note
     ])
     |> update_change(:holder, &Identity.normalize/1)
+    # E25 S4 (G16, G17): rounded to its numeric(6,4) column and bounded by it
+    # before the church-tax checks, so the rate checked is the rate stored.
+    |> BoundedDecimal.bound_to_column(:church_tax_rate, {6, 4})
     |> validate_required([:holder, :valid_from, :assessment_type])
+    |> BoundedDate.validate([:valid_from])
+    |> Text.validate(:holder, max: 255)
+    |> Text.validate(:note, multiline: true, max: Text.free_text_max())
+    |> check_constraint(:note, name: :tax_profiles_note_length_check)
     |> validate_length(:holder, min: 1)
     |> validate_inclusion(:jurisdiction, @jurisdictions)
     |> validate_inclusion(:assessment_type, @assessment_types)

@@ -4,7 +4,16 @@ defmodule PortfolixirWeb.RiskLiveTest do
   import Phoenix.LiveViewTest
 
   import Portfolixir.WorldFixtures,
-    only: [base_world: 0, buy!: 3, create_security!: 1, deposit!: 3, put_quotes!: 2]
+    only: [
+      add_depot: 2,
+      base_world: 0,
+      base_world: 1,
+      buy!: 3,
+      create_security!: 1,
+      deposit!: 3,
+      deposit!: 4,
+      put_quotes!: 2
+    ]
 
   defp day(offset), do: Date.add(Date.utc_today(), offset)
 
@@ -131,6 +140,86 @@ defmodule PortfolixirWeb.RiskLiveTest do
            )
 
     assert has_element?(view, ~s([data-role="risk-metric-volatility"]), "6 of 20")
+  end
+
+  # User story (E25 S3, F73, board 11 part 3):
+  # As the operator whose instance holds implausible stored exchange rates,
+  # I want Wealth → Risk to open anyway,
+  # so that my metrics, my largest names and my own rules stay readable.
+  #
+  # Acceptance criteria:
+  # - With stored rates and closes at the edges of what their columns hold,
+  #   converted into a non-hub base, the page renders instead of failing.
+  # - The pair whose correlation cannot be computed reads "not computable"
+  #   with its observations, the table's treatment for a missing value.
+  test "a correlation pair that cannot be computed reads as not computable", %{conn: conn} do
+    world = base_world(currency: "USD", cash_currency: "JPY")
+
+    gbp =
+      add_depot(world.portfolio, currency: "GBP", cash_name: "GBP Cash", depot_name: "GBP Depot")
+
+    gbp_world = %{portfolio: world.portfolio, cash: gbp.cash, depot: gbp.depot}
+
+    a = create_security!(name: "Kestrel Industrial Group NV", ticker: "KIG", currency: "JPY")
+    b = create_security!(name: "Harbor Light Utilities SE", ticker: "HLU", currency: "GBP")
+
+    deposit!(world, "10", day(-370), currency: "JPY")
+    buy!(world, a, quantity: "1", price: "1", date: day(-370), currency: "JPY")
+    deposit!(gbp_world, "10", day(-370), currency: "GBP")
+    buy!(gbp_world, b, quantity: "1", price: "1", date: day(-370), currency: "GBP")
+
+    even? = &(rem(&1, 2) == 0)
+
+    for security <- [a, b] do
+      daily_closes(security, -370, fn offset ->
+        if even?.(offset), do: "99999999999999", else: "0.000001"
+      end)
+    end
+
+    rates =
+      for offset <- -371..0,
+          {currency, high_on_even?} <- [{"JPY", false}, {"GBP", false}, {"USD", true}] do
+        high? = if high_on_even?, do: even?.(offset), else: not even?.(offset)
+
+        %{
+          base_currency: "EUR",
+          quote_currency: currency,
+          date: day(offset),
+          rate: if(high?, do: "999999999999999", else: "0.000000000000001"),
+          source: "manual"
+        }
+      end
+
+    {:ok, _} = Portfolixir.Fx.upsert_many(rates)
+
+    {:ok, view, _html} = live(conn, "/risk")
+
+    assert has_element?(view, "#risk-correlations table tbody tr", "not computable")
+    assert has_element?(view, "#risk-correlations table tbody tr", "/ 60")
+    assert has_element?(view, ~s([data-role="risk-metric-correlations"][data-refused]))
+  end
+
+  # User story (E25 S4, F72, board 11 part 3):
+  # As the operator reading Wealth → Risk,
+  # I want the basis line to say over how many of the largest names the
+  # correlations run,
+  # so that I know what the matrix covers now that it is bounded.
+  #
+  # Acceptance criteria:
+  # - The basis line names the number of leading names the answer says the
+  #   correlations ran over, in the page's language.
+  test "the basis line names how many of the largest names the correlations run over", %{
+    conn: conn
+  } do
+    risk_world()
+
+    {:ok, view, _html} = live(conn, "/risk")
+
+    assert has_element?(view, ~s([data-role="risk-basis"]), "run over the 3 largest positions")
+
+    {:ok, view, _html} = live(conn, "/risk?locale=de")
+
+    assert has_element?(view, ~s([data-role="risk-basis"]), "laufen über die 3 größten")
   end
 
   test "renders an empty state when there is no portfolio", %{conn: conn} do

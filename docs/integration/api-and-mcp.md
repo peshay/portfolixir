@@ -21,9 +21,41 @@ API requests require a local bearer token:
 Authorization: Bearer <PORTFOLIXIR_API_TOKEN>
 ```
 
-The MCP companion uses `PORTFOLIXIR_API_TOKEN` to call Portfolixir.
+**Named tokens** (E25). `PORTFOLIXIR_API_TOKENS` adds further tokens as
+`name=token` entries, comma-separated (`scripts=<token>`; a name is 1 to 32
+characters of `a-z`, `0-9`, `_` and `-`). A write made with one is journaled
+with that name as `actor_label` (`GET /api/v1/journal`), and a merge applied
+with one records it on its merge record (`GET /api/v1/merges`), taken from the
+entry the presented token matched, never from the request.
+`PORTFOLIXIR_API_TOKEN` stays the default, journaled without a label, as before, unless
+`PORTFOLIXIR_API_PRINCIPAL` names it; the Compose deployment names it `mcp`
+that way, so the companion's writes read `mcp`. Every entry is
+checked at boot like the one token, and a name or a token may appear only
+once. A name attributes a write; it does not narrow what the token may do:
+every token has the same full authority.
+
+The MCP companion uses `PORTFOLIXIR_API_TOKEN` to call Portfolixir at
+`PORTFOLIXIR_API_BASE_URL`, and it follows no redirect from there: a `3xx`
+answer is refused as `ApiRedirectError`, naming the request and the variable,
+so a request's body and the token are never resent to wherever the redirect
+points. Point `PORTFOLIXIR_API_BASE_URL` at the address the API answers on
+without a redirect.
 `PORTFOLIXIR_MCP_TOKEN` is required for HTTP transport so local HTTP clients can
-authenticate to the companion.
+authenticate to the companion. It meets the API token's policy: the companion
+refuses to start with a token shorter than 32 bytes or equal to a placeholder,
+naming the variable, and repeated wrong tokens from one connecting address are
+answered `429` with `Retry-After` for a growing interval. Behind the published
+port every client connects from the Docker bridge, so a guesser there delays
+the agent as well. Before anything else, the companion checks the `Host`
+header exactly, name and port: a request under a `Host` the listener does not
+answer to (the loopback names and its bound address with its port, and the
+names in `PORTFOLIXIR_MCP_ALLOWED_HOSTS`) is answered `403` before its origin
+or its token is looked at, and counts no failed attempt. The token is checked
+before the request body is read. The
+errors the companion answers itself, an unknown path among them, take the
+API's shape, `{"errors": {"detail": "Bad Request"}}`, with no stack trace or
+local path in it; the refusals of the MCP protocol itself on `/mcp` keep the
+protocol's JSON-RPC error shape.
 
 ## Data Rules
 
@@ -31,6 +63,11 @@ All responses use JSON envelopes with either `data` or `errors`. Financial
 decimals are serialized as strings, including quantities, prices, fees, taxes,
 quote closes, and monetary totals. Request payloads for those values should also
 send strings.
+
+The errors the server answers itself, rather than an endpoint, use the same
+envelope with their own status: an unreadable body is `400`, a body over the server's size
+bound `413`, an unknown route `404`, an internal error `500`, each as
+`{"errors": {"detail": "Bad Request"}}` with the status's reason phrase.
 
 `DELETE /api/v1/securities/:id` is the success exception: it returns
 `204 No Content` with an empty body. Clients should not parse a JSON body for
@@ -47,7 +84,16 @@ security's free-form `attributes` map and the text fields `online_id` and
 The pages keep the same promise: an id-shaped query parameter past the bound
 (`id`, `*_id`, `*_ids`, `view`) is dropped by a redirect to the same page
 without it, and a path id past the bound (`/securities/:id`,
-`/classifications/:id`) redirects to the index — never a server error.
+`/classifications/:id`) redirects to the index whatever the query string
+carries — never a server error. Every other id-valued or integer page
+parameter is read by the same id rule and reads as absent when it cannot hold
+the value: `/snapshots?snapshot=` opens the newest snapshot,
+`/classifications/:id?soll_view=` the whole-portfolio plan, and
+`/tax?year=` (a year outside `1`–`9999`) the default year. An event a page
+or one of its dialogs receives with a payload that is not an object, an id
+past the bound at any depth (the same rule the API answers with `422`), a
+field of the wrong shape, or a name it does not know changes nothing: the page
+stays as it was.
 
 **Bounded integers.** `offset` on the securities list accepts at most
 `1000000`, and `days` on the research log's `unreviewed` and `expiring` reads
@@ -55,6 +101,79 @@ at most `3650` (ten years); a value above the bound, or one that is not a
 non-negative integer, answers `422` naming the parameter. `limit` keeps its
 capped-and-echoed contract, and so does the security events' `days`. A year
 outside `1`–`9999` reads as a malformed year.
+
+**Dates.** Every date a write stores — a booking's `date`, a rule version's
+`valid_from` and a retirement's `valid_until`, a snapshot's `as_of`, a
+research-log entry's, an event's, a tax profile's, an ISIN change's, a quote's
+and a split's dates — is an ISO 8601 calendar date (`YYYY-MM-DD`) from
+`1900-01-01` to `2999-12-31`. A date outside that range, or sent in any other
+form (an object of parts, a date-time), answers `422` naming the field and
+stores nothing, so the date stored, answered and journaled is the date sent.
+A Portfolio Performance import names a row dated outside the range in its
+preview instead of booking it. A read's date filter — `from` and `to` on the
+transactions, quotes and trades reads, `as_of` on the security metrics and
+policy-rule reads — meets the same rule: anything else answers `422` naming
+the parameter.
+
+**Ledger amounts.** A booking's money fields and prices (`gross_amount`,
+`price`, `fees`, `taxes`, `security_amount`, `settlement_amount`,
+`settlement_fx_rate`) keep 6 decimal places and its `quantity` 12
+(ADR-0016). A finer value is rounded half up to that scale **before** it is
+checked, so the value stored, answered and journaled is the rounded one, and a
+positive amount that rounds to `0` answers `422`. A value with more than 14
+digits before the decimal point (a quantity more than 18) answers `422` naming
+the field instead of failing in the database.
+
+**Other stored amounts.** The same rule holds for every other amount a write
+stores: a quote's `close` (6 decimal places), an exchange rate (15), and the
+tax writes' money fields (6) and rates (4) — a statement snapshot's pots and
+withheld taxes, an allowance order's `amount_granted`, a tax year's
+allowances and rates, a profile's `church_tax_rate`. A finer value is rounded
+half up to its scale before it is checked, so a positive `close` that rounds
+to `0` answers `422` and is never stored as zero; a money value with more than
+14 digits before the decimal point answers `422` naming the field.
+
+**Text.** A name, an identifier or any other one-line text a write stores is
+at most as long as its column — 255 characters unless a narrower limit is
+stated (a bucket's or view's name 100, a plan's or snapshot's name 120),
+counted in Unicode code points, the unit the database counts — and carries no
+control character and no line break. Free text (a booking's `notes`, a
+research-log entry, an event's or a rule version's `note`, a description)
+keeps tabs and line breaks but no other control character, a NUL included,
+and is at most 10000 characters long (a research-log entry's `body` 20000, a
+category's `description` 2000), counted in code points; the database refuses
+a longer value as well. No text, one-line or free, carries an **invisible
+character** (E25): a Unicode tag character (U+E0000–U+E007F), a bidirectional
+control (U+061C, U+200E, U+200F, U+202A–U+202E, U+2066–U+2069), another
+invisible format character (the soft hyphen U+00AD, U+180E, the zero-width
+space and joiners U+200B–U+200D, U+2060–U+2065, U+206A–U+206F, the byte-order
+mark U+FEFF, U+FFF9–U+FFFB, U+1BCA0–U+1BCA3, U+1D173–U+1D17A) or a run of two
+or more variation selectors (a single one, an emoji's presentation, passes).
+A zero-width joiner U+200D passes where it joins two pictographs, as in an
+emoji built from several (a person at a laptop, a family, the rainbow flag):
+the character before it is a pictograph, or a VS16 right after one, and the
+character after it is one. The three subdivision flags (England, Scotland,
+Wales) are built from tag characters and stay refused, and so does the
+zero-width non-joiner U+200C, which some scripts' words (Persian, several
+Indic scripts) carry. They render as nothing but reach an agent intact, so the
+error names them by code point: `must not contain invisible characters
+(U+200B); retype the text without them`. A security's name is the one exception: its format characters
+are dropped as it is stored, as before, and only a run of variation selectors
+is refused. Anything else answers `422` naming the field, never a
+server error. A Portfolio Performance import names a row whose names or note
+break the same rule in its preview. A security's free-form `attributes` map
+meets the rule at any depth: every key is one-line text of at most 255
+characters, and every text value, in a nested object or list too, is free
+text; otherwise the write answers `422` on `attributes`. The map as stored,
+merged with the attributes already there, is at most 65536 bytes as compact
+JSON; a write that would pass that answers `422` on `attributes` and stores
+nothing. An update that changes nothing writes no row and leaves no journal
+entry. A search provider's property that breaks the
+rule is dropped before it reaches the attributes. A read's text filter — the
+securities `query`, the journal's `resource_type` and `resource_id`, the tax
+reads' `holder`, `institution` and `jurisdiction` — is one-line text of at
+most 255 characters; anything else, a list included, answers `422` naming the
+parameter.
 
 **Wrapped bodies.** A write whose attributes travel under one key —
 `{"transaction": {…}}`, `{"view": {…}}`, `{"rule": {…}}` and their siblings —
@@ -66,8 +185,13 @@ number, a list).
 `?since=<ISO8601>` (a datetime with offset, a naive UTC datetime, or a plain
 date meaning start of that day, UTC) and then return only the rows created or
 updated strictly after that instant, judged by `updated_at`. The response
-echoes `since`, carries `as_of` (the read instant — use it as the next
-`since`) and a `delta_note` stating the semantics. **Deletions are not
+echoes `since`, carries `as_of` — use it as the next `since` — and a
+`delta_note` stating the semantics. `as_of` lies one second before the read
+instant, or before the start of the oldest transaction that has written and
+is still open, whichever is earlier: a row is stamped when its transaction
+writes it, not when that transaction commits, so a cursor at the read instant
+would skip a row a long write (an import) commits after the read. The next
+read may therefore re-deliver a row, but never skips one. **Deletions are not
 represented** in a delta read; a caller that must detect deletions performs a
 full read. An invalid `since` is a `422`. Delta reads are **pull-only**: push
 delivery (webhooks to a user-configured endpoint) is a separate, still-gated
@@ -183,18 +307,48 @@ full list.
   endpoint below (each with `id`, `former_isin`, `changed_on`, `note`) — and
   its `thesis_state`, the current thesis derived from the research log (see
   below). Listings carry `thesis_state` as `null`; only the detail read
-  computes it.
+  computes it. A security a merge took away answers `404` with
+  `errors.merged_into` `{"kind": "security", "id": …}`, the security its
+  history lives on now — followed through every later merge to the live one
+  — and a detail naming both (ADR-0050 §12); an id no merge names answers
+  the plain `404`. Every route under `/api/v1/securities/:security_id/`
+  answers a merged-away id the same way — the quotes, trades, metrics,
+  notes, events and logo reads, and their writes.
 - `PATCH /api/v1/securities/:id` updates a security with a `security` object.
   The boolean `treat_quotes_as_raw` (default `false`) is the ADR-0028 escape
   hatch for providers that never back-adjust their history after a stock
   split: with the flag set, the security's provider-synced quote rows are
   treated as raw (as-traded), so the split-adjustment factors apply to them
-  too.
-- `DELETE /api/v1/securities/:id` deletes a security when no dependent
-  transactions or quote history reference it; referenced securities return
-  `409 Conflict`.
+  too. A security's `currency_code` **freezes** once it has a transaction or
+  a quote (ADR-0050 §11): a change then answers `422` with
+  `errors.currency_code` counting them, for example
+  `["is frozen once referenced (120 quotes, 3 transactions)"]`, and nothing
+  is written. Resending the stored currency is no change, and the other
+  fields stay editable.
+- `DELETE /api/v1/securities/:id` deletes a security when nothing references
+  it. A policy rule that reads it answers `409 Conflict` with
+  `errors.policy_rules`. Bookings, quote history, research notes, security
+  events or policy-rule versions answer `409 Conflict` with
+  `errors.referenced_by` (the referencing tables, counted, for example
+  `{"transactions": 3, "security_quotes": 120}`), `errors.remedy` and
+  `errors.remedy_route`: `merge` for a duplicate, whose route is the merge
+  preview `GET /api/v1/securities/:id/merge_preview?target_id=` completed
+  with the id of the security to keep, or `retire` when research notes or
+  rule versions reference it, because a merge cannot carry them (the route
+  is `PATCH /api/v1/securities/:id` with `is_retired: true`). Before an
+  unreferenced security is deleted, its category assignments, position
+  targets, position bucket overrides and ISIN aliases are removed, each
+  journaled; no database cascade removes them (ADR-0050 §11). A security that
+  is already gone answers `404`.
 - `GET /api/v1/securities/search` searches configured online security providers.
-  Query params: `query`; optional `type` with `security` or `crypto`.
+  Query params: `query`; optional `type` with `security` or `crypto`. Every
+  field of a hit comes from the provider and is checked for its type and
+  bounded in size: a field of the wrong type or over its bound is absent, a
+  hit without a usable name is dropped, a market keeps only bounded fields and
+  scalar properties, and `raw` carries only `type` and `market_cap_rank`,
+  never the provider's whole entry. The attributes a hit writes to a security
+  are bounded the same way, and a name or quote-feed URL longer than 255
+  characters is a `422` on any security write.
 
 ### ISIN changes (identifier aliases)
 
@@ -208,13 +362,25 @@ then the aliases — so re-imports of old exports (former ISIN) and new exports
 - `POST /api/v1/securities/:security_id/isin-change` records the change with an
   `isin_change` object: required `new_isin` (normalized to trimmed uppercase),
   optional `changed_on` (ISO date, defaults to today) and `note`. Returns the
-  updated security including its `identifier_aliases`. Guarded with `422` and a
+  updated security including its `identifier_aliases`. A `new_isin` that is not
+  twelve characters of the ISIN shape (two letters, nine letters or digits and
+  a check digit) or whose check digit does not agree answers `422` on
+  `new_isin`, and a `note` over 255 characters `422` on `note`. Guarded with `422` and a
   named conflict when `new_isin` equals the current ISIN, is live on another
   security, or is recorded as another security's former ISIN; recording a
   change back to one of the same security's own former ISINs consumes that
   alias (a revert). Every security-ISIN write path — create, update, and the
   import's create path — symmetrically rejects an ISIN that exists as an
   alias, naming the aliased security.
+- An identifier **changed** on an existing security through
+  `PATCH /api/v1/securities/:id` meets the same catalog rules, or answers `422`
+  naming the field: an `isin` of the ISIN shape with a check digit that
+  agrees, a `wkn` of six letters or digits, a `ticker_symbol` of printable
+  ASCII only. A lookalike (a letter from another script, an invisible
+  character, a wrong check digit) never replaces the identifier the exports
+  carry. Resending the stored value is no change, and a new security keeps
+  what it is created with. A security's `name` is stored without Unicode
+  format characters (zero-width spaces and joiners, bidirectional controls).
 - `DELETE /api/v1/securities/:security_id/identifier_aliases/:id` deletes one
   recorded alias (journaled) when an ISIN change was recorded by mistake;
   returns `204 No Content`, or `404` when the alias does not belong to the
@@ -231,6 +397,139 @@ Example ISIN-change payload:
   }
 }
 ```
+
+### Merging a duplicate security (ADR-0050 §9)
+
+A second copy of one instrument — an export carrying a newer ISIN imported
+before the change was recorded, a security created by hand that the next
+import created again — is repaired by merging the duplicate (the **source**)
+into the security you keep (the **target**). The operator's dialog on the
+securities page (the row menu's **Merge into…**) reads this preview and
+confirms with the same `plan_digest`, so both see the same plan.
+
+- `GET /api/v1/securities/:id/merge_preview?target_id=` previews merging the
+  security into `target_id` — a read that writes nothing
+  (`portfolixir.securities.merge_preview`). Both must trade in the same
+  currency, be both or neither a benchmark, and the target must not be
+  retired while the source is live; while the source has quotes, both must
+  treat their synced quotes alike (`treat_quotes_as_raw`). A source with
+  research notes or read by a policy rule is refused, because a note can
+  neither move nor vanish and a rule version keeps its subject
+  (`research_notes`, `policy_rules` with `errors.policy_rules`); where
+  merging the other way would pass, the detail says so. Each position the
+  source holds in a depot must keep its view membership
+  (`position_buckets_mismatch`). A split of the source the target carries in
+  the same portfolio on the same day with the same ratio collapses; another
+  ratio is refused (`split_ratio_mismatch`), and so is a split one side
+  lacks while that side has a booking or a quote before it
+  (`split_event_mismatch`) or a split that would rescale bookings it did not
+  scale before (`split_linearity`), or a split the merge would move that
+  still carries an import hash from a re-type before the import-hash kind
+  check (`legacy_hashed_split`, with `errors.splits`; change its kind back
+  or delete it — one the merge collapses is deleted with its hash retired).
+  Finally, every identity of both
+  securities must still find the target after the merge
+  (`identity_unresolvable`, with `errors.unresolvable`): the identity as
+  stored, the identity the Portfolio Performance import recorded when it
+  created the security (its name, ISIN, WKN, ticker and currency — a file
+  resolves on what it carries, not on identifiers added since), each former
+  ISIN, and, for every security merged into either of the two before (and
+  into those, down the chain), its identity as stored and as imported
+  (`merged_stored`, `merged_imported`, under the merged-away security's
+  id): a survivor merged away in turn must still lead every earlier import
+  to the history. A name-only security that was given a ticker after its import
+  and whose name differs from the target's is such a case; so is a name that
+  another live security also carries. Each refusal is a `409 Conflict` with
+  `errors.code`, `errors.detail` and `errors.guards`; an unknown source
+  answers `404`, a source already merged `409` `already_merged` with
+  `errors.merged_into`, a missing `target_id` `422`. The `200` carries:
+  - `plan_digest`, the digest the merge takes;
+  - `source` and `target`, each with its name, currency, `isin`, `wkn`,
+    `ticker_symbol`, `feed`, `asset_class`, flags, `transaction_count` and
+    `split_events`; `guards`; `reverse`, whether merging the other way would
+    pass;
+  - `key_equal_pairs` and `choice_required`, as for an account merge, and
+    `splits` (`collapsed`, `moved`) with `split_events` before and after;
+  - `position_buckets`: per depot the source holds or carries an override
+    in, both effective bucket sets, both overrides and the `action`;
+  - `quotes`: `source_count`, `moved_count` (the source's quotes on dates the
+    target has none, which move keeping their source), `collision_count`
+    (dates both have: the target's quote wins, the source's close goes into
+    the merge record) and `manual_collisions`, each colliding source quote
+    typed by hand, with `date`, `source_close`, `target_close` and
+    `target_source`;
+  - `configuration`: `category_assignments` (per classification of the
+    source, `move` where the target has none in it, otherwise `drop` — the
+    target's wins — with both categories) and `position_targets` (every
+    position target of the source in an active, draft or archived plan, with
+    its plan, `plan_status`, category and `target_weight`, and `move`, or
+    `drop` with the `reason` `collides` — the target has a row in that plan —
+    or `stale` — the row would no longer sit under the target's category);
+  - `events`: the events that move, and `possible_duplicates`, a source and a
+    target event of the same kind on the same day (both kept);
+  - `identifiers`: `choice_required` (both carry an ISIN), then
+    `after_by_identity_choice` with `keep_target_isin` and
+    `adopt_source_isin` — or `after` when there is no choice — each the
+    target's `isin`, `wkn`, `ticker_symbol`, `feed`, `name`, `asset_class`
+    and `former_isins` after the merge; `adopted`, what the target takes from
+    the source (a WKN, ticker or feed it lacks, an ISIN only the source
+    carries); `differences`, every source value that follows the target
+    instead (name, asset class, logo, a WKN, ticker or feed the target has
+    already); `aliases_reassigned`, the source's former ISINs;
+  - `outcome_by_collapse_key_equal` with `"false"` and `"true"`: the
+    target's `transaction_count` after, `moved_transaction_ids`, `deleted`
+    (`collapsed_duplicate` or `collapsed_split`), `positions` (per depot the
+    source holds: `source`, `target` and `after`, each `quantity`,
+    `cost_basis`, `avg_cost` and `realized_result`), `rounding_differences`,
+    `cash_accounts` and `flow_changes`, with `positions_basis` as for a
+    depot merge; `reimport_note` says what the merge does to the next
+    import.
+
+  Every quantity, close, weight and decimal is a string. The digest covers
+  both securities, every booking of either, their quotes, category
+  assignments, position targets, events and former ISINs with their
+  `updated_at`, the identities the imports recorded, every figure and the
+  guards; the choices are not part of it, so one pair has one digest, and a
+  quote the sync stores between the preview and the merge is a changed plan.
+- `POST /api/v1/securities/:id/merge` with `{"target_id": …, "plan_digest":
+  …, "collapse_key_equal": …, "identity_choice": …, "isin_changed_on": …}`
+  merges under the token (`portfolixir.securities.merge`).
+  `collapse_key_equal` is required when the preview lists `key_equal_pairs`,
+  and `identity_choice` when both securities carry an ISIN — each a `422`
+  without it, and never preselected: ask the operator.
+  `keep_target_isin` keeps the target's ISIN and records the source's as a
+  former ISIN of the target; `adopt_source_isin` gives the target the
+  source's ISIN and records the target's old one as its former ISIN (the
+  repair of ADR-0029 §3's wrong-order duplicate, together with
+  `collapse_key_equal: true`). `isin_changed_on` (`YYYY-MM-DD`, optional) is
+  that former ISIN's `changed_on`; the merge date otherwise. An unknown
+  `identity_choice` or an `isin_changed_on` that is no date answers `422`. It
+  answers `201 Created` with the merge record (`kind` `security`,
+  `portfolio_id` `null`; its `manifest` lists every booking moved or deleted,
+  every quote moved and every quote dropped with its close and the target's
+  close that won, the assignments, position targets and events moved or
+  dropped, the former ISINs reassigned and created, the identifiers adopted
+  and the differences, and the choices) and `already_applied: false`. In one
+  transaction, one audit-journal entry per row: with `true` the source's
+  paired bookings are deleted and their content hashes retired; a split the
+  target carries on the same day in the same portfolio is deleted; every
+  other booking moves onto the target; the quantity of every depot is checked
+  on every day against the fold of both securities' bookings
+  (`409 identity_check_failed` otherwise); the bucket plan is written; the
+  quotes are gap-filled — **not journaled**, the merge record is their
+  record — and both securities' derived values are invalidated; the
+  assignments, position targets and events move or are dropped as the
+  preview listed; the source's former ISINs go to the target, its ISIN is
+  written by the choice, its WKN, ticker and feed where the target lacks
+  them; the source is deleted; and the identities are checked again on the
+  catalog as the merge left it (`409 identity_unresolvable` with
+  `errors.unresolvable` rolls it back otherwise). After it, a Portfolio
+  Performance import naming the source by any of its identifiers books onto
+  the target, and a re-import of an export already applied creates nothing.
+  A changed plan answers `409` `plan_changed` with the fresh preview in
+  `errors.preview`; a retry of a completed merge of the same pair answers
+  `200` with the original record and `already_applied: true`; a source
+  merged into another security `409` `already_merged`. There is no unmerge.
 
 ### Research log (ADR-0044)
 
@@ -268,11 +567,21 @@ input.
   always derives from the whole log, and the answer echoes the applied
   `limit`.
 - `POST /api/v1/securities/:security_id/notes` — appends one entry from a
-  `note` object (`201`); journaled under the API-token actor.
+  `note` object (`201`); journaled under the API-token actor. An `as_of`
+  after today (the instance's calendar day) answers `422` on `as_of` ("must
+  not be in the future"): the log is append-only, so a mistyped future year
+  could never be taken back. `valid_until` and `time_stop` may lie in the
+  future. `body` holds at most 20000 characters and `invalidation_condition`
+  at most 10000 (Unicode code points); a longer value answers `422` naming
+  the field, and the database refuses it as well.
 - `GET /api/v1/notes/unreviewed?days=N` — held securities (net quantity
   non-zero across all depots) whose newest entry is older than `N` days
   (default 90) or that have none; rows carry `last_entry_as_of` and
-  `days_since_last_entry` (`null` when never reviewed).
+  `days_since_last_entry` (`null` when never reviewed). An entry counts as a
+  review on its `as_of`, but no later than the day after it was written, so
+  an entry stored with a future `as_of` before the refusal existed cannot
+  keep its position off this read; the thesis state's `last_reviewed_at`
+  follows the same rule, and the entry itself keeps its `as_of`.
   `limit` keeps the most overdue positions (default 1000, max 10000).
 - `GET /api/v1/notes/uncorroborated` — entries whose `source_quality` is not
   `primary`, newest first; superseded entries are skipped unless
@@ -371,7 +680,9 @@ The reads:
   90), or that were never checked at all, which are listed with
   `days_since_checked` `null`. Deliberately a different read from the one
   above: a confirmed *future* date nobody has re-read in three months is a
-  different risk from a *past* date nobody resolved.
+  different risk from a *past* date nobody resolved. An event whose stored
+  `checked_at` lies after tomorrow (written before the refusal below
+  existed) is listed too, with a negative `days_since_checked`.
 
 The writes:
 
@@ -380,6 +691,11 @@ The writes:
   reserved and is ignored in the body.
 - `PATCH /api/v1/security_events/:id` — corrects or confirms one in place. The
   security it belongs to cannot be changed.
+- On both writes a `checked_at` later than tomorrow (the instance's calendar
+  day plus one day of zone slack) answers `422` on `checked_at` and writes
+  nothing: it is the day the source was re-read, and a future one would hide
+  the event from the stale read. An event's `note` holds at most 10000
+  characters (Unicode code points); a longer one answers `422` on `note`.
 - `DELETE /api/v1/security_events/:id` — removes one (`204`), journaled with
   the row recorded, for a duplicate or a date that never existed. To record
   that a date passed, mark it `confirmed` instead.
@@ -429,7 +745,10 @@ and the `window` it was measured over, and the payload carries
 `insufficient_data: true` and the observation count it had, at `200` — a gap
 marker, not an error: 20 return observations for a volatility, `n` closes for
 an `n`-day moving average, 2 closes for a drawdown, and a close on or before
-the window's start for the momentum and the 52-week extremes.
+the window's start for the momentum and the 52-week extremes. A volatility
+whose square root lies beyond what the one float step can carry — a magnitude
+only implausible stored closes reach — is `null` **without**
+`insufficient_data`: undefined, not short of data, and never an error.
 
 **Every metric says what it needed** (ADR-0047 §6 as amended 2026-09-19):
 `required` carries the minimum `observations` on **every** metric, whether it
@@ -501,10 +820,52 @@ Example create payload:
   `limit` keeps the newest rows of the window, still ascending (default 20000,
   max 50000; zero, negative or non-numeric is a `422`).
 - `PUT /api/v1/securities/:security_id/quotes` upserts manual quote rows.
+  Every row is stored with source `manual`, whatever `source` it names: a
+  close written over the API is a manual close, and the provider sources are
+  the quote sync's to state. A manual close wins over provider data, so the
+  write replaces a stored row of any source for its dates, and the sync
+  leaves a manual row alone until it is released (below). The write is
+  journaled under the token (`resource_type=security_quotes`, filed under the
+  security's id, operation `upsert`) with the stored rows it replaced — their
+  closes and sources — as the before-image. The answer is
+  `{"upserted": n, "replaced": [dates]}`: `upserted` counts the rows now
+  stored as given, and `replaced` lists the ISO dates whose stored row the
+  write changed (a new date is not listed). A write that changes nothing
+  leaves no journal entry.
+  Every quote row, manual or synced, is bounded: a `close` that is positive
+  once rounded to its 6 decimal places, with at most 14 digits before the
+  decimal point, on a `date` no later than tomorrow (the instance's calendar day plus one day for
+  time zones). A row outside the bound answers `422` naming the field, and a
+  sync drops such a provider point instead of failing the run. The
+  latest-quote reads (the valuation price, the catalog's latest price and the
+  stale-quote check) never use a stored row dated past the bound. One batch
+  names each date once and carries only quote objects: a repeated date answers
+  `422` with `errors.date` naming it, a row that is not an object `422` on
+  `quotes`, and nothing is written.
+- `POST /api/v1/securities/:security_id/quotes/release` releases the
+  security's **manual** quotes dated `from` through `to` (both required,
+  inclusive, in the body or the query) back to provider data: the manual rows
+  in the range are removed, journaled under the token (operation `delete`)
+  with the released rows as the before-image, and the answer is
+  `{"security_id", "from", "to", "released": [dates]}`. Provider rows in the
+  range stay, and a range without manual rows changes nothing and writes no
+  entry. The next quote sync stores the provider's close for a released date;
+  a security without a provider keeps no quote for it. A missing or invalid
+  date answers `422` naming it, `to` before `from` `422` on `to`, an unknown
+  security `404`. The release ships agent-first (API and MCP): quotes have no
+  write control on the security page yet, and the page's release control
+  lands no later than Sprint 17.
 - `POST /api/v1/securities/:security_id/sync_quotes` triggers quote sync for
   one security. The response includes `status` (`ok`, `skipped`, or `error`);
   skipped and error responses may include a `reason` such as
-  `missing_ticker` or `no_provider_adapter`.
+  `missing_ticker` or `no_provider_adapter`, and `persist_failed` when the
+  fetched quotes could not be stored. A history of any length is stored in
+  one sync, and in the scheduled sync one security that fails is that
+  security's error while the others are still synced. One sync of a security
+  runs at a time: while one runs, from any path, a second answers
+  `409 Conflict` and calls no provider. A newly created security's quote
+  history is fetched in the background on one queue, one security at a time,
+  whether it came from the API, the page or an import.
 
 Example quote upsert payload:
 
@@ -513,10 +874,20 @@ Example quote upsert payload:
   "quotes": [
     {
       "date": "2026-05-15",
-      "close": "123.45",
-      "source": "manual"
+      "close": "123.45"
     }
   ]
+}
+```
+
+Example quote upsert response, the first date having replaced a synced row:
+
+```json
+{
+  "data": {
+    "upserted": 2,
+    "replaced": ["2026-05-15"]
+  }
 }
 ```
 
@@ -576,21 +947,292 @@ Example quote sync response:
   excluded bucket (e.g. a business account). Only `free_cash` accounts with a
   non-negative balance contribute to the valuation's deployable cash and its
   `cash_quote`. An unknown value is rejected with `422 Unprocessable Entity`.
-- `GET /api/v1/cash_accounts/:id` returns one cash account.
+  A `name` another cash account in the portfolio carries as its name or as
+  one of its former names answers `422` with `errors.name`, because an import
+  naming it already books to that account (ADR-0050 §4).
+- Every cash-account and securities-account payload carries **`former_names`**
+  (ADR-0050 §4), a list of strings: the names the account was known by. The
+  Portfolio Performance import resolves a file's account name by the live name
+  first, then by the former names, so a row that names a former name books
+  onto this account. Two accounts of one kind in a portfolio never share a
+  live or former name; names two accounts already shared before this rule
+  resolve to neither, and the import waits for the operator to pick one.
+- `GET /api/v1/cash_accounts/:id` returns one cash account. An account a
+  merge took away answers `404` with `errors.merged_into`
+  `{"kind": "cash_account", "id": …}`, the account its history lives on now,
+  followed through every later merge (ADR-0050 §12).
 - `PATCH /api/v1/cash_accounts/:id` updates a cash account (`name`,
   `currency_code`, `notes`, `liquidity_role`); `portfolio_id` cannot
-  be changed.
-- `DELETE /api/v1/cash_accounts/:id` deletes a cash account, or returns
-  `409 Conflict` when a transaction or securities account still references it.
+  be changed. The `currency_code` **freezes** once a transaction references
+  the account through either leg or a securities account links to it
+  (ADR-0050 §11): a change then answers `422` with `errors.currency_code`
+  counting the references, for example
+  `["is frozen once referenced (1 securities account, 12 transactions)"]`,
+  and nothing is written, so booked history is never re-denominated.
+  A rename keeps the previous name in `former_names`, and renaming back to a
+  former name consumes it. While another cash account in the portfolio still
+  carries the previous name as its live name, the previous name is not kept:
+  an import naming it books to that other account (merge or rename that
+  account to change this). A new name another cash account carries as its
+  live or former name answers `422` with `errors.name`.
+- `DELETE /api/v1/cash_accounts/:id/former_names?name=` removes one former
+  name, journaled, and answers the account
+  (`portfolixir.cash_accounts.remove_former_name`). An import that still names
+  '<name>' will then create a new account. A name the account does not carry
+  answers `404`, a missing `name` `422`. A name stored before invisible
+  characters were refused may be given in the spelling the MCP companion
+  lists it in, each such character written `[U+XXXX]`; a stored name of those
+  very letters is matched first (E25).
+- `DELETE /api/v1/cash_accounts/:id` deletes a cash account that no
+  transaction references through either leg and no securities account links
+  to. Otherwise it returns `409 Conflict` with `errors.referenced_by` (for
+  example `{"transactions": 12, "securities_accounts": 1}`), `errors.remedy`
+  `merge` and `errors.remedy_route`, the merge preview
+  `GET /api/v1/cash_accounts/:id/merge_preview?target_id=` completed with the
+  id of the account to keep: a merge moves the history, a delete never
+  discards it. An unreferenced account's bucket links are removed first,
+  journaled (ADR-0050 §11).
+- `GET /api/v1/cash_accounts/:id/merge_preview?target_id=` previews merging
+  the account (the **source**) into `target_id` (the **target**, the account
+  that stays) — a read that writes nothing (ADR-0050 §7, §10;
+  `portfolixir.cash_accounts.merge_preview`). Both accounts must share the
+  portfolio, the currency, the liquidity role and the bucket set; otherwise
+  it answers `409 Conflict` with `errors.code` (`same_account`, `not_live`,
+  `portfolio_mismatch`, `currency_mismatch`, `liquidity_role_mismatch`,
+  `buckets_mismatch`, `legacy_hashed_anchor` for a balance anchor that
+  still carries an import hash from before the import-hash kind check and
+  would have to be restated or moved, or `unstorable_anchor` for an anchor
+  whose restated amount would need more than the amount column's 6 decimal
+  places — the other account's balance carries the fraction of a trade
+  booked without its amount; record that amount, then preview again),
+  `errors.detail` and `errors.guards`; for the last two `errors.anchors`
+  names each anchor (`id`, `date`, `cash_account_id`), and for
+  `unstorable_anchor` `errors.bookings` names the trades booked without
+  their amount.
+  An unknown source answers `404`, a source already merged `409`
+  `already_merged` with `errors.merged_into`, a missing `target_id` `422`.
+  The `200` carries:
+  - `plan_digest`, the digest the merge takes;
+  - `source` and `target`, each with its `balance` (the fold of every
+    booking, as `GET /api/v1/cash_accounts` reports it), `transaction_count`,
+    `bucket_ids` and `former_names`; `guards`; `linked_depots` (the source's,
+    which move to the target);
+  - `internal_transfers`: the transfers between the two, which the merge
+    deletes — both legs become one account;
+  - `key_equal_pairs`: a source booking whose day, kind and amounts equal a
+    target booking's, paired one to one, lowest id first, and
+    `choice_required` when there is one;
+  - `former_names`: the names the target gains (`appended`), those another
+    account already carries (`not_kept`, with `held_by`), and the target's
+    list `after`;
+  - `outcome_by_collapse_key_equal` with `"false"` (keep both bookings of a
+    pair) and `"true"` (delete the source's): the target's `balance` and
+    `transaction_count` after, `moved_transaction_ids`, `deleted` (each with
+    its `reason`: `internal_transfer`, `collapsed_duplicate` or
+    `folded_anchor`), `restated_anchors` (every balance anchor that stands on
+    the target afterwards, as `stated` + `other_balance` = `after`: the other
+    account's balance at the end of that day, from its bookings before the
+    merge; on a day both accounts carry anchors the target's last one holds
+    both and the others are deleted), `flow_changes` (the external flows a
+    collapse removes — `kind` `removed` — and those it moves into a later
+    balance anchor of the account its booking stood on — `kind` `absorbed`,
+    the source's own or, for a collapsed transfer, the third account's —,
+    each with `cash_account_id`, the anchor's or booking's `transaction_id`,
+    `date`, `change` and `collapsed_transaction_id`), `other_accounts` and
+    `positions` (what a collapsed transfer or trade changes elsewhere);
+  - `balance_basis`, the computation basis of the balances and the restated
+    anchors: a balance is the fold of every booking of the account, as
+    `GET /api/v1/cash_accounts` reports it; a restated anchor is its stated
+    amount plus the other account's balance at the end of that day, from that
+    account's bookings before the merge;
+  - `reimport_note`, what the merge does to the next Portfolio Performance
+    import: the source's names lead there (except one another account still
+    carries, `former_names.not_kept`), and a re-import of an export already
+    applied creates nothing.
+
+  Every decimal is a string. The digest covers both accounts, every booking
+  either references with its `updated_at`, every figure and the guards; the
+  choice is not part of it, so one pair has one digest.
+- `POST /api/v1/cash_accounts/:id/merge` with `{"target_id": …,
+  "plan_digest": …, "collapse_key_equal": …}` merges under the token
+  (`portfolixir.cash_accounts.merge`). `collapse_key_equal` is required when
+  the preview lists `key_equal_pairs` — `422` without it, naming how many —
+  and is never preselected: ask the operator. It answers `201 Created` with
+  the **merge record** (`id`, `kind`, `source_id`, `target_id`,
+  `portfolio_id`, `source_snapshot`, `manifest` — every booking moved,
+  restated or deleted, the depots re-pointed, the bucket links removed, the
+  names appended, the choice —, `plan_digest`, `actor_type`, `actor_label`,
+  `inserted_at`) and `already_applied: false`. In one transaction, one
+  audit-journal entry per row: the transfers between the two and, with
+  `true`, the source's paired bookings are deleted and their content hashes
+  retired; every balance anchor is restated as the preview said; every
+  other booking of the source and its linked depots move onto the target;
+  the merged balance is checked against the sum of both accounts on every
+  day either has a booking and today (`409 identity_check_failed` rolls the
+  merge back otherwise — a check for a defect, never an expected answer);
+  the source's bucket links are removed and the source is deleted; its name
+  and former names become former names of the target, except a name another
+  cash account still carries as its live or former name, which is not kept
+  (`former_names.not_kept` in the preview) and keeps leading an import to
+  that account. A booking, a figure
+  or a guard that changed since the preview answers `409` with
+  `errors.code` `plan_changed` and the fresh preview in `errors.preview`,
+  and writes nothing. A retry of a completed merge of the same pair answers
+  `200` with the original record and `already_applied: true`, journaling
+  nothing; a source already merged into another account answers `409`
+  `already_merged` with `errors.merged_into`. A missing `plan_digest` or
+  `target_id`, or a `collapse_key_equal` that is not a boolean, answers
+  `422`. There is no unmerge: the record and the journal's before-images
+  reconstruct what a merge did. The operator merges from the row menu on
+  Accounts & depots (**Merge into…**), which shows this preview and applies
+  it with its digest.
 - `GET /api/v1/securities_accounts` lists depots/securities accounts.
 - `POST /api/v1/securities_accounts` creates a depot/securities account with a
   `securities_account` object. `portfolio_id` is optional (ADR-0024): when
   omitted, the depot is bound to the deterministic internal default portfolio.
-- `GET /api/v1/securities_accounts/:id` returns one securities account.
+  A `name` another depot in the portfolio carries as its name or as one of its
+  former names answers `422` with `errors.name` (ADR-0050 §4).
+- `GET /api/v1/securities_accounts/:id` returns one securities account. A
+  depot a merge took away answers `404` with `errors.merged_into`
+  `{"kind": "securities_account", "id": …}`, followed through every later
+  merge (ADR-0050 §12).
 - `PATCH /api/v1/securities_accounts/:id` updates a securities account
   (`name`, `notes`, `cash_account_id`); `portfolio_id` cannot be changed.
-- `DELETE /api/v1/securities_accounts/:id` deletes a securities account, or
-  returns `409 Conflict` when a transaction still references it.
+  A rename keeps the previous name in `former_names` under the same rules as
+  a cash account's: renaming back consumes it, a previous name another depot
+  still carries as its live name is not kept, and a name another depot carries
+  as its live or former name answers `422` with `errors.name`.
+- `DELETE /api/v1/securities_accounts/:id/former_names?name=` removes one
+  former name of a depot, journaled, and answers the depot
+  (`portfolixir.securities_accounts.remove_former_name`). An import that still
+  names '<name>' will then create a new depot. The name is matched as for a
+  cash account, the `[U+XXXX]` spelling included.
+- `DELETE /api/v1/securities_accounts/:id` deletes a securities account that
+  no transaction references through either leg. Otherwise it returns
+  `409 Conflict` with `errors.referenced_by`, `errors.remedy` `merge` and
+  `errors.remedy_route`, the merge preview
+  `GET /api/v1/securities_accounts/:id/merge_preview?target_id=`. An
+  unreferenced depot's default buckets and position overrides are removed
+  first, journaled: one entry for the default set, one per position.
+- `GET /api/v1/securities_accounts/:id/merge_preview?target_id=` previews
+  merging the depot (the **source**) into `target_id` (the **target**, the
+  depot that stays) — a read that writes nothing (ADR-0050 §7, §10;
+  `portfolixir.securities_accounts.merge_preview`). Both depots must share
+  the portfolio and the default bucket set, and every position must keep its
+  view membership: for each security the source holds, where the target
+  holds it too the two effective bucket sets must be equal; where the target
+  does not, the source's set is carried over. Otherwise it answers
+  `409 Conflict` with `errors.code` (`same_account`, `not_live`,
+  `portfolio_mismatch`, `buckets_mismatch`, or `position_buckets_mismatch`,
+  whose `errors.detail` names each position and both bucket sets — or an
+  override to carry that holds more than one scope bucket, which the
+  target's position cannot take),
+  `errors.detail` and `errors.guards`. An unknown source answers `404`, a
+  source already merged `409` `already_merged` with `errors.merged_into`, a
+  missing `target_id` `422`. The `200` carries:
+  - `plan_digest`, the digest the merge takes;
+  - `source` and `target`, each with its `cash_account_id`, `bucket_ids` (the
+    default set), `former_names` and `transaction_count`; `guards`;
+  - `internal_transfers`: the security transfers between the two, which the
+    merge deletes — both legs become one depot;
+  - `key_equal_pairs`: a source booking whose day, kind, security, cash
+    account and amounts equal a target booking's, paired one to one, lowest
+    id first, each naming both depot legs (`securities_account_id`,
+    `counter_securities_account_id`), and `choice_required` when there is
+    one;
+  - `position_buckets`: per security the source holds or carries an override
+    for, both effective bucket sets, both overrides (`null` for a position
+    that inherits its depot's default set, `[]` for a deliberately empty one)
+    and the `action`: `carry` (the source's override moves to the target),
+    `drop_redundant` (the target already shows the position in the same
+    buckets), `drop_unheld` (the source holds no booking of it),
+    `clear_target` (the target's override for a security it does not hold is
+    cleared, so the moved bookings keep the default set) or `none`;
+  - `former_names`: `appended`, `not_kept` and the target's list `after`;
+  - `outcome_by_collapse_key_equal` with `"false"` and `"true"`: the target's
+    `transaction_count` after, `moved_transaction_ids`, `deleted` (each with
+    its `reason`: `internal_transfer` or `collapsed_duplicate`), `positions`
+    (every security the source holds, each with `source`, `target` and
+    `after`, each `quantity`, `cost_basis`, `avg_cost` and `realized_result`;
+    `target` is `null` where the target holds no booking of it),
+    `rounding_differences`, `cash_accounts` (each cash account a
+    collapsed booking changes, with `balance_before` and `balance_after`)
+    and `flow_changes` (each flow a collapsed booking moves into a later
+    balance anchor of its cash account, `kind` `absorbed`, with
+    `cash_account_id`, the anchor's `transaction_id`, `date`, `change` and
+    `collapsed_transaction_id`, as in a cash merge's preview) and
+    `other_depots` (each third depot a collapsed transfer names, per
+    security, with `securities_account_name`, `security_name`,
+    `quantity_before` and `quantity_after`: removing a transfer from it
+    changes its holding too);
+  - `positions_basis`, the computation basis of those figures: the quantity
+    is the position fold with each split scaling the position once, rounded
+    at volume scale 6 (ADR-0028 §3); `cost_basis` and `avg_cost` are the
+    moving-average cost `GET /api/v1/portfolios/:id/holdings` states, in the
+    security's currency, fees and taxes not included — after the merge both
+    depots' lots combine, so the cost is restated, and a sale the target made
+    between two buys now consumes the combined average; `realized_result` is,
+    over the position's sales, each sale's quantity times its price in the
+    security's currency less the cost it removed at the running average, and
+    `null` where that price or cost is not derivable;
+    `rounding_differences` lists each split of an affected security where
+    the combined position rounded once differs, at the end of the split's
+    day, from the two positions rounded apart — by a unit of the volume scale
+    per split, expected and never a refusal;
+  - `reimport_note`, what the merge does to the next Portfolio Performance
+    import, as for a cash merge.
+
+  Every quantity and decimal is a string. The digest covers both depots,
+  every booking either names and the portfolio's splits of their securities
+  with their `updated_at`, every figure (the bucket plan among them) and the
+  guards; the choice is not part of it, so one pair has one digest.
+- `POST /api/v1/securities_accounts/:id/merge` with `{"target_id": …,
+  "plan_digest": …, "collapse_key_equal": …}` merges under the token
+  (`portfolixir.securities_accounts.merge`). `collapse_key_equal` is required
+  when the preview lists `key_equal_pairs` — `422` without it, naming how
+  many — and is never preselected: ask the operator. It answers `201
+  Created` with the merge record (as for a cash account; its `manifest`
+  lists every booking moved or deleted, the overrides `carried`, `dropped`
+  and `cleared`, the default buckets removed, the names appended, the
+  rounding differences and the choice) and `already_applied: false`. In one
+  transaction, one audit-journal entry per row: the transfers between the
+  two and, with `true`, the source's paired bookings are deleted and their
+  content hashes retired; every other booking of the source moves onto the
+  target on whichever depot leg names the source, keeping its cash account —
+  the target keeps its own linked cash account, the source's stays as an
+  account of its own; the target's quantity of every security is checked
+  against both depots' bookings on every day either has a booking, every
+  split date and today (`409 identity_check_failed` rolls the merge back
+  otherwise — a check for a defect, never an expected answer); the bucket
+  plan is written, one journal entry per position; the source's default
+  buckets are removed and the source is deleted; its name and former names
+  become former names of the target, except a name another depot still
+  carries (`former_names.not_kept`). A changed plan answers `409`
+  `plan_changed` with the fresh preview in `errors.preview`; a retry of a
+  completed merge of the same pair answers `200` with the original record
+  and `already_applied: true`; a source merged into another depot `409`
+  `already_merged`; a missing `plan_digest` or `target_id`, or a
+  `collapse_key_equal` that is not a boolean, `422`. There is no unmerge.
+  The operator merges from the depot row's menu on Accounts & depots
+  (**Merge into…**), through the same preview.
+- `GET /api/v1/merges` lists the **merge records**, newest first
+  (`inserted_at`, then `id`) — the audit read of a destructive write
+  (ADR-0050 §12; `portfolixir.merges.list`). Each record carries `id`,
+  `kind` (`cash_account`, `securities_account` or `security`), `source`
+  `{id, name}` (the name the merge recorded, since the source no longer
+  exists), `target` `{id, name, merged_into}` (`merged_into` is `null` while
+  the target lives, otherwise the id a later merge moved it into, followed to
+  the live end), `portfolio_id` (`null` for a security), `actor_type`,
+  `actor_label` (for an API token, the name of the token entry that applied
+  the merge, as the journal's), `inserted_at` and `manifest_summary`: the
+  record's `manifest` with every list replaced by its count — bookings moved,
+  restated and deleted, names appended, quotes moved and dropped — and the
+  operator's choices as given. `meta` carries `order`, `count` and `limit`.
+  `limit` is the list family's: default 100, capped at 1000, and zero, a
+  negative or a non-number answers `422`. The read is **agent-first**: the
+  operator sees a merge on Accounts & depots (the survivor's "merged from"
+  line and its former names), and a list view of the records lands no later
+  than Sprint 17 under the two-way deadline.
 
 Example account payloads:
 
@@ -688,13 +1330,27 @@ Example account payloads:
   fees and taxes included) must equal `settlement_amount + fees + taxes`, a
   sell's (the cash received) `settlement_amount - fees - taxes`, within 0.01
   compared at full precision; otherwise the write answers 422 with a
-  `gross_amount` error naming the implied amount. The check runs on create and
-  on a `PATCH` that changes `gross_amount`, `settlement_amount`, `fees`,
-  `taxes` or `type` — a `PATCH` of the notes or the date of an older booking is
-  never refused by it.
+  `gross_amount` error naming the implied amount. **Without a
+  `gross_amount`** the ledger books `quantity × price` (plus fees and taxes on
+  a buy, less them on a sale) as the cash, so that is what is compared: a
+  trade priced in the security's currency and sent without its cash amount
+  answers 422 on `gross_amount` naming both the amount it would book and the
+  one the settlement implies — send the cash the broker settled. The check
+  runs on create and on a `PATCH` that changes `gross_amount`,
+  `settlement_amount`, `fees`, `taxes` or `type`, or, on a booking without a
+  `gross_amount`, its `quantity` or `price` — a `PATCH` of the notes or the
+  date of an older booking is never refused by it.
 - `GET /api/v1/transactions/:id` returns one transaction.
 - `PATCH /api/v1/transactions/:id` updates a transaction (e.g. to fix a
-  mis-imported booking); the per-kind validation still applies.
+  mis-imported booking); the per-kind validation still applies. An imported
+  row keeps its content hash, and a balance anchor or a split never carries
+  one (ADR-0050 §1), so changing an imported row's `type` to
+  `balance_adjustment` or `split` answers 422 on `errors.type`. A stored
+  **split** row changes only its `notes` (E25 S6): a change of its `date`,
+  `security_id`, `portfolio_id`, `type` or ratio answers 422 naming the field,
+  because a split is booked through `POST /api/v1/splits`, whose checks a
+  generic update would pass by. A wrong split is deleted (each of its rows)
+  and booked again.
 - `DELETE /api/v1/transactions/:id` deletes a transaction. Because trades and
   holdings are derived, correcting or removing the transaction fixes them too.
 - `POST /api/v1/splits/preview` previews a stock split booking (ADR-0028)
@@ -726,7 +1382,11 @@ Example account payloads:
   same-day split for the same security is rejected with `422` naming the
   existing event (a retried timeout cannot compound the multiplicative
   event); a future-dated effective date and a security nobody held at the
-  effective date are rejected with `422` too. The generic
+  effective date are rejected with `422` too. The security's splits, each
+  counted by its own magnitude (`2:1` and `1:2` both count 2), may multiply to
+  at most `10^12` with the new one included; a ratio past that answers `422`
+  on `ratio` from preview and booking alike, and nothing is written (E25 S4).
+  The generic
   `POST /api/v1/transactions` endpoint rejects the `split` kind — these two
   routes are the only split write path.
 - `GET /api/v1/portfolios/:portfolio_id/holdings` lists derived holdings for a
@@ -945,7 +1605,10 @@ Example account payloads:
   (`NPV(r) = Σ cf/(1+r)^(days/365) = 0`), the figure Portfolio Performance
   shows next to TTWROR. It is a Decimal string, or `null` when no rate exists
   (fewer than two flows, all flows the same sign, or the solver does not
-  converge). Securities without quotes are priced at the latest own trade
+  converge) or when an amount lies outside the range the solver's one float
+  step carries, which only implausible stored data reaches; the read never
+  fails on such an amount, and `computation_basis.gaps` names these cases
+  (E25 S4). Securities without quotes are priced at the latest own trade
   price (see the valuation endpoint). Unknown portfolios return
   `404 Not Found`. Since the daily walk may be served from a durable derived
   value (ADR-0039), the response is **never silent about freshness**: `as_of`
@@ -994,7 +1657,9 @@ Example account payloads:
   `computation_basis` states the input series, the window, the reference,
   the treatment of gaps and the `assumptions` — the synthetic portfolio is
   frictionless (`frictionless: true`: no fees, no taxes), which biases the
-  comparison against the real portfolio. A missing or malformed `benchmark`
+  comparison against the real portfolio. The basis names a benchmark
+  security as `security <id> (<currency>)`, never by its stored name, which
+  travels only as data in `benchmark.name` (E25). A missing or malformed `benchmark`
   is `422`; a portfolio with nothing to walk, or a benchmark without a quote
   in the window, answers `null` figures with `window.start_date: null` and
   every flow named in `excluded_flows`. Nothing is persisted: the comparison
@@ -1035,9 +1700,19 @@ Example account payloads:
   classification. The body is `{"classification_id": id, "targets": [{"category_id":
   id, "target_weight": "0.25"}]}` and may carry an optional `"view": id` to write
   that view's plan (omitted = Gesamt). Each `target_weight` is a string fraction
-  in `[0, 1]`; targets need not sum to `1`. Only the supplied categories are
+  in `[0, 1]` with at most 6 decimal places (four in percent); a finer weight
+  answers `422` on `target_weight`, and the database refuses it too unless the
+  instance already held a finer weight when it was upgraded (the upgrade then
+  logs how many). Duplicating a plan, or saving it in the SOLL editor, rounds
+  such a stored weight half up to 6 decimal places. Targets need not sum to
+  `1`. Only the supplied categories are
   changed. A category from another tree returns `422 Unprocessable Entity`, and an
-  unknown classification returns `404 Not Found`. **Position-level SOLL
+  unknown classification returns `404 Not Found`. A batch names each category
+  row once and carries at most one row per category and one per security
+  assigned in the classification, and never more than `10000` rows; a repeated
+  category row or a larger batch answers `422` (`errors.detail` naming the
+  category, or `errors.targets` stating the bound) and writes nothing.
+  **Position-level SOLL
   (ADR-0030):** a target entry that also carries a `"security_id"` sets a weight
   on that individual position under the category (the security must sit under it,
   else `422`); a category entry (no `security_id`) and its position entries are
@@ -1046,8 +1721,10 @@ Example account payloads:
   returns `422` instead of being coerced into a category write. A plan carries
   at most **one position row per security**: filing a security under a second
   category, or naming the same `(category, security)` twice in one batch,
-  returns `422`. Each serialized target carries `security_id` (`null` for a
-  category row).
+  returns `422`. The database holds the rule as well, so a write that loses a
+  race to file the security under another category answers the same `422`
+  and stores nothing. Each serialized target carries `security_id` (`null` for
+  a category row).
 - `DELETE /api/v1/portfolios/:portfolio_id/targets/:category_id` removes a
   portfolio's **category** target for one category and returns `{deleted}` (the
   number of rows removed). Position rows for the category are left in place.
@@ -1095,7 +1772,8 @@ Example account payloads:
 - `PATCH /api/v1/plans/:id` renames a plan version (`{"name": "..."}`).
 - `DELETE /api/v1/plans/:id` deletes one plan version (any status) including its
   category targets. Deleting the active plan leaves the scope without a plan
-  (the allocation falls back to actual-only).
+  (the allocation falls back to actual-only). Each target is journaled as its
+  own `target` delete before the plan's `target_plan` delete.
 - `GET /api/v1/snapshots` lists depot **snapshot markers** (ADR-0027): each is a
   `name`, a scope (`view_id`, `null` = everything) and an `as_of` date. A
   snapshot copies no financial data — the holdings it represents derive from
@@ -1152,7 +1830,11 @@ under "Transactions and Holdings" above.)
 - `GET /api/v1/tax/allowance_orders` lists the Freistellungsaufträge the
   taxpayer **instructed** (optional `holder`, `institution`, `tax_year`;
   free-text filters fold case, so `comdirect` and `Comdirect` are one
-  institution).
+  institution). Every `holder` and `institution` the tax endpoints write or
+  filter on is normalised one way — composed to NFC, invisible format
+  characters removed, every run of Unicode spaces one space, a value that is
+  only such characters a `422` — and matched by the database's own case
+  fold on both sides, the fold of the unique indexes (E25 S6).
 - `PUT /api/v1/tax/allowance_orders` records or replaces the instructed amount
   for one `(holder, institution, tax_year)`
   (`{"allowance_order": {...}}`).
@@ -1178,8 +1860,12 @@ under "Transactions and Holdings" above.)
   `as_of`; the resolved rate is then frozen on the row, so a later profile edit
   never rewrites a recorded transcription. Re-recording the same
   `(institution, holder, tax_year, as_of)` is a `422`, not a silent duplicate.
+  A recorded statement's `source` is `manual`, set by the system: a `source`
+  in the body of a create or a correction is ignored.
 - `GET /api/v1/tax/trim_budget` rolls the latest statement per institution up
-  to one holder and year (required `holder` and `tax_year`). It reports which
+  to one holder and year (required `holder` and `tax_year`); institutions are
+  grouped by the database's case fold, so a later statement under another
+  case spelling of one bank replaces the earlier one. It reports which
   `institutions` it covers, the `as_of` of its **oldest** component, the
   summed `allowance_granted` and `allowance_used` the fill level on the Tax
   page is read from (beside `allowance_remaining`), and
@@ -1272,7 +1958,11 @@ church tax withheld at a zero church-tax rate.
   category drift) and `rebalance_quantity` (indicative units to sell
   (positive) or buy (negative) at the valuation's implied base-currency unit
   price; no fee/tax modelling, never an order). Both hints are `null` without
-  a plan and for `unassigned` positions without their own position SOLL.
+  a plan, for `unassigned` positions without their own position SOLL, and for a
+  position valued at `0` without its own SOLL, which holds no share of its
+  category's drift (E25 S4); the page shows "—" and sorts such a row after the
+  rows that drift. With the position rows, the payload's `computation_basis`
+  states the drift share's basis (`drift_value`) and lists these gaps.
   Entries come largest first,
   securities merged across depots;
   this is what the sunburst's outermost ring renders. **Position-level SOLL
@@ -1348,11 +2038,13 @@ church tax withheld at a zero church-tax rate.
   ancestor under the threshold is absent). The response states its own
   basis: `positions_included`, the applied `min_drift` and
   `categories_total` (the pre-filter category count). Invalid values are a
-  `422`. The allocation page carries the same filter as its
+  `422`, and so is a value that is not a finite decimal (`NaN`, `Infinity`),
+  here and on `position_targets`. The allocation page carries the same filter as its
   drift-threshold chips (one shared predicate, so the two surfaces cannot
   select different categories); the chips speak percentage points, so
   `≥ 5 pp` on screen is `min_drift=0.05` here. `tax_context=true` (#667) additionally attaches the current-year
-  tax-free trim budgets — one entry per holder with recorded statements,
+  tax-free trim budgets — one entry per holder identity with recorded
+  statements (case spellings of one taxpayer are one entry),
   each with its activity-aware `staleness` — so the tax headroom is
   readable where the trim decision is made; the block states that it rolls
   up per `(holder, tax_year)` across institutions and is never scoped to
@@ -1366,7 +2058,9 @@ church tax withheld at a zero church-tax rate.
   - `steerable_basis` is the basis the weights are a share of, and
     `base_currency` the portfolio's base currency.
   - `top_holdings` is the largest single-name exposures, largest first, default
-    **N = 10** (override with the `top_n` query param). Each entry carries
+    **N = 10** (override with the `top_n` query param). `top_n` keeps the
+    list reads' capped-and-echoed contract: at most `1000`, a larger value is
+    capped, and the answer echoes the applied `top_n` (E25 S4). Each entry carries
     `security_id`, `security_name`, `asset_class`, `market_value`, `weight` and a
     `severity` (`ok`/`warn`/`hard`). The severity is **instrument-type aware**: a
     single stock warns above `7` and goes hard above `10`; an **ETF** (the `etf`
@@ -1413,9 +2107,18 @@ church tax withheld at a zero church-tax rate.
     fetched or stored; each window echoes the rate it used. A malformed or
     out-of-bound rate is a `422`. Over a volatility of exactly `0` the ratio is
     `null` without `insufficient_data`: undefined, not short of data.
-  - `correlations` is the Pearson matrix of the Top-N single names' daily
-    returns (`security_ids` in Top-N order, `pairs` with `security_id_a`,
-    `security_id_b`, `value`), over a `365d` window. The closes are
+  - A figure whose square root lies beyond what the one float step can
+    carry — a magnitude only implausible stored prices or exchange rates
+    reach — is `null` without `insufficient_data` as well: that volatility
+    and the risk-adjusted return beside it, or that correlation pair. The
+    read never fails on such data, and never answers a number over it; the
+    Risk page shows such a pair as "not computable" with its observations.
+  - `correlations` is the Pearson matrix of the daily returns of **at most
+    the 20 leading** Top-N single names (`leading_names` states how many it
+    ran over; the pair count grows with the square of the names, so the
+    matrix is bounded while the list is not, and `computation_basis` says so),
+    with `security_ids` in Top-N order and `pairs` with `security_id_a`,
+    `security_id_b`, `value`, over a `365d` window. The closes are
     **converted to the base currency first** — the opposite of the
     per-security metrics, because two holdings sharing an FX leg do move
     together in the operator's money — and a pair reads only the days on
@@ -1440,8 +2143,8 @@ church tax withheld at a zero church-tax rate.
 - `PUT /api/v1/portfolios/:portfolio_id/cash_target` sets (or clears with
   `null`) a plan's cash target. The body is `{"cash_target_weight": "0.05"}` and
   may carry an optional `"view": id` (omitted = Gesamt). It echoes the stored
-  value back. Out-of-range weights return `422 Unprocessable Entity`. The cash
-  target feeds the allocation's `cash` row and the `top_level_target_sum` for the
+  value back. Out-of-range weights, and weights with more than 6 decimal places,
+  return `422 Unprocessable Entity`. The cash target feeds the allocation's `cash` row and the `top_level_target_sum` for the
   addressed view.
 - `PATCH /api/v1/portfolios/:portfolio_id` patches a portfolio's master data.
   **Deprecated (ADR-0024)** — answers with `Deprecation: true`; compatibility
@@ -1454,6 +2157,12 @@ church tax withheld at a zero church-tax rate.
   that only knows the old field keeps working unchanged; use `PUT
   /cash_target?view=<id>` to steer a per-view cash target. Out-of-range weights
   return `422 Unprocessable Entity`; unknown portfolios return `404 Not Found`.
+  The cash target is written **only when the body carries
+  `cash_target_weight`**, in the same transaction as the rest of the patch: a
+  patch without it (a rename, say) leaves the stored cash target and its
+  journal untouched, and a refused cash-target write answers `422` with
+  nothing written, the rest of the patch included. The response carries the
+  cash target as stored after the write.
   The `cash_target_weight` is also included in the portfolio objects returned by
   `GET`/`POST /api/v1/portfolios` (the Gesamt cash target).
 - `GET /api/v1/securities/:security_id/trades` returns FIFO-matched trades for
@@ -1477,11 +2186,22 @@ church tax withheld at a zero church-tax rate.
 
 ## Policy rules (ADR-0049)
 
-A **policy rule** is the operator's own standard over a figure the product
-already serves: "no single name above 10 %", "cash never below 5 %", "the
-bond category within ±3 percentage points of its target", "the portfolio's
-90-day volatility under 15 %". It is stored as an object instead of living as
-prose in a scheduled prompt, which is where such limits used to drift.
+A **policy rule** is a stored standard over a figure the product already
+serves: "no single name above 10 %", "cash never below 5 %", "the bond
+category within ±3 percentage points of its target", "the portfolio's 90-day
+volatility under 15 %". It is stored as an object instead of living as prose
+in a scheduled prompt, which is where such limits used to drift. The operator
+writes rules on the Risk page and an agent writes them over the API with its
+token, so a rule is a stored rule whoever wrote it: the audit journal
+(`resource_type` `policy_rule` and `policy_rule_version`) says who wrote each
+rule and each version, and the list's `rules_note` points there. Every
+version also carries **`author`** (E25): `operator` for a version saved on
+the Risk page, `agent` for one written with an API or MCP token, derived from
+the write's credential and never read from the body; a finding carries the
+`author` of the version in force. A version stored before authors existed
+takes the author its journaled creation names, `null` only without one.
+Risk marks the agent's rules with the word "Agent"; when a rule is in force
+does not depend on its author.
 
 **What a rule is.** A predicate over **one named measure**, for one subject,
 in one evaluation context:
@@ -1510,8 +2230,10 @@ in one evaluation context:
 - the **kind** is `cap` (breached strictly above `threshold`), `floor`
   (strictly below) or `band` (outside `[lower, upper]`) — the risk lens's own
   reading of a line, so a rule and the lens never disagree about where one is;
-- the **severity** is `warn` or `hard`; `name` and `note` are the operator's
-  words and are never parsed.
+- the **severity** is `warn` or `hard`; `name` and `note` are the rule's
+  words, whoever wrote them, and are never parsed. The `name` is a **label on the rule**, not part
+  of its identity: it can be changed at any time without a new version (see
+  the rename below), and it need not be unique.
 
 Thresholds are Decimal strings (ADR-0016). A predicate that does not fit its
 measure — a subject outside the matrix, a missing or superfluous `window`, a
@@ -1526,7 +2248,11 @@ so "what was the standard on date D" is a read (`as_of=`), not an
 investigation of the audit journal. A version that has been in force is
 **never changed and never deleted** — the database refuses it, and refuses two
 overlapping versions of one rule. A version only scheduled for a later date is
-replaced by adding a version from the same date. Every write is journaled.
+replaced by adding a version from the same date. The database also refuses,
+on any version, a change to its rule, its predicate or its start date; on any
+rule, a change to its portfolio or view; and a `TRUNCATE` of either table. A
+version's end date and a rule's name stay writable, through the retirement,
+the edit and the rename. Every write is journaled.
 
 The reads:
 
@@ -1546,7 +2272,20 @@ The writes:
   `{"rule": {"name", "view_id", "version": {…}}}`; creates the rule with its
   first version (`201`).
 - `POST /api/v1/policy_rules/:id/versions` — body `{"version": {…}}`; the edit
-  (`201`).
+  (`201`). On both, a version's `note` holds at most 10000 characters
+  (Unicode code points); a longer one answers `422` on `note`.
+- `PATCH /api/v1/policy_rules/:id` — body `{"name": "…"}`; the **rename**, a
+  rule-level edit **outside the versioning**: no version is added or changed,
+  and the new name reads for the rule with all its versions (`200`, the rule
+  with its versions). The journal keeps the previous name and who changed it.
+  Allowed on a retired rule. Only `name` is read, as on
+  `PATCH /api/v1/plans/:id`: a blank, missing or non-text name is a `422` on
+  `name`; a predicate field, a `version`, the version keys of the rule's own
+  read shape (`version_in_force`, `next_version`, `versions`) or the context
+  (`view_id`, `portfolio_id`) in the same body is a `422` naming each such
+  field, and nothing is written — a new line is a new version, and a rule in
+  another context is a new rule. Any other key is ignored. A rule deleted
+  since it was read is a `404`.
 - `POST /api/v1/policy_rules/:id/retire` — optional `valid_until`; ends the
   version in force yesterday by default (tonight when it only started today)
   and drops any version scheduled after it. The rule stays readable with
@@ -1554,6 +2293,11 @@ The writes:
   one already retired, is a `409`.
 - `DELETE /api/v1/policy_rules/:id` — only while **no** version has ever been
   in force (`204`); otherwise `409`, and the remedy is retiring it.
+
+A new version, a retirement and a delete each hold the rule while they read
+its versions, so two of them on one rule take turns: a version added while a
+retirement runs waits for it and is judged against the retired rule, never
+surviving it. A rule deleted since it was read is a `404` on all three.
 
 **What a rule reads is protected.** Deleting a security, a category, a
 classification or a view that a rule version (or a rule's context) references
@@ -1609,6 +2353,10 @@ level (d)).
   against the EUR hub (`1 base_currency = rate quote_currency`); other pairs are
   derived by triangulation, and `GBX` (pence) is handled as `GBP × 100`.
   `limit` keeps the most recent rates (default 50000, max 200000).
+  Every stored rate is bounded like a quote: positive, and dated no later
+  than tomorrow. A sync drops a provider rate outside the bound instead of
+  failing the run, and the latest-rate reads never use a stored row dated
+  past it.
 - `POST /api/v1/exchange_rates/sync` fetches rates from the configured
   provider (ECB by default) and returns `{provider, status, upserted, scope}`.
   `scope=latest` (the default) fetches the **daily** feed — today's rates,
@@ -1621,7 +2369,9 @@ level (d)).
   weekend, a currency it does not list) stays excluded and named; the
   backfill fills dates, it does not relax the "exact booking-date rate"
   basis. An unknown `scope` is a `422`, a provider without a history answers
-  `422` naming `scope`, and a provider failure returns `502 Bad Gateway`. The
+  `422` naming `scope`, and a provider failure, or rates the database cannot
+  store, returns `502 Bad Gateway` with nothing stored. One backfill runs at a
+  time: while one runs, a second answers `409 Conflict`. The
   human view is the **Backfill historical rates** control inside the
   exclusion notes on `/cashflow`.
 
@@ -1645,16 +2395,24 @@ tree stays intrinsic and cannot be reassigned.
   `classification` object (`name`, optional `position`, `description`).
 - `PATCH /api/v1/classifications/:id` updates a custom classification's
   `classification` object (`name`, `position`, `description` — all optional).
-- `DELETE /api/v1/classifications/:id` deletes a custom classification and
-  cascades its categories and assignments.
+- `DELETE /api/v1/classifications/:id` deletes a custom classification with its
+  categories, its stored assignments and every plan on it with the plan's
+  targets. Each of those rows is journaled as its own delete before the
+  classification's; no row goes by database cascade alone.
 - `POST /api/v1/classifications/:classification_id/categories` adds a `category`
   (`name`, optional `color`, `description`, `parent_id`, `position`) to a custom
   classification.
 - `PATCH /api/v1/classifications/:classification_id/categories/:id` patches a
   `category` (`name`, `color`, `description`, `parent_id`, `position` — all
   optional). The category's `classification_id` cannot be changed this way.
+  On both writes a `parent_id` must name a category of the same classification
+  that is neither the category itself nor one of its descendants; any other
+  parent answers `422` on `parent_id` and nothing is written, so a tree never
+  loops (E25 S4).
 - `DELETE /api/v1/classifications/:classification_id/categories/:id` deletes a
-  category and cascades its child categories and assignments.
+  category with the categories below it, the securities assigned there and
+  the targets filed under them; each row is journaled as its own delete,
+  the lowest categories first and the category itself last.
 - `PUT /api/v1/classifications/:classification_id/assignments` assigns a security
   to a category (`security_id`, `category_id`), replacing any existing assignment
   for that security in the classification. The response carries a `status` of
@@ -1691,8 +2449,14 @@ individual security positions) for tag-based wealth scoping. Views are named,
 global filters over those buckets: a holding matches when it is included
 (always under `include_all`, otherwise when it carries one of the view's include
 buckets) and carries none of the view's exclude buckets — exclude always wins.
-Bucket-definition and assignment writes are journaled (ADR-0017); view-definition
-writes are deliberately not journaled (ADR-0018 §5).
+Bucket-definition and assignment writes are journaled (ADR-0017). A view's
+definition is journaled too (ADR-0018 §5 as amended in Sprint 16), because a
+policy rule in force reads it: `PATCH /api/v1/views/:id`, `PUT
+/api/v1/views/:id/buckets` and `DELETE /api/v1/views/:id` each leave one
+`resource_type=view` entry, filed under the view, whose `before` and `after`
+carry the whole definition — `name`, `include_all`, `include_bucket_ids` and
+`exclude_bucket_ids`; resending the stored definition leaves none. Creating
+a view is not journaled: no rule can read it yet.
 
 - `GET /api/v1/buckets` lists buckets (`id`, `name`, `color`, `dimension`).
   `dimension` is `"tag"` (a free overlapping tag) or `"scope"` — the exclusive
@@ -1704,8 +2468,20 @@ writes are deliberately not journaled (ADR-0018 §5).
 - `GET /api/v1/buckets/:id` returns one bucket; unknown ids return `404`.
 - `PATCH /api/v1/buckets/:id` patches a bucket's `name`/`color`. The
   `dimension` is fixed at creation; attempts to change it return `422`.
-- `DELETE /api/v1/buckets/:id` deletes a bucket and cascades it out of every
-  assignment and view set, returning `204 No Content`.
+- `DELETE /api/v1/buckets/:id` deletes a bucket (`204 No Content`). It is
+  first removed from every view and assignment that names it, each through
+  its journaled writer, so each affected owner gets its own entry: every
+  view's sets before and after, every depot default set and cash-account set,
+  every position override. **A position override whose only bucket this was
+  stays explicit-empty** ("no buckets") and does not inherit its depot's
+  buckets, so the position enters no view it was not in. The bucket's own
+  `delete` entry carries its row and every membership it had
+  (`memberships`: `view_include`, `view_exclude`, `depot_defaults`,
+  `cash_accounts`, `position_overrides`). A bucket a policy rule's view reads
+  is deleted too; a bucket already gone answers `404`. Removing the bucket
+  from a set never re-checks the exclusive scope dimension, so a set stored
+  before that rule held never blocks the delete; a set the bucket cannot be
+  removed from answers `422`, and nothing is deleted.
 - `GET /api/v1/views` lists views. Each view carries `include_all`, the resolved
   `include` set (the literal `"all"` under `include_all`, otherwise a list of
   bucket ids) and the `exclude` list of bucket ids.
@@ -1713,10 +2489,13 @@ writes are deliberately not journaled (ADR-0018 §5).
   optional `include_all` defaulting to `true`).
 - `GET /api/v1/views/:id` returns one view with its resolved filter.
 - `PATCH /api/v1/views/:id` patches a view's `name`/`include_all`.
-- `DELETE /api/v1/views/:id` deletes a view and its bucket sets (`204`).
+- `DELETE /api/v1/views/:id` deletes a view and its bucket sets (`204`); the
+  plans scoped to it, with their targets, and its depot snapshots are
+  journaled one delete each before the view's.
 - `PUT /api/v1/views/:id/buckets` replaces a view's include/exclude bucket sets.
   Body: `{"include": [..], "exclude": [..]}` (both optional, default `[]`,
-  arrays of bucket ids). A malformed id list returns `422`.
+  arrays of bucket ids). A malformed id list returns `422`; a bucket named
+  twice in one list counts once.
 - `GET /api/v1/views/:view_id/valuation` returns the live valuation of a view
   **across all portfolios** (ADR-0024): the deduplicated union of every depot,
   position and cash account matching the view — an account tagged into several
@@ -1766,6 +2545,11 @@ writes are deliberately not journaled (ADR-0018 §5).
 - `DELETE /api/v1/securities_accounts/:id/positions/:security_id/buckets` clears
   the override, returning the position to inherit the depot default.
 
+The four assignment writes above hold the depot or cash account while they
+replace its set, so two writes to one account take turns: the one that
+commits last is the set that stays, never a mix of both. An account deleted
+while the write waits answers `404` and writes nothing.
+
 The analytics endpoints accept an optional `view` query param (a view id) to
 scope the result to the holdings matching that view:
 
@@ -1814,7 +2598,65 @@ through this API lives next to the imported history:
 
 - **Re-applying the same export is a content-hash no-op.** Every transaction
   row that already exists is skipped as a duplicate; no security is created
-  twice; the response of the apply reports the skipped count.
+  twice; the response of the apply reports the skipped count. The hash is
+  injective (two different rows never share one) and every hash stored before
+  it became so is still found. A tax refund split off a row is hashed with
+  that row and checked by its own hashes and economic key, so two equal
+  refunds of two different sales both book, a refund already imported is
+  found under either formula, and a refund added to a row already imported
+  books; a refund whose row is not imported is skipped with it.
+- **A rename is safe for the next import (ADR-0050 §3, §4).** The hash is
+  checked before anything resolves, and a cash account or depot is created
+  only with its first new booking, so a rename over
+  `PATCH /api/v1/cash_accounts/:id` or `PATCH /api/v1/securities_accounts/:id`
+  (`portfolixir.cash_accounts.update`, `portfolixir.securities_accounts.update`,
+  whose descriptions say so) leaves no empty account under the old name. The
+  rename keeps the old name in `former_names`, and the import resolves a
+  file's account name by the live name first, then by the former names, so a
+  re-export that changed inside Portfolio Performance (other decimals, an
+  edited booking) books onto the renamed account too and nothing twice. What
+  stays outside: an old name another account still carries as its live name
+  books to that account, and a rename older than the accounts' audit journal
+  left nothing to remember. A prefilled choice the operator changes in the
+  preview to an account of another name is remembered as a former name of
+  that account by default. Where the name is another account's former
+  name, the import page moves it only after its row said so before the
+  confirm, and the result names the account it left;
+  `DELETE /api/v1/cash_accounts/:id/former_names?name=` (or the
+  `securities_accounts` twin) still removes a former name by hand. A
+  transfer whose two sides lead to one account is skipped and listed, never
+  a failed import.
+- **A cash-account merge is safe for the next import (ADR-0050 §2, §7).**
+  After `POST /api/v1/cash_accounts/:id/merge`, re-applying an export
+  already applied creates nothing, byte-identical or drifted: the moved
+  bookings keep their content hashes, every booking the merge deleted has
+  its hash retired, the source's name resolves to the target as a former
+  name, and a transfer between the two is skipped as internal. A later
+  export's new rows that name the merged-away account are booked once, on
+  the target. Two limits are stated, not hidden: a new row whose economic
+  key equals an existing booking of the target is taken for that booking
+  (reported with the layer `economics`), and a row dated on or before a
+  balance anchor the merge restated is booked but absorbed by that anchor —
+  the import lists it as booked behind a restated anchor, with the anchor.
+- **A depot merge is safe for the next import (ADR-0050 §2, §7).** After
+  `POST /api/v1/securities_accounts/:id/merge`, re-applying an export already
+  applied creates nothing, byte-identical or drifted: the moved bookings keep
+  their content hashes, every booking the merge deleted has its hash retired,
+  the source depot's name resolves to the target as a former name, and a
+  security transfer between the two is skipped as internal. A later export's
+  new rows that name the merged-away depot are booked once, on the target. A
+  new row whose economic key equals an existing booking of the target is
+  taken for that booking (reported with the layer `economics`).
+- **A security merge is safe for the next import (ADR-0050 §2, §9).** After
+  `POST /api/v1/securities/:id/merge`, re-applying an export already applied
+  creates nothing, byte-identical or drifted, whichever ISIN it carries and
+  under either identity choice: the moved bookings keep their content hashes,
+  every booking the merge deleted has its hash retired, and every identity of
+  the source — its ISIN (the target's now, or a former ISIN of the target),
+  its former ISINs, the identity its import recorded — resolves to the target.
+  A later export's new rows that name the merged-away security by any of them
+  are booked once, on the target. The merge is refused rather than leave an
+  identity unresolved (`identity_unresolvable`).
 - **What survives a re-import, unchanged, same ids, exact `Decimal` values:**
   classification assignments; every target plan version with its category and
   position targets and the cash target; each security's `note` and
@@ -1886,11 +2728,15 @@ Every financial write (create, update, delete) is recorded in an append-only
 audit journal in the same database transaction as the write itself, so any
 change — including deletions — stays attributable and reversible by inspection.
 Market-data ingestion (quote and exchange-rate sync) is operational data and is
-deliberately **not** journaled.
+deliberately **not** journaled. A quote someone writes is not ingestion: the
+quote upsert and the release of manual quotes are journaled under
+`resource_type=security_quotes`, filed under the security's id, with the rows
+they replaced or released as the before-image.
 
 - `GET /api/v1/journal` lists journal entries, newest first. Each entry carries
   `actor_type` (`owner_ui`, `api_token_rw`, `api_token_ro`, `import_session`,
-  `system_job`) and an optional `actor_label`, the `operation`
+  `system_job`) and an optional `actor_label` (for an API token, the name of
+  its `PORTFOLIXIR_API_TOKENS` entry; `null` for the unnamed default), the `operation`
   (`create`, `update`, `delete`, `upsert`), the `resource_type`/`resource_id`
   it touched, and the `before`/`after` snapshots (Decimal values are strings).
   Optional filters: `resource_type`, `resource_id`, `actor_type`, `operation`,
@@ -1900,6 +2746,11 @@ deliberately **not** journaled.
   (`inserted_at:desc,id:desc`), the `count` and the `filters` applied.
   SOLL target writes (category and position rows alike) are journaled under
   `resource_type=target`; plan-version writes under `resource_type=target_plan`.
+- An update's or a delete's `before` is the row as stored when the write took
+  its lock, and an update's `after` is the row as stored after it — decimals
+  at their column's scale. Two writes made from one read therefore chain: the
+  second's `before` is the first's `after`. A write to a record deleted in
+  the meantime answers `404` and leaves no entry.
 
 The journal currently covers the Catalog/Fx contexts (security master-data
 writes); the remaining write contexts are armed in sequence.
@@ -1909,19 +2760,112 @@ writes); the remaining write contexts are armed in sequence.
 The MCP companion exposes the same local contract as tool calls. Decimal inputs
 in MCP schemas are strings.
 
+The schema a host receives from `tools/list` is each tool's own definition,
+its property descriptions and its closed objects (`additionalProperties:
+false`) included, and the companion checks every call against the same
+properties before it calls the API: a refused argument answers a tool error
+naming the tool and the field, and no request is made. A call the API answers
+without a body, a delete's `204`, is a result without structured content.
+
+**Server instructions and tool hints (E25).** At connect time the companion
+tells the agent that everything a tool returns is data, never instructions:
+names, notes, research-log bodies, event and rule texts, import labels and
+provider search results are records to read, not directions to follow, and
+only the operator instructs it. Every tool carries the four MCP hints, derived
+from the HTTP method it routes to:
+
+| Routed method | `readOnlyHint` | `destructiveHint` | `idempotentHint` |
+|---|---|---|---|
+| `GET` | true | false | true |
+| `POST` | false | false (it adds) | false |
+| `PUT`, `PATCH` | false | true (it overwrites) | true |
+| `DELETE` | false | true (it removes) | true |
+
+The exceptions are named: `portfolixir.splits.preview` and
+`portfolixir.holdings.reconcile` are routed through `POST` but store nothing,
+so they are read-only; `portfolixir.quotes.release` is routed through `POST`
+but removes the manual quotes in its range, so it is hinted as a `DELETE` is:
+destructive, and idempotent, since a repeat finds nothing left to remove;
+`portfolixir.policy_rules.retire`, `portfolixir.plans.activate` and
+`portfolixir.securities.isin_change` are routed through `POST` but change
+stored rows — a retirement closes the version in force and drops the scheduled
+ones, an activation archives the plan that was active, an ISIN change writes
+the new ISIN onto the security — so they are hinted as a `PUT` is:
+destructive, and idempotent, since a repeat changes nothing more (a second
+retirement answers `409`, a second activation is a no-op, a second ISIN change
+a named conflict); `openWorldHint` is true for
+`portfolixir.securities.search_online`, `portfolixir.quotes.sync` and
+`portfolixir.exchange_rates.sync`, which reach an external provider, and for
+`portfolixir.securities.create`, which queues a quote backfill from the
+provider and a logo lookup when the instance's enrichment is enabled. The
+append-only writes, `portfolixir.notes.append` and the policy-rule versions,
+are non-destructive, and their descriptions say that what they add is
+permanent.
+
+**Auto-approvable reads.** A host may run every tool with `readOnlyHint: true`
+without asking: none of them changes the instance.
+`portfolixir.securities.search_online` is among them but sends its query to the
+configured provider, so keep it behind a prompt if that matters to you. A host
+that asks before every other tool, and at the least before each one with
+`destructiveHint: true`, keeps every write in view.
+
+**Read-only mode.** Set `PORTFOLIXIR_MCP_READ_ONLY=true` to run the companion
+read-only: `tools/list` then lists only the tools with `readOnlyHint: true`,
+and a call to any other tool, listed or not, is refused as a tool error naming
+the switch before any request is made. It is off by default, and a value other
+than `true`, `false`, `1`, `0` or empty stops the companion with the variable
+named. The switch narrows the companion, not the token: `PORTFOLIXIR_API_TOKEN`
+keeps its full authority over the API.
+
+**Invisible characters.** Every write refuses the characters an operator
+cannot see (see "Text" above), but a row stored before that rule may still
+carry them. The companion is where they are made visible: every string an API
+answer carries, a value or a key at any depth, reaches the agent with each
+such character spelled `[U+XXXX]` (`[U+200B]` for a zero-width space) — the
+same spelling Portfolixir's screens show the operator for that row, and the
+server instructions say so. The JSON API itself answers stored text as it is
+stored. A text the agent writes back carries the escapes as the visible
+letters they are.
+
+**A write that times out.** Every API call carries a 30-second deadline. A
+read that misses it — a `GET`, or one of the tools routed through `POST` that
+change nothing (`readOnlyHint: true`) — changes nothing and answers
+`ApiReadTimeoutError`, so it can be retried; any other call that misses it
+answers `ApiOutcomeUnknownError`: the companion stopped waiting, but the
+server may still have committed the write, so re-read what it would have
+changed before retrying. A blind retry of a write that adds a record can store
+a duplicate, and every such tool (each write that is not idempotent) says so
+in its description; the server instructions say it once for every write.
+
 - `portfolixir.contract.get` — the contract-version read (ADR-0044 §8):
   what the surface offers and when it last changed, pollable with `since=`.
 - `portfolixir.securities.list`
 - `portfolixir.securities.get` — one security's full record including its
   `identifier_aliases` (recorded former ISINs) and its derived
-  `thesis_state` (ADR-0044).
+  `thesis_state` (ADR-0044); a merged-away security answers `404` with
+  `errors.merged_into`, and the description says so (ADR-0050 §12).
 - `portfolixir.securities.create`
-- `portfolixir.securities.update`
+- `portfolixir.securities.update` — its description and its `currency_code`
+  property state the currency freeze (ADR-0050 §11).
 - `portfolixir.securities.delete`
 - `portfolixir.securities.isin_change` — records a corporate-action ISIN
   change so imports keep matching via the former ISIN (ADR-0029).
 - `portfolixir.securities.delete_isin_alias` — journaled delete of one
   recorded former-ISIN alias.
+- `portfolixir.securities.merge_preview` — the security merge preview, a read
+  (ADR-0050 §9, §10): the positions per depot for both outcomes of the
+  duplicate question, the quotes with the manual collisions, the
+  configuration and events, the identifiers after each identity choice, and
+  the `plan_digest`.
+- `portfolixir.securities.merge` — the security merge under an approved
+  digest; hinted destructive and idempotent (a retry answers the original
+  record). Its description says that `identity_choice` is required when both
+  carry an ISIN and never preselected, what each value does, that the quotes
+  fill the target's gaps with the target's winning a collision, that the
+  configuration and events move, and what the merge does to the next import:
+  every identity of the source resolves to the target, a later import naming
+  it books there, a re-import of an applied export creates nothing, and a
+  merge that would leave an identity unresolved is refused.
 - `portfolixir.securities.search_online`
 - `portfolixir.events.list` — one security's calendar (ADR-0048); the
   description states that an event books nothing and is never converted into a
@@ -1952,20 +2896,50 @@ in MCP schemas are strings.
 - `portfolixir.notes.expiring` — dated blocks expiring within N days.
 - `portfolixir.quotes.sync`
 - `portfolixir.quotes.list`
-- `portfolixir.quotes.upsert`
+- `portfolixir.quotes.upsert` — every row stored as manual; its schema offers
+  `source: manual` only, and the answer names the replaced dates.
+- `portfolixir.quotes.release` — the journaled release of a range's manual
+  quotes back to provider data; agent-first, its page control lands no later
+  than Sprint 17.
 - `portfolixir.portfolios.list` — deprecated (ADR-0024): steers to
   buckets/views in its description.
 - `portfolixir.portfolios.create` — deprecated (ADR-0024): compatibility only;
   prefer `portfolixir.buckets.create` / `portfolixir.views.create`.
 - `portfolixir.cash_accounts.list`
 - `portfolixir.cash_accounts.create`
-- `portfolixir.cash_accounts.update`
+- `portfolixir.cash_accounts.update` — its description and its
+  `currency_code` property state the currency freeze (ADR-0050 §11).
 - `portfolixir.cash_accounts.delete`
 - `portfolixir.cash_accounts.set_balance`
+- `portfolixir.cash_accounts.remove_former_name` — removes one former name
+  (ADR-0050 §4); its description says what that costs: an import that still
+  names it then creates a new account.
+- `portfolixir.cash_accounts.merge_preview` — the merge preview, a read
+  (ADR-0050 §7, §10): both outcomes of the duplicate question and the
+  `plan_digest`.
+- `portfolixir.cash_accounts.merge` — the merge under an approved digest;
+  hinted destructive and idempotent (a retry answers the original record).
+  Its description says what the merge does to the next import: the source's
+  names become former names of the target, a later import naming them books
+  there — except a name another account still carries, which is not kept —
+  and a re-import of an applied export creates nothing.
 - `portfolixir.securities_accounts.list`
 - `portfolixir.securities_accounts.create`
 - `portfolixir.securities_accounts.update`
 - `portfolixir.securities_accounts.delete`
+- `portfolixir.securities_accounts.remove_former_name` — the same for a depot.
+- `portfolixir.securities_accounts.merge_preview` — the depot merge preview,
+  a read (ADR-0050 §7, §10): every affected position before and after for
+  both outcomes of the duplicate question, the bucket plan, `positions_basis`
+  and the `plan_digest`.
+- `portfolixir.securities_accounts.merge` — the depot merge under an approved
+  digest; hinted destructive and idempotent (a retry answers the original
+  record). Its description says that bookings keep their cash account, that
+  every position keeps its view membership, and what the merge does to the
+  next import: the source's names become former names of the target, a later
+  import naming them books there — except a name another depot still
+  carries, which is not kept — and a re-import of an applied export creates
+  nothing.
 - `portfolixir.transactions.list`
 - `portfolixir.transactions.create`
 - `portfolixir.transactions.update`
@@ -1993,9 +2967,16 @@ in MCP schemas are strings.
 - `portfolixir.classifications.create`
 - `portfolixir.classifications.categories.create`
 - `portfolixir.classifications.update`
-- `portfolixir.classifications.delete`
+- `portfolixir.classifications.delete` — one call removes the tree with every
+  category, every security's assignment in it, every target weight on its
+  categories and every target plan of it; the description names each, and
+  that each of those rows is journaled as its own delete before the
+  classification's (E25).
 - `portfolixir.classifications.categories.update`
-- `portfolixir.classifications.categories.delete`
+- `portfolixir.classifications.categories.delete` — one call removes the
+  category with its sub-categories at every depth, the assignments to any of
+  them and the target weights on any of them; the journal keeps each as its
+  own delete, the category itself last.
 - `portfolixir.classifications.assign`
 - `portfolixir.classifications.assign_bulk`
 - `portfolixir.classifications.unassign`
@@ -2007,14 +2988,18 @@ in MCP schemas are strings.
 - `portfolixir.targets.delete_position`
 - `portfolixir.portfolios.allocation`
 - `portfolixir.portfolios.risk`
-- `portfolixir.policy_rules.list` — the operator's rules with the version in
-  force on `as_of` (ADR-0049); the description tells the agent to read the
-  standard here instead of restating it.
+- `portfolixir.policy_rules.list` — the stored rules with the version in
+  force on `as_of` (ADR-0049); the description tells the agent to read them
+  here instead of restating them, calls each a stored rule whoever wrote it,
+  and points to the audit journal for its author.
 - `portfolixir.policy_rules.get` — one rule with its whole version history.
 - `portfolixir.policy_rules.create` — stores a rule with its first version; the
-  description carries the measure matrix and the scales.
+  description carries the measure matrix and the scales, and states that a
+  version is permanent once in force: the rule can then only be retired.
 - `portfolixir.policy_rules.add_version` — the edit: a new version, never an
-  overwrite.
+  overwrite, and permanent once in force.
+- `portfolixir.policy_rules.rename` — the name only; the description states
+  that a rename creates no version and the versions do not change.
 - `portfolixir.policy_rules.retire` — ends the version in force; everything
   stays readable.
 - `portfolixir.policy_rules.delete` — only for a rule nobody was ever measured
@@ -2028,6 +3013,10 @@ in MCP schemas are strings.
 - `portfolixir.portfolios.performance`
 - `portfolixir.portfolios.benchmark`
 - `portfolixir.journal.list`
+- `portfolixir.merges.list` — the merge records, newest first, each with
+  what went into what, who did it, when, and the manifest summarized
+  (ADR-0050 §12); a read, agent-first — its list view lands no later than
+  Sprint 17.
 - `portfolixir.buckets.list`
 - `portfolixir.buckets.get`
 - `portfolixir.buckets.create`
@@ -2037,7 +3026,9 @@ in MCP schemas are strings.
 - `portfolixir.views.get`
 - `portfolixir.views.create`
 - `portfolixir.views.update`
-- `portfolixir.views.delete`
+- `portfolixir.views.delete` — one call removes the view with its bucket
+  sets, every target plan scoped to it and every depot snapshot taken in its
+  scope; each is journaled as its own delete before the view's.
 - `portfolixir.views.set_buckets`
 - `portfolixir.views.valuation`
 - `portfolixir.views.performance`

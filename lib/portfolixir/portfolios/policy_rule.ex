@@ -1,7 +1,9 @@
 defmodule Portfolixir.Portfolios.PolicyRule do
   @moduledoc """
   The stable identity of a policy rule (ADR-0049 §1, §4): the context it is
-  evaluated in and the operator's name for it.
+  evaluated in, and the operator's name for it — a label on that identity,
+  not part of it: a rename is a journaled edit of this row outside the
+  versioning (§4 as amended 2026-09-24, #872).
 
   The predicate is **not** here. It lives on the rule's versions
   (`Portfolixir.Portfolios.PolicyRuleVersion`), because a rule is a standard in
@@ -20,6 +22,7 @@ defmodule Portfolixir.Portfolios.PolicyRule do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias Portfolixir.Input.Text
   alias Portfolixir.Portfolios.PolicyRuleVersion
 
   # Mirrors the `policy_rules.name` column width.
@@ -47,10 +50,33 @@ defmodule Portfolixir.Portfolios.PolicyRule do
   def changeset(rule, attrs) do
     rule
     |> cast(attrs, [:portfolio_id, :view_id, :name])
-    |> update_change(:name, &String.trim/1)
-    |> validate_required([:portfolio_id, :name])
-    |> validate_length(:name, max: @max_name, count: :codepoints)
+    |> validate_name()
+    |> validate_required([:portfolio_id])
     |> foreign_key_constraint(:portfolio_id)
     |> foreign_key_constraint(:view_id)
   end
+
+  @doc """
+  The rename (#872, ADR-0049 §4 as amended by the Sprint 16 plan D-6): the
+  name is the operator's label on the rule, so it is the one field a stored
+  rule may change. The context is not cast, whatever `attrs` carries, and the
+  name passes the same validation as on create.
+  """
+  def rename_changeset(%__MODULE__{} = rule, attrs) do
+    rule
+    |> cast(attrs, [:name])
+    |> validate_name()
+  end
+
+  # One validation for the name, shared by every writer of it.
+  defp validate_name(changeset) do
+    changeset
+    |> update_change(:name, &trim/1)
+    |> validate_required([:name])
+    |> Text.validate(:name, max: @max_name)
+  end
+
+  # A blank name casts to nil, which a rename carries as a change.
+  defp trim(name) when is_binary(name), do: String.trim(name)
+  defp trim(nil), do: nil
 end

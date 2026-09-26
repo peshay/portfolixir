@@ -12,14 +12,19 @@
 #   set PHX_HOST to the name the proxy serves and PORTFOLIXIR_ALLOWED_HOSTS
 #   for any further name.
 # - Set PORTFOLIXIR_UI_PASSWORD to require a login on the web UI; leave it
-#   unset only behind reverse-proxy authentication.
+#   unset only behind reverse-proxy authentication. Inside its container the
+#   app listens on every interface, and the loopback mapping, on Docker
+#   Engine 28.3.3 or newer, is what keeps it on this host
+#   (docs/home-deployment.md, "Reach").
 #
 # Development uses docker-compose.dev.yml (source mounted, Mix present):
 #   docker compose -f docker-compose.dev.yml up --build
 
 services:
   db:
-    image: postgres:18-alpine
+    # Pinned by tag and digest (ADR-0045 §2, E25 S2); Dependabot's
+    # docker-compose ecosystem moves both, never across a PostgreSQL major.
+    image: postgres:18.6-alpine3.24@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
     environment:
       POSTGRES_DB: portfolixir_prod
       POSTGRES_USER: portfolixir
@@ -45,22 +50,39 @@ services:
     environment:
       DATABASE_URL: postgres://portfolixir:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/portfolixir_prod
       SECRET_KEY_BASE: ${SECRET_KEY_BASE:?set SECRET_KEY_BASE in .env (openssl rand -base64 48)}
+      # Named principals (E25 S7, G26): the companion's token, taken whole,
+      # is named "mcp", so the journal names "mcp" for every write it makes;
+      # further name=token entries (a script's own token) come from
+      # PORTFOLIXIR_API_TOKENS in .env.
       PORTFOLIXIR_API_TOKEN: ${PORTFOLIXIR_API_TOKEN:?set PORTFOLIXIR_API_TOKEN in .env}
+      PORTFOLIXIR_API_PRINCIPAL: mcp
+      PORTFOLIXIR_API_TOKENS: ${PORTFOLIXIR_API_TOKENS:-}
       PORTFOLIXIR_UI_PASSWORD: ${PORTFOLIXIR_UI_PASSWORD:-}
       PORTFOLIXIR_SESSION_DAYS: ${PORTFOLIXIR_SESSION_DAYS:-}
       PHX_HOST: ${PHX_HOST:-localhost}
       # "app" is the name the MCP companion reaches the app under.
       PORTFOLIXIR_ALLOWED_HOSTS: app,${PORTFOLIXIR_ALLOWED_HOSTS:-}
       PHX_FORCE_SSL: ${PHX_FORCE_SSL:-false}
+      # The companion calls the app over plain HTTP under "app" on the
+      # Compose network; PHX_FORCE_SSL leaves that name unredirected.
+      PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS: app
       # The reverse proxy reaches the container through the Docker bridge;
-      # name that address (or block) so the throttle sees the client behind it.
+      # name that exact address so the throttle sees the client behind it and
+      # the forwarded scheme is believed (docs/home-deployment.md).
       PORTFOLIXIR_TRUSTED_PROXIES: ${PORTFOLIXIR_TRUSTED_PROXIES:-}
       # The container must listen on its own interface for the port mapping;
       # the mapping below keeps it on the host's loopback.
       PHX_BIND_ALL: "true"
       PORT: 4000
+      # The zone that decides what "today" is; each database session takes
+      # the same zone on connect (docs/home-deployment.md).
+      TZ: ${TZ:-}
     ports:
       - "127.0.0.1:4000:4000"
+    volumes:
+      # The stored logos, outside the release tree, which stays read-only for
+      # the user the app runs as; part of the backup (docs/home-deployment.md).
+      - portfolixir-logos:/var/lib/portfolixir/logos
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:4000/health | grep -q '\"status\":\"ok\"' || exit 1"]
       interval: 10s
@@ -85,9 +107,12 @@ services:
       PORTFOLIXIR_MCP_PORT: 4001
       # Further Host names the companion answers under (a proxy name).
       PORTFOLIXIR_MCP_ALLOWED_HOSTS: ${PORTFOLIXIR_MCP_ALLOWED_HOSTS:-}
+      # true: the companion lists and calls only the tools that change nothing.
+      PORTFOLIXIR_MCP_READ_ONLY: ${PORTFOLIXIR_MCP_READ_ONLY:-false}
     ports:
       - "127.0.0.1:4001:4001"
     restart: unless-stopped
 
 volumes:
   portfolixir-postgres-data:
+  portfolixir-logos:

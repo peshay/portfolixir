@@ -42,11 +42,16 @@ defmodule Portfolixir.Knowledge do
   `invalidation_condition`, `time_stop`). `supersedes_id` must name an entry
   of the same security; a `retraction` must supersede one.
 
+  `opts[:today]` injects the clock (AR-2) and defaults to `Clock.today/0`;
+  an `as_of` after it is refused (E25 S6, F44).
+
   Returns `{:ok, note}` or `{:error, changeset}`.
   """
-  @spec append_note(Actor.t(), map()) :: {:ok, SecurityNote.t()} | {:error, Ecto.Changeset.t()}
-  def append_note(%Actor{} = actor, attrs) when is_map(attrs) do
-    changeset = SecurityNote.changeset(%SecurityNote{}, attrs)
+  @spec append_note(Actor.t(), map(), keyword()) ::
+          {:ok, SecurityNote.t()} | {:error, Ecto.Changeset.t()}
+  def append_note(%Actor{} = actor, attrs, opts \\ []) when is_map(attrs) do
+    today = Keyword.get(opts, :today, Clock.today())
+    changeset = SecurityNote.changeset(%SecurityNote{}, attrs, today)
 
     multi =
       Multi.new()
@@ -116,13 +121,37 @@ defmodule Portfolixir.Knowledge do
   @spec get_note(integer()) :: SecurityNote.t() | nil
   def get_note(id) when is_integer(id), do: Repo.get(SecurityNote, id)
 
+  # What the projection reads of every entry (E25 S6, G01): no free text. A
+  # body is shown for the current thesis only, so only that one is loaded,
+  # with its invalidation condition — a detail read no longer costs every
+  # body the log ever stored.
+  @projection_fields [:id, :security_id, :kind, :supersedes_id, :as_of, :inserted_at, :author] ++
+                       [:conviction, :time_stop]
+
   @doc """
   The current thesis state of a security — a pure projection over its log
   (`Portfolixir.Knowledge.ThesisState.project/1`).
   """
   @spec thesis_state(integer()) :: ThesisState.t()
   def thesis_state(security_id) when is_integer(security_id) do
-    security_id |> list_notes() |> ThesisState.project()
+    SecurityNote
+    |> where([n], n.security_id == ^security_id)
+    |> select([n], struct(n, ^@projection_fields))
+    |> Repo.all()
+    |> ThesisState.project()
+    |> put_thesis_text()
+  end
+
+  defp put_thesis_text(%{derived_from_entry_id: nil} = state), do: state
+
+  defp put_thesis_text(%{derived_from_entry_id: id} = state) do
+    {body, condition} =
+      SecurityNote
+      |> where([n], n.id == ^id)
+      |> select([n], {n.body, n.invalidation_condition})
+      |> Repo.one()
+
+    %{state | thesis: body, invalidation_condition: condition}
   end
 
   @doc """
@@ -150,10 +179,17 @@ defmodule Portfolixir.Knowledge do
     today = Keyword.get(opts, :today, Clock.today())
     cutoff = Date.add(today, -days)
 
+    # An entry counts as a review on its as_of, but no later than the day it
+    # was written (one day of zone slack): an entry stored with a future
+    # as_of cannot keep its position off this read (E25 S6, F44;
+    # `SecurityNote.review_date/1` is the same rule for one loaded entry).
     latest =
       from(n in SecurityNote,
         group_by: n.security_id,
-        select: %{security_id: n.security_id, last_as_of: max(n.as_of)}
+        select: %{
+          security_id: n.security_id,
+          last_as_of: max(fragment("LEAST(?, (?::date + 1))", n.as_of, n.inserted_at))
+        }
       )
 
     from(s in Security,

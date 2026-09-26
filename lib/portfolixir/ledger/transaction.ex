@@ -3,6 +3,9 @@ defmodule Portfolixir.Ledger.Transaction do
   import Ecto.Changeset
 
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Input.BoundedDate
+  alias Portfolixir.Input.BoundedDecimal
+  alias Portfolixir.Input.Text
   alias Portfolixir.Ledger.SettlementGuard
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.Portfolio
@@ -217,6 +220,25 @@ defmodule Portfolixir.Ledger.Transaction do
     |> validate_changeset()
   end
 
+  # ADR-0050 §1: an imported row keeps its content hash, and no balance anchor
+  # or split carries one — so an imported row never becomes either kind. The
+  # refusal names the field the caller sent (the database check behind it
+  # would name `import_hash`, which no caller sets).
+  defp refuse_imported_retype(%Ecto.Changeset{data: %{import_hash: hash}} = changeset)
+       when is_binary(hash) do
+    if get_change(changeset, :type) in ["balance_adjustment", "split"] do
+      add_error(
+        changeset,
+        :type,
+        "cannot become a balance anchor or a split: the row was imported"
+      )
+    else
+      changeset
+    end
+  end
+
+  defp refuse_imported_retype(changeset), do: changeset
+
   defp refuse_import_hash(changeset, attrs) do
     if Map.has_key?(attrs, :import_hash) or Map.has_key?(attrs, "import_hash") do
       add_error(changeset, :import_hash, "is set by the importer")
@@ -230,15 +252,32 @@ defmodule Portfolixir.Ledger.Transaction do
     |> normalize_currency_code()
     |> put_decimal_default(:fees)
     |> put_decimal_default(:taxes)
+    # E25 S4 (G16, G17): every amount is rounded to its column's scale and
+    # bounded by its column's precision BEFORE the sign checks below, so the
+    # value checked is the value stored, answered and journaled.
+    |> bound_to_columns()
     |> validate_required([:portfolio_id, :type, :date, :currency_code])
+    |> BoundedDate.validate([:date])
+    |> Text.validate(:notes, multiline: true, max: Text.free_text_max())
+    |> check_constraint(:notes, name: :transactions_notes_length_check)
     |> validate_inclusion(:type, @kinds)
+    |> refuse_imported_retype()
     |> validate_length(:currency_code, is: 3)
+    |> Text.validate(:currency_code, max: 3)
     |> validate_required_for_kind()
     |> validate_split_ratio_scope()
     |> validate_decimal_signs()
     # #395 (risk-tier, ADR-0036): a cross-currency trade's cash agrees with
     # its settlement; runs on insert and on amount/type changes only (D-5).
     |> SettlementGuard.validate()
+    |> declare_constraints()
+  end
+
+  # The foreign keys, the per-kind CHECKs and the unique indexes every writer
+  # of a transaction declares, so a refusal by the database is a changeset
+  # error, never a raised constraint error.
+  defp declare_constraints(changeset) do
+    changeset
     |> assoc_constraint(:portfolio)
     |> assoc_constraint(:security)
     |> assoc_constraint(:cash_account)
@@ -267,10 +306,102 @@ defmodule Portfolixir.Ledger.Transaction do
     |> check_constraint(:type, name: :transactions_split_required_fields_check)
     |> check_constraint(:type, name: :transactions_split_ratio_only_for_split_check)
     |> unique_constraint(:import_hash, name: :transactions_import_hash_unique_index)
+    # ADR-0050 §3: a hash a merge retired is held as firmly as a live one; the
+    # database trigger raises this constraint name for either writer.
+    |> unique_constraint(:import_hash,
+      name: :transactions_import_hash_retired,
+      message: "was retired by a merge and cannot be booked again"
+    )
+    # ADR-0050 §1: anchors and splits are never imported, so they never hold a
+    # hash a merge would have to retire.
+    |> check_constraint(:import_hash,
+      name: :transactions_import_hash_kind_check,
+      message: "is never set on a balance anchor or a split"
+    )
     |> unique_constraint(:date,
       name: :transactions_one_split_per_portfolio_security_day_index,
       message: "a split for this security and portfolio is already booked on this date"
     )
+  end
+
+  # The `numeric(precision, scale)` of each amount column (ADR-0016 §2).
+  @money_fields [
+    :price,
+    :fees,
+    :taxes,
+    :gross_amount,
+    :security_amount,
+    :settlement_amount,
+    :settlement_fx_rate
+  ]
+  @money_column {20, 6}
+  @quantity_column {30, 12}
+
+  @doc """
+  The `numeric(precision, scale)` of every amount column, as
+  `[{field, {precision, scale}}]` (ADR-0016 §2): the bounds the changeset
+  applies, which the import parsers mirror to name a row that would not fit
+  (E25 S5, F39).
+  """
+  @spec amount_columns() :: [{atom(), {pos_integer(), non_neg_integer()}}]
+  def amount_columns,
+    do: [{:quantity, @quantity_column} | Enum.map(@money_fields, &{&1, @money_column})]
+
+  defp bound_to_columns(changeset) do
+    amount_columns()
+    |> Enum.reduce(changeset, fn {field, column}, acc ->
+      BoundedDecimal.bound_to_column(acc, field, column)
+    end)
+  end
+
+  # The foreign-key columns a lifecycle merge re-points (ADR-0050 §13).
+  @reassign_fields [
+    :cash_account_id,
+    :counter_cash_account_id,
+    :securities_account_id,
+    :counter_securities_account_id,
+    :security_id
+  ]
+
+  @doc """
+  The lifecycle merge's re-point (ADR-0050 §7 steps 4 and 5, §13): casts only
+  the foreign-key columns a merge moves — the two cash legs, the two depot
+  legs and the security — plus, on a balance anchor, the restated amount.
+
+  It does **not** re-run the public changeset's validators: a merge's
+  same-portfolio and same-currency guards leave every validator's inputs
+  unchanged, and the merge writer asserts distinct legs, one portfolio and
+  one currency on the columns it writes before it builds this. It declares
+  the foreign keys (the composite `(account, portfolio)` keys included), the
+  per-kind CHECKs (a transfer's distinct legs among them) and the unique
+  indexes, so a refusal by the database is a changeset error. A restated
+  amount is rounded to its column's scale and bounded by its precision like
+  every other writer's. An amount on any other kind is refused: a merge
+  moves bookings, it never changes what they booked.
+  """
+  def reassign_changeset(%__MODULE__{} = transaction, attrs) when is_map(attrs) do
+    transaction
+    |> cast(attrs, @reassign_fields)
+    |> cast_anchor_amount(attrs)
+    |> validate_distinct_accounts(:cash_account_id, :counter_cash_account_id)
+    |> validate_distinct_accounts(:securities_account_id, :counter_securities_account_id)
+    |> declare_constraints()
+  end
+
+  defp cast_anchor_amount(%Ecto.Changeset{data: %{type: type}} = changeset, attrs) do
+    cond do
+      not (Map.has_key?(attrs, :gross_amount) or Map.has_key?(attrs, "gross_amount")) ->
+        changeset
+
+      type == "balance_adjustment" ->
+        changeset
+        |> cast(attrs, [:gross_amount])
+        |> validate_required([:gross_amount])
+        |> BoundedDecimal.bound_to_column(:gross_amount, @money_column)
+
+      true ->
+        add_error(changeset, :gross_amount, "is restated by a merge only on a balance anchor")
+    end
   end
 
   # Per-kind required-field matrix. Keep this aligned with the per-kind

@@ -43,7 +43,9 @@ defmodule Portfolixir.Derived.Registry do
     # over a walk and a benchmark's price series, keyed under the global
     # basis because a benchmark the portfolio never held is outside the
     # portfolio's own blast radius.
-    benchmark_comparison: %{computation_version: 1, default_lifetime: :request},
+    # v2 (E25 S4, G03): the stored value carries the walk it was built from
+    # (`%{walk:, comparison:}`), checked on every hit instead of keyed.
+    benchmark_comparison: %{computation_version: 2, default_lifetime: :request},
     # The per-security derived metrics (ADR-0047 §8, Sprint 13 Lane A1).
     # `:none` is the DEFAULT WITH A REASON, not a placeholder. The portfolio
     # radius of a quote write is empty for a security no portfolio has ever
@@ -60,14 +62,18 @@ defmodule Portfolixir.Derived.Registry do
     # the risk read. `:request` like its neighbours, keyed under the portfolio
     # basis exactly as `performance_analysis` is -- every write that moves the
     # walk, a held security's quote or an exchange rate bumps that basis.
-    portfolio_metrics: %{computation_version: 1, default_lifetime: :request},
+    # v2 (E25 S4, F72): the correlation matrix covers a bounded number of
+    # leading names and says how many (`leading_names`); a v1 payload lacks it.
+    portfolio_metrics: %{computation_version: 2, default_lifetime: :request},
     # The policy findings (ADR-0049 §5, Sprint 15 Lane A2): the operator's
     # rules evaluated over the reads above. `:request`, keyed under the
     # portfolio basis AND the portfolio's rules counter (carried in the entry
     # key): a write that moves a measure bumps the first, a rule write the
     # second, and a finding that outlived an edited cap would be a stale
     # answer to the only question the read exists for.
-    policy_findings: %{computation_version: 1, default_lifetime: :request}
+    # v2 (E25 S7, G30): a finding carries the author of its version; a v1
+    # payload lacks it.
+    policy_findings: %{computation_version: 2, default_lifetime: :request}
   }
 
   @doc "All registered analytic ids."

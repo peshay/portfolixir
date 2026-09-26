@@ -325,33 +325,102 @@ defmodule PortfolixirWeb.LayoutView do
             // rests on, so the stylesheet can fade exactly the edges that have
             // tabs beyond them (board 04): otherwise the repair only moves the
             // active tab under the right-edge mask.
+            //
+            // The row's end is a tab boundary (#876, pick G10 = A of board
+            // ux-design-2026-09-24/10-area-tab-end). The browser clamps a
+            // centring target past the row's maximum scroll, and the maximum
+            // scroll lay mid-tab, so Tax and Risk came to rest with a fragment
+            // of "Cashflow" under the left fade. When the row overflows, the
+            // hook gives it a trailing inset (--area-tabs-tail, read by
+            // app.css) as wide as the distance from its maximum scroll to the
+            // next tab start, and the active tab comes to rest on a tab
+            // start — never on the raw centring target.
             Hooks.AreaTabs = {
               mounted: function () {
                 var self = this;
-                this.onScroll = function () { self.markEdges(); };
+                this.lastLeft = 0;
+                this.onScroll = function () {
+                  self.lastLeft = self.el.scrollLeft;
+                  self.markEdges();
+                };
+                this.onResize = function () {
+                  self.fitTail();
+                  self.markEdges();
+                };
                 this.el.addEventListener("scroll", this.onScroll, { passive: true });
-                window.addEventListener("resize", this.onScroll);
+                window.addEventListener("resize", this.onResize);
+                this.fitTail();
                 this.reveal();
                 this.markEdges();
               },
+              // A patch may drop what the hook wrote on the row: the inset and
+              // the edge marks are restored, and a rest the browser clamped to
+              // the row's end while the inset was gone is put back.
               updated: function () {
+                var nav = this.el;
+                var left = this.lastLeft;
+                var clamped = left > nav.scrollLeft + 1 &&
+                  nav.scrollLeft + nav.clientWidth >= nav.scrollWidth - 2;
+
+                this.fitTail();
+                if (clamped) nav.scrollLeft = left;
                 this.markEdges();
               },
               destroyed: function () {
-                window.removeEventListener("resize", this.onScroll);
+                window.removeEventListener("resize", this.onResize);
+              },
+              tabStarts: function () {
+                var nav = this.el;
+                var origin = nav.getBoundingClientRect().left - nav.scrollLeft;
+                return Array.prototype.map.call(nav.querySelectorAll(".area-tab"), function (tab) {
+                  var rect = tab.getBoundingClientRect();
+                  return { left: rect.left - origin, width: rect.width };
+                });
+              },
+              // Measured against the row without the inset it carries now, so
+              // re-measuring never shrinks the scroll range under the current
+              // rest. Rounded up, so the maximum scroll reaches the tab start.
+              fitTail: function () {
+                var nav = this.el;
+                var inset = parseFloat(window.getComputedStyle(nav).paddingInlineEnd) || 0;
+                var max = nav.scrollWidth - inset - nav.clientWidth;
+                var tail = 0;
+
+                if (max > 0) {
+                  var next = this.tabStarts().find(function (tab) { return tab.left >= max - 0.5; });
+                  if (next) tail = Math.ceil(next.left - max);
+                }
+
+                nav.style.setProperty("--area-tabs-tail", tail + "px");
+              },
+              // The last tab start at or before the centring target at which
+              // the active tab is whole; else the first one after it.
+              restingLeft: function (index) {
+                var width = this.el.clientWidth;
+                var tabs = this.tabStarts();
+                var active = tabs[index];
+                var target = active.left - (width - active.width) / 2;
+                var whole = function (tab) {
+                  return tab.left <= active.left + 0.5 &&
+                    active.left + active.width <= tab.left + width + 0.5;
+                };
+                var fits = tabs.filter(whole);
+                var before = fits.filter(function (tab) { return tab.left <= target; }).pop();
+                var after = fits.find(function (tab) { return tab.left > target; });
+                var rest = before || after;
+
+                return rest ? Math.max(0, rest.left) : 0;
               },
               reveal: function () {
                 var nav = this.el;
                 var tab = nav.querySelector('[aria-current="page"]');
                 if (!tab || nav.scrollWidth <= nav.clientWidth) return;
 
-                var navRect = nav.getBoundingClientRect();
-                var tabRect = tab.getBoundingClientRect();
-                var left = tabRect.left - navRect.left + nav.scrollLeft;
-                var target = left - (nav.clientWidth - tabRect.width) / 2;
+                var index = Array.prototype.indexOf.call(nav.querySelectorAll(".area-tab"), tab);
+                if (index < 0) return;
                 var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-                nav.scrollTo({ left: Math.max(0, target), behavior: reduce ? "auto" : "smooth" });
+                nav.scrollTo({ left: this.restingLeft(index), behavior: reduce ? "auto" : "smooth" });
               },
               markEdges: function () {
                 var nav = this.el;
@@ -986,6 +1055,31 @@ defmodule PortfolixirWeb.LayoutView do
             // count's real progress. The hook reads prefers-reduced-motion
             // before the first frame: under `reduce` the settling state does
             // not occur — the final value renders immediately.
+            // #869 (review round DC-C1): a <details> inside a live form —
+            // the booking drawer's costs. LiveView removes every attribute
+            // the server did not render, `open` included, so the first
+            // keystroke into a field inside it folded it shut around that
+            // field, whether the operator opened it or the server did (a
+            // refused fee opens it). The hook remembers the toggle and
+            // restores it after each patch; no Esc handling, which belongs
+            // to the drawer the disclosure sits in.
+            Hooks.DisclosureState = {
+              mounted: function () {
+                var self = this;
+                this.open = this.el.open;
+                this.onToggle = function () {
+                  self.open = self.el.open;
+                };
+                this.el.addEventListener("toggle", this.onToggle);
+              },
+              updated: function () {
+                if (this.open && !this.el.open) this.el.setAttribute("open", "");
+              },
+              destroyed: function () {
+                this.el.removeEventListener("toggle", this.onToggle);
+              }
+            };
+
             Hooks.CountUp = {
               mounted: function () {
                 this.lastValue = null;
