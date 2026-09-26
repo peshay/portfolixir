@@ -1016,8 +1016,9 @@ Example quote sync response:
   `already_merged` with `errors.merged_into`. A missing `plan_digest` or
   `target_id`, or a `collapse_key_equal` that is not a boolean, answers
   `422`. There is no unmerge: the record and the journal's before-images
-  reconstruct what a merge did. The operator's merge dialog follows in the
-  same batch (L5).
+  reconstruct what a merge did. The operator merges from the row menu on
+  Accounts & depots (**Merge into…**), which shows this preview and applies
+  it with its digest.
 - `GET /api/v1/securities_accounts` lists depots/securities accounts.
 - `POST /api/v1/securities_accounts` creates a depot/securities account with a
   `securities_account` object. `portfolio_id` is optional (ADR-0024): when
@@ -1131,7 +1132,8 @@ Example quote sync response:
   and `already_applied: true`; a source merged into another depot `409`
   `already_merged`; a missing `plan_digest` or `target_id`, or a
   `collapse_key_equal` that is not a boolean, `422`. There is no unmerge.
-  The operator's merge dialog follows in the same batch (L5).
+  The operator merges from the depot row's menu on Accounts & depots
+  (**Merge into…**), through the same preview.
 - `GET /api/v1/merges` lists the **merge records**, newest first
   (`inserted_at`, then `id`) — the audit read of a destructive write
   (ADR-0050 §12; `portfolixir.merges.list`). Each record carries `id`,

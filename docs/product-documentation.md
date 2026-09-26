@@ -285,8 +285,12 @@ check is what makes the next import safe: after a merge, re-importing any
 export already applied creates nothing, whichever ISIN it carries, and new
 rows under the duplicate's identifiers are booked once, on the security you
 kept. A read of the duplicate's id afterwards answers with the security it
-now lives on. There is no unmerge; the merge record and the audit journal
-show what it did.
+now lives on, and so does the screen: a link or bookmark to the duplicate's
+page opens the security it was merged into, with a note saying so and the
+day of the merge, and a benchmark that named the duplicate switches the
+Wealth page's comparison to that security, with the same note under the
+performance heading. There is no unmerge; the merge record and the audit
+journal show what it did.
 
 ### Identity fields that freeze (ADR-0050 §11)
 
@@ -468,12 +472,85 @@ not kept, and an import naming it books to that other account. Accounts that
 already shared a name before this rule stay as they are; renaming one of them
 ends the ambiguity. The former names are listed on the API and MCP payloads
 (`former_names`) and can be removed there; an import that still names a
-removed name then creates a new account. The rename and removal controls on
-this page follow with the accounts' row menu.
+removed name then creates a new account. On this page both live in the row
+menu, see *Rename, merge and delete* below.
 
 For worked examples — a household split, strategy views with their own target
 plans, translating Portfolio Performance habits, and excluding a position from
 steering — see the [Buckets & Views Guide](guides/buckets-and-views.html).
+
+### Rename, merge and delete (ADR-0050 §4, §7, §8, §10)
+
+Every row — a depot, the cash account under it, a cash account on its own —
+has its own **⋮** menu, named for its row (*Actions for Savings*): **Rename**,
+**Tag separately** (on a depot tagged together with its cash account),
+**Merge into…** and **Delete**, in that order. On a narrow screen the menu
+opens as a sheet from the bottom and names its row at the top.
+
+**Rename** changes the name only; currency and portfolio binding freeze as
+described above, and role and buckets stay in the row. Before you save, the
+dialog says what happens to the current name: it stays a **former name** of
+the account, so an import that still names it keeps booking here — or, while
+another account of the kind is still called that, it is not kept, and such an
+import books to that other account. A name another account answers to, as its
+name or as a former name, is refused at the field together with the account
+that holds it, and nothing is written. The row changing is the confirmation.
+
+The same dialog lists the account's **former names**; a name that arrived with
+a merge says on which day. **Remove** takes one away after a confirmation
+that says what it costs: *An import that still names 'Savings 2019' will then
+create a new account.* Under the account's name the row shows the newest
+former name (*former: …*) and, on an account others were merged into, the
+newest merge (*merged from Savings (old) · date*), each with *+N* when there
+are more.
+
+**Merge into…** joins two accounts that are really one — typically an
+account an import created a second time under another name. The account you
+merge (the source) goes away; the account you pick (the target) keeps
+everything. It takes two steps in one dialog:
+
+1. **Target.** The source is named with its currency, liquidity role,
+   buckets, bookings and balance, and every other account of the kind is
+   listed. Only an account with the same currency, the same liquidity role
+   and the same buckets can be picked — for a depot, the same default
+   buckets. The others are listed under *Not selectable*, each with its
+   reason, so it is clear what to align first.
+2. **Preview.** Nothing is written yet. For cash accounts the preview shows
+   both balances and their sum, the bookings that move, the transfers
+   between the two that are dropped (they cancel out once the two are one),
+   the linked depots that move, and the set balances that are adjusted —
+   each with its date and its value afterwards — or dropped. For depots it
+   shows each affected position's quantity, average cost and realized
+   gain/loss before and after, and a split whose rounding differs once both
+   histories are combined. **Bookings that are equal in both accounts** —
+   same day, same kind, same amounts, typically one import that landed twice
+   — are listed with two choices, *remove as duplicates* or *keep both*,
+   each with the balance it leads to (for cash accounts); *remove as
+   duplicates* also names what it changes outside the two, such as another
+   account's balance or a position's quantity. Neither is preselected, and
+   the **Merge into …** button stays disabled, with the reason beside it,
+   until you choose.
+
+Confirming applies exactly the plan the preview showed: the bookings, the
+linked depots and the adjusted set balances move to the target, the source's
+names become former names of the target — so the next import under the old
+name books onto the target — and the source is deleted. The result is
+reported above the table (*Merged Savings (old) into Savings: 151 bookings
+moved, 2 removed.*). If either account changed while the preview was open,
+nothing is merged: the dialog shows the new preview, says what changed, and
+asks for the choice again. A merge that cannot keep every position in its
+views — two depots holding one security in different buckets, say — is
+refused in the preview with the reason and the remedy; **Check again**
+re-reads it after you have aligned the two. There is no unmerge; the merge
+record and the audit journal show what a merge did. Your agent reads the
+merge records with `GET /api/v1/merges` (MCP `portfolixir.merges.list`); a
+list of them on a screen lands no later than Sprint 17.
+
+**Delete** removes an account only when nothing references it — no booking,
+and for a cash account no linked depot — and asks once, naming the account.
+An account with bookings is not deleted: *Cannot delete* says what it still
+has and offers **Merge into…** instead, which is how an account with history
+goes away.
 
 ### Portfolio records (compatibility)
 

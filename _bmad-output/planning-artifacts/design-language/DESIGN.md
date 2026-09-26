@@ -2024,3 +2024,159 @@ owner's pick, plan D-5), as built in `TransactionManagementLive`.
 - **Behaviour.** Saving sends the note only and closes the drawer with
   "Note saved"; a refused write keeps the drawer open with the page's error
   band.
+
+## Amendment 2026-09-26 — Accounts & depots: lifecycle controls *(Sprint 16 pick G1-A, issue 328, ADR-0050 §4, §11, §12; board 13 pick G13.1-A)*
+
+Board `mockups/ux-design-2026-09-24/01-accounts-lifecycle`, variant A (the
+owner's pick, plan D-5), and board `13-l5a-merged-from`, variant A (drawn in
+the batch; silence adopts it). Built by Sprint 16 Lane L5a in
+`PortfolixirWeb.PortfolioAccountsLive` and
+`PortfolixirWeb.PortfolioAccounts.RenameDialog`.
+
+- **Every entity row carries its own kebab** — the depot row, the cash row
+  of a pair and a lone cash account; the repeated row of a shared account
+  carries none. Each is named for its row through the shared
+  `AppShell.row_kebab` (issue 870): "Actions for Tagesgeld (alt)". A split
+  pair's depot row keeps its kebab.
+- **The menu is ordered by consequence:** Rename (the edit glyph) · Tag
+  separately (the depot row of a pair tagged together only) · Merge into…
+  (the new `:merge` glyph, two lines joining into one arrow — no existing
+  glyph carried the meaning, UX-DR16) · Delete, last, in
+  `.row-context-menu__item--danger`. Merge into… is not danger-coloured: it
+  opens a preview, and only the preview's confirm writes.
+- **Under 720 px the menu is the existing bottom sheet and names its row**:
+  `AppShell.row_menu` takes an optional `caption_name` / `caption_kind` and
+  renders `.row-context-menu__caption` ("**Tagesgeld (alt)** · Cash
+  account"), shown under 720 px only, where the sheet no longer hangs at its
+  row. **Under 640 px** each band's rows become a two-column grid, so every
+  kebab sits at the end of its own name line; the hover tint covers the
+  whole line.
+- **Two sub-lines under the name**, both `.account-sub` at 12 px as their own
+  lines (`.account-sub--merged`, `.account-sub--former`), readable without a
+  click: "merged from <source> · <date>" (the newest merge, then "+N"), and
+  "former: <newest former name>" (then "+N"). A merged source's name is said
+  once, on the first line; its own earlier names stay in the second, because
+  they were renames. The line links nothing: the list of merges is
+  `GET /api/v1/merges` until its view lands (Sprint 17 at the latest).
+- **Rename** opens a native `<dialog class="modal rename-dialog">` titled
+  "Rename — <name>": one field (only the name is editable; currency and
+  portfolio freeze once referenced, §11; role, balance and buckets stay in
+  the row), then a `.hint` that states the rename rule's case before
+  anything is written — "The current name “X” stays a former name: an import
+  that still names it keeps booking to this account (depot)", or, while
+  another account of the kind carries X live, "…so the current name is not
+  kept: an import that names it books to that account. Merge or rename that
+  account to change this." A name another account answers to is refused
+  **at the field** (`.field-error`, `aria-invalid`), naming the holder and
+  the way out; nothing is written. Saving closes the dialog; the row
+  changing in place is the confirmation — no banner.
+- **Former names** are the dialog's open `.perf-table-disclosure` "Former
+  names" with a bordered `.former-names` list: each name, a muted
+  `.former-names__origin` line ("merged on <date>") when it arrived by a
+  merge, and a ghost **Remove** whose native confirmation says what it costs:
+  "Remove “X” as a former name? An import that still names 'X' will then
+  create a new account." (a new depot for a depot). Removing acts at once;
+  the dialog stays open and a typed name stays typed. No list, no
+  disclosure, when there are no former names.
+- **Delete asks only when it can succeed.** The page reads what references
+  the account as the menu opens. Referenced: Delete opens "Cannot delete"
+  directly (the securities page's `.confirm-delete-blocked` dialog) —
+  "“X” still has 151 bookings and 1 linked depot (Depot 2) — merge it
+  first.", a muted line saying what a merge moves, and **Merge into…** as
+  the primary way out, which opens the merge's step 1 for that account.
+  Free: one native confirmation naming the account ("…has no bookings and
+  no linked depot."), plus "Its bucket assignments are removed with it."
+  when it carries any; the row disappearing is the confirmation.
+
+## Amendment 2026-09-26 — Lifecycle merge — preview and confirm *(Sprint 16 pick G2-B, issue 328, ADR-0050 §7, §8, §10)*
+
+Board `mockups/ux-design-2026-09-24/02-merge-preview`, variant B (the
+owner's pick, plan D-5), with the three lines board `13-l5a-merged-from`
+adds. Built by Sprint 16 Lane L5a in
+`PortfolixirWeb.PortfolioAccounts.MergeDialog` (the state) and
+`PortfolixirWeb.PortfolioAccounts.MergePreview` (step 2).
+
+- **Placement.** Opened from a row's "Merge into…" or from "Cannot delete".
+  One native `<dialog class="modal merge-dialog">` in two steps; the head
+  names the source ("Merge Tagesgeld (alt)") with the step under it
+  (`.modal-head__step`, "Step 1 of 2 · Target"). The body scrolls; the foot
+  is a fixed band (`.modal-footer.modal-footer--band`, the one class board 02
+  adds: a top rule, the elevated background, the body's padding). Under
+  720 px the same dialog is a bottom sheet in the booking drawer's shape
+  (full width, at most 88 % high); its foot stacks — the reason a confirm
+  waits (`.merge-footer__why`, with "↓ "), the confirm on a line of its own,
+  then Back or Cancel — so no account name breaks inside a button.
+- **Step 1 — the target.** `.merge-route` names the source with its currency,
+  role, buckets, bookings and balance (a depot: buckets and bookings). Every
+  other account of the kind is a `.merge-target` radio row (44 px minimum)
+  with its name, a muted meta line and its balance. The legal ones come
+  first under "Target — receives every booking"; the rest follow under the
+  `.merge-sub-caps` "Not selectable (N)", disabled on `--color-bg-muted`,
+  each naming every reason as text ("different currency, different
+  buckets"). The only legal target is chosen; the chosen row takes UX-DR16
+  class 3 (tint plus a 3 px leading edge). A basis line states the rule
+  ("Selectable: same currency, same liquidity role, same buckets." — "same
+  default buckets" for a depot). With no legal target the step says "No
+  account meets the conditions." and the foot offers only Close.
+- **Step 2 — the preview of exactly that pair, cash.** `.merge-route`
+  "Source → Target" with the target's currency and role; the balances as a
+  sum in `.merge-identity` (source + target = target after, the result
+  marked by the accent edge) with the balance if the equal bookings are
+  removed under it; a basis line (as of today, computed from the bookings,
+  checked before saving); `.merge-counts` (bookings that move, transfers
+  dropped, set balances adjusted and dropped, equal bookings, and — board 13
+  — the linked depots that move); the restated set balances as a table
+  (Date · Account · Set · + other account · After), each only where the
+  merge changes it; the equal bookings as `fieldset.merge-choice` with its
+  table and two `.merge-option` radios, **neither checked**, each stating
+  the balance it leads to — "remove as duplicates" also naming, in a muted
+  line, what it changes outside the two accounts (board 13); then a note
+  (the former names the target gains) and an attention note (the source is
+  deleted; cannot be undone; journaled). The figures that depend on the
+  choice follow it, and read "keep both" until one is made.
+- **Under 720 px the two tables become two-line rows** (`.merge-lines`):
+  "date · account" over "set + other = **after**", and "date · kind" over
+  the amount and where it stands. Exactly one of the two forms is displayed
+  (`.merge-wide` / `.merge-narrow`).
+- **The depot variant** has no balances: its route names the target's
+  buckets, its counts the bookings that move, the security transfers
+  dropped and the equal bookings; "Affected positions" is a table with, per
+  position the source holds, the quantity as "source + target →" over the
+  after figure, and the average cost and the realized result as
+  "source · target →" over theirs ("—" where the target holds none); a basis
+  line; and — board 13 — one line per split whose combined rounding differs
+  from the two rounded apart, with its date and ratio. Its note adds that
+  the target keeps its cash account.
+- **The confirm** is `.button-danger` "Merge into <target>" at the band's
+  end. While the equal bookings' choice is missing it is disabled —
+  `.button-danger:disabled` at 45 % opacity with the not-allowed cursor,
+  never merely pale: its reason stands beside it as text ("Choice for 2
+  equal bookings missing"). Confirming applies the plan the preview's digest
+  covers, closes the dialog and reports the result inline above the table
+  (`AppShell.inline_result`, a note: "Merged X into Y: 3 bookings moved, 3
+  removed."), until the next action or its dismiss.
+- **A changed plan** re-renders step 2 with the fresh preview under an
+  attention note — "The accounts changed while the preview was open.
+  Nothing was merged; the preview now shows the new state." — and a line
+  naming what changed ("balance of Tagesgeld 8,400.00 → 8,450.00 EUR").
+  **A choice made before does not survive** (decided here, design pass
+  Part 2's open point): a changed plan is a new question, so the confirm
+  waits again.
+- **A refusal the preview finds** (a position whose buckets differ between
+  two depots, say) is a problem note in step 2 — the reason in the
+  operator's words, each refused position with both bucket sets, the remedy,
+  and **Check again** — and the foot offers Back and Close, never a confirm.
+- **Live regions:** one `role="status"` region for the changed-plan note and
+  one `role="alert"` region for a refusal of the confirm just pressed, both
+  present before any note (UX-DR17: politeness per region, never per note).
+- **A link to a merged-away security** lands on the survivor with board 03's
+  note at the top of its detail ("The link led to a security that was merged
+  into this one on <date>."), and a benchmark naming one redirects the
+  Wealth page to the survivor with the same note under the performance head
+  (board 13); both dismissible, both gone with the next navigation, both
+  shown only when the merge records say so.
+- **Dialog count:** the lifecycle adds three native dialogs (rename, merge,
+  and Accounts & depots' "Cannot delete"), all on the `ModalDialog` hook,
+  none with `aria-modal`. The Overlays bullet's record of nine (2026-09-15)
+  now reads fifteen `<dialog>` elements in `lib/portfolixir_web/`, still
+  with zero `aria-modal`.

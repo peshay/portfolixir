@@ -1040,8 +1040,10 @@ Beispiel-Antwort für Kurssynchronisierung:
   mit `errors.merged_into`. Ein fehlender `plan_digest` oder eine fehlende
   `target_id` oder ein `collapse_key_equal`, der kein Boolean ist, antwortet
   `422`. Ein Rückgängigmachen gibt es nicht: Protokoll und die Vorher-Bilder
-  des Journals rekonstruieren, was eine Zusammenführung getan hat. Der Dialog
-  für den Operator folgt im selben Batch (L5).
+  des Journals rekonstruieren, was eine Zusammenführung getan hat. Der
+  Operator führt über das Zeilenmenü auf Konten & Depots zusammen
+  (**Zusammenführen in…**), das diese Vorschau zeigt und sie mit ihrem Digest
+  anwendet.
 - `GET /api/v1/securities_accounts` listet Depots/Wertpapierkonten.
 - `POST /api/v1/securities_accounts` legt ein Depot/Wertpapierkonto mit einem
   `securities_account`-Objekt an. `portfolio_id` ist optional (ADR-0024):
@@ -1169,8 +1171,9 @@ Beispiel-Antwort für Kurssynchronisierung:
   Protokoll und `already_applied: true`; eine in ein anderes Depot
   zusammengeführte Quelle `409` `already_merged`; ein fehlender `plan_digest`
   oder eine fehlende `target_id` oder ein `collapse_key_equal`, der kein
-  Boolean ist, `422`. Ein Rückgängigmachen gibt es nicht. Der Dialog für den
-  Operator folgt im selben Batch (L5).
+  Boolean ist, `422`. Ein Rückgängigmachen gibt es nicht. Der Operator führt
+  über das Menü der Depotzeile auf Konten & Depots zusammen
+  (**Zusammenführen in…**), mit derselben Vorschau.
 - `GET /api/v1/merges` listet die **Zusammenführungsprotokolle**, das
   neueste zuerst (`inserted_at`, dann `id`) — der Audit-Lesezugriff auf einen
   zerstörenden Schreibvorgang (ADR-0050 §12; `portfolixir.merges.list`).
