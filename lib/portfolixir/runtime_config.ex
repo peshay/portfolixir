@@ -240,6 +240,22 @@ defmodule Portfolixir.RuntimeConfig do
     principals
   end
 
+  @doc """
+  The principals a development instance (`mix phx.server`) uses (E25 S7
+  review round, S7E-7): `nil` — the API's fallback to
+  `PORTFOLIXIR_API_TOKEN` alone, unchecked, as before — unless
+  `PORTFOLIXIR_API_TOKENS` or `PORTFOLIXIR_API_PRINCIPAL` is set; then
+  `api_tokens!/3`, under the rules a release boots with.
+  """
+  @spec dev_api_tokens(String.t() | nil, String.t() | nil, String.t() | nil) ::
+          [{String.t() | nil, String.t()}] | nil
+  def dev_api_tokens(single, named, principal) do
+    if blank?(named) and blank?(principal), do: nil, else: api_tokens!(single, named, principal)
+  end
+
+  defp blank?(value) when is_binary(value), do: String.trim(value) == ""
+  defp blank?(_unset), do: true
+
   # The default token's name, when PORTFOLIXIR_API_PRINCIPAL gives one.
   defp default_name!(name, named) when is_binary(name) do
     case String.trim(name) do
