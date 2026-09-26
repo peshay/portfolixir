@@ -174,7 +174,11 @@ defmodule PortfolixirWeb.AccountsLifecycleLiveTest do
     assert Portfolios.get_cash_account(w.giro.id).name == "Giro"
 
     html = view |> form("#rename-form", rename: %{name: "Tagesgeld (alt)"}) |> render_submit()
-    assert html =~ "“Tagesgeld (alt)” is already the name of another cash account."
+    # The way out, as DESIGN.md G1-A asks for every taken name (review
+    # finding M-5, board 14 ⑤).
+    assert html =~
+             "“Tagesgeld (alt)” is already the name of another cash account. Choose another name, or merge or rename that account."
+
     assert Portfolios.get_cash_account(w.giro.id).name == "Giro"
   end
 

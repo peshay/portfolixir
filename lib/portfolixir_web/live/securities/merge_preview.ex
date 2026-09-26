@@ -913,7 +913,9 @@ defmodule PortfolixirWeb.Securities.MergePreview do
     failed = Enum.reject(assigns.guards, & &1.passed)
     other_way? = Enum.any?(failed, &(Map.get(&1, :remedy) == :merge_other_way))
     keep_both? = Enum.any?(failed, &(Map.get(&1, :remedy) == :keep_both))
-    remedies = failed |> Enum.map(&remedy/1) |> Enum.reject(&is_nil/1) |> Enum.uniq()
+
+    remedies =
+      failed |> remedy_guards() |> Enum.map(&remedy/1) |> Enum.reject(&is_nil/1) |> Enum.uniq()
 
     assigns =
       assign(assigns,
@@ -961,6 +963,15 @@ defmodule PortfolixirWeb.Securities.MergePreview do
     """
   end
 
+  # Two ratios on one day also fail the split-event rule for that day; its
+  # remedy ("book the split on that side first") cannot apply while both
+  # sides carry a split, so the ratio conflict's own remedy speaks alone.
+  defp remedy_guards(failed) do
+    if Enum.any?(failed, &(&1.code == :split_ratio_mismatch)),
+      do: Enum.reject(failed, &(&1.code in [:split_event_mismatch, :split_linearity])),
+      else: failed
+  end
+
   defp recheckable,
     do: [
       :benchmark_mismatch,
@@ -969,7 +980,8 @@ defmodule PortfolixirWeb.Securities.MergePreview do
       :position_buckets_mismatch,
       :split_ratio_mismatch,
       :split_event_mismatch,
-      :split_linearity
+      :split_linearity,
+      :legacy_hashed_split
     ]
 
   attr(:security, :map, required: true)
@@ -1108,6 +1120,12 @@ defmodule PortfolixirWeb.Securities.MergePreview do
     )
   end
 
+  defp reason(%{code: :legacy_hashed_split}, _subject, _other, _direction),
+    do:
+      gettext(
+        "a split of the source still carries an import hash from before the import-hash check and cannot be moved."
+      )
+
   defp reason(%{code: :same_security}, _subject, _other, _direction),
     do: gettext("a security cannot be merged into itself.")
 
@@ -1188,6 +1206,13 @@ defmodule PortfolixirWeb.Securities.MergePreview do
     end
   end
 
+  # Board 14 ③: the split a refusal means, by its date and number.
+  defp detail_lines(%{code: :legacy_hashed_split} = guard) do
+    for split <- Map.get(guard, :splits, []) do
+      gettext("Split on %{date} · no. %{id}", date: Date.to_iso8601(split.date), id: split.id)
+    end
+  end
+
   defp detail_lines(_guard), do: []
 
   defp bucket_list([], _names), do: gettext("no buckets")
@@ -1210,12 +1235,25 @@ defmodule PortfolixirWeb.Securities.MergePreview do
   defp remedy(%{code: :position_buckets_mismatch}),
     do: gettext("Remedy: give the position the same buckets in both, then check again.")
 
-  defp remedy(%{code: code})
-       when code in [:split_ratio_mismatch, :split_event_mismatch, :split_linearity],
-       do:
-         gettext(
-           "Remedy: book the split on that side first, or delete the wrong split, then check again."
-         )
+  # Board 03 and 14 ④: both sides carry a split that day, so the remedy is
+  # to delete the wrong one, never to book one.
+  defp remedy(%{code: :split_ratio_mismatch}),
+    do:
+      gettext(
+        "Remedy: delete the split with the wrong ratio in the Transactions tab, then check again."
+      )
+
+  defp remedy(%{code: code}) when code in [:split_event_mismatch, :split_linearity],
+    do:
+      gettext(
+        "Remedy: book the split on that side first, or delete the wrong split, then check again."
+      )
+
+  defp remedy(%{code: :legacy_hashed_split}),
+    do:
+      gettext(
+        "Remedy: change its kind back to the one it was imported as, or delete it, then check again."
+      )
 
   defp remedy(%{code: :identity_unresolvable}),
     do: gettext("This version has no way around it; both securities stay unchanged.")

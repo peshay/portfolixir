@@ -2068,7 +2068,9 @@ the batch; silence adopts it). Built by Sprint 16 Lane L5a in
   kept: an import that names it books to that account. Merge or rename that
   account to change this." A name another account answers to is refused
   **at the field** (`.field-error`, `aria-invalid`), naming the holder and
-  the way out; nothing is written. Saving closes the dialog; the row
+  the way out — a former name names the account it belongs to and says to
+  remove it there; a live name says "Choose another name, or merge or rename
+  that account" (board 14 ⑤); nothing is written. Saving closes the dialog; the row
   changing in place is the confirmation — no banner.
 - **Former names** are the dialog's open `.perf-table-disclosure` "Former
   names" with a bordered `.former-names` list: each name, a muted
@@ -2166,6 +2168,13 @@ adds. Built by Sprint 16 Lane L5a in
   two depots, say) is a problem note in step 2 — the reason in the
   operator's words, each refused position with both bucket sets, the remedy,
   and **Check again** — and the foot offers Back and Close, never a confirm.
+  A refusal that means particular bookings names each on a
+  `.merge-refusal__position` line, the account bold, the date and the number
+  last (board 14, L3–L5 review round): "Set balance of **Tagesgeld (alt)** on
+  2025-06-30 · no. 4711" for a set balance that still carries an import hash
+  or whose adjusted amount the amount column cannot hold, and "Buy (Sell)
+  without an amount in **<account>** on <date> · no. <id>" for the booking
+  that makes it so, whose remedy is to record that booking's amount.
 - **Live regions:** one `role="status"` region for the changed-plan note and
   one `role="alert"` region for a refusal of the confirm just pressed, both
   present before any note (UX-DR17: politeness per region, never per note).
@@ -2273,7 +2282,12 @@ records only what the security adds.
   security") and **Merge the other way** opens that pair's preview; where it
   is refused too, "The other way is refused too: …" and "No direction is
   possible; both securities stay unchanged.", with no remedy the version
-  does not have. A split mismatch offers **Check again** after its remedy.
+  does not have. A split mismatch offers **Check again** after its remedy;
+  two ratios on one day say to delete the split with the wrong ratio in the
+  Transactions tab (board 03, board 14 ④), and that remedy speaks alone. A
+  source split that still carries an import hash is named "Split on <date>
+  · no. <id>" with its remedy (change its kind back, or delete it) and
+  **Check again** (board 14 ③).
   The foot offers Back and Close, never a confirm.
 - **The survivor names its history** on its detail overview's basis line,
   after the asset class: "former ISIN <ISIN> (until <date>)" and "merged on

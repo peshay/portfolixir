@@ -349,7 +349,12 @@ defmodule PortfolixirWeb.Api.V1.CashMergeControllerTest do
            ]
 
     assert errors["bookings"] == [
-             %{"id" => buy.id, "date" => "2025-01-10", "cash_account_id" => ctx.source.id}
+             %{
+               "id" => buy.id,
+               "date" => "2025-01-10",
+               "cash_account_id" => ctx.source.id,
+               "type" => "buy"
+             }
            ]
 
     assert errors["detail"] =~ "##{buy.id}"

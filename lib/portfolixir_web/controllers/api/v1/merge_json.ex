@@ -233,7 +233,7 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
     |> Map.merge(
       case Map.get(guard, :bookings, []) do
         [] -> %{}
-        bookings -> %{bookings: Enum.map(bookings, &booking_ref/1)}
+        bookings -> %{bookings: Enum.map(bookings, &Map.put(booking_ref(&1), :type, &1.type))}
       end
     )
   end

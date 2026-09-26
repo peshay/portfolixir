@@ -325,11 +325,21 @@ defmodule PortfolixirWeb.PortfolioAccounts.RenameDialog do
     )
   end
 
+  # DESIGN.md G1-A: a taken name is refused at the field with the way out
+  # (board 14 ⑤).
   defp live_conflict("cash", name),
-    do: gettext("“%{name}” is already the name of another cash account.", name: name)
+    do:
+      gettext(
+        "“%{name}” is already the name of another cash account. Choose another name, or merge or rename that account.",
+        name: name
+      )
 
   defp live_conflict("depot", name),
-    do: gettext("“%{name}” is already the name of another depot.", name: name)
+    do:
+      gettext(
+        "“%{name}” is already the name of another depot. Choose another name, or merge or rename that depot.",
+        name: name
+      )
 
   defp changeset_error(changeset) do
     changeset.errors
