@@ -38,7 +38,10 @@ secret defaults. Since Sprint 11 (#382, #772): every browser page carries a
 `Content-Security-Policy` — scripts only from the instance and from the root
 layout's inline boot scripts through a per-request nonce, no inline event
 handlers, no `eval`, no foreign origins — and the HTTP server is Bandit, which
-took cowlib and its unfixed advisories out of the tree. The HTTPS posture is
+took cowlib and its unfixed advisories out of the tree. Every browser
+response, the stored logos and the static assets included, carries
+`Cross-Origin-Resource-Policy: same-origin`, so a page on another site open in
+the same browser can neither embed nor probe them (E25). The HTTPS posture is
 the reverse-proxy contract in `docs/home-deployment.md`: TLS is terminated by
 the proxy, the application never redirects on its own, and `PHX_FORCE_SSL` is
 the opt-in for the redirect and HSTS once the proxy sets `X-Forwarded-Proto`

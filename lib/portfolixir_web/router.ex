@@ -7,8 +7,14 @@ defmodule PortfolixirWeb.Router do
   # never a foreign script admitted. PortfolixirWeb.ContentSecurityPolicy
   # replaces it per request with the same text plus the nonce and the
   # socket origin.
+  #
+  # Cross-Origin-Resource-Policy (E25 S7, F07): a page, a stored logo — the
+  # route behind the UI login, whose files name the companies the operator
+  # holds — and every other browser response is readable by this origin only,
+  # so another site open in the same browser can neither embed nor probe them.
   @secure_headers %{
-    "content-security-policy" => PortfolixirWeb.ContentSecurityPolicy.static_policy()
+    "content-security-policy" => PortfolixirWeb.ContentSecurityPolicy.static_policy(),
+    "cross-origin-resource-policy" => "same-origin"
   }
 
   pipeline :browser do

@@ -31,11 +31,19 @@ defmodule PortfolixirWeb.Endpoint do
   plug(PortfolixirWeb.TrustedProxy)
   plug(PortfolixirWeb.OptionalSsl)
 
+  # Every static response says what the browser pipeline's pages say:
+  # nosniff (#763), and this origin as the only reader (E25 S7, F07), so a
+  # page on another site can neither embed nor probe the instance's assets.
+  @static_headers [
+    {"x-content-type-options", "nosniff"},
+    {"cross-origin-resource-policy", "same-origin"}
+  ]
+
   plug(Plug.Static,
     at: "/",
     from: :portfolixir,
     gzip: false,
-    headers: [{"x-content-type-options", "nosniff"}],
+    headers: @static_headers,
     # Stored logos are named by security id and say which companies the
     # operator holds; they are served by a route behind the UI login (#764).
     only: ~w(app.css favicon.ico favicon.svg images)
@@ -45,7 +53,7 @@ defmodule PortfolixirWeb.Endpoint do
     at: "/vendor",
     from: {:phoenix, "priv/static"},
     gzip: false,
-    headers: [{"x-content-type-options", "nosniff"}],
+    headers: @static_headers,
     only: ~w(phoenix.min.js)
   )
 
@@ -53,7 +61,7 @@ defmodule PortfolixirWeb.Endpoint do
     at: "/vendor",
     from: {:phoenix_live_view, "priv/static"},
     gzip: false,
-    headers: [{"x-content-type-options", "nosniff"}],
+    headers: @static_headers,
     only: ~w(phoenix_live_view.min.js)
   )
 
