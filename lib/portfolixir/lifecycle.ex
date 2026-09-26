@@ -25,9 +25,12 @@ defmodule Portfolixir.Lifecycle do
 
   The merges themselves: a cash account into another
   (`preview_cash_merge/2`, `merge_cash_account/4`, implemented by
-  `Portfolixir.Lifecycle.CashMerge`, §7, §8, §10), writing row by row through
+  `Portfolixir.Lifecycle.CashMerge`, §7, §8, §10) and a depot into another
+  (`preview_depot_merge/2`, `merge_depot/4`, implemented by
+  `Portfolixir.Lifecycle.DepotMerge`), each writing row by row through
   `Portfolixir.Lifecycle.MergeWriter` under a digest from
-  `Portfolixir.Lifecycle.PlanDigest`.
+  `Portfolixir.Lifecycle.PlanDigest`, with the consent rules they share in
+  `Portfolixir.Lifecycle.MergeFlow`.
   """
 
   import Ecto.Query, only: [from: 2]
@@ -36,6 +39,7 @@ defmodule Portfolixir.Lifecycle do
   alias Portfolixir.Actor
   alias Portfolixir.Journal
   alias Portfolixir.Lifecycle.CashMerge
+  alias Portfolixir.Lifecycle.DepotMerge
   alias Portfolixir.Lifecycle.MergeRecord
   alias Portfolixir.Lifecycle.RetiredImportHash
   alias Portfolixir.Repo
@@ -87,6 +91,19 @@ defmodule Portfolixir.Lifecycle do
   choice (ADR-0050 §7, §8, §10, §12). See `Portfolixir.Lifecycle.CashMerge`.
   """
   defdelegate merge_cash_account(actor, source_id, target_id, params), to: CashMerge, as: :apply
+
+  @doc """
+  The preview of a merge of the depot `source_id` into `target_id` (ADR-0050
+  §7, §8, §10): a read. See `Portfolixir.Lifecycle.DepotMerge`.
+  """
+  defdelegate preview_depot_merge(source_id, target_id), to: DepotMerge, as: :preview
+
+  @doc """
+  Merges the depot `source_id` into `target_id` on behalf of `actor` under
+  the approved `plan_digest` and the operator's `collapse_key_equal` choice
+  (ADR-0050 §7, §8, §10, §12). See `Portfolixir.Lifecycle.DepotMerge`.
+  """
+  defdelegate merge_depot(actor, source_id, target_id, params), to: DepotMerge, as: :apply
 
   @doc """
   The record of the merge that took `source_id` away under `kind`, or `nil`.

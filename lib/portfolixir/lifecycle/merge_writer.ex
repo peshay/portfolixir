@@ -14,8 +14,9 @@ defmodule Portfolixir.Lifecycle.MergeWriter do
   which rolls the whole merge back — inside the merge's transaction a failed
   write has already doomed it.
 
-  Shared by the merge kinds: the cash merge today (`Portfolixir.Lifecycle.CashMerge`),
-  the depot and the security merge behind it.
+  Shared by the merge kinds: the cash merge (`Portfolixir.Lifecycle.CashMerge`),
+  the depot merge (`Portfolixir.Lifecycle.DepotMerge`) and the security merge
+  behind them.
   """
 
   alias Ecto.Changeset
