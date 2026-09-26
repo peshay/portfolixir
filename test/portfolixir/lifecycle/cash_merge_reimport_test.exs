@@ -5,7 +5,9 @@ defmodule Portfolixir.Lifecycle.CashMergeReimportTest do
   # creates nothing after a cash merge, with and without collapse, every row
   # reported with its layer), 5 (a drifted re-import creates nothing), 6 (a
   # newer file naming the source's name inserts its new rows once, on the
-  # target).
+  # target) and the last clause of 9 (a row imported after the merge and
+  # dated on or before a restated anchor is inserted and reported in
+  # behind_restated_anchor with that anchor).
   #
   # The exports are synthetic Portfolio Performance JSON; every name, amount
   # and identifier is invented.
@@ -142,6 +144,57 @@ defmodule Portfolixir.Lifecycle.CashMergeReimportTest do
         assert {:ok, %Result{created_transactions: 0}} = Imports.apply(newer, prefilled(newer))
         assert counts() == before
       end
+    end
+  end
+
+  describe "a row behind a restated anchor (§2, §7 step 4, §16 invariant 9's last clause)" do
+    # User story:
+    # As the operator whose merge restated a balance anchor,
+    # I want an import that later books a row on the survivor dated on or
+    # before that anchor to say that the anchor absorbs its amount,
+    # so that a row that leaves the balance unchanged is never silent.
+    #
+    # Acceptance criteria:
+    # - The row is inserted, and reported in behind_restated_anchor with the
+    #   anchor's id, date and account.
+    # - A row dated after the anchor is inserted and not reported.
+    # - A row on an account no merge restated an anchor on is not reported.
+    test "is inserted and reported with the anchor that absorbs it", ctx do
+      {:ok, anchor} =
+        Ledger.set_cash_balance(agent(), ctx.source, %{date: ~D[2025-05-31], amount: "1200.00"})
+
+      merge!(ctx, false)
+
+      assert Repo.get!(Transaction, anchor.id).cash_account_id == ctx.target.id
+
+      newer =
+        parse!(
+          household() ++
+            [
+              deposit("Savings", "50.00", "2025-04-15"),
+              deposit("Savings (old)", "20.00", "2025-05-31"),
+              deposit("Savings", "70.00", "2025-07-01"),
+              deposit("Giro", "90.00", "2025-04-15")
+            ]
+        )
+
+      assert {:ok, %Result{} = result} = Imports.apply(newer, prefilled(newer))
+      assert result.created_transactions == 4
+
+      assert result.behind_restated_anchor == [
+               %{
+                 row: 7,
+                 anchor_id: anchor.id,
+                 anchor_date: ~D[2025-05-31],
+                 cash_account_id: ctx.target.id
+               },
+               %{
+                 row: 8,
+                 anchor_id: anchor.id,
+                 anchor_date: ~D[2025-05-31],
+                 cash_account_id: ctx.target.id
+               }
+             ]
     end
   end
 
