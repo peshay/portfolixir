@@ -41,7 +41,10 @@ handlers, no `eval`, no foreign origins — and the HTTP server is Bandit, which
 took cowlib and its unfixed advisories out of the tree. Every browser
 response, the stored logos and the static assets included, carries
 `Cross-Origin-Resource-Policy: same-origin`, so a page on another site open in
-the same browser can neither embed nor probe them (E25). The HTTPS posture is
+the same browser can neither embed nor probe them, and a view, benchmark or
+language choice in a link from another site (`Sec-Fetch-Site` other than
+`same-origin` or `none`) applies to the page it opens and is never remembered
+(E25). The HTTPS posture is
 the reverse-proxy contract in `docs/home-deployment.md`: TLS is terminated by
 the proxy, the application never redirects on its own, and `PHX_FORCE_SSL` is
 the opt-in for the redirect and HSTS once the proxy sets `X-Forwarded-Proto`

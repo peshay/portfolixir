@@ -24,12 +24,16 @@ defmodule PortfolixirWeb.BenchmarkScope do
   Whether an id still names a flagged benchmark is decided where the
   selection is used, so an unflagged or deleted security degrades to
   "not selected". An explicit choice with no valid selector (the form
-  submitted with nothing ticked) clears the preference.
+  submitted with nothing ticked) clears the preference. A choice arriving
+  from another site (`Sec-Fetch-Site` other than `same-origin` or `none`)
+  applies to that request only and leaves the cookie as it was
+  (`PortfolixirWeb.FetchSite`, E25 S7, F18).
   """
 
   import Plug.Conn
 
   alias Portfolixir.Portfolios.Performance.Benchmark
+  alias PortfolixirWeb.FetchSite
 
   @cookie "portfolixir_benchmarks"
   @session_key "active_benchmarks"
@@ -147,26 +151,33 @@ defmodule PortfolixirWeb.BenchmarkScope do
     end
   end
 
-  defp apply_choice(conn, []) do
-    conn
-    |> put_session(@session_key, [])
-    |> delete_resp_cookie(@cookie)
+  # A choice in the query applies to this request through the session, and is
+  # remembered in the cookie only when the request may remember it
+  # (`PortfolixirWeb.FetchSite`, E25 S7, F18).
+  defp apply_choice(conn, selectors) do
+    conn = put_session(conn, @session_key, selectors)
+    if FetchSite.remember?(conn), do: remember(conn, selectors), else: conn
   end
 
-  defp apply_choice(conn, selectors) do
-    conn
-    |> put_session(@session_key, selectors)
-    |> put_resp_cookie(@cookie, Enum.join(selectors, ","), max_age: @max_age, same_site: "Lax")
-  end
+  defp remember(conn, []), do: delete_resp_cookie(conn, @cookie)
+
+  defp remember(conn, selectors),
+    do:
+      put_resp_cookie(conn, @cookie, Enum.join(selectors, ","),
+        max_age: @max_age,
+        same_site: "Lax"
+      )
 
   # The remembered selection is re-validated on every request; one that no
-  # longer passes is dropped from the session and from the cookie.
+  # longer passes is dropped from the session and from the cookie. The
+  # rewrite takes nothing from the request, so it happens whatever site the
+  # request came from.
   defp carry_cookie(conn) do
     case conn.cookies[@cookie] do
       raw when is_binary(raw) ->
         selectors = raw |> String.split(",") |> normalize_selectors()
         conn = put_session(conn, @session_key, selectors)
-        if Enum.join(selectors, ",") == raw, do: conn, else: apply_choice(conn, selectors)
+        if Enum.join(selectors, ",") == raw, do: conn, else: remember(conn, selectors)
 
       _none ->
         put_session(conn, @session_key, [])

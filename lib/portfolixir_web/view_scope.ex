@@ -16,9 +16,15 @@ defmodule PortfolixirWeb.ViewScope do
   The plug only validates the *shape* of the value (a positive integer id, or the
   literal `"total"`); whether an id still names a live view is decided where the
   scope is loaded, so a deleted view degrades gracefully.
+
+  A choice arriving from another site (`Sec-Fetch-Site` other than
+  `same-origin` or `none`) applies to that request only and leaves the cookie
+  as it was (`PortfolixirWeb.FetchSite`, E25 S7, F18).
   """
 
   import Plug.Conn
+
+  alias PortfolixirWeb.FetchSite
 
   @cookie "portfolixir_view"
   @session_key "active_view_id"
@@ -48,24 +54,23 @@ defmodule PortfolixirWeb.ViewScope do
   @doc "The cookie name the active view id is persisted under."
   def cookie_name, do: @cookie
 
-  # An explicit `?view=` was supplied: store the (validated) choice in both the
-  # session and the cookie. A malformed value clears both back to unset.
-  defp apply_choice(conn, nil) do
-    conn
-    |> put_session(@session_key, nil)
-    |> delete_resp_cookie(@cookie)
+  # An explicit `?view=` was supplied: store the (validated) choice in the
+  # session for this request and, when the request may remember it
+  # (`PortfolixirWeb.FetchSite`, E25 S7, F18), in the cookie the next request
+  # rebuilds the session from. A malformed value clears the choice back to
+  # unset the same way.
+  defp apply_choice(conn, choice) do
+    conn = put_session(conn, @session_key, choice)
+    if FetchSite.remember?(conn), do: remember(conn, choice), else: conn
   end
 
-  defp apply_choice(conn, "total") do
-    conn
-    |> put_session(@session_key, "total")
-    |> put_resp_cookie(@cookie, "total", max_age: @max_age, same_site: "Lax")
-  end
+  defp remember(conn, nil), do: delete_resp_cookie(conn, @cookie)
 
-  defp apply_choice(conn, view_id) when is_integer(view_id) do
-    conn
-    |> put_session(@session_key, view_id)
-    |> put_resp_cookie(@cookie, Integer.to_string(view_id),
+  defp remember(conn, "total"),
+    do: put_resp_cookie(conn, @cookie, "total", max_age: @max_age, same_site: "Lax")
+
+  defp remember(conn, view_id) when is_integer(view_id) do
+    put_resp_cookie(conn, @cookie, Integer.to_string(view_id),
       max_age: @max_age,
       same_site: "Lax"
     )

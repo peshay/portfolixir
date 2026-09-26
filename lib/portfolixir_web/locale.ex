@@ -47,11 +47,17 @@ defmodule PortfolixirWeb.Locale do
 
   defp maybe_store_locale(conn, nil), do: conn
 
+  # A `?locale=` from another site answers that request in the language it
+  # names and is not remembered (E25 S7, F18, `PortfolixirWeb.FetchSite`).
   defp maybe_store_locale(conn, locale) do
-    put_resp_cookie(conn, "portfolixir_locale", locale,
-      max_age: 60 * 60 * 24 * 365,
-      same_site: "Lax"
-    )
+    if PortfolixirWeb.FetchSite.remember?(conn) do
+      put_resp_cookie(conn, "portfolixir_locale", locale,
+        max_age: 60 * 60 * 24 * 365,
+        same_site: "Lax"
+      )
+    else
+      conn
+    end
   end
 
   defp preferred_browser_locale(conn) do

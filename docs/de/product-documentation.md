@@ -1410,7 +1410,11 @@ Bucket-Abschnitts verlinkt.
 **Als Standard festlegen** merkt sich
 die Wahl serverseitig, sodass Vermögensseite und Übersicht mit dieser Ansicht
 öffnen, solange keine andere ausdrücklich gewählt ist (eine ausdrückliche
-Wahl — auch von „Alles" — gewinnt immer). Teilen sich die Buckets der aktiven
+Wahl — auch von „Alles" — gewinnt immer). Eine Ansicht, eine Benchmark oder
+eine Sprache, die mit einem Link von einer anderen Website kommt, gilt für die
+Seite, die dieser Link öffnet, und wird nicht gemerkt (E25): Nur eine Wahl auf
+der Instanz selbst oder eine in die Adresszeile getippte ändert, was die
+nächste Seite zeigt. Teilen sich die Buckets der aktiven
 Ansicht ein Konto, erinnert ein Badge neben der Summe — *Überlappende Buckets –
 Konten nur einmal gezählt* — daran, dass sich Werte je Bucket überschneiden und
 nicht summiert werden dürfen; die Summe selbst ist bereits dedupliziert.
