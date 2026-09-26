@@ -182,6 +182,54 @@ defmodule Portfolixir.Net.HttpRedirectTest do
     end
   end
 
+  # User story (the closing act's mutation re-run, F27):
+  # As an operator who configured a provider API key,
+  # I want a hop that keeps the host but changes the port treated as a hop to
+  # another origin,
+  # so that my key only ever reaches the service it belongs to.
+  #
+  # Acceptance criteria:
+  # - A hop from the default https port to another port of the same host
+  #   drops authorization, cookies and any client-specific key header, and
+  #   keeps the user agent.
+  test "a port change alone drops the credential-bearing headers" do
+    test_pid = self()
+
+    req =
+      Http.new(
+        max_bytes: 1_000,
+        allowed_hosts: ["a.example.com"],
+        headers: [
+          {"user-agent", "portfolixir-test"},
+          {"authorization", "Bearer synthetic"},
+          {"x-synthetic-api-key", "synthetic-key"},
+          {"cookie", "session=synthetic"}
+        ]
+      )
+
+    plug = fn conn ->
+      send(test_pid, {:hop, conn.port, conn.req_headers})
+
+      case conn.request_path do
+        "/start" -> redirect(conn, "https://a.example.com:8443/other")
+        _ -> Plug.Conn.send_resp(conn, 200, "final")
+      end
+    end
+
+    assert {:ok, %Req.Response{status: 200}} =
+             Http.get(req, url: "https://a.example.com/start", plug: plug)
+
+    assert_received {:hop, 443, start}
+    assert {"authorization", "Bearer synthetic"} in start
+
+    assert_received {:hop, 8443, other}
+    names = Enum.map(other, &elem(&1, 0))
+    refute "authorization" in names
+    refute "x-synthetic-api-key" in names
+    refute "cookie" in names
+    assert {"user-agent", "portfolixir-test"} in other
+  end
+
   test "the whole chain runs under one deadline" do
     req = Http.new(max_bytes: 1_000, allowed_hosts: ["a.example.com"], deadline_ms: 100)
 
