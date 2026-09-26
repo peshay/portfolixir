@@ -52,12 +52,14 @@ if config_env() == :prod do
   # placeholder, with the variable named in the failure. Named principals
   # (E25 S7, G26): PORTFOLIXIR_API_TOKENS holds name=token entries whose name
   # the journal records for every write made with the token;
-  # PORTFOLIXIR_API_TOKEN stays the unnamed default.
+  # PORTFOLIXIR_API_TOKEN stays the default, unnamed unless
+  # PORTFOLIXIR_API_PRINCIPAL names it (Compose: "mcp").
   config :portfolixir,
          :api_tokens,
          Portfolixir.RuntimeConfig.api_tokens!(
            System.get_env("PORTFOLIXIR_API_TOKEN"),
-           System.get_env("PORTFOLIXIR_API_TOKENS")
+           System.get_env("PORTFOLIXIR_API_TOKENS"),
+           System.get_env("PORTFOLIXIR_API_PRINCIPAL")
          )
 
   config :portfolixir, Portfolixir.Repo,

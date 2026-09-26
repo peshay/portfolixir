@@ -155,6 +155,10 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
       {:credential,
        "the local bearer token the JSON API accepts and the MCP companion presents " <>
          "(AGENTS.md: tokens from environment configuration)"},
+    "PORTFOLIXIR_API_PRINCIPAL" =>
+      {:config,
+       "the name the journal records for writes made with PORTFOLIXIR_API_TOKEN (Compose: " <>
+         "mcp); a label, never a credential or a host (E25 S7 review round)"},
     "PORTFOLIXIR_API_TOKENS" =>
       {:credential,
        "named local bearer tokens the JSON API accepts, name=token entries whose name the " <>
