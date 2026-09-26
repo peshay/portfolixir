@@ -395,6 +395,16 @@ defmodule Portfolixir.Lifecycle.CashMergeTest do
                  )
       end
 
+      # Every moved, restated or deleted row has its entry, and no other row
+      # has one: a moved source anchor is one row with one entry.
+      moved = Enum.map(record.manifest["transactions"]["moved"], & &1["id"])
+      restated = Enum.map(record.manifest["transactions"]["restated"], & &1["id"])
+      assert moved != [] and restated != []
+      assert rows.t_anchor.id in restated
+
+      assert Enum.sort(transaction_ids) ==
+               Enum.sort(Enum.map(Enum.uniq(deleted ++ moved ++ restated), &to_string/1))
+
       assert Repo.aggregate(Transaction, :count) == count_before - length(deleted)
       assert Enum.all?(entries, &(&1.actor_label == "synthetic-agent"))
 
