@@ -135,12 +135,15 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
 
   ## The apply (`apply/4`)
 
-  The consent (`Portfolixir.Lifecycle.MergeFlow`), then in one transaction,
-  locks in a fixed order — the ISIN write lock every identifier writer takes
-  first, both securities `FOR UPDATE` in id order (which keeps any new
-  booking of either out), every depot the plan writes an override of `FOR NO
-  KEY UPDATE` in id order (the lock the bucket writers take), and every
-  booking of either security `FOR UPDATE` — the plan recomputed and its
+  The consent (`Portfolixir.Lifecycle.MergeFlow`), then in one transaction
+  (`MergeFlow.transaction/1`, which answers a lock cycle it loses as a
+  changed plan), locks in a fixed order — the account-identity lock of every
+  portfolio (the importer's first lock), the ISIN write lock every identifier
+  writer takes first, every depot either security's bookings or overrides
+  name `FOR NO KEY UPDATE` in id order (the lock the bucket writers take
+  before they reach the security), both securities `FOR UPDATE` in id order
+  (which keeps any new booking of either out), and every booking of either
+  security `FOR UPDATE` — the plan recomputed and its
   digest compared (`plan_changed` with the fresh preview on a mismatch);
   then, through `Portfolixir.Lifecycle.MergeWriter`, one journal entry per
   row:
@@ -201,6 +204,7 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Lifecycle
+  alias Portfolixir.Lifecycle.AccountNames
   alias Portfolixir.Lifecycle.Delete
   alias Portfolixir.Lifecycle.MergeFigures
   alias Portfolixir.Lifecycle.MergeFlow
@@ -352,9 +356,12 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
 
         :gone ->
           source_gone(source_id, target_id)
+
+        :raced ->
+          Repo.rollback(:raced)
       end
     end
-    |> Repo.transaction()
+    |> MergeFlow.transaction()
     |> case do
       {:ok, {outcome, record}} ->
         {:ok, record, outcome}
@@ -370,15 +377,44 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
     end
   end
 
-  # The fixed lock order (§10): the ISIN write lock every identifier writer
-  # takes first, then both securities FOR UPDATE in id order — a new booking
-  # of either waits for the merge, and fails on the deleted source after it
-  # — then every depot either security's bookings or overrides name, FOR NO
-  # KEY UPDATE in id order: the lock the bucket writers take on the depot of
-  # a position, which conflicts with no foreign-key check of a booking.
+  # The fixed lock order (§10), shared with every writer that can run beside
+  # it:
+  #
+  #   1. the account-identity advisory lock of every portfolio, ascending —
+  #      the lock the importer takes before any row lock (its bookings then
+  #      key-share-lock their securities in file order, and it takes the
+  #      ISIN lock only when it creates a security), and every cash or depot
+  #      merge and name writer takes first; so an import and a security
+  #      merge never hold row locks the other waits on;
+  #   2. the ISIN write lock every identifier writer takes first;
+  #   3. every depot either security's bookings or overrides name, FOR NO
+  #      KEY UPDATE in id order — before the securities, because the
+  #      position-override writers lock the depot, then key-share-lock the
+  #      security through the override's foreign key;
+  #   4. both securities FOR UPDATE in id order: a new booking of either
+  #      waits for the merge, and fails on the deleted source after it.
+  #
+  # A depot that took a first booking or override of either security between
+  # the read in 3 and the lock in 4 is a changed plan (`:raced`), answered
+  # with a fresh preview. `MergeFlow.transaction/1` answers a cycle a writer
+  # outside this order still closes the same way.
   defp locked_pair(source_id, target_id) do
     ids = Enum.uniq([source_id, target_id])
+
+    Repo.all(from(p in Portfolio, select: p.id))
+    |> AccountNames.lock_identity()
+
     {:ok, :locked} = IdentifierAliases.lock_isin_writes(Repo, %{})
+    depot_ids = named_depots(ids)
+
+    Repo.all(
+      from(a in SecuritiesAccount,
+        where: a.id in ^depot_ids,
+        order_by: a.id,
+        lock: "FOR NO KEY UPDATE",
+        select: a.id
+      )
+    )
 
     securities =
       Repo.all(from(s in Security, where: s.id in ^ids, order_by: s.id, lock: "FOR UPDATE"))
@@ -388,18 +424,9 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
         :gone
 
       source ->
-        depot_ids = named_depots(ids)
-
-        Repo.all(
-          from(a in SecuritiesAccount,
-            where: a.id in ^depot_ids,
-            order_by: a.id,
-            lock: "FOR NO KEY UPDATE",
-            select: a.id
-          )
-        )
-
-        {:ok, source, Enum.find(securities, &(&1.id == target_id)), MapSet.new(depot_ids)}
+        if MapSet.subset?(MapSet.new(named_depots(ids)), MapSet.new(depot_ids)),
+          do: {:ok, source, Enum.find(securities, &(&1.id == target_id)), MapSet.new(depot_ids)},
+          else: :raced
     end
   end
 

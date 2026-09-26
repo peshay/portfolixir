@@ -178,7 +178,7 @@ defmodule Portfolixir.Lifecycle.CashMerge do
         :gone -> source_gone(source_id, target_id)
       end
     end
-    |> Repo.transaction()
+    |> MergeFlow.transaction()
     |> case do
       {:ok, {outcome, record}} ->
         {:ok, record, outcome}
