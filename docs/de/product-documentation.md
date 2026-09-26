@@ -312,9 +312,13 @@ nächsten Import sicher: Nach einer Zusammenführung legt ein erneut
 importierter, schon angewendeter Export nichts an, welche ISIN er auch trägt,
 und neue Zeilen unter den Kennzeichen des Duplikats werden einmal gebucht,
 auf das Wertpapier, das bleibt. Ein Lesen der ID des Duplikats antwortet
-danach mit dem Wertpapier, auf dem es jetzt liegt. Ein Rückgängigmachen gibt
-es nicht; das Protokoll der Zusammenführung und das Audit-Journal zeigen, was
-sie getan hat.
+danach mit dem Wertpapier, auf dem es jetzt liegt, und der Bildschirm ebenso:
+Ein Link oder Lesezeichen auf die Seite des Duplikats öffnet das Wertpapier,
+in das es zusammengeführt wurde, mit einem Hinweis darauf und dem Tag der
+Zusammenführung, und ein Benchmark, der das Duplikat nannte, stellt den
+Vergleich der Vermögens-Seite auf dieses Wertpapier um, mit demselben Hinweis
+unter der Performance-Überschrift. Ein Rückgängigmachen gibt es nicht; das
+Protokoll der Zusammenführung und das Audit-Journal zeigen, was sie getan hat.
 
 ### Identitätsfelder, die einfrieren (ADR-0050 §11)
 
@@ -506,14 +510,95 @@ bucht auf jenes andere Konto. Konten, die sich schon vor dieser Regel einen
 Namen teilten, bleiben, wie sie sind; eines davon umzubenennen beendet die
 Mehrdeutigkeit. Die früheren Namen stehen in den API- und MCP-Nutzlasten
 (`former_names`) und lassen sich dort entfernen; ein Import, der einen
-entfernten Namen noch nennt, legt dann ein neues Konto an. Die Bedienelemente
-zum Umbenennen und Entfernen auf dieser Seite folgen mit dem Zeilenmenü der
-Konten.
+entfernten Namen noch nennt, legt dann ein neues Konto an. Auf dieser Seite
+liegen beide im Zeilenmenü, siehe *Umbenennen, zusammenführen und löschen*
+unten.
 
 Durchgearbeitete Beispiele — Haushalts-Aufteilung, Strategie-Ansichten mit
 eigenen SOLL-Plänen, Übersetzen von Portfolio-Performance-Gewohnheiten und
 das Ausschließen einer Position aus der Steuerung — stehen im Leitfaden
 [Buckets & Ansichten](guides/buckets-and-views.html).
+
+### Umbenennen, zusammenführen und löschen (ADR-0050 §4, §7, §8, §10)
+
+Jede Zeile — ein Depot, das Verrechnungskonto darunter, ein Geldkonto für
+sich — hat ihr eigenes **⋮**-Menü, benannt nach ihrer Zeile (*Aktionen für
+Tagesgeld*): **Umbenennen**, **Getrennt taggen** (an einem Depot, das
+gemeinsam mit seinem Verrechnungskonto getaggt ist), **Zusammenführen in…**
+und **Löschen**, in dieser Reihenfolge. Auf einem schmalen Bildschirm öffnet
+sich das Menü als Blatt von unten und nennt oben seine Zeile.
+
+**Umbenennen** ändert nur den Namen; Währung und Portfolio-Bindung frieren
+wie oben beschrieben ein, Rolle und Buckets bleiben in der Zeile. Vor dem
+Speichern sagt der Dialog, was mit dem aktuellen Namen geschieht: Er bleibt
+ein **früherer Name** des Kontos, sodass ein Import, der ihn noch nennt,
+weiter hierher bucht — oder, solange ein anderes Konto der Art noch so heißt,
+wird er nicht behalten, und ein solcher Import bucht auf jenes andere Konto.
+Ein Name, auf den ein anderes Konto hört, als Namen oder als früheren Namen,
+wird am Feld abgelehnt, zusammen mit dem Konto, das ihn trägt, und nichts
+wird geschrieben. Dass sich die Zeile ändert, ist die Bestätigung.
+
+Derselbe Dialog listet die **früheren Namen** des Kontos; ein Name, der mit
+einer Zusammenführung kam, sagt, an welchem Tag. **Entfernen** nimmt einen
+nach einer Rückfrage weg, die sagt, was das kostet: *Ein Import, der noch
+„Tagesgeld 2019“ nennt, legt dann ein neues Konto an.* Unter dem Namen des
+Kontos zeigt die Zeile den neuesten früheren Namen (*früher: …*) und, an
+einem Konto, in das andere zusammengeführt wurden, die neueste
+Zusammenführung (*zusammengeführt aus Tagesgeld (alt) · Datum*), jeweils mit
+*+N*, wenn es mehr gibt.
+
+**Zusammenführen in…** vereint zwei Konten, die eigentlich eines sind —
+typischerweise ein Konto, das ein Import unter anderem Namen ein zweites Mal
+angelegt hat. Das Konto, das Sie zusammenführen (die Quelle), verschwindet;
+das Konto, das Sie wählen (das Ziel), behält alles. Es sind zwei Schritte in
+einem Dialog:
+
+1. **Ziel.** Die Quelle steht mit Währung, Liquiditätsrolle, Buckets,
+   Buchungen und Saldo da, und jedes andere Konto der Art ist aufgeführt.
+   Wählbar ist nur ein Konto mit derselben Währung, derselben
+   Liquiditätsrolle und denselben Buckets — bei einem Depot mit denselben
+   Standard-Buckets. Die übrigen stehen unter *Nicht wählbar*, jedes mit
+   seinem Grund, sodass klar ist, was zuerst anzugleichen ist.
+2. **Vorschau.** Noch ist nichts geschrieben. Für Geldkonten zeigt die
+   Vorschau beide Salden und ihre Summe, die Buchungen, die umziehen, die
+   Umbuchungen zwischen den beiden, die entfallen (sie heben sich auf,
+   sobald die beiden eines sind), die verknüpften Depots, die umziehen, und
+   die gesetzten Salden, die angepasst werden — jeder mit seinem Datum und
+   seinem Wert danach — oder entfallen. Für Depots zeigt sie je betroffener
+   Position Stückzahl, Durchschnittskosten und realisierten Gewinn/Verlust
+   vorher und nachher sowie einen Split, dessen Rundung sich unterscheidet,
+   sobald beide Historien vereint sind. **Buchungen, die in beiden Konten
+   gleich sind** — gleicher Tag, gleiche Art, gleiche Beträge, typischerweise
+   ein Import, der zweimal ankam — stehen mit zwei Wahlmöglichkeiten da,
+   *als Duplikate entfernen* oder *beide behalten*, jede mit dem Saldo, zu
+   dem sie führt (bei Geldkonten); *als Duplikate entfernen* nennt außerdem,
+   was es außerhalb der beiden ändert, etwa den Saldo eines anderen Kontos
+   oder die Stückzahl einer Position. Keine ist vorausgewählt, und der Knopf
+   **In … zusammenführen** bleibt deaktiviert, mit dem Grund daneben, bis
+   Sie wählen.
+
+Die Bestätigung wendet genau den Plan an, den die Vorschau zeigte: Die
+Buchungen, die verknüpften Depots und die angepassten gesetzten Salden ziehen
+zum Ziel, die Namen der Quelle werden frühere Namen des Ziels — sodass der
+nächste Import unter dem alten Namen auf das Ziel bucht —, und die Quelle
+wird gelöscht. Das Ergebnis steht über der Tabelle (*Tagesgeld (alt) in
+Tagesgeld zusammengeführt: 151 Buchungen verschoben, 2 entfernt.*). Hat sich
+eines der Konten geändert, während die Vorschau offen war, wird nichts
+zusammengeführt: Der Dialog zeigt die neue Vorschau, sagt, was sich geändert
+hat, und fragt die Wahl erneut ab. Eine Zusammenführung, die nicht jede
+Position in ihren Ansichten halten kann — zwei Depots, die ein Wertpapier in
+verschiedenen Buckets halten, etwa —, wird schon in der Vorschau mit Grund
+und Abhilfe abgelehnt; **Erneut prüfen** liest sie nach dem Angleichen neu.
+Ein Rückgängigmachen gibt es nicht; das Protokoll der Zusammenführung und das
+Audit-Journal zeigen, was sie getan hat. Ihr Agent liest die Protokolle mit
+`GET /api/v1/merges` (MCP `portfolixir.merges.list`); eine Liste auf dem
+Bildschirm folgt spätestens in Sprint 17.
+
+**Löschen** entfernt ein Konto nur, wenn nichts darauf verweist — keine
+Buchung und bei einem Geldkonto kein verknüpftes Depot — und fragt einmal
+nach, mit dem Namen des Kontos. Ein Konto mit Buchungen wird nicht gelöscht:
+*Kann nicht gelöscht werden* sagt, was es noch hat, und bietet stattdessen
+**Zusammenführen in…** an — so verschwindet ein Konto mit Historie.
 
 ### Portfoliodatensätze (Kompatibilität)
 
