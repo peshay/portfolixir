@@ -188,7 +188,10 @@ defmodule PortfolixirWeb.PortfolioAccounts.RenameDialog do
       name == "" ->
         {:noreply, assign(socket, name: name, error: gettext("Enter a name."))}
 
-      name == account.name ->
+      # The dialog trims what it saves, so the stored name trimmed is the
+      # unchanged submit: a name stored with spaces before names were trimmed
+      # is left as it is rather than renamed onto a twin (EH-5).
+      name == String.trim(account.name) ->
         notify(socket, :close)
         {:noreply, socket}
 

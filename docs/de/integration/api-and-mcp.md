@@ -986,7 +986,10 @@ Beispiel-Antwort für Kurssynchronisierung:
   eine Zeile, die einen früheren Namen nennt, auf dieses Konto bucht. Zwei
   Konten einer Art in einem Portfolio teilen nie einen aktuellen oder früheren
   Namen; Namen, die zwei Konten schon vor dieser Regel teilten, lösen auf keines
-  der beiden auf, und der Import wartet, bis der Betreiber eines wählt.
+  der beiden auf, und der Import wartet, bis der Betreiber eines wählt. Ein
+  Name wird ohne führende und abschließende Leerzeichen gespeichert, so wie der
+  Import ihn liest; ein Name, der sich von dem eines anderen Kontos nur durch
+  sie unterscheidet, ist dieser Name.
 - `GET /api/v1/cash_accounts/:id` liefert ein Geldkonto. Ein Konto, das eine
   Zusammenführung entfernt hat, antwortet `404` mit `errors.merged_into`
   `{"kind": "cash_account", "id": …}`, dem Konto, auf dem seine Historie

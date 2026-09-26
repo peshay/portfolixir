@@ -253,6 +253,44 @@ defmodule Portfolixir.Lifecycle.AccountNamesTest do
                Portfolios.update_cash_account(agent(), a, %{notes: "kept"})
     end
 
+    # User story (closing-act finding EH-5):
+    # As the operator whose agent names accounts over the API,
+    # I want a name stored the way the rename dialog and the importer read
+    # it — without leading or trailing spaces —
+    # so that two accounts whose names look identical on every page cannot
+    # both exist, and an import naming the account finds it.
+    #
+    # Acceptance criteria:
+    # - A create or a rename stores the name trimmed, for both kinds.
+    # - A name that differs from a live name only by surrounding spaces is
+    #   that name: the guard refuses it.
+    # - A rename to the stored name plus spaces changes nothing.
+    test "a name is stored trimmed, and spaces do not make it another name", %{
+      portfolio: portfolio
+    } do
+      giro = cash!(portfolio, "Tagesgeld ")
+      assert giro.name == "Tagesgeld"
+
+      assert {:error, changeset} = create_cash(portfolio, "Tagesgeld")
+
+      assert %{name: ["is already the name of cash account ##{giro.id} in this portfolio"]} ==
+               errors_on(changeset)
+
+      assert {:ok, %{name: "Tagesgeld", former_names: []}} =
+               Portfolios.update_cash_account(agent(), giro, %{name: "  Tagesgeld  "})
+
+      savings = cash!(portfolio, "Savings")
+
+      assert {:error, changeset} =
+               Portfolios.update_cash_account(agent(), savings, %{name: " Tagesgeld"})
+
+      assert %{name: ["is already the name of cash account #" <> _]} = errors_on(changeset)
+
+      depot = depot!(portfolio, " Broker depot ", giro)
+      assert depot.name == "Broker depot"
+      assert {:error, _changeset} = create_depot(portfolio, "Broker depot", giro)
+    end
+
     test "the guard runs under the portfolio's account-identity advisory lock", %{
       portfolio: portfolio
     } do

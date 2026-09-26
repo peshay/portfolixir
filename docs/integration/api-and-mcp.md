@@ -964,7 +964,9 @@ Example quote sync response:
   first, then by the former names, so a row that names a former name books
   onto this account. Two accounts of one kind in a portfolio never share a
   live or former name; names two accounts already shared before this rule
-  resolve to neither, and the import waits for the operator to pick one.
+  resolve to neither, and the import waits for the operator to pick one. A
+  name is stored without leading or trailing spaces, as the import reads it,
+  so a name that differs from another account's only by them is that name.
 - `GET /api/v1/cash_accounts/:id` returns one cash account. An account a
   merge took away answers `404` with `errors.merged_into`
   `{"kind": "cash_account", "id": …}`, the account its history lives on now,

@@ -174,6 +174,23 @@ defmodule Portfolixir.Lifecycle.AccountNames do
   # --- the guard and the rename rule --------------------------------------------
 
   @doc """
+  Trims the `name` a changeset casts, on both kinds and every writer that
+  builds its write there (closing-act finding EH-5). The importer's parsers
+  and the rename dialog read a name trimmed, and the guard compares exact
+  strings: a name stored with surrounding spaces looked identical to its
+  trimmed twin on every page while the guard let both exist, and an import
+  naming it never found it. A name that is only spaces becomes blank and is
+  refused as missing.
+  """
+  @spec trim_name(Changeset.t()) :: Changeset.t()
+  def trim_name(%Changeset{} = changeset) do
+    Changeset.update_change(changeset, :name, fn
+      name when is_binary(name) -> String.trim(name)
+      name -> name
+    end)
+  end
+
+  @doc """
   Attaches the name guard, and for a rename the rename rule, to `changeset`.
   A new row is always checked; a stored row only when its `name` or its
   `portfolio_id` changes. The check runs when the row is written, inside the

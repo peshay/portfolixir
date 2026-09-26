@@ -136,6 +136,29 @@ defmodule PortfolixirWeb.AccountsLifecycleLiveTest do
              "Another cash account is also named “Giro”, so the current name is not kept: an import that names it books to that account. Merge or rename that account to change this."
   end
 
+  # User story (closing-act finding EH-5):
+  # As the operator whose account was stored with a trailing space before
+  # names were trimmed, next to one of the same name without it,
+  # I want saving the rename dialog unchanged to change nothing,
+  # so that I am not refused for an edit I never made.
+  #
+  # Acceptance criteria:
+  # - Submitting the stored name, which the dialog trims, closes the dialog
+  #   with no error and no write; the stored name stays as it was.
+  test "saving an untrimmed legacy name unchanged writes nothing", %{conn: conn} do
+    w = world()
+    legacy = legacy_cash!(w.portfolio, "Tagesgeld ")
+    _twin = cash!(w.portfolio, "Tagesgeld")
+
+    {:ok, view, _html} = live(conn, "/portfolios")
+    open_menu_item(view, "cash", legacy.id, "rename")
+    html = view |> form("#rename-form", rename: %{name: "Tagesgeld "}) |> render_submit()
+
+    refute html =~ "is already the name of another cash account"
+    refute has_element?(view, "#rename-dialog")
+    assert Portfolios.get_cash_account(legacy.id).name == "Tagesgeld "
+  end
+
   test "renaming a depot says it keeps booking to this depot", %{conn: conn} do
     w = world()
     {:ok, view, _html} = live(conn, "/portfolios")

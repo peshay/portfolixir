@@ -25,6 +25,7 @@ defmodule Portfolixir.Portfolios.SecuritiesAccount do
   def changeset(securities_account, attrs) do
     securities_account
     |> cast(attrs, [:portfolio_id, :cash_account_id, :name, :notes])
+    |> AccountNames.trim_name()
     |> validate_required([:portfolio_id, :cash_account_id, :name])
     # E25 S4 (G17, G24): the column's width in code points, no control
     # characters; after L1's identity freezes, which stay as they are.

@@ -39,6 +39,7 @@ defmodule Portfolixir.Portfolios.CashAccount do
   def changeset(cash_account, attrs) do
     cash_account
     |> cast(attrs, [:portfolio_id, :name, :currency_code, :notes, :liquidity_role])
+    |> AccountNames.trim_name()
     |> normalize_currency_code()
     |> validate_required([:portfolio_id, :name, :currency_code, :liquidity_role])
     # E25 S4 (G17, G24): the column's width in code points, no control
