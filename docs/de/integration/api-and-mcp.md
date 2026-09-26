@@ -1171,6 +1171,26 @@ Beispiel-Antwort für Kurssynchronisierung:
   oder eine fehlende `target_id` oder ein `collapse_key_equal`, der kein
   Boolean ist, `422`. Ein Rückgängigmachen gibt es nicht. Der Dialog für den
   Operator folgt im selben Batch (L5).
+- `GET /api/v1/merges` listet die **Zusammenführungsprotokolle**, das
+  neueste zuerst (`inserted_at`, dann `id`) — der Audit-Lesezugriff auf einen
+  zerstörenden Schreibvorgang (ADR-0050 §12; `portfolixir.merges.list`).
+  Jedes Protokoll trägt `id`, `kind` (`cash_account`, `securities_account`
+  oder `security`), `source` `{id, name}` (der Name, den die
+  Zusammenführung festgehalten hat, weil die Quelle nicht mehr existiert),
+  `target` `{id, name, merged_into}` (`merged_into` ist `null`, solange das
+  Ziel existiert, sonst die id, in die eine spätere Zusammenführung es
+  überführt hat, bis zum lebenden Ende verfolgt), `portfolio_id` (`null` für
+  ein Wertpapier), `actor_type`, `actor_label`, `inserted_at` und
+  `manifest_summary`: das `manifest` des Protokolls, in dem jede Liste durch
+  ihre Anzahl ersetzt ist — verschobene, angepasste und gelöschte Buchungen,
+  angehängte Namen, verschobene und verworfene Kurse — und die Wahl des
+  Operators, wie gegeben. `meta` trägt `order`, `count` und `limit`. `limit`
+  folgt der Listen-Familie: Standard 100, gedeckelt bei 1000, und null, eine
+  negative Zahl oder keine Zahl antwortet `422`. Der Lesezugriff ist
+  **zuerst für den Agenten**: Der Operator sieht eine Zusammenführung auf
+  „Konten & Depots“ (die Zeile „zusammengeführt aus“ des Überlebenden und
+  seine früheren Namen), und eine Listenansicht der Protokolle folgt
+  spätestens in Sprint 17 unter der Zwei-Wege-Frist.
 
 Beispiel-Payloads für Konten:
 

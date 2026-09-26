@@ -111,6 +111,10 @@ defmodule PortfolixirWeb.Router do
 
     get("/journal", JournalController, :index)
 
+    # ADR-0050 §12: the merge records, the audit read of a destructive write
+    # (agent-first; its list view lands no later than Sprint 17).
+    get("/merges", MergeController, :index)
+
     # The contract-version read (ADR-0044 §8): what this surface offers and
     # when it last changed, pollable with ?since=.
     get("/contract", ContractController, :show)

@@ -47,7 +47,35 @@ defmodule PortfolixirWeb.Api.V1.MergeController do
   alias Portfolixir.Lifecycle
   alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.ListLimit
   alias PortfolixirWeb.Api.V1.MergeJSON
+
+  # The list-limit family's bound (#771, #811), spelled its way.
+  @default_limit 100
+  @max_limit 1000
+
+  @doc """
+  `GET /api/v1/merges` (ADR-0050 §12): the merge records, newest first, each
+  with what went into what, who did it and a summary of its manifest — the
+  audit read of a destructive write. Agent-first: its list view lands no
+  later than Sprint 17 under the two-way deadline. `limit=` is the list
+  family's (default #{@default_limit}, capped at #{@max_limit}, echoed in
+  `meta.limit`; zero, a negative or a non-number answers 422).
+  """
+  def index(conn, params) do
+    case ListLimit.parse(params, @default_limit, @max_limit) do
+      {:ok, limit} ->
+        merges = Lifecycle.list_merges(limit)
+
+        json(conn, %{
+          data: Enum.map(merges, &MergeJSON.listed/1),
+          meta: %{order: "inserted_at:desc,id:desc", count: length(merges), limit: limit}
+        })
+
+      {:error, :limit} ->
+        unprocessable(conn, %{limit: ["must be a positive integer"]})
+    end
+  end
 
   def cash_account_preview(conn, params), do: preview(conn, :cash_account, params)
   def cash_account_merge(conn, params), do: merge(conn, :cash_account, params)

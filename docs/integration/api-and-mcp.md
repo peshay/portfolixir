@@ -1132,6 +1132,23 @@ Example quote sync response:
   `already_merged`; a missing `plan_digest` or `target_id`, or a
   `collapse_key_equal` that is not a boolean, `422`. There is no unmerge.
   The operator's merge dialog follows in the same batch (L5).
+- `GET /api/v1/merges` lists the **merge records**, newest first
+  (`inserted_at`, then `id`) — the audit read of a destructive write
+  (ADR-0050 §12; `portfolixir.merges.list`). Each record carries `id`,
+  `kind` (`cash_account`, `securities_account` or `security`), `source`
+  `{id, name}` (the name the merge recorded, since the source no longer
+  exists), `target` `{id, name, merged_into}` (`merged_into` is `null` while
+  the target lives, otherwise the id a later merge moved it into, followed to
+  the live end), `portfolio_id` (`null` for a security), `actor_type`,
+  `actor_label`, `inserted_at` and `manifest_summary`: the record's
+  `manifest` with every list replaced by its count — bookings moved,
+  restated and deleted, names appended, quotes moved and dropped — and the
+  operator's choices as given. `meta` carries `order`, `count` and `limit`.
+  `limit` is the list family's: default 100, capped at 1000, and zero, a
+  negative or a non-number answers `422`. The read is **agent-first**: the
+  operator sees a merge on Accounts & depots (the survivor's "merged from"
+  line and its former names), and a list view of the records lands no later
+  than Sprint 17 under the two-way deadline.
 
 Example account payloads:
 
