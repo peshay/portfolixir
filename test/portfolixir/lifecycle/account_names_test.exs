@@ -10,6 +10,7 @@ defmodule Portfolixir.Lifecycle.AccountNamesTest do
 
   alias Ecto.Multi
   alias Portfolixir.Actor
+  alias Portfolixir.Interleave
   alias Portfolixir.Journal
   alias Portfolixir.Lifecycle.AccountNames
   alias Portfolixir.Portfolios
@@ -236,6 +237,23 @@ defmodule Portfolixir.Lifecycle.AccountNamesTest do
 
       assert %{former_names: [message]} = errors_on(changeset)
       assert message =~ ~s(include "Giro", the name of cash account #)
+
+      # A former name another account there carries as a former name.
+      {:ok, bank_there} =
+        Portfolios.update_cash_account(agent(), cash!(other, "Bank"), %{name: "Bank (new)"})
+
+      {:ok, bank_here} =
+        Portfolios.update_cash_account(agent(), cash!(portfolio, "Bank"), %{name: "Bank (old)"})
+
+      assert {:error, changeset} =
+               Portfolios.update_cash_account(agent(), bank_here, %{portfolio_id: other.id})
+
+      assert %{former_names: [message]} = errors_on(changeset)
+
+      assert message ==
+               ~s(include "Bank", a former name of cash account ##{bank_there.id} in this portfolio)
+
+      assert reload(bank_here).portfolio_id == portfolio.id
     end
 
     # User story:
@@ -511,6 +529,100 @@ defmodule Portfolixir.Lifecycle.AccountNamesTest do
 
       assert {:ok, %SecuritiesAccount{former_names: []}} =
                Portfolios.remove_securities_account_former_name(agent(), depot, "Depot")
+    end
+  end
+
+  describe "an account gone under a former-name write (§4, E25 S6 F49)" do
+    # User story:
+    # As the importer remembering a name, or the operator removing one, on an
+    # account another writer deleted,
+    # I want a not-found answer, never a server error,
+    # so that the import reports the account as gone and the page reloads.
+    #
+    # Acceptance criteria:
+    # - The outcome read and the remember of an account that does not exist
+    #   answer :not_found; the remember writes nothing.
+    # - An account deleted between the write's read of its portfolio and its
+    #   row lock answers {:error, :not_found}, and the write journals nothing.
+    test "a missing account answers not_found", %{portfolio: portfolio} do
+      gone = cash!(portfolio, "Gone")
+      {:ok, _} = Portfolios.delete_cash_account(agent(), gone)
+      before = journal_count()
+
+      assert AccountNames.remember_outcome(CashAccount, gone.id, "Old name") == :not_found
+
+      assert {:error, :not_found} =
+               AccountNames.remember(Actor.import_session(), CashAccount, gone.id, "Old name")
+
+      assert journal_count() == before
+    end
+
+    test "an account deleted between the read and the lock answers not_found", %{
+      portfolio: portfolio
+    } do
+      giro = cash!(portfolio, "Giro")
+      {:ok, main} = Portfolios.update_cash_account(agent(), giro, %{name: "Main account"})
+      before = journal_count()
+
+      portfolio_read? = fn
+        %{source: "cash_accounts", query: query} -> not (query =~ "FOR")
+        _metadata -> false
+      end
+
+      # The delete runs inside the removal's transaction here, so it is
+      # rolled back with the removal's refusal (`Portfolixir.Interleave`).
+      assert {{:error, :not_found}, {:ok, %CashAccount{}}} =
+               Interleave.run(
+                 portfolio_read?,
+                 fn -> Portfolios.delete_cash_account(agent(), main) end,
+                 fn -> Portfolios.remove_cash_account_former_name(agent(), main, "Giro") end
+               )
+
+      assert journal_count() == before
+    end
+  end
+
+  describe "the names a merge appends (§4, §7 step 7)" do
+    # User story:
+    # As the operator merging an account whose name another live account of
+    # the portfolio also carries (a duplicate from before the guard),
+    # I want the merge to leave that name where it is, and say so,
+    # so that an import naming it keeps booking to the account that carries
+    # it.
+    #
+    # Acceptance criteria:
+    # - The source's live name, held live by a third account, is not
+    #   appended; it is answered as not kept, held by that account, as its
+    #   live name.
+    # - A name held as a former name by a third account is answered as not
+    #   kept, as a former name; a free one is appended.
+    test "a name a third account carries is not kept, and says how", %{portfolio: portfolio} do
+      source = legacy_cash!(portfolio, "Giro")
+      third = legacy_cash!(portfolio, "Giro")
+      target = cash!(portfolio, "Main account")
+
+      {:ok, holder} =
+        Portfolios.update_cash_account(agent(), cash!(portfolio, "Tagesgeld"), %{name: "Savings"})
+
+      source =
+        source
+        |> CashAccount.former_names_changeset(["Tagesgeld", "Reserve"])
+        |> then(&Multi.update(Multi.new(), :account, &1))
+        |> Journal.record(Actor.owner_ui(),
+          resource_type: "cash_account",
+          operation: :update,
+          source: :account,
+          before: source
+        )
+        |> Repo.transaction()
+        |> then(fn {:ok, %{account: account}} -> account end)
+
+      assert AccountNames.merge_names(source, target) ==
+               {["Reserve"],
+                [
+                  %{name: "Giro", held_by: third.id, as: :live},
+                  %{name: "Tagesgeld", held_by: holder.id, as: :former}
+                ]}
     end
   end
 
