@@ -511,6 +511,15 @@ simply a former name, so a rename and a merge look alike.
 batch cannot wait for a pick, so A is built; a comment naming B on the PR
 changes it.
 
+**Three lines board 02's step 2 lacks (before/after, no pick).** Each only
+when it applies, each in a form board 02 already has: a linked depot of the
+source that moves with it (§7 step 5) is one more line in the counts; what
+"remove as duplicates" changes outside the two accounts (§16 invariant 9:
+third accounts, positions, a flow an anchor absorbs) is a muted line inside
+that option, under its consequence line; a split whose rounding differs once
+two positions combine (§7) is a line in the basis under the positions table,
+with its date and ratio.
+
 **The Wealth benchmark note (before/after, no pick).** A remembered or linked
 benchmark naming a merged-away security used to drop silently. After: the
 page redirects to the survivor's selector and shows board 03's note under the
