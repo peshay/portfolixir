@@ -297,9 +297,13 @@ the table, and its overview line names the former ISIN and the merge
 The merge is refused, with the reason, where it cannot keep everything exact:
 different currencies, one a benchmark and the other not, research notes or a
 policy rule on the duplicate (merge the other way if that passes, or keep
-both), positions in different views, splits that disagree, or an identifier
-of either security — as stored, as its Portfolio Performance import recorded
-it, or a former ISIN — that would no longer find the kept security. The dialog
+both), positions in different views, splits that disagree (two ratios on one
+day: delete the split with the wrong ratio), a split of the duplicate that
+still carries an import hash from before the import-hash check (the dialog
+names it: change its kind back, or delete it), or an identifier of either
+security — as stored, as its Portfolio Performance import recorded it, a
+former ISIN, or that of a security merged into either before — that would no
+longer find the kept security. The dialog
 names every reason at once, each rule by name, and offers **Merge the other
 way** where that direction passes; where it is refused as well, both reasons
 stand and nothing else is offered. That last
@@ -563,7 +567,12 @@ nothing is merged: the dialog shows the new preview, says what changed, and
 asks for the choice again. A merge that cannot keep every position in its
 views — two depots holding one security in different buckets, say — is
 refused in the preview with the reason and the remedy; **Check again**
-re-reads it after you have aligned the two. There is no unmerge; the merge
+re-reads it after you have aligned the two. So is a cash merge that would
+have to store a set balance with more decimal places than an amount holds —
+a buy or sell booked without its amount, whose cash is quantity × price, can
+cause it — and one whose set balance still carries an import hash from
+before the import-hash check: the dialog names each set balance and booking
+by account, date and number, and says what to change. There is no unmerge; the merge
 record and the audit journal show what a merge did. Your agent reads the
 merge records with `GET /api/v1/merges` (MCP `portfolixir.merges.list`); a
 list of them on a screen lands no later than Sprint 17.
