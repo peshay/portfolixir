@@ -47,7 +47,10 @@ defmodule Portfolixir.Lifecycle.AccountNames do
       account moves; a live name of another account is not remembered
       (`remember_outcome/3` says which before the import is applied);
     * the **removal** (`remove_former_name/3`);
-    * the merge, which appends the source's names (L3).
+    * the **merge** (ADR-0050 §7 step 7): `merge_names/2` answers which of
+      the source's names the target gains — checked by the guard after the
+      source is gone — and `Portfolixir.Lifecycle.MergeWriter` appends them
+      under the lock the merge took first.
 
   Every write of `former_names` is journaled with its before and after.
   """
@@ -386,6 +389,67 @@ defmodule Portfolixir.Lifecycle.AccountNames do
     |> limit(1)
     |> select([a], %{id: a.id, name: a.name})
     |> Repo.one()
+  end
+
+  # --- the merge ------------------------------------------------------------------
+
+  @typedoc "A name a merge does not keep, and the account of the kind that carries it."
+  @type not_kept :: %{name: String.t(), held_by: integer(), as: :live | :former}
+
+  @doc """
+  The names a merge of `source` into `target` appends to the target's former
+  names (ADR-0050 §4, §7 step 7), read-only: the source's live name, then its
+  former names, in that order. Skipped, as the guard requires:
+
+    * the target's live name, and a name the target already remembers — so
+      merging two accounts of one name records nothing and ends their
+      ambiguity;
+    * a name another account of the kind in the portfolio carries as its
+      live or former name — the rename rule's skip: an import naming it
+      already books to that account. It is answered in `not_kept` with its
+      holder, so the preview can say so.
+
+  The source's own names never count against it: they are checked as if the
+  source were gone, which it is by the time the merge writes them. Answers
+  `{appended, not_kept}`.
+  """
+  @spec merge_names(account(), account()) :: {[String.t()], [not_kept()]}
+  def merge_names(%schema{} = source, %schema{} = target) when schema in @schemas do
+    [source.name | source.former_names]
+    |> Enum.uniq()
+    |> Enum.reduce({[], []}, fn name, {kept, not_kept} ->
+      cond do
+        name == target.name or name in target.former_names ->
+          {kept, not_kept}
+
+        holder = holder_excluding(schema, target.portfolio_id, name, [source.id, target.id]) ->
+          {kept, [holder | not_kept]}
+
+        true ->
+          {[name | kept], not_kept}
+      end
+    end)
+    |> then(fn {kept, not_kept} -> {Enum.reverse(kept), Enum.reverse(not_kept)} end)
+  end
+
+  defp holder_excluding(schema, portfolio_id, name, ids) do
+    live =
+      schema
+      |> where([a], a.portfolio_id == ^portfolio_id and a.name == ^name and a.id not in ^ids)
+      |> first_holder()
+
+    former =
+      live ||
+        schema
+        |> where([a], a.portfolio_id == ^portfolio_id and ^name in a.former_names)
+        |> where([a], a.id not in ^ids)
+        |> first_holder()
+
+    cond do
+      live -> %{name: name, held_by: live.id, as: :live}
+      former -> %{name: name, held_by: former.id, as: :former}
+      true -> nil
+    end
   end
 
   # --- the remembered remap ------------------------------------------------------

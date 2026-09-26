@@ -40,8 +40,12 @@ defmodule Portfolixir.Invariants.IdentityFreezeWritersTest do
   #                    carries the freeze and changes no frozen field;
   #   :logo_only     — `logo_changeset/2`, which writes `attributes` alone;
   #   :former_names_only — `former_names_changeset/2` (ADR-0050 §4), which
-  #                    writes `former_names` alone, for the remembered remap
-  #                    and the removal.
+  #                    writes `former_names` alone, for the remembered remap,
+  #                    the removal and a merge's append of the source's names;
+  #   :cash_link_only  — `SecuritiesAccount.reassign_changeset/2` (ADR-0050 §7
+  #                    step 5), which writes a depot's `cash_account_id` alone,
+  #                    for a cash-account merge re-pointing the source's
+  #                    linked depots; no frozen field and no name is cast.
   @expected_writers %{
     {"lib/portfolixir/portfolios.ex", :create_cash_account, "CashAccount.changeset"} => :insert,
     {"lib/portfolixir/portfolios.ex", :update_cash_account, "CashAccount.changeset"} => :update,
@@ -57,7 +61,13 @@ defmodule Portfolixir.Invariants.IdentityFreezeWritersTest do
     {"lib/portfolixir/lifecycle/account_names.ex", :former_names_changeset,
      "CashAccount.former_names_changeset"} => :former_names_only,
     {"lib/portfolixir/lifecycle/account_names.ex", :former_names_changeset,
-     "SecuritiesAccount.former_names_changeset"} => :former_names_only
+     "SecuritiesAccount.former_names_changeset"} => :former_names_only,
+    {"lib/portfolixir/lifecycle/merge_writer.ex", :append_former_names,
+     "CashAccount.former_names_changeset"} => :former_names_only,
+    {"lib/portfolixir/lifecycle/merge_writer.ex", :append_former_names,
+     "SecuritiesAccount.former_names_changeset"} => :former_names_only,
+    {"lib/portfolixir/lifecycle/merge_writer.ex", :reassign_depot,
+     "SecuritiesAccount.reassign_changeset"} => :cash_link_only
   }
 
   @changeset_writes ~w(put_change force_change change)a
@@ -81,8 +91,14 @@ defmodule Portfolixir.Invariants.IdentityFreezeWritersTest do
   #   :remember_or_removal — the remembered remap and the removal, which hold
   #                     the lock and decide the outcome first;
   #   :backfill       — the one-time migration from the journal, held against
-  #                     the guard before it writes (it runs alone, at upgrade).
-  # The merge (L3) joins this list with its own reason.
+  #                     the guard before it writes (it runs alone, at upgrade);
+  #   :merge          — a merge's append of the source's names to the target
+  #                     (ADR-0050 §7 step 7, L3): the merge holds the
+  #                     account-identity lock it took first, and appends only
+  #                     what `AccountNames.merge_names/2` answered after the
+  #                     source was deleted — the guard's check, with the
+  #                     target's live name, its own former names and every
+  #                     name another account carries left out.
   @former_name_writers %{
     {"lib/portfolixir/portfolios/cash_account.ex", :former_names_changeset} => :schema_builder,
     {"lib/portfolixir/portfolios/securities_account.ex", :former_names_changeset} =>
@@ -90,7 +106,8 @@ defmodule Portfolixir.Invariants.IdentityFreezeWritersTest do
     {"lib/portfolixir/lifecycle/account_names.ex", :guard_rename} => :rename_rule,
     {"lib/portfolixir/lifecycle/account_names.ex", :former_names_changeset} =>
       :remember_or_removal,
-    {"lib/portfolixir/lifecycle/former_names_backfill.ex", :write_row} => :backfill
+    {"lib/portfolixir/lifecycle/former_names_backfill.ex", :write_row} => :backfill,
+    {"lib/portfolixir/lifecycle/merge_writer.ex", :append_former_names} => :merge
   }
 
   # User story:
