@@ -2,7 +2,10 @@ defmodule PortfolixirWeb.RequireUiAuth do
   @moduledoc """
   The browser-pipeline half of the optional UI login (ADR-0045 §1, #764):
   with a password configured, an unauthenticated request is redirected to the
-  login page with the path to return to. Without one, a no-op.
+  login page with the path to return to, cleaned by
+  `PortfolixirWeb.UiAuth.safe_return_path/1` (no view, locale or benchmark
+  choice rides through the login: E25 S7 review round, S7E-2). Without one, a
+  no-op.
   """
 
   import Plug.Conn
@@ -22,7 +25,9 @@ defmodule PortfolixirWeb.RequireUiAuth do
       UiAuth.refresh(conn)
     else
       conn
-      |> redirect(to: "/login?" <> URI.encode_query(%{"to" => return_path(conn)}))
+      |> redirect(
+        to: "/login?" <> URI.encode_query(%{"to" => UiAuth.safe_return_path(return_path(conn))})
+      )
       |> halt()
     end
   end

@@ -108,16 +108,18 @@ defmodule PortfolixirWeb.PortfolioLive do
     end
   end
 
-  defp mount_page(params, _session, socket) do
+  defp mount_page(params, session, socket) do
     wealth_tab = wealth_tab(params)
+    carried_view = carried_view(params, session)
 
     socket =
       socket
       # The tab rides in current_path so the view/locale switchers (which
       # derive their hrefs from it) keep the user on the active tab — and an
-      # explicit ?view= rides along too, so a tab or locale switch keeps the
-      # picked view in the URL (ADR-0024).
-      |> assign(:current_path, wealth_tab |> wealth_tab_path() |> keep_view_param(params))
+      # explicit, remembered ?view= rides along too, so a tab or locale switch
+      # keeps the picked view in the URL (ADR-0024).
+      |> assign(:carried_view, carried_view)
+      |> assign(:current_path, wealth_tab |> wealth_tab_path() |> keep_view_param(carried_view))
       |> assign(:wealth_tab, wealth_tab)
       |> assign(:error, nil)
       |> assign(:view_gone_notice, false)
@@ -196,11 +198,25 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp wealth_tab_path(:allocation), do: "/portfolio?tab=allocation"
   defp wealth_tab_path(_tab), do: "/portfolio"
 
-  # Merges an explicit ?view= from the mount params into current_path (same
-  # query-merging pattern as the switcher's own hrefs), so the tab bar and the
-  # locale switcher — which derive their links from current_path — carry the
-  # picked view along instead of dropping it.
-  defp keep_view_param(path, %{"view" => view}) when is_binary(view) do
+  # The explicit ?view= the page's links may carry: the one in the address
+  # when it is the remembered choice the session holds. A view that arrived
+  # from another site is not in the session (`PortfolixirWeb.FetchSite`), so
+  # the page shows it but its links do not pass it on: a click on one is a
+  # request from the instance, which would remember it (E25 S7 review round,
+  # S7E-2).
+  defp carried_view(%{"view" => view}, session) when is_binary(view) do
+    if PortfolixirWeb.ViewScope.choice(view) ==
+         Map.get(session, PortfolixirWeb.ViewScope.session_key()),
+       do: view
+  end
+
+  defp carried_view(_params, _session), do: nil
+
+  # Merges the carried ?view= into current_path (same query-merging pattern as
+  # the switcher's own hrefs), so the tab bar and the locale switcher — which
+  # derive their links from current_path — carry the picked view along
+  # instead of dropping it.
+  defp keep_view_param(path, view) when is_binary(view) do
     uri = URI.parse(path)
 
     query =
@@ -212,7 +228,7 @@ defmodule PortfolixirWeb.PortfolioLive do
     URI.to_string(%{uri | query: query})
   end
 
-  defp keep_view_param(path, _params), do: path
+  defp keep_view_param(path, _view), do: path
 
   @impl true
   # URL → state for the allocation selections (mobile-reconnect fix). mount
@@ -235,8 +251,10 @@ defmodule PortfolixirWeb.PortfolioLive do
     current_path =
       case socket.assigns.wealth_tab do
         :allocation ->
+          # The mount's carried view, never the address's own (S7E-2): an
+          # allocation patch keeps what the page's links may pass on.
           allocation_current_path(
-            params["view"],
+            socket.assigns.carried_view,
             classification_id,
             allocation_mode,
             min_drift_pp

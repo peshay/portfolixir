@@ -181,6 +181,14 @@ defmodule PortfolixirWeb.UiAuth do
   @doc """
   The path to return to after login: a relative path on this instance, never
   a protocol-relative or absolute URL. Anything else becomes `/`.
+
+  The path keeps its query **without the preference parameters** — `view`,
+  `locale`, `benchmark` (`benchmark[]`) and `benchmark_rate` (E25 S7 review
+  round, S7E-2). The redirect after a login is a request from the instance
+  itself, so a choice it carried would be remembered
+  (`PortfolixirWeb.FetchSite`), including one another site's link put into
+  the path the login page was sent to. A choice made on the instance is
+  remembered by the request the login interrupted, so nothing is lost.
   """
   @spec safe_return_path(term()) :: String.t()
   def safe_return_path(path) when is_binary(path) do
@@ -191,11 +199,39 @@ defmodule PortfolixirWeb.UiAuth do
       # Whitespace and control characters: what Phoenix's redirect refuses,
       # returned as "/" here rather than raised after a correct password.
       Regex.match?(~r/[\x00-\x20\x7f]/, path) -> "/"
-      true -> path
+      true -> without_preferences(path)
     end
   end
 
   def safe_return_path(_path), do: "/"
+
+  @preference_parameters ~w(view locale benchmark benchmark_rate)
+
+  # Every other pair stays as it was written, in its order.
+  defp without_preferences(path) do
+    case String.split(path, "?", parts: 2) do
+      [_no_query] ->
+        path
+
+      [base, query] ->
+        case query |> String.split("&") |> Enum.reject(&preference_pair?/1) do
+          [] -> base
+          kept -> base <> "?" <> Enum.join(kept, "&")
+        end
+    end
+  end
+
+  # The pair's key as Plug decodes it, `view[]` and `benchmark[0]` included.
+  defp preference_pair?(pair) do
+    key = pair |> String.split("=", parts: 2) |> hd() |> decode_key()
+    (key |> String.split("[", parts: 2) |> hd()) in @preference_parameters
+  end
+
+  defp decode_key(key) do
+    URI.decode_www_form(key)
+  rescue
+    ArgumentError -> key
+  end
 
   defp configured_password do
     Application.get_env(:portfolixir, :ui_password) || System.get_env("PORTFOLIXIR_UI_PASSWORD")
