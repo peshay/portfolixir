@@ -163,10 +163,14 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
     refute has_element?(view, "#security-merge-dialog input[name='merge[identity]'][checked]")
     refute has_element?(view, "#security-merge-dialog input[name='merge[isin_changed_on]']")
 
+    # Each figure inside its own term (review finding M-6), not anywhere in
+    # the block.
     sum = view |> element("#security-merge-dialog [data-role='merge-identity']") |> render()
-    assert sum =~ "5"
-    assert sum =~ "12"
-    assert sum =~ "17"
+
+    assert [source_term, target_term, result_term] =
+             Regex.scan(~r/<b class="num">([^<]*)<small>/, sum, capture: :all_but_first)
+
+    assert {source_term, target_term, result_term} == {["5"], ["12"], ["17"]}
     assert sum =~ "15 shares if the equal booking is removed"
 
     counts = view |> element("#security-merge-dialog [data-role='merge-counts']") |> render()
