@@ -32,6 +32,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Projection
   alias Portfolixir.Lifecycle
+  alias Portfolixir.Lifecycle.Delete
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Valuation
   alias PortfolixirWeb.AppShell
@@ -44,6 +45,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias PortfolixirWeb.PolicyRuleReferences
   alias PortfolixirWeb.Securities.FilterPopover
   alias PortfolixirWeb.Securities.LogoOverrideDialog
+  alias PortfolixirWeb.Securities.MergeDialog
   alias PortfolixirWeb.Securities.RowContextMenu
   alias PortfolixirWeb.Securities.SecurityFormDialog
   alias PortfolixirWeb.Securities.SplitWizardDialog
@@ -149,6 +151,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:editing_security, nil)
      |> assign(:delete_blocked, nil)
      |> assign(:delete_blocked_rules, [])
+     |> assign(:delete_blocked_merge?, false)
+     # ADR-0050 §9 (board 03): the security whose merge dialog is open.
+     |> assign(:merge_source_id, nil)
+     # A merge's result survives the one patch that opens its survivor.
+     |> assign(:keep_result_once, false)
+     |> assign(:detail_lineage, %{former_isins: [], merged_from: []})
      # ADR-0050 §12 (board 03): the note a link to a merged-away security
      # leaves on its survivor's detail, until the next navigation.
      |> assign(:merged_notice, nil)
@@ -275,6 +283,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # dismiss, or a navigation (#566) — this is the navigation case. A busy
   # state survives the patch: the action is still running and its result
   # message will replace it.
+  defp clear_action_result_on_navigation(%{assigns: %{keep_result_once: true}} = socket),
+    do: assign(socket, :keep_result_once, false)
+
   defp clear_action_result_on_navigation(socket) do
     case socket.assigns[:action_result] do
       {:busy, _message} -> socket
@@ -880,6 +891,15 @@ defmodule PortfolixirWeb.SecuritiesLive do
         <RowContextMenu.delete_blocked_dialog
           security={@delete_blocked}
           rules={@delete_blocked_rules}
+          merge?={@delete_blocked_merge?}
+        />
+      <% end %>
+
+      <%= if @merge_source_id do %>
+        <.live_component
+          module={MergeDialog}
+          id="security-merge-dialog"
+          source_id={@merge_source_id}
         />
       <% end %>
 
@@ -1300,6 +1320,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
           holdings={@detail_holdings}
           quotes={@detail_quotes}
           classifications={@detail_classifications}
+          lineage={@detail_lineage}
           thesis_state={@detail_thesis_state}
           note_editing?={@detail_note_editing?}
         />
@@ -1479,6 +1500,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   attr(:holdings, :list, required: true)
   attr(:quotes, :list, required: true)
   attr(:classifications, :list, required: true)
+  # ADR-0050 §9, §12 (board 03, "Danach"): the former ISINs and the merges
+  # the security carries, for the basis line.
+  attr(:lineage, :map, default: %{former_isins: [], merged_from: []})
   attr(:thesis_state, :map, required: true)
   attr(:note_editing?, :boolean, default: false)
 
@@ -1597,11 +1621,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
           </div>
 
           <p
-            :if={overview_basis(@security, @classifications) != "" or @security.is_retired}
+            :if={overview_basis(@security, @classifications, @lineage) != "" or @security.is_retired}
             class="summary-basis"
             data-role="overview-basis"
           >
-            <%= overview_basis(@security, @classifications) %>
+            <%= overview_basis(@security, @classifications, @lineage) %>
             <span :if={@security.is_retired} class="badge badge--retired">
               <%= gettext("Retired") %>
             </span>
@@ -1744,18 +1768,47 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # The reading surface's basis line: where the quotes come from, what the
   # security is, where it is classified, and the identifier the header does
   # not carry. Every value reads as a word (#785), never as a stored constant.
-  defp overview_basis(security, classifications) do
-    [
-      feed_clause(security),
-      latest_feed_clause(security),
-      class_clause(security),
-      classification_clause(classifications),
-      security.wkn && security.wkn != "" && gettext("WKN %{wkn}", wkn: security.wkn),
-      security.exchange_code && security.exchange_code != "" &&
-        gettext("Exchange %{code}", code: security.exchange_code)
-    ]
+  defp overview_basis(security, classifications, lineage) do
+    ([
+       feed_clause(security),
+       latest_feed_clause(security),
+       class_clause(security),
+       classification_clause(classifications),
+       security.wkn && security.wkn != "" && gettext("WKN %{wkn}", wkn: security.wkn),
+       security.exchange_code && security.exchange_code != "" &&
+         gettext("Exchange %{code}", code: security.exchange_code)
+     ] ++ lineage_clauses(lineage))
     |> Enum.filter(&is_binary/1)
     |> Enum.join(" · ")
+  end
+
+  # ADR-0029 §3, ADR-0050 §9, §12 (board 03, "Danach"): where the numbers
+  # come from also means which ISINs lead here and what was merged in. The
+  # merged source is named with the ISIN it carried then, because after an
+  # adopted ISIN the survivor carries it itself.
+  defp lineage_clauses(%{former_isins: aliases, merged_from: merges}) do
+    Enum.map(aliases, fn alias_row ->
+      gettext("former ISIN %{isin} (until %{date})",
+        isin: alias_row.former_isin,
+        date: Date.to_iso8601(alias_row.changed_on)
+      )
+    end) ++
+      Enum.map(merges, fn merge ->
+        case merge.source_isin do
+          nil ->
+            gettext("merged on %{date} from “%{name}”",
+              date: Date.to_iso8601(merge.merged_on),
+              name: merge.source_name
+            )
+
+          isin ->
+            gettext("merged on %{date} from “%{name}” (then %{isin})",
+              date: Date.to_iso8601(merge.merged_on),
+              name: merge.source_name,
+              isin: isin
+            )
+        end
+      end)
   end
 
   defp feed_clause(%Security{feed: feed}) when feed not in [nil, ""],
@@ -4682,7 +4735,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
         {:noreply,
          socket
          |> assign(:delete_blocked, sec)
-         |> assign(:delete_blocked_rules, PolicyRuleReferences.references(rules))}
+         |> assign(:delete_blocked_rules, PolicyRuleReferences.references(rules))
+         |> assign(:delete_blocked_merge?, false)}
 
       # ADR-0050 §11: gone already (another writer deleted it) — the row just
       # goes; nothing references a security that is not there.
@@ -4690,10 +4744,32 @@ defmodule PortfolixirWeb.SecuritiesLive do
         {:noreply, socket |> assign(:delete_blocked, nil) |> load_securities()}
 
       # Referenced by bookings, quotes, notes, events or rule versions
-      # ({:referenced, counts}), or refused otherwise: nothing was written.
+      # ({:referenced, counts}): nothing was written. Where a merge could
+      # carry what blocks it, the dialog offers one (ADR-0050 §9, board 03).
+      {:error, {:referenced, counts}} ->
+        {:noreply,
+         socket
+         |> assign(:delete_blocked, sec)
+         |> assign(:delete_blocked_rules, [])
+         |> assign(:delete_blocked_merge?, Delete.remedy(sec, counts) == :merge)}
+
       {:error, _reason} ->
-        {:noreply, socket |> assign(:delete_blocked, sec) |> assign(:delete_blocked_rules, [])}
+        {:noreply,
+         socket
+         |> assign(:delete_blocked, sec)
+         |> assign(:delete_blocked_rules, [])
+         |> assign(:delete_blocked_merge?, false)}
     end
+  end
+
+  # ADR-0050 §9 (board 03): "Merge into…" from the row menu or from "Cannot
+  # delete" opens the merge's first step for that security — never a dialog
+  # from a dialog (UX-DR9): "Cannot delete" closes first.
+  defp dispatch_row_action(socket, "merge", %Security{} = sec) do
+    {:noreply,
+     socket
+     |> assign(:delete_blocked, nil)
+     |> assign(:merge_source_id, sec.id)}
   end
 
   # Re-trigger protection (#566): while a lookup is running (busy state in the
@@ -4860,6 +4936,22 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> load_detail_data()}
   end
 
+  def handle_info({:dialog, "security-merge-dialog", :close}, socket) do
+    {:noreply, assign(socket, :merge_source_id, nil)}
+  end
+
+  # ADR-0050 §9 (board 03, "Danach"): the dialog closes, the result stands
+  # inline above the table until the next action, and the survivor's row is
+  # selected with its detail open.
+  def handle_info({:dialog, "security-merge-dialog", {:merged, message, target_id}}, socket) do
+    {:noreply,
+     socket
+     |> assign(:merge_source_id, nil)
+     |> put_action_result(:note, message)
+     |> assign(:keep_result_once, true)
+     |> push_patch(to: securities_path(socket.assigns, id: target_id))}
+  end
+
   def handle_info({:dialog, _id, :close}, socket) do
     {:noreply,
      socket
@@ -4956,6 +5048,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:detail_events, [])
     |> assign(:detail_status, nil)
     |> assign(:detail_classifications, [])
+    |> assign(:detail_lineage, %{former_isins: [], merged_from: []})
     |> assign(:detail_new_category_for, nil)
     |> assign(:detail_notes, [])
     |> assign(:detail_thesis_state, ThesisState.none())
@@ -5034,6 +5127,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
     # without any stored rate).
     |> assign(:detail_status, Valuation.security_status(id, holding_base_currencies(holdings)))
     |> assign(:detail_classifications, load_security_classifications(id))
+    |> assign(:detail_lineage, %{
+      former_isins: Catalog.list_identifier_aliases(socket.assigns.selected_security),
+      merged_from: Map.get(Lifecycle.merged_from(:security, [id]), id, [])
+    })
     |> load_research_log()
   end
 

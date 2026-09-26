@@ -9073,6 +9073,157 @@ dialog.merge-dialog {
   margin-bottom: 8px;
 }
 
+/* The security merge (board 03-security-merge, pick G3-A): the source and
+   the target as two cards, because their names can be equal; the role word
+   above each, "deleted" in the danger colour and as a word (UX-DR7). */
+.merge-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: stretch;
+}
+
+.merge-pair__side {
+  display: grid;
+  gap: 2px;
+  align-content: start;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.merge-pair__side b {
+  font-weight: 700;
+}
+
+.merge-pair__side small {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.merge-pair__role {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.merge-pair__role--gone {
+  color: var(--color-danger);
+}
+
+.merge-pair__arrow {
+  align-self: center;
+  font-size: 18px;
+  color: var(--color-text-muted);
+}
+
+/* An option card with a title, a tag and one consequence line (G3-A); the
+   date of an ISIN change follows the "Adopt" card, aligned with its text. */
+.merge-option__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.merge-option__tag {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.merge-option-field {
+  display: grid;
+  gap: 3px;
+  max-width: 220px;
+  margin: -2px 0 2px 34px;
+}
+
+.merge-option-field label {
+  font-size: 12px;
+}
+
+.merge-option-field input {
+  font-family: var(--font-mono);
+}
+
+/* The preview's compact tables: pairs, colliding quotes, settings, events,
+   master data. A cell's reason stands under its value, muted. */
+.merge-table th,
+.merge-table td {
+  padding: 6px 8px;
+  font-size: 12.5px;
+}
+
+.merge-table td small {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.merge-table__keep {
+  font-weight: 600;
+}
+
+.merge-table__drop {
+  color: var(--color-text-muted);
+}
+
+.merge-outcome {
+  font-weight: 600;
+}
+
+.merge-outcome--moves::before {
+  content: "→ ";
+  color: var(--color-text-muted);
+}
+
+.merge-outcome--dropped::before {
+  content: "✕ ";
+  color: var(--color-text-muted);
+}
+
+.merge-more > summary {
+  font-size: 13px;
+}
+
+.merge-refusal__rules {
+  margin: 0 0 4px;
+  padding-left: 18px;
+}
+
+.merge-refusal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 720px) {
+  /* Under 720 px the cards stack and the arrow points down (board 03 at
+     390 px). */
+  .merge-pair {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .merge-pair__arrow {
+    justify-self: center;
+    transform: rotate(90deg);
+    font-size: 14px;
+    line-height: 1;
+  }
+}
+
 /* An empty live region takes no room in the body's gap. */
 .merge-region:empty {
   display: none;

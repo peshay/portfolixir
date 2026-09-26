@@ -177,14 +177,21 @@ defmodule Portfolixir.Lifecycle do
 
   @doc """
   The merges into each of `target_ids` under `kind`, oldest first, as
-  `%{target_id => [%{source_id, source_name, merged_on}]}` — what a survivor
-  shows as "merged from …" (ADR-0050 §12). `merged_on` is the host's
+  `%{target_id => [%{source_id, source_name, source_isin, merged_on}]}` —
+  what a survivor shows as "merged from …" (ADR-0050 §12). `source_isin` is
+  the ISIN a security's snapshot recorded (`nil` for an account, or a
+  security without one). `merged_on` is the host's
   calendar date of the merge (`Portfolixir.Clock.local_date/1`). Direct
   merges only: a source that was itself a survivor keeps its own sources.
   """
   @spec merged_from(:cash_account | :securities_account | :security, [integer()]) :: %{
           optional(integer()) => [
-            %{source_id: integer(), source_name: String.t() | nil, merged_on: Date.t()}
+            %{
+              source_id: integer(),
+              source_name: String.t() | nil,
+              source_isin: String.t() | nil,
+              merged_on: Date.t()
+            }
           ]
         }
   def merged_from(kind, target_ids)
@@ -198,6 +205,7 @@ defmodule Portfolixir.Lifecycle do
       %{
         source_id: record.source_id,
         source_name: snapshot_name(record),
+        source_isin: snapshot_isin(record),
         merged_on: Portfolixir.Clock.local_date(record.inserted_at)
       }
     end)
@@ -237,6 +245,11 @@ defmodule Portfolixir.Lifecycle do
     do: name
 
   defp snapshot_name(_record), do: nil
+
+  defp snapshot_isin(%MergeRecord{source_snapshot: %{"isin" => isin}}) when is_binary(isin),
+    do: isin
+
+  defp snapshot_isin(_record), do: nil
 
   @doc """
   Retires the content hash of a row a merge removed, on behalf of `actor`,
