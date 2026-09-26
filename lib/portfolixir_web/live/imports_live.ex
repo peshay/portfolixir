@@ -463,7 +463,7 @@ defmodule PortfolixirWeb.ImportsLive do
              every duplicate with its layer. --%>
         <% total = @account_states.counts.total %>
         <AppShell.data_note
-          :if={total.new == 0 and total.hash + total.retired > 0}
+          :if={total.new == 0 and nothing_new?(total)}
           severity={:note}
           data-role="nothing-to-import"
         ><%= nothing_to_import(total) %></AppShell.data_note>
@@ -969,7 +969,14 @@ defmodule PortfolixirWeb.ImportsLive do
 
   # --- what each account row says (ADR-0050 §3, §4; boards 04 and 04b) ---
 
-  @empty_counts %{hash: 0, retired: 0, unimportable: 0, new: 0}
+  @empty_counts %{
+    hash: 0,
+    retired: 0,
+    unimportable: 0,
+    economics: 0,
+    internal_transfer: 0,
+    new: 0
+  }
 
   # How each file name resolves (the prefill's own resolution) and how many
   # of the file's bookings each name carries per first-check layer, read
@@ -1147,24 +1154,37 @@ defmodule PortfolixirWeb.ImportsLive do
 
   attr(:counts, :map, required: true)
 
-  # Per row (board 04): how many of its bookings are already imported, and
-  # how many are new — "nothing to create" when none is. A booking that names
-  # two accounts counts in both rows.
+  # Per row (board 04): how many of its bookings are already imported (by
+  # content hash, a merge's retired hash, or an equal booking the apply finds
+  # by its economics), how many internal transfers are dropped, and how many
+  # are new — "nothing to create" when none is. A booking that names two
+  # accounts counts in both rows.
   defp mapping_count(assigns) do
-    assigns = assign(assigns, hits: assigns.counts.hash + assigns.counts.retired)
+    counts = assigns.counts
+    assigns = assign(assigns, hits: already_imported(counts), transfers: counts.internal_transfer)
 
     ~H"""
     <span class="mapping-count" data-role="mapping-count"><%= if @hits > 0 do %><%= ngettext(
           "%{count} booking already imported",
           "%{count} bookings already imported",
           @hits
-        ) %> · <b><%= if @counts.new > 0,
-          do: ngettext("%{count} new", "%{count} new", @counts.new),
-          else: gettext("nothing to create") %></b><% else %><b><%= if @counts.new > 0,
-          do: ngettext("%{count} booking new", "%{count} bookings new", @counts.new),
-          else: gettext("nothing to create") %></b><% end %></span>
+        ) %> · <% end %><%= if @transfers > 0 do %><%= ngettext(
+          "%{count} internal transfer dropped",
+          "%{count} internal transfers dropped",
+          @transfers
+        ) %> · <% end %><b><%= cond do
+          @counts.new == 0 -> gettext("nothing to create")
+          @hits + @transfers > 0 -> ngettext("%{count} new", "%{count} new", @counts.new)
+          true -> ngettext("%{count} booking new", "%{count} bookings new", @counts.new)
+        end %></b></span>
     """
   end
+
+  # Rows the apply skips as already booked, on any of its layers.
+  defp already_imported(counts), do: counts.hash + counts.retired + counts.economics
+
+  # Nothing new, but something the import recognises: a file already applied.
+  defp nothing_new?(counts), do: already_imported(counts) + counts.internal_transfer > 0
 
   attr(:name, :string, required: true)
   attr(:chosen, :string, default: nil)
@@ -1264,9 +1284,8 @@ defmodule PortfolixirWeb.ImportsLive do
   end
 
   defp basis(%{resolution: :none, counts: counts} = assigns) do
-    if assigns.chosen == "create:#{assigns.name}" and counts.new == 0 and
-         counts.hash + counts.retired > 0,
-       do: :create_nothing
+    if assigns.chosen == "create:#{assigns.name}" and counts.new == 0 and nothing_new?(counts),
+      do: :create_nothing
   end
 
   defp basis(%{resolution: {:ambiguous, tier, ids}, counts: %{new: new}} = assigns)
@@ -1388,26 +1407,59 @@ defmodule PortfolixirWeb.ImportsLive do
   # ADR-0050 §2: a file already applied is a no-op — said once, for the
   # whole file (board 04, "Randfall").
   defp nothing_to_import(total) do
-    hits = total.hash + total.retired
+    hits = already_imported(total)
+    transfers = total.internal_transfer
 
     already =
-      if total.unimportable == 0,
-        do:
-          ngettext(
-            "The entry is already imported.",
-            "All %{count} entries are already imported.",
-            hits
-          ),
-        else:
-          ngettext(
-            "%{count} entry is already imported; the others cannot be imported.",
-            "%{count} entries are already imported; the others cannot be imported.",
-            hits
-          )
+      cond do
+        hits == 0 ->
+          []
 
-    already <>
-      " " <>
-      gettext("The import creates nothing: no booking, no account, no depot, no security.")
+        total.unimportable > 0 ->
+          [
+            ngettext(
+              "%{count} entry is already imported; the others cannot be imported.",
+              "%{count} entries are already imported; the others cannot be imported.",
+              hits
+            )
+          ]
+
+        transfers > 0 ->
+          [
+            ngettext(
+              "%{count} entry is already imported.",
+              "%{count} entries are already imported.",
+              hits
+            )
+          ]
+
+        true ->
+          [
+            ngettext(
+              "The entry is already imported.",
+              "All %{count} entries are already imported.",
+              hits
+            )
+          ]
+      end
+
+    dropped =
+      if transfers > 0,
+        do: [
+          ngettext(
+            "%{count} internal transfer is dropped: both of its accounts are one account now.",
+            "%{count} internal transfers are dropped: both accounts of each are one account now.",
+            transfers
+          )
+        ],
+        else: []
+
+    Enum.join(
+      already ++
+        dropped ++
+        [gettext("The import creates nothing: no booking, no account, no depot, no security.")],
+      " "
+    )
   end
 
   # --- the result's lists (boards 04 and 04b) ---

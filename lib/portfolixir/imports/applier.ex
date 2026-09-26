@@ -289,26 +289,58 @@ defmodule Portfolixir.Imports.Applier do
     flat_entries = Entry.flatten(entries)
 
     Repo.transaction(fn ->
-      :ok = AccountNames.lock_identity(portfolio_id)
-
-      state =
-        base_state(portfolio_id, default_currency, params, %Result{})
-        |> Map.merge(%{
-          cash_by_name: %{},
-          pending_cash: %{},
-          depot_by_name: %{},
-          pending_depots: %{}
-        })
-        |> resolve_unmapped_names(flat_entries)
-
-      with {:ok, state} <- execute_security_mappings(flat_entries, state),
-           {:ok, final_state} <- reduce_entries(flat_entries, state) do
-        final_state.result
-      else
+      case run_auto(flat_entries, portfolio_id, default_currency, params) do
+        {:ok, final_state} -> final_state.result
         {:error, reason} -> Repo.rollback(reason)
       end
     end)
     |> enrich_after_commit()
+  end
+
+  # The auto-resolving apply's body, inside the caller's transaction: every
+  # unmapped name resolved as the preview's prefill resolves it, every row
+  # judged in file order.
+  defp run_auto(flat_entries, portfolio_id, default_currency, params) do
+    :ok = AccountNames.lock_identity(portfolio_id)
+
+    state =
+      base_state(portfolio_id, default_currency, params, %Result{})
+      |> Map.merge(%{
+        cash_by_name: %{},
+        pending_cash: %{},
+        depot_by_name: %{},
+        pending_depots: %{}
+      })
+      |> resolve_unmapped_names(flat_entries)
+
+    with {:ok, state} <- execute_security_mappings(flat_entries, state),
+         do: reduce_entries(flat_entries, state)
+  end
+
+  # What the apply would do with every row, under the preview's prefill,
+  # without writing anything (ADR-0050 §2–§5; the L3–L5 review round, F2):
+  # the auto-resolving apply run in a transaction that always rolls back,
+  # answering each row's outcome in file order — `:inserted`, `:collapsed`,
+  # `{:duplicate, layer}`, `:internal_transfer`, `:skipped` or
+  # `{:unresolved, key, reason}`. `:error` when the run stops (an ambiguous
+  # name, a refused write): the counts then fall back to the hash layers.
+  defp dry_run_outcomes(_flat_entries, nil), do: :error
+
+  defp dry_run_outcomes(flat_entries, portfolio_id) do
+    fn ->
+      case run_auto(flat_entries, portfolio_id, "EUR", %{portfolio_id: portfolio_id}) do
+        {:ok, final_state} -> Repo.rollback({:dry_run, Enum.reverse(final_state.outcomes)})
+        {:error, _reason} -> Repo.rollback(:stopped)
+      end
+    end
+    |> Repo.transaction()
+    |> case do
+      {:error, {:dry_run, outcomes}} when length(outcomes) == length(flat_entries) ->
+        {:ok, outcomes}
+
+      _stopped ->
+        :error
+    end
   end
 
   @doc """
@@ -327,10 +359,16 @@ defmodule Portfolixir.Imports.Applier do
   an earlier row of the same file exactly (the same content hash) counts
   `:hash`: the apply skips it on that layer once the first copy is booked,
   or on whatever later layer skipped the first. A row counted
-  `:new` may still be skipped at apply by a later layer (an equal economic
-  booking, an internal transfer, an in-run collapse or an undecided
-  security); an account whose rows are all `:hash`, `:retired` or
-  `:unimportable` is never created.
+  `:new` by its hash is then judged the way the apply judges it, under the
+  preview's prefill (live name, then former name): the auto-resolving apply
+  runs in a transaction that always rolls back, and a row it skips as an
+  equal economic booking or an in-run collapse counts `:economics`, a
+  transfer whose two legs resolve to one account `:internal_transfer`. So a
+  drifted re-export after a merge counts nothing `:new`. Where that run
+  stops (a name the prefill finds ambiguous), the hash layers stand alone.
+  A row still `:new` may be skipped by a decision the operator makes in the
+  preview (a security choice, another account); an account whose rows are
+  none of them `:new` is never created.
   """
   @spec reimport_counts(Preview.t(), integer() | nil) :: %{
           total: layer_counts(),
@@ -339,8 +377,21 @@ defmodule Portfolixir.Imports.Applier do
         }
   def reimport_counts(%Preview{entries: entries}, portfolio_id) do
     flat_entries = Entry.flatten(entries)
-    layers = row_layers(flat_entries, portfolio_id)
-    empty = %{hash: 0, retired: 0, unimportable: 0, new: 0}
+
+    layers =
+      case dry_run_outcomes(flat_entries, portfolio_id) do
+        {:ok, outcomes} ->
+          flat_entries
+          |> row_layers(portfolio_id)
+          |> Enum.zip_with(outcomes, fn {layer, key}, outcome ->
+            {later_layer(layer, outcome), key}
+          end)
+
+        :error ->
+          row_layers(flat_entries, portfolio_id)
+      end
+
+    empty = %{hash: 0, retired: 0, unimportable: 0, economics: 0, internal_transfer: 0, new: 0}
 
     initial = {%{total: empty, cash_accounts: %{}, depots: %{}}, MapSet.new(), nil}
 
@@ -388,6 +439,12 @@ defmodule Portfolixir.Imports.Applier do
     }
   end
 
+  # A row no hash holds, as the apply's own run judged it.
+  defp later_layer(:new, {:duplicate, :economics}), do: :economics
+  defp later_layer(:new, :collapsed), do: :economics
+  defp later_layer(:new, :internal_transfer), do: :internal_transfer
+  defp later_layer(layer, _outcome), do: layer
+
   # A new row whose content hash an earlier row of the file already carries
   # is held by the time the apply reaches it.
   defp in_file_repeat({:new, key}, seen) do
@@ -396,11 +453,13 @@ defmodule Portfolixir.Imports.Applier do
 
   defp in_file_repeat({layer, _key}, seen), do: {layer, seen}
 
-  @typedoc "Rows per first-check layer, as `reimport_counts/2` counts them."
+  @typedoc "Rows per layer that judges them, as `reimport_counts/2` counts them."
   @type layer_counts :: %{
           hash: non_neg_integer(),
           retired: non_neg_integer(),
           unimportable: non_neg_integer(),
+          economics: non_neg_integer(),
+          internal_transfer: non_neg_integer(),
           new: non_neg_integer()
         }
 
@@ -850,12 +909,13 @@ defmodule Portfolixir.Imports.Applier do
     end)
   end
 
+  # Each row's outcome is kept, newest first, for the preview's dry run.
   defp reduce_entries(entries, initial_state) do
-    initial_state = Map.merge(initial_state, %{parent: nil, outcome: nil})
+    initial_state = Map.merge(initial_state, %{parent: nil, outcome: nil, outcomes: []})
 
     Enum.reduce_while(entries, {:ok, initial_state}, fn entry, {:ok, state} ->
       case process_row(entry, state) do
-        {:ok, state} -> {:cont, {:ok, state}}
+        {:ok, state} -> {:cont, {:ok, %{state | outcomes: [state.outcome | state.outcomes]}}}
         {:error, reason} -> {:halt, {:error, reason}}
       end
     end)
@@ -878,7 +938,7 @@ defmodule Portfolixir.Imports.Applier do
   end
 
   defp process_row(%Entry{companion_index: index} = entry, state),
-    do: process_companion(entry, index, state)
+    do: process_companion(entry, index, %{state | outcome: nil})
 
   # E25 S5 (F37, and its review round): a companion is hashed with its parent
   # — the parent's hash and its position fold into its own — so two equal
@@ -1537,7 +1597,7 @@ defmodule Portfolixir.Imports.Applier do
     }
 
     state
-    |> Map.put(:outcome, :skipped)
+    |> Map.put(:outcome, :internal_transfer)
     |> Map.update!(:result, fn %Result{} = r ->
       %Result{r | internal_transfers: [transfer | r.internal_transfers]}
     end)

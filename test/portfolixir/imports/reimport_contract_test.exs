@@ -462,7 +462,7 @@ defmodule Portfolixir.Imports.ReimportContractTest do
     #
     # Acceptance criteria:
     # - The read counts each row once in the total, by layer: `hash`,
-    #   `retired`, `unimportable` or `new`.
+    #   `retired`, `unimportable`, `economics`, `internal_transfer` or `new`.
     # - Per file account and depot name it counts every row naming it, on
     #   either leg.
     # - It writes nothing.
@@ -470,7 +470,7 @@ defmodule Portfolixir.Imports.ReimportContractTest do
       portfolio: portfolio
     } do
       assert Imports.reimport_counts(parse!(household())).total ==
-               %{hash: 0, retired: 0, unimportable: 0, new: 4}
+               %{hash: 0, retired: 0, unimportable: 0, economics: 0, internal_transfer: 0, new: 4}
 
       preview = parse!(household())
       assert {:ok, _} = Imports.apply(preview, create_everything(preview))
@@ -487,15 +487,52 @@ defmodule Portfolixir.Imports.ReimportContractTest do
       counts = Imports.reimport_counts(grown)
       assert counts() == before
 
-      assert counts.total == %{hash: 3, retired: 1, unimportable: 1, new: 1}
-
-      assert counts.cash_accounts == %{
-               "Giro" => %{hash: 2, retired: 1, unimportable: 1, new: 0},
-               "Savings" => %{hash: 1, retired: 1, unimportable: 0, new: 0},
-               "Holiday" => %{hash: 0, retired: 0, unimportable: 0, new: 1}
+      assert counts.total == %{
+               hash: 3,
+               retired: 1,
+               unimportable: 1,
+               economics: 0,
+               internal_transfer: 0,
+               new: 1
              }
 
-      assert counts.depots == %{"Depot" => %{hash: 1, retired: 0, unimportable: 0, new: 0}}
+      assert counts.cash_accounts == %{
+               "Giro" => %{
+                 hash: 2,
+                 retired: 1,
+                 unimportable: 1,
+                 economics: 0,
+                 internal_transfer: 0,
+                 new: 0
+               },
+               "Savings" => %{
+                 hash: 1,
+                 retired: 1,
+                 unimportable: 0,
+                 economics: 0,
+                 internal_transfer: 0,
+                 new: 0
+               },
+               "Holiday" => %{
+                 hash: 0,
+                 retired: 0,
+                 unimportable: 0,
+                 economics: 0,
+                 internal_transfer: 0,
+                 new: 1
+               }
+             }
+
+      assert counts.depots == %{
+               "Depot" => %{
+                 hash: 1,
+                 retired: 0,
+                 unimportable: 0,
+                 economics: 0,
+                 internal_transfer: 0,
+                 new: 0
+               }
+             }
     end
 
     # Acceptance criteria (review round):
@@ -513,8 +550,25 @@ defmodule Portfolixir.Imports.ReimportContractTest do
 
       counts = Imports.reimport_counts(parse!(rows), portfolio_id: portfolio.id)
 
-      assert counts.total == %{hash: 1, retired: 0, unimportable: 0, new: 2}
-      assert counts.cash_accounts == %{"Giro" => %{hash: 1, retired: 0, unimportable: 0, new: 2}}
+      assert counts.total == %{
+               hash: 1,
+               retired: 0,
+               unimportable: 0,
+               economics: 0,
+               internal_transfer: 0,
+               new: 2
+             }
+
+      assert counts.cash_accounts == %{
+               "Giro" => %{
+                 hash: 1,
+                 retired: 0,
+                 unimportable: 0,
+                 economics: 0,
+                 internal_transfer: 0,
+                 new: 2
+               }
+             }
 
       assert {:ok, %Result{} = result} =
                Imports.apply(parse!(rows), %{portfolio_id: portfolio.id})
