@@ -3,15 +3,26 @@ defmodule Portfolixir.Lifecycle.MergeFigures do
   The per-day position folds a merge's preview states and its linearity
   check reads (ADR-0050 §7's depot check, §9's security check), and the cash
   accounts a collapse changes. Shared by the depot merge
-  (`Portfolixir.Lifecycle.DepotMerge`) and the security merge behind it.
+  (`Portfolixir.Lifecycle.DepotMerge`) and the security merge
+  (`Portfolixir.Lifecycle.SecurityMerge`).
 
-  `eod_positions/1` is the ledger's own fold, one booking at a time
-  (`Portfolixir.Ledger.Positions.apply_transaction/3`), replayed in the
-  shared order (`Projection.replay_sort/1`): a split's scaled quantity is
-  rounded once at volume scale 6 (ADR-0028 §3), exactly as every read of a
-  position states it.
+  Two folds over the same legs of `Portfolixir.Ledger.Projection.effects/1`,
+  replayed in the shared order (`Projection.replay_sort/1`):
 
-  It answers `[{date, positions}]`, ascending: the positions at the end of
+    * `eod_positions/1` — the ledger's own fold, one booking at a time
+      (`Portfolixir.Ledger.Positions.apply_transaction/3`): a split's scaled
+      quantity is rounded once at volume scale 6 (ADR-0028 §3), exactly as
+      every read of a position states it;
+    * `eod_exact/1` — the same fold in exact rational arithmetic: a split
+      multiplies by its ratio and rounds nothing. Every leg of the fold is
+      linear, so in this fold the merged quantity equals the sum of the
+      parts **exactly** whenever every booking is scaled by the same splits
+      after the merge as before it. A difference here is never a rounding
+      artefact: it is a split that would rescale bookings it never scaled
+      (§9's refusal), where a difference in the rounded fold alone is the
+      one-unit-per-split rounding §7 lists.
+
+  Both answer `[{date, positions}]`, ascending: the positions at the end of
   each day a row falls on. `sample/2` reads a series at given dates.
   """
 
@@ -24,6 +35,9 @@ defmodule Portfolixir.Lifecycle.MergeFigures do
   alias Portfolixir.Repo
 
   @zero Decimal.new("0")
+
+  @typedoc "An exact quantity: `{numerator, denominator}`, reduced, the denominator positive."
+  @type rational :: {integer(), pos_integer()}
 
   @typedoc "Positions at the end of each day a row falls on, ascending by day."
   @type series :: [{Date.t(), map()}]
@@ -41,6 +55,41 @@ defmodule Portfolixir.Lifecycle.MergeFigures do
     end)
     |> elem(0)
     |> Enum.reverse()
+  end
+
+  @doc "The same fold in exact rational arithmetic, per day (see the moduledoc)."
+  @spec eod_exact([map()]) :: series()
+  def eod_exact(rows) do
+    ordered = Projection.replay_sort(rows)
+    accounts = Projection.account_portfolios(ordered)
+
+    ordered
+    |> Enum.reduce({[], %{}}, fn row, {days, positions} ->
+      positions =
+        Enum.reduce(Projection.effects(row).quantities, positions, &exact_leg(&1, &2, accounts))
+
+      {end_of_day(days, row.date, positions), positions}
+    end)
+    |> elem(0)
+    |> Enum.reverse()
+  end
+
+  # A scale leg multiplies every position of its security in its own
+  # portfolio, as `Positions` does, without the rounding.
+  defp exact_leg({:scale, scale}, positions, accounts) do
+    {numerator, denominator} = scale.ratio
+
+    Map.new(positions, fn {{account_id, security_id} = key, quantity} ->
+      if security_id == scale.security_id and
+           Map.get(accounts, account_id) == scale.portfolio_id,
+         do: {key, mult(quantity, numerator, denominator)},
+         else: {key, quantity}
+    end)
+  end
+
+  defp exact_leg({account_id, security_id, delta}, positions, _accounts) do
+    delta = rational(delta)
+    Map.update(positions, {account_id, security_id}, delta, &add(&1, delta))
   end
 
   # A later row of the same day replaces the day's positions.
@@ -80,6 +129,49 @@ defmodule Portfolixir.Lifecycle.MergeFigures do
   @spec quantity(%{Date.t() => map()}, Date.t(), term()) :: Decimal.t()
   def quantity(sampled, date, key),
     do: sampled |> Map.get(date, %{}) |> Map.get(key, @zero)
+
+  @doc "The exact quantity of `key` in a sampled exact series at `date` (zero when not held)."
+  @spec exact(%{Date.t() => map()}, Date.t(), term()) :: rational()
+  def exact(sampled, date, key),
+    do: sampled |> Map.get(date, %{}) |> Map.get(key, {0, 1})
+
+  # --- exact arithmetic ---------------------------------------------------------------
+
+  @doc "A `Decimal` as an exact rational."
+  @spec rational(Decimal.t()) :: rational()
+  def rational(%Decimal{sign: sign, coef: coef, exp: exp}) when is_integer(coef) do
+    if exp >= 0,
+      do: {sign * coef * pow10(exp), 1},
+      else: reduce(sign * coef, pow10(-exp))
+  end
+
+  @doc "The sum of two exact rationals."
+  @spec add(rational(), rational()) :: rational()
+  def add({a, b}, {c, d}), do: reduce(a * d + c * b, b * d)
+
+  defp mult({a, b}, numerator, denominator), do: reduce(a * numerator, b * denominator)
+
+  defp reduce(0, _denominator), do: {0, 1}
+
+  defp reduce(numerator, denominator) do
+    gcd = Integer.gcd(numerator, denominator)
+    {div(numerator, gcd), div(denominator, gcd)}
+  end
+
+  defp pow10(n), do: Integer.pow(10, n)
+
+  @doc """
+  An exact rational as a `Decimal`, for a message: exact where it
+  terminates within 12 places, rounded to 12 places otherwise.
+  """
+  @spec to_decimal(rational()) :: Decimal.t()
+  def to_decimal({numerator, denominator}) do
+    numerator
+    |> Decimal.new()
+    |> Decimal.div(Decimal.new(denominator))
+    |> Decimal.round(12)
+    |> Decimal.normalize()
+  end
 
   # --- the cash side of a collapse ------------------------------------------------------
 

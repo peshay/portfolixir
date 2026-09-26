@@ -25,9 +25,11 @@ defmodule Portfolixir.Lifecycle do
 
   The merges themselves: a cash account into another
   (`preview_cash_merge/2`, `merge_cash_account/4`, implemented by
-  `Portfolixir.Lifecycle.CashMerge`, §7, §8, §10) and a depot into another
+  `Portfolixir.Lifecycle.CashMerge`, §7, §8, §10), a depot into another
   (`preview_depot_merge/2`, `merge_depot/4`, implemented by
-  `Portfolixir.Lifecycle.DepotMerge`), each writing row by row through
+  `Portfolixir.Lifecycle.DepotMerge`) and a security into another
+  (`preview_security_merge/2`, `merge_security/4`, implemented by
+  `Portfolixir.Lifecycle.SecurityMerge`, §9), each writing row by row through
   `Portfolixir.Lifecycle.MergeWriter` under a digest from
   `Portfolixir.Lifecycle.PlanDigest`, with the consent rules they share in
   `Portfolixir.Lifecycle.MergeFlow`.
@@ -42,6 +44,7 @@ defmodule Portfolixir.Lifecycle do
   alias Portfolixir.Lifecycle.DepotMerge
   alias Portfolixir.Lifecycle.MergeRecord
   alias Portfolixir.Lifecycle.RetiredImportHash
+  alias Portfolixir.Lifecycle.SecurityMerge
   alias Portfolixir.Repo
 
   # Ids are never reused, so a merge chain cannot cycle; the bound only keeps
@@ -104,6 +107,21 @@ defmodule Portfolixir.Lifecycle do
   (ADR-0050 §7, §8, §10, §12). See `Portfolixir.Lifecycle.DepotMerge`.
   """
   defdelegate merge_depot(actor, source_id, target_id, params), to: DepotMerge, as: :apply
+
+  @doc """
+  The preview of a merge of the security `source_id` into `target_id`
+  (ADR-0050 §8, §9, §10): a read. See `Portfolixir.Lifecycle.SecurityMerge`.
+  """
+  defdelegate preview_security_merge(source_id, target_id), to: SecurityMerge, as: :preview
+
+  @doc """
+  Merges the security `source_id` into `target_id` on behalf of `actor` under
+  the approved `plan_digest` and the operator's `collapse_key_equal` choice
+  (ADR-0050 §8, §9, §10, §12). See `Portfolixir.Lifecycle.SecurityMerge`.
+  """
+  defdelegate merge_security(actor, source_id, target_id, params),
+    to: SecurityMerge,
+    as: :apply
 
   @doc """
   The record of the merge that took `source_id` away under `kind`, or `nil`.
