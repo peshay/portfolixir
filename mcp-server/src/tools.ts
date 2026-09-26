@@ -2478,7 +2478,8 @@ const removeFormerName = (noun: string) =>
   noun +
   " (ADR-0050 §4), journaled under the API token; answers the account. A former name routes a Portfolio " +
   "Performance import row that names it onto this account. An import that still names '<name>' will then create a " +
-  "new account. A name the account does not carry answers 404.";
+  "new account. A name the account does not carry answers 404. A name stored before invisible characters were " +
+  "refused is listed with each one spelled [U+XXXX]; pass it as listed, and the API matches the stored name.";
 
 const formerNameRemovalSchema = {
   type: "object",

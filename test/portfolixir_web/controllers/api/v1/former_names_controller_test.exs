@@ -160,6 +160,84 @@ defmodule PortfolixirWeb.Api.V1.FormerNamesControllerTest do
     |> json_response(404)
   end
 
+  # User story (E25 S7 review round, S7E-6):
+  # As the agent removing a former name stored before invisible characters
+  # were refused,
+  # I want the removal to take the name the way the MCP companion hands it to
+  # me — each invisible character spelled [U+XXXX] —
+  # so that a legacy name I can read is a name I can remove.
+  #
+  # Acceptance criteria:
+  # - DELETE .../former_names?name= removes the stored former name whose
+  #   escaped spelling is the name given, for a cash account and a depot, and
+  #   journals it like any removal.
+  # - A former name stored with those very letters is matched as written
+  #   first; a name matching neither answers 404 as before.
+  test "a legacy former name is removed by its escaped spelling",
+       %{conn: conn, portfolio: portfolio} do
+    hidden = "Giro" <> <<0x200B::utf8>>
+    cash = cash!(portfolio, "Main account")
+    depot = depot!(portfolio, "Broker depot", cash)
+    put_former_names!(cash, [hidden, "Giro[U+200B]x"])
+    put_former_names!(depot, ["Depot" <> <<0x202E::utf8>>])
+
+    assert %{"data" => %{"former_names" => ["Giro[U+200B]x"]}} =
+             conn
+             |> delete(
+               "/api/v1/cash_accounts/#{cash.id}/former_names?" <>
+                 URI.encode_query(%{"name" => "Giro[U+200B]"})
+             )
+             |> json_response(200)
+
+    [entry | _] = Journal.list_entries(resource_type: "cash_account", resource_id: "#{cash.id}")
+    assert entry.before["former_names"] == [hidden, "Giro[U+200B]x"]
+    assert entry.after["former_names"] == ["Giro[U+200B]x"]
+
+    # The letters as written match the name stored with those letters.
+    assert %{"data" => %{"former_names" => []}} =
+             conn
+             |> delete(
+               "/api/v1/cash_accounts/#{cash.id}/former_names?" <>
+                 URI.encode_query(%{"name" => "Giro[U+200B]x"})
+             )
+             |> json_response(200)
+
+    assert %{"data" => %{"former_names" => []}} =
+             conn
+             |> delete(
+               "/api/v1/securities_accounts/#{depot.id}/former_names?" <>
+                 URI.encode_query(%{"name" => "Depot[U+202E]"})
+             )
+             |> json_response(200)
+
+    conn
+    |> delete(
+      "/api/v1/cash_accounts/#{cash.id}/former_names?" <>
+        URI.encode_query(%{"name" => "Giro[U+200C]"})
+    )
+    |> json_response(404)
+  end
+
+  # A former name stored before the text rule, written past the changeset
+  # the way the old writer did.
+  defp put_former_names!(%schema{} = account, names) do
+    resource_type =
+      if schema == Portfolixir.Portfolios.CashAccount,
+        do: "cash_account",
+        else: "securities_account"
+
+    {:ok, _} =
+      Ecto.Multi.new()
+      |> Ecto.Multi.update(:account, Ecto.Changeset.change(account, former_names: names))
+      |> Journal.record(Actor.owner_ui(),
+        resource_type: resource_type,
+        operation: :update,
+        source: :account,
+        before: account
+      )
+      |> Portfolixir.Repo.transaction()
+  end
+
   defp cash!(portfolio, name) do
     {:ok, cash} =
       Portfolios.create_cash_account(Actor.owner_ui(), %{
