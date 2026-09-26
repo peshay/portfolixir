@@ -295,7 +295,10 @@ Guards, made precise by the 2026-07-22 review round:
   > `adopt_source_isin` (the original takes the new ISIN, its old one becomes
   > the alias) and `collapse_key_equal: true` (the duplicated bookings are
   > deleted with their content hashes retired) is the repair; the manual
-  > steps above stand only until that merge ships.
+  > steps above stand only until that merge ships. It shipped in Sprint 16
+  > over the API and MCP (`POST /api/v1/securities/:id/merge`,
+  > `portfolixir.securities.merge`); the operator's dialog follows in the
+  > same batch.
 
 **Rejected: a first-class ledger kind** (`isin_change`). Unlike a split it
 has **no projection effect** — no quantity leg, no cash leg, no external

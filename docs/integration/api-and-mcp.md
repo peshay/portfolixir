@@ -277,7 +277,11 @@ full list.
   endpoint below (each with `id`, `former_isin`, `changed_on`, `note`) — and
   its `thesis_state`, the current thesis derived from the research log (see
   below). Listings carry `thesis_state` as `null`; only the detail read
-  computes it.
+  computes it. A security a merge took away answers `404` with
+  `errors.merged_into` `{"kind": "security", "id": …}`, the security its
+  history lives on now — followed through every later merge to the live one
+  — and a detail naming both (ADR-0050 §12); an id no merge names answers
+  the plain `404`.
 - `PATCH /api/v1/securities/:id` updates a security with a `security` object.
   The boolean `treat_quotes_as_raw` (default `false`) is the ADR-0028 escape
   hatch for providers that never back-adjust their history after a stock
@@ -361,6 +365,129 @@ Example ISIN-change payload:
   }
 }
 ```
+
+### Merging a duplicate security (ADR-0050 §9)
+
+A second copy of one instrument — an export carrying a newer ISIN imported
+before the change was recorded, a security created by hand that the next
+import created again — is repaired by merging the duplicate (the **source**)
+into the security you keep (the **target**). The merge is agent-first: the
+operator's merge dialog on the securities page follows in the same batch
+(L5).
+
+- `GET /api/v1/securities/:id/merge_preview?target_id=` previews merging the
+  security into `target_id` — a read that writes nothing
+  (`portfolixir.securities.merge_preview`). Both must trade in the same
+  currency, be both or neither a benchmark, and the target must not be
+  retired while the source is live; while the source has quotes, both must
+  treat their synced quotes alike (`treat_quotes_as_raw`). A source with
+  research notes or read by a policy rule is refused, because a note can
+  neither move nor vanish and a rule version keeps its subject
+  (`research_notes`, `policy_rules` with `errors.policy_rules`); where
+  merging the other way would pass, the detail says so. Each position the
+  source holds in a depot must keep its view membership
+  (`position_buckets_mismatch`). A split of the source the target carries in
+  the same portfolio on the same day with the same ratio collapses; another
+  ratio is refused (`split_ratio_mismatch`), and so is a split one side
+  lacks while that side has a booking or a quote before it
+  (`split_event_mismatch`) or a split that would rescale bookings it did not
+  scale before (`split_linearity`). Finally, every identity of both
+  securities must still find the target after the merge
+  (`identity_unresolvable`, with `errors.unresolvable`): the identity as
+  stored, the identity the Portfolio Performance import recorded when it
+  created the security (its name, ISIN, WKN, ticker and currency — a file
+  resolves on what it carries, not on identifiers added since), and each
+  former ISIN. A name-only security that was given a ticker after its import
+  and whose name differs from the target's is such a case; so is a name that
+  another live security also carries. Each refusal is a `409 Conflict` with
+  `errors.code`, `errors.detail` and `errors.guards`; an unknown source
+  answers `404`, a source already merged `409` `already_merged` with
+  `errors.merged_into`, a missing `target_id` `422`. The `200` carries:
+  - `plan_digest`, the digest the merge takes;
+  - `source` and `target`, each with its name, currency, `isin`, `wkn`,
+    `ticker_symbol`, `feed`, `asset_class`, flags, `transaction_count` and
+    `split_events`; `guards`; `reverse`, whether merging the other way would
+    pass;
+  - `key_equal_pairs` and `choice_required`, as for an account merge, and
+    `splits` (`collapsed`, `moved`) with `split_events` before and after;
+  - `position_buckets`: per depot the source holds or carries an override
+    in, both effective bucket sets, both overrides and the `action`;
+  - `quotes`: `source_count`, `moved_count` (the source's quotes on dates the
+    target has none, which move keeping their source), `collision_count`
+    (dates both have: the target's quote wins, the source's close goes into
+    the merge record) and `manual_collisions`, each colliding source quote
+    typed by hand, with `date`, `source_close`, `target_close` and
+    `target_source`;
+  - `configuration`: `category_assignments` (per classification of the
+    source, `move` where the target has none in it, otherwise `drop` — the
+    target's wins — with both categories) and `position_targets` (every
+    position target of the source in an active, draft or archived plan, with
+    its plan, `plan_status`, category and `target_weight`, and `move`, or
+    `drop` with the `reason` `collides` — the target has a row in that plan —
+    or `stale` — the row would no longer sit under the target's category);
+  - `events`: the events that move, and `possible_duplicates`, a source and a
+    target event of the same kind on the same day (both kept);
+  - `identifiers`: `choice_required` (both carry an ISIN), then
+    `after_by_identity_choice` with `keep_target_isin` and
+    `adopt_source_isin` — or `after` when there is no choice — each the
+    target's `isin`, `wkn`, `ticker_symbol`, `feed`, `name`, `asset_class`
+    and `former_isins` after the merge; `adopted`, what the target takes from
+    the source (a WKN, ticker or feed it lacks, an ISIN only the source
+    carries); `differences`, every source value that follows the target
+    instead (name, asset class, logo, a WKN, ticker or feed the target has
+    already); `aliases_reassigned`, the source's former ISINs;
+  - `outcome_by_collapse_key_equal` with `"false"` and `"true"`: the
+    target's `transaction_count` after, `moved_transaction_ids`, `deleted`
+    (`collapsed_duplicate` or `collapsed_split`), `positions` (per depot the
+    source holds: `source`, `target` and `after`, each `quantity`,
+    `cost_basis`, `avg_cost` and `realized_result`), `rounding_differences`
+    and `cash_accounts`, with `positions_basis` as for a depot merge.
+
+  Every quantity, close, weight and decimal is a string. The digest covers
+  both securities, every booking of either, their quotes, category
+  assignments, position targets, events and former ISINs with their
+  `updated_at`, the identities the imports recorded, every figure and the
+  guards; the choices are not part of it, so one pair has one digest, and a
+  quote the sync stores between the preview and the merge is a changed plan.
+- `POST /api/v1/securities/:id/merge` with `{"target_id": …, "plan_digest":
+  …, "collapse_key_equal": …, "identity_choice": …, "isin_changed_on": …}`
+  merges under the token (`portfolixir.securities.merge`).
+  `collapse_key_equal` is required when the preview lists `key_equal_pairs`,
+  and `identity_choice` when both securities carry an ISIN — each a `422`
+  without it, and never preselected: ask the operator.
+  `keep_target_isin` keeps the target's ISIN and records the source's as a
+  former ISIN of the target; `adopt_source_isin` gives the target the
+  source's ISIN and records the target's old one as its former ISIN (the
+  repair of ADR-0029 §3's wrong-order duplicate, together with
+  `collapse_key_equal: true`). `isin_changed_on` (`YYYY-MM-DD`, optional) is
+  that former ISIN's `changed_on`; the merge date otherwise. An unknown
+  `identity_choice` or an `isin_changed_on` that is no date answers `422`. It
+  answers `201 Created` with the merge record (`kind` `security`,
+  `portfolio_id` `null`; its `manifest` lists every booking moved or deleted,
+  every quote moved and every quote dropped with its close and the target's
+  close that won, the assignments, position targets and events moved or
+  dropped, the former ISINs reassigned and created, the identifiers adopted
+  and the differences, and the choices) and `already_applied: false`. In one
+  transaction, one audit-journal entry per row: with `true` the source's
+  paired bookings are deleted and their content hashes retired; a split the
+  target carries on the same day in the same portfolio is deleted; every
+  other booking moves onto the target; the quantity of every depot is checked
+  on every day against the fold of both securities' bookings
+  (`409 identity_check_failed` otherwise); the bucket plan is written; the
+  quotes are gap-filled — **not journaled**, the merge record is their
+  record — and both securities' derived values are invalidated; the
+  assignments, position targets and events move or are dropped as the
+  preview listed; the source's former ISINs go to the target, its ISIN is
+  written by the choice, its WKN, ticker and feed where the target lacks
+  them; the source is deleted; and the identities are checked again on the
+  catalog as the merge left it (`409 identity_unresolvable` with
+  `errors.unresolvable` rolls it back otherwise). After it, a Portfolio
+  Performance import naming the source by any of its identifiers books onto
+  the target, and a re-import of an export already applied creates nothing.
+  A changed plan answers `409` `plan_changed` with the fresh preview in
+  `errors.preview`; a retry of a completed merge of the same pair answers
+  `200` with the original record and `already_applied: true`; a source
+  merged into another security `409` `already_merged`. There is no unmerge.
 
 ### Research log (ADR-0044)
 
@@ -788,7 +915,10 @@ Example quote sync response:
   onto this account. Two accounts of one kind in a portfolio never share a
   live or former name; names two accounts already shared before this rule
   resolve to neither, and the import waits for the operator to pick one.
-- `GET /api/v1/cash_accounts/:id` returns one cash account.
+- `GET /api/v1/cash_accounts/:id` returns one cash account. An account a
+  merge took away answers `404` with `errors.merged_into`
+  `{"kind": "cash_account", "id": …}`, the account its history lives on now,
+  followed through every later merge (ADR-0050 §12).
 - `PATCH /api/v1/cash_accounts/:id` updates a cash account (`name`,
   `currency_code`, `notes`, `liquidity_role`); `portfolio_id` cannot
   be changed. The `currency_code` **freezes** once a transaction references
@@ -894,7 +1024,10 @@ Example quote sync response:
   omitted, the depot is bound to the deterministic internal default portfolio.
   A `name` another depot in the portfolio carries as its name or as one of its
   former names answers `422` with `errors.name` (ADR-0050 §4).
-- `GET /api/v1/securities_accounts/:id` returns one securities account.
+- `GET /api/v1/securities_accounts/:id` returns one securities account. A
+  depot a merge took away answers `404` with `errors.merged_into`
+  `{"kind": "securities_account", "id": …}`, followed through every later
+  merge (ADR-0050 §12).
 - `PATCH /api/v1/securities_accounts/:id` updates a securities account
   (`name`, `notes`, `cash_account_id`); `portfolio_id` cannot be changed.
   A rename keeps the previous name in `former_names` under the same rules as
@@ -2402,6 +2535,16 @@ through this API lives next to the imported history:
   new rows that name the merged-away depot are booked once, on the target. A
   new row whose economic key equals an existing booking of the target is
   taken for that booking (reported with the layer `economics`).
+- **A security merge is safe for the next import (ADR-0050 §2, §9).** After
+  `POST /api/v1/securities/:id/merge`, re-applying an export already applied
+  creates nothing, byte-identical or drifted, whichever ISIN it carries and
+  under either identity choice: the moved bookings keep their content hashes,
+  every booking the merge deleted has its hash retired, and every identity of
+  the source — its ISIN (the target's now, or a former ISIN of the target),
+  its former ISINs, the identity its import recorded — resolves to the target.
+  A later export's new rows that name the merged-away security by any of them
+  are booked once, on the target. The merge is refused rather than leave an
+  identity unresolved (`identity_unresolvable`).
 - **What survives a re-import, unchanged, same ids, exact `Decimal` values:**
   classification assignments; every target plan version with its category and
   position targets and the cash target; each security's `note` and
@@ -2576,7 +2719,8 @@ in its description; the server instructions say it once for every write.
 - `portfolixir.securities.list`
 - `portfolixir.securities.get` — one security's full record including its
   `identifier_aliases` (recorded former ISINs) and its derived
-  `thesis_state` (ADR-0044).
+  `thesis_state` (ADR-0044); a merged-away security answers `404` with
+  `errors.merged_into`, and the description says so (ADR-0050 §12).
 - `portfolixir.securities.create`
 - `portfolixir.securities.update` — its description and its `currency_code`
   property state the currency freeze (ADR-0050 §11).
@@ -2585,6 +2729,20 @@ in its description; the server instructions say it once for every write.
   change so imports keep matching via the former ISIN (ADR-0029).
 - `portfolixir.securities.delete_isin_alias` — journaled delete of one
   recorded former-ISIN alias.
+- `portfolixir.securities.merge_preview` — the security merge preview, a read
+  (ADR-0050 §9, §10): the positions per depot for both outcomes of the
+  duplicate question, the quotes with the manual collisions, the
+  configuration and events, the identifiers after each identity choice, and
+  the `plan_digest`.
+- `portfolixir.securities.merge` — the security merge under an approved
+  digest; hinted destructive and idempotent (a retry answers the original
+  record). Its description says that `identity_choice` is required when both
+  carry an ISIN and never preselected, what each value does, that the quotes
+  fill the target's gaps with the target's winning a collision, that the
+  configuration and events move, and what the merge does to the next import:
+  every identity of the source resolves to the target, a later import naming
+  it books there, a re-import of an applied export creates nothing, and a
+  merge that would leave an identity unresolved is refused.
 - `portfolixir.securities.search_online`
 - `portfolixir.events.list` — one security's calendar (ADR-0048); the
   description states that an event books nothing and is never converted into a

@@ -292,7 +292,12 @@ verengen, was der Betreiber sieht.
 - `GET /api/v1/securities/:id` liefert ein Wertpapier, einschließlich seiner
   `identifier_aliases` — der über den ISIN-Wechsel-Endpunkt unten
   aufgezeichneten früheren ISINs (jeweils mit `id`, `former_isin`,
-  `changed_on`, `note`).
+  `changed_on`, `note`). Ein Wertpapier, das eine Zusammenführung entfernt
+  hat, antwortet `404` mit `errors.merged_into`
+  `{"kind": "security", "id": …}`, dem Wertpapier, auf dem seine Historie
+  jetzt liegt — über jede spätere Zusammenführung bis zum lebenden verfolgt
+  —, und einem Detail, das beide nennt (ADR-0050 §12); eine ID, die keine
+  Zusammenführung nennt, antwortet mit dem einfachen `404`.
 - `PATCH /api/v1/securities/:id` aktualisiert ein Wertpapier mit einem
   `security`-Objekt. Das Boolean `treat_quotes_as_raw` (Standard `false`) ist
   die ADR-0028-Notluke für Anbieter, die ihre Historie nach einem
@@ -396,6 +401,143 @@ Beispiel-Payload zum Anlegen:
   }
 }
 ```
+
+### Ein doppeltes Wertpapier zusammenführen (ADR-0050 §9)
+
+Eine zweite Kopie eines Instruments — ein Export mit neuerer ISIN, der
+importiert wurde, bevor der Wechsel aufgezeichnet war, ein von Hand angelegtes
+Wertpapier, das der nächste Import noch einmal anlegte — wird repariert,
+indem man das Duplikat (die **Quelle**) in das Wertpapier zusammenführt, das
+bleibt (das **Ziel**). Die Zusammenführung gibt es zuerst für den Agenten:
+Der Dialog für den Operator auf der Wertpapierseite folgt im selben Batch
+(L5).
+
+- `GET /api/v1/securities/:id/merge_preview?target_id=` zeigt die
+  Zusammenführung des Wertpapiers in `target_id` als Vorschau — ein Lesen,
+  das nichts schreibt (`portfolixir.securities.merge_preview`). Beide müssen
+  in derselben Währung gehandelt werden, beide oder keines ein Benchmark
+  sein, und das Ziel darf nicht stillgelegt sein, solange die Quelle lebt;
+  solange die Quelle Kurse hat, müssen beide ihre synchronisierten Kurse
+  gleich behandeln (`treat_quotes_as_raw`). Eine Quelle mit
+  Recherche-Notizen oder eine, die eine eigene Regel liest, wird abgelehnt,
+  weil eine Notiz weder wandern noch verschwinden kann und eine
+  Regelversion ihr Subjekt behält (`research_notes`, `policy_rules` mit
+  `errors.policy_rules`); wo die Zusammenführung in die andere Richtung
+  gelänge, sagt das Detail es. Jede Position der Quelle in einem Depot muss
+  ihre Ansichtszugehörigkeit behalten (`position_buckets_mismatch`). Ein
+  Split der Quelle, den das Ziel im selben Portfolio am selben Tag mit
+  demselben Verhältnis trägt, fällt zusammen; ein anderes Verhältnis wird
+  abgelehnt (`split_ratio_mismatch`), ebenso ein Split, der einer Seite
+  fehlt, während sie davor eine Buchung oder einen Kurs hat
+  (`split_event_mismatch`), oder ein Split, der Buchungen neu skalieren
+  würde, die er vorher nicht skaliert hat (`split_linearity`). Schließlich
+  muss jede Identität beider Wertpapiere nach der Zusammenführung das Ziel
+  finden (`identity_unresolvable`, mit `errors.unresolvable`): die
+  gespeicherte Identität, die Identität, die der Portfolio-Performance-Import
+  beim Anlegen des Wertpapiers aufgezeichnet hat (Name, ISIN, WKN, Ticker und
+  Währung — eine Datei löst über das auf, was sie trägt, nicht über Kennzeichen,
+  die seither dazukamen), und jede frühere ISIN. Ein nur über den Namen
+  importiertes Wertpapier, das danach einen Ticker bekam und dessen Name vom
+  Ziel abweicht, ist so ein Fall; ebenso ein Name, den ein anderes lebendes
+  Wertpapier auch trägt. Jede Ablehnung ist ein `409 Conflict` mit
+  `errors.code`, `errors.detail` und `errors.guards`; eine unbekannte Quelle
+  antwortet `404`, eine schon zusammengeführte `409` `already_merged` mit
+  `errors.merged_into`, eine fehlende `target_id` `422`. Das `200` enthält:
+  - `plan_digest`, den Digest, den die Zusammenführung nimmt;
+  - `source` und `target`, jeweils mit Name, Währung, `isin`, `wkn`,
+    `ticker_symbol`, `feed`, `asset_class`, Flags, `transaction_count` und
+    `split_events`; `guards`; `reverse`, ob die andere Richtung gelänge;
+  - `key_equal_pairs` und `choice_required` wie bei einer
+    Konto-Zusammenführung, und `splits` (`collapsed`, `moved`) mit den
+    `split_events` davor und danach;
+  - `position_buckets`: je Depot, in dem die Quelle hält oder einen Override
+    trägt, beide wirksamen Bucket-Mengen, beide Overrides und die `action`;
+  - `quotes`: `source_count`, `moved_count` (Kurse der Quelle an Tagen ohne
+    Kurs des Ziels; sie wandern und behalten ihre Quelle), `collision_count`
+    (Tage, an denen beide einen haben: Der Kurs des Ziels gewinnt, der
+    Schlusskurs der Quelle geht ins Protokoll der Zusammenführung) und
+    `manual_collisions`, jeder kollidierende, von Hand erfasste Kurs der
+    Quelle mit `date`, `source_close`, `target_close` und `target_source`;
+  - `configuration`: `category_assignments` (je Klassifizierung der Quelle
+    `move`, wo das Ziel dort keine hat, sonst `drop` — die des Ziels
+    gewinnt — mit beiden Kategorien) und `position_targets` (jedes
+    Positionsziel der Quelle in einem aktiven, Entwurfs- oder archivierten
+    Plan, mit Plan, `plan_status`, Kategorie und `target_weight`, und
+    `move` oder `drop` mit dem `reason` `collides` — das Ziel hat in dem
+    Plan schon eine Zeile — oder `stale` — die Zeile läge nicht mehr unter
+    der Kategorie des Ziels);
+  - `events`: die Termine, die wandern, und `possible_duplicates`, ein
+    Termin der Quelle und einer des Ziels gleicher Art am selben Tag (beide
+    bleiben);
+  - `identifiers`: `choice_required` (beide tragen eine ISIN), dann
+    `after_by_identity_choice` mit `keep_target_isin` und
+    `adopt_source_isin` — oder `after`, wenn es nichts zu wählen gibt —,
+    jeweils `isin`, `wkn`, `ticker_symbol`, `feed`, `name`, `asset_class` und
+    `former_isins` des Ziels danach; `adopted`, was das Ziel von der Quelle
+    übernimmt (eine fehlende WKN, einen fehlenden Ticker oder Feed, eine ISIN,
+    die nur die Quelle trägt); `differences`, jeden Wert der Quelle, der
+    stattdessen dem Ziel folgt (Name, Anlageklasse, Logo, eine WKN, ein Ticker
+    oder Feed, den das Ziel schon hat); `aliases_reassigned`, die früheren
+    ISINs der Quelle;
+  - `outcome_by_collapse_key_equal` mit `"false"` und `"true"`: die
+    `transaction_count` des Ziels danach, `moved_transaction_ids`,
+    `deleted` (`collapsed_duplicate` oder `collapsed_split`), `positions`
+    (je Depot, in dem die Quelle hält: `source`, `target` und `after`,
+    jeweils `quantity`, `cost_basis`, `avg_cost` und `realized_result`),
+    `rounding_differences` und `cash_accounts`, mit `positions_basis` wie
+    bei einer Depot-Zusammenführung.
+
+  Jede Stückzahl, jeder Kurs, jedes Gewicht und jede Dezimalzahl ist ein
+  String. Der Digest deckt beide Wertpapiere, jede Buchung beider, ihre
+  Kurse, Kategorie-Zuordnungen, Positionsziele, Termine und früheren ISINs
+  mit ihrem `updated_at`, die Identitäten, die die Importe aufgezeichnet
+  haben, jede Zahl und die Guards ab; die Wahlen gehören nicht dazu, sodass
+  ein Paar einen Digest hat, und ein Kurs, den der Sync zwischen Vorschau und
+  Zusammenführung speichert, ein geänderter Plan ist.
+- `POST /api/v1/securities/:id/merge` mit `{"target_id": …, "plan_digest":
+  …, "collapse_key_equal": …, "identity_choice": …, "isin_changed_on": …}`
+  führt unter dem Token zusammen (`portfolixir.securities.merge`).
+  `collapse_key_equal` ist Pflicht, wenn die Vorschau `key_equal_pairs`
+  nennt, und `identity_choice`, wenn beide Wertpapiere eine ISIN tragen —
+  ohne sie jeweils ein `422`, und nie vorausgewählt: Frag den Operator.
+  `keep_target_isin` behält die ISIN des Ziels und zeichnet die der Quelle
+  als frühere ISIN des Ziels auf; `adopt_source_isin` gibt dem Ziel die ISIN
+  der Quelle und zeichnet seine alte als frühere ISIN auf (die Reparatur des
+  Duplikats in falscher Reihenfolge aus ADR-0029 §3, zusammen mit
+  `collapse_key_equal: true`). `isin_changed_on` (`YYYY-MM-DD`, optional)
+  ist das `changed_on` dieser früheren ISIN, sonst das Datum der
+  Zusammenführung. Eine unbekannte `identity_choice` oder ein
+  `isin_changed_on`, das kein Datum ist, antwortet `422`. Sie antwortet
+  `201 Created` mit dem Protokoll der Zusammenführung (`kind` `security`,
+  `portfolio_id` `null`; sein `manifest` nennt jede verschobene oder
+  gelöschte Buchung, jeden verschobenen Kurs und jeden verworfenen mit seinem
+  Schlusskurs und dem des Ziels, der gewann, die verschobenen oder
+  verworfenen Zuordnungen, Positionsziele und Termine, die umgehängten und
+  angelegten früheren ISINs, die übernommenen Kennzeichen, die Unterschiede
+  und die Wahlen) und `already_applied: false`. In einer Transaktion, ein
+  Audit-Journal-Eintrag je Zeile: Mit `true` werden die gepaarten Buchungen
+  der Quelle gelöscht und ihre Inhalts-Hashes stillgelegt; ein Split, den
+  das Ziel am selben Tag im selben Portfolio trägt, wird gelöscht; jede
+  andere Buchung geht auf das Ziel über; die Stückzahl jedes Depots wird an
+  jedem Tag gegen die Buchungen beider Wertpapiere geprüft
+  (`409 identity_check_failed` sonst); der Bucket-Plan wird geschrieben; die
+  Kurse füllen die Lücken des Ziels — **nicht journalisiert**, das Protokoll
+  der Zusammenführung ist ihr Nachweis — und die abgeleiteten Werte beider
+  Wertpapiere werden verworfen; Zuordnungen, Positionsziele und Termine
+  wandern oder entfallen, wie die Vorschau sie genannt hat; die früheren
+  ISINs der Quelle gehen an das Ziel, ihre ISIN wird nach der Wahl
+  geschrieben, WKN, Ticker und Feed dort, wo sie dem Ziel fehlen; die Quelle
+  wird gelöscht; und die Identitäten werden am Katalog, wie die
+  Zusammenführung ihn hinterlassen hat, noch einmal geprüft
+  (`409 identity_unresolvable` mit `errors.unresolvable` rollt sie sonst
+  zurück). Danach bucht ein Portfolio-Performance-Import, der die Quelle
+  über eines ihrer Kennzeichen nennt, auf das Ziel, und ein erneut
+  angewendeter, schon importierter Export legt nichts an. Ein geänderter
+  Plan antwortet `409` `plan_changed` mit der frischen Vorschau in
+  `errors.preview`; eine Wiederholung einer abgeschlossenen Zusammenführung
+  desselben Paars antwortet `200` mit dem ursprünglichen Protokoll und
+  `already_applied: true`; eine in ein anderes Wertpapier zusammengeführte
+  Quelle `409` `already_merged`. Ein Rückgängigmachen gibt es nicht.
 
 ### Research-Log (ADR-0044)
 
@@ -789,7 +931,10 @@ Beispiel-Antwort für Kurssynchronisierung:
   Konten einer Art in einem Portfolio teilen nie einen aktuellen oder früheren
   Namen; Namen, die zwei Konten schon vor dieser Regel teilten, lösen auf keines
   der beiden auf, und der Import wartet, bis der Betreiber eines wählt.
-- `GET /api/v1/cash_accounts/:id` liefert ein Geldkonto.
+- `GET /api/v1/cash_accounts/:id` liefert ein Geldkonto. Ein Konto, das eine
+  Zusammenführung entfernt hat, antwortet `404` mit `errors.merged_into`
+  `{"kind": "cash_account", "id": …}`, dem Konto, auf dem seine Historie
+  jetzt liegt, über jede spätere Zusammenführung verfolgt (ADR-0050 §12).
 - `PATCH /api/v1/cash_accounts/:id` aktualisiert ein Geldkonto (`name`,
   `currency_code`, `notes`, `liquidity_role`); `portfolio_id` kann nicht
   geändert werden. Der `currency_code` **friert ein**, sobald eine
@@ -904,7 +1049,10 @@ Beispiel-Antwort für Kurssynchronisierung:
   gebunden. Ein `name`, den ein anderes Depot im Portfolio als Namen oder als
   einen seiner früheren Namen trägt, antwortet `422` mit `errors.name`
   (ADR-0050 §4).
-- `GET /api/v1/securities_accounts/:id` liefert ein Wertpapierkonto.
+- `GET /api/v1/securities_accounts/:id` liefert ein Wertpapierkonto. Ein
+  Depot, das eine Zusammenführung entfernt hat, antwortet `404` mit
+  `errors.merged_into` `{"kind": "securities_account", "id": …}`, über jede
+  spätere Zusammenführung verfolgt (ADR-0050 §12).
 - `PATCH /api/v1/securities_accounts/:id` aktualisiert ein Wertpapierkonto
   (`name`, `notes`, `cash_account_id`); `portfolio_id` kann nicht geändert werden.
   Eine Umbenennung behält den bisherigen Namen in `former_names` nach denselben
@@ -2308,6 +2456,18 @@ neben der importierten Historie:
   werden einmal gebucht, auf das Ziel. Eine neue Zeile, deren
   wirtschaftlicher Schlüssel einer vorhandenen Buchung des Ziels gleicht,
   gilt als diese Buchung (gemeldet mit der Ebene `economics`).
+- **Eine Zusammenführung von Wertpapieren ist sicher für den nächsten Import
+  (ADR-0050 §2, §9).** Nach `POST /api/v1/securities/:id/merge` legt ein
+  erneut angewendeter, schon importierter Export nichts an, byte-gleich oder
+  verändert, welche ISIN er auch trägt und bei jeder der beiden
+  Identitätswahlen: Die verschobenen Buchungen behalten ihre Inhalts-Hashes,
+  jede Buchung, die die Zusammenführung gelöscht hat, hat ihren Hash
+  stillgelegt, und jede Identität der Quelle — ihre ISIN (jetzt die des Ziels
+  oder eine frühere ISIN des Ziels), ihre früheren ISINs, die Identität, die
+  ihr Import aufgezeichnet hat — führt zum Ziel. Neue Zeilen eines späteren
+  Exports, die das zusammengeführte Wertpapier über eine davon nennen, werden
+  einmal gebucht, auf das Ziel. Die Zusammenführung wird abgelehnt, statt
+  eine Identität unaufgelöst zu lassen (`identity_unresolvable`).
 - **Was einen erneuten Import unverändert übersteht, gleiche ids, exakte
   `Decimal`-Werte:** Klassifizierungs-Zuordnungen; jede Zielplan-Version mit
   ihren Kategorie- und Positionszielen sowie dem Cash-Ziel; `note` und
@@ -2501,7 +2661,9 @@ Server-Anweisungen sagen es einmal für jeden Schreibvorgang.
 - `portfolixir.securities.list`
 - `portfolixir.securities.get` — vollständiger Datensatz eines Wertpapiers
   einschließlich seiner `identifier_aliases` (aufgezeichnete frühere ISINs)
-  und seines abgeleiteten `thesis_state` (ADR-0044).
+  und seines abgeleiteten `thesis_state` (ADR-0044); ein zusammengeführtes
+  Wertpapier antwortet `404` mit `errors.merged_into`, und die Beschreibung
+  sagt das (ADR-0050 §12).
 - `portfolixir.securities.create`
 - `portfolixir.securities.update` — Beschreibung und `currency_code`-Eigenschaft
   nennen das Einfrieren der Währung (ADR-0050 §11).
@@ -2511,6 +2673,21 @@ Server-Anweisungen sagen es einmal für jeden Schreibvorgang.
   weiter zuordnen (ADR-0029).
 - `portfolixir.securities.delete_isin_alias` — journalisiertes Löschen eines
   aufgezeichneten Früher-ISIN-Alias.
+- `portfolixir.securities.merge_preview` — die Vorschau einer
+  Wertpapier-Zusammenführung, ein Lesen (ADR-0050 §9, §10): die Positionen je
+  Depot für beide Ausgänge der Frage nach den gleichen Buchungen, die Kurse
+  mit den manuellen Kollisionen, Konfiguration und Termine, die Kennzeichen
+  nach jeder Identitätswahl und der `plan_digest`.
+- `portfolixir.securities.merge` — die Wertpapier-Zusammenführung unter einem
+  freigegebenen Digest; als destruktiv und idempotent markiert (eine
+  Wiederholung antwortet mit dem ursprünglichen Protokoll). Die Beschreibung
+  sagt, dass `identity_choice` Pflicht ist, wenn beide eine ISIN tragen, und
+  nie vorausgewählt, was jeder Wert tut, dass die Kurse die Lücken des Ziels
+  füllen und bei einer Kollision der des Ziels gewinnt, dass Konfiguration
+  und Termine wandern, und was die Zusammenführung für den nächsten Import
+  bedeutet: Jede Identität der Quelle führt zum Ziel, ein späterer Import, der
+  sie nennt, bucht dorthin, ein erneut angewendeter Export legt nichts an, und
+  eine Zusammenführung, die eine Identität unaufgelöst ließe, wird abgelehnt.
 - `portfolixir.securities.search_online`
 - `portfolixir.events.list`, `portfolixir.events.create`,
   `portfolixir.events.update`, `portfolixir.events.delete` — der Kalender
