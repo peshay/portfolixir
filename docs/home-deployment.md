@@ -217,6 +217,15 @@ The MCP companion is exposed on localhost only:
 http://127.0.0.1:4001/mcp
 ```
 
+Through a published port, every client on the host reaches a container from
+the one Docker bridge gateway address (see "Reverse proxy" below). The MCP
+companion counts failed tokens per connecting address, as the application
+counts failed logins, so every client on the host is one source to it: a
+process on the host that sends a wrong token locks your agent out too, from
+the tenth failure for two seconds, doubling per further one up to five
+minutes, and a correct token is answered `429` while the lock lasts. The
+counts live in memory only: `docker compose restart mcp` clears them at once.
+
 ## Reverse proxy
 
 The application is reachable on the host's loopback; a reverse proxy on the
@@ -238,7 +247,16 @@ creates the stack's network, so check it again whenever the stack's network is
 recreated, after a `docker compose down` for instance: an address that no
 longer matches is as good as none. Name the one address rather than a
 private block: every address inside a named block is believed, so a block also
-trusts whatever else shares that network. With the address named, the throttle
+trusts whatever else shares that network. The one address is shared too:
+through a published port, every client on the host arrives from that same
+address, not only the proxy, so naming it believes the forwarding headers of
+every process on the host. Such a process can then choose the address the
+throttle counts its failed logins under, or set the scheme. To believe the
+proxy alone, attach the proxy to the stack's network and name its container
+address instead (`docker network inspect` shows it, and it too is checked
+again when the network is recreated); otherwise name the gateway knowing that
+every process on the host is trusted with it. With the address named, the
+throttle
 counts the client behind the proxy rather than the proxy: without it, ten
 wrong passwords from anyone the proxy admits lock the login for everyone behind
 it, the operator included. The same setting decides whose `X-Forwarded-Proto` is
@@ -542,7 +560,8 @@ instance that already runs. Check them before the `up`:
   proxy does through the published port, is neither until it is named. Without
   it, `PHX_FORCE_SSL=true` redirects every request in a loop, and without
   `PHX_FORCE_SSL` the session cookie silently loses `Secure`. Name the bridge
-  gateway before upgrading ("Reverse proxy" above).
+  gateway, or the proxy's own address on the stack's network, before
+  upgrading ("Reverse proxy" above).
 - **One login.** A session is now bound to the UI password, and a session
   issued by an earlier release carries no binding, so every browser logs in
   once after the upgrade.

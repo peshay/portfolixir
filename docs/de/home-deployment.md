@@ -225,6 +225,17 @@ Der MCP-Begleitdienst ist nur auf localhost erreichbar:
 http://127.0.0.1:4001/mcp
 ```
 
+Über einen veröffentlichten Port erreicht jeder Client auf dem Host einen
+Container von der einen Gateway-Adresse der Docker-Bridge aus (siehe
+„Reverse-Proxy“ unten). Der MCP-Begleitdienst zählt fehlgeschlagene Tokens je
+verbindender Adresse, so wie die Anwendung fehlgeschlagene Anmeldungen zählt;
+für ihn ist also jeder Client auf dem Host eine Quelle: ein Prozess auf dem
+Host, der ein falsches Token schickt, sperrt auch deinen Agenten aus, ab dem
+zehnten Fehlschlag für zwei Sekunden, mit jedem weiteren doppelt so lange bis
+zu fünf Minuten, und solange die Sperre gilt, wird auch ein richtiges Token mit
+`429` beantwortet. Die Zählungen liegen nur im Speicher:
+`docker compose restart mcp` löscht sie sofort.
+
 ## Reverse-Proxy
 
 Die Anwendung ist auf dem Loopback des Hosts erreichbar; ein Reverse-Proxy auf
@@ -247,7 +258,16 @@ das Netzwerk des Stacks anlegt; prüfe sie erneut, wann immer das Netzwerk des
 Stacks neu angelegt wird, etwa nach einem `docker compose down`: Eine Adresse,
 die nicht mehr passt, ist so gut wie keine. Nenne die eine Adresse statt eines
 privaten Blocks: jede Adresse in einem genannten Block wird geglaubt, ein Block
-vertraut also auch allem anderen in diesem Netz. Mit der genannten Adresse
+vertraut also auch allem anderen in diesem Netz. Auch die eine Adresse wird
+geteilt: über einen veröffentlichten Port kommt nicht nur der Proxy, sondern
+jeder Client auf dem Host kommt von derselben Adresse, und wer sie nennt,
+glaubt den Weiterleitungs-Headern jedes Prozesses auf dem Host. Ein solcher
+Prozess kann dann die Adresse wählen, unter der die Drossel seine
+fehlgeschlagenen Anmeldungen zählt, oder das Schema setzen. Um allein dem
+Proxy zu glauben, hänge den Proxy an das Netzwerk des Stacks und nenne seine
+Container-Adresse (`docker network inspect` zeigt sie; auch sie wird erneut
+geprüft, wenn das Netzwerk neu angelegt wird); sonst nenne das Gateway im
+Wissen, dass damit jeder Prozess auf dem Host vertraut wird. Mit der genannten Adresse
 zählt die Drossel den Client hinter dem Proxy und nicht den Proxy: ohne sie
 sperren zehn falsche Passwörter von irgendwem, den der Proxy durchlässt, die
 Anmeldung für alle dahinter, den Betreiber eingeschlossen. Dieselbe
@@ -569,7 +589,8 @@ Sicherheitsdurchgangs eine Instanz, die schon läuft. Prüfe sie vor dem `up`:
   von beidem, bis er genannt ist. Ohne ihn leitet `PHX_FORCE_SSL=true` jede
   Anfrage in einer Schleife um, und ohne `PHX_FORCE_SSL` verliert das
   Sitzungs-Cookie `Secure`, ohne dass etwas darauf hinweist. Nenne das
-  Bridge-Gateway vor dem Upgrade („Reverse-Proxy“ oben).
+  Bridge-Gateway oder die eigene Adresse des Proxys im Netzwerk des Stacks vor
+  dem Upgrade („Reverse-Proxy“ oben).
 - **Eine Anmeldung.** Eine Sitzung ist jetzt an das UI-Passwort gebunden, und
   eine Sitzung aus einem früheren Release trägt keine Bindung; jeder Browser
   meldet sich nach dem Upgrade einmal neu an.

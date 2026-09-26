@@ -64,10 +64,18 @@ nothing into the pages; the proxy's exact address named in
 `PORTFOLIXIR_TRUSTED_PROXIES`, not a block that also covers other hosts
 (without it the throttle counts the proxy as the one source, and a guesser
 behind it locks everyone behind it out, and `X-Forwarded-Proto` is believed
-from loopback only); for the Compose deployment, Docker Engine 28.3.3 or newer,
-because there the port mapping, not the application, keeps the instance on the
-host's loopback, and a UI password, because the other containers and the host
-itself still reach it; and backups.
+from loopback only), knowing that through a published port the proxy arrives
+from the Docker bridge gateway and every client on the host reaches the
+published ports from that one address, so naming the gateway believes every
+host process's forwarding headers, and a proxy on the stack's network, named
+by its own address, is the way to believe the proxy alone; for the Compose
+deployment, Docker Engine 28.3.3 or newer, because there the port mapping, not
+the application, keeps the instance on the host's loopback, and a UI password,
+because the other containers and the host itself still reach it; and backups.
+For the same reason the MCP companion counts failed tokens per connecting
+address with every host client as one source: a local process sending wrong
+tokens locks the operator's agent out with it until the lock runs out or the
+companion restarts.
 
 Sessions: a UI login lasts `PORTFOLIXIR_SESSION_DAYS` days (default 30),
 renewed while the instance is used, enforced on the server rather than trusted

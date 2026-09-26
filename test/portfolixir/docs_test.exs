@@ -923,6 +923,52 @@ defmodule Portfolixir.DocsTest do
     refute security =~ "`X-Forwarded-For` unchanged"
   end
 
+  # User story (closing-act findings SR-3 and SR-4):
+  # As an operator who publishes the application and the MCP companion on the
+  # host's loopback, as the Compose file does,
+  # I want the guide to say that every client on the host reaches them from
+  # the one Docker bridge gateway address,
+  # so that I know naming that address trusts every local process's
+  # forwarding headers, and that a local process sending wrong tokens to the
+  # companion locks my agent out with it.
+  #
+  # Acceptance criteria:
+  # - The Reverse proxy section (EN, DE) says every client on the host arrives
+  #   from the gateway address, so naming it trusts their forwarding headers
+  #   too, and names the way to trust the proxy alone: attach it to the
+  #   stack's network and name its container address.
+  # - The companion's section (EN, DE) says the companion counts failed tokens
+  #   per connecting address, that a local process sending wrong tokens locks
+  #   the agent out, and that restarting the companion clears the counts.
+  # - SECURITY.md says both.
+  test "the guide says every host client shares the bridge gateway address" do
+    read = fn path -> path |> File.read!() |> String.replace(~r/\s+/, " ") end
+
+    for {path, shared, network, lockout, restart} <- [
+          {"docs/home-deployment.md", "every client on the host arrives from that same address",
+           "attach the proxy to the stack's network and name its container address",
+           "a process on the host that sends a wrong token locks your agent out too",
+           "`docker compose restart mcp`"},
+          {"docs/de/home-deployment.md", "jeder Client auf dem Host kommt von derselben Adresse",
+           "hänge den Proxy an das Netzwerk des Stacks und nenne seine Container-Adresse",
+           "ein Prozess auf dem Host, der ein falsches Token schickt, sperrt auch deinen Agenten aus",
+           "`docker compose restart mcp`"}
+        ] do
+      doc = read.(path)
+
+      for fragment <- [shared, network, lockout, restart] do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+
+    security = read.("SECURITY.md")
+
+    assert security =~
+             "every client on the host reaches the published ports from that one address"
+
+    assert security =~ "the MCP companion counts failed tokens per connecting address"
+  end
+
   # User story (E25 S2, F54):
   # As an operator restoring a backup,
   # I want the restore to be all or nothing, the instance started only after
