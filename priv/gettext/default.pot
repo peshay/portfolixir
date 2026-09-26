@@ -7996,3 +7996,529 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "drift against the allocated portion"
 msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "former: %{name}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "merged from %{name} · %{date}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Merge into…"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Delete “%{name}”? The account has no bookings and no linked depot."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Delete “%{name}”? The depot has no bookings."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Its bucket assignments are removed with it."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "%{first} and %{second}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "references"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "“%{name}” still has %{references} — merge it first."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "A merge moves the bookings and the depot into an account of the same currency, liquidity role and buckets; the name stays there as a former name."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "A merge moves the bookings into a depot with the same default buckets; the name stays there as a former name."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Rename — %{name}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Former names"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "merged on %{date}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Remove “%{name}”"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Remove"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Enter a name."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "That account no longer exists."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "The current name “%{name}” stays a former name: an import that still names it keeps booking to this account."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "The current name “%{name}” stays a former name: an import that still names it keeps booking to this depot."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Another cash account is also named “%{name}”, so the current name is not kept: an import that names it books to that account. Merge or rename that account to change this."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Another depot is also named “%{name}”, so the current name is not kept: an import that names it books to that depot. Merge or rename that depot to change this."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Remove “%{name}” as a former name? An import that still names '%{name}' will then create a new account."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Remove “%{name}” as a former name? An import that still names '%{name}' will then create a new depot."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "“%{name}” is a former name of “%{holder}”: an import under this name books there. Choose another name or remove it from “%{holder}”."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "“%{name}” is already the name of another cash account."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "“%{name}” is already the name of another depot."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Merge %{name}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Not selectable (%{count})"
+msgid_plural "Not selectable (%{count})"
+msgstr[0] ""
+msgstr[1] ""
+
+#, elixir-autogen, elixir-format
+msgid "Continue to preview"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "The account no longer exists. Nothing was merged."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "The account was merged into another one meanwhile. Nothing was merged now."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Nothing was merged: the check of the merged figures did not hold, so the merge was rolled back. Check again; if it recurs, the audit journal shows both accounts' bookings."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Merged %{source} into %{target}: %{moved}, %{removed}."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Step 1 of 2 · Target"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Step 2 of 2 · Preview"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Target — receives every booking"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "No account meets the conditions."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "No depot meets the conditions."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Selectable: same currency, same liquidity role, same buckets."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Selectable: same default buckets."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "different portfolio record"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "different currency"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "different liquidity role"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "different buckets"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Buckets: %{names}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "no buckets"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "The accounts changed while the preview was open. Nothing was merged; the preview now shows the new state."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Changed since opening: %{changes}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "into"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Merge into %{name}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "%{name} after"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Balances as of %{date}, computed from the bookings. The sum holds on every day either account has a booking and is checked before anything is saved."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "— they cancel out in the balance"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "— table"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "— choice below"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Set balances"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "adjusted so the merged history holds"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Set"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "+ other account"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "After"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "the one of %{name} on this day is dropped"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "“+ other account”: the other account's balance at the end of that day, from its bookings before the merge. On a day with two set balances, the target's carries the sum."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Affected positions"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Avg. cost"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Realized gain/loss"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "In each cell before above (%{source} + %{target}, or %{source} · %{target}), after below. Average cost and realized gain/loss in the security's currency, a moving average over both depots' buys, fees and taxes not included. Quantity per security = the sum of both depots, checked on every day; the market value of both depots together stays the same."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Rounding at a split: %{security} on %{date} (%{ratio}) — combined %{combined}, rounded apart %{separate} (%{difference}). Expected, not a refusal."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Stands in"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "%{source} and %{target}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "remove as duplicates"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Balance after"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Also changes: %{changes}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "keep both"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Every booking stands in %{target} afterwards."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Equal means: same day, same kind, same amounts."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "%{quantity} shares"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "%{security} in %{depot} %{change} shares"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "a set balance of %{name} on %{date} absorbs %{amount}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "“%{name}” is not kept: an import that names it already books to another account."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "%{target} keeps its cash account; the cash account of %{source} stays an account of its own."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "%{source} is deleted afterwards. This cannot be undone; every changed booking is journaled."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "“%{name}” becomes a former name of %{target}. An import that names this account books to %{target} afterwards."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "%{names} become former names of %{target}. An import that names them books to %{target} afterwards."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Merging is not possible: %{reason}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Check again"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "an account cannot be merged into itself."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "a depot cannot be merged into itself."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "the target no longer exists."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "the two belong to different portfolio records."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "the accounts hold different currencies, and a merge never converts an amount."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "the accounts have different liquidity roles."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "the two sit in different buckets, so the views would change retroactively."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "a set balance still carries an import hash from before the import-hash check and cannot be adjusted."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "a check of the merge did not hold."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Remedy: give the position the same buckets in both depots, then check again."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Remedy: change that booking's kind back to the one it was imported as, or delete it, then check again."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Remedy: go back and choose another target."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "Remedy: align the two, or go back and choose another target, then check again."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "balance of %{name} %{before} → %{after} %{currency}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "bookings of %{name} %{before} → %{after}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "%{count} booking"
+msgid_plural "%{count} bookings"
+msgstr[0] ""
+msgstr[1] ""
+
+#, elixir-autogen, elixir-format
+msgid "%{count} linked depot (%{names})"
+msgid_plural "%{count} linked depots (%{names})"
+msgstr[0] ""
+msgstr[1] ""
+
+#, elixir-autogen, elixir-format
+msgid "Choose what to do with the equal booking."
+msgid_plural "Choose what to do with the %{count} equal bookings."
+msgstr[0] ""
+msgstr[1] ""
+
+#, elixir-autogen, elixir-format
+msgid "%{count} booking moved"
+msgid_plural "%{count} bookings moved"
+msgstr[0] ""
+msgstr[1] ""
+
+#, elixir-autogen, elixir-format
+msgid "%{count} removed"
+msgid_plural "%{count} removed"
+msgstr[0] ""
+msgstr[1] ""
+
+#, elixir-autogen, elixir-format
+msgid "Choice for the equal booking missing"
+msgid_plural "Choice for %{count} equal bookings missing"
+msgstr[0] ""
+msgstr[1] ""
+
+#, elixir-autogen, elixir-format
+msgid "%{amount} %{currency} if the equal booking is removed (%{difference})"
+msgid_plural "%{amount} %{currency} if the %{count} equal bookings are removed (%{difference})"
+msgstr[0] ""
+msgstr[1] ""
+
+#, elixir-autogen, elixir-format
+msgid "booking moves to %{name}"
+msgid_plural "bookings move to %{name}"
+msgstr[0] ""
+msgstr[1] ""
+
+#, elixir-autogen, elixir-format
+msgid "transfer between the two accounts is dropped"
+msgid_plural "transfers between the two accounts are dropped"
+msgstr[0] ""
+msgstr[1] ""
+
+#, elixir-autogen, elixir-format
+msgid "set balance is adjusted"
+msgid_plural "set balances are adjusted"
+msgstr[0] ""
+msgstr[1] ""
+
+#, elixir-autogen, elixir-format
+msgid ", %{count} is dropped"
+msgid_plural ", %{count} are dropped"
+msgstr[0] ""
+msgstr[1] ""
+
+#, elixir-autogen, elixir-format
+msgid "booking is equal in both accounts"
+msgid_plural "bookings are equal in both accounts"
+msgstr[0] ""
+msgstr[1] ""
+
+#, elixir-autogen, elixir-format
+msgid "linked depot moves to %{name}"
+msgid_plural "linked depots move to %{name}"
+msgstr[0] ""
+msgstr[1] ""
+
+#, elixir-autogen, elixir-format
+msgid "security transfer between the two depots is dropped"
+msgid_plural "security transfers between the two depots are dropped"
+msgstr[0] ""
+msgstr[1] ""
+
+#, elixir-autogen, elixir-format
+msgid "equal booking"
+msgid_plural "equal bookings"
+msgstr[0] ""
+msgstr[1] ""
+
+#, elixir-autogen, elixir-format
+msgid "%{count} equal booking in both accounts"
+msgid_plural "%{count} equal bookings in both accounts"
+msgstr[0] ""
+msgstr[1] ""
+
+#, elixir-autogen, elixir-format
+msgid "The booking from %{source} is deleted."
+msgid_plural "The %{count} bookings from %{source} are deleted."
+msgstr[0] ""
+msgstr[1] ""
+
+#, elixir-autogen, elixir-format
+msgid "for %{count} position the buckets differ, so the views would change retroactively."
+msgid_plural "for %{count} positions the buckets differ, so the views would change retroactively."
+msgstr[0] ""
+msgstr[1] ""
+
+#, elixir-autogen, elixir-format
+msgid "in %{source} and %{target}"
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "The link led to a security that was merged into this one on %{date}."
+msgstr ""
+
+#, elixir-autogen, elixir-format
+msgid "The benchmark named a security that was merged into “%{name}” on %{date}; the comparison now uses it."
+msgstr ""
