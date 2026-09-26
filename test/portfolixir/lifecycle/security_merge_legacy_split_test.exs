@@ -26,6 +26,7 @@ defmodule Portfolixir.Lifecycle.SecurityMergeLegacySplitTest do
   alias Portfolixir.Lifecycle
   alias Portfolixir.Lifecycle.RetiredImportHash
   alias Portfolixir.Portfolios
+  alias PortfolixirWeb.Api.V1.MergeJSON
 
   @migration "priv/repo/migrations/20260925130000_create_retired_import_hashes.exs"
   @migration_module Portfolixir.Repo.Migrations.CreateRetiredImportHashes
@@ -92,9 +93,9 @@ defmodule Portfolixir.Lifecycle.SecurityMergeLegacySplitTest do
     assert splits == [%{id: legacy.id, date: ~D[2025-03-01]}]
 
     # On the wire, errors.splits names it beside errors.guards.
-    assert PortfolixirWeb.Api.V1.MergeJSON.guard_facts(
-             Enum.find(guards, &(&1.code == :legacy_hashed_split))
-           ) == %{splits: [%{id: legacy.id, date: "2025-03-01"}]}
+    assert MergeJSON.guard_facts(Enum.find(guards, &(&1.code == :legacy_hashed_split))) == %{
+             splits: [%{id: legacy.id, date: "2025-03-01"}]
+           }
 
     assert {:error, {:refused, _guards}} =
              Lifecycle.merge_security(agent(), ctx.source.id, ctx.target.id, %{
