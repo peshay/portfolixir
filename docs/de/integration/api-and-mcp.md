@@ -163,8 +163,15 @@ das Leerzeichen und die Verbinder der Breite null U+200B–U+200D,
 U+2060–U+2065, U+206A–U+206F, die Byte-Order-Mark U+FEFF, U+FFF9–U+FFFB,
 U+1BCA0–U+1BCA3, U+1D173–U+1D17A) oder eine Folge von zwei oder mehr
 Variantenselektoren (ein einzelner, die Darstellung eines Emojis, ist
-erlaubt). Sie werden als nichts angezeigt, erreichen einen Agenten aber
-unverändert; der Fehler nennt sie darum mit Codepunkt: `must not contain
+erlaubt). Ein Verbinder der Breite null U+200D ist erlaubt, wo er zwei
+Piktogramme verbindet, wie in einem Emoji aus mehreren (eine Person am
+Laptop, eine Familie, die Regenbogenflagge): Das Zeichen vor ihm ist ein
+Piktogramm oder ein VS16 direkt nach einem, und das Zeichen nach ihm ist
+eines. Die drei Flaggen der Landesteile (England, Schottland, Wales) bestehen
+aus Tag-Zeichen und bleiben abgelehnt, ebenso der Nicht-Verbinder der Breite
+null U+200C, den Wörter mancher Schriften (Persisch, mehrere indische
+Schriften) tragen. Sie werden als nichts angezeigt, erreichen einen Agenten
+aber unverändert; der Fehler nennt sie darum mit Codepunkt: `must not contain
 invisible characters (U+200B); retype the text without them`. Die eine
 Ausnahme ist der Name eines Wertpapiers: Seine Formatzeichen werden wie
 bisher beim Speichern entfernt, und nur eine Folge von Variantenselektoren

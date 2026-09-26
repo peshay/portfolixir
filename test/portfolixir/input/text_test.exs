@@ -153,6 +153,64 @@ defmodule Portfolixir.Input.TextTest do
              {:error, :invisible_characters}
   end
 
+  # User story (E25 S7 review round, S7E-3):
+  # As an operator who writes an emoji into a note or a name,
+  # I want an emoji built from several pictographs joined by a zero-width
+  # joiner — a person at a laptop, a family, the rainbow flag — to be stored,
+  # so that the refusal of invisible characters takes only what renders as
+  # nothing, not a joiner I see as one glyph.
+  #
+  # Acceptance criteria:
+  # - U+200D passes where it joins two pictographs: the character before it is
+  #   a pictograph (a skin tone included) or a VS16 right after one, and the
+  #   character after it is a pictograph. Anywhere else it is refused.
+  # - The tag characters stay refused, so the three subdivision flags
+  #   (England, Scotland, Wales) are refused with them; so is the zero-width
+  #   non-joiner U+200C, a Persian word's included.
+  # - The count and the escape agree with the rule (shared fixture).
+  test "a zero-width joiner between two pictographs is an emoji, and passes" do
+    passing = [
+      c(0x1F469) <> c(0x200D) <> c(0x1F4BB),
+      c(0x1F468) <> c(0x200D) <> c(0x1F469) <> c(0x200D) <> c(0x1F467),
+      c(0x1F3F3) <> c(0xFE0F) <> c(0x200D) <> c(0x1F308),
+      c(0x1F469) <> c(0x1F3FD) <> c(0x200D) <> c(0x1F4BB),
+      c(0x2764) <> c(0xFE0F) <> c(0x200D) <> c(0x1F525),
+      c(0x1F937) <> c(0x200D) <> c(0x2640) <> c(0xFE0F)
+    ]
+
+    for text <- passing do
+      assert Text.check("Note " <> text, multiline: true) == :ok, inspect(text)
+      assert Text.invisible_count(text) == 0
+      assert Text.escape_invisible(text) == text
+      assert changeset(%{"name" => text}, max: 255).valid?
+    end
+
+    refused = [
+      {"a" <> c(0x200D) <> "b", 1},
+      {c(0x1F468) <> c(0x200D) <> "x", 1},
+      {"x" <> c(0x200D) <> c(0x1F468), 1},
+      {c(0x200D) <> c(0x1F468), 1},
+      {c(0x1F468) <> c(0x200D), 1},
+      {c(0x1F468) <> c(0x200D) <> c(0x200D) <> c(0x1F4BB), 2},
+      {"x" <> c(0xFE0F) <> c(0x200D) <> c(0x1F468), 1},
+      {c(0x1F3F4) <>
+         c(0xE0067) <>
+         c(0xE0062) <>
+         c(0xE0073) <>
+         c(0xE0063) <>
+         c(0xE0074) <>
+         c(0xE007F), 6},
+      {c(0x0645) <> c(0x06CC) <> c(0x200C) <> c(0x062E) <> c(0x0648), 1}
+    ]
+
+    for {text, count} <- refused do
+      assert Text.check(text, multiline: true) == {:error, :invisible_characters},
+             "accepted #{inspect(text, binaries: :as_binaries)}"
+
+      assert Text.invisible_count(text) == count, inspect(text)
+    end
+  end
+
   # User story (E25 S7, G20; pick G12.2 = B, board 12-e25-new-marks):
   # As the operator reading a record stored before the refusal existed,
   # I want the characters I cannot see counted and spelled out,

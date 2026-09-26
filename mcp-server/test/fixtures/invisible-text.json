@@ -53,8 +53,8 @@
     },
     {
       "input": "coder \ud83d\udc68\u200d\ud83d\udcbb",
-      "escaped": "coder \ud83d\udc68[U+200D]\ud83d\udcbb",
-      "count": 1
+      "escaped": "coder \ud83d\udc68\u200d\ud83d\udcbb",
+      "count": 0
     },
     {
       "input": "line one\nline two\ttab",
@@ -80,6 +80,76 @@
       "input": "Gr\u00fc\u00dfe, \u682a\u5f0f",
       "escaped": "Gr\u00fc\u00dfe, \u682a\u5f0f",
       "count": 0
+    },
+    {
+      "input": "technologist \ud83d\udc69\u200d\ud83d\udcbb",
+      "escaped": "technologist \ud83d\udc69\u200d\ud83d\udcbb",
+      "count": 0
+    },
+    {
+      "input": "family \ud83d\udc68\u200d\ud83d\udc69\u200d\ud83d\udc67",
+      "escaped": "family \ud83d\udc68\u200d\ud83d\udc69\u200d\ud83d\udc67",
+      "count": 0
+    },
+    {
+      "input": "rainbow \ud83c\udff3\ufe0f\u200d\ud83c\udf08",
+      "escaped": "rainbow \ud83c\udff3\ufe0f\u200d\ud83c\udf08",
+      "count": 0
+    },
+    {
+      "input": "skin tone \ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+      "escaped": "skin tone \ud83d\udc69\ud83c\udffd\u200d\ud83d\udcbb",
+      "count": 0
+    },
+    {
+      "input": "heart on fire \u2764\ufe0f\u200d\ud83d\udd25",
+      "escaped": "heart on fire \u2764\ufe0f\u200d\ud83d\udd25",
+      "count": 0
+    },
+    {
+      "input": "shrug \ud83e\udd37\u200d\u2640\ufe0f",
+      "escaped": "shrug \ud83e\udd37\u200d\u2640\ufe0f",
+      "count": 0
+    },
+    {
+      "input": "joined\u200dword",
+      "escaped": "joined[U+200D]word",
+      "count": 1
+    },
+    {
+      "input": "\ud83d\udc68\u200dx",
+      "escaped": "\ud83d\udc68[U+200D]x",
+      "count": 1
+    },
+    {
+      "input": "\u200d\ud83d\udc68",
+      "escaped": "[U+200D]\ud83d\udc68",
+      "count": 1
+    },
+    {
+      "input": "\ud83d\udc68\u200d",
+      "escaped": "\ud83d\udc68[U+200D]",
+      "count": 1
+    },
+    {
+      "input": "\ud83d\udc68\u200d\u200d\ud83d\udcbb",
+      "escaped": "\ud83d\udc68[U+200D][U+200D]\ud83d\udcbb",
+      "count": 2
+    },
+    {
+      "input": "x\ufe0f\u200d\ud83d\udc68",
+      "escaped": "x\ufe0f[U+200D]\ud83d\udc68",
+      "count": 1
+    },
+    {
+      "input": "England \ud83c\udff4\udb40\udc67\udb40\udc62\udb40\udc65\udb40\udc6e\udb40\udc67\udb40\udc7f",
+      "escaped": "England \ud83c\udff4[U+E0067][U+E0062][U+E0065][U+E006E][U+E0067][U+E007F]",
+      "count": 6
+    },
+    {
+      "input": "\u0645\u06cc\u200c\u062e\u0648\u0627\u0647\u0645",
+      "escaped": "\u0645\u06cc[U+200C]\u062e\u0648\u0627\u0647\u0645",
+      "count": 1
     }
   ]
 }

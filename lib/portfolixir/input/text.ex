@@ -22,10 +22,22 @@ defmodule Portfolixir.Input.Text do
       selector alone is an emoji's presentation and passes). They render as
       nothing on the operator's screen but reach an agent intact, so text
       that carries them could hide an instruction in a record the operator
-      reviewed. `escape_invisible/1` spells each one as `[U+XXXX]` — the
-      spelling the MCP companion gives the agent and the screen gives the
-      operator for a row stored before the rule — and `invisible_count/1`
-      counts them;
+      reviewed. One exception keeps emoji whole (E25 S7 review round,
+      S7E-3): the zero-width joiner U+200D passes where it **joins two
+      pictographs** — the character before it is a pictograph, or a VS16
+      (U+FE0F) right after one, and the character after it is one — since
+      there it renders as the one glyph it builds (a person at a laptop, a
+      family, the rainbow flag). A pictograph here is U+00A9, U+00AE,
+      U+203C, U+2049, U+2122, U+2139, U+2190–U+21FF, U+2300–U+23FF, U+24C2,
+      U+25A0–U+27BF, U+2934–U+2935, U+2B00–U+2BFF, U+3030, U+303D, U+3297,
+      U+3299 or U+1F000–U+1FAFF (a written-out superset of Unicode's
+      Extended_Pictographic below U+1FB00, skin tones included). The tag
+      characters stay refused, and with them the three subdivision flags
+      built from them; so does the zero-width non-joiner U+200C, which some
+      scripts' words carry. `escape_invisible/1` spells each refused
+      character as `[U+XXXX]` — the spelling the MCP companion gives the
+      agent and the screen gives the operator for a row stored before the
+      rule — and `invisible_count/1` counts them;
     * a value longer than `max:` code points, when given.
 
   `validate/3` is the changeset form every schema uses; `check/2` returns the
@@ -47,7 +59,13 @@ defmodule Portfolixir.Input.Text do
   # module and the MCP companion's escape (mcp-server/src/invisible-text.ts)
   # name the same set whatever Unicode version either runtime ships; the
   # shared cases in mcp-server/test/fixtures/invisible-text.json pin both.
-  @invisible ~r/[\x{00AD}\x{061C}\x{180E}\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2060}-\x{206F}\x{FEFF}\x{FFF9}-\x{FFFB}\x{1BCA0}-\x{1BCA3}\x{1D173}-\x{1D17A}\x{E0000}-\x{E007F}]|[\x{FE00}-\x{FE0F}\x{E0100}-\x{E01EF}]{2,}/u
+  #
+  # The alternatives: every refused format character but the zero-width
+  # joiner; a joiner not preceded by a pictograph (or a pictograph and a
+  # VS16); a joiner not followed by a pictograph (S7E-3); a run of variation
+  # selectors.
+  @pictograph "\\x{00A9}\\x{00AE}\\x{203C}\\x{2049}\\x{2122}\\x{2139}\\x{2190}-\\x{21FF}\\x{2300}-\\x{23FF}\\x{24C2}\\x{25A0}-\\x{27BF}\\x{2934}\\x{2935}\\x{2B00}-\\x{2BFF}\\x{3030}\\x{303D}\\x{3297}\\x{3299}\\x{1F000}-\\x{1FAFF}"
+  @invisible ~r/[\x{00AD}\x{061C}\x{180E}\x{200B}\x{200C}\x{200E}\x{200F}\x{202A}-\x{202E}\x{2060}-\x{206F}\x{FEFF}\x{FFF9}-\x{FFFB}\x{1BCA0}-\x{1BCA3}\x{1D173}-\x{1D17A}\x{E0000}-\x{E007F}]|(?<![#{@pictograph}])(?<![#{@pictograph}]\x{FE0F})\x{200D}|\x{200D}(?![#{@pictograph}])|[\x{FE00}-\x{FE0F}\x{E0100}-\x{E01EF}]{2,}/u
 
   # How many distinct characters a field error names.
   @named_characters 5
