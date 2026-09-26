@@ -2907,10 +2907,13 @@ const declaredTools: DeclaredTool[] = [
       "would collide or go stale is deleted — each as the preview listed); its former ISINs, and its WKN, ticker " +
       "and feed where the target lacks them, go to the target; name, asset class and logo stay the target's. One " +
       "audit-journal entry per row under your token. The source is deleted, which cannot be undone. Afterwards " +
-      "every identity of the source resolves to the target, so a later Portfolio Performance import that names " +
-      "it books onto the target, and a re-import of an export already applied creates nothing: the content hash " +
-      "of every booking the merge deletes is retired; a merge that would leave an identity unresolved is refused " +
-      "(identity_unresolvable), before or after the writes, with nothing written. Answers 201 with the merge " +
+      "every identity the merge checks resolves to the target — each security's identity as stored, as its " +
+      "Portfolio Performance import recorded it, with each former ISIN, and those of securities merged into " +
+      "either before — so a later import naming the source books onto the target, and a re-import of an export " +
+      "already applied creates nothing: the content hash of every booking the merge deletes is retired. A merge " +
+      "that would leave one of those identities unresolved is refused (identity_unresolvable), before or after " +
+      "the writes, with nothing written; an identifier the database never saw is outside that check. Answers " +
+      "201 with the merge " +
       "record. If a booking, a quote, a configuration row, an identifier or a guard changed since the preview, it " +
       "answers 409 plan_changed with the fresh preview in errors.preview and writes nothing — show it and ask " +
       "again. A retry of a completed merge of the same pair answers 200 with the original merge record " +
@@ -3121,8 +3124,11 @@ const declaredTools: DeclaredTool[] = [
       "(restated to the combined balance) and its linked depots move onto the target, one audit-journal entry " +
       "per row under your token; transfers between the two are deleted; the source is deleted, which cannot be " +
       "undone. Its name, and each of its former names, becomes a former name of the target, so a later Portfolio " +
-      "Performance import that names it books onto the target, and a re-import of an export already applied " +
-      "creates nothing: the content hash of every booking the merge deletes is retired. Answers 201 with the " +
+      "Performance import that names it books onto the target — except a name another cash account of the " +
+      "portfolio still carries as its live or former name: that one is not kept (the preview lists it in " +
+      "former_names.not_kept with held_by), and an import naming it books to that other account. A re-import of " +
+      "an export already applied creates nothing: the content hash of every booking the merge deletes is " +
+      "retired. Answers 201 with the " +
       "merge record. If a booking, a figure or a guard changed since the preview, it answers 409 plan_changed " +
       "with the fresh preview in errors.preview and writes nothing — show it and ask again. A retry of a " +
       "completed merge of the same pair answers 200 with the original merge record (already_applied true).",
@@ -3212,9 +3218,12 @@ const declaredTools: DeclaredTool[] = [
       "are deleted; every day's quantity of each security is checked against both depots' bookings; each " +
       "position keeps its view membership (the source's override is carried, or dropped where redundant); the " +
       "source is deleted, which cannot be undone. Its name, and each of its former names, becomes a former name " +
-      "of the target, so a later Portfolio Performance import that names it books onto the target, and a " +
-      "re-import of an export already applied creates nothing: the content hash of every booking the merge " +
-      "deletes is retired. Answers 201 with the merge record. If a booking, a figure or a guard changed since " +
+      "of the target, so a later Portfolio Performance import that names it books onto the target — except a " +
+      "name another depot of the portfolio still carries as its live or former name: that one is not kept (the " +
+      "preview lists it in former_names.not_kept with held_by), and an import naming it books to that other " +
+      "depot. A re-import of an export already applied creates nothing: the content hash of every booking the " +
+      "merge deletes is retired. Answers 201 with the merge record. If a booking, a figure or a guard changed " +
+      "since " +
       "the preview, it answers 409 plan_changed with the fresh preview in errors.preview and writes nothing — " +
       "show it and ask again. A retry of a completed merge of the same pair answers 200 with the original merge " +
       "record (already_applied true).",

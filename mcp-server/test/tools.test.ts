@@ -1742,6 +1742,10 @@ describe("Portfolixir MCP tools", () => {
     assert.match(merge, /former name of the target/);
     assert.match(merge, /books onto the target/);
     assert.match(merge, /re-import of an export already applied creates nothing/);
+    // A name another account still carries is not kept (L3–L5 review, F4).
+    assert.match(merge, /not kept/);
+    assert.match(merge, /former_names\.not_kept/);
+    assert.match(merge, /books to that other account/);
     assert.match(merge, /collapse_key_equal is required when the preview lists key_equal_pairs/);
     assert.match(merge, /plan_changed/);
     assert.match(merge, /retry.*original merge record/);
@@ -1825,6 +1829,8 @@ describe("Portfolixir MCP tools", () => {
     assert.match(merge, /collapse_key_equal is required when the preview lists key_equal_pairs/);
     assert.match(merge, /plan_changed/);
     assert.match(merge, /retry.*original merge record/);
+    assert.match(merge, /not kept/);
+    assert.match(merge, /books to that other\s+depot/);
     assert.equal(find("portfolixir.securities_accounts.merge")?.annotations?.destructiveHint, true);
     assert.equal(find("portfolixir.securities_accounts.merge")?.annotations?.idempotentHint, true);
 
@@ -1924,6 +1930,10 @@ describe("Portfolixir MCP tools", () => {
     assert.match(merge, /books onto the target/);
     assert.match(merge, /re-import of an export already applied creates nothing/);
     assert.match(merge, /identity_unresolvable/);
+    // It claims only the identities the merge checks (L3–L5 review, F4).
+    assert.doesNotMatch(merge, /every identity of the source resolves/);
+    assert.match(merge, /every identity the merge checks resolves to the target/);
+    assert.match(merge, /securities merged into\s+either before/);
     assert.match(merge, /plan_changed/);
     assert.match(merge, /retry.*original merge record/);
     assert.equal(find("portfolixir.securities.merge")?.annotations?.destructiveHint, true);
