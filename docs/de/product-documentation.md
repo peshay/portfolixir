@@ -452,7 +452,11 @@ Sperren, die in N Tagen ablaufen.
 gespeichert, das als nichts dargestellt wird — ein Leerzeichen der Breite
 null, ein Steuerzeichen der Schreibrichtung, ein Tag-Zeichen, eine Folge von
 Variantenselektoren: Jedes Formular, die API, MCP und der Import lehnen es ab
-und nennen es (`U+200B`). Ein zuvor gespeicherter Text trägt dort, wo er
+und nennen es (`U+200B`). Ein Emoji aus mehreren, verbunden durch einen
+Verbinder der Breite null (eine Person am Laptop, die Regenbogenflagge), wird
+gespeichert, denn der Verbinder erscheint als das Emoji; die Flaggen von
+England, Schottland und Wales, aus Tag-Zeichen gebaut, und der
+Nicht-Verbinder der Breite null mancher Schriften werden abgelehnt. Ein zuvor gespeicherter Text trägt dort, wo er
 steht, eine Notiz **Achtung** — „Der Text enthält 2 unsichtbare Zeichen.“ (ein
 Name: „Der Name enthält …“) — mit der Abhilfe und, hinter *Text mit sichtbar
 gemachten Zeichen*, dem Text in der Schreibweise, die der Agent bekommt

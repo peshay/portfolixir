@@ -420,7 +420,11 @@ and dated blocks expiring within N days.
 **Invisible characters** (E25). No text is stored any more with a character
 that renders as nothing — a zero-width space, a direction control, a tag
 character, a run of variation selectors: every form, the API, MCP and the
-import refuse it, naming it (`U+200B`). A text stored before carries an
+import refuse it, naming it (`U+200B`). An emoji built from several joined by
+a zero-width joiner (a person at a laptop, the rainbow flag) is stored, since
+the joiner renders as the emoji; the England, Scotland and Wales flags, built
+from tag characters, and the zero-width non-joiner some scripts use are
+refused. A text stored before carries an
 **Attention** note where it is shown — "The text contains 2 invisible
 characters." (a name: "The name contains …") — with what to do about it
 and, behind *Text with the characters made visible*, the text spelled the

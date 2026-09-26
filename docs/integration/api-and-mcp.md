@@ -147,9 +147,15 @@ invisible format character (the soft hyphen U+00AD, U+180E, the zero-width
 space and joiners U+200B–U+200D, U+2060–U+2065, U+206A–U+206F, the byte-order
 mark U+FEFF, U+FFF9–U+FFFB, U+1BCA0–U+1BCA3, U+1D173–U+1D17A) or a run of two
 or more variation selectors (a single one, an emoji's presentation, passes).
-They render as nothing but reach an agent intact, so the error names them by
-code point: `must not contain invisible characters (U+200B); retype the text
-without them`. A security's name is the one exception: its format characters
+A zero-width joiner U+200D passes where it joins two pictographs, as in an
+emoji built from several (a person at a laptop, a family, the rainbow flag):
+the character before it is a pictograph, or a VS16 right after one, and the
+character after it is one. The three subdivision flags (England, Scotland,
+Wales) are built from tag characters and stay refused, and so does the
+zero-width non-joiner U+200C, which some scripts' words (Persian, several
+Indic scripts) carry. They render as nothing but reach an agent intact, so the
+error names them by code point: `must not contain invisible characters
+(U+200B); retype the text without them`. A security's name is the one exception: its format characters
 are dropped as it is stored, as before, and only a run of variation selectors
 is refused. Anything else answers `422` naming the field, never a
 server error. A Portfolio Performance import names a row whose names or note
