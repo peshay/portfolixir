@@ -1270,14 +1270,23 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
         & &1.former_isin
       )
 
+    fields = Map.new(adopted, &{&1.field, &1.value})
+
+    # Each outcome with the writes of the target it takes, in the merge's
+    # order: under adopt_source_isin the ISIN change comes first.
     outcomes =
       if both? do
         %{
-          keep_target_isin: after_identity(target, adopted, target.isin, [source.isin | kept]),
-          adopt_source_isin: after_identity(target, adopted, source.isin, [target.isin | kept])
+          keep_target_isin:
+            after_identity(target, fields, target.isin, [source.isin | kept], [fields]),
+          adopt_source_isin:
+            after_identity(target, fields, source.isin, [target.isin | kept], [
+              %{isin: source.isin},
+              fields
+            ])
         }
       else
-        %{no_choice: after_identity(target, adopted, target.isin || source.isin, kept)}
+        %{no_choice: after_identity(target, fields, target.isin || source.isin, kept, [fields])}
       end
 
     %{
@@ -1312,18 +1321,30 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
     isin ++ fields ++ feed_url
   end
 
-  defp after_identity(target, adopted, isin, former_isins) do
-    adopted = Map.new(adopted, &{&1.field, &1.value})
-
+  defp after_identity(target, adopted, isin, former_isins, writes) do
     %{
       isin: isin,
       wkn: Map.get(adopted, :wkn, target.wkn),
       ticker_symbol: Map.get(adopted, :ticker_symbol, target.ticker_symbol),
       feed: Map.get(adopted, :feed, target.feed),
       name: target.name,
-      asset_class: target.asset_class,
+      asset_class: stored_asset_class(target, writes),
       former_isins: former_isins |> Enum.reject(&is_nil/1) |> Enum.uniq() |> Enum.sort()
     }
+  end
+
+  # The asset class the target stores after the merge's writes of it. It
+  # follows the target, but while none is stored the catalog derives one on
+  # every write of the security (`Security.changeset/2`, from the name, the
+  # ticker and the logo), so an adopted ticker can set it: the writes are
+  # replayed on the target as it is, in the merge's order, without a write.
+  defp stored_asset_class(target, writes) do
+    writes
+    |> Enum.reject(&(&1 == %{}))
+    |> Enum.reduce(target, fn attrs, security ->
+      security |> Security.changeset(attrs) |> Ecto.Changeset.apply_changes()
+    end)
+    |> Map.fetch!(:asset_class)
   end
 
   # Every value of the source that the target's replaces: name, asset class
