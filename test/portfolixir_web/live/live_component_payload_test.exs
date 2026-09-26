@@ -60,6 +60,11 @@ defmodule PortfolixirWeb.LiveComponentPayloadTest do
       PortfolixirWeb.PortfolioAccounts.MergeDialog => [
         {"/portfolios", "row_merge", %{"kind" => "cash", "id" => cash.id}, "#merge-dialog"},
         {"/portfolios", "row_merge", %{"kind" => "depot", "id" => depot.id}, "#merge-dialog"}
+      ],
+      # ADR-0050 §9 (L5b): the security merge of the securities page.
+      PortfolixirWeb.Securities.MergeDialog => [
+        {"/securities", "row_action", %{"action" => "merge", "id" => security.id},
+         "#security-merge-dialog"}
       ]
     }
   end

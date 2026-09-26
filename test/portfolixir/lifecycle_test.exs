@@ -188,6 +188,9 @@ defmodule Portfolixir.LifecycleTest do
     #   and the host's calendar date of the merge.
     # - A target nothing was merged into is absent; another kind's merge of
     #   the same ids is not counted.
+    # - A security's merge also names the ISIN the source carried then (its
+    #   snapshot's), for the survivor's "merged from … (then <ISIN>)" (L5b,
+    #   board 03); an account's names none.
     test "lists the direct merges into each target, oldest first" do
       world = world()
       first = merge_record!(world)
@@ -215,12 +218,26 @@ defmodule Portfolixir.LifecycleTest do
       assert a == %{
                source_id: world.old_cash.id,
                source_name: "Savings (old)",
+               source_isin: nil,
                merged_on: Portfolixir.Clock.local_date(first.inserted_at)
              }
 
       assert b.source_id == second.source_id
       assert b.source_name == "Savings 2"
       assert Lifecycle.merged_from(:security, [target]) == %{}
+
+      {:ok, _security_merge} =
+        Lifecycle.record_merge(agent(), %{
+          kind: "security",
+          source_id: 77,
+          target_id: 78,
+          source_snapshot: %{"id" => 77, "name" => "Fund X", "isin" => "XS0000000002"},
+          manifest: %{},
+          plan_digest: "sha256:synthetic-plan"
+        })
+
+      assert %{78 => [%{source_name: "Fund X", source_isin: "XS0000000002"}]} =
+               Lifecycle.merged_from(:security, [78])
     end
   end
 

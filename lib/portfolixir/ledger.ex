@@ -1136,6 +1136,25 @@ defmodule Portfolixir.Ledger do
   end
 
   @doc """
+  The number of bookings of each of `security_ids`, split rows included, as
+  `%{security_id => count}` — a security without one is absent. One query,
+  for a list that names each candidate's bookings (the security merge's
+  target search, ADR-0050 §9).
+  """
+  @spec count_transactions_by_security([integer()]) :: %{integer() => pos_integer()}
+  def count_transactions_by_security([]), do: %{}
+
+  def count_transactions_by_security(security_ids) when is_list(security_ids) do
+    from(t in Transaction,
+      where: t.security_id in ^security_ids,
+      group_by: t.security_id,
+      select: {t.security_id, count(t.id)}
+    )
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  @doc """
   Counts transactions of the given kinds dated strictly after `date` — the
   activity half of the tax-statement staleness assessment (issue #667).
   """
