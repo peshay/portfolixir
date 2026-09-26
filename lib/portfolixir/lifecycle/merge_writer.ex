@@ -36,8 +36,8 @@ defmodule Portfolixir.Lifecycle.MergeWriter do
   that change (and `gross_amount` for an anchor). Journaled as one
   `transaction` update.
   """
-  @spec reassign_transaction(Actor.t(), Transaction.t(), map()) ::
-          {:ok, Transaction.t()} | {:error, refusal()}
+  @spec reassign_transaction(Actor.t(), %Transaction{}, map()) ::
+          {:ok, %Transaction{}} | {:error, refusal()}
   def reassign_transaction(%Actor{} = actor, %Transaction{} = row, attrs) when is_map(attrs) do
     Multi.new()
     |> Multi.update(:transaction, fn changes ->
@@ -57,8 +57,8 @@ defmodule Portfolixir.Lifecycle.MergeWriter do
   folded anchor (§7 step 4) — through the ledger's journaled delete: one
   `transaction` delete with the full before-image.
   """
-  @spec delete_transaction(Actor.t(), Transaction.t()) ::
-          {:ok, Transaction.t()} | {:error, refusal()}
+  @spec delete_transaction(Actor.t(), %Transaction{}) ::
+          {:ok, %Transaction{}} | {:error, refusal()}
   def delete_transaction(%Actor{} = actor, %Transaction{} = row) do
     case Ledger.delete_transaction(actor, row) do
       {:ok, deleted} ->
@@ -78,7 +78,7 @@ defmodule Portfolixir.Lifecycle.MergeWriter do
   `:collapsed_duplicate` with the row that supersedes it. A row without a
   hash (booked by hand) has nothing to retire.
   """
-  @spec retire_hash(Actor.t(), Transaction.t(), pos_integer(), atom(), integer() | nil) ::
+  @spec retire_hash(Actor.t(), %Transaction{}, pos_integer(), atom(), integer() | nil) ::
           :ok | {:error, refusal()}
   def retire_hash(_actor, %Transaction{import_hash: nil}, _record_id, _reason, _superseded_by),
     do: :ok
@@ -101,8 +101,8 @@ defmodule Portfolixir.Lifecycle.MergeWriter do
   (§7 step 5), through `SecuritiesAccount.reassign_changeset/2`: one
   `securities_account` update.
   """
-  @spec reassign_depot(Actor.t(), SecuritiesAccount.t(), integer()) ::
-          {:ok, SecuritiesAccount.t()} | {:error, refusal()}
+  @spec reassign_depot(Actor.t(), %SecuritiesAccount{}, integer()) ::
+          {:ok, %SecuritiesAccount{}} | {:error, refusal()}
   def reassign_depot(%Actor{} = actor, %SecuritiesAccount{} = depot, cash_account_id)
       when is_integer(cash_account_id) do
     Multi.new()
@@ -126,8 +126,8 @@ defmodule Portfolixir.Lifecycle.MergeWriter do
   under the account-identity lock the merge took first, after the source is
   gone. One update of the account; no names, no write.
   """
-  @spec append_former_names(Actor.t(), CashAccount.t() | SecuritiesAccount.t(), [String.t()]) ::
-          {:ok, CashAccount.t() | SecuritiesAccount.t()} | {:error, refusal()}
+  @spec append_former_names(Actor.t(), %CashAccount{} | %SecuritiesAccount{}, [String.t()]) ::
+          {:ok, %CashAccount{} | %SecuritiesAccount{}} | {:error, refusal()}
   def append_former_names(_actor, account, []), do: {:ok, account}
 
   def append_former_names(%Actor{} = actor, %schema{} = account, names) when is_list(names) do

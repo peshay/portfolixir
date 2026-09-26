@@ -909,7 +909,7 @@ defmodule Portfolixir.Lifecycle.CashMerge do
          :ok <- move_source_rows(actor, plan, outcome),
          :ok <- move_depots(actor, plan),
          :ok <- linearity_check(plan, outcome),
-         {:ok, _deleted} <- Delete.remove(actor, plan.source),
+         {:ok, _deleted} <- delete_source(actor, plan.source),
          {:ok, appended, not_kept} <- append_names(actor, plan) do
       Lifecycle.record_merge(
         actor,
@@ -1026,6 +1026,23 @@ defmodule Portfolixir.Lifecycle.CashMerge do
         {:error, {:identity_check_failed, %{date: date, expected: expected, actual: actual}}}
       end
     end)
+  end
+
+  # §7 step 7 through the hardened delete (§11): the source's bucket links
+  # first, one aggregate entry, then the row. Inside the merge a refusal is
+  # a reference the locks should have kept out: a changed plan, or the
+  # database's own answer, named.
+  defp delete_source(actor, source) do
+    case Delete.remove(actor, source) do
+      {:ok, deleted} ->
+        {:ok, deleted}
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:error, {:write_refused, "cash_account", source.id, changeset}}
+
+      {:error, _raced_or_gone} ->
+        {:error, :raced}
+    end
   end
 
   # §7 step 7: the source's names, checked by the guard once the source is
