@@ -5,6 +5,7 @@ defmodule PortfolixirWeb.Api.V1.SecuritiesAccountController do
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.MergedAway
   alias PortfolixirWeb.Api.V1.ReferencedConflict
 
   def index(conn, _params) do
@@ -18,7 +19,8 @@ defmodule PortfolixirWeb.Api.V1.SecuritiesAccountController do
          %SecuritiesAccount{} = account <- Portfolios.get_securities_account(sid) do
       json(conn, %{data: JSON.securities_account(account)})
     else
-      _ -> not_found(conn)
+      # ADR-0050 §12: a merged-away depot names the one it lives on.
+      _ -> MergedAway.not_found(conn, :securities_account, id)
     end
   end
 

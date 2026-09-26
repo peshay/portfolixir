@@ -93,6 +93,273 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
     }
   end
 
+  @security_positions_basis "quantity: the position fold of each depot's bookings of the " <>
+                              "security and its portfolio's splits, each split scaling the " <>
+                              "position once, rounded at volume scale 6 (ADR-0028 §3). " <>
+                              "cost_basis and avg_cost: the moving-average cost GET " <>
+                              "/api/v1/portfolios/:id/holdings states, in the security's " <>
+                              "currency, fees and taxes not included; after the merge both " <>
+                              "securities' lots in a depot combine, so the cost is restated. " <>
+                              "realized_result: over the position's sales, each sale's quantity " <>
+                              "times its price less the cost it removed at the running average, " <>
+                              "fees and taxes not included; null where not derivable. source and " <>
+                              "target are before the merge (null where the depot holds no " <>
+                              "booking of that security), after is the target afterwards, per " <>
+                              "depot the source holds. rounding_differences: each split where " <>
+                              "the combined position rounded once differs, at the end of the " <>
+                              "split's day, from the two positions rounded apart — expected, " <>
+                              "never a refusal."
+
+  @security_reimport_note "After the merge every identity of the source resolves to the target: " <>
+                            "its ISIN, as the target's ISIN or as a former ISIN of the target " <>
+                            "(the identity choice decides which), its former ISINs, and its WKN, " <>
+                            "ticker and feed where the target took them. A Portfolio Performance " <>
+                            "import naming the source books onto the target, and a re-import of an " <>
+                            "export already applied creates nothing, because every booking the " <>
+                            "merge removes has its content hash retired. A merge that would leave " <>
+                            "an identity unresolved is refused (identity_unresolvable)."
+
+  @doc """
+  A security merge preview (§9): the parts of a depot preview — positions per
+  depot, pairs, splits, the bucket plan — and the quotes, the configuration,
+  the events and the identifiers the merge carries.
+  """
+  def security_preview(preview) do
+    %{
+      kind: "security",
+      plan_digest: preview.plan_digest,
+      source: security(preview.source),
+      target: security(preview.target),
+      guards: Enum.map(preview.guards, &guard/1),
+      key_equal_pairs: Enum.map(preview.key_equal_pairs, &security_pair/1),
+      choice_required: preview.choice_required,
+      identity_choice_required: preview.identifiers.choice_required,
+      splits: %{
+        collapsed:
+          Enum.map(preview.splits.collapsed, fn split ->
+            %{
+              source_transaction_id: split.source_transaction_id,
+              target_transaction_id: split.target_transaction_id,
+              portfolio_id: split.portfolio_id,
+              date: JSON.date(split.date),
+              ratio: split.ratio
+            }
+          end),
+        moved:
+          Enum.map(preview.splits.moved, fn split ->
+            %{
+              id: split.id,
+              portfolio_id: split.portfolio_id,
+              date: JSON.date(split.date),
+              ratio: split.ratio
+            }
+          end)
+      },
+      split_events:
+        Map.new(preview.split_events, fn {side, events} -> {side, split_events(events)} end),
+      position_buckets: Enum.map(preview.position_buckets, &depot_buckets/1),
+      quotes: %{
+        source_count: preview.quotes.source_count,
+        moved_count: preview.quotes.moved_count,
+        collision_count: preview.quotes.collision_count,
+        manual_collisions:
+          Enum.map(preview.quotes.manual_collisions, fn collision ->
+            %{
+              date: JSON.date(collision.date),
+              source_close: JSON.decimal(collision.source_close),
+              target_close: JSON.decimal(collision.target_close),
+              target_source: collision.target_source
+            }
+          end)
+      },
+      configuration: %{
+        category_assignments:
+          Enum.map(preview.configuration.category_assignments, fn assignment ->
+            Map.update!(assignment, :action, &Atom.to_string/1)
+          end),
+        position_targets:
+          Enum.map(preview.configuration.position_targets, fn target ->
+            %{
+              target
+              | target_weight: JSON.decimal(target.target_weight),
+                action: Atom.to_string(target.action),
+                reason: target.reason && Atom.to_string(target.reason)
+            }
+          end)
+      },
+      events: %{
+        moved:
+          Enum.map(preview.events.moved, fn event ->
+            %{id: event.id, kind: Atom.to_string(event.kind), date: JSON.date(event.date)}
+          end),
+        possible_duplicates:
+          Enum.map(preview.events.possible_duplicates, fn pair ->
+            %{pair | kind: Atom.to_string(pair.kind), date: JSON.date(pair.date)}
+          end)
+      },
+      identifiers: identifiers(preview.identifiers),
+      reverse: %{
+        mergeable: preview.reverse.mergeable,
+        refused:
+          Enum.map(preview.reverse.refused, &%{code: Atom.to_string(&1.code), detail: &1.detail})
+      },
+      outcome_by_collapse_key_equal: %{
+        "false" => security_outcome(Map.fetch!(preview.outcomes, false)),
+        "true" => security_outcome(Map.fetch!(preview.outcomes, true))
+      },
+      positions_basis: @security_positions_basis,
+      reimport_note: @security_reimport_note
+    }
+  end
+
+  @doc """
+  What a failed guard carries beside its code and detail, for the refusal's
+  `errors`: the rules that name the source (`policy_rules`), the identities
+  that would no longer resolve (`unresolvable`).
+  """
+  def guard_facts(%{policy_rules: [_ | _] = rules}), do: %{policy_rules: rules}
+
+  def guard_facts(%{unresolvable: [_ | _] = failures}),
+    do: %{unresolvable: Enum.map(failures, &unresolvable/1)}
+
+  def guard_facts(_guard), do: %{}
+
+  @doc """
+  One identity that would not resolve to the target (§9): whose it is, which
+  one (`stored`, `imported`, `former_isin`), its identifiers, what the ladder
+  answers instead (`kind` `none`, `ambiguous`, `identifier_veto`,
+  `cross_tier` or `other_security`, with the securities it names) and under
+  which identity choices.
+  """
+  def unresolvable(failure) do
+    %{
+      security_id: failure.security_id,
+      identity: Atom.to_string(failure.identity),
+      ref: failure.ref,
+      outcome: %{
+        kind: Atom.to_string(failure.outcome.kind),
+        candidates: failure.outcome.candidates
+      },
+      identity_choices: Enum.map(Map.get(failure, :identity_choices, []), &Atom.to_string/1)
+    }
+  end
+
+  defp security(security) do
+    Map.update!(security, :split_events, &split_events/1)
+  end
+
+  defp split_events(events),
+    do: Enum.map(events, fn event -> %{date: JSON.date(event.date), ratio: event.ratio} end)
+
+  defp security_pair(pair) do
+    %{
+      source_transaction_id: pair.source_transaction_id,
+      target_transaction_id: pair.target_transaction_id,
+      portfolio_id: pair.portfolio_id,
+      securities_account_id: pair.securities_account_id,
+      date: JSON.date(pair.date),
+      type: pair.type,
+      quantity: JSON.decimal(pair.quantity),
+      price: JSON.decimal(pair.price),
+      gross_amount: JSON.decimal(pair.gross_amount),
+      cash_account_id: pair.cash_account_id,
+      retires_hash: pair.retires_hash
+    }
+  end
+
+  defp depot_buckets(entry) do
+    %{
+      securities_account_id: entry.securities_account_id,
+      securities_account_name: entry.securities_account_name,
+      source_holds: entry.source_holds,
+      target_holds: entry.target_holds,
+      source_override: entry.source_override,
+      target_override: entry.target_override,
+      source_buckets: entry.source_buckets,
+      target_buckets: entry.target_buckets,
+      action: Atom.to_string(entry.action)
+    }
+  end
+
+  defp identifiers(identifiers) do
+    outcomes = identifiers.outcomes
+
+    %{
+      choice_required: identifiers.choice_required,
+      after_by_identity_choice:
+        if(identifiers.choice_required,
+          do: %{
+            "keep_target_isin" => Map.fetch!(outcomes, :keep_target_isin),
+            "adopt_source_isin" => Map.fetch!(outcomes, :adopt_source_isin)
+          }
+        ),
+      after: if(identifiers.choice_required, do: nil, else: Map.fetch!(outcomes, :no_choice)),
+      adopted:
+        Enum.map(identifiers.adopted, &%{field: Atom.to_string(&1.field), value: &1.value}),
+      differences:
+        Enum.map(identifiers.differences, fn difference ->
+          %{difference | field: Atom.to_string(difference.field)}
+        end),
+      aliases_reassigned:
+        Enum.map(identifiers.aliases_reassigned, fn alias_row ->
+          %{alias_row | changed_on: JSON.date(alias_row.changed_on)}
+        end)
+    }
+  end
+
+  defp security_outcome(outcome) do
+    %{
+      transaction_count: outcome.transaction_count,
+      moved_transaction_ids: outcome.moved_transaction_ids,
+      deleted:
+        Enum.map(outcome.deleted, fn deleted ->
+          %{
+            id: deleted.id,
+            date: JSON.date(deleted.date),
+            type: deleted.type,
+            portfolio_id: deleted.portfolio_id,
+            reason: Atom.to_string(deleted.reason),
+            superseded_by: deleted.superseded_by,
+            retires_hash: deleted.retires_hash
+          }
+        end),
+      positions:
+        Enum.map(outcome.positions, fn position ->
+          %{
+            securities_account_id: position.securities_account_id,
+            securities_account_name: position.securities_account_name,
+            portfolio_id: position.portfolio_id,
+            source: figures(position.source),
+            target: figures(position.target),
+            after: figures(position.after)
+          }
+        end),
+      rounding_differences:
+        Enum.map(outcome.rounding_differences, fn difference ->
+          %{
+            portfolio_id: difference.portfolio_id,
+            securities_account_id: difference.securities_account_id,
+            securities_account_name: difference.securities_account_name,
+            date: JSON.date(difference.date),
+            split_transaction_id: difference.split_transaction_id,
+            ratio: difference.ratio,
+            combined: JSON.decimal(difference.combined),
+            separate_sum: JSON.decimal(difference.separate_sum),
+            difference: JSON.decimal(difference.difference)
+          }
+        end),
+      cash_accounts:
+        Enum.map(outcome.cash_accounts, fn account ->
+          %{
+            id: account.id,
+            name: account.name,
+            balance_before: JSON.decimal(account.balance_before),
+            balance_after: JSON.decimal(account.balance_after)
+          }
+        end)
+    }
+  end
+
   @doc "One merge record (§12): the source's snapshot and the manifest as stored."
   def record(%MergeRecord{} = record) do
     %{

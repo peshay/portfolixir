@@ -19,6 +19,8 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.securities.delete",
       "portfolixir.securities.isin_change",
       "portfolixir.securities.delete_isin_alias",
+      "portfolixir.securities.merge_preview",
+      "portfolixir.securities.merge",
       "portfolixir.securities.search_online",
       "portfolixir.securities.metrics",
       "portfolixir.events.list",
@@ -1836,6 +1838,105 @@ describe("Portfolixir MCP tools", () => {
       describe("portfolixir.securities_accounts.delete"),
       /portfolixir\.securities_accounts\.merge_preview/
     );
+  });
+
+  // User story:
+  // As an agent repairing a duplicate security under the operator's approval,
+  // I want the security merge preview and the merge as tools that say what
+  // the merge does to the quotes, the configuration, the identifiers and the
+  // next import, and what each of my choices means,
+  // so that I show the operator the consequence and send back exactly what
+  // was approved.
+  //
+  // Acceptance criteria:
+  // - merge_preview routes to GET /api/v1/securities/:id/merge_preview with
+  //   target_id as a query parameter; merge routes to POST
+  //   /api/v1/securities/:id/merge with target_id, plan_digest and, when
+  //   given, collapse_key_equal, identity_choice and isin_changed_on.
+  // - identity_choice takes keep_target_isin or adopt_source_isin only.
+  // - The merge tool says that the source is deleted and cannot be undone,
+  //   that identity_choice is required when both carry an ISIN and never
+  //   preselected, what each value does, that the quotes fill the target's
+  //   gaps with the target winning a collision, that the source's category
+  //   assignments, position targets and events move, that afterwards every
+  //   identity of the source resolves to the target so a later import books
+  //   onto it and a re-import of an applied export creates nothing, that a
+  //   merge leaving an identity unresolved is refused as
+  //   identity_unresolvable, that a changed plan answers plan_changed, and
+  //   that a retry answers the original record.
+  // - The preview tool says it writes nothing and names what it states.
+  // - portfolixir.securities.get says a merged-away id answers 404 naming
+  //   the survivor in errors.merged_into.
+  it("routes the security merge preview and merge, and states what the merge carries", async () => {
+    const { client, requests } = createRecordingClient({ data: { id: 1 } });
+
+    await callTool(client, "portfolixir.securities.merge_preview", { id: 7, target_id: 9 });
+    await callTool(client, "portfolixir.securities.merge", {
+      id: 7,
+      target_id: 9,
+      plan_digest: "sha256:ghi",
+      collapse_key_equal: true,
+      identity_choice: "adopt_source_isin",
+      isin_changed_on: "2025-05-01"
+    });
+    await callTool(client, "portfolixir.securities.merge", {
+      id: 7,
+      target_id: 9,
+      plan_digest: "sha256:ghi"
+    });
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/securities/7/merge_preview?target_id=9");
+    assert.equal(requests[1].method, "POST");
+    assert.equal(requests[1].path, "/api/v1/securities/7/merge");
+    assert.deepEqual(requests[1].body, {
+      target_id: 9,
+      plan_digest: "sha256:ghi",
+      collapse_key_equal: true,
+      identity_choice: "adopt_source_isin",
+      isin_changed_on: "2025-05-01"
+    });
+    assert.deepEqual(requests[2].body, { target_id: 9, plan_digest: "sha256:ghi" });
+
+    await assert.rejects(
+      callTool(client, "portfolixir.securities.merge", {
+        id: 7,
+        target_id: 9,
+        plan_digest: "sha256:ghi",
+        identity_choice: "keep_both"
+      }),
+      /identity_choice/
+    );
+
+    const tools = listTools();
+    const find = (name: string) => tools.find((tool) => tool.name === name);
+    const describe = (name: string) => find(name)?.description ?? "";
+    const merge = describe("portfolixir.securities.merge");
+    assert.match(merge, /deleted/);
+    assert.match(merge, /cannot be undone/);
+    assert.match(merge, /identity_choice is required when both securities carry an ISIN/);
+    assert.match(merge, /never preselected/);
+    assert.match(merge, /keep_target_isin/);
+    assert.match(merge, /adopt_source_isin/);
+    assert.match(merge, /target's quote wins/);
+    assert.match(merge, /category assignments, position targets/);
+    assert.match(merge, /books onto the target/);
+    assert.match(merge, /re-import of an export already applied creates nothing/);
+    assert.match(merge, /identity_unresolvable/);
+    assert.match(merge, /plan_changed/);
+    assert.match(merge, /retry.*original merge record/);
+    assert.equal(find("portfolixir.securities.merge")?.annotations?.destructiveHint, true);
+    assert.equal(find("portfolixir.securities.merge")?.annotations?.idempotentHint, true);
+
+    const preview = describe("portfolixir.securities.merge_preview");
+    assert.match(preview, /writes nothing/);
+    assert.match(preview, /outcome_by_collapse_key_equal/);
+    assert.match(preview, /after_by_identity_choice/);
+    assert.match(preview, /manual_collisions/);
+    assert.match(preview, /plan_digest/);
+    assert.equal(find("portfolixir.securities.merge_preview")?.annotations?.readOnlyHint, true);
+    assert.match(describe("portfolixir.securities.delete"), /portfolixir\.securities\.merge_preview/);
+    assert.match(describe("portfolixir.securities.get"), /merged_into/);
   });
 
   it("routes the former-name removal to DELETE with the name as a query parameter", async () => {

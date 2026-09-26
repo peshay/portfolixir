@@ -121,6 +121,10 @@ defmodule PortfolixirWeb.Router do
     get("/securities/:id", SecurityController, :show)
     patch("/securities/:id", SecurityController, :update)
     delete("/securities/:id", SecurityController, :delete)
+    # ADR-0050 §9, §10: the merge of a security into another — a read that
+    # previews it, and the apply under the preview's digest and choices.
+    get("/securities/:id/merge_preview", MergeController, :security_preview)
+    post("/securities/:id/merge", MergeController, :security_merge)
 
     # ISIN-change aliases (ADR-0029 §3): record a corporate-action ISIN change
     # and correct recorded aliases; imports keep matching via former ISINs.
