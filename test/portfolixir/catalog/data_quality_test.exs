@@ -156,6 +156,10 @@ defmodule Portfolixir.Catalog.DataQualityTest do
   # frozen date. This pins the absence of that form the way the enum-label
   # meta-tests pin the absence of a raw-value fallback.
   test "stale_quote? has no one-argument form that would answer in UTC" do
+    # function_exported?/3 answers false for a module not loaded yet, which
+    # made the refute below vacuous and the assert fail whenever this test
+    # ran before any other touched the module (seed-dependent).
+    Code.ensure_loaded!(DataQuality)
     refute function_exported?(DataQuality, :stale_quote?, 1)
     assert function_exported?(DataQuality, :stale_quote?, 2)
   end
