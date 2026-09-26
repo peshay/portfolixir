@@ -555,9 +555,22 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
   defp depot_collapse_effects(outcome) do
     names = Map.new(outcome.cash_accounts, &{&1.id, &1.name})
 
-    Enum.map(outcome.cash_accounts, fn account ->
-      "#{account.name} #{Format.money(account.balance_before)} → #{Format.money(account.balance_after)}"
-    end) ++ absorbed_lines(outcome.flow_changes, &Map.get(names, &1, "##{&1}"))
+    accounts =
+      Enum.map(outcome.cash_accounts, fn account ->
+        "#{account.name} #{Format.money(account.balance_before)} → #{Format.money(account.balance_after)}"
+      end)
+
+    # A third depot a collapsed transfer names (board 13's position line).
+    depots =
+      Enum.map(outcome.other_depots, fn position ->
+        gettext("%{security} in %{depot} %{change} shares",
+          security: position.security_name,
+          depot: position.securities_account_name,
+          change: signed_exact(Decimal.sub(position.quantity_after, position.quantity_before))
+        )
+      end)
+
+    accounts ++ depots ++ absorbed_lines(outcome.flow_changes, &Map.get(names, &1, "##{&1}"))
   end
 
   @doc """

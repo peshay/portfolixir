@@ -483,6 +483,8 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
       price: JSON.decimal(pair.price),
       gross_amount: JSON.decimal(pair.gross_amount),
       cash_account_id: pair.cash_account_id,
+      securities_account_id: pair.securities_account_id,
+      counter_securities_account_id: pair.counter_securities_account_id,
       retires_hash: pair.retires_hash
     }
   end
@@ -550,7 +552,18 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
             balance_after: JSON.decimal(account.balance_after)
           }
         end),
-      flow_changes: flow_changes(outcome.flow_changes)
+      flow_changes: flow_changes(outcome.flow_changes),
+      other_depots:
+        Enum.map(outcome.other_depots, fn depot ->
+          %{
+            securities_account_id: depot.securities_account_id,
+            securities_account_name: depot.securities_account_name,
+            security_id: depot.security_id,
+            security_name: depot.security_name,
+            quantity_before: JSON.decimal(depot.quantity_before),
+            quantity_after: JSON.decimal(depot.quantity_after)
+          }
+        end)
     }
   end
 

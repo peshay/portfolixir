@@ -1080,7 +1080,9 @@ Example quote sync response:
     merge deletes — both legs become one depot;
   - `key_equal_pairs`: a source booking whose day, kind, security, cash
     account and amounts equal a target booking's, paired one to one, lowest
-    id first, and `choice_required` when there is one;
+    id first, each naming both depot legs (`securities_account_id`,
+    `counter_securities_account_id`), and `choice_required` when there is
+    one;
   - `position_buckets`: per security the source holds or carries an override
     for, both effective bucket sets, both overrides (`null` for a position
     that inherits its depot's default set, `[]` for a deliberately empty one)
@@ -1101,7 +1103,11 @@ Example quote sync response:
     and `flow_changes` (each flow a collapsed booking moves into a later
     balance anchor of its cash account, `kind` `absorbed`, with
     `cash_account_id`, the anchor's `transaction_id`, `date`, `change` and
-    `collapsed_transaction_id`, as in a cash merge's preview);
+    `collapsed_transaction_id`, as in a cash merge's preview) and
+    `other_depots` (each third depot a collapsed transfer names, per
+    security, with `securities_account_name`, `security_name`,
+    `quantity_before` and `quantity_after`: removing a transfer from it
+    changes its holding too);
   - `positions_basis`, the computation basis of those figures: the quantity
     is the position fold with each split scaling the position once, rounded
     at volume scale 6 (ADR-0028 §3); `cost_basis` and `avg_cost` are the

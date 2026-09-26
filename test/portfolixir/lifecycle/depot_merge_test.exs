@@ -240,6 +240,55 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
     end
 
     # User story:
+    # As the operator whose old and new depot each received the same
+    # transfer from a third depot,
+    # I want the preview to name that third depot and how its holding
+    # changes when I remove the duplicate,
+    # so that a collapse never changes a depot I was not shown.
+    #
+    # Acceptance criteria:
+    # - The key-equal pair names both depot legs of the transfer.
+    # - The collapse outcome lists the third depot, the security and its
+    #   quantity before (2) and after (6); without collapse no third depot
+    #   changes.
+    # - After the apply with collapse, the third depot holds what the
+    #   preview said.
+    test "a collapsed transfer with a third depot names that depot and its change", ctx do
+      third = depot!(ctx.portfolio, ctx.cash_t, "Depot 3")
+      buy!(ctx, third, ctx.cash_t, ctx.heron, "10", "100.00", ~D[2025-01-05])
+      transfer!(ctx, third, ctx.source, ctx.heron, "4", ~D[2025-02-01], nil)
+      transfer!(ctx, third, ctx.target, ctx.heron, "4", ~D[2025-02-01], nil)
+
+      {:ok, preview} = Lifecycle.preview_depot_merge(ctx.source.id, ctx.target.id)
+
+      assert [pair] = preview.key_equal_pairs
+      assert pair.securities_account_id == third.id
+      assert pair.counter_securities_account_id == ctx.source.id
+
+      assert preview.outcomes[false].other_depots == []
+
+      assert [
+               %{
+                 securities_account_id: third_id,
+                 securities_account_name: "Depot 3",
+                 security_id: heron_id,
+                 quantity_before: before,
+                 quantity_after: after_collapse
+               }
+             ] = preview.outcomes[true].other_depots
+
+      assert third_id == third.id
+      assert heron_id == ctx.heron.id
+      assert n(before) == dec("2")
+      assert n(after_collapse) == dec("6")
+
+      merge!(ctx, true, preview)
+
+      assert held(third, ctx.heron) == dec("6")
+      assert held(ctx.target, ctx.heron) == dec("4")
+    end
+
+    # User story:
     # As the operator whose two depots both held a security through a
     # reverse split,
     # I want the merge to scale the combined position once, as the ledger

@@ -111,6 +111,15 @@ defmodule PortfolixirWeb.Api.V1.DepotMergeControllerTest do
 
     assert cash_id == ctx.cash_t.id
     assert keep["rounding_differences"] == []
+    assert collapse["flow_changes"] == []
+    assert collapse["other_depots"] == []
+
+    assert Enum.all?(
+             preview["key_equal_pairs"],
+             &(&1["securities_account_id"] == ctx.source.id and
+                 Map.has_key?(&1, "counter_securities_account_id"))
+           )
+
     assert preview["positions_basis"] =~ "moving-average"
     assert preview["positions_basis"] =~ "realized_result"
     assert journal_mark() == mark

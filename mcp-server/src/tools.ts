@@ -3185,7 +3185,9 @@ const declaredTools: DeclaredTool[] = [
       "quantity, cost_basis, avg_cost and realized_result on the source and the target before and on the target " +
       "after — the moving-average cost is restated because both depots' lots combine), rounding_differences (a " +
       "split where the combined position rounded once differs from the two rounded apart, by a unit of the " +
-      "volume scale — expected, never a refusal) and the cash accounts a collapsed booking changes. " +
+      "volume scale — expected, never a refusal), the cash accounts a collapsed booking changes, the flows it " +
+      "moves into a later balance anchor of such an account (flow_changes), and other_depots: a third depot a " +
+      "collapsed transfer names, with its quantity before and after. " +
       "positions_basis states how those figures are computed. Show the operator both outcomes; the choice is " +
       "theirs. Quantities and decimals are strings. A pair that may not merge answers 409 with errors.code " +
       "(same_account, not_live, portfolio_mismatch, buckets_mismatch or position_buckets_mismatch naming each " +
