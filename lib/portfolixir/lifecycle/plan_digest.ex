@@ -30,6 +30,40 @@ defmodule Portfolixir.Lifecycle.PlanDigest do
     "sha256:" <> hex
   end
 
+  @doc """
+  The part of a digest one stored booking contributes: its id and
+  `updated_at`, and every economic and foreign-key field a merge moves, pairs
+  or folds — so an edit of any of them between the preview and the apply
+  changes the digest (§10). Whether the row carries a content hash is part
+  of it (a hash is retired when the row goes); the hash itself is not.
+  """
+  @spec transaction_fingerprint(map()) :: list()
+  def transaction_fingerprint(row) do
+    [
+      row.id,
+      row.updated_at,
+      row.portfolio_id,
+      row.type,
+      row.date,
+      row.currency_code,
+      row.gross_amount,
+      row.fees,
+      row.taxes,
+      row.quantity,
+      row.price,
+      row.security_amount,
+      row.settlement_amount,
+      row.split_ratio_numerator,
+      row.split_ratio_denominator,
+      row.cash_account_id,
+      row.counter_cash_account_id,
+      row.securities_account_id,
+      row.counter_securities_account_id,
+      row.security_id,
+      row.import_hash != nil
+    ]
+  end
+
   @doc "`plan` as nested lists, maps sorted by key, scalars as JSON values."
   @spec canonical(term()) :: term()
   def canonical(%Decimal{} = decimal),

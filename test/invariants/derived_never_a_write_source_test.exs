@@ -97,9 +97,11 @@ defmodule Portfolixir.Invariants.DerivedNeverAWriteSourceTest do
   @merge_sources ~w(
     lib/portfolixir/lifecycle/cash_merge.ex
     lib/portfolixir/lifecycle/depot_merge.ex
+    lib/portfolixir/lifecycle/merge_figures.ex
     lib/portfolixir/lifecycle/merge_flow.ex
     lib/portfolixir/lifecycle/merge_writer.ex
     lib/portfolixir/lifecycle/plan_digest.ex
+    lib/portfolixir/lifecycle/position_membership.ex
   )
 
   test "the lifecycle merge modules are scanned and read nothing derived" do
