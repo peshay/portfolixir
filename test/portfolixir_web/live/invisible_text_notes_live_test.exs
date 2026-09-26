@@ -14,9 +14,11 @@ defmodule PortfolixirWeb.InvisibleTextNotesLiveTest do
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Classifications
+  alias Portfolixir.Knowledge
   alias Portfolixir.Knowledge.SecurityEvent
   alias Portfolixir.Knowledge.SecurityNote
   alias Portfolixir.Portfolios.PolicyRule
+  alias Portfolixir.Portfolios.PolicyRules
   alias Portfolixir.Portfolios.PolicyRuleVersion
   alias Portfolixir.Repo
 
@@ -243,7 +245,7 @@ defmodule PortfolixirWeb.InvisibleTextNotesLiveTest do
     security = create_security!(name: "Nordic Timber Holdings AB", ticker: "NTH")
 
     {:ok, rule} =
-      Portfolixir.Portfolios.PolicyRules.create_rule(Actor.owner_ui(), %{
+      PolicyRules.create_rule(Actor.owner_ui(), %{
         portfolio_id: world.portfolio.id,
         name: "Single name",
         version: %{
@@ -266,7 +268,7 @@ defmodule PortfolixirWeb.InvisibleTextNotesLiveTest do
     assert words =~ "Weight · <bdi>Nordic Timber Holdings AB</bdi> · Cap · Hard"
 
     {:ok, thesis} =
-      Portfolixir.Knowledge.append_note(Actor.owner_ui(), %{
+      Knowledge.append_note(Actor.owner_ui(), %{
         security_id: security.id,
         author: "operator",
         kind: "thesis",
@@ -276,7 +278,7 @@ defmodule PortfolixirWeb.InvisibleTextNotesLiveTest do
       })
 
     {:ok, _retraction} =
-      Portfolixir.Knowledge.append_note(Actor.owner_ui(), %{
+      Knowledge.append_note(Actor.owner_ui(), %{
         security_id: security.id,
         author: "operator",
         kind: "retraction",
