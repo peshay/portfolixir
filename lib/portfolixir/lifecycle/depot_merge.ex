@@ -86,26 +86,26 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
   import Portfolixir.Lifecycle.MergeFlow,
     only: [guard: 4, guard: 5, passed?: 1, each: 2, jsonable: 1]
 
+  import Portfolixir.Lifecycle.MergeFigures, only: [sample: 2, quantity: 3]
+
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
-  alias Portfolixir.Buckets.Bucket
   alias Portfolixir.Buckets.PositionBucketOverride
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Clock
-  alias Portfolixir.Engines.BucketResolution
   alias Portfolixir.Imports.DedupKey
   alias Portfolixir.Ledger
-  alias Portfolixir.Ledger.Positions
   alias Portfolixir.Ledger.Projection
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Lifecycle
   alias Portfolixir.Lifecycle.AccountNames
   alias Portfolixir.Lifecycle.Delete
+  alias Portfolixir.Lifecycle.MergeFigures
   alias Portfolixir.Lifecycle.MergeFlow
   alias Portfolixir.Lifecycle.MergeRecord
   alias Portfolixir.Lifecycle.MergeWriter
   alias Portfolixir.Lifecycle.PlanDigest
-  alias Portfolixir.Portfolios.CashAccount
+  alias Portfolixir.Lifecycle.PositionMembership
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias Portfolixir.Repo
 
@@ -527,15 +527,16 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
     |> Enum.map(fn security_id ->
       s_override = Buckets.position_override(s, security_id)
       t_override = Buckets.position_override(t, security_id)
-      s_effective = effective(s_override, base.source_buckets)
-      t_effective = effective(t_override, base.target_buckets)
+      s_effective = PositionMembership.effective(s_override, base.source_buckets)
+      t_effective = PositionMembership.effective(t_override, base.target_buckets)
       source_holds = security_id in base.source_securities
       target_holds = security_id in base.target_securities
 
       action =
-        {source_holds, target_holds}
-        |> action({s_override, t_override}, s_effective, t_effective)
-        |> carriable(s_override)
+        PositionMembership.action(
+          %{holds: source_holds, override: s_override, effective: s_effective},
+          %{holds: target_holds, override: t_override, effective: t_effective}
+        )
 
       %{
         security_id: security_id,
@@ -550,40 +551,6 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
       }
     end)
   end
-
-  defp effective(override, defaults),
-    do: override |> BucketResolution.effective_position_buckets(defaults) |> Enum.sort()
-
-  # S holds no rows of it: its override has no history to keep.
-  defp action({false, _target_holds}, {:inherit, _t}, _s_eff, _t_eff), do: :none
-  defp action({false, _target_holds}, _overrides, _s_eff, _t_eff), do: :drop_unheld
-
-  # Both hold it: the sets must already agree.
-  defp action({true, true}, _overrides, s_eff, t_eff) when s_eff != t_eff, do: :refuse
-  defp action({true, true}, {:inherit, _t}, _s_eff, _t_eff), do: :none
-  defp action({true, true}, _overrides, _s_eff, _t_eff), do: :drop_redundant
-
-  # Only S holds it: S's effective set is carried onto T.
-  defp action({true, false}, {:inherit, _t}, same, same), do: :none
-  defp action({true, false}, {:inherit, _t}, _s_eff, _t_eff), do: :clear_target
-  defp action({true, false}, {same, same}, _s_eff, _t_eff), do: :drop_redundant
-  defp action({true, false}, _overrides, _s_eff, _t_eff), do: :carry
-
-  # A carried override is written through `Buckets.set_position_override/4`,
-  # which refuses more than one scope-dimension bucket (ADR-0024). An
-  # override stored before that rule is refused here, by name, rather than
-  # failing the merge half-way.
-  defp carriable(:carry, {:explicit, bucket_ids}) do
-    scope_buckets =
-      Repo.aggregate(
-        from(b in Bucket, where: b.id in ^bucket_ids and b.dimension == "scope"),
-        :count
-      )
-
-    if scope_buckets > 1, do: :refuse_carry, else: :carry
-  end
-
-  defp carriable(action, _override), do: action
 
   # --- one value of the choice ------------------------------------------------------------
 
@@ -601,8 +568,8 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
 
     after_rows = base.t_rows ++ Enum.map(moved, &repointed(&1, s, t))
     kept = Enum.reject(base.rows, &MapSet.member?(collapsed, &1.id))
-    combined = eod_positions(after_rows ++ base.splits)
-    separate = eod_positions(kept ++ base.splits)
+    combined = MergeFigures.eod_positions(after_rows ++ base.splits)
+    separate = MergeFigures.eod_positions(kept ++ base.splits)
 
     %{
       moved: moved,
@@ -612,7 +579,7 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
       separate: separate,
       positions: positions(base, Ledger.position_costs(after_rows ++ base.splits)),
       rounding_differences: rounding_differences(base, combined, separate),
-      cash_accounts: cash_accounts(pairs)
+      cash_accounts: MergeFigures.collapsed_cash_accounts(pairs)
     }
   end
 
@@ -681,102 +648,6 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
     }
   end
 
-  # A collapsed booking leaves its cash account too: each cash account a
-  # collapsed row books on, with its balance before and after.
-  defp cash_accounts([]), do: []
-
-  defp cash_accounts(pairs) do
-    collapsed = MapSet.new(pairs, fn {row, _target_row} -> row.id end)
-
-    ids =
-      for {row, _target_row} <- pairs,
-          {account_id, _leg} <- Projection.effects(row).cash,
-          account_id != nil,
-          uniq: true,
-          do: account_id
-
-    case ids do
-      [] ->
-        []
-
-      ids ->
-        names =
-          Map.new(Repo.all(from(a in CashAccount, where: a.id in ^ids, select: {a.id, a.name})))
-
-        rows =
-          Repo.all(
-            from(t in Transaction,
-              where: t.cash_account_id in ^ids or t.counter_cash_account_id in ^ids
-            )
-          )
-
-        before = Projection.cash_balances(rows)
-
-        after_collapse =
-          rows |> Enum.reject(&MapSet.member?(collapsed, &1.id)) |> Projection.cash_balances()
-
-        for id <- Enum.sort(ids) do
-          %{
-            id: id,
-            name: Map.get(names, id),
-            balance_before: Map.get(before, id, @zero),
-            balance_after: Map.get(after_collapse, id, @zero)
-          }
-        end
-    end
-  end
-
-  # --- the position fold, per day ------------------------------------------------------------
-
-  # `[{date, positions}]`, ascending: the positions at the end of each day a
-  # row falls on, from the ledger's own position fold, one booking at a time
-  # (`Positions.apply_transaction/3`), in the shared replay order.
-  defp eod_positions(rows) do
-    ordered = Projection.replay_sort(rows)
-    accounts = Projection.account_portfolios(ordered)
-
-    ordered
-    |> Enum.reduce({[], %{}}, fn row, {days, positions} ->
-      positions = Positions.apply_transaction(positions, row, accounts)
-      {end_of_day(days, row.date, positions), positions}
-    end)
-    |> elem(0)
-    |> Enum.reverse()
-  end
-
-  # A later row of the same day replaces the day's positions.
-  defp end_of_day([{date, _earlier} | rest] = days, day, positions) do
-    if Date.compare(date, day) == :eq,
-      do: [{date, positions} | rest],
-      else: [{day, positions} | days]
-  end
-
-  defp end_of_day([], day, positions), do: [{day, positions}]
-
-  # `%{date => positions}` at the end of each of `dates`: the last day on or
-  # before it, or nothing. One walk over both ascending lists.
-  defp sample(series, dates) do
-    dates
-    |> Enum.uniq()
-    |> Enum.sort(Date)
-    |> Enum.reduce({series, %{}, %{}}, fn date, {rest, current, acc} ->
-      {rest, current} = advance(rest, current, date)
-      {rest, current, Map.put(acc, date, current)}
-    end)
-    |> elem(2)
-  end
-
-  defp advance([{day, positions} | rest] = series, current, date) do
-    if Date.compare(day, date) == :gt,
-      do: {series, current},
-      else: advance(rest, positions, date)
-  end
-
-  defp advance([], current, _date), do: {[], current}
-
-  defp quantity(sampled, date, key),
-    do: sampled |> Map.get(date, %{}) |> Map.get(key, @zero)
-
   # --- the preview's shape -------------------------------------------------------------
 
   defp view(plan) do
@@ -844,19 +715,13 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
       security_name: entry.security_name,
       source_holds: entry.source_holds,
       target_holds: entry.target_holds,
-      source_override: override_ids(entry.source_override),
-      target_override: override_ids(entry.target_override),
+      source_override: PositionMembership.override_ids(entry.source_override),
+      target_override: PositionMembership.override_ids(entry.target_override),
       source_buckets: entry.source_buckets,
       target_buckets: entry.target_buckets,
       action: entry.action
     }
   end
-
-  # An override as the bucket ids it assigns — `[]` for a deliberately empty
-  # one — or `nil` for a position that inherits its depot's default set.
-  defp override_ids(:inherit), do: nil
-  defp override_ids(:explicit_empty), do: []
-  defp override_ids({:explicit, ids}), do: ids
 
   defp outcome_view(outcome) do
     %{
@@ -889,34 +754,8 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
       preview: preview,
       source: [plan.source.id, plan.source.updated_at, plan.source.cash_account_id],
       target: [plan.target.id, plan.target.updated_at, plan.target.cash_account_id],
-      rows: Enum.map(plan.rows ++ plan.splits, &row_fingerprint/1)
+      rows: Enum.map(plan.rows ++ plan.splits, &PlanDigest.transaction_fingerprint/1)
     })
-  end
-
-  defp row_fingerprint(row) do
-    [
-      row.id,
-      row.updated_at,
-      row.portfolio_id,
-      row.type,
-      row.date,
-      row.currency_code,
-      row.gross_amount,
-      row.fees,
-      row.taxes,
-      row.quantity,
-      row.price,
-      row.security_amount,
-      row.settlement_amount,
-      row.split_ratio_numerator,
-      row.split_ratio_denominator,
-      row.cash_account_id,
-      row.counter_cash_account_id,
-      row.securities_account_id,
-      row.counter_securities_account_id,
-      row.security_id,
-      row.import_hash != nil
-    ]
   end
 
   # --- the writes (§7 depot steps) ---------------------------------------------------------
@@ -1026,7 +865,7 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
         )
       )
 
-    actual = sample(eod_positions(rows ++ splits), plan.check_dates)
+    actual = sample(MergeFigures.eod_positions(rows ++ splits), plan.check_dates)
     expected = sample(outcome.combined, plan.check_dates)
     separate = sample(outcome.separate, plan.check_dates)
     first_split = first_split_dates(plan.splits)
@@ -1094,34 +933,19 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
     )
   end
 
-  defp membership_write(actor, plan, %{action: :carry} = entry) do
-    security = %Security{id: entry.security_id}
-    bucket_ids = override_ids(entry.source_override)
-
-    with :ok <- Buckets.set_position_override(actor, plan.target, security, bucket_ids),
-         :ok <- Buckets.clear_position_override(actor, plan.source, security),
-         do: {:ok, :carried, %{security_id: entry.security_id, bucket_ids: bucket_ids}}
-  end
-
-  defp membership_write(actor, plan, %{action: action} = entry)
-       when action in [:drop_redundant, :drop_unheld] do
-    reason = if action == :drop_redundant, do: :redundant, else: :no_rows
+  defp membership_write(actor, plan, entry) do
     security = %Security{id: entry.security_id}
 
-    with :ok <- Buckets.clear_position_override(actor, plan.source, security),
-         do: {:ok, :dropped, %{security_id: entry.security_id, reason: reason}}
+    case PositionMembership.write(
+           actor,
+           entry.action,
+           {{plan.source, security}, entry.source_override},
+           {{plan.target, security}, entry.target_override}
+         ) do
+      {:ok, list, facts} -> {:ok, list, Map.put(facts, :security_id, entry.security_id)}
+      other -> other
+    end
   end
-
-  defp membership_write(actor, plan, %{action: :clear_target} = entry) do
-    security = %Security{id: entry.security_id}
-
-    with :ok <- Buckets.clear_position_override(actor, plan.target, security),
-         do:
-           {:ok, :cleared,
-            %{security_id: entry.security_id, bucket_ids: override_ids(entry.target_override)}}
-  end
-
-  defp membership_write(_actor, _plan, %{action: :none}), do: :none
 
   # Through the hardened delete (§11): the source's default buckets first,
   # one aggregate entry, then the row. Inside the merge a refusal is a
@@ -1169,7 +993,7 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
         for(
           %{source_override: override, security_id: id} <- plan.memberships,
           override != :inherit,
-          do: %{security_id: id, bucket_ids: override_ids(override)}
+          do: %{security_id: id, bucket_ids: PositionMembership.override_ids(override)}
         ),
       transaction_count: length(plan.s_all),
       inserted_at: source.inserted_at,
