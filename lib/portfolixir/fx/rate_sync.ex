@@ -104,7 +104,10 @@ defmodule Portfolixir.Fx.RateSync do
   defp backfill_unlocked(opts) do
     provider = Keyword.get(opts, :provider, runtime_provider())
 
-    if function_exported?(provider, :fetch_history, 1) do
+    # function_exported?/3 is false for a module not loaded yet, so the
+    # provider is loaded first; otherwise the answer would depend on whether
+    # anything had called the adapter before.
+    if Code.ensure_loaded?(provider) and function_exported?(provider, :fetch_history, 1) do
       case safe_fetch_history(provider, opts) do
         {:ok, rows} when is_list(rows) ->
           persist(provider, rows, :history)
