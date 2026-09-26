@@ -17,6 +17,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Classifications
+  alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Journal
   alias Portfolixir.Knowledge.Events
   alias Portfolixir.Ledger
@@ -380,7 +381,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
                })
                |> json_response(422)
 
-      assert message == Portfolixir.Input.BoundedDate.message(), date
+      assert message == BoundedDate.message(), date
     end
 
     assert journal_mark() == mark
