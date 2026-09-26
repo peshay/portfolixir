@@ -104,6 +104,11 @@ defmodule Portfolixir.Lifecycle.CashMergeReimportTest do
                  }
                } = Imports.reimport_counts(drifted, portfolio_id: ctx.portfolio.id)
 
+        # The first pass the Imports view renders at once (the closing act,
+        # EH-1): the hash layers alone, without the dry run's cost.
+        assert %{total: %{new: 6, economics: 0, internal_transfer: 0, hash: 0}} =
+                 Imports.reimport_counts(drifted, portfolio_id: ctx.portfolio.id, dry_run: false)
+
         assert Imports.resolve_accounts(drifted).cash_accounts == %{
                  "Savings (old)" => {:ok, ctx.target.id, :former},
                  "Savings" => {:ok, ctx.target.id, :live}

@@ -32,11 +32,15 @@ defmodule PortfolixirWeb.ImportsFileErrorsTest do
 
   defp csv(rows), do: Enum.join([@csv_header | rows], "\n")
 
+  # A parsed file's counts are refined in the background (the closing act,
+  # EH-1); the helper answers the page after that.
   defp upload(view, name, content) do
     file_input(view, "#pp-import-form", :pp_file, [
       %{name: name, content: content, type: "text/csv", last_modified: 1_700_000_000_000}
     ])
     |> render_upload(name)
+
+    render_async(view)
   end
 
   defp parked, do: PreviewStore.get(PreviewStore.key_for(@session_token))
@@ -90,6 +94,8 @@ defmodule PortfolixirWeb.ImportsFileErrorsTest do
       %{name: name, content: content, type: "application/json", last_modified: 1_700_000_000_000}
     ])
     |> render_upload(name)
+
+    render_async(view)
   end
 
   defp purchase(row_security) do

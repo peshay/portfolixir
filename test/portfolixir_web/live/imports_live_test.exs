@@ -15,6 +15,8 @@ defmodule PortfolixirWeb.ImportsLiveTest do
 
   defp sample_json_path, do: Path.join(@fixtures, "sample.json")
 
+  # The preview's counts are refined in the background once the file is
+  # parsed (the closing act, EH-1); the helper answers the page after that.
   defp upload_payload(view, name, content, type) do
     file_input(view, "#pp-import-form", :pp_file, [
       %{
@@ -25,6 +27,8 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       }
     ])
     |> render_upload(name)
+
+    render_async(view)
   end
 
   defp upload_sample(view) do

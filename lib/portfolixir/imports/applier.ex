@@ -138,6 +138,16 @@ defmodule Portfolixir.Imports.Applier do
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias Portfolixir.Repo
 
+  # An apply, and the dry run the preview counts with, hold one transaction
+  # for the whole file: DBConnection's default 15 s checkout would cap them at
+  # a few thousand new rows (the closing act, EH-1). The row cap bounds the
+  # work; this bounds the wait.
+  @transaction_timeout :timer.minutes(10)
+
+  @doc "How long one apply (or its dry run) may hold its transaction, in ms."
+  @spec transaction_timeout() :: pos_integer()
+  def transaction_timeout, do: @transaction_timeout
+
   import Ecto.Query
 
   defmodule Result do
@@ -249,29 +259,32 @@ defmodule Portfolixir.Imports.Applier do
     flat_entries = Entry.flatten(entries)
     cash_currencies = cash_currencies_by_pp_name(flat_entries)
 
-    Repo.transaction(fn ->
-      with {:ok, portfolio_id, result} <-
-             resolve_portfolio(Map.get(params, :portfolio), %Result{}),
-           :ok <- AccountNames.lock_identity(portfolio_id),
-           {:ok, cash_plan} <-
-             plan_mapped_cash(params.cash_accounts, cash_currencies, default_currency),
-           {:ok, depot_plan} <- plan_mapped_depots(params.depots, params.cash_accounts),
-           :ok <- revalidate_mapped_accounts(params, portfolio_id),
-           state =
-             portfolio_id
-             |> base_state(default_currency, params, result)
-             |> Map.merge(cash_plan)
-             |> Map.merge(depot_plan),
-           {:ok, state} <- remember_mapped_names(state, params),
-           state = resolve_unmapped_names(state, flat_entries),
-           {:ok, state} <- execute_security_mappings(flat_entries, state),
-           {:ok, final_state} <- reduce_entries(flat_entries, state),
-           {:ok, final_result} <- apply_bucket_tag(bucket_tag, final_state.result) do
-        final_result
-      else
-        {:error, reason} -> Repo.rollback(reason)
-      end
-    end)
+    Repo.transaction(
+      fn ->
+        with {:ok, portfolio_id, result} <-
+               resolve_portfolio(Map.get(params, :portfolio), %Result{}),
+             :ok <- AccountNames.lock_identity(portfolio_id),
+             {:ok, cash_plan} <-
+               plan_mapped_cash(params.cash_accounts, cash_currencies, default_currency),
+             {:ok, depot_plan} <- plan_mapped_depots(params.depots, params.cash_accounts),
+             :ok <- revalidate_mapped_accounts(params, portfolio_id),
+             state =
+               portfolio_id
+               |> base_state(default_currency, params, result)
+               |> Map.merge(cash_plan)
+               |> Map.merge(depot_plan),
+             {:ok, state} <- remember_mapped_names(state, params),
+             state = resolve_unmapped_names(state, flat_entries),
+             {:ok, state} <- execute_security_mappings(flat_entries, state),
+             {:ok, final_state} <- reduce_entries(flat_entries, state),
+             {:ok, final_result} <- apply_bucket_tag(bucket_tag, final_state.result) do
+          final_result
+        else
+          {:error, reason} -> Repo.rollback(reason)
+        end
+      end,
+      timeout: @transaction_timeout
+    )
     |> enrich_after_commit()
   end
 
@@ -288,12 +301,15 @@ defmodule Portfolixir.Imports.Applier do
     default_currency = Map.get(params, :default_currency_code, "EUR")
     flat_entries = Entry.flatten(entries)
 
-    Repo.transaction(fn ->
-      case run_auto(flat_entries, portfolio_id, default_currency, params) do
-        {:ok, final_state} -> final_state.result
-        {:error, reason} -> Repo.rollback(reason)
-      end
-    end)
+    Repo.transaction(
+      fn ->
+        case run_auto(flat_entries, portfolio_id, default_currency, params) do
+          {:ok, final_state} -> final_state.result
+          {:error, reason} -> Repo.rollback(reason)
+        end
+      end,
+      timeout: @transaction_timeout
+    )
     |> enrich_after_commit()
   end
 
@@ -323,7 +339,8 @@ defmodule Portfolixir.Imports.Applier do
   # answering each row's outcome in file order — `:inserted`, `:collapsed`,
   # `{:duplicate, layer}`, `:internal_transfer`, `:skipped` or
   # `{:unresolved, key, reason}`. `:error` when the run stops (an ambiguous
-  # name, a refused write): the counts then fall back to the hash layers.
+  # name, a refused write) or the database gives up on it (a lost or timed
+  # out connection): the counts then fall back to the hash layers.
   defp dry_run_outcomes(_flat_entries, nil), do: :error
 
   defp dry_run_outcomes(flat_entries, portfolio_id) do
@@ -333,7 +350,7 @@ defmodule Portfolixir.Imports.Applier do
         {:error, _reason} -> Repo.rollback(:stopped)
       end
     end
-    |> Repo.transaction()
+    |> Repo.transaction(timeout: @transaction_timeout)
     |> case do
       {:error, {:dry_run, outcomes}} when length(outcomes) == length(flat_entries) ->
         {:ok, outcomes}
@@ -341,6 +358,8 @@ defmodule Portfolixir.Imports.Applier do
       _stopped ->
         :error
     end
+  rescue
+    DBConnection.ConnectionError -> :error
   end
 
   @doc """
@@ -365,21 +384,30 @@ defmodule Portfolixir.Imports.Applier do
   equal economic booking or an in-run collapse counts `:economics`, a
   transfer whose two legs resolve to one account `:internal_transfer`. So a
   drifted re-export after a merge counts nothing `:new`. Where that run
-  stops (a name the prefill finds ambiguous), the hash layers stand alone.
+  stops (a name the prefill finds ambiguous), or with `dry_run: false`, the
+  hash layers stand alone.
   A row still `:new` may be skipped by a decision the operator makes in the
   preview (a security choice, another account); an account whose rows are
   none of them `:new` is never created.
   """
-  @spec reimport_counts(Preview.t(), integer() | nil) :: %{
+  @spec reimport_counts(Preview.t(), integer() | nil, keyword()) :: %{
           total: layer_counts(),
           cash_accounts: %{String.t() => layer_counts()},
           depots: %{String.t() => layer_counts()}
         }
-  def reimport_counts(%Preview{entries: entries}, portfolio_id) do
+  def reimport_counts(%Preview{entries: entries}, portfolio_id, opts \\ []) do
     flat_entries = Entry.flatten(entries)
 
+    # `dry_run: false` counts on the hash layers alone: one read, where the
+    # dry run costs what the apply costs (the Imports view shows these first
+    # and refines them in the background, the closing act, EH-1).
+    outcomes =
+      if Keyword.get(opts, :dry_run, true),
+        do: dry_run_outcomes(flat_entries, portfolio_id),
+        else: :error
+
     layers =
-      case dry_run_outcomes(flat_entries, portfolio_id) do
+      case outcomes do
         {:ok, outcomes} ->
           flat_entries
           |> row_layers(portfolio_id)

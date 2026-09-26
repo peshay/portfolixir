@@ -792,6 +792,17 @@ defmodule PortfolixirWeb.ImportsLive do
   def handle_info(_message, socket), do: {:noreply, socket}
 
   @impl true
+  def handle_async(:refine_counts, {:ok, {token, counts}}, socket) do
+    if token == socket.assigns.counts_token do
+      {:noreply, update(socket, :account_states, &Map.put(&1, :counts, state_counts(counts)))}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  # The hash-layer counts stand when the dry run fails.
+  def handle_async(:refine_counts, {:exit, _reason}, socket), do: {:noreply, socket}
+
   def handle_async(:apply_import, {:ok, {:ok, result}}, socket) do
     PreviewStore.delete(socket.assigns.session_token)
 
@@ -971,8 +982,17 @@ defmodule PortfolixirWeb.ImportsLive do
   # of the file's bookings each name carries per first-check layer, read
   # once per preview: both are reads of the database as it is now, and the
   # apply re-checks both.
+  #
+  # The counts come in two passes (the closing act, EH-1): the hash layers
+  # are one read and render at once; the dry run that judges the rest the
+  # way the apply does costs what the apply costs, so it runs in the
+  # background and refines the counts when it answers. The page is never
+  # frozen by a large file, and a stale answer (another file, a reset) is
+  # dropped by its token.
   defp assign_account_states(socket, nil) do
-    assign(socket, :account_states, %{
+    socket
+    |> assign(:counts_token, nil)
+    |> assign(:account_states, %{
       resolutions: %{"cash" => %{}, "depot" => %{}},
       counts: %{"cash" => %{}, "depot" => %{}, total: @empty_counts}
     })
@@ -980,12 +1000,29 @@ defmodule PortfolixirWeb.ImportsLive do
 
   defp assign_account_states(socket, %Preview{} = preview) do
     %{cash_accounts: cash, depots: depots} = Imports.resolve_accounts(preview)
-    counts = Imports.reimport_counts(preview)
+    counts = Imports.reimport_counts(preview, dry_run: false)
 
-    assign(socket, :account_states, %{
+    socket
+    |> assign(:account_states, %{
       resolutions: %{"cash" => cash, "depot" => depots},
-      counts: %{"cash" => counts.cash_accounts, "depot" => counts.depots, total: counts.total}
+      counts: state_counts(counts)
     })
+    |> refine_counts(preview)
+  end
+
+  defp state_counts(counts),
+    do: %{"cash" => counts.cash_accounts, "depot" => counts.depots, total: counts.total}
+
+  defp refine_counts(socket, preview) do
+    if connected?(socket) do
+      token = make_ref()
+
+      socket
+      |> assign(:counts_token, token)
+      |> start_async(:refine_counts, fn -> {token, Imports.reimport_counts(preview)} end)
+    else
+      assign(socket, :counts_token, nil)
+    end
   end
 
   defp row_counts(states, group, pp_name),

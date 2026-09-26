@@ -99,8 +99,9 @@ defmodule PortfolixirWeb.ImportsMalformedMappingTest do
     handed_out = preview |> Imports.resolve_securities() |> Map.fetch!(:resolutions)
     assert Map.keys(mapping.security) -- Enum.map(handed_out, & &1.key) == []
 
-    assert {:ok, _view, html} = live(conn, "/imports")
+    assert {:ok, view, html} = live(conn, "/imports")
     assert html =~ "Preview"
+    render_async(view)
   end
 
   defp upload_sample(view) do
@@ -113,5 +114,8 @@ defmodule PortfolixirWeb.ImportsMalformedMappingTest do
       }
     ])
     |> render_upload("sample.json")
+
+    # The counts are refined in the background (the closing act, EH-1).
+    render_async(view)
   end
 end

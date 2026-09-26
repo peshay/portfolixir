@@ -63,7 +63,9 @@ defmodule Portfolixir.Imports do
   apply: per layer that judges a row (`:hash`, `:retired`, `:unimportable`,
   `:economics`, `:internal_transfer`, `:new`) in `total`, and per file
   cash-account and depot name, where a row counts under every name it
-  carries. See `Portfolixir.Imports.Applier.reimport_counts/2`.
+  carries. See `Portfolixir.Imports.Applier.reimport_counts/3`;
+  `dry_run: false` counts on the hash layers alone, without the rolled-back
+  run of the apply that judges the rest.
 
   Read-only. The hash names the portfolio the import binds to: `:portfolio_id`
   when given, otherwise the internal default portfolio the Imports view binds
@@ -76,7 +78,9 @@ defmodule Portfolixir.Imports do
           depots: %{String.t() => Applier.layer_counts()}
         }
   def reimport_counts(%Preview{} = preview, opts \\ []) when is_list(opts) do
-    Applier.reimport_counts(preview, import_portfolio_id(opts))
+    Applier.reimport_counts(preview, import_portfolio_id(opts),
+      dry_run: Keyword.get(opts, :dry_run, true)
+    )
   end
 
   @doc """
