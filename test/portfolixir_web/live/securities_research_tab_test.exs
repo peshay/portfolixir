@@ -232,7 +232,8 @@ defmodule PortfolixirWeb.SecuritiesResearchTabTest do
 
     state = view |> element(~s([data-role="thesis-state"])) |> render()
     assert state =~ "Retracted"
-    assert state =~ "Retracted by ##{retraction.id}: management guided down twice"
+    # The stored reason isolated in <bdi> (E25 S7, G20).
+    assert state =~ "Retracted by ##{retraction.id}: <bdi>management guided down twice</bdi>"
     # A thesis without a conviction tier shows the dash, not a crash.
     assert state =~ "—"
 

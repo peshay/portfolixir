@@ -148,6 +148,10 @@ defmodule PortfolixirWeb.BucketsLive do
                       <%= gettext("Cancel") %>
                     </button>
                   </form>
+                  <%!-- E25 S7, G20; pick G12.2 = B: marked where it is renamed. --%>
+                  <AppShell.invisible_text_note subject={:name} texts={[row.name]}>
+                    <%= gettext("Typed in anew, it is clean.") %>
+                  </AppShell.invisible_text_note>
                 <% else %>
                   <div class="bucket-list__main">
                     <span class="bucket-list__name">
@@ -258,6 +262,9 @@ defmodule PortfolixirWeb.BucketsLive do
                       <%= gettext("Cancel") %>
                     </button>
                   </form>
+                  <AppShell.invisible_text_note subject={:name} texts={[bucket.name]}>
+                    <%= gettext("Typed in anew, it is clean.") %>
+                  </AppShell.invisible_text_note>
                 <% else %>
                   <div class="bucket-list__main">
                     <span class="bucket-list__name">

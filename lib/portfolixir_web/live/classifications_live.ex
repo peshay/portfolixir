@@ -752,6 +752,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
             <button type="submit" class="button"><%= gettext("Save") %></button>
             <button type="button" phx-click="cancel_edit_category"><%= gettext("Cancel") %></button>
           </form>
+          <%!-- E25 S7, G20; pick G12.2 = B: marked where it is renamed. --%>
+          <AppShell.invisible_text_note subject={:name} texts={[@node.category.name]}>
+            <%= gettext("Typed in anew, it is clean.") %>
+          </AppShell.invisible_text_note>
         <% end %>
         <%= if @editing_id == @node.category.id and not @editable do %>
           <form id={"recolor-form-#{@node.category.id}"} phx-change="recolor_category" class="cat-edit-form">

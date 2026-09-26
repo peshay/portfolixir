@@ -9800,3 +9800,52 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "%{field} contains invisible characters (%{characters})"
 msgstr ""
+
+#: lib/portfolixir_web/components/app_shell.ex
+#, elixir-autogen, elixir-format
+msgid "The text contains %{count} invisible character."
+msgid_plural "The text contains %{count} invisible characters."
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/portfolixir_web/components/app_shell.ex
+#, elixir-autogen, elixir-format
+msgid "The name contains %{count} invisible character."
+msgid_plural "The name contains %{count} invisible characters."
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/portfolixir_web/components/app_shell.ex
+#, elixir-autogen, elixir-format
+msgid "Text with the characters made visible"
+msgstr ""
+
+#: lib/portfolixir_web/components/app_shell.ex
+#, elixir-autogen, elixir-format
+msgid "Name with the characters made visible"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "The log only appends: an entry that supersedes this one carries the text without them."
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "Append an entry that supersedes #%{id}"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "It is corrected over the API or MCP."
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "Typed in anew, it is clean."
+msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "Retracted by #%{id}:"
+msgstr ""

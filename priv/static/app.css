@@ -1354,6 +1354,16 @@ li + li {
   text-underline-offset: 2px;
 }
 
+/* E25 S7, G20 (pick G12.2 = B, board 12-e25-new-marks): the stored text a
+   note spells out, [U+200B] and all, wraps like a research entry's body, so
+   it keeps its line breaks and a run of escapes cannot overflow the note at
+   390 px. It keeps the note's colour. */
+.data-note__body .mono {
+  margin: var(--space-1) 0 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .data-note--attention {
   border-color: var(--color-warning);
   background: var(--color-warning-soft);

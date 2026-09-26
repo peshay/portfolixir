@@ -132,7 +132,7 @@ defmodule PortfolixirWeb.RiskPolicyRulesLiveTest do
 
     breached = view |> element("#policy-findings tr[data-state='breached']") |> render()
     assert breached =~ "Einzeltitel höchstens 10 %"
-    assert breached =~ "Weight · Nordic Timber Holdings AB · Cap · Hard"
+    assert breached =~ "Weight · <bdi>Nordic Timber Holdings AB</bdi> · Cap · Hard"
     assert breached =~ "38.3\u00A0%"
     assert breached =~ "10.0\u00A0%"
     assert breached =~ "+28.3\u00A0pp"
@@ -395,7 +395,7 @@ defmodule PortfolixirWeb.RiskPolicyRulesLiveTest do
     {:ok, view, _html} = live(conn, "/risk")
     html = render_async(view)
 
-    assert html =~ "Gewicht · Staatsanleihe · Untergrenze"
+    assert html =~ "Gewicht · <bdi>Staatsanleihe</bdi> · Untergrenze"
     refute html =~ "Government bond"
     assert html =~ "5,0\u00A0%"
 
