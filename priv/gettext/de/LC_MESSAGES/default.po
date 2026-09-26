@@ -9298,3 +9298,13 @@ msgstr "zusammengeführt am %{date} aus „%{name}“"
 #, elixir-autogen, elixir-format
 msgid "merged on %{date} from “%{name}” (then %{isin})"
 msgstr "zusammengeführt am %{date} aus „%{name}“ (damals %{isin})"
+
+#, elixir-autogen, elixir-format
+msgctxt "merge side"
+msgid "Source"
+msgstr "Quelle"
+
+#, elixir-autogen, elixir-format
+msgctxt "merge side"
+msgid "Target"
+msgstr "Ziel"
