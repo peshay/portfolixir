@@ -49,8 +49,10 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
   before and for T after (`Portfolixir.Ledger.position_costs/1`; the cost
   basis is legitimately restated, because lots combine), the rounding
   difference each split leaves between the combined position rounded once and
-  the two positions rounded apart, and the cash accounts whose balance a
-  collapsed booking changes. Its `plan_digest` covers all of it.
+  the two positions rounded apart, the cash accounts whose balance a
+  collapsed booking changes, the flows it moves into a later balance anchor of
+  such an account, and the third depots a collapsed transfer names, with their
+  quantity before and after. Its `plan_digest` covers all of it.
 
   ## The apply (`apply/4`)
 
@@ -597,8 +599,87 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
       positions: positions(base, Ledger.position_costs(after_rows ++ base.splits)),
       rounding_differences: rounding_differences(base, combined, separate),
       cash_accounts: MergeFigures.collapsed_cash_accounts(pairs),
-      flow_changes: MergeFigures.collapse_flow_changes(pairs)
+      flow_changes: MergeFigures.collapse_flow_changes(pairs),
+      other_depots: other_depots(base, pairs)
     }
+  end
+
+  # A collapsed transfer between the source and a third depot removes that
+  # depot's leg too (§7 "affected positions", the depot analogue of the cash
+  # merge's third accounts): per third depot and security, its quantity at
+  # the end, before and after the collapse, from the ledger's own fold over
+  # the depot's rows and the portfolio's splits of the security.
+  defp other_depots(_base, []), do: []
+
+  defp other_depots(base, pairs) do
+    s = base.source.id
+    t = base.target.id
+
+    third =
+      for {row, _target_row} <- pairs,
+          {depot_id, security_id, _delta} <- additive_legs(row),
+          depot_id not in [nil, s, t],
+          uniq: true,
+          do: {depot_id, security_id}
+
+    case third do
+      [] -> []
+      third -> third_depot_lines(base, pairs, third)
+    end
+  end
+
+  defp additive_legs(row) do
+    for {_depot, _security, _delta} = leg <- Projection.effects(row).quantities, do: leg
+  end
+
+  defp third_depot_lines(base, pairs, third) do
+    depot_ids = third |> Enum.map(&elem(&1, 0)) |> Enum.uniq()
+    security_ids = third |> Enum.map(&elem(&1, 1)) |> Enum.uniq()
+    collapsed = MapSet.new(pairs, fn {row, _target_row} -> row.id end)
+
+    rows =
+      Repo.all(
+        from(tx in Transaction,
+          where:
+            tx.securities_account_id in ^depot_ids or
+              tx.counter_securities_account_id in ^depot_ids
+        )
+      )
+
+    splits =
+      Repo.all(
+        from(tx in Transaction,
+          where:
+            tx.type == "split" and tx.portfolio_id == ^base.target.portfolio_id and
+              tx.security_id in ^security_ids
+        )
+      )
+
+    before = Ledger.Positions.calculate(rows ++ splits)
+
+    after_collapse =
+      rows
+      |> Enum.reject(&MapSet.member?(collapsed, &1.id))
+      |> Kernel.++(splits)
+      |> Ledger.Positions.calculate()
+
+    names =
+      Map.new(
+        Repo.all(from(d in SecuritiesAccount, where: d.id in ^depot_ids, select: {d.id, d.name}))
+      )
+
+    security_names = security_names(security_ids)
+
+    for {depot_id, security_id} = key <- Enum.sort(third) do
+      %{
+        securities_account_id: depot_id,
+        securities_account_name: Map.get(names, depot_id),
+        security_id: security_id,
+        security_name: Map.get(security_names, security_id),
+        quantity_before: Map.get(before, key, @zero),
+        quantity_after: Map.get(after_collapse, key, @zero)
+      }
+    end
   end
 
   # Every security S holds rows of: its figures on S and on T before, and on
@@ -723,6 +804,8 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
       price: source_row.price,
       gross_amount: source_row.gross_amount,
       cash_account_id: source_row.cash_account_id,
+      securities_account_id: source_row.securities_account_id,
+      counter_securities_account_id: source_row.counter_securities_account_id,
       retires_hash: source_row.import_hash != nil
     }
   end
@@ -760,7 +843,8 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
       positions: outcome.positions,
       rounding_differences: outcome.rounding_differences,
       cash_accounts: outcome.cash_accounts,
-      flow_changes: outcome.flow_changes
+      flow_changes: outcome.flow_changes,
+      other_depots: outcome.other_depots
     }
   end
 

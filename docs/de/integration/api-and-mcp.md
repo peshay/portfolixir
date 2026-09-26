@@ -1109,8 +1109,9 @@ Beispiel-Antwort für Kurssynchronisierung:
     Zusammenführung löscht — beide Seiten werden ein Depot;
   - `key_equal_pairs`: eine Buchung der Quelle, deren Tag, Art, Wertpapier,
     Verrechnungskonto und Beträge denen einer Buchung des Ziels gleichen,
-    eins zu eins gepaart, niedrigste ID zuerst, und `choice_required`, wenn es
-    eine gibt;
+    eins zu eins gepaart, niedrigste ID zuerst, jede mit beiden Depot-Seiten
+    (`securities_account_id`, `counter_securities_account_id`), und
+    `choice_required`, wenn es eine gibt;
   - `position_buckets`: je Wertpapier, das die Quelle hält oder für das sie
     einen Override trägt, beide wirksamen Bucket-Mengen, beide Overrides
     (`null` für eine Position, die die Standardmenge ihres Depots erbt, `[]`
@@ -1134,7 +1135,11 @@ Beispiel-Antwort für Kurssynchronisierung:
     Verrechnungskontos verschiebt, `kind` `absorbed`, mit `cash_account_id`,
     der `transaction_id` des Saldos, `date`, `change` und
     `collapsed_transaction_id`, wie in der Vorschau einer
-    Geldkonto-Zusammenführung);
+    Geldkonto-Zusammenführung) und `other_depots` (jedes dritte Depot, das
+    eine entfernte Umbuchung nennt, je Wertpapier mit
+    `securities_account_name`, `security_name`, `quantity_before` und
+    `quantity_after`: Das Entfernen einer Umbuchung ändert auch seinen
+    Bestand);
   - `positions_basis`, die Rechengrundlage dieser Zahlen: Die Stückzahl ist
     die Positionsfaltung, in der jeder Split die Position einmal skaliert,
     gerundet auf die Stückzahl-Genauigkeit 6 (ADR-0028 §3); `cost_basis` und
