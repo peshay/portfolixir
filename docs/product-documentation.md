@@ -1314,7 +1314,10 @@ whenever no other view has been explicitly picked (an explicit pick — includin
 Everything — always wins). A view, a benchmark or a language that arrives in a
 link from another site applies to the page that link opens and is not
 remembered (E25): only a choice made on the instance itself, or typed into the
-address bar, changes what the next page shows. When the active view's buckets share an account, a
+address bar, changes what the next page shows. That page's own links (the
+language switch, the tabs) do not pass the foreign view on, and a login in
+between drops the view, benchmark and language from the address it returns
+to. When the active view's buckets share an account, a
 badge next to the total — *Overlapping buckets — accounts counted once* —
 states that per-bucket figures overlap and must not be summed; the total
 itself is already deduplicated. View-scoped performance series carry the label

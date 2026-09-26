@@ -15,6 +15,7 @@ defmodule PortfolixirWeb.PreferencePersistenceTest do
   alias PortfolixirWeb.LiveBenchmarkScope
   alias PortfolixirWeb.LiveLocale
   alias PortfolixirWeb.LiveViewScope
+  alias PortfolixirWeb.UiAuth
   alias PortfolixirWeb.ViewScope
 
   @view_cookie "portfolixir_view"
@@ -201,5 +202,106 @@ defmodule PortfolixirWeb.PreferencePersistenceTest do
       assert %{value: "security:9"} = response.resp_cookies[@benchmark_cookie], inspect(site)
       assert %{value: "de"} = response.resp_cookies[@locale_cookie], inspect(site)
     end
+  end
+
+  # User story (E25 S7 review round, S7E-2):
+  # As an operator with a UI password whose login has expired,
+  # I want a link from another site that sends me through the login to lose
+  # its view, benchmark and language on the way,
+  # so that logging in never turns another site's choice into my remembered
+  # one.
+  #
+  # Acceptance criteria:
+  # - The path the login returns to carries no view, locale, benchmark or
+  #   benchmark_rate parameter, whether the login page was reached through the
+  #   redirect or by a link naming the path itself; every other parameter is
+  #   kept.
+  # - A choice made on the instance and redirected to the login is remembered
+  #   by that request already, so the login loses nothing by dropping it.
+  describe "the login's return path" do
+    setup do
+      previous = Application.get_env(:portfolixir, :ui_password)
+      Application.put_env(:portfolixir, :ui_password, "correct-horse-battery-staple")
+      on_exit(fn -> Application.put_env(:portfolixir, :ui_password, previous) end)
+    end
+
+    test "drops the preference parameters and keeps the rest", %{conn: conn} do
+      redirected =
+        conn
+        |> from("cross-site")
+        |> get(
+          "/portfolio?tab=allocation&view=7&locale=de&benchmark[]=security:9&benchmark_rate=2"
+        )
+
+      refute Map.has_key?(redirected.resp_cookies, @view_cookie)
+      assert redirected_to(redirected) == "/login?to=%2Fportfolio%3Ftab%3Dallocation"
+
+      logged_in =
+        post(conn, "/login?to=%2Fportfolio%3Ftab%3Dallocation%26view%3D7%26locale%3Dde", %{
+          "session" => %{"password" => "correct-horse-battery-staple"}
+        })
+
+      assert redirected_to(logged_in) == "/portfolio?tab=allocation"
+
+      html =
+        conn
+        |> get("/login?to=" <> URI.encode_www_form("/portfolio?view=7&benchmark%5B%5D=x"))
+        |> html_response(200)
+
+      assert html =~ ~s(action="/login?to=%2Fportfolio")
+    end
+
+    test "a same-origin choice is remembered before the login", %{conn: conn} do
+      redirected = conn |> from("same-origin") |> get("/portfolio?view=7&locale=de")
+
+      assert %{value: "7"} = redirected.resp_cookies[@view_cookie]
+      assert %{value: "de"} = redirected.resp_cookies[@locale_cookie]
+      assert redirected_to(redirected) == "/login?to=%2Fportfolio"
+    end
+
+    test "is cleaned in one place" do
+      assert UiAuth.safe_return_path("/portfolio?view=7") == "/portfolio"
+      assert UiAuth.safe_return_path("/risk?view=total&x=1") == "/risk?x=1"
+
+      assert UiAuth.safe_return_path("/portfolio?benchmark%5B%5D=security%3A9&tab=allocation") ==
+               "/portfolio?tab=allocation"
+
+      assert UiAuth.safe_return_path("/?locale=de&benchmark_rate=2&view[]=1") == "/"
+
+      assert UiAuth.safe_return_path("/cashflow?year=2025&views=1") ==
+               "/cashflow?year=2025&views=1"
+
+      assert UiAuth.safe_return_path("//evil.example/?view=1") == "/"
+    end
+  end
+
+  # User story (E25 S7 review round, S7E-2):
+  # As an operator who opened a Wealth page from another site's link,
+  # I want the page's own links — the language switcher, the tabs, the way
+  # back to Holdings — not to carry that link's view along,
+  # so that my next click, a request from the instance itself, does not make
+  # the foreign view my remembered one.
+  #
+  # Acceptance criteria:
+  # - On a page whose ?view= came from another site, the links derived from
+  #   the page's path carry no ?view=, on the Holdings and the Allocation tab.
+  # - On a page whose ?view= is the remembered choice, they still carry it
+  #   (ADR-0024).
+  test "the page's links carry only a remembered view", %{conn: conn} do
+    view = wealth_world()
+    stored = conn |> put_req_cookie(@view_cookie, "total") |> from("cross-site")
+
+    for path <- ["/portfolio", "/portfolio?tab=allocation"] do
+      separator = if path =~ "?", do: "&", else: "?"
+      {:ok, page, _html} = live(stored, path <> separator <> "view=#{view.id}")
+      render_async(page)
+
+      assert has_element?(page, "[data-role='active-view']", "Retirement")
+      refute page |> element("#locale-de") |> render() =~ "view=", path
+    end
+
+    {:ok, page, _html} = conn |> from("same-origin") |> live("/portfolio?view=#{view.id}")
+    render_async(page)
+    assert page |> element("#locale-de") |> render() =~ "view=#{view.id}"
   end
 end
