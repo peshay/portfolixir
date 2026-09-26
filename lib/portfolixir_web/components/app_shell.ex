@@ -529,6 +529,19 @@ defmodule PortfolixirWeb.AppShell do
   attr(:id, :string, required: true)
   attr(:trigger, :string, required: true, doc: "the DOM id of the kebab that opened it")
   attr(:label, :string, required: true)
+
+  attr(:caption_name, :string,
+    default: nil,
+    doc:
+      "the row's name, shown as the sheet's head under 720 px only, where the menu no " <>
+        "longer hangs at its row (board 01, rule 3)"
+  )
+
+  attr(:caption_kind, :string,
+    default: nil,
+    doc: "what the row is, after its name in the caption"
+  )
+
   slot(:inner_block, required: true)
 
   def row_menu(assigns) do
@@ -544,6 +557,9 @@ defmodule PortfolixirWeb.AppShell do
       phx-hook="PositionedMenu"
       data-trigger={@trigger}
     >
+      <div :if={@caption_name} class="row-context-menu__caption" aria-hidden="true">
+        <b><%= @caption_name %></b><%= if @caption_kind, do: " · " <> @caption_kind %>
+      </div>
       <%= render_slot(@inner_block) %>
     </div>
     """
@@ -737,6 +753,12 @@ defmodule PortfolixirWeb.AppShell do
     do: ~s(<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>)
 
   defp icon_paths(:edit), do: ~s(<path d="M4 20h4l10-10-4-4L4 16Z"/>)
+
+  # Merge (ADR-0050, board 01): two lines joining into one arrow — an
+  # addition, because no existing glyph carries the meaning and a second
+  # meaning for one is banned (UX-DR16).
+  defp icon_paths(:merge),
+    do: ~s(<path d="M4 6h4.5l5.5 6h6"/><path d="M4 18h4.5l5.5-6"/><path d="m17 9 3 3-3 3"/>)
 
   defp icon_paths(:archive),
     do: ~s(<rect x="3" y="4" width="18" height="4"/><path d="M5 8v12h14V8M10 12h4"/>)
