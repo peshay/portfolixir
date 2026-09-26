@@ -662,6 +662,18 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
       assert detail =~ "Meridian Global Equity ETF"
       refute detail =~ "Kestrel"
 
+      # L5a: the refusal names its positions as data too, so a page can say
+      # it in the operator's language (board 02, "Abgelehnt · Depot").
+      assert %{positions: [position]} = Enum.find(guards, &(not &1.passed))
+
+      assert position == %{
+               security_id: ctx.meridian.id,
+               security_name: "Meridian Global Equity ETF",
+               source_buckets: [spec.id],
+               target_buckets: [],
+               action: :refuse
+             }
+
       assert {:error, {:refused, _guards}} =
                Lifecycle.merge_depot(agent(), ctx.source.id, ctx.target.id, %{
                  plan_digest: "sha256:whatever",

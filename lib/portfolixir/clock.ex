@@ -34,6 +34,23 @@ defmodule Portfolixir.Clock do
   end
 
   @doc """
+  The host's calendar date at the UTC instant `datetime` — the day a stored
+  timestamp fell on where the instance runs, the same answer `today/0`
+  gives for now.
+  """
+  @spec local_date(DateTime.t()) :: Date.t()
+  def local_date(%DateTime{} = datetime) do
+    {{year, month, day}, _time} =
+      datetime
+      |> DateTime.shift_zone!("Etc/UTC")
+      |> DateTime.to_naive()
+      |> NaiveDateTime.to_erl()
+      |> :calendar.universal_time_to_local_time()
+
+    Date.new!(year, month, day)
+  end
+
+  @doc """
   The name of the zone the host clock runs in: `TZ` when it names a zone
   (as `Europe/Berlin`, `:Europe/Berlin` or a `zoneinfo` path), otherwise the
   zone `/etc/localtime` links to, or `/etc/timezone` names. `nil` when none

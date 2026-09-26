@@ -175,6 +175,55 @@ defmodule Portfolixir.LifecycleTest do
     end
   end
 
+  describe "what a survivor was merged from (ADR-0050 §12, L5a)" do
+    # User story:
+    # As the operator looking at an account that absorbed others,
+    # I want to read which accounts were merged into it and when,
+    # so that a merge is visible on the survivor and not only as a former
+    # name.
+    #
+    # Acceptance criteria:
+    # - merged_from/2 answers, per target id, the direct merges into it,
+    #   oldest first, each with the source id, the name its snapshot recorded
+    #   and the host's calendar date of the merge.
+    # - A target nothing was merged into is absent; another kind's merge of
+    #   the same ids is not counted.
+    test "lists the direct merges into each target, oldest first" do
+      world = world()
+      first = merge_record!(world)
+
+      {:ok, second} =
+        Lifecycle.record_merge(
+          agent(),
+          cash_merge_attrs(world, %{
+            source_id: world.old_cash.id + 1_000_000,
+            source_snapshot: %{"id" => world.old_cash.id + 1_000_000, "name" => "Savings 2"}
+          })
+        )
+
+      {:ok, _other_kind} =
+        Lifecycle.record_merge(
+          agent(),
+          cash_merge_attrs(world, %{kind: "securities_account", source_id: 42})
+        )
+
+      target = world.cash.id
+
+      assert %{^target => [a, b]} =
+               Lifecycle.merged_from(:cash_account, [target, target + 1_000_000])
+
+      assert a == %{
+               source_id: world.old_cash.id,
+               source_name: "Savings (old)",
+               merged_on: Portfolixir.Clock.local_date(first.inserted_at)
+             }
+
+      assert b.source_id == second.source_id
+      assert b.source_name == "Savings 2"
+      assert Lifecycle.merged_from(:security, [target]) == %{}
+    end
+  end
+
   describe "retired import hashes (ADR-0050 §3)" do
     # User story:
     # As the operator re-importing a Portfolio Performance export after a

@@ -175,6 +175,34 @@ defmodule Portfolixir.Lifecycle do
     end)
   end
 
+  @doc """
+  The merges into each of `target_ids` under `kind`, oldest first, as
+  `%{target_id => [%{source_id, source_name, merged_on}]}` — what a survivor
+  shows as "merged from …" (ADR-0050 §12). `merged_on` is the host's
+  calendar date of the merge (`Portfolixir.Clock.local_date/1`). Direct
+  merges only: a source that was itself a survivor keeps its own sources.
+  """
+  @spec merged_from(:cash_account | :securities_account | :security, [integer()]) :: %{
+          optional(integer()) => [
+            %{source_id: integer(), source_name: String.t() | nil, merged_on: Date.t()}
+          ]
+        }
+  def merged_from(kind, target_ids)
+      when kind in [:cash_account, :securities_account, :security] and is_list(target_ids) do
+    from(m in MergeRecord,
+      where: m.kind == ^kind and m.target_id in ^target_ids,
+      order_by: [asc: m.inserted_at, asc: m.id]
+    )
+    |> Repo.all()
+    |> Enum.group_by(& &1.target_id, fn record ->
+      %{
+        source_id: record.source_id,
+        source_name: snapshot_name(record),
+        merged_on: Portfolixir.Clock.local_date(record.inserted_at)
+      }
+    end)
+  end
+
   @live_schemas %{
     cash_account: Portfolixir.Portfolios.CashAccount,
     securities_account: Portfolixir.Portfolios.SecuritiesAccount,

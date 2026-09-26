@@ -339,6 +339,39 @@ defmodule Portfolixir.Lifecycle.AccountNames do
     end
   end
 
+  @doc """
+  What the name guard would find for `name` on an account of `schema` in
+  `portfolio_id` other than `except_id` (`nil` for a new account), read-only
+  and unlocked — for a form that names the holder in the operator's
+  language: `nil` when the name is free, `{:live, holder}` when another
+  account carries it as its name, `{:former, holder}` when another account
+  carries it as a former name. An account's own names never conflict with
+  it. The write itself is still guarded.
+  """
+  @spec conflict(schema(), integer() | nil, String.t(), integer() | nil) ::
+          nil | {:live | :former, %{id: integer(), name: String.t()}}
+  def conflict(schema, portfolio_id, name, except_id)
+      when schema in @schemas and is_binary(name) do
+    name_conflict(schema, portfolio_id, name, except_id)
+  end
+
+  @doc """
+  Which case of the rename rule a rename of `account` meets for its current
+  name (ADR-0050 §4), read-only: `:kept` — it becomes a former name of this
+  account, so an import naming it keeps booking here — or `{:not_kept,
+  holder}` while another account of the kind in the portfolio carries it as
+  its live name, so an import naming it books there. The case the MCP rename
+  tool's description names, for the rename dialog to state before it writes.
+  """
+  @spec previous_name_outcome(account()) ::
+          :kept | {:not_kept, %{id: integer(), name: String.t()}}
+  def previous_name_outcome(%schema{} = account) when schema in @schemas do
+    case live_holder(schema, account.portfolio_id, account.name, account.id) do
+      nil -> :kept
+      holder -> {:not_kept, holder}
+    end
+  end
+
   defp refuse(changeset, schema, {kind, _holder} = conflict) when kind in [:live, :former] do
     Changeset.add_error(changeset, :name, conflict_message(schema, conflict),
       validation: :name_taken

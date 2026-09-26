@@ -328,15 +328,32 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
     end
   end
 
+  # A refusal also names its positions as data (L5a), so the operator's page
+  # can say it in the operator's language; a passing guard carries nothing
+  # more, so the preview and its digest are unchanged.
   defp membership_guard(plan) do
     refused = Enum.filter(plan.memberships, &(&1.action in [:refuse, :refuse_carry]))
 
-    guard(
-      :position_buckets_mismatch,
+    :position_buckets_mismatch
+    |> guard(
       "same view membership for every position",
       refused == [],
       "every position keeps its effective buckets",
       Enum.map_join(refused, " ", &membership_detail/1)
+    )
+    |> put_refused_positions(refused)
+  end
+
+  defp put_refused_positions(guard, []), do: guard
+
+  defp put_refused_positions(guard, refused) do
+    Map.put(
+      guard,
+      :positions,
+      Enum.map(
+        refused,
+        &Map.take(&1, [:security_id, :security_name, :source_buckets, :target_buckets, :action])
+      )
     )
   end
 
