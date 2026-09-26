@@ -377,6 +377,43 @@ defmodule PortfolixirWeb.AccountsMergeLiveTest do
       assert refusal =~ "Remedy: change that booking&#39;s kind back"
     end
 
+    # User story:
+    # As the operator removing a transfer both accounts made to a third
+    # account as a duplicate,
+    # I want the option to say which account's set balance takes it in,
+    # so that I see the flow it moves (review finding R-L-1, board 13's line).
+    #
+    # Acceptance criteria:
+    # - "remove as duplicates" names the third account's balance before and
+    #   after, and "a set balance of <third account> on <date> absorbs 50.00".
+    test "a collapsed transfer names the third account whose set balance absorbs it", ctx do
+      side = cash!(ctx.portfolio, "Nebenkonto")
+      book!(ctx, ctx.source, "deposit", "400.00", ~D[2025-01-02])
+      book!(ctx, ctx.target, "deposit", "500.00", ~D[2025-01-02])
+
+      for from <- [ctx.source, ctx.target] do
+        {:ok, _} =
+          Ledger.create_transaction(Actor.owner_ui(), %{
+            portfolio_id: ctx.portfolio.id,
+            cash_account_id: from.id,
+            counter_cash_account_id: side.id,
+            type: "cash_transfer",
+            date: ~D[2025-03-01],
+            gross_amount: "50.00",
+            currency_code: "EUR"
+          })
+      end
+
+      anchor!(side, "100.00", ~D[2025-04-01])
+
+      {:ok, view, _html} = live(ctx.conn, "/portfolios")
+      to_preview(view, ctx.source, ctx.target)
+
+      option = view |> element("#merge-dialog [data-role='collapse-true']") |> render()
+      assert option =~ "a set balance of Nebenkonto on 2025-04-01 absorbs 50.00"
+      refute option =~ "a set balance of Tagesgeld (alt)"
+    end
+
     # The preview's cash half, worked: deposits on both, one transfer between
     # them, two equal interest bookings, an anchor on each side and a fee.
     defp example!(ctx) do
