@@ -2652,9 +2652,13 @@ const POLICY_REIMPORT_GUARANTEE =
 // operator's; each points to the journal for who wrote it.
 const POLICY_RULE_AUTHOR =
   " Every rule here is a stored rule, whoever wrote it: the operator on the Risk page or an " +
-  "API token, the agent's own among them. Who wrote a rule or a version is in the audit " +
-  "journal (portfolixir.journal.list with resource_type policy_rule or policy_rule_version; " +
-  "actor_type owner_ui is the Risk page, api_token_rw an API token).";
+  "API token, the agent's own among them. Every version carries author — operator for a " +
+  "version saved on the Risk page, agent for one written with an API or MCP token, this " +
+  "companion's included; set from the credential, never from input — and a finding the " +
+  "author of its version; the Risk page marks the agent's rules. Which token wrote a rule or " +
+  "a version is in the audit journal (portfolixir.journal.list with resource_type " +
+  "policy_rule or policy_rule_version; actor_type owner_ui is the Risk page, api_token_rw an " +
+  "API token, actor_label its name).";
 
 const notesListSchema = {
   type: "object",
@@ -3403,7 +3407,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.policy_rules.list",
     "Stored policy rules",
-    "The stored policy rules for a portfolio (ADR-0049): caps, floors and bands on a figure the product already serves — a weight, a drift, the HHI, the portfolio volatility or maximum drawdown — stored as objects instead of prose in a prompt. READ THE RULES HERE rather than restating them from memory: the rule in force is the one stored. Each rule carries status (in_force | scheduled | retired, relative to as_of), version_in_force (the predicate: subject_type and its ids, measure, kind, threshold or lower/upper as Decimal strings, window, severity, note, valid_from, valid_until) and next_version when one is scheduled. as_of (default today) answers \"what was the standard on date D\"; include_retired=true adds retired rules; view narrows to one evaluation context (default: every context — view_id null is the portfolio-wide one); since is the row delta (a rule counts as changed when its row or any version changed). Whether a rule holds is the findings read, not this one." + POLICY_RULE_AUTHOR + POLICY_REIMPORT_GUARANTEE,
+    "The stored policy rules for a portfolio (ADR-0049): caps, floors and bands on a figure the product already serves — a weight, a drift, the HHI, the portfolio volatility or maximum drawdown — stored as objects instead of prose in a prompt. READ THE RULES HERE rather than restating them from memory: the rule in force is the one stored. Each rule carries status (in_force | scheduled | retired, relative to as_of), version_in_force (the predicate: subject_type and its ids, measure, kind, threshold or lower/upper as Decimal strings, window, severity, note, valid_from, valid_until, author) and next_version when one is scheduled. as_of (default today) answers \"what was the standard on date D\"; include_retired=true adds retired rules; view narrows to one evaluation context (default: every context — view_id null is the portfolio-wide one); since is the row delta (a rule counts as changed when its row or any version changed). Whether a rule holds is the findings read, not this one." + POLICY_RULE_AUTHOR + POLICY_REIMPORT_GUARANTEE,
     policyRulesListSchema,
     policyRulesListZ
   ),

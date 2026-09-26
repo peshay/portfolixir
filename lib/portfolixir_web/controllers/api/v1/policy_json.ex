@@ -37,8 +37,9 @@ defmodule PortfolixirWeb.Api.V1.PolicyJSON do
   end
 
   @doc """
-  One finding (ADR-0049 §5): the rule's identity and words, the version, the
-  thresholds, the measured `value`, the `state`, the signed `distance` to the
+  One finding (ADR-0049 §5): the rule's identity and words, the version and
+  its `author` (E25 S7, G30), the thresholds, the measured `value`, the
+  `state`, the signed `distance` to the
   nearest line, the reason and — for a refused metric — `required` and
   `observations`, and the computation basis of the reading. No action (§6).
   """
@@ -63,6 +64,7 @@ defmodule PortfolixirWeb.Api.V1.PolicyJSON do
       lower: JSON.decimal(finding.lower),
       upper: JSON.decimal(finding.upper),
       note: finding.note,
+      author: author(finding.author),
       state: to_string(finding.state),
       value: JSON.decimal(finding.value),
       distance: JSON.decimal(finding.distance),
@@ -103,7 +105,14 @@ defmodule PortfolixirWeb.Api.V1.PolicyJSON do
       severity: to_string(version.severity),
       note: version.note,
       valid_from: JSON.date(version.valid_from),
-      valid_until: JSON.date(version.valid_until)
+      valid_until: JSON.date(version.valid_until),
+      author: author(version.author)
     }
   end
+
+  # E25 S7, G30: who wrote the version — "operator" (the Risk page) or
+  # "agent" (an API or MCP token); null only for a version stored before
+  # authors existed that has no journaled creation.
+  defp author(nil), do: nil
+  defp author(author) when is_atom(author), do: Atom.to_string(author)
 end

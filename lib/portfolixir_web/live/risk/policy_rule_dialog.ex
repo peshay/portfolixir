@@ -366,6 +366,10 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
                 <li :for={{version, index} <- Enum.with_index(@rule.versions, 1)}>
                   <%= gettext("Version %{n}", n: index) %> · <%= PolicyRuleFormat.period(version) %> ·
                   <%= PolicyRuleFormat.line(version) %> · <%= PolicyRuleLabel.severity(version.severity) %>
+                  <%!-- E25 S7, G30; pick G12.1 (board 12): who wrote each
+                       version, in the research log's words. A rename is no
+                       version and carries no author. --%>
+                  <span :if={version.author} data-role="policy-rule-version-author">· <%= author_label(version.author) %></span>
                 </li>
               </ol>
             </details>
@@ -795,6 +799,10 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
 
   defp blank_to_nil(value) when value in [nil, ""], do: nil
   defp blank_to_nil(value), do: value
+
+  # The research log's words for who wrote a record (securities_live.ex).
+  defp author_label(:operator), do: gettext("Operator")
+  defp author_label(:agent), do: gettext("Agent")
 
   @subject_fields ~w(subject_type security_id category_id subject_view_id)
 

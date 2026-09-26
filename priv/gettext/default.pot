@@ -9784,3 +9784,14 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "“%{name}” is already the name of another depot. Choose another name, or merge or rename that depot."
 msgstr ""
+
+#: lib/portfolixir_web/live/risk_live.ex:481
+#, elixir-autogen, elixir-format
+msgid "Version in force by:"
+msgstr ""
+
+#: lib/portfolixir_web/live/risk_live.ex:539
+#: lib/portfolixir_web/live/risk_live.ex:558
+#, elixir-autogen, elixir-format
+msgid "Version by:"
+msgstr ""

@@ -24,6 +24,12 @@ defmodule Portfolixir.Portfolios.PolicyRules do
     * `delete_rule/3` — only while **no** version has ever been in force:
       nothing was ever measured against it.
 
+  **Every version stores its author** (E25 S7, G30, T-8): `operator` or
+  `agent`, derived from the write's actor by
+  `PolicyRuleVersion.author_for/1` and never taken from input, so the agent's
+  lines are told apart from the operator's own; the database keeps a recorded
+  author. A rename is no version and moves no author.
+
   **A version that has been in force is immutable**: never updated, never
   deleted; only its `valid_until` is set when an edit or a retirement closes
   it, and never to a day already past. "In force" is decided against the
@@ -92,10 +98,9 @@ defmodule Portfolixir.Portfolios.PolicyRules do
              {:ok, _version} <-
                journaled_insert(
                  actor,
-                 PolicyRuleVersion.changeset(
-                   %PolicyRuleVersion{},
-                   Map.put(version_attrs, "policy_rule_id", rule.id)
-                 ),
+                 %PolicyRuleVersion{}
+                 |> PolicyRuleVersion.changeset(Map.put(version_attrs, "policy_rule_id", rule.id))
+                 |> PolicyRuleVersion.put_author(actor),
                  "policy_rule_version"
                )
                |> tag_version_error() do
@@ -140,7 +145,12 @@ defmodule Portfolixir.Portfolios.PolicyRules do
              :ok <- starts_after_in_force(changeset, versions, valid_from, today),
              :ok <- replace_scheduled(actor, versions, valid_from, today),
              :ok <- close_predecessor(actor, versions, valid_from),
-             {:ok, version} <- journaled_insert(actor, changeset, "policy_rule_version") do
+             {:ok, version} <-
+               journaled_insert(
+                 actor,
+                 PolicyRuleVersion.put_author(changeset, actor),
+                 "policy_rule_version"
+               ) do
           Invalidation.after_rule_write(rule.portfolio_id, Repo)
           version
         end
@@ -445,13 +455,14 @@ defmodule Portfolixir.Portfolios.PolicyRules do
 
   defp today(opts), do: Keyword.get(opts, :today) || Clock.today()
 
-  # The version's attrs with `valid_from` defaulted to today; `valid_until`
-  # and the rule reference are never taken from input.
+  # The version's attrs with `valid_from` defaulted to today; `valid_until`,
+  # the rule reference and the author (the write's actor decides it, E25 S7,
+  # G30) are never taken from input.
   defp version_attrs(attrs, today) when is_map(attrs) do
     attrs =
       attrs
       |> Map.new(fn {key, value} -> {to_string(key), value} end)
-      |> Map.drop(["valid_until", "policy_rule_id", "id"])
+      |> Map.drop(["valid_until", "policy_rule_id", "id", "author"])
 
     if attrs["valid_from"] in [nil, ""],
       do: Map.put(attrs, "valid_from", today),

@@ -9366,3 +9366,14 @@ msgstr "„%{name}“ heißt bereits ein anderes Verrechnungskonto. Wählen Sie 
 #, elixir-autogen, elixir-format
 msgid "“%{name}” is already the name of another depot. Choose another name, or merge or rename that depot."
 msgstr "„%{name}“ heißt bereits ein anderes Depot. Wählen Sie einen anderen Namen, oder führen Sie jenes Depot zusammen oder benennen Sie es um."
+
+#: lib/portfolixir_web/live/risk_live.ex:481
+#, elixir-autogen, elixir-format
+msgid "Version in force by:"
+msgstr "Version in Kraft von:"
+
+#: lib/portfolixir_web/live/risk_live.ex:539
+#: lib/portfolixir_web/live/risk_live.ex:558
+#, elixir-autogen, elixir-format
+msgid "Version by:"
+msgstr "Version von:"

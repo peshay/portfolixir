@@ -111,6 +111,72 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleControllerTest do
     assert findings["findings_note"] =~ "A finding is a stored rule"
   end
 
+  # User story (E25 S7, G30, the author half; T-8):
+  # As the operator whose agent writes rules with its API token,
+  # I want every version in the rules read and every finding to say who
+  # wrote it,
+  # so that the agent reads, and I can check, which lines are its own
+  # without the journal.
+  #
+  # Acceptance criteria:
+  # - A version created or added over the API reads author "agent", whatever
+  #   the body says; one saved on the Risk page reads "operator".
+  # - The list read carries author on version_in_force and next_version, the
+  #   show read on every version, oldest first.
+  # - A finding carries author, the author of the version in force.
+  test "versions and findings carry the author the write's actor decided",
+       %{conn: conn, world: world, security: security} do
+    {:ok, rule} =
+      PolicyRules.create_rule(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        name: "Cap",
+        version: weight_cap(security)
+      })
+
+    %{"data" => added} =
+      conn
+      |> post("/api/v1/policy_rules/#{rule.id}/versions", %{
+        "version" =>
+          weight_cap(security)
+          |> Map.put("threshold", "12")
+          |> Map.put("valid_from", Date.to_iso8601(Date.add(today(), 1)))
+          |> Map.put("author", "operator")
+      })
+      |> json_response(201)
+
+    assert added["author"] == "agent"
+
+    %{"data" => created} =
+      conn
+      |> post("/api/v1/portfolios/#{world.portfolio.id}/policy_rules", %{
+        "rule" => %{
+          "name" => "Written by the agent",
+          "version" => Map.put(weight_cap(security), "author", "operator")
+        }
+      })
+      |> json_response(201)
+
+    assert created["version_in_force"]["author"] == "agent"
+
+    %{"data" => list} =
+      conn |> get("/api/v1/portfolios/#{world.portfolio.id}/policy_rules") |> json_response(200)
+
+    by_id = Map.new(list["rules"], &{&1["id"], &1})
+    assert by_id[rule.id]["version_in_force"]["author"] == "operator"
+    assert by_id[rule.id]["next_version"]["author"] == "agent"
+
+    %{"data" => shown} = conn |> get("/api/v1/policy_rules/#{rule.id}") |> json_response(200)
+    assert Enum.map(shown["versions"], & &1["author"]) == ["operator", "agent"]
+
+    %{"data" => findings} =
+      conn
+      |> get("/api/v1/portfolios/#{world.portfolio.id}/policy_findings")
+      |> json_response(200)
+
+    authors = Map.new(findings["findings"], &{&1["rule_id"], &1["author"]})
+    assert authors == %{rule.id => "operator", created["id"] => "agent"}
+  end
+
   # Acceptance criteria (ADR-0049 §4, §8):
   # - POST .../versions is the edit: it adds a version from today and the
   #   previous one is closed the day before, both readable.

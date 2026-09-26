@@ -1935,7 +1935,12 @@ beantworten — wie konzentriert ist das Portfolio, und wie stark schwankt es �
   Ansicht, einer Kategorie, einer Klassifizierung oder eines Wertpapiers
   abgelehnt, weil Regeln es lesen, nennt die Ablehnung die Regeln mit Stand und
   Ansicht, und jeder Name führt auf „Risiko“ in der Ansicht, in der die Regel
-  gilt.
+  gilt. Eine Regel, deren gültige Linie der Agent mit seinem API-Token gezogen
+  hat, endet in ihrer Wortzeile mit **„Agent“** — geplante und beendete Regeln
+  ebenso —, und die Versionsliste im Dialog nennt bei jeder Version den Autor,
+  „Operator“ oder „Agent“ (E25). Eigene Regeln tragen kein Wort. Die Regeln
+  des Agenten gelten wie die eigenen; das Wort sagt nur, wer die Linie gezogen
+  hat.
 - **Kennzahlen des Portfolios**, ein Jahr: die annualisierte **Volatilität**,
   der **maximale Rückgang** mit Beginn, Tiefpunkt und Erholung, die
   **risikoadjustierte Rendite** (bei einem risikofreien Satz von 0 ist sie
