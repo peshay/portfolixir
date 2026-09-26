@@ -2462,3 +2462,24 @@ variation selectors); the note marks a row stored before that rule.
   placeholder before the stored text is put in. No picture changes by it.
   Flash messages and other headings that interpolate a stored name are not
   isolated yet (a follow-up).
+
+## Amendment 2026-09-26 — The error page follows the theme *(the Sprint 16 closing act; board 11 part 4, E25 S2, F68)*
+
+Board `mockups/ux-design-2026-09-24/11-security-visible-states`, part 4,
+draws the error page as `PortfolixirWeb.ErrorView`'s one status line
+("403 · Zugriff verweigert") in the browser's default rendering: no
+stylesheet, so a white page in a dark app. The closing act's screenshot pass
+found the dark capture identical to the light one. The conformance repair
+keeps the board's content and changes only what every page owes the theme:
+
+- **A document, not bare text:** `<html lang>` in the page's language, both
+  colour schemes declared (`color-scheme: light dark`), `app.css` for the
+  tokens `body` already sets (background, text colour, font), and the root
+  layout's theme script for the stored light, dark and accent choice. An
+  error page may carry the static policy, which admits no inline script, so
+  the script is served as `/theme-boot.js`, the very code the layout runs
+  inline under its nonce (a test holds the two equal).
+- **The line alone, on the side gutter:** `main.error-page` (`margin: 0;
+  padding: var(--space-4)`) holds the status line and nothing else. A
+  designed error page (a layout, a remedy sentence, a way back) stays the
+  separate decision the board names.

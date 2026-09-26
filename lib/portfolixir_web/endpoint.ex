@@ -50,7 +50,9 @@ defmodule PortfolixirWeb.Endpoint do
     headers: @static_headers,
     # Stored logos are named by security id and say which companies the
     # operator holds; they are served by a route behind the UI login (#764).
-    only: ~w(app.css favicon.ico favicon.svg images)
+    # theme-boot.js is the root layout's theme script for the pages the
+    # static policy serves, the error page (the closing act, E25).
+    only: ~w(app.css favicon.ico favicon.svg images theme-boot.js)
   )
 
   plug(Plug.Static,

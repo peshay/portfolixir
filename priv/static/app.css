@@ -7354,6 +7354,15 @@ select:disabled {
   margin-top: var(--space-2);
 }
 
+/* Error page (E25 S2, F68; board 11 part 4): the ErrorView's one status line,
+   on the theme tokens body already sets (background, text, font) and the
+   page's side gutter. No layout of its own: a designed error page is a
+   decision board 11 leaves open. */
+.error-page {
+  margin: 0;
+  padding: var(--space-4);
+}
+
 /* Login page (ADR-0045 section 1, issue 764): one card, one field, the app tokens. */
 .login-page {
   box-sizing: border-box;

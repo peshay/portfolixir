@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.ErrorViewTest do
 
   import ExUnit.CaptureLog
 
+  alias Phoenix.LiveView.Rendered
   alias PortfolixirWeb.ErrorView
 
   # One byte past the endpoint's body bound (Plug.Parsers length: 8_000_000).
@@ -35,7 +36,7 @@ defmodule PortfolixirWeb.ErrorViewTest do
           post(with_csrf(conn), "/login", %{"password" => password})
         end)
 
-      assert body == "403 · Forbidden"
+      assert status_line(body) == "403 · Forbidden"
       refute body =~ password
 
       # What the adapter logs is the original error, and its message holds
@@ -83,7 +84,7 @@ defmodule PortfolixirWeb.ErrorViewTest do
           |> post("/login", "{")
         end)
 
-      assert body == "400 · Bad Request"
+      assert status_line(body) == "400 · Bad Request"
     end
 
     test "a format the address does not serve answers 406", %{conn: conn} do
@@ -92,7 +93,7 @@ defmodule PortfolixirWeb.ErrorViewTest do
           conn |> put_req_header("accept", "application/xml") |> get("/")
         end)
 
-      assert body == "406 · Not Acceptable"
+      assert status_line(body) == "406 · Not Acceptable"
     end
 
     test "a body over the server's bound answers 413", %{conn: conn} do
@@ -104,13 +105,16 @@ defmodule PortfolixirWeb.ErrorViewTest do
           |> post("/login", oversized_json())
         end)
 
-      assert body == "413 · Request Entity Too Large"
+      assert status_line(body) == "413 · Request Entity Too Large"
       assert {"content-type", "text/html; charset=utf-8"} in headers
     end
 
     test "404 and 500 carry their number through the same clause", %{conn: conn} do
-      assert conn |> get("/no-such-page") |> html_response(404) == "404 · Not Found"
-      assert ErrorView.render("500.html", %{conn: conn}) == "500 · Internal Server Error"
+      assert conn |> get("/no-such-page") |> html_response(404) |> status_line() ==
+               "404 · Not Found"
+
+      assert status_line(ErrorView.render("500.html", %{conn: conn})) ==
+               "500 · Internal Server Error"
     end
 
     test "the status line follows the page's language, even before the router ran",
@@ -124,7 +128,7 @@ defmodule PortfolixirWeb.ErrorViewTest do
           |> post("/login", %{"password" => "x"})
         end)
 
-      assert body == "403 · Zugriff verweigert"
+      assert status_line(body) == "403 · Zugriff verweigert"
 
       # The endpoint refused the body before any pipeline ran: the page reads
       # the browser's language itself.
@@ -137,7 +141,7 @@ defmodule PortfolixirWeb.ErrorViewTest do
           |> post("/login", oversized_json())
         end)
 
-      assert body == "413 · Anfrage zu groß"
+      assert status_line(body) == "413 · Anfrage zu groß"
 
       for {template, line} <- [
             {"400.html", "400 · Ungültige Anfrage"},
@@ -146,11 +150,68 @@ defmodule PortfolixirWeb.ErrorViewTest do
             {"500.html", "500 · Interner Fehler"}
           ] do
         de = put_req_cookie(conn, "portfolixir_locale", "de")
-        assert ErrorView.render(template, %{conn: de}) == line
+        assert status_line(ErrorView.render(template, %{conn: de})) == line
       end
 
       # No language anywhere: English.
-      assert ErrorView.render("403.html", %{conn: conn}) == "403 · Forbidden"
+      assert status_line(ErrorView.render("403.html", %{conn: conn})) == "403 · Forbidden"
+    end
+  end
+
+  # User story (the closing act, E25; board 11 part 4):
+  # As an operator who reads the app in dark mode,
+  # I want the error page to follow the theme like every other page,
+  # so that a refused request is not a white page in a dark app.
+  #
+  # Acceptance criteria:
+  # - The HTML error body is a document in the page's language that declares
+  #   both colour schemes and loads the app's stylesheet, whose theme tokens
+  #   give it its background, text colour and font; the status line is one
+  #   element on the page's side gutter, and nothing else is added.
+  # - It applies the operator's stored light, dark and accent choice through
+  #   a script the page's policy admits: served by the instance without a
+  #   session, never inline, and the very code the root layout runs inline.
+  describe "the error page's theme" do
+    test "an error page follows the theme like every other page", %{conn: conn} do
+      {403, _headers, body} =
+        assert_error_sent(403, fn ->
+          conn
+          |> put_req_cookie("portfolixir_locale", "de")
+          |> with_csrf()
+          |> post("/login", %{"password" => "x"})
+        end)
+
+      doc = Floki.parse_document!(body)
+
+      assert Floki.attribute(doc, "html", "lang") == ["de"]
+      assert Floki.attribute(doc, ~s(meta[name="color-scheme"]), "content") == ["light dark"]
+      assert Floki.attribute(doc, ~s(link[rel="stylesheet"]), "href") == ["/app.css"]
+      assert Floki.attribute(doc, "script", "src") == ["/theme-boot.js"]
+      assert Floki.find(doc, "script:not([src])") == []
+      assert doc |> Floki.find("title") |> Floki.text() == "403 · Zugriff verweigert"
+      assert [_one] = Floki.find(doc, ~s(body > .error-page[data-role="error-status"]))
+
+      css = File.read!("priv/static/app.css")
+      assert css =~ ~r/\.error-page\s*\{[^}]*padding:\s*var\(--space-4\)/
+    end
+
+    test "the theme script is served without a session and is the root layout's own", %{
+      conn: conn
+    } do
+      served = build_conn() |> get("/theme-boot.js") |> response(200)
+
+      inline =
+        conn
+        |> get("/login")
+        |> html_response(200)
+        |> Floki.parse_document!()
+        |> Floki.find("script#theme-boot")
+        |> Floki.text(js: true)
+
+      # The file's own comment lines aside, the code is the layout's.
+      assert squish(String.replace(served, ~r{^//.*$}m, "")) == squish(inline)
+      assert served =~ "portfolixir-theme"
+      assert served =~ "portfolixir-accent"
     end
   end
 
@@ -210,6 +271,20 @@ defmodule PortfolixirWeb.ErrorViewTest do
       end
     end
   end
+
+  # The one line the error page says: its status and reason. A direct render
+  # is a template, what the endpoint sends is its HTML.
+  defp status_line(%Rendered{} = rendered),
+    do: rendered |> Phoenix.HTML.Safe.to_iodata() |> IO.iodata_to_binary() |> status_line()
+
+  defp status_line(body) when is_binary(body) do
+    body
+    |> Floki.parse_document!()
+    |> Floki.find(~s([data-role="error-status"]))
+    |> Floki.text()
+  end
+
+  defp squish(text), do: text |> String.split() |> Enum.join(" ")
 
   # ConnTest skips CSRF protection by default; these requests keep it on.
   defp with_csrf(conn), do: Plug.Conn.put_private(conn, :plug_skip_csrf_protection, false)
