@@ -26,8 +26,10 @@ defmodule PortfolixirWeb.BenchmarkScope do
   "not selected". An explicit choice with no valid selector (the form
   submitted with nothing ticked) clears the preference. A choice arriving
   from another site (`Sec-Fetch-Site` other than `same-origin` or `none`)
-  applies to that request only and leaves the cookie as it was
-  (`PortfolixirWeb.FetchSite`, E25 S7, F18).
+  applies to that request only and leaves the cookie and the session as they
+  were (`PortfolixirWeb.FetchSite`, E25 S7, F18 and the review round's
+  S7E-4): the page it opens reads it from its own address
+  (`PortfolixirWeb.LiveBenchmarkScope`).
   """
 
   import Plug.Conn
@@ -53,12 +55,25 @@ defmodule PortfolixirWeb.BenchmarkScope do
     conn = conn |> fetch_query_params() |> fetch_cookies()
     params = conn.query_params
 
-    if Map.has_key?(params, "benchmark") or Map.has_key?(params, "benchmark_rate") do
-      apply_choice(conn, selectors_from_params(params))
-    else
-      carry_cookie(conn)
+    case choice(params) do
+      {:ok, selectors} -> apply_choice(conn, selectors)
+      :none -> carry_cookie(conn)
     end
   end
+
+  @doc """
+  The selectors a request's query parameters choose — `{:ok, selectors}`,
+  valid ones only, when `benchmark` or `benchmark_rate` is present (an empty
+  list clears the choice) — or `:none` when they choose nothing.
+  """
+  @spec choice(term()) :: {:ok, [String.t()]} | :none
+  def choice(params) when is_map(params) do
+    if Map.has_key?(params, "benchmark") or Map.has_key?(params, "benchmark_rate"),
+      do: {:ok, selectors_from_params(params)},
+      else: :none
+  end
+
+  def choice(_params), do: :none
 
   @doc "The session key the LiveView on_mount reads the selectors from."
   def session_key, do: @session_key
@@ -151,12 +166,18 @@ defmodule PortfolixirWeb.BenchmarkScope do
     end
   end
 
-  # A choice in the query applies to this request through the session, and is
-  # remembered in the cookie only when the request may remember it
-  # (`PortfolixirWeb.FetchSite`, E25 S7, F18).
+  # A choice in the query goes into the session and the cookie only when the
+  # request may remember it (`PortfolixirWeb.FetchSite`, E25 S7, F18);
+  # otherwise the session keeps the remembered selection (S7E-4) and the page
+  # reads its own from its address.
   defp apply_choice(conn, selectors) do
-    conn = put_session(conn, @session_key, selectors)
-    if FetchSite.remember?(conn), do: remember(conn, selectors), else: conn
+    if FetchSite.remember?(conn) do
+      conn
+      |> put_session(@session_key, selectors)
+      |> remember(selectors)
+    else
+      carry_cookie(conn)
+    end
   end
 
   defp remember(conn, []), do: delete_resp_cookie(conn, @cookie)

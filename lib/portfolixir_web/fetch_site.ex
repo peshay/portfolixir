@@ -11,6 +11,14 @@ defmodule PortfolixirWeb.FetchSite do
   send it, a script). Any other value (`cross-site`, `same-site`) applies the
   choice to that request only, so another site can change at most the page it
   opens, never what the next page shows.
+
+  Such a choice is not written into the session either (E25 S7 review round,
+  S7E-4): a LiveView mounts from the session at every live navigation, so a
+  choice kept there would reach every page opened from that one without a
+  full load. The page it opened reads it from its own address instead
+  (`PortfolixirWeb.LiveViewScope`, `PortfolixirWeb.LiveBenchmarkScope`,
+  `PortfolixirWeb.LiveLocale`), on its first render and once its socket is
+  connected.
   """
 
   import Plug.Conn

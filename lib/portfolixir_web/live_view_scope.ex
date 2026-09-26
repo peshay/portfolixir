@@ -14,6 +14,13 @@ defmodule PortfolixirWeb.LiveViewScope do
   stored view id or the literal `"total"` (Everything) — always wins; only when
   nothing was ever chosen does the persisted default view apply. A stored or
   default id that no longer names a view degrades gracefully to Everything.
+
+  A `?view=` in the page's own address wins over the session (E25 S7 review
+  round, S7E-4): a choice that arrived from another site is kept out of the
+  session (`PortfolixirWeb.FetchSite`), so the page it opened reads it from
+  its address on both renders, while a live navigation to a page without one
+  reads the remembered choice. A remembered choice is in the session too, so
+  for it both sources agree.
   """
 
   import Phoenix.Component, only: [assign: 3]
@@ -21,10 +28,10 @@ defmodule PortfolixirWeb.LiveViewScope do
   alias Portfolixir.Buckets
   alias Portfolixir.Settings
 
-  def on_mount(:default, _params, session, socket) do
+  def on_mount(:default, params, session, socket) do
     views = Buckets.list_views()
     default_view_id = Settings.default_view_id()
-    active_view = resolve_active_view(session, views, default_view_id)
+    active_view = resolve_active_view(choice(params, session), views, default_view_id)
 
     {:cont,
      socket
@@ -34,8 +41,11 @@ defmodule PortfolixirWeb.LiveViewScope do
      |> assign(:default_view_id, default_view_id)}
   end
 
-  defp resolve_active_view(session, views, default_view_id) do
-    case Map.get(session, PortfolixirWeb.ViewScope.session_key()) do
+  defp choice(%{"view" => raw}, _session), do: PortfolixirWeb.ViewScope.choice(raw)
+  defp choice(_params, session), do: Map.get(session, PortfolixirWeb.ViewScope.session_key())
+
+  defp resolve_active_view(choice, views, default_view_id) do
+    case choice do
       id when is_integer(id) -> Enum.find(views, &(&1.id == id))
       "total" -> nil
       _unset -> default_view_id && Enum.find(views, &(&1.id == default_view_id))
