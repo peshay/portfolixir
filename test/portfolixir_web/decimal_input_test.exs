@@ -176,6 +176,24 @@ defmodule PortfolixirWeb.DecimalInputTest do
       assert DecimalInput.parse(Decimal.new("1.664"), "de") == {:ok, Decimal.new("1.664")}
     end
 
+    # User story (integration of #869 with E25 S4, F17):
+    # As the operator whose figure reaches a writer through this rule,
+    # I want it read by the same finite-decimal parser every writer and query
+    # parser shares,
+    # so that the locale rule never becomes a second, looser way in.
+    #
+    # Acceptance criteria:
+    # - A Decimal handed in that is not finite (`NaN`, `Infinity`) is invalid,
+    #   at parse and at a form's boundary; a finite one passes through.
+    test "a Decimal that is not finite is invalid, never passed on" do
+      for raw <- ["NaN", "Infinity", "-Infinity"] do
+        assert DecimalInput.parse(Decimal.new(raw), "en") == {:error, :invalid}, raw
+
+        assert {:error, %{"amount" => _message}} =
+                 DecimalInput.cast(%{"amount" => Decimal.new(raw)}, ["amount"], "en")
+      end
+    end
+
     test "every rendered value reads back to the same Decimal in its own locale" do
       for locale <- ["de", "en"],
           raw <- ["1664.40", "1.664", "0.913459", "-2.5", "1234567.89", "0", "12.500"] do
