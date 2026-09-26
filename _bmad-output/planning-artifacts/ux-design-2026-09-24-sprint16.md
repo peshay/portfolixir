@@ -44,6 +44,8 @@ builds a pick writes its anatomy into `DESIGN.md`.
 | — | The bucket-delete confirm (G19, T-10) and a zero-value position's drift (G14) | `12-e25-new-marks` | none (before/after) | n/a |
 | **G13.1** | "Merged from …" on a surviving account or depot (ADR-0050 §12), drawn in the batch by L5a (Part 14) | `13-l5a-merged-from` | a sub-line of its own, the source name not repeated under "former" · the former-name line carries the merge in brackets | **A** (recommended; open to a comment) |
 | — | Wealth: a benchmark link naming a merged-away security (ADR-0050 §12) | `13-l5a-merged-from` | none (before/after) | n/a |
+| — | Import preview: same-named accounts told apart in the mapping's lists (#884 F1), and two lists of the result: a moved remembered name, rows behind a set balance a merge adjusted (ADR-0050 §2, §4), drawn in the batch by L5b (Part 15) | `04b-import-memory-ambiguity` | none (before/after) | n/a |
+| **G4b** | Import preview: "+ Create new" for a name the name guard refuses (ADR-0050 §4, #884 F7), drawn in the batch by L5b (Part 15) | `04b-import-memory-ambiguity` | the option stays, disabled, its reason in its own label · the option is left out · the option stays choosable and the row reports a problem | **A** (recommended; open to a comment) |
 
 **Items with no board.** #870 (every row kebab named for its row) changes the
 accessible name and nothing a sighted reader sees, which is the rule's stated
@@ -524,3 +526,55 @@ with its date and ratio.
 benchmark naming a merged-away security used to drop silently. After: the
 page redirects to the survivor's selector and shows board 03's note under the
 performance head, dismissible, gone with the next navigation.
+
+---
+
+## Part 15 — Drawn in the batch: two states of the import preview (L5b, board 04b)
+
+Two states of the mapping step that board 04 does not draw were left open by
+the L1/L2 review round (#884, F1 and F7). L5b drew board
+`04b-import-memory-ambiguity`, next to board 04, before building either.
+
+**F1 — same-named accounts told apart (before/after, no pick).** Accounts of
+one name from before the name guard stay (ADR-0050 §4 migrates none), so a
+file name that matches two of them is ambiguous, gets no prefill, and waits
+for a choice. Before, the list showed two identical lines. After, an option
+whose name another account of the same list also carries adds what tells it
+apart, after a middle dot: for a cash account its linked depots ("bei Depot
+1", or "ohne Depot"), else its currency, else its creation date; for a depot
+its cash account ("mit Giro"), else its creation date; the id ("Nr. 14") only
+when nothing else differs. Options with a unique name are unchanged. The
+ambiguous row's attention note names the same labels.
+
+**Two lists of the result (before/after, no pick).** Board 04 draws the
+result with the duplicates by layer, the internal transfers and one appended
+remembered name. It lacks a remembered name that **moved** from another
+account (§4), which says from which, and the rows an import booked **on or
+before a set balance a merge adjusted** (ADR-0050 §2's third limit, §7 step
+4): each is inserted, but that balance absorbs its amount, so the account's
+balance does not change. Before, the result said nothing. After, both are
+lists in the result's existing form (`.import-skipped`: a sentence, then the
+rows), each row with its date, amount, account and the set balance's date.
+
+**G4b — "+ Create new: X" for a name the guard refuses (F7).** An account is
+created with its first new booking, through the name guard. A name that is
+another account's live name, another account's former name, or the name of
+two accounts can never be created, yet the list offered it, and choosing it
+rolled the whole import back at the end.
+
+- **Variant A (recommended): the option stays, disabled, and its own label
+  says why** — "— nicht möglich: Name von Girokonto", "früherer Name von
+  Girokonto" or "Name von 2 Konten", read from the guard itself. The reason
+  stands where it is looked for, and nothing the list offers can fail the
+  import. A stored choice that points at a name taken since counts as not
+  made.
+- **Variant B: the option is left out.** No trap, but the one row without
+  "+ Create new" says nothing about why.
+- **Variant C: the option stays choosable, and the row reports a problem
+  once it is chosen.** The reason is complete, but it follows a choice the
+  page then refuses.
+
+**Why A.** The shape board 02 uses for a target that cannot be chosen (the
+reason as text at the option), no trap, and nothing new to style. The batch
+cannot wait for a pick, so A is built; a comment naming B or C on the PR
+changes it.
