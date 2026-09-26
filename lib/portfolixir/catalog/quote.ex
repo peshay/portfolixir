@@ -17,6 +17,8 @@ defmodule Portfolixir.Catalog.Quote do
 
   @sources ~w(auto manual coingecko portfolio_performance)
 
+  @type t :: %__MODULE__{}
+
   schema "security_quotes" do
     field(:security_id, :integer)
     field(:date, :date)

@@ -116,8 +116,9 @@ defmodule Portfolixir.Lifecycle do
 
   @doc """
   Merges the security `source_id` into `target_id` on behalf of `actor` under
-  the approved `plan_digest` and the operator's `collapse_key_equal` choice
-  (ADR-0050 §8, §9, §10, §12). See `Portfolixir.Lifecycle.SecurityMerge`.
+  the approved `plan_digest`, the operator's `collapse_key_equal` choice and,
+  when both carry an ISIN, the operator's `identity_choice` (ADR-0050 §8, §9,
+  §10, §12). See `Portfolixir.Lifecycle.SecurityMerge`.
   """
   defdelegate merge_security(actor, source_id, target_id, params),
     to: SecurityMerge,

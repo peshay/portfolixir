@@ -94,12 +94,42 @@ defmodule Portfolixir.Imports.SecurityResolver do
   """
   @spec load_index() :: Index.t()
   def load_index do
-    securities = Repo.all(from(s in Security, order_by: s.id))
+    %Index{
+      ladder_index()
+      | assignment_ids: Classifications.security_ids_with_assignments(),
+        position_target_ids: Targets.security_ids_with_position_targets(),
+        transacted_ids: Ledger.security_ids_with_transactions()
+    }
+  end
+
+  @doc """
+  The ladder's part of `load_index/0` — every security and the former-ISIN
+  alias table as stored — without the configuration sets the preview
+  machinery adds: what `resolve/2` reads.
+  """
+  @spec ladder_index() :: Index.t()
+  def ladder_index do
+    index_from(Repo.all(from(s in Security, order_by: s.id)), IdentifierAliases.by_former_isin())
+  end
+
+  @doc """
+  The ladder's index over `securities` and the former-ISIN map
+  `former_isins` (`former_isin => security_id`), as `load_index/0` builds it
+  from the stored catalog. A security merge builds it over the catalog it
+  would leave behind (ADR-0050 §9's resolvability precondition): the source
+  gone, the target with the identifiers it will carry, and every former ISIN
+  of either a former ISIN of the target. An entry of `former_isins` naming a
+  security that is not in `securities` is left out.
+  """
+  @spec index_from([Security.t()], %{optional(String.t()) => integer()}) :: Index.t()
+  def index_from(securities, former_isins) when is_list(securities) and is_map(former_isins) do
     by_id = Map.new(securities, &{&1.id, &1})
 
     by_former_isin =
-      IdentifierAliases.by_former_isin()
-      |> Map.new(fn {former, security_id} -> {former, Map.fetch!(by_id, security_id)} end)
+      for {former, security_id} <- former_isins,
+          %Security{} = security <- [Map.get(by_id, security_id)],
+          into: %{},
+          do: {former, security}
 
     %Index{
       securities_by_id: by_id,
@@ -110,10 +140,7 @@ defmodule Portfolixir.Imports.SecurityResolver do
       by_name_ccy: group_by_field(securities, &name_ccy_key/1),
       by_name: group_by_field(securities, &normalize_name(&1.name)),
       by_skeleton: group_by_field(securities, &skeleton(&1.name)),
-      by_ticker: group_by_field(securities, & &1.ticker_symbol),
-      assignment_ids: Classifications.security_ids_with_assignments(),
-      position_target_ids: Targets.security_ids_with_position_targets(),
-      transacted_ids: Ledger.security_ids_with_transactions()
+      by_ticker: group_by_field(securities, & &1.ticker_symbol)
     }
   end
 

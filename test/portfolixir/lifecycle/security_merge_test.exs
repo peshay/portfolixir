@@ -23,7 +23,6 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Security
-  alias Portfolixir.Classifications
   alias Portfolixir.Clock
   alias Portfolixir.Derived.DataVersion
   alias Portfolixir.Journal
@@ -136,7 +135,12 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
       assert record.portfolio_id == nil
       assert record.plan_digest == preview.plan_digest
       assert record.actor_label == "synthetic-agent"
-      assert record.manifest["choices"] == %{"collapse_key_equal" => false}
+
+      assert record.manifest["choices"] == %{
+               "collapse_key_equal" => false,
+               "identity_choice" => nil,
+               "isin_changed_on" => nil
+             }
 
       refute Repo.get(Security, ctx.source.id)
       refute Repo.get(Transaction, rows.s_split.id)
@@ -185,7 +189,12 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
       assert Repo.get(Transaction, rows.t_pair.id)
       assert held(ctx.d1, ctx.target) == dec("26")
       assert balance(ctx.c1) == n(after_collapse)
-      assert record.manifest["choices"] == %{"collapse_key_equal" => true}
+
+      assert record.manifest["choices"] == %{
+               "collapse_key_equal" => true,
+               "identity_choice" => nil,
+               "isin_changed_on" => nil
+             }
 
       for %{securities_account_id: depot_id, after: after_figures} <-
             preview.outcomes[true].positions do
@@ -214,7 +223,7 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
       merge!(ctx, false)
       assert merged_quantities(ctx, Map.keys(oracle)) == oracle
 
-      ctx = fresh_pair!(ctx)
+      ctx = fresh_pair!(ctx, "Fund Y")
       rows_again = worked_example!(ctx)
       collapsed = [rows_again.s_div.id, rows_again.s_pair.id]
       oracle = daily_sums(ctx, collapsed)
@@ -750,12 +759,12 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
       assert guard.remedy == :keep_both
       refute guard.detail =~ "merge the other way"
 
-      ctx = fresh_pair!(ctx)
+      ctx = fresh_pair!(ctx, "Fund Y")
       worked_example!(ctx)
       rule = rule!(ctx.main, ctx.source)
       guard = refused_guard!(ctx, :policy_rules)
-      assert guard.detail =~ "Fund X at most 12 %"
-      assert [%{id: rule_id, name: "Fund X at most 12 %", status: _status}] = guard.policy_rules
+      assert guard.detail =~ "Fund Y at most 12 %"
+      assert [%{id: rule_id, name: "Fund Y at most 12 %", status: _status}] = guard.policy_rules
       assert rule_id == rule.id
       assert guard.remedy == :merge_other_way
     end
@@ -775,60 +784,6 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
       guard = refused_guard!(ctx, :retired_target)
       assert guard.remedy == :merge_other_way
       assert {:ok, _reverse} = Lifecycle.preview_security_merge(ctx.target.id, ctx.source.id)
-    end
-  end
-
-  describe "the parts of §9 this engine does not carry yet" do
-    # User story:
-    # As the operator of a security merge built one part at a time,
-    # I want a source whose quotes, configuration, events, aliases or
-    # identifiers the merge does not carry yet refused by name, never merged
-    # with them dropped,
-    # so that nothing the source carries vanishes and no identifier stops
-    # resolving (ADR-0050 §9's quotes, configuration, identifiers and
-    # resolvability, built next).
-    #
-    # Acceptance criteria:
-    # - A source with a ticker, a quote or a category assignment, or named
-    #   differently from the target, refuses as references_not_carried,
-    #   naming what it carries, and writes nothing.
-    test "a source carrying what the merge does not carry yet is refused by name", ctx do
-      worked_example!(ctx)
-
-      {:ok, _} = Catalog.update_security(Actor.owner_ui(), ctx.source, %{ticker_symbol: "FNDX"})
-      detail = refused!(ctx, :references_not_carried)
-      assert detail =~ "ticker"
-
-      ctx = fresh_pair!(ctx)
-      worked_example!(ctx)
-      quote!(ctx.source, ~D[2025-12-01], "60.00")
-      assert refused!(ctx, :references_not_carried) =~ "quotes"
-
-      ctx = fresh_pair!(ctx)
-      worked_example!(ctx)
-
-      {:ok, classification} =
-        Classifications.create_classification(Actor.owner_ui(), %{name: "Style"})
-
-      {:ok, category} =
-        Classifications.create_category(Actor.owner_ui(), %{
-          classification_id: classification.id,
-          name: "Growth"
-        })
-
-      {:ok, _} =
-        Classifications.assign_security(
-          Actor.owner_ui(),
-          ctx.source.id,
-          classification.id,
-          category.id
-        )
-
-      assert refused!(ctx, :references_not_carried) =~ "category assignments"
-
-      ctx = %{fresh_pair!(ctx) | source: security!("Fund X (old)")}
-      worked_example!(ctx)
-      assert refused!(ctx, :references_not_carried) =~ "name"
     end
   end
 
@@ -961,9 +916,12 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
     rows |> Map.merge(splits) |> Map.put(:t_sell, t_sell)
   end
 
-  # A second pair of securities, for a test that merges twice.
-  defp fresh_pair!(ctx),
-    do: %{ctx | target: security!("Fund X"), source: security!("Fund X")}
+  # A second pair of securities, for a test that merges twice. Its own name:
+  # a name-only identity shared with the first pair's survivor would be
+  # ambiguous after the merge, and the resolvability precondition refuses
+  # that (§9).
+  defp fresh_pair!(ctx, name),
+    do: %{ctx | target: security!(name), source: security!(name)}
 
   # --- world ------------------------------------------------------------------------
 

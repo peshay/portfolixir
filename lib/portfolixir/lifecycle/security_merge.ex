@@ -55,13 +55,52 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
       would rescale moved rows (ADR-0028 §1), and a source split that would
       rescale the target's own history.
 
-  `references_not_carried` refuses a source carrying what this engine does
-  not carry yet: quotes, category assignments, position targets, security
-  events, identifier aliases, an ISIN, WKN, ticker or quote feed, or a name
-  other than the target's. §9's quote gap-fill, configuration, identifier
-  choice and resolvability precondition carry them, and replace this guard;
-  until then nothing a source carries is dropped, and no identifier through
-  which a file resolved stops resolving (obligation O2).
+  and the **resolvability precondition**, `identity_unresolvable`: the
+  identity ladder (`Portfolixir.Imports.SecurityResolver`) over the catalog
+  the merge would leave behind — the source gone, the target with the
+  identifiers it will carry, every former ISIN of either a former ISIN of
+  the target — must resolve to the target, under each value of the identity
+  choice, every identity of both securities: the stored one, the one the
+  importer's journaled create recorded (its name, ISIN, WKN, ticker and
+  currency — a file resolves on the identity it carries, not on identifiers
+  added since), and each stored identity with a former ISIN in place of its
+  ISIN. A security the importer never created is checked on its stored
+  identity. The refusal names each identity, its identifiers and what the
+  ladder would answer instead (obligation O2); in v1 such a merge is refused,
+  because generalized name, WKN and ticker aliases are deferred (§15).
+
+  ## What the merge carries besides the bookings (§9)
+
+    * **Quotes, gap-filled:** the source's quotes on dates the target lacks
+      move, each keeping its `source` and so its ADR-0028 §2 basis; on a
+      collision the target's wins, and the source's date, close and source
+      go into the manifest. The preview counts both and lists the colliding
+      quotes whose source row is **manual**. Written row by row by
+      `Portfolixir.Catalog.Quotes.merge_gap_fill/4` without a journal entry
+      — ADR-0017's quote exemption names that writer; the manifest is the
+      record — and both securities' quote invalidation runs.
+    * **Configuration**, every change journaled and listed, across active,
+      draft and archived plans: category assignments move where the target
+      has none in that classification, otherwise the target's wins and the
+      source's is deleted; position targets are then evaluated against the
+      target's resulting category in their classification — moved, or
+      deleted and listed as `collides` (the target already has a row in that
+      plan) or `stale` (the row would no longer sit under the target's
+      category); position bucket overrides follow §7's membership rule per
+      depot (above); security events move, and a same-kind, same-day pair is
+      listed as a possible duplicate.
+    * **Identifiers**, under the ISIN write lock: the source's identifier
+      aliases are reassigned to the target; the source's ISIN is cleared
+      first, then written by the operator's **identity choice** when both
+      carry one — required, never preselected: `keep_target_isin` (the
+      source's ISIN becomes a former ISIN of the target) or
+      `adopt_source_isin` (ADR-0029 §3's wrong-order repair: the target
+      takes the source's ISIN and its own becomes the former ISIN), the
+      former ISIN's `changed_on` the operator's `isin_changed_on` or the
+      merge date. An ISIN only the source carries is adopted without a
+      choice. WKN, ticker and feed are adopted only where the target lacks
+      them; name, asset class and logo follow the target, and every
+      difference is listed.
 
   **The reverse direction.** A refusal whose cause sits on one side only is
   often lifted by merging the other way, so the preview evaluates the
@@ -74,9 +113,12 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
 
   Both securities with their split events, the guards, the key-equal pairs,
   the split rows that collapse or move, the split events after the merge,
-  each depot's bucket plan, whether the reverse merge is mergeable, and —
-  because the choice is not an input (§10) — the outcome of **both** values
-  of `collapse_key_equal`: every position of S (per depot) with its quantity,
+  each depot's bucket plan, the quotes, the configuration and the events the
+  merge carries, the identifiers after **each** value of the identity choice
+  (with what the target adopts and every difference that follows the
+  target), whether the reverse merge is mergeable, and — because the choices
+  are not inputs (§10) — the outcome of **both** values of
+  `collapse_key_equal`: every position of S (per depot) with its quantity,
   moving-average cost and realized result for S and for T before and for T
   after (`Portfolixir.Ledger.position_costs/1`; the cost basis is
   legitimately restated, because lots combine), the rounding difference each
@@ -106,8 +148,22 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
        expected answer;
     4. the bucket plan, through the journaled Buckets writers (one aggregate
        entry per position);
-    5. delete S through the hardened delete (§11);
-    6. write the merge record (§12) under the id its retirements already name.
+    5. the quotes, gap-filled (no journal entry; the manifest lists each);
+    6. the configuration: category assignments, position targets and
+       events, one journal entry per row through their contexts' writers;
+    7. the identifiers: aliases reassigned, the source's ISIN cleared, the
+       identity choice written, the fields the target lacks adopted;
+    8. delete S through the hardened delete (§11);
+    9. the resolvability precondition again, over the catalog as the merge
+       left it: an identity that no longer resolves to the target rolls the
+       merge back with `identity_unresolvable`, naming it;
+    10. write the merge record (§12) under the id its retirements already
+        name.
+
+  The apply takes `plan_digest` (required), `collapse_key_equal` (required
+  when the plan lists key-equal pairs), `identity_choice` (required when
+  both securities carry an ISIN: `keep_target_isin` or `adopt_source_isin`,
+  as an atom or its name) and `isin_changed_on` (optional, a `Date`).
   """
 
   import Ecto.Query
@@ -120,11 +176,21 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Buckets.PositionBucketOverride
+  alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.IdentifierAlias
   alias Portfolixir.Catalog.IdentifierAliases
+  alias Portfolixir.Catalog.Quote, as: SecurityQuote
+  alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
+  alias Portfolixir.Classifications
+  alias Portfolixir.Classifications.Assignment
   alias Portfolixir.Clock
   alias Portfolixir.Imports.DedupKey
   alias Portfolixir.Imports.SecurityResolver
+  alias Portfolixir.Input.BoundedDate
+  alias Portfolixir.Journal
+  alias Portfolixir.Knowledge.Events
+  alias Portfolixir.Knowledge.SecurityEvent
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Lifecycle
@@ -139,6 +205,8 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   alias Portfolixir.Portfolios.PolicyRules
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.SecuritiesAccount
+  alias Portfolixir.Portfolios.Target
+  alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Repo
 
   @zero Decimal.new("0")
@@ -152,20 +220,19 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
     :quote_basis_mismatch,
     :research_notes,
     :policy_rules,
-    :references_not_carried,
-    :position_buckets_mismatch
+    :position_buckets_mismatch,
+    :identity_unresolvable
   ]
 
-  # What a source carries that this engine does not carry yet, by table.
-  @not_carried [
-    {"security_quotes", "quotes"},
-    {"security_category_assignments", "category assignments"},
-    {"portfolio_targets", "position targets"},
-    {"security_events", "security events"},
-    {"security_identifier_aliases", "identifier aliases"}
-  ]
+  # The operator's answer when both securities carry an ISIN (§9).
+  @identity_choices [:keep_target_isin, :adopt_source_isin]
 
-  @identifiers [:isin, :wkn, :ticker_symbol, :feed]
+  # Adopted onto the target only where it lacks them (§9); a feed brings its
+  # URL along.
+  @adoptable [:wkn, :ticker_symbol, :feed]
+
+  # Follow the target; a source value that differs is listed (§9).
+  @following [:name, :asset_class, :logo]
 
   @type refusal ::
           :not_found
@@ -173,8 +240,11 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
           | {:refused, [MergeFlow.guard()]}
           | {:plan_changed, map()}
           | {:choice_required, :collapse_key_equal, pos_integer()}
-          | {:invalid, :plan_digest | :collapse_key_equal, String.t()}
+          | {:choice_required, :identity_choice, map()}
+          | {:invalid, :plan_digest | :collapse_key_equal | :identity_choice | :isin_changed_on,
+             String.t()}
           | {:identity_check_failed, map()}
+          | {:identity_unresolvable, [map()]}
           | {:write_refused, String.t(), integer(), Ecto.Changeset.t()}
 
   # --- the preview ---------------------------------------------------------------
@@ -210,8 +280,11 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   @doc """
   Merges the security `source_id` into `target_id` on behalf of `actor`,
   under `params`: `plan_digest` (required, the digest of the preview the
-  operator approved) and `collapse_key_equal` (required when the preview
-  lists key-equal pairs). See the moduledoc for the steps.
+  operator approved), `collapse_key_equal` (required when the preview lists
+  key-equal pairs), `identity_choice` (required when both securities carry
+  an ISIN, `keep_target_isin` or `adopt_source_isin`) and `isin_changed_on`
+  (optional: the day the ISIN changed, the former ISIN's `changed_on`; the
+  merge date otherwise). See the moduledoc for the steps.
 
   Answers `{:ok, record, :applied}`, or `{:ok, record, :already_applied}`
   for a retry of a completed merge of the same pair (nothing journaled), or
@@ -221,20 +294,54 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
           {:ok, MergeRecord.t(), :applied | :already_applied} | {:error, refusal()}
   def apply(%Actor{} = actor, source_id, target_id, params)
       when is_integer(source_id) and is_integer(target_id) and is_map(params) do
-    with {:ok, digest, collapse} <- MergeFlow.consent(params) do
+    with {:ok, digest, collapse} <- MergeFlow.consent(params),
+         {:ok, identity} <- identity_params(params) do
       case MergeFlow.prior_merge(:security, source_id, target_id) do
-        :none -> transact(actor, source_id, target_id, digest, collapse)
+        :none -> transact(actor, source_id, target_id, digest, {collapse, identity})
         {:ok, record} -> {:ok, record, :already_applied}
         {:error, _refusal} = refused -> refused
       end
     end
   end
 
-  defp transact(actor, source_id, target_id, digest, collapse) do
+  # §9: the identity choice, when given, is one of the two; the date of the
+  # ISIN change, when given, a date in the bounded range.
+  defp identity_params(params) do
+    with {:ok, choice} <- choice_param(Map.get(params, :identity_choice)),
+         {:ok, changed_on} <- changed_on_param(Map.get(params, :isin_changed_on)),
+         do: {:ok, %{choice: choice, changed_on: changed_on}}
+  end
+
+  defp choice_param(nil), do: {:ok, nil}
+  defp choice_param(choice) when choice in @identity_choices, do: {:ok, choice}
+
+  defp choice_param(choice) when is_binary(choice) do
+    case Enum.find(@identity_choices, &(Atom.to_string(&1) == choice)) do
+      nil -> invalid_choice()
+      found -> {:ok, found}
+    end
+  end
+
+  defp choice_param(_other), do: invalid_choice()
+
+  defp invalid_choice,
+    do: {:error, {:invalid, :identity_choice, "must be keep_target_isin or adopt_source_isin"}}
+
+  defp changed_on_param(nil), do: {:ok, nil}
+
+  defp changed_on_param(value) do
+    case BoundedDate.parse(value) do
+      {:ok, date} -> {:ok, date}
+      {:error, :out_of_range} -> {:error, {:invalid, :isin_changed_on, BoundedDate.message()}}
+      {:error, :invalid} -> {:error, {:invalid, :isin_changed_on, "is not a date (YYYY-MM-DD)"}}
+    end
+  end
+
+  defp transact(actor, source_id, target_id, digest, choices) do
     fn ->
       case locked_pair(source_id, target_id) do
         {:ok, source, target, depot_ids} ->
-          merge_locked(actor, {source, target_id, target}, depot_ids, digest, collapse)
+          merge_locked(actor, {source, target_id, target}, depot_ids, digest, choices)
 
         :gone ->
           source_gone(source_id, target_id)
@@ -320,17 +427,36 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
     end
   end
 
-  defp merge_locked(actor, {source, target_id, target}, depot_ids, digest, collapse) do
+  defp merge_locked(actor, {source, target_id, target}, depot_ids, digest, {collapse, identity}) do
     with {:ok, _preview, plan} <- build(source, target_id, target, true),
          :ok <- same_digest(plan, digest),
          :ok <- depots_locked(plan, depot_ids),
          {:ok, collapse?} <- MergeFlow.choose(plan.pairs, collapse),
-         {:ok, record} <- execute(actor, plan, collapse?, collapse) do
+         {:ok, choice} <- identity_choice(plan, identity.choice),
+         choices = %{
+           collapse?: collapse?,
+           collapse: collapse,
+           choice: choice,
+           given: identity.choice,
+           changed_on: identity.changed_on
+         },
+         {:ok, record} <- execute(actor, plan, choices) do
       {:applied, record}
     else
       {:error, refusal} -> Repo.rollback(refusal)
     end
   end
+
+  # §9: with an ISIN on both, the operator's identity choice is required and
+  # never assumed; otherwise there is nothing to choose.
+  defp identity_choice(%{identifiers: %{choice_required: true}} = plan, nil) do
+    {:error,
+     {:choice_required, :identity_choice,
+      %{source_isin: plan.source.isin, target_isin: plan.target.isin}}}
+  end
+
+  defp identity_choice(%{identifiers: %{choice_required: true}}, choice), do: {:ok, choice}
+  defp identity_choice(_plan, _given), do: {:ok, :no_choice}
 
   defp same_digest(%{digest: digest}, digest), do: :ok
   defp same_digest(_plan, _approved), do: {:error, :plan_changed}
@@ -360,7 +486,7 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
       plan = plan(source, target, data)
       reverse = reverse(target, source, data)
       guards = Enum.map(guards ++ plan.guards, &with_remedy(&1, reverse, {source, target}))
-      plan = %{plan | guards: guards}
+      plan = %{plan | guards: guards} |> Map.put(:carry, carry(plan))
 
       if passed?(guards) do
         preview = view(plan, reverse)
@@ -475,6 +601,8 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
         Enum.map(Map.values(depots), & &1.portfolio_id) ++ Enum.map(rows, & &1.portfolio_id)
       )
 
+    quote_rows = owned_rows(SecurityQuote, ids, lock?, [:date])
+
     %{
       rows: rows,
       securities: %{source.id => source, target.id => target},
@@ -484,15 +612,72 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
           Repo.all(from(p in Portfolio, where: p.id in ^portfolio_ids, select: {p.id, p.name}))
         ),
       overrides: override_depots(ids),
-      quotes: quote_spans(ids),
+      quotes: quote_spans(quote_rows),
+      quote_rows: quote_rows,
       notes: counts("security_notes", ids),
       rules: Map.new(ids, &{&1, PolicyRules.referencing(:security, &1)}),
-      carried: Map.new(@not_carried, fn {table, _label} -> {table, counts(table, ids)} end)
+      assignments:
+        Assignment
+        |> owned_rows(ids, lock?, [:classification_id])
+        |> preload_owned([:classification, :category]),
+      position_targets:
+        Target
+        |> owned_rows(ids, lock?, [:id])
+        |> preload_owned([:plan, :category, :classification]),
+      events: owned_rows(SecurityEvent, ids, lock?, [:date, :id]),
+      aliases: owned_rows(IdentifierAlias, ids, lock?, [:former_isin]),
+      # The resolvability precondition's catalog: every security and every
+      # former ISIN, read under the ISIN write lock the apply holds, and the
+      # identity each security's importer create recorded.
+      catalog: Repo.all(from(s in Security, order_by: s.id)),
+      former_isins: IdentifierAliases.by_former_isin(),
+      imported: Map.new(ids, &{&1, imported_identity(&1)})
     }
   end
 
   defp maybe_lock(query, true), do: lock(query, "FOR UPDATE")
   defp maybe_lock(query, false), do: query
+
+  # The rows of `schema` either security owns, per security, ordered; under
+  # the apply's locks read FOR UPDATE, so none changes between the digest
+  # check and the writes (a new one waits on the securities' own locks).
+  defp owned_rows(schema, ids, lock?, order) do
+    from(r in schema, where: r.security_id in ^ids, order_by: ^order)
+    |> maybe_lock(lock?)
+    |> Repo.all()
+    |> Enum.group_by(& &1.security_id)
+  end
+
+  defp preload_owned(grouped, preloads),
+    do: Map.new(grouped, fn {id, rows} -> {id, Repo.preload(rows, preloads)} end)
+
+  # §9: the identity the importer's journaled create of the security
+  # recorded — the name, ISIN, WKN, ticker and currency the file carried —
+  # or nil for a security no import created.
+  defp imported_identity(id) do
+    from(e in Journal.Entry,
+      where:
+        e.resource_type == "security" and e.operation == :create and
+          e.resource_id == ^Integer.to_string(id) and e.actor_type == :import_session,
+      order_by: e.id,
+      limit: 1,
+      select: e.after
+    )
+    |> Repo.one()
+    |> case do
+      nil ->
+        nil
+
+      image ->
+        SecurityResolver.normalize_ref(%{
+          isin: image["isin"],
+          wkn: image["wkn"],
+          ticker: image["ticker_symbol"],
+          name: image["name"],
+          currency: image["currency_code"]
+        })
+    end
+  end
 
   defp override_depots(ids) do
     from(o in PositionBucketOverride,
@@ -506,14 +691,10 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
 
   # Per security, its number of quotes and the earliest date one is stored
   # for.
-  defp quote_spans(ids) do
-    from(q in "security_quotes",
-      where: q.security_id in ^ids,
-      group_by: q.security_id,
-      select: {q.security_id, {count(), min(q.date)}}
-    )
-    |> Repo.all()
-    |> Map.new()
+  defp quote_spans(quote_rows) do
+    Map.new(quote_rows, fn {id, rows} ->
+      {id, {length(rows), rows |> Enum.map(& &1.date) |> Enum.min(Date)}}
+    end)
   end
 
   defp counts(table, ids) do
@@ -551,6 +732,7 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
       source_depots: depots_of(s_rows),
       target_depots: depots_of(t_rows),
       events: %{source: events(s_splits), target: events(t_splits)},
+      identifiers: identifiers(source, target, data),
       check_dates:
         [Clock.today() | Enum.map(data.rows, & &1.date)] |> Enum.uniq() |> Enum.sort(Date),
       guards: [],
@@ -822,10 +1004,10 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
       quote_basis_guard(base),
       notes_guard(base),
       rules_guard(base),
-      carried_guard(base),
       membership_guard(base),
       split_ratio_guard(base),
-      split_event_guard(base)
+      split_event_guard(base),
+      identity_guard(base)
     ] ++ linearity_guard(base)
   end
 
@@ -911,45 +1093,363 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   defp rule_view(%PolicyRule{} = rule),
     do: %{id: rule.id, name: rule.name, status: rule.status}
 
-  # What the source carries that this engine does not carry yet (see the
-  # moduledoc): each named, so nothing is dropped and no identifier stops
-  # resolving.
-  defp carried_guard(%{source: source, target: target, data: data}) do
-    tables =
-      for {table, label} <- @not_carried,
-          count = Map.get(Map.fetch!(data.carried, table), source.id, 0),
-          count > 0,
-          do: "#{label} (#{count})"
-
-    identifiers = for field <- @identifiers, present?(Map.get(source, field)), do: field
-
-    carried =
-      tables ++
-        if(identifiers == [],
-          do: [],
-          else: ["identifiers (#{Enum.map_join(identifiers, ", ", &Atom.to_string/1)})"]
-        ) ++
-        if(same_name?(source, target), do: [], else: ["a name other than the target's"])
-
-    guard(
-      :references_not_carried,
-      "nothing on the source the merge does not carry yet",
-      carried == [],
-      "the source carries nothing the merge does not carry",
-      "security ##{source.id} carries what the security merge does not carry yet: " <>
-        "#{Enum.join(carried, ", ")}. ADR-0050 §9's quote gap-fill, configuration, identifier " <>
-        "choice and resolvability precondition carry them; until then the merge refuses " <>
-        "rather than drop one or leave an identifier that no longer resolves."
-    )
-  end
-
   defp present?(value) when is_binary(value), do: String.trim(value) != ""
   defp present?(value), do: value != nil
 
-  # The name as the importer's name tier compares it.
-  defp same_name?(source, target) do
-    SecurityResolver.normalize_ref(%{name: source.name}).name ==
-      SecurityResolver.normalize_ref(%{name: target.name}).name
+  # §9's resolvability precondition: every identity of both securities
+  # resolves to the target over the catalog the merge leaves, under each
+  # value of the identity choice (see the moduledoc).
+  defp identity_guard(base) do
+    failures = unresolvable(base)
+
+    :identity_unresolvable
+    |> guard(
+      "every identity of both securities resolves to the target after the merge",
+      failures == [],
+      "every stored, imported and former identity of both securities finds the target",
+      Enum.map_join(failures, " ", &unresolvable_text(base, &1)) <>
+        " A Portfolio Performance file resolves on the identity it carries, not on identifiers " <>
+        "added since, so the next import of such a file would create or pick another security. " <>
+        "ADR-0050 §9 refuses the merge rather than leave it unresolved (generalized name, WKN " <>
+        "and ticker aliases are deferred): give both securities the identifier the file " <>
+        "carries, or rename or merge the security it collides with, then preview again."
+    )
+    |> Map.put(:unresolvable, failures)
+  end
+
+  defp unresolvable(base) do
+    refs = identity_refs(base.source, base.data) ++ identity_refs(base.target, base.data)
+
+    base.identifiers.outcomes
+    |> Enum.sort()
+    |> Enum.flat_map(fn {choice, after_identity} ->
+      index = post_merge_index(base.source, base.target, after_identity, base.data)
+
+      for entry <- refs,
+          outcome = SecurityResolver.resolve(entry.ref, index),
+          not resolves_to?(outcome, base.target.id),
+          do: Map.merge(entry, %{outcome: resolution_view(outcome), identity_choice: choice})
+    end)
+    |> Enum.group_by(&Map.take(&1, [:security_id, :identity, :ref, :outcome]))
+    |> Enum.map(fn {entry, found} ->
+      Map.put(entry, :identity_choices, Enum.map(found, & &1.identity_choice))
+    end)
+    |> Enum.sort_by(&{&1.security_id, identity_rank(&1.identity), inspect(&1.ref)})
+  end
+
+  defp identity_rank(:stored), do: 0
+  defp identity_rank(:imported), do: 1
+  defp identity_rank(:former_isin), do: 2
+
+  defp resolves_to?({:match, %Security{id: id}, _tier}, id), do: true
+  defp resolves_to?(_outcome, _target_id), do: false
+
+  defp resolution_view(:create), do: %{kind: :none, candidates: []}
+
+  defp resolution_view({:match, %Security{id: id}, _tier}),
+    do: %{kind: :other_security, candidates: [id]}
+
+  defp resolution_view({:conflict, %{type: type, candidates: candidates}}),
+    do: %{kind: type, candidates: Enum.map(candidates, & &1.id)}
+
+  # Every identity through which `security` resolves: the stored one, the
+  # one its importer create recorded, and the stored one with each former
+  # ISIN in place of its ISIN — blank ones left out, each once.
+  defp identity_refs(security, data) do
+    stored = stored_ref(security)
+
+    imported =
+      case Map.get(data.imported, security.id) do
+        nil -> []
+        ref -> [{:imported, ref}]
+      end
+
+    formers =
+      for alias_row <- Map.get(data.aliases, security.id, []),
+          do: {:former_isin, %{stored | isin: alias_row.former_isin}}
+
+    ([{:stored, stored}] ++ imported ++ formers)
+    |> Enum.reject(fn {_identity, ref} -> SecurityResolver.blank_ref?(ref) end)
+    |> Enum.uniq_by(&elem(&1, 1))
+    |> Enum.map(fn {identity, ref} ->
+      %{security_id: security.id, identity: identity, ref: ref}
+    end)
+  end
+
+  defp stored_ref(security) do
+    SecurityResolver.normalize_ref(%{
+      isin: security.isin,
+      wkn: security.wkn,
+      ticker: security.ticker_symbol,
+      name: security.name,
+      currency: security.currency_code
+    })
+  end
+
+  # The catalog the merge leaves: the source gone, the target with the
+  # identifiers it will carry, and every former ISIN of either (plus the one
+  # the choice records) a former ISIN of the target.
+  defp post_merge_index(source, target, after_identity, data) do
+    target_after = %{
+      target
+      | isin: after_identity.isin,
+        wkn: after_identity.wkn,
+        ticker_symbol: after_identity.ticker_symbol,
+        feed: after_identity.feed
+    }
+
+    securities =
+      Enum.reject(data.catalog, &(&1.id in [source.id, target.id])) ++ [target_after]
+
+    former_isins =
+      data.former_isins
+      |> Map.new(fn {isin, id} -> {isin, if(id == source.id, do: target.id, else: id)} end)
+      |> Map.merge(Map.new(after_identity.former_isins, &{&1, target.id}))
+
+    SecurityResolver.index_from(securities, former_isins)
+  end
+
+  defp unresolvable_text(base, failure) do
+    choices =
+      case failure.identity_choices do
+        [:no_choice] -> ""
+        [_first, _second] -> ""
+        [only] -> " under #{only}"
+      end
+
+    "Security ##{failure.security_id}'s #{identity_text(failure)} (#{ref_text(failure.ref)}) " <>
+      "#{outcome_text(failure.outcome)} after merging security ##{base.source.id} into " <>
+      "security ##{base.target.id}#{choices}."
+  end
+
+  defp identity_text(%{identity: :stored}), do: "stored identity"
+
+  defp identity_text(%{identity: :imported}),
+    do: "identity as its Portfolio Performance import recorded it"
+
+  defp identity_text(%{identity: :former_isin, ref: ref}), do: "former ISIN #{ref.isin}"
+
+  defp ref_text(ref) do
+    [
+      {"ISIN", ref.isin},
+      {"WKN", ref.wkn},
+      {"ticker", ref.ticker},
+      {"name", ref.name && "\"#{ref.name}\""},
+      {"currency", ref.currency}
+    ]
+    |> Enum.reject(&is_nil(elem(&1, 1)))
+    |> Enum.map_join(", ", fn {label, value} -> "#{label} #{value}" end)
+  end
+
+  defp outcome_text(%{kind: :none}),
+    do: "would find no security, and an import of a file carrying it would create a new one,"
+
+  defp outcome_text(%{kind: :ambiguous, candidates: ids}),
+    do: "would match #{ids_text(ids)} alike, a decision on every import,"
+
+  defp outcome_text(%{kind: :identifier_veto, candidates: ids}),
+    do: "would conflict with #{ids_text(ids)} on a stronger identifier"
+
+  defp outcome_text(%{kind: :cross_tier, candidates: ids}),
+    do: "would point at #{ids_text(ids)} at once"
+
+  defp outcome_text(%{kind: :other_security, candidates: ids}),
+    do: "would resolve to #{ids_text(ids)}"
+
+  defp ids_text(ids), do: Enum.map_join(ids, " and ", &"security ##{&1}")
+
+  # --- the identifiers after each identity choice (§9) ------------------------------------
+
+  defp identifiers(source, target, data) do
+    both? = present?(source.isin) and present?(target.isin)
+    adopted = adopted_fields(source, target, both?)
+
+    kept =
+      Enum.map(
+        Map.get(data.aliases, target.id, []) ++ Map.get(data.aliases, source.id, []),
+        & &1.former_isin
+      )
+
+    outcomes =
+      if both? do
+        %{
+          keep_target_isin: after_identity(target, adopted, target.isin, [source.isin | kept]),
+          adopt_source_isin: after_identity(target, adopted, source.isin, [target.isin | kept])
+        }
+      else
+        %{no_choice: after_identity(target, adopted, target.isin || source.isin, kept)}
+      end
+
+    %{
+      choice_required: both?,
+      outcomes: outcomes,
+      adopted: adopted,
+      differences: differences(source, target, adopted),
+      aliases: Map.get(data.aliases, source.id, [])
+    }
+  end
+
+  # WKN, ticker and feed where the target lacks them (a feed with its URL
+  # where the target has none), and an ISIN only the source carries.
+  defp adopted_fields(source, target, both_isins?) do
+    isin =
+      if not both_isins? and present?(source.isin) and not present?(target.isin),
+        do: [%{field: :isin, value: source.isin}],
+        else: []
+
+    fields =
+      for field <- @adoptable,
+          not present?(Map.get(target, field)),
+          present?(Map.get(source, field)),
+          do: %{field: field, value: Map.get(source, field)}
+
+    feed_url =
+      if Enum.any?(fields, &(&1.field == :feed)) and present?(source.feed_url) and
+           not present?(target.feed_url),
+         do: [%{field: :feed_url, value: source.feed_url}],
+         else: []
+
+    isin ++ fields ++ feed_url
+  end
+
+  defp after_identity(target, adopted, isin, former_isins) do
+    adopted = Map.new(adopted, &{&1.field, &1.value})
+
+    %{
+      isin: isin,
+      wkn: Map.get(adopted, :wkn, target.wkn),
+      ticker_symbol: Map.get(adopted, :ticker_symbol, target.ticker_symbol),
+      feed: Map.get(adopted, :feed, target.feed),
+      name: target.name,
+      asset_class: target.asset_class,
+      former_isins: former_isins |> Enum.reject(&is_nil/1) |> Enum.uniq() |> Enum.sort()
+    }
+  end
+
+  # Every value of the source that the target's replaces: name, asset class
+  # and logo always follow the target, and so do a WKN, ticker or feed the
+  # target already has.
+  defp differences(source, target, adopted) do
+    adopted_fields = Enum.map(adopted, & &1.field)
+
+    for field <- @following ++ @adoptable,
+        field not in adopted_fields,
+        from = field_value(source, field),
+        from != nil,
+        from != field_value(target, field),
+        do: %{field: field, source: from, target: field_value(target, field)}
+  end
+
+  defp field_value(security, :logo), do: get_in(security.attributes || %{}, ["logo_path"])
+  defp field_value(security, field), do: Map.get(security, field)
+
+  # --- what the merge carries besides the bookings (§9) -----------------------------------
+
+  defp carry(plan) do
+    %{
+      quotes: quote_plan(plan),
+      assignments: assignment_plan(plan),
+      position_targets: position_target_plan(plan),
+      events: event_plan(plan)
+    }
+  end
+
+  # Quotes, gap-filled: the source's on dates the target lacks move; on a
+  # collision the target's wins and the source's is dropped.
+  defp quote_plan(%{source: source, target: target, data: data}) do
+    t_by_date = Map.new(Map.get(data.quote_rows, target.id, []), &{&1.date, &1})
+    s_quotes = Map.get(data.quote_rows, source.id, [])
+    {collisions, moved} = Enum.split_with(s_quotes, &Map.has_key?(t_by_date, &1.date))
+
+    %{
+      source_count: length(s_quotes),
+      moved: moved,
+      dropped: Enum.map(collisions, &{&1, Map.fetch!(t_by_date, &1.date)})
+    }
+  end
+
+  # Per classification of the source: moved where the target has no
+  # assignment in it, dropped (the target's wins) otherwise.
+  defp assignment_plan(%{source: source, target: target, data: data}) do
+    t_by_class = Map.new(Map.get(data.assignments, target.id, []), &{&1.classification_id, &1})
+
+    for assignment <- Map.get(data.assignments, source.id, []) do
+      twin = Map.get(t_by_class, assignment.classification_id)
+      %{assignment: assignment, twin: twin, action: if(twin, do: :drop, else: :move)}
+    end
+  end
+
+  # Each position target of the source, in any plan status, against the
+  # target's resulting category in its classification: it collides where the
+  # target has a row in that plan, goes stale where it would not sit under
+  # the target's category, and moves otherwise.
+  defp position_target_plan(%{source: source, target: target, data: data}) do
+    rows = Map.get(data.position_targets, source.id, [])
+    target_plans = MapSet.new(Map.get(data.position_targets, target.id, []), & &1.plan_id)
+    classifications = rows |> Enum.map(& &1.classification) |> Enum.uniq_by(& &1.id)
+
+    resulting =
+      Map.new(classifications, &{&1.id, resulting_category(&1, source, target, data)})
+
+    ancestors =
+      Map.new(classifications, fn classification ->
+        {classification.id,
+         Targets.category_ancestors(Classifications.list_categories(classification.id))}
+      end)
+
+    for row <- rows do
+      category = Map.fetch!(resulting, row.classification_id)
+      covering = Map.get(Map.fetch!(ancestors, row.classification_id), category, MapSet.new())
+
+      {action, reason} =
+        cond do
+          MapSet.member?(target_plans, row.plan_id) -> {:drop, :collides}
+          not MapSet.member?(covering, row.category_id) -> {:drop, :stale}
+          true -> {:move, nil}
+        end
+
+      %{row: row, action: action, reason: reason, resulting_category_id: category}
+    end
+  end
+
+  # The target's category in a classification after the merge: a custom
+  # tree's stored assignment of the target, else the source's that moves; a
+  # built-in tree's derived one of the target (its fields follow the target).
+  defp resulting_category(%{built_in: true} = classification, _source, target, _data) do
+    case Classifications.security_category_map(classification.id) do
+      {:ok, map} -> Map.get(map, target.id)
+      {:error, :not_found} -> nil
+    end
+  end
+
+  defp resulting_category(classification, source, target, data) do
+    Enum.find_value([target, source], fn security ->
+      data.assignments
+      |> Map.get(security.id, [])
+      |> Enum.find_value(&(&1.classification_id == classification.id and &1.category_id))
+    end)
+  end
+
+  # Every event of the source moves; a same-kind, same-day pair is listed.
+  defp event_plan(%{source: source, target: target, data: data}) do
+    s_events = Map.get(data.events, source.id, [])
+    t_events = Map.get(data.events, target.id, [])
+
+    %{
+      moved: s_events,
+      possible_duplicates:
+        for(
+          event <- s_events,
+          twin <- t_events,
+          event.kind == twin.kind and event.date == twin.date,
+          do: %{
+            source_event_id: event.id,
+            target_event_id: twin.id,
+            kind: event.kind,
+            date: event.date
+          }
+        )
+    }
   end
 
   defp membership_guard(base) do
@@ -1169,6 +1669,16 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
           |> Enum.map(&event_view/1)
       },
       position_buckets: Enum.map(plan.memberships, &membership_view/1),
+      quotes: quotes_view(plan.carry.quotes),
+      configuration: %{
+        category_assignments: Enum.map(plan.carry.assignments, &assignment_view/1),
+        position_targets: Enum.map(plan.carry.position_targets, &position_target_view/1)
+      },
+      events: %{
+        moved: Enum.map(plan.carry.events.moved, &%{id: &1.id, kind: &1.kind, date: &1.date}),
+        possible_duplicates: plan.carry.events.possible_duplicates
+      },
+      identifiers: identifiers_view(plan.identifiers),
       reverse: reverse,
       outcomes:
         Map.new(plan.outcomes, fn {collapse?, outcome} -> {collapse?, outcome_view(outcome)} end)
@@ -1183,11 +1693,77 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
       isin: security.isin,
       wkn: security.wkn,
       ticker_symbol: security.ticker_symbol,
+      feed: security.feed,
+      asset_class: security.asset_class,
       is_benchmark: security.is_benchmark,
       is_retired: security.is_retired,
       treat_quotes_as_raw: security.treat_quotes_as_raw,
       transaction_count: length(rows),
       split_events: Enum.map(events, &event_view/1)
+    }
+  end
+
+  # The counts, and the collisions whose dropped source quote is manual —
+  # a close someone typed — each with both closes.
+  defp quotes_view(quotes) do
+    %{
+      source_count: quotes.source_count,
+      moved_count: length(quotes.moved),
+      collision_count: length(quotes.dropped),
+      manual_collisions:
+        for(
+          {dropped, kept} <- quotes.dropped,
+          dropped.source == "manual",
+          do: %{
+            date: dropped.date,
+            source_close: dropped.close,
+            target_close: kept.close,
+            target_source: kept.source
+          }
+        )
+    }
+  end
+
+  defp assignment_view(%{assignment: assignment, twin: twin, action: action}) do
+    %{
+      classification_id: assignment.classification_id,
+      classification_name: assignment.classification.name,
+      source_category_id: assignment.category_id,
+      source_category_name: assignment.category.name,
+      target_category_id: twin && twin.category_id,
+      target_category_name: twin && twin.category.name,
+      action: action
+    }
+  end
+
+  defp position_target_view(%{row: row} = entry) do
+    %{
+      id: row.id,
+      plan_id: row.plan_id,
+      plan_name: row.plan.name,
+      plan_status: row.plan.status,
+      portfolio_id: row.portfolio_id,
+      classification_id: row.classification_id,
+      category_id: row.category_id,
+      category_name: row.category.name,
+      target_weight: row.target_weight,
+      action: entry.action,
+      reason: entry.reason,
+      resulting_category_id: entry.resulting_category_id
+    }
+  end
+
+  defp identifiers_view(identifiers) do
+    %{
+      choice_required: identifiers.choice_required,
+      outcomes: identifiers.outcomes,
+      adopted: identifiers.adopted,
+      differences: identifiers.differences,
+      aliases_reassigned:
+        Enum.map(
+          identifiers.aliases,
+          &%{id: &1.id, former_isin: &1.former_isin, changed_on: &1.changed_on}
+        )
     }
   end
 
@@ -1250,18 +1826,48 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   # (splits included) with its updated_at and economic fields, every depot
   # the plan reads with its portfolio, every figure the preview shows (the
   # bucket plan and the reverse direction among them) and the guard results.
+  #
+  # Beside the bookings, every row the merge carries is part of it (§9): each
+  # quote, assignment, position target, event and former ISIN of either
+  # security with its updated_at, and the identity each importer create
+  # recorded — so a quote the sync writes, or an assignment changed, between
+  # the preview and the apply is a changed plan.
   defp digest(plan, preview) do
+    data = plan.data
+
     PlanDigest.compute(%{
       preview: preview,
       source: security_fingerprint(plan.source),
       target: security_fingerprint(plan.target),
-      rows: Enum.map(plan.data.rows, &PlanDigest.transaction_fingerprint/1),
+      rows: Enum.map(data.rows, &PlanDigest.transaction_fingerprint/1),
       depots:
-        plan.data.depots
+        data.depots
         |> Map.values()
         |> Enum.sort_by(& &1.id)
-        |> Enum.map(&[&1.id, &1.updated_at, &1.portfolio_id])
+        |> Enum.map(&[&1.id, &1.updated_at, &1.portfolio_id]),
+      quotes:
+        owned_fingerprints(data.quote_rows, &[&1.id, &1.date, &1.close, &1.source, &1.updated_at]),
+      assignments:
+        owned_fingerprints(
+          data.assignments,
+          &[&1.id, &1.classification_id, &1.category_id, &1.updated_at]
+        ),
+      position_targets:
+        owned_fingerprints(
+          data.position_targets,
+          &[&1.id, &1.plan_id, &1.plan.status, &1.category_id, &1.target_weight, &1.updated_at]
+        ),
+      events: owned_fingerprints(data.events, &[&1.id, &1.kind, &1.date, &1.updated_at]),
+      aliases:
+        owned_fingerprints(data.aliases, &[&1.id, &1.former_isin, &1.changed_on, &1.updated_at]),
+      imported: data.imported
     })
+  end
+
+  defp owned_fingerprints(grouped, fingerprint) do
+    grouped
+    |> Enum.sort()
+    |> Enum.map(fn {id, rows} -> [id, Enum.map(rows, fingerprint)] end)
   end
 
   defp security_fingerprint(security) do
@@ -1271,21 +1877,31 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
       security.currency_code,
       security.is_benchmark,
       security.is_retired,
-      security.treat_quotes_as_raw
+      security.treat_quotes_as_raw,
+      security.name,
+      security.isin,
+      security.wkn,
+      security.ticker_symbol,
+      security.feed,
+      security.asset_class
     ]
   end
 
   # --- the writes ---------------------------------------------------------------------
 
-  defp execute(actor, plan, collapse?, choice) do
-    outcome = Map.fetch!(plan.outcomes, collapse?)
+  defp execute(actor, plan, choices) do
+    outcome = Map.fetch!(plan.outcomes, choices.collapse?)
     record_id = Lifecycle.reserve_merge_record_id()
 
     with :ok <- delete_rows(actor, outcome.deleted, record_id),
          :ok <- move_rows(actor, plan, outcome),
          :ok <- linearity_check(plan, outcome),
          {:ok, overrides} <- apply_memberships(actor, plan),
-         {:ok, _deleted} <- delete_source(actor, plan.source) do
+         :ok <- move_quotes(plan),
+         :ok <- apply_configuration(actor, plan),
+         {:ok, identifiers} <- apply_identifiers(actor, plan, choices),
+         {:ok, _deleted} <- delete_source(actor, plan.source),
+         :ok <- resolvability_check(plan) do
       Lifecycle.record_merge(
         actor,
         %{
@@ -1294,7 +1910,8 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
           target_id: plan.target.id,
           portfolio_id: nil,
           source_snapshot: source_snapshot(plan),
-          manifest: manifest(plan, outcome, choice, overrides),
+          manifest:
+            manifest(plan, outcome, choices, %{overrides: overrides, identifiers: identifiers}),
           plan_digest: plan.digest
         },
         id: record_id
@@ -1451,6 +2068,157 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
     end
   end
 
+  # §9 quotes, gap-filled, through the quote module's merge writer: no
+  # journal entry (ADR-0017's exemption names the writer), the manifest lists
+  # each row, both securities' quote invalidation runs.
+  defp move_quotes(%{carry: %{quotes: quotes}} = plan) do
+    Quotes.merge_gap_fill(
+      plan.source.id,
+      plan.target.id,
+      quotes.moved,
+      Enum.map(quotes.dropped, &elem(&1, 0))
+    )
+  end
+
+  # §9 configuration, through each context's journaled writer, one entry per
+  # row: category assignments, then position targets, then events.
+  defp apply_configuration(actor, %{carry: carry} = plan) do
+    target_id = plan.target.id
+
+    with :ok <- each(carry.assignments, &assignment_write(actor, &1, plan)),
+         :ok <- each(carry.position_targets, &position_target_write(actor, &1, target_id)) do
+      each(carry.events.moved, fn event ->
+        actor |> Events.reassign_event(event, target_id) |> written("security_event", event.id)
+      end)
+    end
+  end
+
+  defp assignment_write(actor, %{action: :move, assignment: assignment}, plan) do
+    actor
+    |> Classifications.reassign_assignment(assignment, plan.target.id)
+    |> written("security_category_assignment", assignment.id)
+  end
+
+  defp assignment_write(actor, %{action: :drop, assignment: assignment}, plan) do
+    case Classifications.unassign_security(actor, plan.source.id, assignment.classification_id) do
+      {:ok, 1} ->
+        :ok
+
+      {:ok, 0} ->
+        {:error, :raced}
+
+      {:error, _reason} = refused ->
+        written(refused, "security_category_assignment", assignment.id)
+    end
+  end
+
+  defp position_target_write(actor, %{action: :move, row: row}, target_id) do
+    actor
+    |> Targets.reassign_position_target(row, target_id)
+    |> written("target", row.id)
+  end
+
+  defp position_target_write(actor, %{action: :drop, row: row}, _target_id) do
+    case Targets.delete_target_rows(actor, [row]) do
+      {:ok, 1} -> :ok
+      {:ok, 0} -> {:error, :raced}
+      {:error, _reason} = refused -> written(refused, "target", row.id)
+    end
+  end
+
+  # A context writer's answer as the merge reads it: a row another writer
+  # changed under the merge (its locks make it a bug catcher) is a changed
+  # plan; a changeset the database refused is named.
+  defp written({:ok, _row}, _resource, _id), do: :ok
+
+  defp written({:error, %Ecto.Changeset{} = changeset}, resource, id),
+    do: {:error, {:write_refused, resource, id, changeset}}
+
+  defp written({:error, _gone}, _resource, _id), do: {:error, :raced}
+
+  # §9 identifiers, under the ISIN write lock the apply took first: the
+  # source's former ISINs reassigned to the target; the source's ISIN
+  # cleared; the identity choice written; the fields the target lacks
+  # adopted, one journaled update.
+  defp apply_identifiers(actor, plan, choices) do
+    target = plan.target
+    changed_on = choices.changed_on || Clock.today()
+
+    with :ok <-
+           each(plan.identifiers.aliases, fn alias_row ->
+             actor
+             |> IdentifierAliases.update_alias(alias_row, %{security_id: target.id})
+             |> written("security_identifier_alias", alias_row.id)
+           end),
+         :ok <- clear_source_isin(actor, plan.source),
+         {:ok, created} <- isin_write(actor, plan, choices.choice, changed_on),
+         :ok <- adopt(actor, target, plan.identifiers.adopted) do
+      {:ok, %{created_alias: created, changed_on: created && changed_on}}
+    end
+  end
+
+  defp clear_source_isin(_actor, %Security{isin: nil}), do: :ok
+
+  defp clear_source_isin(actor, source) do
+    actor |> Catalog.update_security(source, %{isin: nil}) |> written("security", source.id)
+  end
+
+  defp isin_write(actor, plan, :keep_target_isin, changed_on) do
+    case IdentifierAliases.record_merged_isin(actor, plan.target, plan.source.isin,
+           changed_on: changed_on,
+           note: merged_note(plan)
+         ) do
+      {:ok, alias_row} -> {:ok, alias_row.former_isin}
+      refused -> written(refused, "security_identifier_alias", plan.target.id)
+    end
+  end
+
+  defp isin_write(actor, plan, :adopt_source_isin, changed_on) do
+    case IdentifierAliases.record_isin_change(actor, plan.target, plan.source.isin,
+           changed_on: changed_on,
+           note: merged_note(plan)
+         ) do
+      {:ok, %{alias: alias_row}} -> {:ok, alias_row.former_isin}
+      refused -> written(refused, "security", plan.target.id)
+    end
+  end
+
+  defp isin_write(_actor, _plan, :no_choice, _changed_on), do: {:ok, nil}
+
+  defp merged_note(plan),
+    do: "security merge: security ##{plan.source.id} merged into this security (ADR-0050 §9)"
+
+  defp adopt(_actor, _target, []), do: :ok
+
+  defp adopt(actor, target, adopted) do
+    actor
+    |> Catalog.update_security(target, Map.new(adopted, &{&1.field, &1.value}))
+    |> written("security", target.id)
+  end
+
+  # §9: the resolvability precondition again, over the catalog as the merge
+  # left it — the database, read inside the merge's transaction. Every
+  # identity the plan checked must find the target, or the merge rolls back
+  # naming the ones that do not.
+  defp resolvability_check(plan) do
+    index = SecurityResolver.ladder_index()
+
+    (identity_refs(plan.source, plan.data) ++ identity_refs(plan.target, plan.data))
+    |> Enum.map(&{&1, SecurityResolver.resolve(&1.ref, index)})
+    |> Enum.reject(fn {_entry, outcome} -> resolves_to?(outcome, plan.target.id) end)
+    |> case do
+      [] ->
+        :ok
+
+      failed ->
+        {:error,
+         {:identity_unresolvable,
+          Enum.map(failed, fn {entry, outcome} ->
+            Map.put(entry, :outcome, resolution_view(outcome))
+          end)}}
+    end
+  end
+
   # Through the hardened delete (§11): the source's remaining memberships
   # first, each journaled, then the row. Inside the merge a refusal is a
   # reference the locks and the guards should have kept out: a changed
@@ -1482,9 +2250,19 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
       ticker_symbol: source.ticker_symbol,
       asset_class: source.asset_class,
       feed: source.feed,
+      feed_url: source.feed_url,
+      latest_feed: source.latest_feed,
+      latest_feed_url: source.latest_feed_url,
+      exchange_code: source.exchange_code,
+      provider: source.provider,
+      online_id: source.online_id,
+      note: source.note,
+      attributes: source.attributes,
       is_benchmark: source.is_benchmark,
       is_retired: source.is_retired,
       treat_quotes_as_raw: source.treat_quotes_as_raw,
+      former_isins: Enum.map(plan.identifiers.aliases, & &1.former_isin),
+      as_imported: Map.get(plan.data.imported, source.id),
       split_events: Enum.map(plan.events.source, &event_view/1),
       position_overrides:
         for(
@@ -1499,14 +2277,94 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   end
 
   # Per table, every row moved or deleted, every override carried, dropped or
-  # cleared, the split events before and after, the rounding differences and
-  # the operator's choice.
-  defp manifest(plan, outcome, choice, overrides) do
+  # cleared, every quote moved or dropped — the dropped ones with their values
+  # and the target's close that won, the quotes' only record (§13) — every
+  # assignment, position target, event and former ISIN moved, dropped or
+  # created, the identifiers the target adopted and the differences that
+  # followed it, the split events before and after, the rounding differences
+  # and the operator's choices.
+  defp manifest(plan, outcome, choices, written) do
     s = plan.source.id
     t = plan.target.id
+    carry = plan.carry
 
     jsonable(%{
-      choices: %{collapse_key_equal: choice},
+      choices: %{
+        collapse_key_equal: choices.collapse,
+        identity_choice: choices.given,
+        isin_changed_on: choices.changed_on
+      },
+      quotes: %{
+        moved:
+          Enum.map(carry.quotes.moved, &%{date: &1.date, close: &1.close, source: &1.source}),
+        dropped:
+          Enum.map(carry.quotes.dropped, fn {dropped, kept} ->
+            %{
+              date: dropped.date,
+              close: dropped.close,
+              source: dropped.source,
+              target_close: kept.close,
+              target_source: kept.source
+            }
+          end)
+      },
+      category_assignments: %{
+        moved:
+          for(
+            %{action: :move, assignment: a} <- carry.assignments,
+            do: %{id: a.id, classification_id: a.classification_id, category_id: a.category_id}
+          ),
+        dropped:
+          for(
+            %{action: :drop, assignment: a, twin: twin} <- carry.assignments,
+            do: %{
+              id: a.id,
+              classification_id: a.classification_id,
+              category_id: a.category_id,
+              target_category_id: twin.category_id
+            }
+          )
+      },
+      position_targets: %{
+        moved:
+          for(
+            %{action: :move, row: row} <- carry.position_targets,
+            do: %{id: row.id, plan_id: row.plan_id, category_id: row.category_id}
+          ),
+        deleted:
+          for(
+            %{action: :drop, row: row, reason: reason} <- carry.position_targets,
+            do: %{
+              id: row.id,
+              plan_id: row.plan_id,
+              plan_status: row.plan.status,
+              classification_id: row.classification_id,
+              category_id: row.category_id,
+              target_weight: row.target_weight,
+              reason: reason
+            }
+          )
+      },
+      security_events: %{
+        moved: Enum.map(carry.events.moved, &%{id: &1.id, kind: &1.kind, date: &1.date}),
+        possible_duplicates: carry.events.possible_duplicates
+      },
+      identifier_aliases: %{
+        reassigned:
+          Enum.map(plan.identifiers.aliases, &%{id: &1.id, former_isin: &1.former_isin}),
+        created:
+          written.identifiers.created_alias &&
+            %{
+              former_isin: written.identifiers.created_alias,
+              changed_on: written.identifiers.changed_on
+            }
+      },
+      identifiers: %{
+        source_isin: plan.source.isin,
+        target_isin: plan.target.isin,
+        adopted: plan.identifiers.adopted,
+        differences: plan.identifiers.differences
+      },
       transactions: %{
         moved: Enum.map(outcome.moved, &%{id: &1.id, type: &1.type, security_id: [s, t]}),
         deleted:
@@ -1522,7 +2380,7 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
             }
           end)
       },
-      position_bucket_overrides: overrides,
+      position_bucket_overrides: written.overrides,
       split_events: %{
         source: Enum.map(plan.events.source, &event_view/1),
         target: Enum.map(plan.events.target, &event_view/1)

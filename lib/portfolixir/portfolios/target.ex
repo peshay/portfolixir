@@ -39,6 +39,8 @@ defmodule Portfolixir.Portfolios.Target do
   alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.TargetPlan
 
+  @type t :: %__MODULE__{}
+
   schema "portfolio_targets" do
     field(:target_weight, :decimal)
 
@@ -113,6 +115,24 @@ defmodule Portfolixir.Portfolios.Target do
     # database, so a write that loses a race to file the security under
     # another category is refused here; `Targets` answers it as the
     # duplicate-position refusal.
+    |> unique_constraint(:security_id, name: :portfolio_targets_plan_security_index)
+  end
+
+  @doc """
+  Re-points a **position** row onto `security_id` and nothing else (ADR-0050
+  §9: a security merge moves the source's position targets onto the target
+  where they neither collide nor go stale). Plan, category and weight stay;
+  the partial unique indexes are declared, so a target that gained a row in
+  the plan meanwhile is a changeset error.
+  """
+  def reassign_changeset(%__MODULE__{security_id: from} = target, security_id)
+      when is_integer(from) and is_integer(security_id) do
+    target
+    |> change(security_id: security_id)
+    |> assoc_constraint(:security)
+    |> unique_constraint([:plan_id, :category_id, :security_id],
+      name: :portfolio_targets_plan_category_security_index
+    )
     |> unique_constraint(:security_id, name: :portfolio_targets_plan_security_index)
   end
 end
