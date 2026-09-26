@@ -407,6 +407,43 @@ defmodule Portfolixir.Lifecycle.AccountNamesTest do
     end
   end
 
+  describe "what a rename dialog reads before it writes (§4, L5a)" do
+    # User story:
+    # As the operator about to rename an account,
+    # I want to be told whether its current name stays a former name, and
+    # which account a refused name belongs to,
+    # so that the dialog says what the rename rule and the guard will do.
+    #
+    # Acceptance criteria:
+    # - previous_name_outcome/1 answers :kept, or {:not_kept, holder} while
+    #   another account of the kind in the portfolio carries the name live.
+    # - conflict/4 answers nil for a free name, {:live, holder} or
+    #   {:former, holder} for a name another account answers to, never the
+    #   account's own names.
+    test "answers the rename rule's case and the guard's holder", %{portfolio: portfolio} do
+      giro = cash!(portfolio, "Giro")
+      assert AccountNames.previous_name_outcome(giro) == :kept
+
+      twin = legacy_cash!(portfolio, "Giro")
+
+      assert AccountNames.previous_name_outcome(giro) ==
+               {:not_kept, %{id: twin.id, name: "Giro"}}
+
+      {:ok, main} =
+        Portfolios.update_cash_account(agent(), cash!(portfolio, "Old"), %{name: "Main"})
+
+      assert AccountNames.conflict(CashAccount, portfolio.id, "Free", giro.id) == nil
+
+      assert AccountNames.conflict(CashAccount, portfolio.id, "Old", giro.id) ==
+               {:former, %{id: main.id, name: "Main"}}
+
+      assert AccountNames.conflict(CashAccount, portfolio.id, "Main", giro.id) ==
+               {:live, %{id: main.id, name: "Main"}}
+
+      assert AccountNames.conflict(CashAccount, portfolio.id, "Old", main.id) == nil
+    end
+  end
+
   describe "removing a former name (§4)" do
     # User story:
     # As the operator who no longer wants an old name routed to an account,
