@@ -53,7 +53,12 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
       split, listed in the preview — never refuses, and any other difference
       does, naming the split date. This catches a target-side split that
       would rescale moved rows (ADR-0028 §1), and a source split that would
-      rescale the target's own history.
+      rescale the target's own history;
+    * `legacy_hashed_split` — a source split the merge would move still
+      carries an import hash (a row re-typed to a split before the NOT VALID
+      `transactions_import_hash_kind_check` existed, which refuses every edit
+      of it), named with the remedy; one the merge collapses into the
+      target's split of that day is deleted with its hash retired instead.
 
   and the **resolvability precondition**, `identity_unresolvable`: the
   identity ladder (`Portfolixir.Imports.SecurityResolver`) over the catalog
@@ -1067,6 +1072,7 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
       membership_guard(base),
       split_ratio_guard(base),
       split_event_guard(base),
+      legacy_split_guard(base),
       identity_guard(base)
     ] ++ linearity_guard(base)
   end
@@ -1635,6 +1641,30 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
     )
   end
 
+  # A split that still carries an import hash — a row imported as another
+  # kind and re-typed before this release, which the NOT VALID
+  # `transactions_import_hash_kind_check` refuses to update — cannot move
+  # onto the target, so a merge that would move one is refused up front,
+  # naming it and the remedy the upgrade logged. One the merge collapses into
+  # the target's split of that day is deleted, which the check allows, with
+  # its hash retired (§3, O1), as the cash merge does with a folded anchor.
+  defp legacy_split_guard(base) do
+    hashed = Enum.filter(base.splits.moved, &(&1.import_hash != nil))
+
+    :legacy_hashed_split
+    |> guard(
+      "no hashed split to move",
+      hashed == [],
+      "no split the merge moves carries an import hash",
+      "the split(s) #{Enum.map_join(hashed, ", ", &"##{&1.id} on #{&1.date}")} carry an " <>
+        "import hash: each was imported as another kind and re-typed before the import-hash " <>
+        "kind check existed, which now refuses every edit of it, so the merge cannot move it. " <>
+        "Change its type back to the kind it was imported as (the audit journal shows it) or " <>
+        "delete it, then preview again."
+    )
+    |> put_failed(:splits, Enum.map(hashed, &%{id: &1.id, date: &1.date}))
+  end
+
   defp split_event_guard(base) do
     s_events = MapSet.new(base.events.source)
     t_events = MapSet.new(base.events.target)
@@ -2105,24 +2135,20 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   # Each collapsed pair's source row deleted, journaled, and its hash retired
   # under the record as `collapsed_duplicate`, superseded by the target row
   # that stays; each collapsed split deleted, journaled — a split carries no
-  # hash (a database CHECK), so it retires none.
+  # hash (a database CHECK), except a legacy one re-typed before that check
+  # existed, whose hash is retired the same way, superseded by the target's
+  # split that absorbs it, so the held-or-retired set still only grows.
   defp delete_rows(actor, deleted, record_id) do
     each(deleted, fn
-      %{row: row, reason: :collapsed_split} ->
-        with :ok <- no_split_hash(row),
-             {:ok, _deleted} <- MergeWriter.delete_transaction(actor, row),
-             do: :ok
+      %{row: row, reason: :collapsed_split, superseded_by: by} ->
+        with {:ok, _deleted} <- MergeWriter.delete_transaction(actor, row),
+             do: MergeWriter.retire_hash(actor, row, record_id, :collapsed_duplicate, by)
 
       %{row: row, reason: reason, superseded_by: by} ->
         with {:ok, _deleted} <- MergeWriter.delete_transaction(actor, row),
              do: MergeWriter.retire_hash(actor, row, record_id, reason, by)
     end)
   end
-
-  defp no_split_hash(%Transaction{import_hash: nil}), do: :ok
-
-  defp no_split_hash(row),
-    do: identity_failure(row, "a split row carries a content hash")
 
   defp move_rows(actor, plan, outcome) do
     each(outcome.moved, fn row ->

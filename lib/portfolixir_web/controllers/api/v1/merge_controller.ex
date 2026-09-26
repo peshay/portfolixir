@@ -31,7 +31,8 @@ defmodule PortfolixirWeb.Api.V1.MergeController do
       `retired_target`, `quote_basis_mismatch`, `research_notes`,
       `policy_rules` (with `errors.policy_rules`),
       `position_buckets_mismatch`, `split_ratio_mismatch`,
-      `split_event_mismatch`, `split_linearity`, `identity_unresolvable`
+      `split_event_mismatch`, `split_linearity`, `legacy_hashed_split`,
+      `identity_unresolvable`
       (with `errors.unresolvable`) — each with `errors.guards`),
       `plan_changed` (with the fresh preview in `errors.preview`),
       `already_merged` (with `errors.merged_into`), `identity_check_failed`,

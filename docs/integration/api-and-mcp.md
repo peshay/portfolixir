@@ -391,7 +391,11 @@ confirms with the same `plan_digest`, so both see the same plan.
   ratio is refused (`split_ratio_mismatch`), and so is a split one side
   lacks while that side has a booking or a quote before it
   (`split_event_mismatch`) or a split that would rescale bookings it did not
-  scale before (`split_linearity`). Finally, every identity of both
+  scale before (`split_linearity`), or a split the merge would move that
+  still carries an import hash from a re-type before the import-hash kind
+  check (`legacy_hashed_split`, with `errors.splits`; change its kind back
+  or delete it — one the merge collapses is deleted with its hash retired).
+  Finally, every identity of both
   securities must still find the target after the merge
   (`identity_unresolvable`, with `errors.unresolvable`): the identity as
   stored, the identity the Portfolio Performance import recorded when it
