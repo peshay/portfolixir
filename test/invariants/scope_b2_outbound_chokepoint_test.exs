@@ -122,6 +122,10 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
     "PHX_BIND_ALL" => {:config, "binds the listener beyond loopback when set (ADR-0045 §2)"},
     "PHX_SERVER" => {:config, "starts the listener in the test configuration for browser runs"},
     "PHX_FORCE_SSL" => {:config, "redirects plain HTTP and sets HSTS behind TLS (#759)"},
+    "PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS" =>
+      {:config,
+       "inbound Host names the forced-TLS redirect leaves on plain HTTP, the companion's " <>
+         "Compose name (E25 S7, F23); never an outbound host"},
     "PORTFOLIXIR_ALLOWED_HOSTS" =>
       {:config, "further names the inbound Host guard accepts (#758); never an outbound host"},
     "PORTFOLIXIR_TRUSTED_PROXIES" =>

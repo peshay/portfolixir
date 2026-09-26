@@ -129,10 +129,54 @@ defmodule PortfolixirWeb.SessionHardeningTest do
   # - PHX_FORCE_SSL true: a plain-HTTP request is redirected to https; a
   #   request forwarded as https is served with strict-transport-security.
   test "force_ssl is off unless asked for" do
-    assert RuntimeConfig.force_ssl_opts(nil) == false
-    assert RuntimeConfig.force_ssl_opts("false") == false
+    assert RuntimeConfig.force_ssl_opts(nil, nil) == false
+    assert RuntimeConfig.force_ssl_opts("false", "app") == false
 
-    assert [rewrite_on: [:x_forwarded_proto], hsts: true] = RuntimeConfig.force_ssl_opts("true")
+    assert [rewrite_on: [:x_forwarded_proto], hsts: true, exclude: ["localhost"]] =
+             RuntimeConfig.force_ssl_opts("true", nil)
+  end
+
+  # User story (E25 S7, F23):
+  # As an operator who turned PHX_FORCE_SSL on for the Compose deployment,
+  # I want the MCP companion's plain-HTTP calls on the Compose network to reach
+  # the app without a redirect,
+  # so that the companion never meets a redirect it would have to follow to
+  # an address it was not configured for.
+  #
+  # Acceptance criteria:
+  # - PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS names hosts (comma-separated, trimmed,
+  #   lower-cased, a port dropped) that force_ssl leaves on plain HTTP, beside
+  #   localhost, which it always leaves (the container's own health check).
+  # - A plain-HTTP request under an excluded host is served, without HSTS;
+  #   the public host is still redirected.
+  test "force_ssl leaves the named internal hosts on plain HTTP" do
+    assert [rewrite_on: [:x_forwarded_proto], hsts: true, exclude: ["localhost", "app", "mcp"]] =
+             RuntimeConfig.force_ssl_opts("true", " App:4000, ,mcp,app")
+  end
+
+  test "with force_ssl on, an excluded internal host is served while the public one redirects",
+       %{conn: conn} do
+    previous = Application.get_env(:portfolixir, :force_ssl)
+    previous_hosts = Application.get_env(:portfolixir, PortfolixirWeb.HostGuard)
+    Application.put_env(:portfolixir, :force_ssl, RuntimeConfig.force_ssl_opts("true", "app"))
+
+    Application.put_env(:portfolixir, PortfolixirWeb.HostGuard,
+      hosts: ["app" | Keyword.fetch!(previous_hosts, :hosts)]
+    )
+
+    on_exit(fn ->
+      Application.put_env(:portfolixir, :force_ssl, previous)
+      Application.put_env(:portfolixir, PortfolixirWeb.HostGuard, previous_hosts)
+    end)
+
+    internal = get(%{conn | host: "app"}, "/health")
+    assert internal.status == 200
+    assert get_resp_header(internal, "strict-transport-security") == []
+
+    public = get(conn, "/health")
+    assert public.status in [301, 302]
+    assert [location] = get_resp_header(public, "location")
+    assert location =~ ~r{^https://www\.example\.com}
   end
 
   test "with force_ssl on, plain HTTP redirects and forwarded https gets HSTS", %{conn: conn} do
