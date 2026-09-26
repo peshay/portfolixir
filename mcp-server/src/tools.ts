@@ -2882,7 +2882,8 @@ const declaredTools: DeclaredTool[] = [
       "retired_target, quote_basis_mismatch, research_notes, policy_rules with errors.policy_rules, " +
       "position_buckets_mismatch, split_ratio_mismatch, split_event_mismatch, split_linearity, or " +
       "identity_unresolvable with errors.unresolvable: an identity of either security — as stored, as its " +
-      "Portfolio Performance import recorded it, or with a former ISIN — that would no longer find the target) " +
+      "Portfolio Performance import recorded it, or with a former ISIN — or of a security merged into either " +
+      "before (merged_stored, merged_imported), that would no longer find the target) " +
       "and errors.guards; a source already merged answers 409 already_merged with errors.merged_into.",
     securityMergePreviewSchema,
     securityMergePreviewZ

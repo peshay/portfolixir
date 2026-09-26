@@ -63,9 +63,11 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   choice, every identity of both securities: the stored one, the one the
   importer's journaled create recorded (its name, ISIN, WKN, ticker and
   currency — a file resolves on the identity it carries, not on identifiers
-  added since), and each stored identity with a former ISIN in place of its
-  ISIN. A security the importer never created is checked on its stored
-  identity. The refusal names each identity, its identifiers and what the
+  added since), each stored identity with a former ISIN in place of its
+  ISIN, and — so a chain of merges keeps O2 — the stored and as-imported
+  identity of every security merged into either before, down the chain, as
+  its merge record's snapshot kept them. A security the importer never
+  created is checked on its stored identity. The refusal names each identity, its identifiers and what the
   ladder would answer instead (obligation O2); in v1 such a merge is refused,
   because generalized name, WKN and ticker aliases are deferred (§15).
 
@@ -631,7 +633,64 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
       # identity each security's importer create recorded.
       catalog: Repo.all(from(s in Security, order_by: s.id)),
       former_isins: IdentifierAliases.by_former_isin(),
-      imported: Map.new(ids, &{&1, imported_identity(&1)})
+      imported: Map.new(ids, &{&1, imported_identity(&1)}),
+      predecessors: Map.new(ids, &{&1, predecessors(&1)})
+    }
+  end
+
+  # §2 O2 across a chain of merges: every security merged into `id` before,
+  # followed through their own predecessors, with the identities its merge
+  # record's snapshot kept — stored, and as its importer create recorded it.
+  # Each resolved to `id` (or to a security merged into it since) when its
+  # merge applied, so each must still resolve once `id` is merged away.
+  defp predecessors(id), do: walk_predecessors([id], MapSet.new([id]), [])
+
+  defp walk_predecessors([], _seen, found), do: Enum.sort_by(found, & &1.id)
+
+  defp walk_predecessors(frontier, seen, found) do
+    records =
+      Repo.all(
+        from(m in MergeRecord,
+          where: m.kind == :security and m.target_id in ^frontier,
+          order_by: m.id
+        )
+      )
+      |> Enum.reject(&MapSet.member?(seen, &1.source_id))
+
+    next = Enum.map(records, & &1.source_id)
+
+    walk_predecessors(
+      next,
+      MapSet.union(seen, MapSet.new(next)),
+      found ++ Enum.map(records, &predecessor/1)
+    )
+  end
+
+  defp predecessor(%MergeRecord{source_id: id, source_snapshot: snapshot}) do
+    %{
+      id: id,
+      stored:
+        SecurityResolver.normalize_ref(%{
+          isin: snapshot["isin"],
+          wkn: snapshot["wkn"],
+          ticker: snapshot["ticker_symbol"],
+          name: snapshot["name"],
+          currency: snapshot["currency_code"]
+        }),
+      imported:
+        case snapshot["as_imported"] do
+          %{} = image ->
+            SecurityResolver.normalize_ref(%{
+              isin: image["isin"],
+              wkn: image["wkn"],
+              ticker: image["ticker"],
+              name: image["name"],
+              currency: image["currency"]
+            })
+
+          _none ->
+            nil
+        end
     }
   end
 
@@ -1141,6 +1200,8 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   defp identity_rank(:stored), do: 0
   defp identity_rank(:imported), do: 1
   defp identity_rank(:former_isin), do: 2
+  defp identity_rank(:merged_stored), do: 3
+  defp identity_rank(:merged_imported), do: 4
 
   defp resolves_to?({:match, %Security{id: id}, _tier}, id), do: true
   defp resolves_to?(_outcome, _target_id), do: false
@@ -1155,8 +1216,30 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
 
   # Every identity through which `security` resolves: the stored one, the
   # one its importer create recorded, and the stored one with each former
-  # ISIN in place of its ISIN — blank ones left out, each once.
+  # ISIN in place of its ISIN — blank ones left out, each once — and, for
+  # every security merged into it before, that security's stored and
+  # as-imported identity (`merged_stored`, `merged_imported`, under the
+  # merged-away security's id).
   defp identity_refs(security, data) do
+    own_identity_refs(security, data) ++ predecessor_refs(security, data)
+  end
+
+  defp predecessor_refs(security, data) do
+    for predecessor <- Map.get(data.predecessors, security.id, []),
+        # The import's identity first: where both are one, it names it.
+        {identity, ref} <- [
+          {:merged_imported, predecessor.imported},
+          {:merged_stored, predecessor.stored}
+        ],
+        ref != nil,
+        not SecurityResolver.blank_ref?(ref),
+        uniq: true do
+      %{security_id: predecessor.id, identity: identity, ref: ref}
+    end
+    |> Enum.uniq_by(&{&1.security_id, &1.ref})
+  end
+
+  defp own_identity_refs(security, data) do
     stored = stored_ref(security)
 
     imported =
@@ -1229,6 +1312,12 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
     do: "identity as its Portfolio Performance import recorded it"
 
   defp identity_text(%{identity: :former_isin, ref: ref}), do: "former ISIN #{ref.isin}"
+
+  defp identity_text(%{identity: :merged_stored}),
+    do: "identity, as its merge into this chain recorded it,"
+
+  defp identity_text(%{identity: :merged_imported}),
+    do: "identity as its Portfolio Performance import recorded it (merged away since)"
 
   defp ref_text(ref) do
     [
@@ -1949,7 +2038,8 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
       events: owned_fingerprints(data.events, &[&1.id, &1.kind, &1.date, &1.updated_at]),
       aliases:
         owned_fingerprints(data.aliases, &[&1.id, &1.former_isin, &1.changed_on, &1.updated_at]),
-      imported: data.imported
+      imported: data.imported,
+      predecessors: data.predecessors
     })
   end
 

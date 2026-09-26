@@ -436,7 +436,12 @@ demselben `plan_digest`, sodass beide denselben Plan sehen.
   gespeicherte Identität, die Identität, die der Portfolio-Performance-Import
   beim Anlegen des Wertpapiers aufgezeichnet hat (Name, ISIN, WKN, Ticker und
   Währung — eine Datei löst über das auf, was sie trägt, nicht über Kennzeichen,
-  die seither dazukamen), und jede frühere ISIN. Ein nur über den Namen
+  die seither dazukamen), jede frühere ISIN und, für jedes Wertpapier, das
+  zuvor in eines der beiden zusammengeführt wurde (und in jene, die ganze
+  Kette hinab), seine gespeicherte und seine importierte Identität
+  (`merged_stored`, `merged_imported`, unter der ID des weggefallenen
+  Wertpapiers): Ein Überlebender, der seinerseits zusammengeführt wird, muss
+  jeden früheren Import weiter zur Historie führen. Ein nur über den Namen
   importiertes Wertpapier, das danach einen Ticker bekam und dessen Name vom
   Ziel abweicht, ist so ein Fall; ebenso ein Name, den ein anderes lebendes
   Wertpapier auch trägt. Jede Ablehnung ist ein `409 Conflict` mit
