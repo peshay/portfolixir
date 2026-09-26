@@ -42,10 +42,11 @@
           {Credo.Check.Readability.UnnecessaryAliasExpansion, []},
           {Credo.Check.Readability.VariableNames, []},
           {Credo.Check.Refactor.CondStatements, []},
-          # Thresholds grandfather the current worst offenders (complexity 15,
+          # Thresholds grandfather the current worst offenders (complexity 13,
           # nesting 4) so the gate blocks NEW debt; tighten back toward the
-          # defaults (9 / 2) as dedicated refactor stories land.
-          {Credo.Check.Refactor.CyclomaticComplexity, [max_complexity: 15]},
+          # defaults (9 / 2) as dedicated refactor stories land (#314; 15 -> 13
+          # in Sprint 16's maintenance lane).
+          {Credo.Check.Refactor.CyclomaticComplexity, [max_complexity: 13]},
           {Credo.Check.Refactor.FunctionArity, []},
           {Credo.Check.Refactor.LongQuoteBlocks, []},
           {Credo.Check.Refactor.MatchInCondition, []},
