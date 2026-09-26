@@ -80,6 +80,52 @@ defmodule Portfolixir.Input.TextTest do
   # character itself (the repository's pre-commit hook refuses them).
   defp c(code_point), do: <<code_point::utf8>>
 
+  # User story (E25 S4, G24; S7, G20):
+  # As the operator whose text a writer refused,
+  # I want the field error to say what it refused, in words,
+  # so that I can fix the value without guessing at characters I cannot
+  # see.
+  #
+  # Acceptance criteria:
+  # - Without options a value is one-line text: a line break is refused as
+  #   a control character or line break.
+  # - An invisible-character refusal names at most five distinct characters
+  #   by code point, then an ellipsis.
+  # - A free-form map's refusal says what is wrong: a key that is not text,
+  #   a value that is not UTF-8, an invisible character.
+  # - A value that is not text (a number) is not the text rule's to judge;
+  #   text that is not UTF-8 is escaped as it is, for check/2 to refuse.
+  test "each refusal says what it refused" do
+    plain =
+      {%{}, %{name: :string}}
+      |> cast(%{"name" => "line\nbreak"}, [:name])
+      |> Text.validate(:name)
+
+    assert [name: {"must not contain control characters or line breaks", _}] = plain.errors
+
+    six = Enum.map_join([0x200B, 0x00AD, 0x2060, 0xFEFF, 0x200F, 0x2066], "x", &c/1)
+    [name: {_message, keys}] = changeset(%{"name" => six}, max: 255).errors
+    assert keys[:characters] == "U+200B, U+00AD, U+2060, U+FEFF, U+200F, …"
+
+    map_error = fn attributes ->
+      {%{}, %{attributes: :map}}
+      |> cast(%{"attributes" => attributes}, [:attributes])
+      |> Text.validate_map(:attributes)
+      |> Map.fetch!(:errors)
+      |> Keyword.fetch!(:attributes)
+      |> elem(0)
+    end
+
+    assert map_error.(%{1 => "one"}) == "must have text keys"
+    assert map_error.(%{"note" => <<0xFF>>}) == "must be valid UTF-8 text"
+
+    assert map_error.(%{"note" => "zero" <> c(0x200B) <> "width"}) ==
+             "must not contain invisible characters (format, bidirectional or tag characters)"
+
+    assert Text.check(42, max: 1) == :ok
+    assert Text.escape_invisible(<<0xFF>> <> c(0x200B)) == <<0xFF>> <> c(0x200B)
+  end
+
   # User story (E25 S7, G20):
   # As an operator whose agent reads what is stored — research entries,
   # rule and event notes, names, imported rows —
