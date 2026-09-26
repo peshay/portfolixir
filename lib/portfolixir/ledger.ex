@@ -511,6 +511,84 @@ defmodule Portfolixir.Ledger do
     |> Enum.sort_by(& &1.portfolio.name)
   end
 
+  @doc """
+  The moving-average figures of every `{securities_account, security}`
+  position over `transactions`: the cost fold of `holdings_for_portfolio/2`
+  (`cost_lots/1`), read per position, with the result its sales realized.
+
+    * `quantity` — the canonical position quantity (`Ledger.Positions`);
+    * `cost_basis` — the lot's cost in the security's own currency, `nil`
+      when a contributing acquisition had no derivable security-currency leg;
+    * `avg_cost` — `cost_basis / quantity`, as the holdings read states it
+      (zero for a non-positive quantity), `nil` with the cost basis;
+    * `realized_result` — the sum, over the position's sales, of the sale's
+      quantity times its price in the security's currency less the cost the
+      sale removed at the running average. Fees and taxes are not in it, as
+      they are not in the cost basis. `nil` when a sale's security-currency
+      price or the cost it removed is not derivable.
+
+  A position's figures depend only on its own bookings and its portfolio's
+  split rows of the security, so a caller passes those — every booking of
+  the positions it wants and the splits — each with its `:security` and
+  `:cash_account` preloaded, as the holdings' own read loads them. The
+  lifecycle depot merge states these before and after (ADR-0050 §7), from
+  this one fold, so the figures a merge promises are the holdings read
+  afterwards.
+  """
+  @spec position_costs([%Transaction{}]) :: %{{term(), term()} => map()}
+  def position_costs(transactions) when is_list(transactions) do
+    ordered = Projection.replay_sort(transactions)
+    accounts = Projection.account_portfolios(ordered)
+    positions = Positions.calculate(ordered)
+
+    {lots, realized} =
+      Enum.reduce(ordered, {%{}, %{}}, fn tx, {lots, realized} ->
+        {apply_cost_effect(tx, lots, accounts), realize(tx, lots, realized)}
+      end)
+
+    (Map.keys(lots) ++ Map.keys(realized))
+    |> Enum.uniq()
+    |> Map.new(fn key ->
+      lot = lot_for(lots, key)
+      quantity = Map.get(positions, key, @zero)
+      cost_basis = if lot.cost_known, do: lot.cost, else: nil
+
+      {key,
+       %{
+         quantity: quantity,
+         cost_basis: cost_basis,
+         avg_cost: cost_basis && average_unit_cost(quantity, cost_basis),
+         realized_result:
+           case Map.get(realized, key, @zero) do
+             :unknown -> nil
+             result -> result
+           end
+       }}
+    end)
+  end
+
+  # A sale's realized result under the moving average: its quantity times its
+  # security-currency price, less the cost `remove_cost/3` takes out of the
+  # lot as it stands before the sale — the same removal the cost fold makes.
+  defp realize(%{type: "sell"} = tx, lots, realized) do
+    key = lot_key(tx)
+    {_lots, removed} = remove_cost(lots, key, tx.quantity)
+    price = native_unit_price(tx, transaction_security_currency(tx))
+
+    result =
+      if removed.cost_known and match?(%Decimal{}, price),
+        do: tx.quantity |> Decimal.mult(price) |> Decimal.sub(removed.cost),
+        else: :unknown
+
+    Map.update(realized, key, result, &add_realized(&1, result))
+  end
+
+  defp realize(_tx, _lots, realized), do: realized
+
+  defp add_realized(:unknown, _result), do: :unknown
+  defp add_realized(_sum, :unknown), do: :unknown
+  defp add_realized(sum, result), do: Decimal.add(sum, result)
+
   # Depot (and owning portfolio) structs per securities-account id, taken from
   # the preloaded transactions. The counter account of a `security_transfer`
   # belongs to the same portfolio (enforced by FK), so the transaction's
