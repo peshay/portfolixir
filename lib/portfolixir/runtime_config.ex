@@ -115,12 +115,15 @@ defmodule Portfolixir.RuntimeConfig do
   proxy's `x-forwarded-proto`, which `PortfolixirWeb.TrustedProxy` keeps only
   from loopback or a trusted proxy (E25 S1, F09).
 
-  `localhost` is always left on plain HTTP (the container's own health
-  check), and so is every host `PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS` names,
-  comma-separated (E25 S7, F23): the internal name the MCP companion calls
-  the app under on the Compose network, where there is no TLS to redirect
-  to. Names are normalised like `allowed_hosts/2` (trimmed, lower-cased, a
-  port dropped); an excluded host gets neither the redirect nor HSTS.
+  The two loopback names, `localhost` and `127.0.0.1`, are always left on
+  plain HTTP — `Plug.SSL`'s own default, which any `:exclude` replaces: the
+  container's own health check, and the standalone MCP companion's default
+  base URL (E25 S7 review round). So is every host
+  `PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS` names, comma-separated (E25 S7,
+  F23): the internal name the MCP companion calls the app under on the
+  Compose network, where there is no TLS to redirect to. Names are
+  normalised like `allowed_hosts/2` (trimmed, lower-cased, a port dropped);
+  an excluded host gets neither the redirect nor HSTS.
   """
   @spec force_ssl_opts(String.t() | nil, String.t() | nil) :: false | keyword()
   def force_ssl_opts(
@@ -131,7 +134,7 @@ defmodule Portfolixir.RuntimeConfig do
   def force_ssl_opts(value, excluded) when is_binary(value) do
     if truthy?(value) do
       hosts =
-        (["localhost"] ++ split_hosts(excluded))
+        (@always_allowed_hosts ++ split_hosts(excluded))
         |> Enum.map(&normalize_host/1)
         |> Enum.reject(&(&1 == ""))
         |> Enum.uniq()
