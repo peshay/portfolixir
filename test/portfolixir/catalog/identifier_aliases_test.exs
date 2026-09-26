@@ -3,6 +3,10 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.IdentifierAlias
+  alias Portfolixir.Catalog.IdentifierAliases
+  alias Portfolixir.Catalog.Security
+  alias Portfolixir.Clock
   alias Portfolixir.Journal
 
   defp create_security!(attrs) do
@@ -343,6 +347,124 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
   # Acceptance criteria:
   # - Deleting a security without transactions/quotes removes its alias rows.
   # - The alias removals are journaled.
+  # User story:
+  # As the operator whose ISIN write, alias correction or alias delete ran
+  # on a row another writer removed after I read it,
+  # I want a not-found answer, never a server error,
+  # so that I reload and see what is there (E25 S6, F49).
+  #
+  # Acceptance criteria:
+  # - An ISIN change of a security deleted since the read answers
+  #   {:error, :not_found} and writes no alias.
+  # - A delete or an update of an alias deleted since answers
+  #   {:error, :not_found}.
+  # - A correction onto a former ISIN another alias holds is refused by the
+  #   unique index as a field error, and changes nothing.
+  describe "a row gone or taken under the write" do
+    test "an ISIN change of a deleted security answers not_found" do
+      security = create_security!(%{isin: "DE0001234565"})
+      {:ok, _} = Catalog.delete_security(Actor.owner_ui(), security)
+
+      assert {:error, :not_found} =
+               Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654329")
+
+      assert Repo.aggregate(IdentifierAlias, :count) == 0
+    end
+
+    test "a delete or an update of a deleted alias answers not_found" do
+      security = create_security!(%{isin: "DE0001234565"})
+
+      {:ok, %{alias: alias_row}} =
+        Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654329")
+
+      assert {:ok, _} = Catalog.delete_identifier_alias(Actor.owner_ui(), alias_row)
+      assert {:error, :not_found} = Catalog.delete_identifier_alias(Actor.owner_ui(), alias_row)
+
+      assert {:error, :not_found} =
+               Catalog.update_identifier_alias(Actor.owner_ui(), alias_row, %{note: "late"})
+    end
+
+    test "a correction onto another alias's former ISIN is a field error" do
+      security = create_security!(%{isin: "DE0001234565"})
+
+      {:ok, %{security: security, alias: first}} =
+        Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654329")
+
+      {:ok, %{alias: second}} =
+        Catalog.record_isin_change(Actor.owner_ui(), security, "DE0001111110")
+
+      assert {:error, %Ecto.Changeset{} = changeset} =
+               Catalog.update_identifier_alias(Actor.owner_ui(), second, %{
+                 former_isin: first.former_isin
+               })
+
+      assert {"is already recorded as a former ISIN", _} = changeset.errors[:former_isin]
+      assert Repo.get!(IdentifierAlias, second.id).former_isin == "DE0007654329"
+    end
+  end
+
+  # User story:
+  # As the operator merging away a security whose ISIN the kept one does not
+  # take (ADR-0050 §9, keep_target_isin),
+  # I want the merged-away ISIN recorded as a former ISIN of the kept
+  # security, and refused while it is anyone's current or former ISIN,
+  # so that an export still carrying it resolves to the kept security, and
+  # never to two.
+  #
+  # Acceptance criteria:
+  # - The ISIN, normalized, becomes one journaled alias row of the kept
+  #   security, changed today unless a date is given; the kept security's
+  #   own ISIN is unchanged.
+  # - An ISIN still live on a security is refused on former_isin, naming
+  #   that security; one recorded as a former ISIN already is refused by the
+  #   unique index; neither writes anything.
+  describe "record_merged_isin/4" do
+    test "records the merged-away ISIN as a former ISIN, dated today by default" do
+      kept = create_security!(%{name: "Kept AG", isin: "DE0001234565"})
+
+      assert {:ok, %IdentifierAlias{} = alias_row} =
+               IdentifierAliases.record_merged_isin(Actor.owner_ui(), kept, " de0007654329 ")
+
+      assert {alias_row.security_id, alias_row.former_isin, alias_row.changed_on} ==
+               {kept.id, "DE0007654329", Clock.today()}
+
+      assert Repo.get!(Security, kept.id).isin == "DE0001234565"
+
+      assert [entry] =
+               Journal.list_entries(
+                 resource_type: "security_identifier_alias",
+                 operation: :create
+               )
+
+      assert entry.after["former_isin"] == "DE0007654329"
+    end
+
+    test "refuses an ISIN that is still live or already a former ISIN" do
+      kept = create_security!(%{name: "Kept AG", isin: "DE0001234565"})
+      live = create_security!(%{name: "Live AG", isin: "DE0007654329"})
+
+      {:ok, %{alias: recorded}} =
+        Catalog.record_isin_change(Actor.owner_ui(), live, "DE0001111110")
+
+      entries = Repo.aggregate(Journal.Entry, :count)
+
+      assert {:error, %Ecto.Changeset{} = changeset} =
+               IdentifierAliases.record_merged_isin(Actor.owner_ui(), kept, "DE0001111110")
+
+      assert {message, _} = changeset.errors[:former_isin]
+      assert message =~ ~s|is still the current ISIN of "Live AG" (security ##{live.id})|
+
+      assert {:error, %Ecto.Changeset{} = changeset} =
+               IdentifierAliases.record_merged_isin(Actor.owner_ui(), kept, recorded.former_isin,
+                 changed_on: ~D[2025-01-02]
+               )
+
+      assert {"is already recorded as a former ISIN", _} = changeset.errors[:former_isin]
+      assert Catalog.list_identifier_aliases(kept) == []
+      assert Repo.aggregate(Journal.Entry, :count) == entries
+    end
+  end
+
   describe "delete_security/2 with aliases" do
     test "removes alias rows with the security, journaled" do
       security = create_security!(%{isin: "DE0001234565"})
