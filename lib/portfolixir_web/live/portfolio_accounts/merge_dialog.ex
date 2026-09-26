@@ -7,7 +7,10 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
   history — another currency, liquidity role or bucket set for a cash
   account, another default bucket set for a depot, another portfolio record
   for either — is disabled and names each reason, so every reason is
-  readable without opening anything. The only legal target is chosen.
+  readable without opening anything. The only legal target is chosen. An
+  account whose name another account of its kind carries — the twins a
+  merge exists for — is told apart as the import preview tells it apart
+  (`PortfolixirWeb.AccountNames`; board 04b's F1 anatomy).
 
   **Step 2** is the preview of exactly that pair, and so of exactly one plan
   digest (`Portfolixir.Lifecycle.preview_cash_merge/2`,
@@ -34,6 +37,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.SecuritiesAccount
+  alias PortfolixirWeb.AccountNames
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveEventGuard
@@ -70,11 +74,15 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
   defp start(socket, source) do
     buckets = Map.new(Buckets.list_buckets(), &{&1.id, &1.name})
     balances = Ledger.cash_balances()
-    candidates = candidates(socket.assigns.kind, source)
+    cash_accounts = Portfolios.list_cash_accounts()
+    depots = Portfolios.list_securities_accounts()
+    kind = socket.assigns.kind
+    candidates = candidates(kind, source, if(kind == "cash", do: cash_accounts, else: depots))
     legal = Enum.filter(candidates, &(&1.reasons == []))
 
     assign(socket,
       source: source,
+      name_tags: AccountNames.tags(cash_accounts, depots),
       bucket_names: buckets,
       balances: balances,
       source_bucket_ids: bucket_ids(source),
@@ -146,7 +154,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
     ~H"""
     <div class="modal-body">
       <div class="merge-route" data-role="merge-route">
-        <b><%= @source.name %></b>
+        <b><%= label(@name_tags, @kind, @source) %></b>
         <span class="merge-route__meta"><%= source_meta(assigns) %></span>
       </div>
       <p :if={@legal == []} class="merge-empty"><%= no_target_text(@kind) %></p>
@@ -167,7 +175,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
               checked={candidate.account.id == @target_id}
             />
             <span class="merge-target__name">
-              <b><%= candidate.account.name %></b>
+              <b><%= label(@name_tags, @kind, candidate.account) %></b>
               <small><%= candidate_meta(@kind, candidate, @bucket_names) %></small>
             </span>
             <span class="merge-target__balance num"><%= candidate_figure(assigns, candidate) %></span>
@@ -189,7 +197,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
               disabled
             />
             <span class="merge-target__name">
-              <b><%= candidate.account.name %></b>
+              <b><%= label(@name_tags, @kind, candidate.account) %></b>
               <small><%= candidate_meta(@kind, candidate, @bucket_names) %></small>
             </span>
             <span class="merge-target__balance num"><%= candidate_figure(assigns, candidate) %></span>
@@ -401,10 +409,10 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
   defp fetch("cash", id), do: Portfolios.get_cash_account(id)
   defp fetch("depot", id), do: Portfolios.get_securities_account(id)
 
-  defp candidates("cash", %CashAccount{} = source) do
+  defp candidates("cash", %CashAccount{} = source, accounts) do
     source_buckets = bucket_ids(source)
 
-    for account <- Portfolios.list_cash_accounts(), account.id != source.id do
+    for account <- accounts, account.id != source.id do
       buckets = bucket_ids(account)
 
       reasons =
@@ -420,10 +428,10 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
     end
   end
 
-  defp candidates("depot", %SecuritiesAccount{} = source) do
+  defp candidates("depot", %SecuritiesAccount{} = source, accounts) do
     source_buckets = bucket_ids(source)
 
-    for account <- Portfolios.list_securities_accounts(), account.id != source.id do
+    for account <- accounts, account.id != source.id do
       buckets = bucket_ids(account)
 
       reasons =
@@ -450,6 +458,10 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
   end
 
   # -- copy -------------------------------------------------------------------------
+
+  # The account's name, with what tells it apart from a same-named one.
+  defp label(tags, "cash", account), do: AccountNames.label(tags, :cash, account)
+  defp label(tags, "depot", account), do: AccountNames.label(tags, :depot, account)
 
   defp step_label(:target), do: gettext("Step 1 of 2 · Target")
   defp step_label(:preview), do: gettext("Step 2 of 2 · Preview")

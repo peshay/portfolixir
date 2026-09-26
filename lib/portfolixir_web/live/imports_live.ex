@@ -10,6 +10,7 @@ defmodule PortfolixirWeb.ImportsLive do
   alias Portfolixir.Imports.Preview
   alias Portfolixir.Imports.PreviewStore
   alias Portfolixir.Portfolios
+  alias PortfolixirWeb.AccountNames
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
@@ -1112,69 +1113,14 @@ defmodule PortfolixirWeb.ImportsLive do
 
   # --- same-named accounts told apart (#884 F1, board 04b) ---
 
-  # Per account whose name another account of its kind also carries, what
-  # tells it apart: the first of its features whose values differ across the
-  # accounts of that name. A cash account: its linked depots, its currency,
-  # its creation date, its number; a depot: its cash account, its creation
-  # date, its number. Accounts with a unique name carry none.
-  defp option_tags(existing_cash, existing_depots) do
-    depots_by_cash = Enum.group_by(existing_depots, & &1.cash_account_id, & &1.name)
-    cash_names = Map.new(existing_cash, &{&1.id, &1.name})
+  # The tag rule is shared with the merge flow's first step
+  # (PortfolixirWeb.AccountNames), so one account reads the same everywhere
+  # the operator picks it.
+  defp option_tags(existing_cash, existing_depots),
+    do: AccountNames.tags(existing_cash, existing_depots)
 
-    cash_features = [
-      fn c ->
-        case depots_by_cash |> Map.get(c.id, []) |> Enum.sort() do
-          [] -> gettext("no depot")
-          names -> gettext("at %{depots}", depots: Enum.join(names, ", "))
-        end
-      end,
-      & &1.currency_code,
-      &created_tag/1,
-      &number_tag/1
-    ]
-
-    depot_features = [
-      &gettext("with %{cash}", cash: Map.get(cash_names, &1.cash_account_id, "—")),
-      &created_tag/1,
-      &number_tag/1
-    ]
-
-    %{cash: tags(existing_cash, cash_features), depot: tags(existing_depots, depot_features)}
-  end
-
-  defp tags(accounts, features) do
-    accounts
-    |> Enum.group_by(& &1.name)
-    |> Enum.flat_map(fn
-      {_name, [_single]} ->
-        []
-
-      {_name, same} ->
-        feature =
-          Enum.find(features, List.last(features), fn feature ->
-            values = Enum.map(same, feature)
-            length(Enum.uniq(values)) == length(values)
-          end)
-
-        Enum.map(same, &{&1.id, feature.(&1)})
-    end)
-    |> Map.new()
-  end
-
-  defp created_tag(account),
-    do:
-      gettext("created %{date}",
-        date: account.inserted_at |> NaiveDateTime.to_date() |> Date.to_iso8601()
-      )
-
-  defp number_tag(account), do: gettext("no. %{id}", id: account.id)
-
-  defp account_label(option_tags, kind, account) do
-    case Map.get(option_tags[kind], account.id) do
-      nil -> account.name
-      tag -> "#{account.name} · #{tag}"
-    end
-  end
+  defp account_label(option_tags, kind, account),
+    do: AccountNames.label(option_tags, kind, account)
 
   # --- the row's parts ---
 

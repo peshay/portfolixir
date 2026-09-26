@@ -611,7 +611,10 @@ einem Dialog:
    Wählbar ist nur ein Konto mit derselben Währung, derselben
    Liquiditätsrolle und denselben Buckets — bei einem Depot mit denselben
    Standard-Buckets. Die übrigen stehen unter *Nicht wählbar*, jedes mit
-   seinem Grund, sodass klar ist, was zuerst anzugleichen ist.
+   seinem Grund, sodass klar ist, was zuerst anzugleichen ist. Zwei Konten
+   gleichen Namens sind unterscheidbar wie beim Import: ein
+   Verrechnungskonto an seinen verknüpften Depots („· bei Depot 1“), ein
+   Depot an seinem Verrechnungskonto („· mit Giro“).
 2. **Vorschau.** Noch ist nichts geschrieben. Für Geldkonten zeigt die
    Vorschau beide Salden und ihre Summe, die Buchungen, die umziehen, die
    Umbuchungen zwischen den beiden, die entfallen (sie heben sich auf,

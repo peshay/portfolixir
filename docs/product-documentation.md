@@ -563,7 +563,10 @@ everything. It takes two steps in one dialog:
    listed. Only an account with the same currency, the same liquidity role
    and the same buckets can be picked — for a depot, the same default
    buckets. The others are listed under *Not selectable*, each with its
-   reason, so it is clear what to align first.
+   reason, so it is clear what to align first. Two accounts of the same
+   name are told apart the way the import tells them apart: a cash account
+   by its linked depots ("· at Depot 1"), a depot by its cash account
+   ("· with Giro").
 2. **Preview.** Nothing is written yet. For cash accounts the preview shows
    both balances and their sum, the bookings that move, the transfers
    between the two that are dropped (they cancel out once the two are one),

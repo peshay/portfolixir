@@ -682,7 +682,95 @@ defmodule PortfolixirWeb.AccountsMergeLiveTest do
     end
   end
 
+  describe "same-named accounts" do
+    # User story (the closing act, #328; board 04b's F1 anatomy):
+    # As the operator merging one of two accounts that share a name from
+    # before the name guard,
+    # I want step 1 to tell same-named accounts apart the way the import
+    # preview does,
+    # so that I choose the target by what distinguishes it instead of
+    # guessing between two identical lines.
+    #
+    # Acceptance criteria:
+    # - A cash account whose name another cash account carries adds, after a
+    #   middle dot, its linked depots ("· at Depot 2"), on the source's line
+    #   and on its target line; a depot of a shared name adds its cash
+    #   account ("· with Giro").
+    # - An account with a unique name reads as before.
+    test "step 1 tells same-named cash accounts apart as the import preview does", ctx do
+      first = legacy_cash!(ctx.portfolio, "Verrechnungskonto")
+      second = legacy_cash!(ctx.portfolio, "Verrechnungskonto")
+      depot!(ctx.portfolio, first, "Depot 1")
+      depot!(ctx.portfolio, second, "Depot 2")
+      unique = cash!(ctx.portfolio, "Tagesgeld")
+
+      {:ok, view, _html} = live(ctx.conn, "/portfolios")
+      open_merge(view, first)
+
+      assert view |> element("#merge-dialog [data-role='merge-route'] b") |> render() =~
+               "Verrechnungskonto · at Depot 1"
+
+      assert target_name(view, second) =~ "Verrechnungskonto · at Depot 2"
+      assert target_name(view, unique) =~ "<b>Tagesgeld</b>"
+    end
+
+    test "step 1 tells same-named depots apart by their cash account", ctx do
+      giro = cash!(ctx.portfolio, "Giro")
+      tagesgeld = cash!(ctx.portfolio, "Tagesgeld")
+      source = depot!(ctx.portfolio, giro, "Altdepot")
+      a = legacy_depot!(ctx.portfolio, giro, "Sparplan")
+      b = legacy_depot!(ctx.portfolio, tagesgeld, "Sparplan")
+
+      {:ok, view, _html} = live(ctx.conn, "/portfolios")
+      open_merge(view, source)
+
+      assert view |> element("#merge-dialog [data-role='merge-route'] b") |> render() =~
+               "<b>Altdepot</b>"
+
+      assert target_name(view, a) =~ "Sparplan · with Giro"
+      assert target_name(view, b) =~ "Sparplan · with Tagesgeld"
+    end
+  end
+
   # -- helpers ----------------------------------------------------------------
+
+  defp target_name(view, account) do
+    view
+    |> element("#merge-dialog [data-role='merge-target'][data-id='#{account.id}'] b")
+    |> render()
+  end
+
+  # Two accounts of one name, as stored before the name guard (ADR-0050 §4:
+  # existing twins are not migrated): inserted journaled, past the guard.
+  defp legacy_cash!(portfolio, name) do
+    legacy!(
+      %Portfolixir.Portfolios.CashAccount{},
+      %{portfolio_id: portfolio.id, name: name, currency_code: "EUR"},
+      "cash_account"
+    )
+  end
+
+  defp legacy_depot!(portfolio, cash, name) do
+    legacy!(
+      %Portfolixir.Portfolios.SecuritiesAccount{},
+      %{portfolio_id: portfolio.id, cash_account_id: cash.id, name: name},
+      "securities_account"
+    )
+  end
+
+  defp legacy!(struct, attrs, resource_type) do
+    {:ok, %{account: account}} =
+      Ecto.Multi.new()
+      |> Ecto.Multi.insert(:account, Ecto.Changeset.change(struct, attrs))
+      |> Journal.record(Actor.owner_ui(),
+        resource_type: resource_type,
+        operation: :create,
+        source: :account
+      )
+      |> Repo.transaction()
+
+    account
+  end
 
   defp open_merge(view, %Portfolixir.Portfolios.CashAccount{id: id}) do
     view |> element("#cash-kebab-#{id}") |> render_click()

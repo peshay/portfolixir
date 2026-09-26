@@ -2119,7 +2119,11 @@ adds. Built by Sprint 16 Lane L5a in
   class 3 (tint plus a 3 px leading edge). A basis line states the rule
   ("Selectable: same currency, same liquidity role, same buckets." — "same
   default buckets" for a depot). With no legal target the step says "No
-  account meets the conditions." and the foot offers only Close.
+  account meets the conditions." and the foot offers only Close. An account
+  whose name another account of its kind carries — the twins a merge exists
+  for — is named, on the source line and on its target row, the way the
+  import preview's options name it (F1 below): "Verrechnungskonto · at
+  Depot 1", a depot "Sparplan · with Giro" (the closing act, #328).
 - **Step 2 — the preview of exactly that pair, cash.** `.merge-route`
   "Source → Target" with the target's currency and role; the balances as a
   sum in `.merge-identity` (source + target = target after, the result
