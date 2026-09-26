@@ -72,6 +72,9 @@ defmodule Portfolixir.Lifecycle.CashMerge do
 
   import Ecto.Query
 
+  import Portfolixir.Lifecycle.MergeFlow,
+    only: [guard: 4, guard: 5, passed?: 1, each: 2, jsonable: 1]
+
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Clock
@@ -81,6 +84,7 @@ defmodule Portfolixir.Lifecycle.CashMerge do
   alias Portfolixir.Lifecycle
   alias Portfolixir.Lifecycle.AccountNames
   alias Portfolixir.Lifecycle.Delete
+  alias Portfolixir.Lifecycle.MergeFlow
   alias Portfolixir.Lifecycle.MergeRecord
   alias Portfolixir.Lifecycle.MergeWriter
   alias Portfolixir.Lifecycle.PlanDigest
@@ -91,7 +95,7 @@ defmodule Portfolixir.Lifecycle.CashMerge do
   @zero Decimal.new("0")
   @anchor "balance_adjustment"
 
-  @type guard :: %{code: atom(), check: String.t(), passed: boolean(), detail: String.t()}
+  @type guard :: MergeFlow.guard()
 
   @type refusal ::
           :not_found
@@ -147,35 +151,12 @@ defmodule Portfolixir.Lifecycle.CashMerge do
           {:ok, MergeRecord.t(), :applied | :already_applied} | {:error, refusal()}
   def apply(%Actor{} = actor, source_id, target_id, params)
       when is_integer(source_id) and is_integer(target_id) and is_map(params) do
-    with {:ok, digest} <- digest_param(params),
-         {:ok, collapse} <- collapse_param(params) do
-      case prior_merge(source_id, target_id) do
+    with {:ok, digest, collapse} <- MergeFlow.consent(params) do
+      case MergeFlow.prior_merge(:cash_account, source_id, target_id) do
         :none -> transact(actor, source_id, target_id, digest, collapse)
         {:ok, record} -> {:ok, record, :already_applied}
         {:error, _refusal} = refused -> refused
       end
-    end
-  end
-
-  defp digest_param(params) do
-    case Map.get(params, :plan_digest) do
-      digest when is_binary(digest) and digest != "" -> {:ok, digest}
-      _missing -> {:error, {:invalid, :plan_digest, "can't be blank"}}
-    end
-  end
-
-  defp collapse_param(params) do
-    case Map.get(params, :collapse_key_equal) do
-      value when is_boolean(value) or is_nil(value) -> {:ok, value}
-      _other -> {:error, {:invalid, :collapse_key_equal, "must be true or false"}}
-    end
-  end
-
-  defp prior_merge(source_id, target_id) do
-    case Lifecycle.merge_of(:cash_account, source_id) do
-      nil -> :none
-      %MergeRecord{target_id: ^target_id} = record -> {:ok, record}
-      %MergeRecord{} = record -> {:error, {:already_merged, record}}
     end
   end
 
@@ -223,7 +204,7 @@ defmodule Portfolixir.Lifecycle.CashMerge do
   # The source vanished between the pre-check and the lock: a concurrent
   # merge of it committed first, or it was deleted.
   defp source_gone(source_id, target_id) do
-    case prior_merge(source_id, target_id) do
+    case MergeFlow.prior_merge(:cash_account, source_id, target_id) do
       {:ok, record} -> {:already_applied, record}
       {:error, refusal} -> Repo.rollback(refusal)
       :none -> Repo.rollback(:not_found)
@@ -233,7 +214,7 @@ defmodule Portfolixir.Lifecycle.CashMerge do
   defp merge_locked(actor, source, target_id, target, digest, collapse) do
     with {:ok, _preview, plan} <- build(source, target_id, target, true),
          :ok <- same_digest(plan, digest),
-         {:ok, collapse?} <- choose(plan, collapse),
+         {:ok, collapse?} <- MergeFlow.choose(plan.pairs, collapse),
          {:ok, record} <- execute(actor, plan, collapse?, collapse) do
       {:applied, record}
     else
@@ -243,11 +224,6 @@ defmodule Portfolixir.Lifecycle.CashMerge do
 
   defp same_digest(%{digest: digest}, digest), do: :ok
   defp same_digest(_plan, _approved), do: {:error, :plan_changed}
-
-  defp choose(%{pairs: [_ | _] = pairs}, nil),
-    do: {:error, {:choice_required, :collapse_key_equal, length(pairs)}}
-
-  defp choose(_plan, collapse), do: {:ok, collapse == true}
 
   defp fresh_preview(source_id, target_id) do
     case preview(source_id, target_id) do
@@ -276,8 +252,6 @@ defmodule Portfolixir.Lifecycle.CashMerge do
       {:error, {:refused, guards}}
     end
   end
-
-  defp passed?(guards), do: Enum.all?(guards, & &1.passed)
 
   defp basic_guards(source, target_id, nil) do
     [
@@ -350,12 +324,6 @@ defmodule Portfolixir.Lifecycle.CashMerge do
       survivor -> " (it was merged into cash account ##{survivor})"
     end
   end
-
-  defp guard(code, check, passed?, detail),
-    do: %{code: code, check: check, passed: passed?, detail: detail}
-
-  defp guard(code, check, true, passed, _refused), do: guard(code, check, true, passed)
-  defp guard(code, check, false, _passed, refused), do: guard(code, check, false, refused)
 
   # A balance anchor that still carries an import hash — a row re-typed
   # before this release — is refused an update by the NOT VALID kind check,
@@ -1055,15 +1023,6 @@ defmodule Portfolixir.Lifecycle.CashMerge do
          do: {:ok, appended, not_kept}
   end
 
-  defp each(items, fun) do
-    Enum.reduce_while(items, :ok, fn item, :ok ->
-      case fun.(item) do
-        :ok -> {:cont, :ok}
-        {:error, _reason} = error -> {:halt, error}
-      end
-    end)
-  end
-
   # --- the record (§12) -----------------------------------------------------------------
 
   defp source_snapshot(plan) do
@@ -1145,17 +1104,4 @@ defmodule Portfolixir.Lifecycle.CashMerge do
       linearity: %{dates_checked: length(plan.check_dates)}
     })
   end
-
-  defp jsonable(%Decimal{} = value), do: Decimal.to_string(Decimal.normalize(value), :normal)
-  defp jsonable(%Date{} = value), do: Date.to_iso8601(value)
-  defp jsonable(%NaiveDateTime{} = value), do: NaiveDateTime.to_iso8601(value)
-  defp jsonable(%DateTime{} = value), do: DateTime.to_iso8601(value)
-
-  defp jsonable(map) when is_map(map),
-    do: Map.new(map, fn {key, value} -> {to_string(key), jsonable(value)} end)
-
-  defp jsonable(list) when is_list(list), do: Enum.map(list, &jsonable/1)
-  defp jsonable(value) when is_boolean(value) or is_nil(value), do: value
-  defp jsonable(value) when is_atom(value), do: Atom.to_string(value)
-  defp jsonable(value), do: value
 end

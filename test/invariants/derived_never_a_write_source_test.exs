@@ -94,6 +94,7 @@ defmodule Portfolixir.Invariants.DerivedNeverAWriteSourceTest do
   # the gate.
   @merge_sources ~w(
     lib/portfolixir/lifecycle/cash_merge.ex
+    lib/portfolixir/lifecycle/merge_flow.ex
     lib/portfolixir/lifecycle/merge_writer.ex
     lib/portfolixir/lifecycle/plan_digest.ex
   )
