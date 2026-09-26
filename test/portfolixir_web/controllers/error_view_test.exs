@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.ErrorViewTest do
 
   import ExUnit.CaptureLog
 
+  alias Phoenix.HTML.Safe
   alias Phoenix.LiveView.Rendered
   alias PortfolixirWeb.ErrorView
 
@@ -275,7 +276,7 @@ defmodule PortfolixirWeb.ErrorViewTest do
   # The one line the error page says: its status and reason. A direct render
   # is a template, what the endpoint sends is its HTML.
   defp status_line(%Rendered{} = rendered),
-    do: rendered |> Phoenix.HTML.Safe.to_iodata() |> IO.iodata_to_binary() |> status_line()
+    do: rendered |> Safe.to_iodata() |> IO.iodata_to_binary() |> status_line()
 
   defp status_line(body) when is_binary(body) do
     body
