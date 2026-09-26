@@ -5,7 +5,9 @@
 # statement, research-log entries, security events, buckets and a view, policy
 # rules in every state, a cross-currency buy, position targets in one
 # category, and the lifecycle merges: merged and renamed accounts, a merged
-# depot, a merged security, and one refused merge of each kind.
+# depot, a merged security, and a refused merge of each kind a seed can reach
+# (the two legacy import-hash states need a database from before the
+# import-hash check and are left to the tests).
 # Synthetic all the way down; no real data (AGENTS.md → Privacy And
 # Disclosure).
 #
@@ -702,10 +704,19 @@ platform_targets =
 #     name), a depot merged into another, and a duplicate security merged
 #     with its ISIN adopted and its duplicates removed (the survivor names its
 #     former ISIN and the merge). Left un-merged and ready to try, one refusal
-#     of each kind: another currency, research notes on the source, a policy
-#     rule reading the source, and a split one side lacks. Every scenario is
-#     created only when its survivor is not there yet, so a re-run adds
-#     nothing; a merge is never replayed. Synthetic names and ISINs only.
+#     of each kind a seed can reach: another currency, research notes on the
+#     source, a policy rule reading the source, and a split one side lacks
+#     (14e–14h); a position whose buckets differ between two depots, a
+#     name-only security whose name would stop resolving, two split ratios on
+#     one day, and a set balance a buy booked without its amount makes
+#     unstorable (14i–14l); and, in step 1 of "Merge into…" on Kestrel, a
+#     benchmark, a retired and a raw-quote look-alike, each disabled with its
+#     reason (14m). Not seeded, because they need a database from before the
+#     import-hash check: a set balance or a split that still carries an
+#     import hash (legacy_hashed_anchor, legacy_hashed_split; the tests pin
+#     both). Every scenario is created only when its survivor is not there
+#     yet, so a re-run adds nothing; a merge is never replayed. Synthetic
+#     names and ISINs only.
 alias Portfolixir.Lifecycle
 
 cash_named = fn name -> Enum.find(Portfolios.list_cash_accounts(), &(&1.name == name)) end
@@ -830,9 +841,11 @@ if depot_named.("Depot 1") == nil do
       name: "Depot 2"
     })
 
-  kestrel = new_security.("Kestrel Industrial Group NV", "XS0000000041", "EUR")
-  buy.({depot_1, cash_1}, kestrel, "20", "40.00", ~D[2025-02-10])
-  buy.({depot_2, cash_2}, kestrel, "10", "42.50", ~D[2025-03-12])
+  # Its own synthetic name: a second "Kestrel Industrial Group NV" would make
+  # the name lookup of block 12 pick either on a re-run (review finding M-2).
+  cobalt = new_security.("Cobalt Ridge Logistics SE", "XS0000000041", "EUR")
+  buy.({depot_1, cash_1}, cobalt, "20", "40.00", ~D[2025-02-10])
+  buy.({depot_2, cash_2}, cobalt, "10", "42.50", ~D[2025-03-12])
 
   {:ok, preview} = Lifecycle.preview_depot_merge(depot_2.id, depot_1.id)
 
@@ -940,6 +953,140 @@ if security_by_isin.("XS0000000108") == nil do
       split_ratio_numerator: 2,
       split_ratio_denominator: 1
     })
+end
+
+# 14i. Ready to try, refused in step 2: a position whose buckets differ. Both
+#      depots default to no bucket, but Helios in Depot Süd carries an
+#      override; merging Süd into Nord would move Nord's history between views
+#      (board 02, "Abgelehnt · Depot").
+if depot_named.("Depot Nord") == nil do
+  cash_nord = new_cash.("Broker Nord Verrechnung")
+  cash_sued = new_cash.("Broker Süd Verrechnung")
+  cash_booking.(cash_nord, "deposit", "2000.00", ~D[2025-01-02], %{})
+  cash_booking.(cash_sued, "deposit", "2000.00", ~D[2025-01-02], %{})
+
+  {:ok, nord} =
+    Portfolios.create_securities_account(owner, %{
+      portfolio_id: portfolio.id,
+      cash_account_id: cash_nord.id,
+      name: "Depot Nord"
+    })
+
+  {:ok, sued} =
+    Portfolios.create_securities_account(owner, %{
+      portfolio_id: portfolio.id,
+      cash_account_id: cash_sued.id,
+      name: "Depot Süd"
+    })
+
+  helios = new_security.("Helios Solar Systems SE", "XS0000000124", "EUR")
+  buy.({nord, cash_nord}, helios, "15", "18.00", ~D[2025-02-12])
+  buy.({sued, cash_sued}, helios, "5", "19.20", ~D[2025-03-14])
+  :ok = Buckets.set_position_override(owner, sued, helios, [bucket.("Spekulativ").id])
+end
+
+# 14j. Ready to try, refused in step 2: a name that would stop resolving. Two
+#      securities without an ISIN, one named "… Class B": merging it into the
+#      other leaves nothing under its name, so an import naming it would
+#      create it again (identity_unresolvable, ADR-0050 §9).
+if find_security.("Alder Creek Timber Fund Class B") == nil do
+  {:ok, alder} =
+    Catalog.create_security(owner, %{
+      name: "Alder Creek Timber Fund",
+      currency_code: "EUR",
+      asset_class: "fund"
+    })
+
+  {:ok, alder_b} =
+    Catalog.create_security(owner, %{
+      name: "Alder Creek Timber Fund Class B",
+      currency_code: "EUR",
+      asset_class: "fund"
+    })
+
+  buy.(demo, alder, "30", "11.20", ~D[2025-03-03])
+  buy.(demo, alder_b, "10", "11.40", ~D[2025-04-03])
+end
+
+# 14k. Ready to try, refused in step 2: two split ratios on one day. Both
+#      copies of Juniper Rail split on 2025-06-02, one 2:1 and one 3:1; the
+#      remedy is to delete the split with the wrong ratio.
+if security_by_isin.("XS0000000132") == nil do
+  juniper = new_security.("Juniper Rail AG", "XS0000000132", "EUR")
+  juniper_copy = new_security.("Juniper Rail AG", "XS0000000140", "EUR")
+  buy.(demo, juniper, "9", "33.00", ~D[2025-01-21])
+  buy.(demo, juniper_copy, "3", "33.40", ~D[2025-02-21])
+
+  for {security, numerator} <- [{juniper, 2}, {juniper_copy, 3}] do
+    {:ok, _} =
+      Ledger.create_transaction(owner, %{
+        portfolio_id: portfolio.id,
+        security_id: security.id,
+        type: "split",
+        date: ~D[2025-06-02],
+        currency_code: "EUR",
+        split_ratio_numerator: numerator,
+        split_ratio_denominator: 1
+      })
+  end
+end
+
+# 14l. Ready to try, refused in step 2: a set balance the amount column cannot
+#      hold. A savings-plan buy on the old account was booked without its
+#      amount (0.333333333333 shares at 3.333333), and the new account carries
+#      a set balance after it: merging the old into the new is refused, naming
+#      the set balance and the buy (board 14 ②).
+if cash_named.("Sparplan Konto") == nil do
+  plan_old = new_cash.("Sparplan Konto (alt)")
+  plan_new = new_cash.("Sparplan Konto")
+  cash_booking.(plan_old, "deposit", "100.00", ~D[2025-01-02], %{})
+
+  {:ok, plan_depot} =
+    Portfolios.create_securities_account(owner, %{
+      portfolio_id: portfolio.id,
+      cash_account_id: plan_old.id,
+      name: "Sparplan Depot"
+    })
+
+  {:ok, fraction_fund} =
+    Catalog.create_security(owner, %{
+      name: "Birchwood Global Savings Fund",
+      isin: "XS0000000157",
+      currency_code: "EUR",
+      asset_class: "fund"
+    })
+
+  {:ok, _} =
+    Ledger.create_transaction(owner, %{
+      portfolio_id: portfolio.id,
+      securities_account_id: plan_depot.id,
+      cash_account_id: plan_old.id,
+      security_id: fraction_fund.id,
+      type: "buy",
+      date: ~D[2025-01-10],
+      quantity: "0.333333333333",
+      price: "3.333333",
+      currency_code: "EUR"
+    })
+
+  {:ok, _} = Ledger.set_cash_balance(owner, plan_new, %{date: ~D[2025-02-01], amount: "100.00"})
+end
+
+# 14m. Step 1 of "Merge into…" on Kestrel Industrial Group NV: three
+#      look-alikes, each disabled as a target with its reason — a benchmark,
+#      a retired security, and one whose synced quotes are treated as raw
+#      while Kestrel has quotes.
+for {name, flags} <- [
+      {"Kestrel Industrial Group NV Index", %{is_benchmark: true}},
+      {"Kestrel Industrial Group NV (alt)", %{is_retired: true}},
+      {"Kestrel Industrial Group NV (roh)", %{treat_quotes_as_raw: true}}
+    ],
+    find_security.(name) == nil do
+  {:ok, _} =
+    Catalog.create_security(
+      owner,
+      Map.merge(%{name: name, currency_code: "EUR", asset_class: "equity"}, flags)
+    )
 end
 
 IO.puts("review seed done (timber position: #{timber_state})")
