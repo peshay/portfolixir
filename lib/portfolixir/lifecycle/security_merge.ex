@@ -1476,14 +1476,33 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   defp membership_guard(base) do
     refused = Enum.filter(base.memberships, &(&1.action in [:refuse, :refuse_carry]))
 
-    guard(
-      :position_buckets_mismatch,
+    :position_buckets_mismatch
+    |> guard(
       "same view membership for every position",
       refused == [],
       "every position keeps its effective buckets",
       Enum.map_join(refused, " ", &membership_detail/1)
     )
+    |> put_failed(
+      :positions,
+      Enum.map(
+        refused,
+        &Map.take(&1, [
+          :securities_account_id,
+          :securities_account_name,
+          :source_buckets,
+          :target_buckets,
+          :action
+        ])
+      )
+    )
   end
+
+  # A refusal names what it refuses as data beside its words, for a surface
+  # that says it in the operator's language (L5b); a passing guard carries
+  # nothing more, so no preview and no plan digest changes.
+  defp put_failed(%{passed: true} = guard, _key, _value), do: guard
+  defp put_failed(guard, key, value), do: Map.put(guard, key, value)
 
   defp membership_detail(%{action: :refuse} = entry) do
     "In depot \"#{entry.securities_account_name}\" the source's position sits in the buckets " <>
@@ -1501,8 +1520,8 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   end
 
   defp split_ratio_guard(%{splits: %{conflicts: conflicts}} = base) do
-    guard(
-      :split_ratio_mismatch,
+    :split_ratio_mismatch
+    |> guard(
       "no split of another ratio on the same day in the same portfolio",
       conflicts == [],
       "every same-day split of both in one portfolio has one ratio",
@@ -1510,6 +1529,18 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
         "On #{split.date} in portfolio \"#{portfolio_name(base, split.portfolio_id)}\" the " <>
           "source splits #{ratio_text(split)} and the target #{ratio_text(twin)}: one split " <>
           "cannot carry two ratios. Delete the wrong split row, then preview again."
+      end)
+    )
+    |> put_failed(
+      :conflicts,
+      Enum.map(conflicts, fn {split, twin} ->
+        %{
+          date: split.date,
+          portfolio_id: split.portfolio_id,
+          portfolio_name: portfolio_name(base, split.portfolio_id),
+          source_ratio: ratio_view(ratio(split)),
+          target_ratio: ratio_view(ratio(twin))
+        }
       end)
     )
   end
@@ -1523,31 +1554,33 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
         lacking(base, MapSet.difference(t_events, s_events), :source) ++
         lacking(base, MapSet.difference(s_events, t_events), :target)
 
-    guard(
-      :split_event_mismatch,
+    :split_event_mismatch
+    |> guard(
       "one split-event set for the merged security",
       issues == [],
       "the merged split events rebase no history",
-      Enum.join(issues, " ")
+      Enum.map_join(issues, " ", &issue_text/1)
     )
+    |> put_failed(:issues, issues)
   end
 
   # Two ratios on one day, whatever portfolios carry them.
   defp two_ratios(s_events, t_events) do
     for {date, ratios} <- group_events(MapSet.union(s_events, t_events)),
         length(ratios) > 1 do
-      by_side =
-        Enum.map_join(ratios, " and ", fn ratio ->
-          sides =
-            [{s_events, "the source"}, {t_events, "the target"}]
-            |> Enum.filter(fn {events, _side} -> MapSet.member?(events, {date, ratio}) end)
-            |> Enum.map_join(" and ", &elem(&1, 1))
+      %{
+        kind: :two_ratios,
+        date: date,
+        ratios:
+          Enum.map(ratios, fn ratio ->
+            sides =
+              for {events, side} <- [{s_events, :source}, {t_events, :target}],
+                  MapSet.member?(events, {date, ratio}),
+                  do: side
 
-          "#{event_ratio(ratio)} (#{sides})"
-        end)
-
-      "On #{date} the securities split #{by_side}: one event cannot carry two ratios. " <>
-        "Delete the wrong split row, then preview again."
+            %{ratio: ratio_view(ratio), sides: sides}
+          end)
+      }
     end
   end
 
@@ -1563,32 +1596,52 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   defp lacking(base, events, side) do
     security = if side == :source, do: base.source, else: base.target
     rows = if side == :source, do: base.s_all, else: base.t_all
-    other = if side == :source, do: "target", else: "source"
     first_row = rows |> Enum.map(& &1.date) |> Enum.min(Date, fn -> nil end)
     {_count, first_quote} = Map.get(base.data.quotes, security.id, {0, nil})
 
     for {date, ratio} <- Enum.sort_by(events, fn {date, _ratio} -> Date.to_erl(date) end),
         earlier = earlier_record(first_row, first_quote, date),
         earlier != nil do
-      "The #{other}'s split of #{date} (#{event_ratio(ratio)}) is not a split of the " <>
-        "#{side}, which has #{earlier} before it: the merged split events would rebase the " <>
-        "#{side}'s history. Book the split on the #{side} first (ADR-0028 §1), or delete the " <>
-        "wrong split row, then preview again."
+      %{kind: :lacking, side: side, date: date, ratio: ratio_view(ratio), earlier: earlier}
     end
   end
 
   defp earlier_record(first_row, first_quote, date) do
     cond do
       first_row != nil and Date.compare(first_row, date) == :lt ->
-        "a booking of #{first_row}"
+        %{kind: :booking, date: first_row}
 
       first_quote != nil and Date.compare(first_quote, date) == :lt ->
-        "a quote of #{first_quote}"
+        %{kind: :quote, date: first_quote}
 
       true ->
         nil
     end
   end
+
+  defp issue_text(%{kind: :two_ratios, date: date, ratios: ratios}) do
+    by_side =
+      Enum.map_join(ratios, " and ", fn %{ratio: ratio, sides: sides} ->
+        "#{view_ratio_text(ratio)} (#{Enum.map_join(sides, " and ", &"the #{&1}")})"
+      end)
+
+    "On #{date} the securities split #{by_side}: one event cannot carry two ratios. " <>
+      "Delete the wrong split row, then preview again."
+  end
+
+  defp issue_text(%{kind: :lacking, side: side, date: date, ratio: ratio, earlier: earlier}) do
+    other = if side == :source, do: "target", else: "source"
+
+    "The #{other}'s split of #{date} (#{view_ratio_text(ratio)}) is not a split of the " <>
+      "#{side}, which has #{earlier_text(earlier)} before it: the merged split events would " <>
+      "rebase the #{side}'s history. Book the split on the #{side} first (ADR-0028 §1), or " <>
+      "delete the wrong split row, then preview again."
+  end
+
+  defp earlier_text(%{kind: :booking, date: date}), do: "a booking of #{date}"
+  defp earlier_text(%{kind: :quote, date: date}), do: "a quote of #{date}"
+
+  defp view_ratio_text(%{numerator: p, denominator: q}), do: "#{p}:#{q}"
 
   # Only once the ratios agree: a conflict refuses before anything is
   # paired, and the outcomes are not computed.
@@ -1602,14 +1655,27 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
           do: {collapse?, failure}
 
     [
-      guard(
-        :split_linearity,
+      :split_linearity
+      |> guard(
         "no split rescales bookings it did not scale before",
         failures == [],
         "every booking is scaled by the same splits after the merge",
         linearity_detail(base, failures)
       )
+      |> put_failed(:failure, linearity_failure(base, failures))
     ]
+  end
+
+  defp linearity_failure(_base, []), do: nil
+
+  defp linearity_failure(base, [{_collapse?, failure} | _rest]) do
+    %{
+      date: failure.date,
+      securities_account_id: failure.securities_account_id,
+      securities_account_name: depot_name(base, failure.securities_account_id),
+      merged: MergeFigures.to_decimal(failure.merged),
+      apart: MergeFigures.to_decimal(failure.apart)
+    }
   end
 
   defp linearity_detail(_base, []), do: ""
