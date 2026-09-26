@@ -10,8 +10,9 @@ defmodule PortfolixirWeb.Api.V1.MergedAway do
   (`GET /api/v1/securities/:id`, `/cash_accounts/:id`,
   `/securities_accounts/:id`) and by every route under
   `/api/v1/securities/:security_id/` whose security is not found (its
-  quotes, trades, metrics, notes, events and logo, reads and writes), and so
-  by the MCP tools that call them.
+  quotes, trades, metrics, notes, events and logo, its ISIN change and the
+  delete of an identifier alias, reads and writes), and so by the MCP tools
+  that call them.
   """
 
   import Plug.Conn, only: [put_status: 2]

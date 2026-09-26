@@ -38,7 +38,9 @@ defmodule PortfolixirWeb.Api.V1.MergedAwayReadsTest do
   #
   # Acceptance criteria:
   # - GET quotes, trades, metrics, notes, events and logo of the merged-away
-  #   id, and PUT quotes, POST notes and events, answer 404 with
+  #   id, and PUT quotes, POST notes and events, POST quotes/release and
+  #   sync_quotes, PUT, DELETE and discover of the logo, POST isin-change and
+  #   DELETE of an identifier alias (closing act, CR-4) answer 404 with
   #   errors.merged_into {"kind": "security", "id": <survivor>}.
   # - The same routes for an id no merge names answer the plain 404.
   test "every security-keyed route of a merged-away id names the survivor", ctx do
@@ -74,11 +76,20 @@ defmodule PortfolixirWeb.Api.V1.MergedAwayReadsTest do
       {:post, "/api/v1/securities/#{id}/notes",
        %{"note" => %{"kind" => "observation", "body" => "Synthetic note."}}},
       {:post, "/api/v1/securities/#{id}/events",
-       %{"event" => %{"kind" => "earnings", "date" => "2025-03-01"}}}
+       %{"event" => %{"kind" => "earnings", "date" => "2025-03-01"}}},
+      {:post, "/api/v1/securities/#{id}/quotes/release", %{}},
+      {:post, "/api/v1/securities/#{id}/sync_quotes", %{}},
+      {:put, "/api/v1/securities/#{id}/logo", %{}},
+      {:delete, "/api/v1/securities/#{id}/logo", nil},
+      {:post, "/api/v1/securities/#{id}/logo/discover", %{}},
+      {:post, "/api/v1/securities/#{id}/isin-change",
+       %{"isin_change" => %{"new_isin" => "XS00EXSRCE01"}}},
+      {:delete, "/api/v1/securities/#{id}/identifier_aliases/1", nil}
     ]
   end
 
   defp request(conn, :get, path, nil), do: get(conn, path)
+  defp request(conn, :delete, path, nil), do: delete(conn, path)
   defp request(conn, :put, path, body), do: put(conn, path, body)
   defp request(conn, :post, path, body), do: post(conn, path, body)
 
