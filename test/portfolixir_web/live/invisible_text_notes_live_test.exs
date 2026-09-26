@@ -240,6 +240,9 @@ defmodule PortfolixirWeb.InvisibleTextNotesLiveTest do
   # - The subject of a rule's words line (a security's, a category's or a
   #   view's stored name) renders inside <bdi>; the rest of the line does not.
   # - A retraction's reason in the thesis card renders inside <bdi>.
+  # - The rule dialog's heading sets the stored rule name inside <bdi>, and
+  #   its first hint the view's name, each within the translated frame (E25 S7
+  #   review round, S7E-8).
   test "stored text inside running text is isolated in bdi", %{conn: conn} do
     world = base_world(name: "Isolated text")
     security = create_security!(name: "Nordic Timber Holdings AB", ticker: "NTH")
@@ -266,6 +269,14 @@ defmodule PortfolixirWeb.InvisibleTextNotesLiveTest do
       |> render()
 
     assert words =~ "Weight · <bdi>Nordic Timber Holdings AB</bdi> · Cap · Hard"
+
+    view |> element("#policy-findings button[phx-value-id='#{rule.id}']") |> render_click()
+
+    assert view |> element("#policy-rule-dialog-title") |> render() =~
+             "Change rule — “<bdi>Single name</bdi>”"
+
+    assert view |> element("dialog#policy-rule-dialog") |> render() =~
+             "Evaluated in the view “<bdi>Everything</bdi>”, on its steerable basis."
 
     {:ok, thesis} =
       Knowledge.append_note(Actor.owner_ui(), %{
