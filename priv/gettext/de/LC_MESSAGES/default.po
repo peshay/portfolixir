@@ -9456,3 +9456,8 @@ msgstr "nicht übernommen: Eine WKN besteht aus sechs Buchstaben oder Ziffern."
 #, elixir-autogen, elixir-format
 msgid "not adopted: a ticker is printable ASCII characters."
 msgstr "nicht übernommen: Ein Ticker besteht aus druckbaren ASCII-Zeichen."
+
+#: lib/portfolixir_web/live/portfolio_accounts/merge_dialog.ex
+#, elixir-autogen, elixir-format
+msgid "Nothing was merged: the merge did not finish, and it was rolled back. Check again."
+msgstr "Nichts wurde zusammengeführt: Die Zusammenführung wurde nicht fertig und wurde zurückgerollt. Erneut prüfen."

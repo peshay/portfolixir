@@ -236,6 +236,8 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
     choose(view, %{identity: "adopt_source_isin", collapse: "true", isin_changed_on: "2025-09-15"})
 
     view |> element("#security-merge-dialog [data-role='merge-confirm']") |> render_click()
+    # The merge runs in the background (the closing act, EH-2).
+    render_async(view)
 
     refute Catalog.get_security(ctx.source.id)
     target = Catalog.get_security(ctx.target.id)
@@ -487,6 +489,8 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
 
     buy!(ctx, ctx.target, "1", "101.00", ~D[2025-08-01])
     view |> element("#security-merge-dialog [data-role='merge-confirm']") |> render_click()
+    # The merge runs in the background (the closing act, EH-2).
+    render_async(view)
 
     assert Catalog.get_security(ctx.source.id)
 

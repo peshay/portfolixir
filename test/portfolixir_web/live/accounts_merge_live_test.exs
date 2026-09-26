@@ -203,7 +203,17 @@ defmodule PortfolixirWeb.AccountsMergeLiveTest do
       |> render_change(%{merge: %{collapse: "true"}})
 
       refute has_element?(view, "#merge-dialog [data-role='merge-confirm'][disabled]")
-      view |> element("#merge-dialog [data-role='merge-confirm']") |> render_click()
+      html = view |> element("#merge-dialog [data-role='merge-confirm']") |> render_click()
+
+      # The merge runs in the background (the closing act, EH-2): the
+      # confirm's own answer comes at once, with the confirm disabled so a
+      # second press cannot start a second merge.
+      assert html
+             |> Floki.parse_document!()
+             |> Floki.find("#merge-dialog [data-role='merge-confirm'][disabled]")
+             |> length() == 1
+
+      render_async(view)
 
       refute Portfolios.get_cash_account(ctx.source.id)
       assert Decimal.equal?(Ledger.cash_balances()[ctx.target.id], Decimal.new("1702.50"))
@@ -240,6 +250,8 @@ defmodule PortfolixirWeb.AccountsMergeLiveTest do
 
       book!(ctx, ctx.target, "deposit", "50.00", ~D[2025-08-01])
       view |> element("#merge-dialog [data-role='merge-confirm']") |> render_click()
+      # The merge runs in the background (the closing act, EH-2).
+      render_async(view)
 
       assert Portfolios.get_cash_account(ctx.source.id)
 
@@ -512,6 +524,8 @@ defmodule PortfolixirWeb.AccountsMergeLiveTest do
              )
 
       view |> element("#merge-dialog [data-role='merge-confirm']") |> render_click()
+      # The merge runs in the background (the closing act, EH-2).
+      render_async(view)
       refute Portfolios.get_securities_account(ctx.source.id)
       assert Lifecycle.merge_of(:securities_account, ctx.source.id)
 

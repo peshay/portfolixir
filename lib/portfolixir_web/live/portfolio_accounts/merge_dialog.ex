@@ -46,7 +46,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
      socket
      |> LiveEventGuard.attach()
      |> assign(source: nil, step: :target, preview: nil, refused: nil, collapse: nil)
-     |> assign(stale: nil, problem: nil, target_id: nil)}
+     |> assign(stale: nil, problem: nil, target_id: nil, applying: false)}
   end
 
   @impl true
@@ -131,6 +131,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
           stale={@stale}
           problem={@problem}
           bucket_names={@bucket_names}
+          applying={@applying}
           myself={@myself}
         />
       <% end %>
@@ -258,6 +259,10 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
     end
   end
 
+  # One apply at a time: a second press while it runs changes nothing.
+  def handle_event("confirm", _params, %{assigns: %{applying: true}} = socket),
+    do: {:noreply, socket}
+
   def handle_event("confirm", _params, %{assigns: %{preview: %{} = preview}} = socket) do
     if preview.choice_required and is_nil(socket.assigns.collapse) do
       {:noreply, socket}
@@ -285,11 +290,32 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
     end
   end
 
+  # The merge runs outside the dialog's process (the closing act, EH-2): an
+  # account with thousands of bookings takes seconds, which would freeze the
+  # page and outlast the client's wait for the event's reply.
   defp apply_merge(socket, preview) do
     %{kind: kind, source: source, target_id: target_id, collapse: collapse} = socket.assigns
     consent = %{plan_digest: preview.plan_digest, collapse_key_equal: collapse}
 
-    case merge(kind, source.id, target_id, consent) do
+    {:noreply,
+     socket
+     |> assign(:applying, true)
+     |> start_async(:apply_merge, fn -> merge(kind, source.id, target_id, consent) end)}
+  end
+
+  @impl true
+  def handle_async(:apply_merge, {:ok, result}, socket) do
+    socket = assign(socket, :applying, false)
+    merged(result, socket, socket.assigns.preview)
+  end
+
+  def handle_async(:apply_merge, {:exit, _reason}, socket),
+    do: {:noreply, assign(socket, applying: false, problem: problem(:unfinished))}
+
+  defp merged(result, socket, preview) do
+    %{kind: kind, source: source} = socket.assigns
+
+    case result do
       {:ok, record, _outcome} ->
         notify(socket, {:merged, result_message(source, target(socket.assigns), record)})
         {:noreply, socket}
@@ -324,6 +350,12 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
     do: Lifecycle.merge_depot(Actor.owner_ui(), source_id, target_id, consent)
 
   defp problem(:not_found), do: gettext("The account no longer exists. Nothing was merged.")
+
+  defp problem(:unfinished),
+    do:
+      gettext(
+        "Nothing was merged: the merge did not finish, and it was rolled back. Check again."
+      )
 
   defp problem({:already_merged, _record}),
     do: gettext("The account was merged into another one meanwhile. Nothing was merged now.")

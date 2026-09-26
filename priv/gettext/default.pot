@@ -9874,3 +9874,8 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "not adopted: a ticker is printable ASCII characters."
 msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_accounts/merge_dialog.ex
+#, elixir-autogen, elixir-format
+msgid "Nothing was merged: the merge did not finish, and it was rolled back. Check again."
+msgstr ""

@@ -40,6 +40,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
   attr(:stale, :list, default: nil)
   attr(:problem, :string, default: nil)
   attr(:bucket_names, :map, required: true)
+  attr(:applying, :boolean, default: false)
   attr(:myself, :any, required: true)
 
   def step(assigns) do
@@ -106,7 +107,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
           data-role="merge-confirm"
           phx-click="confirm"
           phx-target={@myself}
-          disabled={@preview.choice_required and is_nil(@collapse)}
+          disabled={(@preview.choice_required and is_nil(@collapse)) or @applying}
         >
           <%= gettext("Merge into %{name}", name: @target.name) %>
         </button>

@@ -94,9 +94,19 @@ defmodule Portfolixir.Lifecycle.MergeFlow do
   @spec passed?([guard()]) :: boolean()
   def passed?(guards), do: Enum.all?(guards, & &1.passed)
 
+  # A merge writes one journal entry per moved row in one transaction, so
+  # DBConnection's default 15 s checkout would cap it at a few thousand
+  # bookings (the closing act, EH-2); the plan's size bounds the work.
+  @transaction_timeout :timer.minutes(10)
+
+  @doc "How long one merge may hold its transaction, in ms."
+  @spec transaction_timeout() :: pos_integer()
+  def transaction_timeout, do: @transaction_timeout
+
   @doc """
-  `Repo.transaction/1` for a merge (§10: every race ends in a clean 409,
-  never a 500). A merge takes its locks in a fixed order that every
+  `Repo.transaction/2` for a merge (§10: every race ends in a clean 409,
+  never a 500), with `transaction_timeout/0` in place of the 15 s default.
+  A merge takes its locks in a fixed order that every
   concurrent writer shares, but a writer outside that order (a quote sync, a
   hardened delete) can still close a lock cycle, which PostgreSQL breaks by
   aborting one side with `deadlock_detected` — or a lock wait can hit the
@@ -104,9 +114,9 @@ defmodule Portfolixir.Lifecycle.MergeFlow do
   each merge turns into `plan_changed` with a fresh preview; nothing was
   written. Any other database error is re-raised.
   """
-  @spec transaction((-> term())) :: {:ok, term()} | {:error, term()}
-  def transaction(fun) when is_function(fun, 0) do
-    Repo.transaction(fun)
+  @spec transaction((-> term()), module()) :: {:ok, term()} | {:error, term()}
+  def transaction(fun, repo \\ Repo) when is_function(fun, 0) do
+    repo.transaction(fun, timeout: @transaction_timeout)
   rescue
     error in Postgrex.Error ->
       if raced?(error), do: {:error, :raced}, else: reraise(error, __STACKTRACE__)

@@ -56,7 +56,7 @@ defmodule PortfolixirWeb.Securities.MergeDialog do
      |> assign(source: nil, step: :target, query: "", candidates: [], target_id: nil)
      |> assign(target: nil, totals: %{})
      |> assign(preview: nil, refused: nil, reverse: nil, stale: nil, problem: nil)
-     |> assign(choices: blank_choices(), field_error: nil)}
+     |> assign(choices: blank_choices(), field_error: nil, applying: false)}
   end
 
   @impl true
@@ -139,6 +139,7 @@ defmodule PortfolixirWeb.Securities.MergeDialog do
           totals={@totals}
           stale={@stale}
           problem={@problem}
+          applying={@applying}
           myself={@myself}
         />
       <% end %>
@@ -336,6 +337,10 @@ defmodule PortfolixirWeb.Securities.MergeDialog do
     {:noreply, assign(socket, choices: choices, field_error: nil)}
   end
 
+  # One apply at a time: a second press while it runs changes nothing.
+  def handle_event("confirm", _params, %{assigns: %{applying: true}} = socket),
+    do: {:noreply, socket}
+
   def handle_event("confirm", _params, %{assigns: %{preview: %{} = preview}} = socket) do
     if MergePreview.missing_choices(preview, socket.assigns.choices) == [] do
       apply_merge(socket, preview)
@@ -485,7 +490,30 @@ defmodule PortfolixirWeb.Securities.MergeDialog do
         if(choices.identity == :adopt_source_isin, do: blank_to_nil(choices.isin_changed_on))
     }
 
-    case Lifecycle.merge_security(Actor.owner_ui(), source.id, target_id, params) do
+    # The merge runs outside the dialog's process (the closing act, EH-2): a
+    # security with thousands of bookings takes seconds, which would freeze
+    # the page and outlast the client's wait for the event's reply.
+    {:noreply,
+     socket
+     |> assign(:applying, true)
+     |> start_async(:apply_merge, fn ->
+       Lifecycle.merge_security(Actor.owner_ui(), source.id, target_id, params)
+     end)}
+  end
+
+  @impl true
+  def handle_async(:apply_merge, {:ok, result}, socket) do
+    socket = assign(socket, :applying, false)
+    merged(result, socket, socket.assigns.preview)
+  end
+
+  def handle_async(:apply_merge, {:exit, _reason}, socket),
+    do: {:noreply, assign(socket, applying: false, problem: problem(:unfinished))}
+
+  defp merged(result, socket, preview) do
+    %{source: source, target_id: target_id, choices: choices} = socket.assigns
+
+    case result do
       {:ok, _record, _outcome} ->
         {:noreply,
          notify(socket, {:merged, MergePreview.result_message(preview, choices), target_id})}
@@ -531,6 +559,12 @@ defmodule PortfolixirWeb.Securities.MergeDialog do
   defp blank_to_nil(_value), do: nil
 
   defp problem(:not_found), do: gettext("The security no longer exists. Nothing was merged.")
+
+  defp problem(:unfinished),
+    do:
+      gettext(
+        "Nothing was merged: the merge did not finish, and it was rolled back. Check again."
+      )
 
   defp problem({:already_merged, _record}),
     do: gettext("The security was merged into another one meanwhile. Nothing was merged now.")

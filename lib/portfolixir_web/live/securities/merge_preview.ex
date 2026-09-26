@@ -50,6 +50,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
   attr(:stale, :list, default: nil)
   attr(:problem, :string, default: nil)
   attr(:totals, :map, default: %{})
+  attr(:applying, :boolean, default: false)
   attr(:myself, :any, required: true)
 
   def step(assigns) do
@@ -106,7 +107,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
           data-role="merge-confirm"
           phx-click="confirm"
           phx-target={@myself}
-          disabled={missing != []}
+          disabled={missing != [] or @applying}
         >
           <%= gettext("Merge into %{name}", name: @preview.target.name) %>
         </button>
