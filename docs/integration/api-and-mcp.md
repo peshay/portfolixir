@@ -24,9 +24,10 @@ Authorization: Bearer <PORTFOLIXIR_API_TOKEN>
 **Named tokens** (E25). `PORTFOLIXIR_API_TOKENS` adds further tokens as
 `name=token` entries, comma-separated (`scripts=<token>`; a name is 1 to 32
 characters of `a-z`, `0-9`, `_` and `-`). A write made with one is journaled
-with that name as `actor_label` (`GET /api/v1/journal`), taken from the entry
-the presented token matched, never from the request. `PORTFOLIXIR_API_TOKEN`
-stays the default, journaled without a label, as before, unless
+with that name as `actor_label` (`GET /api/v1/journal`), and a merge applied
+with one records it on its merge record (`GET /api/v1/merges`), taken from the
+entry the presented token matched, never from the request.
+`PORTFOLIXIR_API_TOKEN` stays the default, journaled without a label, as before, unless
 `PORTFOLIXIR_API_PRINCIPAL` names it; the Compose deployment names it `mcp`
 that way, so the companion's writes read `mcp`. Every entry is
 checked at boot like the one token, and a name or a token may appear only
@@ -1222,8 +1223,9 @@ Example quote sync response:
   exists), `target` `{id, name, merged_into}` (`merged_into` is `null` while
   the target lives, otherwise the id a later merge moved it into, followed to
   the live end), `portfolio_id` (`null` for a security), `actor_type`,
-  `actor_label`, `inserted_at` and `manifest_summary`: the record's
-  `manifest` with every list replaced by its count — bookings moved,
+  `actor_label` (for an API token, the name of the token entry that applied
+  the merge, as the journal's), `inserted_at` and `manifest_summary`: the
+  record's `manifest` with every list replaced by its count — bookings moved,
   restated and deleted, names appended, quotes moved and dropped — and the
   operator's choices as given. `meta` carries `order`, `count` and `limit`.
   `limit` is the list family's: default 100, capped at 1000, and zero, a

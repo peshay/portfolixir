@@ -26,8 +26,9 @@ Authorization: Bearer <PORTFOLIXIR_API_TOKEN>
 `name=token`-Einträge hinzu, durch Kommas getrennt (`scripts=<token>`; ein Name
 hat 1 bis 32 Zeichen aus `a-z`, `0-9`, `_` und `-`). Ein Schreibzugriff mit
 einem davon wird mit diesem Namen als `actor_label` im Journal verbucht
-(`GET /api/v1/journal`), genommen aus dem Eintrag, zu dem das vorgelegte Token
-passt, nie aus der Anfrage. `PORTFOLIXIR_API_TOKEN` bleibt der Standard und
+(`GET /api/v1/journal`), und eine damit ausgeführte Zusammenführung hält den
+Namen in ihrem Protokoll fest (`GET /api/v1/merges`), genommen aus dem Eintrag,
+zu dem das vorgelegte Token passt, nie aus der Anfrage. `PORTFOLIXIR_API_TOKEN` bleibt der Standard und
 wird wie bisher ohne Label verbucht, es sei denn, `PORTFOLIXIR_API_PRINCIPAL`
 benennt ihn; das Compose-Deployment nennt ihn so `mcp`, die Schreibzugriffe
 des Begleitdienstes lauten also `mcp`. Jeder
@@ -1272,8 +1273,9 @@ Beispiel-Antwort für Kurssynchronisierung:
   `target` `{id, name, merged_into}` (`merged_into` ist `null`, solange das
   Ziel existiert, sonst die id, in die eine spätere Zusammenführung es
   überführt hat, bis zum lebenden Ende verfolgt), `portfolio_id` (`null` für
-  ein Wertpapier), `actor_type`, `actor_label`, `inserted_at` und
-  `manifest_summary`: das `manifest` des Protokolls, in dem jede Liste durch
+  ein Wertpapier), `actor_type`, `actor_label` (bei einem API-Token der Name
+  des Token-Eintrags, der sie ausgeführt hat, wie im Journal), `inserted_at`
+  und `manifest_summary`: das `manifest` des Protokolls, in dem jede Liste durch
   ihre Anzahl ersetzt ist — verschobene, angepasste und gelöschte Buchungen,
   angehängte Namen, verschobene und verworfene Kurse — und die Wahl des
   Operators, wie gegeben. `meta` trägt `order`, `count` und `limit`. `limit`

@@ -90,4 +90,126 @@ defmodule PortfolixirWeb.ApiV1NamedPrincipalsTest do
 
     assert %{"actor_label" => "scripts"} = journal_entry(conn, id)
   end
+
+  # User story (E25 S7, G26 on the ADR-0050 merges):
+  # As an operator who gives each agent or script its own API token,
+  # I want a lifecycle merge recorded under the name of the token that
+  # applied it — on its merge record and on every journal entry it wrote,
+  # so that the audit read of a destructive write says which credential made
+  # it, like every other write.
+  #
+  # Acceptance criteria:
+  # - POST /api/v1/cash_accounts/:id/merge and /securities/:id/merge answer a
+  #   merge record with actor_type api_token_rw and actor_label the name of
+  #   the entry the presented token matched, whatever the request says.
+  # - GET /api/v1/merges lists each record under that name.
+  # - The journal entries the merge wrote (the moved booking, the deleted
+  #   source) carry the same name.
+  test "a merge records the name of the token it was applied with", %{conn: conn} do
+    {:ok, portfolio} =
+      Portfolixir.Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Named merges",
+        base_currency_code: "EUR"
+      })
+
+    target = cash!(portfolio, "Savings")
+    source = cash!(portfolio, "Savings (old)")
+
+    {:ok, deposit} =
+      Portfolixir.Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        cash_account_id: source.id,
+        type: "deposit",
+        date: ~D[2025-01-02],
+        gross_amount: "100.00",
+        currency_code: "EUR"
+      })
+
+    cash_record =
+      merge!(conn, @scripts_token, "/api/v1/cash_accounts/#{source.id}", target.id)
+
+    assert %{"actor_type" => "api_token_rw", "actor_label" => "scripts"} = cash_record
+
+    kept = create_security(conn, @default_token, "Named Merge Fund", "XS00EXTGTF03")
+    gone = create_security(conn, @default_token, "Named Merge Fund (duplicate)", "XS00EXSRCE01")
+
+    security_record =
+      conn
+      |> put_req_header("x-actor-label", "operator")
+      |> merge!(@agent_token, "/api/v1/securities/#{gone}", kept, %{
+        identity_choice: "keep_target_isin"
+      })
+
+    assert %{"actor_type" => "api_token_rw", "actor_label" => "mcp"} = security_record
+
+    listed =
+      conn
+      |> api_conn(@default_token)
+      |> get("/api/v1/merges")
+      |> json_response(200)
+      |> Map.fetch!("data")
+      |> Map.new(&{&1["id"], &1["actor_label"]})
+
+    assert listed == %{cash_record["id"] => "scripts", security_record["id"] => "mcp"}
+
+    assert %{"actor_label" => "scripts"} =
+             journal_entry(conn, "transaction", deposit.id, "update")
+
+    assert %{"actor_label" => "scripts"} =
+             journal_entry(conn, "cash_account", source.id, "delete")
+
+    assert %{"actor_label" => "mcp"} = journal_entry(conn, "security", gone, "delete")
+  end
+
+  defp cash!(portfolio, name) do
+    {:ok, cash} =
+      Portfolixir.Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        name: name,
+        currency_code: "EUR"
+      })
+
+    cash
+  end
+
+  defp create_security(conn, token, name, isin) do
+    conn
+    |> api_conn(token)
+    |> post(
+      "/api/v1/securities",
+      Jason.encode!(%{security: %{name: name, currency_code: "EUR", isin: isin}})
+    )
+    |> json_response(201)
+    |> get_in(["data", "id"])
+  end
+
+  # The preview under the default token, the apply under `token`.
+  defp merge!(conn, token, source_path, target_id, choices \\ %{}) do
+    preview =
+      conn
+      |> api_conn(@default_token)
+      |> get(source_path <> "/merge_preview?target_id=#{target_id}")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    body = Map.merge(%{target_id: target_id, plan_digest: preview["plan_digest"]}, choices)
+
+    conn
+    |> api_conn(token)
+    |> post(source_path <> "/merge", Jason.encode!(body))
+    |> json_response(201)
+    |> Map.fetch!("data")
+  end
+
+  defp journal_entry(conn, resource_type, id, operation) do
+    conn
+    |> api_conn(@default_token)
+    |> get("/api/v1/journal", %{
+      "resource_type" => resource_type,
+      "resource_id" => to_string(id)
+    })
+    |> json_response(200)
+    |> Map.fetch!("data")
+    |> Enum.find(&(&1["operation"] == operation))
+  end
 end

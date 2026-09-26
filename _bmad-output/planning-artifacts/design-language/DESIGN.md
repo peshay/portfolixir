@@ -2434,8 +2434,11 @@ variation selectors); the note marks a row stored before that rule.
   dialog under its first hint (the name and the version's note, each its own
   note); after the inline rename form of a view, a bucket and a category.
   Lists, selects, headings and the history's "Notes" column stay unmarked.
-  Cash accounts and depots have no rename on screen, so they carry no note
-  there (a follow-up names it).
+  Cash accounts and depots had no rename on screen when this pick was drawn;
+  Lane L5a's rename dialog (G1-A above) now is one, and it carries no note
+  yet: its field refuses such a name like every writer, and the note for a
+  name stored before the rule waits for the follow-up that names it, boarded
+  before it is built.
 - **Stored text inside running text is isolated in `<bdi>`**: the stored
   subject of a rule's words line, a retraction's reason in the thesis card,
   and in the rule dialog the rule's name in its heading and the view's name
