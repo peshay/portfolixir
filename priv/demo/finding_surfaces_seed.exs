@@ -3,8 +3,9 @@
 # unclassified security, a held position with a stale quote, a priceless
 # position, a foreign-currency cash account with no FX rate, a snapshot, a tax
 # statement, research-log entries, security events, buckets and a view, policy
-# rules in every state, a cross-currency buy and position targets in one
-# category.
+# rules in every state, a cross-currency buy, position targets in one
+# category, and the lifecycle merges: merged and renamed accounts, a merged
+# depot, a merged security, and one refused merge of each kind.
 # Synthetic all the way down; no real data (AGENTS.md → Privacy And
 # Disclosure).
 #
@@ -693,5 +694,252 @@ platform_targets =
     strategies.id,
     platform_targets
   )
+
+# 14. Lifecycle merges (ADR-0050, Sprint 16 Lane L; plan D-10): what the
+#     closing act's UAT persona runs #328's five-step plan on. Done merges:
+#     a cash account merged into another (the survivor shows "merged from" and
+#     the source's name as a former name), a renamed account (a plain former
+#     name), a depot merged into another, and a duplicate security merged
+#     with its ISIN adopted and its duplicates removed (the survivor names its
+#     former ISIN and the merge). Left un-merged and ready to try, one refusal
+#     of each kind: another currency, research notes on the source, a policy
+#     rule reading the source, and a split one side lacks. Every scenario is
+#     created only when its survivor is not there yet, so a re-run adds
+#     nothing; a merge is never replayed. Synthetic names and ISINs only.
+alias Portfolixir.Lifecycle
+
+cash_named = fn name -> Enum.find(Portfolios.list_cash_accounts(), &(&1.name == name)) end
+depot_named = fn name -> Enum.find(Portfolios.list_securities_accounts(), &(&1.name == name)) end
+
+new_cash = fn name ->
+  {:ok, account} =
+    Portfolios.create_cash_account(owner, %{
+      portfolio_id: portfolio.id,
+      name: name,
+      currency_code: "EUR"
+    })
+
+  account
+end
+
+cash_booking = fn account, type, amount, date, extra ->
+  {:ok, tx} =
+    Ledger.create_transaction(
+      owner,
+      Map.merge(
+        %{
+          portfolio_id: portfolio.id,
+          cash_account_id: account.id,
+          type: type,
+          date: date,
+          gross_amount: amount,
+          currency_code: "EUR"
+        },
+        extra
+      )
+    )
+
+  tx
+end
+
+buy = fn {depot_account, cash_account}, security, quantity, price, date ->
+  {:ok, tx} =
+    Ledger.create_transaction(owner, %{
+      portfolio_id: portfolio.id,
+      securities_account_id: depot_account.id,
+      cash_account_id: cash_account.id,
+      security_id: security.id,
+      type: "buy",
+      date: date,
+      quantity: quantity,
+      price: price,
+      currency_code: security.currency_code
+    })
+
+  tx
+end
+
+new_security = fn name, isin, currency ->
+  {:ok, security} =
+    Catalog.create_security(owner, %{
+      name: name,
+      isin: isin,
+      currency_code: currency,
+      asset_class: "etf"
+    })
+
+  security
+end
+
+# The pair a security scenario seeds, looked up by ISIN (the two share a
+# name on purpose: that is the duplicate the merge repairs).
+security_by_isin = fn isin -> Enum.find(Catalog.list_securities(), &(&1.isin == isin)) end
+
+# 14a. A cash account merged into another, with a transfer between the two
+#      and one equal interest booking removed as a duplicate.
+if cash_named.("Tagesgeld") == nil do
+  old = new_cash.("Tagesgeld (alt)")
+  survivor = new_cash.("Tagesgeld")
+  cash_booking.(old, "deposit", "1000.00", ~D[2025-01-02], %{})
+  cash_booking.(survivor, "deposit", "500.00", ~D[2025-01-03], %{})
+
+  cash_booking.(old, "cash_transfer", "200.00", ~D[2025-02-01], %{
+    counter_cash_account_id: survivor.id
+  })
+
+  cash_booking.(old, "interest", "12.40", ~D[2025-03-31], %{})
+  cash_booking.(survivor, "interest", "12.40", ~D[2025-03-31], %{})
+
+  {:ok, preview} = Lifecycle.preview_cash_merge(old.id, survivor.id)
+
+  {:ok, _record, :applied} =
+    Lifecycle.merge_cash_account(owner, old.id, survivor.id, %{
+      plan_digest: preview.plan_digest,
+      collapse_key_equal: true
+    })
+
+  IO.puts("merges: Tagesgeld (alt) merged into Tagesgeld")
+end
+
+# 14b. A renamed account: "Haushalt" stays its former name.
+if cash_named.("Haushaltskonto") == nil do
+  household = new_cash.("Haushalt")
+  cash_booking.(household, "deposit", "250.00", ~D[2025-04-01], %{})
+  {:ok, _} = Portfolios.update_cash_account(owner, household, %{name: "Haushaltskonto"})
+end
+
+# 14c. A depot merged into another: two depots at one broker, each with its
+#      own cash account, one security held in both.
+if depot_named.("Depot 1") == nil do
+  cash_1 = new_cash.("Broker Verrechnung 1")
+  cash_2 = new_cash.("Broker Verrechnung 2")
+  cash_booking.(cash_1, "deposit", "3000.00", ~D[2025-01-02], %{})
+  cash_booking.(cash_2, "deposit", "2000.00", ~D[2025-01-02], %{})
+
+  {:ok, depot_1} =
+    Portfolios.create_securities_account(owner, %{
+      portfolio_id: portfolio.id,
+      cash_account_id: cash_1.id,
+      name: "Depot 1"
+    })
+
+  {:ok, depot_2} =
+    Portfolios.create_securities_account(owner, %{
+      portfolio_id: portfolio.id,
+      cash_account_id: cash_2.id,
+      name: "Depot 2"
+    })
+
+  kestrel = new_security.("Kestrel Industrial Group NV", "XS0000000041", "EUR")
+  buy.({depot_1, cash_1}, kestrel, "20", "40.00", ~D[2025-02-10])
+  buy.({depot_2, cash_2}, kestrel, "10", "42.50", ~D[2025-03-12])
+
+  {:ok, preview} = Lifecycle.preview_depot_merge(depot_2.id, depot_1.id)
+
+  {:ok, _record, :applied} =
+    Lifecycle.merge_depot(owner, depot_2.id, depot_1.id, %{plan_digest: preview.plan_digest})
+
+  IO.puts("merges: Depot 2 merged into Depot 1")
+end
+
+demo = {depot, cash}
+
+# 14d. A duplicate security merged: imported under its old ISIN, then a
+#      second copy under the new one; the merge adopts the new ISIN and
+#      removes the duplicated bookings (ADR-0029 §3's wrong-order repair).
+if security_by_isin.("XS0000000025") == nil and security_by_isin.("XS0000000017") == nil do
+  meridian = new_security.("Meridian Global Equity ETF", "XS0000000017", "EUR")
+  copy = new_security.("Meridian Global Equity ETF", "XS0000000025", "EUR")
+  buy.(demo, meridian, "40", "62.00", ~D[2024-03-02])
+  buy.(demo, meridian, "20", "65.50", ~D[2024-09-02])
+  buy.(demo, copy, "40", "62.00", ~D[2024-03-02])
+  buy.(demo, copy, "20", "65.50", ~D[2024-09-02])
+  buy.(demo, copy, "5", "71.00", ~D[2025-07-01])
+
+  {:ok, preview} = Lifecycle.preview_security_merge(copy.id, meridian.id)
+
+  {:ok, _record, :applied} =
+    Lifecycle.merge_security(owner, copy.id, meridian.id, %{
+      plan_digest: preview.plan_digest,
+      collapse_key_equal: true,
+      identity_choice: :adopt_source_isin,
+      isin_changed_on: ~D[2025-06-15]
+    })
+
+  IO.puts("merges: the duplicate Meridian Global Equity ETF merged, its ISIN adopted")
+end
+
+# 14e. Ready to try, refused: another currency. The USD line is disabled as
+#      a target of the EUR one in step 1, with its reason.
+if security_by_isin.("XS0000000058") == nil do
+  kestrel_usd = new_security.("Kestrel Industrial Group NV (USD)", "XS0000000058", "USD")
+  {:ok, _} = Catalog.upsert_quotes(owner, kestrel_usd.id, [%{date: today, close: "46.10"}])
+end
+
+# 14f. Ready to try, refused: research notes on the source. Merging the
+#      noted Orchid Bay into its twin is refused (notes never move or
+#      vanish, ADR-0044); the preview offers the merge the other way.
+if security_by_isin.("XS0000000066") == nil do
+  noted = new_security.("Orchid Bay Pharmaceuticals plc", "XS0000000066", "EUR")
+  twin = new_security.("Orchid Bay Pharmaceuticals plc", "XS0000000074", "EUR")
+  buy.(demo, noted, "12", "30.00", ~D[2025-02-03])
+  buy.(demo, twin, "12", "30.00", ~D[2025-02-03])
+
+  {:ok, _} =
+    Knowledge.append_note(owner, %{
+      security_id: noted.id,
+      author: "operator",
+      kind: "evidence",
+      body: "A synthetic finding for the merge refusal walkthrough.",
+      source_quality: "primary",
+      as_of: ~D[2026-01-15]
+    })
+end
+
+# 14g. Ready to try, refused: a policy rule reads the source. Merging the
+#      ruled Pinecrest into its twin is refused, naming the rule; the other
+#      way passes.
+if security_by_isin.("XS0000000082") == nil do
+  ruled = new_security.("Pinecrest Utilities SA", "XS0000000082", "EUR")
+  twin = new_security.("Pinecrest Utilities SA", "XS0000000090", "EUR")
+  buy.(demo, ruled, "8", "25.00", ~D[2025-02-04])
+  buy.(demo, twin, "3", "26.00", ~D[2025-05-04])
+
+  {:ok, _} =
+    PolicyRules.create_rule(owner, %{
+      portfolio_id: portfolio.id,
+      name: "Pinecrest Obergrenze",
+      version: %{
+        subject_type: "security",
+        security_id: ruled.id,
+        measure: "weight",
+        kind: "cap",
+        threshold: "12",
+        severity: "hard"
+      }
+    })
+end
+
+# 14h. Ready to try, refused: a split one side lacks. The split copy of
+#      Quarry Lane carries a 2:1 split its twin never booked, while the twin
+#      holds a booking from before it (ADR-0028 §2): both directions refuse,
+#      naming the split and the side lacking it.
+if security_by_isin.("XS0000000108") == nil do
+  split_copy = new_security.("Quarry Lane Materials AG", "XS0000000108", "EUR")
+  twin = new_security.("Quarry Lane Materials AG", "XS0000000116", "EUR")
+  buy.(demo, split_copy, "6", "57.30", ~D[2025-01-20])
+  buy.(demo, twin, "4", "56.10", ~D[2025-02-11])
+
+  {:ok, _} =
+    Ledger.create_transaction(owner, %{
+      portfolio_id: portfolio.id,
+      security_id: split_copy.id,
+      type: "split",
+      date: ~D[2025-06-02],
+      currency_code: "EUR",
+      split_ratio_numerator: 2,
+      split_ratio_denominator: 1
+    })
+end
 
 IO.puts("review seed done (timber position: #{timber_state})")
