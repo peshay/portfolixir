@@ -50,7 +50,8 @@ base64 would break the connection string.
 |---|---|---|
 | `SECRET_KEY_BASE` | yes | Signs the session cookie; the signing salts are derived from it. |
 | `POSTGRES_PASSWORD` | yes | The database password; the app builds its connection string from it. |
-| `PORTFOLIXIR_API_TOKEN` | yes | The bearer token of the JSON API and of the MCP companion's upstream calls. |
+| `PORTFOLIXIR_API_TOKEN` | yes | The bearer token of the JSON API and of the MCP companion's upstream calls. The Compose file hands it to the application as the named token `mcp`, so the audit journal names `mcp` for every write the companion makes. |
+| `PORTFOLIXIR_API_TOKENS` | no | Further API tokens as `name=token` entries, comma-separated (`scripts=<token>`; a name is 1 to 32 characters of `a-z`, `0-9`, `_` and `-`). A write made with one is journaled under its name. Each token meets the same rules, and a name or a token may appear only once, `PORTFOLIXIR_API_TOKEN` included, or the application refuses to start naming the entry. Every token has the same full authority; the name attributes, it does not restrict. |
 | `PORTFOLIXIR_MCP_TOKEN` | yes | The bearer token an MCP client presents to the companion. |
 | `PORTFOLIXIR_UI_PASSWORD` | no | Set it to require a login on the web UI (ADR-0045). Unset, the UI is open — acceptable only behind reverse-proxy authentication. Changing it ends every login made with the old password. |
 | `PORTFOLIXIR_SESSION_DAYS` | no | How many days a UI login stays valid (default 30). The window slides: using the instance renews it, so you are asked again only after a full period of not using it. `0` turns the server-side expiry off: the browser forgets the login when it closes, but a copy of the session cookie never expires, so prefer a number of days. A logout clears the login in that browser only, and a copy of the session cookie taken earlier stays valid; to end every login, change `PORTFOLIXIR_UI_PASSWORD` or rotate `SECRET_KEY_BASE`. |

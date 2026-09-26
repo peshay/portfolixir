@@ -110,7 +110,11 @@ guards against script injection, not against CSS injection. The MCP companion
 calls the API with the one `PORTFOLIXIR_API_TOKEN`, and that token has full
 authority: the opt-in `PORTFOLIXIR_MCP_READ_ONLY` switch narrows the tools the
 companion lists and calls, not what the token can do, so whoever holds the
-token can still write through the API directly (E25).
+token can still write through the API directly (E25). Further tokens
+(`PORTFOLIXIR_API_TOKENS`, named `name=token` entries) change who the audit
+journal names for a write, taken from the entry the presented token matched,
+not what a token may do: every one of them has the same full authority, and a
+name attributes a write without restricting it.
 
 ## Sensitive data examples
 

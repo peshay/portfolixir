@@ -50,7 +50,11 @@ services:
     environment:
       DATABASE_URL: postgres://portfolixir:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/portfolixir_prod
       SECRET_KEY_BASE: ${SECRET_KEY_BASE:?set SECRET_KEY_BASE in .env (openssl rand -base64 48)}
-      PORTFOLIXIR_API_TOKEN: ${PORTFOLIXIR_API_TOKEN:?set PORTFOLIXIR_API_TOKEN in .env}
+      # Named principals (E25 S7, G26): the companion's token is the entry
+      # "mcp", so the journal names "mcp" for every write it makes; further
+      # name=token entries (a script's own token) come from
+      # PORTFOLIXIR_API_TOKENS in .env.
+      PORTFOLIXIR_API_TOKENS: mcp=${PORTFOLIXIR_API_TOKEN:?set PORTFOLIXIR_API_TOKEN in .env},${PORTFOLIXIR_API_TOKENS:-}
       PORTFOLIXIR_UI_PASSWORD: ${PORTFOLIXIR_UI_PASSWORD:-}
       PORTFOLIXIR_SESSION_DAYS: ${PORTFOLIXIR_SESSION_DAYS:-}
       PHX_HOST: ${PHX_HOST:-localhost}

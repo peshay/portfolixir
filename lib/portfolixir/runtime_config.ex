@@ -183,6 +183,136 @@ defmodule Portfolixir.RuntimeConfig do
           "PORTFOLIXIR_API_TOKEN is required; generate one with `openssl rand -base64 48`"
   end
 
+  # A token's name is written into the journal's actor label and read back by
+  # agents, so it is a short identifier, never free text.
+  @principal_name ~r/\A[a-z0-9][a-z0-9_-]{0,31}\z/
+
+  @doc """
+  The API's principals (E25 S7, G26; the architecture's FU-6, named
+  principals): `{name, token}` pairs, the name becoming the journal's actor
+  label for every write made with that token.
+
+  `named` is `PORTFOLIXIR_API_TOKENS`, comma-separated `name=token` entries
+  (the token is everything after the first `=`; blank entries are skipped); a
+  name is 1 to 32 characters of `a-z`, `0-9`, `_` and `-`, starting with a
+  letter or a digit. `single` is `PORTFOLIXIR_API_TOKEN`, kept as the
+  **unnamed default** (`{nil, token}`, no label, as before names existed) so
+  an upgrade changes nothing; it comes last. Every token meets
+  `validate_api_token!/1`'s rules. Raises at boot, naming the variable and the
+  entry but never a token, for a malformed entry, a name used twice, a token
+  given twice (in either variable: one credential, two names, would make the
+  label a guess), and when neither variable holds a token.
+  """
+  @spec api_tokens!(String.t() | nil, String.t() | nil) :: [{String.t() | nil, String.t()}]
+  def api_tokens!(single, named) do
+    named = named |> named_entries() |> Enum.map(&named_principal!/1)
+    reject_repeated_names!(named)
+
+    default =
+      case single do
+        value when is_binary(value) and value != "" -> [{nil, validate_api_token!(value)}]
+        _unset -> []
+      end
+
+    principals = named ++ default
+    reject_repeated_tokens!(principals)
+
+    if principals == [] do
+      raise ArgumentError,
+            "PORTFOLIXIR_API_TOKEN or PORTFOLIXIR_API_TOKENS is required; generate a token " <>
+              "with `openssl rand -base64 48`"
+    end
+
+    principals
+  end
+
+  defp named_entries(value) when is_binary(value) do
+    value
+    |> String.split(",")
+    |> Enum.map(&String.trim/1)
+    |> Enum.with_index(1)
+    |> Enum.reject(fn {entry, _position} -> entry == "" end)
+  end
+
+  defp named_entries(_unset), do: []
+
+  defp named_principal!({entry, position}) do
+    case String.split(entry, "=", parts: 2) do
+      [name, token] ->
+        name = String.trim(name)
+
+        unless Regex.match?(@principal_name, name) do
+          raise ArgumentError,
+                "PORTFOLIXIR_API_TOKENS entry #{position}: the name #{inspect(name)} must be 1 " <>
+                  "to 32 characters of a-z, 0-9, _ and -, starting with a letter or a digit"
+        end
+
+        {name, named_token!(name, token)}
+
+      [_no_separator] ->
+        raise ArgumentError,
+              "PORTFOLIXIR_API_TOKENS entry #{position} is not name=token; write each entry " <>
+                "as name=token, comma-separated"
+    end
+  end
+
+  defp named_token!(name, token) do
+    cond do
+      byte_size(token) < @min_token_bytes ->
+        raise ArgumentError,
+              "PORTFOLIXIR_API_TOKENS: the token named #{inspect(name)} must be at least " <>
+                "#{@min_token_bytes} bytes (got #{byte_size(token)}); generate one with " <>
+                "`openssl rand -base64 48`"
+
+      placeholder?(token) ->
+        raise ArgumentError,
+              "PORTFOLIXIR_API_TOKENS: the token named #{inspect(name)} is a placeholder " <>
+                "value; generate a real token with `openssl rand -base64 48`"
+
+      true ->
+        token
+    end
+  end
+
+  defp reject_repeated_names!(named) do
+    named
+    |> Enum.map(&elem(&1, 0))
+    |> Enum.frequencies()
+    |> Enum.find(fn {_name, count} -> count > 1 end)
+    |> case do
+      nil ->
+        :ok
+
+      {name, _count} ->
+        raise ArgumentError,
+              "PORTFOLIXIR_API_TOKENS names #{inspect(name)} twice; each name is one token"
+    end
+  end
+
+  # The same credential under two entries would make the journal's label a
+  # guess, so it is refused rather than resolved by order.
+  defp reject_repeated_tokens!(principals) do
+    principals
+    |> Enum.reduce_while(%{}, fn {name, token}, seen ->
+      case Map.fetch(seen, token) do
+        {:ok, first} -> {:halt, {:repeated, first, name}}
+        :error -> {:cont, Map.put(seen, token, name)}
+      end
+    end)
+    |> case do
+      {:repeated, first, second} ->
+        raise ArgumentError,
+              "PORTFOLIXIR_API_TOKENS gives #{describe_principal(second)} the same token as " <>
+                "#{describe_principal(first)}; each token has one name"
+
+      _distinct ->
+        :ok
+    end
+  end
+
+  defp describe_principal(nil), do: "PORTFOLIXIR_API_TOKEN"
+  defp describe_principal(name), do: inspect(name)
+
   defp placeholder?(token, prefixes \\ @placeholder_prefixes) do
     lowered = String.downcase(token)
     Enum.any?(prefixes, &String.starts_with?(lowered, &1))

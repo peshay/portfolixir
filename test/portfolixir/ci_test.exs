@@ -358,6 +358,16 @@ defmodule Portfolixir.CITest do
     assert File.read!("lib/portfolixir/runtime_config.ex") =~
              ~s[System.get_env("PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS")]
 
+    # E25 S7, G26: the app knows the companion's token as the named entry
+    # "mcp", so the journal names the companion; the operator's further
+    # entries follow it. The token itself reaches the app only there, once.
+    assert compose =~
+             "PORTFOLIXIR_API_TOKENS: mcp=${PORTFOLIXIR_API_TOKEN:?set PORTFOLIXIR_API_TOKEN " <>
+               "in .env},${PORTFOLIXIR_API_TOKENS:-}"
+
+    [app_service] = Regex.run(~r/^  app:\n(?:    .*\n|\n)*/m, compose)
+    refute app_service =~ ~r/^      PORTFOLIXIR_API_TOKEN:/m
+
     for variable <-
           ~w(PORTFOLIXIR_TRUSTED_PROXIES PORTFOLIXIR_MCP_ALLOWED_HOSTS POSTGRES_PASSWORD) do
       assert env_example =~ variable <> "="
