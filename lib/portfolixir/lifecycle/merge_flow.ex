@@ -20,6 +20,7 @@ defmodule Portfolixir.Lifecycle.MergeFlow do
 
   alias Portfolixir.Lifecycle
   alias Portfolixir.Lifecycle.MergeRecord
+  alias Portfolixir.Repo
 
   @typedoc "One guard's result: its refusal code, what it checks, and the outcome in words."
   @type guard :: %{code: atom(), check: String.t(), passed: boolean(), detail: String.t()}
@@ -92,6 +93,30 @@ defmodule Portfolixir.Lifecycle.MergeFlow do
   @doc "Whether every guard passed."
   @spec passed?([guard()]) :: boolean()
   def passed?(guards), do: Enum.all?(guards, & &1.passed)
+
+  @doc """
+  `Repo.transaction/1` for a merge (§10: every race ends in a clean 409,
+  never a 500). A merge takes its locks in a fixed order that every
+  concurrent writer shares, but a writer outside that order (a quote sync, a
+  hardened delete) can still close a lock cycle, which PostgreSQL breaks by
+  aborting one side with `deadlock_detected` — or a lock wait can hit the
+  session's `lock_timeout`. The merge side answers `{:error, :raced}`, which
+  each merge turns into `plan_changed` with a fresh preview; nothing was
+  written. Any other database error is re-raised.
+  """
+  @spec transaction((-> term())) :: {:ok, term()} | {:error, term()}
+  def transaction(fun) when is_function(fun, 0) do
+    Repo.transaction(fun)
+  rescue
+    error in Postgrex.Error ->
+      if raced?(error), do: {:error, :raced}, else: reraise(error, __STACKTRACE__)
+  end
+
+  defp raced?(%Postgrex.Error{postgres: %{code: code}})
+       when code in [:deadlock_detected, :lock_not_available],
+       do: true
+
+  defp raced?(_error), do: false
 
   @doc """
   Runs `fun` over `items` in order until one answers an error, which is
