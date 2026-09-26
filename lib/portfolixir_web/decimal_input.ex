@@ -27,6 +27,12 @@ defmodule PortfolixirWeb.DecimalInput do
       names the thousands separator as the fix. Anything else that is not a
       plain decimal — an exponent, `NaN`, any other inner space, a trailing
       separator — is invalid.
+    * **Bounded as every writer bounds it.** The figure the separator rule
+      reads is parsed by `Portfolixir.Input.BoundedDecimal.parse/1`, the one
+      finite-decimal parser the API, the contexts and the query parsers share
+      (E25 S4), and a Decimal handed in is passed on only when it is finite.
+      The changeset that stores it still rounds it to its column's scale and
+      refuses a magnitude past its precision; this module only reads.
 
   Browser number inputs (`type="number"`) are not covered: their `value`
   must carry a point whatever the page's language, and the browser decides
@@ -37,6 +43,8 @@ defmodule PortfolixirWeb.DecimalInput do
   """
 
   use Gettext, backend: PortfolixirWeb.Gettext
+
+  alias Portfolixir.Input.BoundedDecimal
 
   @max_length 40
 
@@ -73,12 +81,16 @@ defmodule PortfolixirWeb.DecimalInput do
 
   @doc """
   Reads a figure typed on a page of `locale` (default: the page's gettext
-  locale). A Decimal passes through unchanged.
+  locale). A finite Decimal passes through unchanged; `NaN` or `Infinity` is
+  invalid (E25 S4, F17).
   """
   @spec parse(term(), locale()) :: {:ok, Decimal.t()} | :blank | {:error, reason()}
   def parse(value, locale \\ nil)
 
-  def parse(%Decimal{} = decimal, _locale), do: {:ok, decimal}
+  def parse(%Decimal{} = decimal, _locale) do
+    if BoundedDecimal.finite?(decimal), do: {:ok, decimal}, else: {:error, :invalid}
+  end
+
   def parse(nil, _locale), do: :blank
 
   def parse(text, locale) when is_binary(text) do
@@ -104,13 +116,15 @@ defmodule PortfolixirWeb.DecimalInput do
     if foreign? and Regex.match?(@thousands_group, text) do
       {:error, :ambiguous}
     else
+      # The shared finite-decimal parser (E25 S4): the separator rule decides
+      # what the text means, the bounded parser what it is.
       text
       |> String.replace(",", ".")
       |> leading_zero()
-      |> Decimal.parse()
+      |> BoundedDecimal.parse()
       |> case do
-        {decimal, ""} -> {:ok, decimal}
-        _unreadable -> {:error, :invalid}
+        {:ok, decimal} -> {:ok, decimal}
+        :error -> {:error, :invalid}
       end
     end
   end
