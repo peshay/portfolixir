@@ -132,7 +132,7 @@ defmodule PortfolixirWeb.SessionHardeningTest do
     assert RuntimeConfig.force_ssl_opts(nil, nil) == false
     assert RuntimeConfig.force_ssl_opts("false", "app") == false
 
-    assert [rewrite_on: [:x_forwarded_proto], hsts: true, exclude: ["localhost"]] =
+    assert [rewrite_on: [:x_forwarded_proto], hsts: true, exclude: ["localhost", "127.0.0.1"]] =
              RuntimeConfig.force_ssl_opts("true", nil)
   end
 
@@ -146,12 +146,42 @@ defmodule PortfolixirWeb.SessionHardeningTest do
   # Acceptance criteria:
   # - PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS names hosts (comma-separated, trimmed,
   #   lower-cased, a port dropped) that force_ssl leaves on plain HTTP, beside
-  #   localhost, which it always leaves (the container's own health check).
+  #   localhost and 127.0.0.1, which it always leaves (the container's own
+  #   health check; the standalone companion's default base URL).
   # - A plain-HTTP request under an excluded host is served, without HSTS;
   #   the public host is still redirected.
   test "force_ssl leaves the named internal hosts on plain HTTP" do
-    assert [rewrite_on: [:x_forwarded_proto], hsts: true, exclude: ["localhost", "app", "mcp"]] =
-             RuntimeConfig.force_ssl_opts("true", " App:4000, ,mcp,app")
+    assert [
+             rewrite_on: [:x_forwarded_proto],
+             hsts: true,
+             exclude: ["localhost", "127.0.0.1", "app", "mcp"]
+           ] = RuntimeConfig.force_ssl_opts("true", " App:4000, ,mcp,app")
+  end
+
+  # User story (E25 S7 review round, S7E-1):
+  # As an operator who runs the MCP companion outside Compose against an
+  # instance with PHX_FORCE_SSL on,
+  # I want the companion's calls to its default base URL, http://127.0.0.1:4000,
+  # to reach the app without a redirect,
+  # so that turning PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS into a variable did not
+  # take away the loopback address Plug's own default always left alone.
+  #
+  # Acceptance criteria:
+  # - With force_ssl on and no excluded hosts named, a plain-HTTP request under
+  #   Host 127.0.0.1 is served, without HSTS; under localhost too.
+  # - The public host is still redirected.
+  test "with force_ssl on, the loopback names are served on plain HTTP", %{conn: conn} do
+    previous = Application.get_env(:portfolixir, :force_ssl)
+    Application.put_env(:portfolixir, :force_ssl, RuntimeConfig.force_ssl_opts("true", nil))
+    on_exit(fn -> Application.put_env(:portfolixir, :force_ssl, previous) end)
+
+    for host <- ["127.0.0.1", "localhost"] do
+      served = get(%{conn | host: host}, "/api/v1/portfolios")
+      assert served.status not in [301, 302], "#{host} was redirected"
+      assert get_resp_header(served, "strict-transport-security") == []
+    end
+
+    assert get(conn, "/health").status in [301, 302]
   end
 
   test "with force_ssl on, an excluded internal host is served while the public one redirects",
