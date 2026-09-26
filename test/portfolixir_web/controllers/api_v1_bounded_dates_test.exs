@@ -165,9 +165,11 @@ defmodule PortfolixirWeb.ApiV1BoundedDatesTest do
   end
 
   # Acceptance criteria:
-  # - Every other writer of a date — research-log entries, security events,
-  #   tax profiles, ISIN changes, quotes, splits and a rule's retirement —
-  #   answers an out-of-range date with a 422, never a server error.
+  # - Every other writer of a date — research-log entries (as_of,
+  #   valid_until, a thesis's time_stop), security events (date, checked_at,
+  #   a window's date_end), tax profiles, ISIN changes, quotes, splits and a
+  #   rule's retirement — answers an out-of-range date with a 422, never a
+  #   server error.
   test "every other dated writer answers an out-of-range date with a 422",
        %{conn: conn, world: world, security: security} do
     {:ok, isin_security} =
@@ -223,6 +225,18 @@ defmodule PortfolixirWeb.ApiV1BoundedDatesTest do
              "source_quality" => "primary"
            }
          }},
+        {:post, "/api/v1/securities/#{security.id}/notes",
+         %{
+           "note" => %{
+             "kind" => "thesis",
+             "body" => "Order book holds.",
+             "conviction" => "medium",
+             "source_quality" => "primary",
+             "source_url" => "https://example.com/report",
+             "as_of" => "2026-01-02",
+             "time_stop" => date
+           }
+         }},
         {:post, "/api/v1/securities/#{security.id}/events",
          %{
            "event" => %{
@@ -231,6 +245,16 @@ defmodule PortfolixirWeb.ApiV1BoundedDatesTest do
              "timing" => "exact",
              "source_quality" => "primary",
              "checked_at" => date
+           }
+         }},
+        {:post, "/api/v1/securities/#{security.id}/events",
+         %{
+           "event" => %{
+             "kind" => "earnings",
+             "date" => "2026-01-02",
+             "timing" => "window",
+             "date_end" => date,
+             "source_quality" => "primary"
            }
          }},
         {:post, "/api/v1/tax/profiles",
