@@ -558,3 +558,189 @@ Two corrections to public documents ride the batch rather than this PR, because
 each changes what an operator is told to do and should land with the code that
 makes it true: `SECURITY.md`'s token and revocation sentences (S1) and the
 reverse-proxy contract (S1).
+
+---
+
+## Part 7 — Where each item landed (Sprint 16 batch)
+
+Plan done criterion 2, recorded at the closing act as an appendix so the
+adopted cells above keep their wording. The **Landed** column in Part 3
+gives, per row, the first branch commit whose message names the item and how
+many later ones touch it again; this part lists every review identifier in
+order, with its status and the commit that carries its fix, named by subject.
+Subjects survive the history clean-up before the rebase-merge where hashes do
+not, and every landing commit names its identifier, so
+`git log --grep=<id>` finds all of them. Classes and fixes only, as Part 6
+asks: no item here says how its weakness is reached.
+
+Statuses: **shipped** (the adopted fix is on the branch, or for F77 on `main`
+before it); **partial** (part of the row's fix waits, by a recorded decision);
+**deferred** (nothing of it landed); **refuted**; **no action**; **repaired on
+the planning PR**. A follow-up named after a shipped item is the part the row
+itself put outside this sprint, filed as an issue at branch opening.
+
+**Counted by group:**
+
+| Group | Items | Shipped | Partial | Deferred | Refuted | No action | Repaired on the planning PR | With a filed follow-up |
+|---|---|---|---|---|---|---|---|---|
+| S0 runtime toolchain | 1 | 1 | – | – | – | – | – | – |
+| S1 credentials and sessions | 9 | 9 | – | – | – | – | – | – |
+| S2 deployment and logging | 12 | 12 | – | – | – | – | – | 2 (#895, #898) |
+| S3 outbound requests and provider data | 9 | 9 | – | – | – | – | – | – |
+| S4 input bounds and cost | 18 | 18 | – | – | – | – | – | 1 (#896) |
+| S5 import robustness | 11 | 11 | – | – | – | – | – | – |
+| S6 audit trail and integrity | 27 | 26 | 1 (F15) | – | – | – | – | 1 (#897) |
+| S7 browser and agent-surface hygiene | 13 | 13 | – | – | – | – | – | 2 (#894, #899) |
+| S8 CI supply chain | 4 | 4 | – | – | – | – | – | – |
+| P privacy | 2 | – | – | – | – | – | 2 | – |
+| N no action | 1 | – | – | – | – | 1 | – | – |
+| Refuted in Part 1 | 1 | – | – | – | 1 | – | – | – |
+| **All** | **108** | **103** | **1** | **0** | **1** | **1** | **2** | **6** |
+
+**The decisions of Part 4:**
+
+- **T-1** — as adopted: the runtime fix shipped before the batch as hotfix
+  #879 (PR #880); see F77.
+- **T-2** — as adopted, warn and do not refuse: `fix(config): SECRET_KEY_BASE
+  is checked at boot; a short UI password is warned about`, with the
+  scope-wide ceiling of `fix(auth): throttle escalation outlasts the sweep; UI
+  logins get a scope-wide ceiling`.
+- **T-3** — as adopted: `fix(api): dates are bounded at the boundary on every
+  writer` and `fix(policy): the database refuses a change to a version's
+  identity, predicate or start, a rule's context, and a truncate`; no insert
+  trigger, by the decision.
+- **T-4** — as adopted, documents only: `docs(security): what a logout and a
+  zero session lifetime actually do`; the password binding of F02 is the
+  cheaper lever it names.
+- **T-5** — as adopted: `fix(research): the research form is read for the keys
+  it renders only`; the context-level rule waits for its reason, which is why
+  F15 reads partial.
+- **T-6** — as adopted, documentation: `docs(deploy): an owner role and a
+  runtime role without TRUNCATE, for a new install`; the migration is the
+  decision #898.
+- **T-7** — as adopted: no history rewrite; the repairs are F64 and F69 below.
+- **T-8** — all three shipped: `fix(mcp): server instructions and a hint on
+  every tool, derived from its route`, `fix(mcp): an opt-in read-only switch
+  for the companion`, `feat(auth): API tokens are named principals, and the
+  journal names the token that wrote`, and `feat(policy): every rule version
+  names its author, and Risk marks the agent's lines` with `fix(mcp): the
+  policy-rule tools call a rule a stored rule and point to the journal`.
+- **T-9** — as adopted, agent-first: `fix(quotes): every authored quote write
+  is journaled and stored as manual, with a journaled release`; the release's
+  control on the screen is boarded on Sprint 17's planning PR and lands no
+  later than Sprint 17 under the two-way deadline.
+- **T-10** — as adopted: `fix(buckets): view definitions are journaled, and a
+  bucket delete journals its cascade with an emptied override kept
+  explicit-empty`; the confirm's new sentence is in the closing act's
+  screenshots (`implementation-artifacts/uat-s16/bucketdel-*.png`).
+
+**Every item, in order:**
+
+- **F01** · S1 · **shipped**, #886 — `fix(mcp): the companion's token meets the API token's policy and is throttled`
+- **F02** · S1 · **shipped**, #886 — `fix(auth): a password change ends existing sessions`
+- **F03** · S1 · **shipped**, #886 — `fix(proxy): every X-Forwarded-For line counts, in order`
+- **F04** · S1 · **shipped**, #886 — `fix(auth): throttle escalation outlasts the sweep; UI logins get a scope-wide ceiling`
+- **F05** · S1 · **shipped**, #886 — `docs(security): what a logout and a zero session lifetime actually do`
+- **F06** · S4 · **shipped**, #889 — `fix(benchmark): a remembered rate selector is exact at the engine's scale and short, on every path`
+- **F07** · S7 · **shipped**, #892 — `fix(web): static assets, stored logos and pages carry Cross-Origin-Resource-Policy same-origin`
+- **F08** · S2 · **shipped**, #887 — `fix(compose): the development stack publishes on loopback only`
+- **F09** · S1 · **shipped**, #886 — `fix(proxy): X-Forwarded-Proto only from loopback or a named proxy`
+- **F10** · S1 · **shipped**, #886 — `fix(auth): a login starts a fresh CSRF token`
+- **F11** · S4 · **shipped**, #889 — `fix(classifications): a category's parent never loops the tree, and every walk over it ends`
+- **F12** · S4 · **shipped**, #889 — `fix(buckets): a bucket named twice in a view's lists counts once`
+- **F13** · S4 · **shipped**, #889 — `fix(quotes): a quote batch names each date once and carries only quote objects`
+- **F14** · Part 1 · **refuted** — the input it needs is rejected by the JSON parser before any controller runs; no commit
+- **F15** · S6 · **partial**, #891 — `fix(research): the research form is read for the keys it renders only`; as T-5 decided, the form half shipped and the context-level half of the row waits for its reason (no issue)
+- **F16** · S4 · **shipped**, #889 — `fix(web): a page reads its path and id-valued URL params through one bounded rule`
+- **F17** · S4 · **shipped**, #889 — `fix(web): a page and its dialogs ignore an event payload they cannot read`
+- **F18** · S7 · **shipped**, #892 — `fix(web): a view, benchmark or locale from another site applies to its page only`
+- **F19** · S2 · **shipped**, #887 — `fix(mcp): the companion authenticates before it reads a body and answers errors as JSON`
+- **F20** · S6 · **shipped**, #891 — `fix(quotes): every authored quote write is journaled and stored as manual, with a journaled release`
+- **F21** · S7 · **shipped**, #892 — `fix(mcp): the schema a host receives is the one the tests pin`
+- **F22** · S7 · **shipped**, #892 — `fix(mcp): the companion checks Host exactly ahead of the origin and the token`
+- **F23** · S7 · **shipped**, #892 — `fix(mcp): the API client refuses any redirect by name` · `fix(web): force_ssl leaves the companion's internal host on plain HTTP`
+- **F24** · S7 · **shipped**, #892 — `fix(mcp): server instructions and a hint on every tool, derived from its route`
+- **F25** · S2 · **shipped**, #887 — `fix(docker): every Compose image and the companion's base pinned by digest`
+- **F26** · S3 · **shipped**, #888 — `fix(quotes): provider quotes and rates are bounded on every writer and every latest read`
+- **F27** · S3 · **shipped**, #888 — `fix(net): a redirect is followed only through the URL policy, on every outbound client`
+- **F28** · S3 · **shipped**, #888 — `fix(quotes): long provider histories are stored in bounded chunks, and one failing security is its own error`
+- **F29** · S3 · **shipped**, #888 — `fix(search): every search-provider field is type-checked and bounded, and the raw entry is not echoed`
+- **F30** · S3 · **shipped**, #888 — `fix(logos): the Wikipedia adapter type-matches its payloads and one lookup cannot fan out`
+- **F31** · S3 · **shipped**, #888 — `fix(net): a stored identifier is one request-path segment, never a relative one`
+- **F32** · S3 · **shipped**, #888 — `fix(net): the URL policy treats only ordinary global unicast as public`
+- **F33** · S5 · **shipped**, #890 — `fix(imports): a security that names nothing is a row warning, and a preview is parked only once it has rendered`
+- **F34** · S5 · **shipped**, #890 — `fix(imports): a body that is not UTF-8 is a named file error before anything is parked`
+- **F35** · S5 · **shipped**, #890 — `fix(imports): distinct names are capped at parse, and a depot row's cash choices are built once`
+- **F36** · S5 · **shipped**, #890 — `fix(imports): the content hash and the security reference key are injective, and every stored hash stays valid`
+- **F37** · S5 · **shipped**, #890 — `fix(imports): a split-off tax refund is hashed with its row and books or skips with it`
+- **F38** · S5 · **shipped**, #890 — `fix(imports): the row cap counts expanded entries, and values past their column are named row errors`
+- **F39** · S5 · **shipped**, #890 — `fix(imports): the row cap counts expanded entries, and values past their column are named row errors`
+- **F40** · S5 · **shipped**, #890 — `fix(imports): the applier's result lists are built by prepending and reversed once`
+- **F41** · S5 · **shipped**, #890 — `fix(imports): the preview store evicts by key and timestamp alone, and SECURITY.md names its guard`
+- **F42** · S5 · **shipped**, #890 — `fix(imports): cash and depot rows are addressed by an opaque key, never by the file's name`
+- **F43** · S6 · **shipped**, #891 — `fix(journal): a delete removes its children through their journaled writers first, and the cascades are a listed backstop`
+- **F44** · S6 · **shipped**, #891 — `fix(knowledge): a research entry cannot be dated after today, nor an event checked after tomorrow`
+- **F45** · S6 · **shipped**, #891 — `fix(buckets): view definitions are journaled, and a bucket delete journals its cascade with an emptied override kept explicit-empty`
+- **F46** · S6 · **shipped**, #891 — `fix(derived): the portfolio-metrics memo is keyed on the version of the walk it was computed from`
+- **F47** · S6 · **shipped**, #891 — `fix(derived): a data version passes every commit's ids, and quote and rate writes bump in their own transaction`
+- **F48** · S6 · **shipped**, #891 — `fix(policy): a version add, a retirement and a delete hold the rule before they read its versions`
+- **F49** · S6 · **shipped**, #891 — `fix(journal): a before-image is the row as stored under the write's lock, and a write to a vanished row answers 404`
+- **F50** · S2 · **shipped**, #887 — `docs(deploy): an owner role and a runtime role without TRUNCATE, for a new install`; the role migration is decision #898 (T-6)
+- **F51** · S6 · **shipped**, #891 — `fix(policy): the database refuses a change to a version's identity, predicate or start, a rule's context, and a truncate`
+- **F52** · S6 · **shipped**, #891 — `test(journal): every database table sits in exactly one journal classification`
+- **F53** · S6 · **shipped**, #891 — `fix(derived): a research entry or a security event invalidates no portfolio's derived values`
+- **F54** · S2 · **shipped**, #887 — `docs(deploy): the restore is one transaction and its check counts the triggers`
+- **F55** · S8 · **shipped**, #893 — `ci: the migration gate lets only new migration files through`
+- **F56** · S2 · **shipped**, #887 — `docs(deploy): secrets and backups created private, the token kept off the command line`
+- **F57** · S1 · **shipped**, #886 — `docs(proxy): the proxy sets or appends the forwarding headers and is named by one address`
+- **F58** · S8 · **shipped**, #893 — `ci: the MCP image and install run no dependency scripts`
+- **F59** · S2 · **shipped**, #887 — `fix(release): the release tree is read-only for its user; logos live on a volume`
+- **F60** · S8 · **shipped**, #893 — `ci: pre-commit installs by hash, its hooks by commit` · `ci: service and base images by digest, toolchains by SHA-256`
+- **F61** · S8 · **shipped**, #893 — `ci: run scripts read refs through env, checkouts drop the token`
+- **F62** · S2 · **shipped**, #887 — `fix(release): the release starts without Erlang distribution`; the Compose network split → #895
+- **F63** · N · **no action**, as decided — the gate is a hygiene lint; no commit
+- **F64** · P · **repaired on the planning PR** — `chore(privacy): remove an unreferenced screenshot and ignore /undefined/`
+- **F65** · S2 · **shipped**, #887 — `fix(docker): the build context leaves out everything git leaves out`
+- **F66** · S2 · **shipped**, #887 — `fix(config): production logs at info`
+- **F67** · S1 · **shipped**, #886 — `fix(config): SECRET_KEY_BASE is checked at boot; a short UI password is warned about`
+- **F68** · S2 · **shipped**, #887 — `fix(web): an error page for every status, in the API's error shape for JSON`
+- **F69** · P · **repaired on the planning PR** — `docs(privacy): scrub real-data classes from five committed records` · `test(privacy): invented values for a real booking reused as a parser fixture`
+- **F70** · S4 · **shipped**, #889 — `feat(input): one bounded rule per kind of input, dates, decimals and text` · `fix(api): dates are bounded at the boundary on every writer`
+- **F71** · S6 · **shipped**, #891 — `fix(ledger): the settlement guard compares the cash the ledger books, a trade without a cash amount included`
+- **F72** · S4 · **shipped**, #889 — `fix(risk): top_n is capped and echoed, and the correlation matrix covers a bounded number of names`
+- **F73** · S3 · **shipped**, #888 — `fix(risk): the square root of the risk math is total, and a figure it cannot carry is null`
+- **F74** · S4 · **shipped**, #889 — `perf(policy): the findings value their context once, and the rule list filters and limits in the query`; a per-portfolio rule cap is decision #896
+- **F75** · S7 · **shipped**, #892 — `fix(api): the benchmark basis names a security by id and currency, never its stored name`
+- **F76** · S2 · **shipped**, #887 — `docs(deploy): the Compose reach qualified, its engine named, a UI password recommended`
+- **F77** · S0 · **shipped** before the batch, hotfix #879 (PR #880) — `fix(runtime): ship Elixir 1.18.5 on OTP 27.3.4.18, the patch CI tests` · `test(ci): one Elixir and one OTP patch across CI, both images and the install script`
+- **G01** · S6 · **shipped**, #891 — `fix(knowledge): research, event and rule-version text is capped in code points, and a thesis read loads one body`
+- **G02** · S6 · **shipped**, #891 — `fix(journal): an update that changes nothing leaves no entry, and every free-text column and a security's merged attributes are bounded`
+- **G03** · S4 · **shipped**, #889 — `fix(derived): the memo keeps to a budget, and only fixed periods and whole-basis-point rates are memoised`
+- **G04** · S3 · **shipped**, #888 — `fix(sync): one serial queue enriches new securities, and a sync or backfill runs once at a time`
+- **G05** · S4 · **shipped**, #889 — `fix(web): every request and LiveView process runs under a heap cap that counts shared binaries`
+- **G06** · S6 · **shipped**, #891 — `fix(api): a delta read's as_of lies no later than the oldest write still in flight`; commit-ordered delta cursors are decision #897
+- **G07** · S6 · **shipped**, #891 — `fix(ledger): a booked split changes only its note outside the split flow, and its edit shows the split fixed`
+- **G08** · S6 · **shipped**, #891 — `fix(clock): every "today" reads one clock, and each database session takes its zone`
+- **G09** · S6 · **shipped**, #891 — `fix(knowledge): a research entry cannot be dated after today, nor an event checked after tomorrow`
+- **G10** · S6 · **shipped**, #891 — `fix(buckets): an assignment write holds its account, and a damaged override reads explicit-empty`
+- **G11** · S4 · **shipped**, #889 — `fix(targets): a target batch names each category once and is bounded`
+- **G12** · S4 · **shipped**, #889 — `fix(performance): the IRR is absent with its reason over an out-of-range amount, and a security's splits are bounded`
+- **G13** · S6 · **shipped**, #891 — `fix(targets): one position row per security in a plan is held by the database`
+- **G14** · S4 · **shipped**, #889 — `fix(targets): a weight carries at most six decimal places, and a zero-value position no drift share`
+- **G15** · S4 · **shipped**, #889 — `fix(api): a decimal query parameter is finite or refused, through one parser`
+- **G16** · S4 · **shipped**, #889 — `fix(ledger): an amount is rounded to its column before it is checked, and bounded by it`
+- **G17** · S4 · **shipped**, #889 — `fix(ledger): an amount is rounded to its column before it is checked, and bounded by it` · `fix(api): names and free text are bounded by their columns on every writer`
+- **G18** · S6 · **shipped**, #891 — `fix(portfolios): the cash target is written only when a portfolio write carries it, inside that write's transaction`
+- **G19** · S6 · **shipped**, #891 — `fix(buckets): view definitions are journaled, and a bucket delete journals its cascade with an emptied override kept explicit-empty`
+- **G20** · S7 · **shipped**, #892 — `fix(input): text an agent reads refuses the characters the operator cannot see` · `feat(web): stored text with invisible characters carries one attention note, the text spelled out`
+- **G21** · S6 · **shipped**, #891 — `fix(tax): a holder or institution is one identity, folded by the database and rolled up once`
+- **G22** · S6 · **shipped**, #891 — `fix(tax): a holder or institution is one identity, folded by the database and rolled up once`
+- **G23** · S5 · **shipped**, #890 — `fix(catalog): one ISIN predicate with its check digit, shaped identifier changes, and names compared as they look`
+- **G24** · S4 · **shipped**, #889 — `feat(input): one bounded rule per kind of input, dates, decimals and text` · `fix(api): names and free text are bounded by their columns on every writer`
+- **G25** · S7 · **shipped**, #892 — `fix(mcp): server instructions and a hint on every tool, derived from its route`
+- **G26** · S7 · **shipped**, #892 — `feat(auth): API tokens are named principals, and the journal names the token that wrote` · `fix(mcp): an opt-in read-only switch for the companion`
+- **G27** · S6 · **shipped**, #891 — `fix(quotes): every authored quote write is journaled and stored as manual, with a journaled release`; the release is agent-first; its control on the screen is due no later than Sprint 17 (T-9)
+- **G28** · S7 · **shipped**, #892 — `fix(mcp): cascading deletes name what one call removes`; dry-run deletes → #894
+- **G29** · S6 · **shipped**, #891 — `fix(buckets): view definitions are journaled, and a bucket delete journals its cascade with an emptied override kept explicit-empty`
+- **G30** · S7 · **shipped**, #892 — `feat(policy): every rule version names its author, and Risk marks the agent's lines` · `fix(mcp): the policy-rule tools call a rule a stored rule and point to the journal`
+- **G31** · S7 · **shipped**, #892 — `fix(mcp): a write that times out answers outcome unknown`; the Idempotency-Key → #899 (Sprint 17)
