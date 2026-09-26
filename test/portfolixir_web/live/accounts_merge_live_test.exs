@@ -401,6 +401,17 @@ defmodule PortfolixirWeb.AccountsMergeLiveTest do
       view |> element("#merge-dialog [data-role='merge-confirm']") |> render_click()
       refute Portfolios.get_securities_account(ctx.source.id)
       assert Lifecycle.merge_of(:securities_account, ctx.source.id)
+
+      # The page handles the dialog's answer before the test ends (review
+      # finding M-6): the inline result, and the source's row gone.
+      render(view)
+      refute has_element?(view, "#merge-dialog")
+
+      assert view |> element("#accounts-result") |> render() =~
+               "Merged Depot 2 into Depot 1: 3 bookings moved, 0 removed."
+
+      refute has_element?(view, "#account-kebab-#{ctx.source.id}")
+      assert has_element?(view, "#account-kebab-#{ctx.target.id}")
     end
 
     # User story:
