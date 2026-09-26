@@ -538,6 +538,44 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
              ] =
                refused_guard!(ctx, :position_buckets_mismatch).positions
     end
+
+    # User story:
+    # As the operator whose duplicate security carries, in a depot the kept
+    # one never held, an override stored before a position could hold only
+    # one scope bucket,
+    # I want the preview to refuse the merge naming that depot and the rule,
+    # so that the merge never fails half-way on a write the bucket rules
+    # refuse.
+    #
+    # Acceptance criteria:
+    # - The override to carry, with two scope-dimension buckets, refuses as
+    #   position_buckets_mismatch naming the depot, the buckets and the
+    #   one-scope rule, lists the position as refuse_carry, and writes
+    #   nothing.
+    test "a carried override with two scope buckets refuses, naming the depot", ctx do
+      worked_example!(ctx)
+      d4 = depot!(ctx.main, ctx.c1, "Broker D")
+      buy!(ctx, d4, ctx.c1, ctx.source, "1", "100.00", ~D[2025-02-20])
+      {:ok, one} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Scope A", dimension: "scope"})
+      {:ok, two} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Scope B", dimension: "scope"})
+
+      # Stored the way an override was written before the one-scope rule.
+      Repo.insert_all("position_bucket_overrides", [
+        %{securities_account_id: d4.id, security_id: ctx.source.id, bucket_id: one.id},
+        %{securities_account_id: d4.id, security_id: ctx.source.id, bucket_id: two.id}
+      ])
+
+      guard = refused_guard!(ctx, :position_buckets_mismatch)
+
+      assert guard.detail =~
+               "In depot \"Broker D\" the source's position carries an override with more " <>
+                 "than one scope bucket #{inspect(Enum.sort([one.id, two.id]))}"
+
+      refute guard.detail =~ "Broker A"
+
+      assert [%{securities_account_name: "Broker D", target_buckets: [], action: :refuse_carry}] =
+               guard.positions
+    end
   end
 
   describe "journal, hashes and the record (§3, §12, §13, §16 invariants 4 and 11)" do
@@ -831,6 +869,24 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
       guard = refused_guard!(ctx, :retired_target)
       assert guard.remedy == :merge_other_way
       assert {:ok, _reverse} = Lifecycle.preview_security_merge(ctx.target.id, ctx.source.id)
+    end
+
+    # User story:
+    # As the operator who picks as the target a security an earlier merge
+    # took away,
+    # I want the refusal to name the security it went into,
+    # so that I merge into the survivor instead.
+    #
+    # Acceptance criteria:
+    # - The preview and the apply answer not_live, naming the survivor, and
+    #   every table is unchanged.
+    test "a target merged away names the security it went into", ctx do
+      worked_example!(ctx)
+      [merged_away, survivor] = [security!("Fund M"), security!("Fund M")]
+      merge!(%{ctx | source: merged_away, target: survivor}, false)
+
+      guard = refused_guard!(%{ctx | target: merged_away}, :not_live)
+      assert guard.detail =~ "(it was merged into security ##{survivor.id})"
     end
   end
 

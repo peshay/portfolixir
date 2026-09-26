@@ -334,6 +334,77 @@ defmodule PortfolixirWeb.Api.V1.DepotMergeControllerTest do
     assert errors["detail"] =~ "securities account ##{ctx.source.id} was merged into"
   end
 
+  # User story:
+  # As the agent showing the operator what a depot merge does beyond the two
+  # depots,
+  # I want the preview to name the third depot a collapsed transfer changes
+  # and every split whose combined rounding differs, with their figures as
+  # strings,
+  # so that neither a moved share nor a unit of rounding surprises the
+  # operator.
+  #
+  # Acceptance criteria:
+  # - Collapsing the transfer a third depot made to both lists that depot,
+  #   the security and its quantity before and after, as strings.
+  # - A 1:3 split of one share in each depot lists the split's rounding
+  #   difference (0.666667 combined, 0.666666 apart), as strings.
+  test "the third depots and the rounding differences answer as strings", ctx do
+    third = depot!(ctx.portfolio, ctx.cash_t, "Depot 3")
+    row!(ctx, "buy", {third, ctx.cash_t}, ctx.kestrel, {"10", "100.00"}, ~D[2025-01-05])
+
+    for to <- [ctx.source, ctx.target] do
+      insert!(%{
+        portfolio_id: ctx.portfolio.id,
+        securities_account_id: third.id,
+        counter_securities_account_id: to.id,
+        security_id: ctx.kestrel.id,
+        type: "security_transfer",
+        date: ~D[2025-02-01],
+        quantity: "4",
+        currency_code: "EUR"
+      })
+    end
+
+    row!(ctx, "buy", {ctx.target, ctx.cash_t}, ctx.meridian, {"1", "10.00"}, ~D[2025-01-10])
+    row!(ctx, "buy", {ctx.source, ctx.cash_s}, ctx.meridian, {"1", "10.00"}, ~D[2025-01-12])
+
+    {:ok, [split]} =
+      Ledger.Splits.book_split(Actor.owner_ui(), %{
+        security_id: ctx.meridian.id,
+        date: ~D[2025-03-01],
+        ratio_numerator: 1,
+        ratio_denominator: 3
+      })
+
+    %{"false" => keep, "true" => collapse} = preview!(ctx)["outcome_by_collapse_key_equal"]
+
+    assert keep["other_depots"] == []
+
+    assert collapse["other_depots"] == [
+             %{
+               "securities_account_id" => third.id,
+               "securities_account_name" => "Depot 3",
+               "security_id" => ctx.kestrel.id,
+               "security_name" => "Kestrel Industrial Group NV",
+               "quantity_before" => "2",
+               "quantity_after" => "6"
+             }
+           ]
+
+    assert [
+             %{
+               "security_id" => meridian_id,
+               "date" => "2025-03-01",
+               "split_transaction_id" => split_id,
+               "combined" => "0.666667",
+               "separate_sum" => "0.666666",
+               "difference" => "0.000001"
+             }
+           ] = keep["rounding_differences"]
+
+    assert {meridian_id, split_id} == {ctx.meridian.id, split.id}
+  end
+
   # --- world ------------------------------------------------------------------
 
   # The worked example of the context test: Meridian held by both depots

@@ -27,6 +27,7 @@ defmodule Portfolixir.Lifecycle.CashMergeTest do
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Portfolios.SecuritiesAccount
+  alias Portfolixir.WorldFixtures
 
   defp agent, do: Actor.api_token_rw("synthetic-agent")
 
@@ -343,6 +344,55 @@ defmodule Portfolixir.Lifecycle.CashMergeTest do
       assert s_deposit.id in Enum.map(changes, & &1.transaction_id)
       assert rows.s_anchor.id in Enum.map(changes, & &1.transaction_id)
     end
+
+    # User story:
+    # As the operator collapsing a buy both cash accounts paid for, once each,
+    # I want the preview to say which position loses the collapsed quantity,
+    # so that a collapse never shrinks a holding I was not shown.
+    #
+    # Acceptance criteria:
+    # - The collapse outcome lists the depot and security of each collapsed
+    #   trade with its quantity change (a buy's quantity, negated; two
+    #   collapsed rows of one position summed); keeping both lists none.
+    # - After the apply with collapse, the depot holds exactly that much
+    #   less, and the target's balance is the collapse outcome's.
+    test "a collapsed trade names the position it changes", ctx do
+      depot = depot!(ctx, ctx.target, "Depot 1")
+      security = WorldFixtures.create_security!(name: "Synthetic Collapse ETF", ticker: "SCOL")
+
+      book!(ctx, ctx.source, "deposit", "1000.00", ~D[2025-01-02])
+      book!(ctx, ctx.target, "deposit", "500.00", ~D[2025-01-02])
+
+      for cash <- [ctx.source, ctx.target], date <- [~D[2025-02-03], ~D[2025-02-10]] do
+        imported_buy!(ctx, {depot, cash}, security, date)
+      end
+
+      {:ok, preview} = Lifecycle.preview_cash_merge(ctx.source.id, ctx.target.id)
+
+      assert preview.outcomes[false].positions == []
+
+      assert [
+               %{
+                 securities_account_id: depot_id,
+                 security_id: security_id,
+                 quantity_change: change
+               }
+             ] =
+               preview.outcomes[true].positions
+
+      assert {depot_id, security_id} == {depot.id, security.id}
+      assert n(change) == dec("-6")
+      assert n(preview.outcomes[false].balance) == dec("1020")
+      assert n(preview.outcomes[true].balance) == dec("1260")
+
+      merge!(ctx, true, preview)
+
+      assert Ledger.positions_for_portfolio(ctx.portfolio.id)
+             |> Map.fetch!({depot.id, security.id})
+             |> n() == dec("6")
+
+      assert balance(ctx.target) == dec("1260")
+    end
   end
 
   describe "journal, depots, buckets and names (§7 steps 5 and 7, §13, §16 invariant 11)" do
@@ -648,6 +698,36 @@ defmodule Portfolixir.Lifecycle.CashMergeTest do
     end
 
     # User story:
+    # As the operator who picks as the target an account an earlier merge
+    # took away,
+    # I want the refusal to name the account it went into,
+    # so that I merge into the survivor instead.
+    #
+    # Acceptance criteria:
+    # - The preview and the apply answer not_live, naming the survivor, and
+    #   every table is unchanged.
+    test "a target merged away names the account it went into", ctx do
+      book!(ctx, ctx.source, "deposit", "40.00", ~D[2025-01-02])
+      survivor = cash!(ctx.portfolio, "Savings (new)")
+      merge!(%{ctx | source: ctx.target, target: survivor}, false)
+      before = fingerprint()
+
+      assert {:error, {:refused, guards}} =
+               Lifecycle.preview_cash_merge(ctx.source.id, ctx.target.id)
+
+      assert %{code: :not_live, detail: detail} = Enum.find(guards, &(not &1.passed))
+      assert detail =~ "(it was merged into cash account ##{survivor.id})"
+
+      assert {:error, {:refused, [_same, %{code: :not_live, detail: ^detail}]}} =
+               Lifecycle.merge_cash_account(agent(), ctx.source.id, ctx.target.id, %{
+                 plan_digest: "sha256:whatever",
+                 collapse_key_equal: false
+               })
+
+      assert fingerprint() == before
+    end
+
+    # User story:
     # As the operator who approved a preview an hour ago,
     # I want the merge refused when a booking of either account changed
     # since, with the fresh preview,
@@ -949,6 +1029,36 @@ defmodule Portfolixir.Lifecycle.CashMergeTest do
 
     opts = if hash, do: [import_hash: hash], else: []
     {:ok, tx} = Ledger.create_transaction(agent(), attrs, opts)
+    tx
+  end
+
+  # Written the way the Portfolio Performance importer writes a trade
+  # (`Imports.Applier`): the file names the cash account it settled on, which
+  # need not be the depot's linked one.
+  defp imported_buy!(ctx, {depot, cash}, security, date) do
+    changeset =
+      Transaction.import_changeset(%Transaction{}, %{
+        portfolio_id: ctx.portfolio.id,
+        securities_account_id: depot.id,
+        cash_account_id: cash.id,
+        security_id: security.id,
+        type: "buy",
+        date: date,
+        quantity: "3",
+        price: "40.00",
+        currency_code: "EUR"
+      })
+
+    {:ok, %{transaction: tx}} =
+      Ecto.Multi.new()
+      |> Ecto.Multi.insert(:transaction, changeset)
+      |> Journal.record(Actor.import_session(),
+        resource_type: "transaction",
+        operation: :create,
+        source: :transaction
+      )
+      |> Repo.transaction()
+
     tx
   end
 

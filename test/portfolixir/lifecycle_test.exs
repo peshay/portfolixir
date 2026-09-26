@@ -241,6 +241,66 @@ defmodule Portfolixir.LifecycleTest do
     end
   end
 
+  describe "the audit read of the merges (ADR-0050 §12, L5a)" do
+    # User story:
+    # As the maintainer reading the merge history,
+    # I want each merge to name its target even when that target is gone —
+    # by the name a later merge recorded and the account it went into, or
+    # by nothing when it was deleted —
+    # so that the history reads the same after later changes.
+    #
+    # Acceptance criteria:
+    # - A live target is named by its live name, with no survivor.
+    # - A target a later merge took away is named as that merge recorded it,
+    #   with the live end of the chain.
+    # - A target deleted after the merge is named by nothing and has no
+    #   survivor; its source keeps the name its own snapshot recorded.
+    test "a target merged away or deleted since is named as the record allows" do
+      %{portfolio: portfolio} = world()
+
+      [alpha, beta, gamma, delta, epsilon] =
+        Enum.map(~w(Alpha Beta Gamma Delta Epsilon), &cash!(portfolio, &1))
+
+      first = merge_cash!(alpha, beta)
+      second = merge_cash!(beta, gamma)
+      third = merge_cash!(delta, epsilon)
+      {:ok, _} = Portfolios.delete_cash_account(agent(), epsilon)
+
+      listed = Map.new(Lifecycle.list_merges(10), &{&1.record.id, &1})
+
+      assert Map.take(listed[first.id], [:source_name, :target_name, :target_merged_into]) ==
+               %{source_name: "Alpha", target_name: "Beta", target_merged_into: gamma.id}
+
+      assert Map.take(listed[second.id], [:source_name, :target_name, :target_merged_into]) ==
+               %{source_name: "Beta", target_name: "Gamma", target_merged_into: nil}
+
+      assert Map.take(listed[third.id], [:source_name, :target_name, :target_merged_into]) ==
+               %{source_name: "Delta", target_name: nil, target_merged_into: nil}
+    end
+  end
+
+  defp cash!(portfolio, name) do
+    {:ok, cash} =
+      Portfolios.create_cash_account(Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        name: name,
+        currency_code: "EUR"
+      })
+
+    cash
+  end
+
+  defp merge_cash!(source, target) do
+    {:ok, preview} = Lifecycle.preview_cash_merge(source.id, target.id)
+
+    {:ok, record, :applied} =
+      Lifecycle.merge_cash_account(agent(), source.id, target.id, %{
+        plan_digest: preview.plan_digest
+      })
+
+    record
+  end
+
   describe "retired import hashes (ADR-0050 §3)" do
     # User story:
     # As the operator re-importing a Portfolio Performance export after a

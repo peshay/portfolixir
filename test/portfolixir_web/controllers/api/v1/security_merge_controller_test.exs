@@ -494,6 +494,80 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
 
   # --- world ------------------------------------------------------------------
 
+  # User story:
+  # As the agent showing the operator what a merge does to the splits,
+  # I want the preview to list the splits it collapses and the splits it
+  # moves, and each split whose combined rounding differs, as strings,
+  # so that the operator sees every rescaled position before choosing.
+  #
+  # Acceptance criteria:
+  # - A same-day, same-ratio split of both in one portfolio is listed as
+  #   collapsed, with both ids, the date and the ratio; the rounding it
+  #   leaves (0.666667 combined, 0.666666 apart) is listed per depot, as
+  #   strings.
+  # - A split of the source alone, in a portfolio the target has no
+  #   bookings in and before the target's first booking, is listed as
+  #   moved.
+  test "the preview lists collapsed and moved splits and their rounding, as strings", ctx do
+    buy!(ctx, ctx.target, "1", "10.00", ~D[2025-01-10])
+    buy!(ctx, ctx.source, "1", "10.00", ~D[2025-01-12])
+    t_split = split!(ctx.portfolio, ctx.target, ~D[2025-03-01], {1, 3})
+    s_split = split!(ctx.portfolio, ctx.source, ~D[2025-03-01], {1, 3})
+
+    {:ok, second} =
+      Portfolios.create_portfolio(Actor.owner_ui(), %{name: "Second", base_currency_code: "EUR"})
+
+    second_cash = cash!(second, "Second cash")
+    second_depot = depot!(second, second_cash, "Depot 2")
+
+    buy!(
+      %{ctx | portfolio: second, depot: second_depot, cash: second_cash},
+      ctx.source,
+      "3",
+      "10.00",
+      ~D[2025-01-03]
+    )
+
+    # Before the target's first booking, so the merged split events rebase
+    # none of its history (ADR-0028 §1).
+    moved = split!(second, ctx.source, ~D[2025-01-05], {2, 1})
+
+    preview = preview!(ctx)
+
+    assert preview["splits"]["collapsed"] == [
+             %{
+               "source_transaction_id" => s_split.id,
+               "target_transaction_id" => t_split.id,
+               "portfolio_id" => ctx.portfolio.id,
+               "date" => "2025-03-01",
+               "ratio" => %{"numerator" => 1, "denominator" => 3}
+             }
+           ]
+
+    assert preview["splits"]["moved"] == [
+             %{
+               "id" => moved.id,
+               "portfolio_id" => second.id,
+               "date" => "2025-01-05",
+               "ratio" => %{"numerator" => 2, "denominator" => 1}
+             }
+           ]
+
+    assert [
+             %{
+               "portfolio_id" => portfolio_id,
+               "securities_account_id" => depot_id,
+               "date" => "2025-03-01",
+               "split_transaction_id" => split_id,
+               "combined" => "0.666667",
+               "separate_sum" => "0.666666",
+               "difference" => "0.000001"
+             }
+           ] = preview["outcome_by_collapse_key_equal"]["false"]["rounding_differences"]
+
+    assert {portfolio_id, depot_id, split_id} == {ctx.portfolio.id, ctx.depot.id, t_split.id}
+  end
+
   # The target holds 12 (bought 10 and 2); the source holds 5 (a buy of 3
   # and the same buy of 2 on the same day as the target's, the key-equal
   # pair). Each has a quote on 2025-03-03 (the source's typed by hand); the
@@ -604,6 +678,21 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
         quantity: quantity,
         price: price,
         currency_code: "EUR"
+      })
+
+    tx
+  end
+
+  defp split!(portfolio, security, date, {numerator, denominator}) do
+    {:ok, tx} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        security_id: security.id,
+        type: "split",
+        date: date,
+        currency_code: security.currency_code,
+        split_ratio_numerator: numerator,
+        split_ratio_denominator: denominator
       })
 
     tx

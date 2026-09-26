@@ -11,8 +11,10 @@ defmodule PortfolixirWeb.Api.V1.CashMergeControllerTest do
   import Ecto.Query, only: [from: 2]
 
   alias Portfolixir.Actor
+  alias Portfolixir.Catalog
   alias Portfolixir.Journal
   alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios
 
   setup %{conn: conn} do
@@ -360,6 +362,66 @@ defmodule PortfolixirWeb.Api.V1.CashMergeControllerTest do
     assert errors["detail"] =~ "##{buy.id}"
   end
 
+  # User story:
+  # As the agent showing the operator what a collapse changes beyond the two
+  # accounts,
+  # I want the preview to name the third accounts and the positions a
+  # collapsed row touches, with their figures as strings,
+  # so that I can say which balance and which holding move before the
+  # operator chooses.
+  #
+  # Acceptance criteria:
+  # - Collapsing a transfer both accounts made to a third account lists that
+  #   account with its balance before and after, as strings.
+  # - Collapsing a buy both accounts paid for lists the depot and security
+  #   with its quantity change, as a string.
+  # - Keeping both lists neither.
+  test "a collapse names the third accounts and positions it touches, as strings", ctx do
+    side = cash!(ctx.portfolio, "Side pocket")
+    book!(ctx, ctx.source, "deposit", "1000.00", ~D[2025-01-02])
+    book!(ctx, ctx.target, "deposit", "500.00", ~D[2025-01-02])
+
+    for from <- [ctx.source, ctx.target],
+        do: transfer_to!(ctx, from, side, "50.00", ~D[2025-03-01])
+
+    {:ok, depot} =
+      Portfolios.create_securities_account(Actor.owner_ui(), %{
+        portfolio_id: ctx.portfolio.id,
+        cash_account_id: ctx.target.id,
+        name: "Depot 1"
+      })
+
+    {:ok, security} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Synthetic Collapse ETF",
+        currency_code: "EUR"
+      })
+
+    for cash <- [ctx.source, ctx.target], do: imported_buy!(ctx, depot, cash, security)
+
+    %{"false" => keep, "true" => collapse} = preview!(ctx)["outcome_by_collapse_key_equal"]
+
+    assert keep["other_accounts"] == []
+    assert keep["positions"] == []
+
+    assert collapse["other_accounts"] == [
+             %{
+               "id" => side.id,
+               "name" => "Side pocket",
+               "balance_before" => "100",
+               "balance_after" => "50"
+             }
+           ]
+
+    assert collapse["positions"] == [
+             %{
+               "securities_account_id" => depot.id,
+               "security_id" => security.id,
+               "quantity_change" => "-3"
+             }
+           ]
+  end
+
   # --- world ------------------------------------------------------------------
 
   # The worked example of the context test: source 902.50 and target 807.50,
@@ -422,6 +484,51 @@ defmodule PortfolixirWeb.Api.V1.CashMergeControllerTest do
         gross_amount: amount,
         currency_code: "EUR"
       })
+
+    tx
+  end
+
+  defp transfer_to!(ctx, from, to, amount, date) do
+    {:ok, tx} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: ctx.portfolio.id,
+        cash_account_id: from.id,
+        counter_cash_account_id: to.id,
+        type: "cash_transfer",
+        date: date,
+        gross_amount: amount,
+        currency_code: "EUR"
+      })
+
+    tx
+  end
+
+  # Written the way the Portfolio Performance importer writes a trade: the
+  # file names the cash account it settled on, which need not be the
+  # depot's linked one.
+  defp imported_buy!(ctx, depot, cash, security) do
+    changeset =
+      Transaction.import_changeset(%Transaction{}, %{
+        portfolio_id: ctx.portfolio.id,
+        securities_account_id: depot.id,
+        cash_account_id: cash.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2025-04-01],
+        quantity: "3",
+        price: "40.00",
+        currency_code: "EUR"
+      })
+
+    {:ok, %{transaction: tx}} =
+      Ecto.Multi.new()
+      |> Ecto.Multi.insert(:transaction, changeset)
+      |> Journal.record(Actor.import_session(),
+        resource_type: "transaction",
+        operation: :create,
+        source: :transaction
+      )
+      |> Portfolixir.Repo.transaction()
 
     tx
   end

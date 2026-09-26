@@ -336,6 +336,44 @@ defmodule Portfolixir.Lifecycle.SecurityMergeCarryTest do
     end
 
     # User story:
+    # As the operator whose duplicate security carries position targets in
+    # a plan on a built-in tree (asset class, currency),
+    # I want each row moved where the kept security's derived category still
+    # covers it, and deleted as stale where it does not,
+    # so that a plan on a built-in tree never steers a category the kept
+    # security is not in.
+    #
+    # Acceptance criteria:
+    # - In the currency tree both are EUR: the source's row moves.
+    # - In the asset-class tree the kept security is an equity: the source's
+    #   row under ETF is deleted as stale.
+    test "position targets in a built-in tree follow the kept security's category", ctx do
+      :ok = Classifications.ensure_builtins()
+      currency = Classifications.get_classification_by_key("currency")
+      asset_class = Classifications.get_classification_by_key("asset_class")
+      {:ok, _} = Catalog.update_security(Actor.owner_ui(), ctx.target, %{asset_class: "equity"})
+
+      {:ok, _} = position!(ctx.main, currency, category!(currency, "EUR"), ctx.source, "0.2")
+
+      {:ok, _} =
+        position!(ctx.main, asset_class, category!(asset_class, "etf"), ctx.source, "0.1")
+
+      rows = Map.new(position_rows(ctx.source), &{&1.classification_id, &1})
+      currency_row = Map.fetch!(rows, currency.id)
+      asset_row = Map.fetch!(rows, asset_class.id)
+
+      {:ok, preview} = Lifecycle.preview_security_merge(ctx.source.id, ctx.target.id)
+
+      assert Map.new(preview.configuration.position_targets, &{&1.id, {&1.action, &1.reason}}) ==
+               %{currency_row.id => {:move, nil}, asset_row.id => {:drop, :stale}}
+
+      merge!(ctx, preview)
+
+      assert Repo.get!(Target, currency_row.id).security_id == ctx.target.id
+      refute Repo.get(Target, asset_row.id)
+    end
+
+    # User story:
     # As the operator whose duplicate security carries calendar events,
     # I want them moved onto the security I keep, and a same-kind event on
     # the same day on both listed as a possible duplicate,
@@ -392,8 +430,9 @@ defmodule Portfolixir.Lifecycle.SecurityMergeCarryTest do
     # Acceptance criteria:
     # - With an ISIN on both, the preview states the identifiers after each
     #   identity choice; the apply without one answers
-    #   {:choice_required, :identity_choice, _}, with an unknown one
-    #   {:invalid, :identity_choice, _}, and writes nothing.
+    #   {:choice_required, :identity_choice, _}, with an unknown one (a
+    #   string, an atom or any other value) {:invalid, :identity_choice, _},
+    #   and writes nothing.
     # - keep_target_isin with the operator's date: the target keeps its ISIN,
     #   the source's becomes a former ISIN changed on that date, and the
     #   source's own former ISIN is reassigned to the target.
@@ -433,13 +472,15 @@ defmodule Portfolixir.Lifecycle.SecurityMergeCarryTest do
       assert {:error, {:choice_required, :identity_choice, _}} =
                Lifecycle.merge_security(agent(), source.id, target.id, base)
 
-      assert {:error, {:invalid, :identity_choice, _}} =
-               Lifecycle.merge_security(
-                 agent(),
-                 source.id,
-                 target.id,
-                 Map.put(base, :identity_choice, "whatever")
-               )
+      for unknown <- ["whatever", :whatever, 1] do
+        assert {:error, {:invalid, :identity_choice, _}} =
+                 Lifecycle.merge_security(
+                   agent(),
+                   source.id,
+                   target.id,
+                   Map.put(base, :identity_choice, unknown)
+                 )
+      end
 
       assert fingerprint() == before
 
@@ -507,6 +548,47 @@ defmodule Portfolixir.Lifecycle.SecurityMergeCarryTest do
 
       merge!(ctx, preview)
       assert Repo.get!(Security, ctx.target.id).isin == @isin_source
+    end
+
+    # User story:
+    # As the operator merging a duplicate that carries a quote feed with its
+    # URL, into a security that has no feed,
+    # I want the kept security to take the feed together with its URL,
+    # so that its quotes keep coming from where the duplicate's came.
+    #
+    # Acceptance criteria:
+    # - The preview lists the feed and its URL among the adopted fields.
+    # - After the merge the target carries both; a target with a URL of its
+    #   own keeps it (the feed is adopted, the URL is not).
+    test "a feed the target lacks is adopted with its URL; a URL of the target's stays", ctx do
+      url = "https://quotes.example.com/synthetic/carry-fund"
+
+      {:ok, _} =
+        Catalog.update_security(Actor.owner_ui(), ctx.source, %{
+          feed: "PORTFOLIO_PERFORMANCE",
+          feed_url: url
+        })
+
+      {:ok, _} = Catalog.update_security(Actor.owner_ui(), ctx.target, %{feed: nil})
+
+      {:ok, preview} = Lifecycle.preview_security_merge(ctx.source.id, ctx.target.id)
+
+      assert %{field: :feed, value: "PORTFOLIO_PERFORMANCE"} in preview.identifiers.adopted
+      assert %{field: :feed_url, value: url} in preview.identifiers.adopted
+
+      merge!(ctx, preview)
+      kept = Repo.get!(Security, ctx.target.id)
+      assert {kept.feed, kept.feed_url} == {"PORTFOLIO_PERFORMANCE", url}
+
+      # The other way round: a target that keeps a URL of its own.
+      twin = security!(%{name: "Carry Fund", feed_url: "https://quotes.example.com/own"})
+
+      {:ok, _} =
+        Catalog.update_security(Actor.owner_ui(), kept, %{feed_url: url})
+
+      {:ok, reverse} = Lifecycle.preview_security_merge(kept.id, twin.id)
+      assert %{field: :feed, value: "PORTFOLIO_PERFORMANCE"} in reverse.identifiers.adopted
+      refute Enum.any?(reverse.identifiers.adopted, &(&1.field == :feed_url))
     end
 
     # User story (closing act, CR-2):
@@ -675,6 +757,81 @@ defmodule Portfolixir.Lifecycle.SecurityMergeCarryTest do
       {:ok, preview} = Lifecycle.preview_security_merge(imported.id, ctx.target.id)
       assert Enum.all?(preview.guards, & &1.passed)
     end
+
+    # User story:
+    # As the operator merging a security whose name a third security of the
+    # catalog also carries,
+    # I want the merge refused, naming the security the name would find
+    # instead,
+    # so that the next import of a file carrying that name never books onto
+    # the third security.
+    #
+    # Acceptance criteria:
+    # - The source's stored identity (its name, no identifier) would resolve
+    #   to the third security after the merge: the preview and the apply
+    #   refuse as identity_unresolvable, naming the third security as where
+    #   it would resolve, and every table is unchanged.
+    test "a name a third security carries is refused, naming that security", ctx do
+      {:ok, _} = Catalog.update_security(Actor.owner_ui(), ctx.target, %{name: "Kept Fund"})
+      third = security!(%{name: "Carry Fund"})
+
+      guard = refused_guard!(ctx, :identity_unresolvable)
+
+      assert guard.detail =~
+               "Security ##{ctx.source.id}'s stored identity (name \"Carry Fund\", currency EUR) " <>
+                 "would resolve to security ##{third.id} after merging"
+
+      assert [
+               %{
+                 security_id: source_id,
+                 identity: :stored,
+                 outcome: %{kind: :other_security, candidates: [third_id]}
+               }
+             ] = guard.unresolvable
+
+      assert {source_id, third_id} == {ctx.source.id, third.id}
+    end
+
+    # User story:
+    # As the operator merging a duplicate that carries an identifier besides
+    # a name a third security also carries,
+    # I want the refusal to say how the identity would conflict,
+    # so that I know whether to rename the third security or fix an
+    # identifier.
+    #
+    # Acceptance criteria:
+    # - The source's ticker would find the kept security (which adopts it)
+    #   and its name the third: refused as pointing at both at once
+    #   (cross_tier), naming both.
+    # - The source's WKN would find nothing and its name the third, whose
+    #   own WKN differs: refused as a conflict on a stronger identifier
+    #   (identifier_veto), naming the third.
+    test "an identity split between the kept and a third security names the conflict", ctx do
+      {:ok, _} = Catalog.update_security(Actor.owner_ui(), ctx.target, %{name: "Kept Fund"})
+      third = security!(%{name: "Carry Fund", wkn: "OTH001"})
+
+      {:ok, _} = Catalog.update_security(Actor.owner_ui(), ctx.source, %{ticker_symbol: "SRCX"})
+      guard = refused_guard!(ctx, :identity_unresolvable)
+
+      assert guard.detail =~
+               "would point at security ##{ctx.target.id} and security ##{third.id} at once"
+
+      assert [%{identity: :stored, outcome: %{kind: :cross_tier}}] = guard.unresolvable
+
+      {:ok, _} =
+        Catalog.update_security(Actor.owner_ui(), ctx.source, %{ticker_symbol: nil, wkn: "SRC001"})
+
+      {:ok, _} = Catalog.update_security(Actor.owner_ui(), ctx.target, %{wkn: "TGT001"})
+      guard = refused_guard!(ctx, :identity_unresolvable)
+
+      assert guard.detail =~
+               "would conflict with security ##{third.id} on a stronger identifier"
+
+      assert [%{identity: :stored, outcome: %{kind: :identifier_veto, candidates: [third_id]}}] =
+               guard.unresolvable
+
+      assert third_id == third.id
+    end
   end
 
   describe "everything a source carries (§16 invariant 11)" do
@@ -828,6 +985,9 @@ defmodule Portfolixir.Lifecycle.SecurityMergeCarryTest do
 
     {classification, categories}
   end
+
+  defp category!(classification, key),
+    do: Repo.get_by!(Classifications.Category, classification_id: classification.id, key: key)
 
   defp assign!(security, classification, category) do
     {:ok, assignment} =

@@ -501,6 +501,58 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
       assert Buckets.position_override(ctx.target.id, lark.id) == :inherit
       assert Buckets.position_override(ctx.target.id, ctx.meridian.id) == :inherit
     end
+
+    # User story:
+    # As the operator whose source depot keeps a position deliberately out
+    # of every view, or in the same override the target already carries for
+    # a security it holds no rows of,
+    # I want the merge to keep exactly that membership, and write nothing
+    # twice,
+    # so that a position I took out of the views stays out.
+    #
+    # Acceptance criteria:
+    # - The source's explicitly empty override on a security only the source
+    #   holds is carried as explicitly empty (in no bucket, not the default).
+    # - The source's override equal to the target's dead override on a
+    #   security only the source holds is dropped as redundant; the target's
+    #   stays.
+    # - The record's source snapshot names the empty override as [].
+    test "an empty override is carried empty; one the target has already is dropped", ctx do
+      worked_example!(ctx)
+      {:ok, long} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Long term"})
+      {:ok, spec} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Speculative"})
+
+      for depot <- [ctx.source, ctx.target],
+          do: :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [long.id])
+
+      # Kestrel: only the source holds it, deliberately in no bucket.
+      :ok = Buckets.set_position_override(Actor.owner_ui(), ctx.source, ctx.kestrel, [])
+      assert Buckets.position_override(ctx.source.id, ctx.kestrel.id) == :explicit_empty
+
+      # Lark: only the source holds it; the target carries the same override.
+      lark = security!("Lark Small Cap", "LARK")
+      buy!(ctx, ctx.source, ctx.cash_s, lark, "3", "20.00", ~D[2025-02-20])
+      :ok = Buckets.set_position_override(Actor.owner_ui(), ctx.source, lark, [spec.id])
+      :ok = Buckets.set_position_override(Actor.owner_ui(), ctx.target, lark, [spec.id])
+
+      {:ok, preview} = Lifecycle.preview_depot_merge(ctx.source.id, ctx.target.id)
+
+      assert plan_of(preview, ctx.kestrel) == :carry
+      assert plan_of(preview, lark) == :drop_redundant
+
+      assert %{source_override: [], target_override: nil} =
+               Enum.find(preview.position_buckets, &(&1.security_id == ctx.kestrel.id))
+
+      record = merge!(ctx, false, preview)
+
+      assert Buckets.position_override(ctx.target.id, ctx.kestrel.id) == :explicit_empty
+      assert Buckets.effective_position_buckets(ctx.target.id, ctx.kestrel.id) == []
+      assert Buckets.position_override(ctx.target.id, lark.id) == {:explicit, [spec.id]}
+
+      assert %{"security_id" => ctx.kestrel.id, "bucket_ids" => []} in record.source_snapshot[
+               "position_overrides"
+             ]
+    end
   end
 
   describe "an override the target cannot take (§7 depot guards, ADR-0024)" do
@@ -824,6 +876,36 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
 
       assert fingerprint() == before
       assert {:error, :not_found} = Lifecycle.preview_depot_merge(gone.id, ctx.target.id)
+    end
+
+    # User story:
+    # As the operator who picks as the target a depot an earlier merge took
+    # away,
+    # I want the refusal to name the depot it went into,
+    # so that I merge into the survivor instead.
+    #
+    # Acceptance criteria:
+    # - The preview and the apply answer not_live, naming the survivor, and
+    #   every table is unchanged.
+    test "a target merged away names the depot it went into", ctx do
+      buy!(ctx, ctx.source, ctx.cash_s, ctx.kestrel, "2", "40.00", ~D[2025-01-02])
+      survivor = depot!(ctx.portfolio, ctx.cash_t, "Depot 3")
+      merge!(%{ctx | source: ctx.target, target: survivor}, false)
+      before = fingerprint()
+
+      assert {:error, {:refused, guards}} =
+               Lifecycle.preview_depot_merge(ctx.source.id, ctx.target.id)
+
+      assert %{code: :not_live, detail: detail} = Enum.find(guards, &(not &1.passed))
+      assert detail =~ "(it was merged into securities account ##{survivor.id})"
+
+      assert {:error, {:refused, [_same, %{code: :not_live, detail: ^detail}]}} =
+               Lifecycle.merge_depot(agent(), ctx.source.id, ctx.target.id, %{
+                 plan_digest: "sha256:whatever",
+                 collapse_key_equal: false
+               })
+
+      assert fingerprint() == before
     end
 
     # User story:
