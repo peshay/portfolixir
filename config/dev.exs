@@ -7,6 +7,9 @@ config :portfolixir, Portfolixir.Repo,
   username: "postgres",
   password: "postgres",
   hostname: System.get_env("DATABASE_HOST", "127.0.0.1"),
+  # As config/test.exs reads it: a walkthrough against another PostgreSQL
+  # (the PostgreSQL 18 that CI and Compose run) names its port once.
+  port: String.to_integer(System.get_env("DATABASE_PORT", "5432")),
   show_sensitive_data_on_connection_error: true,
   pool_size: 10,
   stacktrace: true

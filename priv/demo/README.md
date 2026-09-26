@@ -13,7 +13,9 @@ securities (equities, two ETFs, Bitcoin).
 ## Seeding a demo instance
 
 Use a throwaway database/port so your real dev data is untouched (dev config
-honors `DATABASE_NAME` and `PORT`):
+honors `DATABASE_NAME` and `PORT`, and `DATABASE_HOST` and `DATABASE_PORT` for
+a PostgreSQL other than the one on `127.0.0.1:5432` — prefix every command of
+a recipe with the same values):
 
 ```bash
 DATABASE_NAME=portfolixir_demo PORT=4003 mix ecto.create
