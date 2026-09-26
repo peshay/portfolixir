@@ -323,6 +323,64 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
   end
 
   # User story:
+  # As the operator whose duplicate and its twin each carry a split of the
+  # same day with other ratios,
+  # I want the remedy to say which split to delete,
+  # so that I am not told to book a split both already carry (review
+  # finding M-3, board 14 ④ and board 03).
+  #
+  # Acceptance criteria:
+  # - The refusal names the day and both ratios, and the remedy says to
+  #   delete the split with the wrong ratio in the Transactions tab.
+  test "two split ratios on one day name the split to delete", ctx do
+    buy!(ctx, ctx.target, "4", "10.00", ~D[2025-01-12])
+    buy!(ctx, ctx.source, "2", "10.00", ~D[2025-01-10])
+    split!(ctx.portfolio, ctx.source, ~D[2025-03-01], {2, 1})
+    split!(ctx.portfolio, ctx.target, ~D[2025-03-01], {3, 1})
+
+    {:ok, view, _html} = live(ctx.conn, "/securities")
+    to_preview(view, ctx.source, ctx.target)
+
+    refusal = view |> element("#security-merge-dialog [data-role='merge-refused']") |> render()
+
+    assert refusal =~
+             "Remedy: delete the split with the wrong ratio in the Transactions tab, then check again."
+
+    refute refusal =~ "book the split on that side first"
+  end
+
+  # User story:
+  # As the operator of an instance where an imported booking of a duplicate
+  # was once re-typed into a split,
+  # I want the preview to refuse the merge that would have to move it,
+  # naming the split and the remedy,
+  # so that the confirm never fails at the database (review finding F3,
+  # board 14 ③).
+  #
+  # Acceptance criteria:
+  # - The refusal says the split carries an import hash, names it by date
+  #   and number, gives the remedy and offers "Check again".
+  test "a split that still carries an import hash is named with its remedy", ctx do
+    buy!(ctx, ctx.source, "2", "10.00", ~D[2025-01-10])
+    legacy = legacy_split!(ctx, ctx.source, ~D[2025-03-01])
+
+    {:ok, view, _html} = live(ctx.conn, "/securities")
+    to_preview(view, ctx.source, ctx.target)
+
+    refusal = view |> element("#security-merge-dialog [data-role='merge-refused']") |> render()
+
+    assert refusal =~
+             "a split of the source still carries an import hash from before the import-hash check and cannot be moved."
+
+    assert refusal =~ "Split on 2025-03-01 · no. #{legacy.id}"
+
+    assert refusal =~
+             "Remedy: change its kind back to the one it was imported as, or delete it, then check again."
+
+    assert has_element?(view, "#security-merge-dialog [data-role='merge-recheck']")
+  end
+
+  # User story:
   # As the operator whose duplicate carries a split its twin never booked,
   # I want the refusal to name the split, its ratio and the side lacking it,
   # and the way out,
@@ -558,6 +616,66 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
       |> Repo.transaction()
 
     tx
+  end
+
+  # The state an old writer could leave: an imported dividend, hashed, whose
+  # type a later edit changed to a 2:1 split, with the import-hash kind check
+  # re-added NOT VALID by the migration's own step. (This module runs
+  # synchronously, so the constraint swap waits for no other test.)
+  defp legacy_split!(ctx, security, date) do
+    {:ok, dividend} =
+      Ledger.create_transaction(
+        Actor.import_session(),
+        %{
+          portfolio_id: ctx.portfolio.id,
+          type: "dividend",
+          date: date,
+          security_id: security.id,
+          securities_account_id: ctx.depot.id,
+          cash_account_id: ctx.cash.id,
+          gross_amount: "1.00",
+          currency_code: "EUR"
+        },
+        import_hash: "synthetic-legacy-split-live"
+      )
+
+    Repo.query!("ALTER TABLE transactions DROP CONSTRAINT transactions_import_hash_kind_check")
+
+    Repo.transaction(fn ->
+      Repo.query!("SELECT set_config('portfolixir.journal_actor', 'owner_ui', true)")
+
+      Repo.query!(
+        """
+        UPDATE transactions
+        SET type = 'split', split_ratio_numerator = 2, split_ratio_denominator = 1,
+            quantity = NULL, price = NULL, gross_amount = NULL, security_amount = NULL,
+            settlement_amount = NULL, settlement_fx_rate = NULL, cash_account_id = NULL,
+            counter_cash_account_id = NULL, securities_account_id = NULL,
+            counter_securities_account_id = NULL
+        WHERE id = $1
+        """,
+        [dividend.id]
+      )
+    end)
+
+    module = Portfolixir.Repo.Migrations.CreateRetiredImportHashes
+
+    migration =
+      case Code.ensure_loaded(module) do
+        {:module, module} ->
+          module
+
+        {:error, _not_loaded} ->
+          [{module, _bytecode}] =
+            Code.require_file(
+              "priv/repo/migrations/20260925130000_create_retired_import_hashes.exs"
+            )
+
+          module
+      end
+
+    ExUnit.CaptureLog.capture_log(fn -> migration.add_kind_check(Repo) end)
+    Repo.get!(Transaction, dividend.id)
   end
 
   defp split!(portfolio, security, date, {numerator, denominator}) do

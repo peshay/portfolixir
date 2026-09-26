@@ -656,7 +656,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
 
   defp refusal(assigns) do
     failed = Enum.find(assigns.guards, &(not &1.passed))
-    assigns = assign(assigns, failed: failed)
+    assigns = assign(assigns, failed: failed, rows: refused_rows(failed, assigns))
 
     ~H"""
     <AppShell.data_note severity={:problem} data-role="merge-refused">
@@ -668,6 +668,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
         — <%= @source.name %>: <%= bucket_names(position.source_buckets, @bucket_names) %>
         · <%= @target && @target.name %>: <%= bucket_names(position.target_buckets, @bucket_names) %>
       </p>
+      <p :for={row <- @rows} class="merge-refusal__position" data-role="merge-refused-row"><%= row.before %><b><%= row.account %></b><%= row.after %></p>
       <p class="merge-refusal__remedy"><%= refusal_remedy(@failed.code) %></p>
       <button type="button" class="button" data-role="merge-recheck" phx-click="recheck" phx-target={@myself}>
         <%= gettext("Check again") %>
@@ -675,6 +676,59 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
     </AppShell.data_note>
     """
   end
+
+  # The account's name goes bold between the translated words around it.
+  @bold_slot "\u0001"
+
+  # Board 14 ① and ②: the set balances a refusal means, and the bookings
+  # that make one unstorable, each by account, date and number.
+  defp refused_rows(failed, assigns) do
+    anchors =
+      for anchor <- Map.get(failed, :anchors, []) do
+        refused_row(
+          gettext("Set balance of %{account} on %{date} · no. %{id}",
+            account: @bold_slot,
+            date: Date.to_iso8601(anchor.date),
+            id: anchor.id
+          ),
+          account_name(anchor.cash_account_id, assigns)
+        )
+      end
+
+    bookings =
+      for booking <- Map.get(failed, :bookings, []) do
+        refused_row(booking_template(booking), account_name(booking.cash_account_id, assigns))
+      end
+
+    anchors ++ bookings
+  end
+
+  defp booking_template(%{type: "sell"} = booking),
+    do:
+      gettext("Sell without an amount in %{account} on %{date} · no. %{id}",
+        account: @bold_slot,
+        date: Date.to_iso8601(booking.date),
+        id: booking.id
+      )
+
+  defp booking_template(booking),
+    do:
+      gettext("Buy without an amount in %{account} on %{date} · no. %{id}",
+        account: @bold_slot,
+        date: Date.to_iso8601(booking.date),
+        id: booking.id
+      )
+
+  defp refused_row(text, account) do
+    case String.split(text, @bold_slot, parts: 2) do
+      [before, rest] -> %{before: before, account: account, after: rest}
+      [whole] -> %{before: whole, account: "", after: ""}
+    end
+  end
+
+  defp account_name(id, %{source: %{id: id, name: name}}), do: name
+  defp account_name(id, %{target: %{id: id, name: name}}), do: name
+  defp account_name(id, _assigns), do: "##{id}"
 
   defp bucket_names([], _names), do: gettext("no buckets")
 
@@ -709,6 +763,12 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
   defp refusal_reason(%{code: :buckets_mismatch}, _kind),
     do: gettext("the two sit in different buckets, so the views would change retroactively.")
 
+  defp refusal_reason(%{code: :unstorable_anchor}, _kind),
+    do:
+      gettext(
+        "a set balance would need more decimal places than an amount can hold, because a trade was booked without its amount."
+      )
+
   defp refusal_reason(%{code: :legacy_hashed_anchor}, _kind),
     do:
       gettext(
@@ -725,6 +785,9 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
       gettext(
         "Remedy: change that booking's kind back to the one it was imported as, or delete it, then check again."
       )
+
+  defp refusal_remedy(:unstorable_anchor),
+    do: gettext("Remedy: record that booking's amount in the Transactions tab, then check again.")
 
   defp refusal_remedy(:not_live), do: gettext("Remedy: go back and choose another target.")
 

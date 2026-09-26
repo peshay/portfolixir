@@ -395,7 +395,7 @@ defmodule Portfolixir.Lifecycle.CashMerge do
       unstorable_anchor_detail(lines, Enum.map(bookings, & &1.id))
     )
     |> Map.put(:anchors, Enum.map(lines, &anchor_ref(&1.row)))
-    |> Map.put(:bookings, Enum.map(bookings, &anchor_ref/1))
+    |> Map.put(:bookings, Enum.map(bookings, &Map.put(anchor_ref(&1), :type, &1.type)))
   end
 
   @amount_column {20, 6}

@@ -8102,14 +8102,6 @@ msgid "“%{name}” is a former name of “%{holder}”: an import under this n
 msgstr "„%{name}“ ist ein früherer Name von „%{holder}“ — ein Import unter diesem Namen bucht dorthin. Einen anderen Namen wählen oder ihn bei „%{holder}“ entfernen."
 
 #, elixir-autogen, elixir-format
-msgid "“%{name}” is already the name of another cash account."
-msgstr "„%{name}“ heißt bereits ein anderes Verrechnungskonto."
-
-#, elixir-autogen, elixir-format
-msgid "“%{name}” is already the name of another depot."
-msgstr "„%{name}“ heißt bereits ein anderes Depot."
-
-#, elixir-autogen, elixir-format
 msgid "Merge %{name}"
 msgstr "%{name} zusammenführen"
 
@@ -9328,3 +9320,49 @@ msgid "%{count} internal transfer is dropped: both of its accounts are one accou
 msgid_plural "%{count} internal transfers are dropped: both accounts of each are one account now."
 msgstr[0] "%{count} interne Umbuchung entfällt: Ihre beiden Konten sind jetzt ein Konto."
 msgstr[1] "%{count} interne Umbuchungen entfallen: Die beiden Konten jeder Umbuchung sind jetzt ein Konto."
+
+## L3–L5 review round: the refusals and the rename field error board 14 draws.
+
+#, elixir-autogen, elixir-format
+msgid "Buy without an amount in %{account} on %{date} · no. %{id}"
+msgstr "Kauf ohne Betrag in %{account} am %{date} · Nr. %{id}"
+
+#, elixir-autogen, elixir-format
+msgid "Sell without an amount in %{account} on %{date} · no. %{id}"
+msgstr "Verkauf ohne Betrag in %{account} am %{date} · Nr. %{id}"
+
+#, elixir-autogen, elixir-format
+msgid "Set balance of %{account} on %{date} · no. %{id}"
+msgstr "Gesetzter Saldo von %{account} am %{date} · Nr. %{id}"
+
+#, elixir-autogen, elixir-format
+msgid "Split on %{date} · no. %{id}"
+msgstr "Split am %{date} · Nr. %{id}"
+
+#, elixir-autogen, elixir-format
+msgid "Remedy: change its kind back to the one it was imported as, or delete it, then check again."
+msgstr "Abhilfe: seine Art auf die zurücksetzen, als die er importiert wurde, oder ihn löschen, dann erneut prüfen."
+
+#, elixir-autogen, elixir-format
+msgid "Remedy: delete the split with the wrong ratio in the Transactions tab, then check again."
+msgstr "Abhilfe: den Split mit dem falschen Verhältnis im Tab Transaktionen löschen, dann erneut prüfen."
+
+#, elixir-autogen, elixir-format
+msgid "Remedy: record that booking's amount in the Transactions tab, then check again."
+msgstr "Abhilfe: den Betrag dieser Buchung im Tab Transaktionen erfassen, dann erneut prüfen."
+
+#, elixir-autogen, elixir-format
+msgid "a set balance would need more decimal places than an amount can hold, because a trade was booked without its amount."
+msgstr "Ein gesetzter Saldo bräuchte mehr Nachkommastellen, als ein Betrag halten kann, weil ein Kauf oder Verkauf ohne Betrag gebucht wurde."
+
+#, elixir-autogen, elixir-format
+msgid "a split of the source still carries an import hash from before the import-hash check and cannot be moved."
+msgstr "Ein Split der Quelle trägt noch einen Import-Hash aus der Zeit vor der Import-Hash-Prüfung und kann nicht verschoben werden."
+
+#, elixir-autogen, elixir-format
+msgid "“%{name}” is already the name of another cash account. Choose another name, or merge or rename that account."
+msgstr "„%{name}“ heißt bereits ein anderes Verrechnungskonto. Wählen Sie einen anderen Namen, oder führen Sie jenes Konto zusammen oder benennen Sie es um."
+
+#, elixir-autogen, elixir-format
+msgid "“%{name}” is already the name of another depot. Choose another name, or merge or rename that depot."
+msgstr "„%{name}“ heißt bereits ein anderes Depot. Wählen Sie einen anderen Namen, oder führen Sie jenes Depot zusammen oder benennen Sie es um."

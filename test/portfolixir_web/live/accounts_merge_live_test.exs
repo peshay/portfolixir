@@ -301,6 +301,82 @@ defmodule PortfolixirWeb.AccountsMergeLiveTest do
              )
     end
 
+    # User story:
+    # As the operator whose old account holds a savings-plan buy booked
+    # without its amount,
+    # I want the preview to refuse the merge, naming the set balance it
+    # could not store and the buy, with the remedy,
+    # so that I never confirm a merge that cannot be written (board 14 ②).
+    #
+    # Acceptance criteria:
+    # - Step 2 refuses: the lead names the reason, one line names the
+    #   target's set balance (account, date, number), one the buy (account,
+    #   date, number), and the remedy says to record its amount.
+    test "a set balance the amount column cannot hold is refused, naming it and the buy", ctx do
+      depot = depot!(ctx.portfolio, ctx.source, "Sparplan")
+      fund = security!("Synthetic Fraction Fund", "SFF")
+
+      {:ok, buy} =
+        Ledger.create_transaction(Actor.owner_ui(), %{
+          portfolio_id: ctx.portfolio.id,
+          type: "buy",
+          date: ~D[2025-01-10],
+          security_id: fund.id,
+          securities_account_id: depot.id,
+          cash_account_id: ctx.source.id,
+          quantity: "0.333333333333",
+          price: "3.333333",
+          currency_code: "EUR"
+        })
+
+      anchor = anchor!(ctx.target, "100.00", ~D[2025-02-01])
+
+      {:ok, view, _html} = live(ctx.conn, "/portfolios")
+      to_preview(view, ctx.source, ctx.target)
+
+      refusal =
+        view
+        |> element("#merge-dialog [data-role='merge-refused']")
+        |> render()
+        |> String.replace("&#39;", "'")
+
+      assert refusal =~
+               "Merging is not possible: a set balance would need more decimal places than an amount can hold, because a trade was booked without its amount."
+
+      assert refusal =~ ~r/Set balance of <b>Tagesgeld<\/b> on 2025-02-01 · no\. #{anchor.id}/
+
+      assert refusal =~
+               ~r/Buy without an amount in <b>Tagesgeld \(alt\)<\/b> on 2025-01-10 · no\. #{buy.id}/
+
+      assert refusal =~
+               "Remedy: record that booking's amount in the Transactions tab, then check again."
+    end
+
+    # User story:
+    # As the operator whose old account holds a set balance that was an
+    # imported deposit before an old edit re-typed it,
+    # I want the refusal to say which set balance it means,
+    # so that I can change that booking back (review finding M-4, board 14 ①).
+    #
+    # Acceptance criteria:
+    # - The refusal names the set balance by account, date and number, and
+    #   keeps its remedy.
+    test "a set balance that still carries an import hash is named in the refusal", ctx do
+      book!(ctx, ctx.target, "deposit", "100.00", ~D[2025-01-02])
+      legacy = legacy_anchor!(ctx, ctx.source, "300.00", ~D[2025-06-30])
+
+      {:ok, view, _html} = live(ctx.conn, "/portfolios")
+      to_preview(view, ctx.source, ctx.target)
+
+      refusal = view |> element("#merge-dialog [data-role='merge-refused']") |> render()
+      assert refusal =~ "a set balance still carries an import hash"
+
+      assert refusal =~
+               ~r/Set balance of <b>Tagesgeld \(alt\)<\/b> on 2025-06-30 · no\. #{legacy.id}/
+
+      assert refusal =~ "Remedy: change that booking&#39;s kind back"
+    end
+
     # The preview's cash half, worked: deposits on both, one transfer between
     # them, two equal interest bookings, an anchor on each side and a fee.
     defp example!(ctx) do
@@ -530,6 +606,57 @@ defmodule PortfolixirWeb.AccountsMergeLiveTest do
       })
 
     tx
+  end
+
+  # The state an old writer could leave: an imported deposit, hashed, whose
+  # type a later edit changed to an anchor, with the import-hash kind check
+  # re-added NOT VALID by the migration's own step, as on an upgraded
+  # instance. (This module runs synchronously, so the constraint swap waits
+  # for no other test.)
+  defp legacy_anchor!(ctx, account, amount, date) do
+    {:ok, deposit} =
+      Ledger.create_transaction(
+        Actor.import_session(),
+        %{
+          portfolio_id: ctx.portfolio.id,
+          cash_account_id: account.id,
+          type: "deposit",
+          date: date,
+          gross_amount: amount,
+          currency_code: "EUR"
+        },
+        import_hash: "synthetic-legacy-anchor-live"
+      )
+
+    Repo.query!("ALTER TABLE transactions DROP CONSTRAINT transactions_import_hash_kind_check")
+
+    Repo.transaction(fn ->
+      Repo.query!("SELECT set_config('portfolixir.journal_actor', 'owner_ui', true)")
+
+      Repo.query!("UPDATE transactions SET type = 'balance_adjustment' WHERE id = $1", [
+        deposit.id
+      ])
+    end)
+
+    ExUnit.CaptureLog.capture_log(fn -> kind_check_migration().add_kind_check(Repo) end)
+    Repo.get!(Transaction, deposit.id)
+  end
+
+  defp kind_check_migration do
+    module = Portfolixir.Repo.Migrations.CreateRetiredImportHashes
+
+    case Code.ensure_loaded(module) do
+      {:module, module} ->
+        module
+
+      {:error, _not_loaded} ->
+        [{module, _bytecode}] =
+          Code.require_file(
+            "priv/repo/migrations/20260925130000_create_retired_import_hashes.exs"
+          )
+
+        module
+    end
   end
 
   defp anchor!(account, amount, date) do
