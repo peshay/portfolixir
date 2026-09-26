@@ -371,9 +371,9 @@ Example ISIN-change payload:
 A second copy of one instrument — an export carrying a newer ISIN imported
 before the change was recorded, a security created by hand that the next
 import created again — is repaired by merging the duplicate (the **source**)
-into the security you keep (the **target**). The merge is agent-first: the
-operator's merge dialog on the securities page follows in the same batch
-(L5).
+into the security you keep (the **target**). The operator's dialog on the
+securities page (the row menu's **Merge into…**) reads this preview and
+confirms with the same `plan_digest`, so both see the same plan.
 
 - `GET /api/v1/securities/:id/merge_preview?target_id=` previews merging the
   security into `target_id` — a read that writes nothing
@@ -2528,11 +2528,13 @@ through this API lives next to the imported history:
   books to that account, and a rename older than the accounts' audit journal
   left nothing to remember. A prefilled choice the operator changes in the
   preview to an account of another name is remembered as a former name of
-  that account by default. The import page never moves another account's
-  former name (the preview cannot yet say so before the apply): remove it
-  there first with `DELETE /api/v1/cash_accounts/:id/former_names?name=` (or
-  the `securities_accounts` twin). A transfer whose two sides lead to one
-  account is skipped and listed, never a failed import.
+  that account by default. Where the name is another account's former
+  name, the import page moves it only after its row said so before the
+  confirm, and the result names the account it left;
+  `DELETE /api/v1/cash_accounts/:id/former_names?name=` (or the
+  `securities_accounts` twin) still removes a former name by hand. A
+  transfer whose two sides lead to one account is skipped and listed, never
+  a failed import.
 - **A cash-account merge is safe for the next import (ADR-0050 §2, §7).**
   After `POST /api/v1/cash_accounts/:id/merge`, re-applying an export
   already applied creates nothing, byte-identical or drifted: the moved

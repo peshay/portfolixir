@@ -2180,3 +2180,168 @@ adds. Built by Sprint 16 Lane L5a in
   none with `aria-modal`. The Overlays bullet's record of nine (2026-09-15)
   now reads fifteen `<dialog>` elements in `lib/portfolixir_web/`, still
   with zero `aria-modal`.
+
+## Amendment 2026-09-26 — Security merge — target, identity, preview *(Sprint 16 pick G3-A, issue 608, ADR-0050 §8, §9, §10, §12)*
+
+Board `mockups/ux-design-2026-09-24/03-security-merge`, variant A (the
+owner's pick, plan D-5). Built by Sprint 16 Lane L5b in
+`PortfolixirWeb.Securities.MergeDialog` (the state and step 1) and
+`PortfolixirWeb.Securities.MergePreview` (step 2). The flow is G2-B's
+anatomy — the same `<dialog class="modal merge-dialog">`, band foot, bottom
+sheet under 720 px, live regions and changed-plan rule — and this amendment
+records only what the security adds.
+
+- **Entry.** The row menu's "Merge into…" (the `:merge` glyph) sits after
+  "Mark as benchmark" and before Delete, not danger-coloured. "Cannot
+  delete" offers it too, as a ghost button under a muted line saying what a
+  merge moves, where bookings or quotes are what block the delete; where a
+  policy rule or a research entry blocks it, a merge would be refused as
+  well, and the dialog stays as it was.
+- **Step 1 — the target is searched, not listed.** The securities list is
+  too long for G2's radio list, so `.merge-route` names the source (ISIN,
+  currency, bookings, created date) above a `.search-field` ("Name, ISIN,
+  WKN or ticker", at most 100 characters); the matches (at most 25, the
+  source left out) are G2's `.merge-target` rows, each with its bookings
+  count and a meta line (ISIN · currency · asset class, plus "Benchmark" or
+  "Retired"). The legal ones come first under "Target — receives bookings,
+  quotes and settings"; the rest under "Not selectable (N)", disabled, each
+  naming its reasons as text ("different currency", "only one of the two is
+  a benchmark", "retired", "other quote basis"). A single legal match is
+  chosen; nothing else is. The basis line states the rule: "Selectable: the
+  same currency, both or neither a benchmark, the target not retired; with
+  quotes also the same “treat synced quotes as raw”. The preview checks
+  everything else."
+- **Step 2 — two cards, because the names can be equal.** `.merge-pair`
+  sets the source and the target side by side (a 1fr · arrow · 1fr grid,
+  stacked with a ↓ under 720 px), each card a role line in 10.5 px caps —
+  "Source · deleted" in `--color-danger` (`.merge-pair__role--gone`),
+  "Target · stays" muted — then the name, the ISIN in mono, and "N bookings ·
+  created <date>". Nothing else tells two equal names apart.
+- **The ISIN choice (G3-A)** is `fieldset.merge-choice` "ISIN afterwards"
+  with two `.merge-option` cards, **neither checked**: "Keep <target ISIN>"
+  tagged "the target's ISIN" ("<source ISIN> becomes a former ISIN of this
+  security."), and "Adopt <source ISIN>" tagged "the source's ISIN"
+  ("<target ISIN> becomes a former ISIN; the target carries <source ISIN>
+  afterwards."). The tag is `.merge-option__tag` (11 px, muted, after the
+  title). Only when Adopt is chosen does `.merge-option-field` follow that
+  card — "ISIN change on", an ISO date field in mono, today by default,
+  with its `.field-error` at the field. The fieldset is absent when the
+  engine says no choice is required (the two share an ISIN, or one has
+  none).
+- **Everything that follows the choice is one form** (board 03, why A): the
+  holdings as G2's `.merge-identity` sum in shares — "Source + Target =
+  Holdings afterwards" (the sides carry their own gettext context, "merge
+  side", because a bare "Target" is the allocation column's "Soll") — with
+  the figure if the equal bookings go under it; a basis line (every depot,
+  as of today, from the bookings; the sum holds per depot on every day and
+  is checked before saving); `.merge-counts` (bookings that move, equal
+  bookings "— choice below", days with quotes in both "— the target's
+  applies" and how many of them manual, the source's settings that move and
+  are dropped, the events that move); the equal bookings as G2's
+  `fieldset.merge-choice`, its table cut to three rows with "Show the other
+  N pairs" (`.merge-more`) and the two unpreselected options.
+- **Four tables, each only when it has rows** (`.merge-table`, a cell's
+  reason muted under its value): the colliding **manual** quotes ("Date ·
+  Target · applies · Source · dropped", the source's struck through in
+  `.merge-table__drop`; the synced collisions are only counted, the rest go
+  to the manifest); the source's settings in active, draft and archived
+  plans (category per tree, position targets, position buckets), each with
+  "moves" or "is dropped" and why; the events that stand the same in the
+  target ("both stay", with where a duplicate is deleted afterwards); and
+  the master data that differ ("Field · Source · Target · Afterwards", with
+  "adopted: the target had none." where the target takes a value). Then a
+  note (an import that names the source books to the target) and the
+  deletion warning.
+- **The confirm** is "Merge into <target>" (`.button-danger`), disabled with
+  its reasons beside it while the ISIN or the duplicates' choice is missing
+  ("Choice for the ISIN missing · Choice for the equal booking missing"). It
+  applies `plan_digest` with both choices and `isin_changed_on` (sent only
+  for Adopt), closes the dialog, opens the survivor's detail and reports the
+  result inline (`AppShell.inline_result`, a note: "Merged X into Y: …"),
+  kept through that one navigation. A write the database refuses (an ISIN
+  whose check digit is wrong, say) is a problem in the `role="alert"` region
+  quoting the refused field; nothing is merged.
+- **A refusal** is one problem note that names **every** failed guard: the
+  first as "Merging is not possible: …", the rest as "Also: …" — the
+  currency pair, the research entries with their count and newest date, the
+  policy rules as a list of links (`.merge-refusal__rules`, each rule by name
+  with its state and view, G6-A's reference) plus "A rule that has been in
+  force keeps its subject as part of its history.", a split one side lacks
+  with its date, ratio and the side's earlier booking or quote, a split that
+  would restate a depot it did not restate before. Where the reverse merge
+  passes, the remedy says so ("merge the other way — <ISIN> into this
+  security") and **Merge the other way** opens that pair's preview; where it
+  is refused too, "The other way is refused too: …" and "No direction is
+  possible; both securities stay unchanged.", with no remedy the version
+  does not have. A split mismatch offers **Check again** after its remedy.
+  The foot offers Back and Close, never a confirm.
+- **The survivor names its history** on its detail overview's basis line,
+  after the asset class: "former ISIN <ISIN> (until <date>)" and "merged on
+  <date> from “<name>” (then <ISIN>)" — one clause per merge record, readable
+  without a click.
+- **Dialog count:** one more native dialog; the lifecycle's record above now
+  reads sixteen `<dialog>` elements in `lib/portfolixir_web/`, still with
+  zero `aria-modal`.
+
+## Amendment 2026-09-26 — Import preview after ADR-0050 — what each row will do *(Sprint 16 picks G4-A and G4b-A, issue 884, ADR-0050 §2–§5)*
+
+Board `mockups/ux-design-2026-09-24/04-import-memory`, variant A (the
+owner's pick, plan D-5), and board `04b-import-memory-ambiguity` (drawn in
+the batch before the code: F1 as a before/after, G4b variant A recommended
+and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
+`PortfolixirWeb.ImportsLive`.
+
+- **A mapping row reads left to right as source, count, choice.** Each cash
+  and depot row of the mapping step is a `.mapping-row` (grid, aligned to
+  the top): the file's name, then `.mapping-count` — "N already imported ·
+  **M new**", or "**nothing to create**" when every booking of the row is in
+  already — then `.mapping-target`, the select with its notes under it. Under
+  720 px a row is one column (source, count, choice, notes; a depot's cash
+  select last).
+- **Notes under the select say only what is not obvious** (`.mapping-basis`,
+  12 px muted): "matched by a former name — <account>, formerly “<name>”"
+  when a former name did the prefill; "no account under this name; it is
+  created only with its first new booking" when "+ Create new" has nothing
+  new to create. A file with nothing new at all says once, above the
+  confirm: "The import creates nothing: no booking, no account, no depot, no
+  security."
+- **"Remember this mapping" (G4-A)** is `.mapping-remember`, a checkbox in
+  the row, **ticked by default**, shown only where the operator changed a
+  prefill onto a differently named account and remembering is possible. Its
+  line (12 px muted, indented under the label, the box's
+  `aria-describedby`) says what happens: "“<name>” becomes a former name of
+  <account>; a future import maps the name by itself.", or, where the name
+  is another account's former name, "…and is then no longer a former name of
+  <other>." (the move ADR-0050 §4 added). Unticked: "Holds for this import
+  only. A future import suggests “<prefill>” again." Where the name is
+  another account's live name, no box: a muted line says the choice holds
+  for this import only and links Accounts & depots, where a merge or a
+  rename changes it. The box posts through the existing
+  `remember[<group>][<opaque row key>]` path.
+- **Same-named accounts are told apart in the options (F1).** An option
+  whose name another option of the same list carries adds, after a middle
+  dot, what differs: a cash account its linked depots ("at Depot 1", "no
+  depot"), else its currency, else "created <date>"; a depot its cash
+  account ("with Giro"), else its created date; "no. <id>" only when nothing
+  else differs. Unique names are unchanged. An ambiguous row gets no prefill
+  ("Decide…") and an attention note naming the candidates by the same labels,
+  saying the choice holds for this import and cannot be remembered while
+  more than one account carries the name, with the Accounts & depots link.
+- **"+ Create new" for a name the guard refuses (G4b-A)** stays in the list,
+  **disabled**, its own label saying why: "+ Create new: <name> — not
+  possible: an account already has this name" / "a former name of
+  <account>" / "the name of N accounts". Only a row with new bookings shows
+  it so; a stored choice that points at a name taken since counts as not
+  made. Nothing the list offers can fail the import at the end.
+- **The result adds three lists in `.import-skipped`'s existing form** (a
+  muted sentence, then the rows): "Remembered for future imports:" with one
+  line per name ("“X” is now a former name of Y.", "…and no longer of Z." for
+  a move, or "was not remembered: it is the name of …"); the rows booked on
+  or before a set balance a merge adjusted, each "Row N: <what> — set
+  balance of <account> on <date>"; and the internal transfers skipped, each
+  "Row N: <kind> <date> · <from> → <to>".
+- **The skipped duplicates are grouped by the layer that caught them**
+  (`.dup-group`, a `<details>` per layer with the count in bold tabular
+  figures and the reason): identical rows of a re-import — the expected
+  mass — stay **closed**; a retired hash and the economic layer stand open.
+  Each row reads "Row N: <kind, date, security, amount, accounts>".

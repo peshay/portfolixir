@@ -408,9 +408,9 @@ Eine zweite Kopie eines Instruments — ein Export mit neuerer ISIN, der
 importiert wurde, bevor der Wechsel aufgezeichnet war, ein von Hand angelegtes
 Wertpapier, das der nächste Import noch einmal anlegte — wird repariert,
 indem man das Duplikat (die **Quelle**) in das Wertpapier zusammenführt, das
-bleibt (das **Ziel**). Die Zusammenführung gibt es zuerst für den Agenten:
-Der Dialog für den Operator auf der Wertpapierseite folgt im selben Batch
-(L5).
+bleibt (das **Ziel**). Der Dialog des Operators auf der Wertpapierseite
+(**Zusammenführen in…** im Zeilenmenü) liest diese Vorschau und bestätigt mit
+demselben `plan_digest`, sodass beide denselben Plan sehen.
 
 - `GET /api/v1/securities/:id/merge_preview?target_id=` zeigt die
   Zusammenführung des Wertpapiers in `target_id` als Vorschau — ein Lesen,
@@ -2446,13 +2446,14 @@ neben der importierten Historie:
   bucht auf jenes Konto, und eine Umbenennung, die älter ist als das
   Audit-Journal der Konten, hat nichts zum Merken hinterlassen. Ändert der
   Operator eine Vorbelegung in der Vorschau auf ein Konto anderen Namens, wird
-  die Zuordnung standardmäßig als früherer Name dieses Kontos gemerkt. Den
-  früheren Namen eines anderen Kontos verschiebt die Importseite nie (die
-  Vorschau kann das noch nicht vor dem Anwenden sagen): Er wird dort zuerst mit
-  `DELETE /api/v1/cash_accounts/:id/former_names?name=` (oder dem Gegenstück
-  unter `securities_accounts`) entfernt. Eine Umbuchung, deren beide Seiten auf
-  ein Konto führen, wird übersprungen und aufgeführt, nie ein gescheiterter
-  Import.
+  die Zuordnung standardmäßig als früherer Name dieses Kontos gemerkt. Ist
+  der Name früherer Name eines anderen Kontos, verschiebt die Importseite ihn
+  erst, nachdem seine Zeile das vor dem Bestätigen gesagt hat, und das
+  Ergebnis nennt das Konto, das ihn abgab;
+  `DELETE /api/v1/cash_accounts/:id/former_names?name=` (oder das Gegenstück
+  unter `securities_accounts`) entfernt einen früheren Namen weiterhin von
+  Hand. Eine Umbuchung, deren beide Seiten auf ein Konto führen, wird
+  übersprungen und aufgeführt, nie ein gescheiterter Import.
 - **Eine Zusammenführung von Geldkonten ist sicher für den nächsten Import
   (ADR-0050 §2, §7).** Nach `POST /api/v1/cash_accounts/:id/merge` legt ein
   erneut angewendeter, schon importierter Export nichts an, byte-gleich oder
