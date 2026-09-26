@@ -817,6 +817,77 @@ Example quote sync response:
   id of the account to keep: a merge moves the history, a delete never
   discards it. An unreferenced account's bucket links are removed first,
   journaled (ADR-0050 §11).
+- `GET /api/v1/cash_accounts/:id/merge_preview?target_id=` previews merging
+  the account (the **source**) into `target_id` (the **target**, the account
+  that stays) — a read that writes nothing (ADR-0050 §7, §10;
+  `portfolixir.cash_accounts.merge_preview`). Both accounts must share the
+  portfolio, the currency, the liquidity role and the bucket set; otherwise
+  it answers `409 Conflict` with `errors.code` (`same_account`, `not_live`,
+  `portfolio_mismatch`, `currency_mismatch`, `liquidity_role_mismatch`,
+  `buckets_mismatch`, or `legacy_hashed_anchor` for a balance anchor that
+  still carries an import hash from before the import-hash kind check and
+  would have to be restated or moved), `errors.detail` and `errors.guards`.
+  An unknown source answers `404`, a source already merged `409`
+  `already_merged` with `errors.merged_into`, a missing `target_id` `422`.
+  The `200` carries:
+  - `plan_digest`, the digest the merge takes;
+  - `source` and `target`, each with its `balance` (the fold of every
+    booking, as `GET /api/v1/cash_accounts` reports it), `transaction_count`,
+    `bucket_ids` and `former_names`; `guards`; `linked_depots` (the source's,
+    which move to the target);
+  - `internal_transfers`: the transfers between the two, which the merge
+    deletes — both legs become one account;
+  - `key_equal_pairs`: a source booking whose day, kind and amounts equal a
+    target booking's, paired one to one, lowest id first, and
+    `choice_required` when there is one;
+  - `former_names`: the names the target gains (`appended`), those another
+    account already carries (`not_kept`, with `held_by`), and the target's
+    list `after`;
+  - `outcome_by_collapse_key_equal` with `"false"` (keep both bookings of a
+    pair) and `"true"` (delete the source's): the target's `balance` and
+    `transaction_count` after, `moved_transaction_ids`, `deleted` (each with
+    its `reason`: `internal_transfer`, `collapsed_duplicate` or
+    `folded_anchor`), `restated_anchors` (every balance anchor that stands on
+    the target afterwards, as `stated` + `other_balance` = `after`: the other
+    account's balance at the end of that day, from its bookings before the
+    merge; on a day both accounts carry anchors the target's last one holds
+    both and the others are deleted), `flow_changes` (the external flows a
+    collapse removes, and those it moves into one of the source's later
+    anchors), `other_accounts` and `positions` (what a collapsed transfer or
+    trade changes elsewhere).
+
+  Every decimal is a string. The digest covers both accounts, every booking
+  either references with its `updated_at`, every figure and the guards; the
+  choice is not part of it, so one pair has one digest.
+- `POST /api/v1/cash_accounts/:id/merge` with `{"target_id": …,
+  "plan_digest": …, "collapse_key_equal": …}` merges under the token
+  (`portfolixir.cash_accounts.merge`). `collapse_key_equal` is required when
+  the preview lists `key_equal_pairs` — `422` without it, naming how many —
+  and is never preselected: ask the operator. It answers `201 Created` with
+  the **merge record** (`id`, `kind`, `source_id`, `target_id`,
+  `portfolio_id`, `source_snapshot`, `manifest` — every booking moved,
+  restated or deleted, the depots re-pointed, the bucket links removed, the
+  names appended, the choice —, `plan_digest`, `actor_type`, `actor_label`,
+  `inserted_at`) and `already_applied: false`. In one transaction, one
+  audit-journal entry per row: the transfers between the two and, with
+  `true`, the source's paired bookings are deleted and their content hashes
+  retired; every balance anchor is restated as the preview said; every
+  other booking of the source and its linked depots move onto the target;
+  the merged balance is checked against the sum of both accounts on every
+  day either has a booking and today (`409 identity_check_failed` rolls the
+  merge back otherwise — a check for a defect, never an expected answer);
+  the source's bucket links are removed and the source is deleted; its name
+  and former names become former names of the target. A booking, a figure
+  or a guard that changed since the preview answers `409` with
+  `errors.code` `plan_changed` and the fresh preview in `errors.preview`,
+  and writes nothing. A retry of a completed merge of the same pair answers
+  `200` with the original record and `already_applied: true`, journaling
+  nothing; a source already merged into another account answers `409`
+  `already_merged` with `errors.merged_into`. A missing `plan_digest` or
+  `target_id`, or a `collapse_key_equal` that is not a boolean, answers
+  `422`. There is no unmerge: the record and the journal's before-images
+  reconstruct what a merge did. The operator's merge dialog follows in the
+  same batch (L5).
 - `GET /api/v1/securities_accounts` lists depots/securities accounts.
 - `POST /api/v1/securities_accounts` creates a depot/securities account with a
   `securities_account` object. `portfolio_id` is optional (ADR-0024): when
@@ -2223,6 +2294,18 @@ through this API lives next to the imported history:
   there first with `DELETE /api/v1/cash_accounts/:id/former_names?name=` (or
   the `securities_accounts` twin). A transfer whose two sides lead to one
   account is skipped and listed, never a failed import.
+- **A cash-account merge is safe for the next import (ADR-0050 §2, §7).**
+  After `POST /api/v1/cash_accounts/:id/merge`, re-applying an export
+  already applied creates nothing, byte-identical or drifted: the moved
+  bookings keep their content hashes, every booking the merge deleted has
+  its hash retired, the source's name resolves to the target as a former
+  name, and a transfer between the two is skipped as internal. A later
+  export's new rows that name the merged-away account are booked once, on
+  the target. Two limits are stated, not hidden: a new row whose economic
+  key equals an existing booking of the target is taken for that booking
+  (reported with the layer `economics`), and a row dated on or before a
+  balance anchor the merge restated is booked but absorbed by that anchor —
+  the import lists it as booked behind a restated anchor, with the anchor.
 - **What survives a re-import, unchanged, same ids, exact `Decimal` values:**
   classification assignments; every target plan version with its category and
   position targets and the cash target; each security's `note` and
@@ -2454,6 +2537,14 @@ in its description; the server instructions say it once for every write.
 - `portfolixir.cash_accounts.remove_former_name` — removes one former name
   (ADR-0050 §4); its description says what that costs: an import that still
   names it then creates a new account.
+- `portfolixir.cash_accounts.merge_preview` — the merge preview, a read
+  (ADR-0050 §7, §10): both outcomes of the duplicate question and the
+  `plan_digest`.
+- `portfolixir.cash_accounts.merge` — the merge under an approved digest;
+  hinted destructive and idempotent (a retry answers the original record).
+  Its description says what the merge does to the next import: the source's
+  names become former names of the target, a later import naming them books
+  there, and a re-import of an applied export creates nothing.
 - `portfolixir.securities_accounts.list`
 - `portfolixir.securities_accounts.create`
 - `portfolixir.securities_accounts.update`

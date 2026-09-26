@@ -44,6 +44,19 @@ What the import actually does today (verified in
   identity (portfolio, security/account ids, normalized Decimals) skips
   re-imports whose only difference is PP-export drift.
 
+> **Amended by [ADR-0050](0050-lifecycle-merges-under-a-reimport-contract.html)
+> §4 (2026-09-24):** cash accounts and depots resolve by the exact live name
+> first, then by a **former name** — a name the account was renamed from, a
+> merged-away account's name, or a remembered remap — through one function
+> the preview's prefill and the apply share; an ambiguous tier prefills
+> nothing and the apply refuses the name unmapped.
+>
+> **Amended by ADR-0050 §3 (2026-09-24):** the content-hash check runs
+> **ahead of all resolution**, and a hash a merge retired
+> (`retired_import_hashes`) counts like a live one: a row whose hash is held
+> or retired triggers no security, cash or depot resolution, no creation and
+> no insert, and is reported with its layer (`hash` or `retired`).
+
 So the golden path — re-import a mutated export into a **live** database —
 already mostly works for ISIN-bearing securities. What is actually at risk,
 verified against the schemas:
@@ -63,6 +76,15 @@ verified against the schemas:
    identity** problem; bucket/view membership keys to depots/cash accounts,
    whose renames are covered by the existing user-driven mapping step (which
    any future non-interactive path must mirror, see §2).
+
+   > **Amended by [ADR-0050](0050-lifecycle-merges-under-a-reimport-contract.html)
+   > (2026-09-24):** this sentence held only while the operator remapped by
+   > hand on every import. A rename over the API created an empty account
+   > under the old name on the next import, and with a drifted export booked
+   > the history a second time. Accounts now remember their former names
+   > (§4 there), are created only with their first new booking (§4), and a
+   > merge of two accounts leaves the source's name as a former name of the
+   > target (§7).
 2. **ISIN-less securities** (crypto, watch-only, some certificates): `isin`
    is nullable and only unique-when-present. The `(name, currency)` fallback
    breaks on any rename in PP — the import then creates a duplicate and the
@@ -189,6 +211,14 @@ Hardened by the 2026-07-22 adversarial-review round, equally binding:
   merged target, and within one apply run rows collapsing to an identical
   resolved dedup key are deduplicated and surfaced in the result, not
   double-inserted.
+
+  > **Amended by [ADR-0050](0050-lifecycle-merges-under-a-reimport-contract.html)
+  > §6 (2026-09-24):** the in-run key is scoped by the file's account names,
+  > `{dedup_key, time, pp_portfolio_name, pp_account_name,
+  > pp_counter_portfolio_name, pp_counter_account_name}`. Old and new ISIN of
+  > one booking under one account still collapse; two equal rows from
+  > different file accounts that resolve to one account (twin fees after a
+  > merge) are both inserted.
 - **Non-interactive paths fail closed:** no API/MCP import path exists
   today (the applier's "JSON-API entry point" auto-resolve is a stale
   premise — there is no `/api/v1` imports route); if one ships, entries
@@ -257,6 +287,15 @@ Guards, made precise by the 2026-07-22 review round:
   follow-up — the securities analogue of #328 — per scope lock). The §4
   round-trip test gains a wrong-ordering variant asserting the conflict is
   surfaced, not silently merged.
+
+  > **Amended by [ADR-0050](0050-lifecycle-merges-under-a-reimport-contract.html)
+  > §9 (2026-09-24):** the journaled security merge named here as a
+  > follow-up is decided there. For the wrong-order case, merging the
+  > duplicate into the original with the identity choice
+  > `adopt_source_isin` (the original takes the new ISIN, its old one becomes
+  > the alias) and `collapse_key_equal: true` (the duplicated bookings are
+  > deleted with their content hashes retired) is the repair; the manual
+  > steps above stand only until that merge ships.
 
 **Rejected: a first-class ledger kind** (`isin_change`). Unlike a split it
 has **no projection effect** — no quantity leg, no cash leg, no external

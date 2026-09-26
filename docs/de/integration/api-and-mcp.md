@@ -820,6 +820,83 @@ Beispiel-Antwort für Kurssynchronisierung:
   des Kontos, das bleibt: Eine Zusammenführung verschiebt die Historie, ein
   Löschen verwirft sie nie. Die Bucket-Verknüpfungen eines unreferenzierten
   Kontos werden vorher entfernt, journalisiert (ADR-0050 §11).
+- `GET /api/v1/cash_accounts/:id/merge_preview?target_id=` zeigt die
+  Zusammenführung des Kontos (der **Quelle**) in `target_id` (das **Ziel**,
+  das Konto, das bleibt) als Vorschau — ein Lesen, das nichts schreibt
+  (ADR-0050 §7, §10; `portfolixir.cash_accounts.merge_preview`). Beide
+  Konten müssen Portfolio, Währung, Liquiditätsrolle und Bucket-Menge teilen;
+  sonst antwortet sie `409 Conflict` mit `errors.code` (`same_account`,
+  `not_live`, `portfolio_mismatch`, `currency_mismatch`,
+  `liquidity_role_mismatch`, `buckets_mismatch` oder
+  `legacy_hashed_anchor` für einen gesetzten Saldo, der noch einen
+  Import-Hash aus der Zeit vor der Import-Hash-Artprüfung trägt und angepasst
+  oder verschoben werden müsste), `errors.detail` und `errors.guards`. Eine
+  unbekannte Quelle antwortet `404`, eine bereits zusammengeführte `409`
+  `already_merged` mit `errors.merged_into`, eine fehlende `target_id` `422`.
+  Die `200`-Antwort trägt:
+  - `plan_digest`, den Digest, den die Zusammenführung erwartet;
+  - `source` und `target`, jeweils mit `balance` (die Faltung aller
+    Buchungen, wie `GET /api/v1/cash_accounts` sie meldet),
+    `transaction_count`, `bucket_ids` und `former_names`; `guards`;
+    `linked_depots` (die der Quelle, die zum Ziel wechseln);
+  - `internal_transfers`: die Umbuchungen zwischen beiden, die die
+    Zusammenführung löscht — beide Seiten werden ein Konto;
+  - `key_equal_pairs`: eine Buchung der Quelle, deren Tag, Art und Beträge
+    denen einer Buchung des Ziels gleichen, eins zu eins gepaart, kleinste
+    ID zuerst, und `choice_required`, sobald es eine gibt;
+  - `former_names`: die Namen, die das Ziel hinzugewinnt (`appended`), die,
+    die schon ein anderes Konto trägt (`not_kept`, mit `held_by`), und die
+    Liste des Ziels danach (`after`);
+  - `outcome_by_collapse_key_equal` mit `"false"` (beide Buchungen eines
+    Paars behalten) und `"true"` (die der Quelle löschen): `balance` und
+    `transaction_count` des Ziels danach, `moved_transaction_ids`, `deleted`
+    (jeweils mit `reason`: `internal_transfer`, `collapsed_duplicate` oder
+    `folded_anchor`), `restated_anchors` (jeder gesetzte Saldo, der danach
+    auf dem Ziel steht, als `stated` + `other_balance` = `after`: der Saldo
+    des anderen Kontos am Ende dieses Tages, aus seinen Buchungen vor der
+    Zusammenführung; an einem Tag mit gesetzten Salden auf beiden Konten
+    trägt der letzte des Ziels beide, die übrigen entfallen), `flow_changes`
+    (die externen Flüsse, die das Entfernen der Duplikate streicht oder in
+    einen späteren gesetzten Saldo der Quelle verschiebt), `other_accounts`
+    und `positions` (was eine entfernte Umbuchung oder ein entfernter Kauf
+    anderswo ändert).
+
+  Jeder Dezimalwert ist ein String. Der Digest umfasst beide Konten, jede
+  Buchung, auf die eines verweist, mit ihrem `updated_at`, jede Zahl und die
+  Prüfungen; die Wahl gehört nicht dazu, ein Paar hat also einen Digest.
+- `POST /api/v1/cash_accounts/:id/merge` mit `{"target_id": …,
+  "plan_digest": …, "collapse_key_equal": …}` führt unter dem Token zusammen
+  (`portfolixir.cash_accounts.merge`). `collapse_key_equal` ist Pflicht,
+  sobald die Vorschau `key_equal_pairs` aufführt — ohne antwortet sie `422`
+  und nennt, wie viele —, und nie vorbelegt: den Operator fragen. Die
+  Antwort ist `201 Created` mit dem **Zusammenführungsprotokoll** (`id`,
+  `kind`, `source_id`, `target_id`, `portfolio_id`, `source_snapshot`,
+  `manifest` — jede verschobene, angepasste oder gelöschte Buchung, die
+  umgehängten Depots, die entfernten Bucket-Verknüpfungen, die angehängten
+  Namen, die Wahl —, `plan_digest`, `actor_type`, `actor_label`,
+  `inserted_at`) und `already_applied: false`. In einer Transaktion, ein
+  Audit-Journal-Eintrag je Zeile: Die Umbuchungen zwischen beiden und, mit
+  `true`, die gepaarten Buchungen der Quelle werden gelöscht, ihre
+  Inhalts-Hashes stillgelegt; jeder gesetzte Saldo wird angepasst, wie die
+  Vorschau es sagte; jede andere Buchung der Quelle und ihre verknüpften
+  Depots wechseln zum Ziel; der zusammengeführte Saldo wird an jedem Tag,
+  an dem eines der Konten eine Buchung hat, und heute gegen die Summe beider
+  Konten geprüft (sonst rollt `409 identity_check_failed` die
+  Zusammenführung zurück — eine Prüfung auf einen Fehler, nie eine erwartete
+  Antwort); die Bucket-Verknüpfungen der Quelle werden entfernt und die
+  Quelle gelöscht; ihr Name und ihre früheren Namen werden frühere Namen des
+  Ziels. Hat sich seit der Vorschau eine Buchung, eine Zahl oder eine Prüfung
+  geändert, antwortet sie `409` mit `errors.code` `plan_changed` und der
+  frischen Vorschau in `errors.preview` und schreibt nichts. Eine
+  Wiederholung einer abgeschlossenen Zusammenführung desselben Paars
+  antwortet `200` mit dem ursprünglichen Protokoll und
+  `already_applied: true` und journalisiert nichts; eine Quelle, die schon in
+  ein anderes Konto zusammengeführt wurde, antwortet `409` `already_merged`
+  mit `errors.merged_into`. Ein fehlender `plan_digest` oder eine fehlende
+  `target_id` oder ein `collapse_key_equal`, der kein Boolean ist, antwortet
+  `422`. Ein Rückgängigmachen gibt es nicht: Protokoll und die Vorher-Bilder
+  des Journals rekonstruieren, was eine Zusammenführung getan hat. Der Dialog
+  für den Operator folgt im selben Batch (L5).
 - `GET /api/v1/securities_accounts` listet Depots/Wertpapierkonten.
 - `POST /api/v1/securities_accounts` legt ein Depot/Wertpapierkonto mit einem
   `securities_account`-Objekt an. `portfolio_id` ist optional (ADR-0024):
@@ -2106,6 +2183,21 @@ neben der importierten Historie:
   unter `securities_accounts`) entfernt. Eine Umbuchung, deren beide Seiten auf
   ein Konto führen, wird übersprungen und aufgeführt, nie ein gescheiterter
   Import.
+- **Eine Zusammenführung von Geldkonten ist sicher für den nächsten Import
+  (ADR-0050 §2, §7).** Nach `POST /api/v1/cash_accounts/:id/merge` legt ein
+  erneut angewendeter, schon importierter Export nichts an, byte-gleich oder
+  verändert: Die verschobenen Buchungen behalten ihre Inhalts-Hashes, jede
+  Buchung, die die Zusammenführung gelöscht hat, hat ihren Hash stillgelegt,
+  der Name der Quelle führt als früherer Name zum Ziel, und eine Umbuchung
+  zwischen beiden wird als intern übersprungen. Neue Zeilen eines späteren
+  Exports, die das zusammengeführte Konto nennen, werden einmal gebucht, auf
+  das Ziel. Zwei Grenzen werden genannt, nicht versteckt: Eine neue Zeile,
+  deren wirtschaftlicher Schlüssel einer vorhandenen Buchung des Ziels
+  gleicht, gilt als diese Buchung (gemeldet mit der Ebene `economics`), und
+  eine Zeile, die auf oder vor einem gesetzten Saldo datiert ist, den die
+  Zusammenführung angepasst hat, wird gebucht, aber von diesem Saldo
+  aufgefangen — der Import führt sie als hinter einem angepassten gesetzten
+  Saldo gebucht auf, mit dem Saldo.
 - **Was einen erneuten Import unverändert übersteht, gleiche ids, exakte
   `Decimal`-Werte:** Klassifizierungs-Zuordnungen; jede Zielplan-Version mit
   ihren Kategorie- und Positionszielen sowie dem Cash-Ziel; `note` und
@@ -2354,6 +2446,15 @@ Server-Anweisungen sagen es einmal für jeden Schreibvorgang.
 - `portfolixir.cash_accounts.remove_former_name` — entfernt einen früheren
   Namen (ADR-0050 §4); die Beschreibung sagt, was das kostet: Ein Import, der
   ihn noch nennt, legt dann ein neues Konto an.
+- `portfolixir.cash_accounts.merge_preview` — die Vorschau einer
+  Zusammenführung, ein Lesen (ADR-0050 §7, §10): beide Ausgänge der Frage
+  nach den gleichen Buchungen und der `plan_digest`.
+- `portfolixir.cash_accounts.merge` — die Zusammenführung unter einem
+  freigegebenen Digest; als destruktiv und idempotent markiert (eine
+  Wiederholung antwortet mit dem ursprünglichen Protokoll). Die Beschreibung
+  sagt, was die Zusammenführung für den nächsten Import bedeutet: Die Namen
+  der Quelle werden frühere Namen des Ziels, ein späterer Import, der sie
+  nennt, bucht dorthin, und ein erneut angewendeter Export legt nichts an.
 - `portfolixir.securities_accounts.list`
 - `portfolixir.securities_accounts.create`
 - `portfolixir.securities_accounts.update`
