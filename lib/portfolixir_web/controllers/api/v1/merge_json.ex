@@ -1,7 +1,7 @@
 defmodule PortfolixirWeb.Api.V1.MergeJSON do
   @moduledoc """
   The payloads of the lifecycle merges (ADR-0050 §7, §10, §12): a merge
-  preview and a merge record. Every financial decimal and every quantity is
+  preview (a cash account's, a depot's) and a merge record. Every financial decimal and every quantity is
   a string; dates are ISO 8601; the preview's outcomes are keyed by the
   value of `collapse_key_equal` they follow from, `"false"` and `"true"`.
   """
@@ -46,6 +46,53 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
     }
   end
 
+  @positions_basis "quantity: the position fold of the depot's bookings and its " <>
+                     "portfolio's splits, each split scaling the position once, rounded at " <>
+                     "volume scale 6 (ADR-0028 §3). cost_basis and avg_cost: the moving-average " <>
+                     "cost GET /api/v1/portfolios/:id/holdings states, in the security's " <>
+                     "currency, fees and taxes not included; after the merge both depots' lots " <>
+                     "combine, so the cost is restated. realized_result: over the position's " <>
+                     "sales, each sale's quantity times its price in the security's currency " <>
+                     "less the cost it removed at the running average, fees and taxes not " <>
+                     "included; null where a price or cost in the security's currency is not " <>
+                     "derivable. source and target are before the merge (null where the depot " <>
+                     "holds no booking of the security), after is the target afterwards. " <>
+                     "rounding_differences: each split of an affected security where the " <>
+                     "combined position rounded once differs, at the end of the split's day, " <>
+                     "from the two positions rounded apart — expected, never a refusal."
+
+  @depot_reimport_note "After the merge the source depot's name and former names are former " <>
+                         "names of the target: a Portfolio Performance import naming them books " <>
+                         "onto the target, and a re-import of an export already applied creates " <>
+                         "nothing, because every row the merge removes has its content hash " <>
+                         "retired."
+
+  @doc "A depot merge preview."
+  def depot_preview(preview) do
+    %{
+      kind: "securities_account",
+      plan_digest: preview.plan_digest,
+      source: depot(preview.source),
+      target: depot(preview.target),
+      guards: Enum.map(preview.guards, &guard/1),
+      internal_transfers: Enum.map(preview.internal_transfers, &security_transfer/1),
+      key_equal_pairs: Enum.map(preview.key_equal_pairs, &depot_pair/1),
+      choice_required: preview.choice_required,
+      position_buckets: Enum.map(preview.position_buckets, &position_buckets/1),
+      former_names: %{
+        appended: preview.former_names.appended,
+        not_kept: Enum.map(preview.former_names.not_kept, &not_kept/1),
+        after: preview.former_names.after
+      },
+      outcome_by_collapse_key_equal: %{
+        "false" => depot_outcome(Map.fetch!(preview.outcomes, false)),
+        "true" => depot_outcome(Map.fetch!(preview.outcomes, true))
+      },
+      positions_basis: @positions_basis,
+      reimport_note: @depot_reimport_note
+    }
+  end
+
   @doc "One merge record (§12): the source's snapshot and the manifest as stored."
   def record(%MergeRecord{} = record) do
     %{
@@ -84,6 +131,122 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
       former_names: account.former_names,
       balance: JSON.decimal(account.balance),
       transaction_count: account.transaction_count
+    }
+  end
+
+  defp depot(depot) do
+    %{
+      id: depot.id,
+      name: depot.name,
+      portfolio_id: depot.portfolio_id,
+      cash_account_id: depot.cash_account_id,
+      bucket_ids: depot.bucket_ids,
+      former_names: depot.former_names,
+      transaction_count: depot.transaction_count
+    }
+  end
+
+  defp security_transfer(transfer) do
+    %{
+      id: transfer.id,
+      date: JSON.date(transfer.date),
+      security_id: transfer.security_id,
+      quantity: JSON.decimal(transfer.quantity),
+      securities_account_id: transfer.securities_account_id,
+      counter_securities_account_id: transfer.counter_securities_account_id,
+      retires_hash: transfer.retires_hash
+    }
+  end
+
+  defp depot_pair(pair) do
+    %{
+      source_transaction_id: pair.source_transaction_id,
+      target_transaction_id: pair.target_transaction_id,
+      date: JSON.date(pair.date),
+      type: pair.type,
+      security_id: pair.security_id,
+      quantity: JSON.decimal(pair.quantity),
+      price: JSON.decimal(pair.price),
+      gross_amount: JSON.decimal(pair.gross_amount),
+      cash_account_id: pair.cash_account_id,
+      retires_hash: pair.retires_hash
+    }
+  end
+
+  defp position_buckets(entry) do
+    %{
+      security_id: entry.security_id,
+      security_name: entry.security_name,
+      source_holds: entry.source_holds,
+      target_holds: entry.target_holds,
+      source_override: entry.source_override,
+      target_override: entry.target_override,
+      source_buckets: entry.source_buckets,
+      target_buckets: entry.target_buckets,
+      action: Atom.to_string(entry.action)
+    }
+  end
+
+  defp depot_outcome(outcome) do
+    %{
+      transaction_count: outcome.transaction_count,
+      moved_transaction_ids: outcome.moved_transaction_ids,
+      deleted:
+        Enum.map(outcome.deleted, fn deleted ->
+          %{
+            id: deleted.id,
+            date: JSON.date(deleted.date),
+            type: deleted.type,
+            security_id: deleted.security_id,
+            reason: Atom.to_string(deleted.reason),
+            superseded_by: deleted.superseded_by,
+            retires_hash: deleted.retires_hash
+          }
+        end),
+      positions:
+        Enum.map(outcome.positions, fn position ->
+          %{
+            security_id: position.security_id,
+            security_name: position.security_name,
+            currency_code: position.currency_code,
+            source: figures(position.source),
+            target: figures(position.target),
+            after: figures(position.after)
+          }
+        end),
+      rounding_differences:
+        Enum.map(outcome.rounding_differences, fn difference ->
+          %{
+            security_id: difference.security_id,
+            security_name: difference.security_name,
+            date: JSON.date(difference.date),
+            split_transaction_id: difference.split_transaction_id,
+            ratio: difference.ratio,
+            combined: JSON.decimal(difference.combined),
+            separate_sum: JSON.decimal(difference.separate_sum),
+            difference: JSON.decimal(difference.difference)
+          }
+        end),
+      cash_accounts:
+        Enum.map(outcome.cash_accounts, fn account ->
+          %{
+            id: account.id,
+            name: account.name,
+            balance_before: JSON.decimal(account.balance_before),
+            balance_after: JSON.decimal(account.balance_after)
+          }
+        end)
+    }
+  end
+
+  defp figures(nil), do: nil
+
+  defp figures(figures) do
+    %{
+      quantity: JSON.decimal(figures.quantity),
+      cost_basis: JSON.decimal(figures.cost_basis),
+      avg_cost: JSON.decimal(figures.avg_cost),
+      realized_result: JSON.decimal(figures.realized_result)
     }
   end
 

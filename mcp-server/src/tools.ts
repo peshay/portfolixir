@@ -2521,6 +2521,37 @@ const cashMergeZ = z.object({
   collapse_key_equal: z.boolean().optional()
 });
 
+const depotMergePreviewSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "target_id"],
+  properties: {
+    id: { type: "integer", minimum: 1, description: "The depot to merge away (the source)." },
+    target_id: { type: "integer", minimum: 1, description: "The depot to keep (the target)." }
+  }
+};
+
+// The same arguments as the cash-account merge's: the ids and the consent.
+const depotMergePreviewZ = cashMergePreviewZ;
+const depotMergeZ = cashMergeZ;
+
+const depotMergeSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id", "target_id", "plan_digest"],
+  properties: {
+    id: { type: "integer", minimum: 1, description: "The depot to merge away (the source)." },
+    target_id: { type: "integer", minimum: 1, description: "The depot to keep (the target)." },
+    plan_digest: {
+      type: "string",
+      minLength: 1,
+      description:
+        "The plan_digest of the preview the operator approved (portfolixir.securities_accounts.merge_preview)."
+    },
+    collapse_key_equal: cashMergeSchema.properties.collapse_key_equal
+  }
+};
+
 // #831: the re-import guarantee, stated where the consumer reads — in the
 // description of every read it protects — rather than only on a documentation
 // page. Pinned by test/portfolixir/imports/reimport_preservation_test.exs.
@@ -2986,7 +3017,9 @@ const declaredTools: DeclaredTool[] = [
     "Delete a depot/securities account that no transaction references through either leg. Otherwise 409 with " +
       "errors.referenced_by (the referencing tables, counted: transactions), errors.remedy \"merge\" and " +
       "errors.remedy_route, the merge preview " +
-      "GET /api/v1/securities_accounts/:id/merge_preview?target_id=<the depot to keep>. An unreferenced depot's " +
+      "GET /api/v1/securities_accounts/:id/merge_preview?target_id=<the depot to keep> " +
+      "(portfolixir.securities_accounts.merge_preview) — a merge moves the history onto the depot you keep; a " +
+      "delete never discards it. An unreferenced depot's " +
       "default buckets and position overrides are removed first, journaled under the API token (one entry for the " +
       "default set, one per position).",
     idSchema,
@@ -2998,6 +3031,51 @@ const declaredTools: DeclaredTool[] = [
     removeFormerName("securities account"),
     formerNameRemovalSchema,
     formerNameRemovalZ
+  ),
+  tool(
+    "portfolixir.securities_accounts.merge_preview",
+    "Preview a depot merge",
+    "Preview merging a depot (id, the source) into another depot of the same portfolio (target_id, the one to " +
+      "keep) — a read that writes nothing (ADR-0050 §7, §10). Answers the plan_digest " +
+      "portfolixir.securities_accounts.merge takes, both depots (cash_account_id, bucket_ids, former_names, " +
+      "transaction_count), the guards, the security transfers between the two (the merge deletes them), the " +
+      "key_equal_pairs (a source booking whose day, kind, security, cash account and amounts equal a target " +
+      "booking's), position_buckets (per security: both depots' effective buckets and what the merge does with " +
+      "the source's override — carry, drop_redundant, drop_unheld, clear_target or none), the names the target " +
+      "gains (former_names.after), and outcome_by_collapse_key_equal with \"false\" and \"true\": the target's " +
+      "booking count after, the bookings moved and deleted, positions (every security the source holds: " +
+      "quantity, cost_basis, avg_cost and realized_result on the source and the target before and on the target " +
+      "after — the moving-average cost is restated because both depots' lots combine), rounding_differences (a " +
+      "split where the combined position rounded once differs from the two rounded apart, by a unit of the " +
+      "volume scale — expected, never a refusal) and the cash accounts a collapsed booking changes. " +
+      "positions_basis states how those figures are computed. Show the operator both outcomes; the choice is " +
+      "theirs. Quantities and decimals are strings. A pair that may not merge answers 409 with errors.code " +
+      "(same_account, not_live, portfolio_mismatch, buckets_mismatch or position_buckets_mismatch naming each " +
+      "position whose buckets differ while both depots hold it) and errors.guards; a source already merged " +
+      "answers 409 already_merged with errors.merged_into.",
+    depotMergePreviewSchema,
+    depotMergePreviewZ
+  ),
+  tool(
+    "portfolixir.securities_accounts.merge",
+    "Merge a depot into another",
+    "Merge a depot (id) into another (target_id) under the preview the operator approved " +
+      "(portfolixir.securities_accounts.merge_preview): pass its plan_digest. collapse_key_equal is required when " +
+      "the preview lists key_equal_pairs and is never preselected — ask the operator: true deletes each paired " +
+      "booking of the source, false keeps both on the target. The source's bookings move onto the target, one " +
+      "audit-journal entry per row under your token, each keeping its cash account (the target keeps its own " +
+      "linked cash account; the source's stays as an account of its own); security transfers between the two " +
+      "are deleted; every day's quantity of each security is checked against both depots' bookings; each " +
+      "position keeps its view membership (the source's override is carried, or dropped where redundant); the " +
+      "source is deleted, which cannot be undone. Its name, and each of its former names, becomes a former name " +
+      "of the target, so a later Portfolio Performance import that names it books onto the target, and a " +
+      "re-import of an export already applied creates nothing: the content hash of every booking the merge " +
+      "deletes is retired. Answers 201 with the merge record. If a booking, a figure or a guard changed since " +
+      "the preview, it answers 409 plan_changed with the fresh preview in errors.preview and writes nothing — " +
+      "show it and ask again. A retry of a completed merge of the same pair answers 200 with the original merge " +
+      "record (already_applied true).",
+    depotMergeSchema,
+    depotMergeZ
   ),
   tool("portfolixir.transactions.list", "List transactions", "List transactions. Optional filters: from/to (ISO dates), portfolio_id, security_id, securities_account_id. Optional fields (FR-37) selects a sparse fieldset: each row then carries exactly those fields — prefer a small selection (e.g. id, type, date, security_id, gross_amount) for routine reads and request the full rows only when auditing a booking. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only rows created or updated strictly after that instant return, and the response carries as_of (use it as the next since; it lies no later than the start of the oldest write still in flight, so the next read may re-deliver a row but never skips one) plus a delta_note — deletions are NOT represented, so a sync that must detect deletions does a full read. Pull-only; there is no push delivery. Optional running_balance_for (a cash account id) adds a running_balance to each row: the balance of that account after the booking, in the account's own currency, and a running_balance_basis block naming the account. Two properties worth knowing before you read the numbers: the fold always covers the account's WHOLE history, so a narrowed read (from/to, a filter) still shows true balances rather than a partial sum; and a row that does not move that account carries null, not the previous balance.", {
     type: "object",
@@ -3616,7 +3694,8 @@ const MODIFYING_POSTS = new Set([
   "portfolixir.securities.isin_change",
   // Moves every booking of the source onto the target and deletes the source
   // (ADR-0050 §7); a retry of a completed merge answers the original record.
-  "portfolixir.cash_accounts.merge"
+  "portfolixir.cash_accounts.merge",
+  "portfolixir.securities_accounts.merge"
 ]);
 
 // Reach an external provider through the API, so their answer depends on
@@ -3914,6 +3993,17 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         "DELETE",
         withQuery(`/api/v1/securities_accounts/${args.id}/former_names`, args, ["name"])
       );
+    case "portfolixir.securities_accounts.merge_preview":
+      return client.request(
+        "GET",
+        withQuery(`/api/v1/securities_accounts/${args.id}/merge_preview`, args, ["target_id"])
+      );
+    case "portfolixir.securities_accounts.merge":
+      return client.request("POST", `/api/v1/securities_accounts/${args.id}/merge`, {
+        target_id: args.target_id,
+        plan_digest: args.plan_digest,
+        ...(args.collapse_key_equal === undefined ? {} : { collapse_key_equal: args.collapse_key_equal })
+      });
     case "portfolixir.transactions.list":
       return client.request(
         "GET",
