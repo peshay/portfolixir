@@ -57,6 +57,12 @@ defmodule Portfolixir.Imports.Applier do
   - **The in-run collapse key is scoped by the file's account names**
     (§6): `{dedup_key, time, pp_portfolio_name, pp_account_name,
     pp_counter_portfolio_name, pp_counter_account_name}`.
+  - **A row behind a restated anchor is reported** (§2's third limit, §7
+    step 4): a cash merge restates both accounts' balance anchors to the
+    combined balance, so a row this import books on such an account dated
+    on or before the first anchor at or after it — when a merge restated
+    that anchor — is inserted, the anchor absorbs its amount, and the row
+    is listed in `behind_restated_anchor` with the anchor.
 
   `already_imported` counts the skipped duplicates per layer (`:hash`,
   `:retired`, `:economics`); `reimport_counts/2` is the same count before
@@ -120,10 +126,12 @@ defmodule Portfolixir.Imports.Applier do
   alias Portfolixir.Imports.Preview
   alias Portfolixir.Imports.SecurityResolver
   alias Portfolixir.Journal
+  alias Portfolixir.Ledger.Projection
   alias Portfolixir.Ledger.SettlementGuard
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Lifecycle
   alias Portfolixir.Lifecycle.AccountNames
+  alias Portfolixir.Lifecycle.MergeRecord
   alias Portfolixir.Lifecycle.RetiredImportHash
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CashAccount
@@ -155,7 +163,10 @@ defmodule Portfolixir.Imports.Applier do
               internal_transfers: [],
               # ADR-0050 §4: what remembering each remapped file name did —
               # :appended, {:moved, from_id} or {:not_offered, live_on_id}.
-              remembered_names: []
+              remembered_names: [],
+              # ADR-0050 §2, §7 step 4: rows inserted on an account on or
+              # before an anchor a cash merge restated, which absorbs them.
+              behind_restated_anchor: []
 
     @type t :: %__MODULE__{}
   end
@@ -486,7 +497,10 @@ defmodule Portfolixir.Imports.Applier do
       # tier, refused when a row needs the name.
       ambiguous_names: %{},
       result: result,
-      existing_dedup_keys: load_existing_dedup_keys(portfolio_id)
+      existing_dedup_keys: load_existing_dedup_keys(portfolio_id),
+      # ADR-0050 §2, §7 step 4: the anchors per account where a cash merge
+      # restated one; empty, and no further read, where none did.
+      restated_anchors: load_restated_anchors(portfolio_id)
     }
   end
 
@@ -501,7 +515,8 @@ defmodule Portfolixir.Imports.Applier do
     :internal_transfers,
     :alias_matches,
     :security_overrides,
-    :remembered_names
+    :remembered_names,
+    :behind_restated_anchor
   ]
 
   defp enrich_after_commit({:ok, %Result{} = result}) do
@@ -1907,17 +1922,103 @@ defmodule Portfolixir.Imports.Applier do
     )
     |> Repo.transaction()
     |> case do
-      {:ok, %{transaction: %Transaction{}}} ->
+      {:ok, %{transaction: %Transaction{} = transaction}} ->
         state =
           state
           |> bump_result(:created_transactions)
           |> Map.put(:outcome, :inserted)
           |> Map.update!(:seen_run_keys, &MapSet.put(&1, run_key))
+          |> record_behind_restated_anchor(entry, transaction)
 
         {:ok, state}
 
       {:error, :transaction, %Ecto.Changeset{} = changeset, _changes} ->
         {:error, %{row: entry.source_row, reason: {:insert_failed, changeset}}}
+    end
+  end
+
+  # ADR-0050 §2's third limit, stated rather than hidden: a cash merge
+  # restates the anchors of both accounts to the combined balance (§7 step
+  # 4), so a stated balance now covers what was partly derived. A row this
+  # import books on such an account dated on or before the first anchor at
+  # or after it — when that anchor is one a merge restated — is inserted,
+  # and the anchor absorbs its amount (ADR-0009). It is reported here with
+  # the anchor, never silent.
+  defp record_behind_restated_anchor(%{restated_anchors: anchors} = state, _entry, _row)
+       when map_size(anchors) == 0,
+       do: state
+
+  defp record_behind_restated_anchor(state, %Entry{} = entry, %Transaction{} = row) do
+    accounts =
+      for {account_id, _leg} <- Projection.effects(row).cash,
+          account_id != nil,
+          uniq: true,
+          do: account_id
+
+    for account_id <- accounts, reduce: state do
+      acc ->
+        case first_anchor_from(Map.get(acc.restated_anchors, account_id, []), row.date) do
+          %{restated: true} = anchor ->
+            behind = %{
+              row: entry.source_row,
+              anchor_id: anchor.id,
+              anchor_date: anchor.date,
+              cash_account_id: account_id
+            }
+
+            Map.update!(acc, :result, fn %Result{} = r ->
+              %Result{r | behind_restated_anchor: [behind | r.behind_restated_anchor]}
+            end)
+
+          _none_or_unrestated ->
+            acc
+        end
+    end
+  end
+
+  # Anchors replay last within their day, so an anchor dated on the row's day
+  # absorbs it as well.
+  defp first_anchor_from(anchors, date),
+    do: Enum.find(anchors, &(Date.compare(&1.date, date) != :lt))
+
+  # The balance anchors of every account a cash merge restated one on, in
+  # replay order, each marked whether a merge restated it (the merge
+  # records' manifests name them, §12).
+  defp load_restated_anchors(portfolio_id) do
+    restated =
+      from(m in MergeRecord,
+        where: m.kind == :cash_account and m.portfolio_id == ^portfolio_id,
+        select: m.manifest
+      )
+      |> Repo.all()
+      |> Enum.flat_map(&Map.get(&1, "restated_anchors", []))
+      |> Enum.flat_map(fn
+        %{"id" => id} when is_integer(id) -> [id]
+        _other -> []
+      end)
+      |> MapSet.new()
+
+    if MapSet.size(restated) == 0 do
+      %{}
+    else
+      ids = MapSet.to_list(restated)
+
+      accounts =
+        from(t in Transaction,
+          where: t.id in ^ids and t.type == "balance_adjustment",
+          distinct: true,
+          select: t.cash_account_id
+        )
+
+      from(t in Transaction,
+        where: t.type == "balance_adjustment" and t.cash_account_id in subquery(accounts),
+        order_by: [asc: t.date, asc: t.id],
+        select: {t.cash_account_id, t.id, t.date}
+      )
+      |> Repo.all()
+      |> Enum.group_by(&elem(&1, 0), fn {_account, id, date} ->
+        %{id: id, date: date, restated: MapSet.member?(restated, id)}
+      end)
     end
   end
 
