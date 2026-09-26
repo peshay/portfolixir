@@ -105,6 +105,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.portfolios.performance",
       "portfolixir.portfolios.benchmark",
       "portfolixir.journal.list",
+      "portfolixir.merges.list",
       "portfolixir.buckets.list",
       "portfolixir.buckets.get",
       "portfolixir.buckets.create",
@@ -2353,6 +2354,36 @@ describe("Portfolixir MCP tools", () => {
       "/api/v1/journal?resource_type=security&operation=create&limit=50"
     );
     assert.equal((result.structuredContent as any).data[0].resource_type, "security");
+  });
+
+  // User story (ADR-0050 §12, L5a, #328):
+  // As the agent auditing what happened to a household's accounts,
+  // I want the merge records as a read-only tool,
+  // so that I can explain a missing account or a former name.
+  //
+  // Acceptance criteria:
+  // - portfolixir.merges.list routes to GET /api/v1/merges with limit.
+  // - It is read-only, and its description says what each record carries,
+  //   that the manifest is summarized as counts, that there is no unmerge,
+  //   and that the operator's list view lands no later than Sprint 17.
+  it("routes portfolixir.merges.list to GET /api/v1/merges and says what it answers", async () => {
+    const { client, requests } = createRecordingClient({ data: [], meta: { count: 0 } });
+
+    await callTool(client, "portfolixir.merges.list", {});
+    await callTool(client, "portfolixir.merges.list", { limit: 5 });
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/merges");
+    assert.equal(requests[1].path, "/api/v1/merges?limit=5");
+    await assert.rejects(callTool(client, "portfolixir.merges.list", { limit: 0 }), /limit/);
+
+    const tool = listTools().find((entry) => entry.name === "portfolixir.merges.list");
+    assert.equal(tool?.annotations.readOnlyHint, true);
+    assert.match(tool?.description ?? "", /newest first/);
+    assert.match(tool?.description ?? "", /manifest_summary/);
+    assert.match(tool?.description ?? "", /merged_into/);
+    assert.match(tool?.description ?? "", /no unmerge/);
+    assert.match(tool?.description ?? "", /Sprint 17/);
   });
 
   it("forwards the view scope param on the analytics tools", async () => {

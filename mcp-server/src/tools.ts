@@ -1751,6 +1751,23 @@ const journalListZ = z.object({
   limit: z.number().int().min(1).optional()
 });
 
+// ADR-0050 §12 (L5a, #328): the merge records, the audit read of a
+// destructive write. Agent-first: the operator's list view lands no later
+// than Sprint 17 under the two-way deadline.
+const mergesListSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    limit: {
+      type: "integer",
+      minimum: 1,
+      description: "Newest records to keep (default 100, capped at 1000)."
+    }
+  }
+};
+
+const mergesListZ = z.object({ limit: z.number().int().min(1).optional() });
+
 // Plan versions & depot snapshots (ADR-0027).
 const plansListSchema = {
   type: "object",
@@ -3472,6 +3489,26 @@ const declaredTools: DeclaredTool[] = [
     journalListZ
   ),
   tool(
+    "portfolixir.merges.list",
+    "List merges",
+    "List the lifecycle merges this instance recorded (ADR-0050 §12), newest first: every merge of a cash " +
+      "account, a depot or a security into another (portfolixir.cash_accounts.merge, " +
+      "portfolixir.securities_accounts.merge, portfolixir.securities.merge). Each record carries id, kind " +
+      "(cash_account, securities_account or security), source {id, name} — the name the merge recorded, since the " +
+      "source no longer exists —, target {id, name, merged_into} — merged_into is null while the target lives, " +
+      "otherwise the id a later merge moved it into, followed to the live end —, portfolio_id (null for a " +
+      "security), actor_type and actor_label, inserted_at, and manifest_summary: the merge's manifest with every " +
+      "list replaced by its count (transactions moved, restated, deleted; former names appended; quotes moved " +
+      "and dropped; …) and the operator's choices as given. A read of a merged-away id elsewhere answers 404 with " +
+      "errors.merged_into. There is no unmerge: the record and the audit journal's before-images " +
+      "(portfolixir.journal.list) are what make a merge reconstructable. limit keeps the newest records " +
+      "(default 100, capped at 1000, echoed in meta.limit). This is the agent's read; the operator sees a merge " +
+      "on Accounts & depots (the survivor's \"merged from\" line and its former names), and a list view of the " +
+      "records lands no later than Sprint 17.",
+    mergesListSchema,
+    mergesListZ
+  ),
+  tool(
     "portfolixir.buckets.list",
     "List buckets",
     "List the buckets (tags applied to holdings for wealth scoping). Each bucket carries its dimension: \"tag\" (free overlapping tag) or \"scope\" (the exclusive dimension — at most one per depot/cash account, ADR-0024).",
@@ -4408,6 +4445,8 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
           "limit"
         ])
       );
+    case "portfolixir.merges.list":
+      return client.request("GET", withQuery("/api/v1/merges", args, ["limit"]));
     case "portfolixir.buckets.list":
       return client.request("GET", "/api/v1/buckets");
     case "portfolixir.buckets.get":

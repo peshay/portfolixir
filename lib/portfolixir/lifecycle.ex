@@ -134,6 +134,82 @@ defmodule Portfolixir.Lifecycle do
     Repo.one(from(m in MergeRecord, where: m.kind == ^kind and m.source_id == ^source_id))
   end
 
+  @typedoc "One merge record as the audit read lists it, with the names a reader needs (§12)."
+  @type listed_merge :: %{
+          record: MergeRecord.t(),
+          source_name: String.t() | nil,
+          target_name: String.t() | nil,
+          target_merged_into: integer() | nil
+        }
+
+  @doc """
+  The merge records, newest first (`inserted_at`, then `id`, descending), at
+  most `limit` — the audit read of a destructive write (ADR-0050 §12). Each
+  carries the source's name as its snapshot recorded it, the target's live
+  name, and — for a target a later merge took away — the name that merge
+  recorded and the live end of the chain in `target_merged_into` (`nil`
+  while the target is live).
+  """
+  @spec list_merges(pos_integer()) :: [listed_merge()]
+  def list_merges(limit) when is_integer(limit) and limit > 0 do
+    records =
+      Repo.all(from(m in MergeRecord, order_by: [desc: m.inserted_at, desc: m.id], limit: ^limit))
+
+    live = live_names(Enum.map(records, &{&1.kind, &1.target_id}))
+
+    Enum.map(records, fn record ->
+      key = {record.kind, record.target_id}
+
+      {target_name, merged_into} =
+        case Map.fetch(live, key) do
+          {:ok, name} -> {name, nil}
+          :error -> {recorded_name(record.kind, record.target_id), survivor(key)}
+        end
+
+      %{
+        record: record,
+        source_name: snapshot_name(record),
+        target_name: target_name,
+        target_merged_into: merged_into
+      }
+    end)
+  end
+
+  @live_schemas %{
+    cash_account: Portfolixir.Portfolios.CashAccount,
+    securities_account: Portfolixir.Portfolios.SecuritiesAccount,
+    security: Portfolixir.Catalog.Security
+  }
+
+  defp live_names(keys) do
+    keys
+    |> Enum.uniq()
+    |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+    |> Enum.flat_map(fn {kind, ids} ->
+      from(r in Map.fetch!(@live_schemas, kind), where: r.id in ^ids, select: {r.id, r.name})
+      |> Repo.all()
+      |> Enum.map(fn {id, name} -> {{kind, id}, name} end)
+    end)
+    |> Map.new()
+  end
+
+  # A target no row carries any more was taken away by a later merge, whose
+  # snapshot recorded its name — or deleted once it held nothing, which
+  # leaves no merge record to name it (nil).
+  defp recorded_name(kind, id) do
+    case merge_of(kind, id) do
+      %MergeRecord{} = record -> snapshot_name(record)
+      nil -> nil
+    end
+  end
+
+  defp survivor({kind, id}), do: merged_into(kind, id)
+
+  defp snapshot_name(%MergeRecord{source_snapshot: %{"name" => name}}) when is_binary(name),
+    do: name
+
+  defp snapshot_name(_record), do: nil
+
   @doc """
   Retires the content hash of a row a merge removed, on behalf of `actor`,
   journaled as a `retired_import_hash` create. The retirement names its merge

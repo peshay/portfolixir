@@ -377,6 +377,37 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
     }
   end
 
+  @doc """
+  One merge record as `GET /api/v1/merges` lists it (§12): what went into
+  what — the source's name as its snapshot recorded it, the target's live
+  name, or for a target a later merge took away the name that merge
+  recorded and the live end of the chain in `merged_into` — who did it,
+  when, and the manifest summarized: every list replaced by its count,
+  every other value as stored (the operator's choices among them). The full
+  manifest and snapshot stay on the record the merge answered.
+  """
+  def listed(%{record: %MergeRecord{} = record} = listed) do
+    %{
+      id: record.id,
+      kind: Atom.to_string(record.kind),
+      source: %{id: record.source_id, name: listed.source_name},
+      target: %{
+        id: record.target_id,
+        name: listed.target_name,
+        merged_into: listed.target_merged_into
+      },
+      portfolio_id: record.portfolio_id,
+      actor_type: Atom.to_string(record.actor_type),
+      actor_label: record.actor_label,
+      inserted_at: JSON.datetime(record.inserted_at),
+      manifest_summary: summarize(record.manifest)
+    }
+  end
+
+  defp summarize(list) when is_list(list), do: length(list)
+  defp summarize(map) when is_map(map), do: Map.new(map, fn {k, v} -> {k, summarize(v)} end)
+  defp summarize(value), do: value
+
   @doc "A guard's result, its code the refusal it answers when it fails."
   def guard(guard) do
     %{
