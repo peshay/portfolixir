@@ -498,7 +498,8 @@ demselben `plan_digest`, sodass beide denselben Plan sehen.
     (je Depot, in dem die Quelle hält: `source`, `target` und `after`,
     jeweils `quantity`, `cost_basis`, `avg_cost` und `realized_result`),
     `rounding_differences`, `cash_accounts` und `flow_changes`, mit
-    `positions_basis` wie bei einer Depot-Zusammenführung.
+    `positions_basis` wie bei einer Depot-Zusammenführung; `reimport_note`
+    sagt, was die Zusammenführung für den nächsten Import bedeutet.
 
   Jede Stückzahl, jeder Kurs, jedes Gewicht und jede Dezimalzahl ist ein
   String. Der Digest deckt beide Wertpapiere, jede Buchung beider, ihre
@@ -1028,7 +1029,16 @@ Beispiel-Antwort für Kurssynchronisierung:
     `cash_account_id`, der `transaction_id` des Saldos oder der Buchung,
     `date`, `change` und `collapsed_transaction_id`), `other_accounts` und
     `positions` (was eine entfernte Umbuchung oder ein entfernter Kauf
-    anderswo ändert).
+    anderswo ändert);
+  - `balance_basis`, die Rechengrundlage der Salden und der angepassten
+    gesetzten Salden: Ein Saldo ist die Faltung jeder Buchung des Kontos,
+    wie `GET /api/v1/cash_accounts` ihn meldet; ein angepasster gesetzter
+    Saldo ist sein genannter Betrag plus der Saldo des anderen Kontos am
+    Ende dieses Tages, aus dessen Buchungen vor der Zusammenführung;
+  - `reimport_note`, was die Zusammenführung für den nächsten
+    Portfolio-Performance-Import bedeutet: Die Namen der Quelle führen dorthin
+    (außer einem, den ein anderes Konto noch trägt, `former_names.not_kept`),
+    und ein erneut angewendeter Export legt nichts an.
 
   Jeder Dezimalwert ist ein String. Der Digest umfasst beide Konten, jede
   Buchung, auf die eines verweist, mit ihrem `updated_at`, jede Zahl und die
@@ -1172,7 +1182,9 @@ Beispiel-Antwort für Kurssynchronisierung:
     `rounding_differences` nennt jeden Split eines betroffenen Wertpapiers,
     bei dem die gemeinsam einmal gerundete Position am Ende des Split-Tags
     von den zwei getrennt gerundeten abweicht — um eine Einheit der
-    Stückzahl-Genauigkeit je Split, erwartet und nie eine Ablehnung.
+    Stückzahl-Genauigkeit je Split, erwartet und nie eine Ablehnung;
+  - `reimport_note`, was die Zusammenführung für den nächsten
+    Portfolio-Performance-Import bedeutet, wie bei einem Geldkonto.
 
   Jede Stückzahl und jede Dezimalzahl ist ein String. Der Digest deckt beide
   Depots ab, jede Buchung, die eines von beiden nennt, und die Splits des
@@ -2901,6 +2913,10 @@ Server-Anweisungen sagen es einmal für jeden Schreibvorgang.
 - `portfolixir.portfolios.performance`
 - `portfolixir.portfolios.benchmark`
 - `portfolixir.journal.list`
+- `portfolixir.merges.list` — die Zusammenführungsprotokolle, das neueste
+  zuerst, jedes mit dem, was wohin ging, wer es tat, wann, und dem
+  zusammengefassten Manifest (ADR-0050 §12); ein Lesen, zuerst für den
+  Agenten — seine Listenansicht folgt spätestens in Sprint 17.
 - `portfolixir.buckets.list`
 - `portfolixir.buckets.get`
 - `portfolixir.buckets.create`
