@@ -46,6 +46,7 @@ builds a pick writes its anatomy into `DESIGN.md`.
 | — | Wealth: a benchmark link naming a merged-away security (ADR-0050 §12) | `13-l5a-merged-from` | none (before/after) | n/a |
 | — | Import preview: same-named accounts told apart in the mapping's lists (#884 F1), and two lists of the result: a moved remembered name, rows behind a set balance a merge adjusted (ADR-0050 §2, §4), drawn in the batch by L5b (Part 15) | `04b-import-memory-ambiguity` | none (before/after) | n/a |
 | **G4b** | Import preview: "+ Create new" for a name the name guard refuses (ADR-0050 §4, #884 F7), drawn in the batch by L5b (Part 15) | `04b-import-memory-ambiguity` | the option stays, disabled, its reason in its own label · the option is left out · the option stays choosable and the row reports a problem | **A** (recommended; open to a comment) |
+| — | Merge refusals and the rename field error the L3–L5 review round changes: the set balance a legacy-hash refusal means, a set balance the amount column cannot hold, a legacy-hash split, the remedy for two split ratios, the way out of a taken name (ADR-0050 §7, §9; drawn before the code, Part 16) | `14-l3l5-review-refusals` | none (before/after) | n/a |
 
 **Items with no board.** #870 (every row kebab named for its row) changes the
 accessible name and nothing a sighted reader sees, which is the rule's stated
@@ -578,3 +579,37 @@ rolled the whole import back at the end.
 reason as text at the option), no trap, and nothing new to style. The batch
 cannot wait for a pick, so A is built; a comment naming B or C on the PR
 changes it.
+
+## Part 16 — Drawn in the batch: the refusals the L3–L5 review round changes (board 14)
+
+The review round of ADR-0050 L3–L5 changes five texts, each in a form
+boards 02 and 03 already draw, so there is no pick: board
+`14-l3l5-review-refusals` shows each as a before/after, drawn before the
+code.
+
+1. **A set balance that carries an import hash** (Accounts & depots): the
+   refusal now names the balance it means — account, date, number — in the
+   form of board 02's position lines, because its remedy says "change that
+   booking's kind back" and the dialog never said which booking.
+2. **A set balance the amount column cannot hold** (new): a trade booked
+   without its amount books quantity × price, which can carry more than the
+   6 places of an amount, and a set balance adjusted by it could not be
+   stored. The preview now refuses, naming the balance, the trade and the
+   remedy (record the trade's amount), where the confirm used to fail.
+3. **A split that carries an import hash** (securities): the same refusal
+   for a split the merge would have to move; one the merge collapses into
+   the target's split of that day is deleted with its hash retired and
+   refuses nothing.
+4. **Two split ratios on one day**: the remedy board 03 already names —
+   delete the split with the wrong ratio in the Transactions tab — instead
+   of "book the split on that side first", which cannot apply when both
+   sides carry one.
+5. **Renaming to a taken name**: the field error now says the way out
+   (choose another name, or merge or rename that account), as DESIGN.md
+   G1-A asks for every taken name.
+
+Two lines the round also changes reuse board 13's drawn phrases unchanged:
+"a set balance of <account> on <date> absorbs <amount>" now names a third
+account's balance where a collapsed transfer moves a flow into it, and
+"<security> in <depot> <change> shares" names a third depot a collapsed
+transfer changes.
