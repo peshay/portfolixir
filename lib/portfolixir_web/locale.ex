@@ -8,25 +8,40 @@ defmodule PortfolixirWeb.Locale do
 
   def init(opts), do: opts
 
+  # A `?locale=` from another site answers that request in the language it
+  # names, and neither the cookie nor the session remembers it (E25 S7, F18;
+  # the review round's S7E-4, `PortfolixirWeb.FetchSite`): the session keeps
+  # the remembered language, and the page reads its own from its address
+  # (`PortfolixirWeb.LiveLocale`).
   def call(conn, _opts) do
     conn = fetch_query_params(conn)
     query_locale = normalize_locale(conn.query_params["locale"])
 
-    locale =
-      query_locale ||
-        normalize_locale(conn.cookies["portfolixir_locale"]) ||
+    stored_locale =
+      normalize_locale(conn.cookies["portfolixir_locale"]) ||
         preferred_browser_locale(conn) ||
         @default_locale
+
+    locale = query_locale || stored_locale
+    remember? = not is_nil(query_locale) and PortfolixirWeb.FetchSite.remember?(conn)
+    session_locale = if is_nil(query_locale) or remember?, do: locale, else: stored_locale
 
     Gettext.put_locale(PortfolixirWeb.Gettext, locale)
 
     conn
     |> assign(:locale, locale)
-    |> put_session("locale", locale)
-    |> maybe_store_locale(query_locale)
+    |> put_session("locale", session_locale)
+    |> maybe_store_locale(if remember?, do: locale)
   end
 
   def supported_locales, do: @supported_locales
+
+  @doc """
+  The supported locale a raw value names — trimmed, lower-cased, a region
+  dropped (`"DE-de"` is `"de"`) — or `nil`.
+  """
+  @spec normalize(term()) :: String.t() | nil
+  def normalize(locale), do: normalize_locale(locale)
 
   @doc """
   The locale of a page answered outside the router's pipeline, such as an
@@ -47,17 +62,11 @@ defmodule PortfolixirWeb.Locale do
 
   defp maybe_store_locale(conn, nil), do: conn
 
-  # A `?locale=` from another site answers that request in the language it
-  # names and is not remembered (E25 S7, F18, `PortfolixirWeb.FetchSite`).
   defp maybe_store_locale(conn, locale) do
-    if PortfolixirWeb.FetchSite.remember?(conn) do
-      put_resp_cookie(conn, "portfolixir_locale", locale,
-        max_age: 60 * 60 * 24 * 365,
-        same_site: "Lax"
-      )
-    else
-      conn
-    end
+    put_resp_cookie(conn, "portfolixir_locale", locale,
+      max_age: 60 * 60 * 24 * 365,
+      same_site: "Lax"
+    )
   end
 
   defp preferred_browser_locale(conn) do

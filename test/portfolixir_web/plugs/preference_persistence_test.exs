@@ -6,7 +6,15 @@ defmodule PortfolixirWeb.PreferencePersistenceTest do
   # bar or a bookmark, or does not say (an older browser, a script).
   use PortfolixirWeb.ConnCase
 
+  import Phoenix.LiveViewTest
+
+  alias Portfolixir.Actor
+  alias Portfolixir.Buckets
+  alias Portfolixir.Portfolios
   alias PortfolixirWeb.BenchmarkScope
+  alias PortfolixirWeb.LiveBenchmarkScope
+  alias PortfolixirWeb.LiveLocale
+  alias PortfolixirWeb.LiveViewScope
   alias PortfolixirWeb.ViewScope
 
   @view_cookie "portfolixir_view"
@@ -14,6 +22,31 @@ defmodule PortfolixirWeb.PreferencePersistenceTest do
   @locale_cookie "portfolixir_locale"
 
   defp from(conn, site), do: put_req_header(conn, "sec-fetch-site", site)
+
+  # The Wealth page with its view switcher needs an account to render.
+  defp wealth_world do
+    Portfolixir.Classifications.ensure_builtins()
+
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(Actor.owner_ui(), %{name: "Main", base_currency_code: "EUR"})
+
+    {:ok, cash} =
+      Portfolios.create_cash_account(Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        name: "Giro",
+        currency_code: "EUR"
+      })
+
+    {:ok, _depot} =
+      Portfolios.create_securities_account(Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        name: "Depot"
+      })
+
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Retirement"})
+    view
+  end
 
   # User story:
   # As an operator whose browser also visits other sites,
@@ -26,6 +59,9 @@ defmodule PortfolixirWeb.PreferencePersistenceTest do
   # - A cross-site or same-site GET carrying ?view=, ?benchmark[]= /
   #   ?benchmark_rate= or ?locale= sets no preference cookie and deletes none;
   #   the value applies to that request only.
+  # - It is not written into the session either (E25 S7 review round,
+  #   S7E-4): the session keeps the stored choice, which every later mount
+  #   reads.
   # - The stored choice is what the next request without a parameter reads.
   # - A GET whose Sec-Fetch-Site is same-origin or none, or that carries none,
   #   still remembers the choice.
@@ -46,10 +82,12 @@ defmodule PortfolixirWeb.PreferencePersistenceTest do
       refute Map.has_key?(response.resp_cookies, @benchmark_cookie), site
       refute Map.has_key?(response.resp_cookies, @locale_cookie), site
 
-      # The request itself is answered in the choice it carried.
+      # The request itself is answered in the choice it carried; the session
+      # keeps the stored one.
       assert html_response(response, 200) =~ ~s(lang="de")
-      assert get_session(response, ViewScope.session_key()) == 7
-      assert get_session(response, BenchmarkScope.session_key()) == ["security:9"]
+      assert get_session(response, ViewScope.session_key()) == "total"
+      assert get_session(response, BenchmarkScope.session_key()) == ["rate:0.02"]
+      assert get_session(response, "locale") == "en"
     end
 
     # The next request without a parameter reads the stored choices.
@@ -70,8 +108,88 @@ defmodule PortfolixirWeb.PreferencePersistenceTest do
 
     refute Map.has_key?(response.resp_cookies, @view_cookie)
     refute Map.has_key?(response.resp_cookies, @benchmark_cookie)
-    assert get_session(response, ViewScope.session_key()) == nil
-    assert get_session(response, BenchmarkScope.session_key()) == []
+    assert get_session(response, ViewScope.session_key()) == 5
+    assert get_session(response, BenchmarkScope.session_key()) == ["security:3"]
+  end
+
+  # User story (E25 S7 review round, S7E-4):
+  # As an operator who opened a Wealth page from another site's link,
+  # I want the view and language that link carried to stay on that page,
+  # so that the next page I open inside the app — by a live navigation too —
+  # shows the view and language I chose myself.
+  #
+  # Acceptance criteria:
+  # - The page the link opened shows the carried view and language on its
+  #   first render and once its socket is connected: a LiveView reads a
+  #   choice its own address carries before the session's.
+  # - A live navigation from that page mounts with the session, so it shows
+  #   the remembered view and language.
+  test "a cross-site choice stays on its page, and a live navigation reads the stored one",
+       %{conn: conn} do
+    view = wealth_world()
+
+    stored =
+      conn
+      |> put_req_cookie(@view_cookie, "total")
+      |> put_req_cookie(@locale_cookie, "en")
+      |> from("cross-site")
+
+    {:ok, page, html} = live(stored, "/portfolio?view=#{view.id}&locale=de")
+    assert has_element?(page, "[data-role='active-view']", "Retirement")
+    assert html =~ ~s(aria-label="Sprache")
+    render_async(page)
+
+    {:ok, next, html} = live_redirect(page, to: "/portfolio")
+    refute has_element?(next, "[data-role='active-view']")
+    assert has_element?(next, "#view-switch-total.is-active")
+    assert html =~ ~s(aria-label="Language")
+    render_async(next)
+  end
+
+  # The three hooks read a choice the page's own address carries first, in
+  # the shape the plugs accept, and the session's otherwise (S7E-4).
+  test "the LiveView hooks prefer the address's choice to the session's" do
+    socket = %Phoenix.LiveView.Socket{}
+
+    view = wealth_world()
+    stored = %{ViewScope.session_key() => "total"}
+
+    assert {:cont, %{assigns: %{active_view_id: id}}} =
+             LiveViewScope.on_mount(:default, %{"view" => to_string(view.id)}, stored, socket)
+
+    assert id == view.id
+
+    assert {:cont, %{assigns: %{active_view_id: nil}}} =
+             LiveViewScope.on_mount(:default, %{}, stored, socket)
+
+    assert {:cont, %{assigns: %{active_view_id: nil}}} =
+             LiveViewScope.on_mount(:default, :not_mounted_at_router, stored, socket)
+
+    stored_benchmarks = %{BenchmarkScope.session_key() => ["rate:0.02"]}
+
+    assert {:cont, %{assigns: %{active_benchmark_selectors: ["security:9", "rate:0.03"]}}} =
+             LiveBenchmarkScope.on_mount(
+               :default,
+               %{"benchmark" => ["security:9"], "benchmark_rate" => "3"},
+               stored_benchmarks,
+               socket
+             )
+
+    assert {:cont, %{assigns: %{active_benchmark_selectors: ["rate:0.02"]}}} =
+             LiveBenchmarkScope.on_mount(
+               :default,
+               %{"tab" => "allocation"},
+               stored_benchmarks,
+               socket
+             )
+
+    assert {:cont, %{assigns: %{locale: "de"}}} =
+             LiveLocale.on_mount(:default, %{"locale" => "DE-de"}, %{"locale" => "en"}, socket)
+
+    assert {:cont, %{assigns: %{locale: "en"}}} =
+             LiveLocale.on_mount(:default, %{"locale" => "fr"}, %{"locale" => "en"}, socket)
+  after
+    Gettext.put_locale(PortfolixirWeb.Gettext, "en")
   end
 
   test "a same-origin, typed or unlabelled GET remembers the choice", %{conn: conn} do

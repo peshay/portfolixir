@@ -19,7 +19,10 @@ defmodule PortfolixirWeb.ViewScope do
 
   A choice arriving from another site (`Sec-Fetch-Site` other than
   `same-origin` or `none`) applies to that request only and leaves the cookie
-  as it was (`PortfolixirWeb.FetchSite`, E25 S7, F18).
+  and the session as they were (`PortfolixirWeb.FetchSite`, E25 S7, F18 and
+  the review round's S7E-4): the page it opens reads it from its own address
+  (`PortfolixirWeb.LiveViewScope`), so a live navigation from that page shows
+  the remembered view.
   """
 
   import Plug.Conn
@@ -54,14 +57,28 @@ defmodule PortfolixirWeb.ViewScope do
   @doc "The cookie name the active view id is persisted under."
   def cookie_name, do: @cookie
 
-  # An explicit `?view=` was supplied: store the (validated) choice in the
-  # session for this request and, when the request may remember it
-  # (`PortfolixirWeb.FetchSite`, E25 S7, F18), in the cookie the next request
-  # rebuilds the session from. A malformed value clears the choice back to
-  # unset the same way.
+  @doc """
+  The choice a raw `?view=` value names, in the shape the session holds: a
+  positive integer id, `"total"` (an explicit Everything), or `nil` (unset,
+  for a malformed value).
+  """
+  @spec choice(term()) :: pos_integer() | String.t() | nil
+  def choice(raw), do: normalize(raw)
+
+  # An explicit `?view=` was supplied. When the request may remember it
+  # (`PortfolixirWeb.FetchSite`, E25 S7, F18), the (validated) choice goes
+  # into the session for this request and into the cookie the next request
+  # rebuilds the session from; a malformed value clears the choice back to
+  # unset the same way. Otherwise the session keeps the remembered choice
+  # (S7E-4) and the page reads its own from its address.
   defp apply_choice(conn, choice) do
-    conn = put_session(conn, @session_key, choice)
-    if FetchSite.remember?(conn), do: remember(conn, choice), else: conn
+    if FetchSite.remember?(conn) do
+      conn
+      |> put_session(@session_key, choice)
+      |> remember(choice)
+    else
+      carry_cookie(conn)
+    end
   end
 
   defp remember(conn, nil), do: delete_resp_cookie(conn, @cookie)
