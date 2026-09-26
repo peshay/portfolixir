@@ -262,12 +262,14 @@ Wenn ein Instrument zweimal existiert — ein Export mit neuerer ISIN wurde
 importiert, bevor der ISIN-Wechsel erfasst war, und legte eine zweite Kopie
 mit einer zweiten Kopie der Historie an, oder ein von Hand angelegtes
 Wertpapier wurde vom nächsten Import noch einmal angelegt —, führt man das
-Duplikat in das Wertpapier zusammen, das bleibt. Die Zusammenführung steht
-Ihrem Agenten jetzt zur Verfügung
+Duplikat in das Wertpapier zusammen, das bleibt: **Zusammenführen in…** im
+Zeilenmenü des Duplikats auf der Wertpapierseite, oder derselbe Knopf im
+Dialog *Kann nicht gelöscht werden*, wenn Buchungen oder Kurse das Löschen
+verhindern. Ihr Agent hat dieselbe Zusammenführung
 (`GET /api/v1/securities/:id/merge_preview` und
 `POST /api/v1/securities/:id/merge` oder die MCP-Tools
-`portfolixir.securities.merge_preview` und `portfolixir.securities.merge`);
-der Dialog auf der Wertpapierseite folgt im nächsten Schritt dieses Releases.
+`portfolixir.securities.merge_preview` und `portfolixir.securities.merge`),
+und beide lesen dieselbe Vorschau.
 
 Die Vorschau zeigt alles, was die Zusammenführung tut, bevor etwas
 geschrieben wird: die Position beider Wertpapiere in jedem Depot vorher und
@@ -300,6 +302,26 @@ Kennzeichen. Was die Zusammenführung tut:
   WKN, einen Ticker oder eine Kursquelle, die dem bleibenden Wertpapier
   fehlen, übernimmt es; Name, Anlageklasse und Logo bleiben seine.
 
+**Im Dialog** sucht der erste Schritt das Wertpapier, das bleibt, nach Name,
+ISIN, WKN oder Ticker. Ein Treffer, der die Historie des Duplikats nicht
+aufnehmen kann, bleibt in der Liste, gesperrt, mit seinem Grund: andere
+Währung, nur eines der beiden ein Benchmark, stillgelegt oder eine andere
+Kursbasis. Der zweite Schritt zeigt genau dieses Paar als Vorschau, zuerst als
+zwei Karten — die Namen sind oft gleich, deshalb zeigt jede ihre ISIN, ihre
+Buchungen und den Tag, an dem sie angelegt wurde. Dann folgt die Wahl der ISIN
+als zwei Optionen, jede mit dem Satz, welche ISIN die frühere wird; keine ist
+vorausgewählt, und *übernehmen* fragt nach dem Tag des Wechsels. Danach der
+Bestand in Stück vorher und nachher (und nach dem Entfernen der gleichen
+Buchungen), die Zahlen, die gleichen Buchungen mit ihrer eigenen Wahl, die von
+Hand erfassten Schlusskurse, die die Kurse des bleibenden Wertpapiers
+ersetzen, die Einstellungen, die wandern oder entfallen, die Termine, die bei
+beiden stehen, und die Stammdaten, die sich unterscheiden. **In … zusammenführen**
+bleibt gesperrt, die fehlende Wahl daneben genannt, bis jede Wahl getroffen
+ist, die das Paar braucht. Nach der Zusammenführung öffnet sich das
+Wertpapier, das bleibt, mit dem Ergebnis über der Tabelle, und seine
+Übersichtszeile nennt die frühere ISIN und die Zusammenführung
+(*zusammengeführt am 2026-09-26 aus „…“ (damals …)*).
+
 Die Zusammenführung wird mit Grund abgelehnt, wo sie nicht alles exakt
 erhalten kann: verschiedene Währungen, eines ein Benchmark und das andere
 nicht, Recherche-Notizen oder eine eigene Regel am Duplikat (in die andere
@@ -307,7 +329,10 @@ Richtung zusammenführen, wenn das gelingt, oder beide behalten), Positionen in
 verschiedenen Ansichten, Splits, die sich widersprechen, oder ein Kennzeichen
 eines der beiden Wertpapiere — gespeichert, wie sein
 Portfolio-Performance-Import es aufgezeichnet hat, oder eine frühere ISIN —,
-das das bleibende Wertpapier nicht mehr fände. Diese letzte Prüfung macht den
+das das bleibende Wertpapier nicht mehr fände. Der Dialog nennt jeden Grund
+auf einmal, jede Regel beim Namen, und bietet **Andersherum zusammenführen**
+an, wo diese Richtung gelingt; wird auch sie abgelehnt, stehen beide Gründe da,
+und nichts anderes wird angeboten. Diese letzte Prüfung macht den
 nächsten Import sicher: Nach einer Zusammenführung legt ein erneut
 importierter, schon angewendeter Export nichts an, welche ISIN er auch trägt,
 und neue Zeilen unter den Kennzeichen des Duplikats werden einmal gebucht,
@@ -2040,14 +2065,28 @@ Vorbelegung auf ein Konto anderen Namens geändert, wird die Zuordnung
 standardmäßig **gemerkt**: Der Name wird früherer Name dieses Kontos, und der
 nächste Import belegt ihn selbst vor. Eine unveränderte Vorbelegung merkt
 nichts. Ist der Name der Name eines anderen Kontos, gilt die Wahl nur für
-diesen Import. Ist er früherer Name eines anderen Kontos, gilt die Wahl
-vorerst ebenfalls nur für diesen Import: Die Importseite verschiebt einen
-früheren Namen erst dann auf ein anderes Konto, wenn die Vorschau das vor dem
-Bestätigen sagen kann. Um ihn zu verschieben, zuerst aus den früheren Namen
-des anderen Kontos entfernen (über API oder MCP) und dann erneut zuordnen.
-Wird ein in der Vorschau zugeordnetes Konto vor dem
+diesen Import. Ist er früherer Name eines anderen Kontos, **verschiebt** das
+Merken ihn, und die Zeile sagt das vor dem Bestätigen (*„X“ wird früherer Name
+von A und ist dann kein früherer Name von B mehr*). Das Kästchen **Zuordnung
+merken** der Zeile — angehakt und nur dort gezeigt, wo Sie eine Vorbelegung
+geändert haben — lässt die Zuordnung für diesen Import allein gelten, wenn Sie
+es abwählen. Wird ein in der Vorschau zugeordnetes Konto vor dem
 Bestätigen zusammengeführt oder gelöscht, hält der Import an, bevor er etwas
 schreibt, und die Kontenzuordnung wird neu vorbelegt.
+
+**Was jede Zeile des Zuordnungsschritts sagt.** Jedes Verrechnungskonto und
+Depot der Datei zählt seine Buchungen: wie viele **bereits importiert** und
+wie viele neu sind, oder *nichts anzulegen*, wenn alle schon da sind. Eine
+Vorbelegung über einen früheren Namen sagt das unter der Auswahl, und *+ Neu
+anlegen* auf einer Zeile ohne neue Buchung sagt, dass es nichts anlegt. Zwei
+Konten gleichen Namens werden in der Liste durch das unterschieden, was
+abweicht — bei einem Verrechnungskonto seine verknüpften Depots, sonst seine
+Währung, sonst der Tag, an dem es angelegt wurde; bei einem Depot sein
+Verrechnungskonto —, und eine mehrdeutige Zeile nennt ihre Kandidaten ebenso.
+*+ Neu anlegen* für einen Namen, den der Import nicht anlegen darf (der Name
+eines anderen Kontos, ein früherer Name eines anderen Kontos oder der Name
+mehrerer Konten), bleibt in der Liste, gesperrt, mit dem Grund, sodass nichts,
+was Sie wählen, den Import am Ende scheitern lässt.
 
 Umbenennungen von vor diesem Release werden ebenfalls gemerkt: das Update
 spielt die Umbenennungen nach, die das Audit-Journal hält. Einen Namen, den
@@ -2064,11 +2103,17 @@ Umbuchungen mit Zeile, Art, Datum und beiden Namen aus der Datei aufgeführt,
 und der Rest der Datei wird importiert; sie lässt nicht mehr den ganzen Import
 scheitern.
 
-Das Ergebnis listet jeden übersprungenen Datensatz mit der Prüfung, die ihn
-übersprungen hat: eine identische, schon importierte Zeile (gespeicherter
-Inhalts-Hash), eine Zeile, die eine Zusammenführung entfernt hat
-(stillgelegter Inhalts-Hash), oder eine bestehende Buchung mit demselben Datum,
-Wertpapier, derselben Stückzahl und demselben Betrag.
+Das Ergebnis listet jeden übersprungenen Datensatz, gruppiert nach der
+Prüfung, die ihn übersprungen hat: eine identische, schon importierte Zeile
+(gespeicherter Inhalts-Hash; die erwartete Masse eines erneuten Imports,
+deshalb bleibt ihre Gruppe zugeklappt), eine Zeile, die eine Zusammenführung
+entfernt hat (stillgelegter Inhalts-Hash), oder eine bestehende Buchung mit
+demselben Datum, Wertpapier, derselben Stückzahl und demselben Betrag. Es
+listet außerdem die gemerkten Namen (und bei einem verschobenen Namen das
+Konto, das ihn abgab) und jede Buchung, die am oder vor einem gesetzten Stand
+liegt, den eine Zusammenführung angepasst hat: Diese Buchung wird importiert,
+und dieser Stand nimmt ihren Betrag auf, sodass der Saldo des Kontos bleibt,
+wo der gesetzte Stand ihn festlegt.
 
 Eine **von einer Zeile abgespaltene Steuererstattung** (etwa eine negative
 Steuer auf einen Verkauf) wird mit dieser Zeile gehasht und für sich geprüft:

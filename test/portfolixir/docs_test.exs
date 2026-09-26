@@ -1268,8 +1268,8 @@ defmodule Portfolixir.DocsTest do
   # - The handbook, both languages, states the name rule on Accounts &
   #   depots, and on the import the live-then-former resolution, the drifted
   #   re-export, the undecided ambiguous name, the remembered remap (a
-  #   changed prefill only; a move waits for the preview's notice) and its
-  #   limit, the refreshed stale mapping and the upgrade's backfill.
+  #   changed prefill only; a move said in the row before the confirm, L5b)
+  #   and its limit, the refreshed stale mapping and the upgrade's backfill.
   # - The API page, both languages, states former_names on the payloads, the
   #   rename cases, the guard's 422 and the removal route with its cost.
   test "the docs state former names, the name guard and the remembered remap in English and German" do
@@ -1283,7 +1283,7 @@ defmodule Portfolixir.DocsTest do
              "A name two accounts carry is prefilled with nothing",
              "**remembers** the mapping by default",
              "A prefill you leave as it is remembers nothing",
-             "does not move a former name to another account until the preview can say so",
+             "remembering **moves** it",
              "the choice holds for this import only",
              "merged or deleted before you confirm",
              "the upgrade replays the renames the audit journal holds"
@@ -1297,7 +1297,7 @@ defmodule Portfolixir.DocsTest do
              "Ein Name, den zwei Konten tragen, wird mit nichts vorbelegt",
              "wird die Zuordnung standardmäßig **gemerkt**",
              "Eine unveränderte Vorbelegung merkt nichts",
-             "verschiebt einen früheren Namen erst dann auf ein anderes Konto",
+             "**verschiebt** das Merken ihn",
              "gilt die Wahl nur für diesen Import",
              "vor dem Bestätigen zusammengeführt oder gelöscht",
              "das Update spielt die Umbenennungen nach, die das Audit-Journal hält"
@@ -1327,6 +1327,82 @@ defmodule Portfolixir.DocsTest do
 
       for fragment <- fragments do
         assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+  end
+
+  # User story (L5b, #608, #884):
+  # As the operator merging a duplicate security on the securities page, or
+  # reading what an import preview's account rows now say,
+  # I want the handbook, in English and German, to describe the security
+  # merge dialog and the import preview's per-row states, and the API page
+  # to stop announcing both as "to follow",
+  # so that the screen and the handbook say the same thing.
+  #
+  # Acceptance criteria:
+  # - The handbook, both languages, names the row menu's Merge into…, the
+  #   searched target, the ISIN choice without a default, the disabled
+  #   confirm, "Merge the other way" and the survivor's overview line.
+  # - The handbook, both languages, names the per-row counts, "Remember this
+  #   mapping", the told-apart same-named accounts, the disabled "+ Create
+  #   new", and the result's remembered names, grouped duplicates and the
+  #   bookings a restated set balance absorbs.
+  # - Neither API page says the security merge dialog still follows or that
+  #   the import page never moves a former name.
+  test "the docs describe the security merge dialog and the import preview's row states" do
+    for {path, fragments} <- [
+          {"docs/product-documentation.md",
+           [
+             "**Merge into…** in the duplicate's row menu",
+             "the first step searches the security to keep",
+             "neither is preselected",
+             "stays disabled, with the missing choice named beside it",
+             "**Merge the other way**",
+             "its overview line names the former ISIN and the merge",
+             "**already imported**",
+             "*nothing to create*",
+             "**Remember this mapping**",
+             "Two accounts of the same name are told apart",
+             "stays in the list, disabled, with the reason",
+             "grouped by the check that skipped it",
+             "that balance absorbs its amount"
+           ]},
+          {"docs/de/product-documentation.md",
+           [
+             "**Zusammenführen in…** im Zeilenmenü des Duplikats",
+             "sucht der erste Schritt das Wertpapier, das bleibt",
+             "keine ist vorausgewählt",
+             "bleibt gesperrt, die fehlende Wahl daneben genannt",
+             "**Andersherum zusammenführen**",
+             "seine Übersichtszeile nennt die frühere ISIN und die Zusammenführung",
+             "**bereits importiert**",
+             "*nichts anzulegen*",
+             "**Zuordnung merken**",
+             "Zwei Konten gleichen Namens werden in der Liste durch das unterschieden",
+             "bleibt in der Liste, gesperrt, mit dem Grund",
+             "gruppiert nach der Prüfung, die ihn übersprungen hat",
+             "dieser Stand nimmt ihren Betrag auf"
+           ]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+
+    for {path, stale} <- [
+          {"docs/integration/api-and-mcp.md",
+           ["merge dialog on the securities page follows", "The import page never moves"]},
+          {"docs/de/integration/api-and-mcp.md",
+           ["auf der Wertpapierseite folgt im selben Batch", "Vorschau kann das noch nicht"]},
+          {"docs/product-documentation.md", ["the dialog on the securities page follows"]},
+          {"docs/de/product-documentation.md", ["der Dialog auf der Wertpapierseite folgt"]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- stale do
+        refute doc =~ fragment, "#{path} still says: #{fragment}"
       end
     end
   end

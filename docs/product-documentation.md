@@ -240,12 +240,14 @@ carry. A security's name is stored without invisible format characters.
 When one instrument exists twice — an export carrying a newer ISIN was
 imported before the ISIN change was recorded and created a second copy with
 a second copy of the history, or a security created by hand was created again
-by the next import — merge the duplicate into the security you keep. The
-merge is available to your agent now (`GET /api/v1/securities/:id/merge_preview`
-and `POST /api/v1/securities/:id/merge`, or the
+by the next import — merge the duplicate into the security you keep:
+**Merge into…** in the duplicate's row menu on the securities page, or the
+same button in the *Cannot delete* dialog when bookings or quotes are what
+block the delete. Your agent has the same merge
+(`GET /api/v1/securities/:id/merge_preview` and
+`POST /api/v1/securities/:id/merge`, or the
 `portfolixir.securities.merge_preview` and `portfolixir.securities.merge` MCP
-tools); the dialog on the securities page follows in this release's next
-step.
+tools), and both read the same preview.
 
 The preview shows everything the merge does before anything is written: each
 depot's position of both securities before and after, the bookings that
@@ -275,12 +277,32 @@ plan rows, the calendar events and the identifiers. What the merge does:
   before the change was recorded), optionally with the day the ISIN changed. A WKN, ticker or quote feed the kept security
   lacks is taken over; its name, asset class and logo stay.
 
+**In the dialog**, the first step searches the security to keep by name,
+ISIN, WKN or ticker. A match that cannot take the duplicate's history stays in
+the list, disabled, with its reason: another currency, only one of the two a
+benchmark, retired, or another quote basis. The second step previews exactly
+that pair, starting with two cards — the names are often equal, so each shows
+its ISIN, its bookings and the day it was created. The ISIN choice follows as
+two options, each saying which ISIN becomes the former one; neither is
+preselected, and *Adopt* asks for the day of the change. Then the holdings in
+shares before and after (and after removing the equal bookings), the counts,
+the equal bookings with their own choice, the closes you typed by hand that
+the kept security's quotes replace, the settings that move or are dropped, the
+events that stand on both, and the master data that differ. **Merge into …**
+stays disabled, with the missing choice named beside it, until every choice
+the pair needs is made. After the merge the security you kept opens with the result above
+the table, and its overview line names the former ISIN and the merge
+(*merged on 2026-09-26 from “…” (then …)*).
+
 The merge is refused, with the reason, where it cannot keep everything exact:
 different currencies, one a benchmark and the other not, research notes or a
 policy rule on the duplicate (merge the other way if that passes, or keep
 both), positions in different views, splits that disagree, or an identifier
 of either security — as stored, as its Portfolio Performance import recorded
-it, or a former ISIN — that would no longer find the kept security. That last
+it, or a former ISIN — that would no longer find the kept security. The dialog
+names every reason at once, each rule by name, and offers **Merge the other
+way** where that direction passes; where it is refused as well, both reasons
+stand and nothing else is offered. That last
 check is what makes the next import safe: after a merge, re-importing any
 export already applied creates nothing, whichever ISIN it carries, and new
 rows under the duplicate's identifiers are booked once, on the security you
@@ -1883,12 +1905,24 @@ name **remembers** the mapping by default: the name becomes a former name of
 that account, and the next import prefills it by itself. A prefill you leave
 as it is remembers nothing. When the name is another account's name, the
 choice holds for this import only. When it is another account's former name,
-the choice holds for this import only as well, for now: the import page does
-not move a former name to another account until the preview can say so before
-you confirm. To move it, remove it from the other account's former names
-first (over the API or MCP), then map it again. An account mapped in a
-preview that is merged or deleted before you confirm stops the import before
-it writes anything, and the account mapping is refreshed.
+remembering **moves** it, and the row says so before you confirm (*“X”
+becomes a former name of A and is then no longer a former name of B*). The
+row's **Remember this mapping** box — ticked, and shown only where you changed
+a prefill — keeps the mapping to this import when you untick it. An account
+mapped in a preview that is merged or deleted before you confirm stops the
+import before it writes anything, and the account mapping is refreshed.
+
+**What each row of the mapping step says.** Every cash account and depot of
+the file counts its bookings: how many are **already imported** and how many
+are new, or *nothing to create* when all of them are in. A prefill found
+through a former name says so under the select, and *+ Create new* on a row
+with nothing new says it creates nothing. Two accounts of the same name are
+told apart in the list by what differs — a cash account's linked depots, else
+its currency, else the day it was created; a depot's cash account — and an
+ambiguous row names its candidates the same way. *+ Create new* for a name
+the import may not create (another account's name, another account's former
+name, or the name of several accounts) stays in the list, disabled, with the
+reason, so nothing you pick fails the import at the end.
 
 Renames made before this release are remembered too: the upgrade replays the
 renames the audit journal holds. A name a newer account already carries (an
@@ -1903,10 +1937,14 @@ void. It is skipped and listed under the internal transfers with its row,
 kind, date and both names from the file, and the rest of the file imports; it
 no longer fails the whole import.
 
-The result lists every record it skipped with the check that skipped it: an
-identical row imported before (stored content hash), a row a merge removed
-(retired content hash), or an existing booking with the same date, security,
-quantity and amount.
+The result lists every record it skipped, grouped by the check that skipped
+it: an identical row imported before (stored content hash; the expected mass
+of a re-import, so its group stays collapsed), a row a merge removed (retired
+content hash), or an existing booking with the same date, security, quantity
+and amount. It also lists the names it remembered (and, for a moved name, the
+account it left), and every booking dated on or before a set balance a merge
+adjusted: that booking is imported, and that balance absorbs its amount, so
+the account's balance stays where the set balance puts it.
 
 A **tax refund split off a row** (a negative tax on a sale, say) is hashed
 with that row and checked on its own: two equal refunds of two different sales
