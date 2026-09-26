@@ -114,9 +114,14 @@ defmodule Portfolixir.Portfolios.PolicyRuleVersion do
   @doc """
   Every field of a version's predicate and period, as strings: what a rename
   of the rule refuses to carry (#872), because it belongs to a version.
+
+  Derived from the schema, so a column added to the predicate later is
+  refused too. The author is not the predicate's: it is derived from the
+  actor and an `author` key is ignored on every write (E25 S7, G30), a
+  rename included.
   """
   def predicate_fields do
-    (__schema__(:fields) -- [:id, :policy_rule_id, :inserted_at, :updated_at])
+    (__schema__(:fields) -- [:id, :policy_rule_id, :author, :inserted_at, :updated_at])
     |> Enum.map(&Atom.to_string/1)
   end
 

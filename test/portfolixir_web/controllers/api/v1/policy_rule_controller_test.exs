@@ -7,6 +7,7 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleControllerTest do
   alias Portfolixir.Buckets
   alias Portfolixir.Journal
   alias Portfolixir.Portfolios.PolicyRules
+  alias Portfolixir.Portfolios.PolicyRuleVersion
 
   defp today, do: Portfolixir.Clock.today()
 
@@ -573,7 +574,10 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleControllerTest do
       conn
       |> patch("/api/v1/policy_rules/#{rule.id}", %{
         "name" => "Single name at most 10 %",
-        "status" => "retired"
+        "status" => "retired",
+        # An author in a body is ignored, on a rename as on every write
+        # (E25 S7, G30): the actor decides it (closing-act finding CR-5).
+        "author" => "agent"
       })
       |> json_response(200)
 
@@ -653,5 +657,17 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleControllerTest do
     end
 
     assert PolicyRules.get_rule(rule.id).name == "Old single-name cap"
+  end
+
+  # Closing-act finding CR-5: the fields a rename refuses are derived from the
+  # version schema, so the author column of E25 S7 joined them and a rename
+  # carrying an author answered 422 with a message about versions. Pinned
+  # here, a column added to the version later fails this test until someone
+  # decides whether a rename refuses it.
+  test "a rename refuses the predicate and period fields of a version, and no others" do
+    assert Enum.sort(PolicyRuleVersion.predicate_fields()) ==
+             Enum.sort(~w(subject_type security_id classification_id category_id
+                          subject_view_id measure kind threshold lower upper window severity
+                          note valid_from valid_until))
   end
 end
