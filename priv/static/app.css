@@ -5783,6 +5783,19 @@ button.income-bar-label.is-active {
 .rebalance-hint .rebalance-unit {
   text-align: left;
 }
+/* The worklist's security names wrap under 560 px (the Sprint 16 closing
+   act; DESIGN.md: a name wraps). The phone rule `table { white-space:
+   nowrap }` kept a long catalogue name on one line wider than the screen,
+   so every other column started off-screen. The name column takes a fixed
+   share and wraps inside it; the figures keep their nowrap. */
+@media (max-width: 560px) {
+  .drift-table[data-role="flat-positions"] td:first-child {
+    width: 9rem;
+    min-width: 9rem;
+    white-space: normal;
+    overflow-wrap: break-word;
+  }
+}
 
 /* ===== Section skeletons (issue 402 — stable layout on async reload) ===== */
 /* Reserve the same vertical space as the loaded content so async results
@@ -8724,6 +8737,12 @@ input.num {
     grid-row: 1;
     width: auto;
     padding-block: 0;
+  }
+
+  /* A long name and its micro-tag wrap inside the name column, so nothing
+     runs under the kebab (the Sprint 16 closing act; board 01 ④). */
+  .accounts-table tbody.account-pair td.cell-name {
+    white-space: normal;
   }
 
   /* The hover tint covers the whole line, the kebab's column included. */

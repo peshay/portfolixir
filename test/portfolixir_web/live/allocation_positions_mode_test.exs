@@ -227,4 +227,22 @@ defmodule PortfolixirWeb.AllocationPositionsModeTest do
     assert focus =~ "position: relative"
     assert focus =~ "z-index: 1"
   end
+
+  # User story (the Sprint 16 closing act, UAT-10; DESIGN.md: a name wraps):
+  # As the operator reading the rebalancing worklist on a phone,
+  # I want a long security name to wrap inside its column,
+  # so that the category and the figures are not all pushed off-screen by
+  # one catalogue name on a single line.
+  #
+  # Acceptance criteria:
+  # - Under 560 px, where every table keeps its cells on one line, the
+  #   worklist's name column has a fixed share and wraps inside it.
+  #   (Measured on the review seed at 390 px: the name column 377 → 144 px,
+  #   the category head from 394 px, off-screen, to 161 px.)
+  test "the worklist's security names wrap under 560 px" do
+    app_css = File.read!("priv/static/app.css")
+
+    assert app_css =~
+             ~r/@media \(max-width: 560px\) \{\s*\.drift-table\[data-role="flat-positions"\] td:first-child \{[^}]*width: 9rem;[^}]*white-space: normal;/s
+  end
 end

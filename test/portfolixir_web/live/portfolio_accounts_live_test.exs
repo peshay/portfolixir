@@ -1438,4 +1438,29 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
     view |> element(toggle) |> render_click()
     assert has_element?(view, toggle <> "[aria-expanded='true']")
   end
+
+  # User story (the Sprint 16 closing act, UAT-4; board 01 ④):
+  # As the operator on a phone,
+  # I want an account's name and its micro-tag to wrap inside the name
+  # column,
+  # so that neither runs under the row's kebab.
+  #
+  # Acceptance criteria:
+  # - Under 640 px, where the kebab takes the name line's second grid column,
+  #   the name cell wraps instead of inheriting the phone tables' nowrap.
+  #   (Measured on the review seed at 390 px: the micro-tag ended at 342 px
+  #   under a kebab starting at 340 px; now it ends at 190 px on its own
+  #   line.)
+  test "the name cell wraps beside the kebab on a phone" do
+    app_css = File.read!("priv/static/app.css")
+
+    [block] =
+      Regex.run(
+        ~r/@media \(max-width: 640px\) \{\s*\.accounts-table tbody\.account-pair tr \{\s*display: grid;.*?\n\}/s,
+        app_css
+      )
+
+    assert block =~
+             ~r/\.accounts-table tbody\.account-pair td\.cell-name \{\s*white-space: normal;/
+  end
 end
