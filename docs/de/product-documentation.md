@@ -326,10 +326,14 @@ Die Zusammenführung wird mit Grund abgelehnt, wo sie nicht alles exakt
 erhalten kann: verschiedene Währungen, eines ein Benchmark und das andere
 nicht, Recherche-Notizen oder eine eigene Regel am Duplikat (in die andere
 Richtung zusammenführen, wenn das gelingt, oder beide behalten), Positionen in
-verschiedenen Ansichten, Splits, die sich widersprechen, oder ein Kennzeichen
-eines der beiden Wertpapiere — gespeichert, wie sein
-Portfolio-Performance-Import es aufgezeichnet hat, oder eine frühere ISIN —,
-das das bleibende Wertpapier nicht mehr fände. Der Dialog nennt jeden Grund
+verschiedenen Ansichten, Splits, die sich widersprechen (zwei Verhältnisse an
+einem Tag: den Split mit dem falschen Verhältnis löschen), ein Split des
+Duplikats, der noch einen Import-Hash aus der Zeit vor der
+Import-Hash-Prüfung trägt (der Dialog nennt ihn: seine Art zurücksetzen oder
+ihn löschen), oder ein Kennzeichen eines der beiden Wertpapiere —
+gespeichert, wie sein Portfolio-Performance-Import es aufgezeichnet hat, eine
+frühere ISIN oder das eines zuvor in eines der beiden zusammengeführten
+Wertpapiers —, das das bleibende Wertpapier nicht mehr fände. Der Dialog nennt jeden Grund
 auf einmal, jede Regel beim Namen, und bietet **Andersherum zusammenführen**
 an, wo diese Richtung gelingt; wird auch sie abgelehnt, stehen beide Gründe da,
 und nichts anderes wird angeboten. Diese letzte Prüfung macht den
@@ -614,6 +618,12 @@ hat, und fragt die Wahl erneut ab. Eine Zusammenführung, die nicht jede
 Position in ihren Ansichten halten kann — zwei Depots, die ein Wertpapier in
 verschiedenen Buckets halten, etwa —, wird schon in der Vorschau mit Grund
 und Abhilfe abgelehnt; **Erneut prüfen** liest sie nach dem Angleichen neu.
+Ebenso eine Geldkonto-Zusammenführung, die einen gesetzten Saldo mit mehr
+Nachkommastellen speichern müsste, als ein Betrag hält — ein Kauf oder
+Verkauf ohne Betrag, dessen Geld Stückzahl × Kurs ist, kann das auslösen —,
+und eine, deren gesetzter Saldo noch einen Import-Hash aus der Zeit vor der
+Import-Hash-Prüfung trägt: Der Dialog nennt jeden gesetzten Saldo und jede
+Buchung mit Konto, Datum und Nummer und sagt, was zu ändern ist.
 Ein Rückgängigmachen gibt es nicht; das Protokoll der Zusammenführung und das
 Audit-Journal zeigen, was sie getan hat. Ihr Agent liest die Protokolle mit
 `GET /api/v1/merges` (MCP `portfolixir.merges.list`); eine Liste auf dem
