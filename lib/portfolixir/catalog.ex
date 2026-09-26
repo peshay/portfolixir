@@ -707,7 +707,18 @@ defmodule Portfolixir.Catalog do
   defp apply_query(query, nil), do: query
   defp apply_query(query, ""), do: query
 
+  # Text PostgreSQL cannot hold (a NUL, invalid UTF-8) matches no stored row,
+  # and binding it would fail the whole read (E25 G24's read side): whatever
+  # sends it — a search box, a URL, a filter — gets no match.
   defp apply_query(query, term) when is_binary(term) do
+    if holdable_text?(term), do: match_query(query, term), else: match_nothing(query)
+  end
+
+  defp holdable_text?(value), do: String.valid?(value) and not String.contains?(value, <<0>>)
+
+  defp match_nothing(query), do: from(s in query, where: false)
+
+  defp match_query(query, term) do
     pattern = "%" <> escape_like(String.trim(term)) <> "%"
 
     from(security in query,
@@ -732,11 +743,16 @@ defmodule Portfolixir.Catalog do
         {:ok, key, op, value} ->
           field = SecurityFields.get!(key)
 
-          if SecurityFields.valid_filter?(key, op, value) do
-            add_filter(acc, field, op, value)
-          else
-            Logger.warning("dropping invalid security filter: #{inspect(filter)}")
-            acc
+          cond do
+            is_binary(value) and not holdable_text?(value) ->
+              match_nothing(acc)
+
+            SecurityFields.valid_filter?(key, op, value) ->
+              add_filter(acc, field, op, value)
+
+            true ->
+              Logger.warning("dropping invalid security filter: #{inspect(filter)}")
+              acc
           end
 
         :error ->

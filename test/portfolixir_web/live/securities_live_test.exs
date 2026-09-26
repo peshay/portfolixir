@@ -132,6 +132,61 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       refute has_element?(view, "td", "Bitcoin")
     end
 
+    # User story (closing act, EH-3):
+    # As the operator following a crafted link or typing a control character
+    # into a search,
+    # I want the page to find nothing rather than crash,
+    # so that no search text can take the securities page down.
+    #
+    # Acceptance criteria:
+    # - /securities?q=%00 renders; the search box, the filter popover and
+    #   the security merge dialog's search each answer a NUL with no match.
+    test "a NUL in any securities search matches nothing and never crashes", %{conn: conn} do
+      {:ok, security} =
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+          name: "Apple Inc.",
+          ticker_symbol: "AAPL",
+          currency_code: "USD",
+          asset_class: "equity"
+        })
+
+      {:ok, view, _html} = live(conn, "/securities?q=%00")
+      refute has_element?(view, "td", "Apple Inc.")
+
+      {:ok, view, _html} = live(conn, "/securities")
+
+      view
+      |> form("#securities-search-form", %{"query" => "Ap\u0000ple"})
+      |> render_change()
+
+      refute has_element?(view, "td", "Apple Inc.")
+
+      {:ok, view, _html} = live(conn, "/securities")
+      view |> element("#more-filters-toggle") |> render_click()
+
+      view
+      |> element("#securities-filter-form")
+      |> render_submit(%{"field" => "name", "operator" => "contains", "value" => "a\u0000"})
+
+      refute has_element?(view, "td", "Apple Inc.")
+
+      {:ok, view, _html} = live(conn, "/securities")
+
+      view
+      |> element(
+        ~s(#securities-table button[phx-click="open_row_menu"][phx-value-id="#{security.id}"])
+      )
+      |> render_click()
+
+      view |> element("#row-menu-#{security.id} [data-role='menu-merge']") |> render_click()
+
+      view
+      |> element("#security-merge-dialog form[data-role='merge-search']")
+      |> render_change(%{merge: %{q: "Ap\u0000"}})
+
+      assert has_element?(view, "#security-merge-dialog")
+    end
+
     # User story:
     # As a local portfolio maintainer narrowing the securities list,
     # I want a filtered zero-match to say "no matches", not "no securities",

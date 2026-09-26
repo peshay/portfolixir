@@ -198,6 +198,29 @@ defmodule Portfolixir.CatalogTest do
       assert [^a] = Catalog.list_securities(query: "us03783")
     end
 
+    # User story (closing act, EH-3):
+    # As the operator (or a crafted link) searching with text the database
+    # cannot hold,
+    # I want the search to find nothing instead of failing,
+    # so that a NUL byte or broken UTF-8 in a search box, a URL or a filter
+    # never crashes the page (E25 G24's read side).
+    #
+    # Acceptance criteria:
+    # - A query and a text filter value carrying NUL or invalid UTF-8 match
+    #   nothing; the rest of the list is unaffected.
+    test "a query or filter value the database cannot hold matches nothing", %{a: a} do
+      for bad <- ["a\u0000b", "Apple" <> <<0>>, <<0xFF, 0xFE>>] do
+        assert Catalog.list_securities(query: bad) == []
+
+        assert Catalog.list_securities(filters: [%{key: :name, op: :contains, value: bad}]) ==
+                 []
+
+        assert Catalog.list_securities(filters: [%{key: :name, op: :eq, value: bad}]) == []
+      end
+
+      assert [^a] = Catalog.list_securities(query: "apple")
+    end
+
     test "enum filter on asset_class returns matching rows", %{b: b} do
       assert [^b] =
                Catalog.list_securities(filters: [%{key: :asset_class, op: :eq, value: "crypto"}])
