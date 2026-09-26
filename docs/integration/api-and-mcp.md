@@ -450,9 +450,10 @@ confirms with the same `plan_digest`, so both see the same plan.
     target's `transaction_count` after, `moved_transaction_ids`, `deleted`
     (`collapsed_duplicate` or `collapsed_split`), `positions` (per depot the
     source holds: `source`, `target` and `after`, each `quantity`,
-    `cost_basis`, `avg_cost` and `realized_result`), `rounding_differences`
+    `cost_basis`, `avg_cost` and `realized_result`), `rounding_differences`,
     `cash_accounts` and `flow_changes`, with `positions_basis` as for a
-    depot merge.
+    depot merge; `reimport_note` says what the merge does to the next
+    import.
 
   Every quantity, close, weight and decimal is a string. The digest covers
   both securities, every booking of either, their quotes, category
@@ -1005,7 +1006,16 @@ Example quote sync response:
     the source's own or, for a collapsed transfer, the third account's —,
     each with `cash_account_id`, the anchor's or booking's `transaction_id`,
     `date`, `change` and `collapsed_transaction_id`), `other_accounts` and
-    `positions` (what a collapsed transfer or trade changes elsewhere).
+    `positions` (what a collapsed transfer or trade changes elsewhere);
+  - `balance_basis`, the computation basis of the balances and the restated
+    anchors: a balance is the fold of every booking of the account, as
+    `GET /api/v1/cash_accounts` reports it; a restated anchor is its stated
+    amount plus the other account's balance at the end of that day, from that
+    account's bookings before the merge;
+  - `reimport_note`, what the merge does to the next Portfolio Performance
+    import: the source's names lead there (except one another account still
+    carries, `former_names.not_kept`), and a re-import of an export already
+    applied creates nothing.
 
   Every decimal is a string. The digest covers both accounts, every booking
   either references with its `updated_at`, every figure and the guards; the
@@ -1134,7 +1144,9 @@ Example quote sync response:
     `rounding_differences` lists each split of an affected security where
     the combined position rounded once differs, at the end of the split's
     day, from the two positions rounded apart — by a unit of the volume scale
-    per split, expected and never a refusal.
+    per split, expected and never a refusal;
+  - `reimport_note`, what the merge does to the next Portfolio Performance
+    import, as for a cash merge.
 
   Every quantity and decimal is a string. The digest covers both depots,
   every booking either names and the portfolio's splits of their securities
@@ -2946,6 +2958,10 @@ in its description; the server instructions say it once for every write.
 - `portfolixir.portfolios.performance`
 - `portfolixir.portfolios.benchmark`
 - `portfolixir.journal.list`
+- `portfolixir.merges.list` — the merge records, newest first, each with
+  what went into what, who did it, when, and the manifest summarized
+  (ADR-0050 §12); a read, agent-first — its list view lands no later than
+  Sprint 17.
 - `portfolixir.buckets.list`
 - `portfolixir.buckets.get`
 - `portfolixir.buckets.create`
