@@ -17,8 +17,10 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
 
   @reimport_note "After the merge the source's name and former names are former names of " <>
                    "the target: a Portfolio Performance import naming them books onto the " <>
-                   "target, and a re-import of an export already applied creates nothing, " <>
-                   "because every row the merge removes has its content hash retired."
+                   "target — except a name another cash account still carries as its live or " <>
+                   "former name, which is not kept (former_names.not_kept) and keeps booking " <>
+                   "to that account. A re-import of an export already applied creates " <>
+                   "nothing, because every row the merge removes has its content hash retired."
 
   @doc "A cash-account merge preview."
   def cash_preview(preview) do
@@ -63,7 +65,9 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
 
   @depot_reimport_note "After the merge the source depot's name and former names are former " <>
                          "names of the target: a Portfolio Performance import naming them books " <>
-                         "onto the target, and a re-import of an export already applied creates " <>
+                         "onto the target — except a name another depot still carries as its live " <>
+                         "or former name, which is not kept (former_names.not_kept) and keeps " <>
+                         "booking to that depot. A re-import of an export already applied creates " <>
                          "nothing, because every row the merge removes has its content hash " <>
                          "retired."
 

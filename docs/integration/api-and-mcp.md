@@ -1026,7 +1026,10 @@ Example quote sync response:
   day either has a booking and today (`409 identity_check_failed` rolls the
   merge back otherwise — a check for a defect, never an expected answer);
   the source's bucket links are removed and the source is deleted; its name
-  and former names become former names of the target. A booking, a figure
+  and former names become former names of the target, except a name another
+  cash account still carries as its live or former name, which is not kept
+  (`former_names.not_kept` in the preview) and keeps leading an import to
+  that account. A booking, a figure
   or a guard that changed since the preview answers `409` with
   `errors.code` `plan_changed` and the fresh preview in `errors.preview`,
   and writes nothing. A retry of a completed merge of the same pair answers
@@ -1155,7 +1158,8 @@ Example quote sync response:
   otherwise — a check for a defect, never an expected answer); the bucket
   plan is written, one journal entry per position; the source's default
   buckets are removed and the source is deleted; its name and former names
-  become former names of the target. A changed plan answers `409`
+  become former names of the target, except a name another depot still
+  carries (`former_names.not_kept`). A changed plan answers `409`
   `plan_changed` with the fresh preview in `errors.preview`; a retry of a
   completed merge of the same pair answers `200` with the original record
   and `already_applied: true`; a source merged into another depot `409`
@@ -2848,7 +2852,8 @@ in its description; the server instructions say it once for every write.
   hinted destructive and idempotent (a retry answers the original record).
   Its description says what the merge does to the next import: the source's
   names become former names of the target, a later import naming them books
-  there, and a re-import of an applied export creates nothing.
+  there — except a name another account still carries, which is not kept —
+  and a re-import of an applied export creates nothing.
 - `portfolixir.securities_accounts.list`
 - `portfolixir.securities_accounts.create`
 - `portfolixir.securities_accounts.update`
@@ -2863,8 +2868,9 @@ in its description; the server instructions say it once for every write.
   record). Its description says that bookings keep their cash account, that
   every position keeps its view membership, and what the merge does to the
   next import: the source's names become former names of the target, a later
-  import naming them books there, and a re-import of an applied export
-  creates nothing.
+  import naming them books there — except a name another depot still
+  carries, which is not kept — and a re-import of an applied export creates
+  nothing.
 - `portfolixir.transactions.list`
 - `portfolixir.transactions.create`
 - `portfolixir.transactions.update`

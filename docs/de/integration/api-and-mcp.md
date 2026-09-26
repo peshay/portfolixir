@@ -1051,7 +1051,10 @@ Beispiel-Antwort für Kurssynchronisierung:
   Zusammenführung zurück — eine Prüfung auf einen Fehler, nie eine erwartete
   Antwort); die Bucket-Verknüpfungen der Quelle werden entfernt und die
   Quelle gelöscht; ihr Name und ihre früheren Namen werden frühere Namen des
-  Ziels. Hat sich seit der Vorschau eine Buchung, eine Zahl oder eine Prüfung
+  Ziels, außer einem Namen, den ein anderes Geldkonto noch als Namen oder
+  früheren Namen trägt: Er wird nicht übernommen (`former_names.not_kept` in
+  der Vorschau) und führt einen Import weiter zu jenem Konto. Hat sich seit
+  der Vorschau eine Buchung, eine Zahl oder eine Prüfung
   geändert, antwortet sie `409` mit `errors.code` `plan_changed` und der
   frischen Vorschau in `errors.preview` und schreibt nichts. Eine
   Wiederholung einer abgeschlossenen Zusammenführung desselben Paars
@@ -1195,8 +1198,10 @@ Beispiel-Antwort für Kurssynchronisierung:
   Zusammenführung sonst zurück — eine Prüfung auf einen Fehler, nie eine
   erwartete Antwort); der Bucket-Plan wird geschrieben, ein Journal-Eintrag
   je Position; die Standard-Buckets der Quelle werden entfernt und die Quelle
-  gelöscht; ihr Name und ihre früheren Namen werden frühere Namen des Ziels.
-  Ein geänderter Plan antwortet `409` `plan_changed` mit der frischen
+  gelöscht; ihr Name und ihre früheren Namen werden frühere Namen des Ziels,
+  außer einem Namen, den ein anderes Depot noch trägt
+  (`former_names.not_kept`). Ein geänderter Plan antwortet `409`
+  `plan_changed` mit der frischen
   Vorschau in `errors.preview`; eine Wiederholung einer abgeschlossenen
   Zusammenführung desselben Paars antwortet `200` mit dem ursprünglichen
   Protokoll und `already_applied: true`; eine in ein anderes Depot
@@ -2796,7 +2801,9 @@ Server-Anweisungen sagen es einmal für jeden Schreibvorgang.
   Wiederholung antwortet mit dem ursprünglichen Protokoll). Die Beschreibung
   sagt, was die Zusammenführung für den nächsten Import bedeutet: Die Namen
   der Quelle werden frühere Namen des Ziels, ein späterer Import, der sie
-  nennt, bucht dorthin, und ein erneut angewendeter Export legt nichts an.
+  nennt, bucht dorthin — außer einem Namen, den ein anderes Konto noch trägt;
+  er wird nicht übernommen —, und ein erneut angewendeter Export legt nichts
+  an.
 - `portfolixir.securities_accounts.list`
 - `portfolixir.securities_accounts.create`
 - `portfolixir.securities_accounts.update`
@@ -2813,8 +2820,9 @@ Server-Anweisungen sagen es einmal für jeden Schreibvorgang.
   sagt, dass Buchungen ihr Verrechnungskonto behalten, dass jede Position
   ihre Ansichts-Zugehörigkeit behält, und was die Zusammenführung für den
   nächsten Import bedeutet: Die Namen der Quelle werden frühere Namen des
-  Ziels, ein späterer Import, der sie nennt, bucht dorthin, und ein erneut
-  angewendeter Export legt nichts an.
+  Ziels, ein späterer Import, der sie nennt, bucht dorthin — außer einem
+  Namen, den ein anderes Depot noch trägt; er wird nicht übernommen —, und
+  ein erneut angewendeter Export legt nichts an.
 - `portfolixir.transactions.list`
 - `portfolixir.transactions.create`
 - `portfolixir.transactions.update`
