@@ -695,6 +695,76 @@ defmodule Portfolixir.Lifecycle.CashMergeTest do
                })
     end
 
+    # User story:
+    # As the operator merging an account whose balance carries the fraction
+    # of a trade booked without its amount,
+    # I want the merge refused up front, naming the anchor it could not
+    # store and the trade that makes it so,
+    # so that the preview never promises a figure the ledger cannot hold
+    # and the merge never fails after I confirmed it.
+    #
+    # Acceptance criteria:
+    # - A buy on the source of 0.333333333333 shares at 3.333333 with no
+    #   amount makes the source's balance -1.111110999998888889, so the
+    #   target's later anchor of 100.00 would have to become
+    #   98.888889000001111111, which the amount column (6 places) cannot
+    #   hold.
+    # - Preview and apply answer {:refused, guards} with
+    #   unstorable_anchor, whose detail and anchors name the anchor and
+    #   whose detail names the trade; every table is unchanged.
+    # - With the trade's amount recorded, the same pair merges.
+    test "an anchor restatement the amount column cannot hold is refused by name", ctx do
+      depot = depot!(ctx, ctx.source, "Savings plan depot")
+
+      {:ok, security} =
+        Portfolixir.Catalog.create_security(Actor.owner_ui(), %{
+          name: "Synthetic Fraction Fund",
+          currency_code: "EUR"
+        })
+
+      {:ok, buy} =
+        Ledger.create_transaction(agent(), %{
+          portfolio_id: ctx.portfolio.id,
+          type: "buy",
+          date: ~D[2025-01-10],
+          security_id: security.id,
+          securities_account_id: depot.id,
+          cash_account_id: ctx.source.id,
+          quantity: "0.333333333333",
+          price: "3.333333",
+          currency_code: "EUR"
+        })
+
+      anchor = anchor!(ctx.target, "100.00", ~D[2025-02-01])
+      before = fingerprint()
+
+      assert {:error, {:refused, guards}} =
+               Lifecycle.preview_cash_merge(ctx.source.id, ctx.target.id)
+
+      assert :unstorable_anchor in failed(guards)
+      failed_guard = Enum.find(guards, &(&1.code == :unstorable_anchor))
+      assert [%{id: anchor_id, date: ~D[2025-02-01]}] = failed_guard.anchors
+      assert anchor_id == anchor.id
+      assert [%{id: booking_id, date: ~D[2025-01-10]}] = failed_guard.bookings
+      assert booking_id == buy.id
+      assert failed_guard.detail =~ "##{anchor.id}"
+      assert failed_guard.detail =~ "##{buy.id}"
+      assert failed_guard.detail =~ "98.888889000001111111"
+
+      assert {:error, {:refused, guards}} =
+               Lifecycle.merge_cash_account(agent(), ctx.source.id, ctx.target.id, %{
+                 plan_digest: "sha256:whatever"
+               })
+
+      assert :unstorable_anchor in failed(guards)
+      assert fingerprint() == before
+
+      {:ok, _} = Ledger.update_transaction(agent(), buy, %{gross_amount: "1.11"})
+      assert {:ok, preview} = Lifecycle.preview_cash_merge(ctx.source.id, ctx.target.id)
+      merge!(ctx, false, preview)
+      assert balance(ctx.target) == dec("98.89")
+    end
+
     test "without key-equal pairs, no choice is required", ctx do
       book!(ctx, ctx.source, "deposit", "10.00", ~D[2025-01-02])
       book!(ctx, ctx.target, "deposit", "20.00", ~D[2025-01-02])

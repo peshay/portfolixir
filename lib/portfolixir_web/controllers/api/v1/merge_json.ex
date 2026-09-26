@@ -215,14 +215,29 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
   @doc """
   What a failed guard carries beside its code and detail, for the refusal's
   `errors`: the rules that name the source (`policy_rules`), the identities
-  that would no longer resolve (`unresolvable`).
+  that would no longer resolve (`unresolvable`), the balance anchors a cash
+  merge cannot restate (`anchors`) and the bookings that make one
+  unstorable (`bookings`).
   """
   def guard_facts(%{policy_rules: [_ | _] = rules}), do: %{policy_rules: rules}
 
   def guard_facts(%{unresolvable: [_ | _] = failures}),
     do: %{unresolvable: Enum.map(failures, &unresolvable/1)}
 
+  def guard_facts(%{anchors: [_ | _] = anchors} = guard) do
+    %{anchors: Enum.map(anchors, &booking_ref/1)}
+    |> Map.merge(
+      case Map.get(guard, :bookings, []) do
+        [] -> %{}
+        bookings -> %{bookings: Enum.map(bookings, &booking_ref/1)}
+      end
+    )
+  end
+
   def guard_facts(_guard), do: %{}
+
+  defp booking_ref(ref),
+    do: %{id: ref.id, date: JSON.date(ref.date), cash_account_id: ref.cash_account_id}
 
   @doc """
   One identity that would not resolve to the target (§9): whose it is, which

@@ -296,6 +296,65 @@ defmodule PortfolixirWeb.Api.V1.CashMergeControllerTest do
     assert errors["merged_into"] == %{"kind" => "cash_account", "id" => ctx.target.id}
   end
 
+  # User story:
+  # As the agent asked to merge an account whose balance carries the
+  # fraction of a trade booked without its amount,
+  # I want the refusal to name the anchor it could not store and what to
+  # record first,
+  # so that I can tell the operator which booking to complete.
+  #
+  # Acceptance criteria:
+  # - The preview answers 409 unstorable_anchor with errors.anchors naming
+  #   the target's anchor and its date, and a detail naming the trade.
+  test "an anchor the amount column cannot hold answers 409 unstorable_anchor", ctx do
+    {:ok, depot} =
+      Portfolios.create_securities_account(Actor.owner_ui(), %{
+        portfolio_id: ctx.portfolio.id,
+        cash_account_id: ctx.source.id,
+        name: "Savings plan depot"
+      })
+
+    {:ok, security} =
+      Portfolixir.Catalog.create_security(Actor.owner_ui(), %{
+        name: "Synthetic Fraction Fund",
+        currency_code: "EUR"
+      })
+
+    {:ok, buy} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: ctx.portfolio.id,
+        type: "buy",
+        date: ~D[2025-01-10],
+        security_id: security.id,
+        securities_account_id: depot.id,
+        cash_account_id: ctx.source.id,
+        quantity: "0.333333333333",
+        price: "3.333333",
+        currency_code: "EUR"
+      })
+
+    anchor = anchor!(ctx.target, "100.00", ~D[2025-02-01])
+
+    assert %{"errors" => errors} =
+             ctx.conn
+             |> get(
+               "/api/v1/cash_accounts/#{ctx.source.id}/merge_preview?target_id=#{ctx.target.id}"
+             )
+             |> json_response(409)
+
+    assert errors["code"] == "unstorable_anchor"
+
+    assert errors["anchors"] == [
+             %{"id" => anchor.id, "date" => "2025-02-01", "cash_account_id" => ctx.target.id}
+           ]
+
+    assert errors["bookings"] == [
+             %{"id" => buy.id, "date" => "2025-01-10", "cash_account_id" => ctx.source.id}
+           ]
+
+    assert errors["detail"] =~ "##{buy.id}"
+  end
+
   # --- world ------------------------------------------------------------------
 
   # The worked example of the context test: source 902.50 and target 807.50,

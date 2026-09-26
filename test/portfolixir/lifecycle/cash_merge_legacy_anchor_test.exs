@@ -98,7 +98,8 @@ defmodule Portfolixir.Lifecycle.CashMergeLegacyAnchorTest do
   #
   # Acceptance criteria:
   # - The preview and the apply answer {:refused, guards} with the
-  #   legacy_hashed_anchor guard failed, naming the transaction id.
+  #   legacy_hashed_anchor guard failed, naming the transaction id in its
+  #   detail and, as data, the anchor's id, date and account.
   # - Nothing is written.
   test "a legacy anchor that would have to be restated or moved refuses the merge", ctx do
     deposit!(ctx, ctx.target, "100.00", ~D[2025-01-02])
@@ -107,10 +108,14 @@ defmodule Portfolixir.Lifecycle.CashMergeLegacyAnchorTest do
     assert {:error, {:refused, guards}} =
              Lifecycle.preview_cash_merge(ctx.source.id, ctx.target.id)
 
-    assert %{passed: false, detail: detail} =
+    assert %{passed: false, detail: detail, anchors: anchors} =
              Enum.find(guards, &(&1.code == :legacy_hashed_anchor))
 
     assert detail =~ "##{legacy.id}"
+
+    # The refusal names the row as data too, so a dialog can say which set
+    # balance to change (review finding M-4).
+    assert anchors == [%{id: legacy.id, date: ~D[2025-06-30], cash_account_id: ctx.source.id}]
 
     assert {:error, {:refused, _guards}} =
              Lifecycle.merge_cash_account(agent(), ctx.source.id, ctx.target.id, %{
