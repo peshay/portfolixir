@@ -1,5 +1,20 @@
 import Config
 
+# Named API tokens under `mix phx.server` too (E25 S7 review round, S7E-7):
+# with PORTFOLIXIR_API_TOKENS or PORTFOLIXIR_API_PRINCIPAL set, development
+# builds the principals by the release's rules; with neither, the API keeps
+# its fallback to PORTFOLIXIR_API_TOKEN alone.
+if config_env() == :dev do
+  if api_tokens =
+       Portfolixir.RuntimeConfig.dev_api_tokens(
+         System.get_env("PORTFOLIXIR_API_TOKEN"),
+         System.get_env("PORTFOLIXIR_API_TOKENS"),
+         System.get_env("PORTFOLIXIR_API_PRINCIPAL")
+       ) do
+    config :portfolixir, :api_tokens, api_tokens
+  end
+end
+
 if config_env() == :prod do
   # Checked at boot (E25 S1, F67): length, no placeholder, no committed
   # literal, with the variable named in the failure.

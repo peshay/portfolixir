@@ -166,6 +166,43 @@ defmodule Portfolixir.ApiTokenPolicyTest do
     refute app_service =~ "mcp=${PORTFOLIXIR_API_TOKEN"
   end
 
+  # User story (E25 S7 review round, S7E-7):
+  # As a developer running the app with `mix phx.server` from the .env the
+  # example file describes,
+  # I want PORTFOLIXIR_API_TOKENS and PORTFOLIXIR_API_PRINCIPAL to take effect
+  # there too,
+  # so that a named token is accepted and journaled by name, as .env.example
+  # says, instead of answering 401.
+  #
+  # Acceptance criteria:
+  # - With neither set, development keeps its fallback to
+  #   PORTFOLIXIR_API_TOKEN alone, unchecked, as before (nil: nothing
+  #   configured).
+  # - With either set, development builds the principals by the release's
+  #   rules and refuses what the release refuses.
+  # - runtime.exs configures them for the development environment only.
+  test "development takes named tokens when they are set" do
+    mcp = String.duplicate("m", 40)
+    scripts = String.duplicate("s", 40)
+
+    assert RuntimeConfig.dev_api_tokens("dev-api-token", nil, nil) == nil
+    assert RuntimeConfig.dev_api_tokens(nil, " ", "") == nil
+
+    assert RuntimeConfig.dev_api_tokens(mcp, "scripts=#{scripts}", nil) ==
+             [{"scripts", scripts}, {nil, mcp}]
+
+    assert RuntimeConfig.dev_api_tokens(mcp, nil, "mcp") == [{"mcp", mcp}]
+
+    assert_raise ArgumentError, ~r/^PORTFOLIXIR_API_TOKEN is a placeholder/, fn ->
+      RuntimeConfig.dev_api_tokens("dev-api-token-" <> mcp, "scripts=#{scripts}", nil)
+    end
+
+    runtime = File.read!("config/runtime.exs")
+
+    assert runtime =~
+             ~r/if config_env\(\) == :dev do\n(?:  .*\n|\n)*?.*RuntimeConfig\.dev_api_tokens\(/
+  end
+
   # User story (E25 S1, F01):
   # As a maintainer,
   # I want the MCP companion's token policy pinned to the API token's,

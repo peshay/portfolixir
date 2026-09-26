@@ -60,9 +60,11 @@ defmodule PortfolixirWeb.ApiAuthPlug do
     |> halt()
   end
 
-  # The configured principals. A release has them from runtime.exs; outside
-  # one (development, the test configuration) the one token of `:api_token`
-  # or PORTFOLIXIR_API_TOKEN is the unnamed default, unchecked as before.
+  # The configured principals. A release has them from runtime.exs, and so
+  # does development when PORTFOLIXIR_API_TOKENS or PORTFOLIXIR_API_PRINCIPAL
+  # is set (S7E-7); otherwise (development without them, the test
+  # configuration) the one token of `:api_token` or PORTFOLIXIR_API_TOKEN is
+  # the unnamed default, unchecked as before.
   defp principals do
     case Application.get_env(:portfolixir, :api_tokens) do
       list when is_list(list) ->
