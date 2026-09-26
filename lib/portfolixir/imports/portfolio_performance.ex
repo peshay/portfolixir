@@ -247,7 +247,10 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
     security = entry.security || %{}
 
     [
-      {gettext("security name"), Map.get(security, :name), @name_rule},
+      # A security's name is stored without its format characters (E25 S5,
+      # G23), so it is judged as stored; what that keeps, a run of variation
+      # selectors, is still refused (E25 S7, G20).
+      {gettext("security name"), stored_security_name(Map.get(security, :name)), @name_rule},
       {gettext("security ISIN"), Map.get(security, :isin), @name_rule},
       {gettext("security WKN"), Map.get(security, :wkn), @name_rule},
       {gettext("security ticker"), Map.get(security, :ticker), @name_rule},
@@ -260,10 +263,23 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
     |> Enum.find_value(fn {label, value, rule} ->
       case Text.check(value, rule) do
         :ok -> nil
+        {:error, :invisible_characters} -> invisible_message(label, value)
         {:error, refusal} -> refusal_message(label, refusal, rule)
       end
     end)
   end
+
+  defp stored_security_name(name) when is_binary(name), do: Text.strip_format_characters(name)
+  defp stored_security_name(name), do: name
+
+  # E25 S7, G20: the row names the characters, which the operator cannot see
+  # in the file either.
+  defp invisible_message(label, value),
+    do:
+      gettext("%{field} contains invisible characters (%{characters})",
+        field: label,
+        characters: value |> Text.invisible_characters() |> Enum.join(", ")
+      )
 
   defp refusal_message(label, :too_long, rule),
     do: gettext("%{field} is longer than %{count} characters", field: label, count: rule[:max])

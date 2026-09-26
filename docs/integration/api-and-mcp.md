@@ -140,7 +140,18 @@ research-log entry, an event's or a rule version's `note`, a description)
 keeps tabs and line breaks but no other control character, a NUL included,
 and is at most 10000 characters long (a research-log entry's `body` 20000, a
 category's `description` 2000), counted in code points; the database refuses
-a longer value as well. Anything else answers `422` naming the field, never a
+a longer value as well. No text, one-line or free, carries an **invisible
+character** (E25): a Unicode tag character (U+E0000–U+E007F), a bidirectional
+control (U+061C, U+200E, U+200F, U+202A–U+202E, U+2066–U+2069), another
+invisible format character (the soft hyphen U+00AD, U+180E, the zero-width
+space and joiners U+200B–U+200D, U+2060–U+2065, U+206A–U+206F, the byte-order
+mark U+FEFF, U+FFF9–U+FFFB, U+1BCA0–U+1BCA3, U+1D173–U+1D17A) or a run of two
+or more variation selectors (a single one, an emoji's presentation, passes).
+They render as nothing but reach an agent intact, so the error names them by
+code point: `must not contain invisible characters (U+200B); retype the text
+without them`. A security's name is the one exception: its format characters
+are dropped as it is stored, as before, and only a run of variation selectors
+is refused. Anything else answers `422` naming the field, never a
 server error. A Portfolio Performance import names a row whose names or note
 break the same rule in its preview. A security's free-form `attributes` map
 meets the rule at any depth: every key is one-line text of at most 255

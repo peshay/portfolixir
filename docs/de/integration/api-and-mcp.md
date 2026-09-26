@@ -155,7 +155,20 @@ Beschreibung) behält Tabulatoren und Zeilenumbrüche, aber kein anderes
 Steuerzeichen, auch kein NUL, und ist höchstens 10000 Zeichen lang (der
 `body` eines Research-Log-Eintrags 20000, die `description` einer Kategorie
 2000), gezählt in Codepunkten; auch die Datenbank lehnt einen längeren Wert
-ab. Alles andere liefert `422` mit dem Namen des Felds, nie einen
+ab. Kein Text, einzeilig oder frei, trägt ein **unsichtbares Zeichen** (E25):
+ein Unicode-Tag-Zeichen (U+E0000–U+E007F), ein Steuerzeichen der
+Schreibrichtung (U+061C, U+200E, U+200F, U+202A–U+202E, U+2066–U+2069), ein
+anderes unsichtbares Formatzeichen (das weiche Trennzeichen U+00AD, U+180E,
+das Leerzeichen und die Verbinder der Breite null U+200B–U+200D,
+U+2060–U+2065, U+206A–U+206F, die Byte-Order-Mark U+FEFF, U+FFF9–U+FFFB,
+U+1BCA0–U+1BCA3, U+1D173–U+1D17A) oder eine Folge von zwei oder mehr
+Variantenselektoren (ein einzelner, die Darstellung eines Emojis, ist
+erlaubt). Sie werden als nichts angezeigt, erreichen einen Agenten aber
+unverändert; der Fehler nennt sie darum mit Codepunkt: `must not contain
+invisible characters (U+200B); retype the text without them`. Die eine
+Ausnahme ist der Name eines Wertpapiers: Seine Formatzeichen werden wie
+bisher beim Speichern entfernt, und nur eine Folge von Variantenselektoren
+wird abgelehnt. Alles andere liefert `422` mit dem Namen des Felds, nie einen
 Serverfehler. Ein Portfolio-Performance-Import nennt eine Zeile, deren Namen
 oder Notiz gegen dieselbe Regel verstoßen, in der Vorschau. Die freie
 Zuordnung `attributes` eines Wertpapiers erfüllt die Regel in jeder Tiefe:

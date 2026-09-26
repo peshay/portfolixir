@@ -181,6 +181,47 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
       assert third =~ "note"
     end
 
+    # User story (E25 S7, G20):
+    # As an operator importing a file whose text carries characters I cannot
+    # see,
+    # I want the preview to name the row, the field and the characters,
+    # so that nothing hidden reaches the ledger an agent reads, and I know what
+    # to fix in the source.
+    #
+    # Acceptance criteria:
+    # - A note or an account name carrying an invisible character (a
+    #   zero-width space, a bidirectional control) is a row error naming the
+    #   field and the character by code point; the other rows still preview.
+    # - A security name's format characters are dropped as the catalog drops
+    #   them (E25 S5, G23), so a zero-width space there is no error; a run of
+    #   variation selectors, which that does not drop, is.
+    test "names the row whose text carries invisible characters" do
+      zwsp = <<0x200B::utf8>>
+      rlo = <<0x202E::utf8>>
+      selectors = <<0xFE00::utf8, 0xFE01::utf8>>
+
+      header =
+        "Datum;Typ;Wertpapier;ISIN;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle\n"
+
+      body =
+        header <>
+          "2026-03-07 00:00:00;Einlage;;;;;250,00;;;250,00;Girokonto;;hidden#{zwsp}note;\n" <>
+          "2026-03-08 00:00:00;Einlage;;;;;250,00;;;250,00;Giro#{rlo}konto;;;\n" <>
+          "2026-03-09 00:00:00;Kauf;Nordic#{zwsp} Timber;;1;10,00;10,00;;;10,00;Girokonto;;;\n" <>
+          "2026-03-10 00:00:00;Kauf;Helios#{selectors} Solar;;1;10,00;10,00;;;10,00;Girokonto;;;\n" <>
+          "2026-03-11 00:00:00;Einlage;;;;;250,00;;;250,00;Girokonto;;;\n"
+
+      assert {:ok, %Preview{entries: entries, errors: errors}} = CsvParser.parse(body)
+      assert Enum.map(entries, & &1.source_row) == [3, 5]
+
+      assert [%{row: 1, message: note}, %{row: 2, message: account}, %{row: 4, message: security}] =
+               errors
+
+      assert note =~ "note" and note =~ "invisible" and note =~ "U+200B"
+      assert account =~ "account" and account =~ "U+202E"
+      assert security =~ "security name" and security =~ "U+FE00, U+FE01"
+    end
+
     # Acceptance criteria (E25 S6, G02):
     # - A note longer than the ledger's free-text cap is a row error naming
     #   the note and the cap; a note at the cap previews.

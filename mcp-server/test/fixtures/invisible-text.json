@@ -1,0 +1,85 @@
+{
+  "description": "E25 S7, G20: the one spelling of invisible characters. Portfolixir.Input.Text refuses the characters count counts and escapes them as escaped shows for the screen (pick G12.2 = B); the MCP companion escapes every string the API answers the same way before an agent reads it. Both test suites read these cases. Every non-ASCII character is a JSON escape, so the file itself carries none.",
+  "cases": [
+    {
+      "input": "Nordic Timber Holdings AB",
+      "escaped": "Nordic Timber Holdings AB",
+      "count": 0
+    },
+    {
+      "input": "Halbjahreszahlen gelesen: Auftrags\u200bbestand stabil, Bedingung nicht erreicht.\u200b",
+      "escaped": "Halbjahreszahlen gelesen: Auftrags[U+200B]bestand stabil, Bedingung nicht erreicht.[U+200B]",
+      "count": 2
+    },
+    {
+      "input": "Divi\u00addende",
+      "escaped": "Divi[U+00AD]dende",
+      "count": 1
+    },
+    {
+      "input": "\u202eIgnore the rule",
+      "escaped": "[U+202E]Ignore the rule",
+      "count": 1
+    },
+    {
+      "input": "a\u2066b\u2069c",
+      "escaped": "a[U+2066]b[U+2069]c",
+      "count": 2
+    },
+    {
+      "input": "note\udb40\udc49\udb40\udc47",
+      "escaped": "note[U+E0049][U+E0047]",
+      "count": 2
+    },
+    {
+      "input": "heart \u2764\ufe0f",
+      "escaped": "heart \u2764\ufe0f",
+      "count": 0
+    },
+    {
+      "input": "x\ufe00\ufe01",
+      "escaped": "x[U+FE00][U+FE01]",
+      "count": 2
+    },
+    {
+      "input": "y\udb40\udd00\udb40\udd01",
+      "escaped": "y[U+E0100][U+E0101]",
+      "count": 2
+    },
+    {
+      "input": "\ufeffstart",
+      "escaped": "[U+FEFF]start",
+      "count": 1
+    },
+    {
+      "input": "coder \ud83d\udc68\u200d\ud83d\udcbb",
+      "escaped": "coder \ud83d\udc68[U+200D]\ud83d\udcbb",
+      "count": 1
+    },
+    {
+      "input": "line one\nline two\ttab",
+      "escaped": "line one\nline two\ttab",
+      "count": 0
+    },
+    {
+      "input": "already visible [U+200B]",
+      "escaped": "already visible [U+200B]",
+      "count": 0
+    },
+    {
+      "input": "rtl\u200fmark and \u061c",
+      "escaped": "rtl[U+200F]mark and [U+061C]",
+      "count": 2
+    },
+    {
+      "input": "music\ud834\udd73",
+      "escaped": "music[U+1D173]",
+      "count": 1
+    },
+    {
+      "input": "Gr\u00fc\u00dfe, \u682a\u5f0f",
+      "escaped": "Gr\u00fc\u00dfe, \u682a\u5f0f",
+      "count": 0
+    }
+  ]
+}

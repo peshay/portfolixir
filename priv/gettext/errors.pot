@@ -175,3 +175,9 @@ msgstr[1] ""
 #, elixir-autogen
 msgid "is ambiguous: enter it without a thousands separator"
 msgstr ""
+
+msgid "must not contain invisible characters (%{characters}); retype the text without them"
+msgstr ""
+
+msgid "must not contain invisible characters (format, bidirectional or tag characters)"
+msgstr ""
