@@ -235,6 +235,59 @@ a WKN (six letters or digits) or a ticker (printable ASCII) edited on an
 existing security: a lookalike never replaces the identifier your exports
 carry. A security's name is stored without invisible format characters.
 
+### Merging a duplicate security (ADR-0050 §9)
+
+When one instrument exists twice — an export carrying a newer ISIN was
+imported before the ISIN change was recorded and created a second copy with
+a second copy of the history, or a security created by hand was created again
+by the next import — merge the duplicate into the security you keep. The
+merge is available to your agent now (`GET /api/v1/securities/:id/merge_preview`
+and `POST /api/v1/securities/:id/merge`, or the
+`portfolixir.securities.merge_preview` and `portfolixir.securities.merge` MCP
+tools); the dialog on the securities page follows in this release's next
+step.
+
+The preview shows everything the merge does before anything is written: each
+depot's position of both securities before and after, the bookings that
+appear on both (you decide whether they are duplicates — nothing is
+preselected), the splits that coincide, the quotes, the classification and
+plan rows, the calendar events and the identifiers. What the merge does:
+
+- **Bookings** move onto the security you keep, in every depot; a booking you
+  confirm as a duplicate is deleted, and a split both carry on the same day is
+  kept once. Every day's quantity in every depot is checked against both
+  histories.
+- **Quotes** fill the gaps of the security you keep; on a day both have a
+  quote, the kept security's wins. A close you typed by hand that would be
+  dropped this way is listed first. The dropped closes stay in the merge
+  record.
+- **Classification and plans**: an assignment moves where the kept security
+  has none in that classification, otherwise the kept one's stays; a
+  position target moves, unless the plan already has one for the kept
+  security or it would no longer sit under the kept security's category —
+  then it is removed, and the preview says why.
+- **Events** move; two of the same kind on the same day are listed as a
+  possible duplicate for you to clean up.
+- **Identifiers**: when both carry an ISIN you choose, without a default,
+  which one the kept security answers to — keep its own (the duplicate's ISIN
+  becomes a former ISIN) or take the duplicate's (its own becomes the former
+  ISIN; this repairs the duplicate an export with the newer ISIN created
+  before the change was recorded), optionally with the day the ISIN changed. A WKN, ticker or quote feed the kept security
+  lacks is taken over; its name, asset class and logo stay.
+
+The merge is refused, with the reason, where it cannot keep everything exact:
+different currencies, one a benchmark and the other not, research notes or a
+policy rule on the duplicate (merge the other way if that passes, or keep
+both), positions in different views, splits that disagree, or an identifier
+of either security — as stored, as its Portfolio Performance import recorded
+it, or a former ISIN — that would no longer find the kept security. That last
+check is what makes the next import safe: after a merge, re-importing any
+export already applied creates nothing, whichever ISIN it carries, and new
+rows under the duplicate's identifiers are booked once, on the security you
+kept. A read of the duplicate's id afterwards answers with the security it
+now lives on. There is no unmerge; the merge record and the audit journal
+show what it did.
+
 ### Identity fields that freeze (ADR-0050 §11)
 
 A security's **currency freezes once it has a transaction or a quote**: its

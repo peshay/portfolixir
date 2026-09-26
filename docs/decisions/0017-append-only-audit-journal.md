@@ -294,8 +294,9 @@ before-image. The exemption is narrowed to the writers that ingest:
 - **Exempt:** the quote sync (`Portfolixir.Catalog.QuoteSync`, through
   `Quotes.upsert_many/3`) and the exchange-rate sync, as before; and the
   security merge writer of [ADR-0050](0050-lifecycle-merges-under-a-reimport-contract.html)
-  §13, whose moved and dropped quotes are recorded in the append-only merge
-  manifest instead.
+  §13 (`Quotes.merge_gap_fill/4`, called by the security merge alone), whose
+  moved and dropped quotes are recorded in the append-only merge manifest
+  instead, the dropped closes with the target's close that won.
 - **Journaled:** every **authored** quote write — the upsert
   (`Catalog.upsert_quotes/3`) and the new release of manual quotes back to
   provider data (`Catalog.release_manual_quotes/4`), over the API and MCP, and
@@ -310,7 +311,8 @@ before-image. The exemption is narrowed to the writers that ingest:
 The `security_quotes` table stays unarmed — the sync still writes it without
 an actor — so the split rests on the writers: a test pins, from the compiled
 call graph, that no module other than the sync calls the unjournaled upsert
-under any alias, and, by a scan of `lib/` and the seeds, that no file other
+under any alias and none other than the security merge calls the merge
+writer, and, by a scan of `lib/` and the seeds, that no file other
 than the quote module writes the quote schema or the `security_quotes` table
 by a Repo write, a changeset or SQL (review round). The operations stay
 `create | update | delete | upsert`.

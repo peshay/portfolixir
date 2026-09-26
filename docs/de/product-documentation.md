@@ -256,6 +256,66 @@ geändert werden: Ein Doppelgänger ersetzt nie das Kennzeichen, das die
 Exporte tragen. Der Name eines Wertpapiers wird ohne unsichtbare
 Formatzeichen gespeichert.
 
+### Ein doppeltes Wertpapier zusammenführen (ADR-0050 §9)
+
+Wenn ein Instrument zweimal existiert — ein Export mit neuerer ISIN wurde
+importiert, bevor der ISIN-Wechsel erfasst war, und legte eine zweite Kopie
+mit einer zweiten Kopie der Historie an, oder ein von Hand angelegtes
+Wertpapier wurde vom nächsten Import noch einmal angelegt —, führt man das
+Duplikat in das Wertpapier zusammen, das bleibt. Die Zusammenführung steht
+Ihrem Agenten jetzt zur Verfügung
+(`GET /api/v1/securities/:id/merge_preview` und
+`POST /api/v1/securities/:id/merge` oder die MCP-Tools
+`portfolixir.securities.merge_preview` und `portfolixir.securities.merge`);
+der Dialog auf der Wertpapierseite folgt im nächsten Schritt dieses Releases.
+
+Die Vorschau zeigt alles, was die Zusammenführung tut, bevor etwas
+geschrieben wird: die Position beider Wertpapiere in jedem Depot vorher und
+nachher, die Buchungen, die bei beiden stehen (Sie entscheiden, ob es
+Duplikate sind — nichts ist vorausgewählt), die Splits, die zusammenfallen,
+die Kurse, die Klassifizierungs- und Planzeilen, die Termine und die
+Kennzeichen. Was die Zusammenführung tut:
+
+- **Buchungen** gehen in jedem Depot auf das Wertpapier über, das bleibt;
+  eine Buchung, die Sie als Duplikat bestätigen, wird gelöscht, und ein
+  Split, den beide am selben Tag tragen, bleibt einmal erhalten. Die
+  Stückzahl jedes Tages in jedem Depot wird gegen beide Historien geprüft.
+- **Kurse** füllen die Lücken des Wertpapiers, das bleibt; an einem Tag, an
+  dem beide einen Kurs haben, gewinnt der des bleibenden. Ein von Hand
+  erfasster Schlusskurs, der so entfiele, wird vorher aufgeführt. Die
+  verworfenen Schlusskurse bleiben im Protokoll der Zusammenführung.
+- **Klassifizierung und Pläne**: Eine Zuordnung wandert, wo das bleibende
+  Wertpapier in dieser Klassifizierung keine hat, sonst bleibt seine; ein
+  Positionsziel wandert, außer der Plan hat schon eines für das bleibende
+  Wertpapier oder es läge nicht mehr unter dessen Kategorie — dann wird es
+  entfernt, und die Vorschau sagt, warum.
+- **Termine** wandern; zwei gleicher Art am selben Tag werden als mögliches
+  Duplikat aufgeführt, das Sie selbst bereinigen.
+- **Kennzeichen**: Tragen beide eine ISIN, wählen Sie ohne Vorgabe, auf
+  welche das bleibende Wertpapier hört — seine eigene behalten (die ISIN des
+  Duplikats wird eine frühere ISIN) oder die des Duplikats übernehmen (seine
+  eigene wird die frühere ISIN; das repariert das Duplikat, das ein Export
+  mit der neueren ISIN angelegt hat, bevor der Wechsel erfasst war),
+  wahlweise mit dem Tag des ISIN-Wechsels. Eine
+  WKN, einen Ticker oder eine Kursquelle, die dem bleibenden Wertpapier
+  fehlen, übernimmt es; Name, Anlageklasse und Logo bleiben seine.
+
+Die Zusammenführung wird mit Grund abgelehnt, wo sie nicht alles exakt
+erhalten kann: verschiedene Währungen, eines ein Benchmark und das andere
+nicht, Recherche-Notizen oder eine eigene Regel am Duplikat (in die andere
+Richtung zusammenführen, wenn das gelingt, oder beide behalten), Positionen in
+verschiedenen Ansichten, Splits, die sich widersprechen, oder ein Kennzeichen
+eines der beiden Wertpapiere — gespeichert, wie sein
+Portfolio-Performance-Import es aufgezeichnet hat, oder eine frühere ISIN —,
+das das bleibende Wertpapier nicht mehr fände. Diese letzte Prüfung macht den
+nächsten Import sicher: Nach einer Zusammenführung legt ein erneut
+importierter, schon angewendeter Export nichts an, welche ISIN er auch trägt,
+und neue Zeilen unter den Kennzeichen des Duplikats werden einmal gebucht,
+auf das Wertpapier, das bleibt. Ein Lesen der ID des Duplikats antwortet
+danach mit dem Wertpapier, auf dem es jetzt liegt. Ein Rückgängigmachen gibt
+es nicht; das Protokoll der Zusammenführung und das Audit-Journal zeigen, was
+sie getan hat.
+
 ### Identitätsfelder, die einfrieren (ADR-0050 §11)
 
 Die **Währung eines Wertpapiers friert ein, sobald es eine Transaktion oder
