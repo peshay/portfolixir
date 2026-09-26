@@ -8642,6 +8642,12 @@ input.num {
   display: block;
   width: fit-content;
   font-size: 12px;
+  /* The table sets nowrap on its cells; a long source name wraps inside its
+     own cell instead of running under the row's kebab at 390 px (the
+     closing act, UAT-3). */
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 /* The former-names list inside the rename dialog (board 01 ②). */
@@ -8870,10 +8876,17 @@ dialog.merge-dialog {
   margin-top: 3px;
 }
 
+/* Each part names its own colour and weight: a target is a <label> of
+   <span>s, and the form-label rule (`label span`, muted at 680) would
+   otherwise draw a selectable row like a disabled one (the closing act,
+   UAT-1 / DC-1; board 02: the name in the text colour, the meta line
+   muted, the balance regular). */
 .merge-target__name {
   display: grid;
   gap: 1px;
   font-size: 13px;
+  font-weight: 400;
+  color: var(--color-text);
 }
 
 .merge-target__name b {
@@ -8883,18 +8896,32 @@ dialog.merge-dialog {
 
 .merge-target__name small {
   font-size: 12px;
+  font-weight: 400;
   color: var(--color-text-muted);
 }
 
 .merge-target__balance {
   font-size: 12.5px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
   text-align: right;
+  color: var(--color-text);
 }
 
 .merge-target__why {
   grid-column: 2 / -1;
   font-size: 12px;
+  font-weight: 400;
   color: var(--color-text);
+}
+
+/* A keyboard user sees which target or option the arrow keys are on: the
+   radio's own halo is too faint on a card (the closing act, DC-11), so the
+   card takes the shared 2 px accent ring. */
+.merge-target:has(input:focus-visible),
+.merge-option:has(input:focus-visible) {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 /* Selected (UX-DR16 class 3): tint and a 3 px leading edge. */
@@ -8952,6 +8979,13 @@ dialog.merge-dialog {
   font-size: 18px;
   font-weight: 700;
   line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The operator as the label's prefix, shown only where the sum is a list
+   (board 02 at 390 px: "+ Tagesgeld", "= Tagesgeld danach"). */
+.merge-identity__sign {
+  display: none;
 }
 
 .merge-identity__term b small {
@@ -8977,6 +9011,7 @@ dialog.merge-dialog {
   grid-column: 1 / -1;
   margin: 0;
   font-size: 12px;
+  font-variant-numeric: tabular-nums;
   text-align: right;
   color: var(--color-text-muted);
 }
@@ -9266,6 +9301,7 @@ dialog.merge-dialog {
 
 .merge-lines__figure {
   text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .merge-lines__figure small {
@@ -9347,6 +9383,10 @@ dialog.merge-dialog {
 
   .merge-identity__op {
     display: none;
+  }
+
+  .merge-identity__sign {
+    display: inline;
   }
 
   .merge-identity__term {

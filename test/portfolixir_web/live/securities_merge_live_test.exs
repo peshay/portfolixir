@@ -203,6 +203,15 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
     choose(view, %{identity: "adopt_source_isin", collapse: "true"})
     refute has_element?(view, "#security-merge-dialog [data-role='merge-confirm'][disabled]")
 
+    # The result follows the choice (the closing act, UAT-2; DESIGN G2-B),
+    # and the line under it names the other answer's figure.
+    sum = view |> element("#security-merge-dialog [data-role='merge-identity']") |> render()
+
+    assert [_source, _target, ["15"]] =
+             Regex.scan(~r/<b class="num">([^<]*)<small>/, sum, capture: :all_but_first)
+
+    assert sum =~ "17 shares if the equal booking is kept (+2)"
+
     assert has_element?(
              view,
              "#security-merge-dialog [data-role='merge-confirm']",

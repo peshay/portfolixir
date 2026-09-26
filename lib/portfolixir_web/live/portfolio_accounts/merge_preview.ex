@@ -152,15 +152,18 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
       </div>
       <span class="merge-identity__op" aria-hidden="true">+</span>
       <div class="merge-identity__term">
-        <i><%= @names.target %></i>
+        <i><span class="merge-identity__sign" aria-hidden="true">+ </span><%= @names.target %></i>
         <b class="num"><%= Format.money(@preview.target.balance) %><small><%= @currency %></small></b>
       </div>
       <span class="merge-identity__op" aria-hidden="true">=</span>
+      <%!-- DESIGN G2-B: the figures that depend on the choice follow it, and
+           read "keep both" until one is made; the line under the sum names
+           the other answer's figure. --%>
       <div class="merge-identity__term merge-identity__result">
-        <i><%= gettext("%{name} after", name: @names.target) %></i>
-        <b class="num"><%= Format.money(@keep.balance) %><small><%= @currency %></small></b>
+        <i><span class="merge-identity__sign" aria-hidden="true">= </span><%= gettext("%{name} after", name: @names.target) %></i>
+        <b class="num"><%= Format.money(@outcome.balance) %><small><%= @currency %></small></b>
       </div>
-      <p :if={@pairs != []} class="merge-identity__alt">
+      <p :if={@pairs != [] and @collapse != true} class="merge-identity__alt">
         <%= ngettext(
           "%{amount} %{currency} if the equal booking is removed (%{difference})",
           "%{amount} %{currency} if the %{count} equal bookings are removed (%{difference})",
@@ -168,6 +171,16 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
           amount: Format.money(@collapsed.balance),
           currency: @currency,
           difference: Format.signed_decimal(Decimal.sub(@collapsed.balance, @keep.balance), 2)
+        ) %>
+      </p>
+      <p :if={@pairs != [] and @collapse == true} class="merge-identity__alt">
+        <%= ngettext(
+          "%{amount} %{currency} if the equal booking is kept (%{difference})",
+          "%{amount} %{currency} if the %{count} equal bookings are kept (%{difference})",
+          length(@pairs),
+          amount: Format.money(@keep.balance),
+          currency: @currency,
+          difference: Format.signed_decimal(Decimal.sub(@keep.balance, @collapsed.balance), 2)
         ) %>
       </p>
     </div>

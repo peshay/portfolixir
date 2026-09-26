@@ -9879,3 +9879,17 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "Nothing was merged: the merge did not finish, and it was rolled back. Check again."
 msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex
+#, elixir-autogen, elixir-format
+msgid "%{amount} %{currency} if the equal booking is kept (%{difference})"
+msgid_plural "%{amount} %{currency} if the %{count} equal bookings are kept (%{difference})"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/portfolixir_web/live/securities/merge_preview.ex
+#, elixir-autogen, elixir-format
+msgid "%{quantity} shares if the equal booking is kept (%{difference})"
+msgid_plural "%{quantity} shares if the %{count} equal bookings are kept (%{difference})"
+msgstr[0] ""
+msgstr[1] ""

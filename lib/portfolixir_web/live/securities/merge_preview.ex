@@ -213,21 +213,32 @@ defmodule PortfolixirWeb.Securities.MergePreview do
         </div>
         <span class="merge-identity__op" aria-hidden="true">+</span>
         <div class="merge-identity__term">
-          <i><%= pgettext("merge side", "Target") %></i>
+          <i><span class="merge-identity__sign" aria-hidden="true">+ </span><%= pgettext("merge side", "Target") %></i>
           <b class="num"><%= Format.exact(@holdings.target) %><small><%= gettext("shares") %></small></b>
         </div>
         <span class="merge-identity__op" aria-hidden="true">=</span>
+        <%!-- DESIGN G2-B, which G3-A reuses: the figures that depend on the
+             choice follow it, and read "keep both" until one is made. --%>
         <div class="merge-identity__term merge-identity__result">
-          <i><%= gettext("Holdings afterwards") %></i>
-          <b class="num"><%= Format.exact(@holdings.keep) %><small><%= gettext("shares") %></small></b>
+          <i><span class="merge-identity__sign" aria-hidden="true">= </span><%= gettext("Holdings afterwards") %></i>
+          <b class="num"><%= Format.exact(if(@choices.collapse == true, do: @holdings.collapsed, else: @holdings.keep)) %><small><%= gettext("shares") %></small></b>
         </div>
-        <p :if={@pairs != []} class="merge-identity__alt">
+        <p :if={@pairs != [] and @choices.collapse != true} class="merge-identity__alt">
           <%= ngettext(
             "%{quantity} shares if the equal booking is removed (%{difference})",
             "%{quantity} shares if the %{count} equal bookings are removed (%{difference})",
             length(@pairs),
             quantity: Format.exact(@holdings.collapsed),
             difference: signed(Decimal.sub(@holdings.collapsed, @holdings.keep))
+          ) %>
+        </p>
+        <p :if={@pairs != [] and @choices.collapse == true} class="merge-identity__alt">
+          <%= ngettext(
+            "%{quantity} shares if the equal booking is kept (%{difference})",
+            "%{quantity} shares if the %{count} equal bookings are kept (%{difference})",
+            length(@pairs),
+            quantity: Format.exact(@holdings.keep),
+            difference: signed(Decimal.sub(@holdings.keep, @holdings.collapsed))
           ) %>
         </p>
       </div>

@@ -183,4 +183,107 @@ defmodule PortfolixirWeb.DesignConformanceCssTest do
     missing = for {path, block} <- summaries, not (block =~ "disclosure-chevron"), do: path
     assert missing == [], "disclosure summaries without the chevron: #{inspect(missing)}"
   end
+
+  # The last rule of `selector` in app.css (its block's text).
+  defp rule(app_css, selector) do
+    ~r/\n#{Regex.escape(selector)} \{([^}]*)\}/
+    |> Regex.scan(app_css, capture: :all_but_first)
+    |> List.last()
+    |> case do
+      [body] -> body
+      nil -> flunk("no rule for #{selector}")
+    end
+  end
+
+  # User story (the closing act, UAT-1 / DC-1; board
+  # ux-design-2026-09-24/02-merge-preview, step 1; DESIGN G2-B, G3-A):
+  # As the operator choosing where a merge's history goes,
+  # I want a selectable target drawn in the text colour and the ones that
+  # cannot take it muted,
+  # so that the list tells the two apart by more than a background tint.
+  #
+  # Acceptance criteria:
+  # - `.merge-target__name` and `.merge-target__balance` name the text colour
+  #   and weight 400 themselves — a target is a <label> of <span>s, and the
+  #   form-label rule `label span` (muted, 680) would otherwise apply.
+  # - The meta line (`small`) is muted at 400; the reason line is 400.
+  # - The disabled row keeps its muted name and balance.
+  test "a selectable merge target is drawn in the text colour, a disabled one muted" do
+    app_css = File.read!(@app_css)
+
+    assert rule(app_css, "label span") =~ "color: var(--color-text-muted)"
+
+    for selector <- [".merge-target__name", ".merge-target__balance"] do
+      body = rule(app_css, selector)
+      assert body =~ "color: var(--color-text)", selector
+      assert body =~ "font-weight: 400", selector
+    end
+
+    small = rule(app_css, ".merge-target__name small")
+    assert small =~ "color: var(--color-text-muted)"
+    assert small =~ "font-weight: 400"
+    assert rule(app_css, ".merge-target__why") =~ "font-weight: 400"
+
+    assert app_css =~
+             ~r/\.merge-target\.is-off \.merge-target__name b,\s*\.merge-target\.is-off \.merge-target__balance \{[^}]*color: var\(--color-text-muted\)/
+  end
+
+  # Acceptance criteria (the closing act, DC-7): the merge figures outside a
+  # table — a target's balance, the sum's terms and its alternative line,
+  # the two-line figures under 720 px — use tabular numerals, so decimals
+  # line up across rows (DESIGN: money uses tabular-nums).
+  test "the merge figures use tabular numerals" do
+    app_css = File.read!(@app_css)
+
+    for selector <- [
+          ".merge-target__balance",
+          ".merge-identity__term b",
+          ".merge-identity__alt",
+          ".merge-lines__figure"
+        ] do
+      assert rule(app_css, selector) =~ "font-variant-numeric: tabular-nums", selector
+    end
+  end
+
+  # Acceptance criteria (the closing act, DC-11): a merge target or option
+  # card whose radio has keyboard focus carries the shared 2 px accent ring
+  # with a 2 px offset, as the kebab and the rule names do.
+  test "a merge target or option card shows keyboard focus with the shared ring" do
+    app_css = File.read!(@app_css)
+
+    [ring] =
+      Regex.run(
+        ~r/\n\.merge-target:has\(input:focus-visible\),\s*\.merge-option:has\(input:focus-visible\) \{[^}]*\}/s,
+        app_css
+      )
+
+    assert ring =~ "outline: 2px solid var(--color-accent)"
+    assert ring =~ "outline-offset: 2px"
+  end
+
+  # Acceptance criteria (the closing act, UAT-3; board 13-l5a-merged-from):
+  # the "merged from" and "former" lines under an account's name wrap inside
+  # their cell — the accounts table sets nowrap on its cells, so without
+  # this a long source name ran under the row's kebab at 390 px.
+  test "an account's merged-from and former lines wrap inside their cell" do
+    app_css = File.read!(@app_css)
+    body = rule(app_css, ".account-sub--former,\n.account-sub--merged")
+
+    assert body =~ "white-space: normal"
+    assert body =~ "max-width: 100%"
+    assert body =~ "overflow-wrap: anywhere"
+  end
+
+  # Acceptance criteria (the closing act, UAT-2; board 02 at 390 px): where
+  # the sum becomes a list under 720 px, its + and = stay as the labels'
+  # prefixes ("+ Tagesgeld", "= Tagesgeld danach"); wider, the operators
+  # stand between the terms and the prefixes are hidden.
+  test "the merge sum keeps its operators at 390 px" do
+    app_css = File.read!(@app_css)
+
+    assert rule(app_css, ".merge-identity__sign") =~ "display: none"
+
+    assert app_css =~
+             ~r/@media \(max-width: 720px\) \{[^@]*\.merge-identity__op \{\s*display: none;\s*\}\s*\.merge-identity__sign \{\s*display: inline;/s
+  end
 end

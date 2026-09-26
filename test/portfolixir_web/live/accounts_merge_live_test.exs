@@ -182,6 +182,59 @@ defmodule PortfolixirWeb.AccountsMergeLiveTest do
              )
     end
 
+    # User story (closing act, UAT-2):
+    # As the operator about to confirm an irreversible merge,
+    # I want the headline "after" figure to follow the choice I made about
+    # the duplicates,
+    # so that the figure above the confirm is the one the merge applies.
+    #
+    # Acceptance criteria (DESIGN G2-B: the figures that depend on the choice
+    # follow it, and read "keep both" until one is made):
+    # - Before a choice the result reads the keep-both balance, and the line
+    #   under it the balance with the duplicates removed.
+    # - After "remove as duplicates" the result reads that balance, and the
+    #   line under it the keep-both balance with its difference.
+    # - Under 720 px the sum keeps its + and = as the labels' prefixes
+    #   (board 02 at 390 px).
+    test "the result of the sum follows the duplicate choice", ctx do
+      example!(ctx)
+      {:ok, view, _html} = live(ctx.conn, "/portfolios")
+      to_preview(view, ctx.source, ctx.target)
+
+      result = fn ->
+        view |> element("#merge-dialog .merge-identity__result b") |> render()
+      end
+
+      alt = fn -> view |> element("#merge-dialog .merge-identity__alt") |> render() end
+
+      assert result.() =~ "1,710.00"
+      assert alt.() =~ "1,702.50 EUR if the 2 equal bookings are removed (-7.50)"
+
+      signs =
+        view
+        |> element("#merge-dialog [data-role='merge-identity']")
+        |> render()
+        |> Floki.parse_fragment!()
+        |> Floki.find(".merge-identity__sign")
+        |> Enum.map(&String.trim(Floki.text(&1)))
+
+      assert signs == ["+", "="]
+
+      view
+      |> element("#merge-dialog form[data-role='merge-choice-form']")
+      |> render_change(%{merge: %{collapse: "true"}})
+
+      assert result.() =~ "1,702.50"
+      assert alt.() =~ "1,710.00 EUR if the 2 equal bookings are kept (+7.50)"
+
+      view
+      |> element("#merge-dialog form[data-role='merge-choice-form']")
+      |> render_change(%{merge: %{collapse: "false"}})
+
+      assert result.() =~ "1,710.00"
+      assert alt.() =~ "1,702.50 EUR if the 2 equal bookings are removed (-7.50)"
+    end
+
     # User story:
     # As the operator who chose what to do with the duplicates,
     # I want the confirm to apply exactly the plan I read, with my choice,
