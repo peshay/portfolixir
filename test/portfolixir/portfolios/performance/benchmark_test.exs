@@ -211,7 +211,9 @@ defmodule Portfolixir.Portfolios.Performance.BenchmarkTest do
     assert hd(cmp.bought_once.series).date == ~D[2026-01-11]
 
     assert cmp.computation_basis.window == cmp.window
-    assert cmp.computation_basis.reference =~ "Late Bench"
+    # E25 S7, F75: the basis names the benchmark by id and currency only.
+    assert cmp.computation_basis.reference == "security #{bench.id} (#{bench.currency_code})"
+    refute cmp.computation_basis.input_series =~ "Late Bench"
     assert cmp.computation_basis.gaps =~ "excluded"
     assert cmp.computation_basis.assumptions =~ "frictionless"
     assert cmp.computation_basis.assumptions =~ "float"

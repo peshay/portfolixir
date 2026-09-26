@@ -461,15 +461,20 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
       "a fixed annual rate of #{Decimal.to_string(rate, :normal)} compounding daily from a " <>
         "base of 1 (effective annual rate, Act/365)"
 
+  # E25 S7, F75: the basis names the benchmark security by its id and
+  # currency only. Its stored name is free text an agent reads as the method
+  # of a figure here; the name travels as data in the `benchmark` object.
   defp series_text({:security, %Security{} = security}),
     do:
-      "the stored quotes of #{security.name} (security #{security.id}, " <>
-        "#{security.currency_code}) in the current display basis (ADR-0028)"
+      "the stored quotes of #{security_reference(security)} in the current display basis " <>
+        "(ADR-0028)"
 
   defp reference_text({:rate, rate}), do: "fixed rate #{Decimal.to_string(rate, :normal)} p.a."
 
-  defp reference_text({:security, %Security{} = security}),
-    do: "security #{security.id} #{security.name} (#{security.currency_code})"
+  defp reference_text({:security, %Security{} = security}), do: security_reference(security)
+
+  defp security_reference(%Security{id: id, currency_code: currency}),
+    do: "security #{id} (#{currency})"
 
   # -- the benchmark price series ------------------------------------------------
 

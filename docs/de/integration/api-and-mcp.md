@@ -1695,7 +1695,9 @@ Beispiel-Payloads für Konten:
   (ADR-0039) und `computation_basis` nennt Eingangsreihe, Fenster, Referenz,
   Lückenbehandlung und die `assumptions` — das synthetische Portfolio ist
   reibungsfrei (`frictionless: true`: keine Gebühren, keine Steuern), was
-  den Vergleich gegen das reale Portfolio verzerrt. Ein fehlendes oder
+  den Vergleich gegen das reale Portfolio verzerrt. Die Basis nennt ein
+  Benchmark-Wertpapier als `security <id> (<Währung>)`, nie mit seinem
+  gespeicherten Namen, der nur als Datum in `benchmark.name` steht (E25). Ein fehlendes oder
   fehlerhaftes `benchmark` ist `422`; ein Portfolio ohne Buchungen oder eine
   Benchmark ohne Kurs im Fenster antwortet mit `null`-Werten,
   `window.start_date: null` und jedem Fluss in `excluded_flows`. Nichts wird

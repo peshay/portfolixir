@@ -1622,7 +1622,9 @@ Example account payloads:
   `computation_basis` states the input series, the window, the reference,
   the treatment of gaps and the `assumptions` — the synthetic portfolio is
   frictionless (`frictionless: true`: no fees, no taxes), which biases the
-  comparison against the real portfolio. A missing or malformed `benchmark`
+  comparison against the real portfolio. The basis names a benchmark
+  security as `security <id> (<currency>)`, never by its stored name, which
+  travels only as data in `benchmark.name` (E25). A missing or malformed `benchmark`
   is `422`; a portfolio with nothing to walk, or a benchmark without a quote
   in the window, answers `null` figures with `window.start_date: null` and
   every flow named in `excluded_flows`. Nothing is persisted: the comparison
