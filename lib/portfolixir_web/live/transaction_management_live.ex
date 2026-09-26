@@ -1653,6 +1653,13 @@ defmodule PortfolixirWeb.TransactionManagementLive do
             "The effective date, ratio and security of a booked split are fixed. A wrong split cannot be corrected here; it is deleted over the API or MCP and then recorded again on the security with “Record split”."
           ) %>
         </p>
+        <%!-- G12.2-B in the G12.3-A state: a note stored before invisible
+             characters were refused is marked above the field that holds
+             it — the split drawer has no "Costs and note" disclosure, its
+             Notes field stands open (the closing act, DC-9). --%>
+        <AppShell.invisible_text_note texts={[@split.notes]}>
+          <%= gettext("Typed in anew, it is clean.") %>
+        </AppShell.invisible_text_note>
         <label>
           <span><%= gettext("Notes") %></span>
           <textarea

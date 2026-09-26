@@ -2439,7 +2439,9 @@ variation selectors); the note marks a row stored before that rule.
 - **Where it stands.** In the research entry under its body (body and
   invalidation condition counted together) and under the thesis text; in an
   appointment under its note; under the security detail pane's head; in the
-  booking drawer above "Costs and note", which then stands open; in the rule
+  booking drawer above "Costs and note", which then stands open, and in its
+  split state (G12.3-A), which has no such disclosure, above the open Notes
+  field (the Sprint 16 closing act); in the rule
   dialog under its first hint (the name and the version's note, each its own
   note); after the inline rename form of a view, a bucket and a category.
   Lists, selects, headings and the history's "Notes" column stay unmarked.

@@ -132,4 +132,48 @@ defmodule PortfolixirWeb.TransactionSplitEditLiveTest do
     assert has_element?(view, "#split-note-form textarea[aria-invalid='true']")
     assert Ledger.get_transaction(split.id).notes == split.notes
   end
+
+  # User story (E25 S7, G20; picks G12.2-B and G12.3-A; closing-act finding
+  # DC-9):
+  # As the operator editing the note of a split booked before invisible
+  # characters were refused,
+  # I want the split drawer to mark them as the booking drawer does,
+  # so that the drawer's only editable field does not hide what the agent
+  # reads.
+  #
+  # Acceptance criteria:
+  # - A split row whose note carries invisible characters opens with one
+  #   attention note above its Notes field, the in-place sentence, and the
+  #   note spelled with the characters made visible.
+  # - A clean note shows none.
+  test "a split's note with invisible characters is marked in the split drawer",
+       %{conn: conn, split: split} do
+    view = open_split_edit(conn, split)
+    refute has_element?(view, "#booking-drawer [data-role='invisible-text-note']")
+
+    note = "Split per notice" <> <<0x200B::utf8>> <> " of the bank" <> <<0xE0041::utf8>>
+
+    {:ok, _} =
+      Portfolixir.Repo.transaction(fn ->
+        Portfolixir.Repo.query!(
+          "SELECT set_config('portfolixir.journal_actor', 'system_job', true)"
+        )
+
+        Portfolixir.Repo.query!("UPDATE transactions SET notes = $1 WHERE id = $2", [
+          note,
+          split.id
+        ])
+      end)
+
+    view = open_split_edit(conn, split)
+
+    marked =
+      view
+      |> element("#split-note-form [data-role='invisible-text-note']")
+      |> render()
+
+    assert marked =~ "The text contains 2 invisible characters."
+    assert marked =~ "Typed in anew, it is clean."
+    assert marked =~ "Split per notice[U+200B] of the bank[U+E0041]"
+  end
 end
