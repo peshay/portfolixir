@@ -352,6 +352,41 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
     assert journal_mark() == mark
   end
 
+  # User story (the closing act's mutation re-run, E25 S4, F70):
+  # As the agent adopting the source's ISIN in a security merge,
+  # I want a date of the ISIN change outside the range every writer stores
+  # refused by name, like a malformed one,
+  # so that the former ISIN never lands with a date the database would not
+  # hold faithfully.
+  #
+  # Acceptance criteria:
+  # - An isin_changed_on well-formed but past the last storable year, or
+  #   before the first, answers 422 on isin_changed_on with the range, and
+  #   writes nothing.
+  test "an isin_changed_on outside the storable range answers 422 naming it", ctx do
+    ctx = world!(ctx)
+    preview = preview!(ctx)
+    mark = journal_mark()
+
+    for date <- ["3000-01-01", "1899-12-31"] do
+      assert %{"errors" => %{"isin_changed_on" => [message]}} =
+               ctx.conn
+               |> post("/api/v1/securities/#{ctx.source.id}/merge", %{
+                 target_id: ctx.target.id,
+                 plan_digest: preview["plan_digest"],
+                 collapse_key_equal: false,
+                 identity_choice: "adopt_source_isin",
+                 isin_changed_on: date
+               })
+               |> json_response(422)
+
+      assert message == Portfolixir.Input.BoundedDate.message(), date
+    end
+
+    assert journal_mark() == mark
+    assert Catalog.get_security(ctx.source.id)
+  end
+
   # User story (closing act, CR-2):
   # As the agent merging a duplicate whose ISIN fails its check digit,
   # I want the preview and the apply to refuse by name,
