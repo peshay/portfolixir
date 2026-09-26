@@ -328,6 +328,38 @@ defmodule Portfolixir.Catalog.ProviderDataBoundsTest do
     assert Decimal.equal?(rate, Decimal.new("1.1"))
   end
 
+  # User story (the closing act's mutation re-run, F26):
+  # As an operator whose securities table shows each paper's day change,
+  # I want the previous close capped at the bound as the latest close is,
+  # so that a stored row dated in the future never becomes the close the day
+  # change is measured against.
+  #
+  # Acceptance criteria:
+  # - With a row dated past the bound stored beside two plausible closes, the
+  #   catalog metrics measure the day change from the older plausible close to
+  #   the newer one: 9 to 10 is +1, exactly one ninth.
+  test "the day change compares the two newest closes within the bound" do
+    security = security!()
+    today = Clock.today()
+    now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
+
+    # Rows stored before the bound existed, written past the changeset.
+    Repo.insert_all(
+      Quote,
+      [
+        %{security_id: security.id, date: Date.add(today, -3), close: Decimal.new("9")},
+        %{security_id: security.id, date: Date.add(today, -2), close: Decimal.new("10")},
+        %{security_id: security.id, date: Date.add(today, 60), close: Decimal.new("5000")}
+      ]
+      |> Enum.map(&Map.merge(&1, %{source: "auto", inserted_at: now, updated_at: now}))
+    )
+
+    [%{metrics: metrics}] = Quotes.attach_metrics([security])
+    assert Decimal.equal?(metrics.latest_price, Decimal.new("10"))
+    assert Decimal.equal?(metrics.day_change_abs, Decimal.new("1"))
+    assert Decimal.equal?(metrics.day_change_pct, Decimal.div(Decimal.new(1), Decimal.new(9)))
+  end
+
   # User story:
   # As an operator whose valuation prices every position from the latest close
   # and converts every currency through a stored rate,
