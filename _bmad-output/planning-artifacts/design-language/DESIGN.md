@@ -2396,3 +2396,47 @@ or MCP token as the agent (decision T-8).
   line, not the name; the journal names who renamed.
 - **The title stays "Own rules".** It sets the portfolio's rules apart from
   the lens's generic thresholds (ADR-0049 §7), not from the agent.
+
+## Amendment 2026-09-26 — Stored text with invisible characters *(Sprint 16 pick G12.2-B, E25 S7, G20)*
+
+Board `mockups/ux-design-2026-09-24/12-e25-new-marks`, G12.2 variant B (the
+owner's pick, plan D-5), as built in `AppShell.invisible_text_note/1`. Every
+writer now refuses the characters an operator cannot see (tag characters,
+bidirectional controls, the other invisible format characters, runs of
+variation selectors); the note marks a row stored before that rule.
+
+- **One note, whatever the count.** An `attention` data note
+  (`AppShell.data_note`, glyph, word and colour) where the stored text
+  renders: "The text contains 2 invisible characters." or, for a name, "The
+  name contains 1 invisible character." It carries no live-region role; a
+  list of entries is one region, as rule 4 of the data note says.
+- **The remedy is a child of the note.** A research entry or the thesis:
+  "The log only appends: an entry that supersedes this one carries the text
+  without them." and the link-button "Append an entry that supersedes #n",
+  which preselects the entry in the append form's "Supersedes". A security's
+  name: "Typed in anew, it is clean." and "Edit master data", the head's own
+  action once more. Where the text is edited in place (a booking's notes, a
+  rule's name and note, a view's, a bucket's and a category's name) the
+  sentence alone; an appointment's note says it is corrected over the API or
+  MCP, since the page has no appointment edit.
+- **The text behind a disclosure.** `details.perf-table-disclosure`, "Text
+  with the characters made visible" / "Name with …", closed by default,
+  holding each affected text as a `p.mono` with every such character spelled
+  `[U+XXXX]` — the spelling the MCP companion hands the agent. **The one
+  `app.css` rule of the pick:** `.data-note__body .mono { margin:
+  var(--space-1) 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }`, the
+  wrap `.research-entry__body` has, so line breaks stay and a run of escapes
+  cannot overflow the note at 390 px.
+- **Where it stands.** In the research entry under its body (body and
+  invalidation condition counted together) and under the thesis text; in an
+  appointment under its note; under the security detail pane's head; in the
+  booking drawer above "Costs and note", which then stands open; in the rule
+  dialog under its first hint (the name and the version's note, each its own
+  note); after the inline rename form of a view, a bucket and a category.
+  Lists, selects, headings and the history's "Notes" column stay unmarked.
+  Cash accounts and depots have no rename on screen, so they carry no note
+  there (a follow-up names it).
+- **Stored text inside running text is isolated in `<bdi>`**: the stored
+  subject of a rule's words line and a retraction's reason in the thesis
+  card, so a direction control reorders at most the stored text. No picture
+  changes by it.

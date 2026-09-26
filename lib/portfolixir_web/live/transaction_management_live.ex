@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Input.BoundedDate
+  alias Portfolixir.Input.Text
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Projection
   alias Portfolixir.Ledger.Transaction
@@ -1865,6 +1866,13 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           <% end %>
         </p>
 
+        <%!-- E25 S7, G20; pick G12.2 = B: notes stored before the refusal
+             that carry characters the operator cannot see are marked above
+             the disclosure that holds them, which then stands open. --%>
+        <AppShell.invisible_text_note texts={[@transaction_form["notes"]]}>
+          <%= gettext("Typed in anew, it is clean.") %>
+        </AppShell.invisible_text_note>
+
         <%!-- A refused fee or tax opens the costs (#869): an error the reader
              cannot see is no answer. The hook keeps them open, by whoever
              opened them, across the patch each keystroke brings. --%>
@@ -1872,7 +1880,10 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           id="transaction-costs"
           class="transaction-costs"
           phx-hook="DisclosureState"
-          open={(@form_errors["fees"] || @form_errors["taxes"]) && true}
+          open={
+            (@form_errors["fees"] || @form_errors["taxes"] ||
+               Text.invisible_count(@transaction_form["notes"]) > 0) && true
+          }
         >
           <summary class="disclosure-summary">
             <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />

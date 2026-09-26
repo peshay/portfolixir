@@ -184,6 +184,16 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
             <%= gettext("Evaluated in the view “%{view}”, on its steerable basis.", view: @view_name) %>
           </p>
 
+          <%!-- E25 S7, G20; pick G12.2 = B: a name or a note stored before
+               the refusal that carries characters the operator cannot see,
+               marked where it is changed; retyped, the field is clean. --%>
+          <AppShell.invisible_text_note :if={@rule} subject={:name} texts={[@form["name"]]}>
+            <%= gettext("Typed in anew, it is clean.") %>
+          </AppShell.invisible_text_note>
+          <AppShell.invisible_text_note :if={@rule} texts={[@form["note"]]}>
+            <%= gettext("Typed in anew, it is clean.") %>
+          </AppShell.invisible_text_note>
+
           <div class="form-grid">
             <%!-- On create and on edit (#872): the name is the operator's
                  label on the rule, outside the versioning. --%>

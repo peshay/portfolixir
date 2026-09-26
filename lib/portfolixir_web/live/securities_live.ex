@@ -1026,6 +1026,22 @@ defmodule PortfolixirWeb.SecuritiesLive do
         </div>
       </header>
 
+      <%!-- E25 S7, G20; pick G12.2 = B: a name stored before the refusal
+           that carries characters the operator cannot see, marked where it
+           is changed; the remedy is the head's own Edit, once more. --%>
+      <AppShell.invisible_text_note subject={:name} texts={[@selected_security.name]}>
+        <%= gettext("Typed in anew, it is clean.") %>
+        <button
+          type="button"
+          class="link-button"
+          phx-click="row_action"
+          phx-value-action="edit"
+          phx-value-id={@selected_security.id}
+        >
+          <%= gettext("Edit master data") %>
+        </button>
+      </AppShell.invisible_text_note>
+
       <%!-- #837 (plan D-3, pick E4-A): a tab widget — it switches panels in
            one pane and changes no route — so the role stays and the pattern
            is completed: one tab stop (roving tabindex), Arrow Left/Right and
@@ -1417,6 +1433,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   </span>
                 </div>
                 <p :if={event.note} class="research-entry__body"><%= event.note %></p>
+                <AppShell.invisible_text_note texts={[event.note]}>
+                  <%= gettext("It is corrected over the API or MCP.") %>
+                </AppShell.invisible_text_note>
                 <p class="research-entry__meta">
                   <a :if={event.source_url} href={event.source_url} rel="noopener noreferrer" target="_blank">
                     <%= gettext("Source") %>
@@ -2399,6 +2418,17 @@ defmodule PortfolixirWeb.SecuritiesLive do
           <p class="detail-tab-empty"><%= gettext("No thesis recorded yet.") %></p>
         <% else %>
           <p class="research-thesis__text"><%= @thesis_state.thesis %></p>
+          <AppShell.invisible_text_note texts={[@thesis_state.thesis, @thesis_state.invalidation_condition]}>
+            <%= gettext("The log only appends: an entry that supersedes this one carries the text without them.") %>
+            <button
+              type="button"
+              class="link-button"
+              phx-click="supersede_research_entry"
+              phx-value-id={@thesis_state.derived_from_entry_id}
+            >
+              <%= gettext("Append an entry that supersedes #%{id}", id: @thesis_state.derived_from_entry_id) %>
+            </button>
+          </AppShell.invisible_text_note>
           <dl class="research-thesis__facts">
             <div>
               <dt><%= gettext("Conviction") %></dt>
@@ -2432,10 +2462,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
           </dl>
           <%= if @retraction do %>
             <AppShell.data_note severity={:attention} id="thesis-retracted">
-              <%= gettext("Retracted by #%{id}: %{reason}",
-                id: @retraction.id,
-                reason: @retraction.body
-              ) %>
+              <%!-- The stored reason isolated in <bdi> (E25 S7, G20; pick
+                   G12.2 = B): a direction control it still carries reorders
+                   at most the reason, never the sentence. --%>
+              <%= gettext("Retracted by #%{id}:", id: @retraction.id) %> <bdi><%= @retraction.body %></bdi>
             </AppShell.data_note>
           <% end %>
         <% end %>
@@ -2566,6 +2596,21 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 </p>
               <% end %>
               <p class="research-entry__body"><%= note.body %></p>
+              <%!-- E25 S7, G20; pick G12.2 = B: an entry stored before the
+                   refusal that carries characters the operator cannot see.
+                   The log only appends, so the remedy is a superseding
+                   entry. --%>
+              <AppShell.invisible_text_note texts={[note.body, note.invalidation_condition]}>
+                <%= gettext("The log only appends: an entry that supersedes this one carries the text without them.") %>
+                <button
+                  type="button"
+                  class="link-button"
+                  phx-click="supersede_research_entry"
+                  phx-value-id={note.id}
+                >
+                  <%= gettext("Append an entry that supersedes #%{id}", id: note.id) %>
+                </button>
+              </AppShell.invisible_text_note>
               <dl class="research-entry__facts">
                 <%= if note.source_url do %>
                   <div>
@@ -4289,6 +4334,23 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   def handle_event("research_entry_changed", _params, socket), do: {:noreply, socket}
+
+  # E25 S7, G20: the remedy of an entry carrying invisible characters opens
+  # the append form with that entry as the one it supersedes.
+  def handle_event("supersede_research_entry", %{"id" => id}, socket) do
+    case LiveParam.fetch_id(id) do
+      {:ok, entry_id} ->
+        values =
+          Map.put(socket.assigns.research_form_values, "supersedes_id", to_string(entry_id))
+
+        {:noreply, assign(socket, :research_form_values, values)}
+
+      :error ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("supersede_research_entry", _params, socket), do: {:noreply, socket}
 
   # #804: the note card reads by default; its field exists only while the
   # operator is writing one.

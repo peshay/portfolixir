@@ -478,7 +478,7 @@ defmodule PortfolixirWeb.RiskLive do
                   >
                     <%= finding.rule_name %>
                   </button>
-                  <span class="policy-rule__words"><%= PolicyRuleFormat.words(finding, @names) %><.author_mark author={finding.author} lead={gettext("Version in force by:")} /></span>
+                  <span class="policy-rule__words"><.rule_words parts={PolicyRuleFormat.word_parts(finding, @names)} /><.author_mark author={finding.author} lead={gettext("Version in force by:")} /></span>
                   <%!-- A planned change is part of the rule's standard; it
                        is shown where the rule is, with the day it starts. --%>
                   <span
@@ -561,6 +561,17 @@ defmodule PortfolixirWeb.RiskLive do
         </ul>
       </details>
     </section>
+    """
+  end
+
+  attr(:parts, :list, required: true)
+
+  # A rule's words, the stored subject name isolated in <bdi> (E25 S7, G20;
+  # pick G12.2 = B): a direction control a legacy name still carries
+  # reorders at most the name, never the line.
+  defp rule_words(assigns) do
+    ~H"""
+    <%= for {{kind, text}, index} <- Enum.with_index(@parts) do %><%= if index > 0 do %> · <% end %><%= if kind == :stored do %><bdi><%= text %></bdi><% else %><%= text %><% end %><% end %>
     """
   end
 

@@ -3,6 +3,8 @@ defmodule PortfolixirWeb.AppShell do
   use Phoenix.Component
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  alias Portfolixir.Input.Text
+
   attr(:current_path, :string, default: "/")
   attr(:page_title, :string, default: nil)
   attr(:page_subtitle, :string, default: nil)
@@ -516,6 +518,67 @@ defmodule PortfolixirWeb.AppShell do
     </div>
     """
   end
+
+  @doc """
+  The note for stored text that carries characters the operator cannot see
+  (E25 S7, G20; the owner's pick G12.2 = B on board 12-e25-new-marks).
+
+  Every writer refuses such characters now (`Portfolixir.Input.Text`), so
+  the note only ever marks a row stored before the rule. It is ONE
+  `attention` data note, whatever the count, placed where the stored text
+  renders: the sentence ("The text contains 2 invisible characters." or, for
+  `subject: :name`, "The name contains …"), the caller's remedy as a child
+  (`inner_block`: a sentence and the control), and the text in a disclosure
+  with every such character spelled `[U+XXXX]` — the spelling the MCP
+  companion gives the agent. `texts` are the stored texts the note is about
+  (`nil` ones are skipped); nothing renders when none carries any.
+  """
+  attr(:id, :string, default: nil)
+  attr(:texts, :list, required: true)
+  attr(:subject, :atom, values: [:text, :name], default: :text)
+  slot(:inner_block)
+
+  def invisible_text_note(assigns) do
+    marked = Enum.filter(assigns.texts, &(Text.invisible_count(&1) > 0))
+
+    assigns =
+      assigns
+      |> assign(:marked, marked)
+      |> assign(:count, marked |> Enum.map(&Text.invisible_count/1) |> Enum.sum())
+
+    ~H"""
+    <.data_note :if={@count > 0} severity={:attention} id={@id} data-role="invisible-text-note">
+      <%= invisible_sentence(@subject, @count) %>
+      <%= render_slot(@inner_block) %>
+      <details class="perf-table-disclosure">
+        <summary class="disclosure-summary">
+          <.icon name={:chevron_right} size={12} class="disclosure-chevron" />
+          <%= invisible_summary(@subject) %>
+        </summary>
+        <p :for={text <- @marked} class="mono"><%= Text.escape_invisible(text) %></p>
+      </details>
+    </.data_note>
+    """
+  end
+
+  defp invisible_sentence(:text, count),
+    do:
+      ngettext(
+        "The text contains %{count} invisible character.",
+        "The text contains %{count} invisible characters.",
+        count
+      )
+
+  defp invisible_sentence(:name, count),
+    do:
+      ngettext(
+        "The name contains %{count} invisible character.",
+        "The name contains %{count} invisible characters.",
+        count
+      )
+
+  defp invisible_summary(:text), do: gettext("Text with the characters made visible")
+  defp invisible_summary(:name), do: gettext("Name with the characters made visible")
 
   @doc """
   The row menu's shell (Part 4 rule 11 of the 2026-09-12 review): a row's

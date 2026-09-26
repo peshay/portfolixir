@@ -417,6 +417,20 @@ writable over the API and MCP (`/api/v1/securities/:id/notes` and the
 positions with no entry for N days, entries that still need corroboration,
 and dated blocks expiring within N days.
 
+**Invisible characters** (E25). No text is stored any more with a character
+that renders as nothing — a zero-width space, a direction control, a tag
+character, a run of variation selectors: every form, the API, MCP and the
+import refuse it, naming it (`U+200B`). A text stored before carries an
+**Attention** note where it is shown — "The text contains 2 invisible
+characters." (a name: "The name contains …") — with what to do about it
+and, behind *Text with the characters made visible*, the text spelled the
+way the agent receives it (`Auftrags[U+200B]bestand`). In the research log
+the remedy is **Append an entry that supersedes #n**, which preselects the
+entry in the form; a security's name is corrected with **Edit master data**;
+a booking's notes, a rule's name and note, and the names of views, buckets
+and categories carry the note where they are edited, and a clean retype
+removes it.
+
 **Benchmark securities.** A security can be marked as a benchmark from its
 row menu ("Mark as benchmark"): a reference series the portfolio is compared
 against — an index proxied by an ETF, gold by an ETC — fed by the ordinary

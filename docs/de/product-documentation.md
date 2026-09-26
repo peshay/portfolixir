@@ -448,6 +448,21 @@ einschließlich der drei Hygiene-Reads — gehaltene Positionen ohne Eintrag
 seit N Tagen, Einträge, die noch bestätigt werden müssen, und datierte
 Sperren, die in N Tagen ablaufen.
 
+**Unsichtbare Zeichen** (E25). Kein Text wird mehr mit einem Zeichen
+gespeichert, das als nichts dargestellt wird — ein Leerzeichen der Breite
+null, ein Steuerzeichen der Schreibrichtung, ein Tag-Zeichen, eine Folge von
+Variantenselektoren: Jedes Formular, die API, MCP und der Import lehnen es ab
+und nennen es (`U+200B`). Ein zuvor gespeicherter Text trägt dort, wo er
+steht, eine Notiz **Achtung** — „Der Text enthält 2 unsichtbare Zeichen.“ (ein
+Name: „Der Name enthält …“) — mit der Abhilfe und, hinter *Text mit sichtbar
+gemachten Zeichen*, dem Text in der Schreibweise, die der Agent bekommt
+(`Auftrags[U+200B]bestand`). Im Research-Log ist die Abhilfe **Eintrag
+anhängen, der #n ersetzt**, das den Eintrag im Formular vorwählt; der Name
+eines Wertpapiers wird mit **Stammdaten bearbeiten** korrigiert; die Notizen
+einer Buchung, Name und Notiz einer Regel sowie die Namen von Ansichten,
+Buckets und Kategorien tragen die Notiz dort, wo sie bearbeitet werden, und
+eine saubere Neueingabe entfernt sie.
+
 **Benchmark-Wertpapiere.** Ein Wertpapier lässt sich aus seinem Zeilenmenü
 als Benchmark markieren („Als Benchmark markieren“): eine Referenzreihe, mit
 der das Portfolio verglichen wird — ein Index über einen ETF, Gold über einen

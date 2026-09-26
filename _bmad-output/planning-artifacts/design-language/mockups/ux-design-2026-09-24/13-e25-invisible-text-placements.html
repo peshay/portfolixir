@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — G12.2 B: die Datennotiz an den Stellen, die Board 12 nur nennt (Vorher / Nachher)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<style>
+  /* Board chrome only. Inside the frames: the live classes of
+     AppShell.data_note/1 (.data-note.data-note--attention, .data-note__body,
+     .link-button), securities_live.ex (the Termine timeline:
+     .research-timeline, .research-entry, .research-entry__head,
+     .research-entry__body), transaction_management_live.ex (the booking
+     drawer's #transaction-costs), Risk.PolicyRuleDialog (.modal-body, .hint,
+     .form-grid), buckets_live.ex (.bucket-list__item.is-editing,
+     .bucket-edit-form) and classifications_live.ex (.cat-edit-form). The one
+     app.css rule G12.2 B proposed (.data-note__body .mono) now ships. */
+  .col { display: grid; gap: 10px; align-content: start; flex: 1 1 520px; min-width: 0; }
+  .stage { padding: 14px; display: grid; gap: 10px; }
+  .dlg { background: var(--color-bg-muted); padding: 16px; }
+  .dlg .modal { max-width: none; }
+  .notes { font-size: 12.5px; display: grid; gap: 6px; }
+  .notes p { margin: 0; }
+  .frame-cap { margin: 0 0 6px; font-size: 12px; color: var(--mock-ink); }
+</style>
+</head>
+<body data-widths="1200">
+
+<div class="pickbar"><b>G12.2 B an den Stellen, die Board 12 nur in seiner Tabelle nennt.</b> Board 12 zeichnet die Datennotiz am Research-Eintrag und am Namen eines Wertpapiers; seine Tabelle „Wo die Marke steht (B)“ nennt die übrigen Stellen in Worten. Dieses Board zeigt sie als Vorher / Nachher: dieselbe eine Notiz „Achtung“, derselbe Satz, dieselbe Aufklappung, dort, wo der gespeicherte Text steht oder bearbeitet wird. <b>Keine Wahl</b>, die Anatomie ist die gewählte. Alle Namen, Zahlen und Daten sind erfunden. Gespeichert sind Leerzeichen der Breite null (U+200B), die nichts zeigen.</div>
+
+<section class="mock-board">
+  <h2>Wertpapier → Termine · die Notiz eines Termins <small>securities_live.ex</small></h2>
+  <div class="mock-row">
+    <div class="col"><div class="mock-frame mock-before"><span class="mock-tag">Vorher</span><div class="stage">
+      <ol class="research-timeline"><li class="research-entry">
+        <div class="research-entry__head"><span class="badge">Quartalszahlen</span><time>20.11.2026</time><span class="badge badge--neutral">geschätzt</span></div>
+        <p class="research-entry__body">Telefonkonferenz Q3&#8203;</p>
+      </li></ol>
+    </div></div></div>
+    <div class="col"><div class="mock-frame mock-after"><span class="mock-tag">Nachher</span><div class="stage">
+      <ol class="research-timeline"><li class="research-entry">
+        <div class="research-entry__head"><span class="badge">Quartalszahlen</span><time>20.11.2026</time><span class="badge badge--neutral">geschätzt</span></div>
+        <p class="research-entry__body">Telefonkonferenz Q3&#8203;</p>
+        <div class="data-note data-note--attention"><span class="data-note__icon" aria-hidden="true">&#9888;</span><span class="data-note__word">Achtung</span><div class="data-note__body">Der Text enthält 1 unsichtbares Zeichen. Er wird über die API oder MCP korrigiert.
+          <details class="perf-table-disclosure" open><summary class="disclosure-summary">Text mit sichtbar gemachten Zeichen</summary><p class="mono">Telefonkonferenz Q3[U+200B]</p></details>
+        </div></div>
+      </li></ol>
+    </div></div></div>
+  </div>
+  <div class="notes"><p>Die Seite hat kein Bearbeiten für Termine; der Satz nennt den Weg ohne Link (UX-DR26).</p></div>
+</section>
+
+<section class="mock-board">
+  <h2>Transaktionen → Buchung bearbeiten · die Notizen <small>transaction_management_live.ex</small></h2>
+  <div class="mock-row">
+    <div class="col"><div class="mock-frame mock-before"><span class="mock-tag">Vorher · „Kosten und Notiz“ zu</span><div class="stage">
+      <details class="transaction-costs"><summary class="disclosure-summary">Kosten und Notiz</summary></details>
+    </div></div></div>
+    <div class="col"><div class="mock-frame mock-after"><span class="mock-tag">Nachher · die Notiz darüber, die Aufklappung offen</span><div class="stage">
+      <div class="data-note data-note--attention"><span class="data-note__icon" aria-hidden="true">&#9888;</span><span class="data-note__word">Achtung</span><div class="data-note__body">Der Text enthält 1 unsichtbares Zeichen. Neu eingegeben ist er sauber.
+        <details class="perf-table-disclosure"><summary class="disclosure-summary">Text mit sichtbar gemachten Zeichen</summary></details>
+      </div></div>
+      <details class="transaction-costs" open><summary class="disclosure-summary">Kosten und Notiz</summary>
+        <label><span>Notizen</span><textarea>Bonus&#8203;</textarea></label>
+      </details>
+    </div></div></div>
+  </div>
+</section>
+
+<section class="mock-board">
+  <h2>Vermögen → Risiko → Regel ändern · Name und Notiz <small>policy_rule_dialog.ex</small></h2>
+  <div class="mock-row">
+    <div class="col"><div class="mock-frame mock-after"><span class="mock-tag">Nachher · je eine Notiz unter dem ersten Hinweis</span><div class="dlg"><div class="modal"><div class="modal-body">
+      <p class="hint">Ausgewertet in der Ansicht „Alles“, auf ihrer steuerbaren Basis.</p>
+      <div class="data-note data-note--attention"><span class="data-note__icon" aria-hidden="true">&#9888;</span><span class="data-note__word">Achtung</span><div class="data-note__body">Der Name enthält 1 unsichtbares Zeichen. Neu eingegeben ist er sauber.
+        <details class="perf-table-disclosure"><summary class="disclosure-summary">Name mit sichtbar gemachten Zeichen</summary></details></div></div>
+      <div class="data-note data-note--attention"><span class="data-note__icon" aria-hidden="true">&#9888;</span><span class="data-note__word">Achtung</span><div class="data-note__body">Der Text enthält 2 unsichtbare Zeichen. Neu eingegeben ist er sauber.
+        <details class="perf-table-disclosure"><summary class="disclosure-summary">Text mit sichtbar gemachten Zeichen</summary></details></div></div>
+      <div class="form-grid"><label><span>Name</span><input type="text" value="Barreserve&#8203;"></label><label class="form-grid__wide"><span>Notiz (optional)</span><input type="text" value="Untergrenze&#8203;&#8203;"></label></div>
+    </div></div></div></div></div>
+  </div>
+  <div class="notes"><p>Vorher: dieselbe Maske ohne Notiz. Beide Notizen folgen dem Feld: Tippt der Operator den Namen neu, verschwindet die seine.</p></div>
+</section>
+
+<section class="mock-board">
+  <h2>Ansichten, Buckets, Kategorien · beim Umbenennen <small>buckets_live.ex, classifications_live.ex</small></h2>
+  <div class="mock-row">
+    <div class="col"><div class="mock-frame mock-after"><span class="mock-tag">Nachher · unter dem Umbenennen-Formular</span><div class="stage">
+      <ul class="bucket-list"><li class="bucket-list__item is-editing">
+        <form class="inline-form bucket-edit-form"><input value="Alters&#8203;vorsorge"><button type="button" class="button">Speichern</button><button type="button">Abbrechen</button></form>
+        <div class="data-note data-note--attention"><span class="data-note__icon" aria-hidden="true">&#9888;</span><span class="data-note__word">Achtung</span><div class="data-note__body">Der Name enthält 1 unsichtbares Zeichen. Neu eingegeben ist er sauber.
+          <details class="perf-table-disclosure" open><summary class="disclosure-summary">Name mit sichtbar gemachten Zeichen</summary><p class="mono">Alters[U+200B]vorsorge</p></details></div></div>
+      </li></ul>
+    </div></div></div>
+  </div>
+  <div class="notes"><p>Vorher: das Formular allein. Listen, Auswahlfelder und Überschriften bleiben ohne Marke (Board 12). Konten und Depots haben keine Umbenennung auf dem Bildschirm und darum keine Stelle für die Notiz; das ist ein offener Punkt.</p></div>
+</section>
+
+</body>
+</html>
