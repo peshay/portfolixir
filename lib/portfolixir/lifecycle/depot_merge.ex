@@ -596,7 +596,8 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
       separate: separate,
       positions: positions(base, Ledger.position_costs(after_rows ++ base.splits)),
       rounding_differences: rounding_differences(base, combined, separate),
-      cash_accounts: MergeFigures.collapsed_cash_accounts(pairs)
+      cash_accounts: MergeFigures.collapsed_cash_accounts(pairs),
+      flow_changes: MergeFigures.collapse_flow_changes(pairs)
     }
   end
 
@@ -758,7 +759,8 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
         end),
       positions: outcome.positions,
       rounding_differences: outcome.rounding_differences,
-      cash_accounts: outcome.cash_accounts
+      cash_accounts: outcome.cash_accounts,
+      flow_changes: outcome.flow_changes
     }
   end
 

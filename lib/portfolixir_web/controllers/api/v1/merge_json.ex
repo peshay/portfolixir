@@ -356,7 +356,8 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
             balance_before: JSON.decimal(account.balance_before),
             balance_after: JSON.decimal(account.balance_after)
           }
-        end)
+        end),
+      flow_changes: flow_changes(outcome.flow_changes)
     }
   end
 
@@ -533,8 +534,24 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
             balance_before: JSON.decimal(account.balance_before),
             balance_after: JSON.decimal(account.balance_after)
           }
-        end)
+        end),
+      flow_changes: flow_changes(outcome.flow_changes)
     }
+  end
+
+  # §16 invariant 9: each flow a collapse removes or moves, and the cash
+  # account whose leg it is.
+  defp flow_changes(changes) do
+    Enum.map(changes, fn change ->
+      %{
+        kind: Atom.to_string(change.kind),
+        cash_account_id: change.cash_account_id,
+        transaction_id: change.transaction_id,
+        date: JSON.date(change.date),
+        change: JSON.decimal(change.change),
+        collapsed_transaction_id: change.collapsed_transaction_id
+      }
+    end)
   end
 
   defp figures(nil), do: nil
@@ -606,16 +623,7 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
             folds: anchor.folds
           }
         end),
-      flow_changes:
-        Enum.map(outcome.flow_changes, fn change ->
-          %{
-            kind: Atom.to_string(change.kind),
-            transaction_id: change.transaction_id,
-            date: JSON.date(change.date),
-            change: JSON.decimal(change.change),
-            collapsed_transaction_id: change.collapsed_transaction_id
-          }
-        end),
+      flow_changes: flow_changes(outcome.flow_changes),
       other_accounts:
         Enum.map(outcome.other_accounts, fn account ->
           %{
