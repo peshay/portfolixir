@@ -24,6 +24,7 @@ defmodule Portfolixir.Lifecycle.SecurityMergeCarryTest do
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.IdentifierAlias
+  alias Portfolixir.Catalog.Isin
   alias Portfolixir.Catalog.Quote, as: SecurityQuote
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
@@ -565,7 +566,7 @@ defmodule Portfolixir.Lifecycle.SecurityMergeCarryTest do
     # - Once the source's ISIN is cleared, the same pair merges.
     test "a source ISIN that fails its check digit refuses the merge by name", ctx do
       bad_isin = "XS0000004560"
-      refute Portfolixir.Catalog.Isin.valid?(bad_isin)
+      refute Isin.valid?(bad_isin)
 
       Repo.transaction(fn ->
         Repo.query!("SELECT set_config('portfolixir.journal_actor', 'owner_ui', true)")
