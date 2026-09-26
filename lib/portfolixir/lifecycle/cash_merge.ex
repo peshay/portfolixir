@@ -84,6 +84,7 @@ defmodule Portfolixir.Lifecycle.CashMerge do
   alias Portfolixir.Lifecycle
   alias Portfolixir.Lifecycle.AccountNames
   alias Portfolixir.Lifecycle.Delete
+  alias Portfolixir.Lifecycle.MergeFigures
   alias Portfolixir.Lifecycle.MergeFlow
   alias Portfolixir.Lifecycle.MergeRecord
   alias Portfolixir.Lifecycle.MergeWriter
@@ -399,6 +400,8 @@ defmodule Portfolixir.Lifecycle.CashMerge do
     t_rows = Enum.filter(rest, &touches?(&1, t))
     t_all = Enum.filter(data.rows, &touches?(&1, t))
     pairs = pairs(s_rows, t_rows, s, t)
+    third = third_accounts(pairs, s, t)
+    third_rows = third_rows(third)
     {appended, not_kept} = AccountNames.merge_names(source, target)
 
     base = %{
@@ -416,6 +419,8 @@ defmodule Portfolixir.Lifecycle.CashMerge do
       pairs: pairs,
       s_anchors: anchors(s_rows, s),
       t_anchors: anchors(t_rows, t),
+      third_rows: third_rows,
+      third_anchors: Map.new(third, &{&1, anchors(third_rows, &1)}),
       eod_t: eod(t_all, t),
       appended_names: appended,
       names_not_kept: not_kept,
@@ -585,19 +590,22 @@ defmodule Portfolixir.Lifecycle.CashMerge do
   end
 
   # §16 invariant 9: the external flows a collapse removes (a collapsed
-  # external row's own flow, on its day) or moves (a collapsed row before one
-  # of the source's anchors: that anchor's residual — an external flow —
-  # grows by the row's amount, on the anchor's day).
+  # external row's own flow, on its day) or moves (a collapsed row before a
+  # later anchor of the account it books on — the source's, or a third
+  # account's for a collapsed transfer: that anchor's residual, an external
+  # flow, grows by the row's leg on that account, on the anchor's day). Each
+  # change names the account whose leg it is.
   defp flow_changes(base, pairs, folded, s) do
     Enum.flat_map(pairs, fn {row, _target_row} ->
       effect = Projection.effects(row)
-      delta = account_delta(effect, s)
+      delta = MergeFigures.cash_delta(row, s)
 
       removed =
         if effect.external and not Decimal.equal?(delta, @zero),
           do: [
             %{
               kind: :removed,
+              cash_account_id: s,
               transaction_id: row.id,
               date: row.date,
               change: Decimal.negate(delta),
@@ -606,55 +614,56 @@ defmodule Portfolixir.Lifecycle.CashMerge do
           ],
           else: []
 
-      removed ++ absorbed(base, row, delta, folded)
+      source_absorbed =
+        for change <- MergeFigures.absorbed(row, s, delta, base.s_anchors),
+            do: %{
+              change
+              | transaction_id: Map.get(folded, change.transaction_id, change.transaction_id)
+            }
+
+      third_absorbed =
+        for account_id <- third_accounts([{row, nil}], s, base.target.id),
+            change <-
+              MergeFigures.absorbed(
+                row,
+                account_id,
+                MergeFigures.cash_delta(row, account_id),
+                Map.get(base.third_anchors, account_id, [])
+              ),
+            do: change
+
+      removed ++ source_absorbed ++ third_absorbed
     end)
   end
 
-  defp absorbed(base, row, delta, folded) do
-    key = Projection.replay_key(row)
-
-    case base.s_anchors
-         |> Enum.filter(&(Projection.replay_key(&1) > key))
-         |> Enum.min_by(&Projection.replay_key/1, fn -> nil end) do
-      nil ->
-        []
-
-      anchor ->
-        if Decimal.equal?(delta, @zero) do
-          []
-        else
-          [
-            %{
-              kind: :absorbed,
-              transaction_id: Map.get(folded, anchor.id, anchor.id),
-              date: anchor.date,
-              change: delta,
-              collapsed_transaction_id: row.id
-            }
-          ]
-        end
-    end
+  # The cash accounts a collapsed row books on besides the two merged.
+  defp third_accounts(pairs, s, t) do
+    for {row, _target_row} <- pairs,
+        {account_id, _leg} <- Projection.effects(row).cash,
+        account_id not in [nil, s, t],
+        uniq: true,
+        do: account_id
   end
 
-  defp account_delta(effect, account_id) do
-    for {^account_id, {:add, delta}} <- effect.cash, reduce: @zero do
-      acc -> Decimal.add(acc, delta)
-    end
+  # Every row of the third accounts a key-equal pair books on: a collapse of
+  # a transfer with one of them changes its balance, and moves a flow into
+  # its next anchor.
+  defp third_rows([]), do: []
+
+  defp third_rows(third) do
+    Repo.all(
+      from(t in Transaction,
+        where: t.cash_account_id in ^third or t.counter_cash_account_id in ^third
+      )
+    )
   end
 
   # A collapsed transfer between the source and a third account removes that
   # account's leg too: its balance before and after.
+  defp other_accounts(_base, []), do: []
+
   defp other_accounts(base, pairs) do
-    ids = [base.source.id, base.target.id]
-
-    third =
-      for {row, _target_row} <- pairs,
-          {account_id, _leg} <- Projection.effects(row).cash,
-          account_id not in [nil | ids],
-          uniq: true,
-          do: account_id
-
-    case third do
+    case third_accounts(pairs, base.source.id, base.target.id) do
       [] ->
         []
 
@@ -664,17 +673,12 @@ defmodule Portfolixir.Lifecycle.CashMerge do
         names =
           Map.new(Repo.all(from(a in CashAccount, where: a.id in ^third, select: {a.id, a.name})))
 
-        rows =
-          Repo.all(
-            from(t in Transaction,
-              where: t.cash_account_id in ^third or t.counter_cash_account_id in ^third
-            )
-          )
-
-        before = Projection.cash_balances(rows)
+        before = Projection.cash_balances(base.third_rows)
 
         after_collapse =
-          rows |> Enum.reject(&MapSet.member?(collapsed, &1.id)) |> Projection.cash_balances()
+          base.third_rows
+          |> Enum.reject(&MapSet.member?(collapsed, &1.id))
+          |> Projection.cash_balances()
 
         for id <- Enum.sort(third) do
           %{

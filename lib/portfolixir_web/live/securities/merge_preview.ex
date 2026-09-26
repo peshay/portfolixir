@@ -33,6 +33,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.PolicyRuleReferences
+  alias PortfolixirWeb.PortfolioAccounts.MergePreview, as: AccountMergePreview
   alias PortfolixirWeb.SecuritiesLive
   alias PortfolixirWeb.SecurityEventLabel
   alias PortfolixirWeb.TransactionKindLabel
@@ -486,12 +487,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
             <%= gettext("Holdings afterwards") %> <b><%= gettext("%{quantity} shares", quantity: Format.exact(@holdings.collapsed)) %></b>.
           </small>
           <small :if={@collapsed.cash_accounts != []} class="merge-option__extra">
-            <%= gettext("Also changes: %{changes}",
-              changes:
-                Enum.map_join(@collapsed.cash_accounts, " · ", fn account ->
-                  "#{account.name} #{Format.money(account.balance_before)} → #{Format.money(account.balance_after)}"
-                end)
-            ) %>
+            <%= gettext("Also changes: %{changes}", changes: Enum.join(collapse_effects(@collapsed), " · ")) %>
           </small>
         </span>
       </label>
@@ -519,6 +515,21 @@ defmodule PortfolixirWeb.Securities.MergePreview do
   attr(:pairs, :list, required: true)
   attr(:names, :map, required: true)
   attr(:currency, :string, required: true)
+
+  # What removing the duplicates changes outside the pair (§16 invariant 9,
+  # board 13): each cash account's balance, and a flow a later set balance
+  # of it absorbs.
+  defp collapse_effects(outcome) do
+    names = Map.new(outcome.cash_accounts, &{&1.id, &1.name})
+
+    Enum.map(outcome.cash_accounts, fn account ->
+      "#{account.name} #{Format.money(account.balance_before)} → #{Format.money(account.balance_after)}"
+    end) ++
+      AccountMergePreview.absorbed_lines(
+        outcome.flow_changes,
+        &Map.get(names, &1, "##{&1}")
+      )
+  end
 
   defp pair_table(assigns) do
     ~H"""

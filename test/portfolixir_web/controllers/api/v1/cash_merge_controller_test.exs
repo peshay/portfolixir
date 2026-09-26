@@ -84,7 +84,10 @@ defmodule PortfolixirWeb.Api.V1.CashMergeControllerTest do
            } =
              Enum.find(keep["restated_anchors"], &(&1["id"] == rows.s_anchor.id))
 
-    assert [%{"kind" => "absorbed", "change" => "12.4"}] = collapse["flow_changes"]
+    assert [%{"kind" => "absorbed", "change" => "12.4", "cash_account_id" => absorbed_on}] =
+             collapse["flow_changes"]
+
+    assert absorbed_on == ctx.source.id
     assert journal_mark() == mark
   end
 

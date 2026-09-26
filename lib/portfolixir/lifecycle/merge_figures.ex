@@ -176,6 +176,85 @@ defmodule Portfolixir.Lifecycle.MergeFigures do
   # --- the cash side of a collapse ------------------------------------------------------
 
   @doc """
+  Where a collapse moves a flow (ADR-0050 §16 invariant 9). A collapsed
+  row's leg `delta` on the cash account `account_id` is no longer part of
+  the running balance the account's next balance anchor states, so that
+  anchor's residual — an external flow — changes by the leg, on the
+  anchor's date. `anchors` are the account's balance anchors. Answers `[]`
+  when no anchor follows the row in replay order or the leg is zero,
+  otherwise one `:absorbed` change naming the account, the anchor, its
+  date, the change and the collapsed row.
+  """
+  @spec absorbed(map(), term(), Decimal.t(), [map()]) :: [map()]
+  def absorbed(row, account_id, delta, anchors) do
+    key = Projection.replay_key(row)
+
+    anchors
+    |> Enum.filter(&(Projection.replay_key(&1) > key))
+    |> Enum.min_by(&Projection.replay_key/1, fn -> nil end)
+    |> absorbed_change(row, account_id, delta)
+  end
+
+  defp absorbed_change(nil, _row, _account_id, _delta), do: []
+
+  defp absorbed_change(anchor, row, account_id, delta) do
+    if Decimal.equal?(delta, @zero) do
+      []
+    else
+      [
+        %{
+          kind: :absorbed,
+          cash_account_id: account_id,
+          transaction_id: anchor.id,
+          date: anchor.date,
+          change: delta,
+          collapsed_transaction_id: row.id
+        }
+      ]
+    end
+  end
+
+  @doc "The sum of `row`'s additive cash legs on `account_id` (zero when it has none)."
+  @spec cash_delta(map(), term()) :: Decimal.t()
+  def cash_delta(row, account_id) do
+    for {^account_id, {:add, delta}} <- Projection.effects(row).cash, reduce: @zero do
+      acc -> Decimal.add(acc, delta)
+    end
+  end
+
+  @doc """
+  The flows a collapse of `pairs` (`{source_row, target_row}`, the source
+  row collapsed) moves into a set balance, for every cash account a
+  collapsed row books on (`absorbed/4`), in the order of the pairs. `[]`
+  without pairs.
+  """
+  @spec collapse_flow_changes([{map(), map()}]) :: [map()]
+  def collapse_flow_changes([]), do: []
+
+  def collapse_flow_changes(pairs) do
+    ids =
+      for {row, _target_row} <- pairs,
+          {account_id, {:add, _delta}} <- Projection.effects(row).cash,
+          account_id != nil,
+          uniq: true,
+          do: account_id
+
+    anchors =
+      Repo.all(
+        from(t in Transaction,
+          where: t.type == "balance_adjustment" and t.cash_account_id in ^ids
+        )
+      )
+      |> Enum.group_by(& &1.cash_account_id)
+
+    for {row, _target_row} <- pairs,
+        account_id <- ids,
+        change <-
+          absorbed(row, account_id, cash_delta(row, account_id), anchors[account_id] || []),
+        do: change
+  end
+
+  @doc """
   A collapsed booking leaves its cash account too: each cash account a row
   of `pairs` (`{source_row, target_row}`, the source row collapsed) books on,
   with its balance before and after the collapse. `[]` without pairs.

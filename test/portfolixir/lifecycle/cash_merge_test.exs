@@ -276,6 +276,73 @@ defmodule Portfolixir.Lifecycle.CashMergeTest do
 
       assert rows.s_anchor.id in Enum.map(changes, & &1.transaction_id)
     end
+
+    # User story:
+    # As the operator collapsing a transfer the old account and the new one
+    # both made to a third account,
+    # I want the preview to say that the third account's later set balance
+    # absorbs the removed transfer,
+    # so that a collapse never moves a flow in my returns I was not shown.
+    #
+    # Acceptance criteria:
+    # - The collapse outcome lists an absorbed flow change naming the third
+    #   account, its first anchor after the collapsed transfer, that anchor's
+    #   date and the third account's leg of the transfer.
+    # - Every flow change names the cash account it lands on.
+    # - After the apply, the performance walk's flows differ from before by
+    #   exactly the listed changes.
+    test "a collapsed transfer to a third account moves its leg into that account's later anchor",
+         ctx do
+      side = cash!(ctx.portfolio, "Side pocket")
+      book!(ctx, ctx.source, "deposit", "400.00", ~D[2025-01-02])
+      book!(ctx, ctx.target, "deposit", "500.00", ~D[2025-01-02])
+      s_transfer = transfer!(ctx, ctx.source, side, "50.00", ~D[2025-03-01], nil)
+      transfer!(ctx, ctx.target, side, "50.00", ~D[2025-03-01], nil)
+      side_anchor = anchor!(side, "100.00", ~D[2025-04-01])
+      before = walk(ctx)
+
+      {:ok, preview} = Lifecycle.preview_cash_merge(ctx.source.id, ctx.target.id)
+      changes = preview.outcomes[true].flow_changes
+
+      assert [
+               %{
+                 kind: :absorbed,
+                 cash_account_id: side_id,
+                 transaction_id: absorbing,
+                 date: ~D[2025-04-01],
+                 change: change,
+                 collapsed_transaction_id: collapsed
+               }
+             ] = changes
+
+      assert side_id == side.id
+      assert absorbing == side_anchor.id
+      assert collapsed == s_transfer.id
+      assert n(change) == dec("50.00")
+
+      merge!(ctx, true, preview)
+
+      expected_flows =
+        Enum.reduce(changes, flows(before), fn %{date: date, change: change}, acc ->
+          Map.update!(acc, date, &n(Decimal.add(&1, change)))
+        end)
+
+      assert flows(walk(ctx)) == expected_flows
+    end
+
+    test "every flow change names the cash account it lands on", ctx do
+      rows = worked_example!(ctx)
+      s_deposit = book!(ctx, ctx.source, "deposit", "25.00", ~D[2025-02-20])
+      book!(ctx, ctx.target, "deposit", "25.00", ~D[2025-02-20])
+
+      {:ok, preview} = Lifecycle.preview_cash_merge(ctx.source.id, ctx.target.id)
+      changes = preview.outcomes[true].flow_changes
+
+      assert changes != []
+      assert Enum.all?(changes, &(&1.cash_account_id == ctx.source.id))
+      assert s_deposit.id in Enum.map(changes, & &1.transaction_id)
+      assert rows.s_anchor.id in Enum.map(changes, & &1.transaction_id)
+    end
   end
 
   describe "journal, depots, buckets and names (§7 steps 5 and 7, §13, §16 invariant 11)" do

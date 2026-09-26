@@ -544,22 +544,36 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
         )
       end)
 
-    absorbed =
-      for %{kind: :absorbed} = change <- outcome.flow_changes do
-        gettext("a set balance of %{name} on %{date} absorbs %{amount}",
-          name: source_name,
-          date: Date.to_iso8601(change.date),
-          amount: Format.money(change.change)
-        )
-      end
+    # The source's own set balances, and a third account's for a collapsed
+    # transfer with it.
+    names = Map.new(outcome.other_accounts, &{&1.id, &1.name})
 
-    accounts ++ positions ++ absorbed
+    accounts ++
+      positions ++ absorbed_lines(outcome.flow_changes, &Map.get(names, &1, source_name))
   end
 
   defp depot_collapse_effects(outcome) do
+    names = Map.new(outcome.cash_accounts, &{&1.id, &1.name})
+
     Enum.map(outcome.cash_accounts, fn account ->
       "#{account.name} #{Format.money(account.balance_before)} → #{Format.money(account.balance_after)}"
-    end)
+    end) ++ absorbed_lines(outcome.flow_changes, &Map.get(names, &1, "##{&1}"))
+  end
+
+  @doc """
+  One phrase per flow a collapse moves into a set balance (§16 invariant 9):
+  "a set balance of <account> on <date> absorbs <amount>", the account named
+  by `name_of`.
+  """
+  @spec absorbed_lines([map()], (term() -> String.t())) :: [String.t()]
+  def absorbed_lines(flow_changes, name_of) do
+    for %{kind: :absorbed} = change <- flow_changes do
+      gettext("a set balance of %{name} on %{date} absorbs %{amount}",
+        name: name_of.(change.cash_account_id),
+        date: Date.to_iso8601(change.date),
+        amount: Format.money(change.change)
+      )
+    end
   end
 
   # -- the notes ------------------------------------------------------------------

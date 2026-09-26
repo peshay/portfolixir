@@ -311,6 +311,55 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
       merge!(ctx, false)
       assert walk(ctx) == before
     end
+
+    # User story:
+    # As the operator collapsing bookings both depots settled on one cash
+    # account,
+    # I want the preview to say when a later set balance of that cash
+    # account absorbs a removed booking,
+    # so that a collapse never moves a flow in my returns I was not shown.
+    #
+    # Acceptance criteria:
+    # - Without collapse nothing moves; the collapse outcome lists, per
+    #   collapsed row before the cash account's next anchor, the account, the
+    #   anchor, its date and the row's cash leg.
+    # - After the apply, the performance walk's flows differ from before by
+    #   exactly the listed changes.
+    test "a collapsed booking before a later anchor of its cash account is a listed flow", ctx do
+      rows = worked_example!(ctx)
+
+      {:ok, anchor} =
+        Ledger.set_cash_balance(agent(), ctx.cash_t, %{date: ~D[2025-08-01], amount: "6000.00"})
+
+      before = walk(ctx)
+      {:ok, preview} = Lifecycle.preview_depot_merge(ctx.source.id, ctx.target.id)
+
+      assert preview.outcomes[false].flow_changes == []
+      changes = preview.outcomes[true].flow_changes
+
+      assert Enum.sort(
+               Enum.map(
+                 changes,
+                 &{&1.kind, &1.cash_account_id, &1.transaction_id, &1.date, n(&1.change),
+                  &1.collapsed_transaction_id}
+               )
+             ) ==
+               Enum.sort([
+                 {:absorbed, ctx.cash_t.id, anchor.id, ~D[2025-08-01], dec("50.00"),
+                  rows.s_div.id},
+                 {:absorbed, ctx.cash_t.id, anchor.id, ~D[2025-08-01], dec("-440"),
+                  rows.s_buy_pair.id}
+               ])
+
+      merge!(ctx, true, preview)
+
+      expected =
+        Enum.reduce(changes, flows(before), fn %{date: date, change: change}, acc ->
+          Map.update!(acc, date, &n(Decimal.add(&1, change)))
+        end)
+
+      assert flows(walk(ctx)) == expected
+    end
   end
 
   describe "view membership (§7 depot guards, the membership rule)" do
@@ -1081,6 +1130,8 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
     |> Map.fetch!(:daily)
     |> Map.new(&{&1.date, {Decimal.normalize(&1.flow), Decimal.normalize(&1.value)}})
   end
+
+  defp flows(walk), do: Map.new(walk, fn {date, {flow, _value}} -> {date, flow} end)
 
   defp position(outcome, security),
     do: Enum.find(outcome.positions, &(&1.security_id == security.id))

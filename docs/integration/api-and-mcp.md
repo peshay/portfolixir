@@ -441,7 +441,8 @@ confirms with the same `plan_digest`, so both see the same plan.
     (`collapsed_duplicate` or `collapsed_split`), `positions` (per depot the
     source holds: `source`, `target` and `after`, each `quantity`,
     `cost_basis`, `avg_cost` and `realized_result`), `rounding_differences`
-    and `cash_accounts`, with `positions_basis` as for a depot merge.
+    `cash_accounts` and `flow_changes`, with `positions_basis` as for a
+    depot merge.
 
   Every quantity, close, weight and decimal is a string. The digest covers
   both securities, every booking of either, their quotes, category
@@ -982,9 +983,12 @@ Example quote sync response:
     account's balance at the end of that day, from its bookings before the
     merge; on a day both accounts carry anchors the target's last one holds
     both and the others are deleted), `flow_changes` (the external flows a
-    collapse removes, and those it moves into one of the source's later
-    anchors), `other_accounts` and `positions` (what a collapsed transfer or
-    trade changes elsewhere).
+    collapse removes — `kind` `removed` — and those it moves into a later
+    balance anchor of the account its booking stood on — `kind` `absorbed`,
+    the source's own or, for a collapsed transfer, the third account's —,
+    each with `cash_account_id`, the anchor's or booking's `transaction_id`,
+    `date`, `change` and `collapsed_transaction_id`), `other_accounts` and
+    `positions` (what a collapsed transfer or trade changes elsewhere).
 
   Every decimal is a string. The digest covers both accounts, every booking
   either references with its `updated_at`, every figure and the guards; the
@@ -1085,8 +1089,12 @@ Example quote sync response:
     (every security the source holds, each with `source`, `target` and
     `after`, each `quantity`, `cost_basis`, `avg_cost` and `realized_result`;
     `target` is `null` where the target holds no booking of it),
-    `rounding_differences` and `cash_accounts` (each cash account a
-    collapsed booking changes, with `balance_before` and `balance_after`);
+    `rounding_differences`, `cash_accounts` (each cash account a
+    collapsed booking changes, with `balance_before` and `balance_after`)
+    and `flow_changes` (each flow a collapsed booking moves into a later
+    balance anchor of its cash account, `kind` `absorbed`, with
+    `cash_account_id`, the anchor's `transaction_id`, `date`, `change` and
+    `collapsed_transaction_id`, as in a cash merge's preview);
   - `positions_basis`, the computation basis of those figures: the quantity
     is the position fold with each split scaling the position once, rounded
     at volume scale 6 (ADR-0028 §3); `cost_basis` and `avg_cost` are the

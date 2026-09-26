@@ -484,8 +484,8 @@ demselben `plan_digest`, sodass beide denselben Plan sehen.
     `deleted` (`collapsed_duplicate` oder `collapsed_split`), `positions`
     (je Depot, in dem die Quelle hält: `source`, `target` und `after`,
     jeweils `quantity`, `cost_basis`, `avg_cost` und `realized_result`),
-    `rounding_differences` und `cash_accounts`, mit `positions_basis` wie
-    bei einer Depot-Zusammenführung.
+    `rounding_differences`, `cash_accounts` und `flow_changes`, mit
+    `positions_basis` wie bei einer Depot-Zusammenführung.
 
   Jede Stückzahl, jeder Kurs, jedes Gewicht und jede Dezimalzahl ist ein
   String. Der Digest deckt beide Wertpapiere, jede Buchung beider, ihre
@@ -1001,9 +1001,13 @@ Beispiel-Antwort für Kurssynchronisierung:
     des anderen Kontos am Ende dieses Tages, aus seinen Buchungen vor der
     Zusammenführung; an einem Tag mit gesetzten Salden auf beiden Konten
     trägt der letzte des Ziels beide, die übrigen entfallen), `flow_changes`
-    (die externen Flüsse, die das Entfernen der Duplikate streicht oder in
-    einen späteren gesetzten Saldo der Quelle verschiebt), `other_accounts`
-    und `positions` (was eine entfernte Umbuchung oder ein entfernter Kauf
+    (die externen Flüsse, die das Entfernen der Duplikate streicht — `kind`
+    `removed` — oder in einen späteren gesetzten Saldo des Kontos verschiebt,
+    auf dem die Buchung stand — `kind` `absorbed`, der Quelle selbst oder bei
+    einer entfernten Umbuchung des dritten Kontos —, je mit
+    `cash_account_id`, der `transaction_id` des Saldos oder der Buchung,
+    `date`, `change` und `collapsed_transaction_id`), `other_accounts` und
+    `positions` (was eine entfernte Umbuchung oder ein entfernter Kauf
     anderswo ändert).
 
   Jeder Dezimalwert ist ein String. Der Digest umfasst beide Konten, jede
@@ -1116,9 +1120,14 @@ Beispiel-Antwort für Kurssynchronisierung:
     `positions` (jedes Wertpapier, das die Quelle hält, je mit `source`,
     `target` und `after`, je `quantity`, `cost_basis`, `avg_cost` und
     `realized_result`; `target` ist `null`, wo das Ziel keine Buchung davon
-    hält), `rounding_differences` und `cash_accounts` (jedes
+    hält), `rounding_differences`, `cash_accounts` (jedes
     Verrechnungskonto, das eine entfernte gleiche Buchung ändert, mit
-    `balance_before` und `balance_after`);
+    `balance_before` und `balance_after`) und `flow_changes` (jeder Fluss,
+    den eine entfernte Buchung in einen späteren gesetzten Saldo ihres
+    Verrechnungskontos verschiebt, `kind` `absorbed`, mit `cash_account_id`,
+    der `transaction_id` des Saldos, `date`, `change` und
+    `collapsed_transaction_id`, wie in der Vorschau einer
+    Geldkonto-Zusammenführung);
   - `positions_basis`, die Rechengrundlage dieser Zahlen: Die Stückzahl ist
     die Positionsfaltung, in der jeder Split die Position einmal skaliert,
     gerundet auf die Stückzahl-Genauigkeit 6 (ADR-0028 §3); `cost_basis` und
