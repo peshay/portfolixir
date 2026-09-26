@@ -92,6 +92,18 @@ defmodule Portfolixir.Lifecycle.CashMergeReimportTest do
 
         drifted = parse!(household(:drifted))
 
+        # The preview's counts say before the apply what it will do (review
+        # finding F2): no hash matches, yet nothing is new — five rows are
+        # booked under the same economics, and the transfer between the two
+        # names is void (counted under both of its names).
+        assert %{
+                 total: %{new: 0, economics: 5, internal_transfer: 1, hash: 0, retired: 0},
+                 cash_accounts: %{
+                   "Savings (old)" => %{new: 0, internal_transfer: 1},
+                   "Savings" => %{new: 0, internal_transfer: 1}
+                 }
+               } = Imports.reimport_counts(drifted, portfolio_id: ctx.portfolio.id)
+
         assert Imports.resolve_accounts(drifted).cash_accounts == %{
                  "Savings (old)" => {:ok, ctx.target.id, :former},
                  "Savings" => {:ok, ctx.target.id, :live}

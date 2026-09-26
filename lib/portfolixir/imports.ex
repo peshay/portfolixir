@@ -60,9 +60,10 @@ defmodule Portfolixir.Imports do
 
   @doc """
   The already-imported counts of a parsed preview (ADR-0050 §3), before the
-  apply: per first-check layer (`:hash`, `:retired`, `:unimportable`,
-  `:new`) in `total`, and per file cash-account and depot name, where a row
-  counts under every name it carries. See `Portfolixir.Imports.Applier.reimport_counts/2`.
+  apply: per layer that judges a row (`:hash`, `:retired`, `:unimportable`,
+  `:economics`, `:internal_transfer`, `:new`) in `total`, and per file
+  cash-account and depot name, where a row counts under every name it
+  carries. See `Portfolixir.Imports.Applier.reimport_counts/2`.
 
   Read-only. The hash names the portfolio the import binds to: `:portfolio_id`
   when given, otherwise the internal default portfolio the Imports view binds

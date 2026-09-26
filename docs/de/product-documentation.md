@@ -2075,8 +2075,17 @@ Bestätigen zusammengeführt oder gelöscht, hält der Import an, bevor er etwas
 schreibt, und die Kontenzuordnung wird neu vorbelegt.
 
 **Was jede Zeile des Zuordnungsschritts sagt.** Jedes Verrechnungskonto und
-Depot der Datei zählt seine Buchungen: wie viele **bereits importiert** und
-wie viele neu sind, oder *nichts anzulegen*, wenn alle schon da sind. Eine
+Depot der Datei zählt seine Buchungen: wie viele **bereits importiert** sind,
+wie viele **interne Umbuchungen entfallen** und wie viele neu sind, oder
+*nichts anzulegen*, wenn keine neu ist. Die Zählung ist das, was der Import
+unter der Vorbelegung tun wird: Eine Buchung ist bereits importiert, wenn ihr
+Inhalt einer früher gespeicherten gleicht oder wenn auf dem Konto, zu dem der
+Name führt, schon eine Buchung mit demselben Tag, derselben Art und denselben
+Beträgen steht — der Fall eines erneut gespeicherten Exports, nachdem Sie
+zwei seiner Konten zusammengeführt haben —, und eine Umbuchung zwischen zwei
+Namen, die jetzt zu einem Konto führen, entfällt. Eine Entscheidung, die Sie
+in der Vorschau noch treffen (ein Wertpapier, ein anderes Konto), kann
+ändern, was mit den neuen Buchungen einer Zeile geschieht. Eine
 Vorbelegung über einen früheren Namen sagt das unter der Auswahl, und *+ Neu
 anlegen* auf einer Zeile ohne neue Buchung sagt, dass es nichts anlegt. Zwei
 Konten gleichen Namens werden in der Liste durch das unterschieden, was

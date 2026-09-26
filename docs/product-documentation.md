@@ -1913,8 +1913,15 @@ mapped in a preview that is merged or deleted before you confirm stops the
 import before it writes anything, and the account mapping is refreshed.
 
 **What each row of the mapping step says.** Every cash account and depot of
-the file counts its bookings: how many are **already imported** and how many
-are new, or *nothing to create* when all of them are in. A prefill found
+the file counts its bookings: how many are **already imported**, how many
+**internal transfers are dropped**, and how many are new, or *nothing to
+create* when none is. The count is what the import will do under the
+prefill: a booking is already imported when its content matches one stored
+before, or when a booking with the same day, kind and amounts already stands
+on the account the name leads to — the case of an export saved again after
+you merged two of its accounts — and a transfer between two names that now
+lead to one account is dropped. A decision you still make in the preview (a
+security, another account) can change what a row's new bookings do. A prefill found
 through a former name says so under the select, and *+ Create new* on a row
 with nothing new says it creates nothing. Two accounts of the same name are
 told apart in the list by what differs — a cash account's linked depots, else

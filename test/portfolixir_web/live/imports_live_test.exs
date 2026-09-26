@@ -1852,6 +1852,83 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     end
 
     # User story:
+    # As the operator re-importing a re-saved export after merging two of
+    # its accounts,
+    # I want each row to say that its bookings are already there and that the
+    # transfer between the two is dropped, even though no content hash
+    # matches,
+    # so that the preview says what the import will do: create nothing.
+    #
+    # Acceptance criteria (review finding F2; board 04's count segments):
+    # - The merged-away name's row reads "1 booking already imported · 1
+    #   internal transfer dropped · nothing to create".
+    # - The file says once, above the confirm, that the import creates
+    #   nothing, naming the dropped transfer; confirming creates nothing.
+    test "after a merge, a drifted re-export counts nothing new and names the dropped transfer",
+         %{conn: conn} do
+      portfolio = setup_portfolio()
+
+      rows = fn digits ->
+        [
+          %{
+            "type" => "DEPOSIT",
+            "account" => "Giro",
+            "date" => "2025-01-02",
+            "amount" => digits.giro
+          },
+          %{
+            "type" => "DEPOSIT",
+            "account" => "Tagesgeld",
+            "date" => "2025-01-03",
+            "amount" => digits.tagesgeld
+          },
+          %{
+            "type" => "CASH_TRANSFER",
+            "account" => "Giro",
+            "otherAccount" => "Tagesgeld",
+            "date" => "2025-02-01",
+            "amount" => digits.transfer
+          }
+        ]
+      end
+
+      apply_auto!(portfolio, rows.(%{giro: "100.00", tagesgeld: "50.00", transfer: "20.00"}))
+      giro = Repo.get_by!(Portfolixir.Portfolios.CashAccount, name: "Giro")
+      tagesgeld = Repo.get_by!(Portfolixir.Portfolios.CashAccount, name: "Tagesgeld")
+
+      {:ok, merge} = Portfolixir.Lifecycle.preview_cash_merge(tagesgeld.id, giro.id)
+
+      {:ok, _record, :applied} =
+        Portfolixir.Lifecycle.merge_cash_account(
+          Portfolixir.Actor.owner_ui(),
+          tagesgeld.id,
+          giro.id,
+          %{
+            plan_digest: merge.plan_digest
+          }
+        )
+
+      drifted = rows.(%{giro: "100.0", tagesgeld: "50.0", transfer: "20.0"})
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_payload(view, "resaved.json", pp_json(drifted), "application/json")
+
+      assert view
+             |> element(row("cash", "Tagesgeld") <> " [data-role='mapping-count']")
+             |> render() =~
+               ~r/1 booking already imported\s*·\s*1 internal transfer dropped\s*·\s*<b>nothing to create<\/b>/
+
+      assert view |> element("[data-role='nothing-to-import']") |> render() =~
+               "2 entries are already imported. 1 internal transfer is dropped: both of its accounts are one account now. The import creates nothing"
+
+      before = Portfolixir.Ledger.count_transactions()
+
+      view |> element("form#pp-import-apply") |> render_submit()
+      assert render_async(view, 1_000) =~ "Created transactions: 0"
+      assert Portfolixir.Ledger.count_transactions() == before
+    end
+
+    # User story:
     # As the operator whose export still names an account I once imported
     # under another account's name without remembering it,
     # I want the "+ Create new" row to say that nothing is created when all

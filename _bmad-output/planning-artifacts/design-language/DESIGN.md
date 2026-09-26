@@ -2294,8 +2294,15 @@ and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
 - **A mapping row reads left to right as source, count, choice.** Each cash
   and depot row of the mapping step is a `.mapping-row` (grid, aligned to
   the top): the file's name, then `.mapping-count` — "N already imported ·
-  **M new**", or "**nothing to create**" when every booking of the row is in
-  already — then `.mapping-target`, the select with its notes under it. Under
+  K internal transfers dropped · **M new**", or "**nothing to create**" when
+  none of the row's bookings is new — then `.mapping-target`, the select with
+  its notes under it. Each segment shows only when its count is above zero;
+  board 04 draws the transfer segment ("2 interne Umbuchungen entfallen"),
+  added by the L3–L5 review round (F2). The count is the apply's own run
+  under the prefill, rolled back: "already imported" is every layer that
+  skips a booking (content hash, a merge's retired hash, an equal booking by
+  its economics), so a file saved again after a merge reads "nothing to
+  create". Under
   720 px a row is one column (source, count, choice, notes; a depot's cash
   select last).
 - **Notes under the select say only what is not obvious** (`.mapping-basis`,
@@ -2303,8 +2310,9 @@ and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
   when a former name did the prefill; "no account under this name; it is
   created only with its first new booking" when "+ Create new" has nothing
   new to create. A file with nothing new at all says once, above the
-  confirm: "The import creates nothing: no booking, no account, no depot, no
-  security."
+  confirm, how many entries are already imported and how many internal
+  transfers are dropped, then: "The import creates nothing: no booking, no
+  account, no depot, no security."
 - **"Remember this mapping" (G4-A)** is `.mapping-remember`, a checkbox in
   the row, **ticked by default**, shown only where the operator changed a
   prefill onto a differently named account and remembering is possible. Its
