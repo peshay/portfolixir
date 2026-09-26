@@ -1308,7 +1308,11 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     html = if html =~ "Import complete", do: html, else: render_async(view, 1_000)
 
     assert html =~ "Skipped 13 records already booked:"
-    assert html =~ "Row 1: an identical row was imported before (stored content hash)"
+
+    assert html =~
+             ~r/<b>13<\/b>\s*·\s*an identical row was imported before \(stored content hash\)/
+
+    assert html =~ "Row 1: Buy 2024-01-15"
     refute html =~ "already booked: an"
   end
 
@@ -1430,7 +1434,10 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     assert html =~ "Ein bereits gebuchter Datensatz übersprungen:"
 
     assert html =~
-             "Zeile 1: eine Zeile mit diesem Inhalt wurde bei einer Zusammenführung entfernt (stillgelegter Inhalts-Hash)"
+             ~r/<b>1<\/b>\s*·\s*eine Zeile mit diesem Inhalt wurde bei einer Zusammenführung entfernt \(stillgelegter Inhalts-Hash\)/
+
+    assert html =~ "Zeile 1: Umbuchung 2025-02-01 · 250,00 EUR · Savings (old) → Savings"
+    assert has_element?(view, "[data-role='duplicate-group'][data-layer='retired'][open]")
   end
 
   describe "former names in the mapping step (ADR-0050 §4, §10; L2, #884)" do
@@ -1564,17 +1571,19 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     # User story:
     # As the operator mapping an export's account onto another of my accounts
     # while its name is the former name of a third,
-    # I want the import page to leave that former name where it is until the
-    # preview can tell me it would move,
-    # so that a one-off remap never silently re-routes the next import of an
-    # old export (ADR-0050 §4: the preview says so before the import is
-    # applied; board 04's notice is L5's).
+    # I want the preview to say, before I confirm, that remembering moves the
+    # name, and the import to move it unless I untick "remember",
+    # so that a remembered remap never re-routes an old export silently
+    # (ADR-0050 §4: "remembering moves it to Y, and the preview says so
+    # before the import is applied"; board 04, note 3).
     #
     # Acceptance criteria:
-    # - The row books onto the account chosen.
-    # - The former name stays on the account that had it, and the chosen
-    #   account gains none.
-    test "a remap never moves another account's former name from the import page", %{
+    # - The changed row states that the name becomes a former name of the
+    #   chosen account and is then no longer one of the account that has it.
+    # - Confirming books the row on the chosen account and moves the name.
+    # - The result says where the name moved from.
+    # - Unticked, the name stays where it is.
+    test "a remap that moves another account's former name says so, and moves it", %{
       conn: conn
     } do
       portfolio = setup_portfolio()
@@ -1597,11 +1606,66 @@ defmodule PortfolixirWeb.ImportsLiveTest do
 
       view
       |> element("form#pp-import-apply")
-      |> render_submit(keyed(%{"cash" => %{"Giro" => "existing:#{household.id}"}}))
+      |> render_change(keyed(%{"cash" => %{"Giro" => "existing:#{household.id}"}}))
 
-      assert render_async(view, 1_000) =~ "Created transactions: 1"
+      remember = view |> element(row("cash", "Giro") <> " [data-role='mapping-remember']")
+
+      assert render(remember) =~
+               "“Giro” becomes a former name of Household and is then no longer a former name of Main account."
+
+      assert has_element?(
+               view,
+               row("cash", "Giro") <>
+                 ~s( input[type="checkbox"][name="remember[cash][#{row_key("cash", "Giro")}]"][checked])
+             )
+
+      view |> element("form#pp-import-apply") |> render_submit()
+      html = render_async(view, 1_000)
+
+      assert html =~ "Created transactions: 1"
       assert [%{cash_account_id: cash_id}] = Ledger.list_transactions()
       assert cash_id == household.id
+
+      assert view |> element("[data-role='remembered-names']") |> render() =~
+               "“Giro” is now a former name of Household and no longer of Main account."
+
+      assert Repo.get!(Portfolixir.Portfolios.CashAccount, main.id).former_names == []
+      assert Repo.get!(Portfolixir.Portfolios.CashAccount, household.id).former_names == ["Giro"]
+    end
+
+    test "unticked, a remap leaves another account's former name where it is", %{conn: conn} do
+      portfolio = setup_portfolio()
+      giro = cash_account!(portfolio, "Giro")
+
+      {:ok, main} =
+        Portfolios.update_cash_account(Portfolixir.Actor.owner_ui(), giro, %{
+          name: "Main account"
+        })
+
+      household = cash_account!(portfolio, "Household")
+
+      body =
+        pp_json([
+          %{"type" => "DEPOSIT", "account" => "Giro", "date" => "2025-01-02", "amount" => "10.00"}
+        ])
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_payload(view, "move.json", body, "application/json")
+
+      params =
+        keyed(%{
+          "cash" => %{"Giro" => "existing:#{household.id}"},
+          "remember" => %{"cash" => %{"Giro" => "false"}}
+        })
+
+      view |> element("form#pp-import-apply") |> render_change(params)
+
+      assert view |> element(row("cash", "Giro") <> " [data-role='mapping-remember']") |> render() =~
+               "Holds for this import only. A future import suggests “Main account” again."
+
+      view |> element("form#pp-import-apply") |> render_submit()
+      assert render_async(view, 1_000) =~ "Created transactions: 1"
+      refute has_element?(view, "[data-role='remembered-names']")
 
       assert Repo.get!(Portfolixir.Portfolios.CashAccount, main.id).former_names == ["Giro"]
       assert Repo.get!(Portfolixir.Portfolios.CashAccount, household.id).former_names == []
@@ -1712,6 +1776,592 @@ defmodule PortfolixirWeb.ImportsLiveTest do
                ~s|select[name="cash[#{row_key("cash", "Savings (old)")}]"] option[value="create:Savings (old)"][selected]|
              )
     end
+  end
+
+  describe "what each mapping row says before the import (ADR-0050 §3, §4; L5b, boards 04 G4-A and 04b, #884)" do
+    # User story:
+    # As the operator re-importing a later export,
+    # I want every account row to say how many of its bookings are already
+    # imported and how many are new, and why it is prefilled when that is not
+    # obvious,
+    # so that I see what the import will do before I confirm it.
+    #
+    # Acceptance criteria:
+    # - A row counts its already-imported bookings and its new ones; with none
+    #   new it says there is nothing to create.
+    # - A row prefilled through a former name says so, naming the account and
+    #   the name.
+    # - A whole file already imported says once, above the confirm, that the
+    #   import creates nothing; the confirm stays enabled.
+    test "counts per row, the former-name prefill, and a file with nothing new", %{conn: conn} do
+      portfolio = setup_portfolio()
+
+      rows = [
+        %{"type" => "DEPOSIT", "account" => "Giro", "date" => "2025-01-02", "amount" => "100.00"},
+        %{
+          "type" => "DEPOSIT",
+          "account" => "Tagesgeld",
+          "date" => "2025-01-03",
+          "amount" => "50.00"
+        }
+      ]
+
+      apply_auto!(portfolio, rows)
+      giro = Repo.get_by!(Portfolixir.Portfolios.CashAccount, name: "Giro")
+
+      {:ok, _} =
+        Portfolios.update_cash_account(Portfolixir.Actor.owner_ui(), giro, %{
+          name: "Main account"
+        })
+
+      newer =
+        rows ++
+          [
+            %{
+              "type" => "DEPOSIT",
+              "account" => "Giro",
+              "date" => "2025-02-01",
+              "amount" => "25.00"
+            }
+          ]
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_payload(view, "newer.json", pp_json(newer), "application/json")
+
+      assert view |> element(row("cash", "Giro") <> " [data-role='mapping-count']") |> render() =~
+               ~r/1 booking already imported\s*·\s*<b>1 new<\/b>/
+
+      assert view
+             |> element(row("cash", "Tagesgeld") <> " [data-role='mapping-count']")
+             |> render() =~
+               ~r/1 booking already imported\s*·\s*<b>nothing to create<\/b>/
+
+      assert view |> element(row("cash", "Giro") <> " [data-role='mapping-basis']") |> render() =~
+               "matched by a former name — Main account, formerly “Giro”"
+
+      refute has_element?(view, row("cash", "Tagesgeld") <> " [data-role='mapping-basis']")
+      refute has_element?(view, "[data-role='nothing-to-import']")
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_payload(view, "same.json", pp_json(rows), "application/json")
+
+      assert view |> element("[data-role='nothing-to-import']") |> render() =~
+               "All 2 entries are already imported. The import creates nothing: no booking, no account, no depot, no security."
+
+      refute has_element?(view, "#pp-import-confirm[disabled]")
+    end
+
+    # User story:
+    # As the operator whose export still names an account I once imported
+    # under another account's name without remembering it,
+    # I want the "+ Create new" row to say that nothing is created when all
+    # its bookings are already there,
+    # so that a prefill of "create" does not read as a new account.
+    #
+    # Acceptance criteria:
+    # - Beside "+ Create new" on a row with no new booking, the row says no
+    #   account carries the name and one is created only with its first new
+    #   booking; confirming creates nothing.
+    test "a create-new row with nothing new says it creates nothing", %{conn: conn} do
+      portfolio = setup_portfolio()
+      reserve = cash_account!(portfolio, "Reserve")
+
+      rows = [
+        %{
+          "type" => "DEPOSIT",
+          "account" => "Savings",
+          "date" => "2025-01-02",
+          "amount" => "10.00"
+        }
+      ]
+
+      {:ok, preview} = Portfolixir.Imports.parse_portfolio_performance(pp_json(rows))
+
+      {:ok, _} =
+        Portfolixir.Imports.apply(preview, %{
+          cash_accounts: %{"Savings" => {:existing, reserve.id}},
+          depots: %{},
+          remember: %{cash_accounts: %{"Savings" => false}}
+        })
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_payload(view, "savings.json", pp_json(rows), "application/json")
+
+      assert has_element?(
+               view,
+               ~s(select[name="cash[#{row_key("cash", "Savings")}]"] option[value="create:Savings"][selected])
+             )
+
+      assert view |> element(row("cash", "Savings") <> " [data-role='mapping-basis']") |> render() =~
+               "no account under this name; it is created only with its first new booking"
+
+      view |> element("form#pp-import-apply") |> render_submit()
+      assert render_async(view, 1_000) =~ "Created transactions: 0"
+      assert Portfolios.count_cash_accounts() == 1
+    end
+
+    # User story:
+    # As the operator remapping an export's account onto one of mine under
+    # another name,
+    # I want a "remember" box in exactly that row, ticked, saying what it
+    # does, and saying what happens when I untick it,
+    # so that each remap is decided where it is made (pick G4 = A).
+    #
+    # Acceptance criteria:
+    # - No box while the prefill stands, or on a change to "+ Create new".
+    # - A change onto a differently named account shows the box, ticked, with
+    #   the name that becomes a former name of which account.
+    # - Unticked, the line says the choice holds for this import only and
+    #   what a future import suggests instead.
+    # - The result names the remembered mapping.
+    test "the remember box appears only on a changed prefill and says what it does", %{
+      conn: conn
+    } do
+      portfolio = setup_portfolio()
+      broker = cash_account!(portfolio, "Broker EUR")
+
+      body =
+        pp_json([
+          %{
+            "type" => "DEPOSIT",
+            "account" => "Cash EUR",
+            "date" => "2025-01-02",
+            "amount" => "100.00"
+          }
+        ])
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_payload(view, "remap.json", body, "application/json")
+
+      refute has_element?(view, "[data-role='mapping-remember']")
+
+      assert view
+             |> element(row("cash", "Cash EUR") <> " [data-role='mapping-count']")
+             |> render() =~
+               "<b>1 booking new</b>"
+
+      form = element(view, "form#pp-import-apply")
+      render_change(form, keyed(%{"cash" => %{"Cash EUR" => "existing:#{broker.id}"}}))
+
+      remember = view |> element(row("cash", "Cash EUR") <> " [data-role='mapping-remember']")
+
+      assert render(remember) =~
+               "“Cash EUR” becomes a former name of Broker EUR; a future import maps the name by itself."
+
+      assert has_element?(
+               view,
+               ~s(#{row("cash", "Cash EUR")} input[type="checkbox"][name="remember[cash][#{row_key("cash", "Cash EUR")}]"][checked])
+             )
+
+      render_change(form, keyed(%{"remember" => %{"cash" => %{"Cash EUR" => "false"}}}))
+
+      assert render(remember) =~
+               "Holds for this import only. A future import suggests “+ Create new: Cash EUR” again."
+
+      refute has_element?(view, ~s(#{row("cash", "Cash EUR")} input[type="checkbox"][checked]))
+
+      render_change(
+        form,
+        keyed(%{
+          "cash" => %{"Cash EUR" => "create:Cash EUR"},
+          "remember" => %{"cash" => %{"Cash EUR" => "true"}}
+        })
+      )
+
+      refute has_element?(view, "[data-role='mapping-remember']")
+
+      render_change(form, keyed(%{"cash" => %{"Cash EUR" => "existing:#{broker.id}"}}))
+      view |> element("form#pp-import-apply") |> render_submit()
+      assert render_async(view, 1_000) =~ "Created transactions: 1"
+
+      assert view |> element("[data-role='remembered-names']") |> render() =~
+               "“Cash EUR” is now a former name of Broker EUR."
+    end
+
+    # User story:
+    # As the operator remapping a name that is still another account's live
+    # name,
+    # I want the row to say why it cannot be remembered and what would change
+    # that,
+    # so that the default never makes the import fail (ADR-0050 §4).
+    #
+    # Acceptance criteria:
+    # - No box; the row says the name is already another account's name, the
+    #   choice holds for this import only, and names the remedy.
+    # - Confirming books the row on the chosen account and remembers nothing.
+    test "a remap of another account's live name is not offered, and says why", %{conn: conn} do
+      portfolio = setup_portfolio()
+      _tagesgeld = cash_account!(portfolio, "Tagesgeld")
+      reserve = cash_account!(portfolio, "Reserve")
+
+      body =
+        pp_json([
+          %{
+            "type" => "DEPOSIT",
+            "account" => "Tagesgeld",
+            "date" => "2025-01-02",
+            "amount" => "10.00"
+          }
+        ])
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_payload(view, "live.json", body, "application/json")
+
+      view
+      |> element("form#pp-import-apply")
+      |> render_change(keyed(%{"cash" => %{"Tagesgeld" => "existing:#{reserve.id}"}}))
+
+      refute has_element?(view, "[data-role='mapping-remember']")
+
+      note = view |> element(row("cash", "Tagesgeld") <> " [data-role='mapping-not-remembered']")
+
+      assert render(note) =~
+               "“Tagesgeld” is already the name of another account; the choice holds for this import only. Merging or renaming that account changes this:"
+
+      assert has_element?(
+               view,
+               row("cash", "Tagesgeld") <>
+                 " [data-role='mapping-not-remembered'] a[href='/portfolios']"
+             )
+
+      view |> element("form#pp-import-apply") |> render_submit()
+      assert render_async(view, 1_000) =~ "Created transactions: 1"
+      assert [%{cash_account_id: cash_id}] = Ledger.list_transactions()
+      assert cash_id == reserve.id
+      assert Repo.get!(Portfolixir.Portfolios.CashAccount, reserve.id).former_names == []
+    end
+
+    # User story (#884 F1, F7; board 04b):
+    # As the operator with two accounts of one name from before the name
+    # guard,
+    # I want each of them in the list told apart by what distinguishes it,
+    # and "+ Create new" for that name shown as impossible with its reason,
+    # so that I can pick the right one, and nothing I pick fails the import.
+    #
+    # Acceptance criteria:
+    # - Same-named cash accounts carry their linked depot after a middle dot
+    #   ("· at Depot 1"); a depot of a shared name carries its cash account.
+    # - The ambiguous row's note names both, and why there is no prefill.
+    # - "+ Create new" for the name is disabled, saying it is the name of two
+    #   accounts; the confirm stays disabled until an account is chosen.
+    test "same-named accounts are told apart, and creating that name is shown as impossible", %{
+      conn: conn
+    } do
+      portfolio = setup_portfolio()
+      first = legacy_cash_account!(portfolio, "Verrechnungskonto")
+      second = legacy_cash_account!(portfolio, "Verrechnungskonto")
+      depot!(portfolio, first, "Depot 1")
+      depot!(portfolio, second, "Depot 2")
+      legacy_depot!(portfolio, first, "Sparplan")
+      legacy_depot!(portfolio, second, "Sparplan")
+
+      body =
+        pp_json([
+          %{
+            "type" => "DEPOSIT",
+            "account" => "Verrechnungskonto",
+            "date" => "2025-01-02",
+            "amount" => "10.00"
+          }
+        ])
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_payload(view, "twins.json", body, "application/json")
+
+      select = ~s(select[name="cash[#{row_key("cash", "Verrechnungskonto")}]"])
+
+      assert view |> element(select <> ~s( option[value="existing:#{first.id}"])) |> render() =~
+               "Verrechnungskonto · at Depot 1, Sparplan"
+
+      assert view |> element(select <> ~s( option[value="existing:#{second.id}"])) |> render() =~
+               "Verrechnungskonto · at Depot 2, Sparplan"
+
+      assert view
+             |> element(select <> ~s( option[value="create:Verrechnungskonto"][disabled]))
+             |> render() =~
+               "+ Create new: Verrechnungskonto — not possible: the name of 2 accounts"
+
+      note =
+        view |> element(row("cash", "Verrechnungskonto") <> " [data-role='mapping-ambiguous']")
+
+      assert render(note) =~
+               "2 cash accounts are named “Verrechnungskonto” (at Depot 1, Sparplan; at Depot 2, Sparplan), so there is no prefill."
+
+      assert has_element?(view, "#pp-import-confirm[disabled]")
+
+      render_change(
+        element(view, "form#pp-import-apply"),
+        keyed(%{"cash" => %{"Verrechnungskonto" => "create:Verrechnungskonto"}})
+      )
+
+      assert has_element?(view, "#pp-import-confirm[disabled]")
+
+      assert view |> element("#import-missing-hint") |> render() =~
+               "cash account: Verrechnungskonto"
+    end
+
+    test "same-named depots carry their cash account in the depot lists", %{conn: conn} do
+      portfolio = setup_portfolio()
+      giro = cash_account!(portfolio, "Giro")
+      tagesgeld = cash_account!(portfolio, "Tagesgeld")
+      a = legacy_depot!(portfolio, giro, "Depot")
+      b = legacy_depot!(portfolio, tagesgeld, "Depot")
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_sample(view)
+
+      select = ~s(select[name="depot[#{row_key("depot", "Test-Depot")}][target]"])
+
+      assert view |> element(select <> ~s( option[value="existing:#{a.id}"])) |> render() =~
+               "Depot · with Giro"
+
+      assert view |> element(select <> ~s( option[value="existing:#{b.id}"])) |> render() =~
+               "Depot · with Tagesgeld"
+    end
+
+    # User story (#884 F7; board 04b, pick G4b = A):
+    # As the operator whose export names an account I renamed,
+    # I want "+ Create new" for that name shown as impossible, naming whose
+    # name it is,
+    # so that I never pick a choice the name guard would refuse at the end.
+    #
+    # Acceptance criteria:
+    # - A former name: "+ Create new: X — not possible: a former name of Y",
+    #   disabled.
+    # - A live name: "… — not possible: an account already has this name".
+    # - A create choice for such a name, sent anyway, counts as not made.
+    test "creating a name the guard refuses is disabled with its reason", %{conn: conn} do
+      portfolio = setup_portfolio()
+      giro = cash_account!(portfolio, "Giro")
+
+      {:ok, _main} =
+        Portfolios.update_cash_account(Portfolixir.Actor.owner_ui(), giro, %{
+          name: "Main account"
+        })
+
+      _tagesgeld = cash_account!(portfolio, "Tagesgeld")
+
+      body =
+        pp_json([
+          %{"type" => "DEPOSIT", "account" => "Giro", "date" => "2025-01-02", "amount" => "1.00"},
+          %{
+            "type" => "DEPOSIT",
+            "account" => "Tagesgeld",
+            "date" => "2025-01-02",
+            "amount" => "2.00"
+          }
+        ])
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_payload(view, "taken.json", body, "application/json")
+
+      assert view
+             |> element(
+               ~s(select[name="cash[#{row_key("cash", "Giro")}]"] option[value="create:Giro"][disabled])
+             )
+             |> render() =~ "+ Create new: Giro — not possible: a former name of Main account"
+
+      assert view
+             |> element(
+               ~s(select[name="cash[#{row_key("cash", "Tagesgeld")}]"] option[value="create:Tagesgeld"][disabled])
+             )
+             |> render() =~
+               "+ Create new: Tagesgeld — not possible: an account already has this name"
+
+      refute has_element?(view, "#pp-import-confirm[disabled]")
+
+      render_change(
+        element(view, "form#pp-import-apply"),
+        keyed(%{"cash" => %{"Giro" => "create:Giro"}})
+      )
+
+      assert has_element?(view, "#pp-import-confirm[disabled]")
+      assert view |> element("#import-missing-hint") |> render() =~ "cash account: Giro"
+    end
+
+    # User story (board 04, note 4):
+    # As the operator whose export names an ambiguous account whose bookings
+    # are all imported already,
+    # I want that row to need no decision,
+    # so that a name nothing will book to never holds the import.
+    #
+    # Acceptance criteria:
+    # - The row says nothing is to be created and carries no attention note.
+    # - The confirm is enabled, and confirming creates nothing.
+    test "an ambiguous name whose bookings are all imported needs no decision", %{conn: conn} do
+      portfolio = setup_portfolio()
+
+      rows = [
+        %{"type" => "DEPOSIT", "account" => "Giro", "date" => "2025-01-02", "amount" => "100.00"}
+      ]
+
+      apply_auto!(portfolio, rows)
+      legacy_cash_account!(portfolio, "Giro")
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_payload(view, "again.json", pp_json(rows), "application/json")
+
+      assert view |> element(row("cash", "Giro") <> " [data-role='mapping-count']") |> render() =~
+               "nothing to create"
+
+      refute has_element?(view, "[data-role='mapping-ambiguous']")
+      refute has_element?(view, "#pp-import-confirm[disabled]")
+
+      view |> element("form#pp-import-apply") |> render_submit()
+      assert render_async(view, 1_000) =~ "Created transactions: 0"
+      assert Portfolios.count_cash_accounts() == 2
+    end
+
+    # User story (board 04b, the result):
+    # As the operator whose merge adjusted a set balance,
+    # I want the import result to list every booking it made on or before
+    # that balance, with the balance's account and date,
+    # so that a booking that leaves the balance unchanged is never silent
+    # (ADR-0050 §2's third limit).
+    #
+    # Acceptance criteria:
+    # - The result lists the row with its kind, date, amount and file
+    #   account, and the set balance of the survivor that absorbs it.
+    test "the result lists a booking behind a set balance a merge adjusted", %{conn: conn} do
+      portfolio = setup_portfolio()
+      old = cash_account!(portfolio, "Savings (old)")
+      survivor = cash_account!(portfolio, "Savings")
+
+      {:ok, _anchor} =
+        Ledger.set_cash_balance(Portfolixir.Actor.owner_ui(), old, %{
+          date: ~D[2025-05-31],
+          amount: "1200.00"
+        })
+
+      {:ok, preview} = Portfolixir.Lifecycle.preview_cash_merge(old.id, survivor.id)
+
+      {:ok, _record, :applied} =
+        Portfolixir.Lifecycle.merge_cash_account(
+          Portfolixir.Actor.owner_ui(),
+          old.id,
+          survivor.id,
+          %{plan_digest: preview.plan_digest}
+        )
+
+      body =
+        pp_json([
+          %{
+            "type" => "DEPOSIT",
+            "account" => "Savings",
+            "date" => "2025-04-15",
+            "amount" => "50.00"
+          },
+          %{
+            "type" => "DEPOSIT",
+            "account" => "Savings",
+            "date" => "2025-07-01",
+            "amount" => "70.00"
+          }
+        ])
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_payload(view, "behind.json", body, "application/json")
+      view |> element("form#pp-import-apply") |> render_submit()
+      assert render_async(view, 1_000) =~ "Created transactions: 2"
+
+      list = view |> element("[data-role='behind-restated-anchor']") |> render()
+
+      assert list =~
+               "One booking lies on or before a set balance a merge adjusted; that balance absorbs its amount:"
+
+      assert list =~
+               "Row 1: Deposit 2025-04-15 · 50.00 EUR · Savings — set balance of Savings on 2025-05-31"
+
+      refute list =~ "Row 2"
+    end
+
+    # User story (board 04, the result):
+    # As the operator reading the result of a re-import,
+    # I want the skipped bookings grouped by the check that caught them, each
+    # group counted, and each row named by what it books,
+    # so that the expected mass of identical rows does not bury the few a
+    # merge removed.
+    #
+    # Acceptance criteria:
+    # - One group per layer, its count and reason in the summary; the
+    #   identical-row group closed, the others open.
+    # - Each row names its kind, date, amount and file account.
+    test "the result groups the skipped bookings by layer", %{conn: conn} do
+      portfolio = setup_portfolio()
+
+      rows = [
+        %{"type" => "DEPOSIT", "account" => "Giro", "date" => "2025-01-02", "amount" => "100.00"},
+        %{"type" => "DEPOSIT", "account" => "Giro", "date" => "2025-01-03", "amount" => "5.00"}
+      ]
+
+      apply_auto!(portfolio, rows)
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_payload(view, "again.json", pp_json(rows), "application/json")
+      view |> element("form#pp-import-apply") |> render_submit()
+      render_async(view, 1_000)
+
+      group = view |> element("[data-role='duplicate-group'][data-layer='hash']")
+      html = render(group)
+
+      assert html =~
+               ~r/<b>2<\/b>\s*·\s*an identical row was imported before \(stored content hash\)/
+
+      assert html =~ "Row 1: Deposit 2025-01-02 · 100.00 EUR · Giro"
+      assert html =~ "Row 2: Deposit 2025-01-03 · 5.00 EUR · Giro"
+      refute has_element?(view, "[data-role='duplicate-group'][data-layer='hash'][open]")
+    end
+
+    test "the mapping row goes single-column under 720 px (board 04)" do
+      app_css = File.read!("priv/static/app.css")
+
+      assert app_css =~
+               ~r/@media \(max-width: 720px\) \{\s*\.mapping-row,\s*\.mapping-row\.depot \{\s*grid-template-columns: 1fr;/
+    end
+  end
+
+  defp row(kind, name), do: "#mapping-#{kind}-#{row_key(kind, name)}"
+
+  # Imports `rows` once through the auto-resolving path, so their content
+  # hashes are held and their accounts exist.
+  defp apply_auto!(portfolio, rows) do
+    {:ok, preview} = Portfolixir.Imports.parse_portfolio_performance(pp_json(rows))
+    {:ok, _result} = Portfolixir.Imports.apply(preview, %{portfolio_id: portfolio.id})
+    :ok
+  end
+
+  defp depot!(portfolio, cash, name) do
+    {:ok, depot} =
+      Portfolios.create_securities_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        name: name
+      })
+
+    depot
+  end
+
+  # A duplicate depot name from before the name guard, inserted the way the
+  # old writer did.
+  defp legacy_depot!(portfolio, cash, name) do
+    {:ok, %{account: account}} =
+      Ecto.Multi.new()
+      |> Ecto.Multi.insert(
+        :account,
+        Ecto.Changeset.change(%Portfolixir.Portfolios.SecuritiesAccount{}, %{
+          portfolio_id: portfolio.id,
+          cash_account_id: cash.id,
+          name: name
+        })
+      )
+      |> Portfolixir.Journal.record(Portfolixir.Actor.owner_ui(),
+        resource_type: "securities_account",
+        operation: :create,
+        source: :account
+      )
+      |> Repo.transaction()
+
+    account
   end
 
   defp cash_account!(portfolio, name) do

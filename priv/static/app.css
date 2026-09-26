@@ -3924,7 +3924,9 @@ input[pattern]:invalid:not(:placeholder-shown) {
   display: grid;
   grid-template-columns: minmax(10rem, 1fr) minmax(14rem, 1.4fr);
   gap: 0.75rem;
-  align-items: center;
+  /* The columns start at the top, because the target column grows with its
+     notes (board 04). */
+  align-items: start;
   padding: 0.6rem 0.85rem;
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
@@ -3954,6 +3956,59 @@ input[pattern]:invalid:not(:placeholder-shown) {
 
 .mapping-row select {
   width: 100%;
+}
+
+/* What each mapping row says before the import (ADR-0050 §3, §4; board
+   04-import-memory G4-A, board 04b-import-memory-ambiguity): under the file's
+   name how many of its bookings are already imported and how many are new;
+   under the choice only what is not obvious — a former-name prefill, the
+   "remember" box of a changed prefill, why remembering is not offered, an
+   ambiguous name's note. */
+.mapping-row .source .mapping-count {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.mapping-count b {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.mapping-target {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.mapping-basis {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.mapping-remember {
+  display: grid;
+  gap: 2px;
+}
+
+.mapping-remember > small {
+  padding-left: 22px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* Under 720 px a row is one column: source, choice, its notes, and a depot
+   row's cash account last (board 04 at 390 px). Before, the depot row's three
+   minimum columns widened the grid past the phone. */
+@media (max-width: 720px) {
+  .mapping-row,
+  .mapping-row.depot {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
 }
 
 .panel.inner {
@@ -4002,6 +4057,49 @@ input[pattern]:invalid:not(:placeholder-shown) {
   display: flex;
   gap: 0.5rem;
   justify-content: center;
+}
+
+/* The result's lists read left-aligned in one column (board 04): the
+   remembered names, the skipped duplicates grouped by layer, the internal
+   transfers, the rows behind a set balance a merge adjusted. */
+.import-done .import-skipped {
+  justify-self: stretch;
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  max-width: 46rem;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.import-done .import-skipped > p {
+  margin: 0;
+}
+
+.import-done .import-skipped ul {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  font-size: 12.5px;
+}
+
+.import-done .import-skipped ul li + li {
+  margin-top: 2px;
+}
+
+.import-done .dup-group > ul {
+  margin: 4px 0 6px 22px;
+}
+
+.dup-group .disclosure-summary {
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.dup-group .disclosure-summary b {
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Classifications workspace */
