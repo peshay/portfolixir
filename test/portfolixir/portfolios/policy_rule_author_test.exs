@@ -43,25 +43,21 @@ defmodule Portfolixir.Portfolios.PolicyRuleAuthorTest do
 
   # A version as the tables held it before authors were stored: no author,
   # created under `actor`'s journal entry — or, with `nil`, under none.
-  defp legacy_version!(world, security, actor) do
-    {:ok, %{record: rule}} =
-      Multi.new()
-      |> Multi.insert(
-        :record,
-        PolicyRule.changeset(%PolicyRule{}, %{portfolio_id: world.portfolio.id, name: "Legacy"})
-      )
-      |> Journal.record(Actor.owner_ui(),
-        resource_type: "policy_rule",
-        operation: :create,
-        source: :record
-      )
-      |> Repo.transaction()
+  # `opts` name the rule it belongs to (a new one by default) and its period:
+  # a version closed days before the upgrade is what every rule edited or
+  # retired on the previous release holds (CR-1).
+  defp legacy_version!(world, security, actor, opts \\ []) do
+    rule = Keyword.get_lazy(opts, :rule, fn -> legacy_rule!(world) end)
 
     changeset =
-      PolicyRuleVersion.changeset(
-        %PolicyRuleVersion{},
-        weight_cap(security, %{policy_rule_id: rule.id, valid_from: Date.add(today(), 10)})
+      %PolicyRuleVersion{}
+      |> PolicyRuleVersion.changeset(
+        weight_cap(security, %{
+          policy_rule_id: rule.id,
+          valid_from: Keyword.get(opts, :valid_from, Date.add(today(), 10))
+        })
       )
+      |> Ecto.Changeset.put_change(:valid_until, Keyword.get(opts, :valid_until))
 
     if actor do
       {:ok, %{record: version}} =
@@ -78,6 +74,23 @@ defmodule Portfolixir.Portfolios.PolicyRuleAuthorTest do
     else
       raw!(fn -> Repo.insert!(changeset) end)
     end
+  end
+
+  defp legacy_rule!(world) do
+    {:ok, %{record: rule}} =
+      Multi.new()
+      |> Multi.insert(
+        :record,
+        PolicyRule.changeset(%PolicyRule{}, %{portfolio_id: world.portfolio.id, name: "Legacy"})
+      )
+      |> Journal.record(Actor.owner_ui(),
+        resource_type: "policy_rule",
+        operation: :create,
+        source: :record
+      )
+      |> Repo.transaction()
+
+    rule
   end
 
   # A write with the journal actor set, so the journal guard is not what
@@ -235,5 +248,65 @@ defmodule Portfolixir.Portfolios.PolicyRuleAuthorTest do
              PolicyRuleAuthorBackfill.run(Actor.system_job("policy_author_backfill"))
 
     assert backfill_entries.() == 2
+  end
+
+  # User story (E25 S7, G30; closing-act finding CR-1):
+  # As the operator upgrading an instance on which I edited and retired rules
+  # on the previous release,
+  # I want the author backfill to reach the versions those writes closed,
+  # so that the upgrade finishes and the instance starts.
+  #
+  # Acceptance criteria:
+  # - A version closed well before the upgrade (an edit's predecessor, or a
+  #   retired rule's last line) gets its author like any other, and its
+  #   period is unchanged.
+  # - The database still refuses a raw write that moves such a version's
+  #   end, or backdates an open one: only an unchanged end is let through.
+  test "the backfill reaches versions an edit or a retirement closed days ago", %{
+    world: world,
+    security: security
+  } do
+    edited = legacy_rule!(world)
+    agent = Actor.api_token_rw("mcp")
+
+    predecessor =
+      legacy_version!(world, security, agent,
+        rule: edited,
+        valid_from: Date.add(today(), -30),
+        valid_until: Date.add(today(), -10)
+      )
+
+    successor =
+      legacy_version!(world, security, agent, rule: edited, valid_from: Date.add(today(), -9))
+
+    retired =
+      legacy_version!(world, security, Actor.owner_ui(),
+        valid_from: Date.add(today(), -20),
+        valid_until: Date.add(today(), -5)
+      )
+
+    assert {:ok, %{agent: 2, operator: 1, untraced: 0}} =
+             PolicyRuleAuthorBackfill.run(Actor.system_job("policy_author_backfill"))
+
+    for {version, author} <- [{predecessor, :agent}, {successor, :agent}, {retired, :operator}] do
+      stored = Repo.get!(PolicyRuleVersion, version.id)
+      assert stored.author == author
+      assert {stored.valid_from, stored.valid_until} == {version.valid_from, version.valid_until}
+    end
+
+    moved =
+      raw_error("UPDATE policy_rule_versions SET valid_until = valid_until + 1 WHERE id = $1", [
+        predecessor.id
+      ])
+
+    assert moved.postgres.code == :restrict_violation
+
+    backdated =
+      raw_error("UPDATE policy_rule_versions SET valid_until = $1 WHERE id = $2", [
+        Date.add(today(), -3),
+        successor.id
+      ])
+
+    assert backdated.postgres.code == :restrict_violation
   end
 end
