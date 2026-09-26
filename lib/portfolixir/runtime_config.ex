@@ -312,7 +312,9 @@ defmodule Portfolixir.RuntimeConfig do
                   "to 32 characters of a-z, 0-9, _ and -, starting with a letter or a digit"
         end
 
-        {name, named_token!(name, token)}
+        # Spaces around the "=" belong to neither side: a token kept with
+        # them would pass every check and match no bearer a client sends.
+        {name, named_token!(name, String.trim(token))}
 
       [_no_separator] ->
         raise ArgumentError,

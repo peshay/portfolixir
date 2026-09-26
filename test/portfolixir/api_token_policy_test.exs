@@ -41,8 +41,8 @@ defmodule Portfolixir.ApiTokenPolicyTest do
   #
   # Acceptance criteria:
   # - PORTFOLIXIR_API_TOKENS "mcp=<token>,scripts=<token>" yields both
-  #   principals by name, in order; blank entries and spaces around names and
-  #   commas are skipped.
+  #   principals by name, in order; blank entries and spaces around names,
+  #   tokens and commas are skipped.
   # - PORTFOLIXIR_API_TOKEN alone is the unnamed default ({nil, token}); with
   #   both set, the named entries come first and the default last.
   # - Refused at boot, naming PORTFOLIXIR_API_TOKENS and the entry: an entry
@@ -66,6 +66,12 @@ defmodule Portfolixir.ApiTokenPolicyTest do
     # A token keeps every character after the first "=", its own "=" included.
     padded = String.duplicate("p", 38) <> "=="
     assert RuntimeConfig.api_tokens!(nil, "mcp=#{padded}") == [{"mcp", padded}]
+
+    # Spaces around the "=" belong to neither side (closing-act finding
+    # EH-6): kept on the token, no client would ever send them, and every
+    # request with it would answer 401 with nothing at boot saying why.
+    assert RuntimeConfig.api_tokens!(nil, "mcp = #{mcp} , scripts =\t#{scripts}") ==
+             [{"mcp", mcp}, {"scripts", scripts}]
 
     refusals = [
       {"mcp#{mcp}", ~r/PORTFOLIXIR_API_TOKENS.*entry 1.*name=token/},
