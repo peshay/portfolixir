@@ -509,6 +509,47 @@ defmodule Portfolixir.Lifecycle.SecurityMergeCarryTest do
     end
   end
 
+  describe "the identifiers the preview promises are the ones stored (§16 invariant 12)" do
+    # User story:
+    # As the operator reading the identifiers the preview promises,
+    # I want them to be exactly what the security I keep carries afterwards,
+    # including an asset class the catalog derives when an identifier is
+    # written,
+    # so that the preview never promises a master-data state the merge does
+    # not produce.
+    #
+    # Acceptance criteria:
+    # - A target without a stored asset class takes the source's crypto
+    #   ticker, from which the catalog derives the asset class when it
+    #   writes it: under each identity choice the preview states the asset
+    #   class, ticker and ISIN the target stores after the merge.
+    test "the asset class after the merge is the one the preview states" do
+      for {choice, name, {target_isin, source_isin}} <- [
+            {:keep_target_isin, "Harbour Coin", {@isin_target, @isin_source}},
+            {:adopt_source_isin, "Keel Coin", {"XS00EXOTHC00", "XS00EXFNDD00"}}
+          ] do
+        target = security!(%{name: name, isin: target_isin, asset_class: nil})
+        source = security!(%{name: name, isin: source_isin, ticker_symbol: "BTC-EUR"})
+        assert Repo.get!(Security, target.id).asset_class == nil
+
+        {:ok, preview} = Lifecycle.preview_security_merge(source.id, target.id)
+        promised = Map.fetch!(preview.identifiers.outcomes, choice)
+        assert promised.asset_class == "crypto"
+
+        {:ok, _record, :applied} =
+          Lifecycle.merge_security(agent(), source.id, target.id, %{
+            plan_digest: preview.plan_digest,
+            identity_choice: choice
+          })
+
+        kept = Repo.get!(Security, target.id)
+
+        assert {kept.asset_class, kept.ticker_symbol, kept.isin} ==
+                 {promised.asset_class, promised.ticker_symbol, promised.isin}
+      end
+    end
+  end
+
   describe "resolvability (§9, §16 invariant 14)" do
     # User story:
     # As the operator about to merge a security that a Portfolio Performance

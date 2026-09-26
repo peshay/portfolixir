@@ -46,6 +46,13 @@ defmodule Portfolixir.Invariants.IdentityFreezeWritersTest do
   #                    step 5), which writes a depot's `cash_account_id` alone,
   #                    for a cash-account merge re-pointing the source's
   #                    linked depots; no frozen field and no name is cast.
+  #   :replay_no_write — `changeset/2` built and applied in memory, never
+  #                    handed to a Repo write: the security merge's preview
+  #                    replays its writes of the target's identifiers to state
+  #                    the asset class the catalog derives (ADR-0050 §9, §16
+  #                    invariant 12). The writes it replays go through
+  #                    `Catalog.update_security/3` and the ISIN change, both
+  #                    classified above, where the freeze runs.
   @expected_writers %{
     {"lib/portfolixir/portfolios.ex", :create_cash_account, "CashAccount.changeset"} => :insert,
     {"lib/portfolixir/portfolios.ex", :update_cash_account, "CashAccount.changeset"} => :update,
@@ -67,7 +74,9 @@ defmodule Portfolixir.Invariants.IdentityFreezeWritersTest do
     {"lib/portfolixir/lifecycle/merge_writer.ex", :append_former_names,
      "SecuritiesAccount.former_names_changeset"} => :former_names_only,
     {"lib/portfolixir/lifecycle/merge_writer.ex", :reassign_depot,
-     "SecuritiesAccount.reassign_changeset"} => :cash_link_only
+     "SecuritiesAccount.reassign_changeset"} => :cash_link_only,
+    {"lib/portfolixir/lifecycle/security_merge.ex", :stored_asset_class, "Security.changeset"} =>
+      :replay_no_write
   }
 
   @changeset_writes ~w(put_change force_change change)a
