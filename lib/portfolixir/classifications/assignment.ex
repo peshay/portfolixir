@@ -16,6 +16,8 @@ defmodule Portfolixir.Classifications.Assignment do
   alias Portfolixir.Classifications.Category
   alias Portfolixir.Classifications.Classification
 
+  @type t :: %__MODULE__{}
+
   schema "security_category_assignments" do
     belongs_to(:security, Security)
     belongs_to(:classification, Classification)
@@ -31,6 +33,22 @@ defmodule Portfolixir.Classifications.Assignment do
     |> assoc_constraint(:security)
     |> assoc_constraint(:classification)
     |> assoc_constraint(:category)
+    |> unique_constraint([:security_id, :classification_id],
+      name: :security_category_assignments_security_id_classification_id_index
+    )
+  end
+
+  @doc """
+  Re-points a stored assignment onto `security_id` and nothing else (ADR-0050
+  §9: a security merge moves the source's assignment where the target has
+  none in that classification). The classification and the category stay;
+  the unique `(security, classification)` index is declared, so a target
+  that gained an assignment meanwhile is a changeset error.
+  """
+  def reassign_changeset(%__MODULE__{} = assignment, security_id) when is_integer(security_id) do
+    assignment
+    |> change(security_id: security_id)
+    |> assoc_constraint(:security)
     |> unique_constraint([:security_id, :classification_id],
       name: :security_category_assignments_security_id_classification_id_index
     )

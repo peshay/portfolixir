@@ -600,6 +600,53 @@ defmodule Portfolixir.Portfolios.Targets do
     |> delete_targets(actor)
   end
 
+  @doc """
+  Moves one **position** row onto the security `security_id` on behalf of
+  `actor` (ADR-0050 §9: a security merge re-points the source's position
+  targets, in any plan status, where they neither collide nor go stale): the
+  same row, one journaled `target` update with the row as stored under its
+  lock as the before-image. Answers `{:ok, target}`, `{:error, :not_found}`
+  for a row gone, or `{:error, changeset}`.
+  """
+  @spec reassign_position_target(Actor.t(), Target.t(), integer()) ::
+          {:ok, Target.t()} | {:error, :not_found | Ecto.Changeset.t()}
+  def reassign_position_target(%Actor{} = actor, %Target{} = target, security_id)
+      when is_integer(security_id) do
+    Multi.new()
+    |> Multi.update(:record, fn changes ->
+      changes |> Journal.locked_row() |> Target.reassign_changeset(security_id)
+    end)
+    |> Journal.record(actor,
+      resource_type: "target",
+      operation: :update,
+      source: :record,
+      before: target
+    )
+    |> Repo.transaction()
+    |> normalize_write()
+  end
+
+  @doc """
+  Deletes the given target rows on behalf of `actor`, one journaled `target`
+  delete per row, each re-read under its lock first (a row another writer
+  removed meanwhile is not counted). The seam a security merge deletes the
+  source's colliding and stale position targets through (ADR-0050 §9).
+  Returns `{:ok, count}`.
+  """
+  @spec delete_target_rows(Actor.t(), [Target.t()]) :: {:ok, non_neg_integer()} | {:error, term()}
+  def delete_target_rows(%Actor{} = actor, targets) when is_list(targets),
+    do: delete_targets(targets, actor)
+
+  @doc """
+  For each of `categories` (one classification's), the set of its own id and
+  every ancestor's: a position filed under category `c` sits under it when
+  its security's category `a` has `c` in `category_ancestors(categories)[a]`
+  — the rule the stale flag reads, and the one a security merge evaluates a
+  moved position target against (ADR-0030, ADR-0050 §9).
+  """
+  @spec category_ancestors([map()]) :: %{optional(integer()) => MapSet.t(integer())}
+  def category_ancestors(categories) when is_list(categories), do: ancestor_sets(categories)
+
   # The rows are re-read under their lock first, so each per-row delete finds
   # its row: one another writer removed in the meantime is simply not listed
   # (E25 S6, F49).

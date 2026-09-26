@@ -744,6 +744,32 @@ defmodule Portfolixir.Classifications do
     |> assignment_result()
   end
 
+  @doc """
+  Moves a stored assignment onto the security `security_id` on behalf of
+  `actor` (ADR-0050 §9: a security merge re-points the source's assignment
+  where the target has none in that classification): the same row, one
+  journaled `security_category_assignment` update with the row as stored
+  under its lock as the before-image. Answers `{:ok, assignment}`,
+  `{:error, :not_found}` for a row gone, or `{:error, changeset}`.
+  """
+  @spec reassign_assignment(Actor.t(), Assignment.t(), integer()) ::
+          {:ok, Assignment.t()} | {:error, :not_found | Ecto.Changeset.t()}
+  def reassign_assignment(%Actor{} = actor, %Assignment{} = assignment, security_id)
+      when is_integer(security_id) do
+    Multi.new()
+    |> Multi.update(:assignment, fn changes ->
+      changes |> Journal.locked_row() |> Assignment.reassign_changeset(security_id)
+    end)
+    |> Journal.record(actor,
+      resource_type: "security_category_assignment",
+      operation: :update,
+      source: :assignment,
+      before: assignment
+    )
+    |> Repo.transaction()
+    |> assignment_result()
+  end
+
   defp delete_assignment(actor, %Assignment{} = assignment) do
     Multi.new()
     |> Multi.delete(:assignment, assignment)

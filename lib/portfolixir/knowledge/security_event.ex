@@ -106,6 +106,17 @@ defmodule Portfolixir.Knowledge.SecurityEvent do
   @closed_sets [kind: @kinds, timing: @timings, source_quality: @source_qualities]
 
   @doc """
+  Re-points an event onto `security_id` and nothing else (ADR-0050 §9: a
+  security merge moves the source's events onto the target). The event's
+  facts are not re-validated: they are stored as they were.
+  """
+  def reassign_changeset(%__MODULE__{} = event, security_id) when is_integer(security_id) do
+    event
+    |> change(security_id: security_id)
+    |> assoc_constraint(:security)
+  end
+
+  @doc """
   Builds an event's changeset. `today` is injected by the context shell (the
   clock stays out of schemas, AR-2): a `checked_at` later than `today` plus
   one day of zone slack is refused (E25 S6, G09) — it is the day the source

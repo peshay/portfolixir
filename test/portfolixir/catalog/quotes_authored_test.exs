@@ -2,7 +2,8 @@ defmodule Portfolixir.Catalog.QuotesAuthoredTest do
   # E25 S6 (#891), G27 and F20 under decision T-9: every authored quote write
   # is journaled with the rows it replaced as its before-image, an authored
   # row is always stored as manual, and a manual pin has a journaled way back
-  # to provider data. Only the sync writers stay outside the journal.
+  # to provider data. Only the sync writers and the security merge's gap-fill
+  # (ADR-0050 §13, recorded in the merge manifest) stay outside the journal.
   use Portfolixir.DataCase, async: false
 
   alias Portfolixir.Actor
@@ -216,6 +217,20 @@ defmodule Portfolixir.Catalog.QuotesAuthoredTest do
       |> Enum.filter(&writes_quotes?(File.read!(&1)))
 
     assert writers == []
+  end
+
+  # User story:
+  # As a maintainer keeping ADR-0017's exemption narrow,
+  # I want the other unjournaled quote writer, the security merge's gap-fill
+  # (ADR-0050 §9, §13), called by the security merge alone,
+  # so that no other path can move or drop a quote with only a merge
+  # manifest as its record.
+  #
+  # Acceptance criteria:
+  # - In the compiled call graph, only `Lifecycle.SecurityMerge` calls
+  #   `Quotes.merge_gap_fill/4`.
+  test "only the security merge calls the merge's quote writer" do
+    assert xref_callers({Quotes, :merge_gap_fill, 4}) == [Portfolixir.Lifecycle.SecurityMerge]
   end
 
   test "the quote-writer scan catches an aliased, a changeset and a raw-SQL write" do

@@ -64,7 +64,7 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
       with {:ok, security} <- lock_security(security),
            {:ok, normalized} <- validate_new_isin(security, new_isin),
            :ok <- consume_own_alias(actor, security, normalized),
-           {:ok, alias_row} <- insert_alias(actor, security, changed_on, note),
+           {:ok, alias_row} <- insert_alias(actor, security, security.isin, changed_on, note),
            {:ok, updated} <- write_new_isin(actor, security, normalized) do
         %{security: updated, alias: alias_row}
       else
@@ -77,6 +77,54 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
     case Repo.one(from(s in Security, where: s.id == ^id, lock: "FOR UPDATE")) do
       nil -> {:error, :not_found}
       stored -> {:ok, stored}
+    end
+  end
+
+  @doc """
+  Records `former_isin` — the ISIN of a security a merge takes away — as a
+  former ISIN of `security` on behalf of `actor` (ADR-0050 §9, the identity
+  choice `keep_target_isin`): one journaled alias row (`changed_on` defaults
+  to today, optional `:note`), so an export still carrying that ISIN resolves
+  to `security` through the ladder's alias tier. `security`'s own ISIN is
+  unchanged.
+
+  The same guards as `record_isin_change/4`, under the same ISIN write lock:
+  the ISIN must not be live on any security — the merge clears the source's
+  first — nor recorded as a former ISIN already (the unique index). Returns
+  `{:ok, alias_row}` or `{:error, changeset}` with the violation on
+  `:former_isin`.
+  """
+  @spec record_merged_isin(Actor.t(), Security.t(), String.t(), keyword()) ::
+          {:ok, IdentifierAlias.t()} | {:error, Changeset.t()}
+  def record_merged_isin(%Actor{} = actor, %Security{} = security, former_isin, opts \\ [])
+      when is_binary(former_isin) and is_list(opts) do
+    changed_on = Keyword.get(opts, :changed_on) || Clock.today()
+    normalized = IdentifierAlias.normalize_isin(former_isin)
+
+    Repo.transaction(fn ->
+      acquire_isin_write_lock(Repo)
+
+      with :ok <- ensure_merged_isin_not_live(normalized),
+           {:ok, alias_row} <-
+             insert_alias(actor, security, normalized, changed_on, Keyword.get(opts, :note)) do
+        alias_row
+      else
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+  end
+
+  defp ensure_merged_isin_not_live(isin) do
+    case Repo.get_by(Security, isin: isin) do
+      nil ->
+        :ok
+
+      %Security{} = other ->
+        {:error,
+         error_changeset(
+           :former_isin,
+           "is still the current ISIN of \"#{other.name}\" (security ##{other.id})"
+         )}
     end
   end
 
@@ -300,11 +348,11 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
     end
   end
 
-  defp insert_alias(%Actor{} = actor, %Security{} = security, changed_on, note) do
+  defp insert_alias(%Actor{} = actor, %Security{} = security, former_isin, changed_on, note) do
     changeset =
       IdentifierAlias.changeset(%IdentifierAlias{}, %{
         security_id: security.id,
-        former_isin: security.isin,
+        former_isin: former_isin,
         changed_on: changed_on,
         note: note
       })

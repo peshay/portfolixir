@@ -112,6 +112,32 @@ defmodule Portfolixir.Knowledge.Events do
   end
 
   @doc """
+  Moves one event onto the security `security_id`, journaled under `actor`
+  as one `security_event` update with the row as stored under its lock as
+  the `before` snapshot (ADR-0050 §9: a security merge moves the source's
+  events onto the target; a same-kind, same-day pair it lists and leaves for
+  the operator). Only `security_id` changes; the event's facts are not
+  re-validated.
+  """
+  @spec reassign_event(Actor.t(), SecurityEvent.t(), integer()) ::
+          {:ok, SecurityEvent.t()} | {:error, Ecto.Changeset.t() | :stale | {atom(), term()}}
+  def reassign_event(%Actor{} = actor, %SecurityEvent{} = event, security_id)
+      when is_integer(security_id) do
+    Multi.new()
+    |> Multi.update(
+      :event,
+      &SecurityEvent.reassign_changeset(Journal.locked_row(&1), security_id)
+    )
+    |> Journal.record(actor,
+      resource_type: "security_event",
+      operation: :update,
+      source: :event,
+      before: event
+    )
+    |> commit()
+  end
+
+  @doc """
   Deletes one event, journaled under `actor` with the row recorded as the
   `before` snapshot — so removing a duplicate loses nothing (§4).
   """

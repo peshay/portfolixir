@@ -352,6 +352,59 @@ defmodule Portfolixir.Catalog.Quotes do
     end
   end
 
+  @doc """
+  The **security merge's** quote writer (ADR-0050 §9, §13), the one writer
+  besides the sync that ADR-0017's quote exemption names: `moved` are quotes
+  of `source_id` dated where `target_id` has none, and each is re-pointed onto
+  the target keeping its date, close and source (and so its ADR-0028 §2
+  basis); `dropped` are the source's quotes on a date the target already has
+  one, which wins, and each is deleted. Row by row, and **without a journal
+  entry**: the merge manifest lists every quote this moves or drops, and the
+  dropped rows' values are its before-image. Both securities' quote
+  invalidation runs, in the caller's transaction.
+
+  Called by `Portfolixir.Lifecycle.SecurityMerge` only (pinned by
+  `test/portfolixir/catalog/quotes_authored_test.exs`), inside the merge's
+  transaction with both securities locked and every row read `FOR UPDATE`.
+  A row the database refuses answers `{:error, {:write_refused,
+  "security_quote", id, changeset}}` and the caller rolls back.
+  """
+  @spec merge_gap_fill(integer(), integer(), [SecurityQuote.t()], [SecurityQuote.t()]) ::
+          :ok | {:error, {:write_refused, String.t(), integer(), Ecto.Changeset.t()}}
+  def merge_gap_fill(source_id, target_id, moved, dropped)
+      when is_integer(source_id) and is_integer(target_id) and is_list(moved) and
+             is_list(dropped) do
+    with :ok <- each_quote(moved, &move_quote(&1, source_id, target_id)),
+         :ok <- each_quote(dropped, &drop_quote(&1, source_id)) do
+      Invalidation.after_quote_write(source_id, Repo)
+      Invalidation.after_quote_write(target_id, Repo)
+    end
+  end
+
+  defp each_quote(rows, fun) do
+    Enum.reduce_while(rows, :ok, fn row, :ok ->
+      case fun.(row) do
+        {:ok, _row} ->
+          {:cont, :ok}
+
+        {:error, changeset} ->
+          {:halt, {:error, {:write_refused, "security_quote", row.id, changeset}}}
+      end
+    end)
+  end
+
+  defp move_quote(%SecurityQuote{security_id: source_id} = row, source_id, target_id) do
+    row
+    |> Ecto.Changeset.change(security_id: target_id)
+    |> Ecto.Changeset.unique_constraint([:security_id, :date],
+      name: :security_quotes_security_id_date_index
+    )
+    |> Repo.update(stale_error_field: :id)
+  end
+
+  defp drop_quote(%SecurityQuote{security_id: source_id} = row, source_id),
+    do: Repo.delete(row, stale_error_field: :id)
+
   # One transaction that first locks the security row: every quote insert
   # checks its foreign key under a key-share lock of that row, which this
   # lock excludes, so no writer of the security's quotes interleaves.
