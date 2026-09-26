@@ -922,7 +922,9 @@ Example quote sync response:
   does not, the source's set is carried over. Otherwise it answers
   `409 Conflict` with `errors.code` (`same_account`, `not_live`,
   `portfolio_mismatch`, `buckets_mismatch`, or `position_buckets_mismatch`,
-  whose `errors.detail` names each position and both bucket sets),
+  whose `errors.detail` names each position and both bucket sets — or an
+  override to carry that holds more than one scope bucket, which the
+  target's position cannot take),
   `errors.detail` and `errors.guards`. An unknown source answers `404`, a
   source already merged `409` `already_merged` with `errors.merged_into`, a
   missing `target_id` `422`. The `200` carries:

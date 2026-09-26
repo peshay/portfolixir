@@ -935,7 +935,9 @@ Beispiel-Antwort für Kurssynchronisierung:
   Menge der Quelle übertragen. Sonst antwortet sie `409 Conflict` mit
   `errors.code` (`same_account`, `not_live`, `portfolio_mismatch`,
   `buckets_mismatch` oder `position_buckets_mismatch`, dessen
-  `errors.detail` jede Position und beide Bucket-Mengen nennt),
+  `errors.detail` jede Position und beide Bucket-Mengen nennt — oder einen zu
+  übertragenden Override mit mehr als einem Scope-Bucket, den die Position im
+  Ziel nicht aufnehmen kann),
   `errors.detail` und `errors.guards`. Eine unbekannte Quelle antwortet `404`,
   eine schon zusammengeführte Quelle `409` `already_merged` mit
   `errors.merged_into`, eine fehlende `target_id` `422`. Die `200` enthält:

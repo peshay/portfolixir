@@ -361,6 +361,43 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
     end
   end
 
+  describe "an override the target cannot take (§7 depot guards, ADR-0024)" do
+    # User story:
+    # As the operator whose source depot carries an override stored before
+    # a position could hold only one scope bucket,
+    # I want the preview to refuse the merge naming that position,
+    # so that the merge never fails half-way on a write the bucket rules
+    # refuse, and never answers a changed plan it cannot resolve.
+    #
+    # Acceptance criteria:
+    # - The source's override on a security the target does not hold, with
+    #   two scope-dimension buckets, refuses as position_buckets_mismatch
+    #   naming the position and the rule, and writes nothing.
+    test "a carried override with two scope buckets is refused up front", ctx do
+      worked_example!(ctx)
+      {:ok, one} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Scope A", dimension: "scope"})
+      {:ok, two} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Scope B", dimension: "scope"})
+
+      # Stored the way an override was written before the one-scope rule.
+      Repo.insert_all("position_bucket_overrides", [
+        %{securities_account_id: ctx.source.id, security_id: ctx.kestrel.id, bucket_id: one.id},
+        %{securities_account_id: ctx.source.id, security_id: ctx.kestrel.id, bucket_id: two.id}
+      ])
+
+      before = fingerprint()
+
+      assert {:error, {:refused, guards}} =
+               Lifecycle.preview_depot_merge(ctx.source.id, ctx.target.id)
+
+      assert %{code: :position_buckets_mismatch, detail: detail} =
+               Enum.find(guards, &(not &1.passed))
+
+      assert detail =~ "Kestrel Industrial Group NV"
+      assert detail =~ "scope"
+      assert fingerprint() == before
+    end
+  end
+
   describe "journal, buckets and names (§7, §13, §16 invariant 11)" do
     # User story:
     # As the maintainer auditing a depot merge,
