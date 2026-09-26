@@ -159,7 +159,8 @@ defmodule Portfolixir.Imports.ImportHashReimportTest do
   # so that a decision for one never applies to the other.
   #
   # Acceptance criteria:
-  # - Two references whose fields joined to one string get distinct keys.
+  # - Two references whose fields joined to one string get distinct keys, and
+  #   so do two whose fields concatenate to one string with nothing between.
   # - At apply, a remap of one does not move the other: the second resolves
   #   on its own (here: created).
   test "distinct references containing the separator get distinct keys and resolve separately" do
@@ -175,6 +176,11 @@ defmodule Portfolixir.Imports.ImportHashReimportTest do
     first_key = SecurityResolver.key(SecurityResolver.effective_ref(Enum.at(entries, 0)))
     second_key = SecurityResolver.key(SecurityResolver.effective_ref(Enum.at(entries, 1)))
     refute first_key == second_key
+
+    # Fields that concatenate to one string with no separator at all are
+    # told apart by their length prefixes alone.
+    refute SecurityResolver.key(%{first | ticker: "AB", name: "C"}) ==
+             SecurityResolver.key(%{first | ticker: "A", name: "BC"})
 
     assert {:ok, result} =
              Imports.apply(%Preview{entries: entries}, %{

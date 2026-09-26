@@ -63,7 +63,8 @@ defmodule Portfolixir.Imports.ImportHashTest do
   # Acceptance criteria:
   # - A row with no separator in any field hashes exactly as the Sprint 15
   #   formula did, and has no second hash to consult.
-  # - Rows whose fields joined to one string under that formula hash apart.
+  # - Rows whose fields joined to one string under that formula hash apart,
+  #   also when their fields concatenate to one string with nothing between.
   # - A row with the separator in a field names the hash the Sprint 15 formula
   #   gave it, so a row stored before the change is still recognised.
   test "a row without the separator keeps the hash the Sprint 15 formula gave it" do
@@ -78,6 +79,15 @@ defmodule Portfolixir.Imports.ImportHashTest do
     assert ImportHash.legacy(a, 42) == ImportHash.legacy(b, 42)
     refute ImportHash.compute(a, 42) == ImportHash.compute(b, 42)
     refute ImportHash.compute(a, 42) == ImportHash.legacy(a, 42)
+
+    # The separator moved across the boundary: the fields also concatenate
+    # to one string ("Depot|A") without any separator between them, so only
+    # the length prefixes tell the two rows apart.
+    c = buy_in("Depot|", "A")
+    d = buy_in("Depot", "|A")
+
+    assert ImportHash.legacy(c, 42) == ImportHash.legacy(d, 42)
+    refute ImportHash.compute(c, 42) == ImportHash.compute(d, 42)
   end
 
   test "a row with the separator in a name names its Sprint 15 hash as its legacy hash" do
