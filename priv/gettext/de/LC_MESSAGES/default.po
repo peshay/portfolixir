@@ -9202,8 +9202,8 @@ msgid "Remedy: give the position the same buckets in both, then check again."
 msgstr "Abhilfe: der Position in beiden dieselben Buckets geben, dann erneut prüfen."
 
 #, elixir-autogen, elixir-format
-msgid "Remedy: book the split on that side first, or delete the wrong split, then check again."
-msgstr "Abhilfe: den Split zuerst auf dieser Seite buchen oder den falschen Split löschen, dann erneut prüfen."
+msgid "Remedy: book the split on the security that lacks it, or delete the wrong split, then check again."
+msgstr "Abhilfe: den Split bei dem Wertpapier buchen, dem er fehlt, oder den falschen Split löschen, dann erneut prüfen."
 
 #, elixir-autogen, elixir-format
 msgid "This version has no way around it; both securities stay unchanged."
@@ -9475,3 +9475,31 @@ msgid "%{quantity} shares if the equal booking is kept (%{difference})"
 msgid_plural "%{quantity} shares if the %{count} equal bookings are kept (%{difference})"
 msgstr[0] "%{quantity} Stück, wenn die gleiche Buchung bleibt (%{difference})"
 msgstr[1] "%{quantity} Stück, wenn die %{count} gleichen Buchungen bleiben (%{difference})"
+
+#: lib/portfolixir_web/live/securities/merge_preview.ex
+#, elixir-autogen, elixir-format
+msgctxt "merge side"
+msgid "source"
+msgstr "Quelle"
+
+#: lib/portfolixir_web/live/securities/merge_preview.ex
+#, elixir-autogen, elixir-format
+msgctxt "merge side"
+msgid "target"
+msgstr "Ziel"
+
+#: lib/portfolixir_web/live/securities/merge_dialog.ex
+#, elixir-autogen, elixir-format
+msgctxt "security state"
+msgid "retired"
+msgstr "stillgelegt"
+
+#: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex
+#, elixir-autogen, elixir-format
+msgid "“%{name}”"
+msgstr "„%{name}“"
+
+#: lib/portfolixir_web/live/securities/merge_preview.ex
+#, elixir-autogen, elixir-format
+msgid "Remedy: book the split of %{date} (%{ratio}) on %{security} too, or delete the wrong split, then check again."
+msgstr "Abhilfe: den Split vom %{date} (%{ratio}) auch bei %{security} buchen oder den falschen Split löschen, dann erneut prüfen."

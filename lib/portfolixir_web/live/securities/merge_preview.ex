@@ -669,7 +669,8 @@ defmodule PortfolixirWeb.Securities.MergePreview do
       for row <- preview.configuration.position_targets do
         %{
           what: gettext("Position target"),
-          where: "“#{row.plan_name}”, #{plan_status(row.plan_status)}",
+          where:
+            gettext("“%{name}”", name: row.plan_name) <> ", " <> plan_status(row.plan_status),
           value:
             {:text,
              gettext("%{weight} % in “%{category}”",
@@ -937,11 +938,14 @@ defmodule PortfolixirWeb.Securities.MergePreview do
     keep_both? = Enum.any?(failed, &(Map.get(&1, :remedy) == :keep_both))
 
     remedies =
-      failed |> remedy_guards() |> Enum.map(&remedy/1) |> Enum.reject(&is_nil/1) |> Enum.uniq()
+      failed
+      |> remedy_guards()
+      |> Enum.flat_map(&remedies(&1, assigns.source, assigns.target))
+      |> Enum.uniq()
 
     assigns =
       assign(assigns,
-        failed: failed,
+        failed: unrestated(failed),
         other_way?: other_way?,
         keep_both?: keep_both? and (assigns.reverse || []) != [],
         remedies: remedies,
@@ -985,13 +989,58 @@ defmodule PortfolixirWeb.Securities.MergePreview do
     """
   end
 
+  # Two ratios on one day also fail the split-event rule, and the linearity
+  # rule, for that day: the same conflict said again under "Also" (the
+  # closing act, UAT-5). The ratio conflict speaks alone for its days;
+  # an issue of another day still stands.
+  # Likewise a split one side lacks makes the linearity rule fail on its
+  # day: the missing split is the reason, said once.
+  defp unrestated(failed) do
+    ratio_days =
+      for %{code: :split_ratio_mismatch} = guard <- failed,
+          conflict <- Map.get(guard, :conflicts, []),
+          do: conflict.date
+
+    event_days =
+      for %{code: :split_event_mismatch} = guard <- failed,
+          issue <- Map.get(guard, :issues, []),
+          do: issue.date
+
+    Enum.flat_map(failed, &unrestated(&1, ratio_days, ratio_days ++ event_days))
+  end
+
+  defp unrestated(%{code: :split_event_mismatch} = guard, [_ | _] = ratio_days, _days) do
+    case Enum.reject(Map.get(guard, :issues, []), &(&1.date in ratio_days)) do
+      [] -> []
+      issues -> [Map.put(guard, :issues, issues)]
+    end
+  end
+
+  defp unrestated(%{code: :split_linearity} = guard, _ratio_days, days) do
+    case Map.get(guard, :failure) do
+      %{date: date} -> if date in days, do: [], else: [guard]
+      _unknown -> [guard]
+    end
+  end
+
+  defp unrestated(guard, _ratio_days, _days), do: [guard]
+
   # Two ratios on one day also fail the split-event rule for that day; its
-  # remedy ("book the split on that side first") cannot apply while both
+  # remedy (book the split where it is missing) cannot apply while both
   # sides carry a split, so the ratio conflict's own remedy speaks alone.
   defp remedy_guards(failed) do
-    if Enum.any?(failed, &(&1.code == :split_ratio_mismatch)),
-      do: Enum.reject(failed, &(&1.code in [:split_event_mismatch, :split_linearity])),
-      else: failed
+    cond do
+      Enum.any?(failed, &(&1.code == :split_ratio_mismatch)) ->
+        Enum.reject(failed, &(&1.code in [:split_event_mismatch, :split_linearity]))
+
+      # The split-event remedy names the security to book the split on; the
+      # linearity rule's general one would say it again.
+      Enum.any?(failed, &(&1.code == :split_event_mismatch)) ->
+        Enum.reject(failed, &(&1.code == :split_linearity))
+
+      true ->
+        failed
+    end
   end
 
   defp recheckable,
@@ -1083,7 +1132,12 @@ defmodule PortfolixirWeb.Securities.MergePreview do
 
   defp reason(%{code: :policy_rules} = guard, _subject, _other, :reverse) do
     gettext("the target is read by policy rules: %{names}.",
-      names: Enum.map_join(Map.get(guard, :policy_rules, []), ", ", &"“#{&1.name}”")
+      names:
+        Enum.map_join(
+          Map.get(guard, :policy_rules, []),
+          ", ",
+          &gettext("“%{name}”", name: &1.name)
+        )
     )
   end
 
@@ -1205,10 +1259,12 @@ defmodule PortfolixirWeb.Securities.MergePreview do
   defp swap(:source, :reverse), do: :target
   defp swap(:target, :reverse), do: :source
 
+  # The merge's sides carry their own context (DESIGN G3): a bare "target"
+  # is the allocation column's word elsewhere ("Soll").
   defp side_word(side, direction) do
     case swap(side, direction) do
-      :source -> gettext("source")
-      :target -> gettext("target")
+      :source -> pgettext("merge side", "source")
+      :target -> pgettext("merge side", "target")
     end
   end
 
@@ -1283,7 +1339,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
   defp remedy(%{code: code}) when code in [:split_event_mismatch, :split_linearity],
     do:
       gettext(
-        "Remedy: book the split on that side first, or delete the wrong split, then check again."
+        "Remedy: book the split on the security that lacks it, or delete the wrong split, then check again."
       )
 
   defp remedy(%{code: :legacy_hashed_split}),
@@ -1301,6 +1357,29 @@ defmodule PortfolixirWeb.Securities.MergePreview do
 
   defp remedy(%{code: :not_live}), do: gettext("Remedy: go back and choose another target.")
   defp remedy(_guard), do: nil
+
+  # A split one side lacks names the security to book it on (the closing
+  # act, UAT-5: "on that side" left the operator to work out which).
+  defp remedies(%{code: :split_event_mismatch} = guard, source, target) do
+    lacking = for %{kind: :lacking} = issue <- Map.get(guard, :issues, []), do: issue
+
+    if lacking == [] or is_nil(target) do
+      List.wrap(remedy(guard))
+    else
+      Enum.map(lacking, fn issue ->
+        security = if issue.side == :target, do: target, else: source
+
+        gettext(
+          "Remedy: book the split of %{date} (%{ratio}) on %{security} too, or delete the wrong split, then check again.",
+          date: Date.to_iso8601(issue.date),
+          ratio: ratio(issue.ratio),
+          security: security.isin || security.name
+        )
+      end)
+    end
+  end
+
+  defp remedies(guard, _source, _target), do: List.wrap(remedy(guard))
 
   # -- shared --------------------------------------------------------------------------
 

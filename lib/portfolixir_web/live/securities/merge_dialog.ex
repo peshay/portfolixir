@@ -615,7 +615,8 @@ defmodule PortfolixirWeb.Securities.MergeDialog do
 
   defp reason(:currency), do: gettext("different currency")
   defp reason(:benchmark), do: gettext("only one of the two is a benchmark")
-  defp reason(:retired), do: gettext("retired")
+  # A security's state, not the policy-rule word (the closing act, UAT-6).
+  defp reason(:retired), do: pgettext("security state", "retired")
   defp reason(:quote_basis), do: gettext("other quote basis")
 
   defp source_meta(source, count) do

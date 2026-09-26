@@ -65,7 +65,7 @@ defmodule PortfolixirWeb.AccountsMergeLiveTest do
       assert has_element?(view, "#merge-dialog", "Step 1 of 2 · Target")
 
       assert view |> element("#merge-dialog [data-role='merge-route']") |> render() =~
-               "EUR · Free cash · Buckets: none · 1 booking · 100.00 EUR"
+               "EUR · Free cash · no buckets · 1 booking · 100.00 EUR"
 
       assert has_element?(view, "#merge-target-#{ctx.target.id}:not([disabled])[checked]")
 
@@ -364,6 +364,40 @@ defmodule PortfolixirWeb.AccountsMergeLiveTest do
                "#merge-dialog [data-role='merge-confirm']",
                "In Tagesgeld zusammenführen"
              )
+    end
+
+    # User story (the closing act, UAT-7 / DC-5 and DC-6):
+    # As the operator reading the merge in German,
+    # I want every name quoted the German way and the buckets said one way,
+    # so that the dialog reads as one language, not a mix.
+    #
+    # Acceptance criteria:
+    # - Two names that become former names are each quoted „…“, as the
+    #   single name is.
+    # - An account without buckets says "keine Buckets" in the source line
+    #   and the target rows alike, never "Buckets: Keine".
+    test "the German flow quotes each former name and says the buckets one way", ctx do
+      example!(ctx)
+
+      {:ok, source} =
+        Portfolios.update_cash_account(Actor.owner_ui(), ctx.source, %{name: "Tagesgeld (älter)"})
+
+      {:ok, view, _html} = live(ctx.conn, "/portfolios?locale=de")
+      open_merge(view, source)
+
+      step1 = view |> element("#merge-dialog") |> render()
+      assert step1 =~ "keine Buckets"
+      refute step1 =~ "Buckets: Keine"
+
+      view
+      |> element("#merge-dialog form[data-role='merge-target-form']")
+      |> render_change(%{merge: %{target_id: "#{ctx.target.id}"}})
+
+      view |> element("#merge-dialog [data-role='merge-continue']") |> render_click()
+
+      note = view |> element("#merge-dialog") |> render()
+      assert note =~ "„Tagesgeld (älter)“, „Tagesgeld (alt)“ werden frühere Namen von Tagesgeld."
+      refute note =~ "“Tagesgeld"
     end
 
     # User story:

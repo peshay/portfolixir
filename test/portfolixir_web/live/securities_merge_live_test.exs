@@ -357,7 +357,80 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
     assert refusal =~
              "Remedy: delete the split with the wrong ratio in the Transactions tab, then check again."
 
-    refute refusal =~ "book the split on that side first"
+    refute refusal =~ "book the split"
+  end
+
+  # User story (the closing act, UAT-5 / DC-3):
+  # As the operator reading the two-ratios refusal in German,
+  # I want the merge's sides called Quelle and Ziel and the conflict said
+  # once,
+  # so that the refusal neither borrows the allocation column's "Soll" nor
+  # repeats itself three times under "Außerdem".
+  #
+  # Acceptance criteria:
+  # - The refusal names the day and both ratios once; no "Außerdem" line
+  #   restates a split conflict of that day, and "Soll" appears nowhere.
+  # - A split two portfolios book on one day with other ratios is named
+  #   with the merge's sides, "(Quelle)" and "(Ziel)".
+  test "the German two-ratios refusal says the conflict once, with Quelle and Ziel", ctx do
+    buy!(ctx, ctx.target, "4", "10.00", ~D[2025-01-12])
+    buy!(ctx, ctx.source, "2", "10.00", ~D[2025-01-10])
+    split!(ctx.portfolio, ctx.source, ~D[2025-03-01], {2, 1})
+    split!(ctx.portfolio, ctx.target, ~D[2025-03-01], {3, 1})
+
+    {:ok, view, _html} = live(ctx.conn, "/securities?locale=de")
+    to_preview(view, ctx.source, ctx.target)
+
+    refusal = view |> element("#security-merge-dialog [data-role='merge-refused']") |> render()
+
+    assert refusal =~ "Zusammenführen nicht möglich"
+    assert refusal =~ "2025-03-01"
+    refute refusal =~ "Außerdem"
+    refute refusal =~ "Soll"
+  end
+
+  # Acceptance criteria (the closing act, DC-3): where two portfolios split
+  # the two securities on one day with other ratios, the split-event rule
+  # names each ratio's side as the merge's side — "(Quelle)" and "(Ziel)",
+  # never the allocation column's "(Soll)".
+  test "a split two portfolios book with other ratios names the merge's sides", ctx do
+    {:ok, second} =
+      Portfolios.create_portfolio(Actor.owner_ui(), %{name: "Second", base_currency_code: "EUR"})
+
+    {:ok, cash} =
+      Portfolios.create_cash_account(Actor.owner_ui(), %{
+        portfolio_id: second.id,
+        name: "Second cash",
+        currency_code: "EUR"
+      })
+
+    {:ok, depot} =
+      Portfolios.create_securities_account(Actor.owner_ui(), %{
+        portfolio_id: second.id,
+        cash_account_id: cash.id,
+        name: "Second depot"
+      })
+
+    buy!(ctx, ctx.source, "2", "10.00", ~D[2025-01-10])
+
+    buy!(
+      %{ctx | portfolio: second, depot: depot, cash: cash},
+      ctx.target,
+      "4",
+      "10.00",
+      ~D[2025-01-12]
+    )
+
+    split!(ctx.portfolio, ctx.source, ~D[2025-03-01], {2, 1})
+    split!(second, ctx.target, ~D[2025-03-01], {3, 1})
+
+    {:ok, view, _html} = live(ctx.conn, "/securities?locale=de")
+    to_preview(view, ctx.source, ctx.target)
+
+    refusal = view |> element("#security-merge-dialog [data-role='merge-refused']") |> render()
+
+    assert refusal =~ "splitten die Wertpapiere 2:1 (Quelle) · 3:1 (Ziel)"
+    refute refusal =~ "Soll"
   end
 
   # User story:
@@ -452,8 +525,14 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
     assert refusal =~
              "the source's split of 2025-03-01 (2:1) is not a split of the target, which has a booking of 2025-01-12 before it."
 
+    # The remedy names the security that lacks the split (the closing act,
+    # UAT-5), not "that side", and the linearity rule of the same day does
+    # not say the conflict again.
     assert refusal =~
-             "Remedy: book the split on that side first, or delete the wrong split, then check again."
+             "Remedy: book the split of 2025-03-01 (2:1) on XS0000000017 too, or delete the wrong split, then check again."
+
+    refute refusal =~ "Also:"
+    refute refusal =~ "on the security that lacks it"
 
     assert has_element?(view, "#security-merge-dialog [data-role='merge-recheck']")
   end
@@ -564,6 +643,20 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
            )
 
     assert has_element?(view, "#security-merge-dialog", "Schritt 1 von 2 · Ziel")
+
+    # A retired twin is out for the security's state, in its own word
+    # (the closing act, UAT-6), not the policy rule's "beendet".
+    retired = security!("Meridian Global Equity ETF (alt)", isin: "XS0000000033")
+    {:ok, _} = Catalog.update_security(Actor.owner_ui(), retired, %{is_retired: true})
+    search(view, "Meridian")
+
+    candidate =
+      view
+      |> element("#security-merge-dialog [data-role='merge-target'][data-id='#{retired.id}']")
+      |> render()
+
+    assert candidate =~ "stillgelegt"
+    refute candidate =~ "beendet"
 
     search(view, "Meridian")
     view |> element("#security-merge-dialog [data-role='merge-continue']") |> render_click()

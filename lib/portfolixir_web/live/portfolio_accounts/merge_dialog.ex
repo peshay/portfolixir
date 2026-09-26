@@ -465,9 +465,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
     [
       source.currency_code,
       MergePreview.role_label(source.liquidity_role),
-      gettext("Buckets: %{names}",
-        names: bucket_list(assigns.source_bucket_ids, assigns.bucket_names, gettext("none"))
-      ),
+      buckets_phrase(assigns.source_bucket_ids, assigns.bucket_names),
       bookings(assigns.source_bookings),
       "#{Format.money(Map.get(assigns.balances, source.id, Decimal.new(0)))} #{source.currency_code}"
     ]
@@ -476,9 +474,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
 
   defp source_meta(%{kind: "depot"} = assigns) do
     [
-      gettext("Buckets: %{names}",
-        names: bucket_list(assigns.source_bucket_ids, assigns.bucket_names, gettext("none"))
-      ),
+      buckets_phrase(assigns.source_bucket_ids, assigns.bucket_names),
       bookings(assigns.source_bookings)
     ]
     |> Enum.join(" · ")
@@ -491,15 +487,13 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
       [
         candidate.account.currency_code,
         MergePreview.role_label(candidate.account.liquidity_role),
-        bucket_list(candidate.bucket_ids, names, gettext("no buckets"))
+        buckets_phrase(candidate.bucket_ids, names)
       ],
       " · "
     )
   end
 
-  defp candidate_meta("depot", candidate, names) do
-    gettext("Buckets: %{names}", names: bucket_list(candidate.bucket_ids, names, gettext("none")))
-  end
+  defp candidate_meta("depot", candidate, names), do: buckets_phrase(candidate.bucket_ids, names)
 
   defp candidate_figure(%{kind: "cash", balances: balances}, %{account: account}) do
     "#{Format.money(Map.get(balances, account.id, Decimal.new(0)))} #{account.currency_code}"
@@ -507,10 +501,9 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
 
   defp candidate_figure(%{kind: "depot"}, _candidate), do: ""
 
-  defp bucket_list([], _names, empty), do: empty
-
-  defp bucket_list(ids, names, _empty),
-    do: ids |> Enum.map(&Map.get(names, &1, "##{&1}")) |> Enum.sort() |> Enum.join(", ")
+  # One phrase for one fact in every line of the flow (the closing act, DC-6):
+  # "no buckets" on its own, "Buckets: A, B" otherwise.
+  defp buckets_phrase(ids, names), do: MergePreview.buckets_phrase(ids, names)
 
   defp notify(socket, message), do: send(self(), {:dialog, socket.assigns.id, message})
 end

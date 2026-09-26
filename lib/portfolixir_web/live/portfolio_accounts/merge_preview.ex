@@ -75,7 +75,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
           <%= @target.currency_code %> · <%= role_label(@target.liquidity_role) %>
         </span>
         <span :if={@kind == "depot" and @preview} class="merge-route__meta">
-          <%= gettext("Buckets: %{names}", names: bucket_names(@preview.target.bucket_ids, @bucket_names)) %>
+          <%= buckets_phrase(@preview.target.bucket_ids, @bucket_names) %>
         </span>
       </div>
       <%= cond do %>
@@ -654,7 +654,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
   defp former_names_sentence(names, target) do
     gettext(
       "%{names} become former names of %{target}. An import that names them books to %{target} afterwards.",
-      names: Enum.map_join(names, ", ", &"“#{&1}”"),
+      names: Enum.map_join(names, ", ", &gettext("“%{name}”", name: &1)),
       target: target
     )
   end
@@ -743,6 +743,17 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
   defp account_name(id, %{source: %{id: id, name: name}}), do: name
   defp account_name(id, %{target: %{id: id, name: name}}), do: name
   defp account_name(id, _assigns), do: "##{id}"
+
+  @doc """
+  The buckets of an account or depot as the merge flow says them, in one
+  phrase everywhere (the closing act, DC-6): "no buckets" on its own, or
+  "Buckets: A, B".
+  """
+  @spec buckets_phrase([integer()], map()) :: String.t()
+  def buckets_phrase([], _names), do: gettext("no buckets")
+
+  def buckets_phrase(ids, names),
+    do: gettext("Buckets: %{names}", names: bucket_names(ids, names))
 
   defp bucket_names([], _names), do: gettext("no buckets")
 

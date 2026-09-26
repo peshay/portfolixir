@@ -9231,7 +9231,7 @@ msgstr ""
 
 #: lib/portfolixir_web/live/securities/merge_preview.ex:1248
 #, elixir-autogen, elixir-format
-msgid "Remedy: book the split on that side first, or delete the wrong split, then check again."
+msgid "Remedy: book the split on the security that lacks it, or delete the wrong split, then check again."
 msgstr ""
 
 #: lib/portfolixir_web/live/securities/merge_preview.ex:1236
@@ -9893,3 +9893,31 @@ msgid "%{quantity} shares if the equal booking is kept (%{difference})"
 msgid_plural "%{quantity} shares if the %{count} equal bookings are kept (%{difference})"
 msgstr[0] ""
 msgstr[1] ""
+
+#: lib/portfolixir_web/live/securities/merge_preview.ex
+#, elixir-autogen, elixir-format
+msgctxt "merge side"
+msgid "source"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities/merge_preview.ex
+#, elixir-autogen, elixir-format
+msgctxt "merge side"
+msgid "target"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities/merge_dialog.ex
+#, elixir-autogen, elixir-format
+msgctxt "security state"
+msgid "retired"
+msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex
+#, elixir-autogen, elixir-format
+msgid "“%{name}”"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities/merge_preview.ex
+#, elixir-autogen, elixir-format
+msgid "Remedy: book the split of %{date} (%{ratio}) on %{security} too, or delete the wrong split, then check again."
+msgstr ""
