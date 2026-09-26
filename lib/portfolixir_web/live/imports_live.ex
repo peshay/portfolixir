@@ -13,6 +13,7 @@ defmodule PortfolixirWeb.ImportsLive do
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.TransactionKindLabel
 
   @max_upload_bytes 20_000_000
 
@@ -698,24 +699,12 @@ defmodule PortfolixirWeb.ImportsLive do
       Enum.map(existing_cash, &{"existing:#{&1.id}", account_label(option_tags, :cash, &1)})
   end
 
-  defp kind_label(kind) do
-    case kind do
-      "buy" -> gettext("Buy")
-      "sell" -> gettext("Sell")
-      "dividend" -> gettext("Dividend")
-      "interest" -> gettext("Interest")
-      "deposit" -> gettext("Deposit")
-      "removal" -> gettext("Removal")
-      "fee" -> gettext("Fee")
-      "tax" -> gettext("Tax")
-      "tax_refund" -> gettext("Tax refund")
-      "cash_transfer" -> gettext("Cash transfer")
-      "inbound_delivery" -> gettext("Inbound delivery")
-      "outbound_delivery" -> gettext("Outbound delivery")
-      "security_transfer" -> gettext("Security transfer")
-      other -> other
-    end
-  end
+  # The one label per kind (PortfolixirWeb.TransactionKindLabel); a kind the
+  # ledger does not know is shown as it is.
+  @labelled_kinds Portfolixir.Ledger.Transaction.kinds()
+
+  defp kind_label(kind) when kind in @labelled_kinds, do: TransactionKindLabel.label(kind)
+  defp kind_label(other), do: other
 
   # --- upload + parse + mapping events ---
 

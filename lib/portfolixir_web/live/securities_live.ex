@@ -356,44 +356,52 @@ defmodule PortfolixirWeb.SecuritiesLive do
   #   * `:tab` — detail tab; `:current` keeps the active one.
   #   * `:override` — map merged over the current list-filter state.
   defp securities_path(assigns, opts) do
-    id =
-      case Keyword.fetch(opts, :id) do
-        {:ok, value} -> value
-        :error -> assigns.selected_security && assigns.selected_security.id
-      end
-
+    id = path_id(assigns, opts)
     base = if id, do: "/securities/#{id}", else: "/securities"
-
-    tab =
-      case Keyword.get(opts, :tab) do
-        :current -> id && assigns.detail_tab != @default_tab && assigns.detail_tab
-        tab -> tab
-      end
-
     state = Map.merge(list_state(assigns), Keyword.get(opts, :override, %{}))
 
     params =
       %{}
-      |> maybe_put_param("tab", tab)
-      |> maybe_put_param("q", String.trim(state.query) != "" && state.query)
-      |> maybe_put_param(
-        "holding",
-        state.holding_status != @default_holding_status && state.holding_status
-      )
-      |> maybe_put_param("dq", state.dq)
-      |> maybe_put_param("cur", state.cur != [] && state.cur)
-      |> maybe_put_param("class", state.class != [] && state.class)
-      |> maybe_put_param("since", state.since)
-      |> maybe_put_param(
-        "filter",
-        state.filters != [] && Enum.map(state.filters, &filter_param/1)
-      )
+      |> maybe_put_param("tab", path_tab(assigns, opts, id))
+      |> put_list_params(state)
 
     if params == %{} do
       base
     else
       base <> "?" <> Query.encode(params)
     end
+  end
+
+  defp path_id(assigns, opts) do
+    case Keyword.fetch(opts, :id) do
+      {:ok, value} -> value
+      :error -> assigns.selected_security && assigns.selected_security.id
+    end
+  end
+
+  defp path_tab(assigns, opts, id) do
+    case Keyword.get(opts, :tab) do
+      :current -> id && assigns.detail_tab != @default_tab && assigns.detail_tab
+      tab -> tab
+    end
+  end
+
+  # The list-filter state's non-default values, as query parameters.
+  defp put_list_params(params, state) do
+    params
+    |> maybe_put_param("q", String.trim(state.query) != "" && state.query)
+    |> maybe_put_param(
+      "holding",
+      state.holding_status != @default_holding_status && state.holding_status
+    )
+    |> maybe_put_param("dq", state.dq)
+    |> maybe_put_param("cur", state.cur != [] && state.cur)
+    |> maybe_put_param("class", state.class != [] && state.class)
+    |> maybe_put_param("since", state.since)
+    |> maybe_put_param(
+      "filter",
+      state.filters != [] && Enum.map(state.filters, &filter_param/1)
+    )
   end
 
   defp maybe_put_param(params, _key, value) when value in [nil, false], do: params
