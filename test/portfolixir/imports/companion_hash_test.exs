@@ -12,6 +12,7 @@ defmodule Portfolixir.Imports.CompanionHashTest do
   alias Portfolixir.Imports.Preview
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Lifecycle
   alias Portfolixir.Portfolios
   alias Portfolixir.Repo
 
@@ -351,6 +352,81 @@ defmodule Portfolixir.Imports.CompanionHashTest do
                )
              ) == [security.id]
     end
+  end
+
+  # User story (ADR-0050 §3, §16 invariants 2 and 4; the closing act's
+  # mutation re-run, #884, #890):
+  # As the operator who merged an obsolete cash account into its successor,
+  # where the merge collapsed a split-off refund onto an equal refund the
+  # successor already held,
+  # I want the re-import of the export that still carries that refund to
+  # recognise it by its retired hash,
+  # so that the refund the merge removed never books again.
+  #
+  # Acceptance criteria:
+  # - The re-import creates nothing; the sale and its buy are hash hits, the
+  #   refund the merge removed is reported with layer `retired`.
+  # - The result counts it under `retired`, and so does the preview.
+  # - With the successor's refund deleted by hand afterwards, the re-import
+  #   books that refund once more and still skips the retired one, so the
+  #   import neither fails nor books the removed refund.
+  test "a refund whose hash a merge retired is a reported skip with layer retired" do
+    portfolio = portfolio!()
+    old = &%{&1 | pp_account_name: "Cash (old)"}
+
+    sale = %{
+      old.(sell(2, "5", "12.00"))
+      | companion_entries: [old.(refund(2, "12.00"))]
+    }
+
+    # The successor already holds an equal refund, as a row of its own.
+    twin = %{refund(3, "12.00") | source_row: 3, note: nil}
+    preview = %Preview{entries: [old.(buy(1)), sale, twin]}
+
+    assert {:ok, %{created_transactions: 4}} =
+             Imports.apply(preview, %{portfolio_id: portfolio.id})
+
+    [source] = Portfolios.list_cash_accounts() |> Enum.filter(&(&1.name == "Cash (old)"))
+    [target] = Portfolios.list_cash_accounts() |> Enum.filter(&(&1.name == "Cash"))
+
+    {:ok, merge} = Lifecycle.preview_cash_merge(source.id, target.id)
+    assert [_refund_pair] = merge.key_equal_pairs
+
+    {:ok, _record, :applied} =
+      Lifecycle.merge_cash_account(Actor.owner_ui(), source.id, target.id, %{
+        plan_digest: merge.plan_digest,
+        collapse_key_equal: true
+      })
+
+    assert [_] = refunds(portfolio)
+
+    assert %{total: %{hash: 3, retired: 1, new: 0}} =
+             Imports.reimport_counts(preview, portfolio_id: portfolio.id)
+
+    assert {:ok, again} = Imports.apply(preview, %{portfolio_id: portfolio.id})
+    assert again.created_transactions == 0
+
+    assert Enum.map(again.duplicate_entries, &{&1.row, &1.layer}) ==
+             [{1, :hash}, {2, :hash}, {"2.tax_refund.1", :retired}, {3, :hash}]
+
+    assert again.already_imported == %{hash: 3, retired: 1, economics: 0}
+    assert count(portfolio) == 3
+
+    kept =
+      Repo.one!(
+        from(t in Transaction, where: t.portfolio_id == ^portfolio.id and t.type == "tax_refund")
+      )
+
+    {:ok, _} = Ledger.delete_transaction(Actor.owner_ui(), kept)
+
+    assert {:ok, rebooked} = Imports.apply(preview, %{portfolio_id: portfolio.id})
+    assert rebooked.created_transactions == 1
+
+    assert Enum.map(rebooked.duplicate_entries, &{&1.row, &1.layer}) ==
+             [{1, :hash}, {2, :hash}, {"2.tax_refund.1", :retired}]
+
+    assert [_] = refunds(portfolio)
+    assert count(portfolio) == 3
   end
 
   defp security_with_isin_change! do
