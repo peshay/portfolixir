@@ -309,6 +309,17 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
       assert detail =~ "2025-03-01"
       assert detail =~ "2:1"
       assert detail =~ "3:1"
+
+      # The refusal names its conflict as data too, for the operator's page
+      # to say it in the operator's language (L5b, board 03).
+      assert [
+               %{
+                 date: ~D[2025-03-01],
+                 portfolio_name: "Main",
+                 source_ratio: %{numerator: 2, denominator: 1},
+                 target_ratio: %{numerator: 3, denominator: 1}
+               }
+             ] = refused_guard!(ctx, :split_ratio_mismatch).conflicts
     end
 
     # User story:
@@ -337,6 +348,16 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
       assert detail =~ "target"
       assert detail =~ ~r/book the split on the target first/i
 
+      assert [
+               %{
+                 kind: :lacking,
+                 side: :target,
+                 date: ~D[2025-03-01],
+                 ratio: %{numerator: 2, denominator: 1},
+                 earlier: %{kind: :booking, date: ~D[2025-01-12]}
+               }
+             ] = refused_guard!(ctx, :split_event_mismatch).issues
+
       {:ok, _} = Ledger.delete_transaction(Actor.owner_ui(), early)
       buy!(ctx, ctx.d3, ctx.c2, ctx.target, "4", "10.00", ~D[2025-04-01])
       quote!(ctx.target, ~D[2025-02-01], "10.00")
@@ -344,6 +365,9 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
       detail = refused!(ctx, :split_event_mismatch)
       assert detail =~ "2025-03-01"
       assert detail =~ "quote"
+
+      assert [%{kind: :lacking, side: :target, earlier: %{kind: :quote, date: ~D[2025-02-01]}}] =
+               refused_guard!(ctx, :split_event_mismatch).issues
 
       Repo.delete_all(from(q in "security_quotes", where: q.security_id == ^ctx.target.id))
 
@@ -378,6 +402,15 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
       assert detail =~ "2:1"
       assert detail =~ "3:1"
 
+      assert %{
+               kind: :two_ratios,
+               date: ~D[2025-03-01],
+               ratios: [
+                 %{ratio: %{numerator: 2, denominator: 1}, sides: [:source]},
+                 %{ratio: %{numerator: 3, denominator: 1}, sides: [:target]}
+               ]
+             } in refused_guard!(ctx, :split_event_mismatch).issues
+
       {:ok, _} = Ledger.delete_transaction(Actor.owner_ui(), t_split)
       split!(ctx.second, ctx.target, ~D[2025-03-05], {2, 1})
 
@@ -409,6 +442,9 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
       detail = refused!(ctx, :split_linearity)
       assert detail =~ "2025-03-01"
       assert detail =~ "Broker B"
+
+      assert %{date: ~D[2025-03-01], securities_account_name: "Broker B"} =
+               refused_guard!(ctx, :split_linearity).failure
     end
 
     # User story:
@@ -490,6 +526,17 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
       detail = refused!(ctx, :position_buckets_mismatch)
       assert detail =~ "Broker A"
       refute detail =~ "Broker B"
+
+      spec_id = spec.id
+
+      assert [
+               %{
+                 securities_account_name: "Broker A",
+                 source_buckets: [^spec_id],
+                 target_buckets: []
+               }
+             ] =
+               refused_guard!(ctx, :position_buckets_mismatch).positions
     end
   end
 
