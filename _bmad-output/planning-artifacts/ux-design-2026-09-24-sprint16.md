@@ -42,6 +42,8 @@ builds a pick writes its anatomy into `DESIGN.md`.
 | **G12.2** | Stored text carrying invisible characters (G20) | `12-e25-new-marks` | an inline escape chip per character · one attention data note with the escaped text in a disclosure | **B** |
 | **G12.3** | Editing a stored split row (G07) | `12-e25-new-marks` | the split's facts disabled, only the note editable · no edit item on split rows | **A** |
 | — | The bucket-delete confirm (G19, T-10) and a zero-value position's drift (G14) | `12-e25-new-marks` | none (before/after) | n/a |
+| **G13.1** | "Merged from …" on a surviving account or depot (ADR-0050 §12), drawn in the batch by L5a (Part 14) | `13-l5a-merged-from` | a sub-line of its own, the source name not repeated under "former" · the former-name line carries the merge in brackets | **A** (recommended; open to a comment) |
+| — | Wealth: a benchmark link naming a merged-away security (ADR-0050 §12) | `13-l5a-merged-from` | none (before/after) | n/a |
 
 **Items with no board.** #870 (every row kebab named for its row) changes the
 accessible name and nothing a sighted reader sees, which is the rule's stated
@@ -482,3 +484,34 @@ later plan picks each up with its own board.
 6. **The history's split-ratio cell** (board 12): "2:1" sits at the left of
    the right-aligned quantity column and carries no `.num`, the alignment
    family `DESIGN.md` already names.
+
+---
+
+## Part 14 — Drawn in the batch: the survivor of a merge (L5a, board 13)
+
+Two surfaces ADR-0050 §12 names had no board when L5a started, so it drew
+board `13-l5a-merged-from` before building them (the rule: a surface
+discovered mid-batch is boarded before its story is implemented).
+
+**G13.1 — where a surviving account or depot says it was merged from
+another.** Board 01 draws the "former: …" sub-line and board 02 the preview;
+neither draws the survivor afterwards, and after a merge the source's name is
+simply a former name, so a rename and a merge look alike.
+
+- **Variant A (recommended): a sub-line of its own.** Under the name, in the
+  same 12 px `.account-sub` treatment, "merged from <source> · <date>" (the
+  newest, then "+N"); the source's own name is not repeated in the "former"
+  line, its earlier names are. In the rename dialog a former name that
+  arrived by a merge carries a muted origin line; "Remove" is unchanged.
+- **Variant B: the former-name line carries it in brackets.** One line fewer,
+  but two facts in one bracket, and a later rename hides the merge behind
+  "+N".
+
+**Why A.** One fact per line, readable without a click, no new form. The
+batch cannot wait for a pick, so A is built; a comment naming B on the PR
+changes it.
+
+**The Wealth benchmark note (before/after, no pick).** A remembered or linked
+benchmark naming a merged-away security used to drop silently. After: the
+page redirects to the survivor's selector and shows board 03's note under the
+performance head, dismissible, gone with the next navigation.
