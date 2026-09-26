@@ -955,6 +955,51 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     refute view |> element("tr.soll-row--sum") |> render() =~ "is-target-mismatch"
   end
 
+  # User story (closing-act finding UAT-8):
+  # As a maintainer reading the plan editor in German,
+  # I want its running sums in the page's number format,
+  # so that the editor and the Allocation basis line print one plan's sum
+  # the same way.
+  #
+  # Acceptance criteria:
+  # - On a German page the Σ row and a parent's children-Σ hint print a
+  #   decimal comma ("95,5%", "31,5%"), never a decimal point.
+  test "the plan editor's sums follow the page's number format", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, equity: equity, bonds: bonds} =
+      soll_world()
+
+    {:ok, large} =
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Large caps",
+        parent_id: equity.id
+      })
+
+    {:ok, _} =
+      Targets.set_targets(
+        Actor.owner_ui(),
+        portfolio.id,
+        classification.id,
+        [
+          %{category_id: equity.id, target_weight: "0.555"},
+          %{category_id: large.id, target_weight: "0.315"},
+          %{category_id: bonds.id, target_weight: "0.4"}
+        ],
+        view: nil
+      )
+
+    conn = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
+
+    sum = view |> element("[data-role='soll-sum']") |> render()
+    assert sum =~ "95,5%"
+    refute sum =~ "95.5"
+
+    hint = view |> element("[data-role='soll-child-hint']") |> render()
+    assert hint =~ "31,5%"
+    refute hint =~ "31.5"
+  end
+
   # User story:
   # As a maintainer steering a nested classification,
   # I want the running Σ to mix an explicit top-level weight with a blank parent

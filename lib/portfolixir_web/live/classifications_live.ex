@@ -2401,10 +2401,9 @@ defmodule PortfolixirWeb.ClassificationsLive do
   defp fraction_to_percent_or_nil(%Decimal{} = fraction), do: fraction_to_percent(fraction)
 
   # Format a running sum (already a percentage Decimal) for display, trimming
-  # trailing zeros so "100.0" reads "100".
-  defp format_sum(%Decimal{} = sum) do
-    sum |> Decimal.normalize() |> Decimal.to_string(:normal)
-  end
+  # trailing zeros so "100.0" reads "100", in the page's number format: a
+  # German page reads "95,5", as the Allocation basis line does (UAT-8).
+  defp format_sum(%Decimal{} = sum), do: PortfolixirWeb.Format.exact(sum)
 
   defp to_decimal(%Decimal{} = value), do: value
   defp to_decimal(nil), do: @zero
