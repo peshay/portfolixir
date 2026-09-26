@@ -155,6 +155,10 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
       {:credential,
        "the local bearer token the JSON API accepts and the MCP companion presents " <>
          "(AGENTS.md: tokens from environment configuration)"},
+    "PORTFOLIXIR_API_TOKENS" =>
+      {:credential,
+       "named local bearer tokens the JSON API accepts, name=token entries whose name the " <>
+         "journal records as the actor label (E25 S7, G26)"},
     "PORTFOLIXIR_UI_PASSWORD" =>
       {:credential, "the optional UI login password (ADR-0045); never stored (B1)"},
     "COINGECKO_API_KEY" =>

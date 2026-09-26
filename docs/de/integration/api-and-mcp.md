@@ -22,6 +22,18 @@ API-Anfragen benötigen ein lokales Bearer-Token:
 Authorization: Bearer <PORTFOLIXIR_API_TOKEN>
 ```
 
+**Benannte Tokens** (E25). `PORTFOLIXIR_API_TOKENS` fügt weitere Tokens als
+`name=token`-Einträge hinzu, durch Kommas getrennt (`scripts=<token>`; ein Name
+hat 1 bis 32 Zeichen aus `a-z`, `0-9`, `_` und `-`). Ein Schreibzugriff mit
+einem davon wird mit diesem Namen als `actor_label` im Journal verbucht
+(`GET /api/v1/journal`), genommen aus dem Eintrag, zu dem das vorgelegte Token
+passt, nie aus der Anfrage. `PORTFOLIXIR_API_TOKEN` bleibt der unbenannte
+Standard und wird wie bisher ohne Label verbucht; das Compose-Deployment nennt
+ihn `mcp`, die Schreibzugriffe des Begleitdienstes lauten also `mcp`. Jeder
+Eintrag wird beim Start wie das eine Token geprüft, und ein Name oder ein Token
+darf nur einmal vorkommen. Ein Name ordnet einen Schreibzugriff zu, er
+beschränkt nicht, was das Token darf: Jedes Token hat dieselbe volle Befugnis.
+
 Der MCP-Begleitdienst nutzt `PORTFOLIXIR_API_TOKEN`, um Portfolixir unter
 `PORTFOLIXIR_API_BASE_URL` aufzurufen, und folgt dort keiner Weiterleitung:
 Eine `3xx`-Antwort wird als `ApiRedirectError` abgelehnt, der die Anfrage und
@@ -2632,7 +2644,9 @@ ignoriert.
 
 - `GET /api/v1/journal` listet Journal-Einträge, neueste zuerst. Jeder Eintrag
   trägt `actor_type` (`owner_ui`, `api_token_rw`, `api_token_ro`,
-  `import_session`, `system_job`) und ein optionales `actor_label`, die
+  `import_session`, `system_job`) und ein optionales `actor_label` (bei einem
+  API-Token der Name seines `PORTFOLIXIR_API_TOKENS`-Eintrags; `null` beim
+  unbenannten Standard), die
   `operation` (`create`, `update`, `delete`, `upsert`), den betroffenen
   `resource_type`/`resource_id` sowie die `before`/`after`-Schnappschüsse
   (Decimal-Werte sind Strings). Optionale Filter: `resource_type`,

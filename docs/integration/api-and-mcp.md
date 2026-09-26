@@ -21,6 +21,17 @@ API requests require a local bearer token:
 Authorization: Bearer <PORTFOLIXIR_API_TOKEN>
 ```
 
+**Named tokens** (E25). `PORTFOLIXIR_API_TOKENS` adds further tokens as
+`name=token` entries, comma-separated (`scripts=<token>`; a name is 1 to 32
+characters of `a-z`, `0-9`, `_` and `-`). A write made with one is journaled
+with that name as `actor_label` (`GET /api/v1/journal`), taken from the entry
+the presented token matched, never from the request. `PORTFOLIXIR_API_TOKEN`
+stays the unnamed default, journaled without a label, as before; the Compose
+deployment names it `mcp`, so the companion's writes read `mcp`. Every entry is
+checked at boot like the one token, and a name or a token may appear only
+once. A name attributes a write; it does not narrow what the token may do:
+every token has the same full authority.
+
 The MCP companion uses `PORTFOLIXIR_API_TOKEN` to call Portfolixir at
 `PORTFOLIXIR_API_BASE_URL`, and it follows no redirect from there: a `3xx`
 answer is refused as `ApiRedirectError`, naming the request and the variable,
@@ -2693,7 +2704,8 @@ they replaced or released as the before-image.
 
 - `GET /api/v1/journal` lists journal entries, newest first. Each entry carries
   `actor_type` (`owner_ui`, `api_token_rw`, `api_token_ro`, `import_session`,
-  `system_job`) and an optional `actor_label`, the `operation`
+  `system_job`) and an optional `actor_label` (for an API token, the name of
+  its `PORTFOLIXIR_API_TOKENS` entry; `null` for the unnamed default), the `operation`
   (`create`, `update`, `delete`, `upsert`), the `resource_type`/`resource_id`
   it touched, and the `before`/`after` snapshots (Decimal values are strings).
   Optional filters: `resource_type`, `resource_id`, `actor_type`, `operation`,

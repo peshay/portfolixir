@@ -48,11 +48,17 @@ if config_env() == :prod do
   # whose x-forwarded-proto, like loopback's, names the scheme (E25 S1, F09).
   config :portfolixir, :trusted_proxies, Portfolixir.RuntimeConfig.trusted_proxies()
 
-  # The agent's credential is checked at boot (#761): length and no
-  # placeholder, with the variable named in the failure.
+  # The agent's credentials are checked at boot (#761): length and no
+  # placeholder, with the variable named in the failure. Named principals
+  # (E25 S7, G26): PORTFOLIXIR_API_TOKENS holds name=token entries whose name
+  # the journal records for every write made with the token;
+  # PORTFOLIXIR_API_TOKEN stays the unnamed default.
   config :portfolixir,
-         :api_token,
-         Portfolixir.RuntimeConfig.validate_api_token!(System.get_env("PORTFOLIXIR_API_TOKEN"))
+         :api_tokens,
+         Portfolixir.RuntimeConfig.api_tokens!(
+           System.get_env("PORTFOLIXIR_API_TOKEN"),
+           System.get_env("PORTFOLIXIR_API_TOKENS")
+         )
 
   config :portfolixir, Portfolixir.Repo,
     url: System.fetch_env!("DATABASE_URL"),
