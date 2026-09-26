@@ -32,7 +32,7 @@ defmodule PortfolixirWeb.LiveComponentPayloadTest do
 
   # How each component is opened: the page, the event that renders it (with
   # the payload that event needs from the seeded records), and its DOM id.
-  defp openers(%{security: security, rule: rule}) do
+  defp openers(%{security: security, rule: rule, cash: cash, depot: depot}) do
     %{
       PortfolixirWeb.Risk.PolicyRuleDialog => [
         {"/risk", "new_rule", %{}, "#policy-rule-dialog"},
@@ -51,6 +51,15 @@ defmodule PortfolixirWeb.LiveComponentPayloadTest do
       ],
       PortfolixirWeb.PortfolioAccounts.AccountFormDialog => [
         {"/portfolios", "open_account_dialog", %{}, "#account-form-dialog"}
+      ],
+      # ADR-0050 (L5a): the rename and the two-step merge of Accounts & depots.
+      PortfolixirWeb.PortfolioAccounts.RenameDialog => [
+        {"/portfolios", "row_rename", %{"kind" => "cash", "id" => cash.id}, "#rename-dialog"},
+        {"/portfolios", "row_rename", %{"kind" => "depot", "id" => depot.id}, "#rename-dialog"}
+      ],
+      PortfolixirWeb.PortfolioAccounts.MergeDialog => [
+        {"/portfolios", "row_merge", %{"kind" => "cash", "id" => cash.id}, "#merge-dialog"},
+        {"/portfolios", "row_merge", %{"kind" => "depot", "id" => depot.id}, "#merge-dialog"}
       ]
     }
   end
@@ -75,12 +84,15 @@ defmodule PortfolixirWeb.LiveComponentPayloadTest do
         }
       })
 
-    %{records: %{security: security, rule: rule}}
+    %{records: %{security: security, rule: rule, cash: world.cash, depot: world.depot}}
   end
 
   test "every LiveComponent has an opener here" do
     assert length(@components) >= 5
-    assert Enum.sort(Map.keys(openers(%{security: %{id: 1}, rule: %{id: 1}}))) == @components
+    stub = %{id: 1}
+
+    assert Enum.sort(Map.keys(openers(%{security: stub, rule: stub, cash: stub, depot: stub}))) ==
+             @components
   end
 
   # User story (E25 S4, F17):

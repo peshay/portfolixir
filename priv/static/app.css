@@ -8521,3 +8521,585 @@ input.num {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+
+/* ===== Accounts & depots: lifecycle controls (ADR-0050, L5a; board
+   01-accounts-lifecycle G1-A, board 02-merge-preview G2-B, board
+   13-l5a-merged-from G13.1-A) ===== */
+
+/* A former name, and what a survivor was merged from, read as their own
+   lines under the name, at the 12 px of the bucket scope line (board 01 ①,
+   board 13). */
+.account-sub--former,
+.account-sub--merged {
+  display: block;
+  width: fit-content;
+  font-size: 12px;
+}
+
+/* The former-names list inside the rename dialog (board 01 ②). */
+.former-names {
+  list-style: none;
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.former-names li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  font-size: 13px;
+}
+
+.former-names li + li {
+  border-top: 1px solid var(--color-border);
+}
+
+.former-names li > span {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.former-names__origin {
+  display: block;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* The row menu names its row on the phone sheet only, where it no longer
+   hangs at its row (board 01 ③). */
+.row-context-menu__caption {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .row-context-menu__caption {
+    display: block;
+    padding: var(--space-1) var(--space-3) var(--space-2);
+    margin-bottom: var(--space-1);
+    border-bottom: 1px solid var(--color-border);
+    font-size: 13px;
+    color: var(--color-text-muted);
+  }
+
+  .row-context-menu__caption b {
+    color: var(--color-text);
+    font-weight: 600;
+  }
+}
+
+/* Under 640 px every entity's kebab sits at the end of its own name line,
+   now that a band carries two (board 01 ④). */
+@media (max-width: 640px) {
+  .accounts-table tbody.account-pair tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  .accounts-table tbody.account-pair td {
+    grid-column: 1;
+  }
+
+  .accounts-table tbody.account-pair td.row-actions {
+    grid-column: 2;
+    grid-row: 1;
+    width: auto;
+    padding-block: 0;
+  }
+
+  /* The hover tint covers the whole line, the kebab's column included. */
+  .accounts-table tbody.account-pair:hover tr {
+    background: var(--color-hover);
+  }
+}
+
+/* The merge (board 02, G2-B): a dialog whose foot is a fixed band while the
+   body scrolls; under 720 px the same dialog is a bottom sheet in the shape
+   of the booking drawer. */
+dialog.merge-dialog {
+  overflow: hidden;
+}
+
+.merge-dialog {
+  max-height: calc(100vh - 76px);
+}
+
+.merge-dialog--target {
+  max-width: 420px;
+}
+
+.merge-dialog > .modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* The body scrolls; its blocks keep their height (a table wrapper is a
+   scroll container, which a flex column would otherwise shrink to nothing). */
+.merge-dialog > .modal-body > * {
+  flex-shrink: 0;
+}
+
+.modal-head__step {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+/* The existing footer as a band below the body (board 02: the one class the
+   board adds). */
+.modal-footer.modal-footer--band {
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 0;
+  padding: 12px 18px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg-elevated);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+.merge-footer__why {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* A disabled destructive button reads disabled, never merely pale: its
+   reason stands beside it as text (.merge-footer__why). */
+.button-danger:disabled,
+.button-danger[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.merge-route {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.merge-route b {
+  font-weight: 700;
+}
+
+.merge-route__arrow,
+.merge-route__meta {
+  color: var(--color-text-muted);
+}
+
+.merge-route__meta {
+  font-size: 12px;
+}
+
+.merge-basis {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+.merge-rounding {
+  padding-left: 18px;
+}
+
+.merge-empty {
+  margin: 0;
+}
+
+.merge-block-head {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.merge-block-head small {
+  margin-left: 6px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+/* Step 1: every account, the ones that cannot take the history disabled
+   with their reason as text (board 02). */
+.merge-targets {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.merge-targets legend {
+  padding: 0;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.merge-target {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 2px 10px;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 9px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.merge-target input {
+  margin-top: 3px;
+}
+
+.merge-target__name {
+  display: grid;
+  gap: 1px;
+  font-size: 13px;
+}
+
+.merge-target__name b {
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.merge-target__name small {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.merge-target__balance {
+  font-size: 12.5px;
+  text-align: right;
+}
+
+.merge-target__why {
+  grid-column: 2 / -1;
+  font-size: 12px;
+  color: var(--color-text);
+}
+
+/* Selected (UX-DR16 class 3): tint and a 3 px leading edge. */
+.merge-target.is-on,
+.merge-option.is-on {
+  background: var(--color-selected);
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.merge-target.is-off {
+  background: var(--color-bg-muted);
+  cursor: not-allowed;
+}
+
+.merge-target.is-off .merge-target__name b,
+.merge-target.is-off .merge-target__balance {
+  color: var(--color-text-muted);
+}
+
+.merge-sub-caps {
+  margin: 6px 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+/* Step 2: the balances as a sum. */
+.merge-identity {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1.2fr);
+  align-items: end;
+  gap: 4px 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+.merge-identity__term {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.merge-identity__term i {
+  font-style: normal;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.merge-identity__term b {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.merge-identity__term b small {
+  margin-left: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.merge-identity__op {
+  padding-bottom: 2px;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.merge-identity__result {
+  padding-left: 10px;
+  border-left: 2px solid var(--color-accent);
+}
+
+.merge-identity__alt {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 12px;
+  text-align: right;
+  color: var(--color-text-muted);
+}
+
+.merge-counts {
+  display: grid;
+  grid-template-columns: 3.2em 1fr;
+  gap: 4px 10px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.merge-counts dt {
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.merge-counts dd {
+  margin: 0;
+}
+
+.merge-counts dd small,
+.merge-anchors td small,
+.merge-positions td small {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.merge-anchors td small,
+.merge-positions td small {
+  display: block;
+  font-size: 11px;
+}
+
+.merge-anchors__after,
+.merge-positions td.num b {
+  font-weight: 700;
+}
+
+.merge-positions td.num b {
+  display: block;
+}
+
+/* The equal bookings' choice: no preselection (ADR-0050 §8). */
+.merge-choice {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 10px 12px 12px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+}
+
+.merge-choice legend {
+  padding: 0 4px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.merge-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+.merge-option input {
+  margin-top: 3px;
+}
+
+.merge-option > span {
+  display: grid;
+  gap: 2px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.merge-option small {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.merge-option small b {
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.merge-refusal__lead,
+.merge-refusal__position,
+.merge-refusal__remedy {
+  margin: 0 0 4px;
+}
+
+.merge-refusal__remedy {
+  margin-bottom: 8px;
+}
+
+/* An empty live region takes no room in the body's gap. */
+.merge-region:empty {
+  display: none;
+}
+
+/* A wide table of the preview, and its two-line form under 720 px (board
+   02 at 390 px): only one of the two is ever displayed. */
+.merge-narrow {
+  display: none;
+}
+
+.merge-lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.merge-lines li {
+  display: grid;
+  gap: 1px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 13px;
+}
+
+.merge-lines__head {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.merge-lines__figure {
+  text-align: right;
+}
+
+.merge-lines__figure small {
+  display: block;
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+.merge-stale__changes {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  dialog.modal.merge-dialog {
+    position: fixed;
+    inset: auto 0 0 0;
+    width: 100%;
+    max-width: none;
+    max-height: 88vh;
+    margin: 0;
+    border-radius: var(--radius-md, 8px) var(--radius-md, 8px) 0 0;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.18);
+  }
+
+  .merge-dialog > .modal-body {
+    padding: 12px 16px;
+  }
+
+  /* The foot stays; the confirm takes a full line, Back the next (board
+     02 at 390 px), so no account name breaks inside the button. */
+  .merge-dialog .modal-footer--band {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    padding: 10px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+    border-radius: 0;
+  }
+
+  .merge-dialog .modal-footer--band > button {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .merge-dialog .modal-footer__spacer {
+    display: none;
+  }
+
+  .merge-footer__why {
+    order: 1;
+  }
+
+  .merge-dialog .modal-footer--band > .button-primary,
+  .merge-dialog .modal-footer--band > .button-danger {
+    order: 2;
+  }
+
+  .merge-dialog .modal-footer--band > .button-ghost {
+    order: 3;
+  }
+
+  .merge-footer__why::before {
+    content: "↓ ";
+  }
+
+  .merge-wide {
+    display: none;
+  }
+
+  .merge-narrow {
+    display: block;
+  }
+
+  .merge-identity {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .merge-identity__op {
+    display: none;
+  }
+
+  .merge-identity__term {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+  }
+
+  .merge-identity__result {
+    padding-left: 0;
+    padding-top: 4px;
+    border-left: 0;
+    border-top: 1px solid var(--color-border-strong);
+  }
+}
