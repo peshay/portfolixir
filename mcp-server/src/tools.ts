@@ -3051,7 +3051,8 @@ const declaredTools: DeclaredTool[] = [
       "positions_basis states how those figures are computed. Show the operator both outcomes; the choice is " +
       "theirs. Quantities and decimals are strings. A pair that may not merge answers 409 with errors.code " +
       "(same_account, not_live, portfolio_mismatch, buckets_mismatch or position_buckets_mismatch naming each " +
-      "position whose buckets differ while both depots hold it) and errors.guards; a source already merged " +
+      "position whose buckets differ while both depots hold it, or whose override to carry holds more than one " +
+      "scope bucket) and errors.guards; a source already merged " +
       "answers 409 already_merged with errors.merged_into.",
     depotMergePreviewSchema,
     depotMergePreviewZ

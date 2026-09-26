@@ -34,7 +34,10 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
       moves; a position S lets inherit the default clears a dead override T
       carries for a security it does not hold.
 
-  An override S carries for a security it holds no rows of is dropped.
+  An override S carries for a security it holds no rows of is dropped. An
+  override to carry that holds more than one scope-dimension bucket (stored
+  before ADR-0024's one-scope rule held for overrides) refuses too, naming
+  the position: the target's position cannot take it.
 
   ## The preview (`preview/2`) — a read
 
@@ -85,6 +88,7 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
 
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
+  alias Portfolixir.Buckets.Bucket
   alias Portfolixir.Buckets.PositionBucketOverride
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Clock
@@ -325,29 +329,32 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
   end
 
   defp membership_guard(plan) do
-    refused = Enum.filter(plan.memberships, &(&1.action == :refuse))
+    refused = Enum.filter(plan.memberships, &(&1.action in [:refuse, :refuse_carry]))
 
     guard(
       :position_buckets_mismatch,
       "same view membership for every position",
       refused == [],
       "every position keeps its effective buckets",
-      membership_detail(refused)
+      Enum.map_join(refused, " ", &membership_detail/1)
     )
   end
 
-  defp membership_detail(refused) do
-    positions =
-      Enum.map_join(refused, "; ", fn entry ->
-        "#{entry.security_name} (security ##{entry.security_id}): buckets " <>
-          "#{inspect(entry.source_buckets)} in the source, #{inspect(entry.target_buckets)} " <>
-          "in the target"
-      end)
-
-    "#{length(refused)} position(s) sit in other buckets in the two depots — #{positions}. " <>
-      "View membership is retroactive, so the merge would move the target's history between " <>
-      "views. Give each position the same buckets in both depots, then preview again"
+  defp membership_detail(%{action: :refuse} = entry) do
+    "#{position_name(entry)} sits in the buckets #{inspect(entry.source_buckets)} in the " <>
+      "source and #{inspect(entry.target_buckets)} in the target: view membership is " <>
+      "retroactive, so the merge would move the target's history between views. Give the " <>
+      "position the same buckets in both depots, then preview again."
   end
+
+  defp membership_detail(%{action: :refuse_carry} = entry) do
+    "#{position_name(entry)} carries an override in the source with more than one scope " <>
+      "bucket #{inspect(entry.source_buckets)}, stored before a position could hold only one: " <>
+      "the target's position cannot take it. Keep one scope bucket in the source's override, " <>
+      "then preview again."
+  end
+
+  defp position_name(entry), do: "#{entry.security_name} (security ##{entry.security_id})"
 
   # --- loading ---------------------------------------------------------------------
 
@@ -525,6 +532,11 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
       source_holds = security_id in base.source_securities
       target_holds = security_id in base.target_securities
 
+      action =
+        {source_holds, target_holds}
+        |> action({s_override, t_override}, s_effective, t_effective)
+        |> carriable(s_override)
+
       %{
         security_id: security_id,
         security_name: Map.get(base.names, security_id),
@@ -534,8 +546,7 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
         target_override: t_override,
         source_buckets: s_effective,
         target_buckets: t_effective,
-        action:
-          action({source_holds, target_holds}, {s_override, t_override}, s_effective, t_effective)
+        action: action
       }
     end)
   end
@@ -557,6 +568,22 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
   defp action({true, false}, {:inherit, _t}, _s_eff, _t_eff), do: :clear_target
   defp action({true, false}, {same, same}, _s_eff, _t_eff), do: :drop_redundant
   defp action({true, false}, _overrides, _s_eff, _t_eff), do: :carry
+
+  # A carried override is written through `Buckets.set_position_override/4`,
+  # which refuses more than one scope-dimension bucket (ADR-0024). An
+  # override stored before that rule is refused here, by name, rather than
+  # failing the merge half-way.
+  defp carriable(:carry, {:explicit, bucket_ids}) do
+    scope_buckets =
+      Repo.aggregate(
+        from(b in Bucket, where: b.id in ^bucket_ids and b.dimension == "scope"),
+        :count
+      )
+
+    if scope_buckets > 1, do: :refuse_carry, else: :carry
+  end
+
+  defp carriable(action, _override), do: action
 
   # --- one value of the choice ------------------------------------------------------------
 
