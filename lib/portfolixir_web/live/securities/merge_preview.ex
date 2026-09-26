@@ -810,7 +810,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
             source: source,
             target: target,
             after: target,
-            why: gettext("The target's value applies.")
+            why: difference_why(field, target)
           }
         end)
 
@@ -847,6 +847,16 @@ defmodule PortfolixirWeb.Securities.MergePreview do
     <% end %>
     """
   end
+
+  # A WKN or ticker the target lacks is a difference only when the catalog's
+  # rules refuse it (E25 G23); otherwise it would have been adopted.
+  defp difference_why(:wkn, nil),
+    do: gettext("not adopted: a WKN is six letters or digits.")
+
+  defp difference_why(:ticker_symbol, nil),
+    do: gettext("not adopted: a ticker is printable ASCII characters.")
+
+  defp difference_why(_field, _target), do: gettext("The target's value applies.")
 
   defp field_label(:isin), do: gettext("ISIN")
   defp field_label(:wkn), do: gettext("WKN")
@@ -981,7 +991,8 @@ defmodule PortfolixirWeb.Securities.MergePreview do
       :split_ratio_mismatch,
       :split_event_mismatch,
       :split_linearity,
-      :legacy_hashed_split
+      :legacy_hashed_split,
+      :invalid_source_isin
     ]
 
   attr(:security, :map, required: true)
@@ -1120,6 +1131,20 @@ defmodule PortfolixirWeb.Securities.MergePreview do
     )
   end
 
+  defp reason(%{code: :invalid_source_isin}, subject, _other, :direct),
+    do:
+      gettext(
+        "the source's ISIN %{isin} fails its check digit, and the merge would write it onto the target.",
+        isin: subject.isin
+      )
+
+  defp reason(%{code: :invalid_source_isin}, subject, _other, :reverse),
+    do:
+      gettext(
+        "the target's ISIN %{isin} fails its check digit, and that merge would write it onto this security.",
+        isin: subject.isin
+      )
+
   defp reason(%{code: :legacy_hashed_split}, _subject, _other, _direction),
     do:
       gettext(
@@ -1254,6 +1279,10 @@ defmodule PortfolixirWeb.Securities.MergePreview do
       gettext(
         "Remedy: change its kind back to the one it was imported as, or delete it, then check again."
       )
+
+  defp remedy(%{code: :invalid_source_isin}),
+    do:
+      gettext("Remedy: correct or clear the source's ISIN in its master data, then check again.")
 
   defp remedy(%{code: :identity_unresolvable}),
     do: gettext("This version has no way around it; both securities stay unchanged.")

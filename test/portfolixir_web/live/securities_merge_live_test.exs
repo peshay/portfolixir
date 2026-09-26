@@ -380,6 +380,45 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
     assert has_element?(view, "#security-merge-dialog [data-role='merge-recheck']")
   end
 
+  # User story (closing act, CR-2):
+  # As the operator whose duplicate carries an ISIN that fails its check
+  # digit, or a WKN the catalog no longer accepts on a change,
+  # I want the preview to refuse the ISIN by name with the way out, and to
+  # show a WKN it will not adopt,
+  # so that the merge I confirm is never refused by the catalog afterwards.
+  #
+  # Acceptance criteria:
+  # - The refusal names the ISIN and its check digit, says to correct or
+  #   clear it on the source, offers "Check again", and no confirm.
+  # - Once the ISIN is cleared and the WKN kept, the master data list the
+  #   WKN as not adopted, with the WKN's rule.
+  test "an ISIN failing its check digit is refused by name; a WKN out of shape is not adopted",
+       ctx do
+    buy!(ctx, ctx.source, "2", "10.00", ~D[2025-01-10])
+    raw_identifiers!(ctx.source, isin: "XS0000004560", wkn: "A1B2C")
+
+    {:ok, view, _html} = live(ctx.conn, "/securities")
+    to_preview(view, ctx.source, ctx.target)
+
+    refusal = view |> element("#security-merge-dialog [data-role='merge-refused']") |> render()
+
+    assert refusal =~
+             "the source&#39;s ISIN XS0000004560 fails its check digit, and the merge would write it onto the target."
+
+    assert refusal =~
+             "Remedy: correct or clear the source&#39;s ISIN in its master data, then check again."
+
+    assert has_element?(view, "#security-merge-dialog [data-role='merge-recheck']")
+    refute has_element?(view, "#security-merge-dialog [data-role='merge-confirm']")
+
+    raw_identifiers!(ctx.source, isin: nil, wkn: "A1B2C")
+    view |> element("#security-merge-dialog [data-role='merge-recheck']") |> render_click()
+
+    master = view |> element("#security-merge-dialog [data-role='merge-master-data']") |> render()
+    assert master =~ "A1B2C"
+    assert master =~ "not adopted: a WKN is six letters or digits."
+  end
+
   # User story:
   # As the operator whose duplicate carries a split its twin never booked,
   # I want the refusal to name the split, its ratio and the side lacking it,
@@ -588,6 +627,23 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
       })
 
     security
+  end
+
+  # Identifiers stored the way a create stores them, where the catalog's
+  # rules for a changed identifier do not apply (E25 G23).
+  defp raw_identifiers!(security, isin: isin, wkn: wkn) do
+    {:ok, _} =
+      Repo.transaction(fn ->
+        Repo.query!("SELECT set_config('portfolixir.journal_actor', 'owner_ui', true)")
+
+        Repo.query!("UPDATE securities SET isin = $2, wkn = $3 WHERE id = $1", [
+          security.id,
+          isin,
+          wkn
+        ])
+      end)
+
+    :ok
   end
 
   # Written the way the Portfolio Performance importer writes a trade, so

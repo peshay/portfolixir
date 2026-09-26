@@ -416,7 +416,13 @@ ADR-0029 §3 wrong-order repair: the target takes the new ISIN and its old one
 becomes the alias). The alias's `changed_on` is the operator's date for the
 ISIN change when they give one, and the merge date otherwise. WKN, ticker and feed are
 adopted onto the target only where it lacks them. Name, asset class and logo
-follow the target, and every difference is listed.
+follow the target, and every difference is listed. *(Closing act, with E25
+G23:)* every identifier the target takes meets the catalog's rules for a
+changed identifier — a WKN or ticker that fails them is not adopted and is
+listed as a difference, and a source ISIN whose check digit fails refuses the
+merge by name (`invalid_source_isin`) until it is corrected or cleared on the
+source — so the preview never allows a merge the catalog would refuse after
+the operator confirmed.
 
 **Resolvability precondition**, run by the preview and again before commit:
 the identity ladder over the post-merge catalog must resolve to the target,

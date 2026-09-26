@@ -352,6 +352,51 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
     assert journal_mark() == mark
   end
 
+  # User story (closing act, CR-2):
+  # As the agent merging a duplicate whose ISIN fails its check digit,
+  # I want the preview and the apply to refuse by name,
+  # so that I correct the ISIN first instead of confirming a merge the
+  # catalog would refuse after the fact (E25 G23).
+  #
+  # Acceptance criteria:
+  # - GET merge_preview and POST merge answer 409 invalid_source_isin, the
+  #   detail naming the ISIN, and journal nothing.
+  test "a source ISIN that fails its check digit answers 409 invalid_source_isin", ctx do
+    {:ok, _} =
+      Portfolixir.Repo.transaction(fn ->
+        Portfolixir.Repo.query!(
+          "SELECT set_config('portfolixir.journal_actor', 'owner_ui', true)"
+        )
+
+        Portfolixir.Repo.query!("UPDATE securities SET isin = 'XS0000004560' WHERE id = $1", [
+          ctx.source.id
+        ])
+      end)
+
+    mark = journal_mark()
+
+    assert %{"errors" => errors} =
+             ctx.conn
+             |> get(
+               "/api/v1/securities/#{ctx.source.id}/merge_preview?target_id=#{ctx.target.id}"
+             )
+             |> json_response(409)
+
+    assert errors["code"] == "invalid_source_isin"
+    assert errors["detail"] =~ "XS0000004560"
+
+    assert %{"errors" => %{"code" => "invalid_source_isin"}} =
+             ctx.conn
+             |> post("/api/v1/securities/#{ctx.source.id}/merge", %{
+               target_id: ctx.target.id,
+               plan_digest: "sha256:whatever",
+               identity_choice: "keep_target_isin"
+             })
+             |> json_response(409)
+
+    assert journal_mark() == mark
+  end
+
   # User story:
   # As the agent holding an id from before a merge,
   # I want a read of a merged-away security, cash account or depot to answer

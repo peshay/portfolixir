@@ -275,7 +275,10 @@ plan rows, the calendar events and the identifiers. What the merge does:
   becomes a former ISIN) or take the duplicate's (its own becomes the former
   ISIN; this repairs the duplicate an export with the newer ISIN created
   before the change was recorded), optionally with the day the ISIN changed. A WKN, ticker or quote feed the kept security
-  lacks is taken over; its name, asset class and logo stay.
+  lacks is taken over — unless it breaks the rule a changed identifier must
+  meet (a WKN of six letters or digits, a ticker of plain ASCII characters),
+  which the master data then show as not adopted; its name, asset class and
+  logo stay.
 
 **In the dialog**, the first step searches the security to keep by name,
 ISIN, WKN or ticker. A match that cannot take the duplicate's history stays in
@@ -300,7 +303,9 @@ policy rule on the duplicate (merge the other way if that passes, or keep
 both), positions in different views, splits that disagree (two ratios on one
 day: delete the split with the wrong ratio), a split of the duplicate that
 still carries an import hash from before the import-hash check (the dialog
-names it: change its kind back, or delete it), or an identifier of either
+names it: change its kind back, or delete it), an ISIN of the duplicate
+whose check digit fails (correct or clear it in its master data first), or
+an identifier of either
 security — as stored, as its Portfolio Performance import recorded it, a
 former ISIN, or that of a security merged into either before — that would no
 longer find the kept security. The dialog

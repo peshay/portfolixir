@@ -507,6 +507,85 @@ defmodule Portfolixir.Lifecycle.SecurityMergeCarryTest do
       merge!(ctx, preview)
       assert Repo.get!(Security, ctx.target.id).isin == @isin_source
     end
+
+    # User story (closing act, CR-2):
+    # As the operator merging a duplicate whose WKN or ticker was stored in a
+    # form the catalog no longer accepts on a change (E25 G23),
+    # I want the preview to show that the kept security will not take it,
+    # so that the merge I confirm is the one that runs, never a write the
+    # catalog refuses after I confirmed.
+    #
+    # Acceptance criteria:
+    # - A WKN that is not six letters or digits and a ticker that is not
+    #   printable ASCII are not adopted; the preview lists each as a
+    #   difference whose target value (none) applies.
+    # - The merge applies, and the target keeps no WKN and no ticker.
+    test "a WKN or ticker the catalog's rules refuse is not adopted, and the preview says so",
+         ctx do
+      {:ok, source} =
+        Catalog.update_security(Actor.owner_ui(), ctx.source, %{isin: @isin_source})
+
+      # Stored at create, where the changed-identifier rules do not apply.
+      Repo.transaction(fn ->
+        Repo.query!("SELECT set_config('portfolixir.journal_actor', 'owner_ui', true)")
+
+        Repo.query!(
+          "UPDATE securities SET wkn = 'A1B2C', ticker_symbol = 'FJÖRD' WHERE id = $1",
+          [
+            source.id
+          ]
+        )
+      end)
+
+      {:ok, preview} = Lifecycle.preview_security_merge(ctx.source.id, ctx.target.id)
+
+      assert Enum.map(preview.identifiers.adopted, & &1.field) == [:isin]
+      assert %{field: :wkn, source: "A1B2C", target: nil} in preview.identifiers.differences
+
+      assert %{field: :ticker_symbol, source: "FJÖRD", target: nil} in preview.identifiers.differences
+
+      assert %{wkn: nil, ticker_symbol: nil, isin: @isin_source} =
+               preview.identifiers.outcomes.no_choice
+
+      merge!(ctx, preview)
+      kept = Repo.get!(Security, ctx.target.id)
+      assert {kept.isin, kept.wkn, kept.ticker_symbol} == {@isin_source, nil, nil}
+    end
+
+    # User story (closing act, CR-2):
+    # As the operator merging a duplicate whose ISIN fails its check digit,
+    # I want the preview to refuse by name and tell me to correct it first,
+    # so that I never confirm a merge that could only write an ISIN the
+    # catalog refuses on a stored security (E25 G23).
+    #
+    # Acceptance criteria:
+    # - With a target that carries an ISIN, and with one that carries none,
+    #   preview and apply answer invalid_source_isin and write nothing.
+    # - The reverse direction, whose source ISIN is valid, stays possible.
+    # - Once the source's ISIN is cleared, the same pair merges.
+    test "a source ISIN that fails its check digit refuses the merge by name", ctx do
+      bad_isin = "XS0000004560"
+      refute Portfolixir.Catalog.Isin.valid?(bad_isin)
+
+      Repo.transaction(fn ->
+        Repo.query!("SELECT set_config('portfolixir.journal_actor', 'owner_ui', true)")
+        Repo.query!("UPDATE securities SET isin = $2 WHERE id = $1", [ctx.source.id, bad_isin])
+      end)
+
+      guard = refused_guard!(ctx, :invalid_source_isin)
+      assert guard.detail =~ bad_isin
+      assert guard.remedy == :merge_other_way
+
+      {:ok, _} = Catalog.update_security(Actor.owner_ui(), ctx.target, %{isin: @isin_target})
+      assert %{remedy: :merge_other_way} = refused_guard!(ctx, :invalid_source_isin)
+
+      {:ok, _} =
+        Catalog.update_security(Actor.owner_ui(), Repo.get!(Security, ctx.source.id), %{isin: nil})
+
+      {:ok, preview} = Lifecycle.preview_security_merge(ctx.source.id, ctx.target.id)
+      merge!(ctx, preview)
+      assert Repo.get!(Security, ctx.target.id).isin == @isin_target
+    end
   end
 
   describe "the identifiers the preview promises are the ones stored (§16 invariant 12)" do

@@ -107,7 +107,13 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
       merge date. An ISIN only the source carries is adopted without a
       choice. WKN, ticker and feed are adopted only where the target lacks
       them; name, asset class and logo follow the target, and every
-      difference is listed.
+      difference is listed. Every identifier the target takes meets the
+      catalog's rules for a changed identifier (E25 G23,
+      `Security.identifier_valid?/2`): a WKN or ticker that fails them is not
+      adopted and is listed as a difference, and a source ISIN that fails its
+      check digit refuses the merge (`invalid_source_isin`) until it is
+      corrected or cleared on the source — so a merge the preview allows is
+      never refused by the catalog after the operator confirmed it.
 
   **The reverse direction.** A refusal whose cause sits on one side only is
   often lifted by merging the other way, so the preview evaluates the
@@ -232,7 +238,8 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
     :research_notes,
     :policy_rules,
     :position_buckets_mismatch,
-    :identity_unresolvable
+    :identity_unresolvable,
+    :invalid_source_isin
   ]
 
   # The operator's answer when both securities carry an ISIN (§9).
@@ -1100,8 +1107,28 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
       split_ratio_guard(base),
       split_event_guard(base),
       legacy_split_guard(base),
+      source_isin_guard(base),
       identity_guard(base)
     ] ++ linearity_guard(base)
+  end
+
+  # E25 G23 against §9: whatever the identity choice, the merge writes the
+  # source's ISIN onto the target (as its ISIN when only the source carries
+  # one, or by adopt_source_isin), and the catalog refuses an ISIN whose
+  # check digit fails on a stored security. Refused here, by name, rather
+  # than by the catalog after the operator confirmed.
+  defp source_isin_guard(%{source: source}) do
+    valid? = not present?(source.isin) or Security.identifier_valid?(:isin, source.isin)
+
+    guard(
+      :invalid_source_isin,
+      "the source's ISIN passes its check digit",
+      valid?,
+      "the source carries no ISIN, or a valid one",
+      "security ##{source.id}'s ISIN #{source.isin} fails its check digit (ISO 6166), and a " <>
+        "merge would write it onto the target, which the catalog refuses for a stored " <>
+        "security. Correct or clear the ISIN on security ##{source.id} first, then preview again."
+    )
   end
 
   defp currency_guard(%{source: source, target: target}) do
@@ -1429,10 +1456,13 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
         do: [%{field: :isin, value: source.isin}],
         else: []
 
+    # A value the catalog's rules for a changed identifier refuse (E25 G23)
+    # is not adopted; differences/3 lists it with the target's (none).
     fields =
       for field <- @adoptable,
           not present?(Map.get(target, field)),
           present?(Map.get(source, field)),
+          adoptable_value?(field, Map.get(source, field)),
           do: %{field: field, value: Map.get(source, field)}
 
     feed_url =
@@ -1443,6 +1473,11 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
 
     isin ++ fields ++ feed_url
   end
+
+  defp adoptable_value?(field, value) when field in [:wkn, :ticker_symbol],
+    do: Security.identifier_valid?(field, value)
+
+  defp adoptable_value?(_field, _value), do: true
 
   defp after_identity(target, adopted, isin, former_isins, writes) do
     %{

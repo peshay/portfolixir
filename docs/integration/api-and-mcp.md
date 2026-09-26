@@ -427,7 +427,10 @@ confirms with the same `plan_digest`, so both see the same plan.
   still carries an import hash from a re-type before the import-hash kind
   check (`legacy_hashed_split`, with `errors.splits`; change its kind back
   or delete it — one the merge collapses is deleted with its hash retired).
-  Finally, every identity of both
+  A source ISIN that fails its check digit is refused
+  (`invalid_source_isin`): the merge would write it onto the target, which
+  the catalog refuses for a stored security, so correct or clear it on the
+  source first. Finally, every identity of both
   securities must still find the target after the merge
   (`identity_unresolvable`, with `errors.unresolvable`): the identity as
   stored, the identity the Portfolio Performance import recorded when it
@@ -475,7 +478,9 @@ confirms with the same `plan_digest`, so both see the same plan.
     the source (a WKN, ticker or feed it lacks, an ISIN only the source
     carries); `differences`, every source value that follows the target
     instead (name, asset class, logo, a WKN, ticker or feed the target has
-    already); `aliases_reassigned`, the source's former ISINs;
+    already, and a WKN or ticker the catalog's rules refuse on a change,
+    which is never adopted and lists the target's `null`);
+    `aliases_reassigned`, the source's former ISINs;
   - `outcome_by_collapse_key_equal` with `"false"` and `"true"`: the
     target's `transaction_count` after, `moved_transaction_ids`, `deleted`
     (`collapsed_duplicate` or `collapsed_split`), `positions` (per depot the

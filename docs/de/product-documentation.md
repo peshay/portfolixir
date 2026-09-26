@@ -300,7 +300,10 @@ Kennzeichen. Was die Zusammenführung tut:
   mit der neueren ISIN angelegt hat, bevor der Wechsel erfasst war),
   wahlweise mit dem Tag des ISIN-Wechsels. Eine
   WKN, einen Ticker oder eine Kursquelle, die dem bleibenden Wertpapier
-  fehlen, übernimmt es; Name, Anlageklasse und Logo bleiben seine.
+  fehlen, übernimmt es — außer sie verletzen die Regel, die ein geändertes
+  Kennzeichen erfüllen muss (eine WKN aus sechs Buchstaben oder Ziffern, ein
+  Ticker aus einfachen ASCII-Zeichen); die Stammdaten zeigen sie dann als
+  nicht übernommen. Name, Anlageklasse und Logo bleiben seine.
 
 **Im Dialog** sucht der erste Schritt das Wertpapier, das bleibt, nach Name,
 ISIN, WKN oder Ticker. Ein Treffer, der die Historie des Duplikats nicht
@@ -330,7 +333,9 @@ verschiedenen Ansichten, Splits, die sich widersprechen (zwei Verhältnisse an
 einem Tag: den Split mit dem falschen Verhältnis löschen), ein Split des
 Duplikats, der noch einen Import-Hash aus der Zeit vor der
 Import-Hash-Prüfung trägt (der Dialog nennt ihn: seine Art zurücksetzen oder
-ihn löschen), oder ein Kennzeichen eines der beiden Wertpapiere —
+ihn löschen), eine ISIN des Duplikats mit falscher Prüfziffer (zuerst in
+seinen Stammdaten korrigieren oder leeren), oder ein Kennzeichen eines der
+beiden Wertpapiere —
 gespeichert, wie sein Portfolio-Performance-Import es aufgezeichnet hat, eine
 frühere ISIN oder das eines zuvor in eines der beiden zusammengeführten
 Wertpapiers —, das das bleibende Wertpapier nicht mehr fände. Der Dialog nennt jeden Grund

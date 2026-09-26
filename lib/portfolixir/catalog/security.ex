@@ -169,6 +169,19 @@ defmodule Portfolixir.Catalog.Security do
   @wkn_shape ~r/\A[A-Z0-9]{6}\z/
   @printable_ascii ~r/\A[\x21-\x7E]+\z/
 
+  @doc """
+  Whether `value` meets the rule a changed `field` (`:isin`, `:wkn` or
+  `:ticker_symbol`) must meet on a stored security (E25 S5, G23) — the rule
+  `changeset/2` applies, for a writer that decides before it writes (the
+  security merge's adoption, ADR-0050 §9).
+  """
+  @spec identifier_valid?(:isin | :wkn | :ticker_symbol, term()) :: boolean()
+  def identifier_valid?(:isin, value), do: Isin.valid?(value)
+  def identifier_valid?(:wkn, value), do: is_binary(value) and Regex.match?(@wkn_shape, value)
+
+  def identifier_valid?(:ticker_symbol, value),
+    do: is_binary(value) and Regex.match?(@printable_ascii, value)
+
   defp validate_changed_identifiers(%Ecto.Changeset{data: data} = changeset) do
     if Ecto.get_meta(data, :state) == :loaded do
       changeset

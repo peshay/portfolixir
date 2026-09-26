@@ -472,7 +472,10 @@ demselben `plan_digest`, sodass beide denselben Plan sehen.
   Import-Hash aus einer Umwandlung vor der Import-Hash-Artprüfung trägt
   (`legacy_hashed_split`, mit `errors.splits`; seine Art zurücksetzen oder ihn
   löschen — einen, den die Zusammenführung zusammenlegt, löscht sie und legt
-  seinen Hash still). Schließlich
+  seinen Hash still). Eine ISIN der Quelle mit falscher Prüfziffer wird
+  abgelehnt (`invalid_source_isin`): Die Zusammenführung würde sie auf das
+  Ziel schreiben, was der Katalog für ein gespeichertes Wertpapier ablehnt;
+  sie ist daher zuerst an der Quelle zu korrigieren oder zu leeren. Schließlich
   muss jede Identität beider Wertpapiere nach der Zusammenführung das Ziel
   finden (`identity_unresolvable`, mit `errors.unresolvable`): die
   gespeicherte Identität, die Identität, die der Portfolio-Performance-Import
@@ -524,8 +527,9 @@ demselben `plan_digest`, sodass beide denselben Plan sehen.
     übernimmt (eine fehlende WKN, einen fehlenden Ticker oder Feed, eine ISIN,
     die nur die Quelle trägt); `differences`, jeden Wert der Quelle, der
     stattdessen dem Ziel folgt (Name, Anlageklasse, Logo, eine WKN, ein Ticker
-    oder Feed, den das Ziel schon hat); `aliases_reassigned`, die früheren
-    ISINs der Quelle;
+    oder Feed, den das Ziel schon hat, und eine WKN oder ein Ticker, den die
+    Regeln des Katalogs bei einer Änderung ablehnen — nie übernommen, mit
+    `null` für das Ziel); `aliases_reassigned`, die früheren ISINs der Quelle;
   - `outcome_by_collapse_key_equal` mit `"false"` und `"true"`: die
     `transaction_count` des Ziels danach, `moved_transaction_ids`,
     `deleted` (`collapsed_duplicate` oder `collapsed_split`), `positions`

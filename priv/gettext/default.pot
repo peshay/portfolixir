@@ -9849,3 +9849,28 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "Retracted by #%{id}:"
 msgstr ""
+
+#: lib/portfolixir_web/live/securities/merge_preview.ex
+#, elixir-autogen, elixir-format
+msgid "the source's ISIN %{isin} fails its check digit, and the merge would write it onto the target."
+msgstr ""
+
+#: lib/portfolixir_web/live/securities/merge_preview.ex
+#, elixir-autogen, elixir-format
+msgid "the target's ISIN %{isin} fails its check digit, and that merge would write it onto this security."
+msgstr ""
+
+#: lib/portfolixir_web/live/securities/merge_preview.ex
+#, elixir-autogen, elixir-format
+msgid "Remedy: correct or clear the source's ISIN in its master data, then check again."
+msgstr ""
+
+#: lib/portfolixir_web/live/securities/merge_preview.ex
+#, elixir-autogen, elixir-format
+msgid "not adopted: a WKN is six letters or digits."
+msgstr ""
+
+#: lib/portfolixir_web/live/securities/merge_preview.ex
+#, elixir-autogen, elixir-format
+msgid "not adopted: a ticker is printable ASCII characters."
+msgstr ""

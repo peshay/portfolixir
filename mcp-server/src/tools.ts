@@ -2878,7 +2878,8 @@ const declaredTools: DeclaredTool[] = [
       "same day); identifiers (identity_choice_required; after_by_identity_choice with keep_target_isin and " +
       "adopt_source_isin when both carry an ISIN, else after: the target's ISIN, WKN, ticker, feed, name, asset " +
       "class and former ISINs; adopted, what the target takes from the source; differences, every source value " +
-      "that follows the target instead); reverse, whether merging the other way would pass; and " +
+      "that follows the target instead, a WKN or ticker the catalog refuses on a change among them, with the " +
+      "target's null); reverse, whether merging the other way would pass; and " +
       "outcome_by_collapse_key_equal with \"false\" and \"true\": per depot the source holds, quantity, " +
       "cost_basis, avg_cost and realized_result of both before and of the target after, rounding_differences, and " +
       "the cash accounts a collapsed booking changes; positions_basis states how. Show the operator the outcomes " +
@@ -2887,7 +2888,8 @@ const declaredTools: DeclaredTool[] = [
       "retired_target, quote_basis_mismatch, research_notes, policy_rules with errors.policy_rules, " +
       "position_buckets_mismatch, split_ratio_mismatch, split_event_mismatch, split_linearity, " +
       "legacy_hashed_split (a split to move still carries an import hash from a re-type before the import-hash " +
-      "check; errors.splits names it — change its kind back or delete it), or " +
+      "check; errors.splits names it — change its kind back or delete it), invalid_source_isin (the source's " +
+      "ISIN fails its check digit: correct or clear it on the source first), or " +
       "identity_unresolvable with errors.unresolvable: an identity of either security — as stored, as its " +
       "Portfolio Performance import recorded it, or with a former ISIN — or of a security merged into either " +
       "before (merged_stored, merged_imported), that would no longer find the target) " +
