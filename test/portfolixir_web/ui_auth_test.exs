@@ -240,7 +240,8 @@ defmodule PortfolixirWeb.UiAuthTest do
     #
     # Acceptance criteria:
     # - After the configured password changes, an existing session is sent to
-    #   the login page and the LiveView mount halts.
+    #   the login page and the LiveView mount halts — also for a page rendered
+    #   before the change whose socket connects after it.
     # - A session carrying the flag and a fresh stamp but no password binding
     #   (one issued before this change) is logged out.
     # - Logging in again with the new password works.
@@ -249,6 +250,11 @@ defmodule PortfolixirWeb.UiAuthTest do
       conn = recycle_session(conn, login(conn, @password))
       assert conn |> get("/portfolio") |> html_response(200)
       assert {:ok, _view, _html} = live(conn, "/portfolio")
+
+      # A tab rendered before the change, whose socket connects after it:
+      # the HTTP plug has already answered, so only the mount can refuse.
+      rendered = get(conn, "/portfolio")
+      assert html_response(rendered, 200)
 
       # The binding is a keyed fingerprint, never the password itself.
       fingerprint = Plug.Conn.get_session(conn, UiAuth.fingerprint_key())
@@ -259,6 +265,7 @@ defmodule PortfolixirWeb.UiAuthTest do
 
       assert redirected_to(get(conn, "/portfolio")) == "/login?to=%2Fportfolio"
       assert {:error, {:redirect, %{to: "/login" <> _}}} = live(conn, "/portfolio")
+      assert {:error, {:redirect, %{to: "/login"}}} = live(rendered)
 
       fresh = Phoenix.ConnTest.build_conn()
       Throttle.success(:ui, Throttle.source_key(fresh.remote_ip))
