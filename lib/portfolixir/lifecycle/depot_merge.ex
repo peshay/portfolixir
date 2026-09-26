@@ -69,8 +69,9 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
     3. the **linearity check** (§7, §16 invariant 10): at every date either
        depot has a row, every split date and today, T's quantity of each
        security equals the fold of both depots' kept rows as one depot, each
-       split scaling the combined position once — and, before a security's
-       first split, the sum of both depots' quantities. Otherwise the merge
+       split scaling the combined position once — and, in exact arithmetic
+       (`MergeFigures.eod_exact/1`), the sum of both depots' quantities
+       before the merge, at every date. Otherwise the merge
        rolls back with `identity_check_failed`, a bug catcher, never an
        expected answer. From a split on, the combined position rounded once
        may differ from the sum of the two rounded apart by a unit of the
@@ -88,7 +89,7 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
   import Portfolixir.Lifecycle.MergeFlow,
     only: [guard: 4, guard: 5, passed?: 1, each: 2, jsonable: 1]
 
-  import Portfolixir.Lifecycle.MergeFigures, only: [sample: 2, quantity: 3]
+  import Portfolixir.Lifecycle.MergeFigures, only: [sample: 2, quantity: 3, exact: 3]
 
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
@@ -589,6 +590,7 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
     kept = Enum.reject(base.rows, &MapSet.member?(collapsed, &1.id))
     combined = MergeFigures.eod_positions(after_rows ++ base.splits)
     separate = MergeFigures.eod_positions(kept ++ base.splits)
+    separate_exact = MergeFigures.eod_exact(kept ++ base.splits)
 
     %{
       moved: moved,
@@ -596,6 +598,7 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
       transaction_count: length(after_rows),
       combined: combined,
       separate: separate,
+      separate_exact: separate_exact,
       positions: positions(base, Ledger.position_costs(after_rows ++ base.splits)),
       rounding_differences: rounding_differences(base, combined, separate),
       cash_accounts: MergeFigures.collapsed_cash_accounts(pairs),
@@ -945,9 +948,14 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
 
   # §7, §16 invariant 10, read back from the database after the writes: at
   # every date either depot has a row, every split date and today, T's
-  # quantity of each security equals the fold of both depots' kept rows as
-  # one depot — each split scaling the combined position once — and, before
-  # the security's first split, the sum of both depots' quantities.
+  # quantity of each security equals the planned fold of both depots' kept
+  # rows as one depot — each split scaling the combined position once — and,
+  # independently of the plan's own rows, T's **exact** quantity (every split
+  # multiplied by its ratio, nothing rounded) equals the sum of both depots'
+  # exact folds before the merge. Splits are rows of the portfolio, so every
+  # booking is scaled by the same splits in one depot as in two: in exact
+  # arithmetic the fold is linear at every date, before the first split and
+  # after it. Only the rounded fold may differ, by the listed rounding.
   defp linearity_check(plan, outcome) do
     s = plan.source.id
     t = plan.target.id
@@ -969,28 +977,34 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
       )
 
     actual = sample(MergeFigures.eod_positions(rows ++ splits), plan.check_dates)
+    actual_exact = sample(MergeFigures.eod_exact(rows ++ splits), plan.check_dates)
     expected = sample(outcome.combined, plan.check_dates)
-    separate = sample(outcome.separate, plan.check_dates)
-    first_split = first_split_dates(plan.splits)
+    separate_exact = sample(outcome.separate_exact, plan.check_dates)
 
     Enum.find_value(plan.check_dates, :ok, fn date ->
       Enum.find_value(plan.securities, fn security_id ->
-        merged = quantity(actual, date, {t, security_id})
-        combined = quantity(expected, date, {t, security_id})
+        key = {t, security_id}
+        merged = quantity(actual, date, key)
+        combined = quantity(expected, date, key)
+        merged_exact = exact(actual_exact, date, key)
 
         apart =
-          Decimal.add(
-            quantity(separate, date, {s, security_id}),
-            quantity(separate, date, {t, security_id})
+          MergeFigures.add(
+            exact(separate_exact, date, {s, security_id}),
+            exact(separate_exact, date, key)
           )
 
         cond do
           not Decimal.equal?(merged, combined) ->
             quantity_failure(date, security_id, combined, merged)
 
-          before_first_split?(first_split, security_id, date) and
-              not Decimal.equal?(combined, apart) ->
-            quantity_failure(date, security_id, apart, combined)
+          merged_exact != apart ->
+            quantity_failure(
+              date,
+              security_id,
+              MergeFigures.to_decimal(apart),
+              MergeFigures.to_decimal(merged_exact)
+            )
 
           true ->
             nil
@@ -1003,19 +1017,6 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
     {:error,
      {:identity_check_failed,
       %{date: date, security_id: security_id, expected: expected, actual: actual}}}
-  end
-
-  defp first_split_dates(splits) do
-    Enum.reduce(splits, %{}, fn split, acc ->
-      Map.update(acc, split.security_id, split.date, &Enum.min([&1, split.date], Date))
-    end)
-  end
-
-  defp before_first_split?(first_split, security_id, date) do
-    case Map.get(first_split, security_id) do
-      nil -> true
-      first -> Date.compare(date, first) == :lt
-    end
   end
 
   # The bucket plan (§7 depot guards), through the journaled Buckets writers:

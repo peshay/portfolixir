@@ -346,6 +346,50 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
     end
 
     # User story:
+    # As the operator whose depots both kept booking a security after its
+    # reverse split,
+    # I want the merge's own check to hold the merged depot to the sum of
+    # both depots' bookings on every day after the split too, in exact
+    # arithmetic,
+    # so that a booking lost or doubled after a split can never commit.
+    #
+    # Acceptance criteria:
+    # - One share in each depot, a 1:3 split, then a buy of 0.5 on the
+    #   source and a sale of 0.1 on the target: the merge applies (the
+    #   rounding of the combined position is not a failure) and the target
+    #   holds 0.666667 + 0.5 - 0.1 = 1.066667.
+    test "after a split, bookings on either side merge and the target holds the fold", ctx do
+      buy!(ctx, ctx.target, ctx.cash_t, ctx.heron, "1", "10.00", ~D[2025-01-10])
+      buy!(ctx, ctx.source, ctx.cash_s, ctx.heron, "1", "10.00", ~D[2025-01-12])
+
+      {:ok, _split} =
+        Splits.book_split(Actor.owner_ui(), %{
+          security_id: ctx.heron.id,
+          date: ~D[2025-03-01],
+          ratio_numerator: 1,
+          ratio_denominator: 3
+        })
+
+      buy!(ctx, ctx.source, ctx.cash_s, ctx.heron, "0.5", "30.00", ~D[2025-04-01])
+
+      trade!(
+        ctx,
+        "sell",
+        {ctx.target, ctx.cash_t},
+        ctx.heron,
+        {"0.1", "31.00"},
+        ~D[2025-05-01],
+        nil
+      )
+
+      oracle = daily_sums(ctx, [])
+      merge!(ctx, false)
+
+      assert held(ctx.target, ctx.heron) == dec("1.066667")
+      assert merged_quantities(ctx, Map.keys(oracle)) == oracle
+    end
+
+    # User story:
     # As the operator whose history spans both depots,
     # I want a merge without collapse to leave every day's external flow
     # and the total value unchanged,
