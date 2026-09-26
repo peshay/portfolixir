@@ -363,8 +363,13 @@ defmodule Portfolixir.Lifecycle.CashMerge do
       "no balance anchor the merge restates or moves carries an import hash",
       legacy_anchor_detail(Enum.map(written, & &1.id))
     )
-    |> Map.put(:anchors, Enum.map(written, &anchor_ref/1))
+    |> put_failed(:anchors, Enum.map(written, &anchor_ref/1))
   end
+
+  # A refused guard names the rows it refuses over; a passed one stays a
+  # plain guard result.
+  defp put_failed(%{passed: true} = guard, _key, _value), do: guard
+  defp put_failed(guard, key, value), do: Map.put(guard, key, value)
 
   defp anchor_ref(row), do: %{id: row.id, date: row.date, cash_account_id: row.cash_account_id}
 
@@ -394,8 +399,8 @@ defmodule Portfolixir.Lifecycle.CashMerge do
       "every restated balance anchor fits the amount column",
       unstorable_anchor_detail(lines, Enum.map(bookings, & &1.id))
     )
-    |> Map.put(:anchors, Enum.map(lines, &anchor_ref(&1.row)))
-    |> Map.put(:bookings, Enum.map(bookings, &Map.put(anchor_ref(&1), :type, &1.type)))
+    |> put_failed(:anchors, Enum.map(lines, &anchor_ref(&1.row)))
+    |> put_failed(:bookings, Enum.map(bookings, &Map.put(anchor_ref(&1), :type, &1.type)))
   end
 
   @amount_column {20, 6}
