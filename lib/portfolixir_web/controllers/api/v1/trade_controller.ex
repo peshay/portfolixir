@@ -6,6 +6,7 @@ defmodule PortfolixirWeb.Api.V1.TradeController do
   alias PortfolixirWeb.Api.V1.DateParam
   alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.MergedAway
 
   def index(conn, %{"security_id" => security_id} = params) do
     with {:ok, from} <- date_param(params, "from", :from),
@@ -21,7 +22,7 @@ defmodule PortfolixirWeb.Api.V1.TradeController do
     else
       {:error, field} -> unprocessable(conn, field)
       :error -> not_found(conn)
-      nil -> not_found(conn)
+      nil -> MergedAway.not_found(conn, :security, security_id)
     end
   end
 

@@ -281,7 +281,9 @@ full list.
   `errors.merged_into` `{"kind": "security", "id": …}`, the security its
   history lives on now — followed through every later merge to the live one
   — and a detail naming both (ADR-0050 §12); an id no merge names answers
-  the plain `404`.
+  the plain `404`. Every route under `/api/v1/securities/:security_id/`
+  answers a merged-away id the same way — the quotes, trades, metrics,
+  notes, events and logo reads, and their writes.
 - `PATCH /api/v1/securities/:id` updates a security with a `security` object.
   The boolean `treat_quotes_as_raw` (default `false`) is the ADR-0028 escape
   hatch for providers that never back-adjust their history after a stock

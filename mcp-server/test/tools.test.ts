@@ -2392,6 +2392,9 @@ describe("Portfolixir MCP tools", () => {
     assert.match(tool?.description ?? "", /newest first/);
     assert.match(tool?.description ?? "", /manifest_summary/);
     assert.match(tool?.description ?? "", /merged_into/);
+    // It names where a merged-away id answers so (L3–L5 review, SF-1).
+    assert.match(tool?.description ?? "", /every route under a security/);
+    assert.doesNotMatch(tool?.description ?? "", /elsewhere/);
     assert.match(tool?.description ?? "", /no unmerge/);
     assert.match(tool?.description ?? "", /Sprint 17/);
   });
