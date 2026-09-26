@@ -11,6 +11,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
   alias PortfolixirWeb.Api.V1.IntegerParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ListLimit
+  alias PortfolixirWeb.Api.V1.MergedAway
   alias PortfolixirWeb.Api.V1.PolicyConflict
   alias PortfolixirWeb.Api.V1.ReferencedConflict
   alias PortfolixirWeb.Api.V1.SinceParam
@@ -97,8 +98,9 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
 
   def show(conn, %{"id" => id}) do
     case Catalog.get_security(id) do
+      # ADR-0050 §12: a merged-away security names the one it lives on.
       nil ->
-        not_found(conn)
+        MergedAway.not_found(conn, :security, id)
 
       security ->
         # The detail carries the recorded former-ISIN aliases (ADR-0029 §3)

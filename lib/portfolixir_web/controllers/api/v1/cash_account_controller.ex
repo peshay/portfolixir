@@ -6,6 +6,7 @@ defmodule PortfolixirWeb.Api.V1.CashAccountController do
   alias Portfolixir.Portfolios.CashAccount
   alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.MergedAway
   alias PortfolixirWeb.Api.V1.ReferencedConflict
 
   def index(conn, _params) do
@@ -29,7 +30,8 @@ defmodule PortfolixirWeb.Api.V1.CashAccountController do
          %CashAccount{} = account <- Portfolios.get_cash_account(cid) do
       json(conn, %{data: JSON.cash_account(account)})
     else
-      _ -> not_found(conn)
+      # ADR-0050 §12: a merged-away account names the one it lives on.
+      _ -> MergedAway.not_found(conn, :cash_account, id)
     end
   end
 
