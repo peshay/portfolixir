@@ -44,6 +44,8 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.cash_accounts.update",
       "portfolixir.cash_accounts.delete",
       "portfolixir.cash_accounts.remove_former_name",
+      "portfolixir.cash_accounts.merge_preview",
+      "portfolixir.cash_accounts.merge",
       "portfolixir.securities_accounts.list",
       "portfolixir.securities_accounts.create",
       "portfolixir.securities_accounts.update",
@@ -1669,6 +1671,81 @@ describe("Portfolixir MCP tools", () => {
       assert.match(remove, /journaled/);
       assert.match(remove, /An import that still names '<name>' will then create a new account\./);
     }
+  });
+
+  // User story (ADR-0050 §7, §8, §10, L3a, #328):
+  // As the agent tidying up a household's accounts,
+  // I want the merge preview and the merge as tools that say what the merge
+  // does to the next import and what my choices mean,
+  // so that I show the operator the consequence and send back exactly what
+  // was approved.
+  //
+  // Acceptance criteria:
+  // - merge_preview routes to GET /api/v1/cash_accounts/:id/merge_preview
+  //   with target_id as a query parameter; merge routes to POST
+  //   /api/v1/cash_accounts/:id/merge with target_id, plan_digest and, when
+  //   given, collapse_key_equal in the body.
+  // - The merge tool says that the source is deleted and cannot be restored,
+  //   that its name becomes a former name so a later import books onto the
+  //   target and a re-import of an applied export creates nothing, that
+  //   collapse_key_equal is required when the preview lists key-equal pairs
+  //   and never preselected, that a changed plan answers plan_changed with a
+  //   fresh preview, and that a retry answers the original record.
+  // - The preview tool says it writes nothing and states both outcomes.
+  it("routes the cash-account merge preview and merge, and states the re-import contract", async () => {
+    const { client, requests } = createRecordingClient({ data: { id: 1 } });
+
+    await callTool(client, "portfolixir.cash_accounts.merge_preview", { id: 3, target_id: 5 });
+    await callTool(client, "portfolixir.cash_accounts.merge", {
+      id: 3,
+      target_id: 5,
+      plan_digest: "sha256:abc",
+      collapse_key_equal: true
+    });
+    await callTool(client, "portfolixir.cash_accounts.merge", {
+      id: 3,
+      target_id: 5,
+      plan_digest: "sha256:abc"
+    });
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/cash_accounts/3/merge_preview?target_id=5");
+    assert.equal(requests[1].method, "POST");
+    assert.equal(requests[1].path, "/api/v1/cash_accounts/3/merge");
+    assert.deepEqual(requests[1].body, { target_id: 5, plan_digest: "sha256:abc", collapse_key_equal: true });
+    assert.deepEqual(requests[2].body, { target_id: 5, plan_digest: "sha256:abc" });
+
+    await assert.rejects(
+      callTool(client, "portfolixir.cash_accounts.merge", { id: 3, target_id: 5 }),
+      /plan_digest/
+    );
+    await assert.rejects(
+      callTool(client, "portfolixir.cash_accounts.merge", {
+        id: 3,
+        target_id: 5,
+        plan_digest: "sha256:abc",
+        collapse_key_equal: "yes"
+      }),
+      /collapse_key_equal/
+    );
+
+    const tools = listTools();
+    const describe = (name: string) => tools.find((tool) => tool.name === name)?.description ?? "";
+    const merge = describe("portfolixir.cash_accounts.merge");
+    assert.match(merge, /deleted/);
+    assert.match(merge, /cannot be undone/);
+    assert.match(merge, /former name of the target/);
+    assert.match(merge, /books onto the target/);
+    assert.match(merge, /re-import of an export already applied creates nothing/);
+    assert.match(merge, /collapse_key_equal is required when the preview lists key_equal_pairs/);
+    assert.match(merge, /plan_changed/);
+    assert.match(merge, /retry.*original merge record/);
+
+    const preview = describe("portfolixir.cash_accounts.merge_preview");
+    assert.match(preview, /writes nothing/);
+    assert.match(preview, /outcome_by_collapse_key_equal/);
+    assert.match(preview, /plan_digest/);
+    assert.match(describe("portfolixir.cash_accounts.delete"), /portfolixir\.cash_accounts\.merge_preview/);
   });
 
   it("routes the former-name removal to DELETE with the name as a query parameter", async () => {
