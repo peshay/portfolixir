@@ -22,6 +22,12 @@ defmodule Portfolixir.Lifecycle do
   `Portfolixir.Lifecycle.ForeignKeys` (§14); the hardened delete of a cash
   account, a depot or a security that reads it is
   `Portfolixir.Lifecycle.Delete` (§11).
+
+  The merges themselves: a cash account into another
+  (`preview_cash_merge/2`, `merge_cash_account/4`, implemented by
+  `Portfolixir.Lifecycle.CashMerge`, §7, §8, §10), writing row by row through
+  `Portfolixir.Lifecycle.MergeWriter` under a digest from
+  `Portfolixir.Lifecycle.PlanDigest`.
   """
 
   import Ecto.Query, only: [from: 2]
@@ -29,6 +35,7 @@ defmodule Portfolixir.Lifecycle do
   alias Ecto.Multi
   alias Portfolixir.Actor
   alias Portfolixir.Journal
+  alias Portfolixir.Lifecycle.CashMerge
   alias Portfolixir.Lifecycle.MergeRecord
   alias Portfolixir.Lifecycle.RetiredImportHash
   alias Portfolixir.Repo
@@ -42,12 +49,53 @@ defmodule Portfolixir.Lifecycle do
   `merge_record` create. The actor is recorded from `actor`, never from
   `attrs`. A source already merged under the same kind answers a changeset
   error on `source_id`.
+
+  `id:` in `opts` writes the record under an id reserved with
+  `reserve_merge_record_id/0`: a merge retires the hashes of the rows it
+  removes under its record's id before it writes the record last (§7 step 7),
+  and the deferred foreign key checks the pair when the merge commits.
   """
-  @spec record_merge(Actor.t(), map()) :: {:ok, MergeRecord.t()} | {:error, Ecto.Changeset.t()}
-  def record_merge(%Actor{} = actor, attrs) when is_map(attrs) do
+  @spec record_merge(Actor.t(), map(), keyword()) ::
+          {:ok, MergeRecord.t()} | {:error, Ecto.Changeset.t()}
+  def record_merge(%Actor{} = actor, attrs, opts \\ []) when is_map(attrs) and is_list(opts) do
     attrs
     |> MergeRecord.create_changeset(actor)
+    |> put_reserved_id(Keyword.get(opts, :id))
     |> journaled_insert(actor, "merge_record")
+  end
+
+  @doc """
+  Reserves the id the record of a merge in progress will carry, from the
+  table's own sequence, so the retirements that name it can be written
+  first. A merge that rolls back leaves a gap in the ids, never a record.
+  """
+  @spec reserve_merge_record_id() :: pos_integer()
+  def reserve_merge_record_id do
+    %{rows: [[id]]} = Repo.query!("SELECT nextval('merge_records_id_seq')")
+    id
+  end
+
+  @doc """
+  The preview of a merge of the cash account `source_id` into `target_id`
+  (ADR-0050 §7, §8, §10): a read. See `Portfolixir.Lifecycle.CashMerge`.
+  """
+  defdelegate preview_cash_merge(source_id, target_id), to: CashMerge, as: :preview
+
+  @doc """
+  Merges the cash account `source_id` into `target_id` on behalf of `actor`
+  under the approved `plan_digest` and the operator's `collapse_key_equal`
+  choice (ADR-0050 §7, §8, §10, §12). See `Portfolixir.Lifecycle.CashMerge`.
+  """
+  defdelegate merge_cash_account(actor, source_id, target_id, params), to: CashMerge, as: :apply
+
+  @doc """
+  The record of the merge that took `source_id` away under `kind`, or `nil`.
+  """
+  @spec merge_of(:cash_account | :securities_account | :security, integer()) ::
+          MergeRecord.t() | nil
+  def merge_of(kind, source_id)
+      when kind in [:cash_account, :securities_account, :security] and is_integer(source_id) do
+    Repo.one(from(m in MergeRecord, where: m.kind == ^kind and m.source_id == ^source_id))
   end
 
   @doc """
@@ -89,6 +137,11 @@ defmodule Portfolixir.Lifecycle do
       target -> follow(kind, target, target, hops - 1)
     end
   end
+
+  defp put_reserved_id(changeset, nil), do: changeset
+
+  defp put_reserved_id(changeset, id) when is_integer(id),
+    do: Ecto.Changeset.put_change(changeset, :id, id)
 
   defp journaled_insert(changeset, actor, resource_type) do
     Multi.new()

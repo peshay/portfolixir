@@ -114,6 +114,7 @@ defmodule Portfolixir.Imports.Applier do
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Fx
+  alias Portfolixir.Imports.DedupKey
   alias Portfolixir.Imports.Entry
   alias Portfolixir.Imports.ImportHash
   alias Portfolixir.Imports.Preview
@@ -1798,7 +1799,7 @@ defmodule Portfolixir.Imports.Applier do
   # (E25 S5, F37): the in-run key would take two equal refunds of two
   # different rows for one.
   defp insert_transaction(entry, attrs, state, collapse? \\ true) do
-    key = dedup_key(attrs)
+    key = DedupKey.of(attrs)
 
     # Two-layer idempotency (#533): the stored content `import_hash` skips exact
     # re-inserts (and exact within-file duplicates), and since ADR-0050 §3 it
@@ -1825,7 +1826,7 @@ defmodule Portfolixir.Imports.Applier do
 
       true ->
         with {:ok, state, attrs} <- materialize_accounts(entry, attrs, state) do
-          insert_new_transaction(entry, attrs, run_key(dedup_key(attrs), entry), state)
+          insert_new_transaction(entry, attrs, run_key(DedupKey.of(attrs), entry), state)
         end
     end
   end
@@ -1946,42 +1947,8 @@ defmodule Portfolixir.Imports.Applier do
   defp load_existing_dedup_keys(portfolio_id) do
     from(t in Transaction, where: t.portfolio_id == ^portfolio_id)
     |> Repo.all()
-    |> Enum.map(&dedup_key/1)
+    |> Enum.map(&DedupKey.of/1)
     |> MapSet.new()
-  end
-
-  # A formatting-tolerant identity over the *resolved* DB fields: same portfolio,
-  # security/account ids, kind, date, and Decimal-normalized amounts. Computed
-  # identically from import `attrs` and from a stored `%Transaction{}`, so equal
-  # economic bookings collapse to the same key regardless of how PP serialized
-  # the numbers. `Map.get/2` tolerates the kind-specific attrs that omit fields.
-  defp dedup_key(record) do
-    {
-      Map.get(record, :portfolio_id),
-      Map.get(record, :type),
-      Map.get(record, :date),
-      Map.get(record, :security_id),
-      Map.get(record, :securities_account_id),
-      Map.get(record, :counter_securities_account_id),
-      Map.get(record, :cash_account_id),
-      Map.get(record, :counter_cash_account_id),
-      Map.get(record, :currency_code),
-      # Round to each column's stored NUMERIC scale (quantity 12, money 6) BEFORE
-      # normalizing, so a full-precision incoming entry collapses onto the value
-      # Postgres actually persisted — otherwise a price/quantity with more places
-      # than the column holds would round on storage and never match its re-import.
-      norm_decimal(Map.get(record, :quantity), 12),
-      norm_decimal(Map.get(record, :price), 6),
-      norm_decimal(Map.get(record, :gross_amount), 6),
-      norm_decimal(Map.get(record, :fees), 6),
-      norm_decimal(Map.get(record, :taxes), 6)
-    }
-  end
-
-  defp norm_decimal(nil, _scale), do: nil
-
-  defp norm_decimal(%Decimal{} = d, scale) do
-    d |> Decimal.round(scale) |> Decimal.normalize() |> Decimal.to_string(:normal)
   end
 
   # Increment one counter field on the Result struct inside `state`.

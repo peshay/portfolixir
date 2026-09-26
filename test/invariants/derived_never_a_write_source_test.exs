@@ -86,6 +86,26 @@ defmodule Portfolixir.Invariants.DerivedNeverAWriteSourceTest do
              Enum.join(Enum.uniq(offenders), "\n")
   end
 
+  # ADR-0050 §13: a lifecycle merge restates balance anchors and checks the
+  # merged balance from the Ledger projection over stored rows (§7 steps 4
+  # and 6), never from a derived value — its writes announce through the
+  # journal like every other write. Its modules are named here, so a move
+  # out of the scanned tree, or an allowlist entry, cannot take them out of
+  # the gate.
+  @merge_sources ~w(
+    lib/portfolixir/lifecycle/cash_merge.ex
+    lib/portfolixir/lifecycle/merge_writer.ex
+    lib/portfolixir/lifecycle/plan_digest.ex
+  )
+
+  test "the lifecycle merge modules are scanned and read nothing derived" do
+    for path <- @merge_sources do
+      assert path in @sources, "#{path} left the ADR-0039 I7 scan"
+      refute Map.has_key?(@allowed, path), "#{path} may not be allowlisted"
+      assert derived_references(File.read!(path)) == [], "#{path} references the derived layer"
+    end
+  end
+
   test "the write seams reference the announcer only, never the reading API" do
     for {path, allowed} <- @allowed,
         allowed == [[:Portfolixir, :Derived, :Invalidation]] do

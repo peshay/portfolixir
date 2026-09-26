@@ -45,9 +45,29 @@ defmodule Portfolixir.Portfolios.SecuritiesAccount do
   end
 
   @doc """
-  The write of `former_names` alone (ADR-0050 §4), for the writers in
-  `Portfolixir.Lifecycle.AccountNames` that hold the account-identity lock and
-  have run the name guard: the remembered remap and the removal.
+  The lifecycle merge's re-point of a depot's linked cash account (ADR-0050
+  §7 step 5): `cash_account_id` alone, for a cash-account merge that moves
+  the source's linked depots onto the target. Name, portfolio and former
+  names are not cast, so the name guard and the identity freeze have no
+  input here; the merge's same-portfolio guard keeps the composite key
+  satisfied, and the key is declared, so a refusal is a changeset error.
+  """
+  def reassign_changeset(securities_account, attrs) when is_map(attrs) do
+    securities_account
+    |> cast(attrs, [:cash_account_id])
+    |> validate_required([:cash_account_id])
+    |> assoc_constraint(:cash_account)
+    |> foreign_key_constraint(:cash_account_id,
+      name: :securities_accounts_cash_account_portfolio_fkey
+    )
+  end
+
+  @doc """
+  The write of `former_names` alone (ADR-0050 §4), for the writers that hold
+  the account-identity lock and have run the name guard: the remembered remap
+  and the removal (`Portfolixir.Lifecycle.AccountNames`), and a merge's
+  append of the source's names (`Portfolixir.Lifecycle.MergeWriter`, §7
+  step 7).
   """
   def former_names_changeset(securities_account, former_names) when is_list(former_names) do
     change(securities_account, former_names: former_names)

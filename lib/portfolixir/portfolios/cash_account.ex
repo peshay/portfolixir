@@ -58,9 +58,11 @@ defmodule Portfolixir.Portfolios.CashAccount do
   end
 
   @doc """
-  The write of `former_names` alone (ADR-0050 §4), for the writers in
-  `Portfolixir.Lifecycle.AccountNames` that hold the account-identity lock and
-  have run the name guard: the remembered remap and the removal.
+  The write of `former_names` alone (ADR-0050 §4), for the writers that hold
+  the account-identity lock and have run the name guard: the remembered remap
+  and the removal (`Portfolixir.Lifecycle.AccountNames`), and a merge's
+  append of the source's names (`Portfolixir.Lifecycle.MergeWriter`, §7
+  step 7).
   """
   def former_names_changeset(cash_account, former_names) when is_list(former_names) do
     change(cash_account, former_names: former_names)
