@@ -241,7 +241,9 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
 
   @doc """
   One identity that would not resolve to the target (§9): whose it is, which
-  one (`stored`, `imported`, `former_isin`), its identifiers, what the ladder
+  one (`stored`, `imported`, `former_isin`, or for a security merged into
+  either before `merged_stored`, `merged_imported`), its identifiers, what
+  the ladder
   answers instead (`kind` `none`, `ambiguous`, `identifier_veto`,
   `cross_tier` or `other_security`, with the securities it names) and under
   which identity choices.

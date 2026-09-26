@@ -396,8 +396,12 @@ confirms with the same `plan_digest`, so both see the same plan.
   (`identity_unresolvable`, with `errors.unresolvable`): the identity as
   stored, the identity the Portfolio Performance import recorded when it
   created the security (its name, ISIN, WKN, ticker and currency — a file
-  resolves on what it carries, not on identifiers added since), and each
-  former ISIN. A name-only security that was given a ticker after its import
+  resolves on what it carries, not on identifiers added since), each former
+  ISIN, and, for every security merged into either of the two before (and
+  into those, down the chain), its identity as stored and as imported
+  (`merged_stored`, `merged_imported`, under the merged-away security's
+  id): a survivor merged away in turn must still lead every earlier import
+  to the history. A name-only security that was given a ticker after its import
   and whose name differs from the target's is such a case; so is a name that
   another live security also carries. Each refusal is a `409 Conflict` with
   `errors.code`, `errors.detail` and `errors.guards`; an unknown source
