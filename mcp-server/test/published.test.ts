@@ -155,7 +155,8 @@ const MODIFYING_POSTS = [
   "portfolixir.securities.isin_change", // writes the new ISIN onto the security
   // ADR-0050 §7, §10: moves every booking, deletes the source; a retry of a
   // completed merge answers the original record, so it is idempotent.
-  "portfolixir.cash_accounts.merge"
+  "portfolixir.cash_accounts.merge",
+  "portfolixir.securities_accounts.merge"
 ];
 
 const OPEN_WORLD = [

@@ -329,6 +329,11 @@ defmodule PortfolixirWeb.Router do
       :remove_former_name
     )
 
+    # ADR-0050 §7, §10: the merge of a depot into another — a read that
+    # previews it, and the apply under the preview's digest.
+    get("/securities_accounts/:id/merge_preview", MergeController, :securities_account_preview)
+    post("/securities_accounts/:id/merge", MergeController, :securities_account_merge)
+
     get("/buckets", BucketController, :index)
     post("/buckets", BucketController, :create)
     get("/buckets/:id", BucketController, :show)

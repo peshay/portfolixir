@@ -912,6 +912,91 @@ Example quote sync response:
   `GET /api/v1/securities_accounts/:id/merge_preview?target_id=`. An
   unreferenced depot's default buckets and position overrides are removed
   first, journaled: one entry for the default set, one per position.
+- `GET /api/v1/securities_accounts/:id/merge_preview?target_id=` previews
+  merging the depot (the **source**) into `target_id` (the **target**, the
+  depot that stays) — a read that writes nothing (ADR-0050 §7, §10;
+  `portfolixir.securities_accounts.merge_preview`). Both depots must share
+  the portfolio and the default bucket set, and every position must keep its
+  view membership: for each security the source holds, where the target
+  holds it too the two effective bucket sets must be equal; where the target
+  does not, the source's set is carried over. Otherwise it answers
+  `409 Conflict` with `errors.code` (`same_account`, `not_live`,
+  `portfolio_mismatch`, `buckets_mismatch`, or `position_buckets_mismatch`,
+  whose `errors.detail` names each position and both bucket sets),
+  `errors.detail` and `errors.guards`. An unknown source answers `404`, a
+  source already merged `409` `already_merged` with `errors.merged_into`, a
+  missing `target_id` `422`. The `200` carries:
+  - `plan_digest`, the digest the merge takes;
+  - `source` and `target`, each with its `cash_account_id`, `bucket_ids` (the
+    default set), `former_names` and `transaction_count`; `guards`;
+  - `internal_transfers`: the security transfers between the two, which the
+    merge deletes — both legs become one depot;
+  - `key_equal_pairs`: a source booking whose day, kind, security, cash
+    account and amounts equal a target booking's, paired one to one, lowest
+    id first, and `choice_required` when there is one;
+  - `position_buckets`: per security the source holds or carries an override
+    for, both effective bucket sets, both overrides (`null` for a position
+    that inherits its depot's default set, `[]` for a deliberately empty one)
+    and the `action`: `carry` (the source's override moves to the target),
+    `drop_redundant` (the target already shows the position in the same
+    buckets), `drop_unheld` (the source holds no booking of it),
+    `clear_target` (the target's override for a security it does not hold is
+    cleared, so the moved bookings keep the default set) or `none`;
+  - `former_names`: `appended`, `not_kept` and the target's list `after`;
+  - `outcome_by_collapse_key_equal` with `"false"` and `"true"`: the target's
+    `transaction_count` after, `moved_transaction_ids`, `deleted` (each with
+    its `reason`: `internal_transfer` or `collapsed_duplicate`), `positions`
+    (every security the source holds, each with `source`, `target` and
+    `after`, each `quantity`, `cost_basis`, `avg_cost` and `realized_result`;
+    `target` is `null` where the target holds no booking of it),
+    `rounding_differences` and `cash_accounts` (each cash account a
+    collapsed booking changes, with `balance_before` and `balance_after`);
+  - `positions_basis`, the computation basis of those figures: the quantity
+    is the position fold with each split scaling the position once, rounded
+    at volume scale 6 (ADR-0028 §3); `cost_basis` and `avg_cost` are the
+    moving-average cost `GET /api/v1/portfolios/:id/holdings` states, in the
+    security's currency, fees and taxes not included — after the merge both
+    depots' lots combine, so the cost is restated, and a sale the target made
+    between two buys now consumes the combined average; `realized_result` is,
+    over the position's sales, each sale's quantity times its price in the
+    security's currency less the cost it removed at the running average, and
+    `null` where that price or cost is not derivable;
+    `rounding_differences` lists each split of an affected security where
+    the combined position rounded once differs, at the end of the split's
+    day, from the two positions rounded apart — by a unit of the volume scale
+    per split, expected and never a refusal.
+
+  Every quantity and decimal is a string. The digest covers both depots,
+  every booking either names and the portfolio's splits of their securities
+  with their `updated_at`, every figure (the bucket plan among them) and the
+  guards; the choice is not part of it, so one pair has one digest.
+- `POST /api/v1/securities_accounts/:id/merge` with `{"target_id": …,
+  "plan_digest": …, "collapse_key_equal": …}` merges under the token
+  (`portfolixir.securities_accounts.merge`). `collapse_key_equal` is required
+  when the preview lists `key_equal_pairs` — `422` without it, naming how
+  many — and is never preselected: ask the operator. It answers `201
+  Created` with the merge record (as for a cash account; its `manifest`
+  lists every booking moved or deleted, the overrides `carried`, `dropped`
+  and `cleared`, the default buckets removed, the names appended, the
+  rounding differences and the choice) and `already_applied: false`. In one
+  transaction, one audit-journal entry per row: the transfers between the
+  two and, with `true`, the source's paired bookings are deleted and their
+  content hashes retired; every other booking of the source moves onto the
+  target on whichever depot leg names the source, keeping its cash account —
+  the target keeps its own linked cash account, the source's stays as an
+  account of its own; the target's quantity of every security is checked
+  against both depots' bookings on every day either has a booking, every
+  split date and today (`409 identity_check_failed` rolls the merge back
+  otherwise — a check for a defect, never an expected answer); the bucket
+  plan is written, one journal entry per position; the source's default
+  buckets are removed and the source is deleted; its name and former names
+  become former names of the target. A changed plan answers `409`
+  `plan_changed` with the fresh preview in `errors.preview`; a retry of a
+  completed merge of the same pair answers `200` with the original record
+  and `already_applied: true`; a source merged into another depot `409`
+  `already_merged`; a missing `plan_digest` or `target_id`, or a
+  `collapse_key_equal` that is not a boolean, `422`. There is no unmerge.
+  The operator's merge dialog follows in the same batch (L5).
 
 Example account payloads:
 
@@ -2306,6 +2391,15 @@ through this API lives next to the imported history:
   (reported with the layer `economics`), and a row dated on or before a
   balance anchor the merge restated is booked but absorbed by that anchor —
   the import lists it as booked behind a restated anchor, with the anchor.
+- **A depot merge is safe for the next import (ADR-0050 §2, §7).** After
+  `POST /api/v1/securities_accounts/:id/merge`, re-applying an export already
+  applied creates nothing, byte-identical or drifted: the moved bookings keep
+  their content hashes, every booking the merge deleted has its hash retired,
+  the source depot's name resolves to the target as a former name, and a
+  security transfer between the two is skipped as internal. A later export's
+  new rows that name the merged-away depot are booked once, on the target. A
+  new row whose economic key equals an existing booking of the target is
+  taken for that booking (reported with the layer `economics`).
 - **What survives a re-import, unchanged, same ids, exact `Decimal` values:**
   classification assignments; every target plan version with its category and
   position targets and the cash target; each security's `note` and
@@ -2550,6 +2644,17 @@ in its description; the server instructions say it once for every write.
 - `portfolixir.securities_accounts.update`
 - `portfolixir.securities_accounts.delete`
 - `portfolixir.securities_accounts.remove_former_name` — the same for a depot.
+- `portfolixir.securities_accounts.merge_preview` — the depot merge preview,
+  a read (ADR-0050 §7, §10): every affected position before and after for
+  both outcomes of the duplicate question, the bucket plan, `positions_basis`
+  and the `plan_digest`.
+- `portfolixir.securities_accounts.merge` — the depot merge under an approved
+  digest; hinted destructive and idempotent (a retry answers the original
+  record). Its description says that bookings keep their cash account, that
+  every position keeps its view membership, and what the merge does to the
+  next import: the source's names become former names of the target, a later
+  import naming them books there, and a re-import of an applied export
+  creates nothing.
 - `portfolixir.transactions.list`
 - `portfolixir.transactions.create`
 - `portfolixir.transactions.update`

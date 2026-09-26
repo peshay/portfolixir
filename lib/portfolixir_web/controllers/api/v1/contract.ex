@@ -68,14 +68,21 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "every figure for both answers to the duplicate question under a plan digest, and " <>
           "an apply under that digest that moves the history onto the account kept, restates " <>
           "its balance anchors, retires the hash of every row it removes and remembers the " <>
-          "merged-away name for the next import.",
+          "merged-away name for the next import — and the depot merge (ADR-0050 §7, #328): a " <>
+          "preview that states every affected position's quantity, moving-average cost and " <>
+          "realized result before and after for both answers to the duplicate question, and " <>
+          "an apply under its digest that moves the depot's bookings onto the depot kept, " <>
+          "keeps each position's view membership, checks every day's quantity and remembers " <>
+          "the merged-away name.",
       endpoints: [
         "DELETE /api/v1/cash_accounts/:id/former_names",
         "DELETE /api/v1/securities_accounts/:id/former_names",
         "PATCH /api/v1/policy_rules/:id",
         "POST /api/v1/securities/:security_id/quotes/release",
         "GET /api/v1/cash_accounts/:id/merge_preview",
-        "POST /api/v1/cash_accounts/:id/merge"
+        "POST /api/v1/cash_accounts/:id/merge",
+        "GET /api/v1/securities_accounts/:id/merge_preview",
+        "POST /api/v1/securities_accounts/:id/merge"
       ],
       tools: [
         "portfolixir.cash_accounts.remove_former_name",
@@ -83,7 +90,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "portfolixir.policy_rules.rename",
         "portfolixir.quotes.release",
         "portfolixir.cash_accounts.merge_preview",
-        "portfolixir.cash_accounts.merge"
+        "portfolixir.cash_accounts.merge",
+        "portfolixir.securities_accounts.merge_preview",
+        "portfolixir.securities_accounts.merge"
       ],
       parameters: [
         "Every /api/v1 error the server answers itself rather than an endpoint (an unreadable body 400, a body over the size bound 413, an unknown route 404, an internal error 500) answers {\"errors\": {\"detail\": <reason phrase>}} with its own status (E25 S2, F68); it used to be {\"status\", \"error\"} for 404 and 500 and a bodyless 500 for every other status",
@@ -144,7 +153,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "portfolixir.classifications.delete, portfolixir.classifications.categories.delete and portfolixir.views.delete name in their descriptions every kind of row one call removes with the object and that the audit journal keeps each removed row as its own delete; portfolixir.policy_rules.create and .add_version state that a version is permanent once in force (E25 S7, G28)",
         "GET /api/v1/portfolios/:portfolio_id/policy_rules (rules_note) and /policy_findings (findings_note), and the portfolixir.policy_rules.* tools and portfolixir.portfolios.policy_findings in their titles, descriptions and schemas, call a rule a stored rule rather than the operator's own, and the rules note and the list, show, create and add_version descriptions point to the audit journal (resource_type policy_rule, policy_rule_version) for who wrote it; an API token writes rules as the Risk page does (E25 S7, G30, the wording half)",
         "GET /api/v1/cash_accounts/:id/merge_preview?target_id= (portfolixir.cash_accounts.merge_preview) is a read: 200 with plan_digest, source and target (balance, transaction_count, bucket_ids, former_names), guards (code, check, passed, detail), internal_transfers, key_equal_pairs, choice_required, linked_depots, former_names (appended, not_kept, after) and outcome_by_collapse_key_equal with \"false\" and \"true\" (balance, transaction_count, moved_transaction_ids, deleted with reason internal_transfer, collapsed_duplicate or folded_anchor, restated_anchors as stated + other_balance = after, flow_changes, other_accounts, positions), every decimal a string; a pair a guard forbids answers 409 with errors.code (same_account, not_live, portfolio_mismatch, currency_mismatch, liquidity_role_mismatch, buckets_mismatch, legacy_hashed_anchor) and errors.guards, an unknown source 404, a source already merged 409 already_merged with errors.merged_into, a missing target_id 422 (ADR-0050 §7, §8, §10)",
-        "POST /api/v1/cash_accounts/:id/merge (portfolixir.cash_accounts.merge) takes target_id, plan_digest (required) and collapse_key_equal (required, a boolean, when the preview lists key-equal pairs) and answers 201 with the merge record (kind, source_id, target_id, portfolio_id, source_snapshot, manifest, plan_digest, actor_type, actor_label, inserted_at) and already_applied false, or 200 with the original record and already_applied true for a retry of a completed merge of the same pair, journaling nothing; a digest that no longer matches answers 409 plan_changed with the fresh preview in errors.preview, a guard 409 with its code, identity_check_failed and write_refused 409, a missing digest or choice 422 — each writing nothing. The source's bookings, anchors and linked depots move onto the target, one journal entry per row; transfers between the two and collapsed rows are deleted with their content hashes retired; the source is deleted and its names become former names of the target (ADR-0050 §7, §8, §10, §12)"
+        "POST /api/v1/cash_accounts/:id/merge (portfolixir.cash_accounts.merge) takes target_id, plan_digest (required) and collapse_key_equal (required, a boolean, when the preview lists key-equal pairs) and answers 201 with the merge record (kind, source_id, target_id, portfolio_id, source_snapshot, manifest, plan_digest, actor_type, actor_label, inserted_at) and already_applied false, or 200 with the original record and already_applied true for a retry of a completed merge of the same pair, journaling nothing; a digest that no longer matches answers 409 plan_changed with the fresh preview in errors.preview, a guard 409 with its code, identity_check_failed and write_refused 409, a missing digest or choice 422 — each writing nothing. The source's bookings, anchors and linked depots move onto the target, one journal entry per row; transfers between the two and collapsed rows are deleted with their content hashes retired; the source is deleted and its names become former names of the target (ADR-0050 §7, §8, §10, §12)",
+        "GET /api/v1/securities_accounts/:id/merge_preview?target_id= (portfolixir.securities_accounts.merge_preview) is a read: 200 with plan_digest, source and target (cash_account_id, bucket_ids — the default buckets —, former_names, transaction_count), guards, internal_transfers (the security transfers between the two), key_equal_pairs, choice_required, position_buckets (per security the source holds or overrides: both effective bucket sets, both overrides and the action none, carry, drop_redundant, drop_unheld or clear_target), former_names (appended, not_kept, after), outcome_by_collapse_key_equal with \"false\" and \"true\" (transaction_count, moved_transaction_ids, deleted with reason internal_transfer or collapsed_duplicate, positions — per security the source holds, source and target before and after, each quantity, cost_basis, avg_cost and realized_result —, rounding_differences per split where the combined position rounded once differs from the two rounded apart, cash_accounts a collapse changes with balance_before and balance_after) and positions_basis, the computation basis of those figures; every quantity and decimal a string. A pair a guard forbids answers 409 with errors.code (same_account, not_live, portfolio_mismatch, buckets_mismatch, position_buckets_mismatch naming the positions) and errors.guards, an unknown source 404, a source already merged 409 already_merged with errors.merged_into, a missing target_id 422 (ADR-0050 §7, §8, §10)",
+        "POST /api/v1/securities_accounts/:id/merge (portfolixir.securities_accounts.merge) takes target_id, plan_digest (required) and collapse_key_equal (required, a boolean, when the preview lists key-equal pairs) and answers 201 with the merge record and already_applied false, or 200 with the original record and already_applied true for a retry of a completed merge of the same pair, journaling nothing; a digest that no longer matches answers 409 plan_changed with the fresh preview in errors.preview, a guard 409 with its code, identity_check_failed and write_refused 409, a missing digest or choice 422 — each writing nothing. The source's bookings move onto the target on whichever depot leg names the source, one journal entry per row, each keeping its cash leg (the target keeps its own linked cash account); transfers between the two and collapsed rows are deleted with their content hashes retired; every day's quantity per security is checked against the fold of both depots' bookings; each position's override is carried, dropped or cleared so its view membership is unchanged; the source is deleted and its names become former names of the target (ADR-0050 §7, §8, §10, §12)"
       ],
       removed_endpoints: [],
       removed_tools: []

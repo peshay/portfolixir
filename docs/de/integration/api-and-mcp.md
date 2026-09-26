@@ -924,6 +924,103 @@ Beispiel-Antwort für Kurssynchronisierung:
   Standard-Buckets und Positions-Overrides eines unreferenzierten Depots
   werden vorher entfernt, journalisiert: ein Eintrag für die Standardmenge,
   einer je Position.
+- `GET /api/v1/securities_accounts/:id/merge_preview?target_id=` zeigt die
+  Vorschau, das Depot (die **Quelle**) in `target_id` (das **Ziel**, das Depot,
+  das bleibt) zusammenzuführen — ein Lesen, das nichts schreibt (ADR-0050 §7,
+  §10; `portfolixir.securities_accounts.merge_preview`). Beide Depots müssen
+  im selben Portfolio liegen und dieselbe Standard-Bucket-Menge haben, und
+  jede Position muss ihre Ansichts-Zugehörigkeit behalten: Für jedes
+  Wertpapier, das die Quelle hält, müssen, wo auch das Ziel es hält, beide
+  wirksamen Bucket-Mengen gleich sein; wo das Ziel es nicht hält, wird die
+  Menge der Quelle übertragen. Sonst antwortet sie `409 Conflict` mit
+  `errors.code` (`same_account`, `not_live`, `portfolio_mismatch`,
+  `buckets_mismatch` oder `position_buckets_mismatch`, dessen
+  `errors.detail` jede Position und beide Bucket-Mengen nennt),
+  `errors.detail` und `errors.guards`. Eine unbekannte Quelle antwortet `404`,
+  eine schon zusammengeführte Quelle `409` `already_merged` mit
+  `errors.merged_into`, eine fehlende `target_id` `422`. Die `200` enthält:
+  - `plan_digest`, den Digest, den die Zusammenführung nimmt;
+  - `source` und `target`, je mit `cash_account_id`, `bucket_ids` (der
+    Standardmenge), `former_names` und `transaction_count`; `guards`;
+  - `internal_transfers`: die Wertpapierumbuchungen zwischen beiden, die die
+    Zusammenführung löscht — beide Seiten werden ein Depot;
+  - `key_equal_pairs`: eine Buchung der Quelle, deren Tag, Art, Wertpapier,
+    Verrechnungskonto und Beträge denen einer Buchung des Ziels gleichen,
+    eins zu eins gepaart, niedrigste ID zuerst, und `choice_required`, wenn es
+    eine gibt;
+  - `position_buckets`: je Wertpapier, das die Quelle hält oder für das sie
+    einen Override trägt, beide wirksamen Bucket-Mengen, beide Overrides
+    (`null` für eine Position, die die Standardmenge ihres Depots erbt, `[]`
+    für einen bewusst leeren) und die `action`: `carry` (der Override der
+    Quelle geht auf das Ziel über), `drop_redundant` (das Ziel zeigt die
+    Position schon in denselben Buckets), `drop_unheld` (die Quelle hält keine
+    Buchung davon), `clear_target` (der Override des Ziels für ein Wertpapier,
+    das es nicht hält, wird entfernt, damit die verschobenen Buchungen die
+    Standardmenge behalten) oder `none`;
+  - `former_names`: `appended`, `not_kept` und die Liste `after` des Ziels;
+  - `outcome_by_collapse_key_equal` mit `"false"` und `"true"`: die
+    `transaction_count` des Ziels danach, `moved_transaction_ids`, `deleted`
+    (je mit `reason`: `internal_transfer` oder `collapsed_duplicate`),
+    `positions` (jedes Wertpapier, das die Quelle hält, je mit `source`,
+    `target` und `after`, je `quantity`, `cost_basis`, `avg_cost` und
+    `realized_result`; `target` ist `null`, wo das Ziel keine Buchung davon
+    hält), `rounding_differences` und `cash_accounts` (jedes
+    Verrechnungskonto, das eine entfernte gleiche Buchung ändert, mit
+    `balance_before` und `balance_after`);
+  - `positions_basis`, die Rechengrundlage dieser Zahlen: Die Stückzahl ist
+    die Positionsfaltung, in der jeder Split die Position einmal skaliert,
+    gerundet auf die Stückzahl-Genauigkeit 6 (ADR-0028 §3); `cost_basis` und
+    `avg_cost` sind der gleitende Durchschnitt der Kosten, den
+    `GET /api/v1/portfolios/:id/holdings` nennt, in der Währung des
+    Wertpapiers, ohne Gebühren und Steuern — nach der Zusammenführung bilden
+    die Käufe beider Depots einen gemeinsamen Durchschnitt, die Kosten ändern
+    sich also zu Recht, und ein Verkauf, den das Ziel zwischen zwei Käufen
+    getätigt hat, verbraucht danach den gemeinsamen Durchschnitt;
+    `realized_result` ist über die Verkäufe der Position die Stückzahl jedes
+    Verkaufs mal sein Kurs in der Währung des Wertpapiers, abzüglich der
+    Kosten, die er zum laufenden Durchschnitt entnommen hat, und `null`, wo
+    dieser Kurs oder diese Kosten nicht ableitbar sind;
+    `rounding_differences` nennt jeden Split eines betroffenen Wertpapiers,
+    bei dem die gemeinsam einmal gerundete Position am Ende des Split-Tags
+    von den zwei getrennt gerundeten abweicht — um eine Einheit der
+    Stückzahl-Genauigkeit je Split, erwartet und nie eine Ablehnung.
+
+  Jede Stückzahl und jede Dezimalzahl ist ein String. Der Digest deckt beide
+  Depots ab, jede Buchung, die eines von beiden nennt, und die Splits des
+  Portfolios für deren Wertpapiere mit ihrem `updated_at`, jede Zahl (den
+  Bucket-Plan eingeschlossen) und die Prüfungen; die Wahl gehört nicht dazu,
+  ein Paar hat also einen Digest.
+- `POST /api/v1/securities_accounts/:id/merge` mit `{"target_id": …,
+  "plan_digest": …, "collapse_key_equal": …}` führt unter dem Token zusammen
+  (`portfolixir.securities_accounts.merge`). `collapse_key_equal` ist
+  Pflicht, wenn die Vorschau `key_equal_pairs` nennt — ohne antwortet sie
+  `422` mit ihrer Anzahl — und ist nie vorausgewählt: Frag den Operator. Sie
+  antwortet `201 Created` mit dem Protokoll der Zusammenführung (wie bei
+  einem Geldkonto; sein `manifest` nennt jede verschobene oder gelöschte
+  Buchung, die Overrides `carried`, `dropped` und `cleared`, die entfernten
+  Standard-Buckets, die angehängten Namen, die Rundungsdifferenzen und die
+  Wahl) und `already_applied: false`. In einer Transaktion, ein
+  Audit-Journal-Eintrag je Zeile: Die Umbuchungen zwischen beiden und, mit
+  `true`, die gepaarten Buchungen der Quelle werden gelöscht und ihre
+  Inhalts-Hashes stillgelegt; jede andere Buchung der Quelle geht auf das
+  Ziel über, auf der Depot-Seite, die die Quelle nennt, und behält ihr
+  Verrechnungskonto — das Ziel behält sein eigenes verknüpftes
+  Verrechnungskonto, das der Quelle bleibt als eigenes Konto bestehen; die
+  Stückzahl jedes Wertpapiers im Ziel wird an jedem Tag, an dem eines der
+  beiden eine Buchung hat, an jedem Split-Tag und heute gegen die Buchungen
+  beider Depots geprüft (`409 identity_check_failed` rollt die
+  Zusammenführung sonst zurück — eine Prüfung auf einen Fehler, nie eine
+  erwartete Antwort); der Bucket-Plan wird geschrieben, ein Journal-Eintrag
+  je Position; die Standard-Buckets der Quelle werden entfernt und die Quelle
+  gelöscht; ihr Name und ihre früheren Namen werden frühere Namen des Ziels.
+  Ein geänderter Plan antwortet `409` `plan_changed` mit der frischen
+  Vorschau in `errors.preview`; eine Wiederholung einer abgeschlossenen
+  Zusammenführung desselben Paars antwortet `200` mit dem ursprünglichen
+  Protokoll und `already_applied: true`; eine in ein anderes Depot
+  zusammengeführte Quelle `409` `already_merged`; ein fehlender `plan_digest`
+  oder eine fehlende `target_id` oder ein `collapse_key_equal`, der kein
+  Boolean ist, `422`. Ein Rückgängigmachen gibt es nicht. Der Dialog für den
+  Operator folgt im selben Batch (L5).
 
 Beispiel-Payloads für Konten:
 
@@ -2198,6 +2295,17 @@ neben der importierten Historie:
   Zusammenführung angepasst hat, wird gebucht, aber von diesem Saldo
   aufgefangen — der Import führt sie als hinter einem angepassten gesetzten
   Saldo gebucht auf, mit dem Saldo.
+- **Eine Zusammenführung von Depots ist sicher für den nächsten Import
+  (ADR-0050 §2, §7).** Nach `POST /api/v1/securities_accounts/:id/merge` legt
+  ein erneut angewendeter, schon importierter Export nichts an, byte-gleich
+  oder verändert: Die verschobenen Buchungen behalten ihre Inhalts-Hashes,
+  jede Buchung, die die Zusammenführung gelöscht hat, hat ihren Hash
+  stillgelegt, der Name des Quelldepots führt als früherer Name zum Ziel, und
+  eine Wertpapierumbuchung zwischen beiden wird als intern übersprungen. Neue
+  Zeilen eines späteren Exports, die das zusammengeführte Depot nennen,
+  werden einmal gebucht, auf das Ziel. Eine neue Zeile, deren
+  wirtschaftlicher Schlüssel einer vorhandenen Buchung des Ziels gleicht,
+  gilt als diese Buchung (gemeldet mit der Ebene `economics`).
 - **Was einen erneuten Import unverändert übersteht, gleiche ids, exakte
   `Decimal`-Werte:** Klassifizierungs-Zuordnungen; jede Zielplan-Version mit
   ihren Kategorie- und Positionszielen sowie dem Cash-Ziel; `note` und
@@ -2461,6 +2569,18 @@ Server-Anweisungen sagen es einmal für jeden Schreibvorgang.
 - `portfolixir.securities_accounts.delete`
 - `portfolixir.securities_accounts.remove_former_name` — dasselbe für ein
   Depot.
+- `portfolixir.securities_accounts.merge_preview` — die Vorschau einer
+  Depot-Zusammenführung, ein Lesen (ADR-0050 §7, §10): jede betroffene
+  Position vorher und danach für beide Ausgänge der Frage nach den gleichen
+  Buchungen, der Bucket-Plan, `positions_basis` und der `plan_digest`.
+- `portfolixir.securities_accounts.merge` — die Depot-Zusammenführung unter
+  einem freigegebenen Digest; als destruktiv und idempotent markiert (eine
+  Wiederholung antwortet mit dem ursprünglichen Protokoll). Die Beschreibung
+  sagt, dass Buchungen ihr Verrechnungskonto behalten, dass jede Position
+  ihre Ansichts-Zugehörigkeit behält, und was die Zusammenführung für den
+  nächsten Import bedeutet: Die Namen der Quelle werden frühere Namen des
+  Ziels, ein späterer Import, der sie nennt, bucht dorthin, und ein erneut
+  angewendeter Export legt nichts an.
 - `portfolixir.transactions.list`
 - `portfolixir.transactions.create`
 - `portfolixir.transactions.update`
