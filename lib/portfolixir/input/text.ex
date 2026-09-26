@@ -12,6 +12,20 @@ defmodule Portfolixir.Input.Text do
     * NUL and every other C0 control character, DEL and the C1 controls —
       except tab, line feed and carriage return in text that is multi-line by
       nature (`multiline: true`: notes, descriptions);
+    * **invisible characters** (E25 S7, G20): the Unicode tag characters
+      (U+E0000–U+E007F), the bidirectional controls (U+061C, U+200E, U+200F,
+      U+202A–U+202E, U+2066–U+2069), the other invisible format characters
+      (the soft hyphen U+00AD, U+180E, the zero-width space and joiners
+      U+200B–U+200D, U+2060–U+2065, U+206A–U+206F, the byte-order mark
+      U+FEFF, U+FFF9–U+FFFB, U+1BCA0–U+1BCA3, U+1D173–U+1D17A) and a run of
+      two or more variation selectors (U+FE00–U+FE0F, U+E0100–U+E01EF; one
+      selector alone is an emoji's presentation and passes). They render as
+      nothing on the operator's screen but reach an agent intact, so text
+      that carries them could hide an instruction in a record the operator
+      reviewed. `escape_invisible/1` spells each one as `[U+XXXX]` — the
+      spelling the MCP companion gives the agent and the screen gives the
+      operator for a row stored before the rule — and `invisible_count/1`
+      counts them;
     * a value longer than `max:` code points, when given.
 
   `validate/3` is the changeset form every schema uses; `check/2` returns the
@@ -28,8 +42,18 @@ defmodule Portfolixir.Input.Text do
   @multiline_controls ~r/[\x{0}-\x{8}\x{B}\x{C}\x{E}-\x{1F}\x{7F}-\x{9F}]/u
   @single_line_controls ~r/[\x{0}-\x{1F}\x{7F}-\x{9F}]/u
 
+  # E25 S7, G20: the characters an operator cannot see. The ranges are
+  # written out rather than read from the Unicode tables (`\p{Cf}`), so this
+  # module and the MCP companion's escape (mcp-server/src/invisible-text.ts)
+  # name the same set whatever Unicode version either runtime ships; the
+  # shared cases in mcp-server/test/fixtures/invisible-text.json pin both.
+  @invisible ~r/[\x{00AD}\x{061C}\x{180E}\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2060}-\x{206F}\x{FEFF}\x{FFF9}-\x{FFFB}\x{1BCA0}-\x{1BCA3}\x{1D173}-\x{1D17A}\x{E0000}-\x{E007F}]|[\x{FE00}-\x{FE0F}\x{E0100}-\x{E01EF}]{2,}/u
+
+  # How many distinct characters a field error names.
+  @named_characters 5
+
   @type opts :: [max: pos_integer(), multiline: boolean()]
-  @type refusal :: :invalid_encoding | :control_characters | :too_long
+  @type refusal :: :invalid_encoding | :control_characters | :invisible_characters | :too_long
 
   # The code-point caps of free text in a `text` column (E25 S6, G01, G02):
   # the column bounds nothing itself, and the journal copies a row whole on
@@ -70,6 +94,7 @@ defmodule Portfolixir.Input.Text do
     cond do
       not String.valid?(value) -> {:error, :invalid_encoding}
       Regex.match?(controls(opts), value) -> {:error, :control_characters}
+      Regex.match?(@invisible, value) -> {:error, :invisible_characters}
       too_long?(value, opts[:max]) -> {:error, :too_long}
       true -> :ok
     end
@@ -77,10 +102,66 @@ defmodule Portfolixir.Input.Text do
 
   def check(_value, _opts), do: :ok
 
+  @doc """
+  How many invisible characters (see the moduledoc) `text` carries: every
+  refused code point, each selector of a run. `0` for `nil`, for text
+  without any and for text that is not valid UTF-8.
+  """
+  @spec invisible_count(String.t() | nil) :: non_neg_integer()
+  def invisible_count(text) when is_binary(text) do
+    if String.valid?(text) do
+      @invisible
+      |> Regex.scan(text)
+      |> Enum.reduce(0, fn [match], acc -> acc + codepoint_length(match) end)
+    else
+      0
+    end
+  end
+
+  def invisible_count(_text), do: 0
+
+  @doc """
+  `text` with every invisible character spelled `[U+XXXX]` (upper-case hex,
+  at least four digits) and every other character as it is: what the screen
+  shows in a stored row's disclosure (pick G12.2 = B) and what the MCP
+  companion hands the agent. Text that is not valid UTF-8 is returned as it
+  is.
+  """
+  @spec escape_invisible(String.t()) :: String.t()
+  def escape_invisible(text) when is_binary(text) do
+    if String.valid?(text) do
+      Regex.replace(@invisible, text, fn match ->
+        match |> String.to_charlist() |> Enum.map_join(&spell/1)
+      end)
+    else
+      text
+    end
+  end
+
+  @doc "The code points of the invisible characters in `text`, distinct, in order."
+  @spec invisible_characters(String.t()) :: [String.t()]
+  def invisible_characters(text) when is_binary(text) do
+    @invisible
+    |> Regex.scan(text)
+    |> Enum.flat_map(fn [match] -> String.to_charlist(match) end)
+    |> Enum.uniq()
+    |> Enum.map(&code_point/1)
+  end
+
+  defp spell(code_point), do: "[" <> code_point(code_point) <> "]"
+
+  defp code_point(code_point),
+    do: "U+" <> (code_point |> Integer.to_string(16) |> String.pad_leading(4, "0"))
+
   @doc "The field error message for a refusal."
   @spec message(refusal(), opts()) :: {String.t(), keyword()}
   def message(:invalid_encoding, _opts),
     do: {"must be valid UTF-8 text", validation: :text}
+
+  def message(:invisible_characters, _opts),
+    do:
+      {"must not contain invisible characters (%{characters}); retype the text without them",
+       characters: "format, bidirectional or tag characters", validation: :text}
 
   def message(:control_characters, opts) do
     if opts[:multiline],
@@ -111,11 +192,31 @@ defmodule Portfolixir.Input.Text do
         :ok ->
           []
 
+        {:error, :invisible_characters} ->
+          [{field, invisible_message(value)}]
+
         {:error, refusal} ->
           {message, keys} = message(refusal, opts)
           [{field, {message, keys}}]
       end
     end)
+  end
+
+  # The refusal names what it found (E25 S7, G20), since the operator cannot
+  # see it: "U+200B, U+00AD".
+  defp invisible_message(value) do
+    {message, keys} = message(:invisible_characters, [])
+
+    named =
+      case invisible_characters(value) do
+        found when length(found) > @named_characters ->
+          Enum.join(Enum.take(found, @named_characters), ", ") <> ", …"
+
+        found ->
+          Enum.join(found, ", ")
+      end
+
+    {message, Keyword.put(keys, :characters, named)}
   end
 
   @doc """
@@ -179,6 +280,11 @@ defmodule Portfolixir.Input.Text do
   defp map_message(:control_characters, _opts),
     do:
       {"must not contain control characters (a value keeps its tabs and line breaks)",
+       validation: :text}
+
+  defp map_message(:invisible_characters, _opts),
+    do:
+      {"must not contain invisible characters (format, bidirectional or tag characters)",
        validation: :text}
 
   defp map_message(:too_long, opts),

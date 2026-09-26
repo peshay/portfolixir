@@ -9795,3 +9795,8 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "Version by:"
 msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance.ex
+#, elixir-autogen, elixir-format
+msgid "%{field} contains invisible characters (%{characters})"
+msgstr ""
