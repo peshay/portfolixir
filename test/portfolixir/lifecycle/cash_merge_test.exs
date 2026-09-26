@@ -800,6 +800,46 @@ defmodule Portfolixir.Lifecycle.CashMergeTest do
       {:ok, changed} = Lifecycle.preview_cash_merge(ctx.source.id, ctx.target.id)
       refute changed.plan_digest == first.plan_digest
     end
+
+    # User story:
+    # As the operator who approved a preview while the agent was still
+    # correcting a booking,
+    # I want the merge refused when a row changed in a way the preview shows
+    # no figure of,
+    # so that my consent never covers a row I did not see in its current
+    # state (ADR-0050 §10, §16 invariant 13).
+    #
+    # Acceptance criteria:
+    # - Moving a source deposit by one day, which changes no balance, anchor
+    #   or pair, answers plan_changed and writes nothing.
+    # - A row whose only change is its updated_at answers plan_changed too.
+    test "an edit that moves no figure the preview shows still answers plan_changed", ctx do
+      deposit = book!(ctx, ctx.source, "deposit", "10.00", ~D[2025-02-01])
+      book!(ctx, ctx.target, "deposit", "20.00", ~D[2025-01-02])
+      {:ok, preview} = Lifecycle.preview_cash_merge(ctx.source.id, ctx.target.id)
+
+      {:ok, moved} = Ledger.update_transaction(agent(), deposit, %{date: ~D[2025-02-02]})
+      {:ok, dated} = Lifecycle.preview_cash_merge(ctx.source.id, ctx.target.id)
+      assert Map.delete(dated, :plan_digest) == Map.delete(preview, :plan_digest)
+      before = fingerprint()
+
+      assert {:error, {:plan_changed, _fresh}} =
+               Lifecycle.merge_cash_account(agent(), ctx.source.id, ctx.target.id, %{
+                 plan_digest: preview.plan_digest
+               })
+
+      assert fingerprint() == before
+
+      touch!(moved)
+      before = fingerprint()
+
+      assert {:error, {:plan_changed, _fresh}} =
+               Lifecycle.merge_cash_account(agent(), ctx.source.id, ctx.target.id, %{
+                 plan_digest: dated.plan_digest
+               })
+
+      assert fingerprint() == before
+    end
   end
 
   # --- the worked example ------------------------------------------------------
@@ -990,6 +1030,22 @@ defmodule Portfolixir.Lifecycle.CashMergeTest do
 
   defp flows(walk), do: Map.new(walk, fn {date, {flow, _value}} -> {date, flow} end)
   defp values(walk), do: Map.new(walk, fn {date, {_flow, value}} -> {date, value} end)
+
+  # The row's updated_at moves an hour on and nothing else changes (a raw
+  # write, so it carries the journal actor the database requires).
+  defp touch!(row) do
+    {:ok, _} =
+      Repo.transaction(fn ->
+        Repo.query!("SELECT set_config('portfolixir.journal_actor', 'owner_ui', true)")
+
+        Repo.query!("UPDATE transactions SET updated_at = $2 WHERE id = $1", [
+          row.id,
+          NaiveDateTime.add(row.updated_at, 3600)
+        ])
+      end)
+
+    :ok
+  end
 
   defp balance(account) do
     Map.get(Ledger.cash_balances(), account.id, dec("0")) |> Decimal.normalize()

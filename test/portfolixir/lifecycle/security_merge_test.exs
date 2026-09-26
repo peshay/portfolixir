@@ -918,6 +918,46 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
       {:ok, changed} = Lifecycle.preview_security_merge(ctx.source.id, ctx.target.id)
       refute changed.plan_digest == first.plan_digest
     end
+
+    # User story:
+    # As the operator who approved a preview while the agent was still
+    # correcting a booking,
+    # I want the merge refused when a row changed in a way the preview shows
+    # no figure of,
+    # so that my consent never covers a row I did not see in its current
+    # state (ADR-0050 §10, §16 invariant 13).
+    #
+    # Acceptance criteria:
+    # - Moving a source buy by one day, which changes no position figure,
+    #   answers plan_changed and writes nothing.
+    # - A row whose only change is its updated_at answers plan_changed too.
+    test "an edit that moves no figure the preview shows still answers plan_changed", ctx do
+      buy = buy!(ctx, ctx.d1, ctx.c1, ctx.source, "2", "40.00", ~D[2025-01-02])
+      buy!(ctx, ctx.d1, ctx.c1, ctx.target, "3", "40.00", ~D[2025-01-03])
+      {:ok, preview} = Lifecycle.preview_security_merge(ctx.source.id, ctx.target.id)
+
+      {:ok, moved} = Ledger.update_transaction(agent(), buy, %{date: ~D[2025-01-04]})
+      {:ok, dated} = Lifecycle.preview_security_merge(ctx.source.id, ctx.target.id)
+      assert Map.delete(dated, :plan_digest) == Map.delete(preview, :plan_digest)
+      before = fingerprint()
+
+      assert {:error, {:plan_changed, _fresh}} =
+               Lifecycle.merge_security(agent(), ctx.source.id, ctx.target.id, %{
+                 plan_digest: preview.plan_digest
+               })
+
+      assert fingerprint() == before
+
+      touch!(moved)
+      before = fingerprint()
+
+      assert {:error, {:plan_changed, _fresh}} =
+               Lifecycle.merge_security(agent(), ctx.source.id, ctx.target.id, %{
+                 plan_digest: dated.plan_digest
+               })
+
+      assert fingerprint() == before
+    end
   end
 
   # --- the worked example --------------------------------------------------------
@@ -1238,6 +1278,22 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
 
   defp at(rows, date),
     do: rows |> Enum.filter(&(Date.compare(&1.date, date) != :gt)) |> Positions.calculate()
+
+  # The row's updated_at moves an hour on and nothing else changes (a raw
+  # write, so it carries the journal actor the database requires).
+  defp touch!(row) do
+    {:ok, _} =
+      Repo.transaction(fn ->
+        Repo.query!("SELECT set_config('portfolixir.journal_actor', 'owner_ui', true)")
+
+        Repo.query!("UPDATE transactions SET updated_at = $2 WHERE id = $1", [
+          row.id,
+          NaiveDateTime.add(row.updated_at, 3600)
+        ])
+      end)
+
+    :ok
+  end
 
   defp held(depot, security) do
     Ledger.positions_for_portfolio(depot.portfolio_id)
