@@ -2804,6 +2804,16 @@ than `true`, `false`, `1`, `0` or empty stops the companion with the variable
 named. The switch narrows the companion, not the token: `PORTFOLIXIR_API_TOKEN`
 keeps its full authority over the API.
 
+**Invisible characters.** Every write refuses the characters an operator
+cannot see (see "Text" above), but a row stored before that rule may still
+carry them. The companion is where they are made visible: every string an API
+answer carries, a value or a key at any depth, reaches the agent with each
+such character spelled `[U+XXXX]` (`[U+200B]` for a zero-width space) — the
+same spelling Portfolixir's screens show the operator for that row, and the
+server instructions say so. The JSON API itself answers stored text as it is
+stored. A text the agent writes back carries the escapes as the visible
+letters they are.
+
 **A write that times out.** Every API call carries a 30-second deadline. A
 read that misses it — a `GET`, or one of the tools routed through `POST` that
 change nothing (`readOnlyHint: true`) — changes nothing and answers

@@ -2754,6 +2754,17 @@ hinausgeht. Standardmäßig ist er aus, und jeder andere Wert als `true`,
 Variable. Der Schalter schränkt den Begleitdienst ein, nicht das Token:
 `PORTFOLIXIR_API_TOKEN` behält seine volle Befugnis über die API.
 
+**Unsichtbare Zeichen.** Jeder Schreibzugriff lehnt die Zeichen ab, die der
+Betreiber nicht sehen kann (siehe „Text“ oben), aber eine Zeile von vor dieser
+Regel kann sie noch tragen. Der Begleitdienst ist der Ort, an dem sie sichtbar
+werden: Jeder String einer API-Antwort, ein Wert oder ein Schlüssel in jeder
+Tiefe, erreicht den Agenten mit jedem solchen Zeichen als `[U+XXXX]`
+(`[U+200B]` für ein Leerzeichen der Breite null) — dieselbe Schreibweise, die
+die Oberfläche dem Betreiber für diese Zeile zeigt, und die
+Server-Anweisungen sagen es. Die JSON-API selbst liefert gespeicherten Text,
+wie er gespeichert ist. Ein Text, den der Agent zurückschreibt, trägt die
+Kürzel als die sichtbaren Buchstaben, die sie sind.
+
 **Ein Schreibvorgang ohne Antwort.** Jeder API-Aufruf hat eine Frist von 30
 Sekunden. Ein Lesezugriff, der sie verpasst — ein `GET` oder eines der über
 `POST` laufenden Tools, die nichts ändern (`readOnlyHint: true`) —, ändert
