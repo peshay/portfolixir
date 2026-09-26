@@ -203,14 +203,15 @@ defmodule PortfolixirWeb.Securities.MergePreview do
         choices={@choices}
         field_error={@field_error}
       />
+      <%!-- pgettext: a bare "Target" is the allocation column ("Soll"). --%>
       <div class="merge-identity" data-role="merge-identity">
         <div class="merge-identity__term">
-          <i><%= gettext("Source") %></i>
+          <i><%= pgettext("merge side", "Source") %></i>
           <b class="num"><%= Format.exact(@holdings.source) %><small><%= gettext("shares") %></small></b>
         </div>
         <span class="merge-identity__op" aria-hidden="true">+</span>
         <div class="merge-identity__term">
-          <i><%= gettext("Target") %></i>
+          <i><%= pgettext("merge side", "Target") %></i>
           <b class="num"><%= Format.exact(@holdings.target) %><small><%= gettext("shares") %></small></b>
         </div>
         <span class="merge-identity__op" aria-hidden="true">=</span>
@@ -712,7 +713,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
         <thead>
           <tr>
             <th><%= gettext("What") %></th>
-            <th><%= gettext("Source") %></th>
+            <th><%= pgettext("merge side", "Source") %></th>
             <th><%= gettext("Consequence") %></th>
           </tr>
         </thead>
@@ -812,8 +813,8 @@ defmodule PortfolixirWeb.Securities.MergePreview do
           <thead>
             <tr>
               <th><%= gettext("Field") %></th>
-              <th><%= gettext("Source") %></th>
-              <th><%= gettext("Target") %></th>
+              <th><%= pgettext("merge side", "Source") %></th>
+              <th><%= pgettext("merge side", "Target") %></th>
               <th><%= gettext("Afterwards") %></th>
             </tr>
           </thead>

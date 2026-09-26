@@ -458,6 +458,12 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
     assert has_element?(view, "#security-merge-dialog", "ISIN danach")
     assert has_element?(view, "#security-merge-dialog", "XS0000000017 behalten")
 
+    # The two sides of the sum are the merge's sides, not the allocation's
+    # "Soll" column that a bare "Target" translates to elsewhere.
+    assert has_element?(view, "[data-role='merge-identity'] i", "Quelle")
+    assert has_element?(view, "[data-role='merge-identity'] i", "Ziel")
+    refute has_element?(view, "[data-role='merge-identity'] i", "Soll")
+
     assert has_element?(
              view,
              "#security-merge-dialog [data-role='merge-confirm']",
