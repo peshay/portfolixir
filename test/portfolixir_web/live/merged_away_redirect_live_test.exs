@@ -111,6 +111,52 @@ defmodule PortfolixirWeb.MergedAwayRedirectLiveTest do
     refute has_element?(view, "[data-role='benchmark-merged']")
   end
 
+  # User story:
+  # As the operator opening a bookmarked Wealth link whose benchmark was
+  # merged away since,
+  # I want the redirect to keep the period, the view and every other
+  # choice of the link,
+  # so that only the benchmark changes.
+  #
+  # Acceptance criteria (review finding M-8):
+  # - The redirect keeps period, from, to, year, classification, alloc,
+  #   drift and positions as the link gave them, names the survivor, and
+  #   drops only the selectors it replaces.
+  test "the survivor redirect keeps every other parameter of the link", %{conn: conn} do
+    world = seed_world()
+    source = benchmark!("Bench ETF", world)
+    target = benchmark!("Bench ETF", world)
+    merge!(source, target)
+
+    kept = %{
+      "tab" => "performance",
+      "period" => "custom",
+      "from" => Date.to_iso8601(world.start),
+      "to" => Date.to_iso8601(world.today),
+      "year" => "2025",
+      "classification" => "asset_class",
+      "alloc" => "value",
+      "drift" => "5",
+      "positions" => "all"
+    }
+
+    path =
+      "/portfolio?" <>
+        URI.encode_query(Map.to_list(kept) ++ [{"benchmark[]", "security:#{source.id}"}])
+
+    conn = get(conn, path)
+    assert {:error, {:redirect, %{to: to}}} = live(conn, path)
+
+    query = to |> URI.parse() |> Map.fetch!(:query) |> URI.query_decoder() |> Enum.to_list()
+
+    for {key, value} <- kept do
+      assert {key, value} in query, "#{key} kept"
+    end
+
+    assert {"benchmark[]", "security:#{target.id}"} in query
+    refute {"benchmark[]", "security:#{source.id}"} in query
+  end
+
   defp seed_world do
     Classifications.ensure_builtins()
     world = WorldFixtures.base_world(name: "Mein Depot", cash_name: "Giro", depot_name: "Depot")
