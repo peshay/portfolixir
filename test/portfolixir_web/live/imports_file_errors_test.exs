@@ -235,10 +235,18 @@ defmodule PortfolixirWeb.ImportsFileErrorsTest do
 
   defp select_name(select), do: select |> Floki.attribute("name") |> hd()
 
+  # The file's name, without the row's caption and its already-imported
+  # count (board 04), which share the source cell.
   defp source_name(row) do
     [source] = Floki.find(row, ".source")
     label = source |> Floki.find("small") |> Floki.text()
-    source |> Floki.text() |> String.replace(label, "") |> String.trim()
+    count = source |> Floki.find(".mapping-count") |> Floki.text()
+
+    source
+    |> Floki.text()
+    |> String.replace(label, "")
+    |> String.replace(count, "")
+    |> String.trim()
   end
 
   defp pick(picks, field, name, select) do

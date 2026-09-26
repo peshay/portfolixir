@@ -6,6 +6,8 @@ msgid ""
 msgstr ""
 "Language: en\n"
 
+#: lib/portfolixir_web/decimal_input.ex:170
+#, elixir-autogen
 msgid "is invalid"
 msgstr ""
 
@@ -169,5 +171,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 ## A decimal input that reads two ways (#869, PortfolixirWeb.DecimalInput).
+#: lib/portfolixir_web/decimal_input.ex:168
+#, elixir-autogen
 msgid "is ambiguous: enter it without a thousands separator"
 msgstr ""

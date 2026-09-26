@@ -8528,3 +8528,177 @@ msgstr "Der Link führte zu einem Wertpapier, das am %{date} hierher zusammengef
 #, elixir-autogen, elixir-format
 msgid "The benchmark named a security that was merged into “%{name}” on %{date}; the comparison now uses it."
 msgstr "Der Benchmark nannte ein Wertpapier, das am %{date} in „%{name}“ zusammengeführt wurde; verglichen wird jetzt damit."
+
+## ADR-0050 §3, §4 (L5b): what the import preview's rows and result say (boards 04, 04b).
+
+#, elixir-autogen, elixir-format
+msgid "%{count} booking already imported"
+msgid_plural "%{count} bookings already imported"
+msgstr[0] "%{count} Buchung bereits importiert"
+msgstr[1] "%{count} Buchungen bereits importiert"
+
+#, elixir-autogen, elixir-format
+msgid "%{count} new"
+msgid_plural "%{count} new"
+msgstr[0] "%{count} neu"
+msgstr[1] "%{count} neu"
+
+#, elixir-autogen, elixir-format
+msgid "%{count} booking new"
+msgid_plural "%{count} bookings new"
+msgstr[0] "%{count} Buchung neu"
+msgstr[1] "%{count} Buchungen neu"
+
+#, elixir-autogen, elixir-format
+msgid "nothing to create"
+msgstr "nichts anzulegen"
+
+#, elixir-autogen, elixir-format
+msgid "matched by a former name — %{account}, formerly “%{name}”"
+msgstr "über früheren Namen zugeordnet — %{account}, früher „%{name}“"
+
+#, elixir-autogen, elixir-format
+msgid "no account under this name; it is created only with its first new booking"
+msgstr "kein Konto unter diesem Namen; angelegt wird es erst mit seiner ersten neuen Buchung"
+
+#, elixir-autogen, elixir-format
+msgid "Remember this mapping"
+msgstr "Zuordnung merken"
+
+#, elixir-autogen, elixir-format
+msgid "“%{name}” becomes a former name of %{account}; a future import maps the name by itself."
+msgstr "„%{name}“ wird früherer Name von %{account}; ein künftiger Import ordnet den Namen selbst zu."
+
+#, elixir-autogen, elixir-format
+msgid "“%{name}” becomes a former name of %{account} and is then no longer a former name of %{from}."
+msgstr "„%{name}“ wird früherer Name von %{account} und ist dann nicht mehr früherer Name von %{from}."
+
+#, elixir-autogen, elixir-format
+msgid "Holds for this import only. A future import suggests “%{prefill}” again."
+msgstr "Gilt nur für diesen Import. Ein künftiger Import schlägt wieder „%{prefill}“ vor."
+
+#, elixir-autogen, elixir-format
+msgid "“%{name}” is already the name of another account; the choice holds for this import only. Merging or renaming that account changes this:"
+msgstr "„%{name}“ heißt schon ein anderes Konto; die Wahl gilt nur für diesen Import. Das ändert Zusammenführen oder Umbenennen dieses Kontos:"
+
+#, elixir-autogen, elixir-format
+msgid "%{count} cash account is named “%{name}” (%{labels}), so there is no prefill."
+msgid_plural "%{count} cash accounts are named “%{name}” (%{labels}), so there is no prefill."
+msgstr[0] "%{count} Verrechnungskonto heißt „%{name}“ (%{labels}), daher keine Vorbelegung."
+msgstr[1] "%{count} Verrechnungskonten heißen „%{name}“ (%{labels}), daher keine Vorbelegung."
+
+#, elixir-autogen, elixir-format
+msgid "%{count} cash account carries “%{name}” as a former name (%{labels}), so there is no prefill."
+msgid_plural "%{count} cash accounts carry “%{name}” as a former name (%{labels}), so there is no prefill."
+msgstr[0] "%{count} Verrechnungskonto trägt „%{name}“ als früheren Namen (%{labels}), daher keine Vorbelegung."
+msgstr[1] "%{count} Verrechnungskonten tragen „%{name}“ als früheren Namen (%{labels}), daher keine Vorbelegung."
+
+#, elixir-autogen, elixir-format
+msgid "%{count} depot is named “%{name}” (%{labels}), so there is no prefill."
+msgid_plural "%{count} depots are named “%{name}” (%{labels}), so there is no prefill."
+msgstr[0] "%{count} Depot heißt „%{name}“ (%{labels}), daher keine Vorbelegung."
+msgstr[1] "%{count} Depots heißen „%{name}“ (%{labels}), daher keine Vorbelegung."
+
+#, elixir-autogen, elixir-format
+msgid "%{count} depot carries “%{name}” as a former name (%{labels}), so there is no prefill."
+msgid_plural "%{count} depots carry “%{name}” as a former name (%{labels}), so there is no prefill."
+msgstr[0] "%{count} Depot trägt „%{name}“ als früheren Namen (%{labels}), daher keine Vorbelegung."
+msgstr[1] "%{count} Depots tragen „%{name}“ als früheren Namen (%{labels}), daher keine Vorbelegung."
+
+#, elixir-autogen, elixir-format
+msgid "The choice holds for this import's new bookings and cannot be remembered while more than one account carries the name. Once only one does, the import maps the name to it: renaming or merging under"
+msgstr "Die Wahl gilt für die neuen Buchungen dieses Imports und lässt sich nicht merken, solange mehrere Konten den Namen tragen. Trägt ihn nur noch eines, ordnet der Import den Namen diesem zu: umbenennen oder zusammenführen unter"
+
+#, elixir-autogen, elixir-format
+msgid "+ Create new: %{name} — not possible: %{reason}"
+msgstr "+ Neu anlegen: %{name} — nicht möglich: %{reason}"
+
+#, elixir-autogen, elixir-format
+msgid "an account already has this name"
+msgstr "ein Konto heißt schon so"
+
+#, elixir-autogen, elixir-format
+msgid "a former name of %{account}"
+msgstr "früherer Name von %{account}"
+
+#, elixir-autogen, elixir-format
+msgid "the name of %{count} account"
+msgid_plural "the name of %{count} accounts"
+msgstr[0] "Name von %{count} Konto"
+msgstr[1] "Name von %{count} Konten"
+
+#, elixir-autogen, elixir-format
+msgid "a former name of %{count} account"
+msgid_plural "a former name of %{count} accounts"
+msgstr[0] "früherer Name von %{count} Konto"
+msgstr[1] "früherer Name von %{count} Konten"
+
+#, elixir-autogen, elixir-format
+msgid "at %{depots}"
+msgstr "bei %{depots}"
+
+#, elixir-autogen, elixir-format
+msgid "no depot"
+msgstr "ohne Depot"
+
+#, elixir-autogen, elixir-format
+msgid "with %{cash}"
+msgstr "mit %{cash}"
+
+#, elixir-autogen, elixir-format
+msgid "created %{date}"
+msgstr "angelegt %{date}"
+
+#, elixir-autogen, elixir-format
+msgid "no. %{id}"
+msgstr "Nr. %{id}"
+
+#, elixir-autogen, elixir-format
+msgid "The entry is already imported."
+msgid_plural "All %{count} entries are already imported."
+msgstr[0] "Der Eintrag ist bereits importiert."
+msgstr[1] "Alle %{count} Einträge sind bereits importiert."
+
+#, elixir-autogen, elixir-format
+msgid "%{count} entry is already imported; the others cannot be imported."
+msgid_plural "%{count} entries are already imported; the others cannot be imported."
+msgstr[0] "%{count} Eintrag ist bereits importiert; die übrigen lassen sich nicht importieren."
+msgstr[1] "%{count} Einträge sind bereits importiert; die übrigen lassen sich nicht importieren."
+
+#, elixir-autogen, elixir-format
+msgid "The import creates nothing: no booking, no account, no depot, no security."
+msgstr "Der Import legt nichts an: keine Buchung, kein Konto, kein Depot, kein Wertpapier."
+
+#, elixir-autogen, elixir-format
+msgid "Remembered for future imports:"
+msgstr "Für künftige Importe gemerkt:"
+
+#, elixir-autogen, elixir-format
+msgid "“%{name}” is now a former name of %{account}."
+msgstr "„%{name}“ ist jetzt früherer Name von %{account}."
+
+#, elixir-autogen, elixir-format
+msgid "“%{name}” is now a former name of %{account} and no longer of %{from}."
+msgstr "„%{name}“ ist jetzt früherer Name von %{account} und nicht mehr von %{from}."
+
+#, elixir-autogen, elixir-format
+msgid "“%{name}” was not remembered: it is the name of %{holder}."
+msgstr "„%{name}“ wurde nicht gemerkt: Es ist der Name von %{holder}."
+
+#, elixir-autogen, elixir-format
+msgid "Row %{row}: %{description}"
+msgstr "Zeile %{row}: %{description}"
+
+#, elixir-autogen, elixir-format
+msgid "a row of the file"
+msgstr "eine Zeile der Datei"
+
+#, elixir-autogen, elixir-format
+msgid "One booking lies on or before a set balance a merge adjusted; that balance absorbs its amount:"
+msgid_plural "%{count} bookings lie on or before a set balance a merge adjusted; that balance absorbs their amounts:"
+msgstr[0] "Eine Buchung liegt am oder vor einem gesetzten Saldo, den eine Zusammenführung angepasst hat; der Saldo nimmt ihren Betrag auf:"
+msgstr[1] "%{count} Buchungen liegen am oder vor einem gesetzten Saldo, den eine Zusammenführung angepasst hat; der Saldo nimmt ihre Beträge auf:"
+
+#, elixir-autogen, elixir-format
+msgid "Row %{row}: %{description} — set balance of %{account} on %{date}"
+msgstr "Zeile %{row}: %{description} — gesetzter Saldo von %{account} am %{date}"
