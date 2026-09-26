@@ -15,6 +15,7 @@ defmodule Portfolixir.Lifecycle.CashMergeTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
+  alias Portfolixir.Derived.DataVersion
   alias Portfolixir.Journal
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Projection
@@ -347,6 +348,24 @@ defmodule Portfolixir.Lifecycle.CashMergeTest do
       assert Buckets.cash_account_bucket_ids(ctx.target.id) == [bucket.id]
       assert record.manifest["securities_accounts"]["repointed"] == [depot.id]
       assert record.manifest["cash_account_buckets"]["removed"] == [bucket.id]
+    end
+
+    # User story (#851, ADR-0039, §13 of ADR-0050):
+    # As the operator reading a memoised walk right after a merge,
+    # I want the merge's writes to bump the derived basis of what each moved
+    # row affected before and after,
+    # so that no figure computed before the merge is served after it.
+    #
+    # Acceptance criteria:
+    # - The portfolio's data version is higher after the merge.
+    test "the merge bumps the portfolio's derived basis", ctx do
+      worked_example!(ctx)
+      basis = DataVersion.portfolio_basis(ctx.portfolio.id)
+      before = DataVersion.current(basis)
+
+      merge!(ctx, false)
+
+      assert DataVersion.current(basis) > before
     end
 
     # User story:
