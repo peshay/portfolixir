@@ -14,6 +14,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   alias PortfolixirWeb.ColumnPicker
   alias PortfolixirWeb.DecimalInput
   alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.SecurityNames
   alias PortfolixirWeb.TransactionKindLabel
   alias PortfolixirWeb.Transactions.SettlementForm
 
@@ -389,7 +390,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                             <%= running_balance(@running_balances, transaction) %>
                           </td>
                           <td class="row-actions">
-                            <.row_kebab id={"tx-kebab-#{transaction.id}"} transaction={transaction} open?={@row_menu_id == transaction.id} />
+                            <.row_kebab id={"tx-kebab-#{transaction.id}"} transaction={transaction} open?={@row_menu_id == transaction.id} twin_tags={@twin_tags} />
                           </td>
                         </tr>
                       <% end %>
@@ -443,6 +444,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                       id={"tx-phone-kebab-#{transaction.id}"}
                       transaction={transaction}
                       open?={@row_menu_id == transaction.id}
+                      twin_tags={@twin_tags}
                     />
                   </li>
                 <% end %>
@@ -864,7 +866,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       securities_accounts: securities_accounts,
       cash_accounts: cash_accounts,
       securities: securities,
-      transactions: transactions
+      transactions: transactions,
+      twin_tags: twin_tags(transactions)
     )
     |> apply_current_filters()
   end
@@ -999,14 +1002,17 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   attr(:id, :string, required: true)
   attr(:transaction, :map, required: true)
   attr(:open?, :boolean, required: true)
+  attr(:twin_tags, :map, default: %{})
 
   # #870: named for its row through the shared trigger, the booking composed
-  # from its kind, its subject and its date.
+  # from its kind, its subject and its date — a twin security's subject with
+  # its ISIN (the closing act, UAT-13), so two twins' bookings of one day
+  # never share a name.
   defp row_kebab(assigns) do
     ~H"""
     <AppShell.row_kebab
       id={@id}
-      row={row_name(@transaction)}
+      row={row_name(@transaction, @twin_tags)}
       open={@open?}
       phx-click="open_row_menu"
       phx-value-id={@transaction.id}
@@ -1014,12 +1020,26 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     """
   end
 
-  defp row_name(transaction) do
+  defp row_name(transaction, twin_tags) do
     AppShell.row_name([
       tx_type_label(transaction.type),
-      phone_subject(transaction),
+      kebab_subject(transaction, twin_tags),
       PortfolixirWeb.Format.date(transaction.date)
     ])
+  end
+
+  defp kebab_subject(%{security: %{name: name} = security}, twin_tags) when is_binary(name),
+    do: SecurityNames.label(twin_tags, security)
+
+  defp kebab_subject(transaction, _twin_tags), do: phone_subject(transaction)
+
+  defp twin_tags(transactions) do
+    transactions
+    |> Enum.flat_map(fn
+      %{security: %{id: _, name: name} = security} when is_binary(name) -> [security]
+      _other -> []
+    end)
+    |> SecurityNames.tags()
   end
 
   # #816: the three chip families, rendered twice — once as the desktop row
@@ -1787,12 +1807,14 @@ defmodule PortfolixirWeb.TransactionManagementLive do
             <% else %>
               <select name="transaction[security_id]" required>
                 <option value=""><%= gettext("Select security") %></option>
+                <%!-- Twins are told apart by their ISIN (the closing act, UAT-13). --%>
+                <% twin_tags = SecurityNames.tags(@securities) %>
                 <%= for security <- @securities do %>
                   <option
                     value={security.id}
                     selected={to_string(security.id) == @transaction_form["security_id"]}
                   >
-                    <%= security.name %><%= if security.ticker_symbol not in [nil, ""], do: " (#{security.ticker_symbol})" %>
+                    <%= security.name %><%= if security.ticker_symbol not in [nil, ""], do: " (#{security.ticker_symbol})" %><%= SecurityNames.suffix(twin_tags, security) %>
                   </option>
                 <% end %>
               </select>

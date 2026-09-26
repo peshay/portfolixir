@@ -2349,6 +2349,15 @@ and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
   ("Decide…") and an attention note naming the candidates by the same labels,
   saying the choice holds for this import and cannot be remembered while
   more than one account carries the name, with the Accounts & depots link.
+- **Same-named securities are told apart the same way (the closing act,
+  UAT-13).** Wherever the operator picks or names a security — the Risk rule
+  dialog's subject list, the booking drawer's security list, the row menus
+  of Securities and of Transactions — a security whose name another security
+  of the same list carries adds, after a middle dot, its ISIN, else its
+  ticker, else "no. <id>": the first feature present and different on every
+  twin. Unique names are unchanged. Twins are exactly the case a security
+  merge exists for, so the dialog that ends them is not the only place they
+  can be told apart.
 - **"+ Create new" for a name the guard refuses (G4b-A)** stays in the list,
   **disabled**, its own label saying why: "+ Create new: <name> — not
   possible: an account already has this name" / "a former name of

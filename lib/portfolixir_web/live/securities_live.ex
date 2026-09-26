@@ -50,6 +50,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias PortfolixirWeb.Securities.SecurityFormDialog
   alias PortfolixirWeb.Securities.SplitWizardDialog
   alias PortfolixirWeb.SecurityEventLabel
+  alias PortfolixirWeb.SecurityNames
 
   @ranges ~w(1M 3M 6M YTD 1Y 3Y 5Y MAX)
   @default_range "1Y"
@@ -161,7 +162,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      # leaves on its survivor's detail, until the next navigation.
      |> assign(:merged_notice, nil)
      |> assign(:logo_dialog_security, nil)
-     |> assign(:securities, [])}
+     |> assign_securities([])}
   end
 
   # The URL is the single source of truth for the list-filter state (#651):
@@ -757,7 +758,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                       <td class="row-actions">
                         <AppShell.row_kebab
                           id={"row-kebab-#{sec_id}"}
-                          row={inner_security.name}
+                          row={SecurityNames.label(@twin_tags, inner_security)}
                           open={@row_menu_id == sec_id}
                           phx-click="open_row_menu"
                           phx-value-id={sec_id}
@@ -839,7 +840,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   </span>
                   <AppShell.row_kebab
                     id={"phone-kebab-#{sec_id}"}
-                    row={inner_security.name}
+                    row={SecurityNames.label(@twin_tags, inner_security)}
                     open={@row_menu_id == sec_id}
                     phx-click="open_row_menu"
                     phx-value-id={sec_id}
@@ -3400,6 +3401,15 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp security_from_row(%SecurityWithMetrics{security: security}), do: security
   defp security_from_row(%Security{} = security), do: security
 
+  # The closing act, UAT-13: the listed rows with, per twin — a name another
+  # listed security carries — the ISIN (else ticker, else number) its row
+  # menu is named with, so two twins' kebabs never share a name.
+  defp assign_securities(socket, rows) do
+    socket
+    |> assign(:securities, rows)
+    |> assign(:twin_tags, SecurityNames.tags(Enum.map(rows, &security_from_row/1)))
+  end
+
   # A logo is only ever served from this instance (#766): a stored path with a
   # scheme or a protocol-relative prefix is not rendered.
   defp local_logo_path(path) when is_binary(path) do
@@ -4911,7 +4921,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         if security_id(row) == id, do: put_row_attributes(row, attributes), else: row
       end)
 
-    assign(socket, :securities, securities)
+    assign_securities(socket, securities)
   end
 
   defp put_row_attributes(%SecurityWithMetrics{security: security} = row, attributes) do
@@ -5522,7 +5532,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
       |> refine_by_class(socket.assigns.class)
 
     socket
-    |> assign(:securities, securities)
+    |> assign_securities(securities)
     |> assign(:chip_currencies, Catalog.currencies_in_use())
     |> assign(:chip_classes, Catalog.effective_asset_classes_in_use())
     |> attach_classification_columns()
@@ -5572,7 +5582,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
             end)
           end)
 
-        assign(socket, :securities, rows)
+        assign_securities(socket, rows)
     end
   end
 
@@ -5605,7 +5615,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
             name_comparator(dir)
           )
 
-        assign(socket, :securities, rows)
+        assign_securities(socket, rows)
 
       _ ->
         socket

@@ -50,6 +50,7 @@ defmodule PortfolixirWeb.RiskLive do
   alias PortfolixirWeb.PolicyRuleLabel
   alias PortfolixirWeb.Risk.PolicyRuleDialog
   alias PortfolixirWeb.Risk.PolicyRuleFormat
+  alias PortfolixirWeb.SecurityNames
 
   # The window the page reads: the one-year figure is the one a reader compares
   # across portfolios; the API carries all three.
@@ -105,12 +106,16 @@ defmodule PortfolixirWeb.RiskLive do
   defp options do
     classifications = Classifications.list_classifications()
 
+    securities =
+      [sort: {:name, :asc}]
+      |> Catalog.list_securities()
+      |> Enum.reject(& &1.is_retired)
+
+    # Twins are told apart by their ISIN (the closing act, UAT-13).
+    tags = SecurityNames.tags(securities)
+
     %{
-      securities:
-        [sort: {:name, :asc}]
-        |> Catalog.list_securities()
-        |> Enum.reject(& &1.is_retired)
-        |> Enum.map(&{&1.id, &1.name}),
+      securities: Enum.map(securities, &{&1.id, SecurityNames.label(tags, &1)}),
       categories:
         Enum.map(classifications, fn classification ->
           {ClassificationName.display(classification),
