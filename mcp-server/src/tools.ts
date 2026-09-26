@@ -2880,7 +2880,9 @@ const declaredTools: DeclaredTool[] = [
       "of both choices; the choices are theirs. Quantities, closes, weights and decimals are strings. A pair that " +
       "may not merge answers 409 with errors.code (same_security, not_live, currency_mismatch, benchmark_mismatch, " +
       "retired_target, quote_basis_mismatch, research_notes, policy_rules with errors.policy_rules, " +
-      "position_buckets_mismatch, split_ratio_mismatch, split_event_mismatch, split_linearity, or " +
+      "position_buckets_mismatch, split_ratio_mismatch, split_event_mismatch, split_linearity, " +
+      "legacy_hashed_split (a split to move still carries an import hash from a re-type before the import-hash " +
+      "check; errors.splits names it — change its kind back or delete it), or " +
       "identity_unresolvable with errors.unresolvable: an identity of either security — as stored, as its " +
       "Portfolio Performance import recorded it, or with a former ISIN — or of a security merged into either " +
       "before (merged_stored, merged_imported), that would no longer find the target) " +

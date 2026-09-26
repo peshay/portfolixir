@@ -234,6 +234,9 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
     )
   end
 
+  def guard_facts(%{code: :legacy_hashed_split, splits: [_ | _] = splits}),
+    do: %{splits: Enum.map(splits, &%{id: &1.id, date: JSON.date(&1.date)})}
+
   def guard_facts(_guard), do: %{}
 
   defp booking_ref(ref),

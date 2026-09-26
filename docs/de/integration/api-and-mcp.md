@@ -430,7 +430,12 @@ demselben `plan_digest`, sodass beide denselben Plan sehen.
   abgelehnt (`split_ratio_mismatch`), ebenso ein Split, der einer Seite
   fehlt, während sie davor eine Buchung oder einen Kurs hat
   (`split_event_mismatch`), oder ein Split, der Buchungen neu skalieren
-  würde, die er vorher nicht skaliert hat (`split_linearity`). Schließlich
+  würde, die er vorher nicht skaliert hat (`split_linearity`), oder ein
+  Split, den die Zusammenführung verschieben müsste und der noch einen
+  Import-Hash aus einer Umwandlung vor der Import-Hash-Artprüfung trägt
+  (`legacy_hashed_split`, mit `errors.splits`; seine Art zurücksetzen oder ihn
+  löschen — einen, den die Zusammenführung zusammenlegt, löscht sie und legt
+  seinen Hash still). Schließlich
   muss jede Identität beider Wertpapiere nach der Zusammenführung das Ziel
   finden (`identity_unresolvable`, mit `errors.unresolvable`): die
   gespeicherte Identität, die Identität, die der Portfolio-Performance-Import
