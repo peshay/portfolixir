@@ -1551,7 +1551,7 @@ msgstr ""
 
 #: lib/portfolixir_web/live/imports_live.ex:2261
 #, elixir-autogen, elixir-format
-msgid "Invalid JSON: %{message}"
+msgid "The file is not valid JSON (at character %{position}). Remedy: export it again from Portfolio Performance."
 msgstr ""
 
 #: lib/portfolixir_web/live/imports_live.ex:2180
@@ -9920,4 +9920,9 @@ msgstr ""
 #: lib/portfolixir_web/live/securities/merge_preview.ex
 #, elixir-autogen, elixir-format
 msgid "Remedy: book the split of %{date} (%{ratio}) on %{security} too, or delete the wrong split, then check again."
+msgstr ""
+
+#: lib/portfolixir_web/live/imports_live.ex
+#, elixir-autogen, elixir-format
+msgid "The file is not valid JSON. Remedy: export it again from Portfolio Performance."
 msgstr ""

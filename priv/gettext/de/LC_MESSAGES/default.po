@@ -1509,8 +1509,8 @@ msgstr "Ungültiges CSV: %{message}"
 
 #: lib/portfolixir_web/live/imports_live.ex:1265
 #, elixir-autogen, elixir-format
-msgid "Invalid JSON: %{message}"
-msgstr "Ungültiges JSON: %{message}"
+msgid "The file is not valid JSON (at character %{position}). Remedy: export it again from Portfolio Performance."
+msgstr "Die Datei ist kein gültiges JSON (bei Zeichen %{position}). Abhilfe: sie erneut aus Portfolio Performance exportieren."
 
 #: lib/portfolixir_web/live/imports_live.ex:1198
 #, elixir-autogen, elixir-format
@@ -9503,3 +9503,8 @@ msgstr "„%{name}“"
 #, elixir-autogen, elixir-format
 msgid "Remedy: book the split of %{date} (%{ratio}) on %{security} too, or delete the wrong split, then check again."
 msgstr "Abhilfe: den Split vom %{date} (%{ratio}) auch bei %{security} buchen oder den falschen Split löschen, dann erneut prüfen."
+
+#: lib/portfolixir_web/live/imports_live.ex
+#, elixir-autogen, elixir-format
+msgid "The file is not valid JSON. Remedy: export it again from Portfolio Performance."
+msgstr "Die Datei ist kein gültiges JSON. Abhilfe: sie erneut aus Portfolio Performance exportieren."

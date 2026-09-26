@@ -2283,8 +2283,21 @@ defmodule PortfolixirWeb.ImportsLive do
   defp parse_error_message({:unsupported_version, v}),
     do: gettext("Unsupported PP JSON version: %{v}", v: to_string(v))
 
-  defp parse_error_message({:invalid_json, message}),
-    do: gettext("Invalid JSON: %{message}", message: message)
+  # The closing act, UAT-14: the finding and the remedy in the page's
+  # language, never the JSON library's English message — only the position
+  # it names is kept.
+  defp parse_error_message({:invalid_json, message}) do
+    case Regex.run(~r/position (\d+)/, to_string(message), capture: :all_but_first) do
+      [position] ->
+        gettext(
+          "The file is not valid JSON (at character %{position}). Remedy: export it again from Portfolio Performance.",
+          position: position
+        )
+
+      nil ->
+        gettext("The file is not valid JSON. Remedy: export it again from Portfolio Performance.")
+    end
+  end
 
   defp parse_error_message({:invalid_csv, message}),
     do: gettext("Invalid CSV: %{message}", message: message)

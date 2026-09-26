@@ -76,6 +76,38 @@ defmodule PortfolixirWeb.ImportsFileErrorsTest do
     refute has_element?(view, ".alert-error[role=alert]")
   end
 
+  # User story (the closing act, UAT-14):
+  # As the operator dropping a JSON export that was cut off,
+  # I want the error band to say so in my language, with where it breaks
+  # and the remedy,
+  # so that the page never shows the JSON library's English message.
+  #
+  # Acceptance criteria:
+  # - A truncated JSON file is a named file error: in English "The file is
+  #   not valid JSON (at character N)." with the remedy, in German the same
+  #   sentence in German; the library's own wording is not shown.
+  test "a JSON file that is cut off is a named file error, in the page's language",
+       %{conn: conn} do
+    truncated = ~s({"version": 1, "transactions": [{"type": "DEPOSIT", "amo)
+
+    {:ok, view, _html} = live(conn, "/imports")
+    upload_json(view, "cut.json", truncated)
+
+    band = view |> element(".alert-error[role=alert]") |> render()
+    assert band =~ "The file is not valid JSON (at character"
+    assert band =~ "Remedy: export it again from Portfolio Performance."
+    refute band =~ "unexpected"
+
+    conn = put_req_header(conn, "accept-language", "de-DE,de;q=0.9")
+    {:ok, view, _html} = live(conn, "/imports")
+    upload_json(view, "cut.json", truncated)
+
+    band = view |> element(".alert-error[role=alert]") |> render()
+    assert band =~ "Die Datei ist kein gültiges JSON (bei Zeichen"
+    refute band =~ "unexpected"
+    refute band =~ "Ungültiges JSON"
+  end
+
   test "the German page names the encoding error in German", %{conn: conn} do
     conn = put_req_header(conn, "accept-language", "de-DE,de;q=0.9")
     {:ok, view, _html} = live(conn, "/imports")
