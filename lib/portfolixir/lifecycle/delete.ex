@@ -7,7 +7,9 @@ defmodule Portfolixir.Lifecycle.Delete do
 
     1. the row is read `FOR UPDATE`, so a booking onto it waits for the
        delete instead of slipping in between the check and the delete; a row
-       that has vanished answers `{:error, :not_found}`;
+       that has vanished answers `{:error, :not_found}`. A security's
+       override depots are locked first, in the merge's order (depots before
+       securities), so a concurrent merge waits instead of deadlocking;
     2. the **reference check**: every foreign key whose delete disposition is
        `:restrict` in `Portfolixir.Lifecycle.ForeignKeys` is counted, per
        referencing table — a transaction once, whichever leg references the
@@ -102,6 +104,8 @@ defmodule Portfolixir.Lifecycle.Delete do
           | {:error, :not_found | :raced | {:referenced, referenced_by()} | term()}
   def delete(%Actor{} = actor, %schema{id: id} = record) when is_map_key(@tables, schema) do
     fn ->
+      lock_override_depots(schema, id)
+
       with {:ok, locked} <- lock_row(schema, id),
            :ok <- unreferenced(locked),
            {:ok, deleted} <- remove_locked(actor, locked) do
@@ -191,6 +195,32 @@ defmodule Portfolixir.Lifecycle.Delete do
   def removers, do: Map.keys(@removers)
 
   # -- the steps -------------------------------------------------------------
+
+  # The security merge's lock order (ADR-0050 §10): depots before securities.
+  # Removing a security's position overrides locks each override's depot
+  # (the bucket writers' owner lock, E25 S6 G10), so without this a delete
+  # that locked the security first and a merge naming the same depot waited
+  # on each other, and PostgreSQL aborted one of them (the closing act,
+  # CR-3). The depots are locked FOR NO KEY UPDATE in id order, as the merge
+  # and the owner lock take them.
+  defp lock_override_depots(Security, security_id) do
+    Repo.all(
+      from(a in SecuritiesAccount,
+        where:
+          a.id in subquery(
+            from(o in PositionBucketOverride,
+              where: o.security_id == ^security_id,
+              select: o.securities_account_id
+            )
+          ),
+        order_by: a.id,
+        lock: "FOR NO KEY UPDATE",
+        select: a.id
+      )
+    )
+  end
+
+  defp lock_override_depots(_schema, _id), do: []
 
   defp lock_row(schema, id) do
     case Repo.one(from(r in schema, where: r.id == ^id, lock: "FOR UPDATE")) do

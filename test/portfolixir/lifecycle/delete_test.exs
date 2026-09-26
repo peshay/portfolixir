@@ -523,6 +523,41 @@ defmodule Portfolixir.Lifecycle.DeleteTest do
       end
     end
 
+    # User story (closing act, CR-3):
+    # As the operator deleting a security while an agent merges another
+    # security into it,
+    # I want the delete to take its locks in the merge's order,
+    # so that the two wait for each other instead of one failing with a
+    # database deadlock (a 500 where the contract answers 404 or 409).
+    #
+    # Acceptance criteria:
+    # - A security delete locks every depot its position overrides name,
+    #   FOR NO KEY UPDATE in id order, before it locks the security FOR
+    #   UPDATE — the security merge's order (ADR-0050 §10: depots before
+    #   securities).
+    test "a security delete locks its overrides' depots before the security" do
+      world = WorldFixtures.base_world()
+      other = depot!(world, "Second Depot")
+      security = WorldFixtures.create_security!(name: "Order ETF", ticker: "ORD")
+      bucket = tag_bucket!("Order bucket")
+
+      for depot <- [world.depot, other] do
+        :ok = Buckets.set_position_override(Actor.owner_ui(), depot, security, [bucket.id])
+      end
+
+      queries =
+        capture_queries(fn -> assert {:ok, _} = Catalog.delete_security(agent(), security) end)
+
+      depots =
+        Enum.find_index(queries, &(&1 =~ ~r/FROM "securities_accounts".*FOR NO KEY UPDATE/s))
+
+      row = Enum.find_index(queries, &(&1 =~ ~r/FROM "securities" .*FOR UPDATE/s))
+
+      assert depots, "no FOR NO KEY UPDATE read of the depots"
+      assert row, "no FOR UPDATE read of the security"
+      assert depots < row
+    end
+
     # User story:
     # As the operator deleting a security while an agent edits its
     # classification, targets or aliases,
