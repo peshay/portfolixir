@@ -121,6 +121,10 @@ defmodule Portfolixir.Catalog.ProviderDataBoundsTest do
 
     assert %{status: :ok, upserted: 2} = result
     assert stored_quote_dates(security.id) == [good_1, good_2]
+
+    # The adapter drops them itself (defense in depth), before the writer.
+    assert {:ok, points} = Yahoo.fetch(security, req: stub)
+    assert Enum.map(points, & &1.date) == [good_1, good_2]
   end
 
   test "the sync writer drops what any adapter returns out of bounds" do
@@ -176,6 +180,12 @@ defmodule Portfolixir.Catalog.ProviderDataBoundsTest do
 
     assert [%ExchangeRate{quote_currency: "USD", rate: rate}] = Repo.all(ExchangeRate)
     assert Decimal.equal?(rate, Decimal.new("1.1"))
+
+    # The adapter drops them itself (defense in depth), before the writer.
+    assert Ecb.parse(daily) == []
+
+    assert [%{quote_currency: "USD", date: date}] = Ecb.parse_history(history)
+    assert Date.to_iso8601(date) == past
   end
 
   # Acceptance criteria:
