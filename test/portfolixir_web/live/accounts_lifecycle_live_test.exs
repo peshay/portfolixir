@@ -182,6 +182,41 @@ defmodule PortfolixirWeb.AccountsLifecycleLiveTest do
     assert Portfolios.get_cash_account(w.giro.id).name == "Giro"
   end
 
+  # User story (E25 S7, G20 on the L5a rename):
+  # As the operator renaming an account on screen,
+  # I want a name carrying a character I cannot see refused at the field,
+  # naming that character by its code point,
+  # so that no hidden text reaches the agent through an account name or,
+  # after a merge, through a former name.
+  #
+  # Acceptance criteria:
+  # - A name with a zero-width space (a cash account) or a bidirectional
+  #   control (a depot) is refused at the field with the text rule's message
+  #   naming the code point; the field is marked invalid and nothing is
+  #   written.
+  test "refuses a name with an invisible character, naming it", %{conn: conn} do
+    w = world()
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    open_menu_item(view, "cash", w.giro.id, "rename")
+    html = view |> form("#rename-form", rename: %{name: "Giro\u200B2"}) |> render_submit()
+
+    assert html =~
+             "must not contain invisible characters (U+200B); retype the text without them"
+
+    assert has_element?(view, "#rename-form input[aria-invalid='true']")
+    assert Portfolios.get_cash_account(w.giro.id).name == "Giro"
+
+    view |> element("#rename-dialog button", "Cancel") |> render_click()
+    open_menu_item(view, "depot", w.depot.id, "rename")
+    html = view |> form("#rename-form", rename: %{name: "Depot \u202E1"}) |> render_submit()
+
+    assert html =~
+             "must not contain invisible characters (U+202E); retype the text without them"
+
+    assert Portfolios.get_securities_account(w.depot.id).name == "Depot 1"
+  end
+
   # User story:
   # As the operator,
   # I want an account's former names listed where I rename it, each

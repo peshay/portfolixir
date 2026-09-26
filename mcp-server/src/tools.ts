@@ -3519,7 +3519,8 @@ const declaredTools: DeclaredTool[] = [
       "(cash_account, securities_account or security), source {id, name} — the name the merge recorded, since the " +
       "source no longer exists —, target {id, name, merged_into} — merged_into is null while the target lives, " +
       "otherwise the id a later merge moved it into, followed to the live end —, portfolio_id (null for a " +
-      "security), actor_type and actor_label, inserted_at, and manifest_summary: the merge's manifest with every " +
+      "security), actor_type and actor_label (for an API or MCP token, the name of the token entry that applied " +
+      "the merge), inserted_at, and manifest_summary: the merge's manifest with every " +
       "list replaced by its count (transactions moved, restated, deleted; former names appended; quotes moved " +
       "and dropped; …) and the operator's choices as given. A read of a merged-away id — one security, cash " +
       "account or depot, and every route under a security (its quotes, trades, metrics, notes, events, logo) — " +
