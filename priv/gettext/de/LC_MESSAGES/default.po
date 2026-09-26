@@ -7251,6 +7251,13 @@ msgstr "Beobachtungen"
 msgid "Pair"
 msgstr "Paar"
 
+#: lib/portfolixir_web/live/risk_live.ex:388
+#, elixir-autogen, elixir-format
+msgid "Pearson correlation of daily returns over one year between the %{count} largest position, only on days both closed; at least %{required} shared observations per pair."
+msgid_plural "Pearson correlation of daily returns over one year between the %{count} largest positions, only on days both closed; at least %{required} shared observations per pair."
+msgstr[0] "Pearson-Korrelation der Tagesrenditen über ein Jahr zwischen der %{count} größten Einzelposition, nur an Tagen mit Kurs für beide; mindestens %{required} gemeinsame Beobachtungen je Paar."
+msgstr[1] "Pearson-Korrelation der Tagesrenditen über ein Jahr zwischen den %{count} größten Einzelpositionen, nur an Tagen mit Kurs für beide; mindestens %{required} gemeinsame Beobachtungen je Paar."
+
 #: lib/portfolixir_web/live/risk_live.ex:361
 #, elixir-autogen, elixir-format
 msgid "Pearson correlation of daily returns over one year, only on days both closed; at least %{required} shared observations per pair."

@@ -381,10 +381,22 @@ defmodule PortfolixirWeb.RiskLive do
                 <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
                 <%= gettext("Show the correlations of the largest positions") %>
               </summary>
-              <p class="hint">
-                <%= gettext("Pearson correlation of daily returns over one year, only on days both closed; at least %{required} shared observations per pair.",
-                  required: 60
-                ) %>
+              <%!-- The closing act (board 11 part 3, F72): the line read beside
+                   the pairs says how many leading names they cover, from the
+                   answer, as the summary's basis line does. --%>
+              <p class="hint" data-role="risk-correlations-basis">
+                <%= if @risk.metrics.correlations.leading_names >= 2 do %>
+                  <%= ngettext(
+                    "Pearson correlation of daily returns over one year between the %{count} largest position, only on days both closed; at least %{required} shared observations per pair.",
+                    "Pearson correlation of daily returns over one year between the %{count} largest positions, only on days both closed; at least %{required} shared observations per pair.",
+                    @risk.metrics.correlations.leading_names,
+                    required: 60
+                  ) %>
+                <% else %>
+                  <%= gettext("Pearson correlation of daily returns over one year, only on days both closed; at least %{required} shared observations per pair.",
+                    required: 60
+                  ) %>
+                <% end %>
               </p>
               <div class="data-table-wrapper">
                 <table class="data-table risk-fit-table">

@@ -222,6 +222,36 @@ defmodule PortfolixirWeb.RiskLiveTest do
     assert has_element?(view, ~s([data-role="risk-basis"]), "laufen über die 3 größten")
   end
 
+  # User story (the closing act, E25; board 11 part 3, F72):
+  # As the operator reading the correlation pairs on Wealth → Risk,
+  # I want the line above the pairs to say how many of the largest names
+  # they cover,
+  # so that the bound reads where the pairs are read, not only in the
+  # summary above.
+  #
+  # Acceptance criteria:
+  # - The correlations' own basis line names the number of leading names the
+  #   answer says the matrix ran over, in the page's language.
+  test "the correlations' own basis line names how many names the pairs cover", %{conn: conn} do
+    risk_world()
+
+    {:ok, view, _html} = live(conn, "/risk")
+
+    assert has_element?(
+             view,
+             ~s(#risk-correlations [data-role="risk-correlations-basis"]),
+             "between the 3 largest positions"
+           )
+
+    {:ok, view, _html} = live(conn, "/risk?locale=de")
+
+    assert has_element?(
+             view,
+             ~s(#risk-correlations [data-role="risk-correlations-basis"]),
+             "zwischen den 3 größten Einzelpositionen"
+           )
+  end
+
   test "renders an empty state when there is no portfolio", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/risk")
     assert has_element?(view, ~s([data-role="risk-empty"]))
