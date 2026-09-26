@@ -3100,7 +3100,10 @@ const declaredTools: DeclaredTool[] = [
       "flows a collapse removes or moves, and the third accounts and positions a collapsed booking changes. " +
       "Show the operator both outcomes; the choice is theirs. Decimals are strings. A pair that may not merge " +
       "answers 409 with errors.code (same_account, not_live, portfolio_mismatch, currency_mismatch, " +
-      "liquidity_role_mismatch, buckets_mismatch or legacy_hashed_anchor) and errors.guards; a source already " +
+      "liquidity_role_mismatch, buckets_mismatch, legacy_hashed_anchor, or unstorable_anchor: a restated balance " +
+      "anchor would need more than the amount column's 6 decimal places because a trade was booked without its " +
+      "amount — record that amount first; errors.anchors names the anchor, errors.bookings the trade) and " +
+      "errors.guards; a source already " +
       "merged answers 409 already_merged with errors.merged_into.",
     cashMergePreviewSchema,
     cashMergePreviewZ

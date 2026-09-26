@@ -955,9 +955,16 @@ Example quote sync response:
   portfolio, the currency, the liquidity role and the bucket set; otherwise
   it answers `409 Conflict` with `errors.code` (`same_account`, `not_live`,
   `portfolio_mismatch`, `currency_mismatch`, `liquidity_role_mismatch`,
-  `buckets_mismatch`, or `legacy_hashed_anchor` for a balance anchor that
+  `buckets_mismatch`, `legacy_hashed_anchor` for a balance anchor that
   still carries an import hash from before the import-hash kind check and
-  would have to be restated or moved), `errors.detail` and `errors.guards`.
+  would have to be restated or moved, or `unstorable_anchor` for an anchor
+  whose restated amount would need more than the amount column's 6 decimal
+  places — the other account's balance carries the fraction of a trade
+  booked without its amount; record that amount, then preview again),
+  `errors.detail` and `errors.guards`; for the last two `errors.anchors`
+  names each anchor (`id`, `date`, `cash_account_id`), and for
+  `unstorable_anchor` `errors.bookings` names the trades booked without
+  their amount.
   An unknown source answers `404`, a source already merged `409`
   `already_merged` with `errors.merged_into`, a missing `target_id` `422`.
   The `200` carries:

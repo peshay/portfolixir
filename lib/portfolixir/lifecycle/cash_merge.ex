@@ -20,7 +20,8 @@ defmodule Portfolixir.Lifecycle.CashMerge do
 
   It checks the guards (each refusal names its code: `same_account`,
   `not_live`, `portfolio_mismatch`, `currency_mismatch`,
-  `liquidity_role_mismatch`, `buckets_mismatch`, `legacy_hashed_anchor`),
+  `liquidity_role_mismatch`, `buckets_mismatch`, `legacy_hashed_anchor`,
+  `unstorable_anchor`),
   then states the plan: the transfers it drops, the key-equal pairs, the
   former names the target gains, and — because the choice is not an input
   (§10) — the outcome of **both** values of `collapse_key_equal`: the
@@ -68,6 +69,14 @@ defmodule Portfolixir.Lifecycle.CashMerge do
   deleted with its hash retired when a fold removes it, and refuses the
   merge (`legacy_hashed_anchor`) when the merge would have to restate or
   move it.
+
+  One figure is refused rather than rounded: a restated anchor whose exact
+  amount has more places than the amount column's 6 (the other side's
+  balance carries the fraction of a trade booked without its amount, whose
+  cash leg is quantity × price + fees). Stored, it would be rounded, and
+  step 5's exact identity could never hold; the preview refuses it
+  (`unstorable_anchor`), naming the anchor and the booking, so it never
+  promises a figure the ledger cannot store.
   """
 
   import Ecto.Query
@@ -79,6 +88,7 @@ defmodule Portfolixir.Lifecycle.CashMerge do
   alias Portfolixir.Buckets
   alias Portfolixir.Clock
   alias Portfolixir.Imports.DedupKey
+  alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Ledger.Projection
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Lifecycle
@@ -240,7 +250,11 @@ defmodule Portfolixir.Lifecycle.CashMerge do
 
     if passed?(guards) do
       plan = plan(source, target, load(source, target, lock?))
-      plan = %{plan | guards: guards ++ [legacy_anchor_guard(plan)]}
+
+      plan = %{
+        plan
+        | guards: guards ++ [legacy_anchor_guard(plan), unstorable_anchor_guard(plan)]
+      }
 
       if passed?(plan.guards) do
         preview = view(plan)
@@ -338,15 +352,89 @@ defmodule Portfolixir.Lifecycle.CashMerge do
           row.import_hash != nil,
           side == :source or not Decimal.equal?(stated, after_restatement),
           uniq: true,
-          do: row.id
+          do: row
 
-    guard(
-      :legacy_hashed_anchor,
+    written = Enum.sort_by(written, & &1.id)
+
+    :legacy_hashed_anchor
+    |> guard(
       "no hashed balance anchor to restate or move",
       written == [],
       "no balance anchor the merge restates or moves carries an import hash",
-      legacy_anchor_detail(Enum.sort(written))
+      legacy_anchor_detail(Enum.map(written, & &1.id))
     )
+    |> Map.put(:anchors, Enum.map(written, &anchor_ref/1))
+  end
+
+  defp anchor_ref(row), do: %{id: row.id, date: row.date, cash_account_id: row.cash_account_id}
+
+  # §7 step 4 restates an anchor to its stated amount plus the other side's
+  # end-of-day balance, and step 6 checks the merged balance against the sum
+  # `Decimal`-exactly. A balance that carries the fraction of a trade booked
+  # without its amount (quantity × price + fees, more than the amount
+  # column's 6 places) makes a restated amount the column cannot hold: the
+  # stored anchor would be rounded, and the sum identity could never hold.
+  # So such a merge is refused up front, naming the anchor and the trades,
+  # rather than promising a figure the ledger cannot store.
+  defp unstorable_anchor_guard(plan) do
+    lines =
+      for {_collapse?, outcome} <- plan.outcomes,
+          %{after: amount} = line <- Map.values(outcome.restatements),
+          not storable_amount?(amount),
+          uniq: true,
+          do: Map.take(line, [:row, :date, :after])
+
+    lines = Enum.sort_by(lines, & &1.row.id)
+    bookings = if lines == [], do: [], else: fractional_rows(plan)
+
+    :unstorable_anchor
+    |> guard(
+      "every restated balance anchor fits the amount column",
+      lines == [],
+      "every restated balance anchor fits the amount column",
+      unstorable_anchor_detail(lines, Enum.map(bookings, & &1.id))
+    )
+    |> Map.put(:anchors, Enum.map(lines, &anchor_ref(&1.row)))
+    |> Map.put(:bookings, Enum.map(bookings, &anchor_ref/1))
+  end
+
+  @amount_column {20, 6}
+
+  defp storable_amount?(amount) do
+    BoundedDecimal.fits_column?(amount, @amount_column) and
+      BoundedDecimal.decimal_places(amount) <= elem(@amount_column, 1)
+  end
+
+  # The bookings of either account whose cash leg carries more places than
+  # the amount column: a trade whose amount was never recorded.
+  defp fractional_rows(plan) do
+    ids = [plan.source.id, plan.target.id]
+
+    for row <- plan.rows,
+        {account_id, {:add, delta}} <- Projection.effects(row).cash,
+        account_id in ids,
+        BoundedDecimal.decimal_places(delta) > elem(@amount_column, 1),
+        uniq: true,
+        do: row
+  end
+
+  defp unstorable_anchor_detail(lines, row_ids) do
+    anchors =
+      Enum.map_join(lines, ", ", fn line ->
+        "##{line.row.id} on #{Date.to_iso8601(line.date)} would hold " <>
+          Decimal.to_string(line.after, :normal)
+      end)
+
+    rows =
+      case row_ids do
+        [] -> ""
+        ids -> " The balance comes from the booking(s) #{Enum.map_join(ids, ", ", &"##{&1}")}."
+      end
+
+    "the balance anchor(s) #{anchors}: more places than the amount column's 6, because the " <>
+      "other account's balance carries the fraction of a trade booked without its amount." <>
+      rows <>
+      " Record that booking's amount, then preview again"
   end
 
   defp legacy_anchor_detail(ids) do

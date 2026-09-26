@@ -23,7 +23,8 @@ defmodule PortfolixirWeb.Api.V1.MergeController do
 
     * **409** — a guard (for a cash account `same_account`, `not_live`,
       `portfolio_mismatch`, `currency_mismatch`, `liquidity_role_mismatch`,
-      `buckets_mismatch`, `legacy_hashed_anchor`; for a depot `same_account`,
+      `buckets_mismatch`, `legacy_hashed_anchor`, `unstorable_anchor`; for a
+      depot `same_account`,
       `not_live`, `portfolio_mismatch`, `buckets_mismatch`,
       `position_buckets_mismatch`; for a security `same_security`,
       `not_live`, `currency_mismatch`, `benchmark_mismatch`,

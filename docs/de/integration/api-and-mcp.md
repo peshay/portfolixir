@@ -972,10 +972,17 @@ Beispiel-Antwort für Kurssynchronisierung:
   Konten müssen Portfolio, Währung, Liquiditätsrolle und Bucket-Menge teilen;
   sonst antwortet sie `409 Conflict` mit `errors.code` (`same_account`,
   `not_live`, `portfolio_mismatch`, `currency_mismatch`,
-  `liquidity_role_mismatch`, `buckets_mismatch` oder
+  `liquidity_role_mismatch`, `buckets_mismatch`,
   `legacy_hashed_anchor` für einen gesetzten Saldo, der noch einen
   Import-Hash aus der Zeit vor der Import-Hash-Artprüfung trägt und angepasst
-  oder verschoben werden müsste), `errors.detail` und `errors.guards`. Eine
+  oder verschoben werden müsste, oder `unstorable_anchor` für einen gesetzten
+  Saldo, dessen angepasster Betrag mehr als die 6 Nachkommastellen der
+  Betragsspalte bräuchte — der Saldo des anderen Kontos trägt den Bruchteil
+  eines Kaufs, der ohne Betrag gebucht wurde; erst diesen Betrag erfassen,
+  dann die Vorschau erneut abrufen), `errors.detail` und `errors.guards`; bei
+  den letzten beiden nennt `errors.anchors` jeden gesetzten Saldo (`id`,
+  `date`, `cash_account_id`), und bei `unstorable_anchor` nennt
+  `errors.bookings` die Käufe, die ohne Betrag gebucht wurden. Eine
   unbekannte Quelle antwortet `404`, eine bereits zusammengeführte `409`
   `already_merged` mit `errors.merged_into`, eine fehlende `target_id` `422`.
   Die `200`-Antwort trägt:
