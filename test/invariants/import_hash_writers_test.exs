@@ -362,7 +362,14 @@ defmodule Portfolixir.Invariants.ImportHashWritersTest do
         refute Repo.exists?(from(t in Transaction, where: t.type == ^kind))
 
         assert Imports.reimport_counts(preview, portfolio_id: world.portfolio.id).total ==
-                 %{hash: 0, retired: 0, unimportable: 1, new: 0}
+                 %{
+                   hash: 0,
+                   retired: 0,
+                   unimportable: 1,
+                   economics: 0,
+                   internal_transfer: 0,
+                   new: 0
+                 }
       end
     end
   end
