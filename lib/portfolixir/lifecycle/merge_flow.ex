@@ -5,9 +5,10 @@ defmodule Portfolixir.Lifecycle.MergeFlow do
   merge, the guard results a preview and a refusal carry, and the JSON form
   of the record a merge writes.
 
-  Shared by the cash-account merge (`Portfolixir.Lifecycle.CashMerge`) and
-  the depot merge (`Portfolixir.Lifecycle.DepotMerge`), so the consent rules
-  cannot drift apart between them:
+  Shared by the cash-account merge (`Portfolixir.Lifecycle.CashMerge`), the
+  depot merge (`Portfolixir.Lifecycle.DepotMerge`) and the security merge
+  (`Portfolixir.Lifecycle.SecurityMerge`), so the consent rules cannot drift
+  apart between them:
 
     * `plan_digest` is required — the digest of the preview the operator
       approved (§10);

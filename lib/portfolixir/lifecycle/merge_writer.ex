@@ -16,7 +16,7 @@ defmodule Portfolixir.Lifecycle.MergeWriter do
 
   Shared by the merge kinds: the cash merge (`Portfolixir.Lifecycle.CashMerge`),
   the depot merge (`Portfolixir.Lifecycle.DepotMerge`) and the security merge
-  behind them.
+  (`Portfolixir.Lifecycle.SecurityMerge`).
   """
 
   alias Ecto.Changeset
