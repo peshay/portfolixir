@@ -178,6 +178,36 @@ defmodule Portfolixir.Catalog.ProviderDataBoundsTest do
     assert Decimal.equal?(rate, Decimal.new("1.1"))
   end
 
+  # Acceptance criteria:
+  # - Whatever a provider other than the ECB adapter returns, the FX sync
+  #   writer drops a rate dated past the bound or not positive, stores the
+  #   plausible rows of the same batch and answers ok, not a failed batch.
+  test "the FX sync writer drops what any provider returns out of bounds" do
+    today = Clock.today()
+
+    row = fn quote, rate, date ->
+      %{base_currency: "EUR", quote_currency: quote, date: date, rate: rate, source: "ecb"}
+    end
+
+    Portfolixir.Fx.RateSync.Fake.put_response(
+      {:ok,
+       [
+         row.("USD", "1.1", Date.add(today, -2)),
+         row.("GBP", "0.9", Date.add(today, 30)),
+         row.("CHF", "0", Date.add(today, -2))
+       ]}
+    )
+
+    log =
+      ExUnit.CaptureLog.capture_log(fn ->
+        assert {:ok, %{upserted: 1}} = RateSync.sync(provider: Portfolixir.Fx.RateSync.Fake)
+      end)
+
+    assert log =~ "dropped 2 implausible provider rate(s)"
+    assert [%ExchangeRate{quote_currency: "USD", rate: rate}] = Repo.all(ExchangeRate)
+    assert Decimal.equal?(rate, Decimal.new("1.1"))
+  end
+
   # User story:
   # As an operator and as the agent writing quotes and rates by hand,
   # I want the same plausibility bounds on every writer,
