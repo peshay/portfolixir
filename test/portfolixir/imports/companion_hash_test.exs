@@ -174,6 +174,33 @@ defmodule Portfolixir.Imports.CompanionHashTest do
     assert count(portfolio) == 0
   end
 
+  # User story (E25 S5, F37; ADR-0050 §3):
+  # As the operator reading the import preview's counts,
+  # I want a split-off refund counted with the row it came from when that
+  # row cannot be imported,
+  # so that the preview never promises a booking the apply will skip.
+  #
+  # Acceptance criteria:
+  # - A file of one unimportable row with a refund split off it counts both
+  #   rows unimportable, in the total and under the row's cash account and
+  #   depot, and none new — the refund alone would be importable.
+  test "a companion counts unimportable with a parent that is" do
+    portfolio = portfolio!()
+    unimportable = %{sell(2, "5", "7.50") | gross_amount: nil, kind: "fee"}
+
+    counts =
+      Imports.reimport_counts(%Preview{entries: [unimportable]}, portfolio_id: portfolio.id)
+
+    assert %{unimportable: 2, new: 0, hash: 0} = counts.total
+    assert %{unimportable: 2, new: 0} = counts.cash_accounts["Cash"]
+    assert %{unimportable: 2, new: 0} = counts.depots["Depot"]
+
+    alone =
+      Imports.reimport_counts(%Preview{entries: [refund(2, "7.50")]}, portfolio_id: portfolio.id)
+
+    assert %{unimportable: 0, new: 1} = alone.total
+  end
+
   defp types(portfolio) do
     from(t in Transaction,
       where: t.portfolio_id == ^portfolio.id,
@@ -311,6 +338,8 @@ defmodule Portfolixir.Imports.CompanionHashTest do
   # Acceptance criteria:
   # - A collapsed row's refund equal to its twin's refund collapses with it.
   # - A collapsed row's refund whose twin has none books.
+  # - The preview counts the collapsed row, and a refund collapsed with it,
+  #   as :economics (already booked), never :new (ADR-0050 §3).
   test "a collapsed row's refund collapses with its twin's, and books when its twin has none" do
     security = security_with_isin_change!()
 
@@ -332,6 +361,13 @@ defmodule Portfolixir.Imports.CompanionHashTest do
         | security: new_isin,
           companion_entries: [%{refund(3, "12.00") | security: new_isin}]
       }
+
+      # The preview counts what the apply will collapse as already booked.
+      counts =
+        Imports.reimport_counts(%Preview{entries: [twin, collapsed]}, portfolio_id: portfolio.id)
+
+      assert Map.take(counts.total, [:new, :economics]) ==
+               if(twin_refund?, do: %{new: 2, economics: 2}, else: %{new: 2, economics: 1})
 
       assert {:ok, result} =
                Imports.apply(%Preview{entries: [twin, collapsed]}, %{

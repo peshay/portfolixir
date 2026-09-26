@@ -157,6 +157,61 @@ defmodule Portfolixir.Imports.ApplierSecurityLadderTest do
       assert Catalog.count_securities() == 3
     end
 
+    # E25 S5, F37: a refund the parser split off a row is decided with that
+    # row. One whose row's security is left undecided is reported unresolved
+    # beside it, under the same key and reason, and books nothing.
+    test "a refund split off an unresolved row is reported unresolved with it" do
+      portfolio = setup_portfolio()
+      _a = security!(%{name: "Share Class A", wkn: "AMB001"})
+      _b = security!(%{name: "Share Class B", wkn: "AMB001"})
+      ref = %{isin: nil, wkn: "AMB001", ticker: nil, name: "Ambiguous", currency: "EUR"}
+
+      refund = %Entry{
+        source_row: "1.tax_refund.1",
+        kind: "tax_refund",
+        date: ~D[2024-04-01],
+        currency_code: "EUR",
+        gross_amount: Decimal.new("4.20"),
+        fees: Decimal.new("0"),
+        taxes: Decimal.new("0"),
+        security: ref,
+        pp_portfolio_name: "Test-Depot",
+        pp_account_name: "Test-Cash"
+      }
+
+      flagged = %{buy_entry(ref) | companion_entries: [refund]}
+
+      assert {:ok, %Result{} = result} =
+               Imports.apply(preview([flagged]), %{portfolio_id: portfolio.id})
+
+      assert [
+               %{row: 1, key: key, reason: reason},
+               %{row: "1.tax_refund.1", key: key, reason: reason}
+             ] = Enum.sort_by(result.unresolved_entries, &to_string(&1.row))
+
+      assert reason =~ "ambiguous"
+      assert result.created_transactions == 0
+      assert Ledger.count_transactions() == 0
+    end
+
+    # A security choice the preview never offers (a client's malformed
+    # mapping) is refused by its key before anything is written.
+    test "a security mapping of an unknown shape rolls the import back" do
+      portfolio = setup_portfolio()
+      entry = buy_entry(%{isin: nil, wkn: nil, ticker: nil, name: "New AG", currency: "EUR"})
+
+      for mapping <- [{:existing, "42"}, :skip, {:existing, 42, :rename}] do
+        assert {:error, {:invalid_security_mapping, _key}} =
+                 Imports.apply(preview([entry]), %{
+                   portfolio_id: portfolio.id,
+                   security_mappings: %{ref_key(entry) => mapping}
+                 })
+      end
+
+      assert Ledger.count_transactions() == 0
+      assert Catalog.count_securities() == 0
+    end
+
     test "a veto conflict (unrecorded ISIN change shape) is reported unresolved" do
       portfolio = setup_portfolio()
       _existing = security!(%{isin: "DE000OLD0014", wkn: "WRG111"})
