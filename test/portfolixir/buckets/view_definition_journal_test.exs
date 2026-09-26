@@ -129,6 +129,26 @@ defmodule Portfolixir.Buckets.ViewDefinitionJournalTest do
     assert deleted.before["memberships"]["view_exclude"] == []
   end
 
+  # Acceptance criteria:
+  # - Deleting a bucket in a view's exclude set removes it through the
+  #   journaled set writer too: a `view` entry holds the prior exclude set
+  #   and the new one, and the include set is unchanged.
+  test "deleting a bucket in a view's exclude set journals the view's prior sets" do
+    core = bucket!("Core")
+    satellite = bucket!("Satellite")
+    view = view!("Core without satellites", %{include_all: false})
+    :ok = Buckets.set_view_buckets(owner(), view, [core.id], [satellite.id])
+
+    assert {:ok, _} = Buckets.delete_bucket(owner(), satellite)
+
+    assert [cascade | _] = view_entries(view.id)
+    assert cascade.operation == :update
+    assert cascade.before["exclude_bucket_ids"] == [satellite.id]
+    assert cascade.after["exclude_bucket_ids"] == []
+    assert cascade.before["include_bucket_ids"] == [core.id]
+    assert cascade.after["include_bucket_ids"] == [core.id]
+  end
+
   # User story:
   # As the operator who gave a position its own buckets,
   # I want a position whose only specific bucket is deleted to stay at
@@ -202,7 +222,8 @@ defmodule Portfolixir.Buckets.ViewDefinitionJournalTest do
   # only removes a bucket from it.
   #
   # Acceptance criteria:
-  # - The delete succeeds; the override keeps its other buckets, journaled.
+  # - The delete succeeds; the override, the depot's default set and the
+  #   cash account's set keep their other buckets, journaled.
   # - Removing a bucket never re-checks the exclusive dimension, since it
   #   cannot add a conflict; the remaining buckets must still exist.
   test "a stored set that breaks the exclusive dimension does not block a bucket delete" do
@@ -211,13 +232,29 @@ defmodule Portfolixir.Buckets.ViewDefinitionJournalTest do
     scope_one = bucket!("Scope one", "scope")
     scope_two = bucket!("Scope two", "scope")
     tag = bucket!("Tag")
+    stale = [scope_one.id, scope_two.id, tag.id]
 
-    legacy_override!(world.depot.id, security.id, [scope_one.id, scope_two.id, tag.id])
+    legacy_override!(world.depot.id, security.id, stale)
+
+    legacy_set!(
+      Portfolixir.Buckets.SecuritiesAccountBucket,
+      :securities_account_id,
+      world.depot.id,
+      stale
+    )
+
+    legacy_set!(Portfolixir.Buckets.CashAccountBucket, :cash_account_id, world.cash.id, stale)
 
     assert {:ok, _} = Buckets.delete_bucket(owner(), tag)
 
     assert Buckets.position_override(world.depot.id, security.id) ==
              {:explicit, Enum.sort([scope_one.id, scope_two.id])}
+
+    assert Enum.sort(Buckets.depot_default_bucket_ids(world.depot.id)) ==
+             Enum.sort([scope_one.id, scope_two.id])
+
+    assert Enum.sort(Buckets.cash_account_bucket_ids(world.cash.id)) ==
+             Enum.sort([scope_one.id, scope_two.id])
 
     assert {:error, :exclusive_bucket_conflict} =
              Buckets.set_position_override(owner(), world.depot, security, [
@@ -289,6 +326,20 @@ defmodule Portfolixir.Buckets.ViewDefinitionJournalTest do
             bucket_ids,
             &%{securities_account_id: depot_id, security_id: security_id, bucket_id: &1}
           )
+        )
+      end)
+  end
+
+  # A depot default set or a cash account set as a writer before the fix
+  # round stored it: rows inserted raw.
+  defp legacy_set!(schema, owner_key, owner_id, bucket_ids) do
+    {:ok, _} =
+      Repo.transaction(fn ->
+        Repo.query!("SELECT set_config('portfolixir.journal_actor', 'test', true)")
+
+        Repo.insert_all(
+          schema,
+          Enum.map(bucket_ids, &%{owner_key => owner_id, bucket_id: &1})
         )
       end)
   end
