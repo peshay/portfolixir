@@ -60,6 +60,7 @@ defmodule Portfolixir.Lifecycle.AccountNames do
   alias Ecto.Changeset
   alias Ecto.Multi
   alias Portfolixir.Actor
+  alias Portfolixir.Input.Text
   alias Portfolixir.Journal
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.SecuritiesAccount
@@ -575,6 +576,12 @@ defmodule Portfolixir.Lifecycle.AccountNames do
   journaled. An import that still names it resolves to no account from then
   on, and creates a new one. A name the account does not carry answers
   `{:error, :not_a_former_name}`; a vanished account `{:error, :not_found}`.
+
+  `name` is the stored former name, or its spelling with every invisible
+  character written `[U+XXXX]` (`Portfolixir.Input.Text.escape_invisible/1`,
+  E25 S7 review round, S7E-6): the MCP companion hands the agent a legacy
+  name stored before such characters were refused only in that spelling. A
+  stored name that is those very letters is matched first.
   """
   @spec remove_former_name(Actor.t(), account(), String.t()) ::
           {:ok, account()} | {:error, :not_a_former_name | :not_found | Changeset.t()}
@@ -582,14 +589,22 @@ defmodule Portfolixir.Lifecycle.AccountNames do
       when schema in @schemas and is_binary(name) do
     Repo.transaction(fn ->
       with {:ok, account} <- locked(schema, id),
-           true <- name in account.former_names || {:error, :not_a_former_name},
+           {:ok, stored} <- stored_former_name(account.former_names, name),
            {:ok, updated} <-
-             write_former_names(actor, account, List.delete(account.former_names, name)) do
+             write_former_names(actor, account, List.delete(account.former_names, stored)) do
         updated
       else
         {:error, reason} -> Repo.rollback(reason)
       end
     end)
+  end
+
+  defp stored_former_name(former_names, name) do
+    cond do
+      name in former_names -> {:ok, name}
+      stored = Enum.find(former_names, &(Text.escape_invisible(&1) == name)) -> {:ok, stored}
+      true -> {:error, :not_a_former_name}
+    end
   end
 
   # --- shared ---------------------------------------------------------------------

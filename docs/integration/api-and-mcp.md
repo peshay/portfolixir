@@ -978,7 +978,10 @@ Example quote sync response:
   name, journaled, and answers the account
   (`portfolixir.cash_accounts.remove_former_name`). An import that still names
   '<name>' will then create a new account. A name the account does not carry
-  answers `404`, a missing `name` `422`.
+  answers `404`, a missing `name` `422`. A name stored before invisible
+  characters were refused may be given in the spelling the MCP companion
+  lists it in, each such character written `[U+XXXX]`; a stored name of those
+  very letters is matched first (E25).
 - `DELETE /api/v1/cash_accounts/:id` deletes a cash account that no
   transaction references through either leg and no securities account links
   to. Otherwise it returns `409 Conflict` with `errors.referenced_by` (for
@@ -1101,7 +1104,8 @@ Example quote sync response:
 - `DELETE /api/v1/securities_accounts/:id/former_names?name=` removes one
   former name of a depot, journaled, and answers the depot
   (`portfolixir.securities_accounts.remove_former_name`). An import that still
-  names '<name>' will then create a new depot.
+  names '<name>' will then create a new depot. The name is matched as for a
+  cash account, the `[U+XXXX]` spelling included.
 - `DELETE /api/v1/securities_accounts/:id` deletes a securities account that
   no transaction references through either leg. Otherwise it returns
   `409 Conflict` with `errors.referenced_by`, `errors.remedy` `merge` and

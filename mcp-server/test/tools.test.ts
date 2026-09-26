@@ -1675,6 +1675,9 @@ describe("Portfolixir MCP tools", () => {
       const remove = describe(`portfolixir.${kind}.remove_former_name`);
       assert.match(remove, /journaled/);
       assert.match(remove, /An import that still names '<name>' will then create a new account\./);
+      // E25 S7 review round, S7E-6: a legacy name reaches the agent escaped,
+      // and the API takes it back in that spelling.
+      assert.match(remove, /spelled \[U\+XXXX\].*pass it as listed/);
     }
   });
 

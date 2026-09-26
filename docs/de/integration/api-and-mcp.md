@@ -1001,7 +1001,11 @@ Beispiel-Antwort für Kurssynchronisierung:
   früheren Namen, journalisiert, und antwortet mit dem Konto
   (`portfolixir.cash_accounts.remove_former_name`). Ein Import, der '<name>'
   noch nennt, legt dann ein neues Konto an. Ein Name, den das Konto nicht
-  trägt, antwortet `404`, ein fehlender `name` `422`.
+  trägt, antwortet `404`, ein fehlender `name` `422`. Ein Name, der vor der
+  Ablehnung unsichtbarer Zeichen gespeichert wurde, darf in der Schreibweise
+  angegeben werden, in der der MCP-Begleitdienst ihn auflistet, jedes solche
+  Zeichen als `[U+XXXX]`; ein gespeicherter Name aus genau diesen Buchstaben
+  wird zuerst getroffen (E25).
 - `DELETE /api/v1/cash_accounts/:id` löscht ein Geldkonto, auf das keine
   Transaktion über eines ihrer beiden Konten verweist und das kein
   Wertpapierkonto verknüpft. Sonst liefert es `409 Conflict` mit
@@ -1135,7 +1139,8 @@ Beispiel-Antwort für Kurssynchronisierung:
 - `DELETE /api/v1/securities_accounts/:id/former_names?name=` entfernt einen
   früheren Namen eines Depots, journalisiert, und antwortet mit dem Depot
   (`portfolixir.securities_accounts.remove_former_name`). Ein Import, der
-  '<name>' noch nennt, legt dann ein neues Depot an.
+  '<name>' noch nennt, legt dann ein neues Depot an. Der Name wird wie beim
+  Geldkonto getroffen, die Schreibweise `[U+XXXX]` eingeschlossen.
 - `DELETE /api/v1/securities_accounts/:id` löscht ein Wertpapierkonto, auf das
   keine Transaktion über eines ihrer beiden Konten verweist. Sonst liefert es
   `409 Conflict` mit `errors.referenced_by`, `errors.remedy` `merge` und
