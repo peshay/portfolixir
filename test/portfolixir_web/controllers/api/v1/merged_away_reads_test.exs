@@ -63,6 +63,50 @@ defmodule PortfolixirWeb.Api.V1.MergedAwayReadsTest do
     end
   end
 
+  # User story (closing act, EH-4):
+  # As the agent holding the id of a security merged into one the operator
+  # deleted since (allowed once it held nothing),
+  # I want the answer to say the chain ends at a deleted row,
+  # so that I am never sent to an id that no longer exists (ADR-0050 §12's
+  # "live end").
+  #
+  # Acceptance criteria:
+  # - GET the merged-away security and a route under it answer 404 without
+  #   merged_into, the detail naming the deleted survivor; a merge of it
+  #   answers already_merged without merged_into.
+  test "a chain whose survivor was deleted since names no merged_into", ctx do
+    {:ok, _} = Catalog.delete_security(Actor.owner_ui(), ctx.target)
+
+    for path <- [
+          "/api/v1/securities/#{ctx.source.id}",
+          "/api/v1/securities/#{ctx.source.id}/quotes"
+        ] do
+      assert %{"errors" => errors} = ctx.conn |> get(path) |> json_response(404), path
+      refute Map.has_key?(errors, "merged_into"), path
+
+      assert errors["detail"] ==
+               "security ##{ctx.source.id} was merged into security ##{ctx.target.id}, " <>
+                 "which has since been deleted",
+             path
+    end
+
+    other = security!("Synthetic Harbour Fund")
+
+    assert %{"errors" => errors} =
+             ctx.conn
+             |> post("/api/v1/securities/#{ctx.source.id}/merge", %{
+               target_id: other.id,
+               plan_digest: "sha256:whatever"
+             })
+             |> json_response(409)
+
+    assert errors["code"] == "already_merged"
+    refute Map.has_key?(errors, "merged_into")
+
+    assert errors["detail"] =~
+             "security ##{ctx.target.id}, where the chain ends, has since been deleted"
+  end
+
   defp routes(id) do
     [
       {:get, "/api/v1/securities/#{id}/quotes", nil},

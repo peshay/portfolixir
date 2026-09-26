@@ -209,16 +209,28 @@ defmodule PortfolixirWeb.Api.V1.MergeController do
   end
 
   defp refuse(conn, kind, {:already_merged, record}, source_id) do
-    survivor = Lifecycle.merged_into(kind, source_id) || record.target_id
-
-    conflict(
-      conn,
-      :already_merged,
+    merged =
       "#{noun(kind)} ##{source_id} was merged into #{noun(kind)} ##{record.target_id} " <>
-        "(merge record ##{record.id}) and no longer exists; its bookings live on " <>
-        "#{noun(kind)} ##{survivor}",
-      %{merged_into: %{kind: Atom.to_string(kind), id: survivor}, merge_record_id: record.id}
-    )
+        "(merge record ##{record.id}) and no longer exists"
+
+    case Lifecycle.merge_chain_end(kind, source_id) do
+      {:live, survivor} ->
+        conflict(
+          conn,
+          :already_merged,
+          merged <> "; its bookings live on #{noun(kind)} ##{survivor}",
+          %{merged_into: %{kind: Atom.to_string(kind), id: survivor}, merge_record_id: record.id}
+        )
+
+      # The survivor at the chain's end was deleted since: nothing to point at.
+      {:deleted, last} ->
+        conflict(
+          conn,
+          :already_merged,
+          merged <> "; #{noun(kind)} ##{last}, where the chain ends, has since been deleted",
+          %{merge_record_id: record.id}
+        )
+    end
   end
 
   defp refuse(conn, _kind, {:choice_required, :collapse_key_equal, pairs}, _source_id) do

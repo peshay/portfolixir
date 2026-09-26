@@ -269,13 +269,39 @@ defmodule Portfolixir.Lifecycle do
   The survivor of a merged-away row: the target of the merge record whose
   source is `id` under `kind`, followed through every later merge of that
   target to the live end of the chain (ADR-0050 §10, §12). `nil` when no merge
-  record names `id` as its source.
+  record names `id` as its source — and when the chain ends at a row deleted
+  since (a survivor may be deleted once it holds nothing), because a pointer
+  to a row that no longer exists is no survivor (`merge_chain_end/2` says
+  which).
   """
   @spec merged_into(:cash_account | :securities_account | :security, integer()) ::
           integer() | nil
-  def merged_into(kind, id)
-      when kind in [:cash_account, :securities_account, :security] and is_integer(id),
-      do: follow(kind, id, nil, @max_chain)
+  def merged_into(kind, id) do
+    case merge_chain_end(kind, id) do
+      {:live, survivor} -> survivor
+      _deleted_or_none -> nil
+    end
+  end
+
+  @doc """
+  Where the merge chain that starts at `id` under `kind` ends: `{:live, id}`
+  when that row exists, `{:deleted, id}` when it was deleted after the merge,
+  and `nil` when no merge record names `id` as its source.
+  """
+  @spec merge_chain_end(:cash_account | :securities_account | :security, integer()) ::
+          {:live, integer()} | {:deleted, integer()} | nil
+  def merge_chain_end(kind, id)
+      when kind in [:cash_account, :securities_account, :security] and is_integer(id) do
+    case follow(kind, id, nil, @max_chain) do
+      nil ->
+        nil
+
+      last ->
+        if Repo.exists?(from(r in Map.fetch!(@live_schemas, kind), where: r.id == ^last)),
+          do: {:live, last},
+          else: {:deleted, last}
+    end
+  end
 
   defp follow(_kind, _id, found, 0), do: found
 

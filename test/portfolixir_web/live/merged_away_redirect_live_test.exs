@@ -62,6 +62,20 @@ defmodule PortfolixirWeb.MergedAwayRedirectLiveTest do
     refute has_element?(view, "[data-role='merged-notice']")
   end
 
+  # Acceptance criteria (closing act, EH-4):
+  # - Once the survivor at the chain's end is deleted (allowed once it holds
+  #   nothing), the old link no longer patches to it: it selects nothing,
+  #   like an id no merge names.
+  test "an old link whose survivor was deleted since selects nothing", %{conn: conn} do
+    source = security!("Gone Fund")
+    target = security!("Gone Fund")
+    merge!(source, target)
+    {:ok, _} = Catalog.delete_security(Actor.owner_ui(), target)
+
+    assert {:ok, view, _html} = live(conn, "/securities/#{source.id}")
+    refute has_element?(view, "#security-detail-pane")
+  end
+
   # User story:
   # As the operator whose benchmark was merged into another security,
   # I want the Wealth page to compare against the survivor and say so once,

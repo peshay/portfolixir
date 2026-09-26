@@ -513,7 +513,9 @@ lesson applies: an invariant is swept over every writer of the table.
   as a former name on Accounts & depots, and a list view lands **no later than
   Sprint 17** under the two-way deadline, which the close-out records. A read
   of a merged-away id answers **404** with `merged_into {kind, id}`, following
-  the chain to its live end.
+  the chain to its live end. *(Closing act:)* a chain whose end was deleted
+  since — a survivor may be deleted once it holds nothing — has no live end,
+  so it answers without `merged_into`, its detail naming the deleted row.
   `/securities/:id` and a benchmark parameter naming a merged-away security
   redirect to the survivor with a notice.
 - There is **no unmerge**. The manifest plus the journal's before-images make
