@@ -94,7 +94,21 @@ defmodule PortfolixirWeb.PortfolioLive do
   @unpriced_names_shown 6
 
   @impl true
-  def mount(params, _session, socket) do
+  def mount(params, session, socket) do
+    # ADR-0050 §12: a remembered or linked benchmark naming a security a
+    # merge took away redirects to the same page naming its survivor, so the
+    # BenchmarkScope plug remembers the survivor, and the page says so once.
+    case merged_benchmarks(socket.assigns[:active_benchmark_selectors]) do
+      [] ->
+        mount_page(params, session, socket)
+
+      merged ->
+        selectors = socket.assigns[:active_benchmark_selectors]
+        {:ok, redirect(socket, to: survivor_benchmark_path(params, selectors, merged))}
+    end
+  end
+
+  defp mount_page(params, _session, socket) do
     wealth_tab = wealth_tab(params)
 
     socket =
@@ -108,6 +122,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       |> assign(:error, nil)
       |> assign(:view_gone_notice, false)
       |> assign(:classification_gone_notice, false)
+      |> assign(:benchmark_merged, benchmark_merged_notes(params, socket))
       |> assign_migration_notice()
 
     # ADR-0024: the empty state keys on the bookkeeping entities (depots and
@@ -1440,6 +1455,29 @@ defmodule PortfolixirWeb.PortfolioLive do
                banner names the data it CONTAINS (booking count, newest booking,
                compute time), not just its age; a failed recomputation flips to
                an error state instead of letting the old number settle. --%>
+          <%!-- ADR-0050 §12 (board 13): the benchmark link named a security
+               a merge took away; the page compares with its survivor and
+               says so once, until the next navigation or the dismiss. --%>
+          <div :if={@benchmark_merged != []} class="inline-result" role="status">
+            <AppShell.data_note severity={:note} data-role="benchmark-merged">
+              <%= for note <- @benchmark_merged do %>
+                <%= gettext(
+                  "The benchmark named a security that was merged into “%{name}” on %{date}; the comparison now uses it.",
+                  name: note.name,
+                  date: Format.date(note.merged_on)
+                ) %>
+              <% end %>
+              <button
+                type="button"
+                class="inline-result__dismiss"
+                phx-click="dismiss_benchmark_merged"
+                aria-label={gettext("Dismiss")}
+                title={gettext("Dismiss")}
+              >
+                &times;
+              </button>
+            </AppShell.data_note>
+          </div>
           <p
             :if={@performance_stale and not @performance_failed and @analysis}
             class="perf-stale-banner"
@@ -2739,6 +2777,68 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp resolve_benchmarks(_selectors), do: []
 
+  # The selectors naming a security a merge took away, each with the live
+  # end of its merge chain: `[{old_id, survivor_id}]`.
+  defp merged_benchmarks(selectors) when is_list(selectors) do
+    for "security:" <> raw <- selectors,
+        {:ok, id} <- [LiveParam.fetch_id(raw)],
+        is_nil(Portfolixir.Catalog.get_security(id)),
+        survivor = Portfolixir.Lifecycle.merged_into(:security, id),
+        is_integer(survivor),
+        do: {id, survivor}
+  end
+
+  defp merged_benchmarks(_selectors), do: []
+
+  # The same page with every active selector — remembered or linked — naming
+  # the survivor, the rate kept, and the merged ids in `benchmark_merged` for
+  # the note. The selectors ride as `benchmark[]`, so the plug remembers them.
+  defp survivor_benchmark_path(params, active, merged) do
+    survivors = Map.new(merged)
+
+    selectors =
+      Enum.map(active, fn
+        "security:" <> raw = selector ->
+          case LiveParam.fetch_id(raw) do
+            {:ok, id} -> if s = survivors[id], do: "security:#{s}", else: selector
+            :error -> selector
+          end
+
+        selector ->
+          selector
+      end)
+
+    query =
+      params
+      |> Map.take(["tab", "view", "locale"])
+      |> Enum.to_list()
+      |> Kernel.++(Enum.map(Enum.uniq(selectors), &{"benchmark[]", &1}))
+      |> Kernel.++([{"benchmark_merged", Enum.map_join(merged, ",", &elem(&1, 0))}])
+      |> URI.encode_query()
+
+    "/portfolio?" <> query
+  end
+
+  # The note says only what the records say: each id in `benchmark_merged`
+  # must name a security a merge took away into an active benchmark.
+  defp benchmark_merged_notes(%{"benchmark_merged" => raw}, socket) when is_binary(raw) do
+    active =
+      for "security:" <> id <- socket.assigns[:active_benchmark_selectors] || [],
+          {:ok, parsed} <- [LiveParam.fetch_id(id)],
+          do: parsed
+
+    for part <- raw |> String.split(",") |> Enum.take(2),
+        {:ok, from} <- [LiveParam.fetch_id(part)],
+        survivor = Portfolixir.Lifecycle.merged_into(:security, from),
+        survivor in active,
+        record = Portfolixir.Lifecycle.merge_of(:security, from),
+        security = Portfolixir.Catalog.get_security(survivor),
+        not is_nil(record) and not is_nil(security),
+        do: %{name: security.name, merged_on: Portfolixir.Clock.local_date(record.inserted_at)}
+  end
+
+  defp benchmark_merged_notes(_params, _socket), do: []
+
   defp resolve_benchmark_security(id) do
     with {:ok, id} <- LiveParam.fetch_id(id),
          %Portfolixir.Catalog.Security{is_benchmark: true} = security <-
@@ -3057,6 +3157,10 @@ defmodule PortfolixirWeb.PortfolioLive do
   # pushed to it meets none of the state a control assumes, and changes
   # nothing (E25 S4, F17).
   @impl true
+  def handle_event("dismiss_benchmark_merged", _params, socket) do
+    {:noreply, assign(socket, :benchmark_merged, [])}
+  end
+
   def handle_event(_event, _params, %{assigns: %{portfolio: nil}} = socket),
     do: {:noreply, socket}
 

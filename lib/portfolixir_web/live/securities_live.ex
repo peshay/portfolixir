@@ -31,6 +31,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Knowledge.ThesisState
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Projection
+  alias Portfolixir.Lifecycle
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Valuation
   alias PortfolixirWeb.AppShell
@@ -148,6 +149,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:editing_security, nil)
      |> assign(:delete_blocked, nil)
      |> assign(:delete_blocked_rules, [])
+     # ADR-0050 §12 (board 03): the note a link to a merged-away security
+     # leaves on its survivor's detail, until the next navigation.
+     |> assign(:merged_notice, nil)
      |> assign(:logo_dialog_security, nil)
      |> assign(:securities, [])}
   end
@@ -180,18 +184,58 @@ defmodule PortfolixirWeb.SecuritiesLive do
     # no security can carry selects nothing, as an unknown one does.
     case LiveParam.id(params["id"]) do
       nil ->
-        {:noreply, clear_selection(socket) |> assign(:detail_tab, tab)}
+        {:noreply,
+         socket |> assign(:merged_notice, nil) |> clear_selection() |> assign(:detail_tab, tab)}
 
       id ->
         case Catalog.get_security(id) do
           %Security{} = security ->
-            {:noreply, socket |> assign(:detail_tab, tab) |> select_security(security)}
+            {:noreply,
+             socket
+             |> assign(:merged_notice, merged_notice(params, id))
+             |> assign(:detail_tab, tab)
+             |> select_security(security)}
 
           nil ->
-            {:noreply, clear_selection(socket) |> assign(:detail_tab, tab)}
+            follow_merge(socket, id, params, tab)
         end
     end
   end
+
+  # ADR-0050 §12: a link naming a security a merge took away patches to the
+  # survivor — followed through every later merge to the live end — carrying
+  # the id it came from, so the survivor's detail says so once (board 03).
+  # An id no merge names selects nothing.
+  defp follow_merge(socket, id, params, tab) do
+    case Lifecycle.merged_into(:security, id) do
+      survivor when is_integer(survivor) ->
+        query =
+          params
+          |> Map.drop(["id"])
+          |> Map.put("merged_from", Integer.to_string(id))
+          |> URI.encode_query()
+
+        {:noreply, push_patch(socket, to: "/securities/#{survivor}?" <> query, replace: true)}
+
+      nil ->
+        {:noreply,
+         socket |> assign(:merged_notice, nil) |> clear_selection() |> assign(:detail_tab, tab)}
+    end
+  end
+
+  # The note says only what the records say: `merged_from` names a security a
+  # merge took away into the one shown, or nothing is noted.
+  defp merged_notice(%{"merged_from" => raw}, id) do
+    with {:ok, from} <- LiveParam.fetch_id(raw),
+         ^id <- Lifecycle.merged_into(:security, from),
+         %Lifecycle.MergeRecord{} = record <- Lifecycle.merge_of(:security, from) do
+      %{merged_on: Portfolixir.Clock.local_date(record.inserted_at)}
+    else
+      _no_merge -> nil
+    end
+  end
+
+  defp merged_notice(_params, _id), do: nil
 
   defp safe_tab(tab) when is_binary(tab) and tab in @tabs, do: tab
   defp safe_tab(_), do: @default_tab
@@ -865,6 +909,29 @@ defmodule PortfolixirWeb.SecuritiesLive do
       id="security-detail-pane"
       aria-label={gettext("Selected security")}
     >
+      <%!-- ADR-0050 §12 (board 03): an old link to a merged-away security
+           landed here; said once, dismissible, gone with the next
+           navigation. --%>
+      <div
+        :if={@merged_notice}
+        class="inline-result"
+        role="status"
+      >
+        <AppShell.data_note severity={:note} data-role="merged-notice">
+          <%= gettext("The link led to a security that was merged into this one on %{date}.",
+            date: Format.date(@merged_notice.merged_on)
+          ) %>
+          <button
+            type="button"
+            class="inline-result__dismiss"
+            phx-click="dismiss_merged_notice"
+            aria-label={gettext("Dismiss")}
+            title={gettext("Dismiss")}
+          >
+            &times;
+          </button>
+        </AppShell.data_note>
+      </div>
       <header class="detail-pane-head">
         <div class="detail-pane-head__title">
           <.security_logo security={@selected_security} variant="lg" />
@@ -4355,6 +4422,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   def handle_event("dismiss_result", _params, socket) do
     {:noreply, assign(socket, :action_result, nil)}
+  end
+
+  def handle_event("dismiss_merged_notice", _params, socket) do
+    {:noreply, assign(socket, :merged_notice, nil)}
   end
 
   def handle_event("remove_filter", %{"idx" => idx}, socket) do

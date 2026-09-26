@@ -8518,3 +8518,13 @@ msgstr[1] "Bei %{count} Positionen unterscheiden sich die Buckets, die Ansichten
 #, elixir-autogen, elixir-format
 msgid "in %{source} and %{target}"
 msgstr "in %{source} und %{target}"
+
+## ADR-0050 §12 (L5a): a link naming a merged-away security (boards 03, 13).
+
+#, elixir-autogen, elixir-format
+msgid "The link led to a security that was merged into this one on %{date}."
+msgstr "Der Link führte zu einem Wertpapier, das am %{date} hierher zusammengeführt wurde."
+
+#, elixir-autogen, elixir-format
+msgid "The benchmark named a security that was merged into “%{name}” on %{date}; the comparison now uses it."
+msgstr "Der Benchmark nannte ein Wertpapier, das am %{date} in „%{name}“ zusammengeführt wurde; verglichen wird jetzt damit."
