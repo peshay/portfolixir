@@ -1,6 +1,10 @@
 defmodule PortfolixirWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :portfolixir
 
+  # Every response carries the resource policy and a content-security-policy,
+  # the error pages and refusals built outside the router included (SR-1).
+  @before_compile PortfolixirWeb.DefaultResponseHeaders
+
   # The salt is derived from the secret key base per installation (#759,
   # ADR-0045 §2) instead of a literal shared by every checkout; `secure` is
   # left to Plug, which sets it when the scheme is https — real or, behind a

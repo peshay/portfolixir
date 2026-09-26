@@ -39,8 +39,10 @@ secret defaults. Since Sprint 11 (#382, #772): every browser page carries a
 layout's inline boot scripts through a per-request nonce, no inline event
 handlers, no `eval`, no foreign origins — and the HTTP server is Bandit, which
 took cowlib and its unfixed advisories out of the tree. Every browser
-response, the stored logos and the static assets included, carries
-`Cross-Origin-Resource-Policy: same-origin`, so a page on another site open in
+response, the stored logos, the static assets and the error pages and
+refusals built outside the router included, carries
+`Cross-Origin-Resource-Policy: same-origin` (and every one that is not JSON a
+`Content-Security-Policy`), so a page on another site open in
 the same browser can neither embed nor probe them, and a view, benchmark or
 language choice in a link from another site (`Sec-Fetch-Site` other than
 `same-origin` or `none`) applies to the page it opens and is never remembered
