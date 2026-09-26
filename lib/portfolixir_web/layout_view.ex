@@ -964,6 +964,14 @@ defmodule PortfolixirWeb.LayoutView do
                 this.el.addEventListener("cancel", this.onCancel);
                 this.el.addEventListener("close", this.onClose);
                 this.el.addEventListener("keydown", this.onKeydown);
+                // A note the server puts at the head of a scrolled body (a
+                // merge's changed plan or refusal) is brought into view.
+                this.handleEvent("modal:scroll-top", function (payload) {
+                  if (payload && payload.id === self.el.id) {
+                    var body = self.el.querySelector(".modal-body");
+                    if (body) body.scrollTop = 0;
+                  }
+                });
               },
               // morphdom strips the client-set `open` attribute on every
               // server patch (the template never renders it), which would

@@ -322,20 +322,29 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
 
       {:error, {:plan_changed, fresh}} ->
         {:noreply,
-         assign(socket,
+         socket
+         |> assign(
            preview: fresh,
            refused: nil,
            collapse: nil,
            stale: MergePreview.changes(kind, preview, fresh)
-         )}
+         )
+         |> scroll_to_top()}
 
       {:error, {:refused, guards}} ->
-        {:noreply, assign(socket, preview: nil, refused: guards, collapse: nil)}
+        {:noreply,
+         socket |> assign(preview: nil, refused: guards, collapse: nil) |> scroll_to_top()}
 
       {:error, refusal} ->
         {:noreply, assign(socket, problem: problem(refusal))}
     end
   end
+
+  # The note a changed plan or a refusal puts at the head of step 2 is out of
+  # view when the operator had scrolled to the choice (the closing act,
+  # DC-2): the dialog's hook scrolls its body back up.
+  defp scroll_to_top(socket),
+    do: push_event(socket, "modal:scroll-top", %{id: socket.assigns.id})
 
   defp preview("cash", source_id, target_id),
     do: Lifecycle.preview_cash_merge(source_id, target_id)

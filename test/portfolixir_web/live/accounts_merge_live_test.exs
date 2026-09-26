@@ -325,6 +325,11 @@ defmodule PortfolixirWeb.AccountsMergeLiveTest do
 
       refute has_element?(view, "#merge-dialog input[name='merge[collapse]'][checked]")
       assert has_element?(view, "#merge-dialog [data-role='merge-confirm'][disabled]")
+
+      # The note sits at the head of step 2, and the body the operator
+      # scrolled down to the choice is scrolled back to it (the closing act,
+      # DC-2): the dialog's hook takes this event.
+      assert_push_event(view, "modal:scroll-top", %{id: "merge-dialog"})
     end
 
     test "Back returns to step 1 with the target kept", ctx do

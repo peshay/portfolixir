@@ -520,7 +520,8 @@ defmodule PortfolixirWeb.Securities.MergeDialog do
 
       {:error, {:plan_changed, fresh}} ->
         {:noreply,
-         assign(socket,
+         socket
+         |> assign(
            totals: totals(source.id, target_id),
            preview: fresh,
            refused: nil,
@@ -528,15 +529,18 @@ defmodule PortfolixirWeb.Securities.MergeDialog do
            choices: blank_choices(),
            field_error: nil,
            stale: MergePreview.changes(preview, fresh)
-         )}
+         )
+         |> scroll_to_top()}
 
       {:error, {:refused, guards}} ->
         {:noreply,
-         assign(socket,
+         socket
+         |> assign(
            preview: nil,
            refused: guards,
            reverse: reverse_refusal(guards, source.id, target_id)
-         )}
+         )
+         |> scroll_to_top()}
 
       {:error, {:invalid, :isin_changed_on, _message}} ->
         {:noreply,
@@ -548,6 +552,12 @@ defmodule PortfolixirWeb.Securities.MergeDialog do
         {:noreply, assign(socket, problem: problem(refusal))}
     end
   end
+
+  # The note a changed plan or a refusal puts at the head of step 2 is out of
+  # view when the operator had scrolled to the choices (the closing act,
+  # DC-2): the dialog's hook scrolls its body back up.
+  defp scroll_to_top(socket),
+    do: push_event(socket, "modal:scroll-top", %{id: socket.assigns.id})
 
   defp blank_to_nil(value) when is_binary(value) do
     case String.trim(value) do

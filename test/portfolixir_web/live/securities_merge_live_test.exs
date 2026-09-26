@@ -590,6 +590,10 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
 
     refute has_element?(view, "#security-merge-dialog input[name='merge[identity]'][checked]")
     assert has_element?(view, "#security-merge-dialog [data-role='merge-confirm'][disabled]")
+
+    # The body is scrolled back to the note at its head (the closing act,
+    # DC-2).
+    assert_push_event(view, "modal:scroll-top", %{id: "security-merge-dialog"})
   end
 
   # User story:
