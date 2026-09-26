@@ -17,13 +17,14 @@ defmodule PortfolixirWeb.Api.V1.SecurityMetricsController do
   alias Portfolixir.Catalog.SecurityMetrics
   alias PortfolixirWeb.Api.V1.DateParam
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.MergedAway
 
   def show(conn, %{"security_id" => security_id} = params) do
     with {:ok, as_of} <- as_of_param(params),
          {:ok, payload} <- SecurityMetrics.for_security(security_id, as_of_opts(as_of)) do
       json(conn, %{data: JSON.security_metrics(payload)})
     else
-      {:error, :not_found} -> not_found(conn)
+      {:error, :not_found} -> MergedAway.not_found(conn, :security, security_id)
       {:error, field} -> unprocessable(conn, %{field => ["is invalid"]})
     end
   end
@@ -46,11 +47,5 @@ defmodule PortfolixirWeb.Api.V1.SecurityMetricsController do
     conn
     |> put_status(:unprocessable_entity)
     |> json(%{errors: errors})
-  end
-
-  defp not_found(conn) do
-    conn
-    |> put_status(:not_found)
-    |> json(%{errors: %{detail: "not found"}})
   end
 end

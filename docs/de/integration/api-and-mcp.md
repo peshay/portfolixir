@@ -297,7 +297,10 @@ verengen, was der Betreiber sieht.
   `{"kind": "security", "id": …}`, dem Wertpapier, auf dem seine Historie
   jetzt liegt — über jede spätere Zusammenführung bis zum lebenden verfolgt
   —, und einem Detail, das beide nennt (ADR-0050 §12); eine ID, die keine
-  Zusammenführung nennt, antwortet mit dem einfachen `404`.
+  Zusammenführung nennt, antwortet mit dem einfachen `404`. Jede Route unter
+  `/api/v1/securities/:security_id/` antwortet einer zusammengeführten ID
+  ebenso — die Lesezugriffe auf Kurse, Trades, Kennzahlen, Notizen, Termine
+  und Logo und ihre Schreibzugriffe.
 - `PATCH /api/v1/securities/:id` aktualisiert ein Wertpapier mit einem
   `security`-Objekt. Das Boolean `treat_quotes_as_raw` (Standard `false`) ist
   die ADR-0028-Notluke für Anbieter, die ihre Historie nach einem

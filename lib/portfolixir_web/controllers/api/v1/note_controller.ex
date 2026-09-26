@@ -21,6 +21,7 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
   alias PortfolixirWeb.Api.V1.IntegerParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ListLimit
+  alias PortfolixirWeb.Api.V1.MergedAway
   alias PortfolixirWeb.Api.V1.SinceParam
 
   @log_note "Entries are append-only: never updated, never deleted. A refuted finding is " <>
@@ -71,7 +72,7 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
       json(conn, SinceParam.put_envelope(payload, since, @delta_note))
     else
       {:error, field} -> unprocessable(conn, %{field => ["is invalid"]})
-      nil -> not_found(conn)
+      nil -> MergedAway.not_found(conn, :security, security_id)
     end
   end
 
@@ -94,7 +95,7 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
         end
 
       nil ->
-        not_found(conn)
+        MergedAway.not_found(conn, :security, security_id)
     end
   end
 
@@ -257,11 +258,5 @@ defmodule PortfolixirWeb.Api.V1.NoteController do
     conn
     |> put_status(:unprocessable_entity)
     |> json(%{errors: errors})
-  end
-
-  defp not_found(conn) do
-    conn
-    |> put_status(:not_found)
-    |> json(%{errors: %{detail: "not found"}})
   end
 end

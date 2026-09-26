@@ -30,6 +30,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
   alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ListLimit
+  alias PortfolixirWeb.Api.V1.MergedAway
   alias PortfolixirWeb.Api.V1.SinceParam
 
   @events_note "An event is a dated calendar fact that books nothing (ADR-0048): a split " <>
@@ -79,7 +80,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
       json(conn, SinceParam.put_envelope(payload, since))
     else
       {:error, field} -> unprocessable(conn, %{field => ["is invalid"]})
-      nil -> not_found(conn)
+      nil -> MergedAway.not_found(conn, :security, security_id)
     end
   end
 
@@ -97,7 +98,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
         end
 
       nil ->
-        not_found(conn)
+        MergedAway.not_found(conn, :security, security_id)
     end
   end
 

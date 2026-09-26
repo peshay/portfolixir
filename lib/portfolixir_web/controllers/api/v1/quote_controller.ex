@@ -8,6 +8,7 @@ defmodule PortfolixirWeb.Api.V1.QuoteController do
   alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
   alias PortfolixirWeb.Api.V1.ListLimit
+  alias PortfolixirWeb.Api.V1.MergedAway
 
   def index(conn, %{"security_id" => security_id} = params) do
     with {:ok, id} <- IdParam.parse(security_id),
@@ -25,8 +26,8 @@ defmodule PortfolixirWeb.Api.V1.QuoteController do
 
       json(conn, %{data: quotes})
     else
-      :error -> not_found(conn)
-      nil -> not_found(conn)
+      :error -> MergedAway.not_found(conn, :security, security_id)
+      nil -> MergedAway.not_found(conn, :security, security_id)
       {:invalid_param, field} -> validation_error(conn, field)
     end
   end
@@ -56,13 +57,13 @@ defmodule PortfolixirWeb.Api.V1.QuoteController do
         |> json(%{errors: %{quotes: ["at most #{max} rows per request"]}})
 
       :error ->
-        not_found(conn)
+        MergedAway.not_found(conn, :security, security_id)
 
       nil ->
-        not_found(conn)
+        MergedAway.not_found(conn, :security, security_id)
 
       {:error, :not_found} ->
-        not_found(conn)
+        MergedAway.not_found(conn, :security, security_id)
 
       {:error, changeset} ->
         conn
@@ -94,9 +95,9 @@ defmodule PortfolixirWeb.Api.V1.QuoteController do
         }
       })
     else
-      :error -> not_found(conn)
-      nil -> not_found(conn)
-      {:error, :not_found} -> not_found(conn)
+      :error -> MergedAway.not_found(conn, :security, security_id)
+      nil -> MergedAway.not_found(conn, :security, security_id)
+      {:error, :not_found} -> MergedAway.not_found(conn, :security, security_id)
       {:invalid_param, field} -> validation_error(conn, field)
       {:missing_param, field} -> field_error(conn, field, "can't be blank")
       {:error, :invalid_range} -> field_error(conn, :to, "must be on or after from")
@@ -131,8 +132,8 @@ defmodule PortfolixirWeb.Api.V1.QuoteController do
           json(conn, %{data: sync_result(result)})
       end
     else
-      :error -> not_found(conn)
-      nil -> not_found(conn)
+      :error -> MergedAway.not_found(conn, :security, security_id)
+      nil -> MergedAway.not_found(conn, :security, security_id)
     end
   end
 
@@ -144,12 +145,6 @@ defmodule PortfolixirWeb.Api.V1.QuoteController do
       {:ok, date} -> {:ok, date}
       :error -> {:invalid_param, field}
     end
-  end
-
-  defp not_found(conn) do
-    conn
-    |> put_status(:not_found)
-    |> json(%{errors: %{detail: "not found"}})
   end
 
   # #771: sized above a security's whole daily history, a bound rather than a page.

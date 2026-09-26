@@ -8,7 +8,10 @@ defmodule PortfolixirWeb.Api.V1.MergedAway do
 
   Used by the reads of one security, one cash account and one depot
   (`GET /api/v1/securities/:id`, `/cash_accounts/:id`,
-  `/securities_accounts/:id`), and so by the MCP tools that read them.
+  `/securities_accounts/:id`) and by every route under
+  `/api/v1/securities/:security_id/` whose security is not found (its
+  quotes, trades, metrics, notes, events and logo, reads and writes), and so
+  by the MCP tools that call them.
   """
 
   import Plug.Conn, only: [put_status: 2]

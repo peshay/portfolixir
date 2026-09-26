@@ -10,10 +10,11 @@ defmodule PortfolixirWeb.Api.V1.LogoController do
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Security
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.MergedAway
 
   def show(conn, %{"security_id" => id}) do
     case Catalog.get_security(id) do
-      nil -> not_found(conn)
+      nil -> MergedAway.not_found(conn, :security, id)
       security -> json(conn, %{data: JSON.logo_status(security)})
     end
   end
@@ -24,7 +25,7 @@ defmodule PortfolixirWeb.Api.V1.LogoController do
          {:ok, updated} <- Catalog.set_logo_override(security, url, logo_opts()) do
       json(conn, %{data: JSON.logo_status(updated)})
     else
-      nil -> not_found(conn)
+      nil -> MergedAway.not_found(conn, :security, id)
       :error -> missing_url(conn)
       {:error, reason} -> unprocessable(conn, reason)
     end
@@ -35,14 +36,14 @@ defmodule PortfolixirWeb.Api.V1.LogoController do
          {:ok, updated} <- Catalog.remove_logo(security, logo_opts()) do
       json(conn, %{data: JSON.logo_status(updated)})
     else
-      nil -> not_found(conn)
+      nil -> MergedAway.not_found(conn, :security, id)
       {:error, reason} -> unprocessable(conn, reason)
     end
   end
 
   def discover(conn, %{"security_id" => id}) do
     case Catalog.get_security(id) do
-      nil -> not_found(conn)
+      nil -> MergedAway.not_found(conn, :security, id)
       security -> json(conn, %{data: discover_payload(security)})
     end
   end
@@ -75,12 +76,6 @@ defmodule PortfolixirWeb.Api.V1.LogoController do
   end
 
   defp trimmed_url(_url), do: :error
-
-  defp not_found(conn) do
-    conn
-    |> put_status(:not_found)
-    |> json(%{errors: %{detail: "not found"}})
-  end
 
   defp missing_url(conn) do
     conn
