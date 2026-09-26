@@ -173,6 +173,16 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
     assert {source_term, target_term, result_term} == {["5"], ["12"], ["17"]}
     assert sum =~ "15 shares if the equal booking is removed"
 
+    # The equal bookings have a two-line form under 720 px beside the table
+    # (the closing act, DC-10), so where each stands never scrolls away.
+    assert has_element?(view, "[data-role='merge-pairs'] .merge-wide table.merge-table")
+
+    pair_line =
+      view |> element("[data-role='merge-pairs'] .merge-lines.merge-narrow li") |> render()
+
+    assert pair_line =~ "2025-07-01"
+    assert pair_line =~ "Depot 1"
+
     counts = view |> element("#security-merge-dialog [data-role='merge-counts']") |> render()
     assert counts =~ ~r/<dt>2<\/dt>\s*<dd>\s*bookings move to the target/
     assert counts =~ ~r/<dt>1<\/dt>\s*<dd>\s*booking is equal in both securities/

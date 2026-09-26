@@ -593,6 +593,22 @@ defmodule PortfolixirWeb.AccountsMergeLiveTest do
       assert meridian =~ "90.00 · 80.00"
       assert meridian =~ "84.00"
 
+      # Under 720 px the positions are two-line rows, not a table that
+      # scrolls sideways (the closing act, UAT-11 / DC-10; board 02 at
+      # 390 px): the table is the wide form, the list the narrow one.
+      assert has_element?(view, ".data-table-wrapper.merge-wide table.merge-positions")
+
+      line =
+        view
+        |> element(
+          ".merge-lines.merge-narrow [data-role='merge-position-line'][data-id='#{ctx.meridian.id}']"
+        )
+        |> render()
+
+      assert line =~ "40 + 60 →"
+      assert line =~ "100"
+      assert line =~ "90.00 · 80.00 → 84.00"
+
       kestrel =
         view |> element("[data-role='merge-position'][data-id='#{ctx.kestrel.id}']") |> render()
 

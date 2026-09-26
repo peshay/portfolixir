@@ -346,7 +346,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
     </dl>
     <%= if @outcome.positions != [] do %>
       <h3 class="merge-block-head"><%= gettext("Affected positions") %></h3>
-      <div class="data-table-wrapper">
+      <div class="data-table-wrapper merge-wide">
         <table class="data-table merge-positions">
           <thead>
             <tr>
@@ -375,6 +375,24 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
           </tbody>
         </table>
       </div>
+      <%!-- Under 720 px each position is a two-line row, as the cash tables
+           are: nothing in the sheet scrolls sideways (board 02 at 390 px;
+           the closing act, UAT-11 / DC-10). --%>
+      <ul class="merge-lines merge-narrow">
+        <li :for={position <- @outcome.positions} data-role="merge-position-line" data-id={position.security_id}>
+          <span class="merge-lines__head"><%= position.security_name %></span>
+          <span class="merge-lines__figure num">
+            <%= quantity(position.source) %> + <%= quantity(position.target) %> →
+            <b><%= quantity(position.after) %></b>
+            <small>
+              <%= gettext("Avg. cost") %>: <%= money(position.source, :avg_cost) %> · <%= money(position.target, :avg_cost) %> → <%= money(position.after, :avg_cost) %>
+            </small>
+            <small>
+              <%= gettext("Realized gain/loss") %>: <%= money(position.source, :realized_result) %> · <%= money(position.target, :realized_result) %> → <%= money(position.after, :realized_result) %>
+            </small>
+          </span>
+        </li>
+      </ul>
       <p class="merge-basis">
         <%= gettext(
           "In each cell before above (%{source} + %{target}, or %{source} · %{target}), after below. Average cost and realized gain/loss in the security's currency, a moving average over both depots' buys, fees and taxes not included. Quantity per security = the sum of both depots, checked on every day; the market value of both depots together stays the same.",

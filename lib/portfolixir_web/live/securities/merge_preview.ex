@@ -545,7 +545,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
 
   defp pair_table(assigns) do
     ~H"""
-    <div class="data-table-wrapper">
+    <div class="data-table-wrapper merge-wide">
       <table class="data-table merge-table">
         <thead>
           <tr>
@@ -567,6 +567,20 @@ defmodule PortfolixirWeb.Securities.MergePreview do
         </tbody>
       </table>
     </div>
+    <%!-- Under 720 px each pair is a two-line row, as G2-B's are: where the
+         duplicate stands never scrolls out of the sheet (the closing act,
+         DC-10). --%>
+    <ul class="merge-lines merge-narrow">
+      <li :for={pair <- @pairs}>
+        <span class="merge-lines__head">
+          <%= Date.to_iso8601(pair.date) %> · <%= TransactionKindLabel.label(pair.type) %>
+        </span>
+        <span class="merge-lines__figure num">
+          <%= if pair.quantity, do: gettext("%{quantity} shares", quantity: Format.exact(pair.quantity)) <> " · " %><%= pair_amount(pair, @currency) %>
+          <small><%= pair_place(pair, @names) %></small>
+        </span>
+      </li>
+    </ul>
     """
   end
 
