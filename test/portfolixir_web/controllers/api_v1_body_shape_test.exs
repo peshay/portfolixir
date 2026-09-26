@@ -78,10 +78,15 @@ defmodule PortfolixirWeb.ApiV1BodyShapeTest do
       {:post, "/api/v1/securities", "security"},
       {:patch, "/api/v1/securities/#{security.id}", "security"},
       {:post, "/api/v1/portfolios/#{world.portfolio.id}/policy_rules", "rule"},
-      {:post, "/api/v1/policy_rules/#{rule.id}/versions", "version"}
+      {:post, "/api/v1/policy_rules/#{rule.id}/versions", "version"},
+      # The accounts' creates and renames (closing-act finding SR-2).
+      {:post, "/api/v1/cash_accounts", "cash_account"},
+      {:patch, "/api/v1/cash_accounts/#{world.cash.id}", "cash_account"},
+      {:post, "/api/v1/securities_accounts", "securities_account"},
+      {:patch, "/api/v1/securities_accounts/#{world.depot.id}", "securities_account"}
     ]
 
-    for {method, path, key} <- routes, bad <- ["x", 42, ["x"]] do
+    for {method, path, key} <- routes, bad <- ["x", 42, ["x"], true] do
       conn = dispatch(conn, @endpoint, method, path, %{key => bad})
 
       assert conn.status == 422,

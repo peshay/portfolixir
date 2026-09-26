@@ -1,6 +1,9 @@
 defmodule PortfolixirWeb.Api.V1.SecuritiesAccountController do
   use PortfolixirWeb, :controller
 
+  # #853: a wrapper that is not a JSON object is a 422 naming it, never a 500.
+  plug(PortfolixirWeb.Api.V1.BodyObject, "securities_account" when action in [:create, :update])
+
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias PortfolixirWeb.Api.V1.IdParam

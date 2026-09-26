@@ -1,6 +1,9 @@
 defmodule PortfolixirWeb.Api.V1.CashAccountController do
   use PortfolixirWeb, :controller
 
+  # #853: a wrapper that is not a JSON object is a 422 naming it, never a 500.
+  plug(PortfolixirWeb.Api.V1.BodyObject, "cash_account" when action in [:create, :update])
+
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CashAccount
