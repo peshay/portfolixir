@@ -80,10 +80,11 @@ defmodule Portfolixir.Net.HttpTest do
     assert {:error, :deadline} = Http.get(req, url: @url, plug: plug)
   end
 
-  test "carries a connect timeout and retries off" do
+  test "carries a connect timeout, a pool that never reuses a connection, and retries off" do
     req = Http.new(max_bytes: 100, allowed_hosts: @hosts)
 
-    assert get_in(req.options, [:connect_options, :timeout]) == 5_000
+    assert get_in(req.options, [:finch, :conn_opts, :transport_opts, :timeout]) == 5_000
+    assert get_in(req.options, [:finch, :conn_max_idle_time]) == 0
     assert req.options[:retry] == false
   end
 
