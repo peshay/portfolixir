@@ -10,17 +10,17 @@ is its own row, as the plan asked after the 2026-09-24 runtime hotfix.
 
 ## Applied this batch
 
-| What | From → to | Commit | Why now |
+| What | From → to | Commit (by subject: the branch's history is cleaned before the merge, so hashes change) | Why now |
 | --- | --- | --- | --- |
-| BMAD core and method (`bmad-method`) | 6.11.0 → 6.12.0 | `0b6bd7f`, the branch's first commit | Deferred by Sprint 15 to the opening of this branch, so no batch is reviewed under a process that changed halfway. Run through the official installer with the module set and target the manifest records. |
-| BMAD `tea` | v1.19.0 → v1.27.2 (pinned tag) | `0b6bd7f` | Rode the opening re-pin, as Sprint 15 planned. v1.27.2 is still the newest tag. |
-| BMAD `cis` | v0.2.1 → v0.3.2 (pinned tag) | `0b6bd7f` | Same. v0.3.2 is still the newest tag. |
-| `lazy_html` (test only) | 0.1.12 → 0.1.13 | `70d5d74` | EEF-CVE-2026-92106 (low) was published against 0.1.12 on 2026-09-25 and turned CI's `hex.audit` gate red. It is LiveView's test DOM parser, so no shipped build carried it. |
-| `hpax` (transitive) | 1.0.4 → 1.1.0 | `9eaaca6` | A hardening release of the HPACK codec Mint and Bandit use (plan, Lane M). |
-| Compose and companion images by digest (E25 S2, F25) | tags → exact tag plus `sha256` digest | `c72b88e` | `postgres:18.6-alpine3.24@sha256:77f58511…` in both Compose files; the MCP companion's base `node:24.21.0-alpine3.24@sha256:ebfe2f90…`. Dependabot gained the `docker-compose` ecosystem, which moves tag and digest together and never proposes a PostgreSQL major. |
-| CI service images and toolchains (E25 S8, F60) | tags → digest; unchecked downloads → SHA-256 | `a17c3fa` | CI's database service is `postgres:18.6@sha256:5a5a84b1…` in both jobs; both stages of the MCP image name the Node base by digest; the agent install script refuses an OTP or Elixir archive whose SHA-256 does not match. S8's other supply-chain commits: pre-commit installed by hash and its hooks by commit (`015b448`, `467a6bb`), the MCP image and install run no dependency scripts (`55d7cfb`). |
-| Codecov project target (#314) | 85 % → 90 % | `2fab181` | The next ratchet step, confirmed against the current figure first (below). The stale comment in `codecov.yml` now states this step. |
-| Credo complexity ceiling (#314) | 15 → 13 | `ef6a0c0` | The two functions at 15 were split without a change in behaviour; the rest of the grandfathered debt is reported below, not forced. |
+| BMAD core and method (`bmad-method`) | 6.11.0 → 6.12.0 | the branch's first commit, "chore(bmad): re-pin core and method to 6.12.0, tea and cis to their current tags" | Deferred by Sprint 15 to the opening of this branch, so no batch is reviewed under a process that changed halfway. Run through the official installer with the module set and target the manifest records. |
+| BMAD `tea` | v1.19.0 → v1.27.2 (pinned tag) | the same first commit | Rode the opening re-pin, as Sprint 15 planned. v1.27.2 is still the newest tag. |
+| BMAD `cis` | v0.2.1 → v0.3.2 (pinned tag) | the same first commit | Same. v0.3.2 is still the newest tag. |
+| `lazy_html` (test only) | 0.1.12 → 0.1.13 | "chore(deps): lazy_html 0.1.12 -> 0.1.13, for an advisory published today" | EEF-CVE-2026-92106 (low) was published against 0.1.12 on 2026-09-25 and turned CI's `hex.audit` gate red. It is LiveView's test DOM parser, so no shipped build carried it. |
+| `hpax` (transitive) | 1.0.4 → 1.1.0 | "chore(deps): hpax 1.0.4 -> 1.1.0 (Lane M)" | A hardening release of the HPACK codec Mint and Bandit use (plan, Lane M). |
+| Compose and companion images by digest (E25 S2, F25) | tags → exact tag plus `sha256` digest | "fix(docker): every Compose image and the companion's base pinned by digest" | `postgres:18.6-alpine3.24@sha256:77f58511…` in both Compose files; the MCP companion's base `node:24.21.0-alpine3.24@sha256:ebfe2f90…`. Dependabot gained the `docker-compose` ecosystem, which moves tag and digest together and never proposes a PostgreSQL major. |
+| CI service images and toolchains (E25 S8, F60) | tags → digest; unchecked downloads → SHA-256 | "ci: service and base images by digest, toolchains by SHA-256" | CI's database service is `postgres:18.6@sha256:5a5a84b1…` in both jobs; both stages of the MCP image name the Node base by digest; the agent install script refuses an OTP or Elixir archive whose SHA-256 does not match. S8's other supply-chain commits: pre-commit installed by hash and its hooks by commit ("ci: pre-commit installs by hash, its hooks by commit" and its review round), the MCP image and install run no dependency scripts ("ci: the MCP image and install run no dependency scripts"). |
+| Codecov project target (#314) | 85 % → 90 % | "ci: Codecov's project target is 90 % (#314)" | The next ratchet step, confirmed against the current figure first (below). The stale comment in `codecov.yml` now states this step. |
+| Credo complexity ceiling (#314) | 15 → 13 | "refactor(web): Credo's complexity ceiling goes from 15 to 13 (#314)" | The two functions at 15 were split without a change in behaviour; the rest of the grandfathered debt is reported below, not forced. |
 
 Every row is its own commit or commit group, never mixed into a feature story
 (ADR-0036 clause 1).
