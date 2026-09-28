@@ -607,7 +607,8 @@ list of them on a screen lands no later than Sprint 17.
 and for a cash account no linked depot — and asks once, naming the account.
 An account with bookings is not deleted: *Cannot delete* says what it still
 has and offers **Merge into…** instead, which is how an account with history
-goes away.
+goes away. A delete that meets a change made at the same moment deletes
+nothing and says so; try again.
 
 ### Portfolio records (compatibility)
 
@@ -2327,6 +2328,10 @@ security, quotes, research notes or events — is not deleted at all: merge it
 into the one you keep instead. An unreferenced row's bucket links, position
 overrides and category assignments are removed first, each through its own
 journaled writer, so the journal shows every membership the deletion ended.
+A delete that meets a change another write is making at the same moment
+keeps the row and says so on the page — "<name> changed while it was being
+deleted; nothing was deleted. Try again." — and trying again decides; over
+the API it is a `409` with nothing deleted.
 
 ## Non-goals today
 

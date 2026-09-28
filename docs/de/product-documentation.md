@@ -660,7 +660,9 @@ Bildschirm folgt spätestens in Sprint 17.
 Buchung und bei einem Geldkonto kein verknüpftes Depot — und fragt einmal
 nach, mit dem Namen des Kontos. Ein Konto mit Buchungen wird nicht gelöscht:
 *Kann nicht gelöscht werden* sagt, was es noch hat, und bietet stattdessen
-**Zusammenführen in…** an — so verschwindet ein Konto mit Historie.
+**Zusammenführen in…** an — so verschwindet ein Konto mit Historie. Ein
+Löschen, das auf eine gleichzeitige Änderung trifft, löscht nichts und sagt
+es; dann erneut versuchen.
 
 ### Portfoliodatensätze (Kompatibilität)
 
@@ -2527,7 +2529,12 @@ Ereignisse —, wird gar nicht gelöscht: Der Weg ist dann, sie mit der Zeile
 zusammenzuführen, die bleibt. Bei einer unreferenzierten Zeile werden
 Bucket-Verknüpfungen, Positions-Overrides und Kategorie-Zuordnungen vorher
 entfernt, jeweils über ihren eigenen journalisierten Schreibpfad, sodass das
-Journal jede Mitgliedschaft zeigt, die das Löschen beendet hat.
+Journal jede Mitgliedschaft zeigt, die das Löschen beendet hat. Ein Löschen,
+das auf eine gleichzeitige Änderung durch einen anderen Schreibvorgang trifft,
+behält die Zeile und sagt es auf der Seite — „<Name> wurde während des
+Löschens geändert; nichts wurde gelöscht. Bitte erneut versuchen.“ —, ein
+erneuter Versuch entscheidet; über die API ist es ein `409`, und nichts wird
+gelöscht.
 
 ## Heutige Nicht-Ziele
 
