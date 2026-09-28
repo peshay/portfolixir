@@ -79,7 +79,8 @@ defmodule PortfolixirWeb.Api.V1.BucketAssignmentController do
     else
       nil -> not_found(conn)
       :error -> not_found(conn)
-      # The account was deleted before the write took its lock (E25 S6, G10).
+      # The account or the security was deleted before the write took its
+      # lock (E25 S6, G10; #919).
       {:error, :not_found} -> not_found(conn)
       {:error, :bucket_ids} -> unprocessable(conn, %{bucket_ids: ["is invalid"]})
       # The exclusive dimension holds for overrides too (fix round): at most
@@ -103,7 +104,8 @@ defmodule PortfolixirWeb.Api.V1.BucketAssignmentController do
     else
       nil -> not_found(conn)
       :error -> not_found(conn)
-      # The account was deleted before the write took its lock (E25 S6, G10).
+      # The account or the security was deleted before the write took its
+      # lock (E25 S6, G10; #919).
       {:error, :not_found} -> not_found(conn)
       {:error, _reason} -> unprocessable(conn, %{detail: ["could not clear override"]})
     end

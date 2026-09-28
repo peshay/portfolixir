@@ -13,6 +13,7 @@ defmodule Portfolixir.Buckets.AssignmentLockTest do
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Buckets.PositionBucketOverride
+  alias Portfolixir.Catalog
   alias Portfolixir.Journal
   alias Portfolixir.Portfolios
   alias Portfolixir.WorldFixtures
@@ -122,6 +123,60 @@ defmodule Portfolixir.Buckets.AssignmentLockTest do
              {:error, :not_found}
 
     assert Buckets.clear_position_override(owner(), depot, security) == {:error, :not_found}
+
+    assert length(Journal.list_entries()) == before
+  end
+
+  # User story:
+  # As the agent writing a position override while the operator deletes the
+  # position's security,
+  # I want the write to answer that the security is gone,
+  # so that the race ends in a refusal, never a constraint error.
+  #
+  # Acceptance criteria:
+  # - A position override written or cleared for a security deleted in the
+  #   meantime answers not found, with nothing written and nothing journaled
+  #   (#919).
+  # - The writer holds the depot, then the security: the order the hardened
+  #   security delete and the security merge take (ADR-0050 §10, #954).
+  test "a position override for a security deleted in the meantime answers not found" do
+    world = WorldFixtures.base_world()
+    security = WorldFixtures.create_security!(name: "Vanished Fund", ticker: "VNF")
+    kept = WorldFixtures.create_security!(name: "Kept Fund", ticker: "KPF")
+    bucket = bucket!("Vanished")
+
+    queries =
+      capture_queries(fn ->
+        assert :ok = Buckets.set_position_override(owner(), world.depot, kept, [bucket.id])
+      end)
+
+    depot_lock =
+      Enum.find_index(queries, &(&1 =~ ~r/FROM "securities_accounts".*FOR NO KEY UPDATE/s))
+
+    security_lock = Enum.find_index(queries, &(&1 =~ ~r/FROM "securities".*FOR KEY SHARE/s))
+    insert = Enum.find_index(queries, &(&1 =~ ~r/^INSERT INTO "position_bucket_overrides"/))
+
+    assert depot_lock, "the override writer does not hold the depot"
+    assert security_lock, "the override writer does not hold the security"
+    assert depot_lock < security_lock and security_lock < insert
+
+    assert {:ok, _} = Catalog.delete_security(owner(), security)
+
+    before = length(Journal.list_entries())
+
+    assert Buckets.set_position_override(owner(), world.depot, security, [bucket.id]) ==
+             {:error, :not_found}
+
+    assert Buckets.set_position_override(owner(), world.depot, security, []) ==
+             {:error, :not_found}
+
+    assert Buckets.clear_position_override(owner(), world.depot, security) ==
+             {:error, :not_found}
+
+    assert Repo.aggregate(
+             from(o in PositionBucketOverride, where: o.security_id == ^security.id),
+             :count
+           ) == 0
 
     assert length(Journal.list_entries()) == before
   end

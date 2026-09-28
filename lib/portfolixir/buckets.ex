@@ -459,7 +459,8 @@ defmodule Portfolixir.Buckets do
 
   The depot row is locked first (E25 S6, G10), so two override writes of
   one position leave one request's set, never the explicit-empty marker next
-  to bucket rows. A depot deleted in the meantime answers
+  to bucket rows. The security is held next, the order the hardened security
+  delete takes (#919). A depot or a security deleted in the meantime answers
   `{:error, :not_found}`.
   """
   def set_position_override(
@@ -488,6 +489,7 @@ defmodule Portfolixir.Buckets do
 
     Multi.new()
     |> lock_owner(SecuritiesAccount, sa_id)
+    |> hold_security(sec_id)
     |> validate_assignment(bucket_ids, check)
     |> Multi.delete_all(:clear, position_override_query(sa_id, sec_id))
     |> Multi.insert_all(:assign, PositionBucketOverride, entries)
@@ -506,7 +508,8 @@ defmodule Portfolixir.Buckets do
   @doc """
   Clears the per-position override, returning the position to **inherit** the
   depot default. Recorded as a `position_bucket_override` delete. Takes the
-  depot's lock first, like the override writer (E25 S6, G10).
+  depot's lock first, then holds the security, like the override writer
+  (E25 S6, G10; #919).
   """
   def clear_position_override(
         %Actor{} = actor,
@@ -515,6 +518,7 @@ defmodule Portfolixir.Buckets do
       ) do
     Multi.new()
     |> lock_owner(SecuritiesAccount, sa_id)
+    |> hold_security(sec_id)
     |> Multi.delete_all(:clear, position_override_query(sa_id, sec_id))
     |> Multi.run(:record, fn _repo, _changes ->
       {:ok, %{id: nil, securities_account_id: sa_id, security_id: sec_id}}
@@ -1301,6 +1305,23 @@ defmodule Portfolixir.Buckets do
   defp lock_owner(multi, schema, owner_id) do
     Multi.run(multi, :owner, fn repo, _changes ->
       from(o in schema, where: o.id == ^owner_id, lock: "FOR NO KEY UPDATE", select: o.id)
+      |> repo.one()
+      |> case do
+        nil -> {:error, :not_found}
+        id -> {:ok, id}
+      end
+    end)
+  end
+
+  # #919: the position's security is held after its depot — the order the
+  # hardened security delete and the security merge take (ADR-0050 §10) —
+  # FOR KEY SHARE, which only the security's delete or a change of its key
+  # waits on. A security deleted in the meantime answers `{:error,
+  # :not_found}` before anything is written or journaled, instead of failing
+  # the insert at its foreign key.
+  defp hold_security(multi, security_id) do
+    Multi.run(multi, :security, fn repo, _changes ->
+      from(s in Security, where: s.id == ^security_id, lock: "FOR KEY SHARE", select: s.id)
       |> repo.one()
       |> case do
         nil -> {:error, :not_found}
