@@ -3652,14 +3652,14 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.securities_accounts.set_position_buckets",
     "Set position bucket override",
-    "Set the per-position bucket override for one security in one depot (id is the securities account id, security_id the security). bucket_ids is an array of bucket ids; an empty array records the explicit-empty state (deliberately no buckets), distinct from inheriting the depot default. Override wins over the depot default. Like the account assignments, an override carries at most one scope-dimension bucket (ADR-0024); a second scope bucket is rejected with a 422. Override writes of one depot take turns, so the set of the write that commits last is the one that stays, never a mix; a depot deleted meanwhile answers 404.",
+    "Set the per-position bucket override for one security in one depot (id is the securities account id, security_id the security). bucket_ids is an array of bucket ids; an empty array records the explicit-empty state (deliberately no buckets), distinct from inheriting the depot default. Override wins over the depot default. Like the account assignments, an override carries at most one scope-dimension bucket (ADR-0024); a second scope bucket is rejected with a 422. Override writes of one depot take turns, so the set of the write that commits last is the one that stays, never a mix; a depot or security deleted meanwhile answers 404.",
     positionBucketsSchema,
     positionBucketsZ
   ),
   tool(
     "portfolixir.securities_accounts.clear_position_buckets",
     "Clear position bucket override",
-    "Clear the per-position bucket override, returning the position to inherit the depot default (id is the securities account id, security_id the security). Takes its turn with the depot's other override writes; a depot deleted meanwhile answers 404.",
+    "Clear the per-position bucket override, returning the position to inherit the depot default (id is the securities account id, security_id the security). Takes its turn with the depot's other override writes; a depot or security deleted meanwhile answers 404.",
     clearPositionBucketsSchema,
     clearPositionBucketsZ
   ),

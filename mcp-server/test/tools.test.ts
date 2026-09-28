@@ -1594,6 +1594,21 @@ describe("Portfolixir MCP tools", () => {
     }
   });
 
+  // #919 (#831's lesson: agents read descriptions, not docs): the two position
+  // override writers hold the depot, then the security, and say that either
+  // one deleted meanwhile answers 404.
+  it("states that a vanished depot or security answers 404 on the override writers", () => {
+    const tools = listTools();
+    const describe = (name: string) => tools.find((tool) => tool.name === name)?.description ?? "";
+
+    for (const name of [
+      "portfolixir.securities_accounts.set_position_buckets",
+      "portfolixir.securities_accounts.clear_position_buckets",
+    ]) {
+      assert.match(describe(name), /a depot or security deleted meanwhile answers 404/);
+    }
+  });
+
   // ADR-0050 §11 first bullet, §16 invariant 15 (#831's lesson: agents read
   // descriptions, not docs): the two update tools that expose a currency say
   // when it freezes and what a frozen change answers, on the tool and on the

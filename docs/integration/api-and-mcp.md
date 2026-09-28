@@ -2567,7 +2567,9 @@ a view is not journaled: no rule can read it yet.
 The four assignment writes above hold the depot or cash account while they
 replace its set, so two writes to one account take turns: the one that
 commits last is the set that stays, never a mix of both. An account deleted
-while the write waits answers `404` and writes nothing.
+while the write waits answers `404` and writes nothing. The two position
+override writes also hold the security, after the depot, and a security
+deleted while they wait answers `404` the same way (#919).
 
 The analytics endpoints accept an optional `view` query param (a view id) to
 scope the result to the holdings matching that view:

@@ -2490,7 +2490,10 @@ Die vier Zuordnungs-Schreibvorgänge oben halten das Depot oder Geldkonto,
 während sie sein Set ersetzen. Zwei Schreibvorgänge auf dasselbe Konto kommen
 daher nacheinander dran: Es bleibt das Set dessen, der zuletzt festschreibt,
 nie eine Mischung aus beiden. Ein Konto, das gelöscht wird, während der
-Schreibvorgang wartet, antwortet mit `404` und es wird nichts geschrieben.
+Schreibvorgang wartet, antwortet mit `404` und es wird nichts geschrieben. Die
+beiden Schreibvorgänge der Positions-Überschreibung halten nach dem Depot auch
+das Wertpapier; ein Wertpapier, das gelöscht wird, während sie warten,
+antwortet ebenso mit `404` (#919).
 
 Die Analyse-Endpunkte akzeptieren einen optionalen `view`-Query-Parameter (eine
 View-id), um das Ergebnis auf die Bestände der View einzugrenzen:
