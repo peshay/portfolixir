@@ -57,6 +57,39 @@ defmodule Portfolixir.Net.HttpPoolTest do
     assert first != second
   end
 
+  # User story:
+  # As an operator whose logo override or a provider redirect names a host
+  # by its IPv6 address,
+  # I want that request to still connect over IPv6,
+  # so that the bounded pool's own connection options do not cost the
+  # address family Req would otherwise have chosen.
+  #
+  # Acceptance criteria:
+  # - A request to an IPv6-literal host carries inet6 in its connection
+  #   options, next to the pool's connect timeout and zero idle time.
+  # - A request to a host name carries no inet6.
+  test "a request to an IPv6-literal host keeps IPv6 in its pool options" do
+    test = self()
+
+    adapter = fn request ->
+      send(test, {:finch, request.url.host, request.options[:finch]})
+      {request, Req.Response.new(status: 200, body: "")}
+    end
+
+    req = Http.new(max_bytes: 1_000, allowed_hosts: :any)
+
+    assert {:ok, _} = Http.get(req, url: "https://[2606:4700::1]/logo.png", adapter: adapter)
+    assert {:ok, _} = Http.get(req, url: "https://upstream.test/logo.png", adapter: adapter)
+
+    assert_receive {:finch, "2606:4700::1", literal}
+    assert get_in(literal, [:conn_opts, :transport_opts, :inet6]) == true
+    assert get_in(literal, [:conn_opts, :transport_opts, :timeout]) == 5_000
+    assert literal[:conn_max_idle_time] == 0
+
+    assert_receive {:finch, "upstream.test", named}
+    assert get_in(named, [:conn_opts, :transport_opts, :inet6]) == nil
+  end
+
   # -- a loopback HTTP/1.1 server ------------------------------------------
   #
   # Keeps every connection alive; "/slow" is answered after 600 ms, anything

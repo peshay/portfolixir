@@ -135,7 +135,7 @@ defmodule Portfolixir.Net.Http do
   defp run(req, hops_left) do
     max_bytes = Req.Request.get_private(req, :portfolixir_max_bytes)
 
-    with {:ok, response} <- Req.request(%{req | method: :get}),
+    with {:ok, response} <- Req.request(%{ipv6_literal(req) | method: :get}),
          {:ok, response} <- check_cap(response, max_bytes) do
       case redirect_location(response) do
         nil -> {:ok, response}
@@ -143,6 +143,17 @@ defmodule Portfolixir.Net.Http do
       end
     end
   end
+
+  # Req sets inet6 on the transport for an IPv6-literal host, but only in
+  # the pool options it builds itself: the bounded pool's own conn_opts
+  # replace those whole, so the flag is put back here, per request.
+  defp ipv6_literal(%Req.Request{url: %URI{host: host}} = req) when is_binary(host) do
+    if String.contains?(host, ":"),
+      do: Req.merge(req, finch: put_in(@pool, [:conn_opts, :transport_opts, :inet6], true)),
+      else: req
+  end
+
+  defp ipv6_literal(req), do: req
 
   defp follow(_req, _location, 0), do: {:error, :too_many_redirects}
 
