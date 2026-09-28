@@ -11,6 +11,8 @@ defmodule Portfolixir.Lifecycle.DeleteLockCycleTest do
   # transaction, so this module runs alone (async: false).
   use PortfolixirWeb.ConnCase, async: false
 
+  import Phoenix.LiveViewTest
+
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Journal
@@ -127,6 +129,61 @@ defmodule Portfolixir.Lifecycle.DeleteLockCycleTest do
     assert Catalog.get_security(security.id)
     assert Portfolios.get_cash_account(cash.id)
     assert Portfolios.get_securities_account(depot.id)
+  end
+
+  # User story:
+  # As the operator deleting a security or an account while the agent writes
+  # to it,
+  # I want a delete that loses the race to tell me so,
+  # so that I try again instead of retiring a security nothing references,
+  # or wondering why the account is still there.
+  #
+  # Acceptance criteria:
+  # - A security delete that loses a lock cycle keeps the row, opens no
+  #   "Cannot delete" dialog, and says the security changed while it was
+  #   being deleted and nothing was deleted.
+  # - A cash-account delete that loses a lock cycle keeps the row, opens no
+  #   "Cannot delete" dialog, and says the same.
+  test "the screens say a delete lost a race and nothing was deleted" do
+    world = WorldFixtures.base_world()
+    security = WorldFixtures.create_security!(name: "Cycle Screen Fund", ticker: "CSF")
+
+    {:ok, cash} =
+      Portfolios.create_cash_account(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        name: "Cycle Screen Cash",
+        currency_code: "EUR",
+        liquidity_role: "free_cash"
+      })
+
+    lose_lock_cycles_on(["securities", "cash_accounts"])
+
+    {:ok, view, _html} = live(build_conn(), "/securities")
+
+    view
+    |> element(
+      ~s(#securities-table button[phx-click="open_row_menu"][phx-value-id="#{security.id}"])
+    )
+    |> render_click()
+
+    view
+    |> element(~s(button[phx-value-action="delete"][phx-value-id="#{security.id}"]))
+    |> render_click()
+
+    html = render(view)
+    assert html =~ "Cycle Screen Fund changed while it was being deleted; nothing was deleted."
+    refute html =~ "confirm-delete-blocked"
+    assert Catalog.get_security(security.id)
+
+    {:ok, view, _html} = live(build_conn(), "/portfolios")
+    view |> element("#cash-kebab-#{cash.id}") |> render_click()
+    view |> element("#cash-row-menu-#{cash.id} [data-role='menu-delete']") |> render_click()
+
+    assert render(view) =~
+             "Cycle Screen Cash changed while it was being deleted; nothing was deleted."
+
+    refute has_element?(view, "#delete-blocked-dialog")
+    assert Portfolios.get_cash_account(cash.id)
   end
 
   # A BEFORE DELETE trigger that raises the given SQLSTATE: the database's own

@@ -9933,3 +9933,9 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "The file is not valid JSON. Remedy: export it again from Portfolio Performance."
 msgstr ""
+
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "%{name} changed while it was being deleted; nothing was deleted. Try again."
+msgstr ""

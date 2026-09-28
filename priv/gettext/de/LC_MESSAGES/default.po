@@ -9515,3 +9515,9 @@ msgstr "Abhilfe: den Split vom %{date} (%{ratio}) auch bei %{security} buchen od
 #, elixir-autogen, elixir-format
 msgid "The file is not valid JSON. Remedy: export it again from Portfolio Performance."
 msgstr "Die Datei ist kein gültiges JSON. Abhilfe: sie erneut aus Portfolio Performance exportieren."
+
+#: lib/portfolixir_web/live/portfolio_accounts_live.ex
+#: lib/portfolixir_web/live/securities_live.ex
+#, elixir-autogen, elixir-format
+msgid "%{name} changed while it was being deleted; nothing was deleted. Try again."
+msgstr "%{name} wurde während des Löschens geändert; nichts wurde gelöscht. Bitte erneut versuchen."

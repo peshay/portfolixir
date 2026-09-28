@@ -4833,6 +4833,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
          |> assign(:delete_blocked_rules, [])
          |> assign(:delete_blocked_merge?, Delete.remedy(sec, counts) == :merge)}
 
+      # A lost race (#954): the security changed under the delete and
+      # nothing references it now. Nothing was deleted and nothing blocks
+      # it, so no "Cannot delete" — a retry decides.
+      {:error, :raced} ->
+        {:noreply,
+         socket
+         |> assign(:delete_blocked, nil)
+         |> put_action_result(:problem, raced_delete_message(sec.name))
+         |> load_securities()}
+
       {:error, _reason} ->
         {:noreply,
          socket
@@ -5347,6 +5357,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp research_field_label(:invalidation_condition), do: gettext("Invalidation condition")
   defp research_field_label(:time_stop), do: gettext("Time stop")
   defp research_field_label(field), do: Atom.to_string(field)
+
+  defp raced_delete_message(name) do
+    gettext("%{name} changed while it was being deleted; nothing was deleted. Try again.",
+      name: name
+    )
+  end
 
   defp put_action_result(socket, severity, message) do
     assign(socket, :action_result, {severity, message})

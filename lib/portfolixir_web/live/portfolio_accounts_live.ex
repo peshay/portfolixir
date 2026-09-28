@@ -1142,9 +1142,19 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
         case delete(account) do
           {:ok, _deleted} -> socket |> assign(:result, nil) |> load_state()
           {:error, {:referenced, refs}} -> block_delete(socket, kind, account, refs)
+          # A lost race (#954): the account changed under the delete and
+          # nothing references it now; nothing was deleted, a retry decides.
+          {:error, :raced} -> socket |> assign(:result, raced_delete(account)) |> load_state()
           {:error, _gone} -> load_state(socket)
         end
     end
+  end
+
+  defp raced_delete(account) do
+    {:problem,
+     gettext("%{name} changed while it was being deleted; nothing was deleted. Try again.",
+       name: account.name
+     )}
   end
 
   defp delete(%CashAccount{} = account),
