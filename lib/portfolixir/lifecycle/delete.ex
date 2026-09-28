@@ -9,7 +9,10 @@ defmodule Portfolixir.Lifecycle.Delete do
        delete instead of slipping in between the check and the delete; a row
        that has vanished answers `{:error, :not_found}`. A security's
        override depots are locked first, in the merge's order (depots before
-       securities), so a concurrent merge waits instead of deadlocking;
+       securities), so a concurrent merge waits instead of deadlocking; an
+       override that names another depot by the time the security is held
+       answers `{:error, :raced}`, so the delete never takes a depot after
+       the security;
     2. the **reference check**: every foreign key whose delete disposition is
        `:restrict` in `Portfolixir.Lifecycle.ForeignKeys` is counted, per
        referencing table — a transaction once, whichever leg references the
@@ -113,9 +116,10 @@ defmodule Portfolixir.Lifecycle.Delete do
           | {:error, :not_found | :raced | {:referenced, referenced_by()} | term()}
   def delete(%Actor{} = actor, %schema{id: id} = record) when is_map_key(@tables, schema) do
     fn ->
-      lock_override_depots(schema, id)
+      depots = lock_override_depots(schema, id)
 
       with {:ok, locked} <- lock_row(schema, id),
+           :ok <- no_late_override_depots(schema, id, depots),
            :ok <- unreferenced(locked),
            {:ok, deleted} <- remove_locked(actor, locked) do
         deleted
@@ -230,6 +234,27 @@ defmodule Portfolixir.Lifecycle.Delete do
   end
 
   defp lock_override_depots(_schema, _id), do: []
+
+  # An override committed between the lookup above and the security's lock
+  # names a depot the delete does not hold, and removing it would take that
+  # depot after the security: the order that closes a lock cycle with the
+  # override writers, which hold the depot, then the security (#919). Once
+  # the security is held no writer can add another, so one re-read under
+  # the lock is enough; a late depot is a changed row, answered as a race.
+  defp no_late_override_depots(Security, security_id, locked) do
+    late =
+      Repo.all(
+        from(o in PositionBucketOverride,
+          where: o.security_id == ^security_id and o.securities_account_id not in ^locked,
+          select: o.securities_account_id,
+          limit: 1
+        )
+      )
+
+    if late == [], do: :ok, else: {:error, :raced}
+  end
+
+  defp no_late_override_depots(_schema, _id, _locked), do: :ok
 
   defp lock_row(schema, id) do
     case Repo.one(from(r in schema, where: r.id == ^id, lock: "FOR UPDATE")) do

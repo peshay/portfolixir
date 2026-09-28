@@ -11,6 +11,7 @@ defmodule Portfolixir.Lifecycle.DeleteTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
+  alias Portfolixir.Buckets.PositionBucketOverride
   alias Portfolixir.Catalog
   alias Portfolixir.Classifications
   alias Portfolixir.Journal
@@ -558,6 +559,32 @@ defmodule Portfolixir.Lifecycle.DeleteTest do
       assert depots < row
     end
 
+    # User story (the review of the commits after the closing act):
+    # As the operator deleting a security while an agent tags one of its
+    # positions,
+    # I want a delete that meets a depot it did not lock first to refuse,
+    # so that it never takes a depot after the security: that order closes
+    # a lock cycle with the override writers, which hold the depot, then the
+    # security.
+    #
+    # Acceptance criteria:
+    # - An override committed between the delete's depot lookup and its lock
+    #   on the security makes the delete answer {:error, :raced}: the
+    #   security stays, and nothing is journaled.
+    test "a security delete refuses a depot that gained an override after its lookup" do
+      world = WorldFixtures.base_world()
+      late = depot!(world, "Late Depot")
+      security = WorldFixtures.create_security!(name: "Late ETF", ticker: "LTE")
+      bucket = tag_bucket!("Late bucket")
+      before = length(Journal.list_entries())
+
+      override_after_depot_lookup(late, security, bucket)
+
+      assert Catalog.delete_security(agent(), security) == {:error, :raced}
+      assert Catalog.get_security(security.id)
+      assert length(Journal.list_entries()) == before
+    end
+
     # User story:
     # As the operator deleting a security while an agent edits its
     # classification, targets or aliases,
@@ -667,6 +694,33 @@ defmodule Portfolixir.Lifecycle.DeleteTest do
         assert Enum.sort(declared) == Enum.sort(expected), "#{table}"
       end
     end
+  end
+
+  # Writes an override of `security` on `depot` the moment the delete has
+  # looked up the depots to lock, inside its transaction: what a writer that
+  # committed in that window leaves behind.
+  defp override_after_depot_lookup(depot, security, bucket) do
+    test_pid = self()
+    handler = "lifecycle-delete-late-override-#{System.unique_integer([:positive])}"
+
+    :ok =
+      :telemetry.attach(
+        handler,
+        [:portfolixir, :repo, :query],
+        fn _event, _measurements, %{query: query}, _config ->
+          if self() == test_pid and query =~ ~r/FROM "securities_accounts".*FOR NO KEY UPDATE/s do
+            :telemetry.detach(handler)
+            Repo.query!("SELECT set_config('portfolixir.journal_actor', 'test', true)")
+
+            Repo.insert_all(PositionBucketOverride, [
+              %{securities_account_id: depot.id, security_id: security.id, bucket_id: bucket.id}
+            ])
+          end
+        end,
+        nil
+      )
+
+    on_exit(fn -> :telemetry.detach(handler) end)
   end
 
   defp capture_queries(fun) do

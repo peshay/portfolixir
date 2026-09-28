@@ -36,6 +36,8 @@ defmodule Portfolixir.Lifecycle.DeleteLockCycleTest do
   # - A security delete the database aborts with deadlock_detected answers
   #   {:error, :raced}: the security stays, and nothing is journaled.
   # - A cash-account and a depot delete answer the same.
+  # - A delete whose lock wait hits the session's lock_timeout answers the
+  #   same.
   # - Any other database error still raises.
   test "a delete that loses a lock cycle answers raced and deletes nothing" do
     world = WorldFixtures.base_world()
@@ -67,6 +69,11 @@ defmodule Portfolixir.Lifecycle.DeleteLockCycleTest do
     assert Portfolios.get_cash_account(cash.id)
     assert Portfolios.get_securities_account(depot.id)
     assert length(Journal.list_entries()) == before
+
+    fail_deletes_on("securities", "55P03")
+
+    assert Catalog.delete_security(Actor.owner_ui(), security) == {:error, :raced}
+    assert Catalog.get_security(security.id)
 
     fail_deletes_on("securities", "22012")
 
