@@ -221,10 +221,10 @@ Through a published port, every client on the host reaches a container from
 the one Docker bridge gateway address (see "Reverse proxy" below). The MCP
 companion counts failed tokens per connecting address, as the application
 counts failed logins, so every client on the host is one source to it: a
-process on the host that sends a wrong token locks your agent out too, from
-the tenth failure for two seconds, doubling per further one up to five
-minutes, and a correct token is answered `429` while the lock lasts. The
-counts live in memory only: `docker compose restart mcp` clears them at once.
+process on the host that sends a wrong token locks your agent out too, after
+repeated failures and for longer with each further one, and a correct token
+is answered `429` while the lock lasts. The counts live in memory only:
+`docker compose restart mcp` clears them at once.
 
 ## Reverse proxy
 

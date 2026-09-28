@@ -230,10 +230,10 @@ Container von der einen Gateway-Adresse der Docker-Bridge aus (siehe
 „Reverse-Proxy“ unten). Der MCP-Begleitdienst zählt fehlgeschlagene Tokens je
 verbindender Adresse, so wie die Anwendung fehlgeschlagene Anmeldungen zählt;
 für ihn ist also jeder Client auf dem Host eine Quelle: ein Prozess auf dem
-Host, der ein falsches Token schickt, sperrt auch deinen Agenten aus, ab dem
-zehnten Fehlschlag für zwei Sekunden, mit jedem weiteren doppelt so lange bis
-zu fünf Minuten, und solange die Sperre gilt, wird auch ein richtiges Token mit
-`429` beantwortet. Die Zählungen liegen nur im Speicher:
+Host, der ein falsches Token schickt, sperrt auch deinen Agenten aus, nach
+wiederholten Fehlschlägen und mit jedem weiteren länger, und solange die Sperre
+gilt, wird auch ein richtiges Token mit `429` beantwortet. Die Zählungen liegen
+nur im Speicher:
 `docker compose restart mcp` löscht sie sofort.
 
 ## Reverse-Proxy
