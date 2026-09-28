@@ -30,6 +30,14 @@ defmodule Portfolixir.Lifecycle.Delete do
   check is refused as `{:error, {:referenced, referenced_by}}`, counted after
   the rollback, never raised as a constraint error.
 
+  A writer outside the lock order can still close a lock cycle with the
+  delete, which PostgreSQL breaks by aborting one side (#954). The delete
+  runs under `Portfolixir.Lifecycle.MergeFlow.transaction/2`, so losing that
+  cycle, or a lock wait hitting the session's `lock_timeout`, rolls back and
+  answers like a late reference: `{:error, {:referenced, referenced_by}}` if
+  something references the row now, `{:error, :raced}` if nothing does —
+  nothing was deleted either way, never a 500.
+
   `remove/2` is the step after the check, for a caller that holds the row's
   lock and has found it unreferenced (a merge deletes its source through it,
   ADR-0050 §7 step 7). Inside the caller's transaction a refusal is
@@ -49,6 +57,7 @@ defmodule Portfolixir.Lifecycle.Delete do
   alias Portfolixir.Classifications.Assignment
   alias Portfolixir.Journal
   alias Portfolixir.Lifecycle.ForeignKeys
+  alias Portfolixir.Lifecycle.MergeFlow
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias Portfolixir.Portfolios.Targets
@@ -114,7 +123,7 @@ defmodule Portfolixir.Lifecycle.Delete do
         {:error, reason} -> Repo.rollback(reason)
       end
     end
-    |> Repo.transaction()
+    |> MergeFlow.transaction()
     |> count_after_refusal(record)
   end
 
@@ -286,11 +295,19 @@ defmodule Portfolixir.Lifecycle.Delete do
 
   # A refusal by a declared constraint aborts the transaction, so the
   # references are counted once it has rolled back. Inside a caller's
-  # transaction nothing can be read any more: the caller gets `:raced`.
+  # transaction nothing can be read any more: the caller gets `:raced`. So
+  # does a delete that lost a lock cycle (#954) and finds nothing
+  # referencing the row afterwards: it changed under the delete, nothing
+  # was deleted, and a retry decides.
   defp count_after_refusal({:error, :raced}, record) do
-    if Repo.in_transaction?(),
-      do: {:error, :raced},
-      else: {:error, {:referenced, referenced_by(record)}}
+    if Repo.in_transaction?() do
+      {:error, :raced}
+    else
+      case referenced_by(record) do
+        references when map_size(references) == 0 -> {:error, :raced}
+        references -> {:error, {:referenced, references}}
+      end
+    end
   end
 
   defp count_after_refusal(result, _record), do: result

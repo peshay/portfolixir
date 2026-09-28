@@ -2857,7 +2857,8 @@ const declaredTools: DeclaredTool[] = [
       "(portfolixir.securities.merge_preview) — or \"retire\" when research notes " +
       "or rule versions reference it, which a merge cannot carry (PATCH the security with is_retired true). Before an " +
       "unreferenced security goes, its category assignments, position targets, position bucket overrides and ISIN " +
-      "aliases are removed, each journaled under the API token; no cascade removes them.",
+      "aliases are removed, each journaled under the API token; no cascade removes them." +
+      " A delete that loses a race to a concurrent write answers 409 with errors.detail alone and deletes nothing: read the row again and retry.",
     idSchema,
     idZ
   ),
@@ -3088,7 +3089,8 @@ const declaredTools: DeclaredTool[] = [
       "GET /api/v1/cash_accounts/:id/merge_preview?target_id=<the account to keep> " +
       "(portfolixir.cash_accounts.merge_preview) — a merge moves the history onto " +
       "the account you keep; a delete never discards it. An unreferenced account's bucket links are removed first, " +
-      "journaled under the API token.",
+      "journaled under the API token." +
+      " A delete that loses a race to a concurrent write answers 409 with errors.detail alone and deletes nothing: read the row again and retry.",
     idSchema,
     idZ
   ),
@@ -3175,7 +3177,8 @@ const declaredTools: DeclaredTool[] = [
       "(portfolixir.securities_accounts.merge_preview) — a merge moves the history onto the depot you keep; a " +
       "delete never discards it. An unreferenced depot's " +
       "default buckets and position overrides are removed first, journaled under the API token (one entry for the " +
-      "default set, one per position).",
+      "default set, one per position)." +
+      " A delete that loses a race to a concurrent write answers 409 with errors.detail alone and deletes nothing: read the row again and retry.",
     idSchema,
     idZ
   ),

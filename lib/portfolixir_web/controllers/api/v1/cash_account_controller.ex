@@ -84,6 +84,9 @@ defmodule PortfolixirWeb.Api.V1.CashAccountController do
         {:error, {:referenced, referenced_by}} ->
           ReferencedConflict.render(conn, account, referenced_by)
 
+        {:error, :raced} ->
+          ReferencedConflict.render_raced(conn, account)
+
         {:error, :not_found} ->
           not_found(conn)
 

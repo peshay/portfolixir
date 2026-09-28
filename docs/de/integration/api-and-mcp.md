@@ -367,7 +367,10 @@ verengen, was der Betreiber sieht.
   werden seine Kategorie-Zuordnungen, Positionsziele,
   Positions-Bucket-Overrides und ISIN-Aliasse entfernt, jeweils
   journalisiert; keine Datenbank-Kaskade entfernt sie (ADR-0050 §11). Ein
-  bereits gelöschtes Wertpapier liefert `404`.
+  bereits gelöschtes Wertpapier liefert `404`. Ein Löschen, das einen Wettlauf mit einem
+  gleichzeitigen Schreibvorgang verliert und danach keinen Verweis mehr
+  findet, antwortet mit `409 Conflict` und allein `errors.detail` und löscht
+  nichts: den Datensatz neu lesen und erneut versuchen (#954).
 - `GET /api/v1/securities/search` durchsucht konfigurierte
   Online-Wertpapieranbieter. Query-Parameter: `query`; optional `type` mit
   `security` oder `crypto`. Jedes Feld eines Treffers stammt vom Anbieter und
@@ -1027,7 +1030,10 @@ Beispiel-Antwort für Kurssynchronisierung:
   `GET /api/v1/cash_accounts/:id/merge_preview?target_id=`, ergänzt um die ID
   des Kontos, das bleibt: Eine Zusammenführung verschiebt die Historie, ein
   Löschen verwirft sie nie. Die Bucket-Verknüpfungen eines unreferenzierten
-  Kontos werden vorher entfernt, journalisiert (ADR-0050 §11).
+  Kontos werden vorher entfernt, journalisiert (ADR-0050 §11). Ein Löschen, das einen Wettlauf mit einem
+  gleichzeitigen Schreibvorgang verliert und danach keinen Verweis mehr
+  findet, antwortet mit `409 Conflict` und allein `errors.detail` und löscht
+  nichts: den Datensatz neu lesen und erneut versuchen (#954).
 - `GET /api/v1/cash_accounts/:id/merge_preview?target_id=` zeigt die
   Zusammenführung des Kontos (der **Quelle**) in `target_id` (das **Ziel**,
   das Konto, das bleibt) als Vorschau — ein Lesen, das nichts schreibt
@@ -1160,7 +1166,10 @@ Beispiel-Antwort für Kurssynchronisierung:
   `GET /api/v1/securities_accounts/:id/merge_preview?target_id=`. Die
   Standard-Buckets und Positions-Overrides eines unreferenzierten Depots
   werden vorher entfernt, journalisiert: ein Eintrag für die Standardmenge,
-  einer je Position.
+  einer je Position. Ein Löschen, das einen Wettlauf mit einem
+  gleichzeitigen Schreibvorgang verliert und danach keinen Verweis mehr
+  findet, antwortet mit `409 Conflict` und allein `errors.detail` und löscht
+  nichts: den Datensatz neu lesen und erneut versuchen (#954).
 - `GET /api/v1/securities_accounts/:id/merge_preview?target_id=` zeigt die
   Vorschau, das Depot (die **Quelle**) in `target_id` (das **Ziel**, das Depot,
   das bleibt) zusammenzuführen — ein Lesen, das nichts schreibt (ADR-0050 §7,

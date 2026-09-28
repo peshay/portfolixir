@@ -10,6 +10,11 @@ defmodule PortfolixirWeb.Api.V1.ReferencedConflict do
          "remedy": "merge",
          "remedy_route": "GET /api/v1/cash_accounts/5/merge_preview?target_id="}}
 
+  A delete that lost a race to a concurrent writer and finds nothing
+  referencing the row afterwards (`{:error, :raced}`, #954) answers **409**
+  too, with the detail alone: the row changed while it was being deleted,
+  nothing was deleted, and a retry after reading it again decides.
+
   `referenced_by` keys are the referencing tables. The remedy is `merge` — the
   route is the merge preview, completed with the id of the row to keep — or,
   for a security that research notes or policy-rule versions reference (a
@@ -51,6 +56,22 @@ defmodule PortfolixirWeb.Api.V1.ReferencedConflict do
         referenced_by: referenced_by,
         remedy: Atom.to_string(remedy),
         remedy_route: route
+      }
+    })
+  end
+
+  @doc "Renders the 409 for a delete of `record` that lost a race (#954)."
+  @spec render_raced(Plug.Conn.t(), Delete.record()) :: Plug.Conn.t()
+  def render_raced(conn, record) do
+    {noun, _path} = resource(record)
+
+    conn
+    |> put_status(:conflict)
+    |> json(%{
+      errors: %{
+        detail:
+          "#{noun} changed while it was being deleted, and nothing was deleted: " <>
+            "read it again and retry the delete"
       }
     })
   end

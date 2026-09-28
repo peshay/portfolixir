@@ -106,6 +106,7 @@ defmodule Portfolixir.Lifecycle.MergeFlow do
   @doc """
   `Repo.transaction/2` for a merge (§10: every race ends in a clean 409,
   never a 500), with `transaction_timeout/0` in place of the 15 s default.
+  The hardened delete runs under it too (§11, #954).
   A merge takes its locks in a fixed order that every
   concurrent writer shares, but a writer outside that order (a quote sync, a
   hardened delete) can still close a lock cycle, which PostgreSQL breaks by

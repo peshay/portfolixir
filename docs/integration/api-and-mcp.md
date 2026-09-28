@@ -342,7 +342,10 @@ full list.
   unreferenced security is deleted, its category assignments, position
   targets, position bucket overrides and ISIN aliases are removed, each
   journaled; no database cascade removes them (ADR-0050 §11). A security that
-  is already gone answers `404`.
+  is already gone answers `404`. A delete that loses a race to a
+  concurrent write, with nothing referencing the row afterwards, answers
+  `409 Conflict` with `errors.detail` alone and deletes nothing: read the row
+  again and retry (#954).
 - `GET /api/v1/securities/search` searches configured online security providers.
   Query params: `query`; optional `type` with `security` or `crypto`. Every
   field of a hit comes from the provider and is checked for its type and
@@ -1001,7 +1004,10 @@ Example quote sync response:
   `GET /api/v1/cash_accounts/:id/merge_preview?target_id=` completed with the
   id of the account to keep: a merge moves the history, a delete never
   discards it. An unreferenced account's bucket links are removed first,
-  journaled (ADR-0050 §11).
+  journaled (ADR-0050 §11). A delete that loses a race to a
+  concurrent write, with nothing referencing the row afterwards, answers
+  `409 Conflict` with `errors.detail` alone and deletes nothing: read the row
+  again and retry (#954).
 - `GET /api/v1/cash_accounts/:id/merge_preview?target_id=` previews merging
   the account (the **source**) into `target_id` (the **target**, the account
   that stays) — a read that writes nothing (ADR-0050 §7, §10;
@@ -1123,7 +1129,10 @@ Example quote sync response:
   `errors.remedy_route`, the merge preview
   `GET /api/v1/securities_accounts/:id/merge_preview?target_id=`. An
   unreferenced depot's default buckets and position overrides are removed
-  first, journaled: one entry for the default set, one per position.
+  first, journaled: one entry for the default set, one per position. A delete that loses a race to a
+  concurrent write, with nothing referencing the row afterwards, answers
+  `409 Conflict` with `errors.detail` alone and deletes nothing: read the row
+  again and retry (#954).
 - `GET /api/v1/securities_accounts/:id/merge_preview?target_id=` previews
   merging the depot (the **source**) into `target_id` (the **target**, the
   depot that stays) — a read that writes nothing (ADR-0050 §7, §10;

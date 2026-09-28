@@ -1586,6 +1586,12 @@ describe("Portfolixir MCP tools", () => {
     assert.match(security, /policy_rules/);
     assert.match(security, /category assignments, position targets, position bucket overrides/);
     assert.match(security, /no cascade/);
+
+    // #954: a delete that loses a lock cycle is a clean 409, never a 500.
+    for (const description of [cash, depot, security]) {
+      assert.match(description, /loses a race to a concurrent write answers 409 with errors\.detail alone/);
+      assert.match(description, /deletes nothing/);
+    }
   });
 
   // ADR-0050 §11 first bullet, §16 invariant 15 (#831's lesson: agents read
