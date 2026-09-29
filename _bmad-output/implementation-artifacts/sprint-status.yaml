@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-09-24 (Sprint 16 PLANNED: the second security pass (E25, a runtime hotfix ahead of the batch), ADR-0050 signs the lifecycle merges #328/#608, NFR-9's backstops, the E24 remainder; tag 0.15.0 still outstanding for the owner)
+# last_updated: 2026-09-29 (Sprint 16 CLOSED OUT: PR #914 fast-forwarded, main at daeab17c -- E25 DONE, 103 of 108 triage items shipped and #883 closed by hand; ADR-0050 L1-L5 shipped, E3 open on #328's owner run; NFR-9's seven backstops built; twenty-two issues closed by keyword; two agent-first capabilities due a human view in Sprint 17; tags 0.15.0, 0.15.1 and 0.16.0 outstanding while the owner reconsiders the versioning scheme)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -42,7 +42,7 @@
 # requests, not assumed -- an issue's state lags the PR that fixes it.
 
 generated: 2026-07-25
-last_updated: 2026-09-24
+last_updated: 2026-09-29
 project: portfolixir
 project_key: NOKEY
 tracking_system: file-system
@@ -51,6 +51,171 @@ story_location: _bmad-output/implementation-artifacts
 # ---------------------------------------------------------------------------
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
+#
+# CLOSED OUT (2026-09-29, Sprint 16) -- PR #914 FAST-FORWARDED 11:09 UTC,
+# `main` at daeab17c:
+# Verification basis: the commits on `main` (fa2a3c1..daeab17, 336 commits
+# linear, zero merge commits), the Actions runs on the merge push (Commit
+# authorship 635 and CI 1621 green, every job: pre-commit, test, quality and
+# migration-roundtrip; migration-immutability skipped on a push to `main`, as
+# it runs on pull requests), and the post-merge issue list. The
+# owner merged by `git merge --ff-only` and a push, not by the PR button:
+# GitHub's "Rebase and merge" stops at 100 commits, so the PR read
+# `rebaseable: false` although it was conflict-free on `main`'s head. A
+# fast-forward keeps the branch's SHAs, so the merged tree IS the tree CI
+# tested on the PR; no tree comparison is needed. Contract entry 8 is dated
+# 2026-09-25, ahead of the merge; it is not corrected, as it records when the
+# contract was written, and the merge date is here.
+#
+# WHAT CLOSED: twenty-two issues by the merge's keywords -- #886 #887 #888
+# #889 #890 #891 #892 #893 (E25's eight groups; #868 folded into S4 and closed
+# with it), #884 and #608 (ADR-0050 L2 and L4), #885 (NFR-9), #870 #871 #872
+# (the E24 remainder), #869 #873 #874 #875 #876 (design conformance), and #954
+# and #919 (two halves of this batch's own delete and override writers, found
+# by the briefing's fact-check and built before promotion). CLOSED BY HAND:
+# #883, E25's tracker, with where each group landed. STAY OPEN: #328 -- API,
+# MCP and screen shipped and the UAT persona ran its five-step plan on the
+# synthetic seed, but it carries needs-uat and the run on real data is the
+# owner's; #330 -- the discovery verdict is posted and waits for the owner's
+# one fact (OQ-2); #314 -- Codecov 90 % and the Credo ceiling 13 shipped, the
+# remaining Credo steps are refactors of their own; #900 and #901 -- Sprint 17.
+#
+# NOTHING WAS SHRUNK. Every lane of the plan landed; the shrink order was
+# never used.
+#
+# FILED AND NOT BUILT (Scope Lock): #915-#968 from the batch's own
+# observations (less #919 and #954), #969-#974 from the reviewer briefing (the
+# owner questions OQ-4/5/6/7/8/9/15 with a safe default built), and #978 at
+# this close-out (merge refusal details print bucket-id lists through
+# inspect/1, so printable ids read as a charlist; found by the value audit
+# below after the merge).
+#
+# RETROSPECTIVE (E25, ADR-0050 L1-L5, and the batch).
+# * THE BATCH WAS TOO BIG FOR ONE PR. 336 commits and 1,402 files (776 of them
+#   the BMAD re-pin) on one branch. GitHub refuses a rebase-merge beyond 100
+#   commits, so the owner fast-forwarded by hand, and the review surface was
+#   one PR no human reads whole. Owner's note: the lanes should have been
+#   separate PRs. Carry forward: a batch that will exceed ~100 commits is cut
+#   into lane PRs at planning, each merged in order; the planning PR names
+#   the cut.
+# * THE REVIEWS PAID WHERE CI IS BLIND, AND ONLY THERE. A value audit read the
+#   records of all 13 workflow runs (244 subagents, about 34 h of active agent
+#   time, 2.6 M output tokens): 285 findings raised, 236 confirmed, 31
+#   refuted, 68 labelled blocking or major. The catches that justified the
+#   spend share one property -- no gate can see them: upgrade migrations over
+#   legacy rows (two would have stopped the release from booting: the import
+#   hash-kind CHECK and CR-1's author backfill), double or lost bookings on
+#   re-import (the former-name backfill, F37's refund companion, a merge
+#   chain), lock-order cycles (importer against rename, ISIN writers, delete
+#   against override), and mint 1.11.0 handing Finch a timed-out connection
+#   (every provider test stubs the transport). Several were rationalised in
+#   writing by the agent that built them; independent context caught them,
+#   parallelism did not. About a quarter to a third of the spend added no
+#   catch: the 78-agent scope-lock triage (a fifth of all tokens, 24 % of it
+#   on candidates a later lane had already fixed, #919/#954 filed twice),
+#   verifier fleets (nine verifiers, one refutation), overlapping lenses (35 %
+#   duplicates in one run), review-of-review layers with falling yield, and
+#   implementation "parallelism" whose main tracks ran in sequence anyway
+#   while worktrees forked from a base up to 208 commits stale. Carry
+#   forward: one independent lens per risk class (seeded-upgrade, concurrency
+#   and lock order, money identity, dependency chokepoint) instead of
+#   multi-lens everywhere; stop a review cascade when a layer yields no major;
+#   one triage agent with a `git log --grep` pre-filter; implementers'
+#   out-of-scope notes handed to the fixer in full, by file, never truncated;
+#   worktrees from the branch head; full suites capped at the core count.
+# * TURN THE RECURRING CATCHES INTO GATES. Four upgrade-path defects and four
+#   lock-order defects in one batch say the gates lack two harnesses: a
+#   seeded-upgrade test (synthetic legacy rows at the pre-migration version,
+#   then `mix ecto.migrate`) and a two-connection lock-order test. Proposed
+#   for Sprint 17's planning, so the next batch stops paying a reviewer to
+#   find what a gate could.
+# * THE WEEKLY USAGE LIMIT STOPPED THE BATCH FOR ABOUT 36 H (2026-09-27 06:10
+#   to 09-28 18:29 UTC) and killed the briefing workflow's verify and finalise
+#   agents while the run still read "completed". The verification redone by
+#   hand found #954's backstop and #919's not-found half unbuilt on this
+#   batch's own code. Carry forward: plan the batch against a token budget
+#   below the cap, with the closing act and the briefing reserved; a workflow
+#   whose phase returns null reports failed; a closing keyword is checked
+#   against the diff before the PR body names it.
+# * A DEPENDENCY FORCED BY AN ADVISORY CHANGED BEHAVIOUR. mint 1.10.1 -> 1.11.0
+#   (three advisories, hex.audit red) was "only the lock" by its commit
+#   message; the post-closing review read the changelog and the Finch pool and
+#   reproduced a stale-connection reuse through the real transport on
+#   loopback; the fix then cost IPv6 literals until the next round. Carry
+#   forward: an advisory bump in the transport stack gets its changelog read
+#   and a real-transport test, like any change to the chokepoint.
+# * THE HISTORY WAS REWRITTEN TWICE for disclosure (plan D-4), fourteen
+#   messages, tree byte-identical each time. The rule held; the cost was that
+#   hashes cited in the triage and the version report had to move to commit
+#   subjects. Carry forward: name commits by subject in records written during
+#   a batch.
+# * TWO PROCESS QUESTIONS FROM THE OWNER, for Sprint 17's planning PR (neither
+#   changed in this close-out):
+#   - COMMIT AUTHORSHIP. Every session the Claude Code web environment asks to
+#     commit as the agent identity with a session trailer, and CLAUDE.md
+#     forbids it, so each session spends turns refusing. Git keeps the author
+#     through a rebase-merge (GitHub sets the committer) and a fast-forward
+#     keeps both, so the merge does not turn an agent's commit into the
+#     owner's. The owner asks whether the human-author rule still fits fully
+#     agent-written work. The option discussed: the agent commits as itself,
+#     the owner stays accountable through the merge (only owner-merged PRs
+#     move `main`), and the "human-accountability" check moves from an author
+#     allowlist to merge control. The trade-off is the public history and the
+#     contribution graph showing the agent as author.
+#   - VERSIONING. `0.<sprint>.0` couples the number to the sprint, not to
+#     compatibility, stays 0.x indefinitely, and depends on an owner action
+#     the agent credential cannot perform (0.15.0 and 0.15.1 are still
+#     unpublished). The option discussed: calendar versioning in OpenClaw's
+#     shape (YYYY.M.PATCH), tagged by a workflow on merge to `main` that also
+#     creates the release in the same job (a tag pushed with the workflow
+#     token triggers no other workflow), with the API contract version as the
+#     compatibility signal the release notes name.
+#
+# TWO-WAY COVERAGE: two capabilities ship agent-first, each with its human
+# view due BY THE END OF SPRINT 17 -- missing either is that close-out's
+# finding:
+#   - the merge-record list: GET /api/v1/merges, portfolixir.merges.list; the
+#     list view per ADR-0050 section 12;
+#   - the release of manual quotes back to provider data (T-9):
+#     POST /api/v1/securities/:security_id/quotes/release,
+#     portfolixir.quotes.release; the control on the security's quotes, boarded
+#     at Sprint 17's planning.
+# Nothing older carries a deadline into Sprint 17.
+#
+# SURFACE CHECK (the 2026-09-03 owner decision): no read-ergonomics family
+# grew. GET /api/v1/merges takes limit= only, through the shared ListLimit
+# bound (#776's family), and deliberately no since=: merge records are
+# append-only and few. min_drift= keeps its two endpoints (the allocation read
+# and the position-target listing) and only gained a finiteness check (NaN
+# and infinity answer 422, S4 G15).
+#
+# MAINTENANCE LANE: version-report-2026-09-26-sprint16.md -- BMAD 6.12.0 with
+# tea v1.27.2 and cis v0.3.2 (the branch's first commit), hpax 1.1.0,
+# lazy_html 0.1.13 and mint 1.11.0 for advisories published during the batch,
+# ip-address 10.7.2 in the companion's lockfile after the promotion (two
+# moderate advisories below the high gate); deliberately not taken: phoenix
+# 1.8.15 and @types/node 24.19.0 (published after the lane's list), Node 26
+# (not LTS until 2026-10-28, #882 declined), bmb's next major and the
+# automator's replacement by bmad-loop (owner decisions). #314 moved: Codecov
+# 90 %, Credo complexity ceiling 13.
+#
+# EPIC STATES AFTER THIS MERGE: E25 DONE -- tracker #883 closed by hand; its
+# follow-ups #894-#899 and #950 stay open under their own reasons. E3 STAYS
+# IN PROGRESS -- ADR-0050's whole build order shipped, #328 waits on the
+# owner's run on real data, and the section 15 deferrals #902-#906 need
+# decisions.
+#
+# THE TAGS -- THREE OUTSTANDING, AND THE SCHEME IS IN QUESTION. Published:
+# 0.10.0 to 0.14.0. Not published: 0.15.0 (Sprint 15, 096b80e5), 0.15.1 (the
+# Lane H hotfix, PR #880, f63bb9c4) and 0.16.0 (this batch, daeab17c). The
+# agent credential cannot push a tag. If the owner keeps the current scheme:
+#   git tag -a 0.15.0 096b80e5 -m "Portfolixir 0.15.0" && git push origin 0.15.0
+#   git tag -a 0.15.1 f63bb9c4 -m "Portfolixir 0.15.1" && git push origin 0.15.1
+#   git tag -a 0.16.0 daeab17c -m "Portfolixir 0.16.0" && git push origin 0.16.0
+# Each push triggers the Release workflow (a rollback point plus a
+# communicable changelog, never an installable artifact, #659). If the owner
+# adopts calendar versioning at Sprint 17's planning, these three stay
+# untagged or are tagged once under the new scheme; that is the owner's call.
 #
 # BATCH OPENED (2026-09-24, Sprint 16) -- branch
 # claude/sprint-16-umsetzung-j5mjk0 from `main` at fa2a3c19, which carries
@@ -1523,6 +1688,10 @@ development_status:
   # (signed by the merge of the Sprint 16 planning PR); the importer half (L2)
   # is filed as its own issue at branch opening, under #417: #884, with
   # ADR-0050 §15's deferrals #902-#906 beside it and #907 on FR-23's row.
+  # 2026-09-29 (Sprint 16, PR #914, main at daeab17c): ADR-0050 L1-L5
+  # shipped; #884 and #608 closed by keyword. E3 stays in progress on #328
+  # (shipped; needs-uat, the owner's run on real data) and the §15 deferrals,
+  # each needing a decision. The merge-record list view is due in Sprint 17.
   epic-3: in-progress
   epic-3-retrospective: optional
 
@@ -1755,5 +1924,9 @@ development_status:
   # the group issues are filed at branch opening (2026-09-24): tracker #883,
   # groups #886-#893 (S1-S8), follow-ups #894-#899. Lane H shipped ahead of
   # the batch as PR #880, closing the S0 issue #879.
-  epic-25: in-progress
-  epic-25-retrospective: optional
+  # DONE 2026-09-29 (Sprint 16, PR #914 fast-forwarded, main at daeab17c):
+  # 103 of the triage's 108 items shipped, F15 partial (#950), none deferred;
+  # the eight groups closed by keyword, the tracker #883 by hand. The
+  # follow-ups #894-#899 stay open under their own reasons.
+  epic-25: done
+  epic-25-retrospective: done
