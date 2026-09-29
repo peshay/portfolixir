@@ -790,6 +790,18 @@ list in section 4 is likewise out.
   load-bearing, not less: a gate that lifts partially is exactly the kind a
   reader mistakes for lifted entirely, which is precisely the failure a
   meta-test would catch and a document cannot.
+
+  **Built 2026-09-29 (Sprint 16, PR #914, `main` at `daeab17`, #885).** The
+  requirement is now inventory. Seven invariant files under `test/invariants/`
+  back the hard gates: B1 no stored credential (schemas, tables, columns,
+  settings keys), B2 one outbound chokepoint, B3 dependency classes, B4
+  non-goal names in code and schema, B5 system writers and schedulers, B6
+  the intake formats, and B7 a gate registry that ties every hard-gate
+  sentence in AGENTS.md to the files backing it in both directions, so a
+  sentence amended without its backstops, or a backstop dropped without its
+  sentence, fails the build. Each file carries a matcher self-test that plants
+  a synthetic sample and must catch it, so a clean tree cannot pass
+  vacuously. `mcp_dependency_allowlist_test` (ADR-0002) stays beside them.
 - **NFR-10 Machine-extracted data is a proposal until confirmed.** Standing
   rule, independent of whether a local model is ever adopted: anything
   extracted from an unstructured source carries its source link and a
