@@ -71,8 +71,9 @@ story_location: _bmad-output/implementation-artifacts
 # #889 #890 #891 #892 #893 (E25's eight groups; #868 folded into S4 and closed
 # with it), #884 and #608 (ADR-0050 L2 and L4), #885 (NFR-9), #870 #871 #872
 # (the E24 remainder), #869 #873 #874 #875 #876 (design conformance), and #954
-# and #919 (two halves of this batch's own delete and override writers, found
-# by the briefing's fact-check and built before promotion). CLOSED BY HAND:
+# and #919 (two halves of this batch's own delete and override writers,
+# filed by the batch's scope-lock pass on 2026-09-26, found still unbuilt by
+# the briefing's fact-check, and built before promotion). CLOSED BY HAND:
 # #883, E25's tracker, with where each group landed. STAY OPEN: #328 -- API,
 # MCP and screen shipped and the UAT persona ran its five-step plan on the
 # synthetic seed, but it carries needs-uat and the run on real data is the
@@ -84,24 +85,28 @@ story_location: _bmad-output/implementation-artifacts
 # never used.
 #
 # FILED AND NOT BUILT (Scope Lock): #915-#968 from the batch's own
-# observations (less #919 and #954), #969-#974 from the reviewer briefing (the
-# owner questions OQ-4/5/6/7/8/9/15 with a safe default built), and #978 at
+# observations (less #919 and #954), #969-#974 from the reviewer briefing
+# (five carry owner questions: #969 OQ-9, #970 OQ-8, #972 OQ-4/5/15, #973
+# OQ-6, #974 OQ-7, each with a safe default in place; #971 profiles the import
+# slowdown EH-1 measured), and #978 at
 # this close-out (merge refusal details print bucket-id lists through
 # inspect/1, so printable ids read as a charlist; found by the value audit
 # below after the merge).
 #
 # RETROSPECTIVE (E25, ADR-0050 L1-L5, and the batch).
-# * THE BATCH WAS TOO BIG FOR ONE PR. 336 commits and 1,402 files (776 of them
+# * THE BATCH WAS TOO BIG FOR ONE PR. 336 commits and 1,402 files (775 of them
 #   the BMAD re-pin) on one branch. GitHub refuses a rebase-merge beyond 100
 #   commits, so the owner fast-forwarded by hand, and the review surface was
-#   one PR no human reads whole. Owner's note: the lanes should have been
-#   separate PRs. Carry forward: a batch that will exceed ~100 commits is cut
+#   one PR no human reads whole. The owner's note in the session of
+#   2026-09-29: the lanes should have been separate PRs. Carry forward: a batch that will exceed ~100 commits is cut
 #   into lane PRs at planning, each merged in order; the planning PR names
 #   the cut.
-# * THE REVIEWS PAID WHERE CI IS BLIND, AND ONLY THERE. A value audit read the
-#   records of all 13 workflow runs (244 subagents, about 34 h of active agent
-#   time, 2.6 M output tokens): 285 findings raised, 236 confirmed, 31
-#   refuted, 68 labelled blocking or major. The catches that justified the
+# * THE REVIEWS PAID WHERE CI IS BLIND, AND ONLY THERE. At the owner's request
+#   a value audit read the session's own records of the batch's 13 workflow
+#   runs (session-local transcripts, not committed; the figures in this
+#   bullet come from them): 244 subagents, about 34 h of active agent time,
+#   2.6 M output tokens; 285 findings raised, 236 confirmed, 31 refuted, 68
+#   labelled blocking or major. The catches that justified the
 #   spend share one property -- no gate can see them: upgrade migrations over
 #   legacy rows (two would have stopped the release from booting: the import
 #   hash-kind CHECK and CR-1's author backfill), double or lost bookings on
@@ -112,7 +117,8 @@ story_location: _bmad-output/implementation-artifacts
 #   writing by the agent that built them; independent context caught them,
 #   parallelism did not. About a quarter to a third of the spend added no
 #   catch: the 78-agent scope-lock triage (a fifth of all tokens, 24 % of it
-#   on candidates a later lane had already fixed, #919/#954 filed twice),
+#   on candidates a later lane had already fixed, and one lock-order
+#   inversion filed as two issues, #919 and #954, with opposite fixes),
 #   verifier fleets (nine verifiers, one refutation), overlapping lenses (35 %
 #   duplicates in one run), review-of-review layers with falling yield, and
 #   implementation "parallelism" whose main tracks ran in sequence anyway
@@ -129,17 +135,20 @@ story_location: _bmad-output/implementation-artifacts
 #   then `mix ecto.migrate`) and a two-connection lock-order test. Proposed
 #   for Sprint 17's planning, so the next batch stops paying a reviewer to
 #   find what a gate could.
-# * THE WEEKLY USAGE LIMIT STOPPED THE BATCH FOR ABOUT 36 H (2026-09-27 06:10
-#   to 09-28 18:29 UTC) and killed the briefing workflow's verify and finalise
-#   agents while the run still read "completed". The verification redone by
+# * THE WEEKLY USAGE LIMIT STOPPED THE BATCH FOR ABOUT 36 H, from the morning
+#   of 2026-09-27 to the evening of 09-28 UTC (no commit is authored in that
+#   window; the bounds come from the session's records), and killed the
+#   briefing workflow's verify and finalise agents while the run still read
+#   "completed". The verification redone by
 #   hand found #954's backstop and #919's not-found half unbuilt on this
 #   batch's own code. Carry forward: plan the batch against a token budget
 #   below the cap, with the closing act and the briefing reserved; a workflow
 #   whose phase returns null reports failed; a closing keyword is checked
 #   against the diff before the PR body names it.
 # * A DEPENDENCY FORCED BY AN ADVISORY CHANGED BEHAVIOUR. mint 1.10.1 -> 1.11.0
-#   (three advisories, hex.audit red) was "only the lock" by its commit
-#   message; the post-closing review read the changelog and the Finch pool and
+#   (three advisories, hex.audit red) first carried a message saying only the
+#   lock changed (reworded before the merge to name the Finch interaction);
+#   the post-closing review read the changelog and the Finch pool and
 #   reproduced a stale-connection reuse through the real transport on
 #   loopback; the fix then cost IPv6 literals until the next round. Carry
 #   forward: an advisory bump in the transport stack gets its changelog read
@@ -182,20 +191,24 @@ story_location: _bmad-output/implementation-artifacts
 #     at Sprint 17's planning.
 # Nothing older carries a deadline into Sprint 17.
 #
-# SURFACE CHECK (the 2026-09-03 owner decision): no read-ergonomics family
-# grew. GET /api/v1/merges takes limit= only, through the shared ListLimit
-# bound (#776's family), and deliberately no since=: merge records are
+# SURFACE CHECK (the 2026-09-03 owner decision): no new read-ergonomics
+# parameter landed. The limit= family gained one endpoint: GET /api/v1/merges
+# takes limit= only, through the shared ListLimit bound (#776's family), and
+# deliberately no since=: merge records are
 # append-only and few. min_drift= keeps its two endpoints (the allocation read
 # and the position-target listing) and only gained a finiteness check (NaN
 # and infinity answer 422, S4 G15).
 #
 # MAINTENANCE LANE: version-report-2026-09-26-sprint16.md -- BMAD 6.12.0 with
-# tea v1.27.2 and cis v0.3.2 (the branch's first commit), hpax 1.1.0,
-# lazy_html 0.1.13 and mint 1.11.0 for advisories published during the batch,
-# ip-address 10.7.2 in the companion's lockfile after the promotion (two
-# moderate advisories below the high gate); deliberately not taken: phoenix
-# 1.8.15 and @types/node 24.19.0 (published after the lane's list), Node 26
-# (not LTS until 2026-10-28, #882 declined), bmb's next major and the
+# tea v1.27.2 and cis v0.3.2 (the branch's first commit); hpax 1.1.0 (a
+# hardening release Lane M named); lazy_html 0.1.13 and mint 1.11.0 for
+# advisories published during the batch; ip-address 10.7.2 in the companion's
+# lockfile after the promotion (two moderate advisories below the high gate).
+# Deliberately not taken, each with its reason in the report: phoenix 1.8.15
+# and @types/node 24.19.0 (published after the lane's list), Node 26 (not LTS
+# until 2026-10-28, #882 declined), Elixir/OTP minors and majors (#727's
+# triggers not fired), the Dockerfile's HEX_VERSION pin, PostgreSQL 19 (beta
+# only), Dependabot #881 (the maintainer's), bmb's next major and the
 # automator's replacement by bmad-loop (owner decisions). #314 moved: Codecov
 # 90 %, Credo complexity ceiling 13.
 #
@@ -206,7 +219,7 @@ story_location: _bmad-output/implementation-artifacts
 # decisions.
 #
 # THE TAGS -- THREE OUTSTANDING, AND THE SCHEME IS IN QUESTION. Published:
-# 0.10.0 to 0.14.0. Not published: 0.15.0 (Sprint 15, 096b80e5), 0.15.1 (the
+# every tag up to 0.14.0 (0.5.0 onwards on origin). Not published: 0.15.0 (Sprint 15, 096b80e5), 0.15.1 (the
 # Lane H hotfix, PR #880, f63bb9c4) and 0.16.0 (this batch, daeab17c). The
 # agent credential cannot push a tag. If the owner keeps the current scheme:
 #   git tag -a 0.15.0 096b80e5 -m "Portfolixir 0.15.0" && git push origin 0.15.0
