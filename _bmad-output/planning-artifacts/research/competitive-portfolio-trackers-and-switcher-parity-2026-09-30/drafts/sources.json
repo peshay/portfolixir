@@ -1,0 +1,506 @@
+{
+ "pp-manual-perf": {
+  "url": "https://help.portfolio-performance.info/en/reference/view/reports/performance/",
+  "publisher": "Portfolio Performance manual",
+  "pub": "2026-09-03",
+  "supports": "Performance report has six sub-views; TTWROR, IRR, absolute change and delta; drawdown, volatility, semideviation",
+  "confidence": "medium"
+ },
+ "pp-manual-calc": {
+  "url": "https://help.portfolio-performance.info/en/reference/view/reports/performance/calculation/",
+  "publisher": "Portfolio Performance manual",
+  "pub": "2026-09-03",
+  "supports": "Calculation view from initial to final value; FIFO or moving average; pre-tax view; CSV export",
+  "confidence": "medium"
+ },
+ "pp-manual-dashboard": {
+  "url": "https://help.portfolio-performance.info/en/reference/view/reports/performance/dashboard/",
+  "publisher": "Portfolio Performance manual",
+  "pub": "2026-09-03",
+  "supports": "Six widget categories incl. monthly and yearly returns heatmaps, FIRE, top contributors, earnings, trade statistics; no widget total stated",
+  "confidence": "medium"
+ },
+ "pp-manual-benchmark": {
+  "url": "https://help.portfolio-performance.info/en/how-to/benchmarking/",
+  "publisher": "Portfolio Performance manual",
+  "pub": "2026-09-03",
+  "supports": "Performance chart compares against any security or index with price history",
+  "confidence": "medium"
+ },
+ "pp-manual-managing-tax": {
+  "url": "https://help.portfolio-performance.info/en/reference/view/taxonomies/managing-taxonomies/",
+  "publisher": "Portfolio Performance manual",
+  "pub": "2026-09-03",
+  "supports": "One security can be assigned to several taxonomy categories with weights adding up to 100 %",
+  "confidence": "high"
+ },
+ "pp-manual-using-tax": {
+  "url": "https://help.portfolio-performance.info/en/reference/view/taxonomies/using-taxonomies/",
+  "publisher": "Portfolio Performance manual",
+  "pub": "2025-05-15",
+  "supports": "A weight counts that share of the value into the category; rebalancing computes target and delta per category",
+  "confidence": "high"
+ },
+ "pp-manual-prices": {
+  "url": "https://help.portfolio-performance.info/en/how-to/downloading-historical-prices/",
+  "publisher": "Portfolio Performance manual",
+  "pub": "2025-08-08",
+  "supports": "Built-in price feed plus Yahoo Finance, Alpha Vantage, EOD, Finnhub, Leeway, Twelve Data, Quandl, JSON, CSV, table on website",
+  "confidence": "low"
+ },
+ "pp-manual-pdf": {
+  "url": "https://help.portfolio-performance.info/en/reference/file/import/pdf-import/",
+  "publisher": "Portfolio Performance manual",
+  "pub": "undated",
+  "supports": "PDF import from more than 90 banks and brokers (search summary)",
+  "confidence": "high"
+ },
+ "pp-repo-pdf": {
+  "url": "https://api.github.com/repos/portfolio-performance/portfolio/git/trees/master:name.abuchen.portfolio/src/name/abuchen/portfolio/datatransfer/pdf",
+  "publisher": "Portfolio Performance GitHub repository",
+  "pub": "undated (read 2026-09-30)",
+  "supports": "130 institution-named PDF extractor classes on master",
+  "confidence": "high"
+ },
+ "pp-releases": {
+  "url": "https://github.com/portfolio-performance/portfolio/releases",
+  "publisher": "Portfolio Performance GitHub releases",
+  "pub": "2026-08-16",
+  "supports": "0.87.0 lot-based trades; 0.86.0 Rebalancing view with cash-flow allocation; 0.83.0 Top Contributors and FIRE widgets; broker CSV paths",
+  "confidence": "medium"
+ },
+ "pp-appstore-us": {
+  "url": "https://apps.apple.com/us/app/portfolio-performance/id6451118191",
+  "publisher": "Apple App Store (seller MSM Mannheimer Software-Manufaktur UG)",
+  "pub": "undated",
+  "supports": "Phone app reads the desktop file from a cloud drive, computes locally, leaves editing to the desktop; Premium ($3/month, $25/year) unlocks dashboards; Dropbox/WebDAV named in vendor text",
+  "confidence": "high"
+ },
+ "pp-appstore-de": {
+  "url": "https://apps.apple.com/de/app/portfolio-performance/id6451118191",
+  "publisher": "Apple App Store (seller MSM Mannheimer Software-Manufaktur UG)",
+  "pub": "undated",
+  "supports": "Premium EUR 3/month or EUR 30/year, dashboards only; 4.7 from 208 ratings",
+  "confidence": "medium"
+ },
+ "pp-forum-app-launch": {
+  "url": "https://forum.portfolio-performance.info/t/portfolio-performance-app-the-first-version/27334",
+  "publisher": "Portfolio Performance forum (maintainer announcement)",
+  "pub": "2024-02-21",
+  "supports": "Phone companion reads the same binary file from iCloud, Google Drive or OneDrive, computes on the device, no edits; dashboards need a subscription",
+  "confidence": "high"
+ },
+ "pp-appbrain": {
+  "url": "https://www.appbrain.com/app/portfolio-performance/software.msm.portfolio_performance",
+  "publisher": "AppBrain",
+  "pub": "2026-07-08",
+  "supports": "Android app version 1.13.0, July 2026 (search summary)",
+  "confidence": "medium"
+ },
+ "pp-forum-top": {
+  "url": "https://forum.portfolio-performance.info/top.json?period=yearly",
+  "publisher": "Portfolio Performance forum (yearly top listing)",
+  "pub": "2025-10 to 2026-09",
+  "supports": "Top topics: failing price updates (7 of 50), broker imports, bookkeeping edge cases, what figures mean, research notes on securities",
+  "confidence": "medium"
+ },
+ "pp-forum-farewell": {
+  "url": "https://forum.portfolio-performance.info/t/abschied-vom-pp-team-und-projekt/39393",
+  "publisher": "Portfolio Performance forum",
+  "pub": "2026-06-06",
+  "supports": "Maintainer of the PDF importers stepped down; users fear manual entry",
+  "confidence": "medium"
+ },
+ "pp-forum-ai": {
+  "url": "https://forum.portfolio-performance.info/t/using-ai-to-analyze-a-portfolio-performance-xml-file-has-anyone-else-tried-this/39153",
+  "publisher": "Portfolio Performance forum",
+  "pub": "2026-04-19 to 2026-07-26",
+  "supports": "Users feed PP XML to LLMs and publish MCP servers over it; a 0.0.0.0 default was criticised",
+  "confidence": "high"
+ },
+ "pp-forum-quovibe": {
+  "url": "https://forum.portfolio-performance.info/t/new-app-created-based-on-ppxml2db/39100",
+  "publisher": "Portfolio Performance forum",
+  "pub": "2026-04",
+  "supports": "Testers of a web app built on PP data checked valuations first and found them off",
+  "confidence": "medium"
+ },
+ "parqet-vs-pp": {
+  "url": "https://parqet.com/en/blog/parqet-vs-portfolio-performance",
+  "publisher": "Parqet (vendor blog)",
+  "pub": "2020-02-04",
+  "supports": "Parqet's PP comparison page dates from 2020 and names no PP import path",
+  "confidence": "low"
+ },
+ "gf-landing": {
+  "url": "https://ghostfol.io/en",
+  "publisher": "Ghostfolio (live site, hands-on)",
+  "pub": "undated (live 2026-09-30)",
+  "supports": "Positioning line, a 'for you if' list, a three-step start next to a live demo, self-reported traction",
+  "confidence": "medium"
+ },
+ "gf-analysis": {
+  "url": "https://ghostfol.io/en/portfolio",
+  "publisher": "Ghostfolio (live demo, hands-on)",
+  "pub": "undated (live 2026-09-30)",
+  "supports": "Analysis view with benchmark selector, asset versus currency performance, investment streaks, dividend timeline",
+  "confidence": "medium"
+ },
+ "gf-xray": {
+  "url": "https://ghostfol.io/en/portfolio/x-ray",
+  "publisher": "Ghostfolio (live demo, hands-on)",
+  "pub": "undated (live 2026-09-30)",
+  "supports": "X-ray: 17 built-in rules with thresholds",
+  "confidence": "medium"
+ },
+ "gf-allocations": {
+  "url": "https://ghostfol.io/en/portfolio/allocations",
+  "publisher": "Ghostfolio (live demo, hands-on)",
+  "pub": "undated (live 2026-09-30)",
+  "supports": "Allocations by platform, currency, asset class, holding, sector, continent, market, country, account, ETF provider, with visible data gaps",
+  "confidence": "medium"
+ },
+ "gf-settings": {
+  "url": "https://ghostfol.io/en/account",
+  "publisher": "Ghostfolio (live demo, hands-on)",
+  "pub": "undated (live 2026-09-30)",
+  "supports": "Presenter View and Zen Mode settings",
+  "confidence": "medium"
+ },
+ "gf-access": {
+  "url": "https://ghostfol.io/en/account/access",
+  "publisher": "Ghostfolio (live demo, hands-on)",
+  "pub": "undated (live 2026-09-30)",
+  "supports": "Read-access grants (public restricted view, named grantee) with expiry",
+  "confidence": "medium"
+ },
+ "gf-tools-pages": {
+  "url": "https://ghostfol.io/en/resources/personal-finance-tools",
+  "publisher": "Ghostfolio (live site, hands-on)",
+  "pub": "undated (live 2026-09-30)",
+  "supports": "341 'open-source alternative to' pages incl. Parqet, getquin, Finanzfluss Copilot, Wealthfolio; none for Portfolio Performance",
+  "confidence": "medium"
+ },
+ "gf-readme": {
+  "url": "https://github.com/ghostfolio/ghostfolio",
+  "publisher": "Ghostfolio (GitHub README)",
+  "pub": "undated (read 2026-09-30)",
+  "supports": "Docker with PostgreSQL and Redis; mobile-first PWA; home-server app stores; data sources; hosted Premium; experimental MCP behind a feature flag; about 9.4k stars",
+  "confidence": "high"
+ },
+ "gf-changelog": {
+  "url": "https://raw.githubusercontent.com/ghostfolio/ghostfolio/main/CHANGELOG.md",
+  "publisher": "Ghostfolio (changelog)",
+  "pub": "2026-09-30",
+  "supports": "MCP server since 3.59.1 (2026-08-23); copy-AI-prompt actions; several releases a week",
+  "confidence": "medium"
+ },
+ "gf-prs-mcp": {
+  "url": "https://github.com/ghostfolio/ghostfolio/pulls?q=is%3Apr+mcp",
+  "publisher": "Ghostfolio (pull requests)",
+  "pub": "2026-08-23 to 2026-09-26",
+  "supports": "First-party MCP PR series; a direct create-activity tool was dropped in favour of import",
+  "confidence": "high"
+ },
+ "gf-pr-7935": {
+  "url": "https://github.com/ghostfolio/ghostfolio/pull/7935/files",
+  "publisher": "Ghostfolio (pull request diff)",
+  "pub": "2026-09-26",
+  "supports": "Six MCP tools under two access levels; tool list filtered by the access's scope; no prompts or resources",
+  "confidence": "medium"
+ },
+ "gf-ai-service": {
+  "url": "https://raw.githubusercontent.com/ghostfolio/ghostfolio/main/apps/api/src/app/endpoints/ai/ai.service.ts",
+  "publisher": "Ghostfolio (source code)",
+  "pub": "undated (main, read 2026-09-30)",
+  "supports": "Analysis prompt asks for 'Optimization Ideas' without a disclaimer; the service can call an LLM via OpenRouter",
+  "confidence": "medium"
+ },
+ "gf-issues": {
+  "url": "https://api.github.com/search/issues?q=repo:ghostfolio/ghostfolio+is:issue+is:open&sort=reactions&order=desc&per_page=20",
+  "publisher": "GitHub (Ghostfolio issues)",
+  "pub": "2025-10 to 2026-09",
+  "supports": "Top open issues: a failing data provider, a wrong performance calculation, crashes",
+  "confidence": "medium"
+ },
+ "scaryfolio": {
+  "url": "https://apps.apple.com/app/id6755882228",
+  "publisher": "Apple App Store (third-party developer)",
+  "pub": "undated (read 2026-09-30)",
+  "supports": "Unofficial native iOS client for cloud or self-hosted Ghostfolio via its security token; paid Pro for writes",
+  "confidence": "high"
+ },
+ "gf-mcp-community": {
+  "url": "https://github.com/mhajder/ghostfolio-mcp",
+  "publisher": "mhajder (community, GitHub)",
+  "pub": "undated (read 2026-09-30)",
+  "supports": "Community server with 38-39 tools, read-only mode, tag-based tool groups, tool-search mode",
+  "confidence": "medium"
+ },
+ "mcp-registry-folio": {
+  "url": "https://registry.modelcontextprotocol.io/v0/servers?search=folio&limit=100",
+  "publisher": "Official MCP Registry",
+  "pub": "2026-09-30",
+  "supports": "Community Ghostfolio server and AI-native entrants listed; no Wealthfolio or Portfolio Performance entry for 'folio'",
+  "confidence": "medium"
+ },
+ "wf-home": {
+  "url": "https://wealthfolio.app/",
+  "publisher": "Wealthfolio",
+  "pub": "undated (read 2026-09-30)",
+  "supports": "Positioning line; feature list incl. FIRE, rebalancing, AI assistant; self-host targets; self-reported traction",
+  "confidence": "high"
+ },
+ "wf-connect": {
+  "url": "https://wealthfolio.app/connect/",
+  "publisher": "Wealthfolio",
+  "pub": "undated (read 2026-09-30)",
+  "supports": "Connect tiers: $2.99, $7.99, $12.99, and a coming $24.99 tier with hosted AI and licensed data",
+  "confidence": "medium"
+ },
+ "wf-readme": {
+  "url": "https://github.com/afadil/wealthfolio",
+  "publisher": "Wealthfolio (GitHub README)",
+  "pub": "undated (read 2026-09-30)",
+  "supports": "Local-first desktop app on SQLite; official Docker web mode with single-command start and password/OIDC",
+  "confidence": "high"
+ },
+ "wf-docs-mobile": {
+  "url": "https://wealthfolio.app/docs/guide/mobile/",
+  "publisher": "Wealthfolio docs",
+  "pub": "2026-09-30",
+  "supports": "Each iOS device runs its own database; no native Android app yet; self-hosted web UI usable as a PWA",
+  "confidence": "medium"
+ },
+ "wf-docs-connect": {
+  "url": "https://wealthfolio.app/docs/guide/connect-broker-sync/",
+  "publisher": "Wealthfolio docs",
+  "pub": "2026-09-30",
+  "supports": "Self-hosted instances are sync peers; changes travel as end-to-end-encrypted blobs through Connect",
+  "confidence": "medium"
+ },
+ "wf-docs-mcp": {
+  "url": "https://wealthfolio.app/docs/guide/mcp-server/",
+  "publisher": "Wealthfolio docs",
+  "pub": "2026-09-30",
+  "supports": "MCP at /mcp; client snippets for Claude Desktop, Cursor, Windsurf, Cline; 7 read and 4 write scopes with draft separate from commit; agent activity log that can be switched off",
+  "confidence": "medium"
+ },
+ "wf-docs-ai": {
+  "url": "https://wealthfolio.app/docs/guide/ai-assistant/",
+  "publisher": "Wealthfolio docs",
+  "pub": "2026-09-30",
+  "supports": "13 typed tools shared with MCP; user's own model provider incl. Ollama; 'what you own, not what you should own'",
+  "confidence": "medium"
+ },
+ "wf-releases": {
+  "url": "https://github.com/afadil/wealthfolio/releases",
+  "publisher": "Wealthfolio (GitHub releases)",
+  "pub": "2026-07-05 to 2026-09-27",
+  "supports": "MCP server in v3.6.0 (2026-07-05) on desktop and web; audited scoped tokens; writes as drafts",
+  "confidence": "medium"
+ },
+ "wf-release-370": {
+  "url": "https://github.com/wealthfolio/wealthfolio/releases/tag/v3.7.0",
+  "publisher": "Wealthfolio (GitHub release)",
+  "pub": "2026 (exact date unverified)",
+  "supports": "Tool output and attachments cannot authorize drafts; one versioned system prompt with safety fixtures",
+  "confidence": "medium"
+ },
+ "wf-issues": {
+  "url": "https://api.github.com/repos/afadil/wealthfolio/issues?state=open&sort=comments&direction=desc&per_page=30",
+  "publisher": "GitHub (Wealthfolio issues)",
+  "pub": "2025-09 to 2026-07",
+  "supports": "Most-discussed issues: cash balances and transfers; a release that broke calculations",
+  "confidence": "medium"
+ },
+ "hn-wf": {
+  "url": "https://news.ycombinator.com/item?id=46006016",
+  "publisher": "Hacker News",
+  "pub": "2025-11 (approx.)",
+  "supports": "Praise for UI, local model, platforms; missing automated sync called a dealbreaker",
+  "confidence": "medium"
+ },
+ "wf-selfhosted-relay": {
+  "url": "https://github.com/festivities/wealthfolio-connect-self-hosted",
+  "publisher": "festivities (community, GitHub)",
+  "pub": "undated",
+  "supports": "Unofficial self-hostable replacement for the Connect relay",
+  "confidence": "low"
+ },
+ "hostinger-wf": {
+  "url": "https://www.hostinger.com/vn/applications/wealthfolio",
+  "publisher": "Hostinger (app catalogue)",
+  "pub": "undated",
+  "supports": "Built-in AI assistant with local and cloud providers (search summary)",
+  "confidence": "medium"
+ },
+ "actual-install": {
+  "url": "https://actualbudget.org/docs/install/",
+  "publisher": "Actual Budget docs",
+  "pub": "undated (read 2026-09-30)",
+  "supports": "Local-first with optional sync server; phone use needs a server; installed web app works offline; demo or desktop first; PikaPods with a donated share",
+  "confidence": "high"
+ },
+ "actual-https": {
+  "url": "https://actualbudget.org/docs/config/https",
+  "publisher": "Actual Budget docs",
+  "pub": "undated (read 2026-09-30)",
+  "supports": "Tailscale or Caddy with a DNS challenge for certificates without exposing the server to the internet",
+  "confidence": "high"
+ },
+ "tailscale-https": {
+  "url": "https://tailscale.com/kb/1153/enabling-https",
+  "publisher": "Tailscale docs",
+  "pub": "2025-12-10",
+  "supports": "Let's Encrypt certificates for tailnet names; names appear in Certificate Transparency logs",
+  "confidence": "high"
+ },
+ "tailscale-serve": {
+  "url": "https://tailscale.com/kb/1312/serve",
+  "publisher": "Tailscale docs",
+  "pub": "2026-01-20",
+  "supports": "Serve proxies a local port to tailnet devices only and provisions certificates automatically",
+  "confidence": "high"
+ },
+ "immich-remote": {
+  "url": "https://docs.immich.app/guides/remote-access/",
+  "publisher": "Immich docs",
+  "pub": "undated (search extract)",
+  "supports": "Recommends Tailscale when a router port cannot be opened, citing protection against zero-days",
+  "confidence": "medium"
+ },
+ "nextcloud-cf": {
+  "url": "https://help.nextcloud.com/t/is-cloudflare-tunnel-safe-privacy-focused/150268",
+  "publisher": "Nextcloud community forum",
+  "pub": "undated (stale)",
+  "supports": "Cloudflare Tunnel means Cloudflare decrypts all TLS traffic",
+  "confidence": "low"
+ },
+ "pluggie-cf": {
+  "url": "https://pluggie.io/blog/cloudflare-tunnel-tls-privacy",
+  "publisher": "Pluggie (blog)",
+  "pub": "undated",
+  "supports": "Cloudflare's edge decrypts the full request including credentials",
+  "confidence": "low"
+ },
+ "rotki-blog": {
+  "url": "https://blog.rotki.com/2025/10/13/rotki-tiers/",
+  "publisher": "rotki (blog)",
+  "pub": "2025-10-13",
+  "supports": "rotki replaced its single Premium tier with Basic, Advanced and Custom after seven years",
+  "confidence": "low"
+ },
+ "parqet-pricing": {
+  "url": "https://parqet.com/en/pricing",
+  "publisher": "Parqet",
+  "pub": "undated (read 2026-09-30)",
+  "supports": "Basic free, Plus EUR 11.99/month, Investor EUR 29.99/month; paid dividend forecast and calendar, X-Ray, benchmark, tax dashboard; PDF/CSV import for over 50 brokers",
+  "confidence": "medium"
+ },
+ "parqet-mcp": {
+  "url": "https://developer.parqet.com/docs/give-ai-portfolio-context-with-the-parqet-mcp",
+  "publisher": "Parqet Developer Hub",
+  "pub": "undated",
+  "supports": "Hosted MCP with OAuth 2.0; read-only per the guide",
+  "confidence": "medium"
+ },
+ "parqet-apps": {
+  "url": "https://parqet.com/en/blog/android-app",
+  "publisher": "Parqet",
+  "pub": "undated",
+  "supports": "Native iOS and Android apps",
+  "confidence": "medium"
+ },
+ "getquin-ai": {
+  "url": "https://www.getquin.com/getquin-ai/",
+  "publisher": "getquin",
+  "pub": "undated",
+  "supports": "AI agents marketed with advice-adjacent questions such as whether to harvest losses",
+  "confidence": "medium"
+ },
+ "getquin-tracker": {
+  "url": "https://www.getquin.com/portfolio-tracker",
+  "publisher": "getquin",
+  "pub": "undated",
+  "supports": "Imports through API connections to more than 2,000 banks and brokers",
+  "confidence": "medium"
+ },
+ "getquin-dividends": {
+  "url": "https://www.getquin.com/dividend-tracker",
+  "publisher": "getquin",
+  "pub": "undated",
+  "supports": "Dividend calendar and forecast",
+  "confidence": "medium"
+ },
+ "ffc-page": {
+  "url": "https://www.finanzfluss.de/copilot/",
+  "publisher": "Finanzfluss",
+  "pub": "undated (read 2026-09-30)",
+  "supports": "Dividend dashboard and calendar; over 350 bank connections; iOS and Android apps; German servers",
+  "confidence": "medium"
+ },
+ "agni-glama": {
+  "url": "https://glama.ai/mcp/servers/sx89qje90t",
+  "publisher": "Glama (directory)",
+  "pub": "undated",
+  "supports": "Agni Folio hosted MCP with OAuth 2.1, separate read and write scopes, revocable",
+  "confidence": "medium"
+ },
+ "fmp-prompts": {
+  "url": "https://github.com/jackdark425/aigroup-fmp-mcp",
+  "publisher": "jackdark425 (GitHub)",
+  "pub": "undated",
+  "supports": "A market-data MCP server that ships MCP prompts and resources, not over a user's ledger",
+  "confidence": "medium"
+ },
+ "sharesight-blog": {
+  "url": "https://sharesight.com/blog/3-ways-sharesight-helps-investors-at-tax-time",
+  "publisher": "Sharesight (blog)",
+  "pub": "undated",
+  "supports": "Taxable income and capital gains reports on paid plans",
+  "confidence": "medium"
+ },
+ "snowball-appstore": {
+  "url": "https://apps.apple.com/app/snowball-analytics/id6463484375",
+  "publisher": "Apple App Store (Snowball Analytics)",
+  "pub": "undated",
+  "supports": "Native app with dividend and coupon calendar and broker consolidation",
+  "confidence": "medium"
+ },
+ "gf-price-aggregator": {
+  "url": "https://www.findmymoat.com/vs/ghostfolio-vs-wealthfolio",
+  "publisher": "findmymoat (aggregator)",
+  "pub": "undated",
+  "supports": "Ghostfolio Premium 'from $48/yr' (unconfirmed on the official page)",
+  "confidence": "low"
+ },
+ "wf-price-aggregator": {
+  "url": "https://toolradar.com/tools/wealthfolio/pricing",
+  "publisher": "Toolradar (aggregator)",
+  "pub": "undated",
+  "supports": "Lists Wealthfolio Connect's entry tier at $3.99 a month, against $2.99 on the official page",
+  "confidence": "low"
+ },
+ "finanzfisch-blog": {
+  "url": "https://der-finanzfisch.de/klassifizierung-von-etfs-in-portfolio-performance/",
+  "publisher": "Der Finanzfisch (blog tutorial)",
+  "pub": "2017-04-12",
+  "supports": "Independent confirmation: one ETF split across several region categories by weight in PP; the unassigned remainder returns to the pool",
+  "confidence": "high"
+ },
+ "wf-olares": {
+  "url": "https://github.com/abidals/Wealthfolio-Olares",
+  "publisher": "abidals (third-party package, GitHub)",
+  "pub": "undated (ships Wealthfolio 3.8.0)",
+  "supports": "Independent confirmation: Wealthfolio's built-in MCP server with scoped, revocable, audit-logged tokens",
+  "confidence": "high"
+ },
+ "pp-terminal": {
+  "url": "https://github.com/ma4nn/pp-terminal",
+  "publisher": "ma4nn (GitHub)",
+  "pub": "undated (read 2026-09-30)",
+  "supports": "Analytics companion over the PP XML file with an MCP mode; never modifies the PP file",
+  "confidence": "high"
+ }
+}

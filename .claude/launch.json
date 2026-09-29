@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "portfolixir",
+      "runtimeExecutable": "mix",
+      "runtimeArgs": ["phx.server"],
+      "port": 4000,
+      "autoPort": true
+    }
+  ]
+}
