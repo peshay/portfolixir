@@ -1,0 +1,157 @@
+[
+ {
+  "claim": "[2] PP's Calculation view runs from initial to final value through gains, earnings, fees, taxes and transfers",
+  "class": "capability",
+  "pub_date": "2026-09-01"
+ },
+ {
+  "claim": "[3] PP dashboards include monthly and yearly returns heatmaps, FIRE and trade-statistics widgets",
+  "class": "capability",
+  "pub_date": "2026-09-01"
+ },
+ {
+  "claim": "[6] PP lets one security sit in several taxonomy categories with weights adding up to 100 %",
+  "class": "capability",
+  "pub_date": "2026-09-01"
+ },
+ {
+  "claim": "[4] PP's performance chart compares against any security or index with price history",
+  "class": "capability",
+  "pub_date": "2026-09-01"
+ },
+ {
+  "claim": "[5] PP holds 130 institution-named PDF extractors, above the manual's 'more than 90'",
+  "class": "capability",
+  "pub_date": "2026-09-01"
+ },
+ {
+  "claim": "[8] PP's phone app reads the desktop file from a cloud drive, computes locally and leaves editing to the desktop",
+  "class": "capability",
+  "pub_date": "2026-09-01"
+ },
+ {
+  "claim": "[30] PP phone Premium costs EUR 3 a month or EUR 30 a year and unlocks dashboards only",
+  "class": "pricing",
+  "pub_date": "2026-09-01"
+ },
+ {
+  "claim": "[10] Wealthfolio shipped its built-in MCP server in v3.6.0 on 2026-07-05",
+  "class": "trajectory",
+  "pub_date": "2026-07-01"
+ },
+ {
+  "claim": "[12] Wealthfolio's built-in MCP server uses scoped, revocable, audit-logged tokens",
+  "class": "capability",
+  "pub_date": "2026-09-01"
+ },
+ {
+  "claim": "[11] Wealthfolio's MCP separates draft from commit scopes, offers client snippets and an audit log that can be switched off",
+  "class": "capability",
+  "pub_date": "2026-09-01"
+ },
+ {
+  "claim": "[13] Ghostfolio shipped a built-in experimental MCP server in 3.59.1 on 2026-08-23",
+  "class": "capability",
+  "pub_date": "2026-08-01"
+ },
+ {
+  "claim": "[14] Ghostfolio's MCP exposes six tools filtered by the access's scope",
+  "class": "capability",
+  "pub_date": "2026-09-01"
+ },
+ {
+  "claim": "[16] Wealthfolio's app calls the user's chosen model provider from inside the app",
+  "class": "capability",
+  "pub_date": "2026-09-01"
+ },
+ {
+  "claim": "[17] Ghostfolio can call a model via OpenRouter; its analysis prompt asks for Optimization Ideas without a disclaimer",
+  "class": "capability",
+  "pub_date": "2026-09-01"
+ },
+ {
+  "claim": "[18] No peer ships MCP prompts or resources over the user's own ledger",
+  "class": "capability",
+  "pub_date": "2026-09-01"
+ },
+ {
+  "claim": "[51] Tailscale Serve gives tailnet-only HTTPS with automatic certificates",
+  "class": "capability",
+  "pub_date": "2026-01-01"
+ },
+ {
+  "claim": "[21] Wealthfolio syncs phone and self-hosted instance only through its hosted end-to-end-encrypted relay",
+  "class": "capability",
+  "pub_date": "2026-09-01"
+ },
+ {
+  "claim": "[20] Ghostfolio's phone answer is a mobile-first PWA; a native iOS client exists only from a third party",
+  "class": "capability",
+  "pub_date": "2026-09-01"
+ },
+ {
+  "claim": "[22] Wealthfolio Connect costs $2.99, $7.99 and $12.99 a month on the official page; aggregators list the entry tier at $3.99",
+  "class": "pricing",
+  "pub_date": "2026-09-01"
+ },
+ {
+  "claim": "[32] Parqet Plus costs EUR 11.99 and Investor EUR 29.99 a month, with dividend forecast, X-Ray, benchmark and tax dashboard paid",
+  "class": "pricing",
+  "pub_date": "2026-09-01"
+ },
+ {
+  "claim": "[67] Seven of the PP forum's 50 top topics this year concern prices that stop updating",
+  "class": "sentiment",
+  "pub_date": "2026-08-01"
+ },
+ {
+  "claim": "[68] PP's PDF-importer maintainer stepped down in June 2026 and users feared manual entry",
+  "class": "sentiment",
+  "pub_date": "2026-06-01"
+ },
+ {
+  "claim": "[63] Community MCP tooling exposes the PP XML file to agents without modifying it",
+  "class": "capability",
+  "pub_date": "2026-09-01"
+ },
+ {
+  "claim": "[69] Ghostfolio's top open issues are a failing data provider and a disputed performance calculation",
+  "class": "sentiment",
+  "pub_date": "2026-09-01"
+ },
+ {
+  "claim": "[70] Wealthfolio's most-discussed issues are wrong cash and transfer figures",
+  "class": "sentiment",
+  "pub_date": "2026-07-01"
+ },
+ {
+  "claim": "[71] Missing automated sync was called a dealbreaker for Wealthfolio",
+  "class": "sentiment",
+  "pub_date": "2025-11-01"
+ },
+ {
+  "claim": "[46] Ghostfolio runs 341 comparison pages and none for Portfolio Performance",
+  "class": "positioning",
+  "pub_date": "2026-09-01"
+ },
+ {
+  "claim": "[36] Ghostfolio's X-ray ships 17 built-in rules with thresholds",
+  "class": "capability",
+  "pub_date": "2026-09-01"
+ },
+ {
+  "claim": "[37] Ghostfolio offers Presenter View and Zen Mode",
+  "class": "capability",
+  "pub_date": "2026-09-01"
+ },
+ {
+  "claim": "[38] No peer page offers an import of Portfolio Performance data",
+  "class": "capability",
+  "pub_date": "2026-09-01"
+ },
+ {
+  "claim": "[19] Ghostfolio has about 9.4k GitHub stars (GitHub page and Ghostfolio's own landing page)",
+  "class": "traction",
+  "pub_date": "2026-09-01"
+ }
+]
