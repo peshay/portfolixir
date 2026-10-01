@@ -876,9 +876,8 @@ Regel über einer Kennzahl ist FR-43 und bleibt verschlossen.
   Anbieterkurs für ein freigegebenes Datum; ein Wertpapier ohne Anbieter
   behält dafür keinen Kurs. Ein fehlendes oder ungültiges Datum liefert `422`
   mit dem Feld, `to` vor `from` `422` auf `to`, ein unbekanntes Wertpapier
-  `404`. Die Freigabe kommt zuerst für Agenten (API und MCP): Kurse haben auf
-  der Wertpapierseite noch kein Schreib-Bedienelement, und ihr
-  Freigabe-Bedienelement folgt spätestens in Sprint 17.
+  `404`. Der Operator gibt im Tab „Kurse“ des Wertpapiers frei
+  (**Freigeben…**, Sprint 17), über dasselbe Schreiben.
 - `GET /api/v1/securities/:security_id/quotes/manual` liest die
   **manuellen** Kurse eines Wertpapiers über seine ganze gespeicherte
   Historie — der Lesezugriff, auf dem eine Freigabe steht (Sprint 17,
@@ -3021,8 +3020,8 @@ Server-Anweisungen sagen es einmal für jeden Schreibvorgang.
   Anzahl eines Zeitraums und ob die Synchronisierung ein freigegebenes Datum
   wieder füllen kann; ein Lesen.
 - `portfolixir.quotes.release` — die journalisierte Freigabe der manuellen
-  Kurse eines Zeitraums an die Anbieterdaten; zuerst für Agenten, das
-  Bedienelement auf der Seite folgt spätestens in Sprint 17.
+  Kurse eines Zeitraums an die Anbieterdaten; das Bedienelement des Operators
+  ist **Freigeben…** im Tab „Kurse“ des Wertpapiers.
 - `portfolixir.portfolios.list` — veraltet (ADR-0024): die Beschreibung
   verweist auf Buckets/Ansichten.
 - `portfolixir.portfolios.create` — veraltet (ADR-0024): nur Kompatibilität;

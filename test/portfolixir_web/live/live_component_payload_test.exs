@@ -65,6 +65,11 @@ defmodule PortfolixirWeb.LiveComponentPayloadTest do
       PortfolixirWeb.Securities.MergeDialog => [
         {"/securities", "row_action", %{"action" => "merge", "id" => security.id},
          "#security-merge-dialog"}
+      ],
+      # T-9 (Sprint 17 V2): the release of manual quotes; the seeded quote
+      # is manual, so the selected security offers it.
+      PortfolixirWeb.Securities.QuoteReleaseDialog => [
+        {"/securities/#{security.id}", "open_quote_release", %{}, "#quote-release-dialog"}
       ]
     }
   end

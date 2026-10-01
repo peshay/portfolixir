@@ -1,0 +1,374 @@
+defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
+  # T-9's human view (Sprint 17 V2; board
+  # ux-design-2026-10-01/03-quote-release, pick G3-A): a data note on the
+  # security's Quotes tab counts its manual quotes over the whole history, and
+  # its remedy "Release…" opens a range dialog whose confirm runs the journaled
+  # release (Portfolixir.Catalog.Quotes.release_manual/4). Every name, close
+  # and date is synthetic; dates are relative to the host's calendar day.
+  use PortfolixirWeb.ConnCase, async: false
+
+  import Ecto.Query
+  import Phoenix.LiveViewTest
+  import Portfolixir.WorldFixtures, only: [create_security!: 1]
+
+  alias Portfolixir.Actor
+  alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.Quote, as: SecurityQuote
+  alias Portfolixir.Catalog.Quotes
+  alias Portfolixir.Catalog.QuoteSync
+  alias Portfolixir.Catalog.QuoteSync.Fake
+  alias Portfolixir.Clock
+  alias Portfolixir.Journal.Entry
+  alias Portfolixir.Repo
+
+  setup do
+    today = Clock.today()
+    day = &Date.add(today, &1)
+
+    {:ok, security} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Meridian Global Equity ETF",
+        currency_code: "EUR",
+        asset_class: "etf",
+        provider: "portfolio_performance"
+      })
+
+    # Provider closes on the last ten days; two of them pinned by hand, and an
+    # older stretch of manual closes three years back, outside the chart's
+    # one-year range.
+    {:ok, _} =
+      Quotes.upsert_many(
+        security.id,
+        Enum.map(-10..-1, &%{date: day.(&1), close: "100.00", source: "portfolio_performance"})
+      )
+
+    {:ok, _} =
+      Quotes.upsert_authored(Actor.api_token_rw("synthetic"), security.id, [
+        %{"date" => Date.to_iso8601(day.(-1100)), "close" => "80.00"},
+        %{"date" => Date.to_iso8601(day.(-1099)), "close" => "80.50"},
+        %{"date" => Date.to_iso8601(day.(-5)), "close" => "104.00"},
+        %{"date" => Date.to_iso8601(day.(-4)), "close" => "104.20"}
+      ])
+
+    %{security: security, day: day, iso: &Date.to_iso8601(day.(&1))}
+  end
+
+  defp with_adapter(_ctx) do
+    config = Application.get_env(:portfolixir, QuoteSync, [])
+
+    Application.put_env(
+      :portfolixir,
+      QuoteSync,
+      Keyword.put(config, :adapter_for, %{"portfolio_performance" => Fake})
+    )
+
+    on_exit(fn -> Application.put_env(:portfolixir, QuoteSync, config) end)
+    :ok
+  end
+
+  defp quotes_tab(conn, security),
+    do: live(conn, "/securities/#{security.id}?tab=quotes&locale=de")
+
+  defp text(view, selector) do
+    view
+    |> element(selector)
+    |> render()
+    |> Floki.parse_fragment!()
+    |> Floki.text()
+    |> String.split()
+    |> Enum.join(" ")
+  end
+
+  defp manual_dates(security) do
+    SecurityQuote
+    |> where([q], q.security_id == ^security.id and q.source == "manual")
+    |> order_by([q], asc: q.date)
+    |> select([q], q.date)
+    |> Repo.all()
+  end
+
+  # User story:
+  # As the operator reading a security's quotes,
+  # I want the Quotes tab to say how many of its stored quotes are manual and
+  # from when to when, over the whole history and not only the chart's range,
+  # so that I know a pinned close exists before I wonder why the sync left it
+  # (pick G3-A ①, ②).
+  #
+  # Acceptance criteria:
+  # - A note above the table: "N manuelle Kurse in der gespeicherten
+  #   Historie, vom <first> bis <last>." counting every stored manual quote,
+  #   the dates as <time datetime>.
+  # - It says a manual quote has precedence until released, and carries
+  #   "Freigeben…" as its remedy.
+  test "the Quotes tab names the manual quotes of the whole history", ctx do
+    {:ok, view, _html} = quotes_tab(ctx.conn, ctx.security)
+
+    note = "#detail-tab-panel-quotes [data-role='manual-quotes-note']"
+
+    assert text(view, note) =~
+             "4 manuelle Kurse in der gespeicherten Historie, vom #{ctx.iso.(-1100)} bis #{ctx.iso.(-4)}."
+
+    assert text(view, note) =~
+             "Ein manueller Kurs hat Vorrang: Die Kursaktualisierung lässt ihn stehen, bis er freigegeben wird."
+
+    assert has_element?(view, "#{note} time[datetime='#{ctx.iso.(-1100)}']")
+    assert text(view, "#{note} [data-role='release-manual-quotes']") == "Freigeben…"
+  end
+
+  # User story:
+  # As the operator of a security with only provider quotes, or only manual
+  # ones,
+  # I want no note where nothing is pinned, and the note to say so where
+  # everything is,
+  # so that an all-clear is not a finding and a demo dataset is not a puzzle
+  # (pick G3-A ①, A7).
+  #
+  # Acceptance criteria:
+  # - No manual quote: no note and no "Freigeben…".
+  # - Every stored quote manual: the note adds "alle gespeicherten Kurse sind
+  #   manuell".
+  test "no note without a manual quote, and says so when every quote is manual", ctx do
+    plain = create_security!(name: "Northwind Utilities", ticker: nil)
+
+    {:ok, _} =
+      Quotes.upsert_many(plain.id, [
+        %{date: ctx.day.(-2), close: "54.20", source: "portfolio_performance"}
+      ])
+
+    {:ok, view, _html} = quotes_tab(ctx.conn, plain)
+    refute has_element?(view, "[data-role='manual-quotes-note']")
+    refute has_element?(view, "[data-role='release-manual-quotes']")
+
+    pinned = create_security!(name: "Halvorsen Shipping Bond 2031", ticker: nil)
+
+    {:ok, _} =
+      Quotes.upsert_authored(Actor.owner_ui(), pinned.id, [
+        %{"date" => ctx.iso.(-3), "close" => "98.00"},
+        %{"date" => ctx.iso.(-2), "close" => "98.40"}
+      ])
+
+    {:ok, view, _html} = quotes_tab(ctx.conn, pinned)
+
+    assert text(view, "[data-role='manual-quotes-note']") =~
+             "2 manuelle Kurse in der gespeicherten Historie, vom #{ctx.iso.(-3)} bis #{ctx.iso.(-2)}; alle gespeicherten Kurse sind manuell."
+  end
+
+  # User story:
+  # As the operator about to release manual quotes,
+  # I want a dialog titled with the security, its range prefilled with the
+  # first and last manual date, the stretches as chips, what happens in one
+  # sentence, and a confirm that names how many,
+  # so that I confirm a range I can read (pick G3-A ③–⑥).
+  #
+  # Acceptance criteria:
+  # - "Freigeben…" opens a native dialog "Manuelle Kurse freigeben — <name>".
+  # - Von/Bis are ISO text fields prefilled with the first and last manual
+  #   date; one chip per stretch ("<from> – <to> · n") plus "Alle · N", the
+  #   chip matching the pair pressed.
+  # - The consequence sentence: removed, journaled with their closes,
+  #   provider quotes stay, the next sync fills the days, until then none.
+  # - The confirm is .button-danger "4 manuelle Kurse freigeben"; a chip
+  #   fills the pair and the confirm follows it.
+  test "the release dialog: range, stretches, consequence and a counted confirm", ctx do
+    with_adapter(ctx)
+    {:ok, view, _html} = quotes_tab(ctx.conn, ctx.security)
+
+    view |> element("[data-role='release-manual-quotes']") |> render_click()
+
+    dialog = "#quote-release-dialog"
+
+    assert text(view, "#{dialog} .modal-head h2") ==
+             "Manuelle Kurse freigeben — Meridian Global Equity ETF"
+
+    assert view |> element("#quote-release-from") |> render() =~ ~s(value="#{ctx.iso.(-1100)}")
+    assert view |> element("#quote-release-to") |> render() =~ ~s(value="#{ctx.iso.(-4)}")
+
+    chips =
+      view
+      |> element("#{dialog} [data-role='release-stretches']")
+      |> render()
+      |> Floki.parse_fragment!()
+      |> Floki.find("button.filter-chip")
+
+    assert Enum.map(chips, &(&1 |> Floki.text() |> String.split() |> Enum.join(" "))) == [
+             "Alle · 4",
+             "#{ctx.iso.(-1100)} – #{ctx.iso.(-1099)} · 2",
+             "#{ctx.iso.(-5)} – #{ctx.iso.(-4)} · 2"
+           ]
+
+    assert Enum.map(chips, &Floki.attribute(&1, "aria-pressed")) == [
+             ["true"],
+             ["false"],
+             ["false"]
+           ]
+
+    assert text(view, "#{dialog} [data-role='release-consequence']") ==
+             "Die manuellen Schlusskurse im Zeitraum werden entfernt und mit ihren Werten im Journal festgehalten; Kurse des Anbieters im Zeitraum bleiben, wie sie sind. Die nächste Kursaktualisierung speichert für die freigegebenen Tage den Schlusskurs des Anbieters, bis dahin haben sie keinen Kurs."
+
+    refute has_element?(view, "#{dialog} .data-note--attention")
+
+    assert text(view, "#{dialog} [data-role='quote-release-confirm']") ==
+             "4 manuelle Kurse freigeben"
+
+    assert has_element?(view, "#{dialog} button.button-danger[data-role='quote-release-confirm']")
+
+    view
+    |> element("#{dialog} [data-role='release-stretches'] button", "#{ctx.iso.(-5)} – ")
+    |> render_click()
+
+    assert view |> element("#quote-release-from") |> render() =~ ~s(value="#{ctx.iso.(-5)}")
+
+    assert text(view, "#{dialog} [data-role='quote-release-confirm']") ==
+             "2 manuelle Kurse freigeben"
+  end
+
+  # User story:
+  # As the operator of a security whose provider the quote sync cannot ask,
+  # I want the dialog to say the released days stay empty,
+  # so that I do not release a close nothing will replace by mistake (A3).
+  #
+  # Acceptance criteria:
+  # - An attention note at the head of the dialog: the sync fetches no
+  #   quotes for this security, the released days stay without a quote.
+  # - The consequence drops its sentence about the next sync.
+  test "without a sync adapter the dialog warns that the days stay empty", ctx do
+    {:ok, view, _html} = quotes_tab(ctx.conn, ctx.security)
+    view |> element("[data-role='release-manual-quotes']") |> render_click()
+
+    assert text(view, "#quote-release-dialog .data-note--attention") =~
+             "Für dieses Wertpapier holt die Kursaktualisierung keine Kurse: Die freigegebenen Tage bleiben ohne Kurs."
+
+    refute text(view, "#quote-release-dialog [data-role='release-consequence']") =~
+             "nächste Kursaktualisierung"
+  end
+
+  # User story:
+  # As the operator who typed a range without a manual quote, or a "Bis"
+  # before its "Von",
+  # I want the confirm to say why it waits, and the wrong field named,
+  # so that nothing is written by a range I did not mean (A4, A6).
+  #
+  # Acceptance criteria:
+  # - A valid range with no manual quote: the confirm "Freigeben" disabled,
+  #   its reason beside it ("Kein manueller Kurs im Zeitraum.").
+  # - "Bis" before "Von": confirming shows "Das Enddatum liegt vor dem
+  #   Startdatum." at the field (aria-invalid), the dialog stays, nothing is
+  #   written; a field that is no date says "Kein Datum — Format JJJJ-MM-TT"
+  #   in the app's words.
+  test "a range without a manual quote waits, and a reversed range is refused at the field",
+       ctx do
+    {:ok, view, _html} = quotes_tab(ctx.conn, ctx.security)
+    view |> element("[data-role='release-manual-quotes']") |> render_click()
+
+    view
+    |> form("#quote-release-form", release: %{from: ctx.iso.(-3), to: ctx.iso.(-1)})
+    |> render_change()
+
+    confirm = "#quote-release-dialog [data-role='quote-release-confirm']"
+    assert text(view, confirm) == "Freigeben"
+    assert has_element?(view, "#{confirm}[disabled]")
+
+    assert text(view, "#quote-release-dialog .merge-footer__why") ==
+             "Kein manueller Kurs im Zeitraum."
+
+    view
+    |> form("#quote-release-form", release: %{from: ctx.iso.(-4), to: ctx.iso.(-1100)})
+    |> render_change()
+
+    refute has_element?(view, "#{confirm}[disabled]")
+    view |> form("#quote-release-form") |> render_submit()
+
+    assert text(view, "#quote-release-dialog [data-role='quote-release-error']") ==
+             "Das Enddatum liegt vor dem Startdatum."
+
+    assert view |> element("#quote-release-to") |> render() =~ ~s(aria-invalid="true")
+    assert length(manual_dates(ctx.security)) == 4
+
+    view
+    |> form("#quote-release-form", release: %{from: "2026-02-30", to: ctx.iso.(-4)})
+    |> render_submit()
+
+    assert text(view, "#quote-release-dialog [data-role='quote-release-error']") =~ "Kein Datum"
+    assert view |> element("#quote-release-from") |> render() =~ ~s(aria-invalid="true")
+    assert length(manual_dates(ctx.security)) == 4
+  end
+
+  # User story:
+  # As the operator who confirmed a release,
+  # I want the closes released through the journaled write, the dialog
+  # closed, and the result said in the tab with the sync as the next step,
+  # so that I see what happened where I started (A5).
+  #
+  # Acceptance criteria:
+  # - Confirming releases the manual quotes of the range as the operator
+  #   (one journal entry, owner_ui), provider quotes untouched.
+  # - The dialog closes; a note in the Quotes tab says how many were released
+  #   from when to when (the answer's count), that the next sync stores the
+  #   provider's close, with "Kurse aktualisieren"; it is dismissible.
+  # - The data note now counts what is left.
+  test "confirming releases through the journal and reports in the tab", ctx do
+    with_adapter(ctx)
+    {:ok, view, _html} = quotes_tab(ctx.conn, ctx.security)
+    view |> element("[data-role='release-manual-quotes']") |> render_click()
+
+    view
+    |> element(
+      "#quote-release-dialog [data-role='release-stretches'] button",
+      "#{ctx.iso.(-5)} – "
+    )
+    |> render_click()
+
+    view |> form("#quote-release-form") |> render_submit()
+
+    assert manual_dates(ctx.security) == [ctx.day.(-1100), ctx.day.(-1099)]
+
+    assert [entry] =
+             Repo.all(
+               from(e in Entry,
+                 where: e.resource_type == "security_quotes" and e.operation == :delete
+               )
+             )
+
+    assert entry.actor_type == :owner_ui
+    refute has_element?(view, "#quote-release-dialog")
+
+    result = "#detail-tab-panel-quotes #quotes-release-result"
+
+    assert text(view, result) =~
+             "2 manuelle Kurse freigegeben, vom #{ctx.iso.(-5)} bis #{ctx.iso.(-4)}. Die nächste Kursaktualisierung speichert für diese Tage den Schlusskurs des Anbieters."
+
+    assert has_element?(view, "#{result} button[phx-click='sync_now']", "Kurse aktualisieren")
+
+    assert text(view, "[data-role='manual-quotes-note']") =~
+             "2 manuelle Kurse in der gespeicherten Historie, vom #{ctx.iso.(-1100)} bis #{ctx.iso.(-1099)}."
+
+    view |> element("#{result} .inline-result__dismiss") |> render_click()
+    refute text(view, result) =~ "freigegeben"
+  end
+
+  # User story:
+  # As the operator of a security the sync cannot refill,
+  # I want the result to say the released days stay without a quote, and no
+  # sync button,
+  # so that the follow-up the page offers is one that can help (A5, UX-DR25 ③).
+  #
+  # Acceptance criteria:
+  # - Without an adapter the result's second sentence is "Ohne Kursanbieter
+  #   bleiben diese Tage ohne Kurs." and there is no "Kurse aktualisieren".
+  # - Releasing every manual quote leaves no note and no "Freigeben…".
+  test "without an adapter the result says the days stay empty", ctx do
+    {:ok, view, _html} = quotes_tab(ctx.conn, ctx.security)
+    view |> element("[data-role='release-manual-quotes']") |> render_click()
+    view |> form("#quote-release-form") |> render_submit()
+
+    assert manual_dates(ctx.security) == []
+
+    result = "#detail-tab-panel-quotes #quotes-release-result"
+
+    assert text(view, result) =~
+             "4 manuelle Kurse freigegeben, vom #{ctx.iso.(-1100)} bis #{ctx.iso.(-4)}. Ohne Kursanbieter bleiben diese Tage ohne Kurs."
+
+    refute has_element?(view, "#{result} button[phx-click='sync_now']")
+    refute has_element?(view, "[data-role='manual-quotes-note']")
+  end
+end

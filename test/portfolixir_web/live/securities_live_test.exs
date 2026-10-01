@@ -1774,11 +1774,14 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       assert panel =~ "120.00"
       assert panel =~ Date.to_iso8601(today)
 
-      # Newest first: today's quote appears before the older one.
-      [_, today_idx | _] = String.split(panel, Date.to_iso8601(today), parts: 2)
+      # Newest first: today's quote appears before the older one. Read in
+      # the table: since Sprint 17 V2 the panel's head also names the first
+      # and last manual date in its note.
+      table = element(view, "#detail-tab-panel-quotes .detail-quotes-table") |> render()
+      [_, today_idx | _] = String.split(table, Date.to_iso8601(today), parts: 2)
 
       [_, older_idx | _] =
-        String.split(panel, Date.to_iso8601(Date.add(today, -10)), parts: 2)
+        String.split(table, Date.to_iso8601(Date.add(today, -10)), parts: 2)
 
       assert String.length(today_idx) > String.length(older_idx)
     end
