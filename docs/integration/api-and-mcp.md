@@ -1466,6 +1466,24 @@ Example account payloads:
   average of nothing is not zero. `limit` cuts only the matrix's years — the
   figures and the list always read the full history, and
   `computation_basis.summary` states all of this in the payload.
+
+  Since issue #984 every trade also carries **`annualized_return`**: the
+  round-trip's money-weighted return per year, as a fraction (`"0.304701"`
+  is 30.47 % a year). It is the XIRR solver of ADR-0034 §2 (Act/365) over the
+  trade's own flows — each consumed lot's buy on its open date for its
+  prorated cost (quantity × buy price plus its buy fees and taxes prorated by
+  the quantity taken), and the sell's proceeds on the close date — in the
+  trade's own currency, so it annualizes `realized_pnl_pct`, not
+  `realized_base`; rounded to 6 places, and a loss stays above −1. It is
+  `null` with **`annualized_return_reason`**
+  `holding_period_under_365_days` when the trade's `holding_period_days` is
+  below 365 (ADR-0034 §2 does not annualize a window under a year: 5 % in 14
+  days would read as about 257 % a year), and `null` with the solver's
+  reason (`no_sign_change`, a total loss among them; `no_root`;
+  `amount_out_of_range`) when no rate solves the flows. Dividends and
+  interest received while the trade was open are not included.
+  `computation_basis.annualized_return` states the rule.
+
 - `GET /api/v1/external_flows` (issue #725) returns the Deposits &
   withdrawals roll-up: the booked external **cash** flows (`deposit` and
   `removal`) across all portfolios, per year and month with deposits,
@@ -2202,6 +2220,9 @@ church tax withheld at a zero church-tax rate.
   There is no `limit`: `from`/`to` are the bound (the FIFO matcher needs the
   whole history, and each leg is filtered by its own date afterwards), stated
   in the payload's `basis`.
+  Since issue #984 every closed round-trip carries `annualized_return` and
+  `annualized_return_reason`, the same figure and rule as the realized-gains
+  read above, and the payload carries `computation_basis.annualized_return`.
 
 ## Policy rules (ADR-0049)
 
@@ -2969,7 +2990,8 @@ in its description; the server instructions say it once for every write.
 - `portfolixir.splits.create`
 - `portfolixir.holdings.list`
 - `portfolixir.cashflow.realized_gains` — the #724 roll-up with its stated
-  FX basis and the excluded-and-named gap treatment
+  FX basis and the excluded-and-named gap treatment, and each trade's
+  annualized return (#984)
 - `portfolixir.cashflow.external_flows` — the #725 roll-up with the stated
   invested-capital difference
 - `portfolixir.cashflow.costs` — the #726 roll-up with the stated
