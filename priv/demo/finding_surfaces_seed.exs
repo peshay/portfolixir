@@ -7,7 +7,11 @@
 # category, and the lifecycle merges: merged and renamed accounts, a merged
 # depot, a merged security, and a refused merge of each kind a seed can reach
 # (the two legacy import-hash states need a database from before the
-# import-hash check and are left to the tests).
+# import-hash check and are left to the tests), and the Sprint 17 surfaces
+# (15): closed trades held over a year and lost entirely, sells with no
+# matched buy wholly and in part, a sale no stored rate converts, merge
+# chains ending in a later merge and in a deletion, and manual quotes in
+# seven stretches, without a ticker and on a single day.
 # Synthetic all the way down; no real data (AGENTS.md → Privacy And
 # Disclosure).
 #
@@ -1115,5 +1119,251 @@ for {name, flags} <- [
       Map.merge(%{name: name, currency_code: "EUR", asset_class: "equity"}, flags)
     )
 end
+
+# 15. The Sprint 17 surfaces (closing act γ, D10: every alarm the batch adds
+#     fires on this instance). Each scenario is created only when its first
+#     security or account is not there yet, so a re-run adds nothing.
+alias Portfolixir.Lifecycle.Delete
+
+trade = fn security, type, quantity, price, date ->
+  {:ok, tx} =
+    Ledger.create_transaction(owner, %{
+      portfolio_id: portfolio.id,
+      securities_account_id: depot.id,
+      cash_account_id: cash.id,
+      security_id: security.id,
+      type: type,
+      date: date,
+      quantity: quantity,
+      price: price,
+      currency_code: "EUR"
+    })
+
+  tx
+end
+
+delivery = fn security, quantity, date ->
+  {:ok, tx} =
+    Ledger.create_transaction(owner, %{
+      portfolio_id: portfolio.id,
+      securities_account_id: depot.id,
+      security_id: security.id,
+      type: "inbound_delivery",
+      date: date,
+      quantity: quantity,
+      currency_code: "EUR"
+    })
+
+  tx
+end
+
+equity = fn name, ticker ->
+  {:ok, security} =
+    Catalog.create_security(owner, %{
+      name: name,
+      ticker_symbol: ticker,
+      currency_code: "EUR",
+      asset_class: "equity"
+    })
+
+  security
+end
+
+# 15a. Trades: one held 780 days with a gain (a p. a. figure), one held 600
+#      days and sold for nothing (a total loss: no rate, the dash with its
+#      reason, "gesamt" on the card).
+if find_security.("Wrenfield Gardens AG") == nil do
+  wrenfield = equity.("Wrenfield Gardens AG", "WRG")
+  trade.(wrenfield, "buy", "20", "50.00", Date.add(today, -900))
+  trade.(wrenfield, "sell", "20", "71.00", Date.add(today, -120))
+
+  tamarisk = equity.("Tamarisk Mining Ltd", "TMS")
+  trade.(tamarisk, "buy", "10", "40.00", Date.add(today, -700))
+  trade.(tamarisk, "sell", "10", "0", Date.add(today, -100))
+end
+
+# 15b. Sells with no matched buy: shares from an inbound delivery sold whole,
+#      and a sale larger than the shares bought, its remainder delivered in
+#      (the matched part is a trade row, the rest is named).
+if find_security.("Saltmarsh Logistics SE") == nil do
+  saltmarsh = equity.("Saltmarsh Logistics SE", "SLS")
+  delivery.(saltmarsh, "15", Date.add(today, -300))
+  trade.(saltmarsh, "sell", "15", "22.00", Date.add(today, -60))
+
+  brightwater = equity.("Brightwater Utilities plc", "BWU")
+  trade.(brightwater, "buy", "10", "30.00", Date.add(today, -500))
+  delivery.(brightwater, "3", Date.add(today, -450))
+  trade.(brightwater, "sell", "13", "33.00", Date.add(today, -40))
+end
+
+# 15c. A sale no stored rate converts: a USD round-trip in a USD depot (the
+#      seed never stores a USD rate, step 4), left out of the trades and named
+#      on the card and in the facet.
+if depot_named.("US Depot") == nil do
+  {:ok, us_cash} =
+    Portfolios.create_cash_account(owner, %{
+      portfolio_id: portfolio.id,
+      name: "US Broker",
+      currency_code: "USD"
+    })
+
+  {:ok, us_depot} =
+    Portfolios.create_securities_account(owner, %{
+      portfolio_id: portfolio.id,
+      cash_account_id: us_cash.id,
+      name: "US Depot"
+    })
+
+  {:ok, harborline} =
+    Catalog.create_security(owner, %{
+      name: "Harborline Freight Inc",
+      ticker_symbol: "HBLF",
+      currency_code: "USD",
+      asset_class: "equity"
+    })
+
+  for {type, price, back} <- [{"buy", "30.00", 400}, {"sell", "36.00", 30}] do
+    {:ok, _} =
+      Ledger.create_transaction(owner, %{
+        portfolio_id: portfolio.id,
+        securities_account_id: us_depot.id,
+        cash_account_id: us_cash.id,
+        security_id: harborline.id,
+        type: type,
+        date: Date.add(today, -back),
+        quantity: "10",
+        price: price,
+        currency_code: "USD"
+      })
+  end
+end
+
+# 15d. Merge chains for the merge list: a cash account merged into one that
+#      a later merge took away ("now in …"), and a depot merged into one
+#      deleted since ("a depot deleted since"), the second run by the agent.
+if cash_named.("Festgeld (alt)") == nil and cash_named.("Festgeld Plus") == nil do
+  fixed_old = new_cash.("Festgeld (alt)")
+  fixed = new_cash.("Festgeld")
+  fixed_plus = new_cash.("Festgeld Plus")
+  cash_booking.(fixed_old, "deposit", "400.00", ~D[2025-05-02], %{})
+  cash_booking.(fixed, "deposit", "600.00", ~D[2025-05-05], %{})
+
+  for {source, target, actor} <- [
+        {fixed_old, fixed, owner},
+        {fixed, fixed_plus, Actor.api_token_rw("review seed")}
+      ] do
+    {:ok, preview} = Lifecycle.preview_cash_merge(source.id, target.id)
+
+    {:ok, _record, :applied} =
+      Lifecycle.merge_cash_account(actor, source.id, target.id, %{
+        plan_digest: preview.plan_digest,
+        collapse_key_equal: false
+      })
+  end
+
+  {:ok, spare_old} =
+    Portfolios.create_securities_account(owner, %{
+      portfolio_id: portfolio.id,
+      cash_account_id: fixed_plus.id,
+      name: "Depot Reserve (alt)"
+    })
+
+  {:ok, spare} =
+    Portfolios.create_securities_account(owner, %{
+      portfolio_id: portfolio.id,
+      cash_account_id: fixed_plus.id,
+      name: "Depot Reserve"
+    })
+
+  {:ok, preview} = Lifecycle.preview_depot_merge(spare_old.id, spare.id)
+
+  {:ok, _record, :applied} =
+    Lifecycle.merge_depot(owner, spare_old.id, spare.id, %{plan_digest: preview.plan_digest})
+
+  {:ok, _deleted} = Delete.remove(owner, Portfolios.get_securities_account(spare.id))
+  IO.puts("merges: Festgeld chain and a depot merged into one deleted since")
+end
+
+# 15e. Manual quotes for the release dialog: seven stretches of manual closes
+#      between provider closes on a security the sync can fetch (a ticker;
+#      the chips name the cut), a provider-linked one without a ticker (the
+#      dialog warns the days stay empty), and a single manual close (one
+#      chip, a singular result). Provider closes come through the quote sync
+#      itself, from an offline adapter defined here (no network; ADR-0017
+#      leaves the unjournaled writer to the sync alone). The quote
+#      seed above prices every security with manual closes on every run, so
+#      — like the stale surface in step 1 — each run releases what it wrote
+#      and writes the three patterns again (journaled, as a release is).
+defmodule ReviewSeed.OfflineQuotes do
+  @moduledoc false
+  # The review seed's provider: a close of 18.40 on each of the last 140
+  # days, returned without a network call, stored by the sync's own writer.
+  @behaviour Portfolixir.Catalog.QuoteSync.Provider
+
+  @impl true
+  def id, do: :review_seed
+
+  @impl true
+  def fetch(_security, _opts) do
+    today = Date.utc_today()
+    {:ok, for(back <- 140..1//-1, do: %{date: Date.add(today, -back), close: Decimal.new("18.40")})}
+  end
+end
+
+quoted = fn name, attrs ->
+  case find_security.(name) do
+    nil ->
+      {:ok, security} =
+        Catalog.create_security(
+          owner,
+          Map.merge(
+            %{
+              name: name,
+              currency_code: "EUR",
+              asset_class: "equity",
+              provider: "portfolio_performance"
+            },
+            attrs
+          )
+        )
+
+      security
+
+    security ->
+      security
+  end
+end
+
+sable = quoted.("Sable Point Energy ASA", %{ticker_symbol: "SPE"})
+linden = quoted.("Linden Bay Bond 2029", %{asset_class: "bond"})
+corvid = quoted.("Corvid Analytics AG", %{ticker_symbol: "CVA"})
+
+for security <- [sable, linden, corvid] do
+  {:ok, _} =
+    Catalog.release_manual_quotes(owner, security.id, Date.add(today, -500), Date.add(today, 1))
+end
+
+%{status: :ok} =
+  Portfolixir.Catalog.QuoteSync.sync_security(sable,
+    adapter_for: %{"portfolio_performance" => ReviewSeed.OfflineQuotes}
+  )
+
+{:ok, _} =
+  Catalog.upsert_quotes(
+    owner,
+    sable.id,
+    for k <- 0..6, offset <- if(k == 6, do: [0], else: [0, 1]) do
+      %{date: Date.add(today, -130 + 18 * k + offset), close: "19.10"}
+    end
+  )
+
+{:ok, _} =
+  Catalog.upsert_quotes(owner, linden.id, [
+    %{date: Date.add(today, -20), close: "98.75"},
+    %{date: Date.add(today, -19), close: "98.80"}
+  ])
+
+{:ok, _} =
+  Catalog.upsert_quotes(owner, corvid.id, [%{date: Date.add(today, -9), close: "64.20"}])
 
 IO.puts("review seed done (timber position: #{timber_state})")
