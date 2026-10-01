@@ -2425,19 +2425,26 @@ mit dem Wertpapier im Titel:
 - **Von** und **Bis** sind mit dem ersten und letzten manuellen Datum
   vorbelegt; beide sind eingeschlossen. Chips darunter füllen das Paar:
   **Alle** und jeder Abschnitt manueller Kurse (eine Folge ohne Kurs des
-  Anbieters dazwischen, die fünf jüngsten), jeweils mit seiner Zahl.
+  Anbieters dazwischen, die fünf jüngsten), jeweils mit seiner Zahl; sind es
+  mehr als fünf, sagt eine Zeile unter den Chips, wie viele es sind, und
+  **Alle** umfasst jeden.
 - Ein Satz sagt, was geschieht: Die manuellen Schlusskurse im Zeitraum werden
   entfernt und mit ihren Werten im Audit-Journal festgehalten, die Kurse des
   Anbieters im Zeitraum bleiben, und die nächste Kursaktualisierung speichert
   für diese Tage den Schlusskurs des Anbieters — bis dahin haben sie keinen
-  Kurs. Hat die Kursaktualisierung für den Anbieter des Wertpapiers keinen
-  Adapter, sagt eine Achtung-Notiz, dass die freigegebenen Tage ohne Kurs
-  bleiben.
+  Kurs. Kann die Kursaktualisierung das Wertpapier nicht abfragen — kein
+  Adapter für seinen Anbieter, oder ein Anbieter, der einen Ticker braucht,
+  den das Wertpapier nicht hat —, sagt eine Achtung-Notiz, dass die
+  freigegebenen Tage ohne Kurs bleiben.
 - Die Bestätigung nennt, wie viele manuelle Kurse der Zeitraum enthält
-  (*7 manuelle Kurse freigeben*). Ein Zeitraum ohne einen lässt sie
-  deaktiviert, mit dem Grund daneben; ein *Bis* vor seinem *Von* oder ein
-  Feld, das kein Datum ist, wird beim Bestätigen am Feld genannt, und nichts
-  wird geschrieben.
+  (*7 manuelle Kurse freigeben*), und nur sie gibt frei: Enter in einem
+  Datumsfeld zählt neu und prüft das Paar, mehr nicht. Ein Zeitraum ohne
+  manuellen Kurs lässt die Bestätigung deaktiviert, mit dem Grund daneben;
+  ein *Bis* vor seinem *Von* oder ein Feld, das kein Datum ist, wird am Feld
+  genannt, und nichts wird geschrieben. Enthält der Zeitraum beim Bestätigen
+  inzwischen eine andere Zahl manueller Kurse (Ihr Agent hat einen
+  geschrieben oder freigegeben), wird ebenfalls nichts geschrieben: Der
+  Dialog nennt die neue Zahl und bittet, erneut zu bestätigen.
 
 Nach der Freigabe sagt der Tab, wie viele Kurse von wann bis wann freigegeben
 wurden, mit **Kurse aktualisieren** als nächstem Schritt, wo eine

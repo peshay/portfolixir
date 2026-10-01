@@ -112,8 +112,9 @@ defmodule PortfolixirWeb.Api.V1.QuoteController do
   quotes with no quote of another source between them, `{from, to, count}`,
   ascending; the newest `limit`, default 100, capped at 1000, with
   `stretch_count` counting them all) — and `sync_adapter`, whether the quote
-  sync has an adapter for the security's provider (without one a released
-  date keeps no quote). `from` and/or `to` (inclusive, an absent bound open)
+  sync can fetch the security: an adapter for its provider that can ask for
+  it (`Portfolixir.Catalog.QuoteSync.adapter?/2`; without one a released date
+  keeps no quote). `from` and/or `to` (inclusive, an absent bound open)
   add `range` `{from, to, count}`: the manual quotes a release of that range
   would remove. The read the Quotes tab's "Release…" stands on, under the
   two-way rule; `to` before `from` answers 422 on `to`, as the release does.

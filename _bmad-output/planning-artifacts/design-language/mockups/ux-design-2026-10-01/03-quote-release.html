@@ -309,7 +309,7 @@
         <li><i class="pin o">1</i><b>Die Notiz zählt über die ganze Historie, nicht über den Zeitraum.</b> Darum „in der gespeicherten Historie“: Die Tabelle darunter zeigt mit „1M“ nur drei der sieben, die Basiszeile direkt darunter sagt das. Schweregrad <i>Hinweis</i>: Kontext, nichts ist falsch (UX&#8209;DR17). Ein Wertpapier, dessen Kurse alle manuell sind (ein Demo-Datensatz, ein Wertpapier ohne Anbieter), liest „39 manuelle Kurse …; alle gespeicherten Kurse sind manuell.“</li>
         <li><i class="pin o">2</i><b>Die Abhilfe ist ein Kind der Notiz</b>, als <code>.link-button</code> wie die Abhilfen auf Board 12. Ein Wort, kein Symbol: Ein Glyph für „freigeben“ gibt es nicht, und ein vorhandenes in zweiter Bedeutung verbietet UX&#8209;DR16.</li>
         <li><i class="pin o">3</i><b>Der Dialog nennt das Wertpapier im Titel</b> (wie „Umbenennen — Girokonto“). Das Datumspaar ist das des eigenen Zeitraums im Diagramm: zwei ISO-Textfelder, „Von“ und „Bis“ (UX&#8209;DR19). Vorbelegt mit dem ersten und dem letzten manuellen Datum.</li>
-        <li><i class="pin o">4</i><b>Die Abschnitte zeigen, wo die manuellen Kurse liegen.</b> Ein Abschnitt ist eine Folge manueller Tage ohne Kurs des Anbieters dazwischen. Die Chips sind die Jahres-Chips des Zeitraum-Popovers (<code>.period-years</code>, C5&#8209;A): Ein Klick füllt das Paar, und ein Paar, das einem Abschnitt gleicht, markiert seinen Chip. Mehr als fünf Abschnitte: „Alle“ und die fünf jüngsten, die übrigen über die Daten.</li>
+        <li><i class="pin o">4</i><b>Die Abschnitte zeigen, wo die manuellen Kurse liegen.</b> Ein Abschnitt ist eine Folge manueller Tage ohne Kurs des Anbieters dazwischen. Die Chips sind die Jahres-Chips des Zeitraum-Popovers (<code>.period-years</code>, C5&#8209;A): Ein Klick füllt das Paar, und ein Paar, das einem Abschnitt gleicht, markiert seinen Chip. Mehr als fünf Abschnitte: „Alle“ und die fünf jüngsten, die übrigen über die Daten — und ein Hinweis darunter sagt es (A9, Nachtrag).</li>
         <li><i class="pin o">5</i><b>Die Folge in den Worten des Codes:</b> entfernt, im Journal mit Schlusskurs, Anbieterkurse bleiben, erst die nächste Kursaktualisierung füllt die Tage. Das Wort „Freigeben“ allein sagt nicht, dass bis dahin kein Kurs da ist.</li>
         <li><i class="pin o">6</i><b>Eine Bestätigung, die die Zahl nennt.</b> <code>.button-danger</code> im Bandfuß wie „Zusammenführen in …“: Die Freigabe löscht festgesetzte Werte, und die Oberfläche hat keinen Weg zurück; das Journal hält sie, schreibt sie aber nicht zurück. Kein <code>data-confirm</code> danach: zerstörend einmal bestätigen, nie zweimal. Die Zahl folgt dem Paar bei jeder Änderung.</li>
       </ol>
@@ -458,9 +458,69 @@
       <ol class="pins">
         <li><i class="pin o">7</i><b>A3, ohne Kursanbieter:</b> eine Notiz <i>Achtung</i> im Dialog, über dem Paar. Die Freigabe bleibt möglich (die API erlaubt sie auch), aber sie löscht dann, und das steht da, bevor bestätigt wird. Die Seite liest, ob die Kursaktualisierung für den Anbieter des Wertpapiers einen Adapter hat (<code>Security.provider</code>), wie <code>QuoteSync</code> selbst.</li>
         <li><i class="pin o">8</i><b>A4, kein manueller Kurs im Zeitraum:</b> Die Bestätigung ist deaktiviert und ihr Grund steht als Text daneben (<code>.merge-footer__why</code>, die Regel des Merge-Dialogs: „deaktiviert, nie nur blass“). Die API würde nichts schreiben; die Oberfläche fragt gar nicht erst.</li>
-        <li><i class="pin o">9</i><b>A5, das Ergebnis:</b> ein Inline-Ergebnis <i>Hinweis</i> oben im Tab, wo die Notiz stand, aus einer Region, die vor der Aktion existiert. Es nennt die Zahl aus der Antwort (<code>released</code>), nicht die des Dialogs. „Kurse aktualisieren“ ist die vorhandene Aktion des Diagramm-Tabs, hier zur Stelle; ohne Anbieter fehlt sie und der zweite Satz lautet „Ohne Kursanbieter bleiben diese Tage ohne Kurs.“ Bleiben manuelle Kurse übrig, steht die Notiz mit neuer Zahl darunter.</li>
+        <li><i class="pin o">9</i><b>A5, das Ergebnis:</b> ein Inline-Ergebnis <i>Hinweis</i> oben im Tab, wo die Notiz stand, aus einer Region, die vor der Aktion existiert. Es nennt die Zahl aus der Antwort (<code>released</code>), nicht die des Dialogs. „Kurse aktualisieren“ ist die vorhandene Aktion des Diagramm-Tabs, hier zur Stelle; ohne Anbieter fehlt sie und der zweite Satz lautet „Für dieses Wertpapier holt die Kursaktualisierung keine Kurse: Diese Tage bleiben ohne Kurs.“ (Nachtrag: dieselben Worte wie A3, weil auch ein Anbieter ohne Ticker nichts holt; ein Tag: „für diesen Tag“, „Dieser Tag bleibt ohne Kurs.“) Bleiben manuelle Kurse übrig, steht die Notiz mit neuer Zahl darunter.</li>
         <li><i class="pin o">10</i><b>A6, „Bis“ vor „Von“:</b> der Fehler am Feld, das ihn beheben kann, nach dem Absenden, wie beim eigenen Zeitraum (D5) und wie die API (422 an <code>to</code>). Ein Feld, das kein Datum ist: „Kein Datum — Format JJJJ-MM-TT“. Nichts geschrieben, der Dialog bleibt offen.</li>
         <li><i class="pin o">11</i><b>A7, nichts Manuelles:</b> keine Notiz, kein deaktiviertes „Freigeben“. Eine Entwarnung ist kein Befund, und die meisten Wertpapiere haben nur Anbieterkurse; ein grauer Knopf auf jedem wäre Lärm.</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- Nachtrag 2026-10-01: the closing act's review round on the built
+       dialog (γ CR-2, D1, D2, D3, D6, D7, n6, n7). Two states the board did
+       not draw (A8, A9) and the rules behind the others. -->
+  <h3 style="margin:28px 0 8px">Nachtrag nach dem Review (Abschluss γ) — zwei Zustände, vier Regeln</h3>
+  <div class="mock-row">
+    <div class="mock-frame mock-after w-dlg"><span class="mock-tag">A8 · Neu gezählt: der Zeitraum hält inzwischen mehr</span>
+      <div class="dlg-field">
+        <div class="modal quote-release-dialog" role="dialog" aria-label="Manuelle Kurse freigeben">
+          <div class="modal-body">
+            <p class="elide">Kopf wie A2. Der Dialog zeigte „7 manuelle Kurse freigeben“; der Agent hat seither einen manuellen Kurs im Zeitraum gesetzt.</p>
+            <div class="period-range__pair">
+              <div class="period-range__field"><label>Von</label><input type="text" value="2026-06-30" maxlength="10"></div>
+              <span class="period-range__dash" aria-hidden="true">–</span>
+              <div class="period-range__field"><label>Bis</label><input type="text" value="2026-09-16" maxlength="10"></div>
+            </div>
+            <p class="field-error is-new" role="alert">Der Zeitraum enthält inzwischen 8 manuelle Kurse — prüfen und erneut bestätigen.<i class="pin o">12</i></p>
+            <p class="elide">… Abschnitte und Folge wie A2, neu gezählt. Nichts wurde geschrieben.</p>
+          </div>
+          <div class="modal-footer modal-footer--band">
+            <button type="button" class="button-ghost">Abbrechen</button>
+            <span class="modal-footer__spacer"></span>
+            <button type="button" class="button-danger is-new">8 manuelle Kurse freigeben</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mock-frame mock-after w-dlg"><span class="mock-tag">A9 · Mehr als fünf Abschnitte</span>
+      <div class="dlg-field">
+        <div class="modal quote-release-dialog" role="dialog" aria-label="Manuelle Kurse freigeben">
+          <div class="modal-body">
+            <p class="elide">Kopf und Paar wie A2, sieben Abschnitte.</p>
+            <div class="period-years" role="group" aria-label="Manuelle Abschnitte">
+              <button type="button" class="filter-chip is-active" aria-pressed="true">Alle · 13</button>
+              <button type="button" class="filter-chip" aria-pressed="false">2026-05-15 – 2026-05-16 · 2</button>
+              <button type="button" class="filter-chip" aria-pressed="false">2026-06-04 – 2026-06-05 · 2</button>
+              <button type="button" class="filter-chip" aria-pressed="false">2026-06-24 – 2026-06-25 · 2</button>
+              <button type="button" class="filter-chip" aria-pressed="false">2026-07-14 – 2026-07-15 · 2</button>
+              <button type="button" class="filter-chip is-new" aria-pressed="false">2026-08-03 · 1</button>
+            </div>
+            <p class="hint is-new">Die 5 neuesten von 7 Abschnitten; „Alle“ umfasst jeden.<i class="pin o">13</i></p>
+            <p class="elide">… Folge und Fuß wie A2.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes desk-only" style="flex:1 1 420px">
+      <p class="cap">Nachtrag — was das Review am gebauten Dialog fand</p>
+      <ol class="pins">
+        <li><i class="pin o">12</i><b>A8, neu gezählt:</b> Die Bestätigung trägt das Paar und die Zahl, die sie zeigt. Hält der Zeitraum beim Schreiben eine andere Zahl (ein manueller Kurs seither gesetzt oder freigegeben), wird nichts geschrieben; der Satz steht im Fehlerplatz unter dem Paar, kein Feld wird markiert, und die Bestätigung nennt die neue Zahl. Der Merge-Dialog schützt dieselbe Lücke mit seinem Plan-Digest.</li>
+        <li><i class="pin o">13</i><b>A9, der Schnitt wird gesagt</b> (UX&#8209;DR26): Mehr als fünf Abschnitte, und „Von“ ist mit einem Datum vorbelegt, das kein Chip zeigt — der Hinweis erklärt es. Ein eintägiger Abschnitt nennt seinen Tag einmal. Ein Abschnitt, der alle manuellen Kurse umfasst, ist „Alle“ und bekommt keinen zweiten Chip, sonst wären zwei gedrückt.</li>
+        <li><b>Nur die Bestätigung schreibt.</b> Enter in „Von“ oder „Bis“ zählt neu und prüft das Paar (die Feldfehler von A6), schreibt aber nie; die Bestätigung ist ein <code>type="button"</code> außerhalb des Formulars. Vorher löste Enter die Freigabe des vorbelegten „Alle“ aus.</li>
+        <li><b>Der Fokus bleibt auf der Seite.</b> Nimmt die Freigabe den letzten manuellen Kurs und mit ihm „Freigeben…“, geht der Fokus auf das Schließen des Ergebnisses (<code>data-focus-fallback</code>), nicht auf <code>&lt;body&gt;</code> (WCAG 2.4.3).</li>
+        <li><b>Das Schließen behält seine Größe</b> neben einem Titel, der umbricht: 30 px, unter grobem Zeiger 44 px (UX&#8209;DR6).</li>
+        <li><b>„Holt keine Kurse“ heißt auch: kein Ticker.</b> Die Notiz von A3 und der zweite Ergebnissatz gelten, wo die Kursaktualisierung das Wertpapier nicht abfragen kann — kein Adapter für den Anbieter, oder einer, der ohne Ticker überspringt (<code>QuoteSync.adapter?/2</code>).</li>
       </ol>
     </div>
   </div>

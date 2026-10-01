@@ -14,4 +14,14 @@ defmodule Portfolixir.Catalog.QuoteSync.Provider do
   @callback id() :: atom()
   @callback fetch(security :: Security.t(), opts :: keyword()) ::
               {:ok, [quote_row()]} | {:error, term()}
+
+  @doc """
+  Whether the adapter can ask its feed for `security` at all — the
+  precondition `fetch/2` answers with a skip reason (`:missing_ticker`,
+  `:missing_currency`) when it does not hold. Optional: an adapter without it
+  is taken to ask for every security (closing act, γ D7).
+  """
+  @callback fetchable?(security :: Security.t()) :: boolean()
+
+  @optional_callbacks fetchable?: 1
 end

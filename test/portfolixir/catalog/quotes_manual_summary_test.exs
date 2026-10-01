@@ -136,4 +136,28 @@ defmodule Portfolixir.Catalog.QuotesManualSummaryTest do
     # The test configuration names no adapter at all.
     refute QuoteSync.adapter?(manual)
   end
+
+  # User story:
+  # As the operator releasing the manual quotes of a security the sync's
+  # adapter cannot ask for,
+  # I want the page to know that too,
+  # so that it never promises a refill the sync will skip (closing act,
+  # γ D7: a provider-linked security without a ticker).
+  #
+  # Acceptance criteria:
+  # - With the Yahoo adapter configured for its provider, a security without
+  #   a ticker has none it can fetch with; with a ticker it has.
+  # - A CoinGecko-linked security fetches only with a ticker and a currency.
+  test "an adapter that cannot ask for the security is no adapter for it", ctx do
+    yahoo = %{"portfolio_performance" => QuoteSync.Yahoo, "coingecko" => QuoteSync.Yahoo}
+    linked = %{ctx.security | provider: "portfolio_performance"}
+
+    refute QuoteSync.adapter?(%{linked | ticker_symbol: nil}, adapter_for: yahoo)
+    refute QuoteSync.adapter?(%{linked | ticker_symbol: ""}, adapter_for: yahoo)
+    assert QuoteSync.adapter?(%{linked | ticker_symbol: "MGEQ.DE"}, adapter_for: yahoo)
+
+    coin = %{linked | provider: "coingecko", ticker_symbol: "BTC"}
+    assert QuoteSync.adapter?(coin, adapter_for: yahoo)
+    refute QuoteSync.adapter?(%{coin | currency_code: nil}, adapter_for: yahoo)
+  end
 end

@@ -137,12 +137,28 @@ defmodule PortfolixirWeb.Securities.ManualQuotes do
           )
       end
 
-    follow =
-      if adapter?,
-        do: gettext("The next quote sync stores the provider's close for these days."),
-        else: gettext("Without a quote provider these days stay without a quote.")
+    follow = follow_sentence(length(released), adapter?)
 
     {:safe, [Enum.map(released_sentence, &safe_segment/1), " ", escape(follow)]}
+  end
+
+  # One day or several (closing act, γ n6); without a sync that can fetch the
+  # security — no adapter for its provider, or none that can ask for it (γ
+  # D7) — the days stay empty.
+  defp follow_sentence(count, true) do
+    ngettext(
+      "The next quote sync stores the provider's close for this day.",
+      "The next quote sync stores the provider's close for these days.",
+      count
+    )
+  end
+
+  defp follow_sentence(count, false) do
+    ngettext(
+      "The quote sync fetches no quotes for this security: this day stays without a quote.",
+      "The quote sync fetches no quotes for this security: these days stay without a quote.",
+      count
+    )
   end
 
   defp safe_segment({:date, date}) do

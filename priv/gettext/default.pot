@@ -41,7 +41,7 @@ msgstr ""
 #: lib/portfolixir_web/live/securities/logo_override_dialog.ex:34
 #: lib/portfolixir_web/live/securities/merge_dialog.ex:120
 #: lib/portfolixir_web/live/securities/merge_preview.ex:116
-#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:99
+#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:123
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:217
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:95
 #: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:50
@@ -959,8 +959,8 @@ msgstr ""
 msgid "Log scale"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:5606
-#: lib/portfolixir_web/live/securities_live.ex:5617
+#: lib/portfolixir_web/live/securities_live.ex:5619
+#: lib/portfolixir_web/live/securities_live.ex:5630
 #, elixir-autogen, elixir-format
 msgid "Prices synced."
 msgstr ""
@@ -1004,7 +1004,7 @@ msgstr ""
 #: lib/portfolixir_web/live/portfolio_live.ex:1394
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:443
 #: lib/portfolixir_web/live/securities/merge_dialog.ex:247
-#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:205
+#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:232
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:252
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:445
 #: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:117
@@ -1279,7 +1279,7 @@ msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_live.ex:1328
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:321
-#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:122
+#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:146
 #: lib/portfolixir_web/live/securities_live.ex:1165
 #: lib/portfolixir_web/live/transaction_management_live.ex:1166
 #, elixir-autogen, elixir-format
@@ -1405,7 +1405,7 @@ msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_live.ex:1343
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:336
-#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:137
+#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:161
 #: lib/portfolixir_web/live/securities_live.ex:1180
 #: lib/portfolixir_web/live/transaction_management_live.ex:1170
 #, elixir-autogen, elixir-format
@@ -1739,22 +1739,22 @@ msgstr ""
 msgid "Price sync complete"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:5610
+#: lib/portfolixir_web/live/securities_live.ex:5623
 #, elixir-autogen, elixir-format
 msgid "Price sync finished: %{ok} synced, %{skipped} skipped, %{error} failed."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:5620
+#: lib/portfolixir_web/live/securities_live.ex:5633
 #, elixir-autogen, elixir-format
 msgid "Price sync skipped: %{reason}"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:5624
+#: lib/portfolixir_web/live/securities_live.ex:5637
 #, elixir-autogen, elixir-format
 msgid "Price sync failed: %{reason}"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:5627
+#: lib/portfolixir_web/live/securities_live.ex:5640
 #, elixir-autogen, elixir-format
 msgid "Price sync failed."
 msgstr ""
@@ -2722,23 +2722,23 @@ msgstr ""
 msgid "View updated"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:5493
+#: lib/portfolixir_web/live/securities_live.ex:5506
 #, elixir-autogen, elixir-format
 msgid "inherited from depot"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:5494
+#: lib/portfolixir_web/live/securities_live.ex:5507
 #, elixir-autogen, elixir-format
 msgid "no buckets (excluded)"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:5497
-#: lib/portfolixir_web/live/securities_live.ex:5505
+#: lib/portfolixir_web/live/securities_live.ex:5510
+#: lib/portfolixir_web/live/securities_live.ex:5518
 #, elixir-autogen, elixir-format
 msgid "none"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:5495
+#: lib/portfolixir_web/live/securities_live.ex:5508
 #, elixir-autogen, elixir-format
 msgid "specific buckets"
 msgstr ""
@@ -3005,7 +3005,7 @@ msgid "Income per month in %{year}"
 msgstr ""
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:232
-#: lib/portfolixir_web/live/securities_live.ex:5809
+#: lib/portfolixir_web/live/securities_live.ex:5822
 #, elixir-autogen, elixir-format
 msgid "No logo"
 msgstr ""
@@ -4972,7 +4972,7 @@ msgid "Last known value —"
 msgstr ""
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:231
-#: lib/portfolixir_web/live/securities_live.ex:5808
+#: lib/portfolixir_web/live/securities_live.ex:5821
 #, elixir-autogen, elixir-format
 msgid "No quote at all"
 msgstr ""
@@ -5266,7 +5266,7 @@ msgid "Any"
 msgstr ""
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:229
-#: lib/portfolixir_web/live/securities_live.ex:5806
+#: lib/portfolixir_web/live/securities_live.ex:5819
 #, elixir-autogen, elixir-format
 msgid "No quote in %{days} days"
 msgstr ""
@@ -5387,23 +5387,23 @@ msgstr ""
 msgid "Filter the list"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:5821
+#: lib/portfolixir_web/live/securities_live.ex:5834
 #, elixir-autogen, elixir-format
 msgid "Missing FX"
 msgstr ""
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:233
-#: lib/portfolixir_web/live/securities_live.ex:5810
+#: lib/portfolixir_web/live/securities_live.ex:5823
 #, elixir-autogen, elixir-format
 msgid "Missing FX rate"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:5820
+#: lib/portfolixir_web/live/securities_live.ex:5833
 #, elixir-autogen, elixir-format
 msgid "No price"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:5819
+#: lib/portfolixir_web/live/securities_live.ex:5832
 #, elixir-autogen, elixir-format
 msgid "Stale quote"
 msgstr ""
@@ -5424,15 +5424,15 @@ msgid "This view matches no accounts — its included buckets are empty or no lo
 msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_live.ex:4491
-#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:338
-#: lib/portfolixir_web/live/securities_live.ex:5803
+#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:398
+#: lib/portfolixir_web/live/securities_live.ex:5816
 #, elixir-autogen, elixir-format
 msgid "Not a date — use YYYY-MM-DD."
 msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_live.ex:4488
-#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:346
-#: lib/portfolixir_web/live/securities_live.ex:5800
+#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:425
+#: lib/portfolixir_web/live/securities_live.ex:5813
 #, elixir-autogen, elixir-format
 msgid "The end date is before the start date."
 msgstr ""
@@ -10452,7 +10452,7 @@ msgid_plural "%{count} manual quotes released, from %{first} to %{last}."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:176
+#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:282
 #, elixir-autogen, elixir-format
 msgid "%{from} – %{to} · %{count}"
 msgid_plural "%{from} – %{to} · %{count}"
@@ -10464,14 +10464,14 @@ msgstr[1] ""
 msgid "A manual quote has precedence: the quote sync leaves it standing until it is released."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:168
+#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:192
 #, elixir-autogen, elixir-format
 msgid "All · %{count}"
 msgid_plural "All · %{count}"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:209
+#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:236
 #, elixir-autogen, elixir-format
 msgid "No manual quote in the range."
 msgstr ""
@@ -10496,19 +10496,19 @@ msgstr ""
 msgid "One manual quote released, on %{date}."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:250
+#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:293
 #, elixir-autogen, elixir-format
 msgid "Release"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:248
+#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:291
 #, elixir-autogen, elixir-format
 msgid "Release %{count} manual quote"
 msgid_plural "Release %{count} manual quotes"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:94
+#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:118
 #, elixir-autogen, elixir-format
 msgid "Release manual quotes — %{name}"
 msgstr ""
@@ -10518,32 +10518,57 @@ msgstr ""
 msgid "Release…"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:164
+#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:188
 #, elixir-autogen, elixir-format
 msgid "Stretches of manual quotes"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:187
+#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:214
 #, elixir-autogen, elixir-format
 msgid "The manual closes in the range are removed and kept in the journal with their values; the provider's quotes in the range stay as they are."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:191
+#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:218
 #, elixir-autogen, elixir-format
 msgid "The next quote sync stores the provider's close for the released days; until then they have no quote."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/manual_quotes.ex:142
-#, elixir-autogen, elixir-format
-msgid "The next quote sync stores the provider's close for these days."
-msgstr ""
-
-#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:109
+#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:133
 #, elixir-autogen, elixir-format
 msgid "The quote sync fetches no quotes for this security: the released days stay without a quote."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/manual_quotes.ex:143
+#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:413
 #, elixir-autogen, elixir-format
-msgid "Without a quote provider these days stay without a quote."
-msgstr ""
+msgid "The range now holds %{count} manual quote — check and confirm again."
+msgid_plural "The range now holds %{count} manual quotes — check and confirm again."
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:279
+#, elixir-autogen, elixir-format
+msgid "%{date} · %{count}"
+msgid_plural "%{date} · %{count}"
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/portfolixir_web/live/securities/quote_release_dialog.ex:206
+#, elixir-autogen, elixir-format
+msgid "The %{shown} newest of %{count} stretches; “All” covers every one."
+msgid_plural "The %{shown} newest of %{count} stretches; “All” covers every one."
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/portfolixir_web/live/securities/manual_quotes.ex:149
+#, elixir-autogen, elixir-format
+msgid "The next quote sync stores the provider's close for this day."
+msgid_plural "The next quote sync stores the provider's close for these days."
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/portfolixir_web/live/securities/manual_quotes.ex:157
+#, elixir-autogen, elixir-format
+msgid "The quote sync fetches no quotes for this security: this day stays without a quote."
+msgid_plural "The quote sync fetches no quotes for this security: these days stay without a quote."
+msgstr[0] ""
+msgstr[1] ""

@@ -9492,6 +9492,24 @@ dialog.merge-dialog {
   max-width: 460px;
 }
 
+/* The close button keeps its size beside a title that wraps (a long
+   security name), and the 44 px floor under a coarse pointer (UX-DR6;
+   closing act, γ D6). */
+.quote-release-dialog .modal-head {
+  gap: var(--space-2);
+}
+
+.quote-release-dialog .modal-head > .icon-button {
+  flex: none;
+}
+
+@media (pointer: coarse) {
+  .quote-release-dialog .modal-head > .icon-button {
+    width: 44px;
+    height: 44px;
+  }
+}
+
 .quote-release-form {
   display: grid;
   gap: var(--space-2);
