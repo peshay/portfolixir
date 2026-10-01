@@ -36,8 +36,7 @@ defmodule Portfolixir.SeededUpgrade.Rule do
   prose such as a log message's "kind check (" is not read as SQL.
   """
 
-  alias Ecto.Migrator
-  alias Portfolixir.Repo
+  alias Portfolixir.ScratchDatabase
 
   # The latest migration on the branch the rule landed on. A migration after
   # it falls under the rule; nothing up to it is listed.
@@ -72,13 +71,18 @@ defmodule Portfolixir.SeededUpgrade.Rule do
   @doc """
   The migrations newer than `since/0` that add a CHECK, a NOT NULL or a
   backfill and that no seeded case names, as `{version, file, changes}`.
+  Options, for the rule's own tests: `:migrations` (the directory, by default
+  `priv/repo/migrations`), `:since` (the cutoff, by default `since/0`) and
+  `:tests` (the test files read for tags, by default `test/**/*_test.exs`).
   """
-  @spec uncovered() :: [{pos_integer(), String.t(), [change()]}]
-  def uncovered do
-    covered = covered_versions()
+  @spec uncovered(keyword()) :: [{pos_integer(), String.t(), [change()]}]
+  def uncovered(opts \\ []) do
+    dir = Keyword.get_lazy(opts, :migrations, &ScratchDatabase.migrations_dir/0)
+    since = Keyword.get(opts, :since, @since)
+    covered = opts |> Keyword.get(:tests, "test/**/*_test.exs") |> covered_versions()
 
-    for {version, file} <- migration_files(),
-        version > @since,
+    for {version, file} <- ScratchDatabase.migration_files(dir),
+        version > since,
         version not in covered,
         changes <- [file |> File.read!() |> changes()],
         changes != [] do
@@ -88,31 +92,17 @@ defmodule Portfolixir.SeededUpgrade.Rule do
 
   @doc """
   The versions the seeded cases cover: every `seeded_upgrade: <version>` (or
-  a list of versions) tag in a test file under `test/`.
+  a list of versions) tag in the test files `glob` matches.
   """
-  @spec covered_versions() :: MapSet.t(pos_integer())
-  def covered_versions do
-    for file <- Path.wildcard("test/**/*_test.exs"),
+  @spec covered_versions(String.t()) :: MapSet.t(pos_integer())
+  def covered_versions(glob \\ "test/**/*_test.exs") do
+    for file <- Path.wildcard(glob),
         [_tag, value] <-
           Regex.scan(~r/seeded_upgrade:\s*(\[[^\]]*\]|\d[\d_]*)/, File.read!(file)),
         [digits] <- Regex.scan(~r/\d[\d_]*/, value),
         into: MapSet.new() do
       digits |> String.replace("_", "") |> String.to_integer()
     end
-  end
-
-  @doc "Every migration file as `{version, path}`, ascending."
-  @spec migration_files() :: [{pos_integer(), String.t()}]
-  def migration_files do
-    Repo
-    |> Migrator.migrations_path()
-    |> Path.join("*.exs")
-    |> Path.wildcard()
-    |> Enum.sort()
-    |> Enum.map(fn file ->
-      {version, "_" <> _name} = file |> Path.basename() |> Integer.parse()
-      {version, file}
-    end)
   end
 
   @doc "What a migration's source adds that legacy rows can break, by the heuristic above."
@@ -130,15 +120,19 @@ defmodule Portfolixir.SeededUpgrade.Rule do
     Enum.filter([:check, :not_null, :backfill], &(&1 in found))
   end
 
-  @doc "The failure message for `uncovered/0`'s list."
-  @spec explain([{pos_integer(), String.t(), [change()]}]) :: String.t()
-  def explain(uncovered) do
-    versions = Enum.map(migration_files(), &elem(&1, 0))
+  @doc """
+  The failure message for `uncovered/1`'s list, over the migrations in `dir`
+  (by default `priv/repo/migrations`).
+  """
+  @spec explain([{pos_integer(), String.t(), [change()]}], String.t()) :: String.t()
+  def explain(uncovered, dir \\ ScratchDatabase.migrations_dir()) do
+    versions = dir |> ScratchDatabase.migration_files() |> Enum.map(&elem(&1, 0))
+    shown = if dir == ScratchDatabase.migrations_dir(), do: "priv/repo/migrations", else: dir
 
     entries =
       Enum.map_join(uncovered, "\n", fn {version, file, changes} ->
-        "  priv/repo/migrations/#{file} -- adds #{Enum.map_join(changes, " and ", &describe/1)}; " <>
-          "seed at #{previous(versions, version)}, the migration before it"
+        "  #{shown}/#{file} -- adds #{Enum.map_join(changes, " and ", &describe/1)}; " <>
+          seed_at(versions, version)
       end)
 
     """
@@ -206,7 +200,9 @@ defmodule Portfolixir.SeededUpgrade.Rule do
   defp collect_alias({:alias, _meta, [{{:., _, [base_alias, :{}]}, _, children}]}, acc) do
     case base_alias do
       {:__aliases__, _, [:Portfolixir | _] = base} ->
-        Enum.reduce(children, acc, &put_child_alias(&2, base, &1))
+        for {:__aliases__, _meta, parts} <- children, reduce: acc do
+          acc -> put_alias(acc, base ++ parts, nil)
+        end
 
       _other ->
         acc
@@ -214,11 +210,6 @@ defmodule Portfolixir.SeededUpgrade.Rule do
   end
 
   defp collect_alias(_node, acc), do: acc
-
-  defp put_child_alias(acc, base, {:__aliases__, _meta, parts}),
-    do: put_alias(acc, base ++ parts, nil)
-
-  defp put_child_alias(acc, _base, _child), do: acc
 
   defp put_alias(acc, [:Portfolixir, :Repo | _parts], _as), do: acc
   defp put_alias(acc, parts, nil), do: MapSet.put(acc, List.last(parts))
@@ -256,7 +247,8 @@ defmodule Portfolixir.SeededUpgrade.Rule do
   defp not_null_column?(block) do
     {_ast, found?} =
       Macro.prewalk(block, false, fn
-        {column, _meta, args} = node, found? when column in [:add, :modify, :add_if_not_exists] ->
+        {column, _meta, args} = node, found?
+        when column in [:add, :modify, :add_if_not_exists] and is_list(args) ->
           {node, found? or null_false?(args)}
 
         node, found? ->
@@ -266,14 +258,12 @@ defmodule Portfolixir.SeededUpgrade.Rule do
     found?
   end
 
-  defp null_false?(args) when is_list(args) do
+  defp null_false?(args) do
     case List.last(args) do
       opts when is_list(opts) -> Keyword.keyword?(opts) and Keyword.get(opts, :null) == false
       _other -> false
     end
   end
-
-  defp null_false?(_args), do: false
 
   defp repo?({:repo, _meta, context}) when is_atom(context) or context == [], do: true
   defp repo?({:__aliases__, _meta, [:Repo]}), do: true
@@ -293,10 +283,10 @@ defmodule Portfolixir.SeededUpgrade.Rule do
   defp describe(:not_null), do: "a NOT NULL"
   defp describe(:backfill), do: "a backfill"
 
-  defp previous(versions, version) do
+  defp seed_at(versions, version) do
     case versions |> Enum.filter(&(&1 < version)) |> List.last() do
-      nil -> "an empty database"
-      before -> to_string(before)
+      nil -> "seed an empty database, as it is the first migration"
+      before -> "seed at #{before}, the migration before it"
     end
   end
 end

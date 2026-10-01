@@ -5,6 +5,7 @@ defmodule Portfolixir.SeededUpgrade.RuleTest do
   # runs the cases, enforces it too; it reads source files only.
   use ExUnit.Case, async: true
 
+  alias Portfolixir.ScratchDatabase
   alias Portfolixir.SeededUpgrade.Rule
 
   @moduletag :seeded_upgrade
@@ -30,7 +31,7 @@ defmodule Portfolixir.SeededUpgrade.RuleTest do
   end
 
   test "the cutoff is a migration, so it cannot exempt one by a typo" do
-    assert List.keymember?(Rule.migration_files(), Rule.since(), 0)
+    assert List.keymember?(ScratchDatabase.migration_files(), Rule.since(), 0)
   end
 
   test "Sprint 16's two seeded cases are read from their tags" do
@@ -68,6 +69,14 @@ defmodule Portfolixir.SeededUpgrade.RuleTest do
 
       assert Rule.changes(migration(~s|repo().query!("ALTER TABLE t VALIDATE CONSTRAINT c")|)) ==
                [:check]
+
+      # A table named by a string or by an expression is still a table the
+      # migration did not create.
+      assert Rule.changes(migration(~s|create constraint("t", :c, check: "x > 0")|)) == [:check]
+
+      assert Rule.changes(migration(~s|create constraint(@table, :c, check: "x > 0")|)) == [
+               :check
+             ]
     end
 
     test "a NOT NULL on an existing table, in Ecto or in SQL, is one" do
@@ -95,7 +104,8 @@ defmodule Portfolixir.SeededUpgrade.RuleTest do
             "Portfolixir.Tax.seed_builtin_parameters(repo())",
             "alias Portfolixir.Portfolios.Backfill\nBackfill.run()",
             "alias Portfolixir.Portfolios.{Backfill}\nBackfill.run()",
-            "alias Portfolixir.Portfolios.Backfill, as: Fill\nFill.run()"
+            "alias Portfolixir.Portfolios.Backfill, as: Fill\nFill.run()",
+            "alias Portfolixir.Repo\nRepo.update_all(\"t\", set: [x: 1])"
           ] do
         assert Rule.changes(migration(body)) == [:backfill], body
       end
@@ -112,7 +122,11 @@ defmodule Portfolixir.SeededUpgrade.RuleTest do
             ~s|execute("CREATE TRIGGER t_guard BEFORE UPDATE ON t FOR EACH ROW EXECUTE FUNCTION f()")|,
             "Logger.warning(\"the kind check (ADR-0050) found a row\")",
             "Map.update(%{}, :a, 1, & &1)",
-            "Portfolixir.Repo.query!(\"SELECT 1\")"
+            "Portfolixir.Repo.query!(\"SELECT 1\")",
+            "alias Portfolixir.Repo\nRepo.query!(\"SELECT 1\")",
+            "alias Ecto.{Changeset, Multi}\nMulti.new()",
+            ~s|create table("t") do\nadd :c, :string\nend\ncreate constraint("t", :c, check: "c <> ''")|,
+            "# CHECK (x > 0), then UPDATE t SET x = 1 -- a comment only\n:ok"
           ] do
         assert Rule.changes(migration(body)) == [], body
       end
@@ -131,8 +145,74 @@ defmodule Portfolixir.SeededUpgrade.RuleTest do
     end
   end
 
+  describe "the rule over a migrations directory of its own" do
+    setup do
+      dir =
+        Path.join(System.tmp_dir!(), "seeded-upgrade-rule-#{System.unique_integer([:positive])}")
+
+      File.mkdir_p!(dir)
+      on_exit(fn -> File.rm_rf!(dir) end)
+
+      for {file, body} <- [
+            {"20990101000001_create_rule_widgets.exs",
+             "create table(:rule_widgets) do\nadd :size, :integer, null: false\nend"},
+            {"20990101000002_bound_rule_widgets.exs",
+             "create constraint(:rule_widgets, :size_check, check: \"size > 0\")\n" <>
+               "alter table(:rule_widgets) do\nmodify :size, :integer, null: false\nend"},
+            {"20990101000003_fill_rule_widgets.exs",
+             ~s|execute("UPDATE rule_widgets SET size = 1 WHERE size IS NULL")|},
+            {"20990101000004_index_rule_widgets.exs", "create index(:rule_widgets, [:size])"}
+          ] do
+        File.write!(Path.join(dir, file), migration(body))
+      end
+
+      # A seeded case's tag in the list form, naming the backfill.
+      File.mkdir_p!(Path.join(dir, "test"))
+
+      File.write!(
+        Path.join(dir, "test/rule_widgets_test.exs"),
+        "@tag seeded_upgrade: [20_990_101_000_003]\ntest \"fills the widgets\""
+      )
+
+      %{dir: dir}
+    end
+
+    test "it lists each newer risky migration no tag names, and nothing else", %{dir: dir} do
+      opts = [
+        migrations: dir,
+        since: 20_990_101_000_001,
+        tests: Path.join(dir, "test/*_test.exs")
+      ]
+
+      assert Rule.covered_versions(Path.join(dir, "test/*_test.exs")) ==
+               MapSet.new([20_990_101_000_003])
+
+      assert [{20_990_101_000_002, "20990101000002_bound_rule_widgets.exs", [:check, :not_null]}] =
+               uncovered = Rule.uncovered(opts)
+
+      message = Rule.explain(uncovered, dir)
+
+      assert message =~
+               "#{dir}/20990101000002_bound_rule_widgets.exs -- adds a CHECK and a NOT NULL; " <>
+                 "seed at 20990101000001, the migration before it"
+
+      # Older than the cutoff, the same migrations are not listed.
+      assert Rule.uncovered(Keyword.put(opts, :since, 20_990_101_000_004)) == []
+    end
+
+    test "the first migration of a directory is seeded on an empty database", %{dir: dir} do
+      message =
+        Rule.explain(
+          [{20_990_101_000_001, "20990101000001_create_rule_widgets.exs", [:check]}],
+          dir
+        )
+
+      assert message =~ "adds a CHECK; seed an empty database, as it is the first migration"
+    end
+  end
+
   defp changes_of(version) do
-    {^version, file} = List.keyfind(Rule.migration_files(), version, 0)
+    {^version, file} = List.keyfind(ScratchDatabase.migration_files(), version, 0)
     file |> File.read!() |> Rule.changes()
   end
 

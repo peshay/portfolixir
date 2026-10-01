@@ -77,14 +77,15 @@ defmodule Portfolixir.ScratchDatabase do
 
   @doc """
   Migrates the database up to `version` (inclusive), or to head with
-  `:head`, from a fresh VM's schema caches. Answers the versions it ran;
-  raises what a migration raises.
+  `:head`, from a fresh VM's schema caches, over the migrations in `dir`
+  (default: `migrations_dir/0`). Answers the versions it ran; raises what a
+  migration raises.
   """
-  @spec migrate!(%{repo: pid()}, pos_integer() | :head) :: [pos_integer()]
-  def migrate!(%{repo: repo}, version) do
+  @spec migrate!(%{repo: pid()}, pos_integer() | :head, String.t()) :: [pos_integer()]
+  def migrate!(%{repo: repo}, version, dir \\ migrations_dir()) do
     forget_schema_caches()
     to = if version == :head, do: [all: true], else: [to: version]
-    Migrator.run(Repo, migrations(), :up, to ++ [dynamic_repo: repo, log: false])
+    Migrator.run(Repo, migrations(dir), :up, to ++ [dynamic_repo: repo, log: false])
   end
 
   @doc "Runs `fun` in this process with `Portfolixir.Repo` on the scratch database."
@@ -103,44 +104,40 @@ defmodule Portfolixir.ScratchDatabase do
   @spec query!(%{repo: pid()}, String.t(), list()) :: Postgrex.Result.t()
   def query!(db, sql, params \\ []), do: run(db, fn -> Repo.query!(sql, params) end)
 
-  @doc """
-  Every migration under `priv/repo/migrations` as `{version, module}`,
-  ascending -- the source `Ecto.Migrator` runs. Each file is compiled once per
-  VM: a module already loaded (by an earlier run, or a test that requires the
-  file itself) is reused, as a second compile would redefine it.
-  """
-  @spec migrations() :: [{pos_integer(), module()}]
-  def migrations do
-    Repo
-    |> Migrator.migrations_path()
+  @doc "The application's migrations: `priv/repo/migrations`."
+  @spec migrations_dir() :: String.t()
+  def migrations_dir, do: Migrator.migrations_path(Repo)
+
+  @doc "Every migration file in `dir` as `{version, path}`, ascending."
+  @spec migration_files(String.t()) :: [{pos_integer(), String.t()}]
+  def migration_files(dir \\ migrations_dir()) do
+    dir
     |> Path.join("*.exs")
     |> Path.wildcard()
     |> Enum.sort()
-    |> Enum.map(&load_migration/1)
+    |> Enum.map(fn file ->
+      {version, "_" <> _name} = file |> Path.basename() |> Integer.parse()
+      {version, file}
+    end)
   end
 
-  @doc "The file name of the migration `version`, for messages."
-  @spec file_of(pos_integer()) :: String.t()
-  def file_of(version) do
-    Repo
-    |> Migrator.migrations_path()
-    |> Path.join("#{version}_*.exs")
-    |> Path.wildcard()
-    |> case do
-      [file] -> Path.basename(file)
-      _none -> "#{version} (no such migration)"
-    end
+  @doc """
+  Every migration in `dir` as `{version, module}`, ascending -- the source
+  `Ecto.Migrator` runs. Each file is compiled once per VM: a module already
+  loaded (by an earlier run, or a test that requires the file itself) is
+  reused, as a second compile would redefine it.
+  """
+  @spec migrations(String.t()) :: [{pos_integer(), module()}]
+  def migrations(dir \\ migrations_dir()) do
+    for {version, file} <- migration_files(dir), do: {version, load_migration(file)}
   end
 
   defp forget_schema_caches, do: Enum.each(@schema_caches, &:persistent_term.erase/1)
 
   defp load_migration(file) do
-    {version, "_" <> _name} = file |> Path.basename() |> Integer.parse()
     module = module_of(file)
-
     unless Code.ensure_loaded?(module), do: Code.require_file(file)
-
-    {version, module}
+    module
   end
 
   # The module a migration file defines, read from its source rather than by
