@@ -598,7 +598,8 @@ nach einer Rückfrage weg, die sagt, was das kostet: *Ein Import, der noch
 Kontos zeigt die Zeile den neuesten früheren Namen (*früher: …*) und, an
 einem Konto, in das andere zusammengeführt wurden, die neueste
 Zusammenführung (*zusammengeführt aus Tagesgeld (alt) · Datum*), jeweils mit
-*+N*, wenn es mehr gibt.
+*+N*, wenn es mehr gibt. Das Datum der Zusammenführung führt als Link zu
+ihrem Eintrag unter **Zusammenführungen** am Ende der Seite.
 
 **Zusammenführen in…** vereint zwei Konten, die eigentlich eines sind —
 typischerweise ein Konto, das ein Import unter anderem Namen ein zweites Mal
@@ -652,9 +653,8 @@ und eine, deren gesetzter Saldo noch einen Import-Hash aus der Zeit vor der
 Import-Hash-Prüfung trägt: Der Dialog nennt jeden gesetzten Saldo und jede
 Buchung mit Konto, Datum und Nummer und sagt, was zu ändern ist.
 Ein Rückgängigmachen gibt es nicht; das Protokoll der Zusammenführung und das
-Audit-Journal zeigen, was sie getan hat. Ihr Agent liest die Protokolle mit
-`GET /api/v1/merges` (MCP `portfolixir.merges.list`); eine Liste auf dem
-Bildschirm folgt spätestens in Sprint 17.
+Audit-Journal zeigen, was sie getan hat, und **Zusammenführungen** weiter
+unten listet jede Zusammenführung.
 
 **Löschen** entfernt ein Konto nur, wenn nichts darauf verweist — keine
 Buchung und bei einem Geldkonto kein verknüpftes Depot — und fragt einmal
@@ -663,6 +663,47 @@ nach, mit dem Namen des Kontos. Ein Konto mit Buchungen wird nicht gelöscht:
 **Zusammenführen in…** an — so verschwindet ein Konto mit Historie. Ein
 Löschen, das auf eine gleichzeitige Änderung trifft, löscht nichts und sagt
 es; dann erneut versuchen.
+
+### Zusammenführungen (ADR-0050 §12)
+
+Nach der Tabelle der Depots und Verrechnungskonten listet
+**Zusammenführungen** jede Zusammenführung, die diese Instanz festgehalten
+hat — von Verrechnungskonten, von Depots und von Wertpapieren —, die neueste
+zuerst. Die Liste ist zunächst zugeklappt unter einer Zeile, die sie zählt
+(*5 Einträge · zuletzt 30.09.2026*); bei mehr als hundert Zusammenführungen
+heißt es *die neuesten 100*. Jede Zeile nennt:
+
+- **Datum** und **Art** (Verrechnungskonto, Depot oder Wertpapier);
+- **Quelle → Ziel**: die Quelle grau, weil es sie nicht mehr gibt — ihr Name
+  lebt als früherer Name des Ziels weiter —, das Ziel als Link zu seiner
+  Zeile auf dieser Seite oder zur Seite des Wertpapiers. Ein Ziel, das eine
+  spätere Zusammenführung aufgenommen hat, liest *jetzt in …* mit einem Link
+  dorthin, wo die Buchungen heute stehen; ein inzwischen gelöschtes Ziel liest
+  *ein inzwischen gelöschtes Depot (Verrechnungskonto, Wertpapier)*;
+- das **Ergebnis** in den Worten der Bestätigung (*142 Buchungen verschoben,
+  6 entfernt*; bei einem Wertpapier auch die entfernten Duplikate, die
+  ergänzten Kurse und die entfallenen Einstellungen). Aufgeklappt zeigt es
+  eine Zeile je Tabelle, die die Zusammenführung geändert hat — verschobene
+  und entfernte Buchungen, jede Entfernung mit ihrem Grund (*Duplikat
+  entfernt*, *interne Umbuchung entfallen*, *gesetzter Saldo desselben Tages
+  entfallen*, *Split zusammengelegt*), gesetzte Salden, frühere Namen, Kurse,
+  Klassifizierungen, Buckets der Position und Ähnliches —, dann Ihre Wahl für
+  gleiche Buchungen und bei einem Wertpapier die ISIN, und die bestandene
+  Prüfung (*Saldo an 211 Tagen bestätigt*);
+- **Von**: *Operator* für eine Zusammenführung auf diesen Seiten, *Agent* für
+  eine, die ein API- oder MCP-Token ausgeführt hat.
+
+Das Datum in der Zeile *zusammengeführt aus … · Datum* eines Überlebenden und
+in der Grundlagenzeile *zusammengeführt am … aus …* eines Wertpapiers öffnet
+die Liste beim Ergebnis dieser Zusammenführung. Die Liste ist nur zum Lesen:
+Ein Rückgängigmachen gibt es nicht, und nichts in ihr schreibt. Solange es
+keine Zusammenführung gibt, sagt sie, wo eine beginnt — **Zusammenführen in…**
+im Zeilenmenü jedes Kontos, Depots und Wertpapiers. Auf dem Telefon ist jede
+Zusammenführung zwei Zeilen, *Quelle → Ziel* über *Datum · Art · Von*, das
+Ergebnis darunter.
+
+Ihr Agent liest dieselben Protokolle mit `GET /api/v1/merges` (MCP
+`portfolixir.merges.list`), auch die entfernten Buchungen je Grund.
 
 ### Portfoliodatensätze (Kompatibilität)
 

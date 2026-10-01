@@ -387,7 +387,7 @@ defmodule PortfolixirWeb.AccountsLifecycleLiveTest do
     row = "#account-row-cash-#{tagesgeld.id}"
     today = Portfolixir.Clock.today() |> Calendar.strftime("%d.%m.%Y")
 
-    assert view |> element("#{row} [data-role='account-merged-from']") |> render() =~
+    assert text(view, "#{row} [data-role='account-merged-from']") =~
              "zusammengeführt aus Tagesgeld 2 · #{today}"
 
     former = view |> element("#{row} [data-role='account-former']") |> render()
@@ -400,7 +400,7 @@ defmodule PortfolixirWeb.AccountsLifecycleLiveTest do
     merge_cash!(third, tagesgeld)
     {:ok, view, _html} = live(conn, "/portfolios?locale=de")
 
-    assert view |> element("#{row} [data-role='account-merged-from']") |> render() =~
+    assert text(view, "#{row} [data-role='account-merged-from']") =~
              "zusammengeführt aus Tagesgeld 3 · #{today} +1"
 
     open_menu_item(view, "cash", tagesgeld.id, "rename")
@@ -463,6 +463,18 @@ defmodule PortfolixirWeb.AccountsLifecycleLiveTest do
   defp open_menu_item(view, "depot", id, item) do
     view |> element("#account-kebab-#{id}") |> render_click()
     view |> element("#account-row-menu-#{id} [data-role='menu-#{item}']") |> render_click()
+  end
+
+  # The line's words without its markup: since Sprint 17 V1 (G2-A ⑤) the
+  # date of the merged-from line is a link.
+  defp text(view, selector) do
+    view
+    |> element(selector)
+    |> render()
+    |> Floki.parse_fragment!()
+    |> Floki.text()
+    |> String.split()
+    |> Enum.join(" ")
   end
 
   defp items(view, menu) do

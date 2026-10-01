@@ -2056,8 +2056,11 @@ the batch; silence adopts it). Built by Sprint 16 Lane L5a in
   click: "merged from <source> · <date>" (the newest merge, then "+N"), and
   "former: <newest former name>" (then "+N"). A merged source's name is said
   once, on the first line; its own earlier names stay in the second, because
-  they were renames. The line links nothing: the list of merges is
-  `GET /api/v1/merges` until its view lands (Sprint 17 at the latest).
+  they were renames. The date of the newest merge is a link
+  (`.merge-date-link`, the accent, underlined at rest) to that merge's
+  entry in the merge records at the end of the page:
+  `/portfolios?merge=<record id>#merge-records`, which opens the section and
+  that entry's result server-side (Sprint 17 V1, G2-A below).
 - **Rename** opens a native `<dialog class="modal rename-dialog">` titled
   "Rename — <name>": one field (only the name is editable; currency and
   portfolio freeze once referenced, §11; role, balance and buckets stay in
@@ -2296,7 +2299,9 @@ records only what the security adds.
 - **The survivor names its history** on its detail overview's basis line,
   after the asset class: "former ISIN <ISIN> (until <date>)" and "merged on
   <date> from “<name>” (then <ISIN>)" — one clause per merge record, readable
-  without a click.
+  without a click. The clause's date links that merge's entry in the merge
+  records on Accounts & depots, as the account sub-line's does (Sprint 17
+  V1, G2-A ⑤).
 - **Dialog count:** one more native dialog; the lifecycle's record above now
   reads sixteen `<dialog>` elements in `lib/portfolixir_web/`, still with
   zero `aria-modal`.
@@ -2603,3 +2608,105 @@ shows no dash on the phone; the basis line under the rows says why.
 - **What it does not carry:** the unmatched-sells note. A sell with no
   matched buy is no trade, so it is not missing from the five; the facet
   names it where the totals are read.
+
+## Amendment 2026-10-01 — Accounts & depots: the merge records *(Sprint 17 pick G2-A, Lane V1, ADR-0050 §12)*
+
+Board `mockups/ux-design-2026-10-01/02-merge-records`, variant A (plan D-9,
+silence adopts it). Built in `PortfolixirWeb.PortfolioAccounts.MergeRecords`
+and placed by `PortfolixirWeb.PortfolioAccountsLive`. It is the operator's
+view of `GET /api/v1/merges` and reads the same figures
+(`Portfolixir.Lifecycle.manifest_summary/1`): what only the view knew would
+be the two-way gap in the other direction.
+
+- **Placement.** A section of its own after "Depots and cash accounts" and
+  before the compatibility records, which stay the page's last block: an h2
+  ("Merges") and Cash flow's `.section-disclosure` with its chevron,
+  **collapsed**. The summary names what opens: "5 entries · latest
+  30.09.2026"; at the API's default page it reads "the newest 100 · latest …"
+  (UX-DR26). Under it the hint "What each merge moved, the newest first."
+  One list for all three kinds, in the API's order and size
+  (`inserted_at:desc,id:desc`, 100).
+- **The row** (`.data-table.merge-records-table`, a reading table: it fits
+  its wrapper, its cells wrap, UX-DR15's scroller stays the fallback): Date
+  (the host's calendar date, `Format.date`) · Kind (cash account, depot,
+  security) · Source → target · Result · By. The source is muted, **never
+  struck** — the row is gone, its name lives on as a former name of the
+  target (§4). The target carries the link treatment at rest (G7-A): an
+  account or a depot jumps to its band on this page, a security opens its
+  page. A reader hears "into" for the arrow (`.merge-route`'s rule). A target
+  a later merge took away is its recorded name, muted, over "now in <live
+  end>" (a link, `target.merged_into`, the name read from the page's own
+  rows); a target deleted since is "a depot (cash account, security) deleted
+  since", italic, no link; a target merged on into a row deleted since reads
+  its name over "now in a depot deleted since". By is "Operator" or "Agent",
+  G12.1-A's words (a token writes as the agent); `actor_label` stays unshown
+  until tokens carry names people chose (FU-6).
+- **The result** is a `<details class="merge-manifest">` whose summary is the
+  confirmation's own phrase: for an account or a depot "142 bookings moved,
+  6 removed", for a security "21 bookings moved, 1 duplicate removed, 380
+  quotes added, 2 settings dropped". A part that is zero is left out, the
+  moved bookings never. Opened, a `<dl class="merge-manifest__counts">` names
+  one line per table with a figure other than zero, then the choice and the
+  check, and the basis line "Counted from the merge's record; every single
+  row is in the audit journal." Every manifest key has a fixed label; a raw
+  key never reaches the screen, and a meta-test fails a key the three merge
+  writers emit without one (`MergeRecords.labelled_paths/0`):
+
+  | Line (de) | Reads `manifest_summary` | Value (de) |
+  |---|---|---|
+  | Buchungen | `transactions.moved`, `.deleted`, `.deleted_by_reason.*` | "N verschoben", then per reason "N Duplikat(e) entfernt", "N interne Umbuchung(en) entfallen", "N gesetzte(r) Salden/Saldo desselben Tages entfallen", "N Split(s) zusammengelegt" |
+  | Gesetzte Salden | `transactions.restated`, `restated_anchors` | "N angepasst · N gelten jetzt für beide Konten" |
+  | Verknüpfte Depots | `securities_accounts.repointed` | "N zum Ziel verschoben" |
+  | Kurse | `quotes.moved`, `.dropped` | "N ergänzt · N verworfen, das Ziel hatte an diesen Tagen einen" |
+  | Klassifizierungen | `category_assignments.moved`, `.dropped` | "N Zuordnungen verschoben · N entfallen" |
+  | Positionsziele | `position_targets.moved`, `.deleted` | "N verschoben · N entfallen" |
+  | Termine | `security_events.moved`, `.possible_duplicates` | "N verschoben · N jetzt möglicherweise doppelt" |
+  | Splits | `split_events.source`, `.target` | "N der Quelle · N des Ziels" |
+  | Buckets der Position | `position_bucket_overrides.carried`, `.dropped`, `.cleared` | "N übernommen · N entfallen · N beim Ziel geleert" |
+  | Bucket-Zuordnungen | `cash_account_buckets.removed`, `securities_account_buckets.removed` | "N entfernt" |
+  | Frühere Namen | `former_names.appended`, `.not_kept` | "N übernommen · N nicht übernommen" |
+  | Frühere ISINs | `identifier_aliases.reassigned` | "N übernommen" |
+  | Stammdaten | `identifiers.adopted`, `.differences` | "N Felder übernommen, das Ziel hatte keine · N abweichend, die des Ziels gelten" |
+  | Rundung beim Split | `rounding_differences` | "N Abweichung(en)" |
+  | ISIN | `choices.identity_choice`, `.isin_changed_on`, `identifiers.source_isin`, `.target_isin`, `identifier_aliases.created` | "<ISIN> bleibt; <ISIN> ist jetzt frühere ISIN", or "<ISIN> übernommen; <ISIN> ist jetzt frühere ISIN · Änderung vom <date>", or "<ISIN> von der Quelle übernommen" |
+  | Wahl | `choices.collapse_key_equal` | "gleiche Buchungen: als Duplikate entfernt" / "… beide behalten"; absent when there was nothing to choose |
+  | Prüfung | `linearity.*` | "Saldo an N Tagen bestätigt" (cash), "Stückzahl an N Tagen für N Wertpapiere bestätigt" (depot), "Stückzahl an N Tagen in N Depots bestätigt" (security) |
+
+  The removed bookings are named per reason because the payload now counts
+  them so (`transactions.deleted_by_reason`, beside the unchanged
+  `transactions.deleted`), so the agent and the operator read the same
+  split.
+- **The way in (⑤).** The date in a survivor's "merged from … · <date>"
+  line (G13.1 above) and in a security's "merged on <date> from …" basis
+  clause (G3-A above) links `/portfolios?merge=<id>#merge-records`. The
+  query opens the section and that entry's result **server-side**, because a
+  fragment does not reliably open a `<details>`. *Deviation from the board,
+  stated:* the board's fragment names the row (`#merge-record-<id>`); the
+  build's names the section, because each entry renders twice (the table row
+  and the phone row, one of them always `display: none`) and a fragment that
+  points at the hidden copy scrolls nowhere. The opened result marks the
+  entry; the list is dozens of rows, not thousands.
+- **Under 560 px** the table gives way to `.phone-row`s (UX-DR27):
+  "source → target" (600, wrapping) over "date · kind · by" — the phone row
+  has no figure for its right edge, because a merge carries no amount, so the
+  date moves into the identifier line — and the same result disclosure full
+  width beneath. Nothing scrolls sideways.
+- **Empty:** the section stays, with one `.empty-state` sentence naming where
+  a merge starts — "No merge yet — “Merge into…” is in the row menu of every
+  account, depot and security." — and no action, because the list creates
+  nothing (the precedent is Realized's "no closed sales" sentence).
+- **Read-only.** No kebab, no selection, no button, no form in the section,
+  and no wording that suggests a merge can be taken back: there is no unmerge
+  (§12), and the confirmation said so before the merge wrote.
+- **The `app.css` rules of the pick** (one block after `.merge-stale__changes`):
+  ① `.merge-records-table` at `min-width: 0` with nowrap date, kind and
+  actor cells; ② `.merge-record__source` muted, `__arrow` subtle with 3 px
+  padding, `__target` accent 600 underlined, `__target--gone` muted 400 not
+  underlined, `__target--deleted` italic, `__later` a 12 px muted line whose
+  link is the accent; ③ `.merge-manifest` summary at 12 px/500 with the
+  chevron top-aligned, `__counts` a two-column grid indented 16 px,
+  `__basis` 11.5 px muted; ④ `.merge-records__rows .phone-row` one column and
+  the table hidden under 560 px; ⑤ `.merge-date-link`.
+- **Stated, not settled here:** security merges appear on a page titled for
+  accounts and depots; the board's "Gegen A" accepts that cost, and the
+  subtitle is unchanged.
