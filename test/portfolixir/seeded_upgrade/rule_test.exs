@@ -52,6 +52,11 @@ defmodule Portfolixir.SeededUpgrade.RuleTest do
     assert message =~ "seed at 20260926121400, the migration before it"
     assert message =~ "@tag seeded_upgrade: <the migration's version>"
     assert message =~ "Portfolixir.SeededUpgrade.upgrade!"
+
+    # The two places the message sends a reader exist.
+    assert message =~ ~s|docs/development/guide.md ("Upgrade migrations over legacy rows")|
+    assert File.read!("docs/development/guide.md") =~ "\n## Upgrade migrations over legacy rows\n"
+    assert File.exists?("test/portfolixir/seeded_upgrade/sprint16_test.exs")
   end
 
   describe "the heuristic" do
