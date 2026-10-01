@@ -4649,8 +4649,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # only while it has a manual quote to release.
   def handle_event("open_quote_release", _params, socket) do
     case socket.assigns do
-      %{selected_security: %Security{}, detail_manual: %{count: count}} when count > 0 ->
-        {:noreply, assign(socket, quote_release_open?: true, quotes_release_result: nil)}
+      %{selected_security: %Security{id: id}, detail_manual: %{count: count}} when count > 0 ->
+        open_quote_release(socket, id)
 
       _nothing_to_release ->
         {:noreply, socket}
@@ -5484,6 +5484,19 @@ defmodule PortfolixirWeb.SecuritiesLive do
     gettext("%{name} changed while it was being deleted; nothing was deleted. Try again.",
       name: name
     )
+  end
+
+  # A security merged away since the page showed it (closing act, γ CR-1)
+  # opens no dialog: the page re-reads its own link, which follows the merge
+  # to the survivor (ADR-0050 §12).
+  defp open_quote_release(socket, id) do
+    case Catalog.get_security(id) do
+      %Security{} ->
+        {:noreply, assign(socket, quote_release_open?: true, quotes_release_result: nil)}
+
+      nil ->
+        {:noreply, push_patch(socket, to: securities_path(socket.assigns, id: id))}
+    end
   end
 
   defp put_action_result(socket, severity, message) do

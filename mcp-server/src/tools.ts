@@ -3087,8 +3087,8 @@ const declaredTools: DeclaredTool[] = [
       "null without one), stored_count (every stored quote, of any source), stretches — each a run of manual " +
       "quotes with no quote of another source between them, {from, to, count}, ascending, the newest limit of " +
       "them (default 100, capped at 1000, echoed in meta.limit) — and stretch_count (all of them), plus " +
-      "sync_adapter: whether the quote sync has an adapter for the security's provider; without one a released " +
-      "date keeps no quote, because nothing fills it again. from and/or to (inclusive; an absent bound is open) " +
+      "sync_adapter: whether the quote sync can get the security's quotes (an adapter for its provider that can ask " +
+      "for it); if not, a released date keeps no quote. from and/or to (inclusive; an absent bound is open) " +
       "add range {from, to, count}: the manual quotes a release of exactly that range would remove; to before " +
       "from answers 422 on to. A read; the operator reads the same on the security's Quotes tab.",
     quoteManualSchema,
