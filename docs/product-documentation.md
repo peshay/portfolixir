@@ -638,7 +638,8 @@ newest first. The list starts collapsed under a line that counts it
   or MCP token made.
 
 The date in a survivor's *merged from … · date* line, and in a security's
-*merged on … from …* basis line, opens the list at that merge's result. The
+*merged on … from …* basis line, opens the list at that merge's result; a
+merge older than the newest 100 is said to be past the list. The
 list is read-only: there is no unmerge, and nothing in it writes. With no
 merge yet, it says where one starts — **Merge into…** in the row menu of
 every account, depot and security. On a phone each merge is two lines,

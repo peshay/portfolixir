@@ -425,6 +425,59 @@ defmodule PortfolixirWeb.AccountsMergeRecordsLiveTest do
 
     summary = html |> Floki.parse_fragment!() |> Floki.find("[data-role='merge-records-summary']")
     assert squish(summary) == "die neuesten 1 · zuletzt 30.09.2026"
+    refute html =~ "merge-records-focus-missing"
+
+    # A link naming a merge past the cut (a survivor's date, closing act γ):
+    # the section opens and says the merge is not among those listed,
+    # instead of opening nothing without a word.
+    past =
+      Gettext.with_locale(PortfolixirWeb.Gettext, "de", fn ->
+        render_component(&MergeRecords.section/1, records: [record], more?: true, focus: 3)
+      end)
+      |> Floki.parse_fragment!()
+
+    assert [_] = Floki.find(past, "details.section-disclosure[open]")
+
+    assert squish(Floki.find(past, "[data-role='merge-records-focus-missing']")) ==
+             "Die Zusammenführung, die der Link nennt, steht nicht unter den neuesten 1."
+
+    # A complete list: an id it does not carry names no merge, so nothing
+    # is said, as before.
+    whole = render_component(&MergeRecords.section/1, records: [record], focus: 3)
+    refute whole =~ "merge-records-focus-missing"
+  end
+
+  # Acceptance criteria (closing act γ D8):
+  # - The section and each entry clear the sticky top bar when a link
+  #   scrolls to them (scroll-margin-top), and the entry a link opened is
+  #   scrolled to the top by the MergeFocus hook and its visible result
+  #   summary focused, once per opened id.
+  test "the opened entry clears the top bar and is brought into view", ctx do
+    giro = cash!(ctx.portfolio, "Girokonto")
+    record = merge_cash!(Actor.owner_ui(), cash!(ctx.portfolio, "Tagesgeld"), giro)
+
+    {:ok, view, _html} = live(ctx.conn, "/portfolios?merge=#{record.id}")
+
+    assert has_element?(
+             view,
+             "#merge-records[phx-hook='MergeFocus'][data-focus='#{record.id}']"
+           )
+
+    css = File.read!("priv/static/app.css")
+    assert css =~ ~r/#merge-records,\s*\.merge-records \[data-merge\]\s*\{[^}]*scroll-margin-top/
+
+    hook =
+      "lib/portfolixir_web/layout_view.ex"
+      |> File.read!()
+      |> String.split("Hooks.MergeFocus")
+      |> Enum.at(1)
+      |> String.split("Hooks.")
+      |> hd()
+
+    assert hook =~ "details.merge-manifest[open] > summary"
+    assert hook =~ "offsetParent !== null"
+    assert hook =~ ~s[scrollIntoView({ block: "start" })]
+    assert hook =~ "focus({ preventScroll: true })"
   end
 
   # -- helpers ---------------------------------------------------------------------

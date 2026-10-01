@@ -1095,6 +1095,32 @@ defmodule PortfolixirWeb.LayoutView do
               }
             };
 
+            // ADR-0050 §12 (closing act γ D8): a link that opens a merge
+            // record (`?merge=<id>#merge-records`) lands on its row, not on
+            // the section under the sticky top bar: the opened entry is
+            // scrolled to the top, below the bar (`scroll-margin-top`), and
+            // its visible result summary takes the focus. Once per opened
+            // id, so a later patch does not take the focus back.
+            Hooks.MergeFocus = {
+              mounted: function () { this.bring(); },
+              updated: function () { this.bring(); },
+              bring: function () {
+                var id = this.el.getAttribute("data-focus");
+                if (!id || id === this.brought) return;
+                var summaries = this.el.querySelectorAll(
+                  '[data-merge="' + id + '"] details.merge-manifest[open] > summary'
+                );
+                for (var i = 0; i < summaries.length; i++) {
+                  if (summaries[i].offsetParent !== null) {
+                    this.brought = id;
+                    summaries[i].closest("[data-merge]").scrollIntoView({ block: "start" });
+                    summaries[i].focus({ preventScroll: true });
+                    return;
+                  }
+                }
+              }
+            };
+
             Hooks.CountUp = {
               mounted: function () {
                 this.lastValue = null;
