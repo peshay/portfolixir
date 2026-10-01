@@ -56,6 +56,8 @@
   .mock-board, .pickbar { max-width: 1392px; }
   .dk { width: 1382px; border: 1px solid var(--color-border-strong); border-radius: 12px; overflow: hidden; background: var(--color-bg); }
   .dk iframe { display: block; width: 1380px; height: 800px; border: 0; }
+  .dk1280 { width: 1282px; border: 1px solid var(--color-border-strong); border-radius: 12px; overflow: hidden; background: var(--color-bg); }
+  .dk1280 iframe { display: block; width: 1280px; height: 560px; border: 0; }
   .ph { width: 392px; border: 1px solid var(--color-border-strong); border-radius: 20px; overflow: hidden; background: var(--color-bg); flex: none; }
   .ph iframe { display: block; width: 390px; height: 700px; border: 0; }
   .notes { flex: 1 1 280px; display: grid; gap: 10px; align-content: start; font-size: 12.5px; }
@@ -169,6 +171,36 @@
     <div class="mini">
       <p class="cap">A — kein abgeschlossener Trade</p>
       <div class="absent">Die Karte fehlt ganz, wie „Fällig“ ohne Termin: eine Karte, die nichts zeigt, verspricht nur. Die Facette zeigt weiter ihren leeren Zustand „Noch keine abgeschlossenen Verkäufe gebucht.“</div>
+    </div>
+  </div>
+</section>
+
+<!-- Nachtrag 2026-10-01: the closing act's review on the built facet (γ D4,
+     D9). Before and after at 1280 px with the sidebar open; "Vorher" undoes
+     the two rules the story added (data-revert), "Nachher" is app.css as
+     built. -->
+<section class="mock-board">
+  <h2>Nachtrag nach dem Review (Abschluss γ) — die Tabelle am Laptop <small>Vorher / Nachher, 1280 px, Seitenleiste offen</small></h2>
+  <p class="mock-note">Das Board ließ offen, wie die Tabelle unter 1440 px liest („die Story entscheidet“). Gebaut ergab sich bei 1280 px mit offener Seitenleiste eine 1159 px breite Tabelle in einem 1002 px breiten Scroller: „Ergebnis“ ganz außer Sicht, ohne Hinweis aufs Scrollen, weil ein langer Name die Spalte auf eine Zeile zwang. Und der Strich unter 365 Tagen druckte in Textfarbe statt gedämpft: <code>.data-table tbody td { color }</code> schlug <code>.trade-pa--na</code> wie vorher die Vorzeichenfarben (Regel ⑥).</p>
+  <div class="mock-row">
+    <div class="col">
+      <p class="cap">Vorher — wie gebaut vor dem Review, ein langer Name (synthetisch)</p>
+      <div class="dk1280 mock-before"><iframe data-tpl="facet-a-long" data-proposal data-revert data-fixed="560" data-scroll-to="#realized-trades-table-wrapper" title="Vorher, 1280 px"></iframe></div>
+    </div>
+  </div>
+  <div class="mock-row" style="margin-top:16px">
+    <div class="col">
+      <p class="cap">Nachher — Regel ⑦ und der gedämpfte Strich</p>
+      <div class="dk1280 mock-after"><iframe data-tpl="facet-a-long" data-proposal data-fixed="560" data-scroll-to="#realized-trades-table-wrapper" title="Nachher, 1280 px"></iframe></div>
+    </div>
+  </div>
+  <div class="mock-row" style="margin-top:16px">
+    <div class="notes" style="flex-basis:100%">
+      <ol>
+        <li><b>Regel ⑦, eine Lesetabelle:</b> <code>.data-table-wrapper &gt; #realized-trades-table { min-width: 0 }</code>, die Zahlenzellen <code>nowrap</code>, die Wertpapierzelle mindestens 12ch und <code>overflow-wrap: anywhere</code>. Name und Daten brechen um, die Zahlen nicht; „Ergebnis“ bleibt im Bild. Der Scroller von UX&#8209;DR15 bleibt der Rückfall, wie bei den Merge-Einträgen.</li>
+        <li><b>Der Strich gedämpft auch in der Tabelle:</b> <code>#realized-trades-table td.trade-pa--na</code> setzt die gedämpfte Farbe, die Regel ① meinte.</li>
+        <li><b>„P. A.“ im Kopf bleibt:</b> Jede Spaltenüberschrift der App steht in Großbuchstaben; eine Ausnahme für eine Abkürzung wäre die Unregel.</li>
+      </ol>
     </div>
   </div>
 </section>
@@ -352,11 +384,20 @@ const TPL = {
   'facet-a': () => shell({ active: 'wealth', title: 'Cashflow', subtitle: 'Abgeschlossene Trades und ihr realisiertes Ergebnis', subNew: true, body: areaTabs() + facets('a') + facetBody('a') }),
   'overview-a': () => shell({ active: 'dashboard', title: 'Übersicht', subtitle: 'Lokales Portfolio-Tracking', body: overview(true) }),
   'trades-b': () => shell({ active: 'trades', b: true, title: 'Trades', subtitle: 'Abgeschlossene Trades und ihr realisiertes Ergebnis', subNew: true, body: facetBody('b') }),
+  // The review's case (γ D9): one long synthetic name sets the column width.
+  'facet-a-long': () => {
+    const name = T[1].n;
+    T[1].n = 'Orchid Bay Pharmaceuticals and Specialty Biotechnology Holdings plc';
+    const html = shell({ active: 'wealth', title: 'Cashflow', subtitle: 'Abgeschlossene Trades und ihr realisiertes Ergebnis', body: areaTabs() + facets('a') + facetBody('a') });
+    T[1].n = name;
+    return html;
+  },
   'cashflow-b': () => shell({ active: 'wealth', b: true, title: 'Cashflow', subtitle: 'Erhaltene Dividenden und Zinsen', body: areaTabs() + facets('b') })
 };
 
 for (const f of document.querySelectorAll('iframe[data-tpl]')) {
-  const css = $('css-mock') + ('proposal' in f.dataset ? document.getElementById('proposal').outerHTML : '');
+  const revert = '<style>.data-table-wrapper > #realized-trades-table { min-width: max-content; } #realized-trades-table td.trade-pa--na { color: var(--color-text); } #realized-trades-table td:first-child { min-width: 0; overflow-wrap: normal; }</style>';
+  const css = $('css-mock') + ('proposal' in f.dataset ? document.getElementById('proposal').outerHTML : '') + ('revert' in f.dataset ? revert : '');
   const fixed = f.dataset.fixed;
   f.addEventListener('load', () => {
     const doc = f.contentDocument;

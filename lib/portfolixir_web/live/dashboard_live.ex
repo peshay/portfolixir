@@ -642,8 +642,11 @@ defmodule PortfolixirWeb.DashboardLive do
             ) %>
           </AppShell.data_note>
           <p :if={@card.trades != []} class="summary-basis" data-role="trades-card-basis">
-            <%= gettext(
-              "The five most recently closed · result in %{currency} · FIFO across every depot, whatever the view · p. a. only from 365 days of holding",
+            <%!-- Counts what the card shows: five at most (closing act γ n3). --%>
+            <%= ngettext(
+              "The most recently closed · result in %{currency} · FIFO across every depot, whatever the view · p. a. only from 365 days of holding",
+              "The %{count} most recently closed · result in %{currency} · FIFO across every depot, whatever the view · p. a. only from 365 days of holding",
+              length(@card.trades),
               currency: @card.base_currency
             ) %>
           </p>
