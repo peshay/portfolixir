@@ -26,8 +26,14 @@ server, for one), so check your client's documentation for its spelling.
 | Profile | The agent can |
 |---|---|
 | `read` | read everything and change nothing |
-| `book` | read, create, and make the writes another `book` write can undo; no delete, merge, identity change, rule retirement or quote release |
+| `book` | read, create, and make the replace-shaped writes (update, upsert, set), which the same write sent the former value undoes; no removal, merge, ISIN change, rule retirement or quote release |
 | `full` (the default) | call every tool |
+
+Two of the writes `book` keeps leave a residue their inverse does not clear: a
+rename back restores an account's name but keeps the in-between name as a
+former name, and an upsert over a date that held provider data leaves a manual
+quote there; only the admin tools `remove_former_name` and
+`portfolixir.quotes.release` clear them.
 
 `book` suits an agent that sets up an instance and books into it, `read` one
 that only reports. A profile narrows the companion, not the API token: an agent

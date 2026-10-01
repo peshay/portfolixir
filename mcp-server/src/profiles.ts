@@ -4,7 +4,8 @@
  *
  * - `read` lists and calls only the tools that change nothing (readOnlyHint).
  * - `book` lists and calls every tool except the admin set below: the reads,
- *   every create, and every write an ordinary inverse write can undo.
+ *   every create, and the replace-shaped writes, which the same write sent
+ *   the former value undoes (two leave a residue, named below).
  * - `full` (the default) lists and calls every tool.
  *
  * A profile narrows the companion, not the API token: whoever holds
@@ -80,14 +81,28 @@ export function profileSwitch(
 
 // THE ADMIN SET — the tools the `book` profile leaves out.
 //
-// The principle (D-5): a write belongs to admin when nothing in the `book`
-// profile can undo it. Every removal qualifies, including one whose row a
-// later write could put back (an assignment, a target weight, a position's
-// override): what comes back is a new row, not the one removed, and drawing
-// the line at removal means a book run never thins out what it may not have
-// read. A merge, an identity change, a retirement and the release of manual
-// quotes qualify too. A plan activation does not: activating the previous
-// plan undoes it (it is in BOOK_KEPT_DESTRUCTIVE below).
+// The principle (D-5), as implemented: removal-shaped tools are admin, and
+// replace-shaped writes stay in `book`.
+//
+// A tool that removes a stored row is admin (a delete, a former-name or
+// ISIN-alias removal, an unassignment, a cleared position override, the
+// release of manual quotes), even where a later write could put an equal row
+// back: what comes back is a new row, and drawing the line at removal keeps
+// a book run from thinning out what it may not have read. The three merges,
+// the ISIN change and a rule's retirement are admin too: no book write
+// reverses them.
+//
+// A write that replaces a value stays in `book` (BOOK_KEPT_DESTRUCTIVE
+// below), because the same write sent the former value undoes it, also where
+// the replacement empties something: views.set_buckets,
+// securities_accounts.set_buckets and cash_accounts.set_buckets sent a
+// narrower set, and securities_accounts.set_position_buckets sent [] (the
+// explicit-empty override), stay in `book`, while
+// securities_accounts.clear_position_buckets, which removes the override, is
+// admin. A plan activation stays: activating the previous plan undoes it.
+// Two kept writes leave a residue their inverse does not clear, named in
+// their reasons: a rename back keeps the in-between name as a former name,
+// and an upsert over a provider date leaves that date manual.
 //
 // A test (test/profiles.test.ts) fails any tool that carries destructiveHint
 // and sits in neither list, any entry that names no tool, and any tool that
@@ -114,7 +129,7 @@ export const ADMIN_TOOLS: ReadonlyMap<string, string> = new Map([
   ["portfolixir.cash_accounts.delete", "Removes the cash account; a create makes a new one."],
   [
     "portfolixir.cash_accounts.remove_former_name",
-    "Forgets a name the next import resolves to this account; no book write records a former name."
+    "Forgets a name the next import resolves to this account; a rename records only the previous live name, so restoring it takes renaming through it and back, not one inverse write."
   ],
   [
     "portfolixir.cash_accounts.merge",
@@ -123,7 +138,7 @@ export const ADMIN_TOOLS: ReadonlyMap<string, string> = new Map([
   ["portfolixir.securities_accounts.delete", "Removes the depot; a create makes a new one."],
   [
     "portfolixir.securities_accounts.remove_former_name",
-    "Forgets a name the next import resolves to this depot; no book write records a former name."
+    "Forgets a name the next import resolves to this depot; a rename records only the previous live name, so restoring it takes renaming through it and back, not one inverse write."
   ],
   [
     "portfolixir.securities_accounts.merge",
@@ -180,9 +195,9 @@ export const ADMIN_TOOLS: ReadonlyMap<string, string> = new Map([
   ]
 ]);
 
-// THE OVERWRITES `book` KEEPS — the tools that carry destructiveHint (they
-// overwrite what is stored) but that another write of the book profile can
-// undo, most often the same tool sent the value it replaced. The audit
+// THE OVERWRITES `book` KEEPS — the replace-shaped tools that carry
+// destructiveHint (they overwrite what is stored): the same tool sent the
+// value it replaced undoes each, with the two residues its reason names. The audit
 // journal keeps every before-image (portfolixir.journal.list), so the value
 // to send back can be read even when the agent did not read it first.
 export const BOOK_KEPT_DESTRUCTIVE: ReadonlyMap<string, string> = new Map([
@@ -190,15 +205,15 @@ export const BOOK_KEPT_DESTRUCTIVE: ReadonlyMap<string, string> = new Map([
   ["portfolixir.events.update", "An event is mutable by design; an update sets it back."],
   [
     "portfolixir.quotes.upsert",
-    "An upsert of the replaced closes restores the series; a date it took from provider data stays manual."
+    "An upsert of the replaced closes restores the series; a date it took from provider data stays manual until portfolixir.quotes.release (admin)."
   ],
   [
     "portfolixir.cash_accounts.update",
-    "A rename back restores the name and consumes the former name the first rename kept."
+    "A rename back restores the name but keeps the in-between name as a former name, which no new account may take and a later import books here; only cash_accounts.remove_former_name (admin) clears it."
   ],
   [
     "portfolixir.securities_accounts.update",
-    "A rename back restores the name and consumes the former name the first rename kept."
+    "A rename back restores the name but keeps the in-between name as a former name, which no new depot may take and a later import books here; only securities_accounts.remove_former_name (admin) clears it."
   ],
   ["portfolixir.transactions.update", "An update with the previous fields restores the booking."],
   [
@@ -293,8 +308,8 @@ export function profileRefusal(profile: McpProfile, name: string): string {
 
   return (
     `${name} is not available: this companion runs the book profile ` +
-    "(PORTFOLIXIR_MCP_PROFILE=book), which leaves out the admin tools, the writes nothing in " +
-    `book can undo${reason === undefined ? "" : ` (this one: ${reason})`}. Ask the operator ` +
+    "(PORTFOLIXIR_MCP_PROFILE=book), which leaves out the admin tools: every removal, and the " +
+    `writes no book write reverses${reason === undefined ? "" : ` (this one: ${reason})`}. Ask the operator ` +
     "to run it, under the full profile or on the instance's own pages."
   );
 }
@@ -307,9 +322,9 @@ export function profileClause(profile: McpProfile): string {
   const scope = {
     read: "it lists only the tools that change nothing",
     book:
-      "it lists the reads, the creates and the writes another of its tools can undo, and " +
-      "leaves out the admin tools (deletes, merges, identity changes, a rule's retirement, " +
-      "the release of manual quotes)",
+      "it lists the reads, the creates and the replace-shaped writes (updates, upserts, " +
+      "sets), and leaves out the admin tools (every removal, the merges, the ISIN change, a " +
+      "rule's retirement, the release of manual quotes)",
     full: "it lists every tool"
   }[profile];
 

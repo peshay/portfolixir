@@ -2842,16 +2842,26 @@ keeps its full authority over the API.
 
 **Tool profiles.** `PORTFOLIXIR_MCP_PROFILE` takes `read`, `book` or `full` (the
 default), in any case. `read` is the read-only mode above. `full` lists and
-calls every tool. `book` lists the reads, every create and every write another
-`book` write can undo, and leaves out the **admin set**, an explicit list in
-the companion (`mcp-server/src/profiles.ts`) governed by one principle: a write
-belongs to the admin set when nothing in the `book` profile can undo it. Every
+calls every tool. `book` lists the reads, every create and the replace-shaped
+writes, and leaves out the **admin set**, an explicit list in the companion
+(`mcp-server/src/profiles.ts`) drawn by one line, as implemented:
+removal-shaped tools are admin, and replace-shaped writes stay in `book`. Every
 removal is admin (every delete, the former-name and ISIN-alias removals, a
 classification's unassignment, a position's override cleared, the release of
-manual quotes), and so are the three merges, the ISIN change and a rule's
-retirement. The overwrites `book` keeps (an update, an upsert, a bucket set, a
-plan's activation, which activating the previous plan undoes) are a second
-list beside it, each with its reason, and a companion test fails any tool with
+manual quotes), even where a later write could put an equal row back, and so
+are the three merges, the ISIN change and a rule's retirement. A
+replace-shaped write (an update, an upsert, a bucket set, a plan's activation)
+stays in `book`, because the same write sent the former value undoes it; a
+bucket set sent narrower, or a position's override set to `[]`, stays too,
+while clearing the override is admin. Two kept writes leave a residue their
+inverse does not clear: a rename back restores the live name but keeps the
+in-between name as a former name, which no new account may take and a later
+import naming it books onto that account, until
+`portfolixir.cash_accounts.remove_former_name` (or the depot twin), an admin
+tool, clears it; and an upsert over a date that held provider data leaves that
+date manual, which only `portfolixir.quotes.release`, an admin tool, hands
+back. The writes `book` keeps are a second list beside the admin set, each
+with its reason, and a companion test fails any tool with
 `destructiveHint: true` that sits in neither. Under `book` a call to an admin
 tool, listed or not, is refused as a tool error naming the profile and
 `PORTFOLIXIR_MCP_PROFILE=book` before any request is made, and the server

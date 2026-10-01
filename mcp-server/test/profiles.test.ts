@@ -143,6 +143,42 @@ describe("the companion's tool profiles", () => {
     assert.ok(BOOK_KEPT_DESTRUCTIVE.has("portfolixir.plans.activate"));
   });
 
+  // User story (PR β closing act, should-fix 1):
+  // As the operator reading why a tool sits where it does,
+  // I want each reason to be true of the code, the two residues a kept write
+  // leaves named where they occur,
+  // so that "book can undo it" never promises more than the inverse does.
+  //
+  // Acceptance criteria:
+  // - The former-name removals do not claim that no book write records a
+  //   former name (every rename records one); they say why a rename round
+  //   trip is no single inverse write.
+  // - The two account updates say that a rename back keeps the in-between
+  //   name as a former name, which only the admin removal clears.
+  // - The quote upsert says that a provider date it replaced stays manual
+  //   until the admin release.
+  it("states the residues of the kept writes truthfully", () => {
+    for (const name of [
+      "portfolixir.cash_accounts.remove_former_name",
+      "portfolixir.securities_accounts.remove_former_name"
+    ]) {
+      const reason = ADMIN_TOOLS.get(name) ?? "";
+      assert.doesNotMatch(reason, /no book write records a former name/, name);
+      assert.match(reason, /a rename records/, name);
+    }
+
+    for (const name of ["portfolixir.cash_accounts.update", "portfolixir.securities_accounts.update"]) {
+      const reason = BOOK_KEPT_DESTRUCTIVE.get(name) ?? "";
+      assert.match(reason, /keeps the in-between name as a former name/, name);
+      assert.match(reason, /remove_former_name \(admin\)/, name);
+    }
+
+    assert.match(
+      BOOK_KEPT_DESTRUCTIVE.get("portfolixir.quotes.upsert") ?? "",
+      /stays manual until portfolixir\.quotes\.release \(admin\)/
+    );
+  });
+
   // User story (A1, #992):
   // As the operator choosing a profile,
   // I want each profile to list exactly its tools to the host,
@@ -262,9 +298,20 @@ describe("the companion's tool profiles", () => {
       try {
         const instructions = companion.mcp.getInstructions() ?? "";
         assert.match(instructions, new RegExp(`runs the ${profile} profile \\(PORTFOLIXIR_MCP_PROFILE\\)`));
+        // Note 5: the admin set leaves out the ISIN change, not "identity
+        // changes" (securities.update still rewrites an identifier reversibly).
+        assert.doesNotMatch(instructions, /identity change/, profile);
       } finally {
         await companion.close();
       }
+    }
+
+    const book = await connectCompanion(undefined, { profile: "book" });
+
+    try {
+      assert.match(book.mcp.getInstructions() ?? "", /the ISIN change/);
+    } finally {
+      await book.close();
     }
   });
 });
