@@ -207,6 +207,18 @@ describe("the companion's prompts", () => {
     assert.match(text, /skips the preview/);
     assert.match(text, /content-hash idempotency/);
 
+    // PR β closing act, note 3: the content hash leaves Notiz out.
+    assert.match(
+      text,
+      /agree in Datum \(with its time\), Typ, Wertpapier, Stück, Kurs, Betrag, Gebühren, Steuern, Konto and Gegenkonto are one booking to the importer, whatever their Notiz/
+    );
+    assert.match(text, /never keep them apart through Notiz/);
+    // Note 4: the preview renders no per-row CSV note.
+    assert.doesNotMatch(text, /csv-without-isin/);
+    // Note 10: a PDF is not an export this prompt converts.
+    assert.match(text, /A PDF statement is not an export this prompt converts/);
+    assert.match(text, /machine_generated/);
+
     assert.ok(text.includes(PP_CSV_V1_EXAMPLE), "the CSV example, verbatim");
     assert.ok(text.includes(PP_JSON_V1_EXAMPLE), "the JSON example, verbatim");
 

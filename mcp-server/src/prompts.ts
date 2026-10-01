@@ -152,6 +152,7 @@ You are helping the operator get their history into Portfolixir from an export f
 
 ## Binding constraints
 - Work on the file the operator supplies, on their machine. No broker or bank connection, no download, and no network call and no model call from the converter or from the app: the converter reads one file and writes another.
+- A PDF statement is not an export this prompt converts: do not extract a PDF into rows. Under Portfolixir's rules (AGENTS.md), data extracted from an unstructured source is a proposal that must carry its source link and a machine_generated marker until confirmed, and the path sanctioned for broker PDFs, ADR-0021's in-app importer, is not built. Ask the operator for a structured export instead.
 - The output is a FILE for the Imports page, never bookings made through the tools. Booking the converted rows one by one with portfolixir.transactions.create is not a substitute: it skips the preview the operator checks, and the content-hash idempotency that lets the same file be dropped again without booking anything twice.
 - What you extract is a proposal until the operator confirms it: show them a summary of what the file will book before they drop it.
 - Any example you show is synthetic; the operator's real rows stay in their files.
@@ -187,7 +188,7 @@ Any language the operator can run. Make it deterministic, so the same input alwa
   - Umbuchung (Wertpapier): Konto is the depot the shares leave, Gegenkonto the depot they reach.
 - Wertpapier is the security's name, required on Kauf, Verkauf, Dividende and the three share movements. The CSV carries no ISIN, so the importer matches a security by its name: spell each security one way throughout. Stück is the quantity, greater than zero on a trade or a share movement. Kurs is the price per unit, required on Kauf and Verkauf; give it on a delivery too, where it sets the cost basis. Notiz is free text.
 - The CSV books every row in EUR: it has no currency column. If the export holds amounts in another currency, do not convert them yourself; write the JSON v1 variant below.
-- Two bookings of one day that agree in every field are one booking to the importer, whose content hash covers the date and time, the type, the security, the quantity, the price, the amounts and the account names. Give genuinely separate ones distinct times, derived from the source (its own time, or 00:00:01, 00:00:02 and so on in source order), never from the clock.
+- Two bookings that agree in Datum (with its time), Typ, Wertpapier, Stück, Kurs, Betrag, Gebühren, Steuern, Konto and Gegenkonto are one booking to the importer, whatever their Notiz: its content hash leaves Notiz out. Give genuinely separate ones distinct times, derived from the source (its own time, or 00:00:01, 00:00:02 and so on in source order), never from the clock, and never keep them apart through Notiz.
 - Limits per file: 20 MB, 100,000 rows, 100 different account and depot names, 1,000 different securities.
 - To keep groups of accounts apart (what the operator may call two portfolios), write one file per group; the operator drops each and enters the group's name as the preview's bucket tag.
 
@@ -212,7 +213,7 @@ ${PP_JSON_V1_EXAMPLE}\`\`\`
 Run the converter, then check the file: the header verbatim; only the labels above in Typ; no decimal point in any number; a positive Betrag wherever one is needed; and, per cash account, the sum of the cash effects equal to the balance the source states for the end of the period (tell the operator when it is not). Show the operator the summary: rows per Typ, rows per Konto, the date range and the end balance per cash account the file implies.
 
 ## Step 4: the operator imports it
-The operator opens the Imports page (/imports), drops the file, reads the preview (the records it would create, the accounts and securities it would add, and any row it cannot book, with the reason) and applies it. A "csv-without-isin" note on a security row is expected for a CSV and is not an error. A row the preview cannot book is fixed in the converter, and the file is dropped again: the rows already booked are skipped by their content hash. After the import, read the result back (portfolixir.cash_accounts.list for the balances) and compare it with the summary.
+The operator opens the Imports page (/imports), drops the file, reads the preview (the records it would create, the accounts and securities it would add, and any row it cannot book, with the reason) and applies it. A row the preview cannot book is fixed in the converter, and the file is dropped again: the rows already booked are skipped by their content hash. After the import, read the result back (portfolixir.cash_accounts.list for the balances) and compare it with the summary.
 `;
 }
 
