@@ -93,6 +93,14 @@ host's loopback interface. Set the profile in `.env`
 }
 ```
 
+The transport is MCP Streamable HTTP: each JSON-RPC message is a `POST` to
+`/mcp`, its `Accept` header must list both `application/json` and
+`text/event-stream` (a request that lists only one is answered `406`), and the
+answer comes back as an event stream. The companion runs it stateless: it
+issues no `Mcp-Session-Id`, builds a fresh server for every request, and sends
+no notification between requests. An MCP client handles all of this once the
+URL and the header are set.
+
 Every request carries the header `Authorization: Bearer
 <PORTFOLIXIR_MCP_TOKEN>`. A wrong token answers `401`, and repeated wrong
 tokens from one address lock that address out for a growing time; behind the

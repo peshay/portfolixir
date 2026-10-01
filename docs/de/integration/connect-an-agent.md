@@ -99,6 +99,14 @@ der Loopback-Schnittstelle des Hosts. Setzen Sie das Profil in der `.env`
 }
 ```
 
+Der Transport ist MCP Streamable HTTP: Jede JSON-RPC-Nachricht ist ein `POST`
+an `/mcp`, ihr `Accept`-Header muss `application/json` und `text/event-stream`
+nennen (eine Anfrage, die nur eines nennt, wird mit `406` beantwortet), und die
+Antwort kommt als Event-Stream zurück. Der Begleitdienst betreibt ihn
+zustandslos: Er vergibt keine `Mcp-Session-Id`, baut für jede Anfrage einen
+frischen Server und sendet zwischen Anfragen keine Benachrichtigung. Ein
+MCP-Client erledigt das alles, sobald URL und Header gesetzt sind.
+
 Jede Anfrage trägt den Header `Authorization: Bearer
 <PORTFOLIXIR_MCP_TOKEN>`. Ein falsches Token ergibt `401`, und wiederholt
 falsche Tokens von einer Adresse sperren diese Adresse für eine wachsende

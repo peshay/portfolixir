@@ -84,12 +84,14 @@ companion that wraps that API.
 Portfolixir is written with LLM coding agents, and every commit is owned by an
 accountable human under their own name (see [AGENTS.md](AGENTS.md)).
 
-**Before you run it anywhere but your own machine:** the web UI is open by
-default and locked by one variable (`PORTFOLIXIR_UI_PASSWORD`); the instance
-binds loopback unless told otherwise, refuses requests under a foreign
-`Host`, and expects your own reverse proxy in front of it. There is no
-upgrade guarantee and no claim of production readiness. See
-[home deployment](docs/home-deployment.md) for what that means in practice.
+**Before you run it:** the web UI is open by default and locked by one
+variable. Set `PORTFOLIXIR_UI_PASSWORD` for a Compose install: the Compose port
+mapping keeps the instance on the host's loopback, but every process on that
+host and the stack's other containers reach the web UI. The instance refuses
+requests under a foreign `Host` and expects your own reverse proxy in front of
+it for anything beyond this machine. There is no upgrade guarantee and no
+claim of production readiness. See [home deployment](docs/home-deployment.md)
+for what that means in practice.
 
 ## What works today
 
@@ -171,12 +173,22 @@ _All screenshots use the synthetic demo dataset in
   PostgreSQL.
 - For the MCP companion run on its own: Node 24.
 
+The first build pulls the pinned base images and downloads Debian packages, Hex
+packages from hex.pm and npm packages from the npm registry. Behind a proxy, pass
+it into the build with Docker's predefined proxy build arguments (`HTTP_PROXY`,
+`HTTPS_PROXY`, `NO_PROXY`; for example
+`docker compose build --build-arg HTTPS_PROXY=http://proxy.example:3128`) or the
+Docker client's proxy configuration; behind a proxy that intercepts TLS, its CA
+must also be trusted inside the build stages, which the Dockerfiles do not do by
+themselves.
+
 ### Run with Docker Compose
 
 Create `.env` from `.env.example`, readable by you only
-(`install -m 600 .env.example .env`), and set the secrets: each token and
-`SECRET_KEY_BASE` from `openssl rand -base64 48`, `POSTGRES_PASSWORD` from
-`openssl rand -hex 32`. Then:
+(`install -m 600 .env.example .env`), and set the secrets:
+`PORTFOLIXIR_API_TOKEN`, `PORTFOLIXIR_MCP_TOKEN` and `SECRET_KEY_BASE` each from
+`openssl rand -base64 48`, `POSTGRES_PASSWORD` from `openssl rand -hex 32`.
+Then:
 
 ```sh
 docker compose up --build
@@ -239,7 +251,10 @@ npm start --prefix mcp-server
 configurations to copy, for stdio and for the Compose stack's HTTP companion,
 and the companion's variables. Pick a profile with `PORTFOLIXIR_MCP_PROFILE`:
 `read`, `book` or `full` (the default); a profile narrows the companion, not
-the API token. Then ask the agent to run the `first_setup` prompt.
+the API token. For the Compose stack's companion, put
+`PORTFOLIXIR_MCP_PROFILE=book` in `.env` and recreate the service with
+`docker compose up -d mcp`. Then ask the agent to run the `first_setup`
+prompt.
 
 ## Development
 

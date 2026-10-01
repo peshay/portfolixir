@@ -28,6 +28,15 @@ below).
 - a `.env` file with the secrets (see below);
 - no real portfolio, bank, broker, wallet, or statement data in fixtures.
 
+The first build pulls the pinned base images and downloads Debian packages, Hex
+packages from hex.pm and npm packages from the npm registry. Behind a proxy, pass
+it into the build with Docker's predefined proxy build arguments (`HTTP_PROXY`,
+`HTTPS_PROXY`, `NO_PROXY`; for example
+`docker compose build --build-arg HTTPS_PROXY=http://proxy.example:3128`) or the
+Docker client's proxy configuration; behind a proxy that intercepts TLS, its CA
+must also be trusted inside the build stages, which the Dockerfiles do not do by
+themselves.
+
 ## Secrets and settings
 
 Create `.env` from `.env.example`, readable by you only, and keep it that way:
@@ -87,7 +96,14 @@ appears in every Compose install. Set
 against the other containers and against whatever else runs on this host.
 
 Outbound, the application fetches logos and follows provider redirects only to
-public addresses (`SECURITY.md`). On an IPv6-only host behind DNS64, use the
+public addresses (`SECURITY.md`). On its own schedule the release also fetches
+the ECB's euro reference rates
+(`https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml`), five seconds
+after it starts and then every 12 hours, and the quote history of every
+security that has a quote provider, every 6 hours. Both schedules are switched
+on in the release's build configuration (`config/prod.exs`); no environment
+variable turns them off, so a host that must not reach these providers blocks
+the egress. On an IPv6-only host behind DNS64, use the
 well-known NAT64 prefix `64:ff9b::/96`: an address in it is judged by the IPv4
 address it carries. The local-use translation prefix `64:ff9b:1::/48` is a
 special-purpose block like the private ranges, so every address a DNS64 builds

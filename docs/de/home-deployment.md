@@ -30,6 +30,15 @@ Anwendung, sie auf dem Loopback des Hosts („Erreichbarkeit“ unten).
 - keine echten Portfolio-, Bank-, Broker-, Wallet- oder Abrechnungsdaten in
   Fixtures.
 
+Der erste Build zieht die festgelegten Basis-Images und lädt Debian-Pakete,
+Hex-Pakete von hex.pm und npm-Pakete aus der npm-Registry. Hinter einem Proxy
+gib ihn mit Dockers vordefinierten Proxy-Build-Argumenten in den Build
+(`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`; etwa
+`docker compose build --build-arg HTTPS_PROXY=http://proxy.example:3128`) oder
+über die Proxy-Konfiguration des Docker-Clients; hinter einem Proxy, der TLS
+aufbricht, muss seine CA außerdem in den Build-Stufen vertrauenswürdig sein, was
+die Dockerfiles nicht von selbst tun.
+
 ## Geheimnisse und Einstellungen
 
 Lege die `.env` aus `.env.example` an, nur für dich lesbar, und lass es dabei:
@@ -91,7 +100,14 @@ Web-Oberfläche auch gegenüber den anderen Containern und gegenüber allem
 anderen, was auf diesem Host läuft.
 
 Nach außen lädt die Anwendung Logos und folgt Weiterleitungen eines Anbieters
-nur zu öffentlichen Adressen (`SECURITY.md`). Nutze auf einem reinen
+nur zu öffentlichen Adressen (`SECURITY.md`). Nach eigenem Zeitplan lädt das
+Release außerdem die Euro-Referenzkurse der EZB
+(`https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml`), fünf
+Sekunden nach dem Start und dann alle 12 Stunden, und alle 6 Stunden die
+Kurshistorie jedes Wertpapiers, das einen Kursanbieter hat. Beide Zeitpläne
+sind in der Build-Konfiguration des Release eingeschaltet (`config/prod.exs`);
+keine Umgebungsvariable schaltet sie ab, ein Host, der diese Anbieter nicht
+erreichen darf, sperrt also den ausgehenden Verkehr. Nutze auf einem reinen
 IPv6-Host hinter DNS64 das bekannte NAT64-Präfix `64:ff9b::/96`: Eine Adresse
 darin wird nach der IPv4-Adresse beurteilt, die sie trägt. Das Präfix für
 lokale Übersetzung `64:ff9b:1::/48` ist wie die privaten Bereiche ein Block für

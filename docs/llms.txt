@@ -61,8 +61,19 @@ can bring the history in from a Portfolio Performance export.
    the MCP companion at http://127.0.0.1:4001/mcp, both on the host's loopback
    only.
 
-Set `PORTFOLIXIR_UI_PASSWORD` before the instance is reachable from anywhere but
-its own machine; the deployment guide covers the reverse proxy and backups.
+Set `PORTFOLIXIR_UI_PASSWORD` for a Compose install: the port mapping keeps the
+instance on the host's loopback, but every process on that host and the stack's
+other containers reach the web UI, which is open without it. The deployment
+guide covers the reverse proxy and backups.
+
+The first build pulls the pinned base images and downloads Debian packages, Hex
+packages from hex.pm and npm packages from the npm registry. Behind a proxy, pass
+it into the build with Docker's predefined proxy build arguments (`HTTP_PROXY`,
+`HTTPS_PROXY`, `NO_PROXY`; for example
+`docker compose build --build-arg HTTPS_PROXY=http://proxy.example:3128`) or the
+Docker client's proxy configuration; behind a proxy that intercepts TLS, its CA
+must also be trusted inside the build stages, which the Dockerfiles do not do by
+themselves.
 
 ## Connect the MCP companion
 
@@ -81,7 +92,9 @@ its own machine; the deployment guide covers the reverse proxy and backups.
   writes leave a residue: a rename back keeps the in-between name as a former
   name, and an upsert over a provider date leaves a manual quote that only
   `portfolixir.quotes.release`, an admin tool, clears. `full`, the default,
-  lists every tool. `book` suits an agent that sets up and
+  lists every tool. For the Compose stack's companion, put
+  `PORTFOLIXIR_MCP_PROFILE=book` in `.env` and recreate the service with
+  `docker compose up -d mcp`. `book` suits an agent that sets up and
   books, `read` one that only reports. A profile narrows the companion, not the
   API token.
 
