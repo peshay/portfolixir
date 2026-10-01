@@ -18,7 +18,7 @@ defmodule PortfolixirWeb.DashboardTradesCardTest do
   # Acceptance criteria:
   # - A "Closed trades" card sits under the KPI strip, before "Off target",
   #   with "All trades →" in its head linking to /cashflow?tab=realized.
-  # - Its basis line says it shows the five most recently closed, the result
+  # - Its basis line says it shows the most recently closed (counted), the result
   #   currency, and that it covers every depot whatever the view.
   # - At most five rows, newest close first, each linking to its security's
   #   Trades tab: the name over "sold <date> · <days>", the signed result in
@@ -86,7 +86,7 @@ defmodule PortfolixirWeb.DashboardTradesCardTest do
     assert text(link) == "All trades →"
 
     basis = text(Floki.find(doc, "#dashboard-trades [data-role='trades-card-basis']"))
-    assert basis =~ "The five most recently closed"
+    assert basis =~ "The 5 most recently closed"
     assert basis =~ "result in EUR"
     assert basis =~ "every depot, whatever the view"
     assert basis =~ "p. a. only from 365 days of holding"
@@ -211,6 +211,20 @@ defmodule PortfolixirWeb.DashboardTradesCardTest do
 
     assert note =~ "All trades"
     assert has_element?(view, "#dashboard-trades [data-role='closed-trade']", "Euro Co")
+
+    # One trade: the basis line counts what the card shows (closing act γ
+    # n3), and in German the missing rate is an exchange rate (γ n4).
+    assert view |> element("#dashboard-trades [data-role='trades-card-basis']") |> render() =~
+             "The most recently closed ·"
+
+    {:ok, de_view, _html} = live(conn, "/?locale=de")
+    render_async(de_view)
+
+    assert de_view |> element("#dashboard-trades [data-role='trades-card-basis']") |> render() =~
+             "Der zuletzt abgeschlossene ·"
+
+    assert de_view |> element("#dashboard-trades [data-role='trades-card-excluded']") |> render() =~
+             "1 Verkauf ohne gespeicherten Wechselkurs an seinem Schlussdatum fehlt bei den Trades: Pound Co. Das Nachladen der Wechselkurse steht unter „Alle Trades“."
   end
 
   test "the card is German where the page is", %{conn: conn} do
@@ -224,7 +238,7 @@ defmodule PortfolixirWeb.DashboardTradesCardTest do
     assert text(Floki.find(doc, "#dashboard-trades .section-head a")) == "Alle Trades →"
 
     basis = text(Floki.find(doc, "#dashboard-trades [data-role='trades-card-basis']"))
-    assert basis =~ "Die fünf zuletzt abgeschlossenen"
+    assert basis =~ "Die 5 zuletzt abgeschlossenen"
     assert basis =~ "unabhängig von der Ansicht"
 
     long_row = card_row(doc, "Longhold Industries")

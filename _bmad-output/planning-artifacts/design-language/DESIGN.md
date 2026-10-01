@@ -2529,9 +2529,19 @@ under "Trades: reach, the p. a. column and the unmatched sells".
   Zahlungen dieses Trades").
 - **Sign colour in this table** (rule ⑥): `#realized-trades-table
   td.is-positive / td.is-negative` restore the colour that `.data-table
-  tbody td { color }` took from the bare classes, for p. a. and Result alike.
-  Scoped to this table; the other tables with the same pattern are a
-  follow-up.
+  tbody td { color }` took from the bare classes, for p. a. and Result alike;
+  `#realized-trades-table td.trade-pa--na` does the same for the muted dash,
+  which printed in the text colour (closing act γ D4). Scoped to this table;
+  the other tables with the same pattern are a follow-up.
+- **A reading table** (rule ⑦, settled by the story as board 01 left it,
+  closing act γ D9): `.data-table-wrapper > #realized-trades-table {
+  min-width: 0 }`, the `.num` cells `nowrap`, the security cell at least 12ch
+  and `overflow-wrap: anywhere` — it fits its wrapper and the name and the
+  dates wrap, so Result stays in view at 1280 px with the sidebar open
+  (before: 1159 px of table in a 1002 px scroller, Result out of view with
+  no cue). UX-DR15's scroller stays the fallback, as for the merge records.
+  The header "p. a." prints "P. A." under the thead's uppercase, like every
+  header of the app's tables; kept.
 
 ### The list's basis line
 
@@ -2545,14 +2555,17 @@ does, because it is the limit that note points to (UX-DR26).
 
 ### The unmatched-sells note
 
-- **What:** the sells the FIFO matcher could not pair with a buy — shares
-  that arrived by an inbound delivery open no lot — which are in no figure.
+- **What:** the sells the FIFO matcher could not pair with a buy, wholly or
+  in part — shares that arrived by an inbound delivery open no lot — whose
+  unmatched quantity is in no figure; a matched part of the same sell is a
+  trade row like any other (closing act γ).
 - **Where:** an `attention` data note (UX-DR17) leading `#realized-trades`,
   after the currency-exclusion note when both appear, before the three
   figures (UX-DR25: named where the total is read).
-- **Words:** "2 Verkäufe ohne zugeordneten Kauf (z. B. aus Einlieferungen)
-  sind nicht enthalten — in keiner der drei Kennzahlen, keiner Zeile und
-  nicht in der Matrix."
+- **Words:** "2 Verkäufe haben für ihre ganze Stückzahl oder einen Teil
+  davon keinen zugeordneten Kauf (z. B. aus Einlieferungen): Diese Stückzahl
+  ist in keiner der drei Kennzahlen, keiner Zeile und nicht in der Matrix
+  enthalten."
 - **The disclosure:** `details.perf-table-disclosure`, closed by default,
   summary "Die 2 Verkäufe" ("Der Verkauf" for one), holding `.excluded-list`
   (rule ⑤): a grid of three aligned columns — security, date
@@ -2586,22 +2599,28 @@ shows no dash on the phone; the basis line under the rows says why.
   pattern of "Alle Kennzahlen → Bestände"); at 390 px the link wraps under
   the heading, right-aligned, as the board drew. The head has no bottom
   margin (rule ④).
-- **Basis line** (rule ②): "Die fünf zuletzt abgeschlossenen · Ergebnis in
+- **Basis line** (rule ②): "Die 5 zuletzt abgeschlossenen · Ergebnis in
   EUR · FIFO über alle Depots, unabhängig von der Ansicht · p. a. erst ab
-  365 Tagen Haltedauer". The card covers every depot while the rest of the
+  365 Tagen Haltedauer" — counting the rows the card shows ("Der zuletzt
+  abgeschlossene · …" for one; closing act γ n3). The card covers every depot while the rest of the
   Overview follows the selected view, and the line says so.
 - **Rows:** at most five, newest close first, the `.attention-list` of "Off
   target" and "Due": each `a.attention-item[data-role="closed-trade"]` to
   the security's Trades tab, the name over "verkauft 22.09.2026 · 568 Tage";
   the figure slot right-aligned on two lines (rule ④) — the signed result
-  with its currency suffix, in its sign colour, over "+10,0 % p. a." from
-  365 days of holding, else "+8,0 % gesamt" (the period return). The slot
+  with its currency suffix, in its sign colour, over "+10,0% p. a." where
+  the trade has an annualized return, else "+8,0% gesamt" (the period
+  return) — under 365 days of holding, and where no rate solves the flows (a
+  total loss reads "−100,0% gesamt"; the reason rides the facet's dash, not
+  the card). The percent is the app's `Format.percent` with the sign glued
+  on, no space before "%", as everywhere else (γ n12). The slot
   does not wrap at 390 px; the name may.
 - **States:** *pending* — the head and the block skeleton
   (`.section-skeleton`, `aria-busy`, no cue: a sub-second read, UX-DR20),
   only where a sell is booked; *a sale the rates cannot convert* — an
   `attention` note under the head naming it ("1 Verkauf ohne gespeicherten
-  Kurs an seinem Schlussdatum fehlt bei den Trades: …"), pointing to the
+  Wechselkurs an seinem Schlussdatum fehlt bei den Trades: …" — an exchange
+  rate, not a price, γ n4), pointing to the
   backfill under "Alle Trades", where the control is; *absent* — no closed
   trade and no such sale, like "Fällig" without a date, and from the first
   paint when no sell is booked; *failed* — a `problem` note in the card.

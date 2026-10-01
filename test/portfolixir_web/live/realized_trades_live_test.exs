@@ -72,6 +72,9 @@ defmodule PortfolixirWeb.RealizedTradesLiveTest do
   # - It carries no remedy control: there is none (UX-DR25 clause 3); the
   #   basis line under the list states the limit.
   # - With no unmatched sell there is no note.
+  # - The note speaks of the unmatched quantity: a sale larger than the
+  #   shares bought keeps its matched part as a trade (closing act γ, the
+  #   correctness lens's note).
   test "the sells no buy was matched to are named after the currency note", %{conn: conn} do
     world = base_world(name: "Delivered Facet", cash_name: "DF Cash", depot_name: "DF Depot")
     delivered = create_security!(name: "Delivered Holdings", ticker: "DHD")
@@ -110,7 +113,10 @@ defmodule PortfolixirWeb.RealizedTradesLiveTest do
 
     assert has_element?(view, "#realized-unmatched[data-role='realized-unmatched']")
     note = view |> element("#realized-unmatched") |> render()
-    assert note =~ "1 sale with no matched buy"
+
+    assert note =~
+             "1 sale has no matched buy for all or part of its quantity (shares from an inbound delivery, for example): that quantity is not included in the three figures, the rows or the matrix."
+
     assert note =~ "Delivered Holdings"
     assert note =~ "2026-05-12"
     assert note =~ "15.0000 units"
@@ -126,7 +132,10 @@ defmodule PortfolixirWeb.RealizedTradesLiveTest do
     de_conn = Plug.Test.put_req_cookie(Phoenix.ConnTest.build_conn(), "portfolixir_locale", "de")
     {:ok, de_view, _html} = live(de_conn, "/cashflow?tab=realized")
     de_note = de_view |> element("#realized-unmatched") |> render()
-    assert de_note =~ "1 Verkauf ohne zugeordneten Kauf"
+
+    assert de_note =~
+             "1 Verkauf hat für seine ganze Stückzahl oder einen Teil davon keinen zugeordneten Kauf (z. B. aus einer Einlieferung): Diese Stückzahl ist in keiner der drei Kennzahlen, keiner Zeile und nicht in der Matrix enthalten."
+
     assert de_note =~ "Der Verkauf"
     assert de_note =~ "12.05.2026"
     assert de_note =~ "15,0000 Stück"
@@ -310,10 +319,20 @@ defmodule PortfolixirWeb.RealizedTradesLiveTest do
   #   two-child track; the sign colour of Result and p. a. is restored in
   #   #realized-trades-table only (`.data-table tbody td { color }`
   #   outranks the bare class elsewhere, a follow-up).
+  # - The dash is muted inside the table too, where the same td rule
+  #   outranked it (closing act γ D4); the table is a reading table that
+  #   fits its wrapper, the name and dates wrapping and the figures not, so
+  #   Result stays in view at laptop widths (γ D9).
   test "the stylesheet carries the pick's rules" do
     css = File.read!("priv/static/app.css")
 
     assert css =~ ~r/\.trade-pa--na\s*\{[^}]*color:\s*var\(--color-text-muted\)/
+    assert css =~ ~r/#realized-trades-table td\.trade-pa--na\s*\{[^}]*var\(--color-text-muted\)/
+    assert css =~ ~r/\.data-table-wrapper > #realized-trades-table\s*\{[^}]*min-width:\s*0/
+
+    assert css =~
+             ~r/#realized-trades-table td\.num,\s*#realized-trades-table th\.num\s*\{[^}]*nowrap/
+
     assert css =~ ~r/#realized-trades > \.summary-basis[^{]*\{[^}]*font-size:\s*12px/
     assert css =~ ~r/#realized-trades-phone-rows \.phone-row\s*\{[^}]*minmax\(0, 1fr\) auto/
     assert css =~ ~r/#realized-trades-table td\.is-positive\s*\{[^}]*var\(--color-positive\)/
