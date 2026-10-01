@@ -1,35 +1,8 @@
-# The FR-41 design-gate record, for Sprint 17's planning PR
-
-> **Where this record lives until it is signed.** This is the design-gate
-> record Sprint 16's plan asks for in D-7
-> (`implementation-artifacts/sprint-plan-2026-09-24-sprint16.md`), written in
-> Sprint 16 together with its board. **It is not signed in this batch.** It
-> moves into `docs/decisions/` as `0051-contribution-analysis.md` in the
-> **opening commit of Sprint 17's planning PR**, and that PR's merge signs it
-> (ADR-0026 step 1, as amended on PR #780: the merge is the signature).
-> **0051** is the next free number, because `docs/decisions/` ends at
-> ADR-0050 on 2026-09-25. If another record takes 0051 first, only the number
-> changes.
->
-> On the move, this preamble is dropped and front matter in ADR-0047's shape
-> is added. The status line below stays as written. A planning PR is written
-> as adopted, never as `Proposed`, and a decision the owner rejects is
-> removed on the PR before the merge. Until the move, nothing here binds.
->
-> **Board:** `design-language/mockups/fr41-2026-09-25/01-contribution-surface.html`
-> and its PNG. It shows three placements, and **A** is recommended. It links
-> the real `priv/static/app.css`, and all of its data is invented. Its labels
-> and notes are in German, as on every board since the 2026-09-19 pass,
-> because it pictures the German UI.
->
-> **The two side findings D-7 names** were filed at Sprint 16's branch opening,
-> and this record answers both:
->
-> - **#900**: ADR-0041 §5's slice two (realized result and income per
->   category) has no issue. Answered by §9: slice two stays a separate story.
-> - **#901**: the view scope ADR-0041 promised for the category result was
->   never built on the API and MCP side. Answered by §6: it lands next to
->   FR-41, in the same shape.
+---
+layout: docs
+title: "ADR-0051: contribution analysis — which position made how much of a period's result"
+description: "Design gate for FR-41 (scope-ladder level (b)), written in Sprint 16 and signed by the merge of the Sprint 17 planning PR. A money contribution per position over any period the performance walk already chains, scoped to a portfolio or a view, summing exactly in Decimal to the period's money result together with three itemised remainder lines. No share column, no currency split, no category grouping in v1, each deferred with a reason. Derived on read with a :request lifetime; the walk's existing outputs stay byte-identical."
+---
 
 # ADR-0051: contribution analysis — which position made how much of a period's result
 
@@ -341,7 +314,9 @@ carries a marker. In the payload, each position carries `unvalued_days` and
 
 The ADR-0039 C3 measurement decides any later move to `:durable`.
 
-**Screen.** The board shows three options:
+**Screen.** The board
+(`_bmad-output/planning-artifacts/design-language/mockups/fr41-2026-09-25/01-contribution-surface.html`
+and its PNG, invented data only) shows three options:
 
 - **A** *(recommended)*: a contribution table in **Wealth → Holdings →
   Performance**, directly under the chart. It shares the section's period
@@ -423,8 +398,9 @@ metric-basis rule in `AGENTS.md`.
   one at a time, and the reviewer briefing calls it out. I9 is the invariant
   that protects everything already shipped.
 - **Registry.** FR-41's row in the FR Coverage Map changes from "no issue
-  yet" to the issue numbers Sprint 17's batch files. The Tracker Index gains
-  the line. The deferred asks are filed as issues in the signing pass, so
+  yet" to the issue numbers the building batch files. The Tracker Index gains
+  the line. The sprint that builds it is the planning's call, not this
+  record's: the Sprint 17 plan schedules the build for Sprint 18 (its D-4). The deferred asks are filed as issues in the signing pass, so
   "closed" never silently means "the parts nobody re-read" (ADR-0043).
 - **Two-way coverage.** The human view lands in the same batch as the API
   and MCP read (the board's pick). The close-out's surface check names the
