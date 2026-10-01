@@ -46,11 +46,14 @@ defmodule PortfolixirWeb.Api.V1.Contract do
       summary:
         "Sprint 17, the operator's due surfaces: every closed round-trip carries its " <>
           "annualized return, the money-weighted return per year of the trade's own flows, " <>
-          "or null with the reason, on both reads that serve closed trades (#984).",
+          "or null with the reason, on both reads that serve closed trades — and the " <>
+          "realized-gains read names the sells no buy was matched to instead of dropping " <>
+          "them (#984).",
       endpoints: [],
       tools: [],
       parameters: [
-        "GET /api/v1/realized_gains (portfolixir.cashflow.realized_gains) and GET /api/v1/securities/:security_id/trades (portfolixir.trades.list): every closed trade carries annualized_return, the round-trip's money-weighted return per year (the XIRR solver over each consumed lot's buy on its open date for its prorated cost and the sell's proceeds on the close date, in the trade's own currency, rounded to 6 places) as a decimal string, or null with annualized_return_reason: holding_period_under_365_days below 365 days of the trade's holding_period_days, or the solver's no_sign_change, no_root or amount_out_of_range; computation_basis.annualized_return states the rule, and the trades read gains computation_basis for it. Every field both reads served before is unchanged (#984)"
+        "GET /api/v1/realized_gains (portfolixir.cashflow.realized_gains) and GET /api/v1/securities/:security_id/trades (portfolixir.trades.list): every closed trade carries annualized_return, the round-trip's money-weighted return per year (the XIRR solver over each consumed lot's buy on its open date for its prorated cost and the sell's proceeds on the close date, in the trade's own currency, rounded to 6 places) as a decimal string, or null with annualized_return_reason: holding_period_under_365_days below 365 days of the trade's holding_period_days, or the solver's no_sign_change, no_root or amount_out_of_range; computation_basis.annualized_return states the rule, and the trades read gains computation_basis for it. Every field both reads served before is unchanged (#984)",
+        "GET /api/v1/realized_gains (portfolixir.cashflow.realized_gains) carries unmatched_sells: count, and per sell security_id, security_name, date and quantity (the part no lot covered, a decimal string), newest first — the sells the FIFO matcher could not pair with a buy (an inbound delivery opens no lot; a sell larger than the shares bought leaves its remainder), which are in none of the figures, the list or the matrix; computation_basis.unmatched_sells says why. They used to be dropped without a word. GET /api/v1/securities/:security_id/trades keeps naming the same sells as orphan_sells, and its computation_basis.orphan_sells says so (#984)"
       ],
       removed_endpoints: [],
       removed_tools: []

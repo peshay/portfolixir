@@ -1699,6 +1699,19 @@ Dasselbe Backfill ist `scope=history` am Wechselkurs-Sync-Endpunkt und
 MCP-Tool; die Facetten Ein- & Auszahlungen und Kosten tragen dieselbe
 Schaltfläche in ihren Ausschluss-Hinweisen.
 
+**Verkäufe ohne zugeordneten Kauf** werden ebenfalls benannt (Issue #984).
+Der Matcher ordnet jeden Verkauf früheren **Käufen** desselben Wertpapiers
+zu, zuerst gekauft, zuerst verkauft, in einer Warteschlange über alle Depots,
+und eine Einlieferung eröffnet keinen Lot — wer Stücke aus einer Einlieferung
+verkauft, typisch für eine importierte Historie, hinterlässt also einen
+Verkauf ohne Gegenstück, und ein Verkauf über die gekauften Stücke hinaus
+hinterlässt seinen Rest. Ein solcher Verkauf ist kein abgeschlossener Trade
+und steht in keiner der drei Kennzahlen, keiner Zeile und nicht in der
+Matrix. Eine Achtung-Notiz nach dem Kurs-Hinweis nennt die Anzahl, ihre
+Aufklappliste jeden Verkauf als Wertpapier · Datum · Stückzahl. Sie trägt
+keine Schaltfläche, denn nichts auf der Seite kann den fehlenden Kauf
+liefern.
+
 **Ein- & Auszahlungen** (`/cashflow?tab=flows`, Issue #725) ist die
 „Ersparnis": was eingezahlt und entnommen wurde, je Periode, als zwei Serien
 mit Jahresnetto — getrennt von dem, was das Portfolio erwirtschaftet hat.

@@ -4,6 +4,7 @@ defmodule Portfolixir.Portfolios.RealizedTradesTest do
   import Portfolixir.WorldFixtures,
     only: [base_world: 1, buy!: 3, create_security!: 1, deposit!: 3, sell!: 3]
 
+  alias Portfolixir.Ledger
   alias Portfolixir.Portfolios.RealizedGains
 
   # User story (#807; review C10 and Part 5 Q2, signed by D-3 of the Sprint 13
@@ -65,6 +66,75 @@ defmodule Portfolixir.Portfolios.RealizedTradesTest do
     assert report.computation_basis.summary =~ "excluded"
   end
 
+  # User story (#984 rescoped, Sprint 17 T1b; UX-DR25):
+  # As a local portfolio maintainer with an imported history,
+  # I want the sells that no buy could be matched to named beside the
+  # figures,
+  # so that a round-trip missing from every total is a stated gap, not a
+  # silent one — shares that arrived by an inbound delivery open no lot.
+  #
+  # Acceptance criteria:
+  # - The report carries unmatched_sells: the count and, newest first, each
+  #   sell's security, date and the quantity no lot covered.
+  # - A sell larger than the shares bought closes what it can and names the
+  #   remainder.
+  # - The unmatched quantity is in none of the figures, the list or the
+  #   matrix, and computation_basis says why.
+  test "the sells no buy was matched to are named, and are in no figure" do
+    world = base_world(name: "Delivered World", cash_name: "DW Cash", depot_name: "DW Depot")
+    delivered = create_security!(name: "Delivered Co", ticker: "DLV")
+    oversold = create_security!(name: "Oversold Co", ticker: "OVS")
+
+    deposit!(world, "100000", ~D[2025-01-01])
+
+    {:ok, _delivery} =
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        security_id: delivered.id,
+        type: "inbound_delivery",
+        date: ~D[2025-01-10],
+        quantity: "15",
+        currency_code: "EUR"
+      })
+
+    sell!(world, delivered, quantity: "10", price: "120", date: ~D[2025-05-12])
+
+    buy!(world, oversold, quantity: "2", price: "100", date: ~D[2025-02-01])
+    sell!(world, oversold, quantity: "5", price: "110", date: ~D[2025-03-03])
+
+    report = RealizedGains.report()
+
+    assert %{count: 2, sells: [first, second]} = report.unmatched_sells
+
+    # Newest first; the quantity is the part no lot covered.
+    assert Map.delete(first, :quantity) == %{
+             security_id: delivered.id,
+             security_name: "Delivered Co",
+             date: ~D[2025-05-12]
+           }
+
+    assert Decimal.equal?(first.quantity, Decimal.new("10"))
+
+    assert Map.delete(second, :quantity) == %{
+             security_id: oversold.id,
+             security_name: "Oversold Co",
+             date: ~D[2025-03-03]
+           }
+
+    assert Decimal.equal?(second.quantity, Decimal.new("3"))
+
+    # Only the two shares the oversold sell could match form a trade.
+    assert [trade] = report.trades
+    assert trade.security_name == "Oversold Co"
+    assert Decimal.equal?(trade.quantity, Decimal.new("2"))
+    assert report.summary.trade_count == 1
+    assert Decimal.equal?(report.summary.realized_total, Decimal.new("20"))
+
+    assert report.computation_basis.unmatched_sells =~ "inbound delivery"
+    assert report.computation_basis.unmatched_sells =~ "no lot"
+  end
+
   # Acceptance criteria (#724's D-1, carried to the new figures):
   # - With no closed trades at all the figures are an honest empty state: a
   #   zero total, and NO hit rate or holding period, because the average of
@@ -79,5 +149,6 @@ defmodule Portfolixir.Portfolios.RealizedTradesTest do
     assert Decimal.equal?(report.summary.realized_total, Decimal.new("0"))
     assert report.summary.hit_rate == nil
     assert report.summary.average_holding_period_days == nil
+    assert report.unmatched_sells == %{count: 0, sells: []}
   end
 end

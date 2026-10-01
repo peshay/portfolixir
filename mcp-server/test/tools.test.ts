@@ -580,6 +580,26 @@ describe("Portfolixir MCP tools", () => {
     }
   });
 
+  // User story (#984 rescoped, Sprint 17 T1b; UX-DR25):
+  // As the operating LLM agent,
+  // I want the realized-gains tool to tell me it names the sells no buy was
+  // matched to,
+  // so that I never present its totals as covering a delivered-in position's
+  // sale.
+  //
+  // Acceptance criteria:
+  // - The description names unmatched_sells, what each entry carries, the
+  //   inbound-delivery reason and that they are in no figure.
+  it("names the unmatched sells on the realized-gains tool", () => {
+    const description =
+      listTools().find((t) => t.name === "portfolixir.cashflow.realized_gains")?.description ?? "";
+
+    assert.match(description, /unmatched_sells/);
+    assert.match(description, /security, date and quantity/);
+    assert.match(description, /inbound delivery opens no lot/);
+    assert.match(description, /in no figure/);
+  });
+
   // User story (issue #725):
   // As the operating LLM agent,
   // I want the deposits-and-withdrawals roll-up as a tool,

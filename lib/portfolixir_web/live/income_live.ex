@@ -327,6 +327,41 @@ defmodule PortfolixirWeb.IncomeLive do
               </AppShell.data_note>
             <% end %>
 
+            <%!-- #984 (T1b; UX-DR25; board G1 rule ⑤): the sells the matcher
+                 could not pair with a buy are no trade, so they are in none
+                 of the figures below — named here, after the currency note,
+                 with each sell as security · date · quantity. No remedy
+                 control: there is none (UX-DR25 clause 3); the basis line
+                 under the list states the limit (UX-DR26). --%>
+            <%= if @realized.unmatched_sells.count > 0 do %>
+              <AppShell.data_note
+                severity={:attention}
+                id="realized-unmatched"
+                data-role="realized-unmatched"
+              >
+                <%= ngettext(
+                  "%{count} sale with no matched buy (shares from an inbound delivery, for example) is not included in the three figures, the rows or the matrix.",
+                  "%{count} sales with no matched buy (shares from inbound deliveries, for example) are not included in the three figures, the rows or the matrix.",
+                  @realized.unmatched_sells.count
+                ) %>
+                <details class="perf-table-disclosure" data-role="realized-unmatched-list">
+                  <summary class="disclosure-summary">
+                    <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
+                    <%= ngettext("The sale", "The %{count} sales", @realized.unmatched_sells.count) %>
+                  </summary>
+                  <ul class="excluded-list">
+                    <li :for={sell <- @realized.unmatched_sells.sells}>
+                      <span><%= sell.security_name %></span>
+                      <span class="num"><%= Format.date(sell.date) %></span>
+                      <span class="num">
+                        <%= gettext("%{quantity} units", quantity: Format.decimal(sell.quantity, 4)) %>
+                      </span>
+                    </li>
+                  </ul>
+                </details>
+              </AppShell.data_note>
+            <% end %>
+
             <%!-- Three lead figures in the built band (DESIGN.md → stat,
                  kpi-band__lead), not a new component. --%>
             <div id="realized-figures" class="kpi-band__lead" data-role="realized-figures">
