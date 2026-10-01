@@ -46,6 +46,8 @@
   items:
     - title: API and MCP
       url: /integration/api-and-mcp.html
+    - title: Connect an Agent
+      url: /integration/connect-an-agent.html
 
 - title: Development
   items:

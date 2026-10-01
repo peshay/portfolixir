@@ -2728,7 +2728,10 @@ die übrigen Schreibkontexte werden nacheinander scharfgeschaltet.
 ## MCP-Tools
 
 Der MCP-Begleitdienst stellt denselben lokalen Kontrakt als Tool-Aufrufe bereit.
-Decimal-Eingaben in MCP-Schemata sind Strings.
+Decimal-Eingaben in MCP-Schemata sind Strings. Client-Konfigurationen zum
+Kopieren stehen unter [Einen Agenten verbinden](connect-an-agent.html), und der
+Einstieg für einen Agenten, der entscheidet, ob und wie er Portfolixir
+einrichtet, ist [llms.txt](../../llms.txt).
 
 Das Schema, das ein Host über `tools/list` erhält, ist die Definition des
 Tools selbst, mit seinen Feldbeschreibungen und geschlossenen Objekten

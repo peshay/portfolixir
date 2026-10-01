@@ -1,6 +1,21 @@
 import type { McpProfile } from "../../src/profiles.js";
 import { publishedToolList } from "../../src/server.js";
 
+// THE SCHEMA BUDGET (Sprint 17 A3, #994). The ceilings were set at the
+// figures measured on 2026-10-01, the day the budget landed, each rounded up
+// to the next 1,000 bytes (a margin under 1 %): read 105,541, book 178,654,
+// full 208,406 bytes.
+//
+// A ceiling only ever moves down. When the surface shrinks, lower it to the
+// new figure; never raise it. A tool or a description that needs more room
+// pays for it by trimming another, so connecting never silently costs more.
+// docs/llms.txt states figures no higher than these (test/llms-entry.test.ts).
+export const SCHEMA_CEILINGS: Record<McpProfile, number> = {
+  read: 106_000,
+  book: 179_000,
+  full: 209_000
+};
+
 /**
  * The context a host pays for the companion's tool list (Sprint 17 A3,
  * #994): the `tools` array a `tools/list` answer carries under a profile,
