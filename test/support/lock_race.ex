@@ -50,6 +50,9 @@ defmodule Portfolixir.LockRace do
   @step_timeout 10_000
   @poll_interval 5
 
+  # The writers the current race started, in the test's process dictionary.
+  @writers {__MODULE__, :writers}
+
   @doc """
   A scratch database at head for a module of lock-order cases, from its
   `setup_all`: three connections, one per writer and one for the barrier's
@@ -80,25 +83,31 @@ defmodule Portfolixir.LockRace do
   Runs `first` (paused after the first query `pause_after?` matches) and
   `second` against `db` through the barrier above, and answers what each
   returned, `{first, second}`. Fails the test on a deadlock, on a writer that
-  raises, and on a race that does not reach its next step within its limit.
+  raises or exits, on a second writer that never waits on the first, and on a
+  step of the barrier not reached within `opts[:timeout]` milliseconds
+  (default 10 s; the harness's own tests shorten it). Every writer still
+  running when the race ends, however it ends, is killed with its
+  transaction.
   """
-  @spec race!(ScratchDatabase.t(), {(-> a), (map() -> boolean())}, (-> b)) :: {a, b}
+  @spec race!(ScratchDatabase.t(), {(-> a), (map() -> boolean())}, (-> b), keyword()) :: {a, b}
         when a: term(), b: term()
-  def race!(%ScratchDatabase{} = db, {first, pause_after?}, second)
+  def race!(%ScratchDatabase{} = db, {first, pause_after?}, second, opts \\ [])
       when is_function(first, 0) and is_function(pause_after?, 1) and is_function(second, 0) do
-    writers = %{first: start_writer(db, :first, first, pause_after?)}
+    timeout = Keyword.get(opts, :timeout, @step_timeout)
 
     try do
-      await_pause!(writers.first)
-      writers = Map.put(writers, :second, start_writer(db, :second, second, nil))
-      await_blocked!(db, writers.second, writers.first)
-      send(writers.first.pid, {:resume, writers.first.ref})
+      held = start_writer(db, :first, first, pause_after?)
+      await!(held, :paused, timeout)
+      waiting = start_writer(db, :second, second, nil)
+      await_blocked!(db, waiting, held, timeout)
+      send(held.pid, {:resume, held.ref})
 
-      results = Map.new(writers, fn {role, writer} -> {role, await_done!(writer)} end)
-      deadlocks!(writers)
-      {result!(:first, results.first), result!(:second, results.second)}
+      outcomes = Enum.map([held, waiting], &{&1.role, await!(&1, :done, timeout)})
+      deadlocks!([held, waiting])
+      [first_result, second_result] = Enum.map(outcomes, &result!/1)
+      {first_result, second_result}
     after
-      Enum.each(Map.values(writers), &Process.exit(&1.pid, :kill))
+      stop_writers()
     end
   end
 
@@ -115,8 +124,19 @@ defmodule Portfolixir.LockRace do
         end)
       end)
 
+    Process.put(@writers, [{pid, monitor} | Process.get(@writers, [])])
+
     writer = %{role: role, pid: pid, ref: ref, monitor: monitor}
-    Map.put(writer, :backend, await_backend!(writer))
+    Map.put(writer, :backend, await!(writer, :backend, @step_timeout))
+  end
+
+  # Kills every writer this race started and drops its messages: a paused or
+  # blocked writer would otherwise hold its locks and its connection.
+  defp stop_writers do
+    for {pid, monitor} <- Process.delete(@writers) || [] do
+      Process.demonitor(monitor, [:flush])
+      Process.exit(pid, :kill)
+    end
   end
 
   # On the one connection the writer holds for its whole run: its backend
@@ -126,7 +146,7 @@ defmodule Portfolixir.LockRace do
     %{rows: [[backend]]} = Repo.query!("SELECT pg_backend_pid()")
     send(parent, {:backend, ref, backend})
 
-    handler = "lock-order-#{inspect(ref)}"
+    handler = "lock-race-#{inspect(ref)}"
     config = %{writer: self(), parent: parent, ref: ref, pause_after?: pause_after?}
     :ok = :telemetry.attach(handler, [:portfolixir, :repo, :query], &__MODULE__.observe/4, config)
 
@@ -153,7 +173,7 @@ defmodule Portfolixir.LockRace do
     if config.pause_after? && !Process.get({__MODULE__, :paused}) &&
          config.pause_after?.(metadata) do
       Process.put({__MODULE__, :paused}, true)
-      send(config.parent, {:paused, config.ref})
+      send(config.parent, {:paused, config.ref, :paused})
 
       receive do
         {:resume, ref} when ref == config.ref -> :ok
@@ -170,37 +190,37 @@ defmodule Portfolixir.LockRace do
 
   # -- the barrier --------------------------------------------------------------
 
-  defp await_backend!(%{role: role, ref: ref, monitor: monitor}) do
-    receive do
-      {:backend, ^ref, backend} ->
-        backend
+  # What each awaited message means, as "did not <present>" and
+  # "before it <past>".
+  @steps %{
+    backend: {"get a connection", "got a connection"},
+    paused: {"reach its pause point", "reached its pause point"},
+    done: {"end", "ended"}
+  }
 
-      {:DOWN, ^monitor, :process, _pid, reason} ->
-        flunk("the #{role} writer exited: #{inspect(reason)}")
-    after
-      @step_timeout -> flunk("the #{role} writer never got a connection")
-    end
-  end
+  # The writer's `step` message, failing the race when the writer ends or
+  # exits before it, or when it does not come within `timeout`.
+  defp await!(%{role: role, ref: ref, monitor: monitor}, step, timeout) do
+    {present, past} = Map.fetch!(@steps, step)
 
-  defp await_pause!(%{ref: ref}) do
     receive do
-      {:paused, ^ref} ->
-        :ok
+      {^step, ^ref, value} ->
+        value
 
       {:done, ^ref, outcome} ->
-        flunk("""
-        the first writer ended without reaching its pause point:
-        #{format(outcome)}
-        """)
+        flunk("the #{role} writer ended before it #{past}:\n#{format(outcome)}")
+
+      {:DOWN, ^monitor, :process, _pid, reason} ->
+        flunk("the #{role} writer exited before it #{past}: #{inspect(reason)}")
     after
-      @step_timeout -> flunk("the first writer never reached its pause point")
+      timeout -> flunk("the #{role} writer did not #{present} within #{timeout} ms")
     end
   end
 
   # Until the database reports the second writer blocked by the first. A
   # second writer that ends first never met the first one's lock: the pause
   # point is not inside the conflict, and the race would test nothing.
-  defp await_blocked!(db, second, first, waited \\ 0) do
+  defp await_blocked!(db, second, first, timeout, waited \\ 0) do
     cond do
       blocked_by?(db, second.backend, first.backend) ->
         :blocked
@@ -211,13 +231,13 @@ defmodule Portfolixir.LockRace do
         no lock order: pause the first writer after a lock the second one takes
         """)
 
-      waited >= @step_timeout ->
-        flunk("the second writer neither waited on the first nor ended")
+      waited >= timeout ->
+        flunk("the second writer neither waited on the first nor ended within #{timeout} ms")
 
       true ->
         receive do
         after
-          @poll_interval -> await_blocked!(db, second, first, waited + @poll_interval)
+          @poll_interval -> await_blocked!(db, second, first, timeout, waited + @poll_interval)
         end
     end
   end
@@ -237,20 +257,8 @@ defmodule Portfolixir.LockRace do
     blocked?
   end
 
-  defp await_done!(%{role: role, ref: ref, monitor: monitor}) do
-    receive do
-      {:done, ^ref, outcome} ->
-        outcome
-
-      {:DOWN, ^monitor, :process, _pid, reason} ->
-        flunk("the #{role} writer exited: #{inspect(reason)}")
-    after
-      @step_timeout -> flunk("the #{role} writer did not end")
-    end
-  end
-
   defp deadlocks!(writers) do
-    for {role, %{ref: ref}} <- writers do
+    for %{role: role, ref: ref} <- writers do
       receive do
         {:deadlock, ^ref, query} ->
           flunk("""
@@ -266,9 +274,8 @@ defmodule Portfolixir.LockRace do
     end
   end
 
-  defp result!(_role, {:returned, value}), do: value
-
-  defp result!(role, outcome), do: flunk("the #{role} writer #{format(outcome)}")
+  defp result!({_role, {:returned, value}}), do: value
+  defp result!({role, outcome}), do: flunk("the #{role} writer #{format(outcome)}")
 
   defp format({:returned, value}), do: "returned #{inspect(value)}"
 
