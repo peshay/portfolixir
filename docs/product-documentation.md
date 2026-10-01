@@ -1637,10 +1637,11 @@ each sell with earlier **buys** of the same security, first in, first out,
 in one queue across every depot, and an inbound delivery opens no lot — so
 selling shares that arrived by a delivery, typical of an imported history,
 leaves a sell with nothing to pair, and a sell larger than the shares bought
-leaves its remainder. Such a sell is no closed trade and is in none of the
-three figures, the list or the matrix. An attention note after the currency
-note says how many, and its disclosure lists each as security · date ·
-quantity. It carries no control, because nothing on the page can supply the
+leaves its remainder. That unmatched quantity is no closed trade and is in
+none of the three figures, the list or the matrix; the matched part of the
+same sell is a trade like any other. An attention note after the currency
+note says how many sells have such a quantity, and its disclosure lists each
+as security · date · unmatched quantity. It carries no control, because nothing on the page can supply the
 missing buy.
 
 **Deposits & withdrawals** (`/cashflow?tab=flows`, issue #725) is the

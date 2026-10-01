@@ -345,9 +345,12 @@ defmodule PortfolixirWeb.IncomeLive do
                 id="realized-unmatched"
                 data-role="realized-unmatched"
               >
+                <%!-- The unmatched quantity, not the sale: a sale larger
+                     than the shares bought keeps its matched part as a
+                     trade (closing act γ). --%>
                 <%= ngettext(
-                  "%{count} sale with no matched buy (shares from an inbound delivery, for example) is not included in the three figures, the rows or the matrix.",
-                  "%{count} sales with no matched buy (shares from inbound deliveries, for example) are not included in the three figures, the rows or the matrix.",
+                  "%{count} sale has no matched buy for all or part of its quantity (shares from an inbound delivery, for example): that quantity is not included in the three figures, the rows or the matrix.",
+                  "%{count} sales have no matched buy for all or part of their quantity (shares from inbound deliveries, for example): that quantity is not included in the three figures, the rows or the matrix.",
                   @realized.unmatched_sells.count
                 ) %>
                 <details class="perf-table-disclosure" data-role="realized-unmatched-list">
