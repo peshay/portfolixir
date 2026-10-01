@@ -32,11 +32,20 @@ defmodule Portfolixir.Portfolios.RealizedGains do
   the hit rate and the average holding period are `nil` rather than `0` —
   the average of nothing is not zero, and a rate over an empty set is not
   0 %.
+
+  ## The annualized return per trade (#984)
+
+  Each trade carries `annualized_return` and `annualized_return_reason`
+  from `Ledger.TradeReturn`, the figure the security's own trades read
+  serves: the trade's money-weighted return per year in its own currency,
+  `nil` under 365 days of holding or when no rate solves the trade's flows.
+  `computation_basis.annualized_return` states the rule.
   """
 
   alias Portfolixir.Catalog
   alias Portfolixir.Fx
   alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.TradeReturn
   alias Portfolixir.Portfolios
 
   @zero Decimal.new("0")
@@ -100,7 +109,8 @@ defmodule Portfolixir.Portfolios.RealizedGains do
             "close-date rate is in none of the three. With no closed trades the hit rate and " <>
             "the average holding period are null rather than zero — the average of nothing is " <>
             "not zero. The matrix is unaffected by limit= here: the figures always read the " <>
-            "full history, while limit= cuts only the years the matrix shows."
+            "full history, while limit= cuts only the years the matrix shows.",
+        annualized_return: TradeReturn.basis()
       }
     }
   end
@@ -157,7 +167,12 @@ defmodule Portfolixir.Portfolios.RealizedGains do
         holding_period_days: trade.holding_period_days,
         realized_pnl_pct: trade.realized_pnl_pct,
         currency_code: trade.currency_code || security.currency_code,
-        realized_pnl_abs: trade.realized_pnl_abs
+        realized_pnl_abs: trade.realized_pnl_abs,
+        # #984: the per-trade figure the security's own read serves, so the
+        # two never disagree; it annualizes realized_pnl_pct in the trade's
+        # currency, not realized_base.
+        annualized_return: trade.annualized_return,
+        annualized_return_reason: trade.annualized_return_reason
       }
     end)
   end
