@@ -2882,10 +2882,10 @@ record in its base currency, its `view` narrowing within that portfolio;
 `portfolixir.views.*` answers a view across every portfolio, each account
 counted once, in EUR, and needs an existing view id — a view created with
 `include_all` (the default) and nothing excluded matches every account, so one
-`portfolixir.views.create` gives the total across everything. Without a view
-the portfolio tool is the read: its totals over several portfolios add up only
-when they share one base currency (an account belongs to exactly one
-portfolio), and returns of several portfolios never add up.
+`portfolixir.views.create` gives the total across everything. Until a view
+exists the portfolio tool is the only read: its totals over several portfolios
+add up only when they share one base currency (an account belongs to exactly
+one portfolio), and returns of several portfolios never add up.
 
 **Prompts.** The companion offers two MCP prompts (`prompts/list`,
 `prompts/get`), the same under every profile, each carrying the no-advice

@@ -2844,11 +2844,11 @@ innerhalb dieses Portfolios ein; `portfolixir.views.*` gilt für eine View über
 jedes Portfolio, jedes Konto einmal gezählt, in EUR, und braucht eine
 bestehende View-ID — eine mit
 `include_all` (Standard) und ohne Ausschluss angelegte View erfasst jedes
-Konto, also ergibt ein `portfolixir.views.create` die Summe über alles. Ohne
-View ist das Portfolio-Tool der Lesezugriff: Seine Summen über mehrere
-Portfolios addieren sich nur, wenn sie eine Basiswährung teilen (ein Konto
-gehört genau einem Portfolio), und Renditen mehrerer Portfolios addieren sich
-nie.
+Konto, also ergibt ein `portfolixir.views.create` die Summe über alles. Solange
+keine View besteht, ist das Portfolio-Tool der einzige Lesezugriff: Seine
+Summen über mehrere Portfolios addieren sich nur, wenn sie eine Basiswährung
+teilen (ein Konto gehört genau einem Portfolio), und Renditen mehrerer
+Portfolios addieren sich nie.
 
 **Prompts.** Der Begleitdienst bietet zwei MCP-Prompts (`prompts/list`,
 `prompts/get`), unter jedem Profil dieselben, und jeder trägt den Rahmen ohne

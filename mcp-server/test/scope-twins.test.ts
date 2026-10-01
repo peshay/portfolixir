@@ -55,6 +55,13 @@ describe("the twin scope tools", () => {
       }
     }
 
+    // PR β closing act, note 6: "without a view" read against the tool's own
+    // view parameter; the sentence is about a view existing at all.
+    for (const [portfolioTool] of PAIRS) {
+      assert.match(description(portfolioTool), /Until a view exists this tool is the only read/);
+      assert.doesNotMatch(description(portfolioTool), /Without a view/);
+    }
+
     assert.match(
       description("portfolixir.portfolios.valuation"),
       /add up only when they share one base currency/
