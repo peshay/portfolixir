@@ -351,7 +351,7 @@ first, it is written twice. So:
 | Sprint | Content |
 |---|---|
 | **17** | the agent's first contact: MCP surface (A1–A3), prompts (A4), the LLM-facing entry (A5), the README (A6); the trades' reach (T); the two due views (V); the harnesses (G); versioning (P); first-run debt (D); the launch test (D-1) |
-| **18** | the operator's first look: FR-41 as the calculation breakdown (D-4), the UI polish lane (the design debt #908–#913, #918, #920, #921, #969, and #912's missing delete), the human documentation that shows what is better here, its screenshots from the synthetic seed, the Sprint 18 candidates of D-8, the launch test again |
+| **18** | the operator's first look: FR-41 as the calculation breakdown (D-4), the UI polish lane (the design debt #908–#913, #918, #920, #921, #969, and #912's missing delete), the human documentation that shows what is better here, its screenshots from the synthetic seed, the Sprint 18 candidates of D-8, #330's master data (D-13), the launch test again |
 | **then** | the owner's announcement decision; widening (phone access, D-8) after it |
 
 The launch path replaces the 2026-09-23 runway, so "maintenance mode after
@@ -504,7 +504,12 @@ has two sources, both removable without touching the rule:**
    (`Claude <noreply@anthropic.com>`) in every new session. **Owner action:**
    in the cloud environment's settings, add `GIT_AUTHOR_NAME`,
    `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL` with the
-   owner's name and an allowlisted address. Git reads these before its
+   owner's name and the GitHub `users.noreply.github.com` address that the
+   allowlist already carries and `AGENTS.md` prefers. The variables belong to
+   the owner's environment, not to the repository: a hook that set the
+   owner's identity would also set it in every other person's session on
+   this repository or a fork, and the authorship gate would then accept
+   their commits as the owner's. Git reads these before its
    configuration, so every session commits as the owner from its first
    command.
 
@@ -565,7 +570,7 @@ its own contract entry, because each merge is a release (D-11).
 |---|---|---|
 | **#849** | close as not planned | deferred twice for an agent report on polling cost that never came; the cost the launch path is actually measuring is schema load (A3), not re-reads. Reopened by an agent report that shows the re-read cost |
 | **B4.2** (predictions, FR-46/47) | stays parked | its condition, the agent confirming it will record predictions, has not been met since 2026-09-23 |
-| **#330** (bonds) | waits on one word | the owner answers "hundredth", "face" or "mixed": does the Portfolio Performance export book a bond's quantity as a hundredth of the face amount or as the face amount? The answer decides between a small story and a risk-tier record |
+| **#330** (bonds) | the shrink branch; a Sprint 18 story | answered on 2026-10-01 in the planning conversation: the owner believes the export books a bond's quantity as a hundredth of the face amount, and Portfolio Performance's own bank-statement importers do exactly that (twenty of its PDF extractors divide the nominal by 100 under the comment "Percentage quotation, workaround for bonds"). The valuation half of #330 is therefore void, as the discovery verdict says for this branch. What remains is master data and display-only metrics (remaining term, current yield) with API and MCP coverage: the operator's surface, so Sprint 18, boarded at its planning. Because the answer rests on belief and the importers' convention rather than on a check of the owner's file, the story also makes a wrong answer loud: a bond whose stored quotes sit near 100 while its booked price per unit sits near 1 is named as priced on two scales, since that is exactly the case the TTWROR hides (bond discovery, point 5) |
 | **#899** (Idempotency-Key) | Sprint 18 | Sprint 16 filed it "for Sprint 17"; the outcome-unknown error (G31) already tells an agent not to retry blindly, and the key competes with the launch path for this sprint's budget |
 | **#328**, **#354** | stay open | the owner's runs on real data |
 | **#727** | stays open | re-checked in Lane M |
