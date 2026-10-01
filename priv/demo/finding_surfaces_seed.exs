@@ -20,6 +20,10 @@
 #   DATABASE_NAME=portfolixir_review PORT=4003 mix ecto.migrate
 #   DATABASE_NAME=portfolixir_review PORT=4003 mix run priv/demo/finding_surfaces_seed.exs
 #
+# The dev configuration reads `DATABASE_NAME`, `DATABASE_HOST`, `DATABASE_PORT`
+# and `PORT`; a PostgreSQL other than 127.0.0.1:5432 takes `DATABASE_HOST` and
+# `DATABASE_PORT` on every command above.
+#
 # **Idempotent**: every step asks whether its row is already there and skips
 # it, so a re-run on a seeded database adds nothing and raises nothing. Rerun
 # it after a migration rather than dropping the database.

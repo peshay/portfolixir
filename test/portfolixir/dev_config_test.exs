@@ -34,6 +34,46 @@ defmodule Portfolixir.DevConfigTest do
     end
   end
 
+  # User story (#961):
+  # As a contributor pointing a development or review instance at a
+  # PostgreSQL other than the one on 127.0.0.1:5432,
+  # I want the development guide and the review seed's header to name the
+  # variables the development configuration reads,
+  # so that I find DATABASE_PORT where I look for the recipe rather than only
+  # in config/dev.exs.
+  #
+  # Acceptance criteria:
+  # - docs/development/guide.md names every environment variable
+  #   config/dev.exs reads.
+  # - The header of priv/demo/finding_surfaces_seed.exs names the database
+  #   variables and the HTTP port its recipe takes.
+  test "the development guide and the seed header name the dev variables" do
+    read_by_dev =
+      ~r/"([A-Z][A-Z0-9_]+)"/
+      |> Regex.scan(File.read!("config/dev.exs"), capture: :all_but_first)
+      |> List.flatten()
+      |> Enum.uniq()
+
+    assert "DATABASE_PORT" in read_by_dev
+
+    guide = File.read!("docs/development/guide.md")
+
+    for name <- read_by_dev do
+      assert guide =~ "`#{name}`", "the development guide does not name #{name}"
+    end
+
+    header =
+      "priv/demo/finding_surfaces_seed.exs"
+      |> File.read!()
+      |> String.split("\n")
+      |> Enum.take_while(&String.starts_with?(&1, "#"))
+      |> Enum.join("\n")
+
+    for name <- ~w(DATABASE_NAME DATABASE_HOST DATABASE_PORT PORT) do
+      assert header =~ "`#{name}`", "the seed header does not name #{name}"
+    end
+  end
+
   defp repo_port do
     "config/dev.exs"
     |> Config.Reader.read!(env: :dev, target: :host)
