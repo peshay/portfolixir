@@ -75,6 +75,47 @@ is printed as one. Record the run in ADR-0039 next to the existing measurement
 rather than in a commit message, so the next activation decision has something
 to be compared against.
 
+## Upgrade migrations over legacy rows
+
+Tests and CI migrate an empty database; a release migrates the database an
+instance already holds, at boot. A migration that adds a CHECK, a NOT NULL or
+a backfill can therefore pass every test and still stop an upgrade on a row
+only an older instance has. So every new migration that adds one of the three
+needs a **seeded case**: a test that inserts, with plain SQL, the rows an
+instance on an earlier release can hold, migrates to head and asserts the
+migrated shape. `test/portfolixir/seeded_upgrade/rule_test.exs` fails, naming
+the migration, until the case exists.
+
+A case uses `Portfolixir.SeededUpgrade`. `from:` is the version the scratch
+database is migrated to before the seed (the last migration of the release
+whose rows you seed), the seed runs in one transaction with a journal actor
+set, and the tag names the migration the case covers:
+
+```elixir
+@moduletag :seeded_upgrade
+
+@tag seeded_upgrade: 20_261_002_120_000
+test "the new check does not stop the upgrade over a legacy row" do
+  upgrade =
+    SeededUpgrade.upgrade!(
+      from: 20_260_926_121_500,
+      seed: fn db ->
+        %{rows: [[id]]} = SeededUpgrade.query!(db, "INSERT INTO ... RETURNING id", [])
+        id
+      end
+    )
+
+  assert %{rows: [[_value]]} =
+           SeededUpgrade.query!(upgrade, "SELECT ... WHERE id = $1", [upgrade.seeded])
+end
+```
+
+Each case gets a scratch database of its own, dropped when the test exits,
+so the cases run in the default `mix test` and, on their own, in CI's
+`migration-roundtrip` job (`mix test --only seeded_upgrade`). Prove a new
+case once by putting the defect back locally and watching it fail;
+`test/portfolixir/seeded_upgrade/sprint16_test.exs` holds the first two.
+
 ## Scope guardrails
 
 - Use synthetic fixture data only.
