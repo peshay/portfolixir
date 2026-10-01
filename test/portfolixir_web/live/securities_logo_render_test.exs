@@ -75,8 +75,8 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
        %{conn: conn} do
     {:ok, _sec} =
       Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-        name: "German Federal Bond",
-        isin: "DE0001102614",
+        name: "Gravonia Federal Bond",
+        isin: "DEEXMPL20530",
         currency_code: "EUR",
         provider: "manual",
         asset_class: "bond"
@@ -94,8 +94,8 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
        %{conn: conn} do
     {:ok, _sec} =
       Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-        name: "United States Treasury Note",
-        isin: "US91282CFB28",
+        name: "Union of Examplia Treasury Note",
+        isin: "USEXMPL23215",
         currency_code: "USD",
         provider: "manual",
         asset_class: "government_bond"
@@ -114,7 +114,7 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
     {:ok, sec} =
       Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Placeholder",
-        isin: "US912810SN90",
+        isin: "USEXMPL21490",
         currency_code: "USD",
         provider: "portfolio_performance",
         asset_class: "other"
@@ -122,7 +122,7 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
 
     {:ok, _sec} =
       Catalog.update_security(Portfolixir.Actor.owner_ui(), sec, %{
-        name: "Anleihe USA 20/50",
+        name: "Anleihe USA 21/47",
         asset_class: nil
       })
 

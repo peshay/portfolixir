@@ -65,8 +65,8 @@ defmodule PortfolixirWeb.ApiV1Test do
       conn
       |> post_json("/api/v1/securities", %{
         "security" => %{
-          "name" => "German Federal Bond",
-          "isin" => "DE0001102614",
+          "name" => "Gravonia Federal Bond",
+          "isin" => "DEEXMPL20530",
           "currency_code" => "EUR",
           "asset_class" => "government_bond"
         }
@@ -74,7 +74,7 @@ defmodule PortfolixirWeb.ApiV1Test do
       |> json_response(201)
 
     assert response["data"]["asset_class"] == "government_bond"
-    assert response["data"]["isin"] == "DE0001102614"
+    assert response["data"]["isin"] == "DEEXMPL20530"
   end
 
   # User story:

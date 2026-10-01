@@ -52,19 +52,19 @@ defmodule Portfolixir.CatalogTest do
     test "accepts and infers government bond asset class" do
       assert {:ok, explicit} =
                Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-                 name: "German Federal Bond",
-                 isin: "de0001102614",
+                 name: "Gravonia Federal Bond",
+                 isin: "deexmpl20530",
                  currency_code: "EUR",
                  asset_class: "government_bond"
                })
 
       assert explicit.asset_class == "government_bond"
-      assert explicit.isin == "DE0001102614"
+      assert explicit.isin == "DEEXMPL20530"
 
       assert {:ok, inferred} =
                Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-                 name: "Bundesrepublik Deutschland Bundesanleihe 2034",
-                 isin: "DE000BU2Z023",
+                 name: "Republic of Examplia 0% 2034",
+                 isin: "DEEXMPL20340",
                  currency_code: "EUR"
                })
 
@@ -78,9 +78,9 @@ defmodule Portfolixir.CatalogTest do
         {"AIS-Amundi Index MSCI World Act.Nom.UCITS ETF DR D oN", "LU1737652237", "etf"},
         {"Amu.S&P Wld Inds Screened UETF Reg.Shs UCITS ETF Acc o.N.", "IE000LTA2082", "etf"},
         {"Bitcoin", nil, "crypto"},
-        {"Anleihe USA 20/50", "US912810SN90", "government_bond"},
-        {"Anleihe Norwegen 22/42", "NO0012712506", "government_bond"},
-        {"Anleihe Singapur 16/46", "SG31A7000004", "government_bond"}
+        {"Anleihe USA 21/47", "USEXMPL21490", "government_bond"},
+        {"Anleihe Norwegen 23/41", "XSEXMPL23417", "government_bond"},
+        {"Anleihe Singapur 17/43", "XSEXMPL17435", "government_bond"}
       ]
 
       for {name, isin, expected_class} <- examples do
