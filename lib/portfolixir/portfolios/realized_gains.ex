@@ -40,6 +40,14 @@ defmodule Portfolixir.Portfolios.RealizedGains do
   serves: the trade's money-weighted return per year in its own currency,
   `nil` under 365 days of holding or when no rate solves the trade's flows.
   `computation_basis.annualized_return` states the rule.
+
+  ## The sells no buy was matched to (#984, T1b)
+
+  The matcher's orphan sells were dropped here without a word: shares that
+  arrived by an inbound delivery open no lot, so their sale is no trade and
+  was missing from every figure. They are named now in `unmatched_sells`
+  (count, and per sell the security, date and unmatched quantity), the
+  UX-DR25 shape of `excluded`, and stay out of every figure.
   """
 
   alias Portfolixir.Catalog
@@ -65,11 +73,18 @@ defmodule Portfolixir.Portfolios.RealizedGains do
     base = Keyword.get_lazy(opts, :base_currency, &default_base/0)
     limit = Keyword.get(opts, :limit)
 
+    matched = Enum.map(traded_securities(), &security_trades/1)
+
     {converted, excluded} =
-      traded_securities()
-      |> Enum.flat_map(&closed_trades/1)
+      matched
+      |> Enum.flat_map(fn {closed, _unmatched} -> closed end)
       |> Enum.map(&convert_trade(&1, base))
       |> Enum.split_with(&match?({:ok, _}, &1))
+
+    unmatched =
+      matched
+      |> Enum.flat_map(fn {_closed, unmatched} -> unmatched end)
+      |> Enum.sort_by(& &1.date, {:desc, Date})
 
     converted = Enum.map(converted, fn {:ok, trade} -> trade end)
     excluded = Enum.map(excluded, fn {:excluded, trade} -> trade end)
@@ -88,6 +103,9 @@ defmodule Portfolixir.Portfolios.RealizedGains do
         count: length(excluded),
         securities: excluded |> Enum.map(& &1.security_name) |> Enum.uniq() |> Enum.sort()
       },
+      # #984 (T1b, UX-DR25): the matcher's orphan sells, named rather than
+      # dropped — a sell with no lot is no trade, so it is in no figure.
+      unmatched_sells: %{count: length(unmatched), sells: unmatched},
       conversion_note:
         "Each sale converted to #{base} via the EUR hub at the rate stored on " <>
           "its own close date; a sale with no stored rate for that day is " <>
@@ -110,7 +128,14 @@ defmodule Portfolixir.Portfolios.RealizedGains do
             "the average holding period are null rather than zero — the average of nothing is " <>
             "not zero. The matrix is unaffected by limit= here: the figures always read the " <>
             "full history, while limit= cuts only the years the matrix shows.",
-        annualized_return: TradeReturn.basis()
+        annualized_return: TradeReturn.basis(),
+        unmatched_sells:
+          "A sell the FIFO matcher could not pair with a buy is no closed trade, so it is in " <>
+            "none of the figures, the list or the matrix: the matcher keeps one queue per " <>
+            "security across every depot, opened by buys only, and an inbound delivery opens " <>
+            "no lot, so the sale of delivered-in shares has none; a sell larger than the " <>
+            "shares bought closes what it can and leaves the rest. unmatched_sells names each, " <>
+            "newest first, with the quantity no lot covered."
       }
     }
   end
@@ -148,11 +173,28 @@ defmodule Portfolixir.Portfolios.RealizedGains do
     end
   end
 
-  defp closed_trades(security) do
-    security.id
-    |> Ledger.list_trades_for_security()
-    |> Map.get(:closed_trades, [])
-    |> Enum.map(fn trade ->
+  # One matcher read per security serves both halves: its closed trades and
+  # its orphan sells (#984, T1b).
+  defp security_trades(security) do
+    trades = Ledger.list_trades_for_security(security.id)
+
+    {closed_trades(security, Map.get(trades, :closed_trades, [])),
+     unmatched_sells(security, Map.get(trades, :orphan_sells, []))}
+  end
+
+  defp unmatched_sells(security, orphans) do
+    Enum.map(orphans, fn orphan ->
+      %{
+        security_id: security.id,
+        security_name: security.name,
+        date: orphan.date,
+        quantity: orphan.quantity
+      }
+    end)
+  end
+
+  defp closed_trades(security, closed) do
+    Enum.map(closed, fn trade ->
       # #807: the row the facet lists, beside the figure the matrix sums.
       # `security_id` rides along so each row can link to that security's
       # Trades tab, where the same round-trip is shown with its lots.

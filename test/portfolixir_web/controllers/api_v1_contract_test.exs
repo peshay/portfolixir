@@ -55,6 +55,7 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["version"] == 9
     assert newest["endpoints"] == [] and newest["tools"] == []
     assert Enum.any?(newest["parameters"], &(&1 =~ "annualized_return"))
+    assert Enum.any?(newest["parameters"], &(&1 =~ "unmatched_sells"))
 
     # Sprint 16 (version 8): the batch's one entry, opened by the error
     # envelope of the errors the server answers itself (E25 S2, F68). Found by

@@ -1552,6 +1552,15 @@ Beispiel-Payloads für Konten:
   Zahlungen löst. Dividenden und Zinsen während der Haltedauer sind nicht
   enthalten. `computation_basis.annualized_return` nennt die Regel.
 
+  Seit Issue #984 nennt die Payload außerdem die Verkäufe, denen der
+  FIFO-Matcher keinen Kauf zuordnen konnte, in **`unmatched_sells`**: ein
+  `count` und, neueste zuerst, je Verkauf `security_id`, `security_name`,
+  `date` und die `quantity`, die kein Lot deckte. Stücke aus einer
+  Einlieferung eröffnen keinen Lot, ihr Verkauf ist also kein abgeschlossener
+  Trade; ein Verkauf über die gekauften Stücke hinaus schließt, was er kann,
+  und der Rest steht hier. Beides fehlt in den Kennzahlen, der Liste und der
+  Matrix; `computation_basis.unmatched_sells` sagt es. Der Trades-Read des
+  Wertpapiers unten führt dieselben Verkäufe als `orphan_sells`.
 - `GET /api/v1/external_flows` (Issue #725) liefert das
   Ein-/Auszahlungs-Rollup: die gebuchten externen **Cash**-Flüsse (`deposit`
   und `removal`) über alle Portfolios, je Jahr und Monat mit Einzahlungen,
