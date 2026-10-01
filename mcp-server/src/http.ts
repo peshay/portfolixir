@@ -6,6 +6,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 
 import { createPortfolixirMcpServer } from "./server.js";
 import type { ApiClient } from "./api-client.js";
+import type { McpProfile } from "./profiles.js";
 
 export interface HttpServerOptions {
   client: ApiClient;
@@ -14,8 +15,8 @@ export interface HttpServerOptions {
   port?: number;
   /** Extra Host names this listener answers under (a reverse-proxy name). */
   extraHosts?: string[];
-  /** The opt-in read-only switch (E25 S7, G26). */
-  readOnly?: boolean;
+  /** The tool profile (A1, #992); `full` when absent. */
+  profile?: McpProfile;
 }
 
 export function isAllowedOrigin(origin: string | undefined): boolean {
@@ -268,8 +269,8 @@ export interface HttpAppOptions {
   token: string;
   /** The Host values the companion answers under (its guard and the SDK's). */
   allowedHosts: string[];
-  /** The opt-in read-only switch (E25 S7, G26). */
-  readOnly?: boolean;
+  /** The tool profile (A1, #992); `full` when absent. */
+  profile?: McpProfile;
 }
 
 /**
@@ -331,7 +332,7 @@ export function createHttpApp(options: HttpAppOptions): Express {
   app.use(express.json({ limit: "1mb" }));
 
   app.all("/mcp", async (req: Request, res: Response) => {
-    const server = createPortfolixirMcpServer(options.client, { readOnly: options.readOnly });
+    const server = createPortfolixirMcpServer(options.client, { profile: options.profile });
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableDnsRebindingProtection: true,
@@ -367,7 +368,7 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
     client: options.client,
     token,
     allowedHosts,
-    readOnly: options.readOnly
+    profile: options.profile
   });
 
   await new Promise<void>((resolve) => {

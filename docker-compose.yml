@@ -109,6 +109,8 @@ services:
       PORTFOLIXIR_MCP_ALLOWED_HOSTS: ${PORTFOLIXIR_MCP_ALLOWED_HOSTS:-}
       # true: the companion lists and calls only the tools that change nothing.
       PORTFOLIXIR_MCP_READ_ONLY: ${PORTFOLIXIR_MCP_READ_ONLY:-false}
+      # read, book or full; empty is full (or read with the switch above on).
+      PORTFOLIXIR_MCP_PROFILE: ${PORTFOLIXIR_MCP_PROFILE:-}
     ports:
       - "127.0.0.1:4001:4001"
     restart: unless-stopped

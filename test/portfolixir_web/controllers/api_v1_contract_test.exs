@@ -49,13 +49,20 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
+    # Sprint 17's PR β (version 9): the lane's one entry, opened by the MCP
+    # companion's tool profiles (A1, #992). It moves no route.
+    assert newest["version"] == 9
+    assert newest["endpoints"] == []
+    assert Enum.any?(newest["parameters"], &(&1 =~ "PORTFOLIXIR_MCP_PROFILE"))
+
     # Sprint 16 (version 8): the batch's one entry, opened by the error
-    # envelope of the errors the server answers itself (E25 S2, F68).
-    assert newest["version"] == 8
-    assert Enum.any?(newest["parameters"], &(&1 =~ ~s({"errors": {"detail")))
+    # envelope of the errors the server answers itself (E25 S2, F68). Found
+    # by version from here on.
+    sprint16 = Enum.find(data["entries"], &(&1["version"] == 8))
+    assert Enum.any?(sprint16["parameters"], &(&1 =~ ~s({"errors": {"detail")))
     # ADR-0050 §11 L1: the identity-field freezes answer 422 on the PATCHes
     # that expose a currency, extending the same entry.
-    assert Enum.any?(newest["parameters"], &(&1 =~ "is frozen once referenced"))
+    assert Enum.any?(sprint16["parameters"], &(&1 =~ "is frozen once referenced"))
 
     # Sprint 15 (version 7): the policy-rules family (ADR-0049) — its reads,
     # its writes and their MCP twins. Found by version from here on.

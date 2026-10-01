@@ -2792,6 +2792,36 @@ hinausgeht. Standardmäßig ist er aus, und jeder andere Wert als `true`,
 Variable. Der Schalter schränkt den Begleitdienst ein, nicht das Token:
 `PORTFOLIXIR_API_TOKEN` behält seine volle Befugnis über die API.
 
+**Tool-Profile.** `PORTFOLIXIR_MCP_PROFILE` nimmt `read`, `book` oder `full`
+(Standard), in beliebiger Schreibweise. `read` ist der Nur-Lese-Modus oben.
+`full` listet und ruft jedes Tool. `book` listet die Lesezugriffe, jedes Anlegen
+und jedes Schreiben, das ein anderes `book`-Schreiben rückgängig machen kann,
+und lässt die **Admin-Menge** weg, eine ausdrückliche Liste im Begleitdienst
+(`mcp-server/src/profiles.ts`) unter einem Grundsatz: ein Schreiben gehört zur
+Admin-Menge, wenn nichts im Profil `book` es rückgängig machen kann. Jedes
+Entfernen ist Admin (jedes Löschen, das Entfernen eines früheren Namens und
+eines ISIN-Alias, das Aufheben einer Klassifikationszuordnung, das Löschen
+einer Positions-Überschreibung, die Freigabe manueller Kurse), ebenso die drei
+Zusammenführungen, die ISIN-Änderung und das Stilllegen einer Regel. Die
+Überschreibungen, die `book` behält (ein Ändern, ein Upsert, eine Bucket-Menge,
+das Aktivieren eines Plans, das das Aktivieren des vorigen Plans rückgängig
+macht), stehen als zweite Liste daneben, jede mit ihrem Grund, und ein Test des
+Begleitdienstes schlägt für jedes Tool mit `destructiveHint: true` fehl, das in
+keiner der beiden steht. Unter `book` wird ein Aufruf eines Admin-Tools,
+gelistet oder nicht, als Tool-Fehler abgelehnt, der das Profil und
+`PORTFOLIXIR_MCP_PROFILE=book` nennt, bevor eine Anfrage hinausgeht, und die
+Server-Anweisungen nennen das Profil in einem Satzteil.
+`PORTFOLIXIR_MCP_READ_ONLY=true` ist `read`: allein oder neben
+`PORTFOLIXIR_MCP_PROFILE=read` stimmt es überein, und neben
+`PORTFOLIXIR_MCP_PROFILE=book` oder `full` stoppt es den Begleitdienst und nennt
+beide Variablen; `PORTFOLIXIR_MCP_READ_ONLY=false`, der ausgelieferte Standard,
+heißt nur, dass der Schalter aus ist, und widerspricht nie. Jeder andere Wert
+stoppt den Begleitdienst mit dem Namen der Variable. Ein Profil schränkt den
+Begleitdienst ein, nicht das API-Token. Es hält einen unbeaufsichtigten
+Agentenlauf davon ab, über den Begleitdienst zu löschen oder zusammenzuführen;
+ein Agent, der die API mit dem Token erreicht, kann weiterhin jede Route
+aufrufen.
+
 **Unsichtbare Zeichen.** Jeder Schreibzugriff lehnt die Zeichen ab, die der
 Betreiber nicht sehen kann (siehe „Text“ oben), aber eine Zeile von vor dieser
 Regel kann sie noch tragen. Der Begleitdienst ist der Ort, an dem sie sichtbar

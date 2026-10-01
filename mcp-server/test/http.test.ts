@@ -16,6 +16,7 @@ import {
   mcpAuthMiddleware,
   MCP_TOKEN_MIN_BYTES
 } from "../src/http.js";
+import type { McpProfile } from "../src/profiles.js";
 
 const soundToken = "k".repeat(32);
 
@@ -194,7 +195,7 @@ describe("MCP HTTP security helpers", () => {
 // client is never called.
 async function withApp(
   run: (base: string, port: number) => Promise<void>,
-  readOnly = false
+  profile: McpProfile = "full"
 ): Promise<void> {
   const server = createServer();
   server.listen(0, "127.0.0.1");
@@ -209,7 +210,7 @@ async function withApp(
     },
     token: soundToken,
     allowedHosts: allowedHostsFor("127.0.0.1", port),
-    readOnly
+    profile
   });
   server.on("request", app);
 
@@ -400,12 +401,13 @@ describe("MCP HTTP transport", () => {
     });
   });
 
-  // E25 S7, G26: the switch reaches the HTTP transport, whose every request
-  // builds its own server.
-  it("serves the read-only tool list over HTTP when the switch is on", async () => {
+  // E25 S7, G26 and A1 (#992): the profile reaches the HTTP transport, whose
+  // every request builds its own server: read lists no write, book no admin
+  // tool, full every tool.
+  it("serves each profile's tool list over HTTP", async () => {
     const listTools = JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} });
 
-    for (const readOnly of [true, false]) {
+    for (const profile of ["read", "book", "full"] as const) {
       await withApp(async (_base, port) => {
         const answer = await rawRequest(
           port,
@@ -418,9 +420,18 @@ describe("MCP HTTP transport", () => {
           listTools
         );
         assert.equal(answer.status, 200, answer.body);
-        assert.equal(answer.body.includes('"name":"portfolixir.transactions.delete"'), !readOnly);
-        assert.ok(answer.body.includes('"name":"portfolixir.transactions.list"'));
-      }, readOnly);
+        assert.equal(
+          answer.body.includes('"name":"portfolixir.transactions.delete"'),
+          profile === "full",
+          profile
+        );
+        assert.equal(
+          answer.body.includes('"name":"portfolixir.transactions.update"'),
+          profile !== "read",
+          profile
+        );
+        assert.ok(answer.body.includes('"name":"portfolixir.transactions.list"'), profile);
+      }, profile);
     }
   });
 

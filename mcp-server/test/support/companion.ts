@@ -2,6 +2,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 
 import type { ApiClient } from "../../src/api-client.js";
+import type { McpProfile } from "../../src/profiles.js";
 import { createPortfolixirMcpServer } from "../../src/server.js";
 
 /**
@@ -15,7 +16,7 @@ export interface ConnectedCompanion {
 }
 
 export interface CompanionOptions {
-  readOnly?: boolean;
+  profile?: McpProfile;
 }
 
 const unreachableApi: ApiClient = {

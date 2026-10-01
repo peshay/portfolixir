@@ -494,7 +494,7 @@ describe("the companion's published tool surface", () => {
     assert.equal(release?.annotations?.destructiveHint, true);
     assert.equal(release?.annotations?.idempotentHint, true);
 
-    const readOnly = await publishedTools({ readOnly: true });
+    const readOnly = await publishedTools({ profile: "read" });
     assert.equal(readOnly.some((tool) => tool.name === "portfolixir.quotes.release"), false);
   });
 
@@ -648,7 +648,7 @@ describe("the companion's published tool surface", () => {
   // - Read tools work as before; without the switch every tool is listed.
   it("in read-only mode lists and calls no write tool", async () => {
     const reads = listTools().filter((tool) => tool.annotations.readOnlyHint);
-    const listed = await publishedTools({ readOnly: true });
+    const listed = await publishedTools({ profile: "read" });
 
     assert.deepEqual(
       listed.map((tool) => tool.name),
@@ -659,7 +659,7 @@ describe("the companion's published tool surface", () => {
     assert.equal((await publishedTools()).length, listTools().length);
 
     const { client, requests } = createRecordingClient({ data: { id: 1 } });
-    const companion = await connectCompanion(client, { readOnly: true });
+    const companion = await connectCompanion(client, { profile: "read" });
 
     try {
       for (const [name, args] of [
@@ -696,7 +696,7 @@ describe("the companion's published tool surface", () => {
     const { client, requests } = createRecordingClient({ data: {} });
 
     await assert.rejects(
-      callTool(client, "portfolixir.transactions.delete", { id: 1 }, { readOnly: true }),
+      callTool(client, "portfolixir.transactions.delete", { id: 1 }, { profile: "read" }),
       /read-only.*PORTFOLIXIR_MCP_READ_ONLY/
     );
     assert.equal(requests.length, 0);
@@ -706,7 +706,7 @@ describe("the companion's published tool surface", () => {
       date: "2026-08-01",
       ratio_numerator: 2,
       ratio_denominator: 1
-    }, { readOnly: true });
+    }, { profile: "read" });
     assert.deepEqual(
       requests.map((request) => `${request.method} ${request.path}`),
       ["POST /api/v1/splits/preview"]
