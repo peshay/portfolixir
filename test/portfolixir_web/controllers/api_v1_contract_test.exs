@@ -49,12 +49,16 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
-    # Sprint 17, PR γ (version 10, after PR β's 9): the operator's due surfaces moved parameters
-    # only — the annualized return on both closed-trade reads (#984).
+    # Sprint 17, PR γ (version 10, after PR β's 9): the operator's due surfaces — the annualized
+    # return on both closed-trade reads and the unmatched sells (#984), the
+    # merge list's removed bookings per reason (ADR-0050 §12), and the new
+    # read of a security's manual quotes with its MCP twin (T-9).
     assert newest["version"] == 10
-    assert newest["endpoints"] == [] and newest["tools"] == []
+    assert newest["endpoints"] == ["GET /api/v1/securities/:security_id/quotes/manual"]
+    assert newest["tools"] == ["portfolixir.quotes.manual"]
     assert Enum.any?(newest["parameters"], &(&1 =~ "annualized_return"))
     assert Enum.any?(newest["parameters"], &(&1 =~ "unmatched_sells"))
+    assert Enum.any?(newest["parameters"], &(&1 =~ "deleted_by_reason"))
 
     # Sprint 17's PR β (version 9): the lane's one entry, opened by the MCP
     # companion's tool profiles (A1, #992). It moves no route. Found by

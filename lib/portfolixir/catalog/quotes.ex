@@ -353,6 +353,95 @@ defmodule Portfolixir.Catalog.Quotes do
   end
 
   @doc """
+  The security's **manual** quotes over its whole stored history (Sprint 17
+  V2, T-9; the read `release_manual/4` had none of): how many there are
+  (`count`), the first and last manual date (`nil` without one), how many
+  quotes are stored at all (`stored_count`), and the **stretches** — each a
+  run of manual quotes with no quote of another source between them, as
+  `%{from, to, count}`, ascending. `stretch_count` counts every stretch;
+  `stretches: n` keeps the newest `n` of them (still ascending), and without
+  it every stretch is listed. Computed in the database, one query each for
+  the counts and the stretches, so a long history is never loaded.
+  """
+  @spec manual_summary(integer(), keyword()) :: %{
+          count: non_neg_integer(),
+          first: Date.t() | nil,
+          last: Date.t() | nil,
+          stored_count: non_neg_integer(),
+          stretch_count: non_neg_integer(),
+          stretches: [%{from: Date.t(), to: Date.t(), count: pos_integer()}]
+        }
+  def manual_summary(security_id, opts \\ []) when is_integer(security_id) and is_list(opts) do
+    totals =
+      SecurityQuote
+      |> where([q], q.security_id == ^security_id)
+      |> select([q], %{
+        stored_count: count(),
+        count: filter(count(), q.source == "manual"),
+        first: filter(min(q.date), q.source == "manual"),
+        last: filter(max(q.date), q.source == "manual")
+      })
+      |> Repo.one()
+
+    stretches = manual_stretches(security_id)
+
+    stretch_count = Repo.aggregate(subquery(stretches), :count)
+
+    listed =
+      stretches
+      |> order_by([m], desc: min(m.date))
+      |> limit_stretches(Keyword.get(opts, :stretches))
+      |> Repo.all()
+      |> Enum.reverse()
+
+    Map.merge(totals, %{stretch_count: stretch_count, stretches: listed})
+  end
+
+  # Gaps and islands: every quote of another source starts a new run, so the
+  # manual quotes after it share its running count; each run of manual quotes
+  # is one stretch.
+  defp manual_stretches(security_id) do
+    marked =
+      from(q in SecurityQuote,
+        where: q.security_id == ^security_id,
+        select: %{
+          date: q.date,
+          manual: q.source == "manual",
+          run:
+            over(sum(fragment("CASE WHEN ? = 'manual' THEN 0 ELSE 1 END", q.source)),
+              order_by: q.date
+            )
+        }
+      )
+
+    from(m in subquery(marked),
+      where: m.manual,
+      group_by: m.run,
+      select: %{from: min(m.date), to: max(m.date), count: count()}
+    )
+  end
+
+  defp limit_stretches(query, n) when is_integer(n) and n > 0, do: limit(query, ^n)
+  defp limit_stretches(query, _all), do: query
+
+  @doc """
+  How many of the security's stored quotes dated `from` through `to` (both
+  inclusive) are **manual** — what `release_manual/4` over the same range
+  would remove (Sprint 17 V2, T-9). Provider quotes are never counted.
+  """
+  @spec manual_count(integer(), Date.t(), Date.t()) :: non_neg_integer()
+  def manual_count(security_id, %Date{} = from, %Date{} = to) when is_integer(security_id) do
+    SecurityQuote
+    |> where(
+      [q],
+      q.security_id == ^security_id and q.source == "manual" and q.date >= ^from and
+        q.date <= ^to
+    )
+    |> select([q], count())
+    |> Repo.one()
+  end
+
+  @doc """
   The **security merge's** quote writer (ADR-0050 §9, §13), the one writer
   besides the sync that ADR-0017's quote exemption names: `moved` are quotes
   of `source_id` dated where `target_id` has none, and each is re-pointed onto

@@ -167,6 +167,13 @@ const quoteUpsertZ = z.object({
   )
 });
 
+const quoteManualZ = z.object({
+  security_id: z.number().int().positive(),
+  from: optionalString(),
+  to: optionalString(),
+  limit: z.number().int().min(1).optional()
+});
+
 const quoteReleaseZ = z.object({
   security_id: z.number().int().positive(),
   from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -507,6 +514,28 @@ const quoteUpsertSchema = {
         additionalProperties: false
       }
     }
+  }
+};
+
+// Sprint 17 V2 (T-9): the manual quotes of a security, the read the release
+// stands on; from and to add the count of a range, limit bounds the stretches.
+const quoteManualSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["security_id"],
+  properties: {
+    security_id: { type: "integer", minimum: 1 },
+    from: {
+      type: "string",
+      format: "date",
+      description: boundedDate("Range start, inclusive.")
+    },
+    to: {
+      type: "string",
+      format: "date",
+      description: boundedDate("Range end, inclusive.")
+    },
+    limit: { type: "integer", minimum: 1 }
   }
 };
 
@@ -3081,7 +3110,18 @@ const declaredTools: DeclaredTool[] = [
     }
   }, z.object({ security_id: z.number().int().positive(), from: optionalString(), to: optionalString(), limit: z.number().int().min(1).optional() })),
   tool("portfolixir.quotes.upsert", "Upsert quotes", "Upsert manual quote history. Every row is stored as manual whatever source it names: a manual close wins over provider data, so the quote sync leaves it alone until it is released (portfolixir.quotes.release). The write replaces any stored row of its dates, provider rows included, and is journaled under your token with the replaced rows' closes and sources as its before-image; the answer carries upserted (the rows now stored as given) and replaced (the dates whose stored row the write changed; a new date is not listed). A call that changes nothing writes no journal entry. Every close must be positive once rounded half up to the 6 decimal places a close is stored with (a finer close is stored rounded), have at most 14 digits before the decimal point, and every date must be no later than tomorrow (the instance's calendar day plus one day of zone slack); a row outside that bound answers 422 naming the field, and nothing is written. Name each date once per call: a repeated date answers 422 on date naming it, and nothing is written.", quoteUpsertSchema, quoteUpsertZ),
-  tool("portfolixir.quotes.release", "Release manual quotes", "Release one security's MANUAL quotes dated from through to (both required, inclusive) back to provider data: the manual rows in the range are removed, journaled under your token with their closes as the before-image, and the answer lists the released dates. Provider rows in the range stay, and a range without manual rows changes nothing. The next quote sync (portfolixir.quotes.sync) stores the provider's close for a released date; a security without a provider keeps no quote for it. A missing, malformed or out-of-range date, or to before from, answers 422 naming the field. Agent-first: quotes have no write control on the security page yet; the release control there lands no later than Sprint 17.", quoteReleaseSchema, quoteReleaseZ),
+  tool("portfolixir.quotes.release", "Release manual quotes", "Release one security's MANUAL quotes dated from through to (both required, inclusive) back to provider data: the manual rows in the range are removed, journaled under your token with their closes as the before-image, and the answer lists the released dates. Provider rows in the range stay, and a range without manual rows changes nothing. Read portfolixir.quotes.manual first: it says which dates are manual, in which stretches, how many a range holds, and whether the sync can refill them. The next quote sync (portfolixir.quotes.sync) stores the provider's close for a released date; a security without a provider keeps no quote for it. A missing, malformed or out-of-range date, or to before from, answers 422 naming the field. Agent-first: quotes have no write control on the security page yet; the release control there lands no later than Sprint 17.", quoteReleaseSchema, quoteReleaseZ),
+  tool(
+    "portfolixir.quotes.manual",
+    "Manual quotes",
+    "Read one security's MANUAL quotes over its whole history (written through portfolixir.quotes.upsert or the " +
+      "API; they win over the provider's until portfolixir.quotes.release). Answers count, first, last, " +
+      "stored_count, the newest limit stretches (runs of manual quotes, {from, to, count}, ascending; default " +
+      "100, max 1000) with stretch_count, and sync_adapter: whether the sync can refill a released date. " +
+      "from/to (inclusive) add range {from, to, count}: what releasing that range removes; to before from is a 422.",
+    quoteManualSchema,
+    quoteManualZ
+  ),
   tool("portfolixir.portfolios.list", "List portfolios", "List local portfolios. Deprecated (ADR-0024): portfolios are internal compatibility records, not the user-facing grouping — use portfolixir.buckets.list and portfolixir.views.list to group and scope holdings.", emptyObjectSchema, emptyObjectZ),
   tool("portfolixir.portfolios.create", "Create portfolio", "Create a portfolio. Deprecated (ADR-0024, compatibility only — the API answers with a Deprecation header): grouping happens through buckets and views, so prefer portfolixir.buckets.create and portfolixir.views.create; depots and cash accounts no longer need a portfolio_id (a deterministic internal default is bound automatically).", portfolioSchema, portfolioZ),
   tool(
@@ -4183,6 +4223,11 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         from: args.from,
         to: args.to
       });
+    case "portfolixir.quotes.manual":
+      return client.request(
+        "GET",
+        withQuery(`/api/v1/securities/${args.security_id}/quotes/manual`, args, ["from", "to", "limit"])
+      );
     case "portfolixir.portfolios.list":
       return client.request("GET", "/api/v1/portfolios");
     case "portfolixir.portfolios.create":

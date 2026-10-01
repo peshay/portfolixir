@@ -866,6 +866,21 @@ Example create payload:
   security `404`. The release ships agent-first (API and MCP): quotes have no
   write control on the security page yet, and the page's release control
   lands no later than Sprint 17.
+- `GET /api/v1/securities/:security_id/quotes/manual` reads the security's
+  **manual** quotes over its whole stored history — the read a release stands
+  on (Sprint 17, `portfolixir.quotes.manual`): `count`, `first` and `last`
+  (the first and last manual date, `null` without one), `stored_count` (every
+  stored quote, of any source), `stretches` — each a run of manual quotes with
+  no quote of another source between them, `{"from", "to", "count"}`,
+  ascending, the newest `limit` of them (the list family's: default 100,
+  capped at 1000, echoed in `meta.limit`) — `stretch_count` (all of them), and
+  `sync_adapter`: whether the quote sync has an adapter for the security's
+  provider, the check the sync makes before it fetches anything. Without one a
+  released date keeps no quote; with one a fetch can still skip the security
+  (a missing ticker, say). `from` and/or `to` (inclusive; an absent bound is
+  open) add `range` `{"from", "to", "count"}`: the manual quotes a release of
+  exactly that range would remove. `to` before `from` answers `422` on `to`,
+  an invalid date `422` naming it, an unknown security `404`.
 - `POST /api/v1/securities/:security_id/sync_quotes` triggers quote sync for
   one security. The response includes `status` (`ok`, `skipped`, or `error`);
   skipped and error responses may include a `reason` such as
@@ -3026,6 +3041,9 @@ in its description; the server instructions say it once for every write.
 - `portfolixir.quotes.list`
 - `portfolixir.quotes.upsert` — every row stored as manual; its schema offers
   `source: manual` only, and the answer names the replaced dates.
+- `portfolixir.quotes.manual` — a security's manual quotes over the whole
+  history: count, first and last date, the stretches, the count of a range,
+  and whether the sync can refill a released date; a read.
 - `portfolixir.quotes.release` — the journaled release of a range's manual
   quotes back to provider data; agent-first, its page control lands no later
   than Sprint 17.
