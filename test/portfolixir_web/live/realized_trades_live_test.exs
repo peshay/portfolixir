@@ -58,6 +58,87 @@ defmodule PortfolixirWeb.RealizedTradesLiveTest do
     assert view |> element("#realized-annual") |> render() =~ "2026"
   end
 
+  # User story (#984 rescoped, Sprint 17 T1b; UX-DR25, board G1 rule ⑤):
+  # As a local portfolio maintainer with an imported history,
+  # I want the sells no buy could be matched to named where the totals are
+  # read,
+  # so that a sale of delivered-in shares missing from every figure is a
+  # stated gap, not a silent one.
+  #
+  # Acceptance criteria:
+  # - An attention note leads the section with the count and the reason,
+  #   after the currency-exclusion note when both appear, before the figures.
+  # - Its disclosure lists each sell as security · date · quantity.
+  # - It carries no remedy control: there is none (UX-DR25 clause 3); the
+  #   basis line under the list states the limit.
+  # - With no unmatched sell there is no note.
+  test "the sells no buy was matched to are named after the currency note", %{conn: conn} do
+    world = base_world(name: "Delivered Facet", cash_name: "DF Cash", depot_name: "DF Depot")
+    delivered = create_security!(name: "Delivered Holdings", ticker: "DHD")
+    deposit!(world, "100000", ~D[2026-01-01])
+
+    {:ok, _delivery} =
+      Portfolixir.Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        security_id: delivered.id,
+        type: "inbound_delivery",
+        date: ~D[2026-01-10],
+        quantity: "15",
+        currency_code: "EUR"
+      })
+
+    sell!(world, delivered, quantity: "15", price: "20", date: ~D[2026-05-12])
+
+    # A pound sale with no stored rate on its close date: the currency note.
+    pound = create_security!(name: "Pound Holdings", ticker: "PHD", currency: "GBP")
+
+    gbp =
+      Map.merge(
+        world,
+        Portfolixir.WorldFixtures.add_depot(world.portfolio,
+          currency: "GBP",
+          cash_name: "GBP Cash",
+          depot_name: "GBP Depot"
+        )
+      )
+
+    buy!(gbp, pound, quantity: "2", price: "10", date: ~D[2026-01-09], currency: "GBP")
+    sell!(gbp, pound, quantity: "2", price: "30", date: ~D[2026-02-20], currency: "GBP")
+
+    {:ok, view, _html} = live(conn, "/cashflow?tab=realized")
+
+    assert has_element?(view, "#realized-unmatched[data-role='realized-unmatched']")
+    note = view |> element("#realized-unmatched") |> render()
+    assert note =~ "1 sale with no matched buy"
+    assert note =~ "Delivered Holdings"
+    assert note =~ "2026-05-12"
+    assert note =~ "15.0000 units"
+    refute has_element?(view, "#realized-unmatched button")
+
+    section = view |> element("#realized-trades") |> render()
+    {excluded_at, _} = :binary.match(section, "realized-excluded")
+    {unmatched_at, _} = :binary.match(section, "realized-unmatched")
+    {figures_at, _} = :binary.match(section, "realized-figures")
+    assert excluded_at < unmatched_at and unmatched_at < figures_at
+
+    # In German, the board's copy and the German date and quantity forms.
+    de_conn = Plug.Test.put_req_cookie(Phoenix.ConnTest.build_conn(), "portfolixir_locale", "de")
+    {:ok, de_view, _html} = live(de_conn, "/cashflow?tab=realized")
+    de_note = de_view |> element("#realized-unmatched") |> render()
+    assert de_note =~ "1 Verkauf ohne zugeordneten Kauf"
+    assert de_note =~ "Der Verkauf"
+    assert de_note =~ "12.05.2026"
+    assert de_note =~ "15,0000 Stück"
+  end
+
+  test "with every sell matched there is no unmatched-sells note", %{conn: conn} do
+    _winner = seed_closed_trade!()
+    {:ok, view, _html} = live(conn, "/cashflow?tab=realized")
+
+    refute has_element?(view, "#realized-unmatched")
+  end
+
   # Acceptance criteria (the honest empty state): the average of nothing is
   # not zero, so the two derived figures read as absent rather than as 0 %
   # and 0 days.

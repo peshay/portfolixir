@@ -54,6 +54,7 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["version"] == 10
     assert newest["endpoints"] == [] and newest["tools"] == []
     assert Enum.any?(newest["parameters"], &(&1 =~ "annualized_return"))
+    assert Enum.any?(newest["parameters"], &(&1 =~ "unmatched_sells"))
 
     # Sprint 17's PR β (version 9): the lane's one entry, opened by the MCP
     # companion's tool profiles (A1, #992). It moves no route. Found by

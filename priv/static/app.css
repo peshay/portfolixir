@@ -9430,3 +9430,30 @@ dialog.merge-dialog {
     border-top: 1px solid var(--color-border-strong);
   }
 }
+
+/* ===== Trades: reach, the p. a. column and the unmatched sells (issue 984,
+   Sprint 17 pick G1-A; board ux-design-2026-10-01/01-trades-reach) ===== */
+/* Rule ⑤: the sells the matcher could not pair with a buy, named where the
+   totals are read (UX-DR25) — an attention note's disclosure holding each
+   sell as three aligned columns: security, date, quantity. */
+.excluded-list {
+  display: grid;
+  width: fit-content;
+  max-width: 100%;
+  grid-template-columns: minmax(0, auto) auto auto;
+  gap: 2px var(--space-4);
+  margin: var(--space-1) 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--color-text);
+}
+
+.excluded-list li {
+  display: contents;
+}
+
+.excluded-list .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

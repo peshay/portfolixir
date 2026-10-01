@@ -1566,6 +1566,17 @@ named. The same backfill is `scope=history` on the exchange-rate sync
 endpoint and MCP tool; the deposits-and-withdrawals and costs facets carry
 the same control in their exclusion notes.
 
+**Sells with no matched buy** are named too (issue #984). The matcher pairs
+each sell with earlier **buys** of the same security, first in, first out,
+in one queue across every depot, and an inbound delivery opens no lot — so
+selling shares that arrived by a delivery, typical of an imported history,
+leaves a sell with nothing to pair, and a sell larger than the shares bought
+leaves its remainder. Such a sell is no closed trade and is in none of the
+three figures, the list or the matrix. An attention note after the currency
+note says how many, and its disclosure lists each as security · date ·
+quantity. It carries no control, because nothing on the page can supply the
+missing buy.
+
 **Deposits & withdrawals** (`/cashflow?tab=flows`, issue #725) is the
 owner's "Ersparnis": what was put in and taken out, per period, as two
 series with a yearly net — separate from what the portfolio earned. It
