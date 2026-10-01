@@ -77,7 +77,8 @@ defmodule PortfolixirWeb.Api.V1.QuoteController do
   required, inclusive) back to provider data (E25 S6, T-9): the rows are
   removed, journaled with their closes as the before-image, so the next quote
   sync stores the provider's close for those dates. Provider rows stay.
-  Agent-first: the security page's control lands no later than Sprint 17.
+  The operator's control is the Quotes tab's "Release…"
+  (`PortfolixirWeb.Securities.QuoteReleaseDialog`), through the same write.
   """
   def release(conn, %{"security_id" => security_id} = params) do
     with {:ok, id} <- IdParam.parse(security_id),

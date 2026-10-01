@@ -2410,6 +2410,44 @@ hat, und protokolliert eine Warnung, wenn diese Zahl größer als null ist.
 Wer einen Kurs von Hand bearbeitet, überschreibt weiterhin den gespeicherten
 Wert — auch zuvor synchronisierte.
 
+#### Manuelle Kurse freigeben (T-9)
+
+Jeder Kurs, den die API oder Ihr Agent schreibt, wird als **manuell**
+gespeichert, und ein manueller Kurs gewinnt gegen den des Anbieters. Um Tage
+an den Anbieter zurückzugeben, öffnen Sie den Tab **Kurse** des Wertpapiers.
+Hat das Wertpapier manuelle Kurse, zählt eine Notiz über der Tabelle sie über
+die **ganze gespeicherte Historie** — nicht nur über den Zeitraum der
+Tabelle — mit dem ersten und letzten Datum (*7 manuelle Kurse in der
+gespeicherten Historie, vom 2026-06-30 bis 2026-09-16.*; *alle gespeicherten
+Kurse sind manuell*, wenn das so ist). Ihr **Freigeben…** öffnet einen Dialog
+mit dem Wertpapier im Titel:
+
+- **Von** und **Bis** sind mit dem ersten und letzten manuellen Datum
+  vorbelegt; beide sind eingeschlossen. Chips darunter füllen das Paar:
+  **Alle** und jeder Abschnitt manueller Kurse (eine Folge ohne Kurs des
+  Anbieters dazwischen, die fünf jüngsten), jeweils mit seiner Zahl.
+- Ein Satz sagt, was geschieht: Die manuellen Schlusskurse im Zeitraum werden
+  entfernt und mit ihren Werten im Audit-Journal festgehalten, die Kurse des
+  Anbieters im Zeitraum bleiben, und die nächste Kursaktualisierung speichert
+  für diese Tage den Schlusskurs des Anbieters — bis dahin haben sie keinen
+  Kurs. Hat die Kursaktualisierung für den Anbieter des Wertpapiers keinen
+  Adapter, sagt eine Achtung-Notiz, dass die freigegebenen Tage ohne Kurs
+  bleiben.
+- Die Bestätigung nennt, wie viele manuelle Kurse der Zeitraum enthält
+  (*7 manuelle Kurse freigeben*). Ein Zeitraum ohne einen lässt sie
+  deaktiviert, mit dem Grund daneben; ein *Bis* vor seinem *Von* oder ein
+  Feld, das kein Datum ist, wird beim Bestätigen am Feld genannt, und nichts
+  wird geschrieben.
+
+Nach der Freigabe sagt der Tab, wie viele Kurse von wann bis wann freigegeben
+wurden, mit **Kurse aktualisieren** als nächstem Schritt, wo eine
+Aktualisierung helfen kann, bis Sie die Meldung schließen oder weitergehen.
+Nichts auf der Seite stellt einen freigegebenen Kurs wieder her; das Journal
+hält ihn fest. Auf dem Telefon öffnet sich der Dialog als Blatt von unten.
+Ihr Agent liest dieselbe Zusammenfassung mit
+`GET /api/v1/securities/:security_id/quotes/manual` (MCP
+`portfolixir.quotes.manual`) und gibt mit `portfolixir.quotes.release` frei.
+
 ### Wertpapier-Detailchart
 
 Ohne ausgewähltes Wertpapier füllt die Wertpapierliste den Arbeitsbereich der

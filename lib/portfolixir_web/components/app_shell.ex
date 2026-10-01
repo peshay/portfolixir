@@ -436,11 +436,16 @@ defmodule PortfolixirWeb.AppShell do
 
   A result persists until the next action, a navigation, or the explicit
   dismiss control — never a timer. The dismiss button sends
-  `phx-click="dismiss_result"` to the parent LiveView, which clears the
-  result assign.
+  `phx-click="dismiss_result"` (or `dismiss_event`, for a page with more than
+  one result slot) to the parent LiveView, which clears the result assign.
+  The message is text or safe markup; an optional `follow_up` slot renders a
+  remedy inside a note or attention result, before the dismiss control (the
+  data note's rule: the remedy is a child of the note).
   """
   attr(:id, :string, required: true)
   attr(:result, :any, default: nil)
+  attr(:dismiss_event, :string, default: "dismiss_result")
+  slot(:follow_up)
 
   def inline_result(assigns) do
     ~H"""
@@ -453,14 +458,16 @@ defmodule PortfolixirWeb.AppShell do
               <%= message %>
             </span>
           <% {severity, message} when severity in [:note, :attention] -> %>
-            <.inline_result_note severity={severity} message={message} />
+            <.inline_result_note severity={severity} message={message} dismiss_event={@dismiss_event}>
+              <%= render_slot(@follow_up) %>
+            </.inline_result_note>
           <% _ -> %>
         <% end %>
       </div>
       <div id={"#{@id}-alert"} role="alert" class="inline-result__region">
         <%= case @result do %>
           <% {:problem, message} -> %>
-            <.inline_result_note severity={:problem} message={message} />
+            <.inline_result_note severity={:problem} message={message} dismiss_event={@dismiss_event} />
           <% _ -> %>
         <% end %>
       </div>
@@ -469,16 +476,19 @@ defmodule PortfolixirWeb.AppShell do
   end
 
   attr(:severity, :atom, required: true)
-  attr(:message, :string, required: true)
+  attr(:message, :any, required: true)
+  attr(:dismiss_event, :string, default: "dismiss_result")
+  slot(:inner_block)
 
   defp inline_result_note(assigns) do
     ~H"""
     <.data_note severity={@severity}>
       <%= @message %>
+      <%= render_slot(@inner_block) %>
       <button
         type="button"
         class="inline-result__dismiss"
-        phx-click="dismiss_result"
+        phx-click={@dismiss_event}
         aria-label={gettext("Dismiss")}
         title={gettext("Dismiss")}
       >

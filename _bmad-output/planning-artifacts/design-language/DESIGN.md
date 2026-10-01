@@ -2710,3 +2710,87 @@ be the two-way gap in the other direction.
 - **Stated, not settled here:** security merges appear on a page titled for
   accounts and depots; the board's "Gegen A" accepts that cost, and the
   subtitle is unchanged.
+
+## Amendment 2026-10-01 — Securities detail: releasing manual quotes *(Sprint 17 pick G3-A, Lane V2, T-9)*
+
+Board `mockups/ux-design-2026-10-01/03-quote-release`, variant A (plan D-9,
+silence adopts it). Built in `PortfolixirWeb.Securities.ManualQuotes` (the
+note and the result's words), `PortfolixirWeb.Securities.QuoteReleaseDialog`
+(the dialog) and the Quotes tab of `PortfolixirWeb.SecuritiesLive`. The page's
+first quote write; the write is `Quotes.release_manual/4`, unchanged (one
+transaction that locks the security, one journal entry whose before-image is
+the released rows), run as the operator.
+
+- **The note.** At the head of the Quotes tab, above the range's basis line,
+  a `note`-severity data note (UX-DR17: context, nothing is wrong): "7 manual
+  quotes in the stored history, from 2026-06-30 to 2026-09-16." — counted over
+  the **whole stored history**, not the chart's range (the basis line under it
+  says the table is the range), from `Quotes.manual_summary/2`. Where every
+  stored quote is manual (a demo dataset, a security without a provider) it
+  reads "…; every stored quote is manual."; one manual quote reads "One manual
+  quote in the stored history, on <date>." Then "A manual quote has
+  precedence: the quote sync leaves it standing until it is released." and
+  the remedy, a child of the note: the `.link-button` **Release…** (a word,
+  no glyph: none means "release", and lending one a second meaning breaks
+  UX-DR16). No manual quote: no note and no control (A7) — an all-clear is
+  not a finding. The dates are `<time datetime>` elements (rule ③).
+- **The dialog** is a native `<dialog class="modal quote-release-dialog">`
+  (the `ModalDialog` hook, no `aria-modal`), titled "Release manual quotes —
+  <name>". Top to bottom: the attention note when the quote sync has no
+  adapter for the security's provider (`QuoteSync.adapter?/2`) — "The quote
+  sync fetches no quotes for this security: the released days stay without a
+  quote." (A3); the custom range's ISO pair (`.period-range__pair`, From/To,
+  prefilled with the first and last manual date, both inclusive, UX-DR19);
+  the field error under the pair when one is shown; the chip row
+  (`.period-years` with `.filter-chip`, the Wealth popover's year chips):
+  "All · N" and one chip per **stretch** — a run of manual quotes with no
+  quote of another source between them — "<from> – <to> · n", the five
+  newest, ascending; a chip fills the pair, and the chip equal to the pair is
+  pressed (`aria-pressed`); then one `.hint` sentence in the code's words:
+  "The manual closes in the range are removed and kept in the journal with
+  their values; the provider's quotes in the range stay as they are." plus,
+  only where an adapter exists, "The next quote sync stores the provider's
+  close for the released days; until then they have no quote."
+- **The band foot** (`.modal-footer--band`): Cancel (ghost), the spacer, then
+  the confirm, `.button-danger` — danger, because nothing in the UI restores
+  a release even though the journal keeps it — naming the count of the
+  range: "Release 7 manual quotes", following the pair on every change. One
+  confirmation, never a second `data-confirm`.
+- **States.** A valid range with no manual quote: the confirm reads "Release",
+  disabled, its reason beside it as text — `.merge-footer__why` "No manual
+  quote in the range.", the merge dialog's rule (disabled, never merely
+  pale), reused as it stands (A4). A "To" before its "From": on confirm, "The
+  end date is before the start date." at the field (`.field-error`,
+  `aria-invalid` on To), nothing written, the dialog stays; a field that is
+  no date: "Not a date — use YYYY-MM-DD." at that field — the custom range's
+  own words (D5, A6). The confirm is not disabled for an unreadable pair:
+  the refusal lands on the field that can fix it.
+- **The result (A5)** is panel-local, beside its trigger rather than in the
+  page-level slot: `AppShell.inline_result` `#quotes-release-result` at the
+  head of the tab, its regions present before the action, a note: "4 manual
+  quotes released, from 2026-06-30 to 2026-07-03." — the count and dates of
+  the write's answer (`released`), not of the dialog — then "The next quote
+  sync stores the provider's close for these days." with **Sync prices** (the
+  Chart tab's own action, `sync_now`) as its follow-up, or, without an
+  adapter, "Without a quote provider these days stay without a quote." and no
+  button. It stays until dismissed (its own `dismiss_release_result`), the
+  next action on it (Sync prices), or a navigation. Manual quotes left over
+  keep the note under it, with the new count. `inline_result` gained an
+  optional `follow_up` slot and `dismiss_event` for this; the message may be
+  safe markup (the `<time>` dates).
+- **Under 720 px** the dialog is the merge dialog's bottom sheet:
+  `.quote-release-dialog` joins the selector lists of the `.merge-dialog`
+  phone rules (full width, at most 88 % high, the foot stacked — the reason
+  with "↓ ", the confirm on a line of its own, then Cancel — 44 px buttons).
+- **The `app.css` rules of the pick:** ① `.quote-release-dialog { max-width:
+  460px }` and `.quote-release-form` a grid with `--space-2` gaps; ② the
+  phone sheet by joining the merge dialog's 720 px selector lists; ③
+  `.data-note__body time { white-space: nowrap }`, so a 390 px line never
+  breaks an ISO date at its hyphen.
+- **Stated, not settled here:** the remedy link-button is below the 44 px
+  coarse-pointer floor, as every `.link-button` remedy in a note is (the
+  board's Part 4 finding, filed rather than fixed here). The dialog's title
+  interpolates the stored name without `<bdi>` isolation, as the merge
+  dialog's does (G12.2-B's named follow-up). Dialog count: one more native
+  dialog; the lifecycle's record above now reads seventeen `<dialog>`
+  elements in `lib/portfolixir_web/`, still with zero `aria-modal`.

@@ -2222,6 +2222,41 @@ date. Each sync reports how many manual rows it left untouched and logs a
 warning when that count is above zero. Editing a quote by hand still
 overwrites whatever is stored, including previously synced values.
 
+#### Releasing manual quotes (T-9)
+
+Every quote written over the API or by your agent is stored as **manual**, and
+a manual quote wins over the provider's. To hand days back to the provider,
+open the security's **Quotes** tab. When the security has manual quotes, a
+note above the table counts them over the **whole stored history** — not only
+the range the table shows — with the first and last date (*7 manual quotes in
+the stored history, from 2026-06-30 to 2026-09-16.*; *every stored quote is
+manual* when that is so). Its **Release…** opens a dialog titled with the
+security:
+
+- **From** and **To** are prefilled with the first and last manual date;
+  both are included. Chips below fill the pair: **All** and each stretch of
+  manual quotes (a run with no provider quote between them, the five newest),
+  each with its count.
+- One sentence says what happens: the manual closes in the range are removed
+  and kept in the audit journal with their values, the provider's quotes in
+  the range stay, and the next quote sync stores the provider's close for
+  those days — until then they have no quote. Where the quote sync has no
+  adapter for the security's provider, an attention note says the released
+  days stay without a quote.
+- The confirm names how many manual quotes the range holds (*Release 7
+  manual quotes*). A range without one leaves it disabled with the reason
+  beside it; a *To* before its *From*, or a field that is no date, is named at
+  the field when you confirm, and nothing is written.
+
+After the release the tab says how many quotes were released from when to
+when, with **Sync prices** as the next step where a sync can help, until you
+dismiss it or move on. Nothing on the page restores a released quote; the
+journal keeps it. On a phone the dialog opens as a sheet from the bottom.
+Your agent reads the same summary with
+`GET /api/v1/securities/:security_id/quotes/manual` (MCP
+`portfolixir.quotes.manual`) and releases with
+`portfolixir.quotes.release`.
+
 ### Security Detail Chart
 
 With no selected security, the securities list fills the page workspace.
