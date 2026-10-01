@@ -123,6 +123,72 @@ defmodule Portfolixir.AgentEntryDocsTest do
     end
   end
 
+  # User story (the launch test's run on PR β, D-1):
+  # As the fresh agent that installed Portfolixir from the README and
+  # llms.txt alone,
+  # I want the seven things I had to find elsewhere written where I read,
+  # so that the next agent does not have to look.
+  #
+  # Acceptance criteria:
+  # - The README's Compose step names both tokens it means.
+  # - The README and llms.txt say that the Compose companion's profile goes in
+  #   .env and the mcp service is recreated.
+  # - The README, llms.txt and the deployment guide (EN, DE) say what the
+  #   first build downloads, and how a proxy and an intercepting CA reach it.
+  # - llms.txt, the README and the deployment guide agree on the UI password:
+  #   set it for a Compose install.
+  # - The Connect pages (EN, DE) name the HTTP transport: Streamable HTTP,
+  #   POSTs to /mcp with both Accept types, stateless.
+  # - The deployment guide (EN, DE) names the scheduled ECB exchange-rate
+  #   fetch and the quote sync among the outbound calls.
+  test "the launch test's documentation gaps are closed where an agent reads" do
+    readme = normalized("README.md")
+    llms = normalized("docs/llms.txt")
+    guide_en = normalized("docs/home-deployment.md")
+    guide_de = normalized("docs/de/home-deployment.md")
+
+    assert readme =~
+             "`PORTFOLIXIR_API_TOKEN`, `PORTFOLIXIR_MCP_TOKEN` and `SECRET_KEY_BASE` each from `openssl rand -base64 48`"
+
+    for doc <- [readme, llms] do
+      assert doc =~ "`PORTFOLIXIR_MCP_PROFILE=book` in `.env`"
+      assert doc =~ "`docker compose up -d mcp`"
+    end
+
+    for doc <- [readme, llms, guide_en] do
+      assert doc =~
+               "Debian packages, Hex packages from hex.pm and npm packages from the npm registry"
+
+      assert doc =~ "`HTTPS_PROXY`"
+    end
+
+    assert guide_de =~ "Debian-Pakete, Hex-Pakete von hex.pm und npm-Pakete aus der npm-Registry"
+    assert guide_de =~ "`HTTPS_PROXY`"
+
+    for doc <- [readme, llms, guide_en] do
+      assert doc =~ "Set `PORTFOLIXIR_UI_PASSWORD` for a Compose install"
+    end
+
+    refute llms =~ "before the instance is reachable from anywhere but its own machine"
+
+    for {path, stateless} <- [{@connect_en, "stateless"}, {@connect_de, "zustandslos"}] do
+      page = normalized(path)
+      assert page =~ "Streamable HTTP", path
+
+      assert page =~ "`application/json` and `text/event-stream`" or
+               page =~ "`application/json` und `text/event-stream`",
+             path
+
+      assert page =~ stateless, path
+      assert page =~ "`Mcp-Session-Id`", path
+    end
+
+    for guide <- [guide_en, guide_de] do
+      assert guide =~ "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"
+      assert guide =~ "`config/prod.exs`"
+    end
+  end
+
   # User story (A5, #982):
   # As the operator connecting my agent's MCP client,
   # I want a page with configurations I can copy, for stdio and for HTTP,
