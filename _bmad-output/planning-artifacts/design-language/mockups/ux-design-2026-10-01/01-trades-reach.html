@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Trades: Reichweite und die Spalte „p. a.“ (#984, Pick G1)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: the rules the building story adds to app.css. Every "A" and
+     "B" frame below renders with them (they are copied into the frame); the
+     "Heute" frames render app.css as shipped. -->
+<style id="proposal">
+  /* ① The p. a. column. Under 365 days of holding the cell is a dash in the
+     muted colour; its reason rides the cell's title and a visually hidden
+     sentence, because an ⓘ inside a th would be clipped by the table's own
+     scroller (.data-table-wrapper is overflow-x: auto). */
+  .trade-pa--na { color: var(--color-text-muted); cursor: help; }
+  /* ② The basis line under the list, in the basis voice: 12 px, muted. The
+     class has no context-free rule in app.css today (see the board's notes),
+     so the rule is scoped to the two places this story writes one. */
+  #realized-trades > .summary-basis,
+  #dashboard-trades .summary-basis { margin: 0; font-size: 12px; color: var(--color-text-muted); }
+  /* ③ UX-DR27: under 560 px the trades table gives way to two-line rows —
+     the transactions shape: two children, body and figures, no logo, no kebab. */
+  #realized-trades-phone-rows .phone-row { grid-template-columns: minmax(0, 1fr) auto; }
+  @media (max-width: 560px) { #realized-trades-table-wrapper { display: none; } }
+  /* ④ The Overview card: the figure slot of an .attention-item carries two
+     lines (result over return), both right-aligned; the head row holds the
+     heading and the "Alle Trades →" link. */
+  #dashboard-trades .attention-item .num { text-align: right; }
+  #dashboard-trades .section-head { margin-bottom: 0; }
+  /* ⑤ The sells the matcher could not pair with a buy (orphan_sells), named
+     where the totals are read (UX-DR25): one attention note leading the
+     section, after the FX-exclusion note when both exist, its entries in a
+     disclosure as three aligned columns — security, date, quantity. */
+  .excluded-list { display: grid; width: fit-content; max-width: 100%; grid-template-columns: minmax(0, auto) auto auto; gap: 2px 16px; margin: 4px 0 0; padding: 0; list-style: none; color: var(--color-text); }
+  .excluded-list li { display: contents; }
+  .excluded-list .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  /* ⑥ Sign colour inside the trades table. The template already sets
+     is-positive / is-negative on the result cell, but `.data-table tbody td
+     { color }` outranks the bare class, so today the result prints in the
+     text colour. The p. a. column needs the sign colour (DESIGN.md: semantic
+     colour wherever a sign exists, at every level of a table), and the same
+     rule repairs the result cell. */
+  #realized-trades-table td.is-positive { color: var(--color-positive); }
+  #realized-trades-table td.is-negative { color: var(--color-danger); }
+</style>
+<style>
+  /* Board chrome only. Everything inside the frames is the live markup of
+     income_live.ex, dashboard_live.ex and AppShell with app.css; the
+     proposal is the <style id="proposal"> block above. */
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 1px; border-radius: 6px; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .col { display: grid; gap: 6px; align-content: start; justify-items: start; }
+  /* The board renders at 1440 px so a desktop frame is a 1380 px viewport:
+     at 1100 px the trades table is already wider than its scroller today. */
+  .mock-board, .pickbar { max-width: 1392px; }
+  .dk { width: 1382px; border: 1px solid var(--color-border-strong); border-radius: 12px; overflow: hidden; background: var(--color-bg); }
+  .dk iframe { display: block; width: 1380px; height: 800px; border: 0; }
+  .ph { width: 392px; border: 1px solid var(--color-border-strong); border-radius: 20px; overflow: hidden; background: var(--color-bg); flex: none; }
+  .ph iframe { display: block; width: 390px; height: 700px; border: 0; }
+  .notes { flex: 1 1 280px; display: grid; gap: 10px; align-content: start; font-size: 12.5px; }
+  .notes ol, .notes ul { margin: 0; padding-left: 18px; }
+  .notes li { margin: 0 0 6px; }
+  .flow { font-size: 12px; color: var(--color-text-muted); margin: 0; }
+  .flow b { color: var(--color-text); }
+  .cost { margin: 0; padding-left: 18px; font-size: 12.5px; }
+  .cost li { margin: 0 0 4px; }
+  .mini { flex: 1 1 340px; max-width: 360px; display: grid; gap: 6px; align-content: start; }
+  .mini .workspace-section { padding: 14px 16px; }
+  .absent { border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); padding: 14px 16px; font-size: 12.5px; color: var(--color-text-muted); }
+  .verdict { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 1392px; margin: 0 auto 32px; }
+  .verdict > div { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px 14px; background: var(--color-bg-elevated); font-size: 12.5px; }
+  .verdict h3 { margin: 0 0 6px; font-size: 13px; }
+  .verdict ul { margin: 0; padding-left: 18px; }
+  .verdict li { margin: 0 0 4px; }
+</style>
+</head>
+<body data-widths="1440">
+
+<div class="pickbar"><b>Entscheidung G1 — offen.</b> Wie weit die Liste der abgeschlossenen Trades reicht (#984). Die Liste gibt es schon: Cashflow → „Realisierte Gewinne“ (<code>/cashflow?tab=realized</code>), eine Zeile je abgeschlossenem Kauf-und-Verkauf über alle Depots. Sie steht aber eine Bereichsseite und eine Facette tief, und die Übersicht, auf der der Besitzer landet, sagt nichts darüber, ob sich ein Trade gelohnt hat. <b>Fest in beiden Varianten</b> (vom Plan entschieden, hier nur gezeichnet): die Spalte „p. a.“, ab 365 Tagen Haltedauer, und eine Grundlagenzeile unter der Liste. <b>Zur Wahl:</b> A — die Facette heißt „Trades“ und die Übersicht bekommt eine Karte; B — ein eigener Navigationspunkt „Trades“ mit eigener Route. Empfehlung: <b>A</b>. Ein Kommentar mit dem Buchstaben auf der Planungs-PR entscheidet; ohne Kommentar gilt die Empfehlung. Alle Namen, Beträge und Daten sind erfunden. <b>Gestrichelt = neu.</b></div>
+
+<!-- ============================ HEUTE ============================ -->
+<section class="mock-board">
+  <h2>Heute — Vermögen → Cashflow → „Realisierte Gewinne“ <small>ohne dieses Board</small></h2>
+  <p class="mock-note">Drei Kennzahlen, darunter je Trade Wertpapier, „Gekauft → verkauft“, Haltedauer, Stückzahl, Einstand, Erlös und das Ergebnis mit der Rendite über die ganze Haltedauer dahinter. Ein Trade über 105 Tage (+8,0 %) und einer über 1541 Tage (+45,0 %) stehen mit derselben Art Prozentzahl untereinander; ob sich das lange Halten gelohnt hat, sagt die Zeile nicht. Erreichbar ist das über Vermögen → Cashflow → zweite Facette; die Übersicht verlinkt es nirgends. Unter 560 px rollt die Tabelle seitwärts (UX-DR15s Scroller); UX-DR27 verlangt für eine Liste von Einträgen dort aber zweizeilige Zeilen. Und das Ergebnis, das als <code>.col-subject</code> rechts angeheftet sein soll (#730), rollt mit aus dem Bild: Die globale Regel <code>table { overflow: hidden }</code> macht die Tabelle selbst zum Bezugsrahmen des Anheftens, also greift es nicht — gemessen in diesem Renderer, und es gilt für jede <code>.col-subject</code>-Tabelle, nicht nur diese. Außerhalb des Umfangs dieses Boards; als Befund weitergegeben. Still fällt außerdem jeder Verkauf ohne zugeordneten Kauf weg — etwa Stücke aus einer Einlieferung: Er steht in keiner Summe und keiner Zeile, und nichts sagt es.</p>
+  <div class="mock-row">
+    <div class="col">
+      <p class="cap">Heute — 1380 px, oberer Teil</p>
+      <div class="dk mock-before"><iframe data-tpl="facet-today" data-fixed="560" title="Heute, Desktop"></iframe></div>
+    </div>
+  </div>
+  <div class="mock-row" style="margin-top:16px">
+    <div class="col">
+      <p class="cap">Heute — 390 px, bei der Tabelle</p>
+      <div class="ph mock-before"><iframe data-tpl="facet-today" data-fixed="640" data-scroll-to="#realized-trades-table-wrapper" title="Heute, 390 px"></iframe></div>
+    </div>
+    <div class="notes">
+      <p class="cap">Was der Plan schon entschieden hat — in A und B gleich</p>
+      <ol>
+        <li><b>Spalte „p. a.“</b> links vom Ergebnis: die annualisierte Rendite des Trades, (1 + Rendite)<sup>365 / Tage</sup> − 1, nur ab 365 Tagen Haltedauer. Darunter steht „—“; der Grund liegt im <code>title</code> der Zelle und als versteckter Satz für den Screenreader: „Unter einem Jahr Haltedauer nicht annualisiert“. Ein Trade über 105 Tage mit +8,0 % wäre annualisiert +30,7 % — genau die Zahl, die die Spalte nicht zeigen soll. Die Prozentzahl im Ergebnis bleibt die Rendite über die Haltedauer; die Haltedauer bleibt sichtbar.</li>
+        <li><b>Grundlagenzeile unter der Liste</b>, in der Stimme der Grundlagenzeilen: „FIFO je Wertpapier über alle Depots · Einlieferungen eröffnen keinen Lot · Gebühren und Steuern in Einstand und Erlös · Erträge während der Haltedauer nicht enthalten · p. a. erst ab 365 Tagen Haltedauer“.</li>
+        <li><b>Unter 560 px Zeilen statt Scroller</b> (UX-DR27): Name über „gekauft → verkauft · Tage“, rechts das Ergebnis über „Rendite · p. a.“. Stückzahl, Einstand und Erlös stehen auf dem Desktop und im Tab „Trades“ des Wertpapiers, auf den jede Zeile führt.</li>
+        <li><b>Verkäufe ohne zugeordneten Kauf werden genannt</b> (UX-DR25): eine Achtung-Notiz am Kopf der Liste, in der Form der Notiz für fehlende Kurse, mit Anzahl, Grund und einer Aufklappliste Wertpapier · Datum · Stückzahl. Ohne Abhilfe-Knopf — es gibt keine, die Grundlagenzeile nennt die Grenze (UX-DR26). In A und B gleich.</li>
+      </ol>
+      <p class="flow">Die Grundlage der neuen Zahl gehört in die Antwort von API und MCP (AGENTS.md, Kennzahlregel): Formel, Schwelle 365 Tage, und dass die annualisierte Zahl dieselbe Rendite in Handelswährung annualisiert, die daneben steht. Das ist Sache der Story, nicht des Boards.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE A ============================ -->
+<section class="mock-board">
+  <h2>Variante A — die Facette heißt „Trades“, die Übersicht bekommt eine Karte <small>empfohlen</small></h2>
+  <p class="mock-note">Die Liste bleibt, wo sie ist — der Code sagt es schon: „the facet IS the Trades view“. Ihr Schalter heißt jetzt „Trades“ statt „Realisierte Gewinne“, der Untertitel der Seite nennt sie (UX-DR21, erweitert), die URL <code>?tab=realized</code> bleibt, damit Lesezeichen halten. Dazu bekommt die Übersicht eine Karte <b>„Abgeschlossene Trades“</b> direkt unter dem Kennzahlenstreifen: die fünf zuletzt abgeschlossenen, je Wertpapier, Verkaufsdatum und Tage über Ergebnis und Rendite — „p. a.“ ab 365 Tagen, sonst „gesamt“ —, und rechts im Kopf „Alle Trades →“ zur Facette. Der Besitzer landet auf der Übersicht; dort steht die Antwort jetzt, ohne eine neue Route, ohne einen neuen Navigationspunkt und ohne neue Komponente: die Karte ist das <code>.attention-list</code>-Muster von „Ziel-Abweichungen“ und „Fällig“, der Link das Muster von „Alle Kennzahlen → Bestände“. Jede Zeile führt in den Tab „Trades“ ihres Wertpapiers, wie in der Facette.</p>
+
+  <div class="mock-row">
+    <div class="col">
+      <p class="cap">A — Übersicht, 1380 px</p>
+      <div class="dk mock-after"><iframe data-tpl="overview-a" data-proposal title="Variante A, Übersicht, Desktop"></iframe></div>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:20px">
+    <div class="col">
+      <p class="cap">A — Cashflow → Trades, 1380 px (Verkäufe ohne Kauf aufgeklappt; der Titel an einem „—“ nachgestellt; Vorzeichenfarbe im Ergebnis durch Regel ⑥ repariert)</p>
+      <div class="dk mock-after"><iframe data-tpl="facet-a" data-proposal title="Variante A, Facette Trades, Desktop"></iframe></div>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:20px">
+    <div class="col">
+      <p class="cap">A — Übersicht, 390 px</p>
+      <div class="ph mock-after"><iframe data-tpl="overview-a" data-proposal data-fixed="960" title="Variante A, Übersicht, 390 px"></iframe></div>
+    </div>
+    <div class="col">
+      <p class="cap">A — Trades, 390 px, bei den Zeilen</p>
+      <div class="ph mock-after"><iframe data-tpl="facet-a" data-proposal data-fixed="960" data-scroll-to="#realized-trades-phone-rows" title="Variante A, Trades, 390 px"></iframe></div>
+    </div>
+    <div class="notes" style="flex-basis:260px">
+      <p class="cap">390 px — was sich ändert</p>
+      <ol>
+        <li><b>Die Karte bricht nicht um.</b> Name links, darf umbrechen; Ergebnis und Rendite rechts, zweizeilig, ohne Umbruch (<code>.attention-item .num</code>). Kein neues Element für das Telefon.</li>
+        <li><b>Die Liste wird Zeilen</b> (Regel ③): <code>.phone-row</code> mit zwei Kindern wie die Transaktionen. Unter 365 Tagen steht rechts nur die Rendite über die Haltedauer, kein „p. a. —“; die Grundlagenzeile darunter sagt warum.</li>
+        <li><b>Die Matrix bleibt Scroller</b> (UX-DR15), unverändert.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:20px">
+    <div class="mini">
+      <p class="cap">A — Karte, ein Verkauf ohne Kurs am Schlusstag</p>
+      <section id="dashboard-trades" class="workspace-section mock-frame" style="border-radius:12px">
+        <div class="section-head"><h2>Abgeschlossene Trades</h2><a class="kpi-summary__link" href="#">Alle Trades →</a></div>
+        <div class="data-note data-note--attention is-new">
+          <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/></svg></span>
+          <span class="data-note__word">Achtung</span>
+          <div class="data-note__body">1 Verkauf ohne gespeicherten Kurs am Schlusstag fehlt in dieser Liste: Heron Solar AG. Der Nachtrag der Kurse steht unter „Alle Trades“.</div>
+        </div>
+        <p class="flow">Darunter die fünf Zeilen wie oben. UX-DR25: Anzahl und Name stehen dort, wo die Liste gelesen wird; der Ausweg ist ein echter — die Facette trägt den Knopf „Historische Kurse nachladen“. Ein Verkauf ohne zugeordneten Kauf ist kein Trade, fehlt also nicht in den fünf; er wird in der Facette genannt, wo die Summen stehen.</p>
+      </section>
+    </div>
+    <div class="mini">
+      <p class="cap">A — Karte, während sie rechnet</p>
+      <section class="workspace-section mock-frame" style="border-radius:12px">
+        <div class="section-head" style="margin-bottom:0"><h2>Abgeschlossene Trades</h2><a class="kpi-summary__link" href="#">Alle Trades →</a></div>
+        <p class="section-skeleton" aria-busy="true" style="min-height:120px;margin:0"></p>
+        <p class="flow">Der Block-Platzhalter von „Ziel-Abweichungen“ (UX-DR20), ohne Hinweis „berechnet“ — die Liste ist eine Sache von Sekundenbruchteilen.</p>
+      </section>
+    </div>
+    <div class="mini">
+      <p class="cap">A — kein abgeschlossener Trade</p>
+      <div class="absent">Die Karte fehlt ganz, wie „Fällig“ ohne Termin: eine Karte, die nichts zeigt, verspricht nur. Die Facette zeigt weiter ihren leeren Zustand „Noch keine abgeschlossenen Verkäufe gebucht.“</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE B ============================ -->
+<section class="mock-board">
+  <h2>Variante B — ein eigener Navigationspunkt „Trades“ auf <code>/trades</code> <small>mehr Gewicht, mehr Umbau</small></h2>
+  <p class="mock-note">„Trades“ wird ein Bereich neben Übersicht, Vermögen, Wertpapiere und Transaktionen, mit eigener Route <code>/trades</code>: dieselbe Grundlagenzeile oben, dieselben drei Kennzahlen, dieselbe Liste mit „p. a.“ und Grundlagenzeile, dieselbe Matrix. Cashflow verliert die Facette; <code>/cashflow?tab=realized</code> leitet auf <code>/trades</code> um. Für B spricht: ein Klick von überall, und „Trades“ steht dauerhaft in der Seitenleiste. Dagegen: Die Übersicht, auf der der Besitzer landet, sagt weiter nichts über Trades — B verlegt die Liste, holt sie aber nicht dorthin, wo er hinschaut. Und B kostet:</p>
+  <div class="mock-row">
+    <div class="col">
+      <p class="cap">B — /trades, 1380 px, oberer Teil (die Notiz zu Verkäufen ohne Kauf wie in A, hier zugeklappt)</p>
+      <div class="dk"><iframe data-tpl="trades-b" data-proposal data-fixed="700" title="Variante B, /trades, Desktop"></iframe></div>
+    </div>
+  </div>
+  <div class="mock-row" style="margin-top:16px">
+    <div class="col">
+      <p class="cap">B — Vermögen → Cashflow danach: drei Facetten, oberer Rand</p>
+      <div class="dk"><iframe data-tpl="cashflow-b" data-proposal data-fixed="190" title="Variante B, Cashflow ohne Facette"></iframe></div>
+    </div>
+  </div>
+  <div class="mock-row" style="margin-top:16px">
+    <div class="notes">
+      <p class="cap">Was B zusätzlich kostet</p>
+      <ul class="cost">
+        <li><b>Eine Route und ein Navigationspunkt</b> — und eine Änderung an ADR-0022, dessen Leitplanke sagt: was in keinen Bereich passt, ist ein Anlass, über die Informationsarchitektur zu reden, nicht einen Navigationspunkt anzulegen. Trades passen heute in Vermögen.</li>
+        <li><b>Ein neues Symbol</b> für den Navigationspunkt (UX-DR16: kein vorhandenes darf eine zweite Bedeutung tragen) — gestrichelt gezeichnet.</li>
+        <li><b>Die Facette entfällt</b> samt Umleitung, <code>nav_current?</code>-Zuordnung und den Tests von vier Facetten; der Facettenschalter verliert ein Element, das UX-DR21-Untertitelpaar ein Glied.</li>
+        <li><b>Die Übersicht bleibt</b>, wie sie ist — die Lücke, um die es geht, bleibt offen, oder B braucht die Karte aus A trotzdem.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<div class="verdict">
+  <div>
+    <h3>Warum A</h3>
+    <ul>
+      <li>Der Besitzer öffnet die Übersicht. A stellt die Antwort dorthin, B nur in die Seitenleiste.</li>
+      <li>Keine Route, kein Navigationspunkt, keine Änderung an ADR-0022; nur ein Schalter wird umbenannt.</li>
+      <li>Fast nichts Neues im Inventar: <code>.attention-list</code>, <code>.kpi-summary__link</code>, <code>.phone-row</code>, <code>.summary-basis</code>, <code>.data-note</code>; neu sind nur die Aufklappliste in der Notiz (⑤) und Regeln, die vorhandene Klassen dort wirken lassen, wo sie heute verpuffen (②, ⑥).</li>
+    </ul>
+  </div>
+  <div>
+    <h3>Was die Story in DESIGN.md festhält (A)</h3>
+    <ul>
+      <li>Die Karte „Abgeschlossene Trades“: Platz unter dem Kennzahlenstreifen, Kopf mit Link, Grundlagenzeile, fünf Zeilen, Zustände (Ausschluss, Platzhalter, fehlt).</li>
+      <li>Die Spalte „p. a.“: Position, Schwelle, der „—“ mit Titel und verstecktem Satz.</li>
+      <li>Die Notiz zu Verkäufen ohne zugeordneten Kauf: Platz (nach der Kurs-Notiz), Satz, Aufklappliste Wertpapier · Datum · Stückzahl, keine Abhilfe.</li>
+      <li>Die Trades-Zeile unter 560 px (UX-DR27); UX-DR2 bekommt die fünfte Karte als Änderung.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============================ TEMPLATES ============================ -->
+<template id="css-mock"><style>
+  body { background: var(--color-bg); }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 1px; border-radius: 6px; }
+  .is-new-band { outline: 2px dashed var(--color-accent); outline-offset: -3px; }
+  html.screen, html.screen body { overflow: hidden; }
+  /* a native title tooltip, drawn: the renderer has no pointer */
+  .mock-title-anchor { position: relative; }
+  .mock-title { position: absolute; z-index: 9; top: calc(100% - 4px); right: 4px; padding: 3px 7px; border: 1px solid #a8aeb9; background: #fbfbf8; color: #1f2430; font: 12px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif; white-space: nowrap; box-shadow: 0 2px 6px rgba(15,23,42,.18); text-transform: none; letter-spacing: 0; font-weight: 400; }
+</style></template>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds the frames (srcdoc, so
+   relative links resolve against this board) from the live markup of
+   income_live.ex, dashboard_live.ex and AppShell. */
+const $ = (id) => document.getElementById(id).innerHTML;
+const CSS_HREF = '../../../../../priv/static/app.css';
+const IMG = '../../../../../priv/static/images/';
+
+const P = {
+  dashboard: '<rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="5" rx="1.5"/><rect x="13" y="10" width="8" height="11" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/>',
+  chart_line: '<path d="M3 17 9 11l4 4 8-8"/>',
+  layers: '<path d="m12 2 10 6-10 6L2 8Z"/><path d="m2 16 10 6 10-6"/><path d="m2 12 10 6 10-6"/>',
+  bars: '<path d="M4 4h16M4 12h16M4 20h16"/>',
+  briefcase: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+  filter: '<path d="M3 5h18l-7 9v6l-4-2v-4Z"/>',
+  tag: '<path d="M20.6 11.4 12 2H4v8l9.4 9.4a2 2 0 0 0 2.8 0l4.4-4.4a2 2 0 0 0 0-2.8Z"/><circle cx="7.5" cy="7.5" r="1.2"/>',
+  pie: '<path d="M21 12A9 9 0 1 1 12 3v9Z"/><path d="M21 12a9 9 0 0 0-9-9v9h9Z"/>',
+  chart_bar: '<path d="M3 20V8M9 20V4M15 20v-8M21 20v-5"/>',
+  camera: '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/>',
+  calc: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6"/><circle cx="9" cy="11" r=".6"/><circle cx="12" cy="11" r=".6"/><circle cx="15" cy="11" r=".6"/><circle cx="9" cy="14" r=".6"/><circle cx="12" cy="14" r=".6"/><circle cx="15" cy="14" r=".6"/><path d="M9 17h6"/>',
+  shield: '<path d="M12 21s7-3.5 7-9V5.5L12 3 5 5.5V12c0 5.5 7 9 7 9Z"/>',
+  chevron_right: '<path d="m9 6 6 6-6 6"/>',
+  alert_triangle: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/>',
+  /* variant B only: a new glyph, a round trip — out and back */
+  roundtrip: '<path d="M4 8h15"/><path d="m15 4 4 4-4 4"/><path d="M20 16H5"/><path d="m9 12-4 4 4 4"/>'
+};
+const svg = (n, s = 14) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n]}</svg>`;
+
+/* ---- synthetic data: invented securities, invented figures ---- */
+const T = [
+  { n: 'Juniper Rail AG', o: '03.03.2025', c: '22.09.2026', d: 568, q: '40,0000', b: '3.200,00', p: '3.712,00', cur: 'EUR', r: '512,00', s: 1, pct: '16,0', pa: '10,0' },
+  { n: 'Orchid Bay Pharmaceuticals plc', o: '10.02.2026', c: '15.09.2026', d: 217, q: '25,0000', b: '2.000,00', p: '1.850,00', cur: 'EUR', r: '-150,00', s: -1, pct: '-7,5', pa: null },
+  { n: 'Meridian Global Equity ETF', o: '14.06.2022', c: '02.09.2026', d: 1541, q: '60,0000', b: '4.800,00', p: '6.960,00', cur: 'EUR', r: '2.160,00', s: 1, pct: '45,0', pa: '9,2' },
+  { n: 'Cobalt Ridge Logistics SE', o: '05.05.2026', c: '18.08.2026', d: 105, q: '100,0000', b: '1.500,00', p: '1.620,00', cur: 'EUR', r: '120,00', s: 1, pct: '8,0', pa: null },
+  { n: 'Quarry Lane Materials AG', o: '22.07.2024', c: '30.07.2026', d: 738, q: '80,0000', b: '2.400,00', p: '2.280,00', cur: 'EUR', r: '-120,00', s: -1, pct: '-5,0', pa: '-2,5' },
+  { n: 'Helios Solar Systems SE', o: '02.06.2025', c: '02.06.2026', d: 365, q: '50,0000', b: '1.000,00', p: '1.090,00', cur: 'EUR', r: '90,00', s: 1, pct: '9,0', pa: '9,0' },
+  { n: 'Alder Creek Timber Fund', o: '15.11.2023', c: '10.04.2026', d: 877, q: '30,0000', b: '2.700,00', p: '3.150,00', cur: 'USD', r: '409,09', s: 1, pct: '16,7', pa: '6,6' }
+];
+const ORPHANS = [
+  ['Birchwood Global Savings Fund', '12.05.2026', '15,0000'],
+  ['Alder Creek Timber Fund Class B', '03.02.2026', '40,0000'],
+  ['Birchwood Global Savings Fund', '28.11.2025', '10,0000']
+];
+const sc = (s) => (s > 0 ? 'is-positive' : s < 0 ? 'is-negative' : '');
+const pcSign = (v) => (v.startsWith('-') ? 'is-negative' : 'is-positive');
+const plus = (v) => (v.startsWith('-') ? v : '+' + v);
+const days = (d) => `${d} ${d === 1 ? 'Tag' : 'Tage'}`;
+
+/* ---- shell: sidebar, top bar, main (AppShell.shell) ---- */
+function sidebar(active, b) {
+  const top = [['Übersicht', 'dashboard', 'dashboard'], ['Vermögen', 'chart_line', 'wealth']];
+  if (b) top.push(['Trades', 'roundtrip', 'trades', true]);
+  top.push(['Wertpapiere', 'layers', 'securities'], ['Transaktionen', 'bars', 'transactions']);
+  const admin = [['Konten & Depots', 'briefcase', 'x1'], ['Ansichten', 'filter', 'x2'], ['Klassifizierungen', 'tag', 'x3']];
+  const link = ([label, ico, key, isNew]) => `<a class="nav-link${key === active ? ' is-active' : ''}${isNew ? ' is-new' : ''}"${key === active ? ' aria-current="page"' : ''}><span class="nav-marker" aria-hidden="true"></span><span class="nav-ico" aria-hidden="true">${svg(ico)}</span><span class="nav-label">${label}</span></a>`;
+  return `<aside class="app-sidebar" aria-label="Anwendungsnavigation"><a class="brand" aria-label="Portfolixir"><span class="brand-logo" aria-hidden="true"><img class="brand-mark brand-mark-light" src="${IMG}logo-mark-light.svg" alt=""><img class="brand-mark brand-mark-dark" src="${IMG}logo-mark-dark.svg" alt=""></span><span class="brand-wordmark">Portfolixir</span></a><nav class="primary-nav" aria-label="Hauptnavigation"><div class="nav-group nav-group-unlabeled">${top.map(link).join('')}</div><div class="nav-group"><div class="nav-group-head"><span>Verwaltung</span></div>${admin.map(link).join('')}</div></nav></aside>`;
+}
+function topbar(title, subtitle, subNew) {
+  return `<header class="topbar"><label class="sidebar-toggle" aria-label="Navigation öffnen"><span class="burger-bars" aria-hidden="true"></span></label><div class="topbar-primary"><a class="topbar-brand" aria-label="Portfolixir"><span class="brand-logo" aria-hidden="true"><img class="topbar-mark brand-mark-light" src="${IMG}logo-mark-light.svg" alt=""><img class="topbar-mark brand-mark-dark" src="${IMG}logo-mark-dark.svg" alt=""></span><span>Portfolixir</span></a><div class="topbar-page"><h1>${title}</h1><p${subNew ? ' class="is-new"' : ''}>${subtitle}</p></div></div><div class="topbar-controls"><nav class="locale-switcher" aria-label="Sprache"><a class="locale-link">EN</a><a class="locale-link is-active" aria-current="true">DE</a></nav></div></header>`;
+}
+const shell = (o) => `<div class="app-shell">${sidebar(o.active, o.b)}<div class="app-frame">${topbar(o.title, o.subtitle, o.subNew)}<main class="app-main app-main--workspace"><div class="workspace-page">${o.body}</div></main></div></div>`;
+
+/* ---- Wealth area tabs (AppShell.wealth_tabs) ---- */
+function areaTabs() {
+  const tabs = [['Bestände', 'chart_line'], ['Allokation & Ziele', 'pie'], ['Cashflow', 'chart_bar', true], ['Snapshots', 'camera'], ['Steuern', 'calc'], ['Risiko', 'shield']];
+  return `<nav class="area-tabs" data-tab-level="1" aria-label="Bereichs-Tabs">${tabs.map(([l, i, on]) => `<a class="area-tab${on ? ' is-active' : ''}"${on ? ' aria-current="page"' : ''}><span class="area-tab__icon" aria-hidden="true">${svg(i)}</span><span class="area-tab__label" data-label="${l}">${l}</span></a>`).join('')}</nav>`;
+}
+function facets(mode) {
+  const f = mode === 'b'
+    ? [['Erträge', true], ['Ein- &amp; Auszahlungen'], ['Kosten']]
+    : [['Erträge'], [mode === 'a' ? 'Trades' : 'Realisierte Gewinne', false, true], ['Ein- &amp; Auszahlungen'], ['Kosten']];
+  return `<div class="workspace-section workspace-section--controls"><nav class="segmented-control" data-role="cashflow-facets" aria-label="Cashflow-Facette">${f.map(([l, inc, real]) => {
+    const on = inc || real;
+    const isNew = mode === 'a' && real;
+    return `<a class="segmented-control__option${on ? ' is-active' : ''}${isNew ? ' is-new' : ''}"${on ? ' aria-current="true"' : ''}>${l}</a>`;
+  }).join('')}</nav></div>`;
+}
+
+/* ---- the realized facet's body (income_live.ex, facet "realized") ---- */
+function facetBody(mode) {
+  const withPa = mode !== 'today';
+  const basisTop = `<section class="workspace-section"><div class="summary-basis" data-role="facet-basis">Beträge in EUR · FIFO-gematchte Verkäufe · alle Portfolios<details class="metric-tooltip metric-tooltip--inline" data-role="facet-info"><summary aria-label="Zu dieser Facette">ⓘ</summary><p role="tooltip">…</p></details></div></section>`;
+  const figures = `<div id="realized-figures" class="kpi-band__lead"><article class="stat stat--lead"><span>Realisiert gesamt</span><strong>3.021,09<small class="value-suffix">EUR</small></strong></article><article class="stat stat--lead"><span>Trefferquote</span><strong>71,4%</strong><small class="stat__sub">über 7 abgeschlossene Trades</small></article><article class="stat stat--lead"><span>Durchschnittliche Haltedauer</span><strong>630 Tage</strong></article></div>`;
+  const head = `<thead><tr><th>Wertpapier</th><th>Gekauft → verkauft</th><th class="num">Haltedauer</th><th class="num">Stückzahl</th><th class="num">Einstand</th><th class="num">Erlös</th>${withPa ? '<th class="num is-new">p. a.</th>' : ''}<th class="num col-subject">Ergebnis</th></tr></thead>`;
+  const paCell = (t, i) => {
+    if (!withPa) return '';
+    if (t.pa) return `<td class="num trade-pa ${pcSign(t.pa)}">${t.pa}%</td>`;
+    const bubble = mode === 'a' && i === 1 ? '<span class="mock-title">Unter einem Jahr Haltedauer nicht annualisiert</span>' : '';
+    return `<td class="num trade-pa trade-pa--na${bubble ? ' mock-title-anchor' : ''}" title="Unter einem Jahr Haltedauer nicht annualisiert"><span aria-hidden="true">—</span><span class="visually-hidden">nicht annualisiert, unter einem Jahr Haltedauer</span>${bubble}</td>`;
+  };
+  const rows = T.map((t, i) => `<tr data-role="realized-trade"><td><a href="#">${t.n}</a></td><td>${t.o} → ${t.c}</td><td class="num">${days(t.d)}</td><td class="num">${t.q}</td><td class="num">${t.b}<small class="value-suffix">${t.cur}</small></td><td class="num">${t.p}<small class="value-suffix">${t.cur}</small></td>${paCell(t, i)}<td class="num col-subject ${sc(t.s)}" data-role="trade-result">${t.r}<small class="value-suffix">EUR</small> <span class="stat__sub">${t.pct}%</span></td></tr>`).join('');
+  const table = `<div id="realized-trades-table-wrapper" class="data-table-wrapper"><table id="realized-trades-table" class="data-table">${head}<tbody>${rows}</tbody></table></div>`;
+  const phoneRows = withPa ? `<ul id="realized-trades-phone-rows" class="phone-rows is-new" aria-label="Trades">${T.map((t) => `<li class="phone-row" data-role="phone-row"><span class="phone-row__body"><a class="phone-row__target" href="#"><span class="phone-row__name">${t.n}</span></a><span class="phone-row__ids">${t.o} → ${t.c} · ${days(t.d)}</span></span><span class="phone-row__figures"><span class="phone-row__figure ${sc(t.s)}">${t.r}<small class="value-suffix">EUR</small></span><span class="phone-row__figure2"><span class="${t.pct.startsWith('-') ? 'decimal-negative' : 'decimal-positive'}">${t.pct}%</span>${t.pa ? ` · <span class="${t.pa.startsWith('-') ? 'decimal-negative' : 'decimal-positive'}">${t.pa}%</span> p. a.` : ''}</span></span></li>`).join('')}</ul>` : '';
+  const basisFoot = withPa ? '<p class="summary-basis is-new" data-role="trades-basis">FIFO je Wertpapier über alle Depots · Einlieferungen eröffnen keinen Lot · Gebühren und Steuern in Einstand und Erlös · Erträge während der Haltedauer nicht enthalten · p. a. erst ab 365 Tagen Haltedauer</p>' : '';
+  const annual = `<section id="realized-annual" class="workspace-section"><h2>Realisiert je Periode</h2><details class="section-disclosure"><summary class="disclosure-summary">${svg('chevron_right', 12).replace('aria-hidden', 'class="disclosure-chevron" aria-hidden')}Matrix nach Jahr und Monat</summary></details></section>`;
+  const orphans = withPa ? `<div class="data-note data-note--attention is-new" data-role="realized-orphans"><span class="data-note__icon" aria-hidden="true">${svg('alert_triangle')}</span><span class="data-note__word">Achtung</span><div class="data-note__body">3 Verkäufe ohne zugeordneten Kauf (z. B. aus Einlieferungen) sind nicht enthalten — in keiner der drei Kennzahlen, keiner Zeile und nicht in der Matrix.<details class="perf-table-disclosure"${mode === 'a' ? ' open' : ''}><summary class="disclosure-summary">${svg('chevron_right', 12).replace('aria-hidden', 'class="disclosure-chevron" aria-hidden')}Die 3 Verkäufe</summary><ul class="excluded-list">${ORPHANS.map(([n, d, q]) => `<li><span>${n}</span><span class="num">${d}</span><span class="num">${q} Stück</span></li>`).join('')}</ul></details></div></div>` : '';
+  return `${basisTop}<section id="realized-trades" class="workspace-section kpi-band">${orphans}${figures}${table}${phoneRows}${basisFoot}</section>${annual}`;
+}
+
+/* ---- the Overview (dashboard_live.ex, populated) ---- */
+function tradesCard() {
+  const rows = T.slice(0, 5).map((t) => {
+    const ret = t.pa ? `<span class="${pcSign(t.pa)}">${plus(t.pa)}%</span> p. a.` : `<span class="${pcSign(t.pct)}">${plus(t.pct)}%</span> gesamt`;
+    return `<li><a href="#" class="attention-item" data-role="closed-trade"><span class="attention-name">${t.n}<small class="attention-item__sub">verkauft ${t.c} · ${days(t.d)}</small></span><span class="num"><span class="${sc(t.s)}">${plus(t.r)}</span><small class="value-suffix">EUR</small><small class="attention-item__sub">${ret}</small></span></a></li>`;
+  }).join('');
+  return `<section id="dashboard-trades" class="workspace-section is-new-band"><div class="section-head"><h2>Abgeschlossene Trades</h2><a class="kpi-summary__link" href="#">Alle Trades →</a></div><p class="summary-basis" data-role="trades-card-basis">Die fünf zuletzt abgeschlossenen · Ergebnis in EUR · FIFO über alle Depots, unabhängig von der Ansicht · p. a. erst ab 365 Tagen Haltedauer</p><ul class="attention-list">${rows}</ul></section>`;
+}
+function overview(withCard) {
+  const value = `<section class="workspace-section grid" aria-label="Vermögenswert"><a class="stat stat--link"><span>Alles</span><strong><span class="count-up"><span data-count-digits>148.320,55</span></span><small class="value-suffix">EUR</small></strong><small data-role="card-ttwror"><span class="is-positive">+6,2%</span> YTD</small></a></section>`;
+  const strip = `<section class="workspace-section kpi-strip" aria-label="Kennzahlen"><div class="kpi-strip__cells"><a class="kpi-strip__cell"><span class="kpi-strip__label">TTWROR 1J</span><strong class="is-positive">+8,4%</strong><small class="kpi-strip__sub">IRR +7,9%</small></a><a class="kpi-strip__cell"><span class="kpi-strip__label">Cashquote</span><strong>6,8%</strong><small class="kpi-strip__sub">10.085,80 EUR Cash</small></a><a class="kpi-strip__cell"><span class="kpi-strip__label">Letzte Buchung</span><strong>22.09.2026</strong><small class="kpi-strip__sub">Verkauf · Juniper Rail AG</small></a><a class="kpi-strip__cell"><span class="kpi-strip__label">Kurse</span><strong>30.09.2026</strong></a></div><div class="summary-basis kpi-strip__basis">Ansicht Alles · Rendite über 1J bis 30.09.2026 · in EUR · Kurse: der neueste über die gehaltenen Positionen<details class="metric-tooltip metric-tooltip--inline"><summary aria-label="Zu diesen Kennzahlen">ⓘ</summary><p role="tooltip">…</p></details></div></section>`;
+  const attention = `<section id="dashboard-attention" class="workspace-section"><h2>Ziel-Abweichungen</h2><p class="hint" data-role="attention-explainer">Ansicht Alles · Plan „Langfrist“ auf Anlageklasse · Kategorien, die mehr als ±5 pp von ihrem Soll-Gewicht abweichen.</p><ul class="attention-list"><li><a class="attention-item"><span class="attention-name">Aktie</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-over" style="width:45%"></span></span><span class="num">6,2 pp über dem Soll · 9.196,00 EUR</span></a></li><li><a class="attention-item"><span class="attention-name">Anleihe</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-under" style="width:39%"></span></span><span class="num is-negative">5,4 pp unter dem Soll · -8.009,00 EUR</span></a></li></ul></section>`;
+  return `<div id="dashboard-overview">${value}${strip}${withCard ? tradesCard() : ''}${attention}</div>`;
+}
+
+const TPL = {
+  'facet-today': () => shell({ active: 'wealth', title: 'Cashflow', subtitle: 'Realisierte Gewinne und Verluste aus Verkäufen', body: areaTabs() + facets('today') + facetBody('today') }),
+  'facet-a': () => shell({ active: 'wealth', title: 'Cashflow', subtitle: 'Abgeschlossene Trades und ihr realisiertes Ergebnis', subNew: true, body: areaTabs() + facets('a') + facetBody('a') }),
+  'overview-a': () => shell({ active: 'dashboard', title: 'Übersicht', subtitle: 'Lokales Portfolio-Tracking', body: overview(true) }),
+  'trades-b': () => shell({ active: 'trades', b: true, title: 'Trades', subtitle: 'Abgeschlossene Trades und ihr realisiertes Ergebnis', subNew: true, body: facetBody('b') }),
+  'cashflow-b': () => shell({ active: 'wealth', b: true, title: 'Cashflow', subtitle: 'Erhaltene Dividenden und Zinsen', body: areaTabs() + facets('b') })
+};
+
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const css = $('css-mock') + ('proposal' in f.dataset ? document.getElementById('proposal').outerHTML : '');
+  const fixed = f.dataset.fixed;
+  f.addEventListener('load', () => {
+    const doc = f.contentDocument;
+    if (fixed) {
+      f.style.height = fixed + 'px';
+      const sel = f.dataset.scrollTo;
+      if (sel) {
+        setTimeout(() => {
+          const el = doc.querySelector(sel);
+          const bar = doc.querySelector('.topbar');
+          const win = f.contentWindow;
+          if (el) win.scrollTo(0, el.getBoundingClientRect().top + win.scrollY - (bar ? bar.offsetHeight : 0) - 12);
+        }, 120);
+      }
+      return;
+    }
+    f.style.height = Math.ceil(doc.documentElement.scrollHeight) + 'px';
+  });
+  f.srcdoc = `<!doctype html><html lang="de"${fixed ? ' class="screen"' : ''}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body>${TPL[f.dataset.tpl]()}</body></html>`;
+}
+</script>
+</body>
+</html>
