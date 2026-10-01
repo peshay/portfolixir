@@ -7,7 +7,9 @@ defmodule Portfolixir.Ledger.TradeMatcher do
 
   - `:open_lots`    — remaining unmatched buy quantities (oldest first)
   - `:closed_trades` — realised round-trips, one entry per sell, with
-                      weighted-average cost basis across consumed lots
+                      weighted-average cost basis across consumed lots and
+                      the consumed lots themselves (`lots`: open date,
+                      quantity taken, prorated cost; #984)
   - `:orphan_sells` — sell quantities with no preceding buy stock, so the
                       caller can surface them rather than silently losing
                       data
@@ -257,10 +259,32 @@ defmodule Portfolixir.Ledger.TradeMatcher do
       realized_pnl_abs: realized,
       realized_pnl_pct: realized_pct,
       holding_period_days: holding_period_days,
-      currency_code: Map.get(tx, :currency_code)
+      currency_code: Map.get(tx, :currency_code),
+      lots: Enum.map(consumed, &consumed_lot/1)
     }
 
     %{state | closed: [trade | state.closed]}
+  end
+
+  # #984 (Sprint 17 T1): the lots a sell consumed, oldest first, each with
+  # the cost the trade's basis already counts for it — quantity × buy price
+  # plus the lot's buy fees and taxes prorated by the quantity taken, through
+  # the same `prorate/3` the basis uses. Their costs sum to `basis`. The
+  # annualized return (`Ledger.TradeReturn`) solves over these flows, each
+  # at its own open date, rather than over one averaged date.
+  defp consumed_lot(lot) do
+    fees = prorate(lot.buy_fees, lot.quantity, lot.original_quantity)
+    taxes = prorate(lot.buy_taxes, lot.quantity, lot.original_quantity)
+
+    %{
+      open_date: lot.open_date,
+      quantity: lot.quantity,
+      cost:
+        lot.quantity
+        |> Decimal.mult(lot.buy_price)
+        |> Decimal.add(fees)
+        |> Decimal.add(taxes)
+    }
   end
 
   defp orphan(tx, qty) do
