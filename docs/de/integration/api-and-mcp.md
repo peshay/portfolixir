@@ -2836,6 +2836,35 @@ Portfolios addieren sich nur, wenn sie eine Basiswährung teilen (ein Konto
 gehört genau einem Portfolio), und Renditen mehrerer Portfolios addieren sich
 nie.
 
+**Prompts.** Der Begleitdienst bietet zwei MCP-Prompts (`prompts/list`,
+`prompts/get`), unter jedem Profil dieselben, und jeder trägt den Rahmen ohne
+Beratung in seinem eigenen Text: Das System bereitet Entscheidungen vor, der
+Betreiber führt sie aus, und nichts platziert, schlägt vor oder bemisst einen
+Trade.
+
+- `first_setup` prüft die Instanz (`portfolixir.contract.get`) und nennt das
+  aktive Profil, liest, was vorhanden ist, schlägt Cash-Konten, Depots, Buckets
+  und Views vor (eine View mit `include_all` für die Summe über alles), erklärt,
+  wie Daten hineinkommen, und schreibt nichts ohne die Bestätigung des
+  Betreibers.
+- `import_converter` (optionales Argument `export_file`) leitet den Agenten
+  des Nutzers an, auf dem Rechner des Betreibers einen Konverter von einem
+  Bank- oder Broker-Export zu schreiben und auszuführen, der eine
+  Portfolio-Performance-CSV-v1-Datei, die der Betreiber auf der Import-Seite
+  ablegt, erzeugt; die Seite zeigt sie in der Vorschau und übernimmt sie
+  idempotent. Er nennt das Format genau: die Kopfzeile, `;`, Daten als
+  `YYYY-MM-DD`, deutsche Zahlen, die deutschen Typ-Bezeichnungen, `Betrag` als
+  Bargeldwirkung jeder Zeile, `Konto` und `Gegenkonto` je Typ, die Regel nur
+  in EUR und die JSON-v1-Variante für andere Währungen und für ISINs, mit je
+  einem synthetischen Beispiel, das ein Test durch die echte Import-Seite
+  führt. Er bindet den Agenten: kein Broker-Sync, kein Netzwerk- und kein
+  Modellaufruf, nur synthetische Beispiele, und die umgewandelten Zeilen
+  einzeln über `portfolixir.transactions.create` zu buchen, ist kein Ersatz,
+  weil das die Vorschau und die Idempotenz über den Inhalts-Hash übergeht.
+
+Die Prompts gibt es nur über MCP: Ein Prompt ist eine Anweisung an den
+Agenten des Nutzers, und die API hat nichts, dem sie ihn liefern könnte.
+
 **Unsichtbare Zeichen.** Jeder Schreibzugriff lehnt die Zeichen ab, die der
 Betreiber nicht sehen kann (siehe „Text“ oben), aber eine Zeile von vor dieser
 Regel kann sie noch tragen. Der Begleitdienst ist der Ort, an dem sie sichtbar

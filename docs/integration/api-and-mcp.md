@@ -2875,6 +2875,32 @@ the portfolio tool is the read: its totals over several portfolios add up only
 when they share one base currency (an account belongs to exactly one
 portfolio), and returns of several portfolios never add up.
 
+**Prompts.** The companion offers two MCP prompts (`prompts/list`,
+`prompts/get`), the same under every profile, each carrying the no-advice
+framing in its own text: the system prepares decisions and the operator
+executes them, and nothing places, proposes or sizes a trade.
+
+- `first_setup` checks the instance (`portfolixir.contract.get`) and names the
+  active profile, reads what exists, proposes cash accounts, depots, buckets
+  and views (one view with `include_all` for the total across everything),
+  explains how data gets in, and writes nothing without the operator's
+  confirmation.
+- `import_converter` (optional argument `export_file`) guides the user's
+  agent to write and run, on the operator's machine, a converter from a bank
+  or broker export to a Portfolio Performance CSV v1 file the operator drops on
+  the Imports page, which previews it and applies it idempotently. It states
+  the format exactly: the header, `;`, `YYYY-MM-DD` dates, German numbers, the
+  German type labels, `Betrag` as each row's cash effect, `Konto` and
+  `Gegenkonto` per type, the EUR-only rule, and the JSON v1 variant for other
+  currencies and for ISINs, with one synthetic example of each that a test
+  takes through the real Imports page. It binds the agent: no broker sync, no
+  network call and no model call, synthetic examples only, and booking the
+  converted rows one by one through `portfolixir.transactions.create` is not a
+  substitute, because it skips the preview and the content-hash idempotency.
+
+The prompts exist over MCP only: a prompt is an instruction to the user's
+agent, and the API has nothing to serve it to.
+
 **Invisible characters.** Every write refuses the characters an operator
 cannot see (see "Text" above), but a row stored before that rule may still
 carry them. The companion is where they are made visible: every string an API

@@ -252,6 +252,41 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
     ])
   end
 
+  # User story (Sprint 17 A4, #983):
+  # As the operator handing my agent the companion's prompts,
+  # I want the reference to name them, say what each does and binds, and why
+  # they exist over MCP only,
+  # so that I know what my agent is told before it acts.
+  #
+  # Acceptance criteria:
+  # - The EN and DE MCP pages name first_setup and import_converter, the
+  #   confirmation rule, the file for the Imports page, that booking row by
+  #   row is no substitute, and why the prompts are MCP only.
+  test "the MCP prompts are documented" do
+    assert_fragments([
+      {"docs/integration/api-and-mcp.md",
+       [
+         "**Prompts.** The companion offers two MCP prompts",
+         "`first_setup`",
+         "writes nothing without the operator's confirmation",
+         "`import_converter`",
+         "a Portfolio Performance CSV v1 file the operator drops on the Imports page",
+         "booking the converted rows one by one through `portfolixir.transactions.create` is not a substitute",
+         "The prompts exist over MCP only: a prompt is an instruction to the user's agent, and the API has nothing to serve it to."
+       ]},
+      {"docs/de/integration/api-and-mcp.md",
+       [
+         "**Prompts.** Der Begleitdienst bietet zwei MCP-Prompts",
+         "`first_setup`",
+         "schreibt nichts ohne die Bestätigung des Betreibers",
+         "`import_converter`",
+         "eine Portfolio-Performance-CSV-v1-Datei, die der Betreiber auf der Import-Seite ablegt",
+         "die umgewandelten Zeilen einzeln über `portfolixir.transactions.create` zu buchen, ist kein Ersatz",
+         "Die Prompts gibt es nur über MCP: Ein Prompt ist eine Anweisung an den Agenten des Nutzers, und die API hat nichts, dem sie ihn liefern könnte."
+       ]}
+    ])
+  end
+
   # User story (E25 S7, G31):
   # As the operator whose agent retries a write that timed out,
   # I want the reference to say that the outcome is unknown and a re-read comes first,
