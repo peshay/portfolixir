@@ -260,7 +260,10 @@ defmodule PortfolixirWeb.IncomeLive do
             class={["segmented-control__option", @facet == "realized" && "is-active"]}
             aria-current={if @facet == "realized", do: "true"}
           >
-            <%= gettext("Realized gains") %>
+            <%!-- #984 (pick G1-A): the facet IS the Trades view (#807), so
+                 its switch says so; the URL stays ?tab=realized so links and
+                 bookmarks hold. --%>
+            <%= gettext("Trades") %>
           </.link>
           <.link
             patch="/cashflow?tab=flows"
@@ -282,7 +285,10 @@ defmodule PortfolixirWeb.IncomeLive do
         <%= if @facet == "realized" do %>
           <section class="workspace-section">
             <div class="summary-basis" data-role="facet-basis">
-              <%= gettext("Amounts in %{currency} · FIFO-matched sales · all portfolios", currency: @realized.base_currency) %>
+              <%!-- #984: the matcher's scope is stated here once — one FIFO
+                   queue per security across every depot (#1001 holds the
+                   decision); the list's own basis line does not repeat it. --%>
+              <%= gettext("Amounts in %{currency} · FIFO per security · all depots", currency: @realized.base_currency) %>
               <details class="metric-tooltip metric-tooltip--inline" data-role="facet-info">
                 <summary aria-label={gettext("About this facet")}>ⓘ</summary>
                 <p role="tooltip" data-role="facet-composition">
@@ -407,7 +413,10 @@ defmodule PortfolixirWeb.IncomeLive do
             <%= if @realized.trades == [] do %>
               <p class="empty-state"><%= gettext("No closed sales booked yet.") %></p>
             <% else %>
-              <div class="data-table-wrapper">
+              <%!-- #984 (pick G1-A): the wrapper carries an id so the phone
+                   width can give the table way to the rows below (UX-DR27,
+                   board rule 3). --%>
+              <div id="realized-trades-table-wrapper" class="data-table-wrapper">
                 <table id="realized-trades-table" class="data-table">
                   <thead>
                     <tr>
@@ -417,6 +426,11 @@ defmodule PortfolixirWeb.IncomeLive do
                       <th class="num"><%= gettext("Quantity") %></th>
                       <th class="num"><%= gettext("Cost") %></th>
                       <th class="num"><%= gettext("Proceeds") %></th>
+                      <%!-- #984 (board rule 1): directly left of Result. No ⓘ
+                           in the header: the wrapper's own scroller would
+                           clip it; the reason rides each dash instead, and
+                           the basis line under the list states the rule. --%>
+                      <th class="num"><%= gettext("p. a.") %></th>
                       <th class="num col-subject"><%= gettext("Result") %></th>
                     </tr>
                   </thead>
@@ -444,6 +458,26 @@ defmodule PortfolixirWeb.IncomeLive do
                       <td class="num">
                         <%= money(trade.proceeds) %><small class="value-suffix"><%= trade.currency_code %></small>
                       </td>
+                      <%!-- The annualized return of the trade-currency
+                           percent beside it (Ledger.TradeReturn), in its
+                           sign colour; under 365 days of holding, or with no
+                           rate, a muted dash whose reason is the cell's
+                           title and a sentence for the screen reader. --%>
+                      <td
+                        :if={trade.annualized_return}
+                        class={["num", "trade-pa", trade_sign_class(trade.annualized_return)]}
+                      >
+                        <%= PortfolixirWeb.Format.percent(trade.annualized_return) %>%
+                      </td>
+                      <td
+                        :if={is_nil(trade.annualized_return)}
+                        class="num trade-pa trade-pa--na"
+                        title={pa_absent_title(trade.annualized_return_reason)}
+                      >
+                        <span aria-hidden="true">—</span><span class="visually-hidden"><%= pa_absent_sentence(
+                          trade.annualized_return_reason
+                        ) %></span>
+                      </td>
                       <%!-- DESIGN.md → "semantic colour applies wherever a
                            sign exists, at every level of a table". The
                            percent sign is the caller's job (Format.percent/2
@@ -462,7 +496,61 @@ defmodule PortfolixirWeb.IncomeLive do
                   </tbody>
                 </table>
               </div>
+
+              <%!-- UX-DR27 (board rule 3): under 560 px the table gives way
+                   to two-line rows, the transactions shape — two children,
+                   no logo, no kebab. Name over bought → sold · days; the
+                   result over the period return and, from 365 days, the
+                   p. a. figure. A shorter trade shows no dash here: the
+                   basis line below says why. --%>
+              <ul id="realized-trades-phone-rows" class="phone-rows" aria-label={gettext("Trades")}>
+                <li :for={trade <- @realized.trades} class="phone-row" data-role="phone-row">
+                  <span class="phone-row__body">
+                    <.link
+                      navigate={"/securities/#{trade.security_id}?tab=trades"}
+                      class="phone-row__target"
+                    >
+                      <span class="phone-row__name"><%= trade.security_name %></span>
+                    </.link>
+                    <span class="phone-row__ids">
+                      <%= PortfolixirWeb.Format.date(trade.open_date) %> → <%= PortfolixirWeb.Format.date(
+                        trade.close_date
+                      ) %> · <%= ngettext("%{count} day", "%{count} days", trade.holding_period_days,
+                        count: trade.holding_period_days
+                      ) %>
+                    </span>
+                  </span>
+                  <span class="phone-row__figures">
+                    <span class={["phone-row__figure", trade_sign_class(trade.realized_base)]}>
+                      <%= money(trade.realized_base) %><small class="value-suffix"><%= @realized.base_currency %></small>
+                    </span>
+                    <span class="phone-row__figure2">
+                      <span class={decimal_sign_class(trade.realized_pnl_pct)}><%= PortfolixirWeb.Format.percent(
+                        trade.realized_pnl_pct
+                      ) %>%</span><%= if trade.annualized_return do %> · <span class={
+                        decimal_sign_class(trade.annualized_return)
+                      }><%= PortfolixirWeb.Format.percent(trade.annualized_return) %>%</span> <%= gettext(
+                        "p. a."
+                      ) %><% end %>
+                    </span>
+                  </span>
+                </li>
+              </ul>
             <% end %>
+
+            <%!-- #984 (board rule 2): the list's basis, in the basis voice.
+                 The matcher's scope is in the facet's opening line; this
+                 one states what the rows include and leave out — which is
+                 also the limit the unmatched-sells note points to. --%>
+            <p
+              :if={@realized.trades != [] or @realized.unmatched_sells.count > 0}
+              class="summary-basis"
+              data-role="trades-basis"
+            >
+              <%= gettext(
+                "Deliveries open no lot · fees and taxes in cost and proceeds · income received while a trade was open not included · p. a. only from 365 days of holding"
+              ) %>
+            </p>
           </section>
 
           <section id="realized-annual" class="workspace-section">
@@ -1260,6 +1348,33 @@ defmodule PortfolixirWeb.IncomeLive do
 
   defp trade_sign_class(_value), do: nil
 
+  # The phone row's percent colours (DESIGN.md → Two-line phone rows: the
+  # second figure line is muted, its signed numbers carry their colour).
+  defp decimal_sign_class(%Decimal{} = value) do
+    case Decimal.compare(value, Decimal.new(0)) do
+      :gt -> "decimal-positive"
+      :lt -> "decimal-negative"
+      :eq -> nil
+    end
+  end
+
+  defp decimal_sign_class(_value), do: nil
+
+  # #984: why a trade's p. a. cell is a dash. Under 365 days of holding the
+  # figure is withheld by rule (ADR-0034 §2); any other reason means no rate
+  # solves the trade's flows — a total loss among them.
+  defp pa_absent_title(:holding_period_under_365_days),
+    do: gettext("Not annualized under one year of holding")
+
+  defp pa_absent_title(_reason),
+    do: gettext("No annualized return: no rate solves this trade's flows")
+
+  defp pa_absent_sentence(:holding_period_under_365_days),
+    do: gettext("not annualized, under one year of holding")
+
+  defp pa_absent_sentence(_reason),
+    do: gettext("no annualized return, no rate solves this trade's flows")
+
   defp month_label(1), do: gettext("Jan")
   defp month_label(2), do: gettext("Feb")
   defp month_label(3), do: gettext("Mar")
@@ -1278,7 +1393,7 @@ defmodule PortfolixirWeb.IncomeLive do
 
   # The subtitle names the facet (UX-DR21 extended, 2026-09-12): the parent's
   # first facet is never the subtitle of its siblings.
-  defp facet_subtitle("realized"), do: gettext("Realized gains and losses from sales")
+  defp facet_subtitle("realized"), do: gettext("Closed trades and their realized result")
   defp facet_subtitle("flows"), do: gettext("Deposits and withdrawals")
   defp facet_subtitle("costs"), do: gettext("Fees and taxes")
   defp facet_subtitle(_income), do: gettext("Received dividends and interest")
