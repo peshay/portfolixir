@@ -46,8 +46,10 @@ jobs:
   calendar-release:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    # One at a time, never cancelled: two merges in a row must not compute the
-    # same number, and a queued release must not be dropped.
+    # One at a time: two merges in a row must not compute the same number.
+    # A running release is never cancelled; GitHub still replaces a pending
+    # run with a newer one, which is harmless, since the newer release's
+    # notes cover the skipped merge.
     concurrency:
       group: calendar-release
       cancel-in-progress: false
@@ -97,11 +99,28 @@ jobs:
           echo "$result"
           echo "$result" >> "$GITHUB_OUTPUT"
 
+      # A run whose commit main has already moved past makes no release: a
+      # newer push's run tags the newer head, and its notes cover this commit.
+      # This also keeps a re-run of an old failed run from tagging an old
+      # commit with a higher number than the newest release.
+      - name: Check that the commit is still main's head
+        id: head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          head="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          if [ "$head" = "$GITHUB_SHA" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "main is at $head, past this commit; the release of that head covers it."
+            echo "current=false" >> "$GITHUB_OUTPUT"
+          fi
+
       # The API contract version the merge ships: the head entry of the
       # code-maintained manifest (ADR-0044 §8).
       - name: Read the API contract version
         id: contract
-        if: steps.version.outputs.next != ''
+        if: steps.head.outputs.current == 'true'
         run: |
           contract="$(awk '/@entries \[/ {in_entries = 1} in_entries && match($0, /^ +version: [0-9]+,/) { sub(/^ +version: /, ""); sub(/,.*/, ""); print; exit }' lib/portfolixir_web/controllers/api/v1/contract.ex)"
           if [ -z "$contract" ]; then
@@ -111,17 +130,15 @@ jobs:
           echo "version=$contract" >> "$GITHUB_OUTPUT"
 
       # An annotated tag is a tag object plus a ref to it; `gh release create`
-      # alone would make a lightweight one. The release's notes run from the
-      # previous published release (0.14.0 for the first calendar release, so
-      # nothing drops out of the changelog).
-      - name: Create the annotated tag and the release
-        if: steps.version.outputs.next != ''
+      # alone would make a lightweight one. Made only when this commit carries
+      # no calendar tag yet.
+      - name: Create the annotated tag
+        if: steps.head.outputs.current == 'true' && steps.version.outputs.next != ''
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.next }}
           CONTRACT: ${{ steps.contract.outputs.version }}
         run: |
-          previous="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name')"
           tag_object="$(gh api "repos/$GITHUB_REPOSITORY/git/tags" \
             -f tag="$VERSION" \
             -f message="Portfolixir $VERSION (API contract version $CONTRACT)" \
@@ -131,6 +148,24 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/git/refs" \
             -f ref="refs/tags/$VERSION" \
             -f sha="$tag_object" > /dev/null
+
+      # The release for the commit's calendar tag, made if it does not exist
+      # yet: a re-run after a run that made the tag but failed on the release
+      # finishes the job instead of ending green with no release. The notes
+      # run from the previous published release (0.14.0 for the first
+      # calendar release, so nothing drops out of the changelog).
+      - name: Create the release
+        if: steps.head.outputs.current == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.next || steps.version.outputs.skip }}
+          CONTRACT: ${{ steps.contract.outputs.version }}
+        run: |
+          if gh release view "$VERSION" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "$VERSION already has its release."
+            exit 0
+          fi
+          previous="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name')"
           gh release create "$VERSION" \
             --repo "$GITHUB_REPOSITORY" \
             --verify-tag \
@@ -138,13 +173,6 @@ jobs:
             --generate-notes \
             --notes-start-tag "$previous" \
             --notes "API contract version $CONTRACT (\`GET /api/v1/contract\`, \`portfolixir.contract.get\`)."
-
-      - name: Name the commit that already carries a release
-        if: steps.version.outputs.skip != ''
-        env:
-          TAGGED: ${{ steps.version.outputs.skip }}
-        run: |
-          echo "This commit already carries $TAGGED; no new release."
 
   release:
     if: startsWith(github.ref, 'refs/tags/')

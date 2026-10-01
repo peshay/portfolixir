@@ -138,8 +138,11 @@ defmodule Portfolixir.CITest do
   #   the workflow token pushes triggers no other workflow.
   # - The release carries generated notes from the previous release and names
   #   the API contract version the merge ships.
-  # - A re-run on a commit that already carries a calendar tag creates none;
-  #   two pushes in a row never compute the same number (one at a time).
+  # - A re-run on a commit that already carries a calendar tag creates no
+  #   second tag, but makes the release if the earlier run made only the tag;
+  #   two pushes in a row never compute the same number (one at a time), and
+  #   a run whose commit main has moved past tags nothing (the next release's
+  #   notes cover it).
   # - No run script contains a context expression (F61): refs and SHAs reach
   #   the script through the environment.
   # - AGENTS.md step 5 and ADR-0026 record the amendment.
@@ -164,6 +167,12 @@ defmodule Portfolixir.CITest do
     assert release =~ "API contract version"
     assert release =~ "concurrency:"
     assert release =~ "cancel-in-progress: false"
+
+    # A re-run after a partial failure (the tag made, the release not) makes
+    # the missing release instead of ending green with none, and a run whose
+    # commit is no longer main's head tags nothing (PR alpha's closing act, S1).
+    assert release =~ ~s(gh release view "$VERSION")
+    assert release =~ "git/ref/heads/main"
 
     # F61: no `${{ ... }}` inside a run block.
     run_blocks =
@@ -1213,8 +1222,6 @@ defmodule Portfolixir.CITest do
     Enum.map_join(lines, "\n", &String.slice(&1, column..-1//1))
   end
 
-  # Every step of every job: its `- ` line plus every following line indented
-  # deeper than the dash, which is where YAML ends a block sequence item.
   # The names under a Compose file's top-level `volumes:` key.
   defp top_level_volumes(compose) do
     [block] = Regex.run(~r/^volumes:\n((?:  .*\n?|\n)*)/m, compose, capture: :all_but_first)
@@ -1232,6 +1239,8 @@ defmodule Portfolixir.CITest do
     rest |> String.split(~r/^\#{2,3} /m, parts: 2) |> hd()
   end
 
+  # Every step of every job: its `- ` line plus every following line indented
+  # deeper than the dash, which is where YAML ends a block sequence item.
   defp steps(yaml) do
     lines = String.split(yaml, "\n")
 
