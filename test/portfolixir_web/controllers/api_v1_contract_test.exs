@@ -49,20 +49,31 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
+    # Sprint 17, PR γ (version 10, after PR β's 9): the operator's due surfaces moved parameters
+    # only — the annualized return on both closed-trade reads (#984).
+    assert newest["version"] == 10
+    assert newest["endpoints"] == [] and newest["tools"] == []
+    assert Enum.any?(newest["parameters"], &(&1 =~ "annualized_return"))
+
     # Sprint 17's PR β (version 9): the lane's one entry, opened by the MCP
-    # companion's tool profiles (A1, #992). It moves no route.
-    assert newest["version"] == 9
-    assert newest["endpoints"] == []
-    assert Enum.any?(newest["parameters"], &(&1 =~ "PORTFOLIXIR_MCP_PROFILE"))
+    # companion's tool profiles (A1, #992). It moves no route. Found by
+    # version from here on.
+    sprint17_beta = Enum.find(data["entries"], &(&1["version"] == 9))
+    assert sprint17_beta["endpoints"] == []
+    assert Enum.any?(sprint17_beta["parameters"], &(&1 =~ "PORTFOLIXIR_MCP_PROFILE"))
     # A2 (#993): the twin scope tools name each other, extending the entry.
-    assert Enum.any?(newest["parameters"], &(&1 =~ "Scope twin"))
+    assert Enum.any?(sprint17_beta["parameters"], &(&1 =~ "Scope twin"))
     # A4 (#983): the two prompts, and why they are MCP only.
-    assert Enum.any?(newest["parameters"], &(&1 =~ "first_setup" and &1 =~ "import_converter"))
-    assert newest["summary"] =~ "MCP only"
+    assert Enum.any?(
+             sprint17_beta["parameters"],
+             &(&1 =~ "first_setup" and &1 =~ "import_converter")
+           )
+
+    assert sprint17_beta["summary"] =~ "MCP only"
 
     # Sprint 16 (version 8): the batch's one entry, opened by the error
-    # envelope of the errors the server answers itself (E25 S2, F68). Found
-    # by version from here on.
+    # envelope of the errors the server answers itself (E25 S2, F68). Found by
+    # version from here on.
     sprint16 = Enum.find(data["entries"], &(&1["version"] == 8))
     assert Enum.any?(sprint16["parameters"], &(&1 =~ ~s({"errors": {"detail")))
     # ADR-0050 §11 L1: the identity-field freezes answer 422 on the PATCHes

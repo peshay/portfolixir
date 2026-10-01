@@ -16,6 +16,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   alias Portfolixir.Journal.Entry, as: JournalEntry
   alias Portfolixir.Knowledge.SecurityEvent
   alias Portfolixir.Knowledge.SecurityNote
+  alias Portfolixir.Ledger.TradeReturn
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.Allocation
   alias Portfolixir.Portfolios.{CashAccount, Portfolio, SecuritiesAccount, Target}
@@ -407,6 +408,10 @@ defmodule PortfolixirWeb.Api.V1.JSON do
             "limit, the FIFO matcher needs the whole history",
         method: "fifo"
       },
+      # #984: the per-trade annualized return is a metric, so its rule
+      # travels here (AGENTS.md metric rule) — the same sentence the
+      # realized-gains read carries.
+      computation_basis: %{annualized_return: TradeReturn.basis()},
       open_lots: Enum.map(lots, &open_lot/1),
       closed_trades: Enum.map(closed, &closed_trade/1),
       orphan_sells: Enum.map(orphans, &orphan_sell/1)
@@ -460,7 +465,10 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       realized_pnl_abs: decimal(trade.realized_pnl_abs),
       realized_pnl_pct: decimal(trade.realized_pnl_pct),
       holding_period_days: trade.holding_period_days,
-      currency_code: trade.currency_code
+      currency_code: trade.currency_code,
+      # #984: computation_basis.annualized_return states the rule.
+      annualized_return: decimal(trade.annualized_return),
+      annualized_return_reason: reason(trade.annualized_return_reason)
     }
   end
 
@@ -1414,7 +1422,10 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       currency_code: trade.currency_code,
       realized_pnl_abs: decimal(trade.realized_pnl_abs),
       realized_pnl_pct: decimal(trade.realized_pnl_pct),
-      realized_base: decimal(trade.realized_base)
+      realized_base: decimal(trade.realized_base),
+      # #984: computation_basis.annualized_return states the rule.
+      annualized_return: decimal(trade.annualized_return),
+      annualized_return_reason: reason(trade.annualized_return_reason)
     }
   end
 
