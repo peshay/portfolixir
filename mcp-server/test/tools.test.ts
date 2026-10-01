@@ -557,6 +557,29 @@ describe("Portfolixir MCP tools", () => {
     assert.match(tool!.description ?? "", /close date/i);
   });
 
+  // User story (#984 rescoped, Sprint 17 T1):
+  // As the operating LLM agent,
+  // I want both tools that serve closed trades to name the annualized return,
+  // so that I read the per-trade figure the operator reads, and know a short
+  // trade has none by rule rather than by a gap in the data.
+  //
+  // Acceptance criteria:
+  // - cashflow.realized_gains and trades.list name annualized_return, its
+  //   reason field, the 365-day threshold, the trade currency and the
+  //   payload's computation_basis.
+  it("names the annualized return per trade on both trade tools", () => {
+    const tools = listTools();
+
+    for (const name of ["portfolixir.cashflow.realized_gains", "portfolixir.trades.list"]) {
+      const description = tools.find((t) => t.name === name)?.description ?? "";
+      assert.match(description, /annualized_return\b/, name);
+      assert.match(description, /annualized_return_reason/, name);
+      assert.match(description, /365 days/, name);
+      assert.match(description, /trade currency/, name);
+      assert.match(description, /computation_basis/, name);
+    }
+  });
+
   // User story (issue #725):
   // As the operating LLM agent,
   // I want the deposits-and-withdrawals roll-up as a tool,
