@@ -65,15 +65,7 @@ export function createPortfolixirMcpServer(
   );
 
   server.server.setRequestHandler(ListToolsRequestSchema, () => ({
-    tools: listTools(policy).map(
-      (tool): Tool => ({
-        name: tool.name,
-        title: tool.title,
-        description: tool.description,
-        inputSchema: tool.inputSchema as Tool["inputSchema"],
-        annotations: tool.annotations
-      })
-    )
+    tools: publishedToolList(policy)
   }));
 
   server.server.setRequestHandler(CallToolRequestSchema, (request) =>
@@ -81,6 +73,23 @@ export function createPortfolixirMcpServer(
   );
 
   return server;
+}
+
+/**
+ * The `tools` array a `tools/list` answer carries under `policy`: each tool's
+ * name, title, description, own input schema and hints. The schema budget
+ * (A3, #994) measures exactly this list.
+ */
+export function publishedToolList(policy: ToolPolicy = {}): Tool[] {
+  return listTools(policy).map(
+    (tool): Tool => ({
+      name: tool.name,
+      title: tool.title,
+      description: tool.description,
+      inputSchema: tool.inputSchema as Tool["inputSchema"],
+      annotations: tool.annotations
+    })
+  );
 }
 
 /**
