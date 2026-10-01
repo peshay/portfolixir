@@ -32,6 +32,7 @@ defmodule Portfolixir.Ledger do
   alias Portfolixir.Ledger.Positions
   alias Portfolixir.Ledger.Projection
   alias Portfolixir.Ledger.TradeMatcher
+  alias Portfolixir.Ledger.TradeReturn
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.Portfolio
@@ -173,6 +174,11 @@ defmodule Portfolixir.Ledger do
   remaining lots (with unrealised P&L vs. the latest known quote close),
   and any orphan sells.
 
+  Each closed round-trip carries its consumed `lots` and its
+  `annualized_return` with `annualized_return_reason`
+  (`Ledger.TradeReturn`, #984): nil under 365 days of holding or when no
+  rate solves the trade's flows.
+
   Open lots carry their basis in the security's own currency
   (`buy_price_native`, derived from the ADR-0015 settlement legs for
   cross-currency bookings) and the ADR-0033 price/currency decomposition
@@ -207,7 +213,11 @@ defmodule Portfolixir.Ledger do
           Enum.map(
             result.open_lots,
             &decorate_open_lot(&1, latest_price, security_currency, fx_rates)
-          )
+          ),
+        # #984 (Sprint 17 T1): every closed round-trip carries its annualized
+        # return, or nil with the reason, so both reads that serve closed
+        # trades (this one and `RealizedGains.report/1`) serve one figure.
+        closed_trades: Enum.map(result.closed_trades, &Map.merge(&1, TradeReturn.annualized(&1)))
     }
   end
 
