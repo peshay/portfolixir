@@ -92,6 +92,58 @@ defmodule PortfolixirWeb.ApiV1CashflowFacetsTest do
     assert basis["gaps"] =~ "excluded"
   end
 
+  # User story (#984 rescoped, Sprint 17 T1b; UX-DR25):
+  # As the operating LLM agent,
+  # I want the realized-gains read to name the sells no buy was matched to,
+  # so that I never report a total as complete when an imported delivery's
+  # sale is missing from it.
+  #
+  # Acceptance criteria:
+  # - GET /api/v1/realized_gains carries unmatched_sells: count, and per sell
+  #   security_id, security_name, date and the unmatched quantity as a
+  #   Decimal string, newest first; with none, count 0 and an empty list.
+  # - computation_basis.unmatched_sells states why they are not trades.
+  test "GET /api/v1/realized_gains names the sells no buy was matched to", %{conn: conn} do
+    world = WorldFixtures.base_world()
+    delivered = WorldFixtures.create_security!(name: "Delivered Equity", ticker: "DEQ")
+
+    {:ok, _delivery} =
+      Portfolixir.Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        security_id: delivered.id,
+        type: "inbound_delivery",
+        date: ~D[2026-01-05],
+        quantity: "7.5",
+        currency_code: "EUR"
+      })
+
+    WorldFixtures.sell!(world, delivered, quantity: "2.5", price: "40", date: ~D[2026-02-02])
+
+    %{"data" => data} = get_json(conn, "/api/v1/realized_gains")
+
+    assert data["unmatched_sells"] == %{
+             "count" => 1,
+             "sells" => [
+               %{
+                 "security_id" => delivered.id,
+                 "security_name" => "Delivered Equity",
+                 "date" => "2026-02-02",
+                 "quantity" => "2.5"
+               }
+             ]
+           }
+
+    assert data["trades"] == []
+    assert data["computation_basis"]["unmatched_sells"] =~ "inbound delivery"
+
+    # The security's own read keeps the same sell as orphan_sells, and its
+    # basis names the roll-up's block so the two names meet.
+    %{"data" => trades} = get_json(conn, "/api/v1/securities/#{delivered.id}/trades")
+    assert [%{"date" => "2026-02-02", "quantity" => "2.5"}] = trades["orphan_sells"]
+    assert trades["computation_basis"]["orphan_sells"] =~ "unmatched_sells"
+  end
+
   # User story (issue #725):
   # As the operating LLM agent,
   # I want the deposits-and-withdrawals roll-up over the API,

@@ -1484,6 +1484,14 @@ Example account payloads:
   interest received while the trade was open are not included.
   `computation_basis.annualized_return` states the rule.
 
+  Since issue #984 the payload also names the sells the FIFO matcher could
+  not pair with a buy, in **`unmatched_sells`**: a `count` and, newest first,
+  each sell's `security_id`, `security_name`, `date` and the `quantity` no
+  lot covered. Shares that arrived by an inbound delivery open no lot, so
+  their sale is no closed trade, and a sell larger than the shares bought
+  closes what it can and leaves the rest here. Neither is in the figures, the
+  list or the matrix; `computation_basis.unmatched_sells` says so. The
+  security's own trades read below lists the same sells as `orphan_sells`.
 - `GET /api/v1/external_flows` (issue #725) returns the Deposits &
   withdrawals roll-up: the booked external **cash** flows (`deposit` and
   `removal`) across all portfolios, per year and month with deposits,

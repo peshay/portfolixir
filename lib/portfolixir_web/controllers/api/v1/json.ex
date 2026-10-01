@@ -411,7 +411,14 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       # #984: the per-trade annualized return is a metric, so its rule
       # travels here (AGENTS.md metric rule) — the same sentence the
       # realized-gains read carries.
-      computation_basis: %{annualized_return: TradeReturn.basis()},
+      computation_basis: %{
+        annualized_return: TradeReturn.basis(),
+        orphan_sells:
+          "a sell the FIFO matcher could not pair with a buy, with the quantity no lot " <>
+            "covered: an inbound delivery opens no lot, and a sell larger than the shares " <>
+            "bought leaves its remainder here; it is no closed trade, and GET " <>
+            "/api/v1/realized_gains names the same sells in unmatched_sells"
+      },
       open_lots: Enum.map(lots, &open_lot/1),
       closed_trades: Enum.map(closed, &closed_trade/1),
       orphan_sells: Enum.map(orphans, &orphan_sell/1)
@@ -1386,6 +1393,19 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       conversion_note: report.conversion_note,
       computation_basis: report.computation_basis,
       excluded: report.excluded,
+      # #984 (T1b): the sells no buy was matched to, named (UX-DR25).
+      unmatched_sells: %{
+        count: report.unmatched_sells.count,
+        sells:
+          Enum.map(report.unmatched_sells.sells, fn sell ->
+            %{
+              security_id: sell.security_id,
+              security_name: sell.security_name,
+              date: date(sell.date),
+              quantity: decimal(sell.quantity)
+            }
+          end)
+      },
       # #807: the three figures and the closed round-trips they are derived
       # from — the same converted set the matrix sums, never a wider one.
       summary: %{
