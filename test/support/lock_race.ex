@@ -1,0 +1,277 @@
+defmodule Portfolixir.LockRace do
+  @moduledoc """
+  The two-connection lock-order harness (Sprint 17, Lane G-2, #996): two
+  writers on two real connections, interleaved by a barrier, with a deadlock
+  read as a failure.
+
+  The SQL sandbox runs every connection of a test on one, so a lock cycle
+  between two writers can never form under it: Sprint 16's lock tests could
+  only pin the order of the statements one writer sends (and
+  `Portfolixir.Interleave` runs the other writer on the same connection).
+  `race!/3` runs both writers for real, each in a process of its own holding
+  one connection of a scratch database at head (`Portfolixir.ScratchDatabase`,
+  started by the case module's `setup_all`):
+
+    1. the **first** writer runs until a query its pause predicate matches has
+       returned -- typically its first lock, see `lock?/1` -- and holds there,
+       inside its open transaction;
+    2. the **second** writer then runs until the database reports it blocked
+       by the first (`pg_blocking_pids/1`) -- a second writer that ends
+       without ever waiting on the first fails the race, which then tested no
+       lock order;
+    3. the first writer resumes, and both run to their end.
+
+  That is the interleaving in which two writers taking the same two locks in
+  opposite orders deadlock: each then holds the lock the other waits for.
+  Taken in one order, the second waits for the first and both finish. The
+  barrier waits on states, never on a duration: the first writer reports its
+  pause, and the second writer's lock wait is read from the database every
+  few milliseconds until it shows (PostgreSQL announces no lock wait). The
+  only timed waits are the limits after which a stuck race fails.
+
+  A deadlock is read from every query each writer sends (the repo's
+  telemetry event carries the query's result): an `ERROR 40P01
+  (deadlock_detected)` fails the race even when the writer rescues it -- as
+  the hardened delete does, answering a lost lock cycle with
+  `{:error, :raced}`. A writer that raises fails it too.
+
+  The rows a case writes live in the scratch database, which is dropped
+  after the module; each case builds its own.
+  """
+
+  import ExUnit.Assertions, only: [flunk: 1]
+
+  alias Portfolixir.Repo
+  alias Portfolixir.ScratchDatabase
+
+  # A row lock, or a transaction's advisory lock, in a query's text.
+  @lock ~r/\bFOR (?:NO KEY UPDATE|UPDATE|KEY SHARE|SHARE)\b|\bpg_advisory_xact_lock\b/
+
+  @step_timeout 10_000
+  @poll_interval 5
+
+  @doc """
+  A scratch database at head for a module of lock-order cases, from its
+  `setup_all`: three connections, one per writer and one for the barrier's
+  reads of the database's lock waits.
+  """
+  @spec database!() :: ScratchDatabase.t()
+  def database! do
+    db = ScratchDatabase.start!(suffix: "locks", pool_size: 3)
+    ScratchDatabase.migrate!(db, :head)
+    db
+  end
+
+  @doc "Whether a query (the repo's telemetry metadata) takes a lock."
+  @spec lock?(map()) :: boolean()
+  def lock?(%{query: query}) when is_binary(query), do: Regex.match?(@lock, query)
+  def lock?(_metadata), do: false
+
+  @doc "A pause predicate: the query's text contains `fragment`."
+  @spec query?(String.t()) :: (map() -> boolean())
+  def query?(fragment) when is_binary(fragment) do
+    fn
+      %{query: query} when is_binary(query) -> String.contains?(query, fragment)
+      _metadata -> false
+    end
+  end
+
+  @doc """
+  Runs `first` (paused after the first query `pause_after?` matches) and
+  `second` against `db` through the barrier above, and answers what each
+  returned, `{first, second}`. Fails the test on a deadlock, on a writer that
+  raises, and on a race that does not reach its next step within its limit.
+  """
+  @spec race!(ScratchDatabase.t(), {(-> a), (map() -> boolean())}, (-> b)) :: {a, b}
+        when a: term(), b: term()
+  def race!(%ScratchDatabase{} = db, {first, pause_after?}, second)
+      when is_function(first, 0) and is_function(pause_after?, 1) and is_function(second, 0) do
+    writers = %{first: start_writer(db, :first, first, pause_after?)}
+
+    try do
+      await_pause!(writers.first)
+      writers = Map.put(writers, :second, start_writer(db, :second, second, nil))
+      await_blocked!(db, writers.second, writers.first)
+      send(writers.first.pid, {:resume, writers.first.ref})
+
+      results = Map.new(writers, fn {role, writer} -> {role, await_done!(writer)} end)
+      deadlocks!(writers)
+      {result!(:first, results.first), result!(:second, results.second)}
+    after
+      Enum.each(Map.values(writers), &Process.exit(&1.pid, :kill))
+    end
+  end
+
+  # -- the writers --------------------------------------------------------------
+
+  defp start_writer(db, role, fun, pause_after?) do
+    parent = self()
+    ref = make_ref()
+
+    {pid, monitor} =
+      spawn_monitor(fn ->
+        ScratchDatabase.run(db, fn ->
+          Repo.checkout(fn -> run_writer(parent, ref, fun, pause_after?) end)
+        end)
+      end)
+
+    writer = %{role: role, pid: pid, ref: ref, monitor: monitor}
+    Map.put(writer, :backend, await_backend!(writer))
+  end
+
+  # On the one connection the writer holds for its whole run: its backend
+  # pid for the barrier, then the writer under the telemetry handler that
+  # reports a deadlock and holds at the pause point.
+  defp run_writer(parent, ref, fun, pause_after?) do
+    %{rows: [[backend]]} = Repo.query!("SELECT pg_backend_pid()")
+    send(parent, {:backend, ref, backend})
+
+    handler = "lock-order-#{inspect(ref)}"
+    config = %{writer: self(), parent: parent, ref: ref, pause_after?: pause_after?}
+    :ok = :telemetry.attach(handler, [:portfolixir, :repo, :query], &__MODULE__.observe/4, config)
+
+    outcome =
+      try do
+        {:returned, fun.()}
+      catch
+        kind, reason -> {:raised, kind, reason, __STACKTRACE__}
+      after
+        :telemetry.detach(handler)
+      end
+
+    send(parent, {:done, ref, outcome})
+  end
+
+  @doc false
+  # The telemetry handler, run in the process that sent the query: only the
+  # writer's own queries count. A deadlock is reported; the first query the
+  # pause predicate matches holds the writer until the barrier resumes it.
+  def observe(_event, _measurements, metadata, %{writer: writer} = config)
+      when writer == self() do
+    if deadlock?(metadata), do: send(config.parent, {:deadlock, config.ref, metadata.query})
+
+    if config.pause_after? && !Process.get({__MODULE__, :paused}) &&
+         config.pause_after?.(metadata) do
+      Process.put({__MODULE__, :paused}, true)
+      send(config.parent, {:paused, config.ref})
+
+      receive do
+        {:resume, ref} when ref == config.ref -> :ok
+      end
+    end
+  end
+
+  def observe(_event, _measurements, _metadata, _config), do: :ok
+
+  defp deadlock?(%{result: {:error, %Postgrex.Error{postgres: %{code: :deadlock_detected}}}}),
+    do: true
+
+  defp deadlock?(_metadata), do: false
+
+  # -- the barrier --------------------------------------------------------------
+
+  defp await_backend!(%{role: role, ref: ref, monitor: monitor}) do
+    receive do
+      {:backend, ^ref, backend} ->
+        backend
+
+      {:DOWN, ^monitor, :process, _pid, reason} ->
+        flunk("the #{role} writer exited: #{inspect(reason)}")
+    after
+      @step_timeout -> flunk("the #{role} writer never got a connection")
+    end
+  end
+
+  defp await_pause!(%{ref: ref}) do
+    receive do
+      {:paused, ^ref} ->
+        :ok
+
+      {:done, ^ref, outcome} ->
+        flunk("""
+        the first writer ended without reaching its pause point:
+        #{format(outcome)}
+        """)
+    after
+      @step_timeout -> flunk("the first writer never reached its pause point")
+    end
+  end
+
+  # Until the database reports the second writer blocked by the first. A
+  # second writer that ends first never met the first one's lock: the pause
+  # point is not inside the conflict, and the race would test nothing.
+  defp await_blocked!(db, second, first, waited \\ 0) do
+    cond do
+      blocked_by?(db, second.backend, first.backend) ->
+        :blocked
+
+      done?(second) ->
+        flunk("""
+        the second writer ended without waiting on the first, so the race tested
+        no lock order: pause the first writer after a lock the second one takes
+        """)
+
+      waited >= @step_timeout ->
+        flunk("the second writer neither waited on the first nor ended")
+
+      true ->
+        receive do
+        after
+          @poll_interval -> await_blocked!(db, second, first, waited + @poll_interval)
+        end
+    end
+  end
+
+  defp done?(%{ref: ref}) do
+    {:messages, messages} = Process.info(self(), :messages)
+    Enum.any?(messages, &match?({:done, ^ref, _outcome}, &1))
+  end
+
+  defp blocked_by?(db, backend, blocker) do
+    %{rows: [[blocked?]]} =
+      ScratchDatabase.query!(db, "SELECT $2::integer = ANY(pg_blocking_pids($1))", [
+        backend,
+        blocker
+      ])
+
+    blocked?
+  end
+
+  defp await_done!(%{role: role, ref: ref, monitor: monitor}) do
+    receive do
+      {:done, ^ref, outcome} ->
+        outcome
+
+      {:DOWN, ^monitor, :process, _pid, reason} ->
+        flunk("the #{role} writer exited: #{inspect(reason)}")
+    after
+      @step_timeout -> flunk("the #{role} writer did not end")
+    end
+  end
+
+  defp deadlocks!(writers) do
+    for {role, %{ref: ref}} <- writers do
+      receive do
+        {:deadlock, ^ref, query} ->
+          flunk("""
+          a deadlock (40P01): the database aborted the #{role} writer at
+
+            #{query}
+
+          The two writers take the same locks in opposite orders.
+          """)
+      after
+        0 -> :ok
+      end
+    end
+  end
+
+  defp result!(_role, {:returned, value}), do: value
+
+  defp result!(role, outcome), do: flunk("the #{role} writer #{format(outcome)}")
+
+  defp format({:returned, value}), do: "returned #{inspect(value)}"
+
+  defp format({:raised, kind, reason, stacktrace}),
+    do: "raised:\n\n" <> Exception.format(kind, reason, stacktrace)
+end
