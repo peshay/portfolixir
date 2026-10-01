@@ -391,8 +391,12 @@ defmodule Portfolixir.Portfolios.PolicyFindingsTest do
   # context weighs 0; one that covers it weighs 100.
   test "a view subject inside a view context is weighed within the context",
        %{world: world, alpha: alpha, beta: beta} do
-    {:ok, a} = Buckets.create_bucket(Actor.owner_ui(), %{name: "A"})
-    {:ok, b} = Buckets.create_bucket(Actor.owner_ui(), %{name: "B"})
+    {:ok, a} =
+      Buckets.create_bucket(Actor.owner_ui(), %{name: "A #{System.unique_integer([:positive])}"})
+
+    {:ok, b} =
+      Buckets.create_bucket(Actor.owner_ui(), %{name: "B #{System.unique_integer([:positive])}"})
+
     :ok = Buckets.set_position_override(Actor.owner_ui(), world.depot, alpha, [a.id])
     :ok = Buckets.set_position_override(Actor.owner_ui(), world.depot, beta, [b.id])
 

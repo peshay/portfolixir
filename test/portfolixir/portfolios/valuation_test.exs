@@ -130,7 +130,10 @@ defmodule Portfolixir.Portfolios.ValuationTest do
 
     prices = %{core.id => Decimal.new("10"), krypto.id => Decimal.new("10")}
 
-    {:ok, krypto_bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Krypto"})
+    {:ok, krypto_bucket} =
+      Buckets.create_bucket(Actor.owner_ui(), %{
+        name: "Krypto #{System.unique_integer([:positive])}"
+      })
 
     {:ok, no_krypto} =
       Buckets.create_view(Actor.owner_ui(), %{name: "NoKrypto", include_all: true})

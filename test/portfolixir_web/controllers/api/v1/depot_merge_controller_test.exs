@@ -231,7 +231,12 @@ defmodule PortfolixirWeb.Api.V1.DepotMergeControllerTest do
   #   depot answers 409 already_merged naming the survivor.
   test "each refusal answers its code and writes nothing", ctx do
     rows = example!(ctx)
-    {:ok, spec} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Speculative"})
+
+    {:ok, spec} =
+      Buckets.create_bucket(Actor.owner_ui(), %{
+        name: "Speculative #{System.unique_integer([:positive])}"
+      })
+
     :ok = Buckets.set_position_override(Actor.owner_ui(), ctx.source, ctx.meridian, [spec.id])
     mark = journal_mark()
     path = "/api/v1/securities_accounts/#{ctx.source.id}/merge"

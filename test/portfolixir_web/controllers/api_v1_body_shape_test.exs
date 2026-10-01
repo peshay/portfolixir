@@ -36,7 +36,12 @@ defmodule PortfolixirWeb.ApiV1BodyShapeTest do
     world = base_world(name: "Shapes")
     security = create_security!(name: "Shape Co", ticker: "SHP")
     tx = buy!(world, security, quantity: "1", price: "10")
-    {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Shape bucket"})
+
+    {:ok, bucket} =
+      Buckets.create_bucket(Actor.owner_ui(), %{
+        name: "Shape bucket #{System.unique_integer([:positive])}"
+      })
+
     {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Shape view"})
     {:ok, tree} = Classifications.create_classification(Actor.owner_ui(), %{name: "Shape tree"})
 

@@ -82,7 +82,11 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
     WorldFixtures.put_quote!(other, ~D[2026-01-01], "100")
     WorldFixtures.put_quote!(other, ~D[2026-01-10], "100")
 
-    {:ok, excl} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Excl"})
+    {:ok, excl} =
+      Buckets.create_bucket(Actor.owner_ui(), %{
+        name: "Excl #{System.unique_integer([:positive])}"
+      })
+
     {:ok, no_other} = Buckets.create_view(Actor.owner_ui(), %{name: "NoOther", include_all: true})
     :ok = Buckets.set_view_buckets(Actor.owner_ui(), no_other, [], [excl.id])
     :ok = Buckets.set_position_override(Actor.owner_ui(), world.depot, other, [excl.id])
@@ -116,7 +120,12 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
   # from out-of-view cash, are both boundary inflows to the view (ADR-0019).
   test "scoped flow: delivery and a buy funded from out-of-view cash are inflows" do
     world = setup_world()
-    {:ok, mine} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Mine"})
+
+    {:ok, mine} =
+      Buckets.create_bucket(Actor.owner_ui(), %{
+        name: "Mine #{System.unique_integer([:positive])}"
+      })
+
     {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "MineA", include_all: false})
     :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [mine.id], [])
     # Security is in view; cash is untagged, so it is out of an include-set view.
@@ -153,7 +162,11 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
     world = setup_world()
     extra = WorldFixtures.add_depot(world.portfolio, depot_name: "Depot B", cash_name: "Cash B")
 
-    {:ok, mine} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Mine"})
+    {:ok, mine} =
+      Buckets.create_bucket(Actor.owner_ui(), %{
+        name: "Mine #{System.unique_integer([:positive])}"
+      })
+
     {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "MineB", include_all: false})
     :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [mine.id], [])
     # Only the main-depot position is in view; the Depot-B position is untagged.

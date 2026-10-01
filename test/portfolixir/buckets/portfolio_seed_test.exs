@@ -26,6 +26,13 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
 
   @seed_actor Actor.system_job("portfolio_scope_seed")
 
+  # Bucket and view names are unique instance-wide, and async test modules
+  # write at the same time: a literal name another module also uses makes one
+  # test's write wait on the other's uncommitted row (#947). The seed names a
+  # portfolio's bucket and view after the portfolio, so portfolio names here
+  # are unique per test too.
+  defp unique(base), do: "#{base} #{System.unique_integer([:positive])}"
+
   # User story (ADR-0024 modifications 2 + 6, epic story 2):
   # As a local portfolio maintainer upgrading to the buckets/views model,
   # I want my existing portfolios converted into one exclusive scope bucket
@@ -42,11 +49,13 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
   #   seeding actor (ADR-0017); views stay unjournaled (ADR-0018 §5).
   # - Re-running the seed is a no-op (no new records, no new journal entries).
   test "seeds one scope bucket + one view per portfolio and assigns its accounts" do
-    alpha = base_world(name: "Alpha", cash_name: "Alpha Cash", depot_name: "Alpha Depot")
-    beta = base_world(name: "Beta", cash_name: "Beta Cash", depot_name: "Beta Depot")
+    alpha_name = unique("Alpha")
+    beta_name = unique("Beta")
+    alpha = base_world(name: alpha_name, cash_name: "Alpha Cash", depot_name: "Alpha Depot")
+    beta = base_world(name: beta_name, cash_name: "Beta Cash", depot_name: "Beta Depot")
 
     # A pre-existing user tag on one depot must survive the seeding merge.
-    {:ok, krypto} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Krypto"})
+    {:ok, krypto} = Buckets.create_bucket(Actor.owner_ui(), %{name: unique("Krypto")})
     :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), alpha.depot, [krypto.id])
 
     assert {:ok, %{buckets_created: 2, views_created: 2, accounts_tagged: 4}} =
@@ -59,10 +68,10 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
     alpha_view = Enum.find(views, &(&1.source_portfolio_id == alpha.portfolio.id))
     beta_view = Enum.find(views, &(&1.source_portfolio_id == beta.portfolio.id))
 
-    assert %{name: "Alpha", dimension: "scope"} = alpha_bucket
-    assert %{name: "Beta", dimension: "scope"} = beta_bucket
-    assert %{name: "Alpha", include_all: false} = alpha_view
-    assert %{name: "Beta", include_all: false} = beta_view
+    assert %{name: ^alpha_name, dimension: "scope"} = alpha_bucket
+    assert %{name: ^beta_name, dimension: "scope"} = beta_bucket
+    assert %{name: ^alpha_name, include_all: false} = alpha_view
+    assert %{name: ^beta_name, include_all: false} = beta_view
 
     assert Buckets.view_filter(alpha_view.id) ==
              {:ok, %{include: [alpha_bucket.id], exclude: []}}
@@ -110,9 +119,9 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
   #   links) and seeded views; user-created records are untouched.
   # - Rollback then re-seeding restores the seeded shape (roundtrip-safe).
   test "rollback removes only seeded records and re-seeding restores them" do
-    world = base_world(name: "Alpha", cash_name: "Alpha Cash", depot_name: "Alpha Depot")
+    world = base_world(name: unique("Alpha"), cash_name: "Alpha Cash", depot_name: "Alpha Depot")
 
-    {:ok, user_bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Krypto"})
+    {:ok, user_bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: unique("Krypto")})
     {:ok, user_view} = Buckets.create_view(Actor.owner_ui(), %{name: "Strategie"})
     :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), world.depot, [user_bucket.id])
 
@@ -151,17 +160,18 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
   # - A name collision with an existing (user) bucket or view falls back to
   #   "<name> (Portfolio)" deterministically.
   test "falls back to a deterministic name when a portfolio name is taken" do
-    _world = base_world(name: "Krypto", cash_name: "K Cash", depot_name: "K Depot")
+    name = unique("Krypto")
+    _world = base_world(name: name, cash_name: "K Cash", depot_name: "K Depot")
 
-    {:ok, _} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Krypto"})
-    {:ok, _} = Buckets.create_view(Actor.owner_ui(), %{name: "Krypto"})
+    {:ok, _} = Buckets.create_bucket(Actor.owner_ui(), %{name: name})
+    {:ok, _} = Buckets.create_view(Actor.owner_ui(), %{name: name})
 
     assert {:ok, %{buckets_created: 1, views_created: 1}} =
              Buckets.seed_portfolio_scope_buckets(@seed_actor)
 
     assert %{buckets: [bucket], views: [view]} = Buckets.migration_summary()
-    assert bucket.name == "Krypto (Portfolio)"
-    assert view.name == "Krypto (Portfolio)"
+    assert bucket.name == "#{name} (Portfolio)"
+    assert view.name == "#{name} (Portfolio)"
   end
 
   # User story (fix round, seed naming robustness):
@@ -175,9 +185,10 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
   # - A pre-existing user bucket already named "<name> (Portfolio)" pushes the
   #   seed to the next numbered variant instead of failing.
   test "numbers fallback names until a free bucket AND view name is found" do
-    base_world(name: "Krypto", cash_name: "C1", depot_name: "D1")
-    base_world(name: "Krypto", cash_name: "C2", depot_name: "D2")
-    base_world(name: "Krypto", cash_name: "C3", depot_name: "D3")
+    name = unique("Krypto")
+    base_world(name: name, cash_name: "C1", depot_name: "D1")
+    base_world(name: name, cash_name: "C2", depot_name: "D2")
+    base_world(name: name, cash_name: "C3", depot_name: "D3")
 
     assert {:ok, %{buckets_created: 3, views_created: 3, accounts_tagged: 6}} =
              Buckets.seed_portfolio_scope_buckets(@seed_actor)
@@ -185,30 +196,31 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
     %{buckets: buckets, views: views} = Buckets.migration_summary()
 
     assert Enum.map(buckets, & &1.name) == [
-             "Krypto",
-             "Krypto (Portfolio)",
-             "Krypto (Portfolio 2)"
+             name,
+             "#{name} (Portfolio)",
+             "#{name} (Portfolio 2)"
            ]
 
     assert Enum.map(views, & &1.name) == [
-             "Krypto",
-             "Krypto (Portfolio)",
-             "Krypto (Portfolio 2)"
+             name,
+             "#{name} (Portfolio)",
+             "#{name} (Portfolio 2)"
            ]
   end
 
   test "a pre-existing user bucket named \"<name> (Portfolio)\" pushes to the next number" do
-    _world = base_world(name: "Krypto", cash_name: "K Cash", depot_name: "K Depot")
+    name = unique("Krypto")
+    _world = base_world(name: name, cash_name: "K Cash", depot_name: "K Depot")
 
-    {:ok, _} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Krypto"})
-    {:ok, _} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Krypto (Portfolio)"})
+    {:ok, _} = Buckets.create_bucket(Actor.owner_ui(), %{name: name})
+    {:ok, _} = Buckets.create_bucket(Actor.owner_ui(), %{name: "#{name} (Portfolio)"})
 
     assert {:ok, %{buckets_created: 1, views_created: 1}} =
              Buckets.seed_portfolio_scope_buckets(@seed_actor)
 
     assert %{buckets: [bucket], views: [view]} = Buckets.migration_summary()
-    assert bucket.name == "Krypto (Portfolio 2)"
-    assert view.name == "Krypto (Portfolio 2)"
+    assert bucket.name == "#{name} (Portfolio 2)"
+    assert view.name == "#{name} (Portfolio 2)"
   end
 
   # User story (fix round, over-long portfolio names):
@@ -217,14 +229,14 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
   # I want the seed to truncate the base name before suffixing,
   # so that the migration never fails changeset validation.
   test "truncates portfolio names longer than the 100-char bucket/view limit" do
-    long_name = String.duplicate("N", 120)
+    long_name = "#{System.unique_integer([:positive])}" <> String.duplicate("N", 120)
     base_world(name: long_name, cash_name: "L Cash", depot_name: "L Depot")
 
     assert {:ok, %{buckets_created: 1, views_created: 1}} =
              Buckets.seed_portfolio_scope_buckets(@seed_actor)
 
     assert %{buckets: [bucket], views: [view]} = Buckets.migration_summary()
-    assert bucket.name == String.duplicate("N", 100)
+    assert bucket.name == String.slice(long_name, 0, 100)
     assert view.name == bucket.name
     assert String.length(bucket.name) <= 100
   end
@@ -239,10 +251,10 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
   # - The account keeps its existing scope bucket; the seed counts it under
   #   `skipped_existing_scope`.
   test "re-seed skips accounts that already carry a different scope bucket" do
-    world = base_world(name: "Alpha", cash_name: "A Cash", depot_name: "A Depot")
+    world = base_world(name: unique("Alpha"), cash_name: "A Cash", depot_name: "A Depot")
 
     {:ok, own_scope} =
-      Buckets.create_bucket(Actor.owner_ui(), %{name: "Eigene Scope", dimension: "scope"})
+      Buckets.create_bucket(Actor.owner_ui(), %{name: unique("Eigene Scope"), dimension: "scope"})
 
     :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), world.depot, [own_scope.id])
 
@@ -275,13 +287,14 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
              Buckets.seed_portfolio_scope_buckets(@seed_actor)
 
     # The user restores their data afterwards…
-    base_world(name: "Restored", cash_name: "R Cash", depot_name: "R Depot")
+    name = unique("Restored")
+    base_world(name: name, cash_name: "R Cash", depot_name: "R Depot")
 
     # …and the task's underlying call seeds exactly the missing pair.
     assert {:ok, %{buckets_created: 1, views_created: 1, accounts_tagged: 2}} =
              Buckets.seed_portfolio_scope_buckets(@seed_actor)
 
-    assert %{migrated?: true, buckets: [%{name: "Restored"}], views: [%{name: "Restored"}]} =
+    assert %{migrated?: true, buckets: [%{name: ^name}], views: [%{name: ^name}]} =
              Buckets.migration_summary()
   end
 
@@ -290,7 +303,7 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
   # I want a later re-seed to be announced again on the Wealth page,
   # so that a stale dismissal never hides a fresh migration.
   test "rollback clears the dismissed-notice flag so a re-seed announces again" do
-    base_world(name: "Alpha", cash_name: "A Cash", depot_name: "A Depot")
+    base_world(name: unique("Alpha"), cash_name: "A Cash", depot_name: "A Depot")
 
     assert {:ok, _} = Buckets.seed_portfolio_scope_buckets(@seed_actor)
     :ok = Portfolixir.Settings.dismiss_migration_notice()
@@ -314,7 +327,7 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
   # - The seeded views' totals add up to the "everything" total (exclusivity
   #   preserves additivity).
   test "each seeded view's valuation total is Decimal-identical to its portfolio's" do
-    alpha = base_world(name: "Alpha", cash_name: "Alpha Cash", depot_name: "Alpha Depot")
+    alpha = base_world(name: unique("Alpha"), cash_name: "Alpha Cash", depot_name: "Alpha Depot")
 
     alpha_usd =
       add_depot(alpha.portfolio,
@@ -325,7 +338,7 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
 
     alpha_usd_world = %{portfolio: alpha.portfolio, depot: alpha_usd.depot, cash: alpha_usd.cash}
 
-    beta = base_world(name: "Beta", cash_name: "Beta Cash", depot_name: "Beta Depot")
+    beta = base_world(name: unique("Beta"), cash_name: "Beta Cash", depot_name: "Beta Depot")
 
     eur_sec = create_security!(name: "Euro Co.", ticker: "EURC", asset_class: "equity")
 

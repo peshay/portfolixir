@@ -157,7 +157,12 @@ defmodule PortfolixirWeb.Api.V1.LifecycleDeleteControllerTest do
   test "an unreferenced account's bucket links are removed journaled under the token",
        %{conn: conn} do
     world = WorldFixtures.base_world()
-    {:ok, family} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Family", dimension: "tag"})
+
+    {:ok, family} =
+      Buckets.create_bucket(Actor.owner_ui(), %{
+        name: "Family #{System.unique_integer([:positive])}",
+        dimension: "tag"
+      })
 
     {:ok, spare} =
       Portfolios.create_cash_account(Actor.owner_ui(), %{
