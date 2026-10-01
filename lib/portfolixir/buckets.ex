@@ -65,6 +65,19 @@ defmodule Portfolixir.Buckets do
 
   def get_bucket!(id), do: Repo.get!(Bucket, id)
 
+  @doc """
+  The names of the buckets `ids` lists, keyed by id; a bucket that is gone is
+  absent. One query, and none for an empty list.
+  """
+  @spec names_by_id([integer()]) :: %{optional(integer()) => String.t()}
+  def names_by_id([]), do: %{}
+
+  def names_by_id(ids) when is_list(ids) do
+    from(b in Bucket, where: b.id in ^Enum.uniq(ids), select: {b.id, b.name})
+    |> Repo.all()
+    |> Map.new()
+  end
+
   # -- buckets (journaled writes) --------------------------------------------
 
   @doc "Creates a bucket on behalf of `actor`; the insert and its journal entry commit together."

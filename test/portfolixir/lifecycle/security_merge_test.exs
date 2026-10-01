@@ -38,6 +38,8 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
   alias Portfolixir.Portfolios.PolicyRules
   alias Portfolixir.Portfolios.PolicyRuleVersion
 
+  import Portfolixir.WorldFixtures, only: [printable_bucket!: 1]
+
   defp agent, do: Actor.api_token_rw("synthetic-agent")
 
   setup do
@@ -487,7 +489,8 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
     # - A dead override of the target in a depot only the source holds,
     #   while the source's position inherits, is cleared.
     # - A differing effective set where both hold refuses as
-    #   position_buckets_mismatch naming the depot.
+    #   position_buckets_mismatch naming the depot, and the buckets by name
+    #   and id, never as a charlist (#978).
     test "an override is carried, dropped or cleared so every position keeps its set", ctx do
       worked_example!(ctx)
       d4 = depot!(ctx.main, ctx.c1, "Broker D")
@@ -520,12 +523,20 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
 
     test "a differing effective set where both hold refuses, naming the depot", ctx do
       worked_example!(ctx)
-      {:ok, spec} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Speculative"})
+      # An id in the printable range, which `inspect/1` printed as a charlist
+      # (#978).
+      spec = printable_bucket!(%{name: "Speculative"})
       :ok = Buckets.set_position_override(Actor.owner_ui(), ctx.d1, ctx.source, [spec.id])
 
       detail = refused!(ctx, :position_buckets_mismatch)
       assert detail =~ "Broker A"
       refute detail =~ "Broker B"
+
+      assert detail =~
+               ~s[In depot "Broker A" the source's position sits in the bucket "Speculative" ] <>
+                 ~s[(##{spec.id}) and the target's in no bucket: view membership is retroactive]
+
+      refute detail =~ "~c"
 
       spec_id = spec.id
 
@@ -549,15 +560,17 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
     #
     # Acceptance criteria:
     # - The override to carry, with two scope-dimension buckets, refuses as
-    #   position_buckets_mismatch naming the depot, the buckets and the
-    #   one-scope rule, lists the position as refuse_carry, and writes
-    #   nothing.
+    #   position_buckets_mismatch naming the depot, the buckets (by name and
+    #   id, never as a charlist, #978) and the one-scope rule, lists the
+    #   position as refuse_carry, and writes nothing.
     test "a carried override with two scope buckets refuses, naming the depot", ctx do
       worked_example!(ctx)
       d4 = depot!(ctx.main, ctx.c1, "Broker D")
       buy!(ctx, d4, ctx.c1, ctx.source, "1", "100.00", ~D[2025-02-20])
-      {:ok, one} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Scope A", dimension: "scope"})
-      {:ok, two} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Scope B", dimension: "scope"})
+      # Ids in the printable range, which `inspect/1` printed as a charlist
+      # (#978).
+      one = printable_bucket!(%{name: "Scope A", dimension: "scope"})
+      two = printable_bucket!(%{name: "Scope B", dimension: "scope"})
 
       # Stored the way an override was written before the one-scope rule.
       Repo.insert_all("position_bucket_overrides", [
@@ -568,8 +581,11 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
       guard = refused_guard!(ctx, :position_buckets_mismatch)
 
       assert guard.detail =~
-               "In depot \"Broker D\" the source's position carries an override with more " <>
-                 "than one scope bucket #{inspect(Enum.sort([one.id, two.id]))}"
+               ~s[In depot "Broker D" the source's position carries an override with more ] <>
+                 ~s[than one scope bucket, "Scope A" (##{one.id}), "Scope B" (##{two.id}), ] <>
+                 ~s[stored before a position could hold only one]
+
+      refute guard.detail =~ "~c"
 
       refute guard.detail =~ "Broker A"
 
