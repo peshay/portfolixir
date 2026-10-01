@@ -74,11 +74,72 @@ defmodule Portfolixir.DevConfigTest do
     end
   end
 
+  # User story (#963):
+  # As a reviewer seeding a throwaway walkthrough database,
+  # I want a seed run to leave logo discovery and the quote and FX sync off,
+  # while `mix phx.server` in development keeps them on,
+  # so that the seeded instance does not vary with provider availability and
+  # no demo name leaves the machine without my choosing to send it.
+  #
+  # Acceptance criteria:
+  # - With PORTFOLIXIR_BACKGROUND_FETCH=off, config/dev.exs turns logo
+  #   discovery, the quote sync and the FX sync off.
+  # - Unset, all three stay on, as before.
+  # - Every documented `mix run priv/demo/...` command sets the switch.
+  test "the background-fetch switch turns logo discovery and the quote and FX sync off" do
+    previous = System.get_env("PORTFOLIXIR_BACKGROUND_FETCH")
+
+    try do
+      System.put_env("PORTFOLIXIR_BACKGROUND_FETCH", "off")
+      assert background_fetch() == %{logos: false, quotes: false, fx: false}
+
+      System.delete_env("PORTFOLIXIR_BACKGROUND_FETCH")
+      assert background_fetch() == %{logos: true, quotes: true, fx: true}
+    after
+      if previous,
+        do: System.put_env("PORTFOLIXIR_BACKGROUND_FETCH", previous),
+        else: System.delete_env("PORTFOLIXIR_BACKGROUND_FETCH")
+    end
+
+    documented =
+      for path <- [
+            "priv/demo/README.md",
+            "priv/demo/finding_surfaces_seed.exs",
+            "priv/demo/quotes_seed.exs",
+            "priv/demo/strategies_seed.exs",
+            "_bmad-output/planning-artifacts/design-language/review-rubric.md"
+          ],
+          line <- path |> File.read!() |> String.split("\n"),
+          line =~ "mix run priv/demo/",
+          do: {path, line}
+
+    assert length(documented) >= 5
+
+    for {path, line} <- documented do
+      assert line =~ "PORTFOLIXIR_BACKGROUND_FETCH=off ", "#{path}: #{line}"
+    end
+  end
+
+  defp background_fetch do
+    config = dev_config()
+
+    %{
+      logos: Keyword.fetch!(config, :enable_logo_discovery),
+      quotes:
+        config |> Keyword.fetch!(Portfolixir.Catalog.QuoteSync) |> Keyword.fetch!(:enabled?),
+      fx: config |> Keyword.fetch!(Portfolixir.Fx.RateSync) |> Keyword.fetch!(:enabled?)
+    }
+  end
+
   defp repo_port do
+    dev_config()
+    |> Keyword.fetch!(Portfolixir.Repo)
+    |> Keyword.fetch!(:port)
+  end
+
+  defp dev_config do
     "config/dev.exs"
     |> Config.Reader.read!(env: :dev, target: :host)
     |> Keyword.fetch!(:portfolixir)
-    |> Keyword.fetch!(Portfolixir.Repo)
-    |> Keyword.fetch!(:port)
   end
 end

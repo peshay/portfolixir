@@ -626,8 +626,12 @@ walkthrough can re-seed after a migration rather than dropping the database:
 ```bash
 DATABASE_NAME=portfolixir_review PORT=4003 mix ecto.create
 DATABASE_NAME=portfolixir_review PORT=4003 mix ecto.migrate
-DATABASE_NAME=portfolixir_review PORT=4003 mix run priv/demo/finding_surfaces_seed.exs
+DATABASE_NAME=portfolixir_review PORT=4003 PORTFOLIXIR_BACKGROUND_FETCH=off mix run priv/demo/finding_surfaces_seed.exs
 ```
+
+`PORTFOLIXIR_BACKGROUND_FETCH=off` keeps the seed run offline: no logo lookup,
+quote backfill or exchange-rate sync leaves the machine, so the walkthrough
+data never depends on a provider being reachable (#963).
 
 It lives under `priv/demo/` rather than beside one review's mockups so every
 later walkthrough exercises it, which is what keeps it from rotting the way

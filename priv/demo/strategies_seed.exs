@@ -3,7 +3,7 @@
 # shows target-vs-actual drift for rebalancing. Run after importing the demo
 # dataset:
 #
-#   DATABASE_NAME=portfolixir_demo PORT=4003 mix run priv/demo/strategies_seed.exs
+#   DATABASE_NAME=portfolixir_demo PORT=4003 PORTFOLIXIR_BACKGROUND_FETCH=off mix run priv/demo/strategies_seed.exs
 alias Portfolixir.{Actor, Classifications, Portfolios}
 alias Portfolixir.Portfolios.Targets
 alias Portfolixir.Catalog

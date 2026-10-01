@@ -3,7 +3,7 @@
 # over ~15 months, seeded RNG, anchored at each security's last trade price.
 # Run after importing the demo dataset:
 #
-#   DATABASE_NAME=portfolixir_demo PORT=4003 mix run priv/demo/quotes_seed.exs
+#   DATABASE_NAME=portfolixir_demo PORT=4003 PORTFOLIXIR_BACKGROUND_FETCH=off mix run priv/demo/quotes_seed.exs
 alias Portfolixir.Actor
 alias Portfolixir.Catalog
 alias Portfolixir.Ledger
