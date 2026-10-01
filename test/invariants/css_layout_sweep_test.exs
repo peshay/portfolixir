@@ -150,8 +150,10 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
   test "under 560 px the entity tables give way to the two-line rows" do
     assert phone_block() =~ ~r/\.phone-rows \{\s*display: block;/
 
+    # #984 (pick G1-A, board rule 3): the Trades facet's table is the third
+    # list surface to give way to its rows.
     assert phone_block() =~
-             ~r/#securities-table,\s*#transaction-table-wrapper \{\s*display: none;/
+             ~r/#securities-table,\s*#transaction-table-wrapper,\s*#realized-trades-table-wrapper \{\s*display: none;/
   end
 
   test "under 560 px the chip row yields to the Filter control" do

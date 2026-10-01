@@ -12,6 +12,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias Portfolixir.Portfolios.Allocation
   alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Portfolios.PricingContext
+  alias Portfolixir.Portfolios.RealizedGains
   alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Portfolios.Valuation
   alias Portfolixir.Settings
@@ -25,6 +26,8 @@ defmodule PortfolixirWeb.DashboardLive do
   # steering basis (ADR-0022 dashboard; drift per ADR-0023: actual − target).
   @drift_threshold Decimal.new("0.05")
   @max_alerts 5
+  # #984 (pick G1-A): the Overview's closed-trades card lists the newest five.
+  @closed_trades_shown 5
 
   @impl true
   def mount(_params, _session, socket) do
@@ -40,6 +43,11 @@ defmodule PortfolixirWeb.DashboardLive do
       # calendar is a small table and the card must not depend on the
       # async overview read that carries the drift alerts.
       |> assign(:upcoming_events, upcoming_events())
+      # #984 (pick G1-A): the closed-trades card appears only where a sell
+      # is booked — a cheap fact read now, so a ledger without one never
+      # paints a placeholder for a card that cannot appear.
+      |> assign_has_sells()
+      |> assign(:closed_trades, nil)
       |> assign_stale_ttwror()
       |> start_loading()
 
@@ -73,10 +81,35 @@ defmodule PortfolixirWeb.DashboardLive do
         {wealth_card(view_id, base_currency, context), attention_report(view_id, context),
          data_quality_report(), last_booking()}
       end)
+      |> start_closed_trades()
     else
       socket
     end
   end
+
+  defp assign_has_sells(%{assigns: %{transactions_count: 0}} = socket),
+    do: assign(socket, :has_sells, false)
+
+  defp assign_has_sells(socket), do: assign(socket, :has_sells, Ledger.any_sell?())
+
+  # #984 (pick G1-A): the closed trades are their own read, beside the
+  # overview's — the realized report covers every depot whatever the view,
+  # so it shares nothing with the view-scoped pricing pass and must not wait
+  # for it. Data only: the task has no user locale, the card's words are
+  # rendered at render time.
+  defp start_closed_trades(%{assigns: %{has_sells: true}} = socket) do
+    start_async(socket, :closed_trades, fn ->
+      report = RealizedGains.report()
+
+      %{
+        trades: Enum.take(report.trades, @closed_trades_shown),
+        excluded: report.excluded,
+        base_currency: report.base_currency
+      }
+    end)
+  end
+
+  defp start_closed_trades(socket), do: socket
 
   # ADR-0032 §6 on the dashboard tile: while the overview computes, the last
   # known YTD figure renders immediately -- labelled with the data it contains,
@@ -166,6 +199,12 @@ defmodule PortfolixirWeb.DashboardLive do
   def handle_async(:overview, {:exit, _reason}, socket) do
     {:noreply, assign(socket, :error, gettext("Couldn't load the dashboard figures."))}
   end
+
+  def handle_async(:closed_trades, {:ok, card}, socket),
+    do: {:noreply, assign(socket, :closed_trades, card)}
+
+  def handle_async(:closed_trades, {:exit, _reason}, socket),
+    do: {:noreply, assign(socket, :closed_trades, :error)}
 
   # The overview handles no events of its own; one pushed to it changes
   # nothing (E25 S4, F17).
@@ -406,6 +445,8 @@ defmodule PortfolixirWeb.DashboardLive do
         </div>
       </section>
 
+      <.closed_trades_card :if={@has_sells} card={@closed_trades} />
+
       <%!-- ADR-0022: the dashboard answers "does anything need me?". Drift
            alerts (ADR-0023 sign: positive = overweight) link straight into
            the Allocation & targets tab; the audit journal keeps the forensic
@@ -551,6 +592,102 @@ defmodule PortfolixirWeb.DashboardLive do
         </div>
       </section>
     </div>
+    """
+  end
+
+  attr(:card, :any, required: true)
+
+  # #984 (board G1, pick A; UX-DR2 amended 2026-10-01 with a fifth block):
+  # "was the trade worth it", answered where the owner lands. The newest
+  # five closed trades — results, not activity: ADR-0022 §7 dropped the raw
+  # recent-activity feed, and a sale is listed here for what it realised,
+  # never as a booking. The card covers every depot whatever the view, as
+  # the realized report does, and its basis line says so. Built from
+  # existing parts: the `.attention-list` of "Off target" and "Due", the
+  # `.kpi-summary__link` of "All key figures → Holdings".
+  #
+  # States: pending — the block skeleton (UX-DR20), no cue, the list is a
+  # sub-second read; populated; a sale the rates cannot convert named in an
+  # attention note (UX-DR25), pointing to the backfill on the facet; absent
+  # with no closed trade and no exclusion, like "Due" without a date. A sell
+  # with no matched buy is no trade, so it is not missing from the five; the
+  # facet names it where the totals are read.
+  defp closed_trades_card(%{card: %{trades: [], excluded: %{count: 0}}} = assigns), do: ~H""
+
+  defp closed_trades_card(assigns) do
+    ~H"""
+    <section id="dashboard-trades" class="workspace-section">
+      <div class="section-head">
+        <h2><%= gettext("Closed trades") %></h2>
+        <a class="kpi-summary__link" href="/cashflow?tab=realized"><%= gettext("All trades →") %></a>
+      </div>
+      <%= cond do %>
+        <% is_nil(@card) -> %>
+          <p class="section-skeleton" aria-busy="true" data-role="trades-card-skeleton"></p>
+        <% @card == :error -> %>
+          <AppShell.data_note severity={:problem} data-role="trades-card-error">
+            <%= gettext("Couldn't load the closed trades.") %>
+          </AppShell.data_note>
+        <% true -> %>
+          <AppShell.data_note
+            :if={@card.excluded.count > 0}
+            severity={:attention}
+            data-role="trades-card-excluded"
+          >
+            <%= ngettext(
+              "%{count} sale with no stored rate on its close date is left out of the trades: %{securities}. The rate backfill is under “All trades”.",
+              "%{count} sales with no stored rate on their close dates are left out of the trades: %{securities}. The rate backfill is under “All trades”.",
+              @card.excluded.count,
+              securities: Enum.join(@card.excluded.securities, ", ")
+            ) %>
+          </AppShell.data_note>
+          <p :if={@card.trades != []} class="summary-basis" data-role="trades-card-basis">
+            <%= gettext(
+              "The five most recently closed · result in %{currency} · FIFO across every depot, whatever the view · p. a. only from 365 days of holding",
+              currency: @card.base_currency
+            ) %>
+          </p>
+          <ul :if={@card.trades != []} class="attention-list">
+            <li :for={trade <- @card.trades}>
+              <a
+                href={"/securities/#{trade.security_id}?tab=trades"}
+                class="attention-item"
+                data-role="closed-trade"
+              >
+                <span class="attention-name">
+                  <%= trade.security_name %>
+                  <small class="attention-item__sub">
+                    <%= gettext("sold %{date}", date: Format.date(trade.close_date)) %> · <%= ngettext(
+                      "%{count} day",
+                      "%{count} days",
+                      trade.holding_period_days
+                    ) %>
+                  </small>
+                </span>
+                <span class="num">
+                  <span class={sign_class(trade.realized_base)}><%= Format.signed_decimal(
+                    trade.realized_base,
+                    2
+                  ) %></span><small class="value-suffix"><%= @card.base_currency %></small>
+                  <small class="attention-item__sub">
+                    <%= if trade.annualized_return do %>
+                      <span class={sign_class(trade.annualized_return)}><%= signed_percent(
+                        trade.annualized_return
+                      ) %>%</span>
+                      <%= gettext("p. a.") %>
+                    <% else %>
+                      <span class={sign_class(trade.realized_pnl_pct)}><%= signed_percent(
+                        trade.realized_pnl_pct
+                      ) %>%</span>
+                      <%= gettext("total") %>
+                    <% end %>
+                  </small>
+                </span>
+              </a>
+            </li>
+          </ul>
+      <% end %>
+    </section>
     """
   end
 

@@ -160,7 +160,14 @@ Changes made when the rules moved, so nobody reads a stale number here:
   never built, and the rule had contradicted the app since June. **Amended
   2026-09-14** by the owner's pick C2-B of the 2026-09-12 UX review: the
   Overview also carries a four-cell KPI strip (three of the 2026-06-13 metrics
-  return under a new shape, plus quote freshness); built by #798.
+  return under a new shape, plus quote freshness); built by #798. **Amended
+  2026-10-01** by pick G1-A of the Sprint 17 design pass (adopted by that
+  planning PR's merge; built by #984): a fifth block, "Closed trades", under
+  the strip — the five most recently closed round-trips with their result
+  and return, "All trades →" to the Trades facet, a basis line saying it
+  covers every depot whatever the view. It lists **results, not activity**:
+  ADR-0022 §7 dropped "the raw recent-activity feed", and a sale appears
+  there for what it realised, never as a booking among bookings.
 - **DR4 was rewritten** from "which Soon items are hidden" to "which shipped
   surfaces are reachable only by a path the sidebar does not show".
 - **DR5's mechanism note is corrected:** the `@property` count-up it named

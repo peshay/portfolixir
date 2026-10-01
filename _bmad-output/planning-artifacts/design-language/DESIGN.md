@@ -2483,3 +2483,123 @@ keeps the board's content and changes only what every page owes the theme:
   padding: var(--space-4)`) holds the status line and nothing else. A
   designed error page (a layout, a remedy sentence, a way back) stays the
   separate decision the board names.
+
+## Amendment 2026-10-01 — Trades: the facet, the p. a. column, the unmatched sells and the Overview card *(Sprint 17 pick G1-A, issue 984)*
+
+Board `mockups/ux-design-2026-10-01/01-trades-reach`, variant A (the plan's
+D-9 pick, adopted by the planning PR's merge), as built in
+`PortfolixirWeb.IncomeLive` (the facet) and `PortfolixirWeb.DashboardLive`
+(the card). The rules ① to ⑥ of the board's `#proposal` are in `app.css`
+under "Trades: reach, the p. a. column and the unmatched sells".
+
+### The facet is "Trades"
+
+- **The switch reads "Trades"**; the URL stays `/cashflow?tab=realized`, so
+  links and bookmarks hold. The subtitle names the facet (UX-DR21):
+  "Abgeschlossene Trades und ihr realisiertes Ergebnis".
+- **The matcher's scope is stated once**, in the facet's opening basis line:
+  "Beträge in EUR · FIFO je Wertpapier · alle Depots". The list's own basis
+  line (below) does not repeat FIFO or the scope — the board found the two
+  lines saying it twice.
+
+### The p. a. column
+
+- **Position:** directly left of Result, a `.num` column headed "p. a.". No
+  ⓘ in the header: `.data-table-wrapper` is its own scroller and would clip
+  it.
+- **The figure:** the trade's annualized return (`annualized_return`, the
+  money-weighted return per year of the trade's own flows, in the trade's
+  currency, like the percent under the result it annualizes) as
+  `Format.percent` with one decimal and the percent sign, in its sign colour
+  (`td.trade-pa.is-positive` / `.is-negative`).
+- **The threshold** is the trade's own holding period, the "Haltedauer"
+  cell of the same row: from 365 days the figure, below it the dash. The two
+  can never disagree.
+- **The dash** (`.trade-pa--na`, rule ①): a muted "—", `aria-hidden`, with
+  `cursor: help`; the reason rides the cell's `title` ("Unter einem Jahr
+  Haltedauer nicht annualisiert") and a `.visually-hidden` sentence ("nicht
+  annualisiert, unter einem Jahr Haltedauer"). A trade held long enough
+  whose flows no rate solves (a total loss) carries the same dash with its
+  own reason ("Keine annualisierte Rendite: kein Zinssatz löst die
+  Zahlungen dieses Trades").
+- **Sign colour in this table** (rule ⑥): `#realized-trades-table
+  td.is-positive / td.is-negative` restore the colour that `.data-table
+  tbody td { color }` took from the bare classes, for p. a. and Result alike.
+  Scoped to this table; the other tables with the same pattern are a
+  follow-up.
+
+### The list's basis line
+
+`p.summary-basis[data-role="trades-basis"]` directly under the list (rule
+②: 12 px, muted, no margin — `.summary-basis` has no context-free rule, so
+the rule is scoped to `#realized-trades > .summary-basis` and the card):
+"Einlieferungen eröffnen keinen Lot · Gebühren und Steuern in Einstand und
+Erlös · Erträge während der Haltedauer nicht enthalten · p. a. erst ab 365
+Tagen Haltedauer". It renders whenever the list or the unmatched-sells note
+does, because it is the limit that note points to (UX-DR26).
+
+### The unmatched-sells note
+
+- **What:** the sells the FIFO matcher could not pair with a buy — shares
+  that arrived by an inbound delivery open no lot — which are in no figure.
+- **Where:** an `attention` data note (UX-DR17) leading `#realized-trades`,
+  after the currency-exclusion note when both appear, before the three
+  figures (UX-DR25: named where the total is read).
+- **Words:** "2 Verkäufe ohne zugeordneten Kauf (z. B. aus Einlieferungen)
+  sind nicht enthalten — in keiner der drei Kennzahlen, keiner Zeile und
+  nicht in der Matrix."
+- **The disclosure:** `details.perf-table-disclosure`, closed by default,
+  summary "Die 2 Verkäufe" ("Der Verkauf" for one), holding `.excluded-list`
+  (rule ⑤): a grid of three aligned columns — security, date
+  (`Format.date`), quantity ("15,0000 Stück"), the last two right-aligned in
+  tabular figures. **Under 560 px** the security takes its own line and the
+  date and quantity sit beneath it — the board drew the note at desktop width
+  only, and at 390 px the two unwrapping figures squeezed a long name into a
+  four-line column.
+- **No remedy control** (UX-DR25 clause 3): nothing on the page can supply
+  the missing buy.
+
+### The trades phone row *(UX-DR27)*
+
+Under 560 px `#realized-trades-table-wrapper` is `display: none` (the phone
+lists' 560 px block) and `#realized-trades-phone-rows` shows: the
+transactions shape, two children (rule ③), no logo, no kebab. The body is
+the name (600, wrapping) linking to the security's Trades tab over "gekauft
+→ verkauft · N Tage"; the figures are the result in the base currency (14
+px/600, sign colour) over the period return and, from 365 days, " · x,x %
+p. a." (12 px muted, each signed number in its colour). A shorter trade
+shows no dash on the phone; the basis line under the rows says why.
+
+### The Overview card "Abgeschlossene Trades"
+
+- **Placement:** under the KPI strip, before "Ziel-Abweichungen" — the
+  fifth block of UX-DR2 (amended 2026-10-01). It lists **results, not
+  activity**: ADR-0022 §7 dropped the raw recent-activity feed, and a sale
+  appears here for what it realised, never as a booking.
+- **Head:** the `h2` and, in the same `.section-head` row, the
+  `.kpi-summary__link` "Alle Trades →" to `/cashflow?tab=realized` (the
+  pattern of "Alle Kennzahlen → Bestände"); at 390 px the link wraps under
+  the heading, right-aligned, as the board drew. The head has no bottom
+  margin (rule ④).
+- **Basis line** (rule ②): "Die fünf zuletzt abgeschlossenen · Ergebnis in
+  EUR · FIFO über alle Depots, unabhängig von der Ansicht · p. a. erst ab
+  365 Tagen Haltedauer". The card covers every depot while the rest of the
+  Overview follows the selected view, and the line says so.
+- **Rows:** at most five, newest close first, the `.attention-list` of "Off
+  target" and "Due": each `a.attention-item[data-role="closed-trade"]` to
+  the security's Trades tab, the name over "verkauft 22.09.2026 · 568 Tage";
+  the figure slot right-aligned on two lines (rule ④) — the signed result
+  with its currency suffix, in its sign colour, over "+10,0 % p. a." from
+  365 days of holding, else "+8,0 % gesamt" (the period return). The slot
+  does not wrap at 390 px; the name may.
+- **States:** *pending* — the head and the block skeleton
+  (`.section-skeleton`, `aria-busy`, no cue: a sub-second read, UX-DR20),
+  only where a sell is booked; *a sale the rates cannot convert* — an
+  `attention` note under the head naming it ("1 Verkauf ohne gespeicherten
+  Kurs an seinem Schlussdatum fehlt bei den Trades: …"), pointing to the
+  backfill under "Alle Trades", where the control is; *absent* — no closed
+  trade and no such sale, like "Fällig" without a date, and from the first
+  paint when no sell is booked; *failed* — a `problem` note in the card.
+- **What it does not carry:** the unmatched-sells note. A sell with no
+  matched buy is no trade, so it is not missing from the five; the facet
+  names it where the totals are read.

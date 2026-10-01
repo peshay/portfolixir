@@ -151,4 +151,177 @@ defmodule PortfolixirWeb.RealizedTradesLiveTest do
     refute has_element?(view, "#realized-trades-table")
     assert has_element?(view, "#realized-trades .empty-state")
   end
+
+  # Three closed trades on the facet (#984, pick G1-A): two held 730 days,
+  # one gaining 20 % a year (1440 / 1000 over two years) and one losing 20 %
+  # a year (640 / 1000), and one held 30 days, which is not annualized.
+  defp seed_reach! do
+    world = base_world(name: "Reach World", cash_name: "RW Cash", depot_name: "RW Depot")
+    long = create_security!(name: "Longhold Industries", ticker: "LHI")
+    fade = create_security!(name: "Slowfade Materials", ticker: "SFM")
+    quick = create_security!(name: "Quickturn Retail", ticker: "QTR")
+    deposit!(world, "100000", ~D[2023-01-02])
+
+    buy!(world, long, quantity: "10", price: "100", date: ~D[2024-01-02])
+    sell!(world, long, quantity: "10", price: "144", date: ~D[2026-01-01])
+    buy!(world, fade, quantity: "10", price: "100", date: ~D[2023-06-01])
+    sell!(world, fade, quantity: "10", price: "64", date: ~D[2025-05-31])
+    buy!(world, quick, quantity: "4", price: "50", date: ~D[2026-02-01])
+    sell!(world, quick, quantity: "4", price: "45", date: ~D[2026-03-03])
+
+    %{long: long, fade: fade, quick: quick}
+  end
+
+  defp row(view, name) do
+    view
+    |> render()
+    |> Floki.parse_document!()
+    |> Floki.find("#realized-trades-table tbody tr")
+    |> Enum.find(&(Floki.text(&1) =~ name))
+  end
+
+  # User story (#984 rescoped, Sprint 17 T2; board G1, variant A picked):
+  # As a local portfolio maintainer asking whether a trade was worth it,
+  # I want the facet called "Trades" and a "p. a." column beside each result,
+  # so that a two-week trade and a two-year trade with the same percentage no
+  # longer read alike, and the list is found under the name I look for.
+  #
+  # Acceptance criteria:
+  # - The facet switch reads "Trades"; the URL stays /cashflow?tab=realized.
+  # - The table carries "p. a." directly left of "Result".
+  # - A trade held 365 days or more shows its annualized return in its sign
+  #   colour; a shorter one shows a muted dash whose reason rides the cell's
+  #   title and a visually hidden sentence.
+  # - A basis line under the list states the rules: deliveries open no lot,
+  #   fees and taxes in cost and proceeds, income while open not included,
+  #   p. a. only from 365 days of holding.
+  test "the facet reads Trades and carries the p. a. column left of Result", %{conn: conn} do
+    seed_reach!()
+    {:ok, view, _html} = live(conn, "/cashflow?tab=realized")
+
+    assert has_element?(
+             view,
+             "[data-role='cashflow-facets'] a[href='/cashflow?tab=realized'][aria-current='true']",
+             "Trades"
+           )
+
+    headers =
+      view
+      |> render()
+      |> Floki.parse_document!()
+      |> Floki.find("#realized-trades-table thead th")
+      |> Enum.map(&String.trim(Floki.text(&1)))
+
+    assert Enum.take(headers, -2) == ["p. a.", "Result"]
+
+    long = row(view, "Longhold Industries")
+    assert [pa] = Floki.find(long, "td.trade-pa")
+    assert Floki.attribute(pa, "class") |> hd() =~ "is-positive"
+    assert String.trim(Floki.text(pa)) == "20.0%"
+
+    fade = row(view, "Slowfade Materials")
+    assert [pa] = Floki.find(fade, "td.trade-pa")
+    assert Floki.attribute(pa, "class") |> hd() =~ "is-negative"
+    assert String.trim(Floki.text(pa)) == "-20.0%"
+
+    quick = row(view, "Quickturn Retail")
+    assert [dash] = Floki.find(quick, "td.trade-pa.trade-pa--na")
+    assert Floki.attribute(dash, "title") == ["Not annualized under one year of holding"]
+    assert Floki.text(Floki.find(dash, "[aria-hidden='true']")) == "—"
+
+    assert Floki.text(Floki.find(dash, ".visually-hidden")) ==
+             "not annualized, under one year of holding"
+
+    basis =
+      view |> element("#realized-trades > p.summary-basis[data-role='trades-basis']") |> render()
+
+    assert basis =~ "Deliveries open no lot"
+    assert basis =~ "fees and taxes in cost and proceeds"
+    assert basis =~ "income received while a trade was open not included"
+    assert basis =~ "p. a. only from 365 days of holding"
+  end
+
+  # Acceptance criteria (UX-DR27, board G1 rule 3):
+  # - Beside the table, two-line rows for under 560 px: the name over
+  #   "bought → sold · days", the result over the period return and, from
+  #   365 days, " · p. a." — no dash on the phone, the basis line says why.
+  # - The table keeps its own wrapper, which the phone width hides.
+  test "the list carries two-line phone rows beside its table", %{conn: conn} do
+    seed_reach!()
+    {:ok, view, _html} = live(conn, "/cashflow?tab=realized")
+
+    assert has_element?(view, "#realized-trades-table-wrapper #realized-trades-table")
+
+    rows =
+      view
+      |> render()
+      |> Floki.parse_document!()
+      |> Floki.find("#realized-trades-phone-rows li.phone-row")
+
+    assert length(rows) == 3
+
+    long = Enum.find(rows, &(Floki.text(&1) =~ "Longhold Industries"))
+    assert Floki.text(Floki.find(long, ".phone-row__ids")) =~ "2024-01-02 → 2026-01-01 · 730 days"
+    assert Floki.text(Floki.find(long, ".phone-row__figure")) =~ "440.00"
+    figure2 = Floki.text(Floki.find(long, ".phone-row__figure2"))
+    assert figure2 =~ "44.0%"
+    assert figure2 =~ "20.0% p. a."
+
+    quick = Enum.find(rows, &(Floki.text(&1) =~ "Quickturn Retail"))
+    assert Floki.text(Floki.find(quick, ".phone-row__figure2")) =~ "-10.0%"
+    refute Floki.text(Floki.find(quick, ".phone-row__figure2")) =~ "p. a."
+    assert Floki.attribute(Floki.find(quick, "a.phone-row__target"), "href") != []
+  end
+
+  # Acceptance criteria (the German page, board G1's copy):
+  # - The switch, the column, the dash's reason and the basis line in German.
+  test "the Trades facet is German where the page is", %{conn: conn} do
+    seed_reach!()
+    de_conn = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    {:ok, view, _html} = live(de_conn, "/cashflow?tab=realized")
+
+    assert has_element?(view, "[data-role='cashflow-facets'] a[aria-current='true']", "Trades")
+
+    assert has_element?(
+             view,
+             ".topbar-page p",
+             "Abgeschlossene Trades und ihr realisiertes Ergebnis"
+           )
+
+    assert has_element?(view, "[data-role='facet-basis']", "FIFO je Wertpapier · alle Depots")
+
+    quick = row(view, "Quickturn Retail")
+
+    assert Floki.attribute(Floki.find(quick, "td.trade-pa--na"), "title") == [
+             "Unter einem Jahr Haltedauer nicht annualisiert"
+           ]
+
+    assert String.trim(Floki.text(Floki.find(row(view, "Longhold Industries"), "td.trade-pa"))) ==
+             "20,0%"
+
+    basis = view |> element("[data-role='trades-basis']") |> render()
+    assert basis =~ "Einlieferungen eröffnen keinen Lot"
+    assert basis =~ "p. a. erst ab 365 Tagen Haltedauer"
+  end
+
+  # Acceptance criteria (board G1 rules 1, 2, 3 and 6, the CSS the pick adds):
+  # - The dash is muted; the list's basis line has the basis voice; under
+  #   560 px the table's wrapper gives way to the rows, which take the
+  #   two-child track; the sign colour of Result and p. a. is restored in
+  #   #realized-trades-table only (`.data-table tbody td { color }`
+  #   outranks the bare class elsewhere, a follow-up).
+  test "the stylesheet carries the pick's rules" do
+    css = File.read!("priv/static/app.css")
+
+    assert css =~ ~r/\.trade-pa--na\s*\{[^}]*color:\s*var\(--color-text-muted\)/
+    assert css =~ ~r/#realized-trades > \.summary-basis[^{]*\{[^}]*font-size:\s*12px/
+    assert css =~ ~r/#realized-trades-phone-rows \.phone-row\s*\{[^}]*minmax\(0, 1fr\) auto/
+    assert css =~ ~r/#realized-trades-table td\.is-positive\s*\{[^}]*var\(--color-positive\)/
+    assert css =~ ~r/#realized-trades-table td\.is-negative\s*\{[^}]*var\(--color-danger\)/
+
+    [phone_block] =
+      Regex.run(~r/@media \(max-width: 560px\) \{\s*\/\* phone lists.*?\n\}/s, css)
+
+    assert phone_block =~ "#realized-trades-table-wrapper"
+  end
 end
