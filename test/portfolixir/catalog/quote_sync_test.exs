@@ -94,10 +94,12 @@ defmodule Portfolixir.Catalog.QuoteSyncTest do
       {:ok, [%{date: ~D[2026-05-15], close: Decimal.new("50")}]}
     )
 
-    assert {:ok, %{ok: 1, error: 1, skipped: 0, results: results}} =
-             QuoteSync.sync_all(adapter_for: %{"manual" => Fake})
+    {result, log} =
+      ExUnit.CaptureLog.with_log(fn -> QuoteSync.sync_all(adapter_for: %{"manual" => Fake}) end)
 
+    assert {:ok, %{ok: 1, error: 1, skipped: 0, results: results}} = result
     assert Enum.any?(results, &(&1.status == :error and &1.reason == :timeout))
+    assert log =~ "quote fetch failed for security ##{sec_a.id} via #{inspect(Fake)}: :timeout"
     assert Quotes.latest(sec_b.id).date == ~D[2026-05-15]
     assert Quotes.latest(sec_a.id) == nil
   end

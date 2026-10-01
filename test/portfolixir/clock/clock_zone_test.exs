@@ -8,6 +8,8 @@ defmodule Portfolixir.ClockZoneTest do
   # async: false — the zone test sets TZ for the BEAM process.
   use Portfolixir.DataCase, async: false
 
+  import ExUnit.CaptureLog
+
   alias Portfolixir.Actor
   alias Portfolixir.Clock
   alias Portfolixir.Portfolios.Snapshots
@@ -64,7 +66,12 @@ defmodule Portfolixir.ClockZoneTest do
       assert SessionZone.align(conn, "America/New_York") == :ok
       assert show_zone(conn) == "America/New_York"
 
-      assert SessionZone.align(conn, "Not/A_Zone") == :unknown
+      # An unknown zone is logged once per zone name and VM: a name of its
+      # own keeps the warning this test asserts on.
+      zone = "Not/A_Zone#{System.unique_integer([:positive])}"
+      log = capture_log(fn -> assert SessionZone.align(conn, zone) == :unknown end)
+      assert log =~ "database session zone not aligned"
+      assert log =~ "the database knows no zone named #{inspect(zone)}"
       assert show_zone(conn) == "America/New_York"
     after
       GenServer.stop(conn)

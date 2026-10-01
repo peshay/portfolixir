@@ -130,9 +130,16 @@ defmodule Portfolixir.Catalog.QuotesAuthoredTest do
                %{"date" => "2026-03-09", "close" => "43.00"}
              ])
 
-    # Manual wins (ADR-0028): the sync leaves the pinned row alone.
-    assert %{status: :ok, skipped_manual: 1} =
-             sync(security, [%{date: ~D[2026-03-02], close: Decimal.new("41.20")}])
+    # Manual wins (ADR-0028): the sync leaves the pinned row alone, and says so.
+    {result, log} =
+      ExUnit.CaptureLog.with_log(fn ->
+        sync(security, [%{date: ~D[2026-03-02], close: Decimal.new("41.20")}])
+      end)
+
+    assert %{status: :ok, skipped_manual: 1} = result
+
+    assert log =~
+             "quote sync skipped 1 manual quote row(s) for security ##{security.id}"
 
     assert {~D[2026-03-02], "42.5", "manual"} in stored(security)
 

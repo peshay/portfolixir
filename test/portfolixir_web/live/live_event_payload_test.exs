@@ -7,11 +7,10 @@ defmodule PortfolixirWeb.LiveEventPayloadTest do
   import Phoenix.LiveViewTest
   import Portfolixir.WorldFixtures
 
-  alias Ecto.Adapters.SQL.Sandbox
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Classifications
-  alias Portfolixir.Repo
+  alias Portfolixir.DataCase
   alias PortfolixirWeb.LiveSource
 
   @moduletag :capture_log
@@ -53,7 +52,8 @@ defmodule PortfolixirWeb.LiveEventPayloadTest do
     @tag page: {path, module, world}
     test "#{path} (#{world}): every event survives malformed payloads", %{
       conn: conn,
-      page: {path, module, world}
+      page: {path, module, world},
+      sandbox_owner: owner
     } do
       Process.flag(:trap_exit, true)
 
@@ -64,14 +64,14 @@ defmodule PortfolixirWeb.LiveEventPayloadTest do
 
       assert length(shots) > 1
 
-      {_state, crashes} =
-        Enum.reduce(shots, {nil, []}, fn {event, payload}, {state, crashes} ->
+      {_state, crashes, _owner} =
+        Enum.reduce(shots, {nil, [], owner}, fn {event, payload}, {state, crashes, owner} ->
           {records, view} = state || mount!(conn, path, world)
 
           case fire(view, event, payload) do
-            {:ok, nil} -> {{records, mount_only!(conn, path, records)}, crashes}
-            {:ok, view} -> {{records, view}, crashes}
-            {:crash, reason} -> {nil, [{event, payload, reason} | reset_sandbox(crashes)]}
+            {:ok, nil} -> {{records, mount_only!(conn, path, records)}, crashes, owner}
+            {:ok, view} -> {{records, view}, crashes, owner}
+            {:crash, reason} -> {nil, [{event, payload, reason} | crashes], reset_sandbox(owner)}
           end
         end)
 
@@ -106,13 +106,11 @@ defmodule PortfolixirWeb.LiveEventPayloadTest do
   end
 
   # A process that dies holding the sandbox connection takes the connection
-  # with it; a fresh checkout (and a fresh world) lets the run go on and name
+  # with it; a fresh owner (and a fresh world) lets the run go on and name
   # every crash rather than the first.
-  defp reset_sandbox(crashes) do
-    _ = Sandbox.checkin(Repo)
-    :ok = Sandbox.checkout(Repo)
-    Sandbox.mode(Repo, {:shared, self()})
-    crashes
+  defp reset_sandbox(owner) do
+    DataCase.stop_sandbox(owner)
+    DataCase.setup_sandbox(%{async: false})
   end
 
   defp mount!(conn, path, world) do

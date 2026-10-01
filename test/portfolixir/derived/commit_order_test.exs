@@ -22,13 +22,17 @@ defmodule Portfolixir.Derived.CommitOrderTest do
 
   @table "derived_data_version_events"
 
-  setup do
+  setup %{sandbox_owner: owner} do
     Memo.reset()
     DerivedConfig.enable!()
 
     floor = unboxed(fn -> Repo.one(from(e in @table, select: coalesce(max(e.id), 0))) end)
 
     on_exit(fn ->
+      # The sandbox rolls back first: a committed event row its transaction
+      # updated (a settle clearing the pending mark) stays locked until then,
+      # and the sandbox owner outlives this callback otherwise (#927).
+      stop_sandbox(owner)
       Memo.reset()
       unboxed(fn -> Repo.delete_all(from(e in @table, where: e.id > ^floor)) end)
     end)

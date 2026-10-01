@@ -141,13 +141,16 @@ defmodule Portfolixir.Catalog.ProviderDataBoundsTest do
        ]}
     )
 
-    result =
-      QuoteSync.sync_security(security,
-        adapter_for: %{"coingecko" => Fake}
-      )
+    {result, log} =
+      ExUnit.CaptureLog.with_log(fn ->
+        QuoteSync.sync_security(security, adapter_for: %{"coingecko" => Fake})
+      end)
 
     assert %{status: :ok, upserted: 1} = result
     assert stored_quote_dates(security.id) == [Date.add(today, -2)]
+
+    assert log =~
+             "quote sync dropped 2 implausible provider point(s) for security ##{security.id}"
   end
 
   # User story:

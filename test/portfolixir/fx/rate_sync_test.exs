@@ -1,6 +1,8 @@
 defmodule Portfolixir.Fx.RateSyncTest do
   use Portfolixir.DataCase, async: true
 
+  import ExUnit.CaptureLog
+
   alias Portfolixir.Fx
   alias Portfolixir.Fx.RateSync
   alias Portfolixir.Fx.RateSync.Ecb
@@ -62,7 +64,8 @@ defmodule Portfolixir.Fx.RateSyncTest do
   test "surfaces provider errors and writes nothing" do
     Fake.put_response({:error, :boom})
 
-    assert {:error, :boom} = RateSync.sync(provider: Fake)
+    log = capture_log(fn -> assert {:error, :boom} = RateSync.sync(provider: Fake) end)
+    assert log =~ "fx rate fetch failed via #{inspect(Fake)}: :boom"
     assert Fx.list_rates() == []
   end
 
@@ -198,10 +201,22 @@ defmodule Portfolixir.Fx.RateSyncTest do
   # value or a raising adapter is an error, never a crash; the ECB history
   # fetch is exercised through Req's plug adapter, no network.
   test "backfill/1 degrades on garbage and on a raising adapter" do
-    assert {:error, {:unexpected_response, :not_a_tuple}} =
-             RateSync.backfill(provider: GarbageHistory)
+    log =
+      capture_log(fn ->
+        assert {:error, {:unexpected_response, :not_a_tuple}} =
+                 RateSync.backfill(provider: GarbageHistory)
+      end)
 
-    assert {:error, {:adapter_exception, "boom"}} = RateSync.backfill(provider: RaisingHistory)
+    assert log =~ "fx history fetch returned unexpected value: :not_a_tuple"
+
+    log =
+      capture_log(fn ->
+        assert {:error, {:adapter_exception, "boom"}} =
+                 RateSync.backfill(provider: RaisingHistory)
+      end)
+
+    assert log =~
+             ~s(fx history fetch failed via #{inspect(RaisingHistory)}: {:adapter_exception, "boom"})
   end
 
   test "fetch/1 parses the daily feed through the bounded client, no network" do
