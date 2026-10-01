@@ -21,6 +21,22 @@ Start the project with either:
     stack; the root `docker-compose.yml` is the production release)
   - `docker compose -f docker-compose.dev.yml down -v` to reset local data
 
+  The development stack is a Compose project of its own, `portfolixir-dev`,
+  with a database volume of its own (#932), so its reset never reaches the
+  database of a production stack in the same checkout. The name is fixed, so
+  a second checkout or git worktree on the same host shares that project and
+  its volume: give it a project of its own with `-p` (for example
+  `docker compose -p portfolixir-dev-2 -f docker-compose.dev.yml up --build`,
+  and the same `-p` on its `down -v`), or the second `up` replaces the first
+  checkout's containers and its reset deletes the first checkout's data. A development stack
+  started before #932 runs under the checkout directory's project instead and
+  holds the ports: stop it once before the first start
+  (`docker compose -p <project> -f docker-compose.dev.yml down`, where
+  `docker compose ls` names the project). Its database stays in that
+  project's `portfolixir-postgres-data` volume, the one a production stack in
+  this checkout would start on; "Moving off the development stack" in
+  [Home Deployment](../home-deployment.html) removes it.
+
 - Phoenix from source:
 
   - `mix deps.get`

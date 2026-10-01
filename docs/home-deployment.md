@@ -359,34 +359,54 @@ the `SECRET_KEY_BASE` committed in `config/dev.exs` — so both of its ports, th
 application's and the database's, are published on the host's loopback only,
 and it holds synthetic data only.
 
+It is a Compose project of its own, `portfolixir-dev`, with a database volume
+of its own (#932), so its containers and its reset never touch a production
+stack started from the same checkout. The two publish the same ports on the
+host, so one runs at a time. The development reset removes the development
+database only:
+
+```bash
+docker compose -f docker-compose.dev.yml down -v
+```
+
 ### Moving off the development stack
 
 Before the production release (Sprint 10, #760), the documented deployment was
 this development stack, then named `docker-compose.yml`, with its ports open on
 every interface. An instance still running that way moves to the production
 stack by a backup and a restore, not in place: the production database is set
-up only on an empty volume, and the old volume keeps the development user. From
-the checkout, after pulling the current version:
+up only on an empty volume, and the old volume keeps the development user.
+
+Such an instance, and a development stack started in a checkout before #932,
+runs under the checkout directory's Compose project, the one the production
+stack uses, and keeps its database in the volume the production stack names
+`portfolixir-postgres-data`. The development file names a project of its own
+since #932 and no longer reaches that volume, so the commands below address
+the old instance through `docker-compose.yml`. From the checkout, after pulling
+the current version and writing `.env` (see "Secrets and settings" above):
 
 ```bash
-# 1. A backup of the development database, while it still runs.
+# 1. A backup of the old instance's database, while it still runs.
 umask 077
 mkdir -p ~/portfolixir-backups
-docker compose -f docker-compose.dev.yml exec -T db \
+docker compose exec -T db \
   pg_dump -U postgres -d portfolixir_dev --format=custom \
   > ~/portfolixir-backups/portfolixir-dev.dump
 
-# 2. The file lists its contents; only then remove the development stack and
-#    its volumes, which leaves the backup as the only copy.
-docker compose -f docker-compose.dev.yml exec -T db \
+# 2. The file lists its contents; only then remove the old containers and
+#    their database volume, which leaves the backup as the only copy.
+docker compose exec -T db \
   pg_restore --list < ~/portfolixir-backups/portfolixir-dev.dump | head
-docker compose -f docker-compose.dev.yml down -v
+docker compose down -v
 
 # 3. The production database, on a new volume.
 docker compose up -d db
 ```
 
 Then restore that file from step 3 of "Restore" below, and check the restore.
+The old stack's two build caches, `app-deps` and `app-build`, stay behind as
+volumes under the checkout's project name: `docker volume ls` lists them, and
+`docker volume rm` removes them.
 
 ## Backup and restore
 

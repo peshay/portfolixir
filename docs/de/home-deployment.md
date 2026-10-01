@@ -381,6 +381,16 @@ deshalb sind seine beiden Ports, der der Anwendung und der der Datenbank, nur
 auf der Loopback-Schnittstelle des Hosts veröffentlicht, und er enthält nur
 synthetische Daten.
 
+Er ist ein eigenes Compose-Projekt, `portfolixir-dev`, mit einem eigenen
+Datenbank-Volume (#932): Seine Container und sein Zurücksetzen berühren nie
+einen Produktions-Stack, der aus demselben Checkout gestartet wurde. Beide
+veröffentlichen dieselben Ports auf dem Host, es läuft also immer nur einer.
+Das Zurücksetzen der Entwicklung entfernt nur die Entwicklungsdatenbank:
+
+```bash
+docker compose -f docker-compose.dev.yml down -v
+```
+
 ### Umzug vom Entwicklungs-Stack
 
 Vor dem Produktions-Release (Sprint 10, #760) war das dokumentierte Deployment
@@ -388,29 +398,41 @@ dieser Entwicklungs-Stack, damals `docker-compose.yml` genannt, mit auf jeder
 Schnittstelle offenen Ports. Eine Instanz, die noch so läuft, zieht per
 Sicherung und Wiederherstellung auf den Produktions-Stack um, nicht an Ort und
 Stelle: die Produktionsdatenbank wird nur auf einem leeren Volume angelegt, und
-das alte Volume behält den Entwicklungsbenutzer. Im Checkout, nachdem die
-aktuelle Version geholt ist:
+das alte Volume behält den Entwicklungsbenutzer.
+
+Eine solche Instanz, wie auch ein Entwicklungs-Stack, der in einem Checkout vor
+#932 gestartet wurde, läuft unter dem Compose-Projekt des Checkout-Verzeichnisses,
+demselben, das der Produktions-Stack verwendet, und hält ihre Datenbank in dem
+Volume, das der Produktions-Stack `portfolixir-postgres-data` nennt. Die
+Entwicklungsdatei benennt seit #932 ein eigenes Projekt und erreicht dieses
+Volume nicht mehr; die Befehle unten sprechen die alte Instanz deshalb über
+`docker-compose.yml` an. Im Checkout, nachdem die aktuelle Version geholt und
+`.env` geschrieben ist (siehe „Geheimnisse und Einstellungen“ oben):
 
 ```bash
-# 1. Eine Sicherung der Entwicklungsdatenbank, solange sie noch läuft.
+# 1. Eine Sicherung der Datenbank der alten Instanz, solange sie noch läuft.
 umask 077
 mkdir -p ~/portfolixir-backups
-docker compose -f docker-compose.dev.yml exec -T db \
+docker compose exec -T db \
   pg_dump -U postgres -d portfolixir_dev --format=custom \
   > ~/portfolixir-backups/portfolixir-dev.dump
 
-# 2. Die Datei zeigt ihr Inhaltsverzeichnis; erst dann den Entwicklungs-Stack
-#    samt Volumes entfernen, womit die Sicherung die einzige Kopie ist.
-docker compose -f docker-compose.dev.yml exec -T db \
+# 2. Die Datei zeigt ihr Inhaltsverzeichnis; erst dann die alten Container
+#    samt ihrem Datenbank-Volume entfernen, womit die Sicherung die einzige
+#    Kopie ist.
+docker compose exec -T db \
   pg_restore --list < ~/portfolixir-backups/portfolixir-dev.dump | head
-docker compose -f docker-compose.dev.yml down -v
+docker compose down -v
 
 # 3. Die Produktionsdatenbank, auf einem neuen Volume.
 docker compose up -d db
 ```
 
 Dann diese Datei ab Schritt 3 von „Wiederherstellen“ unten zurückspielen und
-die Wiederherstellung prüfen.
+die Wiederherstellung prüfen. Die beiden Build-Caches des alten Stacks,
+`app-deps` und `app-build`, bleiben als Volumes unter dem Projektnamen des
+Checkouts zurück: `docker volume ls` listet sie, `docker volume rm` entfernt
+sie.
 
 ## Sicherung und Wiederherstellung
 

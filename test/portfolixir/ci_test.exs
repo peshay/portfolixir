@@ -514,8 +514,62 @@ defmodule Portfolixir.CITest do
       guide = File.read!(path)
       assert guide =~ heading, path
       assert guide =~ "pg_dump -U postgres -d portfolixir_dev --format=custom", path
-      assert guide =~ "docker compose -f docker-compose.dev.yml down -v", path
     end
+  end
+
+  # User story (#932):
+  # As an operator or contributor who runs the production stack and the
+  # development stack from one checkout,
+  # I want the development stack to be a Compose project of its own, with a
+  # database volume of its own,
+  # so that the documented development reset never deletes the production
+  # database, and neither stack replaces the other's containers.
+  #
+  # Acceptance criteria:
+  # - docker-compose.dev.yml names its own project, and declares no volume
+  #   docker-compose.yml declares, so the data stays apart even when one
+  #   project name is forced on both (COMPOSE_PROJECT_NAME, -p).
+  # - docker-compose.yml names no project and keeps the database volume
+  #   `portfolixir-postgres-data`, the one existing deployments hold: a
+  #   renamed one would come up empty on the next upgrade.
+  # - The deployment guide (EN, DE) and the development guide name the
+  #   development project, and the development reset is the development
+  #   file's `down -v`.
+  # - The move off the development stack (EN, DE) reaches an instance from
+  #   before #760 through the production stack's project, where its database
+  #   still lives, and never through the development file, whose project no
+  #   longer holds it.
+  test "the development stack's project and database volume are its own" do
+    compose = File.read!("docker-compose.yml")
+    dev_compose = File.read!("docker-compose.dev.yml")
+
+    refute compose =~ ~r/^name:/m, "a project name would rename every deployed volume"
+    assert "portfolixir-postgres-data" in top_level_volumes(compose)
+    assert compose =~ "- portfolixir-postgres-data:/var/lib/postgresql"
+
+    assert dev_compose =~ ~r/^name: portfolixir-dev$/m
+
+    shared = MapSet.intersection(top_level_volumes(compose), top_level_volumes(dev_compose))
+    assert MapSet.size(shared) == 0, "both stacks declare #{inspect(MapSet.to_list(shared))}"
+
+    for path <- ["docs/home-deployment.md", "docs/de/home-deployment.md"] do
+      guide = File.read!(path)
+      assert guide =~ "`portfolixir-dev`", path
+      assert guide =~ "docker compose -f docker-compose.dev.yml down -v", path
+
+      move =
+        section(guide, ~r/^### (Moving off the development stack|Umzug vom Entwicklungs-Stack)$/m)
+
+      assert move =~ "docker compose exec -T db \\\n  pg_dump -U postgres -d portfolixir_dev",
+             path
+
+      assert move =~ ~r/^docker compose down -v$/m, path
+      refute move =~ "docker-compose.dev.yml", path
+    end
+
+    dev_guide = File.read!("docs/development/guide.md")
+    assert dev_guide =~ "`portfolixir-dev`"
+    assert dev_guide =~ "`docker compose -f docker-compose.dev.yml down -v`"
   end
 
   # User story (E25 S2, F62):
@@ -1161,6 +1215,23 @@ defmodule Portfolixir.CITest do
 
   # Every step of every job: its `- ` line plus every following line indented
   # deeper than the dash, which is where YAML ends a block sequence item.
+  # The names under a Compose file's top-level `volumes:` key.
+  defp top_level_volumes(compose) do
+    [block] = Regex.run(~r/^volumes:\n((?:  .*\n?|\n)*)/m, compose, capture: :all_but_first)
+
+    ~r/^  ([\w.-]+):/m
+    |> Regex.scan(block, capture: :all_but_first)
+    |> List.flatten()
+    |> MapSet.new()
+  end
+
+  # A Markdown section: from its heading up to the next `##` or `###`
+  # heading (a `#` line inside a code block is a shell comment).
+  defp section(markdown, heading) do
+    [_before, rest] = String.split(markdown, heading, parts: 2)
+    rest |> String.split(~r/^\#{2,3} /m, parts: 2) |> hd()
+  end
+
   defp steps(yaml) do
     lines = String.split(yaml, "\n")
 

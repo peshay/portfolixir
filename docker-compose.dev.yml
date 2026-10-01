@@ -7,6 +7,16 @@
 # Every port is published on loopback only (E25 S2): the database password
 # and the development secret key base are public values, so nothing beyond
 # this machine may reach either service.
+#
+# A Compose project of its own (#932): without a name, this file and
+# docker-compose.yml both took the checkout directory's name, so in one
+# checkout the two stacks replaced each other's containers and shared one
+# database volume, and the development reset (`down -v`) deleted the
+# production database. The database volume has a name of its own too, so the
+# data stays apart even when COMPOSE_PROJECT_NAME or -p forces one project on
+# both files. docker-compose.yml keeps its unnamed project and its volume
+# name: a deployment's database lives under exactly that name.
+name: portfolixir-dev
 
 services:
   db:
@@ -19,7 +29,7 @@ services:
       POSTGRES_PASSWORD: postgres
       PGDATA: /var/lib/postgresql/18/docker
     volumes:
-      - portfolixir-postgres-data:/var/lib/postgresql
+      - portfolixir-dev-postgres-data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d portfolixir_dev"]
       interval: 5s
@@ -79,6 +89,6 @@ services:
       - "127.0.0.1:4001:4001"
 
 volumes:
-  portfolixir-postgres-data:
+  portfolixir-dev-postgres-data:
   app-deps:
   app-build:
