@@ -37,6 +37,8 @@ defmodule Portfolixir.DataCase do
   def setup_sandbox(tags) do
     owner = Sandbox.start_owner!(Portfolixir.Repo, shared: not tags[:async])
     on_exit(fn -> stop_sandbox(owner) end)
+    # A log event the run did not capture names the tests around it (#927).
+    Portfolixir.LogNoise.track(tags)
     owner
   end
 

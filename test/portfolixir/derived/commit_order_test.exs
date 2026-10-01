@@ -114,7 +114,13 @@ defmodule Portfolixir.Derived.CommitOrderTest do
     unboxed(fn -> Repo.transaction(fn -> DataVersion.bump([portfolio_id], Repo, []) end) end)
     committed = DataVersion.current(basis)
 
-    pid = start_supervised!({PostCommit, interval_ms: 60_000, settle_delay_ms: 0})
+    pid =
+      start_supervised!(
+        Supervisor.child_spec({PostCommit, interval_ms: 60_000, settle_delay_ms: 0},
+          restart: :temporary
+        )
+      )
+
     Sandbox.allow(Repo, self(), pid)
     PostCommit.notify()
 
@@ -122,8 +128,10 @@ defmodule Portfolixir.Derived.CommitOrderTest do
 
     refute Repo.exists?(from(e in @table, where: e.basis == ^basis and e.pending == true))
 
-    # Stopped while the test still owns the connection it was allowed.
-    stop_supervised!(PostCommit)
+    # Stopped between two messages: it settles once at start and once when
+    # told, the check above passes on either, and stop_supervised!/1 would kill
+    # it wherever it is, inside the other settle's query too (#927).
+    GenServer.stop(pid)
   end
 
   defp eventually(check, attempts \\ 50) do
