@@ -152,6 +152,9 @@ defmodule PortfolixirWeb.Router do
     post("/securities/:security_id/logo/discover", LogoController, :discover)
 
     get("/securities/:security_id/quotes", QuoteController, :index)
+    # Sprint 17 V2 (T-9): which stored quotes are manual, the read the
+    # release stands on (the Quotes tab's "Release…" and the agent's).
+    get("/securities/:security_id/quotes/manual", QuoteController, :manual)
     put("/securities/:security_id/quotes", QuoteController, :upsert)
     # E25 S6, T-9: a journaled release of manual rows back to provider data.
     post("/securities/:security_id/quotes/release", QuoteController, :release)

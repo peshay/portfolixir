@@ -39,6 +39,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.quotes.list",
       "portfolixir.quotes.upsert",
       "portfolixir.quotes.release",
+      "portfolixir.quotes.manual",
       "portfolixir.portfolios.list",
       "portfolixir.portfolios.create",
       "portfolixir.cash_accounts.list",
@@ -1117,6 +1118,54 @@ describe("Portfolixir MCP tools", () => {
     const upsert = listTools().find((tool) => tool.name === "portfolixir.quotes.upsert");
     assert.match(upsert?.description ?? "", /stored as manual/);
     assert.match(upsert?.description ?? "", /replaced/);
+  });
+
+  // User story:
+  // As the agent asked to release a security's pinned closes,
+  // I want a read that says which stored quotes are manual over the whole
+  // history, in which stretches, how many a range holds and whether the sync
+  // can refill a released day,
+  // so that I release the range the operator means (Sprint 17 V2, T-9; the
+  // read the Quotes tab's "Release…" stands on, under the two-way rule).
+  //
+  // Acceptance criteria:
+  // - portfolixir.quotes.manual routes to GET
+  //   /api/v1/securities/:security_id/quotes/manual with from, to and limit.
+  // - It is read-only, and its description names the stretches, the range
+  //   count, sync_adapter and the release it prepares.
+  // - The release's description points at it.
+  it("reads a security's manual quotes through the API", async () => {
+    const { client, requests } = createRecordingClient({
+      data: { security_id: 42, count: 7, stretches: [] },
+      meta: { limit: 100 }
+    });
+
+    await callTool(client, "portfolixir.quotes.manual", { security_id: 42 });
+    await callTool(client, "portfolixir.quotes.manual", {
+      security_id: 42,
+      from: "2026-06-30",
+      to: "2026-09-16",
+      limit: 5
+    });
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(requests[0].path, "/api/v1/securities/42/quotes/manual");
+    assert.equal(
+      requests[1].path,
+      "/api/v1/securities/42/quotes/manual?from=2026-06-30&to=2026-09-16&limit=5"
+    );
+
+    const tool = listTools().find((entry) => entry.name === "portfolixir.quotes.manual");
+    assert.equal(tool?.annotations.readOnlyHint, true);
+    assert.deepEqual(tool?.inputSchema.required, ["security_id"]);
+    assert.match(tool?.description ?? "", /stretch/);
+    assert.match(tool?.description ?? "", /sync_adapter/);
+    assert.match(tool?.description ?? "", /range/);
+    assert.match(tool?.description ?? "", /portfolixir\.quotes\.release/);
+    assert.throws(() => tool?.zodSchema.parse({ security_id: 42, limit: 0 }));
+
+    const release = listTools().find((entry) => entry.name === "portfolixir.quotes.release");
+    assert.match(release?.description ?? "", /portfolixir\.quotes\.manual/);
   });
 
   // E25 S6, G06: a delta read's as_of lies no later than the oldest write

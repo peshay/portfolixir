@@ -72,6 +72,24 @@ defmodule Portfolixir.Catalog.QuoteSync do
     {:ok, Map.put(counts, :results, results)}
   end
 
+  @doc """
+  Whether the quote sync has an adapter for `security`'s provider — the check
+  `sync_security/2` and `sync_all/1` make before they fetch anything, made
+  public for the release of manual quotes (Sprint 17 V2, T-9): without an
+  adapter the sync skips the security (`:no_provider_adapter`), so a date
+  whose manual quote is released keeps no quote. A security without a
+  provider has none. `:adapter_for` overrides the configured map, as for the
+  syncs.
+
+  It answers for the provider, not for one fetch: an adapter can still skip a
+  security it cannot ask for (no ticker, say), and a fetch can fail.
+  """
+  @spec adapter?(Security.t(), keyword()) :: boolean()
+  def adapter?(%Security{provider: provider}, opts \\ []) do
+    adapter_for = Keyword.get(opts, :adapter_for, runtime_adapter_for())
+    is_binary(provider) and Map.has_key?(adapter_for, provider)
+  end
+
   @doc "Synchronously sync one security with the configured or provided adapter map."
   def sync_security(%Security{} = security, opts \\ []) do
     adapter_for = Keyword.get(opts, :adapter_for, runtime_adapter_for())

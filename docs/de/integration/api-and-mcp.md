@@ -879,6 +879,24 @@ Regel über einer Kennzahl ist FR-43 und bleibt verschlossen.
   `404`. Die Freigabe kommt zuerst für Agenten (API und MCP): Kurse haben auf
   der Wertpapierseite noch kein Schreib-Bedienelement, und ihr
   Freigabe-Bedienelement folgt spätestens in Sprint 17.
+- `GET /api/v1/securities/:security_id/quotes/manual` liest die
+  **manuellen** Kurse eines Wertpapiers über seine ganze gespeicherte
+  Historie — der Lesezugriff, auf dem eine Freigabe steht (Sprint 17,
+  `portfolixir.quotes.manual`): `count`, `first` und `last` (das erste und
+  letzte manuelle Datum, `null` ohne eines), `stored_count` (jeder
+  gespeicherte Kurs, gleich welcher Quelle), `stretches` — jeder Abschnitt
+  eine Folge manueller Kurse ohne Kurs einer anderen Quelle dazwischen,
+  `{"from", "to", "count"}`, aufsteigend, die jüngsten `limit` davon (die
+  Listen-Familie: Standard 100, gedeckelt bei 1000, in `meta.limit` gespiegelt)
+  —, `stretch_count` (alle) und `sync_adapter`: ob die Kurssynchronisierung
+  für den Anbieter des Wertpapiers einen Adapter hat, die Prüfung, die sie vor
+  jedem Abruf macht. Ohne einen behält ein freigegebenes Datum keinen Kurs;
+  mit einem kann ein Abruf das Wertpapier trotzdem überspringen (etwa ohne
+  Ticker). `from` und/oder `to` (einschließlich; eine fehlende Grenze ist
+  offen) fügen `range` `{"from", "to", "count"}` hinzu: die manuellen Kurse,
+  die eine Freigabe genau dieses Zeitraums entfernen würde. `to` vor `from`
+  liefert `422` auf `to`, ein ungültiges Datum `422` mit dem Feld, ein
+  unbekanntes Wertpapier `404`.
 - `POST /api/v1/securities/:security_id/sync_quotes` löst die
   Kurssynchronisierung eines Wertpapiers aus. Die Antwort enthält `status` (`ok`,
   `skipped` oder `error`); übersprungene und Fehler-Antworten können einen
@@ -2911,6 +2929,10 @@ Server-Anweisungen sagen es einmal für jeden Schreibvorgang.
 - `portfolixir.quotes.upsert` — jede Zeile wird als manuell gespeichert; das
   Schema bietet nur `source: manual`, und die Antwort nennt die ersetzten
   Daten.
+- `portfolixir.quotes.manual` — die manuellen Kurse eines Wertpapiers über
+  die ganze Historie: Anzahl, erstes und letztes Datum, die Abschnitte, die
+  Anzahl eines Zeitraums und ob die Synchronisierung ein freigegebenes Datum
+  wieder füllen kann; ein Lesen.
 - `portfolixir.quotes.release` — die journalisierte Freigabe der manuellen
   Kurse eines Zeitraums an die Anbieterdaten; zuerst für Agenten, das
   Bedienelement auf der Seite folgt spätestens in Sprint 17.

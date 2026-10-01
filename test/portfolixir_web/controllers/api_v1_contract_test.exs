@@ -50,12 +50,16 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
              newest["parameters"] != []
 
     # Sprint 17, PR γ (version 9 on its base; renumbered when an earlier lane
-    # PR's entry lands first): the operator's due surfaces moved parameters
-    # only — the annualized return on both closed-trade reads (#984).
+    # PR's entry lands first): the operator's due surfaces — the annualized
+    # return on both closed-trade reads and the unmatched sells (#984), the
+    # merge list's removed bookings per reason (ADR-0050 §12), and the new
+    # read of a security's manual quotes with its MCP twin (T-9).
     assert newest["version"] == 9
-    assert newest["endpoints"] == [] and newest["tools"] == []
+    assert newest["endpoints"] == ["GET /api/v1/securities/:security_id/quotes/manual"]
+    assert newest["tools"] == ["portfolixir.quotes.manual"]
     assert Enum.any?(newest["parameters"], &(&1 =~ "annualized_return"))
     assert Enum.any?(newest["parameters"], &(&1 =~ "unmatched_sells"))
+    assert Enum.any?(newest["parameters"], &(&1 =~ "deleted_by_reason"))
 
     # Sprint 16 (version 8): the batch's one entry, opened by the error
     # envelope of the errors the server answers itself (E25 S2, F68). Found by

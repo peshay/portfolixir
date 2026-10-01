@@ -37,8 +37,8 @@ defmodule PortfolixirWeb.Api.V1.MergedAwayReadsTest do
   # so that I follow it instead of concluding the history is gone.
   #
   # Acceptance criteria:
-  # - GET quotes, trades, metrics, notes, events and logo of the merged-away
-  #   id, and PUT quotes, POST notes and events, POST quotes/release and
+  # - GET quotes, the manual-quote summary (Sprint 17 V2), trades, metrics,
+  #   notes, events and logo of the merged-away id, and PUT quotes, POST notes and events, POST quotes/release and
   #   sync_quotes, PUT, DELETE and discover of the logo, POST isin-change and
   #   DELETE of an identifier alias (closing act, CR-4) answer 404 with
   #   errors.merged_into {"kind": "security", "id": <survivor>}.
@@ -110,6 +110,7 @@ defmodule PortfolixirWeb.Api.V1.MergedAwayReadsTest do
   defp routes(id) do
     [
       {:get, "/api/v1/securities/#{id}/quotes", nil},
+      {:get, "/api/v1/securities/#{id}/quotes/manual", nil},
       {:get, "/api/v1/securities/#{id}/trades", nil},
       {:get, "/api/v1/securities/#{id}/metrics", nil},
       {:get, "/api/v1/securities/#{id}/notes", nil},
