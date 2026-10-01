@@ -166,6 +166,49 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
     ])
   end
 
+  # User story (Sprint 17 A1, #992; plan D-5):
+  # As the operator who lets an agent book but not delete,
+  # I want the profile variable documented where I configure the companion,
+  # with its three levels, the old switch's place in it and its limit,
+  # so that I pick a level knowing it narrows the companion and not the token.
+  #
+  # Acceptance criteria:
+  # - The EN and DE MCP pages name PORTFOLIXIR_MCP_PROFILE with read, book and
+  #   full, the default, what book leaves out and why, the read-only switch as
+  #   read, the conflicting pair, and in one sentence that a profile narrows the
+  #   companion and not the API token.
+  # - The EN and DE deployment tables carry the variable; SECURITY.md names it
+  #   with the token's full authority.
+  # - The Compose file passes it through empty by default and .env.example
+  #   carries it empty.
+  test "the tool profiles and their limit are documented" do
+    assert_fragments([
+      {"docs/integration/api-and-mcp.md",
+       [
+         "**Tool profiles.** `PORTFOLIXIR_MCP_PROFILE` takes `read`, `book` or `full` (the default)",
+         "`book` lists the reads, every create and every write another `book` write can undo",
+         "a write belongs to the admin set when nothing in the `book` profile can undo it",
+         "`PORTFOLIXIR_MCP_READ_ONLY=true` is `read`",
+         "beside `PORTFOLIXIR_MCP_PROFILE=book` or `full` it stops the companion naming both variables",
+         "A profile narrows the companion, not the API token."
+       ]},
+      {"docs/de/integration/api-and-mcp.md",
+       [
+         "**Tool-Profile.** `PORTFOLIXIR_MCP_PROFILE` nimmt `read`, `book` oder `full` (Standard)",
+         "`book` listet die Lesezugriffe, jedes Anlegen und jedes Schreiben, das ein anderes `book`-Schreiben rückgängig machen kann",
+         "ein Schreiben gehört zur Admin-Menge, wenn nichts im Profil `book` es rückgängig machen kann",
+         "`PORTFOLIXIR_MCP_READ_ONLY=true` ist `read`",
+         "neben `PORTFOLIXIR_MCP_PROFILE=book` oder `full` stoppt es den Begleitdienst und nennt beide Variablen",
+         "Ein Profil schränkt den Begleitdienst ein, nicht das API-Token."
+       ]},
+      {"docs/home-deployment.md", ["| `PORTFOLIXIR_MCP_PROFILE` | no |"]},
+      {"docs/de/home-deployment.md", ["| `PORTFOLIXIR_MCP_PROFILE` | nein |"]},
+      {"SECURITY.md", ["`PORTFOLIXIR_MCP_PROFILE`"]},
+      {"docker-compose.yml", ["PORTFOLIXIR_MCP_PROFILE: ${PORTFOLIXIR_MCP_PROFILE:-}"]},
+      {".env.example", ["PORTFOLIXIR_MCP_PROFILE="]}
+    ])
+  end
+
   # User story (E25 S7, G31):
   # As the operator whose agent retries a write that timed out,
   # I want the reference to say that the outcome is unknown and a re-read comes first,

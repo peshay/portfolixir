@@ -1,4 +1,5 @@
 import { readOnlyClient, type ApiClient } from "./api-client.js";
+import { profileAdmits, profileRefusal, type McpProfile } from "./profiles.js";
 import { z, type ZodTypeAny } from "zod";
 
 type JsonSchema = Record<string, any>;
@@ -3957,18 +3958,19 @@ const toolDefinitions: ToolDefinition[] = declaredTools.map((tool) => {
 });
 
 /**
- * How the companion runs (E25 S7, G26, T-8). Read-only, it lists only the
- * tools that change nothing, and refuses every other tool again at the call,
- * so a tool an agent guessed or cached from another session is refused too.
+ * How the companion runs (E25 S7, G26, T-8; Sprint 17 A1, #992): the tool
+ * profile (`src/profiles.ts`), `full` when none is given. A profile lists only
+ * its tools, and refuses every other tool again at the call, so a tool an
+ * agent guessed or cached from another session is refused too.
  */
 export interface ToolPolicy {
-  readOnly?: boolean;
+  profile?: McpProfile;
 }
 
 export function listTools(policy: ToolPolicy = {}): ToolDefinition[] {
-  return policy.readOnly
-    ? toolDefinitions.filter((tool) => tool.annotations.readOnlyHint)
-    : toolDefinitions;
+  const profile = policy.profile ?? "full";
+
+  return toolDefinitions.filter((tool) => profileAdmits(profile, tool));
 }
 
 export async function callTool(
@@ -3978,12 +3980,10 @@ export async function callTool(
   policy: ToolPolicy = {}
 ): Promise<ToolResult> {
   const definition = toolDefinitions.find((tool) => tool.name === name);
+  const profile = policy.profile ?? "full";
 
-  if (policy.readOnly && definition !== undefined && !definition.annotations.readOnlyHint) {
-    throw new Error(
-      `${name} is not available: this companion runs read-only ` +
-        "(PORTFOLIXIR_MCP_READ_ONLY=true) and calls only the tools that change nothing."
-    );
+  if (definition !== undefined && !profileAdmits(profile, definition)) {
+    throw new Error(profileRefusal(profile, name));
   }
 
   // Validate here, not only in the SDK layer: guards like the delivery-price

@@ -8,27 +8,12 @@ import {
 import { ZodError } from "zod";
 
 import type { ApiClient } from "./api-client.js";
+import { profileClause } from "./profiles.js";
 import { callTool, listTools, type ToolPolicy } from "./tools.js";
 
-/**
- * The opt-in read-only switch, `PORTFOLIXIR_MCP_READ_ONLY` (E25 S7, G26,
- * T-8): off unless set to `true` or `1`. Any value other than those and
- * `false`, `0` or empty stops the companion with the variable named, so a
- * mistyped switch never runs the companion with every write open.
- */
-export function readOnlySwitch(value: string | undefined): boolean {
-  const normalized = (value ?? "").trim().toLowerCase();
-
-  if (["", "0", "false"].includes(normalized)) {
-    return false;
-  }
-
-  if (["1", "true"].includes(normalized)) {
-    return true;
-  }
-
-  throw new Error("PORTFOLIXIR_MCP_READ_ONLY must be true or false (1 or 0), or unset");
-}
+// The read-only switch lives with the profiles since A1 (#992), as a synonym
+// for PORTFOLIXIR_MCP_PROFILE=read; it is re-exported where it always was.
+export { profileSwitch, readOnlySwitch } from "./profiles.js";
 
 /**
  * What the companion tells every agent at connect time (E25 S7, F24): the
@@ -53,13 +38,22 @@ export const SERVER_INSTRUCTIONS =
   "or sizes a trade.";
 
 /**
+ * The instructions a connecting agent receives: the text above, then one
+ * clause naming the active profile (A1, #992), so a tool the agent expected
+ * and does not see is explained before it is missed.
+ */
+export function serverInstructions(policy: ToolPolicy = {}): string {
+  return `${SERVER_INSTRUCTIONS} ${profileClause(policy.profile ?? "full")}`;
+}
+
+/**
  * The companion's MCP server. It publishes each tool's own definition (E25
  * S7, F21): the JSON Schema the tests pin, its property descriptions and
  * closed objects included, rather than the schema the SDK would derive from
  * the validator, which carries neither. The validator still runs before any
  * API request (`callTool`), and a test holds it to the properties the
- * published schema names. Read-only (G26), it lists only the tools that
- * change nothing, and `callTool` refuses any other tool again at the call.
+ * published schema names. Under a profile (A1, #992) it lists only that
+ * profile's tools, and `callTool` refuses any other tool again at the call.
  */
 export function createPortfolixirMcpServer(
   client: ApiClient,
@@ -67,7 +61,7 @@ export function createPortfolixirMcpServer(
 ): McpServer {
   const server = new McpServer(
     { name: "portfolixir", version: "0.1.0" },
-    { capabilities: { tools: {} }, instructions: SERVER_INSTRUCTIONS }
+    { capabilities: { tools: {} }, instructions: serverInstructions(policy) }
   );
 
   server.server.setRequestHandler(ListToolsRequestSchema, () => ({
@@ -91,7 +85,7 @@ export function createPortfolixirMcpServer(
 
 /**
  * One call, answered as a tool result whatever happens: a refused argument, an
- * unknown tool, a write under the read-only switch and an API error are tool
+ * unknown tool, a tool its profile leaves out and an API error are tool
  * errors the agent reads, and an API answer without a JSON object (a delete's
  * empty 204) is a result without structured content, which the protocol only
  * admits as an object.

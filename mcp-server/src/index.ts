@@ -4,7 +4,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 
 import { createApiClient } from "./api-client.js";
 import { requireMcpToken, startHttpServer } from "./http.js";
-import { createPortfolixirMcpServer, readOnlySwitch } from "./server.js";
+import { createPortfolixirMcpServer, profileSwitch } from "./server.js";
+import type { McpProfile } from "./profiles.js";
 
 const apiBaseUrl = process.env.PORTFOLIXIR_API_BASE_URL ?? "http://127.0.0.1:4000";
 const apiToken = process.env.PORTFOLIXIR_API_TOKEN;
@@ -14,12 +15,17 @@ if (!apiToken) {
   process.exit(1);
 }
 
-// The opt-in read-only switch (E25 S7, G26): a value it cannot read stops the
-// companion with the variable named rather than running it with writes open.
-let readOnly: boolean;
+// The tool profile (A1, #992), read together with the older read-only switch
+// (E25 S7, G26): a value either cannot read, or a pair that contradicts
+// itself, stops the companion with the variables named rather than running it
+// with writes open.
+let profile: McpProfile;
 
 try {
-  readOnly = readOnlySwitch(process.env.PORTFOLIXIR_MCP_READ_ONLY);
+  profile = profileSwitch(
+    process.env.PORTFOLIXIR_MCP_PROFILE,
+    process.env.PORTFOLIXIR_MCP_READ_ONLY
+  );
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);
@@ -47,10 +53,10 @@ if (transport === "http") {
     host: process.env.PORTFOLIXIR_MCP_HOST ?? "127.0.0.1",
     port: Number.parseInt(process.env.PORTFOLIXIR_MCP_PORT ?? "4001", 10),
     extraHosts: (process.env.PORTFOLIXIR_MCP_ALLOWED_HOSTS ?? "").split(","),
-    readOnly
+    profile
   });
 } else if (transport === "stdio") {
-  const server = createPortfolixirMcpServer(client, { readOnly });
+  const server = createPortfolixirMcpServer(client, { profile });
   await server.connect(new StdioServerTransport());
 } else {
   console.error(`Unsupported PORTFOLIXIR_MCP_TRANSPORT: ${transport}`);

@@ -2838,6 +2838,31 @@ than `true`, `false`, `1`, `0` or empty stops the companion with the variable
 named. The switch narrows the companion, not the token: `PORTFOLIXIR_API_TOKEN`
 keeps its full authority over the API.
 
+**Tool profiles.** `PORTFOLIXIR_MCP_PROFILE` takes `read`, `book` or `full` (the
+default), in any case. `read` is the read-only mode above. `full` lists and
+calls every tool. `book` lists the reads, every create and every write another
+`book` write can undo, and leaves out the **admin set**, an explicit list in
+the companion (`mcp-server/src/profiles.ts`) governed by one principle: a write
+belongs to the admin set when nothing in the `book` profile can undo it. Every
+removal is admin (every delete, the former-name and ISIN-alias removals, a
+classification's unassignment, a position's override cleared, the release of
+manual quotes), and so are the three merges, the ISIN change and a rule's
+retirement. The overwrites `book` keeps (an update, an upsert, a bucket set, a
+plan's activation, which activating the previous plan undoes) are a second
+list beside it, each with its reason, and a companion test fails any tool with
+`destructiveHint: true` that sits in neither. Under `book` a call to an admin
+tool, listed or not, is refused as a tool error naming the profile and
+`PORTFOLIXIR_MCP_PROFILE=book` before any request is made, and the server
+instructions name the profile in one clause. `PORTFOLIXIR_MCP_READ_ONLY=true`
+is `read`: alone or beside `PORTFOLIXIR_MCP_PROFILE=read` it agrees, and beside
+`PORTFOLIXIR_MCP_PROFILE=book` or `full` it stops the companion naming both
+variables; `PORTFOLIXIR_MCP_READ_ONLY=false`, the shipped default, only means
+the switch is off and never conflicts. Any other value stops the companion
+with the variable named. A profile narrows the companion, not the API token.
+It keeps an unattended agent run from deleting or merging through the
+companion; an agent that can reach the API with the token can still call every
+route.
+
 **Invisible characters.** Every write refuses the characters an operator
 cannot see (see "Text" above), but a row stored before that rule may still
 carry them. The companion is where they are made visible: every string an API

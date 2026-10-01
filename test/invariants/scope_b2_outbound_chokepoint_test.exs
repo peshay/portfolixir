@@ -179,7 +179,13 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
     "PORTFOLIXIR_MCP_ALLOWED_HOSTS" =>
       {:config, "further Host names the companion's listener answers under; inbound only"},
     "PORTFOLIXIR_MCP_READ_ONLY" =>
-      {:config, "the companion's opt-in switch to list and call only reading tools (E25 S7)"}
+      {:config,
+       "the companion's opt-in switch to list and call only reading tools (E25 S7); " <>
+         "a synonym for PORTFOLIXIR_MCP_PROFILE=read since A1"},
+    "PORTFOLIXIR_MCP_PROFILE" =>
+      {:config,
+       "the companion's tool profile, read, book or full (Sprint 17 A1, #992); it narrows " <>
+         "the tools the companion lists and calls, never the API token"}
   }
 
   # `{module, call} => reason`: where a host name may be resolved.

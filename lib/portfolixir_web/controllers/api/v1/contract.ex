@@ -39,6 +39,24 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 9,
+      # Sprint 17's PR β (Lane A, the agent's first contact): the first surface
+      # change of the lane PR opened it, every later change of the lane extends
+      # it. No route changes: the lane moves the MCP companion only.
+      date: ~D[2026-10-01],
+      summary:
+        "Sprint 17, the agent's first contact: the MCP companion's tool profiles " <>
+          "(PORTFOLIXIR_MCP_PROFILE read, book or full; book leaves out the admin set, the " <>
+          "writes nothing in book can undo), with the read-only switch kept as read.",
+      endpoints: [],
+      tools: [],
+      parameters: [
+        "The MCP companion takes PORTFOLIXIR_MCP_PROFILE, read, book or full (default full; any case): read lists and calls only the tools with readOnlyHint, as PORTFOLIXIR_MCP_READ_ONLY=true did and still does; book lists and calls every tool but the admin set, an explicit list in mcp-server/src/profiles.ts governed by one principle, a write belongs to admin when nothing in book can undo it (every removal, the three merges, the ISIN change, a rule's retirement and the release of manual quotes), and keeps the overwrites another book write can undo (a second explicit list, each with its reason; a plan's activation among them); full lists and calls every tool. A call outside the profile, listed or not, is refused as a tool error naming the profile and the variable, with no API request, and the server instructions name the active profile in one clause. PORTFOLIXIR_MCP_READ_ONLY=true beside PORTFOLIXIR_MCP_PROFILE=book or full, or any other value of either, stops the companion with the variables named; READ_ONLY=false never conflicts. A profile narrows the companion, not the API token (Sprint 17 A1, #992)"
+      ],
+      removed_endpoints: [],
+      removed_tools: []
+    },
+    %{
       version: 8,
       # Sprint 16's one entry: the first surface change of the batch opened it,
       # every later change of the batch extends it.
