@@ -5,7 +5,10 @@ defmodule PortfolixirWeb.ApiV1TradeReturnsTest do
   # below hold every field the two reads served before, value for value.
   use PortfolixirWeb.ConnCase
 
-  import Portfolixir.WorldFixtures, only: [base_world: 1, buy!: 3, create_security!: 1, sell!: 3]
+  import Portfolixir.WorldFixtures,
+    only: [add_depot: 2, base_world: 1, buy!: 3, create_security!: 1, sell!: 3]
+
+  alias Portfolixir.Fx
 
   defp get_json(conn, path) do
     conn
@@ -173,5 +176,47 @@ defmodule PortfolixirWeb.ApiV1TradeReturnsTest do
     assert [short_closed] = short_data["closed_trades"]
     assert short_closed["annualized_return"] == nil
     assert short_closed["annualized_return_reason"] == "holding_period_under_365_days"
+  end
+
+  # Acceptance criteria (closing act γ, money lens M2):
+  # - The figure is solved over the trade's own currency on both reads: a
+  #   USD trade in an EUR portfolio reads the same rate on the realized-gains
+  #   read, whose rows also carry the EUR result, as on the trades read —
+  #   never a rate over the converted amounts.
+  test "both reads annualize a foreign-currency trade in its own currency", %{conn: conn} do
+    world = base_world(name: "Dollar World", cash_name: "DW Cash", depot_name: "DW Depot")
+
+    usd =
+      add_depot(world.portfolio, cash_currency: "USD", cash_name: "DW USD", depot_name: "DW US")
+      |> Map.put(:portfolio, world.portfolio)
+
+    security = create_security!(name: "Synthetic Harbor Corp", ticker: "SHC", currency: "USD")
+
+    {:ok, _} =
+      Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: ~D[2023-05-02],
+          rate: "1.1",
+          source: "manual"
+        }
+      ])
+
+    # -251 USD on 2021-01-04, +399 USD on 2023-05-02 (848 days): the exact
+    # XIRR is 0.22079882358261..., where the converted flows would read
+    # 0.202907.
+    trade = [currency: "USD"]
+    buy!(usd, security, [quantity: "5", price: "50", fees: "1", date: ~D[2021-01-04]] ++ trade)
+    sell!(usd, security, [quantity: "5", price: "80", fees: "1", date: ~D[2023-05-02]] ++ trade)
+
+    %{"data" => realized} = get_json(conn, "/api/v1/realized_gains")
+    assert [row] = realized["trades"]
+    assert row["currency_code"] == "USD"
+    assert row["annualized_return"] == "0.220799"
+
+    %{"data" => trades} = get_json(conn, "/api/v1/securities/#{security.id}/trades")
+    assert [closed] = trades["closed_trades"]
+    assert closed["annualized_return"] == "0.220799"
   end
 end
