@@ -2236,17 +2236,24 @@ security:
 - **From** and **To** are prefilled with the first and last manual date;
   both are included. Chips below fill the pair: **All** and each stretch of
   manual quotes (a run with no provider quote between them, the five newest),
-  each with its count.
+  each with its count; with more than five, a line under the chips says how
+  many there are, and **All** covers every one.
 - One sentence says what happens: the manual closes in the range are removed
   and kept in the audit journal with their values, the provider's quotes in
   the range stay, and the next quote sync stores the provider's close for
-  those days — until then they have no quote. Where the quote sync has no
-  adapter for the security's provider, an attention note says the released
+  those days — until then they have no quote. Where the quote sync cannot
+  fetch the security — no adapter for its provider, or a provider that needs
+  a ticker the security does not have — an attention note says the released
   days stay without a quote.
 - The confirm names how many manual quotes the range holds (*Release 7
-  manual quotes*). A range without one leaves it disabled with the reason
-  beside it; a *To* before its *From*, or a field that is no date, is named at
-  the field when you confirm, and nothing is written.
+  manual quotes*), and only the confirm releases: pressing Enter in a date
+  field re-counts and checks the pair, nothing more. A range without a manual
+  quote leaves the confirm disabled with the reason beside it; a *To* before
+  its *From*, or a field that is no date, is named at the field, and nothing
+  is written. If the range holds another number of manual quotes by the time
+  you confirm (your agent wrote or released one meanwhile), nothing is
+  written either: the dialog says the new count and asks you to confirm
+  again.
 
 After the release the tab says how many quotes were released from when to
 when, with **Sync prices** as the next step where a sync can help, until you

@@ -2736,17 +2736,22 @@ the released rows), run as the operator.
   not a finding. The dates are `<time datetime>` elements (rule ③).
 - **The dialog** is a native `<dialog class="modal quote-release-dialog">`
   (the `ModalDialog` hook, no `aria-modal`), titled "Release manual quotes —
-  <name>". Top to bottom: the attention note when the quote sync has no
-  adapter for the security's provider (`QuoteSync.adapter?/2`) — "The quote
-  sync fetches no quotes for this security: the released days stay without a
-  quote." (A3); the custom range's ISO pair (`.period-range__pair`, From/To,
+  <name>". Top to bottom: the attention note when the quote sync cannot fetch
+  the security — no adapter for its provider, or one that cannot ask for it,
+  Yahoo without a ticker (`QuoteSync.adapter?/2`, closing act γ D7) — "The
+  quote sync fetches no quotes for this security: the released days stay
+  without a quote." (A3); the custom range's ISO pair (`.period-range__pair`, From/To,
   prefilled with the first and last manual date, both inclusive, UX-DR19);
   the field error under the pair when one is shown; the chip row
   (`.period-years` with `.filter-chip`, the Wealth popover's year chips):
   "All · N" and one chip per **stretch** — a run of manual quotes with no
-  quote of another source between them — "<from> – <to> · n", the five
-  newest, ascending; a chip fills the pair, and the chip equal to the pair is
-  pressed (`aria-pressed`); then one `.hint` sentence in the code's words:
+  quote of another source between them — "<from> – <to> · n" (a one-day
+  stretch "<date> · 1"), the five newest, ascending, a stretch spanning every
+  manual quote left to "All" so no range has two pressed chips; a chip fills
+  the pair, and the chip equal to the pair is pressed (`aria-pressed`); more
+  than five stretches add a `.hint` under the row, "The 5 newest of 7
+  stretches; “All” covers every one." (UX-DR26: a cut list says so; γ D3,
+  n7); then one `.hint` sentence in the code's words:
   "The manual closes in the range are removed and kept in the journal with
   their values; the provider's quotes in the range stay as they are." plus,
   only where an adapter exists, "The next quote sync stores the provider's
@@ -2755,7 +2760,12 @@ the released rows), run as the operator.
   the confirm, `.button-danger` — danger, because nothing in the UI restores
   a release even though the journal keeps it — naming the count of the
   range: "Release 7 manual quotes", following the pair on every change. One
-  confirmation, never a second `data-confirm`.
+  confirmation, never a second `data-confirm` — and **only the confirm
+  writes** (closing act γ D1): it is a `type="button"` outside the form,
+  carrying the pair and the count it shows; Enter in a field submits the
+  form, which re-counts and checks the pair (the field errors below) and
+  writes nothing. The close button keeps its 30 px beside a title that
+  wraps, 44 px under a coarse pointer (UX-DR6, γ D6).
 - **States.** A valid range with no manual quote: the confirm reads "Release",
   disabled, its reason beside it as text — `.merge-footer__why` "No manual
   quote in the range.", the merge dialog's rule (disabled, never merely
@@ -2764,16 +2774,25 @@ the released rows), run as the operator.
   `aria-invalid` on To), nothing written, the dialog stays; a field that is
   no date: "Not a date — use YYYY-MM-DD." at that field — the custom range's
   own words (D5, A6). The confirm is not disabled for an unreadable pair:
-  the refusal lands on the field that can fix it.
+  the refusal lands on the field that can fix it. **Recounted (A8, γ
+  CR-2):** where the range holds another count than the confirm showed — a
+  manual close written or released since — nothing is written, the
+  `.field-error` slot under the pair (no field marked) says "The range now
+  holds 5 manual quotes — check and confirm again.", and the confirm names
+  the new count.
 - **The result (A5)** is panel-local, beside its trigger rather than in the
   page-level slot: `AppShell.inline_result` `#quotes-release-result` at the
   head of the tab, its regions present before the action, a note: "4 manual
   quotes released, from 2026-06-30 to 2026-07-03." — the count and dates of
   the write's answer (`released`), not of the dialog — then "The next quote
-  sync stores the provider's close for these days." with **Sync prices** (the
-  Chart tab's own action, `sync_now`) as its follow-up, or, without an
-  adapter, "Without a quote provider these days stay without a quote." and no
-  button. It stays until dismissed (its own `dismiss_release_result`), the
+  sync stores the provider's close for these days." ("for this day" for one)
+  with **Sync prices** (the Chart tab's own action, `sync_now`) as its
+  follow-up, or, where the sync cannot fetch the security, "The quote sync
+  fetches no quotes for this security: these days stay without a quote." and
+  no button (γ D7, n6). Where the release took the last manual quote, and with
+  it the note's **Release…** that opened the dialog, the focus goes to the
+  result's dismiss (`data-focus-fallback` on the dialog, read by the
+  `ModalDialog` hook; WCAG 2.4.3, γ D2). It stays until dismissed (its own `dismiss_release_result`), the
   next action on it (Sync prices), or a navigation. Manual quotes left over
   keep the note under it, with the new count. `inline_result` gained an
   optional `follow_up` slot and `dismiss_event` for this; the message may be

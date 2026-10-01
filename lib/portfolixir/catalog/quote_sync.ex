@@ -73,21 +73,34 @@ defmodule Portfolixir.Catalog.QuoteSync do
   end
 
   @doc """
-  Whether the quote sync has an adapter for `security`'s provider — the check
-  `sync_security/2` and `sync_all/1` make before they fetch anything, made
-  public for the release of manual quotes (Sprint 17 V2, T-9): without an
-  adapter the sync skips the security (`:no_provider_adapter`), so a date
-  whose manual quote is released keeps no quote. A security without a
-  provider has none. `:adapter_for` overrides the configured map, as for the
-  syncs.
+  Whether the quote sync can fetch `security`'s quotes: it has an adapter for
+  the security's provider — the check `sync_security/2` and `sync_all/1` make
+  before they fetch anything — and that adapter can ask its feed for this
+  security (`c:Portfolixir.Catalog.QuoteSync.Provider.fetchable?/1`; Yahoo
+  needs a ticker). Public for the release of manual quotes (Sprint 17 V2,
+  T-9): where it is false the sync skips the security (`:no_provider_adapter`,
+  `:missing_ticker`), so a date whose manual quote is released keeps no quote
+  (closing act, γ D7). A security without a provider has none. `:adapter_for`
+  overrides the configured map, as for the syncs.
 
-  It answers for the provider, not for one fetch: an adapter can still skip a
-  security it cannot ask for (no ticker, say), and a fetch can fail.
+  It answers before any fetch: a fetch can still fail.
   """
   @spec adapter?(Security.t(), keyword()) :: boolean()
-  def adapter?(%Security{provider: provider}, opts \\ []) do
+  def adapter?(%Security{provider: provider} = security, opts \\ []) do
     adapter_for = Keyword.get(opts, :adapter_for, runtime_adapter_for())
-    is_binary(provider) and Map.has_key?(adapter_for, provider)
+
+    with true <- is_binary(provider),
+         adapter when is_atom(adapter) and not is_nil(adapter) <- Map.get(adapter_for, provider) do
+      fetchable?(adapter, security)
+    else
+      _none -> false
+    end
+  end
+
+  defp fetchable?(adapter, security) do
+    if Code.ensure_loaded?(adapter) and function_exported?(adapter, :fetchable?, 1),
+      do: adapter.fetchable?(security),
+      else: true
   end
 
   @doc "Synchronously sync one security with the configured or provided adapter map."

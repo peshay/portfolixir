@@ -934,6 +934,10 @@ defmodule PortfolixirWeb.LayoutView do
                 // on close because the server removes the dialog from the DOM,
                 // which forfeits the native focus-restore (UX-DR9).
                 this.opener = document.activeElement;
+                // Where the dialog's own write takes its trigger off the page
+                // (the release of the last manual quote, closing act γ D2),
+                // `data-focus-fallback` names where the focus goes instead.
+                this.focusFallback = this.el.getAttribute("data-focus-fallback");
                 // A dialog that is a sheet only on the phone (#803, the
                 // booking drawer): `data-sheet-below="720"` opens it modally
                 // up to that width and non-modally — in flow, beside the
@@ -989,6 +993,9 @@ defmodule PortfolixirWeb.LayoutView do
                 if (this.opener && this.opener.isConnected &&
                     typeof this.opener.focus === "function") {
                   this.opener.focus();
+                } else if (this.focusFallback) {
+                  var fallback = document.querySelector(this.focusFallback);
+                  if (fallback && typeof fallback.focus === "function") fallback.focus();
                 }
               },
               modal: function () {
