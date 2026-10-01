@@ -691,8 +691,11 @@ npm start --prefix mcp-server
 
 ## Versionen und Rollback
 
-Jeder Sprint-Merge wird getaggt (`vX.Y.Z`, beginnend bei `v0.5.0`) und
-automatisch als GitHub-Release mit generierten Notizen veröffentlicht. Ein
+Jeder Merge, der ausgelieferten Code ändert, wird mit einer
+Kalenderversion getaggt (`YYYY.M.N`, das `N`-te Release des Monats; bis
+September 2026 lautete das Schema `X.Y.Z` und endet bei `0.14.0`) und
+automatisch als GitHub-Release mit generierten Notizen und der ausgelieferten
+API-Vertragsversion veröffentlicht. Ein
 Release ist ein bekannt guter Stand, auf den sich eine selbst gehostete
 Instanz festlegen oder zurücksetzen lässt (vor dem Bauen das Tag auschecken),
 plus ein lesbares Änderungsprotokoll — nie ein installierbares Artefakt.

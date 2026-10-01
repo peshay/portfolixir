@@ -449,17 +449,17 @@ reviews decisions and behavior, agents review code:
    story row — closes the issues the merge's keywords did not and the epic
    tracker, records a short
    retrospective section, confirms the merge's own CI runs — required
-   checks included — are green, and **prepares the annotated `X.Y.Z` tag
-   command for the owner to run** (minor bump per sprint, patch reserved for
-   hotfixes; bare-number scheme per the owner's first release, the Release
-   workflow accepts `vX.Y.Z` too). The tag is an **owner action** (decision
-   2026-09-07, PR #780): the agent's credential cannot push tags, and four
-   sprints of a refused push are the process, not a finding — the close-out
-   records the command, the owner runs it. The tag push triggers the
-   Release workflow,
-   which creates the GitHub Release with generated notes — the release is
-   a rollback point for self-hosted instances plus a communicable
-   changelog, never an installable artifact (issue #659, added
+   checks included — are green, and **names the calendar release the merge
+   produced** (Sprint 17 plan D-11, 2026-10-01, superseding the owner-run
+   `X.Y.Z` tag of PR #780). Every push to `main` that touches shipped code
+   makes the Release workflow create the next `YYYY.M.N` as an annotated tag
+   and its GitHub Release in one job, with generated notes and the API
+   contract version named; docs-only, test-only and planning pushes make
+   none, and a lane PR's merge is a release. If that job fails, the
+   close-out records the failure and the owner's fallback: an annotated tag
+   the owner creates by hand still triggers the Release workflow's tag job.
+   The release is a rollback point for self-hosted instances plus a
+   communicable changelog, never an installable artifact (issue #659, added
    2026-08-10). The batch ends at the merge; the epic ends here. (Added
    2026-07-31 from the combined E17–E19 retrospective: all observed
    process failures of that period sat in the unowned space after the

@@ -102,10 +102,9 @@ defmodule Portfolixir.CITest do
   #   for compatibility — and creates the release with generated notes
   #   from a verified tag.
   # - It builds no installable artifacts and needs only contents: write.
-  # - AGENTS.md step 5 carries the tag duty: the close-out prepares the
-  #   annotated-tag command and the owner runs it (owner action since
-  #   2026-09-07, PR #780 -- the agent credential cannot push tags), and that
-  #   push is what feeds this workflow.
+  # - A hand-pushed tag stays the owner's fallback: AGENTS.md step 5 names
+  #   it for the case the calendar job below fails (Sprint 17 plan D-11
+  #   replaced the owner-run tag of PR #780 with that job).
   test "a tag push creates the GitHub release with generated notes" do
     release = File.read!(".github/workflows/release.yml")
 
@@ -115,9 +114,107 @@ defmodule Portfolixir.CITest do
     assert release =~ "contents: write"
     refute release =~ "upload-artifact"
 
-    agents = File.read!("AGENTS.md")
-    assert agents =~ "prepares the annotated `X.Y.Z` tag"
-    assert agents =~ "The tag is an **owner action**"
+    # Prose wraps freely; the assertions read it as one line.
+    agents = "AGENTS.md" |> File.read!() |> String.replace(~r/\s+/, " ")
+    assert agents =~ "the owner's fallback"
+    assert agents =~ "an annotated tag the owner creates by hand"
+  end
+
+  # User story:
+  # As a self-hosted operator upgrading between merges,
+  # I want every merge that changes shipped code to produce a calendar-
+  # versioned release by itself,
+  # so that a rollback point exists for every lane PR without waiting for a
+  # tag only the owner can push (Sprint 17 plan D-11, issue #997).
+  #
+  # Acceptance criteria:
+  # - The Release workflow also runs on pushes to `main`, but only when the
+  #   push touches shipped paths (the release image's and the companion
+  #   image's inputs, the operator's Compose file); docs, tests, planning
+  #   artifacts and CI files make no release.
+  # - One job computes the next `YYYY.M.N` (N counts up within the month and
+  #   starts at 1), creates an ANNOTATED tag through the API (a tag object,
+  #   then the ref), and creates the release in the same job, because a tag
+  #   the workflow token pushes triggers no other workflow.
+  # - The release carries generated notes from the previous release and names
+  #   the API contract version the merge ships.
+  # - A re-run on a commit that already carries a calendar tag creates none;
+  #   two pushes in a row never compute the same number (one at a time).
+  # - No run script contains a context expression (F61): refs and SHAs reach
+  #   the script through the environment.
+  # - AGENTS.md step 5 and ADR-0026 record the amendment.
+  test "a push to main that changes shipped code creates a calendar release" do
+    release = File.read!(".github/workflows/release.yml")
+
+    assert release =~ ~s(branches: ["main"])
+
+    for shipped <- ["lib/**", "priv/**", "config/**", "mix.exs", "mix.lock", "mcp-server/src/**"] do
+      assert release =~ ~s("#{shipped}"), "#{shipped} is shipped and must trigger a release"
+    end
+
+    for unshipped <- ["docs/**", "test/**", "_bmad-output/**", ".github/**"] do
+      refute release =~ ~s("#{unshipped}"), "#{unshipped} is not shipped"
+    end
+
+    assert release =~ "startsWith(github.ref, 'refs/tags/')"
+    assert release =~ "github.ref == 'refs/heads/main'"
+    assert release =~ "git/tags"
+    assert release =~ "git/refs"
+    assert release =~ "--notes-start-tag"
+    assert release =~ "API contract version"
+    assert release =~ "concurrency:"
+    assert release =~ "cancel-in-progress: false"
+
+    # F61: no `${{ ... }}` inside a run block.
+    run_blocks =
+      Regex.scan(~r/^([ \t]*)run: \|\n((?:\1  .*\n|[ \t]*\n)*)/m, release)
+      |> Enum.map(&List.last/1)
+
+    assert run_blocks != []
+
+    for block <- run_blocks do
+      refute block =~ "${{", "a run script carries a context expression:\n#{block}"
+    end
+
+    agents = "AGENTS.md" |> File.read!() |> String.replace(~r/\s+/, " ")
+    assert agents =~ "`YYYY.M.N`"
+    assert agents =~ "Sprint 17 plan D-11"
+
+    adr = File.read!("docs/decisions/0026-epic-batch-workflow.md")
+    assert adr =~ "Amendment: calendar versions made by the Release workflow"
+  end
+
+  # The version arithmetic of the calendar job, run as the job runs it: the
+  # script is extracted from the workflow and fed fixed inputs, so the test
+  # pins the behaviour, not a copy of it.
+  test "the calendar job counts up within a month and skips a tagged commit" do
+    release = File.read!(".github/workflows/release.yml")
+
+    [script] =
+      Regex.run(~r/# calendar-version-begin\n(.*?)# calendar-version-end/s, release,
+        capture: :all_but_first
+      )
+
+    script = String.replace(script, ~r/^ {10}/m, "")
+
+    run = fn tags, sha ->
+      {out, 0} =
+        System.cmd("bash", ["-c", script],
+          env: [
+            {"CALVER_PREFIX", "2026.10."},
+            {"CALVER_TAGS", tags},
+            {"GITHUB_SHA", sha}
+          ]
+        )
+
+      String.trim(out)
+    end
+
+    assert run.("", "abc") == "next=2026.10.1"
+    assert run.("0.14.0\tfff\n2026.10.1\taaa\n2026.10.2\tbbb\n", "abc") == "next=2026.10.3"
+    # 2026.1.x and 2026.10x never count toward 2026.10.
+    assert run.("2026.1.9\taaa\n2026.10.10\tbbb\n2026.100.1\tccc\n", "abc") == "next=2026.10.11"
+    assert run.("2026.10.1\tabc\n", "abc") == "skip=2026.10.1"
   end
 
   # User story:

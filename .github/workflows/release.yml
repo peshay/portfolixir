@@ -1,36 +1,162 @@
-# Sprint-cadence release automation (issue 659, ADR-0026 step 5): the
-# bookkeeping close-out pushes an annotated vX.Y.Z tag on the sprint's merge
-# commit, and this workflow turns the tag into a GitHub Release with
-# generated notes — the squash-merged PR titles are the source material.
-# Minor bump per sprint, patch reserved for hotfixes; first tag v0.5.0 at
-# the Sprint 5 merge. No installable artifacts are built: the release is a
-# rollback point for self-hosted instances plus a communicable changelog.
+# Release automation (issue 659, ADR-0026 step 5 as amended 2026-10-01 by the
+# Sprint 17 plan's D-11, issue 997). Two ways in, one result: a GitHub
+# Release with generated notes, which is a rollback point for self-hosted
+# instances plus a communicable changelog, never an installable artifact.
+#
+# 1. calendar-release: every push to `main` that touches shipped paths gets
+#    the next calendar version `YYYY.M.N`, as an ANNOTATED tag created
+#    through the API, and its release in the same job. The release has to be
+#    made here: a tag the workflow token creates triggers no other workflow,
+#    so the tag job below would never see it. Docs-only, test-only, planning
+#    and CI pushes make no release.
+# 2. release: a tag pushed by hand (the owner's fallback, or an old-scheme
+#    `X.Y.Z`) still becomes a release, as it did since 0.5.0.
 name: Release
 
-# Both tag forms trigger: the owner's first release landed as bare `0.5.0`,
-# so the bare-number scheme is the convention and `v*` stays for
-# compatibility.
+# Path filters are not evaluated for tag pushes, so the tag patterns trigger
+# on every hand-pushed version tag while a push to `main` triggers only when
+# it changes what the release image (Dockerfile.release), the companion's
+# image (mcp-server/Dockerfile) or the operator's Compose file ship.
 on:
   push:
     tags: ["v*", "[0-9]*.[0-9]*.[0-9]*"]
+    branches: ["main"]
+    paths:
+      - "lib/**"
+      - "priv/**"
+      - "config/**"
+      - "mix.exs"
+      - "mix.lock"
+      - "Dockerfile.release"
+      - "docker/**"
+      - "docker-compose.yml"
+      - "mcp-server/src/**"
+      - "mcp-server/package.json"
+      - "mcp-server/package-lock.json"
+      - "mcp-server/tsconfig.json"
+      - "mcp-server/.npmrc"
+      - "mcp-server/Dockerfile"
 
-# contents: write is required to create the release; this workflow touches
-# nothing else.
+# contents: write is required to create a tag and a release; this workflow
+# touches nothing else.
 permissions:
   contents: write
 
 jobs:
+  calendar-release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # One at a time, never cancelled: two merges in a row must not compute the
+    # same number, and a queued release must not be dropped.
+    concurrency:
+      group: calendar-release
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The next number: the highest `YYYY.M.N` of this month plus one,
+      # starting at 1. The tag list comes from the API with each tag's peeled
+      # commit, so a re-run on a commit that already carries this month's
+      # calendar tag creates nothing. The arithmetic between the markers is
+      # run as-is by test/portfolixir/ci_test.exs.
+      - name: Compute the calendar version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          CALVER_PREFIX="$(date -u +%Y).$(date -u +%-m)."
+          CALVER_TAGS="$(gh api --paginate "repos/$GITHUB_REPOSITORY/tags" --jq '.[] | [.name, .commit.sha] | @tsv')"
+          export CALVER_PREFIX CALVER_TAGS
+          result="$(bash <<'CALVER'
+          # calendar-version-begin
+          max=0
+          tagged=""
+          while IFS=$'\t' read -r name sha; do
+            case "$name" in
+              "$CALVER_PREFIX"*) n="${name#"$CALVER_PREFIX"}" ;;
+              *) continue ;;
+            esac
+            case "$n" in
+              ''|*[!0-9]*) continue ;;
+            esac
+            if [ "$sha" = "$GITHUB_SHA" ]; then tagged="$name"; fi
+            if [ "$n" -gt "$max" ]; then max="$n"; fi
+          done <<< "$CALVER_TAGS"
+          if [ -n "$tagged" ]; then
+            echo "skip=$tagged"
+          else
+            echo "next=${CALVER_PREFIX}$((max + 1))"
+          fi
+          # calendar-version-end
+          CALVER
+          )"
+          echo "$result"
+          echo "$result" >> "$GITHUB_OUTPUT"
+
+      # The API contract version the merge ships: the head entry of the
+      # code-maintained manifest (ADR-0044 §8).
+      - name: Read the API contract version
+        id: contract
+        if: steps.version.outputs.next != ''
+        run: |
+          contract="$(awk '/@entries \[/ {in_entries = 1} in_entries && match($0, /^ +version: [0-9]+,/) { sub(/^ +version: /, ""); sub(/,.*/, ""); print; exit }' lib/portfolixir_web/controllers/api/v1/contract.ex)"
+          if [ -z "$contract" ]; then
+            echo "::error title=Contract version::no version found in the contract manifest"
+            exit 1
+          fi
+          echo "version=$contract" >> "$GITHUB_OUTPUT"
+
+      # An annotated tag is a tag object plus a ref to it; `gh release create`
+      # alone would make a lightweight one. The release's notes run from the
+      # previous published release (0.14.0 for the first calendar release, so
+      # nothing drops out of the changelog).
+      - name: Create the annotated tag and the release
+        if: steps.version.outputs.next != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.next }}
+          CONTRACT: ${{ steps.contract.outputs.version }}
+        run: |
+          previous="$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.tag_name')"
+          tag_object="$(gh api "repos/$GITHUB_REPOSITORY/git/tags" \
+            -f tag="$VERSION" \
+            -f message="Portfolixir $VERSION (API contract version $CONTRACT)" \
+            -f object="$GITHUB_SHA" \
+            -f type=commit \
+            --jq '.sha')"
+          gh api "repos/$GITHUB_REPOSITORY/git/refs" \
+            -f ref="refs/tags/$VERSION" \
+            -f sha="$tag_object" > /dev/null
+          gh release create "$VERSION" \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "$VERSION" \
+            --generate-notes \
+            --notes-start-tag "$previous" \
+            --notes "API contract version $CONTRACT (\`GET /api/v1/contract\`, \`portfolixir.contract.get\`)."
+
+      - name: Name the commit that already carries a release
+        if: steps.version.outputs.skip != ''
+        env:
+          TAGGED: ${{ steps.version.outputs.skip }}
+        run: |
+          echo "This commit already carries $TAGGED; no new release."
+
   release:
+    if: startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
 
     steps:
       # Lightweight-tag guard (Sprint 8 Lane Z): 0.5.0, 0.6.0 and 0.7.0 all
       # landed lightweight against ADR-0026 step 5's "annotated", because the
-      # GitHub release UI cannot create annotated tags and the agent session's
-      # git proxy cannot push tags at all. The release still happens (a
-      # lightweight tag marks the right commit), but the miss is made loud: a
-      # workflow warning plus a note prepended to the release body, both
-      # pointing at the prepared-command path the close-out ledger carries.
+      # GitHub release UI cannot create annotated tags. The release still
+      # happens (a lightweight tag marks the right commit), but the miss is
+      # made loud: a workflow warning plus a note prepended to the release
+      # body.
       - name: Create GitHub release with generated notes
         env:
           GH_TOKEN: ${{ github.token }}
@@ -42,10 +168,10 @@ jobs:
               --verify-tag \
               --generate-notes
           else
-            echo "::warning title=Lightweight tag::$GITHUB_REF_NAME is a lightweight tag; ADR-0026 step 5 asks for an annotated one. Recreate it with the prepared command from the sprint retrospective's close-out ledger (git tag -a ... && git push origin <tag>)."
+            echo "::warning title=Lightweight tag::$GITHUB_REF_NAME is a lightweight tag; ADR-0026 step 5 asks for an annotated one. Recreate it with git tag -a <tag> -m <message> && git push origin <tag>."
             gh release create "$GITHUB_REF_NAME" \
               --repo "$GITHUB_REPOSITORY" \
               --verify-tag \
               --generate-notes \
-              --notes "> **Note:** this release was created from a *lightweight* tag. ADR-0026 step 5 asks for an annotated tag; the sprint retrospective's close-out ledger carries the prepared \`git tag -a\` command for the maintainer."
+              --notes "> **Note:** this release was created from a *lightweight* tag. ADR-0026 step 5 asks for an annotated tag."
           fi
