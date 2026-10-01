@@ -4,6 +4,8 @@ msgstr ""
 "Language: de\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#: lib/portfolixir_web/decimal_input.ex:170
+#, elixir-autogen
 msgid "is invalid"
 msgstr "ist ungültig"
 
@@ -164,6 +166,8 @@ msgid_plural "must be at most %{count} bytes as JSON"
 msgstr[0] "darf als JSON höchstens %{count} Byte groß sein"
 msgstr[1] "darf als JSON höchstens %{count} Byte groß sein"
 
+#: lib/portfolixir_web/decimal_input.ex:168
+#, elixir-autogen
 msgid "is ambiguous: enter it without a thousands separator"
 msgstr "ist mehrdeutig: ohne Tausendertrennzeichen eingeben"
 
