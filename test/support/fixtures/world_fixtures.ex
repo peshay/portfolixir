@@ -229,11 +229,21 @@ defmodule Portfolixir.WorldFixtures do
   journal entry under the owner. Create these after every bucket the test
   makes through the id sequence, which could otherwise hand the same id out
   later in the same test.
+
+  Async tests run in separate sandbox transactions and cannot see each
+  other's uncommitted buckets, so two of them could pick the same free id and
+  the second insert would wait on the first test's row until that test ends
+  (#947's hazard). Each candidate id is therefore claimed with a transaction
+  advisory lock that does not wait: an id another running test claimed is
+  skipped, and the claim ends with the test's sandbox transaction.
   """
   def printable_bucket!(attrs) when is_map(attrs) do
     printable = Enum.to_list(?A..?Z)
     taken = Repo.all(from(b in Bucket, where: b.id in ^printable, select: b.id))
-    id = Enum.find(printable, &(&1 not in taken)) || raise "no printable bucket id is free"
+
+    id =
+      Enum.find(printable, &(&1 not in taken and claim_printable_id?(&1))) ||
+        raise "no printable bucket id is free"
 
     {:ok, %{bucket: bucket}} =
       Ecto.Multi.new()
@@ -249,5 +259,17 @@ defmodule Portfolixir.WorldFixtures do
       |> Repo.transaction()
 
     bucket
+  end
+
+  # The advisory key pairs a namespace (the issue that introduced printable
+  # ids) with the candidate id; the two-key form never collides with the
+  # one-key locks the application takes.
+  @printable_bucket_lock 978
+
+  defp claim_printable_id?(id) do
+    %{rows: [[claimed?]]} =
+      Repo.query!("SELECT pg_try_advisory_xact_lock($1, $2)", [@printable_bucket_lock, id])
+
+    claimed?
   end
 end
