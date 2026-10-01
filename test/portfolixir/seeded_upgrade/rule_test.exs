@@ -91,6 +91,16 @@ defmodule Portfolixir.SeededUpgrade.RuleTest do
 
       assert Rule.changes(migration(~s|execute("ALTER TABLE t ADD COLUMN c text NOT NULL")|)) ==
                [:not_null]
+
+      # timestamps/1 adds two columns Ecto makes NOT NULL unless told otherwise.
+      for body <- ["timestamps()", "timestamps(type: :utc_datetime_usec)", "timestamps(opts)"] do
+        assert Rule.changes(migration("alter table(:t) do\n#{body}\nend")) == [:not_null], body
+      end
+
+      # SQL with an interpolated table or column name is read as one text.
+      assert Rule.changes(
+               migration(~S|execute("ALTER TABLE #{@table} ADD COLUMN #{column} text NOT NULL")|)
+             ) == [:not_null]
     end
 
     test "a backfill, in SQL, through a repo or through application code, is one" do
@@ -111,6 +121,26 @@ defmodule Portfolixir.SeededUpgrade.RuleTest do
       end
     end
 
+    test "SQL built by interpolation or concatenation is read as one text" do
+      for body <- [
+            ~S|repo().query!("UPDATE #{table} SET #{column} = round(#{column}, 6) WHERE #{column} IS NOT NULL")|,
+            "execute(\"\"\"\nUPDATE \#{@table}\n   SET former_names = '{}'\n\"\"\")",
+            ~S|execute("INSERT INTO #{table} (name) SELECT name FROM portfolios")|,
+            ~S|execute("UPDATE " <> table <> " SET x = 1")|,
+            ~S|execute("UPDATE " <> "#{table}" <> " SET x = 1")|
+          ] do
+        assert Rule.changes(migration(body)) == [:backfill], body
+      end
+
+      for body <- [
+            ~S|repo().query!("SELECT count(*) FROM #{table} WHERE #{column} IS NULL")|,
+            ~S|Logger.warning("updated #{count} rows; set the #{name} by hand")|,
+            ~S|"prefix_" <> name|
+          ] do
+        assert Rule.changes(migration(body)) == [], body
+      end
+    end
+
     test "a new table's own constraints, a read and documentation are none" do
       for body <- [
             "create table(:t) do\nadd :c, :string, null: false\nend\n" <>
@@ -126,7 +156,9 @@ defmodule Portfolixir.SeededUpgrade.RuleTest do
             "alias Portfolixir.Repo\nRepo.query!(\"SELECT 1\")",
             "alias Ecto.{Changeset, Multi}\nMulti.new()",
             ~s|create table("t") do\nadd :c, :string\nend\ncreate constraint("t", :c, check: "c <> ''")|,
-            "# CHECK (x > 0), then UPDATE t SET x = 1 -- a comment only\n:ok"
+            "# CHECK (x > 0), then UPDATE t SET x = 1 -- a comment only\n:ok",
+            "alter table(:t) do\ntimestamps(null: true)\nend",
+            "create table(:t) do\nadd :c, :string\ntimestamps()\nend"
           ] do
         assert Rule.changes(migration(body)) == [], body
       end

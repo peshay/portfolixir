@@ -22,8 +22,9 @@ defmodule Portfolixir.SeededUpgrade.Rule do
       `VALIDATE CONSTRAINT` (which makes a constraint added `NOT VALID`
       bind the rows already stored).
     * **NOT NULL** -- `add`, `modify` or `add_if_not_exists` with
-      `null: false` inside `alter table(...)` of a table the migration does
-      not create, or SQL text with `SET NOT NULL` or
+      `null: false`, or `timestamps` without `null: true` (Ecto makes both
+      columns NOT NULL by default), inside `alter table(...)` of a table the
+      migration does not create; or SQL text with `SET NOT NULL` or
       `ADD COLUMN ... NOT NULL`.
     * **backfill** -- SQL text with `UPDATE <table> SET` or
       `INSERT INTO ... SELECT`; a write through a repo (`repo()`, a `repo`
@@ -33,7 +34,12 @@ defmodule Portfolixir.SeededUpgrade.Rule do
       backfill ran.
 
   SQL is matched in upper case, the way every migration here writes it, so
-  prose such as a log message's "kind check (" is not read as SQL.
+  prose such as a log message's "kind check (" is not read as SQL. A string
+  built by interpolation (`"UPDATE \#{table} SET ..."`, the house style for
+  a table named in a module attribute) or by `<>` is matched as one text,
+  each interpolated or concatenated expression standing in as an
+  identifier: matched piece by piece, `UPDATE \#{table} SET` would read as
+  two strings and no backfill.
   """
 
   alias Portfolixir.ScratchDatabase
@@ -61,6 +67,9 @@ defmodule Portfolixir.SeededUpgrade.Rule do
     backfill: ~r/\bUPDATE\s+(?:ONLY\s+)?[\w."]+\s+(?:AS\s+)?(?:\w+\s+)?SET\b/,
     backfill: ~r/\bINSERT\s+INTO\b[^;]*\bSELECT\b/
   ]
+
+  # What an interpolated or concatenated expression reads as in SQL text.
+  @placeholder "interpolated"
 
   @type change :: :check | :not_null | :backfill
 
@@ -231,9 +240,11 @@ defmodule Portfolixir.SeededUpgrade.Rule do
       else: MapSet.new()
   end
 
-  defp detect(text, _created, _app_aliases) when is_binary(text) do
-    for {change, pattern} <- @sql, Regex.match?(pattern, text), into: MapSet.new(), do: change
-  end
+  defp detect(text, _created, _app_aliases) when is_binary(text), do: sql_changes(text)
+
+  defp detect({op, _meta, parts} = built, _created, _app_aliases)
+       when op in [:<<>>, :<>] and is_list(parts),
+       do: built |> sql_text() |> sql_changes()
 
   defp detect({{:., _meta, [receiver, fun]}, _call_meta, _args}, _created, app_aliases)
        when is_atom(fun) do
@@ -244,12 +255,26 @@ defmodule Portfolixir.SeededUpgrade.Rule do
 
   defp detect(_node, _created, _app_aliases), do: MapSet.new()
 
+  defp sql_changes(text) do
+    for {change, pattern} <- @sql, Regex.match?(pattern, text), into: MapSet.new(), do: change
+  end
+
+  # A string as the SQL it builds: the literal pieces of an interpolation or
+  # a `<>` chain joined, each expression standing in as one identifier.
+  defp sql_text(text) when is_binary(text), do: text
+  defp sql_text({:<<>>, _meta, parts}), do: Enum.map_join(parts, &sql_text/1)
+  defp sql_text({:<>, _meta, [left, right]}), do: sql_text(left) <> sql_text(right)
+  defp sql_text(_expression), do: @placeholder
+
   defp not_null_column?(block) do
     {_ast, found?} =
       Macro.prewalk(block, false, fn
         {column, _meta, args} = node, found?
         when column in [:add, :modify, :add_if_not_exists] and is_list(args) ->
           {node, found? or null_false?(args)}
+
+        {:timestamps, _meta, args} = node, found? when is_list(args) ->
+          {node, found? or not null_true?(args)}
 
         node, found? ->
           {node, found?}
@@ -264,6 +289,10 @@ defmodule Portfolixir.SeededUpgrade.Rule do
       _other -> false
     end
   end
+
+  # `timestamps(null: true)` is the one form that adds nullable columns.
+  defp null_true?([opts]) when is_list(opts), do: Keyword.get(opts, :null) == true
+  defp null_true?(_args), do: false
 
   defp repo?({:repo, _meta, context}) when is_atom(context) or context == [], do: true
   defp repo?({:__aliases__, _meta, [:Repo]}), do: true
