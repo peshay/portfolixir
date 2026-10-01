@@ -1,0 +1,133 @@
+{
+  "description": "The ledger a correct conversion of beispielbank-umsaetze.csv books (Sprint 17 plan D-1, #998). Synthetic: the bank, the accounts, the securities and their QX-prefixed identifiers are invented; QX is no ISIN country prefix, so no real issue can carry them. Amounts are EUR decimal strings.",
+  "portfolios": [
+    {
+      "key": "p1",
+      "cash_account": "Verrechnungskonto 1",
+      "depot": "Depot 1"
+    },
+    {
+      "key": "p2",
+      "cash_account": "Verrechnungskonto 2",
+      "depot": "Depot 2"
+    }
+  ],
+  "securities": [
+    {
+      "key": "globus",
+      "name": "Globus Welt ETF",
+      "isin": "QXGWE0000030"
+    },
+    {
+      "key": "nordwind",
+      "name": "Nordwind Energie AG",
+      "isin": "QXNWE0000010"
+    },
+    {
+      "key": "kranich",
+      "name": "Kranich Logistik SE",
+      "isin": "QXKRL0000029"
+    }
+  ],
+  "transactions": [
+    {
+      "portfolio": "p1",
+      "type": "deposit",
+      "date": "2025-01-15",
+      "gross_amount": "10000.00"
+    },
+    {
+      "portfolio": "p1",
+      "type": "buy",
+      "date": "2025-01-20",
+      "security": "globus",
+      "quantity": "50",
+      "price": "100.00",
+      "fees": "4.90",
+      "taxes": "0",
+      "gross_amount": "5004.90"
+    },
+    {
+      "portfolio": "p2",
+      "type": "deposit",
+      "date": "2025-02-03",
+      "gross_amount": "3000.00"
+    },
+    {
+      "portfolio": "p2",
+      "type": "buy",
+      "date": "2025-02-10",
+      "security": "nordwind",
+      "quantity": "100",
+      "price": "12.50",
+      "fees": "4.90",
+      "taxes": "0",
+      "gross_amount": "1254.90"
+    },
+    {
+      "portfolio": "p1",
+      "type": "buy",
+      "date": "2025-06-02",
+      "security": "globus",
+      "quantity": "20",
+      "price": "110.00",
+      "fees": "4.90",
+      "taxes": "0",
+      "gross_amount": "2204.90"
+    },
+    {
+      "portfolio": "p2",
+      "type": "buy",
+      "date": "2025-09-15",
+      "security": "kranich",
+      "quantity": "40",
+      "price": "30.00",
+      "fees": "4.00",
+      "taxes": "0",
+      "gross_amount": "1204.00"
+    },
+    {
+      "portfolio": "p1",
+      "type": "dividend",
+      "date": "2026-03-16",
+      "security": "globus",
+      "quantity": "70",
+      "gross_amount": "61.25",
+      "taxes": "8.75"
+    },
+    {
+      "portfolio": "p2",
+      "type": "sell",
+      "date": "2026-05-20",
+      "security": "nordwind",
+      "quantity": "100",
+      "price": "15.80",
+      "fees": "4.90",
+      "taxes": "84.45",
+      "gross_amount": "1490.65"
+    },
+    {
+      "portfolio": "p2",
+      "type": "sell",
+      "date": "2026-08-11",
+      "security": "kranich",
+      "quantity": "10",
+      "price": "27.00",
+      "fees": "4.00",
+      "taxes": "0",
+      "gross_amount": "266.00"
+    }
+  ],
+  "answers": {
+    "total_value_eur": "13659.20",
+    "realized_2026_eur": "200.75",
+    "cash_balance": {
+      "account": "Verrechnungskonto 2",
+      "amount": "2297.75"
+    }
+  },
+  "notes": [
+    "gross_amount follows Portfolixir's booking rule (Portfolixir.Ledger.Projection): it is the row's cash effect. A buy's includes its fees and taxes, a sell's is net of them, and a dividend's is the net amount credited after the withheld tax, which taxes records.",
+    "The valuation of the three questions uses no quote: the export carries none, the identifiers are invented, so every held position is priced at its security's latest trade price (the global fallback of #406). Globus Welt ETF: 70 x 110.00; Kranich Logistik SE: 30 x 27.00."
+  ]
+}
