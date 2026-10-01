@@ -18,4 +18,3 @@ updated: '2026-09-30'
 # competitive research: Portfolio trackers and switcher parity
 
 **Decision this research serves:** Scope of the polish-before-launch phase: what a Portfolio Performance switcher must not miss, how to answer mobile access without a hosted cloud, and which competitor paradigms to adopt.
-
