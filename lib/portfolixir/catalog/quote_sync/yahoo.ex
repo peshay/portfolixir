@@ -39,6 +39,13 @@ defmodule Portfolixir.Catalog.QuoteSync.Yahoo do
   def id, do: :yahoo
 
   @impl true
+  def fetchable?(%Security{ticker_symbol: ticker} = security)
+      when is_binary(ticker) and ticker != "",
+      do: match?({:ok, _symbol}, build_symbol(security))
+
+  def fetchable?(%Security{}), do: false
+
+  @impl true
   def fetch(%Security{ticker_symbol: ticker}, _opts) when ticker in [nil, ""] do
     {:error, :missing_ticker}
   end

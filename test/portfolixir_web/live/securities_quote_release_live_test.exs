@@ -19,6 +19,7 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
   alias Portfolixir.Catalog.QuoteSync.Fake
   alias Portfolixir.Clock
   alias Portfolixir.Journal.Entry
+  alias Portfolixir.Lifecycle
   alias Portfolixir.Repo
 
   setup do
@@ -251,10 +252,12 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
   # Acceptance criteria:
   # - A valid range with no manual quote: the confirm "Freigeben" disabled,
   #   its reason beside it ("Kein manueller Kurs im Zeitraum.").
-  # - "Bis" before "Von": confirming shows "Das Enddatum liegt vor dem
-  #   Startdatum." at the field (aria-invalid), the dialog stays, nothing is
-  #   written; a field that is no date says "Kein Datum — Format JJJJ-MM-TT"
-  #   in the app's words.
+  # - "Bis" before "Von": Enter in a field, or the confirm, shows "Das
+  #   Enddatum liegt vor dem Startdatum." at the field (aria-invalid), the
+  #   dialog stays, nothing is written; a field that is no date says "Kein
+  #   Datum — Format JJJJ-MM-TT" in the app's words.
+  # - Enter in a field on a range that holds manual quotes writes nothing:
+  #   only the confirm releases (closing act, γ D1).
   test "a range without a manual quote waits, and a reversed range is refused at the field",
        ctx do
     {:ok, view, _html} = quotes_tab(ctx.conn, ctx.security)
@@ -284,6 +287,13 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
     assert view |> element("#quote-release-to") |> render() =~ ~s(aria-invalid="true")
     assert length(manual_dates(ctx.security)) == 4
 
+    view |> element(confirm) |> render_click()
+
+    assert text(view, "#quote-release-dialog [data-role='quote-release-error']") ==
+             "Das Enddatum liegt vor dem Startdatum."
+
+    assert length(manual_dates(ctx.security)) == 4
+
     view
     |> form("#quote-release-form", release: %{from: "2026-02-30", to: ctx.iso.(-4)})
     |> render_submit()
@@ -291,6 +301,16 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
     assert text(view, "#quote-release-dialog [data-role='quote-release-error']") =~ "Kein Datum"
     assert view |> element("#quote-release-from") |> render() =~ ~s(aria-invalid="true")
     assert length(manual_dates(ctx.security)) == 4
+
+    # Enter on the whole range: re-counted and checked, never released.
+    view
+    |> form("#quote-release-form", release: %{from: ctx.iso.(-1100), to: ctx.iso.(-4)})
+    |> render_submit()
+
+    refute has_element?(view, "#quote-release-dialog [data-role='quote-release-error']")
+    assert text(view, confirm) == "4 manuelle Kurse freigeben"
+    assert length(manual_dates(ctx.security)) == 4
+    assert has_element?(view, "#quote-release-dialog")
   end
 
   # User story:
@@ -305,6 +325,9 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
   # - The dialog closes; a note in the Quotes tab says how many were released
   #   from when to when (the answer's count), that the next sync stores the
   #   provider's close, with "Kurse aktualisieren"; it is dismissible.
+  # - Where the release takes the last manual quote and with it the
+  #   "Freigeben…" that opened the dialog, the dialog names the result's
+  #   dismiss as where the focus goes (closing act, γ D2).
   # - The data note now counts what is left.
   test "confirming releases through the journal and reports in the tab", ctx do
     with_adapter(ctx)
@@ -318,7 +341,7 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
     )
     |> render_click()
 
-    view |> form("#quote-release-form") |> render_submit()
+    view |> element("[data-role='quote-release-confirm']") |> render_click()
 
     assert manual_dates(ctx.security) == [ctx.day.(-1100), ctx.day.(-1099)]
 
@@ -331,6 +354,10 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
 
     assert entry.actor_type == :owner_ui
     refute has_element?(view, "#quote-release-dialog")
+
+    hook = File.read!("lib/portfolixir_web/layout_view.ex")
+    assert hook =~ ~s{this.el.getAttribute("data-focus-fallback")}
+    assert hook =~ "document.querySelector(this.focusFallback)"
 
     result = "#detail-tab-panel-quotes #quotes-release-result"
 
@@ -353,22 +380,182 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
   # so that the follow-up the page offers is one that can help (A5, UX-DR25 ③).
   #
   # Acceptance criteria:
-  # - Without an adapter the result's second sentence is "Ohne Kursanbieter
-  #   bleiben diese Tage ohne Kurs." and there is no "Kurse aktualisieren".
+  # - Without an adapter the result's second sentence is "Für dieses
+  #   Wertpapier holt die Kursaktualisierung keine Kurse: Diese Tage bleiben
+  #   ohne Kurs." and there is no "Kurse aktualisieren".
   # - Releasing every manual quote leaves no note and no "Freigeben…".
   test "without an adapter the result says the days stay empty", ctx do
     {:ok, view, _html} = quotes_tab(ctx.conn, ctx.security)
     view |> element("[data-role='release-manual-quotes']") |> render_click()
-    view |> form("#quote-release-form") |> render_submit()
+
+    assert has_element?(
+             view,
+             ~s(#quote-release-dialog[data-focus-fallback="#quotes-release-result .inline-result__dismiss"])
+           )
+
+    view |> element("[data-role='quote-release-confirm']") |> render_click()
 
     assert manual_dates(ctx.security) == []
 
     result = "#detail-tab-panel-quotes #quotes-release-result"
 
     assert text(view, result) =~
-             "4 manuelle Kurse freigegeben, vom #{ctx.iso.(-1100)} bis #{ctx.iso.(-4)}. Ohne Kursanbieter bleiben diese Tage ohne Kurs."
+             "4 manuelle Kurse freigegeben, vom #{ctx.iso.(-1100)} bis #{ctx.iso.(-4)}. Für dieses Wertpapier holt die Kursaktualisierung keine Kurse: Diese Tage bleiben ohne Kurs."
 
     refute has_element?(view, "#{result} button[phx-click='sync_now']")
     refute has_element?(view, "[data-role='manual-quotes-note']")
+  end
+
+  # User story:
+  # As the operator whose agent merged the shown security away meanwhile,
+  # I want "Freigeben…" to follow the merge to the survivor,
+  # so that the page shows the security that now holds the quotes instead of
+  # failing (closing act, γ correctness CR-1).
+  #
+  # Acceptance criteria:
+  # - Clicking "Freigeben…" for a security merged away since the page showed
+  #   it opens no dialog and patches to the survivor with its merged notice.
+  test "Release… on a security merged away meanwhile follows the merge", ctx do
+    # The same name, so the merge resolves the source's stored identity.
+    target = create_security!(name: "Meridian Global Equity ETF", ticker: nil)
+    {:ok, view, _html} = quotes_tab(ctx.conn, ctx.security)
+
+    {:ok, preview} = Lifecycle.preview_security_merge(ctx.security.id, target.id)
+
+    {:ok, _record, :applied} =
+      Lifecycle.merge_security(Actor.api_token_rw("synthetic"), ctx.security.id, target.id, %{
+        plan_digest: preview.plan_digest,
+        collapse_key_equal: false
+      })
+
+    view |> element("[data-role='release-manual-quotes']") |> render_click()
+
+    assert_patch(view)
+    refute has_element?(view, "#quote-release-dialog")
+    assert has_element?(view, "#security-row-#{target.id}.is-selected")
+    assert has_element?(view, "#security-detail-pane [data-role='merged-notice']")
+  end
+
+  # User story:
+  # As the operator confirming a release,
+  # I want the write to release the number of manual quotes the confirm
+  # named, and to be asked again when the range holds another number by now,
+  # so that I never approve two and release three (closing act, γ CR-2).
+  #
+  # Acceptance criteria:
+  # - When a manual quote lands in the range after the dialog counted it,
+  #   confirming writes nothing; the dialog says how many the range holds now
+  #   and the confirm names the new count.
+  # - Confirming again releases them all.
+  test "a range recounted since the confirm was shown is asked again", ctx do
+    {:ok, view, _html} = quotes_tab(ctx.conn, ctx.security)
+    view |> element("[data-role='release-manual-quotes']") |> render_click()
+
+    assert text(view, "[data-role='quote-release-confirm']") == "4 manuelle Kurse freigeben"
+
+    {:ok, _} =
+      Quotes.upsert_authored(Actor.api_token_rw("synthetic"), ctx.security.id, [
+        %{"date" => ctx.iso.(-50), "close" => "95.00"}
+      ])
+
+    view |> element("[data-role='quote-release-confirm']") |> render_click()
+
+    assert length(manual_dates(ctx.security)) == 5
+    assert has_element?(view, "#quote-release-dialog")
+
+    assert text(view, "[data-role='quote-release-error']") ==
+             "Der Zeitraum enthält inzwischen 5 manuelle Kurse — prüfen und erneut bestätigen."
+
+    refute has_element?(view, "#quote-release-from[aria-invalid]")
+    refute has_element?(view, "#quote-release-to[aria-invalid]")
+    assert text(view, "[data-role='quote-release-confirm']") == "5 manuelle Kurse freigeben"
+
+    view |> element("[data-role='quote-release-confirm']") |> render_click()
+
+    assert manual_dates(ctx.security) == []
+    refute has_element?(view, "#quote-release-dialog")
+  end
+
+  # User story:
+  # As the operator of a security with many stretches of manual quotes, or a
+  # single one,
+  # I want the chips to say when they leave stretches out, and not to repeat
+  # "Alle",
+  # so that a prefilled date no chip shows is explained (closing act, γ D3,
+  # n7) — and a single release reads in the singular (γ n6).
+  #
+  # Acceptance criteria:
+  # - Seven stretches: "Alle · N" and five chips, the newest; below them "Die
+  #   5 neuesten von 7 Abschnitten; „Alle“ umfasst jeden."
+  # - A one-day stretch's chip names its day once.
+  # - One stretch only: "Alle" alone, no hint.
+  # - Releasing one quote: "… für diesen Tag …".
+  test "the chips say the cut, name a day once and never repeat All", ctx do
+    with_adapter(ctx)
+
+    many = create_security!(name: "Halvorsen Shipping Bond 2031", ticker: nil)
+
+    {:ok, many} =
+      Catalog.update_security(Actor.owner_ui(), many, %{provider: "portfolio_performance"})
+
+    # Seven stretches 20 days apart, each split from the next by a provider
+    # close; the newest is one day.
+    {:ok, _} =
+      Quotes.upsert_many(
+        many.id,
+        Enum.map(
+          0..6,
+          &%{date: ctx.day.(-195 + 20 * &1), close: "50.00", source: "portfolio_performance"}
+        )
+      )
+
+    {:ok, _} =
+      Quotes.upsert_authored(
+        Actor.api_token_rw("synthetic"),
+        many.id,
+        for k <- 0..6, offset <- if(k == 6, do: [0], else: [0, 1]) do
+          %{"date" => ctx.iso.(-200 + 20 * k + offset), "close" => "51.00"}
+        end
+      )
+
+    {:ok, view, _html} = quotes_tab(ctx.conn, many)
+    view |> element("[data-role='release-manual-quotes']") |> render_click()
+
+    chips =
+      view
+      |> element("#quote-release-dialog [data-role='release-stretches']")
+      |> render()
+      |> Floki.parse_fragment!()
+      |> Floki.find("button.filter-chip")
+      |> Enum.map(&(&1 |> Floki.text() |> String.split() |> Enum.join(" ")))
+
+    assert length(chips) == 6
+    assert hd(chips) == "Alle · 13"
+    assert List.last(chips) == "#{ctx.iso.(-80)} · 1"
+
+    assert text(view, "#quote-release-dialog [data-role='release-stretches-cut']") ==
+             "Die 5 neuesten von 7 Abschnitten; „Alle“ umfasst jeden."
+
+    # One stretch, one day: "Alle" alone, no cut, and a singular result.
+    single = create_security!(name: "Northwind Utilities", ticker: nil)
+
+    {:ok, single} =
+      Catalog.update_security(Actor.owner_ui(), single, %{provider: "portfolio_performance"})
+
+    {:ok, _} =
+      Quotes.upsert_authored(Actor.api_token_rw("synthetic"), single.id, [
+        %{"date" => ctx.iso.(-7), "close" => "12.00"}
+      ])
+
+    {:ok, view, _html} = quotes_tab(ctx.conn, single)
+    view |> element("[data-role='release-manual-quotes']") |> render_click()
+
+    assert text(view, "#quote-release-dialog [data-role='release-stretches']") == "Alle · 1"
+    refute has_element?(view, "[data-role='release-stretches-cut']")
+
+    view |> element("[data-role='quote-release-confirm']") |> render_click()
+
+    assert text(view, "#detail-tab-panel-quotes #quotes-release-result") =~
+             "Ein manueller Kurs freigegeben, am #{ctx.iso.(-7)}. Die nächste Kursaktualisierung speichert für diesen Tag den Schlusskurs des Anbieters."
   end
 end

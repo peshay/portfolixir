@@ -888,10 +888,10 @@ Regel über einer Kennzahl ist FR-43 und bleibt verschlossen.
   `{"from", "to", "count"}`, aufsteigend, die jüngsten `limit` davon (die
   Listen-Familie: Standard 100, gedeckelt bei 1000, in `meta.limit` gespiegelt)
   —, `stretch_count` (alle) und `sync_adapter`: ob die Kurssynchronisierung
-  für den Anbieter des Wertpapiers einen Adapter hat, die Prüfung, die sie vor
-  jedem Abruf macht. Ohne einen behält ein freigegebenes Datum keinen Kurs;
-  mit einem kann ein Abruf das Wertpapier trotzdem überspringen (etwa ohne
-  Ticker). `from` und/oder `to` (einschließlich; eine fehlende Grenze ist
+  das Wertpapier abfragen kann — ein Adapter für seinen Anbieter, der es
+  abfragen kann (Yahoo braucht einen Ticker), die Prüfungen, die sie vor jedem
+  Abruf macht. Bei `false` behält ein freigegebenes Datum keinen Kurs; bei
+  `true` kann ein Abruf trotzdem scheitern. `from` und/oder `to` (einschließlich; eine fehlende Grenze ist
   offen) fügen `range` `{"from", "to", "count"}` hinzu: die manuellen Kurse,
   die eine Freigabe genau dieses Zeitraums entfernen würde. `to` vor `from`
   liefert `422` auf `to`, ein ungültiges Datum `422` mit dem Feld, ein

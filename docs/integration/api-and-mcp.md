@@ -873,10 +873,10 @@ Example create payload:
   no quote of another source between them, `{"from", "to", "count"}`,
   ascending, the newest `limit` of them (the list family's: default 100,
   capped at 1000, echoed in `meta.limit`) — `stretch_count` (all of them), and
-  `sync_adapter`: whether the quote sync has an adapter for the security's
-  provider, the check the sync makes before it fetches anything. Without one a
-  released date keeps no quote; with one a fetch can still skip the security
-  (a missing ticker, say). `from` and/or `to` (inclusive; an absent bound is
+  `sync_adapter`: whether the quote sync can fetch the security — an adapter
+  for its provider that can ask for it (Yahoo needs a ticker), the checks the
+  sync makes before it fetches anything. Where it is `false` a released date
+  keeps no quote; where it is `true` a fetch can still fail. `from` and/or `to` (inclusive; an absent bound is
   open) add `range` `{"from", "to", "count"}`: the manual quotes a release of
   exactly that range would remove. `to` before `from` answers `422` on `to`,
   an invalid date `422` naming it, an unknown security `404`.
