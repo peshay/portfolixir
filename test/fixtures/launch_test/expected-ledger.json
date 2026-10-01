@@ -1,13 +1,13 @@
 {
-  "description": "The ledger a correct conversion of beispielbank-umsaetze.csv books (Sprint 17 plan D-1, #998). Synthetic: the bank, the accounts, the securities and their QX-prefixed identifiers are invented; QX is no ISIN country prefix, so no real issue can carry them. Amounts are EUR decimal strings.",
-  "portfolios": [
+  "description": "The ledger a correct conversion of beispielbank-umsaetze.csv books (Sprint 17 plan D-1, #998). Synthetic: the bank, the accounts, the securities and their QX-prefixed identifiers are invented; QX is no ISIN country prefix, so no real issue can carry them. Amounts are EUR decimal strings. The two depot and cash-account pairs (accounts) sit in one portfolio record, the default one every Portfolio Performance import binds to; each depot is linked to its own cash account.",
+  "accounts": [
     {
-      "key": "p1",
+      "key": "a1",
       "cash_account": "Verrechnungskonto 1",
       "depot": "Depot 1"
     },
     {
-      "key": "p2",
+      "key": "a2",
       "cash_account": "Verrechnungskonto 2",
       "depot": "Depot 2"
     }
@@ -31,13 +31,13 @@
   ],
   "transactions": [
     {
-      "portfolio": "p1",
+      "account": "a1",
       "type": "deposit",
       "date": "2025-01-15",
       "gross_amount": "10000.00"
     },
     {
-      "portfolio": "p1",
+      "account": "a1",
       "type": "buy",
       "date": "2025-01-20",
       "security": "globus",
@@ -48,13 +48,13 @@
       "gross_amount": "5004.90"
     },
     {
-      "portfolio": "p2",
+      "account": "a2",
       "type": "deposit",
       "date": "2025-02-03",
       "gross_amount": "3000.00"
     },
     {
-      "portfolio": "p2",
+      "account": "a2",
       "type": "buy",
       "date": "2025-02-10",
       "security": "nordwind",
@@ -65,7 +65,7 @@
       "gross_amount": "1254.90"
     },
     {
-      "portfolio": "p1",
+      "account": "a1",
       "type": "buy",
       "date": "2025-06-02",
       "security": "globus",
@@ -76,7 +76,7 @@
       "gross_amount": "2204.90"
     },
     {
-      "portfolio": "p2",
+      "account": "a2",
       "type": "buy",
       "date": "2025-09-15",
       "security": "kranich",
@@ -87,7 +87,7 @@
       "gross_amount": "1204.00"
     },
     {
-      "portfolio": "p1",
+      "account": "a1",
       "type": "dividend",
       "date": "2026-03-16",
       "security": "globus",
@@ -96,7 +96,7 @@
       "taxes": "8.75"
     },
     {
-      "portfolio": "p2",
+      "account": "a2",
       "type": "sell",
       "date": "2026-05-20",
       "security": "nordwind",
@@ -107,7 +107,7 @@
       "gross_amount": "1490.65"
     },
     {
-      "portfolio": "p2",
+      "account": "a2",
       "type": "sell",
       "date": "2026-08-11",
       "security": "kranich",

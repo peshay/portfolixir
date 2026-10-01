@@ -15,6 +15,7 @@ defmodule Portfolixir.LaunchTestFixtureTest do
   use Portfolixir.DataCase, async: true
 
   alias Portfolixir.Actor
+  alias Portfolixir.Buckets
   alias Portfolixir.Catalog
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
@@ -30,9 +31,15 @@ defmodule Portfolixir.LaunchTestFixtureTest do
   # about a figure somebody computed by hand.
   #
   # Acceptance criteria:
-  # - Booking the expected ledger into two EUR portfolios gives the stated
-  #   total value across both, with no quote stored (every position priced
-  #   at its latest trade).
+  # - The ledger is booked as the import path books it (PR β closing act,
+  #   should-fix 2): every Portfolio Performance import binds to the one
+  #   default portfolio record (Imports.Applier, resolve_portfolio(nil)), so
+  #   both depot and cash-account pairs sit in ONE EUR portfolio, and no
+  #   other portfolio record exists.
+  # - That portfolio's valuation gives the stated total value across both
+  #   accounts in one call, with no quote stored (every position priced at
+  #   its latest trade); the unscoped union and a view created with
+  #   include_all give the same figure.
   # - This year's realized result of closed trades is the stated figure.
   # - The named cash account's balance is the stated figure.
   # - The export's own balance per account equals the ledger's cash balance,
@@ -43,13 +50,15 @@ defmodule Portfolixir.LaunchTestFixtureTest do
 
     world = book!(ledger)
 
-    totals =
-      Enum.map(world.portfolios, fn {_key, %{portfolio: portfolio}} ->
-        Valuation.for_portfolio(portfolio.id).total_with_cash
-      end)
+    assert [%{id: only}] = Portfolios.list_portfolios()
+    assert only == world.portfolio.id
 
-    assert Decimal.equal?(Enum.reduce(totals, &Decimal.add/2), answers["total_value_eur"])
+    total = Valuation.for_portfolio(world.portfolio.id).total_with_cash
+    assert Decimal.equal?(total, answers["total_value_eur"])
     assert Decimal.equal?(Valuation.for_view(nil).total_with_cash, answers["total_value_eur"])
+
+    {:ok, everything} = Buckets.create_view(Actor.owner_ui(), %{name: "Everything"})
+    assert Decimal.equal?(Valuation.for_view(everything.id).total_with_cash, total)
 
     realized_2026 =
       RealizedGains.report(base_currency: "EUR").trades
@@ -70,15 +79,14 @@ defmodule Portfolixir.LaunchTestFixtureTest do
     end
   end
 
+  # The structure the import path leaves: the default portfolio record (EUR,
+  # created on first use, as an import creates it) holding every cash account
+  # and depot the file names, each depot linked to its cash account.
   defp book!(ledger) do
-    portfolios =
-      Map.new(ledger["portfolios"], fn %{"key" => key} = spec ->
-        {:ok, portfolio} =
-          Portfolios.create_portfolio(Actor.owner_ui(), %{
-            name: "Launch test #{key}",
-            base_currency_code: "EUR"
-          })
+    portfolio = Portfolios.default_portfolio(Actor.import_session())
 
+    accounts =
+      Map.new(ledger["accounts"], fn %{"key" => key} = spec ->
         {:ok, cash} =
           Portfolios.create_cash_account(Actor.owner_ui(), %{
             portfolio_id: portfolio.id,
@@ -94,7 +102,7 @@ defmodule Portfolixir.LaunchTestFixtureTest do
             name: spec["depot"]
           })
 
-        {key, %{portfolio: portfolio, cash: cash, depot: depot}}
+        {key, %{cash: cash, depot: depot}}
       end)
 
     securities =
@@ -111,7 +119,7 @@ defmodule Portfolixir.LaunchTestFixtureTest do
       end)
 
     for tx <- ledger["transactions"] do
-      %{portfolio: portfolio, cash: cash, depot: depot} = Map.fetch!(portfolios, tx["portfolio"])
+      %{cash: cash, depot: depot} = Map.fetch!(accounts, tx["account"])
 
       attrs =
         %{
@@ -128,8 +136,8 @@ defmodule Portfolixir.LaunchTestFixtureTest do
     end
 
     %{
-      portfolios: portfolios,
-      cash_accounts: Enum.map(portfolios, fn {_key, world} -> world.cash end)
+      portfolio: portfolio,
+      cash_accounts: Enum.map(accounts, fn {_key, pair} -> pair.cash end)
     }
   end
 
