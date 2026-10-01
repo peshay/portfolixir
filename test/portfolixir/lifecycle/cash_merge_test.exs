@@ -640,6 +640,34 @@ defmodule Portfolixir.Lifecycle.CashMergeTest do
 
   describe "refusals and consent (§7 guards, §8, §10, §16 invariant 13)" do
     # User story:
+    # As the operator, or the agent, reading why an account merge was refused,
+    # I want the bucket refusal to name each bucket by its name and its id,
+    # so that I can find the bucket, rather than read the charlist
+    # (`~c"AB"`) that `inspect/1` printed for a list of small ids (#978).
+    #
+    # Acceptance criteria:
+    # - With bucket ids in the printable range, buckets_mismatch names each
+    #   account's buckets as "<name>" (#<id>), and says "no bucket" for an
+    #   account that sits in none; no detail carries a charlist.
+    test "the bucket refusal names printable-range buckets by name and id", ctx do
+      short = WorldFixtures.printable_bucket!(%{name: "Short term"})
+      reserve = WorldFixtures.printable_bucket!(%{name: "Reserve"})
+      assert short.id in ?A..?Z and reserve.id in ?A..?Z
+      :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), ctx.source, [short.id, reserve.id])
+
+      assert {:error, {:refused, guards}} =
+               Lifecycle.preview_cash_merge(ctx.source.id, ctx.target.id)
+
+      assert %{detail: detail} = Enum.find(guards, &(&1.code == :buckets_mismatch))
+
+      assert detail =~
+               ~s[the source account sits in the buckets "Short term" (##{short.id}), ] <>
+                 ~s["Reserve" (##{reserve.id}) and the target account in no bucket: view membership]
+
+      refute detail =~ "~c"
+    end
+
+    # User story:
     # As the operator about to merge the wrong pair,
     # I want every merge the guards forbid refused with a named reason before
     # anything is written,

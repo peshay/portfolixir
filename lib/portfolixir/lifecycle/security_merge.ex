@@ -185,7 +185,15 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   import Ecto.Query
 
   import Portfolixir.Lifecycle.MergeFlow,
-    only: [guard: 4, guard: 5, passed?: 1, each: 2, jsonable: 1]
+    only: [
+      guard: 4,
+      guard: 5,
+      passed?: 1,
+      each: 2,
+      jsonable: 1,
+      buckets_phrase: 2,
+      bucket_list: 2
+    ]
 
   import Portfolixir.Lifecycle.MergeFigures, only: [sample: 2, quantity: 3, exact: 3]
 
@@ -1634,12 +1642,17 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   defp membership_guard(base) do
     refused = Enum.filter(base.memberships, &(&1.action in [:refuse, :refuse_carry]))
 
+    names =
+      refused
+      |> Enum.flat_map(&(&1.source_buckets ++ &1.target_buckets))
+      |> Buckets.names_by_id()
+
     :position_buckets_mismatch
     |> guard(
       "same view membership for every position",
       refused == [],
       "every position keeps its effective buckets",
-      Enum.map_join(refused, " ", &membership_detail/1)
+      Enum.map_join(refused, " ", &membership_detail(&1, names))
     )
     |> put_failed(
       :positions,
@@ -1662,19 +1675,20 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   defp put_failed(%{passed: true} = guard, _key, _value), do: guard
   defp put_failed(guard, key, value), do: Map.put(guard, key, value)
 
-  defp membership_detail(%{action: :refuse} = entry) do
-    "In depot \"#{entry.securities_account_name}\" the source's position sits in the buckets " <>
-      "#{inspect(entry.source_buckets)} and the target's in " <>
-      "#{inspect(entry.target_buckets)}: view membership is retroactive, so the merge would " <>
-      "move the target's history between views. Give both positions the same buckets, then " <>
-      "preview again."
+  # Each bucket by its name and id (#978), never `inspect/1` on the id list.
+  defp membership_detail(%{action: :refuse} = entry, names) do
+    "In depot \"#{entry.securities_account_name}\" the source's position sits in " <>
+      "#{buckets_phrase(entry.source_buckets, names)} and the target's in " <>
+      "#{buckets_phrase(entry.target_buckets, names)}: view membership is retroactive, so the " <>
+      "merge would move the target's history between views. Give both positions the same " <>
+      "buckets, then preview again."
   end
 
-  defp membership_detail(%{action: :refuse_carry} = entry) do
+  defp membership_detail(%{action: :refuse_carry} = entry, names) do
     "In depot \"#{entry.securities_account_name}\" the source's position carries an override " <>
-      "with more than one scope bucket #{inspect(entry.source_buckets)}, stored before a " <>
-      "position could hold only one: the target's position cannot take it. Keep one scope " <>
-      "bucket in that override, then preview again."
+      "with more than one scope bucket, #{bucket_list(entry.source_buckets, names)}, stored " <>
+      "before a position could hold only one: the target's position cannot take it. Keep one " <>
+      "scope bucket in that override, then preview again."
   end
 
   defp split_ratio_guard(%{splits: %{conflicts: conflicts}} = base) do

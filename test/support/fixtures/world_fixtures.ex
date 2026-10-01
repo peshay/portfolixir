@@ -16,11 +16,16 @@ defmodule Portfolixir.WorldFixtures do
   forking the builder.
   """
 
+  import Ecto.Query
+
   alias Portfolixir.Actor
+  alias Portfolixir.Buckets.Bucket
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Quotes
+  alias Portfolixir.Journal
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
+  alias Portfolixir.Repo
 
   @doc """
   Builds a portfolio with one cash account and one securities depot.
@@ -213,4 +218,36 @@ defmodule Portfolixir.WorldFixtures do
 
   defp security_id(%{id: id}), do: id
   defp security_id(id), do: id
+
+  @doc """
+  Creates a bucket under an id in the printable ASCII range: the lowest of
+  `?A..?Z` no bucket the test can see holds yet.
+
+  `inspect/1` prints a list of such ids as a charlist (`[65, 66]` reads
+  `~c"AB"`), so a sentence that names buckets is pinned with them (#978). The
+  row is written as `Portfolixir.Buckets.create_bucket/2` writes one, with its
+  journal entry under the owner. Create these after every bucket the test
+  makes through the id sequence, which could otherwise hand the same id out
+  later in the same test.
+  """
+  def printable_bucket!(attrs) when is_map(attrs) do
+    printable = Enum.to_list(?A..?Z)
+    taken = Repo.all(from(b in Bucket, where: b.id in ^printable, select: b.id))
+    id = Enum.find(printable, &(&1 not in taken)) || raise "no printable bucket id is free"
+
+    {:ok, %{bucket: bucket}} =
+      Ecto.Multi.new()
+      |> Ecto.Multi.insert(
+        :bucket,
+        %Bucket{} |> Bucket.changeset(attrs) |> Ecto.Changeset.put_change(:id, id)
+      )
+      |> Journal.record(Actor.owner_ui(),
+        resource_type: "bucket",
+        operation: :create,
+        source: :bucket
+      )
+      |> Repo.transaction()
+
+    bucket
+  end
 end

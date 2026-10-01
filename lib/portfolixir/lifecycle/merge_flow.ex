@@ -90,6 +90,36 @@ defmodule Portfolixir.Lifecycle.MergeFlow do
   def guard(code, check, true, passed, _refused), do: guard(code, check, true, passed)
   def guard(code, check, false, _passed, refused), do: guard(code, check, false, refused)
 
+  @doc """
+  Buckets as a guard's sentence names them (#978): `no bucket`, `the bucket
+  "Core" (#3)` or `the buckets "Core" (#3), "Satellite" (#7)`, in id order.
+
+  `names` (from `Portfolixir.Buckets.names_by_id/1`) gives each bucket its
+  name; an id it does not hold is named by its number alone. A passing guard
+  names numbers only: it is part of the plan digest, and a bucket renamed
+  between the preview and the apply changes nothing a merge does. Never
+  `inspect/1`: it prints a list of ids that are all printable characters as a
+  charlist (`[65, 66]` reads `~c"AB"`).
+  """
+  @spec buckets_phrase([integer()], %{optional(integer()) => String.t()}) :: String.t()
+  def buckets_phrase(ids, names \\ %{})
+  def buckets_phrase([], _names), do: "no bucket"
+  def buckets_phrase([_id] = ids, names), do: "the bucket " <> bucket_list(ids, names)
+  def buckets_phrase(ids, names), do: "the buckets " <> bucket_list(ids, names)
+
+  @doc ~s[The buckets alone, as `buckets_phrase/2` lists them: `"Core" (#3), "Satellite" (#7)`.]
+  @spec bucket_list([integer()], %{optional(integer()) => String.t()}) :: String.t()
+  def bucket_list(ids, names \\ %{}) do
+    ids
+    |> Enum.sort()
+    |> Enum.map_join(", ", fn id ->
+      case Map.fetch(names, id) do
+        {:ok, name} -> ~s["#{name}" (##{id})]
+        :error -> "##{id}"
+      end
+    end)
+  end
+
   @doc "Whether every guard passed."
   @spec passed?([guard()]) :: boolean()
   def passed?(guards), do: Enum.all?(guards, & &1.passed)

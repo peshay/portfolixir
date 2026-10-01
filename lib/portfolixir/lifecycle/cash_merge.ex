@@ -82,7 +82,15 @@ defmodule Portfolixir.Lifecycle.CashMerge do
   import Ecto.Query
 
   import Portfolixir.Lifecycle.MergeFlow,
-    only: [guard: 4, guard: 5, passed?: 1, each: 2, jsonable: 1]
+    only: [
+      guard: 4,
+      guard: 5,
+      passed?: 1,
+      each: 2,
+      jsonable: 1,
+      buckets_phrase: 1,
+      buckets_phrase: 2
+    ]
 
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
@@ -315,12 +323,20 @@ defmodule Portfolixir.Lifecycle.CashMerge do
         :buckets_mismatch,
         "same buckets",
         source_buckets == target_buckets,
-        "both accounts sit in the buckets #{inspect(target_buckets)}",
-        "the accounts sit in the buckets #{inspect(source_buckets)} and " <>
-          "#{inspect(target_buckets)}: view membership is retroactive, so a merge would move " <>
-          "history between views"
+        "both accounts sit in #{buckets_phrase(target_buckets)}",
+        buckets_refusal(source_buckets, target_buckets)
       )
     ]
+  end
+
+  # A refusal names each bucket by its name and id (#978); the passing
+  # sentence above names ids only, being part of the plan digest.
+  defp buckets_refusal(source_buckets, target_buckets) do
+    names = Buckets.names_by_id(source_buckets ++ target_buckets)
+
+    "the source account sits in #{buckets_phrase(source_buckets, names)} and the target " <>
+      "account in #{buckets_phrase(target_buckets, names)}: view membership is retroactive, " <>
+      "so a merge would move history between views"
   end
 
   defp same_account_guard(source, target_id) do

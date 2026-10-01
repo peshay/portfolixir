@@ -32,7 +32,15 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
   alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Portfolios.SecuritiesAccount
 
+  import Portfolixir.WorldFixtures, only: [printable_bucket!: 1]
+
   defp agent, do: Actor.api_token_rw("synthetic-agent")
+
+  defp refused_detail!(source_id, target_id, code) do
+    assert {:error, {:refused, guards}} = Lifecycle.preview_depot_merge(source_id, target_id)
+    assert %{detail: detail} = Enum.find(guards, &(&1.code == code and not &1.passed))
+    detail
+  end
 
   setup do
     {:ok, portfolio} =
@@ -589,6 +597,71 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
       assert detail =~ "Kestrel Industrial Group NV"
       assert detail =~ "scope"
       assert fingerprint() == before
+    end
+  end
+
+  describe "refusal details name the buckets (#978)" do
+    # User story:
+    # As the operator, or the agent, reading why a depot merge was refused,
+    # I want the refusal to name each bucket by its name and its id,
+    # so that I can find the bucket, rather than read the charlist
+    # (`~c"AB"`) that `inspect/1` printed for a list of small ids.
+    #
+    # Acceptance criteria:
+    # - With bucket ids in the printable range, the default-bucket refusal
+    #   names each depot's buckets as "<name>" (#<id>), and says "no bucket"
+    #   for a depot that defaults to none.
+    # - The position refusal names the position's buckets in the source and
+    #   in the target the same way.
+    # - The refusal of a carried override with more than one scope bucket
+    #   names those buckets the same way.
+    # - No detail carries a charlist.
+    test "the default-bucket and position refusals name printable-range buckets", ctx do
+      worked_example!(ctx)
+      tagged = depot!(ctx.portfolio, ctx.cash_t, "Tagged depot")
+      long = printable_bucket!(%{name: "Long term"})
+      spec = printable_bucket!(%{name: "Speculative"})
+      assert long.id in ?A..?Z and spec.id in ?A..?Z
+      :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), tagged, [long.id, spec.id])
+
+      detail = refused_detail!(ctx.source.id, tagged.id, :buckets_mismatch)
+
+      assert detail =~
+               ~s[the source depot defaults to no bucket and the target depot to the buckets ] <>
+                 ~s["Long term" (##{long.id}), "Speculative" (##{spec.id}): view membership]
+
+      refute detail =~ "~c"
+
+      :ok = Buckets.set_position_override(Actor.owner_ui(), ctx.source, ctx.meridian, [spec.id])
+      detail = refused_detail!(ctx.source.id, ctx.target.id, :position_buckets_mismatch)
+
+      assert detail =~
+               ~s[Meridian Global Equity ETF (security ##{ctx.meridian.id}) sits in the bucket ] <>
+                 ~s["Speculative" (##{spec.id}) in the source and in no bucket in the target:]
+
+      refute detail =~ "~c"
+    end
+
+    test "the carried-override refusal names its printable-range scope buckets", ctx do
+      worked_example!(ctx)
+      one = printable_bucket!(%{name: "Scope A", dimension: "scope"})
+      two = printable_bucket!(%{name: "Scope B", dimension: "scope"})
+      assert one.id in ?A..?Z and two.id in ?A..?Z
+
+      # Stored the way an override was written before the one-scope rule.
+      Repo.insert_all("position_bucket_overrides", [
+        %{securities_account_id: ctx.source.id, security_id: ctx.kestrel.id, bucket_id: one.id},
+        %{securities_account_id: ctx.source.id, security_id: ctx.kestrel.id, bucket_id: two.id}
+      ])
+
+      detail = refused_detail!(ctx.source.id, ctx.target.id, :position_buckets_mismatch)
+
+      assert detail =~
+               ~s[Kestrel Industrial Group NV (security ##{ctx.kestrel.id}) carries an override in ] <>
+                 ~s[the source with more than one scope bucket, "Scope A" (##{one.id}), ] <>
+                 ~s["Scope B" (##{two.id}), stored before a position could hold only one:]
+
+      refute detail =~ "~c"
     end
   end
 
