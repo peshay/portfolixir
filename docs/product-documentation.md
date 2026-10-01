@@ -1155,7 +1155,18 @@ quote date across the held positions, leading to the securities list
 pre-filtered to stale quotes; its "n stale" sub-line appears only when
 stale quotes exist (with none, the date alone — a fact, not an all-clear
 badge), and a basis line under the strip names the view, the period and
-the currency — an **Off target** list (issue #718 — the
+the currency — the **Closed trades** card (UX-DR2 as amended 2026-10-01,
+issue #984): the five most recently closed round-trips, newest first, each
+with the date it was sold and how long it was held, its realised result in
+the base currency in its sign colour, and under it the return — **per year**
+("p. a.") from 365 days of holding, **over the whole holding period**
+("total") below — each row linking to that security's Trades tab, with
+**All trades →** in the card's head leading to the Trades facet. Its basis
+line says it covers **every depot, whatever the view**: the rest of the
+Overview follows the selected view, the trades do not. It lists results, not
+activity, and is absent where no trade has closed; a sale whose close-date
+rate is missing is named on the card, with the backfill under All trades —
+an **Off target** list (issue #718 — the
 card is named for what it contains, per UX-DR21) — every targeted category whose
 allocation drift exceeds **±5 percentage points** (ADR-0023 sign: positive =
 overweight), worst first, each row carrying a decorative drift bar around
@@ -1167,7 +1178,8 @@ without a recent quote, asset class, or logo, each count linking to the
 securities list pre-filtered to exactly that set. The line renders only when
 at least one count is non-zero; a clean catalog shows nothing (no all-clear
 badge). There is deliberately no activity feed: the audit journal owns the
-forensic detail.
+forensic detail, and the Closed trades card shows what a sale realised, never
+the booking itself.
 
 ## Wealth Page
 
@@ -1531,15 +1543,32 @@ facet, and `/income` still resolves — it redirects here, so older links
 and bookmarks keep working. Since issue #724 the area carries a second-level
 facet switcher.
 
-**Realized gains** (`/cashflow?tab=realized`, issues #724 and #807) answers
-"what did selling actually make", and since issue #807 it **is the Trades
-view**: the facet opens with three figures — the realised total, the **hit
+**Trades** (`/cashflow?tab=realized`, issues #724, #807 and #984) answers
+"what did selling actually make — and was the trade worth it". Since issue
+#807 it **is the Trades view**, and since issue #984 its switch says so (the
+address is unchanged, so links and bookmarks hold): the facet opens with
+three figures — the realised total, the **hit
 rate** (the share of closed trades that realised a gain; a break-even trade
 counts as a miss) and the **average holding period** — followed by the closed
 round-trips themselves, newest close first, each row naming the security
 (linked to its Trades tab), bought → sold, how long it was held, the quantity,
-the cost, the proceeds and the result in both money and percent, the result
-carrying its sign colour. The year × month matrix the facet used to open with
+the cost, the proceeds, the **p. a.** column and the result in both money
+and percent, the result carrying its sign colour. **p. a.** (issue #984) is
+the trade's annualized return: the money-weighted return per year of the
+trade's own money — each bought lot at the date it was bought, the sale at
+the date it was sold — in the trade's own currency, like the percent under
+the result. It appears **from 365 days of holding** (the Holding period
+cell of the same row); below that the cell is a muted dash whose reason is
+its tooltip ("Not annualized under one year of holding"), because a short
+trade annualized reads absurdly — 5 % in 14 days would be about 257 % a
+year — and its percent over the holding period already says what it made.
+A line under the list states the rules: deliveries open no lot, fees and
+taxes are in the cost and the proceeds, income received while a trade was
+open is not included, and p. a. only from 365 days of holding. The
+matcher's scope — FIFO per security across all depots — is in the facet's
+opening line. On a phone the table gives way to two-line rows: the name
+over bought → sold and the days, the result over its percent and, from a
+year of holding, the p. a. figure. The year × month matrix the facet used to open with
 keeps every number, now under **Realized per period** behind a **Year and
 month matrix** disclosure beneath the list. Where a sale could not be
 converted, the note saying how many and which leads the section — above the

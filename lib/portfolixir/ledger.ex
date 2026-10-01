@@ -1146,6 +1146,17 @@ defmodule Portfolixir.Ledger do
   end
 
   @doc """
+  Whether any sell is booked: the one cheap fact the Overview needs to know
+  whether its closed-trades card can appear at all (#984), before the
+  matcher runs. Without a sell there is no closed trade, so the card is
+  absent from the first paint instead of pending and then vanishing.
+  """
+  @spec any_sell?() :: boolean()
+  def any_sell? do
+    Repo.exists?(from(t in Transaction, where: t.type == "sell"))
+  end
+
+  @doc """
   The number of bookings of each of `security_ids`, split rows included, as
   `%{security_id => count}` — a security without one is absent. One query,
   for a list that names each candidate's bookings (the security merge's

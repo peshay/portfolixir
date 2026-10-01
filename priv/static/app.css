@@ -7967,7 +7967,8 @@ dialog.filter-sheet::backdrop {
   }
 
   #securities-table,
-  #transaction-table-wrapper {
+  #transaction-table-wrapper,
+  #realized-trades-table-wrapper {
     display: none;
   }
 
@@ -9456,4 +9457,70 @@ dialog.merge-dialog {
   text-align: right;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/* Rule ①: the p. a. column. Under 365 days of holding the cell is a dash
+   in the muted colour; its reason rides the cell's title and a visually
+   hidden sentence, because an ⓘ inside a th would be clipped by the
+   table's own scroller (.data-table-wrapper is overflow-x: auto). */
+.trade-pa--na {
+  color: var(--color-text-muted);
+  cursor: help;
+}
+
+/* Rule ②: the basis line under the trades list and on the Overview card,
+   in the basis voice. `.summary-basis` has no context-free rule, so the
+   rule is scoped to the two places this pick writes one. */
+#realized-trades > .summary-basis,
+#dashboard-trades .summary-basis {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* Rule ③ (UX-DR27): the trades phone row is the transactions shape — two
+   children, body and figures, no logo, no kebab. The 560 px block of the
+   phone lists hides the table's wrapper. */
+#realized-trades-phone-rows .phone-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+/* Rule ④: the Overview card. The figure slot of an .attention-item carries
+   two lines (result over return), both right-aligned; the head row holds
+   the heading and the "All trades →" link. */
+#dashboard-trades .attention-item .num {
+  text-align: right;
+}
+
+#dashboard-trades .section-head {
+  margin-bottom: 0;
+}
+
+/* Rule ⑥: sign colour inside the trades table. `.data-table tbody td
+   { color }` outranks the bare is-positive / is-negative, so the result
+   printed in the text colour; the p. a. column needs the sign colour
+   (semantic colour wherever a sign exists, at every level of a table), and
+   the same rule repairs the result cell. Scoped to this table: the other
+   tables with the same pattern are a follow-up. */
+#realized-trades-table td.is-positive {
+  color: var(--color-positive);
+}
+
+#realized-trades-table td.is-negative {
+  color: var(--color-danger);
+}
+
+/* Rule ⑤ at phone width (the board drew the note at desktop width only):
+   under 560 px the security takes its own line and the date and quantity
+   sit beneath it, so a long name is not squeezed into a narrow column by
+   the two unwrapping figures. */
+@media (max-width: 560px) {
+  .excluded-list {
+    grid-template-columns: auto auto;
+  }
+
+  .excluded-list li > :first-child {
+    grid-column: 1 / -1;
+    margin-top: 2px;
+  }
 }
