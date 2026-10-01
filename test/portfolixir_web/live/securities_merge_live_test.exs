@@ -242,7 +242,8 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
   #   source is gone, the target carries the adopted ISIN, the old one is a
   #   former ISIN from the date given, the record names the choices.
   # - The result is reported inline; the survivor's detail opens and its
-  #   basis line names the former ISIN and the merge.
+  #   basis line names the former ISIN and the merge, the merge's date
+  #   linking its record in the merge list (Sprint 17 V1, G2-A ⑤).
   test "confirming applies the digest and both choices, and the survivor says so", ctx do
     buy!(ctx, ctx.target, "10", "100.00", ~D[2025-01-10])
     buy!(ctx, ctx.target, "2", "120.00", ~D[2025-07-01])
@@ -278,11 +279,17 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
 
     assert_patch(view, "/securities/#{ctx.target.id}")
 
-    basis = view |> element("[data-role='overview-basis']") |> render()
-    assert basis =~ "former ISIN XS0000000017 (until 2025-09-15)"
+    basis = view |> element("[data-role='overview-basis']") |> render() |> Floki.parse_fragment!()
+    words = basis |> Floki.text() |> String.split() |> Enum.join(" ")
+    assert words =~ "former ISIN XS0000000017 (until 2025-09-15)"
 
-    assert basis =~
+    assert words =~
              "merged on #{Date.to_iso8601(Clock.today())} from “Meridian Global Equity ETF” (then XS0000000025)"
+
+    # Sprint 17 V1 (G2-A ⑤): the merge's date is the way into its record on
+    # Accounts & depots.
+    assert Floki.attribute(Floki.find(basis, "a[data-role='overview-merge-link']"), "href") ==
+             ["/portfolios?merge=#{record.id}#merge-records"]
   end
 
   # User story:
