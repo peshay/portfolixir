@@ -897,6 +897,40 @@ defmodule Portfolixir.CITest do
     refute script =~ "--diff-filter=MD"
   end
 
+  # User story (Sprint 17, Lane G-1 -- #995):
+  # As the operator upgrading a self-hosted instance,
+  # I want CI to replay the upgrade over seeded legacy rows on every change,
+  # so that a migration that would stop my instance at boot is red before it
+  # merges, not found by a reviewer or by my instance.
+  #
+  # Acceptance criteria:
+  # - The migration-roundtrip job keeps its round trip and, after it, runs
+  #   the seeded-upgrade cases on their own (`mix test --only
+  #   seeded_upgrade`), which include the rule requiring a case for every
+  #   new risky migration.
+  # - The cases exist under that tag, so the step cannot pass by running
+  #   nothing.
+  test "the migration-roundtrip job replays the seeded upgrades after its round trip" do
+    job = job!(ci_workflow(), "migration-roundtrip")
+
+    [roundtrip] = job |> step!("Migrate, roll back latest, migrate again") |> run_scripts()
+    assert roundtrip =~ "MIX_ENV=test mix ecto.rollback"
+
+    assert [seeded] = job |> step!("Seeded upgrades over legacy rows") |> run_scripts()
+    assert String.trim(seeded) == "MIX_ENV=test mix test --only seeded_upgrade"
+
+    {roundtrip_at, _} = :binary.match(job, "- name: Migrate, roll back latest, migrate again")
+    {seeded_at, _} = :binary.match(job, "- name: Seeded upgrades over legacy rows")
+    assert roundtrip_at < seeded_at
+
+    for file <- [
+          "test/portfolixir/seeded_upgrade/sprint16_test.exs",
+          "test/portfolixir/seeded_upgrade/rule_test.exs"
+        ] do
+      assert File.read!(file) =~ "@moduletag :seeded_upgrade"
+    end
+  end
+
   # User story (E25 S8, F58 -- #893):
   # As an operator building the MCP companion's image, or installing the
   # companion on its own,
@@ -1086,6 +1120,13 @@ defmodule Portfolixir.CITest do
   end
 
   defp ci_workflow, do: File.read!(".github/workflows/ci.yml")
+
+  # One job of a workflow: its `  name:` line under `jobs:` and every
+  # following line up to the next job's.
+  defp job!(yaml, name) do
+    [job] = Regex.run(~r/^  #{Regex.escape(name)}:\n(?:(?:    .*| *)\n)*/m, yaml)
+    job
+  end
 
   defp workflows do
     for path <- Path.wildcard(".github/workflows/*.yml"), do: {path, File.read!(path)}
