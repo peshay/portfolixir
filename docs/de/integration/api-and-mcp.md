@@ -2822,6 +2822,20 @@ Agentenlauf davon ab, über den Begleitdienst zu löschen oder zusammenzuführen
 ein Agent, der die API mit dem Token erreicht, kann weiterhin jede Route
 aufrufen.
 
+**Bereichs-Zwillinge.** Bewertung, Performance und Benchmark-Vergleich gibt es
+in zwei Bereichen, und jedes Tool eines Paares nennt das andere in seiner
+Beschreibung mit dem Unterschied (Sprint 17, D-6): `portfolixir.portfolios.*`
+gilt für einen Portfolio-Datensatz in seiner Basiswährung, sein `view` grenzt
+innerhalb dieses Portfolios ein; `portfolixir.views.*` gilt für eine View über
+jedes Portfolio, jedes Konto einmal gezählt, in EUR, und braucht eine
+bestehende View-ID — eine mit
+`include_all` (Standard) und ohne Ausschluss angelegte View erfasst jedes
+Konto, also ergibt ein `portfolixir.views.create` die Summe über alles. Ohne
+View ist das Portfolio-Tool der Lesezugriff: Seine Summen über mehrere
+Portfolios addieren sich nur, wenn sie eine Basiswährung teilen (ein Konto
+gehört genau einem Portfolio), und Renditen mehrerer Portfolios addieren sich
+nie.
+
 **Unsichtbare Zeichen.** Jeder Schreibzugriff lehnt die Zeichen ab, die der
 Betreiber nicht sehen kann (siehe „Text“ oben), aber eine Zeile von vor dieser
 Regel kann sie noch tragen. Der Begleitdienst ist der Ort, an dem sie sichtbar
@@ -2972,7 +2986,8 @@ Server-Anweisungen sagen es einmal für jeden Schreibvorgang.
   eingefügten externen Positionsliste mit dem Ledger; die Tool-Beschreibung
   lenkt den Agenten darauf, die fehlende Transaktion der richtigen Art zu
   buchen statt Saldo-Snapshots oder unbepreiste Einlieferungen zu nutzen.
-- `portfolixir.portfolios.valuation`
+- `portfolixir.portfolios.valuation` — Bereichs-Zwilling von `portfolixir.views.valuation`
+  (siehe „Bereichs-Zwillinge“ oben).
 - `portfolixir.exchange_rates.list`
 - `portfolixir.exchange_rates.sync` — `scope=latest` (täglicher Feed) oder
   `scope=history` (das einmalige historische Backfill, Issue #737).
@@ -3025,8 +3040,8 @@ Server-Anweisungen sagen es einmal für jeden Schreibvorgang.
 - `portfolixir.portfolios.cash_target`
 - `portfolixir.portfolios.set_cash_target`
 - `portfolixir.portfolios.income`
-- `portfolixir.portfolios.performance`
-- `portfolixir.portfolios.benchmark`
+- `portfolixir.portfolios.performance` — Bereichs-Zwilling von `portfolixir.views.performance`.
+- `portfolixir.portfolios.benchmark` — Bereichs-Zwilling von `portfolixir.views.benchmark`.
 - `portfolixir.journal.list`
 - `portfolixir.merges.list` — die Zusammenführungsprotokolle, das neueste
   zuerst, jedes mit dem, was wohin ging, wer es tat, wann, und dem
@@ -3046,8 +3061,9 @@ Server-Anweisungen sagen es einmal für jeden Schreibvorgang.
   angelegten Depot-Snapshot; das Journal hält jede als eigene Löschung vor
   der View fest.
 - `portfolixir.views.set_buckets`
-- `portfolixir.views.performance`
-- `portfolixir.views.benchmark`
+- `portfolixir.views.valuation` — Bereichs-Zwilling von `portfolixir.portfolios.valuation`.
+- `portfolixir.views.performance` — Bereichs-Zwilling von `portfolixir.portfolios.performance`.
+- `portfolixir.views.benchmark` — Bereichs-Zwilling von `portfolixir.portfolios.benchmark`.
 - `portfolixir.securities_accounts.set_buckets`
 - `portfolixir.cash_accounts.set_buckets`
 - `portfolixir.securities_accounts.set_position_buckets`

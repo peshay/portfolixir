@@ -2863,6 +2863,18 @@ It keeps an unattended agent run from deleting or merging through the
 companion; an agent that can reach the API with the token can still call every
 route.
 
+**Scope twins.** Valuation, performance and the benchmark comparison exist at
+two scopes, and each tool of a pair names the other in its description with
+the difference (Sprint 17, D-6): `portfolixir.portfolios.*` answers one portfolio
+record in its base currency, its `view` narrowing within that portfolio;
+`portfolixir.views.*` answers a view across every portfolio, each account
+counted once, in EUR, and needs an existing view id — a view created with
+`include_all` (the default) and nothing excluded matches every account, so one
+`portfolixir.views.create` gives the total across everything. Without a view
+the portfolio tool is the read: its totals over several portfolios add up only
+when they share one base currency (an account belongs to exactly one
+portfolio), and returns of several portfolios never add up.
+
 **Invisible characters.** Every write refuses the characters an operator
 cannot see (see "Text" above), but a row stored before that rule may still
 carry them. The companion is where they are made visible: every string an API
@@ -3005,7 +3017,8 @@ in its description; the server instructions say it once for every write.
   position list against the ledger; its description steers the agent toward
   booking the missing transaction of the correct kind instead of balance
   snapshots or unpriced deliveries.
-- `portfolixir.portfolios.valuation`
+- `portfolixir.portfolios.valuation` — scope twin of `portfolixir.views.valuation`
+  (see "Scope twins" above).
 - `portfolixir.exchange_rates.list`
 - `portfolixir.exchange_rates.sync` — `scope=latest` (daily feed) or
   `scope=history` (the one-shot historical backfill, issue #737).
@@ -3056,8 +3069,8 @@ in its description; the server instructions say it once for every write.
 - `portfolixir.portfolios.cash_target`
 - `portfolixir.portfolios.set_cash_target`
 - `portfolixir.portfolios.income`
-- `portfolixir.portfolios.performance`
-- `portfolixir.portfolios.benchmark`
+- `portfolixir.portfolios.performance` — scope twin of `portfolixir.views.performance`.
+- `portfolixir.portfolios.benchmark` — scope twin of `portfolixir.views.benchmark`.
 - `portfolixir.journal.list`
 - `portfolixir.merges.list` — the merge records, newest first, each with
   what went into what, who did it, when, and the manifest summarized
@@ -3076,9 +3089,9 @@ in its description; the server instructions say it once for every write.
   sets, every target plan scoped to it and every depot snapshot taken in its
   scope; each is journaled as its own delete before the view's.
 - `portfolixir.views.set_buckets`
-- `portfolixir.views.valuation`
-- `portfolixir.views.performance`
-- `portfolixir.views.benchmark`
+- `portfolixir.views.valuation` — scope twin of `portfolixir.portfolios.valuation`.
+- `portfolixir.views.performance` — scope twin of `portfolixir.portfolios.performance`.
+- `portfolixir.views.benchmark` — scope twin of `portfolixir.portfolios.benchmark`.
 - `portfolixir.securities_accounts.set_buckets`
 - `portfolixir.cash_accounts.set_buckets`
 - `portfolixir.securities_accounts.set_position_buckets`

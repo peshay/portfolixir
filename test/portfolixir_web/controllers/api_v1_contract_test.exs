@@ -54,6 +54,8 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["version"] == 9
     assert newest["endpoints"] == []
     assert Enum.any?(newest["parameters"], &(&1 =~ "PORTFOLIXIR_MCP_PROFILE"))
+    # A2 (#993): the twin scope tools name each other, extending the entry.
+    assert Enum.any?(newest["parameters"], &(&1 =~ "Scope twin"))
 
     # Sprint 16 (version 8): the batch's one entry, opened by the error
     # envelope of the errors the server answers itself (E25 S2, F68). Found
