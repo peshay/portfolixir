@@ -208,15 +208,20 @@ defmodule Portfolixir.Journal do
 
   # F49: only a stored row of an update, a delete or an upsert is re-read
   # under a lock; an aggregate (a map, a struct without a table or an id)
-  # keeps the image its caller built.
+  # keeps the image its caller built. A struct can exist while its module is
+  # not loaded yet (a literal needs no call), and function_exported?/3 is
+  # false for such a module, so it is loaded first (#936).
   defp lock_step(operation, %schema{id: id}, journal_step)
        when operation in [:update, :delete, :upsert] and not is_nil(id) do
-    if function_exported?(schema, :__schema__, 1) and schema.__schema__(:source) != nil,
+    if ecto_schema?(schema) and schema.__schema__(:source) != nil,
       do: {:journal_lock, journal_step},
       else: nil
   end
 
   defp lock_step(_operation, _before, _journal_step), do: nil
+
+  defp ecto_schema?(module),
+    do: Code.ensure_loaded?(module) and function_exported?(module, :__schema__, 1)
 
   defp lock_before_multi(nil, _operation, _before), do: Multi.new()
 

@@ -206,6 +206,9 @@ defmodule Portfolixir.KnowledgeTest do
     end
 
     test "the context exposes no update and no delete" do
+      # function_exported?/3 is false for a module not loaded yet, which
+      # would make both refutes vacuous whenever this test ran first (#936).
+      Code.ensure_loaded!(Knowledge)
       refute function_exported?(Knowledge, :update_note, 3)
       refute function_exported?(Knowledge, :delete_note, 2)
     end

@@ -28,9 +28,12 @@ defmodule Portfolixir.Journal.Serializer do
     Map.new(map, fn {key, value} -> {to_string(key), encode_value(value)} end)
   end
 
+  # A struct can exist while its module is not loaded yet (a literal needs no
+  # call), and function_exported?/3 is false for such a module: it is loaded
+  # first, or the snapshot would depend on what ran before (#936).
   defp persisted_fields(%schema{} = struct) do
     fields =
-      if function_exported?(schema, :__schema__, 1) do
+      if Code.ensure_loaded?(schema) and function_exported?(schema, :__schema__, 1) do
         schema.__schema__(:fields)
       else
         struct |> Map.from_struct() |> Map.keys()
