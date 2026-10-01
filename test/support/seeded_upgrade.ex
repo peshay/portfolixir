@@ -59,11 +59,12 @@ defmodule Portfolixir.SeededUpgrade do
   @seed_actor "system_job:seeded_upgrade"
 
   @enforce_keys [:database, :repo]
-  defstruct [:database, :repo, :from, :seeded, migrated: [], log: ""]
+  defstruct [:database, :repo, :migrations, :from, :seeded, migrated: [], log: ""]
 
   @type t :: %__MODULE__{
           database: String.t(),
           repo: pid(),
+          migrations: String.t() | nil,
           from: pos_integer() | nil,
           seeded: term(),
           migrated: [pos_integer()],
@@ -78,7 +79,10 @@ defmodule Portfolixir.SeededUpgrade do
       rows are seeded;
     * `:seed` (required) -- a function of the database (`t()`) that inserts
       the legacy rows with `query!/3`. It runs in one transaction with a
-      journal actor set; what it returns lands in `:seeded`.
+      journal actor set; what it returns lands in `:seeded`;
+    * `:migrations` -- the directory of migrations to replay, by default the
+      application's (`priv/repo/migrations`); the harness's own tests point
+      it at a directory of synthetic ones.
 
   Answers the database after the upgrade: `:seeded`, `:migrated` (the
   versions the upgrade ran, ascending) and `:log` (what it logged). Fails
@@ -89,13 +93,14 @@ defmodule Portfolixir.SeededUpgrade do
   def upgrade!(opts) do
     from = Keyword.fetch!(opts, :from)
     seed = Keyword.fetch!(opts, :seed)
+    migrations = Keyword.get_lazy(opts, :migrations, &ScratchDatabase.migrations_dir/0)
 
-    known_version!(from)
+    known_version!(from, migrations)
 
     %ScratchDatabase{database: database, repo: repo} = ScratchDatabase.start!(suffix: "upgrade")
-    db = %__MODULE__{database: database, repo: repo, from: from}
+    db = %__MODULE__{database: database, repo: repo, migrations: migrations, from: from}
 
-    ScratchDatabase.migrate!(db, from)
+    ScratchDatabase.migrate!(db, from, migrations)
     seeded = journaled!(db, fn -> seed.(db) end)
 
     {result, log} = ExUnit.CaptureLog.with_log(fn -> migrate_to_head(db) end)
@@ -142,7 +147,7 @@ defmodule Portfolixir.SeededUpgrade do
   def head, do: ScratchDatabase.migrations() |> List.last() |> elem(0)
 
   defp migrate_to_head(db) do
-    {:ok, ScratchDatabase.migrate!(db, :head)}
+    {:ok, ScratchDatabase.migrate!(db, :head, db.migrations)}
   catch
     kind, reason -> {:error, kind, reason, __STACKTRACE__}
   end
@@ -153,15 +158,16 @@ defmodule Portfolixir.SeededUpgrade do
     %{rows: rows} = query!(db, "SELECT version FROM schema_migrations")
     applied = MapSet.new(rows, fn [version] -> version end)
 
-    case Enum.find(ScratchDatabase.migrations(), fn {version, _} -> version not in applied end) do
-      {version, _module} -> ScratchDatabase.file_of(version)
-      nil -> "no pending migration"
-    end
+    db.migrations
+    |> ScratchDatabase.migration_files()
+    |> Enum.find_value("no pending migration", fn {version, file} ->
+      if version not in applied, do: Path.basename(file)
+    end)
   end
 
-  defp known_version!(version) do
-    unless List.keymember?(ScratchDatabase.migrations(), version, 0) do
-      flunk("#{version} is not a migration under priv/repo/migrations")
+  defp known_version!(version, dir) do
+    unless List.keymember?(ScratchDatabase.migration_files(dir), version, 0) do
+      flunk("#{version} is not a migration in #{Path.relative_to_cwd(dir)}")
     end
   end
 end
