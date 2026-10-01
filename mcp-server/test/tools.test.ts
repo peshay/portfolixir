@@ -2441,8 +2441,9 @@ describe("Portfolixir MCP tools", () => {
   // Acceptance criteria:
   // - portfolixir.merges.list routes to GET /api/v1/merges with limit.
   // - It is read-only, and its description says what each record carries,
-  //   that the manifest is summarized as counts, that there is no unmerge,
-  //   and that the operator's list view lands no later than Sprint 17.
+  //   that the manifest is summarized as counts — the removed bookings also
+  //   per reason (deleted_by_reason) —, that there is no unmerge, and that
+  //   the operator's list view lands no later than Sprint 17.
   it("routes portfolixir.merges.list to GET /api/v1/merges and says what it answers", async () => {
     const { client, requests } = createRecordingClient({ data: [], meta: { count: 0 } });
 
@@ -2458,6 +2459,9 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(tool?.annotations.readOnlyHint, true);
     assert.match(tool?.description ?? "", /newest first/);
     assert.match(tool?.description ?? "", /manifest_summary/);
+    // Sprint 17 V1: the removed bookings per reason, beside the total.
+    assert.match(tool?.description ?? "", /deleted_by_reason/);
+    assert.match(tool?.description ?? "", /internal_transfer, collapsed_duplicate, folded_anchor, collapsed_split/);
     assert.match(tool?.description ?? "", /merged_into/);
     // It names where a merged-away id answers so (L3–L5 review, SF-1).
     assert.match(tool?.description ?? "", /every route under a security/);

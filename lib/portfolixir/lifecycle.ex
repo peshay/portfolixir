@@ -176,6 +176,42 @@ defmodule Portfolixir.Lifecycle do
   end
 
   @doc """
+  A merge record's manifest as the audit read summarizes it (ADR-0050 §12):
+  every list replaced by its count, every other value as stored (the
+  operator's choices among them), and beside `transactions.deleted` —
+  still the count of every booking the merge removed — the same rows
+  counted per the reason the manifest names in
+  `transactions.deleted_by_reason` (`internal_transfer`,
+  `collapsed_duplicate`, `folded_anchor`, `collapsed_split`; only the
+  reasons present, `%{}` when nothing was removed). `GET /api/v1/merges`
+  and the merge list on Accounts & depots both read this, so the agent and
+  the operator read the same figures (Sprint 17 V1).
+  """
+  @spec manifest_summary(map()) :: map()
+  def manifest_summary(manifest) when is_map(manifest) do
+    summary = summarize(manifest)
+
+    case manifest do
+      %{"transactions" => %{"deleted" => deleted}} when is_list(deleted) ->
+        put_in(summary, ["transactions", "deleted_by_reason"], deleted_by_reason(deleted))
+
+      _no_bookings ->
+        summary
+    end
+  end
+
+  defp summarize(list) when is_list(list), do: length(list)
+  defp summarize(map) when is_map(map), do: Map.new(map, fn {k, v} -> {k, summarize(v)} end)
+  defp summarize(value), do: value
+
+  defp deleted_by_reason(deleted) do
+    Enum.frequencies_by(deleted, fn
+      %{"reason" => reason} when is_binary(reason) -> reason
+      _unnamed -> "unknown"
+    end)
+  end
+
+  @doc """
   The merges into each of `target_ids` under `kind`, oldest first, as
   `%{target_id => [%{source_id, source_name, source_isin, merged_on}]}` —
   what a survivor shows as "merged from …" (ADR-0050 §12). `source_isin` is

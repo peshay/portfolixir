@@ -70,7 +70,14 @@ defmodule PortfolixirWeb.Api.V1.MergesControllerTest do
 
     summary = newest["manifest_summary"]
     assert summary["choices"] == %{"collapse_key_equal" => nil}
-    assert summary["transactions"] == %{"moved" => 2, "restated" => 0, "deleted" => 0}
+
+    assert summary["transactions"] == %{
+             "moved" => 2,
+             "restated" => 0,
+             "deleted" => 0,
+             "deleted_by_reason" => %{}
+           }
+
     assert summary["former_names"] == %{"appended" => 2, "not_kept" => 0}
     assert summary["linearity"] == %{"dates_checked" => 4}
 
@@ -150,7 +157,64 @@ defmodule PortfolixirWeb.Api.V1.MergesControllerTest do
     assert record["manifest_summary"]["rounding_differences"] == 0
   end
 
+  # User story:
+  # As the agent explaining why a merge removed bookings,
+  # I want the removed count split by the reason the merge removed them,
+  # so that "6 removed" says how many were transfers between the two
+  # accounts and how many were duplicates the operator chose to drop
+  # (Sprint 17 V1; the operator's list reads the same split).
+  #
+  # Acceptance criteria:
+  # - manifest_summary.transactions.deleted keeps its meaning: the count of
+  #   every booking the merge removed, whatever the reason.
+  # - manifest_summary.transactions.deleted_by_reason counts the same rows
+  #   per reason the manifest names (internal_transfer, collapsed_duplicate,
+  #   folded_anchor, collapsed_split), only the reasons present; {} when the
+  #   merge removed nothing.
+  test "counts the removed bookings per reason beside the total", ctx do
+    giro = cash!(ctx.portfolio, "Giro")
+    old = cash!(ctx.portfolio, "Giro (old)")
+    book!(ctx.portfolio, old, "deposit", "50.00", ~D[2025-02-03])
+    book!(ctx.portfolio, giro, "deposit", "50.00", ~D[2025-02-03])
+    book!(ctx.portfolio, old, "deposit", "70.00", ~D[2025-02-04])
+    transfer!(ctx.portfolio, old, giro, "20.00", ~D[2025-02-05])
+
+    {:ok, preview} = Lifecycle.preview_cash_merge(old.id, giro.id)
+
+    {:ok, _record, :applied} =
+      Lifecycle.merge_cash_account(actor(), old.id, giro.id, %{
+        plan_digest: preview.plan_digest,
+        collapse_key_equal: true
+      })
+
+    assert %{"data" => [record]} = ctx.conn |> get("/api/v1/merges") |> json_response(200)
+
+    assert record["manifest_summary"]["transactions"] == %{
+             "moved" => 1,
+             "restated" => 0,
+             "deleted" => 2,
+             "deleted_by_reason" => %{"internal_transfer" => 1, "collapsed_duplicate" => 1}
+           }
+
+    assert record["manifest_summary"]["choices"] == %{"collapse_key_equal" => true}
+  end
+
   defp actor, do: Actor.api_token_rw("merges-test")
+
+  defp transfer!(portfolio, from, to, amount, date) do
+    {:ok, tx} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        cash_account_id: from.id,
+        counter_cash_account_id: to.id,
+        type: "cash_transfer",
+        date: date,
+        gross_amount: amount,
+        currency_code: "EUR"
+      })
+
+    tx
+  end
 
   defp merge_cash!(source, target) do
     {:ok, preview} = Lifecycle.preview_cash_merge(source.id, target.id)
