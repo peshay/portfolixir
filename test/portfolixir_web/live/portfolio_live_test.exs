@@ -1,6 +1,7 @@
 defmodule PortfolixirWeb.PortfolioLiveTest do
   use PortfolixirWeb.ConnCase
 
+  import ExUnit.CaptureLog
   import Phoenix.LiveViewTest
 
   alias Portfolixir.Actor
@@ -898,11 +899,16 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     {:ok, view, _html} = live(conn, "/portfolio")
     render_async(view)
 
-    view
-    |> element("#portfolio-data-quality button", "Sync exchange rates")
-    |> render_click()
+    {html, log} =
+      with_log(fn ->
+        view
+        |> element("#portfolio-data-quality button", "Sync exchange rates")
+        |> render_click()
 
-    html = render_async(view)
+        render_async(view)
+      end)
+
+    assert log =~ "fx rate fetch failed via #{inspect(UnreachableFx)}: :unreachable"
 
     result = view |> element(~s([data-role="fx-sync-result"])) |> render()
     assert result =~ "reach the exchange-rate provider"

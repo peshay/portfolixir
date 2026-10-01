@@ -1,6 +1,8 @@
 defmodule Portfolixir.CatalogTest do
   use Portfolixir.DataCase
 
+  import ExUnit.CaptureLog
+
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Catalog.SecuritySearch.{Market, SearchResult}
@@ -236,25 +238,33 @@ defmodule Portfolixir.CatalogTest do
       b: b,
       c: c
     } do
-      # Filter is dropped silently — list returns everything unfiltered.
-      results =
-        Catalog.list_securities(
-          filters: [%{key: :attr_exchange_name, op: :eq, value: "Coinbase"}],
-          sort: {:name, :asc}
-        )
+      # Filter is dropped with a warning — list returns everything unfiltered.
+      {results, log} =
+        with_log(fn ->
+          Catalog.list_securities(
+            filters: [%{key: :attr_exchange_name, op: :eq, value: "Coinbase"}],
+            sort: {:name, :asc}
+          )
+        end)
 
       assert [^a, ^b, ^c] = results
+      assert log =~ "dropping invalid security filter"
+      assert log =~ ~s(value: "Coinbase")
     end
 
     test "invalid filters are silently dropped", %{a: a, b: b, c: c} do
       # gt on a string field is not allowed → filter is dropped, all rows returned
-      results =
-        Catalog.list_securities(
-          filters: [%{key: :name, op: :gt, value: "A"}],
-          sort: {:name, :asc}
-        )
+      {results, log} =
+        with_log(fn ->
+          Catalog.list_securities(
+            filters: [%{key: :name, op: :gt, value: "A"}],
+            sort: {:name, :asc}
+          )
+        end)
 
       assert [^a, ^b, ^c] = results
+      assert log =~ "dropping invalid security filter"
+      assert log =~ "op: :gt"
     end
 
     test "unknown sort key falls back to name asc", %{a: a, b: b, c: c} do

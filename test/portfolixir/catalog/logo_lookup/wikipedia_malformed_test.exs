@@ -164,9 +164,15 @@ defmodule Portfolixir.Catalog.LogoLookup.WikipediaMalformedTest do
     assert result == :skip or match?({:error, _}, result)
 
     # A request option the client refuses raises inside the adapter, before
-    # any request: the pipeline still answers with a value.
-    assert {:error, :malformed_upstream} =
-             LogoLookup.run(security, req: [plug: answer, not_a_req_option: true])
+    # any request: the pipeline still answers with a value, and says so.
+    log =
+      ExUnit.CaptureLog.capture_log(fn ->
+        assert {:error, :malformed_upstream} =
+                 LogoLookup.run(security, req: [plug: answer, not_a_req_option: true])
+      end)
+
+    assert log =~ "logo lookup for security #1 met a malformed upstream answer: ArgumentError"
+    assert log =~ "logo lookup failed for security #1: :malformed_upstream"
 
     requests()
   end

@@ -6,6 +6,7 @@ defmodule PortfolixirWeb.CashflowBackfillTest do
   # application env because the backfill runs in the view's own task.
   use PortfolixirWeb.ConnCase, async: false
 
+  import ExUnit.CaptureLog
   import Phoenix.LiveViewTest
 
   alias Portfolixir.Actor
@@ -120,8 +121,14 @@ defmodule PortfolixirWeb.CashflowBackfillTest do
     Fake.put_shared_history_response({:error, :boom})
 
     {:ok, view, _html} = live(conn, "/cashflow?tab=realized")
-    view |> element("#fx-backfill-button") |> render_click()
-    render_async(view)
+
+    log =
+      capture_log(fn ->
+        view |> element("#fx-backfill-button") |> render_click()
+        render_async(view)
+      end)
+
+    assert log =~ "fx history fetch failed via #{inspect(Fake)}: :boom"
 
     result = view |> element(~s([data-role="fx-backfill-result"])) |> render()
     assert result =~ "Backfill failed"

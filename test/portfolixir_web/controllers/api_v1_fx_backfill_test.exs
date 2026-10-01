@@ -4,6 +4,8 @@ defmodule PortfolixirWeb.ApiV1FxBackfillTest do
   # fixture (a GBP sale whose close date has no stored rate).
   use PortfolixirWeb.ConnCase, async: false
 
+  import ExUnit.CaptureLog
+
   alias Portfolixir.Fx.RateSync.Fake
   alias Portfolixir.WorldFixtures
 
@@ -151,11 +153,17 @@ defmodule PortfolixirWeb.ApiV1FxBackfillTest do
   test "scope=history answers 502 on a provider failure and 422 without a history", %{conn: conn} do
     Fake.put_history_response({:error, :boom})
 
-    assert %{"errors" => %{"detail" => "the rate provider could not be reached"}} =
-             conn
-             |> api_conn()
-             |> post("/api/v1/exchange_rates/sync", Jason.encode!(%{"scope" => "history"}))
-             |> json_response(502)
+    log =
+      capture_log(fn ->
+        assert %{"errors" => %{"detail" => "the rate provider could not be reached"}} =
+                 conn
+                 |> api_conn()
+                 |> post("/api/v1/exchange_rates/sync", Jason.encode!(%{"scope" => "history"}))
+                 |> json_response(502)
+      end)
+
+    assert log =~ "fx history fetch failed via #{inspect(Fake)}: :boom"
+    assert log =~ "exchange-rate sync failed: :boom"
 
     previous = Application.get_env(:portfolixir, Portfolixir.Fx.RateSync, [])
     on_exit(fn -> Application.put_env(:portfolixir, Portfolixir.Fx.RateSync, previous) end)

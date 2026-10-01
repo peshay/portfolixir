@@ -16,13 +16,36 @@ defmodule Portfolixir.DataCase do
   end
 
   setup tags do
-    :ok = Sandbox.checkout(Portfolixir.Repo)
+    {:ok, sandbox_owner: setup_sandbox(tags)}
+  end
 
-    unless tags[:async] do
-      Sandbox.mode(Portfolixir.Repo, {:shared, self()})
-    end
+  @doc """
+  Checks out the test's sandbox connection under an owner process of its own,
+  stopped by `on_exit` (#927).
 
-    :ok
+  ExUnit stops what a test started (a LiveView, its `start_async` loads, a
+  supervised task) only after the test process has exited, and runs `on_exit`
+  after that. With the test process as the owner, the connection went with
+  it, and whatever was still mid-query crashed with "owner exited" into the
+  log. An owner that outlives the test keeps the connection until everything
+  the test started is down.
+
+  The test process is allowed on the connection, so processes that name it
+  as a caller (`$callers`: tasks, LiveViews) reach the connection in async
+  tests too; a sync test shares it with every process.
+  """
+  def setup_sandbox(tags) do
+    owner = Sandbox.start_owner!(Portfolixir.Repo, shared: not tags[:async])
+    on_exit(fn -> stop_sandbox(owner) end)
+    owner
+  end
+
+  @doc """
+  Stops a sandbox owner, rolling its transaction back; a no-op for an owner a
+  test already stopped (to start over on a fresh connection).
+  """
+  def stop_sandbox(owner) do
+    if Process.alive?(owner), do: Sandbox.stop_owner(owner), else: :ok
   end
 
   @doc """

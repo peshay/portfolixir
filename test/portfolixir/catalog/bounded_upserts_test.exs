@@ -19,6 +19,7 @@ defmodule Portfolixir.Catalog.BoundedUpsertsTest do
   alias Portfolixir.Repo
 
   import Ecto.Query
+  import ExUnit.CaptureLog
 
   # More rows than one INSERT can bind for either table (65,535 parameters;
   # six per quote row, seven per rate row).
@@ -133,8 +134,12 @@ defmodule Portfolixir.Catalog.BoundedUpsertsTest do
 
     Fake.put_response(healthy.id, {:ok, [%{date: Date.add(today, -1), close: Decimal.new("42")}]})
 
-    assert {:ok, %{ok: 1, error: 1, results: results}} =
-             QuoteSync.sync_all(adapter_for: %{"coingecko" => Fake})
+    {result, log} = with_log(fn -> QuoteSync.sync_all(adapter_for: %{"coingecko" => Fake}) end)
+    assert {:ok, %{ok: 1, error: 1, results: results}} = result
+
+    assert log =~
+             "quote persistence failed for security ##{failing.id}: " <>
+               "ERROR P0001 (raise_exception) synthetic persistence failure"
 
     assert %{status: :error, reason: :persist_failed} =
              Enum.find(results, &(&1.security_id == failing.id))
@@ -177,12 +182,20 @@ defmodule Portfolixir.Catalog.BoundedUpsertsTest do
        ]}
     )
 
-    conn =
-      conn
-      |> put_req_header("authorization", "Bearer test-api-token")
-      |> post("/api/v1/exchange_rates/sync?scope=history")
+    {conn, log} =
+      with_log(fn ->
+        conn
+        |> put_req_header("authorization", "Bearer test-api-token")
+        |> post("/api/v1/exchange_rates/sync?scope=history")
+      end)
 
     assert %{"errors" => %{"detail" => _}} = json_response(conn, 502)
+
+    assert log =~
+             "fx rate persistence failed: ERROR P0001 (raise_exception) synthetic persistence failure"
+
+    assert log =~ "fx rate upsert failed: :persist_failed"
+    assert log =~ "exchange-rate sync failed: {:upsert_failed, :persist_failed}"
     assert Repo.aggregate(ExchangeRate, :count) == 0
   end
 end

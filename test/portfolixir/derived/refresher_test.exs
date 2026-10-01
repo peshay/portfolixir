@@ -1,6 +1,8 @@
 defmodule Portfolixir.Derived.RefresherTest do
   use Portfolixir.DataCase, async: false
 
+  import ExUnit.CaptureLog
+
   alias Portfolixir.Application, as: PortfolixirApplication
   alias Portfolixir.Derived
   alias Portfolixir.Derived.DataVersion
@@ -211,17 +213,28 @@ defmodule Portfolixir.Derived.RefresherTest do
     portfolio = portfolio!("Exploding")
     pid = refresher_pid()
 
-    DataVersion.bump([portfolio.id])
-    assert_receive {:refreshed, _}
-    assert_receive {:refreshed, _}
+    # Each failed refresh is logged and skipped. The refresher logs after it
+    # reports the refresh, so the capture waits until it has handled the
+    # whole drain (:sys.get_state/1 answers only after that).
+    log =
+      capture_log(fn ->
+        DataVersion.bump([portfolio.id])
+        assert_receive {:refreshed, _}
+        assert_receive {:refreshed, _}
+        :sys.get_state(pid)
 
-    # Still alive, and still refreshing afterwards.
-    assert Process.alive?(pid)
-    assert refresher_pid() == pid
+        # Still alive, and still refreshing afterwards.
+        assert Process.alive?(pid)
+        assert refresher_pid() == pid
 
-    DataVersion.bump([portfolio.id])
-    assert_receive {:refreshed, _}
-    assert_receive {:refreshed, _}
+        DataVersion.bump([portfolio.id])
+        assert_receive {:refreshed, _}
+        assert_receive {:refreshed, _}
+        :sys.get_state(pid)
+      end)
+
+    assert log =~ "derived refresh skipped basis global: refresh exploded"
+    assert log =~ "derived refresh skipped basis portfolio:#{portfolio.id}: refresh exploded"
 
     # And the read path is untouched: a stale entry is still recomputed on
     # read, exactly as before the refresher existed.

@@ -1,6 +1,8 @@
 defmodule Portfolixir.Catalog.SecuritySearchTest do
   use ExUnit.Case, async: true
 
+  import ExUnit.CaptureLog
+
   alias Portfolixir.Catalog.SecuritySearch
   alias Portfolixir.Catalog.SecuritySearch.SearchResult
 
@@ -49,13 +51,16 @@ defmodule Portfolixir.Catalog.SecuritySearchTest do
     crashing = make_crash_module()
     healthy = make_stub_module([%SearchResult{provider: :coingecko, online_id: "ok", name: "Ok"}])
 
-    {:ok, results} =
-      SecuritySearch.search("anything",
-        providers: [crashing, healthy],
-        timeout_ms: 500
-      )
+    {{:ok, results}, log} =
+      with_log(fn ->
+        SecuritySearch.search("anything",
+          providers: [crashing, healthy],
+          timeout_ms: 500
+        )
+      end)
 
     assert [%SearchResult{online_id: "ok"}] = results
+    assert log =~ "security search provider #{inspect(crashing)} failed"
   end
 
   # ---- helpers ------------------------------------------------------------

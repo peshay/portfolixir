@@ -14,4 +14,9 @@
 # raised -- negative assertions must stay fast.
 ExUnit.start(assert_receive_timeout: 2_000)
 
+# A warning or an error that reaches the console log without a test capturing
+# it fails the run (#927): see Portfolixir.LogNoise for what counts and why a
+# raised log level or a blanket capture is not the fix.
+Portfolixir.LogNoise.install()
+
 Ecto.Adapters.SQL.Sandbox.mode(Portfolixir.Repo, :manual)
