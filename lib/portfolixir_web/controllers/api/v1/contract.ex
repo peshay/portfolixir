@@ -47,10 +47,13 @@ defmodule PortfolixirWeb.Api.V1.Contract do
       summary:
         "Sprint 17, the agent's first contact: the MCP companion's tool profiles " <>
           "(PORTFOLIXIR_MCP_PROFILE read, book or full; book leaves out the admin set, the " <>
-          "writes nothing in book can undo), with the read-only switch kept as read.",
+          "writes nothing in book can undo), with the read-only switch kept as read — and " <>
+          "the twin scope tools steered: valuation, performance and the benchmark comparison " <>
+          "at the portfolio and the view scope each name the other, with the difference.",
       endpoints: [],
       tools: [],
       parameters: [
+        "portfolixir.portfolios.valuation, .performance and .benchmark and portfolixir.views.valuation, .performance and .benchmark each end their description with \"Scope twin: <the other tool>\" and the difference: the portfolio tool answers one portfolio record in its base currency, its view narrowing within that portfolio; the view tool answers a view across every portfolio, each account counted once, in EUR, and needs an existing view id (a view created with include_all and nothing excluded matches every account); without a view the portfolio tool is the read, its totals over several portfolios add up only when they share one base currency, and returns never add up. No tool is removed or renamed (Sprint 17 A2, #993; plan D-6)",
         "The MCP companion takes PORTFOLIXIR_MCP_PROFILE, read, book or full (default full; any case): read lists and calls only the tools with readOnlyHint, as PORTFOLIXIR_MCP_READ_ONLY=true did and still does; book lists and calls every tool but the admin set, an explicit list in mcp-server/src/profiles.ts governed by one principle, a write belongs to admin when nothing in book can undo it (every removal, the three merges, the ISIN change, a rule's retirement and the release of manual quotes), and keeps the overwrites another book write can undo (a second explicit list, each with its reason; a plan's activation among them); full lists and calls every tool. A call outside the profile, listed or not, is refused as a tool error naming the profile and the variable, with no API request, and the server instructions name the active profile in one clause. PORTFOLIXIR_MCP_READ_ONLY=true beside PORTFOLIXIR_MCP_PROFILE=book or full, or any other value of either, stops the companion with the variables named; READ_ONLY=false never conflicts. A profile narrows the companion, not the API token (Sprint 17 A1, #992)"
       ],
       removed_endpoints: [],

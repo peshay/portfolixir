@@ -209,6 +209,49 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
     ])
   end
 
+  # User story (Sprint 17 A2, #993; plan D-6):
+  # As the operator or the agent reading the MCP reference,
+  # I want the three reads that exist at two scopes explained as pairs,
+  # so that a figure is read at the scope the question asks for.
+  #
+  # Acceptance criteria:
+  # - The EN and DE MCP pages state the scope difference of the pairs, that
+  #   the view side needs an existing view id and how a view matching every
+  #   account is made, and name each tool of the three pairs as the other's
+  #   twin.
+  test "the twin scope tools are explained as pairs" do
+    assert_fragments([
+      {"docs/integration/api-and-mcp.md",
+       [
+         "**Scope twins.** Valuation, performance and the benchmark comparison exist at two scopes",
+         "one portfolio record in its base currency, its `view` narrowing within that portfolio",
+         "a view across every portfolio, each account counted once, in EUR",
+         "needs an existing view id",
+         "a view created with `include_all` (the default) and nothing excluded matches every account",
+         "- `portfolixir.portfolios.valuation` — scope twin of `portfolixir.views.valuation`",
+         "- `portfolixir.views.valuation` — scope twin of `portfolixir.portfolios.valuation`",
+         "- `portfolixir.portfolios.performance` — scope twin of `portfolixir.views.performance`",
+         "- `portfolixir.views.performance` — scope twin of `portfolixir.portfolios.performance`",
+         "- `portfolixir.portfolios.benchmark` — scope twin of `portfolixir.views.benchmark`",
+         "- `portfolixir.views.benchmark` — scope twin of `portfolixir.portfolios.benchmark`"
+       ]},
+      {"docs/de/integration/api-and-mcp.md",
+       [
+         "**Bereichs-Zwillinge.** Bewertung, Performance und Benchmark-Vergleich gibt es in zwei Bereichen",
+         "einen Portfolio-Datensatz in seiner Basiswährung, sein `view` grenzt innerhalb dieses Portfolios ein",
+         "eine View über jedes Portfolio, jedes Konto einmal gezählt, in EUR",
+         "braucht eine bestehende View-ID",
+         "eine mit `include_all` (Standard) und ohne Ausschluss angelegte View erfasst jedes Konto",
+         "- `portfolixir.portfolios.valuation` — Bereichs-Zwilling von `portfolixir.views.valuation`",
+         "- `portfolixir.views.valuation` — Bereichs-Zwilling von `portfolixir.portfolios.valuation`",
+         "- `portfolixir.portfolios.performance` — Bereichs-Zwilling von `portfolixir.views.performance`",
+         "- `portfolixir.views.performance` — Bereichs-Zwilling von `portfolixir.portfolios.performance`",
+         "- `portfolixir.portfolios.benchmark` — Bereichs-Zwilling von `portfolixir.views.benchmark`",
+         "- `portfolixir.views.benchmark` — Bereichs-Zwilling von `portfolixir.portfolios.benchmark`"
+       ]}
+    ])
+  end
+
   # User story (E25 S7, G31):
   # As the operator whose agent retries a write that timed out,
   # I want the reference to say that the outcome is unknown and a re-read comes first,
