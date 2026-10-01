@@ -69,7 +69,7 @@ const TAX_AMOUNTS =
 const VIEW_SCOPE =
   "a view across EVERY portfolio, each account counted once, in EUR, and needs an existing " +
   "view id (portfolixir.views.list; a view created with include_all, the default, and " +
-  "nothing excluded matches every account)";
+  "no exclusion matches every account)";
 const PORTFOLIO_SCOPE =
   "ONE portfolio record in its base currency, its view narrowing within that portfolio";
 
@@ -77,12 +77,12 @@ function portfolioScopeTwin(twin: string, figures: "totals" | "returns"): string
   const sum =
     figures === "totals"
       ? "its totals over several portfolios add up only when they share one base currency, " +
-        "since an account belongs to exactly one portfolio"
+        "as each account belongs to one portfolio"
       : "returns of several portfolios do not add up to the return across them";
 
   return (
     ` Scope twin: ${twin} — this tool answers ${PORTFOLIO_SCOPE}; the twin answers ` +
-    `${VIEW_SCOPE}. Without a view this tool is the read, and ${sum}.`
+    `${VIEW_SCOPE}. Until a view exists this tool is the only read, and ${sum}.`
   );
 }
 
