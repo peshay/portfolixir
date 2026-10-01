@@ -2,6 +2,7 @@ defmodule Portfolixir.Journal.SerializerTest do
   use ExUnit.Case, async: true
 
   alias Portfolixir.Journal.Serializer
+  alias Portfolixir.LazyLoad
 
   # ADR-0017: Decimals encode as strings (Jason's default would emit floats and
   # lose precision); dates as ISO strings; an unmapped type raises so a new field
@@ -50,6 +51,18 @@ defmodule Portfolixir.Journal.SerializerTest do
     assert Serializer.encode_value(true) == true
     assert Serializer.encode_value(nil) == nil
     assert Serializer.encode_value(:etf) == "etf"
+  end
+
+  # Acceptance criteria (#936):
+  # - A schema struct's snapshot is its persisted fields whether or not
+  #   anything loaded its schema module first: never its `__meta__`.
+  test "snapshot/1 reads a schema's own fields even when nothing has loaded it yet" do
+    LazyLoad.unload!(LazyLoad.SnapshotRow)
+
+    assert Serializer.snapshot(%LazyLoad.SnapshotRow{id: 7, name: "Lazy"}) == %{
+             "id" => 7,
+             "name" => "Lazy"
+           }
   end
 
   test "snapshot/1 handles a plain (non-Ecto) struct via its fields" do

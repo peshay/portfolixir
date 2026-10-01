@@ -5,6 +5,7 @@ defmodule Portfolixir.Fx.RateSyncTest do
   alias Portfolixir.Fx.RateSync
   alias Portfolixir.Fx.RateSync.Ecb
   alias Portfolixir.Fx.RateSync.Fake
+  alias Portfolixir.LazyLoad
 
   # A provider that pings the test process when fetched, so we can observe that
   # the scheduler runs a sync shortly after startup — without real HTTP (#435).
@@ -155,6 +156,20 @@ defmodule Portfolixir.Fx.RateSyncTest do
 
   test "backfill/1 names a provider without a history" do
     assert {:error, :history_unsupported} = RateSync.backfill(provider: NoHistory)
+  end
+
+  # Acceptance criteria (#936):
+  # - Whether a provider publishes a history does not depend on whether
+  #   anything loaded its module first: a provider nothing has touched yet
+  #   is asked for its history, not answered :history_unsupported.
+  test "backfill/1 asks a provider no code has loaded yet for its history" do
+    provider = LazyLoad.unload!(LazyLoad.HistoryProvider)
+
+    assert {:ok, %{provider: :lazy_history, upserted: 1, scope: :history}} =
+             RateSync.backfill(provider: provider)
+
+    assert {:ok, rate} = Fx.rate_on("EUR", "USD", ~D[2003-04-17])
+    assert Decimal.equal?(rate, Decimal.new("1.0500"))
   end
 
   defmodule GarbageHistory do

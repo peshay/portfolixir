@@ -14,6 +14,7 @@ defmodule Portfolixir.Journal.BeforeImageLockTest do
   alias Portfolixir.Classifications
   alias Portfolixir.Journal
   alias Portfolixir.Knowledge.Events
+  alias Portfolixir.LazyLoad
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Tax
@@ -172,5 +173,24 @@ defmodule Portfolixir.Journal.BeforeImageLockTest do
     assert [later, earlier] = entries("security_identifier_alias", stale.id, :update)
     assert later.before == earlier.after
     assert later.after["note"] == "read note"
+  end
+
+  # Acceptance criteria (#936):
+  # - Whether a stored row's before-image is re-read under the lock does not
+  #   depend on whether anything loaded its schema module first: the lock
+  #   step is planned for a row whose schema nothing has touched yet.
+  test "a stored row is locked even when nothing has loaded its schema module yet" do
+    LazyLoad.unload!(LazyLoad.LockedRow)
+
+    multi =
+      Journal.record(Ecto.Multi.new(), owner(),
+        resource_type: "lazy_load_row",
+        operation: :update,
+        source: :row,
+        before: %LazyLoad.LockedRow{id: 7, name: "Lazy"}
+      )
+
+    steps = multi |> Ecto.Multi.to_list() |> Enum.map(&elem(&1, 0))
+    assert {:journal_lock, :journal_entry} in steps
   end
 end

@@ -185,8 +185,6 @@ defmodule Portfolixir.Catalog.QuoteEnrichmentTest do
   # - While the FX backfill runs, a second one answers 409; once it finished,
   #   the next one runs.
   test "a second FX backfill answers 409 while one runs", %{conn: conn} do
-    # The configured test provider answers the second, free backfill.
-    Code.ensure_loaded!(Portfolixir.Fx.RateSync.Fake)
     test_pid = self()
 
     first =
