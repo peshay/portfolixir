@@ -143,7 +143,7 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
     "DATABASE_SSL" => {:config, "turns TLS on for the production database connection"},
     "POOL_SIZE" => {:config, "the database connection pool's size"},
     "DATABASE_HOST" => {:config, "the dev and test database's host (local PostgreSQL)"},
-    "DATABASE_PORT" => {:config, "the test database's port (local PostgreSQL)"},
+    "DATABASE_PORT" => {:config, "the dev and test database's port (local PostgreSQL)"},
     "DATABASE_NAME" => {:config, "the dev and test database's name (local PostgreSQL)"},
     "DATABASE_USER" => {:config, "the test database's role (local PostgreSQL)"},
     "DATABASE_PASSWORD" =>

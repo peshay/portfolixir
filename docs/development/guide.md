@@ -27,6 +27,12 @@ Start the project with either:
   - `mix ecto.setup`
   - `mix phx.server`
 
+  The development configuration reads `DATABASE_NAME`, `DATABASE_HOST` and
+  `DATABASE_PORT` (default `portfolixir_dev` on `127.0.0.1:5432`), `PORT`
+  (default `4000`), `PHX_HOST`, `PHX_BIND_ALL` and
+  `PORTFOLIXIR_ALLOWED_HOSTS`; prefix every command of a recipe with the same
+  values.
+
 ## Required local checks
 
 Run before opening a PR:
