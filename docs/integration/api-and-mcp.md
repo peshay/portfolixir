@@ -1245,7 +1245,11 @@ Example quote sync response:
   `actor_label` (for an API token, the name of the token entry that applied
   the merge, as the journal's), `inserted_at` and `manifest_summary`: the
   record's `manifest` with every list replaced by its count — bookings moved,
-  restated and deleted, names appended, quotes moved and dropped — and the
+  restated and deleted, names appended, quotes moved and dropped —, beside
+  `transactions.deleted` (still every booking the merge removed)
+  `transactions.deleted_by_reason`, the same rows counted per reason
+  (`internal_transfer`, `collapsed_duplicate`, `folded_anchor`,
+  `collapsed_split`; only the reasons present, `{}` when none), and the
   operator's choices as given. `meta` carries `order`, `count` and `limit`.
   `limit` is the list family's: default 100, capped at 1000, and zero, a
   negative or a non-number answers `422`. The read is **agent-first**: the

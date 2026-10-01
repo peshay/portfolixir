@@ -3561,7 +3561,8 @@ const declaredTools: DeclaredTool[] = [
       "security), actor_type and actor_label (for an API or MCP token, the name of the token entry that applied " +
       "the merge), inserted_at, and manifest_summary: the merge's manifest with every " +
       "list replaced by its count (transactions moved, restated, deleted; former names appended; quotes moved " +
-      "and dropped; …) and the operator's choices as given. A read of a merged-away id — one security, cash " +
+      "and dropped; …), transactions.deleted_by_reason (internal_transfer, collapsed_duplicate, folded_anchor, " +
+      "collapsed_split; only those present) and the operator's choices as given. A read of a merged-away id — one security, cash " +
       "account or depot, and every route under a security (its quotes, trades, metrics, notes, events, logo) — " +
       "answers 404 with errors.merged_into. There is no unmerge: the record and the audit journal's before-images " +
       "(portfolixir.journal.list) are what make a merge reconstructable. limit keeps the newest records " +
