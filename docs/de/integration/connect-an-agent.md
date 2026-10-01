@@ -29,8 +29,15 @@ aufrufen darf:
 | Profil | Der Agent kann |
 |---|---|
 | `read` | alles lesen und nichts ändern |
-| `book` | lesen, anlegen und die Schreibzugriffe ausführen, die ein anderes `book`-Schreiben rückgängig machen kann; kein Löschen, Zusammenführen, keine Identitätsänderung, kein Stilllegen einer Regel und keine Kursfreigabe |
+| `book` | lesen, anlegen und die ersetzenden Schreibzugriffe ausführen (Ändern, Upsert, Setzen), die derselbe Schreibzugriff mit dem früheren Wert rückgängig macht; kein Entfernen, Zusammenführen, keine ISIN-Änderung, kein Stilllegen einer Regel und keine Kursfreigabe |
 | `full` (Standard) | jedes Tool aufrufen |
+
+Zwei der Schreibzugriffe, die `book` behält, hinterlassen einen Rest, den ihr
+Gegenstück nicht beseitigt: Eine Rückbenennung stellt den Namen eines Kontos
+wieder her, behält aber den Zwischennamen als früheren Namen, und ein Upsert
+über einem Datum mit Anbieterdaten hinterlässt dort einen manuellen Kurs; nur
+die Admin-Tools `remove_former_name` und `portfolixir.quotes.release`
+beseitigen sie.
 
 `book` passt zu einem Agenten, der eine Instanz einrichtet und in sie bucht,
 `read` zu einem, der nur berichtet. Ein Profil schränkt den Begleitdienst ein,

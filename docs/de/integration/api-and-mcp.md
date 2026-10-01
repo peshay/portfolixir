@@ -2798,17 +2798,28 @@ Variable. Der Schalter schränkt den Begleitdienst ein, nicht das Token:
 **Tool-Profile.** `PORTFOLIXIR_MCP_PROFILE` nimmt `read`, `book` oder `full`
 (Standard), in beliebiger Schreibweise. `read` ist der Nur-Lese-Modus oben.
 `full` listet und ruft jedes Tool. `book` listet die Lesezugriffe, jedes Anlegen
-und jedes Schreiben, das ein anderes `book`-Schreiben rückgängig machen kann,
-und lässt die **Admin-Menge** weg, eine ausdrückliche Liste im Begleitdienst
-(`mcp-server/src/profiles.ts`) unter einem Grundsatz: ein Schreiben gehört zur
-Admin-Menge, wenn nichts im Profil `book` es rückgängig machen kann. Jedes
-Entfernen ist Admin (jedes Löschen, das Entfernen eines früheren Namens und
-eines ISIN-Alias, das Aufheben einer Klassifikationszuordnung, das Löschen
-einer Positions-Überschreibung, die Freigabe manueller Kurse), ebenso die drei
-Zusammenführungen, die ISIN-Änderung und das Stilllegen einer Regel. Die
-Überschreibungen, die `book` behält (ein Ändern, ein Upsert, eine Bucket-Menge,
-das Aktivieren eines Plans, das das Aktivieren des vorigen Plans rückgängig
-macht), stehen als zweite Liste daneben, jede mit ihrem Grund, und ein Test des
+und die ersetzenden Schreibzugriffe und lässt die **Admin-Menge** weg, eine
+ausdrückliche Liste im Begleitdienst (`mcp-server/src/profiles.ts`), gezogen
+nach einer Linie, wie sie umgesetzt ist: entfernende Tools sind Admin,
+ersetzende Schreibzugriffe bleiben in `book`. Jedes Entfernen ist Admin (jedes
+Löschen, das Entfernen eines früheren Namens und eines ISIN-Alias, das
+Aufheben einer Klassifikationszuordnung, das Löschen einer
+Positions-Überschreibung, die Freigabe manueller Kurse), auch wo ein späteres
+Schreiben eine gleiche Zeile zurückbringen könnte, ebenso die drei
+Zusammenführungen, die ISIN-Änderung und das Stilllegen einer Regel. Ein
+ersetzender Schreibzugriff (ein Ändern, ein Upsert, eine Bucket-Menge, das
+Aktivieren eines Plans) bleibt in `book`, weil derselbe Schreibzugriff mit dem
+früheren Wert ihn rückgängig macht; eine enger gesendete Bucket-Menge oder
+eine auf `[]` gesetzte Positions-Überschreibung bleibt ebenfalls, das Löschen
+der Überschreibung ist Admin. Zwei behaltene Schreibzugriffe hinterlassen
+einen Rest, den ihr Gegenstück nicht beseitigt: eine Rückbenennung stellt den
+Namen wieder her, behält aber den Zwischennamen als früheren Namen, den kein
+neues Konto annehmen darf und auf den ein späterer Import bucht, bis
+`portfolixir.cash_accounts.remove_former_name` (oder der Depot-Zwilling), ein
+Admin-Tool, ihn entfernt; und ein Upsert über einem Datum mit Anbieterdaten
+lässt dieses Datum manuell, was nur `portfolixir.quotes.release`, ein
+Admin-Tool, zurückgibt. Die Schreibzugriffe, die `book` behält, stehen als
+zweite Liste neben der Admin-Menge, jeder mit seinem Grund, und ein Test des
 Begleitdienstes schlägt für jedes Tool mit `destructiveHint: true` fehl, das in
 keiner der beiden steht. Unter `book` wird ein Aufruf eines Admin-Tools,
 gelistet oder nicht, als Tool-Fehler abgelehnt, der das Profil und

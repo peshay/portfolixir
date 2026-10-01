@@ -81,10 +81,12 @@ const PROFILE_LINE: Record<McpProfile, string> = {
   read:
     "It lists only the tools that change nothing, so this setup can read and propose but not " +
     "create: the operator carries out what you propose on the instance's own pages, or " +
-    "restarts the companion with PORTFOLIXIR_MCP_PROFILE=book.",
+    "restarts the companion with PORTFOLIXIR_MCP_PROFILE=book and PORTFOLIXIR_MCP_READ_ONLY " +
+    "unset or false.",
   book:
-    "It admits the reads, every create and the writes another book write can undo; deletes, " +
-    "merges and the other admin tools are left out. That is enough for this setup.",
+    "It admits the reads, every create and the replace-shaped writes (updates, upserts, " +
+    "sets); every removal, the merges and the other admin tools are left out. That is enough " +
+    "for this setup.",
   full:
     "It admits every tool, deletes and merges included. This setup needs none of them: use " +
     "only reads and creates, and if a step seems to need a delete or a merge, stop and ask."

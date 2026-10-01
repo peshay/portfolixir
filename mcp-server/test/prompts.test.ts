@@ -136,7 +136,11 @@ describe("the companion's prompts", () => {
       assert.match(text, framing);
     }
 
-    assert.match(await promptText("first_setup", {}, "read"), /propose but not create/);
+    const readSetup = await promptText("first_setup", {}, "read");
+    assert.match(readSetup, /propose but not create/);
+    // Note 7: PROFILE=book beside READ_ONLY=true stops the companion.
+    assert.match(readSetup, /PORTFOLIXIR_MCP_PROFILE=book and PORTFOLIXIR_MCP_READ_ONLY unset or false/);
+    assert.doesNotMatch(text, /another book write can undo/);
     assert.match(await promptText("first_setup", {}, "full"), /needs none of them/);
   });
 

@@ -174,9 +174,14 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
   #
   # Acceptance criteria:
   # - The EN and DE MCP pages name PORTFOLIXIR_MCP_PROFILE with read, book and
-  #   full, the default, what book leaves out and why, the read-only switch as
-  #   read, the conflicting pair, and in one sentence that a profile narrows the
+  #   full, the default, what book leaves out and the line as implemented
+  #   (removal-shaped tools are admin, replace-shaped writes stay in book),
+  #   the two residues a kept write leaves, the read-only switch as read, the
+  #   conflicting pair, and in one sentence that a profile narrows the
   #   companion and not the API token.
+  # - No page claims that book holds only writes another book write undoes
+  #   (PR β closing act, should-fix 1); each that describes book names the
+  #   residue of a rename back.
   # - The EN and DE deployment tables carry the variable; SECURITY.md names it
   #   with the token's full authority.
   # - The Compose file passes it through empty by default and .env.example
@@ -186,8 +191,10 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
       {"docs/integration/api-and-mcp.md",
        [
          "**Tool profiles.** `PORTFOLIXIR_MCP_PROFILE` takes `read`, `book` or `full` (the default)",
-         "`book` lists the reads, every create and every write another `book` write can undo",
-         "a write belongs to the admin set when nothing in the `book` profile can undo it",
+         "`book` lists the reads, every create and the replace-shaped writes",
+         "removal-shaped tools are admin, and replace-shaped writes stay in `book`",
+         "a rename back restores the live name but keeps the in-between name as a former name",
+         "an upsert over a date that held provider data leaves that date manual",
          "`PORTFOLIXIR_MCP_READ_ONLY=true` is `read`",
          "beside `PORTFOLIXIR_MCP_PROFILE=book` or `full` it stops the companion naming both variables",
          "A profile narrows the companion, not the API token."
@@ -195,8 +202,10 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
       {"docs/de/integration/api-and-mcp.md",
        [
          "**Tool-Profile.** `PORTFOLIXIR_MCP_PROFILE` nimmt `read`, `book` oder `full` (Standard)",
-         "`book` listet die Lesezugriffe, jedes Anlegen und jedes Schreiben, das ein anderes `book`-Schreiben rückgängig machen kann",
-         "ein Schreiben gehört zur Admin-Menge, wenn nichts im Profil `book` es rückgängig machen kann",
+         "`book` listet die Lesezugriffe, jedes Anlegen und die ersetzenden Schreibzugriffe",
+         "entfernende Tools sind Admin, ersetzende Schreibzugriffe bleiben in `book`",
+         "eine Rückbenennung stellt den Namen wieder her, behält aber den Zwischennamen als früheren Namen",
+         "ein Upsert über einem Datum mit Anbieterdaten lässt dieses Datum manuell",
          "`PORTFOLIXIR_MCP_READ_ONLY=true` ist `read`",
          "neben `PORTFOLIXIR_MCP_PROFILE=book` oder `full` stoppt es den Begleitdienst und nennt beide Variablen",
          "Ein Profil schränkt den Begleitdienst ein, nicht das API-Token."
@@ -207,6 +216,20 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
       {"docker-compose.yml", ["PORTFOLIXIR_MCP_PROFILE: ${PORTFOLIXIR_MCP_PROFILE:-}"]},
       {".env.example", ["PORTFOLIXIR_MCP_PROFILE="]}
     ])
+
+    for {paths, overclaim, residue} <- [
+          {~w(docs/llms.txt docs/integration/connect-an-agent.md docs/home-deployment.md
+              docs/integration/api-and-mcp.md), "another `book` write can undo",
+           "in-between name"},
+          {~w(docs/de/integration/connect-an-agent.md docs/de/home-deployment.md
+              docs/de/integration/api-and-mcp.md), "anderes `book`-Schreiben rückgängig",
+           "Zwischennamen"}
+        ],
+        path <- paths do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+      refute doc =~ overclaim, "#{path}: #{overclaim}"
+      assert doc =~ residue, "#{path}: #{residue}"
+    end
   end
 
   # User story (Sprint 17 A2, #993; plan D-6):

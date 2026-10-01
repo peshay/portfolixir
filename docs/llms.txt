@@ -75,9 +75,13 @@ its own machine; the deployment guide covers the reverse proxy and backups.
   `PORTFOLIXIR_API_BASE_URL=http://127.0.0.1:4000` and `PORTFOLIXIR_API_TOKEN`
   in its environment.
 - Pick a profile with `PORTFOLIXIR_MCP_PROFILE`. `read` lists only the tools
-  that change nothing. `book` adds the creates and the writes another `book`
-  write can undo, and leaves out deletes, merges and the other admin tools.
-  `full`, the default, lists every tool. `book` suits an agent that sets up and
+  that change nothing. `book` adds the creates and the replace-shaped writes
+  (updates, upserts, sets), which the same write sent the former value undoes,
+  and leaves out every removal, the merges and the other admin tools. Two kept
+  writes leave a residue: a rename back keeps the in-between name as a former
+  name, and an upsert over a provider date leaves a manual quote that only
+  `portfolixir.quotes.release`, an admin tool, clears. `full`, the default,
+  lists every tool. `book` suits an agent that sets up and
   books, `read` one that only reports. A profile narrows the companion, not the
   API token.
 
