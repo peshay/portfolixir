@@ -1,24 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { MCP_PROFILES, type McpProfile } from "../src/profiles.js";
+import { MCP_PROFILES } from "../src/profiles.js";
 import { publishedToolList } from "../src/server.js";
 import { publishedTools } from "./support/companion.js";
-import { schemaBytes, tokenRange } from "./support/schema-budget.js";
+import { SCHEMA_CEILINGS as CEILINGS, schemaBytes, tokenRange } from "./support/schema-budget.js";
 
-// THE SCHEMA BUDGET (Sprint 17 A3, #994). The ceilings were set at the
-// figures measured on 2026-10-01, the day the budget landed, each rounded up
-// to the next 1,000 bytes (a margin under 1 %): read 105,541, book 178,654,
-// full 208,406 bytes.
-//
-// A ceiling only ever moves down. When the surface shrinks, lower it to the
-// new figure; never raise it. A tool or a description that needs more room
-// pays for it by trimming another, so connecting never silently costs more.
-const CEILINGS: Record<McpProfile, number> = {
-  read: 106_000,
-  book: 179_000,
-  full: 209_000
-};
+// The ceilings and the rule that they only ever move down live with the
+// measurement, in ./support/schema-budget.ts.
 
 describe("the schema budget", () => {
   // User story (A3, #994):

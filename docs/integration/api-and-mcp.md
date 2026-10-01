@@ -2779,7 +2779,9 @@ writes); the remaining write contexts are armed in sequence.
 ## MCP Tools
 
 The MCP companion exposes the same local contract as tool calls. Decimal inputs
-in MCP schemas are strings.
+in MCP schemas are strings. Client configurations to copy are on
+[Connect an Agent](connect-an-agent.html), and the entry written for an agent
+deciding whether and how to set Portfolixir up is [llms.txt](../llms.txt).
 
 The schema a host receives from `tools/list` is each tool's own definition,
 its property descriptions and its closed objects (`additionalProperties:
