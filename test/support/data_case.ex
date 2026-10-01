@@ -25,11 +25,22 @@ defmodule Portfolixir.DataCase do
     :ok
   end
 
+  @doc """
+  The changeset's errors as `%{field => [message]}`, each message with the
+  placeholders it names filled from its opts.
+
+  Only a placeholder the message names is filled (#916): the opts also carry
+  entries no message renders, such as an `Ecto.Enum` cast error's
+  parameterized type, which has no string form. A placeholder without an opt
+  stays as written.
+  """
   def errors_on(changeset) do
-    changeset
-    |> Ecto.Changeset.traverse_errors(fn {message, opts} ->
-      Enum.reduce(opts, message, fn {key, value}, acc ->
-        String.replace(acc, "%{#{key}}", to_string(value))
+    Ecto.Changeset.traverse_errors(changeset, fn {message, opts} ->
+      Regex.replace(~r/%{(\w+)}/, message, fn placeholder, key ->
+        case Enum.find(opts, fn {name, _value} -> Atom.to_string(name) == key end) do
+          {_name, value} -> to_string(value)
+          nil -> placeholder
+        end
       end)
     end)
   end

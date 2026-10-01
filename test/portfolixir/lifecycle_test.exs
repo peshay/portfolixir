@@ -124,8 +124,7 @@ defmodule Portfolixir.LifecycleTest do
       assert {:error, changeset} =
                Lifecycle.record_merge(agent(), cash_merge_attrs(world, %{kind: "portfolio"}))
 
-      # An Ecto.Enum cast error carries its type, which errors_on/1 cannot render.
-      assert {"is invalid", _opts} = changeset.errors[:kind]
+      assert %{kind: ["is invalid"]} = errors_on(changeset)
 
       assert {:error, changeset} =
                Lifecycle.record_merge(
@@ -361,7 +360,7 @@ defmodule Portfolixir.LifecycleTest do
       assert {:error, changeset} =
                Lifecycle.retire_import_hash(agent(), Map.put(base, :reason, "moved"))
 
-      assert {"is invalid", _opts} = changeset.errors[:reason]
+      assert %{reason: ["is invalid"]} = errors_on(changeset)
 
       assert {:error, changeset} =
                Lifecycle.retire_import_hash(
