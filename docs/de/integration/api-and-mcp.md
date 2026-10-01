@@ -1304,11 +1304,10 @@ Beispiel-Antwort für Kurssynchronisierung:
   `collapsed_split`; nur die vorkommenden Gründe, `{}` wenn keine), und die
   Wahl des Operators, wie gegeben. `meta` trägt `order`, `count` und `limit`. `limit`
   folgt der Listen-Familie: Standard 100, gedeckelt bei 1000, und null, eine
-  negative Zahl oder keine Zahl antwortet `422`. Der Lesezugriff ist
-  **zuerst für den Agenten**: Der Operator sieht eine Zusammenführung auf
-  „Konten & Depots“ (die Zeile „zusammengeführt aus“ des Überlebenden und
-  seine früheren Namen), und eine Listenansicht der Protokolle folgt
-  spätestens in Sprint 17 unter der Zwei-Wege-Frist.
+  negative Zahl oder keine Zahl antwortet `422`. Der Operator liest dieselben
+  Protokolle mit denselben Zahlen unter **Zusammenführungen** am Ende von
+  „Konten & Depots“ (Sprint 17; das Datum in der Zeile „zusammengeführt aus“
+  des Überlebenden führt zu seinem Eintrag).
 
 Beispiel-Payloads für Konten:
 
@@ -3036,8 +3035,9 @@ Server-Anweisungen sagen es einmal für jeden Schreibvorgang.
 - `portfolixir.journal.list`
 - `portfolixir.merges.list` — die Zusammenführungsprotokolle, das neueste
   zuerst, jedes mit dem, was wohin ging, wer es tat, wann, und dem
-  zusammengefassten Manifest (ADR-0050 §12); ein Lesen, zuerst für den
-  Agenten — seine Listenansicht folgt spätestens in Sprint 17.
+  zusammengefassten Manifest (ADR-0050 §12), die entfernten Buchungen auch je
+  Grund; ein Lesen — die Liste des Operators ist **Zusammenführungen** auf
+  „Konten & Depots“.
 - `portfolixir.buckets.list`
 - `portfolixir.buckets.get`
 - `portfolixir.buckets.create`

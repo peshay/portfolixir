@@ -1,8 +1,9 @@
 defmodule PortfolixirWeb.Api.V1.MergesControllerTest do
   # ADR-0050 §12 over the API (L5a, #328): the merge records a lifecycle
   # merge leaves behind, listed as the audit read of a destructive write.
-  # Agent-first: the list view lands no later than Sprint 17 under the
-  # two-way deadline. Every name and amount is synthetic.
+  # The operator's list reads the same summary (Sprint 17 V1,
+  # accounts_merge_records_live_test.exs). Every name and amount is
+  # synthetic.
   use PortfolixirWeb.ConnCase, async: true
 
   alias Portfolixir.Actor

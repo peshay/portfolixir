@@ -59,8 +59,9 @@ defmodule PortfolixirWeb.Api.V1.MergeController do
   @doc """
   `GET /api/v1/merges` (ADR-0050 §12): the merge records, newest first, each
   with what went into what, who did it and a summary of its manifest — the
-  audit read of a destructive write. Agent-first: its list view lands no
-  later than Sprint 17 under the two-way deadline. `limit=` is the list
+  audit read of a destructive write. The operator reads the same records in
+  the Merges section of Accounts & depots
+  (`PortfolixirWeb.PortfolioAccounts.MergeRecords`). `limit=` is the list
   family's (default #{@default_limit}, capped at #{@max_limit}, echoed in
   `meta.limit`; zero, a negative or a non-number answers 422).
   """

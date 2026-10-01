@@ -9345,6 +9345,140 @@ dialog.merge-dialog {
   font-size: 12px;
 }
 
+/* ===== The merge records on Accounts & depots (Sprint 17 V1, pick G2-A) =====
+   ADR-0050 §12's list (board ux-design-2026-10-01/02-merge-records): one
+   reading table for every kind, newest first, read-only. Everything else on
+   the section is an existing form: the h2 plus .section-disclosure of Cash
+   flow, .data-table, .phone-row (UX-DR27) and .empty-state (DESIGN.md →
+   Accounts & depots: the merge records (G2-A)). */
+
+/* ① A reading table, not a matrix: it fits its wrapper and its cells wrap.
+   The wrapper keeps UX-DR15's scroller as the fallback. */
+.data-table-wrapper > .merge-records-table {
+  min-width: 0;
+}
+
+.merge-records-table .cell-date,
+.merge-records-table .cell-kind,
+.merge-records-table .cell-actor {
+  white-space: nowrap;
+}
+
+.merge-records-table .cell-date {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ② Source → target, the preview's .merge-route order in one line. The
+   source is muted, never struck: the row is gone, its name lives on as a
+   former name of the target (ADR-0050 §4). The target carries the link
+   treatment at rest (G7-A). */
+.merge-record__pair {
+  overflow-wrap: anywhere;
+}
+
+.merge-record__source {
+  color: var(--color-text-muted);
+}
+
+.merge-record__arrow {
+  color: var(--color-text-subtle);
+  padding: 0 3px;
+}
+
+.merge-record__target {
+  color: var(--color-accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.merge-record__target--gone {
+  color: var(--color-text-muted);
+  font-weight: 400;
+  text-decoration: none;
+}
+
+.merge-record__target--deleted {
+  font-style: italic;
+}
+
+.merge-record__later {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.merge-record__later a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ③ The result: the confirmation's own phrase is the summary; the counts
+   per table, the choice and the check open under it. Read-only. */
+.merge-manifest > .disclosure-summary {
+  align-items: flex-start;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+}
+
+.merge-manifest > .disclosure-summary .disclosure-chevron {
+  flex: none;
+  margin-top: 2px;
+}
+
+.merge-manifest__counts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 3px 12px;
+  margin: 6px 0 0 16px;
+  font-size: 12px;
+}
+
+.merge-manifest__counts dt {
+  color: var(--color-text-muted);
+}
+
+.merge-manifest__counts dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.merge-manifest__basis {
+  margin: 6px 0 0 16px;
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+}
+
+/* ④ Under 560 px: two-line rows (UX-DR27). No figure slot: a merge
+   carries no amount, so the date moves into the identifier line and the
+   result opens full width under the row. */
+.merge-records__rows .phone-row {
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
+}
+
+.merge-records__rows .merge-manifest {
+  margin-top: 2px;
+}
+
+@media (max-width: 560px) {
+  .merge-records__table {
+    display: none;
+  }
+}
+
+/* ⑤ A survivor's merge date is the way into its record: the "merged from"
+   line on Accounts & depots and the basis line of a security. */
+.merge-date-link {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 @media (max-width: 720px) {
   dialog.modal.merge-dialog {
     position: fixed;

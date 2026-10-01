@@ -551,7 +551,8 @@ that says what it costs: *An import that still names 'Savings 2019' will then
 create a new account.* Under the account's name the row shows the newest
 former name (*former: …*) and, on an account others were merged into, the
 newest merge (*merged from Savings (old) · date*), each with *+N* when there
-are more.
+are more. The date of the merge is a link to its entry in **Merges** at the
+end of the page.
 
 **Merge into…** joins two accounts that are really one — typically an
 account an import created a second time under another name. The account you
@@ -599,9 +600,8 @@ a buy or sell booked without its amount, whose cash is quantity × price, can
 cause it — and one whose set balance still carries an import hash from
 before the import-hash check: the dialog names each set balance and booking
 by account, date and number, and says what to change. There is no unmerge; the merge
-record and the audit journal show what a merge did. Your agent reads the
-merge records with `GET /api/v1/merges` (MCP `portfolixir.merges.list`); a
-list of them on a screen lands no later than Sprint 17.
+record and the audit journal show what a merge did, and **Merges** below
+lists every merge.
 
 **Delete** removes an account only when nothing references it — no booking,
 and for a cash account no linked depot — and asks once, naming the account.
@@ -609,6 +609,43 @@ An account with bookings is not deleted: *Cannot delete* says what it still
 has and offers **Merge into…** instead, which is how an account with history
 goes away. A delete that meets a change made at the same moment deletes
 nothing and says so; try again.
+
+### Merges (ADR-0050 §12)
+
+After the table of depots and cash accounts, **Merges** lists every merge
+this instance recorded — of cash accounts, of depots and of securities —
+newest first. The list starts collapsed under a line that counts it
+(*5 entries · latest 2026-09-30*); with more than a hundred merges it says
+*the newest 100*. Each row reads:
+
+- the **date** and the **kind** (cash account, depot or security);
+- **source → target**: the source in grey, because it no longer exists — its
+  name lives on as a former name of the target — and the target as a link to
+  its row on this page, or to the security's page. A target that a later
+  merge took away reads *now in …* with a link to where the bookings live
+  today; a target deleted since reads *a depot (cash account, security)
+  deleted since*;
+- the **result** in the words the confirmation used (*142 bookings moved,
+  6 removed*; for a security also the duplicates removed, the quotes added
+  and the settings dropped). It opens into one line per table the merge
+  changed — bookings moved and removed, each removal with its reason
+  (*duplicate removed*, *internal transfer dropped*, *same-day set balance
+  dropped*, *split collapsed*), set balances, former names, quotes,
+  classifications, position buckets and the like — then the choice you made
+  for equal bookings and, for a security, the ISIN, and the check the merge
+  passed (*Balance confirmed on 211 days*);
+- **by**: *Operator* for a merge made on these pages, *Agent* for one an API
+  or MCP token made.
+
+The date in a survivor's *merged from … · date* line, and in a security's
+*merged on … from …* basis line, opens the list at that merge's result. The
+list is read-only: there is no unmerge, and nothing in it writes. With no
+merge yet, it says where one starts — **Merge into…** in the row menu of
+every account, depot and security. On a phone each merge is two lines,
+*source → target* over *date · kind · by*, with the result beneath.
+
+Your agent reads the same records with `GET /api/v1/merges` (MCP
+`portfolixir.merges.list`), including the removed bookings per reason.
 
 ### Portfolio records (compatibility)
 
