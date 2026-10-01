@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-09-29 (Sprint 16 CLOSED OUT: PR #914 fast-forwarded, main at daeab17c -- E25 DONE, 103 of 108 triage items shipped and #883 closed by hand; ADR-0050 L1-L5 shipped, E3 open on #328's owner run; NFR-9's seven backstops built; twenty-two issues closed by keyword; two agent-first capabilities due a human view in Sprint 17; tags 0.15.0, 0.15.1 and 0.16.0 outstanding while the owner reconsiders the versioning scheme)
+# last_updated: 2026-10-01 (Sprint 17 PLANNED: sprint-plan-2026-10-01-sprint17.md, adopted by the merge of its planning PR, which SIGNS ADR-0051 (FR-41) and answers the 2026-10-01 triage's OQ-1 to OQ-6 -- the agent's first contact in three lane PRs, the launch test as the exit criterion, FR-41's build in Sprint 18, calendar versions by workflow, the authorship rule kept and its friction removed)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -42,7 +42,7 @@
 # requests, not assumed -- an issue's state lags the PR that fixes it.
 
 generated: 2026-07-25
-last_updated: 2026-09-29
+last_updated: 2026-10-01
 project: portfolixir
 project_key: NOKEY
 tracking_system: file-system
@@ -51,6 +51,45 @@ story_location: _bmad-output/implementation-artifacts
 # ---------------------------------------------------------------------------
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
+#
+# PLANNED (2026-10-01, Sprint 17) -- sprint-plan-2026-10-01-sprint17.md,
+# adopted by the merge of the Sprint 17 planning PR, which SIGNS ADR-0051
+# (contribution analysis, the design gate for FR-41, written in Sprint 16 and
+# moved into docs/decisions/ as the PR's opening commit) and ADOPTS the owner
+# feedback triage of 2026-10-01 with an answer to each of its OQ-1 to OQ-6.
+# Verification basis: `main` at dda28888 with CI 1630 RED (pre-commit's
+# end-of-file-fixer on two drafts of the 2026-09-30 research; the last green
+# run on main is 1628 on 4c376c22), repaired by the PR's second commit; 95
+# open issues and four open Dependabot PRs; releases ending at 0.14.0; the
+# trade matcher, its two reads, the MCP companion's registry, switch and
+# hints, and the import path's API coverage read for every claim.
+# The direction: the owner's launch path supersedes the 2026-09-23 runway
+# (maintenance mode after Sprint 18 no longer holds). Sprint 17 is the
+# agent's first contact, Sprint 18 the operator's first look (D-2). The exit
+# criterion is the launch test (D-1): a fresh agent with only the README and
+# llms.txt installs, converts a synthetic bank export through the
+# import_converter prompt, and answers three known questions exactly; it runs
+# at PR beta's closing act and at the close-out.
+# The cut (D-12, from the Sprint 16 retrospective): three lane PRs merged in
+# order -- alpha (G: seeded-upgrade and lock-order harnesses; P: calendar
+# versions YYYY.M.N made by the Release workflow on shipped pushes, D-11; D:
+# first-run debt with no rendered difference; M: phoenix 1.8.15, @types/node,
+# Node 26 declined until LTS), beta (A: MCP profiles read/book/full, D-5;
+# both-way steering between the three duplicate scope pairs, D-6; a schema
+# budget; MCP prompts #983; llms.txt #982; the README #981), gamma (T: #984
+# rescoped -- the portfolio-wide list already existed as Cash-flow ->
+# Realized; reach on pick G1, an annualized XIRR per round-trip only from 365
+# days, and the sells the matcher never matched named, D-7; V: the
+# merge-record list on G2 and the manual-quote release on G3, the two views
+# due by this sprint's end under the two-way rule).
+# D-4: FR-41's build moves to Sprint 18, with #900 and #901. D-8: no peer
+# feature in this sprint. D-10: the human-author rule stays; this PR sets
+# Claude Code's `attribution` (commit "", sessionUrl false) and the owner sets
+# GIT_AUTHOR_*/GIT_COMMITTER_* in the cloud environment. D-11: the three
+# outstanding 0.x tags are not created; the first calendar release's notes
+# start from 0.14.0. D-13: #849 closed as not planned; B4.2 parked (its
+# condition unmet); #330 waits on the owner's one word; #899 to Sprint 18.
+# D-14: one review lens per risk class, per lane PR.
 #
 # CLOSED OUT (2026-09-29, Sprint 16) -- PR #914 FAST-FORWARDED 11:09 UTC,
 # `main` at daeab17c:
@@ -1943,3 +1982,13 @@ development_status:
   # follow-ups #894-#899 stay open under their own reasons.
   epic-25: done
   epic-25-retrospective: done
+
+  # E26 -- Launch readiness (the owner's launch path of 2026-10-01,
+  # feedback-triage-2026-10-01.md), scheduled by the Sprint 17 plan as Lanes
+  # A, T and V across PR beta and PR gamma, with the operator's half in
+  # Sprint 18. The row exists from the planning so the close-out reconciles
+  # against it; the tracker is filed at PR alpha's branch opening, and
+  # #981-#984 (filed 2026-10-01 without a parent) move under it. Exit
+  # criterion: the launch test of the plan's D-1.
+  epic-26: backlog
+  epic-26-retrospective: optional
