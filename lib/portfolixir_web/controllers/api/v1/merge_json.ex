@@ -6,6 +6,7 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
   value of `collapse_key_equal` they follow from, `"false"` and `"true"`.
   """
 
+  alias Portfolixir.Lifecycle
   alias Portfolixir.Lifecycle.MergeRecord
   alias PortfolixirWeb.Api.V1.JSON
 
@@ -407,9 +408,11 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
   what — the source's name as its snapshot recorded it, the target's live
   name, or for a target a later merge took away the name that merge
   recorded and the live end of the chain in `merged_into` — who did it,
-  when, and the manifest summarized: every list replaced by its count,
-  every other value as stored (the operator's choices among them). The full
-  manifest and snapshot stay on the record the merge answered.
+  when, and the manifest summarized (`Portfolixir.Lifecycle.manifest_summary/1`):
+  every list replaced by its count, every other value as stored (the
+  operator's choices among them), and the removed bookings counted per
+  reason in `transactions.deleted_by_reason`. The full manifest and
+  snapshot stay on the record the merge answered.
   """
   def listed(%{record: %MergeRecord{} = record} = listed) do
     %{
@@ -425,13 +428,9 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
       actor_type: Atom.to_string(record.actor_type),
       actor_label: record.actor_label,
       inserted_at: JSON.datetime(record.inserted_at),
-      manifest_summary: summarize(record.manifest)
+      manifest_summary: Lifecycle.manifest_summary(record.manifest)
     }
   end
-
-  defp summarize(list) when is_list(list), do: length(list)
-  defp summarize(map) when is_map(map), do: Map.new(map, fn {k, v} -> {k, summarize(v)} end)
-  defp summarize(value), do: value
 
   @doc "A guard's result, its code the refusal it answers when it fails."
   def guard(guard) do

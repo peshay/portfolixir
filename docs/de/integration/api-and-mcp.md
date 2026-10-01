@@ -1297,8 +1297,12 @@ Beispiel-Antwort für Kurssynchronisierung:
   des Token-Eintrags, der sie ausgeführt hat, wie im Journal), `inserted_at`
   und `manifest_summary`: das `manifest` des Protokolls, in dem jede Liste durch
   ihre Anzahl ersetzt ist — verschobene, angepasste und gelöschte Buchungen,
-  angehängte Namen, verschobene und verworfene Kurse — und die Wahl des
-  Operators, wie gegeben. `meta` trägt `order`, `count` und `limit`. `limit`
+  angehängte Namen, verschobene und verworfene Kurse —, neben
+  `transactions.deleted` (weiterhin jede Buchung, die die Zusammenführung
+  entfernt hat) `transactions.deleted_by_reason`, dieselben Zeilen je Grund
+  gezählt (`internal_transfer`, `collapsed_duplicate`, `folded_anchor`,
+  `collapsed_split`; nur die vorkommenden Gründe, `{}` wenn keine), und die
+  Wahl des Operators, wie gegeben. `meta` trägt `order`, `count` und `limit`. `limit`
   folgt der Listen-Familie: Standard 100, gedeckelt bei 1000, und null, eine
   negative Zahl oder keine Zahl antwortet `422`. Der Lesezugriff ist
   **zuerst für den Agenten**: Der Operator sieht eine Zusammenführung auf
