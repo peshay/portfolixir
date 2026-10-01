@@ -173,8 +173,8 @@ nothing to serve it to.
   `computation_basis` states the rule (D-7). The figure is the round-trip's
   money-weighted return: the existing XIRR solver over the trade's own flows
   (each consumed lot's buy at its date and prorated cost, the sell at its
-  proceeds), inside ADR-0034 §2's float exception, which this does not
-  widen. It is `null` for a holding period under 365 days, as ADR-0034 §2
+  proceeds), in the trade's own currency like the percent it annualizes,
+  inside ADR-0034 §2's float exception, which this does not widen. It is `null` for a holding period under 365 days, as ADR-0034 §2
   already rules for the MWR. The trade matcher exposes the consumed lots it
   already computes internally; every existing field stays byte-identical.
   The two MCP tools' descriptions follow. Contract entry for PR γ.
@@ -209,9 +209,22 @@ or verdict key.
 
 - **V1, the merge-record list (ADR-0050 §12; pick G2).** Read-only, newest
   first, every kind; no undo, because ADR-0050 §12 rules there is none, and
-  the view must not suggest one.
+  the view must not suggest one. The board found two things the story
+  settles: every `manifest_summary` key needs a fixed German label, pinned
+  by a meta-test over the keys the three merge writers emit; and the
+  payload counts every removed booking as one number, so the row says
+  "N entfernt" unless the story groups the count by reason (both users would
+  read the grouped form; it is a payload change, so the contract entry
+  names it).
 - **V2, releasing manual quotes (T-9; pick G3).** The page's first quote
-  write. A confirm that names the range and what happens to it.
+  write. A confirm that names the range and what happens to it. **No read
+  exists today that says which dates are manual** outside the chart's range,
+  so the story adds one (count, first and last date, the stretches of manual
+  quotes) and a public check of whether the security's provider can refill
+  the days; the dialog warns when it cannot. Whether API and MCP gain the
+  same summary is the story's call under the two-way rule, and a `source=`
+  filter on the quotes read would be a read-ergonomics parameter for the
+  close-out's surface check.
 
 If either does not land, the close-out records it as a finding under the
 two-way rule; neither is on the shrink order.
@@ -285,7 +298,8 @@ output after all, it stops and gets a before/after board before its code.
   the issues for A1, A2, A3, G-1, G-2, P1 and the launch test (D-1); the
   follow-ups the decisions name (scoped API tokens, D-5; income inside a
   trade and the matcher's depot scope, D-7; the Sprint 18 candidates of
-  D-8). #981–#984 move under E26. Every number lands on its registry row the
+  D-8), and the Scope Lock observations of the design pass's Part 4 (PR γ).
+  #981–#984 move under E26. Every number lands on its registry row the
   same day.
 - **Registry edits already on this PR:** FR-41's row (ADR-0051 signed, the
   build in Sprint 18), and the Tracker Index's new **E26** line.
@@ -463,7 +477,11 @@ Three boards, under
 `planning-artifacts/design-language/mockups/ux-design-2026-10-01/`, argued in
 `planning-artifacts/ux-design-2026-10-01-sprint17.md`:
 
-PICKS-TABLE
+| Pick | Item | Board | Variants | Recommended |
+|---|---|---|---|---|
+| **G1** | Trades: reach, the p.a. column and the unmatched sells (#984 rescoped, Lane T) | `01-trades-reach` | the facet renamed "Trades" plus an Overview card with the last five closed trades · a top-level nav entry and route `/trades`, the facet removed and redirected | **A** |
+| **G2** | The merge-record list (ADR-0050 §12, two-way deadline, Lane V1) | `02-merge-records` | a collapsed section at the end of Accounts & depots, all three kinds in one list · the same section on the Imports page · no list, a disclosure per survivor | **A** |
+| **G3** | Releasing manual quotes (T-9, two-way deadline, Lane V2) | `03-quote-release` | a data note on the Quotes tab with the count and span of manual quotes, its remedy opening a range dialog · an item in the securities row menu, same dialog · a selection on the quote table's manual rows | **A** |
 
 **Items with no board:** everything in Lanes A, G, P, D and M changes no
 rendered output (A6 is the repository's README, not the app). T1 changes the
