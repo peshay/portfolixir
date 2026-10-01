@@ -100,6 +100,67 @@ defmodule Portfolixir.DocsTest do
     end
   end
 
+  # User story (Sprint 17 A6, #981):
+  # As a newcomer landing on the repository, or the agent reading it for them,
+  # I want the first screen to say what Portfolixir is and how my existing
+  # data gets in, before badges, pictures and philosophy,
+  # so that I can tell in one screen whether it fits.
+  #
+  # Acceptance criteria:
+  # - Above the badges the README states what it is (self-hosted, for the
+  #   operator and their agent, no broker connection, no advice) and how data
+  #   gets in: a Portfolio Performance CSV or JSON export on the Imports page,
+  #   the import_converter prompt, booking by hand; that there is no bank or
+  #   broker sync; and that broker-PDF intake is decided but not built.
+  # - No picture but the logo sits above the badges, and it points an agent to
+  #   llms.txt.
+  # - One line says how the project is built: with LLM coding agents, every
+  #   commit owned by an accountable human.
+  test "the README's first screen says what it is and how data gets in" do
+    readme = File.read!("README.md")
+    [first_screen, _rest] = String.split(readme, "[![CI]", parts: 2)
+    flat = String.replace(first_screen, ~r/\s+/, " ")
+
+    for fragment <- [
+          "self-hosted",
+          "the LLM agent you run",
+          "## How your data gets in",
+          "Portfolio Performance",
+          "CSV or JSON v1",
+          "Imports page",
+          "`import_converter`",
+          "By hand",
+          "There is no bank or broker sync",
+          "Broker PDFs",
+          "not built",
+          "https://portfolixir.app/llms.txt"
+        ] do
+      assert flat =~ fragment, fragment
+    end
+
+    refute first_screen =~ "![", "a picture above the badges"
+    assert readme =~ "## What is Portfolixir"
+
+    assert String.replace(readme, ~r/\s+/, " ") =~
+             "written with LLM coding agents, and every commit is owned by an accountable human"
+  end
+
+  # User story (#935, F76's follow-up):
+  # As someone who runs `docker compose up --build` straight from the README,
+  # I want the README's prerequisites to name the minimum Docker Engine and
+  # point to why,
+  # so that the loopback-only reach the guide promises holds on my engine.
+  #
+  # Acceptance criteria:
+  # - The README's prerequisites name Docker Engine 28.3.3 or newer and link
+  #   the home deployment guide's prerequisites for the reason.
+  test "the README names the Docker Engine minimum and points to the reason" do
+    readme = File.read!("README.md") |> String.replace(~r/\s+/, " ")
+
+    assert readme =~ "Docker Engine 28.3.3 or newer"
+    assert readme =~ "(docs/home-deployment.md#prerequisites)"
+  end
+
   # User story:
   # As a public reader of the project docs,
   # I want the Pages domain and public docs to stay accurate and modest,
