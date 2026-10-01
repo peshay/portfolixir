@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Mockup — Die Liste der Zusammenführungen (ADR-0050 §12, zweiseitige Frist Sprint 17, Pick G2)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL (variant A; B reuses it unchanged): the rules the story adds
+     to app.css. Everything else on the section is an existing form: the h2
+     plus .section-disclosure of Cash flow -> Realized per period
+     (income_live.ex), .data-table, .phone-row (UX-DR27) and .empty-state. -->
+<style id="proposal">
+  /* ① A reading table, not a matrix: it fits its wrapper and its cells wrap.
+     The wrapper keeps UX-DR15's scroller as the fallback. */
+  .data-table-wrapper > .merge-records-table { min-width: 0; }
+  .merge-records-table .cell-date,
+  .merge-records-table .cell-kind,
+  .merge-records-table .cell-actor { white-space: nowrap; }
+  .merge-records-table .cell-date { font-variant-numeric: tabular-nums; }
+  /* ② Source -> target, the preview's .merge-route order in one line. The source is muted, never struck: the row is gone,
+     its name lives on as a former name of the target (ADR-0050 §4). The
+     target carries the link treatment at rest (G7-A). */
+  .merge-record__pair { overflow-wrap: anywhere; }
+  .merge-record__source { color: var(--color-text-muted); }
+  .merge-record__arrow { color: var(--color-text-subtle); padding: 0 3px; }
+  .merge-record__target { color: var(--color-accent); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+  .merge-record__target--gone { color: var(--color-text-muted); font-weight: 400; text-decoration: none; }
+  .merge-record__target--deleted { font-style: italic; }
+  .merge-record__later { display: block; font-size: 12px; font-weight: 400; color: var(--color-text-muted); }
+  .merge-record__later a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 2px; }
+  /* ③ The result: the confirmation's own phrase is the summary; the counts
+     per table, the choice and the check open under it. Read-only. */
+  .merge-manifest > .disclosure-summary { align-items: flex-start; font-size: 12px; font-weight: 500; text-align: left; }
+  .merge-manifest > .disclosure-summary .disclosure-chevron { flex: none; margin-top: 2px; }
+  .merge-manifest__counts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 3px 12px; margin: 6px 0 0 16px; font-size: 12px; }
+  .merge-manifest__counts dt { color: var(--color-text-muted); }
+  .merge-manifest__counts dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .merge-manifest__basis { margin: 6px 0 0 16px; font-size: 11.5px; color: var(--color-text-muted); }
+  /* ④ Under 560 px: two-line rows (UX-DR27). No figure slot: a merge
+     carries no amount; the result opens full width under the row. */
+  .merge-records__rows .phone-row { grid-template-columns: minmax(0, 1fr); margin: 0; }
+  .merge-records__rows .merge-manifest { margin-top: 2px; }
+  @media (max-width: 560px) {
+    .merge-records__table { display: none; }
+  }
+  /* ⑤ The survivor's date becomes the way into its record. */
+  .account-sub--merged a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 2px; }
+</style>
+<style>
+  /* Board chrome only. */
+  .pg { border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg); }
+  .pg-top { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; padding: 12px 18px; border-bottom: 1px solid var(--color-border); background: var(--color-bg-elevated); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+  .pg-top h3 { margin: 0; font-size: 18px; }
+  .pg-top span { font-size: 12.5px; color: var(--color-text-muted); }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 1px; border-radius: 6px; }
+  .workspace-section.is-new { outline-offset: -3px; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .col { flex: 1 1 520px; min-width: 0; display: grid; gap: 14px; align-content: start; }
+  .ph { flex: none; width: 392px; display: grid; gap: 6px; align-content: start; }
+  .ph .frame { border: 1px solid var(--color-border-strong); border-radius: 20px; overflow: hidden; background: var(--color-bg); }
+  .ph iframe { display: block; width: 390px; height: 900px; border: 0; }
+  .stub { padding: 10px 14px; font-size: 12px; color: var(--mock-ink); font-style: italic; }
+  .notes { display: grid; gap: 8px; align-content: start; font-size: 12.5px; }
+  .notes p, .notes ol { margin: 0; }
+  .notes ol.pins { list-style: none; padding: 0; }
+  .notes li { margin: 0 0 6px; }
+  .notes code, .mock-note code, .pickbar code, table.t code { font-size: 11.5px; }
+  i.pin { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-left: 5px; border-radius: 999px; background: var(--mock-ink); font: 700 10px/1 var(--font-sans); font-style: normal; color: #fff; vertical-align: 1px; letter-spacing: 0; text-transform: none; flex: none; }
+  .notes li > i.pin:first-child { margin: 0 4px 0 0; }
+  .argue { max-width: 86ch; font-size: 12.5px; display: grid; gap: 8px; margin-top: 14px; }
+  .argue p { margin: 0; }
+  .missing { border: 1px dashed var(--color-danger); border-radius: var(--radius-md); padding: 10px 12px; font-size: 12.5px; display: grid; gap: 6px; }
+  .missing b { color: var(--color-danger); }
+  .missing ul { margin: 0; padding-left: 18px; }
+  .missing li { margin: 0; color: var(--color-text-muted); }
+  .sub-list { list-style: none; margin: 4px 0 6px; padding: 0 0 0 10px; border-left: 2px solid var(--color-border); font-size: 12px; color: var(--color-text-muted); }
+  .sub-list li { margin: 0; }
+  .sub-toggle { display: inline-flex; align-items: center; gap: 4px; min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; font: inherit; font-size: 12px; color: var(--color-text-muted); text-align: left; }
+  table.t td code { overflow-wrap: anywhere; }
+  @media (max-width: 560px) {
+    body { padding: 8px; }
+    .mock-frame .workspace-section { padding: 16px; }
+    .wide-only { display: none !important; }
+    .col { flex-basis: 100%; }
+    table.t, table.t tbody, table.t tr, table.t td { display: block; }
+    table.t thead { display: none; }
+    table.t td { border-bottom: 0; padding: 2px 4px; white-space: normal; }
+    table.t tr { border-bottom: 1px solid var(--color-border); padding: 6px 0; }
+    table.t td:first-child code { overflow-wrap: anywhere; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<div class="pickbar"><b>Entscheidung G2 — offen.</b> Wo die Liste der Zusammenführungen lebt und was eine Zeile sagt (ADR-0050 §12). <code>GET /api/v1/merges</code> und <code>portfolixir.merges.list</code> gibt es seit Sprint 16; die Sicht für den Operator ist nach der zweiseitigen Regel spätestens Ende Sprint 17 fällig (AGENTS.md → API and MCP Coverage). <b>A</b> ein eigener, zugeklappter Abschnitt „Zusammenführungen“ am Ende von „Konten &amp; Depots“, alle drei Arten in einer Liste · <b>B</b> derselbe Abschnitt auf „Import“ · <b>C</b> keine Liste, je Überlebendem eine Aufklappung. Empfehlung: <b>A</b>. Ein Kommentar mit dem Buchstaben auf der Planungs-PR entscheidet; ohne Kommentar gilt die Empfehlung. In jeder Variante nur zum Lesen: kein Rückgängig, keine Zeilenaktion (§12). Alle Namen, Zahlen, Daten und ISINs sind erfunden. <b>Gestrichelt = neu.</b></div>
+
+<!-- ============================ HEUTE ============================ -->
+<section class="mock-board">
+  <h2>Heute — eine Zusammenführung steht nur am Überlebenden <small>G13.1-A, gebaut in Sprint 16</small></h2>
+  <p class="mock-note">Unter dem Überlebenden steht „zusammengeführt aus … · Datum“ (die jüngste, dann „+N“), auf der Übersicht eines Wertpapiers „zusammengeführt am … aus „…““ in der Grundlagenzeile. Beides verlinkt nichts. Was die Zusammenführung bewegt hat, wer sie ausgelöst hat, und jede Zusammenführung, deren Ziel später selbst zusammengeführt oder gelöscht wurde, steht nur in der API. Hier: „Tagesgeld (alt)“ ging am 27.09. in „Tagesgeld“, „Tagesgeld“ am 28.09. in „Girokonto“. Die Seite zeigt davon nur den zweiten Schritt und einen früheren Namen.</p>
+  <div class="mock-frame mock-before"><span class="mock-tag">Heute</span><div class="workspace-section">
+    <div class="data-table-wrapper"><table class="data-table accounts-table">
+      <thead><tr><th>Name</th><th>Währung</th><th>Liquiditätsrolle</th><th>Saldo</th><th>Buckets</th><th class="row-actions-head"><span class="visually-hidden">Aktionen</span></th></tr></thead>
+      <tbody class="account-pair">
+        <tr class="account-row--depot">
+          <td class="cell-name cell-name--depot"><span class="account-name">Depot 1</span><span class="account-sub account-sub--merged">zusammengeführt aus Depot 2 (alt) · 29.09.2026</span></td>
+          <td class="cell-currency cell-currency--empty"></td><td class="cell-role cell-role--empty"></td><td class="cell-balance cell-balance--empty"></td>
+          <td class="cell-buckets cell-buckets--pair" rowspan="2"><div class="bucket-chip-group"><span class="bucket-chip" style="--chip-color:#7c3aed"><span class="bucket-chip__name">Langfrist</span><button type="button" class="bucket-chip__remove" aria-label="Bucket Langfrist entfernen">×</button></span><button type="button" class="bucket-chip-add" aria-label="Bucket hinzufügen">+</button><span class="bucket-chip-group__scope">Gilt für Depot und Verrechnungskonto</span></div></td>
+          <td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen für Depot 1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></td>
+        </tr>
+        <tr class="account-row--cash">
+          <td class="cell-name cell-name--cash"><span class="account-cash-name">Girokonto</span><span class="account-sub account-sub--merged">zusammengeführt aus Tagesgeld · 28.09.2026</span><span class="account-sub account-sub--former">früher: Tagesgeld (alt)</span></td>
+          <td class="cell-currency">EUR</td>
+          <td class="cell-role"><div class="liquidity-role-field"><select aria-label="Liquiditätsrolle"><option>Reserve</option></select></div></td>
+          <td class="cell-balance"><span class="cash-balance"><span class="cash-balance__amount num">4.120,35 EUR</span><span class="cash-balance__asof">Stand 30.09.2026</span></span><button type="button" class="cash-balance__action">Saldo setzen</button></td>
+          <td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen für Girokonto"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></td>
+        </tr>
+      </tbody>
+    </table></div>
+  </div></div>
+</section>
+
+<!-- ============================ VARIANTE A ============================ -->
+<section class="mock-board">
+  <h2>Variante A — ein Abschnitt „Zusammenführungen“ am Ende von Konten &amp; Depots, alle drei Arten <small>empfohlen</small></h2>
+  <p class="mock-note">Nach der Tabelle der Konten und vor den Portfoliodatensätzen steht ein eigener Abschnitt: Überschrift auf der h2-Stufe, darunter zugeklappt die Liste, neueste zuerst. Eine Zeile sagt Datum, Art, „Quelle → Ziel“, das Ergebnis in den Worten der Bestätigung von damals und wer es war. Die Zählung je Tabelle öffnet sich im Ergebnis. Hier hat der Operator auf das Datum unter „Girokonto“ geklickt ⑤: Der Abschnitt ist offen, die Zeile vom 28.09. aufgeklappt.</p>
+
+  <div class="mock-frame mock-after"><span class="mock-tag">A — Konten &amp; Depots, nach einem Klick auf „28.09.2026“ unter Girokonto</span>
+    <div class="pg">
+      <div class="pg-top"><h3>Konten &amp; Depots</h3><span>Depots, Verrechnungskonten und ihre Buckets</span></div>
+      <section class="workspace-section">
+        <div class="section-head"><h2>Depots und Verrechnungskonten</h2><button type="button" class="button-primary">+ Depot &amp; Konto hinzufügen</button></div>
+        <div class="data-table-wrapper"><table class="data-table accounts-table">
+          <thead><tr><th>Name</th><th>Währung</th><th>Liquiditätsrolle</th><th>Saldo</th><th>Buckets</th><th class="row-actions-head"><span class="visually-hidden">Aktionen</span></th></tr></thead>
+          <tbody class="account-pair">
+            <tr class="account-row--depot">
+              <td class="cell-name cell-name--depot"><span class="account-name">Depot 1</span><span class="account-sub account-sub--merged">zusammengeführt aus Depot 2 (alt) · <a href="?merge=44#merge-record-44">29.09.2026</a></span></td>
+              <td class="cell-currency cell-currency--empty"></td><td class="cell-role cell-role--empty"></td><td class="cell-balance cell-balance--empty"></td>
+              <td class="cell-buckets cell-buckets--pair" rowspan="2"><div class="bucket-chip-group"><span class="bucket-chip" style="--chip-color:#7c3aed"><span class="bucket-chip__name">Langfrist</span><button type="button" class="bucket-chip__remove" aria-label="Bucket Langfrist entfernen">×</button></span><button type="button" class="bucket-chip-add" aria-label="Bucket hinzufügen">+</button><span class="bucket-chip-group__scope">Gilt für Depot und Verrechnungskonto</span></div></td>
+              <td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen für Depot 1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></td>
+            </tr>
+            <tr class="account-row--cash">
+              <td class="cell-name cell-name--cash"><span class="account-cash-name">Girokonto</span><span class="account-sub account-sub--merged">zusammengeführt aus Tagesgeld · <a href="?merge=43#merge-record-43" class="is-new">28.09.2026</a><i class="pin">5</i></span><span class="account-sub account-sub--former">früher: Tagesgeld (alt)</span></td>
+              <td class="cell-currency">EUR</td>
+              <td class="cell-role"><div class="liquidity-role-field"><select aria-label="Liquiditätsrolle"><option>Reserve</option></select></div></td>
+              <td class="cell-balance"><span class="cash-balance"><span class="cash-balance__amount num">4.120,35 EUR</span><span class="cash-balance__asof">Stand 30.09.2026</span></span><button type="button" class="cash-balance__action">Saldo setzen</button></td>
+              <td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen für Girokonto"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></td>
+            </tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <!-- THE NEW SECTION -->
+      <section id="merge-records" class="workspace-section merge-records is-new" aria-labelledby="merge-records-title">
+        <h2 id="merge-records-title">Zusammenführungen<i class="pin">1</i></h2>
+        <details class="section-disclosure" open>
+          <summary class="disclosure-summary"><svg class="disclosure-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>5 Einträge · zuletzt 30.09.2026</summary>
+          <p class="detail-tab-hint">Was jede Zusammenführung bewegt hat, die neueste zuerst.</p>
+
+          <div class="data-table-wrapper merge-records__table">
+            <table class="data-table merge-records-table">
+              <thead><tr><th>Datum</th><th>Art</th><th>Quelle → Ziel<i class="pin">2</i></th><th>Ergebnis<i class="pin">3</i></th><th>Von<i class="pin">4</i></th></tr></thead>
+              <tbody>
+                <tr id="merge-record-45" data-merge="45">
+                  <td class="cell-date">30.09.2026</td>
+                  <td class="cell-kind">Wertpapier</td>
+                  <td class="merge-record__pair"><span class="merge-record__source">Alder Creek Timber Fund Class B</span><span class="merge-record__arrow" aria-hidden="true">→</span><span class="visually-hidden">in</span><a class="merge-record__target" href="/securities/12">Alder Creek Timber Fund</a></td>
+                  <td><details class="merge-manifest">
+                    <summary class="disclosure-summary"><svg class="disclosure-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>21 Buchungen verschoben, 1 Duplikat entfernt, 380 Kurse ergänzt, 2 Einstellungen entfallen</summary>
+                    <dl class="merge-manifest__counts">
+                      <dt>Buchungen</dt><dd>21 verschoben · 1 Duplikat entfernt</dd>
+                      <dt>Kurse</dt><dd>380 ergänzt · 3 verworfen, das Ziel hatte an diesen Tagen einen</dd>
+                      <dt>Klassifizierungen</dt><dd>2 Zuordnungen verschoben · 1 entfallen</dd>
+                      <dt>Zielgewichte</dt><dd>1 entfallen</dd>
+                      <dt>Termine</dt><dd>4 verschoben</dd>
+                      <dt>ISIN</dt><dd>XS0000000001 bleibt; XS0000000002 ist jetzt frühere ISIN</dd>
+                      <dt>Wahl</dt><dd>gleiche Buchungen: als Duplikate entfernen</dd>
+                      <dt>Prüfung</dt><dd>Stückzahl an 64 Tagen in 2 Depots bestätigt</dd>
+                    </dl>
+                    <p class="merge-manifest__basis">Zählung aus dem Protokoll der Zusammenführung; jede einzelne Zeile steht im Audit-Journal.</p>
+                  </details></td>
+                  <td class="cell-actor">Agent</td>
+                </tr>
+                <tr id="merge-record-44" data-merge="44">
+                  <td class="cell-date">29.09.2026</td>
+                  <td class="cell-kind">Depot</td>
+                  <td class="merge-record__pair"><span class="merge-record__source">Depot 2 (alt)</span><span class="merge-record__arrow" aria-hidden="true">→</span><span class="visually-hidden">in</span><a class="merge-record__target" href="#account-row-depot-3">Depot 1</a></td>
+                  <td><details class="merge-manifest">
+                    <summary class="disclosure-summary"><svg class="disclosure-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>57 Buchungen verschoben, 2 entfernt</summary>
+                    <dl class="merge-manifest__counts">
+                      <dt>Buchungen</dt><dd>57 verschoben · 2 entfernt</dd>
+                      <dt>Positions-Buckets</dt><dd>1 übernommen</dd>
+                      <dt>Frühere Namen</dt><dd>1 übernommen</dd>
+                      <dt>Rundung beim Split</dt><dd>1 Position</dd>
+                      <dt>Prüfung</dt><dd>Stückzahl an 140 Tagen für 6 Wertpapiere bestätigt</dd>
+                    </dl>
+                  </details></td>
+                  <td class="cell-actor">Operator</td>
+                </tr>
+                <tr id="merge-record-43" data-merge="43">
+                  <td class="cell-date">28.09.2026</td>
+                  <td class="cell-kind">Verrechnungskonto</td>
+                  <td class="merge-record__pair"><span class="merge-record__source">Tagesgeld</span><span class="merge-record__arrow" aria-hidden="true">→</span><span class="visually-hidden">in</span><a class="merge-record__target" href="#account-row-depot-3">Girokonto</a></td>
+                  <td><details class="merge-manifest" open>
+                    <summary class="disclosure-summary"><svg class="disclosure-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>96 Buchungen verschoben, 4 entfernt</summary>
+                    <dl class="merge-manifest__counts is-new">
+                      <dt>Buchungen</dt><dd>96 verschoben · 4 entfernt</dd>
+                      <dt>Gesetzte Salden</dt><dd>1 angepasst</dd>
+                      <dt>Bucket-Zuordnungen</dt><dd>1 entfernt</dd>
+                      <dt>Frühere Namen</dt><dd>2 übernommen</dd>
+                      <dt>Wahl</dt><dd>gleiche Buchungen: beide behalten</dd>
+                      <dt>Prüfung</dt><dd>Saldo an 211 Tagen bestätigt</dd>
+                    </dl>
+                    <p class="merge-manifest__basis">Zählung aus dem Protokoll der Zusammenführung; jede einzelne Zeile steht im Audit-Journal.</p>
+                  </details></td>
+                  <td class="cell-actor">Agent</td>
+                </tr>
+                <tr id="merge-record-42" data-merge="42">
+                  <td class="cell-date">27.09.2026</td>
+                  <td class="cell-kind">Verrechnungskonto</td>
+                  <td class="merge-record__pair"><span class="merge-record__source">Tagesgeld (alt)</span><span class="merge-record__arrow" aria-hidden="true">→</span><span class="visually-hidden">in</span><span class="merge-record__target merge-record__target--gone">Tagesgeld</span><span class="merge-record__later is-new">jetzt in <a href="#account-row-depot-3">Girokonto</a><i class="pin">6</i></span></td>
+                  <td><details class="merge-manifest">
+                    <summary class="disclosure-summary"><svg class="disclosure-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>142 Buchungen verschoben, 6 entfernt</summary>
+                    <dl class="merge-manifest__counts">
+                      <dt>Buchungen</dt><dd>142 verschoben · 6 entfernt</dd>
+                      <dt>Gesetzte Salden</dt><dd>1 angepasst</dd>
+                      <dt>Frühere Namen</dt><dd>1 übernommen</dd>
+                      <dt>Prüfung</dt><dd>Saldo an 318 Tagen bestätigt</dd>
+                    </dl>
+                  </details></td>
+                  <td class="cell-actor">Operator</td>
+                </tr>
+                <tr id="merge-record-41" data-merge="41">
+                  <td class="cell-date">26.09.2026</td>
+                  <td class="cell-kind">Depot</td>
+                  <td class="merge-record__pair"><span class="merge-record__source">Depot 3</span><span class="merge-record__arrow" aria-hidden="true">→</span><span class="visually-hidden">in</span><span class="merge-record__target merge-record__target--gone merge-record__target--deleted">ein inzwischen gelöschtes Depot</span></td>
+                  <td><details class="merge-manifest">
+                    <summary class="disclosure-summary"><svg class="disclosure-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>12 Buchungen verschoben</summary>
+                    <dl class="merge-manifest__counts">
+                      <dt>Buchungen</dt><dd>12 verschoben</dd>
+                      <dt>Prüfung</dt><dd>Stückzahl an 9 Tagen für 2 Wertpapiere bestätigt</dd>
+                    </dl>
+                  </details></td>
+                  <td class="cell-actor">Operator</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Under 560 px: two-line rows (UX-DR27) -->
+          <ul class="phone-rows merge-records__rows" aria-label="Zusammenführungen">
+            <li class="phone-row" data-merge="45">
+              <span class="phone-row__body">
+                <span class="phone-row__name merge-record__pair"><span class="merge-record__source">Alder Creek Timber Fund Class B</span><span class="merge-record__arrow" aria-hidden="true">→</span><span class="visually-hidden">in</span><a class="merge-record__target" href="/securities/12">Alder Creek Timber Fund</a></span>
+                <span class="phone-row__ids">30.09.2026 · Wertpapier · Agent</span>
+              </span>
+              <details class="merge-manifest">
+                <summary class="disclosure-summary"><svg class="disclosure-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>21 Buchungen verschoben, 1 Duplikat entfernt, 380 Kurse ergänzt, 2 Einstellungen entfallen</summary>
+                <dl class="merge-manifest__counts">
+                  <dt>Buchungen</dt><dd>21 verschoben · 1 Duplikat entfernt</dd>
+                  <dt>Kurse</dt><dd>380 ergänzt · 3 verworfen, das Ziel hatte an diesen Tagen einen</dd>
+                  <dt>Klassifizierungen</dt><dd>2 Zuordnungen verschoben · 1 entfallen</dd>
+                  <dt>Zielgewichte</dt><dd>1 entfallen</dd>
+                  <dt>Termine</dt><dd>4 verschoben</dd>
+                  <dt>ISIN</dt><dd>XS0000000001 bleibt; XS0000000002 ist jetzt frühere ISIN</dd>
+                  <dt>Wahl</dt><dd>gleiche Buchungen: als Duplikate entfernen</dd>
+                  <dt>Prüfung</dt><dd>Stückzahl an 64 Tagen in 2 Depots bestätigt</dd>
+                </dl>
+                <p class="merge-manifest__basis">Zählung aus dem Protokoll der Zusammenführung; jede einzelne Zeile steht im Audit-Journal.</p>
+              </details>
+            </li>
+            <li class="phone-row" data-merge="44">
+              <span class="phone-row__body">
+                <span class="phone-row__name merge-record__pair"><span class="merge-record__source">Depot 2 (alt)</span><span class="merge-record__arrow" aria-hidden="true">→</span><span class="visually-hidden">in</span><a class="merge-record__target" href="#account-row-depot-3">Depot 1</a></span>
+                <span class="phone-row__ids">29.09.2026 · Depot · Operator</span>
+              </span>
+              <details class="merge-manifest">
+                <summary class="disclosure-summary"><svg class="disclosure-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>57 Buchungen verschoben, 2 entfernt</summary>
+                <dl class="merge-manifest__counts">
+                  <dt>Buchungen</dt><dd>57 verschoben · 2 entfernt</dd>
+                  <dt>Positions-Buckets</dt><dd>1 übernommen</dd>
+                  <dt>Frühere Namen</dt><dd>1 übernommen</dd>
+                  <dt>Rundung beim Split</dt><dd>1 Position</dd>
+                  <dt>Prüfung</dt><dd>Stückzahl an 140 Tagen für 6 Wertpapiere bestätigt</dd>
+                </dl>
+              </details>
+            </li>
+            <li class="phone-row" data-merge="43">
+              <span class="phone-row__body">
+                <span class="phone-row__name merge-record__pair"><span class="merge-record__source">Tagesgeld</span><span class="merge-record__arrow" aria-hidden="true">→</span><span class="visually-hidden">in</span><a class="merge-record__target" href="#account-row-depot-3">Girokonto</a></span>
+                <span class="phone-row__ids">28.09.2026 · Verrechnungskonto · Agent</span>
+              </span>
+              <details class="merge-manifest" open>
+                <summary class="disclosure-summary"><svg class="disclosure-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>96 Buchungen verschoben, 4 entfernt</summary>
+                <dl class="merge-manifest__counts">
+                  <dt>Buchungen</dt><dd>96 verschoben · 4 entfernt</dd>
+                  <dt>Gesetzte Salden</dt><dd>1 angepasst</dd>
+                  <dt>Bucket-Zuordnungen</dt><dd>1 entfernt</dd>
+                  <dt>Frühere Namen</dt><dd>2 übernommen</dd>
+                  <dt>Wahl</dt><dd>gleiche Buchungen: beide behalten</dd>
+                  <dt>Prüfung</dt><dd>Saldo an 211 Tagen bestätigt</dd>
+                </dl>
+                <p class="merge-manifest__basis">Zählung aus dem Protokoll der Zusammenführung; jede einzelne Zeile steht im Audit-Journal.</p>
+              </details>
+            </li>
+            <li class="phone-row" data-merge="42">
+              <span class="phone-row__body">
+                <span class="phone-row__name merge-record__pair"><span class="merge-record__source">Tagesgeld (alt)</span><span class="merge-record__arrow" aria-hidden="true">→</span><span class="visually-hidden">in</span><span class="merge-record__target merge-record__target--gone">Tagesgeld</span><span class="merge-record__later">jetzt in <a href="#account-row-depot-3">Girokonto</a></span></span>
+                <span class="phone-row__ids">27.09.2026 · Verrechnungskonto · Operator</span>
+              </span>
+              <details class="merge-manifest">
+                <summary class="disclosure-summary"><svg class="disclosure-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>142 Buchungen verschoben, 6 entfernt</summary>
+                <dl class="merge-manifest__counts">
+                  <dt>Buchungen</dt><dd>142 verschoben · 6 entfernt</dd>
+                  <dt>Gesetzte Salden</dt><dd>1 angepasst</dd>
+                  <dt>Frühere Namen</dt><dd>1 übernommen</dd>
+                  <dt>Prüfung</dt><dd>Saldo an 318 Tagen bestätigt</dd>
+                </dl>
+              </details>
+            </li>
+            <li class="phone-row" data-merge="41">
+              <span class="phone-row__body">
+                <span class="phone-row__name merge-record__pair"><span class="merge-record__source">Depot 3</span><span class="merge-record__arrow" aria-hidden="true">→</span><span class="visually-hidden">in</span><span class="merge-record__target merge-record__target--gone merge-record__target--deleted">ein inzwischen gelöschtes Depot</span></span>
+                <span class="phone-row__ids">26.09.2026 · Depot · Operator</span>
+              </span>
+              <details class="merge-manifest">
+                <summary class="disclosure-summary"><svg class="disclosure-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>12 Buchungen verschoben</summary>
+                <dl class="merge-manifest__counts">
+                  <dt>Buchungen</dt><dd>12 verschoben</dd>
+                  <dt>Prüfung</dt><dd>Stückzahl an 9 Tagen für 2 Wertpapiere bestätigt</dd>
+                </dl>
+              </details>
+            </li>
+          </ul>
+        </details>
+      </section>
+
+      <details class="workspace-section"><summary>Portfoliodatensätze (Kompatibilität)</summary></details>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:20px">
+    <div class="col">
+      <div>
+        <p class="cap">A — so öffnet die Seite: zugeklappt</p>
+        <div class="mock-frame mock-after"><span class="mock-tag">Grundzustand</span>
+          <section class="workspace-section is-new">
+            <h2>Zusammenführungen</h2>
+            <details class="section-disclosure">
+              <summary class="disclosure-summary"><svg class="disclosure-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>5 Einträge · zuletzt 30.09.2026</summary>
+            </details>
+          </section>
+        </div>
+      </div>
+      <div>
+        <p class="cap">A — noch keine Zusammenführung<i class="pin">7</i></p>
+        <div class="mock-frame mock-after"><span class="mock-tag">Leer</span>
+          <section class="workspace-section is-new">
+            <h2>Zusammenführungen</h2>
+            <p class="empty-state">Noch keine Zusammenführung — „Zusammenführen in…“ steht im Zeilenmenü jedes Kontos, Depots und Wertpapiers.</p>
+          </section>
+        </div>
+      </div>
+      <div class="notes">
+        <ol class="pins">
+          <li><i class="pin">1</i><b>Ort und Form.</b> Ein eigener Abschnitt nach „Depots und Verrechnungskonten“ und vor den Portfoliodatensätzen, die als Kompatibilitätsrest das Letzte der Seite bleiben. Die Form ist die von Cash-Flow → „Realisiert je Periode“: Überschrift auf der h2-Stufe, darunter <code>.section-disclosure</code> mit Chevron; die Zusammenfassung nennt, was aufgeht („5 Einträge · zuletzt 30.09.2026“). Zugeklappt kostet der Abschnitt zwei Zeilen. Eine Liste für alle drei Arten, in Reihenfolge und Umfang der API (<code>inserted_at:desc,id:desc</code>).</li>
+          <li><i class="pin">2</i><b>Quelle gedämpft, nicht durchgestrichen.</b> Den Eintrag gibt es nicht mehr, seinen Namen schon: Er ist früherer Name des Ziels, und ein Import unter ihm bucht dorthin (§4). Durchgestrichen hieße „ungültig“. Das Ziel trägt den Link in Ruhe (Akzent, unterstrichen, wie G7-A): ein Konto oder Depot springt zu seiner Zeile oben, ein Wertpapier öffnet seine Seite. Für Vorleser steht statt des Pfeils „in“, wie in der Zeile „Quelle → Ziel“ der Vorschau (<code>.merge-route</code>).</li>
+          <li><i class="pin">3</i><b>Ergebnis = die Bestätigung von damals.</b> Die Zusammenfassung sind die Teile der Erfolgsmeldung nach dem Zusammenführen („142 Buchungen verschoben, 6 entfernt“; beim Wertpapier „… Kurse ergänzt, … Einstellungen entfallen“), aus <code>manifest_summary</code> neu gezählt. Aufgeklappt: eine Zeile je Tabelle mit Wert ungleich null, dazu die Wahl und die bestandene Prüfung. Jeder Schlüssel hat ein festes deutsches Wort; ein Rohwert erreicht den Bildschirm nie (Voice and Tone).</li>
+          <li><i class="pin">4</i><b>Von:</b> „Operator“ oder „Agent“, die Wörter des Research-Logs und der Regelversionen (G12.1-A): die Oberfläche schreibt als Operator, ein Token als Agent. Hier an jeder Zeile, wie in der Versionsliste des Regel-Dialogs: In einem Protokoll ist der Urheber eine Spalte, keine Ausnahme.</li>
+          <li><i class="pin">5</i><b>Vom Überlebenden hierher.</b> Das Datum in „zusammengeführt aus … · Datum“ wird ein Link auf seinen Eintrag (<code>?merge=43#merge-record-43</code>): Der Abschnitt öffnet sich, die Aufklappung der Zeile ist offen. Dieselbe Verbindung trägt das Datum in der Grundlagenzeile eines Wertpapiers. Das ist der Satz, den die G13.1-Novelle offen ließ („the line links nothing … until its view lands“).</li>
+          <li><i class="pin">6</i><b>Ein Ziel, das es so nicht mehr gibt.</b> Später selbst zusammengeführt: der Name gedämpft, darunter „jetzt in Girokonto“ als Link zum lebenden Ende (<code>target.merged_into</code>). Inzwischen gelöscht: „ein inzwischen gelöschtes Depot“, kursiv, ohne Link; der Payload trägt dann keinen Namen.</li>
+          <li><i class="pin">7</i><b>Leer:</b> der Abschnitt bleibt und sagt in einem Satz, wo eine Zusammenführung beginnt (State Patterns → Empty per surface). Ohne Aktion: Die Liste legt nichts an.</li>
+          <li><b>Nur lesen.</b> Kein Kebab, keine Auswahl, kein Knopf in der Zeile. Rückgängig gibt es nicht (§12); die Bestätigung sagt das vor dem Schreiben („Das lässt sich nicht rückgängig machen“).</li>
+          <li><b>390 px</b> (rechts, und das zweite Bild dieses Boards): zweizeilige Zeilen (UX-DR27), „Quelle → Ziel“ (600, umbrechend) über „Datum · Art · Von“, darunter über die ganze Breite dieselbe Aufklappung. Nichts scrollt seitwärts.</li>
+        </ol>
+      </div>
+    </div>
+    <div class="ph wide-only">
+      <p class="cap">A — 390 px, ein Wertpapier aufgeklappt</p>
+      <div class="frame"><iframe title="Zusammenführungen bei 390 px" data-clone="merge-records" data-open="45"></iframe></div>
+    </div>
+  </div>
+
+  <div class="argue">
+    <p><b>Für A.</b> Auf Konten &amp; Depots werden Konten und Depots zusammengeführt, und dort sagt der Überlebende heute schon „zusammengeführt aus …“. Wer wissen will, was eine Zusammenführung getan hat, sucht sie hier. Die zweiseitige Regel verlangt die Sicht des Operators auf die Fähigkeit, und die Fähigkeit ist eine Liste aller Arten, neueste zuerst. A zeigt genau die, nicht drei Teilsichten. Neu ist keine Form: h2 plus <code>.section-disclosure</code>, <code>.data-table</code>, <code>.phone-row</code>, <code>.empty-state</code>. Neu sind die fünf Regelgruppen des Vorschlags: Tabellenbreite, die gedämpfte Quelle, die Zählliste, die Zeile unter 560 px und der Link im Datum.</p>
+    <p><b>Gegen A.</b> Wertpapiere stehen auf einer Seite über Konten. Wer eine Wertpapier-Zusammenführung sucht, geht zuerst zu „Wertpapiere“. Dort führt das Datum in der Grundlagenzeile des Überlebenden hierher ⑤, und die Art steht an jeder Zeile. Eine eigene Liste je Seite wären zwei Listen für eine Lesung. Zusammenführungen sind selten, Dutzende und nicht Tausende; die Liste braucht weder Filter noch Seiten. Erreicht sie je die Grenze der API (100), sagt die Zusammenfassung „die neuesten 100“ (UX-DR26).</p>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE B ============================ -->
+<section class="mock-board">
+  <h2>Variante B — derselbe Abschnitt auf Transaktionen → Import <small>Datenherkunft</small></h2>
+  <p class="mock-note">Gleiche Zeile, gleiche Aufklappung; der Abschnitt steht unter der Ablagezone der Importseite. Die Begründung: Eine Zusammenführung ändert, was ein erneuter Import tut (zurückgezogene Hashes, frühere Namen, ADR-0050 §2–§4).</p>
+  <div class="mock-frame"><span class="mock-tag" style="display:block;padding:4px 10px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mock-ink)">B — Import, erste Stufe</span>
+    <div class="pg">
+      <div class="pg-top"><h3>Importe</h3><span>Portfolio-Performance-Exporte als CSV oder JSON importieren.</span></div>
+      <nav class="area-tabs" aria-label="Bereichsreiter" style="padding:0 18px"><a class="area-tab" href="#">Historie</a><a class="area-tab is-active" aria-current="page" href="#">Import</a></nav>
+      <div class="workspace-page" style="padding:16px 18px;display:grid;gap:16px">
+        <form class="workspace-section import-drop-zone" style="min-height:0;padding:1.5rem">
+          <svg class="import-drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" width="40" height="40"><path d="M12 3v12"/><path d="M7 8l5-5 5 5"/><path d="M5 19h14"/></svg>
+          <h2>Portfolio-Performance-Export hier ablegen</h2>
+          <p class="muted">CSV oder JSON v1 · max. 20 MB · vor der Bestätigung wird nichts gespeichert</p>
+          <button type="button" class="button-primary">Datei wählen</button>
+        </form>
+        <p class="stub">(Die Ablagezone ist auf der Seite 320 px hoch; hier gekürzt.)</p>
+        <div data-clone-into="merge-records" data-rows="3"></div>
+      </div>
+    </div>
+  </div>
+  <div class="argue">
+    <p><b>B.</b> Das Argument trägt nur halb. <code>/imports</code> hat keine Herkunftsfläche: Die Seite ist ein Ablauf in drei Stufen (Ablage → Vorschau → fertig, <code>imports_live.ex</code>), und die Liste stünde nur in der ersten, unter der Ablagezone. Vorschau und Ergebnis ersetzen sie. Frühere Importe listet die Seite nicht; die Liste wäre ihre erste Historie, und zwar die einer anderen Handlung. Wer gerade zusammengeführt hat, ist auf Konten &amp; Depots oder Wertpapiere, nicht im Bereich Transaktionen. Und was ein Import über eine Zusammenführung wissen muss, sagt seine Vorschau schon an der Zeile (G4-A: „bucht auf …, früherer Name“). B ist die richtige Antwort erst, wenn die Importseite eine Historie ihrer eigenen Läufe bekommt; dann gehört die Liste daneben, nicht davor.</p>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE C ============================ -->
+<section class="mock-board">
+  <h2>Variante C — keine Liste; je Überlebendem eine Aufklappung <small>genügt der zweiseitigen Regel nicht</small></h2>
+  <p class="mock-note">Die Zeile „zusammengeführt aus …“ wird ein Knopf; aufgeklappt nennt sie jede Zusammenführung in dieses Konto mit Ergebnis und Urheber. Das Wertpapier bekäme dieselbe Aufklappung an seiner Grundlagenzeile, auf der Wertpapierseite.</p>
+  <div class="mock-row">
+    <div class="mock-frame" style="flex:2 1 600px;min-width:0"><span class="mock-tag" style="display:block;padding:4px 10px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mock-ink)">C — Konten &amp; Depots</span><div class="workspace-section">
+      <div class="data-table-wrapper"><table class="data-table accounts-table">
+        <thead><tr><th>Name</th><th>Währung</th><th>Liquiditätsrolle</th><th>Saldo</th><th class="row-actions-head"><span class="visually-hidden">Aktionen</span></th></tr></thead>
+        <tbody class="account-pair">
+          <tr class="account-row--depot">
+            <td class="cell-name cell-name--depot"><span class="account-name">Depot 1</span><span class="account-sub account-sub--merged"><button type="button" class="sub-toggle" aria-expanded="false"><svg class="disclosure-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>zusammengeführt aus Depot 2 (alt) · 29.09.2026</button></span></td>
+            <td class="cell-currency cell-currency--empty"></td><td class="cell-role cell-role--empty"></td><td class="cell-balance cell-balance--empty"></td>
+            <td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen für Depot 1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></td>
+          </tr>
+          <tr class="account-row--cash">
+            <td class="cell-name cell-name--cash"><span class="account-cash-name">Girokonto</span><span class="account-sub account-sub--merged"><button type="button" class="sub-toggle" aria-expanded="true"><svg class="disclosure-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="transform:rotate(90deg)"><path d="m9 6 6 6-6 6"/></svg>zusammengeführt aus Tagesgeld · 28.09.2026</button></span>
+              <ul class="sub-list is-new"><li>Tagesgeld · 28.09.2026 · Agent — 96 Buchungen verschoben, 4 entfernt</li></ul>
+              <span class="account-sub account-sub--former">früher: Tagesgeld (alt)</span></td>
+            <td class="cell-currency">EUR</td>
+            <td class="cell-role"><div class="liquidity-role-field"><select aria-label="Liquiditätsrolle"><option>Reserve</option></select></div></td>
+            <td class="cell-balance"><span class="cash-balance"><span class="cash-balance__amount num">4.120,35 EUR</span><span class="cash-balance__asof">Stand 30.09.2026</span></span></td>
+            <td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen für Girokonto"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></td>
+          </tr>
+        </tbody>
+      </table></div>
+    </div></div>
+    <div class="missing" style="flex:1 1 300px"><b>Unter C nirgends zu sehen, obwohl die API sie listet:</b>
+      <ul>
+        <li>27.09. · Tagesgeld (alt) → Tagesgeld — das Ziel ist selbst zusammengeführt; „Girokonto“ zeigt nur seine direkten Zusammenführungen (<code>merged_from</code>)</li>
+        <li>26.09. · Depot 3 → ein gelöschtes Depot — kein Überlebender, an dem es hängen könnte</li>
+        <li>30.09. · Alder Creek Timber Fund Class B → … — auf einer anderen Seite, in einer zweiten Form</li>
+      </ul>
+    </div>
+  </div>
+  <div class="argue">
+    <p><b>C.</b> Die Information bliebe beim Konto, und die Seite bekäme keinen Abschnitt. Der zweiseitigen Regel genügt C nicht. Ein Überlebender zeigt nur die Zusammenführungen, deren Ziel er selbst ist (ADR-0050 §12, <code>Lifecycle.merged_from/2</code>). Wurde das Ziel später zusammengeführt oder gelöscht, hängt der Eintrag an keiner Zeile mehr. Es gibt keine Reihenfolge über Konten hinweg („was ist letzte Woche passiert?“), und Wertpapiere hätten eine zweite Form auf einer anderen Seite. Die API ist eine Liste; C wären verstreute Bruchstücke, von denen zwei fehlen. A braucht C auch nicht als Ergänzung: Das Datum am Überlebenden führt zu seinem Eintrag ⑤.</p>
+  </div>
+</section>
+
+<!-- ============================ WHAT THE ROW READS ============================ -->
+<section class="mock-board">
+  <h2>Was eine Zeile aus <code>GET /api/v1/merges</code> liest <small>keine Wahl</small></h2>
+  <p class="mock-note">Die Sicht zeigt, was die Lesung des Agenten trägt, nicht mehr: Was nur die Sicht wüsste, wäre die zweiseitige Lücke in der anderen Richtung. Wo der Payload für eine Zeile nicht reicht, steht es unten als offene Frage.</p>
+  <table class="t">
+    <thead><tr><th>Feld</th><th>In der Zeile</th></tr></thead>
+    <tbody>
+      <tr><td><code>id</code></td><td>Anker <code>merge-record-&lt;id&gt;</code>, Ziel des Links ⑤</td></tr>
+      <tr><td><code>inserted_at</code></td><td>Datum, als lokales Kalenderdatum (<code>Clock.local_date</code>, wie „zusammengeführt aus …“), im Format der Seite</td></tr>
+      <tr><td><code>kind</code></td><td>Art: Verrechnungskonto · Depot · Wertpapier</td></tr>
+      <tr><td><code>source.name</code></td><td>Quelle, gedämpft (aus dem Schnappschuss der Quelle)</td></tr>
+      <tr><td><code>target.id</code>, <code>target.name</code></td><td>Ziel als Link; <code>name</code> leer = „ein inzwischen gelöschtes …“</td></tr>
+      <tr><td><code>target.merged_into</code></td><td>„jetzt in …“; der Payload gibt nur die Id, den Namen nimmt die Sicht aus den Konten und Wertpapieren, die sie lädt</td></tr>
+      <tr><td><code>actor_type</code></td><td>Von: <code>owner_ui</code> → Operator, <code>api_token_rw</code> → Agent. <code>actor_label</code> bleibt ungezeigt, bis Tokens Namen tragen (FU-6)</td></tr>
+      <tr><td><code>manifest_summary.transactions</code>, <code>.quotes</code>, <code>.category_assignments</code>, <code>.position_targets</code>, <code>.position_bucket_overrides</code></td><td>die Ergebnis-Phrase und die Zeilen der Aufklappung</td></tr>
+      <tr><td><code>manifest_summary.restated_anchors</code>, <code>.securities_accounts</code>, <code>.cash_account_buckets</code>, <code>.securities_account_buckets</code>, <code>.former_names</code>, <code>.security_events</code>, <code>.rounding_differences</code></td><td>weitere Zeilen der Aufklappung, nur wenn ungleich null</td></tr>
+      <tr><td><code>manifest_summary.choices</code>, <code>.identifiers</code>, <code>.linearity</code></td><td>„Wahl“, „ISIN“, „Prüfung“</td></tr>
+      <tr><td><code>meta.count</code>, <code>meta.limit</code></td><td>Anzahl in der Zusammenfassung; an der Grenze „die neuesten 100“</td></tr>
+      <tr><td><code>portfolio_id</code>, <code>plan_digest</code></td><td>nicht gezeigt (das zweite liefert die Liste nicht)</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<script>
+  // Board helper: renders the section of variant A at a true 390 px (iframe)
+  // and a shortened copy in variant B. Not part of the proposal.
+  const head = '<link rel="stylesheet" href="../../../../../priv/static/app.css">' + document.getElementById('proposal').outerHTML;
+  function copySection(id, opts) {
+    const node = document.getElementById(id).cloneNode(true);
+    node.removeAttribute('id');
+    node.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+    node.querySelectorAll('i.pin').forEach(e => e.remove());
+    node.querySelectorAll('.is-new').forEach(e => { if (e !== node) e.classList.remove('is-new'); });
+    if (opts.open) {
+      node.querySelectorAll('.merge-manifest').forEach(d => d.removeAttribute('open'));
+      node.querySelectorAll('.merge-records__rows [data-merge="' + opts.open + '"] .merge-manifest').forEach(d => d.setAttribute('open', ''));
+    }
+    if (opts.closeAll) node.querySelectorAll('.merge-manifest').forEach(d => d.removeAttribute('open'));
+    if (opts.rows) {
+      node.querySelectorAll('.merge-records-table tbody tr').forEach((r, i) => { if (i >= opts.rows) r.remove(); });
+      node.querySelectorAll('.merge-records__rows > li').forEach((r, i) => { if (i >= opts.rows) r.remove(); });
+    }
+    return node;
+  }
+  document.querySelectorAll('iframe[data-clone]').forEach(f => {
+    const node = copySection(f.dataset.clone, { open: f.dataset.open });
+    node.classList.remove('is-new');
+    f.addEventListener('load', () => {
+      try { f.style.height = (f.contentDocument.documentElement.scrollHeight + 4) + 'px'; } catch (e) {}
+    });
+    f.srcdoc = '<!doctype html><html lang="de"><head><meta charset="utf-8">' + head +
+      '<style>body{margin:0;background:var(--color-bg)}</style></head><body>' + node.outerHTML + '</body></html>';
+  });
+  document.querySelectorAll('[data-clone-into]').forEach(slot => {
+    const node = copySection(slot.dataset.cloneInto, { closeAll: true, rows: Number(slot.dataset.rows) });
+    slot.replaceWith(node);
+  });
+</script>
+</body>
+</html>
