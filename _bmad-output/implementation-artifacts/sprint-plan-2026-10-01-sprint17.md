@@ -274,6 +274,14 @@ refusal details print ids as a charlist), and the test-hygiene four #916,
 #927, #934, #936. If a story finds that one of them does change rendered
 output after all, it stops and gets a before/after board before its code.
 
+**One fixture repair rides this lane, its own commit:** six test files
+(eleven lines) use the names and identifiers of real government bonds,
+where the hard rule asks for synthetic fixtures only. They get invented
+names and identifiers in the same shape (a name the asset-class inference
+still files as `government_bond`, an identifier with a valid check digit
+that no real issue can carry, as the bond discovery's fixture does), with
+every assertion unchanged.
+
 ### Lane M — maintenance (always present; PR α)
 
 - **Take:** #975 (phoenix 1.8.15) and #976 (`@types/node` 24.19.0), each its
